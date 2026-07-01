@@ -1,5 +1,5 @@
 App({
   globalData: {
-    appName: '股神',
+    appName: '中国股神',
   },
 });
