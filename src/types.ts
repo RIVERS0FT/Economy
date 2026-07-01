@@ -2,11 +2,15 @@ export type ResourceId = 'grain' | 'ore' | 'textile' | 'energy';
 
 export type Inventory = Record<ResourceId, number>;
 
-export type GamePhase = 'lobby' | 'planning' | 'trade' | 'contract' | 'roundEnd' | 'finished';
+export type GamePhase = 'lobby' | 'playing' | 'paused' | 'finished';
 
 export type TradeStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
 
 export type ConnectionStatus = 'offline' | 'connecting' | 'connected' | 'error';
+
+export type UnitKind = 'scout' | 'carrier' | 'guard';
+
+export type StructureKind = 'hq' | 'farm' | 'mine' | 'plant' | 'exchange';
 
 export interface MarketGood {
   id: ResourceId;
@@ -14,15 +18,6 @@ export interface MarketGood {
   icon: string;
   price: number;
   trend: number;
-}
-
-export interface Contract {
-  id: string;
-  title: string;
-  description: string;
-  requirements: Partial<Inventory>;
-  rewardCredits: number;
-  rewardReputation: number;
 }
 
 export interface Player {
@@ -34,8 +29,39 @@ export interface Player {
   credits: number;
   reputation: number;
   inventory: Inventory;
-  contractsCompleted: number;
-  productionFocus: ResourceId;
+  unitCap: number;
+  defeated: boolean;
+}
+
+export interface MapNode {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  resource: ResourceId;
+  ownerPlayerId?: string;
+  capture: Record<string, number>;
+}
+
+export interface Unit {
+  id: string;
+  ownerPlayerId: string;
+  kind: UnitKind;
+  name: string;
+  x: number;
+  y: number;
+  targetNodeId?: string;
+  hp: number;
+  speed: number;
+  cargo: Inventory;
+}
+
+export interface Structure {
+  id: string;
+  ownerPlayerId: string;
+  nodeId: string;
+  kind: StructureKind;
+  level: number;
 }
 
 export interface MultiplayerSession {
@@ -57,26 +83,29 @@ export interface TradeOffer {
   giveItems: Partial<Inventory>;
   receiveItems: Partial<Inventory>;
   message: string;
-  round: number;
+  tick: number;
   status: TradeStatus;
 }
 
 export interface GameLogEntry {
   id: string;
-  round: number;
+  tick: number;
   text: string;
-  tone: 'info' | 'success' | 'warning' | 'trade' | 'network';
+  tone: 'info' | 'success' | 'warning' | 'trade' | 'network' | 'combat';
 }
 
 export interface GameState {
-  round: number;
-  maxRounds: number;
+  tick: number;
+  elapsedSeconds: number;
+  maxSeconds: number;
   targetReputation: number;
   phase: GamePhase;
   session: MultiplayerSession;
   players: Player[];
   market: MarketGood[];
-  contracts: Contract[];
+  mapNodes: MapNode[];
+  units: Unit[];
+  structures: Structure[];
   tradeOffers: TradeOffer[];
   log: GameLogEntry[];
   winnerId?: string;
