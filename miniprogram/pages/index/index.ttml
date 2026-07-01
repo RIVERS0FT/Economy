@@ -76,8 +76,8 @@
       <text class="meta">当前 {{workSeatLevel}} / 3 级</text>
     </view>
     <view class="upgrade-box">
-      <text wx:if="{{isMaxWorkSeatLevel}}">工作席位已满级。</text>
-      <text wx:else>升级到 {{nextWorkSeatLevel}} 级需要 {{nextUpgradeCost}} 金融货币。</text>
+      <text tt:if="{{isMaxWorkSeatLevel}}">工作席位已满级。</text>
+      <text tt:else>升级到 {{nextWorkSeatLevel}} 级需要 {{nextUpgradeCost}} 金融货币。</text>
     </view>
     <button class="sub-button" disabled="{{!canUpgradeWorkSeat}}" bindtap="upgradeWorkSeat">升级工作席位</button>
   </view>
