@@ -1,0 +1,13 @@
+{
+  "projectname": "Economy",
+  "description": "Economy 抖音小程序单机最小可玩版本",
+  "appid": "",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "./",
+  "setting": {
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "urlCheck": false
+  }
+}
