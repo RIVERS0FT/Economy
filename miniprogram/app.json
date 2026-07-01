@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "Economy",
+    "navigationBarBackgroundColor": "#101827",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f4f7fb"
+  }
+}
