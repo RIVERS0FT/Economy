@@ -2,7 +2,7 @@
   <view class="hero card">
     <view>
       <text class="eyebrow">抖音小程序单机版</text>
-      <text class="title">股神</text>
+      <text class="title">中国股神</text>
       <text class="subtitle">点击工作，生产食品包，出售获得金融货币，逐步升级座驾、房子和工作席位。</text>
     </view>
     <view class="save-pill">{{saveStatus}}</view>
