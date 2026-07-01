@@ -2,9 +2,11 @@ export type ResourceId = 'grain' | 'ore' | 'textile' | 'energy';
 
 export type Inventory = Record<ResourceId, number>;
 
-export type GamePhase = 'planning' | 'trade' | 'contract' | 'roundEnd' | 'finished';
+export type GamePhase = 'lobby' | 'planning' | 'trade' | 'contract' | 'roundEnd' | 'finished';
 
-export type TradeStatus = 'pending' | 'accepted' | 'rejected';
+export type TradeStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
+
+export type ConnectionStatus = 'offline' | 'connecting' | 'connected' | 'error';
 
 export interface MarketGood {
   id: ResourceId;
@@ -26,12 +28,24 @@ export interface Contract {
 export interface Player {
   id: string;
   name: string;
-  isHuman: boolean;
+  isHost: boolean;
+  isLocal: boolean;
+  online: boolean;
   credits: number;
   reputation: number;
   inventory: Inventory;
   contractsCompleted: number;
-  strategy: 'balanced' | 'aggressive' | 'collector' | 'merchant';
+  productionFocus: ResourceId;
+}
+
+export interface MultiplayerSession {
+  roomCode: string;
+  serverUrl: string;
+  status: ConnectionStatus;
+  localPlayerId: string;
+  hostPlayerId: string;
+  lastSyncedAt?: number;
+  error?: string;
 }
 
 export interface TradeOffer {
@@ -51,7 +65,7 @@ export interface GameLogEntry {
   id: string;
   round: number;
   text: string;
-  tone: 'info' | 'success' | 'warning' | 'trade';
+  tone: 'info' | 'success' | 'warning' | 'trade' | 'network';
 }
 
 export interface GameState {
@@ -59,6 +73,7 @@ export interface GameState {
   maxRounds: number;
   targetReputation: number;
   phase: GamePhase;
+  session: MultiplayerSession;
   players: Player[];
   market: MarketGood[];
   contracts: Contract[];
