@@ -1,23 +1,22 @@
 .page {
   min-height: 100vh;
   box-sizing: border-box;
-  padding: 28rpx;
+  padding: 24rpx 22rpx 48rpx;
   background: linear-gradient(180deg, #eef4ff 0%, #f7f8fb 38%, #ffffff 100%);
 }
 
 .card {
-  margin-bottom: 24rpx;
-  padding: 28rpx;
+  margin-bottom: 22rpx;
+  padding: 26rpx;
   border-radius: 28rpx;
   background: #ffffff;
-  box-shadow: 0 16rpx 42rpx rgba(17, 31, 54, 0.08);
+  box-shadow: 0 14rpx 36rpx rgba(17, 31, 54, 0.08);
 }
 
 .hero {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20rpx;
+  flex-direction: column;
+  gap: 18rpx;
   background: #101827;
   color: #ffffff;
 }
@@ -38,21 +37,21 @@
 
 .title {
   display: block;
-  font-size: 56rpx;
-  line-height: 1.1;
+  font-size: 52rpx;
+  line-height: 1.12;
   font-weight: 900;
 }
 
 .subtitle {
   display: block;
-  margin-top: 16rpx;
+  margin-top: 14rpx;
   color: #d7e2f7;
   font-size: 26rpx;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
 .save-pill {
-  flex-shrink: 0;
+  align-self: flex-start;
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
   background: rgba(255, 255, 255, 0.12);
@@ -63,28 +62,31 @@
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18rpx;
-  margin-bottom: 24rpx;
+  gap: 16rpx;
+  margin-bottom: 22rpx;
 }
 
 .stat-card {
-  padding: 26rpx;
+  min-height: 118rpx;
+  box-sizing: border-box;
+  padding: 22rpx;
   border-radius: 24rpx;
   background: #ffffff;
-  box-shadow: 0 12rpx 34rpx rgba(17, 31, 54, 0.07);
+  box-shadow: 0 10rpx 28rpx rgba(17, 31, 54, 0.07);
 }
 
 .stat-label {
   display: block;
   color: #66728a;
-  font-size: 24rpx;
+  font-size: 23rpx;
 }
 
 .stat-value {
   display: block;
   margin-top: 8rpx;
   color: #101827;
-  font-size: 44rpx;
+  font-size: 40rpx;
+  line-height: 1.15;
   font-weight: 900;
 }
 
@@ -92,29 +94,33 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18rpx;
-  margin-bottom: 22rpx;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
 }
 
 .section-title {
   display: block;
   color: #101827;
-  font-size: 34rpx;
+  font-size: 32rpx;
+  line-height: 1.25;
   font-weight: 900;
 }
 
 .meta {
   flex-shrink: 0;
+  max-width: 260rpx;
   color: #7d8ba8;
-  font-size: 24rpx;
+  font-size: 23rpx;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .main-button,
 .sub-button {
   width: 100%;
-  height: 92rpx;
-  line-height: 92rpx;
-  border-radius: 24rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  border-radius: 26rpx;
   background: linear-gradient(135deg, #3267ff, #7c4dff);
   color: #ffffff;
   font-size: 30rpx;
@@ -122,18 +128,18 @@
 }
 
 .sub-button {
-  height: 82rpx;
-  line-height: 82rpx;
+  height: 88rpx;
+  line-height: 88rpx;
   background: #172033;
   font-size: 28rpx;
 }
 
 .small-button {
   flex-shrink: 0;
-  width: 128rpx;
-  height: 64rpx;
-  line-height: 64rpx;
-  border-radius: 18rpx;
+  width: 132rpx;
+  height: 68rpx;
+  line-height: 68rpx;
+  border-radius: 20rpx;
   background: #172033;
   color: #ffffff;
   font-size: 24rpx;
@@ -154,9 +160,7 @@ button[disabled] {
 }
 
 .two-column {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0;
+  display: block;
 }
 
 .formula,
@@ -167,34 +171,38 @@ button[disabled] {
   background: #f3f6fc;
   color: #30415f;
   font-size: 26rpx;
+  line-height: 1.45;
   font-weight: 700;
 }
 
 .life-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 14rpx;
   margin-bottom: 22rpx;
 }
 
 .life-item {
-  padding: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  padding: 20rpx;
   border-radius: 20rpx;
   background: #f3f6fc;
 }
 
 .life-label {
-  display: block;
   color: #7d8ba8;
-  font-size: 22rpx;
+  font-size: 24rpx;
 }
 
 .life-value {
-  display: block;
-  margin-top: 8rpx;
   color: #101827;
-  font-size: 26rpx;
+  font-size: 28rpx;
+  line-height: 1.3;
   font-weight: 900;
+  text-align: right;
 }
 
 .asset-action {
@@ -220,21 +228,21 @@ button[disabled] {
   margin-top: 8rpx;
   color: #66728a;
   font-size: 22rpx;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .mini-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
   color: #30415f;
   font-size: 24rpx;
 }
 
 .ghost-button {
   min-width: 120rpx;
-  height: 56rpx;
-  line-height: 56rpx;
+  height: 60rpx;
+  line-height: 60rpx;
   padding: 0 24rpx;
   border-radius: 999rpx;
   background: #eef2f8;
