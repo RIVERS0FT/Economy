@@ -2,6 +2,8 @@ const SAVE_KEY = 'economy_single_player_save_v1';
 const PRODUCE_FOOD_LABOR_COST = 3;
 const WORK_COOLDOWN_MS = 200;
 const MAX_WORK_SEAT_LEVEL = 3;
+const MAX_VEHICLE_LEVEL = 3;
+const MAX_HOUSE_LEVEL = 3;
 const FOOD_PACK_BASE_PRICE = 5;
 
 const WORK_SEAT_YIELDS = {
@@ -15,10 +17,29 @@ const WORK_SEAT_UPGRADE_COSTS = {
   3: 150,
 };
 
+const VEHICLE_LEVELS = {
+  0: { name: '步行通勤', value: 0 },
+  1: { name: '二手电动车', cost: 30, value: 30 },
+  2: { name: '家用代步车', cost: 120, value: 120 },
+  3: { name: '商务轿车', cost: 400, value: 400 },
+};
+
+const HOUSE_LEVELS = {
+  0: { name: '合租小屋', value: 0 },
+  1: { name: '单身公寓', cost: 80, value: 80 },
+  2: { name: '小区住宅', cost: 300, value: 300 },
+  3: { name: '城市别墅', cost: 1000, value: 1000 },
+};
+
 function createDefaultSave() {
   const now = Date.now();
   return {
     version: 1,
+    profile: {
+      age: 18,
+      vehicleLevel: 0,
+      houseLevel: 0,
+    },
     labor: 0,
     credits: 0,
     goods: {
@@ -35,11 +56,12 @@ function createDefaultSave() {
       totalFoodProduced: 0,
       totalFoodSold: 0,
       totalCreditsEarned: 0,
+      yearsPassed: 0,
     },
     logs: [
       {
         id: `log-${now}`,
-        text: '欢迎进入 Economy。点击工作，开始生产第一份食品包。',
+        text: '欢迎进入《我不是股神》。点击工作，开始生产第一份食品包。',
         createdAt: now,
       },
     ],
@@ -59,9 +81,22 @@ function normalizeSave(raw) {
     MAX_WORK_SEAT_LEVEL,
     Math.max(1, safeNumber(raw.facilities && raw.facilities.workSeatLevel, 1)),
   );
+  const vehicleLevel = Math.min(
+    MAX_VEHICLE_LEVEL,
+    Math.max(0, safeNumber(raw.profile && raw.profile.vehicleLevel, 0)),
+  );
+  const houseLevel = Math.min(
+    MAX_HOUSE_LEVEL,
+    Math.max(0, safeNumber(raw.profile && raw.profile.houseLevel, 0)),
+  );
 
   return {
     version: 1,
+    profile: {
+      age: Math.max(1, safeNumber(raw.profile && raw.profile.age, 18)),
+      vehicleLevel,
+      houseLevel,
+    },
     labor: Math.max(0, safeNumber(raw.labor)),
     credits: Math.max(0, safeNumber(raw.credits)),
     goods: {
@@ -78,6 +113,7 @@ function normalizeSave(raw) {
       totalFoodProduced: Math.max(0, safeNumber(raw.stats && raw.stats.totalFoodProduced)),
       totalFoodSold: Math.max(0, safeNumber(raw.stats && raw.stats.totalFoodSold)),
       totalCreditsEarned: Math.max(0, safeNumber(raw.stats && raw.stats.totalCreditsEarned)),
+      yearsPassed: Math.max(0, safeNumber(raw.stats && raw.stats.yearsPassed)),
     },
     logs: Array.isArray(raw.logs) && raw.logs.length > 0 ? raw.logs.slice(0, 12) : fallback.logs,
     updatedAt: safeNumber(raw.updatedAt, Date.now()),
@@ -106,6 +142,21 @@ function writeSave(save) {
 
 Page({
   data: {
+    age: 18,
+    vehicleName: VEHICLE_LEVELS[0].name,
+    houseName: HOUSE_LEVELS[0].name,
+    vehicleLevel: 0,
+    houseLevel: 0,
+    nextVehicleLevel: 1,
+    nextVehicleName: VEHICLE_LEVELS[1].name,
+    nextVehicleCost: VEHICLE_LEVELS[1].cost,
+    nextHouseLevel: 1,
+    nextHouseName: HOUSE_LEVELS[1].name,
+    nextHouseCost: HOUSE_LEVELS[1].cost,
+    isMaxVehicleLevel: false,
+    isMaxHouseLevel: false,
+    canUpgradeVehicle: false,
+    canUpgradeHouse: false,
     labor: 0,
     credits: 0,
     foodPack: 0,
@@ -128,6 +179,7 @@ Page({
       totalFoodProduced: 0,
       totalFoodSold: 0,
       totalCreditsEarned: 0,
+      yearsPassed: 0,
     },
   },
 
@@ -152,12 +204,37 @@ Page({
     const clickYield = WORK_SEAT_YIELDS[workSeatLevel] || 1;
     const foodPack = save.goods.foodPack;
     const foodPackPrice = save.market.foodPackPrice;
-    const totalAsset = save.credits + foodPack * foodPackPrice;
+    const vehicleLevel = save.profile.vehicleLevel;
+    const houseLevel = save.profile.houseLevel;
+    const vehicleValue = VEHICLE_LEVELS[vehicleLevel].value || 0;
+    const houseValue = HOUSE_LEVELS[houseLevel].value || 0;
+    const totalAsset = save.credits + foodPack * foodPackPrice + vehicleValue + houseValue;
     const nextWorkSeatLevel = Math.min(workSeatLevel + 1, MAX_WORK_SEAT_LEVEL);
     const isMaxWorkSeatLevel = workSeatLevel >= MAX_WORK_SEAT_LEVEL;
     const nextUpgradeCost = isMaxWorkSeatLevel ? 0 : WORK_SEAT_UPGRADE_COSTS[nextWorkSeatLevel];
+    const nextVehicleLevel = Math.min(vehicleLevel + 1, MAX_VEHICLE_LEVEL);
+    const nextHouseLevel = Math.min(houseLevel + 1, MAX_HOUSE_LEVEL);
+    const isMaxVehicleLevel = vehicleLevel >= MAX_VEHICLE_LEVEL;
+    const isMaxHouseLevel = houseLevel >= MAX_HOUSE_LEVEL;
+    const nextVehicleCost = isMaxVehicleLevel ? 0 : VEHICLE_LEVELS[nextVehicleLevel].cost;
+    const nextHouseCost = isMaxHouseLevel ? 0 : HOUSE_LEVELS[nextHouseLevel].cost;
 
     this.setData({
+      age: save.profile.age,
+      vehicleName: VEHICLE_LEVELS[vehicleLevel].name,
+      houseName: HOUSE_LEVELS[houseLevel].name,
+      vehicleLevel,
+      houseLevel,
+      nextVehicleLevel,
+      nextVehicleName: isMaxVehicleLevel ? '已满级' : VEHICLE_LEVELS[nextVehicleLevel].name,
+      nextVehicleCost,
+      nextHouseLevel,
+      nextHouseName: isMaxHouseLevel ? '已满级' : HOUSE_LEVELS[nextHouseLevel].name,
+      nextHouseCost,
+      isMaxVehicleLevel,
+      isMaxHouseLevel,
+      canUpgradeVehicle: !isMaxVehicleLevel && save.credits >= nextVehicleCost,
+      canUpgradeHouse: !isMaxHouseLevel && save.credits >= nextHouseCost,
       labor: save.labor,
       credits: save.credits,
       foodPack,
@@ -252,6 +329,50 @@ Page({
     this.saveData.credits -= cost;
     this.saveData.facilities.workSeatLevel = nextLevel;
     this.persistAndSync(`花费 ${cost} 金融货币，工作席位升级到 ${nextLevel} 级。`);
+  },
+
+  passOneYear() {
+    this.saveData.profile.age += 1;
+    this.saveData.stats.yearsPassed += 1;
+    this.persistAndSync(`又经营了一年，现在 ${this.saveData.profile.age} 岁。`);
+  },
+
+  upgradeVehicle() {
+    const currentLevel = this.saveData.profile.vehicleLevel;
+    if (currentLevel >= MAX_VEHICLE_LEVEL) {
+      tt.showToast({ title: '座驾已满级', icon: 'none' });
+      return;
+    }
+
+    const nextLevel = currentLevel + 1;
+    const nextVehicle = VEHICLE_LEVELS[nextLevel];
+    if (this.saveData.credits < nextVehicle.cost) {
+      tt.showToast({ title: '金融货币不足', icon: 'none' });
+      return;
+    }
+
+    this.saveData.credits -= nextVehicle.cost;
+    this.saveData.profile.vehicleLevel = nextLevel;
+    this.persistAndSync(`花费 ${nextVehicle.cost} 金融货币，座驾升级为${nextVehicle.name}。`);
+  },
+
+  upgradeHouse() {
+    const currentLevel = this.saveData.profile.houseLevel;
+    if (currentLevel >= MAX_HOUSE_LEVEL) {
+      tt.showToast({ title: '房子已满级', icon: 'none' });
+      return;
+    }
+
+    const nextLevel = currentLevel + 1;
+    const nextHouse = HOUSE_LEVELS[nextLevel];
+    if (this.saveData.credits < nextHouse.cost) {
+      tt.showToast({ title: '金融货币不足', icon: 'none' });
+      return;
+    }
+
+    this.saveData.credits -= nextHouse.cost;
+    this.saveData.profile.houseLevel = nextLevel;
+    this.persistAndSync(`花费 ${nextHouse.cost} 金融货币，房子升级为${nextHouse.name}。`);
   },
 
   resetGame() {
