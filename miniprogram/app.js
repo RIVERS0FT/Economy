@@ -1,5 +1,5 @@
 App({
   globalData: {
-    appName: 'Economy',
+    appName: '我不是股神',
   },
 });
