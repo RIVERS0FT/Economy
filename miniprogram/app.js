@@ -1,5 +1,5 @@
 App({
   globalData: {
-    appName: '我不是股神',
+    appName: '重生之我不是股神',
   },
 });
