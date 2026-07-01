@@ -61,7 +61,7 @@ function createDefaultSave() {
     logs: [
       {
         id: `log-${now}`,
-        text: '欢迎进入《股神》。点击工作，开始生产第一份食品包。',
+        text: '欢迎进入《中国股神》。点击工作，开始生产第一份食品包。',
         createdAt: now,
       },
     ],
