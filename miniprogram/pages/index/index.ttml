@@ -1,0 +1,114 @@
+<view class="page">
+  <view class="hero card">
+    <view>
+      <text class="eyebrow">抖音小程序单机版</text>
+      <text class="title">Economy</text>
+      <text class="subtitle">点击工作，生产食品包，出售获得金融货币，再升级工作席位。</text>
+    </view>
+    <view class="save-pill">{{saveStatus}}</view>
+  </view>
+
+  <view class="stats-grid">
+    <view class="stat-card">
+      <text class="stat-label">劳动力</text>
+      <text class="stat-value">{{labor}}</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-label">食品包</text>
+      <text class="stat-value">{{foodPack}}</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-label">金融货币</text>
+      <text class="stat-value">{{credits}}</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-label">总资产</text>
+      <text class="stat-value">{{totalAsset}}</text>
+    </view>
+  </view>
+
+  <view class="card action-card primary-action">
+    <view class="section-head">
+      <view>
+        <text class="eyebrow">Work</text>
+        <text class="section-title">点击工作</text>
+      </view>
+      <text class="meta">席位 {{workSeatLevel}} 级 · 每次 +{{clickYield}}</text>
+    </view>
+    <button class="main-button" disabled="{{isWorkCoolingDown}}" bindtap="clickWork">
+      {{isWorkCoolingDown ? '冷却中...' : '点击工作'}}
+    </button>
+    <text class="hint">点击只产生劳动力，不直接产出金融货币。</text>
+  </view>
+
+  <view class="two-column">
+    <view class="card">
+      <view class="section-head">
+        <view>
+          <text class="eyebrow">Production</text>
+          <text class="section-title">生产食品包</text>
+        </view>
+        <text class="meta">消耗 {{produceFoodLaborCost}} 劳动力</text>
+      </view>
+      <view class="formula">{{produceFoodLaborCost}} 劳动力 → 1 食品包</view>
+      <button class="sub-button" disabled="{{!canProduceFood}}" bindtap="produceFoodPack">生产食品包</button>
+    </view>
+
+    <view class="card">
+      <view class="section-head">
+        <view>
+          <text class="eyebrow">Market</text>
+          <text class="section-title">出售食品包</text>
+        </view>
+        <text class="meta">当前价 {{foodPackPrice}}</text>
+      </view>
+      <view class="formula">1 食品包 → {{foodPackPrice}} 金融货币</view>
+      <button class="sub-button" disabled="{{!canSellFood}}" bindtap="sellFoodPack">出售食品包</button>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-head">
+      <view>
+        <text class="eyebrow">Upgrade</text>
+        <text class="section-title">工作席位</text>
+      </view>
+      <text class="meta">当前 {{workSeatLevel}} / 3 级</text>
+    </view>
+    <view class="upgrade-box">
+      <text wx:if="{{isMaxWorkSeatLevel}}">工作席位已满级。</text>
+      <text wx:else>升级到 {{nextWorkSeatLevel}} 级需要 {{nextUpgradeCost}} 金融货币。</text>
+    </view>
+    <button class="sub-button" disabled="{{!canUpgradeWorkSeat}}" bindtap="upgradeWorkSeat">升级工作席位</button>
+  </view>
+
+  <view class="card">
+    <view class="section-head">
+      <view>
+        <text class="eyebrow">Stats</text>
+        <text class="section-title">统计</text>
+      </view>
+    </view>
+    <view class="mini-grid">
+      <text>点击次数：{{stats.totalClicks}}</text>
+      <text>生产食品包：{{stats.totalFoodProduced}}</text>
+      <text>出售食品包：{{stats.totalFoodSold}}</text>
+      <text>累计收入：{{stats.totalCreditsEarned}}</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-head">
+      <view>
+        <text class="eyebrow">Log</text>
+        <text class="section-title">操作日志</text>
+      </view>
+      <button class="ghost-button" bindtap="resetGame">重置</button>
+    </view>
+    <view class="log-list">
+      <block tt:for="{{logs}}" tt:key="id">
+        <text class="log-item">{{item.text}}</text>
+      </block>
+    </view>
+  </view>
+</view>
