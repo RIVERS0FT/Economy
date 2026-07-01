@@ -128,6 +128,18 @@
   font-size: 28rpx;
 }
 
+.small-button {
+  flex-shrink: 0;
+  width: 128rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  border-radius: 18rpx;
+  background: #172033;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
 button[disabled] {
   background: #d9dfeb !important;
   color: #8a95a8 !important;
@@ -156,6 +168,59 @@ button[disabled] {
   color: #30415f;
   font-size: 26rpx;
   font-weight: 700;
+}
+
+.life-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14rpx;
+  margin-bottom: 22rpx;
+}
+
+.life-item {
+  padding: 18rpx;
+  border-radius: 20rpx;
+  background: #f3f6fc;
+}
+
+.life-label {
+  display: block;
+  color: #7d8ba8;
+  font-size: 22rpx;
+}
+
+.life-value {
+  display: block;
+  margin-top: 8rpx;
+  color: #101827;
+  font-size: 26rpx;
+  font-weight: 900;
+}
+
+.asset-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-top: 16rpx;
+  padding: 20rpx;
+  border-radius: 20rpx;
+  background: #f8fafd;
+}
+
+.asset-title {
+  display: block;
+  color: #101827;
+  font-size: 26rpx;
+  font-weight: 900;
+}
+
+.asset-desc {
+  display: block;
+  margin-top: 8rpx;
+  color: #66728a;
+  font-size: 22rpx;
+  line-height: 1.4;
 }
 
 .mini-grid {
