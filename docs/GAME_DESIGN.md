@@ -1,4 +1,4 @@
-# Economy Arena 游戏设定记录
+# Economy 游戏设定记录
 
 ## 1. 当前方向
 
