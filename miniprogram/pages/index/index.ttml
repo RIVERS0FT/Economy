@@ -2,8 +2,8 @@
   <view class="hero card">
     <view>
       <text class="eyebrow">抖音小程序单机版</text>
-      <text class="title">Economy</text>
-      <text class="subtitle">点击工作，生产食品包，出售获得金融货币，再升级工作席位。</text>
+      <text class="title">我不是股神</text>
+      <text class="subtitle">点击工作，生产食品包，出售获得金融货币，逐步升级座驾、房子和工作席位。</text>
     </view>
     <view class="save-pill">{{saveStatus}}</view>
   </view>
@@ -24,6 +24,48 @@
     <view class="stat-card">
       <text class="stat-label">总资产</text>
       <text class="stat-value">{{totalAsset}}</text>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-head">
+      <view>
+        <text class="eyebrow">Profile</text>
+        <text class="section-title">个人信息</text>
+      </view>
+      <button class="ghost-button" bindtap="passOneYear">过一年</button>
+    </view>
+    <view class="life-grid">
+      <view class="life-item">
+        <text class="life-label">年龄</text>
+        <text class="life-value">{{age}} 岁</text>
+      </view>
+      <view class="life-item">
+        <text class="life-label">座驾</text>
+        <text class="life-value">{{vehicleName}}</text>
+      </view>
+      <view class="life-item">
+        <text class="life-label">房子</text>
+        <text class="life-value">{{houseName}}</text>
+      </view>
+    </view>
+
+    <view class="asset-action">
+      <view>
+        <text class="asset-title">升级座驾</text>
+        <text class="asset-desc" tt:if="{{isMaxVehicleLevel}}">座驾已满级。</text>
+        <text class="asset-desc" tt:else>下一档：{{nextVehicleName}}，需要 {{nextVehicleCost}} 金融货币。</text>
+      </view>
+      <button class="small-button" disabled="{{!canUpgradeVehicle}}" bindtap="upgradeVehicle">升级</button>
+    </view>
+
+    <view class="asset-action">
+      <view>
+        <text class="asset-title">改善住房</text>
+        <text class="asset-desc" tt:if="{{isMaxHouseLevel}}">房子已满级。</text>
+        <text class="asset-desc" tt:else>下一档：{{nextHouseName}}，需要 {{nextHouseCost}} 金融货币。</text>
+      </view>
+      <button class="small-button" disabled="{{!canUpgradeHouse}}" bindtap="upgradeHouse">升级</button>
     </view>
   </view>
 
@@ -91,6 +133,7 @@
     </view>
     <view class="mini-grid">
       <text>点击次数：{{stats.totalClicks}}</text>
+      <text>经营年数：{{stats.yearsPassed}}</text>
       <text>生产食品包：{{stats.totalFoodProduced}}</text>
       <text>出售食品包：{{stats.totalFoodSold}}</text>
       <text>累计收入：{{stats.totalCreditsEarned}}</text>
