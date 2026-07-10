@@ -12,6 +12,27 @@
   border-radius: 50%;
 }
 
+.login-form input:-webkit-autofill,
+.login-form input:-webkit-autofill:hover,
+.login-form input:-webkit-autofill:active {
+  caret-color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px #07100d inset;
+  box-shadow: 0 0 0 1000px #07100d inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.login-form input:-webkit-autofill:focus {
+  caret-color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow:
+    0 0 0 1000px #07100d inset,
+    0 0 0 3px rgba(123, 228, 158, .08);
+  box-shadow:
+    0 0 0 1000px #07100d inset,
+    0 0 0 3px rgba(123, 228, 158, .08);
+}
+
 @media (max-width: 720px) {
   .login-shell {
     position: relative;
