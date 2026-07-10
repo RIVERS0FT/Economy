@@ -68,7 +68,7 @@ jobs:
             "$SERVER_USER@$SERVER_HOST" \
             'test -f /var/www/game/economy/index.html'
 
-      - name: Verify Nginx route
+      - name: Verify Nginx route and HTTPS certificate
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -84,22 +84,13 @@ jobs:
             exit 1
           fi
 
-          if curl --fail --silent --show-error \
+          if ! curl --fail --silent --show-error \
             --resolve "game.riversoft.top:443:$SERVER_HOST" \
             --retry 3 --retry-delay 2 \
             https://game.riversoft.top/economy/ > /dev/null; then
-            exit 0
+            echo HTTPS_CERT_OR_ROUTE_FAILED
+            exit 1
           fi
-
-          if curl --fail --silent --show-error \
-            --resolve "game.riversoft.top:80:$SERVER_HOST" \
-            --retry 3 --retry-delay 2 \
-            http://game.riversoft.top/economy/ > /dev/null; then
-            exit 0
-          fi
-
-          echo PUBLIC_HTTP_HTTPS_UNREACHABLE
-          exit 1
 
       - name: Report deployment status
         if: always()
@@ -119,7 +110,7 @@ jobs:
             DETAIL="$({
               cat /tmp/economy-deploy.log 2>/dev/null || true
               cat /tmp/economy-verify.log 2>/dev/null || true
-            } | grep -Eai 'DEPLOY_DIRECTORY_NOT_WRITABLE|NGINX_LOCAL_ROUTE_FAILED|PUBLIC_HTTP_HTTPS_UNREACHABLE|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+            } | grep -Eai 'DEPLOY_DIRECTORY_NOT_WRITABLE|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
 
             if [ -n "$DETAIL" ]; then
               DESCRIPTION="$DETAIL"
