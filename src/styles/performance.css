@@ -1,7 +1,6 @@
 /* Rendering safeguards for the information-dense Economy workspace. */
 html {
   scroll-behavior: auto;
-  scrollbar-gutter: stable;
 }
 
 body {
