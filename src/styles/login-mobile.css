@@ -49,7 +49,7 @@
     display: flex;
     align-items: center;
     gap: .7rem;
-    font-size: 1.05rem;
+    font-size: 1.25rem;
     letter-spacing: .02em;
   }
 
@@ -62,9 +62,9 @@
 
   .login-brand h1 {
     max-width: 13em;
-    margin: .9rem 0 0;
-    font-size: clamp(2rem, 9vw, 2.65rem);
-    line-height: 1.06;
+    margin: 1rem 0 0;
+    font-size: clamp(2.35rem, 10vw, 3.05rem);
+    line-height: 1.03;
     letter-spacing: -.05em;
   }
 
@@ -162,6 +162,6 @@
   }
 
   .login-brand h1 {
-    font-size: 1.9rem;
+    font-size: 2.15rem;
   }
 }
