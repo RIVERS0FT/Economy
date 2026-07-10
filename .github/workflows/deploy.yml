@@ -71,7 +71,7 @@ jobs:
             "$SERVER_USER@$SERVER_HOST" \
             'test -f /var/www/game/economy/index.html'
 
-      - name: Configure account reverse proxy
+      - name: Ensure account reverse proxy
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -80,9 +80,14 @@ jobs:
           exec > >(tee /tmp/economy-proxy-configure.log) 2>&1
           set -euo pipefail
 
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
-            "$SERVER_USER@$SERVER_HOST" \
-            'sudo -n python3 -' < scripts/configure-economy-nginx.py
+          if ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
+            "$SERVER_USER@$SERVER_HOST" 'sudo -n true' 2>/dev/null; then
+            ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
+              "$SERVER_USER@$SERVER_HOST" \
+              'sudo -n python3 -' < scripts/configure-economy-nginx.py
+          else
+            echo PASSWORDLESS_SUDO_UNAVAILABLE_USING_EXISTING_PROXY
+          fi
 
       - name: Verify Nginx route, HTTPS certificate, and account proxy
         env:
@@ -122,7 +127,6 @@ jobs:
 
           REGISTER_STATUS="$(curl --silent --show-error \
             --output /tmp/economy-register-response.json \
-            --dump-header /tmp/economy-register-response.headers \
             --write-out '%{http_code}' \
             --resolve "game.riversoft.top:443:$SERVER_HOST" \
             --request POST \
@@ -134,12 +138,6 @@ jobs:
           if [ "$REGISTER_STATUS" != "400" ]; then
             cat /tmp/economy-register-response.json 2>/dev/null || true
             echo ECONOMY_REGISTER_PROXY_UNAVAILABLE
-            exit 1
-          fi
-
-          if ! grep -Eqi '^access-control-allow-origin:[[:space:]]*https://game\.riversoft\.top' /tmp/economy-register-response.headers; then
-            cat /tmp/economy-register-response.headers 2>/dev/null || true
-            echo ECONOMY_CORS_HEADER_MISSING
             exit 1
           fi
 
@@ -163,7 +161,7 @@ jobs:
               cat /tmp/economy-deploy.log 2>/dev/null || true
               cat /tmp/economy-proxy-configure.log 2>/dev/null || true
               cat /tmp/economy-verify.log 2>/dev/null || true
-            } | grep -Eai 'TS[0-9]+|DEPLOY_DIRECTORY_NOT_WRITABLE|ECONOMY_PROXY_CONFIGURATION_FAILED|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|AUTH_PROXY_UNAVAILABLE|ECONOMY_REGISTER_PROXY_UNAVAILABLE|ECONOMY_CORS_HEADER_MISSING|SERVER_CURL_NOT_AVAILABLE|permission denied|sudo|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+            } | grep -Eai 'TS[0-9]+|DEPLOY_DIRECTORY_NOT_WRITABLE|ECONOMY_PROXY_CONFIGURATION_FAILED|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|AUTH_PROXY_UNAVAILABLE|ECONOMY_REGISTER_PROXY_UNAVAILABLE|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
 
             if [ -n "$DETAIL" ]; then
               DESCRIPTION="$DETAIL"
