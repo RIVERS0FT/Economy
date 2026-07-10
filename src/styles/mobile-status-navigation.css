@@ -21,9 +21,19 @@
   :root {
     --mobile-asset-bar-height: 68px;
     --mobile-nav-height: 76px;
+    --mobile-chrome-glass-surface: rgba(10, 27, 20, .76);
   }
 
-  /* Compact status bar: framed icon on the left, value above the label. */
+  /* Uniform translucent fill plus backdrop blur keeps the glass effect without
+   * reintroducing an opacity gradient. */
+  .asset-bar.panel,
+  .sidebar.panel {
+    background: var(--mobile-chrome-glass-surface);
+    backdrop-filter: blur(18px) saturate(118%);
+    -webkit-backdrop-filter: blur(18px) saturate(118%);
+  }
+
+  /* Compact glass status bar: plain icon on the left, value above the label. */
   .asset-bar.panel {
     grid-template-columns: repeat(5, minmax(118px, 1fr));
     gap: .35rem;
@@ -41,13 +51,13 @@
   .asset-bar-item:last-child {
     min-width: 0;
     display: grid;
-    grid-template-columns: 1.75rem minmax(0, 1fr);
+    grid-template-columns: 1.35rem minmax(0, 1fr);
     grid-template-rows: auto auto;
     grid-template-areas:
       "icon value"
       "icon label";
     align-items: center;
-    column-gap: .45rem;
+    column-gap: .42rem;
     row-gap: .02rem;
     border: 1px solid rgba(212, 245, 224, .11);
     border-radius: 1rem;
@@ -58,17 +68,16 @@
   .asset-bar-item::before {
     content: "•";
     grid-area: icon;
-    width: 1.75rem;
-    height: 1.75rem;
-    display: grid;
-    place-items: center;
-    border: 1px solid rgba(123, 228, 158, .22);
-    border-radius: .62rem;
+    width: 1.35rem;
+    display: block;
     color: var(--green);
-    background: rgba(123, 228, 158, .07);
-    font-size: .9rem;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    font-size: 1.02rem;
     font-weight: 900;
     line-height: 1;
+    text-align: center;
   }
 
   .asset-bar-item:nth-child(1)::before { content: "¤"; }
@@ -105,10 +114,8 @@
     background: rgba(55, 169, 95, .09);
   }
 
-  /* Bottom navigation uses a solid surface: no opacity gradient. */
   .sidebar.panel {
     padding: .4rem .75rem;
-    background: var(--mobile-chrome-surface);
   }
 
   .sidebar-nav {
@@ -138,17 +145,16 @@
   }
 
   .sidebar-nav-button > span {
-    width: 1.85rem;
-    height: 1.85rem;
-    display: grid;
-    place-items: center;
-    border: 1px solid rgba(212, 245, 224, .1);
-    border-radius: .68rem;
+    width: auto;
+    height: auto;
+    display: block;
+    border: 0;
+    border-radius: 0;
     color: rgba(194, 211, 201, .68);
-    background: rgba(255, 255, 255, .025);
-    font-size: 1.08rem;
+    background: transparent;
+    font-size: 1.22rem;
     line-height: 1;
-    transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+    transition: color 140ms ease, transform 140ms ease;
   }
 
   .sidebar-nav-button strong {
@@ -177,9 +183,10 @@
   }
 
   .sidebar-nav-button.active > span {
-    border-color: rgba(123, 228, 158, .5);
+    border: 0;
     color: var(--green);
-    background: rgba(123, 228, 158, .12);
+    background: transparent;
+    transform: translateY(-1px) scale(1.04);
   }
 
   .sidebar-nav-button:focus-visible {
