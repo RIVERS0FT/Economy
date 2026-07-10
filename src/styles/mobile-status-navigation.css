@@ -21,19 +21,27 @@
   :root {
     --mobile-asset-bar-height: 68px;
     --mobile-nav-height: 76px;
-    --mobile-chrome-glass-surface: rgba(10, 27, 20, .76);
+    --mobile-liquid-glass-surface: rgba(9, 25, 18, .56);
+    --mobile-liquid-glass-border: rgba(225, 255, 235, .18);
+    --mobile-nav-scroll-gutter: 1.25rem;
   }
 
-  /* Uniform translucent fill plus backdrop blur keeps the glass effect without
-   * reintroducing an opacity gradient. */
+  /* Uniform translucent fill, stronger background blur and edge highlights
+   * create a liquid-glass surface without an opacity gradient. */
   .asset-bar.panel,
   .sidebar.panel {
-    background: var(--mobile-chrome-glass-surface);
-    backdrop-filter: blur(18px) saturate(118%);
-    -webkit-backdrop-filter: blur(18px) saturate(118%);
+    border-color: var(--mobile-liquid-glass-border);
+    background: var(--mobile-liquid-glass-surface);
+    background-clip: padding-box;
+    box-shadow:
+      0 14px 36px rgba(0, 0, 0, .22),
+      inset 0 1px 0 rgba(255, 255, 255, .16),
+      inset 0 -1px 0 rgba(255, 255, 255, .05);
+    backdrop-filter: blur(26px) saturate(150%) brightness(1.06);
+    -webkit-backdrop-filter: blur(26px) saturate(150%) brightness(1.06);
   }
 
-  /* Compact glass status bar: plain icon on the left, value above the label. */
+  /* Compact liquid-glass status bar: plain icon on the left, value above the label. */
   .asset-bar.panel {
     grid-template-columns: repeat(5, minmax(118px, 1fr));
     gap: .35rem;
@@ -114,15 +122,25 @@
     background: rgba(55, 169, 95, .09);
   }
 
+  /* Horizontal edge space belongs to the scroll content, not the card shell.
+   * The spacers move with the buttons and remain visible at both scroll limits. */
   .sidebar.panel {
-    padding: .4rem .75rem;
+    padding: .4rem 0;
   }
 
   .sidebar-nav {
     gap: .2rem;
-    padding-inline: .1rem;
-    scroll-padding-inline: .75rem;
+    padding-inline: 0;
+    scroll-padding-inline: var(--mobile-nav-scroll-gutter);
     scrollbar-width: none;
+  }
+
+  .sidebar-nav::before,
+  .sidebar-nav::after {
+    content: "";
+    flex: 0 0 var(--mobile-nav-scroll-gutter);
+    align-self: stretch;
+    pointer-events: none;
   }
 
   .sidebar-nav-button {
