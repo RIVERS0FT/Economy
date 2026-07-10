@@ -6,7 +6,7 @@
   --scrollbar-thumb: rgba(105, 220, 145, 0.42);
   --scrollbar-thumb-hover: rgba(125, 238, 163, 0.68);
   --app-card-radius: 1rem;
-  --mobile-chrome-inset: .4rem;
+  --mobile-chrome-inset: 1rem;
   --mobile-asset-bar-height: 80px;
   --mobile-nav-height: 60px;
   --mobile-nav-gap: 1rem;
