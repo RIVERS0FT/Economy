@@ -1,0 +1,41 @@
+/* Shared card geometry.
+ * Desktop cards follow the login form card; mobile cards follow the rounded
+ * authentication shell shown on narrow screens. */
+:root {
+  --card-radius: 1.5rem;
+  --app-card-radius: var(--card-radius);
+}
+
+.panel,
+.player-mini-card,
+.empty-state,
+.market-quote-grid > div,
+.wealth-total,
+.listing-card,
+.asset-card-grid > div,
+.frozen-cards > div {
+  border-radius: var(--card-radius);
+}
+
+.login-card.panel,
+.auth-service-warning {
+  border-radius: var(--card-radius);
+}
+
+@media (max-width: 720px) {
+  :root {
+    --card-radius: 2.5rem;
+  }
+
+  .login-shell,
+  .asset-bar.panel,
+  .sidebar.panel {
+    border-radius: var(--card-radius);
+  }
+
+  /* Controls and status chips intentionally keep their smaller control radii;
+   * only surfaces that function as cards use the shared card token. */
+  .login-card.panel {
+    border-radius: 0;
+  }
+}
