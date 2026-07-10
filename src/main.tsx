@@ -108,11 +108,12 @@ function LoginKeyboardDock() {
         return;
       }
 
-      const layoutHeight = document.documentElement.clientHeight;
       const visibleHeight = visualViewport?.height ?? window.innerHeight;
       const viewportOffsetTop = visualViewport?.offsetTop ?? 0;
-      const measuredInset = Math.max(0, layoutHeight - visibleHeight - viewportOffsetTop);
-      const keyboardInset = Math.min(measuredInset, layoutHeight * 0.65);
+      const visibleBottom = viewportOffsetTop + visibleHeight;
+      const shellBottom = loginShell.getBoundingClientRect().bottom;
+      const measuredInset = Math.max(0, shellBottom - visibleBottom);
+      const keyboardInset = Math.min(measuredInset, loginShell.clientHeight * 0.65);
 
       loginShell.dataset.keyboardDocked = 'true';
       loginShell.style.setProperty('--login-keyboard-inset', `${Math.round(keyboardInset)}px`);
