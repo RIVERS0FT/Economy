@@ -10,6 +10,10 @@ concurrency:
   group: deploy-economy-website
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -188,3 +192,41 @@ jobs:
 
           curl --fail --silent --show-error --retry 5 --retry-delay 3 \
             http://game.riversoft.top/economy/ > /dev/null
+
+      - name: Report deployment status
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            STATE="success"
+            DESCRIPTION="Economy deployment succeeded"
+          else
+            STATE="failure"
+            DESCRIPTION="Economy deployment failed"
+          fi
+
+          TARGET_URL="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+          python3 - "$STATE" "$DESCRIPTION" "$TARGET_URL" <<'PYTHON_SCRIPT' > /tmp/deploy-status.json
+          import json
+          import sys
+
+          print(json.dumps({
+              "state": sys.argv[1],
+              "description": sys.argv[2],
+              "context": "deploy/economy",
+              "target_url": sys.argv[3],
+          }))
+          PYTHON_SCRIPT
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --data-binary @/tmp/deploy-status.json \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" > /dev/null
