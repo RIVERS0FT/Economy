@@ -12,8 +12,8 @@
   --mobile-nav-offset: var(--mobile-chrome-inset);
   --mobile-nav-gap: 1rem;
   --mobile-content-gap: .75rem;
-  --mobile-chrome-fade-size: 1.25rem;
   --mobile-chrome-surface: #0a1b14;
+  --mobile-chrome-surface-transparent: rgba(10, 27, 20, 0);
 }
 
 html,
@@ -224,45 +224,27 @@ html[data-app-surface="game"] body {
     padding: var(--mobile-chrome-inset);
   }
 
+  /* The scrollport fills the workspace. Its content starts below the asset bar,
+   * then scrolls behind both translucent chrome cards. */
   .workspace {
     position: relative;
     isolation: isolate;
-    gap: 0;
-    padding-bottom: calc(
-      var(--mobile-nav-height) +
-      var(--mobile-nav-gap) +
-      max(var(--mobile-nav-offset), env(safe-area-inset-bottom))
-    );
-  }
-
-  /* The fade is a separate layer below the opaque asset card. It overlays the
-   * scrollport so content remains visible through the fading alpha. */
-  .workspace::before {
-    content: "";
-    position: absolute;
-    z-index: 2;
-    top: var(--mobile-asset-bar-height);
-    right: 0;
-    left: 0;
-    height: var(--mobile-chrome-fade-size);
-    border-radius: 0 0 var(--app-card-radius) var(--app-card-radius);
-    background: linear-gradient(
-      180deg,
-      var(--mobile-chrome-surface),
-      rgba(10, 27, 20, 0)
-    );
-    pointer-events: none;
+    display: block;
+    padding: 0;
   }
 
   .page-scroll {
     position: relative;
     z-index: 1;
-    padding-top: calc(var(--mobile-chrome-fade-size) + var(--mobile-content-gap));
-    padding-bottom: .25rem;
-    scroll-padding-top: calc(
-      var(--mobile-chrome-fade-size) +
-      var(--mobile-content-gap)
+    width: 100%;
+    height: 100%;
+    padding-top: calc(var(--mobile-asset-bar-height) + var(--mobile-content-gap));
+    padding-bottom: calc(
+      var(--mobile-nav-height) +
+      var(--mobile-nav-gap) +
+      max(var(--mobile-nav-offset), env(safe-area-inset-bottom))
     );
+    scroll-padding-top: calc(var(--mobile-asset-bar-height) + var(--mobile-content-gap));
     scroll-padding-bottom: calc(
       var(--mobile-nav-height) +
       var(--mobile-nav-gap) +
@@ -270,22 +252,29 @@ html[data-app-surface="game"] body {
     );
   }
 
-  /* Both cards are fully opaque. Transparency is rendered only by layers
-   * outside and below the cards, never inside their own backgrounds. */
+  /* The card background itself fades continuously from 0% to 100%. Only the
+   * background changes alpha; text, icons and controls remain fully opaque. */
   .asset-bar.panel,
   .sidebar.panel {
     border-radius: var(--app-card-radius);
     border-color: rgba(212, 245, 224, .12);
     border-bottom-color: transparent;
-    background: var(--mobile-chrome-surface);
+    background: linear-gradient(
+      180deg,
+      var(--mobile-chrome-surface) 0%,
+      var(--mobile-chrome-surface-transparent) 100%
+    );
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
 
   .asset-bar.panel {
-    position: relative;
+    position: absolute;
     z-index: 3;
+    top: 0;
+    right: 0;
+    left: 0;
     height: var(--mobile-asset-bar-height);
   }
 
@@ -294,25 +283,6 @@ html[data-app-surface="game"] body {
     bottom: max(var(--mobile-nav-offset), env(safe-area-inset-bottom));
     left: var(--mobile-chrome-inset);
     height: var(--mobile-nav-height);
-    isolation: isolate;
-    overflow: visible;
-  }
-
-  .sidebar.panel::after {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    top: calc(100% - 1px);
-    right: 0;
-    left: 0;
-    height: var(--mobile-chrome-fade-size);
-    border-radius: 0 0 var(--app-card-radius) var(--app-card-radius);
-    background: linear-gradient(
-      180deg,
-      var(--mobile-chrome-surface),
-      rgba(10, 27, 20, 0)
-    );
-    pointer-events: none;
   }
 
   .sidebar-nav {
