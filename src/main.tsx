@@ -4,6 +4,7 @@ import App from './App';
 import { configureRuntimePerformance } from './utils/runtimePerformance';
 import './styles/globals.css';
 import './styles/performance.css';
+import './styles/viewport.css';
 
 configureRuntimePerformance();
 
