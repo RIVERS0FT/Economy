@@ -6,9 +6,12 @@
   --scrollbar-thumb: rgba(105, 220, 145, 0.42);
   --scrollbar-thumb-hover: rgba(125, 238, 163, 0.68);
   --app-card-radius: 1rem;
+  --mobile-chrome-inset: .4rem;
   --mobile-nav-height: 60px;
-  --mobile-nav-offset: .35rem;
+  --mobile-nav-offset: var(--mobile-chrome-inset);
   --mobile-nav-gap: 1rem;
+  --mobile-chrome-surface: rgba(10, 27, 20, .9);
+  --mobile-chrome-fade-start: 82%;
 }
 
 html,
@@ -214,12 +217,16 @@ html[data-app-surface="game"] body {
 }
 
 @media (max-width: 720px) {
+  /* Normative mobile chrome rules are documented in docs/DESIGN_SYSTEM.md. */
+  .game-shell {
+    padding: var(--mobile-chrome-inset);
+  }
+
   .workspace {
     padding-bottom: calc(
       var(--mobile-nav-height) +
-      var(--mobile-nav-offset) +
       var(--mobile-nav-gap) +
-      env(safe-area-inset-bottom)
+      max(var(--mobile-nav-offset), env(safe-area-inset-bottom))
     );
   }
 
@@ -227,45 +234,42 @@ html[data-app-surface="game"] body {
     padding-bottom: .25rem;
     scroll-padding-bottom: calc(
       var(--mobile-nav-height) +
-      var(--mobile-nav-offset) +
       var(--mobile-nav-gap) +
-      env(safe-area-inset-bottom)
+      max(var(--mobile-nav-offset), env(safe-area-inset-bottom))
     );
   }
 
-  /* Mobile top and bottom chrome share the same radius as home cards. Their
-   * backgrounds are translucent directional gradients instead of opaque panels. */
+  /* The surface is flat through its content area. Only the bottom edge fades
+   * to transparent; controls and text remain fully opaque. */
   .asset-bar.panel,
   .sidebar.panel {
     border-radius: var(--app-card-radius);
     border-color: rgba(212, 245, 224, .12);
+    border-bottom-color: transparent;
+    background: linear-gradient(
+      180deg,
+      var(--mobile-chrome-surface) 0%,
+      var(--mobile-chrome-surface) var(--mobile-chrome-fade-start),
+      rgba(10, 27, 20, 0) 100%
+    );
     box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
 
-  .asset-bar.panel {
-    background: linear-gradient(
-      180deg,
-      rgba(15, 34, 26, .88) 0%,
-      rgba(8, 23, 16, .54) 64%,
-      rgba(8, 23, 16, .16) 100%
-    );
-  }
-
   .sidebar.panel {
+    right: var(--mobile-chrome-inset);
     bottom: max(var(--mobile-nav-offset), env(safe-area-inset-bottom));
+    left: var(--mobile-chrome-inset);
     height: var(--mobile-nav-height);
-    background: linear-gradient(
-      0deg,
-      rgba(15, 34, 26, .92) 0%,
-      rgba(8, 23, 16, .58) 66%,
-      rgba(8, 23, 16, .16) 100%
-    );
   }
 
   .sidebar-nav {
     overflow-x: auto;
     overflow-y: hidden;
+  }
+
+  .sidebar-nav-button.active {
+    background: rgba(50, 159, 88, .18);
   }
 }
