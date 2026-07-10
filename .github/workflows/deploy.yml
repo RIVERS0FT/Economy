@@ -1,0 +1,65 @@
+name: Deploy Economy Website
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-economy-website
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package.json
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build website
+        run: npm run build
+
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
+
+      - name: Deploy to Riversoft website
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          test -n "$SERVER_HOST"
+          test -n "$SERVER_USER"
+          test -n "$SERVER_PORT"
+          test -n "$SERVER_SSH_KEY"
+
+          mkdir -p ~/.ssh
+          echo "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
+            "$SERVER_USER@$SERVER_HOST" \
+            "mkdir -p /var/www/riversoft/economy"
+
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+            dist/ "$SERVER_USER@$SERVER_HOST:/var/www/riversoft/economy/"
+
+      - name: Verify public website
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 \
+            https://riversoft.top/economy/ > /dev/null
