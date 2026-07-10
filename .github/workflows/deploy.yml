@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
@@ -33,10 +33,10 @@ jobs:
       - name: Build website
         run: npm run build
 
-      - name: Install deployment tools
+      - name: Install rsync
         run: sudo apt-get update && sudo apt-get install -y rsync
 
-      - name: Deploy Economy game path
+      - name: Upload static website
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -52,145 +52,38 @@ jobs:
           test -n "$SERVER_SSH_KEY"
 
           mkdir -p ~/.ssh
-          echo "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
 
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
             "$SERVER_USER@$SERVER_HOST" \
-            'sudo mkdir -p /var/www/game/economy && sudo chown -R "$(id -un)":"$(id -gn)" /var/www/game/economy && mkdir -p /tmp/economy-deploy'
+            'test -d /var/www/game/economy && test -w /var/www/game/economy || { echo DEPLOY_DIRECTORY_NOT_WRITABLE; exit 1; }'
 
           rsync -az --delete \
             -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"
 
-          rsync -az \
-            -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            deploy/nginx/game.riversoft.top.economy-location.conf \
-            deploy/nginx/game.riversoft.top.conf \
-            "$SERVER_USER@$SERVER_HOST:/tmp/economy-deploy/"
-
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
-            "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE_SCRIPT'
+            "$SERVER_USER@$SERVER_HOST" \
+            'test -f /var/www/game/economy/index.html'
+
+      - name: Verify Nginx route
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
           set -euo pipefail
 
-          SITE_NAME="game.riversoft.top"
-          SNIPPET_PATH="/etc/nginx/snippets/game-riversoft-economy.conf"
-          CERT_PATH="/etc/letsencrypt/live/$SITE_NAME/fullchain.pem"
-
-          sudo mkdir -p /etc/nginx/snippets
-          sudo install -m 0644 \
-            /tmp/economy-deploy/game.riversoft.top.economy-location.conf \
-            "$SNIPPET_PATH"
-
-          SITE_CONFIG=""
-          for candidate in \
-            "/etc/nginx/sites-available/$SITE_NAME" \
-            "/etc/nginx/sites-available/$SITE_NAME.conf" \
-            "/etc/nginx/conf.d/$SITE_NAME.conf" \
-            "/etc/nginx/sites-enabled/$SITE_NAME" \
-            "/etc/nginx/sites-enabled/$SITE_NAME.conf"; do
-            if [ -f "$candidate" ]; then
-              SITE_CONFIG="$candidate"
-              break
-            fi
-          done
-
-          if [ -z "$SITE_CONFIG" ]; then
-            SITE_CONFIG="/etc/nginx/sites-available/$SITE_NAME"
-            sudo install -m 0644 \
-              /tmp/economy-deploy/game.riversoft.top.conf \
-              "$SITE_CONFIG"
-            sudo ln -sfn "$SITE_CONFIG" "/etc/nginx/sites-enabled/$SITE_NAME"
-          else
-            sudo env SITE_CONFIG="$SITE_CONFIG" python3 - <<'PYTHON_SCRIPT'
-          import os
-          import re
-          from pathlib import Path
-
-          path = Path(os.environ["SITE_CONFIG"])
-          text = path.read_text(encoding="utf-8")
-          include_line = "    include /etc/nginx/snippets/game-riversoft-economy.conf;\n"
-          server_pattern = re.compile(r"\bserver\s*\{")
-          domain_pattern = re.compile(
-              r"\bserver_name\s+[^;]*\bgame\.riversoft\.top\b[^;]*;"
-          )
-
-          insert_positions = []
-          matched_domain = False
-
-          for match in server_pattern.finditer(text):
-              open_brace = text.find("{", match.start(), match.end())
-              depth = 0
-              end = None
-
-              for index in range(open_brace, len(text)):
-                  character = text[index]
-                  if character == "{":
-                      depth += 1
-                  elif character == "}":
-                      depth -= 1
-                      if depth == 0:
-                          end = index
-                          break
-
-              if end is None:
-                  continue
-
-              block = text[match.start() : end + 1]
-              if not domain_pattern.search(block):
-                  continue
-
-              matched_domain = True
-              if "game-riversoft-economy.conf" not in block:
-                  insert_positions.append(end)
-
-          if not matched_domain:
-              raise SystemExit(
-                  f"No server block for game.riversoft.top found in {path}"
-              )
-
-          for position in reversed(insert_positions):
-              text = text[:position] + "\n" + include_line + text[position:]
-
-          path.write_text(text, encoding="utf-8")
-          PYTHON_SCRIPT
-          fi
-
-          sudo rm -f \
-            /etc/nginx/sites-enabled/economy.riversoft.top \
-            /etc/nginx/sites-enabled/economy.riversoft.top.conf
-
-          sudo nginx -t
-          sudo systemctl reload nginx
-
-          if [ ! -f "$CERT_PATH" ]; then
-            if ! command -v certbot >/dev/null 2>&1; then
-              sudo apt-get update
-              sudo apt-get install -y certbot python3-certbot-nginx
-            fi
-
-            sudo certbot --nginx \
-              -d game.riversoft.top \
-              --non-interactive \
-              --agree-tos \
-              --register-unsafely-without-email \
-              --redirect || true
-          fi
-
-          sudo nginx -t
-          sudo systemctl reload nginx
-          REMOTE_SCRIPT
-
-      - name: Verify public website
-        run: |
-          set -e
-          if curl --fail --silent --show-error --retry 5 --retry-delay 3 \
+          if curl --fail --silent --show-error \
+            --resolve "game.riversoft.top:443:$SERVER_HOST" \
+            --retry 3 --retry-delay 2 \
             https://game.riversoft.top/economy/ > /dev/null; then
             exit 0
           fi
 
-          curl --fail --silent --show-error --retry 5 --retry-delay 3 \
+          curl --fail --silent --show-error \
+            --resolve "game.riversoft.top:80:$SERVER_HOST" \
+            --retry 3 --retry-delay 2 \
             http://game.riversoft.top/economy/ > /dev/null
 
       - name: Report deployment status
@@ -209,7 +102,7 @@ jobs:
             DESCRIPTION="Economy deployment failed"
 
             if [ -f /tmp/economy-deploy.log ]; then
-              DETAIL="$(grep -Eai 'permission denied|invalid format|load key|sudo:|rsync error|could not resolve|connection refused|connection timed out|no server block|nginx:|failed|error' /tmp/economy-deploy.log | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+              DETAIL="$(grep -Eai 'DEPLOY_DIRECTORY_NOT_WRITABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|failed|error' /tmp/economy-deploy.log | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
               if [ -n "$DETAIL" ]; then
                 DESCRIPTION="$DETAIL"
               fi
