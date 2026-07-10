@@ -14,11 +14,11 @@
 
 @media (max-width: 720px) {
   .login-shell {
-    width: calc(100% - .8rem);
-    height: calc(100% - .8rem);
+    width: calc(100% - 2rem);
+    height: calc(100% - 2rem);
     min-height: 0;
     display: block;
-    margin: .4rem auto;
+    margin: 1rem auto;
     padding:
       max(1rem, env(safe-area-inset-top))
       max(1rem, env(safe-area-inset-right))
@@ -58,9 +58,9 @@
   }
 
   .brand-lockup img {
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
     object-fit: cover;
   }
 
