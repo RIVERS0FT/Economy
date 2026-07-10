@@ -1,0 +1,96 @@
+/* Rendering safeguards for long Economy dashboards.
+ * Keep these overrides separate from the visual design so they can be tuned
+ * without weakening the component styles.
+ */
+
+html {
+  scroll-behavior: auto;
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: #07110d;
+  background-attachment: scroll;
+  overscroll-behavior-y: none;
+}
+
+/* A fixed, masked grid forces a full-viewport repaint while scrolling. */
+body::before {
+  display: none;
+}
+
+/* Backdrop blur on every dashboard card is the largest GPU cost on mobile,
+ * integrated graphics and remote desktops. A solid translucent surface keeps
+ * the same visual hierarchy without continuously sampling the page behind it.
+ */
+.panel {
+  background: linear-gradient(145deg, #0f231a, #081710);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  contain: paint;
+}
+
+/* Skip layout and paint work for rows/cards outside the viewport. */
+.factory-card,
+.listing-card,
+.metric-card,
+.section-card,
+.ledger-list > div,
+tbody tr {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
+}
+
+.factory-card,
+.section-card,
+.listing-card {
+  contain-intrinsic-size: auto 260px;
+}
+
+/* Avoid promoting many elements into animated compositor layers. */
+button {
+  transition: filter 120ms ease, opacity 120ms ease;
+}
+
+button:hover:not(:disabled) {
+  transform: none;
+}
+
+.work-button,
+.notice-toast,
+.status-dot {
+  box-shadow: none;
+}
+
+.progress-track > span {
+  transition: width 180ms linear;
+}
+
+.table-wrap,
+.ledger-list,
+.main-nav {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  body {
+    background: linear-gradient(180deg, #07110d 0%, #091712 50%, #050a08 100%);
+  }
+
+  .panel {
+    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
