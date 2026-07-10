@@ -89,7 +89,7 @@ jobs:
             echo PASSWORDLESS_SUDO_UNAVAILABLE_USING_EXISTING_PROXY
           fi
 
-      - name: Verify Nginx route, HTTPS certificate, and account proxy
+      - name: Verify website and account routes
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -125,19 +125,34 @@ jobs:
             exit 1
           fi
 
-          REGISTER_STATUS="$(curl --silent --show-error \
-            --output /tmp/economy-register-response.json \
+          LOGIN_STATUS="$(curl --silent --show-error \
+            --output /tmp/economy-login-response.json \
             --write-out '%{http_code}' \
             --resolve "game.riversoft.top:443:$SERVER_HOST" \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{}' \
+            https://game.riversoft.top/economy-api/login || true)"
+
+          if [ "$LOGIN_STATUS" != "400" ]; then
+            cat /tmp/economy-login-response.json 2>/dev/null || true
+            echo ECONOMY_LOGIN_PROXY_UNAVAILABLE
+            exit 1
+          fi
+
+          REGISTER_STATUS="$(curl --silent --show-error \
+            --output /tmp/homepage-register-response.json \
+            --write-out '%{http_code}' \
+            --resolve "riversoft.top:443:$SERVER_HOST" \
             --request POST \
             --header 'Origin: https://game.riversoft.top' \
             --header 'Content-Type: application/json' \
             --data '{}' \
-            https://game.riversoft.top/economy-api/register || true)"
+            https://riversoft.top/api/register || true)"
 
           if [ "$REGISTER_STATUS" != "400" ]; then
-            cat /tmp/economy-register-response.json 2>/dev/null || true
-            echo ECONOMY_REGISTER_PROXY_UNAVAILABLE
+            cat /tmp/homepage-register-response.json 2>/dev/null || true
+            echo HOMEPAGE_REGISTER_API_UNAVAILABLE
             exit 1
           fi
 
@@ -151,7 +166,7 @@ jobs:
 
           if [ "$JOB_STATUS" = "success" ]; then
             STATE="success"
-            DESCRIPTION="Economy deployment and account proxy succeeded"
+            DESCRIPTION="Economy deployment and account routes succeeded"
           else
             STATE="failure"
             DESCRIPTION="Economy deployment failed"
@@ -161,7 +176,7 @@ jobs:
               cat /tmp/economy-deploy.log 2>/dev/null || true
               cat /tmp/economy-proxy-configure.log 2>/dev/null || true
               cat /tmp/economy-verify.log 2>/dev/null || true
-            } | grep -Eai 'TS[0-9]+|DEPLOY_DIRECTORY_NOT_WRITABLE|ECONOMY_PROXY_CONFIGURATION_FAILED|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|AUTH_PROXY_UNAVAILABLE|ECONOMY_REGISTER_PROXY_UNAVAILABLE|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+            } | grep -Eai 'TS[0-9]+|DEPLOY_DIRECTORY_NOT_WRITABLE|ECONOMY_PROXY_CONFIGURATION_FAILED|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|AUTH_PROXY_UNAVAILABLE|ECONOMY_LOGIN_PROXY_UNAVAILABLE|HOMEPAGE_REGISTER_API_UNAVAILABLE|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
 
             if [ -n "$DETAIL" ]; then
               DESCRIPTION="$DETAIL"
