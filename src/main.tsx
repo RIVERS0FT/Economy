@@ -7,6 +7,7 @@ import './styles/performance.css';
 import './styles/viewport.css';
 import './styles/auth.css';
 import './styles/card-system.css';
+import './styles/mobile-status-navigation.css';
 
 const ORIGINAL_LOGO_URL = 'https://riversoft.top/1000002880.png';
 const LOGIN_SLOGAN = '从一枚货币开始，建立你的金融帝国。';
