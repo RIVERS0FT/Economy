@@ -260,7 +260,6 @@ html[data-app-surface="game"] body {
     padding-top: calc(var(--mobile-chrome-fade-size) + var(--mobile-content-gap));
     padding-bottom: .25rem;
     scroll-padding-top: calc(
-      var(--mobile-asset-bar-height) +
       var(--mobile-chrome-fade-size) +
       var(--mobile-content-gap)
     );
