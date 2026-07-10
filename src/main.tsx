@@ -9,6 +9,7 @@ import './styles/login-mobile.css';
 
 const ORIGINAL_LOGO_URL = 'https://riversoft.top/1000002880.png';
 const LOGIN_SLOGAN = '从一枚货币开始，建立你的金融帝国。';
+const LOGIN_DISCLAIMER = '账号认证由统一账号服务处理，金融帝国不保存你的密码。';
 
 function BrandSynchronizer() {
   useEffect(() => {
@@ -25,6 +26,11 @@ function BrandSynchronizer() {
       const headline = document.querySelector<HTMLHeadingElement>('.login-brand h1');
       if (headline && headline.textContent !== LOGIN_SLOGAN) {
         headline.textContent = LOGIN_SLOGAN;
+      }
+
+      const disclaimer = document.querySelector<HTMLElement>('.login-card > small');
+      if (disclaimer?.textContent?.trim() === LOGIN_DISCLAIMER) {
+        disclaimer.remove();
       }
 
       const sidebarBrand = document.querySelector<HTMLElement>('.sidebar-brand');
