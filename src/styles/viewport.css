@@ -9,7 +9,6 @@
   --mobile-chrome-inset: .4rem;
   --mobile-asset-bar-height: 80px;
   --mobile-nav-height: 60px;
-  --mobile-nav-offset: var(--mobile-chrome-inset);
   --mobile-nav-gap: 1rem;
   --mobile-content-gap: .75rem;
   --mobile-chrome-surface: #0a1b14;
@@ -221,11 +220,11 @@ html[data-app-surface="game"] body {
 @media (max-width: 720px) {
   /* Normative mobile chrome rules are documented in docs/DESIGN_SYSTEM.md. */
   .game-shell {
-    padding: var(--mobile-chrome-inset);
+    padding: 0;
   }
 
-  /* The scrollport fills the workspace. Its content starts below the asset bar,
-   * then scrolls behind both translucent chrome cards. */
+  /* The scrollport and workspace cover the entire viewport. Card spacing is
+   * applied to the floating cards themselves, not to the application canvas. */
   .workspace {
     position: relative;
     isolation: isolate;
@@ -238,17 +237,27 @@ html[data-app-surface="game"] body {
     z-index: 1;
     width: 100%;
     height: 100%;
-    padding-top: calc(var(--mobile-asset-bar-height) + var(--mobile-content-gap));
+    padding-top: calc(
+      var(--mobile-chrome-inset) +
+      var(--mobile-asset-bar-height) +
+      var(--mobile-content-gap)
+    );
+    padding-right: var(--mobile-chrome-inset);
     padding-bottom: calc(
       var(--mobile-nav-height) +
       var(--mobile-nav-gap) +
-      max(var(--mobile-nav-offset), env(safe-area-inset-bottom))
+      max(var(--mobile-chrome-inset), env(safe-area-inset-bottom))
     );
-    scroll-padding-top: calc(var(--mobile-asset-bar-height) + var(--mobile-content-gap));
+    padding-left: var(--mobile-chrome-inset);
+    scroll-padding-top: calc(
+      var(--mobile-chrome-inset) +
+      var(--mobile-asset-bar-height) +
+      var(--mobile-content-gap)
+    );
     scroll-padding-bottom: calc(
       var(--mobile-nav-height) +
       var(--mobile-nav-gap) +
-      max(var(--mobile-nav-offset), env(safe-area-inset-bottom))
+      max(var(--mobile-chrome-inset), env(safe-area-inset-bottom))
     );
   }
 
@@ -271,15 +280,17 @@ html[data-app-surface="game"] body {
   .asset-bar.panel {
     position: absolute;
     z-index: 3;
-    top: 0;
-    right: 0;
-    left: 0;
+    top: var(--mobile-chrome-inset);
+    right: var(--mobile-chrome-inset);
+    left: var(--mobile-chrome-inset);
     height: var(--mobile-asset-bar-height);
   }
 
   .sidebar.panel {
+    position: fixed;
+    z-index: 50;
     right: var(--mobile-chrome-inset);
-    bottom: max(var(--mobile-nav-offset), env(safe-area-inset-bottom));
+    bottom: max(var(--mobile-chrome-inset), env(safe-area-inset-bottom));
     left: var(--mobile-chrome-inset);
     height: var(--mobile-nav-height);
   }
