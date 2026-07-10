@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Economy Arena",
+  "productName": "金融帝国",
   "version": "0.1.0",
   "identifier": "com.lzr2003.economyarena",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Economy Arena",
+        "title": "金融帝国",
         "width": 1440,
         "height": 900,
         "minWidth": 1180,

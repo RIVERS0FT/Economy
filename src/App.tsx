@@ -112,25 +112,16 @@ function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => v
   return (
     <main className="login-shell">
       <section className="login-brand">
-        <a className="brand-lockup" href="https://riversoft.top/" aria-label="返回 RIVERSOFT 主页">
-          <img src="https://riversoft.top/1000002880.png" alt="RIVERSOFT" />
-          <span>RIVERSOFT</span>
-        </a>
-        <p className="eyebrow">Multiplayer market economy</p>
-        <h1>从一枚货币开始，建立你的财富策略。</h1>
-        <p>生产商品、判断价格、配置生产设施，在共享市场中与其他玩家竞争总资产排名。</p>
-        <div className="login-feature-grid">
-          <span>限价订单簿与部分成交</span>
-          <span>生产设施建造与收购</span>
-          <span>玩家资产配置与估值</span>
-          <span>总资产排行榜竞争</span>
+        <div className="brand-lockup" aria-label="金融帝国">
+          <span>金融帝国</span>
         </div>
+        <h1>从一枚货币开始，建立你的财富策略。</h1>
       </section>
 
       <section className="login-card panel">
         <p className="eyebrow">Account login</p>
-        <h2>登录 Economy</h2>
-        <p className="muted">使用你在 riversoft.top 注册的账号进入市场。</p>
+        <h2>登录金融帝国</h2>
+        <p className="muted">使用已注册账号进入市场。</p>
         <form onSubmit={submit} className="login-form">
           <label>
             账号邮箱
@@ -144,10 +135,10 @@ function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => v
           <button type="submit" disabled={submitting}>{submitting ? '正在连接账号服务…' : '登录并进入市场'}</button>
         </form>
         <div className="login-links">
-          <a href="https://riversoft.top/register">没有账号？前往主页注册</a>
-          <a href="https://riversoft.top/login">在主页管理登录</a>
+          <a href="https://riversoft.top/register">没有账号？注册账号</a>
+          <a href="https://riversoft.top/login">管理账号登录</a>
         </div>
-        <small>账号认证由 RIVERSOFT 主页服务器处理，Economy 不保存你的密码。</small>
+        <small>账号认证由统一账号服务处理，金融帝国不保存你的密码。</small>
       </section>
     </main>
   );
@@ -310,8 +301,8 @@ function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => voi
     <main className="game-shell">
       <aside className="sidebar panel">
         <div className="sidebar-brand">
-          <img src="https://riversoft.top/1000002880.png" alt="RIVERSOFT" />
-          <div><strong>Economy</strong><span>市场交易版</span></div>
+          <span className="player-avatar" aria-hidden="true">金</span>
+          <div><strong>金融帝国</strong><span>市场交易版</span></div>
         </div>
 
         <div className="player-mini-card">
@@ -571,7 +562,7 @@ function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => voi
 
                 <article className="panel widget danger-zone span-3">
                   <div><p className="eyebrow">Preview data</p><h2>重置本地经济状态</h2><p>当前版本使用浏览器本地数据预览多人经济规则。重置不会影响你的主页账号。</p></div>
-                  <button className="danger-button" onClick={() => { if (window.confirm('确认重置当前账号的 Economy 预览状态？')) reset(user); }}>重置经济状态</button>
+                  <button className="danger-button" onClick={() => { if (window.confirm('确认重置当前账号的金融帝国预览状态？')) reset(user); }}>重置经济状态</button>
                 </article>
               </div>
             </section>
@@ -594,8 +585,8 @@ function App() {
       .finally(() => setChecking(false));
   }, []);
 
-  if (checking) return <main className="loading-screen">正在连接 RIVERSOFT 账号服务…</main>;
-  if (!user) return <><LoginPage onAuthenticated={setUser} />{authError ? <div className="auth-service-warning">{authError}。请确认服务器已启用 Economy 账号代理。</div> : null}</>;
+  if (checking) return <main className="loading-screen">正在连接统一账号服务…</main>;
+  if (!user) return <><LoginPage onAuthenticated={setUser} />{authError ? <div className="auth-service-warning">{authError}。请确认服务器已启用金融帝国账号代理。</div> : null}</>;
   return <GameApp user={user} onSignedOut={() => setUser(null)} />;
 }
 
