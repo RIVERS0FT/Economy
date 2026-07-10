@@ -71,7 +71,7 @@ jobs:
             "$SERVER_USER@$SERVER_HOST" \
             'test -f /var/www/game/economy/index.html'
 
-      - name: Verify Nginx route and HTTPS certificate
+      - name: Verify Nginx route, HTTPS certificate, and account proxy
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -95,6 +95,18 @@ jobs:
             exit 1
           fi
 
+          AUTH_STATUS="$(curl --silent --show-error \
+            --output /tmp/economy-auth-response.json \
+            --write-out '%{http_code}' \
+            --resolve "game.riversoft.top:443:$SERVER_HOST" \
+            https://game.riversoft.top/economy-api/me || true)"
+
+          if [ "$AUTH_STATUS" != "200" ] && [ "$AUTH_STATUS" != "401" ]; then
+            cat /tmp/economy-auth-response.json 2>/dev/null || true
+            echo AUTH_PROXY_UNAVAILABLE
+            exit 1
+          fi
+
       - name: Report deployment status
         if: always()
         env:
@@ -114,7 +126,7 @@ jobs:
               cat /tmp/economy-build.log 2>/dev/null || true
               cat /tmp/economy-deploy.log 2>/dev/null || true
               cat /tmp/economy-verify.log 2>/dev/null || true
-            } | grep -Eai 'TS[0-9]+|DEPLOY_DIRECTORY_NOT_WRITABLE|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+            } | grep -Eai 'TS[0-9]+|DEPLOY_DIRECTORY_NOT_WRITABLE|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|AUTH_PROXY_UNAVAILABLE|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
 
             if [ -n "$DETAIL" ]; then
               DESCRIPTION="$DETAIL"
