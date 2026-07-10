@@ -77,11 +77,96 @@ function BrandSynchronizer() {
   return null;
 }
 
+function LoginKeyboardDock() {
+  useLayoutEffect(() => {
+    const mobileQuery = window.matchMedia('(max-width: 720px)');
+    const visualViewport = window.visualViewport;
+    let animationFrame = 0;
+    let blurTimer = 0;
+
+    const getActiveLoginInput = () => {
+      const activeElement = document.activeElement;
+      if (!(activeElement instanceof HTMLInputElement)) return null;
+      return activeElement.closest('.login-form') ? activeElement : null;
+    };
+
+    const clearDock = (shell?: HTMLElement | null) => {
+      const loginShell = shell ?? document.querySelector<HTMLElement>('.login-shell');
+      if (!loginShell) return;
+
+      loginShell.removeAttribute('data-keyboard-docked');
+      loginShell.style.removeProperty('--login-keyboard-inset');
+      loginShell.scrollTop = 0;
+    };
+
+    const syncDock = () => {
+      const loginShell = document.querySelector<HTMLElement>('.login-shell');
+      const activeInput = getActiveLoginInput();
+
+      if (!loginShell || !activeInput || !mobileQuery.matches) {
+        clearDock(loginShell);
+        return;
+      }
+
+      const visibleHeight = visualViewport?.height ?? window.innerHeight;
+      const viewportOffsetTop = visualViewport?.offsetTop ?? 0;
+      const visibleBottom = viewportOffsetTop + visibleHeight;
+      const shellBottom = loginShell.getBoundingClientRect().bottom;
+      const measuredInset = Math.max(0, shellBottom - visibleBottom);
+      const keyboardInset = Math.min(measuredInset, loginShell.clientHeight * 0.65);
+
+      loginShell.dataset.keyboardDocked = 'true';
+      loginShell.style.setProperty('--login-keyboard-inset', `${Math.round(keyboardInset)}px`);
+      loginShell.scrollTop = 0;
+    };
+
+    const scheduleSync = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(syncDock);
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement) || !target.closest('.login-form')) return;
+
+      window.clearTimeout(blurTimer);
+      scheduleSync();
+    };
+
+    const handleFocusOut = () => {
+      window.clearTimeout(blurTimer);
+      blurTimer = window.setTimeout(scheduleSync, 0);
+    };
+
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    window.addEventListener('resize', scheduleSync);
+    visualViewport?.addEventListener('resize', scheduleSync);
+    visualViewport?.addEventListener('scroll', scheduleSync);
+    mobileQuery.addEventListener('change', scheduleSync);
+
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+      window.removeEventListener('resize', scheduleSync);
+      visualViewport?.removeEventListener('resize', scheduleSync);
+      visualViewport?.removeEventListener('scroll', scheduleSync);
+      mobileQuery.removeEventListener('change', scheduleSync);
+      window.cancelAnimationFrame(animationFrame);
+      window.clearTimeout(blurTimer);
+      clearDock();
+    };
+  }, []);
+
+  return null;
+}
+
 configureRuntimePerformance();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <BrandSynchronizer />
+    <LoginKeyboardDock />
     <App />
   </React.StrictMode>,
 );
