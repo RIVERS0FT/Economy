@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useLayoutEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { configureRuntimePerformance } from './utils/runtimePerformance';
@@ -10,9 +10,14 @@ import './styles/login-mobile.css';
 const ORIGINAL_LOGO_URL = 'https://riversoft.top/1000002880.png';
 const LOGIN_SLOGAN = '从一枚货币开始，建立你的金融帝国。';
 const LOGIN_DISCLAIMER = '账号认证由统一账号服务处理，金融帝国不保存你的密码。';
+const LOGIN_INTRO_COPY = [
+  ['.login-card > .eyebrow', 'Account login'],
+  ['.login-card > h2', '登录金融帝国'],
+  ['.login-card > .muted', '使用已注册账号进入市场。'],
+] as const;
 
 function BrandSynchronizer() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const applyBranding = () => {
       const brandLockup = document.querySelector<HTMLElement>('.brand-lockup');
       if (brandLockup && !brandLockup.querySelector('img')) {
@@ -27,6 +32,13 @@ function BrandSynchronizer() {
       if (headline && headline.textContent !== LOGIN_SLOGAN) {
         headline.textContent = LOGIN_SLOGAN;
       }
+
+      LOGIN_INTRO_COPY.forEach(([selector, copy]) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (element?.textContent?.trim() === copy) {
+          element.remove();
+        }
+      });
 
       const disclaimer = document.querySelector<HTMLElement>('.login-card > small');
       if (disclaimer?.textContent?.trim() === LOGIN_DISCLAIMER) {
