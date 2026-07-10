@@ -10,6 +10,7 @@ import './styles/login-mobile.css';
 const ORIGINAL_LOGO_URL = 'https://riversoft.top/1000002880.png';
 const LOGIN_SLOGAN = '从一枚货币开始，建立你的金融帝国。';
 const LOGIN_DISCLAIMER = '账号认证由统一账号服务处理，金融帝国不保存你的密码。';
+const LOGIN_BUTTON_COPY = '登录或注册';
 const LOGIN_INTRO_COPY = [
   ['.login-card > .eyebrow', 'Account login'],
   ['.login-card > h2', '登录金融帝国'],
@@ -39,6 +40,13 @@ function BrandSynchronizer() {
           element.remove();
         }
       });
+
+      const loginButton = document.querySelector<HTMLButtonElement>('.login-form button[type="submit"]');
+      if (loginButton && !loginButton.disabled && loginButton.textContent?.trim() !== LOGIN_BUTTON_COPY) {
+        loginButton.textContent = LOGIN_BUTTON_COPY;
+      }
+
+      document.querySelector<HTMLElement>('.login-links')?.remove();
 
       const disclaimer = document.querySelector<HTMLElement>('.login-card > small');
       if (disclaimer?.textContent?.trim() === LOGIN_DISCLAIMER) {
