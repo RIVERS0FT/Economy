@@ -16,6 +16,10 @@ body,
   overflow: hidden;
 }
 
+html {
+  scrollbar-gutter: auto;
+}
+
 body {
   position: fixed;
   inset: 0;
@@ -33,7 +37,7 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -75,7 +79,7 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -106,66 +110,75 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Shared scrollbar treatment for every intentional application scrollport. */
-.login-shell,
-.page-scroll,
-.asset-bar,
-.sidebar-nav,
-.table-wrap,
-.ledger-list {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
+/* Mouse-driven desktop layouts keep the themed scrollbar and reserve the
+ * vertical gutter. Touch browsers use their native overlay scrollbar, which
+ * appears during scrolling and disappears without consuming layout space. */
+@media (hover: hover) and (pointer: fine) {
+  .login-shell,
+  .page-scroll {
+    scrollbar-gutter: stable;
+  }
 
-.login-shell::-webkit-scrollbar,
-.page-scroll::-webkit-scrollbar,
-.asset-bar::-webkit-scrollbar,
-.sidebar-nav::-webkit-scrollbar,
-.table-wrap::-webkit-scrollbar,
-.ledger-list::-webkit-scrollbar {
-  width: var(--scrollbar-size);
-  height: var(--scrollbar-size);
-}
+  .login-shell,
+  .page-scroll,
+  .asset-bar,
+  .sidebar-nav,
+  .table-wrap,
+  .ledger-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
 
-.login-shell::-webkit-scrollbar-track,
-.page-scroll::-webkit-scrollbar-track,
-.asset-bar::-webkit-scrollbar-track,
-.sidebar-nav::-webkit-scrollbar-track,
-.table-wrap::-webkit-scrollbar-track,
-.ledger-list::-webkit-scrollbar-track {
-  border-radius: 999px;
-  background: var(--scrollbar-track);
-}
+  .login-shell::-webkit-scrollbar,
+  .page-scroll::-webkit-scrollbar,
+  .asset-bar::-webkit-scrollbar,
+  .sidebar-nav::-webkit-scrollbar,
+  .table-wrap::-webkit-scrollbar,
+  .ledger-list::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
 
-.login-shell::-webkit-scrollbar-thumb,
-.page-scroll::-webkit-scrollbar-thumb,
-.asset-bar::-webkit-scrollbar-thumb,
-.sidebar-nav::-webkit-scrollbar-thumb,
-.table-wrap::-webkit-scrollbar-thumb,
-.ledger-list::-webkit-scrollbar-thumb {
-  min-height: 36px;
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background-color: var(--scrollbar-thumb);
-  background-clip: padding-box;
-}
+  .login-shell::-webkit-scrollbar-track,
+  .page-scroll::-webkit-scrollbar-track,
+  .asset-bar::-webkit-scrollbar-track,
+  .sidebar-nav::-webkit-scrollbar-track,
+  .table-wrap::-webkit-scrollbar-track,
+  .ledger-list::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: var(--scrollbar-track);
+  }
 
-.login-shell::-webkit-scrollbar-thumb:hover,
-.page-scroll::-webkit-scrollbar-thumb:hover,
-.asset-bar::-webkit-scrollbar-thumb:hover,
-.sidebar-nav::-webkit-scrollbar-thumb:hover,
-.table-wrap::-webkit-scrollbar-thumb:hover,
-.ledger-list::-webkit-scrollbar-thumb:hover {
-  background-color: var(--scrollbar-thumb-hover);
-}
+  .login-shell::-webkit-scrollbar-thumb,
+  .page-scroll::-webkit-scrollbar-thumb,
+  .asset-bar::-webkit-scrollbar-thumb,
+  .sidebar-nav::-webkit-scrollbar-thumb,
+  .table-wrap::-webkit-scrollbar-thumb,
+  .ledger-list::-webkit-scrollbar-thumb {
+    min-height: 36px;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-color: var(--scrollbar-thumb);
+    background-clip: padding-box;
+  }
 
-.login-shell::-webkit-scrollbar-corner,
-.page-scroll::-webkit-scrollbar-corner,
-.asset-bar::-webkit-scrollbar-corner,
-.sidebar-nav::-webkit-scrollbar-corner,
-.table-wrap::-webkit-scrollbar-corner,
-.ledger-list::-webkit-scrollbar-corner {
-  background: transparent;
+  .login-shell::-webkit-scrollbar-thumb:hover,
+  .page-scroll::-webkit-scrollbar-thumb:hover,
+  .asset-bar::-webkit-scrollbar-thumb:hover,
+  .sidebar-nav::-webkit-scrollbar-thumb:hover,
+  .table-wrap::-webkit-scrollbar-thumb:hover,
+  .ledger-list::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  .login-shell::-webkit-scrollbar-corner,
+  .page-scroll::-webkit-scrollbar-corner,
+  .asset-bar::-webkit-scrollbar-corner,
+  .sidebar-nav::-webkit-scrollbar-corner,
+  .table-wrap::-webkit-scrollbar-corner,
+  .ledger-list::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 @media (max-height: 760px) and (min-width: 721px) {
@@ -177,7 +190,6 @@ body {
 }
 
 @media (max-width: 720px) {
-  :root { --scrollbar-size: 7px; }
   .page-scroll { padding-bottom: .25rem; }
   .login-shell { padding-top: .75rem; padding-bottom: 4.5rem; }
   .sidebar-nav {
