@@ -78,6 +78,7 @@ html[data-app-surface="auth"] #root {
 
 @media (max-width: 720px) {
   .login-shell {
+    --auth-section-gap: clamp(.9rem, 2dvh, 1.25rem);
     position: relative;
     isolation: isolate;
     width: calc(100% - 2rem);
@@ -88,7 +89,7 @@ html[data-app-surface="auth"] #root {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto;
     align-content: center;
-    gap: clamp(1.35rem, 5dvh, 3.5rem);
+    gap: var(--auth-section-gap);
     margin: 1rem auto;
     padding:
       max(1.25rem, env(safe-area-inset-top))
@@ -151,7 +152,7 @@ html[data-app-surface="auth"] #root {
   .login-brand {
     display: grid;
     align-content: start;
-    gap: .75rem;
+    gap: var(--auth-section-gap);
   }
 
   .brand-lockup {
@@ -172,11 +173,11 @@ html[data-app-surface="auth"] #root {
 
   .login-brand h1 {
     max-width: 13em;
-    margin: .15rem 0 0;
+    margin: 0;
     font-size: clamp(3rem, 12.5vw, 3.9rem);
     line-height: .92;
     letter-spacing: -.055em;
-    transition: font-size 180ms ease, margin 180ms ease, line-height 180ms ease;
+    transition: font-size 180ms ease, line-height 180ms ease;
   }
 
   .login-card {
@@ -222,19 +223,13 @@ html[data-app-surface="auth"] #root {
     line-height: 1.45;
   }
 
-  /* Keyboard focus changes density only. All content remains in normal flow,
-   * so the document can scroll and the slogan remains available above. */
+  /* One shared rhythm controls both brand-to-slogan and slogan-to-form spacing. */
   .login-shell:focus-within {
+    --auth-section-gap: .75rem;
     align-content: start;
-    gap: 1.25rem;
-  }
-
-  .login-shell:focus-within .login-brand {
-    gap: .45rem;
   }
 
   .login-shell:focus-within .login-brand h1 {
-    margin-top: 0;
     font-size: clamp(2.25rem, 9.5vw, 3rem);
     line-height: .96;
   }
@@ -260,8 +255,8 @@ html[data-app-surface="auth"] #root {
 
 @media (max-width: 720px) and (max-height: 560px) {
   .login-shell {
+    --auth-section-gap: .75rem;
     align-content: start;
-    gap: 1rem;
   }
 
   .login-brand h1,
