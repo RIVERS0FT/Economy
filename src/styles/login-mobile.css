@@ -25,7 +25,7 @@
       calc(1rem + env(safe-area-inset-bottom))
       max(1rem, env(safe-area-inset-left));
     border: 1px solid var(--line);
-    border-radius: 1.5rem;
+    border-radius: 2.5rem;
     background: linear-gradient(145deg, rgba(15, 34, 26, .95), rgba(7, 20, 15, .92));
     box-shadow: 0 18px 50px rgba(0, 0, 0, .22);
     backdrop-filter: blur(18px);
