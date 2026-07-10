@@ -2,7 +2,16 @@
  * and a compact focus state that preserves the brand and slogan. */
 html[data-app-surface="auth"] {
   color-scheme: dark;
+  overflow-x: hidden;
+  overflow-y: auto;
   scroll-padding-block: max(1.25rem, env(safe-area-inset-top));
+}
+
+html[data-app-surface="auth"] body,
+html[data-app-surface="auth"] #root {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
 }
 
 .login-card > small {
@@ -22,14 +31,17 @@ html[data-app-surface="auth"] {
   -webkit-appearance: none;
   appearance: none;
   color-scheme: dark;
+  forced-color-adjust: none;
   color: var(--ink) !important;
   -webkit-text-fill-color: var(--ink) !important;
   caret-color: var(--green);
   border-color: rgba(212, 245, 224, .16);
-  background-color: rgba(2, 10, 7, .88) !important;
+  background-color: #07100d !important;
   background-image: none !important;
   background-clip: padding-box;
   -webkit-background-clip: padding-box;
+  -webkit-box-shadow: 0 0 0 1000px #07100d inset !important;
+  box-shadow: 0 0 0 1000px #07100d inset !important;
   padding-right: 3.4rem;
 }
 
@@ -42,7 +54,7 @@ html[data-app-surface="auth"] {
   border-color: rgba(123, 228, 158, .62);
   outline: 3px solid rgba(123, 228, 158, .1);
   outline-offset: 0;
-  background-color: rgba(2, 10, 7, .96) !important;
+  background-color: #07100d !important;
 }
 
 .login-form input:autofill,
@@ -65,15 +77,6 @@ html[data-app-surface="auth"] {
 }
 
 @media (max-width: 720px) {
-  html[data-app-surface="auth"],
-  html[data-app-surface="auth"] body,
-  html[data-app-surface="auth"] #root {
-    min-height: 100%;
-    height: auto;
-    overflow-x: hidden;
-    overflow-y: visible;
-  }
-
   .login-shell {
     position: relative;
     isolation: isolate;
