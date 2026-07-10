@@ -31,7 +31,10 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Build website
-        run: npm run build
+        run: |
+          exec > >(tee /tmp/economy-build.log) 2>&1
+          set -euo pipefail
+          npm run build
 
       - name: Install rsync
         run: sudo apt-get update && sudo apt-get install -y rsync
@@ -108,9 +111,10 @@ jobs:
             DESCRIPTION="Economy deployment failed"
 
             DETAIL="$({
+              cat /tmp/economy-build.log 2>/dev/null || true
               cat /tmp/economy-deploy.log 2>/dev/null || true
               cat /tmp/economy-verify.log 2>/dev/null || true
-            } | grep -Eai 'DEPLOY_DIRECTORY_NOT_WRITABLE|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+            } | grep -Eai 'TS[0-9]+|DEPLOY_DIRECTORY_NOT_WRITABLE|NGINX_LOCAL_ROUTE_FAILED|HTTPS_CERT_OR_ROUTE_FAILED|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|certificate|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
 
             if [ -n "$DETAIL" ]; then
               DESCRIPTION="$DETAIL"
