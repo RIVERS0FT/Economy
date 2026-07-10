@@ -20,10 +20,10 @@
     display: block;
     margin: 1rem auto;
     padding:
-      max(1rem, env(safe-area-inset-top))
-      max(1rem, env(safe-area-inset-right))
-      calc(1rem + env(safe-area-inset-bottom))
-      max(1rem, env(safe-area-inset-left));
+      max(1.25rem, env(safe-area-inset-top))
+      max(1.25rem, env(safe-area-inset-right))
+      calc(1.25rem + env(safe-area-inset-bottom))
+      max(1.25rem, env(safe-area-inset-left));
     border: 1px solid var(--line);
     border-radius: 2.5rem;
     background: linear-gradient(145deg, rgba(15, 34, 26, .95), rgba(7, 20, 15, .92));
@@ -157,14 +157,6 @@
 }
 
 @media (max-width: 380px) {
-  .login-shell {
-    padding:
-      max(.85rem, env(safe-area-inset-top))
-      max(.85rem, env(safe-area-inset-right))
-      calc(.85rem + env(safe-area-inset-bottom))
-      max(.85rem, env(safe-area-inset-left));
-  }
-
   .login-brand h1 {
     font-size: 2.7rem;
   }
