@@ -1,0 +1,275 @@
+/* Authentication surface: natural document scrolling, dark autofill-safe fields,
+ * and a compact focus state that preserves the brand and slogan. */
+html[data-app-surface="auth"] {
+  color-scheme: dark;
+  scroll-padding-block: max(1.25rem, env(safe-area-inset-top));
+}
+
+.login-card > small {
+  display: none;
+}
+
+.login-card.panel {
+  border-radius: 1.5rem;
+}
+
+.brand-lockup img,
+.sidebar-brand img {
+  border-radius: 50%;
+}
+
+.login-form input {
+  -webkit-appearance: none;
+  appearance: none;
+  color-scheme: dark;
+  color: var(--ink) !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  caret-color: var(--green);
+  border-color: rgba(212, 245, 224, .16);
+  background-color: rgba(2, 10, 7, .88) !important;
+  background-image: none !important;
+  background-clip: padding-box;
+  -webkit-background-clip: padding-box;
+  padding-right: 3.4rem;
+}
+
+.login-form input::placeholder {
+  color: rgba(226, 239, 231, .38);
+  -webkit-text-fill-color: rgba(226, 239, 231, .38);
+}
+
+.login-form input:focus {
+  border-color: rgba(123, 228, 158, .62);
+  outline: 3px solid rgba(123, 228, 158, .1);
+  outline-offset: 0;
+  background-color: rgba(2, 10, 7, .96) !important;
+}
+
+.login-form input:autofill,
+.login-form input:autofill:hover,
+.login-form input:autofill:focus,
+.login-form input:autofill:active,
+.login-form input:-webkit-autofill,
+.login-form input:-webkit-autofill:hover,
+.login-form input:-webkit-autofill:focus,
+.login-form input:-webkit-autofill:active {
+  color: var(--ink) !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  caret-color: var(--green) !important;
+  border-color: rgba(123, 228, 158, .52) !important;
+  background-color: #07100d !important;
+  background-image: none !important;
+  -webkit-box-shadow: 0 0 0 1000px #07100d inset !important;
+  box-shadow: 0 0 0 1000px #07100d inset !important;
+  transition: background-color 999999s ease-out 0s, color 999999s ease-out 0s;
+}
+
+@media (max-width: 720px) {
+  html[data-app-surface="auth"],
+  html[data-app-surface="auth"] body,
+  html[data-app-surface="auth"] #root {
+    min-height: 100%;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .login-shell {
+    position: relative;
+    isolation: isolate;
+    width: calc(100% - 2rem);
+    min-height: calc(100vh - 2rem);
+    min-height: calc(100dvh - 2rem);
+    height: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    gap: clamp(1.35rem, 5dvh, 3.5rem);
+    margin: 1rem auto;
+    padding:
+      max(1.25rem, env(safe-area-inset-top))
+      max(1.25rem, env(safe-area-inset-right))
+      max(1.25rem, env(safe-area-inset-bottom))
+      max(1.25rem, env(safe-area-inset-left));
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 2.5rem;
+    background: linear-gradient(145deg, rgba(15, 34, 26, .95), rgba(7, 20, 15, .92));
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .22);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .login-shell::before,
+  .login-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  .login-shell::before {
+    background:
+      radial-gradient(circle at 18% 22%, rgba(86, 224, 137, .09), transparent 31%),
+      radial-gradient(circle at 84% 74%, rgba(44, 176, 102, .07), transparent 34%),
+      linear-gradient(rgba(210, 244, 222, .035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(210, 244, 222, .035) 1px, transparent 1px);
+    background-size: auto, auto, 42px 42px, 42px 42px;
+  }
+
+  .login-shell::after {
+    opacity: .055;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.38'/%3E%3C/svg%3E");
+  }
+
+  .login-shell > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .login-brand,
+  .login-card,
+  .login-card.panel {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .login-brand {
+    display: grid;
+    align-content: start;
+    gap: .75rem;
+  }
+
+  .brand-lockup {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: .7rem;
+    font-size: 1.5rem;
+    letter-spacing: .02em;
+  }
+
+  .brand-lockup img {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    object-fit: cover;
+  }
+
+  .login-brand h1 {
+    max-width: 13em;
+    margin: .15rem 0 0;
+    font-size: clamp(3rem, 12.5vw, 3.9rem);
+    line-height: .92;
+    letter-spacing: -.055em;
+    transition: font-size 180ms ease, margin 180ms ease, line-height 180ms ease;
+  }
+
+  .login-card {
+    align-self: end;
+  }
+
+  .login-card .eyebrow,
+  .login-card h2,
+  .login-card > .muted {
+    display: none;
+  }
+
+  .login-form {
+    display: grid;
+    gap: .8rem;
+    margin: 0;
+  }
+
+  .login-form label {
+    gap: .38rem;
+    font-size: .82rem;
+  }
+
+  .login-form input {
+    min-height: 48px;
+    scroll-margin-block: clamp(5rem, 20dvh, 11rem);
+    border-radius: .72rem;
+    padding: .75rem 3.4rem .75rem .8rem;
+    font-size: 16px;
+  }
+
+  .login-form button {
+    width: 100%;
+    min-height: 48px;
+    margin-top: .1rem;
+    border-radius: .72rem;
+    padding: .75rem 1rem;
+  }
+
+  .form-error {
+    padding: .7rem .75rem;
+    font-size: .8rem;
+    line-height: 1.45;
+  }
+
+  /* Keyboard focus changes density only. All content remains in normal flow,
+   * so the document can scroll and the slogan remains available above. */
+  .login-shell:focus-within {
+    align-content: start;
+    gap: 1.25rem;
+  }
+
+  .login-shell:focus-within .login-brand {
+    gap: .45rem;
+  }
+
+  .login-shell:focus-within .login-brand h1 {
+    margin-top: 0;
+    font-size: clamp(2.25rem, 9.5vw, 3rem);
+    line-height: .96;
+  }
+
+  .auth-service-warning {
+    bottom: max(.45rem, env(safe-area-inset-bottom));
+    width: calc(100% - .8rem);
+    border-radius: 1.5rem;
+    padding: .7rem .8rem;
+    font-size: .76rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .login-brand h1 {
+    font-size: 2.7rem;
+  }
+
+  .login-shell:focus-within .login-brand h1 {
+    font-size: 2.15rem;
+  }
+}
+
+@media (max-width: 720px) and (max-height: 560px) {
+  .login-shell {
+    align-content: start;
+    gap: 1rem;
+  }
+
+  .login-brand h1,
+  .login-shell:focus-within .login-brand h1 {
+    font-size: clamp(2rem, 8vw, 2.6rem);
+    line-height: .96;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-brand h1 {
+    transition: none;
+  }
+}
