@@ -6,7 +6,7 @@ export interface AuthUser {
   role?: 'user' | 'admin';
 }
 
-export type FactoryStatus =
+export type FacilityStatus =
   | 'constructing'
   | 'ready'
   | 'running'
@@ -15,12 +15,12 @@ export type FactoryStatus =
   | 'insufficient_funds'
   | 'listed';
 
-export interface Factory {
+export interface ProductionFacility {
   id: string;
   name: string;
   ownerId: number;
   level: number;
-  status: FactoryStatus;
+  status: FacilityStatus;
   builtAt: number;
   constructionCompletesAt?: number;
   cycleStartedAt?: number;
@@ -51,20 +51,23 @@ export interface CommodityOrder {
   createdAt: number;
 }
 
-export interface FactoryListing {
+export interface FacilityListing {
   id: string;
-  factoryId: string;
+  facilityId: string;
   ownerType: 'player' | 'market';
   ownerId?: number;
   ownerName: string;
   price: number;
   createdAt: number;
-  factory: Pick<Factory, 'name' | 'level' | 'cycleMs' | 'outputPerCycle' | 'operatingCost' | 'internalCapacity' | 'lifetimeOutput' | 'systemValue'>;
+  facility: Pick<
+    ProductionFacility,
+    'name' | 'level' | 'cycleMs' | 'outputPerCycle' | 'operatingCost' | 'internalCapacity' | 'lifetimeOutput' | 'systemValue'
+  >;
 }
 
 export interface TradeRecord {
   id: string;
-  type: 'commodity' | 'factory';
+  type: 'commodity' | 'facility';
   side: 'buy' | 'sell';
   quantity: number;
   price: number;
@@ -78,10 +81,10 @@ export type LedgerCategory =
   | 'work_income'
   | 'population_income'
   | 'market_trade'
-  | 'factory_trade'
-  | 'factory_construction'
-  | 'factory_operation'
-  | 'factory_sale'
+  | 'facility_trade'
+  | 'facility_construction'
+  | 'facility_operation'
+  | 'facility_sale'
   | 'inventory'
   | 'system';
 
@@ -101,7 +104,7 @@ export interface WorkState {
   totalClicks: number;
 }
 
-export interface PopulationState {
+export interface DemandState {
   population: number;
   cycleMs: number;
   nextDemandAt: number;
@@ -116,28 +119,48 @@ export interface EconomyStats {
   populationIssued: number;
   systemSinks: number;
   commodityVolume: number;
-  factoryVolume: number;
+  facilityVolume: number;
+}
+
+export interface PricePoint {
+  price: number;
+  quantity: number;
+  createdAt: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  playerName: string;
+  totalAssets: number;
+  cashAssets: number;
+  facilityCount: number;
+  weeklyChange: number;
+  updatedAt: number;
+  isCurrentPlayer?: boolean;
 }
 
 export interface EconomyState {
-  version: 2;
+  version: 3;
   userId: number;
-  companyName: string;
+  playerName: string;
+  registeredAt: number;
   credits: number;
   frozenCredits: number;
   inventory: number;
   frozenInventory: number;
-  warehouseCapacity: number;
-  factorySlots: number;
-  factories: Factory[];
+  inventoryCapacity: number;
+  facilitySlots: number;
+  facilities: ProductionFacility[];
   commodityName: string;
   orders: CommodityOrder[];
-  factoryListings: FactoryListing[];
+  facilityListings: FacilityListing[];
   trades: TradeRecord[];
   ledger: LedgerEntry[];
   work: WorkState;
-  population: PopulationState;
+  demand: DemandState;
   stats: EconomyStats;
   marketPrice: number;
+  marketPriceHistory: PricePoint[];
+  leaderboard: LeaderboardEntry[];
   lastProcessedAt: number;
 }
