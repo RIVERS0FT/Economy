@@ -7,6 +7,7 @@
   --scrollbar-thumb-hover: rgba(125, 238, 163, 0.68);
   --app-card-radius: 1rem;
   --mobile-chrome-inset: 1rem;
+  --mobile-content-inset: .4rem;
   --mobile-asset-bar-height: 80px;
   --mobile-nav-height: 60px;
   --mobile-nav-gap: 1rem;
@@ -242,13 +243,13 @@ html[data-app-surface="game"] body {
       var(--mobile-asset-bar-height) +
       var(--mobile-content-gap)
     );
-    padding-right: var(--mobile-chrome-inset);
+    padding-right: var(--mobile-content-inset);
     padding-bottom: calc(
       var(--mobile-nav-height) +
       var(--mobile-nav-gap) +
       max(var(--mobile-chrome-inset), env(safe-area-inset-bottom))
     );
-    padding-left: var(--mobile-chrome-inset);
+    padding-left: var(--mobile-content-inset);
     scroll-padding-top: calc(
       var(--mobile-chrome-inset) +
       var(--mobile-asset-bar-height) +
