@@ -256,7 +256,7 @@ function createInitialState(user: AuthUser): EconomyState {
 
 function migrateLegacyState(user: AuthUser, raw: string): EconomyState | null {
   try {
-    const legacy = JSON.parse(raw) as Record<string, any>;
+    const legacy: any = JSON.parse(raw);
     if (legacy.userId !== user.id) return null;
     const state = createInitialState(user);
     state.playerName = String(legacy.companyName || state.playerName).replace(/企业$/, '') || state.playerName;
@@ -268,22 +268,22 @@ function migrateLegacyState(user: AuthUser, raw: string): EconomyState | null {
     state.facilitySlots = Number(legacy.factorySlots ?? 1);
     state.facilities = Array.isArray(legacy.factories) ? legacy.factories : [];
     state.orders = Array.isArray(legacy.orders) ? legacy.orders : state.orders;
-    state.facilityListings = Array.isArray(legacy.factoryListings)
-      ? legacy.factoryListings.map((listing: Record<string, any>) => ({
+    state.facilityListings = (Array.isArray(legacy.factoryListings)
+      ? legacy.factoryListings.map((listing: any) => ({
           ...listing,
           facilityId: listing.facilityId ?? listing.factoryId,
           facility: listing.facility ?? listing.factory,
         }))
-      : state.facilityListings;
-    state.trades = Array.isArray(legacy.trades)
-      ? legacy.trades.map((trade: Record<string, any>) => ({ ...trade, type: trade.type === 'factory' ? 'facility' : trade.type }))
-      : [];
-    state.ledger = Array.isArray(legacy.ledger)
-      ? legacy.ledger.map((entry: Record<string, any>) => ({
+      : state.facilityListings) as FacilityListing[];
+    state.trades = (Array.isArray(legacy.trades)
+      ? legacy.trades.map((trade: any) => ({ ...trade, type: trade.type === 'factory' ? 'facility' : trade.type }))
+      : []) as TradeRecord[];
+    state.ledger = (Array.isArray(legacy.ledger)
+      ? legacy.ledger.map((entry: any) => ({
           ...entry,
           category: String(entry.category || '').replace('factory_', 'facility_'),
         }))
-      : [];
+      : []) as LedgerEntry[];
     state.work = legacy.work ?? state.work;
     state.demand = legacy.population ?? state.demand;
     state.stats = {
