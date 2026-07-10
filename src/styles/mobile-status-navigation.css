@@ -23,11 +23,12 @@
     --mobile-nav-height: 76px;
   }
 
-  /* Compact status bar: framed icon on the left, value above the label. */
+  /* Compact solid status bar: framed icon on the left, value above the label. */
   .asset-bar.panel {
     grid-template-columns: repeat(5, minmax(118px, 1fr));
     gap: .35rem;
     padding: .35rem;
+    background: var(--mobile-chrome-surface);
     scroll-padding-inline: .35rem;
     scrollbar-width: none;
   }
