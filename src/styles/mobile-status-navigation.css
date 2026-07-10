@@ -1,8 +1,16 @@
-/* Final mobile chrome layer. This file is intentionally imported after the
- * base viewport and card system so mobile status/navigation rules stay local. */
+/* Mobile chrome owns all mobile design tokens and final status/navigation visuals. */
+:root {
+  --mobile-chrome-inset: 1rem;
+  --mobile-content-inset: .4rem;
+  --mobile-asset-bar-height: 68px;
+  --mobile-nav-height: 76px;
+  --mobile-nav-gap: 1rem;
+  --mobile-content-gap: .75rem;
+  --mobile-liquid-glass-surface: rgba(9, 25, 18, .56);
+  --mobile-liquid-glass-border: rgba(225, 255, 235, .18);
+  --mobile-nav-scroll-gutter: 1.25rem;
+}
 
-/* Nested scrollers must release the gesture at their boundary. The page
- * scrollport remains the only scroll container allowed to contain overscroll. */
 .asset-bar,
 .sidebar-nav,
 .table-wrap,
@@ -17,20 +25,27 @@
   overscroll-behavior: contain;
 }
 
+.desktop-sidebar {
+  display: flex;
+}
+
+.mobile-bottom-navigation {
+  display: none;
+}
+
 @media (max-width: 720px) {
-  :root {
-    --mobile-asset-bar-height: 68px;
-    --mobile-nav-height: 76px;
-    --mobile-liquid-glass-surface: rgba(9, 25, 18, .56);
-    --mobile-liquid-glass-border: rgba(225, 255, 235, .18);
-    --mobile-nav-scroll-gutter: 1.25rem;
+  .desktop-sidebar {
+    display: none;
   }
 
-  /* Uniform translucent fill, stronger background blur and edge highlights
-   * create a liquid-glass surface without an opacity gradient. */
+  .mobile-bottom-navigation {
+    display: block;
+  }
+
   .asset-bar.panel,
-  .sidebar.panel {
-    border-color: var(--mobile-liquid-glass-border);
+  .mobile-bottom-navigation.panel {
+    border: 1px solid var(--mobile-liquid-glass-border);
+    border-radius: var(--app-card-radius);
     background: var(--mobile-liquid-glass-surface);
     background-clip: padding-box;
     box-shadow:
@@ -41,7 +56,6 @@
     -webkit-backdrop-filter: blur(26px) saturate(150%) brightness(1.06);
   }
 
-  /* Compact liquid-glass status bar: plain icon on the left, value above the label. */
   .asset-bar.panel {
     grid-template-columns: repeat(5, minmax(118px, 1fr));
     gap: .35rem;
@@ -51,7 +65,7 @@
   }
 
   .asset-bar.panel::-webkit-scrollbar,
-  .sidebar-nav::-webkit-scrollbar {
+  .mobile-bottom-navigation .sidebar-nav::-webkit-scrollbar {
     display: none;
   }
 
@@ -73,41 +87,34 @@
     background: rgba(255, 255, 255, .025);
   }
 
-  .asset-bar-item::before {
-    content: "•";
+  .asset-bar-item-icon {
     grid-area: icon;
     width: 1.35rem;
     display: block;
     color: var(--green);
-    background: transparent;
-    border: 0;
-    border-radius: 0;
     font-size: 1.02rem;
     font-weight: 900;
     line-height: 1;
     text-align: center;
   }
 
-  .asset-bar-item:nth-child(1)::before { content: "¤"; }
-  .asset-bar-item:nth-child(2)::before { content: "◆"; }
-  .asset-bar-item:nth-child(3)::before { content: "♛"; }
-  .asset-bar-item:nth-child(4)::before { content: "▣"; }
-  .asset-bar-item:nth-child(5)::before { content: "↕"; }
-
-  .asset-bar-item > strong {
-    grid-area: value;
-    min-width: 0;
-    font-size: .94rem;
-    line-height: 1.05;
-  }
-
-  .asset-bar-item > span {
+  .asset-bar-item-label {
     grid-area: label;
     min-width: 0;
     overflow: hidden;
     color: rgba(214, 228, 220, .62);
     font-size: .61rem;
     line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .asset-bar-item > strong {
+    grid-area: value;
+    min-width: 0;
+    overflow: hidden;
+    font-size: .94rem;
+    line-height: 1.05;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -122,28 +129,32 @@
     background: rgba(55, 169, 95, .09);
   }
 
-  /* Horizontal edge space belongs to the scroll content, not the card shell.
-   * The spacers move with the buttons and remain visible at both scroll limits. */
-  .sidebar.panel {
+  .mobile-bottom-navigation.panel {
     padding: .4rem 0;
   }
 
-  .sidebar-nav {
+  .mobile-bottom-navigation .sidebar-nav {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: stretch;
     gap: .2rem;
     padding-inline: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
     scroll-padding-inline: var(--mobile-nav-scroll-gutter);
     scrollbar-width: none;
   }
 
-  .sidebar-nav::before,
-  .sidebar-nav::after {
+  .mobile-bottom-navigation .sidebar-nav::before,
+  .mobile-bottom-navigation .sidebar-nav::after {
     content: "";
     flex: 0 0 var(--mobile-nav-scroll-gutter);
     align-self: stretch;
     pointer-events: none;
   }
 
-  .sidebar-nav-button {
+  .mobile-bottom-navigation .sidebar-nav-button {
     position: relative;
     flex: 1 0 68px;
     min-width: 68px;
@@ -162,12 +173,11 @@
     text-align: center;
   }
 
-  .sidebar-nav-button > span {
+  .mobile-bottom-navigation .sidebar-nav-button > span {
     width: auto;
     height: auto;
     display: block;
     border: 0;
-    border-radius: 0;
     color: rgba(194, 211, 201, .68);
     background: transparent;
     font-size: 1.22rem;
@@ -175,7 +185,7 @@
     transition: color 140ms ease, transform 140ms ease;
   }
 
-  .sidebar-nav-button strong {
+  .mobile-bottom-navigation .sidebar-nav-button strong {
     display: block;
     color: inherit;
     font-size: .7rem;
@@ -183,7 +193,7 @@
     letter-spacing: .01em;
   }
 
-  .sidebar-nav-button small {
+  .mobile-bottom-navigation .sidebar-nav-button small {
     position: absolute;
     top: .16rem;
     right: .22rem;
@@ -193,21 +203,19 @@
     font-size: .58rem;
   }
 
-  .sidebar-nav-button.active {
+  .mobile-bottom-navigation .sidebar-nav-button.active {
     color: #f1fff5;
     border-color: rgba(123, 228, 158, .34);
     background: rgba(50, 159, 88, .18);
     box-shadow: inset 0 0 0 1px rgba(123, 228, 158, .08);
   }
 
-  .sidebar-nav-button.active > span {
-    border: 0;
+  .mobile-bottom-navigation .sidebar-nav-button.active > span {
     color: var(--green);
-    background: transparent;
     transform: translateY(-1px) scale(1.04);
   }
 
-  .sidebar-nav-button:focus-visible {
+  .mobile-bottom-navigation .sidebar-nav-button:focus-visible {
     outline: 2px solid rgba(123, 228, 158, .72);
     outline-offset: 2px;
   }

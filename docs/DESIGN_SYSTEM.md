@@ -11,7 +11,7 @@
 
 ## 2. 移动端顶部状态栏与底部导航栏
 
-顶部状态栏指 `.asset-bar.panel`，底部导航栏指 `.sidebar.panel`。
+顶部状态栏指 `.asset-bar.panel`，底部导航栏指 `.mobile-bottom-navigation.panel`。
 
 ### 2.1 外边距与应用画布
 
@@ -40,6 +40,7 @@
 - 顶部资产信息应压缩为状态栏，不使用大段说明文本。
 - 每个状态项采用水平布局：左侧为无底座图标，右侧为“数字在上、文字在下”。
 - 顶部图标不得使用独立边框、圆角或背景底座。
+- 状态项图标必须由 React 数据显式传入，不得使用 CSS `nth-child` 根据排列顺序生成。
 - 移动端第三行补充信息隐藏，避免状态栏高度膨胀。
 - 状态项卡片本身保留独立边框和圆角，主要资产项只允许使用纯色半透明高亮。
 - 状态栏保持横向滚动，宽度不足时显示后续状态项。
@@ -48,16 +49,15 @@
 ### 2.4 底部导航栏
 
 - 底部导航卡片本身只保留上下内边距，不使用固定左右内边距。
-- 左右留白属于 `.sidebar-nav` 的可滚动内容，不属于 `.sidebar.panel` 的固定 padding。
+- 左右留白属于 `.sidebar-nav` 的可滚动内容，不属于卡片的固定 padding。
 - 左右留白由 `.sidebar-nav::before` 和 `.sidebar-nav::after` 提供，并使用 `--mobile-nav-scroll-gutter` 控制宽度。
 - 当前 `--mobile-nav-scroll-gutter` 为 `1.25rem`。
 - 两侧留白必须跟随导航按钮一起横向滚动；滚动到最左或最右时，首尾按钮与卡片圆角之间仍应保留完整空白。
-- 不得用 `.sidebar.panel` 的左右 padding 模拟该空白，否则空白不会随滚动移动，且首尾按钮仍可能在滚动边界被裁剪。
+- 不得用卡片左右 padding 模拟该空白，否则空白不会随滚动移动，且首尾按钮仍可能在滚动边界被裁剪。
 - 导航图标直接显示，不使用独立边框、圆角或背景底座。
 - 导航文字保持完整显示，字号不得恢复为 `.58rem` 的旧值。
 - 选中项使用按钮级纯色半透明背景、完整边框和图标高亮，不得给图标本身重新添加底座。
 - 不得恢复线性渐变或仅使用顶部细线表示选中状态。
-- 未选中项保持低对比度，但文字和图标仍应清晰可读。
 - 底部导航栏高度由 `--mobile-nav-height` 控制，当前为 `76px`。
 
 ### 2.5 边框
@@ -78,14 +78,14 @@
 
 ### 2.7 非页面滚动容器
 
-- `.page-scroll` 可以使用 `overscroll-behavior: contain`，避免页面滚动越过应用边界。
-- `.asset-bar`、`.sidebar-nav`、`.table-wrap`、`.ledger-list` 和 `.market-stat-strip` 不得使用 `overscroll-behavior: contain`。
-- 上述非页面滚动容器必须使用 `overscroll-behavior: auto`，到达滚动边界后释放后续手势，不再继续消耗滚动。
+- `.page-scroll` 使用 `overscroll-behavior: contain`，避免页面滚动越过应用边界。
+- `.asset-bar`、`.sidebar-nav`、`.table-wrap`、`.ledger-list` 和 `.market-stat-strip` 使用 `overscroll-behavior: auto`。
+- 非页面滚动容器到达滚动边界后必须释放后续手势，不再继续消耗滚动。
 - 横向滚动容器必须允许横向和纵向触摸手势，由浏览器将不能继续滚动的手势交还给上层。
 
 ## 3. 导航文案
 
-底部导航和桌面侧边导航共用同一套简短中文名称：
+桌面侧边导航和移动端底部导航共用 `src/config/navigation.ts` 中的同一套配置：
 
 - `home`：`概览`
 - `market`：`市场`
@@ -95,15 +95,24 @@
 - `records`：`订单`
 - `settings`：`设置`
 
-不得恢复为“主页面”“排行榜”“订单与记录”等较长文案。移动端导航名称应保持两个汉字以内。
+不得恢复为“主页面”“排行榜”“订单与记录”等较长文案。可见标签、可访问名称和页面 ID 必须来自同一配置，不得在运行时扫描 DOM 后替换。
 
 ## 4. 实现位置
 
+- 应用认证与页面状态：`src/app/App.tsx`
+- 游戏视图模型和衍生数据：`src/app/gameViewModel.ts`
+- 游戏外壳：`src/components/shell/GameShell.tsx`
+- 桌面侧栏：`src/components/shell/DesktopSidebar.tsx`
+- 移动端底部导航：`src/components/shell/MobileBottomNavigation.tsx`
+- 顶部状态栏：`src/components/shell/StatusBar.tsx`
+- 导航配置：`src/config/navigation.ts`
+- 七个业务页面：`src/pages/`
+- 通用页面组件：`src/components/ui/layout.tsx`
 - 圆角系统：`src/styles/card-system.css`
-- 移动端基础定位、边距和滚动预留：`src/styles/viewport.css`
-- 移动端状态栏、导航栏、液态玻璃效果与滚动留白：`src/styles/mobile-status-navigation.css`
-- 基础布局与组件样式：`src/styles/globals.css`
-- 样式加载顺序、品牌与导航文案同步：`src/main.tsx`
+- 视口、定位、滚动区和安全区：`src/styles/viewport.css`
+- 移动端设计令牌、液态玻璃、状态栏和导航视觉：`src/styles/mobile-status-navigation.css`
+- 通用组件与业务卡片视觉：`src/styles/globals.css`
+- 应用挂载和样式加载：`src/main.tsx`
 
 ## 5. 修改检查清单
 
@@ -115,10 +124,10 @@
 4. 上下栏是否仍共用同一套液态玻璃背景、边框、模糊和阴影参数；
 5. `backdrop-filter` 和 `-webkit-backdrop-filter` 是否仍启用；
 6. 上下栏是否没有透明度渐变；
-7. 顶部状态项是否仍为“无底座图标 + 数字在上、文字在下”的紧凑布局；
+7. 顶部状态图标是否由数据显式提供且没有 CSS 顺序依赖；
 8. 顶部状态栏是否仍隐藏第三行补充信息；
 9. 底部导航卡片是否没有固定左右 padding；
-10. 左右滚动留白是否仍由 `.sidebar-nav::before` 和 `.sidebar-nav::after` 提供；
+10. 左右滚动留白是否仍由首尾伪元素提供；
 11. 左右留白是否会跟随按钮滚动，并在滚动边界完整显示；
 12. 底部导航图标是否仍无独立底座；
 13. 图标和文字是否保持放大后的尺寸；
@@ -127,3 +136,28 @@
 16. 非页面滚动容器是否仍在边界释放滚动手势；
 17. 最后一张内容卡片是否能完整滚动到导航栏上方；
 18. 是否同步更新了本设计文档。
+
+## 6. 页面架构规范
+
+- `src/main.tsx` 只负责性能初始化、样式加载和 React 挂载，不得查询或修改业务 DOM。
+- 禁止使用 `MutationObserver`、`querySelector` 或文本匹配对 React 已渲染界面进行二次修补。
+- 登录页、导航文案、品牌图片和可访问名称必须直接由 JSX 与配置渲染。
+- 桌面侧边栏和移动端底部导航必须是独立组件，但共用同一导航配置和选择状态。
+- 顶部状态栏必须由状态项数组渲染，状态 ID、图标、名称、数值和强调状态必须显式声明。
+- 每个一级业务页面必须位于 `src/pages/` 的独立文件中，由 `PageRouter` 统一选择。
+- 游戏 Store 的初始化、定时处理、跨标签同步、衍生数据和局部界面状态集中在 `useGameViewModel` 中。
+- 页面统一使用 `PageLayout`、`Panel`、`WidgetHeading`、`ScrollableTable` 和 `EmptyState`，不得重复拼装同类基础结构。
+- 格式化函数、价格曲线和设施进度等跨页面逻辑必须使用独立模块，不得重新复制回页面文件。
+- 移动端设计令牌只在 `mobile-status-navigation.css` 的根变量区定义；`viewport.css` 不得重新声明视觉令牌。
+- `globals.css` 不得重新加入移动端应用壳层、状态栏或底部导航的定位与视觉覆盖。
+
+页面架构变更完成的最低验收标准：
+
+1. 原根 `App.tsx` 不再承载业务页面实现；
+2. 七个一级页面均已拆分；
+3. DOM 二次修改代码为零；
+4. CSS `nth-child` 状态图标映射为零；
+5. 桌面和移动导航结构已分离并共用配置；
+6. 移动端视觉令牌只有一个定义来源；
+7. 嵌套滚动与页面滚动不存在互相冲突的 overscroll 定义；
+8. TypeScript typecheck 和生产构建全部通过。
