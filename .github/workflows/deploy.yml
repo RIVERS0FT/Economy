@@ -43,6 +43,7 @@ jobs:
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
+          exec > >(tee /tmp/economy-deploy.log) 2>&1
           set -euo pipefail
 
           test -n "$SERVER_HOST"
@@ -156,7 +157,6 @@ jobs:
           PYTHON_SCRIPT
           fi
 
-          # Stop serving the superseded standalone Economy subdomain, if it was enabled.
           sudo rm -f \
             /etc/nginx/sites-enabled/economy.riversoft.top \
             /etc/nginx/sites-enabled/economy.riversoft.top.conf
@@ -207,6 +207,13 @@ jobs:
           else
             STATE="failure"
             DESCRIPTION="Economy deployment failed"
+
+            if [ -f /tmp/economy-deploy.log ]; then
+              DETAIL="$(grep -Eai 'permission denied|invalid format|load key|sudo:|rsync error|could not resolve|connection refused|connection timed out|no server block|nginx:|failed|error' /tmp/economy-deploy.log | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+              if [ -n "$DETAIL" ]; then
+                DESCRIPTION="$DETAIL"
+              fi
+            fi
           fi
 
           TARGET_URL="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
