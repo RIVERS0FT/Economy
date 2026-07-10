@@ -71,8 +71,18 @@ jobs:
       - name: Verify Nginx route
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
+          exec > >(tee /tmp/economy-verify.log) 2>&1
           set -euo pipefail
+
+          if ! ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
+            "$SERVER_USER@$SERVER_HOST" \
+            'command -v curl >/dev/null 2>&1 || { echo SERVER_CURL_NOT_AVAILABLE; exit 1; }; curl --fail --silent --show-error -H "Host: game.riversoft.top" http://127.0.0.1/economy/ > /dev/null'; then
+            echo NGINX_LOCAL_ROUTE_FAILED
+            exit 1
+          fi
 
           if curl --fail --silent --show-error \
             --resolve "game.riversoft.top:443:$SERVER_HOST" \
@@ -81,10 +91,15 @@ jobs:
             exit 0
           fi
 
-          curl --fail --silent --show-error \
+          if curl --fail --silent --show-error \
             --resolve "game.riversoft.top:80:$SERVER_HOST" \
             --retry 3 --retry-delay 2 \
-            http://game.riversoft.top/economy/ > /dev/null
+            http://game.riversoft.top/economy/ > /dev/null; then
+            exit 0
+          fi
+
+          echo PUBLIC_HTTP_HTTPS_UNREACHABLE
+          exit 1
 
       - name: Report deployment status
         if: always()
@@ -101,11 +116,13 @@ jobs:
             STATE="failure"
             DESCRIPTION="Economy deployment failed"
 
-            if [ -f /tmp/economy-deploy.log ]; then
-              DETAIL="$(grep -Eai 'DEPLOY_DIRECTORY_NOT_WRITABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|failed|error' /tmp/economy-deploy.log | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
-              if [ -n "$DETAIL" ]; then
-                DESCRIPTION="$DETAIL"
-              fi
+            DETAIL="$({
+              cat /tmp/economy-deploy.log 2>/dev/null || true
+              cat /tmp/economy-verify.log 2>/dev/null || true
+            } | grep -Eai 'DEPLOY_DIRECTORY_NOT_WRITABLE|NGINX_LOCAL_ROUTE_FAILED|PUBLIC_HTTP_HTTPS_UNREACHABLE|SERVER_CURL_NOT_AVAILABLE|permission denied|invalid format|load key|rsync error|could not resolve|connection refused|connection timed out|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+
+            if [ -n "$DETAIL" ]; then
+              DESCRIPTION="$DETAIL"
             fi
           fi
 
