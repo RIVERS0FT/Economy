@@ -90,7 +90,7 @@ jobs:
             fi
 
             sudo certbot --nginx \
-              --domain economy.riversoft.top \
+              -d economy.riversoft.top \
               --non-interactive \
               --agree-tos \
               --register-unsafely-without-email \
