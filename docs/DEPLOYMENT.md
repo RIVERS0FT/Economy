@@ -64,6 +64,10 @@ deploy/nginx/game.riversoft.top.conf
 .github/workflows/deploy.yml
 ```
 
+## 部署验证记录
+
+- 2026-07-10：在配置 Economy 仓库 Actions Secrets 后，通过推送提交触发部署验证。
+
 ## 当前限制
 
 当前仓库中的可构建网页仍是已有的 Economy 回合制原型。部署流程可以发布该网页，但它尚未实现设计文档中的多人服务器、工厂产权、统一订单簿和人口消费后端。
