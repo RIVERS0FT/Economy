@@ -29,6 +29,7 @@
       max(1.25rem, env(safe-area-inset-left));
     overflow-x: hidden;
     overflow-y: auto;
+    scroll-padding-block: 1.25rem;
     border: 1px solid var(--line);
     border-radius: 2.5rem;
     background: linear-gradient(145deg, rgba(15, 34, 26, .95), rgba(7, 20, 15, .92));
@@ -79,8 +80,7 @@
   }
 
   .login-brand {
-    min-height: 0;
-    flex: 1 1 auto;
+    flex: 1 0 auto;
     display: flex;
     flex-direction: column;
     padding-bottom: 0;
@@ -106,8 +106,7 @@
 
   .login-brand h1 {
     max-width: 13em;
-    min-height: 0;
-    flex: 1 1 auto;
+    flex: 1 0 auto;
     display: grid;
     align-content: center;
     margin: .8rem 0 1rem;
@@ -148,6 +147,7 @@
 
   .login-form input {
     min-height: 48px;
+    scroll-margin-block: 1rem;
     border-radius: .72rem;
     padding: .75rem .8rem;
     font-size: 16px;
@@ -166,6 +166,11 @@
     padding: .7rem .75rem;
     font-size: .8rem;
     line-height: 1.45;
+  }
+
+  .login-shell:focus-within .login-brand,
+  .login-shell:focus-within .login-brand h1 {
+    flex-grow: 0;
   }
 
   .auth-service-warning {
