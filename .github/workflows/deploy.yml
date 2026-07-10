@@ -222,10 +222,16 @@ jobs:
           import json
           import sys
 
+          state = sys.argv[1]
+          description = sys.argv[2]
+          context = "deploy/economy"
+          if state != "success":
+              context += ": " + description[:70]
+
           print(json.dumps({
-              "state": sys.argv[1],
-              "description": sys.argv[2],
-              "context": "deploy/economy",
+              "state": state,
+              "description": description,
+              "context": context,
               "target_url": sys.argv[3],
           }))
           PYTHON_SCRIPT
