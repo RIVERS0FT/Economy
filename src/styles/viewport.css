@@ -103,20 +103,31 @@ html[data-app-surface="game"] body {
   overflow: visible;
 }
 
-/* Tables may move horizontally on narrow screens, but never create a second
- * vertical scrollport. */
+/* Tables may move horizontally on narrow screens without consuming vertical
+ * gestures. Vertical panning must continue to the page scrollport. */
 .table-wrap {
   min-width: 0;
   max-height: none;
   overflow-x: auto;
   overflow-y: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  touch-action: pan-x pan-y;
   -webkit-overflow-scrolling: touch;
 }
 
 .leaderboard-card,
 .leaderboard-card .table-wrap {
   max-height: none;
+}
+
+.leaderboard-card {
+  padding: 1rem;
+}
+
+.leaderboard-card th,
+.leaderboard-card td {
+  padding: .68rem;
 }
 
 .ledger-list {
