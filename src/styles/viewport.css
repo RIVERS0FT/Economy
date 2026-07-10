@@ -1,5 +1,5 @@
-/* Economy uses a fixed application viewport. The browser document never scrolls;
- * only the login surface and the active workspace content may scroll. */
+/* Authentication pages use document scrolling. The signed-in game keeps its
+ * fixed application viewport and intentional internal scrollports. */
 :root {
   --scrollbar-size: 10px;
   --scrollbar-track: rgba(4, 15, 10, 0.72);
@@ -11,9 +11,7 @@ html,
 body,
 #root {
   width: 100%;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  min-height: 100%;
 }
 
 html {
@@ -21,28 +19,41 @@ html {
 }
 
 body {
-  position: fixed;
-  inset: 0;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: auto;
+}
+
+html[data-app-surface="game"],
+html[data-app-surface="game"] body,
+html[data-app-surface="game"] #root {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html[data-app-surface="game"] body {
   overscroll-behavior: none;
 }
 
 .loading-screen {
-  height: 100%;
-  min-height: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .login-shell {
-  height: 100%;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
   scrollbar-gutter: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .game-shell {
-  height: 100%;
+  position: fixed;
+  inset: 0;
+  height: auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -71,8 +82,7 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* This is the single vertical scrollport for every signed-in page. The sidebar
- * and asset bar remain fixed by the parent grid while page content moves. */
+/* This remains the single vertical scrollport for signed-in pages. */
 .page-scroll {
   min-width: 0;
   min-height: 0;
@@ -90,7 +100,7 @@ body {
 }
 
 /* Tables may move horizontally on narrow screens, but never create a second
- * vertical scrollport. The leaderboard therefore scrolls with page content. */
+ * vertical scrollport. */
 .table-wrap {
   min-width: 0;
   max-height: none;
@@ -110,16 +120,15 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Mouse-driven desktop layouts keep the themed scrollbar and reserve the
- * vertical gutter. Touch browsers use their native overlay scrollbar, which
- * appears during scrolling and disappears without consuming layout space. */
+/* Desktop mouse layouts retain the themed scrollbars. Authentication pages
+ * style the document scrollbar; game pages style only intentional scrollports. */
 @media (hover: hover) and (pointer: fine) {
-  .login-shell,
+  html[data-app-surface="auth"],
   .page-scroll {
     scrollbar-gutter: stable;
   }
 
-  .login-shell,
+  html[data-app-surface="auth"],
   .page-scroll,
   .asset-bar,
   .sidebar-nav,
@@ -129,7 +138,7 @@ body {
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
 
-  .login-shell::-webkit-scrollbar,
+  html[data-app-surface="auth"]::-webkit-scrollbar,
   .page-scroll::-webkit-scrollbar,
   .asset-bar::-webkit-scrollbar,
   .sidebar-nav::-webkit-scrollbar,
@@ -139,7 +148,7 @@ body {
     height: var(--scrollbar-size);
   }
 
-  .login-shell::-webkit-scrollbar-track,
+  html[data-app-surface="auth"]::-webkit-scrollbar-track,
   .page-scroll::-webkit-scrollbar-track,
   .asset-bar::-webkit-scrollbar-track,
   .sidebar-nav::-webkit-scrollbar-track,
@@ -149,7 +158,7 @@ body {
     background: var(--scrollbar-track);
   }
 
-  .login-shell::-webkit-scrollbar-thumb,
+  html[data-app-surface="auth"]::-webkit-scrollbar-thumb,
   .page-scroll::-webkit-scrollbar-thumb,
   .asset-bar::-webkit-scrollbar-thumb,
   .sidebar-nav::-webkit-scrollbar-thumb,
@@ -162,7 +171,7 @@ body {
     background-clip: padding-box;
   }
 
-  .login-shell::-webkit-scrollbar-thumb:hover,
+  html[data-app-surface="auth"]::-webkit-scrollbar-thumb:hover,
   .page-scroll::-webkit-scrollbar-thumb:hover,
   .asset-bar::-webkit-scrollbar-thumb:hover,
   .sidebar-nav::-webkit-scrollbar-thumb:hover,
@@ -171,7 +180,7 @@ body {
     background-color: var(--scrollbar-thumb-hover);
   }
 
-  .login-shell::-webkit-scrollbar-corner,
+  html[data-app-surface="auth"]::-webkit-scrollbar-corner,
   .page-scroll::-webkit-scrollbar-corner,
   .asset-bar::-webkit-scrollbar-corner,
   .sidebar-nav::-webkit-scrollbar-corner,
@@ -191,7 +200,7 @@ body {
 
 @media (max-width: 720px) {
   .page-scroll { padding-bottom: .25rem; }
-  .login-shell { padding-top: .75rem; padding-bottom: 4.5rem; }
+
   .sidebar-nav {
     overflow-x: auto;
     overflow-y: hidden;

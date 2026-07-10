@@ -5,7 +5,7 @@ import { configureRuntimePerformance } from './utils/runtimePerformance';
 import './styles/globals.css';
 import './styles/performance.css';
 import './styles/viewport.css';
-import './styles/login-mobile.css';
+import './styles/auth.css';
 
 const ORIGINAL_LOGO_URL = 'https://riversoft.top/1000002880.png';
 const LOGIN_SLOGAN = '从一枚货币开始，建立你的金融帝国。';
@@ -17,9 +17,22 @@ const LOGIN_INTRO_COPY = [
   ['.login-card > .muted', '使用已注册账号进入市场。'],
 ] as const;
 
-function BrandSynchronizer() {
+type AppSurface = 'loading' | 'auth' | 'game';
+
+function AppSurfaceController() {
   useLayoutEffect(() => {
-    const applyBranding = () => {
+    const root = document.getElementById('root');
+    if (!root) return undefined;
+
+    const synchronizeSurface = () => {
+      const surface: AppSurface = document.querySelector('.game-shell')
+        ? 'game'
+        : document.querySelector('.login-shell')
+          ? 'auth'
+          : 'loading';
+
+      document.documentElement.dataset.appSurface = surface;
+
       const brandLockup = document.querySelector<HTMLElement>('.brand-lockup');
       if (brandLockup && !brandLockup.querySelector('img')) {
         const logo = document.createElement('img');
@@ -65,96 +78,14 @@ function BrandSynchronizer() {
       }
     };
 
-    applyBranding();
-    const root = document.getElementById('root');
-    if (!root) return undefined;
+    synchronizeSurface();
 
-    const observer = new MutationObserver(applyBranding);
+    const observer = new MutationObserver(synchronizeSurface);
     observer.observe(root, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
-
-  return null;
-}
-
-function LoginKeyboardDock() {
-  useLayoutEffect(() => {
-    const mobileQuery = window.matchMedia('(max-width: 720px)');
-    const visualViewport = window.visualViewport;
-    let animationFrame = 0;
-    let blurTimer = 0;
-
-    const getActiveLoginInput = () => {
-      const activeElement = document.activeElement;
-      if (!(activeElement instanceof HTMLInputElement)) return null;
-      return activeElement.closest('.login-form') ? activeElement : null;
-    };
-
-    const clearDock = (shell?: HTMLElement | null) => {
-      const loginShell = shell ?? document.querySelector<HTMLElement>('.login-shell');
-      if (!loginShell) return;
-
-      loginShell.removeAttribute('data-keyboard-docked');
-      loginShell.style.removeProperty('--login-keyboard-inset');
-      loginShell.scrollTop = 0;
-    };
-
-    const syncDock = () => {
-      const loginShell = document.querySelector<HTMLElement>('.login-shell');
-      const activeInput = getActiveLoginInput();
-
-      if (!loginShell || !activeInput || !mobileQuery.matches) {
-        clearDock(loginShell);
-        return;
-      }
-
-      const visibleHeight = visualViewport?.height ?? window.innerHeight;
-      const viewportOffsetTop = visualViewport?.offsetTop ?? 0;
-      const visibleBottom = viewportOffsetTop + visibleHeight;
-      const shellBottom = loginShell.getBoundingClientRect().bottom;
-      const measuredInset = Math.max(0, shellBottom - visibleBottom);
-      const keyboardInset = Math.min(measuredInset, loginShell.clientHeight * 0.65);
-
-      loginShell.dataset.keyboardDocked = 'true';
-      loginShell.style.setProperty('--login-keyboard-inset', `${Math.round(keyboardInset)}px`);
-      loginShell.scrollTop = 0;
-    };
-
-    const scheduleSync = () => {
-      window.cancelAnimationFrame(animationFrame);
-      animationFrame = window.requestAnimationFrame(syncDock);
-    };
-
-    const handleFocusIn = (event: FocusEvent) => {
-      const target = event.target;
-      if (!(target instanceof HTMLInputElement) || !target.closest('.login-form')) return;
-
-      window.clearTimeout(blurTimer);
-      scheduleSync();
-    };
-
-    const handleFocusOut = () => {
-      window.clearTimeout(blurTimer);
-      blurTimer = window.setTimeout(scheduleSync, 0);
-    };
-
-    document.addEventListener('focusin', handleFocusIn);
-    document.addEventListener('focusout', handleFocusOut);
-    window.addEventListener('resize', scheduleSync);
-    visualViewport?.addEventListener('resize', scheduleSync);
-    visualViewport?.addEventListener('scroll', scheduleSync);
-    mobileQuery.addEventListener('change', scheduleSync);
 
     return () => {
-      document.removeEventListener('focusin', handleFocusIn);
-      document.removeEventListener('focusout', handleFocusOut);
-      window.removeEventListener('resize', scheduleSync);
-      visualViewport?.removeEventListener('resize', scheduleSync);
-      visualViewport?.removeEventListener('scroll', scheduleSync);
-      mobileQuery.removeEventListener('change', scheduleSync);
-      window.cancelAnimationFrame(animationFrame);
-      window.clearTimeout(blurTimer);
-      clearDock();
+      observer.disconnect();
+      delete document.documentElement.dataset.appSurface;
     };
   }, []);
 
@@ -165,8 +96,7 @@ configureRuntimePerformance();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <BrandSynchronizer />
-    <LoginKeyboardDock />
+    <AppSurfaceController />
     <App />
   </React.StrictMode>,
 );
