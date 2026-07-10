@@ -17,6 +17,11 @@ const LOGIN_INTRO_COPY = [
   ['.login-card > h2', '登录金融帝国'],
   ['.login-card > .muted', '使用已注册账号进入市场。'],
 ] as const;
+const NAVIGATION_LABEL_COPY: Readonly<Record<string, string>> = {
+  主页面: '概览',
+  排行榜: '排行',
+  订单与记录: '订单',
+};
 
 type AppSurface = 'loading' | 'auth' | 'game';
 
@@ -77,6 +82,15 @@ function AppSurfaceController() {
         if (placeholder) placeholder.replaceWith(logo);
         else sidebarBrand.prepend(logo);
       }
+
+      document.querySelectorAll<HTMLButtonElement>('.sidebar-nav-button').forEach((button) => {
+        const label = button.querySelector<HTMLElement>('strong');
+        const currentCopy = label?.textContent?.trim();
+        const nextCopy = currentCopy ? NAVIGATION_LABEL_COPY[currentCopy] : undefined;
+        if (!label || !nextCopy) return;
+        label.textContent = nextCopy;
+        button.setAttribute('aria-label', nextCopy);
+      });
     };
 
     synchronizeSurface();
