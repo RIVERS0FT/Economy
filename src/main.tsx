@@ -5,6 +5,7 @@ import { configureRuntimePerformance } from './utils/runtimePerformance';
 import './styles/globals.css';
 import './styles/performance.css';
 import './styles/viewport.css';
+import './styles/login-mobile.css';
 
 const ORIGINAL_LOGO_URL = 'https://riversoft.top/1000002880.png';
 const LOGIN_SLOGAN = '从一枚货币开始，建立你的金融帝国。';
