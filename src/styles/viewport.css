@@ -253,12 +253,11 @@ html[data-app-surface="game"] body {
   }
 
   /* The card background itself fades continuously from 0% to 100%. Only the
-   * background changes alpha; text, icons and controls remain fully opaque. */
+   * background changes alpha; borders, text, icons and controls remain opaque. */
   .asset-bar.panel,
   .sidebar.panel {
+    border: 1px solid rgba(212, 245, 224, .12);
     border-radius: var(--app-card-radius);
-    border-color: rgba(212, 245, 224, .12);
-    border-bottom-color: transparent;
     background: linear-gradient(
       180deg,
       var(--mobile-chrome-surface) 0%,
