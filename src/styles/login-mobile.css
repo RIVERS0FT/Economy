@@ -189,8 +189,46 @@
     line-height: 1.45;
   }
 
-  .login-shell:focus-within .login-brand,
-  .login-shell:focus-within .login-brand h1 {
+  /* While a login input owns focus, keep the shell fixed and dock the existing
+   * form immediately above the visual keyboard. The card alone may scroll as
+   * an emergency fallback on exceptionally short landscape viewports. */
+  .login-shell[data-keyboard-docked="true"] {
+    overflow: hidden;
+    overscroll-behavior: none;
+    scroll-padding-block: 0;
+  }
+
+  .login-shell[data-keyboard-docked="true"] .login-brand {
+    display: none;
+  }
+
+  .login-shell[data-keyboard-docked="true"] .login-card,
+  .login-shell[data-keyboard-docked="true"] .login-card.panel {
+    position: absolute;
+    left: max(1.25rem, env(safe-area-inset-left));
+    right: max(1.25rem, env(safe-area-inset-right));
+    bottom: calc(var(--login-keyboard-inset, 0px) + max(1.25rem, env(safe-area-inset-bottom)));
+    width: auto;
+    max-height: calc(100% - var(--login-keyboard-inset, 0px) - 2.5rem);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .login-shell[data-keyboard-docked="true"] .login-card::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .login-shell[data-keyboard-docked="true"] .login-card {
+    scrollbar-width: none;
+  }
+
+  /* Preserve the old compacting behavior as a no-script fallback. */
+  .login-shell:focus-within:not([data-keyboard-docked="true"]) .login-brand,
+  .login-shell:focus-within:not([data-keyboard-docked="true"]) .login-brand h1 {
     flex-grow: 0;
   }
 
