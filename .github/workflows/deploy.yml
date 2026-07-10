@@ -32,7 +32,7 @@ jobs:
       - name: Install deployment tools
         run: sudo apt-get update && sudo apt-get install -y rsync
 
-      - name: Deploy Economy subdomain
+      - name: Deploy Economy game path
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -53,33 +53,108 @@ jobs:
 
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
             "$SERVER_USER@$SERVER_HOST" \
-            "mkdir -p /var/www/economy /tmp/economy-deploy"
+            "mkdir -p /var/www/game/economy /tmp/economy-deploy"
 
           rsync -az --delete \
             -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            dist/ "$SERVER_USER@$SERVER_HOST:/var/www/economy/"
+            dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"
 
           rsync -az \
             -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
-            deploy/nginx/economy.riversoft.top.conf \
-            "$SERVER_USER@$SERVER_HOST:/tmp/economy-deploy/economy.riversoft.top.conf"
+            deploy/nginx/game.riversoft.top.economy-location.conf \
+            deploy/nginx/game.riversoft.top.conf \
+            "$SERVER_USER@$SERVER_HOST:/tmp/economy-deploy/"
 
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
             "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE_SCRIPT'
           set -euo pipefail
 
-          SITE_NAME="economy.riversoft.top"
-          SITE_AVAILABLE="/etc/nginx/sites-available/$SITE_NAME"
-          SITE_ENABLED="/etc/nginx/sites-enabled/$SITE_NAME"
+          SITE_NAME="game.riversoft.top"
+          SNIPPET_PATH="/etc/nginx/snippets/game-riversoft-economy.conf"
           CERT_PATH="/etc/letsencrypt/live/$SITE_NAME/fullchain.pem"
 
-          if [ ! -f "$SITE_AVAILABLE" ]; then
+          sudo mkdir -p /etc/nginx/snippets
+          sudo install -m 0644 \
+            /tmp/economy-deploy/game.riversoft.top.economy-location.conf \
+            "$SNIPPET_PATH"
+
+          SITE_CONFIG=""
+          for candidate in \
+            "/etc/nginx/sites-available/$SITE_NAME" \
+            "/etc/nginx/sites-available/$SITE_NAME.conf" \
+            "/etc/nginx/conf.d/$SITE_NAME.conf"; do
+            if [ -f "$candidate" ]; then
+              SITE_CONFIG="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$SITE_CONFIG" ]; then
+            SITE_CONFIG="/etc/nginx/sites-available/$SITE_NAME"
             sudo install -m 0644 \
-              /tmp/economy-deploy/economy.riversoft.top.conf \
-              "$SITE_AVAILABLE"
+              /tmp/economy-deploy/game.riversoft.top.conf \
+              "$SITE_CONFIG"
+            sudo ln -sfn "$SITE_CONFIG" "/etc/nginx/sites-enabled/$SITE_NAME"
+          else
+            sudo env SITE_CONFIG="$SITE_CONFIG" python3 - <<'PYTHON_SCRIPT'
+          import os
+          import re
+          from pathlib import Path
+
+          path = Path(os.environ["SITE_CONFIG"])
+          text = path.read_text(encoding="utf-8")
+          include_line = "    include /etc/nginx/snippets/game-riversoft-economy.conf;\n"
+          server_pattern = re.compile(r"\bserver\s*\{")
+          domain_pattern = re.compile(
+              r"\bserver_name\s+[^;]*\bgame\.riversoft\.top\b[^;]*;"
+          )
+
+          insert_positions = []
+          matched_domain = False
+
+          for match in server_pattern.finditer(text):
+              open_brace = text.find("{", match.start(), match.end())
+              depth = 0
+              end = None
+
+              for index in range(open_brace, len(text)):
+                  character = text[index]
+                  if character == "{":
+                      depth += 1
+                  elif character == "}":
+                      depth -= 1
+                      if depth == 0:
+                          end = index
+                          break
+
+              if end is None:
+                  continue
+
+              block = text[match.start() : end + 1]
+              if not domain_pattern.search(block):
+                  continue
+
+              matched_domain = True
+              if "game-riversoft-economy.conf" not in block:
+                  insert_positions.append(end)
+
+          if not matched_domain:
+              raise SystemExit(
+                  f"No server block for game.riversoft.top found in {path}"
+              )
+
+          for position in reversed(insert_positions):
+              text = text[:position] + "\n" + include_line + text[position:]
+
+          path.write_text(text, encoding="utf-8")
+          PYTHON_SCRIPT
           fi
 
-          sudo ln -sfn "$SITE_AVAILABLE" "$SITE_ENABLED"
+          # Stop serving the superseded standalone Economy subdomain, if it was enabled.
+          sudo rm -f \
+            /etc/nginx/sites-enabled/economy.riversoft.top \
+            /etc/nginx/sites-enabled/economy.riversoft.top.conf
+
           sudo nginx -t
           sudo systemctl reload nginx
 
@@ -90,7 +165,7 @@ jobs:
             fi
 
             sudo certbot --nginx \
-              -d economy.riversoft.top \
+              -d game.riversoft.top \
               --non-interactive \
               --agree-tos \
               --register-unsafely-without-email \
@@ -105,9 +180,9 @@ jobs:
         run: |
           set -e
           if curl --fail --silent --show-error --retry 5 --retry-delay 3 \
-            https://economy.riversoft.top/ > /dev/null; then
+            https://game.riversoft.top/economy/ > /dev/null; then
             exit 0
           fi
 
           curl --fail --silent --show-error --retry 5 --retry-delay 3 \
-            http://economy.riversoft.top/ > /dev/null
+            http://game.riversoft.top/economy/ > /dev/null
