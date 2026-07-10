@@ -1,112 +1,143 @@
-export type ResourceId = 'grain' | 'ore' | 'textile' | 'energy';
-
-export type Inventory = Record<ResourceId, number>;
-
-export type GamePhase = 'lobby' | 'playing' | 'paused' | 'finished';
-
-export type TradeStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled';
-
-export type ConnectionStatus = 'offline' | 'connecting' | 'connected' | 'error';
-
-export type UnitKind = 'scout' | 'carrier' | 'guard';
-
-export type StructureKind = 'hq' | 'farm' | 'mine' | 'plant' | 'exchange';
-
-export interface MarketGood {
-  id: ResourceId;
-  name: string;
-  icon: string;
-  price: number;
-  trend: number;
+export interface AuthUser {
+  id: number;
+  email: string;
+  name?: string | null;
+  avatar?: string | null;
+  role?: 'user' | 'admin';
 }
 
-export interface Player {
+export type FactoryStatus =
+  | 'constructing'
+  | 'ready'
+  | 'running'
+  | 'paused'
+  | 'full'
+  | 'insufficient_funds'
+  | 'listed';
+
+export interface Factory {
   id: string;
   name: string;
-  isHost: boolean;
-  isLocal: boolean;
-  online: boolean;
-  credits: number;
-  reputation: number;
-  inventory: Inventory;
-  unitCap: number;
-  defeated: boolean;
-}
-
-export interface MapNode {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  resource: ResourceId;
-  ownerPlayerId?: string;
-  capture: Record<string, number>;
-}
-
-export interface Unit {
-  id: string;
-  ownerPlayerId: string;
-  kind: UnitKind;
-  name: string;
-  x: number;
-  y: number;
-  targetNodeId?: string;
-  hp: number;
-  speed: number;
-  cargo: Inventory;
-}
-
-export interface Structure {
-  id: string;
-  ownerPlayerId: string;
-  nodeId: string;
-  kind: StructureKind;
+  ownerId: number;
   level: number;
+  status: FactoryStatus;
+  builtAt: number;
+  constructionCompletesAt?: number;
+  cycleStartedAt?: number;
+  cycleMs: number;
+  outputPerCycle: number;
+  operatingCost: number;
+  internalGoods: number;
+  internalCapacity: number;
+  lifetimeOutput: number;
+  systemValue: number;
+  listedOrderId?: string;
 }
 
-export interface MultiplayerSession {
-  roomCode: string;
-  serverUrl: string;
-  status: ConnectionStatus;
-  localPlayerId: string;
-  hostPlayerId: string;
-  lastSyncedAt?: number;
-  error?: string;
-}
+export type OrderSide = 'buy' | 'sell';
+export type OrderStatus = 'open' | 'partial' | 'filled' | 'cancelled';
+export type OrderOwnerType = 'player' | 'population' | 'market';
 
-export interface TradeOffer {
+export interface CommodityOrder {
   id: string;
-  fromPlayerId: string;
-  toPlayerId: string;
-  giveCredits: number;
-  receiveCredits: number;
-  giveItems: Partial<Inventory>;
-  receiveItems: Partial<Inventory>;
-  message: string;
-  tick: number;
-  status: TradeStatus;
+  side: OrderSide;
+  ownerType: OrderOwnerType;
+  ownerId?: number;
+  ownerName: string;
+  price: number;
+  quantity: number;
+  remaining: number;
+  status: OrderStatus;
+  createdAt: number;
 }
 
-export interface GameLogEntry {
+export interface FactoryListing {
   id: string;
-  tick: number;
-  text: string;
-  tone: 'info' | 'success' | 'warning' | 'trade' | 'network' | 'combat';
+  factoryId: string;
+  ownerType: 'player' | 'market';
+  ownerId?: number;
+  ownerName: string;
+  price: number;
+  createdAt: number;
+  factory: Pick<Factory, 'name' | 'level' | 'cycleMs' | 'outputPerCycle' | 'operatingCost' | 'internalCapacity' | 'lifetimeOutput' | 'systemValue'>;
 }
 
-export interface GameState {
-  tick: number;
-  elapsedSeconds: number;
-  maxSeconds: number;
-  targetReputation: number;
-  phase: GamePhase;
-  session: MultiplayerSession;
-  players: Player[];
-  market: MarketGood[];
-  mapNodes: MapNode[];
-  units: Unit[];
-  structures: Structure[];
-  tradeOffers: TradeOffer[];
-  log: GameLogEntry[];
-  winnerId?: string;
+export interface TradeRecord {
+  id: string;
+  type: 'commodity' | 'factory';
+  side: 'buy' | 'sell';
+  quantity: number;
+  price: number;
+  total: number;
+  counterparty: string;
+  createdAt: number;
+  description: string;
+}
+
+export type LedgerCategory =
+  | 'work_income'
+  | 'population_income'
+  | 'market_trade'
+  | 'factory_trade'
+  | 'factory_construction'
+  | 'factory_operation'
+  | 'factory_sale'
+  | 'inventory'
+  | 'system';
+
+export interface LedgerEntry {
+  id: string;
+  category: LedgerCategory;
+  amount: number;
+  balanceAfter: number;
+  createdAt: number;
+  description: string;
+}
+
+export interface WorkState {
+  cooldownUntil: number;
+  lastWorkedAt: number;
+  streak: number;
+  totalClicks: number;
+}
+
+export interface PopulationState {
+  population: number;
+  cycleMs: number;
+  nextDemandAt: number;
+  lastBudget: number;
+  lastQuantity: number;
+  lastPrice: number;
+  satisfaction: number;
+}
+
+export interface EconomyStats {
+  workIssued: number;
+  populationIssued: number;
+  systemSinks: number;
+  commodityVolume: number;
+  factoryVolume: number;
+}
+
+export interface EconomyState {
+  version: 2;
+  userId: number;
+  companyName: string;
+  credits: number;
+  frozenCredits: number;
+  inventory: number;
+  frozenInventory: number;
+  warehouseCapacity: number;
+  factorySlots: number;
+  factories: Factory[];
+  commodityName: string;
+  orders: CommodityOrder[];
+  factoryListings: FactoryListing[];
+  trades: TradeRecord[];
+  ledger: LedgerEntry[];
+  work: WorkState;
+  population: PopulationState;
+  stats: EconomyStats;
+  marketPrice: number;
+  lastProcessedAt: number;
 }
