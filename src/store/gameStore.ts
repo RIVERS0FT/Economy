@@ -3,19 +3,23 @@ import type {
   AuthUser,
   CommodityOrder,
   EconomyState,
-  Factory,
-  FactoryListing,
+  FacilityListing,
+  LeaderboardEntry,
   LedgerCategory,
   LedgerEntry,
+  PricePoint,
+  ProductionFacility,
   TradeRecord,
 } from '../types';
 
-const STORAGE_PREFIX = 'riversoft-economy-v2';
+const STORAGE_PREFIX = 'riversoft-economy-v3';
+const LEGACY_STORAGE_PREFIX = 'riversoft-economy-v2';
 const WORK_RESET_MS = 5 * 60 * 1000;
 const WORK_COOLDOWNS = [3_000, 5_000, 8_000, 12_000];
 const BUILD_COST = 60;
 const BUILD_TIME_MS = 5 * 60 * 1000;
 const MAX_OPEN_ORDERS = 10;
+const MAX_PRICE_POINTS = 48;
 
 function id(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -27,6 +31,11 @@ function storageKey(userId: number) {
 
 function cloneState(state: EconomyState): EconomyState {
   return JSON.parse(JSON.stringify(state)) as EconomyState;
+}
+
+function totalAssets(state: EconomyState) {
+  const facilityValue = state.facilities.reduce((sum, facility) => sum + facility.systemValue + facility.internalGoods * state.marketPrice, 0);
+  return state.credits + state.frozenCredits + (state.inventory + state.frozenInventory) * state.marketPrice + facilityValue;
 }
 
 function addLedger(
@@ -44,11 +53,25 @@ function addLedger(
     createdAt,
     description,
   };
-  state.ledger = [entry, ...state.ledger].slice(0, 200);
+  state.ledger = [entry, ...state.ledger].slice(0, 240);
 }
 
 function addTrade(state: EconomyState, trade: Omit<TradeRecord, 'id'>) {
-  state.trades = [{ id: id('trade'), ...trade }, ...state.trades].slice(0, 120);
+  state.trades = [{ id: id('trade'), ...trade }, ...state.trades].slice(0, 160);
+}
+
+function recordPrice(state: EconomyState, price: number, quantity: number, createdAt: number) {
+  state.marketPrice = price;
+  state.marketPriceHistory = [...state.marketPriceHistory, { price, quantity, createdAt }].slice(-MAX_PRICE_POINTS);
+}
+
+function seedPriceHistory(now: number): PricePoint[] {
+  const prices = [6, 6, 7, 6, 7, 7, 8, 7, 7, 8, 8, 7, 7, 6, 7, 7, 8, 8, 7, 7, 7, 8, 7, 7];
+  return prices.map((price, index) => ({
+    price,
+    quantity: 3 + (index % 5),
+    createdAt: now - (prices.length - index) * 60_000,
+  }));
 }
 
 function seedOrders(now: number): CommodityOrder[] {
@@ -57,7 +80,7 @@ function seedOrders(now: number): CommodityOrder[] {
       id: id('order'),
       side: 'buy',
       ownerType: 'population',
-      ownerName: '城市居民消费池',
+      ownerName: '人口需求',
       price: 6,
       quantity: 12,
       remaining: 12,
@@ -68,7 +91,7 @@ function seedOrders(now: number): CommodityOrder[] {
       id: id('order'),
       side: 'buy',
       ownerType: 'market',
-      ownerName: '远岸贸易社',
+      ownerName: '玩家·远岸',
       price: 5,
       quantity: 20,
       remaining: 20,
@@ -79,7 +102,7 @@ function seedOrders(now: number): CommodityOrder[] {
       id: id('order'),
       side: 'sell',
       ownerType: 'market',
-      ownerName: '北港制造',
+      ownerName: '玩家·北港',
       price: 8,
       quantity: 10,
       remaining: 10,
@@ -90,7 +113,7 @@ function seedOrders(now: number): CommodityOrder[] {
       id: id('order'),
       side: 'sell',
       ownerType: 'market',
-      ownerName: '云岭实业',
+      ownerName: '玩家·云岭',
       price: 9,
       quantity: 15,
       remaining: 15,
@@ -100,17 +123,17 @@ function seedOrders(now: number): CommodityOrder[] {
   ];
 }
 
-function seedFactoryListings(now: number): FactoryListing[] {
+function seedFacilityListings(now: number): FacilityListing[] {
   return [
     {
-      id: id('factory-listing'),
-      factoryId: 'market-factory-starter',
+      id: id('facility-listing'),
+      facilityId: 'market-facility-starter',
       ownerType: 'market',
-      ownerName: '曙光制造公司',
+      ownerName: '玩家·曙光',
       price: 86,
       createdAt: now - 30_000,
-      factory: {
-        name: '基础制造厂 A-17',
+      facility: {
+        name: '基础生产设施 A-17',
         level: 1,
         cycleMs: 30_000,
         outputPerCycle: 1,
@@ -121,14 +144,14 @@ function seedFactoryListings(now: number): FactoryListing[] {
       },
     },
     {
-      id: id('factory-listing'),
-      factoryId: 'market-factory-efficient',
+      id: id('facility-listing'),
+      facilityId: 'market-facility-efficient',
       ownerType: 'market',
-      ownerName: '启明资产管理',
+      ownerName: '玩家·启明',
       price: 104,
       createdAt: now - 20_000,
-      factory: {
-        name: '基础制造厂 B-04',
+      facility: {
+        name: '高效生产设施 B-04',
         level: 2,
         cycleMs: 26_000,
         outputPerCycle: 1,
@@ -141,23 +164,62 @@ function seedFactoryListings(now: number): FactoryListing[] {
   ];
 }
 
+const leaderboardSeeds = [
+  ['航标', 4_860, 1_520, 9, 420],
+  ['青曜', 4_420, 1_180, 8, 305],
+  ['北辰', 3_970, 940, 7, 260],
+  ['灰塔', 3_540, 1_080, 6, -45],
+  ['折光', 3_180, 720, 6, 188],
+  ['潮汐', 2_760, 980, 5, 141],
+  ['白榆', 2_430, 630, 5, 96],
+  ['渡鸦', 2_080, 710, 4, 220],
+  ['雾桥', 1_720, 540, 3, 74],
+  ['星野', 1_380, 480, 3, 58],
+  ['南栀', 1_040, 390, 2, 33],
+  ['初雪', 760, 310, 1, 22],
+] as const;
+
+function refreshLeaderboard(state: EconomyState, now: number) {
+  const currentAssets = totalAssets(state);
+  const entries: Omit<LeaderboardEntry, 'rank'>[] = leaderboardSeeds.map(([playerName, assets, cash, facilities, weekly]) => ({
+    playerName,
+    totalAssets: assets,
+    cashAssets: cash,
+    facilityCount: facilities,
+    weeklyChange: weekly,
+    updatedAt: now,
+  }));
+  entries.push({
+    playerName: state.playerName,
+    totalAssets: currentAssets,
+    cashAssets: state.credits + state.frozenCredits,
+    facilityCount: state.facilities.length,
+    weeklyChange: Math.round(currentAssets - 100),
+    updatedAt: now,
+    isCurrentPlayer: true,
+  });
+  state.leaderboard = entries
+    .sort((a, b) => b.totalAssets - a.totalAssets || a.playerName.localeCompare(b.playerName, 'zh-CN'))
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
 function createInitialState(user: AuthUser): EconomyState {
   const now = Date.now();
-  const companyBase = user.name?.trim() || user.email.split('@')[0] || '新企业';
   const state: EconomyState = {
-    version: 2,
+    version: 3,
     userId: user.id,
-    companyName: `${companyBase}企业`,
+    playerName: user.name?.trim() || user.email.split('@')[0] || '新玩家',
+    registeredAt: now,
     credits: 100,
     frozenCredits: 0,
     inventory: 0,
     frozenInventory: 0,
-    warehouseCapacity: 100,
-    factorySlots: 1,
-    factories: [],
+    inventoryCapacity: 100,
+    facilitySlots: 1,
+    facilities: [],
     commodityName: '基础商品',
     orders: seedOrders(now),
-    factoryListings: seedFactoryListings(now),
+    facilityListings: seedFacilityListings(now),
     trades: [],
     ledger: [],
     work: {
@@ -166,7 +228,7 @@ function createInitialState(user: AuthUser): EconomyState {
       streak: 0,
       totalClicks: 0,
     },
-    population: {
+    demand: {
       population: 10_000,
       cycleMs: 60_000,
       nextDemandAt: now + 45_000,
@@ -180,13 +242,64 @@ function createInitialState(user: AuthUser): EconomyState {
       populationIssued: 0,
       systemSinks: 0,
       commodityVolume: 0,
-      factoryVolume: 0,
+      facilityVolume: 0,
     },
     marketPrice: 7,
+    marketPriceHistory: seedPriceHistory(now),
+    leaderboard: [],
     lastProcessedAt: now,
   };
-  addLedger(state, 'system', 100, '新企业测试启动资金');
+  addLedger(state, 'system', 100, '玩家测试启动资金');
+  refreshLeaderboard(state, now);
   return state;
+}
+
+function migrateLegacyState(user: AuthUser, raw: string): EconomyState | null {
+  try {
+    const legacy: any = JSON.parse(raw);
+    if (legacy.userId !== user.id) return null;
+    const state = createInitialState(user);
+    state.playerName = String(legacy.companyName || state.playerName).replace(/企业$/, '') || state.playerName;
+    state.credits = Number(legacy.credits ?? state.credits);
+    state.frozenCredits = Number(legacy.frozenCredits ?? 0);
+    state.inventory = Number(legacy.inventory ?? 0);
+    state.frozenInventory = Number(legacy.frozenInventory ?? 0);
+    state.inventoryCapacity = Number(legacy.warehouseCapacity ?? 100);
+    state.facilitySlots = Number(legacy.factorySlots ?? 1);
+    state.facilities = Array.isArray(legacy.factories) ? legacy.factories : [];
+    state.orders = Array.isArray(legacy.orders) ? legacy.orders : state.orders;
+    state.facilityListings = (Array.isArray(legacy.factoryListings)
+      ? legacy.factoryListings.map((listing: any) => ({
+          ...listing,
+          facilityId: listing.facilityId ?? listing.factoryId,
+          facility: listing.facility ?? listing.factory,
+        }))
+      : state.facilityListings) as FacilityListing[];
+    state.trades = (Array.isArray(legacy.trades)
+      ? legacy.trades.map((trade: any) => ({ ...trade, type: trade.type === 'factory' ? 'facility' : trade.type }))
+      : []) as TradeRecord[];
+    state.ledger = (Array.isArray(legacy.ledger)
+      ? legacy.ledger.map((entry: any) => ({
+          ...entry,
+          category: String(entry.category || '').replace('factory_', 'facility_'),
+        }))
+      : []) as LedgerEntry[];
+    state.work = legacy.work ?? state.work;
+    state.demand = legacy.population ?? state.demand;
+    state.stats = {
+      workIssued: Number(legacy.stats?.workIssued ?? 0),
+      populationIssued: Number(legacy.stats?.populationIssued ?? 0),
+      systemSinks: Number(legacy.stats?.systemSinks ?? 0),
+      commodityVolume: Number(legacy.stats?.commodityVolume ?? 0),
+      facilityVolume: Number(legacy.stats?.facilityVolume ?? legacy.stats?.factoryVolume ?? 0),
+    };
+    state.marketPrice = Number(legacy.marketPrice ?? 7);
+    state.lastProcessedAt = Number(legacy.lastProcessedAt ?? Date.now());
+    refreshLeaderboard(state, Date.now());
+    return state;
+  } catch {
+    return null;
+  }
 }
 
 function saveState(state: EconomyState) {
@@ -195,26 +308,30 @@ function saveState(state: EconomyState) {
 
 function loadState(user: AuthUser): EconomyState {
   const raw = localStorage.getItem(storageKey(user.id));
-  if (!raw) return createInitialState(user);
-  try {
-    const state = JSON.parse(raw) as EconomyState;
-    if (state.version !== 2 || state.userId !== user.id) return createInitialState(user);
-    return processState(state, Date.now());
-  } catch {
-    return createInitialState(user);
+  if (raw) {
+    try {
+      const state = JSON.parse(raw) as EconomyState;
+      if (state.version === 3 && state.userId === user.id) return processState(state, Date.now());
+    } catch {
+      // Fall through to migration or a new state.
+    }
   }
+  const legacyRaw = localStorage.getItem(`${LEGACY_STORAGE_PREFIX}:${user.id}`);
+  const migrated = legacyRaw ? migrateLegacyState(user, legacyRaw) : null;
+  return migrated ? processState(migrated, Date.now()) : createInitialState(user);
 }
 
 function refreshExternalLiquidity(state: EconomyState, now: number) {
-  const openMarketBuys = state.orders.filter((order) => order.status !== 'filled' && order.status !== 'cancelled' && order.ownerType === 'market' && order.side === 'buy');
-  const openMarketSells = state.orders.filter((order) => order.status !== 'filled' && order.status !== 'cancelled' && order.ownerType === 'market' && order.side === 'sell');
+  const open = (order: CommodityOrder) => !['filled', 'cancelled'].includes(order.status);
+  const marketBuys = state.orders.filter((order) => open(order) && order.ownerType === 'market' && order.side === 'buy');
+  const marketSells = state.orders.filter((order) => open(order) && order.ownerType === 'market' && order.side === 'sell');
 
-  if (openMarketBuys.length < 1) {
+  if (marketBuys.length < 1) {
     state.orders.push({
       id: id('order'),
       side: 'buy',
       ownerType: 'market',
-      ownerName: '流动性采购商',
+      ownerName: '玩家·流动采购',
       price: Math.max(3, state.marketPrice - 2),
       quantity: 16,
       remaining: 16,
@@ -223,13 +340,13 @@ function refreshExternalLiquidity(state: EconomyState, now: number) {
     });
   }
 
-  if (openMarketSells.length < 2) {
+  if (marketSells.length < 2) {
     state.orders.push({
       id: id('order'),
       side: 'sell',
       ownerType: 'market',
-      ownerName: '流动性供应商',
-      price: state.marketPrice + 1 + openMarketSells.length,
+      ownerName: '玩家·流动供给',
+      price: state.marketPrice + 1 + marketSells.length,
       quantity: 12,
       remaining: 12,
       status: 'open',
@@ -239,7 +356,7 @@ function refreshExternalLiquidity(state: EconomyState, now: number) {
 }
 
 function createPopulationDemand(state: EconomyState, now: number) {
-  const cycle = Math.floor(now / state.population.cycleMs);
+  const cycle = Math.floor(now / state.demand.cycleMs);
   const price = 6 + (cycle % 3);
   const quantity = 8 + (cycle % 5);
   const budget = price * quantity;
@@ -248,98 +365,92 @@ function createPopulationDemand(state: EconomyState, now: number) {
     id: id('population-order'),
     side: 'buy',
     ownerType: 'population',
-    ownerName: '城市居民消费池',
+    ownerName: '人口需求',
     price,
     quantity,
     remaining: quantity,
     status: 'open',
     createdAt: now,
   });
-  state.population.lastPrice = price;
-  state.population.lastQuantity = quantity;
-  state.population.lastBudget = budget;
-  state.population.satisfaction = Math.min(1, Math.max(0.35, state.population.satisfaction + ((cycle % 3) - 1) * 0.04));
-  state.population.nextDemandAt = now + state.population.cycleMs;
+  state.demand.lastPrice = price;
+  state.demand.lastQuantity = quantity;
+  state.demand.lastBudget = budget;
+  state.demand.satisfaction = Math.min(1, Math.max(0.35, state.demand.satisfaction + ((cycle % 3) - 1) * 0.04));
+  state.demand.nextDemandAt = now + state.demand.cycleMs;
 }
 
-function processFactories(state: EconomyState, now: number) {
-  state.factories.forEach((factory) => {
-    if (factory.status === 'constructing' && factory.constructionCompletesAt && now >= factory.constructionCompletesAt) {
-      factory.status = 'ready';
-      factory.builtAt = factory.constructionCompletesAt;
-      delete factory.constructionCompletesAt;
-      addLedger(state, 'system', 0, `${factory.name} 已完成施工，可启动生产`, now);
+function processFacilities(state: EconomyState, now: number) {
+  state.facilities.forEach((facility) => {
+    if (facility.status === 'constructing' && facility.constructionCompletesAt && now >= facility.constructionCompletesAt) {
+      facility.status = 'ready';
+      facility.builtAt = facility.constructionCompletesAt;
+      delete facility.constructionCompletesAt;
+      addLedger(state, 'system', 0, `${facility.name} 已完成施工，可启动生产`, now);
     }
 
-    if (factory.status !== 'running' || !factory.cycleStartedAt) return;
-    let completedCycles = Math.floor((now - factory.cycleStartedAt) / factory.cycleMs);
-    if (completedCycles <= 0) return;
-
+    if (facility.status !== 'running' || !facility.cycleStartedAt) return;
+    let completedCycles = Math.min(500, Math.floor((now - facility.cycleStartedAt) / facility.cycleMs));
     while (completedCycles > 0) {
-      if (factory.internalGoods + factory.outputPerCycle > factory.internalCapacity) {
-        factory.status = 'full';
-        factory.cycleStartedAt = now;
+      if (facility.internalGoods + facility.outputPerCycle > facility.internalCapacity) {
+        facility.status = 'full';
+        delete facility.cycleStartedAt;
         break;
       }
-      if (state.credits < factory.operatingCost) {
-        factory.status = 'insufficient_funds';
-        factory.cycleStartedAt = now;
+      if (state.credits < facility.operatingCost) {
+        facility.status = 'insufficient_funds';
+        delete facility.cycleStartedAt;
         break;
       }
-
-      state.credits -= factory.operatingCost;
-      state.stats.systemSinks += factory.operatingCost;
-      factory.internalGoods += factory.outputPerCycle;
-      factory.lifetimeOutput += factory.outputPerCycle;
-      factory.cycleStartedAt += factory.cycleMs;
-      addLedger(state, 'factory_operation', -factory.operatingCost, `${factory.name} 完成生产周期并支付运营费`, factory.cycleStartedAt);
+      state.credits -= facility.operatingCost;
+      state.stats.systemSinks += facility.operatingCost;
+      facility.internalGoods += facility.outputPerCycle;
+      facility.lifetimeOutput += facility.outputPerCycle;
+      facility.cycleStartedAt += facility.cycleMs;
+      addLedger(state, 'facility_operation', -facility.operatingCost, `${facility.name} 完成生产周期并支付运营费`, facility.cycleStartedAt);
       completedCycles -= 1;
     }
   });
 }
 
-function processFactorySales(state: EconomyState, now: number) {
-  const soldListings = state.factoryListings.filter(
-    (listing) => listing.ownerType === 'player' && now - listing.createdAt >= 90_000 && listing.price <= listing.factory.systemValue * 1.2,
+function processFacilitySales(state: EconomyState, now: number) {
+  const sold = state.facilityListings.filter(
+    (listing) => listing.ownerType === 'player' && now - listing.createdAt >= 90_000 && listing.price <= listing.facility.systemValue * 1.2,
   );
-
-  soldListings.forEach((listing) => {
-    const factory = state.factories.find((item) => item.id === listing.factoryId);
-    if (!factory) return;
-    state.factories = state.factories.filter((item) => item.id !== factory.id);
-    state.factoryListings = state.factoryListings.filter((item) => item.id !== listing.id);
+  sold.forEach((listing) => {
+    const facility = state.facilities.find((item) => item.id === listing.facilityId);
+    if (!facility) return;
+    state.facilities = state.facilities.filter((item) => item.id !== facility.id);
+    state.facilityListings = state.facilityListings.filter((item) => item.id !== listing.id);
     state.credits += listing.price;
-    state.stats.factoryVolume += listing.price;
+    state.stats.facilityVolume += listing.price;
     addTrade(state, {
-      type: 'factory',
+      type: 'facility',
       side: 'sell',
       quantity: 1,
       price: listing.price,
       total: listing.price,
-      counterparty: '模拟市场买家',
+      counterparty: '模拟玩家',
       createdAt: now,
-      description: `出售 ${factory.name}`,
+      description: `出售 ${facility.name}`,
     });
-    addLedger(state, 'factory_sale', listing.price, `${factory.name} 已按挂牌价成交`, now);
+    addLedger(state, 'facility_sale', listing.price, `${facility.name} 已按挂牌价成交`, now);
   });
 }
 
 function processState(input: EconomyState, now: number): EconomyState {
   const state = cloneState(input);
-  processFactories(state, now);
-  processFactorySales(state, now);
-
-  if (now >= state.population.nextDemandAt) {
-    createPopulationDemand(state, now);
-  }
+  processFacilities(state, now);
+  processFacilitySales(state, now);
+  if (now >= state.demand.nextDemandAt) createPopulationDemand(state, now);
   refreshExternalLiquidity(state, now);
+  refreshLeaderboard(state, now);
   state.lastProcessedAt = now;
   return state;
 }
 
-function sortMatches(orders: CommodityOrder[], side: 'buy' | 'sell') {
+function sortMatches(orders: CommodityOrder[], playerSide: 'buy' | 'sell') {
   return [...orders].sort((a, b) => {
-    if (a.price !== b.price) return side === 'buy' ? a.price - b.price : b.price - a.price;
+    if (a.price !== b.price) return playerSide === 'buy' ? a.price - b.price : b.price - a.price;
     return a.createdAt - b.createdAt;
   });
 }
@@ -365,8 +476,8 @@ function matchPlayerOrder(state: EconomyState, playerOrder: CommodityOrder, now:
     resting.remaining -= quantity;
     resting.status = resting.remaining === 0 ? 'filled' : 'partial';
     playerOrder.status = playerOrder.remaining === 0 ? 'filled' : 'partial';
-    state.marketPrice = tradePrice;
     state.stats.commodityVolume += quantity;
+    recordPrice(state, tradePrice, quantity, now);
 
     if (playerOrder.side === 'buy') {
       state.frozenCredits -= quantity * playerOrder.price;
@@ -378,7 +489,7 @@ function matchPlayerOrder(state: EconomyState, playerOrder: CommodityOrder, now:
       state.credits += total;
       if (resting.ownerType === 'population') {
         state.stats.populationIssued += total;
-        addLedger(state, 'population_income', total, `城市人口消费 ${quantity} 个${state.commodityName}`, now);
+        addLedger(state, 'population_income', total, `人口需求消费 ${quantity} 个${state.commodityName}`, now);
       } else {
         addLedger(state, 'market_trade', total, `卖出 ${quantity} 个${state.commodityName}，成交价 ${tradePrice}`, now);
       }
@@ -404,16 +515,16 @@ interface GameStore {
   process: () => void;
   reset: (user: AuthUser) => void;
   work: () => { ok: boolean; message: string };
-  buildFactory: () => { ok: boolean; message: string };
-  startFactory: (factoryId: string) => void;
-  pauseFactory: (factoryId: string) => void;
-  collectFactory: (factoryId: string) => { ok: boolean; message: string };
-  listFactory: (factoryId: string, price: number) => { ok: boolean; message: string };
-  cancelFactoryListing: (listingId: string) => void;
-  buyFactory: (listingId: string) => { ok: boolean; message: string };
+  buildFacility: () => { ok: boolean; message: string };
+  startFacility: (facilityId: string) => void;
+  pauseFacility: (facilityId: string) => void;
+  collectFacility: (facilityId: string) => { ok: boolean; message: string };
+  listFacility: (facilityId: string, price: number) => { ok: boolean; message: string };
+  cancelFacilityListing: (listingId: string) => void;
+  buyFacility: (listingId: string) => { ok: boolean; message: string };
   placeCommodityOrder: (side: 'buy' | 'sell', quantity: number, price: number) => { ok: boolean; message: string };
   cancelOrder: (orderId: string) => void;
-  renameCompany: (name: string) => void;
+  renamePlayer: (name: string) => void;
 }
 
 function commit(set: (updater: (store: GameStore) => Partial<GameStore>) => void, updater: (state: EconomyState) => void) {
@@ -421,6 +532,7 @@ function commit(set: (updater: (store: GameStore) => Partial<GameStore>) => void
     if (!store.game) return {};
     const next = processState(store.game, Date.now());
     updater(next);
+    refreshLeaderboard(next, Date.now());
     saveState(next);
     return { game: next };
   });
@@ -464,9 +576,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const game = get().game;
     if (!game) return { ok: false, message: '游戏状态尚未加载' };
     const now = Date.now();
-    if (now < game.work.cooldownUntil) {
-      return { ok: false, message: '工作冷却尚未结束' };
-    }
+    if (now < game.work.cooldownUntil) return { ok: false, message: '工作冷却尚未结束' };
 
     commit(set, (state) => {
       const rested = now - state.work.lastWorkedAt >= WORK_RESET_MS;
@@ -482,20 +592,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return { ok: true, message: '工作完成，获得 1 货币' };
   },
 
-  buildFactory: () => {
+  buildFacility: () => {
     const game = get().game;
     if (!game) return { ok: false, message: '游戏状态尚未加载' };
-    if (game.factories.length >= game.factorySlots) return { ok: false, message: '工厂槽位不足' };
-    if (game.factories.some((factory) => factory.status === 'constructing')) return { ok: false, message: '同时只能施工一座工厂' };
+    if (game.facilities.length >= game.facilitySlots) return { ok: false, message: '生产设施槽位不足' };
+    if (game.facilities.some((facility) => facility.status === 'constructing')) return { ok: false, message: '同时只能施工一座生产设施' };
     if (game.credits < BUILD_COST) return { ok: false, message: '建造资金不足' };
 
     const now = Date.now();
     commit(set, (state) => {
       state.credits -= BUILD_COST;
       state.stats.systemSinks += BUILD_COST;
-      state.factories.push({
-        id: id('factory'),
-        name: `基础制造厂 ${state.factories.length + 1}`,
+      state.facilities.push({
+        id: id('facility'),
+        name: `基础生产设施 ${state.facilities.length + 1}`,
         ownerId: state.userId,
         level: 1,
         status: 'constructing',
@@ -509,47 +619,47 @@ export const useGameStore = create<GameStore>((set, get) => ({
         lifetimeOutput: 0,
         systemValue: 80,
       });
-      addLedger(state, 'factory_construction', -BUILD_COST, '支付基础工厂建造费用', now);
+      addLedger(state, 'facility_construction', -BUILD_COST, '支付基础生产设施建造费用', now);
     });
-    return { ok: true, message: '工厂开始施工，预计 5 分钟完成' };
+    return { ok: true, message: '生产设施开始施工，预计 5 分钟完成' };
   },
 
-  startFactory: (factoryId) => {
+  startFacility: (facilityId) => {
     commit(set, (state) => {
-      const factory = state.factories.find((item) => item.id === factoryId);
-      if (!factory || factory.status === 'constructing' || factory.status === 'listed') return;
-      if (factory.internalGoods >= factory.internalCapacity) {
-        factory.status = 'full';
+      const facility = state.facilities.find((item) => item.id === facilityId);
+      if (!facility || facility.status === 'constructing' || facility.status === 'listed') return;
+      if (facility.internalGoods >= facility.internalCapacity) {
+        facility.status = 'full';
         return;
       }
-      if (state.credits < factory.operatingCost) {
-        factory.status = 'insufficient_funds';
+      if (state.credits < facility.operatingCost) {
+        facility.status = 'insufficient_funds';
         return;
       }
-      factory.status = 'running';
-      factory.cycleStartedAt = Date.now();
+      facility.status = 'running';
+      facility.cycleStartedAt = Date.now();
     });
   },
 
-  pauseFactory: (factoryId) => {
+  pauseFacility: (facilityId) => {
     commit(set, (state) => {
-      const factory = state.factories.find((item) => item.id === factoryId);
-      if (!factory || factory.status !== 'running') return;
-      factory.status = 'paused';
-      delete factory.cycleStartedAt;
+      const facility = state.facilities.find((item) => item.id === facilityId);
+      if (!facility || facility.status !== 'running') return;
+      facility.status = 'paused';
+      delete facility.cycleStartedAt;
     });
   },
 
-  collectFactory: (factoryId) => {
+  collectFacility: (facilityId) => {
     const game = get().game;
-    const factory = game?.factories.find((item) => item.id === factoryId);
-    if (!game || !factory || factory.internalGoods <= 0) return { ok: false, message: '没有可领取的成品' };
-    const freeCapacity = game.warehouseCapacity - game.inventory - game.frozenInventory;
-    if (freeCapacity <= 0) return { ok: false, message: '企业仓库已满' };
-    const amount = Math.min(factory.internalGoods, freeCapacity);
+    const facility = game?.facilities.find((item) => item.id === facilityId);
+    if (!game || !facility || facility.internalGoods <= 0) return { ok: false, message: '没有可领取的商品' };
+    const freeCapacity = game.inventoryCapacity - game.inventory - game.frozenInventory;
+    if (freeCapacity <= 0) return { ok: false, message: '玩家库存已满' };
+    const amount = Math.min(facility.internalGoods, freeCapacity);
 
     commit(set, (state) => {
-      const target = state.factories.find((item) => item.id === factoryId);
+      const target = state.facilities.find((item) => item.id === facilityId);
       if (!target) return;
       target.internalGoods -= amount;
       state.inventory += amount;
@@ -559,30 +669,30 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return { ok: true, message: `已领取 ${amount} 个${game.commodityName}` };
   },
 
-  listFactory: (factoryId, price) => {
+  listFacility: (facilityId, price) => {
     const game = get().game;
-    const factory = game?.factories.find((item) => item.id === factoryId);
-    if (!game || !factory) return { ok: false, message: '工厂不存在' };
-    if (!['ready', 'paused', 'full', 'insufficient_funds'].includes(factory.status)) return { ok: false, message: '当前状态不能挂牌' };
-    if (factory.internalGoods > 0) return { ok: false, message: '挂牌前必须领取全部内部成品' };
-    if (price < factory.systemValue * 0.5 || price > factory.systemValue * 2) return { ok: false, message: '挂牌价必须在系统估值的 50%～200% 之间' };
+    const facility = game?.facilities.find((item) => item.id === facilityId);
+    if (!game || !facility) return { ok: false, message: '生产设施不存在' };
+    if (!['ready', 'paused', 'full', 'insufficient_funds'].includes(facility.status)) return { ok: false, message: '当前状态不能挂牌' };
+    if (facility.internalGoods > 0) return { ok: false, message: '挂牌前必须领取全部内部商品' };
+    if (price < facility.systemValue * 0.5 || price > facility.systemValue * 2) return { ok: false, message: '挂牌价必须在系统估值的 50%～200% 之间' };
 
     commit(set, (state) => {
-      const target = state.factories.find((item) => item.id === factoryId);
+      const target = state.facilities.find((item) => item.id === facilityId);
       if (!target) return;
-      const listingId = id('factory-listing');
+      const listingId = id('facility-listing');
       target.status = 'listed';
       target.listedOrderId = listingId;
       delete target.cycleStartedAt;
-      state.factoryListings.push({
+      state.facilityListings.push({
         id: listingId,
-        factoryId: target.id,
+        facilityId: target.id,
         ownerType: 'player',
         ownerId: state.userId,
-        ownerName: state.companyName,
+        ownerName: state.playerName,
         price: Math.floor(price),
         createdAt: Date.now(),
-        factory: {
+        facility: {
           name: target.name,
           level: target.level,
           cycleMs: target.cycleMs,
@@ -594,64 +704,64 @@ export const useGameStore = create<GameStore>((set, get) => ({
         },
       });
     });
-    return { ok: true, message: '工厂已进入统一市场挂牌' };
+    return { ok: true, message: '生产设施已进入市场挂牌' };
   },
 
-  cancelFactoryListing: (listingId) => {
+  cancelFacilityListing: (listingId) => {
     commit(set, (state) => {
-      const listing = state.factoryListings.find((item) => item.id === listingId && item.ownerId === state.userId);
+      const listing = state.facilityListings.find((item) => item.id === listingId && item.ownerId === state.userId);
       if (!listing) return;
-      const factory = state.factories.find((item) => item.id === listing.factoryId);
-      if (factory) {
-        factory.status = 'paused';
-        delete factory.listedOrderId;
+      const facility = state.facilities.find((item) => item.id === listing.facilityId);
+      if (facility) {
+        facility.status = 'paused';
+        delete facility.listedOrderId;
       }
-      state.factoryListings = state.factoryListings.filter((item) => item.id !== listingId);
+      state.facilityListings = state.facilityListings.filter((item) => item.id !== listingId);
     });
   },
 
-  buyFactory: (listingId) => {
+  buyFacility: (listingId) => {
     const game = get().game;
-    const listing = game?.factoryListings.find((item) => item.id === listingId);
+    const listing = game?.facilityListings.find((item) => item.id === listingId);
     if (!game || !listing || listing.ownerId === game.userId) return { ok: false, message: '无法购买该挂牌' };
-    if (game.factories.length >= game.factorySlots) return { ok: false, message: '工厂槽位不足' };
+    if (game.facilities.length >= game.facilitySlots) return { ok: false, message: '生产设施槽位不足' };
     if (game.credits < listing.price) return { ok: false, message: '购买资金不足' };
 
     const now = Date.now();
     commit(set, (state) => {
-      const target = state.factoryListings.find((item) => item.id === listingId);
+      const target = state.facilityListings.find((item) => item.id === listingId);
       if (!target) return;
       state.credits -= target.price;
-      state.stats.factoryVolume += target.price;
-      state.factoryListings = state.factoryListings.filter((item) => item.id !== listingId);
-      state.factories.push({
-        id: id('factory'),
-        name: target.factory.name,
+      state.stats.facilityVolume += target.price;
+      state.facilityListings = state.facilityListings.filter((item) => item.id !== listingId);
+      state.facilities.push({
+        id: id('facility'),
+        name: target.facility.name,
         ownerId: state.userId,
-        level: target.factory.level,
+        level: target.facility.level,
         status: 'ready',
         builtAt: now,
-        cycleMs: target.factory.cycleMs,
-        outputPerCycle: target.factory.outputPerCycle,
-        operatingCost: target.factory.operatingCost,
+        cycleMs: target.facility.cycleMs,
+        outputPerCycle: target.facility.outputPerCycle,
+        operatingCost: target.facility.operatingCost,
         internalGoods: 0,
-        internalCapacity: target.factory.internalCapacity,
-        lifetimeOutput: target.factory.lifetimeOutput,
-        systemValue: target.factory.systemValue,
+        internalCapacity: target.facility.internalCapacity,
+        lifetimeOutput: target.facility.lifetimeOutput,
+        systemValue: target.facility.systemValue,
       });
       addTrade(state, {
-        type: 'factory',
+        type: 'facility',
         side: 'buy',
         quantity: 1,
         price: target.price,
         total: target.price,
         counterparty: target.ownerName,
         createdAt: now,
-        description: `收购 ${target.factory.name}`,
+        description: `收购 ${target.facility.name}`,
       });
-      addLedger(state, 'factory_trade', -target.price, `从 ${target.ownerName} 收购 ${target.factory.name}`, now);
+      addLedger(state, 'facility_trade', -target.price, `从 ${target.ownerName} 收购 ${target.facility.name}`, now);
     });
-    return { ok: true, message: '工厂产权已即时交割' };
+    return { ok: true, message: '生产设施产权已即时交割' };
   },
 
   placeCommodityOrder: (side, quantityInput, priceInput) => {
@@ -659,10 +769,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!game) return { ok: false, message: '游戏状态尚未加载' };
     const quantity = Math.max(1, Math.floor(quantityInput));
     const price = Math.max(1, Math.floor(priceInput));
-    const openCount = game.orders.filter((order) => order.ownerId === game.userId && ['open', 'partial'].includes(order.status)).length;
-    if (openCount >= MAX_OPEN_ORDERS) return { ok: false, message: '最多只能有 10 笔未完成订单' };
+    const ownOpen = game.orders.filter((order) => order.ownerId === game.userId && ['open', 'partial'].includes(order.status));
+    if (ownOpen.length >= MAX_OPEN_ORDERS) return { ok: false, message: '最多只能有 10 笔未完成订单' };
     if (side === 'buy' && game.credits < quantity * price) return { ok: false, message: '可用资金不足' };
     if (side === 'sell' && game.inventory < quantity) return { ok: false, message: '可用库存不足' };
+    if (side === 'buy') {
+      const pendingBuyQuantity = ownOpen.filter((order) => order.side === 'buy').reduce((sum, order) => sum + order.remaining, 0);
+      if (game.inventory + pendingBuyQuantity + quantity > game.inventoryCapacity) return { ok: false, message: '玩家库存容量不足' };
+    }
 
     const now = Date.now();
     commit(set, (state) => {
@@ -679,7 +793,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         side,
         ownerType: 'player',
         ownerId: state.userId,
-        ownerName: state.companyName,
+        ownerName: state.playerName,
         price,
         quantity,
         remaining: quantity,
@@ -708,15 +822,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
-  renameCompany: (name) => {
+  renamePlayer: (name) => {
     const clean = name.trim().slice(0, 32);
     if (!clean) return;
     commit(set, (state) => {
-      state.companyName = clean;
+      state.playerName = clean;
       state.orders.forEach((order) => {
         if (order.ownerId === state.userId) order.ownerName = clean;
       });
-      state.factoryListings.forEach((listing) => {
+      state.facilityListings.forEach((listing) => {
         if (listing.ownerId === state.userId) listing.ownerName = clean;
       });
     });
