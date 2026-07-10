@@ -1,87 +1,63 @@
-/* Rendering safeguards for long Economy dashboards.
- * Keep these overrides separate from the visual design so they can be tuned
- * without weakening the component styles.
- */
-
+/* Rendering safeguards for the information-dense Economy workspace. */
 html {
   scroll-behavior: auto;
   scrollbar-gutter: stable;
 }
 
 body {
-  background-color: #07110d;
+  background-color: #07100d;
   background-attachment: scroll;
   overscroll-behavior-y: none;
 }
 
-/* A fixed, masked grid forces a full-viewport repaint while scrolling. */
-body::before {
-  display: none;
-}
+/* A fixed, masked grid forces full-viewport repaints while scrolling. */
+body::before { display: none; }
 
-/* Backdrop blur on every dashboard card is the largest GPU cost on mobile,
- * integrated graphics and remote desktops. A solid translucent surface keeps
- * the same visual hierarchy without continuously sampling the page behind it.
- */
 .panel {
-  background: linear-gradient(145deg, #0f231a, #081710);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  background: linear-gradient(145deg, #0f221a, #081710);
+  box-shadow: 0 9px 25px rgba(0, 0, 0, 0.21);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   contain: paint;
 }
 
-/* Skip layout and paint work for rows/cards outside the viewport. */
-.factory-card,
+/* Skip layout and paint work for records outside the active scrollport. */
+.facility-card,
 .listing-card,
-.metric-card,
-.section-card,
+.widget,
 .ledger-list > div,
 tbody tr {
   content-visibility: auto;
   contain-intrinsic-size: auto 72px;
 }
 
-.factory-card,
-.section-card,
-.listing-card {
-  contain-intrinsic-size: auto 260px;
+.facility-card,
+.listing-card,
+.widget {
+  contain-intrinsic-size: auto 240px;
 }
 
-/* Avoid promoting many elements into animated compositor layers. */
 button {
   transition: filter 120ms ease, opacity 120ms ease;
 }
 
-button:hover:not(:disabled) {
-  transform: none;
-}
-
-.work-button,
+button:hover:not(:disabled) { transform: none; }
 .notice-toast,
-.status-dot {
-  box-shadow: none;
-}
-
-.progress-track > span {
-  transition: width 180ms linear;
-}
+.status-dot { box-shadow: none; }
+.progress-track > span { transition: width 180ms linear; }
 
 .table-wrap,
 .ledger-list,
-.main-nav {
+.page-scroll,
+.asset-bar,
+.sidebar-nav {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
 
 @media (max-width: 720px), (pointer: coarse) {
-  body {
-    background: linear-gradient(180deg, #07110d 0%, #091712 50%, #050a08 100%);
-  }
-
-  .panel {
-    box-shadow: 0 5px 16px rgba(0, 0, 0, 0.18);
-  }
+  body { background: linear-gradient(180deg, #07100d 0%, #091712 50%, #050a08 100%); }
+  .panel { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.17); }
 }
 
 @media (prefers-reduced-motion: reduce) {
