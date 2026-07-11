@@ -2,8 +2,6 @@ import type { ChangeEvent } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
   Button,
-  DataList,
-  DataRow,
   PageLayout,
   Panel,
   StatusTag,
@@ -16,7 +14,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
   const {
     user,
     game,
-    derived,
     avatarText,
     playerName,
     setPlayerName,
@@ -36,7 +33,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="设置"
-      description="管理玩家资料、界面偏好、登录会话和服务器经济状态。"
+      description="管理玩家资料、客户端偏好、登录会话和服务器经济状态。"
     >
       <div className="settings-grid">
         <Panel className="widget">
@@ -85,20 +82,9 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
           </label>
         </Panel>
 
-        <Panel className="widget account-summary">
-          <WidgetHeading title="账号与产业摘要" />
-          <DataList>
-            <DataRow label="账号编号" value={user.id} />
-            <DataRow label="账号角色" value={roleLabel} tone={user.role === 'admin' ? 'info' : 'neutral'} />
-            <DataRow label="工厂总数" value={game.facilities.length} tone="info" />
-            <DataRow label="运行中工厂" value={derived.runningFacilities} tone="success" />
-            <DataRow label="施工中工厂" value={derived.constructingFacilities} tone="warning" />
-            <DataRow label="阻塞工厂" value={derived.blockedFacilities} tone={derived.blockedFacilities > 0 ? 'danger' : 'neutral'} />
-            <DataRow label="仓库使用" value={`${game.warehouseUsedCapacity}/${game.inventoryCapacity}`} />
-            <DataRow label="商品种类" value={game.products.length} />
-            <DataRow label="未完成订单" value={derived.ownOpenOrders.length} tone={derived.ownOpenOrders.length > 0 ? 'warning' : 'neutral'} />
-            <DataRow label="当前排名" value={`第 ${derived.currentRank?.rank ?? '--'} 名`} tone="warning" />
-          </DataList>
+        <Panel className="widget session-card">
+          <WidgetHeading title="登录会话" />
+          <p>退出只会结束当前浏览器的登录会话，不会删除服务器经济状态或当前浏览器的本地活动记录。</p>
           <Button block variant="secondary" onClick={() => void signOut()}>退出登录</Button>
         </Panel>
 
