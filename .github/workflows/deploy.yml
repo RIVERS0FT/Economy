@@ -65,9 +65,17 @@ jobs:
           test -n "$SERVER_USER"
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          sudo -n true
           test -d /var/www/game/economy && test -w /var/www/game/economy
-          sudo -n install -d -o "$USER" -g "$(id -gn)" /var/www/game/economy-api
+          deploy_user="$(id -un)"
+          deploy_group="$(id -gn)"
+          if [ "$(id -u)" -eq 0 ]; then
+            install -d -o "$deploy_user" -g "$deploy_group" /var/www/game/economy-api
+          elif command -v sudo >/dev/null 2>&1 && sudo -n true; then
+            sudo -n install -d -o "$deploy_user" -g "$deploy_group" /var/www/game/economy-api
+          else
+            echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2
+            exit 1
+          fi
           test -w /var/www/game/economy-api
           command -v node >/dev/null
           command -v python3 >/dev/null
@@ -97,7 +105,7 @@ jobs:
           exec > >(tee /tmp/economy-api-install.log) 2>&1
           set -euo pipefail
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-            "sudo -n python3 - /var/www/game/economy-api '$SERVER_USER'" \
+            "if [ \$(id -u) -eq 0 ]; then exec python3 - /var/www/game/economy-api '$SERVER_USER'; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 - /var/www/game/economy-api '$SERVER_USER'; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi" \
             < scripts/install-economy-api.py
 
       - name: Configure Nginx routes
@@ -109,7 +117,8 @@ jobs:
           exec > >(tee /tmp/economy-proxy-configure.log) 2>&1
           set -euo pipefail
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-            'sudo -n python3 -' < scripts/configure-economy-nginx.py
+            'if [ "$(id -u)" -eq 0 ]; then exec python3 -; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 -; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' \
+            < scripts/configure-economy-nginx.py
 
       - name: Verify website, account routes, and game API
         env:
@@ -187,7 +196,7 @@ jobs:
               cat /tmp/economy-api-install.log 2>/dev/null || true
               cat /tmp/economy-proxy-configure.log 2>/dev/null || true
               cat /tmp/economy-verify.log 2>/dev/null || true
-            } | grep -Eai 'TS[0-9]+|ECONOMY_API_INSTALL_FAILED|ECONOMY_PROXY_CONFIGURATION_FAILED|ECONOMY_GAME_API_PROXY_UNAVAILABLE|AUTH_PROXY_UNAVAILABLE|ECONOMY_LOGIN_PROXY_UNAVAILABLE|permission denied|connection refused|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+            } | grep -Eai 'TS[0-9]+|ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE|ECONOMY_API_INSTALL_FAILED|ECONOMY_PROXY_CONFIGURATION_FAILED|ECONOMY_GAME_API_PROXY_UNAVAILABLE|AUTH_PROXY_UNAVAILABLE|ECONOMY_LOGIN_PROXY_UNAVAILABLE|permission denied|command not found|connection refused|failed|error' | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
             if [ -n "$DETAIL" ]; then DESCRIPTION="$DETAIL"; fi
           fi
 
