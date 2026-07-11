@@ -19,7 +19,6 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="玩家指挥中心"
       title={<>早上好，{game.playerName}</>}
       description="观察市场、管理生产，并持续提高你的总资产排名。"
       actions={
@@ -31,7 +30,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
     >
       <div className="home-grid">
         <Panel className="widget work-widget">
-          <WidgetHeading eyebrow="基础工作" title="基础工作" action={<StatusTag tone="success">兜底收入</StatusTag>} />
+          <WidgetHeading title="基础工作" action={<StatusTag tone="success">兜底收入</StatusTag>} />
           <p>每次有效工作获得 ¤1。连续工作会提高冷却，停止 5 分钟后恢复基础档位。</p>
           <Button
             block
@@ -50,7 +49,6 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget market-summary span-2">
           <WidgetHeading
-            eyebrow="市场动态"
             title={`${game.commodityName}市场`}
             action={<Button variant="text" onClick={() => setTab('market')}>查看完整盘口 →</Button>}
           />
@@ -65,7 +63,6 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget production-summary">
           <WidgetHeading
-            eyebrow="生产概况"
             title="生产摘要"
             action={<Button variant="text" onClick={() => setTab('production')}>管理</Button>}
           />
@@ -82,7 +79,6 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget wealth-summary">
           <WidgetHeading
-            eyebrow="财富变化"
             title="财富变化"
             action={<StatusTag tone="warning">第 {derived.currentRank?.rank ?? '--'} 名</StatusTag>}
           />
@@ -101,7 +97,6 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget recent-activity span-2">
           <WidgetHeading
-            eyebrow="最近动态"
             title="最近成交与提醒"
             action={<Button variant="text" onClick={() => setTab('records')}>全部记录</Button>}
           />
