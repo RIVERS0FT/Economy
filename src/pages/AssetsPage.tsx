@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
 import {
   Button,
   DataList,
@@ -81,7 +82,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="资金与资产"
-      description="服务器只保存当前资产状态；资金、商品、工厂和生产变动记录仅保存在当前浏览器。"
+      description="管理资金、商品、工厂和共享仓库；资产变化记录只保存在当前浏览器。"
     >
       <div className="funds-summary-grid">
         <MetricCard label="可用资金" value={`¤ ${formatCurrency(game.credits)}`} tone="success" />
@@ -89,7 +90,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         <MetricCard label="当前总资产" value={`¤ ${formatCurrency(derived.totalAssets)}`} tone="success" />
         <MetricCard label="商品资产" value={`¤ ${formatCurrency(derived.commodityValue)}`} detail={`冻结商品 ${frozenInventory}`} />
         <MetricCard label="工厂资产" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${game.facilities.length} 座工厂`} tone="info" />
-        <MetricCard label="仓库使用" value={`${inventoryUsed}/${game.inventoryCapacity}`} />
+        <MetricCard label="仓库使用" value={`${inventoryUsed}/${game.inventoryCapacity}`} detail={`等级 ${game.warehouseLevel}`} />
       </div>
 
       <div className="asset-overview-grid">
@@ -112,6 +113,8 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
             <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${game.facilities.length} 座工厂及内部产成品`} tone="info" />
           </div>
         </Panel>
+
+        <WarehouseUpgradeCard model={model} className="span-3" />
 
         <Panel className="widget span-3">
           <WidgetHeading title="商品库存与估值" action={<span className="muted">点击商品进入对应市场</span>} />
