@@ -4,6 +4,7 @@ import type {
   AssetFacilityChange,
   AssetInventoryChange,
   AssetProductionChange,
+  AssetWarehouseChange,
   CommodityOrder,
   EconomyState,
   FacilityListing,
@@ -20,6 +21,7 @@ const MAX_TRADES = 240;
 export type LocalActivityAction =
   | 'refresh'
   | 'work'
+  | 'upgradeWarehouse'
   | 'placeOrder'
   | 'cancelOrder'
   | 'buildFacility'
@@ -48,6 +50,7 @@ interface LocalStateSnapshot {
   frozenCredits: number;
   inventories: Record<string, ProductInventory>;
   inventoryCapacity: number;
+  warehouseLevel?: number;
   facilities: ProductionFacility[];
   orders: CommodityOrder[];
   facilityListings: FacilityListing[];
@@ -69,6 +72,7 @@ interface SyncContext {
 const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   refresh: 'system',
   work: 'work',
+  upgradeWarehouse: 'warehouse',
   placeOrder: 'order',
   cancelOrder: 'order',
   buildFacility: 'facility',
@@ -136,6 +140,7 @@ function snapshotState(state: EconomyState): LocalStateSnapshot {
     frozenCredits: state.frozenCredits,
     inventories: state.inventories,
     inventoryCapacity: state.inventoryCapacity,
+    warehouseLevel: state.warehouseLevel,
     facilities: state.facilities,
     orders: state.orders.filter((order) => order.ownerId === state.userId),
     facilityListings: state.facilityListings.filter((listing) => listing.ownerId === state.userId),
@@ -178,6 +183,23 @@ function diffInventories(before: LocalStateSnapshot, after: LocalStateSnapshot):
     });
   }
   return changes;
+}
+
+function diffWarehouse(
+  before: LocalStateSnapshot,
+  after: LocalStateSnapshot,
+): AssetWarehouseChange | undefined {
+  const beforeLevel = Number(before.warehouseLevel);
+  const afterLevel = Number(after.warehouseLevel);
+  if (!Number.isFinite(beforeLevel) || !Number.isFinite(afterLevel)) return undefined;
+  if (beforeLevel === afterLevel && before.inventoryCapacity === after.inventoryCapacity) return undefined;
+  return {
+    beforeLevel,
+    afterLevel,
+    beforeCapacity: before.inventoryCapacity,
+    afterCapacity: after.inventoryCapacity,
+    capacityDelta: after.inventoryCapacity - before.inventoryCapacity,
+  };
 }
 
 function facilityAction(
@@ -340,6 +362,7 @@ function inferCategory(
   action: LocalActivityAction,
   trades: TradeRecord[],
   inventoryChanges: AssetInventoryChange[],
+  warehouseChange: AssetWarehouseChange | undefined,
   facilityChanges: AssetFacilityChange[],
   productionChanges: AssetProductionChange[],
 ): AssetEventCategory {
@@ -347,6 +370,7 @@ function inferCategory(
   if (action !== 'refresh') return ACTION_CATEGORY_MAP[action];
   if (productionChanges.length) return 'production';
   if (facilityChanges.length) return 'facility';
+  if (warehouseChange) return 'warehouse';
   if (inventoryChanges.length) return 'inventory';
   return 'system';
 }
@@ -358,9 +382,11 @@ function defaultDescription(
 ) {
   if (trades.length === 1) return trades[0].description;
   if (trades.length > 1) return `${trades.length} 笔市场成交已同步`;
+  if (action === 'upgradeWarehouse') return '共享仓库已扩容';
   if (action === 'refresh') {
     if (category === 'production') return '生产与资产状态已同步';
     if (category === 'facility') return '工厂状态已同步';
+    if (category === 'warehouse') return '仓库等级与容量已同步';
     if (category === 'inventory') return '商品库存已同步';
     return '服务器资产状态已同步';
   }
@@ -374,6 +400,7 @@ function createLocalChanges(
 ): { event: AssetEvent | null; trades: TradeRecord[] } {
   const createdAt = context.createdAt ?? Date.now();
   const inventoryChanges = diffInventories(before, after);
+  const warehouseChange = diffWarehouse(before, after);
   const { facilityChanges, productionChanges } = diffFacilities(before, after, context.action);
   const trades = [
     ...deriveCommodityTrades(before, after, createdAt),
@@ -385,6 +412,7 @@ function createLocalChanges(
     cashDelta
     || frozenCashDelta
     || inventoryChanges.length
+    || warehouseChange
     || facilityChanges.length
     || productionChanges.length
     || orderChanged(before, after)
@@ -392,18 +420,27 @@ function createLocalChanges(
   );
   if (!hasChanges) return { event: null, trades };
 
-  const category = inferCategory(context.action, trades, inventoryChanges, facilityChanges, productionChanges);
+  const category = inferCategory(
+    context.action,
+    trades,
+    inventoryChanges,
+    warehouseChange,
+    facilityChanges,
+    productionChanges,
+  );
   const sourceType = trades.length
     ? 'trade'
     : context.action === 'placeOrder' || context.action === 'cancelOrder'
       ? 'order'
-      : context.action.includes('Facility') || context.action === 'buildFacility'
-        ? 'facility'
-        : context.action === 'work'
-          ? 'work'
-          : category === 'production'
-            ? 'production'
-            : 'system';
+      : context.action === 'upgradeWarehouse'
+        ? 'warehouse'
+        : context.action.includes('Facility') || context.action === 'buildFacility'
+          ? 'facility'
+          : context.action === 'work'
+            ? 'work'
+            : category === 'production'
+              ? 'production'
+              : 'system';
 
   return {
     event: {
@@ -416,6 +453,7 @@ function createLocalChanges(
       frozenCashDelta,
       frozenCashAfter: after.frozenCredits,
       inventoryChanges,
+      warehouseChange,
       facilityChanges,
       productionChanges,
       sourceType,

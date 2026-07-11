@@ -151,6 +151,7 @@ export type AssetEventCategory =
   | 'order'
   | 'trade'
   | 'inventory'
+  | 'warehouse'
   | 'facility'
   | 'production'
   | 'system';
@@ -161,6 +162,14 @@ export interface AssetInventoryChange {
   frozenDelta: number;
   availableAfter: number;
   frozenAfter: number;
+}
+
+export interface AssetWarehouseChange {
+  beforeLevel: number;
+  afterLevel: number;
+  beforeCapacity: number;
+  afterCapacity: number;
+  capacityDelta: number;
 }
 
 export interface AssetFacilityChange {
@@ -207,9 +216,10 @@ export interface AssetEvent {
   frozenCashDelta: number;
   frozenCashAfter?: number;
   inventoryChanges: AssetInventoryChange[];
+  warehouseChange?: AssetWarehouseChange;
   facilityChanges: AssetFacilityChange[];
   productionChanges: AssetProductionChange[];
-  sourceType?: 'order' | 'trade' | 'facility' | 'production' | 'work' | 'system';
+  sourceType?: 'order' | 'trade' | 'warehouse' | 'facility' | 'production' | 'work' | 'system';
   sourceId?: string;
   localOnly: true;
 }
@@ -275,6 +285,10 @@ export interface EconomyState {
   warehouseMaxLevel: number;
   warehouseUpgradeCost: number | null;
   warehouseNextCapacity: number;
+  warehouseStoredQuantity: number;
+  warehouseReservedQuantity: number;
+  warehouseUsedCapacity: number;
+  warehouseAvailableCapacity: number;
   facilities: ProductionFacility[];
   products: ProductDefinition[];
   facilityTypes: FacilityTypeDefinition[];

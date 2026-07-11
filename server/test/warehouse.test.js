@@ -21,15 +21,42 @@ function request(requestKey = 'warehouse-upgrade-12345678') {
   };
 }
 
-function seedStore({ credits = 10_000, inventoryCapacity = 500, warehouseLevel } = {}) {
+function seedStore({
+  credits = 10_000,
+  inventoryCapacity = 500,
+  warehouseLevel,
+  grainAvailable = 0,
+  grainFrozen = 0,
+  orders = [],
+} = {}) {
   const store = new EconomyStore(':memory:');
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = credits;
   player.inventoryCapacity = inventoryCapacity;
+  player.inventories.grain.available = grainAvailable;
+  player.inventories.grain.frozen = grainFrozen;
   if (warehouseLevel !== undefined) player.warehouseLevel = warehouseLevel;
+  world.orders.push(...orders);
   store.insertWorld.run(1, JSON.stringify(world), now);
   return store;
+}
+
+function buyOrder(overrides = {}) {
+  return {
+    id: `warehouse-order-${Math.random()}`,
+    productId: 'grain',
+    side: 'buy',
+    ownerType: 'player',
+    ownerId: alice.id,
+    ownerName: 'Alice',
+    price: 1,
+    quantity: 40,
+    remaining: 40,
+    status: 'open',
+    createdAt: now,
+    ...overrides,
+  };
 }
 
 test('warehouse state defaults to level 1 and client version 7', () => {
@@ -42,6 +69,32 @@ test('warehouse state defaults to level 1 and client version 7', () => {
     assert.equal(state.warehouseMaxLevel, WAREHOUSE_MAX_LEVEL);
     assert.equal(state.warehouseUpgradeCost, 150);
     assert.equal(state.warehouseNextCapacity, 750);
+    assert.equal(state.warehouseStoredQuantity, 0);
+    assert.equal(state.warehouseReservedQuantity, 0);
+    assert.equal(state.warehouseUsedCapacity, 0);
+    assert.equal(state.warehouseAvailableCapacity, 500);
+  } finally {
+    store.close();
+  }
+});
+
+test('warehouse usage counts stored goods and remaining open buy orders', () => {
+  const store = seedStore({
+    grainAvailable: 25,
+    grainFrozen: 5,
+    orders: [
+      buyOrder({ remaining: 40, status: 'partial' }),
+      buyOrder({ remaining: 12, status: 'filled' }),
+      buyOrder({ remaining: 7, side: 'sell' }),
+      buyOrder({ remaining: 9, ownerId: 2 }),
+    ],
+  });
+  try {
+    const state = store.getState(alice, now + 1);
+    assert.equal(state.warehouseStoredQuantity, 30);
+    assert.equal(state.warehouseReservedQuantity, 40);
+    assert.equal(state.warehouseUsedCapacity, 70);
+    assert.equal(state.warehouseAvailableCapacity, 430);
   } finally {
     store.close();
   }
@@ -58,6 +111,25 @@ test('warehouse upgrade deducts server funds and increases shared capacity', () 
     assert.equal(response.state.stats.systemSinks, 150);
     assert.equal(response.state.warehouseUpgradeCost, 600);
     assert.equal(response.state.warehouseNextCapacity, 1_000);
+    assert.equal(response.state.warehouseAvailableCapacity, 750);
+  } finally {
+    store.close();
+  }
+});
+
+test('warehouse upgrade preserves stored and reserved usage while adding free capacity', () => {
+  const store = seedStore({
+    grainAvailable: 25,
+    grainFrozen: 5,
+    orders: [buyOrder({ remaining: 40, status: 'partial' })],
+  });
+  try {
+    const response = store.apply(alice, request('warehouse-usage-upgrade-12345678'), now + 1);
+    assert.equal(response.result.ok, true);
+    assert.equal(response.state.warehouseStoredQuantity, 30);
+    assert.equal(response.state.warehouseReservedQuantity, 40);
+    assert.equal(response.state.warehouseUsedCapacity, 70);
+    assert.equal(response.state.warehouseAvailableCapacity, 680);
   } finally {
     store.close();
   }

@@ -8,6 +8,32 @@ function clampLevel(value) {
   return Math.min(WAREHOUSE_MAX_LEVEL, Math.max(1, Number.isFinite(level) ? level : 1));
 }
 
+function isOpenOrder(order) {
+  return order?.status === 'open' || order?.status === 'partial';
+}
+
+function storedQuantity(player) {
+  return Object.values(player.inventories || {}).reduce(
+    (sum, inventory) => (
+      sum
+      + Math.max(0, Number(inventory?.available || 0))
+      + Math.max(0, Number(inventory?.frozen || 0))
+    ),
+    0,
+  );
+}
+
+function reservedBuyQuantity(world, userId) {
+  return (world?.orders || []).reduce((sum, order) => {
+    if (
+      Number(order?.ownerId) !== Number(userId)
+      || order?.side !== 'buy'
+      || !isOpenOrder(order)
+    ) return sum;
+    return sum + Math.max(0, Number(order.remaining || 0));
+  }, 0);
+}
+
 export function warehouseCapacityForLevel(level) {
   const normalized = clampLevel(level);
   return WAREHOUSE_BASE_CAPACITY + (normalized - 1) * WAREHOUSE_CAPACITY_STEP;
@@ -27,7 +53,20 @@ export function ensureWarehouse(player) {
   return player;
 }
 
-export function createWarehouseSummary(player) {
+export function createWarehouseUsage(world, player) {
+  ensureWarehouse(player);
+  const stored = storedQuantity(player);
+  const reserved = reservedBuyQuantity(world, player.userId);
+  const used = stored + reserved;
+  return {
+    warehouseStoredQuantity: stored,
+    warehouseReservedQuantity: reserved,
+    warehouseUsedCapacity: used,
+    warehouseAvailableCapacity: Math.max(0, player.inventoryCapacity - used),
+  };
+}
+
+export function createWarehouseSummary(world, player) {
   ensureWarehouse(player);
   const level = player.warehouseLevel;
   const nextLevel = Math.min(WAREHOUSE_MAX_LEVEL, level + 1);
@@ -36,6 +75,7 @@ export function createWarehouseSummary(player) {
     warehouseMaxLevel: WAREHOUSE_MAX_LEVEL,
     warehouseUpgradeCost: warehouseUpgradeCostForLevel(level),
     warehouseNextCapacity: warehouseCapacityForLevel(nextLevel),
+    ...createWarehouseUsage(world, player),
   };
 }
 

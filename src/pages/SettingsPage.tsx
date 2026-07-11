@@ -18,7 +18,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     user,
     game,
     derived,
-    inventoryUsed,
     avatarText,
     playerName,
     setPlayerName,
@@ -96,7 +95,18 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
             <DataRow label="运行中工厂" value={derived.runningFacilities} tone="success" />
             <DataRow label="施工中工厂" value={derived.constructingFacilities} tone="warning" />
             <DataRow label="仓库等级" value={`${game.warehouseLevel}/${game.warehouseMaxLevel}`} tone="info" />
-            <DataRow label="仓库使用" value={`${inventoryUsed}/${game.inventoryCapacity}`} />
+            <DataRow label="仓库使用" value={`${game.warehouseUsedCapacity}/${game.inventoryCapacity}`} />
+            <DataRow label="实物库存" value={game.warehouseStoredQuantity} />
+            <DataRow
+              label="买单预占"
+              value={game.warehouseReservedQuantity}
+              tone={game.warehouseReservedQuantity > 0 ? 'warning' : 'neutral'}
+            />
+            <DataRow
+              label="剩余容量"
+              value={game.warehouseAvailableCapacity}
+              tone={game.warehouseAvailableCapacity > 0 ? 'success' : 'danger'}
+            />
             <DataRow
               label="下次扩容费用"
               value={game.warehouseUpgradeCost === null ? '已满级' : `¤ ${formatCurrency(game.warehouseUpgradeCost)}`}
