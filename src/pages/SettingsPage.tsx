@@ -1,5 +1,6 @@
 import type { ChangeEvent } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
 import {
   Button,
   DataList,
@@ -10,7 +11,7 @@ import {
   ToggleField,
   WidgetHeading,
 } from '../components/ui/layout';
-import { formatDate } from '../utils/formatters';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
 export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
   const {
@@ -37,7 +38,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="设置"
-      description="管理玩家资料、界面偏好和服务器经济状态。"
+      description="管理玩家资料、界面偏好、仓库容量和服务器经济状态。"
     >
       <div className="settings-grid">
         <Panel className="widget">
@@ -94,17 +95,25 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
             <DataRow label="工厂总数" value={game.facilities.length} tone="info" />
             <DataRow label="运行中工厂" value={derived.runningFacilities} tone="success" />
             <DataRow label="施工中工厂" value={derived.constructingFacilities} tone="warning" />
+            <DataRow label="仓库等级" value={`${game.warehouseLevel}/${game.warehouseMaxLevel}`} tone="info" />
             <DataRow label="仓库使用" value={`${inventoryUsed}/${game.inventoryCapacity}`} />
+            <DataRow
+              label="下次扩容费用"
+              value={game.warehouseUpgradeCost === null ? '已满级' : `¤ ${formatCurrency(game.warehouseUpgradeCost)}`}
+              tone={game.warehouseUpgradeCost === null ? 'success' : 'warning'}
+            />
             <DataRow label="商品种类" value={game.products.length} />
             <DataRow label="当前排名" value={`第 ${derived.currentRank?.rank ?? '--'} 名`} tone="warning" />
           </DataList>
           <Button block variant="secondary" onClick={() => void signOut()}>退出登录</Button>
         </Panel>
 
+        <WarehouseUpgradeCard model={model} className="span-3" compact />
+
         <Panel className="widget danger-zone span-3">
           <div>
             <h2>重置服务器经济状态</h2>
-            <p>重置会删除当前玩家的资金、各类商品、工厂、生产计划、订单与交易记录，但不会影响主页账号。</p>
+            <p>重置会删除当前玩家的资金、商品、仓库等级、工厂、生产计划、订单与挂牌，但不会影响主页账号或当前浏览器的本地日志。</p>
           </div>
           <Button
             variant="danger"
