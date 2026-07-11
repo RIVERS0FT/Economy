@@ -93,7 +93,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="工厂"
-      description="同类工厂组成一个数量型集群，共享统一生产周期、生产计划和启停状态；新建或收购数量从下一周期加入。"
+      description="同类未挂牌工厂共享统一生产周期、生产计划和启停状态；挂牌工厂不参与生产，新建、收购或撤销挂牌的数量从下一周期加入。"
       actions={
         <>
           <StatusTag tone="success">运行 {model.derived.runningFacilities}</StatusTag>
@@ -167,8 +167,8 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             const ownListings = game.facilityListings.filter((listing) => (
               listing.ownerId === game.userId && listing.facilityTypeId === group.facilityTypeId
             ));
-            const canConfigure = group.status !== 'running' && group.listedCount === 0;
-            const canStart = group.status !== 'running' && group.listedCount === 0 && group.availableCount > 0;
+            const canConfigure = group.status !== 'running' && group.availableCount > 0;
+            const canStart = group.status !== 'running' && group.availableCount > 0;
             const canList = group.status !== 'running' && group.availableCount > 0;
             const unitPrice = listingPrices[group.facilityTypeId] ?? type.systemValue;
             const listingQuantity = Math.min(
@@ -274,9 +274,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                   {group.status === 'running' ? (
                     <Button variant="danger" onClick={() => void showResult(stopFacility(group.facilityTypeId))}>停止全部</Button>
                   ) : (
-                    <Button disabled={!canStart} onClick={() => void showResult(startFacility(group.facilityTypeId))}>启动全部</Button>
+                    <Button disabled={!canStart} onClick={() => void showResult(startFacility(group.facilityTypeId))}>启动全部未挂牌工厂</Button>
                   )}
-                  <span className="ui-helper-text">同类工厂统一启停，产成品自动入仓。</span>
+                  <span className="ui-helper-text">挂牌工厂不参与生产；启动时仅 {group.availableCount} 座未挂牌工厂进入统一周期，产成品自动入仓。</span>
                 </div>
 
                 {canList ? (

@@ -174,12 +174,24 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
   for (const player of Object.values(world.players)) {
     for (const group of player.facilityGroups || []) {
       const listed = listedQuantity(world, player.userId, group.facilityTypeId);
-      if (listed > 0 && group.status !== 'running') {
-        group.status = 'listed';
-        group.stopReason = 'listed';
-      } else if (listed === 0 && group.status === 'listed') {
-        group.status = 'paused';
+      const available = Math.max(0, group.count - listed);
+      if (group.status === 'listed' || group.stopReason === 'listed') {
+        group.status = group.count === 1 ? 'ready' : 'paused';
         group.stopReason = 'manual';
+      }
+      if (group.status === 'running') {
+        group.participatingCount = Math.min(group.participatingCount, available);
+        group.pendingJoinCount = Math.min(
+          group.pendingJoinCount,
+          Math.max(0, available - group.participatingCount),
+        );
+        if (group.participatingCount < 1) {
+          group.status = 'paused';
+          group.stopReason = 'manual';
+          group.participatingCount = 0;
+          group.pendingJoinCount = 0;
+          delete group.cycleStartedAt;
+        }
       }
     }
   }
@@ -301,7 +313,7 @@ function finishConstruction(player, now) {
   group.count += 1;
   if (group.status === 'running') {
     group.pendingJoinCount += 1;
-  } else if (group.status !== 'listed') {
+  } else {
     group.status = group.count === 1 ? 'ready' : 'paused';
     group.stopReason = 'manual';
   }
@@ -403,9 +415,10 @@ function startFacilityGroup(world, userId, payload, now) {
   const type = typeFor(payload.facilityTypeId);
   const group = type ? groupFor(player, type.id) : null;
   if (!type || !group || group.count < 1) return result(false, '工厂集群不存在');
-  if (listedQuantity(world, userId, type.id) > 0) return result(false, '存在挂牌数量时不能启动该工厂集群');
   if (group.status === 'running') return result(false, '工厂集群已经运行');
-  const blocked = blockReason(world, player, group, type, group.count);
+  const availableCount = Math.max(0, group.count - listedQuantity(world, userId, type.id));
+  if (availableCount < 1) return result(false, '没有未挂牌工厂可启动');
+  const blocked = blockReason(world, player, group, type, availableCount);
   if (blocked) {
     group.status = blocked.status;
     group.stopReason = blocked.reason;
@@ -413,10 +426,10 @@ function startFacilityGroup(world, userId, payload, now) {
   }
   group.status = 'running';
   group.stopReason = undefined;
-  group.participatingCount = group.count;
+  group.participatingCount = availableCount;
   group.pendingJoinCount = 0;
   group.cycleStartedAt = now;
-  return result(true, `${type.name}集群已统一启动，共 ${group.count} 座参与生产`);
+  return result(true, `${type.name}集群已启动，${availableCount} 座未挂牌工厂参与生产`);
 }
 
 function pauseFacilityGroup(world, userId, payload) {
@@ -435,7 +448,8 @@ function setGroupPlan(world, userId, payload) {
   const group = type ? groupFor(player, type.id) : null;
   if (!group) return result(false, '工厂集群不存在');
   if (group.status === 'running') return result(false, '请先停止工厂集群再修改生产计划');
-  if (listedQuantity(world, userId, type.id) > 0) return result(false, '存在挂牌数量时不能修改生产计划');
+  const availableCount = Math.max(0, group.count - listedQuantity(world, userId, type.id));
+  if (availableCount < 1) return result(false, '没有未挂牌工厂可设置生产计划');
   const mode = payload.mode === 'target' ? 'target' : payload.mode === 'continuous' ? 'continuous' : null;
   if (!mode) return result(false, '生产模式无效');
   group.completedQuantity = 0;
@@ -447,7 +461,7 @@ function setGroupPlan(world, userId, payload) {
     return result(true, `${type.name}集群已设置为持续生产`);
   }
   const targetQuantity = normalizePositiveInteger(payload.targetQuantity, 10_000_000);
-  const cycleOutput = type.output.quantity * group.count;
+  const cycleOutput = type.output.quantity * availableCount;
   if (!targetQuantity || targetQuantity % cycleOutput !== 0) {
     return result(false, `计划产量必须是集群周期产量 ${cycleOutput} 的整数倍`);
   }
@@ -490,12 +504,7 @@ function listFacilityGroup(world, userId, payload, now) {
       createdAt: now,
     });
   }
-  group.status = 'listed';
-  group.stopReason = 'listed';
-  group.participatingCount = 0;
-  group.pendingJoinCount = 0;
-  delete group.cycleStartedAt;
-  return result(true, `${quantity} 座${type.name}已按单价 ¤${unitPrice} 挂牌`);
+  return result(true, `${quantity} 座${type.name}已按单价 ¤${unitPrice} 挂牌；挂牌工厂不参与生产`);
 }
 
 function cancelGroupListing(world, userId, payload) {
@@ -504,8 +513,10 @@ function cancelGroupListing(world, userId, payload) {
   world.facilityListings = world.facilityListings.filter((item) => item.id !== listing.id);
   const player = getPlayer(world, userId);
   const group = groupFor(player, listing.facilityTypeId);
-  if (group && listedQuantity(world, userId, listing.facilityTypeId) === 0) {
-    group.status = 'paused';
+  if (group?.status === 'running') {
+    group.pendingJoinCount += listing.quantity;
+  } else if (group && (group.status === 'listed' || group.stopReason === 'listed')) {
+    group.status = group.count === 1 ? 'ready' : 'paused';
     group.stopReason = 'manual';
   }
   return result(true, `已撤销 ${listing.quantity} 座${typeFor(listing.facilityTypeId)?.name || '工厂'}挂牌`);
@@ -515,7 +526,7 @@ function addPurchasedGroup(player, typeId, quantity) {
   const group = groupFor(player, typeId, true);
   group.count += quantity;
   if (group.status === 'running') group.pendingJoinCount += quantity;
-  else if (group.status !== 'listed') {
+  else {
     group.status = group.count === quantity ? 'ready' : 'paused';
     group.stopReason = 'manual';
   }
@@ -548,15 +559,6 @@ function buyFacilityGroup(world, userId, payload, now) {
   addPurchasedGroup(buyer, listing.facilityTypeId, quantity);
   listing.quantity -= quantity;
   if (listing.quantity === 0) world.facilityListings = world.facilityListings.filter((item) => item.id !== listing.id);
-
-  if (listing.ownerType === 'player') {
-    const seller = getPlayer(world, listing.ownerId);
-    const sellerGroup = groupFor(seller, listing.facilityTypeId);
-    if (sellerGroup && listedQuantity(world, seller.userId, listing.facilityTypeId) === 0) {
-      sellerGroup.status = 'paused';
-      sellerGroup.stopReason = 'manual';
-    }
-  }
 
   const type = typeFor(listing.facilityTypeId);
   return result(true, `已收购 ${quantity} 座${type?.name || '工厂'}，总价 ¤${total}`);

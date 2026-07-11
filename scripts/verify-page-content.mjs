@@ -52,7 +52,8 @@ for (const text of ['WarehouseUpgradeCard', 'buildFacility(', 'setProductionPlan
 for (const text of [
   'title="工厂"', '<WarehouseUpgradeCard model={model} className="factory-warehouse-card" />',
   '建设新工厂', 'game.facilityGroups.map', '当前参与', '下一周期', '待加入', '已挂牌',
-  '周期产量', '周期成本', '原料库存', '统一生产计划', '启动全部', '停止全部', '挂牌数量', '单座价格',
+  '周期产量', '周期成本', '原料库存', '统一生产计划', '启动全部未挂牌工厂', '停止全部',
+  '挂牌工厂不参与生产', '挂牌数量', '单座价格',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 requireOrderedText('src/pages/ProductionPage.tsx', '<WarehouseUpgradeCard model={model} className="factory-warehouse-card" />', '建设新工厂');
 for (const text of ['facility.id', 'facility.name', '展开管理', '实例列表', '小时产量', '小时运营费', '累计产量', '系统参考估值', 'collectFacility']) forbidText('src/pages/ProductionPage.tsx', text);
