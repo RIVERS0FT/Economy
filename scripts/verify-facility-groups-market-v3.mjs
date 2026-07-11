@@ -71,7 +71,7 @@ for (const text of [
 for (const text of [
   '(start|pause|stop|list|plan)',
   'routePayload: { facilityTypeId:',
-  "action: 'buyFacility'",
+  "listingAction[2] === 'cancel' ? 'cancelFacilityListing' : 'buyFacility'",
 ]) requireText('server/src/index.js', text);
 forbidText('server/src/index.js', '|collect');
 
