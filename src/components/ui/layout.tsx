@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react';
 
 export function PageLayout({
-  eyebrow,
   title,
   description,
   actions,
   children,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: ReactNode;
   description: string;
   actions?: ReactNode;
@@ -17,7 +16,6 @@ export function PageLayout({
     <section className="page-content">
       <div className="page-heading">
         <div>
-          <p className="eyebrow">{eyebrow}</p>
           <h1>{title}</h1>
           <p>{description}</p>
         </div>
