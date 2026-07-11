@@ -12,5 +12,5 @@
 }
 
 .desktop-sidebar > .sidebar-nav {
-  margin-top: .85rem;
+  margin-top: var(--space-3);
 }
