@@ -138,6 +138,7 @@ export interface LoadedGameViewModel {
   clearLocalActivity: () => void;
   signOut: () => Promise<void>;
   work: () => Promise<ActionResult>;
+  upgradeWarehouse: () => Promise<ActionResult>;
   buildFacility: (facilityTypeId?: string) => Promise<ActionResult>;
   startFacility: (facilityId: string) => Promise<ActionResult>;
   stopFacility: (facilityId: string) => Promise<ActionResult>;
@@ -474,6 +475,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     },
     signOut,
     work: () => runAction('work', gameActions.work),
+    upgradeWarehouse: () => runAction('refresh', gameActions.upgradeWarehouse),
     buildFacility: (facilityTypeId = selectedFacilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
     startFacility: (facilityId) => runAction('startFacility', () => gameActions.startFacility(facilityId)),
     stopFacility: (facilityId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityId)),
