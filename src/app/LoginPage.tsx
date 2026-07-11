@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from 'react';
 import { login } from '../api/auth';
+import { Button } from '../components/ui/layout';
 import { BRAND_LOGO_URL, BRAND_NAME, BRAND_SLOGAN } from '../config/brand';
 import type { AuthUser } from '../types';
 
@@ -57,10 +58,10 @@ export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUse
               required
             />
           </label>
-          {error ? <p className="form-error">{error}</p> : null}
-          <button type="submit" disabled={submitting}>
+          {error ? <p className="form-error" role="alert">{error}</p> : null}
+          <Button block type="submit" disabled={submitting}>
             {submitting ? '正在连接账号服务…' : '登录或注册'}
-          </button>
+          </Button>
         </form>
       </section>
     </main>
