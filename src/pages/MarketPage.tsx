@@ -35,7 +35,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
       <div className="market-grid">
         <Panel className="widget order-entry">
-          <p className="eyebrow">限价订单</p>
           <h2>{game.commodityName}限价订单</h2>
           <div className="segmented">
             <button className={orderSide === 'buy' ? 'active' : ''} onClick={() => setOrderSide('buy')}>买入</button>
