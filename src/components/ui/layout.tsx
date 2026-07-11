@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 export function PageLayout({
+  eyebrow,
   title,
   description,
   actions,
@@ -16,6 +17,7 @@ export function PageLayout({
     <section className="page-content">
       <div className="page-heading">
         <div>
+          {eyebrow ? <p className="ui-eyebrow">{eyebrow}</p> : null}
           <h1>{title}</h1>
           <p>{description}</p>
         </div>
@@ -31,6 +33,7 @@ export function Panel({ className = '', children }: { className?: string; childr
 }
 
 export function WidgetHeading({
+  eyebrow,
   title,
   action,
 }: {
@@ -40,9 +43,28 @@ export function WidgetHeading({
 }) {
   return (
     <div className="widget-heading">
-      <h2>{title}</h2>
+      <div>
+        {eyebrow ? <p className="ui-eyebrow">{eyebrow}</p> : null}
+        <h2>{title}</h2>
+      </div>
       {action ?? null}
     </div>
+  );
+}
+
+export function StatusTag({
+  tone = 'neutral',
+  className = '',
+  children,
+}: {
+  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <span className={`ui-status-tag status-${tone} ${className}`.trim()}>
+      {children}
+    </span>
   );
 }
 
