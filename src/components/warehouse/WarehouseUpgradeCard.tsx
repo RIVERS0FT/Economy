@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { gameActions, GameApiError } from '../../api/game';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { Button, MetricCard, Panel, StatusTag, WidgetHeading } from '../ui/layout';
 import { formatCurrency } from '../../utils/formatters';
@@ -13,7 +12,7 @@ export function WarehouseUpgradeCard({
   className?: string;
   compact?: boolean;
 }) {
-  const { game, inventoryUsed, notify, refresh } = model;
+  const { game, inventoryUsed, showResult, upgradeWarehouse } = model;
   const [submitting, setSubmitting] = useState(false);
   const atMaxLevel = game.warehouseLevel >= game.warehouseMaxLevel;
   const canAfford = game.warehouseUpgradeCost !== null && game.credits >= game.warehouseUpgradeCost;
@@ -25,11 +24,7 @@ export function WarehouseUpgradeCard({
     if (submitting || atMaxLevel) return;
     setSubmitting(true);
     try {
-      const response = await gameActions.upgradeWarehouse();
-      notify(response.result.message);
-      await refresh();
-    } catch (reason) {
-      notify(reason instanceof GameApiError ? reason.message : '仓库扩容失败');
+      await showResult(upgradeWarehouse());
     } finally {
       setSubmitting(false);
     }
