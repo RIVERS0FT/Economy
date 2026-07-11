@@ -39,6 +39,7 @@ const pages = [
   'src/components/ui/layout.tsx',
   'src/config/navigation.ts',
   'src/pages/PageRouter.tsx',
+  'src/styles/mobile-pages.css',
   ...pages.map((page) => `src/pages/${page}`),
 ].forEach(requireFile);
 
@@ -62,6 +63,7 @@ requireText('src/config/navigation.ts', "label: '概览'");
 requireText('src/config/navigation.ts', "label: '排行'");
 requireText('src/config/navigation.ts', "label: '订单'");
 requireText('src/components/shell/StatusBar.tsx', 'items.map');
+requireText('src/components/shell/StatusBar.tsx', 'compactValue');
 requireText('src/components/shell/GameShell.tsx', '<DesktopSidebar');
 requireText('src/components/shell/GameShell.tsx', '<MobileBottomNavigation');
 requireText('src/styles/mobile-status-navigation.css', '--mobile-chrome-inset: 1rem');
@@ -72,6 +74,10 @@ requireText('src/styles/mobile-status-navigation.css', 'overscroll-behavior-x: a
 requireText('src/styles/mobile-status-navigation.css', 'overscroll-behavior: contain');
 requireText('src/styles/mobile-status-navigation.css', '.sidebar-nav::before');
 requireText('src/styles/mobile-status-navigation.css', '.sidebar-nav::after');
+requireText('src/styles/mobile-pages.css', '.production-grid');
+requireText('src/styles/mobile-pages.css', 'grid-template-columns: minmax(0, 1fr)');
+requireText('src/styles/mobile-pages.css', '.asset-bar-item-value-compact');
+requireText('src/main.tsx', "import './styles/mobile-pages.css'");
 
 const router = read('src/pages/PageRouter.tsx');
 for (const page of pages) {
@@ -84,4 +90,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('界面架构验证通过：组件拆分、导航配置、移动端令牌和滚动职责均符合设计文档。');
+console.log('界面架构验证通过：组件拆分、导航配置、移动端令牌、页面响应式布局和滚动职责均符合设计文档。');

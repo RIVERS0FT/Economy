@@ -5,6 +5,7 @@ export interface StatusBarItem {
   icon: ReactNode;
   label: string;
   value: ReactNode;
+  compactValue?: ReactNode;
   detail?: ReactNode;
   emphasis?: 'primary' | 'market';
 }
@@ -25,7 +26,10 @@ export function StatusBar({ items }: { items: StatusBarItem[] }) {
           >
             <span className="asset-bar-item-icon" aria-hidden="true">{item.icon}</span>
             <span className="asset-bar-item-label">{item.label}</span>
-            <strong className="asset-bar-item-value">{item.value}</strong>
+            <strong className="asset-bar-item-value">
+              <span className="asset-bar-item-value-full">{item.value}</span>
+              <span className="asset-bar-item-value-compact">{item.compactValue ?? item.value}</span>
+            </strong>
             {item.detail ? <small>{item.detail}</small> : null}
           </div>
         );
