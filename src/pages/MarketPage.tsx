@@ -1,16 +1,19 @@
 import type { ChangeEvent } from 'react';
-import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import {
   Button,
   MetricCard,
   PageLayout,
   Panel,
+  ScrollableTable,
   StatusTag,
+  type StatusTone,
   WidgetHeading,
 } from '../components/ui/layout';
+import { economyConstants } from '../config/economy';
 import type { CommodityOrder, OrderSide } from '../types';
-import { formatCurrency } from '../utils/formatters';
+import { formatCurrency, formatTime } from '../utils/formatters';
 
 interface OrderBookLevel {
   price: number;
@@ -40,6 +43,13 @@ function aggregateOrderBook(orders: CommodityOrder[], side: OrderSide): OrderBoo
   );
 }
 
+function orderTone(status: CommodityOrder['status']): StatusTone {
+  if (status === 'filled') return 'success';
+  if (status === 'partial') return 'warning';
+  if (status === 'cancelled') return 'danger';
+  return 'neutral';
+}
+
 export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
@@ -53,6 +63,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     orderPrice,
     setOrderPrice,
     placeCommodityOrder,
+    cancelOrder,
     cancelFacilityListing,
     buyFacility,
     showResult,
@@ -62,11 +73,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const selectedProduct = derived.selectedProduct;
   const selectedInventory = derived.selectedInventory;
   const selectedMarket = derived.selectedMarket;
-  const selectedOrders = game.orders.filter((order) => order.productId === selectedProduct.id);
-  const selectedOpenOrderCount = selectedOrders.filter((order) => ['open', 'partial'].includes(order.status)).length;
+  const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
 
   function productName(productId?: string) {
-    if (!productId) return '无';
+    if (!productId) return '工厂资产';
     return game.products.find((product) => product.id === productId)?.name ?? productId;
   }
 
@@ -77,7 +87,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="市场"
-      description="每种商品拥有独立订单簿、价格历史和需求，产业链原料与产成品均可自由交易。"
+      description="在同一页面完成下单、撤单、查看成交与工厂交易，不需要跳转到独立订单页面。"
     >
       <div className="product-tabs" role="tablist" aria-label="选择商品市场">
         {game.products.map((product) => {
@@ -110,7 +120,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
       <div className="market-grid">
         <Panel className="widget order-entry">
-          <WidgetHeading title={`${selectedProduct.name}限价订单`} />
+          <WidgetHeading
+            title={`${selectedProduct.name}限价订单`}
+            action={<StatusTag>{derived.ownSelectedOpenOrders.length} 笔未完成</StatusTag>}
+          />
           <div className="ui-segmented" role="group" aria-label="订单方向">
             <Button
               variant="text"
@@ -155,7 +168,23 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           <Button block onClick={() => void showResult(placeCommodityOrder(orderSide, orderQuantity, orderPrice))}>
             提交{selectedProduct.name}{orderSide === 'buy' ? '买单' : '卖单'}
           </Button>
-          <small className="ui-helper-text">不同商品不会互相撮合；服务器按价格优先、同价时间优先完成原子结算。</small>
+          <small className="ui-helper-text">服务器按价格优先、同价时间优先完成原子撮合；未成交部分可在下方直接撤销。</small>
+
+          <div className="inline-order-list" aria-label={`我的${selectedProduct.name}未完成订单`}>
+            {derived.ownSelectedOpenOrders.map((order) => (
+              <div key={order.id}>
+                <span>
+                  <StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>
+                    {order.side === 'buy' ? '买入' : '卖出'}
+                  </StatusTag>
+                  <strong>¤ {order.price}</strong>
+                  <small>{order.remaining}/{order.quantity}</small>
+                </span>
+                <Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button>
+              </div>
+            ))}
+            {derived.ownSelectedOpenOrders.length === 0 ? <p className="muted">当前商品没有未完成订单。</p> : null}
+          </div>
         </Panel>
 
         <Panel className="widget order-book">
@@ -201,8 +230,70 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           <PriceSparkline values={derived.history} />
           <div className="chart-footer">
             <span>成交样本 {selectedMarket.priceHistory.length}</span>
-            <span>当前订单 {selectedOpenOrderCount} 笔</span>
+            <span>当前订单 {derived.ownSelectedOpenOrders.length} 笔</span>
             <span>需求满足率 {Math.round(selectedMarket.demand.satisfaction * 100)}%</span>
+          </div>
+        </Panel>
+
+        <Panel className="widget span-3 market-account-panel">
+          <WidgetHeading
+            title="我的订单与成交"
+            action={<StatusTag>{derived.ownOpenOrders.length}/{economyConstants.maxOpenOrders} 笔未完成</StatusTag>}
+          />
+          <div className="market-account-summary">
+            <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} tone="warning" />
+            <MetricCard label="冻结商品" value={frozenInventory} detail={`${game.products.filter((product) => (game.inventories[product.id]?.frozen ?? 0) > 0).length} 种商品`} tone="warning" />
+            <MetricCard label="未完成订单" value={`${derived.ownOpenOrders.length}/${economyConstants.maxOpenOrders}`} />
+            <MetricCard label="我的工厂挂牌" value={derived.ownListings.length} tone="info" />
+          </div>
+
+          <div className="market-account-grid">
+            <section>
+              <h3>未完成订单</h3>
+              <ScrollableTable>
+                <table>
+                  <thead><tr><th>商品</th><th>方向</th><th className="numeric-cell">限价</th><th className="numeric-cell">剩余/原始</th><th className="numeric-cell">冻结资产</th><th>状态</th><th>时间</th><th /></tr></thead>
+                  <tbody>
+                    {derived.ownOpenOrders.map((order) => (
+                      <tr key={order.id}>
+                        <td><strong>{productName(order.productId)}</strong></td>
+                        <td><StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
+                        <td className="numeric-cell">¤ {order.price}</td>
+                        <td className="numeric-cell">{order.remaining}/{order.quantity}</td>
+                        <td className="numeric-cell">{order.side === 'buy' ? `¤ ${formatCurrency(order.remaining * order.price)}` : `${order.remaining} ${productName(order.productId)}`}</td>
+                        <td><StatusTag tone={orderTone(order.status)}>{orderStatusNames[order.status]}</StatusTag></td>
+                        <td>{formatTime(order.createdAt)}</td>
+                        <td><Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button></td>
+                      </tr>
+                    ))}
+                    {derived.ownOpenOrders.length === 0 ? <tr><td colSpan={8} className="empty-cell">暂无未完成订单。</td></tr> : null}
+                  </tbody>
+                </table>
+              </ScrollableTable>
+            </section>
+
+            <section>
+              <h3>成交记录</h3>
+              <ScrollableTable>
+                <table>
+                  <thead><tr><th>资产</th><th>方向</th><th className="numeric-cell">数量</th><th className="numeric-cell">价格</th><th className="numeric-cell">总额</th><th>对手方</th><th>时间</th></tr></thead>
+                  <tbody>
+                    {game.trades.map((trade) => (
+                      <tr key={trade.id}>
+                        <td>{trade.type === 'facility' ? trade.description : productName(trade.productId)}</td>
+                        <td><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
+                        <td className="numeric-cell">{trade.quantity}</td>
+                        <td className="numeric-cell">¤ {trade.price}</td>
+                        <td className="numeric-cell">¤ {formatCurrency(trade.total)}</td>
+                        <td>{trade.counterparty}</td>
+                        <td>{formatTime(trade.createdAt)}</td>
+                      </tr>
+                    ))}
+                    {game.trades.length === 0 ? <tr><td colSpan={7} className="empty-cell">暂无成交记录。</td></tr> : null}
+                  </tbody>
+                </table>
+              </ScrollableTable>
+            </section>
           </div>
         </Panel>
 
