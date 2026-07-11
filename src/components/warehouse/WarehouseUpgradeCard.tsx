@@ -54,7 +54,7 @@ export function WarehouseUpgradeCard({
           <span style={{ width: `${usagePercent}%` }} />
         </div>
         <small>
-          {usagePercent}% 已使用 · 实物 {game.warehouseStoredQuantity} · 买单预占 {game.warehouseReservedQuantity} · 可用 {game.warehouseAvailableCapacity}
+          {usagePercent}% 已使用 · 实物 {game.warehouseStoredQuantity} · 买单预占 {game.warehouseReservedQuantity} · 可用 {game.warehouseAvailableCapacity} · 所有商品共用容量
         </small>
       </div>
 
