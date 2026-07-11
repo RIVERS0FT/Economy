@@ -12,9 +12,7 @@ export function GameShell({ model, statusItems, children }: {
   return (
     <main className="game-shell">
       <DesktopSidebar
-        user={model.user}
         playerName={model.game.playerName}
-        rank={model.derived.currentRank?.rank}
         activeTab={model.tab}
         openOrderCount={model.derived.ownOpenOrders.length}
         onSelect={model.setTab}
