@@ -1,12 +1,14 @@
 {
   "name": "economy",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "verify:architecture": "node scripts/verify-ui-architecture.mjs",
-    "build": "npm run verify:architecture && tsc && vite build",
+    "server:check": "node --check server/src/*.js",
+    "server:test": "node --test server/test/*.test.js",
+    "build": "npm run verify:architecture && npm run server:check && npm run server:test && tsc && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri"
@@ -17,8 +19,7 @@
     "vite": "latest",
     "typescript": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "zustand": "latest"
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
