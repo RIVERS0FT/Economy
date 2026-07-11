@@ -12,13 +12,11 @@ function classNames(...values: Array<string | false | null | undefined>) {
 }
 
 export function PageLayout({
-  eyebrow,
   title,
   description,
   actions,
   children,
 }: {
-  eyebrow?: string;
   title: ReactNode;
   description: string;
   actions?: ReactNode;
@@ -28,7 +26,6 @@ export function PageLayout({
     <section className="page-content">
       <div className="page-heading">
         <div>
-          {eyebrow ? <p className="ui-eyebrow">{eyebrow}</p> : null}
           <h1>{title}</h1>
           <p>{description}</p>
         </div>
@@ -44,20 +41,15 @@ export function Panel({ className = '', children }: { className?: string; childr
 }
 
 export function WidgetHeading({
-  eyebrow,
   title,
   action,
 }: {
-  eyebrow?: string;
   title: ReactNode;
   action?: ReactNode;
 }) {
   return (
     <div className="widget-heading">
-      <div>
-        {eyebrow ? <p className="ui-eyebrow">{eyebrow}</p> : null}
-        <h2>{title}</h2>
-      </div>
+      <h2>{title}</h2>
       {action ?? null}
     </div>
   );

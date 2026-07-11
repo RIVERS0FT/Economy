@@ -35,13 +35,12 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="偏好设置"
       title="设置"
       description="管理玩家资料、界面偏好和服务器经济状态。"
     >
       <div className="settings-grid">
         <Panel className="widget">
-          <WidgetHeading eyebrow="玩家资料" title="玩家资料" action={<StatusTag tone={user.role === 'admin' ? 'info' : 'neutral'}>{roleLabel}</StatusTag>} />
+          <WidgetHeading title="玩家资料" action={<StatusTag tone={user.role === 'admin' ? 'info' : 'neutral'}>{roleLabel}</StatusTag>} />
           <div className="profile-card">
             <div className="profile-avatar">{avatarText}</div>
             <div><strong>{game.playerName}</strong><span>{user.email}</span><small>注册于 {formatDate(game.registeredAt)}</small></div>
@@ -55,7 +54,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget">
-          <WidgetHeading eyebrow="游戏设置" title="游戏设置" />
+          <WidgetHeading title="游戏设置" />
           <ToggleField
             label="界面音效"
             description="订单成交与生产完成提示"
@@ -87,7 +86,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget account-summary">
-          <WidgetHeading eyebrow="账号状态" title="账号与资产" />
+          <WidgetHeading title="账号与资产" />
           <DataList>
             <DataRow label="账号编号" value={user.id} />
             <DataRow label="账号角色" value={roleLabel} tone={user.role === 'admin' ? 'info' : 'neutral'} />
@@ -100,7 +99,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget danger-zone span-3">
           <div>
-            <p className="ui-eyebrow">危险操作</p>
             <h2>重置服务器经济状态</h2>
             <p>重置会删除当前玩家的资金、库存、设施、订单与交易记录，但不会影响主页账号。</p>
           </div>

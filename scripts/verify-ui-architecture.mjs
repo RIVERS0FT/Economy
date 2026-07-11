@@ -40,7 +40,12 @@ const pages = [
   'SettingsPage.tsx',
 ];
 const pagePaths = pages.map((page) => `src/pages/${page}`);
-const uiSourcePaths = ['src/app/LoginPage.tsx', 'src/components/shell/DesktopSidebar.tsx', ...pagePaths];
+const uiSourcePaths = [
+  'src/app/LoginPage.tsx',
+  'src/components/shell/DesktopSidebar.tsx',
+  'src/components/ui/layout.tsx',
+  ...pagePaths,
+];
 
 [
   'src/app/App.tsx',
@@ -124,6 +129,11 @@ for (const path of uiSourcePaths) {
   for (const className of legacyUiClasses) forbidText(path, className);
 }
 
+for (const path of ['src/components/ui/layout.tsx', ...pagePaths]) {
+  forbidText(path, 'eyebrow');
+  forbidText(path, 'ui-eyebrow');
+}
+
 const visibleEnglish = [
   'Player command center', 'Basic work', 'Market pulse', 'Recent activity',
   'Unified market', 'Limit order', 'Order book', 'Price history',
@@ -137,16 +147,12 @@ for (const path of ['src/app/LoginPage.tsx', ...pagePaths]) {
   for (const text of visibleEnglish) forbidText(path, text);
 }
 
-for (const path of ['src/components/ui/layout.tsx', ...pagePaths]) {
-  forbidText(path, 'className="eyebrow"');
-}
-
 for (const [path, required] of [
   ['index.html', ['viewport-fit=cover']],
   ['src/config/navigation.ts', ["label: '概览'", "label: '排行'", "label: '订单'"]],
   ['src/config/labels.ts', ["system: '系统调整'"]],
   ['src/pages/AssetsPage.tsx', ['ledgerCategoryNames[entry.category]']],
-  ['src/pages/RecordsPage.tsx', ['ledgerCategoryNames[entry.category]']],
+  ['src/pages/RecordsPage.tsx', ['ledgerCategoryNames[entry.category]', 'title="订单与记录"']],
   ['src/pages/MarketPage.tsx', [
     'function aggregateOrderBook',
     'level.remaining += order.remaining',
@@ -163,7 +169,6 @@ for (const [path, required] of [
     'export function ToggleField',
     'export function ScrollableTable',
     'export function EmptyState',
-    'className="ui-eyebrow"',
     '<h1>{title}</h1>',
     '<h2>{title}</h2>',
   ]],
@@ -235,7 +240,7 @@ for (const token of [
 for (const primitive of [
   '.ui-button--primary', '.ui-button--secondary', '.ui-button--danger',
   '.ui-button--text', '.ui-button--compact', '.ui-button--block', '.ui-link',
-  'textarea', '.panel', '.ui-eyebrow', '.ui-status-tag', '.ui-metric-card',
+  'textarea', '.panel', '.ui-status-tag', '.ui-metric-card',
   '.ui-data-list', '.ui-data-row', '.ui-segmented', '.ui-spec-grid',
   '.ui-toggle-field', '.ui-switch', '.table-wrap', '.numeric-cell',
   'button:focus-visible', 'min-height: 44px',
@@ -253,6 +258,8 @@ for (const rule of [
   '## 13. 状态标签', '## 14. 表格', '## 16. 响应式规则',
   'max-width: 1220px', 'max-width: 960px', 'max-width: 720px',
   '移动端可点击控件最小高度为 `44px`',
+  '页面标题和卡片标题不得显示前置小字',
+  '`PageLayout` 和 `WidgetHeading` 不得提供 `eyebrow` 参数',
   '核心页面不得重新直接使用以下历史字符串类名',
   '未更新设计文档和架构检查的基础样式回退不应合并',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', rule);
@@ -280,4 +287,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('架构验证通过：服务器权威边界与统一 UI 组件、令牌和布局分层均满足项目基线。');
+console.log('架构验证通过：标题无前置小字，服务器权威边界与统一 UI 组件、令牌和布局分层均满足项目基线。');

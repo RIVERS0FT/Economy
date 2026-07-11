@@ -60,7 +60,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="统一市场"
       title="市场"
       description="通过服务器权威订单簿与其他玩家和人口需求进行交易，或收购生产设施。"
     >
@@ -74,7 +73,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
       <div className="market-grid">
         <Panel className="widget order-entry">
-          <WidgetHeading eyebrow="限价订单" title={`${game.commodityName}限价订单`} />
+          <WidgetHeading title={`${game.commodityName}限价订单`} />
           <div className="ui-segmented" role="group" aria-label="订单方向">
             <Button
               variant="text"
@@ -121,7 +120,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget order-book">
           <WidgetHeading
-            eyebrow="订单簿"
             title="商品订单簿"
             action={<div className="last-price"><span>最近成交</span><strong>¤ {game.marketPrice}</strong></div>}
           />
@@ -151,7 +149,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget market-chart-card">
           <WidgetHeading
-            eyebrow="价格历史"
             title="近期成交曲线"
             action={
               <StatusTag tone={derived.marketTrend >= 0 ? 'success' : 'danger'}>
@@ -164,7 +161,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading eyebrow="设施挂牌" title="生产设施挂牌" action={<span className="muted">固定价格 · 服务器即时产权交割</span>} />
+          <WidgetHeading title="生产设施挂牌" action={<span className="muted">固定价格 · 服务器即时产权交割</span>} />
           <div className="listing-grid">
             {game.facilityListings.map((listing) => (
               <article className="listing-card" key={listing.id}>

@@ -24,13 +24,12 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="资产组合"
       title="资产"
       description="查看财富构成、系统估值和经济资金流。"
     >
       <div className="asset-overview-grid">
         <Panel className="widget allocation-card">
-          <WidgetHeading eyebrow="资产配置" title="资产配置" action={<strong>¤ {formatCurrency(derived.totalAssets)}</strong>} />
+          <WidgetHeading title="资产配置" action={<strong>¤ {formatCurrency(derived.totalAssets)}</strong>} />
           <div className="allocation-visual" style={allocationStyle}><div><strong>{cashShare}%</strong><span>现金占比</span></div></div>
           <div className="allocation-legend">
             <span><i className="cash-dot" />现金 <strong>{cashShare}%</strong></span>
@@ -40,7 +39,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget asset-breakdown span-2">
-          <WidgetHeading eyebrow="资产估值" title="资产估值明细" action={<span className="muted">使用市场参考价和设施系统估值</span>} />
+          <WidgetHeading title="资产估值明细" action={<span className="muted">使用市场参考价和设施系统估值</span>} />
           <div className="asset-card-grid">
             <MetricCard label="可用现金" value={`¤ ${formatCurrency(game.credits)}`} detail="立即可用于建造和交易" tone="success" />
             <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} detail="用于未成交买单" tone="warning" />
@@ -50,7 +49,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget">
-          <WidgetHeading eyebrow="经济资金流" title="货币发行与回收" />
+          <WidgetHeading title="货币发行与回收" />
           <DataList>
             <DataRow label="工作发行" value={`+¤ ${game.stats.workIssued}`} tone="success" />
             <DataRow label="人口发行" value={`+¤ ${game.stats.populationIssued}`} tone="success" />
@@ -61,7 +60,6 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget span-2">
           <WidgetHeading
-            eyebrow="资产动态"
             title="最近资产变化"
             action={<Button variant="text" onClick={() => setTab('records')}>完整流水</Button>}
           />

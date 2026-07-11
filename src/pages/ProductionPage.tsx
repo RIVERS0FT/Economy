@@ -38,14 +38,13 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="生产资产"
       title="生产"
       description="建造、运行、暂停、领取或挂牌你的生产设施。"
       actions={<StatusTag>{`设施槽位 ${game.facilities.length}/${game.facilitySlots}`}</StatusTag>}
     >
       <div className="production-grid">
         <Panel className="widget build-card">
-          <WidgetHeading eyebrow="新建设施" title="建造基础生产设施" />
+          <WidgetHeading title="建造基础生产设施" />
           <DataList>
             <DataRow label="建造费用" value={`¤ ${economyConstants.buildCost}`} tone="danger" />
             <DataRow label="施工时间" value="5 分钟" tone="warning" />
