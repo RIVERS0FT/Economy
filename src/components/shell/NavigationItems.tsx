@@ -22,7 +22,7 @@ export function NavigationItems({
         >
           <span aria-hidden="true">{icon}</span>
           <strong>{label}</strong>
-          {id === 'records' && openOrderCount > 0 ? <small>{openOrderCount}</small> : null}
+          {id === 'market' && openOrderCount > 0 ? <small>{openOrderCount}</small> : null}
         </button>
       ))}
     </>
