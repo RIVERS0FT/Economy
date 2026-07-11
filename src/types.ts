@@ -132,6 +132,7 @@ export interface FacilityListing {
   facility: FacilityListingSnapshot;
 }
 
+/** Browser-local only. Never included in EconomyState or persisted by the API. */
 export interface TradeRecord {
   id: string;
   type: 'commodity' | 'facility';
@@ -141,26 +142,6 @@ export interface TradeRecord {
   price: number;
   total: number;
   counterparty: string;
-  createdAt: number;
-  description: string;
-}
-
-export type LedgerCategory =
-  | 'work_income'
-  | 'population_income'
-  | 'market_trade'
-  | 'facility_trade'
-  | 'facility_construction'
-  | 'facility_operation'
-  | 'facility_sale'
-  | 'inventory'
-  | 'system';
-
-export interface LedgerEntry {
-  id: string;
-  category: LedgerCategory;
-  amount: number;
-  balanceAfter: number;
   createdAt: number;
   description: string;
 }
@@ -215,6 +196,7 @@ export interface AssetProductionChange {
   completedQuantityDelta: number;
 }
 
+/** Browser-local only. Derived from two authoritative state snapshots. */
 export interface AssetEvent {
   id: string;
   category: AssetEventCategory;
@@ -229,7 +211,7 @@ export interface AssetEvent {
   productionChanges: AssetProductionChange[];
   sourceType?: 'order' | 'trade' | 'facility' | 'production' | 'work' | 'system';
   sourceId?: string;
-  legacy?: boolean;
+  localOnly: true;
 }
 
 export interface WorkState {
@@ -281,7 +263,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 6;
+  version: 7;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -295,9 +277,6 @@ export interface EconomyState {
   markets: Record<string, ProductMarketState>;
   orders: CommodityOrder[];
   facilityListings: FacilityListing[];
-  trades: TradeRecord[];
-  assetEvents: AssetEvent[];
-  ledger: LedgerEntry[];
   work: WorkState;
   stats: EconomyStats;
   leaderboard: LeaderboardEntry[];

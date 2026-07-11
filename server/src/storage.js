@@ -9,11 +9,7 @@ import {
   migrateWorld,
   processWorld,
 } from './domain.js';
-import {
-  appendAssetEventFromDiff,
-  capturePlayerAssetSnapshot,
-  migrateAssetEvents,
-} from './asset-events.js';
+import { stripPlayerLogs } from './asset-events.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -22,27 +18,17 @@ function normalizeJson(value) {
 }
 
 function createVersionedClientState(world, userId, now) {
-  migrateAssetEvents(world);
   const state = createClientState(world, userId, now);
-  const player = world.players[String(userId)];
+  const {
+    trades: _serverTrades,
+    ledger: _serverLedger,
+    assetEvents: _serverAssetEvents,
+    ...authoritativeState
+  } = state;
   return {
-    ...state,
-    version: 6,
-    assetEvents: normalizeJson(player.assetEvents || []),
+    ...authoritativeState,
+    version: 7,
   };
-}
-
-function processAndRecord(world, userId, now) {
-  const before = capturePlayerAssetSnapshot(world, userId);
-  processWorld(world, now);
-  appendAssetEventFromDiff(world, userId, before, {
-    action: 'processWorld',
-    payload: {},
-    result: { ok: true, message: '服务器已结算生产、成交与资产状态' },
-    createdAt: now,
-    description: '服务器结算生产、成交与资产状态',
-  });
-  migrateAssetEvents(world);
 }
 
 export class EconomyStore {
@@ -110,16 +96,17 @@ export class EconomyStore {
   loadWorld(now) {
     const row = this.selectWorld.get();
     if (!row) {
-      const world = migrateAssetEvents(createWorld(now));
+      const world = stripPlayerLogs(createWorld(now));
       this.insertWorld.run(1, JSON.stringify(world), now);
       return { revision: 1, world };
     }
-    const world = migrateAssetEvents(migrateWorld(JSON.parse(String(row.state_json)), now));
+    const world = migrateWorld(JSON.parse(String(row.state_json)), now);
+    stripPlayerLogs(world);
     return { revision: Number(row.revision), world };
   }
 
   saveWorld(revision, world, now) {
-    migrateAssetEvents(world);
+    stripPlayerLogs(world);
     this.updateWorld.run(revision + 1, JSON.stringify(world), now);
   }
 
@@ -127,8 +114,7 @@ export class EconomyStore {
     return this.transaction(() => {
       const { revision, world } = this.loadWorld(now);
       ensurePlayer(world, user, now);
-      migrateAssetEvents(world);
-      processAndRecord(world, Number(user.id), now);
+      processWorld(world, now);
       const state = normalizeJson(createVersionedClientState(world, Number(user.id), now));
       this.saveWorld(revision, world, now);
       return state;
@@ -149,19 +135,8 @@ export class EconomyStore {
 
       const { revision, world } = this.loadWorld(now);
       ensurePlayer(world, user, now);
-      migrateAssetEvents(world);
-      processAndRecord(world, Number(user.id), now);
-
-      const beforeAction = capturePlayerAssetSnapshot(world, Number(user.id));
+      processWorld(world, now);
       const gameResult = applyAction(world, user, action, payload, now);
-      appendAssetEventFromDiff(world, Number(user.id), beforeAction, {
-        action,
-        payload,
-        result: gameResult,
-        createdAt: now,
-      });
-      migrateAssetEvents(world);
-
       const state = createVersionedClientState(world, Number(user.id), now);
       const response = normalizeJson({ result: gameResult, state });
       this.saveWorld(revision, world, now);

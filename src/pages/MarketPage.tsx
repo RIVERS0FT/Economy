@@ -54,6 +54,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
     derived,
+    localTrades,
     selectedProductId,
     setSelectedProductId,
     orderSide,
@@ -87,7 +88,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="市场"
-      description="在同一页面完成下单、撤单、查看成交与工厂交易，不需要跳转到独立订单页面。"
+      description="在同一页面完成下单、撤单和工厂交易；成交记录仅保存在当前浏览器。"
     >
       <div className="product-tabs" role="tablist" aria-label="选择商品市场">
         {game.products.map((product) => {
@@ -115,7 +116,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         <MetricCard tone="danger" label="卖一价" value={`¤ ${derived.bestAsk || '--'}`} />
         <MetricCard label="价差" value={`¤ ${derived.spread}`} />
         <MetricCard label="可用持仓" value={selectedInventory.available} detail={`冻结 ${selectedInventory.frozen}`} />
-        <MetricCard label="平均成本" value={derived.averageCost ? `¤ ${derived.averageCost.toFixed(1)}` : '--'} />
+        <MetricCard label="本地平均成本" value={derived.averageCost ? `¤ ${derived.averageCost.toFixed(1)}` : '--'} />
       </div>
 
       <div className="market-grid">
@@ -168,7 +169,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           <Button block onClick={() => void showResult(placeCommodityOrder(orderSide, orderQuantity, orderPrice))}>
             提交{selectedProduct.name}{orderSide === 'buy' ? '买单' : '卖单'}
           </Button>
-          <small className="ui-helper-text">服务器按价格优先、同价时间优先完成原子撮合；未成交部分可在下方直接撤销。</small>
+          <small className="ui-helper-text">服务器只保存订单和资产状态；本地根据状态变化生成操作记录。</small>
 
           <div className="inline-order-list" aria-label={`我的${selectedProduct.name}未完成订单`}>
             {derived.ownSelectedOpenOrders.map((order) => (
@@ -273,12 +274,13 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             </section>
 
             <section>
-              <h3>成交记录</h3>
+              <h3>本地成交记录</h3>
+              <p className="ui-helper-text">仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。</p>
               <ScrollableTable>
                 <table>
-                  <thead><tr><th>资产</th><th>方向</th><th className="numeric-cell">数量</th><th className="numeric-cell">价格</th><th className="numeric-cell">总额</th><th>对手方</th><th>时间</th></tr></thead>
+                  <thead><tr><th>资产</th><th>方向</th><th className="numeric-cell">数量</th><th className="numeric-cell">价格</th><th className="numeric-cell">总额</th><th>来源</th><th>时间</th></tr></thead>
                   <tbody>
-                    {game.trades.map((trade) => (
+                    {localTrades.map((trade) => (
                       <tr key={trade.id}>
                         <td>{trade.type === 'facility' ? trade.description : productName(trade.productId)}</td>
                         <td><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
@@ -289,7 +291,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                         <td>{formatTime(trade.createdAt)}</td>
                       </tr>
                     ))}
-                    {game.trades.length === 0 ? <tr><td colSpan={7} className="empty-cell">暂无成交记录。</td></tr> : null}
+                    {localTrades.length === 0 ? <tr><td colSpan={7} className="empty-cell">当前浏览器暂无成交记录。</td></tr> : null}
                   </tbody>
                 </table>
               </ScrollableTable>

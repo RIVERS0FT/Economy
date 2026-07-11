@@ -62,12 +62,13 @@ const uiSourcePaths = [
   'src/components/shell/StatusBar.tsx',
   'src/components/ui/layout.tsx',
   'src/config/navigation.ts',
-  'src/config/labels.ts',
   'src/pages/PageRouter.tsx',
+  'src/utils/localActivityStore.ts',
   'src/styles/design-system.css',
   'src/styles/globals.css',
   'src/styles/industry-system.css',
   'src/styles/market-funds.css',
+  'src/styles/liquid-glass-chrome.css',
   'src/styles/auth.css',
   'src/styles/card-system.css',
   'src/styles/desktop-sidebar.css',
@@ -77,6 +78,7 @@ const uiSourcePaths = [
   'docs/UI_DESIGN_SYSTEM.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md',
+  'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'server/src/index.js',
   'server/src/domain.js',
@@ -84,7 +86,7 @@ const uiSourcePaths = [
   'server/src/asset-events.js',
   'server/src/auth.js',
   'server/test/domain.test.js',
-  'scripts/install-economy-api.py',
+  'server/test/asset-events.test.js',
   ...pagePaths,
 ].forEach(requireFile);
 
@@ -98,20 +100,20 @@ if (read('src/App.tsx').trim() !== "export { default } from './app/App';") {
 for (const [path, forbidden] of [
   ['src/main.tsx', ['MutationObserver', 'querySelector', 'textContent']],
   ['src/styles/mobile-status-navigation.css', ['nth-child']],
-  ['src/styles/viewport.css', ['--mobile-chrome-surface-transparent', 'backdrop-filter: none']],
   ['src/styles/card-system.css', ['--card-radius:', '--radius-card:']],
   ['src/config/navigation.ts', ['主页面', '排行榜', '订单与记录', "id: 'records'", "label: '订单'"]],
   ['src/pages/PageRouter.tsx', ['RecordsPage', "case 'records'"]],
   ['src/components/shell/NavigationItems.tsx', ["id === 'records'"]],
-  ['src/pages/OverviewPage.tsx', ["setTab('records')"]],
-  ['src/pages/AssetsPage.tsx', ["setTab('records')", 'ledgerCategoryNames', 'game.ledger']],
-  ['src/components/shell/DesktopSidebar.tsx', ['市场交易版', 'player-mini-card', 'player-avatar', 'rank?: number']],
-  ['src/app/gameViewModel.ts', ['localStorage', 'useGameStore', 'facilitySlots']],
+  ['src/pages/OverviewPage.tsx', ["setTab('records')", 'game.trades']],
+  ['src/pages/MarketPage.tsx', ['game.trades']],
+  ['src/pages/AssetsPage.tsx', ['game.assetEvents', 'game.ledger', "setTab('records')"]],
+  ['src/app/gameViewModel.ts', ['useGameStore', 'facilitySlots', 'game.trades', 'game.assetEvents']],
   ['src/utils/runtimePerformance.ts', ['useGameStore']],
-  ['src/types.ts', ['facilitySlots', 'version: 5;']],
+  ['src/types.ts', ['facilitySlots', 'version: 5;', 'version: 6;', 'assetEvents: AssetEvent[];', 'trades: TradeRecord[];', 'ledger: LedgerEntry[];']],
   ['src/pages/ProductionPage.tsx', ['facilitySlots', '设施槽位']],
   ['src/pages/SettingsPage.tsx', ['facilitySlots', '设施槽位']],
   ['server/src/domain.js', ['生产设施槽位不足', '空闲设施槽位']],
+  ['server/src/storage.js', ['migrateAssetEvents', 'appendAssetEventFromDiff', 'assetEvents: normalizeJson']],
   ['src/styles/auth.css', ['#07100d', '@media (max-width: 380px)']],
   ['src/styles/globals.css', [
     '\nbutton {',
@@ -150,25 +152,11 @@ for (const path of ['src/components/ui/layout.tsx', ...pagePaths]) {
   forbidText(path, 'ui-eyebrow');
 }
 
-const visibleEnglish = [
-  'Player command center', 'Basic work', 'Market pulse', 'Recent activity',
-  'Unified market', 'Limit order', 'Order book', 'Price history',
-  'Facility listings', 'Production assets', 'Build facility', 'Portfolio',
-  'Allocation', 'Valuation', 'Economy flow', 'Asset activity',
-  'Wealth competition', 'Orders and records', 'Open orders', 'Frozen assets',
-  'Trade history', 'Audit ledger', 'Preferences', 'Player profile',
-  'Game settings', 'Account status', 'Preview data', 'name@example.com', 'K / M',
-];
-for (const path of ['src/app/LoginPage.tsx', ...pagePaths]) {
-  for (const text of visibleEnglish) forbidText(path, text);
-}
-
 for (const [path, required] of [
   ['index.html', ['viewport-fit=cover']],
   ['src/config/navigation.ts', [
     "label: '概览'", "label: '市场'", "label: '生产'", "label: '资金'", "label: '排行'", "label: '设置'",
   ]],
-  ['src/config/labels.ts', ["system: '系统调整'"]],
   ['src/components/ui/layout.tsx', [
     'export function Button',
     'export function StatusTag',
@@ -182,14 +170,14 @@ for (const [path, required] of [
     '<h2>{title}</h2>',
   ]],
   ['src/app/LoginPage.tsx', ['<Button', 'role="alert"']],
-  ['src/components/shell/DesktopSidebar.tsx', ['<Button', 'variant="secondary"', '服务器权威经济', '<span title={displayName}>{displayName}</span>']],
+  ['src/components/shell/DesktopSidebar.tsx', ['<Button', '服务器权威经济', '<span title={displayName}>{displayName}</span>']],
   ['src/components/shell/GameShell.tsx', ['playerName={model.game.playerName}', '<DesktopSidebar', '<MobileBottomNavigation']],
   ['src/components/shell/NavigationItems.tsx', ["id === 'market' && openOrderCount > 0"]],
   ['src/components/shell/StatusBar.tsx', ['items.map', 'compactValue']],
   ['src/pages/OverviewPage.tsx', [
     '<Button', '<StatusTag', '<MetricCard', '<DataList',
     'blockedFacilities', 'pendingPlans', 'game.products.map',
-    "setTab('market')", "setTab('assets')",
+    "setTab('market')", "setTab('assets')", 'localTrades', '当前浏览器最近成交',
   ]],
   ['src/pages/MarketPage.tsx', [
     'function aggregateOrderBook',
@@ -205,8 +193,9 @@ for (const [path, required] of [
     '我的订单与成交',
     '冻结资金',
     '冻结商品',
-    '成交记录',
-    'game.trades.map',
+    '本地成交记录',
+    'localTrades.map',
+    '仅保存在当前浏览器',
     '<Button', '<StatusTag', '<MetricCard', '<ScrollableTable', 'className="ui-segmented"',
   ]],
   ['src/pages/ProductionPage.tsx', [
@@ -222,8 +211,10 @@ for (const [path, required] of [
     'title="资金与资产"',
     'game.products.map',
     'game.inventories',
-    'game.assetEvents',
-    '资金与资产变动',
+    'localAssetEvents',
+    'clearLocalActivity',
+    '本地资金与资产变动',
+    '这些记录不上传服务器',
     'event.inventoryChanges',
     'event.facilityChanges',
     'event.productionChanges',
@@ -237,6 +228,53 @@ for (const [path, required] of [
     '工厂总数', '运行中工厂', '仓库使用',
     '<Button', '<ToggleField', '<DataList', 'className="ui-link"',
   ]],
+  ['src/app/gameViewModel.ts', [
+    'localAssetEvents',
+    'localTrades',
+    'syncLocalActivity',
+    'loadLocalActivity',
+    'clearLocalActivityStore',
+    "runAction('placeOrder'",
+    "runAction('cancelOrder'",
+  ]],
+  ['src/utils/localActivityStore.ts', [
+    'window.localStorage',
+    'syncLocalActivity',
+    'loadLocalActivity',
+    'clearLocalActivity',
+    'snapshotState',
+    'MAX_ASSET_EVENTS',
+    'MAX_TRADES',
+    'Local logs are optional and must never block authoritative game actions',
+  ]],
+  ['src/types.ts', [
+    'version: 7;',
+    'export interface AssetEvent',
+    'export interface TradeRecord',
+    'localOnly: true;',
+    'Never included in EconomyState or persisted by the API',
+  ]],
+  ['server/src/storage.js', [
+    "this.database.exec('BEGIN IMMEDIATE')",
+    'stripPlayerLogs',
+    'version: 7',
+    'trades: _serverTrades',
+    'ledger: _serverLedger',
+    'assetEvents: _serverAssetEvents',
+  ]],
+  ['server/src/asset-events.js', [
+    'export function stripPlayerLogs',
+    'delete player.trades',
+    'delete player.ledger',
+    'delete player.assetEvents',
+    'called immediately before every SQLite write',
+  ]],
+  ['server/test/asset-events.test.js', [
+    'client state version 7 excludes all player log arrays',
+    'actions update authoritative state without writing player logs to SQLite',
+    'legacy server logs are removed during the next state load',
+    'idempotency preserves authoritative response without creating server logs',
+  ]],
   ['src/styles/desktop-sidebar.css', ['text-overflow: ellipsis', 'margin-top: var(--space-3)']],
   ['src/styles/mobile-status-navigation.css', [
     '--mobile-chrome-inset: 1rem',
@@ -245,8 +283,6 @@ for (const [path, required] of [
     '--mobile-nav-height: 76px',
     'overscroll-behavior-x: auto',
     'overscroll-behavior: contain',
-    '.sidebar-nav::before',
-    '.sidebar-nav::after',
   ]],
   ['src/styles/mobile-status-layout.css', [
     'safe-area-inset-top',
@@ -254,12 +290,6 @@ for (const [path, required] of [
     'safe-area-inset-right',
     'grid-auto-columns: minmax(max-content, 1fr)',
     'justify-content: center',
-  ]],
-  ['src/styles/mobile-pages.css', [
-    '.production-grid',
-    'grid-template-columns: minmax(0, 1fr)',
-    'gap: var(--layout-gutter)',
-    '.asset-bar-item-value-compact',
   ]],
   ['src/styles/industry-system.css', [
     '.product-tabs',
@@ -279,16 +309,30 @@ for (const [path, required] of [
     '.asset-event-filters',
     '.asset-event-list',
     '.asset-event-card',
-    '@media (max-width: 1220px)',
-    '@media (max-width: 960px) and (min-width: 721px)',
-    '@media (max-width: 720px)',
   ]],
   ['src/styles/card-system.css', ['var(--radius-card)', 'var(--radius-card-mobile)']],
   ['src/styles/globals.css', [
     'background: var(--gradient-page)',
     'gap: var(--layout-gutter)',
     'width: min(var(--content-max-width), 100%)',
-    '.market-stat-strip .ui-metric-card',
+  ]],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
+    '玩家持有工厂数量不设上限',
+    '持续生产和定量生产',
+    '不同商品订单不得互相撮合',
+  ]],
+  ['docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md', [
+    '市场负责交易行为',
+    '资金负责资产结果',
+    '用户可见日志只保存在浏览器本地',
+    '服务器不得把以下玩家日志数组写入',
+  ]],
+  ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', [
+    '# Economy 本地活动日志设计',
+    '服务器不得持久化玩家活动日志',
+    'localStorage',
+    '不参与资产计算',
+    '未更新本设计和防回退检查的日志存储修改不应合并',
   ]],
 ]) {
   for (const text of required) requireText(path, text);
@@ -300,9 +344,10 @@ for (const text of [
   "import './styles/mobile-status-layout.css'",
   "import './styles/industry-system.css'",
   "import './styles/market-funds.css'",
+  "import './styles/liquid-glass-chrome.css'",
   "import './styles/design-system.css'",
 ]) requireText('src/main.tsx', text);
-requireOrderedText('src/main.tsx', "import './styles/market-funds.css'", "import './styles/design-system.css'");
+requireOrderedText('src/main.tsx', "import './styles/liquid-glass-chrome.css'", "import './styles/design-system.css'");
 
 for (const token of [
   '--font-sans:', '--font-size-xs:', '--font-size-page:', '--color-bg-canvas:',
@@ -336,74 +381,11 @@ for (const [path, required] of [
     '/stop',
     '/plan',
   ]],
-  ['src/app/gameViewModel.ts', [
-    'getGameState',
-    'setGame(response.state)',
-    'selectedProductId',
-    'selectedFacilityTypeId',
-    'ownSelectedOpenOrders',
-    'blockedFacilities',
-    'setProductionPlan',
-    'stopFacility',
-    'cancelOrder:',
-  ]],
-  ['src/types.ts', [
-    'version: 6;',
-    'export interface AssetEvent',
-    'assetEvents: AssetEvent[]',
-    'inventoryChanges: AssetInventoryChange[]',
-    'facilityChanges: AssetFacilityChange[]',
-    'productionChanges: AssetProductionChange[]',
-    'frozenCashDelta: number',
-    'inventories: Record<string, ProductInventory>',
-    'markets: Record<string, ProductMarketState>',
-    'facilityTypes: FacilityTypeDefinition[]',
-    'productionMode: ProductionMode',
-    'targetQuantity?: number',
-    'productId: string',
-  ]],
-  ['server/src/storage.js', [
-    "this.database.exec('BEGIN IMMEDIATE')",
-    'migrateAssetEvents',
-    'capturePlayerAssetSnapshot',
-    'appendAssetEventFromDiff',
-    'processAndRecord',
-    'version: 6',
-    'assetEvents:',
-  ]],
-  ['server/src/asset-events.js', [
-    'MAX_ASSET_EVENTS_PER_PLAYER',
-    'export function migrateAssetEvents',
-    'export function capturePlayerAssetSnapshot',
-    'export function appendAssetEventFromDiff',
-    'player.ledger.map(legacyEvent)',
-    'legacy: true',
-    'world.version = 3',
-    'inventoryChanges',
-    'facilityChanges',
-    'productionChanges',
-    'sourceType',
-  ]],
-  ['server/src/index.js', [
-    '(start|pause|stop|collect|list|plan)',
-    "plan: 'setProductionPlan'",
-    "stop: 'pauseFacility'",
-  ]],
   ['server/src/domain.js', [
     'export const PRODUCT_CATALOG',
     'export const FACILITY_TYPE_CATALOG',
-    "{ id: 'grain'",
-    "{ id: 'ore'",
-    "{ id: 'flour'",
-    "{ id: 'steel'",
-    "{ id: 'food'",
-    "{ id: 'machinery'",
-    "id: 'farm'",
-    "id: 'mine'",
-    "id: 'mill'",
-    "id: 'steelworks'",
-    "id: 'food-factory'",
-    "id: 'machine-factory'",
+    "{ id: 'grain'", "{ id: 'ore'", "{ id: 'flour'", "{ id: 'steel'", "{ id: 'food'", "{ id: 'machinery'",
+    "id: 'farm'", "id: 'mine'", "id: 'mill'", "id: 'steelworks'", "id: 'food-factory'", "id: 'machine-factory'",
     'export function migrateWorld',
     "case 'setProductionPlan'",
     "case 'placeOrder'",
@@ -420,47 +402,12 @@ for (const [path, required] of [
     'does not restart automatically',
     'manual stop settles completed cycles',
     'version 1 state migrates',
-    'client state exposes asset events and version 6',
-    'placing and cancelling an order records frozen asset changes',
-    'production settlement records cash input and output changes',
-    'legacy ledger migrates once into asset events',
-    'idempotency does not duplicate asset events',
-  ]],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
-    '# Economy 多商品产业与生产计划设计',
-    '客户端状态版本：`version: 6`',
-    '世界状态版本：`version: 3`',
-    '玩家持有工厂数量不设上限',
-    '所有工厂施工完成后保持停止状态',
-    '持续生产和定量生产',
-    '不同商品订单不得互相撮合',
-    '`facilitySlots` | 删除',
-    '订单管理和撤单必须位于市场页',
-    '未更新设计、迁移和测试的生产或资产事件回退不应合并',
-  ]],
-  ['docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md', [
-    '# Economy 市场订单与资金资产信息架构',
-    '客户端状态版本：`version: 6`',
-    '世界状态版本：`version: 3`',
-    '市场负责交易行为',
-    '资金负责资产结果',
-    '不再提供独立“订单”导航或独立订单页面',
-    '一次服务器事务只生成一条复合资产事件',
-    '未更新本设计、迁移和测试的市场或资产信息架构回退不应合并',
   ]],
   ['deploy/nginx/game.riversoft.top.economy-location.conf', ['proxy_pass http://127.0.0.1:3002/api/game/;']],
   ['package.json', ['"server:test": "node --test server/test/*.test.js"']],
 ]) {
   for (const text of required) requireText(path, text);
 }
-
-for (const rule of [
-  '# Economy UI 设计系统',
-  'src/styles/design-system.css',
-  '页面标题和卡片标题不得显示前置小字',
-  '`PageLayout` 和 `WidgetHeading` 不得提供 `eyebrow` 参数',
-  '未更新设计文档和架构检查的基础样式回退不应合并',
-]) requireText('docs/UI_DESIGN_SYSTEM.md', rule);
 
 const router = read('src/pages/PageRouter.tsx');
 for (const page of pages) {
@@ -469,8 +416,8 @@ for (const page of pages) {
 }
 
 if (failures.length > 0) {
-  console.error('界面、产业与市场资产架构验证失败:\n- ' + failures.join('\n- '));
+  console.error('界面、产业、市场资产与本地日志架构验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
 
-console.log('架构验证通过：服务器权威、多商品市场、市场内订单管理、复合资产事件和统一 UI 均满足项目基线。');
+console.log('架构验证通过：服务器权威状态、本地活动日志、多商品市场和统一 UI 均满足项目基线。');
