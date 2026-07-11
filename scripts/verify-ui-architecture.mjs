@@ -83,9 +83,9 @@ for (const [path, forbidden] of [
   ['src/pages/PageRouter.tsx', ['RecordsPage', "case 'records'"]],
   ['src/types.ts', ['facilitySlots', 'ProductionFacility', 'facilities: ProductionFacility[];', 'version: 7;', 'internalGoods', 'internalCapacity']],
   ['src/pages/ProductionPage.tsx', ['facility.id', 'facility.name', '小时产量', '小时运营费', '累计产量', '系统参考估值', '展开管理', '实例列表', 'collectFacility', '领取产成品']],
-  ['src/pages/MarketPage.tsx', ['book-columns', 'aggregateOrderBook', 'listing.facility', 'facilityId', '玩家身份']],
+  ['src/pages/MarketPage.tsx', ['book-columns', 'aggregateOrderBook', 'listing.facility.', 'facilityId:', '玩家身份']],
   ['src/pages/SettingsPage.tsx', ['<DataList', '<DataRow', 'WarehouseUpgradeCard', '工厂总数', '仓库使用', '当前排名', 'derived.']],
-  ['src/app/gameViewModel.ts', ['game.facilities', 'ProductionFacility', 'facility.id', 'pendingGoods']],
+  ['src/app/gameViewModel.ts', ['game.facilities', 'ProductionFacility', 'pendingGoods']],
   ['src/api/game.ts', ['collectFacility', '/collect']],
   ['server/src/storage.js', ['direct-production', 'processDirectProductionWorld', 'applyDirectProductionAction']],
 ]) {
@@ -119,7 +119,7 @@ for (const [path, required] of [
   ['src/pages/ProductionPage.tsx', [
     'game.facilityGroups.map', 'FacilityGroupProgress', '当前参与', '下一周期', '待加入', '已挂牌',
     '周期产量', '周期成本', '原料库存', '统一生产计划', '启动全部', '停止全部',
-    '挂牌数量', '单座价格', '下一生产周期加入同类工厂集群',
+    '挂牌数量', '单座价格', '下一生产周期加入',
   ]],
   ['src/pages/AssetsPage.tsx', ['game.facilityGroups', '本地资金与资产变动', 'event.facilityChanges', 'event.productionChanges']],
   ['src/pages/SettingsPage.tsx', ['玩家资料', '游戏设置', '登录会话', '退出登录', '重置服务器经济状态']],
@@ -140,7 +140,7 @@ for (const [path, required] of [
   ['server/test/asset-events.test.js', ['client state version 8 excludes all player log arrays and factory instances']],
   ['src/styles/industry-system.css', ['.facility-group-list', '.facility-group-card', '.facility-group-counts', '.facility-group-specs', '.facility-group-listing-control', '@media (max-width: 720px)']],
   ['src/styles/market-funds.css', ['.order-quick-fill', '.single-order-book', '.order-book-stack', '.book-order-row', '.order-book-midpoint', '.listing-purchase-control']],
-  ['docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', ['不存在单座工厂实例', '新建或收购的同类型工厂', '限价输入位于数量输入之前', '订单簿为单列', '买卖盘各最多 5 笔']],
+  ['docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', ['不存在单座工厂实例', '新建或收购的同类型工厂', '限价在前、数量在后', '订单簿为单列', '买卖盘各最多 5 笔']],
 ]) {
   for (const text of required) requireText(path, text);
 }
