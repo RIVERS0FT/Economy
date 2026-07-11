@@ -2,13 +2,15 @@ import {
   type CSSProperties,
   type Dispatch,
   type SetStateAction,
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
+import { gameActions, GameApiError, getGameState, type GameActionResponse, type GameActionResult } from '../api/game';
 import { logout } from '../api/auth';
 import { type TabId } from '../config/navigation';
-import { useGameStore } from '../store/gameStore';
 import type {
   AuthUser,
   CommodityOrder,
@@ -59,10 +61,7 @@ export interface DerivedGameData {
   marketTrend: number;
 }
 
-export interface ActionResult {
-  ok: boolean;
-  message: string;
-}
+export type ActionResult = GameActionResult;
 
 export interface LoadedGameViewModel {
   user: AuthUser;
@@ -95,22 +94,28 @@ export interface LoadedGameViewModel {
   facilityShare: number;
   allocationStyle: CSSProperties;
   avatarText: string;
-  showResult: (result: ActionResult) => void;
+  showResult: (result: ActionResult | Promise<ActionResult>) => Promise<void>;
   notify: (message: string) => void;
+  refresh: () => Promise<void>;
   signOut: () => Promise<void>;
-  work: () => ActionResult;
-  buildFacility: () => ActionResult;
-  startFacility: (facilityId: string) => void;
-  pauseFacility: (facilityId: string) => void;
-  collectFacility: (facilityId: string) => ActionResult;
-  listFacility: (facilityId: string, price: number) => ActionResult;
-  cancelFacilityListing: (listingId: string) => void;
-  buyFacility: (listingId: string) => ActionResult;
-  placeCommodityOrder: (side: OrderSide, quantity: number, price: number) => ActionResult;
-  cancelOrder: (orderId: string) => void;
-  renamePlayer: (name: string) => void;
-  reset: (user: AuthUser) => void;
+  work: () => Promise<ActionResult>;
+  buildFacility: () => Promise<ActionResult>;
+  startFacility: (facilityId: string) => Promise<ActionResult>;
+  pauseFacility: (facilityId: string) => Promise<ActionResult>;
+  collectFacility: (facilityId: string) => Promise<ActionResult>;
+  listFacility: (facilityId: string, price: number) => Promise<ActionResult>;
+  cancelFacilityListing: (listingId: string) => Promise<ActionResult>;
+  buyFacility: (listingId: string) => Promise<ActionResult>;
+  placeCommodityOrder: (side: OrderSide, quantity: number, price: number) => Promise<ActionResult>;
+  cancelOrder: (orderId: string) => Promise<ActionResult>;
+  renamePlayer: (name: string) => Promise<ActionResult>;
+  reset: () => Promise<ActionResult>;
 }
+
+export type GameViewModelState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string; retry: () => void }
+  | { status: 'ready'; model: LoadedGameViewModel };
 
 function deriveGameData(game: EconomyState): DerivedGameData {
   const ownOpenOrders = game.orders.filter(
@@ -131,7 +136,9 @@ function deriveGameData(game: EconomyState): DerivedGameData {
   const cashValue = game.credits + game.frozenCredits;
   const totalAssets = cashValue + commodityValue + facilityValue;
   const currentRank = game.leaderboard.find((entry) => entry.isCurrentPlayer);
-  const previousRank = currentRank && currentRank.rank > 1 ? game.leaderboard[currentRank.rank - 2] : null;
+  const previousRank = currentRank
+    ? game.leaderboard.find((entry) => entry.rank === currentRank.rank - 1) ?? null
+    : null;
   const bestBid = bids[0]?.price ?? 0;
   const bestAsk = asks[0]?.price ?? 0;
   const spread = bestBid && bestAsk ? bestAsk - bestBid : 0;
@@ -169,28 +176,14 @@ function deriveGameData(game: EconomyState): DerivedGameData {
   };
 }
 
-export function useGameViewModel(
-  user: AuthUser,
-  onSignedOut: () => void,
-): LoadedGameViewModel | null {
-  const {
-    game,
-    initialize,
-    reloadFromStorage,
-    process,
-    reset,
-    work,
-    buildFacility,
-    startFacility,
-    pauseFacility,
-    collectFacility,
-    listFacility,
-    cancelFacilityListing,
-    buyFacility,
-    placeCommodityOrder,
-    cancelOrder,
-    renamePlayer,
-  } = useGameStore();
+function messageFromError(reason: unknown) {
+  return reason instanceof Error ? reason.message : '游戏服务器请求失败';
+}
+
+export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameViewModelState {
+  const [game, setGame] = useState<EconomyState | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [reloadVersion, setReloadVersion] = useState(0);
   const [tab, setTab] = useState<TabId>('home');
   const [notice, setNotice] = useState('');
   const [orderSide, setOrderSide] = useState<OrderSide>('buy');
@@ -200,29 +193,64 @@ export function useGameViewModel(
   const [playerName, setPlayerName] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [compactNumbers, setCompactNumbers] = useState(false);
-  const [refreshRate, setRefreshRate] = useState('1');
-  const now = Date.now();
+  const [refreshRate, setRefreshRate] = useState('3');
+  const [now, setNow] = useState(Date.now());
+  const refreshing = useRef(false);
+
+  const handleUnauthorized = useCallback(() => {
+    setGame(null);
+    onSignedOut();
+  }, [onSignedOut]);
+
+  const refresh = useCallback(async () => {
+    if (refreshing.current) return;
+    refreshing.current = true;
+    try {
+      const state = await getGameState();
+      setGame(state);
+      setLoadError('');
+    } catch (reason) {
+      if (reason instanceof GameApiError && reason.status === 401) {
+        handleUnauthorized();
+        return;
+      }
+      setLoadError(messageFromError(reason));
+    } finally {
+      refreshing.current = false;
+    }
+  }, [handleUnauthorized]);
 
   useEffect(() => {
-    initialize(user);
-  }, [initialize, user]);
+    void refresh();
+  }, [refresh, reloadVersion, user.id]);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!game) return undefined;
     const interval = Math.max(1, Number(refreshRate)) * 1_000;
-    const timer = window.setInterval(process, interval);
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key?.endsWith(`:${user.id}`)) reloadFromStorage(user.id);
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener('storage', handleStorage);
-    };
-  }, [process, refreshRate, reloadFromStorage, user.id]);
+    const timer = window.setInterval(() => void refresh(), interval);
+    return () => window.clearInterval(timer);
+  }, [game, refresh, refreshRate]);
 
   useEffect(() => {
     if (game) setPlayerName(game.playerName);
   }, [game?.playerName]);
+
+  const runAction = useCallback(async (operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
+    try {
+      const response = await operation();
+      setGame(response.state);
+      setLoadError('');
+      return response.result;
+    } catch (reason) {
+      if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
+      return { ok: false, message: messageFromError(reason) };
+    }
+  }, [handleUnauthorized]);
 
   const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);
 
@@ -231,8 +259,9 @@ export function useGameViewModel(
     window.setTimeout(() => setNotice(''), 3_000);
   }
 
-  function showResult(result: ActionResult) {
-    notify(result.message);
+  async function showResult(actionResult: ActionResult | Promise<ActionResult>) {
+    const resolved = await actionResult;
+    notify(resolved.message);
   }
 
   async function signOut() {
@@ -243,7 +272,19 @@ export function useGameViewModel(
     }
   }
 
-  if (!game || !derived) return null;
+  if (!game || !derived) {
+    if (loadError) {
+      return {
+        status: 'error',
+        message: loadError,
+        retry: () => {
+          setLoadError('');
+          setReloadVersion((current) => current + 1);
+        },
+      };
+    }
+    return { status: 'loading' };
+  }
 
   const workRemaining = Math.max(0, game.work.cooldownUntil - now);
   const inventoryUsed = game.inventory + game.frozenInventory;
@@ -259,7 +300,7 @@ export function useGameViewModel(
   };
   const avatarText = (game.playerName || user.email).slice(0, 1).toUpperCase();
 
-  return {
+  const model: LoadedGameViewModel = {
     user,
     game,
     derived,
@@ -292,18 +333,21 @@ export function useGameViewModel(
     avatarText,
     showResult,
     notify,
+    refresh,
     signOut,
-    work,
-    buildFacility,
-    startFacility,
-    pauseFacility,
-    collectFacility,
-    listFacility,
-    cancelFacilityListing,
-    buyFacility,
-    placeCommodityOrder,
-    cancelOrder,
-    renamePlayer,
-    reset,
+    work: () => runAction(gameActions.work),
+    buildFacility: () => runAction(gameActions.buildFacility),
+    startFacility: (facilityId) => runAction(() => gameActions.startFacility(facilityId)),
+    pauseFacility: (facilityId) => runAction(() => gameActions.pauseFacility(facilityId)),
+    collectFacility: (facilityId) => runAction(() => gameActions.collectFacility(facilityId)),
+    listFacility: (facilityId, price) => runAction(() => gameActions.listFacility(facilityId, price)),
+    cancelFacilityListing: (listingId) => runAction(() => gameActions.cancelFacilityListing(listingId)),
+    buyFacility: (listingId) => runAction(() => gameActions.buyFacility(listingId)),
+    placeCommodityOrder: (side, quantity, price) => runAction(() => gameActions.placeCommodityOrder(side, quantity, price)),
+    cancelOrder: (orderId) => runAction(() => gameActions.cancelOrder(orderId)),
+    renamePlayer: (name) => runAction(() => gameActions.renamePlayer(name)),
+    reset: () => runAction(gameActions.reset),
   };
+
+  return { status: 'ready', model };
 }

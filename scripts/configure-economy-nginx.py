@@ -14,8 +14,44 @@ BEGIN = "# BEGIN MANAGED ECONOMY API PROXY"
 END = "# END MANAGED ECONOMY API PROXY"
 MANAGED_BLOCK = f"""
     {BEGIN}
-    location ^~ /economy-api/ {{
-        proxy_pass http://127.0.0.1:3001/api/;
+    location = /economy-api/login {{
+        proxy_pass http://127.0.0.1:3001/api/login;
+        proxy_http_version 1.1;
+        proxy_set_header Host riversoft.top;
+        proxy_set_header X-Forwarded-Host riversoft.top;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Origin "";
+        proxy_cookie_path / /;
+    }}
+
+    location = /economy-api/me {{
+        proxy_pass http://127.0.0.1:3001/api/me;
+        proxy_http_version 1.1;
+        proxy_set_header Host riversoft.top;
+        proxy_set_header X-Forwarded-Host riversoft.top;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Origin "";
+        proxy_cookie_path / /;
+    }}
+
+    location = /economy-api/logout {{
+        proxy_pass http://127.0.0.1:3001/api/logout;
+        proxy_http_version 1.1;
+        proxy_set_header Host riversoft.top;
+        proxy_set_header X-Forwarded-Host riversoft.top;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Origin "";
+        proxy_cookie_path / /;
+    }}
+
+    location ^~ /economy-api/game/ {{
+        proxy_pass http://127.0.0.1:3002/api/game/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -24,6 +60,7 @@ MANAGED_BLOCK = f"""
         proxy_set_header X-Forwarded-Host $host;
         proxy_connect_timeout 5s;
         proxy_read_timeout 30s;
+        client_max_body_size 16k;
     }}
     {END}
 """.strip("\n")
@@ -142,7 +179,6 @@ def find_target() -> tuple[Path, str, tuple[int, int]]:
         for candidate in sorted(root.glob("*")):
             if not candidate.is_file() and not candidate.is_symlink():
                 continue
-
             resolved = candidate.resolve()
             if resolved in seen:
                 continue

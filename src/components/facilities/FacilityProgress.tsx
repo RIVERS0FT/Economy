@@ -1,4 +1,4 @@
-import { economyConstants } from '../../store/gameStore';
+import { economyConstants } from '../../config/economy';
 import type { ProductionFacility } from '../../types';
 import { facilityStatusNames } from '../../app/gameViewModel';
 import { formatDuration } from '../../utils/formatters';

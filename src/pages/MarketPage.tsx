@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { PageLayout, Panel, WidgetHeading } from '../components/ui/layout';
@@ -54,7 +55,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     <PageLayout
       eyebrow="统一市场"
       title="市场"
-      description="通过订单簿判断价格，与玩家和人口需求进行商品交易，或收购生产设施。"
+      description="通过服务器权威订单簿与其他玩家和人口需求进行交易，或收购生产设施。"
     >
       <div className="market-stat-strip panel">
         <div><span>买一价</span><strong className="positive">¤ {derived.bestBid || '--'}</strong></div>
@@ -71,12 +72,12 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             <button className={orderSide === 'buy' ? 'active' : ''} onClick={() => setOrderSide('buy')}>买入</button>
             <button className={orderSide === 'sell' ? 'active sell-active' : ''} onClick={() => setOrderSide('sell')}>卖出</button>
           </div>
-          <label>数量<input type="number" min="1" value={orderQuantity} onChange={(event) => setOrderQuantity(Number(event.target.value))} /></label>
-          <label>限价<input type="number" min="1" value={orderPrice} onChange={(event) => setOrderPrice(Number(event.target.value))} /></label>
+          <label>数量<input type="number" min="1" value={orderQuantity} onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderQuantity(Number(event.target.value))} /></label>
+          <label>限价<input type="number" min="1" value={orderPrice} onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderPrice(Number(event.target.value))} /></label>
           <div className="order-summary"><span>订单总额</span><strong>¤ {formatCurrency(orderQuantity * orderPrice)}</strong></div>
           <div className="order-capacity"><span>可用资金 ¤ {formatCurrency(game.credits)}</span><span>可用库存 {game.inventory}</span></div>
-          <button onClick={() => showResult(placeCommodityOrder(orderSide, orderQuantity, orderPrice))}>提交{orderSide === 'buy' ? '买单' : '卖单'}</button>
-          <small>价格优先、同价时间优先，允许部分成交和撤销未成交部分。</small>
+          <button onClick={() => void showResult(placeCommodityOrder(orderSide, orderQuantity, orderPrice))}>提交{orderSide === 'buy' ? '买单' : '卖单'}</button>
+          <small>服务器按价格优先、同价时间优先撮合，允许部分成交和撤销未成交部分。</small>
         </Panel>
 
         <Panel className="widget order-book">
@@ -120,7 +121,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading eyebrow="设施挂牌" title="生产设施挂牌" action={<span className="muted">固定价格 · 即时产权交割</span>} />
+          <WidgetHeading eyebrow="设施挂牌" title="生产设施挂牌" action={<span className="muted">固定价格 · 服务器即时产权交割</span>} />
           <div className="listing-grid">
             {game.facilityListings.map((listing) => (
               <article className="listing-card" key={listing.id}>
@@ -135,8 +136,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 <div className="listing-price">
                   <strong>¤ {formatCurrency(listing.price)}</strong>
                   {listing.ownerId === game.userId
-                    ? <button className="danger-button" onClick={() => cancelFacilityListing(listing.id)}>撤销</button>
-                    : <button onClick={() => showResult(buyFacility(listing.id))}>立即收购</button>}
+                    ? <button className="danger-button" onClick={() => void showResult(cancelFacilityListing(listing.id))}>撤销</button>
+                    : <button onClick={() => void showResult(buyFacility(listing.id))}>立即收购</button>}
                 </div>
               </article>
             ))}

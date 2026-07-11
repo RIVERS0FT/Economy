@@ -8,6 +8,18 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    proxy: {
+      '/economy-api/game': {
+        target: 'http://127.0.0.1:3002',
+        changeOrigin: false,
+        rewrite: (path) => path.replace(/^\/economy-api\/game/, '/api/game'),
+      },
+      '/economy-api': {
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: false,
+        rewrite: (path) => path.replace(/^\/economy-api/, '/api'),
+      },
+    },
   },
   envPrefix: ['VITE_', 'TAURI_'],
   build: {

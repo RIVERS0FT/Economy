@@ -140,7 +140,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 3;
+  version: 4;
   userId: number;
   playerName: string;
   registeredAt: number;
