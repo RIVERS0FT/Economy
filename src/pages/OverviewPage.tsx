@@ -16,17 +16,19 @@ import { formatCurrency, formatDuration, formatTime } from '../utils/formatters'
 
 export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
   const { game, derived, localTrades, workRemaining, work, showResult, setTab } = model;
-  const plannedFacilities = game.facilities.filter((facility) => facility.productionMode === 'target').length;
-  const pendingPlans = game.facilities.reduce((sum, facility) => (
-    facility.productionMode === 'target'
-      ? sum + Math.max(0, (facility.targetQuantity || 0) - facility.completedQuantity)
+  const plannedGroups = game.facilityGroups.filter((group) => group.productionMode === 'target').length;
+  const pendingPlans = game.facilityGroups.reduce((sum, group) => (
+    group.productionMode === 'target'
+      ? sum + Math.max(0, (group.targetQuantity || 0) - group.completedQuantity)
       : sum
   ), 0);
+  const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
+  const pendingJoin = game.facilityGroups.reduce((sum, group) => sum + group.pendingJoinCount, 0);
 
   return (
     <PageLayout
       title={<>早上好，{game.playerName}</>}
-      description="管理多商品产业链、手动控制工厂，并通过独立市场提高总资产排名。"
+      description="管理多商品产业链、统一控制同类工厂集群，并通过独立市场提高总资产排名。"
       actions={
         <>
           <StatusTag>{`未完成订单 ${derived.ownOpenOrders.length}/${economyConstants.maxOpenOrders}`}</StatusTag>
@@ -88,11 +90,12 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
             action={<Button variant="text" onClick={() => setTab('production')}>管理工厂</Button>}
           />
           <DataList>
-            <DataRow label="运行中的工厂" value={derived.runningFacilities} tone="success" />
-            <DataRow label="已停止的工厂" value={derived.stoppedFacilities} />
-            <DataRow label="阻塞的工厂" value={derived.blockedFacilities} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
+            <DataRow label="工厂总数" value={totalFacilities} tone="info" />
+            <DataRow label="运行参与" value={derived.runningFacilities} tone="success" />
+            <DataRow label="下一周期加入" value={pendingJoin} tone={pendingJoin ? 'warning' : 'neutral'} />
+            <DataRow label="阻塞工厂" value={derived.blockedFacilities} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
             <DataRow label="施工中的工厂" value={derived.constructingFacilities} tone="warning" />
-            <DataRow label="定量计划" value={`${plannedFacilities} 个 / 剩余 ${pendingPlans}`} tone="info" />
+            <DataRow label="定量计划" value={`${plannedGroups} 组 / 剩余 ${pendingPlans}`} tone="info" />
             <DataRow label="共享仓库剩余" value={game.warehouseAvailableCapacity} tone={game.warehouseAvailableCapacity > 0 ? 'success' : 'danger'} />
           </DataList>
         </Panel>

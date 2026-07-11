@@ -26,14 +26,16 @@ function assertPlayerLogsAbsent(player) {
   assert.equal(Object.hasOwn(player, 'assetEvents'), false);
 }
 
-test('client state version 7 excludes all player log arrays', () => {
+test('client state version 8 excludes all player log arrays and factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, 1_700_000_000_000);
-    assert.equal(state.version, 7);
+    assert.equal(state.version, 8);
     assert.equal(Object.hasOwn(state, 'trades'), false);
     assert.equal(Object.hasOwn(state, 'ledger'), false);
     assert.equal(Object.hasOwn(state, 'assetEvents'), false);
+    assert.equal(Object.hasOwn(state, 'facilities'), false);
+    assert.equal(Array.isArray(state.facilityGroups), true);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
   } finally {
     store.close();
@@ -73,7 +75,7 @@ test('actions update authoritative state without writing player logs to SQLite',
   }
 });
 
-test('legacy server logs are removed during the next state load', () => {
+test('legacy server logs and factory instance array are removed during the next state load', () => {
   const store = new EconomyStore(':memory:');
   const now = 1_700_000_000_000;
   try {
@@ -86,7 +88,9 @@ test('legacy server logs are removed during the next state load', () => {
 
     const state = store.getState(alice, now + 1);
     assert.equal(Object.hasOwn(state, 'trades'), false);
-    assertPlayerLogsAbsent(persistedWorld(store).players['1']);
+    const persisted = persistedWorld(store).players['1'];
+    assertPlayerLogsAbsent(persisted);
+    assert.equal(Object.hasOwn(persisted, 'facilities'), false);
   } finally {
     store.close();
   }

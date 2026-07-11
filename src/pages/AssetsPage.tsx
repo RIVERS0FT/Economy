@@ -37,6 +37,21 @@ const eventFilters: Array<{ id: AssetEventFilter; label: string }> = [
   { id: 'order', label: '订单冻结' },
 ];
 
+const facilityActionNames: Record<string, string> = {
+  construction_started: '开始施工',
+  construction_completed: '施工完成',
+  acquired: '数量增加',
+  sold: '数量减少',
+  listed: '挂牌',
+  unlisted: '撤销挂牌',
+  plan_updated: '计划修改',
+  started: '统一启动',
+  stopped: '统一停止',
+  status_changed: '状态变化',
+  removed: '集群移除',
+  updated: '集群更新',
+};
+
 function signedCurrency(value: number) {
   return `${value > 0 ? '+' : value < 0 ? '-' : ''}¤ ${formatCurrency(Math.abs(value))}`;
 }
@@ -70,6 +85,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
   } = model;
   const [eventFilter, setEventFilter] = useState<AssetEventFilter>('all');
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
+  const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
   const filteredEvents = useMemo(
     () => localAssetEvents.filter((event) => matchesFilter(event, eventFilter)),
     [eventFilter, localAssetEvents],
@@ -90,7 +106,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} detail="用于未完成买单" tone="warning" />
         <MetricCard label="当前总资产" value={`¤ ${formatCurrency(derived.totalAssets)}`} tone="success" />
         <MetricCard label="商品资产" value={`¤ ${formatCurrency(derived.commodityValue)}`} detail={`冻结商品 ${frozenInventory}`} />
-        <MetricCard label="工厂资产" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${game.facilities.length} 座工厂`} tone="info" />
+        <MetricCard label="工厂资产" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${totalFacilities} 座工厂`} tone="info" />
       </div>
 
       <div className="asset-overview-grid">
@@ -105,7 +121,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget asset-breakdown span-2">
-          <WidgetHeading title="资产估值明细" action={<span className="muted">按各商品最近成交价和工厂系统估值计算</span>} />
+          <WidgetHeading title="资产估值明细" action={<span className="muted">按各商品最近成交价和工厂类型数量估值计算</span>} />
           <div className="asset-card-grid">
             <MetricCard label="可用现金" value={`¤ ${formatCurrency(game.credits)}`} detail="可用于建设、运营和交易" tone="success" />
             <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} detail="未成交买单的服务器冻结额" tone="warning" />
@@ -114,12 +130,12 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
               value={`¤ ${formatCurrency(derived.commodityValue)}`}
               detail={`可用与冻结商品合计 ${game.warehouseStoredQuantity}`}
             />
-            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${game.facilities.length} 座工厂，仅按系统估值计算`} tone="info" />
+            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${totalFacilities} 座，按类型数量与系统估值计算`} tone="info" />
           </div>
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading title="商品库存与估值" action={<span className="muted">工厂产成品完成后直接进入这里的共享仓库库存</span>} />
+          <WidgetHeading title="商品库存与估值" action={<span className="muted">工厂集群产成品完成后直接进入共享仓库</span>} />
           <div className="product-asset-grid">
             {game.products.map((product) => {
               const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
@@ -227,9 +243,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   {event.warehouseChange ? (
                     <span>
                       共享仓库
-                      <strong>
-                        等级 {event.warehouseChange.beforeLevel} → {event.warehouseChange.afterLevel}
-                      </strong>
+                      <strong>等级 {event.warehouseChange.beforeLevel} → {event.warehouseChange.afterLevel}</strong>
                       <small>
                         容量 {event.warehouseChange.beforeCapacity} → {event.warehouseChange.afterCapacity}
                         {event.warehouseChange.capacityDelta ? ` · ${signedQuantity(event.warehouseChange.capacityDelta)}` : ''}
@@ -237,20 +251,22 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                     </span>
                   ) : null}
                   {event.facilityChanges.map((change) => (
-                    <span key={`${event.id}-${change.facilityId}-${change.action}`}>
-                      工厂 <strong>{change.facilityName ?? change.facilityId}</strong>
-                      <small>{change.action}{change.afterStatus ? ` · ${change.afterStatus}` : ''}</small>
+                    <span key={`${event.id}-${change.facilityTypeId}-${change.action}`}>
+                      工厂集群 <strong>{change.facilityName ?? change.facilityTypeId}</strong>
+                      <small>
+                        {facilityActionNames[change.action] ?? change.action}
+                        {change.countDelta ? ` · 数量 ${signedQuantity(change.countDelta)}` : ''}
+                        {change.afterStatus ? ` · ${change.afterStatus}` : ''}
+                      </small>
                     </span>
                   ))}
                   {event.productionChanges.map((change) => (
-                    <span key={`${event.id}-${change.facilityId}-${change.action}`}>
+                    <span key={`${event.id}-${change.facilityTypeId}-${change.action}`}>
                       {change.facilityName ?? '生产'}
-                      <strong>
-                        {change.action === 'collected' ? '旧版领取' : '产出入仓'} {change.outputQuantity} {productName(change.outputProductId)}
-                      </strong>
+                      <strong>产出入仓 {change.outputQuantity} {productName(change.outputProductId)}</strong>
                       <small>
                         {change.inputQuantity > 0 ? `消耗 ${change.inputQuantity} ${productName(change.inputProductId)} · ` : ''}
-                        {change.action === 'collected' ? '旧浏览器本地历史' : '已直接进入共享仓库'}
+                        已直接进入共享仓库
                       </small>
                     </span>
                   ))}

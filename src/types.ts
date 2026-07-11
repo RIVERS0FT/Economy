@@ -39,7 +39,6 @@ export interface FacilityTypeDefinition {
 }
 
 export type FacilityStatus =
-  | 'constructing'
   | 'ready'
   | 'running'
   | 'paused'
@@ -51,6 +50,7 @@ export type FacilityStatus =
 export type FacilityStopReason =
   | 'manual'
   | 'plan_complete'
+  | 'plan_adjustment_required'
   | 'insufficient_funds'
   | 'insufficient_input'
   | 'output_full'
@@ -59,29 +59,26 @@ export type FacilityStopReason =
 
 export type ProductionMode = 'continuous' | 'target';
 
-export interface ProductionFacility {
-  id: string;
+export interface FacilityGroup {
   facilityTypeId: string;
-  name: string;
-  ownerId: number;
-  level: number;
+  count: number;
+  participatingCount: number;
+  pendingJoinCount: number;
+  listedCount: number;
+  availableCount: number;
+  nextCycleCount: number;
   status: FacilityStatus;
   stopReason?: FacilityStopReason;
-  builtAt: number;
-  constructionCompletesAt?: number;
   cycleStartedAt?: number;
-  cycleMs: number;
-  outputProductId: string;
-  outputPerCycle: number;
-  inputProductId?: string;
-  inputPerCycle: number;
-  operatingCost: number;
-  lifetimeOutput: number;
-  systemValue: number;
   productionMode: ProductionMode;
   targetQuantity?: number;
   completedQuantity: number;
-  listedOrderId?: string;
+}
+
+export interface FacilityConstruction {
+  facilityTypeId: string;
+  startedAt: number;
+  completesAt: number;
 }
 
 export type OrderSide = 'buy' | 'sell';
@@ -102,30 +99,15 @@ export interface CommodityOrder {
   createdAt: number;
 }
 
-export interface FacilityListingSnapshot {
-  id?: string;
-  facilityTypeId: string;
-  name: string;
-  level: number;
-  cycleMs: number;
-  outputProductId: string;
-  outputPerCycle: number;
-  inputProductId?: string;
-  inputPerCycle: number;
-  operatingCost: number;
-  lifetimeOutput: number;
-  systemValue: number;
-}
-
 export interface FacilityListing {
   id: string;
-  facilityId: string;
+  facilityTypeId: string;
   ownerType: 'player' | 'market';
   ownerId?: number;
   ownerName: string;
-  price: number;
+  quantity: number;
+  unitPrice: number;
   createdAt: number;
-  facility: FacilityListingSnapshot;
 }
 
 /** Browser-local only. Never included in EconomyState or persisted by the API. */
@@ -133,6 +115,7 @@ export interface TradeRecord {
   id: string;
   type: 'commodity' | 'facility';
   productId?: string;
+  facilityTypeId?: string;
   side: 'buy' | 'sell';
   quantity: number;
   price: number;
@@ -169,8 +152,7 @@ export interface AssetWarehouseChange {
 }
 
 export interface AssetFacilityChange {
-  facilityId: string;
-  facilityTypeId?: string;
+  facilityTypeId: string;
   facilityName?: string;
   action:
     | 'construction_started'
@@ -187,20 +169,20 @@ export interface AssetFacilityChange {
     | 'updated';
   beforeStatus?: FacilityStatus;
   afterStatus?: FacilityStatus;
+  beforeCount: number;
+  afterCount: number;
+  countDelta: number;
 }
 
 export interface AssetProductionChange {
-  facilityId: string;
+  facilityTypeId: string;
   facilityName?: string;
-  /** `collected` is retained only for old browser-local history created before direct warehouse output. */
-  action: 'produced' | 'collected';
+  action: 'produced';
   inputProductId?: string;
   inputQuantity: number;
   outputProductId?: string;
   outputQuantity: number;
   completedQuantityDelta: number;
-  /** Legacy browser-local field; new production events do not write it. */
-  internalGoodsDelta?: number;
 }
 
 /** Browser-local only. Derived from two authoritative state snapshots. */
@@ -271,7 +253,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 7;
+  version: 8;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -287,7 +269,8 @@ export interface EconomyState {
   warehouseReservedQuantity: number;
   warehouseUsedCapacity: number;
   warehouseAvailableCapacity: number;
-  facilities: ProductionFacility[];
+  facilityGroups: FacilityGroup[];
+  facilityConstruction?: FacilityConstruction;
   products: ProductDefinition[];
   facilityTypes: FacilityTypeDefinition[];
   markets: Record<string, ProductMarketState>;

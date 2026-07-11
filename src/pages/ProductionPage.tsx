@@ -4,7 +4,7 @@ import {
   facilityStopReasonNames,
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
-import { FacilityProgress } from '../components/facilities/FacilityProgress';
+import { FacilityGroupProgress } from '../components/facilities/FacilityProgress';
 import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
 import {
   Button,
@@ -21,7 +21,6 @@ import { formatCurrency, formatDuration } from '../utils/formatters';
 
 function facilityTone(status: string): StatusTone {
   if (status === 'running') return 'success';
-  if (status === 'constructing') return 'warning';
   if (status === 'listed') return 'info';
   if (['full', 'insufficient_funds', 'insufficient_input'].includes(status)) return 'danger';
   return 'neutral';
@@ -45,27 +44,35 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   } = model;
   const [planModes, setPlanModes] = useState<Record<string, ProductionMode>>({});
   const [planTargets, setPlanTargets] = useState<Record<string, number>>({});
+  const [listingQuantities, setListingQuantities] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setPlanModes((current) => {
       const next = { ...current };
-      for (const facility of game.facilities) next[facility.id] ??= facility.productionMode;
+      for (const group of game.facilityGroups) next[group.facilityTypeId] ??= group.productionMode;
       return next;
     });
     setPlanTargets((current) => {
       const next = { ...current };
-      for (const facility of game.facilities) {
-        next[facility.id] ??= facility.targetQuantity || facility.outputPerCycle * 10;
+      for (const group of game.facilityGroups) {
+        const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
+        const cycleOutput = Math.max(1, (type?.output.quantity ?? 1) * Math.max(1, group.nextCycleCount));
+        next[group.facilityTypeId] ??= group.targetQuantity || cycleOutput * 10;
       }
       return next;
     });
-  }, [game.facilities]);
+    setListingQuantities((current) => {
+      const next = { ...current };
+      for (const group of game.facilityGroups) next[group.facilityTypeId] ??= 1;
+      return next;
+    });
+  }, [game.facilityGroups, game.facilityTypes]);
 
   const selectedType = useMemo(
     () => game.facilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? game.facilityTypes[0],
     [game.facilityTypes, selectedFacilityTypeId],
   );
-  const hasConstruction = game.facilities.some((facility) => facility.status === 'constructing');
+  const hasConstruction = Boolean(game.facilityConstruction);
 
   function productName(productId?: string) {
     if (!productId) return '无';
@@ -76,10 +83,17 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     return <PageLayout title="工厂" description="服务器尚未返回工厂目录。"><Panel className="empty-state">暂无工厂类型。</Panel></PageLayout>;
   }
 
+  const constructionType = game.facilityConstruction
+    ? game.facilityTypes.find((type) => type.id === game.facilityConstruction?.facilityTypeId)
+    : undefined;
+  const constructionRemaining = game.facilityConstruction
+    ? Math.max(0, game.facilityConstruction.completesAt - now)
+    : 0;
+
   return (
     <PageLayout
       title="工厂"
-      description="管理共享仓库、建设工厂、设置生产计划，并手动控制每座工厂；所有产成品完成后直接进入共享仓库。"
+      description="同类工厂组成一个数量型集群，共享统一生产周期、生产计划和启停状态；新建或收购数量从下一周期加入。"
       actions={
         <>
           <StatusTag tone="success">运行 {model.derived.runningFacilities}</StatusTag>
@@ -111,10 +125,17 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             <DataRow label="建造费用" value={`¤ ${formatCurrency(selectedType.buildCost)}`} tone="danger" />
             <DataRow label="施工时间" value={formatDuration(selectedType.buildTimeMs)} tone="warning" />
             <DataRow label="生产周期" value={`${selectedType.cycleMs / 1000} 秒`} />
-            <DataRow label="周期产出" value={`${selectedType.output.quantity} ${productName(selectedType.output.productId)}`} />
-            <DataRow label="运营费用" value={`¤ ${selectedType.operatingCost} / 周期`} />
+            <DataRow label="单座周期产量" value={`${selectedType.output.quantity} ${productName(selectedType.output.productId)}`} />
+            <DataRow label="单座周期成本" value={`¤ ${selectedType.operatingCost}`} />
             <DataRow label="产成品去向" value="直接进入共享仓库" tone="info" />
           </DataList>
+          {game.facilityConstruction ? (
+            <div className="construction-status">
+              <strong>{constructionType?.name ?? '工厂'}施工中</strong>
+              <span>剩余 {formatDuration(constructionRemaining)}</span>
+              <small>建成后不会重置当前集群进度，将在下一生产周期加入。</small>
+            </div>
+          ) : null}
           <Button
             block
             onClick={() => void showResult(buildFacility(selectedType.id))}
@@ -122,39 +143,52 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           >
             {hasConstruction ? '已有工厂正在施工' : `建设${selectedType.name}`}
           </Button>
-          <small className="ui-helper-text">工厂持有数量不设上限；同一时间只能施工一座工厂。生产前请为产成品预留共享仓库空间。</small>
+          <small className="ui-helper-text">工厂以类型和数量保存，不存在单座实例；同一时间只能施工一座工厂。</small>
         </Panel>
 
-        <div className="facility-list">
-          {game.facilities.map((facility) => {
-            const facilityType = game.facilityTypes.find((type) => type.id === facility.facilityTypeId);
-            const listingPrice = listingPrices[facility.id] ?? facility.systemValue;
-            const mode = planModes[facility.id] ?? facility.productionMode;
-            const target = planTargets[facility.id] ?? facility.targetQuantity ?? facility.outputPerCycle * 10;
-            const hourlyCycles = Math.floor(3_600_000 / facility.cycleMs);
-            const hourlyOutput = hourlyCycles * facility.outputPerCycle;
-            const hourlyCost = hourlyCycles * facility.operatingCost;
-            const inputName = productName(facility.inputProductId);
-            const outputName = productName(facility.outputProductId);
-            const inputInventory = facility.inputProductId ? game.inventories[facility.inputProductId]?.available ?? 0 : null;
-            const outputInventory = game.inventories[facility.outputProductId]?.available ?? 0;
-            const remainingTarget = facility.productionMode === 'target'
-              ? Math.max(0, (facility.targetQuantity || 0) - facility.completedQuantity)
+        <div className="facility-list facility-group-list">
+          {game.facilityGroups.map((group) => {
+            const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
+            if (!type) return null;
+            const mode = planModes[group.facilityTypeId] ?? group.productionMode;
+            const currentCount = group.status === 'running' ? group.participatingCount : group.availableCount;
+            const nextCount = group.nextCycleCount;
+            const currentCycleOutput = type.output.quantity * currentCount;
+            const currentCycleCost = type.operatingCost * currentCount;
+            const nextCycleOutput = type.output.quantity * nextCount;
+            const target = planTargets[group.facilityTypeId] ?? group.targetQuantity ?? Math.max(1, nextCycleOutput) * 10;
+            const inputName = productName(type.input?.productId);
+            const outputName = productName(type.output.productId);
+            const inputInventory = type.input ? game.inventories[type.input.productId]?.available ?? 0 : null;
+            const outputInventory = game.inventories[type.output.productId]?.available ?? 0;
+            const remainingTarget = group.productionMode === 'target'
+              ? Math.max(0, (group.targetQuantity || 0) - group.completedQuantity)
               : null;
-            const canConfigure = !['running', 'constructing', 'listed'].includes(facility.status);
-            const canStart = !['running', 'constructing', 'listed'].includes(facility.status);
+            const ownListings = game.facilityListings.filter((listing) => (
+              listing.ownerId === game.userId && listing.facilityTypeId === group.facilityTypeId
+            ));
+            const canConfigure = group.status !== 'running' && group.listedCount === 0;
+            const canStart = group.status !== 'running' && group.listedCount === 0 && group.availableCount > 0;
+            const canList = group.status !== 'running' && group.availableCount > 0;
+            const unitPrice = listingPrices[group.facilityTypeId] ?? type.systemValue;
+            const listingQuantity = Math.min(
+              Math.max(1, listingQuantities[group.facilityTypeId] ?? 1),
+              Math.max(1, group.availableCount),
+            );
+            const planStep = Math.max(1, type.output.quantity * Math.max(1, group.nextCycleCount));
+
             return (
-              <Panel className="facility-card" key={facility.id}>
+              <Panel className="facility-card facility-group-card" key={group.facilityTypeId}>
                 <div className="facility-card-head">
                   <div>
-                    <StatusTag tone={facilityTone(facility.status)}>{facilityStatusNames[facility.status]}</StatusTag>
-                    <h2>{facility.name}</h2>
+                    <StatusTag tone={facilityTone(group.status)}>{facilityStatusNames[group.status]}</StatusTag>
+                    <h2>{type.name} × {group.count}</h2>
                     <p>
-                      {facility.inputProductId
-                        ? `${facility.inputPerCycle} ${inputName} → ${facility.outputPerCycle} ${outputName}`
-                        : `无原料 → ${facility.outputPerCycle} ${outputName}`}
+                      {type.input
+                        ? `${type.input.quantity} ${inputName} → ${type.output.quantity} ${outputName}`
+                        : `无原料 → ${type.output.quantity} ${outputName}`}
                     </p>
-                    {facility.stopReason ? <small className="facility-stop-reason">{facilityStopReasonNames[facility.stopReason]}</small> : null}
+                    {group.stopReason ? <small className="facility-stop-reason">{facilityStopReasonNames[group.stopReason]}</small> : null}
                   </div>
                   <div className="facility-output">
                     <strong>{outputInventory}</strong>
@@ -162,39 +196,47 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                   </div>
                 </div>
 
-                <FacilityProgress facility={facility} now={now} buildTimeMs={facilityType?.buildTimeMs} />
-
-                <div className="facility-specs ui-spec-grid">
-                  <span>周期 <strong>{facility.cycleMs / 1000} 秒</strong></span>
-                  <span>小时产量 <strong>{hourlyOutput} {outputName}</strong></span>
-                  <span>小时运营费 <strong>¤ {hourlyCost}</strong></span>
-                  <span>原料库存 <strong>{inputInventory === null ? '无需原料' : `${inputInventory} ${inputName}`}</strong></span>
-                  <span>累计产量 <strong>{facility.lifetimeOutput}</strong></span>
-                  <span>参考估值 <strong>¤ {facility.systemValue}</strong></span>
+                <div className="facility-group-counts">
+                  <span>当前参与 <strong>{group.participatingCount}</strong></span>
+                  <span>下一周期 <strong>{group.nextCycleCount}</strong></span>
+                  <span>待加入 <strong>{group.pendingJoinCount}</strong></span>
+                  <span>已挂牌 <strong>{group.listedCount}</strong></span>
                 </div>
+
+                <FacilityGroupProgress group={group} type={type} now={now} />
+
+                <div className="facility-specs ui-spec-grid facility-group-specs">
+                  <span>周期 <strong>{type.cycleMs / 1000} 秒</strong></span>
+                  <span>周期产量 <strong>{currentCycleOutput} {outputName}</strong></span>
+                  <span>周期成本 <strong>¤ {currentCycleCost}</strong></span>
+                  <span>原料库存 <strong>{inputInventory === null ? '无需原料' : `${inputInventory} ${inputName}`}</strong></span>
+                </div>
+                {group.pendingJoinCount > 0 ? (
+                  <small className="ui-helper-text">下一周期将按 {nextCount} 座结算：产量 {nextCycleOutput} {outputName}，成本 ¤ {type.operatingCost * nextCount}。</small>
+                ) : null}
 
                 <div className="production-plan-card">
                   <div className="production-plan-heading">
                     <div>
-                      <strong>生产计划</strong>
+                      <strong>统一生产计划</strong>
                       <small>
-                        {facility.productionMode === 'continuous'
+                        {group.productionMode === 'continuous'
                           ? '当前：持续生产'
-                          : `当前：${facility.completedQuantity}/${facility.targetQuantity}，剩余 ${remainingTarget}`}
+                          : `当前：${group.completedQuantity}/${group.targetQuantity}，剩余 ${remainingTarget}`}
                       </small>
                     </div>
-                    <StatusTag tone={facility.productionMode === 'target' ? 'info' : 'neutral'}>
-                      {facility.productionMode === 'target' ? '定量' : '持续'}
+                    <StatusTag tone={group.productionMode === 'target' ? 'info' : 'neutral'}>
+                      {group.productionMode === 'target' ? '定量' : '持续'}
                     </StatusTag>
                   </div>
                   <div className="production-plan-controls">
                     <select
-                      aria-label={`${facility.name}生产模式`}
+                      aria-label={`${type.name}集群生产模式`}
                       value={mode}
                       disabled={!canConfigure}
                       onChange={(event: ChangeEvent<HTMLSelectElement>) => setPlanModes((current) => ({
                         ...current,
-                        [facility.id]: event.target.value as ProductionMode,
+                        [group.facilityTypeId]: event.target.value as ProductionMode,
                       }))}
                     >
                       <option value="continuous">持续生产</option>
@@ -202,15 +244,15 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                     </select>
                     {mode === 'target' ? (
                       <input
-                        aria-label={`${facility.name}计划产量`}
+                        aria-label={`${type.name}集群计划产量`}
                         type="number"
-                        min={facility.outputPerCycle}
-                        step={facility.outputPerCycle}
+                        min={planStep}
+                        step={planStep}
                         value={target}
                         disabled={!canConfigure}
                         onChange={(event) => setPlanTargets((current) => ({
                           ...current,
-                          [facility.id]: Number(event.target.value),
+                          [group.facilityTypeId]: Number(event.target.value),
                         }))}
                       />
                     ) : null}
@@ -218,7 +260,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                       variant="secondary"
                       disabled={!canConfigure}
                       onClick={() => void showResult(setProductionPlan(
-                        facility.id,
+                        group.facilityTypeId,
                         mode,
                         mode === 'target' ? target : undefined,
                       ))}
@@ -229,45 +271,65 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 </div>
 
                 <div className="facility-actions ui-inline-actions">
-                  {facility.status === 'running' ? (
-                    <Button variant="danger" onClick={() => void showResult(stopFacility(facility.id))}>停止生产</Button>
+                  {group.status === 'running' ? (
+                    <Button variant="danger" onClick={() => void showResult(stopFacility(group.facilityTypeId))}>停止全部</Button>
                   ) : (
-                    <Button disabled={!canStart} onClick={() => void showResult(startFacility(facility.id))}>启动生产</Button>
+                    <Button disabled={!canStart} onClick={() => void showResult(startFacility(group.facilityTypeId))}>启动全部</Button>
                   )}
-                  <span className="ui-helper-text">产成品自动入仓，无需领取。</span>
+                  <span className="ui-helper-text">同类工厂统一启停，产成品自动入仓。</span>
                 </div>
 
-                {canConfigure ? (
-                  <div className="listing-control">
-                    <input
-                      aria-label={`${facility.name}挂牌价格`}
-                      type="number"
-                      min={Math.ceil(facility.systemValue * 0.5)}
-                      max={facility.systemValue * 2}
-                      value={listingPrice}
-                      onChange={(event: ChangeEvent<HTMLInputElement>) => setListingPrices((current) => ({
-                        ...current,
-                        [facility.id]: Number(event.target.value),
-                      }))}
-                    />
-                    <Button variant="secondary" onClick={() => void showResult(listFacility(facility.id, listingPrice))}>挂牌出售</Button>
+                {canList ? (
+                  <div className="listing-control facility-group-listing-control">
+                    <label>
+                      挂牌数量
+                      <input
+                        aria-label={`${type.name}挂牌数量`}
+                        type="number"
+                        min="1"
+                        max={group.availableCount}
+                        value={listingQuantity}
+                        onChange={(event) => setListingQuantities((current) => ({
+                          ...current,
+                          [group.facilityTypeId]: Number(event.target.value),
+                        }))}
+                      />
+                    </label>
+                    <label>
+                      单座价格
+                      <input
+                        aria-label={`${type.name}单座挂牌价格`}
+                        type="number"
+                        min={Math.ceil(type.systemValue * 0.5)}
+                        max={type.systemValue * 2}
+                        value={unitPrice}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => setListingPrices((current) => ({
+                          ...current,
+                          [group.facilityTypeId]: Number(event.target.value),
+                        }))}
+                      />
+                    </label>
+                    <div className="listing-total"><span>挂牌总额</span><strong>¤ {formatCurrency(listingQuantity * unitPrice)}</strong></div>
+                    <Button
+                      variant="secondary"
+                      onClick={() => void showResult(listFacility(group.facilityTypeId, listingQuantity, unitPrice))}
+                    >
+                      挂牌 {listingQuantity} 座
+                    </Button>
                   </div>
                 ) : null}
-                {facility.status === 'listed' && facility.listedOrderId ? (
-                  <Button
-                    block
-                    variant="danger"
-                    className="facility-cancel-listing"
-                    onClick={() => void showResult(cancelFacilityListing(facility.listedOrderId as string))}
-                  >
-                    撤销工厂挂牌
-                  </Button>
-                ) : null}
+
+                {ownListings.map((listing) => (
+                  <div className="facility-group-own-listing" key={listing.id}>
+                    <span>{listing.quantity} 座 · 单价 ¤ {formatCurrency(listing.unitPrice)}</span>
+                    <Button variant="danger" onClick={() => void showResult(cancelFacilityListing(listing.id))}>撤销挂牌</Button>
+                  </div>
+                ))}
               </Panel>
             );
           })}
-          {game.facilities.length === 0 ? (
-            <Panel className="empty-state tall">尚未拥有工厂。先确认共享仓库容量，再选择产业方向并建设第一座工厂。</Panel>
+          {game.facilityGroups.length === 0 ? (
+            <Panel className="empty-state tall">尚未拥有工厂集群。先确认共享仓库容量，再建设第一座工厂。</Panel>
           ) : null}
         </div>
       </div>

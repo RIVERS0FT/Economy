@@ -59,11 +59,11 @@ function buyOrder(overrides = {}) {
   };
 }
 
-test('warehouse state defaults to level 1 and client version 7', () => {
+test('warehouse state defaults to level 1 and client version 8', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 7);
+    assert.equal(state.version, 8);
     assert.equal(state.warehouseLevel, 1);
     assert.equal(state.inventoryCapacity, 500);
     assert.equal(state.warehouseMaxLevel, WAREHOUSE_MAX_LEVEL);
@@ -180,9 +180,9 @@ test('maximum warehouse level cannot be upgraded again', () => {
 test('warehouse upgrade is idempotent', () => {
   const store = seedStore();
   try {
-    const action = request('warehouse-idempotent-12345678');
-    const first = store.apply(alice, action, now + 1);
-    const second = store.apply(alice, action, now + 2);
+    const actionRequest = request('warehouse-idempotent-12345678');
+    const first = store.apply(alice, actionRequest, now + 1);
+    const second = store.apply(alice, actionRequest, now + 2);
     assert.deepEqual(second, first);
     assert.equal(store.getState(alice, now + 3).warehouseLevel, 2);
   } finally {
