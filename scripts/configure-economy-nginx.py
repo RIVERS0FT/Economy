@@ -10,11 +10,13 @@ import tempfile
 from pathlib import Path
 
 DOMAIN = "game.riversoft.top"
+ACCOUNT_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-account.conf"
+GAME_API_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-game-api.conf"
 BEGIN = "# BEGIN MANAGED ECONOMY API PROXY"
 END = "# END MANAGED ECONOMY API PROXY"
-MANAGED_BLOCK = f"""
-    {BEGIN}
-    location = /economy-api/login {{
+
+ACCOUNT_BLOCK = """
+    location = /economy-api/login {
         proxy_pass http://127.0.0.1:3001/api/login;
         proxy_http_version 1.1;
         proxy_set_header Host riversoft.top;
@@ -24,9 +26,9 @@ MANAGED_BLOCK = f"""
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header Origin "";
         proxy_cookie_path / /;
-    }}
+    }
 
-    location = /economy-api/me {{
+    location = /economy-api/me {
         proxy_pass http://127.0.0.1:3001/api/me;
         proxy_http_version 1.1;
         proxy_set_header Host riversoft.top;
@@ -36,9 +38,9 @@ MANAGED_BLOCK = f"""
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header Origin "";
         proxy_cookie_path / /;
-    }}
+    }
 
-    location = /economy-api/logout {{
+    location = /economy-api/logout {
         proxy_pass http://127.0.0.1:3001/api/logout;
         proxy_http_version 1.1;
         proxy_set_header Host riversoft.top;
@@ -48,9 +50,11 @@ MANAGED_BLOCK = f"""
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header Origin "";
         proxy_cookie_path / /;
-    }}
+    }
+""".strip("\n")
 
-    location ^~ /economy-api/game/ {{
+GAME_API_BLOCK = """
+    location ^~ /economy-api/game/ {
         proxy_pass http://127.0.0.1:3002/api/game/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -61,9 +65,26 @@ MANAGED_BLOCK = f"""
         proxy_connect_timeout 5s;
         proxy_read_timeout 30s;
         client_max_body_size 16k;
-    }}
-    {END}
+    }
 """.strip("\n")
+
+
+def managed_block(*, account: bool, game_api: bool) -> str:
+    sections = []
+    if account:
+        sections.append(ACCOUNT_BLOCK)
+    if game_api:
+        sections.append(GAME_API_BLOCK)
+    if not sections:
+        return ""
+    return f"    {BEGIN}\n" + "\n\n".join(sections) + f"\n    {END}"
+
+
+def managed_pattern() -> re.Pattern[str]:
+    return re.compile(
+        rf"^[ \t]*{re.escape(BEGIN)}.*?^[ \t]*{re.escape(END)}[ \t]*(?:\n|$)",
+        re.MULTILINE | re.DOTALL,
+    )
 
 
 def masked(text: str) -> str:
@@ -135,33 +156,85 @@ def is_target_server(block: str) -> bool:
     return bool(has_domain and has_https)
 
 
-def replace_or_insert(block: str) -> str:
-    if BEGIN in block and END in block:
-        pattern = re.compile(
-            rf"^[ \t]*{re.escape(BEGIN)}.*?^[ \t]*{re.escape(END)}[ \t]*$",
-            re.MULTILINE | re.DOTALL,
+def has_include(block: str, path: str) -> bool:
+    return bool(
+        re.search(
+            rf"\binclude\s+{re.escape(path)}\s*;",
+            masked(block),
+            re.IGNORECASE,
         )
-        return pattern.sub(MANAGED_BLOCK, block, count=1)
+    )
 
+
+def has_location(block: str, path: str) -> bool:
+    return bool(
+        re.search(
+            rf"\blocation\s+(?:(?:\^~|=)\s+)?{re.escape(path)}\s*\{{",
+            masked(block),
+            re.IGNORECASE,
+        )
+    )
+
+
+def has_account_proxy(block: str) -> bool:
+    return has_include(block, ACCOUNT_SNIPPET) or all(
+        has_location(block, path)
+        for path in (
+            "/economy-api/login",
+            "/economy-api/me",
+            "/economy-api/logout",
+        )
+    )
+
+
+def has_game_api_proxy(block: str) -> bool:
+    return has_include(block, GAME_API_SNIPPET) or has_location(
+        block, "/economy-api/game/"
+    )
+
+
+def remove_legacy_economy_api_location(block: str) -> tuple[str, bool]:
     view = masked(block)
     location = re.search(
-        r"\blocation\s+(?:\^~\s+)?(?:=\s+)?/economy-api/?\s*\{",
+        r"\blocation\s+(?:(?:\^~|=)\s+)?/economy-api/?\s*\{",
         view,
         re.IGNORECASE,
     )
-    if location:
-        opening = view.find("{", location.start())
-        closing = matching_brace(block, opening)
-        start = location.start()
-        while start > 0 and block[start - 1] in " \t":
-            start -= 1
-        return block[:start] + MANAGED_BLOCK + block[closing + 1 :]
+    if not location:
+        return block, False
 
-    closing = block.rfind("}")
+    opening = view.find("{", location.start())
+    closing = matching_brace(block, opening)
+    start = location.start()
+    while start > 0 and block[start - 1] in " \t":
+        start -= 1
+    end = closing + 1
+    if end < len(block) and block[end] == "\n":
+        end += 1
+    return block[:start] + block[end:], True
+
+
+def replace_or_insert(block: str) -> str:
+    pattern = managed_pattern()
+    had_managed = bool(pattern.search(block))
+    cleaned = pattern.sub("", block, count=1)
+    cleaned, removed_legacy = remove_legacy_economy_api_location(cleaned)
+
+    include_account = not has_account_proxy(cleaned)
+    include_game_api = not has_game_api_proxy(cleaned)
+    desired = managed_block(account=include_account, game_api=include_game_api)
+
+    if not desired:
+        if not had_managed and not removed_legacy:
+            return block
+        return re.sub(r"\n{3,}", "\n\n", cleaned)
+
+    closing = cleaned.rfind("}")
     if closing < 0:
         raise RuntimeError("Target server block has no closing brace")
 
-    return block[:closing].rstrip() + "\n\n" + MANAGED_BLOCK + "\n" + block[closing:]
+    normalized = cleaned[:closing].rstrip()
+    return normalized + "\n\n" + desired + "\n" + cleaned[closing:]
 
 
 def find_target() -> tuple[Path, str, tuple[int, int]]:
