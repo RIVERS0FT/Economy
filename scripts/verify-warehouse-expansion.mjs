@@ -159,12 +159,6 @@ for (const text of [
 ]) requireText('src/pages/AssetsPage.tsx', text);
 
 for (const text of [
-  '仓库使用',
-  'game.warehouseUsedCapacity',
-  'game.inventoryCapacity',
-]) requireText('src/pages/SettingsPage.tsx', text);
-
-for (const text of [
   'game.warehouseUsedCapacity',
   'game.warehouseReservedQuantity',
   '买单预占',
@@ -212,6 +206,7 @@ for (const text of [
   '绝不缩减旧玩家容量',
   '扩容费用计入系统回收',
   '`WarehouseUpgradeCard` 只能由 `ProductionPage` 渲染',
+  '设置页不得显示仓库使用、等级、费用、容量或扩容入口',
   '服务器数据库不得保存仓库扩容历史日志',
   '未更新本设计、页面职责设计、测试和架构检查的仓库规则修改不应合并',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
@@ -221,7 +216,7 @@ for (const text of [
   '共享仓库与工厂管理',
   '`WarehouseUpgradeCard` 只能由 `ProductionPage` 渲染',
   '资金页不负责仓库管理',
-  '设置页的一行“仓库使用”只是只读账号摘要',
+  '设置页不得显示账号与产业只读摘要或仓库使用摘要',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
@@ -237,7 +232,17 @@ for (const [path, forbidden] of [
   ['src/pages/MarketPage.tsx', ['WarehouseUpgradeCard']],
   ['src/pages/AssetsPage.tsx', ['WarehouseUpgradeCard', 'upgradeWarehouse()', '150 *', '500 +']],
   ['src/pages/LeaderboardPage.tsx', ['WarehouseUpgradeCard']],
-  ['src/pages/SettingsPage.tsx', ['WarehouseUpgradeCard', 'warehouseLevel', 'warehouseUpgradeCost', 'warehouseNextCapacity', '扩容按钮']],
+  ['src/pages/SettingsPage.tsx', [
+    'WarehouseUpgradeCard',
+    'warehouseLevel',
+    'warehouseUpgradeCost',
+    'warehouseNextCapacity',
+    'warehouseUsedCapacity',
+    'inventoryCapacity',
+    '仓库使用',
+    '扩容按钮',
+    '账号与产业摘要',
+  ]],
   ['src/app/GameApp.tsx', ['inventoryUsed']],
   ['server/src/warehouse.js', ['player.trades', 'player.ledger', 'player.assetEvents']],
 ]) {
@@ -249,4 +254,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('仓库扩容架构验证通过：服务器权威规则、生产页唯一管理入口、只读摘要和本地历史均满足设计基线。');
+console.log('仓库扩容架构验证通过：服务器权威规则、生产页唯一管理入口和本地历史均满足设计基线。');
