@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import { type ChangeEvent, useState } from 'react';
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import {
@@ -12,36 +12,8 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import { economyConstants } from '../config/economy';
-import type { CommodityOrder, OrderSide } from '../types';
+import type { CommodityOrder } from '../types';
 import { formatCurrency, formatTime } from '../utils/formatters';
-
-interface OrderBookLevel {
-  price: number;
-  remaining: number;
-  orderCount: number;
-}
-
-function aggregateOrderBook(orders: CommodityOrder[], side: OrderSide): OrderBookLevel[] {
-  const levels = new Map<number, OrderBookLevel>();
-
-  for (const order of orders) {
-    const level = levels.get(order.price);
-    if (level) {
-      level.remaining += order.remaining;
-      level.orderCount += 1;
-    } else {
-      levels.set(order.price, {
-        price: order.price,
-        remaining: order.remaining,
-        orderCount: 1,
-      });
-    }
-  }
-
-  return Array.from(levels.values()).sort((left, right) =>
-    side === 'buy' ? right.price - left.price : left.price - right.price,
-  );
-}
 
 function orderTone(status: CommodityOrder['status']): StatusTone {
   if (status === 'filled') return 'success';
@@ -69,26 +41,44 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     buyFacility,
     showResult,
   } = model;
-  const bidLevels = aggregateOrderBook(derived.bids, 'buy').slice(0, 10);
-  const askLevels = aggregateOrderBook(derived.asks, 'sell').slice(0, 10);
+  const [purchaseQuantities, setPurchaseQuantities] = useState<Record<string, number>>({});
   const selectedProduct = derived.selectedProduct;
   const selectedInventory = derived.selectedInventory;
   const selectedMarket = derived.selectedMarket;
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
+  const bestAsks = derived.asks.slice(0, 5).reverse();
+  const bestBids = derived.bids.slice(0, 5);
+  const maxBuyQuantity = orderPrice > 0
+    ? Math.max(0, Math.min(game.warehouseAvailableCapacity, Math.floor(game.credits / orderPrice)))
+    : 0;
+  const maxSellQuantity = selectedInventory.available;
+  const maxTradeQuantity = orderSide === 'buy' ? maxBuyQuantity : maxSellQuantity;
+  const ownListingQuantity = derived.ownListings.reduce((sum, listing) => sum + listing.quantity, 0);
 
   function productName(productId?: string) {
-    if (!productId) return '工厂资产';
+    if (!productId) return '商品';
     return game.products.find((product) => product.id === productId)?.name ?? productId;
   }
 
-  function facilityTypeName(typeId: string) {
-    return game.facilityTypes.find((type) => type.id === typeId)?.name ?? typeId;
+  function facilityType(typeId: string) {
+    return game.facilityTypes.find((type) => type.id === typeId);
+  }
+
+  function quickQuantity(fraction: number) {
+    if (maxTradeQuantity <= 0) return 0;
+    if (fraction >= 1) return maxTradeQuantity;
+    return Math.max(1, Math.floor(maxTradeQuantity * fraction));
+  }
+
+  function fillQuickQuantity(fraction: number) {
+    const quantity = quickQuantity(fraction);
+    if (quantity > 0) setOrderQuantity(quantity);
   }
 
   return (
     <PageLayout
       title="市场"
-      description="在同一页面完成下单、撤单和工厂交易；成交记录仅保存在当前浏览器。"
+      description="完成商品限价交易、撤单和工厂数量交易；成交记录仅保存在当前浏览器。"
     >
       <div className="product-tabs" role="tablist" aria-label="选择商品市场">
         {game.products.map((product) => {
@@ -116,7 +106,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         <MetricCard tone="danger" label="卖一价" value={`¤ ${derived.bestAsk || '--'}`} />
         <MetricCard label="价差" value={`¤ ${derived.spread}`} />
         <MetricCard label="可用持仓" value={selectedInventory.available} detail={`冻结 ${selectedInventory.frozen}`} />
-        <MetricCard label="本地平均成本" value={derived.averageCost ? `¤ ${derived.averageCost.toFixed(1)}` : '--'} />
+        <MetricCard label="仓库剩余" value={game.warehouseAvailableCapacity} detail={`买单预占 ${game.warehouseReservedQuantity}`} />
       </div>
 
       <div className="market-grid">
@@ -144,15 +134,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             </Button>
           </div>
           <label>
-            数量
-            <input
-              type="number"
-              min="1"
-              value={orderQuantity}
-              onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderQuantity(Number(event.target.value))}
-            />
-          </label>
-          <label>
             限价
             <input
               type="number"
@@ -161,15 +142,39 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderPrice(Number(event.target.value))}
             />
           </label>
+          <label>
+            数量
+            <input
+              type="number"
+              min="1"
+              max={Math.max(1, maxTradeQuantity)}
+              value={orderQuantity}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderQuantity(Number(event.target.value))}
+            />
+          </label>
+          <div className="order-quick-fill" role="group" aria-label="快捷填写交易数量">
+            <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>1/4 仓</Button>
+            <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>1/2 仓</Button>
+            <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>全仓</Button>
+          </div>
+          <small className="ui-helper-text">
+            {orderSide === 'buy'
+              ? `买入快捷数量按资金与仓库剩余空间共同计算，当前最多 ${maxBuyQuantity}。`
+              : `卖出快捷数量按当前${selectedProduct.name}可用库存计算，当前最多 ${maxSellQuantity}。`}
+          </small>
           <div className="order-summary"><span>订单总额</span><strong>¤ {formatCurrency(orderQuantity * orderPrice)}</strong></div>
           <div className="order-capacity">
             <span>可用资金 ¤ {formatCurrency(game.credits)}</span>
+            <span>仓库剩余 {game.warehouseAvailableCapacity}</span>
             <span>可用{selectedProduct.name} {selectedInventory.available}</span>
           </div>
-          <Button block onClick={() => void showResult(placeCommodityOrder(orderSide, orderQuantity, orderPrice))}>
+          <Button
+            block
+            disabled={orderQuantity < 1 || orderQuantity > maxTradeQuantity}
+            onClick={() => void showResult(placeCommodityOrder(orderSide, orderQuantity, orderPrice))}
+          >
             提交{selectedProduct.name}{orderSide === 'buy' ? '买单' : '卖单'}
           </Button>
-          <small className="ui-helper-text">服务器只保存订单和资产状态；本地根据状态变化生成操作记录。</small>
 
           <div className="inline-order-list" aria-label={`我的${selectedProduct.name}未完成订单`}>
             {derived.ownSelectedOpenOrders.map((order) => (
@@ -188,34 +193,33 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           </div>
         </Panel>
 
-        <Panel className="widget order-book">
-          <WidgetHeading
-            title={`${selectedProduct.name}订单簿`}
-            action={<div className="last-price"><span>最近成交</span><strong>¤ {selectedMarket.lastPrice}</strong></div>}
-          />
-          <div className="book-columns">
-            <div>
-              <h3>买盘</h3>
-              {bidLevels.map((level) => (
-                <div className="book-row bid" key={`buy-${level.price}`}>
-                  <span>¤ {level.price}</span>
-                  <span>{level.remaining}</span>
-                  <small>{level.orderCount} 笔</small>
-                </div>
-              ))}
-              {bidLevels.length === 0 ? <p className="muted">暂无买单</p> : null}
+        <Panel className="widget order-book single-order-book">
+          <WidgetHeading title={`${selectedProduct.name}订单簿`} />
+          <div className="order-book-stack" aria-label={`${selectedProduct.name}买卖盘`}>
+            <div className="order-book-side-label ask-label"><span>卖盘</span><small>最低价前 5 笔</small></div>
+            {bestAsks.map((order) => (
+              <div className="book-order-row ask" key={order.id}>
+                <StatusTag tone="danger">卖</StatusTag>
+                <strong>¤ {order.price}</strong>
+                <span>{order.remaining}</span>
+              </div>
+            ))}
+            {bestAsks.length === 0 ? <p className="muted">暂无卖单</p> : null}
+
+            <div className="order-book-midpoint">
+              <span>最近成交 <strong>¤ {selectedMarket.lastPrice}</strong></span>
+              <span>价差 <strong>¤ {derived.spread}</strong></span>
             </div>
-            <div>
-              <h3>卖盘</h3>
-              {askLevels.map((level) => (
-                <div className="book-row ask" key={`sell-${level.price}`}>
-                  <span>¤ {level.price}</span>
-                  <span>{level.remaining}</span>
-                  <small>{level.orderCount} 笔</small>
-                </div>
-              ))}
-              {askLevels.length === 0 ? <p className="muted">暂无卖单</p> : null}
-            </div>
+
+            {bestBids.map((order) => (
+              <div className="book-order-row bid" key={order.id}>
+                <StatusTag tone="success">买</StatusTag>
+                <strong>¤ {order.price}</strong>
+                <span>{order.remaining}</span>
+              </div>
+            ))}
+            {bestBids.length === 0 ? <p className="muted">暂无买单</p> : null}
+            <div className="order-book-side-label bid-label"><span>买盘</span><small>最高价前 5 笔</small></div>
           </div>
         </Panel>
 
@@ -245,7 +249,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} tone="warning" />
             <MetricCard label="冻结商品" value={frozenInventory} detail={`${game.products.filter((product) => (game.inventories[product.id]?.frozen ?? 0) > 0).length} 种商品`} tone="warning" />
             <MetricCard label="未完成订单" value={`${derived.ownOpenOrders.length}/${economyConstants.maxOpenOrders}`} />
-            <MetricCard label="我的工厂挂牌" value={derived.ownListings.length} tone="info" />
+            <MetricCard label="我的工厂挂牌" value={`${ownListingQuantity} 座`} tone="info" />
           </div>
 
           <div className="market-account-grid">
@@ -285,7 +289,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                         <td>{trade.type === 'facility' ? trade.description : productName(trade.productId)}</td>
                         <td><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
                         <td className="numeric-cell">{trade.quantity}</td>
-                        <td className="numeric-cell">¤ {trade.price}</td>
+                        <td className="numeric-cell">¤ {formatCurrency(trade.price)}</td>
                         <td className="numeric-cell">¤ {formatCurrency(trade.total)}</td>
                         <td>{trade.counterparty}</td>
                         <td>{formatTime(trade.createdAt)}</td>
@@ -300,33 +304,56 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading title="工厂挂牌" action={<span className="muted">工厂数量不受槽位限制，购买后需手动启动</span>} />
+          <WidgetHeading title="工厂数量市场" action={<span className="muted">按类型、数量和单座价格完成产权交易</span>} />
           <div className="listing-grid">
-            {game.facilityListings.map((listing) => (
-              <article className="listing-card" key={listing.id}>
-                <div>
-                  <StatusTag tone={listing.ownerId === game.userId ? 'info' : 'neutral'}>
-                    {listing.ownerId === game.userId ? '我的挂牌' : '可收购'}
-                  </StatusTag>
-                  <h3>{listing.facility.name}</h3>
-                  <p>{facilityTypeName(listing.facility.facilityTypeId)} · {listing.ownerName}</p>
-                </div>
-                <div className="listing-specs ui-spec-grid">
-                  <span>配方 <strong>{listing.facility.inputProductId ? `${listing.facility.inputPerCycle} ${productName(listing.facility.inputProductId)} → ` : ''}{listing.facility.outputPerCycle} {productName(listing.facility.outputProductId)}</strong></span>
-                  <span>周期 <strong>{listing.facility.cycleMs / 1000} 秒</strong></span>
-                  <span>运营费 <strong>¤ {listing.facility.operatingCost}</strong></span>
-                  <span>产成品 <strong>直接进入共享仓库</strong></span>
-                  <span>累计产量 <strong>{listing.facility.lifetimeOutput}</strong></span>
-                  <span>参考估值 <strong>¤ {listing.facility.systemValue}</strong></span>
-                </div>
-                <div className="listing-price">
-                  <strong>¤ {formatCurrency(listing.price)}</strong>
-                  {listing.ownerId === game.userId
-                    ? <Button variant="danger" onClick={() => void showResult(cancelFacilityListing(listing.id))}>撤销</Button>
-                    : <Button onClick={() => void showResult(buyFacility(listing.id))}>立即收购</Button>}
-                </div>
-              </article>
-            ))}
+            {game.facilityListings.map((listing) => {
+              const type = facilityType(listing.facilityTypeId);
+              const purchaseQuantity = Math.min(
+                Math.max(1, purchaseQuantities[listing.id] ?? 1),
+                listing.quantity,
+              );
+              return (
+                <article className="listing-card" key={listing.id}>
+                  <div>
+                    <StatusTag tone={listing.ownerId === game.userId ? 'info' : 'neutral'}>
+                      {listing.ownerId === game.userId ? '我的挂牌' : '可收购'}
+                    </StatusTag>
+                    <h3>{type?.name ?? listing.facilityTypeId} × {listing.quantity}</h3>
+                    <p>{listing.ownerName} · 单座 ¤ {formatCurrency(listing.unitPrice)}</p>
+                  </div>
+                  <div className="listing-specs ui-spec-grid">
+                    <span>周期 <strong>{(type?.cycleMs ?? 0) / 1000} 秒</strong></span>
+                    <span>周期产量 <strong>{type?.output.quantity ?? 0} {productName(type?.output.productId)}</strong></span>
+                    <span>周期成本 <strong>¤ {type?.operatingCost ?? 0}</strong></span>
+                    <span>原料 <strong>{type?.input ? `${type.input.quantity} ${productName(type.input.productId)}` : '无需原料'}</strong></span>
+                  </div>
+                  {listing.ownerId === game.userId ? (
+                    <div className="listing-price">
+                      <strong>挂牌总额 ¤ {formatCurrency(listing.quantity * listing.unitPrice)}</strong>
+                      <Button variant="danger" onClick={() => void showResult(cancelFacilityListing(listing.id))}>撤销全部</Button>
+                    </div>
+                  ) : (
+                    <div className="listing-purchase-control">
+                      <label>
+                        购买数量
+                        <input
+                          type="number"
+                          min="1"
+                          max={listing.quantity}
+                          value={purchaseQuantity}
+                          onChange={(event) => setPurchaseQuantities((current) => ({
+                            ...current,
+                            [listing.id]: Number(event.target.value),
+                          }))}
+                        />
+                      </label>
+                      <div><span>总价</span><strong>¤ {formatCurrency(purchaseQuantity * listing.unitPrice)}</strong></div>
+                      <Button onClick={() => void showResult(buyFacility(listing.id, purchaseQuantity))}>购买 {purchaseQuantity} 座</Button>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
             {game.facilityListings.length === 0 ? <p className="empty-state">暂无工厂挂牌。</p> : null}
           </div>
         </Panel>
