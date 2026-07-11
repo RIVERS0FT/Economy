@@ -12,6 +12,10 @@ import {
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
+function normalizeJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 export class EconomyStore {
   constructor(databasePath) {
     if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
@@ -94,7 +98,7 @@ export class EconomyStore {
       const { revision, world } = this.loadWorld(now);
       ensurePlayer(world, user, now);
       processWorld(world, now);
-      const state = createClientState(world, Number(user.id), now);
+      const state = normalizeJson(createClientState(world, Number(user.id), now));
       this.saveWorld(revision, world, now);
       return state;
     });
@@ -115,7 +119,7 @@ export class EconomyStore {
       const { revision, world } = this.loadWorld(now);
       const gameResult = applyAction(world, user, action, payload, now);
       const state = createClientState(world, Number(user.id), now);
-      const response = { result: gameResult, state };
+      const response = normalizeJson({ result: gameResult, state });
       this.saveWorld(revision, world, now);
       this.insertIdempotency.run(
         Number(user.id),
