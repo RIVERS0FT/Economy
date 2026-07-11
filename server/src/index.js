@@ -82,7 +82,7 @@ function resolveAction(method, path) {
     return {
       action: actionMap[facilityAction[2]],
       category: 'general',
-      routePayload: { facilityId: decodeURIComponent(facilityAction[1]) },
+      routePayload: { facilityTypeId: decodeURIComponent(facilityAction[1]) },
     };
   }
 
