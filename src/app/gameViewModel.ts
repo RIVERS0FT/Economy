@@ -41,7 +41,7 @@ export const facilityStatusNames: Record<FacilityStatus, string> = {
   ready: '待启动',
   running: '运行中',
   paused: '已停止',
-  full: '产成品已满',
+  full: '共享仓库已满',
   insufficient_funds: '资金不足',
   insufficient_input: '原料不足',
   listed: '挂牌中',
@@ -52,7 +52,7 @@ export const facilityStopReasonNames: Record<FacilityStopReason, string> = {
   plan_complete: '计划完成',
   insufficient_funds: '运营资金不足',
   insufficient_input: '生产原料不足',
-  output_full: '产成品仓库已满',
+  output_full: '共享仓库空间不足',
   listed: '正在挂牌出售',
   maintenance: '系统维护',
 };
@@ -82,7 +82,6 @@ export interface DerivedGameData {
   bestBid: number;
   bestAsk: number;
   spread: number;
-  pendingGoods: number;
   runningFacilities: number;
   constructingFacilities: number;
   stoppedFacilities: number;
@@ -148,7 +147,6 @@ export interface LoadedGameViewModel {
     mode: ProductionMode,
     targetQuantity?: number,
   ) => Promise<ActionResult>;
-  collectFacility: (facilityId: string) => Promise<ActionResult>;
   listFacility: (facilityId: string, price: number) => Promise<ActionResult>;
   cancelFacilityListing: (listingId: string) => Promise<ActionResult>;
   buyFacility: (listingId: string) => Promise<ActionResult>;
@@ -207,10 +205,7 @@ function deriveGameData(
   const asks = game.orders
     .filter((order) => order.productId === selectedProduct.id && order.side === 'sell' && ['open', 'partial'].includes(order.status))
     .sort((a, b) => a.price - b.price || a.createdAt - b.createdAt);
-  const facilityValue = game.facilities.reduce((sum, facility) => {
-    const outputPrice = game.markets[facility.outputProductId]?.lastPrice ?? 0;
-    return sum + facility.systemValue + facility.internalGoods * outputPrice;
-  }, 0);
+  const facilityValue = game.facilities.reduce((sum, facility) => sum + facility.systemValue, 0);
   const commodityValue = game.products.reduce((sum, product) => {
     const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
     const price = game.markets[product.id]?.lastPrice ?? product.basePrice;
@@ -225,7 +220,6 @@ function deriveGameData(
   const bestBid = bids[0]?.price ?? 0;
   const bestAsk = asks[0]?.price ?? 0;
   const spread = bestBid && bestAsk ? bestAsk - bestBid : 0;
-  const pendingGoods = game.facilities.reduce((sum, facility) => sum + facility.internalGoods, 0);
   const runningFacilities = game.facilities.filter((facility) => facility.status === 'running').length;
   const constructingFacilities = game.facilities.filter((facility) => facility.status === 'constructing').length;
   const stoppedFacilities = game.facilities.filter((facility) => ['ready', 'paused'].includes(facility.status)).length;
@@ -241,10 +235,7 @@ function deriveGameData(
     : 0;
   const history = selectedMarket.priceHistory.map((point) => point.price);
   const marketTrend = history.length > 1 ? history[history.length - 1] - history[0] : 0;
-  const inventoryUsed = Object.values(game.inventories).reduce(
-    (sum, inventory) => sum + inventory.available + inventory.frozen,
-    0,
-  );
+  const inventoryUsed = game.warehouseStoredQuantity;
 
   return {
     selectedProduct,
@@ -264,7 +255,6 @@ function deriveGameData(
     bestBid,
     bestAsk,
     spread,
-    pendingGoods,
     runningFacilities,
     constructingFacilities,
     stoppedFacilities,
@@ -475,7 +465,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     },
     signOut,
     work: () => runAction('work', gameActions.work),
-    upgradeWarehouse: () => runAction('refresh', gameActions.upgradeWarehouse),
+    upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
     buildFacility: (facilityTypeId = selectedFacilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
     startFacility: (facilityId) => runAction('startFacility', () => gameActions.startFacility(facilityId)),
     stopFacility: (facilityId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityId)),
@@ -483,7 +473,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     setProductionPlan: (facilityId, mode, targetQuantity) => (
       runAction('setProductionPlan', () => gameActions.setProductionPlan(facilityId, mode, targetQuantity))
     ),
-    collectFacility: (facilityId) => runAction('collectFacility', () => gameActions.collectFacility(facilityId)),
     listFacility: (facilityId, price) => runAction('listFacility', () => gameActions.listFacility(facilityId, price)),
     cancelFacilityListing: (listingId) => runAction('cancelFacilityListing', () => gameActions.cancelFacilityListing(listingId)),
     buyFacility: (listingId) => runAction('buyFacility', () => gameActions.buyFacility(listingId)),

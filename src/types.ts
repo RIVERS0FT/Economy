@@ -35,7 +35,6 @@ export interface FacilityTypeDefinition {
   operatingCost: number;
   input: FacilityRecipeItem | null;
   output: FacilityRecipeItem;
-  internalCapacity: number;
   systemValue: number;
 }
 
@@ -77,8 +76,6 @@ export interface ProductionFacility {
   inputProductId?: string;
   inputPerCycle: number;
   operatingCost: number;
-  internalGoods: number;
-  internalCapacity: number;
   lifetimeOutput: number;
   systemValue: number;
   productionMode: ProductionMode;
@@ -116,7 +113,6 @@ export interface FacilityListingSnapshot {
   inputProductId?: string;
   inputPerCycle: number;
   operatingCost: number;
-  internalCapacity: number;
   lifetimeOutput: number;
   systemValue: number;
 }
@@ -196,13 +192,15 @@ export interface AssetFacilityChange {
 export interface AssetProductionChange {
   facilityId: string;
   facilityName?: string;
+  /** `collected` is retained only for old browser-local history created before direct warehouse output. */
   action: 'produced' | 'collected';
   inputProductId?: string;
   inputQuantity: number;
   outputProductId?: string;
   outputQuantity: number;
-  internalGoodsDelta: number;
   completedQuantityDelta: number;
+  /** Legacy browser-local field; new production events do not write it. */
+  internalGoodsDelta?: number;
 }
 
 /** Browser-local only. Derived from two authoritative state snapshots. */

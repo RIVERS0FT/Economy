@@ -2,14 +2,18 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import {
-  applyAction,
-  createClientState,
   createWorld,
   ensurePlayer,
   migrateWorld,
-  processWorld,
 } from './domain.js';
 import { stripPlayerLogs } from './asset-events.js';
+import {
+  applyDirectProductionAction,
+  createDirectProductionClientState,
+  migrateDirectOutputWorld,
+  processDirectProductionWorld,
+  stripFactoryStorageFields,
+} from './direct-production.js';
 import { createWarehouseSummary, ensureWarehouse, upgradeWarehouse } from './warehouse.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -21,7 +25,7 @@ function normalizeJson(value) {
 function createVersionedClientState(world, userId, now) {
   const player = world.players[String(userId)];
   ensureWarehouse(player);
-  const state = createClientState(world, userId, now);
+  const state = createDirectProductionClientState(world, userId, now);
   const {
     trades: _serverTrades,
     ledger: _serverLedger,
@@ -101,17 +105,22 @@ export class EconomyStore {
     const row = this.selectWorld.get();
     if (!row) {
       const world = stripPlayerLogs(createWorld(now));
+      migrateDirectOutputWorld(world);
+      stripFactoryStorageFields(world);
       this.insertWorld.run(1, JSON.stringify(world), now);
       return { revision: 1, world };
     }
     const world = migrateWorld(JSON.parse(String(row.state_json)), now);
     stripPlayerLogs(world);
+    migrateDirectOutputWorld(world);
     for (const player of Object.values(world.players || {})) ensureWarehouse(player);
     return { revision: Number(row.revision), world };
   }
 
   saveWorld(revision, world, now) {
     for (const player of Object.values(world.players || {})) ensureWarehouse(player);
+    migrateDirectOutputWorld(world);
+    stripFactoryStorageFields(world);
     stripPlayerLogs(world);
     this.updateWorld.run(revision + 1, JSON.stringify(world), now);
   }
@@ -121,7 +130,7 @@ export class EconomyStore {
       const { revision, world } = this.loadWorld(now);
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
-      processWorld(world, now);
+      processDirectProductionWorld(world, now);
       ensureWarehouse(world.players[String(user.id)]);
       const state = normalizeJson(createVersionedClientState(world, Number(user.id), now));
       this.saveWorld(revision, world, now);
@@ -144,10 +153,12 @@ export class EconomyStore {
       const { revision, world } = this.loadWorld(now);
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
-      processWorld(world, now);
       const gameResult = action === 'upgradeWarehouse'
-        ? upgradeWarehouse(world.players[String(user.id)])
-        : applyAction(world, user, action, payload, now);
+        ? (() => {
+            processDirectProductionWorld(world, now);
+            return upgradeWarehouse(world.players[String(user.id)]);
+          })()
+        : applyDirectProductionAction(world, user, action, payload, now);
       ensureWarehouse(world.players[String(user.id)]);
       const state = createVersionedClientState(world, Number(user.id), now);
       const response = normalizeJson({ result: gameResult, state });

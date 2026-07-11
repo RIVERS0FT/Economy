@@ -114,12 +114,12 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
               value={`¤ ${formatCurrency(derived.commodityValue)}`}
               detail={`可用与冻结商品合计 ${game.warehouseStoredQuantity}`}
             />
-            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${game.facilities.length} 座工厂及内部产成品`} tone="info" />
+            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${game.facilities.length} 座工厂，仅按系统估值计算`} tone="info" />
           </div>
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading title="商品库存与估值" action={<span className="muted">点击商品进入对应市场</span>} />
+          <WidgetHeading title="商品库存与估值" action={<span className="muted">工厂产成品完成后直接进入这里的共享仓库库存</span>} />
           <div className="product-asset-grid">
             {game.products.map((product) => {
               const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
@@ -246,9 +246,12 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                     <span key={`${event.id}-${change.facilityId}-${change.action}`}>
                       {change.facilityName ?? '生产'}
                       <strong>
-                        {change.action === 'collected' ? '领取' : '产出'} {change.outputQuantity} {productName(change.outputProductId)}
+                        {change.action === 'collected' ? '旧版领取' : '产出入仓'} {change.outputQuantity} {productName(change.outputProductId)}
                       </strong>
-                      <small>{change.inputQuantity > 0 ? `消耗 ${change.inputQuantity} ${productName(change.inputProductId)} · ` : ''}内部变化 {signedQuantity(change.internalGoodsDelta)}</small>
+                      <small>
+                        {change.inputQuantity > 0 ? `消耗 ${change.inputQuantity} ${productName(change.inputProductId)} · ` : ''}
+                        {change.action === 'collected' ? '旧浏览器本地历史' : '已直接进入共享仓库'}
+                      </small>
                     </span>
                   ))}
                   {!event.cashDelta

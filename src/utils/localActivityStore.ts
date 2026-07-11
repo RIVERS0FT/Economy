@@ -28,7 +28,6 @@ export type LocalActivityAction =
   | 'startFacility'
   | 'pauseFacility'
   | 'setProductionPlan'
-  | 'collectFacility'
   | 'listFacility'
   | 'cancelFacilityListing'
   | 'buyFacility'
@@ -79,7 +78,6 @@ const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   startFacility: 'production',
   pauseFacility: 'production',
   setProductionPlan: 'production',
-  collectFacility: 'inventory',
   listFacility: 'facility',
   cancelFacilityListing: 'facility',
   buyFacility: 'facility',
@@ -251,23 +249,19 @@ function diffFacilities(
     }
 
     if (!previous || !current) continue;
-    const internalGoodsDelta = current.internalGoods - previous.internalGoods;
     const completedQuantityDelta = current.completedQuantity - previous.completedQuantity;
-    if (!internalGoodsDelta && !completedQuantityDelta) continue;
-    const producedQuantity = Math.max(0, internalGoodsDelta);
-    const collectedQuantity = Math.max(0, -internalGoodsDelta);
+    if (completedQuantityDelta <= 0) continue;
     const completedCycles = current.outputPerCycle > 0
-      ? Math.max(0, Math.floor(producedQuantity / current.outputPerCycle))
+      ? Math.max(0, Math.floor(completedQuantityDelta / current.outputPerCycle))
       : 0;
     productionChanges.push({
       facilityId,
       facilityName: current.name,
-      action: collectedQuantity > 0 ? 'collected' : 'produced',
+      action: 'produced',
       inputProductId: current.inputProductId,
       inputQuantity: completedCycles * current.inputPerCycle,
       outputProductId: current.outputProductId,
-      outputQuantity: producedQuantity || collectedQuantity,
-      internalGoodsDelta,
+      outputQuantity: completedQuantityDelta,
       completedQuantityDelta,
     });
   }
@@ -384,7 +378,7 @@ function defaultDescription(
   if (trades.length > 1) return `${trades.length} 笔市场成交已同步`;
   if (action === 'upgradeWarehouse') return '共享仓库已扩容';
   if (action === 'refresh') {
-    if (category === 'production') return '生产与资产状态已同步';
+    if (category === 'production') return '生产完成，产成品已直接进入共享仓库';
     if (category === 'facility') return '工厂状态已同步';
     if (category === 'warehouse') return '仓库等级与容量已同步';
     if (category === 'inventory') return '商品库存已同步';

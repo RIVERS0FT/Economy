@@ -93,7 +93,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
             <DataRow label="阻塞的工厂" value={derived.blockedFacilities} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
             <DataRow label="施工中的工厂" value={derived.constructingFacilities} tone="warning" />
             <DataRow label="定量计划" value={`${plannedFacilities} 个 / 剩余 ${pendingPlans}`} tone="info" />
-            <DataRow label="待领取产成品" value={derived.pendingGoods} />
+            <DataRow label="共享仓库剩余" value={game.warehouseAvailableCapacity} tone={game.warehouseAvailableCapacity > 0 ? 'success' : 'danger'} />
           </DataList>
         </Panel>
 

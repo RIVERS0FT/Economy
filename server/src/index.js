@@ -70,13 +70,12 @@ function resolveAction(method, path) {
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/reset') return { action: 'resetPlayer', category: 'general' };
 
-  const facilityAction = path.match(/^\/api\/game\/facilities\/([^/]+)\/(start|pause|stop|collect|list|plan)$/);
+  const facilityAction = path.match(/^\/api\/game\/facilities\/([^/]+)\/(start|pause|stop|list|plan)$/);
   if (method === 'POST' && facilityAction) {
     const actionMap = {
       start: 'startFacility',
       pause: 'pauseFacility',
       stop: 'pauseFacility',
-      collect: 'collectFacility',
       list: 'listFacility',
       plan: 'setProductionPlan',
     };
