@@ -9,6 +9,10 @@ function requireFile(path) {
   if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
 }
 
+function forbidFile(path) {
+  if (existsSync(resolve(root, path))) failures.push(`不应继续存在文件: ${path}`);
+}
+
 function requireText(path, text) {
   if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`);
 }
@@ -32,6 +36,8 @@ const pages = [
   'src/app/GameApp.tsx',
   'src/app/LoginPage.tsx',
   'src/app/gameViewModel.ts',
+  'src/api/game.ts',
+  'src/config/economy.ts',
   'src/components/shell/GameShell.tsx',
   'src/components/shell/DesktopSidebar.tsx',
   'src/components/shell/MobileBottomNavigation.tsx',
@@ -43,8 +49,16 @@ const pages = [
   'src/styles/desktop-sidebar.css',
   'src/styles/mobile-pages.css',
   'src/styles/mobile-status-layout.css',
+  'server/src/index.js',
+  'server/src/domain.js',
+  'server/src/storage.js',
+  'server/src/auth.js',
+  'server/test/domain.test.js',
+  'scripts/install-economy-api.py',
   ...pages.map((page) => `src/pages/${page}`),
 ].forEach(requireFile);
+
+forbidFile('src/store/gameStore.ts');
 
 const rootApp = read('src/App.tsx').trim();
 if (rootApp !== "export { default } from './app/App';") {
@@ -66,6 +80,9 @@ forbidText('src/components/shell/DesktopSidebar.tsx', '市场交易版');
 forbidText('src/components/shell/DesktopSidebar.tsx', 'player-mini-card');
 forbidText('src/components/shell/DesktopSidebar.tsx', 'player-avatar');
 forbidText('src/components/shell/DesktopSidebar.tsx', 'rank?: number');
+forbidText('src/app/gameViewModel.ts', 'localStorage');
+forbidText('src/app/gameViewModel.ts', 'useGameStore');
+forbidText('src/utils/runtimePerformance.ts', 'useGameStore');
 
 const visibleEnglish = [
   'Player command center',
@@ -149,6 +166,17 @@ requireText('src/main.tsx', "import './styles/desktop-sidebar.css'");
 requireText('src/main.tsx', "import './styles/mobile-pages.css'");
 requireText('src/main.tsx', "import './styles/mobile-status-layout.css'");
 
+requireText('src/api/game.ts', "const GAME_API_BASE = '/economy-api/game'");
+requireText('src/api/game.ts', "headers.set('Idempotency-Key', createRequestKey())");
+requireText('src/app/gameViewModel.ts', 'getGameState');
+requireText('src/app/gameViewModel.ts', 'setGame(response.state)');
+requireText('src/types.ts', 'version: 4;');
+requireText('server/src/storage.js', "this.database.exec('BEGIN IMMEDIATE')");
+requireText('server/src/domain.js', 'case"placeOrder"');
+requireText('server/src/domain.js', 'case"buyFacility"');
+requireText('deploy/nginx/game.riversoft.top.economy-location.conf', 'proxy_pass http://127.0.0.1:3002/api/game/;');
+requireText('package.json', '"server:test": "node --test server/test/*.test.js"');
+
 const router = read('src/pages/PageRouter.tsx');
 for (const page of pages) {
   const component = page.replace('.tsx', '');
@@ -160,4 +188,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('界面架构验证通过：侧边栏用户名整合、页面和卡片无绿色眉题、订单簿聚合、中文界面、全面屏状态栏和移动端布局均符合设计文档。');
+console.log('架构验证通过：前端仅保留界面与预测计算，资金、库存、设施、订单、成交和排行榜均接入服务器权威 API。');
