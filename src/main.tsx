@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { configureRuntimePerformance } from './utils/runtimePerformance';
 import './styles/globals.css';
+import './styles/desktop-sidebar.css';
 import './styles/performance.css';
 import './styles/viewport.css';
 import './styles/auth.css';

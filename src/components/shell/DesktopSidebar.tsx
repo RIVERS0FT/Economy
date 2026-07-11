@@ -1,37 +1,30 @@
 import { BRAND_LOGO_URL, BRAND_NAME } from '../../config/brand';
 import type { TabId } from '../../config/navigation';
-import type { AuthUser } from '../../types';
 import { NavigationItems } from './NavigationItems';
 
 export function DesktopSidebar({
-  user,
   playerName,
-  rank,
   activeTab,
   openOrderCount,
   onSelect,
   onSignOut,
 }: {
-  user: AuthUser;
   playerName: string;
-  rank?: number;
   activeTab: TabId;
   openOrderCount: number;
   onSelect: (tab: TabId) => void;
   onSignOut: () => void;
 }) {
-  const avatarText = (playerName || user.email).slice(0, 1).toUpperCase();
+  const displayName = playerName.trim() || '玩家';
 
   return (
     <aside className="sidebar desktop-sidebar panel">
       <div className="sidebar-brand">
         <img src={BRAND_LOGO_URL} alt="" aria-hidden="true" />
-        <div><strong>{BRAND_NAME}</strong><span>市场交易版</span></div>
-      </div>
-
-      <div className="player-mini-card">
-        <div className="player-avatar">{user.avatar ? <img src={user.avatar} alt="" /> : avatarText}</div>
-        <div><strong>{playerName}</strong><span>排名 #{rank ?? '--'} · 玩家</span></div>
+        <div>
+          <strong>{BRAND_NAME}</strong>
+          <span title={displayName}>{displayName}</span>
+        </div>
       </div>
 
       <nav className="sidebar-nav" aria-label="游戏主导航">

@@ -40,6 +40,7 @@ const pages = [
   'src/config/navigation.ts',
   'src/config/labels.ts',
   'src/pages/PageRouter.tsx',
+  'src/styles/desktop-sidebar.css',
   'src/styles/mobile-pages.css',
   'src/styles/mobile-status-layout.css',
   ...pages.map((page) => `src/pages/${page}`),
@@ -61,6 +62,10 @@ forbidText('src/config/navigation.ts', '主页面');
 forbidText('src/config/navigation.ts', '排行榜');
 forbidText('src/config/navigation.ts', '订单与记录');
 forbidText('src/pages/MarketPage.tsx', '<small>{order.ownerName}</small>');
+forbidText('src/components/shell/DesktopSidebar.tsx', '市场交易版');
+forbidText('src/components/shell/DesktopSidebar.tsx', 'player-mini-card');
+forbidText('src/components/shell/DesktopSidebar.tsx', 'player-avatar');
+forbidText('src/components/shell/DesktopSidebar.tsx', 'rank?: number');
 
 const visibleEnglish = [
   'Player command center',
@@ -116,6 +121,10 @@ requireText('src/pages/MarketPage.tsx', "aggregateOrderBook(derived.bids, 'buy')
 requireText('src/pages/MarketPage.tsx', "aggregateOrderBook(derived.asks, 'sell')");
 requireText('src/components/ui/layout.tsx', '<h1>{title}</h1>');
 requireText('src/components/ui/layout.tsx', '<h2>{title}</h2>');
+requireText('src/components/shell/DesktopSidebar.tsx', '<span title={displayName}>{displayName}</span>');
+requireText('src/components/shell/GameShell.tsx', 'playerName={model.game.playerName}');
+requireText('src/styles/desktop-sidebar.css', 'text-overflow: ellipsis');
+requireText('src/styles/desktop-sidebar.css', 'margin-top: .85rem');
 requireText('src/components/shell/StatusBar.tsx', 'items.map');
 requireText('src/components/shell/StatusBar.tsx', 'compactValue');
 requireText('src/components/shell/GameShell.tsx', '<DesktopSidebar');
@@ -136,6 +145,7 @@ requireText('src/styles/mobile-status-layout.css', 'justify-content: center');
 requireText('src/styles/mobile-pages.css', '.production-grid');
 requireText('src/styles/mobile-pages.css', 'grid-template-columns: minmax(0, 1fr)');
 requireText('src/styles/mobile-pages.css', '.asset-bar-item-value-compact');
+requireText('src/main.tsx', "import './styles/desktop-sidebar.css'");
 requireText('src/main.tsx', "import './styles/mobile-pages.css'");
 requireText('src/main.tsx', "import './styles/mobile-status-layout.css'");
 
@@ -150,4 +160,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('界面架构验证通过：页面和卡片均无绿色眉题，订单簿按价格聚合且隐藏买卖家，中文界面、全面屏状态栏、组件拆分、移动端布局和滚动职责均符合设计文档。');
+console.log('界面架构验证通过：侧边栏用户名整合、页面和卡片无绿色眉题、订单簿聚合、中文界面、全面屏状态栏和移动端布局均符合设计文档。');
