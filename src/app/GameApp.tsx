@@ -18,6 +18,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
       icon: '¤',
       label: '可用资金',
       value: <>¤ {formatCurrency(game.credits)}</>,
+      compactValue: formatCurrency(game.credits),
       detail: <>冻结 ¤ {formatCurrency(game.frozenCredits)}</>,
     },
     {
@@ -25,6 +26,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
       icon: '◆',
       label: '总资产',
       value: <>¤ {formatCurrency(derived.totalAssets)}</>,
+      compactValue: formatCurrency(derived.totalAssets),
       detail: <span className={weeklyChange >= 0 ? 'positive' : 'negative'}>本周 {weeklyChange >= 0 ? '+' : ''}¤ {formatCurrency(weeklyChange)}</span>,
       emphasis: 'primary',
     },
@@ -49,6 +51,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
       icon: '↕',
       label: '最近成交',
       value: <>¤ {game.marketPrice}</>,
+      compactValue: game.marketPrice,
       detail: <span className={derived.marketTrend >= 0 ? 'positive' : 'negative'}>{derived.marketTrend >= 0 ? '▲' : '▼'} {Math.abs(derived.marketTrend)}</span>,
       emphasis: 'market',
     },
