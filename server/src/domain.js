@@ -1,1 +1,1131 @@
-import{randomUUID}from"node:crypto";export const ECONOMY_CONSTANTS=Object.freeze({buildCost:60,buildTimeMs:3e5,maxOpenOrders:10,maxOrderQuantity:1e4,workResetMs:3e5,workCooldowns:[3e3,5e3,8e3,12e3],commodityName:"基础商品",demandCycleMs:3e5,maxPricePoints:288,maxTradesPerPlayer:160,maxLedgerPerPlayer:240});function createId(e){return`${e}-${randomUUID()}`}function clone(e){return structuredClone(e)}function addLedger(e,t,r,i,n=Date.now()){e.ledger.unshift({id:createId("ledger"),category:t,amount:r,balanceAfter:e.credits,createdAt:n,description:i}),e.ledger=e.ledger.slice(0,ECONOMY_CONSTANTS.maxLedgerPerPlayer)}function addTrade(e,t){e.trades.unshift({id:createId("trade"),...t}),e.trades=e.trades.slice(0,ECONOMY_CONSTANTS.maxTradesPerPlayer)}function seedPriceHistory(e){const t=[6,6,7,6,7,7,8,7,7,8,8,7,7,6,7,7,8,8,7,7,7,8,7,7];return t.map((r,i)=>({price:r,quantity:3+i%5,createdAt:e-6e4*(t.length-i)}))}function seedOrders(e){return[{id:createId("population-order"),side:"buy",ownerType:"population",ownerName:"人口需求",price:6,quantity:12,remaining:12,status:"open",createdAt:e-8e3},{id:createId("market-order"),side:"buy",ownerType:"market",ownerName:"市场流动采购",price:5,quantity:20,remaining:20,status:"open",createdAt:e-6e3},{id:createId("market-order"),side:"sell",ownerType:"market",ownerName:"市场流动供给",price:8,quantity:10,remaining:10,status:"open",createdAt:e-5e3}]}function seedFacilityListings(e){return[{id:createId("facility-listing"),facilityId:createId("market-facility"),ownerType:"market",ownerName:"系统资产市场",price:86,createdAt:e-3e4,facility:{name:"基础生产设施 A-17",level:1,cycleMs:3e4,outputPerCycle:1,operatingCost:1,internalCapacity:20,lifetimeOutput:37,systemValue:80}}]}export function createWorld(e=Date.now()){return{version:1,players:{},orders:seedOrders(e),facilityListings:seedFacilityListings(e),demand:{population:1e4,cycleMs:ECONOMY_CONSTANTS.demandCycleMs,nextDemandAt:e+ECONOMY_CONSTANTS.demandCycleMs,lastBudget:72,lastQuantity:12,lastPrice:6,satisfaction:.72},marketPrice:7,marketPriceHistory:seedPriceHistory(e),lastProcessedAt:e}}function createPlayer(e,t){const r={userId:Number(e.id),playerName:String(e.name||e.email?.split("@")[0]||"新玩家").trim().slice(0,32)||"新玩家",registeredAt:t,credits:100,frozenCredits:0,inventory:0,frozenInventory:0,inventoryCapacity:100,facilitySlots:1,facilities:[],trades:[],ledger:[],work:{cooldownUntil:0,lastWorkedAt:0,streak:0,totalClicks:0},stats:{workIssued:0,populationIssued:0,systemSinks:0,commodityVolume:0,facilityVolume:0}};return addLedger(r,"system",100,"服务器发放玩家启动资金",t),r}export function ensurePlayer(e,t,r=Date.now()){const i=String(t.id);return e.players[i]||(e.players[i]=createPlayer(t,r)),e.players[i]}function isOpenOrder(e){return e.remaining>0&&("open"===e.status||"partial"===e.status)}function recordPrice(e,t,r,i){e.marketPrice=t,e.marketPriceHistory.push({price:t,quantity:r,createdAt:i}),e.marketPriceHistory=e.marketPriceHistory.slice(-ECONOMY_CONSTANTS.maxPricePoints)}function totalAssets(e,t){const r=e.facilities.reduce((e,r)=>e+r.systemValue+r.internalGoods*t,0);return e.credits+e.frozenCredits+(e.inventory+e.frozenInventory)*t+r}function pendingBuyQuantity(e,t){return e.orders.filter(e=>e.ownerId===t&&"buy"===e.side&&isOpenOrder(e)).reduce((e,t)=>e+t.remaining,0)}function sortCandidates(e,t){return[...e].sort((e,r)=>e.price!==r.price?"buy"===t?e.price-r.price:r.price-e.price:e.createdAt-r.createdAt)}function describeCounterparty(e){return e.ownerName||("population"===e.ownerType?"人口需求":"市场")}function settlePlayerBuy(e,t,r,i,n,a){const s=e.players[String(t.ownerId)];if(!s)throw new Error(`Missing buyer ${t.ownerId}`);const o=r*t.price,l=r*i;s.frozenCredits-=o,s.credits+=o-l,s.inventory+=r,s.stats.commodityVolume+=r,addTrade(s,{type:"commodity",side:"buy",quantity:r,price:i,total:l,counterparty:n,createdAt:a,description:`买入 ${ECONOMY_CONSTANTS.commodityName}`}),addLedger(s,"market_trade",-l,`买入 ${r} 个${ECONOMY_CONSTANTS.commodityName}，成交价 ${i}`,a)}function settlePlayerSell(e,t,r,i,n,a){const s=e.players[String(t.ownerId)];if(!s)throw new Error(`Missing seller ${t.ownerId}`);const o=r*i;s.frozenInventory-=r,s.credits+=o,s.stats.commodityVolume+=r,"population"===n.ownerType&&(s.stats.populationIssued+=o),addTrade(s,{type:"commodity",side:"sell",quantity:r,price:i,total:o,counterparty:describeCounterparty(n),createdAt:a,description:`卖出 ${ECONOMY_CONSTANTS.commodityName}`}),addLedger(s,"population"===n.ownerType?"population_income":"market_trade",o,`${"population"===n.ownerType?"人口需求消费":"卖出"} ${r} 个${ECONOMY_CONSTANTS.commodityName}，成交价 ${i}`,a)}function executeTrade(e,t,r,i,n){const a="buy"===t.side?t:r,s="sell"===t.side?t:r,o=r.price;t.remaining-=i,r.remaining-=i,t.status=0===t.remaining?"filled":"partial",r.status=0===r.remaining?"filled":"partial","player"===a.ownerType&&settlePlayerBuy(e,a,i,o,describeCounterparty(s),n),"player"===s.ownerType&&settlePlayerSell(e,s,i,o,a,n),recordPrice(e,o,i,n)}function matchOrder(e,t,r){const i="buy"===t.side?"sell":"buy",n=sortCandidates(e.orders.filter(e=>!(e.id===t.id||e.side!==i||!isOpenOrder(e))&&(("player"!==e.ownerType||"player"!==t.ownerType||e.ownerId!==t.ownerId)&&("buy"===t.side?e.price<=t.price:e.price>=t.price))),t.side);for(const i of n){if(!isOpenOrder(t))break;const n=Math.min(t.remaining,i.remaining);executeTrade(e,t,i,n,r)}}function expirePopulationOrders(e){for(const t of e.orders)"population"===t.ownerType&&isOpenOrder(t)&&(t.status="cancelled")}function createPopulationDemand(e,t){expirePopulationOrders(e);const r=Math.floor(t/e.demand.cycleMs),i=6+r%3,n=8+r%5,a={id:createId("population-order"),side:"buy",ownerType:"population",ownerName:"人口需求",price:i,quantity:n,remaining:n,status:"open",createdAt:t};e.orders.push(a),e.demand.lastPrice=i,e.demand.lastQuantity=n,e.demand.lastBudget=i*n,e.demand.nextDemandAt=t+e.demand.cycleMs,matchOrder(e,a,t),e.demand.satisfaction=0===n?1:Math.max(.35,Math.min(1,(n-a.remaining)/n))}function refreshExternalLiquidity(e,t){const r=e.orders.filter(e=>"market"===e.ownerType&&"buy"===e.side&&isOpenOrder(e)),i=e.orders.filter(e=>"market"===e.ownerType&&"sell"===e.side&&isOpenOrder(e));if(r.length<1){const r={id:createId("market-order"),side:"buy",ownerType:"market",ownerName:"市场流动采购",price:Math.max(3,e.marketPrice-2),quantity:16,remaining:16,status:"open",createdAt:t};e.orders.push(r),matchOrder(e,r,t)}if(i.length<2){const r={id:createId("market-order"),side:"sell",ownerType:"market",ownerName:"市场流动供给",price:e.marketPrice+1+i.length,quantity:12,remaining:12,status:"open",createdAt:t};e.orders.push(r),matchOrder(e,r,t)}}function processFacilities(e,t){for(const r of e.facilities){if("constructing"===r.status&&r.constructionCompletesAt&&t>=r.constructionCompletesAt&&(r.status="ready",r.builtAt=r.constructionCompletesAt,delete r.constructionCompletesAt,addLedger(e,"system",0,`${r.name} 已完成施工，可启动生产`,t)),"running"!==r.status||!r.cycleStartedAt)continue;let i=Math.min(500,Math.floor((t-r.cycleStartedAt)/r.cycleMs));for(;i>0;){if(r.internalGoods+r.outputPerCycle>r.internalCapacity){r.status="full",delete r.cycleStartedAt;break}if(e.credits<r.operatingCost){r.status="insufficient_funds",delete r.cycleStartedAt;break}e.credits-=r.operatingCost,e.stats.systemSinks+=r.operatingCost,r.internalGoods+=r.outputPerCycle,r.lifetimeOutput+=r.outputPerCycle,r.cycleStartedAt+=r.cycleMs,addLedger(e,"facility_operation",-r.operatingCost,`${r.name} 完成生产周期并支付运营费`,r.cycleStartedAt),i-=1}}}function pruneWorld(e,t){const r=t-864e5,i=e.orders.filter(isOpenOrder),n=e.orders.filter(e=>!isOpenOrder(e)&&e.createdAt>=r).slice(-500);e.orders=[...n,...i].slice(-2e3),e.facilityListings=e.facilityListings.slice(-500)}export function processWorld(e,t=Date.now()){for(const r of Object.values(e.players))processFacilities(r,t);return t>=e.demand.nextDemandAt&&createPopulationDemand(e,t),refreshExternalLiquidity(e,t),pruneWorld(e,t),e.lastProcessedAt=t,e}function result(e,t){return{ok:e,message:t}}function getPlayer(e,t){const r=e.players[String(t)];if(!r)throw new Error(`Missing player ${t}`);return r}function normalizePositiveInteger(e,t=Number.MAX_SAFE_INTEGER){const r=Number(e);if(!Number.isFinite(r))return null;const i=Math.floor(r);return i<1||i>t?null:i}function work(e,t,r){const i=getPlayer(e,t);if(r<i.work.cooldownUntil)return result(!1,"工作冷却尚未结束");const n=r-i.work.lastWorkedAt>=ECONOMY_CONSTANTS.workResetMs;i.work.streak=n?1:Math.min(4,i.work.streak+1);const a=ECONOMY_CONSTANTS.workCooldowns[i.work.streak-1];return i.work.cooldownUntil=r+a,i.work.lastWorkedAt=r,i.work.totalClicks+=1,i.credits+=1,i.stats.workIssued+=1,addLedger(i,"work_income",1,`完成工作，连续工作冷却 ${a/1e3} 秒`,r),result(!0,"工作完成，获得 1 货币")}function buildFacility(e,t,r){const i=getPlayer(e,t);return i.facilities.length>=i.facilitySlots?result(!1,"生产设施槽位不足"):i.facilities.some(e=>"constructing"===e.status)?result(!1,"同时只能施工一座生产设施"):i.credits<ECONOMY_CONSTANTS.buildCost?result(!1,"建造资金不足"):(i.credits-=ECONOMY_CONSTANTS.buildCost,i.stats.systemSinks+=ECONOMY_CONSTANTS.buildCost,i.facilities.push({id:createId("facility"),name:`基础生产设施 ${i.facilities.length+1}`,ownerId:t,level:1,status:"constructing",builtAt:0,constructionCompletesAt:r+ECONOMY_CONSTANTS.buildTimeMs,cycleMs:3e4,outputPerCycle:1,operatingCost:1,internalGoods:0,internalCapacity:20,lifetimeOutput:0,systemValue:80}),addLedger(i,"facility_construction",-ECONOMY_CONSTANTS.buildCost,"支付基础生产设施建造费用",r),result(!0,"生产设施开始施工，预计 5 分钟完成"))}function findOwnedFacility(e,t){return e.facilities.find(e=>e.id===t)}function startFacility(e,t,r,i){const n=getPlayer(e,t),a=findOwnedFacility(n,r.facilityId);return a?"constructing"===a.status||"listed"===a.status?result(!1,"当前状态不能启动生产"):a.internalGoods>=a.internalCapacity?(a.status="full",result(!1,"设施内部商品已满")):n.credits<a.operatingCost?(a.status="insufficient_funds",result(!1,"运营资金不足")):(a.status="running",a.cycleStartedAt=i,result(!0,"生产设施已启动")):result(!1,"生产设施不存在")}function pauseFacility(e,t,r){const i=findOwnedFacility(getPlayer(e,t),r.facilityId);return i?"running"!==i.status?result(!1,"生产设施当前未运行"):(i.status="paused",delete i.cycleStartedAt,result(!0,"生产设施已暂停")):result(!1,"生产设施不存在")}function collectFacility(e,t,r,i){const n=getPlayer(e,t),a=findOwnedFacility(n,r.facilityId);if(!a||a.internalGoods<=0)return result(!1,"没有可领取的商品");const s=pendingBuyQuantity(e,t),o=n.inventoryCapacity-n.inventory-n.frozenInventory-s;if(o<=0)return result(!1,"玩家库存已满或已被买单预占");const l=Math.min(a.internalGoods,o);return a.internalGoods-=l,n.inventory+=l,"full"===a.status&&a.internalGoods<a.internalCapacity&&(a.status="paused"),addLedger(n,"inventory",0,`从 ${a.name} 领取 ${l} 个${ECONOMY_CONSTANTS.commodityName}`,i),result(!0,`已领取 ${l} 个${ECONOMY_CONSTANTS.commodityName}`)}function listFacility(e,t,r,i){const n=getPlayer(e,t),a=findOwnedFacility(n,r.facilityId),s=normalizePositiveInteger(r.price);if(!a)return result(!1,"生产设施不存在");if(!s)return result(!1,"挂牌价格无效");if(!["ready","paused","full","insufficient_funds"].includes(a.status))return result(!1,"当前状态不能挂牌");if(a.internalGoods>0)return result(!1,"挂牌前必须领取全部内部商品");if(s<.5*a.systemValue||s>2*a.systemValue)return result(!1,"挂牌价必须在系统估值的 50%～200% 之间");const o=createId("facility-listing");return a.status="listed",a.listedOrderId=o,delete a.cycleStartedAt,e.facilityListings.push({id:o,facilityId:a.id,ownerType:"player",ownerId:t,ownerName:n.playerName,price:s,createdAt:i,facility:{name:a.name,level:a.level,cycleMs:a.cycleMs,outputPerCycle:a.outputPerCycle,operatingCost:a.operatingCost,internalCapacity:a.internalCapacity,lifetimeOutput:a.lifetimeOutput,systemValue:a.systemValue}}),result(!0,"生产设施已进入市场挂牌")}function cancelFacilityListing(e,t,r){const i=e.facilityListings.find(e=>e.id===r.listingId&&e.ownerId===t);if(!i)return result(!1,"设施挂牌不存在");const n=findOwnedFacility(getPlayer(e,t),i.facilityId);return n&&(n.status="paused",delete n.listedOrderId),e.facilityListings=e.facilityListings.filter(e=>e.id!==i.id),result(!0,"设施挂牌已撤销")}function buyFacility(e,t,r,i){const n=getPlayer(e,t),a=e.facilityListings.find(e=>e.id===r.listingId);if(!a||a.ownerId===t)return result(!1,"无法购买该挂牌");if(n.facilities.length>=n.facilitySlots)return result(!1,"生产设施槽位不足");if(n.credits<a.price)return result(!1,"购买资金不足");let s;if(n.credits-=a.price,n.stats.facilityVolume+=a.price,"player"===a.ownerType&&null!=a.ownerId){const r=getPlayer(e,a.ownerId),o=r.facilities.find(e=>e.id===a.facilityId);if(!o||"listed"!==o.status)return result(!1,"挂牌状态已经变化，请刷新后重试");r.facilities=r.facilities.filter(e=>e.id!==o.id),r.credits+=a.price,r.stats.facilityVolume+=a.price,addTrade(r,{type:"facility",side:"sell",quantity:1,price:a.price,total:a.price,counterparty:n.playerName,createdAt:i,description:`出售 ${o.name}`}),addLedger(r,"facility_sale",a.price,`${o.name} 已完成产权交割`,i),s={...o,ownerId:t,status:"ready"},delete s.listedOrderId,delete s.cycleStartedAt}else s={id:createId("facility"),name:a.facility.name,ownerId:t,level:a.facility.level,status:"ready",builtAt:i,cycleMs:a.facility.cycleMs,outputPerCycle:a.facility.outputPerCycle,operatingCost:a.facility.operatingCost,internalGoods:0,internalCapacity:a.facility.internalCapacity,lifetimeOutput:a.facility.lifetimeOutput,systemValue:a.facility.systemValue};return n.facilities.push(s),e.facilityListings=e.facilityListings.filter(e=>e.id!==a.id),addTrade(n,{type:"facility",side:"buy",quantity:1,price:a.price,total:a.price,counterparty:a.ownerName,createdAt:i,description:`收购 ${s.name}`}),addLedger(n,"facility_trade",-a.price,`从 ${a.ownerName} 收购 ${s.name}`,i),result(!0,"生产设施产权已即时交割")}function placeOrder(e,t,r,i){const n=getPlayer(e,t),a="buy"===r.side||"sell"===r.side?r.side:null,s=normalizePositiveInteger(r.quantity,ECONOMY_CONSTANTS.maxOrderQuantity),o=normalizePositiveInteger(r.price,1e6);if(!a||!s||!o)return result(!1,"订单参数无效");const l=e.orders.filter(e=>e.ownerId===t&&isOpenOrder(e));if(l.length>=ECONOMY_CONSTANTS.maxOpenOrders)return result(!1,"最多只能有 10 笔未完成订单");if("buy"===a&&n.credits<s*o)return result(!1,"可用资金不足");if("sell"===a&&n.inventory<s)return result(!1,"可用库存不足");if("buy"===a&&n.inventory+pendingBuyQuantity(e,t)+s>n.inventoryCapacity)return result(!1,"玩家库存容量不足");"buy"===a?(n.credits-=s*o,n.frozenCredits+=s*o):(n.inventory-=s,n.frozenInventory+=s);const c={id:createId("order"),side:a,ownerType:"player",ownerId:t,ownerName:n.playerName,price:o,quantity:s,remaining:s,status:"open",createdAt:i};return e.orders.push(c),matchOrder(e,c,i),result(!0,"订单已提交并按价格优先、时间优先撮合")}function cancelOrder(e,t,r){const i=getPlayer(e,t),n=e.orders.find(e=>e.id===r.orderId&&e.ownerId===t);if(!n||!isOpenOrder(n))return result(!1,"订单不存在或已结束");if("buy"===n.side){const e=n.remaining*n.price;i.frozenCredits-=e,i.credits+=e}else i.frozenInventory-=n.remaining,i.inventory+=n.remaining;return n.status="cancelled",result(!0,"订单已撤销，冻结资产已释放")}function renamePlayer(e,t,r){const i=getPlayer(e,t),n=String(r.playerName||"").trim().slice(0,32);if(!n)return result(!1,"玩家昵称不能为空");i.playerName=n;for(const r of e.orders)r.ownerId===t&&(r.ownerName=n);for(const r of e.facilityListings)r.ownerId===t&&(r.ownerName=n);return result(!0,"玩家昵称已更新")}function resetPlayer(e,t,r){const i=Number(t.id);return e.orders=e.orders.filter(e=>e.ownerId!==i),e.facilityListings=e.facilityListings.filter(e=>e.ownerId!==i),e.players[String(i)]=createPlayer(t,r),result(!0,"服务器经济状态已重置")}export function applyAction(e,t,r,i={},n=Date.now()){ensurePlayer(e,t,n),processWorld(e,n);const a=Number(t.id);switch(r){case"work":return work(e,a,n);case"buildFacility":return buildFacility(e,a,n);case"startFacility":return startFacility(e,a,i,n);case"pauseFacility":return pauseFacility(e,a,i,n);case"collectFacility":return collectFacility(e,a,i,n);case"listFacility":return listFacility(e,a,i,n);case"cancelFacilityListing":return cancelFacilityListing(e,a,i,n);case"buyFacility":return buyFacility(e,a,i,n);case"placeOrder":return placeOrder(e,a,i,n);case"cancelOrder":return cancelOrder(e,a,i,n);case"renamePlayer":return renamePlayer(e,a,i,n);case"resetPlayer":return resetPlayer(e,t,n);default:return result(!1,"未知游戏操作")}}function leaderboard(e,t,r){const i=Object.values(e.players).map(i=>{const n=totalAssets(i,e.marketPrice);return{playerName:i.playerName,totalAssets:n,cashAssets:i.credits+i.frozenCredits,facilityCount:i.facilities.length,weeklyChange:Math.round(n-100),updatedAt:r,isCurrentPlayer:i.userId===t}}).sort((e,t)=>t.totalAssets-e.totalAssets||e.playerName.localeCompare(t.playerName,"zh-CN")).map((e,t)=>({...e,rank:t+1})),n=i.find(e=>e.isCurrentPlayer),a=i.slice(0,100);return n&&n.rank>100&&a.push(n),a}export function createClientState(e,t,r=Date.now()){processWorld(e,r);const i=getPlayer(e,t),n=e.orders.filter(isOpenOrder),a=e.orders.filter(e=>e.ownerId===t&&!isOpenOrder(e)).slice(-100);return clone({version:4,userId:t,playerName:i.playerName,registeredAt:i.registeredAt,credits:i.credits,frozenCredits:i.frozenCredits,inventory:i.inventory,frozenInventory:i.frozenInventory,inventoryCapacity:i.inventoryCapacity,facilitySlots:i.facilitySlots,facilities:i.facilities,commodityName:ECONOMY_CONSTANTS.commodityName,orders:[...a,...n],facilityListings:e.facilityListings,trades:i.trades,ledger:i.ledger,work:i.work,demand:e.demand,stats:i.stats,marketPrice:e.marketPrice,marketPriceHistory:e.marketPriceHistory,leaderboard:leaderboard(e,t,r),lastProcessedAt:e.lastProcessedAt})}
+import { randomUUID } from 'node:crypto';
+
+export const ECONOMY_CONSTANTS = Object.freeze({
+  maxOpenOrders: 10,
+  maxOrderQuantity: 10_000,
+  workResetMs: 5 * 60 * 1000,
+  workCooldowns: [3_000, 5_000, 8_000, 12_000],
+  demandCycleMs: 5 * 60 * 1000,
+  maxPricePoints: 288,
+  maxTradesPerPlayer: 240,
+  maxLedgerPerPlayer: 360,
+  defaultInventoryCapacity: 500,
+  maxFacilitiesProcessedPerTick: 10_000,
+});
+
+export const PRODUCT_CATALOG = Object.freeze([
+  { id: 'grain', name: '粮食', category: 'raw', basePrice: 6 },
+  { id: 'ore', name: '铁矿石', category: 'raw', basePrice: 8 },
+  { id: 'flour', name: '面粉', category: 'intermediate', basePrice: 13 },
+  { id: 'steel', name: '钢材', category: 'intermediate', basePrice: 20 },
+  { id: 'food', name: '食品', category: 'consumer', basePrice: 18 },
+  { id: 'machinery', name: '机械', category: 'industrial', basePrice: 45 },
+]);
+
+export const FACILITY_TYPE_CATALOG = Object.freeze([
+  {
+    id: 'farm',
+    name: '农场',
+    category: 'raw',
+    buildCost: 60,
+    buildTimeMs: 5 * 60 * 1000,
+    cycleMs: 30_000,
+    operatingCost: 1,
+    input: null,
+    output: { productId: 'grain', quantity: 2 },
+    internalCapacity: 40,
+    systemValue: 80,
+  },
+  {
+    id: 'mine',
+    name: '矿场',
+    category: 'raw',
+    buildCost: 70,
+    buildTimeMs: 5 * 60 * 1000,
+    cycleMs: 35_000,
+    operatingCost: 1,
+    input: null,
+    output: { productId: 'ore', quantity: 2 },
+    internalCapacity: 40,
+    systemValue: 90,
+  },
+  {
+    id: 'mill',
+    name: '面粉厂',
+    category: 'processing',
+    buildCost: 100,
+    buildTimeMs: 8 * 60 * 1000,
+    cycleMs: 40_000,
+    operatingCost: 2,
+    input: { productId: 'grain', quantity: 2 },
+    output: { productId: 'flour', quantity: 1 },
+    internalCapacity: 30,
+    systemValue: 130,
+  },
+  {
+    id: 'steelworks',
+    name: '钢铁厂',
+    category: 'processing',
+    buildCost: 140,
+    buildTimeMs: 10 * 60 * 1000,
+    cycleMs: 50_000,
+    operatingCost: 3,
+    input: { productId: 'ore', quantity: 3 },
+    output: { productId: 'steel', quantity: 1 },
+    internalCapacity: 25,
+    systemValue: 180,
+  },
+  {
+    id: 'food-factory',
+    name: '食品厂',
+    category: 'consumer',
+    buildCost: 160,
+    buildTimeMs: 10 * 60 * 1000,
+    cycleMs: 45_000,
+    operatingCost: 3,
+    input: { productId: 'flour', quantity: 2 },
+    output: { productId: 'food', quantity: 3 },
+    internalCapacity: 45,
+    systemValue: 210,
+  },
+  {
+    id: 'machine-factory',
+    name: '机械厂',
+    category: 'industrial',
+    buildCost: 240,
+    buildTimeMs: 15 * 60 * 1000,
+    cycleMs: 90_000,
+    operatingCost: 6,
+    input: { productId: 'steel', quantity: 2 },
+    output: { productId: 'machinery', quantity: 1 },
+    internalCapacity: 15,
+    systemValue: 320,
+  },
+]);
+
+const PRODUCTS = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
+const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+
+function createId(prefix) {
+  return `${prefix}-${randomUUID()}`;
+}
+
+function clone(value) {
+  return structuredClone(value);
+}
+
+function productDefinition(productId) {
+  return PRODUCTS.get(productId) || PRODUCTS.get('grain');
+}
+
+function facilityTypeDefinition(typeId) {
+  return FACILITY_TYPES.get(typeId) || FACILITY_TYPES.get('farm');
+}
+
+function createInventories() {
+  return Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, { available: 0, frozen: 0 }]));
+}
+
+function inventoryFor(player, productId) {
+  const id = productDefinition(productId).id;
+  player.inventories ||= createInventories();
+  player.inventories[id] ||= { available: 0, frozen: 0 };
+  return player.inventories[id];
+}
+
+function inventoryUsed(player) {
+  return Object.values(player.inventories || {}).reduce(
+    (sum, inventory) => sum + Number(inventory.available || 0) + Number(inventory.frozen || 0),
+    0,
+  );
+}
+
+function addLedger(player, category, amount, description, createdAt = Date.now()) {
+  player.ledger.unshift({
+    id: createId('ledger'),
+    category,
+    amount,
+    balanceAfter: player.credits,
+    createdAt,
+    description,
+  });
+  player.ledger = player.ledger.slice(0, ECONOMY_CONSTANTS.maxLedgerPerPlayer);
+}
+
+function addTrade(player, trade) {
+  player.trades.unshift({ id: createId('trade'), ...trade });
+  player.trades = player.trades.slice(0, ECONOMY_CONSTANTS.maxTradesPerPlayer);
+}
+
+function seedPriceHistory(product, now) {
+  const offsets = [-1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 0, 0, 1, -1, 0, 1, 0, 1, 0, -1, 0, 1, 0, 0];
+  return offsets.map((offset, index) => ({
+    price: Math.max(1, product.basePrice + offset),
+    quantity: 3 + (index % 5),
+    createdAt: now - 60_000 * (offsets.length - index),
+  }));
+}
+
+function createMarket(product, now) {
+  return {
+    productId: product.id,
+    lastPrice: product.basePrice,
+    priceHistory: seedPriceHistory(product, now),
+    demand: {
+      cycleMs: ECONOMY_CONSTANTS.demandCycleMs,
+      nextDemandAt: now + ECONOMY_CONSTANTS.demandCycleMs,
+      lastBudget: product.basePrice * 8,
+      lastQuantity: 8,
+      lastPrice: product.basePrice,
+      satisfaction: 0.7,
+    },
+  };
+}
+
+function createMarkets(now) {
+  return Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, createMarket(product, now)]));
+}
+
+function marketFor(world, productId) {
+  const product = productDefinition(productId);
+  world.markets ||= createMarkets(Date.now());
+  world.markets[product.id] ||= createMarket(product, Date.now());
+  return world.markets[product.id];
+}
+
+function seedOrders(now) {
+  return PRODUCT_CATALOG.flatMap((product, index) => [
+    {
+      id: createId('market-order'),
+      productId: product.id,
+      side: 'buy',
+      ownerType: 'market',
+      ownerName: '市场流动采购',
+      price: Math.max(1, product.basePrice - 2),
+      quantity: 18,
+      remaining: 18,
+      status: 'open',
+      createdAt: now - 8_000 + index,
+    },
+    {
+      id: createId('market-order'),
+      productId: product.id,
+      side: 'sell',
+      ownerType: 'market',
+      ownerName: '市场流动供给',
+      price: product.basePrice + 2,
+      quantity: 14,
+      remaining: 14,
+      status: 'open',
+      createdAt: now - 5_000 + index,
+    },
+  ]);
+}
+
+function createFacilityFromType(typeId, ownerId, now, overrides = {}) {
+  const type = facilityTypeDefinition(typeId);
+  return {
+    id: overrides.id || createId('facility'),
+    facilityTypeId: type.id,
+    name: overrides.name || type.name,
+    ownerId,
+    level: Number(overrides.level || 1),
+    status: overrides.status || 'constructing',
+    stopReason: overrides.stopReason,
+    builtAt: Number(overrides.builtAt || 0),
+    constructionCompletesAt: overrides.constructionCompletesAt,
+    cycleStartedAt: overrides.cycleStartedAt,
+    cycleMs: type.cycleMs,
+    outputProductId: type.output.productId,
+    outputPerCycle: type.output.quantity,
+    inputProductId: type.input?.productId,
+    inputPerCycle: type.input?.quantity || 0,
+    operatingCost: type.operatingCost,
+    internalGoods: Number(overrides.internalGoods || 0),
+    internalCapacity: type.internalCapacity,
+    lifetimeOutput: Number(overrides.lifetimeOutput || 0),
+    systemValue: type.systemValue,
+    productionMode: overrides.productionMode || 'continuous',
+    targetQuantity: overrides.targetQuantity,
+    completedQuantity: Number(overrides.completedQuantity || 0),
+    listedOrderId: overrides.listedOrderId,
+  };
+}
+
+function facilitySnapshot(facility) {
+  return {
+    id: facility.id,
+    facilityTypeId: facility.facilityTypeId,
+    name: facility.name,
+    level: facility.level,
+    cycleMs: facility.cycleMs,
+    outputProductId: facility.outputProductId,
+    outputPerCycle: facility.outputPerCycle,
+    inputProductId: facility.inputProductId,
+    inputPerCycle: facility.inputPerCycle,
+    operatingCost: facility.operatingCost,
+    internalCapacity: facility.internalCapacity,
+    lifetimeOutput: facility.lifetimeOutput,
+    systemValue: facility.systemValue,
+  };
+}
+
+function seedFacilityListings(now) {
+  const facility = createFacilityFromType('farm', 0, now, {
+    id: createId('market-facility'),
+    name: '成熟农场 A-17',
+    status: 'paused',
+    builtAt: now - 86_400_000,
+    lifetimeOutput: 74,
+  });
+  return [{
+    id: createId('facility-listing'),
+    facilityId: facility.id,
+    ownerType: 'market',
+    ownerName: '系统资产市场',
+    price: 86,
+    createdAt: now - 30_000,
+    facility: facilitySnapshot(facility),
+  }];
+}
+
+export function createWorld(now = Date.now()) {
+  return {
+    version: 2,
+    players: {},
+    orders: seedOrders(now),
+    facilityListings: seedFacilityListings(now),
+    markets: createMarkets(now),
+    lastProcessedAt: now,
+  };
+}
+
+function createPlayer(user, now) {
+  const player = {
+    userId: Number(user.id),
+    playerName: String(user.name || user.email?.split('@')[0] || '新玩家').trim().slice(0, 32) || '新玩家',
+    registeredAt: now,
+    credits: 100,
+    frozenCredits: 0,
+    inventories: createInventories(),
+    inventoryCapacity: ECONOMY_CONSTANTS.defaultInventoryCapacity,
+    facilities: [],
+    trades: [],
+    ledger: [],
+    work: { cooldownUntil: 0, lastWorkedAt: 0, streak: 0, totalClicks: 0 },
+    stats: {
+      workIssued: 0,
+      populationIssued: 0,
+      systemSinks: 0,
+      commodityVolume: 0,
+      facilityVolume: 0,
+    },
+  };
+  addLedger(player, 'system', 100, '服务器发放玩家启动资金', now);
+  return player;
+}
+
+function migrateFacility(facility, ownerId) {
+  if (facility.facilityTypeId) {
+    const type = facilityTypeDefinition(facility.facilityTypeId);
+    facility.outputProductId ||= type.output.productId;
+    facility.outputPerCycle ||= type.output.quantity;
+    facility.inputProductId ||= type.input?.productId;
+    facility.inputPerCycle ||= type.input?.quantity || 0;
+    facility.productionMode ||= 'continuous';
+    facility.completedQuantity ||= 0;
+    return facility;
+  }
+  const statusMap = {
+    constructing: 'constructing',
+    running: 'running',
+    listed: 'listed',
+    ready: 'ready',
+    paused: 'paused',
+    full: 'full',
+    insufficient_funds: 'insufficient_funds',
+  };
+  return createFacilityFromType('farm', ownerId, Date.now(), {
+    ...facility,
+    status: statusMap[facility.status] || 'paused',
+    productionMode: 'continuous',
+    completedQuantity: 0,
+  });
+}
+
+export function migrateWorld(world, now = Date.now()) {
+  if (!world || typeof world !== 'object') return createWorld(now);
+
+  if (!world.markets) {
+    const markets = createMarkets(now);
+    if (Number.isFinite(world.marketPrice)) markets.grain.lastPrice = Number(world.marketPrice);
+    if (Array.isArray(world.marketPriceHistory) && world.marketPriceHistory.length) {
+      markets.grain.priceHistory = world.marketPriceHistory.map((point) => ({
+        price: Number(point.price || markets.grain.lastPrice),
+        quantity: Number(point.quantity || 1),
+        createdAt: Number(point.createdAt || now),
+      }));
+    }
+    if (world.demand) markets.grain.demand = { ...markets.grain.demand, ...world.demand };
+    world.markets = markets;
+  }
+
+  world.orders ||= [];
+  for (const order of world.orders) order.productId ||= 'grain';
+
+  world.facilityListings ||= [];
+  for (const listing of world.facilityListings) {
+    listing.facility ||= {};
+    listing.facility.facilityTypeId ||= 'farm';
+    listing.facility.outputProductId ||= 'grain';
+    listing.facility.outputPerCycle ||= 1;
+    listing.facility.inputPerCycle ||= 0;
+  }
+
+  world.players ||= {};
+  for (const player of Object.values(world.players)) {
+    if (!player.inventories) {
+      player.inventories = createInventories();
+      player.inventories.grain.available = Number(player.inventory || 0);
+      player.inventories.grain.frozen = Number(player.frozenInventory || 0);
+    }
+    for (const product of PRODUCT_CATALOG) inventoryFor(player, product.id);
+    player.inventoryCapacity = Number(player.inventoryCapacity || ECONOMY_CONSTANTS.defaultInventoryCapacity);
+    player.facilities = (player.facilities || []).map((facility) => migrateFacility(facility, player.userId));
+    player.trades ||= [];
+    for (const trade of player.trades) {
+      if (trade.type === 'commodity') trade.productId ||= 'grain';
+    }
+    player.ledger ||= [];
+    delete player.inventory;
+    delete player.frozenInventory;
+    delete player.facilitySlots;
+  }
+
+  delete world.marketPrice;
+  delete world.marketPriceHistory;
+  delete world.demand;
+  world.version = 2;
+  return world;
+}
+
+export function ensurePlayer(world, user, now = Date.now()) {
+  migrateWorld(world, now);
+  const key = String(user.id);
+  if (!world.players[key]) world.players[key] = createPlayer(user, now);
+  return world.players[key];
+}
+
+function isOpenOrder(order) {
+  return order.remaining > 0 && (order.status === 'open' || order.status === 'partial');
+}
+
+function recordPrice(world, productId, price, quantity, createdAt) {
+  const market = marketFor(world, productId);
+  market.lastPrice = price;
+  market.priceHistory.push({ price, quantity, createdAt });
+  market.priceHistory = market.priceHistory.slice(-ECONOMY_CONSTANTS.maxPricePoints);
+}
+
+function totalAssets(world, player) {
+  const inventoryValue = PRODUCT_CATALOG.reduce((sum, product) => {
+    const inventory = inventoryFor(player, product.id);
+    return sum + (inventory.available + inventory.frozen) * marketFor(world, product.id).lastPrice;
+  }, 0);
+  const facilityValue = player.facilities.reduce((sum, facility) => (
+    sum + facility.systemValue + facility.internalGoods * marketFor(world, facility.outputProductId).lastPrice
+  ), 0);
+  return player.credits + player.frozenCredits + inventoryValue + facilityValue;
+}
+
+function pendingBuyQuantity(world, userId) {
+  return world.orders
+    .filter((order) => order.ownerId === userId && order.side === 'buy' && isOpenOrder(order))
+    .reduce((sum, order) => sum + order.remaining, 0);
+}
+
+function sortCandidates(orders, side) {
+  return [...orders].sort((left, right) => {
+    if (left.price !== right.price) return side === 'buy' ? left.price - right.price : right.price - left.price;
+    return left.createdAt - right.createdAt;
+  });
+}
+
+function describeCounterparty(order) {
+  return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '市场');
+}
+
+function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, createdAt) {
+  const player = world.players[String(order.ownerId)];
+  if (!player) throw new Error(`Missing buyer ${order.ownerId}`);
+  const reserved = quantity * order.price;
+  const actual = quantity * tradePrice;
+  player.frozenCredits -= reserved;
+  player.credits += reserved - actual;
+  inventoryFor(player, order.productId).available += quantity;
+  player.stats.commodityVolume += quantity;
+  const product = productDefinition(order.productId);
+  addTrade(player, {
+    type: 'commodity',
+    productId: product.id,
+    side: 'buy',
+    quantity,
+    price: tradePrice,
+    total: actual,
+    counterparty: sellerName,
+    createdAt,
+    description: `买入 ${product.name}`,
+  });
+  addLedger(player, 'market_trade', -actual, `买入 ${quantity} 个${product.name}，成交价 ${tradePrice}`, createdAt);
+}
+
+function settlePlayerSell(world, order, quantity, tradePrice, buyer, createdAt) {
+  const player = world.players[String(order.ownerId)];
+  if (!player) throw new Error(`Missing seller ${order.ownerId}`);
+  const inventory = inventoryFor(player, order.productId);
+  const total = quantity * tradePrice;
+  inventory.frozen -= quantity;
+  player.credits += total;
+  player.stats.commodityVolume += quantity;
+  if (buyer.ownerType === 'population') player.stats.populationIssued += total;
+  const product = productDefinition(order.productId);
+  addTrade(player, {
+    type: 'commodity',
+    productId: product.id,
+    side: 'sell',
+    quantity,
+    price: tradePrice,
+    total,
+    counterparty: describeCounterparty(buyer),
+    createdAt,
+    description: `卖出 ${product.name}`,
+  });
+  addLedger(
+    player,
+    buyer.ownerType === 'population' ? 'population_income' : 'market_trade',
+    total,
+    `${buyer.ownerType === 'population' ? '人口需求消费' : '卖出'} ${quantity} 个${product.name}，成交价 ${tradePrice}`,
+    createdAt,
+  );
+}
+
+function executeTrade(world, incoming, resting, quantity, createdAt) {
+  const buy = incoming.side === 'buy' ? incoming : resting;
+  const sell = incoming.side === 'sell' ? incoming : resting;
+  const price = resting.price;
+  incoming.remaining -= quantity;
+  resting.remaining -= quantity;
+  incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
+  resting.status = resting.remaining === 0 ? 'filled' : 'partial';
+  if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
+  if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, createdAt);
+  recordPrice(world, incoming.productId, price, quantity, createdAt);
+}
+
+function matchOrder(world, incoming, createdAt) {
+  const opposite = incoming.side === 'buy' ? 'sell' : 'buy';
+  const candidates = sortCandidates(
+    world.orders.filter((order) => (
+      order.id !== incoming.id
+      && order.productId === incoming.productId
+      && order.side === opposite
+      && isOpenOrder(order)
+      && !(order.ownerType === 'player' && incoming.ownerType === 'player' && order.ownerId === incoming.ownerId)
+      && (incoming.side === 'buy' ? order.price <= incoming.price : order.price >= incoming.price)
+    )),
+    incoming.side,
+  );
+  for (const candidate of candidates) {
+    if (!isOpenOrder(incoming)) break;
+    executeTrade(world, incoming, candidate, Math.min(incoming.remaining, candidate.remaining), createdAt);
+  }
+}
+
+function expirePopulationOrders(world, productId) {
+  for (const order of world.orders) {
+    if (order.productId === productId && order.ownerType === 'population' && isOpenOrder(order)) {
+      order.status = 'cancelled';
+    }
+  }
+}
+
+function createPopulationDemand(world, productId, now) {
+  const product = productDefinition(productId);
+  const market = marketFor(world, product.id);
+  expirePopulationOrders(world, product.id);
+  const tick = Math.floor(now / market.demand.cycleMs);
+  const price = Math.max(1, product.basePrice + ((tick + product.id.length) % 3) - 1);
+  const baseQuantity = product.category === 'consumer' ? 14 : product.category === 'industrial' ? 4 : 8;
+  const quantity = baseQuantity + (tick % 4);
+  const order = {
+    id: createId('population-order'),
+    productId: product.id,
+    side: 'buy',
+    ownerType: 'population',
+    ownerName: product.category === 'industrial' ? '企业采购' : '人口需求',
+    price,
+    quantity,
+    remaining: quantity,
+    status: 'open',
+    createdAt: now,
+  };
+  world.orders.push(order);
+  market.demand.lastPrice = price;
+  market.demand.lastQuantity = quantity;
+  market.demand.lastBudget = price * quantity;
+  market.demand.nextDemandAt = now + market.demand.cycleMs;
+  matchOrder(world, order, now);
+  market.demand.satisfaction = quantity === 0 ? 1 : Math.max(0.2, Math.min(1, (quantity - order.remaining) / quantity));
+}
+
+function refreshExternalLiquidity(world, now) {
+  for (const product of PRODUCT_CATALOG) {
+    const market = marketFor(world, product.id);
+    const openBuy = world.orders.filter((order) => (
+      order.productId === product.id && order.ownerType === 'market' && order.side === 'buy' && isOpenOrder(order)
+    ));
+    const openSell = world.orders.filter((order) => (
+      order.productId === product.id && order.ownerType === 'market' && order.side === 'sell' && isOpenOrder(order)
+    ));
+    if (openBuy.length < 1) {
+      const order = {
+        id: createId('market-order'),
+        productId: product.id,
+        side: 'buy',
+        ownerType: 'market',
+        ownerName: '市场流动采购',
+        price: Math.max(1, market.lastPrice - 2),
+        quantity: 18,
+        remaining: 18,
+        status: 'open',
+        createdAt: now,
+      };
+      world.orders.push(order);
+      matchOrder(world, order, now);
+    }
+    if (openSell.length < 1) {
+      const order = {
+        id: createId('market-order'),
+        productId: product.id,
+        side: 'sell',
+        ownerType: 'market',
+        ownerName: '市场流动供给',
+        price: market.lastPrice + 2,
+        quantity: 14,
+        remaining: 14,
+        status: 'open',
+        createdAt: now,
+      };
+      world.orders.push(order);
+      matchOrder(world, order, now);
+    }
+  }
+}
+
+function stopFacility(facility, status, reason) {
+  facility.status = status;
+  facility.stopReason = reason;
+  delete facility.cycleStartedAt;
+}
+
+function processFacilities(player, now) {
+  for (const facility of player.facilities.slice(0, ECONOMY_CONSTANTS.maxFacilitiesProcessedPerTick)) {
+    if (facility.status === 'constructing' && facility.constructionCompletesAt && now >= facility.constructionCompletesAt) {
+      facility.status = 'ready';
+      facility.stopReason = 'manual';
+      facility.builtAt = facility.constructionCompletesAt;
+      delete facility.constructionCompletesAt;
+      addLedger(player, 'system', 0, `${facility.name} 已完成施工，等待手动启动`, now);
+    }
+
+    if (facility.status !== 'running' || !facility.cycleStartedAt) continue;
+    const elapsedCycles = Math.max(0, Math.floor((now - facility.cycleStartedAt) / facility.cycleMs));
+    if (elapsedCycles < 1) continue;
+
+    const outputCapacityCycles = Math.max(0, Math.floor(
+      (facility.internalCapacity - facility.internalGoods) / facility.outputPerCycle,
+    ));
+    const fundsCycles = facility.operatingCost > 0
+      ? Math.max(0, Math.floor(player.credits / facility.operatingCost))
+      : elapsedCycles;
+    const inputInventory = facility.inputProductId ? inventoryFor(player, facility.inputProductId) : null;
+    const inputCycles = facility.inputPerCycle > 0
+      ? Math.max(0, Math.floor(inputInventory.available / facility.inputPerCycle))
+      : elapsedCycles;
+    const targetRemaining = facility.productionMode === 'target'
+      ? Math.max(0, Number(facility.targetQuantity || 0) - Number(facility.completedQuantity || 0))
+      : Number.POSITIVE_INFINITY;
+    const targetCycles = Number.isFinite(targetRemaining)
+      ? Math.max(0, Math.floor(targetRemaining / facility.outputPerCycle))
+      : elapsedCycles;
+
+    const completedCycles = Math.min(
+      elapsedCycles,
+      outputCapacityCycles,
+      fundsCycles,
+      inputCycles,
+      targetCycles,
+      50_000,
+    );
+
+    if (completedCycles > 0) {
+      const operationCost = completedCycles * facility.operatingCost;
+      const outputQuantity = completedCycles * facility.outputPerCycle;
+      const inputQuantity = completedCycles * facility.inputPerCycle;
+      player.credits -= operationCost;
+      player.stats.systemSinks += operationCost;
+      if (inputInventory) inputInventory.available -= inputQuantity;
+      facility.internalGoods += outputQuantity;
+      facility.lifetimeOutput += outputQuantity;
+      facility.completedQuantity = Number(facility.completedQuantity || 0) + outputQuantity;
+      facility.cycleStartedAt += completedCycles * facility.cycleMs;
+      addLedger(
+        player,
+        'facility_operation',
+        -operationCost,
+        `${facility.name} 完成 ${completedCycles} 个生产周期，产出 ${outputQuantity} 个${productDefinition(facility.outputProductId).name}`,
+        facility.cycleStartedAt,
+      );
+    }
+
+    if (facility.productionMode === 'target' && facility.completedQuantity >= facility.targetQuantity) {
+      stopFacility(facility, 'paused', 'plan_complete');
+      continue;
+    }
+    if (facility.internalGoods + facility.outputPerCycle > facility.internalCapacity) {
+      stopFacility(facility, 'full', 'output_full');
+      continue;
+    }
+    if (player.credits < facility.operatingCost) {
+      stopFacility(facility, 'insufficient_funds', 'insufficient_funds');
+      continue;
+    }
+    if (facility.inputProductId && inventoryFor(player, facility.inputProductId).available < facility.inputPerCycle) {
+      stopFacility(facility, 'insufficient_input', 'insufficient_input');
+    }
+  }
+}
+
+function pruneWorld(world, now) {
+  const cutoff = now - 24 * 60 * 60 * 1000;
+  const openOrders = world.orders.filter(isOpenOrder);
+  const recentClosed = world.orders.filter((order) => !isOpenOrder(order) && order.createdAt >= cutoff).slice(-800);
+  world.orders = [...recentClosed, ...openOrders].slice(-4_000);
+  world.facilityListings = world.facilityListings.slice(-800);
+}
+
+export function processWorld(world, now = Date.now()) {
+  migrateWorld(world, now);
+  for (const player of Object.values(world.players)) processFacilities(player, now);
+  for (const product of PRODUCT_CATALOG) {
+    const market = marketFor(world, product.id);
+    if (now >= market.demand.nextDemandAt) createPopulationDemand(world, product.id, now);
+  }
+  refreshExternalLiquidity(world, now);
+  pruneWorld(world, now);
+  world.lastProcessedAt = now;
+  return world;
+}
+
+function result(ok, message) {
+  return { ok, message };
+}
+
+function getPlayer(world, userId) {
+  const player = world.players[String(userId)];
+  if (!player) throw new Error(`Missing player ${userId}`);
+  return player;
+}
+
+function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  const normalized = Math.floor(number);
+  return normalized < 1 || normalized > max ? null : normalized;
+}
+
+function work(world, userId, now) {
+  const player = getPlayer(world, userId);
+  if (now < player.work.cooldownUntil) return result(false, '工作冷却尚未结束');
+  const reset = now - player.work.lastWorkedAt >= ECONOMY_CONSTANTS.workResetMs;
+  player.work.streak = reset ? 1 : Math.min(4, player.work.streak + 1);
+  const cooldown = ECONOMY_CONSTANTS.workCooldowns[player.work.streak - 1];
+  player.work.cooldownUntil = now + cooldown;
+  player.work.lastWorkedAt = now;
+  player.work.totalClicks += 1;
+  player.credits += 1;
+  player.stats.workIssued += 1;
+  addLedger(player, 'work_income', 1, `完成工作，连续工作冷却 ${cooldown / 1_000} 秒`, now);
+  return result(true, '工作完成，获得 1 货币');
+}
+
+function buildFacility(world, userId, payload, now) {
+  const player = getPlayer(world, userId);
+  const type = FACILITY_TYPES.get(String(payload.facilityTypeId || 'farm'));
+  if (!type) return result(false, '工厂类型不存在');
+  if (player.facilities.some((facility) => facility.status === 'constructing')) {
+    return result(false, '同时只能施工一座工厂');
+  }
+  if (player.credits < type.buildCost) return result(false, '建造资金不足');
+  player.credits -= type.buildCost;
+  player.stats.systemSinks += type.buildCost;
+  const sameTypeCount = player.facilities.filter((facility) => facility.facilityTypeId === type.id).length;
+  const facility = createFacilityFromType(type.id, userId, now, {
+    name: `${type.name} ${sameTypeCount + 1}`,
+    status: 'constructing',
+    constructionCompletesAt: now + type.buildTimeMs,
+  });
+  player.facilities.push(facility);
+  addLedger(player, 'facility_construction', -type.buildCost, `支付${type.name}建造费用`, now);
+  return result(true, `${type.name}开始施工，预计 ${Math.ceil(type.buildTimeMs / 60_000)} 分钟完成`);
+}
+
+function findOwnedFacility(player, facilityId) {
+  return player.facilities.find((facility) => facility.id === facilityId);
+}
+
+function startFacility(world, userId, payload, now) {
+  const player = getPlayer(world, userId);
+  const facility = findOwnedFacility(player, payload.facilityId);
+  if (!facility) return result(false, '生产设施不存在');
+  if (facility.status === 'constructing' || facility.status === 'listed') return result(false, '当前状态不能启动生产');
+  if (facility.internalGoods + facility.outputPerCycle > facility.internalCapacity) {
+    facility.status = 'full';
+    facility.stopReason = 'output_full';
+    return result(false, '设施内部产成品已满');
+  }
+  if (player.credits < facility.operatingCost) {
+    facility.status = 'insufficient_funds';
+    facility.stopReason = 'insufficient_funds';
+    return result(false, '运营资金不足');
+  }
+  if (facility.inputProductId && inventoryFor(player, facility.inputProductId).available < facility.inputPerCycle) {
+    facility.status = 'insufficient_input';
+    facility.stopReason = 'insufficient_input';
+    return result(false, '生产原料不足');
+  }
+  if (facility.productionMode === 'target' && facility.completedQuantity >= facility.targetQuantity) {
+    facility.status = 'paused';
+    facility.stopReason = 'plan_complete';
+    return result(false, '生产计划已经完成，请先设置新计划');
+  }
+  facility.status = 'running';
+  facility.stopReason = undefined;
+  facility.cycleStartedAt = now;
+  return result(true, `${facility.name}已手动启动`);
+}
+
+function pauseFacility(world, userId, payload) {
+  const facility = findOwnedFacility(getPlayer(world, userId), payload.facilityId);
+  if (!facility) return result(false, '生产设施不存在');
+  if (facility.status !== 'running') return result(false, '生产设施当前未运行');
+  stopFacility(facility, 'paused', 'manual');
+  return result(true, `${facility.name}已手动停止`);
+}
+
+function setProductionPlan(world, userId, payload) {
+  const facility = findOwnedFacility(getPlayer(world, userId), payload.facilityId);
+  if (!facility) return result(false, '生产设施不存在');
+  if (facility.status === 'running') return result(false, '请先停止工厂再修改生产计划');
+  if (facility.status === 'constructing' || facility.status === 'listed') return result(false, '当前状态不能修改生产计划');
+  const mode = payload.mode === 'target' ? 'target' : payload.mode === 'continuous' ? 'continuous' : null;
+  if (!mode) return result(false, '生产模式无效');
+  if (mode === 'continuous') {
+    facility.productionMode = 'continuous';
+    facility.targetQuantity = undefined;
+    facility.completedQuantity = 0;
+    facility.stopReason = 'manual';
+    if (!['ready', 'paused'].includes(facility.status)) facility.status = 'paused';
+    return result(true, '已设置为持续生产模式');
+  }
+  const targetQuantity = normalizePositiveInteger(payload.targetQuantity, 1_000_000);
+  if (!targetQuantity) return result(false, '计划产量无效');
+  if (targetQuantity % facility.outputPerCycle !== 0) {
+    return result(false, `计划产量必须是周期产量 ${facility.outputPerCycle} 的整数倍`);
+  }
+  facility.productionMode = 'target';
+  facility.targetQuantity = targetQuantity;
+  facility.completedQuantity = 0;
+  facility.stopReason = 'manual';
+  if (!['ready', 'paused'].includes(facility.status)) facility.status = 'paused';
+  return result(true, `已设置生产计划：${targetQuantity} 个${productDefinition(facility.outputProductId).name}`);
+}
+
+function collectFacility(world, userId, payload, now) {
+  const player = getPlayer(world, userId);
+  const facility = findOwnedFacility(player, payload.facilityId);
+  if (!facility || facility.internalGoods <= 0) return result(false, '没有可领取的产成品');
+  const availableCapacity = player.inventoryCapacity - inventoryUsed(player) - pendingBuyQuantity(world, userId);
+  if (availableCapacity <= 0) return result(false, '玩家仓库已满或已被买单预占');
+  const quantity = Math.min(facility.internalGoods, availableCapacity);
+  facility.internalGoods -= quantity;
+  inventoryFor(player, facility.outputProductId).available += quantity;
+  if (facility.status === 'full' && facility.internalGoods + facility.outputPerCycle <= facility.internalCapacity) {
+    facility.status = 'paused';
+    facility.stopReason = 'manual';
+  }
+  addLedger(
+    player,
+    'inventory',
+    0,
+    `从 ${facility.name} 领取 ${quantity} 个${productDefinition(facility.outputProductId).name}`,
+    now,
+  );
+  return result(true, `已领取 ${quantity} 个${productDefinition(facility.outputProductId).name}`);
+}
+
+function listFacility(world, userId, payload, now) {
+  const player = getPlayer(world, userId);
+  const facility = findOwnedFacility(player, payload.facilityId);
+  const price = normalizePositiveInteger(payload.price);
+  if (!facility) return result(false, '生产设施不存在');
+  if (!price) return result(false, '挂牌价格无效');
+  if (!['ready', 'paused', 'full', 'insufficient_funds', 'insufficient_input'].includes(facility.status)) {
+    return result(false, '当前状态不能挂牌');
+  }
+  if (facility.internalGoods > 0) return result(false, '挂牌前必须领取全部内部产成品');
+  if (price < facility.systemValue * 0.5 || price > facility.systemValue * 2) {
+    return result(false, '挂牌价必须在系统估值的 50%～200% 之间');
+  }
+  const listingId = createId('facility-listing');
+  facility.status = 'listed';
+  facility.stopReason = 'listed';
+  facility.listedOrderId = listingId;
+  delete facility.cycleStartedAt;
+  world.facilityListings.push({
+    id: listingId,
+    facilityId: facility.id,
+    ownerType: 'player',
+    ownerId: userId,
+    ownerName: player.playerName,
+    price,
+    createdAt: now,
+    facility: facilitySnapshot(facility),
+  });
+  return result(true, '生产设施已进入市场挂牌');
+}
+
+function cancelFacilityListing(world, userId, payload) {
+  const listing = world.facilityListings.find((item) => item.id === payload.listingId && item.ownerId === userId);
+  if (!listing) return result(false, '设施挂牌不存在');
+  const facility = findOwnedFacility(getPlayer(world, userId), listing.facilityId);
+  if (facility) {
+    facility.status = 'paused';
+    facility.stopReason = 'manual';
+    delete facility.listedOrderId;
+  }
+  world.facilityListings = world.facilityListings.filter((item) => item.id !== listing.id);
+  return result(true, '设施挂牌已撤销');
+}
+
+function buyFacility(world, userId, payload, now) {
+  const buyer = getPlayer(world, userId);
+  const listing = world.facilityListings.find((item) => item.id === payload.listingId);
+  if (!listing || listing.ownerId === userId) return result(false, '无法购买该挂牌');
+  if (buyer.credits < listing.price) return result(false, '购买资金不足');
+
+  let facility;
+  if (listing.ownerType === 'player') {
+    const seller = getPlayer(world, listing.ownerId);
+    facility = findOwnedFacility(seller, listing.facilityId);
+    if (!facility) return result(false, '挂牌设施不存在');
+    seller.facilities = seller.facilities.filter((item) => item.id !== facility.id);
+    seller.credits += listing.price;
+    seller.stats.facilityVolume += listing.price;
+    addTrade(seller, {
+      type: 'facility',
+      side: 'sell',
+      quantity: 1,
+      price: listing.price,
+      total: listing.price,
+      counterparty: buyer.playerName,
+      createdAt: now,
+      description: `出售 ${facility.name}`,
+    });
+    addLedger(seller, 'facility_sale', listing.price, `出售 ${facility.name}`, now);
+  } else {
+    facility = createFacilityFromType(listing.facility.facilityTypeId, userId, now, {
+      ...listing.facility,
+      id: listing.facilityId,
+      status: 'paused',
+      builtAt: now,
+    });
+  }
+
+  buyer.credits -= listing.price;
+  buyer.stats.facilityVolume += listing.price;
+  facility.ownerId = userId;
+  facility.status = 'paused';
+  facility.stopReason = 'manual';
+  facility.productionMode = 'continuous';
+  facility.targetQuantity = undefined;
+  facility.completedQuantity = 0;
+  delete facility.listedOrderId;
+  delete facility.cycleStartedAt;
+  buyer.facilities.push(facility);
+  addTrade(buyer, {
+    type: 'facility',
+    side: 'buy',
+    quantity: 1,
+    price: listing.price,
+    total: listing.price,
+    counterparty: listing.ownerName,
+    createdAt: now,
+    description: `收购 ${facility.name}`,
+  });
+  addLedger(buyer, 'facility_trade', -listing.price, `收购 ${facility.name}`, now);
+  world.facilityListings = world.facilityListings.filter((item) => item.id !== listing.id);
+  return result(true, '生产设施产权已完成交割');
+}
+
+function placeOrder(world, userId, payload, now) {
+  const player = getPlayer(world, userId);
+  const side = payload.side === 'buy' ? 'buy' : payload.side === 'sell' ? 'sell' : null;
+  const productId = PRODUCTS.has(String(payload.productId || 'grain')) ? String(payload.productId || 'grain') : null;
+  const quantity = normalizePositiveInteger(payload.quantity, ECONOMY_CONSTANTS.maxOrderQuantity);
+  const price = normalizePositiveInteger(payload.price, 1_000_000);
+  if (!side || !productId || !quantity || !price) return result(false, '订单参数无效');
+  const openOrders = world.orders.filter((order) => order.ownerId === userId && isOpenOrder(order));
+  if (openOrders.length >= ECONOMY_CONSTANTS.maxOpenOrders) return result(false, '未完成订单数量已达上限');
+
+  if (side === 'buy') {
+    const total = quantity * price;
+    if (player.credits < total) return result(false, '可用资金不足');
+    const capacity = player.inventoryCapacity - inventoryUsed(player) - pendingBuyQuantity(world, userId);
+    if (capacity < quantity) return result(false, '仓库容量不足');
+    player.credits -= total;
+    player.frozenCredits += total;
+  } else {
+    const inventory = inventoryFor(player, productId);
+    if (inventory.available < quantity) return result(false, '可用商品库存不足');
+    inventory.available -= quantity;
+    inventory.frozen += quantity;
+  }
+
+  const order = {
+    id: createId('order'),
+    productId,
+    side,
+    ownerType: 'player',
+    ownerId: userId,
+    ownerName: player.playerName,
+    price,
+    quantity,
+    remaining: quantity,
+    status: 'open',
+    createdAt: now,
+  };
+  world.orders.push(order);
+  matchOrder(world, order, now);
+  return result(true, order.status === 'filled' ? '订单已全部成交' : order.status === 'partial' ? '订单已部分成交' : '订单已进入订单簿');
+}
+
+function cancelOrder(world, userId, payload) {
+  const order = world.orders.find((item) => item.id === payload.orderId && item.ownerId === userId && isOpenOrder(item));
+  if (!order) return result(false, '未找到可撤销订单');
+  const player = getPlayer(world, userId);
+  if (order.side === 'buy') {
+    const release = order.remaining * order.price;
+    player.frozenCredits -= release;
+    player.credits += release;
+  } else {
+    const inventory = inventoryFor(player, order.productId);
+    inventory.frozen -= order.remaining;
+    inventory.available += order.remaining;
+  }
+  order.status = 'cancelled';
+  return result(true, '订单已撤销，冻结资产已释放');
+}
+
+function renamePlayer(world, userId, payload) {
+  const player = getPlayer(world, userId);
+  const name = String(payload.playerName || '').trim().slice(0, 32);
+  if (name.length < 2) return result(false, '玩家昵称至少需要 2 个字符');
+  player.playerName = name;
+  for (const order of world.orders) if (order.ownerId === userId) order.ownerName = name;
+  for (const listing of world.facilityListings) if (listing.ownerId === userId) listing.ownerName = name;
+  return result(true, '玩家昵称已更新');
+}
+
+function resetPlayer(world, user, now) {
+  world.orders = world.orders.filter((order) => order.ownerId !== Number(user.id));
+  world.facilityListings = world.facilityListings.filter((listing) => listing.ownerId !== Number(user.id));
+  world.players[String(user.id)] = createPlayer(user, now);
+  return result(true, '服务器经济状态已重置');
+}
+
+export function applyAction(world, user, action, payload = {}, now = Date.now()) {
+  migrateWorld(world, now);
+  ensurePlayer(world, user, now);
+  processWorld(world, now);
+  const userId = Number(user.id);
+  switch (action) {
+    case 'work': return work(world, userId, now);
+    case 'buildFacility': return buildFacility(world, userId, payload, now);
+    case 'startFacility': return startFacility(world, userId, payload, now);
+    case 'pauseFacility': return pauseFacility(world, userId, payload, now);
+    case 'setProductionPlan': return setProductionPlan(world, userId, payload, now);
+    case 'collectFacility': return collectFacility(world, userId, payload, now);
+    case 'listFacility': return listFacility(world, userId, payload, now);
+    case 'cancelFacilityListing': return cancelFacilityListing(world, userId, payload, now);
+    case 'buyFacility': return buyFacility(world, userId, payload, now);
+    case 'placeOrder': return placeOrder(world, userId, payload, now);
+    case 'cancelOrder': return cancelOrder(world, userId, payload, now);
+    case 'renamePlayer': return renamePlayer(world, userId, payload, now);
+    case 'resetPlayer': return resetPlayer(world, user, now);
+    default: return result(false, '不支持的游戏操作');
+  }
+}
+
+function createLeaderboard(world, currentUserId, now) {
+  return Object.values(world.players)
+    .map((player) => ({
+      playerName: player.playerName,
+      totalAssets: totalAssets(world, player),
+      cashAssets: player.credits + player.frozenCredits,
+      facilityCount: player.facilities.length,
+      weeklyChange: player.stats.workIssued + player.stats.populationIssued - player.stats.systemSinks,
+      updatedAt: now,
+      isCurrentPlayer: player.userId === currentUserId,
+    }))
+    .sort((left, right) => right.totalAssets - left.totalAssets || left.playerName.localeCompare(right.playerName))
+    .slice(0, 100)
+    .map((entry, index) => ({ rank: index + 1, ...entry }));
+}
+
+export function createClientState(world, userId, now = Date.now()) {
+  migrateWorld(world, now);
+  const player = getPlayer(world, userId);
+  const grainInventory = inventoryFor(player, 'grain');
+  const grainMarket = marketFor(world, 'grain');
+  return {
+    version: 5,
+    userId: player.userId,
+    playerName: player.playerName,
+    registeredAt: player.registeredAt,
+    credits: player.credits,
+    frozenCredits: player.frozenCredits,
+    inventories: clone(player.inventories),
+    inventoryCapacity: player.inventoryCapacity,
+    facilities: clone(player.facilities),
+    products: clone(PRODUCT_CATALOG),
+    facilityTypes: clone(FACILITY_TYPE_CATALOG),
+    markets: clone(world.markets),
+    orders: clone(world.orders),
+    facilityListings: clone(world.facilityListings),
+    trades: clone(player.trades),
+    ledger: clone(player.ledger),
+    work: clone(player.work),
+    stats: clone(player.stats),
+    leaderboard: createLeaderboard(world, userId, now),
+    lastProcessedAt: world.lastProcessedAt,
+
+    // Temporary compatibility aliases for the existing UI while the multi-product UI migrates.
+    inventory: grainInventory.available,
+    frozenInventory: grainInventory.frozen,
+    commodityName: productDefinition('grain').name,
+    marketPrice: grainMarket.lastPrice,
+    marketPriceHistory: clone(grainMarket.priceHistory),
+    demand: clone(grainMarket.demand),
+  };
+}

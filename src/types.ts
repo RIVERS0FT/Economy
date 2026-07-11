@@ -6,6 +6,39 @@ export interface AuthUser {
   role?: 'user' | 'admin';
 }
 
+export type ProductCategory = 'raw' | 'intermediate' | 'consumer' | 'industrial';
+
+export interface ProductDefinition {
+  id: string;
+  name: string;
+  category: ProductCategory;
+  basePrice: number;
+}
+
+export interface ProductInventory {
+  available: number;
+  frozen: number;
+}
+
+export interface FacilityRecipeItem {
+  productId: string;
+  quantity: number;
+}
+
+export interface FacilityTypeDefinition {
+  id: string;
+  name: string;
+  category: 'raw' | 'processing' | 'consumer' | 'industrial';
+  buildCost: number;
+  buildTimeMs: number;
+  cycleMs: number;
+  operatingCost: number;
+  input: FacilityRecipeItem | null;
+  output: FacilityRecipeItem;
+  internalCapacity: number;
+  systemValue: number;
+}
+
 export type FacilityStatus =
   | 'constructing'
   | 'ready'
@@ -13,24 +46,44 @@ export type FacilityStatus =
   | 'paused'
   | 'full'
   | 'insufficient_funds'
+  | 'insufficient_input'
   | 'listed';
+
+export type FacilityStopReason =
+  | 'manual'
+  | 'plan_complete'
+  | 'insufficient_funds'
+  | 'insufficient_input'
+  | 'output_full'
+  | 'listed'
+  | 'maintenance';
+
+export type ProductionMode = 'continuous' | 'target';
 
 export interface ProductionFacility {
   id: string;
+  facilityTypeId: string;
   name: string;
   ownerId: number;
   level: number;
   status: FacilityStatus;
+  stopReason?: FacilityStopReason;
   builtAt: number;
   constructionCompletesAt?: number;
   cycleStartedAt?: number;
   cycleMs: number;
+  outputProductId: string;
   outputPerCycle: number;
+  inputProductId?: string;
+  inputPerCycle: number;
   operatingCost: number;
   internalGoods: number;
   internalCapacity: number;
   lifetimeOutput: number;
   systemValue: number;
+  productionMode: ProductionMode;
+  targetQuantity?: number;
+  completedQuantity: number;
   listedOrderId?: string;
 }
 
@@ -40,6 +93,7 @@ export type OrderOwnerType = 'player' | 'population' | 'market';
 
 export interface CommodityOrder {
   id: string;
+  productId: string;
   side: OrderSide;
   ownerType: OrderOwnerType;
   ownerId?: number;
@@ -51,6 +105,22 @@ export interface CommodityOrder {
   createdAt: number;
 }
 
+export interface FacilityListingSnapshot {
+  id?: string;
+  facilityTypeId: string;
+  name: string;
+  level: number;
+  cycleMs: number;
+  outputProductId: string;
+  outputPerCycle: number;
+  inputProductId?: string;
+  inputPerCycle: number;
+  operatingCost: number;
+  internalCapacity: number;
+  lifetimeOutput: number;
+  systemValue: number;
+}
+
 export interface FacilityListing {
   id: string;
   facilityId: string;
@@ -59,15 +129,13 @@ export interface FacilityListing {
   ownerName: string;
   price: number;
   createdAt: number;
-  facility: Pick<
-    ProductionFacility,
-    'name' | 'level' | 'cycleMs' | 'outputPerCycle' | 'operatingCost' | 'internalCapacity' | 'lifetimeOutput' | 'systemValue'
-  >;
+  facility: FacilityListingSnapshot;
 }
 
 export interface TradeRecord {
   id: string;
   type: 'commodity' | 'facility';
+  productId?: string;
   side: 'buy' | 'sell';
   quantity: number;
   price: number;
@@ -105,13 +173,19 @@ export interface WorkState {
 }
 
 export interface DemandState {
-  population: number;
   cycleMs: number;
   nextDemandAt: number;
   lastBudget: number;
   lastQuantity: number;
   lastPrice: number;
   satisfaction: number;
+}
+
+export interface ProductMarketState {
+  productId: string;
+  lastPrice: number;
+  priceHistory: PricePoint[];
+  demand: DemandState;
 }
 
 export interface EconomyStats {
@@ -140,27 +214,32 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 4;
+  version: 5;
   userId: number;
   playerName: string;
   registeredAt: number;
   credits: number;
   frozenCredits: number;
-  inventory: number;
-  frozenInventory: number;
+  inventories: Record<string, ProductInventory>;
   inventoryCapacity: number;
-  facilitySlots: number;
   facilities: ProductionFacility[];
-  commodityName: string;
+  products: ProductDefinition[];
+  facilityTypes: FacilityTypeDefinition[];
+  markets: Record<string, ProductMarketState>;
   orders: CommodityOrder[];
   facilityListings: FacilityListing[];
   trades: TradeRecord[];
   ledger: LedgerEntry[];
   work: WorkState;
-  demand: DemandState;
   stats: EconomyStats;
-  marketPrice: number;
-  marketPriceHistory: PricePoint[];
   leaderboard: LeaderboardEntry[];
   lastProcessedAt: number;
+
+  /** Compatibility aliases retained until every view is migrated to product-aware state. */
+  inventory: number;
+  frozenInventory: number;
+  commodityName: string;
+  marketPrice: number;
+  marketPriceHistory: PricePoint[];
+  demand: DemandState;
 }

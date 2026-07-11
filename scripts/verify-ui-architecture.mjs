@@ -53,7 +53,9 @@ const uiSourcePaths = [
   'src/app/LoginPage.tsx',
   'src/app/gameViewModel.ts',
   'src/api/game.ts',
+  'src/types.ts',
   'src/config/economy.ts',
+  'src/components/facilities/FacilityProgress.tsx',
   'src/components/shell/GameShell.tsx',
   'src/components/shell/DesktopSidebar.tsx',
   'src/components/shell/MobileBottomNavigation.tsx',
@@ -64,6 +66,7 @@ const uiSourcePaths = [
   'src/pages/PageRouter.tsx',
   'src/styles/design-system.css',
   'src/styles/globals.css',
+  'src/styles/industry-system.css',
   'src/styles/auth.css',
   'src/styles/card-system.css',
   'src/styles/desktop-sidebar.css',
@@ -71,6 +74,8 @@ const uiSourcePaths = [
   'src/styles/mobile-status-navigation.css',
   'src/styles/mobile-status-layout.css',
   'docs/UI_DESIGN_SYSTEM.md',
+  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'server/src/index.js',
   'server/src/domain.js',
   'server/src/storage.js',
@@ -92,10 +97,13 @@ for (const [path, forbidden] of [
   ['src/styles/viewport.css', ['--mobile-chrome-surface-transparent', 'backdrop-filter: none']],
   ['src/styles/card-system.css', ['--card-radius:', '--radius-card:']],
   ['src/config/navigation.ts', ['主页面', '排行榜', '订单与记录']],
-  ['src/pages/MarketPage.tsx', ['<small>{order.ownerName}</small>']],
   ['src/components/shell/DesktopSidebar.tsx', ['市场交易版', 'player-mini-card', 'player-avatar', 'rank?: number']],
-  ['src/app/gameViewModel.ts', ['localStorage', 'useGameStore']],
+  ['src/app/gameViewModel.ts', ['localStorage', 'useGameStore', 'facilitySlots']],
   ['src/utils/runtimePerformance.ts', ['useGameStore']],
+  ['src/types.ts', ['facilitySlots']],
+  ['src/pages/ProductionPage.tsx', ['facilitySlots', '设施槽位']],
+  ['src/pages/SettingsPage.tsx', ['facilitySlots', '设施槽位']],
+  ['server/src/domain.js', ['生产设施槽位不足', '空闲设施槽位']],
   ['src/styles/auth.css', ['#07100d', '@media (max-width: 380px)']],
   ['src/styles/globals.css', [
     '\nbutton {',
@@ -151,15 +159,6 @@ for (const [path, required] of [
   ['index.html', ['viewport-fit=cover']],
   ['src/config/navigation.ts', ["label: '概览'", "label: '排行'", "label: '订单'"]],
   ['src/config/labels.ts', ["system: '系统调整'"]],
-  ['src/pages/AssetsPage.tsx', ['ledgerCategoryNames[entry.category]']],
-  ['src/pages/RecordsPage.tsx', ['ledgerCategoryNames[entry.category]', 'title="订单与记录"']],
-  ['src/pages/MarketPage.tsx', [
-    'function aggregateOrderBook',
-    'level.remaining += order.remaining',
-    'level.orderCount += 1',
-    "aggregateOrderBook(derived.bids, 'buy')",
-    "aggregateOrderBook(derived.asks, 'sell')",
-  ]],
   ['src/components/ui/layout.tsx', [
     'export function Button',
     'export function StatusTag',
@@ -174,15 +173,46 @@ for (const [path, required] of [
   ]],
   ['src/app/LoginPage.tsx', ['<Button', 'role="alert"']],
   ['src/components/shell/DesktopSidebar.tsx', ['<Button', 'variant="secondary"', '服务器权威经济', '<span title={displayName}>{displayName}</span>']],
-  ['src/pages/OverviewPage.tsx', ['<Button', '<StatusTag', '<MetricCard', '<DataList']],
-  ['src/pages/MarketPage.tsx', ['<Button', '<StatusTag', '<MetricCard', 'className="ui-segmented"']],
-  ['src/pages/ProductionPage.tsx', ['<Button', '<StatusTag', '<DataList', 'className="facility-specs ui-spec-grid"']],
-  ['src/pages/AssetsPage.tsx', ['<Button', '<MetricCard', '<DataList']],
-  ['src/pages/LeaderboardPage.tsx', ['<MetricCard', '<StatusTag', 'className="numeric-cell"']],
-  ['src/pages/RecordsPage.tsx', ['<Button', '<MetricCard', '<StatusTag', 'className="numeric-cell"']],
-  ['src/pages/SettingsPage.tsx', ['<Button', '<ToggleField', '<DataList', 'className="ui-link"']],
   ['src/components/shell/GameShell.tsx', ['playerName={model.game.playerName}', '<DesktopSidebar', '<MobileBottomNavigation']],
   ['src/components/shell/StatusBar.tsx', ['items.map', 'compactValue']],
+  ['src/pages/OverviewPage.tsx', [
+    '<Button', '<StatusTag', '<MetricCard', '<DataList',
+    'blockedFacilities', 'pendingPlans', 'game.products.map',
+  ]],
+  ['src/pages/MarketPage.tsx', [
+    'function aggregateOrderBook',
+    'level.remaining += order.remaining',
+    'level.orderCount += 1',
+    "aggregateOrderBook(derived.bids, 'buy')",
+    "aggregateOrderBook(derived.asks, 'sell')",
+    'selectedProductId',
+    'game.products.map',
+    'order.productId === selectedProduct.id',
+    '<Button', '<StatusTag', '<MetricCard', 'className="ui-segmented"',
+  ]],
+  ['src/pages/ProductionPage.tsx', [
+    'game.facilityTypes.map',
+    'setProductionPlan',
+    'stopFacility',
+    'productionMode',
+    'targetQuantity',
+    'inputProductId',
+    '<Button', '<StatusTag', '<DataList', 'className="facility-specs ui-spec-grid"',
+  ]],
+  ['src/pages/AssetsPage.tsx', [
+    'game.products.map', 'game.inventories', 'product-asset-grid',
+    '<Button', '<MetricCard', '<DataList',
+  ]],
+  ['src/pages/LeaderboardPage.tsx', ['<MetricCard', '<StatusTag', 'className="numeric-cell"']],
+  ['src/pages/RecordsPage.tsx', [
+    'title="订单与记录"', 'order.productId', 'trade.productId', 'game.inventories',
+    '<Button', '<MetricCard', '<StatusTag', 'className="numeric-cell"',
+    'ledgerCategoryNames[entry.category]',
+  ]],
+  ['src/pages/SettingsPage.tsx', [
+    '工厂总数', '运行中工厂', '仓库使用',
+    '<Button', '<ToggleField', '<DataList', 'className="ui-link"',
+  ]],
   ['src/styles/desktop-sidebar.css', ['text-overflow: ellipsis', 'margin-top: var(--space-3)']],
   ['src/styles/mobile-status-navigation.css', [
     '--mobile-chrome-inset: 1rem',
@@ -207,6 +237,16 @@ for (const [path, required] of [
     'gap: var(--layout-gutter)',
     '.asset-bar-item-value-compact',
   ]],
+  ['src/styles/industry-system.css', [
+    '.product-tabs',
+    '.product-tab.active',
+    '.production-plan-card',
+    '.production-plan-controls',
+    '.product-asset-grid',
+    '@media (max-width: 1220px)',
+    '@media (max-width: 960px) and (min-width: 721px)',
+    '@media (max-width: 720px)',
+  ]],
   ['src/styles/card-system.css', ['var(--radius-card)', 'var(--radius-card-mobile)']],
   ['src/styles/globals.css', [
     'background: var(--gradient-page)',
@@ -222,9 +262,10 @@ for (const text of [
   "import './styles/desktop-sidebar.css'",
   "import './styles/mobile-pages.css'",
   "import './styles/mobile-status-layout.css'",
+  "import './styles/industry-system.css'",
   "import './styles/design-system.css'",
 ]) requireText('src/main.tsx', text);
-requireOrderedText('src/main.tsx', "import './styles/mobile-status-layout.css'", "import './styles/design-system.css'");
+requireOrderedText('src/main.tsx', "import './styles/industry-system.css'", "import './styles/design-system.css'");
 
 for (const token of [
   '--font-sans:', '--font-size-xs:', '--font-size-page:', '--color-bg-canvas:',
@@ -248,33 +289,98 @@ for (const primitive of [
   '@media (max-width: 960px) and (min-width: 721px)', '@media (max-width: 720px)',
 ]) requireText('src/styles/design-system.css', primitive);
 
-for (const rule of [
-  '# Economy UI 设计系统',
-  '迁移状态：核心页面已完成统一组件与设计令牌迁移',
-  'src/styles/design-system.css',
-  '## 5. 颜色系统', '## 6. 字体系统', '## 7. 间距系统',
-  '## 8. 圆角系统', '## 9. 阴影系统', '## 10. 按钮',
-  '## 11. 输入框与表单', '## 12. 卡片、指标卡与数据列表',
-  '## 13. 状态标签', '## 14. 表格', '## 16. 响应式规则',
-  'max-width: 1220px', 'max-width: 960px', 'max-width: 720px',
-  '移动端可点击控件最小高度为 `44px`',
-  '页面标题和卡片标题不得显示前置小字',
-  '`PageLayout` 和 `WidgetHeading` 不得提供 `eyebrow` 参数',
-  '核心页面不得重新直接使用以下历史字符串类名',
-  '未更新设计文档和架构检查的基础样式回退不应合并',
-]) requireText('docs/UI_DESIGN_SYSTEM.md', rule);
-
 for (const [path, required] of [
-  ['src/api/game.ts', ["const GAME_API_BASE = '/economy-api/game'", "headers.set('Idempotency-Key', createRequestKey())"]],
-  ['src/app/gameViewModel.ts', ['getGameState', 'setGame(response.state)']],
-  ['src/types.ts', ['version: 4;']],
-  ['server/src/storage.js', ["this.database.exec('BEGIN IMMEDIATE')"]],
-  ['server/src/domain.js', ['case"placeOrder"', 'case"buyFacility"']],
+  ['src/api/game.ts', [
+    "const GAME_API_BASE = '/economy-api/game'",
+    "headers.set('Idempotency-Key', createRequestKey())",
+    'buildFacility: (facilityTypeId: string)',
+    'setProductionPlan:',
+    'productId: string',
+    '/stop',
+    '/plan',
+  ]],
+  ['src/app/gameViewModel.ts', [
+    'getGameState',
+    'setGame(response.state)',
+    'selectedProductId',
+    'selectedFacilityTypeId',
+    'blockedFacilities',
+    'setProductionPlan',
+    'stopFacility',
+  ]],
+  ['src/types.ts', [
+    'version: 5;',
+    'inventories: Record<string, ProductInventory>',
+    'markets: Record<string, ProductMarketState>',
+    'facilityTypes: FacilityTypeDefinition[]',
+    'productionMode: ProductionMode',
+    'targetQuantity?: number',
+    'productId: string',
+  ]],
+  ['server/src/storage.js', [
+    "this.database.exec('BEGIN IMMEDIATE')",
+    'migrateWorld(JSON.parse',
+  ]],
+  ['server/src/index.js', [
+    '(start|pause|stop|collect|list|plan)',
+    "plan: 'setProductionPlan'",
+    "stop: 'pauseFacility'",
+  ]],
+  ['server/src/domain.js', [
+    'export const PRODUCT_CATALOG',
+    'export const FACILITY_TYPE_CATALOG',
+    "{ id: 'grain'",
+    "{ id: 'ore'",
+    "{ id: 'flour'",
+    "{ id: 'steel'",
+    "{ id: 'food'",
+    "{ id: 'machinery'",
+    "id: 'farm'",
+    "id: 'mine'",
+    "id: 'mill'",
+    "id: 'steelworks'",
+    "id: 'food-factory'",
+    "id: 'machine-factory'",
+    'export function migrateWorld',
+    "case 'setProductionPlan'",
+    "case 'placeOrder'",
+    "case 'buyFacility'",
+    'order.productId === incoming.productId',
+    'facility.productionMode === \'target\'',
+    'delete player.facilitySlots',
+  ]],
+  ['server/test/domain.test.js', [
+    'different products never match',
+    'facility ownership has no slot limit',
+    'target production plan stops',
+    'processing facilities consume input inventory',
+    'does not restart automatically',
+    'manual stop settles completed cycles',
+    'version 1 state migrates',
+    'idempotency returns the original response',
+  ]],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
+    '# Economy 多商品产业与生产计划设计',
+    '玩家持有工厂数量不设上限',
+    '所有工厂施工完成后保持停止状态',
+    '持续生产和定量生产',
+    '不同商品订单不得互相撮合',
+    '`facilitySlots` | 删除',
+    '未更新设计、迁移和测试的生产系统回退不应合并',
+  ]],
   ['deploy/nginx/game.riversoft.top.economy-location.conf', ['proxy_pass http://127.0.0.1:3002/api/game/;']],
   ['package.json', ['"server:test": "node --test server/test/*.test.js"']],
 ]) {
   for (const text of required) requireText(path, text);
 }
+
+for (const rule of [
+  '# Economy UI 设计系统',
+  'src/styles/design-system.css',
+  '页面标题和卡片标题不得显示前置小字',
+  '`PageLayout` 和 `WidgetHeading` 不得提供 `eyebrow` 参数',
+  '未更新设计文档和架构检查的基础样式回退不应合并',
+]) requireText('docs/UI_DESIGN_SYSTEM.md', rule);
 
 const router = read('src/pages/PageRouter.tsx');
 for (const page of pages) {
@@ -283,8 +389,8 @@ for (const page of pages) {
 }
 
 if (failures.length > 0) {
-  console.error('界面架构验证失败:\n- ' + failures.join('\n- '));
+  console.error('界面与产业架构验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
 
-console.log('架构验证通过：标题无前置小字，服务器权威边界与统一 UI 组件、令牌和布局分层均满足项目基线。');
+console.log('架构验证通过：服务器权威、多商品市场、无限工厂持有、生产计划和统一 UI 均满足项目基线。');

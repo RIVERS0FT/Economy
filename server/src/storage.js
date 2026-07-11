@@ -1,9 +1,20 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { applyAction, createClientState, createWorld, ensurePlayer, processWorld } from './domain.js';
+import {
+  applyAction,
+  createClientState,
+  createWorld,
+  ensurePlayer,
+  migrateWorld,
+  processWorld,
+} from './domain.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+
+function normalizeJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
 
 export class EconomyStore {
   constructor(databasePath) {
@@ -74,7 +85,8 @@ export class EconomyStore {
       this.insertWorld.run(1, JSON.stringify(world), now);
       return { revision: 1, world };
     }
-    return { revision: Number(row.revision), world: JSON.parse(String(row.state_json)) };
+    const world = migrateWorld(JSON.parse(String(row.state_json)), now);
+    return { revision: Number(row.revision), world };
   }
 
   saveWorld(revision, world, now) {
@@ -86,7 +98,7 @@ export class EconomyStore {
       const { revision, world } = this.loadWorld(now);
       ensurePlayer(world, user, now);
       processWorld(world, now);
-      const state = createClientState(world, Number(user.id), now);
+      const state = normalizeJson(createClientState(world, Number(user.id), now));
       this.saveWorld(revision, world, now);
       return state;
     });
@@ -107,7 +119,7 @@ export class EconomyStore {
       const { revision, world } = this.loadWorld(now);
       const gameResult = applyAction(world, user, action, payload, now);
       const state = createClientState(world, Number(user.id), now);
-      const response = { result: gameResult, state };
+      const response = normalizeJson({ result: gameResult, state });
       this.saveWorld(revision, world, now);
       this.insertIdempotency.run(
         Number(user.id),

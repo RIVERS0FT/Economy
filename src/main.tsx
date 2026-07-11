@@ -11,6 +11,7 @@ import './styles/card-system.css';
 import './styles/mobile-status-navigation.css';
 import './styles/mobile-pages.css';
 import './styles/mobile-status-layout.css';
+import './styles/industry-system.css';
 import './styles/design-system.css';
 
 configureRuntimePerformance();

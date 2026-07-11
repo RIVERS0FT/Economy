@@ -1,4 +1,4 @@
-import type { EconomyState, OrderSide } from '../types';
+import type { EconomyState, OrderSide, ProductionMode } from '../types';
 
 const GAME_API_BASE = '/economy-api/game';
 
@@ -66,14 +66,25 @@ export async function getGameState(): Promise<EconomyState> {
 
 export const gameActions = {
   work: () => postAction('/work'),
-  buildFacility: () => postAction('/facilities'),
+  buildFacility: (facilityTypeId: string) => postAction('/facilities', { facilityTypeId }),
   startFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/start`),
+  stopFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/stop`),
   pauseFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/pause`),
+  setProductionPlan: (
+    facilityId: string,
+    mode: ProductionMode,
+    targetQuantity?: number,
+  ) => postAction(`/facilities/${encodeURIComponent(facilityId)}/plan`, { mode, targetQuantity }),
   collectFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/collect`),
   listFacility: (facilityId: string, price: number) => postAction(`/facilities/${encodeURIComponent(facilityId)}/list`, { price }),
   cancelFacilityListing: (listingId: string) => postAction(`/facility-listings/${encodeURIComponent(listingId)}/cancel`),
   buyFacility: (listingId: string) => postAction(`/facility-listings/${encodeURIComponent(listingId)}/buy`),
-  placeCommodityOrder: (side: OrderSide, quantity: number, price: number) => postAction('/orders', { side, quantity, price }),
+  placeCommodityOrder: (
+    productId: string,
+    side: OrderSide,
+    quantity: number,
+    price: number,
+  ) => postAction('/orders', { productId, side, quantity, price }),
   cancelOrder: (orderId: string) => postAction(`/orders/${encodeURIComponent(orderId)}/cancel`),
   renamePlayer: (playerName: string) => request<GameActionResponse>('/profile', {
     method: 'PATCH',

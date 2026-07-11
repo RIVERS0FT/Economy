@@ -16,11 +16,17 @@ import { formatCurrency, formatDuration, formatTime } from '../utils/formatters'
 
 export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
   const { game, derived, workRemaining, work, showResult, setTab } = model;
+  const plannedFacilities = game.facilities.filter((facility) => facility.productionMode === 'target').length;
+  const pendingPlans = game.facilities.reduce((sum, facility) => (
+    facility.productionMode === 'target'
+      ? sum + Math.max(0, (facility.targetQuantity || 0) - facility.completedQuantity)
+      : sum
+  ), 0);
 
   return (
     <PageLayout
       title={<>早上好，{game.playerName}</>}
-      description="观察市场、管理生产，并持续提高你的总资产排名。"
+      description="管理多商品产业链、手动控制工厂，并通过独立市场提高总资产排名。"
       actions={
         <>
           <StatusTag>{`未完成订单 ${derived.ownOpenOrders.length}/${economyConstants.maxOpenOrders}`}</StatusTag>
@@ -49,37 +55,51 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget market-summary span-2">
           <WidgetHeading
-            title={`${game.commodityName}市场`}
-            action={<Button variant="text" onClick={() => setTab('market')}>查看完整盘口 →</Button>}
+            title={`${derived.selectedProduct.name}市场`}
+            action={<Button variant="text" onClick={() => setTab('market')}>查看全部商品 →</Button>}
           />
           <div className="market-quote-grid">
-            <MetricCard label="最近成交" value={`¤ ${game.marketPrice}`} />
+            <MetricCard label="最近成交" value={`¤ ${derived.selectedMarket.lastPrice}`} />
             <MetricCard tone="success" label="最高买价" value={`¤ ${derived.bestBid || '--'}`} />
             <MetricCard tone="danger" label="最低卖价" value={`¤ ${derived.bestAsk || '--'}`} />
-            <MetricCard label="买卖价差" value={`¤ ${derived.spread}`} />
+            <MetricCard label="持仓" value={derived.selectedInventory.available} detail={`冻结 ${derived.selectedInventory.frozen}`} />
           </div>
           <PriceSparkline values={derived.history.slice(-24)} />
+          <div className="overview-product-strip">
+            {game.products.map((product) => (
+              <button
+                type="button"
+                key={product.id}
+                onClick={() => {
+                  model.setSelectedProductId(product.id);
+                  setTab('market');
+                }}
+              >
+                <span>{product.name}</span>
+                <strong>¤ {game.markets[product.id]?.lastPrice ?? product.basePrice}</strong>
+              </button>
+            ))}
+          </div>
         </Panel>
 
         <Panel className="widget production-summary">
           <WidgetHeading
             title="生产摘要"
-            action={<Button variant="text" onClick={() => setTab('production')}>管理</Button>}
+            action={<Button variant="text" onClick={() => setTab('production')}>管理工厂</Button>}
           />
           <DataList>
-            <DataRow label="运行中的设施" value={derived.runningFacilities} tone="success" />
-            <DataRow label="施工中的设施" value={derived.constructingFacilities} tone="warning" />
-            <DataRow label="待领取商品" value={derived.pendingGoods} />
-            <DataRow
-              label="本小时预计产量"
-              value={game.facilities.reduce((sum, facility) => sum + Math.floor(3_600_000 / facility.cycleMs) * facility.outputPerCycle, 0)}
-            />
+            <DataRow label="运行中的工厂" value={derived.runningFacilities} tone="success" />
+            <DataRow label="已停止的工厂" value={derived.stoppedFacilities} />
+            <DataRow label="阻塞的工厂" value={derived.blockedFacilities} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
+            <DataRow label="施工中的工厂" value={derived.constructingFacilities} tone="warning" />
+            <DataRow label="定量计划" value={`${plannedFacilities} 个 / 剩余 ${pendingPlans}`} tone="info" />
+            <DataRow label="待领取产成品" value={derived.pendingGoods} />
           </DataList>
         </Panel>
 
         <Panel className="widget wealth-summary">
           <WidgetHeading
-            title="财富变化"
+            title="财富构成"
             action={<StatusTag tone="warning">第 {derived.currentRank?.rank ?? '--'} 名</StatusTag>}
           />
           <MetricCard
@@ -91,7 +111,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
           <DataList className="compact">
             <DataRow label="现金资产" value={`¤ ${formatCurrency(derived.cashValue)}`} />
             <DataRow label="商品估值" value={`¤ ${formatCurrency(derived.commodityValue)}`} />
-            <DataRow label="设施估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} />
+            <DataRow label="工厂估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} />
           </DataList>
         </Panel>
 
@@ -109,7 +129,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
                 </strong>
               </div>
             ))}
-            {game.trades.length === 0 ? <EmptyState>暂无成交。进入市场提交你的第一笔订单。</EmptyState> : null}
+            {game.trades.length === 0 ? <EmptyState>暂无成交。进入市场提交你的第一笔商品订单。</EmptyState> : null}
           </div>
         </Panel>
       </div>
