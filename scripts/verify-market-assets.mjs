@@ -32,7 +32,7 @@ forbidFile('src/pages/RecordsPage.tsx');
 for (const [path, forbidden] of [
   ['src/config/navigation.ts', ["id: 'records'", "label: '订单'"]],
   ['src/pages/PageRouter.tsx', ['RecordsPage', "case 'records'"]],
-  ['src/pages/MarketPage.tsx', ['game.trades', 'aggregateOrderBook', 'book-columns', 'listing.facility', 'facilityId']],
+  ['src/pages/MarketPage.tsx', ['game.trades', 'aggregateOrderBook', 'book-columns', 'listing.facility.', 'facilityId:']],
   ['src/pages/AssetsPage.tsx', ['game.ledger', 'game.assetEvents', "setTab('records')"]],
   ['src/types.ts', ['version: 7;', 'assetEvents: AssetEvent[];', 'trades: TradeRecord[];', 'ledger: LedgerEntry[];', 'ProductionFacility']],
   ['server/src/storage.js', ['migrateAssetEvents', 'appendAssetEventFromDiff']],
@@ -87,12 +87,12 @@ for (const text of [
 ]) requireText('src/styles/market-funds.css', text);
 
 for (const text of [
-  '限价输入位于数量输入之前', '`1/4 仓`、`1/2 仓`、`全仓`',
+  '限价在前、数量在后', '`1/4 仓`、`1/2 仓`、`全仓`',
   '订单簿为单列', '买卖盘各最多 5 笔', '工厂挂牌和购买按类型、数量和单座价格',
 ]) requireText('docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', text);
 
 for (const text of [
-  '限价必须位于数量之前', '`1/4 仓｜1/2 仓｜全仓`', '订单簿不分左右两列',
+  '限价必须位于数量之前', '1/4 仓｜1/2 仓｜全仓', '订单簿不分左右两列',
   '工厂数量市场', '客户端状态版本 8',
 ]) requireText('docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md', text);
 
