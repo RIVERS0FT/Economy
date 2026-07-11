@@ -18,6 +18,7 @@ function requireOrderedText(path, earlier, later) {
   'server/src/storage.js',
   'server/src/index.js',
   'server/test/facility-groups.test.js',
+  'server/test/listed-factory-production.test.js',
   'src/types.ts',
   'src/api/game.ts',
   'src/app/gameViewModel.ts',
@@ -97,7 +98,7 @@ for (const text of ['collectFacility', '/collect']) forbidText('src/api/game.ts'
 for (const text of [
   'game.facilityGroups.map', 'FacilityGroupProgress', '当前参与', '下一周期', '待加入', '已挂牌',
   '周期产量', '周期成本', '原料库存', '统一生产计划', '启动全部', '停止全部',
-  '挂牌数量', '单座价格', '下一生产周期加入',
+  '挂牌工厂不参与生产', '挂牌数量', '单座价格', '下一生产周期加入',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 for (const text of [
   'facility.id', 'facility.name', '展开管理', '实例列表', '小时产量', '小时运营费',
@@ -125,11 +126,14 @@ for (const text of [
   'purchased factories join a running group on the next cycle',
   'pending join pauses an incompatible target plan after the current cycle',
   'facility group actions remain idempotent',
+]) requireText('server/test/facility-groups.test.js', text);
+
+for (const text of [
   'listed factories are excluded while unlisted factories can start and produce',
   'target plan uses only unlisted factory quantity',
   'cancelling a listing during production joins that quantity next cycle',
   'selling listed factories does not stop the seller running group',
-]) requireText('server/test/facility-groups.test.js', text);
+]) requireText('server/test/listed-factory-production.test.js', text);
 
 for (const text of [
   '.facility-group-list', '.facility-group-card', '.facility-group-counts', '.facility-group-specs',
