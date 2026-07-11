@@ -101,6 +101,13 @@ for (const text of [
   'newly completed factory joins after the current cycle',
 ]) requireText('server/test/facility-groups.test.js', text);
 
+for (const text of [
+  'const legacyGoods = Math.max(0, Number(facility.internalGoods || 0))',
+  'inventoryFor(player, type.output.productId).available += legacyGoods',
+  'delete player.facilities',
+  'internalCapacity: _internalCapacity',
+]) requireText('server/src/facility-groups.js', text);
+
 for (const [path, forbidden] of [
   ['src/components/warehouse/WarehouseUpgradeCard.tsx', ['150 *', '500 +', 'WAREHOUSE_BASE_CAPACITY', 'Object.values(game.inventories)']],
   ['src/pages/OverviewPage.tsx', ['WarehouseUpgradeCard']],
@@ -108,7 +115,6 @@ for (const [path, forbidden] of [
   ['src/pages/AssetsPage.tsx', ['WarehouseUpgradeCard', 'upgradeWarehouse()']],
   ['src/pages/SettingsPage.tsx', ['WarehouseUpgradeCard', 'warehouseLevel', 'warehouseUpgradeCost', 'warehouseUsedCapacity', '仓库使用']],
   ['server/src/warehouse.js', ['player.trades', 'player.ledger', 'player.assetEvents']],
-  ['server/src/facility-groups.js', ['internalCapacity:', 'internalGoods:']],
 ]) {
   for (const text of forbidden) forbidText(path, text);
 }
