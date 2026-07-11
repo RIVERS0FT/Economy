@@ -25,7 +25,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   }
 
   const { model } = viewModel;
-  const { game, derived, inventoryUsed } = model;
+  const { game, derived } = model;
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const statusItems: StatusBarItem[] = [
     {
@@ -59,7 +59,10 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
       icon: '▣',
       label: derived.selectedProduct.name,
       value: derived.selectedInventory.available,
-      detail: <>冻结 {derived.selectedInventory.frozen} · 总仓库 {inventoryUsed}/{game.inventoryCapacity}</>,
+      detail: <>
+        冻结 {derived.selectedInventory.frozen} · 仓库 {game.warehouseUsedCapacity}/{game.inventoryCapacity}
+        {game.warehouseReservedQuantity > 0 ? ` · 买单预占 ${game.warehouseReservedQuantity}` : ''}
+      </>,
     },
     {
       id: 'market',
