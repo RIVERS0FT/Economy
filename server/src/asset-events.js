@@ -60,6 +60,11 @@ function legacyEvent(entry) {
     cashDelta,
     availableCashAfter: normalizeNumber(entry.balanceAfter),
     frozenCashDelta: 0,
+    frozenCashAfter: 0,
+    inventoryChanges: [],
+    facilityChanges: [],
+    productionChanges: [],
+    sourceType: 'system',
     legacy: true,
   };
 }
@@ -70,7 +75,16 @@ function ensurePlayerAssetEvents(player) {
       ? player.ledger.map(legacyEvent)
       : [];
   }
-  player.assetEvents = player.assetEvents.slice(0, MAX_ASSET_EVENTS_PER_PLAYER);
+  player.assetEvents = player.assetEvents.map((event) => ({
+    cashDelta: 0,
+    availableCashAfter: 0,
+    frozenCashDelta: 0,
+    frozenCashAfter: 0,
+    inventoryChanges: [],
+    facilityChanges: [],
+    productionChanges: [],
+    ...event,
+  })).slice(0, MAX_ASSET_EVENTS_PER_PLAYER);
   return player.assetEvents;
 }
 
@@ -269,9 +283,7 @@ export function appendAssetEventFromDiff(
   const inventoryChanges = diffInventories(before, after);
   const { facilityChanges, productionChanges } = diffFacilities(before, after, action);
   const source = inferSource(action, payload, before, after);
-  const newTradeIds = new Set((after?.trades || []).map((trade) => trade.id));
-  const hasNewTrade = (before?.trades || []).some((trade) => !newTradeIds.has(trade.id))
-    || changedJson(before?.trades, after?.trades);
+  const hasNewTrade = changedJson(before?.trades, after?.trades);
   const event = {
     id: createId(),
     category: hasNewTrade ? 'trade' : (ACTION_CATEGORY_MAP[action] || 'system'),
