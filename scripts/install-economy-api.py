@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import grp
 import os
 import pwd
-import grp
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -11,11 +12,29 @@ from pathlib import Path
 SERVICE_NAME = "riversoft-economy-api.service"
 SERVICE_PATH = Path("/etc/systemd/system") / SERVICE_NAME
 STATE_DIRECTORY = Path("/var/lib/riversoft-economy")
+MINIMUM_NODE = (22, 16, 0)
 
 
 def run(command: list[str], *, capture: bool = False) -> str:
     completed = subprocess.run(command, check=True, text=True, capture_output=capture)
     return completed.stdout.strip() if capture else ""
+
+
+def find_node(release_dir: Path) -> Path:
+    bundled = release_dir / "runtime" / "bin" / "node"
+    candidates = [bundled]
+    system_node = shutil.which("node")
+    if system_node:
+        candidates.append(Path(system_node))
+
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate.resolve()
+
+    raise RuntimeError(
+        "Node.js runtime is unavailable; expected "
+        f"{bundled} or a system node executable"
+    )
 
 
 def main() -> int:
@@ -39,11 +58,13 @@ def main() -> int:
     if missing:
         raise RuntimeError("Missing Economy API files: " + ", ".join(missing))
 
-    node_path = run(["bash", "-lc", "command -v node"], capture=True)
-    version = run([node_path, "-p", "process.versions.node"], capture=True)
+    node_path = find_node(release_dir)
+    version = run([str(node_path), "-p", "process.versions.node"], capture=True)
     major, minor, patch = (int(part) for part in version.split(".")[:3])
-    if (major, minor, patch) < (22, 16, 0):
+    if (major, minor, patch) < MINIMUM_NODE:
         raise RuntimeError(f"Node.js 22.16.0 or newer is required, found {version}")
+
+    run([str(node_path), "-e", "require('node:sqlite')"])
 
     STATE_DIRECTORY.mkdir(parents=True, exist_ok=True)
     os.chown(STATE_DIRECTORY, account.pw_uid, account.pw_gid)
@@ -83,7 +104,7 @@ WantedBy=multi-user.target
     run(["systemctl", "enable", SERVICE_NAME])
     run(["systemctl", "restart", SERVICE_NAME])
     run(["systemctl", "is-active", "--quiet", SERVICE_NAME])
-    print(f"Installed {SERVICE_NAME} with Node.js {version}")
+    print(f"Installed {SERVICE_NAME} with Node.js {version} at {node_path}")
     return 0
 
 
