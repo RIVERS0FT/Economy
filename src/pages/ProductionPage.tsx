@@ -125,6 +125,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
         <div className="facility-list">
           {game.facilities.map((facility) => {
+            const facilityType = game.facilityTypes.find((type) => type.id === facility.facilityTypeId);
             const listingPrice = listingPrices[facility.id] ?? facility.systemValue;
             const mode = planModes[facility.id] ?? facility.productionMode;
             const target = planTargets[facility.id] ?? facility.targetQuantity ?? facility.outputPerCycle * 10;
@@ -158,7 +159,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                   </div>
                 </div>
 
-                <FacilityProgress facility={facility} now={now} />
+                <FacilityProgress facility={facility} now={now} buildTimeMs={facilityType?.buildTimeMs} />
 
                 <div className="facility-specs ui-spec-grid">
                   <span>周期 <strong>{facility.cycleMs / 1000} 秒</strong></span>
