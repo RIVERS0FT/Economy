@@ -32,11 +32,11 @@ function seedStore({ credits = 10_000, inventoryCapacity = 500, warehouseLevel }
   return store;
 }
 
-test('warehouse state defaults to level 1 and client version 8', () => {
+test('warehouse state defaults to level 1 and client version 7', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 8);
+    assert.equal(state.version, 7);
     assert.equal(state.warehouseLevel, 1);
     assert.equal(state.inventoryCapacity, 500);
     assert.equal(state.warehouseMaxLevel, WAREHOUSE_MAX_LEVEL);
