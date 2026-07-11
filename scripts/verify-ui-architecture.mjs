@@ -80,6 +80,7 @@ const uiSourcePaths = [
   'docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md',
   'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'server/src/index.js',
   'server/src/domain.js',
   'server/src/storage.js',
@@ -111,7 +112,28 @@ for (const [path, forbidden] of [
   ['src/utils/runtimePerformance.ts', ['useGameStore']],
   ['src/types.ts', ['facilitySlots', 'version: 5;', 'version: 6;', 'assetEvents: AssetEvent[];', 'trades: TradeRecord[];', 'ledger: LedgerEntry[];']],
   ['src/pages/ProductionPage.tsx', ['facilitySlots', '设施槽位']],
-  ['src/pages/SettingsPage.tsx', ['facilitySlots', '设施槽位']],
+  ['src/pages/SettingsPage.tsx', [
+    'facilitySlots',
+    '设施槽位',
+    '<DataList',
+    '<DataRow',
+    'account-summary',
+    '账号与产业摘要',
+    '仓库使用',
+    '工厂总数',
+    '运行中工厂',
+    '施工中工厂',
+    '阻塞工厂',
+    '商品种类',
+    '未完成订单',
+    '当前排名',
+    'warehouseLevel',
+    'warehouseUpgradeCost',
+    'warehouseUsedCapacity',
+    'derived.',
+    'game.facilities',
+    'game.products',
+  ]],
   ['server/src/domain.js', ['生产设施槽位不足', '空闲设施槽位']],
   ['server/src/storage.js', ['migrateAssetEvents', 'appendAssetEventFromDiff', 'assetEvents: normalizeJson']],
   ['src/styles/auth.css', ['#07100d', '@media (max-width: 380px)']],
@@ -225,8 +247,15 @@ for (const [path, required] of [
   ]],
   ['src/pages/LeaderboardPage.tsx', ['<MetricCard', '<StatusTag', 'className="numeric-cell"']],
   ['src/pages/SettingsPage.tsx', [
-    '工厂总数', '运行中工厂', '仓库使用',
-    '<Button', '<ToggleField', '<DataList', 'className="ui-link"',
+    'title="设置"',
+    '玩家资料',
+    '游戏设置',
+    '登录会话',
+    '退出登录',
+    '重置服务器经济状态',
+    '<Button',
+    '<ToggleField',
+    'className="ui-link"',
   ]],
   ['src/app/gameViewModel.ts', [
     'localAssetEvents',
@@ -326,6 +355,7 @@ for (const [path, required] of [
     '资金负责资产结果',
     '用户可见日志只保存在浏览器本地',
     '服务器不得把以下玩家日志数组写入',
+    '设置页不得显示账号与产业摘要或仓库使用摘要',
   ]],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', [
     '# Economy 本地活动日志设计',
@@ -333,6 +363,11 @@ for (const [path, required] of [
     'localStorage',
     '不参与资产计算',
     '未更新本设计和防回退检查的日志存储修改不应合并',
+  ]],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
+    '# Economy 页面内容与导航职责设计',
+    '设置页不得显示账号与产业只读摘要或仓库使用摘要',
+    '未更新本设计、相关专项设计和防回退检查的页面结构修改不应合并',
   ]],
 ]) {
   for (const text of required) requireText(path, text);
@@ -420,4 +455,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('架构验证通过：服务器权威状态、本地活动日志、多商品市场和统一 UI 均满足项目基线。');
+console.log('架构验证通过：服务器权威状态、本地活动日志、多商品市场、精简设置页和统一 UI 均满足项目基线。');
