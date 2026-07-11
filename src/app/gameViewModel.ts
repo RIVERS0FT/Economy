@@ -37,7 +37,6 @@ import {
 } from '../utils/localActivityStore';
 
 export const facilityStatusNames: Record<FacilityStatus, string> = {
-  constructing: '施工中',
   ready: '待启动',
   running: '运行中',
   paused: '已停止',
@@ -50,10 +49,11 @@ export const facilityStatusNames: Record<FacilityStatus, string> = {
 export const facilityStopReasonNames: Record<FacilityStopReason, string> = {
   manual: '手动停止',
   plan_complete: '计划完成',
+  plan_adjustment_required: '工厂数量变化，需要重新确认定量计划',
   insufficient_funds: '运营资金不足',
   insufficient_input: '生产原料不足',
   output_full: '共享仓库空间不足',
-  listed: '正在挂牌出售',
+  listed: '存在挂牌数量',
   maintenance: '系统维护',
 };
 
@@ -139,17 +139,17 @@ export interface LoadedGameViewModel {
   work: () => Promise<ActionResult>;
   upgradeWarehouse: () => Promise<ActionResult>;
   buildFacility: (facilityTypeId?: string) => Promise<ActionResult>;
-  startFacility: (facilityId: string) => Promise<ActionResult>;
-  stopFacility: (facilityId: string) => Promise<ActionResult>;
-  pauseFacility: (facilityId: string) => Promise<ActionResult>;
+  startFacility: (facilityTypeId: string) => Promise<ActionResult>;
+  stopFacility: (facilityTypeId: string) => Promise<ActionResult>;
+  pauseFacility: (facilityTypeId: string) => Promise<ActionResult>;
   setProductionPlan: (
-    facilityId: string,
+    facilityTypeId: string,
     mode: ProductionMode,
     targetQuantity?: number,
   ) => Promise<ActionResult>;
-  listFacility: (facilityId: string, price: number) => Promise<ActionResult>;
+  listFacility: (facilityTypeId: string, quantity: number, unitPrice: number) => Promise<ActionResult>;
   cancelFacilityListing: (listingId: string) => Promise<ActionResult>;
-  buyFacility: (listingId: string) => Promise<ActionResult>;
+  buyFacility: (listingId: string, quantity: number) => Promise<ActionResult>;
   placeCommodityOrder: (
     side: OrderSide,
     quantity: number,
@@ -205,7 +205,10 @@ function deriveGameData(
   const asks = game.orders
     .filter((order) => order.productId === selectedProduct.id && order.side === 'sell' && ['open', 'partial'].includes(order.status))
     .sort((a, b) => a.price - b.price || a.createdAt - b.createdAt);
-  const facilityValue = game.facilities.reduce((sum, facility) => sum + facility.systemValue, 0);
+  const facilityValue = game.facilityGroups.reduce((sum, group) => {
+    const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
+    return sum + group.count * (type?.systemValue ?? 0);
+  }, 0);
   const commodityValue = game.products.reduce((sum, product) => {
     const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
     const price = game.markets[product.id]?.lastPrice ?? product.basePrice;
@@ -220,12 +223,19 @@ function deriveGameData(
   const bestBid = bids[0]?.price ?? 0;
   const bestAsk = asks[0]?.price ?? 0;
   const spread = bestBid && bestAsk ? bestAsk - bestBid : 0;
-  const runningFacilities = game.facilities.filter((facility) => facility.status === 'running').length;
-  const constructingFacilities = game.facilities.filter((facility) => facility.status === 'constructing').length;
-  const stoppedFacilities = game.facilities.filter((facility) => ['ready', 'paused'].includes(facility.status)).length;
-  const blockedFacilities = game.facilities.filter((facility) => (
-    ['full', 'insufficient_funds', 'insufficient_input'].includes(facility.status)
-  )).length;
+  const runningFacilities = game.facilityGroups.reduce(
+    (sum, group) => sum + (group.status === 'running' ? group.participatingCount : 0),
+    0,
+  );
+  const constructingFacilities = game.facilityConstruction ? 1 : 0;
+  const stoppedFacilities = game.facilityGroups.reduce(
+    (sum, group) => sum + (['ready', 'paused', 'listed'].includes(group.status) ? group.count : 0),
+    0,
+  );
+  const blockedFacilities = game.facilityGroups.reduce(
+    (sum, group) => sum + (['full', 'insufficient_funds', 'insufficient_input'].includes(group.status) ? group.count : 0),
+    0,
+  );
   const buyTrades = localTrades.filter((trade) => (
     trade.type === 'commodity' && trade.productId === selectedProduct.id && trade.side === 'buy'
   ));
@@ -235,7 +245,6 @@ function deriveGameData(
     : 0;
   const history = selectedMarket.priceHistory.map((point) => point.price);
   const marketTrend = history.length > 1 ? history[history.length - 1] - history[0] : 0;
-  const inventoryUsed = game.warehouseStoredQuantity;
 
   return {
     selectedProduct,
@@ -262,7 +271,7 @@ function deriveGameData(
     averageCost,
     history,
     marketTrend,
-    inventoryUsed,
+    inventoryUsed: game.warehouseStoredQuantity,
   };
 }
 
@@ -467,15 +476,17 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     work: () => runAction('work', gameActions.work),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
     buildFacility: (facilityTypeId = selectedFacilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
-    startFacility: (facilityId) => runAction('startFacility', () => gameActions.startFacility(facilityId)),
-    stopFacility: (facilityId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityId)),
-    pauseFacility: (facilityId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityId)),
-    setProductionPlan: (facilityId, mode, targetQuantity) => (
-      runAction('setProductionPlan', () => gameActions.setProductionPlan(facilityId, mode, targetQuantity))
+    startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),
+    stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),
+    pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
+    setProductionPlan: (facilityTypeId, mode, targetQuantity) => (
+      runAction('setProductionPlan', () => gameActions.setProductionPlan(facilityTypeId, mode, targetQuantity))
     ),
-    listFacility: (facilityId, price) => runAction('listFacility', () => gameActions.listFacility(facilityId, price)),
+    listFacility: (facilityTypeId, quantity, unitPrice) => (
+      runAction('listFacility', () => gameActions.listFacility(facilityTypeId, quantity, unitPrice))
+    ),
     cancelFacilityListing: (listingId) => runAction('cancelFacilityListing', () => gameActions.cancelFacilityListing(listingId)),
-    buyFacility: (listingId) => runAction('buyFacility', () => gameActions.buyFacility(listingId)),
+    buyFacility: (listingId, quantity) => runAction('buyFacility', () => gameActions.buyFacility(listingId, quantity)),
     placeCommodityOrder: (side, quantity, price, productId = selectedProductId) => (
       runAction('placeOrder', () => gameActions.placeCommodityOrder(productId, side, quantity, price))
     ),
