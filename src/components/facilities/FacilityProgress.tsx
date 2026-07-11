@@ -1,34 +1,29 @@
-import type { ProductionFacility } from '../../types';
+import type { FacilityGroup, FacilityTypeDefinition } from '../../types';
 import { facilityStatusNames } from '../../app/gameViewModel';
 import { formatDuration } from '../../utils/formatters';
 
-export function FacilityProgress({
-  facility,
+export function FacilityGroupProgress({
+  group,
+  type,
   now,
-  buildTimeMs,
 }: {
-  facility: ProductionFacility;
+  group: FacilityGroup;
+  type: FacilityTypeDefinition;
   now: number;
-  buildTimeMs?: number;
 }) {
   let progress = 0;
-  let detail = facilityStatusNames[facility.status];
+  let detail = facilityStatusNames[group.status];
 
-  if (facility.status === 'constructing' && facility.constructionCompletesAt) {
-    const remaining = Math.max(0, facility.constructionCompletesAt - now);
-    const total = Math.max(1, buildTimeMs || remaining || 1);
-    progress = Math.max(0, Math.min(100, 100 - (remaining / total) * 100));
-    detail = `施工剩余 ${formatDuration(remaining)}`;
-  } else if (facility.status === 'running' && facility.cycleStartedAt) {
-    const elapsed = Math.max(0, now - facility.cycleStartedAt);
-    const cycleElapsed = elapsed % facility.cycleMs;
-    progress = Math.max(0, Math.min(100, (cycleElapsed / facility.cycleMs) * 100));
-    detail = `本周期 ${formatDuration(facility.cycleMs - cycleElapsed)}`;
-  } else if (facility.status === 'full') {
+  if (group.status === 'running' && group.cycleStartedAt) {
+    const elapsed = Math.max(0, now - group.cycleStartedAt);
+    const cycleElapsed = elapsed % type.cycleMs;
+    progress = Math.max(0, Math.min(100, (cycleElapsed / type.cycleMs) * 100));
+    detail = `本周期剩余 ${formatDuration(type.cycleMs - cycleElapsed)}`;
+  } else if (group.status === 'full') {
     progress = 100;
-  } else if (facility.productionMode === 'target' && facility.targetQuantity) {
-    progress = Math.max(0, Math.min(100, (facility.completedQuantity / facility.targetQuantity) * 100));
-    detail = `计划 ${facility.completedQuantity}/${facility.targetQuantity}`;
+  } else if (group.productionMode === 'target' && group.targetQuantity) {
+    progress = Math.max(0, Math.min(100, (group.completedQuantity / group.targetQuantity) * 100));
+    detail = `计划 ${group.completedQuantity}/${group.targetQuantity}`;
   }
 
   return (
