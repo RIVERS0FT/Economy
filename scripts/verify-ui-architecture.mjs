@@ -38,6 +38,7 @@ const pages = [
   'src/components/shell/StatusBar.tsx',
   'src/components/ui/layout.tsx',
   'src/config/navigation.ts',
+  'src/config/labels.ts',
   'src/pages/PageRouter.tsx',
   'src/styles/mobile-pages.css',
   'src/styles/mobile-status-layout.css',
@@ -96,9 +97,13 @@ for (const path of ['src/app/LoginPage.tsx', ...pages.map((page) => `src/pages/$
   for (const text of visibleEnglish) forbidText(path, text);
 }
 
+requireText('index.html', 'viewport-fit=cover');
 requireText('src/config/navigation.ts', "label: '概览'");
 requireText('src/config/navigation.ts', "label: '排行'");
 requireText('src/config/navigation.ts', "label: '订单'");
+requireText('src/config/labels.ts', "system: '系统调整'");
+requireText('src/pages/AssetsPage.tsx', 'ledgerCategoryNames[entry.category]');
+requireText('src/pages/RecordsPage.tsx', 'ledgerCategoryNames[entry.category]');
 requireText('src/components/shell/StatusBar.tsx', 'items.map');
 requireText('src/components/shell/StatusBar.tsx', 'compactValue');
 requireText('src/components/shell/GameShell.tsx', '<DesktopSidebar');
