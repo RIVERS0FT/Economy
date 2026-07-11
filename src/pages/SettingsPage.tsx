@@ -94,6 +94,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
             <DataRow label="运行中工厂" value={derived.runningFacilities} tone="success" />
             <DataRow label="施工中工厂" value={derived.constructingFacilities} tone="warning" />
             <DataRow label="阻塞工厂" value={derived.blockedFacilities} tone={derived.blockedFacilities > 0 ? 'danger' : 'neutral'} />
+            <DataRow label="仓库使用" value={`${game.warehouseUsedCapacity}/${game.inventoryCapacity}`} />
             <DataRow label="商品种类" value={game.products.length} />
             <DataRow label="未完成订单" value={derived.ownOpenOrders.length} tone={derived.ownOpenOrders.length > 0 ? 'warning' : 'neutral'} />
             <DataRow label="当前排名" value={`第 ${derived.currentRank?.rank ?? '--'} 名`} tone="warning" />
