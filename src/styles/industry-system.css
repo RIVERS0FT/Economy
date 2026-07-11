@@ -1,4 +1,4 @@
-/* Multi-product market and production planning layouts.
+/* Multi-product market and facility-group production layouts.
  * Base controls and visual tokens remain owned by design-system.css. */
 
 .product-tabs {
@@ -97,10 +97,69 @@
   color: var(--color-warning);
 }
 
+.construction-status {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-3) 0;
+  border: 1px solid var(--color-warning-soft, var(--color-border));
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+  background: var(--color-surface-inset);
+}
+
+.construction-status span,
+.construction-status small {
+  color: var(--color-text-muted);
+}
+
+.facility-group-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.facility-group-card {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.facility-group-card .facility-card-head h2 {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xl);
+}
+
+.facility-group-counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.facility-group-counts > span {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  color: var(--color-text-muted);
+  background: var(--color-surface-inset);
+  font-size: var(--font-size-xs);
+}
+
+.facility-group-counts strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+}
+
+.facility-group-specs {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .production-plan-card {
   display: grid;
   gap: var(--space-3);
-  margin-top: var(--space-3);
+  margin-top: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   padding: var(--space-3);
@@ -133,6 +192,43 @@
 .production-plan-controls select,
 .production-plan-controls input {
   min-width: 0;
+}
+
+.facility-group-listing-control {
+  grid-template-columns: minmax(110px, 0.6fr) minmax(130px, 0.8fr) auto auto;
+  align-items: end;
+  margin-top: 0;
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-3);
+}
+
+.facility-group-listing-control label {
+  min-width: 0;
+}
+
+.listing-total {
+  display: grid;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.listing-total strong {
+  color: var(--color-warning);
+  font-size: var(--font-size-md);
+}
+
+.facility-group-own-listing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  color: var(--color-text-muted);
+  background: var(--color-surface-inset);
 }
 
 .product-asset-grid {
@@ -169,12 +265,22 @@
   font-size: var(--font-size-xl);
 }
 
+@media (max-width: 1380px) {
+  .facility-group-list {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1220px) {
   .overview-product-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .product-asset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .facility-group-listing-control {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -186,6 +292,11 @@
 
   .production-plan-controls .ui-button {
     grid-column: span 2;
+  }
+
+  .facility-group-counts,
+  .facility-group-specs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -201,7 +312,8 @@
 
   .overview-product-strip,
   .product-asset-grid,
-  .production-plan-controls {
+  .production-plan-controls,
+  .facility-group-listing-control {
     grid-template-columns: 1fr;
   }
 
@@ -215,5 +327,19 @@
 
   .facility-output {
     min-width: 72px;
+  }
+
+  .facility-group-counts,
+  .facility-group-specs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .facility-group-own-listing {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .facility-group-own-listing .ui-button {
+    width: 100%;
   }
 }
