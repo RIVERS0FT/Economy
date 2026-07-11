@@ -1,5 +1,6 @@
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PageLayout, Panel, WidgetHeading } from '../components/ui/layout';
+import { ledgerCategoryNames } from '../config/labels';
 import { formatCurrency, formatTime } from '../utils/formatters';
 
 export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
@@ -56,7 +57,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
             {game.ledger.slice(0, 8).map((entry) => (
               <div key={entry.id}>
                 <span className="ledger-time">{formatTime(entry.createdAt)}</span>
-                <div><strong>{entry.description}</strong><small>{entry.category}</small></div>
+                <div><strong>{entry.description}</strong><small>{ledgerCategoryNames[entry.category]}</small></div>
                 <span className={entry.amount > 0 ? 'positive' : entry.amount < 0 ? 'negative' : ''}>{entry.amount > 0 ? '+' : ''}{entry.amount ? `¤ ${entry.amount}` : '状态'}</span>
               </div>
             ))}
