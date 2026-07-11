@@ -2,7 +2,7 @@ import type { ChangeEvent } from 'react';
 import { facilityStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { FacilityProgress } from '../components/facilities/FacilityProgress';
 import { PageLayout, Panel } from '../components/ui/layout';
-import { economyConstants } from '../store/gameStore';
+import { economyConstants } from '../config/economy';
 
 export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const {
@@ -37,7 +37,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             <div><dt>运营费用</dt><dd>¤ 1 / 周期</dd></div>
             <div><dt>内部容量</dt><dd>20</dd></div>
           </dl>
-          <button onClick={() => showResult(buildFacility())} disabled={game.facilities.length >= game.facilitySlots}>开始施工</button>
+          <button onClick={() => void showResult(buildFacility())} disabled={game.facilities.length >= game.facilitySlots}>开始施工</button>
           <small className="muted">建造费由系统回收，施工期间持续占用设施槽位。</small>
         </Panel>
 
@@ -68,9 +68,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                   <span>预计回本 <strong>{payback ? `${payback} 小时` : '--'}</strong></span>
                 </div>
                 <div className="facility-actions">
-                  {facility.status === 'running' ? <button className="ghost-button" onClick={() => pauseFacility(facility.id)}>暂停生产</button> : null}
-                  {['ready', 'paused', 'full', 'insufficient_funds'].includes(facility.status) ? <button onClick={() => startFacility(facility.id)}>启动生产</button> : null}
-                  <button className="ghost-button" onClick={() => showResult(collectFacility(facility.id))}>领取商品</button>
+                  {facility.status === 'running' ? <button className="ghost-button" onClick={() => void showResult(pauseFacility(facility.id))}>暂停生产</button> : null}
+                  {['ready', 'paused', 'full', 'insufficient_funds'].includes(facility.status) ? <button onClick={() => void showResult(startFacility(facility.id))}>启动生产</button> : null}
+                  <button className="ghost-button" onClick={() => void showResult(collectFacility(facility.id))}>领取商品</button>
                 </div>
                 {['ready', 'paused', 'full', 'insufficient_funds'].includes(facility.status) ? (
                   <div className="listing-control">
@@ -81,11 +81,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                       value={listingPrice}
                       onChange={(event: ChangeEvent<HTMLInputElement>) => setListingPrices((current) => ({ ...current, [facility.id]: Number(event.target.value) }))}
                     />
-                    <button className="ghost-button" onClick={() => showResult(listFacility(facility.id, listingPrice))}>挂牌出售</button>
+                    <button className="ghost-button" onClick={() => void showResult(listFacility(facility.id, listingPrice))}>挂牌出售</button>
                   </div>
                 ) : null}
                 {facility.status === 'listed' && facility.listedOrderId ? (
-                  <button className="danger-button full-button" onClick={() => cancelFacilityListing(facility.listedOrderId as string)}>撤销设施挂牌</button>
+                  <button className="danger-button full-button" onClick={() => void showResult(cancelFacilityListing(facility.listedOrderId as string))}>撤销设施挂牌</button>
                 ) : null}
               </Panel>
             );
