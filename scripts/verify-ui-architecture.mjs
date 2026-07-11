@@ -40,6 +40,13 @@ const pages = [
   'SettingsPage.tsx',
 ];
 
+const pagePaths = pages.map((page) => `src/pages/${page}`);
+const uiSourcePaths = [
+  'src/app/LoginPage.tsx',
+  'src/components/shell/DesktopSidebar.tsx',
+  ...pagePaths,
+];
+
 [
   'src/app/App.tsx',
   'src/app/GameApp.tsx',
@@ -56,8 +63,12 @@ const pages = [
   'src/config/labels.ts',
   'src/pages/PageRouter.tsx',
   'src/styles/design-system.css',
+  'src/styles/globals.css',
+  'src/styles/auth.css',
+  'src/styles/card-system.css',
   'src/styles/desktop-sidebar.css',
   'src/styles/mobile-pages.css',
+  'src/styles/mobile-status-navigation.css',
   'src/styles/mobile-status-layout.css',
   'docs/UI_DESIGN_SYSTEM.md',
   'server/src/index.js',
@@ -66,7 +77,7 @@ const pages = [
   'server/src/auth.js',
   'server/test/domain.test.js',
   'scripts/install-economy-api.py',
-  ...pages.map((page) => `src/pages/${page}`),
+  ...pagePaths,
 ].forEach(requireFile);
 
 forbidFile('src/store/gameStore.ts');
@@ -82,7 +93,6 @@ forbidText('src/main.tsx', 'textContent');
 forbidText('src/styles/mobile-status-navigation.css', 'nth-child');
 forbidText('src/styles/viewport.css', '--mobile-chrome-surface-transparent');
 forbidText('src/styles/viewport.css', 'backdrop-filter: none');
-forbidText('src/styles/globals.css', 'bottom: .35rem');
 forbidText('src/styles/card-system.css', '--card-radius:');
 forbidText('src/styles/card-system.css', '--radius-card:');
 forbidText('src/config/navigation.ts', '主页面');
@@ -96,6 +106,39 @@ forbidText('src/components/shell/DesktopSidebar.tsx', 'rank?: number');
 forbidText('src/app/gameViewModel.ts', 'localStorage');
 forbidText('src/app/gameViewModel.ts', 'useGameStore');
 forbidText('src/utils/runtimePerformance.ts', 'useGameStore');
+
+const legacyUiClasses = [
+  'ghost-button',
+  'danger-button',
+  'text-button',
+  'table-button',
+  'status-chip',
+  'widget-badge',
+  'rank-chip',
+  'side-buy',
+  'side-sell',
+  'toggle-input',
+];
+for (const path of uiSourcePaths) {
+  for (const className of legacyUiClasses) forbidText(path, className);
+}
+
+const forbiddenGlobalPrimitives = [
+  '\nbutton {',
+  '\ninput,\nselect',
+  '\n.status-chip {',
+  '\n.table-button {',
+  '\ntable {',
+  '\nth, td {',
+];
+for (const primitive of forbiddenGlobalPrimitives) forbidText('src/styles/globals.css', primitive);
+
+forbidText('src/styles/auth.css', '#07100d');
+forbidText('src/styles/auth.css', '@media (max-width: 380px)');
+forbidText('src/styles/globals.css', '@media (max-width: 1180px)');
+forbidText('src/styles/globals.css', '@media (max-width: 950px)');
+forbidText('src/styles/globals.css', '@media (max-width: 700px)');
+forbidText('src/styles/globals.css', '@media (max-width: 380px)');
 
 const visibleEnglish = [
   'Player command center',
@@ -129,11 +172,11 @@ const visibleEnglish = [
   'K / M',
 ];
 
-for (const path of ['src/app/LoginPage.tsx', ...pages.map((page) => `src/pages/${page}`)]) {
+for (const path of ['src/app/LoginPage.tsx', ...pagePaths]) {
   for (const text of visibleEnglish) forbidText(path, text);
 }
 
-for (const path of ['src/components/ui/layout.tsx', ...pages.map((page) => `src/pages/${page}`)]) {
+for (const path of ['src/components/ui/layout.tsx', ...pagePaths]) {
   forbidText(path, 'className="eyebrow"');
 }
 
@@ -149,15 +192,42 @@ requireText('src/pages/MarketPage.tsx', 'level.remaining += order.remaining');
 requireText('src/pages/MarketPage.tsx', 'level.orderCount += 1');
 requireText('src/pages/MarketPage.tsx', "aggregateOrderBook(derived.bids, 'buy')");
 requireText('src/pages/MarketPage.tsx', "aggregateOrderBook(derived.asks, 'sell')");
-requireText('src/components/ui/layout.tsx', '<h1>{title}</h1>');
-requireText('src/components/ui/layout.tsx', '<h2>{title}</h2>');
-requireText('src/components/ui/layout.tsx', 'className="ui-eyebrow"');
-requireText('src/components/ui/layout.tsx', 'export function StatusTag');
-requireText('src/components/ui/layout.tsx', 'status-${tone}');
+
+const sharedComponents = [
+  'export function Button',
+  'export function StatusTag',
+  'export function MetricCard',
+  'export function DataList',
+  'export function DataRow',
+  'export function ToggleField',
+  'export function ScrollableTable',
+  'export function EmptyState',
+  'className="ui-eyebrow"',
+  '<h1>{title}</h1>',
+  '<h2>{title}</h2>',
+];
+for (const component of sharedComponents) requireText('src/components/ui/layout.tsx', component);
+
+const pageComponentContracts = {
+  'src/app/LoginPage.tsx': ['<Button', 'role="alert"'],
+  'src/components/shell/DesktopSidebar.tsx': ['<Button', 'variant="secondary"'],
+  'src/pages/OverviewPage.tsx': ['<Button', '<StatusTag', '<MetricCard', '<DataList'],
+  'src/pages/MarketPage.tsx': ['<Button', '<StatusTag', '<MetricCard', 'className="ui-segmented"'],
+  'src/pages/ProductionPage.tsx': ['<Button', '<StatusTag', '<DataList', 'className="facility-specs ui-spec-grid"'],
+  'src/pages/AssetsPage.tsx': ['<Button', '<MetricCard', '<DataList'],
+  'src/pages/LeaderboardPage.tsx': ['<MetricCard', '<StatusTag', 'className="numeric-cell"'],
+  'src/pages/RecordsPage.tsx': ['<Button', '<MetricCard', '<StatusTag', 'className="numeric-cell"'],
+  'src/pages/SettingsPage.tsx': ['<Button', '<ToggleField', '<DataList', 'className="ui-link"'],
+};
+for (const [path, contracts] of Object.entries(pageComponentContracts)) {
+  for (const contract of contracts) requireText(path, contract);
+}
+
 requireText('src/components/shell/DesktopSidebar.tsx', '<span title={displayName}>{displayName}</span>');
+requireText('src/components/shell/DesktopSidebar.tsx', '服务器权威经济');
 requireText('src/components/shell/GameShell.tsx', 'playerName={model.game.playerName}');
 requireText('src/styles/desktop-sidebar.css', 'text-overflow: ellipsis');
-requireText('src/styles/desktop-sidebar.css', 'margin-top: .85rem');
+requireText('src/styles/desktop-sidebar.css', 'margin-top: var(--space-3)');
 requireText('src/components/shell/StatusBar.tsx', 'items.map');
 requireText('src/components/shell/StatusBar.tsx', 'compactValue');
 requireText('src/components/shell/GameShell.tsx', '<DesktopSidebar');
@@ -177,7 +247,9 @@ requireText('src/styles/mobile-status-layout.css', 'grid-auto-columns: minmax(ma
 requireText('src/styles/mobile-status-layout.css', 'justify-content: center');
 requireText('src/styles/mobile-pages.css', '.production-grid');
 requireText('src/styles/mobile-pages.css', 'grid-template-columns: minmax(0, 1fr)');
+requireText('src/styles/mobile-pages.css', 'gap: var(--layout-gutter)');
 requireText('src/styles/mobile-pages.css', '.asset-bar-item-value-compact');
+
 requireText('src/main.tsx', "import './styles/desktop-sidebar.css'");
 requireText('src/main.tsx', "import './styles/mobile-pages.css'");
 requireText('src/main.tsx', "import './styles/mobile-status-layout.css'");
@@ -196,13 +268,17 @@ const designSystemTokens = [
   '--font-size-page:',
   '--color-bg-canvas:',
   '--color-surface-panel:',
+  '--color-surface-inset:',
   '--color-text-primary:',
   '--color-text-muted:',
   '--color-border:',
+  '--color-divider:',
   '--color-success:',
   '--color-warning:',
   '--color-danger:',
   '--color-info:',
+  '--gradient-page:',
+  '--gradient-panel:',
   '--space-1:',
   '--space-4:',
   '--space-12:',
@@ -219,20 +295,26 @@ const designSystemTokens = [
 for (const token of designSystemTokens) requireText('src/styles/design-system.css', token);
 
 const designSystemPrimitives = [
-  '.ui-button',
-  '.ghost-button',
-  '.danger-button',
-  '.text-button',
-  '.table-button',
+  '.ui-button--primary',
+  '.ui-button--secondary',
+  '.ui-button--danger',
+  '.ui-button--text',
+  '.ui-button--compact',
+  '.ui-button--block',
+  '.ui-link',
   'textarea',
   '.panel',
   '.ui-eyebrow',
   '.ui-status-tag',
-  '.status-success',
-  '.status-warning',
-  '.status-danger',
-  '.status-info',
+  '.ui-metric-card',
+  '.ui-data-list',
+  '.ui-data-row',
+  '.ui-segmented',
+  '.ui-spec-grid',
+  '.ui-toggle-field',
+  '.ui-switch',
   '.table-wrap',
+  '.numeric-cell',
   'button:focus-visible',
   'min-height: 44px',
   '@media (prefers-reduced-motion: reduce)',
@@ -242,24 +324,39 @@ const designSystemPrimitives = [
 ];
 for (const primitive of designSystemPrimitives) requireText('src/styles/design-system.css', primitive);
 
+const globalLayoutContracts = [
+  'background: var(--gradient-page)',
+  'gap: var(--layout-gutter)',
+  'width: min(var(--content-max-width), 100%)',
+  '.market-stat-strip .ui-metric-card',
+  '.facility-specs ui-spec-grid',
+  '.numeric-cell',
+];
+for (const contract of globalLayoutContracts) {
+  if (contract === '.facility-specs ui-spec-grid') continue;
+  requireText('src/styles/globals.css', contract);
+}
+
 const designDocumentRules = [
   '# Economy UI 设计系统',
+  '迁移状态：核心页面已完成统一组件与设计令牌迁移',
   'src/styles/design-system.css',
-  '## 4. 颜色系统',
-  '## 5. 字体系统',
-  '## 6. 间距系统',
-  '## 7. 圆角系统',
-  '## 8. 阴影系统',
-  '## 9. 按钮',
-  '## 10. 输入框与表单',
-  '## 11. 卡片与面板',
-  '## 12. 状态标签',
-  '## 13. 表格',
-  '## 15. 响应式规则',
+  '## 5. 颜色系统',
+  '## 6. 字体系统',
+  '## 7. 间距系统',
+  '## 8. 圆角系统',
+  '## 9. 阴影系统',
+  '## 10. 按钮',
+  '## 11. 输入框与表单',
+  '## 12. 卡片、指标卡与数据列表',
+  '## 13. 状态标签',
+  '## 14. 表格',
+  '## 16. 响应式规则',
   'max-width: 1220px',
   'max-width: 960px',
   'max-width: 720px',
   '移动端可点击控件最小高度为 `44px`',
+  '核心页面不得重新直接使用以下历史字符串类名',
   '未更新设计文档和架构检查的基础样式回退不应合并',
 ];
 for (const rule of designDocumentRules) requireText('docs/UI_DESIGN_SYSTEM.md', rule);
@@ -286,4 +383,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('架构验证通过：服务器权威边界与统一 UI 设计系统均满足项目基线。');
+console.log('架构验证通过：服务器权威边界与统一 UI 组件、令牌和布局分层均满足项目基线。');
