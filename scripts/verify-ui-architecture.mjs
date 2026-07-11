@@ -60,6 +60,7 @@ forbidText('src/styles/globals.css', 'bottom: .35rem');
 forbidText('src/config/navigation.ts', '主页面');
 forbidText('src/config/navigation.ts', '排行榜');
 forbidText('src/config/navigation.ts', '订单与记录');
+forbidText('src/pages/MarketPage.tsx', '<small>{order.ownerName}</small>');
 
 const visibleEnglish = [
   'Player command center',
@@ -108,6 +109,11 @@ requireText('src/config/navigation.ts', "label: '订单'");
 requireText('src/config/labels.ts', "system: '系统调整'");
 requireText('src/pages/AssetsPage.tsx', 'ledgerCategoryNames[entry.category]');
 requireText('src/pages/RecordsPage.tsx', 'ledgerCategoryNames[entry.category]');
+requireText('src/pages/MarketPage.tsx', 'function aggregateOrderBook');
+requireText('src/pages/MarketPage.tsx', 'level.remaining += order.remaining');
+requireText('src/pages/MarketPage.tsx', 'level.orderCount += 1');
+requireText('src/pages/MarketPage.tsx', "aggregateOrderBook(derived.bids, 'buy')");
+requireText('src/pages/MarketPage.tsx', "aggregateOrderBook(derived.asks, 'sell')");
 requireText('src/components/ui/layout.tsx', '<h1>{title}</h1>');
 requireText('src/components/ui/layout.tsx', '<h2>{title}</h2>');
 requireText('src/components/shell/StatusBar.tsx', 'items.map');
@@ -144,4 +150,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('界面架构验证通过：页面和卡片均无绿色眉题，中文界面、全面屏状态栏、组件拆分、移动端布局和滚动职责均符合设计文档。');
+console.log('界面架构验证通过：页面和卡片均无绿色眉题，订单簿按价格聚合且隐藏买卖家，中文界面、全面屏状态栏、组件拆分、移动端布局和滚动职责均符合设计文档。');
