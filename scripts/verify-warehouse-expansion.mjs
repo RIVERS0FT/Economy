@@ -30,8 +30,10 @@ function requireOrderedText(path, earlier, later) {
   'server/src/warehouse.js',
   'server/test/warehouse.test.js',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
+  'src/utils/localActivityStore.ts',
   'src/styles/warehouse-expansion.css',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+  'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
 ].forEach(requireFile);
 
 for (const text of [
@@ -43,8 +45,15 @@ for (const text of [
   'export function warehouseCapacityForLevel',
   'export function warehouseUpgradeCostForLevel',
   'export function ensureWarehouse',
+  'export function createWarehouseUsage',
   'export function createWarehouseSummary',
   'export function upgradeWarehouse',
+  'warehouseStoredQuantity: stored',
+  'warehouseReservedQuantity: reserved',
+  'warehouseUsedCapacity: used',
+  'warehouseAvailableCapacity: Math.max(0, player.inventoryCapacity - used)',
+  "order?.side !== 'buy'",
+  "order?.status === 'open' || order?.status === 'partial'",
   'player.stats.systemSinks',
   'player.credits -= cost',
   'player.warehouseLevel += 1',
@@ -55,7 +64,7 @@ for (const text of [
   'ensureWarehouse',
   'upgradeWarehouse',
   "action === 'upgradeWarehouse'",
-  '...createWarehouseSummary(player)',
+  '...createWarehouseSummary(world, player)',
   'version: 7',
   "this.database.exec('BEGIN IMMEDIATE')",
   'stripPlayerLogs',
@@ -76,6 +85,14 @@ for (const text of [
   'warehouseUpgradeCost: number | null;',
   'warehouseNextCapacity: number;',
   'inventoryCapacity: number;',
+  'warehouseStoredQuantity: number;',
+  'warehouseReservedQuantity: number;',
+  'warehouseUsedCapacity: number;',
+  'warehouseAvailableCapacity: number;',
+  "| 'warehouse'",
+  'export interface AssetWarehouseChange',
+  'warehouseChange?: AssetWarehouseChange;',
+  "'warehouse' | 'facility'",
 ]) requireText('src/types.ts', text);
 forbidText('src/types.ts', 'version: 8;');
 
@@ -87,21 +104,59 @@ for (const text of [
 ]) requireText('src/app/gameViewModel.ts', text);
 
 for (const text of [
+  "| 'upgradeWarehouse'",
+  "upgradeWarehouse: 'warehouse'",
+  'warehouseLevel?: number;',
+  'warehouseLevel: state.warehouseLevel',
+  'function diffWarehouse',
+  'if (!Number.isFinite(beforeLevel) || !Number.isFinite(afterLevel)) return undefined;',
+  'const warehouseChange = diffWarehouse(before, after);',
+  'warehouseChange,',
+  "if (category === 'warehouse') return 'warehouse';",
+  "if (action === 'upgradeWarehouse') return '共享仓库已扩容';",
+]) requireText('src/utils/localActivityStore.ts', text);
+
+for (const text of [
   'export function WarehouseUpgradeCard',
   'game.warehouseLevel',
   'game.warehouseMaxLevel',
   'game.warehouseUpgradeCost',
   'game.warehouseNextCapacity',
+  'game.warehouseStoredQuantity',
+  'game.warehouseReservedQuantity',
+  'game.warehouseUsedCapacity',
+  'game.warehouseAvailableCapacity',
   'upgradeWarehouse()',
   '所有商品共用容量',
+  '买单预占',
+  '容量超限',
   '已达最高等级',
   '资金不足',
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
 
-requireText('src/pages/AssetsPage.tsx', '<WarehouseUpgradeCard model={model} className="span-3" />');
-requireText('src/pages/SettingsPage.tsx', '<WarehouseUpgradeCard model={model} className="span-3" compact />');
-requireText('src/pages/SettingsPage.tsx', '仓库等级');
-requireText('src/pages/SettingsPage.tsx', '下次扩容费用');
+for (const text of [
+  '<WarehouseUpgradeCard model={model} className="span-3" />',
+  "{ id: 'warehouse', label: '仓库' }",
+  'event.warehouseChange',
+  '等级 {event.warehouseChange.beforeLevel} → {event.warehouseChange.afterLevel}',
+  'game.warehouseReservedQuantity',
+]) requireText('src/pages/AssetsPage.tsx', text);
+
+for (const text of [
+  '<WarehouseUpgradeCard model={model} className="span-3" compact />',
+  '仓库等级',
+  '仓库使用',
+  '实物库存',
+  '买单预占',
+  '剩余容量',
+  '下次扩容费用',
+]) requireText('src/pages/SettingsPage.tsx', text);
+
+for (const text of [
+  'game.warehouseUsedCapacity',
+  'game.warehouseReservedQuantity',
+  '买单预占',
+]) requireText('src/app/GameApp.tsx', text);
 
 for (const text of [
   '.warehouse-upgrade-card',
@@ -121,7 +176,9 @@ requireOrderedText(
 
 for (const text of [
   'warehouse state defaults to level 1 and client version 7',
+  'warehouse usage counts stored goods and remaining open buy orders',
   'warehouse upgrade deducts server funds and increases shared capacity',
+  'warehouse upgrade preserves stored and reserved usage while adding free capacity',
   'warehouse upgrade rejects insufficient funds without changing capacity',
   'legacy custom capacity infers a non-decreasing warehouse level',
   'maximum warehouse level cannot be upgraded again',
@@ -135,16 +192,28 @@ for (const text of [
   '最高等级：12',
   'cost(level) = 150 × level²',
   'POST /api/game/warehouse/upgrade',
+  'warehouseStoredQuantity: number;',
+  'warehouseReservedQuantity: number;',
+  'warehouseUsedCapacity: number;',
+  'warehouseAvailableCapacity: number;',
   '绝不缩减旧玩家容量',
   '扩容费用计入系统回收',
   '服务器数据库不得保存仓库扩容历史日志',
   '未更新本设计、测试和架构检查的仓库规则修改不应合并',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
+for (const text of [
+  '仓库等级和容量变化',
+  'warehouseChange?:',
+  '旧本地快照没有 `warehouseLevel`',
+  '本地日志参与资产、仓库或排名计算',
+]) requireText('docs/LOCAL_ACTIVITY_LOG_DESIGN.md', text);
+
 for (const [path, forbidden] of [
-  ['src/components/warehouse/WarehouseUpgradeCard.tsx', ['150 *', '500 +', 'WAREHOUSE_BASE_CAPACITY']],
-  ['src/pages/AssetsPage.tsx', ['150 *', '500 +']],
-  ['src/pages/SettingsPage.tsx', ['150 *', '500 +']],
+  ['src/components/warehouse/WarehouseUpgradeCard.tsx', ['150 *', '500 +', 'WAREHOUSE_BASE_CAPACITY', 'Object.values(game.inventories)']],
+  ['src/pages/AssetsPage.tsx', ['150 *', '500 +', 'Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.available + inventory.frozen']],
+  ['src/pages/SettingsPage.tsx', ['150 *', '500 +', 'inventoryUsed']],
+  ['src/app/GameApp.tsx', ['inventoryUsed']],
   ['server/src/warehouse.js', ['player.trades', 'player.ledger', 'player.assetEvents']],
 ]) {
   for (const text of forbidden) forbidText(path, text);
@@ -155,4 +224,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('仓库扩容架构验证通过：等级、费用、迁移、事务、UI 与本地日志边界满足设计基线。');
+console.log('仓库扩容架构验证通过：等级、费用、占用、预占、迁移、事务、UI 与本地日志满足设计基线。');
