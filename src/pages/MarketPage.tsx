@@ -1,7 +1,36 @@
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { PageLayout, Panel, WidgetHeading } from '../components/ui/layout';
+import type { CommodityOrder, OrderSide } from '../types';
 import { formatCurrency } from '../utils/formatters';
+
+interface OrderBookLevel {
+  price: number;
+  remaining: number;
+  orderCount: number;
+}
+
+function aggregateOrderBook(orders: CommodityOrder[], side: OrderSide): OrderBookLevel[] {
+  const levels = new Map<number, OrderBookLevel>();
+
+  for (const order of orders) {
+    const level = levels.get(order.price);
+    if (level) {
+      level.remaining += order.remaining;
+      level.orderCount += 1;
+    } else {
+      levels.set(order.price, {
+        price: order.price,
+        remaining: order.remaining,
+        orderCount: 1,
+      });
+    }
+  }
+
+  return Array.from(levels.values()).sort((left, right) =>
+    side === 'buy' ? right.price - left.price : left.price - right.price,
+  );
+}
 
 export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const {
@@ -18,6 +47,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     buyFacility,
     showResult,
   } = model;
+  const bidLevels = aggregateOrderBook(derived.bids, 'buy').slice(0, 10);
+  const askLevels = aggregateOrderBook(derived.asks, 'sell').slice(0, 10);
 
   return (
     <PageLayout
@@ -55,8 +86,26 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             action={<div className="last-price"><span>最近成交</span><strong>¤ {game.marketPrice}</strong></div>}
           />
           <div className="book-columns">
-            <div><h3>买盘</h3>{derived.bids.slice(0, 10).map((order) => <div className="book-row bid" key={order.id}><span>¤ {order.price}</span><span>{order.remaining}</span><small>{order.ownerName}</small></div>)}</div>
-            <div><h3>卖盘</h3>{derived.asks.slice(0, 10).map((order) => <div className="book-row ask" key={order.id}><span>¤ {order.price}</span><span>{order.remaining}</span><small>{order.ownerName}</small></div>)}</div>
+            <div>
+              <h3>买盘</h3>
+              {bidLevels.map((level) => (
+                <div className="book-row bid" key={`buy-${level.price}`}>
+                  <span>¤ {level.price}</span>
+                  <span>{level.remaining}</span>
+                  <small>{level.orderCount} 笔</small>
+                </div>
+              ))}
+            </div>
+            <div>
+              <h3>卖盘</h3>
+              {askLevels.map((level) => (
+                <div className="book-row ask" key={`sell-${level.price}`}>
+                  <span>¤ {level.price}</span>
+                  <span>{level.remaining}</span>
+                  <small>{level.orderCount} 笔</small>
+                </div>
+              ))}
+            </div>
           </div>
         </Panel>
 
