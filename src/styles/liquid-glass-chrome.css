@@ -1,0 +1,125 @@
+/* Shared liquid-glass chrome for the desktop asset bar and mobile navigation.
+ * This layer owns chrome material only; page and control primitives remain in
+ * design-system.css. Selectors intentionally include .panel so the specialized
+ * chrome material wins over the generic panel surface without duplicating it. */
+
+:root {
+  --liquid-glass-surface: rgba(9, 25, 18, 0.56);
+  --liquid-glass-surface-fallback: rgba(9, 25, 18, 0.88);
+  --liquid-glass-border: rgba(225, 255, 235, 0.18);
+  --liquid-glass-highlight: rgba(255, 255, 255, 0.16);
+  --liquid-glass-lowlight: rgba(255, 255, 255, 0.05);
+  --liquid-glass-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  --liquid-glass-blur: 26px;
+  --liquid-glass-saturation: 150%;
+  --liquid-glass-fade-height: 14px;
+  --desktop-asset-bar-height: 76px;
+  --desktop-status-gap: var(--space-3);
+}
+
+.asset-bar.panel,
+.mobile-bottom-navigation.panel {
+  border: 1px solid var(--liquid-glass-border);
+  background: var(--liquid-glass-surface-fallback);
+  background-clip: padding-box;
+  box-shadow:
+    var(--liquid-glass-shadow),
+    inset 0 1px 0 var(--liquid-glass-highlight),
+    inset 0 -1px 0 var(--liquid-glass-lowlight);
+  contain: layout paint;
+  isolation: isolate;
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .asset-bar.panel,
+  .mobile-bottom-navigation.panel {
+    background: var(--liquid-glass-surface);
+    backdrop-filter:
+      blur(var(--liquid-glass-blur))
+      saturate(var(--liquid-glass-saturation))
+      brightness(1.06);
+    -webkit-backdrop-filter:
+      blur(var(--liquid-glass-blur))
+      saturate(var(--liquid-glass-saturation))
+      brightness(1.06);
+  }
+}
+
+.asset-bar.panel {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(135px, 1fr));
+  align-items: stretch;
+  gap: 0;
+  padding: var(--space-1);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-padding-inline: var(--space-2);
+  scrollbar-width: none;
+}
+
+.asset-bar.panel::-webkit-scrollbar,
+.mobile-bottom-navigation .sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.asset-bar-item,
+.asset-bar-item:last-child {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid rgba(225, 255, 235, 0.1);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.asset-bar-item:last-child {
+  border-right: 0;
+}
+
+.asset-bar-item.primary {
+  border-radius: 0;
+  background: transparent;
+}
+
+.asset-bar-item.primary .asset-bar-item-icon,
+.asset-bar-item.primary .asset-bar-item-value,
+.asset-bar-item.primary strong {
+  color: var(--color-success);
+}
+
+.asset-bar-item.market-ticker .asset-bar-item-icon,
+.asset-bar-item.market-ticker .asset-bar-item-value,
+.asset-bar-item.market-ticker strong {
+  color: var(--color-warning);
+}
+
+/* The fade removes a hard lower edge without introducing another blurred layer. */
+.workspace::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: calc(var(--desktop-asset-bar-height) - 1px);
+  right: 0;
+  left: 0;
+  height: var(--liquid-glass-fade-height);
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(5, 15, 10, 0.18), transparent);
+}
+
+@media (max-width: 960px) and (min-width: 721px) {
+  .asset-bar.panel {
+    grid-template-columns: repeat(5, minmax(145px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace::before {
+    top: calc(
+      var(--mobile-status-top-inset) +
+      var(--mobile-asset-bar-height) -
+      1px
+    );
+    right: var(--mobile-status-right-inset);
+    left: var(--mobile-status-left-inset);
+  }
+}

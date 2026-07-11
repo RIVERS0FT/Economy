@@ -60,13 +60,22 @@ html[data-app-surface="game"] body {
 }
 
 .workspace {
+  position: relative;
+  isolation: isolate;
   height: 100%;
   min-width: 0;
   min-height: 0;
+  display: block;
   overflow: hidden;
 }
 
 .asset-bar {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--desktop-asset-bar-height);
   min-width: 0;
   min-height: 0;
   overflow-x: auto;
@@ -81,12 +90,19 @@ html[data-app-surface="game"] body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* The only vertical page scrollport for signed-in pages. */
+/* The only vertical page scrollport for signed-in pages. On desktop it fills
+ * the workspace and scrolls beneath the floating glass asset bar. */
 .page-scroll {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
+  padding-top: calc(var(--desktop-asset-bar-height) + var(--desktop-status-gap));
   overflow-x: hidden;
   overflow-y: auto;
+  scroll-padding-top: calc(var(--desktop-asset-bar-height) + var(--desktop-status-gap));
   scrollbar-gutter: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -193,8 +209,12 @@ html[data-app-surface="game"] body {
 }
 
 @media (max-height: 760px) and (min-width: 721px) {
+  :root {
+    --desktop-asset-bar-height: 68px;
+    --desktop-status-gap: .45rem;
+  }
+
   .game-shell { padding: .45rem; gap: .45rem; }
-  .workspace { gap: .45rem; }
   .asset-bar-item { padding-top: .45rem; padding-bottom: .45rem; }
   .page-heading { padding-bottom: .65rem; }
   .page-heading h1 { font-size: clamp(1.65rem, 2.5vw, 2.4rem); }
