@@ -12,6 +12,7 @@ import { gameActions, GameApiError, getGameState, type GameActionResponse, type 
 import { logout } from '../api/auth';
 import { type TabId } from '../config/navigation';
 import type {
+  AssetEvent,
   AuthUser,
   CommodityOrder,
   EconomyState,
@@ -25,7 +26,15 @@ import type {
   ProductInventory,
   ProductMarketState,
   ProductionMode,
+  TradeRecord,
 } from '../types';
+import {
+  clearLocalActivity as clearLocalActivityStore,
+  loadLocalActivity,
+  syncLocalActivity,
+  type LocalActivityAction,
+  type LocalActivityView,
+} from '../utils/localActivityStore';
 
 export const facilityStatusNames: Record<FacilityStatus, string> = {
   constructing: '施工中',
@@ -90,6 +99,8 @@ export interface LoadedGameViewModel {
   user: AuthUser;
   game: EconomyState;
   derived: DerivedGameData;
+  localAssetEvents: AssetEvent[];
+  localTrades: TradeRecord[];
   tab: TabId;
   setTab: Dispatch<SetStateAction<TabId>>;
   notice: string;
@@ -124,6 +135,7 @@ export interface LoadedGameViewModel {
   showResult: (result: ActionResult | Promise<ActionResult>) => Promise<void>;
   notify: (message: string) => void;
   refresh: () => Promise<void>;
+  clearLocalActivity: () => void;
   signOut: () => Promise<void>;
   work: () => Promise<ActionResult>;
   buildFacility: (facilityTypeId?: string) => Promise<ActionResult>;
@@ -175,7 +187,11 @@ function fallbackMarket(product: ProductDefinition): ProductMarketState {
   };
 }
 
-function deriveGameData(game: EconomyState, requestedProductId: string): DerivedGameData {
+function deriveGameData(
+  game: EconomyState,
+  requestedProductId: string,
+  localTrades: TradeRecord[],
+): DerivedGameData {
   const selectedProduct = game.products.find((product) => product.id === requestedProductId) ?? fallbackProduct(game);
   const selectedInventory = game.inventories[selectedProduct.id] ?? { available: 0, frozen: 0 };
   const selectedMarket = game.markets[selectedProduct.id] ?? fallbackMarket(selectedProduct);
@@ -215,7 +231,7 @@ function deriveGameData(game: EconomyState, requestedProductId: string): Derived
   const blockedFacilities = game.facilities.filter((facility) => (
     ['full', 'insufficient_funds', 'insufficient_input'].includes(facility.status)
   )).length;
-  const buyTrades = game.trades.filter((trade) => (
+  const buyTrades = localTrades.filter((trade) => (
     trade.type === 'commodity' && trade.productId === selectedProduct.id && trade.side === 'buy'
   ));
   const boughtQuantity = buyTrades.reduce((sum, trade) => sum + trade.quantity, 0);
@@ -265,6 +281,7 @@ function messageFromError(reason: unknown) {
 
 export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameViewModelState {
   const [game, setGame] = useState<EconomyState | null>(null);
+  const [localActivity, setLocalActivity] = useState<LocalActivityView>(() => loadLocalActivity(user.id));
   const [loadError, setLoadError] = useState('');
   const [reloadVersion, setReloadVersion] = useState(0);
   const [tab, setTab] = useState<TabId>('home');
@@ -287,12 +304,18 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     onSignedOut();
   }, [onSignedOut]);
 
+  const acceptState = useCallback((state: EconomyState, action: LocalActivityAction, message?: string) => {
+    const activity = syncLocalActivity(user.id, state, { action, message, createdAt: Date.now() });
+    setLocalActivity(activity);
+    setGame(state);
+  }, [user.id]);
+
   const refresh = useCallback(async () => {
     if (refreshing.current) return;
     refreshing.current = true;
     try {
       const state = await getGameState();
-      setGame(state);
+      acceptState(state, 'refresh');
       setLoadError('');
     } catch (reason) {
       if (reason instanceof GameApiError && reason.status === 401) {
@@ -303,9 +326,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     } finally {
       refreshing.current = false;
     }
-  }, [handleUnauthorized]);
+  }, [acceptState, handleUnauthorized]);
 
   useEffect(() => {
+    setLocalActivity(loadLocalActivity(user.id));
     void refresh();
   }, [refresh, reloadVersion, user.id]);
 
@@ -338,21 +362,24 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     if (market) setOrderPrice(market.lastPrice);
   }, [game?.markets, selectedProductId]);
 
-  const runAction = useCallback(async (operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
+  const runAction = useCallback(async (
+    action: LocalActivityAction,
+    operation: () => Promise<GameActionResponse>,
+  ): Promise<ActionResult> => {
     try {
       const response = await operation();
-      setGame(response.state);
+      acceptState(response.state, action, response.result.message);
       setLoadError('');
       return response.result;
     } catch (reason) {
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
       return { ok: false, message: messageFromError(reason) };
     }
-  }, [handleUnauthorized]);
+  }, [acceptState, handleUnauthorized]);
 
   const derived = useMemo(
-    () => (game ? deriveGameData(game, selectedProductId) : null),
-    [game, selectedProductId],
+    () => (game ? deriveGameData(game, selectedProductId, localActivity.trades) : null),
+    [game, localActivity.trades, selectedProductId],
   );
 
   function notify(message: string) {
@@ -405,6 +432,8 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     user,
     game,
     derived,
+    localAssetEvents: localActivity.assetEvents,
+    localTrades: localActivity.trades,
     tab,
     setTab,
     notice,
@@ -439,25 +468,29 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     showResult,
     notify,
     refresh,
+    clearLocalActivity: () => {
+      setLocalActivity(clearLocalActivityStore(user.id, game));
+      notify('本地活动记录已清除');
+    },
     signOut,
-    work: () => runAction(gameActions.work),
-    buildFacility: (facilityTypeId = selectedFacilityTypeId) => runAction(() => gameActions.buildFacility(facilityTypeId)),
-    startFacility: (facilityId) => runAction(() => gameActions.startFacility(facilityId)),
-    stopFacility: (facilityId) => runAction(() => gameActions.stopFacility(facilityId)),
-    pauseFacility: (facilityId) => runAction(() => gameActions.pauseFacility(facilityId)),
+    work: () => runAction('work', gameActions.work),
+    buildFacility: (facilityTypeId = selectedFacilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
+    startFacility: (facilityId) => runAction('startFacility', () => gameActions.startFacility(facilityId)),
+    stopFacility: (facilityId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityId)),
+    pauseFacility: (facilityId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityId)),
     setProductionPlan: (facilityId, mode, targetQuantity) => (
-      runAction(() => gameActions.setProductionPlan(facilityId, mode, targetQuantity))
+      runAction('setProductionPlan', () => gameActions.setProductionPlan(facilityId, mode, targetQuantity))
     ),
-    collectFacility: (facilityId) => runAction(() => gameActions.collectFacility(facilityId)),
-    listFacility: (facilityId, price) => runAction(() => gameActions.listFacility(facilityId, price)),
-    cancelFacilityListing: (listingId) => runAction(() => gameActions.cancelFacilityListing(listingId)),
-    buyFacility: (listingId) => runAction(() => gameActions.buyFacility(listingId)),
+    collectFacility: (facilityId) => runAction('collectFacility', () => gameActions.collectFacility(facilityId)),
+    listFacility: (facilityId, price) => runAction('listFacility', () => gameActions.listFacility(facilityId, price)),
+    cancelFacilityListing: (listingId) => runAction('cancelFacilityListing', () => gameActions.cancelFacilityListing(listingId)),
+    buyFacility: (listingId) => runAction('buyFacility', () => gameActions.buyFacility(listingId)),
     placeCommodityOrder: (side, quantity, price, productId = selectedProductId) => (
-      runAction(() => gameActions.placeCommodityOrder(productId, side, quantity, price))
+      runAction('placeOrder', () => gameActions.placeCommodityOrder(productId, side, quantity, price))
     ),
-    cancelOrder: (orderId) => runAction(() => gameActions.cancelOrder(orderId)),
-    renamePlayer: (name) => runAction(() => gameActions.renamePlayer(name)),
-    reset: () => runAction(gameActions.reset),
+    cancelOrder: (orderId) => runAction('cancelOrder', () => gameActions.cancelOrder(orderId)),
+    renamePlayer: (name) => runAction('renamePlayer', () => gameActions.renamePlayer(name)),
+    reset: () => runAction('resetPlayer', gameActions.reset),
   };
 
   return { status: 'ready', model };
