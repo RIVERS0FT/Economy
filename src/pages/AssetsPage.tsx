@@ -46,9 +46,9 @@ function signedQuantity(value: number) {
 function matchesFilter(event: AssetEvent, filter: AssetEventFilter) {
   if (filter === 'all') return true;
   if (filter === 'cash') return Boolean(event.cashDelta || event.frozenCashDelta || ['work', 'trade'].includes(event.category));
-  if (filter === 'inventory') return (event.inventoryChanges ?? []).length > 0 || event.category === 'inventory';
-  if (filter === 'facility') return (event.facilityChanges ?? []).length > 0 || event.category === 'facility';
-  if (filter === 'production') return (event.productionChanges ?? []).length > 0 || event.category === 'production';
+  if (filter === 'inventory') return event.inventoryChanges.length > 0 || event.category === 'inventory';
+  if (filter === 'facility') return event.facilityChanges.length > 0 || event.category === 'facility';
+  if (filter === 'production') return event.productionChanges.length > 0 || event.category === 'production';
   return event.category === 'order';
 }
 
@@ -56,6 +56,8 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
     derived,
+    localAssetEvents,
+    clearLocalActivity,
     cashShare,
     commodityShare,
     facilityShare,
@@ -67,8 +69,8 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
   const [eventFilter, setEventFilter] = useState<AssetEventFilter>('all');
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
   const filteredEvents = useMemo(
-    () => game.assetEvents.filter((event) => matchesFilter(event, eventFilter)),
-    [eventFilter, game.assetEvents],
+    () => localAssetEvents.filter((event) => matchesFilter(event, eventFilter)),
+    [eventFilter, localAssetEvents],
   );
 
   function productName(productId?: string) {
@@ -79,7 +81,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="资金与资产"
-      description="统一查看现金、冻结资产、商品、工厂估值，以及每次服务器事务产生的复合资产变化。"
+      description="服务器只保存当前资产状态；资金、商品、工厂和生产变动记录仅保存在当前浏览器。"
     >
       <div className="funds-summary-grid">
         <MetricCard label="可用资金" value={`¤ ${formatCurrency(game.credits)}`} tone="success" />
@@ -148,7 +150,16 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget span-2 asset-event-panel">
-          <WidgetHeading title="资金与资产变动" action={<StatusTag>{game.assetEvents.length} 条</StatusTag>} />
+          <WidgetHeading
+            title="本地资金与资产变动"
+            action={
+              <div className="ui-inline-actions">
+                <StatusTag>{localAssetEvents.length} 条</StatusTag>
+                <Button variant="compact" onClick={clearLocalActivity} disabled={localAssetEvents.length === 0}>清除本地记录</Button>
+              </div>
+            }
+          />
+          <p className="ui-helper-text">这些记录不上传服务器。更换设备、无痕模式或清除网站数据后不会恢复。</p>
           <div className="asset-event-filters" role="group" aria-label="筛选资产变动">
             {eventFilters.map((filter) => (
               <Button
@@ -169,7 +180,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                 <header>
                   <div>
                     <strong>{event.description}</strong>
-                    <small>{formatTime(event.createdAt)}{event.legacy ? ' · 历史流水迁移' : ''}</small>
+                    <small>{formatTime(event.createdAt)} · 本地记录</small>
                   </div>
                   <StatusTag tone={event.category === 'trade' ? 'success' : event.category === 'order' ? 'warning' : 'neutral'}>
                     {eventCategoryNames[event.category]}
@@ -189,7 +200,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                       <small>冻结后 ¤ {formatCurrency(event.frozenCashAfter ?? 0)}</small>
                     </span>
                   ) : null}
-                  {(event.inventoryChanges ?? []).map((change) => (
+                  {event.inventoryChanges.map((change) => (
                     <span key={`${event.id}-${change.productId}`}>
                       {productName(change.productId)}
                       <strong>
@@ -200,13 +211,13 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                       <small>当前 {change.availableAfter} · 冻结 {change.frozenAfter}</small>
                     </span>
                   ))}
-                  {(event.facilityChanges ?? []).map((change) => (
+                  {event.facilityChanges.map((change) => (
                     <span key={`${event.id}-${change.facilityId}-${change.action}`}>
                       工厂 <strong>{change.facilityName ?? change.facilityId}</strong>
                       <small>{change.action}{change.afterStatus ? ` · ${change.afterStatus}` : ''}</small>
                     </span>
                   ))}
-                  {(event.productionChanges ?? []).map((change) => (
+                  {event.productionChanges.map((change) => (
                     <span key={`${event.id}-${change.facilityId}-${change.action}`}>
                       {change.facilityName ?? '生产'}
                       <strong>
@@ -217,13 +228,13 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   ))}
                   {!event.cashDelta
                     && !event.frozenCashDelta
-                    && !(event.inventoryChanges ?? []).length
-                    && !(event.facilityChanges ?? []).length
-                    && !(event.productionChanges ?? []).length ? <span><strong>状态已更新</strong></span> : null}
+                    && !event.inventoryChanges.length
+                    && !event.facilityChanges.length
+                    && !event.productionChanges.length ? <span><strong>状态已更新</strong></span> : null}
                 </div>
               </article>
             ))}
-            {filteredEvents.length === 0 ? <EmptyState>当前筛选条件下暂无资产变化。</EmptyState> : null}
+            {filteredEvents.length === 0 ? <EmptyState>当前浏览器在该筛选条件下暂无资产变化。</EmptyState> : null}
           </div>
         </Panel>
       </div>
