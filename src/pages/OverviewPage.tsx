@@ -9,7 +9,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="Player command center"
+      eyebrow="玩家指挥中心"
       title={<>早上好，{game.playerName}</>}
       description="观察市场、管理生产，并持续提高你的总资产排名。"
       actions={
@@ -21,7 +21,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
     >
       <div className="home-grid">
         <Panel className="widget work-widget">
-          <WidgetHeading eyebrow="Basic work" title="基础工作" action={<span className="widget-badge">兜底收入</span>} />
+          <WidgetHeading eyebrow="基础工作" title="基础工作" action={<span className="widget-badge">兜底收入</span>} />
           <p>每次有效工作获得 ¤1。连续工作会提高冷却，停止 5 分钟后恢复基础档位。</p>
           <button className="work-compact-button" disabled={workRemaining > 0} onClick={() => showResult(work())}>
             <strong>{workRemaining > 0 ? formatDuration(workRemaining) : '开始工作'}</strong>
@@ -31,7 +31,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget market-summary span-2">
-          <WidgetHeading eyebrow="Market pulse" title={`${game.commodityName}市场`} action={<button className="text-button" onClick={() => setTab('market')}>查看完整盘口 →</button>} />
+          <WidgetHeading eyebrow="市场动态" title={`${game.commodityName}市场`} action={<button className="text-button" onClick={() => setTab('market')}>查看完整盘口 →</button>} />
           <div className="market-quote-grid">
             <div><span>最近成交</span><strong>¤ {game.marketPrice}</strong></div>
             <div><span>最高买价</span><strong className="positive">¤ {derived.bestBid || '--'}</strong></div>
@@ -42,7 +42,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget production-summary">
-          <WidgetHeading eyebrow="Production" title="生产摘要" action={<button className="text-button" onClick={() => setTab('production')}>管理</button>} />
+          <WidgetHeading eyebrow="生产概况" title="生产摘要" action={<button className="text-button" onClick={() => setTab('production')}>管理</button>} />
           <div className="summary-stack">
             <div><span>运行中的设施</span><strong>{derived.runningFacilities}</strong></div>
             <div><span>施工中的设施</span><strong>{derived.constructingFacilities}</strong></div>
@@ -52,7 +52,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget wealth-summary">
-          <WidgetHeading eyebrow="Wealth" title="财富变化" action={<span className="rank-chip">#{derived.currentRank?.rank ?? '--'}</span>} />
+          <WidgetHeading eyebrow="财富变化" title="财富变化" action={<span className="rank-chip">第 {derived.currentRank?.rank ?? '--'} 名</span>} />
           <div className="wealth-total"><span>当前总资产</span><strong>¤ {formatCurrency(derived.totalAssets)}</strong></div>
           <div className="summary-stack compact">
             <div><span>现金资产</span><strong>¤ {formatCurrency(derived.cashValue)}</strong></div>
@@ -62,7 +62,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget recent-activity span-2">
-          <WidgetHeading eyebrow="Recent activity" title="最近成交与提醒" action={<button className="text-button" onClick={() => setTab('records')}>全部记录</button>} />
+          <WidgetHeading eyebrow="最近动态" title="最近成交与提醒" action={<button className="text-button" onClick={() => setTab('records')}>全部记录</button>} />
           <div className="activity-list">
             {game.trades.slice(0, 6).map((trade) => (
               <div key={trade.id}>

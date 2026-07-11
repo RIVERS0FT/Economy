@@ -42,7 +42,7 @@ export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUse
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="name@example.com"
+              placeholder="请输入账号邮箱"
               required
             />
           </label>

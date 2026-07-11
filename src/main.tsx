@@ -9,6 +9,7 @@ import './styles/auth.css';
 import './styles/card-system.css';
 import './styles/mobile-status-navigation.css';
 import './styles/mobile-pages.css';
+import './styles/mobile-status-layout.css';
 
 configureRuntimePerformance();
 

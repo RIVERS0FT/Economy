@@ -7,13 +7,13 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="Wealth competition"
+      eyebrow="财富竞争"
       title="总资产排行榜"
       description="排行榜按服务器计算的总资产从高到低排序，挂牌溢价不计入估值。"
       actions={<span>更新于 {formatTime(game.lastProcessedAt)}</span>}
     >
       <div className="rank-summary-grid">
-        <Panel className="rank-summary primary"><span>我的排名</span><strong>#{derived.currentRank?.rank ?? '--'}</strong><small>总资产 ¤ {formatCurrency(derived.totalAssets)}</small></Panel>
+        <Panel className="rank-summary primary"><span>我的排名</span><strong>第 {derived.currentRank?.rank ?? '--'} 名</strong><small>总资产 ¤ {formatCurrency(derived.totalAssets)}</small></Panel>
         <Panel className="rank-summary"><span>与上一名差距</span><strong>{derived.previousRank ? `¤ ${formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}` : '榜首'}</strong><small>{derived.previousRank?.playerName ?? '保持领先'}</small></Panel>
         <Panel className="rank-summary"><span>本周资产变化</span><strong className={(derived.currentRank?.weeklyChange ?? 0) >= 0 ? 'positive' : 'negative'}>{(derived.currentRank?.weeklyChange ?? 0) >= 0 ? '+' : ''}¤ {formatCurrency(derived.currentRank?.weeklyChange ?? 0)}</strong><small>基于当前预览周期</small></Panel>
       </div>
