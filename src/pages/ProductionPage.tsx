@@ -21,14 +21,14 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="Production assets"
+      eyebrow="生产资产"
       title="生产"
       description="建造、运行、暂停、领取或挂牌你的生产设施。"
       actions={<span>设施槽位 {game.facilities.length}/{game.facilitySlots}</span>}
     >
       <div className="production-grid">
         <Panel className="widget build-card">
-          <p className="eyebrow">Build facility</p>
+          <p className="eyebrow">建造设施</p>
           <h2>建造基础生产设施</h2>
           <dl className="detail-list">
             <div><dt>建造费用</dt><dd>¤ {economyConstants.buildCost}</dd></div>
@@ -61,7 +61,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 </div>
                 <FacilityProgress facility={facility} now={now} />
                 <div className="facility-specs">
-                  <span>周期 <strong>{facility.cycleMs / 1000}s</strong></span>
+                  <span>周期 <strong>{facility.cycleMs / 1000} 秒</strong></span>
                   <span>周期产量 <strong>{facility.outputPerCycle}</strong></span>
                   <span>运营费 <strong>¤ {facility.operatingCost}</strong></span>
                   <span>累计产量 <strong>{facility.lifetimeOutput}</strong></span>
