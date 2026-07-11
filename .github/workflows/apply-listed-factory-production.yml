@@ -21,7 +21,13 @@ jobs:
           ref: agent/allow-listed-factory-production
           fetch-depth: 0
       - name: Apply source and design changes
-        run: python3 scripts/apply-listed-factory-production.py
+        run: python3 scripts/apply-listed-factory-production.py > patch.log 2>&1
+      - name: Upload patch log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: listed-factory-patch-log
+          path: patch.log
       - name: Commit generated changes
         run: |
           git config user.name "github-actions[bot]"
