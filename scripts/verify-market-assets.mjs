@@ -23,9 +23,11 @@ function forbidText(path, text) {
 
 [
   'docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md',
+  'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'server/src/asset-events.js',
   'server/src/storage.js',
   'server/test/asset-events.test.js',
+  'src/utils/localActivityStore.ts',
   'src/pages/MarketPage.tsx',
   'src/pages/AssetsPage.tsx',
   'src/styles/market-funds.css',
@@ -37,9 +39,11 @@ for (const [path, forbidden] of [
   ['src/config/navigation.ts', ["id: 'records'", "label: '订单'"]],
   ['src/pages/PageRouter.tsx', ['RecordsPage', "case 'records'"]],
   ['src/components/shell/NavigationItems.tsx', ["id === 'records'"]],
-  ['src/pages/OverviewPage.tsx', ["setTab('records')"]],
-  ['src/pages/AssetsPage.tsx', ['game.ledger', 'ledgerCategoryNames', "setTab('records')"]],
-  ['src/types.ts', ['version: 5;']],
+  ['src/pages/OverviewPage.tsx', ["setTab('records')", 'game.trades']],
+  ['src/pages/MarketPage.tsx', ['game.trades']],
+  ['src/pages/AssetsPage.tsx', ['game.ledger', 'game.assetEvents', 'ledgerCategoryNames', "setTab('records')"]],
+  ['src/types.ts', ['version: 5;', 'version: 6;', 'assetEvents: AssetEvent[];', 'trades: TradeRecord[];', 'ledger: LedgerEntry[];']],
+  ['server/src/storage.js', ['migrateAssetEvents', 'appendAssetEventFromDiff', 'assetEvents: normalizeJson']],
 ]) {
   for (const text of forbidden) forbidText(path, text);
 }
@@ -54,62 +58,85 @@ for (const [path, required] of [
     '我的订单与成交',
     '冻结资金',
     '冻结商品',
-    '成交记录',
-    'game.trades.map',
+    '本地成交记录',
+    'localTrades.map',
+    '仅保存在当前浏览器',
   ]],
   ['src/pages/AssetsPage.tsx', [
     'title="资金与资产"',
-    'game.assetEvents',
-    '资金与资产变动',
+    'localAssetEvents',
+    '本地资金与资产变动',
+    'clearLocalActivity',
     'event.inventoryChanges',
     'event.facilityChanges',
     'event.productionChanges',
     'event.frozenCashDelta',
+    '这些记录不上传服务器',
   ]],
   ['src/types.ts', [
-    'version: 6;',
+    'version: 7;',
     'export interface AssetEvent',
-    'assetEvents: AssetEvent[]',
+    'localOnly: true;',
+    'Never included in EconomyState or persisted by the API',
+  ]],
+  ['src/utils/localActivityStore.ts', [
+    'window.localStorage',
+    'syncLocalActivity',
+    'loadLocalActivity',
+    'clearLocalActivity',
+    'snapshotState',
+    'MAX_ASSET_EVENTS',
+    'MAX_TRADES',
+    'Local logs are optional and must never block authoritative game actions',
+  ]],
+  ['src/app/gameViewModel.ts', [
+    'localAssetEvents',
+    'localTrades',
+    'syncLocalActivity',
+    'loadLocalActivity',
+    'clearLocalActivityStore',
   ]],
   ['server/src/asset-events.js', [
-    'export function migrateAssetEvents',
-    'export function capturePlayerAssetSnapshot',
-    'export function appendAssetEventFromDiff',
-    'world.version = 3',
-    'legacy: true',
-    'inventoryChanges',
-    'facilityChanges',
-    'productionChanges',
+    'export function stripPlayerLogs',
+    'delete player.trades',
+    'delete player.ledger',
+    'delete player.assetEvents',
+    'called immediately before every SQLite write',
   ]],
   ['server/src/storage.js', [
     "this.database.exec('BEGIN IMMEDIATE')",
-    'processAndRecord',
-    'capturePlayerAssetSnapshot',
-    'appendAssetEventFromDiff',
-    'version: 6',
-    'assetEvents:',
+    'stripPlayerLogs',
+    'version: 7',
+    'trades: _serverTrades',
+    'ledger: _serverLedger',
+    'assetEvents: _serverAssetEvents',
   ]],
   ['server/test/asset-events.test.js', [
-    'client state exposes asset events and version 6',
-    'placing and cancelling an order records frozen asset changes',
-    'production settlement records cash input and output changes',
-    'legacy ledger migrates once into asset events',
-    'idempotency does not duplicate asset events',
+    'client state version 7 excludes all player log arrays',
+    'actions update authoritative state without writing player logs to SQLite',
+    'legacy server logs are removed during the next state load',
+    'idempotency preserves authoritative response without creating server logs',
   ]],
   ['docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md', [
     '市场负责交易行为',
     '资金负责资产结果',
     '不再提供独立“订单”导航或独立订单页面',
-    '一次服务器事务只生成一条复合资产事件',
-    '未更新本设计、迁移和测试的市场或资产信息架构回退不应合并',
+    '用户可见日志只保存在浏览器本地',
+  ]],
+  ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', [
+    '# Economy 本地活动日志设计',
+    '服务器不得持久化玩家活动日志',
+    'localStorage',
+    '不参与资产计算',
+    '未更新本设计和防回退检查的日志存储修改不应合并',
   ]],
 ]) {
   for (const text of required) requireText(path, text);
 }
 
 if (failures.length) {
-  console.error('市场订单与资金资产架构验证失败:\n- ' + failures.join('\n- '));
+  console.error('市场订单、资金资产与本地日志架构验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
 
-console.log('市场订单与资金资产架构验证通过。');
+console.log('市场订单、资金资产与本地日志架构验证通过。');
