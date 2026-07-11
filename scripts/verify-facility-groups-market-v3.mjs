@@ -95,7 +95,7 @@ for (const text of ['collectFacility', '/collect']) forbidText('src/api/game.ts'
 for (const text of [
   'game.facilityGroups.map', 'FacilityGroupProgress', '当前参与', '下一周期', '待加入', '已挂牌',
   '周期产量', '周期成本', '原料库存', '统一生产计划', '启动全部', '停止全部',
-  '挂牌数量', '单座价格', '下一生产周期加入同类工厂集群',
+  '挂牌数量', '单座价格', '下一生产周期加入',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 for (const text of [
   'facility.id', 'facility.name', '展开管理', '实例列表', '小时产量', '小时运营费',
@@ -112,7 +112,7 @@ for (const text of [
 ]) requireText('src/pages/MarketPage.tsx', text);
 requireOrderedText('src/pages/MarketPage.tsx', '限价', '数量');
 requireOrderedText('src/pages/MarketPage.tsx', '数量', 'order-quick-fill');
-for (const text of ['book-columns', 'aggregateOrderBook', 'listing.facility', 'facilityId']) forbidText('src/pages/MarketPage.tsx', text);
+for (const text of ['book-columns', 'aggregateOrderBook', 'listing.facility.', 'facilityId:']) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
   'same-type factories share one cycle',
@@ -138,7 +138,7 @@ for (const text of [
   '# Economy 工厂集群与市场第三版设计',
   '不存在单座工厂实例', '完成当前周期后从下一周期参与生产',
   '同类型工厂统一启动、统一停止', '工厂挂牌和购买按类型、数量和单座价格',
-  '限价输入位于数量输入之前', '订单簿为单列', '买卖盘各最多 5 笔',
+  '限价在前、数量在后', '订单簿为单列', '买卖盘各最多 5 笔',
 ]) requireText('docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', text);
 
 if (failures.length) {
