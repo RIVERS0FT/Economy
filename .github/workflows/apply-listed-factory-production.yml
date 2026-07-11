@@ -23,6 +23,7 @@ jobs:
       - name: Apply source and design changes
         run: |
           sed -i 's/Object.values(world.players || {})/Object.values(world.players)/g' scripts/apply-listed-factory-production.py
+          sed -i "s/^   '/  '/g" scripts/apply-listed-factory-production.py
           python3 scripts/apply-listed-factory-production.py > patch.log 2>&1
       - name: Upload patch log
         if: always()
