@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).with_name("configure-economy-nginx.py")
+REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+DESIGN_PATH = REPOSITORY_ROOT / "docs" / "SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md"
 SPEC = importlib.util.spec_from_file_location("configure_economy_nginx", MODULE_PATH)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError(f"Unable to load {MODULE_PATH}")
@@ -84,6 +86,42 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertNotIn("location /economy-api/", updated)
         self.assertNotIn("location = /economy-api/login", updated)
         self.assertIn("location ^~ /economy-api/game/", updated)
+
+
+class DeploymentDesignContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.design = DESIGN_PATH.read_text(encoding="utf-8")
+
+    def test_design_document_records_script_constants(self) -> None:
+        required = (
+            nginx.DOMAIN,
+            nginx.ACCOUNT_SNIPPET,
+            nginx.GAME_API_SNIPPET,
+            "127.0.0.1:3001",
+            "127.0.0.1:3002",
+            "/economy-api/game/",
+            "riversoft-economy-api.service",
+            "/var/www/game/economy-api/runtime/bin/node",
+            "/var/lib/riversoft-economy/economy.sqlite",
+            "SERVER_USER=deploy",
+        )
+
+        for fragment in required:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, self.design)
+
+    def test_design_document_prohibits_route_regressions(self) -> None:
+        required_rules = (
+            "不得在账号 snippet 已存在时再次生成同名账号 `location`",
+            "不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`",
+            "连续执行两次，第二次不得产生配置变化",
+            "未更新设计文档的架构回退不应合并",
+        )
+
+        for rule in required_rules:
+            with self.subTest(rule=rule):
+                self.assertIn(rule, self.design)
 
 
 if __name__ == "__main__":
