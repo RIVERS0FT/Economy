@@ -124,7 +124,9 @@ test('multiple factories share the same remaining warehouse capacity', () => {
   try {
     const state = store.getState(alice, now);
     assert.equal(state.inventories.grain.available, 500);
-    assert.equal(state.facilities.filter((item) => item.status === 'full').length, 1);
+    assert.equal(state.facilities.filter((item) => item.status === 'full').length, 2);
+    assert.equal(state.facilities.filter((item) => item.lifetimeOutput === 2).length, 2);
+    assert.equal(state.facilities.filter((item) => item.lifetimeOutput === 0).length, 1);
     assert.equal(state.credits, 998);
   } finally {
     store.close();
