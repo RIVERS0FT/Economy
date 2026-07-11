@@ -315,7 +315,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                   <span>配方 <strong>{listing.facility.inputProductId ? `${listing.facility.inputPerCycle} ${productName(listing.facility.inputProductId)} → ` : ''}{listing.facility.outputPerCycle} {productName(listing.facility.outputProductId)}</strong></span>
                   <span>周期 <strong>{listing.facility.cycleMs / 1000} 秒</strong></span>
                   <span>运营费 <strong>¤ {listing.facility.operatingCost}</strong></span>
-                  <span>容量 <strong>{listing.facility.internalCapacity}</strong></span>
+                  <span>产成品 <strong>直接进入共享仓库</strong></span>
                   <span>累计产量 <strong>{listing.facility.lifetimeOutput}</strong></span>
                   <span>参考估值 <strong>¤ {listing.facility.systemValue}</strong></span>
                 </div>
