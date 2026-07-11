@@ -72,7 +72,7 @@ for (const text of [
 
 for (const text of [
   '基础工作',
-  '市场摘要',
+  'market-summary',
   '生产摘要',
   '财富构成',
   '当前浏览器最近成交',
