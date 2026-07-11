@@ -17,10 +17,15 @@ export function StatusBar({ items }: { items: StatusBarItem[] }) {
         if (item.emphasis === 'primary') classNames.push('primary');
         if (item.emphasis === 'market') classNames.push('market-ticker');
         return (
-          <div className={classNames.join(' ')} key={item.id}>
+          <div
+            className={classNames.join(' ')}
+            key={item.id}
+            role="group"
+            aria-label={item.label}
+          >
             <span className="asset-bar-item-icon" aria-hidden="true">{item.icon}</span>
             <span className="asset-bar-item-label">{item.label}</span>
-            <strong>{item.value}</strong>
+            <strong className="asset-bar-item-value">{item.value}</strong>
             {item.detail ? <small>{item.detail}</small> : null}
           </div>
         );
