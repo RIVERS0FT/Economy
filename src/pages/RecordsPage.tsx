@@ -25,14 +25,12 @@ export function RecordsPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="订单与记录"
       title="订单与记录"
       description="统一查看当前订单、历史成交和资金资产流水。"
     >
       <div className="records-grid">
         <Panel className="widget span-2">
           <WidgetHeading
-            eyebrow="当前订单"
             title="当前商品订单"
             action={<StatusTag>{derived.ownOpenOrders.length}/{economyConstants.maxOpenOrders}</StatusTag>}
           />
@@ -57,7 +55,7 @@ export function RecordsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget">
-          <WidgetHeading eyebrow="冻结资产" title="冻结资产" />
+          <WidgetHeading title="冻结资产" />
           <div className="frozen-cards">
             <MetricCard label="买单冻结资金" value={`¤ ${game.frozenCredits}`} tone="warning" />
             <MetricCard label="卖单冻结库存" value={game.frozenInventory} tone="warning" />
@@ -66,7 +64,7 @@ export function RecordsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading eyebrow="成交记录" title="成交记录" action={<StatusTag>{game.trades.length} 笔</StatusTag>} />
+          <WidgetHeading title="成交记录" action={<StatusTag>{game.trades.length} 笔</StatusTag>} />
           <ScrollableTable>
             <table>
               <thead><tr><th>资产</th><th>方向</th><th className="numeric-cell">数量</th><th className="numeric-cell">价格</th><th className="numeric-cell">总额</th><th>对手方</th><th>时间</th></tr></thead>
@@ -89,7 +87,7 @@ export function RecordsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading eyebrow="资产流水" title="资产流水" action={<span className="muted">资金、库存与产权变化均由服务器记录</span>} />
+          <WidgetHeading title="资产流水" action={<span className="muted">资金、库存与产权变化均由服务器记录</span>} />
           <div className="ledger-list">
             {game.ledger.map((entry) => (
               <div key={entry.id}>
