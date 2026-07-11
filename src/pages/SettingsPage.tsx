@@ -32,7 +32,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     >
       <div className="settings-grid">
         <Panel className="widget">
-          <p className="eyebrow">玩家资料</p><h2>玩家资料</h2>
+          <h2>玩家资料</h2>
           <div className="profile-card"><div className="profile-avatar">{avatarText}</div><div><strong>{game.playerName}</strong><span>{user.email}</span><small>注册于 {formatDate(game.registeredAt)}</small></div></div>
           <label>玩家昵称<input value={playerName} maxLength={32} onChange={(event: ChangeEvent<HTMLInputElement>) => setPlayerName(event.target.value)} /></label>
           <button onClick={() => { renamePlayer(playerName); notify('玩家昵称已更新'); }}>保存玩家昵称</button>
@@ -40,7 +40,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget">
-          <p className="eyebrow">游戏设置</p><h2>游戏设置</h2>
+          <h2>游戏设置</h2>
           <div className="setting-row"><div><strong>界面音效</strong><span>订单成交与生产完成提示</span></div><input className="toggle-input" type="checkbox" checked={soundEnabled} onChange={(event) => setSoundEnabled(event.target.checked)} /></div>
           <div className="setting-row"><div><strong>紧凑数字</strong><span>使用万和百万单位缩写大额资产</span></div><input className="toggle-input" type="checkbox" checked={compactNumbers} onChange={(event) => setCompactNumbers(event.target.checked)} /></div>
           <label>市场刷新频率<select value={refreshRate} onChange={(event) => setRefreshRate(event.target.value)}><option value="1">每 1 秒</option><option value="3">每 3 秒</option><option value="5">每 5 秒</option></select></label>
@@ -48,13 +48,13 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget account-summary">
-          <p className="eyebrow">账号状态</p><h2>账号与资产</h2>
+          <h2>账号与资产</h2>
           <dl className="detail-list"><div><dt>账号编号</dt><dd>{user.id}</dd></div><div><dt>账号角色</dt><dd>{roleLabel}</dd></div><div><dt>设施槽位</dt><dd>{game.facilitySlots}</dd></div><div><dt>库存容量</dt><dd>{game.inventoryCapacity}</dd></div><div><dt>当前排名</dt><dd>第 {derived.currentRank?.rank ?? '--'} 名</dd></div></dl>
           <button className="ghost-button" onClick={() => void signOut()}>退出登录</button>
         </Panel>
 
         <Panel className="widget danger-zone span-3">
-          <div><p className="eyebrow">预览数据</p><h2>重置本地经济状态</h2><p>当前版本使用浏览器本地数据预览多人经济规则。重置不会影响你的主页账号。</p></div>
+          <div><h2>重置本地经济状态</h2><p>当前版本使用浏览器本地数据预览多人经济规则。重置不会影响你的主页账号。</p></div>
           <button className="danger-button" onClick={() => { if (window.confirm('确认重置当前账号的金融帝国预览状态？')) reset(user); }}>重置经济状态</button>
         </Panel>
       </div>

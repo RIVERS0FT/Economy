@@ -42,7 +42,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget">
-          <p className="eyebrow">经济流向</p><h2>货币发行与回收</h2>
+          <h2>货币发行与回收</h2>
           <div className="flow-stack">
             <div><span>工作发行</span><strong className="positive">+¤ {game.stats.workIssued}</strong></div>
             <div><span>人口发行</span><strong className="positive">+¤ {game.stats.populationIssued}</strong></div>

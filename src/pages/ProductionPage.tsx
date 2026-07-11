@@ -28,7 +28,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     >
       <div className="production-grid">
         <Panel className="widget build-card">
-          <p className="eyebrow">建造设施</p>
           <h2>建造基础生产设施</h2>
           <dl className="detail-list">
             <div><dt>建造费用</dt><dd>¤ {economyConstants.buildCost}</dd></div>
