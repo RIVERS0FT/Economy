@@ -31,20 +31,16 @@ export function Panel({ className = '', children }: { className?: string; childr
 }
 
 export function WidgetHeading({
-  eyebrow,
   title,
   action,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: ReactNode;
   action?: ReactNode;
 }) {
   return (
     <div className="widget-heading">
-      <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h2>{title}</h2>
-      </div>
+      <h2>{title}</h2>
       {action ?? null}
     </div>
   );
