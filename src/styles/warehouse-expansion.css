@@ -4,6 +4,10 @@
   padding: var(--space-4);
 }
 
+.factory-warehouse-card {
+  margin-bottom: var(--space-4);
+}
+
 .warehouse-capacity-progress {
   display: grid;
   gap: var(--space-2);

@@ -30,8 +30,12 @@ function requireOrderedText(path, earlier, later) {
   'server/src/warehouse.js',
   'server/test/warehouse.test.js',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
+  'src/pages/ProductionPage.tsx',
+  'src/pages/AssetsPage.tsx',
+  'src/pages/SettingsPage.tsx',
   'src/utils/localActivityStore.ts',
   'src/styles/warehouse-expansion.css',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
 ].forEach(requireFile);
@@ -135,21 +139,29 @@ for (const text of [
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
 
 for (const text of [
-  '<WarehouseUpgradeCard model={model} className="span-3" />',
+  "import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';",
+  'title="工厂"',
+  '管理共享仓库、建设工厂、设置生产计划',
+  '<WarehouseUpgradeCard model={model} className="factory-warehouse-card" />',
+  '<WidgetHeading title="建设新工厂" />',
+  'game.facilities.map',
+]) requireText('src/pages/ProductionPage.tsx', text);
+requireOrderedText(
+  'src/pages/ProductionPage.tsx',
+  '<WarehouseUpgradeCard model={model} className="factory-warehouse-card" />',
+  '<WidgetHeading title="建设新工厂" />',
+);
+
+for (const text of [
   "{ id: 'warehouse', label: '仓库' }",
   'event.warehouseChange',
   '等级 {event.warehouseChange.beforeLevel} → {event.warehouseChange.afterLevel}',
-  'game.warehouseReservedQuantity',
 ]) requireText('src/pages/AssetsPage.tsx', text);
 
 for (const text of [
-  '<WarehouseUpgradeCard model={model} className="span-3" compact />',
-  '仓库等级',
   '仓库使用',
-  '实物库存',
-  '买单预占',
-  '剩余容量',
-  '下次扩容费用',
+  'game.warehouseUsedCapacity',
+  'game.inventoryCapacity',
 ]) requireText('src/pages/SettingsPage.tsx', text);
 
 for (const text of [
@@ -160,6 +172,7 @@ for (const text of [
 
 for (const text of [
   '.warehouse-upgrade-card',
+  '.factory-warehouse-card',
   '.warehouse-capacity-progress',
   '.warehouse-upgrade-metrics',
   '.warehouse-upgrade-action',
@@ -198,9 +211,18 @@ for (const text of [
   'warehouseAvailableCapacity: number;',
   '绝不缩减旧玩家容量',
   '扩容费用计入系统回收',
+  '`WarehouseUpgradeCard` 只能由 `ProductionPage` 渲染',
   '服务器数据库不得保存仓库扩容历史日志',
-  '未更新本设计、测试和架构检查的仓库规则修改不应合并',
+  '未更新本设计、页面职责设计、测试和架构检查的仓库规则修改不应合并',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+
+for (const text of [
+  '# Economy 页面内容与导航职责设计',
+  '共享仓库与工厂管理',
+  '`WarehouseUpgradeCard` 只能由 `ProductionPage` 渲染',
+  '资金页不负责仓库管理',
+  '设置页的一行“仓库使用”只是只读账号摘要',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
   '仓库等级和容量变化',
@@ -211,8 +233,11 @@ for (const text of [
 
 for (const [path, forbidden] of [
   ['src/components/warehouse/WarehouseUpgradeCard.tsx', ['150 *', '500 +', 'WAREHOUSE_BASE_CAPACITY', 'Object.values(game.inventories)']],
-  ['src/pages/AssetsPage.tsx', ['150 *', '500 +', 'Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.available + inventory.frozen']],
-  ['src/pages/SettingsPage.tsx', ['150 *', '500 +', 'inventoryUsed']],
+  ['src/pages/OverviewPage.tsx', ['WarehouseUpgradeCard']],
+  ['src/pages/MarketPage.tsx', ['WarehouseUpgradeCard']],
+  ['src/pages/AssetsPage.tsx', ['WarehouseUpgradeCard', 'upgradeWarehouse()', '150 *', '500 +']],
+  ['src/pages/LeaderboardPage.tsx', ['WarehouseUpgradeCard']],
+  ['src/pages/SettingsPage.tsx', ['WarehouseUpgradeCard', 'warehouseLevel', 'warehouseUpgradeCost', 'warehouseNextCapacity', '扩容按钮']],
   ['src/app/GameApp.tsx', ['inventoryUsed']],
   ['server/src/warehouse.js', ['player.trades', 'player.ledger', 'player.assetEvents']],
 ]) {
@@ -224,4 +249,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('仓库扩容架构验证通过：等级、费用、占用、预占、迁移、事务、UI 与本地日志满足设计基线。');
+console.log('仓库扩容架构验证通过：服务器权威规则、生产页唯一管理入口、只读摘要和本地历史均满足设计基线。');

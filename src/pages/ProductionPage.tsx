@@ -5,6 +5,7 @@ import {
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
 import { FacilityProgress } from '../components/facilities/FacilityProgress';
+import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
 import {
   Button,
   DataList,
@@ -73,13 +74,13 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   if (!selectedType) {
-    return <PageLayout title="生产" description="服务器尚未返回工厂目录。"><Panel className="empty-state">暂无工厂类型。</Panel></PageLayout>;
+    return <PageLayout title="工厂" description="服务器尚未返回工厂目录。"><Panel className="empty-state">暂无工厂类型。</Panel></PageLayout>;
   }
 
   return (
     <PageLayout
-      title="生产"
-      description="自由持有工厂，设置生产计划，并手动控制每座工厂的启动与停止。"
+      title="工厂"
+      description="管理共享仓库、建设工厂、设置生产计划，并手动控制每座工厂的启动、停止和产成品领取。"
       actions={
         <>
           <StatusTag tone="success">运行 {model.derived.runningFacilities}</StatusTag>
@@ -88,6 +89,8 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
         </>
       }
     >
+      <WarehouseUpgradeCard model={model} className="factory-warehouse-card" />
+
       <div className="production-grid">
         <Panel className="widget build-card">
           <WidgetHeading title="建设新工厂" />
@@ -270,7 +273,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             );
           })}
           {game.facilities.length === 0 ? (
-            <Panel className="empty-state tall">尚未拥有工厂。选择产业方向并建设第一座工厂。</Panel>
+            <Panel className="empty-state tall">尚未拥有工厂。先确认共享仓库容量，再选择产业方向并建设第一座工厂。</Panel>
           ) : null}
         </div>
       </div>
