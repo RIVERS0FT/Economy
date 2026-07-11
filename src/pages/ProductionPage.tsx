@@ -39,7 +39,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     startFacility,
     stopFacility,
     setProductionPlan,
-    collectFacility,
     listFacility,
     cancelFacilityListing,
     showResult,
@@ -80,7 +79,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="工厂"
-      description="管理共享仓库、建设工厂、设置生产计划，并手动控制每座工厂的启动、停止和产成品领取。"
+      description="管理共享仓库、建设工厂、设置生产计划，并手动控制每座工厂；所有产成品完成后直接进入共享仓库。"
       actions={
         <>
           <StatusTag tone="success">运行 {model.derived.runningFacilities}</StatusTag>
@@ -114,7 +113,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             <DataRow label="生产周期" value={`${selectedType.cycleMs / 1000} 秒`} />
             <DataRow label="周期产出" value={`${selectedType.output.quantity} ${productName(selectedType.output.productId)}`} />
             <DataRow label="运营费用" value={`¤ ${selectedType.operatingCost} / 周期`} />
-            <DataRow label="内部容量" value={selectedType.internalCapacity} />
+            <DataRow label="产成品去向" value="直接进入共享仓库" tone="info" />
           </DataList>
           <Button
             block
@@ -123,7 +122,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           >
             {hasConstruction ? '已有工厂正在施工' : `建设${selectedType.name}`}
           </Button>
-          <small className="ui-helper-text">工厂持有数量不设上限；为控制施工节奏，同一时间只能施工一座工厂。</small>
+          <small className="ui-helper-text">工厂持有数量不设上限；同一时间只能施工一座工厂。生产前请为产成品预留共享仓库空间。</small>
         </Panel>
 
         <div className="facility-list">
@@ -138,6 +137,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             const inputName = productName(facility.inputProductId);
             const outputName = productName(facility.outputProductId);
             const inputInventory = facility.inputProductId ? game.inventories[facility.inputProductId]?.available ?? 0 : null;
+            const outputInventory = game.inventories[facility.outputProductId]?.available ?? 0;
             const remainingTarget = facility.productionMode === 'target'
               ? Math.max(0, (facility.targetQuantity || 0) - facility.completedQuantity)
               : null;
@@ -157,8 +157,8 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                     {facility.stopReason ? <small className="facility-stop-reason">{facilityStopReasonNames[facility.stopReason]}</small> : null}
                   </div>
                   <div className="facility-output">
-                    <strong>{facility.internalGoods}/{facility.internalCapacity}</strong>
-                    <span>内部{outputName}</span>
+                    <strong>{outputInventory}</strong>
+                    <span>仓库{outputName}</span>
                   </div>
                 </div>
 
@@ -234,13 +234,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                   ) : (
                     <Button disabled={!canStart} onClick={() => void showResult(startFacility(facility.id))}>启动生产</Button>
                   )}
-                  <Button
-                    variant="secondary"
-                    disabled={facility.internalGoods <= 0}
-                    onClick={() => void showResult(collectFacility(facility.id))}
-                  >
-                    领取{outputName}
-                  </Button>
+                  <span className="ui-helper-text">产成品自动入仓，无需领取。</span>
                 </div>
 
                 {canConfigure ? (
