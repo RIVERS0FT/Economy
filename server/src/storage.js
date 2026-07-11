@@ -10,6 +10,7 @@ import {
   processWorld,
 } from './domain.js';
 import { stripPlayerLogs } from './asset-events.js';
+import { createWarehouseSummary, ensureWarehouse, upgradeWarehouse } from './warehouse.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -18,6 +19,8 @@ function normalizeJson(value) {
 }
 
 function createVersionedClientState(world, userId, now) {
+  const player = world.players[String(userId)];
+  ensureWarehouse(player);
   const state = createClientState(world, userId, now);
   const {
     trades: _serverTrades,
@@ -27,6 +30,7 @@ function createVersionedClientState(world, userId, now) {
   } = state;
   return {
     ...authoritativeState,
+    ...createWarehouseSummary(player),
     version: 7,
   };
 }
@@ -102,10 +106,12 @@ export class EconomyStore {
     }
     const world = migrateWorld(JSON.parse(String(row.state_json)), now);
     stripPlayerLogs(world);
+    for (const player of Object.values(world.players || {})) ensureWarehouse(player);
     return { revision: Number(row.revision), world };
   }
 
   saveWorld(revision, world, now) {
+    for (const player of Object.values(world.players || {})) ensureWarehouse(player);
     stripPlayerLogs(world);
     this.updateWorld.run(revision + 1, JSON.stringify(world), now);
   }
@@ -113,8 +119,10 @@ export class EconomyStore {
   getState(user, now = Date.now()) {
     return this.transaction(() => {
       const { revision, world } = this.loadWorld(now);
-      ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now);
+      ensureWarehouse(player);
       processWorld(world, now);
+      ensureWarehouse(world.players[String(user.id)]);
       const state = normalizeJson(createVersionedClientState(world, Number(user.id), now));
       this.saveWorld(revision, world, now);
       return state;
@@ -134,9 +142,13 @@ export class EconomyStore {
       }
 
       const { revision, world } = this.loadWorld(now);
-      ensurePlayer(world, user, now);
+      const player = ensurePlayer(world, user, now);
+      ensureWarehouse(player);
       processWorld(world, now);
-      const gameResult = applyAction(world, user, action, payload, now);
+      const gameResult = action === 'upgradeWarehouse'
+        ? upgradeWarehouse(world.players[String(user.id)])
+        : applyAction(world, user, action, payload, now);
+      ensureWarehouse(world.players[String(user.id)]);
       const state = createVersionedClientState(world, Number(user.id), now);
       const response = normalizeJson({ result: gameResult, state });
       this.saveWorld(revision, world, now);

@@ -66,6 +66,7 @@ export async function getGameState(): Promise<EconomyState> {
 
 export const gameActions = {
   work: () => postAction('/work'),
+  upgradeWarehouse: () => postAction('/warehouse/upgrade'),
   buildFacility: (facilityTypeId: string) => postAction('/facilities', { facilityTypeId }),
   startFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/start`),
   stopFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/stop`),

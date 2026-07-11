@@ -271,6 +271,10 @@ export interface EconomyState {
   frozenCredits: number;
   inventories: Record<string, ProductInventory>;
   inventoryCapacity: number;
+  warehouseLevel: number;
+  warehouseMaxLevel: number;
+  warehouseUpgradeCost: number | null;
+  warehouseNextCapacity: number;
   facilities: ProductionFacility[];
   products: ProductDefinition[];
   facilityTypes: FacilityTypeDefinition[];

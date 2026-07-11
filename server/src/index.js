@@ -66,6 +66,7 @@ function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/work') return { action: 'work', category: 'general' };
   if (method === 'POST' && path === '/api/game/facilities') return { action: 'buildFacility', category: 'general' };
   if (method === 'POST' && path === '/api/game/orders') return { action: 'placeOrder', category: 'orders' };
+  if (method === 'POST' && path === '/api/game/warehouse/upgrade') return { action: 'upgradeWarehouse', category: 'general' };
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/reset') return { action: 'resetPlayer', category: 'general' };
 
