@@ -28,6 +28,91 @@
   color: var(--color-text-muted);
 }
 
+.order-quick-fill {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.order-quick-fill .ui-button {
+  width: 100%;
+}
+
+.single-order-book {
+  align-self: start;
+}
+
+.order-book-stack {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.order-book-side-label,
+.order-book-midpoint,
+.book-order-row {
+  display: grid;
+  align-items: center;
+  border-radius: var(--radius-control);
+}
+
+.order-book-side-label {
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  color: var(--color-text-secondary);
+  background: var(--color-surface-inset);
+}
+
+.order-book-side-label small {
+  color: var(--color-text-muted);
+}
+
+.book-order-row {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  padding: var(--space-2);
+}
+
+.book-order-row strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.book-order-row > span:last-child {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.book-order-row.ask strong {
+  color: var(--color-danger);
+}
+
+.book-order-row.bid strong {
+  color: var(--color-success);
+}
+
+.order-book-midpoint {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+  border: 1px solid rgba(244, 194, 93, 0.22);
+  padding: var(--space-3);
+  background: rgba(244, 194, 93, 0.06);
+}
+
+.order-book-midpoint span {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.order-book-midpoint strong {
+  color: var(--color-warning);
+  font-size: var(--font-size-lg);
+}
+
 .market-account-panel {
   min-width: 0;
 }
@@ -40,7 +125,7 @@
 }
 
 .funds-summary-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin-bottom: var(--layout-gutter);
 }
 
@@ -63,6 +148,28 @@
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-md);
+}
+
+.listing-purchase-control {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.7fr) minmax(100px, auto) auto;
+  align-items: end;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-3);
+}
+
+.listing-purchase-control > div {
+  display: grid;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.listing-purchase-control strong {
+  color: var(--color-warning);
+  font-size: var(--font-size-lg);
 }
 
 .asset-event-panel {
@@ -174,6 +281,14 @@
   .asset-event-changes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .listing-purchase-control {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .listing-purchase-control .ui-button {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 960px) and (min-width: 721px) {
@@ -202,12 +317,19 @@
 
   .market-account-summary,
   .funds-summary-grid,
-  .asset-event-changes {
+  .asset-event-changes,
+  .order-book-midpoint,
+  .listing-purchase-control {
     grid-template-columns: 1fr;
   }
 
   .market-account-grid {
     gap: var(--space-3);
+  }
+
+  .listing-purchase-control .ui-button {
+    grid-column: auto;
+    width: 100%;
   }
 
   .asset-event-card > header {
