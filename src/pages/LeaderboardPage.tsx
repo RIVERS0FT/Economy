@@ -14,7 +14,6 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="财富竞争"
       title="总资产排行榜"
       description="排行榜按服务器计算的总资产从高到低排序，挂牌溢价不计入估值。"
       actions={<StatusTag>更新于 {formatTime(game.lastProcessedAt)}</StatusTag>}
