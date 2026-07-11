@@ -57,10 +57,11 @@
   }
 
   .asset-bar.panel {
-    grid-template-columns: repeat(5, minmax(118px, 1fr));
-    gap: .35rem;
-    padding: .35rem;
-    scroll-padding-inline: .35rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .35rem .8rem;
+    scroll-padding-inline: .8rem;
     scrollbar-width: none;
   }
 
@@ -71,62 +72,60 @@
 
   .asset-bar-item,
   .asset-bar-item:last-child {
+    flex: 0 0 auto;
     min-width: 0;
-    display: grid;
-    grid-template-columns: 1.35rem minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    grid-template-areas:
-      "icon value"
-      "icon label";
+    display: inline-flex;
     align-items: center;
-    column-gap: .42rem;
-    row-gap: .02rem;
-    border: 1px solid rgba(212, 245, 224, .11);
-    border-radius: 1rem;
-    padding: .36rem .48rem;
-    background: rgba(255, 255, 255, .025);
+    gap: .42rem;
+    border: 0;
+    border-radius: 0;
+    padding: .25rem 0;
+    background: transparent;
+    box-shadow: none;
+    white-space: nowrap;
   }
 
   .asset-bar-item-icon {
-    grid-area: icon;
-    width: 1.35rem;
+    flex: 0 0 auto;
+    width: auto;
     display: block;
-    color: var(--green);
-    font-size: 1.02rem;
+    color: rgba(194, 211, 201, .76);
+    font-size: 1.05rem;
     font-weight: 900;
     line-height: 1;
     text-align: center;
   }
 
-  .asset-bar-item-label {
-    grid-area: label;
-    min-width: 0;
-    overflow: hidden;
-    color: rgba(214, 228, 220, .62);
-    font-size: .61rem;
-    line-height: 1.15;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .asset-bar-item > strong {
-    grid-area: value;
-    min-width: 0;
-    overflow: hidden;
-    font-size: .94rem;
-    line-height: 1.05;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
+  .asset-bar-item-label,
   .asset-bar-item > small {
     display: none;
   }
 
+  .asset-bar-item-value {
+    min-width: 0;
+    overflow: visible;
+    color: var(--ink);
+    font-size: .96rem;
+    font-weight: 850;
+    line-height: 1;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
   .asset-bar-item.primary {
-    border-color: rgba(123, 228, 158, .22);
-    border-radius: 1rem;
-    background: rgba(55, 169, 95, .09);
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .asset-bar-item.primary .asset-bar-item-icon,
+  .asset-bar-item.primary .asset-bar-item-value {
+    color: var(--green);
+  }
+
+  .asset-bar-item.market-ticker .asset-bar-item-icon,
+  .asset-bar-item.market-ticker .asset-bar-item-value {
+    color: var(--gold);
   }
 
   .mobile-bottom-navigation.panel {
