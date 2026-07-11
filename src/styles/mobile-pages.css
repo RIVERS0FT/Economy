@@ -13,13 +13,10 @@
     display: inline;
   }
 
-  /* Production must become a true single-column flow on phones. Without this
-   * override the 320px + flexible desktop grid keeps the facility list in an
-   * off-screen second column, so owned facilities appear to be missing. */
   .production-grid {
     width: 100%;
     grid-template-columns: minmax(0, 1fr);
-    gap: .75rem;
+    gap: var(--layout-gutter);
   }
 
   .production-grid > *,

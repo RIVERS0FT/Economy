@@ -1,7 +1,14 @@
 import type { ChangeEvent } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
-import { PageLayout, Panel, WidgetHeading } from '../components/ui/layout';
+import {
+  Button,
+  MetricCard,
+  PageLayout,
+  Panel,
+  StatusTag,
+  WidgetHeading,
+} from '../components/ui/layout';
 import type { CommodityOrder, OrderSide } from '../types';
 import { formatCurrency } from '../utils/formatters';
 
@@ -58,26 +65,58 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
       description="通过服务器权威订单簿与其他玩家和人口需求进行交易，或收购生产设施。"
     >
       <div className="market-stat-strip panel">
-        <div><span>买一价</span><strong className="positive">¤ {derived.bestBid || '--'}</strong></div>
-        <div><span>卖一价</span><strong className="negative">¤ {derived.bestAsk || '--'}</strong></div>
-        <div><span>价差</span><strong>¤ {derived.spread}</strong></div>
-        <div><span>玩家持仓</span><strong>{game.inventory}</strong></div>
-        <div><span>平均成本</span><strong>{derived.averageCost ? `¤ ${derived.averageCost.toFixed(1)}` : '--'}</strong></div>
+        <MetricCard tone="success" label="买一价" value={`¤ ${derived.bestBid || '--'}`} />
+        <MetricCard tone="danger" label="卖一价" value={`¤ ${derived.bestAsk || '--'}`} />
+        <MetricCard label="价差" value={`¤ ${derived.spread}`} />
+        <MetricCard label="玩家持仓" value={game.inventory} />
+        <MetricCard label="平均成本" value={derived.averageCost ? `¤ ${derived.averageCost.toFixed(1)}` : '--'} />
       </div>
 
       <div className="market-grid">
         <Panel className="widget order-entry">
-          <h2>{game.commodityName}限价订单</h2>
-          <div className="segmented">
-            <button className={orderSide === 'buy' ? 'active' : ''} onClick={() => setOrderSide('buy')}>买入</button>
-            <button className={orderSide === 'sell' ? 'active sell-active' : ''} onClick={() => setOrderSide('sell')}>卖出</button>
+          <WidgetHeading eyebrow="限价订单" title={`${game.commodityName}限价订单`} />
+          <div className="ui-segmented" role="group" aria-label="订单方向">
+            <Button
+              variant="text"
+              className={orderSide === 'buy' ? 'ui-segmented__button active' : 'ui-segmented__button'}
+              aria-pressed={orderSide === 'buy'}
+              onClick={() => setOrderSide('buy')}
+            >
+              买入
+            </Button>
+            <Button
+              variant="text"
+              className={orderSide === 'sell' ? 'ui-segmented__button active danger' : 'ui-segmented__button'}
+              aria-pressed={orderSide === 'sell'}
+              onClick={() => setOrderSide('sell')}
+            >
+              卖出
+            </Button>
           </div>
-          <label>数量<input type="number" min="1" value={orderQuantity} onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderQuantity(Number(event.target.value))} /></label>
-          <label>限价<input type="number" min="1" value={orderPrice} onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderPrice(Number(event.target.value))} /></label>
+          <label>
+            数量
+            <input
+              type="number"
+              min="1"
+              value={orderQuantity}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderQuantity(Number(event.target.value))}
+            />
+          </label>
+          <label>
+            限价
+            <input
+              type="number"
+              min="1"
+              value={orderPrice}
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderPrice(Number(event.target.value))}
+            />
+          </label>
           <div className="order-summary"><span>订单总额</span><strong>¤ {formatCurrency(orderQuantity * orderPrice)}</strong></div>
           <div className="order-capacity"><span>可用资金 ¤ {formatCurrency(game.credits)}</span><span>可用库存 {game.inventory}</span></div>
-          <button onClick={() => void showResult(placeCommodityOrder(orderSide, orderQuantity, orderPrice))}>提交{orderSide === 'buy' ? '买单' : '卖单'}</button>
-          <small>服务器按价格优先、同价时间优先撮合，允许部分成交和撤销未成交部分。</small>
+          <Button block onClick={() => void showResult(placeCommodityOrder(orderSide, orderQuantity, orderPrice))}>
+            提交{orderSide === 'buy' ? '买单' : '卖单'}
+          </Button>
+          <small className="ui-helper-text">服务器按价格优先、同价时间优先撮合，允许部分成交和撤销未成交部分。</small>
         </Panel>
 
         <Panel className="widget order-book">
@@ -114,7 +153,11 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           <WidgetHeading
             eyebrow="价格历史"
             title="近期成交曲线"
-            action={<span className={derived.marketTrend >= 0 ? 'positive' : 'negative'}>{derived.marketTrend >= 0 ? '+' : ''}{derived.marketTrend}</span>}
+            action={
+              <StatusTag tone={derived.marketTrend >= 0 ? 'success' : 'danger'}>
+                {derived.marketTrend >= 0 ? '+' : ''}{derived.marketTrend}
+              </StatusTag>
+            }
           />
           <PriceSparkline values={derived.history} />
           <div className="chart-footer"><span>成交样本 {game.marketPriceHistory.length}</span><span>人口需求满足率 {Math.round(game.demand.satisfaction * 100)}%</span></div>
@@ -126,18 +169,25 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             {game.facilityListings.map((listing) => (
               <article className="listing-card" key={listing.id}>
                 <div>
-                  <span className={listing.ownerId === game.userId ? 'status-chip status-listed' : 'status-chip'}>{listing.ownerId === game.userId ? '我的挂牌' : '可收购'}</span>
+                  <StatusTag tone={listing.ownerId === game.userId ? 'info' : 'neutral'}>
+                    {listing.ownerId === game.userId ? '我的挂牌' : '可收购'}
+                  </StatusTag>
                   <h3>{listing.facility.name}</h3>
                   <p>{listing.ownerName} · 等级 {listing.facility.level}</p>
                 </div>
-                <div className="listing-specs">
-                  <span>周期 {listing.facility.cycleMs / 1000} 秒</span><span>产量 {listing.facility.outputPerCycle}</span><span>运营费 ¤ {listing.facility.operatingCost}</span><span>容量 {listing.facility.internalCapacity}</span><span>累计产量 {listing.facility.lifetimeOutput}</span><span>参考估值 ¤ {listing.facility.systemValue}</span>
+                <div className="listing-specs ui-spec-grid">
+                  <span>周期 <strong>{listing.facility.cycleMs / 1000} 秒</strong></span>
+                  <span>产量 <strong>{listing.facility.outputPerCycle}</strong></span>
+                  <span>运营费 <strong>¤ {listing.facility.operatingCost}</strong></span>
+                  <span>容量 <strong>{listing.facility.internalCapacity}</strong></span>
+                  <span>累计产量 <strong>{listing.facility.lifetimeOutput}</strong></span>
+                  <span>参考估值 <strong>¤ {listing.facility.systemValue}</strong></span>
                 </div>
                 <div className="listing-price">
                   <strong>¤ {formatCurrency(listing.price)}</strong>
                   {listing.ownerId === game.userId
-                    ? <button className="danger-button" onClick={() => void showResult(cancelFacilityListing(listing.id))}>撤销</button>
-                    : <button onClick={() => void showResult(buyFacility(listing.id))}>立即收购</button>}
+                    ? <Button variant="danger" onClick={() => void showResult(cancelFacilityListing(listing.id))}>撤销</Button>
+                    : <Button onClick={() => void showResult(buyFacility(listing.id))}>立即收购</Button>}
                 </div>
               </article>
             ))}

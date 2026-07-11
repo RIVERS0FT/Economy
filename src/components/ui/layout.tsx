@@ -1,4 +1,15 @@
-import type { ReactNode } from 'react';
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+} from 'react';
+
+export type StatusTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'text' | 'compact';
+
+function classNames(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(' ');
+}
 
 export function PageLayout({
   eyebrow,
@@ -29,7 +40,7 @@ export function PageLayout({
 }
 
 export function Panel({ className = '', children }: { className?: string; children: ReactNode }) {
-  return <article className={`panel ${className}`.trim()}>{children}</article>;
+  return <article className={classNames('panel', className)}>{children}</article>;
 }
 
 export function WidgetHeading({
@@ -52,26 +63,113 @@ export function WidgetHeading({
   );
 }
 
+export function Button({
+  variant = 'primary',
+  block = false,
+  className = '',
+  type = 'button',
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  block?: boolean;
+}) {
+  return (
+    <button
+      type={type}
+      className={classNames(
+        'ui-button',
+        `ui-button--${variant}`,
+        block && 'ui-button--block',
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export function StatusTag({
   tone = 'neutral',
   className = '',
   children,
 }: {
-  tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
+  tone?: StatusTone;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <span className={`ui-status-tag status-${tone} ${className}`.trim()}>
+    <span className={classNames('ui-status-tag', `status-${tone}`, className)}>
       {children}
     </span>
   );
 }
 
+export function MetricCard({
+  label,
+  value,
+  detail,
+  tone = 'neutral',
+  className = '',
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  detail?: ReactNode;
+  tone?: StatusTone;
+  className?: string;
+}) {
+  return (
+    <div className={classNames('ui-metric-card', `ui-metric-card--${tone}`, className)}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {detail ? <small>{detail}</small> : null}
+    </div>
+  );
+}
+
+export function DataList({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <dl className={classNames('ui-data-list', className)}>{children}</dl>;
+}
+
+export function DataRow({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  tone?: StatusTone;
+}) {
+  return (
+    <div className={classNames('ui-data-row', `ui-data-row--${tone}`)}>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+export function ToggleField({
+  label,
+  description,
+  className = '',
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & {
+  label: string;
+  description: string;
+}) {
+  return (
+    <label className={classNames('ui-toggle-field', className)}>
+      <span>
+        <strong>{label}</strong>
+        <small>{description}</small>
+      </span>
+      <input className="ui-switch" type="checkbox" {...props} />
+    </label>
+  );
+}
+
 export function ScrollableTable({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`table-wrap ${className}`.trim()}>{children}</div>;
+  return <div className={classNames('table-wrap', className)}>{children}</div>;
 }
 
 export function EmptyState({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`empty-state ${className}`.trim()}>{children}</div>;
+  return <div className={classNames('empty-state', className)}>{children}</div>;
 }

@@ -1,3 +1,4 @@
+import { Button } from '../ui/layout';
 import { BRAND_LOGO_URL, BRAND_NAME } from '../../config/brand';
 import type { TabId } from '../../config/navigation';
 import { NavigationItems } from './NavigationItems';
@@ -34,9 +35,9 @@ export function DesktopSidebar({
       <div className="sidebar-footer">
         <div className="connection-state">
           <span className="status-dot" />
-          <div><strong>市场在线</strong><small>本地多人规则预览</small></div>
+          <div><strong>市场在线</strong><small>服务器权威经济</small></div>
         </div>
-        <button type="button" className="ghost-button sidebar-logout" onClick={onSignOut}>退出登录</button>
+        <Button block variant="secondary" className="sidebar-logout" onClick={onSignOut}>退出登录</Button>
       </div>
     </aside>
   );
