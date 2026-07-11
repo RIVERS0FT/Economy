@@ -21,7 +21,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      eyebrow="Unified market"
+      eyebrow="统一市场"
       title="市场"
       description="通过订单簿判断价格，与玩家和人口需求进行商品交易，或收购生产设施。"
     >
@@ -35,7 +35,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
       <div className="market-grid">
         <Panel className="widget order-entry">
-          <p className="eyebrow">Limit order</p>
+          <p className="eyebrow">限价订单</p>
           <h2>{game.commodityName}限价订单</h2>
           <div className="segmented">
             <button className={orderSide === 'buy' ? 'active' : ''} onClick={() => setOrderSide('buy')}>买入</button>
@@ -51,7 +51,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget order-book">
           <WidgetHeading
-            eyebrow="Order book"
+            eyebrow="订单簿"
             title="商品订单簿"
             action={<div className="last-price"><span>最近成交</span><strong>¤ {game.marketPrice}</strong></div>}
           />
@@ -63,7 +63,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget market-chart-card">
           <WidgetHeading
-            eyebrow="Price history"
+            eyebrow="价格历史"
             title="近期成交曲线"
             action={<span className={derived.marketTrend >= 0 ? 'positive' : 'negative'}>{derived.marketTrend >= 0 ? '+' : ''}{derived.marketTrend}</span>}
           />
@@ -72,7 +72,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading eyebrow="Facility listings" title="生产设施挂牌" action={<span className="muted">固定价格 · 即时产权交割</span>} />
+          <WidgetHeading eyebrow="设施挂牌" title="生产设施挂牌" action={<span className="muted">固定价格 · 即时产权交割</span>} />
           <div className="listing-grid">
             {game.facilityListings.map((listing) => (
               <article className="listing-card" key={listing.id}>
@@ -82,7 +82,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                   <p>{listing.ownerName} · 等级 {listing.facility.level}</p>
                 </div>
                 <div className="listing-specs">
-                  <span>周期 {listing.facility.cycleMs / 1000}s</span><span>产量 {listing.facility.outputPerCycle}</span><span>运营费 ¤ {listing.facility.operatingCost}</span><span>容量 {listing.facility.internalCapacity}</span><span>累计产量 {listing.facility.lifetimeOutput}</span><span>参考估值 ¤ {listing.facility.systemValue}</span>
+                  <span>周期 {listing.facility.cycleMs / 1000} 秒</span><span>产量 {listing.facility.outputPerCycle}</span><span>运营费 ¤ {listing.facility.operatingCost}</span><span>容量 {listing.facility.internalCapacity}</span><span>累计产量 {listing.facility.lifetimeOutput}</span><span>参考估值 ¤ {listing.facility.systemValue}</span>
                 </div>
                 <div className="listing-price">
                   <strong>¤ {formatCurrency(listing.price)}</strong>
