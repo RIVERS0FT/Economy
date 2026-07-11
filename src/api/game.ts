@@ -76,7 +76,6 @@ export const gameActions = {
     mode: ProductionMode,
     targetQuantity?: number,
   ) => postAction(`/facilities/${encodeURIComponent(facilityId)}/plan`, { mode, targetQuantity }),
-  collectFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/collect`),
   listFacility: (facilityId: string, price: number) => postAction(`/facilities/${encodeURIComponent(facilityId)}/list`, { price }),
   cancelFacilityListing: (listingId: string) => postAction(`/facility-listings/${encodeURIComponent(listingId)}/cancel`),
   buyFacility: (listingId: string) => postAction(`/facility-listings/${encodeURIComponent(listingId)}/buy`),
