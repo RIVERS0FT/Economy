@@ -141,10 +141,10 @@ for (const text of [
   'title="设置"',
   '玩家资料',
   '游戏设置',
-  '账号与产业摘要',
-  '仓库使用',
+  '登录会话',
   '退出登录',
   '重置服务器经济状态',
+  '不会删除服务器经济状态或当前浏览器的本地活动记录',
 ]) requireText('src/pages/SettingsPage.tsx', text);
 
 for (const [path, forbidden] of [
@@ -157,9 +157,25 @@ for (const [path, forbidden] of [
     'warehouseLevel',
     'warehouseUpgradeCost',
     'warehouseNextCapacity',
+    'warehouseUsedCapacity',
+    'inventoryCapacity',
     'upgradeWarehouse()',
     'placeCommodityOrder(',
     'setProductionPlan(',
+    '<DataList',
+    '<DataRow',
+    '账号与产业摘要',
+    '仓库使用',
+    '工厂总数',
+    '运行中工厂',
+    '施工中工厂',
+    '阻塞工厂',
+    '商品种类',
+    '未完成订单',
+    '当前排名',
+    'derived.',
+    'game.facilities',
+    'game.products',
   ]],
 ]) {
   for (const text of forbidden) forbidText(path, text);
@@ -172,7 +188,7 @@ for (const text of [
   '共享仓库必须位于建设与工厂列表之前',
   '`WarehouseUpgradeCard` 只能由 `ProductionPage` 渲染',
   '资金页不负责仓库管理',
-  '设置页的一行“仓库使用”只是只读账号摘要',
+  '设置页不得显示账号与产业只读摘要或仓库使用摘要',
   '模块唯一归属',
   '未更新本设计、相关专项设计和防回退检查的页面结构修改不应合并',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
@@ -182,18 +198,19 @@ for (const text of [
   '共享仓库完整管理卡固定在“生产”页面',
   '共享仓库完整管理入口只存在于此页面',
   '资金页不提供仓库扩容',
-  '设置页不显示仓库等级、扩容费用或扩容按钮',
+  '设置页不显示账号与产业摘要、仓库使用摘要、仓库等级、扩容费用或扩容按钮',
 ]) requireText('README.md', text);
 
 for (const text of [
   '共享仓库完整管理卡必须位于 `ProductionPage`',
   '`AssetsPage`、`SettingsPage`、`OverviewPage`、`MarketPage` 和 `LeaderboardPage` 不得渲染 `WarehouseUpgradeCard`',
+  '设置页不得显示仓库使用、等级、费用、容量或扩容入口',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
 for (const text of [
   '生产负责共享仓库完整管理',
   '资金页不得包含',
-  '设置页可以在“账号与产业摘要”中显示一行只读仓库使用量',
+  '设置页不得显示账号与产业摘要或仓库使用摘要',
 ]) requireText('docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md', text);
 
 if (failures.length) {
@@ -201,4 +218,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容与模块归属验证通过：六个页面职责明确，共享仓库完整管理仅位于生产页面。');
+console.log('页面内容与模块归属验证通过：六个页面职责明确，设置页不包含经营摘要，共享仓库完整管理仅位于生产页面。');
