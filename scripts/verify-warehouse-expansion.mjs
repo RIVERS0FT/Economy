@@ -112,7 +112,7 @@ for (const text of [
   'if (!Number.isFinite(beforeLevel) || !Number.isFinite(afterLevel)) return undefined;',
   'const warehouseChange = diffWarehouse(before, after);',
   'warehouseChange,',
-  "if (category === 'warehouse') return 'warehouse';",
+  "if (warehouseChange) return 'warehouse';",
   "if (action === 'upgradeWarehouse') return '共享仓库已扩容';",
 ]) requireText('src/utils/localActivityStore.ts', text);
 
