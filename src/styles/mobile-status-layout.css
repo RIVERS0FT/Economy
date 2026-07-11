@@ -1,6 +1,5 @@
 @media (max-width: 720px) {
   :root {
-    --mobile-asset-bar-height: 56px;
     --mobile-status-top-inset: max(var(--mobile-chrome-inset), env(safe-area-inset-top));
     --mobile-status-left-inset: max(var(--mobile-chrome-inset), env(safe-area-inset-left));
     --mobile-status-right-inset: max(var(--mobile-chrome-inset), env(safe-area-inset-right));
