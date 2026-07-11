@@ -15,7 +15,7 @@ import { economyConstants } from '../config/economy';
 import { formatCurrency, formatDuration, formatTime } from '../utils/formatters';
 
 export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
-  const { game, derived, workRemaining, work, showResult, setTab } = model;
+  const { game, derived, localTrades, workRemaining, work, showResult, setTab } = model;
   const plannedFacilities = game.facilities.filter((facility) => facility.productionMode === 'target').length;
   const pendingPlans = game.facilities.reduce((sum, facility) => (
     facility.productionMode === 'target'
@@ -117,24 +117,24 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget recent-activity span-2">
           <WidgetHeading
-            title="最近成交与资产提醒"
+            title="当前浏览器最近成交"
             action={
               <div className="ui-inline-actions">
                 <Button variant="text" onClick={() => setTab('market')}>成交与撤单</Button>
-                <Button variant="text" onClick={() => setTab('assets')}>资产变动</Button>
+                <Button variant="text" onClick={() => setTab('assets')}>本地资产变动</Button>
               </div>
             }
           />
           <div className="activity-list">
-            {game.trades.slice(0, 6).map((trade) => (
+            {localTrades.slice(0, 6).map((trade) => (
               <div key={trade.id}>
-                <span><strong>{trade.description}</strong><small>{trade.counterparty} · {formatTime(trade.createdAt)}</small></span>
+                <span><strong>{trade.description}</strong><small>{trade.counterparty} · {formatTime(trade.createdAt)} · 本地</small></span>
                 <strong className={trade.side === 'sell' ? 'positive' : 'negative'}>
                   {trade.side === 'sell' ? '+' : '-'}¤ {formatCurrency(trade.total)}
                 </strong>
               </div>
             ))}
-            {game.trades.length === 0 ? <EmptyState>暂无成交。进入市场提交你的第一笔商品订单。</EmptyState> : null}
+            {localTrades.length === 0 ? <EmptyState>当前浏览器暂无成交记录。进入市场提交你的第一笔商品订单。</EmptyState> : null}
           </div>
         </Panel>
       </div>
