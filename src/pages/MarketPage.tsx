@@ -62,6 +62,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const selectedProduct = derived.selectedProduct;
   const selectedInventory = derived.selectedInventory;
   const selectedMarket = derived.selectedMarket;
+  const selectedOrders = game.orders.filter((order) => order.productId === selectedProduct.id);
+  const selectedOpenOrderCount = selectedOrders.filter((order) => ['open', 'partial'].includes(order.status)).length;
 
   function productName(productId?: string) {
     if (!productId) return '无';
@@ -199,6 +201,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           <PriceSparkline values={derived.history} />
           <div className="chart-footer">
             <span>成交样本 {selectedMarket.priceHistory.length}</span>
+            <span>当前订单 {selectedOpenOrderCount} 笔</span>
             <span>需求满足率 {Math.round(selectedMarket.demand.satisfaction * 100)}%</span>
           </div>
         </Panel>
