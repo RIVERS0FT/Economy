@@ -17,6 +17,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     user,
     game,
     derived,
+    inventoryUsed,
     avatarText,
     playerName,
     setPlayerName,
@@ -86,12 +87,15 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget account-summary">
-          <WidgetHeading title="账号与资产" />
+          <WidgetHeading title="账号与产业" />
           <DataList>
             <DataRow label="账号编号" value={user.id} />
             <DataRow label="账号角色" value={roleLabel} tone={user.role === 'admin' ? 'info' : 'neutral'} />
-            <DataRow label="设施槽位" value={game.facilitySlots} />
-            <DataRow label="库存容量" value={game.inventoryCapacity} />
+            <DataRow label="工厂总数" value={game.facilities.length} tone="info" />
+            <DataRow label="运行中工厂" value={derived.runningFacilities} tone="success" />
+            <DataRow label="施工中工厂" value={derived.constructingFacilities} tone="warning" />
+            <DataRow label="仓库使用" value={`${inventoryUsed}/${game.inventoryCapacity}`} />
+            <DataRow label="商品种类" value={game.products.length} />
             <DataRow label="当前排名" value={`第 ${derived.currentRank?.rank ?? '--'} 名`} tone="warning" />
           </DataList>
           <Button block variant="secondary" onClick={() => void signOut()}>退出登录</Button>
@@ -100,7 +104,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
         <Panel className="widget danger-zone span-3">
           <div>
             <h2>重置服务器经济状态</h2>
-            <p>重置会删除当前玩家的资金、库存、设施、订单与交易记录，但不会影响主页账号。</p>
+            <p>重置会删除当前玩家的资金、各类商品、工厂、生产计划、订单与交易记录，但不会影响主页账号。</p>
           </div>
           <Button
             variant="danger"
