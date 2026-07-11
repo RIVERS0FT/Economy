@@ -1,0 +1,16 @@
+/* Desktop sidebar identity is rendered in the brand lockup. */
+.desktop-sidebar .sidebar-brand > div {
+  min-width: 0;
+}
+
+.desktop-sidebar .sidebar-brand span {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desktop-sidebar > .sidebar-nav {
+  margin-top: .85rem;
+}
