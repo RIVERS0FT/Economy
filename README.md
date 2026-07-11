@@ -8,19 +8,21 @@ Economy 是一款多人在线经济模拟与交易游戏。
 
 玩家以个人身份拥有货币、商品、仓库、工厂、订单和其他资产。游戏不设置企业身份，不依赖角色或城市场景。核心目标是通过工作、生产、交易、仓库扩容和资产配置持续提升总资产，并在排行榜中与其他玩家竞争。
 
+页面内容与模块归属以 `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。
+
 ## 核心循环
 
 ```text
 工作获得基础资金
+→ 在生产页扩容共享仓库
 → 建设或收购工厂
 → 设置持续或定量生产计划
 → 手动启动工厂
 → 消耗资金与原料生产商品
-→ 领取产成品
+→ 领取产成品进入共享仓库
 → 在独立商品订单簿交易
 → 在市场直接管理订单和撤单
-→ 扩容共享仓库
-→ 在资金页查看当前资产与本地变化记录
+→ 在资金页查看资产结果与本地变化记录
 → 提升总资产与排名
 ```
 
@@ -86,6 +88,8 @@ Economy 是一款多人在线经济模拟与交易游戏。
 - 扩容使用服务器事务和幂等键；
 - 旧玩家容量迁移不会缩减已有容量。
 
+共享仓库完整管理卡固定在“生产”页面，位于建设新工厂和已有工厂列表之前。资金页只显示扩容后的本地资产变化，设置页只保留一行仓库使用摘要，其他页面不得提供扩容按钮。
+
 工厂内部产成品不占共享仓库，领取进入玩家库存后才占用。未完成买单会预占空间，撤单或成交后由服务器释放对应预占。
 
 ## 市场与订单
@@ -113,16 +117,17 @@ Economy 是一款多人在线经济模拟与交易游戏。
 
 ## 资金与资产
 
-“资金”页面统一展示：
+“资金”页面负责资产结果，统一展示：
 
-- 可用货币与冻结货币
-- 各商品可用库存与冻结库存
-- 仓库等级、实物库存、买单预占、剩余容量和扩容入口
-- 工厂及其内部产成品
-- 正在出售的工厂
-- 总资产与排行榜名次
-- 货币发行与系统回收
-- 当前浏览器本地资金、仓库与资产变动
+- 可用货币与冻结货币；
+- 当前总资产；
+- 商品资产与工厂资产；
+- 现金、商品和工厂资产配置；
+- 各商品可用库存、冻结库存、参考价和估值；
+- 货币发行与系统回收；
+- 当前浏览器本地资金、仓库、工厂与生产变化。
+
+资金页不提供仓库扩容、建厂、生产控制、下单或设置操作。
 
 总资产由服务器计算：
 
@@ -135,6 +140,125 @@ Economy 是一款多人在线经济模拟与交易游戏。
 ```
 
 玩家挂牌价和空闲仓库容量不直接计入总资产。
+
+## 页面职责
+
+正式导航固定为：
+
+```text
+概览｜市场｜生产｜资金｜排行｜设置
+```
+
+### 概览
+
+- 基础工作；
+- 当前商品行情摘要；
+- 六种商品快捷行情；
+- 生产摘要；
+- 财富构成；
+- 当前浏览器最近成交；
+- 前往市场、生产和资金的快捷入口。
+
+概览只提供摘要，不复制完整订单、工厂、仓库或设置流程。
+
+### 市场
+
+- 商品选择与行情；
+- 限价下单；
+- 当前商品订单和快捷撤单；
+- 聚合订单簿；
+- 价格曲线；
+- 全部未完成订单；
+- 冻结资产摘要；
+- 本地成交记录；
+- 工厂挂牌收购与撤销。
+
+市场不提供仓库扩容或生产控制。
+
+### 生产
+
+- 共享仓库等级、占用、买单预占、剩余容量和扩容；
+- 建设新工厂；
+- 已有工厂状态和进度；
+- 持续与定量生产计划；
+- 手动启动与停止；
+- 领取产成品；
+- 发起和撤销自己的工厂挂牌。
+
+共享仓库完整管理入口只存在于此页面。
+
+### 资金
+
+- 现金、商品与工厂资产；
+- 资产配置和估值明细；
+- 商品库存与估值；
+- 货币发行与回收；
+- 本地资金与资产变化；
+- 本地记录筛选和清除。
+
+仓库扩容记录可以作为本地历史结果显示，但不提供扩容操作。
+
+### 排行
+
+- 我的排名和总资产；
+- 与上一名差距；
+- 本周变化；
+- 完整总资产排行榜；
+- 当前玩家突出显示。
+
+### 设置
+
+- 玩家资料和昵称；
+- 客户端界面偏好；
+- 账号与产业只读摘要；
+- 一行仓库使用摘要；
+- 退出登录；
+- 重置服务器经济状态。
+
+设置页不显示仓库等级、扩容费用或扩容按钮。
+
+## 页面结构
+
+```text
+GameShell
+├── DesktopSidebar / MobileBottomNavigation
+├── StatusBar
+│   └── Funds / Assets / Rank / Inventory / WarehouseUsage / MarketPrice
+├── OverviewPage
+│   ├── WorkWidget
+│   ├── MarketSummary
+│   ├── ProductionSummary
+│   ├── WealthSummary
+│   └── LocalRecentTrades
+├── MarketPage
+│   ├── ProductSelector
+│   ├── OrderEntryAndCurrentOrders
+│   ├── ProductOrderBook
+│   ├── ProductPriceHistory
+│   ├── AllOpenOrdersAndCancel
+│   ├── LocalTradeHistory
+│   └── FacilityListings
+├── ProductionPage
+│   ├── WarehouseUpgradeCard
+│   ├── FacilityTypeSelector
+│   ├── BuildFacility
+│   ├── ProductionPlan
+│   ├── ManualStartStop
+│   └── CollectAndList
+├── AssetsPage
+│   ├── FundsSummary
+│   ├── AssetAllocation
+│   ├── ProductInventoryAndValuation
+│   ├── CurrencyFlow
+│   └── LocalAssetAndWarehouseEvents
+├── LeaderboardPage
+└── SettingsPage
+    ├── PlayerProfile
+    ├── ClientPreferences
+    ├── ReadOnlyIndustrySummary
+    ├── SignOut
+    └── ResetEconomy
+```
 
 ## 本地活动日志
 
@@ -158,77 +282,31 @@ assetEvents
 
 客户端状态版本为 `version: 7`，不再包含上述日志数组。
 
-## 页面结构
-
-```text
-GameShell
-├── DesktopSidebar / MobileBottomNavigation
-├── StatusBar
-│   └── WarehouseUsageAndBuyOrderReservation
-├── OverviewPage
-│   ├── WorkWidget
-│   ├── MultiProductMarketSummary
-│   ├── ProductionSummary
-│   ├── WealthSummary
-│   └── LocalRecentActivity
-├── MarketPage
-│   ├── ProductSelector
-│   ├── OrderEntry
-│   ├── CurrentProductOpenOrders
-│   ├── ProductOrderBook
-│   ├── ProductPriceHistory
-│   ├── AllOpenOrdersAndCancel
-│   ├── LocalTradeHistory
-│   └── FacilityListings
-├── ProductionPage
-│   ├── FacilityTypeSelector
-│   ├── BuildFacility
-│   ├── ProductionPlan
-│   ├── ManualStartStop
-│   └── CollectAndList
-├── AssetsPage
-│   ├── FundsSummary
-│   ├── AssetAllocation
-│   ├── WarehouseUpgradeCard
-│   ├── ProductInventoryAndValuation
-│   ├── CurrencyFlow
-│   └── LocalAssetAndWarehouseEvents
-├── LeaderboardPage
-└── SettingsPage
-    └── CompactWarehouseUpgradeCard
-```
-
-正式导航固定为：
-
-```text
-概览｜市场｜生产｜资金｜排行｜设置
-```
-
 ## 服务器权威边界
 
 服务器负责：
 
-- 工作收益和冷却
-- 玩家资金与所有商品库存
-- 仓库等级、容量、实物库存、买单预占和剩余容量
-- 冻结资金与冻结商品
-- 工厂产权、施工、配方和生产
-- 持续与定量生产计划
-- 手动启动、停止和阻塞状态
-- 多商品订单撮合和撤单
-- 工厂即时产权交割
-- 人口与企业需求订单
-- 各商品参考价和工厂估值
-- 总资产与排行榜
-- 旧世界状态迁移
+- 工作收益和冷却；
+- 玩家资金与所有商品库存；
+- 仓库等级、容量、实物库存、买单预占和剩余容量；
+- 冻结资金与冻结商品；
+- 工厂产权、施工、配方和生产；
+- 持续与定量生产计划；
+- 手动启动、停止和阻塞状态；
+- 多商品订单撮合和撤单；
+- 工厂即时产权交割；
+- 人口与企业需求订单；
+- 各商品参考价和工厂估值；
+- 总资产与排行榜；
+- 旧世界状态迁移。
 
 客户端负责：
 
-- 页面展示和用户输入
-- 倒计时和进度视觉
-- 盘口、价格曲线和筛选
-- 当前浏览器本地活动日志
-- 不改变正式状态的预测与分析
+- 页面展示和用户输入；
+- 倒计时和进度视觉；
+- 盘口、价格曲线和筛选；
+- 当前浏览器本地活动日志；
+- 不改变正式状态的预测与分析。
 
 浏览器本地存储、客户端时间和客户端计算不能改变正式资金、仓库、库存、工厂、生产计划、订单、产权或排名。
 
@@ -242,8 +320,6 @@ GameShell
 - API 目录：`/var/www/game/economy-api`
 - 客户端状态版本：7
 - 世界状态版本：3
-
-旧服务器日志会在下一次读取并保存时从世界 JSON 中清除，但不会改变玩家资金、仓库、库存、工厂、订单、挂牌或市场状态。
 
 ## 本地开发
 
@@ -260,14 +336,15 @@ npm run build
 
 `npm run build` 包含：
 
-- UI、产业、市场资产和本地日志架构检查
-- 仓库扩容、占用摘要与买单预占检查
-- 液态玻璃状态栏检查
-- Nginx 配置测试
-- 服务端语法检查
-- 服务端领域测试
-- TypeScript 检查
-- Vite 生产构建
+- 页面内容与模块唯一归属检查；
+- UI、产业、市场资产和本地日志架构检查；
+- 仓库扩容、占用摘要与买单预占检查；
+- 液态玻璃状态栏检查；
+- Nginx 配置测试；
+- 服务端语法检查；
+- 服务端领域测试；
+- TypeScript 检查；
+- Vite 生产构建。
 
 ## 2 核 2G 约束
 
