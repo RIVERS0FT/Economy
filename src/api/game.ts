@@ -68,17 +68,23 @@ export const gameActions = {
   work: () => postAction('/work'),
   upgradeWarehouse: () => postAction('/warehouse/upgrade'),
   buildFacility: (facilityTypeId: string) => postAction('/facilities', { facilityTypeId }),
-  startFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/start`),
-  stopFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/stop`),
-  pauseFacility: (facilityId: string) => postAction(`/facilities/${encodeURIComponent(facilityId)}/pause`),
+  startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),
+  stopFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/stop`),
+  pauseFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/pause`),
   setProductionPlan: (
-    facilityId: string,
+    facilityTypeId: string,
     mode: ProductionMode,
     targetQuantity?: number,
-  ) => postAction(`/facilities/${encodeURIComponent(facilityId)}/plan`, { mode, targetQuantity }),
-  listFacility: (facilityId: string, price: number) => postAction(`/facilities/${encodeURIComponent(facilityId)}/list`, { price }),
+  ) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/plan`, { mode, targetQuantity }),
+  listFacility: (
+    facilityTypeId: string,
+    quantity: number,
+    unitPrice: number,
+  ) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/list`, { quantity, unitPrice }),
   cancelFacilityListing: (listingId: string) => postAction(`/facility-listings/${encodeURIComponent(listingId)}/cancel`),
-  buyFacility: (listingId: string) => postAction(`/facility-listings/${encodeURIComponent(listingId)}/buy`),
+  buyFacility: (listingId: string, quantity: number) => (
+    postAction(`/facility-listings/${encodeURIComponent(listingId)}/buy`, { quantity })
+  ),
   placeCommodityOrder: (
     productId: string,
     side: OrderSide,
