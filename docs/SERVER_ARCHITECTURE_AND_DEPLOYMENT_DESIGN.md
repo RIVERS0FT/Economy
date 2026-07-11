@@ -214,8 +214,8 @@ SERVER_USER=deploy
 
 - 账号 snippet 只负责 `/economy-api/login`、`/economy-api/me`、`/economy-api/logout`；
 - 游戏 API snippet 或托管块只负责 `/economy-api/game/`；
-- 已存在账号路由时不得再次生成同名账号 `location`；
-- 已存在游戏 API 路由时不得再次生成 `/economy-api/game/`。
+- 不得在账号 snippet 已存在时再次生成同名账号 `location`；
+- 不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`。
 
 ### 9.1 自动配置决策矩阵
 
@@ -232,7 +232,7 @@ SERVER_USER=deploy
 
 ### 9.2 幂等与回滚
 
-- `scripts/configure-economy-nginx.py` 必须幂等；
+- `scripts/configure-economy-nginx.py` 必须幂等；连续执行两次，第二次不得产生配置变化。
 - 写入前备份目标站点为 `.economy-proxy.bak`；
 - 写入后执行 `nginx -t`；
 - 测试失败时立即恢复备份并再次检查；
