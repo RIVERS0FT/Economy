@@ -1,19 +1,5 @@
 import { randomUUID } from 'node:crypto';
 
-const MAX_ASSET_EVENTS_PER_PLAYER = 480;
-
-const LEGACY_CATEGORY_MAP = Object.freeze({
-  work_income: 'work',
-  population_income: 'trade',
-  market_trade: 'trade',
-  facility_trade: 'facility',
-  facility_construction: 'facility',
-  facility_operation: 'production',
-  facility_sale: 'facility',
-  inventory: 'inventory',
-  system: 'system',
-});
-
 const ACTION_CATEGORY_MAP = Object.freeze({
   work: 'work',
   placeOrder: 'order',
@@ -31,7 +17,7 @@ const ACTION_CATEGORY_MAP = Object.freeze({
 });
 
 function createId() {
-  return `asset-event-${randomUUID()}`;
+  return `local-activity-${randomUUID()}`;
 }
 
 function clone(value) {
@@ -48,52 +34,6 @@ function normalizeInventory(inventory) {
     available: normalizeNumber(inventory?.available),
     frozen: normalizeNumber(inventory?.frozen),
   };
-}
-
-function legacyEvent(entry) {
-  const cashDelta = normalizeNumber(entry.amount);
-  return {
-    id: entry.id || createId(),
-    category: LEGACY_CATEGORY_MAP[entry.category] || 'system',
-    createdAt: normalizeNumber(entry.createdAt) || Date.now(),
-    description: String(entry.description || '历史资产记录'),
-    cashDelta,
-    availableCashAfter: normalizeNumber(entry.balanceAfter),
-    frozenCashDelta: 0,
-    frozenCashAfter: 0,
-    inventoryChanges: [],
-    facilityChanges: [],
-    productionChanges: [],
-    sourceType: 'system',
-    legacy: true,
-  };
-}
-
-function ensurePlayerAssetEvents(player) {
-  if (!Array.isArray(player.assetEvents)) {
-    player.assetEvents = Array.isArray(player.ledger)
-      ? player.ledger.map(legacyEvent)
-      : [];
-  }
-  player.assetEvents = player.assetEvents.map((event) => ({
-    cashDelta: 0,
-    availableCashAfter: 0,
-    frozenCashDelta: 0,
-    frozenCashAfter: 0,
-    inventoryChanges: [],
-    facilityChanges: [],
-    productionChanges: [],
-    ...event,
-  })).slice(0, MAX_ASSET_EVENTS_PER_PLAYER);
-  return player.assetEvents;
-}
-
-export function migrateAssetEvents(world) {
-  if (!world || typeof world !== 'object') return world;
-  world.players ||= {};
-  for (const player of Object.values(world.players)) ensurePlayerAssetEvents(player);
-  world.version = 3;
-  return world;
 }
 
 function ownOrders(world, userId) {
@@ -142,7 +82,7 @@ export function capturePlayerAssetSnapshot(world, userId) {
       inputProductId: facility.inputProductId,
       inputPerCycle: normalizeNumber(facility.inputPerCycle),
     })),
-    trades: (player.trades || []).map((trade) => ({ id: trade.id, createdAt: trade.createdAt })),
+    trades: (player.trades || []).map((trade) => ({ ...trade })),
     orders: ownOrders(world, userId),
     listings: ownListings(world, userId),
   });
@@ -270,7 +210,7 @@ function hasMeaningfulChanges(event, before, after) {
   );
 }
 
-export function appendAssetEventFromDiff(
+export function createAssetEventFromDiff(
   world,
   userId,
   before,
@@ -278,7 +218,6 @@ export function appendAssetEventFromDiff(
 ) {
   const player = world.players?.[String(userId)];
   if (!player || !before || result?.ok === false) return null;
-  ensurePlayerAssetEvents(player);
   const after = capturePlayerAssetSnapshot(world, userId);
   const inventoryChanges = diffInventories(before, after);
   const { facilityChanges, productionChanges } = diffFacilities(before, after, action);
@@ -298,8 +237,29 @@ export function appendAssetEventFromDiff(
     productionChanges,
     ...source,
   };
-  if (!hasMeaningfulChanges(event, before, after)) return null;
-  player.assetEvents.unshift(event);
-  player.assetEvents = player.assetEvents.slice(0, MAX_ASSET_EVENTS_PER_PLAYER);
-  return event;
+  return hasMeaningfulChanges(event, before, after) ? event : null;
+}
+
+export function collectTransientTrades(world, userId, before) {
+  const player = world.players?.[String(userId)];
+  if (!player) return [];
+  const previousIds = new Set((before?.trades || []).map((trade) => trade.id));
+  return clone((player.trades || []).filter((trade) => !previousIds.has(trade.id)));
+}
+
+/**
+ * Player-facing activity history is a browser-local concern. This function is
+ * called immediately before every SQLite write so no ledger, trade history or
+ * asset event array is persisted in the authoritative world state.
+ */
+export function stripPlayerLogs(world) {
+  if (!world || typeof world !== 'object') return world;
+  world.players ||= {};
+  for (const player of Object.values(world.players)) {
+    delete player.trades;
+    delete player.ledger;
+    delete player.assetEvents;
+  }
+  world.version = 3;
+  return world;
 }
