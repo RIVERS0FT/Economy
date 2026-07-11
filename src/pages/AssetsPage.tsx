@@ -15,13 +15,14 @@ import {
 import type { AssetEvent, AssetEventCategory } from '../types';
 import { formatCurrency, formatTime } from '../utils/formatters';
 
-type AssetEventFilter = 'all' | 'cash' | 'inventory' | 'facility' | 'production' | 'order';
+type AssetEventFilter = 'all' | 'cash' | 'inventory' | 'warehouse' | 'facility' | 'production' | 'order';
 
 const eventCategoryNames: Record<AssetEventCategory, string> = {
   work: '工作',
   order: '订单',
   trade: '交易',
   inventory: '商品',
+  warehouse: '仓库',
   facility: '工厂',
   production: '生产',
   system: '系统',
@@ -31,6 +32,7 @@ const eventFilters: Array<{ id: AssetEventFilter; label: string }> = [
   { id: 'all', label: '全部' },
   { id: 'cash', label: '资金' },
   { id: 'inventory', label: '商品' },
+  { id: 'warehouse', label: '仓库' },
   { id: 'facility', label: '工厂' },
   { id: 'production', label: '生产' },
   { id: 'order', label: '订单冻结' },
@@ -48,6 +50,7 @@ function matchesFilter(event: AssetEvent, filter: AssetEventFilter) {
   if (filter === 'all') return true;
   if (filter === 'cash') return Boolean(event.cashDelta || event.frozenCashDelta || ['work', 'trade'].includes(event.category));
   if (filter === 'inventory') return event.inventoryChanges.length > 0 || event.category === 'inventory';
+  if (filter === 'warehouse') return Boolean(event.warehouseChange) || event.category === 'warehouse';
   if (filter === 'facility') return event.facilityChanges.length > 0 || event.category === 'facility';
   if (filter === 'production') return event.productionChanges.length > 0 || event.category === 'production';
   return event.category === 'order';
@@ -63,7 +66,6 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
     commodityShare,
     facilityShare,
     allocationStyle,
-    inventoryUsed,
     setSelectedProductId,
     setTab,
   } = model;
@@ -90,7 +92,12 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         <MetricCard label="当前总资产" value={`¤ ${formatCurrency(derived.totalAssets)}`} tone="success" />
         <MetricCard label="商品资产" value={`¤ ${formatCurrency(derived.commodityValue)}`} detail={`冻结商品 ${frozenInventory}`} />
         <MetricCard label="工厂资产" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${game.facilities.length} 座工厂`} tone="info" />
-        <MetricCard label="仓库使用" value={`${inventoryUsed}/${game.inventoryCapacity}`} detail={`等级 ${game.warehouseLevel}`} />
+        <MetricCard
+          label="仓库使用"
+          value={`${game.warehouseUsedCapacity}/${game.inventoryCapacity}`}
+          detail={`实物 ${game.warehouseStoredQuantity} · 买单预占 ${game.warehouseReservedQuantity} · 等级 ${game.warehouseLevel}`}
+          tone={game.warehouseAvailableCapacity > 0 ? 'neutral' : 'danger'}
+        />
       </div>
 
       <div className="asset-overview-grid">
@@ -109,7 +116,11 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
           <div className="asset-card-grid">
             <MetricCard label="可用现金" value={`¤ ${formatCurrency(game.credits)}`} detail="可用于建设、运营和交易" tone="success" />
             <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} detail="未成交买单的服务器冻结额" tone="warning" />
-            <MetricCard label="全部商品估值" value={`¤ ${formatCurrency(derived.commodityValue)}`} detail={`仓库 ${inventoryUsed}/${game.inventoryCapacity}`} />
+            <MetricCard
+              label="全部商品估值"
+              value={`¤ ${formatCurrency(derived.commodityValue)}`}
+              detail={`仓库 ${game.warehouseUsedCapacity}/${game.inventoryCapacity}，买单预占 ${game.warehouseReservedQuantity}`}
+            />
             <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${game.facilities.length} 座工厂及内部产成品`} tone="info" />
           </div>
         </Panel>
@@ -185,7 +196,15 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                     <strong>{event.description}</strong>
                     <small>{formatTime(event.createdAt)} · 本地记录</small>
                   </div>
-                  <StatusTag tone={event.category === 'trade' ? 'success' : event.category === 'order' ? 'warning' : 'neutral'}>
+                  <StatusTag
+                    tone={event.category === 'trade'
+                      ? 'success'
+                      : event.category === 'order'
+                        ? 'warning'
+                        : event.category === 'warehouse'
+                          ? 'info'
+                          : 'neutral'}
+                  >
                     {eventCategoryNames[event.category]}
                   </StatusTag>
                 </header>
@@ -214,6 +233,18 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                       <small>当前 {change.availableAfter} · 冻结 {change.frozenAfter}</small>
                     </span>
                   ))}
+                  {event.warehouseChange ? (
+                    <span>
+                      共享仓库
+                      <strong>
+                        等级 {event.warehouseChange.beforeLevel} → {event.warehouseChange.afterLevel}
+                      </strong>
+                      <small>
+                        容量 {event.warehouseChange.beforeCapacity} → {event.warehouseChange.afterCapacity}
+                        {event.warehouseChange.capacityDelta ? ` · ${signedQuantity(event.warehouseChange.capacityDelta)}` : ''}
+                      </small>
+                    </span>
+                  ) : null}
                   {event.facilityChanges.map((change) => (
                     <span key={`${event.id}-${change.facilityId}-${change.action}`}>
                       工厂 <strong>{change.facilityName ?? change.facilityId}</strong>
@@ -232,6 +263,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   {!event.cashDelta
                     && !event.frozenCashDelta
                     && !event.inventoryChanges.length
+                    && !event.warehouseChange
                     && !event.facilityChanges.length
                     && !event.productionChanges.length ? <span><strong>状态已更新</strong></span> : null}
                 </div>
