@@ -1,9 +1,10 @@
 /**
  * Player-facing activity history belongs to the browser only.
  *
- * This cleanup runs after loading legacy state and immediately before every
- * SQLite write. It removes historical presentation data without changing any
- * authoritative funds, inventory, facility, order, listing, market or stats.
+ * This cleanup is called immediately before every SQLite write and after
+ * loading legacy state. It removes historical presentation data without
+ * changing authoritative funds, inventory, facility, order, listing, market
+ * or stats.
  */
 export function stripPlayerLogs(world) {
   if (!world || typeof world !== 'object') return world;
