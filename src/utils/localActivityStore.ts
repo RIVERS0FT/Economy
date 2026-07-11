@@ -7,14 +7,15 @@ import type {
   AssetWarehouseChange,
   CommodityOrder,
   EconomyState,
+  FacilityConstruction,
+  FacilityGroup,
   FacilityListing,
   ProductDefinition,
   ProductInventory,
-  ProductionFacility,
   TradeRecord,
 } from '../types';
 
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 const MAX_ASSET_EVENTS = 480;
 const MAX_TRADES = 240;
 
@@ -50,7 +51,8 @@ interface LocalStateSnapshot {
   inventories: Record<string, ProductInventory>;
   inventoryCapacity: number;
   warehouseLevel?: number;
-  facilities: ProductionFacility[];
+  facilityGroups: FacilityGroup[];
+  facilityConstruction?: FacilityConstruction;
   orders: CommodityOrder[];
   facilityListings: FacilityListing[];
   products: ProductDefinition[];
@@ -85,8 +87,8 @@ const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   resetPlayer: 'system',
 };
 
-function storageKey(userId: number) {
-  return `economy.local-activity.v${STORAGE_VERSION}.${userId}`;
+function storageKey(userId: number, version = STORAGE_VERSION) {
+  return `economy.local-activity.v${version}.${userId}`;
 }
 
 function emptyDocument(): LocalActivityDocument {
@@ -104,22 +106,27 @@ function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function readDocument(userId: number): LocalActivityDocument {
-  if (typeof window === 'undefined') return emptyDocument();
+function parseDocument(raw: string | null): LocalActivityDocument | null {
+  if (!raw) return null;
   try {
-    const raw = window.localStorage.getItem(storageKey(userId));
-    if (!raw) return emptyDocument();
     const parsed = JSON.parse(raw) as Partial<LocalActivityDocument>;
-    if (parsed.version !== STORAGE_VERSION) return emptyDocument();
     return {
       version: STORAGE_VERSION,
       assetEvents: Array.isArray(parsed.assetEvents) ? parsed.assetEvents.slice(0, MAX_ASSET_EVENTS) : [],
       trades: Array.isArray(parsed.trades) ? parsed.trades.slice(0, MAX_TRADES) : [],
-      snapshot: parsed.snapshot,
+      snapshot: parsed.version === STORAGE_VERSION ? parsed.snapshot : undefined,
     };
   } catch {
-    return emptyDocument();
+    return null;
   }
+}
+
+function readDocument(userId: number): LocalActivityDocument {
+  if (typeof window === 'undefined') return emptyDocument();
+  const current = parseDocument(window.localStorage.getItem(storageKey(userId)));
+  if (current) return current;
+  const legacy = parseDocument(window.localStorage.getItem(storageKey(userId, 1)));
+  return legacy ?? emptyDocument();
 }
 
 function writeDocument(userId: number, document: LocalActivityDocument) {
@@ -139,7 +146,8 @@ function snapshotState(state: EconomyState): LocalStateSnapshot {
     inventories: state.inventories,
     inventoryCapacity: state.inventoryCapacity,
     warehouseLevel: state.warehouseLevel,
-    facilities: state.facilities,
+    facilityGroups: state.facilityGroups,
+    facilityConstruction: state.facilityConstruction,
     orders: state.orders.filter((order) => order.ownerId === state.userId),
     facilityListings: state.facilityListings.filter((listing) => listing.ownerId === state.userId),
     products: state.products,
@@ -153,6 +161,18 @@ function productName(snapshot: LocalStateSnapshot, productId?: string) {
   return snapshot.products.find((product) => product.id === productId)?.name ?? productId ?? '商品';
 }
 
+function facilityName(typeId: string) {
+  const names: Record<string, string> = {
+    farm: '农场',
+    mine: '矿场',
+    mill: '面粉厂',
+    steelworks: '钢铁厂',
+    'food-factory': '食品厂',
+    'machine-factory': '机械厂',
+  };
+  return names[typeId] ?? typeId;
+}
+
 function normalizeInventory(inventory?: ProductInventory): ProductInventory {
   return {
     available: Number(inventory?.available || 0),
@@ -161,10 +181,7 @@ function normalizeInventory(inventory?: ProductInventory): ProductInventory {
 }
 
 function diffInventories(before: LocalStateSnapshot, after: LocalStateSnapshot): AssetInventoryChange[] {
-  const productIds = new Set([
-    ...Object.keys(before.inventories),
-    ...Object.keys(after.inventories),
-  ]);
+  const productIds = new Set([...Object.keys(before.inventories), ...Object.keys(after.inventories)]);
   const changes: AssetInventoryChange[] = [];
   for (const productId of productIds) {
     const previous = normalizeInventory(before.inventories[productId]);
@@ -183,10 +200,7 @@ function diffInventories(before: LocalStateSnapshot, after: LocalStateSnapshot):
   return changes;
 }
 
-function diffWarehouse(
-  before: LocalStateSnapshot,
-  after: LocalStateSnapshot,
-): AssetWarehouseChange | undefined {
+function diffWarehouse(before: LocalStateSnapshot, after: LocalStateSnapshot): AssetWarehouseChange | undefined {
   const beforeLevel = Number(before.warehouseLevel);
   const afterLevel = Number(after.warehouseLevel);
   if (!Number.isFinite(beforeLevel) || !Number.isFinite(afterLevel)) return undefined;
@@ -202,66 +216,83 @@ function diffWarehouse(
 
 function facilityAction(
   action: LocalActivityAction,
-  previous: ProductionFacility | undefined,
-  current: ProductionFacility | undefined,
+  previous: FacilityGroup | undefined,
+  current: FacilityGroup | undefined,
 ): AssetFacilityChange['action'] {
-  if (!previous && current) return action === 'buyFacility' ? 'acquired' : 'construction_started';
-  if (previous && !current) return action === 'buyFacility' || action === 'refresh' ? 'sold' : 'removed';
+  if (!previous && current) return action === 'buyFacility' ? 'acquired' : 'construction_completed';
+  if (previous && !current) return action === 'refresh' ? 'sold' : 'removed';
   if (action === 'listFacility') return 'listed';
   if (action === 'cancelFacilityListing') return 'unlisted';
   if (action === 'setProductionPlan') return 'plan_updated';
   if (action === 'startFacility') return 'started';
   if (action === 'pauseFacility') return 'stopped';
-  if (previous?.status === 'constructing' && current?.status === 'ready') return 'construction_completed';
+  if (previous?.count !== current?.count) return (current?.count ?? 0) > (previous?.count ?? 0) ? 'acquired' : 'sold';
   if (previous?.status !== current?.status) return 'status_changed';
   return 'updated';
 }
 
-function diffFacilities(
+function diffFacilityGroups(
   before: LocalStateSnapshot,
   after: LocalStateSnapshot,
   action: LocalActivityAction,
 ): { facilityChanges: AssetFacilityChange[]; productionChanges: AssetProductionChange[] } {
-  const previousById = new Map(before.facilities.map((facility) => [facility.id, facility]));
-  const currentById = new Map(after.facilities.map((facility) => [facility.id, facility]));
-  const facilityIds = new Set([...previousById.keys(), ...currentById.keys()]);
+  const previousByType = new Map(before.facilityGroups.map((group) => [group.facilityTypeId, group]));
+  const currentByType = new Map(after.facilityGroups.map((group) => [group.facilityTypeId, group]));
+  const typeIds = new Set([...previousByType.keys(), ...currentByType.keys()]);
   const facilityChanges: AssetFacilityChange[] = [];
   const productionChanges: AssetProductionChange[] = [];
 
-  for (const facilityId of facilityIds) {
-    const previous = previousById.get(facilityId);
-    const current = currentById.get(facilityId);
+  if (!before.facilityConstruction && after.facilityConstruction) {
+    const typeId = after.facilityConstruction.facilityTypeId;
+    const group = currentByType.get(typeId);
+    facilityChanges.push({
+      facilityTypeId: typeId,
+      facilityName: facilityName(typeId),
+      action: 'construction_started',
+      beforeCount: group?.count ?? 0,
+      afterCount: group?.count ?? 0,
+      countDelta: 0,
+    });
+  }
+
+  for (const typeId of typeIds) {
+    const previous = previousByType.get(typeId);
+    const current = currentByType.get(typeId);
+    const beforeCount = previous?.count ?? 0;
+    const afterCount = current?.count ?? 0;
     const stateChanged = !previous || !current
+      || beforeCount !== afterCount
       || previous.status !== current.status
       || previous.stopReason !== current.stopReason
       || previous.productionMode !== current.productionMode
-      || previous.targetQuantity !== current.targetQuantity;
+      || previous.targetQuantity !== current.targetQuantity
+      || previous.listedCount !== current.listedCount;
     if (stateChanged) {
-      const reference = current ?? previous;
       facilityChanges.push({
-        facilityId,
-        facilityTypeId: reference?.facilityTypeId,
-        facilityName: reference?.name,
+        facilityTypeId: typeId,
+        facilityName: facilityName(typeId),
         action: facilityAction(action, previous, current),
         beforeStatus: previous?.status,
         afterStatus: current?.status,
+        beforeCount,
+        afterCount,
+        countDelta: afterCount - beforeCount,
       });
     }
 
     if (!previous || !current) continue;
     const completedQuantityDelta = current.completedQuantity - previous.completedQuantity;
     if (completedQuantityDelta <= 0) continue;
-    const completedCycles = current.outputPerCycle > 0
-      ? Math.max(0, Math.floor(completedQuantityDelta / current.outputPerCycle))
-      : 0;
+    const inventoryOutput = Object.entries(after.inventories).find(([productId]) => (
+      (after.inventories[productId]?.available ?? 0) > (before.inventories[productId]?.available ?? 0)
+    ));
     productionChanges.push({
-      facilityId,
-      facilityName: current.name,
+      facilityTypeId: typeId,
+      facilityName: facilityName(typeId),
       action: 'produced',
-      inputProductId: current.inputProductId,
-      inputQuantity: completedCycles * current.inputPerCycle,
-      outputProductId: current.outputProductId,
+      outputProductId: inventoryOutput?.[0],
       outputQuantity: completedQuantityDelta,
+      inputQuantity: 0,
       completedQuantityDelta,
     });
   }
@@ -311,44 +342,44 @@ function deriveFacilityTrades(
   action: LocalActivityAction,
   createdAt: number,
 ): TradeRecord[] {
-  const previousById = new Map(before.facilities.map((facility) => [facility.id, facility]));
-  const currentById = new Map(after.facilities.map((facility) => [facility.id, facility]));
-  const acquired = after.facilities.filter((facility) => !previousById.has(facility.id));
-  const sold = before.facilities.filter((facility) => !currentById.has(facility.id));
+  const previousByType = new Map(before.facilityGroups.map((group) => [group.facilityTypeId, group.count]));
+  const currentByType = new Map(after.facilityGroups.map((group) => [group.facilityTypeId, group.count]));
   const records: TradeRecord[] = [];
-
-  if (action === 'buyFacility' && acquired.length === 1) {
-    const facility = acquired[0];
-    const total = Math.max(0, before.credits - after.credits);
-    records.push({
-      id: createId('local-trade'),
-      type: 'facility',
-      side: 'buy',
-      quantity: 1,
-      price: total,
-      total,
-      counterparty: '设施市场',
-      createdAt,
-      description: `收购 ${facility.name}`,
-    });
+  const typeIds = new Set([...previousByType.keys(), ...currentByType.keys()]);
+  for (const typeId of typeIds) {
+    const delta = (currentByType.get(typeId) ?? 0) - (previousByType.get(typeId) ?? 0);
+    if (action === 'buyFacility' && delta > 0) {
+      const total = Math.max(0, before.credits - after.credits);
+      records.push({
+        id: createId('local-trade'),
+        type: 'facility',
+        facilityTypeId: typeId,
+        side: 'buy',
+        quantity: delta,
+        price: delta ? total / delta : 0,
+        total,
+        counterparty: '工厂数量市场',
+        createdAt,
+        description: `收购 ${delta} 座${facilityName(typeId)}`,
+      });
+    }
+    if (action === 'refresh' && delta < 0 && after.credits > before.credits) {
+      const quantity = Math.abs(delta);
+      const total = after.credits - before.credits;
+      records.push({
+        id: createId('local-trade'),
+        type: 'facility',
+        facilityTypeId: typeId,
+        side: 'sell',
+        quantity,
+        price: quantity ? total / quantity : 0,
+        total,
+        counterparty: '工厂数量市场',
+        createdAt,
+        description: `出售 ${quantity} 座${facilityName(typeId)}`,
+      });
+    }
   }
-
-  if (action === 'refresh' && sold.length === 1 && after.credits > before.credits) {
-    const facility = sold[0];
-    const total = after.credits - before.credits;
-    records.push({
-      id: createId('local-trade'),
-      type: 'facility',
-      side: 'sell',
-      quantity: 1,
-      price: total,
-      total,
-      counterparty: '设施市场',
-      createdAt,
-      description: `出售 ${facility.name}`,
-    });
-  }
-
   return records;
 }
 
@@ -369,17 +400,14 @@ function inferCategory(
   return 'system';
 }
 
-function defaultDescription(
-  action: LocalActivityAction,
-  category: AssetEventCategory,
-  trades: TradeRecord[],
-) {
+function defaultDescription(action: LocalActivityAction, category: AssetEventCategory, trades: TradeRecord[]) {
   if (trades.length === 1) return trades[0].description;
   if (trades.length > 1) return `${trades.length} 笔市场成交已同步`;
   if (action === 'upgradeWarehouse') return '共享仓库已扩容';
+  if (action === 'buildFacility') return '工厂开始施工';
   if (action === 'refresh') {
-    if (category === 'production') return '生产完成，产成品已直接进入共享仓库';
-    if (category === 'facility') return '工厂状态已同步';
+    if (category === 'production') return '工厂集群产出已进入共享仓库';
+    if (category === 'facility') return '工厂集群状态已同步';
     if (category === 'warehouse') return '仓库等级与容量已同步';
     if (category === 'inventory') return '商品库存已同步';
     return '服务器资产状态已同步';
@@ -395,7 +423,7 @@ function createLocalChanges(
   const createdAt = context.createdAt ?? Date.now();
   const inventoryChanges = diffInventories(before, after);
   const warehouseChange = diffWarehouse(before, after);
-  const { facilityChanges, productionChanges } = diffFacilities(before, after, context.action);
+  const { facilityChanges, productionChanges } = diffFacilityGroups(before, after, context.action);
   const trades = [
     ...deriveCommodityTrades(before, after, createdAt),
     ...deriveFacilityTrades(before, after, context.action, createdAt),
@@ -459,10 +487,7 @@ function createLocalChanges(
 }
 
 function viewOf(document: LocalActivityDocument): LocalActivityView {
-  return {
-    assetEvents: document.assetEvents,
-    trades: document.trades,
-  };
+  return { assetEvents: document.assetEvents, trades: document.trades };
 }
 
 export function loadLocalActivity(userId: number): LocalActivityView {
