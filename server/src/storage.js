@@ -1,7 +1,14 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { applyAction, createClientState, createWorld, ensurePlayer, processWorld } from './domain.js';
+import {
+  applyAction,
+  createClientState,
+  createWorld,
+  ensurePlayer,
+  migrateWorld,
+  processWorld,
+} from './domain.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -74,7 +81,8 @@ export class EconomyStore {
       this.insertWorld.run(1, JSON.stringify(world), now);
       return { revision: 1, world };
     }
-    return { revision: Number(row.revision), world: JSON.parse(String(row.state_json)) };
+    const world = migrateWorld(JSON.parse(String(row.state_json)), now);
+    return { revision: Number(row.revision), world };
   }
 
   saveWorld(revision, world, now) {
