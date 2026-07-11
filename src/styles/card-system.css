@@ -1,10 +1,6 @@
 /* Shared card geometry.
- * Desktop cards follow the login form card; mobile cards follow the rounded
- * authentication shell shown on narrow screens. */
-:root {
-  --card-radius: 1.5rem;
-  --app-card-radius: var(--card-radius);
-}
+ * The canonical radius tokens live in design-system.css. This compatibility
+ * layer maps existing card classes to those tokens without redefining them. */
 
 .panel,
 .player-mini-card,
@@ -14,23 +10,19 @@
 .listing-card,
 .asset-card-grid > div,
 .frozen-cards > div {
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-card);
 }
 
 .login-card.panel,
 .auth-service-warning {
-  border-radius: var(--card-radius);
+  border-radius: var(--radius-card);
 }
 
 @media (max-width: 720px) {
-  :root {
-    --card-radius: 2.5rem;
-  }
-
   .login-shell,
   .asset-bar.panel,
   .sidebar.panel {
-    border-radius: var(--card-radius);
+    border-radius: var(--radius-card-mobile);
   }
 
   /* Controls and status chips intentionally keep their smaller control radii;
