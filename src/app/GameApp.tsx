@@ -6,10 +6,25 @@ import { formatCurrency } from '../utils/formatters';
 import { useGameViewModel } from './gameViewModel';
 
 export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
-  const model = useGameViewModel(user, onSignedOut);
+  const viewModel = useGameViewModel(user, onSignedOut);
 
-  if (!model) return <main className="loading-screen">正在恢复玩家资产与市场状态…</main>;
+  if (viewModel.status === 'loading') {
+    return <main className="loading-screen">正在连接权威游戏服务器…</main>;
+  }
 
+  if (viewModel.status === 'error') {
+    return (
+      <main className="loading-screen">
+        <div>
+          <strong>无法加载游戏状态</strong>
+          <p>{viewModel.message}</p>
+          <button type="button" onClick={viewModel.retry}>重新连接</button>
+        </div>
+      </main>
+    );
+  }
+
+  const { model } = viewModel;
   const { game, derived, inventoryUsed } = model;
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const statusItems: StatusBarItem[] = [
