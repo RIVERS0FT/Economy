@@ -34,7 +34,7 @@ export function RecordsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget">
-          <p className="eyebrow">冻结资产</p><h2>冻结资产</h2>
+          <h2>冻结资产</h2>
           <div className="frozen-cards"><div><span>买单冻结资金</span><strong>¤ {game.frozenCredits}</strong></div><div><span>卖单冻结库存</span><strong>{game.frozenInventory}</strong></div><div><span>设施挂牌</span><strong>{derived.ownListings.length}</strong></div></div>
         </Panel>
 
