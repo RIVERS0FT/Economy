@@ -1,0 +1,28 @@
+name: Apply listed factory production change
+
+on:
+  push:
+    branches:
+      - agent/allow-listed-factory-production
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/allow-listed-factory-production
+          fetch-depth: 0
+      - name: Apply source and design changes
+        run: python3 scripts/apply-listed-factory-production.py
+      - name: Commit generated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "允许未挂牌工厂在存在挂牌时生产"
+          git push origin HEAD:agent/allow-listed-factory-production
