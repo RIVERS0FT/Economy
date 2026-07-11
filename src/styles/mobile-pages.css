@@ -1,0 +1,36 @@
+/* Mobile page-level responsive rules live outside the application shell styles. */
+
+.asset-bar-item-value-compact {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .asset-bar-item-value-full {
+    display: none;
+  }
+
+  .asset-bar-item-value-compact {
+    display: inline;
+  }
+
+  /* Production must become a true single-column flow on phones. Without this
+   * override the 320px + flexible desktop grid keeps the facility list in an
+   * off-screen second column, so owned facilities appear to be missing. */
+  .production-grid {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .75rem;
+  }
+
+  .production-grid > *,
+  .facility-list,
+  .facility-card {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .build-card {
+    position: static;
+    top: auto;
+  }
+}
