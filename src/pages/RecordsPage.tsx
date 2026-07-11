@@ -1,11 +1,11 @@
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PageLayout, Panel, ScrollableTable, WidgetHeading } from '../components/ui/layout';
+import { economyConstants } from '../config/economy';
 import { ledgerCategoryNames } from '../config/labels';
-import { economyConstants } from '../store/gameStore';
 import { formatTime } from '../utils/formatters';
 
 export function RecordsPage({ model }: { model: LoadedGameViewModel }) {
-  const { game, derived, cancelOrder } = model;
+  const { game, derived, cancelOrder, showResult } = model;
 
   return (
     <PageLayout
@@ -24,7 +24,7 @@ export function RecordsPage({ model }: { model: LoadedGameViewModel }) {
                   <tr key={order.id}>
                     <td><span className={order.side === 'buy' ? 'side-buy' : 'side-sell'}>{order.side === 'buy' ? '买入' : '卖出'}</span></td>
                     <td>¤ {order.price}</td><td>{order.remaining}/{order.quantity}</td><td>{orderStatusNames[order.status]}</td><td>{formatTime(order.createdAt)}</td>
-                    <td><button className="table-button" onClick={() => cancelOrder(order.id)}>撤单</button></td>
+                    <td><button className="table-button" onClick={() => void showResult(cancelOrder(order.id))}>撤单</button></td>
                   </tr>
                 ))}
                 {derived.ownOpenOrders.length === 0 ? <tr><td colSpan={6} className="empty-cell">暂无未完成商品订单。</td></tr> : null}
@@ -58,7 +58,7 @@ export function RecordsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget span-3">
-          <WidgetHeading eyebrow="资产流水" title="资产流水" action={<span className="muted">资金、库存与产权变化均可追溯</span>} />
+          <WidgetHeading eyebrow="资产流水" title="资产流水" action={<span className="muted">资金、库存与产权变化均由服务器记录</span>} />
           <div className="ledger-list">
             {game.ledger.map((entry) => (
               <div key={entry.id}>
