@@ -165,6 +165,73 @@ export interface LedgerEntry {
   description: string;
 }
 
+export type AssetEventCategory =
+  | 'work'
+  | 'order'
+  | 'trade'
+  | 'inventory'
+  | 'facility'
+  | 'production'
+  | 'system';
+
+export interface AssetInventoryChange {
+  productId: string;
+  availableDelta: number;
+  frozenDelta: number;
+  availableAfter: number;
+  frozenAfter: number;
+}
+
+export interface AssetFacilityChange {
+  facilityId: string;
+  facilityTypeId?: string;
+  facilityName?: string;
+  action:
+    | 'construction_started'
+    | 'construction_completed'
+    | 'acquired'
+    | 'sold'
+    | 'listed'
+    | 'unlisted'
+    | 'plan_updated'
+    | 'started'
+    | 'stopped'
+    | 'status_changed'
+    | 'removed'
+    | 'updated';
+  beforeStatus?: FacilityStatus;
+  afterStatus?: FacilityStatus;
+}
+
+export interface AssetProductionChange {
+  facilityId: string;
+  facilityName?: string;
+  action: 'produced' | 'collected';
+  inputProductId?: string;
+  inputQuantity: number;
+  outputProductId?: string;
+  outputQuantity: number;
+  internalGoodsDelta: number;
+  completedQuantityDelta: number;
+}
+
+export interface AssetEvent {
+  id: string;
+  category: AssetEventCategory;
+  createdAt: number;
+  description: string;
+  cashDelta: number;
+  availableCashAfter: number;
+  frozenCashDelta: number;
+  frozenCashAfter?: number;
+  inventoryChanges: AssetInventoryChange[];
+  facilityChanges: AssetFacilityChange[];
+  productionChanges: AssetProductionChange[];
+  sourceType?: 'order' | 'trade' | 'facility' | 'production' | 'work' | 'system';
+  sourceId?: string;
+  legacy?: boolean;
+}
+
 export interface WorkState {
   cooldownUntil: number;
   lastWorkedAt: number;
@@ -214,7 +281,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 5;
+  version: 6;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -229,6 +296,7 @@ export interface EconomyState {
   orders: CommodityOrder[];
   facilityListings: FacilityListing[];
   trades: TradeRecord[];
+  assetEvents: AssetEvent[];
   ledger: LedgerEntry[];
   work: WorkState;
   stats: EconomyStats;

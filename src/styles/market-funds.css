@@ -1,0 +1,232 @@
+.inline-order-list {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-3);
+}
+
+.inline-order-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  background: var(--color-surface-inset);
+}
+
+.inline-order-list > div > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.inline-order-list small {
+  color: var(--color-text-muted);
+}
+
+.market-account-panel {
+  min-width: 0;
+}
+
+.market-account-summary,
+.funds-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.funds-summary-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-bottom: var(--layout-gutter);
+}
+
+.market-account-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.market-account-grid > section {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.market-account-grid h3 {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+}
+
+.asset-event-panel {
+  min-width: 0;
+}
+
+.asset-event-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  padding-bottom: var(--space-3);
+}
+
+.asset-event-filters .ui-button {
+  min-height: var(--control-height-compact);
+  color: var(--color-text-muted);
+}
+
+.asset-event-filters .ui-button.active {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+  border-color: rgba(123, 228, 158, 0.24);
+}
+
+.asset-event-list {
+  max-height: 720px;
+  display: grid;
+  gap: var(--space-2);
+  overflow: auto;
+  padding-right: var(--space-1);
+}
+
+.asset-event-card {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+  background: var(--color-surface-inset);
+}
+
+.asset-event-card > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.asset-event-card > header > div {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.asset-event-card > header strong {
+  overflow-wrap: anywhere;
+}
+
+.asset-event-card > header small {
+  color: var(--color-text-muted);
+}
+
+.asset-event-changes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.asset-event-changes > span {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  border-left: 2px solid var(--color-border-strong);
+  padding-left: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.asset-event-changes > span strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.asset-event-changes > span small {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.asset-event-changes > span.positive {
+  border-left-color: var(--color-success);
+}
+
+.asset-event-changes > span.negative {
+  border-left-color: var(--color-danger);
+}
+
+@media (max-width: 1220px) {
+  .funds-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .market-account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-event-changes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) and (min-width: 721px) {
+  .market-account-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .inline-order-list > div,
+  .inline-order-list > div > span {
+    align-items: stretch;
+  }
+
+  .inline-order-list > div {
+    flex-direction: column;
+  }
+
+  .inline-order-list > div > span {
+    flex-wrap: wrap;
+  }
+
+  .inline-order-list .ui-button {
+    width: 100%;
+  }
+
+  .market-account-summary,
+  .funds-summary-grid,
+  .asset-event-changes {
+    grid-template-columns: 1fr;
+  }
+
+  .market-account-grid {
+    gap: var(--space-3);
+  }
+
+  .asset-event-card > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .asset-event-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .asset-event-filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .asset-event-filters .ui-button {
+    flex: 0 0 auto;
+  }
+}

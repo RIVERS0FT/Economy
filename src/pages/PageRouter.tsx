@@ -4,7 +4,6 @@ import { LeaderboardPage } from './LeaderboardPage';
 import { MarketPage } from './MarketPage';
 import { OverviewPage } from './OverviewPage';
 import { ProductionPage } from './ProductionPage';
-import { RecordsPage } from './RecordsPage';
 import { SettingsPage } from './SettingsPage';
 
 export function PageRouter({ model }: { model: LoadedGameViewModel }) {
@@ -17,8 +16,6 @@ export function PageRouter({ model }: { model: LoadedGameViewModel }) {
       return <AssetsPage model={model} />;
     case 'leaderboard':
       return <LeaderboardPage model={model} />;
-    case 'records':
-      return <RecordsPage model={model} />;
     case 'settings':
       return <SettingsPage model={model} />;
     case 'home':

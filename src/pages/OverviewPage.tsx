@@ -117,8 +117,13 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget recent-activity span-2">
           <WidgetHeading
-            title="最近成交与提醒"
-            action={<Button variant="text" onClick={() => setTab('records')}>全部记录</Button>}
+            title="最近成交与资产提醒"
+            action={
+              <div className="ui-inline-actions">
+                <Button variant="text" onClick={() => setTab('market')}>成交与撤单</Button>
+                <Button variant="text" onClick={() => setTab('assets')}>资产变动</Button>
+              </div>
+            }
           />
           <div className="activity-list">
             {game.trades.slice(0, 6).map((trade) => (
