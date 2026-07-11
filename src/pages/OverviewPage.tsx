@@ -1,7 +1,7 @@
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { EmptyState, PageLayout, Panel, WidgetHeading } from '../components/ui/layout';
-import { economyConstants } from '../store/gameStore';
+import { economyConstants } from '../config/economy';
 import { formatCurrency, formatDuration, formatTime } from '../utils/formatters';
 
 export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
@@ -23,7 +23,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
         <Panel className="widget work-widget">
           <WidgetHeading eyebrow="基础工作" title="基础工作" action={<span className="widget-badge">兜底收入</span>} />
           <p>每次有效工作获得 ¤1。连续工作会提高冷却，停止 5 分钟后恢复基础档位。</p>
-          <button className="work-compact-button" disabled={workRemaining > 0} onClick={() => showResult(work())}>
+          <button className="work-compact-button" disabled={workRemaining > 0} onClick={() => void showResult(work())}>
             <strong>{workRemaining > 0 ? formatDuration(workRemaining) : '开始工作'}</strong>
             <span>{workRemaining > 0 ? '等待冷却结束' : '获得 ¤ 1'}</span>
           </button>
