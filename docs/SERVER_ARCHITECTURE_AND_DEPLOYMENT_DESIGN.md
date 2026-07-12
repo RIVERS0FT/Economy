@@ -147,6 +147,7 @@ assetEvents
 - GitHub Actions 使用 Node 24 构建和测试。
 - 部署包携带与 Actions 架构匹配的官方 Node 运行时。
 - 运行时目录：`/var/www/game/economy-api/runtime/`。
+- systemd 首选可执行文件：`/var/www/game/economy-api/runtime/bin/node`。
 - Node 最低不得低于 `22.16.0`，必须支持 `node:sqlite`。
 - systemd 优先使用随包 Node，只在不存在时回退到系统 Node。
 
@@ -203,6 +204,10 @@ ECONOMY_REMOTE_CURL_MISSING
 
 部署脚本必须识别已有 snippet、已有手工路由和旧托管块，只补缺失部分，不生成重复 `location`。
 
+- 不得在账号 snippet 已存在时再次生成同名账号 `location`。
+- 不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`。
+- 连续执行两次，第二次不得产生配置变化。
+
 修改前保留可回滚配置；修改后必须执行 `nginx -t`，只有成功才 reload。失败时恢复旧配置并保持现网可用。
 
 ## 11. 构建与部署验收
@@ -239,3 +244,5 @@ ECONOMY_REMOTE_CURL_MISSING
 - API 监听公网地址；
 - API 以 root 运行；
 - 自动部署删除数据库或在 Nginx 失败后保留坏配置。
+
+未更新设计文档的架构回退不应合并。
