@@ -191,7 +191,7 @@
 - 恢复 `records` 导航；
 - 新增平行开关；
 - 在导航或状态栏中恢复 Unicode 字符、Emoji 或字体符号图标；
-- 绕过 `GameIcons.tsx` 新增平行应用外壳图标库；
+- 绕过 `GameIcons.tsx` 新增平行界面图标库；
 - 删除 `ProductIcons.tsx` 的任一当前商品显式图标、未知商品包装箱回退或 `ProductIconLabel`；
 - 在商品标签、商品行情和商品资产卡中恢复字符占位图标或无图标文本卡；
 - 让移动状态栏或底栏忽略安全区；
