@@ -49,8 +49,13 @@ for (const text of [
   '运行中',
   '下一周期加入',
   '冻结中',
-  '当前计划：持续运行',
-  '>保存计划</Button>',
+  'production-plan-heading',
+  'production-plan-fields',
+  '<strong>当前计划</strong>',
+  'placeholder="目标产量"',
+  '下一周期生效',
+  'scheduleTargetPlanSave',
+  'queuePlanSave',
   '在统一订单簿中买卖该工厂',
   '>前往市场 →',
 ]) requireText('src/pages/ProductionPage.tsx', text);
@@ -66,7 +71,9 @@ for (const text of [
   '正常生产中',
   '下一周期按 ',
   '持有 <strong>',
-  '下一周期生效',
+  '下一周期：',
+  '当前计划：持续运行',
+  '>保存计划</Button>',
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
@@ -122,4 +129,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、无限仓库、左侧常驻建设卡、固定高度工厂卡和简化计划职责验证通过。');
+console.log('页面内容、无限仓库、左侧常驻建设卡、固定高度工厂卡和自动保存计划职责验证通过。');

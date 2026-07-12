@@ -728,3 +728,133 @@
     width: 100%;
   }
 }
+
+/* Factory header and automatic production-plan editor. */
+.facility-status-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "title switch"
+    "summary summary";
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.facility-status-header .facility-status-title {
+  grid-area: title;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.facility-status-header .facility-status-title h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facility-status-header > .ui-switch {
+  grid-area: switch;
+  align-self: center;
+  margin-left: 0;
+}
+
+.facility-count-summary {
+  grid-area: summary;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.facility-count-summary span {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.facility-count-summary span:nth-child(2) {
+  justify-content: center;
+}
+
+.facility-count-summary span:last-child {
+  justify-content: flex-end;
+}
+
+.facility-count-summary strong {
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.production-plan-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.production-plan-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: row;
+  gap: var(--space-2);
+}
+
+.production-plan-heading strong {
+  white-space: nowrap;
+}
+
+.production-plan-status {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-plan-status.status-error {
+  color: var(--color-danger);
+}
+
+.production-plan-fields {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.production-plan-fields select,
+.production-plan-fields input {
+  min-width: 0;
+  min-height: var(--control-height-compact);
+}
+
+.production-plan-fields.is-continuous select {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 420px) {
+  .facility-count-summary {
+    gap: 0.25rem;
+    font-size: 0.68rem;
+  }
+
+  .facility-count-summary strong {
+    font-size: var(--font-size-xs);
+  }
+
+  .production-plan-fields {
+    gap: var(--space-1);
+  }
+}
