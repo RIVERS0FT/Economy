@@ -24,7 +24,10 @@ jobs:
           fetch-depth: 0
 
       - name: Apply V3 changes
-        run: node scripts/apply-infinite-warehouse-facility-v3.mjs
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/apply-infinite-warehouse-facility-v3.mjs 2>&1 | tee apply.log
 
       - name: Install dependencies
         run: npm install
@@ -68,10 +71,12 @@ jobs:
           git commit -m "实现无限仓库与紧凑工厂卡 V3"
           git push origin HEAD:agent/infinite-warehouse-compact-facility-cards
 
-      - name: Upload build log
+      - name: Upload implementation logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: infinite-warehouse-facility-v3-build-log
-          path: build.log
+          name: infinite-warehouse-facility-v3-logs
+          path: |
+            apply.log
+            build.log
           if-no-files-found: ignore
