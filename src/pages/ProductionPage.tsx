@@ -149,7 +149,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   if (!selectedType) {
-    return <PageLayout title="工厂" description="服务器尚未返回工厂目录。"><Panel className="empty-state">暂无工厂类型。</Panel></PageLayout>;
+    return <PageLayout title="生产" description="服务器尚未返回工厂目录。"><Panel className="empty-state">暂无工厂类型。</Panel></PageLayout>;
   }
 
   const constructionType = game.facilityConstruction
@@ -161,7 +161,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      title="工厂"
+      title="生产"
       description="同类未冻结工厂共享生产周期和计划；工厂卖单会立即冻结对应数量并降低产量。"
       actions={(
         <>
