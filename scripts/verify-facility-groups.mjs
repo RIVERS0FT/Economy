@@ -18,7 +18,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/facilities/FacilityProgress.tsx',
   'src/styles/design-system.css',
   'src/styles/unified-market-admin.css',
-  'docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md',
+  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
 ].forEach(requireFile);
 
@@ -50,11 +50,16 @@ for (const text of [
   "case 'warehouse_full'",
   'facility-status-header',
 ]) requireText('src/pages/ProductionPage.tsx', text);
-for (const text of ['group.status === \'error\'', '等待异常条件解除', 'facility-progress-compact']) requireText('src/components/facilities/FacilityProgress.tsx', text);
+
+for (const text of [
+  "group.status === 'error'",
+  '等待异常条件解除',
+  'facility-progress-compact',
+]) requireText('src/components/facilities/FacilityProgress.tsx', text);
 
 for (const text of [
   'export function SwitchControl',
-  'className={classNames(\'ui-switch\'',
+  "className={classNames('ui-switch'",
 ]) requireText('src/components/ui/layout.tsx', text);
 
 for (const text of [
@@ -85,7 +90,8 @@ for (const text of [
   '自动恢复',
   'pendingProductionPlan',
   '下一周期',
-]) requireText('docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', text);
+  '固定价格工厂挂牌市场',
+]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
   'SwitchControl',
@@ -98,4 +104,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('工厂三态、集中状态展示、自动恢复、下一周期计划和统一开关验证通过。');
+console.log('工厂三态、自动恢复、下一周期计划、统一开关和统一资产市场边界验证通过。');

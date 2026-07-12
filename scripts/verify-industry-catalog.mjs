@@ -11,8 +11,10 @@ assert.equal(PRODUCT_CATALOG.length, 12, '商品目录必须包含 12 项');
 assert.equal(FACILITY_TYPE_CATALOG.length, 12, '工厂目录必须包含 12 项');
 assert.equal(productIds.size, PRODUCT_CATALOG.length, '商品 ID 必须唯一');
 assert.equal(facilityIds.size, FACILITY_TYPE_CATALOG.length, '工厂 ID 必须唯一');
+
 for (const id of expectedProducts) assert.equal(productIds.has(id), true, `缺少商品: ${id}`);
 for (const id of expectedFacilities) assert.equal(facilityIds.has(id), true, `缺少工厂: ${id}`);
+
 for (const facility of FACILITY_TYPE_CATALOG) {
   assert.equal(productIds.has(facility.output.productId), true, `${facility.id} 输出商品不存在`);
   if (facility.input) assert.equal(productIds.has(facility.input.productId), true, `${facility.id} 输入商品不存在`);
@@ -30,10 +32,9 @@ assert.match(tests, /existing worlds receive new inventories, markets, and liqui
 
 for (const [path, required] of [
   ['README.md', ['当前目录共 12 种商品和 12 种工厂类型', '木材 → 木板 → 家具', '原油 → 塑料 → 电子产品']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['当前基线为 12 种商品', '当前基线为 12 种工厂类型', '旧存档自动补齐新增商品库存']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['当前基线为 12 种商品', '当前基线为 12 种工厂类型', '旧存档自动补齐新增商品库存', '木材 → 木板 → 家具']],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['商品与工厂目录扩展规则', '不得写死 6 个商品 ID']],
   ['docs/UI_DESIGN_SYSTEM.md', ['目录型横向导航', 'repeat(6, ...)']],
-  ['docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', ['产业目录扩展边界', '木材—木板—家具']],
 ]) {
   const content = readFileSync(path, 'utf8');
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
