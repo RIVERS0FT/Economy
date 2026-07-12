@@ -96,7 +96,7 @@ for (const text of [
 for (const text of [
   '限价在前、数量在后', '`1/4 仓`、`1/2 仓`、`全仓`',
   '订单簿为单列', '买卖盘各最多 5 笔', '无文字中性分隔线',
-  '订单簿卡片必须使用网格默认拉伸', '市场本地成交记录必须遍历全部当前已加载的 `localTrades`',
+  '订单簿卡片必须使用网格默认拉伸', '市场页本地成交记录必须遍历全部当前已加载的 `localTrades`',
   '工厂挂牌和购买按类型、数量和单座价格',
 ]) requireText('docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', text);
 
