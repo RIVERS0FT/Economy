@@ -52,13 +52,19 @@ for (const text of [
   '异常：原料不足',
   'facility-status-header',
   'facility-count-summary',
-  '>保存计划</Button>',
+  'production-plan-heading',
+  'production-plan-fields',
+  'placeholder="目标产量"',
+  '下一周期生效',
+  'scheduleTargetPlanSave',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const forbidden of [
   'facilityStatusDetail',
   '正常生产中',
-  '下一周期生效',
+  '下一周期：',
+  '当前计划：持续运行',
+  '>保存计划</Button>',
   '下一周期按 ',
   'facility-group-counts',
 ]) forbidText('src/pages/ProductionPage.tsx', forbidden);
@@ -85,7 +91,9 @@ for (const text of [
   'height: 384px',
   '.facility-status-header > .ui-switch',
   '.facility-count-summary',
-  '.production-plan-summary',
+  '.production-plan-heading',
+  '.production-plan-fields',
+  '.production-plan-status',
 ]) requireText('src/styles/industry-system.css', text);
 
 for (const forbidden of [
@@ -112,6 +120,8 @@ for (const text of [
   '自动恢复',
   'pendingProductionPlan',
   '定量生产完成后关闭开关',
+  '生产计划使用自动保存',
+  '下一周期生效',
   '固定价格工厂挂牌市场',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
@@ -120,10 +130,12 @@ for (const text of [
   '.ui-switch',
   '唯一',
   '工厂卡桌面固定高度',
+  '计划字段自动保存',
+  'placeholder="目标产量"',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
   console.error(`工厂三态、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('工厂三态、自动恢复、定量完成关停、固定高度卡片、简化计划和统一开关验证通过。');
+console.log('工厂三态、自动恢复、定量完成关停、固定高度卡片、自动保存计划和统一开关验证通过。');
