@@ -148,6 +148,22 @@ test('legacy custom capacity infers a non-decreasing warehouse level', () => {
   } finally { store.close(); }
 });
 
+test('legacy stored level behind capacity is advanced and can still expand', () => {
+  const store = seedStore({ credits: 10_000, warehouseLevel: 2, inventoryCapacity: 2_000 });
+  try {
+    const state = store.getState(alice, now + 1);
+    assert.equal(state.warehouseLevel, 6);
+    assert.equal(state.inventoryCapacity, 2_250);
+    assert.equal(state.warehouseNextCapacityIncrease, 500);
+    assert.equal(state.warehouseNextCapacity, 2_750);
+
+    const response = store.apply(alice, request('warehouse-legacy-capacity-12345678'), now + 2);
+    assert.equal(response.result.ok, true);
+    assert.equal(response.state.warehouseLevel, 7);
+    assert.equal(response.state.inventoryCapacity, 2_750);
+  } finally { store.close(); }
+});
+
 test('warehouse can continue upgrading after former level 12 limit', () => {
   const store = seedStore({
     credits: 50_000,
