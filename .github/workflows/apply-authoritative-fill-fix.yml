@@ -3,6 +3,8 @@ name: Apply authoritative fill fix
 on:
   push:
     branches: [agent/fix-authoritative-fill-prices]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
