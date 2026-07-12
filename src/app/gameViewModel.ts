@@ -244,7 +244,9 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [orderPrice, setOrderPrice] = useState(6);
   const [playerName, setPlayerName] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [compactNumbers, setCompactNumbers] = useState(false);
+  const [compactNumbers, setCompactNumbers] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
+  ));
   const [refreshRate, setRefreshRate] = useState('3');
   const [now, setNow] = useState(Date.now());
   const refreshing = useRef(false);
