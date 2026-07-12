@@ -1,0 +1,72 @@
+name: Fix switch focus ring
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/fix-switch-focus-ring'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-switch-focus-ring
+          fetch-depth: 0
+
+      - name: Apply switch focus fix
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+
+          function replaceOnce(path, before, after) {
+            const source = readFileSync(path, 'utf8');
+            if (!source.includes(before)) throw new Error(`${path} 未找到预期修改位置`);
+            writeFileSync(path, source.replace(before, after));
+          }
+
+          replaceOnce(
+            'src/styles/design-system.css',
+            `.ui-switch:checked::after {\n  transform: translateX(1.25rem);\n  background: var(--color-text-primary);\n}\n\n.ui-switch:disabled {`,
+            `.ui-switch:checked::after {\n  transform: translateX(1.25rem);\n  background: var(--color-text-primary);\n}\n\n.ui-switch:focus {\n  border-color: transparent;\n  box-shadow: none;\n}\n\n.ui-switch:focus-visible {\n  outline: none;\n  box-shadow: none;\n}\n\n.ui-switch:focus-visible::before {\n  outline: 2px solid var(--color-success);\n  outline-offset: 2px;\n  box-shadow: var(--shadow-focus);\n}\n\n.ui-switch:disabled {`,
+          );
+
+          const designPath = 'docs/UI_DESIGN_SYSTEM.md';
+          let design = readFileSync(designPath, 'utf8');
+          if (!design.includes('## 23. 开关焦点环与点击区域')) {
+            design += `\n\n## 23. 开关焦点环与点击区域\n\n- \`.ui-switch\` 保留至少 \`44 × 44px\` 的透明点击区域，不得为了视觉尺寸缩小可点击目标；\n- 开关轨道由伪元素绘制，键盘 \`:focus-visible\` 焦点环必须绘制在轨道伪元素外侧；\n- 通用 \`input:focus\` 和 \`input:focus-visible\` 的外框、阴影不得直接显示在开关完整点击区域上，避免出现额外的大圆环；\n- 鼠标或触摸选中只改变轨道和滑块状态，不增加第二层选中描边；\n- 工厂、设置及后续所有开关继续共用同一规则。\n`;
+            writeFileSync(designPath, design);
+          }
+
+          const verifyPath = 'scripts/verify-ui-architecture.mjs';
+          let verify = readFileSync(verifyPath, 'utf8');
+          if (!verify.includes('Switch focus ring architecture verified.')) {
+            verify += `\n\nfor (const text of [\n  '.ui-switch:focus {',\n  '.ui-switch:focus-visible {',\n  '.ui-switch:focus-visible::before {',\n  'outline-offset: 2px;',\n]) requireText('src/styles/design-system.css', text);\nfor (const text of ['开关焦点环与点击区域', '44 × 44px', '轨道伪元素外侧', '额外的大圆环']) requireText('docs/UI_DESIGN_SYSTEM.md', text);\nconsole.log('Switch focus ring architecture verified.');\n`;
+            writeFileSync(verifyPath, verify);
+          }
+          NODE
+
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/fix-switch-focus-ring.yml
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run full build
+        run: npm run build
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/styles/design-system.css docs/UI_DESIGN_SYSTEM.md scripts/verify-ui-architecture.mjs
+          git add -A .github/workflows/fix-switch-focus-ring.yml
+          git commit -m "修复开关选中后的焦点环"
+          git push origin HEAD:agent/fix-switch-focus-ring
