@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
+import { ProductIconLabel } from '../icons/ProductIcons';
 import { Button, Panel, StatusTag, WidgetHeading } from '../ui/layout';
 import { formatCurrency } from '../../utils/formatters';
-
-type WarehouseContentFilter = 'stocked' | 'all';
 
 export function WarehouseUpgradeCard({
   model,
@@ -16,7 +15,6 @@ export function WarehouseUpgradeCard({
 }) {
   const { game, selectMarketAsset, showResult, upgradeWarehouse } = model;
   const [submitting, setSubmitting] = useState(false);
-  const [contentFilter, setContentFilter] = useState<WarehouseContentFilter>('stocked');
   const atMaxLevel = game.warehouseLevel >= game.warehouseMaxLevel;
   const canAfford = game.warehouseUpgradeCost !== null && game.credits >= game.warehouseUpgradeCost;
   const overCapacity = game.warehouseUsedCapacity > game.inventoryCapacity;
@@ -30,7 +28,6 @@ export function WarehouseUpgradeCard({
     }),
     [game.inventories, game.products],
   );
-  const visibleProducts = contentFilter === 'stocked' ? stockedProducts : game.products;
 
   async function upgrade() {
     if (submitting || atMaxLevel) return;
@@ -113,38 +110,26 @@ export function WarehouseUpgradeCard({
               <strong>仓库内容</strong>
               <small>{stockedProducts.length} 种商品有库存</small>
             </div>
-            <div className="warehouse-content-filters" role="group" aria-label="筛选仓库商品">
-              <Button
-                variant="compact"
-                className={contentFilter === 'stocked' ? 'active' : ''}
-                aria-pressed={contentFilter === 'stocked'}
-                onClick={() => setContentFilter('stocked')}
-              >有库存</Button>
-              <Button
-                variant="compact"
-                className={contentFilter === 'all' ? 'active' : ''}
-                aria-pressed={contentFilter === 'all'}
-                onClick={() => setContentFilter('all')}
-              >全部商品</Button>
-            </div>
           </header>
 
-          {visibleProducts.length > 0 ? (
+          {stockedProducts.length > 0 ? (
             <div className="warehouse-product-grid">
-              {visibleProducts.map((product) => {
+              {stockedProducts.map((product) => {
                 const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
-                const empty = inventory.available === 0 && inventory.frozen === 0;
+                const total = inventory.available + inventory.frozen;
                 return (
                   <button
                     type="button"
-                    className={`warehouse-product-card ${empty ? 'empty' : ''}`}
+                    className="warehouse-product-card"
                     key={product.id}
                     aria-label={`前往${product.name}市场`}
                     onClick={() => selectMarketAsset('commodity', product.id)}
                   >
-                    <strong>{product.name}</strong>
-                    <span>可用库存 <b>{inventory.available}</b></span>
-                    <span>冻结库存 <b>{inventory.frozen}</b></span>
+                    <ProductIconLabel productId={product.id} className="warehouse-product-card-title">
+                      {product.name}
+                    </ProductIconLabel>
+                    <strong>库存 {total}</strong>
+                    <small>可用 {inventory.available} · 冻结 {inventory.frozen}</small>
                   </button>
                 );
               })}
@@ -153,7 +138,6 @@ export function WarehouseUpgradeCard({
             <div className="empty-state warehouse-content-empty">
               <strong>仓库中暂无商品</strong>
               <span>生产或买入商品后，商品会显示在这里。</span>
-              <Button variant="compact" onClick={() => setContentFilter('all')}>查看全部商品</Button>
             </div>
           )}
         </section>

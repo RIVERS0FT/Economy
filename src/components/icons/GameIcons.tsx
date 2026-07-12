@@ -86,6 +86,16 @@ export function ProductionIcon(props: GameIconProps) {
   );
 }
 
+export function FactoryIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M3 20V10l5 3V9l5 3V6h4l1 14H3Z" />
+      <path d="M17 6V3h3v17" />
+      <path d="M7 16h2M12 16h2M16 16h2" />
+    </GameIcon>
+  );
+}
+
 export function FundsIcon(props: GameIconProps) {
   return (
     <GameIcon {...props}>

@@ -11,9 +11,13 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 [
   'src/pages/MarketPage.tsx',
   'src/pages/ProductionPage.tsx',
+  'src/pages/AssetsPage.tsx',
   'src/pages/SettingsPage.tsx',
+  'src/components/warehouse/WarehouseUpgradeCard.tsx',
+  'src/config/navigation.ts',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
 ].forEach(requireFile);
 
 for (const text of [
@@ -22,12 +26,14 @@ for (const text of [
   'single-order-book',
   'order-book-divider',
   'localTrades.map',
+  '<FactoryIcon />',
 ]) requireText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
   'market-stat-strip',
   '工厂数量市场',
   '仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。',
+  '>⚙</span>',
 ]) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
@@ -55,6 +61,34 @@ for (const text of [
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
+  'title="资产"',
+  '查看现金、商品、工厂资产与当前浏览器中的资产变化记录。',
+  'title="本地资产变动"',
+  'className="widget span-3 asset-event-panel"',
+  'ProductIconLabel',
+]) requireText('src/pages/AssetsPage.tsx', text);
+
+for (const text of [
+  '商品库存与估值',
+  'product-asset-grid',
+  'product-asset-card',
+  'setSelectedProductId',
+]) forbidText('src/pages/AssetsPage.tsx', text);
+
+for (const text of [
+  "{ id: 'assets', label: '资产' }",
+]) requireText('src/config/navigation.ts', text);
+forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
+
+for (const text of [
+  'const stockedProducts = useMemo',
+  'inventory.available > 0 || inventory.frozen > 0',
+  'ProductIconLabel',
+  '<strong>库存 {total}</strong>',
+]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
+for (const text of ['WarehouseContentFilter', '全部商品', '查看全部商品']) forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
+
+for (const text of [
   '点击工作次数',
   '生产商品总数',
   '买入商品总数',
@@ -68,9 +102,16 @@ for (const text of ['登录会话', '重置服务器经济状态']) forbidText('
 for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
 
+for (const text of [
+  '概览｜市场｜生产｜资产｜排行｜设置',
+  '| 资产 | `assets` | `AssetsPage` | 资产结果与本地变化 |',
+  '资产页不得再显示逐商品“商品库存与估值”卡片',
+  '仓库不再提供“有库存／全部商品”筛选',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+
 if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('页面内容、仓库商品卡、工厂三态和统一开关职责验证通过。');
+console.log('页面内容、资产导航、仅有库存仓库商品卡、工厂三态和统一开关职责验证通过。');

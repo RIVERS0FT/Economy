@@ -1,6 +1,7 @@
 import { type ChangeEvent } from 'react';
 import { orderAssetId, orderKind, orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
+import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
 import {
   Button,
@@ -145,7 +146,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               key={`facility-${facility.id}`}
               onClick={() => selectMarketAsset('facility', facility.id)}
             >
-              <span className="asset-kind-icon" aria-hidden="true">⚙</span>
+              <span className="asset-kind-icon" aria-hidden="true"><FactoryIcon /></span>
               <strong>{facility.name}</strong>
               <span>¤ {game.facilityMarkets[facility.id]?.lastPrice ?? facility.systemValue}</span>
               <small>持有 {group?.count ?? 0}</small>

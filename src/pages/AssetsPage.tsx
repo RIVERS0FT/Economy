@@ -81,8 +81,6 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
     commodityShare,
     facilityShare,
     allocationStyle,
-    setSelectedProductId,
-    setTab,
   } = model;
   const [eventFilter, setEventFilter] = useState<AssetEventFilter>('all');
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
@@ -99,8 +97,8 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <PageLayout
-      title="资金与资产"
-      description="查看现金、商品和工厂资产结果；资金与资产变化记录只保存在当前浏览器。"
+      title="资产"
+      description="查看现金、商品、工厂资产与当前浏览器中的资产变化记录。"
     >
       <div className="funds-summary-grid">
         <MetricCard label="可用资金" value={`¤ ${formatCurrency(game.credits)}`} tone="success" />
@@ -135,35 +133,9 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
           </div>
         </Panel>
 
-        <Panel className="widget span-3">
-          <WidgetHeading title="商品库存与估值" action={<span className="muted">工厂集群产成品完成后直接进入共享仓库</span>} />
-          <div className="product-asset-grid">
-            {game.products.map((product) => {
-              const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
-              const price = game.valuationPrices[`commodity:${product.id}`] ?? 0;
-              const value = (inventory.available + inventory.frozen) * price;
-              return (
-                <button
-                  type="button"
-                  className="product-asset-card"
-                  key={product.id}
-                  onClick={() => {
-                    setSelectedProductId(product.id);
-                    setTab('market');
-                  }}
-                >
-                  <ProductIconLabel productId={product.id} className="product-asset-card-title">{product.name}</ProductIconLabel>
-                  <strong>¤ {formatCurrency(value)}</strong>
-                  <small>可用 {inventory.available} · 冻结 {inventory.frozen} · 估值买价 ¤ {price || '--'}</small>
-                </button>
-              );
-            })}
-          </div>
-        </Panel>
-
-        <Panel className="widget span-2 asset-event-panel">
+        <Panel className="widget span-3 asset-event-panel">
           <WidgetHeading
-            title="本地资金与资产变动"
+            title="本地资产变动"
             action={
               <div className="ui-inline-actions">
                 <StatusTag>{localAssetEvents.length} 条</StatusTag>
