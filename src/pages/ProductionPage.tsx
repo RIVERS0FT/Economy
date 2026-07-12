@@ -173,8 +173,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                       ? startFacility(group.facilityTypeId)
                       : stopFacility(group.facilityTypeId))}
                   />
-
-                  </button>
                 </div>
 
                 <div className="facility-group-counts">
