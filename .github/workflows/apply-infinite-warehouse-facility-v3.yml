@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - agent/infinite-warehouse-compact-facility-cards
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'agent/infinite-warehouse-compact-facility-cards')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
