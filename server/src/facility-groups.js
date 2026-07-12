@@ -303,14 +303,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 6;
+  world.version = 7;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 6;
+  world.version = 7;
   return world;
 }
 
@@ -426,10 +426,9 @@ function reconcileFacilityGroup(world, player, group, now) {
 
   if (group.status !== 'running') applyPendingProductionPlan(group);
   if (group.productionMode === 'target' && group.completedQuantity >= Number(group.targetQuantity || 0)) {
-    if (!applyPendingProductionPlan(group)) {
-      setGroupStopped(group, 'plan_complete');
-      return;
-    }
+    applyPendingProductionPlan(group);
+    setGroupStopped(group, 'plan_complete');
+    return;
   }
 
   const available = availableGroupCount(world, player, group);
@@ -445,6 +444,11 @@ function reconcileFacilityGroup(world, player, group, now) {
     }
     const blocked = blockReason(world, player, group, type, group.participatingCount);
     if (!blocked) return;
+    if (blocked.reason === 'plan_complete') {
+      applyPendingProductionPlan(group);
+      setGroupStopped(group, 'plan_complete');
+      return;
+    }
     if (group.pendingProductionPlan) {
       applyPendingProductionPlan(group);
       const retry = blockReason(world, player, group, type, available);
@@ -453,14 +457,14 @@ function reconcileFacilityGroup(world, player, group, now) {
         return;
       }
       if (retry.reason === 'plan_complete') {
+        applyPendingProductionPlan(group);
         setGroupStopped(group, 'plan_complete');
         return;
       }
       setGroupError(group, retry.reason);
       return;
     }
-    if (blocked.reason === 'plan_complete') setGroupStopped(group, 'plan_complete');
-    else setGroupError(group, blocked.reason);
+    setGroupError(group, blocked.reason);
     return;
   }
 
@@ -503,11 +507,12 @@ function processGroup(world, player, group, now) {
   while (elapsedCycles > 0 && processed < MAX_CYCLES_PER_GROUP && group.status === 'running') {
     const blocked = blockReason(world, player, group, type, group.participatingCount);
     if (blocked) {
-      if (group.pendingProductionPlan) {
+      if (blocked.reason === 'plan_complete') {
+        applyPendingProductionPlan(group);
+        setGroupStopped(group, 'plan_complete');
+      } else if (group.pendingProductionPlan) {
         applyPendingProductionPlan(group);
         reconcileFacilityGroup(world, player, group, now);
-      } else if (blocked.reason === 'plan_complete') {
-        setGroupStopped(group, 'plan_complete');
       } else {
         setGroupError(group, blocked.reason);
       }
@@ -523,11 +528,14 @@ function processGroup(world, player, group, now) {
       group.pendingJoinCount = 0;
     }
 
-    const appliedPending = applyPendingProductionPlan(group);
-    if (!appliedPending && group.productionMode === 'target' && group.completedQuantity >= Number(group.targetQuantity || 0)) {
+    const targetCompleted = group.productionMode === 'target'
+      && group.completedQuantity >= Number(group.targetQuantity || 0);
+    if (targetCompleted) {
+      applyPendingProductionPlan(group);
       setGroupStopped(group, 'plan_complete');
       break;
     }
+    applyPendingProductionPlan(group);
 
     const nextBlocked = blockReason(world, player, group, type, group.participatingCount);
     if (nextBlocked) {
@@ -1010,7 +1018,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const normalizedOrders = (world.orders || []).map((order) => clone(normalizeOrder(order)));
   return {
     ...withoutFacilities,
-    version: 10,
+    version: 11,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
     facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),

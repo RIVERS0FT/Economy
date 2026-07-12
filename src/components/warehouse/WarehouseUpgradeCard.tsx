@@ -15,7 +15,7 @@ export function WarehouseUpgradeCard({
 }) {
   const { game, selectMarketAsset, showResult, upgradeWarehouse } = model;
   const [submitting, setSubmitting] = useState(false);
-  const atMaxLevel = game.warehouseLevel >= game.warehouseMaxLevel;
+  const upgradeUnavailable = game.warehouseUpgradeCost === null || game.warehouseNextCapacityIncrease <= 0;
   const canAfford = game.warehouseUpgradeCost !== null && game.credits >= game.warehouseUpgradeCost;
   const overCapacity = game.warehouseUsedCapacity > game.inventoryCapacity;
   const usagePercent = game.inventoryCapacity > 0
@@ -30,7 +30,7 @@ export function WarehouseUpgradeCard({
   );
 
   async function upgrade() {
-    if (submitting || atMaxLevel) return;
+    if (submitting || upgradeUnavailable) return;
     setSubmitting(true);
     try {
       await showResult(upgradeWarehouse());
@@ -46,7 +46,7 @@ export function WarehouseUpgradeCard({
         action={(
           <div className="warehouse-heading-status">
             {overCapacity ? <StatusTag tone="danger">容量超限</StatusTag> : null}
-            <StatusTag tone={atMaxLevel ? 'success' : 'info'}>等级 {game.warehouseLevel}/{game.warehouseMaxLevel}</StatusTag>
+            <StatusTag tone="info">等级 {game.warehouseLevel}</StatusTag>
           </div>
         )}
       />
@@ -76,14 +76,14 @@ export function WarehouseUpgradeCard({
 
           <div className="warehouse-upgrade-summary">
             <div>
-              <span>{atMaxLevel ? '最高容量' : '下一等级容量'}</span>
-              <strong>{atMaxLevel ? game.inventoryCapacity : game.warehouseNextCapacity}</strong>
-              <small>{atMaxLevel ? '仓库已经达到最高等级' : `增加 ${game.warehouseNextCapacity - game.inventoryCapacity} 容量`}</small>
+              <span>下一等级容量</span>
+              <strong>{game.warehouseNextCapacity}</strong>
+              <small>增加 {game.warehouseNextCapacityIncrease} 容量</small>
             </div>
             <div>
               <span>升级费用</span>
-              <strong>{atMaxLevel ? '已满级' : `¤ ${formatCurrency(game.warehouseUpgradeCost ?? 0)}`}</strong>
-              <small>{atMaxLevel ? '无需继续扩容' : `当前可用资金 ¤ ${formatCurrency(game.credits)}`}</small>
+              <strong>{game.warehouseUpgradeCost === null ? '数值不可用' : `¤ ${formatCurrency(game.warehouseUpgradeCost)}`}</strong>
+              <small>当前可用资金 ¤ {formatCurrency(game.credits)}</small>
             </div>
           </div>
 
@@ -92,12 +92,12 @@ export function WarehouseUpgradeCard({
           <Button
             block
             onClick={() => void upgrade()}
-            disabled={submitting || atMaxLevel || !canAfford}
+            disabled={submitting || upgradeUnavailable || !canAfford}
           >
             {submitting
               ? '正在扩容…'
-              : atMaxLevel
-                ? '已达最高等级'
+              : upgradeUnavailable
+                ? '扩容数值不可用'
                 : canAfford
                   ? `支付 ¤ ${formatCurrency(game.warehouseUpgradeCost ?? 0)} 扩容`
                   : `资金不足 · 需要 ¤ ${formatCurrency(game.warehouseUpgradeCost ?? 0)}`}

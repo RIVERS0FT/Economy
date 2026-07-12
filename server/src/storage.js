@@ -49,7 +49,7 @@ function createVersionedClientState(world, userId, now) {
   return {
     ...authoritativeState,
     ...createWarehouseSummary(world, player),
-    version: 10,
+    version: 11,
   };
 }
 

@@ -140,3 +140,60 @@ test('warehouse errors recover without backfilling missed cycles', () => {
   assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_001);
   assert.equal(player.inventories.grain.available, 499);
 });
+test('target production completion disables the run switch', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 100;
+  player.facilityGroups = [group('farm', 1, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 1,
+    cycleStartedAt: now,
+    productionMode: 'target',
+    targetQuantity: 2,
+    completedQuantity: 0,
+  })];
+  migrateFacilityGroupWorld(world, now);
+
+  processFacilityGroupWorld(world, now + 30_000);
+
+  const completed = player.facilityGroups[0];
+  assert.equal(player.inventories.grain.available, 2);
+  assert.equal(completed.productionMode, 'target');
+  assert.equal(completed.completedQuantity, 2);
+  assert.equal(completed.enabled, false);
+  assert.equal(completed.status, 'stopped');
+  assert.equal(completed.statusReason, 'plan_complete');
+  assert.equal(completed.participatingCount, 0);
+  assert.equal(completed.pendingJoinCount, 0);
+  assert.equal(completed.cycleStartedAt, undefined);
+});
+
+test('target completion preserves pending plan but still stops', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 100;
+  player.facilityGroups = [group('farm', 1, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 1,
+    cycleStartedAt: now,
+    productionMode: 'target',
+    targetQuantity: 2,
+    completedQuantity: 0,
+    pendingProductionPlan: {
+      mode: 'continuous',
+      requestedAt: now + 1,
+    },
+  })];
+  migrateFacilityGroupWorld(world, now);
+
+  processFacilityGroupWorld(world, now + 30_000);
+
+  const completed = player.facilityGroups[0];
+  assert.equal(completed.productionMode, 'continuous');
+  assert.equal(completed.pendingProductionPlan, undefined);
+  assert.equal(completed.enabled, false);
+  assert.equal(completed.status, 'stopped');
+  assert.equal(completed.statusReason, 'plan_complete');
+});

@@ -292,7 +292,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 10;
+  version: 11;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -301,9 +301,9 @@ export interface EconomyState {
   inventories: Record<string, ProductInventory>;
   inventoryCapacity: number;
   warehouseLevel: number;
-  warehouseMaxLevel: number;
   warehouseUpgradeCost: number | null;
   warehouseNextCapacity: number;
+  warehouseNextCapacityIncrease: number;
   warehouseStoredQuantity: number;
   warehouseReservedQuantity: number;
   warehouseUsedCapacity: number;

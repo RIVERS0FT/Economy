@@ -560,3 +560,171 @@
     flex-direction: column;
   }
 }
+/* Production management layout v3: sticky build column and fixed-height factory cards. */
+.production-grid {
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  align-items: start;
+}
+
+.production-build-card {
+  position: sticky;
+  top: var(--space-3);
+  align-self: start;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: var(--space-3);
+  max-height: calc(100dvh - var(--space-6));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.production-build-card .widget-heading,
+.production-build-card .ui-data-list,
+.production-build-card > .ui-helper-text {
+  grid-column: auto;
+}
+
+.production-build-card .ui-data-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.facility-status-header {
+  position: relative;
+  align-items: flex-start;
+}
+
+.facility-status-header > .ui-switch {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  margin-left: auto;
+}
+
+.facility-status-copy {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.facility-count-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.facility-count-summary span {
+  white-space: nowrap;
+}
+
+.facility-count-summary strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.production-plan-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 1.35fr);
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.production-plan-summary {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.production-plan-summary strong,
+.production-plan-summary small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-plan-summary strong {
+  font-size: var(--font-size-sm);
+}
+
+.production-plan-summary small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.production-plan-controls {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(100px, 0.8fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.facility-market-link-row {
+  align-self: end;
+}
+
+@media (min-width: 1381px) {
+  .facility-group-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (min-width: 961px) and (max-width: 1380px) {
+  .facility-group-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 961px) {
+  .facility-group-card {
+    height: 384px;
+    min-height: 384px;
+    max-height: 384px;
+    grid-template-rows: auto auto minmax(40px, auto) minmax(0, 1fr) auto;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 960px) {
+  .production-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .production-build-card {
+    position: static;
+    top: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .facility-group-card {
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .production-plan-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .facility-count-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .production-plan-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .production-plan-controls .ui-button {
+    width: 100%;
+  }
+}

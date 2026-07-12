@@ -3,8 +3,8 @@ import test from 'node:test';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
 import {
-  WAREHOUSE_MAX_LEVEL,
   warehouseCapacityForLevel,
+  warehouseCapacityIncreaseForLevel,
   warehouseUpgradeCostForLevel,
 } from '../src/warehouse.js';
 
@@ -48,21 +48,34 @@ function buyOrder(overrides = {}) {
   };
 }
 
-test('warehouse state defaults to level 1 and client version 10', () => {
+test('warehouse state defaults to level 1 and client version 11', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 10);
+    assert.equal(state.version, 11);
     assert.equal(state.warehouseLevel, 1);
     assert.equal(state.inventoryCapacity, 500);
-    assert.equal(state.warehouseMaxLevel, WAREHOUSE_MAX_LEVEL);
+    assert.equal(Object.hasOwn(state, 'warehouseMaxLevel'), false);
     assert.equal(state.warehouseUpgradeCost, 150);
     assert.equal(state.warehouseNextCapacity, 750);
+    assert.equal(state.warehouseNextCapacityIncrease, 250);
     assert.equal(state.warehouseStoredQuantity, 0);
     assert.equal(state.warehouseReservedQuantity, 0);
     assert.equal(state.warehouseUsedCapacity, 0);
     assert.equal(state.warehouseAvailableCapacity, 500);
   } finally { store.close(); }
+});
+
+test('warehouse capacity increase grows with every level', () => {
+  assert.deepEqual(
+    [1, 2, 3, 4, 5, 6].map((level) => warehouseCapacityForLevel(level)),
+    [500, 750, 1_050, 1_400, 1_800, 2_250],
+  );
+  assert.deepEqual(
+    [1, 2, 3, 4, 5].map((level) => warehouseCapacityIncreaseForLevel(level)),
+    [250, 300, 350, 400, 450],
+  );
+  assert.equal(warehouseUpgradeCostForLevel(5), 3_750);
 });
 
 test('warehouse usage counts stored goods and remaining open commodity buy orders only', () => {
@@ -96,7 +109,8 @@ test('warehouse upgrade deducts server funds and increases shared capacity', () 
     assert.equal(response.state.credits, 9_850);
     assert.equal(response.state.stats.systemSinks, 150);
     assert.equal(response.state.warehouseUpgradeCost, 600);
-    assert.equal(response.state.warehouseNextCapacity, 1_000);
+    assert.equal(response.state.warehouseNextCapacity, 1_050);
+    assert.equal(response.state.warehouseNextCapacityIncrease, 300);
     assert.equal(response.state.warehouseAvailableCapacity, 750);
   } finally { store.close(); }
 });
@@ -129,20 +143,24 @@ test('legacy custom capacity infers a non-decreasing warehouse level', () => {
   try {
     const state = store.getState(alice, now + 1);
     assert.equal(state.warehouseLevel, 3);
-    assert.equal(state.inventoryCapacity, 1_000);
+    assert.equal(state.inventoryCapacity, 1_050);
     assert.ok(state.inventoryCapacity >= 900);
   } finally { store.close(); }
 });
 
-test('maximum warehouse level cannot be upgraded again', () => {
-  const store = seedStore({ warehouseLevel: WAREHOUSE_MAX_LEVEL, inventoryCapacity: warehouseCapacityForLevel(WAREHOUSE_MAX_LEVEL) });
+test('warehouse can continue upgrading after former level 12 limit', () => {
+  const store = seedStore({
+    credits: 50_000,
+    warehouseLevel: 12,
+    inventoryCapacity: warehouseCapacityForLevel(12),
+  });
   try {
-    const response = store.apply(alice, request('warehouse-max-12345678'), now + 1);
-    assert.equal(response.result.ok, false);
-    assert.equal(response.state.warehouseLevel, WAREHOUSE_MAX_LEVEL);
-    assert.equal(response.state.inventoryCapacity, warehouseCapacityForLevel(WAREHOUSE_MAX_LEVEL));
-    assert.equal(response.state.warehouseUpgradeCost, null);
-    assert.equal(warehouseUpgradeCostForLevel(WAREHOUSE_MAX_LEVEL), null);
+    const response = store.apply(alice, request('warehouse-level-12-12345678'), now + 1);
+    assert.equal(response.result.ok, true);
+    assert.equal(response.state.warehouseLevel, 13);
+    assert.equal(response.state.inventoryCapacity, warehouseCapacityForLevel(13));
+    assert.equal(response.state.warehouseNextCapacityIncrease, warehouseCapacityIncreaseForLevel(13));
+    assert.equal(response.state.warehouseUpgradeCost, warehouseUpgradeCostForLevel(13));
   } finally { store.close(); }
 });
 

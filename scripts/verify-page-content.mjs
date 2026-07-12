@@ -43,9 +43,14 @@ for (const text of [
   '>停止 {model.derived.stoppedFacilities}',
   '>异常 {model.derived.blockedFacilities}',
   'facility-status-header',
-  '运营资金不足 · 条件恢复后自动运行',
-  '共享仓库空间不足 · 释放容量后自动运行',
-  '下一周期生效',
+  '异常：资金不足',
+  '异常：仓库已满',
+  '异常：原料不足',
+  '运行中',
+  '下一周期加入',
+  '冻结中',
+  '当前计划：持续运行',
+  '>保存计划</Button>',
   '在统一订单簿中买卖该工厂',
   '>前往市场 →',
 ]) requireText('src/pages/ProductionPage.tsx', text);
@@ -58,6 +63,10 @@ for (const text of [
   'facility-stop-reason',
   'facility-auto-recovery-note',
   '手动停止',
+  '正常生产中',
+  '下一周期按 ',
+  '持有 <strong>',
+  '下一周期生效',
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
@@ -75,9 +84,7 @@ for (const text of [
   'setSelectedProductId',
 ]) forbidText('src/pages/AssetsPage.tsx', text);
 
-for (const text of [
-  "{ id: 'assets', label: '资产' }",
-]) requireText('src/config/navigation.ts', text);
+requireText('src/config/navigation.ts', "{ id: 'assets', label: '资产' }");
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 
 for (const text of [
@@ -85,8 +92,9 @@ for (const text of [
   'inventory.available > 0 || inventory.frozen > 0',
   'ProductIconLabel',
   '<strong>库存 {total}</strong>',
+  '等级 {game.warehouseLevel}',
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
-for (const text of ['WarehouseContentFilter', '全部商品', '查看全部商品']) forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
+for (const text of ['WarehouseContentFilter', '全部商品', '查看全部商品', 'warehouseMaxLevel', '已达最高等级']) forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
 
 for (const text of [
   '点击工作次数',
@@ -107,11 +115,11 @@ for (const text of [
   '| 资产 | `assets` | `AssetsPage` | 资产结果与本地变化 |',
   '资产页不得再显示逐商品“商品库存与估值”卡片',
   '仓库不再提供“有库存／全部商品”筛选',
+  '建设新工厂卡独占左侧列并在桌面滚动时常驻',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-
-console.log('页面内容、资产导航、仅有库存仓库商品卡、工厂三态和统一开关职责验证通过。');
+console.log('页面内容、无限仓库、左侧常驻建设卡、固定高度工厂卡和简化计划职责验证通过。');
