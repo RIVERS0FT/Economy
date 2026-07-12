@@ -43,6 +43,11 @@
     text-overflow: ellipsis;
   }
 
+  .asset-bar-item-value > span {
+    color: inherit;
+    font-size: inherit;
+  }
+
   .page-scroll {
     padding-top: calc(
       var(--mobile-status-top-inset) +
