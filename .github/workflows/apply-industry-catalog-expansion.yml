@@ -3,6 +3,8 @@ name: Apply industry catalog expansion
 on:
   push:
     branches: [agent/expand-industry-catalog]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
