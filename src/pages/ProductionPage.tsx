@@ -17,13 +17,33 @@ import {
   type StatusTone,
   WidgetHeading,
 } from '../components/ui/layout';
-import type { ProductionMode } from '../types';
+import type { FacilityGroup, FacilityTypeDefinition, ProductionMode } from '../types';
 import { formatCurrency, formatDuration } from '../utils/formatters';
 
 function facilityTone(status: string): StatusTone {
   if (status === 'running') return 'success';
   if (status === 'error') return 'danger';
   return 'neutral';
+}
+
+function facilityStatusDetail(group: FacilityGroup, type: FacilityTypeDefinition, now: number) {
+  if (group.status === 'running' && group.cycleStartedAt) {
+    const elapsed = Math.max(0, now - group.cycleStartedAt);
+    const cycleElapsed = elapsed % type.cycleMs;
+    return `正常生产中 · 本周期剩余 ${formatDuration(type.cycleMs - cycleElapsed)}`;
+  }
+  if (group.status === 'stopped') {
+    return group.statusReason === 'plan_complete' ? '定量生产计划已完成' : '玩家已关闭生产';
+  }
+  switch (group.statusReason) {
+    case 'insufficient_funds': return '运营资金不足 · 条件恢复后自动运行';
+    case 'warehouse_full': return '共享仓库空间不足 · 释放容量后自动运行';
+    case 'insufficient_input': return '生产原料不足 · 原料补足后自动运行';
+    case 'plan_adjustment_required': return '生产计划与下一周期产量不兼容';
+    case 'no_available_facility': return '全部工厂已被冻结或挂牌';
+    case 'maintenance': return '系统维护中 · 维护结束后自动运行';
+    default: return `${group.statusReason ? facilityStatusReasonNames[group.statusReason] : '生产条件不足'} · 条件恢复后自动运行`;
+  }
 }
 
 export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
@@ -97,7 +117,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       <WarehouseUpgradeCard model={model} className="factory-warehouse-card" />
 
       <div className="production-grid">
-        <Panel className="widget build-card">
+        <Panel className="widget build-card production-build-card">
           <WidgetHeading title="建设新工厂" />
           <label>
             工厂类型
@@ -145,6 +165,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             const inputName = productName(type.input?.productId);
             const outputName = productName(type.output.productId);
             const inputInventory = type.input ? game.inventories[type.input.productId]?.available ?? 0 : null;
+            const cycleInput = type.input ? type.input.quantity * currentCount : 0;
             const remainingTarget = group.productionMode === 'target'
               ? Math.max(0, (group.targetQuantity || 0) - group.completedQuantity)
               : null;
@@ -155,14 +176,13 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
             return (
               <Panel className="facility-card facility-group-card" key={group.facilityTypeId}>
-                <div className="facility-card-head">
+                <div className="facility-card-head facility-status-header">
                   <div>
-                    <StatusTag tone={facilityTone(group.status)}>{facilityStatusNames[group.status]}</StatusTag>
-                    <h2>{type.name} × {group.count}</h2>
-                    <p>{type.input
-                      ? `${type.input.quantity} ${inputName} → ${type.output.quantity} ${outputName}`
-                      : `无原料 → ${type.output.quantity} ${outputName}`}</p>
-                    {group.statusReason ? <small className="facility-stop-reason">{facilityStatusReasonNames[group.statusReason]}</small> : null}
+                    <div className="facility-status-title">
+                      <StatusTag tone={facilityTone(group.status)}>{facilityStatusNames[group.status]}</StatusTag>
+                      <h2>{type.name} × {group.count}</h2>
+                    </div>
+                    <p className={`facility-status-detail status-${group.status}`}>{facilityStatusDetail(group, type, now)}</p>
                   </div>
                   <SwitchControl
                     checked={group.enabled}
@@ -177,31 +197,28 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
                 <div className="facility-group-counts">
                   <span>持有 <strong>{group.count}</strong></span>
-                  <span>当前参与 <strong>{group.participatingCount}</strong></span>
-                  <span>下一周期 <strong>{group.nextCycleCount}</strong></span>
+                  <span>参与 <strong>{group.participatingCount}</strong></span>
                   <span>待加入 <strong>{group.pendingJoinCount}</strong></span>
-                  <span>卖单冻结 <strong>{group.listedCount}</strong></span>
+                  <span>冻结 <strong>{group.listedCount}</strong></span>
                 </div>
-
-                <FacilityGroupProgress group={group} type={type} now={now} />
-                {group.status === 'error' ? <small className="facility-auto-recovery-note">开关保持开启；条件满足后将自动恢复生产。</small> : null}
 
                 <div className="facility-specs ui-spec-grid facility-group-specs">
                   <span>周期 <strong>{type.cycleMs / 1000} 秒</strong></span>
-                  <span>周期产量 <strong>{currentCycleOutput} {outputName}</strong></span>
-                  <span>周期成本 <strong>¤ {currentCycleCost}</strong></span>
-                  <span>原料库存 <strong>{inputInventory === null ? '无需原料' : `${inputInventory} ${inputName}`}</strong></span>
+                  <span>产量 <strong>{currentCycleOutput} {outputName}</strong></span>
+                  <span>成本 <strong>¤ {currentCycleCost}</strong></span>
+                  <span>原料 <strong>{inputInventory === null ? '无' : `${cycleInput} ${inputName} · 库存 ${inputInventory}`}</strong></span>
                 </div>
-                {group.pendingJoinCount > 0 ? <small className="ui-helper-text">下一周期将按 {nextCount} 座结算：产量 {nextCycleOutput} {outputName}。</small> : null}
+                {nextCount !== group.participatingCount ? <small className="facility-next-cycle-note">下一周期按 {nextCount} 座结算：产量 {nextCycleOutput} {outputName}。</small> : null}
+
+                <FacilityGroupProgress group={group} type={type} now={now} />
 
                 <div className="production-plan-card">
                   <div className="production-plan-heading">
                     <div>
-                      <strong>统一生产计划</strong>
-                      <small>{group.productionMode === 'continuous'
-                        ? '当前：持续生产'
-                        : `当前：${group.completedQuantity}/${group.targetQuantity}，剩余 ${remainingTarget}`}</small>
-                      {pendingPlan ? <small>下一周期：{pendingPlan.mode === 'continuous' ? '持续生产' : `定量生产 ${pendingPlan.targetQuantity}`}</small> : null}
+                      <strong>{group.productionMode === 'continuous'
+                        ? '当前计划：持续生产'
+                        : `当前计划：定量生产 ${group.targetQuantity} 个 · 已完成 ${group.completedQuantity} · 剩余 ${remainingTarget}`}</strong>
+                      {pendingPlan ? <small>下一周期：{pendingPlan.mode === 'continuous' ? '持续生产' : `定量生产 ${pendingPlan.targetQuantity} 个`}</small> : null}
                     </div>
                     <StatusTag tone={pendingPlan ? 'info' : group.productionMode === 'target' ? 'info' : 'neutral'}>{pendingPlan ? '下一周期生效' : group.productionMode === 'target' ? '定量' : '持续'}</StatusTag>
                   </div>
@@ -235,8 +252,8 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 </div>
 
                 <div className="facility-market-link-row">
-                  <span>卖单冻结会立即减少当前参与数量，撤单数量从下一周期重新加入。</span>
-                  <Button variant="text" onClick={() => selectMarketAsset('facility', group.facilityTypeId)}>前往市场交易该工厂 →</Button>
+                  <span>在统一订单簿中买卖该工厂</span>
+                  <Button variant="text" onClick={() => selectMarketAsset('facility', group.facilityTypeId)}>前往市场 →</Button>
                 </div>
               </Panel>
             );

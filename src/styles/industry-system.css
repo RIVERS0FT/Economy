@@ -344,3 +344,219 @@
     width: 100%;
   }
 }
+
+/* Compact production card layout v2. */
+.production-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.production-build-card {
+  position: static;
+  top: auto;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) minmax(320px, 1.5fr) minmax(180px, 0.8fr);
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.production-build-card .widget-heading,
+.production-build-card > .ui-helper-text {
+  grid-column: 1 / -1;
+}
+
+.production-build-card .facility-type-summary,
+.production-build-card .construction-status {
+  margin: 0;
+}
+
+.production-build-card .ui-data-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-3);
+}
+
+.production-build-card .ui-data-row {
+  padding: var(--space-2) 0;
+}
+
+.facility-group-card {
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.facility-status-header {
+  align-items: flex-start;
+}
+
+.facility-status-header > div {
+  min-width: 0;
+}
+
+.facility-status-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.facility-group-card .facility-status-title h2 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.facility-status-detail {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.facility-status-detail.status-error {
+  color: var(--color-danger);
+}
+
+.facility-group-counts > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.facility-group-counts strong {
+  font-size: var(--font-size-md);
+}
+
+.facility-group-card .facility-group-specs > span {
+  min-height: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+}
+
+.facility-group-card .facility-group-specs > span strong {
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facility-next-cycle-note {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.facility-progress-running {
+  margin: 0;
+}
+
+.facility-progress-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+  padding: var(--space-2) 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.facility-progress-compact strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.production-plan-card {
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.production-plan-heading > div {
+  gap: 0.1rem;
+}
+
+.production-plan-heading strong {
+  font-size: var(--font-size-sm);
+}
+
+.production-plan-heading small {
+  font-size: var(--font-size-xs);
+}
+
+.production-plan-controls select,
+.production-plan-controls input,
+.production-plan-controls .ui-button {
+  min-height: var(--control-height-compact);
+}
+
+.facility-market-link-row {
+  padding-top: var(--space-2);
+}
+
+.facility-market-link-row .ui-button {
+  min-height: var(--control-height-compact);
+  white-space: nowrap;
+}
+
+@media (min-width: 961px) {
+  .facility-group-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 1100px) {
+  .production-build-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .production-build-card .widget-heading,
+  .production-build-card .ui-data-list,
+  .production-build-card > .ui-helper-text {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 960px) {
+  .facility-group-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .production-build-card {
+    grid-template-columns: 1fr;
+  }
+
+  .production-build-card .widget-heading,
+  .production-build-card .ui-data-list,
+  .production-build-card > .ui-helper-text {
+    grid-column: auto;
+  }
+
+  .production-build-card .ui-data-list {
+    grid-template-columns: 1fr;
+  }
+
+  .facility-status-header {
+    gap: var(--space-2);
+  }
+
+  .facility-group-counts,
+  .facility-group-specs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .production-plan-heading,
+  .facility-market-link-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -36,9 +36,12 @@ for (const text of [
   '>运行 {model.derived.runningFacilities}',
   '>停止 {model.derived.stoppedFacilities}',
   '>异常 {model.derived.blockedFacilities}',
-  '条件满足后将自动恢复生产',
+  'facility-status-header',
+  '运营资金不足 · 条件恢复后自动运行',
+  '共享仓库空间不足 · 释放容量后自动运行',
   '下一周期生效',
-  '前往市场交易该工厂',
+  '在统一订单簿中买卖该工厂',
+  '>前往市场 →',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
@@ -46,6 +49,9 @@ for (const text of [
   '产成品去向',
   '启动全部未挂牌工厂',
   '停止全部',
+  'facility-stop-reason',
+  'facility-auto-recovery-note',
+  '手动停止',
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
@@ -67,4 +73,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('页面内容、工厂三态和统一开关职责验证通过。');
+console.log('页面内容、仓库商品卡、工厂三态和统一开关职责验证通过。');
