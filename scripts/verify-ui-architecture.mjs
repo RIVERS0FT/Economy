@@ -64,9 +64,19 @@ for (const text of ['SwitchControl', '.ui-switch', '唯一 React 基础组件', 
   requireText('docs/UI_DESIGN_SYSTEM.md', text);
 }
 
+for (const text of [
+  '.ui-switch:focus {',
+  '.ui-switch:focus-visible {',
+  '.ui-switch:focus-visible::before {',
+  'outline-offset: 2px;',
+]) requireText('src/styles/design-system.css', text);
+for (const text of ['开关焦点环与点击区域', '44 × 44px', '轨道伪元素外侧', '额外的大圆环']) {
+  requireText('docs/UI_DESIGN_SYSTEM.md', text);
+}
+
 if (failures.length) {
-  console.error(`UI 架构与统一开关验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`UI 架构、统一开关与焦点环验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('共享 UI 组件与唯一开关视觉验证通过。');
+console.log('共享 UI 组件、唯一开关视觉与轨道焦点环验证通过。');
