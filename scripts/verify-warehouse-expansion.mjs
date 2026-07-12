@@ -62,8 +62,11 @@ for (const text of [
   '运行中',
   '下一周期加入',
   '冻结中',
+  'production-plan-heading',
+  'production-plan-fields',
+  'placeholder="目标产量"',
+  '下一周期生效',
   '在统一订单簿中买卖该工厂',
-  '>保存计划</Button>',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const forbidden of [
@@ -71,10 +74,13 @@ for (const forbidden of [
   '下一周期按 ',
   'facility-group-counts',
   '当前计划：持续生产',
+  '当前计划：持续运行',
   '>持续</StatusTag>',
   '>定量</StatusTag>',
+  '>保存计划</Button>',
   '保存下一周期计划',
   '更新下一周期计划',
+  '下一周期：',
 ]) forbidText('src/pages/ProductionPage.tsx', forbidden);
 
 for (const text of ['本周期剩余', '等待条件恢复', 'facility-progress-compact']) requireText('src/components/facilities/FacilityProgress.tsx', text);
@@ -128,7 +134,8 @@ for (const text of [
   'position: sticky',
   'height: 384px',
   '.facility-count-summary',
-  '.production-plan-summary',
+  '.production-plan-heading',
+  '.production-plan-fields',
   '@media (max-width: 960px)',
 ]) requireText('src/styles/industry-system.css', text);
 for (const forbidden of ['position: fixed']) forbidText('src/styles/industry-system.css', forbidden);
@@ -144,6 +151,7 @@ for (const text of [
   '固定高度 384px',
   'position: sticky',
   '下一周期加入',
+  '生产计划使用自动保存',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
@@ -156,10 +164,11 @@ for (const text of [
   '工厂卡桌面固定高度',
   '建设新工厂卡桌面独占',
   '仓库只显示可用或冻结数量大于零的商品',
+  '计划字段自动保存',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、递增容量、左侧常驻建设卡、固定高度工厂卡和简化计划验证通过。');
+console.log('仓库无限扩容、递增容量、左侧常驻建设卡、固定高度工厂卡和自动保存计划验证通过。');
