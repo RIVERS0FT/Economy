@@ -11,7 +11,7 @@ jobs:
   apply:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout feature branch
         uses: actions/checkout@v4
@@ -42,22 +42,8 @@ jobs:
           content = content.replace("'world.version = 5'", "'world.version = 6'");
           writeFileSync(path, content);
           NODE
-      - name: Remove trigger workflow
-        run: rm -f .github/workflows/run-facility-three-state.yml
-      - name: Install dependencies
-        run: npm install
-      - name: Run full build
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee /tmp/facility-build.log
-      - name: Upload build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: facility-three-state-build-log
-          path: /tmp/facility-build.log
-          if-no-files-found: ignore
+      - name: Remove temporary workflows
+        run: rm -f .github/workflows/run-facility-three-state.yml .github/workflows/apply-facility-three-state.yml
       - name: Commit implementation
         shell: bash
         run: |
