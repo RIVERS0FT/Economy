@@ -157,6 +157,10 @@
     text-align: center;
   }
 
+  .mobile-bottom-navigation .sidebar-nav-button:hover:not(:disabled) {
+    transform: none;
+  }
+
   .mobile-bottom-navigation .sidebar-nav-button > span {
     width: auto;
     height: auto;
@@ -166,7 +170,7 @@
     background: transparent;
     font-size: 1.22rem;
     line-height: 1;
-    transition: color 140ms ease, transform 140ms ease;
+    transition: color 140ms ease;
   }
 
   .mobile-bottom-navigation .sidebar-nav-button strong {
@@ -196,7 +200,7 @@
 
   .mobile-bottom-navigation .sidebar-nav-button.active > span {
     color: var(--green);
-    transform: translateY(-1px) scale(1.04);
+    transform: none;
   }
 
   .mobile-bottom-navigation .sidebar-nav-button:focus-visible {
