@@ -27,6 +27,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          sed -i "/replaceAllExact('server\/src\/domain.js', 'version: 10', 'version: 11');/d" scripts/apply-infinite-warehouse-facility-v3.mjs
           node scripts/apply-infinite-warehouse-facility-v3.mjs 2>&1 | tee apply.log
 
       - name: Install dependencies
