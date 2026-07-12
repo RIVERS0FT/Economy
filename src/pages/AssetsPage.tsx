@@ -121,7 +121,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget asset-breakdown span-2">
-          <WidgetHeading title="资产估值明细" action={<span className="muted">按各商品最近成交价和工厂类型数量估值计算</span>} />
+          <WidgetHeading title="资产估值明细" action={<span className="muted">商品和工厂均按订单簿最高有效买入价估值</span>} />
           <div className="asset-card-grid">
             <MetricCard label="可用现金" value={`¤ ${formatCurrency(game.credits)}`} detail="可用于建设、运营和交易" tone="success" />
             <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} detail="未成交买单的服务器冻结额" tone="warning" />
@@ -130,7 +130,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
               value={`¤ ${formatCurrency(derived.commodityValue)}`}
               detail={`可用与冻结商品合计 ${game.warehouseStoredQuantity}`}
             />
-            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${totalFacilities} 座，按类型数量与系统估值计算`} tone="info" />
+            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${totalFacilities} 座，按各类型最高有效买价计算`} tone="info" />
           </div>
         </Panel>
 
@@ -139,7 +139,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
           <div className="product-asset-grid">
             {game.products.map((product) => {
               const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
-              const price = game.markets[product.id]?.lastPrice ?? product.basePrice;
+              const price = game.valuationPrices[`commodity:${product.id}`] ?? 0;
               const value = (inventory.available + inventory.frozen) * price;
               return (
                 <button
@@ -153,21 +153,11 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                 >
                   <span>{product.name}</span>
                   <strong>¤ {formatCurrency(value)}</strong>
-                  <small>可用 {inventory.available} · 冻结 {inventory.frozen} · 参考价 ¤ {price}</small>
+                  <small>可用 {inventory.available} · 冻结 {inventory.frozen} · 估值买价 ¤ {price || '--'}</small>
                 </button>
               );
             })}
           </div>
-        </Panel>
-
-        <Panel className="widget">
-          <WidgetHeading title="货币发行与回收" />
-          <DataList>
-            <DataRow label="工作发行" value={`+¤ ${game.stats.workIssued}`} tone="success" />
-            <DataRow label="需求发行" value={`+¤ ${game.stats.populationIssued}`} tone="success" />
-            <DataRow label="系统回收" value={`-¤ ${game.stats.systemSinks}`} tone="danger" />
-            <DataRow label="当前净变化" value={`¤ ${formatCurrency(game.stats.workIssued + game.stats.populationIssued - game.stats.systemSinks)}`} />
-          </DataList>
         </Panel>
 
         <Panel className="widget span-2 asset-event-panel">

@@ -1,22 +1,26 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { getCurrentUser } from '../api/auth';
 import type { AuthUser } from '../types';
+import { AdminApp } from './AdminApp';
 import { GameApp } from './GameApp';
 import { LoginPage } from './LoginPage';
 
-type AppSurface = 'loading' | 'auth' | 'game';
+type AppSurface = 'loading' | 'auth' | 'game' | 'admin';
+
+function isAdminPath() {
+  return window.location.pathname.replace(/\/+$/, '') === '/economy/admin';
+}
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [checking, setChecking] = useState(true);
   const [authError, setAuthError] = useState('');
-  const surface: AppSurface = checking ? 'loading' : user ? 'game' : 'auth';
+  const adminPath = isAdminPath();
+  const surface: AppSurface = checking ? 'loading' : user ? (adminPath ? 'admin' : 'game') : 'auth';
 
   useLayoutEffect(() => {
     document.documentElement.dataset.appSurface = surface;
-    return () => {
-      delete document.documentElement.dataset.appSurface;
-    };
+    return () => { delete document.documentElement.dataset.appSurface; };
   }, [surface]);
 
   useEffect(() => {
@@ -35,5 +39,6 @@ export default function App() {
       </>
     );
   }
+  if (adminPath) return <AdminApp user={user} />;
   return <GameApp user={user} onSignedOut={() => setUser(null)} />;
 }

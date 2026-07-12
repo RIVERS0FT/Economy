@@ -27,6 +27,7 @@ function reservedBuyQuantity(world, userId) {
   return (world?.orders || []).reduce((sum, order) => {
     if (
       Number(order?.ownerId) !== Number(userId)
+      || order?.assetKind === 'facility'
       || order?.side !== 'buy'
       || !isOpenOrder(order)
     ) return sum;

@@ -62,11 +62,20 @@ function requireIdempotencyKey(request) {
   return key;
 }
 
+function requireAdmin(user) {
+  if (user?.role !== 'admin') {
+    const error = new Error('需要管理员权限');
+    error.statusCode = 403;
+    throw error;
+  }
+}
+
 function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/work') return { action: 'work', category: 'general' };
   if (method === 'POST' && path === '/api/game/facilities') return { action: 'buildFacility', category: 'general' };
   if (method === 'POST' && path === '/api/game/orders') return { action: 'placeOrder', category: 'orders' };
   if (method === 'POST' && path === '/api/game/warehouse/upgrade') return { action: 'upgradeWarehouse', category: 'general' };
+  if (method === 'POST' && path === '/api/game/gifts/redeem') return { action: 'redeemGift', category: 'general' };
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/reset') return { action: 'resetPlayer', category: 'general' };
 
@@ -135,6 +144,41 @@ const server = createServer(async (request, response) => {
 
     if (method === 'GET' && path === '/api/game/state') {
       sendJson(response, 200, { state: store.getState(user) });
+      return;
+    }
+
+    if (path.startsWith('/api/game/admin/')) {
+      requireAdmin(user);
+      if (method === 'GET' && path === '/api/game/admin/summary') {
+        sendJson(response, 200, { summary: store.getAdminSummary(user) });
+        return;
+      }
+      if (method === 'GET' && path === '/api/game/admin/gift-codes') {
+        sendJson(response, 200, { giftCodes: store.listGiftCodes(user) });
+        return;
+      }
+      if (method === 'POST' && path === '/api/game/admin/gift-codes') {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, {
+          giftCode: store.createGiftCode(user, body, { requestKey, method, path }),
+        });
+        return;
+      }
+      const disableMatch = path.match(/^\/api\/game\/admin\/gift-codes\/(\d+)\/disable$/);
+      if (method === 'POST' && disableMatch) {
+        const requestKey = requireIdempotencyKey(request);
+        sendJson(response, 200, store.disableGiftCode(user, Number(disableMatch[1]), { requestKey, method, path }));
+        return;
+      }
+      const redemptionsMatch = path.match(/^\/api\/game\/admin\/gift-codes\/(\d+)\/redemptions$/);
+      if (method === 'GET' && redemptionsMatch) {
+        sendJson(response, 200, {
+          redemptions: store.listGiftRedemptions(user, Number(redemptionsMatch[1])),
+        });
+        return;
+      }
+      sendError(response, 404, '管理员接口不存在');
       return;
     }
 

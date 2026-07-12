@@ -9,6 +9,10 @@ import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
+const MAX_FACILITY_ORDER_QUANTITY = 1_000_000;
+const MAX_ORDER_PRICE = 1_000_000;
+const MAX_OPEN_ORDERS = 10;
+const MAX_PRICE_POINTS = 288;
 
 function result(ok, message) {
   return { ok, message };
@@ -35,17 +39,41 @@ function typeFor(typeId) {
   return TYPES.get(String(typeId || ''));
 }
 
-function listingsFor(world, ownerId, typeId) {
-  return (world.facilityListings || []).filter((listing) => (
-    listing.ownerId === ownerId && listing.facilityTypeId === typeId
+function isOpenOrder(order) {
+  return order?.remaining > 0 && (order.status === 'open' || order.status === 'partial');
+}
+
+function orderKind(order) {
+  return order?.assetKind === 'facility' || order?.facilityTypeId ? 'facility' : 'commodity';
+}
+
+function orderAssetId(order) {
+  return orderKind(order) === 'facility'
+    ? String(order.assetId || order.facilityTypeId || '')
+    : String(order.assetId || order.productId || 'grain');
+}
+
+function normalizeOrder(order) {
+  const kind = orderKind(order);
+  const assetId = orderAssetId(order);
+  order.assetKind = kind;
+  order.assetId = assetId;
+  if (kind === 'facility') order.facilityTypeId = assetId;
+  else order.productId = assetId;
+  return order;
+}
+
+function facilityOrders(world, typeId) {
+  return (world.orders || []).filter((order) => (
+    orderKind(order) === 'facility' && orderAssetId(order) === typeId
   ));
 }
 
 function listedQuantity(world, ownerId, typeId) {
-  return listingsFor(world, ownerId, typeId).reduce(
-    (sum, listing) => sum + Math.max(0, Number(listing.quantity || 0)),
-    0,
-  );
+  return facilityOrders(world, typeId).reduce((sum, order) => {
+    if (Number(order.ownerId) !== Number(ownerId) || order.side !== 'sell' || !isOpenOrder(order)) return sum;
+    return sum + Math.max(0, Number(order.remaining || 0));
+  }, 0);
 }
 
 function createGroup(typeId, overrides = {}) {
@@ -91,30 +119,76 @@ function groupFor(player, typeId, create = false) {
   return group;
 }
 
+function seedFacilityHistory(type, now) {
+  const offsets = [-4, -2, 0, 2, 1, 3, 0, -1, 2, 0, 1, 0];
+  return offsets.map((offset, index) => ({
+    price: Math.max(1, type.systemValue + offset),
+    quantity: 1 + (index % 3),
+    createdAt: now - 120_000 * (offsets.length - index),
+  }));
+}
+
+function createFacilityMarket(type, now) {
+  return {
+    facilityTypeId: type.id,
+    lastPrice: type.systemValue,
+    priceHistory: seedFacilityHistory(type, now),
+  };
+}
+
+function facilityMarketFor(world, typeId, now = Date.now()) {
+  const type = typeFor(typeId);
+  if (!type) return null;
+  world.facilityMarkets ||= {};
+  world.facilityMarkets[type.id] ||= createFacilityMarket(type, now);
+  return world.facilityMarkets[type.id];
+}
+
+function recordFacilityPrice(world, typeId, price, quantity, createdAt) {
+  const market = facilityMarketFor(world, typeId, createdAt);
+  if (!market) return;
+  market.lastPrice = price;
+  market.priceHistory.push({ price, quantity, createdAt });
+  market.priceHistory = market.priceHistory.slice(-MAX_PRICE_POINTS);
+}
+
 function migrateLegacyListings(world) {
-  world.facilityListings ||= [];
-  const migrated = [];
-  for (const listing of world.facilityListings) {
-    const facilityTypeId = listing.facilityTypeId || listing.facility?.facilityTypeId || 'farm';
-    const type = typeFor(facilityTypeId);
-    if (!type) continue;
-    migrated.push({
-      id: String(listing.id || `facility-listing-${facilityTypeId}-${migrated.length}`),
+  world.orders ||= [];
+  for (const order of world.orders) normalizeOrder(order);
+  const legacyListings = Array.isArray(world.facilityListings) ? world.facilityListings : [];
+  for (const listing of legacyListings) {
+    const typeId = String(listing.facilityTypeId || listing.facility?.facilityTypeId || 'farm');
+    const type = typeFor(typeId);
+    if (!type || world.orders.some((order) => order.id === listing.id)) continue;
+    const quantity = Math.max(1, Math.floor(Number(listing.quantity || 1)));
+    world.orders.push({
+      id: String(listing.id || `facility-order-${type.id}-${world.orders.length}`),
+      assetKind: 'facility',
+      assetId: type.id,
       facilityTypeId: type.id,
+      side: 'sell',
       ownerType: listing.ownerType === 'player' ? 'player' : 'market',
       ownerId: listing.ownerId,
       ownerName: String(listing.ownerName || '系统资产市场'),
-      quantity: Math.max(1, Math.floor(Number(listing.quantity || 1))),
-      unitPrice: Math.max(1, Math.floor(Number(listing.unitPrice || listing.price || type.systemValue))),
+      price: Math.max(1, Math.floor(Number(listing.unitPrice || listing.price || type.systemValue))),
+      quantity,
+      remaining: quantity,
+      status: 'open',
       createdAt: Number(listing.createdAt || Date.now()),
     });
   }
-  world.facilityListings = migrated;
+  world.facilityListings = [];
 }
 
-function migrateLegacyPlayer(player, world, now) {
+function migrateLegacyPlayer(player, now) {
   ensureWarehouse(player);
   player.facilityGroups ||= [];
+  player.stats ||= {};
+  player.stats.workClicks = Number(player.stats.workClicks ?? player.work?.totalClicks ?? 0);
+  player.stats.producedGoods = Number(player.stats.producedGoods || 0);
+  player.stats.boughtGoods = Number(player.stats.boughtGoods || 0);
+  player.stats.soldGoods = Number(player.stats.soldGoods || 0);
+  player.stats.giftIssued = Number(player.stats.giftIssued || 0);
 
   if (Array.isArray(player.facilities) && player.facilities.length > 0) {
     const byType = new Map();
@@ -123,7 +197,6 @@ function migrateLegacyPlayer(player, world, now) {
       if (!type) continue;
       const legacyGoods = Math.max(0, Number(facility.internalGoods || 0));
       if (legacyGoods > 0) inventoryFor(player, type.output.productId).available += legacyGoods;
-
       if (facility.status === 'constructing') {
         if (!player.facilityConstruction) {
           player.facilityConstruction = {
@@ -134,12 +207,10 @@ function migrateLegacyPlayer(player, world, now) {
         }
         continue;
       }
-
       const bucket = byType.get(type.id) || [];
       bucket.push(facility);
       byType.set(type.id, bucket);
     }
-
     for (const [typeId, facilities] of byType) {
       const existing = groupFor(player, typeId, true);
       if (existing.count > 0) continue;
@@ -168,8 +239,11 @@ function migrateLegacyPlayer(player, world, now) {
 
 export function migrateFacilityGroupWorld(world, now = Date.now()) {
   world.players ||= {};
+  world.orders ||= [];
   migrateLegacyListings(world);
-  for (const player of Object.values(world.players)) migrateLegacyPlayer(player, world, now);
+  world.facilityMarkets ||= {};
+  for (const type of FACILITY_TYPE_CATALOG) facilityMarketFor(world, type.id, now);
+  for (const player of Object.values(world.players)) migrateLegacyPlayer(player, now);
 
   for (const player of Object.values(world.players)) {
     for (const group of player.facilityGroups || []) {
@@ -187,7 +261,7 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
         );
         if (group.participatingCount < 1) {
           group.status = 'paused';
-          group.stopReason = 'manual';
+          group.stopReason = listed > 0 ? 'listed' : 'manual';
           group.participatingCount = 0;
           group.pendingJoinCount = 0;
           delete group.cycleStartedAt;
@@ -196,18 +270,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 4;
+  world.version = 5;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
-  for (const listing of world.facilityListings || []) {
-    delete listing.facility;
-    delete listing.facilityId;
-    delete listing.price;
-  }
-  world.version = 4;
+  world.facilityListings = [];
+  world.version = 5;
   return world;
 }
 
@@ -222,7 +292,7 @@ function withLegacyFacilitiesSuppressed(world, callback) {
   try {
     return callback();
   } finally {
-    world.facilityListings = listings;
+    world.facilityListings = listings || [];
     for (const snapshot of playerSnapshots) {
       if (snapshot.facilities === undefined) delete snapshot.player.facilities;
       else snapshot.player.facilities = snapshot.facilities;
@@ -300,6 +370,7 @@ function executeCycles(player, group, type, count, cycles) {
   const cost = requirements.cost * cycles;
   player.credits -= cost;
   player.stats.systemSinks += cost;
+  player.stats.producedGoods = Number(player.stats.producedGoods || 0) + outputQuantity;
   if (type.input) inventoryFor(player, type.input.productId).available -= inputQuantity;
   inventoryFor(player, type.output.productId).available += outputQuantity;
   group.completedQuantity += outputQuantity;
@@ -311,9 +382,8 @@ function finishConstruction(player, now) {
   if (!construction || now < construction.completesAt) return;
   const group = groupFor(player, construction.facilityTypeId, true);
   group.count += 1;
-  if (group.status === 'running') {
-    group.pendingJoinCount += 1;
-  } else {
+  if (group.status === 'running') group.pendingJoinCount += 1;
+  else {
     group.status = group.count === 1 ? 'ready' : 'paused';
     group.stopReason = 'manual';
   }
@@ -351,14 +421,7 @@ function processGroup(world, player, group, now) {
   }
 
   if (elapsedCycles > 0) {
-    const cycles = maxExecutableCycles(
-      world,
-      player,
-      group,
-      type,
-      group.participatingCount,
-      elapsedCycles,
-    );
+    const cycles = maxExecutableCycles(world, player, group, type, group.participatingCount, elapsedCycles);
     executeCycles(player, group, type, group.participatingCount, cycles);
     elapsedCycles -= cycles;
   }
@@ -369,8 +432,131 @@ function processGroup(world, player, group, now) {
   }
 
   const blocked = blockReason(world, player, group, type, group.participatingCount);
-  if (elapsedCycles > 0 || blocked) {
-    stopGroup(group, blocked?.status || 'paused', blocked?.reason || 'maintenance');
+  if (elapsedCycles > 0 || blocked) stopGroup(group, blocked?.status || 'paused', blocked?.reason || 'maintenance');
+}
+
+function sortCandidates(orders, incomingSide) {
+  return [...orders].sort((left, right) => {
+    if (left.price !== right.price) return incomingSide === 'buy' ? left.price - right.price : right.price - left.price;
+    return left.createdAt - right.createdAt;
+  });
+}
+
+function describeCounterparty(order) {
+  return order.ownerName || (order.ownerType === 'market' ? '系统资产市场' : '玩家');
+}
+
+function addPurchasedGroup(player, typeId, quantity) {
+  const group = groupFor(player, typeId, true);
+  group.count += quantity;
+  if (group.status === 'running') group.pendingJoinCount += quantity;
+  else {
+    group.status = group.count === quantity ? 'ready' : 'paused';
+    group.stopReason = 'manual';
+  }
+  return group;
+}
+
+function executeFacilityTrade(world, incoming, resting, quantity, createdAt) {
+  const buy = incoming.side === 'buy' ? incoming : resting;
+  const sell = incoming.side === 'sell' ? incoming : resting;
+  const typeId = orderAssetId(incoming);
+  const price = resting.price;
+
+  incoming.remaining -= quantity;
+  resting.remaining -= quantity;
+  incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
+  resting.status = resting.remaining === 0 ? 'filled' : 'partial';
+
+  if (buy.ownerType === 'player') {
+    const buyer = world.players[String(buy.ownerId)];
+    if (!buyer) throw new Error(`Missing facility buyer ${buy.ownerId}`);
+    const reserved = quantity * buy.price;
+    const actual = quantity * price;
+    buyer.frozenCredits -= reserved;
+    buyer.credits += reserved - actual;
+    buyer.stats.facilityVolume = Number(buyer.stats.facilityVolume || 0) + actual;
+    addPurchasedGroup(buyer, typeId, quantity);
+  }
+
+  if (sell.ownerType === 'player') {
+    const seller = world.players[String(sell.ownerId)];
+    if (!seller) throw new Error(`Missing facility seller ${sell.ownerId}`);
+    const group = groupFor(seller, typeId);
+    if (!group || group.count < quantity) throw new Error('卖方工厂数量不足');
+    group.count -= quantity;
+    seller.credits += quantity * price;
+    seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + quantity * price;
+    if (group.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== group);
+  }
+
+  recordFacilityPrice(world, typeId, price, quantity, createdAt);
+}
+
+function matchFacilityOrder(world, incoming, createdAt) {
+  const opposite = incoming.side === 'buy' ? 'sell' : 'buy';
+  const typeId = orderAssetId(incoming);
+  const candidates = sortCandidates(
+    facilityOrders(world, typeId).filter((order) => (
+      order.id !== incoming.id
+      && order.side === opposite
+      && isOpenOrder(order)
+      && !(order.ownerType === 'player' && incoming.ownerType === 'player' && order.ownerId === incoming.ownerId)
+      && (incoming.side === 'buy' ? order.price <= incoming.price : order.price >= incoming.price)
+    )),
+    incoming.side,
+  );
+  for (const candidate of candidates) {
+    if (!isOpenOrder(incoming)) break;
+    executeFacilityTrade(world, incoming, candidate, Math.min(incoming.remaining, candidate.remaining), createdAt);
+  }
+}
+
+function refreshFacilityLiquidity(world, now) {
+  for (const type of FACILITY_TYPE_CATALOG) {
+    const market = facilityMarketFor(world, type.id, now);
+    const openBuy = facilityOrders(world, type.id).filter((order) => (
+      order.ownerType === 'market' && order.side === 'buy' && isOpenOrder(order)
+    ));
+    const openSell = facilityOrders(world, type.id).filter((order) => (
+      order.ownerType === 'market' && order.side === 'sell' && isOpenOrder(order)
+    ));
+    if (openBuy.length < 1) {
+      const order = {
+        id: `facility-market-buy-${type.id}-${crypto.randomUUID()}`,
+        assetKind: 'facility',
+        assetId: type.id,
+        facilityTypeId: type.id,
+        side: 'buy',
+        ownerType: 'market',
+        ownerName: '系统资产采购',
+        price: Math.max(1, Math.floor(market.lastPrice * 0.9)),
+        quantity: 3,
+        remaining: 3,
+        status: 'open',
+        createdAt: now,
+      };
+      world.orders.push(order);
+      matchFacilityOrder(world, order, now);
+    }
+    if (openSell.length < 1) {
+      const order = {
+        id: `facility-market-sell-${type.id}-${crypto.randomUUID()}`,
+        assetKind: 'facility',
+        assetId: type.id,
+        facilityTypeId: type.id,
+        side: 'sell',
+        ownerType: 'market',
+        ownerName: '系统资产供给',
+        price: Math.max(1, Math.ceil(market.lastPrice * 1.1)),
+        quantity: 2,
+        remaining: 2,
+        status: 'open',
+        createdAt: now,
+      };
+      world.orders.push(order);
+      matchFacilityOrder(world, order, now);
+    }
   }
 }
 
@@ -383,6 +569,7 @@ export function processFacilityGroupWorld(world, now = Date.now()) {
     finishConstruction(player, now);
     for (const group of player.facilityGroups || []) processGroup(world, player, group, now);
   }
+  refreshFacilityLiquidity(world, now);
   stripLegacyFacilityInstances(world);
   world.lastProcessedAt = now;
   return world;
@@ -417,7 +604,7 @@ function startFacilityGroup(world, userId, payload, now) {
   if (!type || !group || group.count < 1) return result(false, '工厂集群不存在');
   if (group.status === 'running') return result(false, '工厂集群已经运行');
   const availableCount = Math.max(0, group.count - listedQuantity(world, userId, type.id));
-  if (availableCount < 1) return result(false, '没有未挂牌工厂可启动');
+  if (availableCount < 1) return result(false, '没有未冻结工厂可启动');
   const blocked = blockReason(world, player, group, type, availableCount);
   if (blocked) {
     group.status = blocked.status;
@@ -429,7 +616,7 @@ function startFacilityGroup(world, userId, payload, now) {
   group.participatingCount = availableCount;
   group.pendingJoinCount = 0;
   group.cycleStartedAt = now;
-  return result(true, `${type.name}集群已启动，${availableCount} 座未挂牌工厂参与生产`);
+  return result(true, `${type.name}集群已启动，${availableCount} 座未冻结工厂参与生产`);
 }
 
 function pauseFacilityGroup(world, userId, payload) {
@@ -449,7 +636,7 @@ function setGroupPlan(world, userId, payload) {
   if (!group) return result(false, '工厂集群不存在');
   if (group.status === 'running') return result(false, '请先停止工厂集群再修改生产计划');
   const availableCount = Math.max(0, group.count - listedQuantity(world, userId, type.id));
-  if (availableCount < 1) return result(false, '没有未挂牌工厂可设置生产计划');
+  if (availableCount < 1) return result(false, '没有未冻结工厂可设置生产计划');
   const mode = payload.mode === 'target' ? 'target' : payload.mode === 'continuous' ? 'continuous' : null;
   if (!mode) return result(false, '生产模式无效');
   group.completedQuantity = 0;
@@ -471,108 +658,99 @@ function setGroupPlan(world, userId, payload) {
   return result(true, `${type.name}集群已设置定量计划：${targetQuantity}`);
 }
 
-function listFacilityGroup(world, userId, payload, now) {
-  const player = getPlayer(world, userId);
-  const type = typeFor(payload.facilityTypeId);
-  const group = type ? groupFor(player, type.id) : null;
-  const quantity = normalizePositiveInteger(payload.quantity, 1_000_000);
-  const unitPrice = normalizePositiveInteger(payload.unitPrice ?? payload.price, 1_000_000);
-  if (!type || !group) return result(false, '工厂集群不存在');
-  if (group.status === 'running') return result(false, '请先统一停止该工厂集群');
-  if (!quantity || quantity > group.count - listedQuantity(world, userId, type.id)) {
-    return result(false, '可挂牌工厂数量不足');
+function reduceRunningGroupForSellOrder(group, type, quantity) {
+  if (group.status !== 'running') return;
+  let remaining = quantity;
+  const activeReduction = Math.min(group.participatingCount, remaining);
+  group.participatingCount -= activeReduction;
+  remaining -= activeReduction;
+  if (remaining > 0) {
+    const pendingReduction = Math.min(group.pendingJoinCount, remaining);
+    group.pendingJoinCount -= pendingReduction;
   }
-  if (!unitPrice || unitPrice < type.systemValue * 0.5 || unitPrice > type.systemValue * 2) {
-    return result(false, '单座挂牌价必须在系统估值的 50%～200% 之间');
+  if (group.participatingCount < 1) {
+    stopGroup(group, 'paused', 'listed');
+    return;
   }
-
-  const existing = world.facilityListings.find((listing) => (
-    listing.ownerId === userId
-    && listing.facilityTypeId === type.id
-    && listing.unitPrice === unitPrice
-  ));
-  if (existing) existing.quantity += quantity;
-  else {
-    world.facilityListings.push({
-      id: `facility-listing-${crypto.randomUUID()}`,
-      facilityTypeId: type.id,
-      ownerType: 'player',
-      ownerId: userId,
-      ownerName: player.playerName,
-      quantity,
-      unitPrice,
-      createdAt: now,
-    });
-  }
-  return result(true, `${quantity} 座${type.name}已按单价 ¤${unitPrice} 挂牌；挂牌工厂不参与生产`);
-}
-
-function cancelGroupListing(world, userId, payload) {
-  const listing = world.facilityListings.find((item) => item.id === payload.listingId && item.ownerId === userId);
-  if (!listing) return result(false, '工厂挂牌不存在');
-  world.facilityListings = world.facilityListings.filter((item) => item.id !== listing.id);
-  const player = getPlayer(world, userId);
-  const group = groupFor(player, listing.facilityTypeId);
-  if (group?.status === 'running') {
-    group.pendingJoinCount += listing.quantity;
-  } else if (group && (group.status === 'listed' || group.stopReason === 'listed')) {
-    group.status = group.count === 1 ? 'ready' : 'paused';
-    group.stopReason = 'manual';
-  }
-  return result(true, `已撤销 ${listing.quantity} 座${typeFor(listing.facilityTypeId)?.name || '工厂'}挂牌`);
-}
-
-function addPurchasedGroup(player, typeId, quantity) {
-  const group = groupFor(player, typeId, true);
-  group.count += quantity;
-  if (group.status === 'running') group.pendingJoinCount += quantity;
-  else {
-    group.status = group.count === quantity ? 'ready' : 'paused';
-    group.stopReason = 'manual';
-  }
-  return group;
-}
-
-function buyFacilityGroup(world, userId, payload, now) {
-  const buyer = getPlayer(world, userId);
-  const listing = world.facilityListings.find((item) => item.id === payload.listingId);
-  const quantity = normalizePositiveInteger(payload.quantity || 1, 1_000_000);
-  if (!listing || listing.ownerId === userId) return result(false, '无法购买该挂牌');
-  if (!quantity || quantity > listing.quantity) return result(false, '购买数量超过挂牌数量');
-  const total = quantity * listing.unitPrice;
-  if (buyer.credits < total) return result(false, '购买资金不足');
-
-  if (listing.ownerType === 'player') {
-    const seller = getPlayer(world, listing.ownerId);
-    const sellerGroup = groupFor(seller, listing.facilityTypeId);
-    if (!sellerGroup || sellerGroup.count < quantity) return result(false, '卖方工厂数量不足');
-    sellerGroup.count -= quantity;
-    seller.credits += total;
-    seller.stats.facilityVolume += total;
-    if (sellerGroup.count === 0) {
-      seller.facilityGroups = seller.facilityGroups.filter((group) => group !== sellerGroup);
+  if (group.productionMode === 'target') {
+    const cycleOutput = type.output.quantity * group.participatingCount;
+    const remainingTarget = Math.max(0, Number(group.targetQuantity || 0) - group.completedQuantity);
+    if (remainingTarget < cycleOutput || remainingTarget % cycleOutput !== 0) {
+      stopGroup(group, 'paused', 'plan_adjustment_required');
     }
   }
-
-  buyer.credits -= total;
-  buyer.stats.facilityVolume += total;
-  addPurchasedGroup(buyer, listing.facilityTypeId, quantity);
-  listing.quantity -= quantity;
-  if (listing.quantity === 0) world.facilityListings = world.facilityListings.filter((item) => item.id !== listing.id);
-
-  const type = typeFor(listing.facilityTypeId);
-  return result(true, `已收购 ${quantity} 座${type?.name || '工厂'}，总价 ¤${total}`);
 }
 
-function renameListings(world, userId) {
+function placeFacilityOrder(world, userId, payload, now) {
   const player = getPlayer(world, userId);
-  for (const listing of world.facilityListings || []) {
-    if (listing.ownerId === userId) listing.ownerName = player.playerName;
+  const side = payload.side === 'buy' ? 'buy' : payload.side === 'sell' ? 'sell' : null;
+  const typeId = String(payload.assetId || payload.facilityTypeId || '');
+  const type = typeFor(typeId);
+  const quantity = normalizePositiveInteger(payload.quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const price = normalizePositiveInteger(payload.price ?? payload.unitPrice, MAX_ORDER_PRICE);
+  if (!side || !type || !quantity || !price) return result(false, '工厂订单参数无效');
+  const openOrders = (world.orders || []).filter((order) => Number(order.ownerId) === userId && isOpenOrder(order));
+  if (openOrders.length >= MAX_OPEN_ORDERS) return result(false, '未完成订单数量已达上限');
+  if (price < Math.ceil(type.systemValue * 0.5) || price > type.systemValue * 2) {
+    return result(false, '工厂订单价格必须在系统参考价的 50%～200% 之间');
   }
+
+  if (side === 'buy') {
+    const total = quantity * price;
+    if (player.credits < total) return result(false, '可用资金不足');
+    player.credits -= total;
+    player.frozenCredits += total;
+  } else {
+    const group = groupFor(player, type.id);
+    const available = group ? Math.max(0, group.count - listedQuantity(world, userId, type.id)) : 0;
+    if (!group || quantity > available) return result(false, '可出售工厂数量不足');
+    reduceRunningGroupForSellOrder(group, type, quantity);
+  }
+
+  const order = {
+    id: `facility-order-${crypto.randomUUID()}`,
+    assetKind: 'facility',
+    assetId: type.id,
+    facilityTypeId: type.id,
+    side,
+    ownerType: 'player',
+    ownerId: userId,
+    ownerName: player.playerName,
+    price,
+    quantity,
+    remaining: quantity,
+    status: 'open',
+    createdAt: now,
+  };
+  world.orders.push(order);
+  matchFacilityOrder(world, order, now);
+  return result(true, order.status === 'filled' ? '工厂订单已全部成交' : order.status === 'partial' ? '工厂订单已部分成交' : '工厂订单已进入订单簿');
+}
+
+function cancelFacilityOrder(world, userId, order) {
+  const player = getPlayer(world, userId);
+  if (order.side === 'buy') {
+    const release = order.remaining * order.price;
+    player.frozenCredits -= release;
+    player.credits += release;
+  } else {
+    const group = groupFor(player, orderAssetId(order));
+    if (group?.status === 'running') group.pendingJoinCount += order.remaining;
+    else if (group && group.stopReason === 'listed') {
+      group.status = group.count === 1 ? 'ready' : 'paused';
+      group.stopReason = 'manual';
+    }
+  }
+  order.status = 'cancelled';
+  return result(true, '订单已撤销，冻结资产已释放');
+}
+
+function renameFacilityOrders(world, userId) {
+  const player = getPlayer(world, userId);
+  for (const order of world.orders || []) if (order.ownerId === userId) order.ownerName = player.playerName;
 }
 
 function resetFacilityGroups(world, userId) {
-  world.facilityListings = (world.facilityListings || []).filter((listing) => listing.ownerId !== userId);
   const player = getPlayer(world, userId);
   player.facilityGroups = [];
   delete player.facilityConstruction;
@@ -586,47 +764,92 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
   if (action === 'startFacility') return startFacilityGroup(world, userId, payload, now);
   if (action === 'pauseFacility') return pauseFacilityGroup(world, userId, payload);
   if (action === 'setProductionPlan') return setGroupPlan(world, userId, payload);
-  if (action === 'listFacility') return listFacilityGroup(world, userId, payload, now);
-  if (action === 'cancelFacilityListing') return cancelGroupListing(world, userId, payload);
-  if (action === 'buyFacility') return buyFacilityGroup(world, userId, payload, now);
+  if (action === 'placeOrder' && payload.assetKind === 'facility') return placeFacilityOrder(world, userId, payload, now);
+  if (action === 'listFacility') return placeFacilityOrder(world, userId, {
+    assetKind: 'facility',
+    assetId: payload.facilityTypeId,
+    side: 'sell',
+    quantity: payload.quantity,
+    price: payload.unitPrice ?? payload.price,
+  }, now);
+  if (action === 'cancelOrder') {
+    const order = (world.orders || []).find((item) => item.id === payload.orderId && item.ownerId === userId && isOpenOrder(item));
+    if (order && orderKind(order) === 'facility') return cancelFacilityOrder(world, userId, order);
+  }
+  if (action === 'cancelFacilityListing') {
+    const order = (world.orders || []).find((item) => item.id === payload.listingId && item.ownerId === userId && isOpenOrder(item));
+    if (order && orderKind(order) === 'facility') return cancelFacilityOrder(world, userId, order);
+    return result(false, '工厂卖单不存在');
+  }
+  if (action === 'buyFacility') {
+    const listing = (world.orders || []).find((item) => item.id === payload.listingId && isOpenOrder(item) && orderKind(item) === 'facility' && item.side === 'sell');
+    if (!listing) return result(false, '工厂卖单不存在');
+    return placeFacilityOrder(world, userId, {
+      assetKind: 'facility', assetId: orderAssetId(listing), side: 'buy',
+      quantity: payload.quantity || 1, price: listing.price,
+    }, now);
+  }
 
-  const listings = world.facilityListings;
-  const actionResult = withLegacyFacilitiesSuppressed(
-    world,
-    () => applyAction(world, user, action, payload, now),
-  );
-  world.facilityListings = listings;
+  const actionResult = withLegacyFacilitiesSuppressed(world, () => applyAction(world, user, action, payload, now));
   migrateFacilityGroupWorld(world, now);
-  if (action === 'renamePlayer' && actionResult.ok) renameListings(world, userId);
+  if (action === 'renamePlayer' && actionResult.ok) renameFacilityOrders(world, userId);
   if (action === 'resetPlayer' && actionResult.ok) resetFacilityGroups(world, userId);
   stripLegacyFacilityInstances(world);
   return actionResult;
 }
 
-function totalAssets(world, player) {
-  const inventoryValue = PRODUCT_CATALOG.reduce((sum, product) => {
+function bestBidFor(world, kind, assetId, excludedUserId) {
+  return (world.orders || [])
+    .filter((order) => (
+      orderKind(order) === kind
+      && orderAssetId(order) === assetId
+      && order.side === 'buy'
+      && isOpenOrder(order)
+      && Number(order.ownerId) !== Number(excludedUserId)
+    ))
+    .reduce((best, order) => Math.max(best, Number(order.price || 0)), 0);
+}
+
+function assetSummaryFor(world, player) {
+  const commodityValue = PRODUCT_CATALOG.reduce((sum, product) => {
     const inventory = inventoryFor(player, product.id);
-    const price = Number(world.markets?.[product.id]?.lastPrice || product.basePrice);
+    const price = bestBidFor(world, 'commodity', product.id, player.userId);
     return sum + (inventory.available + inventory.frozen) * price;
   }, 0);
-  const facilityValue = (player.facilityGroups || []).reduce((sum, group) => {
-    const type = typeFor(group.facilityTypeId);
-    return sum + group.count * Number(type?.systemValue || 0);
-  }, 0);
-  return player.credits + player.frozenCredits + inventoryValue + facilityValue;
+  const facilityValue = (player.facilityGroups || []).reduce((sum, group) => (
+    sum + group.count * bestBidFor(world, 'facility', group.facilityTypeId, player.userId)
+  ), 0);
+  const cashValue = player.credits + player.frozenCredits;
+  return { cashValue, commodityValue, facilityValue, totalAssets: cashValue + commodityValue + facilityValue };
+}
+
+function valuationPricesFor(world, player) {
+  return {
+    ...Object.fromEntries(PRODUCT_CATALOG.map((product) => [
+      `commodity:${product.id}`,
+      bestBidFor(world, 'commodity', product.id, player.userId),
+    ])),
+    ...Object.fromEntries(FACILITY_TYPE_CATALOG.map((type) => [
+      `facility:${type.id}`,
+      bestBidFor(world, 'facility', type.id, player.userId),
+    ])),
+  };
 }
 
 function createLeaderboard(world, currentUserId, now) {
   return Object.values(world.players || {})
-    .map((player) => ({
-      playerName: player.playerName,
-      totalAssets: totalAssets(world, player),
-      cashAssets: player.credits + player.frozenCredits,
-      facilityCount: (player.facilityGroups || []).reduce((sum, group) => sum + group.count, 0),
-      weeklyChange: player.stats.workIssued + player.stats.populationIssued - player.stats.systemSinks,
-      updatedAt: now,
-      isCurrentPlayer: player.userId === currentUserId,
-    }))
+    .map((player) => {
+      const summary = assetSummaryFor(world, player);
+      return {
+        playerName: player.playerName,
+        totalAssets: summary.totalAssets,
+        cashAssets: summary.cashValue,
+        facilityCount: (player.facilityGroups || []).reduce((sum, group) => sum + group.count, 0),
+        weeklyChange: Number(player.stats.workIssued || 0) + Number(player.stats.populationIssued || 0) + Number(player.stats.giftIssued || 0) - Number(player.stats.systemSinks || 0),
+        updatedAt: now,
+        isCurrentPlayer: player.userId === currentUserId,
+      };
+    })
     .sort((left, right) => right.totalAssets - left.totalAssets || left.playerName.localeCompare(right.playerName))
     .slice(0, 100)
     .map((entry, index) => ({ rank: index + 1, ...entry }));
@@ -650,13 +873,18 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const base = withLegacyFacilitiesSuppressed(world, () => createClientState(world, userId, now));
   const player = getPlayer(world, userId);
   const { facilities: _legacyFacilities, ...withoutFacilities } = base;
+  const normalizedOrders = (world.orders || []).map((order) => clone(normalizeOrder(order)));
   return {
     ...withoutFacilities,
-    version: 8,
+    version: 9,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
     facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),
-    facilityListings: clone(world.facilityListings || []),
+    orders: normalizedOrders,
+    facilityListings: [],
+    facilityMarkets: clone(world.facilityMarkets || {}),
+    valuationPrices: valuationPricesFor(world, player),
+    assetSummary: assetSummaryFor(world, player),
     leaderboard: createLeaderboard(world, userId, now),
   };
 }

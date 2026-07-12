@@ -1,171 +1,26 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const failures = [];
-function requireFile(path) { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); }
-function forbidFile(path) { if (existsSync(resolve(root, path))) failures.push(`不应存在文件: ${path}`); }
-function requireText(path, text) { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); }
-function forbidText(path, text) { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); }
-function requireOrderedText(path, earlier, later) {
-  const content = read(path); const first = content.indexOf(earlier); const second = content.indexOf(later);
-  if (first < 0 || second < 0 || first >= second) failures.push(`${path} 必须先包含 ${earlier}，再包含 ${later}`);
-}
-
+const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push('缺少文件: ' + path); };
+const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(path + ' 缺少: ' + text); };
+const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
 [
-  'server/src/facility-groups.js',
-  'server/src/storage.js',
-  'server/src/index.js',
-  'server/test/facility-groups.test.js',
-  'server/test/listed-factory-production.test.js',
-  'src/types.ts',
-  'src/api/game.ts',
-  'src/app/gameViewModel.ts',
-  'src/components/facilities/FacilityProgress.tsx',
-  'src/components/warehouse/WarehouseUpgradeCard.tsx',
-  'src/pages/ProductionPage.tsx',
-  'src/pages/MarketPage.tsx',
-  'src/utils/localActivityStore.ts',
-  'src/styles/industry-system.css',
-  'src/styles/market-funds.css',
-  'docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md',
-  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
-  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-  'docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md',
-  'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
+  'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
+  'src/api/admin.ts','src/styles/unified-market-admin.css','server/src/facility-groups.js','server/src/storage.js',
+  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md'
 ].forEach(requireFile);
-
-forbidFile('server/src/direct-production.js');
-forbidFile('server/test/direct-production.test.js');
-
-for (const text of [
-  'export function migrateFacilityGroupWorld',
-  'export function stripLegacyFacilityInstances',
-  'export function processFacilityGroupWorld',
-  'export function applyFacilityGroupAction',
-  'export function createFacilityGroupClientState',
-  'facilityGroups',
-  'participatingCount',
-  'pendingJoinCount',
-  'nextCycleCount',
-  'group.participatingCount += group.pendingJoinCount',
-  'group.pendingJoinCount = 0',
-  'groupRequirements',
-  'type.output.quantity * participating',
-  'type.operatingCost * participating',
-  'stopGroup(group',
-  'plan_adjustment_required',
-  'listFacilityGroup',
-  'buyFacilityGroup',
-  'const availableCount = Math.max(0, group.count - listedQuantity',
-  'group.pendingJoinCount += listing.quantity',
-  'listing.quantity -= quantity',
-  'buyer.credits -= total',
-  'seller.credits += total',
-  'stripLegacyFacilityInstances(world)',
-  'world.version = 4',
-]) requireText('server/src/facility-groups.js', text);
-
-for (const text of [
-  'processFacilityGroupWorld', 'applyFacilityGroupAction', 'createFacilityGroupClientState',
-  'migrateFacilityGroupWorld', 'stripLegacyFacilityInstances', 'version: 8',
-  "this.database.exec('BEGIN IMMEDIATE')",
-]) requireText('server/src/storage.js', text);
-
-for (const text of [
-  '(start|pause|stop|list|plan)',
-  'routePayload: { facilityTypeId:',
-  "listingAction[2] === 'cancel' ? 'cancelFacilityListing' : 'buyFacility'",
-]) requireText('server/src/index.js', text);
-forbidText('server/src/index.js', '|collect');
-
-for (const text of [
-  'version: 8;', 'export interface FacilityGroup', 'facilityGroups: FacilityGroup[];',
-  'export interface FacilityConstruction', 'export interface FacilityListing',
-  'quantity: number;', 'unitPrice: number;', 'plan_adjustment_required',
-]) requireText('src/types.ts', text);
-for (const text of ['ProductionFacility', 'facilities: ProductionFacility[];', 'internalGoods', 'internalCapacity']) forbidText('src/types.ts', text);
-
-for (const text of [
-  'startFacility: (facilityTypeId: string)',
-  'setProductionPlan:',
-  'listFacility:',
-  'quantity: number',
-  'unitPrice: number',
-  'buyFacility: (listingId: string, quantity: number)',
-]) requireText('src/api/game.ts', text);
-for (const text of ['collectFacility', '/collect']) forbidText('src/api/game.ts', text);
-
-for (const text of [
-  'game.facilityGroups.map', 'FacilityGroupProgress', '当前参与', '下一周期', '待加入', '已挂牌',
-  '周期产量', '周期成本', '原料库存', '统一生产计划', '启动全部', '停止全部',
-  '挂牌工厂不参与生产', '挂牌数量', '单座价格', '下一生产周期加入',
-]) requireText('src/pages/ProductionPage.tsx', text);
-for (const text of [
-  'facility.id', 'facility.name', '展开管理', '实例列表', '小时产量', '小时运营费',
-  '累计产量', '系统参考估值', 'collectFacility', '领取产成品',
-]) forbidText('src/pages/ProductionPage.tsx', text);
-
-for (const text of [
-  'order-quick-fill', '1/4 仓', '1/2 仓', '全仓',
-  'const maxBuyQuantity', 'game.warehouseAvailableCapacity', 'Math.floor(game.credits / orderPrice)',
-  'const maxSellQuantity = selectedInventory.available',
-  'const bestAsks = derived.asks.slice(0, 5).reverse()',
-  'const bestBids = derived.bids.slice(0, 5)',
-  'single-order-book', 'order-book-divider', 'local-trades-table', 'localTrades.map', '工厂数量市场',
-]) requireText('src/pages/MarketPage.tsx', text);
-requireOrderedText('src/pages/MarketPage.tsx', '限价', '数量');
-requireOrderedText('src/pages/MarketPage.tsx', '数量', 'order-quick-fill');
-for (const text of [
-  'book-columns', 'aggregateOrderBook', 'listing.facility.', 'facilityId:',
-  'order-book-midpoint', '买入快捷数量按资金与仓库剩余空间共同计算',
-]) forbidText('src/pages/MarketPage.tsx', text);
-forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', '未完成买单剩余数量');
-
-for (const text of [
-  'same-type factories share one cycle',
-  'newly completed factory joins after the current cycle without resetting progress',
-  'same-type group starts and stops uniformly',
-  'processing group consumes input and charges cost for all participating factories',
-  'factory quantity listing and partial purchase transfer exact counts',
-  'purchased factories join a running group on the next cycle',
-  'pending join pauses an incompatible target plan after the current cycle',
-  'facility group actions remain idempotent',
-]) requireText('server/test/facility-groups.test.js', text);
-
-for (const text of [
-  'listed factories are excluded while unlisted factories can start and produce',
-  'target plan uses only unlisted factory quantity',
-  'cancelling a listing during production joins that quantity next cycle',
-  'selling listed factories does not stop the seller running group',
-]) requireText('server/test/listed-factory-production.test.js', text);
-
-for (const text of [
-  '.facility-group-list', '.facility-group-card', '.facility-group-counts', '.facility-group-specs',
-  '.facility-group-listing-control', '@media (max-width: 1380px)', '@media (max-width: 720px)',
-]) requireText('src/styles/industry-system.css', text);
-for (const text of [
-  '.order-quick-fill', '.single-order-book', 'align-self: stretch', '.order-book-stack', '.book-order-row',
-  '.order-book-divider', '.local-trades-table', 'max-height: none', '.listing-purchase-control',
-]) requireText('src/styles/market-funds.css', text);
-for (const text of ['.order-book-midpoint', 'align-self: start']) forbidText('src/styles/market-funds.css', text);
-
-for (const text of [
-  '# Economy 工厂集群与市场第三版设计',
-  '不存在单座工厂实例', '完成当前周期后从下一周期参与生产',
-  '同类型未挂牌工厂统一启动、统一停止', '挂牌工厂不参与生产', '未挂牌数量启动',
-  '工厂挂牌和购买按类型、数量和单座价格',
-  '限价在前、数量在后', '订单簿为单列', '买卖盘各最多 5 笔',
-  '无文字中性分隔线', '订单簿卡片必须使用网格默认拉伸',
-  '市场页本地成交记录必须遍历全部当前已加载的 `localTrades`',
-]) requireText('docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', text);
-
-forbidText('server/src/facility-groups.js', '存在挂牌数量时不能启动该工厂集群');
-forbidText('src/pages/ProductionPage.tsx', 'group.listedCount === 0');
-
-if (failures.length) {
-  console.error('工厂集群与市场第三版验证失败:\n- ' + failures.join('\n- '));
-  process.exit(1);
-}
-console.log('工厂集群与市场第三版验证通过：统一周期、数量交易、快捷仓位、分隔式订单簿和自然增长本地成交满足设计。');
+for (const text of ['unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','localTrades.map']) requireText('src/pages/MarketPage.tsx', text);
+for (const text of ['market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。']) forbidText('src/pages/MarketPage.tsx', text);
+for (const text of ['facility-power-button','卖单冻结','前往市场交易该工厂']) requireText('src/pages/ProductionPage.tsx', text);
+for (const text of ['产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部']) forbidText('src/pages/ProductionPage.tsx', text);
+for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录','重置经济状态']) requireText('src/pages/SettingsPage.tsx', text);
+for (const text of ['登录会话','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
+for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
+for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
+for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','bestBidFor','world.version = 5']) requireText('server/src/facility-groups.js', text);
+for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods']) requireText('server/src/domain.js', text);
+for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
+if (failures.length) { console.error('统一资产市场与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
+console.log('统一资产市场、10 秒工作冷却、玩家统计、礼品兑换和管理员页面验证通过。');

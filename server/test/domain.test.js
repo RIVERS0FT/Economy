@@ -43,7 +43,8 @@ test('work cooldown uses server time', () => {
   ensurePlayer(world, alice, now);
   assert.equal(applyAction(world, alice, 'work', {}, now).ok, true);
   assert.equal(applyAction(world, alice, 'work', {}, now + 1_000).ok, false);
-  assert.equal(applyAction(world, alice, 'work', {}, now + 3_000).ok, true);
+  assert.equal(applyAction(world, alice, 'work', {}, now + 9_999).ok, false);
+  assert.equal(applyAction(world, alice, 'work', {}, now + 10_000).ok, true);
 });
 
 test('version 1 state migrates inventory and commodity orders without losing assets', () => {
@@ -104,11 +105,11 @@ test('idempotency returns the original response without applying an action twice
   }
 });
 
-test('client state uses version 8 and exposes no factory instances', () => {
+test('client state uses version 9 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 8);
+    assert.equal(state.version, 9);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
     assert.equal(state.products.length, 12);

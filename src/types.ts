@@ -7,6 +7,7 @@ export interface AuthUser {
 }
 
 export type ProductCategory = 'raw' | 'intermediate' | 'consumer' | 'industrial';
+export type AssetKind = 'commodity' | 'facility';
 
 export interface ProductDefinition {
   id: string;
@@ -85,9 +86,12 @@ export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'open' | 'partial' | 'filled' | 'cancelled';
 export type OrderOwnerType = 'player' | 'population' | 'market';
 
-export interface CommodityOrder {
+export interface AssetOrder {
   id: string;
-  productId: string;
+  assetKind: AssetKind;
+  assetId: string;
+  productId?: string;
+  facilityTypeId?: string;
   side: OrderSide;
   ownerType: OrderOwnerType;
   ownerId?: number;
@@ -99,6 +103,9 @@ export interface CommodityOrder {
   createdAt: number;
 }
 
+export type CommodityOrder = AssetOrder;
+
+/** @deprecated Kept as an empty compatibility shape during the version 9 migration. */
 export interface FacilityListing {
   id: string;
   facilityTypeId: string;
@@ -113,10 +120,10 @@ export interface FacilityListing {
 /** Browser-local only. Never included in EconomyState or persisted by the API. */
 export interface TradeRecord {
   id: string;
-  type: 'commodity' | 'facility';
+  type: AssetKind;
   productId?: string;
   facilityTypeId?: string;
-  side: 'buy' | 'sell';
+  side: OrderSide;
   quantity: number;
   price: number;
   total: number;
@@ -220,11 +227,23 @@ export interface DemandState {
   satisfaction: number;
 }
 
+export interface PricePoint {
+  price: number;
+  quantity: number;
+  createdAt: number;
+}
+
 export interface ProductMarketState {
   productId: string;
   lastPrice: number;
   priceHistory: PricePoint[];
   demand: DemandState;
+}
+
+export interface FacilityMarketState {
+  facilityTypeId: string;
+  lastPrice: number;
+  priceHistory: PricePoint[];
 }
 
 export interface EconomyStats {
@@ -233,12 +252,18 @@ export interface EconomyStats {
   systemSinks: number;
   commodityVolume: number;
   facilityVolume: number;
+  workClicks: number;
+  producedGoods: number;
+  boughtGoods: number;
+  soldGoods: number;
+  giftIssued: number;
 }
 
-export interface PricePoint {
-  price: number;
-  quantity: number;
-  createdAt: number;
+export interface AssetSummary {
+  cashValue: number;
+  commodityValue: number;
+  facilityValue: number;
+  totalAssets: number;
 }
 
 export interface LeaderboardEntry {
@@ -253,7 +278,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 8;
+  version: 9;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -274,18 +299,44 @@ export interface EconomyState {
   products: ProductDefinition[];
   facilityTypes: FacilityTypeDefinition[];
   markets: Record<string, ProductMarketState>;
-  orders: CommodityOrder[];
+  facilityMarkets: Record<string, FacilityMarketState>;
+  orders: AssetOrder[];
   facilityListings: FacilityListing[];
+  valuationPrices: Record<string, number>;
+  assetSummary: AssetSummary;
   work: WorkState;
   stats: EconomyStats;
   leaderboard: LeaderboardEntry[];
   lastProcessedAt: number;
 
-  /** Compatibility aliases retained until every view is migrated to product-aware state. */
   inventory: number;
   frozenInventory: number;
   commodityName: string;
   marketPrice: number;
   marketPriceHistory: PricePoint[];
   demand: DemandState;
+}
+
+export interface AdminSummary {
+  playerCount: number;
+  openOrderCount: number;
+  commodityOrderCount: number;
+  facilityOrderCount: number;
+  worldVersion: number;
+  revision: number;
+  lastProcessedAt: number;
+  apiStatus: string;
+}
+
+export interface GiftCodeAdminRecord {
+  id: number;
+  reward_credits: number;
+  max_redemptions: number;
+  redeemed_count: number;
+  starts_at: number;
+  expires_at: number | null;
+  enabled: boolean;
+  created_by: number;
+  created_at: number;
+  note: string;
 }

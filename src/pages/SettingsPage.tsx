@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import { type ChangeEvent, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
   Button,
@@ -24,19 +24,26 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     refreshRate,
     setRefreshRate,
     renamePlayer,
+    redeemGift,
     showResult,
     signOut,
     reset,
   } = model;
+  const [giftCode, setGiftCode] = useState('');
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
 
+  async function submitGift() {
+    const code = giftCode.trim().toUpperCase();
+    if (!code) return;
+    const result = await redeemGift(code);
+    model.notify(result.message);
+    if (result.ok) setGiftCode('');
+  }
+
   return (
-    <PageLayout
-      title="设置"
-      description="管理玩家资料、客户端偏好、登录会话和服务器经济状态。"
-    >
-      <div className="settings-grid">
-        <Panel className="widget">
+    <PageLayout title="设置" description="管理玩家资料、客户端偏好和礼品兑换。">
+      <div className="settings-grid unified-settings-grid">
+        <Panel className="widget profile-settings-card span-2">
           <WidgetHeading title="玩家资料" action={<StatusTag tone={user.role === 'admin' ? 'info' : 'neutral'}>{roleLabel}</StatusTag>} />
           <div className="profile-card">
             <div className="profile-avatar">{avatarText}</div>
@@ -47,7 +54,26 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
             <input value={playerName} maxLength={32} onChange={(event: ChangeEvent<HTMLInputElement>) => setPlayerName(event.target.value)} />
           </label>
           <Button block onClick={() => void showResult(renamePlayer(playerName))}>保存玩家昵称</Button>
-          <a className="ui-link" href="https://riversoft.top/profile">前往主页修改账号资料</a>
+
+          <div className="player-stat-grid" aria-label="玩家累计统计">
+            <div><span>点击工作次数</span><strong>{game.stats.workClicks}</strong></div>
+            <div><span>生产商品总数</span><strong>{game.stats.producedGoods}</strong></div>
+            <div><span>买入商品总数</span><strong>{game.stats.boughtGoods}</strong></div>
+            <div><span>卖出商品总数</span><strong>{game.stats.soldGoods}</strong></div>
+          </div>
+
+          <div className="profile-action-stack">
+            <a className="ui-link" href="https://riversoft.top/profile">前往主页修改账号资料</a>
+            {user.role === 'admin' ? <a className="ui-link" href="/economy/admin">进入管理员后台</a> : null}
+            <Button block variant="secondary" onClick={() => void signOut()}>退出登录</Button>
+            <Button
+              block
+              variant="danger"
+              onClick={() => {
+                if (window.confirm('确认重置当前账号的金融帝国服务器数据？统计、订单和工厂也会清空。')) void showResult(reset());
+              }}
+            >重置经济状态</Button>
+          </div>
         </Panel>
 
         <Panel className="widget">
@@ -82,25 +108,23 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
           </label>
         </Panel>
 
-        <Panel className="widget session-card">
-          <WidgetHeading title="登录会话" />
-          <p>退出只会结束当前浏览器的登录会话，不会删除服务器经济状态或当前浏览器的本地活动记录。</p>
-          <Button block variant="secondary" onClick={() => void signOut()}>退出登录</Button>
-        </Panel>
-
-        <Panel className="widget danger-zone span-3">
-          <div>
-            <h2>重置服务器经济状态</h2>
-            <p>重置会删除当前玩家的资金、商品、仓库等级、工厂、生产计划、订单与挂牌，但不会影响主页账号或当前浏览器的本地日志。</p>
-          </div>
-          <Button
-            variant="danger"
-            onClick={() => {
-              if (window.confirm('确认重置当前账号的金融帝国服务器数据？')) void showResult(reset());
-            }}
-          >
-            重置经济状态
-          </Button>
+        <Panel className="widget gift-redemption-card">
+          <WidgetHeading title="礼品兑换" action={<StatusTag tone="info">游戏货币</StatusTag>} />
+          <p>输入有效礼品码兑换游戏货币。同一账号对同一礼品只能兑换一次。</p>
+          <label>
+            礼品兑换码
+            <input
+              value={giftCode}
+              maxLength={64}
+              autoComplete="off"
+              placeholder="RIVER-XXXX-XXXX"
+              onChange={(event) => setGiftCode(event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void submitGift();
+              }}
+            />
+          </label>
+          <Button block disabled={!giftCode.trim()} onClick={() => void submitGift()}>兑换礼品</Button>
         </Panel>
       </div>
     </PageLayout>
