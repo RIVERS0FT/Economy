@@ -25,8 +25,12 @@ test('factory buy and sell orders use price-time matching and partial fills', ()
   assert.equal(seller.facilityGroups[0].count, 3);
   assert.equal(buyer.facilityGroups.find((item) => item.facilityTypeId === 'farm').count, 2);
   const sellOrder = world.orders.find((order) => order.ownerId === bob.id && order.assetKind === 'facility');
+  const buyOrder = world.orders.find((order) => order.ownerId === alice.id && order.assetKind === 'facility' && order.side === 'buy');
   assert.equal(sellOrder.remaining, 1);
   assert.equal(sellOrder.status, 'partial');
+  assert.deepEqual(buyOrder.fills.map((fill) => ({ price: fill.price, quantity: fill.quantity })), [
+    { price: 80, quantity: 2 },
+  ]);
 });
 
 test('running factory sell order immediately reduces participating output', () => {

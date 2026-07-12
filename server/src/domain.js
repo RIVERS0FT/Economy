@@ -459,7 +459,10 @@ export function migrateWorld(world, now = Date.now()) {
   }
 
   world.orders ||= [];
-  for (const order of world.orders) order.productId ||= 'grain';
+  for (const order of world.orders) {
+    order.productId ||= 'grain';
+    order.fills = Array.isArray(order.fills) ? order.fills : [];
+  }
 
   world.facilityListings ||= [];
   for (const listing of world.facilityListings) {
@@ -556,6 +559,13 @@ function describeCounterparty(order) {
   return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '市场');
 }
 
+function appendPlayerOrderFill(order, fill) {
+  if (order.ownerType !== 'player') return;
+  order.fills = Array.isArray(order.fills) ? order.fills : [];
+  order.fills.push(fill);
+  order.fills = order.fills.slice(-120);
+}
+
 function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, createdAt) {
   const player = world.players[String(order.ownerId)];
   if (!player) throw new Error(`Missing buyer ${order.ownerId}`);
@@ -616,10 +626,30 @@ function executeTrade(world, incoming, resting, quantity, createdAt) {
   const buy = incoming.side === 'buy' ? incoming : resting;
   const sell = incoming.side === 'sell' ? incoming : resting;
   const price = resting.price;
+  const fillId = createId('order-fill');
+  const fillBase = {
+    id: fillId,
+    quantity,
+    price,
+    total: quantity * price,
+    createdAt,
+    makerOrderId: resting.id,
+    takerOrderId: incoming.id,
+  };
   incoming.remaining -= quantity;
   resting.remaining -= quantity;
   incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
   resting.status = resting.remaining === 0 ? 'filled' : 'partial';
+  appendPlayerOrderFill(buy, {
+    ...fillBase,
+    counterparty: describeCounterparty(sell),
+    liquidity: buy.id === resting.id ? 'maker' : 'taker',
+  });
+  appendPlayerOrderFill(sell, {
+    ...fillBase,
+    counterparty: describeCounterparty(buy),
+    liquidity: sell.id === resting.id ? 'maker' : 'taker',
+  });
   if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
   if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, createdAt);
   recordPrice(world, incoming.productId, price, quantity, createdAt);

@@ -5,8 +5,8 @@ Economy 是一款多人在线经济模拟与交易游戏。
 - 项目：`RIVERS0FT/Economy`
 - 生产网页：`https://game.riversoft.top/economy/`
 - 当前方向：网页端多人联机金融与产业经营
-- 客户端状态版本：8
-- 世界状态版本：4
+- 客户端状态版本：9
+- 世界状态版本：5
 
 页面内容与模块归属以 `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；工厂集群和市场第三版以 `docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md` 为准。
 
@@ -156,7 +156,7 @@ assetEvents
 日志使用：
 
 ```text
-economy.local-activity.v2.<userId>
+economy.local-activity.v3.<userId>
 ```
 
 日志按账号保存在当前浏览器，不上传服务器，不参与资产、仓库、工厂数量、生产、订单或排名计算。
@@ -193,3 +193,7 @@ npm run build
 - 设置页玩家资料卡包含统计、退出和重置；侧栏退出按钮保留；设置页增加礼品兑换。
 - 管理员页面固定为 /economy/admin。
 - 详细规则以 docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md 和 docs/GIFT_CODE_AND_ADMIN_DESIGN.md 为准。
+
+## 权威成交价格
+
+每次成交使用撮合前订单簿中的对手方挂单价格。服务器在玩家订单 `fills` 中逐笔保存真实成交价格、数量和总额；同一订单扫过多个价格时分别记录。浏览器成交记录不得使用市场最后成交价反推订单成交价。

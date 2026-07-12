@@ -86,6 +86,18 @@ export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'open' | 'partial' | 'filled' | 'cancelled';
 export type OrderOwnerType = 'player' | 'population' | 'market';
 
+export interface OrderFill {
+  id: string;
+  quantity: number;
+  price: number;
+  total: number;
+  counterparty: string;
+  createdAt: number;
+  makerOrderId: string;
+  takerOrderId: string;
+  liquidity: 'maker' | 'taker';
+}
+
 export interface AssetOrder {
   id: string;
   assetKind: AssetKind;
@@ -99,6 +111,7 @@ export interface AssetOrder {
   price: number;
   quantity: number;
   remaining: number;
+  fills?: OrderFill[];
   status: OrderStatus;
   createdAt: number;
 }

@@ -15,7 +15,7 @@ import type {
   TradeRecord,
 } from '../types';
 
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 const MAX_ASSET_EVENTS = 480;
 const MAX_TRADES = 240;
 
@@ -41,10 +41,6 @@ export interface LocalActivityView {
   trades: TradeRecord[];
 }
 
-interface LocalMarketSnapshot {
-  lastPrice: number;
-}
-
 interface LocalStateSnapshot {
   userId: number;
   credits: number;
@@ -57,8 +53,6 @@ interface LocalStateSnapshot {
   orders: CommodityOrder[];
   facilityListings: FacilityListing[];
   products: ProductDefinition[];
-  markets: Record<string, LocalMarketSnapshot>;
-  facilityMarkets: Record<string, LocalMarketSnapshot>;
 }
 
 interface LocalActivityDocument extends LocalActivityView {
@@ -128,8 +122,18 @@ function readDocument(userId: number): LocalActivityDocument {
   if (typeof window === 'undefined') return emptyDocument();
   const current = parseDocument(window.localStorage.getItem(storageKey(userId)));
   if (current) return current;
-  const legacy = parseDocument(window.localStorage.getItem(storageKey(userId, 1)));
-  return legacy ?? emptyDocument();
+  for (const legacyVersion of [2, 1]) {
+    const legacy = parseDocument(window.localStorage.getItem(storageKey(userId, legacyVersion)));
+    if (legacy) {
+      return {
+        version: STORAGE_VERSION,
+        assetEvents: legacy.assetEvents,
+        trades: [],
+        snapshot: undefined,
+      };
+    }
+  }
+  return emptyDocument();
 }
 
 function writeDocument(userId: number, document: LocalActivityDocument) {
@@ -154,12 +158,6 @@ function snapshotState(state: EconomyState): LocalStateSnapshot {
     orders: state.orders.filter((order) => order.ownerId === state.userId),
     facilityListings: state.facilityListings.filter((listing) => listing.ownerId === state.userId),
     products: state.products,
-    markets: Object.fromEntries(
-      Object.entries(state.markets).map(([productId, market]) => [productId, { lastPrice: market.lastPrice }]),
-    ),
-    facilityMarkets: Object.fromEntries(
-      Object.entries(state.facilityMarkets).map(([typeId, market]) => [typeId, { lastPrice: market.lastPrice }]),
-    ),
   });
 }
 
@@ -323,30 +321,28 @@ function deriveAssetTrades(
   const records: TradeRecord[] = [];
   for (const order of after.orders) {
     if (order.ownerId !== after.userId) continue;
-    const previousRemaining = previousById.get(order.id)?.remaining ?? order.quantity;
-    const executedQuantity = Math.max(0, previousRemaining - order.remaining);
-    if (!executedQuantity) continue;
+    const previousFillIds = new Set((previousById.get(order.id)?.fills ?? []).map((fill) => fill.id));
     const kind = order.assetKind === 'facility' || order.facilityTypeId ? 'facility' : 'commodity';
     const assetId = order.assetId ?? order.facilityTypeId ?? order.productId ?? 'grain';
-    const price = kind === 'facility'
-      ? after.facilityMarkets[assetId]?.lastPrice ?? order.price
-      : after.markets[assetId]?.lastPrice ?? order.price;
     const name = kind === 'facility' ? facilityName(assetId) : productName(after, assetId);
-    records.push({
-      id: createId('local-trade'),
-      type: kind,
-      productId: kind === 'commodity' ? assetId : undefined,
-      facilityTypeId: kind === 'facility' ? assetId : undefined,
-      side: order.side,
-      quantity: executedQuantity,
-      price,
-      total: executedQuantity * price,
-      counterparty: '订单簿成交',
-      createdAt,
-      description: `${order.side === 'buy' ? '买入' : '卖出'} ${name}`,
-    });
+    for (const fill of order.fills ?? []) {
+      if (previousFillIds.has(fill.id)) continue;
+      records.push({
+        id: `local-trade-${fill.id}`,
+        type: kind,
+        productId: kind === 'commodity' ? assetId : undefined,
+        facilityTypeId: kind === 'facility' ? assetId : undefined,
+        side: order.side,
+        quantity: fill.quantity,
+        price: fill.price,
+        total: fill.total,
+        counterparty: fill.counterparty,
+        createdAt: fill.createdAt || createdAt,
+        description: `${order.side === 'buy' ? '买入' : '卖出'} ${name}`,
+      });
+    }
   }
-  return records;
+  return records.sort((left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id));
 }
 
 function inferCategory(
