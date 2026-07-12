@@ -1,0 +1,34 @@
+name: Apply authoritative fill fix
+
+on:
+  push:
+    branches: [agent/fix-authoritative-fill-prices]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-authoritative-fill-prices
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - name: Apply fix
+        run: node scripts/apply-authoritative-fill-fix.mjs
+      - name: Commit fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修复订单成交价格记录"
+          git push origin HEAD:agent/fix-authoritative-fill-prices
