@@ -24,3 +24,12 @@ for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoo
 for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
 if (failures.length) { console.error('统一资产市场与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
 console.log('统一资产市场、10 秒工作冷却、玩家统计、礼品兑换和管理员页面验证通过。');
+
+for (const text of ["status: 'running'", "status: 'stopped'", "status: 'error'", 'enabled', 'pendingProductionPlan', 'reconcileFacilityGroup', "warehouse_full"]) {
+  requireText('server/src/facility-groups.js', text);
+}
+for (const text of ['SwitchControl', '下一周期生效', "group.status === 'error'"]) requireText('src/pages/ProductionPage.tsx', text);
+for (const forbidden of ["'ready'", "'paused'", "'full'", "'insufficient_funds'", "'insufficient_input'", "'listed'"]) {
+  forbidText('src/types.ts', forbidden);
+}
+console.log('Facility three-state recovery verified.');

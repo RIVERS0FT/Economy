@@ -24,3 +24,16 @@ for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoo
 for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
 if (failures.length) { console.error('统一资产市场与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
 console.log('统一资产市场、10 秒工作冷却、玩家统计、礼品兑换和管理员页面验证通过。');
+
+const productionPage = read('src/pages/ProductionPage.tsx');
+const sharedLayout = read('src/components/ui/layout.tsx');
+const designSystem = read('src/styles/design-system.css');
+const businessStyles = read('src/styles/unified-market-admin.css');
+for (const text of ['export function SwitchControl', "classNames('ui-switch'", '<SwitchControl']) {
+  if (!(sharedLayout + productionPage).includes(text)) throw new Error(`Missing shared switch contract: ${text}`);
+}
+for (const forbidden of ['facility-power-button', 'factory-switch', 'music-switch', 'production-toggle']) {
+  if ((productionPage + businessStyles).includes(forbidden)) throw new Error(`Business-specific switch style returned: ${forbidden}`);
+}
+if ((designSystem.match(/\.ui-switch \{/g) || []).length !== 1) throw new Error('ui-switch must have one visual authority');
+console.log('Facility switch architecture verified.');

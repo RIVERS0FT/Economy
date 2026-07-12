@@ -1,7 +1,7 @@
 import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import {
   facilityStatusNames,
-  facilityStopReasonNames,
+  facilityStatusReasonNames,
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
 import { FacilityGroupProgress } from '../components/facilities/FacilityProgress';
@@ -13,6 +13,7 @@ import {
   PageLayout,
   Panel,
   StatusTag,
+  SwitchControl,
   type StatusTone,
   WidgetHeading,
 } from '../components/ui/layout';
@@ -21,8 +22,7 @@ import { formatCurrency, formatDuration } from '../utils/formatters';
 
 function facilityTone(status: string): StatusTone {
   if (status === 'running') return 'success';
-  if (status === 'listed') return 'info';
-  if (['full', 'insufficient_funds', 'insufficient_input'].includes(status)) return 'danger';
+  if (status === 'error') return 'danger';
   return 'neutral';
 }
 
@@ -88,8 +88,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       actions={(
         <>
           <StatusTag tone="success">运行 {model.derived.runningFacilities}</StatusTag>
-          <StatusTag tone="warning">施工 {model.derived.constructingFacilities}</StatusTag>
-          <StatusTag tone={model.derived.blockedFacilities > 0 ? 'danger' : 'neutral'}>阻塞 {model.derived.blockedFacilities}</StatusTag>
+          <StatusTag tone="neutral">停止 {model.derived.stoppedFacilities}</StatusTag>
+          <StatusTag tone={model.derived.blockedFacilities > 0 ? 'danger' : 'neutral'}>异常 {model.derived.blockedFacilities}</StatusTag>
+          {model.derived.constructingFacilities > 0 ? <StatusTag tone="warning">施工 {model.derived.constructingFacilities}</StatusTag> : null}
         </>
       )}
     >
@@ -147,10 +148,10 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             const remainingTarget = group.productionMode === 'target'
               ? Math.max(0, (group.targetQuantity || 0) - group.completedQuantity)
               : null;
-            const canConfigure = group.status !== 'running' && group.availableCount > 0;
-            const canStart = group.status !== 'running' && group.availableCount > 0;
+            const canConfigure = group.nextCycleCount > 0;
             const planStep = Math.max(1, type.output.quantity * Math.max(1, group.nextCycleCount));
             const running = group.status === 'running';
+            const pendingPlan = group.pendingProductionPlan;
 
             return (
               <Panel className="facility-card facility-group-card" key={group.facilityTypeId}>
@@ -161,17 +162,18 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                     <p>{type.input
                       ? `${type.input.quantity} ${inputName} → ${type.output.quantity} ${outputName}`
                       : `无原料 → ${type.output.quantity} ${outputName}`}</p>
-                    {group.stopReason ? <small className="facility-stop-reason">{facilityStopReasonNames[group.stopReason]}</small> : null}
+                    {group.statusReason ? <small className="facility-stop-reason">{facilityStatusReasonNames[group.statusReason]}</small> : null}
                   </div>
-                  <button
-                    type="button"
-                    className={running ? 'facility-power-button stop' : 'facility-power-button start'}
-                    aria-label={running ? `停止${type.name}生产` : `启动${type.name}生产`}
-                    title={running ? '停止生产' : '启动生产'}
-                    disabled={!running && !canStart}
-                    onClick={() => void showResult(running ? stopFacility(group.facilityTypeId) : startFacility(group.facilityTypeId))}
-                  >
-                    <span aria-hidden="true">{running ? 'Ⅱ' : '▶'}</span>
+                  <SwitchControl
+                    checked={group.enabled}
+                    aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
+                    title={group.enabled ? '停止生产' : '开启自动运行'}
+                    disabled={group.count < 1}
+                    onChange={(event) => void showResult(event.target.checked
+                      ? startFacility(group.facilityTypeId)
+                      : stopFacility(group.facilityTypeId))}
+                  />
+
                   </button>
                 </div>
 
@@ -184,6 +186,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 </div>
 
                 <FacilityGroupProgress group={group} type={type} now={now} />
+                {group.status === 'error' ? <small className="facility-auto-recovery-note">开关保持开启；条件满足后将自动恢复生产。</small> : null}
 
                 <div className="facility-specs ui-spec-grid facility-group-specs">
                   <span>周期 <strong>{type.cycleMs / 1000} 秒</strong></span>
@@ -200,8 +203,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                       <small>{group.productionMode === 'continuous'
                         ? '当前：持续生产'
                         : `当前：${group.completedQuantity}/${group.targetQuantity}，剩余 ${remainingTarget}`}</small>
+                      {pendingPlan ? <small>下一周期：{pendingPlan.mode === 'continuous' ? '持续生产' : `定量生产 ${pendingPlan.targetQuantity}`}</small> : null}
                     </div>
-                    <StatusTag tone={group.productionMode === 'target' ? 'info' : 'neutral'}>{group.productionMode === 'target' ? '定量' : '持续'}</StatusTag>
+                    <StatusTag tone={pendingPlan ? 'info' : group.productionMode === 'target' ? 'info' : 'neutral'}>{pendingPlan ? '下一周期生效' : group.productionMode === 'target' ? '定量' : '持续'}</StatusTag>
                   </div>
                   <div className="production-plan-controls">
                     <select
@@ -228,7 +232,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                       variant="secondary"
                       disabled={!canConfigure}
                       onClick={() => void showResult(setProductionPlan(group.facilityTypeId, mode, mode === 'target' ? target : undefined))}
-                    >保存计划</Button>
+                    >{running ? (pendingPlan ? '更新下一周期计划' : '保存下一周期计划') : '保存计划'}</Button>
                   </div>
                 </div>
 

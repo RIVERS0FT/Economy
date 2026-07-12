@@ -267,7 +267,7 @@ function diffFacilityGroups(
     const stateChanged = !previous || !current
       || beforeCount !== afterCount
       || previous.status !== current.status
-      || previous.stopReason !== current.stopReason
+      || previous.statusReason !== current.statusReason
       || previous.productionMode !== current.productionMode
       || previous.targetQuantity !== current.targetQuantity
       || previous.listedCount !== current.listedCount;

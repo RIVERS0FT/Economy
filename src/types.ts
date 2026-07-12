@@ -39,24 +39,23 @@ export interface FacilityTypeDefinition {
   systemValue: number;
 }
 
-export type FacilityStatus =
-  | 'ready'
-  | 'running'
-  | 'paused'
-  | 'full'
-  | 'insufficient_funds'
-  | 'insufficient_input'
-  | 'listed';
+export type FacilityStatus = 'running' | 'stopped' | 'error';
 
-export type FacilityStopReason =
+export type FacilityStatusReason =
   | 'manual'
   | 'plan_complete'
   | 'plan_adjustment_required'
   | 'insufficient_funds'
   | 'insufficient_input'
-  | 'output_full'
-  | 'listed'
+  | 'warehouse_full'
+  | 'no_available_facility'
   | 'maintenance';
+
+export interface PendingProductionPlan {
+  mode: ProductionMode;
+  targetQuantity?: number;
+  requestedAt: number;
+}
 
 export type ProductionMode = 'continuous' | 'target';
 
@@ -68,12 +67,14 @@ export interface FacilityGroup {
   listedCount: number;
   availableCount: number;
   nextCycleCount: number;
+  enabled: boolean;
   status: FacilityStatus;
-  stopReason?: FacilityStopReason;
+  statusReason?: FacilityStatusReason;
   cycleStartedAt?: number;
   productionMode: ProductionMode;
   targetQuantity?: number;
   completedQuantity: number;
+  pendingProductionPlan?: PendingProductionPlan;
 }
 
 export interface FacilityConstruction {

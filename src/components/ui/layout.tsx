@@ -138,6 +138,13 @@ export function DataRow({
   );
 }
 
+export function SwitchControl({
+  className = '',
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  return <input className={classNames('ui-switch', className)} type="checkbox" {...props} />;
+}
+
 export function ToggleField({
   label,
   description,
@@ -153,7 +160,7 @@ export function ToggleField({
         <strong>{label}</strong>
         <small>{description}</small>
       </span>
-      <input className="ui-switch" type="checkbox" {...props} />
+      <SwitchControl aria-label={label} {...props} />
     </label>
   );
 }
