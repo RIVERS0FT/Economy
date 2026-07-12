@@ -70,3 +70,13 @@ if (failures.length) {
 }
 
 console.log('共享 UI 组件与唯一开关视觉验证通过。');
+
+
+for (const text of [
+  '.ui-switch:focus {',
+  '.ui-switch:focus-visible {',
+  '.ui-switch:focus-visible::before {',
+  'outline-offset: 2px;',
+]) requireText('src/styles/design-system.css', text);
+for (const text of ['开关焦点环与点击区域', '44 × 44px', '轨道伪元素外侧', '额外的大圆环']) requireText('docs/UI_DESIGN_SYSTEM.md', text);
+console.log('Switch focus ring architecture verified.');
