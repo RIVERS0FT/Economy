@@ -117,26 +117,66 @@ forbidText(mobilePath, '--mobile-liquid-glass');
 forbidText(mobilePath, 'backdrop-filter:');
 forbidText(mobilePath, '-webkit-backdrop-filter:');
 requireText(mobilePath, '--mobile-asset-bar-height: 48px;');
+requireText(mobilePath, '--mobile-nav-height: 68px;');
 requireText(mobilePath, 'transition: color 140ms ease;');
 
 const mobile = read(mobilePath);
+const mobileNavPanelBlock = mobile.match(/\.mobile-bottom-navigation\.panel\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavPanelBlock.includes('padding: .3rem 0')) {
+  failures.push('移动底部导航面板必须使用紧凑垂直内边距 .3rem');
+}
+
+const mobileNavListBlock = mobile.match(/\.mobile-bottom-navigation \.sidebar-nav\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavListBlock) {
+  failures.push('移动底部导航缺少列表布局');
+} else {
+  for (const rule of [
+    'align-items: center',
+    'gap: .16rem',
+    'overflow-x: auto',
+    'overflow-y: hidden',
+  ]) {
+    if (!mobileNavListBlock.includes(rule)) failures.push(`移动底部导航列表缺少: ${rule}`);
+  }
+  if (mobileNavListBlock.includes('align-items: stretch')) {
+    failures.push('移动底部导航按钮不得继续拉伸占满内容高度');
+  }
+}
+
 const mobileNavButtonBlock = mobile.match(/\.mobile-bottom-navigation \.sidebar-nav-button\s*\{[^{}]*\}/)?.[0] ?? '';
 if (!mobileNavButtonBlock) {
   failures.push('移动底部导航缺少按钮布局');
 } else {
   for (const rule of [
-    'grid-template-rows: 1.5rem min-content',
+    'flex: 1 0 60px',
+    'min-width: 60px',
+    'height: 50px',
+    'grid-template-rows: 1.35rem min-content',
     'align-content: center',
-    'gap: .08rem',
+    'gap: .06rem',
+    'border-radius: .85rem',
+    'padding: .16rem .25rem .22rem',
   ]) {
-    if (!mobileNavButtonBlock.includes(rule)) failures.push(`移动底部导航图文布局缺少: ${rule}`);
+    if (!mobileNavButtonBlock.includes(rule)) failures.push(`移动底部导航按钮缺少: ${rule}`);
   }
   for (const legacyRule of [
+    'flex: 1 0 68px',
+    'min-width: 68px',
+    'height: 100%',
+    'grid-template-rows: 1.5rem min-content',
     'grid-template-rows: 1.85rem auto',
+    'gap: .08rem',
     'gap: .16rem',
+    'border-radius: 1rem',
+    'padding: .28rem .35rem .38rem',
   ]) {
-    if (mobileNavButtonBlock.includes(legacyRule)) failures.push(`移动底部导航不得恢复宽松图文间距: ${legacyRule}`);
+    if (mobileNavButtonBlock.includes(legacyRule)) failures.push(`移动底部导航不得恢复较大按钮几何: ${legacyRule}`);
   }
+}
+
+const mobileNavLabelBlock = mobile.match(/\.mobile-bottom-navigation \.sidebar-nav-button strong\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavLabelBlock.includes('font-size: .66rem')) {
+  failures.push('移动底部导航文字必须保持 .66rem 紧凑字号');
 }
 
 const mobileHoverBlock = mobile.match(/\.mobile-bottom-navigation \.sidebar-nav-button:hover:not\(:disabled\)\s*\{[^{}]*\}/)?.[0] ?? '';
@@ -250,11 +290,24 @@ for (const rule of [
   'export function WarehouseIcon',
 ]) requireText(gameIconPath, rule);
 
+const iconStyles = read(iconStylePath);
 for (const rule of [
   '.game-icon {',
   '.asset-bar-item-icon > .game-icon',
   '.mobile-bottom-navigation .sidebar-nav-button > span > .game-icon',
-]) requireText(iconStylePath, rule);
+]) {
+  if (!iconStyles.includes(rule)) failures.push(`${iconStylePath} 缺少: ${rule}`);
+}
+
+const mobileNavIconSlotBlock = iconStyles.match(/\.mobile-bottom-navigation \.sidebar-nav-button > span\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavIconSlotBlock.includes('width: 1.35rem') || !mobileNavIconSlotBlock.includes('height: 1.35rem')) {
+  failures.push('移动底部导航图标槽位必须为 1.35rem');
+}
+
+const mobileNavSvgBlock = iconStyles.match(/\.mobile-bottom-navigation \.sidebar-nav-button > span > \.game-icon\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavSvgBlock.includes('width: 1.15rem') || !mobileNavSvgBlock.includes('height: 1.15rem')) {
+  failures.push('移动底部导航 SVG 必须为 1.15rem');
+}
 
 for (const rule of [
   "import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons'",
@@ -293,6 +346,7 @@ for (const rule of [
   '不得恢复“状态栏一行、页面一行”的两行网格布局',
   '整个状态栏只应用一次玻璃模糊',
   '`pointer-events: none`',
+  '底部导航 `68px` 高度',
   '移动顶部状态栏全宽等距布局',
   '容器使用 Flex、`justify-content: space-evenly` 和 `gap: 0`',
   '每个状态项使用 `flex: 0 0 auto` 和 `width: auto`',
@@ -300,18 +354,21 @@ for (const rule of [
   '首尾项目到状态栏内边缘的间隔与项目间隔一致',
   '状态项之间不增加分隔线',
   '四项必须使用 `GameIcons.tsx` 提供的本地内联 SVG',
-  '移动底部导航活动态与图文间距',
-  '移动导航按钮使用 `grid-template-rows: 1.5rem min-content`',
-  '移动导航按钮使用 `align-content: center`',
-  '图标行与文字行的 CSS 间距固定为 `gap: .08rem`',
+  '移动底部导航活动态、尺寸与图文间距',
+  '导航按钮固定高度为 `50px`、最小宽度为 `60px`',
+  '导航列表使用 `align-items: center`',
+  '移动导航按钮使用 `grid-template-rows: 1.35rem min-content`',
+  '图标行与文字行的 CSS 间距固定为 `gap: .06rem`',
+  '移动导航 SVG 显示尺寸为 `1.15rem`，文字字号为 `.66rem`',
   '排名在移动端使用 `#1`、`#2` 格式',
   '恢复移动顶部状态栏横向滚动、`space-between`、`space-around`、整体居中、非零容器间距或“第 N 名”移动格式',
   '恢复移动状态项 `flex: 1 1 0`、`width: 0`、固定四等分槽位或其他拉伸分布',
-  '恢复移动导航 `grid-template-rows: 1.85rem auto`、删除 `align-content: center` 或把图文 `gap` 增大到 `.16rem`',
+  '恢复移动底栏 `76px` 高度、`68px` 最小按钮宽度或 `height: 100%` 的拉伸按钮',
+  '删除移动导航 `50px` 按钮高度、`60px` 最小宽度、居中对齐或紧凑内边距',
   '恢复移动状态栏 `width: max-content`、`left: 50%`、`translateX(-50%)` 或其他内容宽度胶囊布局',
   '删除移动状态栏全宽安全区定位、`space-evenly` 等距分布、紧凑数值格式或内容宽度状态项规则',
   '恢复移动顶部状态栏字符图标、分隔线、独立图标底板或小于 `18px` 的图标',
-  '移动底部导航活动状态不得改变按钮或图标的几何位置',
+  '移动底部导航活动状态不得改变按钮或图标位置',
   '恢复移动底部导航活动态或 hover 态的位移、缩放与尺寸变化',
   '未更新设计文档和架构检查的液态玻璃回退不应合并',
 ]) requireText(designPath, rule);
@@ -321,4 +378,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('液态玻璃状态栏验证通过：桌面悬浮、移动状态栏等距布局、移动底栏紧凑图文间距、统一 GameIcons SVG、稳定活动态和无模糊降级均满足设计基线。');
+console.log('液态玻璃状态栏验证通过：桌面悬浮、移动状态栏等距布局、68px 紧凑底栏、60×50px 导航按钮、统一 GameIcons SVG、稳定活动态和无模糊降级均满足设计基线。');
