@@ -36,7 +36,8 @@ assert.match(productIcons, /aria-hidden="true"/);
 assert.match(productIcons, /focusable="false"/);
 assert.match(productIcons, /className=\{className \? `game-icon product-icon/);
 assert.match(productIcons, /export function ProductIconLabel/);
-assert.match(productIcons, /default:[\s\S]*data-product-icon/);
+assert.match(productIcons, /default:/);
+assert.match(productIcons, /<path d="m4 8 8-4 8 4-8 4Z" \/>/);
 for (const id of expectedProducts) {
   assert.match(productIcons, new RegExp(`case '${id}':`), `商品 ${id} 缺少显式 SVG 图标`);
 }
