@@ -28,6 +28,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          node scripts/fix-authoritative-fill-script-syntax.mjs
           node scripts/apply-authoritative-fill-fix.mjs 2>&1 | tee authoritative-fill-fix.log
       - name: Upload diagnostic log
         if: always()
