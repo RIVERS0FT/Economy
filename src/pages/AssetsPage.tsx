@@ -253,7 +253,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   ))}
                   {event.productionChanges.map((change) => (
                     <span key={`${event.id}-${change.facilityTypeId}-${change.action}`}>
-                      <ProductIconLabel productId={change.outputProductId}>{productName(change.outputProductId)}</ProductIconLabel>
+                      <ProductIconLabel productId={change.outputProductId ?? 'unknown'}>{productName(change.outputProductId)}</ProductIconLabel>
                       <strong>{change.facilityName ?? '生产'} · 产出入仓 {change.outputQuantity}</strong>
                       <small>
                         {change.inputQuantity > 0 ? `消耗 ${change.inputQuantity} ${productName(change.inputProductId)} · ` : ''}
