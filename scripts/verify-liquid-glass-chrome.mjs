@@ -120,6 +120,25 @@ requireText(mobilePath, '--mobile-asset-bar-height: 48px;');
 requireText(mobilePath, 'transition: color 140ms ease;');
 
 const mobile = read(mobilePath);
+const mobileNavButtonBlock = mobile.match(/\.mobile-bottom-navigation \.sidebar-nav-button\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavButtonBlock) {
+  failures.push('移动底部导航缺少按钮布局');
+} else {
+  for (const rule of [
+    'grid-template-rows: 1.5rem min-content',
+    'align-content: center',
+    'gap: .08rem',
+  ]) {
+    if (!mobileNavButtonBlock.includes(rule)) failures.push(`移动底部导航图文布局缺少: ${rule}`);
+  }
+  for (const legacyRule of [
+    'grid-template-rows: 1.85rem auto',
+    'gap: .16rem',
+  ]) {
+    if (mobileNavButtonBlock.includes(legacyRule)) failures.push(`移动底部导航不得恢复宽松图文间距: ${legacyRule}`);
+  }
+}
+
 const mobileHoverBlock = mobile.match(/\.mobile-bottom-navigation \.sidebar-nav-button:hover:not\(:disabled\)\s*\{[^{}]*\}/)?.[0] ?? '';
 if (!mobileHoverBlock.includes('transform: none')) {
   failures.push('移动底部导航必须覆盖通用按钮 hover 上浮效果');
@@ -281,9 +300,14 @@ for (const rule of [
   '首尾项目到状态栏内边缘的间隔与项目间隔一致',
   '状态项之间不增加分隔线',
   '四项必须使用 `GameIcons.tsx` 提供的本地内联 SVG',
+  '移动底部导航活动态与图文间距',
+  '移动导航按钮使用 `grid-template-rows: 1.5rem min-content`',
+  '移动导航按钮使用 `align-content: center`',
+  '图标行与文字行的 CSS 间距固定为 `gap: .08rem`',
   '排名在移动端使用 `#1`、`#2` 格式',
   '恢复移动顶部状态栏横向滚动、`space-between`、`space-around`、整体居中、非零容器间距或“第 N 名”移动格式',
   '恢复移动状态项 `flex: 1 1 0`、`width: 0`、固定四等分槽位或其他拉伸分布',
+  '恢复移动导航 `grid-template-rows: 1.85rem auto`、删除 `align-content: center` 或把图文 `gap` 增大到 `.16rem`',
   '恢复移动状态栏 `width: max-content`、`left: 50%`、`translateX(-50%)` 或其他内容宽度胶囊布局',
   '删除移动状态栏全宽安全区定位、`space-evenly` 等距分布、紧凑数值格式或内容宽度状态项规则',
   '恢复移动顶部状态栏字符图标、分隔线、独立图标底板或小于 `18px` 的图标',
@@ -297,4 +321,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('液态玻璃状态栏验证通过：桌面悬浮、移动全宽四项 space-evenly 等距分布、统一 GameIcons SVG、无分隔线、稳定底栏活动态和无模糊降级均满足设计基线。');
+console.log('液态玻璃状态栏验证通过：桌面悬浮、移动状态栏等距布局、移动底栏紧凑图文间距、统一 GameIcons SVG、稳定活动态和无模糊降级均满足设计基线。');
