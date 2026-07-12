@@ -33,7 +33,7 @@ jobs:
       - name: Remove trigger workflow
         run: rm -f .github/workflows/run-facility-three-state.yml
       - name: Install dependencies
-        run: npm ci
+        run: npm install
       - name: Run full build
         run: npm run build
       - name: Commit implementation
