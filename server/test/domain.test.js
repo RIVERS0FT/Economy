@@ -106,11 +106,11 @@ test('idempotency returns the original response without applying an action twice
   }
 });
 
-test('client state uses version 9 and exposes no factory instances', () => {
+test('client state uses version 10 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 9);
+    assert.equal(state.version, 10);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
     assert.equal(state.products.length, 12);
