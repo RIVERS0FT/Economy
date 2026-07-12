@@ -141,7 +141,8 @@ if (!mobileStatusBarBlock) {
     'width: auto',
     'max-width: none',
     'display: flex',
-    'justify-content: center',
+    'justify-content: flex-start',
+    'gap: 0',
     'overflow-x: hidden',
     'overflow-y: hidden',
     'transform: none',
@@ -152,8 +153,11 @@ if (!mobileStatusBarBlock) {
   if (mobileStatusBarBlock.includes('overflow-x: auto')) {
     failures.push('移动顶部状态栏不得横向滚动');
   }
+  if (mobileStatusBarBlock.includes('justify-content: center')) {
+    failures.push('移动顶部状态栏不得把四项作为整体集中居中');
+  }
   if (mobileStatusBarBlock.includes('justify-content: space-between')) {
-    failures.push('移动顶部状态栏不得使用 space-between 拉开项目');
+    failures.push('移动顶部状态栏不得使用 space-between 模拟铺满');
   }
   if (mobileStatusBarBlock.includes('grid-template-columns') || mobileStatusBarBlock.includes('grid-auto-columns')) {
     failures.push('移动顶部状态栏不得恢复网格扩列');
@@ -173,13 +177,21 @@ if (!mobileStatusItemBlock) {
   failures.push('移动顶部状态项缺少专用布局');
 } else {
   for (const rule of [
-    'flex: 0 0 auto',
-    'width: auto',
+    'flex: 1 1 0',
+    'width: 0',
+    'min-width: 0',
     'display: inline-flex',
+    'justify-content: center',
     'border: 0',
-    'padding: 0',
+    'overflow: hidden',
   ]) {
     if (!mobileStatusItemBlock.includes(rule)) failures.push(`移动顶部状态项缺少: ${rule}`);
+  }
+  if (mobileStatusItemBlock.includes('flex: 0 0 auto')) {
+    failures.push('移动顶部状态项不得恢复内容宽度分布');
+  }
+  if (mobileStatusItemBlock.includes('width: auto')) {
+    failures.push('移动顶部状态项必须使用零基础宽度等分');
   }
 }
 
@@ -190,9 +202,7 @@ if (!mobileStatusIconBlock.includes('width: clamp(1.15rem, 5vw, 1.3rem)') || !mo
 
 forbidText(mobileStatusPath, 'grid-template-columns: repeat(4, minmax(0, 1fr))');
 forbidText(mobileStatusPath, 'grid-auto-columns:');
-forbidText(mobileStatusPath, 'justify-content: space-between');
 forbidText(mobileStatusPath, 'border-right:');
-if (/\bflex:\s*1(?:\s|;)/.test(mobileStatus)) failures.push('移动顶部状态项不得使用 flex: 1');
 requireText(mobileStatusPath, 'font-variant-numeric: tabular-nums;');
 requireText(mobileStatusPath, '.asset-bar-item-icon > svg');
 
@@ -243,17 +253,17 @@ for (const rule of [
   '不得恢复“状态栏一行、页面一行”的两行网格布局',
   '整个状态栏只应用一次玻璃模糊',
   '`pointer-events: none`',
-  '移动顶部状态栏全宽紧凑布局',
-  '通过左右安全区变量同时设置 `left` 和 `right`',
-  '容器使用 `width: auto`、`max-width: none` 和 `transform: none`',
-  '状态项使用 `flex: 0 0 auto`',
-  '不得使用 `space-between` 拉开项目',
-  '四项必须使用 `StatusIcons.tsx` 提供的本地内联 SVG',
+  '移动顶部状态栏全宽等分布局',
+  '容器使用 Flex、`justify-content: flex-start` 和 `gap: 0`',
+  '每个状态项使用 `flex: 1 1 0` 和 `width: 0`',
+  '四项不得作为一个紧凑组集中在中间',
   '状态项之间不增加分隔线',
+  '四项必须使用 `StatusIcons.tsx` 提供的本地内联 SVG',
   '排名在移动端使用 `#1`、`#2` 格式',
-  '恢复移动顶部状态栏横向滚动、四等分网格、`flex: 1`、`space-between` 或“第 N 名”移动格式',
+  '恢复移动顶部状态栏横向滚动、`space-between`、非零容器间距或“第 N 名”移动格式',
+  '恢复移动状态项 `flex: 0 0 auto`、内容宽度分布或整体集中居中',
   '恢复移动状态栏 `width: max-content`、`left: 50%`、`translateX(-50%)` 或其他内容宽度胶囊布局',
-  '删除移动状态栏全宽安全区定位、紧凑数值格式或内部居中规则',
+  '删除移动状态栏全宽安全区定位、四项等宽铺满、紧凑数值格式或槽位内居中规则',
   '恢复移动顶部状态栏字符图标、分隔线、独立图标底板或小于 `18px` 的图标',
   '移动底部导航活动状态不得改变按钮或图标的几何位置',
   '恢复移动底部导航活动态或 hover 态的位移、缩放与尺寸变化',
@@ -265,4 +275,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('液态玻璃状态栏验证通过：桌面悬浮、移动全宽紧凑 Flex、统一 SVG 图标、无分隔线、稳定底栏活动态和无模糊降级均满足设计基线。');
+console.log('液态玻璃状态栏验证通过：桌面悬浮、移动全宽四项等分 Flex、统一 SVG 图标、无分隔线、稳定底栏活动态和无模糊降级均满足设计基线。');
