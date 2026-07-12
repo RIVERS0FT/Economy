@@ -21,7 +21,9 @@ function forbidText(path, text) { if (read(path).includes(text)) failures.push(`
   'src/styles/warehouse-expansion.css',
   'src/styles/industry-system.css',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
-  'docs/WAREHOUSE_AND_FACTORY_CARD_LAYOUT_DESIGN.md',
+  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/UI_DESIGN_SYSTEM.md',
 ].forEach(requireFile);
 
 for (const text of [
@@ -132,11 +134,29 @@ for (const text of [
 for (const forbidden of ['position: fixed']) forbidText('src/styles/industry-system.css', forbidden);
 
 for (const text of [
-  '无限扩容',
-  '每级容量增量',
+  '无限等级、容量与费用',
+  '当前等级 L 升到 L + 1 的容量增量',
+  '仓库没有玩家可见的最高等级',
+]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+
+for (const text of [
   '定量生产完成后关闭开关',
-  '固定高度',
-]) requireText('docs/WAREHOUSE_AND_FACTORY_CARD_LAYOUT_DESIGN.md', text);
+  '固定高度 384px',
+  'position: sticky',
+  '下一周期加入',
+]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
+
+for (const text of [
+  '左侧：建设新工厂',
+  '桌面卡片固定高度 384px',
+  '无限扩容信息',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+
+for (const text of [
+  '工厂卡桌面固定高度',
+  '建设卡',
+  '无限扩容',
+]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
