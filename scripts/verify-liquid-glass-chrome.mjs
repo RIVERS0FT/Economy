@@ -101,6 +101,25 @@ forbidText(viewportPath, 'grid-template-rows: auto minmax(0, 1fr)');
 forbidText(mobilePath, '--mobile-liquid-glass');
 forbidText(mobilePath, 'backdrop-filter:');
 forbidText(mobilePath, '-webkit-backdrop-filter:');
+requireText(mobilePath, 'transition: color 140ms ease;');
+
+const mobile = read(mobilePath);
+const mobileHoverBlock = mobile.match(/\.mobile-bottom-navigation \.sidebar-nav-button:hover:not\(:disabled\)\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileHoverBlock.includes('transform: none')) {
+  failures.push('移动底部导航必须覆盖通用按钮 hover 上浮效果');
+}
+
+const mobileActiveIconBlock = mobile.match(/\.mobile-bottom-navigation \.sidebar-nav-button\.active > span\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileActiveIconBlock) {
+  failures.push('移动底部导航缺少活动图标样式');
+} else {
+  if (!mobileActiveIconBlock.includes('transform: none')) {
+    failures.push('移动底部导航活动图标必须固定几何位置');
+  }
+  if (/translateY\(|scale\(/.test(mobileActiveIconBlock)) {
+    failures.push('移动底部导航活动图标不得上移或缩放');
+  }
+}
 
 const liquid = read(liquidPath);
 const assetItemBlocks = liquid.match(/\.asset-bar-item[^{}]*\{[^{}]*\}/g) ?? [];
@@ -117,6 +136,8 @@ for (const rule of [
   '不得恢复“状态栏一行、页面一行”的两行网格布局',
   '整个状态栏只应用一次玻璃模糊',
   '`pointer-events: none`',
+  '移动底部导航活动状态不得改变按钮或图标的几何位置',
+  '恢复移动底部导航活动态或 hover 态的位移、缩放与尺寸变化',
   '未更新设计文档和架构检查的液态玻璃回退不应合并',
 ]) requireText(designPath, rule);
 
@@ -125,4 +146,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('液态玻璃状态栏验证通过：桌面悬浮、移动复用、透明下沿和无模糊降级均满足设计基线。');
+console.log('液态玻璃状态栏验证通过：桌面悬浮、移动复用、透明下沿、稳定导航活动态和无模糊降级均满足设计基线。');
