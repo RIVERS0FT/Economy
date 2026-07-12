@@ -70,8 +70,10 @@ for (const forbidden of [
 }
 
 for (const text of [
-  'auto-recovers from insufficient funds without backfilling error time',
-  'running plan update applies at the next cycle boundary',
+  'factory automatically recovers after funds return',
+  'running plan changes apply at the next cycle boundary',
+  'warehouse errors recover without backfilling missed cycles',
+  'manual stop disables automatic recovery',
 ]) requireText('server/test/facility-groups.test.js', text);
 
 for (const text of [
