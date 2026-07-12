@@ -1,3 +1,4 @@
+import { NavigationIcon } from '../icons/GameIcons';
 import { navigationItems, type TabId } from '../../config/navigation';
 
 export function NavigationItems({
@@ -11,7 +12,7 @@ export function NavigationItems({
 }) {
   return (
     <>
-      {navigationItems.map(({ id, label, icon }) => (
+      {navigationItems.map(({ id, label }) => (
         <button
           key={id}
           type="button"
@@ -20,7 +21,7 @@ export function NavigationItems({
           className={activeTab === id ? 'sidebar-nav-button active' : 'sidebar-nav-button'}
           onClick={() => onSelect(id)}
         >
-          <span aria-hidden="true">{icon}</span>
+          <span aria-hidden="true"><NavigationIcon name={id} /></span>
           <strong>{label}</strong>
           {id === 'market' && openOrderCount > 0 ? <small>{openOrderCount}</small> : null}
         </button>
