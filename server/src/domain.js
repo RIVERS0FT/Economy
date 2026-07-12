@@ -3,8 +3,7 @@ import { randomUUID } from 'node:crypto';
 export const ECONOMY_CONSTANTS = Object.freeze({
   maxOpenOrders: 10,
   maxOrderQuantity: 10_000,
-  workResetMs: 5 * 60 * 1000,
-  workCooldowns: [3_000, 5_000, 8_000, 12_000],
+  workCooldownMs: 10_000,
   demandCycleMs: 5 * 60 * 1000,
   maxPricePoints: 288,
   maxTradesPerPlayer: 240,
@@ -403,6 +402,11 @@ function createPlayer(user, now) {
       systemSinks: 0,
       commodityVolume: 0,
       facilityVolume: 0,
+      workClicks: 0,
+      producedGoods: 0,
+      boughtGoods: 0,
+      soldGoods: 0,
+      giftIssued: 0,
     },
   };
   addLedger(player, 'system', 100, '服务器发放玩家启动资金', now);
@@ -481,6 +485,19 @@ export function migrateWorld(world, now = Date.now()) {
       if (trade.type === 'commodity') trade.productId ||= 'grain';
     }
     player.ledger ||= [];
+    player.work ||= { cooldownUntil: 0, lastWorkedAt: 0, streak: 0, totalClicks: 0 };
+    player.work.streak = 0;
+    player.stats ||= {};
+    player.stats.workIssued = Number(player.stats.workIssued || 0);
+    player.stats.populationIssued = Number(player.stats.populationIssued || 0);
+    player.stats.systemSinks = Number(player.stats.systemSinks || 0);
+    player.stats.commodityVolume = Number(player.stats.commodityVolume || 0);
+    player.stats.facilityVolume = Number(player.stats.facilityVolume || 0);
+    player.stats.workClicks = Number(player.stats.workClicks ?? player.work.totalClicks ?? 0);
+    player.stats.producedGoods = Number(player.stats.producedGoods || 0);
+    player.stats.boughtGoods = Number(player.stats.boughtGoods || 0);
+    player.stats.soldGoods = Number(player.stats.soldGoods || 0);
+    player.stats.giftIssued = Number(player.stats.giftIssued || 0);
     delete player.inventory;
     delete player.frozenInventory;
     delete player.facilitySlots;
@@ -524,7 +541,7 @@ function totalAssets(world, player) {
 
 function pendingBuyQuantity(world, userId) {
   return world.orders
-    .filter((order) => order.ownerId === userId && order.side === 'buy' && isOpenOrder(order))
+    .filter((order) => order.ownerId === userId && order.side === 'buy' && order.assetKind !== 'facility' && isOpenOrder(order))
     .reduce((sum, order) => sum + order.remaining, 0);
 }
 
@@ -548,6 +565,7 @@ function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, created
   player.credits += reserved - actual;
   inventoryFor(player, order.productId).available += quantity;
   player.stats.commodityVolume += quantity;
+  player.stats.boughtGoods = Number(player.stats.boughtGoods || 0) + quantity;
   const product = productDefinition(order.productId);
   addTrade(player, {
     type: 'commodity',
@@ -571,6 +589,7 @@ function settlePlayerSell(world, order, quantity, tradePrice, buyer, createdAt) 
   inventory.frozen -= quantity;
   player.credits += total;
   player.stats.commodityVolume += quantity;
+  player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
   if (buyer.ownerType === 'population') player.stats.populationIssued += total;
   const product = productDefinition(order.productId);
   addTrade(player, {
@@ -831,15 +850,14 @@ function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
 function work(world, userId, now) {
   const player = getPlayer(world, userId);
   if (now < player.work.cooldownUntil) return result(false, '工作冷却尚未结束');
-  const reset = now - player.work.lastWorkedAt >= ECONOMY_CONSTANTS.workResetMs;
-  player.work.streak = reset ? 1 : Math.min(4, player.work.streak + 1);
-  const cooldown = ECONOMY_CONSTANTS.workCooldowns[player.work.streak - 1];
-  player.work.cooldownUntil = now + cooldown;
+  player.work.streak = 0;
+  player.work.cooldownUntil = now + ECONOMY_CONSTANTS.workCooldownMs;
   player.work.lastWorkedAt = now;
   player.work.totalClicks += 1;
   player.credits += 1;
   player.stats.workIssued += 1;
-  addLedger(player, 'work_income', 1, `完成工作，连续工作冷却 ${cooldown / 1_000} 秒`, now);
+  player.stats.workClicks = Number(player.stats.workClicks || 0) + 1;
+  addLedger(player, 'work_income', 1, '完成工作，固定冷却 10 秒', now);
   return result(true, '工作完成，获得 1 货币');
 }
 
