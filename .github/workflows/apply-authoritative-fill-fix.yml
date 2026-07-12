@@ -25,12 +25,22 @@ jobs:
         with:
           node-version: 22.16.0
       - name: Apply fix
-        run: node scripts/apply-authoritative-fill-fix.mjs
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/apply-authoritative-fill-fix.mjs 2>&1 | tee authoritative-fill-fix.log
+      - name: Upload diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: authoritative-fill-fix-log
+          path: authoritative-fill-fix.log
       - name: Commit fix
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f authoritative-fill-fix.log
           git add -A
           git commit -m "修复订单成交价格记录"
           git push origin HEAD:agent/fix-authoritative-fill-prices
