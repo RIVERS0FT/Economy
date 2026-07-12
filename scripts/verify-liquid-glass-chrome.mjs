@@ -195,7 +195,7 @@ if (!mobileStatusItemBlock) {
   if (mobileStatusItemBlock.includes('flex: 1 1 0')) {
     failures.push('移动顶部状态项不得恢复等宽拉伸');
   }
-  if (mobileStatusItemBlock.includes('width: 0')) {
+  if (/(?:^|\n)\s*width:\s*0;/.test(mobileStatusItemBlock)) {
     failures.push('移动顶部状态项不得恢复零基础宽度槽位');
   }
 }
