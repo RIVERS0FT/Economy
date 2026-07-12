@@ -9,18 +9,24 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
 
 const iconPath = 'src/components/icons/GameIcons.tsx';
+const productIconPath = 'src/components/icons/ProductIcons.tsx';
 const navigationItemsPath = 'src/components/shell/NavigationItems.tsx';
 const navigationConfigPath = 'src/config/navigation.ts';
 const iconStylePath = 'src/styles/icon-system.css';
+const mobileNavigationStylePath = 'src/styles/mobile-status-navigation.css';
+const marketPagePath = 'src/pages/MarketPage.tsx';
 
 [
   'src/components/ui/layout.tsx',
   'src/pages/ProductionPage.tsx',
   'src/pages/SettingsPage.tsx',
+  marketPagePath,
   'src/styles/design-system.css',
   'src/styles/globals.css',
   'src/styles/unified-market-admin.css',
+  mobileNavigationStylePath,
   iconPath,
+  productIconPath,
   navigationItemsPath,
   navigationConfigPath,
   iconStylePath,
@@ -38,9 +44,12 @@ const settingsPage = read('src/pages/SettingsPage.tsx');
 const designSystem = read('src/styles/design-system.css');
 const businessStyles = read('src/styles/unified-market-admin.css');
 const icons = read(iconPath);
+const productIcons = read(productIconPath);
 const navigationItems = read(navigationItemsPath);
 const navigationConfig = read(navigationConfigPath);
 const iconStyles = read(iconStylePath);
+const mobileNavigationStyles = read(mobileNavigationStylePath);
+const marketPage = read(marketPagePath);
 
 for (const text of [
   'export function PageLayout',
@@ -106,12 +115,25 @@ for (const text of [
   'export function HomeIcon',
   'export function MarketIcon',
   'export function ProductionIcon',
+  'export function FactoryIcon',
   'export function FundsIcon',
   'export function LeaderboardIcon',
   'export function SettingsIcon',
   'export function NavigationIcon',
 ]) {
   if (!icons.includes(text)) failures.push(`${iconPath} 缺少: ${text}`);
+}
+
+const factoryBlock = icons.match(/export function FactoryIcon[\s\S]*?\n}\n\nexport function FundsIcon/)?.[0] ?? '';
+if (!factoryBlock.includes('M3 20V10') || !factoryBlock.includes('M17 6V3h3v17')) {
+  failures.push('FactoryIcon 必须保持厂房与烟囱轮廓');
+}
+const machineryBlock = productIcons.match(/case 'machinery':[\s\S]*?case 'electronics':/)?.[0] ?? '';
+if (!machineryBlock.includes('<circle cx="12" cy="12" r="3.2" />')) {
+  failures.push('机械商品必须保持齿轮机械轮廓');
+}
+if (factoryBlock.includes('<circle cx="12" cy="12" r="3.2" />') || machineryBlock.includes('M17 6V3h3v17')) {
+  failures.push('工厂图标不得与机械商品图标共用轮廓');
 }
 
 for (const text of [
@@ -125,6 +147,8 @@ for (const text of [
 for (const legacyIcon of ['⌂', '↕', '⚙', '◫', '♛', 'icon:']) {
   if (navigationConfig.includes(legacyIcon)) failures.push(`${navigationConfigPath} 不得包含字符图标: ${legacyIcon}`);
 }
+requireText(navigationConfigPath, "{ id: 'assets', label: '资产' }");
+forbidText(navigationConfigPath, "{ id: 'assets', label: '资金' }");
 
 for (const text of [
   '.game-icon {',
@@ -135,6 +159,49 @@ for (const text of [
   if (!iconStyles.includes(text)) failures.push(`${iconStylePath} 缺少: ${text}`);
 }
 
+for (const text of [
+  '.sidebar-nav-button {',
+  'color: var(--color-text-muted);',
+  'opacity: 1;',
+  '.sidebar-nav-button > span,',
+  '.sidebar-nav-button strong {',
+  'color: inherit;',
+  '.sidebar-nav-button.active {',
+  'color: var(--color-text-primary);',
+  '.sidebar-nav-button.active > span {',
+  'color: var(--color-success);',
+]) requireText(mobileNavigationStylePath, text);
+
+const mobileNavButtonBlock = mobileNavigationStyles.match(/\.mobile-bottom-navigation \.sidebar-nav-button\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavButtonBlock.includes('color: var(--color-text-muted)') || !mobileNavButtonBlock.includes('opacity: 1')) {
+  failures.push('移动导航未选中图标与文字必须为完全不透明灰色');
+}
+const mobileNavLabelBlock = mobileNavigationStyles.match(/\.mobile-bottom-navigation \.sidebar-nav-button strong\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavLabelBlock.includes('color: inherit') || !mobileNavLabelBlock.includes('opacity: 1')) {
+  failures.push('移动导航文字必须继承完全不透明状态色');
+}
+const mobileNavIconBlock = mobileNavigationStyles.match(/\.mobile-bottom-navigation \.sidebar-nav-button > span\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileNavIconBlock.includes('color: inherit') || !mobileNavIconBlock.includes('opacity: 1')) {
+  failures.push('移动导航图标必须继承完全不透明状态色');
+}
+
+for (const legacyOpacity of [
+  'rgba(194, 211, 201, .62)',
+  'rgba(194, 211, 201, .68)',
+  'opacity: .62',
+  'opacity: .68',
+]) {
+  if (mobileNavigationStyles.includes(legacyOpacity)) failures.push(`导航不得恢复半透明图标或文字: ${legacyOpacity}`);
+}
+
+for (const text of [
+  "import { FactoryIcon } from '../components/icons/GameIcons'",
+  '<span className="asset-kind-icon" aria-hidden="true"><FactoryIcon /></span>',
+]) requireText(marketPagePath, text);
+for (const forbidden of ['>⚙</span>', '<ProductIcon productId="machinery" />']) {
+  if (marketPage.includes(forbidden)) failures.push(`市场工厂标签不得使用机械或字符图标: ${forbidden}`);
+}
+
 requireText('src/main.tsx', "import './styles/icon-system.css'");
 
 for (const text of [
@@ -143,13 +210,18 @@ for (const text of [
   '不得继续使用 Unicode 字符、Emoji 或字体符号作为图标',
   '导航配置只保存 `id` 与中文 `label`',
   '桌面侧栏和移动底栏复用同一套导航 SVG',
+  '工厂资产标签必须使用 `GameIcons.tsx` 的 `FactoryIcon`',
+  '`FactoryIcon` 使用厂房与烟囱轮廓',
+  '导航颜色与不透明度',
+  '未选中状态使用完全不透明的 `var(--color-text-muted)` 灰色',
+  '图标继承按钮颜色，不得为未选中图标另设半透明 RGBA',
   '在导航或状态栏中恢复 Unicode 字符、Emoji 或字体符号图标',
   '绕过 `GameIcons.tsx` 新增平行界面图标库',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
-  console.error(`UI 架构、统一开关、焦点环与 SVG 图标验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`UI 架构、统一开关、焦点环、导航不透明度与 SVG 图标验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('共享 UI 组件、唯一开关视觉、轨道焦点环与统一 SVG 图标验证通过。');
+console.log('共享 UI、唯一开关、导航完全不透明状态色、独立工厂 SVG 与统一商品图标验证通过。');
