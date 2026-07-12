@@ -40,16 +40,16 @@
 }
 
 .single-order-book {
-  align-self: start;
+  align-self: stretch;
 }
 
 .order-book-stack {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
 }
 
 .order-book-side-label,
-.order-book-midpoint,
 .book-order-row {
   display: grid;
   align-items: center;
@@ -92,25 +92,10 @@
   color: var(--color-success);
 }
 
-.order-book-midpoint {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
+.order-book-divider {
+  height: 1px;
   margin: var(--space-2) 0;
-  border: 1px solid rgba(244, 194, 93, 0.22);
-  padding: var(--space-3);
-  background: rgba(244, 194, 93, 0.06);
-}
-
-.order-book-midpoint span {
-  display: grid;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.order-book-midpoint strong {
-  color: var(--color-warning);
-  font-size: var(--font-size-lg);
+  background: var(--color-divider);
 }
 
 .market-account-panel {
@@ -148,6 +133,10 @@
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-md);
+}
+
+.local-trades-table {
+  max-height: none;
 }
 
 .listing-purchase-control {
@@ -318,7 +307,6 @@
   .market-account-summary,
   .funds-summary-grid,
   .asset-event-changes,
-  .order-book-midpoint,
   .listing-purchase-control {
     grid-template-columns: 1fr;
   }

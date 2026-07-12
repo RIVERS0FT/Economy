@@ -157,11 +157,11 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>1/2 仓</Button>
             <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>全仓</Button>
           </div>
-          <small className="ui-helper-text">
-            {orderSide === 'buy'
-              ? `买入快捷数量按资金与仓库剩余空间共同计算，当前最多 ${maxBuyQuantity}。`
-              : `卖出快捷数量按当前${selectedProduct.name}可用库存计算，当前最多 ${maxSellQuantity}。`}
-          </small>
+          {orderSide === 'sell' ? (
+            <small className="ui-helper-text">
+              卖出快捷数量按当前{selectedProduct.name}可用库存计算，当前最多 {maxSellQuantity}。
+            </small>
+          ) : null}
           <div className="order-summary"><span>订单总额</span><strong>¤ {formatCurrency(orderQuantity * orderPrice)}</strong></div>
           <div className="order-capacity">
             <span>可用资金 ¤ {formatCurrency(game.credits)}</span>
@@ -206,10 +206,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             ))}
             {bestAsks.length === 0 ? <p className="muted">暂无卖单</p> : null}
 
-            <div className="order-book-midpoint">
-              <span>最近成交 <strong>¤ {selectedMarket.lastPrice}</strong></span>
-              <span>价差 <strong>¤ {derived.spread}</strong></span>
-            </div>
+            <div className="order-book-divider" aria-hidden="true" />
 
             {bestBids.map((order) => (
               <div className="book-order-row bid" key={order.id}>
@@ -277,10 +274,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               </ScrollableTable>
             </section>
 
-            <section>
+            <section className="local-trades-section">
               <h3>本地成交记录</h3>
               <p className="ui-helper-text">仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。</p>
-              <ScrollableTable>
+              <ScrollableTable className="local-trades-table">
                 <table>
                   <thead><tr><th>资产</th><th>方向</th><th className="numeric-cell">数量</th><th className="numeric-cell">价格</th><th className="numeric-cell">总额</th><th>来源</th><th>时间</th></tr></thead>
                   <tbody>
