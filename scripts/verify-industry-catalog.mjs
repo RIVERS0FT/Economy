@@ -61,7 +61,7 @@ const assetsPage = readFileSync('src/pages/AssetsPage.tsx', 'utf8');
 assert.match(assetsPage, /ProductIconLabel/);
 assert.match(assetsPage, /className="product-asset-card-title"/);
 assert.match(assetsPage, /productId=\{change\.productId\}/);
-assert.match(assetsPage, /productId=\{change\.outputProductId\}/);
+assert.match(assetsPage, /productId=\{change\.outputProductId \?\? 'unknown'\}/);
 
 const unifiedMarketCss = readFileSync('src/styles/unified-market-admin.css', 'utf8');
 assert.match(unifiedMarketCss, /\.asset-kind-icon > \.product-icon \{ width: 100%; height: 100%; \}/);
