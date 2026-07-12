@@ -148,18 +148,22 @@ if (!mobileNavButtonBlock) {
   failures.push('移动底部导航缺少按钮布局');
 } else {
   for (const rule of [
-    'flex: 1 0 60px',
-    'min-width: 60px',
-    'height: 50px',
+    'flex: 0 0 48px',
+    'width: 48px',
+    'min-width: 48px',
+    'height: 48px',
     'grid-template-rows: 1.35rem min-content',
     'align-content: center',
     'gap: .06rem',
     'border-radius: .85rem',
-    'padding: .16rem .25rem .22rem',
+    'padding: .16rem .2rem .2rem',
   ]) {
     if (!mobileNavButtonBlock.includes(rule)) failures.push(`移动底部导航按钮缺少: ${rule}`);
   }
   for (const legacyRule of [
+    'flex: 1 0 60px',
+    'min-width: 60px',
+    'height: 50px',
     'flex: 1 0 68px',
     'min-width: 68px',
     'height: 100%',
@@ -170,7 +174,7 @@ if (!mobileNavButtonBlock) {
     'border-radius: 1rem',
     'padding: .28rem .35rem .38rem',
   ]) {
-    if (mobileNavButtonBlock.includes(legacyRule)) failures.push(`移动底部导航不得恢复较大按钮几何: ${legacyRule}`);
+    if (mobileNavButtonBlock.includes(legacyRule)) failures.push(`移动底部导航不得恢复非 48px 方形按钮: ${legacyRule}`);
   }
 }
 
@@ -355,16 +359,18 @@ for (const rule of [
   '状态项之间不增加分隔线',
   '四项必须使用 `GameIcons.tsx` 提供的本地内联 SVG',
   '移动底部导航活动态、尺寸与图文间距',
-  '导航按钮固定高度为 `50px`、最小宽度为 `60px`',
+  '每个导航按钮固定为 `48px × 48px`',
+  '导航按钮不得随底栏剩余空间拉伸',
   '导航列表使用 `align-items: center`',
   '移动导航按钮使用 `grid-template-rows: 1.35rem min-content`',
   '图标行与文字行的 CSS 间距固定为 `gap: .06rem`',
   '移动导航 SVG 显示尺寸为 `1.15rem`，文字字号为 `.66rem`',
+  '所有内部导航按钮固定为 `48px × 48px`',
   '排名在移动端使用 `#1`、`#2` 格式',
   '恢复移动顶部状态栏横向滚动、`space-between`、`space-around`、整体居中、非零容器间距或“第 N 名”移动格式',
   '恢复移动状态项 `flex: 1 1 0`、`width: 0`、固定四等分槽位或其他拉伸分布',
-  '恢复移动底栏 `76px` 高度、`68px` 最小按钮宽度或 `height: 100%` 的拉伸按钮',
-  '删除移动导航 `50px` 按钮高度、`60px` 最小宽度、居中对齐或紧凑内边距',
+  '恢复移动导航按钮 `flex: 1`、`60px × 50px`、其他非方形尺寸或随剩余空间拉伸',
+  '删除移动导航按钮 `48px × 48px` 固定尺寸、居中对齐或紧凑内边距',
   '恢复移动状态栏 `width: max-content`、`left: 50%`、`translateX(-50%)` 或其他内容宽度胶囊布局',
   '删除移动状态栏全宽安全区定位、`space-evenly` 等距分布、紧凑数值格式或内容宽度状态项规则',
   '恢复移动顶部状态栏字符图标、分隔线、独立图标底板或小于 `18px` 的图标',
@@ -378,4 +384,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('液态玻璃状态栏验证通过：桌面悬浮、移动状态栏等距布局、68px 紧凑底栏、60×50px 导航按钮、统一 GameIcons SVG、稳定活动态和无模糊降级均满足设计基线。');
+console.log('液态玻璃状态栏验证通过：桌面悬浮、移动状态栏等距布局、68px 紧凑底栏、固定 48×48px 导航按钮、统一 GameIcons SVG、稳定活动态和无模糊降级均满足设计基线。');
