@@ -38,9 +38,9 @@ for (const text of [
   'game.facilityGroups.map',
   'facility-status-header',
   '玩家已关闭生产',
-  '等待异常条件解除',
   '在统一订单簿中买卖该工厂',
 ]) requireText('src/pages/ProductionPage.tsx', text);
+for (const text of ['等待异常条件解除', 'facility-progress-compact']) requireText('src/components/facilities/FacilityProgress.tsx', text);
 for (const text of ['warehouse state defaults to level 1 and client version 10', 'remaining open commodity buy orders only', 'warehouse upgrade is idempotent']) requireText('server/test/warehouse.test.js', text);
 for (const text of ['player.stats.producedGoods', 'inventoryFor(player, type.output.productId).available += requirements.output', 'pendingJoinCount']) requireText('server/src/facility-groups.js', text);
 
