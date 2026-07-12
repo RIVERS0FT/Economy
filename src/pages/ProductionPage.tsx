@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
@@ -17,6 +17,8 @@ import {
 } from '../components/ui/layout';
 import type { FacilityGroup, ProductionMode } from '../types';
 import { formatCurrency, formatDuration } from '../utils/formatters';
+
+type PlanSaveStatus = 'idle' | 'saving' | 'error';
 
 function facilityTone(status: string): StatusTone {
   if (status === 'running') return 'success';
@@ -40,6 +42,12 @@ function facilityStatusLabel(group: FacilityGroup) {
   }
 }
 
+function validPlanTarget(value: string, step: number) {
+  const target = Number(value);
+  if (!Number.isInteger(target) || target < step || target % step !== 0) return null;
+  return target;
+}
+
 export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
@@ -52,14 +60,21 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     setProductionPlan,
     selectMarketAsset,
     showResult,
+    notify,
   } = model;
   const [planModes, setPlanModes] = useState<Record<string, ProductionMode>>({});
-  const [planTargets, setPlanTargets] = useState<Record<string, number>>({});
+  const [planTargets, setPlanTargets] = useState<Record<string, string>>({});
+  const [planSaveStatuses, setPlanSaveStatuses] = useState<Record<string, PlanSaveStatus>>({});
+  const planSaveTimers = useRef<Record<string, number>>({});
+  const planSaveChains = useRef<Record<string, Promise<void>>>({});
+  const planSaveVersions = useRef<Record<string, number>>({});
 
   useEffect(() => {
     setPlanModes((current) => {
       const next = { ...current };
-      for (const group of game.facilityGroups) next[group.facilityTypeId] ??= group.productionMode;
+      for (const group of game.facilityGroups) {
+        next[group.facilityTypeId] ??= group.pendingProductionPlan?.mode ?? group.productionMode;
+      }
       return next;
     });
     setPlanTargets((current) => {
@@ -67,11 +82,18 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       for (const group of game.facilityGroups) {
         const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
         const cycleOutput = Math.max(1, (type?.output.quantity ?? 1) * Math.max(1, group.nextCycleCount));
-        next[group.facilityTypeId] ??= group.targetQuantity || cycleOutput * 10;
+        const pendingTarget = group.pendingProductionPlan?.mode === 'target'
+          ? group.pendingProductionPlan.targetQuantity
+          : undefined;
+        next[group.facilityTypeId] ??= String(pendingTarget || group.targetQuantity || cycleOutput * 10);
       }
       return next;
     });
   }, [game.facilityGroups, game.facilityTypes]);
+
+  useEffect(() => () => {
+    for (const timer of Object.values(planSaveTimers.current)) window.clearTimeout(timer);
+  }, []);
 
   const selectedType = useMemo(
     () => game.facilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? game.facilityTypes[0],
@@ -82,6 +104,48 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   function productName(productId?: string) {
     if (!productId) return '无';
     return game.products.find((product) => product.id === productId)?.name ?? productId;
+  }
+
+  function clearPlanSaveTimer(facilityTypeId: string) {
+    const timer = planSaveTimers.current[facilityTypeId];
+    if (timer !== undefined) window.clearTimeout(timer);
+    delete planSaveTimers.current[facilityTypeId];
+  }
+
+  function queuePlanSave(facilityTypeId: string, mode: ProductionMode, targetQuantity?: number) {
+    const version = (planSaveVersions.current[facilityTypeId] ?? 0) + 1;
+    planSaveVersions.current[facilityTypeId] = version;
+    setPlanSaveStatuses((current) => ({ ...current, [facilityTypeId]: 'saving' }));
+
+    const previous = planSaveChains.current[facilityTypeId] ?? Promise.resolve();
+    const next = previous
+      .catch(() => undefined)
+      .then(async () => {
+        const result = await setProductionPlan(facilityTypeId, mode, targetQuantity);
+        if (planSaveVersions.current[facilityTypeId] !== version) return;
+        setPlanSaveStatuses((current) => ({
+          ...current,
+          [facilityTypeId]: result.ok ? 'idle' : 'error',
+        }));
+        if (!result.ok) notify(result.message);
+      });
+    planSaveChains.current[facilityTypeId] = next;
+  }
+
+  function scheduleTargetPlanSave(facilityTypeId: string, value: string, step: number) {
+    clearPlanSaveTimer(facilityTypeId);
+    const target = validPlanTarget(value, step);
+    if (target === null) return;
+    planSaveTimers.current[facilityTypeId] = window.setTimeout(() => {
+      delete planSaveTimers.current[facilityTypeId];
+      queuePlanSave(facilityTypeId, 'target', target);
+    }, 500);
+  }
+
+  function flushTargetPlanSave(facilityTypeId: string, value: string, step: number) {
+    clearPlanSaveTimer(facilityTypeId);
+    const target = validPlanTarget(value, step);
+    if (target !== null) queuePlanSave(facilityTypeId, 'target', target);
   }
 
   if (!selectedType) {
@@ -149,35 +213,36 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           {game.facilityGroups.map((group) => {
             const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
             if (!type) return null;
-            const mode = planModes[group.facilityTypeId] ?? group.productionMode;
+            const mode = planModes[group.facilityTypeId] ?? group.pendingProductionPlan?.mode ?? group.productionMode;
             const currentCount = group.status === 'running' ? group.participatingCount : group.availableCount;
             const currentCycleOutput = type.output.quantity * currentCount;
             const currentCycleCost = type.operatingCost * currentCount;
-            const target = planTargets[group.facilityTypeId] ?? group.targetQuantity ?? Math.max(1, type.output.quantity * Math.max(1, group.nextCycleCount)) * 10;
+            const planStep = Math.max(1, type.output.quantity * Math.max(1, group.nextCycleCount));
+            const defaultTarget = group.pendingProductionPlan?.mode === 'target'
+              ? group.pendingProductionPlan.targetQuantity
+              : group.targetQuantity ?? planStep * 10;
+            const targetValue = planTargets[group.facilityTypeId] ?? String(defaultTarget);
             const inputName = productName(type.input?.productId);
             const outputName = productName(type.output.productId);
             const inputInventory = type.input ? game.inventories[type.input.productId]?.available ?? 0 : null;
             const cycleInput = type.input ? type.input.quantity * currentCount : 0;
-            const remainingTarget = group.productionMode === 'target'
-              ? Math.max(0, (group.targetQuantity || 0) - group.completedQuantity)
-              : null;
             const canConfigure = group.nextCycleCount > 0;
-            const planStep = Math.max(1, type.output.quantity * Math.max(1, group.nextCycleCount));
             const pendingPlan = group.pendingProductionPlan;
+            const saveStatus = planSaveStatuses[group.facilityTypeId] ?? 'idle';
+            const planStatusLabel = pendingPlan
+              ? '下一周期生效'
+              : saveStatus === 'saving'
+                ? '自动保存中…'
+                : saveStatus === 'error'
+                  ? '自动保存失败'
+                  : '';
 
             return (
               <Panel className="facility-card facility-group-card" key={group.facilityTypeId}>
                 <div className="facility-card-head facility-status-header">
-                  <div className="facility-status-copy">
-                    <div className="facility-status-title">
-                      <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
-                      <h2>{type.name} × {group.count}</h2>
-                    </div>
-                    <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
-                      <span>运行中 <strong>{group.participatingCount}</strong></span>
-                      <span>下一周期加入 <strong>{group.pendingJoinCount}</strong></span>
-                      <span>冻结中 <strong>{group.listedCount}</strong></span>
-                    </div>
+                  <div className="facility-status-title">
+                    <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
+                    <h2>{type.name} × {group.count}</h2>
                   </div>
                   <SwitchControl
                     checked={group.enabled}
@@ -188,6 +253,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                       ? startFacility(group.facilityTypeId)
                       : stopFacility(group.facilityTypeId))}
                   />
+                  <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
+                    <span>运行中 <strong>{group.participatingCount}</strong></span>
+                    <span>下一周期加入 <strong>{group.pendingJoinCount}</strong></span>
+                    <span>冻结中 <strong>{group.listedCount}</strong></span>
+                  </div>
                 </div>
 
                 <div className="facility-specs ui-spec-grid facility-group-specs">
@@ -200,38 +270,59 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 <FacilityGroupProgress group={group} type={type} now={now} />
 
                 <div className="production-plan-card">
-                  <div className="production-plan-summary">
-                    <strong>{group.productionMode === 'continuous'
-                      ? '当前计划：持续运行'
-                      : `当前计划：定量生产 ${group.targetQuantity} 个 · 已完成 ${group.completedQuantity} · 剩余 ${remainingTarget}`}</strong>
-                    {pendingPlan ? <small>下一周期：{pendingPlan.mode === 'continuous' ? '持续运行' : `定量生产 ${pendingPlan.targetQuantity} 个`}</small> : null}
+                  <div className="production-plan-heading">
+                    <strong>当前计划</strong>
+                    {planStatusLabel ? (
+                      <small
+                        className={`production-plan-status${saveStatus === 'error' && !pendingPlan ? ' status-error' : ''}`}
+                        aria-live="polite"
+                      >{planStatusLabel}</small>
+                    ) : null}
                   </div>
-                  <div className="production-plan-controls">
+                  <div className={`production-plan-fields${mode === 'continuous' ? ' is-continuous' : ''}`}>
                     <select
                       aria-label={`${type.name}集群生产模式`}
                       value={mode}
                       disabled={!canConfigure}
-                      onChange={(event: ChangeEvent<HTMLSelectElement>) => setPlanModes((current) => ({ ...current, [group.facilityTypeId]: event.target.value as ProductionMode }))}
+                      onChange={(event: ChangeEvent<HTMLSelectElement>) => {
+                        const nextMode = event.target.value as ProductionMode;
+                        clearPlanSaveTimer(group.facilityTypeId);
+                        setPlanModes((current) => ({ ...current, [group.facilityTypeId]: nextMode }));
+                        if (nextMode === 'continuous') {
+                          queuePlanSave(group.facilityTypeId, nextMode);
+                          return;
+                        }
+                        const requestedTarget = validPlanTarget(targetValue, planStep);
+                        const normalizedTarget = requestedTarget
+                          ?? Math.max(planStep, Math.ceil((Number(targetValue) || planStep) / planStep) * planStep);
+                        setPlanTargets((current) => ({ ...current, [group.facilityTypeId]: String(normalizedTarget) }));
+                        queuePlanSave(group.facilityTypeId, nextMode, normalizedTarget);
+                      }}
                     >
                       <option value="continuous">持续运行</option>
                       <option value="target">定量生产</option>
                     </select>
                     {mode === 'target' ? (
                       <input
-                        aria-label={`${type.name}集群计划产量`}
+                        aria-label={`${type.name}目标产量`}
+                        placeholder="目标产量"
                         type="number"
+                        inputMode="numeric"
                         min={planStep}
                         step={planStep}
-                        value={target}
+                        value={targetValue}
                         disabled={!canConfigure}
-                        onChange={(event) => setPlanTargets((current) => ({ ...current, [group.facilityTypeId]: Number(event.target.value) }))}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setPlanTargets((current) => ({ ...current, [group.facilityTypeId]: value }));
+                          scheduleTargetPlanSave(group.facilityTypeId, value, planStep);
+                        }}
+                        onBlur={(event) => flushTargetPlanSave(group.facilityTypeId, event.target.value, planStep)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') event.currentTarget.blur();
+                        }}
                       />
                     ) : null}
-                    <Button
-                      variant="secondary"
-                      disabled={!canConfigure}
-                      onClick={() => void showResult(setProductionPlan(group.facilityTypeId, mode, mode === 'target' ? target : undefined))}
-                    >保存计划</Button>
                   </div>
                 </div>
 
