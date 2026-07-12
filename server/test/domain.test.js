@@ -13,6 +13,7 @@ import { EconomyStore } from '../src/storage.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
+const carol = { id: 3, email: 'carol@example.com', name: 'Carol' };
 const now = 1_700_000_000_000;
 
 test('different products never match in the same order book', () => {
@@ -171,4 +172,34 @@ test('existing worlds receive new inventories, markets, and liquidity without re
     assert.equal(world.orders.some((order) => order.productId === productId && order.side === 'buy' && order.ownerType === 'market'), true);
     assert.equal(world.orders.some((order) => order.productId === productId && order.side === 'sell' && order.ownerType === 'market'), true);
   }
+});
+
+test('commodity order fills preserve every exact resting price', () => {
+  const world = createWorld(now);
+  world.orders = [];
+  const buyer = ensurePlayer(world, alice, now);
+  const sellerA = ensurePlayer(world, bob, now);
+  const sellerB = ensurePlayer(world, carol, now);
+  buyer.credits = 100;
+  sellerA.inventories.grain.available = 1;
+  sellerB.inventories.grain.available = 1;
+
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'grain', side: 'sell', quantity: 1, price: 5,
+  }, now + 1).ok, true);
+  assert.equal(applyAction(world, carol, 'placeOrder', {
+    productId: 'grain', side: 'sell', quantity: 1, price: 6,
+  }, now + 2).ok, true);
+  assert.equal(applyAction(world, alice, 'placeOrder', {
+    productId: 'grain', side: 'buy', quantity: 2, price: 20,
+  }, now + 3).ok, true);
+
+  const buyOrder = world.orders.find((order) => order.ownerId === alice.id && order.side === 'buy');
+  assert.deepEqual(
+    buyOrder.fills.map((fill) => ({ price: fill.price, quantity: fill.quantity })),
+    [{ price: 5, quantity: 1 }, { price: 6, quantity: 1 }],
+  );
+  assert.equal(buyer.credits, 89);
+  assert.equal(buyer.frozenCredits, 0);
+  assert.equal(buyer.inventories.grain.available, 2);
 });

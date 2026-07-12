@@ -60,6 +60,7 @@ function normalizeOrder(order) {
   order.assetId = assetId;
   if (kind === 'facility') order.facilityTypeId = assetId;
   else order.productId = assetId;
+  order.fills = Array.isArray(order.fills) ? order.fills : [];
   return order;
 }
 
@@ -446,6 +447,13 @@ function describeCounterparty(order) {
   return order.ownerName || (order.ownerType === 'market' ? '系统资产市场' : '玩家');
 }
 
+function appendPlayerOrderFill(order, fill) {
+  if (order.ownerType !== 'player') return;
+  order.fills = Array.isArray(order.fills) ? order.fills : [];
+  order.fills.push(fill);
+  order.fills = order.fills.slice(-120);
+}
+
 function addPurchasedGroup(player, typeId, quantity) {
   const group = groupFor(player, typeId, true);
   group.count += quantity;
@@ -462,11 +470,31 @@ function executeFacilityTrade(world, incoming, resting, quantity, createdAt) {
   const sell = incoming.side === 'sell' ? incoming : resting;
   const typeId = orderAssetId(incoming);
   const price = resting.price;
+  const fillId = `facility-order-fill-${crypto.randomUUID()}`;
+  const fillBase = {
+    id: fillId,
+    quantity,
+    price,
+    total: quantity * price,
+    createdAt,
+    makerOrderId: resting.id,
+    takerOrderId: incoming.id,
+  };
 
   incoming.remaining -= quantity;
   resting.remaining -= quantity;
   incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
   resting.status = resting.remaining === 0 ? 'filled' : 'partial';
+  appendPlayerOrderFill(buy, {
+    ...fillBase,
+    counterparty: describeCounterparty(sell),
+    liquidity: buy.id === resting.id ? 'maker' : 'taker',
+  });
+  appendPlayerOrderFill(sell, {
+    ...fillBase,
+    counterparty: describeCounterparty(buy),
+    liquidity: sell.id === resting.id ? 'maker' : 'taker',
+  });
 
   if (buy.ownerType === 'player') {
     const buyer = world.players[String(buy.ownerId)];
