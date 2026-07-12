@@ -154,8 +154,8 @@ for (const text of [
 
 for (const text of [
   '工厂卡桌面固定高度',
-  '建设卡',
-  '无限扩容',
+  '建设新工厂卡桌面独占',
+  '仓库只显示可用或冻结数量大于零的商品',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
