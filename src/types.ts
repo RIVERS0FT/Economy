@@ -119,7 +119,7 @@ export interface AssetOrder {
 
 export type CommodityOrder = AssetOrder;
 
-/** @deprecated Kept as an empty compatibility shape during the version 9 migration. */
+/** @deprecated Kept as an empty compatibility shape during the version 10 migration. */
 export interface FacilityListing {
   id: string;
   facilityTypeId: string;
@@ -292,7 +292,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 9;
+  version: 10;
   userId: number;
   playerName: string;
   registeredAt: number;
