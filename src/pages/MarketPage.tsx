@@ -1,6 +1,7 @@
 import { type ChangeEvent } from 'react';
 import { orderAssetId, orderKind, orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
+import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
 import {
   Button,
   PageLayout,
@@ -89,7 +90,14 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   function assetLabel(order: AssetOrder) {
     const id = orderAssetId(order);
     if (orderKind(order) === 'facility') return game.facilityTypes.find((type) => type.id === id)?.name ?? id;
-    return game.products.find((product) => product.id === id)?.name ?? id;
+    const productName = game.products.find((product) => product.id === id)?.name ?? id;
+    return <ProductIconLabel productId={id}>{productName}</ProductIconLabel>;
+  }
+
+  function selectedAssetTitle(label: string) {
+    return selectedProduct
+      ? <ProductIconLabel productId={selectedProduct.id}>{label}</ProductIconLabel>
+      : label;
   }
 
   function quickQuantity(fraction: number) {
@@ -118,7 +126,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               key={`commodity-${product.id}`}
               onClick={() => selectMarketAsset('commodity', product.id)}
             >
-              <span className="asset-kind-icon" aria-hidden="true">▣</span>
+              <span className="asset-kind-icon" aria-hidden="true"><ProductIcon productId={product.id} /></span>
               <strong>{product.name}</strong>
               <span>¤ {game.markets[product.id]?.lastPrice ?? product.basePrice}</span>
               <small>持仓 {inventory.available}</small>
@@ -149,7 +157,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
       <div className="market-grid unified-market-grid">
         <Panel className="widget order-entry">
           <WidgetHeading
-            title={`${assetName}限价订单`}
+            title={selectedAssetTitle(`${assetName}限价订单`)}
             action={<StatusTag>{ownSelectedOrders.length} 笔未完成</StatusTag>}
           />
           <div className="ui-segmented" role="group" aria-label="订单方向">
@@ -217,7 +225,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget order-book single-order-book">
-          <WidgetHeading title={`${assetName}订单簿`} />
+          <WidgetHeading title={selectedAssetTitle(`${assetName}订单簿`)} />
           <div className="order-book-stack" aria-label={`${assetName}买卖盘`}>
             <div className="order-book-side-label ask-label"><span>卖盘</span><small>最低价前 5 笔</small></div>
             {bestAsks.map((order) => (
@@ -235,7 +243,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget market-chart-card">
           <WidgetHeading
-            title={`${assetName}近期成交曲线`}
+            title={selectedAssetTitle(`${assetName}近期成交曲线`)}
             action={<StatusTag tone={marketTrend >= 0 ? 'success' : 'danger'}>{marketTrend >= 0 ? '+' : ''}{marketTrend}</StatusTag>}
           />
           <PriceSparkline values={history} />
@@ -282,7 +290,9 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                     {localTrades.map((trade) => (
                       <tr key={trade.id}>
                         <td>{trade.type === 'facility' ? '工厂' : '商品'}</td>
-                        <td>{trade.description}</td>
+                        <td>{trade.type === 'commodity' && trade.productId
+                          ? <ProductIconLabel productId={trade.productId}>{trade.description}</ProductIconLabel>
+                          : trade.description}</td>
                         <td><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
                         <td className="numeric-cell">{trade.quantity}</td>
                         <td className="numeric-cell">¤ {formatCurrency(trade.price)}</td>

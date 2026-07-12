@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { ProductIconLabel } from '../components/icons/ProductIcons';
 import {
   Button,
   DataList,
@@ -151,7 +152,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                     setTab('market');
                   }}
                 >
-                  <span>{product.name}</span>
+                  <ProductIconLabel productId={product.id} className="product-asset-card-title">{product.name}</ProductIconLabel>
                   <strong>¤ {formatCurrency(value)}</strong>
                   <small>可用 {inventory.available} · 冻结 {inventory.frozen} · 估值买价 ¤ {price || '--'}</small>
                 </button>
@@ -221,7 +222,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   ) : null}
                   {event.inventoryChanges.map((change) => (
                     <span key={`${event.id}-${change.productId}`}>
-                      {productName(change.productId)}
+                      <ProductIconLabel productId={change.productId}>{productName(change.productId)}</ProductIconLabel>
                       <strong>
                         {change.availableDelta ? `可用 ${signedQuantity(change.availableDelta)}` : ''}
                         {change.availableDelta && change.frozenDelta ? ' · ' : ''}
@@ -252,8 +253,8 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   ))}
                   {event.productionChanges.map((change) => (
                     <span key={`${event.id}-${change.facilityTypeId}-${change.action}`}>
-                      {change.facilityName ?? '生产'}
-                      <strong>产出入仓 {change.outputQuantity} {productName(change.outputProductId)}</strong>
+                      <ProductIconLabel productId={change.outputProductId ?? 'unknown'}>{productName(change.outputProductId)}</ProductIconLabel>
+                      <strong>{change.facilityName ?? '生产'} · 产出入仓 {change.outputQuantity}</strong>
                       <small>
                         {change.inputQuantity > 0 ? `消耗 ${change.inputQuantity} ${productName(change.inputProductId)} · ` : ''}
                         已直接进入共享仓库

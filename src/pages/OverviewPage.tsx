@@ -1,5 +1,6 @@
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
+import { ProductIconLabel } from '../components/icons/ProductIcons';
 import {
   Button,
   DataList,
@@ -45,7 +46,10 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <Panel className="widget market-summary span-2">
-          <WidgetHeading title={`${derived.selectedProduct.name}市场`} action={<Button variant="text" onClick={() => setTab('market')}>查看全部资产 →</Button>} />
+          <WidgetHeading
+            title={<ProductIconLabel productId={derived.selectedProduct.id}>{derived.selectedProduct.name}市场</ProductIconLabel>}
+            action={<Button variant="text" onClick={() => setTab('market')}>查看全部资产 →</Button>}
+          />
           <div className="market-quote-grid">
             <MetricCard label="最近成交" value={`¤ ${derived.selectedMarket.lastPrice}`} />
             <MetricCard tone="success" label="最高买价" value={`¤ ${derived.bestBid || '--'}`} />
@@ -56,7 +60,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
           <div className="overview-product-strip">
             {game.products.map((product) => (
               <button type="button" key={product.id} onClick={() => selectMarketAsset('commodity', product.id)}>
-                <span>{product.name}</span>
+                <ProductIconLabel productId={product.id}>{product.name}</ProductIconLabel>
                 <strong>¤ {game.markets[product.id]?.lastPrice ?? product.basePrice}</strong>
               </button>
             ))}
