@@ -51,11 +51,13 @@ jobs:
       - name: Commit verified changes and remove maintenance files
         shell: bash
         run: |
+          exec > >(tee commit.log) 2>&1
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/apply-infinite-warehouse-facility-v3.yml
-          git rm scripts/apply-infinite-warehouse-facility-v3.mjs
-          git add README.md \
+          git rm -f --ignore-unmatch .github/workflows/apply-infinite-warehouse-facility-v3.yml
+          git rm -f --ignore-unmatch scripts/apply-infinite-warehouse-facility-v3.mjs
+          for path in \
+            README.md \
             docs/WAREHOUSE_EXPANSION_DESIGN.md \
             docs/WAREHOUSE_AND_FACTORY_CARD_LAYOUT_DESIGN.md \
             docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md \
@@ -78,6 +80,10 @@ jobs:
             scripts/verify-facility-groups.mjs \
             scripts/verify-page-content.mjs \
             scripts/verify-market-assets.mjs
+          do
+            if [ -e "$path" ]; then git add "$path"; else echo "skip missing path: $path"; fi
+          done
+          git status --short
           git commit -m "实现无限仓库与紧凑工厂卡 V3"
           git push origin HEAD:agent/infinite-warehouse-compact-facility-cards
 
@@ -89,4 +95,5 @@ jobs:
           path: |
             apply.log
             build.log
+            commit.log
           if-no-files-found: ignore
