@@ -34,6 +34,7 @@ const liquidPath = 'src/styles/liquid-glass-chrome.css';
 const viewportPath = 'src/styles/viewport.css';
 const mobilePath = 'src/styles/mobile-status-navigation.css';
 const mobileStatusPath = 'src/styles/mobile-status-layout.css';
+const statusIconPath = 'src/components/icons/StatusIcons.tsx';
 const gameAppPath = 'src/app/GameApp.tsx';
 const formatterPath = 'src/utils/formatters.ts';
 const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
@@ -43,6 +44,7 @@ const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
   viewportPath,
   mobilePath,
   mobileStatusPath,
+  statusIconPath,
   gameAppPath,
   formatterPath,
   designPath,
@@ -107,6 +109,7 @@ forbidText(viewportPath, 'grid-template-rows: auto minmax(0, 1fr)');
 forbidText(mobilePath, '--mobile-liquid-glass');
 forbidText(mobilePath, 'backdrop-filter:');
 forbidText(mobilePath, '-webkit-backdrop-filter:');
+requireText(mobilePath, '--mobile-asset-bar-height: 48px;');
 requireText(mobilePath, 'transition: color 140ms ease;');
 
 const mobile = read(mobilePath);
@@ -133,9 +136,15 @@ if (!mobileStatusBarBlock) {
   failures.push('移动顶部状态栏缺少专用布局');
 } else {
   for (const rule of [
-    'grid-template-columns: repeat(4, minmax(0, 1fr))',
+    'right: auto',
+    'left: 50%',
+    'width: max-content',
+    'max-width: calc(100% - var(--mobile-status-left-inset) - var(--mobile-status-right-inset))',
+    'display: flex',
+    'justify-content: center',
     'overflow-x: hidden',
     'overflow-y: hidden',
+    'transform: translateX(-50%)',
     'touch-action: pan-y',
   ]) {
     if (!mobileStatusBarBlock.includes(rule)) failures.push(`移动顶部状态栏缺少: ${rule}`);
@@ -143,21 +152,65 @@ if (!mobileStatusBarBlock) {
   if (mobileStatusBarBlock.includes('overflow-x: auto')) {
     failures.push('移动顶部状态栏不得横向滚动');
   }
-  if (mobileStatusBarBlock.includes('grid-auto-columns')) {
-    failures.push('移动顶部状态栏不得按内容宽度自动扩列');
+  if (mobileStatusBarBlock.includes('justify-content: space-between')) {
+    failures.push('移动顶部状态栏不得使用 space-between 拉开项目');
+  }
+  if (mobileStatusBarBlock.includes('grid-template-columns') || mobileStatusBarBlock.includes('grid-auto-columns')) {
+    failures.push('移动顶部状态栏不得恢复网格扩列');
   }
 }
-forbidText(mobileStatusPath, 'grid-auto-columns: minmax(max-content, 1fr)');
-requireText(mobileStatusPath, 'min-width: 0;');
+
+const mobileStatusItemBlock = mobileStatus.match(/\.asset-bar-item,\s*\.asset-bar-item:last-child\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileStatusItemBlock) {
+  failures.push('移动顶部状态项缺少专用布局');
+} else {
+  for (const rule of [
+    'flex: 0 0 auto',
+    'width: auto',
+    'display: inline-flex',
+    'border: 0',
+    'padding: 0',
+  ]) {
+    if (!mobileStatusItemBlock.includes(rule)) failures.push(`移动顶部状态项缺少: ${rule}`);
+  }
+}
+
+const mobileStatusIconBlock = mobileStatus.match(/\.asset-bar-item-icon\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileStatusIconBlock.includes('width: clamp(1.15rem, 5vw, 1.3rem)') || !mobileStatusIconBlock.includes('height: clamp(1.15rem, 5vw, 1.3rem)')) {
+  failures.push('移动顶部状态图标必须保持至少 18px 的统一尺寸');
+}
+
+forbidText(mobileStatusPath, 'grid-template-columns: repeat(4, minmax(0, 1fr))');
+forbidText(mobileStatusPath, 'grid-auto-columns:');
+forbidText(mobileStatusPath, 'justify-content: space-between');
+forbidText(mobileStatusPath, 'border-right:');
+if (/\bflex:\s*1(?:\s|;)/.test(mobileStatus)) failures.push('移动顶部状态项不得使用 flex: 1');
 requireText(mobileStatusPath, 'font-variant-numeric: tabular-nums;');
+requireText(mobileStatusPath, '.asset-bar-item-icon > svg');
 
 for (const rule of [
+  "viewBox: '0 0 24 24'",
+  "stroke: 'currentColor'",
+  'strokeWidth: 1.9',
+  'export function CreditsIcon',
+  'export function AssetsIcon',
+  'export function RankIcon',
+  'export function WarehouseIcon',
+]) requireText(statusIconPath, rule);
+
+for (const rule of [
+  "import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/StatusIcons'",
+  'icon: <CreditsIcon />',
+  'icon: <AssetsIcon />',
+  'icon: <RankIcon />',
+  'icon: <WarehouseIcon />',
   'formatCompactNumber, formatCurrency',
   'compactValue: formatCompactNumber(game.credits)',
   'compactValue: formatCompactNumber(derived.totalAssets)',
   'compactValue: <>#{currentRank}</>',
   'compactValue: formatCompactNumber(game.warehouseAvailableCapacity)',
 ]) requireText(gameAppPath, rule);
+for (const legacyIcon of ["icon: '¤'", "icon: '◆'", "icon: '♛'", "icon: '▣'"]) forbidText(gameAppPath, legacyIcon);
 
 for (const rule of [
   'export function formatCompactNumber',
@@ -182,10 +235,15 @@ for (const rule of [
   '不得恢复“状态栏一行、页面一行”的两行网格布局',
   '整个状态栏只应用一次玻璃模糊',
   '`pointer-events: none`',
-  '移动顶部状态栏固定显示可用资金、总资产、排行榜和仓库剩余四项',
-  '顶部状态栏必须设置 `overflow-x: hidden`',
+  '移动顶部状态栏紧凑胶囊',
+  '容器使用紧凑 Flex',
+  '状态项使用 `flex: 0 0 auto`',
+  '不得使用 `space-between` 拉开项目',
+  '四项必须使用 `StatusIcons.tsx` 提供的本地内联 SVG',
+  '状态项之间不增加分隔线',
   '排名在移动端使用 `#1`、`#2` 格式',
-  '恢复移动顶部状态栏横向滚动、按内容宽度扩列或“第 N 名”移动格式',
+  '恢复移动顶部状态栏横向滚动、四等分网格、`flex: 1`、`space-between` 或“第 N 名”移动格式',
+  '恢复移动顶部状态栏字符图标、分隔线、独立图标底板或小于 `18px` 的图标',
   '移动底部导航活动状态不得改变按钮或图标的几何位置',
   '恢复移动底部导航活动态或 hover 态的位移、缩放与尺寸变化',
   '未更新设计文档和架构检查的液态玻璃回退不应合并',
@@ -196,4 +254,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('液态玻璃状态栏验证通过：桌面悬浮、移动顶部四等分无滚动、紧凑排名、稳定底栏活动态和无模糊降级均满足设计基线。');
+console.log('液态玻璃状态栏验证通过：桌面悬浮、移动紧凑 Flex 胶囊、统一 SVG 图标、无分隔线、稳定底栏活动态和无模糊降级均满足设计基线。');
