@@ -36,6 +36,8 @@ jobs:
             printf '# Economy 工厂集群与统一市场 V3 设计\n\n> 状态：工厂状态机与订单市场防回退基线\n\n' > docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md
           fi
           node scripts/apply-infinite-warehouse-facility-v3.mjs 2>&1 | tee apply.log
+          sed -i 's/client state version 10 excludes/client state version 11 excludes/' server/test/asset-events.test.js
+          sed -i 's/assert.equal(state.version, 10);/assert.equal(state.version, 11);/' server/test/asset-events.test.js
 
       - name: Install dependencies
         run: npm install
@@ -63,6 +65,7 @@ jobs:
             server/src/warehouse.js \
             server/src/facility-groups.js \
             server/src/storage.js \
+            server/test/asset-events.test.js \
             server/test/warehouse.test.js \
             server/test/facility-groups.test.js \
             server/test/domain.test.js \
