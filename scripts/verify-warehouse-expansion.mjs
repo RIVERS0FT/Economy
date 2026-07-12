@@ -51,6 +51,7 @@ for (const text of ['version: 11;', 'warehouseLevel: number;', 'warehouseNextCap
 for (const forbidden of ['warehouseMaxLevel: number;']) forbidText('src/types.ts', forbidden);
 
 for (const text of [
+  'title="生产"',
   'WarehouseUpgradeCard',
   '建设新工厂',
   'game.facilityGroups.map',
@@ -70,6 +71,7 @@ for (const text of [
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const forbidden of [
+  'title="工厂"',
   '正常生产中',
   '下一周期按 ',
   'facility-group-counts',
@@ -104,10 +106,9 @@ for (const text of [
   'warehouse-product-card',
   'const stockedProducts = useMemo',
   'inventory.available > 0 || inventory.frozen > 0',
-  'const total = inventory.available + inventory.frozen',
   'className="warehouse-product-card-title"',
-  '<strong>库存 {total}</strong>',
-  '<small>可用 {inventory.available} · 冻结 {inventory.frozen}</small>',
+  '<strong>可用 {inventory.available}</strong>',
+  '<small>冻结 {inventory.frozen}</small>',
   "selectMarketAsset('commodity', product.id)",
   '等级 {game.warehouseLevel}',
   '增加 {game.warehouseNextCapacityIncrease} 容量',
@@ -118,6 +119,10 @@ for (const forbidden of [
   'atMaxLevel',
   '已达最高等级',
   '最高容量',
+  '种商品有库存',
+  'const total = inventory.available + inventory.frozen',
+  '<strong>库存 {total}</strong>',
+  '<small>可用 {inventory.available} · 冻结 {inventory.frozen}</small>',
 ]) forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', forbidden);
 
 for (const text of [
@@ -126,7 +131,16 @@ for (const text of [
   'repeat(4, minmax(130px, 1fr))',
   '@media (max-width: 960px)',
   '@media (max-width: 420px)',
+  '.warehouse-summary-list,\n  .warehouse-upgrade-summary {',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  '.warehouse-product-card > strong',
+  'font-size: var(--font-size-xl);',
+  '.warehouse-product-card > small',
+  'font-size: var(--font-size-xs);',
 ]) requireText('src/styles/warehouse-expansion.css', text);
+for (const text of [
+  '.warehouse-summary-list,\n  .warehouse-upgrade-summary,\n  .warehouse-product-grid',
+]) forbidText('src/styles/warehouse-expansion.css', text);
 
 for (const text of [
   'Production management layout v3',
@@ -144,6 +158,10 @@ for (const text of [
   '无限等级、容量与费用',
   '当前等级 L 升到 L + 1 的容量增量',
   '仓库没有玩家可见的最高等级',
+  '不显示“X 种商品有库存”等商品数量说明',
+  '醒目的“可用 N”',
+  '弱化的“冻结 N”',
+  '`320px` 及以上不得把仓库商品网格改为单列',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
 for (const text of [
@@ -155,15 +173,20 @@ for (const text of [
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
+  '页面主标题固定为“生产”',
   '左侧：建设新工厂',
   '桌面卡片固定高度 384px',
   '无限扩容信息',
+  '不显示独立库存总量行',
+  '平板、手机和极窄屏保持双列',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
   '工厂卡桌面固定高度',
   '建设新工厂卡桌面独占',
   '仓库只显示可用或冻结数量大于零的商品',
+  '图标与名称／可用主值／冻结辅助值',
+  '移动端首次创建客户端偏好状态时，“紧凑数字”默认开启',
   '计划字段自动保存',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
@@ -171,4 +194,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、递增容量、左侧常驻建设卡、固定高度工厂卡和自动保存计划验证通过。');
+console.log('仓库无限扩容、三层商品卡、移动双列、生产标题、紧凑数字默认值和自动保存计划验证通过。');
