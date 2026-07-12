@@ -106,17 +106,13 @@ export function WarehouseUpgradeCard({
 
         <section className="warehouse-content" aria-label="仓库内容">
           <header className="warehouse-content-heading">
-            <div>
-              <strong>仓库内容</strong>
-              <small>{stockedProducts.length} 种商品有库存</small>
-            </div>
+            <strong>仓库内容</strong>
           </header>
 
           {stockedProducts.length > 0 ? (
             <div className="warehouse-product-grid">
               {stockedProducts.map((product) => {
                 const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
-                const total = inventory.available + inventory.frozen;
                 return (
                   <button
                     type="button"
@@ -128,8 +124,8 @@ export function WarehouseUpgradeCard({
                     <ProductIconLabel productId={product.id} className="warehouse-product-card-title">
                       {product.name}
                     </ProductIconLabel>
-                    <strong>库存 {total}</strong>
-                    <small>可用 {inventory.available} · 冻结 {inventory.frozen}</small>
+                    <strong>可用 {inventory.available}</strong>
+                    <small>冻结 {inventory.frozen}</small>
                   </button>
                 );
               })}

@@ -54,8 +54,7 @@
 .warehouse-capacity-progress span,
 .warehouse-capacity-progress small,
 .warehouse-upgrade-summary span,
-.warehouse-upgrade-summary small,
-.warehouse-content-heading small {
+.warehouse-upgrade-summary small {
   color: var(--color-text-muted);
 }
 
@@ -137,12 +136,6 @@
   gap: var(--space-3);
 }
 
-.warehouse-content-heading > div:first-child {
-  min-width: 0;
-  display: grid;
-  gap: 0.1rem;
-}
-
 .warehouse-product-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(130px, 1fr));
@@ -186,14 +179,20 @@
 }
 
 .warehouse-product-card > strong {
+  overflow: hidden;
   font-size: var(--font-size-xl);
   line-height: var(--line-height-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .warehouse-product-card > small {
+  overflow: hidden;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .warehouse-content-empty {
@@ -246,8 +245,17 @@
 
 @media (max-width: 420px) {
   .warehouse-summary-list,
-  .warehouse-upgrade-summary,
-  .warehouse-product-grid {
+  .warehouse-upgrade-summary {
     grid-template-columns: 1fr;
+  }
+
+  .warehouse-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+
+  .warehouse-product-card {
+    gap: var(--space-1);
+    padding: var(--space-2);
   }
 }

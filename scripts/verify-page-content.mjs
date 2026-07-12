@@ -14,6 +14,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/AssetsPage.tsx',
   'src/pages/SettingsPage.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
+  'src/app/gameViewModel.ts',
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
@@ -37,6 +38,7 @@ for (const text of [
 ]) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
+  'title="生产"',
   'SwitchControl',
   'checked={group.enabled}',
   '>运行 {model.derived.runningFacilities}',
@@ -61,6 +63,7 @@ for (const text of [
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
+  'title="工厂"',
   'facility-power-button',
   '产成品去向',
   '启动全部未挂牌工厂',
@@ -98,10 +101,25 @@ for (const text of [
   'const stockedProducts = useMemo',
   'inventory.available > 0 || inventory.frozen > 0',
   'ProductIconLabel',
-  '<strong>库存 {total}</strong>',
+  '<strong>可用 {inventory.available}</strong>',
+  '<small>冻结 {inventory.frozen}</small>',
   '等级 {game.warehouseLevel}',
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
-for (const text of ['WarehouseContentFilter', '全部商品', '查看全部商品', 'warehouseMaxLevel', '已达最高等级']) forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
+for (const text of [
+  'WarehouseContentFilter',
+  '全部商品',
+  '查看全部商品',
+  'warehouseMaxLevel',
+  '已达最高等级',
+  '种商品有库存',
+  'const total = inventory.available + inventory.frozen',
+  '<strong>库存 {total}</strong>',
+]) forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
+
+for (const text of [
+  "window.matchMedia('(max-width: 720px)').matches",
+  'const [compactNumbers, setCompactNumbers] = useState(() =>',
+]) requireText('src/app/gameViewModel.ts', text);
 
 for (const text of [
   '点击工作次数',
@@ -120,6 +138,9 @@ for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/Game
 for (const text of [
   '概览｜市场｜生产｜资产｜排行｜设置',
   '| 资产 | `assets` | `AssetsPage` | 资产结果与本地变化 |',
+  '页面主标题固定为“生产”',
+  '不显示独立库存总量行',
+  '平板、手机和极窄屏保持双列',
   '资产页不得再显示逐商品“商品库存与估值”卡片',
   '仓库不再提供“有库存／全部商品”筛选',
   '建设新工厂卡独占左侧列并在桌面滚动时常驻',
@@ -129,4 +150,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、无限仓库、左侧常驻建设卡、固定高度工厂卡和自动保存计划职责验证通过。');
+console.log('页面内容、生产标题、移动紧凑数字、仓库三层商品卡和自动保存计划职责验证通过。');
