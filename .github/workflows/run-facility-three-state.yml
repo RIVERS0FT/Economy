@@ -25,7 +25,7 @@ jobs:
       - name: Extract implementation script
         shell: bash
         run: |
-          sed -n '/^PAYLOAD$/,/^PAYLOAD$/p' .github/workflows/apply-facility-three-state.yml | sed '1d;$d' > /tmp/facility-script.b64
+          sed -n '/PAYLOAD/,/PAYLOAD/p' .github/workflows/apply-facility-three-state.yml | sed '1d;$d;s/^[[:space:]]*//' > /tmp/facility-script.b64
           base64 -d /tmp/facility-script.b64 | gzip -d > /tmp/apply-facility-three-state.mjs
           node --check /tmp/apply-facility-three-state.mjs
       - name: Apply implementation
