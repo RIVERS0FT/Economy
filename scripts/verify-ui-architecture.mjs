@@ -1,39 +1,72 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const failures = [];
-const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push('缺少文件: ' + path); };
-const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(path + ' 缺少: ' + text); };
-const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
-[
-  'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
-  'src/api/admin.ts','src/styles/unified-market-admin.css','server/src/facility-groups.js','server/src/storage.js',
-  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md'
-].forEach(requireFile);
-for (const text of ['unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','localTrades.map']) requireText('src/pages/MarketPage.tsx', text);
-for (const text of ['market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。']) forbidText('src/pages/MarketPage.tsx', text);
-for (const text of ['facility-power-button','卖单冻结','前往市场交易该工厂']) requireText('src/pages/ProductionPage.tsx', text);
-for (const text of ['产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部']) forbidText('src/pages/ProductionPage.tsx', text);
-for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录','重置经济状态']) requireText('src/pages/SettingsPage.tsx', text);
-for (const text of ['登录会话','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
-for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
-for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
-for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','bestBidFor','world.version = 5']) requireText('server/src/facility-groups.js', text);
-for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods']) requireText('server/src/domain.js', text);
-for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
-if (failures.length) { console.error('统一资产市场与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、10 秒工作冷却、玩家统计、礼品兑换和管理员页面验证通过。');
+const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
+const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
+const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
 
-const productionPage = read('src/pages/ProductionPage.tsx');
+[
+  'src/components/ui/layout.tsx',
+  'src/pages/ProductionPage.tsx',
+  'src/pages/SettingsPage.tsx',
+  'src/styles/design-system.css',
+  'src/styles/globals.css',
+  'src/styles/unified-market-admin.css',
+  'docs/UI_DESIGN_SYSTEM.md',
+].forEach(requireFile);
+
 const sharedLayout = read('src/components/ui/layout.tsx');
+const productionPage = read('src/pages/ProductionPage.tsx');
+const settingsPage = read('src/pages/SettingsPage.tsx');
 const designSystem = read('src/styles/design-system.css');
 const businessStyles = read('src/styles/unified-market-admin.css');
-for (const text of ['export function SwitchControl', "classNames('ui-switch'", '<SwitchControl']) {
-  if (!(sharedLayout + productionPage).includes(text)) throw new Error(`Missing shared switch contract: ${text}`);
+
+for (const text of [
+  'export function PageLayout',
+  'export function Panel',
+  'export function Button',
+  'export function StatusTag',
+  'export function SwitchControl',
+  "classNames('ui-switch', className)",
+  '<SwitchControl aria-label={label}',
+]) requireText('src/components/ui/layout.tsx', text);
+
+requireText('src/pages/ProductionPage.tsx', '<SwitchControl');
+requireText('src/pages/SettingsPage.tsx', '<ToggleField');
+
+for (const forbidden of [
+  'facility-power-button',
+  'factory-switch',
+  'music-switch',
+  'production-toggle',
+  'toggle-input',
+]) {
+  if ((productionPage + settingsPage + businessStyles).includes(forbidden)) {
+    failures.push(`业务页面或业务样式不应包含专属开关实现: ${forbidden}`);
+  }
 }
-for (const forbidden of ['facility-power-button', 'factory-switch', 'music-switch', 'production-toggle']) {
-  if ((productionPage + businessStyles).includes(forbidden)) throw new Error(`Business-specific switch style returned: ${forbidden}`);
+
+const switchAuthorityCount = (designSystem.match(/\.ui-switch\s*\{/g) || []).length;
+if (switchAuthorityCount !== 1) failures.push(`.ui-switch 基础视觉定义数量应为 1，当前为 ${switchAuthorityCount}`);
+for (const text of ['.ui-switch::before', '.ui-switch:checked', '.ui-switch:checked::before', ':focus-visible']) {
+  if (!designSystem.includes(text)) failures.push(`design-system.css 缺少: ${text}`);
 }
-if ((designSystem.match(/\.ui-switch \{/g) || []).length !== 1) throw new Error('ui-switch must have one visual authority');
-console.log('Facility switch architecture verified.');
+
+for (const selector of ['.ui-switch', 'input[type="checkbox"]']) {
+  forbidText('src/styles/globals.css', selector);
+  forbidText('src/styles/unified-market-admin.css', selector);
+}
+
+for (const text of ['SwitchControl', '.ui-switch', '唯一 React 基础组件', '不得新增']) {
+  requireText('docs/UI_DESIGN_SYSTEM.md', text);
+}
+
+if (failures.length) {
+  console.error(`UI 架构与统一开关验证失败:\n- ${failures.join('\n- ')}`);
+  process.exit(1);
+}
+
+console.log('共享 UI 组件与唯一开关视觉验证通过。');
