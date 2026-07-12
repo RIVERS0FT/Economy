@@ -7,10 +7,10 @@
 
   .asset-bar.panel {
     top: var(--mobile-status-top-inset);
-    right: auto;
-    left: 50%;
-    width: max-content;
-    max-width: calc(100% - var(--mobile-status-left-inset) - var(--mobile-status-right-inset));
+    right: var(--mobile-status-right-inset);
+    left: var(--mobile-status-left-inset);
+    width: auto;
+    max-width: none;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -19,7 +19,7 @@
     padding: .25rem clamp(.5rem, 2.4vw, .75rem);
     overflow-x: hidden;
     overflow-y: hidden;
-    transform: translateX(-50%);
+    transform: none;
     touch-action: pan-y;
     white-space: nowrap;
   }
