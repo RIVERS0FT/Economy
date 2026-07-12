@@ -49,7 +49,7 @@ function createVersionedClientState(world, userId, now) {
   return {
     ...authoritativeState,
     ...createWarehouseSummary(world, player),
-    version: 9,
+    version: 10,
   };
 }
 
@@ -257,6 +257,7 @@ export class EconomyStore {
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
       }
+      processFacilityGroupWorld(world, now);
       ensureWarehouse(world.players[String(user.id)]);
       const state = createVersionedClientState(world, Number(user.id), now);
       const response = normalizeJson({ result: gameResult, state });

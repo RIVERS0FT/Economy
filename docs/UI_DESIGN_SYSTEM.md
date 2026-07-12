@@ -41,7 +41,8 @@
 | `StatusTag` | 中性、成功、警告、危险和信息状态 |
 | `MetricCard` | 资产、价格、排名和统计指标 |
 | `DataList`、`DataRow` | 标签和值组成的数据列表 |
-| `ToggleField` | 带说明的布尔开关 |
+| `SwitchControl` | 所有页面共用的布尔开关 |
+| `ToggleField` | 组合说明文字与 `SwitchControl` 的设置行 |
 | `ScrollableTable` | 可横向滚动的表格容器 |
 | `EmptyState` | 无数据状态 |
 
@@ -218,7 +219,7 @@ Economy 的界面应体现：
 - 聚焦显示绿色边框和焦点环；
 - 错误状态必须提供错误文字；
 - 数字输入在业务层验证范围与精度；
-- 布尔设置使用 `ToggleField` 和 `.ui-switch`；
+- 所有布尔控制使用 `SwitchControl`；带说明的设置行使用 `ToggleField`；`.ui-switch` 是唯一开关视觉；
 - 登录自动填充兼容只能处理浏览器行为，不得复制基础输入视觉。
 
 ## 12. 卡片、指标卡与数据列表
@@ -378,3 +379,7 @@ Economy 的界面应体现：
 - 设置页玩家资料卡包含统计、退出和重置；侧栏退出按钮保留；设置页增加礼品兑换。
 - 管理员页面固定为 /economy/admin。
 - 详细规则以 docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md 和 docs/GIFT_CODE_AND_ADMIN_DESIGN.md 为准。
+
+## 22. 开关唯一性规则
+
+`SwitchControl` 是布尔开关的唯一 React 基础组件，`.ui-switch` 是唯一视觉类。设置页音效、紧凑数字和工厂运行开关必须使用同一实现。业务 CSS 只能安排开关位置，不得重新定义轨道、滑块、选中颜色或动画；不得新增 `facility-power-button`、`factory-switch`、`music-switch` 或 `production-toggle`。异常通过状态标签和说明文字表达，不创建异常开关变体。

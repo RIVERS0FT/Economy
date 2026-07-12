@@ -19,8 +19,8 @@ export function FacilityGroupProgress({
     const cycleElapsed = elapsed % type.cycleMs;
     progress = Math.max(0, Math.min(100, (cycleElapsed / type.cycleMs) * 100));
     detail = `本周期剩余 ${formatDuration(type.cycleMs - cycleElapsed)}`;
-  } else if (group.status === 'full') {
-    progress = 100;
+  } else if (group.status === 'error') {
+    detail = '等待条件恢复';
   } else if (group.productionMode === 'target' && group.targetQuantity) {
     progress = Math.max(0, Math.min(100, (group.completedQuantity / group.targetQuantity) * 100));
     detail = `计划 ${group.completedQuantity}/${group.targetQuantity}`;

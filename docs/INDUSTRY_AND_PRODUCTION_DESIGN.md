@@ -259,3 +259,7 @@ unitPrice: number;
 - 设置页玩家资料卡包含统计、退出和重置；侧栏退出按钮保留；设置页增加礼品兑换。
 - 管理员页面固定为 /economy/admin。
 - 详细规则以 docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md 和 docs/GIFT_CODE_AND_ADMIN_DESIGN.md 为准。
+
+## 工厂三态自动恢复规则
+
+工厂统一显示运行、停止和异常。开关表达玩家运行意图，异常消失后自动从新周期恢复；运行中生产计划修改从下一周期生效。工厂开关与设置页开关共用 `SwitchControl` 和 `.ui-switch`。

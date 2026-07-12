@@ -10,22 +10,22 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
   'src/api/admin.ts','src/styles/unified-market-admin.css','server/src/facility-groups.js','server/src/storage.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
-  'src/utils/localActivityStore.ts','src/types.ts'
+  'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx'
 ].forEach(requireFile);
 for (const text of ['unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','localTrades.map']) requireText('src/pages/MarketPage.tsx', text);
 for (const text of ['market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。']) forbidText('src/pages/MarketPage.tsx', text);
-for (const text of ['facility-power-button','卖单冻结','前往市场交易该工厂']) requireText('src/pages/ProductionPage.tsx', text);
-for (const text of ['产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部']) forbidText('src/pages/ProductionPage.tsx', text);
+for (const text of ['SwitchControl','卖单冻结','前往市场交易该工厂','下一周期生效']) requireText('src/pages/ProductionPage.tsx', text);
+for (const text of ['facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部']) forbidText('src/pages/ProductionPage.tsx', text);
 for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录','重置经济状态']) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['登录会话','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
-for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','bestBidFor','world.version = 5']) requireText('server/src/facility-groups.js', text);
+for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','bestBidFor','world.version = 6','reconcileFacilityGroup','pendingProductionPlan']) requireText('server/src/facility-groups.js', text);
 for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods']) requireText('server/src/domain.js', text);
 for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
-for (const text of ['export interface OrderFill','fills?: OrderFill[]','makerOrderId','takerOrderId']) requireText('src/types.ts', text);
+for (const text of ['export interface OrderFill','fills?: OrderFill[]','makerOrderId','takerOrderId',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
 for (const text of ['STORAGE_VERSION = 3','previousFillIds','fill.price','fill.total','fill.counterparty']) requireText('src/utils/localActivityStore.ts', text);
 for (const text of ['after.markets[assetId]?.lastPrice','after.facilityMarkets[assetId]?.lastPrice','executedQuantity * price']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['maker price','反推玩家成交价','逐笔']) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 if (failures.length) { console.error('统一资产市场与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、10 秒工作冷却、玩家统计、礼品兑换和管理员页面验证通过。');
+console.log('统一资产市场、工厂三态、10 秒工作冷却、玩家统计、礼品兑换和管理员页面验证通过。');

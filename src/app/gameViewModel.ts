@@ -18,7 +18,7 @@ import type {
   AuthUser,
   EconomyState,
   FacilityStatus,
-  FacilityStopReason,
+  FacilityStatusReason,
   LeaderboardEntry,
   OrderSide,
   OrderStatus,
@@ -37,25 +37,21 @@ import {
 } from '../utils/localActivityStore';
 
 export const facilityStatusNames: Record<FacilityStatus, string> = {
-  ready: '待启动',
-  running: '运行中',
-  paused: '已停止',
-  full: '共享仓库已满',
-  insufficient_funds: '资金不足',
-  insufficient_input: '原料不足',
-  listed: '卖单冻结',
+  running: '运行',
+  stopped: '停止',
+  error: '异常',
 };
 
-export const facilityStopReasonNames: Record<FacilityStopReason, string> = {
+export const facilityStatusReasonNames: Record<FacilityStatusReason, string> = {
   manual: '手动停止',
-  plan_complete: '计划完成',
-  plan_adjustment_required: '工厂数量变化，需要重新确认定量计划',
+  plan_complete: '定量计划已完成',
+  plan_adjustment_required: '工厂数量变化，需要修改定量计划',
   insufficient_funds: '运营资金不足',
   insufficient_input: '生产原料不足',
-  output_full: '共享仓库空间不足',
-  listed: '全部参与工厂已进入卖单',
+  warehouse_full: '共享仓库空间不足',
+  no_available_facility: '没有未冻结工厂可参与生产',
   maintenance: '系统维护',
-};
+}
 
 export const orderStatusNames: Record<OrderStatus, string> = {
   open: '等待成交',
@@ -219,8 +215,8 @@ function deriveGameData(game: EconomyState, requestedProductId: string, localTra
     spread: bestBid && bestAsk ? bestAsk - bestBid : 0,
     runningFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'running' ? group.participatingCount : 0), 0),
     constructingFacilities: game.facilityConstruction ? 1 : 0,
-    stoppedFacilities: game.facilityGroups.reduce((sum, group) => sum + (['ready', 'paused', 'listed'].includes(group.status) ? group.count : 0), 0),
-    blockedFacilities: game.facilityGroups.reduce((sum, group) => sum + (['full', 'insufficient_funds', 'insufficient_input'].includes(group.status) ? group.count : 0), 0),
+    stoppedFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'stopped' ? group.count : 0), 0),
+    blockedFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'error' ? group.count : 0), 0),
     averageCost: boughtQuantity ? buyTrades.reduce((sum, trade) => sum + trade.total, 0) / boughtQuantity : 0,
     history,
     marketTrend: history.length > 1 ? history[history.length - 1] - history[0] : 0,

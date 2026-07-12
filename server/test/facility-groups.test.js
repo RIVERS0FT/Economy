@@ -8,7 +8,7 @@ const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 
 function group(typeId, count, overrides = {}) {
-  return { facilityTypeId: typeId, count, participatingCount: 0, pendingJoinCount: 0, status: 'paused', stopReason: 'manual', productionMode: 'continuous', completedQuantity: 0, ...overrides };
+  return { facilityTypeId: typeId, count, participatingCount: 0, pendingJoinCount: 0, enabled: false, status: 'stopped', statusReason: 'manual', productionMode: 'continuous', completedQuantity: 0, ...overrides };
 }
 
 test('factory buy and sell orders use price-time matching and partial fills', () => {
@@ -36,7 +36,7 @@ test('factory buy and sell orders use price-time matching and partial fills', ()
 test('running factory sell order immediately reduces participating output', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, bob, now);
-  seller.facilityGroups = [group('farm', 5, { status: 'running', participatingCount: 5, cycleStartedAt: now })];
+  seller.facilityGroups = [group('farm', 5, { enabled: true, status: 'running', participatingCount: 5, cycleStartedAt: now })];
   migrateFacilityGroupWorld(world, now);
 
   const response = applyFacilityGroupAction(world, bob, 'placeOrder', { assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 100 }, now + 1);
@@ -48,7 +48,7 @@ test('running factory sell order immediately reduces participating output', () =
 test('production increments produced goods statistics', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
-  player.facilityGroups = [group('farm', 2, { status: 'running', participatingCount: 2, cycleStartedAt: now })];
+  player.facilityGroups = [group('farm', 2, { enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now })];
   migrateFacilityGroupWorld(world, now);
   processFacilityGroupWorld(world, now + 30_000);
   assert.equal(player.stats.producedGoods, 4);
@@ -64,4 +64,79 @@ test('asset valuation excludes the current players own buy order', () => {
   const state = createFacilityGroupClientState(world, alice.id, now);
   assert.notEqual(state.valuationPrices['commodity:grain'], 999);
   assert.equal(state.assetSummary.commodityValue, 10 * state.valuationPrices['commodity:grain']);
+});
+
+test('factory automatically recovers after funds return', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 0;
+  player.facilityGroups = [group('farm', 2, { enabled: true, status: 'error', statusReason: 'insufficient_funds' })];
+  migrateFacilityGroupWorld(world, now);
+  processFacilityGroupWorld(world, now + 1);
+  assert.equal(player.facilityGroups[0].status, 'error');
+  assert.equal(player.facilityGroups[0].enabled, true);
+
+  player.credits = 100;
+  processFacilityGroupWorld(world, now + 2);
+  assert.equal(player.facilityGroups[0].status, 'running');
+  assert.equal(player.facilityGroups[0].participatingCount, 2);
+  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 2);
+});
+
+test('manual stop disables automatic recovery', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 0;
+  player.facilityGroups = [group('farm', 1, { enabled: true, status: 'error', statusReason: 'insufficient_funds' })];
+  migrateFacilityGroupWorld(world, now);
+  assert.equal(applyFacilityGroupAction(world, alice, 'pauseFacility', { facilityTypeId: 'farm' }, now + 1).ok, true);
+  player.credits = 100;
+  processFacilityGroupWorld(world, now + 2);
+  assert.equal(player.facilityGroups[0].status, 'stopped');
+  assert.equal(player.facilityGroups[0].enabled, false);
+});
+
+test('running plan changes apply at the next cycle boundary', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 1_000;
+  player.facilityGroups = [group('farm', 2, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 2,
+    cycleStartedAt: now,
+  })];
+  migrateFacilityGroupWorld(world, now);
+  const response = applyFacilityGroupAction(world, alice, 'setProductionPlan', {
+    facilityTypeId: 'farm', mode: 'target', targetQuantity: 8,
+  }, now + 1);
+  assert.equal(response.ok, true);
+  assert.equal(player.facilityGroups[0].productionMode, 'continuous');
+  assert.equal(player.facilityGroups[0].pendingProductionPlan.mode, 'target');
+
+  processFacilityGroupWorld(world, now + 30_000);
+  assert.equal(player.facilityGroups[0].productionMode, 'target');
+  assert.equal(player.facilityGroups[0].targetQuantity, 8);
+  assert.equal(player.facilityGroups[0].completedQuantity, 0);
+  assert.equal(player.inventories.grain.available, 4);
+});
+
+test('warehouse errors recover without backfilling missed cycles', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.warehouseLevel = 1;
+  player.inventoryCapacity = 500;
+  player.inventories.grain.available = 499;
+  player.facilityGroups = [group('farm', 1, { enabled: true, status: 'error', statusReason: 'warehouse_full' })];
+  migrateFacilityGroupWorld(world, now);
+  processFacilityGroupWorld(world, now + 120_000);
+  assert.equal(player.facilityGroups[0].status, 'error');
+  assert.equal(player.inventories.grain.available, 499);
+
+  player.warehouseLevel = 2;
+  player.inventoryCapacity = 750;
+  processFacilityGroupWorld(world, now + 120_001);
+  assert.equal(player.facilityGroups[0].status, 'running');
+  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_001);
+  assert.equal(player.inventories.grain.available, 499);
 });

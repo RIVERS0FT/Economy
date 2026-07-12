@@ -35,21 +35,12 @@
 
 .unified-market-grid { margin-top: 0; }
 
-.facility-power-button {
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  display: grid;
-  place-items: center;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-  flex: 0 0 auto;
+.facility-auto-recovery-note {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
 }
-.facility-power-button.start { background: var(--success-soft); color: var(--success); }
-.facility-power-button.stop { background: var(--danger-soft); color: var(--danger); }
-.facility-power-button:disabled { cursor: not-allowed; opacity: .4; }
 
 .facility-market-link-row {
   display: flex;
