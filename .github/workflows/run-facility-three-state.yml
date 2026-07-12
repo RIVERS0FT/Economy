@@ -30,6 +30,18 @@ jobs:
           node --check /tmp/apply-facility-three-state.mjs
       - name: Apply implementation
         run: node /tmp/apply-facility-three-state.mjs
+      - name: Synchronize three-state verification
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const path = 'scripts/verify-market-assets.mjs';
+          let content = readFileSync(path, 'utf8');
+          content = content.replace("for (const text of ['facility-power-button','卖单冻结','前往市场交易该工厂']) requireText('src/pages/ProductionPage.tsx', text);", "for (const text of ['SwitchControl','卖单冻结','前往市场交易该工厂','下一周期生效']) requireText('src/pages/ProductionPage.tsx', text);");
+          content = content.replace("for (const text of ['产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部']) forbidText('src/pages/ProductionPage.tsx', text);", "for (const text of ['facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部']) forbidText('src/pages/ProductionPage.tsx', text);");
+          content = content.replace("'world.version = 5'", "'world.version = 6'");
+          writeFileSync(path, content);
+          NODE
       - name: Remove trigger workflow
         run: rm -f .github/workflows/run-facility-three-state.yml
       - name: Install dependencies
