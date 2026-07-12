@@ -32,6 +32,9 @@ jobs:
           if [ ! -f docs/WAREHOUSE_AND_FACTORY_CARD_LAYOUT_DESIGN.md ]; then
             printf '# Economy 共享仓库与工厂卡片布局设计\n\n> 状态：生产页面正式布局与防回退基线\n\n' > docs/WAREHOUSE_AND_FACTORY_CARD_LAYOUT_DESIGN.md
           fi
+          if [ ! -f docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md ]; then
+            printf '# Economy 工厂集群与统一市场 V3 设计\n\n> 状态：工厂状态机与订单市场防回退基线\n\n' > docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md
+          fi
           node scripts/apply-infinite-warehouse-facility-v3.mjs 2>&1 | tee apply.log
 
       - name: Install dependencies
