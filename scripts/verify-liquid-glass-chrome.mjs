@@ -34,7 +34,8 @@ const liquidPath = 'src/styles/liquid-glass-chrome.css';
 const viewportPath = 'src/styles/viewport.css';
 const mobilePath = 'src/styles/mobile-status-navigation.css';
 const mobileStatusPath = 'src/styles/mobile-status-layout.css';
-const statusIconPath = 'src/components/icons/StatusIcons.tsx';
+const iconStylePath = 'src/styles/icon-system.css';
+const gameIconPath = 'src/components/icons/GameIcons.tsx';
 const gameAppPath = 'src/app/GameApp.tsx';
 const formatterPath = 'src/utils/formatters.ts';
 const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
@@ -44,17 +45,23 @@ const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
   viewportPath,
   mobilePath,
   mobileStatusPath,
-  statusIconPath,
+  iconStylePath,
+  gameIconPath,
   gameAppPath,
   formatterPath,
   designPath,
   'src/main.tsx',
 ].forEach(requireFile);
 
+if (existsSync(resolve(root, 'src/components/icons/StatusIcons.tsx'))) {
+  failures.push('旧 StatusIcons.tsx 不应与统一 GameIcons.tsx 并存');
+}
+
 requireOrder('src/main.tsx', [
   "import './styles/card-system.css'",
   "import './styles/liquid-glass-chrome.css'",
   "import './styles/mobile-status-navigation.css'",
+  "import './styles/icon-system.css'",
   "import './styles/industry-system.css'",
   "import './styles/design-system.css'",
 ]);
@@ -212,17 +219,26 @@ requireText(mobileStatusPath, 'font-variant-numeric: tabular-nums;');
 requireText(mobileStatusPath, '.asset-bar-item-icon > svg');
 
 for (const rule of [
-  "viewBox: '0 0 24 24'",
-  "stroke: 'currentColor'",
-  'strokeWidth: 1.9',
+  'className={className ? `game-icon ${className}` : \'game-icon\'}',
+  'viewBox="0 0 24 24"',
+  'stroke="currentColor"',
+  'strokeWidth={1.9}',
+  'aria-hidden="true"',
+  'focusable="false"',
   'export function CreditsIcon',
   'export function AssetsIcon',
   'export function RankIcon',
   'export function WarehouseIcon',
-]) requireText(statusIconPath, rule);
+]) requireText(gameIconPath, rule);
 
 for (const rule of [
-  "import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/StatusIcons'",
+  '.game-icon {',
+  '.asset-bar-item-icon > .game-icon',
+  '.mobile-bottom-navigation .sidebar-nav-button > span > .game-icon',
+]) requireText(iconStylePath, rule);
+
+for (const rule of [
+  "import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons'",
   'icon: <CreditsIcon />',
   'icon: <AssetsIcon />',
   'icon: <RankIcon />',
@@ -264,7 +280,7 @@ for (const rule of [
   '四项之间的可见间隔一致',
   '首尾项目到状态栏内边缘的间隔与项目间隔一致',
   '状态项之间不增加分隔线',
-  '四项必须使用 `StatusIcons.tsx` 提供的本地内联 SVG',
+  '四项必须使用 `GameIcons.tsx` 提供的本地内联 SVG',
   '排名在移动端使用 `#1`、`#2` 格式',
   '恢复移动顶部状态栏横向滚动、`space-between`、`space-around`、整体居中、非零容器间距或“第 N 名”移动格式',
   '恢复移动状态项 `flex: 1 1 0`、`width: 0`、固定四等分槽位或其他拉伸分布',
@@ -281,4 +297,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('液态玻璃状态栏验证通过：桌面悬浮、移动全宽四项 space-evenly 等距分布、统一 SVG 图标、无分隔线、稳定底栏活动态和无模糊降级均满足设计基线。');
+console.log('液态玻璃状态栏验证通过：桌面悬浮、移动全宽四项 space-evenly 等距分布、统一 GameIcons SVG、无分隔线、稳定底栏活动态和无模糊降级均满足设计基线。');

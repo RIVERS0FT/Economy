@@ -1,5 +1,5 @@
 import type { AuthUser } from '../types';
-import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/StatusIcons';
+import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons';
 import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
 import { PageRouter } from '../pages/PageRouter';

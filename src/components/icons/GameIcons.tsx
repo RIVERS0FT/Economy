@@ -1,0 +1,125 @@
+import type { PropsWithChildren, SVGProps } from 'react';
+
+type GameIconProps = SVGProps<SVGSVGElement>;
+export type NavigationIconName = 'home' | 'market' | 'production' | 'assets' | 'leaderboard' | 'settings';
+
+function GameIcon({ children, className, ...props }: PropsWithChildren<GameIconProps>) {
+  return (
+    <svg
+      className={className ? `game-icon ${className}` : 'game-icon'}
+      viewBox="0 0 24 24"
+      width="1em"
+      height="1em"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.9}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      {...props}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export function CreditsIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M9.2 9.4c.6-.8 1.6-1.2 2.9-1.2 1.8 0 3 .8 3 2s-1.2 1.8-3 1.8-3 .7-3 1.9 1.2 2 3 2c1.4 0 2.5-.4 3.1-1.2M12 6.5v11" />
+    </GameIcon>
+  );
+}
+
+export function AssetsIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M12 3 21 12l-9 9-9-9 9-9Z" />
+      <path d="m8 12 4-4 4 4-4 4-4-4Z" />
+    </GameIcon>
+  );
+}
+
+export function RankIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="m4 8 3.3 3L12 5l4.7 6L20 8l-1.4 9H5.4L4 8Z" />
+      <path d="M6 20h12" />
+    </GameIcon>
+  );
+}
+
+export function WarehouseIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="m4 9 8-5 8 5v10H4V9Z" />
+      <path d="M8 19v-6h8v6M8 9h.01M12 9h.01M16 9h.01" />
+    </GameIcon>
+  );
+}
+
+export function HomeIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="m3 11 9-8 9 8" />
+      <path d="M5 10v10h14V10M9 20v-6h6v6" />
+    </GameIcon>
+  );
+}
+
+export function MarketIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M7 4v16M4 7l3-3 3 3M17 20V4M14 17l3 3 3-3" />
+    </GameIcon>
+  );
+}
+
+export function ProductionIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M3 20V9l6 3V9l6 3V5h4v15H3Z" />
+      <path d="M7 16h.01M11 16h.01M15 16h.01" />
+    </GameIcon>
+  );
+}
+
+export function FundsIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6.5Z" />
+      <path d="M4 8h16M15 14h3" />
+    </GameIcon>
+  );
+}
+
+export function LeaderboardIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M8 20v-7H4v7M14 20V4h-4v16M20 20V9h-4v11" />
+      <path d="M3 20h18" />
+    </GameIcon>
+  );
+}
+
+export function SettingsIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.2.35.55.7 1 .9.35.15.75.2 1.1.2h.1v4h-.1a1.7 1.7 0 0 0-1.1.4c-.45.3-.8.65-1 1Z" />
+    </GameIcon>
+  );
+}
+
+export function NavigationIcon({ name, ...props }: { name: NavigationIconName } & GameIconProps) {
+  switch (name) {
+    case 'home': return <HomeIcon {...props} />;
+    case 'market': return <MarketIcon {...props} />;
+    case 'production': return <ProductionIcon {...props} />;
+    case 'assets': return <FundsIcon {...props} />;
+    case 'leaderboard': return <LeaderboardIcon {...props} />;
+    case 'settings': return <SettingsIcon {...props} />;
+  }
+}

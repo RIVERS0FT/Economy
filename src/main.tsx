@@ -12,6 +12,7 @@ import './styles/liquid-glass-chrome.css';
 import './styles/mobile-status-navigation.css';
 import './styles/mobile-pages.css';
 import './styles/mobile-status-layout.css';
+import './styles/icon-system.css';
 import './styles/industry-system.css';
 import './styles/market-funds.css';
 import './styles/warehouse-expansion.css';
