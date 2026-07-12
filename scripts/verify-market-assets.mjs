@@ -10,10 +10,15 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
   'src/api/admin.ts','src/styles/unified-market-admin.css','server/src/facility-groups.js','server/src/storage.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
-  'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx'
+  'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
-for (const text of ['unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','localTrades.map']) requireText('src/pages/MarketPage.tsx', text);
-for (const text of ['market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。']) forbidText('src/pages/MarketPage.tsx', text);
+for (const text of [
+  'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','localTrades.map',
+  "import { FactoryIcon } from '../components/icons/GameIcons'",'<FactoryIcon />'
+]) requireText('src/pages/MarketPage.tsx', text);
+for (const text of ['market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>']) forbidText('src/pages/MarketPage.tsx', text);
+requireText('src/components/icons/GameIcons.tsx', 'export function FactoryIcon');
+requireText('src/components/icons/GameIcons.tsx', 'M17 6V3h3v17');
 for (const text of ['SwitchControl','<span>冻结 <strong>{group.listedCount}</strong></span>','在统一订单簿中买卖该工厂','>前往市场 →','下一周期生效']) requireText('src/pages/ProductionPage.tsx', text);
 for (const text of ['facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部','前往市场交易该工厂']) forbidText('src/pages/ProductionPage.tsx', text);
 for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录','重置经济状态']) requireText('src/pages/SettingsPage.tsx', text);
@@ -26,6 +31,6 @@ for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmi
 for (const text of ['export interface OrderFill','fills?: OrderFill[]','makerOrderId','takerOrderId',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
 for (const text of ['STORAGE_VERSION = 3','previousFillIds','fill.price','fill.total','fill.counterparty']) requireText('src/utils/localActivityStore.ts', text);
 for (const text of ['after.markets[assetId]?.lastPrice','after.facilityMarkets[assetId]?.lastPrice','executedQuantity * price']) forbidText('src/utils/localActivityStore.ts', text);
-for (const text of ['maker price','反推玩家成交价','逐笔']) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
+for (const text of ['maker price','反推玩家成交价','逐笔','工厂资产标签使用独立厂房 SVG']) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 if (failures.length) { console.error('统一资产市场与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、紧凑工厂入口、10 秒工作冷却、玩家统计、礼品兑换和管理员页面验证通过。');
+console.log('统一资产市场、独立工厂 SVG、紧凑工厂入口、10 秒工作冷却、玩家统计和管理员页面验证通过。');
