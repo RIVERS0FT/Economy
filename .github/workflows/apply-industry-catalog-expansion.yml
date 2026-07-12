@@ -28,14 +28,16 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          node scripts/fix-industry-catalog-maintenance.mjs
           node scripts/apply-industry-catalog-expansion.mjs 2>&1 | tee catalog-apply.log
+          rm -f scripts/fix-industry-catalog-maintenance.mjs
       - name: Upload maintenance log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: catalog-apply-log
           path: catalog-apply.log
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Commit expanded catalog
         shell: bash
         run: |
