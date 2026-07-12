@@ -33,7 +33,8 @@ export type LocalActivityAction =
   | 'cancelFacilityListing'
   | 'buyFacility'
   | 'renamePlayer'
-  | 'resetPlayer';
+  | 'resetPlayer'
+  | 'redeemGift';
 
 export interface LocalActivityView {
   assetEvents: AssetEvent[];
@@ -57,6 +58,7 @@ interface LocalStateSnapshot {
   facilityListings: FacilityListing[];
   products: ProductDefinition[];
   markets: Record<string, LocalMarketSnapshot>;
+  facilityMarkets: Record<string, LocalMarketSnapshot>;
 }
 
 interface LocalActivityDocument extends LocalActivityView {
@@ -85,6 +87,7 @@ const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   buyFacility: 'facility',
   renamePlayer: 'system',
   resetPlayer: 'system',
+  redeemGift: 'system',
 };
 
 function storageKey(userId: number, version = STORAGE_VERSION) {
@@ -153,6 +156,9 @@ function snapshotState(state: EconomyState): LocalStateSnapshot {
     products: state.products,
     markets: Object.fromEntries(
       Object.entries(state.markets).map(([productId, market]) => [productId, { lastPrice: market.lastPrice }]),
+    ),
+    facilityMarkets: Object.fromEntries(
+      Object.entries(state.facilityMarkets).map(([typeId, market]) => [typeId, { lastPrice: market.lastPrice }]),
     ),
   });
 }
@@ -308,7 +314,7 @@ function listingChanged(before: LocalStateSnapshot, after: LocalStateSnapshot) {
   return JSON.stringify(before.facilityListings) !== JSON.stringify(after.facilityListings);
 }
 
-function deriveCommodityTrades(
+function deriveAssetTrades(
   before: LocalStateSnapshot,
   after: LocalStateSnapshot,
   createdAt: number,
@@ -316,69 +322,29 @@ function deriveCommodityTrades(
   const previousById = new Map(before.orders.map((order) => [order.id, order]));
   const records: TradeRecord[] = [];
   for (const order of after.orders) {
+    if (order.ownerId !== after.userId) continue;
     const previousRemaining = previousById.get(order.id)?.remaining ?? order.quantity;
     const executedQuantity = Math.max(0, previousRemaining - order.remaining);
     if (!executedQuantity) continue;
-    const price = after.markets[order.productId]?.lastPrice ?? order.price;
+    const kind = order.assetKind === 'facility' || order.facilityTypeId ? 'facility' : 'commodity';
+    const assetId = order.assetId ?? order.facilityTypeId ?? order.productId ?? 'grain';
+    const price = kind === 'facility'
+      ? after.facilityMarkets[assetId]?.lastPrice ?? order.price
+      : after.markets[assetId]?.lastPrice ?? order.price;
+    const name = kind === 'facility' ? facilityName(assetId) : productName(after, assetId);
     records.push({
       id: createId('local-trade'),
-      type: 'commodity',
-      productId: order.productId,
+      type: kind,
+      productId: kind === 'commodity' ? assetId : undefined,
+      facilityTypeId: kind === 'facility' ? assetId : undefined,
       side: order.side,
       quantity: executedQuantity,
       price,
       total: executedQuantity * price,
-      counterparty: '市场成交',
+      counterparty: '订单簿成交',
       createdAt,
-      description: `${order.side === 'buy' ? '买入' : '卖出'} ${productName(after, order.productId)}`,
+      description: `${order.side === 'buy' ? '买入' : '卖出'} ${name}`,
     });
-  }
-  return records;
-}
-
-function deriveFacilityTrades(
-  before: LocalStateSnapshot,
-  after: LocalStateSnapshot,
-  action: LocalActivityAction,
-  createdAt: number,
-): TradeRecord[] {
-  const previousByType = new Map(before.facilityGroups.map((group) => [group.facilityTypeId, group.count]));
-  const currentByType = new Map(after.facilityGroups.map((group) => [group.facilityTypeId, group.count]));
-  const records: TradeRecord[] = [];
-  const typeIds = new Set([...previousByType.keys(), ...currentByType.keys()]);
-  for (const typeId of typeIds) {
-    const delta = (currentByType.get(typeId) ?? 0) - (previousByType.get(typeId) ?? 0);
-    if (action === 'buyFacility' && delta > 0) {
-      const total = Math.max(0, before.credits - after.credits);
-      records.push({
-        id: createId('local-trade'),
-        type: 'facility',
-        facilityTypeId: typeId,
-        side: 'buy',
-        quantity: delta,
-        price: delta ? total / delta : 0,
-        total,
-        counterparty: '工厂数量市场',
-        createdAt,
-        description: `收购 ${delta} 座${facilityName(typeId)}`,
-      });
-    }
-    if (action === 'refresh' && delta < 0 && after.credits > before.credits) {
-      const quantity = Math.abs(delta);
-      const total = after.credits - before.credits;
-      records.push({
-        id: createId('local-trade'),
-        type: 'facility',
-        facilityTypeId: typeId,
-        side: 'sell',
-        quantity,
-        price: quantity ? total / quantity : 0,
-        total,
-        counterparty: '工厂数量市场',
-        createdAt,
-        description: `出售 ${quantity} 座${facilityName(typeId)}`,
-      });
-    }
   }
   return records;
 }
@@ -424,10 +390,7 @@ function createLocalChanges(
   const inventoryChanges = diffInventories(before, after);
   const warehouseChange = diffWarehouse(before, after);
   const { facilityChanges, productionChanges } = diffFacilityGroups(before, after, context.action);
-  const trades = [
-    ...deriveCommodityTrades(before, after, createdAt),
-    ...deriveFacilityTrades(before, after, context.action, createdAt),
-  ];
+  const trades = deriveAssetTrades(before, after, createdAt);
   const cashDelta = after.credits - before.credits;
   const frozenCashDelta = after.frozenCredits - before.frozenCredits;
   const hasChanges = Boolean(
