@@ -145,9 +145,10 @@
     height: 100%;
     display: grid;
     grid-template-columns: 1fr;
-    grid-template-rows: 1.85rem auto;
+    grid-template-rows: 1.5rem min-content;
     place-items: center;
-    gap: .16rem;
+    align-content: center;
+    gap: .08rem;
     border: 1px solid transparent;
     border-radius: 1rem;
     padding: .28rem .35rem .38rem;
