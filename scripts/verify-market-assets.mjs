@@ -24,13 +24,15 @@ for (const text of [
   '运行中 <strong>{group.participatingCount}</strong>',
   '下一周期加入 <strong>{group.pendingJoinCount}</strong>',
   '冻结中 <strong>{group.listedCount}</strong>',
+  'production-plan-fields',
+  'placeholder="目标产量"',
+  '下一周期生效',
   '在统一订单簿中买卖该工厂',
   '>前往市场 →',
-  '>保存计划</Button>',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 for (const text of [
   'facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部',
-  '前往市场交易该工厂','下一周期生效','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>'
+  '前往市场交易该工厂','>保存计划</Button>','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>'
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录','重置经济状态']) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['登录会话','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
@@ -44,4 +46,4 @@ for (const text of ['STORAGE_VERSION = 3','previousFillIds','fill.price','fill.t
 for (const text of ['after.markets[assetId]?.lastPrice','after.facilityMarkets[assetId]?.lastPrice','executedQuantity * price']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['maker price','反推玩家成交价','逐笔','工厂资产标签使用独立厂房 SVG']) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 if (failures.length) { console.error('统一资产市场与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、紧凑工厂入口、定量完成关停、10 秒工作冷却和管理员页面验证通过。');
+console.log('统一资产市场、紧凑工厂入口、自动保存生产计划、定量完成关停、10 秒工作冷却和管理员页面验证通过。');
