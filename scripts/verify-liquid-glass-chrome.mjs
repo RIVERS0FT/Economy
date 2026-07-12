@@ -33,12 +33,18 @@ function requireOrder(path, entries) {
 const liquidPath = 'src/styles/liquid-glass-chrome.css';
 const viewportPath = 'src/styles/viewport.css';
 const mobilePath = 'src/styles/mobile-status-navigation.css';
+const mobileStatusPath = 'src/styles/mobile-status-layout.css';
+const gameAppPath = 'src/app/GameApp.tsx';
+const formatterPath = 'src/utils/formatters.ts';
 const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
 
 [
   liquidPath,
   viewportPath,
   mobilePath,
+  mobileStatusPath,
+  gameAppPath,
+  formatterPath,
   designPath,
   'src/main.tsx',
 ].forEach(requireFile);
@@ -121,6 +127,46 @@ if (!mobileActiveIconBlock) {
   }
 }
 
+const mobileStatus = read(mobileStatusPath);
+const mobileStatusBarBlock = mobileStatus.match(/\.asset-bar\.panel\s*\{[^{}]*\}/)?.[0] ?? '';
+if (!mobileStatusBarBlock) {
+  failures.push('移动顶部状态栏缺少专用布局');
+} else {
+  for (const rule of [
+    'grid-template-columns: repeat(4, minmax(0, 1fr))',
+    'overflow-x: hidden',
+    'overflow-y: hidden',
+    'touch-action: pan-y',
+  ]) {
+    if (!mobileStatusBarBlock.includes(rule)) failures.push(`移动顶部状态栏缺少: ${rule}`);
+  }
+  if (mobileStatusBarBlock.includes('overflow-x: auto')) {
+    failures.push('移动顶部状态栏不得横向滚动');
+  }
+  if (mobileStatusBarBlock.includes('grid-auto-columns')) {
+    failures.push('移动顶部状态栏不得按内容宽度自动扩列');
+  }
+}
+forbidText(mobileStatusPath, 'grid-auto-columns: minmax(max-content, 1fr)');
+requireText(mobileStatusPath, 'min-width: 0;');
+requireText(mobileStatusPath, 'font-variant-numeric: tabular-nums;');
+
+for (const rule of [
+  'formatCompactNumber, formatCurrency',
+  'compactValue: formatCompactNumber(game.credits)',
+  'compactValue: formatCompactNumber(derived.totalAssets)',
+  'compactValue: <>#{currentRank}</>',
+  'compactValue: formatCompactNumber(game.warehouseAvailableCapacity)',
+]) requireText(gameAppPath, rule);
+
+for (const rule of [
+  'export function formatCompactNumber',
+  "suffix: 'K'",
+  "suffix: 'M'",
+  "suffix: 'B'",
+  "suffix: 'T'",
+]) requireText(formatterPath, rule);
+
 const liquid = read(liquidPath);
 const assetItemBlocks = liquid.match(/\.asset-bar-item[^{}]*\{[^{}]*\}/g) ?? [];
 for (const block of assetItemBlocks) {
@@ -136,6 +182,10 @@ for (const rule of [
   '不得恢复“状态栏一行、页面一行”的两行网格布局',
   '整个状态栏只应用一次玻璃模糊',
   '`pointer-events: none`',
+  '移动顶部状态栏固定显示可用资金、总资产、排行榜和仓库剩余四项',
+  '顶部状态栏必须设置 `overflow-x: hidden`',
+  '排名在移动端使用 `#1`、`#2` 格式',
+  '恢复移动顶部状态栏横向滚动、按内容宽度扩列或“第 N 名”移动格式',
   '移动底部导航活动状态不得改变按钮或图标的几何位置',
   '恢复移动底部导航活动态或 hover 态的位移、缩放与尺寸变化',
   '未更新设计文档和架构检查的液态玻璃回退不应合并',
@@ -146,4 +196,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('液态玻璃状态栏验证通过：桌面悬浮、移动复用、透明下沿、稳定导航活动态和无模糊降级均满足设计基线。');
+console.log('液态玻璃状态栏验证通过：桌面悬浮、移动顶部四等分无滚动、紧凑排名、稳定底栏活动态和无模糊降级均满足设计基线。');

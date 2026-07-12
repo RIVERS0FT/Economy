@@ -2,7 +2,7 @@ import type { AuthUser } from '../types';
 import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
 import { PageRouter } from '../pages/PageRouter';
-import { formatCurrency } from '../utils/formatters';
+import { formatCompactNumber, formatCurrency } from '../utils/formatters';
 import { useGameViewModel } from './gameViewModel';
 
 export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
@@ -20,25 +20,28 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   const { model } = viewModel;
   const { game, derived } = model;
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
+  const currentRank = derived.currentRank?.rank ?? '--';
   const statusItems: StatusBarItem[] = [
     {
       id: 'credits', icon: '¤', label: '可用资金', value: <>¤ {formatCurrency(game.credits)}</>,
-      compactValue: formatCurrency(game.credits), detail: <>冻结 ¤ {formatCurrency(game.frozenCredits)}</>,
+      compactValue: formatCompactNumber(game.credits), detail: <>冻结 ¤ {formatCurrency(game.frozenCredits)}</>,
     },
     {
       id: 'assets', icon: '◆', label: '总资产', value: <>¤ {formatCurrency(derived.totalAssets)}</>,
-      compactValue: formatCurrency(derived.totalAssets),
+      compactValue: formatCompactNumber(derived.totalAssets),
       detail: <span className={weeklyChange >= 0 ? 'positive' : 'negative'}>本周 {weeklyChange >= 0 ? '+' : ''}¤ {formatCurrency(weeklyChange)}</span>,
       emphasis: 'primary',
     },
     {
-      id: 'rank', icon: '♛', label: '排行榜', value: <>第 {derived.currentRank?.rank ?? '--'} 名</>,
+      id: 'rank', icon: '♛', label: '排行榜', value: <>第 {currentRank} 名</>,
+      compactValue: <>#{currentRank}</>,
       detail: derived.previousRank
         ? <>距上一名 ¤ {formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</>
         : <>当前位于榜首</>,
     },
     {
       id: 'warehouse', icon: '▣', label: '仓库剩余', value: game.warehouseAvailableCapacity,
+      compactValue: formatCompactNumber(game.warehouseAvailableCapacity),
       detail: <>已用 {game.warehouseUsedCapacity}/{game.inventoryCapacity}{game.warehouseReservedQuantity > 0 ? ` · 买单预占 ${game.warehouseReservedQuantity}` : ''}</>,
     },
   ];
