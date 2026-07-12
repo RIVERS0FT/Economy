@@ -3,9 +3,10 @@ import type { PropsWithChildren, SVGProps } from 'react';
 type GameIconProps = SVGProps<SVGSVGElement>;
 export type NavigationIconName = 'home' | 'market' | 'production' | 'assets' | 'leaderboard' | 'settings';
 
-function GameIcon({ children, ...props }: PropsWithChildren<GameIconProps>) {
+function GameIcon({ children, className, ...props }: PropsWithChildren<GameIconProps>) {
   return (
     <svg
+      className={className ? `game-icon ${className}` : 'game-icon'}
       viewBox="0 0 24 24"
       width="1em"
       height="1em"
