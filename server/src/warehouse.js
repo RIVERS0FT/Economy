@@ -82,9 +82,8 @@ function inferLevelForCapacity(capacity) {
 export function ensureWarehouse(player) {
   const existingCapacity = Math.max(WAREHOUSE_BASE_CAPACITY, Number(player.inventoryCapacity || 0));
   const storedLevel = Number(player.warehouseLevel);
-  const level = Number.isSafeInteger(storedLevel) && storedLevel >= 1
-    ? storedLevel
-    : inferLevelForCapacity(existingCapacity);
+  const validStoredLevel = Number.isSafeInteger(storedLevel) && storedLevel >= 1 ? storedLevel : 1;
+  const level = Math.max(validStoredLevel, inferLevelForCapacity(existingCapacity));
   const formulaCapacity = warehouseCapacityForLevel(level);
   player.warehouseLevel = level;
   player.inventoryCapacity = Math.max(existingCapacity, formulaCapacity ?? existingCapacity);
@@ -107,12 +106,15 @@ export function createWarehouseUsage(world, player) {
 export function createWarehouseSummary(world, player) {
   ensureWarehouse(player);
   const level = player.warehouseLevel;
-  const nextCapacity = warehouseCapacityForLevel(level + 1) ?? player.inventoryCapacity;
+  const capacityIncrease = warehouseCapacityIncreaseForLevel(level);
+  const nextCapacity = capacityIncrease === null
+    ? null
+    : safeInteger(player.inventoryCapacity + capacityIncrease);
   return {
     warehouseLevel: level,
-    warehouseUpgradeCost: warehouseUpgradeCostForLevel(level),
-    warehouseNextCapacity: nextCapacity,
-    warehouseNextCapacityIncrease: Math.max(0, nextCapacity - player.inventoryCapacity),
+    warehouseUpgradeCost: nextCapacity === null ? null : warehouseUpgradeCostForLevel(level),
+    warehouseNextCapacity: nextCapacity ?? player.inventoryCapacity,
+    warehouseNextCapacityIncrease: nextCapacity === null ? 0 : capacityIncrease,
     ...createWarehouseUsage(world, player),
   };
 }
@@ -122,8 +124,16 @@ export function upgradeWarehouse(player) {
   const currentLevel = player.warehouseLevel;
   const nextLevel = currentLevel + 1;
   const cost = warehouseUpgradeCostForLevel(currentLevel);
-  const nextCapacity = warehouseCapacityForLevel(nextLevel);
-  if (!Number.isSafeInteger(nextLevel) || !Number.isFinite(cost) || cost <= 0 || !Number.isFinite(nextCapacity)) {
+  const capacityIncrease = warehouseCapacityIncreaseForLevel(currentLevel);
+  const nextCapacity = capacityIncrease === null
+    ? null
+    : safeInteger(player.inventoryCapacity + capacityIncrease);
+  if (
+    !Number.isSafeInteger(nextLevel)
+    || !Number.isFinite(cost)
+    || cost <= 0
+    || !Number.isFinite(nextCapacity)
+  ) {
     return { ok: false, message: '仓库扩容数值超出安全范围' };
   }
   if (player.credits < cost) {
@@ -132,7 +142,7 @@ export function upgradeWarehouse(player) {
 
   player.credits -= cost;
   player.warehouseLevel = nextLevel;
-  player.inventoryCapacity = Math.max(player.inventoryCapacity, nextCapacity);
+  player.inventoryCapacity = nextCapacity;
   player.stats ||= {};
   player.stats.systemSinks = Number(player.stats.systemSinks || 0) + cost;
   return {
