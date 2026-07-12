@@ -22,6 +22,7 @@ function requireOrderedText(path, earlier, later) {
   'server/src/facility-groups.js',
   'server/test/asset-events.test.js',
   'src/utils/localActivityStore.ts',
+  'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/AssetsPage.tsx',
   'src/styles/market-funds.css',
@@ -32,7 +33,12 @@ forbidFile('src/pages/RecordsPage.tsx');
 for (const [path, forbidden] of [
   ['src/config/navigation.ts', ["id: 'records'", "label: '订单'"]],
   ['src/pages/PageRouter.tsx', ['RecordsPage', "case 'records'"]],
-  ['src/pages/MarketPage.tsx', ['game.trades', 'aggregateOrderBook', 'book-columns', 'listing.facility.', 'facilityId:']],
+  ['src/pages/MarketPage.tsx', [
+    'game.trades', 'aggregateOrderBook', 'book-columns', 'listing.facility.', 'facilityId:',
+    'order-book-midpoint', '买入快捷数量按资金与仓库剩余空间共同计算',
+  ]],
+  ['src/components/warehouse/WarehouseUpgradeCard.tsx', ['未完成买单剩余数量']],
+  ['src/styles/market-funds.css', ['.order-book-midpoint', 'align-self: start']],
   ['src/pages/AssetsPage.tsx', ['game.ledger', 'game.assetEvents', "setTab('records')"]],
   ['src/types.ts', ['version: 7;', 'assetEvents: AssetEvent[];', 'trades: TradeRecord[];', 'ledger: LedgerEntry[];', 'ProductionFacility']],
   ['server/src/storage.js', ['migrateAssetEvents', 'appendAssetEventFromDiff']],
@@ -43,12 +49,13 @@ for (const [path, forbidden] of [
 for (const text of [
   'derived.ownSelectedOpenOrders', 'derived.ownOpenOrders', 'cancelOrder(order.id)',
   '我的订单与成交', '冻结资金', '冻结商品', '本地成交记录', 'localTrades.map',
+  'local-trades-section', 'local-trades-table',
   'order-quick-fill', '1/4 仓', '1/2 仓', '全仓',
   'const maxBuyQuantity', 'game.warehouseAvailableCapacity', 'Math.floor(game.credits / orderPrice)',
   'const maxSellQuantity = selectedInventory.available',
   'const bestAsks = derived.asks.slice(0, 5).reverse()',
   'const bestBids = derived.bids.slice(0, 5)',
-  'single-order-book', 'order-book-midpoint', '工厂数量市场',
+  'single-order-book', 'order-book-divider', '工厂数量市场',
   'purchaseQuantity', 'buyFacility(listing.id, purchaseQuantity)',
 ]) requireText('src/pages/MarketPage.tsx', text);
 requireOrderedText('src/pages/MarketPage.tsx', '限价', '数量');
@@ -68,7 +75,7 @@ for (const text of [
 for (const text of [
   'STORAGE_VERSION = 2', 'window.localStorage', 'syncLocalActivity', 'loadLocalActivity',
   'clearLocalActivity', 'snapshotState', 'facilityGroups: state.facilityGroups',
-  'MAX_ASSET_EVENTS', 'MAX_TRADES', 'Local logs are optional and must never block authoritative game actions',
+  'MAX_ASSET_EVENTS', 'MAX_TRADES = 240', 'Local logs are optional and must never block authoritative game actions',
 ]) requireText('src/utils/localActivityStore.ts', text);
 
 for (const text of [
@@ -82,22 +89,25 @@ for (const text of [
 ]) requireText('server/src/facility-groups.js', text);
 
 for (const text of [
-  '.order-quick-fill', '.single-order-book', '.order-book-stack', '.book-order-row',
-  '.order-book-midpoint', '.listing-purchase-control',
+  '.order-quick-fill', '.single-order-book', 'align-self: stretch', '.order-book-stack', '.book-order-row',
+  '.order-book-divider', '.local-trades-table', 'max-height: none', '.listing-purchase-control',
 ]) requireText('src/styles/market-funds.css', text);
 
 for (const text of [
   '限价在前、数量在后', '`1/4 仓`、`1/2 仓`、`全仓`',
-  '订单簿为单列', '买卖盘各最多 5 笔', '工厂挂牌和购买按类型、数量和单座价格',
+  '订单簿为单列', '买卖盘各最多 5 笔', '无文字中性分隔线',
+  '订单簿卡片必须使用网格默认拉伸', '市场本地成交记录必须遍历全部当前已加载的 `localTrades`',
+  '工厂挂牌和购买按类型、数量和单座价格',
 ]) requireText('docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', text);
 
 for (const text of [
   '限价必须位于数量之前', '1/4 仓｜1/2 仓｜全仓', '订单簿不分左右两列',
-  '工厂数量市场', '客户端状态版本 8',
+  '无文字中性分隔线', '订单簿卡片必须拉伸到所在网格行高度',
+  '本地成交记录面板不得设置固定高度', '工厂数量市场', '客户端状态版本 8',
 ]) requireText('docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md', text);
 
 if (failures.length) {
   console.error('市场、工厂数量交易与本地资产架构验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('市场架构验证通过：快捷仓位、单列 5+5 订单簿、数量工厂市场和本地日志边界满足第三版设计。');
+console.log('市场架构验证通过：快捷仓位、单列 5+5 订单簿、等高布局、自然增长本地成交和数量工厂市场满足设计。');
