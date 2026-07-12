@@ -2,6 +2,22 @@ export function formatCurrency(value: number) {
   return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(Math.round(value));
 }
 
+export function formatCompactNumber(value: number) {
+  const absolute = Math.abs(value);
+  const units = [
+    { threshold: 1_000_000_000_000, suffix: 'T' },
+    { threshold: 1_000_000_000, suffix: 'B' },
+    { threshold: 1_000_000, suffix: 'M' },
+    { threshold: 1_000, suffix: 'K' },
+  ];
+  const unit = units.find(({ threshold }) => absolute >= threshold);
+  if (!unit) return formatCurrency(value);
+
+  const scaled = value / unit.threshold;
+  const maximumFractionDigits = Math.abs(scaled) >= 100 ? 0 : 1;
+  return `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits }).format(scaled)}${unit.suffix}`;
+}
+
 export function formatTime(value: number) {
   return new Intl.DateTimeFormat('zh-CN', {
     month: '2-digit',
