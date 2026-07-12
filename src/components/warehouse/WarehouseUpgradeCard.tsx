@@ -65,7 +65,6 @@ export function WarehouseUpgradeCard({
           <MetricCard
             label="买单预占"
             value={game.warehouseReservedQuantity}
-            detail="未完成买单剩余数量"
             tone={game.warehouseReservedQuantity > 0 ? 'warning' : 'neutral'}
           />
           <MetricCard
