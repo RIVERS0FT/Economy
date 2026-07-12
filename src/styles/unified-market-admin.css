@@ -28,12 +28,24 @@
 .unified-asset-tab > strong,
 .unified-asset-tab > span:not(.asset-kind-icon),
 .unified-asset-tab > small { grid-column: 2; }
-.unified-asset-tab .asset-kind-icon { grid-row: 1 / span 3; font-size: 1.15rem; opacity: .7; }
-.unified-asset-tab.facility .asset-kind-icon { font-size: 1.25rem; }
+.unified-asset-tab .asset-kind-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  grid-row: 1 / span 3;
+  place-items: center;
+  color: var(--color-warning);
+  line-height: 0;
+  opacity: .78;
+}
+.unified-asset-tab .asset-kind-icon > .product-icon { width: 100%; height: 100%; }
+.unified-asset-tab.facility .asset-kind-icon { color: inherit; font-size: 1.25rem; line-height: 1; }
 .unified-asset-tab.active { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.unified-asset-tab.active .asset-kind-icon { color: var(--accent); opacity: 1; }
 .unified-asset-tab small { color: var(--text-muted); }
 
 .unified-market-grid { margin-top: 0; }
+.market-account-grid .product-icon-label { white-space: nowrap; }
 
 .facility-auto-recovery-note {
   display: block;
