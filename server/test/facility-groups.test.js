@@ -124,14 +124,19 @@ test('running plan changes apply at the next cycle boundary', () => {
 test('warehouse errors recover without backfilling missed cycles', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
-  player.inventoryCapacity = 1;
+  player.warehouseLevel = 1;
+  player.inventoryCapacity = 500;
+  player.inventories.grain.available = 499;
   player.facilityGroups = [group('farm', 1, { enabled: true, status: 'error', statusReason: 'warehouse_full' })];
   migrateFacilityGroupWorld(world, now);
   processFacilityGroupWorld(world, now + 120_000);
-  assert.equal(player.inventories.grain.available, 0);
-  player.inventoryCapacity = 100;
+  assert.equal(player.facilityGroups[0].status, 'error');
+  assert.equal(player.inventories.grain.available, 499);
+
+  player.warehouseLevel = 2;
+  player.inventoryCapacity = 750;
   processFacilityGroupWorld(world, now + 120_001);
   assert.equal(player.facilityGroups[0].status, 'running');
   assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_001);
-  assert.equal(player.inventories.grain.available, 0);
+  assert.equal(player.inventories.grain.available, 499);
 });
