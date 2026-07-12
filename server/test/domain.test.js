@@ -4,7 +4,10 @@ import {
   applyAction,
   createWorld,
   ensurePlayer,
+  FACILITY_TYPE_CATALOG,
   migrateWorld,
+  processWorld,
+  PRODUCT_CATALOG,
 } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
 
@@ -108,9 +111,63 @@ test('client state uses version 8 and exposes no factory instances', () => {
     assert.equal(state.version, 8);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
-    assert.equal(state.products.length, 6);
-    assert.equal(state.facilityTypes.length, 6);
+    assert.equal(state.products.length, 12);
+    assert.equal(state.facilityTypes.length, 12);
   } finally {
     store.close();
+  }
+});
+
+
+test('expanded industry catalog exposes complete production chains', () => {
+  assert.equal(PRODUCT_CATALOG.length, 12);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 12);
+
+  const productIds = new Set(PRODUCT_CATALOG.map((product) => product.id));
+  const facilityIds = new Set(FACILITY_TYPE_CATALOG.map((facility) => facility.id));
+  assert.equal(productIds.size, PRODUCT_CATALOG.length);
+  assert.equal(facilityIds.size, FACILITY_TYPE_CATALOG.length);
+
+  for (const facility of FACILITY_TYPE_CATALOG) {
+    assert.equal(productIds.has(facility.output.productId), true);
+    if (facility.input) assert.equal(productIds.has(facility.input.productId), true);
+  }
+
+  const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+  assert.deepEqual(facilities.get('logging-camp').output, { productId: 'timber', quantity: 2 });
+  assert.deepEqual(facilities.get('sawmill').input, { productId: 'timber', quantity: 2 });
+  assert.deepEqual(facilities.get('sawmill').output, { productId: 'lumber', quantity: 1 });
+  assert.deepEqual(facilities.get('oil-field').output, { productId: 'crude-oil', quantity: 2 });
+  assert.deepEqual(facilities.get('refinery').input, { productId: 'crude-oil', quantity: 2 });
+  assert.deepEqual(facilities.get('refinery').output, { productId: 'plastic', quantity: 1 });
+  assert.deepEqual(facilities.get('furniture-factory').input, { productId: 'lumber', quantity: 2 });
+  assert.deepEqual(facilities.get('furniture-factory').output, { productId: 'furniture', quantity: 2 });
+  assert.deepEqual(facilities.get('electronics-factory').input, { productId: 'plastic', quantity: 2 });
+  assert.deepEqual(facilities.get('electronics-factory').output, { productId: 'electronics', quantity: 1 });
+});
+
+test('existing worlds receive new inventories, markets, and liquidity without resetting assets', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 777;
+  player.inventories.grain.available = 9;
+  const newProductIds = ['timber', 'crude-oil', 'lumber', 'plastic', 'furniture', 'electronics'];
+
+  for (const productId of newProductIds) {
+    delete player.inventories[productId];
+    delete world.markets[productId];
+  }
+  world.orders = world.orders.filter((order) => !newProductIds.includes(order.productId));
+
+  migrateWorld(world, now);
+  processWorld(world, now + 1);
+
+  assert.equal(player.credits, 777);
+  assert.equal(player.inventories.grain.available, 9);
+  for (const productId of newProductIds) {
+    assert.deepEqual(player.inventories[productId], { available: 0, frozen: 0 });
+    assert.equal(world.markets[productId].productId, productId);
+    assert.equal(world.orders.some((order) => order.productId === productId && order.side === 'buy' && order.ownerType === 'market'), true);
+    assert.equal(world.orders.some((order) => order.productId === productId && order.side === 'sell' && order.ownerType === 'market'), true);
   }
 });
