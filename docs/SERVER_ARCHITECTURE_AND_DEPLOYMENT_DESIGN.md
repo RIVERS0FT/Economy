@@ -4,8 +4,8 @@
 > 适用项目：`RIVERS0FT/Economy`  
 > 生产网页：`https://game.riversoft.top/economy/`  
 > 更新时间：2026-07-12  
-> 客户端状态版本：10  
-> 世界状态版本：6
+> 客户端状态版本：11  
+> 世界状态版本：7
 
 ## 1. 目标
 
@@ -74,8 +74,8 @@ assetEvents
 
 ## 4. 状态与存储
 
-- 客户端 `EconomyState.version` 固定为 10。
-- SQLite 世界版本固定为 6。
+- 客户端 `EconomyState.version` 固定为 11。
+- SQLite 世界版本固定为 7。
 - 数据库使用 Node 内置 `node:sqlite`、WAL 和事务。
 - 资产写操作使用 `BEGIN IMMEDIATE`。
 - 单节点只运行一个游戏 API 进程。
