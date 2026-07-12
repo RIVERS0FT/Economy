@@ -23,6 +23,7 @@ function requireOrderedText(path, earlier, later) {
   'src/api/game.ts',
   'src/app/gameViewModel.ts',
   'src/components/facilities/FacilityProgress.tsx',
+  'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/pages/ProductionPage.tsx',
   'src/pages/MarketPage.tsx',
   'src/utils/localActivityStore.ts',
@@ -32,6 +33,7 @@ function requireOrderedText(path, earlier, later) {
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/MARKET_AND_ASSET_INFORMATION_ARCHITECTURE.md',
+  'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
 ].forEach(requireFile);
 
 forbidFile('server/src/direct-production.js');
@@ -111,11 +113,15 @@ for (const text of [
   'const maxSellQuantity = selectedInventory.available',
   'const bestAsks = derived.asks.slice(0, 5).reverse()',
   'const bestBids = derived.bids.slice(0, 5)',
-  'single-order-book', 'order-book-midpoint', '工厂数量市场',
+  'single-order-book', 'order-book-divider', 'local-trades-table', 'localTrades.map', '工厂数量市场',
 ]) requireText('src/pages/MarketPage.tsx', text);
 requireOrderedText('src/pages/MarketPage.tsx', '限价', '数量');
 requireOrderedText('src/pages/MarketPage.tsx', '数量', 'order-quick-fill');
-for (const text of ['book-columns', 'aggregateOrderBook', 'listing.facility.', 'facilityId:']) forbidText('src/pages/MarketPage.tsx', text);
+for (const text of [
+  'book-columns', 'aggregateOrderBook', 'listing.facility.', 'facilityId:',
+  'order-book-midpoint', '买入快捷数量按资金与仓库剩余空间共同计算',
+]) forbidText('src/pages/MarketPage.tsx', text);
+forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', '未完成买单剩余数量');
 
 for (const text of [
   'same-type factories share one cycle',
@@ -140,9 +146,10 @@ for (const text of [
   '.facility-group-listing-control', '@media (max-width: 1380px)', '@media (max-width: 720px)',
 ]) requireText('src/styles/industry-system.css', text);
 for (const text of [
-  '.order-quick-fill', '.single-order-book', '.order-book-stack', '.book-order-row',
-  '.order-book-midpoint', '.listing-purchase-control',
+  '.order-quick-fill', '.single-order-book', 'align-self: stretch', '.order-book-stack', '.book-order-row',
+  '.order-book-divider', '.local-trades-table', 'max-height: none', '.listing-purchase-control',
 ]) requireText('src/styles/market-funds.css', text);
+for (const text of ['.order-book-midpoint', 'align-self: start']) forbidText('src/styles/market-funds.css', text);
 
 for (const text of [
   '# Economy 工厂集群与市场第三版设计',
@@ -150,6 +157,8 @@ for (const text of [
   '同类型未挂牌工厂统一启动、统一停止', '挂牌工厂不参与生产', '未挂牌数量启动',
   '工厂挂牌和购买按类型、数量和单座价格',
   '限价在前、数量在后', '订单簿为单列', '买卖盘各最多 5 笔',
+  '无文字中性分隔线', '订单簿卡片必须使用网格默认拉伸',
+  '市场页本地成交记录必须遍历全部当前已加载的 `localTrades`',
 ]) requireText('docs/FACILITY_GROUP_AND_MARKET_V3_DESIGN.md', text);
 
 forbidText('server/src/facility-groups.js', '存在挂牌数量时不能启动该工厂集群');
@@ -159,4 +168,4 @@ if (failures.length) {
   console.error('工厂集群与市场第三版验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
-console.log('工厂集群与市场第三版验证通过：统一周期、下一周期加入、数量交易、快捷仓位和单列订单簿满足设计。');
+console.log('工厂集群与市场第三版验证通过：统一周期、数量交易、快捷仓位、分隔式订单簿和自然增长本地成交满足设计。');
