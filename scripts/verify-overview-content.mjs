@@ -14,6 +14,7 @@ const forbidText = (path, text) => {
   if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`);
 };
 
+const routerPath = 'src/pages/PageRouter.tsx';
 const overviewPath = 'src/pages/OverviewPage.tsx';
 const viewModelPath = 'src/app/gameViewModel.ts';
 const stylePath = 'src/styles/overview.css';
@@ -23,6 +24,7 @@ const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
 const packagePath = 'package.json';
 
 [
+  routerPath,
   overviewPath,
   viewModelPath,
   stylePath,
@@ -33,7 +35,22 @@ const packagePath = 'package.json';
 ].forEach(requireFile);
 
 for (const text of [
-  "import { useEffect, useMemo, useState } from 'react'",
+  "import { useEffect, useState } from 'react'",
+  "const [overviewProductId, setOverviewProductId] = useState(() => model.game.products[0]?.id ?? '')",
+  'model.game.products.some((product) => product.id === overviewProductId)',
+  "setOverviewProductId(model.game.products[0]?.id ?? '')",
+  'overviewProductId={overviewProductId}',
+  'onOverviewProductChange={setOverviewProductId}',
+]) requireText(routerPath, text);
+
+for (const text of [
+  'localStorage',
+  'sessionStorage',
+  'marketAssetId',
+]) forbidText(routerPath, text);
+
+for (const text of [
+  "import { useMemo } from 'react'",
   'function greetingForHour(hour: number)',
   "if (hour < 5) return '凌晨好'",
   "if (hour < 12) return '早上好'",
@@ -41,12 +58,11 @@ for (const text of [
   "if (hour < 18) return '下午好'",
   "return '晚上好'",
   'new Date(now).getHours()',
-  "const [overviewProductId, setOverviewProductId] = useState(() => game.products[0]?.id ?? '')",
-  'game.products.some((product) => product.id === overviewProductId)',
-  "setOverviewProductId(game.products[0]?.id ?? '')",
+  'overviewProductId: string;',
+  'onOverviewProductChange: (productId: string) => void;',
   'const overviewMarket = useMemo(() => {',
   "value={overviewMarket?.product.id ?? ''}",
-  'setOverviewProductId(event.target.value)',
+  'onOverviewProductChange(event.target.value)',
   'aria-label="选择概览商品市场"',
   "selectMarketAsset('commodity', overviewMarket.product.id)",
   'derived.ownOpenOrders',
@@ -62,8 +78,12 @@ for (const text of [
 ]) requireText(overviewPath, text);
 
 for (const text of [
+  'const [overviewProductId, setOverviewProductId] = useState',
+  'setOverviewProductId(',
   'selectedProductId',
   'setSelectedProductId',
+  'localStorage',
+  'sessionStorage',
   'title={<>早上好',
   'overview-product-strip',
   'localTrades.slice(0, 6)',
@@ -114,10 +134,12 @@ for (const text of [
   '三张卡片统一为 `384px` 高',
   '不得包含当前浏览器最近成交',
   '不得恢复全部商品快捷切换条',
-  '只属于 `OverviewPage` 当前组件生命周期',
-  '不得写入服务器、浏览器存储或全局 `LoadedGameViewModel`',
-  '自动刷新、工作、下单、撤单或其他权威状态更新不得重置',
+  '属于 `PageRouter` 当前登录会话的页面级 UI 状态',
+  '切换到市场、生产、资产或其他正式页面后再返回概览时必须保留选择',
+  '不得写入服务器、`localStorage`、`sessionStorage` 或全局 `LoadedGameViewModel`',
+  '刷新整个页面或重新登录后，从服务器目录首项重新初始化',
   '市场中的后续商品切换不得反向覆盖概览选择',
+  '让普通页面切换重置仍有效的概览商品选择',
 ]) requireText(pageDesignPath, text);
 
 for (const text of [
@@ -132,8 +154,8 @@ for (const text of [
 requireText(packagePath, 'node scripts/verify-overview-content.mjs');
 
 if (failures.length > 0) {
-  console.error('概览内容、局部商品选择与布局验证失败:\n- ' + failures.join('\n- '));
+  console.error('概览内容、页面导航商品选择与布局验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
 
-console.log('概览验证通过：本地时间问候、局部商品选择、当前挂单与三卡等高布局满足设计基线。');
+console.log('概览验证通过：本地时间问候、跨页面保留的路由会话商品选择、当前挂单与三卡等高布局满足设计基线。');
