@@ -15,6 +15,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/AssetsPage.tsx',
   'src/pages/LeaderboardPage.tsx',
   'src/pages/SettingsPage.tsx',
+  'src/components/facilities/FacilityProductionFormula.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/components/shell/NavigationItems.tsx',
   'src/app/gameViewModel.ts',
@@ -59,6 +60,9 @@ for (const text of [
   '运行中',
   '下一周期加入',
   '冻结中',
+  'FacilityProductionFormula',
+  'products={game.products}',
+  'inventories={game.inventories}',
   'production-plan-heading',
   'production-plan-fields',
   '<strong>当前计划</strong>',
@@ -69,8 +73,18 @@ for (const text of [
   '在统一订单簿中买卖该工厂',
   '>前往市场 →',
   'formatNumber(group.count)',
-  'formatCurrency(currentCycleCost)',
 ]) requireText('src/pages/ProductionPage.tsx', text);
+
+for (const text of [
+  'facility-formula-input-group',
+  'facility-formula-center',
+  'facility-formula-output-group',
+  'facility-formula-progress',
+  'facility-formula-summary',
+  'CycleIcon',
+  'CreditsIcon',
+  'WarehouseIcon',
+]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
 
 for (const text of [
   'title="工厂"',
@@ -87,6 +101,7 @@ for (const text of [
   '下一周期：',
   '当前计划：持续运行',
   '>保存计划</Button>',
+  'facility-group-specs',
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
@@ -187,6 +202,9 @@ for (const text of [
   '仓库不再提供“有库存／全部商品”筛选',
   '建设新工厂卡独占左侧列并在桌面滚动时常驻',
   '大于 1380px 时工厂列表固定四列',
+  '单座生产公式',
+  '多输入、多输出和逐输入库存兼容展示',
+  '以箭头替代生产进度条',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
@@ -205,4 +223,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、全局紧凑数字、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
+console.log('页面内容、全局紧凑数字、生产公式、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
