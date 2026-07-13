@@ -16,8 +16,23 @@ import {
   stripLegacyFacilityInstances,
 } from './facility-groups.js';
 import { createWarehouseSummary, ensureWarehouse, upgradeWarehouse } from './warehouse.js';
+import {
+  applyCollectibleAction,
+  canResetCollectibles,
+  collectibleOwnershipHistory,
+  createCollectibleClientState,
+  importCollectibles,
+  listCollectiblesForAdmin,
+  migrateCollectibleWorld,
+  processCollectibleAuctions,
+} from './collectibles.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+const COLLECTIBLE_ACTIONS = new Set([
+  'createCollectibleAuction',
+  'placeCollectibleBid',
+  'cancelCollectibleAuction',
+]);
 
 function normalizeJson(value) {
   return JSON.parse(JSON.stringify(value));
@@ -39,6 +54,7 @@ function generateGiftCode() {
 function createVersionedClientState(world, userId, now) {
   const player = world.players[String(userId)];
   ensureWarehouse(player);
+  processCollectibleAuctions(world, now);
   const state = createFacilityGroupClientState(world, userId, now);
   const {
     trades: _serverTrades,
@@ -49,6 +65,7 @@ function createVersionedClientState(world, userId, now) {
   return {
     ...authoritativeState,
     ...createWarehouseSummary(world, player),
+    ...createCollectibleClientState(world, userId, now),
     version: 11,
   };
 }
@@ -176,6 +193,7 @@ export class EconomyStore {
     if (!row) {
       const world = stripPlayerLogs(createWorld(now));
       migrateFacilityGroupWorld(world, now);
+      migrateCollectibleWorld(world, now);
       stripLegacyFacilityInstances(world);
       this.insertWorld.run(1, JSON.stringify(world), now);
       return { revision: 1, world };
@@ -183,6 +201,7 @@ export class EconomyStore {
     const world = migrateWorld(JSON.parse(String(row.state_json)), now);
     stripPlayerLogs(world);
     migrateFacilityGroupWorld(world, now);
+    migrateCollectibleWorld(world, now);
     for (const player of Object.values(world.players || {})) ensureWarehouse(player);
     return { revision: Number(row.revision), world };
   }
@@ -190,6 +209,7 @@ export class EconomyStore {
   saveWorld(revision, world, now) {
     for (const player of Object.values(world.players || {})) ensureWarehouse(player);
     migrateFacilityGroupWorld(world, now);
+    migrateCollectibleWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
     this.updateWorld.run(revision + 1, JSON.stringify(world), now);
@@ -202,6 +222,7 @@ export class EconomyStore {
       ensureWarehouse(player);
       migrateFacilityGroupWorld(world, now);
       processFacilityGroupWorld(world, now);
+      processCollectibleAuctions(world, now);
       ensureWarehouse(world.players[String(user.id)]);
       const state = normalizeJson(createVersionedClientState(world, Number(user.id), now));
       this.saveWorld(revision, world, now);
@@ -247,6 +268,7 @@ export class EconomyStore {
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
       migrateFacilityGroupWorld(world, now);
+      processCollectibleAuctions(world, now);
       let gameResult;
       if (action === 'upgradeWarehouse') {
         processFacilityGroupWorld(world, now);
@@ -254,10 +276,19 @@ export class EconomyStore {
       } else if (action === 'redeemGift') {
         processFacilityGroupWorld(world, now);
         gameResult = this.redeemGiftInTransaction(world, user, payload, now);
+      } else if (COLLECTIBLE_ACTIONS.has(action)) {
+        processFacilityGroupWorld(world, now);
+        gameResult = applyCollectibleAction(world, user, action, payload, now);
+      } else if (action === 'resetPlayer') {
+        const resetCheck = canResetCollectibles(world, Number(user.id), now);
+        gameResult = resetCheck.ok
+          ? applyFacilityGroupAction(world, user, action, payload, now)
+          : resetCheck;
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
       }
       processFacilityGroupWorld(world, now);
+      processCollectibleAuctions(world, now);
       ensureWarehouse(world.players[String(user.id)]);
       const state = createVersionedClientState(world, Number(user.id), now);
       const response = normalizeJson({ result: gameResult, state });
@@ -307,6 +338,7 @@ export class EconomyStore {
     return this.transaction(() => {
       const { revision, world } = this.loadWorld(now);
       processFacilityGroupWorld(world, now);
+      processCollectibleAuctions(world, now);
       const openOrders = (world.orders || []).filter((order) => (
         order.remaining > 0 && (order.status === 'open' || order.status === 'partial')
       ));
@@ -315,6 +347,8 @@ export class EconomyStore {
         openOrderCount: openOrders.length,
         commodityOrderCount: openOrders.filter((order) => order.assetKind !== 'facility').length,
         facilityOrderCount: openOrders.filter((order) => order.assetKind === 'facility').length,
+        collectibleCount: world.collectibles.length,
+        openAuctionCount: world.collectibleAuctions.filter((auction) => auction.status === 'open').length,
         worldVersion: Number(world.version || 0),
         revision,
         lastProcessedAt: Number(world.lastProcessedAt || now),
@@ -383,5 +417,41 @@ export class EconomyStore {
     const id = Math.floor(Number(giftCodeId));
     if (!Number.isInteger(id) || id < 1) throw Object.assign(new Error('礼品码 ID 无效'), { statusCode: 400 });
     return this.listGiftRedemptionsStatement.all(id);
+  }
+
+  listCollectibles(user, now = Date.now()) {
+    this.requireAdmin(user);
+    return this.transaction(() => {
+      const { revision, world } = this.loadWorld(now);
+      processFacilityGroupWorld(world, now);
+      processCollectibleAuctions(world, now);
+      const collectibles = listCollectiblesForAdmin(world, now);
+      this.saveWorld(revision, world, now);
+      return normalizeJson(collectibles);
+    });
+  }
+
+  importCollectibles(user, payload, requestMeta, now = Date.now()) {
+    return this.adminMutation(user, requestMeta, () => {
+      const { revision, world } = this.loadWorld(now);
+      ensurePlayer(world, user, now);
+      processFacilityGroupWorld(world, now);
+      processCollectibleAuctions(world, now);
+      const imported = importCollectibles(world, user, payload, now);
+      this.saveWorld(revision, world, now);
+      return imported;
+    }, now);
+  }
+
+  listCollectibleOwnership(user, collectibleId, now = Date.now()) {
+    this.requireAdmin(user);
+    return this.transaction(() => {
+      const { revision, world } = this.loadWorld(now);
+      processFacilityGroupWorld(world, now);
+      processCollectibleAuctions(world, now);
+      const history = collectibleOwnershipHistory(world, String(collectibleId || ''), now);
+      this.saveWorld(revision, world, now);
+      return normalizeJson(history);
+    });
   }
 }
