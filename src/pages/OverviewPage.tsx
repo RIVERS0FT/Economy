@@ -98,7 +98,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
         <div className="overview-summary-row span-3">
           <Panel className="widget production-summary overview-summary-card">
             <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => setTab('production')}>管理工厂</Button>} />
-            <DataList>
+            <DataList className="compact">
               <DataRow label="工厂总数" value={formatNumber(totalFacilities)} tone="info" />
               <DataRow label="运行参与" value={formatNumber(derived.runningFacilities)} tone="success" />
               <DataRow label="停止工厂" value={formatNumber(derived.stoppedFacilities)} tone={derived.stoppedFacilities ? 'warning' : 'neutral'} />
