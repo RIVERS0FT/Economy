@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { orderAssetId, orderKind, orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon } from '../components/icons/GameIcons';
@@ -25,7 +25,13 @@ function greetingForHour(hour: number) {
   return '晚上好';
 }
 
-export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
+type OverviewPageProps = {
+  model: LoadedGameViewModel;
+  overviewProductId: string;
+  onOverviewProductChange: (productId: string) => void;
+};
+
+export function OverviewPage({ model, overviewProductId, onOverviewProductChange }: OverviewPageProps) {
   const {
     game,
     derived,
@@ -36,7 +42,6 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
     setTab,
     selectMarketAsset,
   } = model;
-  const [overviewProductId, setOverviewProductId] = useState(() => game.products[0]?.id ?? '');
   const plannedGroups = game.facilityGroups.filter((group) => group.productionMode === 'target').length;
   const pendingPlans = game.facilityGroups.reduce((sum, group) => (
     group.productionMode === 'target' ? sum + Math.max(0, (group.targetQuantity || 0) - group.completedQuantity) : sum
@@ -45,11 +50,6 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
   const pendingJoin = game.facilityGroups.reduce((sum, group) => sum + group.pendingJoinCount, 0);
   const greeting = greetingForHour(new Date(now).getHours());
   const ownOpenOrders = [...derived.ownOpenOrders].sort((left, right) => right.createdAt - left.createdAt);
-
-  useEffect(() => {
-    if (game.products.some((product) => product.id === overviewProductId)) return;
-    setOverviewProductId(game.products[0]?.id ?? '');
-  }, [game.products, overviewProductId]);
 
   const overviewMarket = useMemo(() => {
     const product = game.products.find((item) => item.id === overviewProductId) ?? game.products[0];
@@ -110,7 +110,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
                   aria-label="选择概览商品市场"
                   value={overviewMarket?.product.id ?? ''}
                   disabled={game.products.length === 0}
-                  onChange={(event) => setOverviewProductId(event.target.value)}
+                  onChange={(event) => onOverviewProductChange(event.target.value)}
                 >
                   {game.products.length > 0
                     ? game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)
