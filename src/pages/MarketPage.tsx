@@ -12,6 +12,7 @@ import {
   type StatusTone,
   WidgetHeading,
 } from '../components/ui/layout';
+import { VirtualList } from '../components/ui/VirtualList';
 import { economyConstants } from '../config/economy';
 import type { AssetOrder } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
@@ -284,28 +285,40 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
             <section className="local-trades-section">
               <h3>本地成交记录</h3>
-              <ScrollableTable className="local-trades-table">
-                <table>
-                  <thead><tr><th>类型</th><th>资产</th><th>方向</th><th className="numeric-cell">数量</th><th className="numeric-cell">价格</th><th className="numeric-cell">总额</th><th>来源</th><th>时间</th></tr></thead>
-                  <tbody>
-                    {localTrades.map((trade) => (
-                      <tr key={trade.id}>
-                        <td>{trade.type === 'facility' ? '工厂' : '商品'}</td>
-                        <td>{trade.type === 'commodity' && trade.productId
+              {localTrades.length === 0 ? <p className="muted">当前浏览器暂无成交记录。</p> : (
+                <div className="virtual-record-table local-trades-virtual-table" role="table" aria-label="本地成交记录">
+                  <div className="virtual-record-header" role="row">
+                    <span role="columnheader">类型</span><span role="columnheader">资产</span><span role="columnheader">方向</span><span role="columnheader" className="numeric-cell">数量</span><span role="columnheader" className="numeric-cell">价格</span><span role="columnheader" className="numeric-cell">总额</span><span role="columnheader">来源</span><span role="columnheader">时间</span>
+                  </div>
+                  <VirtualList
+                    items={localTrades}
+                    getKey={(trade) => trade.id}
+                    estimateSize={54}
+                    viewportHeight={520}
+                    minViewportHeight={96}
+                    overscan={6}
+                    gap={0}
+                    className="virtual-record-viewport"
+                    role="rowgroup"
+                    itemRole="presentation"
+                    ariaLabel="本地成交记录行"
+                    renderItem={(trade) => (
+                      <div className="virtual-record-row" role="row">
+                        <span role="cell">{trade.type === 'facility' ? '工厂' : '商品'}</span>
+                        <span role="cell">{trade.type === 'commodity' && trade.productId
                           ? <ProductIconLabel productId={trade.productId}>{trade.description}</ProductIconLabel>
-                          : trade.description}</td>
-                        <td><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
-                        <td className="numeric-cell">{formatNumber(trade.quantity)}</td>
-                        <td className="numeric-cell">¤ {formatCurrency(trade.price)}</td>
-                        <td className="numeric-cell">¤ {formatCurrency(trade.total)}</td>
-                        <td>{trade.counterparty}</td>
-                        <td>{formatTime(trade.createdAt)}</td>
-                      </tr>
-                    ))}
-                    {localTrades.length === 0 ? <tr><td colSpan={8} className="empty-cell">当前浏览器暂无成交记录。</td></tr> : null}
-                  </tbody>
-                </table>
-              </ScrollableTable>
+                          : trade.description}</span>
+                        <span role="cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
+                        <span role="cell" className="numeric-cell">{formatNumber(trade.quantity)}</span>
+                        <span role="cell" className="numeric-cell">¤ {formatCurrency(trade.price)}</span>
+                        <span role="cell" className="numeric-cell">¤ {formatCurrency(trade.total)}</span>
+                        <span role="cell">{trade.counterparty}</span>
+                        <span role="cell">{formatTime(trade.createdAt)}</span>
+                      </div>
+                    )}
+                  />
+                </div>
+              )}
             </section>
           </div>
         </Panel>
