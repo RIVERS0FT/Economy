@@ -197,3 +197,29 @@ test('target completion preserves pending plan but still stops', () => {
   assert.equal(completed.status, 'stopped');
   assert.equal(completed.statusReason, 'plan_complete');
 });
+
+
+test('factory order books contain player orders only', () => {
+  const world = createWorld(now);
+  world.orders.push(
+    { id: 'system-factory-buy', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm', side: 'buy', ownerType: 'market', ownerName: '系统资产采购', price: 72, quantity: 3, remaining: 3, status: 'open', createdAt: now },
+    { id: 'system-factory-sell', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm', side: 'sell', ownerType: 'market', ownerName: '系统资产供给', price: 88, quantity: 2, remaining: 2, status: 'open', createdAt: now },
+    { id: 'player-factory-buy', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm', side: 'buy', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice', price: 80, quantity: 1, remaining: 1, status: 'open', createdAt: now },
+  );
+
+  migrateFacilityGroupWorld(world, now);
+  assert.equal(world.orders.some((order) => order.assetKind === 'facility' && order.ownerType === 'market'), false);
+  assert.equal(world.orders.some((order) => order.id === 'player-factory-buy'), true);
+
+  processFacilityGroupWorld(world, now + 1);
+  assert.equal(world.orders.some((order) => order.assetKind === 'facility' && order.ownerType === 'market'), false);
+  assert.equal(world.orders.some((order) => order.id === 'player-factory-buy'), true);
+});
+
+test('empty factory order books stay empty after world processing', () => {
+  const world = createWorld(now);
+  world.orders = world.orders.filter((order) => order.assetKind !== 'facility' && !order.facilityTypeId);
+  migrateFacilityGroupWorld(world, now);
+  processFacilityGroupWorld(world, now + 1);
+  assert.equal(world.orders.some((order) => order.assetKind === 'facility' || order.facilityTypeId), false);
+});

@@ -176,7 +176,10 @@ test('existing worlds receive new inventories, markets, and liquidity without re
 
 test('commodity order fills preserve every exact resting price', () => {
   const world = createWorld(now);
-  world.orders = [];
+  world.orders = [
+    { id: 'test-market-buy', productId: 'grain', side: 'buy', ownerType: 'market', ownerName: '测试流动买单', price: 1, quantity: 18, remaining: 18, status: 'open', createdAt: now },
+    { id: 'test-market-sell', productId: 'grain', side: 'sell', ownerType: 'market', ownerName: '测试流动卖单', price: 100, quantity: 14, remaining: 14, status: 'open', createdAt: now },
+  ];
   const buyer = ensurePlayer(world, alice, now);
   const sellerA = ensurePlayer(world, bob, now);
   const sellerB = ensurePlayer(world, carol, now);
@@ -202,4 +205,54 @@ test('commodity order fills preserve every exact resting price', () => {
   assert.equal(buyer.credits, 89);
   assert.equal(buyer.frozenCredits, 0);
   assert.equal(buyer.inventories.grain.available, 2);
+});
+
+
+test('commodity system liquidity follows the current order book instead of last trade price', () => {
+  const makeOrder = (id, side, price, status = 'open') => ({
+    id,
+    productId: 'grain',
+    side,
+    ownerType: 'player',
+    ownerId: side === 'buy' ? 1 : 2,
+    ownerName: side === 'buy' ? 'Buyer' : 'Seller',
+    price,
+    quantity: 1,
+    remaining: status === 'cancelled' ? 0 : 1,
+    status,
+    createdAt: now,
+  });
+  const quote = (orders) => {
+    const world = createWorld(now);
+    world.orders = orders;
+    world.markets.grain.lastPrice = 100;
+    world.markets.grain.demand.nextDemandAt = now + 300_000;
+    processWorld(world, now + 1);
+    const marketOrders = world.orders.filter((order) => (
+      order.productId === 'grain' && order.ownerType === 'market' && ['open', 'partial'].includes(order.status)
+    ));
+    return {
+      buy: marketOrders.find((order) => order.side === 'buy')?.price,
+      sell: marketOrders.find((order) => order.side === 'sell')?.price,
+      lastPrice: world.markets.grain.lastPrice,
+    };
+  };
+
+  assert.deepEqual(quote([makeOrder('bid-8', 'buy', 8), makeOrder('ask-12', 'sell', 12)]), {
+    buy: 8, sell: 12, lastPrice: 100,
+  });
+  assert.deepEqual(quote([makeOrder('ask-12', 'sell', 12)]), {
+    buy: 11, sell: 12, lastPrice: 100,
+  });
+  assert.deepEqual(quote([makeOrder('bid-8', 'buy', 8)]), {
+    buy: 8, sell: 9, lastPrice: 100,
+  });
+  assert.deepEqual(quote([]), { buy: 5, sell: 7, lastPrice: 100 });
+  assert.deepEqual(quote([
+    makeOrder('cancelled-bid', 'buy', 99, 'cancelled'),
+    makeOrder('ask-12', 'sell', 12),
+  ]), { buy: 11, sell: 12, lastPrice: 100 });
+  assert.deepEqual(quote([makeOrder('ask-1', 'sell', 1)]), {
+    buy: undefined, sell: 1, lastPrice: 100,
+  });
 });
