@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "verify:architecture": "node scripts/verify-document-authority.mjs && node scripts/verify-page-content.mjs && node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-market-assets.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node scripts/verify-collectibles-auctions.mjs",
+    "verify:architecture": "node scripts/verify-document-authority.mjs && node scripts/verify-page-content.mjs && node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-market-assets.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node scripts/verify-collectibles-auctions.mjs",
     "test:nginx-config": "python3 scripts/test_configure_economy_nginx.py",
     "server:check": "node --check server/src/*.js",
     "server:test": "node --test server/test/*.test.js",

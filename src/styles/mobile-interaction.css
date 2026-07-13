@@ -1,0 +1,12 @@
+/* Mobile browsers add a native blue tap highlight to interactive elements.
+ * Remove that transient overlay without changing keyboard focus-visible styles. */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a,
+  .ui-button,
+  .ui-switch,
+  .ui-toggle-field,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
