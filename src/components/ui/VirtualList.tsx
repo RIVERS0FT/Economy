@@ -88,7 +88,7 @@ export function VirtualList<T>({
         const key = element.dataset.virtualKey;
         if (key === undefined) continue;
         const numericKey = element.dataset.virtualKeyType === 'number' ? Number(key) : key;
-        updateMeasurement(numericKey, entry.getBoundingClientRect().height);
+        updateMeasurement(numericKey, element.getBoundingClientRect().height);
       }
     });
     resizeObserverRef.current = observer;
