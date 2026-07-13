@@ -15,11 +15,13 @@ function forbidText(path, text) { if (read(path).includes(text)) failures.push(`
   'server/test/facility-groups.test.js',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/components/facilities/FacilityProgress.tsx',
+  'src/components/facilities/FacilityProductionFormula.tsx',
   'src/pages/ProductionPage.tsx',
   'src/pages/AssetsPage.tsx',
   'src/utils/localActivityStore.ts',
   'src/styles/warehouse-expansion.css',
   'src/styles/industry-system.css',
+  'src/styles/facility-production-formula.css',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
@@ -63,13 +65,15 @@ for (const text of [
   '运行中',
   '下一周期加入',
   '冻结中',
+  'FacilityProductionFormula',
+  'products={game.products}',
+  'inventories={game.inventories}',
   'production-plan-heading',
   'production-plan-fields',
   'placeholder="目标产量"',
   '下一周期生效',
   '在统一订单簿中买卖该工厂',
   'formatNumber(group.count)',
-  'formatCurrency(currentCycleCost)',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const forbidden of [
@@ -77,6 +81,7 @@ for (const forbidden of [
   '正常生产中',
   '下一周期按 ',
   'facility-group-counts',
+  'facility-group-specs',
   '当前计划：持续生产',
   '当前计划：持续运行',
   '>持续</StatusTag>',
@@ -87,7 +92,17 @@ for (const forbidden of [
   '下一周期：',
 ]) forbidText('src/pages/ProductionPage.tsx', forbidden);
 
-for (const text of ['本周期剩余', '等待条件恢复', 'facility-progress-compact']) requireText('src/components/facilities/FacilityProgress.tsx', text);
+for (const text of ['本周期剩余', '等待条件恢复', 'facility-progress-running', 'is-idle']) requireText('src/components/facilities/FacilityProgress.tsx', text);
+for (const text of [
+  'facility-formula-input-group',
+  'facility-formula-center',
+  'facility-formula-output-group',
+  'facility-formula-progress',
+  'facility-formula-summary',
+  'WarehouseIcon',
+  'CycleIcon',
+  'CreditsIcon',
+]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
 for (const text of [
   'warehouse state defaults to level 1 and client version 11',
   'warehouse capacity increase grows with every level',
@@ -158,6 +173,16 @@ for (const text of [
 for (const forbidden of ['position: fixed']) forbidText('src/styles/industry-system.css', forbidden);
 
 for (const text of [
+  '.facility-production-formula',
+  '.facility-formula-top',
+  '.facility-formula-center',
+  '.facility-formula-progress',
+  '.facility-formula-summary',
+  'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
+  '@media (max-width: 560px)',
+]) requireText('src/styles/facility-production-formula.css', text);
+
+for (const text of [
   '无限等级、容量与费用',
   '当前等级 L 升到 L + 1 的容量增量',
   '仓库没有玩家可见的最高等级',
@@ -174,6 +199,8 @@ for (const text of [
   'position: sticky',
   '下一周期加入',
   '生产计划使用自动保存',
+  '单座生产公式',
+  '进度条',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
@@ -184,6 +211,8 @@ for (const text of [
   '无限扩容信息',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
+  '单座生产公式',
+  '多输入、多输出和逐输入库存兼容展示',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
@@ -194,10 +223,11 @@ for (const text of [
   '图标与名称／可用主值／冻结辅助值',
   '移动端首次创建客户端偏好状态时，“紧凑数字”默认开启',
   '计划字段自动保存',
+  '输入在左、周期成本在中、输出在右',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、三层商品卡、移动双列、生产标题、全局紧凑数字和自动保存计划验证通过。');
+console.log('仓库无限扩容、三层商品卡、移动双列、工厂生产公式、生产标题和自动保存计划验证通过。');
