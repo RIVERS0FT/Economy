@@ -18,10 +18,16 @@ function replaceAtLeast(path, from, to, minimumCount = 1) {
   writeFileSync(path, current.split(from).join(to), 'utf8');
 }
 
-replaceAtLeast(
+replaceExact(
   'src/styles/industry-system.css',
   `.facility-group-list {\n  grid-template-columns: repeat(2, minmax(0, 1fr));\n  align-items: start;\n}`,
   `.facility-group-list {\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n  align-items: start;\n}`,
+);
+
+replaceAtLeast(
+  'src/styles/industry-system.css',
+  `  .facility-group-list {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n    align-items: start;\n  }`,
+  `  .facility-group-list {\n    grid-template-columns: repeat(4, minmax(0, 1fr));\n    align-items: start;\n  }`,
   2,
 );
 
