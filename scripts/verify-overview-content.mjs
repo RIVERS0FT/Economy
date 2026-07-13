@@ -15,6 +15,7 @@ const forbidText = (path, text) => {
 };
 
 const overviewPath = 'src/pages/OverviewPage.tsx';
+const viewModelPath = 'src/app/gameViewModel.ts';
 const stylePath = 'src/styles/overview.css';
 const mainPath = 'src/main.tsx';
 const pageDesignPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
@@ -23,6 +24,7 @@ const packagePath = 'package.json';
 
 [
   overviewPath,
+  viewModelPath,
   stylePath,
   mainPath,
   pageDesignPath,
@@ -31,6 +33,7 @@ const packagePath = 'package.json';
 ].forEach(requireFile);
 
 for (const text of [
+  "import { useEffect, useMemo, useState } from 'react'",
   'function greetingForHour(hour: number)',
   "if (hour < 5) return '凌晨好'",
   "if (hour < 12) return '早上好'",
@@ -38,10 +41,14 @@ for (const text of [
   "if (hour < 18) return '下午好'",
   "return '晚上好'",
   'new Date(now).getHours()',
-  'value={selectedProductId}',
-  'setSelectedProductId(event.target.value)',
+  "const [overviewProductId, setOverviewProductId] = useState(() => game.products[0]?.id ?? '')",
+  'game.products.some((product) => product.id === overviewProductId)',
+  "setOverviewProductId(game.products[0]?.id ?? '')",
+  'const overviewMarket = useMemo(() => {',
+  "value={overviewMarket?.product.id ?? ''}",
+  'setOverviewProductId(event.target.value)',
   'aria-label="选择概览商品市场"',
-  "selectMarketAsset('commodity', derived.selectedProduct.id)",
+  "selectMarketAsset('commodity', overviewMarket.product.id)",
   'derived.ownOpenOrders',
   'orderKind(order)',
   'orderAssetId(order)',
@@ -55,11 +62,30 @@ for (const text of [
 ]) requireText(overviewPath, text);
 
 for (const text of [
+  'selectedProductId',
+  'setSelectedProductId',
   'title={<>早上好',
   'overview-product-strip',
   'localTrades.slice(0, 6)',
   '当前浏览器最近成交',
 ]) forbidText(overviewPath, text);
+
+for (const text of [
+  'function deriveGameData(game: EconomyState): DerivedGameData',
+  'const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);',
+  "if (kind === 'facility') setSelectedFacilityTypeId(assetId);",
+  'marketAssetKind, marketAssetId, selectMarketAsset',
+]) requireText(viewModelPath, text);
+
+for (const text of [
+  'selectedProductId',
+  'setSelectedProductId',
+  'selectedProduct: ProductDefinition',
+  'selectedInventory: ProductInventory',
+  'selectedMarket: ProductMarketState',
+  'ownSelectedOpenOrders',
+  'placeCommodityOrder:',
+]) forbidText(viewModelPath, text);
 
 for (const text of [
   '--overview-summary-card-height: 384px;',
@@ -88,6 +114,10 @@ for (const text of [
   '三张卡片统一为 `384px` 高',
   '不得包含当前浏览器最近成交',
   '不得恢复全部商品快捷切换条',
+  '只属于 `OverviewPage` 当前组件生命周期',
+  '不得写入服务器、浏览器存储或全局 `LoadedGameViewModel`',
+  '自动刷新、工作、下单、撤单或其他权威状态更新不得重置',
+  '市场中的后续商品切换不得反向覆盖概览选择',
 ]) requireText(pageDesignPath, text);
 
 for (const text of [
@@ -102,8 +132,8 @@ for (const text of [
 requireText(packagePath, 'node scripts/verify-overview-content.mjs');
 
 if (failures.length > 0) {
-  console.error('概览内容与布局验证失败:\n- ' + failures.join('\n- '));
+  console.error('概览内容、局部商品选择与布局验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
 
-console.log('概览验证通过：本地时间问候、商品下拉框、当前挂单与三卡等高布局满足设计基线。');
+console.log('概览验证通过：本地时间问候、局部商品选择、当前挂单与三卡等高布局满足设计基线。');
