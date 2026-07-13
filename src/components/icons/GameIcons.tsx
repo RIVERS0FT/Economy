@@ -33,6 +33,16 @@ export function CreditsIcon(props: GameIconProps) {
   );
 }
 
+export function CycleIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 7v5l3.5 2" />
+      <path d="M9 3.8h6" />
+    </GameIcon>
+  );
+}
+
 export function AssetsIcon(props: GameIconProps) {
   return (
     <GameIcon {...props}>
