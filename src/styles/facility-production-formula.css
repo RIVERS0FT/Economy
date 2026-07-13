@@ -1,0 +1,266 @@
+/* Factory production formula: recipe, cycle/cost metadata, progress, and cluster summary. */
+.facility-production-formula {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  background: var(--color-surface-inset);
+}
+
+.facility-formula-visual {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.facility-formula-top {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-2);
+}
+
+.facility-formula-input,
+.facility-formula-output {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.facility-formula-input {
+  justify-content: flex-start;
+}
+
+.facility-formula-output {
+  justify-content: flex-end;
+}
+
+.facility-formula-input-group,
+.facility-formula-output-group,
+.facility-formula-summary-output {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.facility-formula-output-group,
+.facility-formula-summary-output {
+  justify-content: flex-end;
+}
+
+.facility-formula-item-group {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 0.12rem;
+}
+
+.facility-formula-output .facility-formula-item-group,
+.facility-formula-summary-output .facility-formula-item-group {
+  justify-items: end;
+}
+
+.facility-formula-input-item,
+.facility-formula-output-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.facility-formula-input-item strong,
+.facility-formula-output-item strong {
+  font-size: inherit;
+}
+
+.facility-formula-input-item .product-icon,
+.facility-formula-output-item .product-icon {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-warning);
+}
+
+.facility-formula-inventory,
+.facility-formula-summary-cost,
+.facility-formula-meta-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+}
+
+.facility-formula-inventory {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.facility-formula-separator {
+  align-self: flex-start;
+  padding-top: 0.05rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.facility-formula-empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+}
+
+.facility-formula-center {
+  min-width: max-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.facility-formula-center .facility-formula-meta-unit:first-child {
+  color: var(--color-info);
+}
+
+.facility-formula-center .facility-formula-meta-unit:last-child,
+.facility-formula-summary-cost {
+  color: var(--color-warning);
+}
+
+.facility-formula-meta-icon {
+  flex: 0 0 auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  vertical-align: -0.1em;
+}
+
+.facility-formula-meta-divider {
+  color: var(--color-text-muted);
+}
+
+.facility-formula-progress {
+  min-width: 0;
+}
+
+.facility-formula-progress .facility-progress-running {
+  margin: 0;
+}
+
+.facility-formula-progress .progress-meta {
+  font-size: 0.68rem;
+}
+
+.facility-formula-progress .progress-track {
+  height: 6px;
+}
+
+.facility-formula-progress .facility-progress-running.is-idle .progress-track {
+  opacity: 0.72;
+}
+
+.facility-formula-summary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.22rem var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+  text-align: center;
+}
+
+.facility-formula-summary-output {
+  flex-wrap: wrap;
+}
+
+.facility-formula-summary-output .facility-formula-item-group {
+  display: inline-flex;
+  align-items: center;
+}
+
+.facility-formula-summary-output .facility-formula-output-item {
+  font-size: var(--font-size-xs);
+}
+
+.facility-formula-summary-output .product-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.facility-formula-summary-cost {
+  margin-left: 0.1rem;
+  white-space: nowrap;
+}
+
+@media (min-width: 961px) {
+  .facility-group-card {
+    grid-template-rows: auto minmax(112px, auto) minmax(0, 1fr) auto;
+  }
+}
+
+@media (max-width: 960px) {
+  .facility-production-formula {
+    padding: var(--space-3);
+  }
+}
+
+@media (max-width: 560px) {
+  .facility-formula-top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "input output"
+      "center center";
+  }
+
+  .facility-formula-input {
+    grid-area: input;
+  }
+
+  .facility-formula-output {
+    grid-area: output;
+  }
+
+  .facility-formula-center {
+    grid-area: center;
+    min-width: 0;
+    justify-self: center;
+  }
+}
+
+@media (max-width: 420px) {
+  .facility-production-formula {
+    padding: var(--space-2);
+  }
+
+  .facility-formula-top {
+    gap: var(--space-1) var(--space-2);
+  }
+
+  .facility-formula-center {
+    flex-wrap: wrap;
+    row-gap: 0.1rem;
+  }
+
+  .facility-formula-meta-divider {
+    display: none;
+  }
+
+  .facility-formula-input-item,
+  .facility-formula-output-item {
+    font-size: var(--font-size-xs);
+  }
+
+  .facility-formula-summary {
+    font-size: 0.68rem;
+  }
+}

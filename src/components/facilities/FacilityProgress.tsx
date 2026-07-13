@@ -12,9 +12,12 @@ export function FacilityGroupProgress({
 }) {
   if (group.status !== 'running' || !group.cycleStartedAt) {
     return (
-      <div className="facility-progress-compact">
-        <span>生产进度</span>
-        <strong>{group.status === 'error' ? '等待条件恢复' : '当前未运行'}</strong>
+      <div className="progress-wrap facility-progress-running is-idle">
+        <div className="progress-meta">
+          <span>{group.status === 'error' ? '等待条件恢复' : '当前未运行'}</span>
+          <span>0%</span>
+        </div>
+        <div className="progress-track"><span style={{ width: '0%' }} /></div>
       </div>
     );
   }

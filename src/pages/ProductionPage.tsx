@@ -2,7 +2,7 @@ import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
-import { FacilityGroupProgress } from '../components/facilities/FacilityProgress';
+import { FacilityProductionFormula } from '../components/facilities/FacilityProductionFormula';
 import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
 import {
   Button,
@@ -214,18 +214,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
             if (!type) return null;
             const mode = planModes[group.facilityTypeId] ?? group.pendingProductionPlan?.mode ?? group.productionMode;
-            const currentCount = group.status === 'running' ? group.participatingCount : group.availableCount;
-            const currentCycleOutput = type.output.quantity * currentCount;
-            const currentCycleCost = type.operatingCost * currentCount;
             const planStep = Math.max(1, type.output.quantity * Math.max(1, group.nextCycleCount));
             const defaultTarget = group.pendingProductionPlan?.mode === 'target'
               ? group.pendingProductionPlan.targetQuantity
               : group.targetQuantity ?? planStep * 10;
             const targetValue = planTargets[group.facilityTypeId] ?? String(defaultTarget);
-            const inputName = productName(type.input?.productId);
-            const outputName = productName(type.output.productId);
-            const inputInventory = type.input ? game.inventories[type.input.productId]?.available ?? 0 : null;
-            const cycleInput = type.input ? type.input.quantity * currentCount : 0;
             const canConfigure = group.nextCycleCount > 0;
             const pendingPlan = group.pendingProductionPlan;
             const saveStatus = planSaveStatuses[group.facilityTypeId] ?? 'idle';
@@ -260,14 +253,13 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                   </div>
                 </div>
 
-                <div className="facility-specs ui-spec-grid facility-group-specs">
-                  <span>周期 <strong>{formatNumber(type.cycleMs / 1000)} 秒</strong></span>
-                  <span>产量 <strong>{formatNumber(currentCycleOutput)} {outputName}</strong></span>
-                  <span>成本 <strong>¤ {formatCurrency(currentCycleCost)}</strong></span>
-                  <span>原料 <strong>{inputInventory === null ? '无' : `${formatNumber(cycleInput)} ${inputName} · 库存 ${formatNumber(inputInventory)}`}</strong></span>
-                </div>
-
-                <FacilityGroupProgress group={group} type={type} now={now} />
+                <FacilityProductionFormula
+                  group={group}
+                  type={type}
+                  products={game.products}
+                  inventories={game.inventories}
+                  now={now}
+                />
 
                 <div className="production-plan-card">
                   <div className="production-plan-heading">
