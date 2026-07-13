@@ -8,7 +8,7 @@ import {
   ToggleField,
   WidgetHeading,
 } from '../components/ui/layout';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatNumber } from '../utils/formatters';
 
 export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
   const {
@@ -56,10 +56,10 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
           <Button block onClick={() => void showResult(renamePlayer(playerName))}>保存玩家昵称</Button>
 
           <div className="player-stat-grid" aria-label="玩家累计统计">
-            <div><span>点击工作次数</span><strong>{game.stats.workClicks}</strong></div>
-            <div><span>生产商品总数</span><strong>{game.stats.producedGoods}</strong></div>
-            <div><span>买入商品总数</span><strong>{game.stats.boughtGoods}</strong></div>
-            <div><span>卖出商品总数</span><strong>{game.stats.soldGoods}</strong></div>
+            <div><span>点击工作次数</span><strong>{formatNumber(game.stats.workClicks)}</strong></div>
+            <div><span>生产商品总数</span><strong>{formatNumber(game.stats.producedGoods)}</strong></div>
+            <div><span>买入商品总数</span><strong>{formatNumber(game.stats.boughtGoods)}</strong></div>
+            <div><span>卖出商品总数</span><strong>{formatNumber(game.stats.soldGoods)}</strong></div>
           </div>
 
           <div className="profile-action-stack">
@@ -86,7 +86,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
           />
           <ToggleField
             label="紧凑数字"
-            description="全局使用 K/M/B/T 缩写大额金额与状态栏容量"
+            description="全局使用 K/M/B/T 缩写大额金额、库存、数量与容量"
             checked={compactNumbers}
             onChange={(event: ChangeEvent<HTMLInputElement>) => setCompactNumbers(event.target.checked)}
           />
