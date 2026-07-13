@@ -9,17 +9,29 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 [
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
   'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts',
-  'src/api/admin.ts','src/styles/unified-market-admin.css','server/src/facility-groups.js','server/src/storage.js',
+  'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/facility-groups.js','server/src/storage.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
-  'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/icons/GameIcons.tsx'
+  'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
 for (const text of [
-  'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','localTrades.map',
+  'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','items={localTrades}',
+  'local-trades-virtual-table','virtual-record-viewport','VirtualList',
   "import { FactoryIcon } from '../components/icons/GameIcons'",'<FactoryIcon />','selectOrderSide',
   'title={selectedAssetTitle(`${assetName}订单`)}','            价格','className="numeric-cell">价格</th>',
   'formatNumber(order.remaining)','formatCurrency(order.price)'
 ]) requireText('src/pages/MarketPage.tsx', text);
-for (const text of ['market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价']) forbidText('src/pages/MarketPage.tsx', text);
+for (const text of ['localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价']) forbidText('src/pages/MarketPage.tsx', text);
+
+for (const text of [
+  'items={collectibles}','items={giftCodes}','items={ownership}','items={redemptions}',
+  'admin-collectibles-virtual-table','admin-gifts-virtual-table','admin-redemptions-virtual-table',
+]) requireText('src/app/AdminApp.tsx', text);
+for (const text of ['collectibles.map(','giftCodes.map(','ownership.map(','redemptions.map(']) forbidText('src/app/AdminApp.tsx', text);
+
+for (const text of [
+  'ResizeObserver','overscan','measuredSizesRef','aria-setsize','virtual-list__canvas',
+]) requireText('src/components/ui/VirtualList.tsx', text);
+for (const text of ['virtual-record-table','virtual-record-row','asset-event-virtual-list']) requireText('src/styles/virtual-list.css', text);
 
 for (const text of [
   "import type { AssetKind, AssetOrder, OrderSide } from '../types'",
@@ -97,5 +109,14 @@ for (const text of [
   '从其他页面重新进入市场',
   '自动刷新和下单后的状态同步不得覆盖当前输入',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-if (failures.length) { console.error('统一资产市场与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、订单簿商品流动性、纯玩家工厂订单、本地默认价格和管理员页面验证通过。');
+for (const text of [
+  '必须使用共享 `VirtualList` 窗口化组件',
+  'DOM 只创建当前滚动视口及少量 `overscan` 范围内的记录',
+  '不得用分页、截断、`slice` 或只显示最近记录替代窗口化',
+]) requireText('docs/LOCAL_ACTIVITY_LOG_DESIGN.md', text);
+for (const text of [
+  '藏品列表、礼品码列表、归属历史和兑换记录可能持续增长，必须复用共享 `VirtualList`',
+  '对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染',
+]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
+if (failures.length) { console.error('统一资产市场、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
+console.log('统一资产市场、订单簿商品流动性、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
