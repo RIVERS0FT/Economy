@@ -149,6 +149,7 @@ for (const text of [
   'grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);',
   'position: sticky',
   'height: 384px',
+  '@media (min-width: 1381px) {\n  .facility-group-list {\n    grid-template-columns: repeat(4, minmax(0, 1fr));',
   '.facility-count-summary',
   '.production-plan-heading',
   '.production-plan-fields',
@@ -169,6 +170,7 @@ for (const text of [
 for (const text of [
   '定量生产完成后关闭开关',
   '固定高度 384px',
+  '大于 1380px 时右侧固定四列',
   'position: sticky',
   '下一周期加入',
   '生产计划使用自动保存',
@@ -178,6 +180,7 @@ for (const text of [
   '页面主标题固定为“生产”',
   '左侧：建设新工厂',
   '桌面卡片固定高度 384px',
+  '大于 1380px 时工厂列表固定四列',
   '无限扩容信息',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
@@ -185,6 +188,7 @@ for (const text of [
 
 for (const text of [
   '工厂卡桌面固定高度',
+  '工厂卡大于 1380px 时固定四列',
   '建设新工厂卡桌面独占',
   '仓库只显示可用或冻结数量大于零的商品',
   '图标与名称／可用主值／冻结辅助值',
