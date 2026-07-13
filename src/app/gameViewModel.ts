@@ -28,6 +28,7 @@ import type {
   ProductionMode,
   TradeRecord,
 } from '../types';
+import { defaultOrderPrice } from '../utils/defaultOrderPrice';
 import {
   clearLocalActivity as clearLocalActivityStore,
   loadLocalActivity,
@@ -96,7 +97,7 @@ export interface LoadedGameViewModel {
   localAssetEvents: AssetEvent[];
   localTrades: TradeRecord[];
   tab: TabId;
-  setTab: Dispatch<SetStateAction<TabId>>;
+  setTab: (tab: TabId) => void;
   notice: string;
   selectedProductId: string;
   setSelectedProductId: Dispatch<SetStateAction<string>>;
@@ -106,7 +107,7 @@ export interface LoadedGameViewModel {
   marketAssetId: string;
   selectMarketAsset: (kind: AssetKind, assetId: string) => void;
   orderSide: OrderSide;
-  setOrderSide: Dispatch<SetStateAction<OrderSide>>;
+  selectOrderSide: (side: OrderSide) => void;
   orderQuantity: number;
   setOrderQuantity: Dispatch<SetStateAction<number>>;
   orderPrice: number;
@@ -233,15 +234,15 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [localActivity, setLocalActivity] = useState<LocalActivityView>(() => loadLocalActivity(user.id));
   const [loadError, setLoadError] = useState('');
   const [reloadVersion, setReloadVersion] = useState(0);
-  const [tab, setTab] = useState<TabId>('home');
+  const [tab, setActiveTab] = useState<TabId>('home');
   const [notice, setNotice] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('grain');
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
   const [marketAssetId, setMarketAssetId] = useState('grain');
-  const [orderSide, setOrderSide] = useState<OrderSide>('buy');
+  const [orderSide, setOrderSideState] = useState<OrderSide>('buy');
   const [orderQuantity, setOrderQuantity] = useState(1);
-  const [orderPrice, setOrderPrice] = useState(6);
+  const [orderPrice, setOrderPrice] = useState(1);
   const [playerName, setPlayerName] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [compactNumbers, setCompactNumbers] = useState(() => (
@@ -283,17 +284,16 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     if (!game) return;
     if (marketAssetKind === 'commodity') {
       const product = game.products.find((item) => item.id === marketAssetId) ?? game.products[0];
-      const market = product ? game.markets[product.id] : undefined;
-      if (product) setSelectedProductId(product.id);
-      if (market) setOrderPrice(market.lastPrice);
-    } else {
-      const type = game.facilityTypes.find((item) => item.id === marketAssetId) ?? game.facilityTypes[0];
-      const market = type ? game.facilityMarkets[type.id] : undefined;
-      if (type) setSelectedFacilityTypeId(type.id);
-      if (market) setOrderPrice(market.lastPrice);
+      if (!product) return;
+      if (product.id !== marketAssetId) setMarketAssetId(product.id);
+      if (product.id !== selectedProductId) setSelectedProductId(product.id);
+      return;
     }
-    setOrderQuantity(1);
-  }, [game, marketAssetId, marketAssetKind]);
+    const type = game.facilityTypes.find((item) => item.id === marketAssetId) ?? game.facilityTypes[0];
+    if (!type) return;
+    if (type.id !== marketAssetId) setMarketAssetId(type.id);
+    if (type.id !== selectedFacilityTypeId) setSelectedFacilityTypeId(type.id);
+  }, [game, marketAssetId, marketAssetKind, selectedFacilityTypeId, selectedProductId]);
 
   const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
     try {
@@ -325,7 +325,33 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const commodityEnd = (cashShare + commodityShare) * 3.6;
   const allocationStyle: CSSProperties = { background: `conic-gradient(var(--green) 0deg ${cashEnd}deg, var(--gold) ${cashEnd}deg ${commodityEnd}deg, var(--blue) ${commodityEnd}deg 360deg)` };
   const avatarText = (game.playerName || user.email).slice(0, 1).toUpperCase();
-  const selectMarketAsset = (kind: AssetKind, assetId: string) => { setMarketAssetKind(kind); setMarketAssetId(assetId); setTab('market'); };
+
+  function setTab(nextTab: TabId) {
+    if (nextTab === 'market' && tab !== 'market') {
+      setOrderPrice(defaultOrderPrice(game.orders, marketAssetKind, marketAssetId, orderSide));
+      setOrderQuantity(1);
+    }
+    setActiveTab(nextTab);
+  }
+
+  function selectMarketAsset(kind: AssetKind, assetId: string) {
+    const changed = kind !== marketAssetKind || assetId !== marketAssetId;
+    setMarketAssetKind(kind);
+    setMarketAssetId(assetId);
+    if (kind === 'commodity') setSelectedProductId(assetId);
+    else setSelectedFacilityTypeId(assetId);
+    if (changed || tab !== 'market') {
+      setOrderPrice(defaultOrderPrice(game.orders, kind, assetId, orderSide));
+      setOrderQuantity(1);
+    }
+    setActiveTab('market');
+  }
+
+  function selectOrderSide(side: OrderSide) {
+    if (side === orderSide) return;
+    setOrderSideState(side);
+    setOrderPrice(defaultOrderPrice(game.orders, marketAssetKind, marketAssetId, side));
+  }
 
   const model: LoadedGameViewModel = {
     user, game, derived,
@@ -335,7 +361,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     selectedProductId, setSelectedProductId,
     selectedFacilityTypeId, setSelectedFacilityTypeId,
     marketAssetKind, marketAssetId, selectMarketAsset,
-    orderSide, setOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
+    orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
     playerName, setPlayerName, soundEnabled, setSoundEnabled, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
     now, workRemaining, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, allocationStyle, avatarText,
