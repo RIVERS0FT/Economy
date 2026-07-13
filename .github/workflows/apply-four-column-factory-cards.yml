@@ -1,0 +1,62 @@
+name: Apply four-column factory cards
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/four-column-factory-cards'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/four-column-factory-cards
+          fetch-depth: 0
+
+      - name: Apply four-column layout
+        run: node scripts/apply-four-column-factory-cards.mjs
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run full build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+
+      - name: Commit verified changes and remove maintenance files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-four-column-factory-cards.yml
+          git rm scripts/apply-four-column-factory-cards.mjs
+          git add README.md \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            scripts/verify-page-content.mjs \
+            scripts/verify-warehouse-expansion.mjs \
+            src/styles/industry-system.css
+          git commit -m "将宽屏工厂卡调整为四列"
+          git push origin HEAD:agent/four-column-factory-cards
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-column-factory-cards-build-log
+          path: build.log
+          if-no-files-found: ignore
