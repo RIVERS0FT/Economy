@@ -186,6 +186,7 @@ for (const text of [
   '资产页不得再显示逐商品“商品库存与估值”卡片',
   '仓库不再提供“有库存／全部商品”筛选',
   '建设新工厂卡独占左侧列并在桌面滚动时常驻',
+  '大于 1380px 时工厂列表固定四列',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
