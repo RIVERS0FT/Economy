@@ -1,5 +1,6 @@
 import { NavigationIcon } from '../icons/GameIcons';
 import { navigationItems, type TabId } from '../../config/navigation';
+import { formatNumber } from '../../utils/formatters';
 
 export function NavigationItems({
   activeTab,
@@ -23,7 +24,7 @@ export function NavigationItems({
         >
           <span aria-hidden="true"><NavigationIcon name={id} /></span>
           <strong>{label}</strong>
-          {id === 'market' && openOrderCount > 0 ? <small>{openOrderCount}</small> : null}
+          {id === 'market' && openOrderCount > 0 ? <small>{formatNumber(openOrderCount)}</small> : null}
         </button>
       ))}
     </>

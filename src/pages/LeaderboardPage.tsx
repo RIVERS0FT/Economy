@@ -6,7 +6,7 @@ import {
   ScrollableTable,
   StatusTag,
 } from '../components/ui/layout';
-import { formatCurrency, formatTime } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 
 export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
   const { game, derived } = model;
@@ -51,7 +51,7 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
                   <td><strong>{entry.playerName}</strong>{entry.isCurrentPlayer ? <StatusTag tone="success" className="you-label">你</StatusTag> : null}</td>
                   <td className="numeric-cell"><strong>¤ {formatCurrency(entry.totalAssets)}</strong></td>
                   <td className="numeric-cell">¤ {formatCurrency(entry.cashAssets)}</td>
-                  <td className="numeric-cell">{entry.facilityCount}</td>
+                  <td className="numeric-cell">{formatNumber(entry.facilityCount)}</td>
                   <td className={`numeric-cell ${entry.weeklyChange >= 0 ? 'positive' : 'negative'}`}>{entry.weeklyChange >= 0 ? '+' : ''}¤ {formatCurrency(entry.weeklyChange)}</td>
                   <td>{formatTime(entry.updatedAt)}</td>
                 </tr>

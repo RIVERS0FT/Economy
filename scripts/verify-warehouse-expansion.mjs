@@ -68,6 +68,8 @@ for (const text of [
   'placeholder="目标产量"',
   '下一周期生效',
   '在统一订单簿中买卖该工厂',
+  'formatNumber(group.count)',
+  'formatCurrency(currentCycleCost)',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const forbidden of [
@@ -107,11 +109,11 @@ for (const text of [
   'const stockedProducts = useMemo',
   'inventory.available > 0 || inventory.frozen > 0',
   'className="warehouse-product-card-title"',
-  '<strong>可用 {inventory.available}</strong>',
-  '<small>冻结 {inventory.frozen}</small>',
+  '<strong>可用 {formatNumber(inventory.available)}</strong>',
+  '<small>冻结 {formatNumber(inventory.frozen)}</small>',
   "selectMarketAsset('commodity', product.id)",
-  '等级 {game.warehouseLevel}',
-  '增加 {game.warehouseNextCapacityIncrease} 容量',
+  '等级 {formatNumber(game.warehouseLevel)}',
+  '增加 {formatNumber(game.warehouseNextCapacityIncrease)} 容量',
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
 
 for (const forbidden of [
@@ -194,4 +196,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、三层商品卡、移动双列、生产标题、紧凑数字默认值和自动保存计划验证通过。');
+console.log('仓库无限扩容、三层商品卡、移动双列、生产标题、全局紧凑数字和自动保存计划验证通过。');

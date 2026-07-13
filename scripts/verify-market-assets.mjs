@@ -16,7 +16,8 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 for (const text of [
   'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','localTrades.map',
   "import { FactoryIcon } from '../components/icons/GameIcons'",'<FactoryIcon />','selectOrderSide',
-  'title={selectedAssetTitle(`${assetName}订单`)}','            价格','className="numeric-cell">价格</th>'
+  'title={selectedAssetTitle(`${assetName}订单`)}','            价格','className="numeric-cell">价格</th>',
+  'formatNumber(order.remaining)','formatCurrency(order.price)'
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of ['market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价']) forbidText('src/pages/MarketPage.tsx', text);
 
@@ -42,7 +43,7 @@ for (const text of [
   'const loadedGame = game;',
   "if (nextTab === 'market' && tab !== 'market')",
   'defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide)',
-  'if (changed || tab !== \'market\')',
+  "if (changed || tab !== 'market')",
   'defaultOrderPrice(loadedGame.orders, kind, assetId, orderSide)',
   'function selectOrderSide(side: OrderSide)',
   'defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, side)',
@@ -57,9 +58,9 @@ requireText('src/components/icons/GameIcons.tsx', 'export function FactoryIcon')
 requireText('src/components/icons/GameIcons.tsx', 'M17 6V3h3v17');
 for (const text of [
   'SwitchControl',
-  '运行中 <strong>{group.participatingCount}</strong>',
-  '下一周期加入 <strong>{group.pendingJoinCount}</strong>',
-  '冻结中 <strong>{group.listedCount}</strong>',
+  '运行中 <strong>{formatNumber(group.participatingCount)}</strong>',
+  '下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>',
+  '冻结中 <strong>{formatNumber(group.listedCount)}</strong>',
   'production-plan-fields',
   'placeholder="目标产量"',
   '下一周期生效',
