@@ -9,11 +9,14 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
 
 [
+  'src/pages/OverviewPage.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/ProductionPage.tsx',
   'src/pages/AssetsPage.tsx',
+  'src/pages/LeaderboardPage.tsx',
   'src/pages/SettingsPage.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
+  'src/components/shell/NavigationItems.tsx',
   'src/app/gameViewModel.ts',
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
@@ -31,6 +34,8 @@ for (const text of [
   'order-book-divider',
   'localTrades.map',
   '<FactoryIcon />',
+  'formatNumber(order.remaining)',
+  'formatCurrency(order.price)',
 ]) requireText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
@@ -44,9 +49,9 @@ for (const text of [
   'title="生产"',
   'SwitchControl',
   'checked={group.enabled}',
-  '>运行 {model.derived.runningFacilities}',
-  '>停止 {model.derived.stoppedFacilities}',
-  '>异常 {model.derived.blockedFacilities}',
+  '>运行 {formatNumber(model.derived.runningFacilities)}',
+  '>停止 {formatNumber(model.derived.stoppedFacilities)}',
+  '>异常 {formatNumber(model.derived.blockedFacilities)}',
   'facility-status-header',
   '异常：资金不足',
   '异常：仓库已满',
@@ -63,6 +68,8 @@ for (const text of [
   'queuePlanSave',
   '在统一订单簿中买卖该工厂',
   '>前往市场 →',
+  'formatNumber(group.count)',
+  'formatCurrency(currentCycleCost)',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
@@ -88,6 +95,8 @@ for (const text of [
   'title="本地资产变动"',
   'className="widget span-3 asset-event-panel"',
   'ProductIconLabel',
+  'formatNumber(change.availableAfter)',
+  'formatNumber(change.outputQuantity)',
 ]) requireText('src/pages/AssetsPage.tsx', text);
 
 for (const text of [
@@ -104,9 +113,9 @@ for (const text of [
   'const stockedProducts = useMemo',
   'inventory.available > 0 || inventory.frozen > 0',
   'ProductIconLabel',
-  '<strong>可用 {inventory.available}</strong>',
-  '<small>冻结 {inventory.frozen}</small>',
-  '等级 {game.warehouseLevel}',
+  '<strong>可用 {formatNumber(inventory.available)}</strong>',
+  '<small>冻结 {formatNumber(inventory.frozen)}</small>',
+  '等级 {formatNumber(game.warehouseLevel)}',
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
 for (const text of [
   'WarehouseContentFilter',
@@ -132,26 +141,41 @@ for (const text of [
   '礼品兑换',
   '退出登录',
   '重置经济状态',
-  '全局使用 K/M/B/T 缩写大额金额与状态栏容量',
+  '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',
+  'formatNumber(game.stats.workClicks)',
 ]) requireText('src/pages/SettingsPage.tsx', text);
 
-for (const text of ['登录会话', '重置服务器经济状态', '使用万和百万单位缩写大额资产']) forbidText('src/pages/SettingsPage.tsx', text);
+for (const text of [
+  '登录会话',
+  '重置服务器经济状态',
+  '使用万和百万单位缩写大额资产',
+  '全局使用 K/M/B/T 缩写大额金额与状态栏容量',
+]) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of [
   "label: '仓库剩余'",
   "id: 'warehouse'",
   'setCompactNumbersEnabled(model.compactNumbers)',
+  'formatNumber(game.warehouseUsedCapacity)',
 ]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
 
 for (const text of [
   'let compactNumbersEnabled = false',
   'export function setCompactNumbersEnabled',
-  'compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value)',
+  'export function formatNumber',
+  'return compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value)',
+  'return formatNumber(value)',
   "suffix: 'K'",
   "suffix: 'M'",
   "suffix: 'B'",
   "suffix: 'T'",
 ]) requireText('src/utils/formatters.ts', text);
+
+for (const [path, text] of [
+  ['src/pages/OverviewPage.tsx', 'formatNumber(derived.runningFacilities)'],
+  ['src/pages/LeaderboardPage.tsx', 'formatNumber(entry.facilityCount)'],
+  ['src/components/shell/NavigationItems.tsx', 'formatNumber(openOrderCount)'],
+]) requireText(path, text);
 
 for (const text of [
   '概览｜市场｜生产｜资产｜排行｜设置',
