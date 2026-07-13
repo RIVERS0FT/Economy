@@ -1,8 +1,10 @@
-export function formatCurrency(value: number) {
+let compactNumbersEnabled = false;
+
+function formatFullNumber(value: number) {
   return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(Math.round(value));
 }
 
-export function formatCompactNumber(value: number) {
+function formatAbbreviatedNumber(value: number) {
   const absolute = Math.abs(value);
   const units = [
     { threshold: 1_000_000_000_000, suffix: 'T' },
@@ -11,11 +13,23 @@ export function formatCompactNumber(value: number) {
     { threshold: 1_000, suffix: 'K' },
   ];
   const unit = units.find(({ threshold }) => absolute >= threshold);
-  if (!unit) return formatCurrency(value);
+  if (!unit) return formatFullNumber(value);
 
   const scaled = value / unit.threshold;
   const maximumFractionDigits = Math.abs(scaled) >= 100 ? 0 : 1;
   return `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits }).format(scaled)}${unit.suffix}`;
+}
+
+export function setCompactNumbersEnabled(enabled: boolean) {
+  compactNumbersEnabled = enabled;
+}
+
+export function formatCurrency(value: number) {
+  return compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value);
+}
+
+export function formatCompactNumber(value: number) {
+  return compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value);
 }
 
 export function formatTime(value: number) {
