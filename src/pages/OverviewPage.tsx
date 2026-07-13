@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { orderAssetId, orderKind, orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon } from '../components/icons/GameIcons';
@@ -29,14 +30,13 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
     game,
     derived,
     now,
-    selectedProductId,
-    setSelectedProductId,
     workRemaining,
     work,
     showResult,
     setTab,
     selectMarketAsset,
   } = model;
+  const [overviewProductId, setOverviewProductId] = useState(() => game.products[0]?.id ?? '');
   const plannedGroups = game.facilityGroups.filter((group) => group.productionMode === 'target').length;
   const pendingPlans = game.facilityGroups.reduce((sum, group) => (
     group.productionMode === 'target' ? sum + Math.max(0, (group.targetQuantity || 0) - group.completedQuantity) : sum
@@ -45,6 +45,37 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
   const pendingJoin = game.facilityGroups.reduce((sum, group) => sum + group.pendingJoinCount, 0);
   const greeting = greetingForHour(new Date(now).getHours());
   const ownOpenOrders = [...derived.ownOpenOrders].sort((left, right) => right.createdAt - left.createdAt);
+
+  useEffect(() => {
+    if (game.products.some((product) => product.id === overviewProductId)) return;
+    setOverviewProductId(game.products[0]?.id ?? '');
+  }, [game.products, overviewProductId]);
+
+  const overviewMarket = useMemo(() => {
+    const product = game.products.find((item) => item.id === overviewProductId) ?? game.products[0];
+    if (!product) return null;
+
+    const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
+    const market = game.markets[product.id];
+    let bestBid = 0;
+    let bestAsk = 0;
+
+    for (const order of game.orders) {
+      if (!['open', 'partial'].includes(order.status)) continue;
+      if (orderKind(order) !== 'commodity' || orderAssetId(order) !== product.id) continue;
+      if (order.side === 'buy') bestBid = Math.max(bestBid, order.price);
+      else if (!bestAsk || order.price < bestAsk) bestAsk = order.price;
+    }
+
+    return {
+      product,
+      inventory,
+      lastPrice: market?.lastPrice ?? product.basePrice,
+      history: market?.priceHistory.map((point) => point.price) ?? [],
+      bestBid,
+      bestAsk,
+    };
+  }, [game, overviewProductId]);
 
   return (
     <PageLayout
@@ -69,30 +100,39 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget market-summary span-2">
           <WidgetHeading
-            title={<ProductIconLabel productId={derived.selectedProduct.id}>{derived.selectedProduct.name}市场</ProductIconLabel>}
+            title={overviewMarket
+              ? <ProductIconLabel productId={overviewMarket.product.id}>{overviewMarket.product.name}市场</ProductIconLabel>
+              : '商品市场'}
             action={(
               <label className="overview-market-select">
                 <span>选择商品</span>
                 <select
                   aria-label="选择概览商品市场"
-                  value={selectedProductId}
-                  onChange={(event) => setSelectedProductId(event.target.value)}
+                  value={overviewMarket?.product.id ?? ''}
+                  disabled={game.products.length === 0}
+                  onChange={(event) => setOverviewProductId(event.target.value)}
                 >
-                  {game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+                  {game.products.length > 0
+                    ? game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)
+                    : <option value="">暂无商品</option>}
                 </select>
               </label>
             )}
           />
-          <div className="market-quote-grid">
-            <MetricCard label="最近成交" value={`¤ ${formatCurrency(derived.selectedMarket.lastPrice)}`} />
-            <MetricCard tone="success" label="最高买价" value={derived.bestBid ? `¤ ${formatCurrency(derived.bestBid)}` : '¤ --'} />
-            <MetricCard tone="danger" label="最低卖价" value={derived.bestAsk ? `¤ ${formatCurrency(derived.bestAsk)}` : '¤ --'} />
-            <MetricCard label="持仓" value={formatNumber(derived.selectedInventory.available)} detail={`冻结 ${formatNumber(derived.selectedInventory.frozen)}`} />
-          </div>
-          <PriceSparkline values={derived.history.slice(-24)} />
-          <div className="overview-market-footer">
-            <Button variant="text" onClick={() => selectMarketAsset('commodity', derived.selectedProduct.id)}>进入该商品市场 →</Button>
-          </div>
+          {overviewMarket ? (
+            <>
+              <div className="market-quote-grid">
+                <MetricCard label="最近成交" value={`¤ ${formatCurrency(overviewMarket.lastPrice)}`} />
+                <MetricCard tone="success" label="最高买价" value={overviewMarket.bestBid ? `¤ ${formatCurrency(overviewMarket.bestBid)}` : '¤ --'} />
+                <MetricCard tone="danger" label="最低卖价" value={overviewMarket.bestAsk ? `¤ ${formatCurrency(overviewMarket.bestAsk)}` : '¤ --'} />
+                <MetricCard label="持仓" value={formatNumber(overviewMarket.inventory.available)} detail={`冻结 ${formatNumber(overviewMarket.inventory.frozen)}`} />
+              </div>
+              <PriceSparkline values={overviewMarket.history.slice(-24)} />
+              <div className="overview-market-footer">
+                <Button variant="text" onClick={() => selectMarketAsset('commodity', overviewMarket.product.id)}>进入该商品市场 →</Button>
+              </div>
+            </>
+          ) : <EmptyState>服务器当前没有可展示的商品。</EmptyState>}
         </Panel>
 
         <div className="overview-summary-row span-3">
