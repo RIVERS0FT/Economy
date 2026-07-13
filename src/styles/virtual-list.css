@@ -35,10 +35,12 @@
 
 .virtual-record-table {
   min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--color-border, var(--border-subtle));
   border-radius: var(--radius-control, var(--radius-md));
-  overflow: hidden;
   background: var(--color-surface-inset, var(--surface-muted));
+  overscroll-behavior-x: contain;
 }
 
 .virtual-record-header,
@@ -60,7 +62,9 @@
 }
 
 .virtual-record-viewport {
-  overflow-x: auto;
+  min-width: var(--virtual-table-min-width, 720px);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .virtual-record-viewport .virtual-list__canvas,
@@ -83,10 +87,6 @@
 .virtual-record-row .numeric-cell {
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-.virtual-record-row:last-child {
-  border-bottom: 0;
 }
 
 .local-trades-virtual-table {
@@ -113,8 +113,27 @@
   --virtual-row-height: 52px;
 }
 
-.admin-ownership-virtual-list .virtual-list__item {
-  padding-bottom: 8px;
+.admin-ownership-virtual-list {
+  display: block;
+}
+
+.admin-ownership-virtual-list > .virtual-list__canvas {
+  display: block;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+.admin-ownership-virtual-list .virtual-list__item > div {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) auto minmax(130px, 1fr) auto;
+  align-items: center;
+  gap: .75rem;
+  padding: .65rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-muted);
 }
 
 @media (max-width: 720px) {
@@ -124,5 +143,9 @@
 
   .asset-event-virtual-list {
     padding-right: 0;
+  }
+
+  .admin-ownership-virtual-list .virtual-list__item > div {
+    grid-template-columns: 1fr;
   }
 }
