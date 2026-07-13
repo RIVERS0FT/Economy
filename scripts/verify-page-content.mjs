@@ -24,11 +24,30 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
+  'src/app/LoginPage.tsx',
+  'src/styles/auth.css',
   'src/utils/formatters.ts',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
 ].forEach(requireFile);
+
+for (const text of [
+  'aria-busy={submitting}',
+  'disabled={submitting}',
+  "submitting ? '正在连接账号服务…' : '登录或注册'",
+]) requireText('src/app/LoginPage.tsx', text);
+
+for (const text of [
+  'min-height: calc(100dvh - var(--space-8));',
+  '@media (max-width: 720px) and (max-height: 560px)',
+  'min-height: 48px;',
+  'white-space: nowrap;',
+]) requireText('src/styles/auth.css', text);
+for (const text of [
+  '.login-shell:focus-within',
+  'transition: font-size',
+]) forbidText('src/styles/auth.css', text);
 
 for (const text of [
   'unified-asset-tabs',
@@ -237,6 +256,10 @@ for (const text of [
   '`GameApp` 必须在状态栏和页面内容渲染前通过 `setCompactNumbersEnabled` 同步当前偏好',
   '`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T',
   '切换后当前游戏外壳和所有使用统一格式器的页面立即同步',
+  '移动登录页面通过 `100dvh` 和矮屏媒体查询适配软键盘',
+  '输入、按钮焦点和提交中的原生 `disabled` 状态不得改变标题字号、区块间距或整体对齐',
+  '表单使用 `aria-busy` 表达提交状态',
+  '使用 `.login-shell:focus-within` 或其他焦点选择器改变移动登录页标题字号、区块间距或整体对齐',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 for (const text of [
@@ -248,4 +271,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、八页导航、藏品拍卖、全局紧凑数字、生产公式、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
+console.log('页面内容、八页导航、移动登录稳定性、藏品拍卖、全局紧凑数字、生产公式、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
