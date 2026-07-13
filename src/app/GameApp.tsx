@@ -3,7 +3,7 @@ import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/
 import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
 import { PageRouter } from '../pages/PageRouter';
-import { formatCompactNumber, formatCurrency } from '../utils/formatters';
+import { formatCompactNumber, formatCurrency, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameViewModel } from './gameViewModel';
 
 export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
@@ -20,6 +20,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
 
   const { model } = viewModel;
   const { game, derived } = model;
+  setCompactNumbersEnabled(model.compactNumbers);
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const currentRank = derived.currentRank?.rank ?? '--';
   const statusItems: StatusBarItem[] = [
