@@ -52,13 +52,21 @@ assert.match(marketPage, /<ProductIcon productId=\{product\.id\} \/>/);
 assert.match(marketPage, /selectedAssetTitle/);
 assert.doesNotMatch(marketPage, />▣</, '商品市场标签不得恢复字符占位图标');
 
+const pageRouter = readFileSync('src/pages/PageRouter.tsx', 'utf8');
+assert.match(pageRouter, /const \[overviewProductId, setOverviewProductId\] = useState/);
+assert.match(pageRouter, /model\.game\.products\.some\(\(product\) => product\.id === overviewProductId\)/);
+assert.match(pageRouter, /overviewProductId=\{overviewProductId\}/);
+assert.match(pageRouter, /onOverviewProductChange=\{setOverviewProductId\}/);
+
 const overviewPage = readFileSync('src/pages/OverviewPage.tsx', 'utf8');
 assert.match(overviewPage, /ProductIconLabel/);
 assert.match(overviewPage, /productId=\{overviewMarket\.product\.id\}/);
 assert.match(overviewPage, /game\.products\.map\(\(product\) => <option key=\{product\.id\} value=\{product\.id\}>\{product\.name\}<\/option>\)/);
-assert.match(overviewPage, /const \[overviewProductId, setOverviewProductId\] = useState/);
+assert.match(overviewPage, /overviewProductId: string;/);
+assert.match(overviewPage, /onOverviewProductChange: \(productId: string\) => void;/);
 assert.match(overviewPage, /value=\{overviewMarket\?\.product\.id \?\? ''\}/);
-assert.match(overviewPage, /setOverviewProductId\(event\.target\.value\)/);
+assert.match(overviewPage, /onOverviewProductChange\(event\.target\.value\)/);
+assert.doesNotMatch(overviewPage, /const \[overviewProductId, setOverviewProductId\] = useState/);
 assert.doesNotMatch(overviewPage, /selectedProductId/);
 assert.doesNotMatch(overviewPage, /overview-product-strip/);
 
@@ -101,4 +109,4 @@ for (const [path, required] of [
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：12 种商品、12 种工厂、全商品 SVG、概览局部选择、仅有库存仓库卡、未知商品回退和动态目录布局均满足设计。');
+console.log('产业目录验证通过：12 种商品、12 种工厂、全商品 SVG、概览路由会话选择、仅有库存仓库卡、未知商品回退和动态目录布局均满足设计。');
