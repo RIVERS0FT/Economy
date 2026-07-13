@@ -36,7 +36,18 @@ for (const text of [
   'aria-busy={submitting}',
   'disabled={submitting}',
   "submitting ? '正在连接账号服务…' : '登录或注册'",
+  'new FormData(event.currentTarget)',
+  "formData.get('email')",
+  "formData.get('password')",
+  'name="email"',
+  'name="password"',
 ]) requireText('src/app/LoginPage.tsx', text);
+for (const text of [
+  'value={email}',
+  'value={password}',
+  'setEmail(',
+  'setPassword(',
+]) forbidText('src/app/LoginPage.tsx', text);
 
 for (const text of [
   'min-height: calc(100dvh - var(--space-8));',
@@ -259,6 +270,9 @@ for (const text of [
   '移动登录页面通过 `100dvh` 和矮屏媒体查询适配软键盘',
   '输入、按钮焦点和提交中的原生 `disabled` 状态不得改变标题字号、区块间距或整体对齐',
   '表单使用 `aria-busy` 表达提交状态',
+  '账号和密码必须保留原生未受控表单值',
+  '提交时通过 `FormData(event.currentTarget)` 读取浏览器自动填充内容',
+  '不得把账号或密码重新绑定到初始为空的 React `value` 状态',
   '使用 `.login-shell:focus-within` 或其他焦点选择器改变移动登录页标题字号、区块间距或整体对齐',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
@@ -271,4 +285,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、八页导航、移动登录稳定性、藏品拍卖、全局紧凑数字、生产公式、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
+console.log('页面内容、八页导航、登录自动填充与移动布局稳定性、藏品拍卖、全局紧凑数字、生产公式、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
