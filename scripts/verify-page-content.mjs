@@ -20,15 +20,19 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/facilities/FacilityProductionFormula.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/components/shell/NavigationItems.tsx',
+  'src/components/ui/VirtualList.tsx',
   'src/app/gameViewModel.ts',
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
   'src/app/LoginPage.tsx',
   'src/styles/auth.css',
+  'src/styles/virtual-list.css',
   'src/utils/formatters.ts',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
+  'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
+  'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
 ].forEach(requireFile);
 
@@ -65,13 +69,15 @@ for (const text of [
   'placeAssetOrder',
   'single-order-book',
   'order-book-divider',
-  'localTrades.map',
+  'items={localTrades}',
+  'local-trades-virtual-table',
   '<FactoryIcon />',
   'formatNumber(order.remaining)',
   'formatCurrency(order.price)',
 ]) requireText('src/pages/MarketPage.tsx', text);
 
 for (const text of [
+  'localTrades.map(',
   'market-stat-strip',
   '工厂数量市场',
   '仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。',
@@ -141,17 +147,50 @@ for (const text of [
   '查看现金、商品、工厂资产与当前浏览器中的资产变化记录。',
   'title="本地资产变动"',
   'className="widget span-3 asset-event-panel"',
+  'items={filteredEvents}',
+  'asset-event-virtual-list',
   'ProductIconLabel',
   'formatNumber(change.availableAfter)',
   'formatNumber(change.outputQuantity)',
 ]) requireText('src/pages/AssetsPage.tsx', text);
 
 for (const text of [
+  'filteredEvents.map(',
   '商品库存与估值',
   'product-asset-grid',
   'product-asset-card',
   'setSelectedProductId',
 ]) forbidText('src/pages/AssetsPage.tsx', text);
+
+for (const text of [
+  'items={collectibles}',
+  'items={giftCodes}',
+  'items={ownership}',
+  'items={redemptions}',
+  'admin-collectibles-virtual-table',
+  'admin-gifts-virtual-table',
+  'admin-redemptions-virtual-table',
+]) requireText('src/app/AdminApp.tsx', text);
+for (const text of [
+  'collectibles.map(',
+  'giftCodes.map(',
+  'ownership.map(',
+  'redemptions.map(',
+]) forbidText('src/app/AdminApp.tsx', text);
+
+for (const text of [
+  'ResizeObserver',
+  'measuredSizesRef',
+  'overscan',
+  'aria-setsize',
+  'virtual-list__canvas',
+]) requireText('src/components/ui/VirtualList.tsx', text);
+for (const text of [
+  '.virtual-list',
+  '.virtual-record-table',
+  '.virtual-record-row',
+  '.asset-event-virtual-list',
+]) requireText('src/styles/virtual-list.css', text);
 
 for (const text of [
   "{ id: 'assets', label: '资产' }",
@@ -267,6 +306,8 @@ for (const text of [
   '`GameApp` 必须在状态栏和页面内容渲染前通过 `setCompactNumbersEnabled` 同步当前偏好',
   '`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T',
   '切换后当前游戏外壳和所有使用统一格式器的页面立即同步',
+  '`VirtualList` 是高增长记录的唯一窗口化基础组件',
+  'DOM 只渲染可视区域和少量预加载行',
   '移动登录页面通过 `100dvh` 和矮屏媒体查询适配软键盘',
   '输入、按钮焦点和提交中的原生 `disabled` 状态不得改变标题字号、区块间距或整体对齐',
   '表单使用 `aria-busy` 表达提交状态',
@@ -277,6 +318,15 @@ for (const text of [
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 for (const text of [
+  '资产页资产事件和市场页本地成交属于高增长记录列表，必须使用共享 `VirtualList` 窗口化组件',
+  '对资产事件或本地成交直接使用全量 `.map()` 创建全部 DOM',
+]) requireText('docs/LOCAL_ACTIVITY_LOG_DESIGN.md', text);
+for (const text of [
+  '藏品列表、礼品码列表、归属历史和兑换记录可能持续增长，必须复用共享 `VirtualList`',
+  '对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染',
+]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
+
+for (const text of [
   '实际数字格式遵循全局“紧凑数字”偏好',
   '玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
@@ -285,4 +335,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、八页导航、登录自动填充与移动布局稳定性、藏品拍卖、全局紧凑数字、生产公式、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
+console.log('页面内容、八页导航、高增长记录窗口化、登录自动填充、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。');

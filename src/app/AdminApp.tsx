@@ -5,6 +5,7 @@ import type {
   CollectibleImportRecord,
   CollectibleOwnershipRecord,
 } from '../collectibles/types';
+import { VirtualList } from '../components/ui/VirtualList';
 import type { AuthUser, GiftCodeAdminRecord } from '../types';
 import { formatCurrency, formatDate, formatTime } from '../utils/formatters';
 
@@ -206,76 +207,126 @@ export function AdminApp({ user }: { user: AuthUser }) {
 
       <section className="admin-panel admin-gift-list">
         <h2>藏品管理与当前归属</h2>
-        <div className="admin-table-wrap">
-          <table>
-            <thead><tr><th>图片</th><th>藏品</th><th>艺术家</th><th>当前归属</th><th>状态</th><th>归属记录</th><th /></tr></thead>
-            <tbody>
-              {collectibles.map((item) => (
-                <tr key={item.id}>
-                  <td><img className="admin-collectible-thumb" src={item.thumbnailUrl} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" /></td>
-                  <td><strong>{item.title}</strong><small> AIC #{item.sourceArtworkId}</small></td>
-                  <td>{item.artist || '佚名'}</td>
-                  <td>{item.currentOwnerId ? `${item.currentOwnerName} (#${item.currentOwnerId})` : '未分配'}</td>
-                  <td>{item.auctionId ? '拍卖中' : '未拍卖'}</td>
-                  <td>{item.ownershipCount}</td>
-                  <td><div className="admin-row-actions"><a href={item.sourceUrl} target="_blank" rel="noreferrer">馆藏页</a><button type="button" onClick={() => void showOwnership(item)}>归属历史</button></div></td>
-                </tr>
-              ))}
-              {collectibles.length === 0 ? <tr><td colSpan={7}>暂无藏品。</td></tr> : null}
-            </tbody>
-          </table>
-        </div>
+        {collectibles.length === 0 ? <p>暂无藏品。</p> : (
+          <div className="virtual-record-table admin-collectibles-virtual-table" role="table" aria-label="藏品管理与当前归属">
+            <div className="virtual-record-header" role="row">
+              <span role="columnheader">图片</span><span role="columnheader">藏品</span><span role="columnheader">艺术家</span><span role="columnheader">当前归属</span><span role="columnheader">状态</span><span role="columnheader">归属记录</span><span role="columnheader">操作</span>
+            </div>
+            <VirtualList
+              items={collectibles}
+              getKey={(item) => item.id}
+              estimateSize={72}
+              viewportHeight={560}
+              minViewportHeight={96}
+              overscan={5}
+              gap={0}
+              className="virtual-record-viewport"
+              role="rowgroup"
+              itemRole="presentation"
+              ariaLabel="藏品管理行"
+              renderItem={(item) => (
+                <div className="virtual-record-row" role="row">
+                  <span role="cell"><img className="admin-collectible-thumb" src={item.thumbnailUrl} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" /></span>
+                  <span role="cell"><strong>{item.title}</strong><small> AIC #{item.sourceArtworkId}</small></span>
+                  <span role="cell">{item.artist || '佚名'}</span>
+                  <span role="cell">{item.currentOwnerId ? `${item.currentOwnerName} (#${item.currentOwnerId})` : '未分配'}</span>
+                  <span role="cell">{item.auctionId ? '拍卖中' : '未拍卖'}</span>
+                  <span role="cell">{item.ownershipCount}</span>
+                  <span role="cell"><span className="admin-row-actions"><a href={item.sourceUrl} target="_blank" rel="noreferrer">馆藏页</a><button type="button" onClick={() => void showOwnership(item)}>归属历史</button></span></span>
+                </div>
+              )}
+            />
+          </div>
+        )}
       </section>
 
       {selectedCollectible ? (
         <section className="admin-panel">
           <h2>《{selectedCollectible.title}》归属历史</h2>
-          <div className="admin-ownership-list">
-            {ownership.map((record) => (
-              <div key={record.id}>
+          <VirtualList
+            key={selectedCollectible.id}
+            items={ownership}
+            getKey={(record) => record.id}
+            estimateSize={72}
+            viewportHeight={420}
+            minViewportHeight={80}
+            overscan={5}
+            gap={8}
+            className="admin-ownership-list admin-ownership-virtual-list"
+            ariaLabel={`${selectedCollectible.title}归属历史`}
+            empty={<p>暂无归属记录。</p>}
+            renderItem={(record) => (
+              <div>
                 <span>{record.fromOwnerId ? `${record.fromOwnerName} (#${record.fromOwnerId})` : '系统'}</span>
                 <strong>→</strong>
                 <span>{record.toOwnerId ? `${record.toOwnerName} (#${record.toOwnerId})` : '未分配'}</span>
                 <small>{ownershipReason(record)}{record.price ? ` · ¤ ${formatCurrency(record.price)}` : ''} · {formatTime(record.createdAt)}</small>
               </div>
-            ))}
-            {ownership.length === 0 ? <p>暂无归属记录。</p> : null}
-          </div>
+            )}
+          />
         </section>
       ) : null}
 
       <section className="admin-panel admin-gift-list">
         <h2>礼品码记录</h2>
-        <div className="admin-table-wrap">
-          <table>
-            <thead><tr><th>ID</th><th>奖励</th><th>兑换</th><th>状态</th><th>有效期</th><th>备注</th><th /></tr></thead>
-            <tbody>
-              {giftCodes.map((gift) => (
-                <tr key={gift.id}>
-                  <td>#{gift.id}</td>
-                  <td>¤ {formatCurrency(gift.reward_credits)}</td>
-                  <td>{gift.redeemed_count}/{gift.max_redemptions}</td>
-                  <td>{gift.enabled ? '启用' : '停用'}</td>
-                  <td>{gift.expires_at ? formatDate(gift.expires_at) : '长期'}</td>
-                  <td>{gift.note || '—'}</td>
-                  <td><div className="admin-row-actions"><button type="button" onClick={() => void showRedemptions(gift.id)}>兑换记录</button>{gift.enabled ? <button type="button" className="danger" onClick={() => void disableGift(gift.id)}>停用</button> : null}</div></td>
-                </tr>
-              ))}
-              {giftCodes.length === 0 ? <tr><td colSpan={7}>暂无礼品码。</td></tr> : null}
-            </tbody>
-          </table>
-        </div>
+        {giftCodes.length === 0 ? <p>暂无礼品码。</p> : (
+          <div className="virtual-record-table admin-gifts-virtual-table" role="table" aria-label="礼品码记录">
+            <div className="virtual-record-header" role="row">
+              <span role="columnheader">ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换</span><span role="columnheader">状态</span><span role="columnheader">有效期</span><span role="columnheader">备注</span><span role="columnheader">操作</span>
+            </div>
+            <VirtualList
+              items={giftCodes}
+              getKey={(gift) => gift.id}
+              estimateSize={58}
+              viewportHeight={520}
+              minViewportHeight={96}
+              overscan={6}
+              gap={0}
+              className="virtual-record-viewport"
+              role="rowgroup"
+              itemRole="presentation"
+              ariaLabel="礼品码记录行"
+              renderItem={(gift) => (
+                <div className="virtual-record-row" role="row">
+                  <span role="cell">#{gift.id}</span>
+                  <span role="cell">¤ {formatCurrency(gift.reward_credits)}</span>
+                  <span role="cell">{gift.redeemed_count}/{gift.max_redemptions}</span>
+                  <span role="cell">{gift.enabled ? '启用' : '停用'}</span>
+                  <span role="cell">{gift.expires_at ? formatDate(gift.expires_at) : '长期'}</span>
+                  <span role="cell">{gift.note || '—'}</span>
+                  <span role="cell"><span className="admin-row-actions"><button type="button" onClick={() => void showRedemptions(gift.id)}>兑换记录</button>{gift.enabled ? <button type="button" className="danger" onClick={() => void disableGift(gift.id)}>停用</button> : null}</span></span>
+                </div>
+              )}
+            />
+          </div>
+        )}
       </section>
 
       {selectedGiftId !== null ? (
         <section className="admin-panel admin-redemptions">
           <h2>礼品码 #{selectedGiftId} 兑换记录</h2>
-          <div className="admin-table-wrap">
-            <table><thead><tr><th>玩家 ID</th><th>奖励</th><th>兑换时间</th></tr></thead><tbody>
-              {redemptions.map((record) => <tr key={`${record.user_id}-${record.redeemed_at}`}><td>{record.user_id}</td><td>¤ {formatCurrency(record.reward_credits)}</td><td>{formatTime(record.redeemed_at)}</td></tr>)}
-              {redemptions.length === 0 ? <tr><td colSpan={3}>暂无兑换记录。</td></tr> : null}
-            </tbody></table>
-          </div>
+          {redemptions.length === 0 ? <p>暂无兑换记录。</p> : (
+            <div className="virtual-record-table admin-redemptions-virtual-table" role="table" aria-label={`礼品码 ${selectedGiftId} 兑换记录`}>
+              <div className="virtual-record-header" role="row"><span role="columnheader">玩家 ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换时间</span></div>
+              <VirtualList
+                key={selectedGiftId}
+                items={redemptions}
+                getKey={(record) => `${record.user_id}-${record.redeemed_at}`}
+                estimateSize={52}
+                viewportHeight={420}
+                minViewportHeight={80}
+                overscan={6}
+                gap={0}
+                className="virtual-record-viewport"
+                role="rowgroup"
+                itemRole="presentation"
+                ariaLabel="礼品码兑换记录行"
+                renderItem={(record) => (
+                  <div className="virtual-record-row" role="row"><span role="cell">{record.user_id}</span><span role="cell">¤ {formatCurrency(record.reward_credits)}</span><span role="cell">{formatTime(record.redeemed_at)}</span></div>
+                )}
+              />
+            </div>
+          )}
         </section>
       ) : null}
     </main>
