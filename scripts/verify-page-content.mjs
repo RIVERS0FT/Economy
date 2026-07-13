@@ -18,7 +18,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
+  'src/utils/formatters.ts',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/UI_DESIGN_SYSTEM.md',
+  'docs/LIQUID_GLASS_CHROME_DESIGN.md',
 ].forEach(requireFile);
 
 for (const text of [
@@ -129,11 +132,26 @@ for (const text of [
   '礼品兑换',
   '退出登录',
   '重置经济状态',
+  '全局使用 K/M/B/T 缩写大额金额与状态栏容量',
 ]) requireText('src/pages/SettingsPage.tsx', text);
 
-for (const text of ['登录会话', '重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
-for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
+for (const text of ['登录会话', '重置服务器经济状态', '使用万和百万单位缩写大额资产']) forbidText('src/pages/SettingsPage.tsx', text);
+for (const text of [
+  "label: '仓库剩余'",
+  "id: 'warehouse'",
+  'setCompactNumbersEnabled(model.compactNumbers)',
+]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
+
+for (const text of [
+  'let compactNumbersEnabled = false',
+  'export function setCompactNumbersEnabled',
+  'compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value)',
+  "suffix: 'K'",
+  "suffix: 'M'",
+  "suffix: 'B'",
+  "suffix: 'T'",
+]) requireText('src/utils/formatters.ts', text);
 
 for (const text of [
   '概览｜市场｜生产｜资产｜排行｜设置',
@@ -146,8 +164,20 @@ for (const text of [
   '建设新工厂卡独占左侧列并在桌面滚动时常驻',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
+for (const text of [
+  '“紧凑数字”是全局客户端显示偏好',
+  '`GameApp` 必须在状态栏和页面内容渲染前通过 `setCompactNumbersEnabled` 同步当前偏好',
+  '`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T',
+  '切换后当前游戏外壳和所有使用统一格式器的页面立即同步',
+]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
+
+for (const text of [
+  '实际数字格式遵循全局“紧凑数字”偏好',
+  '玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数',
+]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
+
 if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、生产标题、移动紧凑数字、仓库三层商品卡和自动保存计划职责验证通过。');
+console.log('页面内容、全局紧凑数字、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
