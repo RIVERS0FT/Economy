@@ -12,6 +12,7 @@
 }
 
 .overview-market-select select {
+  width: auto;
   min-width: 10rem;
 }
 
@@ -119,6 +120,7 @@
   }
 
   .overview-market-select select {
+    width: 100%;
     min-width: 0;
     flex: 1;
   }
