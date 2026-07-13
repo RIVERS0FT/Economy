@@ -86,7 +86,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
           />
           <ToggleField
             label="紧凑数字"
-            description="使用万和百万单位缩写大额资产"
+            description="全局使用 K/M/B/T 缩写大额金额与状态栏容量"
             checked={compactNumbers}
             onChange={(event: ChangeEvent<HTMLInputElement>) => setCompactNumbers(event.target.checked)}
           />
