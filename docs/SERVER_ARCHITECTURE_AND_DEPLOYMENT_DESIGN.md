@@ -3,13 +3,13 @@
 > 状态：当前服务器、API、容量和生产部署权威基线  
 > 适用项目：`RIVERS0FT/Economy`  
 > 生产网页：`https://game.riversoft.top/economy/`  
-> 更新时间：2026-07-12  
+> 更新时间：2026-07-13  
 > 客户端状态版本：11  
 > 世界状态版本：7
 
 ## 1. 目标
 
-- 所有正式经济状态由服务器保存和判定。
+- 所有正式经济状态、藏品归属和拍卖结算由服务器保存和判定。
 - 浏览器刷新、多标签页、本地时间和本地存储不能改变正式资产。
 - 账号复用主页账号服务，不建立第二套密码或用户体系。
 - 游戏 API 只监听回环地址，通过正式 HTTPS Nginx 入口提供。
@@ -56,6 +56,7 @@ Nginx
 - 仓库等级、容量和买单预占；
 - 工厂集群、运行意图、三态、周期、计划和施工；
 - 商品和工厂统一订单、冻结、撮合、逐笔成交和撤单；
+- 藏品唯一实例、当前归属、归属历史、拍卖、最高出价冻结和自动结算；
 - 工作冷却与收入；
 - 市场价格历史、需求和统计；
 - 商品与工厂估值、总资产和排行榜；
@@ -70,16 +71,19 @@ ledger
 assetEvents
 ```
 
-客户端负责页面、倒计时、图表、筛选、排序、预测和本地日志，不得直接决定资产、冷却、周期、撮合、估值或排名。
+客户端负责页面、倒计时、图表、筛选、排序、预测和本地日志，不得直接决定资产、冷却、周期、撮合、估值、排名、藏品归属或拍卖结算。
+
+芝加哥艺术博物馆图片由玩家浏览器直接加载，游戏 API 只保存馆藏 ID、IIIF `imageId` 和元数据，不代理或缓存图片字节。
 
 ## 4. 状态与存储
 
 - 客户端 `EconomyState.version` 固定为 11。
 - SQLite 世界版本固定为 7。
+- 藏品和拍卖作为向后兼容的世界 JSON 字段加入，不单独提高世界版本。
 - 数据库使用 Node 内置 `node:sqlite`、WAL 和事务。
 - 资产写操作使用 `BEGIN IMMEDIATE`。
 - 单节点只运行一个游戏 API 进程。
-- 旧世界加载时执行版本迁移和目录补齐。
+- 旧世界加载时执行版本迁移、目录补齐以及空藏品／拍卖字段补齐。
 - 正式数据库不得位于网页或 API 发布目录。
 - 部署不得删除或覆盖数据库。
 
@@ -87,12 +91,13 @@ assetEvents
 
 - 只接受正式站点的同源或可信 same-site 请求。
 - 使用主页账号 Cookie 验证用户，不接受客户端自报用户 ID 或角色。
-- 请求体上限 16 KB。
+- Nginx 对 `/economy-api/game/` 的请求体上限为 256 KB；普通游戏 JSON 仍由应用默认限制为 16 KB，只有管理员藏品导入接口允许读取最多 256 KB。
+- 管理员每次只能导入 1～100 条藏品，服务端继续限制每个字段长度并拒绝任意图片 URL。
 - 所有资产写操作要求 8～128 字符的 `Idempotency-Key`。
-- 服务器重新校验价格、数量、余额、库存、仓库、工厂数量和订单归属。
-- 禁止自成交。
-- 每名玩家最多 10 笔未完成订单。
-- 创建和撤销订单受服务器限流。
+- 服务器重新校验价格、数量、余额、库存、仓库、工厂数量、订单归属、藏品归属、拍卖状态和公版标记。
+- 禁止自成交；卖家不得竞拍自己的藏品。
+- 每名玩家最多 10 笔未完成商品／工厂订单。
+- 创建、撤销订单和藏品竞价受服务器限流。
 - 未登录返回 401，非管理员访问管理员 API 返回 403。
 
 ## 6. 当前游戏 API
@@ -111,6 +116,9 @@ assetEvents
 | POST | `/api/game/orders/:orderId/cancel` | 撤销统一订单 |
 | POST | `/api/game/warehouse/upgrade` | 扩容共享仓库 |
 | POST | `/api/game/gifts/redeem` | 兑换礼品 |
+| POST | `/api/game/collectible-auctions` | 发起藏品拍卖 |
+| POST | `/api/game/collectible-auctions/:auctionId/bids` | 提交藏品竞价 |
+| POST | `/api/game/collectible-auctions/:auctionId/cancel` | 取消无出价拍卖 |
 | PATCH | `/api/game/profile` | 修改玩家昵称 |
 | POST | `/api/game/reset` | 重置玩家经济状态 |
 
@@ -123,24 +131,21 @@ assetEvents
 - `POST /api/game/admin/gift-codes`
 - `POST /api/game/admin/gift-codes/:id/disable`
 - `GET /api/game/admin/gift-codes/:id/redemptions`
+- `GET /api/game/admin/collectibles`
+- `POST /api/game/admin/collectibles/import`
+- `GET /api/game/admin/collectibles/:id/ownership`
 
 ## 7. 容量与优先级
 
-首发设计目标：
-
-- 最低稳定验收：50 名同时在线；
-- 产品设计目标：100 名同时在线；
-- 更高人数只作为压测观察，不是承诺。
+首发设计目标：最低稳定验收 50 名同时在线，产品设计目标 100 名同时在线。更高人数只作为压测观察，不是承诺。
 
 优先级：
 
-1. 登录、资产、冻结、生产结算、订单和成交；
+1. 登录、资产、冻结、生产结算、订单、成交和藏品拍卖结算；
 2. 系统需求与公共市场；
 3. 排行榜、长周期图表和公开统计。
 
-资源不足时宁可拒绝新写操作，也不能允许负库存、重复发放、重复扣款或超额成交。
-
-当前页面只展示 5+5 笔订单，不等于服务器只能保存 10 笔全服订单。公共行情和排行榜可以延迟刷新，玩家自己的操作结果必须立即返回明确成功或失败。
+资源不足时宁可拒绝新写操作，也不能允许负库存、重复发放、重复扣款、超额成交、重复藏品归属或重复拍卖结算。
 
 ## 8. Node 与 systemd
 
@@ -149,7 +154,7 @@ assetEvents
 - 运行时目录：`/var/www/game/economy-api/runtime/`。
 - systemd 首选可执行文件：`/var/www/game/economy-api/runtime/bin/node`。
 - Node 最低不得低于 `22.16.0`，必须支持 `node:sqlite`。
-- systemd 优先使用随包 Node，只在不存在时回退到系统 Node。
+- 服务不得以 root 运行。
 
 服务固定环境：
 
@@ -162,8 +167,6 @@ ACCOUNT_SERVICE_HOST=riversoft.top
 PUBLIC_ORIGIN=https://game.riversoft.top
 ```
 
-服务不得以 root 运行。当前生产用户和组为 `deploy`，保留 `NoNewPrivileges`、`ProtectSystem`、`ProtectHome` 和受限写目录。
-
 ## 9. 部署权限
 
 当前 GitHub Actions：
@@ -172,26 +175,7 @@ PUBLIC_ORIGIN=https://game.riversoft.top
 SERVER_USER=deploy
 ```
 
-`deploy` 必须：
-
-- 可通过 SSH 密钥登录；
-- 可写 `/var/www/game/economy`；
-- 可写 `/var/www/game/economy-api`；
-- 可免密执行部署白名单所需的 `/usr/bin/true`、`/usr/bin/install` 和 `/usr/bin/python3`；
-- 可通过部署脚本完成 systemd 和 Nginx 配置；
-- 服务器存在 `python3`、`curl`、`rsync`、Nginx 和 systemd。
-
-错误必须使用明确标识：
-
-```text
-ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE
-ECONOMY_WEB_DIRECTORY_NOT_WRITABLE
-ECONOMY_API_DIRECTORY_NOT_WRITABLE
-ECONOMY_REMOTE_PYTHON_MISSING
-ECONOMY_REMOTE_CURL_MISSING
-```
-
-不得通过让 API 以 root 运行、扩大 systemd 可写目录或把数据库移入发布目录规避权限。
+`deploy` 必须可写网页和 API 发布目录，并可通过部署白名单完成 systemd 和 Nginx 配置。不得通过让 API 以 root 运行、扩大 systemd 可写目录或把数据库移入发布目录规避权限。
 
 ## 10. Nginx
 
@@ -207,35 +191,21 @@ ECONOMY_REMOTE_CURL_MISSING
 - 不得在账号 snippet 已存在时再次生成同名账号 `location`。
 - 不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`。
 - 连续执行两次，第二次不得产生配置变化。
+- 游戏 API 路由的 `client_max_body_size` 固定为 `256k`，以容纳受控的管理员藏品 JSON；不得扩大为不受控的大文件上传。
 
 修改前保留可回滚配置；修改后必须执行 `nginx -t`，只有成功才 reload。失败时恢复旧配置并保持现网可用。
 
 ## 11. 构建与部署验收
 
-`npm run build` 必须完成：
+`npm run build` 必须完成设计和架构防回退检查、Nginx 配置测试、服务器语法检查、服务器测试、TypeScript 和 Vite 生产构建。
 
-- 设计和架构防回退检查；
-- Nginx 配置测试；
-- 服务器语法检查；
-- 服务器测试；
-- TypeScript；
-- Vite 生产构建。
-
-部署后必须验证：
-
-- API 健康；
-- 静态网页；
-- 账号代理；
-- 未登录游戏状态返回 401；
-- systemd 使用正确端口、用户和数据库；
-- 数据库未被发布覆盖；
-- Nginx 无重复路由。
+部署后必须验证 API 健康、静态网页、账号代理、未登录游戏状态返回 401、systemd 使用正确端口／用户／数据库、数据库未被发布覆盖以及 Nginx 无重复路由。
 
 ## 12. 防回退
 
 不得恢复：
 
-- 浏览器 `localStorage` 作为正式钱包或库存；
+- 浏览器 `localStorage` 作为正式钱包、库存、藏品归属或拍卖状态；
 - 服务器持久化玩家展示日志；
 - 单座工厂 API 作为当前模型；
 - 固定价格工厂市场；
@@ -243,6 +213,8 @@ ECONOMY_REMOTE_CURL_MISSING
 - 依赖服务器预装全局 Node；
 - API 监听公网地址；
 - API 以 root 运行；
-- 自动部署删除数据库或在 Nginx 失败后保留坏配置。
+- 自动部署删除数据库或在 Nginx 失败后保留坏配置；
+- 允许管理员上传图片二进制或任意远程 URL；
+- 由客户端宣布拍卖成交或转移归属。
 
 未更新设计文档的架构回退不应合并。

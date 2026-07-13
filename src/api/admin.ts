@@ -1,7 +1,17 @@
+import type {
+  CollectibleAdminRecord,
+  CollectibleImportRecord,
+  CollectibleOwnershipRecord,
+} from '../collectibles/types';
 import type { AdminSummary, GiftCodeAdminRecord } from '../types';
 import { GameApiError } from './game';
 
 const ADMIN_API_BASE = '/economy-api/game/admin';
+
+export type ExtendedAdminSummary = AdminSummary & {
+  collectibleCount: number;
+  openAuctionCount: number;
+};
 
 function requestKey() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -25,7 +35,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const adminApi = {
-  summary: async () => (await request<{ summary: AdminSummary }>('/summary', { method: 'GET' })).summary,
+  summary: async () => (await request<{ summary: ExtendedAdminSummary }>('/summary', { method: 'GET' })).summary,
   giftCodes: async () => (await request<{ giftCodes: GiftCodeAdminRecord[] }>('/gift-codes', { method: 'GET' })).giftCodes,
   createGiftCode: async (payload: {
     code?: string;
@@ -40,4 +50,14 @@ export const adminApi = {
   })).giftCode,
   disableGiftCode: (id: number) => request<{ ok: boolean; id: number }>(`/gift-codes/${id}/disable`, { method: 'POST' }),
   redemptions: async (id: number) => (await request<{ redemptions: Array<{ user_id: number; reward_credits: number; redeemed_at: number }> }>(`/gift-codes/${id}/redemptions`, { method: 'GET' })).redemptions,
+  collectibles: async () => (await request<{ collectibles: CollectibleAdminRecord[] }>('/collectibles', { method: 'GET' })).collectibles,
+  importCollectibles: async (items: CollectibleImportRecord[]) => (
+    await request<{ result: { importedCount: number; collectibles: CollectibleAdminRecord[] } }>('/collectibles/import', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    })
+  ).result,
+  collectibleOwnership: async (id: string) => (
+    await request<{ ownership: CollectibleOwnershipRecord[] }>(`/collectibles/${encodeURIComponent(id)}/ownership`, { method: 'GET' })
+  ).ownership,
 };

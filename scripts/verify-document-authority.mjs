@@ -62,9 +62,10 @@ if (existsSync(pathFor('README.md'))) {
   for (const text of [
     '客户端状态版本：`11`',
     '世界状态版本：`7`',
-    '概览｜市场｜生产｜资产｜排行｜设置',
+    '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜设置',
     '共享仓库允许无限扩容',
     '定量生产达到目标后服务器关闭运行开关',
+    '藏品是服务器记录归属的唯一资产实例',
     '不得通过新增“补充说明”、V2/V3 文件或平行专题文档覆盖现行规则',
   ]) {
     if (!rootReadme.includes(text)) failures.push(`README.md 缺少当前规则: ${text}`);
@@ -91,6 +92,7 @@ if (existsSync(pathFor('docs/README.md'))) {
     '本目录只保留当前设计',
     '不得以“补充说明”“V2/V3”或新专题文档的形式继续并行存在',
     '新的功能规则必须合并进现有权威文档',
+    '芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖',
     '`scripts/verify-document-authority.mjs`',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
@@ -102,4 +104,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：唯一文档结构、版本 11/7 和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：唯一文档结构、版本 11/7、八页导航和旧文件禁令均满足当前基线。');

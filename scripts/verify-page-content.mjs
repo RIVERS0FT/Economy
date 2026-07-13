@@ -13,6 +13,8 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/MarketPage.tsx',
   'src/pages/ProductionPage.tsx',
   'src/pages/AssetsPage.tsx',
+  'src/pages/CollectionsPage.tsx',
+  'src/pages/AuctionPage.tsx',
   'src/pages/LeaderboardPage.tsx',
   'src/pages/SettingsPage.tsx',
   'src/components/facilities/FacilityProductionFormula.tsx',
@@ -121,8 +123,29 @@ for (const text of [
   'setSelectedProductId',
 ]) forbidText('src/pages/AssetsPage.tsx', text);
 
-requireText('src/config/navigation.ts', "{ id: 'assets', label: '资产' }");
+for (const text of [
+  "{ id: 'assets', label: '资产' }",
+  "{ id: 'collections', label: '藏品' }",
+  "{ id: 'auction', label: '拍卖' }",
+]) requireText('src/config/navigation.ts', text);
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
+
+for (const text of [
+  'title="藏品"',
+  'getCollectibleState',
+  'collectible-gallery',
+  '芝加哥艺术博物馆 IIIF',
+  "model.setTab('auction')",
+]) requireText('src/pages/CollectionsPage.tsx', text);
+
+for (const text of [
+  'title="拍卖"',
+  'createCollectibleAuction',
+  'placeCollectibleBid',
+  'cancelCollectibleAuction',
+  '最高出价资金会冻结',
+  '等待服务器结算',
+]) requireText('src/pages/AuctionPage.tsx', text);
 
 for (const text of [
   'const stockedProducts = useMemo',
@@ -193,8 +216,9 @@ for (const [path, text] of [
 ]) requireText(path, text);
 
 for (const text of [
-  '概览｜市场｜生产｜资产｜排行｜设置',
-  '| 资产 | `assets` | `AssetsPage` | 资产结果与本地变化 |',
+  '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜设置',
+  '| 藏品 | `collections` | `CollectionsPage` | 当前玩家持有的唯一艺术藏品 |',
+  '| 拍卖 | `auction` | `AuctionPage` | 藏品竞价拍卖与结算结果 |',
   '页面主标题固定为“生产”',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
@@ -205,6 +229,7 @@ for (const text of [
   '单座生产公式',
   '多输入、多输出和逐输入库存兼容展示',
   '以箭头替代生产进度条',
+  '最高出价资金、退款、拍卖状态和归属转移全部由服务器判定',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
@@ -223,4 +248,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、全局紧凑数字、生产公式、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');
+console.log('页面内容、八页导航、藏品拍卖、全局紧凑数字、生产公式、生产标题、仓库三层商品卡和自动保存计划职责验证通过。');

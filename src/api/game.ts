@@ -69,6 +69,15 @@ export const gameActions = {
     postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
   ),
   cancelOrder: (orderId: string) => postAction(`/orders/${encodeURIComponent(orderId)}/cancel`),
+  createCollectibleAuction: (collectibleId: string, startingBid: number, durationHours: number) => (
+    postAction('/collectible-auctions', { collectibleId, startingBid, durationHours })
+  ),
+  placeCollectibleBid: (auctionId: string, amount: number) => (
+    postAction(`/collectible-auctions/${encodeURIComponent(auctionId)}/bids`, { amount })
+  ),
+  cancelCollectibleAuction: (auctionId: string) => (
+    postAction(`/collectible-auctions/${encodeURIComponent(auctionId)}/cancel`)
+  ),
   renamePlayer: (playerName: string) => request<GameActionResponse>('/profile', {
     method: 'PATCH',
     body: JSON.stringify({ playerName }),

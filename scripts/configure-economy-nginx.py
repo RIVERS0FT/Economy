@@ -64,7 +64,7 @@ GAME_API_BLOCK = """
         proxy_set_header X-Forwarded-Host $host;
         proxy_connect_timeout 5s;
         proxy_read_timeout 30s;
-        client_max_body_size 16k;
+        client_max_body_size 256k;
     }
 """.strip("\n")
 
@@ -232,7 +232,6 @@ def replace_or_insert(block: str) -> str:
     closing = cleaned.rfind("}")
     if closing < 0:
         raise RuntimeError("Target server block has no closing brace")
-
     normalized = cleaned[:closing].rstrip()
     return normalized + "\n\n" + desired + "\n" + cleaned[closing:]
 

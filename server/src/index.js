@@ -30,12 +30,12 @@ function validateRequestOrigin(request) {
   return !fetchSite || ['same-origin', 'same-site', 'none'].includes(fetchSite);
 }
 
-async function readJson(request) {
+async function readJson(request, maxBytes = 16_384) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > 16_384) {
+    if (size > maxBytes) {
       const error = new Error('请求内容过大');
       error.statusCode = 413;
       throw error;
@@ -78,6 +78,27 @@ function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/gifts/redeem') return { action: 'redeemGift', category: 'general' };
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/reset') return { action: 'resetPlayer', category: 'general' };
+  if (method === 'POST' && path === '/api/game/collectible-auctions') {
+    return { action: 'createCollectibleAuction', category: 'orders' };
+  }
+
+  const collectibleBid = path.match(/^\/api\/game\/collectible-auctions\/([^/]+)\/bids$/);
+  if (method === 'POST' && collectibleBid) {
+    return {
+      action: 'placeCollectibleBid',
+      category: 'orders',
+      routePayload: { auctionId: decodeURIComponent(collectibleBid[1]) },
+    };
+  }
+
+  const collectibleCancel = path.match(/^\/api\/game\/collectible-auctions\/([^/]+)\/cancel$/);
+  if (method === 'POST' && collectibleCancel) {
+    return {
+      action: 'cancelCollectibleAuction',
+      category: 'orders',
+      routePayload: { auctionId: decodeURIComponent(collectibleCancel[1]) },
+    };
+  }
 
   const facilityAction = path.match(/^\/api\/game\/facilities\/([^/]+)\/(start|pause|stop|list|plan)$/);
   if (method === 'POST' && facilityAction) {
@@ -175,6 +196,25 @@ const server = createServer(async (request, response) => {
       if (method === 'GET' && redemptionsMatch) {
         sendJson(response, 200, {
           redemptions: store.listGiftRedemptions(user, Number(redemptionsMatch[1])),
+        });
+        return;
+      }
+      if (method === 'GET' && path === '/api/game/admin/collectibles') {
+        sendJson(response, 200, { collectibles: store.listCollectibles(user) });
+        return;
+      }
+      if (method === 'POST' && path === '/api/game/admin/collectibles/import') {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request, 262_144);
+        sendJson(response, 200, {
+          result: store.importCollectibles(user, body, { requestKey, method, path }),
+        });
+        return;
+      }
+      const collectibleHistory = path.match(/^\/api\/game\/admin\/collectibles\/([^/]+)\/ownership$/);
+      if (method === 'GET' && collectibleHistory) {
+        sendJson(response, 200, {
+          ownership: store.listCollectibleOwnership(user, decodeURIComponent(collectibleHistory[1])),
         });
         return;
       }

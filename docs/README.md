@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-12  
+> 更新时间：2026-07-13  
 > 客户端状态版本：11  
 > 世界状态版本：7
 
@@ -16,12 +16,12 @@
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 12 种商品、12 种工厂、工厂集群、生产周期、三态、自动恢复、定量关停和生产页面结构 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值和资产统计 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡和生产空间约束 |
-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 六个正式页面、资产导航、模块唯一归属和页面防回退规则 |
+| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 八个正式页面、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一 SVG 图标、中文界面、响应式与可访问性 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 桌面与移动端状态栏、移动底栏和玻璃外壳 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、API、SQLite、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地快照、资产事件和权威逐笔成交记录 |
-| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 礼品兑换、管理员权限和后台范围 |
+| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖、管理员权限和后台范围 |
 
 ## 修改规则
 
