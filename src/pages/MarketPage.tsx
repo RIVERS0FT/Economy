@@ -31,7 +31,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     marketAssetId,
     selectMarketAsset,
     orderSide,
-    setOrderSide,
+    selectOrderSide,
     orderQuantity,
     setOrderQuantity,
     orderPrice,
@@ -113,7 +113,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   return (
-    <PageLayout title="市场" description="商品与工厂使用相同的限价订单簿、价格优先和时间优先规则。">
+    <PageLayout title="市场" description="商品与工厂使用相同的订单簿、价格优先和时间优先规则。">
       <div className="unified-asset-tabs" role="tablist" aria-label="选择交易资产">
         {game.products.map((product) => {
           const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
@@ -158,7 +158,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
       <div className="market-grid unified-market-grid">
         <Panel className="widget order-entry">
           <WidgetHeading
-            title={selectedAssetTitle(`${assetName}限价订单`)}
+            title={selectedAssetTitle(`${assetName}订单`)}
             action={<StatusTag>{ownSelectedOrders.length} 笔未完成</StatusTag>}
           />
           <div className="ui-segmented" role="group" aria-label="订单方向">
@@ -166,17 +166,17 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               variant="text"
               className={orderSide === 'buy' ? 'ui-segmented__button active' : 'ui-segmented__button'}
               aria-pressed={orderSide === 'buy'}
-              onClick={() => setOrderSide('buy')}
+              onClick={() => selectOrderSide('buy')}
             >买入</Button>
             <Button
               variant="text"
               className={orderSide === 'sell' ? 'ui-segmented__button active danger' : 'ui-segmented__button'}
               aria-pressed={orderSide === 'sell'}
-              onClick={() => setOrderSide('sell')}
+              onClick={() => selectOrderSide('sell')}
             >卖出</Button>
           </div>
           <label>
-            限价
+            价格
             <input type="number" min="1" value={orderPrice} onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderPrice(Number(event.target.value))} />
           </label>
           <label>
@@ -262,7 +262,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               <h3>未完成订单</h3>
               <ScrollableTable>
                 <table>
-                  <thead><tr><th>类型</th><th>资产</th><th>方向</th><th className="numeric-cell">限价</th><th className="numeric-cell">剩余/原始</th><th>状态</th><th>时间</th><th /></tr></thead>
+                  <thead><tr><th>类型</th><th>资产</th><th>方向</th><th className="numeric-cell">价格</th><th className="numeric-cell">剩余/原始</th><th>状态</th><th>时间</th><th /></tr></thead>
                   <tbody>
                     {ownOpenOrders.map((order) => (
                       <tr key={order.id}>
