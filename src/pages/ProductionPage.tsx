@@ -16,7 +16,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import type { FacilityGroup, ProductionMode } from '../types';
-import { formatCurrency, formatDuration } from '../utils/formatters';
+import { formatCurrency, formatDuration, formatNumber } from '../utils/formatters';
 
 type PlanSaveStatus = 'idle' | 'saving' | 'error';
 
@@ -165,10 +165,10 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       description="同类未冻结工厂共享生产周期和计划；工厂卖单会立即冻结对应数量并降低产量。"
       actions={(
         <>
-          <StatusTag tone="success">运行 {model.derived.runningFacilities}</StatusTag>
-          <StatusTag tone="neutral">停止 {model.derived.stoppedFacilities}</StatusTag>
-          <StatusTag tone={model.derived.blockedFacilities > 0 ? 'danger' : 'neutral'}>异常 {model.derived.blockedFacilities}</StatusTag>
-          {model.derived.constructingFacilities > 0 ? <StatusTag tone="warning">施工 {model.derived.constructingFacilities}</StatusTag> : null}
+          <StatusTag tone="success">运行 {formatNumber(model.derived.runningFacilities)}</StatusTag>
+          <StatusTag tone="neutral">停止 {formatNumber(model.derived.stoppedFacilities)}</StatusTag>
+          <StatusTag tone={model.derived.blockedFacilities > 0 ? 'danger' : 'neutral'}>异常 {formatNumber(model.derived.blockedFacilities)}</StatusTag>
+          {model.derived.constructingFacilities > 0 ? <StatusTag tone="warning">施工 {formatNumber(model.derived.constructingFacilities)}</StatusTag> : null}
         </>
       )}
     >
@@ -186,15 +186,15 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           <div className="facility-type-summary">
             <h3>{selectedType.name}</h3>
             <p>{selectedType.input
-              ? `${selectedType.input.quantity} ${productName(selectedType.input.productId)} → ${selectedType.output.quantity} ${productName(selectedType.output.productId)}`
-              : `无原料 → ${selectedType.output.quantity} ${productName(selectedType.output.productId)}`}</p>
+              ? `${formatNumber(selectedType.input.quantity)} ${productName(selectedType.input.productId)} → ${formatNumber(selectedType.output.quantity)} ${productName(selectedType.output.productId)}`
+              : `无原料 → ${formatNumber(selectedType.output.quantity)} ${productName(selectedType.output.productId)}`}</p>
           </div>
           <DataList>
             <DataRow label="建造费用" value={`¤ ${formatCurrency(selectedType.buildCost)}`} tone="danger" />
             <DataRow label="施工时间" value={formatDuration(selectedType.buildTimeMs)} tone="warning" />
-            <DataRow label="生产周期" value={`${selectedType.cycleMs / 1000} 秒`} />
-            <DataRow label="单座周期产量" value={`${selectedType.output.quantity} ${productName(selectedType.output.productId)}`} />
-            <DataRow label="单座周期成本" value={`¤ ${selectedType.operatingCost}`} />
+            <DataRow label="生产周期" value={`${formatNumber(selectedType.cycleMs / 1000)} 秒`} />
+            <DataRow label="单座周期产量" value={`${formatNumber(selectedType.output.quantity)} ${productName(selectedType.output.productId)}`} />
+            <DataRow label="单座周期成本" value={`¤ ${formatCurrency(selectedType.operatingCost)}`} />
           </DataList>
           {game.facilityConstruction ? (
             <div className="construction-status">
@@ -242,7 +242,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 <div className="facility-card-head facility-status-header">
                   <div className="facility-status-title">
                     <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
-                    <h2>{type.name} × {group.count}</h2>
+                    <h2>{type.name} × {formatNumber(group.count)}</h2>
                   </div>
                   <SwitchControl
                     checked={group.enabled}
@@ -254,17 +254,17 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                       : stopFacility(group.facilityTypeId))}
                   />
                   <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
-                    <span>运行中 <strong>{group.participatingCount}</strong></span>
-                    <span>下一周期加入 <strong>{group.pendingJoinCount}</strong></span>
-                    <span>冻结中 <strong>{group.listedCount}</strong></span>
+                    <span>运行中 <strong>{formatNumber(group.participatingCount)}</strong></span>
+                    <span>下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong></span>
+                    <span>冻结中 <strong>{formatNumber(group.listedCount)}</strong></span>
                   </div>
                 </div>
 
                 <div className="facility-specs ui-spec-grid facility-group-specs">
-                  <span>周期 <strong>{type.cycleMs / 1000} 秒</strong></span>
-                  <span>产量 <strong>{currentCycleOutput} {outputName}</strong></span>
-                  <span>成本 <strong>¤ {currentCycleCost}</strong></span>
-                  <span>原料 <strong>{inputInventory === null ? '无' : `${cycleInput} ${inputName} · 库存 ${inputInventory}`}</strong></span>
+                  <span>周期 <strong>{formatNumber(type.cycleMs / 1000)} 秒</strong></span>
+                  <span>产量 <strong>{formatNumber(currentCycleOutput)} {outputName}</strong></span>
+                  <span>成本 <strong>¤ {formatCurrency(currentCycleCost)}</strong></span>
+                  <span>原料 <strong>{inputInventory === null ? '无' : `${formatNumber(cycleInput)} ${inputName} · 库存 ${formatNumber(inputInventory)}`}</strong></span>
                 </div>
 
                 <FacilityGroupProgress group={group} type={type} now={now} />
