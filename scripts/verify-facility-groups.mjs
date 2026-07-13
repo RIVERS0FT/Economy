@@ -13,11 +13,15 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/test/facility-groups.test.js',
   'server/test/listed-factory-production.test.js',
   'src/types.ts',
+  'src/main.tsx',
   'src/pages/ProductionPage.tsx',
   'src/components/ui/layout.tsx',
+  'src/components/icons/GameIcons.tsx',
   'src/components/facilities/FacilityProgress.tsx',
+  'src/components/facilities/FacilityProductionFormula.tsx',
   'src/styles/design-system.css',
   'src/styles/industry-system.css',
+  'src/styles/facility-production-formula.css',
   'src/styles/unified-market-admin.css',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
@@ -52,6 +56,9 @@ for (const text of [
   '异常：原料不足',
   'facility-status-header',
   'facility-count-summary',
+  'FacilityProductionFormula',
+  'products={game.products}',
+  'inventories={game.inventories}',
   'production-plan-heading',
   'production-plan-fields',
   'placeholder="目标产量"',
@@ -67,19 +74,61 @@ for (const forbidden of [
   '>保存计划</Button>',
   '下一周期按 ',
   'facility-group-counts',
+  'facility-group-specs',
+  '<span>周期 <strong>',
+  '<span>产量 <strong>',
+  '<span>成本 <strong>',
+  '<span>原料 <strong>',
 ]) forbidText('src/pages/ProductionPage.tsx', forbidden);
+
+for (const text of [
+  'MultiRecipeFacilityType',
+  'inputs?: FacilityRecipeItem[]',
+  'outputs?: FacilityRecipeItem[]',
+  'facility-formula-top',
+  'facility-formula-input-group',
+  'facility-formula-input-item',
+  'facility-formula-center',
+  'facility-formula-output-group',
+  'facility-formula-output-item',
+  'facility-formula-progress',
+  'facility-formula-summary',
+  'facility-formula-meta-icon',
+  'CycleIcon',
+  'CreditsIcon',
+  'WarehouseIcon',
+  'role="group"',
+  'aria-label={description}',
+]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
+
+for (const forbidden of [
+  'facility-formula-arrow',
+  '→',
+  '⏱',
+  '💰',
+]) forbidText('src/components/facilities/FacilityProductionFormula.tsx', forbidden);
 
 for (const text of [
   "group.status === 'error'",
   '等待条件恢复',
   '本周期剩余',
-  'facility-progress-compact',
+  'facility-progress-running',
+  'is-idle',
+  "style={{ width: '0%' }}",
 ]) requireText('src/components/facilities/FacilityProgress.tsx', text);
 
 for (const text of [
   'export function SwitchControl',
   "className={classNames('ui-switch'",
 ]) requireText('src/components/ui/layout.tsx', text);
+
+for (const text of [
+  'export function CycleIcon',
+  'export function CreditsIcon',
+  'export function WarehouseIcon',
+  'aria-hidden="true"',
+  'focusable="false"',
+]) requireText('src/components/icons/GameIcons.tsx', text);
 
 for (const text of [
   '.ui-switch',
@@ -95,6 +144,21 @@ for (const text of [
   '.production-plan-fields',
   '.production-plan-status',
 ]) requireText('src/styles/industry-system.css', text);
+
+for (const text of [
+  '.facility-production-formula',
+  '.facility-formula-top',
+  '.facility-formula-input-item',
+  '.facility-formula-output-item',
+  '.facility-formula-center',
+  '.facility-formula-progress',
+  '.facility-formula-meta-icon',
+  '.facility-formula-summary',
+  'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)',
+  'grid-template-rows: auto minmax(112px, auto) minmax(0, 1fr) auto',
+]) requireText('src/styles/facility-production-formula.css', text);
+
+requireText('src/main.tsx', "import './styles/facility-production-formula.css';");
 
 for (const forbidden of [
   'facility-power-button',
@@ -123,6 +187,11 @@ for (const text of [
   '生产计划使用自动保存',
   '下一周期生效',
   '固定价格工厂挂牌市场',
+  '单座生产公式',
+  '多输入和多输出',
+  '进度条',
+  '周期 SVG 图标',
+  '当前无工厂参与生产',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
@@ -132,10 +201,17 @@ for (const text of [
   '工厂卡桌面固定高度',
   '计划字段自动保存',
   'placeholder="目标产量"',
+  'facility-production-formula.css',
+  'CycleIcon',
+  'CreditsIcon',
+  'WarehouseIcon',
+  '输入在左、周期成本在中、输出在右',
+  '生产进度条',
+  '完整文本无障碍描述',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
-  console.error(`工厂三态、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`工厂三态、生产公式、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('工厂三态、自动恢复、定量完成关停、固定高度卡片、自动保存计划和统一开关验证通过。');
+console.log('工厂三态、多输入输出生产公式、SVG 周期成本、进度条、自动恢复、固定高度卡片和自动保存计划验证通过。');
