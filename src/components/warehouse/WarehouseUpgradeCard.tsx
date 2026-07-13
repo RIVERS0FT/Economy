@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { ProductIconLabel } from '../icons/ProductIcons';
 import { Button, Panel, StatusTag, WidgetHeading } from '../ui/layout';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatNumber } from '../../utils/formatters';
 
 export function WarehouseUpgradeCard({
   model,
@@ -46,7 +46,7 @@ export function WarehouseUpgradeCard({
         action={(
           <div className="warehouse-heading-status">
             {overCapacity ? <StatusTag tone="danger">容量超限</StatusTag> : null}
-            <StatusTag tone="info">等级 {game.warehouseLevel}</StatusTag>
+            <StatusTag tone="info">等级 {formatNumber(game.warehouseLevel)}</StatusTag>
           </div>
         )}
       />
@@ -55,11 +55,11 @@ export function WarehouseUpgradeCard({
         <section className="warehouse-management" aria-label="仓库容量与升级">
           <div
             className="warehouse-capacity-progress"
-            aria-label={`仓库已使用 ${game.warehouseUsedCapacity}/${game.inventoryCapacity}`}
+            aria-label={`仓库已使用 ${formatNumber(game.warehouseUsedCapacity)}/${formatNumber(game.inventoryCapacity)}`}
           >
             <div>
               <span>已使用</span>
-              <strong>{game.warehouseUsedCapacity}/{game.inventoryCapacity}</strong>
+              <strong>{formatNumber(game.warehouseUsedCapacity)}/{formatNumber(game.inventoryCapacity)}</strong>
             </div>
             <div className="progress-track" aria-hidden="true">
               <span style={{ width: `${usagePercent}%` }} />
@@ -68,17 +68,17 @@ export function WarehouseUpgradeCard({
           </div>
 
           <dl className="warehouse-summary-list">
-            <div><dt>当前容量</dt><dd>{game.inventoryCapacity}</dd></div>
-            <div><dt>实物库存</dt><dd>{game.warehouseStoredQuantity}</dd></div>
-            <div><dt>买单预占</dt><dd>{game.warehouseReservedQuantity}</dd></div>
-            <div><dt>剩余容量</dt><dd className={game.warehouseAvailableCapacity > 0 ? 'positive' : 'negative'}>{game.warehouseAvailableCapacity}</dd></div>
+            <div><dt>当前容量</dt><dd>{formatNumber(game.inventoryCapacity)}</dd></div>
+            <div><dt>实物库存</dt><dd>{formatNumber(game.warehouseStoredQuantity)}</dd></div>
+            <div><dt>买单预占</dt><dd>{formatNumber(game.warehouseReservedQuantity)}</dd></div>
+            <div><dt>剩余容量</dt><dd className={game.warehouseAvailableCapacity > 0 ? 'positive' : 'negative'}>{formatNumber(game.warehouseAvailableCapacity)}</dd></div>
           </dl>
 
           <div className="warehouse-upgrade-summary">
             <div>
               <span>下一等级容量</span>
-              <strong>{game.warehouseNextCapacity}</strong>
-              <small>增加 {game.warehouseNextCapacityIncrease} 容量</small>
+              <strong>{formatNumber(game.warehouseNextCapacity)}</strong>
+              <small>增加 {formatNumber(game.warehouseNextCapacityIncrease)} 容量</small>
             </div>
             <div>
               <span>升级费用</span>
@@ -124,8 +124,8 @@ export function WarehouseUpgradeCard({
                     <ProductIconLabel productId={product.id} className="warehouse-product-card-title">
                       {product.name}
                     </ProductIconLabel>
-                    <strong>可用 {inventory.available}</strong>
-                    <small>冻结 {inventory.frozen}</small>
+                    <strong>可用 {formatNumber(inventory.available)}</strong>
+                    <small>冻结 {formatNumber(inventory.frozen)}</small>
                   </button>
                 );
               })}
