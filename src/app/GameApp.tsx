@@ -3,7 +3,7 @@ import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/
 import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
 import { PageRouter } from '../pages/PageRouter';
-import { formatCompactNumber, formatCurrency, setCompactNumbersEnabled } from '../utils/formatters';
+import { formatCompactNumber, formatCurrency, formatNumber, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameViewModel } from './gameViewModel';
 
 export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
@@ -42,9 +42,9 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
         : <>当前位于榜首</>,
     },
     {
-      id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: game.warehouseAvailableCapacity,
+      id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(game.warehouseAvailableCapacity),
       compactValue: formatCompactNumber(game.warehouseAvailableCapacity),
-      detail: <>已用 {game.warehouseUsedCapacity}/{game.inventoryCapacity}{game.warehouseReservedQuantity > 0 ? ` · 买单预占 ${game.warehouseReservedQuantity}` : ''}</>,
+      detail: <>已用 {formatNumber(game.warehouseUsedCapacity)}/{formatNumber(game.inventoryCapacity)}{game.warehouseReservedQuantity > 0 ? ` · 买单预占 ${formatNumber(game.warehouseReservedQuantity)}` : ''}</>,
     },
   ];
 
