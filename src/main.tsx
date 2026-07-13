@@ -19,6 +19,7 @@ import './styles/market-funds.css';
 import './styles/warehouse-expansion.css';
 import './styles/collectibles-auctions.css';
 import './styles/unified-market-admin.css';
+import './styles/virtual-list.css';
 import './styles/design-system.css';
 
 configureRuntimePerformance();
