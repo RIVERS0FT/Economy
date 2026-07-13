@@ -317,18 +317,19 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     return { status: 'loading' };
   }
 
-  const workRemaining = Math.max(0, game.work.cooldownUntil - now);
+  const loadedGame = game;
+  const workRemaining = Math.max(0, loadedGame.work.cooldownUntil - now);
   const cashShare = derived.totalAssets ? Math.round((derived.cashValue / derived.totalAssets) * 100) : 0;
   const commodityShare = derived.totalAssets ? Math.round((derived.commodityValue / derived.totalAssets) * 100) : 0;
   const facilityShare = Math.max(0, 100 - cashShare - commodityShare);
   const cashEnd = cashShare * 3.6;
   const commodityEnd = (cashShare + commodityShare) * 3.6;
   const allocationStyle: CSSProperties = { background: `conic-gradient(var(--green) 0deg ${cashEnd}deg, var(--gold) ${cashEnd}deg ${commodityEnd}deg, var(--blue) ${commodityEnd}deg 360deg)` };
-  const avatarText = (game.playerName || user.email).slice(0, 1).toUpperCase();
+  const avatarText = (loadedGame.playerName || user.email).slice(0, 1).toUpperCase();
 
   function setTab(nextTab: TabId) {
     if (nextTab === 'market' && tab !== 'market') {
-      setOrderPrice(defaultOrderPrice(game.orders, marketAssetKind, marketAssetId, orderSide));
+      setOrderPrice(defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide));
       setOrderQuantity(1);
     }
     setActiveTab(nextTab);
@@ -341,7 +342,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     if (kind === 'commodity') setSelectedProductId(assetId);
     else setSelectedFacilityTypeId(assetId);
     if (changed || tab !== 'market') {
-      setOrderPrice(defaultOrderPrice(game.orders, kind, assetId, orderSide));
+      setOrderPrice(defaultOrderPrice(loadedGame.orders, kind, assetId, orderSide));
       setOrderQuantity(1);
     }
     setActiveTab('market');
@@ -350,11 +351,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   function selectOrderSide(side: OrderSide) {
     if (side === orderSide) return;
     setOrderSideState(side);
-    setOrderPrice(defaultOrderPrice(game.orders, marketAssetKind, marketAssetId, side));
+    setOrderPrice(defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, side));
   }
 
   const model: LoadedGameViewModel = {
-    user, game, derived,
+    user, game: loadedGame, derived,
     localAssetEvents: localActivity.assetEvents,
     localTrades: localActivity.trades,
     tab, setTab, notice,
@@ -366,7 +367,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     now, workRemaining, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, allocationStyle, avatarText,
     showResult, notify, refresh,
-    clearLocalActivity: () => { setLocalActivity(clearLocalActivityStore(user.id, game)); notify('本地活动记录已清除'); },
+    clearLocalActivity: () => { setLocalActivity(clearLocalActivityStore(user.id, loadedGame)); notify('本地活动记录已清除'); },
     signOut,
     work: () => runAction('work', gameActions.work),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
