@@ -5,13 +5,17 @@ import { BRAND_LOGO_URL, BRAND_NAME, BRAND_SLOGAN } from '../config/brand';
 import type { AuthUser } from '../types';
 
 export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  async function submit(event: FormEvent) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get('email') ?? '').trim();
+    const password = String(formData.get('password') ?? '');
+
     setSubmitting(true);
     setError('');
     try {
@@ -40,9 +44,10 @@ export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUse
             账号邮箱
             <input
               autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              name="email"
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
               placeholder="请输入账号邮箱"
               required
             />
@@ -51,9 +56,8 @@ export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUse
             密码
             <input
               autoComplete="current-password"
+              name="password"
               type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
               placeholder="至少 8 位"
               required
             />
