@@ -17,7 +17,7 @@
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值和资产统计 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡和生产空间约束 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 八个正式页面、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
-| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一 SVG 图标、中文界面、响应式与可访问性 |
+| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一 SVG 图标、中文界面、响应式、移动触摸反馈与可访问性 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 桌面与移动端状态栏、移动底栏和玻璃外壳 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、API、SQLite、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地快照、资产事件和权威逐笔成交记录 |
@@ -33,3 +33,4 @@
 6. 代码与文档冲突时不得默认以较新的文件名为准；应核对当前类型、服务器实现、测试和构建检查并立即消除冲突。
 7. `scripts/verify-document-authority.mjs` 必须检查权威文件、版本号和禁止文件名；不得为了合并临时绕过或删除该检查。
 8. 未更新设计文档和防回退检查的规则变更不应合并。
+9. 移动端触控元素必须关闭浏览器原生蓝色 tap highlight，同时保留 `:focus-visible` 键盘焦点；实现统一放在 `src/styles/mobile-interaction.css`，并由 `scripts/verify-mobile-touch-feedback.mjs` 防回退。
