@@ -1,0 +1,128 @@
+/* ListView-style windowing for high-growth local and admin records. */
+.virtual-list {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  contain: strict;
+}
+
+.virtual-list:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--accent));
+  outline-offset: 2px;
+}
+
+.virtual-list__canvas {
+  position: relative;
+  width: 100%;
+  min-width: 100%;
+}
+
+.virtual-list__item {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  will-change: transform;
+}
+
+.asset-event-virtual-list {
+  padding-right: var(--space-1);
+}
+
+.virtual-record-table {
+  min-width: 0;
+  border: 1px solid var(--color-border, var(--border-subtle));
+  border-radius: var(--radius-control, var(--radius-md));
+  overflow: hidden;
+  background: var(--color-surface-inset, var(--surface-muted));
+}
+
+.virtual-record-header,
+.virtual-record-row {
+  min-width: var(--virtual-table-min-width, 720px);
+  display: grid;
+  grid-template-columns: var(--virtual-table-columns);
+  align-items: center;
+  column-gap: var(--space-2, 8px);
+}
+
+.virtual-record-header {
+  padding: 10px;
+  color: var(--color-text-muted, var(--text-muted));
+  background: var(--color-surface-raised, var(--surface-raised));
+  border-bottom: 1px solid var(--color-border, var(--border-subtle));
+  font-size: var(--font-size-xs, 0.8rem);
+  font-weight: 700;
+}
+
+.virtual-record-viewport {
+  overflow-x: auto;
+}
+
+.virtual-record-viewport .virtual-list__canvas,
+.virtual-record-viewport .virtual-list__item {
+  min-width: var(--virtual-table-min-width, 720px);
+}
+
+.virtual-record-row {
+  min-height: var(--virtual-row-height, 52px);
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--color-divider, var(--border-subtle));
+  background: var(--color-surface-inset, var(--surface-muted));
+}
+
+.virtual-record-row > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.virtual-record-row .numeric-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.virtual-record-row:last-child {
+  border-bottom: 0;
+}
+
+.local-trades-virtual-table {
+  --virtual-table-columns: minmax(64px, .65fr) minmax(150px, 1.5fr) minmax(72px, .7fr) minmax(72px, .8fr) minmax(92px, 1fr) minmax(100px, 1fr) minmax(110px, 1.1fr) minmax(130px, 1.2fr);
+  --virtual-table-min-width: 900px;
+  --virtual-row-height: 54px;
+}
+
+.admin-collectibles-virtual-table {
+  --virtual-table-columns: 70px minmax(180px, 1.5fr) minmax(130px, 1fr) minmax(160px, 1.2fr) 90px 90px minmax(150px, 1fr);
+  --virtual-table-min-width: 960px;
+  --virtual-row-height: 72px;
+}
+
+.admin-gifts-virtual-table {
+  --virtual-table-columns: 70px 100px 100px 80px 120px minmax(160px, 1.4fr) minmax(150px, 1fr);
+  --virtual-table-min-width: 840px;
+  --virtual-row-height: 58px;
+}
+
+.admin-redemptions-virtual-table {
+  --virtual-table-columns: minmax(100px, .8fr) minmax(100px, .8fr) minmax(180px, 1.4fr);
+  --virtual-table-min-width: 440px;
+  --virtual-row-height: 52px;
+}
+
+.admin-ownership-virtual-list .virtual-list__item {
+  padding-bottom: 8px;
+}
+
+@media (max-width: 720px) {
+  .virtual-list {
+    scrollbar-gutter: auto;
+  }
+
+  .asset-event-virtual-list {
+    padding-right: 0;
+  }
+}
