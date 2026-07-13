@@ -22,9 +22,6 @@ import type {
   LeaderboardEntry,
   OrderSide,
   OrderStatus,
-  ProductDefinition,
-  ProductInventory,
-  ProductMarketState,
   ProductionMode,
   TradeRecord,
 } from '../types';
@@ -52,7 +49,7 @@ export const facilityStatusReasonNames: Record<FacilityStatusReason, string> = {
   warehouse_full: '共享仓库空间不足',
   no_available_facility: '没有未冻结工厂可参与生产',
   maintenance: '系统维护',
-}
+};
 
 export const orderStatusNames: Record<OrderStatus, string> = {
   open: '等待成交',
@@ -62,29 +59,17 @@ export const orderStatusNames: Record<OrderStatus, string> = {
 };
 
 export interface DerivedGameData {
-  selectedProduct: ProductDefinition;
-  selectedInventory: ProductInventory;
-  selectedMarket: ProductMarketState;
   ownOpenOrders: AssetOrder[];
-  ownSelectedOpenOrders: AssetOrder[];
-  bids: AssetOrder[];
-  asks: AssetOrder[];
   facilityValue: number;
   commodityValue: number;
   cashValue: number;
   totalAssets: number;
   currentRank?: LeaderboardEntry;
   previousRank: LeaderboardEntry | null;
-  bestBid: number;
-  bestAsk: number;
-  spread: number;
   runningFacilities: number;
   constructingFacilities: number;
   stoppedFacilities: number;
   blockedFacilities: number;
-  averageCost: number;
-  history: number[];
-  marketTrend: number;
   inventoryUsed: number;
 }
 
@@ -99,8 +84,6 @@ export interface LoadedGameViewModel {
   tab: TabId;
   setTab: (tab: TabId) => void;
   notice: string;
-  selectedProductId: string;
-  setSelectedProductId: Dispatch<SetStateAction<string>>;
   selectedFacilityTypeId: string;
   setSelectedFacilityTypeId: Dispatch<SetStateAction<string>>;
   marketAssetKind: AssetKind;
@@ -141,7 +124,6 @@ export interface LoadedGameViewModel {
   pauseFacility: (facilityTypeId: string) => Promise<ActionResult>;
   setProductionPlan: (facilityTypeId: string, mode: ProductionMode, targetQuantity?: number) => Promise<ActionResult>;
   placeAssetOrder: (assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => Promise<ActionResult>;
-  placeCommodityOrder: (side: OrderSide, quantity: number, price: number, productId?: string) => Promise<ActionResult>;
   cancelOrder: (orderId: string) => Promise<ActionResult>;
   renamePlayer: (name: string) => Promise<ActionResult>;
   redeemGift: (code: string) => Promise<ActionResult>;
@@ -153,19 +135,6 @@ export type GameViewModelState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; model: LoadedGameViewModel };
 
-function fallbackProduct(game: EconomyState): ProductDefinition {
-  return game.products[0] ?? { id: 'grain', name: '粮食', category: 'raw', basePrice: 6 };
-}
-
-function fallbackMarket(product: ProductDefinition): ProductMarketState {
-  return {
-    productId: product.id,
-    lastPrice: product.basePrice,
-    priceHistory: [],
-    demand: { cycleMs: 300_000, nextDemandAt: 0, lastBudget: 0, lastQuantity: 0, lastPrice: product.basePrice, satisfaction: 0 },
-  };
-}
-
 export function orderKind(order: AssetOrder): AssetKind {
   return order.assetKind ?? (order.facilityTypeId ? 'facility' : 'commodity');
 }
@@ -174,53 +143,24 @@ export function orderAssetId(order: AssetOrder): string {
   return order.assetId ?? order.facilityTypeId ?? order.productId ?? 'grain';
 }
 
-function deriveGameData(game: EconomyState, requestedProductId: string, localTrades: TradeRecord[]): DerivedGameData {
-  const selectedProduct = game.products.find((product) => product.id === requestedProductId) ?? fallbackProduct(game);
-  const selectedInventory = game.inventories[selectedProduct.id] ?? { available: 0, frozen: 0 };
-  const selectedMarket = game.markets[selectedProduct.id] ?? fallbackMarket(selectedProduct);
+function deriveGameData(game: EconomyState): DerivedGameData {
   const ownOpenOrders = game.orders.filter((order) => (
     order.ownerId === game.userId && ['open', 'partial'].includes(order.status)
   ));
-  const ownSelectedOpenOrders = ownOpenOrders.filter((order) => (
-    orderKind(order) === 'commodity' && orderAssetId(order) === selectedProduct.id
-  ));
-  const bids = game.orders
-    .filter((order) => orderKind(order) === 'commodity' && orderAssetId(order) === selectedProduct.id && order.side === 'buy' && ['open', 'partial'].includes(order.status))
-    .sort((a, b) => b.price - a.price || a.createdAt - b.createdAt);
-  const asks = game.orders
-    .filter((order) => orderKind(order) === 'commodity' && orderAssetId(order) === selectedProduct.id && order.side === 'sell' && ['open', 'partial'].includes(order.status))
-    .sort((a, b) => a.price - b.price || a.createdAt - b.createdAt);
   const currentRank = game.leaderboard.find((entry) => entry.isCurrentPlayer);
   const previousRank = currentRank ? game.leaderboard.find((entry) => entry.rank === currentRank.rank - 1) ?? null : null;
-  const bestBid = bids[0]?.price ?? 0;
-  const bestAsk = asks[0]?.price ?? 0;
-  const buyTrades = localTrades.filter((trade) => trade.type === 'commodity' && trade.productId === selectedProduct.id && trade.side === 'buy');
-  const boughtQuantity = buyTrades.reduce((sum, trade) => sum + trade.quantity, 0);
-  const history = selectedMarket.priceHistory.map((point) => point.price);
   return {
-    selectedProduct,
-    selectedInventory,
-    selectedMarket,
     ownOpenOrders,
-    ownSelectedOpenOrders,
-    bids,
-    asks,
     facilityValue: game.assetSummary.facilityValue,
     commodityValue: game.assetSummary.commodityValue,
     cashValue: game.assetSummary.cashValue,
     totalAssets: game.assetSummary.totalAssets,
     currentRank,
     previousRank,
-    bestBid,
-    bestAsk,
-    spread: bestBid && bestAsk ? bestAsk - bestBid : 0,
     runningFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'running' ? group.participatingCount : 0), 0),
     constructingFacilities: game.facilityConstruction ? 1 : 0,
     stoppedFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'stopped' ? group.count : 0), 0),
     blockedFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'error' ? group.count : 0), 0),
-    averageCost: boughtQuantity ? buyTrades.reduce((sum, trade) => sum + trade.total, 0) / boughtQuantity : 0,
-    history,
-    marketTrend: history.length > 1 ? history[history.length - 1] - history[0] : 0,
     inventoryUsed: game.warehouseStoredQuantity,
   };
 }
@@ -236,7 +176,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [reloadVersion, setReloadVersion] = useState(0);
   const [tab, setActiveTab] = useState<TabId>('home');
   const [notice, setNotice] = useState('');
-  const [selectedProductId, setSelectedProductId] = useState('grain');
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
   const [marketAssetId, setMarketAssetId] = useState('grain');
@@ -277,23 +216,21 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   useEffect(() => {
     if (!game) return;
     setPlayerName(game.playerName);
-    if (!game.products.some((product) => product.id === selectedProductId)) setSelectedProductId(game.products[0]?.id ?? 'grain');
     if (!game.facilityTypes.some((facility) => facility.id === selectedFacilityTypeId)) setSelectedFacilityTypeId(game.facilityTypes[0]?.id ?? 'farm');
-  }, [game, selectedFacilityTypeId, selectedProductId]);
+  }, [game, selectedFacilityTypeId]);
   useEffect(() => {
     if (!game) return;
     if (marketAssetKind === 'commodity') {
       const product = game.products.find((item) => item.id === marketAssetId) ?? game.products[0];
       if (!product) return;
       if (product.id !== marketAssetId) setMarketAssetId(product.id);
-      if (product.id !== selectedProductId) setSelectedProductId(product.id);
       return;
     }
     const type = game.facilityTypes.find((item) => item.id === marketAssetId) ?? game.facilityTypes[0];
     if (!type) return;
     if (type.id !== marketAssetId) setMarketAssetId(type.id);
     if (type.id !== selectedFacilityTypeId) setSelectedFacilityTypeId(type.id);
-  }, [game, marketAssetId, marketAssetKind, selectedFacilityTypeId, selectedProductId]);
+  }, [game, marketAssetId, marketAssetKind, selectedFacilityTypeId]);
 
   const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
     try {
@@ -307,7 +244,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     }
   }, [acceptState, handleUnauthorized]);
 
-  const derived = useMemo(() => (game ? deriveGameData(game, selectedProductId, localActivity.trades) : null), [game, localActivity.trades, selectedProductId]);
+  const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);
   function notify(message: string) { setNotice(message); window.setTimeout(() => setNotice(''), 3_000); }
   async function showResult(actionResult: ActionResult | Promise<ActionResult>) { notify((await actionResult).message); }
   async function signOut() { try { await logout(); } finally { onSignedOut(); } }
@@ -339,8 +276,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     const changed = kind !== marketAssetKind || assetId !== marketAssetId;
     setMarketAssetKind(kind);
     setMarketAssetId(assetId);
-    if (kind === 'commodity') setSelectedProductId(assetId);
-    else setSelectedFacilityTypeId(assetId);
+    if (kind === 'facility') setSelectedFacilityTypeId(assetId);
     if (changed || tab !== 'market') {
       setOrderPrice(defaultOrderPrice(loadedGame.orders, kind, assetId, orderSide));
       setOrderQuantity(1);
@@ -359,7 +295,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     localAssetEvents: localActivity.assetEvents,
     localTrades: localActivity.trades,
     tab, setTab, notice,
-    selectedProductId, setSelectedProductId,
     selectedFacilityTypeId, setSelectedFacilityTypeId,
     marketAssetKind, marketAssetId, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
@@ -377,7 +312,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
     setProductionPlan: (facilityTypeId, mode, targetQuantity) => runAction('setProductionPlan', () => gameActions.setProductionPlan(facilityTypeId, mode, targetQuantity)),
     placeAssetOrder: (assetKind, assetId, side, quantity, price) => runAction('placeOrder', () => gameActions.placeAssetOrder(assetKind, assetId, side, quantity, price)),
-    placeCommodityOrder: (side, quantity, price, productId = selectedProductId) => runAction('placeOrder', () => gameActions.placeCommodityOrder(productId, side, quantity, price)),
     cancelOrder: (orderId) => runAction('cancelOrder', () => gameActions.cancelOrder(orderId)),
     renamePlayer: (name) => runAction('renamePlayer', () => gameActions.renamePlayer(name)),
     redeemGift: (code) => runAction('redeemGift', () => gameActions.redeemGift(code)),
