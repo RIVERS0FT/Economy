@@ -12,6 +12,7 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
+import { VirtualList } from '../components/ui/VirtualList';
 import type { AssetEvent, AssetEventCategory } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 
@@ -158,9 +159,20 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
             ))}
           </div>
 
-          <div className="asset-event-list">
-            {filteredEvents.map((event) => (
-              <article className="asset-event-card" key={event.id}>
+          <VirtualList
+            key={eventFilter}
+            items={filteredEvents}
+            getKey={(event) => event.id}
+            estimateSize={190}
+            viewportHeight={720}
+            minViewportHeight={128}
+            overscan={3}
+            gap={8}
+            className="asset-event-virtual-list"
+            ariaLabel="本地资产变动列表"
+            empty={<EmptyState>当前浏览器在该筛选条件下暂无资产变化。</EmptyState>}
+            renderItem={(event) => (
+              <article className="asset-event-card">
                 <header>
                   <div>
                     <strong>{event.description}</strong>
@@ -241,9 +253,8 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                     && !event.productionChanges.length ? <span><strong>状态已更新</strong></span> : null}
                 </div>
               </article>
-            ))}
-            {filteredEvents.length === 0 ? <EmptyState>当前浏览器在该筛选条件下暂无资产变化。</EmptyState> : null}
-          </div>
+            )}
+          />
         </Panel>
       </div>
     </PageLayout>
