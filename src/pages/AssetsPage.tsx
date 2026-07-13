@@ -13,7 +13,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import type { AssetEvent, AssetEventCategory } from '../types';
-import { formatCurrency, formatTime } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 
 type AssetEventFilter = 'all' | 'cash' | 'inventory' | 'warehouse' | 'facility' | 'production' | 'order';
 
@@ -58,7 +58,7 @@ function signedCurrency(value: number) {
 }
 
 function signedQuantity(value: number) {
-  return `${value > 0 ? '+' : ''}${value}`;
+  return `${value > 0 ? '+' : value < 0 ? '-' : ''}${formatNumber(Math.abs(value))}`;
 }
 
 function matchesFilter(event: AssetEvent, filter: AssetEventFilter) {
@@ -104,8 +104,8 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         <MetricCard label="可用资金" value={`¤ ${formatCurrency(game.credits)}`} tone="success" />
         <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} detail="用于未完成买单" tone="warning" />
         <MetricCard label="当前总资产" value={`¤ ${formatCurrency(derived.totalAssets)}`} tone="success" />
-        <MetricCard label="商品资产" value={`¤ ${formatCurrency(derived.commodityValue)}`} detail={`冻结商品 ${frozenInventory}`} />
-        <MetricCard label="工厂资产" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${totalFacilities} 座工厂`} tone="info" />
+        <MetricCard label="商品资产" value={`¤ ${formatCurrency(derived.commodityValue)}`} detail={`冻结商品 ${formatNumber(frozenInventory)}`} />
+        <MetricCard label="工厂资产" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${formatNumber(totalFacilities)} 座工厂`} tone="info" />
       </div>
 
       <div className="asset-overview-grid">
@@ -127,9 +127,9 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
             <MetricCard
               label="全部商品估值"
               value={`¤ ${formatCurrency(derived.commodityValue)}`}
-              detail={`可用与冻结商品合计 ${game.warehouseStoredQuantity}`}
+              detail={`可用与冻结商品合计 ${formatNumber(game.warehouseStoredQuantity)}`}
             />
-            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${totalFacilities} 座，按各类型最高有效买价计算`} tone="info" />
+            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${formatNumber(totalFacilities)} 座，按各类型最高有效买价计算`} tone="info" />
           </div>
         </Panel>
 
@@ -138,7 +138,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
             title="本地资产变动"
             action={
               <div className="ui-inline-actions">
-                <StatusTag>{localAssetEvents.length} 条</StatusTag>
+                <StatusTag>{formatNumber(localAssetEvents.length)} 条</StatusTag>
                 <Button variant="compact" onClick={clearLocalActivity} disabled={localAssetEvents.length === 0}>清除本地记录</Button>
               </div>
             }
@@ -200,15 +200,15 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                         {change.availableDelta && change.frozenDelta ? ' · ' : ''}
                         {change.frozenDelta ? `冻结 ${signedQuantity(change.frozenDelta)}` : ''}
                       </strong>
-                      <small>当前 {change.availableAfter} · 冻结 {change.frozenAfter}</small>
+                      <small>当前 {formatNumber(change.availableAfter)} · 冻结 {formatNumber(change.frozenAfter)}</small>
                     </span>
                   ))}
                   {event.warehouseChange ? (
                     <span>
                       共享仓库
-                      <strong>等级 {event.warehouseChange.beforeLevel} → {event.warehouseChange.afterLevel}</strong>
+                      <strong>等级 {formatNumber(event.warehouseChange.beforeLevel)} → {formatNumber(event.warehouseChange.afterLevel)}</strong>
                       <small>
-                        容量 {event.warehouseChange.beforeCapacity} → {event.warehouseChange.afterCapacity}
+                        容量 {formatNumber(event.warehouseChange.beforeCapacity)} → {formatNumber(event.warehouseChange.afterCapacity)}
                         {event.warehouseChange.capacityDelta ? ` · ${signedQuantity(event.warehouseChange.capacityDelta)}` : ''}
                       </small>
                     </span>
@@ -226,9 +226,9 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   {event.productionChanges.map((change) => (
                     <span key={`${event.id}-${change.facilityTypeId}-${change.action}`}>
                       <ProductIconLabel productId={change.outputProductId ?? 'unknown'}>{productName(change.outputProductId)}</ProductIconLabel>
-                      <strong>{change.facilityName ?? '生产'} · 产出入仓 {change.outputQuantity}</strong>
+                      <strong>{change.facilityName ?? '生产'} · 产出入仓 {formatNumber(change.outputQuantity)}</strong>
                       <small>
-                        {change.inputQuantity > 0 ? `消耗 ${change.inputQuantity} ${productName(change.inputProductId)} · ` : ''}
+                        {change.inputQuantity > 0 ? `消耗 ${formatNumber(change.inputQuantity)} ${productName(change.inputProductId)} · ` : ''}
                         已直接进入共享仓库
                       </small>
                     </span>
