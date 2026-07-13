@@ -39,12 +39,13 @@ for (const text of [
   'const [tab, setActiveTab] = useState<TabId>(\'home\');',
   'const [orderSide, setOrderSideState] = useState<OrderSide>(\'buy\');',
   'const [orderPrice, setOrderPrice] = useState(1);',
+  'const loadedGame = game;',
   "if (nextTab === 'market' && tab !== 'market')",
-  'defaultOrderPrice(game.orders, marketAssetKind, marketAssetId, orderSide)',
+  'defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide)',
   'if (changed || tab !== \'market\')',
-  'defaultOrderPrice(game.orders, kind, assetId, orderSide)',
+  'defaultOrderPrice(loadedGame.orders, kind, assetId, orderSide)',
   'function selectOrderSide(side: OrderSide)',
-  'defaultOrderPrice(game.orders, marketAssetKind, marketAssetId, side)',
+  'defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, side)',
 ]) requireText('src/app/gameViewModel.ts', text);
 for (const text of [
   'const [orderPrice, setOrderPrice] = useState(6);',
