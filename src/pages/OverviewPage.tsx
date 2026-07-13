@@ -13,7 +13,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import { economyConstants } from '../config/economy';
-import { formatCurrency, formatDuration, formatTime } from '../utils/formatters';
+import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 
 export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
   const { game, derived, localTrades, workRemaining, work, showResult, setTab, selectMarketAsset } = model;
@@ -30,7 +30,7 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
       description="管理多商品产业链与工厂集群，并通过统一资产订单簿提高总资产排名。"
       actions={(
         <>
-          <StatusTag>{`未完成订单 ${derived.ownOpenOrders.length}/${economyConstants.maxOpenOrders}`}</StatusTag>
+          <StatusTag>{`未完成订单 ${formatNumber(derived.ownOpenOrders.length)}/${formatNumber(economyConstants.maxOpenOrders)}`}</StatusTag>
           <Button onClick={() => setTab('market')}>进入市场</Button>
         </>
       )}
@@ -51,17 +51,17 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
             action={<Button variant="text" onClick={() => setTab('market')}>查看全部资产 →</Button>}
           />
           <div className="market-quote-grid">
-            <MetricCard label="最近成交" value={`¤ ${derived.selectedMarket.lastPrice}`} />
-            <MetricCard tone="success" label="最高买价" value={`¤ ${derived.bestBid || '--'}`} />
-            <MetricCard tone="danger" label="最低卖价" value={`¤ ${derived.bestAsk || '--'}`} />
-            <MetricCard label="持仓" value={derived.selectedInventory.available} detail={`冻结 ${derived.selectedInventory.frozen}`} />
+            <MetricCard label="最近成交" value={`¤ ${formatCurrency(derived.selectedMarket.lastPrice)}`} />
+            <MetricCard tone="success" label="最高买价" value={derived.bestBid ? `¤ ${formatCurrency(derived.bestBid)}` : '¤ --'} />
+            <MetricCard tone="danger" label="最低卖价" value={derived.bestAsk ? `¤ ${formatCurrency(derived.bestAsk)}` : '¤ --'} />
+            <MetricCard label="持仓" value={formatNumber(derived.selectedInventory.available)} detail={`冻结 ${formatNumber(derived.selectedInventory.frozen)}`} />
           </div>
           <PriceSparkline values={derived.history.slice(-24)} />
           <div className="overview-product-strip">
             {game.products.map((product) => (
               <button type="button" key={product.id} onClick={() => selectMarketAsset('commodity', product.id)}>
                 <ProductIconLabel productId={product.id}>{product.name}</ProductIconLabel>
-                <strong>¤ {game.markets[product.id]?.lastPrice ?? product.basePrice}</strong>
+                <strong>¤ {formatCurrency(game.markets[product.id]?.lastPrice ?? product.basePrice)}</strong>
               </button>
             ))}
           </div>
@@ -70,13 +70,13 @@ export function OverviewPage({ model }: { model: LoadedGameViewModel }) {
         <Panel className="widget production-summary">
           <WidgetHeading title="生产摘要" action={<Button variant="text" onClick={() => setTab('production')}>管理工厂</Button>} />
           <DataList>
-            <DataRow label="工厂总数" value={totalFacilities} tone="info" />
-            <DataRow label="运行参与" value={derived.runningFacilities} tone="success" />
-            <DataRow label="下一周期加入" value={pendingJoin} tone={pendingJoin ? 'warning' : 'neutral'} />
-            <DataRow label="阻塞工厂" value={derived.blockedFacilities} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
-            <DataRow label="施工中的工厂" value={derived.constructingFacilities} tone="warning" />
-            <DataRow label="定量计划" value={`${plannedGroups} 组 / 剩余 ${pendingPlans}`} tone="info" />
-            <DataRow label="共享仓库剩余" value={game.warehouseAvailableCapacity} tone={game.warehouseAvailableCapacity > 0 ? 'success' : 'danger'} />
+            <DataRow label="工厂总数" value={formatNumber(totalFacilities)} tone="info" />
+            <DataRow label="运行参与" value={formatNumber(derived.runningFacilities)} tone="success" />
+            <DataRow label="下一周期加入" value={formatNumber(pendingJoin)} tone={pendingJoin ? 'warning' : 'neutral'} />
+            <DataRow label="阻塞工厂" value={formatNumber(derived.blockedFacilities)} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
+            <DataRow label="施工中的工厂" value={formatNumber(derived.constructingFacilities)} tone="warning" />
+            <DataRow label="定量计划" value={`${formatNumber(plannedGroups)} 组 / 剩余 ${formatNumber(pendingPlans)}`} tone="info" />
+            <DataRow label="共享仓库剩余" value={formatNumber(game.warehouseAvailableCapacity)} tone={game.warehouseAvailableCapacity > 0 ? 'success' : 'danger'} />
           </DataList>
         </Panel>
 
