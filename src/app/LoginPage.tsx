@@ -35,7 +35,7 @@ export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUse
       </section>
 
       <section className="login-card panel">
-        <form onSubmit={submit} className="login-form">
+        <form onSubmit={submit} className="login-form" aria-busy={submitting}>
           <label>
             账号邮箱
             <input

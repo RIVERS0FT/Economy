@@ -167,7 +167,6 @@ html[data-app-surface="auth"] #root {
     font-size: clamp(2.7rem, 12.5vw, 3.9rem);
     line-height: 0.92;
     letter-spacing: -0.055em;
-    transition: font-size var(--motion-normal) ease, line-height var(--motion-normal) ease;
   }
 
   .login-card {
@@ -193,21 +192,12 @@ html[data-app-surface="auth"] #root {
   .login-form .ui-button {
     min-height: 48px;
     margin-top: var(--space-1);
+    white-space: nowrap;
   }
 
   .form-error {
     font-size: var(--font-size-sm);
     line-height: 1.45;
-  }
-
-  .login-shell:focus-within {
-    --auth-section-gap: var(--space-3);
-    align-content: start;
-  }
-
-  .login-shell:focus-within .login-brand h1 {
-    font-size: clamp(2.15rem, 9.5vw, 3rem);
-    line-height: 0.96;
   }
 
   .auth-service-warning {
@@ -225,15 +215,8 @@ html[data-app-surface="auth"] #root {
     align-content: start;
   }
 
-  .login-brand h1,
-  .login-shell:focus-within .login-brand h1 {
+  .login-brand h1 {
     font-size: clamp(2rem, 8vw, 2.6rem);
     line-height: 0.96;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .login-brand h1 {
-    transition: none;
   }
 }
