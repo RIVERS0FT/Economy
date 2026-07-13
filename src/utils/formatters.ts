@@ -24,12 +24,16 @@ export function setCompactNumbersEnabled(enabled: boolean) {
   compactNumbersEnabled = enabled;
 }
 
-export function formatCurrency(value: number) {
+export function formatNumber(value: number) {
   return compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value);
 }
 
+export function formatCurrency(value: number) {
+  return formatNumber(value);
+}
+
 export function formatCompactNumber(value: number) {
-  return compactNumbersEnabled ? formatAbbreviatedNumber(value) : formatFullNumber(value);
+  return formatNumber(value);
 }
 
 export function formatTime(value: number) {
