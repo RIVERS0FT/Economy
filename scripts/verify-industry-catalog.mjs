@@ -54,10 +54,12 @@ assert.doesNotMatch(marketPage, />▣</, '商品市场标签不得恢复字符�
 
 const overviewPage = readFileSync('src/pages/OverviewPage.tsx', 'utf8');
 assert.match(overviewPage, /ProductIconLabel/);
-assert.match(overviewPage, /productId=\{derived\.selectedProduct\.id\}/);
+assert.match(overviewPage, /productId=\{overviewMarket\.product\.id\}/);
 assert.match(overviewPage, /game\.products\.map\(\(product\) => <option key=\{product\.id\} value=\{product\.id\}>\{product\.name\}<\/option>\)/);
-assert.match(overviewPage, /value=\{selectedProductId\}/);
-assert.match(overviewPage, /setSelectedProductId\(event\.target\.value\)/);
+assert.match(overviewPage, /const \[overviewProductId, setOverviewProductId\] = useState/);
+assert.match(overviewPage, /value=\{overviewMarket\?\.product\.id \?\? ''\}/);
+assert.match(overviewPage, /setOverviewProductId\(event\.target\.value\)/);
+assert.doesNotMatch(overviewPage, /selectedProductId/);
 assert.doesNotMatch(overviewPage, /overview-product-strip/);
 
 const warehouseCard = readFileSync('src/components/warehouse/WarehouseUpgradeCard.tsx', 'utf8');
@@ -99,4 +101,4 @@ for (const [path, required] of [
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：12 种商品、12 种工厂、全商品 SVG、仅有库存仓库卡、未知商品回退和动态目录布局均满足设计。');
+console.log('产业目录验证通过：12 种商品、12 种工厂、全商品 SVG、概览局部选择、仅有库存仓库卡、未知商品回退和动态目录布局均满足设计。');
