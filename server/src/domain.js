@@ -284,7 +284,7 @@ function seedOrders(now) {
       side: 'buy',
       ownerType: 'market',
       ownerName: '市场流动采购',
-      price: Math.max(1, product.basePrice - 2),
+      price: Math.max(1, product.basePrice - 1),
       quantity: 18,
       remaining: 18,
       status: 'open',
@@ -296,7 +296,7 @@ function seedOrders(now) {
       side: 'sell',
       ownerType: 'market',
       ownerName: '市场流动供给',
-      price: product.basePrice + 2,
+      price: product.basePrice + 1,
       quantity: 14,
       remaining: 14,
       status: 'open',
@@ -711,23 +711,52 @@ function createPopulationDemand(world, productId, now) {
   market.demand.satisfaction = quantity === 0 ? 1 : Math.max(0.2, Math.min(1, (quantity - order.remaining) / quantity));
 }
 
+function commodityBookPrices(world, productId) {
+  let bestBid;
+  let bestAsk;
+  for (const order of world.orders || []) {
+    const price = Number(order.price);
+    if (order.productId !== productId || !isOpenOrder(order) || !Number.isInteger(price) || price < 1) continue;
+    if (order.side === 'buy') bestBid = bestBid === undefined ? price : Math.max(bestBid, price);
+    if (order.side === 'sell') bestAsk = bestAsk === undefined ? price : Math.min(bestAsk, price);
+  }
+  return { bestBid, bestAsk };
+}
+
+function commodityLiquidityPrices(product, bestBid, bestAsk) {
+  let buyPrice = bestBid ?? (bestAsk === undefined ? Math.max(1, product.basePrice - 1) : bestAsk - 1);
+  let sellPrice = bestAsk ?? (bestBid === undefined ? product.basePrice + 1 : bestBid + 1);
+
+  if (bestAsk !== undefined) buyPrice = Math.min(buyPrice, bestAsk - 1);
+  if (bestBid !== undefined) sellPrice = Math.max(sellPrice, bestBid + 1);
+
+  return {
+    buyPrice: Number.isInteger(buyPrice) && buyPrice >= 1 ? buyPrice : null,
+    sellPrice: Math.max(1, Math.floor(sellPrice)),
+  };
+}
+
 function refreshExternalLiquidity(world, now) {
   for (const product of PRODUCT_CATALOG) {
-    const market = marketFor(world, product.id);
     const openBuy = world.orders.filter((order) => (
       order.productId === product.id && order.ownerType === 'market' && order.side === 'buy' && isOpenOrder(order)
     ));
     const openSell = world.orders.filter((order) => (
       order.productId === product.id && order.ownerType === 'market' && order.side === 'sell' && isOpenOrder(order)
     ));
-    if (openBuy.length < 1) {
+    if (openBuy.length > 0 && openSell.length > 0) continue;
+
+    const { bestBid, bestAsk } = commodityBookPrices(world, product.id);
+    const { buyPrice, sellPrice } = commodityLiquidityPrices(product, bestBid, bestAsk);
+
+    if (openBuy.length < 1 && buyPrice !== null) {
       const order = {
         id: createId('market-order'),
         productId: product.id,
         side: 'buy',
         ownerType: 'market',
         ownerName: '市场流动采购',
-        price: Math.max(1, market.lastPrice - 2),
+        price: buyPrice,
         quantity: 18,
         remaining: 18,
         status: 'open',
@@ -743,7 +772,7 @@ function refreshExternalLiquidity(world, now) {
         side: 'sell',
         ownerType: 'market',
         ownerName: '市场流动供给',
-        price: market.lastPrice + 2,
+        price: sellPrice,
         quantity: 14,
         remaining: 14,
         status: 'open',

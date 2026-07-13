@@ -199,7 +199,7 @@ function migrateLegacyListings(world) {
   for (const listing of legacyListings) {
     const typeId = String(listing.facilityTypeId || listing.facility?.facilityTypeId || 'farm');
     const type = typeFor(typeId);
-    if (!type || world.orders.some((order) => order.id === listing.id)) continue;
+    if (!type || listing.ownerType !== 'player' || world.orders.some((order) => order.id === listing.id)) continue;
     const quantity = Math.max(1, Math.floor(Number(listing.quantity || 1)));
     world.orders.push({
       id: String(listing.id || `facility-order-${type.id}-${world.orders.length}`),
@@ -218,6 +218,13 @@ function migrateLegacyListings(world) {
     });
   }
   world.facilityListings = [];
+}
+
+export function removeSystemFacilityOrders(world) {
+  world.orders = (world.orders || []).filter((order) => !(
+    orderKind(order) === 'facility' && order.ownerType === 'market'
+  ));
+  return world;
 }
 
 function migrateLegacyPlayer(player, now) {
@@ -282,6 +289,7 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
   world.players ||= {};
   world.orders ||= [];
   migrateLegacyListings(world);
+  removeSystemFacilityOrders(world);
   world.facilityMarkets ||= {};
   for (const type of FACILITY_TYPE_CATALOG) facilityMarketFor(world, type.id, now);
   for (const player of Object.values(world.players)) migrateLegacyPlayer(player, now);
@@ -653,64 +661,17 @@ function matchFacilityOrder(world, incoming, createdAt) {
   }
 }
 
-function refreshFacilityLiquidity(world, now) {
-  for (const type of FACILITY_TYPE_CATALOG) {
-    const market = facilityMarketFor(world, type.id, now);
-    const openBuy = facilityOrders(world, type.id).filter((order) => (
-      order.ownerType === 'market' && order.side === 'buy' && isOpenOrder(order)
-    ));
-    const openSell = facilityOrders(world, type.id).filter((order) => (
-      order.ownerType === 'market' && order.side === 'sell' && isOpenOrder(order)
-    ));
-    if (openBuy.length < 1) {
-      const order = {
-        id: `facility-market-buy-${type.id}-${crypto.randomUUID()}`,
-        assetKind: 'facility',
-        assetId: type.id,
-        facilityTypeId: type.id,
-        side: 'buy',
-        ownerType: 'market',
-        ownerName: '系统资产采购',
-        price: Math.max(1, Math.floor(market.lastPrice * 0.9)),
-        quantity: 3,
-        remaining: 3,
-        status: 'open',
-        createdAt: now,
-      };
-      world.orders.push(order);
-      matchFacilityOrder(world, order, now);
-    }
-    if (openSell.length < 1) {
-      const order = {
-        id: `facility-market-sell-${type.id}-${crypto.randomUUID()}`,
-        assetKind: 'facility',
-        assetId: type.id,
-        facilityTypeId: type.id,
-        side: 'sell',
-        ownerType: 'market',
-        ownerName: '系统资产供给',
-        price: Math.max(1, Math.ceil(market.lastPrice * 1.1)),
-        quantity: 2,
-        remaining: 2,
-        status: 'open',
-        createdAt: now,
-      };
-      world.orders.push(order);
-      matchFacilityOrder(world, order, now);
-    }
-  }
-}
-
 export function processFacilityGroupWorld(world, now = Date.now()) {
+  removeSystemFacilityOrders(world);
   migrateFacilityGroupWorld(world, now);
   withLegacyFacilitiesSuppressed(world, () => processWorld(world, now));
   migrateFacilityGroupWorld(world, now);
+  removeSystemFacilityOrders(world);
   for (const player of Object.values(world.players || {})) {
     ensureWarehouse(player);
     finishConstruction(player, now);
     for (const group of player.facilityGroups || []) processGroup(world, player, group, now);
   }
-  refreshFacilityLiquidity(world, now);
   reconcileAllFacilityGroups(world, now);
   stripLegacyFacilityInstances(world);
   world.lastProcessedAt = now;
