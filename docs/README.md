@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-13  
+> 更新时间：2026-07-14  
 > 客户端状态版本：11  
 > 世界状态版本：7
 
@@ -21,7 +21,7 @@
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 桌面与移动端状态栏、移动底栏和玻璃外壳 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、API、SQLite、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地快照、资产事件和权威逐笔成交记录 |
-| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖、管理员权限和后台范围 |
+| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖、管理员权限和后台范围 |
 
 ## 修改规则
 
