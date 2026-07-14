@@ -29,15 +29,17 @@ export type GiftCodeBatchResult = GiftCodeCreationPayload & {
   note: string;
 };
 
-function requestKey() {
+export function createAdminRequestKey() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   return `admin-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, idempotencyKey?: string): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body) headers.set('Content-Type', 'application/json');
-  if (init?.method && init.method !== 'GET') headers.set('Idempotency-Key', requestKey());
+  if (init?.method && init.method !== 'GET') {
+    headers.set('Idempotency-Key', idempotencyKey || createAdminRequestKey());
+  }
   const response = await fetch(`${ADMIN_API_BASE}${path}`, { ...init, credentials: 'include', headers });
   if (!response.ok) {
     let message = '管理员接口请求失败';
@@ -53,17 +55,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const adminApi = {
   summary: async () => (await request<{ summary: ExtendedAdminSummary }>('/summary', { method: 'GET' })).summary,
   giftCodes: async () => (await request<{ giftCodes: GiftCodeAdminRecord[] }>('/gift-codes', { method: 'GET' })).giftCodes,
-  createGiftCode: async (payload: GiftCodeCreationPayload & { code?: string }) => (
+  createGiftCode: async (payload: GiftCodeCreationPayload & { code?: string }, idempotencyKey?: string) => (
     await request<{ giftCode: { id: number; code: string } & GiftCodeCreationPayload }>('/gift-codes', {
       method: 'POST',
       body: JSON.stringify(payload),
-    })
+    }, idempotencyKey)
   ).giftCode,
-  createGiftCodeBatch: async (payload: GiftCodeCreationPayload & { count: number }) => (
+  createGiftCodeBatch: async (payload: GiftCodeCreationPayload & { count: number }, idempotencyKey?: string) => (
     await request<{ result: GiftCodeBatchResult }>('/gift-codes/batch', {
       method: 'POST',
       body: JSON.stringify(payload),
-    })
+    }, idempotencyKey)
   ).result,
   disableGiftCode: (id: number) => request<{ ok: boolean; id: number }>(`/gift-codes/${id}/disable`, { method: 'POST' }),
   redemptions: async (id: number) => (await request<{ redemptions: Array<{ user_id: number; reward_credits: number; redeemed_at: number }> }>(`/gift-codes/${id}/redemptions`, { method: 'GET' })).redemptions,
