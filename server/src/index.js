@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { authenticateRequest } from './auth.js';
+import { configureGiftCodeAdminStore, createGiftCodeBatch } from './gift-code-batch.js';
 import { checkRateLimit } from './rateLimit.js';
 import { EconomyStore } from './storage.js';
 
@@ -7,6 +8,7 @@ const port = Number(process.env.PORT || 3002);
 const databasePath = process.env.ECONOMY_DB_PATH || '/var/lib/riversoft-economy/economy.sqlite';
 const publicOrigin = process.env.PUBLIC_ORIGIN || 'https://game.riversoft.top';
 const store = new EconomyStore(databasePath);
+configureGiftCodeAdminStore(store);
 
 function sendJson(response, statusCode, payload) {
   const body = JSON.stringify(payload);
@@ -183,6 +185,14 @@ const server = createServer(async (request, response) => {
         const body = await readJson(request);
         sendJson(response, 200, {
           giftCode: store.createGiftCode(user, body, { requestKey, method, path }),
+        });
+        return;
+      }
+      if (method === 'POST' && path === '/api/game/admin/gift-codes/batch') {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, {
+          result: createGiftCodeBatch(store, user, body, { requestKey, method, path }),
         });
         return;
       }
