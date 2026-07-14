@@ -1,5 +1,6 @@
-import { type ChangeEvent, useCallback, useEffect, useState } from 'react';
-import { adminApi, type ExtendedAdminSummary } from '../api/admin';
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { adminApi, createAdminRequestKey, type ExtendedAdminSummary } from '../api/admin';
+import { GameApiError } from '../api/game';
 import type {
   CollectibleAdminRecord,
   CollectibleImportRecord,
@@ -49,7 +50,7 @@ function downloadGiftCodes(codes: string[]) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
 export function AdminApp({ user }: { user: AuthUser }) {
@@ -66,6 +67,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
   const [note, setNote] = useState('');
   const [createdCodes, setCreatedCodes] = useState<string[]>([]);
   const [creatingGift, setCreatingGift] = useState(false);
+  const giftRequestKeyRef = useRef('');
   const [redemptions, setRedemptions] = useState<Array<{ user_id: number; reward_credits: number; redeemed_at: number }>>([]);
   const [selectedGiftId, setSelectedGiftId] = useState<number | null>(null);
   const [importItems, setImportItems] = useState<CollectibleImportRecord[]>([]);
@@ -96,6 +98,10 @@ export function AdminApp({ user }: { user: AuthUser }) {
     return <main className="admin-shell admin-denied"><section><h1>无权访问</h1><p>当前账号不是 Economy 管理员。</p><a href="/economy/">返回游戏</a></section></main>;
   }
 
+  function resetGiftRequestKey() {
+    giftRequestKeyRef.current = '';
+  }
+
   async function createGift() {
     if (creatingGift) return;
     if (!Number.isInteger(giftCount) || giftCount < 1 || giftCount > 50_000) {
@@ -103,6 +109,8 @@ export function AdminApp({ user }: { user: AuthUser }) {
       return;
     }
 
+    const requestKey = giftRequestKeyRef.current || createAdminRequestKey();
+    giftRequestKeyRef.current = requestKey;
     setCreatingGift(true);
     try {
       const payload = {
@@ -112,14 +120,18 @@ export function AdminApp({ user }: { user: AuthUser }) {
         note,
       };
       const nextCodes = giftCount === 1
-        ? [(await adminApi.createGiftCode({ ...payload, code: code.trim() || undefined })).code]
-        : (await adminApi.createGiftCodeBatch({ ...payload, count: giftCount })).codes;
+        ? [(await adminApi.createGiftCode({ ...payload, code: code.trim() || undefined }, requestKey)).code]
+        : (await adminApi.createGiftCodeBatch({ ...payload, count: giftCount }, requestKey)).codes;
+      giftRequestKeyRef.current = '';
       setCreatedCodes(nextCodes);
       setCode('');
       setNotice(`已创建 ${nextCodes.length} 个礼品码。明文仅保留在本次页面中，请立即下载 TXT。`);
-      await load();
+      void load();
     } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : '创建礼品码失败');
+      if (reason instanceof GameApiError) giftRequestKeyRef.current = '';
+      setNotice(reason instanceof GameApiError
+        ? reason.message
+        : '请求连接中断；保持参数不变再次点击，会使用同一幂等键安全重试本批次。');
     } finally {
       setCreatingGift(false);
     }
@@ -222,12 +234,12 @@ export function AdminApp({ user }: { user: AuthUser }) {
 
         <article className="admin-panel">
           <h2>创建礼品码</h2>
-          <label>生成数量（最多 50000）<input type="number" min="1" max="50000" step="1" value={giftCount} onChange={(event) => setGiftCount(Number(event.target.value))} /></label>
-          <label>指定兑换码（仅生成 1 个时可用）<input value={code} maxLength={64} disabled={giftCount !== 1} onChange={(event: ChangeEvent<HTMLInputElement>) => setCode(event.target.value.toUpperCase())} placeholder="RIVER-XXXX-XXXX" /></label>
-          <label>奖励货币<input type="number" min="1" max="1000000" value={rewardCredits} onChange={(event) => setRewardCredits(Number(event.target.value))} /></label>
-          <label>每码最大兑换次数<input type="number" min="1" max="1000000" value={maxRedemptions} onChange={(event) => setMaxRedemptions(Number(event.target.value))} /></label>
-          <label>过期时间（可选）<input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
-          <label>管理备注<textarea value={note} maxLength={240} onChange={(event) => setNote(event.target.value)} /></label>
+          <label>生成数量（最多 50000）<input type="number" min="1" max="50000" step="1" value={giftCount} onChange={(event) => { resetGiftRequestKey(); setGiftCount(Number(event.target.value)); }} /></label>
+          <label>指定兑换码（仅生成 1 个时可用）<input value={code} maxLength={64} disabled={giftCount !== 1} onChange={(event: ChangeEvent<HTMLInputElement>) => { resetGiftRequestKey(); setCode(event.target.value.toUpperCase()); }} placeholder="RIVER-XXXX-XXXX" /></label>
+          <label>奖励货币<input type="number" min="1" max="1000000" value={rewardCredits} onChange={(event) => { resetGiftRequestKey(); setRewardCredits(Number(event.target.value)); }} /></label>
+          <label>每码最大兑换次数<input type="number" min="1" max="1000000" value={maxRedemptions} onChange={(event) => { resetGiftRequestKey(); setMaxRedemptions(Number(event.target.value)); }} /></label>
+          <label>过期时间（可选）<input type="datetime-local" value={expiresAt} onChange={(event) => { resetGiftRequestKey(); setExpiresAt(event.target.value); }} /></label>
+          <label>管理备注<textarea value={note} maxLength={240} onChange={(event) => { resetGiftRequestKey(); setNote(event.target.value); }} /></label>
           <button type="button" disabled={creatingGift} onClick={() => void createGift()}>{creatingGift ? '正在生成…' : giftCount > 1 ? `批量生成 ${giftCount || 0} 个` : '创建礼品码'}</button>
           {createdCodes.length > 0 ? (
             <div className="created-gift-code" aria-live="polite">
