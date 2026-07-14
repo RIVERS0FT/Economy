@@ -36,6 +36,8 @@ for (const text of [
   'createGiftCodeBatch',
   "'/gift-codes/batch'",
   'GiftCodeBatchResult',
+  'createAdminRequestKey',
+  'idempotencyKey || createAdminRequestKey()',
 ]) requireText('src/api/admin.ts', text);
 
 for (const text of [
@@ -45,6 +47,8 @@ for (const text of [
   '.txt`',
   '下载 TXT',
   '批量结果不逐条显示',
+  'giftRequestKeyRef',
+  '使用同一幂等键安全重试本批次',
 ]) requireText('src/app/AdminApp.tsx', text);
 
 for (const text of [
