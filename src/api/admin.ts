@@ -13,6 +13,22 @@ export type ExtendedAdminSummary = AdminSummary & {
   openAuctionCount: number;
 };
 
+export type GiftCodeCreationPayload = {
+  rewardCredits: number;
+  maxRedemptions: number;
+  startsAt?: number;
+  expiresAt?: number | null;
+  note?: string;
+};
+
+export type GiftCodeBatchResult = GiftCodeCreationPayload & {
+  createdCount: number;
+  codes: string[];
+  startsAt: number;
+  expiresAt: number | null;
+  note: string;
+};
+
 function requestKey() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   return `admin-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -37,17 +53,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const adminApi = {
   summary: async () => (await request<{ summary: ExtendedAdminSummary }>('/summary', { method: 'GET' })).summary,
   giftCodes: async () => (await request<{ giftCodes: GiftCodeAdminRecord[] }>('/gift-codes', { method: 'GET' })).giftCodes,
-  createGiftCode: async (payload: {
-    code?: string;
-    rewardCredits: number;
-    maxRedemptions: number;
-    startsAt?: number;
-    expiresAt?: number | null;
-    note?: string;
-  }) => (await request<{ giftCode: { id: number; code: string } & typeof payload }>('/gift-codes', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })).giftCode,
+  createGiftCode: async (payload: GiftCodeCreationPayload & { code?: string }) => (
+    await request<{ giftCode: { id: number; code: string } & GiftCodeCreationPayload }>('/gift-codes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  ).giftCode,
+  createGiftCodeBatch: async (payload: GiftCodeCreationPayload & { count: number }) => (
+    await request<{ result: GiftCodeBatchResult }>('/gift-codes/batch', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  ).result,
   disableGiftCode: (id: number) => request<{ ok: boolean; id: number }>(`/gift-codes/${id}/disable`, { method: 'POST' }),
   redemptions: async (id: number) => (await request<{ redemptions: Array<{ user_id: number; reward_credits: number; redeemed_at: number }> }>(`/gift-codes/${id}/redemptions`, { method: 'GET' })).redemptions,
   collectibles: async () => (await request<{ collectibles: CollectibleAdminRecord[] }>('/collectibles', { method: 'GET' })).collectibles,
