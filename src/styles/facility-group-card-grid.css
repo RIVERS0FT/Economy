@@ -111,25 +111,6 @@
   text-align: left;
 }
 
-.facility-formula-next-cycle {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.2rem var(--space-1);
-  border-top: 1px solid var(--color-divider);
-  padding-top: var(--space-2);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: 1.35;
-  text-align: center;
-}
-
-.facility-formula-next-cycle strong {
-  color: var(--color-text-secondary);
-}
-
 .facility-group-list > .empty-state {
   grid-column: 1 / -1;
 }

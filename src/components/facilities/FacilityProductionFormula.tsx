@@ -172,30 +172,6 @@ export function FacilityProductionFormula({
         <div className="facility-formula-progress">
           <FacilityGroupProgress group={group} type={type} now={now} />
         </div>
-
-        <div className="facility-formula-summary">
-          {activeCount > 0 ? (
-            <>
-              <span>当前周期 × {formatNumber(activeCount)} 座</span>
-              {inputs.length > 0 ? <span>消耗 {recipeText(inputs, productNames, activeCount)}</span> : <span>无原料</span>}
-              <span>产出 {recipeText(outputs, productNames, activeCount)}</span>
-              <span className="facility-formula-summary-cost">
-                <CreditsIcon className="facility-formula-meta-icon" />
-                <span>{formatCurrency(type.operatingCost * activeCount)}</span>
-              </span>
-            </>
-          ) : <span>当前无工厂参与生产</span>}
-        </div>
-
-        {showNextCyclePreview && nextCount > 0 ? (
-          <div className="facility-formula-next-cycle">
-            <strong>下一周期 × {formatNumber(nextCount)} 座</strong>
-            <span>{nextInputs.length > 0 ? `输入 ${recipeText(nextInputs, productNames, nextCount)}` : '无原料'}</span>
-            <span>{formatDuration(nextType.cycleMs)}</span>
-            <span>¤ {formatCurrency(nextType.operatingCost * nextCount)}</span>
-            <span>输出 {recipeText(nextOutputs, productNames, nextCount)}</span>
-          </div>
-        ) : null}
       </div>
     </div>
   );
