@@ -116,7 +116,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       <WarehouseUpgradeCard model={model} className="factory-warehouse-card" />
 
       <div className="production-grid">
-        <Panel className="widget build-card production-build-card">
+        <Panel className="production-surface widget build-card production-build-card">
           <WidgetHeading title="建设新工厂" />
           <label>
             工厂类型
@@ -174,7 +174,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
             return (
               <div className="facility-group-card-shell" key={group.facilityTypeId}>
-                <Panel className="facility-card facility-group-card">
+                <Panel className="production-surface facility-card facility-group-card">
                   <div className="facility-card-head facility-status-header">
                     <div className="facility-card-title-row">
                       <h2>{type.name} × {formatNumber(group.count)}</h2>
