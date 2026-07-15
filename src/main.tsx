@@ -23,6 +23,7 @@ import './styles/collectibles-auctions.css';
 import './styles/unified-market-admin.css';
 import './styles/virtual-list.css';
 import './styles/design-system.css';
+import './styles/facility-card-grid.css';
 
 configureRuntimePerformance();
 
