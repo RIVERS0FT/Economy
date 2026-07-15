@@ -39,13 +39,16 @@ for (const text of [
   'multiplier={activeCount}',
   'type.operatingCost * activeCount',
   'nextType.operatingCost * nextCount',
-  'facility-formula-next-cycle',
   'formatDuration(type.cycleMs)',
   'formatDuration(nextType.cycleMs)',
 ]) assert.equal(formula.includes(text), true, `生产公式缺少: ${text}`);
-for (const forbidden of ['type.cycleMs * activeCount', 'nextType.cycleMs * nextCount', '总工时']) {
-  assert.equal(formula.includes(forbidden), false, `周期不得体现规模: ${forbidden}`);
-}
+for (const forbidden of [
+  'facility-formula-summary',
+  'facility-formula-next-cycle',
+  'type.cycleMs * activeCount',
+  'nextType.cycleMs * nextCount',
+  '总工时',
+]) assert.equal(formula.includes(forbidden), false, `生产公式不应包含: ${forbidden}`);
 
 const css = read('src/styles/facility-group-card-grid.css');
 for (const text of [
@@ -67,6 +70,9 @@ for (const text of [
   '@media (max-width: 960px)',
   'height: auto;',
 ]) assert.equal(css.includes(text), true, `卡片样式缺少: ${text}`);
+for (const forbidden of ['.facility-formula-summary', '.facility-formula-next-cycle']) {
+  assert.equal(css.includes(forbidden), false, `卡片样式不应包含: ${forbidden}`);
+}
 
 const server = read('server/src/facility-groups.js');
 assert.equal(server.includes('if (recipes.length < 2) {'), true);
@@ -76,9 +82,9 @@ assert.equal(tests.includes('fixed recipes are idempotent'), true);
 
 for (const [path, required] of [
   ['README.md', ['选择工厂生产配方', '所有工厂集群统一使用服务器正式配方', '桌面端所有工厂集群卡片使用统一高度']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['持续生产与通用配方切换', '所有工厂卡统一显示“生产配方”选择器', '输入、输出和运行成本按 `participatingCount` 计算', '周期不乘以工厂规模', '前往市场交易该工厂']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['持续生产与通用配方切换', '所有工厂卡统一显示“生产配方”选择器', '输入、输出和运行成本按 `participatingCount` 计算', '周期不乘以工厂规模', '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字', '前往市场交易该工厂']],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['桌面端所有工厂集群卡片使用统一高度', '所有工厂统一显示“生产配方”选择器', '前往市场交易该工厂']],
-  ['docs/UI_DESIGN_SYSTEM.md', ['容器查询', '`8px / 12px / 16px`', '市场入口固定在卡片底部', '周期不乘以工厂规模']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['容器查询', '`8px / 12px / 16px`', '市场入口固定在卡片底部', '周期不乘以工厂规模', '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['所有工厂类型至少包含一个正式配方', '单配方工厂提交唯一配方时幂等成功']],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', ['通用配方切换与下一周期生效']],
 ]) {
@@ -86,4 +92,4 @@ for (const [path, required] of [
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('通用工厂配方、集群规模公式、等高方格卡片、容器内边距和底部市场入口验证通过。');
+console.log('通用工厂配方、集群规模公式、无进度条下方描述、等高方格卡片、容器内边距和底部市场入口验证通过。');
