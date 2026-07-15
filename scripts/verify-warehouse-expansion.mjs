@@ -22,6 +22,7 @@ function forbidText(path, text) { if (read(path).includes(text)) failures.push(`
   'src/styles/warehouse-expansion.css',
   'src/styles/industry-system.css',
   'src/styles/facility-production-formula.css',
+  'src/styles/facility-group-card-grid.css',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
@@ -163,7 +164,6 @@ for (const text of [
   'Production management layout v3',
   'grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);',
   'position: sticky',
-  'min-height: 320px',
   '@media (min-width: 1381px) {\n  .facility-group-list {\n    grid-template-columns: repeat(4, minmax(0, 1fr));',
   '.facility-count-summary',
   '.production-plan-heading',
@@ -171,6 +171,8 @@ for (const text of [
   '@media (max-width: 960px)',
 ]) requireText('src/styles/industry-system.css', text);
 for (const forbidden of ['position: fixed']) forbidText('src/styles/industry-system.css', forbidden);
+for (const text of ['.facility-card-title-row', '.facility-card-status-row', 'grid-auto-rows: auto;', 'align-self: stretch;']) requireText('src/styles/facility-group-card-grid.css', text);
+for (const forbidden of ['--facility-card-height', 'grid-auto-rows: 1fr;']) forbidText('src/styles/facility-group-card-grid.css', forbidden);
 
 for (const text of [
   '.facility-production-formula',
@@ -195,7 +197,7 @@ for (const text of [
 
 for (const text of [
   '持续生产与通用配方切换',
-  '桌面端所有工厂集群卡片使用统一高度',
+  '同一网格行中的卡片等高',
   '大于 1380px 时右侧固定四列',
   'position: sticky',
   '下一周期加入',
@@ -207,7 +209,7 @@ for (const text of [
 for (const text of [
   '页面主标题固定为“生产”',
   '左侧：建设新工厂',
-  '桌面端所有工厂集群卡片使用统一高度',
+  '同一网格行中的卡片等高',
   '大于 1380px 时工厂列表固定四列',
   '无限扩容信息',
   '不显示独立库存总量行',
@@ -217,7 +219,7 @@ for (const text of [
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
-  '桌面端所有工厂集群卡片使用统一高度',
+  '同一网格行中的卡片等高',
   '工厂卡大于 1380px 时固定四列',
   '建设新工厂卡桌面独占',
   '仓库只显示可用或冻结数量大于零的商品',

@@ -22,6 +22,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/styles/design-system.css',
   'src/styles/industry-system.css',
   'src/styles/facility-production-formula.css',
+  'src/styles/facility-group-card-grid.css',
   'src/styles/unified-market-admin.css',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
@@ -58,6 +59,8 @@ for (const text of [
   '异常：仓库已满',
   '异常：原料不足',
   'facility-status-header',
+  'facility-card-title-row',
+  'facility-card-status-row',
   'facility-count-summary',
   'FacilityProductionFormula',
   'products={game.products}',
@@ -141,12 +144,20 @@ for (const text of [
 ]) requireText('src/styles/design-system.css', text);
 
 for (const text of [
-  'min-height: 320px',
-  '.facility-status-header > .ui-switch',
-  '.facility-count-summary',
-  '.production-plan-heading',
-  '.production-plan-status',
+  'Production management layout v3',
+  'grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);',
+  'position: sticky',
 ]) requireText('src/styles/industry-system.css', text);
+
+for (const text of [
+  '.facility-card-title-row',
+  '.facility-card-status-row',
+  '.facility-count-summary',
+  'align-self: stretch;',
+  'grid-auto-rows: auto;',
+  'grid-template-rows: auto auto auto minmax(0, 1fr) auto;',
+]) requireText('src/styles/facility-group-card-grid.css', text);
+for (const forbidden of ['--facility-card-height', 'grid-auto-rows: 1fr;']) forbidText('src/styles/facility-group-card-grid.css', forbidden);
 
 for (const text of [
   '.facility-production-formula',
@@ -203,7 +214,10 @@ for (const text of [
   'SwitchControl',
   '.ui-switch',
   '唯一',
-  '桌面端所有工厂集群卡片使用统一高度',
+  '同一网格行中的卡片等高',
+  '名称与 `SwitchControl` 位于第一行',
+  '状态位于第二行',
+  '数量摘要位于第三行',
   '生产配方',
   'facility-production-formula.css',
   'CycleIcon',

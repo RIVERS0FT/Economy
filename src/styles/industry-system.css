@@ -560,7 +560,7 @@
     flex-direction: column;
   }
 }
-/* Production management layout v3: sticky build column and fixed-height factory cards. */
+/* Production management layout v3: sticky build column and adaptive same-row factory cards. */
 .production-grid {
   grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
   align-items: start;
@@ -681,10 +681,8 @@
 
 @media (min-width: 961px) {
   .facility-group-card {
-    height: auto;
-    min-height: 320px;
-    max-height: none;
-    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    min-height: 0;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
     overflow: visible;
   }
 }
@@ -715,8 +713,6 @@
 
 @media (max-width: 720px) {
   .facility-count-summary {
-    align-items: flex-start;
-    flex-direction: column;
     gap: var(--space-1);
   }
 
