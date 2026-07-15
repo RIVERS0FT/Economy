@@ -25,7 +25,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Rebuild and apply migration
         shell: bash
@@ -35,7 +34,7 @@ jobs:
           python3 /tmp/apply-factory-card-patch.py
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Run complete build
         run: npm run build
@@ -48,6 +47,7 @@ jobs:
         run: |
           rm -f scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-*
           rm -f .github/workflows/apply-unified-factory-recipes-grid.yml
+          rm -f package-lock.json
 
       - name: Commit validated implementation
         shell: bash
