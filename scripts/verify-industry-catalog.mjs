@@ -18,7 +18,9 @@ for (const id of expectedFacilities) assert.equal(facilityIds.has(id), true, `�
 for (const facility of FACILITY_TYPE_CATALOG) {
   assert.equal(productIds.has(facility.output.productId), true, `${facility.id} 输出商品不存在`);
   if (facility.input) assert.equal(productIds.has(facility.input.productId), true, `${facility.id} 输入商品不存在`);
-  for (const recipe of facility.recipes || []) {
+  assert.equal(Array.isArray(facility.recipes) && facility.recipes.length >= 1, true, `${facility.id} 必须显式提供至少一个配方`);
+  assert.equal(facility.recipes.some((recipe) => recipe.id === facility.defaultRecipeId), true, `${facility.id} 默认配方无效`);
+  for (const recipe of facility.recipes) {
     assert.equal(productIds.has(recipe.output.productId), true, `${facility.id}/${recipe.id} 输出商品不存在`);
     if (recipe.input) assert.equal(productIds.has(recipe.input.productId), true, `${facility.id}/${recipe.id} 输入商品不存在`);
   }

@@ -57,8 +57,8 @@ for (const forbidden of ['ProductionMode', 'pendingProductionPlan', 'productionM
   assert.equal(types.includes(forbidden), false, `客户端类型不得包含 ${forbidden}`);
   assert.equal(productionPage.includes(forbidden), false, `生产页不得包含 ${forbidden}`);
 }
-assert.equal(productionPage.includes('种植作物'), true);
-assert.equal(productionPage.includes('下一周期改为'), true);
+assert.equal(productionPage.includes('生产配方'), true);
+assert.equal(productionPage.includes('下一周期切换为：'), true);
 assert.equal(gameApi.includes('setFacilityRecipe'), true);
 assert.equal(gameApi.includes('setProductionPlan'), false);
 
@@ -72,7 +72,7 @@ for (const text of [
 
 for (const [path, required] of [
   ['README.md', ['13 种商品和 12 种工厂类型', '主食需求共用每 5 分钟最多 60']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['持续生产与农场改种', 'wheat-crop', 'rice-crop', '世界版本 8']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['持续生产与通用配方切换', 'wheat-crop', 'rice-crop', '世界版本 8']],
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['主食替代需求', '价格指数', '需求预算']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['world.demandGroups.staples', '410 Gone', 'grain']],
 ]) {
@@ -80,4 +80,4 @@ for (const [path, required] of [
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('小麦水稻目录、农场周期边界改种、持续生产、主食预算替代和世界版本 8 迁移验证通过。');
+console.log('小麦水稻目录、通用配方周期边界切换、持续生产、主食预算替代和世界版本 8 迁移验证通过。');

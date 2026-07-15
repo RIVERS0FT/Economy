@@ -13,11 +13,11 @@
 | 文档 | 唯一职责 |
 |---|---|
 | `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、货币来源回收、需求与排行榜目标 |
-| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 13 种商品、12 种工厂、持续生产、通用配方选择、集群规模结算、等高方格卡片和生产页面结构 |
+| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 13 种商品、12 种工厂、持续生产、通用工厂配方、生产周期、三态、自动恢复和生产页面结构 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值和资产统计 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡和生产空间约束 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 八个正式页面、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
-| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一 SVG 图标、中文界面、响应式卡片内边距、移动触摸反馈与可访问性 |
+| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一 SVG 图标、中文界面、响应式、移动触摸反馈与可访问性 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 桌面与移动端状态栏、移动底栏和玻璃外壳 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、API、SQLite、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地快照、资产事件和权威逐笔成交记录 |
@@ -37,4 +37,3 @@
 10. 状态轮询修订号、响应防倒退、动作／轮询互斥、空闲读取不写库、默认刷新间隔和游戏 JSON 压缩属于服务器容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-state-delivery-capacity.mjs` 防回退。
 11. 主页账号认证缓存的分级 TTL、Cookie 摘要、并发合并、错误策略和 LRU 上限属于安全与容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-authentication-cache.mjs` 防回退。
 12. 小麦／水稻目录、农场改种、持续生产和主食替代预算属于产业与需求权威规则；必须同步更新产业、产品、服务器文档，并通过产业、工厂与主食需求验证脚本防回退。
-13. 工厂卡统一显示“生产配方”；单配方选择器显示但禁用，多配方运行中切换在周期边界生效。输入、输出和成本按参与规模计算，周期不乘规模。桌面端四列卡片等高呈方格状，四边内边距按卡片宽度使用 8／12／16px，唯一弹性空间位于生产内容与底部“前往市场交易该工厂”入口之间。

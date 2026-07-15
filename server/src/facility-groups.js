@@ -680,20 +680,26 @@ function setGroupRecipe(world, userId, payload, now) {
   const type = typeFor(payload.facilityTypeId);
   const group = type ? groupFor(player, type.id) : null;
   if (!group) return result(false, '工厂集群不存在');
-  const recipe = recipesFor(type).find((candidate) => candidate.id === payload.recipeId);
+  const recipes = recipesFor(type);
+  const recipe = recipes.find((candidate) => candidate.id === payload.recipeId);
   if (!recipe) return result(false, '生产配方不存在');
-  if (recipesFor(type).length < 2) return result(false, `${type.name}使用固定生产配方`);
+  if (recipes.length < 2) {
+    group.activeRecipeId = recipe.id;
+    delete group.pendingRecipeId;
+    reconcileFacilityGroup(world, player, group, now);
+    return result(true, `${type.name}使用固定生产配方`);
+  }
 
   if (group.status === 'running') {
     if (group.activeRecipeId === recipe.id) {
       if (group.pendingRecipeId) {
         delete group.pendingRecipeId;
-        return result(true, `${type.name}已取消下一周期改种，继续${recipe.name}`);
+        return result(true, `${type.name}已取消下一周期配方切换，继续使用${recipe.name}`);
       }
       return result(true, `${type.name}已经使用${recipe.name}`);
     }
     group.pendingRecipeId = recipe.id;
-    return result(true, `${type.name}将在下一周期${recipe.name}`);
+    return result(true, `${type.name}将在下一周期切换为${recipe.name}`);
   }
 
   group.activeRecipeId = recipe.id;
