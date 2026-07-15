@@ -885,7 +885,6 @@ export function processWorld(world, now = Date.now()) {
   }
   refreshExternalLiquidity(world, now);
   pruneWorld(world, now);
-  world.lastProcessedAt = now;
   return world;
 }
 

@@ -35,6 +35,7 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertIn("location = /economy-api/me", updated)
         self.assertIn("location = /economy-api/logout", updated)
         self.assertIn("location ^~ /economy-api/game/", updated)
+        self.assertIn("gzip_types application/json;", updated)
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
     def test_account_snippet_adds_only_game_api_route(self) -> None:
@@ -68,13 +69,27 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertEqual(updated.count(nginx.BEGIN), 1)
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
-    def test_existing_manual_game_route_is_not_duplicated(self) -> None:
+    def test_existing_manual_game_route_gets_compression_without_duplication(self) -> None:
         original = server(
             f"include {nginx.ACCOUNT_SNIPPET};",
             "location ^~ /economy-api/game/ { proxy_pass http://127.0.0.1:3002/api/game/; }",
         )
 
-        self.assertEqual(nginx.replace_or_insert(original), original)
+        updated = nginx.replace_or_insert(original)
+        self.assertEqual(updated.count("location ^~ /economy-api/game/"), 1)
+        self.assertIn("gzip on;", updated)
+        self.assertIn("gzip_types application/json;", updated)
+        self.assertEqual(nginx.replace_or_insert(updated), updated)
+
+    def test_compression_helper_repairs_existing_values(self) -> None:
+        original = "location ^~ /economy-api/game/ {\n    gzip off;\n}\n"
+        updated, changed = nginx.ensure_game_api_compression(original)
+
+        self.assertTrue(changed)
+        self.assertNotIn("gzip off;", updated)
+        for name, value in nginx.GAME_API_COMPRESSION:
+            self.assertIn(f"{name} {value};", updated)
+        self.assertEqual(nginx.ensure_game_api_compression(updated), (updated, False))
 
     def test_legacy_broad_route_is_replaced(self) -> None:
         original = server(

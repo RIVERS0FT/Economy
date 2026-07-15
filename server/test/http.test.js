@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const accountPort = 43101;
 const gamePort = 43102;
@@ -40,7 +42,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
   await new Promise((resolve) => accountServer.listen(accountPort, '127.0.0.1', resolve));
 
   const child = spawn(process.execPath, ['src/index.js'], {
-    cwd: new URL('..', import.meta.url).pathname,
+    cwd: fileURLToPath(new URL('..', import.meta.url)),
     env: {
       ...process.env,
       PORT: String(gamePort),
@@ -62,7 +64,20 @@ test('HTTP API authenticates through the shared account service and honors idemp
       headers: { Cookie: 'session=ok' },
     });
     assert.equal(stateResponse.status, 200);
-    assert.equal((await stateResponse.json()).state.credits, 100);
+    const statePayload = await stateResponse.json();
+    assert.equal(statePayload.state.credits, 100);
+    assert.equal(statePayload.unchanged, false);
+    assert.equal(Number.isInteger(statePayload.revision), true);
+
+    const unchangedResponse = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/state?revision=${statePayload.revision}`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(unchangedResponse.status, 200);
+    assert.deepEqual(await unchangedResponse.json(), {
+      revision: statePayload.revision,
+      unchanged: true,
+    });
 
     const headers = {
       Cookie: 'session=ok',
@@ -76,7 +91,9 @@ test('HTTP API authenticates through the shared account service and honors idemp
       body: '{}',
     });
     assert.equal(first.status, 200);
-    assert.equal((await first.json()).state.credits, 101);
+    const firstPayload = await first.json();
+    assert.equal(firstPayload.state.credits, 101);
+    assert.equal(firstPayload.revision > statePayload.revision, true);
 
     const repeated = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
       method: 'POST',
@@ -84,10 +101,15 @@ test('HTTP API authenticates through the shared account service and honors idemp
       body: '{}',
     });
     assert.equal(repeated.status, 200);
-    assert.equal((await repeated.json()).state.credits, 101);
+    const repeatedPayload = await repeated.json();
+    assert.equal(repeatedPayload.state.credits, 101);
+    assert.equal(repeatedPayload.revision, firstPayload.revision);
   } finally {
-    child.kill('SIGTERM');
-    await new Promise((resolve) => child.once('exit', resolve));
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = once(child, 'exit');
+      child.kill('SIGTERM');
+      await exited;
+    }
     await new Promise((resolve) => accountServer.close(resolve));
     rmSync(directory, { recursive: true, force: true });
   }

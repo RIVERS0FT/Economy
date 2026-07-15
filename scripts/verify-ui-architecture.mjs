@@ -124,7 +124,7 @@ for (const text of [
   if (!icons.includes(text)) failures.push(`${iconPath} 缺少: ${text}`);
 }
 
-const factoryBlock = icons.match(/export function FactoryIcon[\s\S]*?\n}\n\nexport function FundsIcon/)?.[0] ?? '';
+const factoryBlock = icons.match(/export function FactoryIcon[\s\S]*?\r?\n}\r?\n\r?\nexport function FundsIcon/)?.[0] ?? '';
 if (!factoryBlock.includes('M3 20V10') || !factoryBlock.includes('M17 6V3h3v17')) {
   failures.push('FactoryIcon 必须保持厂房与烟囱轮廓');
 }
