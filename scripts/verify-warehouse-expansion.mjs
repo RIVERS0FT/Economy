@@ -97,11 +97,11 @@ for (const text of [
   'facility-formula-center',
   'facility-formula-output-group',
   'facility-formula-progress',
-  'facility-formula-summary',
   'WarehouseIcon',
   'CycleIcon',
   'CreditsIcon',
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
+forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-summary');
 for (const text of [
   'warehouse state defaults to level 1 and client version 12',
   'warehouse capacity increase grows with every level',
@@ -176,10 +176,10 @@ for (const text of [
   '.facility-formula-top',
   '.facility-formula-center',
   '.facility-formula-progress',
-  '.facility-formula-summary',
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
   '@media (max-width: 560px)',
 ]) requireText('src/styles/facility-production-formula.css', text);
+forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');
 
 for (const text of [
   '无限等级、容量与费用',
