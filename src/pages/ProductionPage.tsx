@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+// Architecture migration markers: <strong>种植作物</strong> 下一周期改为 在统一订单簿中买卖该工厂 >前往市场 →
 import {
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
