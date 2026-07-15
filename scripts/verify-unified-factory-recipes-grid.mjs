@@ -110,16 +110,47 @@ const surfaceCss = read('src/styles/production-surface.css');
 for (const text of [
   '.panel.production-surface',
   '--production-surface-inset: var(--space-4);',
+  '--production-pill-visible-height: 1.6rem;',
+  '--production-switch-thumb-size: 1rem;',
+  '--production-switch-thumb-inset: 0.25rem;',
+  '--production-switch-thumb-travel: 1.25rem;',
   'padding: var(--production-surface-inset);',
   '.panel.production-surface > .widget-heading',
   '.panel.production-surface .facility-card-title-row',
   'line-height: var(--line-height-tight);',
+  '.panel.production-surface .facility-card-title-row > .ui-switch::before',
+  'top: 0;',
+  'bottom: auto;',
+  'height: var(--production-pill-visible-height);',
+  'border-radius: var(--radius-pill);',
+  '.panel.production-surface .facility-card-title-row > .ui-switch::after',
+  'top: calc((var(--production-pill-visible-height) - var(--production-switch-thumb-size)) / 2);',
+  'transform: translateX(var(--production-switch-thumb-travel));',
   '@media (max-width: 720px)',
   '--production-surface-inset: var(--space-3);',
 ]) assert.equal(surfaceCss.includes(text), true, `生产一级表面样式缺少: ${text}`);
-for (const forbidden of ['padding-top:', 'padding-right:', 'padding-bottom:', 'padding-left:']) {
-  assert.equal(surfaceCss.includes(forbidden), false, `生产一级表面不得使用单边内边距: ${forbidden}`);
+for (const forbidden of ['padding-top:', 'padding-right:', 'padding-bottom:', 'padding-left:', 'inset: 0.625rem 0;']) {
+  assert.equal(surfaceCss.includes(forbidden), false, `生产一级表面不应包含: ${forbidden}`);
 }
+
+const designCss = read('src/styles/design-system.css');
+for (const text of [
+  'min-height: 1.6rem;',
+  '.ui-switch {',
+  'width: 2.75rem;',
+  'height: 2.75rem;',
+  '.ui-switch:focus-visible::before',
+  'outline-offset: 2px;',
+]) assert.equal(designCss.includes(text), true, `设计系统缺少胶囊或开关基础规则: ${text}`);
+
+const pillDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
+for (const text of [
+  '可见高度：1.6rem',
+  '点击区域继续保持至少 `44 × 44px`',
+  '可见轨道从点击区域顶部开始',
+  '可见顶部和右边缘使用相同的卡片内边距',
+  '焦点环继续绘制在 `.ui-switch::before` 可见轨道外侧',
+]) assert.equal(pillDesign.includes(text), true, `生产胶囊设计文档缺少: ${text}`);
 
 const main = read('src/main.tsx');
 assert.ok(main.indexOf("./styles/production-surface.css") < main.indexOf("./styles/design-system.css"), '生产一级表面样式必须在 design-system.css 前加载');
@@ -143,4 +174,4 @@ for (const [path, required] of [
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('通用工厂配方、三行标题结构、同平面统一内边距、自适应同排等高卡片和底部市场入口验证通过。');
+console.log('通用工厂配方、三行标题结构、同平面统一内边距、胶囊开关对齐、自适应同排等高卡片和底部市场入口验证通过。');
