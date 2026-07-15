@@ -15,7 +15,11 @@ import {
   type StatusTone,
   WidgetHeading,
 } from '../components/ui/layout';
-import type { FacilityGroup, FacilityTypeDefinition } from '../types';
+import type {
+  FacilityGroup,
+  FacilityRecipeDefinition,
+  FacilityTypeDefinition,
+} from '../types';
 import { formatCurrency, formatDuration, formatNumber } from '../utils/formatters';
 
 function facilityTone(status: string): StatusTone {
@@ -37,6 +41,28 @@ function facilityStatusLabel(group: FacilityGroup) {
   }
 }
 
+function recipesForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
+  if (Array.isArray(type.recipes) && type.recipes.length > 0) return type.recipes;
+  return [{
+    id: type.defaultRecipeId || `${type.id}-default`,
+    name: type.name,
+    cycleMs: type.cycleMs,
+    operatingCost: type.operatingCost,
+    input: type.input,
+    output: type.output,
+  }];
+}
+
+function typeForRecipe(type: FacilityTypeDefinition, recipe: FacilityRecipeDefinition): FacilityTypeDefinition {
+  return {
+    ...type,
+    cycleMs: recipe.cycleMs,
+    operatingCost: recipe.operatingCost,
+    input: recipe.input,
+    output: recipe.output,
+  };
+}
+
 export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
@@ -56,7 +82,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     [game.facilityTypes, selectedFacilityTypeId],
   );
   const hasConstruction = Boolean(game.facilityConstruction);
-  const selectedRecipes = selectedType?.recipes ?? [];
+  const selectedRecipes = selectedType ? recipesForType(selectedType) : [];
 
   function productName(productId?: string) {
     if (!productId) return '无';
@@ -77,7 +103,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="生产"
-      description="同类未冻结工厂共享生产周期并持续运行；工厂卖单会立即冻结对应数量并降低产量。"
+      description="同类未冻结工厂共享生产周期和服务器正式配方；输入、输出和成本按当前参与规模结算。"
       actions={(
         <>
           <StatusTag tone="success">运行 {formatNumber(model.derived.runningFacilities)}</StatusTag>
@@ -101,19 +127,23 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           <div className="facility-type-summary">
             <h3>{selectedType.name}</h3>
             <p>{selectedRecipes.length > 1
-              ? `可选配方：${selectedRecipes.map((recipe) => recipe.name.replace('种植', '')).join('／')}`
-              : selectedType.input
-              ? `${formatNumber(selectedType.input.quantity)} ${productName(selectedType.input.productId)} → ${formatNumber(selectedType.output.quantity)} ${productName(selectedType.output.productId)}`
-              : `无原料 → ${formatNumber(selectedType.output.quantity)} ${productName(selectedType.output.productId)}`}</p>
+              ? `可选配方：${selectedRecipes.map((recipe) => recipe.name).join('／')}`
+              : selectedRecipes[0]?.input
+              ? `${formatNumber(selectedRecipes[0].input.quantity)} ${productName(selectedRecipes[0].input.productId)} → ${formatNumber(selectedRecipes[0].output.quantity)} ${productName(selectedRecipes[0].output.productId)}`
+              : `无原料 → ${formatNumber(selectedRecipes[0]?.output.quantity ?? selectedType.output.quantity)} ${productName(selectedRecipes[0]?.output.productId ?? selectedType.output.productId)}`}</p>
           </div>
           <DataList>
             <DataRow label="建造费用" value={`¤ ${formatCurrency(selectedType.buildCost)}`} tone="danger" />
             <DataRow label="施工时间" value={formatDuration(selectedType.buildTimeMs)} tone="warning" />
-            <DataRow label="生产周期" value={`${formatNumber(selectedType.cycleMs / 1000)} 秒`} />
-            <DataRow label="单座周期产量" value={selectedRecipes.length > 1
-              ? selectedRecipes.map((recipe) => `${formatNumber(recipe.output.quantity)} ${productName(recipe.output.productId)}`).join('／')
-              : `${formatNumber(selectedType.output.quantity)} ${productName(selectedType.output.productId)}`} />
-            <DataRow label="单座周期成本" value={`¤ ${formatCurrency(selectedType.operatingCost)}`} />
+            <DataRow label="生产周期" value={selectedRecipes.length > 1
+              ? selectedRecipes.map((recipe) => formatDuration(recipe.cycleMs)).join('／')
+              : formatDuration(selectedRecipes[0]?.cycleMs ?? selectedType.cycleMs)} />
+            <DataRow label="单座周期产量" value={selectedRecipes
+              .map((recipe) => `${formatNumber(recipe.output.quantity)} ${productName(recipe.output.productId)}`)
+              .join('／')} />
+            <DataRow label="单座周期成本" value={selectedRecipes.length > 1
+              ? selectedRecipes.map((recipe) => `¤ ${formatCurrency(recipe.operatingCost)}`).join('／')
+              : `¤ ${formatCurrency(selectedRecipes[0]?.operatingCost ?? selectedType.operatingCost)}`} />
           </DataList>
           {game.facilityConstruction ? (
             <div className="construction-status">
@@ -132,72 +162,82 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           {game.facilityGroups.map((group) => {
             const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
             if (!type) return null;
-            const recipes = type.recipes ?? [];
-            const activeRecipe = recipes.find((recipe) => recipe.id === group.activeRecipeId);
+            const recipes = recipesForType(type);
+            const activeRecipe = recipes.find((recipe) => recipe.id === group.activeRecipeId)
+              ?? recipes.find((recipe) => recipe.id === type.defaultRecipeId)
+              ?? recipes[0];
             const pendingRecipe = recipes.find((recipe) => recipe.id === group.pendingRecipeId);
-            const formulaType: FacilityTypeDefinition = activeRecipe
-              ? {
-                ...type,
-                cycleMs: activeRecipe.cycleMs,
-                operatingCost: activeRecipe.operatingCost,
-                input: activeRecipe.input,
-                output: activeRecipe.output,
-              }
-              : type;
+            const nextRecipe = pendingRecipe ?? activeRecipe;
+            const formulaType = typeForRecipe(type, activeRecipe);
+            const nextFormulaType = typeForRecipe(type, nextRecipe);
+            const showNextCyclePreview = Boolean(pendingRecipe) || group.pendingJoinCount > 0;
 
             return (
-              <Panel className="facility-card facility-group-card" key={group.facilityTypeId}>
-                <div className="facility-card-head facility-status-header">
-                  <div className="facility-status-title">
-                    <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
-                    <h2>{type.name} × {formatNumber(group.count)}</h2>
+              <div className="facility-group-card-shell" key={group.facilityTypeId}>
+                <Panel className="facility-card facility-group-card">
+                  <div className="facility-card-head facility-status-header">
+                    <div className="facility-status-title">
+                      <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
+                      <h2>{type.name} × {formatNumber(group.count)}</h2>
+                    </div>
+                    <SwitchControl
+                      checked={group.enabled}
+                      aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
+                      title={group.enabled ? '停止生产' : '开启自动运行'}
+                      disabled={group.count < 1}
+                      onChange={(event) => void showResult(event.target.checked
+                        ? startFacility(group.facilityTypeId)
+                        : stopFacility(group.facilityTypeId))}
+                    />
+                    <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
+                      <span>运行中 <strong>{formatNumber(group.participatingCount)}</strong></span>
+                      <span>下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong></span>
+                      <span>冻结中 <strong>{formatNumber(group.listedCount)}</strong></span>
+                    </div>
                   </div>
-                  <SwitchControl
-                    checked={group.enabled}
-                    aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
-                    title={group.enabled ? '停止生产' : '开启自动运行'}
-                    disabled={group.count < 1}
-                    onChange={(event) => void showResult(event.target.checked
-                      ? startFacility(group.facilityTypeId)
-                      : stopFacility(group.facilityTypeId))}
-                  />
-                  <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
-                    <span>运行中 <strong>{formatNumber(group.participatingCount)}</strong></span>
-                    <span>下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong></span>
-                    <span>冻结中 <strong>{formatNumber(group.listedCount)}</strong></span>
-                  </div>
-                </div>
 
-                <FacilityProductionFormula
-                  group={group}
-                  type={formulaType}
-                  products={game.products}
-                  inventories={game.inventories}
-                  now={now}
-                />
-
-                {recipes.length > 1 ? (
-                  <div className="production-plan-card production-recipe-card">
-                    <div className="production-plan-heading">
-                      <strong>种植作物</strong>
-                      {pendingRecipe ? <small className="production-plan-status">下一周期改为{pendingRecipe.name.replace('种植', '')}</small> : null}
+                  <div className="facility-recipe-section">
+                    <div className="facility-recipe-heading">
+                      <strong>生产配方</strong>
+                      {pendingRecipe ? (
+                        <small className="facility-recipe-status" aria-live="polite">
+                          下一周期切换为：{pendingRecipe.name}
+                        </small>
+                      ) : null}
                     </div>
                     <select
-                      aria-label={`${type.name}种植作物`}
-                      value={pendingRecipe?.id ?? activeRecipe?.id ?? recipes[0].id}
-                      disabled={group.count < 1}
+                      aria-label={`${type.name}生产配方`}
+                      value={pendingRecipe?.id ?? activeRecipe.id}
+                      disabled={group.count < 1 || recipes.length === 1}
                       onChange={(event) => void showResult(setFacilityRecipe(group.facilityTypeId, event.target.value))}
                     >
-                      {recipes.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.name.replace('种植', '')}</option>)}
+                      {recipes.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.name}</option>)}
                     </select>
                   </div>
-                ) : null}
 
-                <div className="facility-market-link-row">
-                  <span>在统一订单簿中买卖该工厂</span>
-                  <Button variant="text" onClick={() => selectMarketAsset('facility', group.facilityTypeId)}>前往市场 →</Button>
-                </div>
-              </Panel>
+                  <FacilityProductionFormula
+                    group={group}
+                    type={formulaType}
+                    nextType={nextFormulaType}
+                    showNextCyclePreview={showNextCyclePreview}
+                    products={game.products}
+                    inventories={game.inventories}
+                    now={now}
+                  />
+
+                  <div className="facility-card-spacer" aria-hidden="true" />
+
+                  <div className="facility-market-link-row">
+                    <Button
+                      variant="text"
+                      className="facility-market-link"
+                      onClick={() => selectMarketAsset('facility', group.facilityTypeId)}
+                    >
+                      前往市场交易该工厂 →
+                    </Button>
+                  </div>
+                </Panel>
+              </div>
             );
           })}
           {game.facilityGroups.length === 0 ? <Panel className="empty-state tall">尚未拥有工厂集群。先确认共享仓库容量，再建设第一座工厂。</Panel> : null}

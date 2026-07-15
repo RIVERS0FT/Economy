@@ -13,7 +13,7 @@
 | 文档 | 唯一职责 |
 |---|---|
 | `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、货币来源回收、需求与排行榜目标 |
-| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 13 种商品、12 种工厂、持续生产、农场作物配方、生产周期、三态、自动恢复和生产页面结构 |
+| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 13 种商品、12 种工厂、持续生产、通用工厂配方、生产周期、三态、自动恢复和生产页面结构 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值和资产统计 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡和生产空间约束 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 八个正式页面、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |

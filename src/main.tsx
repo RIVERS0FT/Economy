@@ -17,6 +17,7 @@ import './styles/icon-system.css';
 import './styles/overview.css';
 import './styles/industry-system.css';
 import './styles/facility-production-formula.css';
+import './styles/facility-group-card-grid.css';
 import './styles/market-funds.css';
 import './styles/warehouse-expansion.css';
 import './styles/collectibles-auctions.css';

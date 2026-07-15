@@ -94,28 +94,38 @@ function progressDescription(group: FacilityGroup, type: FacilityTypeDefinition,
 export function FacilityProductionFormula({
   group,
   type,
+  nextType,
+  showNextCyclePreview,
   products,
   inventories,
   now,
 }: {
   group: FacilityGroup;
   type: FacilityTypeDefinition;
+  nextType: FacilityTypeDefinition;
+  showNextCyclePreview: boolean;
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
   now: number;
 }) {
   const inputs = recipeInputs(type);
   const outputs = recipeOutputs(type);
+  const nextInputs = recipeInputs(nextType);
+  const nextOutputs = recipeOutputs(nextType);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
   const activeCount = group.status === 'running' ? group.participatingCount : 0;
+  const nextCount = Math.max(0, group.nextCycleCount);
   const inputDescription = inputs.length > 0
-    ? `消耗${recipeText(inputs, productNames)}`
+    ? `消耗${recipeText(inputs, productNames, activeCount)}`
     : '不消耗原料';
-  const outputDescription = `产出${recipeText(outputs, productNames)}`;
+  const outputDescription = `产出${recipeText(outputs, productNames, activeCount)}`;
   const activeDescription = activeCount > 0
-    ? `当前${formatNumber(activeCount)}座参与生产，每周期产出${recipeText(outputs, productNames, activeCount)}，成本${formatCurrency(type.operatingCost * activeCount)}`
+    ? `当前${formatNumber(activeCount)}座参与生产，每${formatDuration(type.cycleMs)}${inputDescription}，${outputDescription}，成本${formatCurrency(type.operatingCost * activeCount)}`
     : '当前无工厂参与生产';
-  const description = `每座${type.name}每${formatDuration(type.cycleMs)}${inputDescription}，${outputDescription}，运行成本${formatCurrency(type.operatingCost)}。${activeDescription}。${progressDescription(group, type, now)}。`;
+  const nextDescription = showNextCyclePreview && nextCount > 0
+    ? `下一周期${formatNumber(nextCount)}座工厂，每${formatDuration(nextType.cycleMs)}${nextInputs.length > 0 ? `消耗${recipeText(nextInputs, productNames, nextCount)}` : '不消耗原料'}，产出${recipeText(nextOutputs, productNames, nextCount)}，成本${formatCurrency(nextType.operatingCost * nextCount)}`
+    : '';
+  const description = `${activeDescription}。${progressDescription(group, type, now)}。${nextDescription}`;
 
   return (
     <div className="facility-production-formula" role="group" aria-label={description}>
@@ -127,6 +137,7 @@ export function FacilityProductionFormula({
                 items={inputs}
                 productNames={productNames}
                 inventories={inventories}
+                multiplier={activeCount}
                 showInventory
                 groupClassName="facility-formula-input-group"
                 itemClassName="facility-formula-input-item"
@@ -142,7 +153,7 @@ export function FacilityProductionFormula({
             <span className="facility-formula-meta-divider">·</span>
             <span className="facility-formula-meta-unit">
               <CreditsIcon className="facility-formula-meta-icon" />
-              <span>{formatCurrency(type.operatingCost)}</span>
+              <span>{formatCurrency(type.operatingCost * activeCount)}</span>
             </span>
           </div>
 
@@ -151,6 +162,7 @@ export function FacilityProductionFormula({
               items={outputs}
               productNames={productNames}
               inventories={inventories}
+              multiplier={activeCount}
               groupClassName="facility-formula-output-group"
               itemClassName="facility-formula-output-item"
             />
@@ -164,15 +176,9 @@ export function FacilityProductionFormula({
         <div className="facility-formula-summary">
           {activeCount > 0 ? (
             <>
-              <span>当前周期 × {formatNumber(activeCount)} 座：产出</span>
-              <RecipeItems
-                items={outputs}
-                productNames={productNames}
-                inventories={inventories}
-                multiplier={activeCount}
-                groupClassName="facility-formula-summary-output"
-                itemClassName="facility-formula-output-item"
-              />
+              <span>当前周期 × {formatNumber(activeCount)} 座</span>
+              {inputs.length > 0 ? <span>消耗 {recipeText(inputs, productNames, activeCount)}</span> : <span>无原料</span>}
+              <span>产出 {recipeText(outputs, productNames, activeCount)}</span>
               <span className="facility-formula-summary-cost">
                 <CreditsIcon className="facility-formula-meta-icon" />
                 <span>{formatCurrency(type.operatingCost * activeCount)}</span>
@@ -180,6 +186,16 @@ export function FacilityProductionFormula({
             </>
           ) : <span>当前无工厂参与生产</span>}
         </div>
+
+        {showNextCyclePreview && nextCount > 0 ? (
+          <div className="facility-formula-next-cycle">
+            <strong>下一周期 × {formatNumber(nextCount)} 座</strong>
+            <span>{nextInputs.length > 0 ? `输入 ${recipeText(nextInputs, productNames, nextCount)}` : '无原料'}</span>
+            <span>{formatDuration(nextType.cycleMs)}</span>
+            <span>¤ {formatCurrency(nextType.operatingCost * nextCount)}</span>
+            <span>输出 {recipeText(nextOutputs, productNames, nextCount)}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );

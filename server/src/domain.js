@@ -28,7 +28,7 @@ export const PRODUCT_CATALOG = Object.freeze([
   { id: 'electronics', name: '电子产品', category: 'industrial', basePrice: 72 },
 ]);
 
-export const FACILITY_TYPE_CATALOG = Object.freeze([
+const FACILITY_TYPE_BASE_CATALOG = [
   {
     id: 'farm',
     name: '农场',
@@ -204,7 +204,28 @@ export const FACILITY_TYPE_CATALOG = Object.freeze([
     internalCapacity: 15,
     systemValue: 420,
   },
-]);
+
+];
+
+const FACILITY_PRODUCT_NAMES = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.name]));
+
+export const FACILITY_TYPE_CATALOG = Object.freeze(FACILITY_TYPE_BASE_CATALOG.map((facility) => {
+  const recipes = Array.isArray(facility.recipes) && facility.recipes.length > 0
+    ? facility.recipes
+    : [{
+      id: `${facility.id}-default`,
+      name: `生产${FACILITY_PRODUCT_NAMES.get(facility.output.productId) || facility.name}`,
+      cycleMs: facility.cycleMs,
+      operatingCost: facility.operatingCost,
+      input: facility.input,
+      output: facility.output,
+    }];
+  return Object.freeze({
+    ...facility,
+    defaultRecipeId: facility.defaultRecipeId || recipes[0].id,
+    recipes: Object.freeze(recipes.map((recipe) => Object.freeze({ ...recipe }))),
+  });
+}));
 
 export const DEMAND_GROUP_CATALOG = Object.freeze([
   {

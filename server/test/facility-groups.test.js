@@ -152,7 +152,7 @@ test('warehouse errors recover without backfilling missed cycles', () => {
   assert.equal(player.inventories.wheat.available, 499);
 });
 
-test('stopped farms change crop immediately and fixed recipes reject changes', () => {
+test('stopped facilities apply recipes immediately and fixed recipes are idempotent', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.facilityGroups = [group('farm', 1), group('mill', 1)];
@@ -163,9 +163,11 @@ test('stopped farms change crop immediately and fixed recipes reject changes', (
   }, now + 1).ok, true);
   assert.equal(player.facilityGroups.find((item) => item.facilityTypeId === 'farm').activeRecipeId, 'rice-crop');
 
-  assert.equal(applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
+  const fixedRecipeResult = applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
     facilityTypeId: 'mill', recipeId: 'mill-default',
-  }, now + 2).ok, false);
+  }, now + 2);
+  assert.equal(fixedRecipeResult.ok, true);
+  assert.equal(player.facilityGroups.find((item) => item.facilityTypeId === 'mill').activeRecipeId, 'mill-default');
 });
 test('legacy completed target plans migrate to a manual stop', () => {
   const world = createWorld(now);

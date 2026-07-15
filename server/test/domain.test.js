@@ -199,6 +199,12 @@ test('expanded industry catalog exposes complete production chains', () => {
   for (const facility of FACILITY_TYPE_CATALOG) {
     assert.equal(productIds.has(facility.output.productId), true);
     if (facility.input) assert.equal(productIds.has(facility.input.productId), true);
+    assert.ok(Array.isArray(facility.recipes) && facility.recipes.length >= 1);
+    assert.ok(facility.recipes.some((recipe) => recipe.id === facility.defaultRecipeId));
+    for (const recipe of facility.recipes) {
+      assert.equal(productIds.has(recipe.output.productId), true);
+      if (recipe.input) assert.equal(productIds.has(recipe.input.productId), true);
+    }
   }
   const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
   assert.deepEqual(farm.recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice']);

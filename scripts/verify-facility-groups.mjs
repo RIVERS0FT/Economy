@@ -62,9 +62,9 @@ for (const text of [
   'FacilityProductionFormula',
   'products={game.products}',
   'inventories={game.inventories}',
-  'production-recipe-card',
-  '种植作物',
-  '下一周期改为',
+  'facility-recipe-section',
+  '生产配方',
+  '下一周期切换为：',
   'setFacilityRecipe',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
@@ -145,7 +145,6 @@ for (const text of [
   '.facility-status-header > .ui-switch',
   '.facility-count-summary',
   '.production-plan-heading',
-  '.production-recipe-card select',
   '.production-plan-status',
 ]) requireText('src/styles/industry-system.css', text);
 
@@ -188,10 +187,10 @@ for (const text of [
   '自动恢复',
   'activeRecipeId',
   'pendingRecipeId',
-  '持续生产与农场改种',
-  '下一周期改为某作物',
+  '持续生产与通用配方切换',
+  '下一周期切换为：配方名称',
   '固定价格工厂挂牌市场',
-  '单座生产公式',
+  '集群生产公式',
   '多输入和多输出',
   '进度条',
   '周期 SVG 图标',
@@ -202,8 +201,8 @@ for (const text of [
   'SwitchControl',
   '.ui-switch',
   '唯一',
-  '至少 320px 的自适应高度',
-  '种植作物',
+  '桌面端所有工厂集群卡片使用统一高度',
+  '生产配方',
   'facility-production-formula.css',
   'CycleIcon',
   'CreditsIcon',
@@ -217,4 +216,4 @@ if (failures.length) {
   console.error(`工厂三态、生产公式、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('工厂持续生产、农场周期边界改种、三态自动恢复、多输入输出公式和自适应卡片验证通过。');
+console.log('工厂持续生产、通用配方周期边界切换、三态自动恢复、多输入输出公式和自适应卡片验证通过。');

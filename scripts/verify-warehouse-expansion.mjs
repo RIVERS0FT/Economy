@@ -68,10 +68,10 @@ for (const text of [
   'FacilityProductionFormula',
   'products={game.products}',
   'inventories={game.inventories}',
-  'production-recipe-card',
-  '种植作物',
-  '下一周期改为',
-  '在统一订单簿中买卖该工厂',
+  'facility-recipe-section',
+  '生产配方',
+  '下一周期切换为：',
+  '前往市场交易该工厂',
   'formatNumber(group.count)',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
@@ -192,36 +192,36 @@ for (const text of [
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
 for (const text of [
-  '持续生产与农场改种',
-  '至少 320px 的自适应高度',
+  '持续生产与通用配方切换',
+  '桌面端所有工厂集群卡片使用统一高度',
   '大于 1380px 时右侧固定四列',
   'position: sticky',
   '下一周期加入',
-  '运行中改种只写入 `pendingRecipeId`',
-  '单座生产公式',
+  '运行中切换配方只写入 `pendingRecipeId`',
+  '集群生产公式',
   '进度条',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
   '页面主标题固定为“生产”',
   '左侧：建设新工厂',
-  '桌面卡片使用至少 320px 的自适应高度',
+  '桌面端所有工厂集群卡片使用统一高度',
   '大于 1380px 时工厂列表固定四列',
   '无限扩容信息',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
-  '单座生产公式',
+  '集群生产公式',
   '多输入、多输出和逐输入库存兼容展示',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
-  '工厂卡桌面使用至少 320px 的自适应高度',
+  '桌面端所有工厂集群卡片使用统一高度',
   '工厂卡大于 1380px 时固定四列',
   '建设新工厂卡桌面独占',
   '仓库只显示可用或冻结数量大于零的商品',
   '图标与名称／可用主值／冻结辅助值',
   '移动端首次创建客户端偏好状态时，“紧凑数字”默认开启',
-  '种植作物',
+  '生产配方',
   '输入在左、周期成本在中、输出在右',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
