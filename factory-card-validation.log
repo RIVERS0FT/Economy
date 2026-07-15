@@ -1,0 +1,13 @@
+
+> economy@0.4.0 build
+> npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build
+
+
+> economy@0.4.0 verify:architecture
+> node scripts/verify-document-authority.mjs && node scripts/verify-state-delivery-capacity.mjs && node scripts/verify-authentication-cache.mjs && node scripts/verify-page-content.mjs && node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && node scripts/verify-staple-crops-demand.mjs && node scripts/verify-market-assets.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node scripts/verify-collectibles-auctions.mjs && node scripts/verify-gift-code-batches.mjs
+
+文档权威性验证通过：唯一文档结构、版本 12/8、八页导航和旧文件禁令均满足当前基线。
+状态交付容量验证通过：修订号门禁、动作轮询互斥、空闲读取不写库、5 秒默认间隔和 JSON gzip 均已锁定。
+认证缓存验证通过：状态 10 秒、写操作 2 秒、管理员零缓存、请求合并和 5000 条 LRU 已锁定。
+页面内容与职责验证失败:
+- src/pages/ProductionPage.tsx 缺少: >前往市场交易该工厂 →
