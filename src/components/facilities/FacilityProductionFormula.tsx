@@ -172,17 +172,6 @@ export function FacilityProductionFormula({
         <div className="facility-formula-progress">
           <FacilityGroupProgress group={group} type={type} now={now} />
         </div>
-
-
-        {showNextCyclePreview && nextCount > 0 ? (
-          <div className="facility-formula-next-cycle">
-            <strong>下一周期 × {formatNumber(nextCount)} 座</strong>
-            <span>{nextInputs.length > 0 ? `输入 ${recipeText(nextInputs, productNames, nextCount)}` : '无原料'}</span>
-            <span>{formatDuration(nextType.cycleMs)}</span>
-            <span>¤ {formatCurrency(nextType.operatingCost * nextCount)}</span>
-            <span>输出 {recipeText(nextOutputs, productNames, nextCount)}</span>
-          </div>
-        ) : null}
       </div>
     </div>
   );
