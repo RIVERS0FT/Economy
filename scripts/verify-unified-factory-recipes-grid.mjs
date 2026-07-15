@@ -72,6 +72,8 @@ for (const text of [
   'grid-area: status;',
   'grid-area: summary;',
   '.facility-card-title-row',
+  'grid-template-columns: minmax(0, 1fr) auto;\n  align-items: start;',
+  'line-height: var(--line-height-tight);',
   '.facility-card-status-row',
   '.facility-count-summary',
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
@@ -94,6 +96,7 @@ for (const forbidden of [
   '--facility-card-height',
   'grid-auto-rows: 1fr;',
   'grid-template-areas: none;',
+  'grid-template-columns: minmax(0, 1fr) auto;\n  align-items: center;',
   'height: var(--facility-card-height)',
   'min-height: var(--facility-card-height)',
   'max-height: var(--facility-card-height)',
@@ -111,7 +114,7 @@ for (const [path, required] of [
   ['README.md', ['选择工厂生产配方', '所有工厂集群统一使用服务器正式配方', '同一网格行中的卡片等高', '状态位于第二行', '市场入口始终固定在卡片底部']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['持续生产与通用配方切换', '所有工厂卡统一显示“生产配方”选择器', '输入、输出和运行成本按 `participatingCount` 计算', '周期不乘以工厂规模', '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字', '工厂名称和运行开关位于第一行', '状态独占第二行', '数量摘要独占第三行', '同一网格行中的卡片等高', '前往市场交易该工厂']],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['统一运行开关位于第一行右侧', '状态位于第二行', '数量摘要位于第三行', '同一网格行中的卡片等高', '所有工厂统一显示“生产配方”选择器', '前往市场交易该工厂']],
-  ['docs/UI_DESIGN_SYSTEM.md', ['容器查询', '`8px / 12px / 16px`', '名称与 `SwitchControl` 位于第一行', '状态位于第二行', '数量摘要位于第三行', '显式命名网格区域', '同一网格行中的卡片等高', '市场入口固定在卡片底部', '周期不乘以工厂规模', '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['容器查询', '`8px / 12px / 16px`', '名称与 `SwitchControl` 位于第一行', '状态位于第二行', '数量摘要位于第三行', '显式命名网格区域', '名称可见文字从卡片上内边距开始', '同一网格行中的卡片等高', '市场入口固定在卡片底部', '周期不乘以工厂规模', '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['所有工厂类型至少包含一个正式配方', '单配方工厂提交唯一配方时幂等成功']],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', ['通用配方切换与下一周期生效']],
 ]) {
@@ -119,4 +122,4 @@ for (const [path, required] of [
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('通用工厂配方、三行标题结构、自适应同排等高卡片、容器内边距和底部市场入口验证通过。');
+console.log('通用工厂配方、三行标题结构、标题边距、自适应同排等高卡片、容器内边距和底部市场入口验证通过。');
