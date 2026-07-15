@@ -96,7 +96,6 @@ for (const text of [
   'facility-formula-output-group',
   'facility-formula-output-item',
   'facility-formula-progress',
-  'facility-formula-summary',
   'facility-formula-meta-icon',
   'CycleIcon',
   'CreditsIcon',
@@ -106,6 +105,7 @@ for (const text of [
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
 
 for (const forbidden of [
+  'facility-formula-summary',
   'facility-formula-arrow',
   '→',
   '⏱',
@@ -156,10 +156,10 @@ for (const text of [
   '.facility-formula-center',
   '.facility-formula-progress',
   '.facility-formula-meta-icon',
-  '.facility-formula-summary',
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)',
   'grid-template-rows: auto minmax(112px, auto) minmax(0, 1fr) auto',
 ]) requireText('src/styles/facility-production-formula.css', text);
+forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');
 
 requireText('src/main.tsx', "import './styles/facility-production-formula.css';");
 
@@ -194,7 +194,7 @@ for (const text of [
   '多输入和多输出',
   '进度条',
   '周期 SVG 图标',
-  '当前无工厂参与生产',
+  '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
@@ -209,6 +209,7 @@ for (const text of [
   'WarehouseIcon',
   '输入在左、周期成本在中、输出在右',
   '生产进度条',
+  '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整文本无障碍描述',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
