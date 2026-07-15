@@ -1,0 +1,231 @@
+name: Apply factory card header layout
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: apply-factory-card-header-layout
+  cancel-in-progress: true
+
+jobs:
+  apply-and-validate:
+    if: github.head_ref == 'agent/restructure-factory-card-header'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out change branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/restructure-factory-card-header
+          fetch-depth: 0
+
+      - name: Detect completed migration
+        id: guard
+        shell: bash
+        run: |
+          if grep -q '名称和运行开关位于第一行' docs/INDUSTRY_AND_PRODUCTION_DESIGN.md; then
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply design and verification updates
+        if: steps.guard.outputs.apply == 'true'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, content):
+              Path(path).write_text(content, encoding='utf-8')
+
+          def replace_once(path, old, new):
+              content = read(path)
+              if old not in content:
+                  raise SystemExit(f'{path} 缺少待替换内容: {old}')
+              write(path, content.replace(old, new, 1))
+
+          industry = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
+          replace_once(
+              industry,
+              '- 桌面端所有工厂集群卡片使用统一高度；大于 1380px 时右侧固定四列并呈等高方格，961px–1380px 使用等高单列。',
+              '- 工厂卡高度由内容自适应；大于 1380px 时右侧固定四列，同一网格行中的卡片等高，不同网格行可以使用不同高度；961px–1380px 使用自然高度单列。',
+          )
+          replace_once(
+              industry,
+              '- 顶部是唯一状态说明区，异常原因直接写入状态标签。\n- 顶部第一行固定为状态标签、工厂名称和右侧运行开关；名称与开关必须处于同一水平行。\n- 顶部第二行只显示“运行中／下一周期加入／冻结中”，使用三列单行布局；移动端不得改为纵向堆叠。',
+              '- 工厂名称和运行开关位于第一行同一水平框内，名称在左、开关在右。\n- 运行中、已停止或异常状态独占第二行；异常原因完整写入该行状态标签。\n- “运行中／下一周期加入／冻结中”数量摘要独占第三行，使用三列单行布局；移动端不得改为纵向堆叠。',
+          )
+          replace_once(
+              industry,
+              '- 输入、输出和运行成本按 `participatingCount` 计算；下一周期预览按 `nextCycleCount` 计算；周期不乘以工厂规模。',
+              '- 输入、输出和运行成本按 `participatingCount` 计算；周期不乘以工厂规模。待生效配方和 `nextCycleCount` 只用于服务器状态与无障碍描述，不在进度条下方渲染说明。',
+          )
+          replace_once(
+              industry,
+              '- 让桌面工厂卡高度不一致、恢复瀑布流，或把市场入口从卡片底部移开；',
+              '- 让同一网格行中的工厂卡高度不一致、恢复瀑布流，或把市场入口从卡片底部移开；\n- 把状态标签放回名称和开关所在第一行，或把数量摘要移出第三行；',
+          )
+
+          page = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md'
+          replace_once(
+              page,
+              '每种工厂类型最多一张卡。桌面端所有工厂集群卡片使用统一高度；大于 1380px 时工厂列表固定四列并呈等高方格，961px–1380px 使用等高单列。移动端恢复自然高度。',
+              '每种工厂类型最多一张卡。工厂卡高度由内容自适应；大于 1380px 时工厂列表固定四列，同一网格行中的卡片等高，不同网格行可以使用不同高度；961px–1380px 使用自然高度单列。移动端继续使用自然高度。',
+          )
+          replace_once(
+              page,
+              '- 工厂类型和总数量，数量只在标题中出现；\n- 运行、停止或异常状态；异常原因直接合并到顶部状态标签；\n- 顶部紧凑摘要“运行中／下一周期加入／冻结中”；\n- 与工厂名称同一水平行的统一运行开关；',
+              '- 工厂名称与总数量位于第一行左侧，统一运行开关位于第一行右侧；\n- 运行中、已停止或异常状态位于第二行，异常原因完整显示在该行状态标签中；\n- “运行中／下一周期加入／冻结中”数量摘要位于第三行并保持三列单行；',
+          )
+          replace_once(
+              page,
+              '- 多输入、多输出和逐输入库存兼容展示，以及当前参与数量的集群周期产出与成本汇总；',
+              '- 多输入、多输出和逐输入库存兼容展示；进度条下方不显示集群汇总或下一周期说明；',
+          )
+          replace_once(
+              page,
+              '- 服务器存在待生效配方时显示“下一周期切换为：配方名称”，并按下一周期规模预览输入、输出和成本；',
+              '- 服务器存在待生效配方时，只在配方标题区显示“下一周期切换为：配方名称”；生产公式下方不得显示下一周期预览；',
+          )
+          replace_once(
+              page,
+              '- 额外白色市场说明、旧“前往市场 →”入口、卡片内部纵向滚动或参差不齐的桌面卡片高度。',
+              '- 额外白色市场说明、旧“前往市场 →”入口、卡片内部纵向滚动、同一网格行卡片高度不一致，或把市场入口移出卡片底部。',
+          )
+
+          ui = 'docs/UI_DESIGN_SYSTEM.md'
+          replace_once(
+              ui,
+              '| `src/styles/industry-system.css` | 工厂、建设列、固定卡片高度与生产密度 |',
+              '| `src/styles/industry-system.css` | 工厂、建设列、自适应同行等高卡片与生产密度 |',
+          )
+          replace_once(
+              ui,
+              '- 桌面端所有工厂集群卡片使用统一高度，移动端使用自然高度；四列和单列桌面布局中的卡片入口保持同一底线。\n- 工厂卡大于 1380px 时固定四列并呈等高方格，961px–1380px 使用等高单列。\n- 工厂卡顶部第一行显示状态标签、名称和右侧 `SwitchControl`，名称与开关必须保持同一水平行。\n- 顶部数量摘要只显示“运行中／下一周期加入／冻结中”，固定为下一行三列单行布局；移动端不得纵向堆叠。\n- 异常原因只在顶部状态标签显示一次。',
+              '- 工厂卡高度由内容自适应；大于 1380px 时固定四列，同一网格行中的卡片等高，不同网格行可以使用不同高度；961px–1380px 使用自然高度单列。\n- 工厂名称与 `SwitchControl` 位于第一行同一水平框内，名称在左、开关在右。\n- 运行中、已停止或异常状态位于第二行；异常原因只在该行状态标签显示一次。\n- “运行中／下一周期加入／冻结中”数量摘要位于第三行，固定为三列单行布局；移动端不得纵向堆叠。',
+          )
+          replace_once(
+              ui,
+              '- 把工厂卡恢复为桌面自然高度、参差不齐的瀑布流，或让市场入口离开卡片底部；\n- 把工厂开关移出名称所在的第一行，或把三项数量摘要改为移动端纵向布局；',
+              '- 让同一网格行中的工厂卡高度不一致、恢复瀑布流，或让市场入口离开卡片底部；\n- 把状态标签放回名称与开关所在第一行、把开关移出第一行，或把三项数量摘要移出第三行或改为移动端纵向布局；',
+          )
+
+          industry_css = 'src/styles/industry-system.css'
+          replace_once(
+              industry_css,
+              '/* Production management layout v3: sticky build column and fixed-height factory cards. */',
+              '/* Production management layout v3: sticky build column and adaptive same-row factory cards. */',
+          )
+          replace_once(
+              industry_css,
+              '@media (min-width: 961px) {\n  .facility-group-card {\n    height: auto;\n    min-height: 320px;\n    max-height: none;\n    grid-template-rows: auto auto minmax(0, 1fr) auto auto;\n    overflow: visible;\n  }\n}',
+              '@media (min-width: 961px) {\n  .facility-group-card {\n    min-height: 0;\n    grid-template-rows: auto auto auto minmax(0, 1fr) auto;\n    overflow: visible;\n  }\n}',
+          )
+          replace_once(
+              industry_css,
+              '  .facility-count-summary {\n    align-items: flex-start;\n    flex-direction: column;\n    gap: var(--space-1);\n  }',
+              '  .facility-count-summary {\n    gap: var(--space-1);\n  }',
+          )
+
+          page_verify = 'scripts/verify-page-content.mjs'
+          content = read(page_verify)
+          content = content.replace(
+              "  'facility-status-header',\n",
+              "  'facility-status-header',\n  'facility-card-title-row',\n  'facility-card-status-row',\n",
+              1,
+          )
+          write(page_verify, content)
+
+          facility_verify = 'scripts/verify-facility-groups.mjs'
+          content = read(facility_verify)
+          content = content.replace(
+              "  'src/styles/facility-production-formula.css',\n",
+              "  'src/styles/facility-production-formula.css',\n  'src/styles/facility-group-card-grid.css',\n",
+              1,
+          )
+          content = content.replace(
+              "  'facility-status-header',\n  'facility-count-summary',",
+              "  'facility-status-header',\n  'facility-card-title-row',\n  'facility-card-status-row',\n  'facility-count-summary',",
+              1,
+          )
+          content = content.replace(
+              "for (const text of [\n  'min-height: 320px',\n  '.facility-status-header > .ui-switch',\n  '.facility-count-summary',\n  '.production-plan-heading',\n  '.production-plan-status',\n]) requireText('src/styles/industry-system.css', text);",
+              "for (const text of [\n  'Production management layout v3',\n  'grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);',\n  'position: sticky',\n]) requireText('src/styles/industry-system.css', text);\n\nfor (const text of [\n  '.facility-card-title-row',\n  '.facility-card-status-row',\n  '.facility-count-summary',\n  'align-self: stretch;',\n  'grid-auto-rows: auto;',\n  'grid-template-rows: auto auto auto minmax(0, 1fr) auto;',\n]) requireText('src/styles/facility-group-card-grid.css', text);\nfor (const forbidden of ['--facility-card-height', 'grid-auto-rows: 1fr;']) forbidText('src/styles/facility-group-card-grid.css', forbidden);",
+              1,
+          )
+          content = content.replace(
+              "  '桌面端所有工厂集群卡片使用统一高度',",
+              "  '同一网格行中的卡片等高',\n  '名称与 `SwitchControl` 位于第一行',\n  '状态位于第二行',\n  '数量摘要位于第三行',",
+              1,
+          )
+          write(facility_verify, content)
+
+          warehouse_verify = 'scripts/verify-warehouse-expansion.mjs'
+          content = read(warehouse_verify)
+          content = content.replace(
+              "  'src/styles/facility-production-formula.css',\n",
+              "  'src/styles/facility-production-formula.css',\n  'src/styles/facility-group-card-grid.css',\n",
+              1,
+          )
+          content = content.replace(
+              "  'min-height: 320px',\n",
+              '',
+              1,
+          )
+          marker = "for (const forbidden of ['position: fixed']) forbidText('src/styles/industry-system.css', forbidden);"
+          content = content.replace(
+              marker,
+              marker + "\nfor (const text of ['.facility-card-title-row', '.facility-card-status-row', 'grid-auto-rows: auto;', 'align-self: stretch;']) requireText('src/styles/facility-group-card-grid.css', text);\nfor (const forbidden of ['--facility-card-height', 'grid-auto-rows: 1fr;']) forbidText('src/styles/facility-group-card-grid.css', forbidden);",
+              1,
+          )
+          content = content.replace(
+              "  '桌面端所有工厂集群卡片使用统一高度',",
+              "  '同一网格行中的卡片等高',",
+              3,
+          )
+          write(warehouse_verify, content)
+          PY
+
+      - name: Set up Node.js
+        if: steps.guard.outputs.apply == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        if: steps.guard.outputs.apply == 'true'
+        run: npm install --no-audit --no-fund
+
+      - name: Run complete build
+        if: steps.guard.outputs.apply == 'true'
+        run: npm run build
+
+      - name: Commit validated updates
+        if: steps.guard.outputs.apply == 'true'
+        shell: bash
+        run: |
+          git config user.name "RIVERSOFT automation"
+          git config user.email "actions@users.noreply.github.com"
+          rm -f package-lock.json
+          git add docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            src/styles/industry-system.css \
+            scripts/verify-page-content.mjs \
+            scripts/verify-facility-groups.mjs \
+            scripts/verify-warehouse-expansion.mjs
+          git diff --cached --check
+          git commit -m "Document adaptive factory card header layout"
+          git fetch origin agent/restructure-factory-card-header
+          git rebase origin/agent/restructure-factory-card-header
+          git push origin HEAD:agent/restructure-factory-card-header
