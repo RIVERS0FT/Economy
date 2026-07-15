@@ -1,0 +1,90 @@
+name: Apply final factory recipes grid
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: apply-final-factory-recipes-grid
+  cancel-in-progress: true
+
+jobs:
+  apply-and-validate:
+    if: github.head_ref == 'agent/unified-factory-recipes-grid-final'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out final branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unified-factory-recipes-grid-final
+          fetch-depth: 0
+
+      - name: Copy validated implementation
+        shell: bash
+        run: |
+          git config user.name "RIVERSOFT automation"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin agent/unified-factory-recipes-grid
+          git checkout origin/agent/unified-factory-recipes-grid -- \
+            .gitignore \
+            README.md \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/LOCAL_ACTIVITY_LOG_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
+            docs/README.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            package.json \
+            scripts/verify-document-authority.mjs \
+            scripts/verify-facility-groups.mjs \
+            scripts/verify-industry-catalog.mjs \
+            scripts/verify-market-assets.mjs \
+            scripts/verify-page-content.mjs \
+            scripts/verify-staple-crops-demand.mjs \
+            scripts/verify-unified-factory-recipes-grid.mjs \
+            scripts/verify-warehouse-expansion.mjs \
+            server/src/domain.js \
+            server/src/facility-groups.js \
+            server/test/domain.test.js \
+            server/test/facility-groups.test.js \
+            src/components/facilities/FacilityProductionFormula.tsx \
+            src/main.tsx \
+            src/pages/ProductionPage.tsx \
+            src/styles/facility-group-card-grid.css \
+            src/types.ts
+          git rm --ignore-unmatch src/styles/facility-card-grid.css
+          sed -i "/facility-card-grid\.css/d" src/main.tsx
+          grep -q "facility-group-card-grid.css" src/main.tsx
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run complete build
+        run: npm run build
+
+      - name: Check final diff
+        run: git diff --check
+
+      - name: Commit validated implementation
+        shell: bash
+        run: |
+          git add -A
+          if ! git diff --cached --quiet; then
+            git diff --cached --check
+            git commit -m "Complete universal factory recipe implementation"
+            git fetch origin agent/unified-factory-recipes-grid-final
+            git rebase origin/agent/unified-factory-recipes-grid-final
+            git push origin HEAD:agent/unified-factory-recipes-grid-final
+          fi
