@@ -34,6 +34,9 @@ jobs:
           cat scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-* > /tmp/factory-card-patch.b64
           base64 --decode /tmp/factory-card-patch.b64 | gzip --decompress > /tmp/apply-factory-card-patch.py
           python3 /tmp/apply-factory-card-patch.py
+          if [ -f scripts/apply-unified-factory-recipes-grid-hotfix.py ]; then
+            python3 scripts/apply-unified-factory-recipes-grid-hotfix.py
+          fi
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -63,6 +66,7 @@ jobs:
         shell: bash
         run: |
           rm -f scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-*
+          rm -f scripts/apply-unified-factory-recipes-grid-hotfix.py
           rm -f .github/workflows/apply-unified-factory-recipes-grid.yml
           rm -f package-lock.json factory-card-validation.log
 
