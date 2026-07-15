@@ -1,4 +1,4 @@
-export function canAcceptRevision(currentRevision: number | null, incomingRevision: number | undefined) {
+export function canAcceptRevision(currentRevision, incomingRevision) {
   if (typeof incomingRevision !== 'number' || !Number.isInteger(incomingRevision)) return false;
   return currentRevision === null || incomingRevision >= currentRevision;
 }

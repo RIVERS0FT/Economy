@@ -25,7 +25,7 @@ import type {
   ProductionMode,
   TradeRecord,
 } from '../types';
-import { canAcceptRevision } from './revisionGate';
+import { canAcceptRevision } from './revisionGate.js';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
 import {
   clearLocalActivity as clearLocalActivityStore,

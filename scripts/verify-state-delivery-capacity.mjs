@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { canAcceptRevision } from '../src/app/revisionGate.ts';
+import { canAcceptRevision } from '../src/app/revisionGate.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 const failures = [];
