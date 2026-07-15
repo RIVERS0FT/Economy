@@ -84,6 +84,10 @@ Environment=PORT=3002
 Environment=ECONOMY_DB_PATH={STATE_DIRECTORY / 'economy.sqlite'}
 Environment=ACCOUNT_SERVICE_URL=http://127.0.0.1:3001
 Environment=ACCOUNT_SERVICE_HOST=riversoft.top
+Environment=ACCOUNT_AUTH_STATE_CACHE_TTL_MS=10000
+Environment=ACCOUNT_AUTH_WRITE_CACHE_TTL_MS=2000
+Environment=ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_MS=1000
+Environment=ACCOUNT_AUTH_CACHE_MAX_ENTRIES=5000
 Environment=PUBLIC_ORIGIN=https://game.riversoft.top
 ExecStart={node_path} src/index.js
 Restart=on-failure

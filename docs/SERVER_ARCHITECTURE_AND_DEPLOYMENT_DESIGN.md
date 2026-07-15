@@ -94,6 +94,9 @@ assetEvents
 
 - 只接受正式站点的同源或可信 same-site 请求。
 - 使用主页账号 Cookie 验证用户，不接受客户端自报用户 ID 或角色。
+- 游戏 API 只在当前单进程内缓存已经由主页 `/api/me` 验证的账号结果：`GET /api/game/state` 最多复用 10 秒，普通写操作最多复用 2 秒，`/api/game/admin/` 每次重新验证且不读取缓存。401 只缓存 1 秒；超时、无效响应、502 和 503 不缓存，也不得使用过期结果继续执行资产写操作。
+- 认证缓存键只能保存完整 Cookie header 的 SHA-256 摘要，不得保存或记录原始 Cookie。缓存使用最多 5,000 条的 LRU；同一摘要的并发未命中必须共享一个上游验证 Promise，Promise 必须在 `finally` 中移除，并发记录也不得超过相同上限。
+- 进程重启会清空认证缓存。正常退出后浏览器 Cookie 被清除；被盗或被撤销的旧 Cookie 最多可能继续读取状态 10 秒、执行普通写操作 2 秒，管理员权限不得存在缓存失效窗口。多实例部署前必须改为可广播失效的共享缓存或本地验证的短期签名凭据。
 - Nginx 对 `/economy-api/game/` 的请求体上限为 256 KB；普通游戏 JSON 仍由应用默认限制为 16 KB，只有管理员藏品导入接口允许读取最多 256 KB。
 - 管理员每次只能导入 1～100 条藏品，服务端继续限制每个字段长度并拒绝任意图片 URL。
 - 所有资产写操作要求 8～128 字符的 `Idempotency-Key`。
@@ -171,6 +174,10 @@ PORT=3002
 ECONOMY_DB_PATH=/var/lib/riversoft-economy/economy.sqlite
 ACCOUNT_SERVICE_URL=http://127.0.0.1:3001
 ACCOUNT_SERVICE_HOST=riversoft.top
+ACCOUNT_AUTH_STATE_CACHE_TTL_MS=10000
+ACCOUNT_AUTH_WRITE_CACHE_TTL_MS=2000
+ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_MS=1000
+ACCOUNT_AUTH_CACHE_MAX_ENTRIES=5000
 PUBLIC_ORIGIN=https://game.riversoft.top
 ```
 
@@ -228,6 +235,8 @@ SERVER_USER=deploy
 - 修订号未变化时重复返回完整状态，或动作响应遗漏最新修订号；
 - 接受低于当前值或缺少修订号的迟到状态响应，导致新状态被旧轮询覆盖；
 - 权威动作与后台轮询并行更新界面，或工作请求期间不显示“处理中”、不禁用按钮和不阻止重复提交；
+- 每次状态轮询都重复请求主页 `/api/me`，或让普通写操作使用超过 2 秒、管理员使用任意时长的认证缓存；
+- 在认证缓存中保存原始 Cookie、缓存账号服务错误、允许超过 5,000 条 LRU 上限，或遗漏同会话并发请求合并；
 - 恢复默认 3 秒或每 1 秒完整状态轮询；
 - 删除 `/economy-api/game/` 的 JSON gzip，或让部署脚本只为全新路由配置压缩而遗漏既有 snippet／手工路由；
 

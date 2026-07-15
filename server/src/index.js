@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { authenticateRequest } from './auth.js';
+import { authenticateRequest, authenticationCacheMaxAgeForRequest } from './auth.js';
 import { configureGiftCodeAdminStore, createGiftCodeBatch } from './gift-code-batch.js';
 import { checkRateLimit } from './rateLimit.js';
 import { EconomyStore } from './storage.js';
@@ -159,7 +159,9 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    const user = await authenticateRequest(request);
+    const user = await authenticateRequest(request, {
+      maxCacheAgeMs: authenticationCacheMaxAgeForRequest(method, path),
+    });
     if (!user) {
       sendError(response, 401, '请先登录');
       return;
