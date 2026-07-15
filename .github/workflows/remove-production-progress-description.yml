@@ -147,6 +147,27 @@ jobs:
               "forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');\n\n" + marker,
           )
           write(verify_path, verify)
+
+          for verify_path in [
+              'scripts/verify-page-content.mjs',
+              'scripts/verify-warehouse-expansion.mjs',
+          ]:
+              verify = read(verify_path)
+              verify = verify.replace("  'facility-formula-summary',\n", '')
+              component_marker = "]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);"
+              verify = verify.replace(
+                  component_marker,
+                  component_marker + "\nforbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-summary');",
+                  1,
+              )
+              if verify_path.endswith('verify-warehouse-expansion.mjs'):
+                  css_marker = "]) requireText('src/styles/facility-production-formula.css', text);"
+                  verify = verify.replace(
+                      css_marker,
+                      css_marker + "\nforbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');",
+                      1,
+                  )
+              write(verify_path, verify)
           PY
 
       - name: Install dependencies
@@ -180,7 +201,10 @@ jobs:
             src/styles/facility-production-formula.css \
             docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
             docs/UI_DESIGN_SYSTEM.md \
-            scripts/verify-facility-groups.mjs
+            scripts/verify-facility-groups.mjs \
+            scripts/verify-page-content.mjs \
+            scripts/verify-warehouse-expansion.mjs
+          git add -u progress-description-validation.log
           git diff --cached --check
           git commit -m "Remove production progress descriptions"
           git fetch origin agent/remove-production-progress-description
