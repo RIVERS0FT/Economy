@@ -25,6 +25,7 @@ import type {
   ProductionMode,
   TradeRecord,
 } from '../types';
+import { canAcceptRevision } from './revisionGate.js';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
 import {
   clearLocalActivity as clearLocalActivityStore,
@@ -105,6 +106,7 @@ export interface LoadedGameViewModel {
   setRefreshRate: Dispatch<SetStateAction<string>>;
   now: number;
   workRemaining: number;
+  isWorking: boolean;
   inventoryUsed: number;
   cashShare: number;
   commodityShare: number;
@@ -188,35 +190,65 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
   ));
   const [refreshRate, setRefreshRate] = useState('5');
+  const [isWorking, setIsWorking] = useState(false);
   const [now, setNow] = useState(Date.now());
   const refreshing = useRef(false);
   const revisionRef = useRef<number | null>(null);
+  const refreshAbortRef = useRef<AbortController | null>(null);
+  const actionsInFlightRef = useRef(0);
+  const workPendingRef = useRef(false);
 
   const handleUnauthorized = useCallback(() => { setGame(null); onSignedOut(); }, [onSignedOut]);
   const acceptState = useCallback((state: EconomyState, action: LocalActivityAction, message?: string) => {
     setLocalActivity(syncLocalActivity(user.id, state, { action, message, createdAt: Date.now() }));
     setGame(state);
   }, [user.id]);
+  const acceptVersionedState = useCallback((
+    incomingRevision: number | undefined,
+    state: EconomyState | undefined,
+    action: LocalActivityAction,
+    message?: string,
+  ) => {
+    const currentRevision = revisionRef.current;
+    if (!canAcceptRevision(currentRevision, incomingRevision)) return false;
+    if (typeof incomingRevision === 'number' && Number.isInteger(incomingRevision)) {
+      revisionRef.current = incomingRevision;
+    }
+    if (state) acceptState(state, action, message);
+    return true;
+  }, [acceptState]);
   const refresh = useCallback(async () => {
-    if (refreshing.current) return;
+    if (refreshing.current || actionsInFlightRef.current > 0) return;
+    const controller = new AbortController();
+    refreshAbortRef.current = controller;
     refreshing.current = true;
     try {
-      const response = await getGameState(revisionRef.current);
-      revisionRef.current = response.revision;
-      if (response.state) acceptState(response.state, 'refresh');
+      const response = await getGameState(revisionRef.current, controller.signal);
+      if (actionsInFlightRef.current > 0) return;
+      acceptVersionedState(response.revision, response.state, 'refresh');
       setLoadError('');
     }
     catch (reason) {
+      if (reason instanceof Error && reason.name === 'AbortError') return;
       if (reason instanceof GameApiError && reason.status === 401) { handleUnauthorized(); return; }
       setLoadError(messageFromError(reason));
-    } finally { refreshing.current = false; }
-  }, [acceptState, handleUnauthorized]);
+    } finally {
+      if (refreshAbortRef.current === controller) {
+        refreshAbortRef.current = null;
+        refreshing.current = false;
+      }
+    }
+  }, [acceptVersionedState, handleUnauthorized]);
 
   useEffect(() => {
+    refreshAbortRef.current?.abort();
+    refreshAbortRef.current = null;
+    refreshing.current = false;
     revisionRef.current = null;
     setLocalActivity(loadLocalActivity(user.id));
     void refresh();
   }, [refresh, reloadVersion, user.id]);
+  useEffect(() => () => refreshAbortRef.current?.abort(), []);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1_000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!game) return undefined;
@@ -243,17 +275,31 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   }, [game, marketAssetId, marketAssetKind, selectedFacilityTypeId]);
 
   const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
+    if (action === 'work' && workPendingRef.current) {
+      return { ok: false, message: '工作正在处理中' };
+    }
+    actionsInFlightRef.current += 1;
+    refreshAbortRef.current?.abort();
+    if (action === 'work') {
+      workPendingRef.current = true;
+      setIsWorking(true);
+    }
     try {
       const response = await operation();
-      if (Number.isInteger(response.revision)) revisionRef.current = response.revision ?? null;
-      acceptState(response.state, action, response.result.message);
+      acceptVersionedState(response.revision, response.state, action, response.result.message);
       setLoadError('');
       return response.result;
     } catch (reason) {
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
       return { ok: false, message: messageFromError(reason) };
+    } finally {
+      actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
+      if (action === 'work') {
+        workPendingRef.current = false;
+        setIsWorking(false);
+      }
     }
-  }, [acceptState, handleUnauthorized]);
+  }, [acceptVersionedState, handleUnauthorized]);
 
   const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);
   function notify(message: string) { setNotice(message); window.setTimeout(() => setNotice(''), 3_000); }
@@ -310,7 +356,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     marketAssetKind, marketAssetId, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
     playerName, setPlayerName, soundEnabled, setSoundEnabled, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
-    now, workRemaining, inventoryUsed: derived.inventoryUsed,
+    now, workRemaining, isWorking, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, allocationStyle, avatarText,
     showResult, notify, refresh,
     clearLocalActivity: () => { setLocalActivity(clearLocalActivityStore(user.id, loadedGame)); notify('本地活动记录已清除'); },
