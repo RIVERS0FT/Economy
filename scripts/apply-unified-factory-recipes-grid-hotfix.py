@@ -4,6 +4,7 @@ root = Path.cwd()
 for path in (root / 'scripts').glob('verify-*.mjs'):
     content = path.read_text(encoding='utf-8')
     updated = content.replace("'>前往市场交易该工厂 →'", "'前往市场交易该工厂 →'")
+    updated = updated.replace('工厂卡桌面使用统一高度', '桌面端所有工厂集群卡片使用统一高度')
     if updated != content:
         path.write_text(updated, encoding='utf-8')
 
