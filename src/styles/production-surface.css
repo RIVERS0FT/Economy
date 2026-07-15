@@ -14,6 +14,10 @@
   align-items: start;
 }
 
+.panel.production-surface .facility-card-title-row {
+  min-height: var(--production-pill-visible-height);
+}
+
 .panel.production-surface > .widget-heading h2,
 .panel.production-surface .facility-card-title-row h2 {
   margin: 0;
@@ -22,15 +26,16 @@
 }
 
 .panel.production-surface .facility-card-title-row > .ui-switch {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: var(--production-pill-visible-height);
+  min-height: var(--production-pill-visible-height);
   align-self: start;
 }
 
 .panel.production-surface .facility-card-title-row > .ui-switch::before {
-  top: 0;
-  right: 0;
-  bottom: auto;
-  left: 0;
-  height: var(--production-pill-visible-height);
+  inset: 0;
+  height: auto;
   border-radius: var(--radius-pill);
 }
 
