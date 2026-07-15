@@ -49,8 +49,8 @@ for (const text of [
   "import { defaultOrderPrice } from '../utils/defaultOrderPrice'",
   'setTab: (tab: TabId) => void;',
   'selectOrderSide: (side: OrderSide) => void;',
-  'const [tab, setActiveTab] = useState<TabId>(\'home\');',
-  'const [orderSide, setOrderSideState] = useState<OrderSide>(\'buy\');',
+  "const [tab, setActiveTab] = useState<TabId>('home');",
+  "const [orderSide, setOrderSideState] = useState<OrderSide>('buy');",
   'const [orderPrice, setOrderPrice] = useState(1);',
   'const loadedGame = game;',
   "if (nextTab === 'market' && tab !== 'market')",
@@ -74,14 +74,14 @@ for (const text of [
   '下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>',
   '冻结中 <strong>{formatNumber(group.listedCount)}</strong>',
   'production-recipe-card',
-  '种植作物',
-  '下一周期改为',
-  '在统一订单簿中买卖该工厂',
-  '>前往市场 →',
+  '<strong>生产配方</strong>',
+  '下一周期切换为：',
+  '前往市场交易该工厂 →',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 for (const text of [
   'facility-power-button','产成品去向','挂牌数量','单座价格','启动全部未挂牌工厂','停止全部',
-  '前往市场交易该工厂','>保存计划</Button>','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>'
+  '>保存计划</Button>','下一周期按 ','<span>冻结 <strong>{group.listedCount}</strong></span>',
+  '在统一订单簿中买卖该工厂','>前往市场 →',
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录','重置经济状态']) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['登录会话','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
