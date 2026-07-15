@@ -187,9 +187,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [compactNumbers, setCompactNumbers] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
   ));
-  const [refreshRate, setRefreshRate] = useState('3');
+  const [refreshRate, setRefreshRate] = useState('5');
   const [now, setNow] = useState(Date.now());
   const refreshing = useRef(false);
+  const revisionRef = useRef<number | null>(null);
 
   const handleUnauthorized = useCallback(() => { setGame(null); onSignedOut(); }, [onSignedOut]);
   const acceptState = useCallback((state: EconomyState, action: LocalActivityAction, message?: string) => {
@@ -199,14 +200,23 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const refresh = useCallback(async () => {
     if (refreshing.current) return;
     refreshing.current = true;
-    try { acceptState(await getGameState(), 'refresh'); setLoadError(''); }
+    try {
+      const response = await getGameState(revisionRef.current);
+      revisionRef.current = response.revision;
+      if (response.state) acceptState(response.state, 'refresh');
+      setLoadError('');
+    }
     catch (reason) {
       if (reason instanceof GameApiError && reason.status === 401) { handleUnauthorized(); return; }
       setLoadError(messageFromError(reason));
     } finally { refreshing.current = false; }
   }, [acceptState, handleUnauthorized]);
 
-  useEffect(() => { setLocalActivity(loadLocalActivity(user.id)); void refresh(); }, [refresh, reloadVersion, user.id]);
+  useEffect(() => {
+    revisionRef.current = null;
+    setLocalActivity(loadLocalActivity(user.id));
+    void refresh();
+  }, [refresh, reloadVersion, user.id]);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1_000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!game) return undefined;
@@ -235,6 +245,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
     try {
       const response = await operation();
+      if (Number.isInteger(response.revision)) revisionRef.current = response.revision ?? null;
       acceptState(response.state, action, response.result.message);
       setLoadError('');
       return response.result;

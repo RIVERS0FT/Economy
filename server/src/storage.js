@@ -176,8 +176,8 @@ export class EconomyStore {
     this.database.close();
   }
 
-  transaction(callback) {
-    this.database.exec('BEGIN IMMEDIATE');
+  transaction(callback, { immediate = true } = {}) {
+    this.database.exec(immediate ? 'BEGIN IMMEDIATE' : 'BEGIN');
     try {
       const value = callback();
       this.database.exec('COMMIT');
@@ -195,39 +195,64 @@ export class EconomyStore {
       migrateFacilityGroupWorld(world, now);
       migrateCollectibleWorld(world, now);
       stripLegacyFacilityInstances(world);
-      this.insertWorld.run(1, JSON.stringify(world), now);
-      return { revision: 1, world };
+      const stateJson = JSON.stringify(world);
+      this.insertWorld.run(1, stateJson, now);
+      return { revision: 1, stateJson, world };
     }
-    const world = migrateWorld(JSON.parse(String(row.state_json)), now);
+    const stateJson = String(row.state_json);
+    const world = migrateWorld(JSON.parse(stateJson), now);
     stripPlayerLogs(world);
     migrateFacilityGroupWorld(world, now);
     migrateCollectibleWorld(world, now);
     for (const player of Object.values(world.players || {})) ensureWarehouse(player);
-    return { revision: Number(row.revision), world };
+    return { revision: Number(row.revision), stateJson, world };
   }
 
-  saveWorld(revision, world, now) {
+  serializeWorld(world, now) {
     for (const player of Object.values(world.players || {})) ensureWarehouse(player);
     migrateFacilityGroupWorld(world, now);
     migrateCollectibleWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
-    this.updateWorld.run(revision + 1, JSON.stringify(world), now);
+    return JSON.stringify(world);
   }
 
-  getState(user, now = Date.now()) {
+  saveWorld(revision, world, now) {
+    world.lastProcessedAt = now;
+    this.updateWorld.run(revision + 1, this.serializeWorld(world, now), now);
+    return revision + 1;
+  }
+
+  saveWorldIfChanged(revision, world, now, previousStateJson) {
+    const candidate = this.serializeWorld(world, now);
+    if (candidate === previousStateJson) return revision;
+    world.lastProcessedAt = now;
+    this.updateWorld.run(revision + 1, this.serializeWorld(world, now), now);
+    return revision + 1;
+  }
+
+  getStateSnapshot(user, knownRevision, now = Date.now()) {
     return this.transaction(() => {
-      const { revision, world } = this.loadWorld(now);
+      const { revision, stateJson, world } = this.loadWorld(now);
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
       migrateFacilityGroupWorld(world, now);
       processFacilityGroupWorld(world, now);
       processCollectibleAuctions(world, now);
       ensureWarehouse(world.players[String(user.id)]);
-      const state = normalizeJson(createVersionedClientState(world, Number(user.id), now));
-      this.saveWorld(revision, world, now);
-      return state;
-    });
+      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
+      const unchanged = Number.isInteger(knownRevision) && knownRevision === nextRevision;
+      if (unchanged) return { revision: nextRevision, unchanged: true };
+      return {
+        revision: nextRevision,
+        unchanged: false,
+        state: normalizeJson(createVersionedClientState(world, Number(user.id), now)),
+      };
+    }, { immediate: false });
+  }
+
+  getState(user, now = Date.now()) {
+    return this.getStateSnapshot(user, undefined, now).state;
   }
 
   redeemGiftInTransaction(world, user, payload, now) {
@@ -290,9 +315,9 @@ export class EconomyStore {
       processFacilityGroupWorld(world, now);
       processCollectibleAuctions(world, now);
       ensureWarehouse(world.players[String(user.id)]);
+      const nextRevision = this.saveWorld(revision, world, now);
       const state = createVersionedClientState(world, Number(user.id), now);
-      const response = normalizeJson({ result: gameResult, state });
-      this.saveWorld(revision, world, now);
+      const response = normalizeJson({ result: gameResult, revision: nextRevision, state });
       this.insertIdempotency.run(
         Number(user.id),
         requestKey,

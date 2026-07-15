@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
-const read = (path) => readFileSync(resolve(root, path), 'utf8');
+const read = (path) => readFileSync(resolve(root, path), 'utf8').replace(/\r\n?/g, '\n');
 const failures = [];
 function requireFile(path) { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); }
 function requireText(path, text) { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); }

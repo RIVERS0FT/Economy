@@ -674,7 +674,6 @@ export function processFacilityGroupWorld(world, now = Date.now()) {
   }
   reconcileAllFacilityGroups(world, now);
   stripLegacyFacilityInstances(world);
-  world.lastProcessedAt = now;
   return world;
 }
 

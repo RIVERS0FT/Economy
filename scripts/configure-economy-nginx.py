@@ -14,6 +14,14 @@ ACCOUNT_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-account.conf"
 GAME_API_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-game-api.conf"
 BEGIN = "# BEGIN MANAGED ECONOMY API PROXY"
 END = "# END MANAGED ECONOMY API PROXY"
+GAME_API_COMPRESSION = (
+    ("gzip", "on"),
+    ("gzip_vary", "on"),
+    ("gzip_proxied", "any"),
+    ("gzip_min_length", "1024"),
+    ("gzip_comp_level", "5"),
+    ("gzip_types", "application/json"),
+)
 
 ACCOUNT_BLOCK = """
     location = /economy-api/login {
@@ -65,6 +73,12 @@ GAME_API_BLOCK = """
         proxy_connect_timeout 5s;
         proxy_read_timeout 30s;
         client_max_body_size 256k;
+        gzip on;
+        gzip_vary on;
+        gzip_proxied any;
+        gzip_min_length 1024;
+        gzip_comp_level 5;
+        gzip_types application/json;
     }
 """.strip("\n")
 
@@ -193,6 +207,48 @@ def has_game_api_proxy(block: str) -> bool:
     )
 
 
+def ensure_game_api_compression(text: str) -> tuple[str, bool]:
+    view = masked(text)
+    location = re.search(
+        r"\blocation\s+(?:(?:\^~|=)\s+)?/economy-api/game/\s*\{",
+        view,
+        re.IGNORECASE,
+    )
+    if not location:
+        return text, False
+
+    opening = view.find("{", location.start())
+    closing = matching_brace(text, opening)
+    body = text[opening + 1 : closing]
+    clean_body = masked(body)
+    canonical = all(
+        re.search(
+            rf"(?m)^\s*{re.escape(name)}\s+{re.escape(value)}\s*;\s*$",
+            clean_body,
+        )
+        for name, value in GAME_API_COMPRESSION
+    )
+    if canonical:
+        return text, False
+
+    for name, _ in GAME_API_COMPRESSION:
+        body = re.sub(
+            rf"(?im)^[ \t]*{re.escape(name)}\s+[^;]*;[ \t]*(?:\n|$)",
+            "",
+            body,
+        )
+
+    closing_line = text.rfind("\n", 0, closing) + 1
+    closing_indent = re.match(r"[ \t]*", text[closing_line:closing]).group(0)
+    directive_indent = closing_indent + "    "
+    directives = "\n".join(
+        f"{directive_indent}{name} {value};"
+        for name, value in GAME_API_COMPRESSION
+    )
+    updated_body = body.rstrip() + "\n" + directives + "\n" + closing_indent
+    return text[: opening + 1] + updated_body + text[closing:], True
+
+
 def remove_legacy_economy_api_location(block: str) -> tuple[str, bool]:
     view = masked(block)
     location = re.search(
@@ -219,13 +275,14 @@ def replace_or_insert(block: str) -> str:
     had_managed = bool(pattern.search(block))
     cleaned = pattern.sub("", block, count=1)
     cleaned, removed_legacy = remove_legacy_economy_api_location(cleaned)
+    cleaned, added_compression = ensure_game_api_compression(cleaned)
 
     include_account = not has_account_proxy(cleaned)
     include_game_api = not has_game_api_proxy(cleaned)
     desired = managed_block(account=include_account, game_api=include_game_api)
 
     if not desired:
-        if not had_managed and not removed_legacy:
+        if not had_managed and not removed_legacy and not added_compression:
             return block
         return re.sub(r"\n{3,}", "\n\n", cleaned)
 
@@ -272,6 +329,18 @@ def run(command: list[str]) -> None:
     subprocess.run(command, check=True)
 
 
+def write_atomic(path: Path, content: str) -> None:
+    descriptor, temp_name = tempfile.mkstemp(prefix=path.name + ".", dir=str(path.parent))
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.chmod(temp_name, path.stat().st_mode)
+        os.replace(temp_name, path)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+
+
 def main() -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
@@ -279,35 +348,36 @@ def main() -> int:
     path, text, (start, end) = find_target()
     updated_block = replace_or_insert(text[start:end])
     updated = text[:start] + updated_block + text[end:]
+    changes = []
+    if updated != text:
+        changes.append((path, text, updated))
 
-    if updated == text:
-        print(f"Economy API proxy already configured in {path}")
+    snippet_path = Path(GAME_API_SNIPPET)
+    if snippet_path.exists():
+        snippet_text = snippet_path.read_text(encoding="utf-8")
+        snippet_updated, snippet_changed = ensure_game_api_compression(snippet_text)
+        if snippet_changed:
+            changes.append((snippet_path, snippet_text, snippet_updated))
+
+    backups = []
+    try:
+        for changed_path, _original, changed_content in changes:
+            backup = changed_path.with_suffix(changed_path.suffix + ".economy-proxy.bak")
+            shutil.copy2(changed_path, backup)
+            backups.append((changed_path, backup))
+            write_atomic(changed_path, changed_content)
         run(["nginx", "-t"])
         run(["systemctl", "reload", "nginx"])
-        return 0
+    except Exception:
+        for changed_path, backup in reversed(backups):
+            shutil.copy2(backup, changed_path)
+        subprocess.run(["nginx", "-t"], check=False)
+        raise
 
-    backup = path.with_suffix(path.suffix + ".economy-proxy.bak")
-    shutil.copy2(path, backup)
-
-    descriptor, temp_name = tempfile.mkstemp(prefix=path.name + ".", dir=str(path.parent))
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(updated)
-        os.chmod(temp_name, path.stat().st_mode)
-        os.replace(temp_name, path)
-
-        try:
-            run(["nginx", "-t"])
-            run(["systemctl", "reload", "nginx"])
-        except Exception:
-            shutil.copy2(backup, path)
-            subprocess.run(["nginx", "-t"], check=False)
-            raise
-    finally:
-        if os.path.exists(temp_name):
-            os.unlink(temp_name)
-
-    print(f"Configured Economy API proxy in {path}")
+    if changes:
+        print("Configured Economy API proxy and JSON compression in " + ", ".join(str(item[0]) for item in changes))
+    else:
+        print(f"Economy API proxy and JSON compression already configured in {path}")
     return 0
 
 

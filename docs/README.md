@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-14  
+> 更新时间：2026-07-15
 > 客户端状态版本：11  
 > 世界状态版本：7
 
@@ -34,3 +34,4 @@
 7. `scripts/verify-document-authority.mjs` 必须检查权威文件、版本号和禁止文件名；不得为了合并临时绕过或删除该检查。
 8. 未更新设计文档和防回退检查的规则变更不应合并。
 9. 移动端触控元素必须关闭浏览器原生蓝色 tap highlight，同时保留 `:focus-visible` 键盘焦点；实现统一放在 `src/styles/mobile-interaction.css`，并由 `scripts/verify-mobile-touch-feedback.mjs` 防回退。
+10. 状态轮询修订号、空闲读取不写库、默认刷新间隔和游戏 JSON 压缩属于服务器容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-state-delivery-capacity.mjs` 防回退。

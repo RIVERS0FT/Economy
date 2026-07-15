@@ -3,7 +3,7 @@
 > 状态：当前服务器、API、容量和生产部署权威基线  
 > 适用项目：`RIVERS0FT/Economy`  
 > 生产网页：`https://game.riversoft.top/economy/`  
-> 更新时间：2026-07-13  
+> 更新时间：2026-07-15
 > 客户端状态版本：11  
 > 世界状态版本：7
 
@@ -82,6 +82,9 @@ assetEvents
 - 藏品和拍卖作为向后兼容的世界 JSON 字段加入，不单独提高世界版本。
 - 数据库使用 Node 内置 `node:sqlite`、WAL 和事务。
 - 资产写操作使用 `BEGIN IMMEDIATE`。
+- 状态轮询使用延迟事务；只有规范化、到期结算、生产周期、玩家首次创建或其他权威内容实际变化时才升级为写入。
+- `GET /api/game/state` 返回单调递增的世界 `revision`。客户端首次请求不带修订号；后续使用 `?revision=N`，修订号未变化时只返回 `{ revision, unchanged: true }`，不得重复返回完整状态。
+- 空闲状态读取不得仅因服务器时间推进而修改 `lastProcessedAt`、增加修订号或写回相同的 `state_json`；`lastProcessedAt` 只在权威世界实际写入时更新。
 - 单节点只运行一个游戏 API 进程。
 - 旧世界加载时执行版本迁移、目录补齐以及空藏品／拍卖字段补齐。
 - 正式数据库不得位于网页或 API 发布目录。
@@ -106,7 +109,7 @@ assetEvents
 
 | 方法 | 内部路径 | 用途 |
 |---|---|---|
-| GET | `/api/game/state` | 获取完整权威状态 |
+| GET | `/api/game/state` | 首次或修订号变化时获取完整权威状态；`?revision=N` 未变化时只返回轻量确认 |
 | POST | `/api/game/work` | 工作 |
 | POST | `/api/game/facilities` | 建设工厂 |
 | POST | `/api/game/facilities/:facilityTypeId/start` | 开启工厂集群 |
@@ -138,6 +141,8 @@ assetEvents
 ## 7. 容量与优先级
 
 首发设计目标：最低稳定验收 50 名同时在线，产品设计目标 100 名同时在线。更高人数只作为压测观察，不是承诺。
+
+正式客户端默认每 5 秒轮询一次修订号，可选 3／5／10 秒。不得恢复每 1 秒完整状态轮询；动作响应必须同时返回最新修订号，避免动作后立即重复下载完整状态。
 
 优先级：
 
@@ -192,12 +197,13 @@ SERVER_USER=deploy
 - 不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`。
 - 连续执行两次，第二次不得产生配置变化。
 - 游戏 API 路由的 `client_max_body_size` 固定为 `256k`，以容纳受控的管理员藏品 JSON；不得扩大为不受控的大文件上传。
+- `/economy-api/game/` 对大于 1 KB 的 `application/json` 响应固定启用 gzip，使用 `gzip_vary on`、`gzip_proxied any`、`gzip_types application/json` 和压缩级别 5。部署脚本必须修补既有游戏 API snippet 或手工 `location`，不得只对新安装生效。
 
 修改前保留可回滚配置；修改后必须执行 `nginx -t`，只有成功才 reload。失败时恢复旧配置并保持现网可用。
 
 ## 11. 构建与部署验收
 
-`npm run build` 必须完成设计和架构防回退检查、Nginx 配置测试、服务器语法检查、服务器测试、TypeScript 和 Vite 生产构建。
+`npm run build` 必须完成设计和架构防回退检查、状态交付容量防回退检查、Nginx 配置测试、服务器语法检查、服务器测试、TypeScript 和 Vite 生产构建。
 
 部署后必须验证 API 健康、静态网页、账号代理、未登录游戏状态返回 401、systemd 使用正确端口／用户／数据库、数据库未被发布覆盖以及 Nginx 无重复路由。
 
@@ -216,5 +222,9 @@ SERVER_USER=deploy
 - 自动部署删除数据库或在 Nginx 失败后保留坏配置；
 - 允许管理员上传图片二进制或任意远程 URL；
 - 由客户端宣布拍卖成交或转移归属。
+- 空闲 `GET state` 修改 `lastProcessedAt`、增加修订号或写回相同世界 JSON；
+- 修订号未变化时重复返回完整状态，或动作响应遗漏最新修订号；
+- 恢复默认 3 秒或每 1 秒完整状态轮询；
+- 删除 `/economy-api/game/` 的 JSON gzip，或让部署脚本只为全新路由配置压缩而遗漏既有 snippet／手工路由；
 
 未更新设计文档的架构回退不应合并。

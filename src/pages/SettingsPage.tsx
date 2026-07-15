@@ -91,11 +91,11 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
             onChange={(event: ChangeEvent<HTMLInputElement>) => setCompactNumbers(event.target.checked)}
           />
           <label>
-            市场刷新频率
+            状态刷新频率
             <select value={refreshRate} onChange={(event: ChangeEvent<HTMLSelectElement>) => setRefreshRate(event.target.value)}>
-              <option value="1">每 1 秒</option>
               <option value="3">每 3 秒</option>
               <option value="5">每 5 秒</option>
+              <option value="10">每 10 秒</option>
             </select>
           </label>
           <label>

@@ -166,7 +166,11 @@ const server = createServer(async (request, response) => {
     }
 
     if (method === 'GET' && path === '/api/game/state') {
-      sendJson(response, 200, { state: store.getState(user) });
+      const revisionValue = url.searchParams.get('revision');
+      const knownRevision = revisionValue !== null && /^\d+$/.test(revisionValue)
+        ? Number(revisionValue)
+        : undefined;
+      sendJson(response, 200, store.getStateSnapshot(user, knownRevision));
       return;
     }
 
