@@ -3,7 +3,7 @@ import type { AssetKind, EconomyState, OrderSide, ProductionMode } from '../type
 const GAME_API_BASE = '/economy-api/game';
 
 export interface GameActionResult { ok: boolean; message: string; }
-export interface GameActionResponse { result: GameActionResult; revision?: number; state: EconomyState; }
+export interface GameActionResponse { result: GameActionResult; revision: number; state: EconomyState; }
 export interface GameStatePollResponse { revision: number; unchanged: boolean; state?: EconomyState; }
 
 export class GameApiError extends Error {
@@ -40,9 +40,9 @@ function postAction(path: string, body: Record<string, unknown> = {}) {
   return request<GameActionResponse>(path, { method: 'POST', body: JSON.stringify(body) });
 }
 
-export async function getGameState(revision?: number | null): Promise<GameStatePollResponse> {
+export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
   const suffix = Number.isInteger(revision) ? `?revision=${revision}` : '';
-  return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET' });
+  return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET', signal });
 }
 
 export const gameActions = {
