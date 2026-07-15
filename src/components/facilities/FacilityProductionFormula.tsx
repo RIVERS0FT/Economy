@@ -108,14 +108,15 @@ export function FacilityProductionFormula({
   const outputs = recipeOutputs(type);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
   const activeCount = group.status === 'running' ? group.participatingCount : 0;
+  const displayCount = activeCount > 0 ? activeCount : Math.max(0, group.nextCycleCount);
   const inputDescription = inputs.length > 0
-    ? `消耗${recipeText(inputs, productNames)}`
+    ? `消耗${recipeText(inputs, productNames, displayCount)}`
     : '不消耗原料';
-  const outputDescription = `产出${recipeText(outputs, productNames)}`;
-  const activeDescription = activeCount > 0
-    ? `当前${formatNumber(activeCount)}座参与生产，每周期产出${recipeText(outputs, productNames, activeCount)}，成本${formatCurrency(type.operatingCost * activeCount)}`
-    : '当前无工厂参与生产';
-  const description = `每座${type.name}每${formatDuration(type.cycleMs)}${inputDescription}，${outputDescription}，运行成本${formatCurrency(type.operatingCost)}。${activeDescription}。${progressDescription(group, type, now)}。`;
+  const outputDescription = `产出${recipeText(outputs, productNames, displayCount)}`;
+  const scaleDescription = activeCount > 0
+    ? `当前${formatNumber(activeCount)}座参与生产`
+    : `恢复运行后按${formatNumber(displayCount)}座结算`;
+  const description = `${scaleDescription}，每${formatDuration(type.cycleMs)}${inputDescription}，${outputDescription}，运行成本${formatCurrency(type.operatingCost * displayCount)}。${progressDescription(group, type, now)}。`;
 
   return (
     <div className="facility-production-formula" role="group" aria-label={description}>
@@ -127,6 +128,7 @@ export function FacilityProductionFormula({
                 items={inputs}
                 productNames={productNames}
                 inventories={inventories}
+                multiplier={displayCount}
                 showInventory
                 groupClassName="facility-formula-input-group"
                 itemClassName="facility-formula-input-item"
@@ -142,7 +144,7 @@ export function FacilityProductionFormula({
             <span className="facility-formula-meta-divider">·</span>
             <span className="facility-formula-meta-unit">
               <CreditsIcon className="facility-formula-meta-icon" />
-              <span>{formatCurrency(type.operatingCost)}</span>
+              <span>{formatCurrency(type.operatingCost * displayCount)}</span>
             </span>
           </div>
 
@@ -151,6 +153,7 @@ export function FacilityProductionFormula({
               items={outputs}
               productNames={productNames}
               inventories={inventories}
+              multiplier={displayCount}
               groupClassName="facility-formula-output-group"
               itemClassName="facility-formula-output-item"
             />
@@ -164,20 +167,16 @@ export function FacilityProductionFormula({
         <div className="facility-formula-summary">
           {activeCount > 0 ? (
             <>
-              <span>当前周期 × {formatNumber(activeCount)} 座：产出</span>
-              <RecipeItems
-                items={outputs}
-                productNames={productNames}
-                inventories={inventories}
-                multiplier={activeCount}
-                groupClassName="facility-formula-summary-output"
-                itemClassName="facility-formula-output-item"
-              />
+              <span>当前周期 × {formatNumber(activeCount)} 座：</span>
+              {inputs.length > 0 ? <span>消耗 {recipeText(inputs, productNames, activeCount)}</span> : null}
+              <span>产出 {recipeText(outputs, productNames, activeCount)}</span>
               <span className="facility-formula-summary-cost">
                 <CreditsIcon className="facility-formula-meta-icon" />
                 <span>{formatCurrency(type.operatingCost * activeCount)}</span>
               </span>
             </>
+          ) : displayCount > 0 ? (
+            <span>恢复运行后按 {formatNumber(displayCount)} 座结算</span>
           ) : <span>当前无工厂参与生产</span>}
         </div>
       </div>
