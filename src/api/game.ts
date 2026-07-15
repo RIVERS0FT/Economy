@@ -1,4 +1,4 @@
-import type { AssetKind, EconomyState, OrderSide, ProductionMode } from '../types';
+import type { AssetKind, EconomyState, OrderSide } from '../types';
 
 const GAME_API_BASE = '/economy-api/game';
 
@@ -52,8 +52,8 @@ export const gameActions = {
   startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),
   stopFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/stop`),
   pauseFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/pause`),
-  setProductionPlan: (facilityTypeId: string, mode: ProductionMode, targetQuantity?: number) => (
-    postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/plan`, { mode, targetQuantity })
+  setFacilityRecipe: (facilityTypeId: string, recipeId: string) => (
+    postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/recipe`, { recipeId })
   ),
   placeAssetOrder: (assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => (
     postAction('/orders', {

@@ -2,9 +2,9 @@
 
 > 状态：商品和工厂交易、成交价格与估值的当前权威设计  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-13  
-> 客户端状态版本：11  
-> 世界状态版本：7
+> 更新时间：2026-07-15
+> 客户端状态版本：12
+> 世界状态版本：8
 
 ## 1. 统一资产模型
 
@@ -21,6 +21,8 @@ interface AssetOrder {
   ownerType: 'player' | 'population' | 'market';
   ownerId?: number;
   ownerName: string;
+  demandGroupId?: string;
+  demandCycleId?: number;
   price: number;
   quantity: number;
   remaining: number;
@@ -35,6 +37,8 @@ interface AssetOrder {
 商品资产标签使用对应商品的 `ProductIcon`。工厂资产标签使用独立厂房 SVG `FactoryIcon`，不得使用机械商品的齿轮图标，也不得恢复 `⚙` 字符。图标只承担视觉语义，不改变资产 ID、撮合或估值规则。
 
 `FacilityListing` 只允许作为版本 10 迁移兼容空结构存在，不得重新成为业务模型。
+
+人口主食买单使用可选的 `demandGroupId` 和 `demandCycleId` 标记预算组与周期，但仍遵守同一价格优先、同价时间优先规则。主食预算、替代价格与过期规则以 `PRODUCT_AND_GAMEPLAY_DESIGN.md` 为唯一权威来源。
 
 ## 2. 下单与冻结
 

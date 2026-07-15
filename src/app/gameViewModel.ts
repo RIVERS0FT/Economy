@@ -22,7 +22,6 @@ import type {
   LeaderboardEntry,
   OrderSide,
   OrderStatus,
-  ProductionMode,
   TradeRecord,
 } from '../types';
 import { canAcceptRevision } from './revisionGate.js';
@@ -43,8 +42,6 @@ export const facilityStatusNames: Record<FacilityStatus, string> = {
 
 export const facilityStatusReasonNames: Record<FacilityStatusReason, string> = {
   manual: '手动停止',
-  plan_complete: '定量计划已完成',
-  plan_adjustment_required: '工厂数量变化，需要修改定量计划',
   insufficient_funds: '运营资金不足',
   insufficient_input: '生产原料不足',
   warehouse_full: '共享仓库空间不足',
@@ -124,7 +121,7 @@ export interface LoadedGameViewModel {
   startFacility: (facilityTypeId: string) => Promise<ActionResult>;
   stopFacility: (facilityTypeId: string) => Promise<ActionResult>;
   pauseFacility: (facilityTypeId: string) => Promise<ActionResult>;
-  setProductionPlan: (facilityTypeId: string, mode: ProductionMode, targetQuantity?: number) => Promise<ActionResult>;
+  setFacilityRecipe: (facilityTypeId: string, recipeId: string) => Promise<ActionResult>;
   placeAssetOrder: (assetKind: AssetKind, assetId: string, side: OrderSide, quantity: number, price: number) => Promise<ActionResult>;
   cancelOrder: (orderId: string) => Promise<ActionResult>;
   renamePlayer: (name: string) => Promise<ActionResult>;
@@ -142,7 +139,7 @@ export function orderKind(order: AssetOrder): AssetKind {
 }
 
 export function orderAssetId(order: AssetOrder): string {
-  return order.assetId ?? order.facilityTypeId ?? order.productId ?? 'grain';
+  return order.assetId ?? order.facilityTypeId ?? order.productId ?? 'wheat';
 }
 
 function deriveGameData(game: EconomyState): DerivedGameData {
@@ -180,7 +177,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [notice, setNotice] = useState('');
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
   const [marketAssetKind, setMarketAssetKind] = useState<AssetKind>('commodity');
-  const [marketAssetId, setMarketAssetId] = useState('grain');
+  const [marketAssetId, setMarketAssetId] = useState('wheat');
   const [orderSide, setOrderSideState] = useState<OrderSide>('buy');
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(1);
@@ -367,7 +364,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),
     stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),
     pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
-    setProductionPlan: (facilityTypeId, mode, targetQuantity) => runAction('setProductionPlan', () => gameActions.setProductionPlan(facilityTypeId, mode, targetQuantity)),
+    setFacilityRecipe: (facilityTypeId, recipeId) => runAction('setFacilityRecipe', () => gameActions.setFacilityRecipe(facilityTypeId, recipeId)),
     placeAssetOrder: (assetKind, assetId, side, quantity, price) => runAction('placeOrder', () => gameActions.placeAssetOrder(assetKind, assetId, side, quantity, price)),
     cancelOrder: (orderId) => runAction('cancelOrder', () => gameActions.cancelOrder(orderId)),
     renamePlayer: (name) => runAction('renamePlayer', () => gameActions.renamePlayer(name)),

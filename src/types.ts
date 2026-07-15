@@ -13,6 +13,8 @@ export interface ProductDefinition {
   id: string;
   name: string;
   category: ProductCategory;
+  family?: string;
+  substitutionGroupId?: string;
   basePrice: number;
 }
 
@@ -26,6 +28,15 @@ export interface FacilityRecipeItem {
   quantity: number;
 }
 
+export interface FacilityRecipeDefinition {
+  id: string;
+  name: string;
+  cycleMs: number;
+  operatingCost: number;
+  input: FacilityRecipeItem | null;
+  output: FacilityRecipeItem;
+}
+
 export interface FacilityTypeDefinition {
   id: string;
   name: string;
@@ -36,6 +47,8 @@ export interface FacilityTypeDefinition {
   operatingCost: number;
   input: FacilityRecipeItem | null;
   output: FacilityRecipeItem;
+  defaultRecipeId?: string;
+  recipes?: FacilityRecipeDefinition[];
   systemValue: number;
 }
 
@@ -43,21 +56,11 @@ export type FacilityStatus = 'running' | 'stopped' | 'error';
 
 export type FacilityStatusReason =
   | 'manual'
-  | 'plan_complete'
-  | 'plan_adjustment_required'
   | 'insufficient_funds'
   | 'insufficient_input'
   | 'warehouse_full'
   | 'no_available_facility'
   | 'maintenance';
-
-export interface PendingProductionPlan {
-  mode: ProductionMode;
-  targetQuantity?: number;
-  requestedAt: number;
-}
-
-export type ProductionMode = 'continuous' | 'target';
 
 export interface FacilityGroup {
   facilityTypeId: string;
@@ -71,10 +74,9 @@ export interface FacilityGroup {
   status: FacilityStatus;
   statusReason?: FacilityStatusReason;
   cycleStartedAt?: number;
-  productionMode: ProductionMode;
-  targetQuantity?: number;
-  completedQuantity: number;
-  pendingProductionPlan?: PendingProductionPlan;
+  lifetimeOutput: number;
+  activeRecipeId: string;
+  pendingRecipeId?: string;
 }
 
 export interface FacilityConstruction {
@@ -109,6 +111,8 @@ export interface AssetOrder {
   ownerType: OrderOwnerType;
   ownerId?: number;
   ownerName: string;
+  demandGroupId?: string;
+  demandCycleId?: number;
   price: number;
   quantity: number;
   remaining: number;
@@ -182,7 +186,7 @@ export interface AssetFacilityChange {
     | 'sold'
     | 'listed'
     | 'unlisted'
-    | 'plan_updated'
+    | 'recipe_updated'
     | 'started'
     | 'stopped'
     | 'status_changed'
@@ -203,7 +207,7 @@ export interface AssetProductionChange {
   inputQuantity: number;
   outputProductId?: string;
   outputQuantity: number;
-  completedQuantityDelta: number;
+  outputQuantityDelta: number;
 }
 
 /** Browser-local only. Derived from two authoritative state snapshots. */
@@ -292,7 +296,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 11;
+  version: 12;
   userId: number;
   playerName: string;
   registeredAt: number;

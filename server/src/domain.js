@@ -13,7 +13,8 @@ export const ECONOMY_CONSTANTS = Object.freeze({
 });
 
 export const PRODUCT_CATALOG = Object.freeze([
-  { id: 'grain', name: '粮食', category: 'raw', basePrice: 6 },
+  { id: 'wheat', name: '小麦', category: 'raw', family: 'staple', substitutionGroupId: 'staples', basePrice: 6 },
+  { id: 'rice', name: '水稻', category: 'raw', family: 'staple', substitutionGroupId: 'staples', basePrice: 6 },
   { id: 'timber', name: '木材', category: 'raw', basePrice: 7 },
   { id: 'ore', name: '铁矿石', category: 'raw', basePrice: 8 },
   { id: 'crude-oil', name: '原油', category: 'raw', basePrice: 10 },
@@ -37,7 +38,26 @@ export const FACILITY_TYPE_CATALOG = Object.freeze([
     cycleMs: 30_000,
     operatingCost: 1,
     input: null,
-    output: { productId: 'grain', quantity: 2 },
+    output: { productId: 'wheat', quantity: 2 },
+    defaultRecipeId: 'wheat-crop',
+    recipes: [
+      {
+        id: 'wheat-crop',
+        name: '种植小麦',
+        cycleMs: 30_000,
+        operatingCost: 1,
+        input: null,
+        output: { productId: 'wheat', quantity: 2 },
+      },
+      {
+        id: 'rice-crop',
+        name: '种植水稻',
+        cycleMs: 30_000,
+        operatingCost: 1,
+        input: null,
+        output: { productId: 'rice', quantity: 2 },
+      },
+    ],
     internalCapacity: 40,
     systemValue: 80,
   },
@@ -88,7 +108,7 @@ export const FACILITY_TYPE_CATALOG = Object.freeze([
     buildTimeMs: 8 * 60 * 1000,
     cycleMs: 40_000,
     operatingCost: 2,
-    input: { productId: 'grain', quantity: 2 },
+    input: { productId: 'wheat', quantity: 2 },
     output: { productId: 'flour', quantity: 1 },
     internalCapacity: 30,
     systemValue: 130,
@@ -186,8 +206,26 @@ export const FACILITY_TYPE_CATALOG = Object.freeze([
   },
 ]);
 
+export const DEMAND_GROUP_CATALOG = Object.freeze([
+  {
+    id: 'staples',
+    name: '人口主食需求',
+    ownerName: '人口主食需求',
+    cycleMs: ECONOMY_CONSTANTS.demandCycleMs,
+    baseBudget: 60,
+    priceElasticity: 3,
+    maxPriceIndex: 2,
+    quoteDepth: 4,
+    products: [
+      { productId: 'wheat', preferenceWeight: 1 },
+      { productId: 'rice', preferenceWeight: 1 },
+    ],
+  },
+]);
+
 const PRODUCTS = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+const DEMAND_GROUPS = new Map(DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));
 
 function createId(prefix) {
   return `${prefix}-${randomUUID()}`;
@@ -198,7 +236,7 @@ function clone(value) {
 }
 
 function productDefinition(productId) {
-  return PRODUCTS.get(productId) || PRODUCTS.get('grain');
+  return PRODUCTS.get(productId) || PRODUCTS.get('wheat');
 }
 
 function facilityTypeDefinition(typeId) {
@@ -269,6 +307,19 @@ function createMarkets(now) {
   return Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, createMarket(product, now)]));
 }
 
+function createDemandGroups(now) {
+  return Object.fromEntries(DEMAND_GROUP_CATALOG.map((group) => [group.id, {
+    demandGroupId: group.id,
+    cycleMs: group.cycleMs,
+    nextDemandAt: now + group.cycleMs,
+    lastCycleId: -1,
+    lastBudget: group.baseBudget,
+    lastCommitted: 0,
+    satisfaction: 0,
+    lastAllocation: {},
+  }]));
+}
+
 function marketFor(world, productId) {
   const product = productDefinition(productId);
   world.markets ||= createMarkets(Date.now());
@@ -328,9 +379,6 @@ function createFacilityFromType(typeId, ownerId, now, overrides = {}) {
     internalCapacity: type.internalCapacity,
     lifetimeOutput: Number(overrides.lifetimeOutput || 0),
     systemValue: type.systemValue,
-    productionMode: overrides.productionMode || 'continuous',
-    targetQuantity: overrides.targetQuantity,
-    completedQuantity: Number(overrides.completedQuantity || 0),
     listedOrderId: overrides.listedOrderId,
   };
 }
@@ -374,11 +422,12 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 2,
+    version: 8,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
     markets: createMarkets(now),
+    demandGroups: createDemandGroups(now),
     lastProcessedAt: now,
   };
 }
@@ -416,12 +465,15 @@ function createPlayer(user, now) {
 function migrateFacility(facility, ownerId) {
   if (facility.facilityTypeId) {
     const type = facilityTypeDefinition(facility.facilityTypeId);
+    if (facility.outputProductId === 'grain') facility.outputProductId = 'wheat';
+    if (facility.inputProductId === 'grain') facility.inputProductId = 'wheat';
     facility.outputProductId ||= type.output.productId;
     facility.outputPerCycle ||= type.output.quantity;
     facility.inputProductId ||= type.input?.productId;
     facility.inputPerCycle ||= type.input?.quantity || 0;
-    facility.productionMode ||= 'continuous';
-    facility.completedQuantity ||= 0;
+    delete facility.productionMode;
+    delete facility.targetQuantity;
+    delete facility.completedQuantity;
     return facility;
   }
   const statusMap = {
@@ -436,8 +488,6 @@ function migrateFacility(facility, ownerId) {
   return createFacilityFromType('farm', ownerId, Date.now(), {
     ...facility,
     status: statusMap[facility.status] || 'paused',
-    productionMode: 'continuous',
-    completedQuantity: 0,
   });
 }
 
@@ -446,21 +496,30 @@ export function migrateWorld(world, now = Date.now()) {
 
   if (!world.markets) {
     const markets = createMarkets(now);
-    if (Number.isFinite(world.marketPrice)) markets.grain.lastPrice = Number(world.marketPrice);
+    if (Number.isFinite(world.marketPrice)) markets.wheat.lastPrice = Number(world.marketPrice);
     if (Array.isArray(world.marketPriceHistory) && world.marketPriceHistory.length) {
-      markets.grain.priceHistory = world.marketPriceHistory.map((point) => ({
-        price: Number(point.price || markets.grain.lastPrice),
+      markets.wheat.priceHistory = world.marketPriceHistory.map((point) => ({
+        price: Number(point.price || markets.wheat.lastPrice),
         quantity: Number(point.quantity || 1),
         createdAt: Number(point.createdAt || now),
       }));
     }
-    if (world.demand) markets.grain.demand = { ...markets.grain.demand, ...world.demand };
+    if (world.demand) markets.wheat.demand = { ...markets.wheat.demand, ...world.demand };
     world.markets = markets;
   }
 
+  if (world.markets.grain) {
+    if (!world.markets.wheat) world.markets.wheat = world.markets.grain;
+    world.markets.wheat.productId = 'wheat';
+    delete world.markets.grain;
+  }
+  for (const product of PRODUCT_CATALOG) world.markets[product.id] ||= createMarket(product, now);
+
   world.orders ||= [];
   for (const order of world.orders) {
-    order.productId ||= 'grain';
+    if (order.productId === 'grain') order.productId = 'wheat';
+    if (order.assetId === 'grain') order.assetId = 'wheat';
+    order.productId ||= 'wheat';
     order.fills = Array.isArray(order.fills) ? order.fills : [];
   }
 
@@ -468,7 +527,8 @@ export function migrateWorld(world, now = Date.now()) {
   for (const listing of world.facilityListings) {
     listing.facility ||= {};
     listing.facility.facilityTypeId ||= 'farm';
-    listing.facility.outputProductId ||= 'grain';
+    if (listing.facility.outputProductId === 'grain') listing.facility.outputProductId = 'wheat';
+    listing.facility.outputProductId ||= 'wheat';
     listing.facility.outputPerCycle ||= 1;
     listing.facility.inputPerCycle ||= 0;
   }
@@ -477,15 +537,22 @@ export function migrateWorld(world, now = Date.now()) {
   for (const player of Object.values(world.players)) {
     if (!player.inventories) {
       player.inventories = createInventories();
-      player.inventories.grain.available = Number(player.inventory || 0);
-      player.inventories.grain.frozen = Number(player.frozenInventory || 0);
+      player.inventories.wheat.available = Number(player.inventory || 0);
+      player.inventories.wheat.frozen = Number(player.frozenInventory || 0);
+    }
+    if (player.inventories.grain) {
+      player.inventories.wheat ||= { available: 0, frozen: 0 };
+      player.inventories.wheat.available += Number(player.inventories.grain.available || 0);
+      player.inventories.wheat.frozen += Number(player.inventories.grain.frozen || 0);
+      delete player.inventories.grain;
     }
     for (const product of PRODUCT_CATALOG) inventoryFor(player, product.id);
     player.inventoryCapacity = Number(player.inventoryCapacity || ECONOMY_CONSTANTS.defaultInventoryCapacity);
     player.facilities = (player.facilities || []).map((facility) => migrateFacility(facility, player.userId));
     player.trades ||= [];
     for (const trade of player.trades) {
-      if (trade.type === 'commodity') trade.productId ||= 'grain';
+      if (trade.productId === 'grain') trade.productId = 'wheat';
+      if (trade.type === 'commodity') trade.productId ||= 'wheat';
     }
     player.ledger ||= [];
     player.work ||= { cooldownUntil: 0, lastWorkedAt: 0, streak: 0, totalClicks: 0 };
@@ -509,7 +576,11 @@ export function migrateWorld(world, now = Date.now()) {
   delete world.marketPrice;
   delete world.marketPriceHistory;
   delete world.demand;
-  world.version = 2;
+  world.demandGroups ||= createDemandGroups(now);
+  for (const group of DEMAND_GROUP_CATALOG) {
+    world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
+  }
+  world.version = 8;
   return world;
 }
 
@@ -814,19 +885,11 @@ function processFacilities(player, now) {
     const inputCycles = facility.inputPerCycle > 0
       ? Math.max(0, Math.floor(inputInventory.available / facility.inputPerCycle))
       : elapsedCycles;
-    const targetRemaining = facility.productionMode === 'target'
-      ? Math.max(0, Number(facility.targetQuantity || 0) - Number(facility.completedQuantity || 0))
-      : Number.POSITIVE_INFINITY;
-    const targetCycles = Number.isFinite(targetRemaining)
-      ? Math.max(0, Math.floor(targetRemaining / facility.outputPerCycle))
-      : elapsedCycles;
-
     const completedCycles = Math.min(
       elapsedCycles,
       outputCapacityCycles,
       fundsCycles,
       inputCycles,
-      targetCycles,
       50_000,
     );
 
@@ -839,7 +902,6 @@ function processFacilities(player, now) {
       if (inputInventory) inputInventory.available -= inputQuantity;
       facility.internalGoods += outputQuantity;
       facility.lifetimeOutput += outputQuantity;
-      facility.completedQuantity = Number(facility.completedQuantity || 0) + outputQuantity;
       facility.cycleStartedAt += completedCycles * facility.cycleMs;
       addLedger(
         player,
@@ -850,10 +912,6 @@ function processFacilities(player, now) {
       );
     }
 
-    if (facility.productionMode === 'target' && facility.completedQuantity >= facility.targetQuantity) {
-      stopFacility(facility, 'paused', 'plan_complete');
-      continue;
-    }
     if (facility.internalGoods + facility.outputPerCycle > facility.internalCapacity) {
       stopFacility(facility, 'full', 'output_full');
       continue;
@@ -879,13 +937,128 @@ function pruneWorld(world, now) {
 export function processWorld(world, now = Date.now()) {
   migrateWorld(world, now);
   for (const player of Object.values(world.players)) processFacilities(player, now);
+  const stapleDemand = world.demandGroups?.staples;
+  if (!stapleDemand || now >= stapleDemand.nextDemandAt) createGroupedDemand(world, 'staples', now);
   for (const product of PRODUCT_CATALOG) {
+    if (product.substitutionGroupId === 'staples') continue;
     const market = marketFor(world, product.id);
     if (now >= market.demand.nextDemandAt) createPopulationDemand(world, product.id, now);
   }
   refreshExternalLiquidity(world, now);
   pruneWorld(world, now);
   return world;
+}
+
+function expireDemandGroupOrders(world, demandGroupId) {
+  const productIds = new Set(DEMAND_GROUPS.get(demandGroupId)?.products.map((item) => item.productId) || []);
+  for (const order of world.orders) {
+    if (order.ownerType === 'population' && isOpenOrder(order)
+      && (order.demandGroupId === demandGroupId || productIds.has(order.productId))) {
+      order.status = 'cancelled';
+    }
+  }
+}
+
+function demandQuote(world, product, group) {
+  const asks = sortCandidates(world.orders.filter((order) => (
+    order.productId === product.id && order.side === 'sell' && isOpenOrder(order)
+  )), 'buy');
+  let remaining = group.quoteDepth;
+  let cost = 0;
+  let highestPrice = Math.max(1, Number(marketFor(world, product.id).lastPrice || product.basePrice));
+  for (const ask of asks) {
+    if (remaining <= 0) break;
+    const quantity = Math.min(remaining, Math.max(0, Number(ask.remaining || 0)));
+    if (quantity <= 0) continue;
+    highestPrice = Math.max(highestPrice, Number(ask.price || product.basePrice));
+    cost += quantity * Number(ask.price || product.basePrice);
+    remaining -= quantity;
+  }
+  if (remaining > 0) cost += remaining * Math.ceil(highestPrice * (1 + 0.25 * remaining / group.quoteDepth));
+  return Math.max(1, Math.ceil(cost / group.quoteDepth));
+}
+
+function createGroupedDemand(world, groupId, now) {
+  const group = DEMAND_GROUPS.get(groupId);
+  if (!group) return;
+  world.demandGroups ||= createDemandGroups(now);
+  const state = world.demandGroups[group.id] ||= createDemandGroups(now)[group.id];
+  const cycleId = Math.floor(now / group.cycleMs);
+  if (Number(state.lastCycleId) === cycleId) {
+    state.nextDemandAt = (cycleId + 1) * group.cycleMs;
+    return;
+  }
+
+  expireDemandGroupOrders(world, group.id);
+  const choices = group.products.map((option) => {
+    const product = productDefinition(option.productId);
+    const quote = demandQuote(world, product, group);
+    const priceIndex = quote / product.basePrice;
+    const score = priceIndex <= group.maxPriceIndex
+      ? option.preferenceWeight * priceIndex ** -group.priceElasticity
+      : 0;
+    return { option, product, quote, priceIndex, score };
+  });
+  const totalScore = choices.reduce((sum, choice) => sum + choice.score, 0);
+  let remainingBudget = group.baseBudget;
+  let totalQuantity = 0;
+  let filledQuantity = 0;
+  const allocation = {};
+
+  for (const [index, choice] of choices.entries()) {
+    const isLastEligible = choices.slice(index + 1).every((candidate) => candidate.score <= 0);
+    const requestedBudget = totalScore > 0
+      ? (isLastEligible ? remainingBudget : Math.floor(group.baseBudget * choice.score / totalScore))
+      : 0;
+    const budget = Math.max(0, Math.min(remainingBudget, requestedBudget));
+    const limitPrice = Math.min(
+      Math.floor(choice.product.basePrice * group.maxPriceIndex),
+      Math.max(1, Math.ceil(choice.quote)),
+    );
+    const quantity = choice.score > 0 ? Math.floor(budget / limitPrice) : 0;
+    const committed = quantity * limitPrice;
+    remainingBudget -= committed;
+    allocation[choice.product.id] = {
+      quote: choice.quote,
+      priceIndex: Number(choice.priceIndex.toFixed(4)),
+      budget: committed,
+      quantity,
+    };
+    const market = marketFor(world, choice.product.id);
+    market.demand.lastPrice = limitPrice;
+    market.demand.lastQuantity = quantity;
+    market.demand.lastBudget = committed;
+    market.demand.nextDemandAt = (cycleId + 1) * group.cycleMs;
+    market.demand.satisfaction = 0;
+    if (quantity < 1) continue;
+    const order = {
+      id: createId('population-order'),
+      productId: choice.product.id,
+      side: 'buy',
+      ownerType: 'population',
+      ownerName: group.ownerName,
+      demandGroupId: group.id,
+      demandCycleId: cycleId,
+      price: limitPrice,
+      quantity,
+      remaining: quantity,
+      status: 'open',
+      createdAt: now,
+    };
+    world.orders.push(order);
+    matchOrder(world, order, now);
+    const filled = quantity - order.remaining;
+    totalQuantity += quantity;
+    filledQuantity += filled;
+    market.demand.satisfaction = quantity === 0 ? 0 : filled / quantity;
+  }
+
+  state.lastCycleId = cycleId;
+  state.nextDemandAt = (cycleId + 1) * group.cycleMs;
+  state.lastBudget = group.baseBudget;
+  state.lastCommitted = group.baseBudget - remainingBudget;
+  state.satisfaction = totalQuantity === 0 ? 0 : filledQuantity / totalQuantity;
+  state.lastAllocation = allocation;
 }
 
 function result(ok, message) {
@@ -964,11 +1137,6 @@ function startFacility(world, userId, payload, now) {
     facility.stopReason = 'insufficient_input';
     return result(false, '生产原料不足');
   }
-  if (facility.productionMode === 'target' && facility.completedQuantity >= facility.targetQuantity) {
-    facility.status = 'paused';
-    facility.stopReason = 'plan_complete';
-    return result(false, '生产计划已经完成，请先设置新计划');
-  }
   facility.status = 'running';
   facility.stopReason = undefined;
   facility.cycleStartedAt = now;
@@ -981,34 +1149,6 @@ function pauseFacility(world, userId, payload) {
   if (facility.status !== 'running') return result(false, '生产设施当前未运行');
   stopFacility(facility, 'paused', 'manual');
   return result(true, `${facility.name}已手动停止`);
-}
-
-function setProductionPlan(world, userId, payload) {
-  const facility = findOwnedFacility(getPlayer(world, userId), payload.facilityId);
-  if (!facility) return result(false, '生产设施不存在');
-  if (facility.status === 'running') return result(false, '请先停止工厂再修改生产计划');
-  if (facility.status === 'constructing' || facility.status === 'listed') return result(false, '当前状态不能修改生产计划');
-  const mode = payload.mode === 'target' ? 'target' : payload.mode === 'continuous' ? 'continuous' : null;
-  if (!mode) return result(false, '生产模式无效');
-  if (mode === 'continuous') {
-    facility.productionMode = 'continuous';
-    facility.targetQuantity = undefined;
-    facility.completedQuantity = 0;
-    facility.stopReason = 'manual';
-    if (!['ready', 'paused'].includes(facility.status)) facility.status = 'paused';
-    return result(true, '已设置为持续生产模式');
-  }
-  const targetQuantity = normalizePositiveInteger(payload.targetQuantity, 1_000_000);
-  if (!targetQuantity) return result(false, '计划产量无效');
-  if (targetQuantity % facility.outputPerCycle !== 0) {
-    return result(false, `计划产量必须是周期产量 ${facility.outputPerCycle} 的整数倍`);
-  }
-  facility.productionMode = 'target';
-  facility.targetQuantity = targetQuantity;
-  facility.completedQuantity = 0;
-  facility.stopReason = 'manual';
-  if (!['ready', 'paused'].includes(facility.status)) facility.status = 'paused';
-  return result(true, `已设置生产计划：${targetQuantity} 个${productDefinition(facility.outputProductId).name}`);
 }
 
 function collectFacility(world, userId, payload, now) {
@@ -1117,9 +1257,6 @@ function buyFacility(world, userId, payload, now) {
   facility.ownerId = userId;
   facility.status = 'paused';
   facility.stopReason = 'manual';
-  facility.productionMode = 'continuous';
-  facility.targetQuantity = undefined;
-  facility.completedQuantity = 0;
   delete facility.listedOrderId;
   delete facility.cycleStartedAt;
   buyer.facilities.push(facility);
@@ -1141,7 +1278,7 @@ function buyFacility(world, userId, payload, now) {
 function placeOrder(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const side = payload.side === 'buy' ? 'buy' : payload.side === 'sell' ? 'sell' : null;
-  const productId = PRODUCTS.has(String(payload.productId || 'grain')) ? String(payload.productId || 'grain') : null;
+  const productId = PRODUCTS.has(String(payload.productId || 'wheat')) ? String(payload.productId || 'wheat') : null;
   const quantity = normalizePositiveInteger(payload.quantity, ECONOMY_CONSTANTS.maxOrderQuantity);
   const price = normalizePositiveInteger(payload.price, 1_000_000);
   if (!side || !productId || !quantity || !price) return result(false, '订单参数无效');
@@ -1224,7 +1361,6 @@ export function applyAction(world, user, action, payload = {}, now = Date.now())
     case 'buildFacility': return buildFacility(world, userId, payload, now);
     case 'startFacility': return startFacility(world, userId, payload, now);
     case 'pauseFacility': return pauseFacility(world, userId, payload, now);
-    case 'setProductionPlan': return setProductionPlan(world, userId, payload, now);
     case 'collectFacility': return collectFacility(world, userId, payload, now);
     case 'listFacility': return listFacility(world, userId, payload, now);
     case 'cancelFacilityListing': return cancelFacilityListing(world, userId, payload, now);
@@ -1256,8 +1392,8 @@ function createLeaderboard(world, currentUserId, now) {
 export function createClientState(world, userId, now = Date.now()) {
   migrateWorld(world, now);
   const player = getPlayer(world, userId);
-  const grainInventory = inventoryFor(player, 'grain');
-  const grainMarket = marketFor(world, 'grain');
+  const wheatInventory = inventoryFor(player, 'wheat');
+  const wheatMarket = marketFor(world, 'wheat');
   return {
     version: 5,
     userId: player.userId,
@@ -1281,11 +1417,11 @@ export function createClientState(world, userId, now = Date.now()) {
     lastProcessedAt: world.lastProcessedAt,
 
     // Temporary compatibility aliases for the existing UI while the multi-product UI migrates.
-    inventory: grainInventory.available,
-    frozenInventory: grainInventory.frozen,
-    commodityName: productDefinition('grain').name,
-    marketPrice: grainMarket.lastPrice,
-    marketPriceHistory: clone(grainMarket.priceHistory),
-    demand: clone(grainMarket.demand),
+    inventory: wheatInventory.available,
+    frozenInventory: wheatInventory.frozen,
+    commodityName: productDefinition('wheat').name,
+    marketPrice: wheatMarket.lastPrice,
+    marketPriceHistory: clone(wheatMarket.priceHistory),
+    demand: clone(wheatMarket.demand),
   };
 }

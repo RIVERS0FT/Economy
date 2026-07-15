@@ -102,14 +102,14 @@ function resolveAction(method, path) {
     };
   }
 
-  const facilityAction = path.match(/^\/api\/game\/facilities\/([^/]+)\/(start|pause|stop|list|plan)$/);
+  const facilityAction = path.match(/^\/api\/game\/facilities\/([^/]+)\/(start|pause|stop|list|recipe)$/);
   if (method === 'POST' && facilityAction) {
     const actionMap = {
       start: 'startFacility',
       pause: 'pauseFacility',
       stop: 'pauseFacility',
       list: 'listFacility',
-      plan: 'setProductionPlan',
+      recipe: 'setFacilityRecipe',
     };
     return {
       action: actionMap[facilityAction[2]],
@@ -173,6 +173,11 @@ const server = createServer(async (request, response) => {
         ? Number(revisionValue)
         : undefined;
       sendJson(response, 200, store.getStateSnapshot(user, knownRevision));
+      return;
+    }
+
+    if (method === 'POST' && /^\/api\/game\/facilities\/[^/]+\/plan$/.test(path)) {
+      sendError(response, 410, '生产计划已移除，工厂开启后仅持续生产');
       return;
     }
 

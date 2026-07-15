@@ -31,7 +31,9 @@ for (const text of [
   "export type FacilityStatus = 'running' | 'stopped' | 'error'",
   'enabled: boolean',
   'statusReason?: FacilityStatusReason',
-  'pendingProductionPlan?: PendingProductionPlan',
+  'activeRecipeId: string',
+  'pendingRecipeId?: string',
+  'lifetimeOutput: number',
 ]) requireText('src/types.ts', text);
 
 for (const text of [
@@ -39,12 +41,13 @@ for (const text of [
   "group.status = 'stopped'",
   "group.status = 'error'",
   'reconcileFacilityGroup',
-  'pendingProductionPlan',
+  'applyPendingRecipe',
+  'setGroupRecipe',
+  'activeRecipeFor',
   "reason: 'warehouse_full'",
   "reason: 'insufficient_funds'",
   "reason: 'insufficient_input'",
-  "setGroupStopped(group, 'plan_complete')",
-  'world.version = 7',
+  'world.version = 8',
 ]) requireText('server/src/facility-groups.js', text);
 
 for (const text of [
@@ -59,11 +62,10 @@ for (const text of [
   'FacilityProductionFormula',
   'products={game.products}',
   'inventories={game.inventories}',
-  'production-plan-heading',
-  'production-plan-fields',
-  'placeholder="目标产量"',
-  '下一周期生效',
-  'scheduleTargetPlanSave',
+  'production-recipe-card',
+  '种植作物',
+  '下一周期改为',
+  'setFacilityRecipe',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
 for (const forbidden of [
@@ -72,6 +74,8 @@ for (const forbidden of [
   '下一周期：',
   '当前计划：持续运行',
   '>保存计划</Button>',
+  '目标产量',
+  'setProductionPlan',
   '下一周期按 ',
   'facility-group-counts',
   'facility-group-specs',
@@ -137,11 +141,11 @@ for (const text of [
 ]) requireText('src/styles/design-system.css', text);
 
 for (const text of [
-  'height: 384px',
+  'min-height: 320px',
   '.facility-status-header > .ui-switch',
   '.facility-count-summary',
   '.production-plan-heading',
-  '.production-plan-fields',
+  '.production-recipe-card select',
   '.production-plan-status',
 ]) requireText('src/styles/industry-system.css', text);
 
@@ -172,20 +176,20 @@ for (const forbidden of [
 
 for (const text of [
   'factory automatically recovers after funds return',
-  'running plan changes apply at the next cycle boundary',
+  'running farm crop changes apply at the next cycle boundary',
   'warehouse errors recover without backfilling missed cycles',
   'manual stop disables automatic recovery',
-  'target production completion disables the run switch',
-  'target completion preserves pending plan but still stops',
+  'legacy completed target plans migrate to a manual stop',
+  'legacy running target plans become continuous production',
 ]) requireText('server/test/facility-groups.test.js', text);
 
 for (const text of [
   '三种顶层状态',
   '自动恢复',
-  'pendingProductionPlan',
-  '定量生产完成后关闭开关',
-  '生产计划使用自动保存',
-  '下一周期生效',
+  'activeRecipeId',
+  'pendingRecipeId',
+  '持续生产与农场改种',
+  '下一周期改为某作物',
   '固定价格工厂挂牌市场',
   '单座生产公式',
   '多输入和多输出',
@@ -198,9 +202,8 @@ for (const text of [
   'SwitchControl',
   '.ui-switch',
   '唯一',
-  '工厂卡桌面固定高度',
-  '计划字段自动保存',
-  'placeholder="目标产量"',
+  '至少 320px 的自适应高度',
+  '种植作物',
   'facility-production-formula.css',
   'CycleIcon',
   'CreditsIcon',
@@ -214,4 +217,4 @@ if (failures.length) {
   console.error(`工厂三态、生产公式、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('工厂三态、多输入输出生产公式、SVG 周期成本、进度条、自动恢复、固定高度卡片和自动保存计划验证通过。');
+console.log('工厂持续生产、农场周期边界改种、三态自动恢复、多输入输出公式和自适应卡片验证通过。');

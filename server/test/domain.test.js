@@ -27,7 +27,7 @@ test('different products never match in the same order book', () => {
     productId: 'ore', side: 'sell', quantity: 5, price: 8,
   }, now + 1).ok, true);
   assert.equal(applyAction(world, alice, 'placeOrder', {
-    productId: 'grain', side: 'buy', quantity: 5, price: 9,
+    productId: 'wheat', side: 'buy', quantity: 5, price: 9,
   }, now + 2).ok, true);
   assert.equal(buyer.inventories.ore.available, 0);
   assert.equal(seller.inventories.ore.frozen, 5);
@@ -81,10 +81,76 @@ test('version 1 state migrates inventory and commodity orders without losing ass
   };
 
   migrateWorld(world, now);
-  assert.equal(world.players['1'].inventories.grain.available, 7);
-  assert.equal(world.players['1'].inventories.grain.frozen, 2);
-  assert.equal(world.orders[0].productId, 'grain');
+  assert.equal(world.players['1'].inventories.wheat.available, 7);
+  assert.equal(world.players['1'].inventories.wheat.frozen, 2);
+  assert.equal(world.orders[0].productId, 'wheat');
   assert.equal('facilitySlots' in world.players['1'], false);
+});
+
+test('world version 7 grain assets migrate entirely to wheat', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  world.version = 7;
+  player.inventories.grain = { available: 7, frozen: 3 };
+  delete player.inventories.wheat;
+  world.markets.grain = { ...world.markets.wheat, productId: 'grain' };
+  delete world.markets.wheat;
+  world.orders = [{
+    id: 'legacy-grain-sell', assetKind: 'commodity', assetId: 'grain', productId: 'grain',
+    side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice',
+    price: 6, quantity: 3, remaining: 3, status: 'open', createdAt: now,
+  }];
+
+  migrateWorld(world, now);
+
+  assert.deepEqual(player.inventories.wheat, { available: 7, frozen: 3 });
+  assert.equal(Object.hasOwn(player.inventories, 'grain'), false);
+  assert.equal(world.orders[0].assetId, 'wheat');
+  assert.equal(world.orders[0].productId, 'wheat');
+  assert.equal(world.markets.wheat.productId, 'wheat');
+  assert.equal(Object.hasOwn(world.markets, 'grain'), false);
+});
+
+test('staple demand shifts budget to rice when wheat is expensive', () => {
+  const world = createWorld(now);
+  const wheatSeller = ensurePlayer(world, bob, now);
+  const riceSeller = ensurePlayer(world, carol, now);
+  wheatSeller.inventories.wheat.frozen = 20;
+  riceSeller.inventories.rice.frozen = 20;
+  world.orders = [
+    { id: 'wheat-ask', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 9, quantity: 20, remaining: 20, status: 'open', createdAt: now },
+    { id: 'rice-ask', productId: 'rice', side: 'sell', ownerType: 'player', ownerId: carol.id, ownerName: 'Carol', price: 6, quantity: 20, remaining: 20, status: 'open', createdAt: now + 1 },
+  ];
+  world.demandGroups.staples.nextDemandAt = now;
+  world.demandGroups.staples.lastCycleId = -1;
+
+  processWorld(world, now + 1);
+  const demandOrders = world.orders.filter((order) => order.demandGroupId === 'staples');
+  const wheatDemand = demandOrders.find((order) => order.productId === 'wheat');
+  const riceDemand = demandOrders.find((order) => order.productId === 'rice');
+  assert.ok(wheatDemand);
+  assert.ok(riceDemand);
+  assert.ok(riceDemand.quantity > wheatDemand.quantity);
+  assert.ok(demandOrders.reduce((sum, order) => sum + order.price * order.quantity, 0) <= 60);
+
+  const orderCount = demandOrders.length;
+  processWorld(world, now + 2);
+  assert.equal(world.orders.filter((order) => order.demandGroupId === 'staples').length, orderCount);
+});
+
+test('staple demand leaves budget unspent when every substitute is above the ceiling', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  seller.inventories.wheat.frozen = 20;
+  seller.inventories.rice.frozen = 20;
+  world.orders = [
+    { id: 'wheat-expensive', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 13, quantity: 20, remaining: 20, status: 'open', createdAt: now },
+    { id: 'rice-expensive', productId: 'rice', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 13, quantity: 20, remaining: 20, status: 'open', createdAt: now + 1 },
+  ];
+  world.demandGroups.staples.nextDemandAt = now;
+  processWorld(world, now + 1);
+  assert.equal(world.orders.some((order) => order.demandGroupId === 'staples'), false);
+  assert.equal(world.demandGroups.staples.lastCommitted, 0);
 });
 
 test('idempotency returns the original response without applying an action twice', () => {
@@ -106,14 +172,14 @@ test('idempotency returns the original response without applying an action twice
   }
 });
 
-test('client state uses version 11 and exposes no factory instances', () => {
+test('client state uses version 12 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 11);
+    assert.equal(state.version, 12);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
-    assert.equal(state.products.length, 12);
+    assert.equal(state.products.length, 13);
     assert.equal(state.facilityTypes.length, 12);
   } finally {
     store.close();
@@ -122,7 +188,7 @@ test('client state uses version 11 and exposes no factory instances', () => {
 
 
 test('expanded industry catalog exposes complete production chains', () => {
-  assert.equal(PRODUCT_CATALOG.length, 12);
+  assert.equal(PRODUCT_CATALOG.length, 13);
   assert.equal(FACILITY_TYPE_CATALOG.length, 12);
 
   const productIds = new Set(PRODUCT_CATALOG.map((product) => product.id));
@@ -134,6 +200,8 @@ test('expanded industry catalog exposes complete production chains', () => {
     assert.equal(productIds.has(facility.output.productId), true);
     if (facility.input) assert.equal(productIds.has(facility.input.productId), true);
   }
+  const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
+  assert.deepEqual(farm.recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice']);
 
   const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
   assert.deepEqual(facilities.get('logging-camp').output, { productId: 'timber', quantity: 2 });
@@ -152,7 +220,7 @@ test('existing worlds receive new inventories, markets, and liquidity without re
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
-  player.inventories.grain.available = 9;
+  player.inventories.wheat.available = 9;
   const newProductIds = ['timber', 'crude-oil', 'lumber', 'plastic', 'furniture', 'electronics'];
 
   for (const productId of newProductIds) {
@@ -165,7 +233,7 @@ test('existing worlds receive new inventories, markets, and liquidity without re
   processWorld(world, now + 1);
 
   assert.equal(player.credits, 777);
-  assert.equal(player.inventories.grain.available, 9);
+  assert.equal(player.inventories.wheat.available, 9);
   for (const productId of newProductIds) {
     assert.deepEqual(player.inventories[productId], { available: 0, frozen: 0 });
     assert.equal(world.markets[productId].productId, productId);
@@ -177,24 +245,24 @@ test('existing worlds receive new inventories, markets, and liquidity without re
 test('commodity order fills preserve every exact resting price', () => {
   const world = createWorld(now);
   world.orders = [
-    { id: 'test-market-buy', productId: 'grain', side: 'buy', ownerType: 'market', ownerName: '测试流动买单', price: 1, quantity: 18, remaining: 18, status: 'open', createdAt: now },
-    { id: 'test-market-sell', productId: 'grain', side: 'sell', ownerType: 'market', ownerName: '测试流动卖单', price: 100, quantity: 14, remaining: 14, status: 'open', createdAt: now },
+    { id: 'test-market-buy', productId: 'wheat', side: 'buy', ownerType: 'market', ownerName: '测试流动买单', price: 1, quantity: 18, remaining: 18, status: 'open', createdAt: now },
+    { id: 'test-market-sell', productId: 'wheat', side: 'sell', ownerType: 'market', ownerName: '测试流动卖单', price: 100, quantity: 14, remaining: 14, status: 'open', createdAt: now },
   ];
   const buyer = ensurePlayer(world, alice, now);
   const sellerA = ensurePlayer(world, bob, now);
   const sellerB = ensurePlayer(world, carol, now);
   buyer.credits = 100;
-  sellerA.inventories.grain.available = 1;
-  sellerB.inventories.grain.available = 1;
+  sellerA.inventories.wheat.available = 1;
+  sellerB.inventories.wheat.available = 1;
 
   assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'grain', side: 'sell', quantity: 1, price: 5,
+    productId: 'wheat', side: 'sell', quantity: 1, price: 5,
   }, now + 1).ok, true);
   assert.equal(applyAction(world, carol, 'placeOrder', {
-    productId: 'grain', side: 'sell', quantity: 1, price: 6,
+    productId: 'wheat', side: 'sell', quantity: 1, price: 6,
   }, now + 2).ok, true);
   assert.equal(applyAction(world, alice, 'placeOrder', {
-    productId: 'grain', side: 'buy', quantity: 2, price: 20,
+    productId: 'wheat', side: 'buy', quantity: 2, price: 20,
   }, now + 3).ok, true);
 
   const buyOrder = world.orders.find((order) => order.ownerId === alice.id && order.side === 'buy');
@@ -204,14 +272,14 @@ test('commodity order fills preserve every exact resting price', () => {
   );
   assert.equal(buyer.credits, 89);
   assert.equal(buyer.frozenCredits, 0);
-  assert.equal(buyer.inventories.grain.available, 2);
+  assert.equal(buyer.inventories.wheat.available, 2);
 });
 
 
 test('commodity system liquidity follows the current order book instead of last trade price', () => {
   const makeOrder = (id, side, price, status = 'open') => ({
     id,
-    productId: 'grain',
+    productId: 'wheat',
     side,
     ownerType: 'player',
     ownerId: side === 'buy' ? 1 : 2,
@@ -225,16 +293,16 @@ test('commodity system liquidity follows the current order book instead of last 
   const quote = (orders) => {
     const world = createWorld(now);
     world.orders = orders;
-    world.markets.grain.lastPrice = 100;
-    world.markets.grain.demand.nextDemandAt = now + 300_000;
+    world.markets.wheat.lastPrice = 100;
+    world.markets.wheat.demand.nextDemandAt = now + 300_000;
     processWorld(world, now + 1);
     const marketOrders = world.orders.filter((order) => (
-      order.productId === 'grain' && order.ownerType === 'market' && ['open', 'partial'].includes(order.status)
+      order.productId === 'wheat' && order.ownerType === 'market' && ['open', 'partial'].includes(order.status)
     ));
     return {
       buy: marketOrders.find((order) => order.side === 'buy')?.price,
       sell: marketOrders.find((order) => order.side === 'sell')?.price,
-      lastPrice: world.markets.grain.lastPrice,
+      lastPrice: world.markets.wheat.lastPrice,
     };
   };
 

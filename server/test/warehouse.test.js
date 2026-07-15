@@ -15,14 +15,14 @@ function request(requestKey = 'warehouse-upgrade-12345678') {
   return { action: 'upgradeWarehouse', payload: {}, requestKey, method: 'POST', path: '/api/game/warehouse/upgrade' };
 }
 
-function seedStore({ credits = 10_000, inventoryCapacity = 500, warehouseLevel, grainAvailable = 0, grainFrozen = 0, orders = [] } = {}) {
+function seedStore({ credits = 10_000, inventoryCapacity = 500, warehouseLevel, wheatAvailable = 0, wheatFrozen = 0, orders = [] } = {}) {
   const store = new EconomyStore(':memory:');
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = credits;
   player.inventoryCapacity = inventoryCapacity;
-  player.inventories.grain.available = grainAvailable;
-  player.inventories.grain.frozen = grainFrozen;
+  player.inventories.wheat.available = wheatAvailable;
+  player.inventories.wheat.frozen = wheatFrozen;
   if (warehouseLevel !== undefined) player.warehouseLevel = warehouseLevel;
   world.orders.push(...orders);
   store.insertWorld.run(1, JSON.stringify(world), now);
@@ -33,8 +33,8 @@ function buyOrder(overrides = {}) {
   return {
     id: `warehouse-order-${Math.random()}`,
     assetKind: 'commodity',
-    assetId: 'grain',
-    productId: 'grain',
+    assetId: 'wheat',
+    productId: 'wheat',
     side: 'buy',
     ownerType: 'player',
     ownerId: alice.id,
@@ -48,11 +48,11 @@ function buyOrder(overrides = {}) {
   };
 }
 
-test('warehouse state defaults to level 1 and client version 11', () => {
+test('warehouse state defaults to level 1 and client version 12', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 11);
+    assert.equal(state.version, 12);
     assert.equal(state.warehouseLevel, 1);
     assert.equal(state.inventoryCapacity, 500);
     assert.equal(Object.hasOwn(state, 'warehouseMaxLevel'), false);
@@ -80,8 +80,8 @@ test('warehouse capacity increase grows with every level', () => {
 
 test('warehouse usage counts stored goods and remaining open commodity buy orders only', () => {
   const store = seedStore({
-    grainAvailable: 25,
-    grainFrozen: 5,
+    wheatAvailable: 25,
+    wheatFrozen: 5,
     orders: [
       buyOrder({ remaining: 40, status: 'partial' }),
       buyOrder({ remaining: 12, status: 'filled' }),
@@ -116,7 +116,7 @@ test('warehouse upgrade deducts server funds and increases shared capacity', () 
 });
 
 test('warehouse upgrade preserves stored and reserved usage while adding free capacity', () => {
-  const store = seedStore({ grainAvailable: 25, grainFrozen: 5, orders: [buyOrder({ remaining: 40, status: 'partial' })] });
+  const store = seedStore({ wheatAvailable: 25, wheatFrozen: 5, orders: [buyOrder({ remaining: 40, status: 'partial' })] });
   try {
     const response = store.apply(alice, request('warehouse-usage-upgrade-12345678'), now + 1);
     assert.equal(response.result.ok, true);

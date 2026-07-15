@@ -39,6 +39,29 @@ function typeFor(typeId) {
   return TYPES.get(String(typeId || ''));
 }
 
+function recipesFor(type) {
+  if (Array.isArray(type?.recipes) && type.recipes.length > 0) return type.recipes;
+  return type ? [{
+    id: `${type.id}-default`,
+    name: type.name,
+    cycleMs: type.cycleMs,
+    operatingCost: type.operatingCost,
+    input: type.input,
+    output: type.output,
+  }] : [];
+}
+
+function recipeFor(type, recipeId) {
+  const recipes = recipesFor(type);
+  return recipes.find((recipe) => recipe.id === recipeId)
+    || recipes.find((recipe) => recipe.id === type?.defaultRecipeId)
+    || recipes[0];
+}
+
+function activeRecipeFor(type, group) {
+  return recipeFor(type, group?.activeRecipeId);
+}
+
 function isOpenOrder(order) {
   return order?.remaining > 0 && (order.status === 'open' || order.status === 'partial');
 }
@@ -50,7 +73,7 @@ function orderKind(order) {
 function orderAssetId(order) {
   return orderKind(order) === 'facility'
     ? String(order.assetId || order.facilityTypeId || '')
-    : String(order.assetId || order.productId || 'grain');
+    : String(order.assetId || order.productId || 'wheat');
 }
 
 function normalizeOrder(order) {
@@ -81,30 +104,21 @@ function normalizeStatusReason(value, enabled) {
   const raw = String(value || '');
   const mapped = raw === 'output_full' ? 'warehouse_full' : raw === 'listed' ? 'no_available_facility' : raw;
   const allowed = new Set([
-    'manual', 'plan_complete', 'plan_adjustment_required', 'insufficient_funds',
+    'manual', 'insufficient_funds',
     'insufficient_input', 'warehouse_full', 'no_available_facility', 'maintenance',
   ]);
   if (!allowed.has(mapped)) return enabled ? undefined : 'manual';
-  if (!enabled && !['manual', 'plan_complete'].includes(mapped)) return 'manual';
+  if (!enabled && mapped !== 'manual') return 'manual';
   return mapped;
 }
 
-function normalizePendingPlan(value) {
-  if (!value || typeof value !== 'object') return undefined;
-  const mode = value.mode === 'target' ? 'target' : value.mode === 'continuous' ? 'continuous' : null;
-  if (!mode) return undefined;
-  const targetQuantity = mode === 'target' ? normalizePositiveInteger(value.targetQuantity, 10_000_000) : undefined;
-  if (mode === 'target' && !targetQuantity) return undefined;
-  return {
-    mode,
-    targetQuantity,
-    requestedAt: Math.max(0, Number(value.requestedAt || 0)),
-  };
-}
-
 function createGroup(typeId, overrides = {}) {
+  const type = typeFor(typeId);
   const legacyStatus = String(overrides.status || 'stopped');
-  const enabled = typeof overrides.enabled === 'boolean'
+  const legacyPlanComplete = legacyStatus === 'plan_complete' || overrides.statusReason === 'plan_complete';
+  const enabled = legacyPlanComplete
+    ? false
+    : typeof overrides.enabled === 'boolean'
     ? overrides.enabled
     : legacyStatus === 'running' || legacyStatus === 'error'
       || ['full', 'insufficient_funds', 'insufficient_input'].includes(legacyStatus);
@@ -122,10 +136,11 @@ function createGroup(typeId, overrides = {}) {
     status,
     statusReason: normalizeStatusReason(overrides.statusReason || overrides.stopReason, enabled),
     cycleStartedAt: overrides.cycleStartedAt,
-    productionMode: overrides.productionMode === 'target' ? 'target' : 'continuous',
-    targetQuantity: overrides.targetQuantity,
-    completedQuantity: Math.max(0, Number(overrides.completedQuantity || 0)),
-    pendingProductionPlan: normalizePendingPlan(overrides.pendingProductionPlan),
+    lifetimeOutput: Math.max(0, Number(overrides.lifetimeOutput ?? overrides.completedQuantity ?? 0)),
+    activeRecipeId: recipeFor(type, overrides.activeRecipeId)?.id,
+    pendingRecipeId: recipesFor(type).some((recipe) => recipe.id === overrides.pendingRecipeId)
+      ? overrides.pendingRecipeId
+      : undefined,
   };
 }
 
@@ -262,9 +277,6 @@ function migrateLegacyPlayer(player, now) {
       const existing = groupFor(player, typeId, true);
       if (existing.count > 0) continue;
       const allRunning = facilities.every((facility) => facility.status === 'running');
-      const sameMode = facilities.every((facility) => (
-        (facility.productionMode || 'continuous') === (facilities[0].productionMode || 'continuous')
-      ));
       existing.count = facilities.length;
       existing.enabled = allRunning;
       existing.status = allRunning ? 'running' : 'stopped';
@@ -272,12 +284,7 @@ function migrateLegacyPlayer(player, now) {
       existing.participatingCount = allRunning ? facilities.length : 0;
       existing.pendingJoinCount = 0;
       existing.cycleStartedAt = allRunning ? now : undefined;
-      existing.productionMode = sameMode && facilities[0].productionMode === 'target' ? 'target' : 'continuous';
-      existing.targetQuantity = existing.productionMode === 'target' ? facilities[0].targetQuantity : undefined;
-      existing.completedQuantity = facilities.reduce(
-        (sum, facility) => sum + Math.max(0, Number(facility.completedQuantity || 0)),
-        0,
-      );
+      existing.activeRecipeId = recipeFor(type)?.id;
     }
   }
 
@@ -311,14 +318,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 7;
+  world.version = 8;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 7;
+  world.version = 8;
   return world;
 }
 
@@ -370,51 +377,38 @@ function startGroupRuntime(group, count, now) {
   group.cycleStartedAt = now;
 }
 
-function groupRequirements(type, count) {
+function groupRequirements(recipe, count) {
   const participating = Math.max(0, Number(count || 0));
-  const output = type.output.quantity * participating;
-  const input = (type.input?.quantity || 0) * participating;
+  const output = recipe.output.quantity * participating;
+  const input = (recipe.input?.quantity || 0) * participating;
   return {
     output,
     input,
-    cost: type.operatingCost * participating,
+    cost: recipe.operatingCost * participating,
     netStorage: Math.max(0, output - input),
   };
 }
 
 function blockReason(world, player, group, type, count) {
-  const requirements = groupRequirements(type, count);
+  const recipe = activeRecipeFor(type, group);
+  const requirements = groupRequirements(recipe, count);
   if (count <= 0) return { reason: 'no_available_facility', message: '没有可参与生产的工厂' };
-  if (group.productionMode === 'target') {
-    const remaining = Math.max(0, Number(group.targetQuantity || 0) - group.completedQuantity);
-    if (remaining === 0) return { reason: 'plan_complete', message: '生产计划已经完成' };
-    if (remaining < requirements.output || remaining % requirements.output !== 0) {
-      return { reason: 'plan_adjustment_required', message: '工厂数量变化后，剩余计划无法按完整周期生产' };
-    }
-  }
   if (requirements.netStorage > createWarehouseUsage(world, player).warehouseAvailableCapacity) {
     return { reason: 'warehouse_full', message: '共享仓库空间不足' };
   }
   if (requirements.cost > player.credits) {
     return { reason: 'insufficient_funds', message: '运营资金不足' };
   }
-  if (type.input && inventoryFor(player, type.input.productId).available < requirements.input) {
+  if (recipe.input && inventoryFor(player, recipe.input.productId).available < requirements.input) {
     return { reason: 'insufficient_input', message: '生产原料不足' };
   }
   return null;
 }
 
-function applyProductionPlan(group, plan) {
-  group.productionMode = plan.mode;
-  group.completedQuantity = 0;
-  if (plan.mode === 'target') group.targetQuantity = plan.targetQuantity;
-  else delete group.targetQuantity;
-  delete group.pendingProductionPlan;
-}
-
-function applyPendingProductionPlan(group) {
-  if (!group.pendingProductionPlan) return false;
-  applyProductionPlan(group, group.pendingProductionPlan);
+function applyPendingRecipe(group) {
+  if (!group.pendingRecipeId) return false;
+  group.activeRecipeId = group.pendingRecipeId;
+  delete group.pendingRecipeId;
   return true;
 }
 
@@ -427,17 +421,11 @@ function reconcileFacilityGroup(world, player, group, now) {
   if (!type) return;
 
   if (!group.enabled) {
-    const reason = group.statusReason === 'plan_complete' ? 'plan_complete' : 'manual';
-    setGroupStopped(group, reason);
+    setGroupStopped(group, 'manual');
     return;
   }
 
-  if (group.status !== 'running') applyPendingProductionPlan(group);
-  if (group.productionMode === 'target' && group.completedQuantity >= Number(group.targetQuantity || 0)) {
-    applyPendingProductionPlan(group);
-    setGroupStopped(group, 'plan_complete');
-    return;
-  }
+  if (group.status !== 'running') applyPendingRecipe(group);
 
   const available = availableGroupCount(world, player, group);
   if (group.status === 'running') {
@@ -452,26 +440,6 @@ function reconcileFacilityGroup(world, player, group, now) {
     }
     const blocked = blockReason(world, player, group, type, group.participatingCount);
     if (!blocked) return;
-    if (blocked.reason === 'plan_complete') {
-      applyPendingProductionPlan(group);
-      setGroupStopped(group, 'plan_complete');
-      return;
-    }
-    if (group.pendingProductionPlan) {
-      applyPendingProductionPlan(group);
-      const retry = blockReason(world, player, group, type, available);
-      if (!retry) {
-        startGroupRuntime(group, available, now);
-        return;
-      }
-      if (retry.reason === 'plan_complete') {
-        applyPendingProductionPlan(group);
-        setGroupStopped(group, 'plan_complete');
-        return;
-      }
-      setGroupError(group, retry.reason);
-      return;
-    }
     setGroupError(group, blocked.reason);
     return;
   }
@@ -481,19 +449,19 @@ function reconcileFacilityGroup(world, player, group, now) {
     startGroupRuntime(group, available, now);
     return;
   }
-  if (blocked.reason === 'plan_complete') setGroupStopped(group, 'plan_complete');
-  else setGroupError(group, blocked.reason);
+  setGroupError(group, blocked.reason);
 }
 
 function executeCycle(player, group, type, count) {
-  const requirements = groupRequirements(type, count);
+  const recipe = activeRecipeFor(type, group);
+  const requirements = groupRequirements(recipe, count);
   player.credits -= requirements.cost;
   player.stats.systemSinks += requirements.cost;
   player.stats.producedGoods = Number(player.stats.producedGoods || 0) + requirements.output;
-  if (type.input) inventoryFor(player, type.input.productId).available -= requirements.input;
-  inventoryFor(player, type.output.productId).available += requirements.output;
-  group.completedQuantity += requirements.output;
-  group.cycleStartedAt += type.cycleMs;
+  if (recipe.input) inventoryFor(player, recipe.input.productId).available -= requirements.input;
+  inventoryFor(player, recipe.output.productId).available += requirements.output;
+  group.lifetimeOutput += requirements.output;
+  group.cycleStartedAt += recipe.cycleMs;
 }
 
 function finishConstruction(player, now) {
@@ -510,25 +478,17 @@ function processGroup(world, player, group, now) {
   const type = typeFor(group.facilityTypeId);
   if (!type || group.status !== 'running' || !group.cycleStartedAt) return;
 
-  let elapsedCycles = Math.max(0, Math.floor((now - group.cycleStartedAt) / type.cycleMs));
   let processed = 0;
-  while (elapsedCycles > 0 && processed < MAX_CYCLES_PER_GROUP && group.status === 'running') {
+  while (processed < MAX_CYCLES_PER_GROUP && group.status === 'running') {
+    const recipe = activeRecipeFor(type, group);
+    if (now - group.cycleStartedAt < recipe.cycleMs) break;
     const blocked = blockReason(world, player, group, type, group.participatingCount);
     if (blocked) {
-      if (blocked.reason === 'plan_complete') {
-        applyPendingProductionPlan(group);
-        setGroupStopped(group, 'plan_complete');
-      } else if (group.pendingProductionPlan) {
-        applyPendingProductionPlan(group);
-        reconcileFacilityGroup(world, player, group, now);
-      } else {
-        setGroupError(group, blocked.reason);
-      }
+      setGroupError(group, blocked.reason);
       break;
     }
 
     executeCycle(player, group, type, group.participatingCount);
-    elapsedCycles -= 1;
     processed += 1;
 
     if (group.pendingJoinCount > 0) {
@@ -536,19 +496,11 @@ function processGroup(world, player, group, now) {
       group.pendingJoinCount = 0;
     }
 
-    const targetCompleted = group.productionMode === 'target'
-      && group.completedQuantity >= Number(group.targetQuantity || 0);
-    if (targetCompleted) {
-      applyPendingProductionPlan(group);
-      setGroupStopped(group, 'plan_complete');
-      break;
-    }
-    applyPendingProductionPlan(group);
+    applyPendingRecipe(group);
 
     const nextBlocked = blockReason(world, player, group, type, group.participatingCount);
     if (nextBlocked) {
-      if (nextBlocked.reason === 'plan_complete') setGroupStopped(group, 'plan_complete');
-      else setGroupError(group, nextBlocked.reason);
+      setGroupError(group, nextBlocked.reason);
       break;
     }
   }
@@ -718,44 +670,38 @@ function pauseFacilityGroup(world, userId, payload) {
   const type = typeFor(payload.facilityTypeId);
   const group = type ? groupFor(player, type.id) : null;
   if (!group) return result(false, '工厂集群不存在');
-  applyPendingProductionPlan(group);
+  applyPendingRecipe(group);
   setGroupStopped(group, 'manual');
   return result(true, `${type.name}已停止生产并关闭自动恢复`);
 }
 
-function setGroupPlan(world, userId, payload, now) {
+function setGroupRecipe(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const type = typeFor(payload.facilityTypeId);
   const group = type ? groupFor(player, type.id) : null;
   if (!group) return result(false, '工厂集群不存在');
-  const mode = payload.mode === 'target' ? 'target' : payload.mode === 'continuous' ? 'continuous' : null;
-  if (!mode) return result(false, '生产模式无效');
-  const availableCount = availableGroupCount(world, player, group);
-  const nextCount = group.status === 'running'
-    ? group.participatingCount + group.pendingJoinCount
-    : availableCount;
-  if (nextCount < 1) return result(false, '没有未冻结工厂可设置生产计划');
-
-  const plan = { mode, requestedAt: now };
-  if (mode === 'target') {
-    const targetQuantity = normalizePositiveInteger(payload.targetQuantity, 10_000_000);
-    const cycleOutput = type.output.quantity * nextCount;
-    if (!targetQuantity || targetQuantity % cycleOutput !== 0) {
-      return result(false, `计划产量必须是下一周期产量 ${cycleOutput} 的整数倍`);
-    }
-    plan.targetQuantity = targetQuantity;
-  }
+  const recipe = recipesFor(type).find((candidate) => candidate.id === payload.recipeId);
+  if (!recipe) return result(false, '生产配方不存在');
+  if (recipesFor(type).length < 2) return result(false, `${type.name}使用固定生产配方`);
 
   if (group.status === 'running') {
-    group.pendingProductionPlan = plan;
-    return result(true, `${type.name}生产计划已保存，将在下一周期生效`);
+    if (group.activeRecipeId === recipe.id) {
+      if (group.pendingRecipeId) {
+        delete group.pendingRecipeId;
+        return result(true, `${type.name}已取消下一周期改种，继续${recipe.name}`);
+      }
+      return result(true, `${type.name}已经使用${recipe.name}`);
+    }
+    group.pendingRecipeId = recipe.id;
+    return result(true, `${type.name}将在下一周期${recipe.name}`);
   }
 
-  applyProductionPlan(group, plan);
+  group.activeRecipeId = recipe.id;
+  delete group.pendingRecipeId;
   reconcileFacilityGroup(world, player, group, now);
   return result(true, group.enabled
-    ? `${type.name}生产计划已立即生效，并已重新检查自动运行条件`
-    : `${type.name}生产计划已立即生效`);
+    ? `${type.name}已改为${recipe.name}，并重新检查自动运行条件`
+    : `${type.name}已改为${recipe.name}`);
 }
 
 function reduceRunningGroupForSellOrder(group, type, quantity) {
@@ -771,13 +717,6 @@ function reduceRunningGroupForSellOrder(group, type, quantity) {
   if (group.participatingCount < 1) {
     setGroupError(group, 'no_available_facility');
     return;
-  }
-  if (group.productionMode === 'target') {
-    const cycleOutput = type.output.quantity * group.participatingCount;
-    const remainingTarget = Math.max(0, Number(group.targetQuantity || 0) - group.completedQuantity);
-    if (remainingTarget < cycleOutput || remainingTarget % cycleOutput !== 0) {
-      setGroupError(group, 'plan_adjustment_required');
-    }
   }
 }
 
@@ -861,7 +800,7 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
   if (action === 'buildFacility') actionResult = buildFacilityGroup(world, userId, payload, now);
   else if (action === 'startFacility') actionResult = startFacilityGroup(world, userId, payload, now);
   else if (action === 'pauseFacility') actionResult = pauseFacilityGroup(world, userId, payload);
-  else if (action === 'setProductionPlan') actionResult = setGroupPlan(world, userId, payload, now);
+  else if (action === 'setFacilityRecipe') actionResult = setGroupRecipe(world, userId, payload, now);
   else if (action === 'placeOrder' && payload.assetKind === 'facility') actionResult = placeFacilityOrder(world, userId, payload, now);
   else if (action === 'listFacility') actionResult = placeFacilityOrder(world, userId, {
     assetKind: 'facility',
@@ -978,7 +917,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const normalizedOrders = (world.orders || []).map((order) => clone(normalizeOrder(order)));
   return {
     ...withoutFacilities,
-    version: 11,
+    version: 12,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
     facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),

@@ -26,11 +26,11 @@ function assertPlayerLogsAbsent(player) {
   assert.equal(Object.hasOwn(player, 'assetEvents'), false);
 }
 
-test('client state version 11 excludes all player log arrays and factory instances', () => {
+test('client state version 12 excludes all player log arrays and factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, 1_700_000_000_000);
-    assert.equal(state.version, 11);
+    assert.equal(state.version, 12);
     assert.equal(Object.hasOwn(state, 'trades'), false);
     assert.equal(Object.hasOwn(state, 'ledger'), false);
     assert.equal(Object.hasOwn(state, 'assetEvents'), false);
@@ -49,7 +49,7 @@ test('actions update authoritative state without writing player logs to SQLite',
     store.getState(alice, now);
     const placed = store.apply(alice, request(
       'placeOrder',
-      { productId: 'grain', side: 'buy', quantity: 5, price: 1 },
+      { productId: 'wheat', side: 'buy', quantity: 5, price: 1 },
       'place-order-12345678',
       '/api/game/orders',
     ), now + 1);
@@ -103,7 +103,7 @@ test('idempotency preserves authoritative response without creating server logs'
     store.getState(alice, now);
     const action = request(
       'placeOrder',
-      { productId: 'grain', side: 'buy', quantity: 2, price: 1 },
+      { productId: 'wheat', side: 'buy', quantity: 2, price: 1 },
       'idempotent-order-12345678',
       '/api/game/orders',
     );
