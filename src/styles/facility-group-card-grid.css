@@ -39,12 +39,17 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto;
-  grid-template-areas: none;
+  grid-template-areas:
+    "title"
+    "status"
+    "summary";
   align-items: start;
   gap: var(--space-1);
 }
 
 .facility-card-title-row {
+  grid-area: title;
+  width: 100%;
   min-width: 0;
   min-height: var(--control-height);
   display: grid;
@@ -68,6 +73,8 @@
 }
 
 .facility-card-status-row {
+  grid-area: status;
+  width: 100%;
   min-width: 0;
   min-height: 1.6rem;
   display: flex;
@@ -80,6 +87,7 @@
 }
 
 .facility-count-summary {
+  grid-area: summary;
   width: 100%;
   min-width: 0;
   display: grid;
