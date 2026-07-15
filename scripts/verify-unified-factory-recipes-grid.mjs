@@ -117,11 +117,14 @@ for (const text of [
   'padding: var(--production-surface-inset);',
   '.panel.production-surface > .widget-heading',
   '.panel.production-surface .facility-card-title-row',
+  'min-height: var(--production-pill-visible-height);',
   'line-height: var(--line-height-tight);',
-  '.panel.production-surface .facility-card-title-row > .ui-switch::before',
-  'top: 0;',
-  'bottom: auto;',
+  '.panel.production-surface .facility-card-title-row > .ui-switch {',
+  'width: 2.75rem;',
   'height: var(--production-pill-visible-height);',
+  '.panel.production-surface .facility-card-title-row > .ui-switch::before',
+  'inset: 0;',
+  'height: auto;',
   'border-radius: var(--radius-pill);',
   '.panel.production-surface .facility-card-title-row > .ui-switch::after',
   'top: calc((var(--production-pill-visible-height) - var(--production-switch-thumb-size)) / 2);',
@@ -129,7 +132,15 @@ for (const text of [
   '@media (max-width: 720px)',
   '--production-surface-inset: var(--space-3);',
 ]) assert.equal(surfaceCss.includes(text), true, `生产一级表面样式缺少: ${text}`);
-for (const forbidden of ['padding-top:', 'padding-right:', 'padding-bottom:', 'padding-left:', 'inset: 0.625rem 0;']) {
+for (const forbidden of [
+  'padding-top:',
+  'padding-right:',
+  'padding-bottom:',
+  'padding-left:',
+  'inset: 0.625rem 0;',
+  'height: 2.75rem;',
+  'min-height: 2.75rem;',
+]) {
   assert.equal(surfaceCss.includes(forbidden), false, `生产一级表面不应包含: ${forbidden}`);
 }
 
@@ -145,10 +156,13 @@ for (const text of [
 
 const pillDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
 for (const text of [
+  '点击区域规则以本文为准',
   '可见高度：1.6rem',
-  '点击区域继续保持至少 `44 × 44px`',
-  '可见轨道从点击区域顶部开始',
-  '可见顶部和右边缘使用相同的卡片内边距',
+  '点击高度：1.6rem',
+  '点击区域必须与可见胶囊完全一致',
+  '不得保留超出可见胶囊的透明点击区域',
+  '标题行最小高度必须使用同一个 `1.6rem` 胶囊高度',
+  '其他页面和表单开关继续遵循全局触控目标规则',
   '焦点环继续绘制在 `.ui-switch::before` 可见轨道外侧',
 ]) assert.equal(pillDesign.includes(text), true, `生产胶囊设计文档缺少: ${text}`);
 
@@ -174,4 +188,4 @@ for (const [path, required] of [
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('通用工厂配方、三行标题结构、同平面统一内边距、胶囊开关对齐、自适应同排等高卡片和底部市场入口验证通过。');
+console.log('通用工厂配方、三行标题结构、同平面统一内边距、胶囊点击可见一致、自适应同排等高卡片和底部市场入口验证通过。');
