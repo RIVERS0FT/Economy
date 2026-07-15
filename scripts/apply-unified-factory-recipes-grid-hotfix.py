@@ -18,6 +18,10 @@ market_path.write_text(market_content, encoding='utf-8')
 ui_path = root / 'docs/UI_DESIGN_SYSTEM.md'
 ui_content = ui_path.read_text(encoding='utf-8')
 ui_content = ui_content.replace(
+    '- 工厂卡桌面使用统一高度，移动端使用自然高度；',
+    '- 桌面端所有工厂集群卡片使用统一高度，移动端使用自然高度；',
+)
+ui_content = ui_content.replace(
     '工厂卡外层使用容器查询决定卡片内边距：',
     '工厂卡外层使用容器查询决定卡片内边距，统一使用 `8px / 12px / 16px` 三档：',
 )
