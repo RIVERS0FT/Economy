@@ -7,6 +7,14 @@ for path in (root / 'scripts').glob('verify-*.mjs'):
     if updated != content:
         path.write_text(updated, encoding='utf-8')
 
+market_path = root / 'scripts/verify-market-assets.mjs'
+market_content = market_path.read_text(encoding='utf-8')
+market_content = market_content.replace(
+    "'前往市场交易该工厂','>保存计划</Button>'",
+    "'>保存计划</Button>'",
+)
+market_path.write_text(market_content, encoding='utf-8')
+
 ui_path = root / 'docs/UI_DESIGN_SYSTEM.md'
 ui_content = ui_path.read_text(encoding='utf-8')
 ui_content = ui_content.replace(
