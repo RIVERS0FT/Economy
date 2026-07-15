@@ -14,24 +14,7 @@
 移动触摸反馈验证通过：原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。
 概览验证通过：本地时间问候、跨页面保留的路由会话商品选择、当前挂单与三卡等高布局满足设计基线。
 产业目录验证通过：13 种商品、12 种工厂、小麦水稻与农场配方、全商品 SVG 和动态目录布局均满足设计。
-node:internal/modules/run_main:123
-    triggerUncaughtException(
-    ^
-
-AssertionError [ERR_ASSERTION]: docs/UI_DESIGN_SYSTEM.md 缺少: `8px / 12px / 16px`
-
-false !== true
-
-    at file:///home/runner/work/Economy/Economy/scripts/verify-unified-factory-recipes-grid.mjs:86:39
-    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {
-  generatedMessage: false,
-  code: 'ERR_ASSERTION',
-  actual: false,
-  expected: true,
-  operator: 'strictEqual',
-  diff: 'simple'
-}
-
-Node.js v22.23.1
+通用工厂配方、集群规模公式、等高方格卡片、容器内边距和底部市场入口验证通过。
+小麦水稻目录、通用配方周期边界切换、持续生产、主食预算替代和世界版本 8 迁移验证通过。
+统一资产市场、窗口化记录与管理功能验证失败:
+- src/pages/ProductionPage.tsx 不应包含: 前往市场交易该工厂
