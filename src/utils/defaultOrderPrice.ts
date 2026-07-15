@@ -5,7 +5,7 @@ function orderKind(order: AssetOrder): AssetKind {
 }
 
 function orderAssetId(order: AssetOrder): string {
-  return order.assetId ?? order.facilityTypeId ?? order.productId ?? 'grain';
+  return order.assetId ?? order.facilityTypeId ?? order.productId ?? 'wheat';
 }
 
 function validOrderPrice(price: number) {

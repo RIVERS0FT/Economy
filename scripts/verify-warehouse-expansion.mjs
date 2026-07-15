@@ -48,8 +48,8 @@ for (const forbidden of [
   '仓库已达到最高等级',
 ]) forbidText('server/src/warehouse.js', forbidden);
 
-for (const text of ['createWarehouseSummary', 'upgradeWarehouse', "action === 'upgradeWarehouse'", 'version: 11']) requireText('server/src/storage.js', text);
-for (const text of ['version: 11;', 'warehouseLevel: number;', 'warehouseNextCapacityIncrease: number;', 'warehouseReservedQuantity: number;', 'warehouseAvailableCapacity: number;']) requireText('src/types.ts', text);
+for (const text of ['createWarehouseSummary', 'upgradeWarehouse', "action === 'upgradeWarehouse'", 'version: 12']) requireText('server/src/storage.js', text);
+for (const text of ['version: 12;', 'warehouseLevel: number;', 'warehouseNextCapacityIncrease: number;', 'warehouseReservedQuantity: number;', 'warehouseAvailableCapacity: number;']) requireText('src/types.ts', text);
 for (const forbidden of ['warehouseMaxLevel: number;']) forbidText('src/types.ts', forbidden);
 
 for (const text of [
@@ -68,10 +68,9 @@ for (const text of [
   'FacilityProductionFormula',
   'products={game.products}',
   'inventories={game.inventories}',
-  'production-plan-heading',
-  'production-plan-fields',
-  'placeholder="目标产量"',
-  '下一周期生效',
+  'production-recipe-card',
+  '种植作物',
+  '下一周期改为',
   '在统一订单簿中买卖该工厂',
   'formatNumber(group.count)',
 ]) requireText('src/pages/ProductionPage.tsx', text);
@@ -104,14 +103,14 @@ for (const text of [
   'CreditsIcon',
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
 for (const text of [
-  'warehouse state defaults to level 1 and client version 11',
+  'warehouse state defaults to level 1 and client version 12',
   'warehouse capacity increase grows with every level',
   'warehouse can continue upgrading after former level 12 limit',
   'warehouse upgrade is idempotent',
 ]) requireText('server/test/warehouse.test.js', text);
 for (const text of [
-  'target production completion disables the run switch',
-  'target completion preserves pending plan but still stops',
+  'legacy completed target plans migrate to a manual stop',
+  'legacy running target plans become continuous production',
 ]) requireText('server/test/facility-groups.test.js', text);
 
 for (const text of [
@@ -163,7 +162,7 @@ for (const text of [
   'Production management layout v3',
   'grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);',
   'position: sticky',
-  'height: 384px',
+  'min-height: 320px',
   '@media (min-width: 1381px) {\n  .facility-group-list {\n    grid-template-columns: repeat(4, minmax(0, 1fr));',
   '.facility-count-summary',
   '.production-plan-heading',
@@ -193,12 +192,12 @@ for (const text of [
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 
 for (const text of [
-  '定量生产完成后关闭开关',
-  '固定高度 384px',
+  '持续生产与农场改种',
+  '至少 320px 的自适应高度',
   '大于 1380px 时右侧固定四列',
   'position: sticky',
   '下一周期加入',
-  '生产计划使用自动保存',
+  '运行中改种只写入 `pendingRecipeId`',
   '单座生产公式',
   '进度条',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
@@ -206,7 +205,7 @@ for (const text of [
 for (const text of [
   '页面主标题固定为“生产”',
   '左侧：建设新工厂',
-  '桌面卡片固定高度 384px',
+  '桌面卡片使用至少 320px 的自适应高度',
   '大于 1380px 时工厂列表固定四列',
   '无限扩容信息',
   '不显示独立库存总量行',
@@ -216,13 +215,13 @@ for (const text of [
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
-  '工厂卡桌面固定高度',
+  '工厂卡桌面使用至少 320px 的自适应高度',
   '工厂卡大于 1380px 时固定四列',
   '建设新工厂卡桌面独占',
   '仓库只显示可用或冻结数量大于零的商品',
   '图标与名称／可用主值／冻结辅助值',
   '移动端首次创建客户端偏好状态时，“紧凑数字”默认开启',
-  '计划字段自动保存',
+  '种植作物',
   '输入在左、周期成本在中、输出在右',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
@@ -230,4 +229,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、三层商品卡、移动双列、工厂生产公式、生产标题和自动保存计划验证通过。');
+console.log('仓库无限扩容、三层商品卡、移动双列、工厂持续生产、农场改种和生产标题验证通过。');

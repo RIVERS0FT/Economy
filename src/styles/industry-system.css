@@ -681,11 +681,11 @@
 
 @media (min-width: 961px) {
   .facility-group-card {
-    height: 384px;
-    min-height: 384px;
-    max-height: 384px;
-    grid-template-rows: auto auto minmax(40px, auto) minmax(0, 1fr) auto;
-    overflow: hidden;
+    height: auto;
+    min-height: 320px;
+    max-height: none;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    overflow: visible;
   }
 }
 
@@ -729,7 +729,7 @@
   }
 }
 
-/* Factory header and automatic production-plan editor. */
+/* Factory header and optional farm recipe editor. */
 .facility-status-header {
   position: relative;
   display: grid;
@@ -798,6 +798,10 @@
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   gap: var(--space-2);
+}
+
+.production-recipe-card select {
+  min-height: var(--control-height-compact);
 }
 
 .production-plan-heading {

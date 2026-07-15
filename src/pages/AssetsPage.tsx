@@ -46,7 +46,7 @@ const facilityActionNames: Record<string, string> = {
   sold: '数量减少',
   listed: '挂牌',
   unlisted: '撤销挂牌',
-  plan_updated: '计划修改',
+  recipe_updated: '配方修改',
   started: '统一启动',
   stopped: '统一停止',
   status_changed: '状态变化',

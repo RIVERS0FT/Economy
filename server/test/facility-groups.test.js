@@ -8,7 +8,7 @@ const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 
 function group(typeId, count, overrides = {}) {
-  return { facilityTypeId: typeId, count, participatingCount: 0, pendingJoinCount: 0, enabled: false, status: 'stopped', statusReason: 'manual', productionMode: 'continuous', completedQuantity: 0, ...overrides };
+  return { facilityTypeId: typeId, count, participatingCount: 0, pendingJoinCount: 0, enabled: false, status: 'stopped', statusReason: 'manual', activeRecipeId: typeId === 'farm' ? 'wheat-crop' : `${typeId}-default`, lifetimeOutput: 0, ...overrides };
 }
 
 test('factory buy and sell orders use price-time matching and partial fills', () => {
@@ -52,18 +52,18 @@ test('production increments produced goods statistics', () => {
   migrateFacilityGroupWorld(world, now);
   processFacilityGroupWorld(world, now + 30_000);
   assert.equal(player.stats.producedGoods, 4);
-  assert.equal(player.inventories.grain.available, 4);
+  assert.equal(player.inventories.wheat.available, 4);
 });
 
 test('asset valuation excludes the current players own buy order', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
-  player.inventories.grain.available = 10;
-  world.orders.push({ id: 'self-bid', assetKind: 'commodity', assetId: 'grain', productId: 'grain', side: 'buy', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice', price: 999, quantity: 1, remaining: 1, status: 'open', createdAt: now });
+  player.inventories.wheat.available = 10;
+  world.orders.push({ id: 'self-bid', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'buy', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice', price: 999, quantity: 1, remaining: 1, status: 'open', createdAt: now });
   migrateFacilityGroupWorld(world, now);
   const state = createFacilityGroupClientState(world, alice.id, now);
-  assert.notEqual(state.valuationPrices['commodity:grain'], 999);
-  assert.equal(state.assetSummary.commodityValue, 10 * state.valuationPrices['commodity:grain']);
+  assert.notEqual(state.valuationPrices['commodity:wheat'], 999);
+  assert.equal(state.assetSummary.commodityValue, 10 * state.valuationPrices['commodity:wheat']);
 });
 
 test('factory automatically recovers after funds return', () => {
@@ -96,7 +96,7 @@ test('manual stop disables automatic recovery', () => {
   assert.equal(player.facilityGroups[0].enabled, false);
 });
 
-test('running plan changes apply at the next cycle boundary', () => {
+test('running farm crop changes apply at the next cycle boundary', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 1_000;
@@ -107,18 +107,29 @@ test('running plan changes apply at the next cycle boundary', () => {
     cycleStartedAt: now,
   })];
   migrateFacilityGroupWorld(world, now);
-  const response = applyFacilityGroupAction(world, alice, 'setProductionPlan', {
-    facilityTypeId: 'farm', mode: 'target', targetQuantity: 8,
+  const response = applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
+    facilityTypeId: 'farm', recipeId: 'rice-crop',
   }, now + 1);
   assert.equal(response.ok, true);
-  assert.equal(player.facilityGroups[0].productionMode, 'continuous');
-  assert.equal(player.facilityGroups[0].pendingProductionPlan.mode, 'target');
+  assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop');
+  assert.equal(player.facilityGroups[0].pendingRecipeId, 'rice-crop');
+
+  assert.equal(applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
+    facilityTypeId: 'farm', recipeId: 'wheat-crop',
+  }, now + 2).ok, true);
+  assert.equal(player.facilityGroups[0].pendingRecipeId, undefined);
+  assert.equal(applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
+    facilityTypeId: 'farm', recipeId: 'rice-crop',
+  }, now + 3).ok, true);
 
   processFacilityGroupWorld(world, now + 30_000);
-  assert.equal(player.facilityGroups[0].productionMode, 'target');
-  assert.equal(player.facilityGroups[0].targetQuantity, 8);
-  assert.equal(player.facilityGroups[0].completedQuantity, 0);
-  assert.equal(player.inventories.grain.available, 4);
+  assert.equal(player.facilityGroups[0].activeRecipeId, 'rice-crop');
+  assert.equal(player.facilityGroups[0].pendingRecipeId, undefined);
+  assert.equal(player.inventories.wheat.available, 4);
+  assert.equal(player.inventories.rice.available, 0);
+
+  processFacilityGroupWorld(world, now + 60_000);
+  assert.equal(player.inventories.rice.available, 4);
 });
 
 test('warehouse errors recover without backfilling missed cycles', () => {
@@ -126,50 +137,59 @@ test('warehouse errors recover without backfilling missed cycles', () => {
   const player = ensurePlayer(world, alice, now);
   player.warehouseLevel = 1;
   player.inventoryCapacity = 500;
-  player.inventories.grain.available = 499;
+  player.inventories.wheat.available = 499;
   player.facilityGroups = [group('farm', 1, { enabled: true, status: 'error', statusReason: 'warehouse_full' })];
   migrateFacilityGroupWorld(world, now);
   processFacilityGroupWorld(world, now + 120_000);
   assert.equal(player.facilityGroups[0].status, 'error');
-  assert.equal(player.inventories.grain.available, 499);
+  assert.equal(player.inventories.wheat.available, 499);
 
   player.warehouseLevel = 2;
   player.inventoryCapacity = 750;
   processFacilityGroupWorld(world, now + 120_001);
   assert.equal(player.facilityGroups[0].status, 'running');
   assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_001);
-  assert.equal(player.inventories.grain.available, 499);
+  assert.equal(player.inventories.wheat.available, 499);
 });
-test('target production completion disables the run switch', () => {
+
+test('stopped farms change crop immediately and fixed recipes reject changes', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.facilityGroups = [group('farm', 1), group('mill', 1)];
+  migrateFacilityGroupWorld(world, now);
+
+  assert.equal(applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
+    facilityTypeId: 'farm', recipeId: 'rice-crop',
+  }, now + 1).ok, true);
+  assert.equal(player.facilityGroups.find((item) => item.facilityTypeId === 'farm').activeRecipeId, 'rice-crop');
+
+  assert.equal(applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
+    facilityTypeId: 'mill', recipeId: 'mill-default',
+  }, now + 2).ok, false);
+});
+test('legacy completed target plans migrate to a manual stop', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 100;
   player.facilityGroups = [group('farm', 1, {
-    enabled: true,
-    status: 'running',
-    participatingCount: 1,
-    cycleStartedAt: now,
+    enabled: false,
+    status: 'stopped',
+    statusReason: 'plan_complete',
     productionMode: 'target',
     targetQuantity: 2,
-    completedQuantity: 0,
+    completedQuantity: 2,
   })];
   migrateFacilityGroupWorld(world, now);
-
-  processFacilityGroupWorld(world, now + 30_000);
-
   const completed = player.facilityGroups[0];
-  assert.equal(player.inventories.grain.available, 2);
-  assert.equal(completed.productionMode, 'target');
-  assert.equal(completed.completedQuantity, 2);
   assert.equal(completed.enabled, false);
   assert.equal(completed.status, 'stopped');
-  assert.equal(completed.statusReason, 'plan_complete');
-  assert.equal(completed.participatingCount, 0);
-  assert.equal(completed.pendingJoinCount, 0);
-  assert.equal(completed.cycleStartedAt, undefined);
+  assert.equal(completed.statusReason, 'manual');
+  assert.equal(completed.activeRecipeId, 'wheat-crop');
+  assert.equal(Object.hasOwn(completed, 'productionMode'), false);
+  assert.equal(Object.hasOwn(completed, 'targetQuantity'), false);
 });
 
-test('target completion preserves pending plan but still stops', () => {
+test('legacy running target plans become continuous production', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 100;
@@ -188,14 +208,14 @@ test('target completion preserves pending plan but still stops', () => {
   })];
   migrateFacilityGroupWorld(world, now);
 
-  processFacilityGroupWorld(world, now + 30_000);
+  processFacilityGroupWorld(world, now + 60_000);
 
   const completed = player.facilityGroups[0];
-  assert.equal(completed.productionMode, 'continuous');
-  assert.equal(completed.pendingProductionPlan, undefined);
-  assert.equal(completed.enabled, false);
-  assert.equal(completed.status, 'stopped');
-  assert.equal(completed.statusReason, 'plan_complete');
+  assert.equal(completed.enabled, true);
+  assert.equal(completed.status, 'running');
+  assert.equal(player.inventories.wheat.available, 4);
+  assert.equal(Object.hasOwn(completed, 'productionMode'), false);
+  assert.equal(Object.hasOwn(completed, 'pendingProductionPlan'), false);
 });
 
 

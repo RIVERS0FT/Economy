@@ -4,8 +4,8 @@
 > 适用项目：`RIVERS0FT/Economy`  
 > 生产网页：`https://game.riversoft.top/economy/`  
 > 更新时间：2026-07-15
-> 客户端状态版本：11  
-> 世界状态版本：7
+> 客户端状态版本：12
+> 世界状态版本：8
 
 ## 1. 目标
 
@@ -54,7 +54,7 @@ Nginx
 - 可用与冻结资金；
 - 商品可用与冻结库存；
 - 仓库等级、容量和买单预占；
-- 工厂集群、运行意图、三态、周期、计划和施工；
+- 工厂集群、运行意图、三态、周期、当前／待生效配方和施工；
 - 商品和工厂统一订单、冻结、撮合、逐笔成交和撤单；
 - 藏品唯一实例、当前归属、归属历史、拍卖、最高出价冻结和自动结算；
 - 工作冷却与收入；
@@ -117,7 +117,7 @@ assetEvents
 | POST | `/api/game/facilities` | 建设工厂 |
 | POST | `/api/game/facilities/:facilityTypeId/start` | 开启工厂集群 |
 | POST | `/api/game/facilities/:facilityTypeId/pause` | 关闭工厂集群，兼容 `stop` |
-| POST | `/api/game/facilities/:facilityTypeId/plan` | 保存生产计划 |
+| POST | `/api/game/facilities/:facilityTypeId/recipe` | 调整可变配方工厂的当前／下一周期配方 |
 | POST | `/api/game/orders` | 创建商品或工厂统一订单 |
 | POST | `/api/game/orders/:orderId/cancel` | 撤销统一订单 |
 | POST | `/api/game/warehouse/upgrade` | 扩容共享仓库 |
@@ -129,6 +129,12 @@ assetEvents
 | POST | `/api/game/reset` | 重置玩家经济状态 |
 
 旧 `facility-listings` 与工厂 `list` 路由只允许作为迁移兼容入口，不得成为当前客户端业务入口，也不得在设计中恢复固定价格市场。
+
+旧 `/api/game/facilities/:facilityTypeId/plan` 已退役并返回 `410 Gone`。服务器不得再接受生产模式或目标产量；所有开启的工厂只持续生产。
+
+主食人口需求以 `world.demandGroups.staples` 为唯一预算周期状态。每周期最多承诺 60 货币，按有效卖盘深度计算小麦／水稻价格指数和弹性预算，并使用 `demandCycleId` 防止重复挂单。需求周期未到时不得改写该状态；空闲 `GET state` 仍须保持不写数据库。
+
+世界版本 8 在同一 SQLite 事务中把旧 `grain` 库存、冻结量、商品订单与行情迁移到 `wheat`，初始化 `rice` 和农场 `wheat-crop`；迁移必须幂等且保持资金、库存、冻结与订单剩余数量守恒。
 
 管理员 API：
 

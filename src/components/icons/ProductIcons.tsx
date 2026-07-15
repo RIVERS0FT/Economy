@@ -1,7 +1,8 @@
 import type { ReactNode, SVGProps } from 'react';
 
 export const PRODUCT_ICON_IDS = [
-  'grain',
+  'wheat',
+  'rice',
   'timber',
   'ore',
   'crude-oil',
@@ -48,7 +49,7 @@ function ProductSvg({
 
 export function ProductIcon({ productId, ...props }: ProductIconProps) {
   switch (productId) {
-    case 'grain':
+    case 'wheat':
       return (
         <ProductSvg productId={productId} {...props}>
           <path d="M12 21V4" />
@@ -58,6 +59,16 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M12 8c2.7 0 4.6-1.3 5.1-3.6-2.8-.1-4.6 1.2-5.1 3.6Z" />
           <path d="M12 12c2.8 0 4.8-1.4 5.3-3.8-2.9-.1-4.8 1.3-5.3 3.8Z" />
           <path d="M12 16c2.7 0 4.6-1.3 5.1-3.6-2.8-.1-4.6 1.2-5.1 3.6Z" />
+        </ProductSvg>
+      );
+    case 'rice':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M5 14h14c-.7 4-3.1 6-7 6s-6.3-2-7-6Z" />
+          <path d="M7 11c1.2-1.4 2.5-1.4 3.7 0 1.2-1.4 2.5-1.4 3.7 0 1.1-1.2 2.2-1.3 3.3-.3" />
+          <path d="M12 9V3" />
+          <path d="M12 6c-2.1 0-3.4-.9-3.9-2.7 2.2-.1 3.5.8 3.9 2.7Z" />
+          <path d="M12 8c2.1 0 3.4-.9 3.9-2.7-2.2-.1-3.5.8-3.9 2.7Z" />
         </ProductSvg>
       );
     case 'timber':

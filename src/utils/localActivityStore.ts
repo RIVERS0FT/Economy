@@ -28,7 +28,7 @@ export type LocalActivityAction =
   | 'buildFacility'
   | 'startFacility'
   | 'pauseFacility'
-  | 'setProductionPlan'
+  | 'setFacilityRecipe'
   | 'listFacility'
   | 'cancelFacilityListing'
   | 'buyFacility'
@@ -75,7 +75,7 @@ const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   buildFacility: 'facility',
   startFacility: 'production',
   pauseFacility: 'production',
-  setProductionPlan: 'production',
+  setFacilityRecipe: 'production',
   listFacility: 'facility',
   cancelFacilityListing: 'facility',
   buyFacility: 'facility',
@@ -227,7 +227,7 @@ function facilityAction(
   if (previous && !current) return action === 'refresh' ? 'sold' : 'removed';
   if (action === 'listFacility') return 'listed';
   if (action === 'cancelFacilityListing') return 'unlisted';
-  if (action === 'setProductionPlan') return 'plan_updated';
+  if (action === 'setFacilityRecipe') return 'recipe_updated';
   if (action === 'startFacility') return 'started';
   if (action === 'pauseFacility') return 'stopped';
   if (previous?.count !== current?.count) return (current?.count ?? 0) > (previous?.count ?? 0) ? 'acquired' : 'sold';
@@ -268,8 +268,8 @@ function diffFacilityGroups(
       || beforeCount !== afterCount
       || previous.status !== current.status
       || previous.statusReason !== current.statusReason
-      || previous.productionMode !== current.productionMode
-      || previous.targetQuantity !== current.targetQuantity
+      || previous.activeRecipeId !== current.activeRecipeId
+      || previous.pendingRecipeId !== current.pendingRecipeId
       || previous.listedCount !== current.listedCount;
     if (stateChanged) {
       facilityChanges.push({
@@ -285,8 +285,8 @@ function diffFacilityGroups(
     }
 
     if (!previous || !current) continue;
-    const completedQuantityDelta = current.completedQuantity - previous.completedQuantity;
-    if (completedQuantityDelta <= 0) continue;
+    const outputQuantityDelta = current.lifetimeOutput - previous.lifetimeOutput;
+    if (outputQuantityDelta <= 0) continue;
     const inventoryOutput = Object.entries(after.inventories).find(([productId]) => (
       (after.inventories[productId]?.available ?? 0) > (before.inventories[productId]?.available ?? 0)
     ));
@@ -295,9 +295,9 @@ function diffFacilityGroups(
       facilityName: facilityName(typeId),
       action: 'produced',
       outputProductId: inventoryOutput?.[0],
-      outputQuantity: completedQuantityDelta,
+      outputQuantity: outputQuantityDelta,
       inputQuantity: 0,
-      completedQuantityDelta,
+      outputQuantityDelta,
     });
   }
 
@@ -323,7 +323,7 @@ function deriveAssetTrades(
     if (order.ownerId !== after.userId) continue;
     const previousFillIds = new Set((previousById.get(order.id)?.fills ?? []).map((fill) => fill.id));
     const kind = order.assetKind === 'facility' || order.facilityTypeId ? 'facility' : 'commodity';
-    const assetId = order.assetId ?? order.facilityTypeId ?? order.productId ?? 'grain';
+    const assetId = order.assetId ?? order.facilityTypeId ?? order.productId ?? 'wheat';
     const name = kind === 'facility' ? facilityName(assetId) : productName(after, assetId);
     for (const fill of order.fills ?? []) {
       if (previousFillIds.has(fill.id)) continue;

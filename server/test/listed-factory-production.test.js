@@ -9,7 +9,7 @@ const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 test('cancelling a running factory sell order joins the quantity next cycle', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
-  player.facilityGroups = [{ facilityTypeId: 'farm', count: 5, participatingCount: 5, pendingJoinCount: 0, enabled: true, status: 'running', cycleStartedAt: now, productionMode: 'continuous', completedQuantity: 0 }];
+  player.facilityGroups = [{ facilityTypeId: 'farm', count: 5, participatingCount: 5, pendingJoinCount: 0, enabled: true, status: 'running', cycleStartedAt: now, activeRecipeId: 'wheat-crop', lifetimeOutput: 0 }];
   migrateFacilityGroupWorld(world, now);
   applyFacilityGroupAction(world, alice, 'placeOrder', { assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 100 }, now + 1);
   const order = world.orders.find((item) => item.ownerId === alice.id && item.assetKind === 'facility');
@@ -22,7 +22,7 @@ test('cancelling a running factory sell order joins the quantity next cycle', ()
 test('selling every participating factory puts the enabled group in error', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
-  player.facilityGroups = [{ facilityTypeId: 'farm', count: 2, participatingCount: 2, pendingJoinCount: 0, enabled: true, status: 'running', cycleStartedAt: now, productionMode: 'continuous', completedQuantity: 0 }];
+  player.facilityGroups = [{ facilityTypeId: 'farm', count: 2, participatingCount: 2, pendingJoinCount: 0, enabled: true, status: 'running', cycleStartedAt: now, activeRecipeId: 'wheat-crop', lifetimeOutput: 0 }];
   migrateFacilityGroupWorld(world, now);
   applyFacilityGroupAction(world, alice, 'placeOrder', { assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 100 }, now + 1);
   assert.equal(player.facilityGroups[0].status, 'error');

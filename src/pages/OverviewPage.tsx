@@ -43,10 +43,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
     setTab,
     selectMarketAsset,
   } = model;
-  const plannedGroups = game.facilityGroups.filter((group) => group.productionMode === 'target').length;
-  const pendingPlans = game.facilityGroups.reduce((sum, group) => (
-    group.productionMode === 'target' ? sum + Math.max(0, (group.targetQuantity || 0) - group.completedQuantity) : sum
-  ), 0);
+  const pendingRecipeChanges = game.facilityGroups.filter((group) => Boolean(group.pendingRecipeId)).length;
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
   const pendingJoin = game.facilityGroups.reduce((sum, group) => sum + group.pendingJoinCount, 0);
   const greeting = greetingForHour(new Date(now).getHours());
@@ -146,7 +143,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
               <DataRow label="下一周期加入" value={formatNumber(pendingJoin)} tone={pendingJoin ? 'warning' : 'neutral'} />
               <DataRow label="阻塞工厂" value={formatNumber(derived.blockedFacilities)} tone={derived.blockedFacilities ? 'danger' : 'neutral'} />
               <DataRow label="施工中的工厂" value={formatNumber(derived.constructingFacilities)} tone="warning" />
-              <DataRow label="定量计划" value={`${formatNumber(plannedGroups)} 组 / 剩余 ${formatNumber(pendingPlans)}`} tone="info" />
+              <DataRow label="待生效改种" value={`${formatNumber(pendingRecipeChanges)} 组`} tone={pendingRecipeChanges ? 'warning' : 'neutral'} />
               <DataRow label="共享仓库剩余" value={formatNumber(game.warehouseAvailableCapacity)} tone={game.warehouseAvailableCapacity > 0 ? 'success' : 'danger'} />
             </DataList>
           </Panel>
