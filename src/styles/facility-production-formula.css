@@ -1,4 +1,4 @@
-/* Factory production formula: recipe, cycle/cost metadata, progress, and cluster summary. */
+/* Factory production formula: recipe, cycle/cost metadata, and progress. */
 .facility-production-formula {
   min-width: 0;
   border: 1px solid var(--color-border);
@@ -37,8 +37,7 @@
 }
 
 .facility-formula-input-group,
-.facility-formula-output-group,
-.facility-formula-summary-output {
+.facility-formula-output-group {
   min-width: 0;
   display: flex;
   align-items: flex-start;
@@ -46,8 +45,7 @@
   gap: var(--space-1);
 }
 
-.facility-formula-output-group,
-.facility-formula-summary-output {
+.facility-formula-output-group {
   justify-content: flex-end;
 }
 
@@ -58,8 +56,7 @@
   gap: 0.12rem;
 }
 
-.facility-formula-output .facility-formula-item-group,
-.facility-formula-summary-output .facility-formula-item-group {
+.facility-formula-output .facility-formula-item-group {
   justify-items: end;
 }
 
@@ -88,7 +85,6 @@
 }
 
 .facility-formula-inventory,
-.facility-formula-summary-cost,
 .facility-formula-meta-unit {
   display: inline-flex;
   align-items: center;
@@ -130,8 +126,7 @@
   color: var(--color-info);
 }
 
-.facility-formula-center .facility-formula-meta-unit:last-child,
-.facility-formula-summary-cost {
+.facility-formula-center .facility-formula-meta-unit:last-child {
   color: var(--color-warning);
 }
 
@@ -164,42 +159,6 @@
 
 .facility-formula-progress .facility-progress-running.is-idle .progress-track {
   opacity: 0.72;
-}
-
-.facility-formula-summary {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.22rem var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: 1.35;
-  text-align: center;
-}
-
-.facility-formula-summary-output {
-  flex-wrap: wrap;
-}
-
-.facility-formula-summary-output .facility-formula-item-group {
-  display: inline-flex;
-  align-items: center;
-}
-
-.facility-formula-summary-output .facility-formula-output-item {
-  font-size: var(--font-size-xs);
-}
-
-.facility-formula-summary-output .product-icon {
-  width: 0.9rem;
-  height: 0.9rem;
-}
-
-.facility-formula-summary-cost {
-  margin-left: 0.1rem;
-  white-space: nowrap;
 }
 
 @media (min-width: 961px) {
@@ -258,9 +217,5 @@
   .facility-formula-input-item,
   .facility-formula-output-item {
     font-size: var(--font-size-xs);
-  }
-
-  .facility-formula-summary {
-    font-size: 0.68rem;
   }
 }

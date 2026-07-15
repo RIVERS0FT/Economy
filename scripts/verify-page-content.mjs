@@ -115,11 +115,11 @@ for (const text of [
   'facility-formula-center',
   'facility-formula-output-group',
   'facility-formula-progress',
-  'facility-formula-summary',
   'CycleIcon',
   'CreditsIcon',
   'WarehouseIcon',
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
+forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-summary');
 
 for (const text of [
   'title="工厂"',

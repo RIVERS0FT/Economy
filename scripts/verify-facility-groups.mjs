@@ -161,6 +161,8 @@ for (const text of [
 ]) requireText('src/styles/facility-production-formula.css', text);
 forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');
 
+forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');
+
 requireText('src/main.tsx', "import './styles/facility-production-formula.css';");
 
 for (const forbidden of [
