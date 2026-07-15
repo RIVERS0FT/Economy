@@ -1,6 +1,9 @@
 name: Sync unified factory recipes grid
 
 on:
+  push:
+    branches:
+      - agent/unified-factory-recipes-grid
   pull_request:
     branches:
       - main
@@ -15,7 +18,7 @@ concurrency:
 
 jobs:
   sync-and-validate:
-    if: github.head_ref == 'agent/unified-factory-recipes-grid'
+    if: github.ref == 'refs/heads/agent/unified-factory-recipes-grid' || github.head_ref == 'agent/unified-factory-recipes-grid'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
