@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - progress-description-validation.log
 
 permissions:
   contents: write
@@ -151,14 +153,29 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Run complete build
-        run: npm run build
+        shell: bash
+        run: |
+          set +e
+          npm run build 2>&1 | tee /tmp/progress-description-validation.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            git reset --hard HEAD
+            cp /tmp/progress-description-validation.log progress-description-validation.log
+            git config user.name "RIVERSOFT automation"
+            git config user.email "actions@users.noreply.github.com"
+            git add progress-description-validation.log
+            git commit -m "Record progress description validation failure"
+            git push origin HEAD:agent/remove-production-progress-description
+            exit "$status"
+          fi
 
       - name: Commit validated change
         shell: bash
         run: |
           git config user.name "RIVERSOFT automation"
           git config user.email "actions@users.noreply.github.com"
-          rm -f package-lock.json
+          rm -f package-lock.json progress-description-validation.log
           git add src/components/facilities/FacilityProductionFormula.tsx \
             src/styles/facility-production-formula.css \
             docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
