@@ -47,8 +47,8 @@ export interface FacilityTypeDefinition {
   operatingCost: number;
   input: FacilityRecipeItem | null;
   output: FacilityRecipeItem;
-  defaultRecipeId?: string;
-  recipes?: FacilityRecipeDefinition[];
+  defaultRecipeId: string;
+  recipes: FacilityRecipeDefinition[];
   systemValue: number;
 }
 

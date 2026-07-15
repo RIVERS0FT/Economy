@@ -77,8 +77,8 @@ assetEvents
 
 ## 4. 状态与存储
 
-- 客户端 `EconomyState.version` 固定为 11。
-- SQLite 世界版本固定为 7。
+- 客户端 `EconomyState.version` 固定为 12。
+- SQLite 世界版本固定为 8。
 - 藏品和拍卖作为向后兼容的世界 JSON 字段加入，不单独提高世界版本。
 - 数据库使用 Node 内置 `node:sqlite`、WAL 和事务。
 - 资产写操作使用 `BEGIN IMMEDIATE`。
@@ -117,7 +117,7 @@ assetEvents
 | POST | `/api/game/facilities` | 建设工厂 |
 | POST | `/api/game/facilities/:facilityTypeId/start` | 开启工厂集群 |
 | POST | `/api/game/facilities/:facilityTypeId/pause` | 关闭工厂集群，兼容 `stop` |
-| POST | `/api/game/facilities/:facilityTypeId/recipe` | 调整可变配方工厂的当前／下一周期配方 |
+| POST | `/api/game/facilities/:facilityTypeId/recipe` | 调整任意工厂的当前／下一周期配方；单配方唯一选项幂等成功 |
 | POST | `/api/game/orders` | 创建商品或工厂统一订单 |
 | POST | `/api/game/orders/:orderId/cancel` | 撤销统一订单 |
 | POST | `/api/game/warehouse/upgrade` | 扩容共享仓库 |
@@ -130,7 +130,7 @@ assetEvents
 
 旧 `facility-listings` 与工厂 `list` 路由只允许作为迁移兼容入口，不得成为当前客户端业务入口，也不得在设计中恢复固定价格市场。
 
-旧 `/api/game/facilities/:facilityTypeId/plan` 已退役并返回 `410 Gone`。服务器不得再接受生产模式或目标产量；所有开启的工厂只持续生产。
+旧 `/api/game/facilities/:facilityTypeId/plan` 已退役并返回 `410 Gone`。服务器不得再接受生产模式或目标产量；所有开启的工厂只持续生产。所有工厂类型至少包含一个正式配方和有效 `defaultRecipeId`；单配方工厂提交唯一配方时幂等成功，其他配方继续拒绝。
 
 主食人口需求以 `world.demandGroups.staples` 为唯一预算周期状态。每周期最多承诺 60 货币，按有效卖盘深度计算小麦／水稻价格指数和弹性预算，并使用 `demandCycleId` 防止重复挂单。需求周期未到时不得改写该状态；空闲 `GET state` 仍须保持不写数据库。
 
