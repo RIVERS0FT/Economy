@@ -9,5 +9,29 @@
 文档权威性验证通过：唯一文档结构、版本 12/8、八页导航和旧文件禁令均满足当前基线。
 状态交付容量验证通过：修订号门禁、动作轮询互斥、空闲读取不写库、5 秒默认间隔和 JSON gzip 均已锁定。
 认证缓存验证通过：状态 10 秒、写操作 2 秒、管理员零缓存、请求合并和 5000 条 LRU 已锁定。
-页面内容与职责验证失败:
-- src/pages/ProductionPage.tsx 缺少: >前往市场交易该工厂 →
+页面内容、八页导航、高增长记录窗口化、登录自动填充、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。
+共享 UI、唯一开关、导航完全不透明状态色、独立工厂 SVG 与统一商品图标验证通过。
+移动触摸反馈验证通过：原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。
+概览验证通过：本地时间问候、跨页面保留的路由会话商品选择、当前挂单与三卡等高布局满足设计基线。
+产业目录验证通过：13 种商品、12 种工厂、小麦水稻与农场配方、全商品 SVG 和动态目录布局均满足设计。
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: docs/UI_DESIGN_SYSTEM.md 缺少: `8px / 12px / 16px`
+
+false !== true
+
+    at file:///home/runner/work/Economy/Economy/scripts/verify-unified-factory-recipes-grid.mjs:86:39
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.1
