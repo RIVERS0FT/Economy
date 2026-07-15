@@ -1,0 +1,59 @@
+name: Finalize progress description removal
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: finalize-progress-description-removal
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: github.head_ref == 'agent/remove-production-progress-description'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/remove-production-progress-description
+          fetch-depth: 0
+
+      - name: Align final design rule
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
+          content = path.read_text(encoding='utf-8')
+          old = '- 存在 `pendingRecipeId` 时显示“下一周期切换为：配方名称”，当前生产公式继续展示本周期配方；`pendingJoinCount` 或待生效配方存在时显示按 `nextCycleCount` 计算的下一周期预览。'
+          new = '- 存在 `pendingRecipeId` 时只在配方选择器标题区显示“下一周期切换为：配方名称”，当前生产公式继续展示本周期配方；生产公式进度条下方不得显示 `nextCycleCount` 预览或其他说明。'
+          if old not in content:
+              raise SystemExit('未找到下一周期可见预览设计规则')
+          path.write_text(content.replace(old, new), encoding='utf-8')
+          PY
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run complete build
+        run: npm run build
+
+      - name: Commit final rule
+        shell: bash
+        run: |
+          git config user.name "RIVERSOFT automation"
+          git config user.email "actions@users.noreply.github.com"
+          rm -f package-lock.json
+          git add docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
+          git diff --cached --check
+          git commit -m "Clarify progress bar as final visible formula element"
+          git fetch origin agent/remove-production-progress-description
+          git rebase origin/agent/remove-production-progress-description
+          git push origin HEAD:agent/remove-production-progress-description
