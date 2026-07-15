@@ -1,26 +1,22 @@
-name: Apply unified factory recipes grid
+name: Clean factory recipe validation artifacts
 
 on:
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - factory-card-validation.log
-      - factory-card-commit.log
 
 permissions:
   contents: write
   pull-requests: read
 
 concurrency:
-  group: unified-factory-recipes-grid
+  group: unified-factory-recipes-grid-cleanup
   cancel-in-progress: true
 
 jobs:
-  apply-and-validate:
+  cleanup:
     if: github.head_ref == 'agent/unified-factory-recipes-grid'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - name: Check out implementation branch
         uses: actions/checkout@v4
@@ -28,93 +24,35 @@ jobs:
           ref: agent/unified-factory-recipes-grid
           fetch-depth: 0
 
-      - name: Detect completed implementation
-        id: guard
+      - name: Remove validation-only files
         shell: bash
         run: |
-          if [ -f src/styles/facility-group-card-grid.css ]; then
-            echo "apply=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "apply=true" >> "$GITHUB_OUTPUT"
+          git config user.name "RIVERSOFT automation"
+          git config user.email "actions@users.noreply.github.com"
+
+          cat > .gitignore <<'EOF'
+          node_modules/
+          dist/
+          __pycache__/
+          *.pyc
+          EOF
+
+          git rm -r --ignore-unmatch node_modules dist scripts/__pycache__
+          git rm --ignore-unmatch scripts/apply-unified-factory-recipes-grid-hotfix.py
+          git rm --ignore-unmatch scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-00
+          git rm --ignore-unmatch scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-01
+          git rm --ignore-unmatch scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-02
+          git rm --ignore-unmatch scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-03
+          git rm --ignore-unmatch scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-04
+          git rm --ignore-unmatch factory-card-validation.log factory-card-commit.log
+          git add .gitignore
+
+          if git diff --cached --quiet; then
+            exit 0
           fi
 
-      - name: Set up Node.js
-        if: steps.guard.outputs.apply == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Rebuild and apply migration
-        if: steps.guard.outputs.apply == 'true'
-        shell: bash
-        run: |
-          cat scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-* > /tmp/factory-card-patch.b64
-          base64 --decode /tmp/factory-card-patch.b64 | gzip --decompress > /tmp/apply-factory-card-patch.py
-          python3 /tmp/apply-factory-card-patch.py
-          if [ -f scripts/apply-unified-factory-recipes-grid-hotfix.py ]; then
-            python3 scripts/apply-unified-factory-recipes-grid-hotfix.py
-          fi
-
-      - name: Install dependencies
-        if: steps.guard.outputs.apply == 'true'
-        run: npm install --no-audit --no-fund
-
-      - name: Run complete build and preserve failures
-        if: steps.guard.outputs.apply == 'true'
-        shell: bash
-        run: |
-          set +e
-          npm run build 2>&1 | tee /tmp/factory-card-build.log
-          status=${PIPESTATUS[0]}
-          set -e
-          if [ "$status" -ne 0 ]; then
-            git reset --hard HEAD
-            cp /tmp/factory-card-build.log factory-card-validation.log
-            git config user.name "RIVERSOFT automation"
-            git config user.email "actions@users.noreply.github.com"
-            git add factory-card-validation.log
-            if ! git diff --cached --quiet; then
-              git commit -m "Record factory card validation failure"
-              git fetch origin agent/unified-factory-recipes-grid
-              git rebase origin/agent/unified-factory-recipes-grid
-              git push origin HEAD:agent/unified-factory-recipes-grid
-            fi
-            exit "$status"
-          fi
-
-      - name: Check patch formatting
-        if: steps.guard.outputs.apply == 'true'
-        run: git diff --check
-
-      - name: Prepare validated implementation
-        if: steps.guard.outputs.apply == 'true'
-        shell: bash
-        run: |
-          rm -f package-lock.json factory-card-validation.log factory-card-commit.log
-
-      - name: Commit validated implementation
-        if: steps.guard.outputs.apply == 'true'
-        shell: bash
-        run: |
-          set +e
-          {
-            git config user.name "RIVERSOFT automation"
-            git config user.email "actions@users.noreply.github.com"
-            git add -A
-            git diff --cached --check
-            git commit -m "Unify factory recipes and card grid"
-            git fetch origin agent/unified-factory-recipes-grid
-            git rebase origin/agent/unified-factory-recipes-grid
-            git push origin HEAD:agent/unified-factory-recipes-grid
-          } 2>&1 | tee /tmp/factory-card-commit.log
-          status=${PIPESTATUS[0]}
-          set -e
-          if [ "$status" -ne 0 ]; then
-            git fetch origin agent/unified-factory-recipes-grid
-            git reset --hard origin/agent/unified-factory-recipes-grid
-            cp /tmp/factory-card-commit.log factory-card-commit.log
-            git add factory-card-commit.log
-            git commit -m "Record factory card commit failure"
-            git push origin HEAD:agent/unified-factory-recipes-grid
-            exit "$status"
-          fi
+          git diff --cached --check
+          git commit -m "Remove factory validation artifacts"
+          git fetch origin agent/unified-factory-recipes-grid
+          git rebase origin/agent/unified-factory-recipes-grid
+          git push origin HEAD:agent/unified-factory-recipes-grid
