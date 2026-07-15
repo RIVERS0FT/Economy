@@ -52,7 +52,6 @@ const forbiddenLegacyDocs = [
 for (const path of canonicalDocs) {
   if (!existsSync(pathFor(path))) failures.push(`缺少权威文档: ${path}`);
 }
-
 for (const path of forbiddenLegacyDocs) {
   if (existsSync(pathFor(path))) failures.push(`旧文档不得重新创建: ${path}`);
 }
@@ -65,7 +64,8 @@ if (existsSync(pathFor('README.md'))) {
     '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜设置',
     '共享仓库允许无限扩容',
     '所有工厂集群统一使用服务器正式配方',
-    '人口主食需求共用每 5 分钟最多 60 的聚合预算',
+    '食品、小麦和水稻共享同一个人口饮食需求组',
+    '每 5 分钟最多 330',
     '藏品是服务器记录归属的唯一资产实例',
     '不得通过新增“补充说明”、V2/V3 文件或平行专题文档覆盖现行规则',
   ]) {
@@ -105,4 +105,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：唯一文档结构、版本 12/8、八页导航和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：唯一文档结构、版本 12/8、饮食需求、八页导航和旧文件禁令均满足当前基线。');
