@@ -26,7 +26,9 @@ async function waitFor(url, attempts = 50) {
 
 test('HTTP API authenticates through the shared account service and honors idempotency', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'economy-api-test-'));
+  let accountRequestCount = 0;
   const accountServer = createServer((request, response) => {
+    accountRequestCount += 1;
     if (request.headers.host !== 'riversoft.top') {
       response.writeHead(400).end();
       return;
@@ -104,6 +106,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
     const repeatedPayload = await repeated.json();
     assert.equal(repeatedPayload.state.credits, 101);
     assert.equal(repeatedPayload.revision, firstPayload.revision);
+    assert.equal(accountRequestCount, 1);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
       const exited = once(child, 'exit');
