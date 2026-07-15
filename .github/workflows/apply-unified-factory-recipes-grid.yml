@@ -11,6 +11,10 @@ permissions:
   contents: write
   pull-requests: read
 
+concurrency:
+  group: unified-factory-recipes-grid
+  cancel-in-progress: true
+
 jobs:
   apply-and-validate:
     if: github.head_ref == 'agent/unified-factory-recipes-grid'
@@ -23,12 +27,24 @@ jobs:
           ref: agent/unified-factory-recipes-grid
           fetch-depth: 0
 
+      - name: Detect completed implementation
+        id: guard
+        shell: bash
+        run: |
+          if [ -f src/styles/facility-group-card-grid.css ]; then
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up Node.js
+        if: steps.guard.outputs.apply == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Rebuild and apply migration
+        if: steps.guard.outputs.apply == 'true'
         shell: bash
         run: |
           cat scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-* > /tmp/factory-card-patch.b64
@@ -39,9 +55,11 @@ jobs:
           fi
 
       - name: Install dependencies
+        if: steps.guard.outputs.apply == 'true'
         run: npm install --no-audit --no-fund
 
       - name: Run complete build and preserve failures
+        if: steps.guard.outputs.apply == 'true'
         shell: bash
         run: |
           set +e
@@ -54,23 +72,27 @@ jobs:
             git config user.name "RIVERSOFT automation"
             git config user.email "actions@users.noreply.github.com"
             git add factory-card-validation.log
-            git commit -m "Record factory card validation failure"
-            git push origin HEAD:agent/unified-factory-recipes-grid
+            if ! git diff --cached --quiet; then
+              git commit -m "Record factory card validation failure"
+              git fetch origin agent/unified-factory-recipes-grid
+              git rebase origin/agent/unified-factory-recipes-grid
+              git push origin HEAD:agent/unified-factory-recipes-grid
+            fi
             exit "$status"
           fi
 
       - name: Check patch formatting
+        if: steps.guard.outputs.apply == 'true'
         run: git diff --check
 
-      - name: Remove one-time bootstrap
+      - name: Prepare validated implementation
+        if: steps.guard.outputs.apply == 'true'
         shell: bash
         run: |
-          rm -f scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-*
-          rm -f scripts/apply-unified-factory-recipes-grid-hotfix.py
-          rm -f .github/workflows/apply-unified-factory-recipes-grid.yml
           rm -f package-lock.json factory-card-validation.log
 
       - name: Commit validated implementation
+        if: steps.guard.outputs.apply == 'true'
         shell: bash
         run: |
           git config user.name "RIVERSOFT automation"
@@ -78,4 +100,6 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m "Unify factory recipes and card grid"
+          git fetch origin agent/unified-factory-recipes-grid
+          git rebase origin/agent/unified-factory-recipes-grid
           git push origin HEAD:agent/unified-factory-recipes-grid
