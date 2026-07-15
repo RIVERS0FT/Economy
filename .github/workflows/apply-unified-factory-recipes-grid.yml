@@ -4,6 +4,8 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - factory-card-validation.log
 
 permissions:
   contents: write
@@ -36,8 +38,23 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Run complete build
-        run: npm run build
+      - name: Run complete build and preserve failures
+        shell: bash
+        run: |
+          set +e
+          npm run build 2>&1 | tee /tmp/factory-card-build.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            git reset --hard HEAD
+            cp /tmp/factory-card-build.log factory-card-validation.log
+            git config user.name "RIVERSOFT automation"
+            git config user.email "actions@users.noreply.github.com"
+            git add factory-card-validation.log
+            git commit -m "Record factory card validation failure"
+            git push origin HEAD:agent/unified-factory-recipes-grid
+            exit "$status"
+          fi
 
       - name: Check patch formatting
         run: git diff --check
@@ -47,7 +64,7 @@ jobs:
         run: |
           rm -f scripts/apply-unified-factory-recipes-grid.py.gz.b64.part-*
           rm -f .github/workflows/apply-unified-factory-recipes-grid.yml
-          rm -f package-lock.json
+          rm -f package-lock.json factory-card-validation.log
 
       - name: Commit validated implementation
         shell: bash
