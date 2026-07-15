@@ -6,6 +6,7 @@ on:
       - main
     paths-ignore:
       - factory-card-validation.log
+      - factory-card-commit.log
 
 permissions:
   contents: write
@@ -89,17 +90,31 @@ jobs:
         if: steps.guard.outputs.apply == 'true'
         shell: bash
         run: |
-          rm -f package-lock.json factory-card-validation.log
+          rm -f package-lock.json factory-card-validation.log factory-card-commit.log
 
       - name: Commit validated implementation
         if: steps.guard.outputs.apply == 'true'
         shell: bash
         run: |
-          git config user.name "RIVERSOFT automation"
-          git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "Unify factory recipes and card grid"
-          git fetch origin agent/unified-factory-recipes-grid
-          git rebase origin/agent/unified-factory-recipes-grid
-          git push origin HEAD:agent/unified-factory-recipes-grid
+          set +e
+          {
+            git config user.name "RIVERSOFT automation"
+            git config user.email "actions@users.noreply.github.com"
+            git add -A
+            git diff --cached --check
+            git commit -m "Unify factory recipes and card grid"
+            git fetch origin agent/unified-factory-recipes-grid
+            git rebase origin/agent/unified-factory-recipes-grid
+            git push origin HEAD:agent/unified-factory-recipes-grid
+          } 2>&1 | tee /tmp/factory-card-commit.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            git fetch origin agent/unified-factory-recipes-grid
+            git reset --hard origin/agent/unified-factory-recipes-grid
+            cp /tmp/factory-card-commit.log factory-card-commit.log
+            git add factory-card-commit.log
+            git commit -m "Record factory card commit failure"
+            git push origin HEAD:agent/unified-factory-recipes-grid
+            exit "$status"
+          fi
