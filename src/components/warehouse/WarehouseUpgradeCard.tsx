@@ -40,7 +40,7 @@ export function WarehouseUpgradeCard({
   }
 
   return (
-    <Panel className={`warehouse-upgrade-card ${compact ? 'compact' : ''} ${className}`.trim()}>
+    <Panel className={`production-surface warehouse-upgrade-card ${compact ? 'compact' : ''} ${className}`.trim()}>
       <WidgetHeading
         title="共享仓库"
         action={(
