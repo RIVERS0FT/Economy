@@ -7,8 +7,8 @@
 
 .facility-group-card-shell {
   min-width: 0;
-  height: var(--facility-card-height, 27rem);
   display: flex;
+  align-self: stretch;
   container-type: inline-size;
 }
 
@@ -16,12 +16,10 @@
   --facility-card-padding: var(--space-3);
   --facility-card-section-gap: var(--space-3);
   --facility-card-inner-gap: var(--space-2);
-  --facility-card-height: 27rem;
 
+  flex: 1 1 auto;
   width: 100%;
-  height: var(--facility-card-height);
-  min-height: var(--facility-card-height);
-  max-height: var(--facility-card-height);
+  min-height: 0;
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   align-content: stretch;
@@ -37,7 +35,81 @@
 }
 
 .facility-status-header {
-  align-self: start;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  grid-template-areas: none;
+  align-items: start;
+  gap: var(--space-1);
+}
+
+.facility-card-title-row {
+  min-width: 0;
+  min-height: var(--control-height);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.facility-card-title-row h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-xl);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facility-card-title-row > .ui-switch {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.facility-card-status-row {
+  min-width: 0;
+  min-height: 1.6rem;
+  display: flex;
+  align-items: flex-start;
+}
+
+.facility-card-status-row .ui-status-tag {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.facility-count-summary {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.facility-count-summary span {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.facility-count-summary span:nth-child(2) {
+  justify-content: center;
+}
+
+.facility-count-summary span:last-child {
+  justify-content: flex-end;
+}
+
+.facility-count-summary strong {
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
 }
 
 .facility-recipe-section {
@@ -118,14 +190,14 @@
 @media (min-width: 1381px) {
   .facility-group-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-auto-rows: 1fr;
+    grid-auto-rows: auto;
   }
 }
 
 @media (min-width: 961px) and (max-width: 1380px) {
   .facility-group-list {
     grid-template-columns: 1fr;
-    grid-auto-rows: 1fr;
+    grid-auto-rows: auto;
   }
 }
 
@@ -177,18 +249,26 @@
 
 @media (max-width: 960px) {
   .facility-group-card-shell {
-    height: auto;
+    display: block;
   }
 
   .facility-group-card {
-    height: auto;
-    min-height: 0;
-    max-height: none;
     grid-template-rows: auto;
     overflow: visible;
   }
 
   .facility-card-spacer {
     display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .facility-count-summary {
+    gap: 0.25rem;
+    font-size: 0.68rem;
+  }
+
+  .facility-count-summary strong {
+    font-size: var(--font-size-xs);
   }
 }

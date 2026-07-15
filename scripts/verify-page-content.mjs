@@ -92,6 +92,8 @@ for (const text of [
   '>停止 {formatNumber(model.derived.stoppedFacilities)}',
   '>异常 {formatNumber(model.derived.blockedFacilities)}',
   'facility-status-header',
+  'facility-card-title-row',
+  'facility-card-status-row',
   '异常：资金不足',
   '异常：仓库已满',
   '异常：原料不足',

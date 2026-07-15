@@ -29,8 +29,8 @@ function facilityTone(status: string): StatusTone {
 }
 
 function facilityStatusLabel(group: FacilityGroup) {
-  if (group.status === 'running') return '运行';
-  if (group.status === 'stopped') return '停止';
+  if (group.status === 'running') return '运行中';
+  if (group.status === 'stopped') return '已停止';
   switch (group.statusReason) {
     case 'warehouse_full': return '异常：仓库已满';
     case 'insufficient_funds': return '异常：资金不足';
@@ -176,19 +176,21 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
               <div className="facility-group-card-shell" key={group.facilityTypeId}>
                 <Panel className="facility-card facility-group-card">
                   <div className="facility-card-head facility-status-header">
-                    <div className="facility-status-title">
-                      <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
+                    <div className="facility-card-title-row">
                       <h2>{type.name} × {formatNumber(group.count)}</h2>
+                      <SwitchControl
+                        checked={group.enabled}
+                        aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
+                        title={group.enabled ? '停止生产' : '开启自动运行'}
+                        disabled={group.count < 1}
+                        onChange={(event) => void showResult(event.target.checked
+                          ? startFacility(group.facilityTypeId)
+                          : stopFacility(group.facilityTypeId))}
+                      />
                     </div>
-                    <SwitchControl
-                      checked={group.enabled}
-                      aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
-                      title={group.enabled ? '停止生产' : '开启自动运行'}
-                      disabled={group.count < 1}
-                      onChange={(event) => void showResult(event.target.checked
-                        ? startFacility(group.facilityTypeId)
-                        : stopFacility(group.facilityTypeId))}
-                    />
+                    <div className="facility-card-status-row">
+                      <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
+                    </div>
                     <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
                       <span>运行中 <strong>{formatNumber(group.participatingCount)}</strong></span>
                       <span>下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong></span>
