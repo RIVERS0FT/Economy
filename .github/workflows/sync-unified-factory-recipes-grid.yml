@@ -1,0 +1,61 @@
+name: Sync unified factory recipes grid
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: sync-unified-factory-recipes-grid
+  cancel-in-progress: true
+
+jobs:
+  sync-and-validate:
+    if: github.head_ref == 'agent/unified-factory-recipes-grid'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unified-factory-recipes-grid
+          fetch-depth: 0
+
+      - name: Merge latest main while preserving validated implementation
+        shell: bash
+        run: |
+          git config user.name "RIVERSOFT automation"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin main agent/unified-factory-recipes-grid
+          git merge --no-edit -X ours origin/main
+          git rm --ignore-unmatch src/styles/facility-card-grid.css
+          sed -i "/facility-card-grid\.css/d" src/main.tsx
+          grep -q "facility-group-card-grid.css" src/main.tsx
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run complete build
+        run: npm run build
+
+      - name: Check final diff
+        run: git diff --check
+
+      - name: Push synchronized implementation
+        shell: bash
+        run: |
+          git add -A
+          if ! git diff --cached --quiet; then
+            git diff --cached --check
+            git commit -m "Resolve factory card implementation overlap"
+          fi
+          git push origin HEAD:agent/unified-factory-recipes-grid
