@@ -30,9 +30,9 @@ function recipeOutputs(type: FacilityTypeDefinition) {
   return [extendedType.output];
 }
 
-function recipeText(items: FacilityRecipeItem[], productNames: ProductNameMap, multiplier = 1) {
+function recipeText(items: FacilityRecipeItem[], productNames: ProductNameMap) {
   return items
-    .map((item) => `${formatNumber(item.quantity * multiplier)} ${productNames.get(item.productId) ?? item.productId}`)
+    .map((item) => `${formatNumber(item.quantity)} ${productNames.get(item.productId) ?? item.productId}`)
     .join('和');
 }
 
@@ -40,7 +40,6 @@ function RecipeItems({
   items,
   productNames,
   inventories,
-  multiplier = 1,
   showInventory = false,
   groupClassName,
   itemClassName,
@@ -48,7 +47,6 @@ function RecipeItems({
   items: FacilityRecipeItem[];
   productNames: ProductNameMap;
   inventories: Record<string, ProductInventory>;
-  multiplier?: number;
   showInventory?: boolean;
   groupClassName: string;
   itemClassName: string;
@@ -57,13 +55,12 @@ function RecipeItems({
     <div className={groupClassName}>
       {items.map((item, index) => {
         const productName = productNames.get(item.productId) ?? item.productId;
-        const quantity = item.quantity * multiplier;
         return (
           <Fragment key={`${item.productId}-${index}`}>
             {index > 0 ? <span className="facility-formula-separator">+</span> : null}
             <span className="facility-formula-item-group">
-              <span className={itemClassName} title={`${formatNumber(quantity)} ${productName}`}>
-                <strong>{formatNumber(quantity)} ×</strong>
+              <span className={itemClassName} title={`${formatNumber(item.quantity)} ${productName}`}>
+                <strong>{formatNumber(item.quantity)} ×</strong>
                 <ProductIcon productId={item.productId} />
               </span>
               {showInventory ? (
@@ -91,6 +88,15 @@ function progressDescription(group: FacilityGroup, type: FacilityTypeDefinition,
   return `当前生产进度 ${Math.round(progress)}%`;
 }
 
+function recipeDescription(type: FacilityTypeDefinition, productNames: ProductNameMap) {
+  const inputs = recipeInputs(type);
+  const outputs = recipeOutputs(type);
+  const inputDescription = inputs.length > 0
+    ? `消耗${recipeText(inputs, productNames)}`
+    : '不消耗原料';
+  return `单座配方每${formatDuration(type.cycleMs)}${inputDescription}，产出${recipeText(outputs, productNames)}，成本${formatCurrency(type.operatingCost)}`;
+}
+
 export function FacilityProductionFormula({
   group,
   type,
@@ -110,22 +116,12 @@ export function FacilityProductionFormula({
 }) {
   const inputs = recipeInputs(type);
   const outputs = recipeOutputs(type);
-  const nextInputs = recipeInputs(nextType);
-  const nextOutputs = recipeOutputs(nextType);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
-  const activeCount = group.status === 'running' ? group.participatingCount : 0;
-  const nextCount = Math.max(0, group.nextCycleCount);
-  const inputDescription = inputs.length > 0
-    ? `消耗${recipeText(inputs, productNames, activeCount)}`
-    : '不消耗原料';
-  const outputDescription = `产出${recipeText(outputs, productNames, activeCount)}`;
-  const activeDescription = activeCount > 0
-    ? `当前${formatNumber(activeCount)}座参与生产，每${formatDuration(type.cycleMs)}${inputDescription}，${outputDescription}，成本${formatCurrency(type.operatingCost * activeCount)}`
-    : '当前无工厂参与生产';
-  const nextDescription = showNextCyclePreview && nextCount > 0
-    ? `下一周期${formatNumber(nextCount)}座工厂，每${formatDuration(nextType.cycleMs)}${nextInputs.length > 0 ? `消耗${recipeText(nextInputs, productNames, nextCount)}` : '不消耗原料'}，产出${recipeText(nextOutputs, productNames, nextCount)}，成本${formatCurrency(nextType.operatingCost * nextCount)}`
+  const currentDescription = recipeDescription(type, productNames);
+  const nextDescription = showNextCyclePreview
+    ? `下一周期${recipeDescription(nextType, productNames)}`
     : '';
-  const description = `${activeDescription}。${progressDescription(group, type, now)}。${nextDescription}`;
+  const description = `${currentDescription}。${progressDescription(group, type, now)}。${nextDescription}`;
 
   return (
     <div className="facility-production-formula" role="group" aria-label={description}>
@@ -137,7 +133,6 @@ export function FacilityProductionFormula({
                 items={inputs}
                 productNames={productNames}
                 inventories={inventories}
-                multiplier={activeCount}
                 showInventory
                 groupClassName="facility-formula-input-group"
                 itemClassName="facility-formula-input-item"
@@ -153,7 +148,7 @@ export function FacilityProductionFormula({
             <span className="facility-formula-meta-divider">·</span>
             <span className="facility-formula-meta-unit">
               <CreditsIcon className="facility-formula-meta-icon" />
-              <span>{formatCurrency(type.operatingCost * activeCount)}</span>
+              <span>{formatCurrency(type.operatingCost)}</span>
             </span>
           </div>
 
@@ -162,7 +157,6 @@ export function FacilityProductionFormula({
               items={outputs}
               productNames={productNames}
               inventories={inventories}
-              multiplier={activeCount}
               groupClassName="facility-formula-output-group"
               itemClassName="facility-formula-output-item"
             />
