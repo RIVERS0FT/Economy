@@ -6,3 +6,11 @@ for path in (root / 'scripts').glob('verify-*.mjs'):
     updated = content.replace("'>前往市场交易该工厂 →'", "'前往市场交易该工厂 →'")
     if updated != content:
         path.write_text(updated, encoding='utf-8')
+
+ui_path = root / 'docs/UI_DESIGN_SYSTEM.md'
+ui_content = ui_path.read_text(encoding='utf-8')
+ui_content = ui_content.replace(
+    '工厂卡外层使用容器查询决定卡片内边距：',
+    '工厂卡外层使用容器查询决定卡片内边距，统一使用 `8px / 12px / 16px` 三档：',
+)
+ui_path.write_text(ui_content, encoding='utf-8')
