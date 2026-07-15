@@ -1,0 +1,28 @@
+/* Final authority for same-plane primary surfaces on the production page. */
+.panel.production-surface {
+  --production-surface-inset: var(--space-4);
+
+  padding: var(--production-surface-inset);
+}
+
+.panel.production-surface > .widget-heading,
+.panel.production-surface .facility-card-title-row {
+  align-items: start;
+}
+
+.panel.production-surface > .widget-heading h2,
+.panel.production-surface .facility-card-title-row h2 {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-tight);
+}
+
+.panel.production-surface .facility-card-title-row > .ui-switch {
+  align-self: start;
+}
+
+@media (max-width: 720px) {
+  .panel.production-surface {
+    --production-surface-inset: var(--space-3);
+  }
+}
