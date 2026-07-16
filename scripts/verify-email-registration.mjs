@@ -15,6 +15,7 @@ const files = [
   'server/src/registration.js',
   'server/src/registration-store.js',
   'server/test/email.test.js',
+  'server/test/account-client.test.js',
   'server/test/registration.test.js',
   'src/api/auth.ts',
   'src/app/LoginPage.tsx',
@@ -23,6 +24,7 @@ const files = [
   'scripts/configure-economy-registration-nginx.py',
   'scripts/test_configure_economy_registration_nginx.py',
   '.github/workflows/configure-registration-email.yml',
+  'README.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
 ];
@@ -68,10 +70,18 @@ for (const text of [
 ]) requireText('server/src/app.js', text);
 
 for (const text of [
+  "requestAccount('/api/internal/account-email-exists'",
+  'assertUnifiedAccountEmailAvailable',
+  '该邮箱已注册，请直接登录',
   "requestAccount('/api/register'",
   "requestAccount('/api/login'",
   'registration.status === 409',
 ]) requireText('server/src/account-client.js', text);
+
+for (const text of [
+  'accountAvailabilityChecker',
+  'await accountAvailabilityChecker({ email: normalizedEmail })',
+]) requireText('server/src/registration.js', text);
 
 for (const text of [
   'sendRegistrationEmailCode',
@@ -126,6 +136,9 @@ for (const text of [
   '邮件密钥只保存在服务器',
   '邮箱验证码服务未配置，请联系管理员',
   '`deploy/economy-email`',
+  '`POST /api/internal/account-email-exists`',
+  '不得创建 `economy_email_verifications` 记录',
+  '不得发送邮件',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMAIL');
 
@@ -133,7 +146,13 @@ for (const text of [
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',
   '设置页只允许玩家资料与四项统计、客户端偏好、邀请入口、礼品兑换、管理员入口、退出登录和重置经济状态',
   '第一阶段邀请功能只分享或复制 Economy 正式入口',
+  '已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+
+for (const text of [
+  '发送验证码前必须先通过主页账号服务仅限回环的邮箱存在性接口查重',
+  '不创建验证码记录，也不调用 Resend',
+]) requireText('README.md', text);
 
 for (const text of [
   'ECONOMY_REGISTRATION_SECRET_FILE',
@@ -165,6 +184,7 @@ for (const text of [
 ]) forbidText('.github/workflows/configure-registration-email.yml', text);
 
 for (const text of [
+  'rejects an existing unified account before creating or sending a verification',
   'trusted homepage accounts may share a network',
   "source: 'email_verification'",
 ]) requireText('server/test/registration.test.js', text);
@@ -173,4 +193,4 @@ if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：首次建档定义、主页账号信任、验证码安全、共享服务器 Resend 配置、EMAIL_FROM、运行进程验证、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：发送前统一账号邮箱查重、首次建档定义、主页账号信任、验证码安全、共享服务器 Resend 配置、EMAIL_FROM、运行进程验证、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
