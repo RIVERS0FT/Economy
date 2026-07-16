@@ -11,6 +11,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 [
   'server/src/collectibles.js',
   'server/src/storage.js',
+  'server/src/app.js',
   'server/src/index.js',
   'server/test/collectibles-auctions.test.js',
   'src/collectibles/types.ts',
@@ -51,7 +52,8 @@ for (const text of [
   '/api/game/collectible-auctions',
   '/api/game/admin/collectibles/import',
   'readJson(request, 262_144)',
-]) requireText('server/src/index.js', text);
+]) requireText('server/src/app.js', text);
+requireText('server/src/index.js', "import './app.js'");
 
 for (const text of [
   'createCollectibleAuction',
@@ -72,11 +74,7 @@ for (const text of [
   "{ id: 'auction', label: '拍卖' }",
 ]) requireText('src/config/navigation.ts', text);
 
-for (const text of [
-  "case 'collections'",
-  "case 'auction'",
-]) requireText('src/pages/PageRouter.tsx', text);
-
+for (const text of ["case 'collections'", "case 'auction'"]) requireText('src/pages/PageRouter.tsx', text);
 for (const text of ['CollectionIcon', 'AuctionIcon', "case 'collections'", "case 'auction'"]) requireText('src/components/icons/GameIcons.tsx', text);
 
 for (const text of [
@@ -86,7 +84,7 @@ for (const text of [
   '正式图片 URL 由服务器按 `imageId` 生成',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 
-for (const text of ['任意图片 URL', 'currentOwnerId: payload', 'highestBid: payload.highestBid']) forbidText('server/src/index.js', text);
+for (const text of ['任意图片 URL', 'currentOwnerId: payload', 'highestBid: payload.highestBid']) forbidText('server/src/app.js', text);
 
 if (failures.length) {
   console.error(`藏品与拍卖验证失败:\n- ${failures.join('\n- ')}`);
