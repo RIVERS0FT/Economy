@@ -26,6 +26,8 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
   'src/app/LoginPage.tsx',
+  'src/config/brand.ts',
+  'index.html',
   'src/styles/auth.css',
   'src/styles/registration-auth.css',
   'src/styles/virtual-list.css',
@@ -62,6 +64,24 @@ for (const text of [
   'setPassword(',
   '登录或注册',
 ]) forbidText('src/app/LoginPage.tsx', text);
+
+for (const text of [
+  "export const BRAND_LOGO_URL = 'https://riversoft.top/logo.svg';",
+]) requireText('src/config/brand.ts', text);
+for (const text of [
+  '1000002880.png',
+  '/brand-icon.svg',
+]) forbidText('src/config/brand.ts', text);
+for (const text of [
+  '<link rel="icon" type="image/svg+xml" href="https://riversoft.top/logo.svg" />',
+  '<link rel="apple-touch-icon" href="https://riversoft.top/1000002880.png" />',
+  '<meta property="og:image" content="https://riversoft.top/1000002880.png" />',
+  '<meta name="twitter:image" content="https://riversoft.top/1000002880.png" />',
+]) requireText('index.html', text);
+for (const text of [
+  '<link rel="icon" type="image/png" href="https://riversoft.top/1000002880.png" />',
+  'href="/brand-icon.svg"',
+]) forbidText('index.html', text);
 
 for (const text of [
   'min-height: calc(100dvh - var(--space-8));',
@@ -295,6 +315,10 @@ for (const text of [
   '账号和密码必须保留原生未受控表单值',
   '提交时通过 `FormData(event.currentTarget)` 读取浏览器自动填充内容',
   '不得把账号或密码重新绑定到初始为空的 React `value` 状态',
+  '`https://riversoft.top/logo.svg` 是 Economy 登录页与桌面侧栏显示品牌 Logo 的唯一权威资源',
+  '页面 favicon 使用同一 SVG，并声明 `image/svg+xml`',
+  'Apple Touch Icon、Open Graph 和 Twitter 图片继续使用主页同步生成的 `https://riversoft.top/1000002880.png`',
+  '兼容 PNG 不得替代页面内可见 Logo',
   '使用 `.login-shell:focus-within` 或其他焦点选择器改变移动登录页标题字号、区块间距或整体对齐',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
@@ -315,4 +339,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、八页导航、登录注册、高增长记录窗口化、邀请、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、八页导航、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。');
