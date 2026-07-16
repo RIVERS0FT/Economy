@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - agent/check-email-before-verification
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   patch-and-verify:
-    if: ${{ !contains(github.event.head_commit.message, '[patch-applied]') }}
+    if: ${{ !contains(github.event.pull_request.head.sha || github.sha, '[patch-applied]') && !contains(github.event.head_commit.message || '', '[patch-applied]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
