@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { gameActions } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { getCollectibleState, type CollectibleAuction } from '../collectibles/types';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 
@@ -98,7 +99,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                     <WidgetHeading title={auction.collectible.title} action={<StatusTag tone="warning">{remainingText(auction.endsAt, model.now)}</StatusTag>} />
                     <p>{auction.collectible.artist}{auction.collectible.dateDisplay ? ` · ${auction.collectible.dateDisplay}` : ''}</p>
                     <dl className="collectible-auction-metrics">
-                      <div><dt>当前价</dt><dd>¤ {formatCurrency(auction.highestBid ?? auction.startingBid)}</dd></div>
+                      <div><dt>当前价</dt><dd><CurrencyAmount>{formatCurrency(auction.highestBid ?? auction.startingBid)}</CurrencyAmount></dd></div>
                       <div><dt>出价次数</dt><dd>{formatNumber(auction.bids.length)}</dd></div>
                       <div><dt>卖家</dt><dd>{auction.sellerName}</dd></div>
                       <div><dt>最高出价者</dt><dd>{auction.highestBidderName || '暂无'}</dd></div>
@@ -111,7 +112,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                     ) : (
                       <div className="collectible-bid-form">
                         <label>
-                          出价（最低 ¤ {formatCurrency(auction.minimumBid)}）
+                          <span>出价（最低 <CurrencyAmount>{formatCurrency(auction.minimumBid)}</CurrencyAmount>）</span>
                           <input
                             type="number"
                             min={auction.minimumBid}
@@ -141,7 +142,10 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
               <div key={auction.id}>
                 <img src={auction.collectible.thumbnailUrl} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
                 <span><strong>{auction.collectible.title}</strong><small>{auction.sellerName} · {formatTime(auction.settledAt ?? auction.endsAt)}</small></span>
-                <StatusTag tone={auctionTone(auction.status)}>{statusNames[auction.status]}{auction.highestBid ? ` · ¤ ${formatCurrency(auction.highestBid)}` : ''}</StatusTag>
+                <StatusTag tone={auctionTone(auction.status)}>
+                  {statusNames[auction.status]}
+                  {auction.highestBid ? <> · <CurrencyAmount>{formatCurrency(auction.highestBid)}</CurrencyAmount></> : null}
+                </StatusTag>
               </div>
             ))}
           </div>
