@@ -68,6 +68,8 @@ if (existsSync(pathFor('README.md'))) {
     '每 5 分钟最多 330',
     '藏品是服务器记录归属的唯一资产实例',
     '不得通过新增“补充说明”、V2/V3 文件或平行专题文档覆盖现行规则',
+    '过长文档优先通过合并重复表格',
+    '价格、生产数量、周期秒数和周期成本全部保持整数',
   ]) {
     if (!rootReadme.includes(text)) failures.push(`README.md 缺少当前规则: ${text}`);
   }
@@ -95,6 +97,8 @@ if (existsSync(pathFor('docs/README.md'))) {
     '新的功能规则必须合并进现有权威文档',
     '芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖',
     '`scripts/verify-document-authority.mjs`',
+    '过长文档优先通过删除重复表格',
+    '参考分钟利润必须由正式目录自动校验',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
   }
@@ -105,4 +109,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：唯一文档结构、版本 12/8、饮食需求、八页导航和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：唯一文档结构、版本 12/8、整数经济基线、文档整理规则和旧文件禁令均满足当前基线。');
