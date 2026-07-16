@@ -6,11 +6,12 @@ import {
   ScrollableTable,
   StatusTag,
 } from '../components/ui/layout';
-import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatRank, formatTime } from '../utils/formatters';
 
 export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
   const { game, derived } = model;
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
+  const currentRank = derived.currentRank?.rank;
 
   return (
     <PageLayout
@@ -23,7 +24,7 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
           tone="success"
           className="rank-summary primary"
           label="我的排名"
-          value={`第 ${derived.currentRank?.rank ?? '--'} 名`}
+          value={<span aria-label={currentRank ? `排名第 ${currentRank} 名` : '暂无排名'}>{formatRank(currentRank)}</span>}
           detail={`总资产 ¤ ${formatCurrency(derived.totalAssets)}`}
         />
         <MetricCard
@@ -47,7 +48,7 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
             <tbody>
               {game.leaderboard.map((entry) => (
                 <tr key={`${entry.playerName}-${entry.rank}`} className={entry.isCurrentPlayer ? 'current-player-row' : ''}>
-                  <td><span className={`rank-number rank-${entry.rank}`}>{entry.rank}</span></td>
+                  <td><span className={`rank-number rank-${entry.rank}`} aria-label={`排名第 ${entry.rank} 名`}>{formatRank(entry.rank)}</span></td>
                   <td><strong>{entry.playerName}</strong>{entry.isCurrentPlayer ? <StatusTag tone="success" className="you-label">你</StatusTag> : null}</td>
                   <td className="numeric-cell"><strong>¤ {formatCurrency(entry.totalAssets)}</strong></td>
                   <td className="numeric-cell">¤ {formatCurrency(entry.cashAssets)}</td>
