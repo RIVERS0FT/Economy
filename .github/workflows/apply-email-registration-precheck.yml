@@ -4,15 +4,13 @@ on:
   push:
     branches:
       - agent/check-email-before-verification
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
 
 jobs:
   patch-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[diagnostic]') && !contains(github.event.head_commit.message, '[patch-applied]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,13 +31,37 @@ jobs:
           )
           path.write_text(source)
           PY
-      - run: node .github/apply-email-registration-precheck.mjs
-      - run: npm install
-      - run: npm run build
+      - name: Apply patch
+        id: apply
+        shell: bash
+        run: |
+          set +e
+          node .github/apply-email-registration-precheck.mjs > .github/patch-error.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Save patch failure
+        if: ${{ steps.apply.outputs.status != '0' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/patch-error.log
+          git commit -m "Capture registration patch failure [diagnostic]"
+          git push origin HEAD:agent/check-email-before-verification
+      - name: Install dependencies
+        if: ${{ steps.apply.outputs.status == '0' }}
+        run: npm install
+      - name: Build
+        if: ${{ steps.apply.outputs.status == '0' }}
+        run: npm run build
       - name: Commit verified changes
+        if: ${{ steps.apply.outputs.status == '0' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md scripts/verify-email-registration.mjs server/src/account-client.js server/src/registration.js server/test/account-client.test.js server/test/registration.test.js
           git commit -m "Check email registration before sending code [patch-applied]"
           git push origin HEAD:agent/check-email-before-verification
+      - name: Fail after saving diagnostics
+        if: ${{ steps.apply.outputs.status != '0' }}
+        run: exit 1
