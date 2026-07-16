@@ -93,9 +93,9 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
           <label>
             状态刷新频率
             <select value={refreshRate} onChange={(event: ChangeEvent<HTMLSelectElement>) => setRefreshRate(event.target.value)}>
-              <option value="3">每 3 秒</option>
-              <option value="5">每 5 秒</option>
-              <option value="10">每 10 秒</option>
+              <option value="3">每 3s</option>
+              <option value="5">每 5s</option>
+              <option value="10">每 10s</option>
             </select>
           </label>
           <label>
