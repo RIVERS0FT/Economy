@@ -16,6 +16,11 @@ const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 const carol = { id: 3, email: 'carol@example.com', name: 'Carol' };
 const now = 1_700_000_000_000;
 
+function prepareStapleDemand(world) {
+  world.demandGroups.staples.nextDemandAt = now;
+  world.demandGroups.staples.lastCycleId = -1;
+}
+
 test('different products never match in the same order book', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, bob, now);
@@ -115,27 +120,76 @@ test('staple demand shifts budget to rice when wheat is expensive', () => {
   const world = createWorld(now);
   const wheatSeller = ensurePlayer(world, bob, now);
   const riceSeller = ensurePlayer(world, carol, now);
-  wheatSeller.inventories.wheat.frozen = 20;
-  riceSeller.inventories.rice.frozen = 20;
+  wheatSeller.inventories.wheat.frozen = 40;
+  riceSeller.inventories.rice.frozen = 40;
   world.orders = [
-    { id: 'wheat-ask', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 9, quantity: 20, remaining: 20, status: 'open', createdAt: now },
-    { id: 'rice-ask', productId: 'rice', side: 'sell', ownerType: 'player', ownerId: carol.id, ownerName: 'Carol', price: 6, quantity: 20, remaining: 20, status: 'open', createdAt: now + 1 },
+    { id: 'wheat-ask', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 9, quantity: 40, remaining: 40, status: 'open', createdAt: now },
+    { id: 'rice-ask', productId: 'rice', side: 'sell', ownerType: 'player', ownerId: carol.id, ownerName: 'Carol', price: 6, quantity: 40, remaining: 40, status: 'open', createdAt: now + 1 },
   ];
-  world.demandGroups.staples.nextDemandAt = now;
-  world.demandGroups.staples.lastCycleId = -1;
+  prepareStapleDemand(world);
 
   processWorld(world, now + 1);
-  const demandOrders = world.orders.filter((order) => order.demandGroupId === 'staples');
-  const wheatDemand = demandOrders.find((order) => order.productId === 'wheat');
-  const riceDemand = demandOrders.find((order) => order.productId === 'rice');
-  assert.ok(wheatDemand);
-  assert.ok(riceDemand);
-  assert.ok(riceDemand.quantity > wheatDemand.quantity);
-  assert.ok(demandOrders.reduce((sum, order) => sum + order.price * order.quantity, 0) <= 60);
+  const allocation = world.demandGroups.staples.lastAllocation;
+  assert.ok(allocation.rice.budget > allocation.wheat.budget);
+  assert.ok(world.orders.some((order) => order.demandGroupId === 'staples' && order.productId === 'food'));
+  assert.ok(Object.values(allocation).reduce((sum, item) => sum + item.budget, 0) <= 330);
 
-  const orderCount = demandOrders.length;
+  const orderCount = world.orders.filter((order) => order.demandGroupId === 'staples').length;
   processWorld(world, now + 2);
   assert.equal(world.orders.filter((order) => order.demandGroupId === 'staples').length, orderCount);
+});
+
+test('food competes with wheat and rice through utility-adjusted prices and capped budget shares', () => {
+  const world = createWorld(now);
+  const sellerA = ensurePlayer(world, bob, now);
+  const sellerB = ensurePlayer(world, carol, now);
+  sellerA.inventories.wheat.frozen = 100;
+  sellerA.inventories.food.frozen = 100;
+  sellerB.inventories.rice.frozen = 100;
+  world.orders = [
+    { id: 'wheat-base', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 6, quantity: 100, remaining: 100, status: 'open', createdAt: now },
+    { id: 'rice-base', productId: 'rice', side: 'sell', ownerType: 'player', ownerId: carol.id, ownerName: 'Carol', price: 6, quantity: 100, remaining: 100, status: 'open', createdAt: now + 1 },
+    { id: 'food-base', productId: 'food', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 18, quantity: 100, remaining: 100, status: 'open', createdAt: now + 2 },
+  ];
+  prepareStapleDemand(world);
+
+  processWorld(world, now + 1);
+  const allocation = world.demandGroups.staples.lastAllocation;
+  assert.equal(allocation.wheat.utilityPerUnit, 1);
+  assert.equal(allocation.rice.utilityPerUnit, 1);
+  assert.equal(allocation.food.utilityPerUnit, 3);
+  assert.ok(allocation.food.budget > allocation.wheat.budget);
+  assert.ok(allocation.food.budget > allocation.rice.budget);
+  assert.ok(allocation.food.budget <= 264);
+  assert.ok(allocation.wheat.budget <= 165);
+  assert.ok(allocation.rice.budget <= 165);
+  assert.ok(world.demandGroups.staples.lastCommitted <= 330);
+  assert.equal(
+    world.orders.filter((order) => order.ownerType === 'population' && order.productId === 'food')
+      .every((order) => order.demandGroupId === 'staples'),
+    true,
+  );
+});
+
+test('food demand yields to grains when its utility-adjusted price exceeds the ceiling', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  seller.inventories.wheat.frozen = 100;
+  seller.inventories.rice.frozen = 100;
+  seller.inventories.food.frozen = 100;
+  world.orders = [
+    { id: 'wheat-cheap', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 6, quantity: 100, remaining: 100, status: 'open', createdAt: now },
+    { id: 'rice-cheap', productId: 'rice', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 6, quantity: 100, remaining: 100, status: 'open', createdAt: now + 1 },
+    { id: 'food-expensive', productId: 'food', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 37, quantity: 100, remaining: 100, status: 'open', createdAt: now + 2 },
+  ];
+  prepareStapleDemand(world);
+
+  processWorld(world, now + 1);
+  const allocation = world.demandGroups.staples.lastAllocation;
+  assert.equal(allocation.food.budget, 0);
+  assert.equal(allocation.food.quantity, 0);
+  assert.ok(allocation.wheat.budget > 0);
+  assert.ok(allocation.rice.budget > 0);
 });
 
 test('staple demand leaves budget unspent when every substitute is above the ceiling', () => {
@@ -143,11 +197,13 @@ test('staple demand leaves budget unspent when every substitute is above the cei
   const seller = ensurePlayer(world, bob, now);
   seller.inventories.wheat.frozen = 20;
   seller.inventories.rice.frozen = 20;
+  seller.inventories.food.frozen = 20;
   world.orders = [
     { id: 'wheat-expensive', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 13, quantity: 20, remaining: 20, status: 'open', createdAt: now },
     { id: 'rice-expensive', productId: 'rice', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 13, quantity: 20, remaining: 20, status: 'open', createdAt: now + 1 },
+    { id: 'food-too-expensive', productId: 'food', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 37, quantity: 20, remaining: 20, status: 'open', createdAt: now + 2 },
   ];
-  world.demandGroups.staples.nextDemandAt = now;
+  prepareStapleDemand(world);
   processWorld(world, now + 1);
   assert.equal(world.orders.some((order) => order.demandGroupId === 'staples'), false);
   assert.equal(world.demandGroups.staples.lastCommitted, 0);
@@ -208,6 +264,11 @@ test('expanded industry catalog exposes complete production chains', () => {
   }
   const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
   assert.deepEqual(farm.recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice']);
+  for (const recipe of farm.recipes) {
+    assert.equal(recipe.cycleMs, 45_000);
+    assert.equal(recipe.operatingCost, 2);
+    assert.equal(recipe.output.quantity, 4);
+  }
 
   const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
   assert.deepEqual(facilities.get('logging-camp').output, { productId: 'timber', quantity: 2 });

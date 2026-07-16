@@ -50,9 +50,9 @@ test('production increments produced goods statistics', () => {
   const player = ensurePlayer(world, alice, now);
   player.facilityGroups = [group('farm', 2, { enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now })];
   migrateFacilityGroupWorld(world, now);
-  processFacilityGroupWorld(world, now + 30_000);
-  assert.equal(player.stats.producedGoods, 4);
-  assert.equal(player.inventories.wheat.available, 4);
+  processFacilityGroupWorld(world, now + 45_000);
+  assert.equal(player.stats.producedGoods, 8);
+  assert.equal(player.inventories.wheat.available, 8);
 });
 
 test('asset valuation excludes the current players own buy order', () => {
@@ -122,14 +122,14 @@ test('running farm crop changes apply at the next cycle boundary', () => {
     facilityTypeId: 'farm', recipeId: 'rice-crop',
   }, now + 3).ok, true);
 
-  processFacilityGroupWorld(world, now + 30_000);
+  processFacilityGroupWorld(world, now + 45_000);
   assert.equal(player.facilityGroups[0].activeRecipeId, 'rice-crop');
   assert.equal(player.facilityGroups[0].pendingRecipeId, undefined);
-  assert.equal(player.inventories.wheat.available, 4);
+  assert.equal(player.inventories.wheat.available, 8);
   assert.equal(player.inventories.rice.available, 0);
 
-  processFacilityGroupWorld(world, now + 60_000);
-  assert.equal(player.inventories.rice.available, 4);
+  processFacilityGroupWorld(world, now + 90_000);
+  assert.equal(player.inventories.rice.available, 8);
 });
 
 test('warehouse errors recover without backfilling missed cycles', () => {

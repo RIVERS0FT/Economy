@@ -9,7 +9,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 [
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
   'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts',
-  'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/facility-groups.js','server/src/storage.js',
+  'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
@@ -49,8 +49,8 @@ for (const text of [
   "import { defaultOrderPrice } from '../utils/defaultOrderPrice'",
   'setTab: (tab: TabId) => void;',
   'selectOrderSide: (side: OrderSide) => void;',
-  'const [tab, setActiveTab] = useState<TabId>(\'home\');',
-  'const [orderSide, setOrderSideState] = useState<OrderSide>(\'buy\');',
+  "const [tab, setActiveTab] = useState<TabId>('home');",
+  "const [orderSide, setOrderSideState] = useState<OrderSide>('buy');",
   'const [orderPrice, setOrderPrice] = useState(1);',
   'const loadedGame = game;',
   "if (nextTab === 'market' && tab !== 'market')",
@@ -89,8 +89,13 @@ for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('sr
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
 for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','bestBidFor','world.version = 8','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
-for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','commodityBookPrices','commodityLiquidityPrices','bestAsk - 1','bestBid + 1']) requireText('server/src/domain.js', text);
-for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) forbidText('server/src/domain.js', text);
+const domainSource = `${read('server/src/domain.js')}\n${read('server/src/domain-core.js')}`;
+for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','commodityBookPrices','commodityLiquidityPrices','bestAsk - 1','bestBid + 1']) {
+  if (!domainSource.includes(text)) failures.push('领域实现缺少: ' + text);
+}
+for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
+  if (domainSource.includes(text)) failures.push('领域实现不应包含: ' + text);
+}
 for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
 for (const text of ['export interface OrderFill','fills?: OrderFill[]','makerOrderId','takerOrderId',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
 for (const text of ['STORAGE_VERSION = 3','previousFillIds','fill.price','fill.total','fill.counterparty']) requireText('src/utils/localActivityStore.ts', text);

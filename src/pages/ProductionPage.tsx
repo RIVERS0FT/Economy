@@ -84,11 +84,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const hasConstruction = Boolean(game.facilityConstruction);
   const selectedRecipes = selectedType ? recipesForType(selectedType) : [];
 
-  function productName(productId?: string) {
-    if (!productId) return '无';
-    return game.products.find((product) => product.id === productId)?.name ?? productId;
-  }
-
   if (!selectedType) {
     return <PageLayout title="生产" description="服务器尚未返回工厂目录。"><Panel className="empty-state">暂无工厂类型。</Panel></PageLayout>;
   }
@@ -103,7 +98,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="生产"
-      description="同类未冻结工厂共享生产周期和服务器正式配方；输入、输出和成本按当前参与规模结算。"
+      description="同类未冻结工厂共享生产周期和服务器正式配方；配方固定显示单座参数，实际结算按当前参与规模计算。"
       actions={(
         <>
           <StatusTag tone="success">运行 {formatNumber(model.derived.runningFacilities)}</StatusTag>
@@ -128,22 +123,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             <h3>{selectedType.name}</h3>
             <p>{selectedRecipes.length > 1
               ? `可选配方：${selectedRecipes.map((recipe) => recipe.name).join('／')}`
-              : selectedRecipes[0]?.input
-              ? `${formatNumber(selectedRecipes[0].input.quantity)} ${productName(selectedRecipes[0].input.productId)} → ${formatNumber(selectedRecipes[0].output.quantity)} ${productName(selectedRecipes[0].output.productId)}`
-              : `无原料 → ${formatNumber(selectedRecipes[0]?.output.quantity ?? selectedType.output.quantity)} ${productName(selectedRecipes[0]?.output.productId ?? selectedType.output.productId)}`}</p>
+              : `固定配方：${selectedRecipes[0]?.name ?? selectedType.name}`}</p>
           </div>
           <DataList>
             <DataRow label="建造费用" value={`¤ ${formatCurrency(selectedType.buildCost)}`} tone="danger" />
             <DataRow label="施工时间" value={formatDuration(selectedType.buildTimeMs)} tone="warning" />
-            <DataRow label="生产周期" value={selectedRecipes.length > 1
-              ? selectedRecipes.map((recipe) => formatDuration(recipe.cycleMs)).join('／')
-              : formatDuration(selectedRecipes[0]?.cycleMs ?? selectedType.cycleMs)} />
-            <DataRow label="单座周期产量" value={selectedRecipes
-              .map((recipe) => `${formatNumber(recipe.output.quantity)} ${productName(recipe.output.productId)}`)
-              .join('／')} />
-            <DataRow label="单座周期成本" value={selectedRecipes.length > 1
-              ? selectedRecipes.map((recipe) => `¤ ${formatCurrency(recipe.operatingCost)}`).join('／')
-              : `¤ ${formatCurrency(selectedRecipes[0]?.operatingCost ?? selectedType.operatingCost)}`} />
           </DataList>
           {game.facilityConstruction ? (
             <div className="construction-status">
@@ -170,7 +154,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             const nextRecipe = pendingRecipe ?? activeRecipe;
             const formulaType = typeForRecipe(type, activeRecipe);
             const nextFormulaType = typeForRecipe(type, nextRecipe);
-            const showNextCyclePreview = Boolean(pendingRecipe) || group.pendingJoinCount > 0;
+            const showNextCyclePreview = Boolean(pendingRecipe);
 
             return (
               <div className="facility-group-card-shell" key={group.facilityTypeId}>

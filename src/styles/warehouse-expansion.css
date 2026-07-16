@@ -37,6 +37,7 @@
   align-content: start;
   gap: var(--space-3);
   padding-left: var(--space-4);
+  container-type: inline-size;
 }
 
 .warehouse-capacity-progress {
@@ -138,19 +139,19 @@
 
 .warehouse-product-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
 .warehouse-product-card {
   min-width: 0;
-  min-height: 92px;
+  min-height: 84px;
   display: grid;
   align-content: start;
-  gap: var(--space-2);
+  gap: var(--space-1);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
-  padding: var(--space-3);
+  padding: var(--space-2);
   color: var(--color-text-primary);
   background: var(--color-surface-inset);
   text-align: left;
@@ -208,9 +209,27 @@
   color: var(--color-text-muted);
 }
 
-@media (max-width: 1220px) {
+@container (min-width: 360px) {
   .warehouse-product-grid {
-    grid-template-columns: repeat(3, minmax(130px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 560px) {
+  .warehouse-product-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 760px) {
+  .warehouse-product-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 960px) {
+  .warehouse-product-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
@@ -230,10 +249,6 @@
     padding-top: var(--space-4);
     padding-left: 0;
   }
-
-  .warehouse-product-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 720px) {
@@ -247,15 +262,5 @@
   .warehouse-summary-list,
   .warehouse-upgrade-summary {
     grid-template-columns: 1fr;
-  }
-
-  .warehouse-product-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-1);
-  }
-
-  .warehouse-product-card {
-    gap: var(--space-1);
-    padding: var(--space-2);
   }
 }
