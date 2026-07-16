@@ -22,7 +22,8 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   const { game, derived } = model;
   setCompactNumbersEnabled(model.compactNumbers);
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
-  const currentRank = formatRank(derived.currentRank?.rank);
+  const currentRank = derived.currentRank?.rank ?? '--';
+  const formattedRank = formatRank(derived.currentRank?.rank);
   const rankLabel = derived.currentRank ? `排名第 ${derived.currentRank.rank} 名` : '暂无排名';
   const statusItems: StatusBarItem[] = [
     {
@@ -37,8 +38,8 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
     },
     {
       id: 'rank', icon: <RankIcon />, label: '排行榜',
-      value: <span aria-label={rankLabel}>{currentRank}</span>,
-      compactValue: <span aria-label={rankLabel}>{currentRank}</span>,
+      value: <span aria-label={rankLabel}>{formattedRank}</span>,
+      compactValue: <>#{currentRank}</>,
       detail: derived.previousRank
         ? <>距上一名 ¤ {formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</>
         : <>当前位于榜首</>,
