@@ -47,45 +47,64 @@ jobs:
           set -euo pipefail
           test -n "$SERVER_USER"
 
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE'
-          set -euo pipefail
-          environment_file=/etc/riversoft-economy-api.env
-
-          run_privileged() {
-            if [ "$(id -u)" -eq 0 ]; then
-              "$@"
-            elif command -v sudo >/dev/null 2>&1 && sudo -n true; then
-              sudo -n "$@"
-            else
-              echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2
-              exit 1
-            fi
-          }
-
-          run_privileged test -s "$environment_file" || { echo ECONOMY_EMAIL_CONFIGURATION_MISSING >&2; exit 1; }
-          run_privileged grep -Eq '^RESEND_API_KEY=.+$' "$environment_file" || { echo ECONOMY_RESEND_API_KEY_MISSING >&2; exit 1; }
-          run_privileged grep -Eq '^EMAIL_FROM=.+$' "$environment_file" || { echo ECONOMY_EMAIL_FROM_MISSING >&2; exit 1; }
-
-          run_privileged systemctl restart riversoft-economy-api.service
-          run_privileged systemctl is-active --quiet riversoft-economy-api.service
-          service_pid="$(run_privileged systemctl show riversoft-economy-api.service --property=MainPID --value)"
-          run_privileged python3 - "$service_pid" <<'PYTHON'
-          import sys
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+            'if [ "$(id -u)" -eq 0 ]; then exec python3 -; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 -; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' <<'PYTHON'
+          import subprocess
+          import time
+          import urllib.request
           from pathlib import Path
 
-          pid = int(sys.argv[1])
-          pairs = Path(f'/proc/{pid}/environ').read_bytes().split(b'\0')
-          environment = {}
-          for pair in pairs:
+          environment_file = Path('/etc/riversoft-economy-api.env')
+          service_name = 'riversoft-economy-api.service'
+
+          if not environment_file.is_file() or environment_file.stat().st_size == 0:
+              raise SystemExit('ECONOMY_EMAIL_CONFIGURATION_MISSING')
+
+          configured = {}
+          for raw_line in environment_file.read_text(encoding='utf-8').splitlines():
+              line = raw_line.strip()
+              if not line or line.startswith('#') or '=' not in line:
+                  continue
+              name, value = line.split('=', 1)
+              value = value.strip()
+              if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+                  value = value[1:-1]
+              configured[name.strip()] = value
+
+          for required in ('RESEND_API_KEY', 'EMAIL_FROM'):
+              if not configured.get(required):
+                  raise SystemExit(f'ECONOMY_{required}_MISSING')
+
+          subprocess.run(['systemctl', 'restart', service_name], check=True)
+          subprocess.run(['systemctl', 'is-active', '--quiet', service_name], check=True)
+          pid = int(subprocess.check_output(
+              ['systemctl', 'show', service_name, '--property=MainPID', '--value'],
+              text=True,
+          ).strip())
+
+          process_environment = {}
+          for pair in Path(f'/proc/{pid}/environ').read_bytes().split(b'\0'):
               if b'=' in pair:
                   name, value = pair.split(b'=', 1)
-                  environment[name.decode('utf-8', 'replace')] = value
+                  process_environment[name.decode('utf-8', 'replace')] = value
           for required in ('RESEND_API_KEY', 'EMAIL_FROM'):
-              if not environment.get(required):
+              if not process_environment.get(required):
                   raise SystemExit(f'ECONOMY_PROCESS_{required}_MISSING')
+
+          last_error = None
+          for _ in range(10):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:3002/health', timeout=3) as response:
+                      if response.status == 200:
+                          break
+              except Exception as error:
+                  last_error = error
+              time.sleep(0.5)
+          else:
+              raise SystemExit(f'ECONOMY_EMAIL_SERVICE_HEALTH_FAILED: {last_error}')
+
+          print('ECONOMY_EMAIL_CONFIGURATION_LOADED')
           PYTHON
-          curl --fail --silent --show-error http://127.0.0.1:3002/health >/dev/null
-          REMOTE
 
       - name: Report email configuration status
         if: always()
