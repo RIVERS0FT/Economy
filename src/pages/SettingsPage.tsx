@@ -30,7 +30,9 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     reset,
   } = model;
   const [giftCode, setGiftCode] = useState('');
+  const [inviteStatus, setInviteStatus] = useState('');
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
+  const inviteUrl = `${window.location.origin}/economy/`;
 
   async function submitGift() {
     const code = giftCode.trim().toUpperCase();
@@ -40,8 +42,24 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     if (result.ok) setGiftCode('');
   }
 
+  async function shareInvite() {
+    setInviteStatus('');
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Economy', text: '一起来经营你的经济帝国。', url: inviteUrl });
+        setInviteStatus('邀请链接已分享');
+        return;
+      }
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteStatus('邀请链接已复制');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setInviteStatus('无法自动复制，请手动复制浏览器地址');
+    }
+  }
+
   return (
-    <PageLayout title="设置" description="管理玩家资料、客户端偏好和礼品兑换。">
+    <PageLayout title="设置" description="管理玩家资料、客户端偏好、邀请和礼品兑换。">
       <div className="settings-grid unified-settings-grid">
         <Panel className="widget profile-settings-card span-2">
           <WidgetHeading title="玩家资料" action={<StatusTag tone={user.role === 'admin' ? 'info' : 'neutral'}>{roleLabel}</StatusTag>} />
@@ -108,6 +126,14 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
           </label>
         </Panel>
 
+        <Panel className="widget invite-card">
+          <WidgetHeading title="邀请好友" action={<StatusTag tone="neutral">正式入口</StatusTag>} />
+          <p>分享 Economy 正式入口。第一阶段不生成邀请码、邀请奖励或归因记录。</p>
+          <input value={inviteUrl} readOnly aria-label="Economy 邀请链接" />
+          <Button block onClick={() => void shareInvite()}>分享或复制邀请链接</Button>
+          {inviteStatus ? <small role="status">{inviteStatus}</small> : null}
+        </Panel>
+
         <Panel className="widget gift-redemption-card">
           <WidgetHeading title="礼品兑换" action={<StatusTag tone="info">游戏货币</StatusTag>} />
           <p>输入有效礼品码兑换游戏货币。同一账号对同一礼品只能兑换一次。</p>
@@ -118,7 +144,8 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
               maxLength={64}
               autoComplete="off"
               placeholder="RIVER-XXXX-XXXX"
-              onChange={(event) => setGiftCode(event.target.value.toUpperCase())}
+              onChange={(event) => setGiftCode(event.target.value.toUpperCase())
+              }
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void submitGift();
               }}
