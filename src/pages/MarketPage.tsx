@@ -16,6 +16,7 @@ import { VirtualList } from '../components/ui/VirtualList';
 import { economyConstants } from '../config/economy';
 import type { AssetOrder } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
+import { buildMarketHistoryBuckets } from '../utils/marketHistory';
 
 function orderTone(status: AssetOrder['status']): StatusTone {
   if (status === 'filled') return 'success';
@@ -77,8 +78,13 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     .filter((order) => order.side === 'buy')
     .sort((a, b) => b.price - a.price || a.createdAt - b.createdAt)
     .slice(0, 5);
-  const history = selectedMarket?.priceHistory.map((point) => point.price) ?? [];
-  const marketTrend = history.length > 1 ? history[history.length - 1] - history[0] : 0;
+  const marketHistory = selectedMarket?.priceHistory ?? [];
+  const marketFallbackPrice = selectedMarket?.lastPrice
+    ?? selectedProduct?.basePrice
+    ?? selectedFacility?.systemValue
+    ?? 1;
+  const marketBuckets = buildMarketHistoryBuckets(marketHistory, marketFallbackPrice);
+  const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
   const maxBuyQuantity = orderPrice > 0
     ? marketAssetKind === 'commodity'
       ? Math.max(0, Math.min(game.warehouseAvailableCapacity, Math.floor(game.credits / orderPrice)))
@@ -245,12 +251,12 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget market-chart-card">
           <WidgetHeading
-            title={selectedAssetTitle(`${assetName}近期成交曲线`)}
+            title={selectedAssetTitle(`${assetName}近 24h 成交趋势`)}
             action={<StatusTag tone={marketTrend >= 0 ? 'success' : 'danger'}>{marketTrend >= 0 ? '+' : ''}{formatCurrency(marketTrend)}</StatusTag>}
           />
-          <PriceSparkline values={history} />
+          <PriceSparkline buckets={marketBuckets} />
           <div className="chart-footer">
-            <span>成交样本 {formatNumber(selectedMarket?.priceHistory.length ?? 0)}</span>
+            <span>24h · 6m × 240（{formatNumber(marketHistory.length)} 笔）</span>
             <span>我的当前订单 {formatNumber(ownSelectedOrders.length)} 笔</span>
             <span>估值买价 ¤ {game.valuationPrices[`${marketAssetKind}:${assetId}`] ? formatCurrency(game.valuationPrices[`${marketAssetKind}:${assetId}`]) : '--'}</span>
           </div>
