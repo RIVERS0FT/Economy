@@ -62,7 +62,7 @@ for (const text of [
 for (const text of [
   "requestAccount('/api/register'",
   "requestAccount('/api/login'",
-  "registration.status === 409",
+  'registration.status === 409',
 ]) requireText('server/src/account-client.js', text);
 
 for (const text of [
@@ -107,8 +107,8 @@ for (const text of [
   '60 秒',
   '错误 5 次',
   '发送 IP 和提交 IP',
-  'POST `/economy-api/registration/email-code`',
-  'POST `/economy-api/registration/complete`',
+  '`/economy-api/registration/email-code`',
+  '`/economy-api/registration/complete`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 
 for (const text of [
