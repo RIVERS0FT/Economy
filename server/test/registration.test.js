@@ -88,6 +88,10 @@ test('enforces ten-minute expiry and sixty-second resend cooldown', async () => 
       email: 'alice@example.com', password: 'password123', code,
       ipFingerprint: 'ip-a', requestKey: 'complete-key-2', now: now + 10 * 60 * 1000,
     }), /已过期/);
+    await assert.rejects(() => context.service.requestEmailCode({
+      email: 'alice@example.com', ipFingerprint: 'ip-a', requestKey: 'send-key-0001',
+      now: now + 10 * 60 * 1000,
+    }), /已经过期/);
   } finally { context.store.close(); }
 });
 
