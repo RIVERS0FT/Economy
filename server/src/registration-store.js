@@ -271,7 +271,7 @@ export class EconomyRegistrationStore {
     const playerExisted = Boolean(world.players?.[String(userId)]);
     const registration = this.selectRegistrationByUser.get(userId);
 
-    if (!playerExisted && !registration) {
+    if (source !== 'homepage_session' && !playerExisted && !registration) {
       const other = this.selectOtherRegistrationByIp.get(ipFingerprint, userId);
       if (other) throw httpError('该网络已经注册其他 Economy 账号', 409);
     }
