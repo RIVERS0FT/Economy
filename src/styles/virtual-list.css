@@ -4,7 +4,8 @@
   width: 100%;
   min-width: 0;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
   contain: strict;
