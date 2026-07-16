@@ -42,10 +42,13 @@ for (const recipe of farm.recipes) {
 }
 
 assert.equal(existsSync('server/src/domain-core.js'), true, '缺少兼容核心 domain-core.js');
+assert.equal(existsSync('server/src/balanced-market.js'), true, '缺少正式参考价市场辅助层 balanced-market.js');
 const domain = read('server/src/domain.js');
 const domainCore = read('server/src/domain-core.js');
+const balancedMarket = read('server/src/balanced-market.js');
 for (const text of [
   "import * as core from './domain-core.js'",
+  "import { createBalancedMarketRuntime } from './balanced-market.js'",
   'PRODUCT_BALANCE',
   'FACILITY_BALANCE',
   'GROUPED_DEMAND_PRODUCT_IDS',
@@ -58,9 +61,16 @@ for (const text of [
   'filledUtility',
   'withLegacyDemandSuppressed',
   'expireDemandGroupOrders',
+  'balancedMarket.refreshExternalLiquidity',
+  'balancedMarket.createPopulationDemand',
   'demandCycleId',
 ]) assert.equal(domain.includes(text), true, `domain.js 缺少: ${text}`);
 assert.equal(domainCore.includes('baseBudget: 60'), true, '兼容核心应保持迁移前实现，当前规则由 domain.js 门面覆盖');
+for (const text of ['product.basePrice - 1', 'product.basePrice + 1', 'createPopulationDemand', 'repairMissingMarkets']) {
+  assert.equal(balancedMarket.includes(text), true, `balanced-market.js 缺少: ${text}`);
+}
+assert.equal(balancedMarket.includes('domain-core.js'), false, '市场辅助层不得直接导入兼容核心');
+assert.equal(balancedMarket.includes('basePrice: 2'), false, '市场辅助层不得维护第二套正式商品价格');
 for (const path of ['server/src/storage.js', 'server/src/facility-groups.js']) {
   assert.equal(read(path).includes('domain-core.js'), false, `${path} 不得绕过 domain.js 权威门面`);
 }
@@ -92,7 +102,7 @@ for (const [path, required] of [
   ['README.md', ['13 种商品和 12 种工厂类型', '食品、小麦和水稻共享', '每 5 分钟最多 330', '周期 120 秒', '单座产量 4', '单座周期成本 6']],
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['人口饮食替代需求', '消费效用', '食品最多获得 80%', '满足率按效用计算', '小麦 2、水稻 2、食品 15']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['无原料 → 4 小麦', '无原料 → 4 水稻', '120 秒', '周期成本', '矿场仍只生产铁矿石']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`server/src/domain.js` 是当前权威门面', '`domain-core.js`', '不得绕过 `domain.js`']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`server/src/domain.js` 是当前权威门面', '`domain-core.js`', '`server/src/balanced-market.js`', '不得定义第二套商品目录', '不得绕过 `domain.js`']],
 ]) {
   const content = read(path);
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
