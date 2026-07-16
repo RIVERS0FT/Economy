@@ -3,7 +3,7 @@ import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/
 import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
 import { PageRouter } from '../pages/PageRouter';
-import { formatCompactNumber, formatCurrency, formatNumber, setCompactNumbersEnabled } from '../utils/formatters';
+import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameViewModel } from './gameViewModel';
 
 export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
@@ -22,7 +22,8 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   const { game, derived } = model;
   setCompactNumbersEnabled(model.compactNumbers);
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
-  const currentRank = derived.currentRank?.rank ?? '--';
+  const currentRank = formatRank(derived.currentRank?.rank);
+  const rankLabel = derived.currentRank ? `排名第 ${derived.currentRank.rank} 名` : '暂无排名';
   const statusItems: StatusBarItem[] = [
     {
       id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <>¤ {formatCurrency(game.credits)}</>,
@@ -35,8 +36,9 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
       emphasis: 'primary',
     },
     {
-      id: 'rank', icon: <RankIcon />, label: '排行榜', value: <>第 {currentRank} 名</>,
-      compactValue: <>#{currentRank}</>,
+      id: 'rank', icon: <RankIcon />, label: '排行榜',
+      value: <span aria-label={rankLabel}>{currentRank}</span>,
+      compactValue: <span aria-label={rankLabel}>{currentRank}</span>,
       detail: derived.previousRank
         ? <>距上一名 ¤ {formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</>
         : <>当前位于榜首</>,
