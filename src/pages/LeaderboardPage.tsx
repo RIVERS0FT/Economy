@@ -1,4 +1,5 @@
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   MetricCard,
   PageLayout,
@@ -25,19 +26,19 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
           className="rank-summary primary"
           label="我的排名"
           value={<span aria-label={currentRank ? `排名第 ${currentRank} 名` : '暂无排名'}>{formatRank(currentRank)}</span>}
-          detail={`总资产 ¤ ${formatCurrency(derived.totalAssets)}`}
+          detail={<>总资产 <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount></>}
         />
         <MetricCard
           className="rank-summary"
           label="与上一名差距"
-          value={derived.previousRank ? `¤ ${formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}` : '榜首'}
+          value={derived.previousRank ? <CurrencyAmount>{formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</CurrencyAmount> : '榜首'}
           detail={derived.previousRank?.playerName ?? '保持领先'}
         />
         <MetricCard
           tone={weeklyChange >= 0 ? 'success' : 'danger'}
           className="rank-summary"
           label="本周资产变化"
-          value={`${weeklyChange >= 0 ? '+' : ''}¤ ${formatCurrency(weeklyChange)}`}
+          value={<CurrencyAmount sign={weeklyChange >= 0 ? '+' : undefined}>{formatCurrency(weeklyChange)}</CurrencyAmount>}
           detail="基于当前预览周期"
         />
       </div>
@@ -50,10 +51,10 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
                 <tr key={`${entry.playerName}-${entry.rank}`} className={entry.isCurrentPlayer ? 'current-player-row' : ''}>
                   <td><span className={`rank-number rank-${entry.rank}`} aria-label={`排名第 ${entry.rank} 名`}>{formatRank(entry.rank)}</span></td>
                   <td><strong>{entry.playerName}</strong>{entry.isCurrentPlayer ? <StatusTag tone="success" className="you-label">你</StatusTag> : null}</td>
-                  <td className="numeric-cell"><strong>¤ {formatCurrency(entry.totalAssets)}</strong></td>
-                  <td className="numeric-cell">¤ {formatCurrency(entry.cashAssets)}</td>
+                  <td className="numeric-cell"><strong><CurrencyAmount>{formatCurrency(entry.totalAssets)}</CurrencyAmount></strong></td>
+                  <td className="numeric-cell"><CurrencyAmount>{formatCurrency(entry.cashAssets)}</CurrencyAmount></td>
                   <td className="numeric-cell">{formatNumber(entry.facilityCount)}</td>
-                  <td className={`numeric-cell ${entry.weeklyChange >= 0 ? 'positive' : 'negative'}`}>{entry.weeklyChange >= 0 ? '+' : ''}¤ {formatCurrency(entry.weeklyChange)}</td>
+                  <td className={`numeric-cell ${entry.weeklyChange >= 0 ? 'positive' : 'negative'}`}><CurrencyAmount sign={entry.weeklyChange >= 0 ? '+' : undefined}>{formatCurrency(entry.weeklyChange)}</CurrencyAmount></td>
                   <td>{formatTime(entry.updatedAt)}</td>
                 </tr>
               ))}

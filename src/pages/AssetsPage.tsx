@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   Button,
   DataList,
@@ -55,7 +56,8 @@ const facilityActionNames: Record<string, string> = {
 };
 
 function signedCurrency(value: number) {
-  return `${value > 0 ? '+' : value < 0 ? '-' : ''}¤ ${formatCurrency(Math.abs(value))}`;
+  const sign = value > 0 ? '+' : value < 0 ? '-' : undefined;
+  return <CurrencyAmount sign={sign}>{formatCurrency(Math.abs(value))}</CurrencyAmount>;
 }
 
 function signedQuantity(value: number) {
@@ -102,16 +104,16 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
       description="查看现金、商品、工厂资产与当前浏览器中的资产变化记录。"
     >
       <div className="funds-summary-grid">
-        <MetricCard label="可用资金" value={`¤ ${formatCurrency(game.credits)}`} tone="success" />
-        <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} detail="用于未完成买单" tone="warning" />
-        <MetricCard label="当前总资产" value={`¤ ${formatCurrency(derived.totalAssets)}`} tone="success" />
-        <MetricCard label="商品资产" value={`¤ ${formatCurrency(derived.commodityValue)}`} detail={`冻结商品 ${formatNumber(frozenInventory)}`} />
-        <MetricCard label="工厂资产" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${formatNumber(totalFacilities)} 座工厂`} tone="info" />
+        <MetricCard label="可用资金" value={<CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>} tone="success" />
+        <MetricCard label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} detail="用于未完成买单" tone="warning" />
+        <MetricCard label="当前总资产" value={<CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>} tone="success" />
+        <MetricCard label="商品资产" value={<CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount>} detail={`冻结商品 ${formatNumber(frozenInventory)}`} />
+        <MetricCard label="工厂资产" value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>} detail={`${formatNumber(totalFacilities)} 座工厂`} tone="info" />
       </div>
 
       <div className="asset-overview-grid">
         <Panel className="widget allocation-card">
-          <WidgetHeading title="资产配置" action={<strong>¤ {formatCurrency(derived.totalAssets)}</strong>} />
+          <WidgetHeading title="资产配置" action={<strong><CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount></strong>} />
           <div className="allocation-visual" style={allocationStyle}><div><strong>{cashShare}%</strong><span>现金占比</span></div></div>
           <div className="allocation-legend">
             <span><i className="cash-dot" />现金 <strong>{cashShare}%</strong></span>
@@ -123,14 +125,14 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         <Panel className="widget asset-breakdown span-2">
           <WidgetHeading title="资产估值明细" action={<span className="muted">商品和工厂均按订单簿最高有效买入价估值</span>} />
           <div className="asset-card-grid">
-            <MetricCard label="可用现金" value={`¤ ${formatCurrency(game.credits)}`} detail="可用于建设、运营和交易" tone="success" />
-            <MetricCard label="冻结资金" value={`¤ ${formatCurrency(game.frozenCredits)}`} detail="未成交买单的服务器冻结额" tone="warning" />
+            <MetricCard label="可用现金" value={<CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>} detail="可用于建设、运营和交易" tone="success" />
+            <MetricCard label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} detail="未成交买单的服务器冻结额" tone="warning" />
             <MetricCard
               label="全部商品估值"
-              value={`¤ ${formatCurrency(derived.commodityValue)}`}
+              value={<CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount>}
               detail={`可用与冻结商品合计 ${formatNumber(game.warehouseStoredQuantity)}`}
             />
-            <MetricCard label="工厂资产估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} detail={`${formatNumber(totalFacilities)} 座，按各类型最高有效买价计算`} tone="info" />
+            <MetricCard label="工厂资产估值" value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>} detail={`${formatNumber(totalFacilities)} 座，按各类型最高有效买价计算`} tone="info" />
           </div>
         </Panel>
 
@@ -195,13 +197,13 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   {event.cashDelta ? (
                     <span className={event.cashDelta > 0 ? 'positive' : 'negative'}>
                       可用资金 <strong>{signedCurrency(event.cashDelta)}</strong>
-                      <small>余额 ¤ {formatCurrency(event.availableCashAfter)}</small>
+                      <small>余额 <CurrencyAmount>{formatCurrency(event.availableCashAfter)}</CurrencyAmount></small>
                     </span>
                   ) : null}
                   {event.frozenCashDelta ? (
                     <span className={event.frozenCashDelta > 0 ? 'negative' : 'positive'}>
                       冻结资金 <strong>{signedCurrency(event.frozenCashDelta)}</strong>
-                      <small>冻结后 ¤ {formatCurrency(event.frozenCashAfter ?? 0)}</small>
+                      <small>冻结后 <CurrencyAmount>{formatCurrency(event.frozenCashAfter ?? 0)}</CurrencyAmount></small>
                     </span>
                   ) : null}
                   {event.inventoryChanges.map((change) => (

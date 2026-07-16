@@ -3,6 +3,7 @@ import {
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
 import { FacilityProductionFormula } from '../components/facilities/FacilityProductionFormula';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
 import {
   Button,
@@ -126,7 +127,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
               : `固定配方：${selectedRecipes[0]?.name ?? selectedType.name}`}</p>
           </div>
           <DataList>
-            <DataRow label="建造费用" value={`¤ ${formatCurrency(selectedType.buildCost)}`} tone="danger" />
+            <DataRow label="建造费用" value={<CurrencyAmount>{formatCurrency(selectedType.buildCost)}</CurrencyAmount>} tone="danger" />
             <DataRow label="施工时间" value={formatDuration(selectedType.buildTimeMs)} tone="warning" />
           </DataList>
           {game.facilityConstruction ? (

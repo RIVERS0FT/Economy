@@ -3,6 +3,7 @@ import { orderAssetId, orderKind, orderStatusNames, type LoadedGameViewModel } f
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   Button,
   PageLayout,
@@ -136,7 +137,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             >
               <span className="asset-kind-icon" aria-hidden="true"><ProductIcon productId={product.id} /></span>
               <strong>{product.name}</strong>
-              <span>¤ {formatCurrency(game.markets[product.id]?.lastPrice ?? product.basePrice)}</span>
+              <span><CurrencyAmount>{formatCurrency(game.markets[product.id]?.lastPrice ?? product.basePrice)}</CurrencyAmount></span>
               <small>持仓 {formatNumber(inventory.available)}</small>
             </button>
           );
@@ -155,7 +156,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             >
               <span className="asset-kind-icon" aria-hidden="true"><FactoryIcon /></span>
               <strong>{facility.name}</strong>
-              <span>¤ {formatCurrency(game.facilityMarkets[facility.id]?.lastPrice ?? facility.systemValue)}</span>
+              <span><CurrencyAmount>{formatCurrency(game.facilityMarkets[facility.id]?.lastPrice ?? facility.systemValue)}</CurrencyAmount></span>
               <small>持有 {formatNumber(group?.count ?? 0)}</small>
             </button>
           );
@@ -195,9 +196,9 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>1/2 仓</Button>
             <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>全仓</Button>
           </div>
-          <div className="order-summary"><span>订单总额</span><strong>¤ {formatCurrency(orderQuantity * orderPrice)}</strong></div>
+          <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderQuantity * orderPrice)}</CurrencyAmount></strong></div>
           <div className="order-capacity">
-            <span>可用资金 ¤ {formatCurrency(game.credits)}</span>
+            <span>可用资金 <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></span>
             {marketAssetKind === 'commodity' ? (
               <>
                 <span>仓库剩余 {formatNumber(game.warehouseAvailableCapacity)}</span>
@@ -222,7 +223,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               <div key={order.id}>
                 <span>
                   <StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag>
-                  <strong>¤ {formatCurrency(order.price)}</strong>
+                  <strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong>
                   <small>{formatNumber(order.remaining)}/{formatNumber(order.quantity)}</small>
                 </span>
                 <Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button>
@@ -237,12 +238,12 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           <div className="order-book-stack" aria-label={`${assetName}买卖盘`}>
             <div className="order-book-side-label ask-label"><span>卖盘</span><small>最低价前 5 笔</small></div>
             {bestAsks.map((order) => (
-              <div className="book-order-row ask" key={order.id}><StatusTag tone="danger">卖</StatusTag><strong>¤ {formatCurrency(order.price)}</strong><span>{formatNumber(order.remaining)}</span></div>
+              <div className="book-order-row ask" key={order.id}><StatusTag tone="danger">卖</StatusTag><strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong><span>{formatNumber(order.remaining)}</span></div>
             ))}
             {bestAsks.length === 0 ? <p className="muted">暂无卖单</p> : null}
             <div className="order-book-divider" aria-hidden="true" />
             {bestBids.map((order) => (
-              <div className="book-order-row bid" key={order.id}><StatusTag tone="success">买</StatusTag><strong>¤ {formatCurrency(order.price)}</strong><span>{formatNumber(order.remaining)}</span></div>
+              <div className="book-order-row bid" key={order.id}><StatusTag tone="success">买</StatusTag><strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong><span>{formatNumber(order.remaining)}</span></div>
             ))}
             {bestBids.length === 0 ? <p className="muted">暂无买单</p> : null}
             <div className="order-book-side-label bid-label"><span>买盘</span><small>最高价前 5 笔</small></div>
@@ -252,13 +253,13 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         <Panel className="widget market-chart-card">
           <WidgetHeading
             title={selectedAssetTitle(`${assetName}近 24h 成交趋势`)}
-            action={<StatusTag tone={marketTrend >= 0 ? 'success' : 'danger'}>{marketTrend >= 0 ? '+' : ''}{formatCurrency(marketTrend)}</StatusTag>}
+            action={<StatusTag tone={marketTrend >= 0 ? 'success' : 'danger'}><CurrencyAmount sign={marketTrend >= 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount></StatusTag>}
           />
           <PriceSparkline buckets={marketBuckets} />
           <div className="chart-footer">
             <span>24h · 6m × 240（{formatNumber(marketHistory.length)} 笔）</span>
             <span>我的当前订单 {formatNumber(ownSelectedOrders.length)} 笔</span>
-            <span>估值买价 ¤ {game.valuationPrices[`${marketAssetKind}:${assetId}`] ? formatCurrency(game.valuationPrices[`${marketAssetKind}:${assetId}`]) : '--'}</span>
+            <span>估值买价 <CurrencyAmount>{game.valuationPrices[`${marketAssetKind}:${assetId}`] ? formatCurrency(game.valuationPrices[`${marketAssetKind}:${assetId}`]) : '--'}</CurrencyAmount></span>
           </div>
         </Panel>
 
@@ -276,7 +277,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                         <td>{orderKind(order) === 'facility' ? '工厂' : '商品'}</td>
                         <td><strong>{assetLabel(order)}</strong></td>
                         <td><StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
-                        <td className="numeric-cell">¤ {formatCurrency(order.price)}</td>
+                        <td className="numeric-cell"><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></td>
                         <td className="numeric-cell">{formatNumber(order.remaining)}/{formatNumber(order.quantity)}</td>
                         <td><StatusTag tone={orderTone(order.status)}>{orderStatusNames[order.status]}</StatusTag></td>
                         <td>{formatTime(order.createdAt)}</td>
@@ -316,8 +317,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                           : trade.description}</span>
                         <span role="cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
                         <span role="cell" className="numeric-cell">{formatNumber(trade.quantity)}</span>
-                        <span role="cell" className="numeric-cell">¤ {formatCurrency(trade.price)}</span>
-                        <span role="cell" className="numeric-cell">¤ {formatCurrency(trade.total)}</span>
+                        <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.price)}</CurrencyAmount></span>
+                        <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>
                         <span role="cell">{trade.counterparty}</span>
                         <span role="cell">{formatTime(trade.createdAt)}</span>
                       </div>

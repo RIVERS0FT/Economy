@@ -6,6 +6,7 @@ import type {
   CollectibleImportRecord,
   CollectibleOwnershipRecord,
 } from '../collectibles/types';
+import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
 import { VirtualList } from '../components/ui/VirtualList';
 import type { AuthUser, GiftCodeAdminRecord } from '../types';
 import { formatCurrency, formatDate, formatTime } from '../utils/formatters';
@@ -206,8 +207,8 @@ export function AdminApp({ user }: { user: AuthUser }) {
         <div><a href="/economy/">返回游戏</a><button type="button" onClick={() => void load()}>刷新</button></div>
       </header>
 
-      {error ? <div className="admin-alert danger">{error}</div> : null}
-      {notice ? <div className="admin-alert">{notice}</div> : null}
+      {error ? <div className="admin-alert danger"><CurrencyText>{error}</CurrencyText></div> : null}
+      {notice ? <div className="admin-alert"><CurrencyText>{notice}</CurrencyText></div> : null}
 
       <section className="admin-summary-grid" aria-label="世界概况">
         <article><span>玩家数量</span><strong>{summary?.playerCount ?? '--'}</strong></article>
@@ -306,7 +307,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                 <span>{record.fromOwnerId ? `${record.fromOwnerName} (#${record.fromOwnerId})` : '系统'}</span>
                 <strong>→</strong>
                 <span>{record.toOwnerId ? `${record.toOwnerName} (#${record.toOwnerId})` : '未分配'}</span>
-                <small>{ownershipReason(record)}{record.price ? ` · ¤ ${formatCurrency(record.price)}` : ''} · {formatTime(record.createdAt)}</small>
+                <small>{ownershipReason(record)}{record.price ? <> · <CurrencyAmount>{formatCurrency(record.price)}</CurrencyAmount></> : null} · {formatTime(record.createdAt)}</small>
               </div>
             )}
           />
@@ -335,7 +336,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
               renderItem={(gift) => (
                 <div className="virtual-record-row" role="row">
                   <span role="cell">#{gift.id}</span>
-                  <span role="cell">¤ {formatCurrency(gift.reward_credits)}</span>
+                  <span role="cell"><CurrencyAmount>{formatCurrency(gift.reward_credits)}</CurrencyAmount></span>
                   <span role="cell">{gift.redeemed_count}/{gift.max_redemptions}</span>
                   <span role="cell">{gift.enabled ? '启用' : '停用'}</span>
                   <span role="cell">{gift.expires_at ? formatDate(gift.expires_at) : '长期'}</span>
@@ -368,7 +369,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                 itemRole="presentation"
                 ariaLabel="礼品码兑换记录行"
                 renderItem={(record) => (
-                  <div className="virtual-record-row" role="row"><span role="cell">{record.user_id}</span><span role="cell">¤ {formatCurrency(record.reward_credits)}</span><span role="cell">{formatTime(record.redeemed_at)}</span></div>
+                  <div className="virtual-record-row" role="row"><span role="cell">{record.user_id}</span><span role="cell"><CurrencyAmount>{formatCurrency(record.reward_credits)}</CurrencyAmount></span><span role="cell">{formatTime(record.redeemed_at)}</span></div>
                 )}
               />
             </div>

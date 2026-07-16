@@ -26,7 +26,7 @@
 | `src/styles/design-system.css` | 设计令牌、基础控件、共享视觉、状态、表格和焦点 |
 | `src/styles/globals.css` | 通用业务布局 |
 | `src/styles/overview.css` | 概览商品选择、三卡摘要行、固定高度和当前挂单列表布局 |
-| `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、导航图标槽位和移动图标尺寸 |
+| `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |
 | `src/styles/unified-market-admin.css` | 统一市场与管理员页面布局 |
 | `src/styles/industry-system.css` | 工厂、建设列、自适应同行等高卡片与生产密度 |
 | `src/styles/facility-production-formula.css` | 工厂生产公式、多输入输出、周期成本图标和进度条布局 |
@@ -57,11 +57,15 @@
 - `ToggleField`
 - `ScrollableTable`
 - `VirtualList`
+- `CurrencyAmount`
+- `CurrencyText`
 - `EmptyState`
 
 `SwitchControl` 是布尔开关的唯一 React 基础组件，`.ui-switch` 是唯一视觉实现。不得新增工厂开关、音乐开关或设置开关的平行 CSS。
 
 `VirtualList` 是高增长记录的唯一窗口化基础组件。它根据滚动位置只挂载可视条目与少量 `overscan` 条目，使用稳定业务 ID 作为键，并通过 `ResizeObserver` 修正可变高度。DOM 只渲染可视区域和少量预加载行；资产事件、本地成交、管理员藏品、礼品码、归属历史和兑换记录不得各自实现另一套虚拟滚动器。
+
+`CurrencyAmount` 是玩家端和管理员端可见货币金额的唯一组合组件，固定复用 `GameIcons.tsx` 的 `CreditsIcon`。`CurrencyText` 只用于把服务器或旧数据返回字符串中的遗留货币字符转换为同一 SVG，不得用运行时 DOM 扫描替代组件渲染。
 
 页面标题从 `h1` 开始，卡片标题从 `h2` 开始。`PageLayout` 和 `WidgetHeading` 不提供 `eyebrow` 参数。
 
@@ -87,6 +91,8 @@
 - 工厂资产标签必须使用 `GameIcons.tsx` 的 `FactoryIcon`，不得使用机械商品的齿轮图标或 `⚙` 字符；
 - `FactoryIcon` 使用厂房与烟囱轮廓，`machinery` 商品继续使用齿轮机械轮廓，两者不得共用路径；
 - 工厂生产公式的周期使用 `GameIcons.tsx` 的 `CycleIcon`，成本使用 `CreditsIcon`，输入库存使用 `WarehouseIcon`；不得用 Emoji 替代；
+- 所有玩家端和管理员端可见货币金额必须使用 `CurrencyAmount` 与 `CreditsIcon`，包括状态栏、指标卡、数据行、订单簿、成交记录、排行榜、拍卖、仓库、按钮和管理员记录；
+- 玩家界面不得直接显示 `¤`、`￥`、`¥`、`$`、`€`、`£` 等字符货币符号；服务器消息中的遗留字符必须在通知边界通过 `CurrencyText` 转换为 `CreditsIcon`；
 - 所有图标使用统一 `24 × 24` `viewBox`、`currentColor` 和圆角描边；
 - SVG 根节点必须带 `.game-icon`，商品 SVG 额外带 `.product-icon`；
 - 图标本身使用 `aria-hidden="true"` 和 `focusable="false"`；
@@ -241,6 +247,7 @@
 - 新增平行开关；
 - 在导航或状态栏中恢复 Unicode 字符、Emoji 或字体符号图标；
 - 绕过 `GameIcons.tsx` 新增平行界面图标库；
+- 在玩家端或管理员端恢复字符货币符号、为不同页面创建平行货币图标，或绕过 `CurrencyAmount`／`CurrencyText`；
 - 删除当前商品显式图标、未知商品包装箱回退或 `ProductIconLabel`；
 - 让工厂标签恢复齿轮、`⚙` 或与机械商品相同的 SVG 路径；
 - 让导航图标或文字恢复半透明；
