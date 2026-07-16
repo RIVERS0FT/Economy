@@ -51,12 +51,13 @@ for (const text of [
   'const EMAIL_TIMEOUT_MS = 8_000',
   "'Idempotency-Key': idempotencyKey",
   'RESEND_API_KEY',
-  'RESEND_FROM_EMAIL',
+  'EMAIL_FROM',
   'getRegistrationEmailConfiguration',
   'statusCode: 424',
   'EMAIL_SERVICE_NOT_CONFIGURED',
   '邮箱验证码服务未配置，请联系管理员',
 ]) requireText('server/src/email.js', text);
+forbidText('server/src/email.js', 'RESEND_FROM_EMAIL');
 forbidText('server/src/email.js', 'console.');
 
 for (const text of [
@@ -118,10 +119,12 @@ for (const text of [
   '发送 IP 和提交 IP',
   '`/economy-api/registration/email-code`',
   '`/economy-api/registration/complete`',
-  '`RESEND_API_KEY` 与 `RESEND_FROM_EMAIL`',
+  '`RESEND_API_KEY` 与 `EMAIL_FROM`',
+  '邮件密钥只保存在服务器',
   '邮箱验证码服务未配置，请联系管理员',
   '`deploy/economy-email`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
+forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMAIL');
 
 for (const text of [
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',
@@ -139,13 +142,19 @@ for (const text of [
   'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE',
 ]) requireText('.github/workflows/deploy.yml', text);
 for (const text of [
-  'RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}',
-  'RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}',
+  'Validate server Resend configuration',
   '/etc/riversoft-economy-api.env',
+  "grep -Eq '^RESEND_API_KEY=.+$'",
+  "grep -Eq '^EMAIL_FROM=.+$'",
   'systemctl restart riversoft-economy-api.service',
-  "'RESEND_API_KEY', 'RESEND_FROM_EMAIL'",
+  "'RESEND_API_KEY', 'EMAIL_FROM'",
   "'context': 'deploy/economy-email'",
 ]) requireText('.github/workflows/configure-registration-email.yml', text);
+for (const text of [
+  'secrets.RESEND_API_KEY',
+  'secrets.EMAIL_FROM',
+  'RESEND_FROM_EMAIL',
+]) forbidText('.github/workflows/configure-registration-email.yml', text);
 
 for (const text of [
   'trusted homepage accounts may share a network',
@@ -156,4 +165,4 @@ if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：首次建档定义、主页账号信任、验证码安全、Resend 配置、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：首次建档定义、主页账号信任、验证码安全、服务器 Resend 配置、EMAIL_FROM、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
