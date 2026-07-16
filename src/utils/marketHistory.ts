@@ -32,9 +32,13 @@ export function buildMarketHistoryBuckets(
     .filter((point) => Number.isFinite(point.createdAt))
     .sort((left, right) => left.createdAt - right.createdAt);
 
-  const previousPoint = normalizedPoints.findLast((point) => point.createdAt < windowStart);
-  const firstWindowPoint = normalizedPoints.find((point) => point.createdAt >= windowStart && point.createdAt < windowEnd);
-  let carriedPrice = previousPoint?.price ?? firstWindowPoint?.price ?? normalizedFallback;
+  let previousPrice: number | undefined;
+  let firstWindowPrice: number | undefined;
+  for (const point of normalizedPoints) {
+    if (point.createdAt < windowStart) previousPrice = point.price;
+    else if (point.createdAt < windowEnd && firstWindowPrice === undefined) firstWindowPrice = point.price;
+  }
+  let carriedPrice = previousPrice ?? firstWindowPrice ?? normalizedFallback;
   const bucketTrades = new Map<number, { price: number; volume: number; lastTradeAt: number }>();
 
   for (const point of normalizedPoints) {
