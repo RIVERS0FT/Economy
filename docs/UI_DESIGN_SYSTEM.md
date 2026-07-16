@@ -133,6 +133,7 @@
 - 普通小规模表格外层使用 `ScrollableTable`，窄屏允许横向滚动列。
 - `.page-scroll` 继续承担页面主体滚动；高增长记录允许在面板内使用带明确高度的 `VirtualList` 视口。
 - 虚拟记录视口必须可键盘聚焦，支持触控惯性滚动、稳定滚动条和 `overscan`。
+- 虚拟列表纵向滚动到顶或到底后必须把后续滚动链交给外层 `.page-scroll`；仅横向越界允许使用 `overscroll-behavior-x: contain`，不得用双轴隔离吞掉滚轮、触控板或触控滚动。
 - 虚拟表格使用 `role="table"`、`rowgroup`、`row`、`columnheader` 和 `cell` 保留表格语义。
 - 窗口化不等于分页或截断：筛选、统计和数据保留仍针对完整数组执行。
 - 可变高度卡片必须通过实际测量修正估算高度；不能因为高度估算误差造成条目重叠。
@@ -264,6 +265,7 @@
 - 让移动状态栏或底栏忽略安全区；
 - 给导航活动态添加位移或缩放；
 - 对高增长记录恢复全量 `.map()` DOM 渲染，或用分页、截断替代 `VirtualList`；
+- 不得恢复会阻断纵向滚动链的 `overscroll-behavior: contain` 或其他双轴越界隔离；
 - 使用 `.login-shell:focus-within` 或其他焦点选择器改变移动登录页标题字号、区块间距或整体对齐；
 - 把账号或密码重新绑定到初始为空的 React `value` 状态；
 - 使用运行时 DOM 扫描、文本匹配或 `MutationObserver` 修补已渲染页面；
