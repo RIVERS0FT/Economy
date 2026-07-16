@@ -22,5 +22,20 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Run complete build
-        run: npm run build
+      - name: Verify architecture
+        run: npm run verify:architecture
+
+      - name: Test Nginx configuration
+        run: npm run test:nginx-config
+
+      - name: Check server syntax
+        run: npm run server:check
+
+      - name: Test server
+        run: npm run server:test
+
+      - name: TypeScript build
+        run: npx tsc
+
+      - name: Vite production build
+        run: npx vite build
