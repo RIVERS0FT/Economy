@@ -5,25 +5,59 @@ export * from './domain-core.js';
 
 const clone = (value) => structuredClone(value);
 
-export const PRODUCT_CATALOG = Object.freeze(core.PRODUCT_CATALOG.map((product) => Object.freeze(
-  product.id === 'food'
-    ? { ...product, substitutionGroupId: 'staples' }
-    : { ...product },
-)));
+const PRODUCT_BALANCE = Object.freeze({
+  wheat: Object.freeze({ basePrice: 2 }),
+  rice: Object.freeze({ basePrice: 2 }),
+  timber: Object.freeze({ basePrice: 5 }),
+  ore: Object.freeze({ basePrice: 6 }),
+  'crude-oil': Object.freeze({ basePrice: 8 }),
+  flour: Object.freeze({ basePrice: 13 }),
+  lumber: Object.freeze({ basePrice: 15 }),
+  steel: Object.freeze({ basePrice: 24 }),
+  plastic: Object.freeze({ basePrice: 24 }),
+  food: Object.freeze({ basePrice: 15 }),
+  furniture: Object.freeze({ basePrice: 20 }),
+  machinery: Object.freeze({ basePrice: 60 }),
+  electronics: Object.freeze({ basePrice: 64 }),
+});
+
+const FACILITY_BALANCE = Object.freeze({
+  farm: Object.freeze({ cycleMs: 120_000, operatingCost: 6, outputQuantity: 4 }),
+  'logging-camp': Object.freeze({ cycleMs: 60_000, operatingCost: 9 }),
+  mine: Object.freeze({ cycleMs: 60_000, operatingCost: 11 }),
+  'oil-field': Object.freeze({ cycleMs: 60_000, operatingCost: 15 }),
+  mill: Object.freeze({ cycleMs: 40_000, operatingCost: 7 }),
+  sawmill: Object.freeze({ cycleMs: 40_000, operatingCost: 3 }),
+  steelworks: Object.freeze({ cycleMs: 40_000, operatingCost: 4 }),
+  refinery: Object.freeze({ cycleMs: 40_000, operatingCost: 6 }),
+  'food-factory': Object.freeze({ cycleMs: 50_000, operatingCost: 14 }),
+  'furniture-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 4 }),
+  'machine-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 6 }),
+  'electronics-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 10 }),
+});
+
+export const PRODUCT_CATALOG = Object.freeze(core.PRODUCT_CATALOG.map((product) => Object.freeze({
+  ...product,
+  ...PRODUCT_BALANCE[product.id],
+  ...(product.id === 'food' ? { substitutionGroupId: 'staples' } : {}),
+})));
 
 export const FACILITY_TYPE_CATALOG = Object.freeze(core.FACILITY_TYPE_CATALOG.map((facility) => {
-  if (facility.id !== 'farm') return facility;
+  const balance = FACILITY_BALANCE[facility.id] || {};
+  const cycleMs = balance.cycleMs ?? facility.cycleMs;
+  const operatingCost = balance.operatingCost ?? facility.operatingCost;
+  const outputQuantity = balance.outputQuantity ?? facility.output.quantity;
   const recipes = facility.recipes.map((recipe) => Object.freeze({
     ...recipe,
-    cycleMs: 45_000,
-    operatingCost: 2,
-    output: Object.freeze({ ...recipe.output, quantity: 4 }),
+    cycleMs,
+    operatingCost,
+    output: Object.freeze({ ...recipe.output, quantity: balance.outputQuantity ?? recipe.output.quantity }),
   }));
   return Object.freeze({
     ...facility,
-    cycleMs: 45_000,
-    operatingCost: 2,
-    output: Object.freeze({ productId: 'wheat', quantity: 4 }),
+    cycleMs,
+    operatingCost,
+    output: Object.freeze({ ...facility.output, quantity: outputQuantity }),
     recipes: Object.freeze(recipes),
   });
 }));
