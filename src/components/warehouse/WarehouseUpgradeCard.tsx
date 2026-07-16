@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
-import { ProductIconLabel } from '../icons/ProductIcons';
-import { Button, Panel, StatusTag, WidgetHeading } from '../ui/layout';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
+import { ProductIconLabel } from '../icons/ProductIcons';
+import { CurrencyAmount } from '../ui/CurrencyAmount';
+import { Button, Panel, StatusTag, WidgetHeading } from '../ui/layout';
 
 export function WarehouseUpgradeCard({
   model,
@@ -82,8 +83,8 @@ export function WarehouseUpgradeCard({
             </div>
             <div>
               <span>升级费用</span>
-              <strong>{game.warehouseUpgradeCost === null ? '数值不可用' : `¤ ${formatCurrency(game.warehouseUpgradeCost)}`}</strong>
-              <small>当前可用资金 ¤ {formatCurrency(game.credits)}</small>
+              <strong>{game.warehouseUpgradeCost === null ? '数值不可用' : <CurrencyAmount>{formatCurrency(game.warehouseUpgradeCost)}</CurrencyAmount>}</strong>
+              <small>当前可用资金 <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></small>
             </div>
           </div>
 
@@ -99,8 +100,8 @@ export function WarehouseUpgradeCard({
               : upgradeUnavailable
                 ? '扩容数值不可用'
                 : canAfford
-                  ? `支付 ¤ ${formatCurrency(game.warehouseUpgradeCost ?? 0)} 扩容`
-                  : `资金不足 · 需要 ¤ ${formatCurrency(game.warehouseUpgradeCost ?? 0)}`}
+                  ? <>支付 <CurrencyAmount>{formatCurrency(game.warehouseUpgradeCost ?? 0)}</CurrencyAmount> 扩容</>
+                  : <>资金不足 · 需要 <CurrencyAmount>{formatCurrency(game.warehouseUpgradeCost ?? 0)}</CurrencyAmount></>}
           </Button>
         </section>
 
