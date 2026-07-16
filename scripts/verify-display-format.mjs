@@ -50,7 +50,11 @@ function forbidText(path, fragments) {
 }
 
 requireText('src/app/GameApp.tsx', ['formatRank(', 'aria-label={rankLabel}']);
-requireText('src/pages/OverviewPage.tsx', ['formatRank(currentRank)', '排名第 ${currentRank} 名']);
+requireText('src/pages/OverviewPage.tsx', [
+  'formatRank(currentRank)',
+  '排名第 ${currentRank} 名',
+  '工作冷却固定为 10s',
+]);
 requireText('src/pages/LeaderboardPage.tsx', [
   'formatRank(currentRank)',
   'formatRank(entry.rank)',
@@ -78,7 +82,10 @@ forbidText('src/pages/LeaderboardPage.tsx', [
   '>{entry.rank}</span>',
 ]);
 forbidText('src/app/GameApp.tsx', ['<>第 {currentRank} 名</>']);
-forbidText('src/pages/OverviewPage.tsx', ['第 {derived.currentRank?.rank ?? \'--\'} 名']);
+forbidText('src/pages/OverviewPage.tsx', [
+  '第 {derived.currentRank?.rank ?? \'--\'} 名',
+  '工作冷却固定为 10 秒',
+]);
 forbidText('src/pages/AuctionPage.tsx', [
   'const hours = Math.floor',
   ' 小时 ',
