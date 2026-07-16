@@ -10,6 +10,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 
 [
   'server/src/gift-code-batch.js',
+  'server/src/app.js',
   'server/src/index.js',
   'server/test/gift-code-batch.test.js',
   'src/api/admin.ts',
@@ -30,7 +31,8 @@ for (const text of [
   "import { configureGiftCodeAdminStore, createGiftCodeBatch } from './gift-code-batch.js'",
   "path === '/api/game/admin/gift-codes/batch'",
   'createGiftCodeBatch(store, user, body',
-]) requireText('server/src/index.js', text);
+]) requireText('server/src/app.js', text);
+requireText('server/src/index.js', "import './app.js'");
 
 for (const text of [
   'createGiftCodeBatch',

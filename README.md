@@ -50,6 +50,8 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 客户端只接受不低于当前值的状态修订号；权威动作期间必须取消旧轮询并暂停新轮询，工作按钮立即显示“处理中”。
 - `/economy-api/game/` 的大型 JSON 响应必须使用 gzip 压缩，避免完整状态占满服务器出口带宽。
 - 主页账号认证使用单进程短缓存：状态读取 10 秒、普通写操作最多 2 秒、管理员不使用缓存；同会话并发认证合并，LRU 上限 5,000 条，缓存键只保存 Cookie 的 SHA-256 摘要。
+- Economy 注册完成时点是统一账号第一次创建 Economy 玩家档案；已登录主页账号首次进入仍可自动建档并记录 IP 指纹。主页已完成验证的账号属于可信账号，不受 Economy 注册 IP 多账号限制；Economy 自身邮箱验证码入口继续执行该限制。
+- 邮箱验证码只保存 HMAC，10 分钟过期、60 秒禁止重发、错误 5 次作废、不可重复使用，且发送与提交 IP 指纹必须一致。
 - 管理员可以在单个事务中一次生成最多 50,000 个礼品码；礼品码业务表只保存 SHA-256 哈希，明文仅用于本次响应、TXT 下载和现有 24 小时幂等重试缓存。
 - 藏品是服务器记录归属的唯一资产实例，图片由芝加哥艺术博物馆 IIIF 外链渲染，不复制到游戏服务器。
 - 管理员只能导入明确标记为公版且具有 `imageId` 的芝加哥艺术博物馆藏品；图片 URL 由服务器固定生成，不接受任意外链。
@@ -69,7 +71,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 藏品：当前账号持有的艺术藏品、图片、来源与归属。
 - 拍卖：发起藏品拍卖、竞价、取消无出价拍卖和查看结算结果。
 - 排行：服务器总资产排行榜。
-- 设置：玩家资料、偏好、礼品兑换、退出与重置。
+- 设置：玩家资料、偏好、邀请、礼品兑换、退出与重置。
 
 ## 权威设计文档
 
@@ -84,7 +86,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 | 页面内容与导航职责 | `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | UI 组件、SVG 图标与响应式系统 | `docs/UI_DESIGN_SYSTEM.md` |
 | 状态栏与移动底栏玻璃外壳 | `docs/LIQUID_GLASS_CHROME_DESIGN.md` |
-| 服务器、API、容量与部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |
+| 服务器、API、注册、容量与部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |
 | 浏览器本地活动日志 | `docs/LOCAL_ACTIVITY_LOG_DESIGN.md` |
 | 礼品码、藏品、拍卖与管理员后台 | `docs/GIFT_CODE_AND_ADMIN_DESIGN.md` |
 
@@ -93,6 +95,8 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 游戏 API：`127.0.0.1:3002`
 - 主页账号服务：`127.0.0.1:3001`
 - 数据库：`/var/lib/riversoft-economy/economy.sqlite`
+- 注册秘密：`/var/lib/riversoft-economy/registration-secret`
+- 邮件环境：`/etc/riversoft-economy-api.env`
 - systemd：`riversoft-economy-api.service`
 - 网页目录：`/var/www/game/economy`
 - API 目录：`/var/www/game/economy-api`
@@ -105,4 +109,4 @@ npm run dev
 npm run build
 ```
 
-`npm run build` 会执行文档权威性、页面职责、UI 架构、产业目录与整数经济平衡、统一资产市场、液态玻璃、仓库、工厂集群、饮食竞争、礼品码批量生成、藏品拍卖、Nginx、服务器测试、TypeScript 和 Vite 生产构建检查。
+`npm run build` 会执行文档权威性、邮箱验证码注册、页面职责、UI 架构、产业目录与整数经济平衡、统一资产市场、液态玻璃、仓库、工厂集群、饮食竞争、礼品码批量生成、藏品拍卖、Nginx、服务器测试、TypeScript 和 Vite 生产构建检查。

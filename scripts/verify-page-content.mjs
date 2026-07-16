@@ -27,6 +27,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/app/AdminApp.tsx',
   'src/app/LoginPage.tsx',
   'src/styles/auth.css',
+  'src/styles/registration-auth.css',
   'src/styles/virtual-list.css',
   'src/utils/formatters.ts',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
@@ -37,20 +38,29 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 ].forEach(requireFile);
 
 for (const text of [
-  'aria-busy={submitting}',
-  'disabled={submitting}',
-  "submitting ? '正在连接账号服务…' : '登录或注册'",
+  "type AuthMode = 'login' | 'register'",
+  'ref={formRef}',
+  'aria-busy={submitting || sendingCode}',
+  'disabled={submitting || sendingCode}',
   'new FormData(event.currentTarget)',
+  'new FormData(formRef.current)',
   "formData.get('email')",
   "formData.get('password')",
+  "formData.get('code')",
   'name="email"',
   'name="password"',
+  'name="code"',
+  'autoComplete="one-time-code"',
+  '发送验证码',
+  '完成注册',
+  'resendSeconds',
 ]) requireText('src/app/LoginPage.tsx', text);
 for (const text of [
   'value={email}',
   'value={password}',
   'setEmail(',
   'setPassword(',
+  '登录或注册',
 ]) forbidText('src/app/LoginPage.tsx', text);
 
 for (const text of [
@@ -60,9 +70,11 @@ for (const text of [
   'white-space: nowrap;',
 ]) requireText('src/styles/auth.css', text);
 for (const text of [
-  '.login-shell:focus-within',
-  'transition: font-size',
-]) forbidText('src/styles/auth.css', text);
+  '.auth-mode-switch',
+  '.email-code-field',
+  '.form-notice',
+]) requireText('src/styles/registration-auth.css', text);
+for (const text of ['.login-shell:focus-within', 'transition: font-size']) forbidText('src/styles/auth.css', text);
 
 for (const text of [
   'unified-asset-tabs',
@@ -75,7 +87,6 @@ for (const text of [
   'formatNumber(order.remaining)',
   'formatCurrency(order.price)',
 ]) requireText('src/pages/MarketPage.tsx', text);
-
 for (const text of [
   'localTrades.map(',
   'market-stat-strip',
@@ -107,11 +118,9 @@ for (const text of [
   '<strong>生产配方</strong>',
   '下一周期切换为：',
   'setFacilityRecipe',
-  '前往市场交易该工厂',
   '前往市场交易该工厂 →',
   'formatNumber(group.count)',
 ]) requireText('src/pages/ProductionPage.tsx', text);
-
 for (const text of [
   'facility-formula-input-group',
   'facility-formula-center',
@@ -122,7 +131,6 @@ for (const text of [
   'WarehouseIcon',
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
 forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-summary');
-
 for (const text of [
   'title="工厂"',
   'facility-power-button',
@@ -152,14 +160,9 @@ for (const text of [
   'formatNumber(change.availableAfter)',
   'formatNumber(change.outputQuantity)',
 ]) requireText('src/pages/AssetsPage.tsx', text);
-
-for (const text of [
-  'filteredEvents.map(',
-  '商品库存与估值',
-  'product-asset-grid',
-  'product-asset-card',
-  'setSelectedProductId',
-]) forbidText('src/pages/AssetsPage.tsx', text);
+for (const text of ['filteredEvents.map(', '商品库存与估值', 'product-asset-grid', 'product-asset-card', 'setSelectedProductId']) {
+  forbidText('src/pages/AssetsPage.tsx', text);
+}
 
 for (const text of [
   'items={collectibles}',
@@ -170,26 +173,14 @@ for (const text of [
   'admin-gifts-virtual-table',
   'admin-redemptions-virtual-table',
 ]) requireText('src/app/AdminApp.tsx', text);
-for (const text of [
-  'collectibles.map(',
-  'giftCodes.map(',
-  'ownership.map(',
-  'redemptions.map(',
-]) forbidText('src/app/AdminApp.tsx', text);
+for (const text of ['collectibles.map(', 'giftCodes.map(', 'ownership.map(', 'redemptions.map(']) forbidText('src/app/AdminApp.tsx', text);
 
-for (const text of [
-  'ResizeObserver',
-  'measuredSizesRef',
-  'overscan',
-  'aria-setsize',
-  'virtual-list__canvas',
-]) requireText('src/components/ui/VirtualList.tsx', text);
-for (const text of [
-  '.virtual-list',
-  '.virtual-record-table',
-  '.virtual-record-row',
-  '.asset-event-virtual-list',
-]) requireText('src/styles/virtual-list.css', text);
+for (const text of ['ResizeObserver', 'measuredSizesRef', 'overscan', 'aria-setsize', 'virtual-list__canvas']) {
+  requireText('src/components/ui/VirtualList.tsx', text);
+}
+for (const text of ['.virtual-list', '.virtual-record-table', '.virtual-record-row', '.asset-event-virtual-list']) {
+  requireText('src/styles/virtual-list.css', text);
+}
 
 for (const text of [
   "{ id: 'assets', label: '资产' }",
@@ -198,22 +189,12 @@ for (const text of [
 ]) requireText('src/config/navigation.ts', text);
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 
-for (const text of [
-  'title="藏品"',
-  'getCollectibleState',
-  'collectible-gallery',
-  '芝加哥艺术博物馆 IIIF',
-  "model.setTab('auction')",
-]) requireText('src/pages/CollectionsPage.tsx', text);
-
-for (const text of [
-  'title="拍卖"',
-  'createCollectibleAuction',
-  'placeCollectibleBid',
-  'cancelCollectibleAuction',
-  '最高出价资金会冻结',
-  '等待服务器结算',
-]) requireText('src/pages/AuctionPage.tsx', text);
+for (const text of ['title="藏品"', 'getCollectibleState', 'collectible-gallery', '芝加哥艺术博物馆 IIIF', "model.setTab('auction')"]) {
+  requireText('src/pages/CollectionsPage.tsx', text);
+}
+for (const text of ['title="拍卖"', 'createCollectibleAuction', 'placeCollectibleBid', 'cancelCollectibleAuction', '最高出价资金会冻结', '等待服务器结算']) {
+  requireText('src/pages/AuctionPage.tsx', text);
+}
 
 for (const text of [
   'const stockedProducts = useMemo',
@@ -244,19 +225,18 @@ for (const text of [
   '生产商品总数',
   '买入商品总数',
   '卖出商品总数',
+  '邀请好友',
+  '分享或复制邀请链接',
   '礼品兑换',
   '退出登录',
   '重置经济状态',
   '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',
   'formatNumber(game.stats.workClicks)',
 ]) requireText('src/pages/SettingsPage.tsx', text);
+for (const text of ['登录会话', '重置服务器经济状态', '使用万和百万单位缩写大额资产', '全局使用 K/M/B/T 缩写大额金额与状态栏容量']) {
+  forbidText('src/pages/SettingsPage.tsx', text);
+}
 
-for (const text of [
-  '登录会话',
-  '重置服务器经济状态',
-  '使用万和百万单位缩写大额资产',
-  '全局使用 K/M/B/T 缩写大额金额与状态栏容量',
-]) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of [
   "label: '仓库剩余'",
   "id: 'warehouse'",
@@ -276,7 +256,6 @@ for (const text of [
   "suffix: 'B'",
   "suffix: 'T'",
 ]) requireText('src/utils/formatters.ts', text);
-
 for (const [path, text] of [
   ['src/pages/OverviewPage.tsx', 'formatNumber(derived.runningFacilities)'],
   ['src/pages/LeaderboardPage.tsx', 'formatNumber(entry.facilityCount)'],
@@ -287,6 +266,7 @@ for (const text of [
   '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜设置',
   '| 藏品 | `collections` | `CollectionsPage` | 当前玩家持有的唯一艺术藏品 |',
   '| 拍卖 | `auction` | `AuctionPage` | 藏品竞价拍卖与结算结果 |',
+  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',
   '页面主标题固定为“生产”',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
@@ -298,6 +278,8 @@ for (const text of [
   '多输入、多输出和逐输入库存兼容展示',
   '以箭头替代生产进度条',
   '最高出价资金、退款、拍卖状态和归属转移全部由服务器判定',
+  '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
+  '第一阶段邀请功能只分享或复制 Economy 正式入口',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
@@ -324,7 +306,6 @@ for (const text of [
   '藏品列表、礼品码列表、归属历史和兑换记录可能持续增长，必须复用共享 `VirtualList`',
   '对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
-
 for (const text of [
   '实际数字格式遵循全局“紧凑数字”偏好',
   '玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数',
@@ -334,4 +315,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、八页导航、高增长记录窗口化、登录自动填充、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、八页导航、登录注册、高增长记录窗口化、邀请、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。');

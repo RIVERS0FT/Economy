@@ -4,6 +4,7 @@ from __future__ import annotations
 import grp
 import os
 import pwd
+import secrets
 import shutil
 import subprocess
 import sys
@@ -12,6 +13,8 @@ from pathlib import Path
 SERVICE_NAME = "riversoft-economy-api.service"
 SERVICE_PATH = Path("/etc/systemd/system") / SERVICE_NAME
 STATE_DIRECTORY = Path("/var/lib/riversoft-economy")
+REGISTRATION_SECRET_PATH = STATE_DIRECTORY / "registration-secret"
+ENVIRONMENT_FILE = Path("/etc/riversoft-economy-api.env")
 MINIMUM_NODE = (22, 16, 0)
 
 
@@ -51,8 +54,12 @@ def main() -> int:
     required = [
         release_dir / "package.json",
         release_dir / "src" / "index.js",
+        release_dir / "src" / "app.js",
         release_dir / "src" / "domain.js",
         release_dir / "src" / "storage.js",
+        release_dir / "src" / "registration.js",
+        release_dir / "src" / "registration-store.js",
+        release_dir / "src" / "email.js",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -69,6 +76,10 @@ def main() -> int:
     STATE_DIRECTORY.mkdir(parents=True, exist_ok=True)
     os.chown(STATE_DIRECTORY, account.pw_uid, account.pw_gid)
     os.chmod(STATE_DIRECTORY, 0o750)
+    if not REGISTRATION_SECRET_PATH.exists():
+        REGISTRATION_SECRET_PATH.write_text(secrets.token_urlsafe(48), encoding="utf-8")
+    os.chown(REGISTRATION_SECRET_PATH, account.pw_uid, account.pw_gid)
+    os.chmod(REGISTRATION_SECRET_PATH, 0o600)
 
     service = f"""[Unit]
 Description=RIVERSOFT Economy authoritative game API
@@ -79,9 +90,11 @@ Type=simple
 User={service_user}
 Group={service_group}
 WorkingDirectory={release_dir}
+EnvironmentFile=-{ENVIRONMENT_FILE}
 Environment=NODE_ENV=production
 Environment=PORT=3002
 Environment=ECONOMY_DB_PATH={STATE_DIRECTORY / 'economy.sqlite'}
+Environment=ECONOMY_REGISTRATION_SECRET_FILE={REGISTRATION_SECRET_PATH}
 Environment=ACCOUNT_SERVICE_URL=http://127.0.0.1:3001
 Environment=ACCOUNT_SERVICE_HOST=riversoft.top
 Environment=ACCOUNT_AUTH_STATE_CACHE_TTL_MS=10000

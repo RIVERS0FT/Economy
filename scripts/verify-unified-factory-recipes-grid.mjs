@@ -112,7 +112,7 @@ assert.equal(warehouse.includes('production-surface warehouse-upgrade-card'), tr
 for (const [path, required] of [
   ['README.md', ['建设卡只显示建造费用和施工时间', '生产配方固定显示单座参数', '实际结算按参与数量']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式固定显示单座正式配方', '实际周期结算仍按 `participatingCount`']],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['建设卡不显示生产周期、单座产量和单座成本', '配方数字不随停止或异常变为零']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['建设卡不显示生产周期、单座产量和单座成本', '不得因停止、异常、冻结、参与数量或集群总数量变为零']],
   ['docs/UI_DESIGN_SYSTEM.md', ['生产配方是配置展示，不是运行统计', '固定显示一座工厂的输入、输出、周期和成本']],
 ]) {
   const content = read(path);

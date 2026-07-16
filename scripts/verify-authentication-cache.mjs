@@ -44,9 +44,10 @@ requireText('server/src/auth-cache.js', [
   'this.inFlight.delete(key)',
 ]);
 
-requireText('server/src/index.js', [
+requireText('server/src/app.js', [
   'authenticationCacheMaxAgeForRequest(method, path)',
 ]);
+requireText('server/src/index.js', ["import './app.js'"]);
 
 requireText('scripts/install-economy-api.py', [
   'Environment=ACCOUNT_AUTH_STATE_CACHE_TTL_MS=10000',

@@ -154,9 +154,11 @@ jobs:
         run: |
           exec > >(tee /tmp/economy-proxy-configure.log) 2>&1
           set -euo pipefail
-          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-            'if [ "$(id -u)" -eq 0 ]; then exec python3 -; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 -; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' \
-            < scripts/configure-economy-nginx.py
+          for script in scripts/configure-economy-nginx.py scripts/configure-economy-registration-nginx.py; do
+            ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+              'if [ "$(id -u)" -eq 0 ]; then exec python3 -; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 -; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' \
+              < "$script"
+          done
 
       - name: Verify website, account routes, and game API
         env:
@@ -173,6 +175,7 @@ jobs:
           curl --fail --silent --show-error http://127.0.0.1:3002/health >/dev/null
           curl --fail --silent --show-error -H "Host: game.riversoft.top" http://127.0.0.1/economy/ >/dev/null
           test -f /var/www/game/economy/index.html
+          test -s /var/lib/riversoft-economy/registration-secret
           REMOTE
 
           curl --fail --silent --show-error \
@@ -213,6 +216,21 @@ jobs:
           if [ "$LOGIN_STATUS" != "400" ]; then
             cat /tmp/economy-login-response.json 2>/dev/null || true
             echo ECONOMY_LOGIN_PROXY_UNAVAILABLE
+            exit 1
+          fi
+
+          REGISTRATION_STATUS="$(curl --silent --show-error \
+            --output /tmp/economy-registration-response.json \
+            --write-out '%{http_code}' \
+            --resolve "game.riversoft.top:443:$SERVER_HOST" \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --header 'Idempotency-Key: deploy-registration-route-check' \
+            --data '{}' \
+            https://game.riversoft.top/economy-api/registration/email-code || true)"
+          if [ "$REGISTRATION_STATUS" != "400" ]; then
+            cat /tmp/economy-registration-response.json 2>/dev/null || true
+            echo ECONOMY_REGISTRATION_PROXY_UNAVAILABLE
             exit 1
           fi
 

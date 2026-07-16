@@ -7,6 +7,7 @@ import './styles/desktop-sidebar.css';
 import './styles/performance.css';
 import './styles/viewport.css';
 import './styles/auth.css';
+import './styles/registration-auth.css';
 import './styles/card-system.css';
 import './styles/liquid-glass-chrome.css';
 import './styles/mobile-status-navigation.css';
