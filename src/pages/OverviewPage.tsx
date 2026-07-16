@@ -90,7 +90,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
       <div className="home-grid">
         <Panel className="widget work-widget">
           <WidgetHeading title="基础工作" action={<StatusTag tone="success">兜底收入</StatusTag>} />
-          <p>每次有效工作获得 ¤1，工作冷却固定为 10 秒。</p>
+          <p>每次有效工作获得 ¤1，工作冷却固定为 10s。</p>
           <Button block className="work-compact-button" disabled={isWorking || workRemaining > 0} onClick={() => void showResult(work())}>
             <strong>{isWorking ? '处理中…' : workRemaining > 0 ? formatDuration(workRemaining) : '开始工作'}</strong>
             <span>{isWorking ? '正在提交工作结果' : workRemaining > 0 ? '等待冷却结束' : '获得 ¤ 1'}</span>
