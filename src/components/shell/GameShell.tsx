@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
+import { CurrencyText } from '../ui/CurrencyAmount';
 import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
 import { StatusBar, type StatusBarItem } from './StatusBar';
@@ -20,7 +21,7 @@ export function GameShell({ model, statusItems, children }: {
       />
       <section className="workspace">
         <StatusBar items={statusItems} />
-        {model.notice ? <div className="notice-toast">{model.notice}</div> : null}
+        {model.notice ? <div className="notice-toast"><CurrencyText>{model.notice}</CurrencyText></div> : null}
         <div className="page-scroll">{children}</div>
       </section>
       <MobileBottomNavigation
