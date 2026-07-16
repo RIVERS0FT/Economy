@@ -1,29 +1,64 @@
 import { randomUUID } from 'node:crypto';
 import * as core from './domain-core.js';
+import { createBalancedMarketRuntime } from './balanced-market.js';
 
 export * from './domain-core.js';
 
 const clone = (value) => structuredClone(value);
 
-export const PRODUCT_CATALOG = Object.freeze(core.PRODUCT_CATALOG.map((product) => Object.freeze(
-  product.id === 'food'
-    ? { ...product, substitutionGroupId: 'staples' }
-    : { ...product },
-)));
+const PRODUCT_BALANCE = Object.freeze({
+  wheat: Object.freeze({ basePrice: 2 }),
+  rice: Object.freeze({ basePrice: 2 }),
+  timber: Object.freeze({ basePrice: 5 }),
+  ore: Object.freeze({ basePrice: 6 }),
+  'crude-oil': Object.freeze({ basePrice: 8 }),
+  flour: Object.freeze({ basePrice: 13 }),
+  lumber: Object.freeze({ basePrice: 15 }),
+  steel: Object.freeze({ basePrice: 24 }),
+  plastic: Object.freeze({ basePrice: 24 }),
+  food: Object.freeze({ basePrice: 15 }),
+  furniture: Object.freeze({ basePrice: 20 }),
+  machinery: Object.freeze({ basePrice: 60 }),
+  electronics: Object.freeze({ basePrice: 64 }),
+});
+
+const FACILITY_BALANCE = Object.freeze({
+  farm: Object.freeze({ cycleMs: 120_000, operatingCost: 6, outputQuantity: 4 }),
+  'logging-camp': Object.freeze({ cycleMs: 60_000, operatingCost: 9 }),
+  mine: Object.freeze({ cycleMs: 60_000, operatingCost: 11 }),
+  'oil-field': Object.freeze({ cycleMs: 60_000, operatingCost: 15 }),
+  mill: Object.freeze({ cycleMs: 40_000, operatingCost: 7 }),
+  sawmill: Object.freeze({ cycleMs: 40_000, operatingCost: 3 }),
+  steelworks: Object.freeze({ cycleMs: 40_000, operatingCost: 4 }),
+  refinery: Object.freeze({ cycleMs: 40_000, operatingCost: 6 }),
+  'food-factory': Object.freeze({ cycleMs: 50_000, operatingCost: 14 }),
+  'furniture-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 4 }),
+  'machine-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 6 }),
+  'electronics-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 10 }),
+});
+
+export const PRODUCT_CATALOG = Object.freeze(core.PRODUCT_CATALOG.map((product) => Object.freeze({
+  ...product,
+  ...PRODUCT_BALANCE[product.id],
+  ...(product.id === 'food' ? { substitutionGroupId: 'staples' } : {}),
+})));
 
 export const FACILITY_TYPE_CATALOG = Object.freeze(core.FACILITY_TYPE_CATALOG.map((facility) => {
-  if (facility.id !== 'farm') return facility;
+  const balance = FACILITY_BALANCE[facility.id] || {};
+  const cycleMs = balance.cycleMs ?? facility.cycleMs;
+  const operatingCost = balance.operatingCost ?? facility.operatingCost;
+  const outputQuantity = balance.outputQuantity ?? facility.output.quantity;
   const recipes = facility.recipes.map((recipe) => Object.freeze({
     ...recipe,
-    cycleMs: 45_000,
-    operatingCost: 2,
-    output: Object.freeze({ ...recipe.output, quantity: 4 }),
+    cycleMs,
+    operatingCost,
+    output: Object.freeze({ ...recipe.output, quantity: balance.outputQuantity ?? recipe.output.quantity }),
   }));
   return Object.freeze({
     ...facility,
-    cycleMs: 45_000,
-    operatingCost: 2,
-    output: Object.freeze({ productId: 'wheat', quantity: 4 }),
+    cycleMs,
+    operatingCost,
+    output: Object.freeze({ ...facility.output, quantity: outputQuantity }),
     recipes: Object.freeze(recipes),
   });
 }));
@@ -53,6 +88,10 @@ const GROUPED_DEMAND_PRODUCT_IDS = new Set(
   DEMAND_GROUP_CATALOG.flatMap((group) => group.products.map((option) => option.productId)),
 );
 const FAR_FUTURE = Number.MAX_SAFE_INTEGER;
+const balancedMarket = createBalancedMarketRuntime({
+  products: PRODUCT_CATALOG,
+  constants: core.ECONOMY_CONSTANTS,
+});
 
 function productDefinition(productId) {
   return PRODUCTS.get(String(productId || '')) || PRODUCTS.get('wheat');
@@ -107,110 +146,6 @@ function inventoryFor(player, productId) {
   player.inventories ||= {};
   player.inventories[productId] ||= { available: 0, frozen: 0 };
   return player.inventories[productId];
-}
-
-function addTrade(player, trade) {
-  player.trades ||= [];
-  player.trades.unshift({ id: `trade-${randomUUID()}`, ...trade });
-  player.trades = player.trades.slice(0, core.ECONOMY_CONSTANTS.maxTradesPerPlayer);
-}
-
-function addLedger(player, category, amount, description, createdAt) {
-  player.ledger ||= [];
-  player.ledger.unshift({
-    id: `ledger-${randomUUID()}`,
-    category,
-    amount,
-    balanceAfter: player.credits,
-    createdAt,
-    description,
-  });
-  player.ledger = player.ledger.slice(0, core.ECONOMY_CONSTANTS.maxLedgerPerPlayer);
-}
-
-function appendPlayerOrderFill(order, fill) {
-  if (order.ownerType !== 'player') return;
-  order.fills = Array.isArray(order.fills) ? order.fills : [];
-  order.fills.push(fill);
-  order.fills = order.fills.slice(-120);
-}
-
-function recordPrice(world, productId, price, quantity, createdAt) {
-  const market = marketFor(world, productId);
-  if (!market) return;
-  market.lastPrice = price;
-  market.priceHistory ||= [];
-  market.priceHistory.push({ price, quantity, createdAt });
-  market.priceHistory = market.priceHistory.slice(-core.ECONOMY_CONSTANTS.maxPricePoints);
-}
-
-function settlePlayerPopulationSale(world, order, quantity, tradePrice, buyer, createdAt) {
-  const player = world.players?.[String(order.ownerId)];
-  if (!player) throw new Error(`Missing seller ${order.ownerId}`);
-  const inventory = inventoryFor(player, order.productId);
-  const total = quantity * tradePrice;
-  inventory.frozen -= quantity;
-  player.credits += total;
-  player.stats ||= {};
-  player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
-  player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
-  player.stats.populationIssued = Number(player.stats.populationIssued || 0) + total;
-  const product = productDefinition(order.productId);
-  addTrade(player, {
-    type: 'commodity',
-    productId: product.id,
-    side: 'sell',
-    quantity,
-    price: tradePrice,
-    total,
-    counterparty: buyer.ownerName || '人口饮食需求',
-    createdAt,
-    description: `卖出 ${product.name}`,
-  });
-  addLedger(player, 'population_income', total, `人口需求消费 ${quantity} 个${product.name}，成交价 ${tradePrice}`, createdAt);
-}
-
-function executePopulationTrade(world, incoming, resting, quantity, createdAt) {
-  const price = Number(resting.price);
-  const fillId = `order-fill-${randomUUID()}`;
-  const fillBase = {
-    id: fillId,
-    quantity,
-    price,
-    total: quantity * price,
-    createdAt,
-    makerOrderId: resting.id,
-    takerOrderId: incoming.id,
-  };
-  incoming.remaining -= quantity;
-  resting.remaining -= quantity;
-  incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
-  resting.status = resting.remaining === 0 ? 'filled' : 'partial';
-  appendPlayerOrderFill(resting, {
-    ...fillBase,
-    counterparty: incoming.ownerName,
-    liquidity: 'maker',
-  });
-  if (resting.ownerType === 'player') {
-    settlePlayerPopulationSale(world, resting, quantity, price, incoming, createdAt);
-  }
-  recordPrice(world, incoming.productId, price, quantity, createdAt);
-}
-
-function matchPopulationOrder(world, incoming, createdAt) {
-  const candidates = (world.orders || [])
-    .filter((order) => (
-      order.id !== incoming.id
-      && order.productId === incoming.productId
-      && order.side === 'sell'
-      && isOpenOrder(order)
-      && Number(order.price) <= Number(incoming.price)
-    ))
-    .sort((left, right) => Number(left.price) - Number(right.price) || Number(left.createdAt) - Number(right.createdAt));
-  for (const candidate of candidates) {
-    if (!isOpenOrder(incoming)) break;
-    executePopulationTrade(world, incoming, candidate, Math.min(incoming.remaining, candidate.remaining), createdAt);
-  }
 }
 
 function expireDemandGroupOrders(world, demandGroupId) {
@@ -388,7 +323,7 @@ function createGroupedDemand(world, groupId, now) {
       createdAt: now,
     };
     world.orders.push(order);
-    matchPopulationOrder(world, order, now);
+    balancedMarket.matchOrder(world, order, now);
     const filled = choice.quantity - order.remaining;
     const filledChoiceUtility = filled * choice.utilityPerUnit;
     filledUtility += filledChoiceUtility;
@@ -406,20 +341,25 @@ function createGroupedDemand(world, groupId, now) {
 
 function withLegacyDemandSuppressed(world, now, callback) {
   normalizeDemandWorld(world, now);
+  balancedMarket.refreshExternalLiquidity(world, now);
   const groupSnapshots = new Map();
   const marketSnapshots = new Map();
   const dueGroups = [];
+  const dueProducts = [];
+
   for (const group of DEMAND_GROUP_CATALOG) {
     const state = world.demandGroups[group.id];
     groupSnapshots.set(group.id, state.nextDemandAt);
     if (now >= Number(state.nextDemandAt)) dueGroups.push(group.id);
     state.nextDemandAt = FAR_FUTURE;
-    for (const option of group.products) {
-      const market = marketFor(world, option.productId);
-      if (!market?.demand) continue;
-      marketSnapshots.set(option.productId, market.demand.nextDemandAt);
-      market.demand.nextDemandAt = FAR_FUTURE;
+  }
+  for (const product of PRODUCT_CATALOG) {
+    const market = balancedMarket.marketFor(world, product.id, now);
+    marketSnapshots.set(product.id, market.demand.nextDemandAt);
+    if (!GROUPED_DEMAND_PRODUCT_IDS.has(product.id) && now >= Number(market.demand.nextDemandAt)) {
+      dueProducts.push(product.id);
     }
+    market.demand.nextDemandAt = FAR_FUTURE;
   }
 
   let result;
@@ -431,20 +371,40 @@ function withLegacyDemandSuppressed(world, now, callback) {
       world.demandGroups[groupId].nextDemandAt = nextDemandAt;
     }
     for (const [productId, nextDemandAt] of marketSnapshots) {
-      const market = marketFor(world, productId);
-      if (market?.demand) market.demand.nextDemandAt = nextDemandAt;
+      balancedMarket.marketFor(world, productId, now).demand.nextDemandAt = nextDemandAt;
     }
   }
+
   for (const groupId of dueGroups) createGroupedDemand(world, groupId, now);
+  for (const productId of dueProducts) balancedMarket.createPopulationDemand(world, productId, now);
+  balancedMarket.refreshExternalLiquidity(world, now);
   return result;
 }
 
 export function createWorld(now = Date.now()) {
-  return normalizeDemandWorld(core.createWorld(now), now);
+  const world = core.createWorld(now);
+  balancedMarket.rebalanceNewWorld(world, now);
+  world.demandGroups = Object.fromEntries(DEMAND_GROUP_CATALOG.map((group) => [
+    group.id,
+    defaultDemandGroupState(group, now),
+  ]));
+  return normalizeDemandWorld(world, now);
 }
 
 export function migrateWorld(world, now = Date.now()) {
-  return normalizeDemandWorld(core.migrateWorld(world, now), now);
+  if (!world || typeof world !== 'object') return createWorld(now);
+  const existingMarketIds = new Set(Object.keys(world.markets || {}));
+  const legacy = {
+    price: Number.isFinite(Number(world.marketPrice)) ? Number(world.marketPrice) : undefined,
+    history: Array.isArray(world.marketPriceHistory) ? clone(world.marketPriceHistory) : undefined,
+    demand: world.demand && typeof world.demand === 'object' ? clone(world.demand) : undefined,
+    grainMarket: world.markets?.grain && typeof world.markets.grain === 'object'
+      ? clone(world.markets.grain)
+      : undefined,
+  };
+  const migrated = core.migrateWorld(world, now);
+  balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
+  return normalizeDemandWorld(migrated, now);
 }
 
 export function ensurePlayer(world, user, now = Date.now()) {

@@ -29,7 +29,7 @@ test('different products never match in the same order book', () => {
   buyer.credits = 1_000;
 
   assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'ore', side: 'sell', quantity: 5, price: 8,
+    productId: 'ore', side: 'sell', quantity: 5, price: 6,
   }, now + 1).ok, true);
   assert.equal(applyAction(world, alice, 'placeOrder', {
     productId: 'wheat', side: 'buy', quantity: 5, price: 9,
@@ -252,21 +252,63 @@ test('expanded industry catalog exposes complete production chains', () => {
   assert.equal(productIds.size, PRODUCT_CATALOG.length);
   assert.equal(facilityIds.size, FACILITY_TYPE_CATALOG.length);
 
+  const expectedPrices = {
+    wheat: 2,
+    rice: 2,
+    timber: 5,
+    ore: 6,
+    'crude-oil': 8,
+    flour: 13,
+    lumber: 15,
+    steel: 24,
+    plastic: 24,
+    food: 15,
+    furniture: 20,
+    machinery: 60,
+    electronics: 64,
+  };
+  assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
+
+  const expectedFacilityBalance = {
+    farm: [120_000, 6],
+    'logging-camp': [60_000, 9],
+    mine: [60_000, 11],
+    'oil-field': [60_000, 15],
+    mill: [40_000, 7],
+    sawmill: [40_000, 3],
+    steelworks: [40_000, 4],
+    refinery: [40_000, 6],
+    'food-factory': [50_000, 14],
+    'furniture-factory': [60_000, 4],
+    'machine-factory': [60_000, 6],
+    'electronics-factory': [60_000, 10],
+  };
+
+  for (const product of PRODUCT_CATALOG) {
+    assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
+  }
   for (const facility of FACILITY_TYPE_CATALOG) {
     assert.equal(productIds.has(facility.output.productId), true);
     if (facility.input) assert.equal(productIds.has(facility.input.productId), true);
     assert.ok(Array.isArray(facility.recipes) && facility.recipes.length >= 1);
     assert.ok(facility.recipes.some((recipe) => recipe.id === facility.defaultRecipeId));
+    assert.deepEqual([facility.cycleMs, facility.operatingCost], expectedFacilityBalance[facility.id]);
+    assert.equal(Number.isInteger(facility.cycleMs / 1_000), true, `${facility.id} 周期秒数必须为整数`);
+    assert.equal(Number.isInteger(facility.operatingCost), true, `${facility.id} 周期成本必须为整数`);
     for (const recipe of facility.recipes) {
       assert.equal(productIds.has(recipe.output.productId), true);
       if (recipe.input) assert.equal(productIds.has(recipe.input.productId), true);
+      assert.equal(recipe.cycleMs, facility.cycleMs);
+      assert.equal(recipe.operatingCost, facility.operatingCost);
+      assert.equal(Number.isInteger(recipe.output.quantity), true);
+      if (recipe.input) assert.equal(Number.isInteger(recipe.input.quantity), true);
     }
   }
   const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
   assert.deepEqual(farm.recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice']);
   for (const recipe of farm.recipes) {
-    assert.equal(recipe.cycleMs, 45_000);
-    assert.equal(recipe.operatingCost, 2);
+    assert.equal(recipe.cycleMs, 120_000);
+    assert.equal(recipe.operatingCost, 6);
     assert.equal(recipe.output.quantity, 4);
   }
 
@@ -382,7 +424,7 @@ test('commodity system liquidity follows the current order book instead of last 
   assert.deepEqual(quote([makeOrder('bid-8', 'buy', 8)]), {
     buy: 8, sell: 9, lastPrice: 100,
   });
-  assert.deepEqual(quote([]), { buy: 5, sell: 7, lastPrice: 100 });
+  assert.deepEqual(quote([]), { buy: 1, sell: 3, lastPrice: 100 });
   assert.deepEqual(quote([
     makeOrder('cancelled-bid', 'buy', 99, 'cancelled'),
     makeOrder('ask-12', 'sell', 12),
