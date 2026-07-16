@@ -3,7 +3,7 @@ import type { PricePoint } from '../types';
 export const MARKET_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const MARKET_BUCKET_MS = 6 * 60 * 1000;
 export const MARKET_BUCKET_COUNT = MARKET_WINDOW_MS / MARKET_BUCKET_MS;
-export const MARKET_AXIS_SEGMENTS = 24;
+export const MARKET_AXIS_SEGMENTS = 12;
 
 export interface MarketHistoryBucket {
   startAt: number;
