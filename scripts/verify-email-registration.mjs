@@ -120,6 +120,9 @@ for (const text of [
   '`/economy-api/registration/email-code`',
   '`/economy-api/registration/complete`',
   '`RESEND_API_KEY` 与 `EMAIL_FROM`',
+  '`/etc/riversoft-email.env`',
+  '`/etc/riversoft-economy-api.env`',
+  '共享文件先加载，Economy 专用文件后加载',
   '邮件密钥只保存在服务器',
   '邮箱验证码服务未配置，请联系管理员',
   '`deploy/economy-email`',
@@ -134,7 +137,10 @@ for (const text of [
 
 for (const text of [
   'ECONOMY_REGISTRATION_SECRET_FILE',
-  'EnvironmentFile=-',
+  'SHARED_EMAIL_ENVIRONMENT_FILE = Path("/etc/riversoft-email.env")',
+  'ENVIRONMENT_FILE = Path("/etc/riversoft-economy-api.env")',
+  'EnvironmentFile=-{SHARED_EMAIL_ENVIRONMENT_FILE}',
+  'EnvironmentFile=-{ENVIRONMENT_FILE}',
   'registration-secret',
 ]) requireText('scripts/install-economy-api.py', text);
 for (const text of [
@@ -142,11 +148,9 @@ for (const text of [
   'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE',
 ]) requireText('.github/workflows/deploy.yml', text);
 for (const text of [
-  'Validate server Resend configuration',
-  "exec sudo -n python3 -",
-  "environment_file = Path('/etc/riversoft-economy-api.env')",
+  'Validate running Resend configuration',
+  "['systemctl', 'show', service_name, '--property=MainPID', '--value']",
   "for required in ('RESEND_API_KEY', 'EMAIL_FROM')",
-  "subprocess.run(['systemctl', 'restart', service_name], check=True)",
   "Path(f'/proc/{pid}/environ')",
   'ECONOMY_EMAIL_CONFIGURATION_LOADED',
   "'context': 'deploy/economy-email'",
@@ -155,9 +159,9 @@ for (const text of [
   'secrets.RESEND_API_KEY',
   'secrets.EMAIL_FROM',
   'RESEND_FROM_EMAIL',
-  'run_privileged test',
-  'run_privileged grep',
-  'sudo -n true',
+  'sudo -n',
+  "Path('/etc/riversoft-economy-api.env')",
+  "systemctl', 'restart'",
 ]) forbidText('.github/workflows/configure-registration-email.yml', text);
 
 for (const text of [
@@ -169,4 +173,4 @@ if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：首次建档定义、主页账号信任、验证码安全、服务器 Resend 配置、EMAIL_FROM、白名单验证、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：首次建档定义、主页账号信任、验证码安全、共享服务器 Resend 配置、EMAIL_FROM、运行进程验证、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
