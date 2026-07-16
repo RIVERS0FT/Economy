@@ -22,8 +22,39 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Verify architecture
-        run: npm run verify:architecture
+      - name: Verify document authority
+        run: node scripts/verify-document-authority.mjs
+
+      - name: Verify state delivery
+        run: node scripts/verify-state-delivery-capacity.mjs
+
+      - name: Verify authentication cache
+        run: node scripts/verify-authentication-cache.mjs
+
+      - name: Verify email registration
+        run: node scripts/verify-email-registration.mjs
+
+      - name: Verify page content
+        run: node scripts/verify-page-content.mjs
+
+      - name: Verify remaining architecture
+        run: >-
+          node --experimental-strip-types scripts/verify-display-format.mjs &&
+          node scripts/verify-ui-architecture-runner.mjs &&
+          node scripts/verify-currency-svg.mjs &&
+          node scripts/verify-mobile-touch-feedback.mjs &&
+          node scripts/verify-virtual-list-scroll-chaining.mjs &&
+          node scripts/verify-overview-content.mjs &&
+          node scripts/verify-industry-catalog.mjs &&
+          node scripts/verify-unified-factory-recipes-grid.mjs &&
+          node scripts/verify-staple-crops-demand.mjs &&
+          node scripts/verify-market-assets.mjs &&
+          node --experimental-strip-types scripts/verify-market-chart.mjs &&
+          node scripts/verify-liquid-glass-chrome.mjs &&
+          node scripts/verify-warehouse-expansion.mjs &&
+          node scripts/verify-facility-groups.mjs &&
+          node scripts/verify-collectibles-auctions.mjs &&
+          node scripts/verify-gift-code-batches.mjs
 
       - name: Test Nginx configuration
         run: npm run test:nginx-config
