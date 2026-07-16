@@ -24,7 +24,7 @@ export function CurrencyAmount({
 }
 
 export function CurrencyText({ children }: { children: string }) {
-  const segments = children.split('¤');
+  const segments = children.split('\u00a4');
   if (segments.length === 1) return <>{children}</>;
 
   return (
