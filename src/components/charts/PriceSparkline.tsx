@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { buildMarketAxisTicks } from '../../utils/marketHistory';
 
@@ -39,16 +40,55 @@ function formatAxisValue(value: number) {
   }).format(value);
 }
 
+function useChartFooterAxisFontSize(viewBoxWidth: number, viewBoxHeight: number) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [axisFontSize, setAxisFontSize] = useState(18);
+
+  useLayoutEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return undefined;
+
+    const footer = svg.closest('.market-chart-card')?.querySelector<HTMLElement>('.chart-footer');
+    const updateFontSize = () => {
+      const bounds = svg.getBoundingClientRect();
+      const scale = Math.min(bounds.width / viewBoxWidth, bounds.height / viewBoxHeight);
+      const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const footerFontSize = footer
+        ? Number.parseFloat(getComputedStyle(footer).fontSize)
+        : rootFontSize * 0.68;
+      if (!(scale > 0) || !Number.isFinite(footerFontSize)) return;
+      const nextFontSize = footerFontSize / scale;
+      setAxisFontSize((current) => (Math.abs(current - nextFontSize) < 0.1 ? current : nextFontSize));
+    };
+
+    updateFontSize();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateFontSize);
+    observer?.observe(svg);
+    if (footer) observer?.observe(footer);
+    window.addEventListener('resize', updateFontSize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', updateFontSize);
+    };
+  }, [viewBoxHeight, viewBoxWidth]);
+
+  return { svgRef, axisFontSize };
+}
+
 function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
   const width = 960;
-  const height = 410;
-  const left = 68;
-  const right = 18;
-  const top = 18;
-  const priceBottom = 214;
-  const volumeTop = 258;
-  const volumeBottom = 344;
-  const xLabelY = 366;
+  const height = 520;
+  const { svgRef, axisFontSize } = useChartFooterAxisFontSize(width, height);
+  const left = Math.max(82, axisFontSize * 3.5);
+  const right = 24;
+  const top = 22;
+  const priceBottom = 230;
+  const volumeTop = 276;
+  const volumeBottom = 372;
+  const xLabelY = 395;
+  const xAxisTitleY = 512;
+  const axisTitleX = Math.max(14, axisFontSize * 0.6);
+  const tickBaselineOffset = axisFontSize * 0.32;
   const plotWidth = width - left - right;
   const safeBuckets = buckets.length > 0 ? buckets : [{ startAt: Date.now(), price: 1, volume: 0 }];
   const rawMinPrice = Math.min(...safeBuckets.map((bucket) => bucket.price));
@@ -74,6 +114,7 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
 
   return (
     <svg
+      ref={svgRef}
       className="price-chart"
       viewBox={`0 0 ${width} ${height}`}
       role="img"
@@ -98,7 +139,7 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
               x={x}
               y={xLabelY}
               fill="var(--color-text-muted)"
-              fontSize="8"
+              fontSize={axisFontSize}
               textAnchor="end"
               transform={`rotate(-45 ${x} ${xLabelY})`}
             >
@@ -113,7 +154,7 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
         return (
           <g key={`price-${index}`}>
             <line x1={left} x2={width - right} y1={y} y2={y} className="chart-gridline" />
-            <text x={left - 8} y={y + 3} fill="var(--color-text-muted)" fontSize="10" textAnchor="end">
+            <text x={left - 8} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
               {formatAxisValue(tick)}
             </text>
           </g>
@@ -125,7 +166,7 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
         return (
           <g key={`volume-${index}`}>
             <line x1={left} x2={width - right} y1={y} y2={y} className="chart-gridline" />
-            <text x={left - 8} y={y + 3} fill="var(--color-text-muted)" fontSize="10" textAnchor="end">
+            <text x={left - 8} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
               {formatAxisValue(tick)}
             </text>
           </g>
@@ -158,14 +199,14 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
       <line x1={left} x2={left} y1={top} y2={priceBottom} stroke="var(--color-text-muted)" strokeWidth="1" />
       <line x1={left} x2={left} y1={volumeTop} y2={volumeBottom} stroke="var(--color-text-muted)" strokeWidth="1" />
       <line x1={left} x2={width - right} y1={volumeBottom} y2={volumeBottom} stroke="var(--color-text-muted)" strokeWidth="1" />
-      <text x="15" y={(top + priceBottom) / 2} fill="var(--color-text-muted)" fontSize="11" textAnchor="middle" transform={`rotate(-90 15 ${(top + priceBottom) / 2})`}>
+      <text x={axisTitleX} y={(top + priceBottom) / 2} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle" transform={`rotate(-90 ${axisTitleX} ${(top + priceBottom) / 2})`}>
         价格
       </text>
-      <text x="15" y={(volumeTop + volumeBottom) / 2} fill="var(--color-text-muted)" fontSize="11" textAnchor="middle" transform={`rotate(-90 15 ${(volumeTop + volumeBottom) / 2})`}>
+      <text x={axisTitleX} y={(volumeTop + volumeBottom) / 2} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle" transform={`rotate(-90 ${axisTitleX} ${(volumeTop + volumeBottom) / 2})`}>
         成交量
       </text>
-      <text x={(left + width - right) / 2} y="404" fill="var(--color-text-muted)" fontSize="11" textAnchor="middle">
-        时间（系统时区）
+      <text x={(left + width - right) / 2} y={xAxisTitleY} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle">
+        时间
       </text>
     </svg>
   );
