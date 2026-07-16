@@ -36,6 +36,10 @@ export function formatCompactNumber(value: number) {
   return formatNumber(value);
 }
 
+export function formatRank(value: number | null | undefined) {
+  return Number.isInteger(value) && Number(value) > 0 ? `#${value}` : '#--';
+}
+
 export function formatTime(value: number) {
   return new Intl.DateTimeFormat('zh-CN', {
     month: '2-digit',
@@ -56,8 +60,18 @@ export function formatDate(value: number) {
 
 export function formatDuration(ms: number) {
   if (ms <= 0) return '已完成';
-  const total = Math.ceil(ms / 1000);
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return minutes > 0 ? `${minutes}分${seconds.toString().padStart(2, '0')}秒` : `${seconds}秒`;
+  const totalSeconds = Math.ceil(ms / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    if (minutes > 0) return `${hours}h ${minutes}m`;
+    if (seconds > 0) return `${hours}h ${seconds.toString().padStart(2, '0')}s`;
+    return `${hours}h`;
+  }
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes}m ${seconds.toString().padStart(2, '0')}s` : `${minutes}m`;
+  }
+  return `${seconds}s`;
 }
