@@ -17,7 +17,7 @@ import { VirtualList } from '../components/ui/VirtualList';
 import { economyConstants } from '../config/economy';
 import type { AssetOrder } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
-import { buildMarketHistoryBuckets } from '../utils/marketHistory';
+import { buildMarketHistoryBuckets, summarizeMarketFlow } from '../utils/marketHistory';
 
 function orderTone(status: AssetOrder['status']): StatusTone {
   if (status === 'filled') return 'success';
@@ -29,6 +29,7 @@ function orderTone(status: AssetOrder['status']): StatusTone {
 export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
+    now,
     localTrades,
     marketAssetKind,
     marketAssetId,
@@ -84,7 +85,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     ?? selectedProduct?.basePrice
     ?? selectedFacility?.systemValue
     ?? 1;
-  const marketBuckets = buildMarketHistoryBuckets(marketHistory, marketFallbackPrice);
+  const marketBuckets = buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now);
+  const marketFlow = summarizeMarketFlow(marketBuckets);
   const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
   const maxBuyQuantity = orderPrice > 0
     ? marketAssetKind === 'commodity'
@@ -255,9 +257,14 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             title={selectedAssetTitle(`${assetName}近 24h 成交趋势`)}
             action={<StatusTag tone={marketTrend >= 0 ? 'success' : 'danger'}><CurrencyAmount sign={marketTrend >= 0 ? '+' : undefined}>{formatCurrency(marketTrend)}</CurrencyAmount></StatusTag>}
           />
-          <PriceSparkline buckets={marketBuckets} />
+          <PriceSparkline buckets={marketBuckets} variant="full" />
           <div className="chart-footer">
             <span>24h · 6m × 240（{formatNumber(marketHistory.length)} 笔）</span>
+            <span>{marketFlow.netVolume > 0
+              ? `净主动买入 ${formatNumber(marketFlow.netVolume)}`
+              : marketFlow.netVolume < 0
+                ? `净主动卖出 ${formatNumber(Math.abs(marketFlow.netVolume))}`
+                : '主动买卖均衡／方向未知'}</span>
             <span>我的当前订单 {formatNumber(ownSelectedOrders.length)} 笔</span>
             <span>估值买价 <CurrencyAmount>{game.valuationPrices[`${marketAssetKind}:${assetId}`] ? formatCurrency(game.valuationPrices[`${marketAssetKind}:${assetId}`]) : '--'}</CurrencyAmount></span>
           </div>

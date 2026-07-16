@@ -249,6 +249,7 @@ export interface PricePoint {
   price: number;
   quantity: number;
   createdAt: number;
+  takerSide?: OrderSide;
 }
 
 export interface ProductMarketState {
