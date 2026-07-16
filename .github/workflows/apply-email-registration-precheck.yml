@@ -26,8 +26,8 @@ jobs:
           path = Path('.github/apply-email-registration-precheck.mjs')
           source = path.read_text()
           source = source.replace(
-              '`http://127.0.0.1:${server.address().port}`',
-              '`http://127.0.0.1:\\${server.address().port}`',
+              "  process.env.ACCOUNT_SERVICE_URL = `http://127.0.0.1:${server.address().port}`;",
+              "  process.env.ACCOUNT_SERVICE_URL = 'http://127.0.0.1:' + server.address().port;",
           )
           path.write_text(source)
           PY
