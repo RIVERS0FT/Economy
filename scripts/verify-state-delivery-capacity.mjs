@@ -53,10 +53,12 @@ requireText('server/src/storage.js', [
   'unchanged: true',
 ]);
 
-requireText('server/src/index.js', [
+requireText('server/src/app.js', [
   "url.searchParams.get('revision')",
   'store.getStateSnapshot(user, knownRevision)',
 ]);
+
+requireText('server/src/index.js', ["import './app.js'"]);
 
 requireText('src/api/game.ts', [
   'GameStatePollResponse',
