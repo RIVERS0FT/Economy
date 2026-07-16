@@ -157,6 +157,7 @@ for (const text of [
   'RESEND_FROM_EMAIL',
   'run_privileged test',
   'run_privileged grep',
+  'sudo -n true',
 ]) forbidText('.github/workflows/configure-registration-email.yml', text);
 
 for (const text of [
