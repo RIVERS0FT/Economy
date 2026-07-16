@@ -18,6 +18,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Escape patch template literals
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/apply-unify-market-flow-chart.mjs')
+          source = path.read_text()
+          source = source.replace('${marketAssetKind}', '\\${marketAssetKind}')
+          source = source.replace('${assetId}', '\\${assetId}')
+          path.write_text(source)
+          PY
       - name: Apply market flow chart changes
         id: apply
         continue-on-error: true
