@@ -19,7 +19,21 @@ jobs:
         with:
           node-version: 22
       - name: Apply market flow chart changes
-        run: node .github/apply-unify-market-flow-chart.mjs
+        id: apply
+        continue-on-error: true
+        run: node .github/apply-unify-market-flow-chart.mjs > .github/market-flow/apply-error.txt 2>&1
+      - name: Commit patch diagnostics
+        if: steps.apply.outcome == 'failure'
+        run: |
+          cat .github/market-flow/apply-error.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/market-flow/apply-error.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "Capture market flow patch failure"
+            git push origin HEAD:agent/unify-market-flow-chart
+          fi
+          exit 1
       - name: Install dependencies
         run: npm install
       - name: Run complete build
