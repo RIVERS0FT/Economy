@@ -1,0 +1,59 @@
+.auth-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.auth-mode-switch button {
+  min-height: 40px;
+  border: 0;
+  border-radius: calc(var(--radius-control) - 4px);
+  color: var(--color-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.auth-mode-switch button[aria-selected="true"] {
+  color: var(--color-text-primary);
+  background: rgba(123, 228, 158, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(123, 228, 158, 0.28);
+}
+
+.email-code-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+}
+
+.email-code-field .ui-button {
+  min-width: 8rem;
+  margin: 0;
+}
+
+.form-notice {
+  margin: 0;
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.invite-card input[readonly] {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 420px) {
+  .email-code-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .email-code-field .ui-button {
+    width: 100%;
+  }
+}
