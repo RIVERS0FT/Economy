@@ -1,10 +1,15 @@
 import type { AuthUser } from '../types';
 
 const API_BASE = '/economy-api';
-const HOMEPAGE_ACCOUNT_API_BASE = 'https://riversoft.top/api';
 
 interface AuthResponse {
   user: AuthUser;
+}
+
+interface EmailCodeResponse {
+  message: string;
+  expiresAt: number;
+  resendAfterSeconds: number;
 }
 
 class ApiRequestError extends Error {
@@ -15,6 +20,12 @@ class ApiRequestError extends Error {
     this.name = 'ApiRequestError';
     this.status = status;
   }
+}
+
+function createIdempotencyKey(prefix: string) {
+  const token = globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}:${token}`;
 }
 
 async function request<T>(base: string, path: string, init?: RequestInit): Promise<T> {
@@ -52,7 +63,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   return ((await response.json()) as AuthResponse).user;
 }
 
-async function loginExisting(email: string, password: string): Promise<AuthUser> {
+export async function login(email: string, password: string): Promise<AuthUser> {
   const payload = await requestGameApi<AuthResponse>('/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
@@ -60,32 +71,21 @@ async function loginExisting(email: string, password: string): Promise<AuthUser>
   return payload.user;
 }
 
-async function registerAtHomepage(email: string, password: string): Promise<void> {
-  await request<AuthResponse>(HOMEPAGE_ACCOUNT_API_BASE, '/register', {
+export async function sendRegistrationEmailCode(email: string): Promise<EmailCodeResponse> {
+  return requestGameApi<EmailCodeResponse>('/registration/email-code', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    headers: { 'Idempotency-Key': createIdempotencyKey('registration-email') },
+    body: JSON.stringify({ email }),
   });
 }
 
-export async function login(email: string, password: string): Promise<AuthUser> {
-  try {
-    return await loginExisting(email, password);
-  } catch (loginError) {
-    if (!(loginError instanceof ApiRequestError) || loginError.status !== 401) {
-      throw loginError;
-    }
-
-    try {
-      await registerAtHomepage(email, password);
-    } catch (registerError) {
-      if (registerError instanceof ApiRequestError && registerError.status === 409) {
-        throw loginError;
-      }
-      throw registerError;
-    }
-
-    return loginExisting(email, password);
-  }
+export async function completeRegistration(email: string, password: string, code: string): Promise<AuthUser> {
+  const payload = await requestGameApi<AuthResponse>('/registration/complete', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': createIdempotencyKey('registration-complete') },
+    body: JSON.stringify({ email, password, code }),
+  });
+  return payload.user;
 }
 
 export async function logout(): Promise<void> {
