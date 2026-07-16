@@ -132,7 +132,7 @@ test('used code cannot be reused but the same completion request is idempotent',
   } finally { context.store.close(); }
 });
 
-test('logged-in homepage accounts may auto-create a player while multi-account checks remain enforced', () => {
+test('trusted homepage accounts may share a network while direct Economy registration still enforces the IP limit', () => {
   const context = setup();
   try {
     const first = context.registrationStore.ensureLoggedInPlayer({
@@ -142,8 +142,20 @@ test('logged-in homepage accounts may auto-create a player while multi-account c
     assert.equal(context.registrationStore.ensureLoggedInPlayer({
       user: { id: 1, email: 'one@example.com' }, ipFingerprint: 'shared-ip', now: 101,
     }).playerCreated, false);
-    assert.throws(() => context.registrationStore.ensureLoggedInPlayer({
+
+    const second = context.registrationStore.ensureLoggedInPlayer({
       user: { id: 2, email: 'two@example.com' }, ipFingerprint: 'shared-ip', now: 102,
-    }), /已经注册其他/);
+    });
+    assert.equal(second.playerCreated, true);
+    assert.equal(context.registrationStore.getRegistration(2).source, 'homepage_session');
+
+    assert.throws(() => context.store.transaction(() => (
+      context.registrationStore.ensurePlayerRegistrationInTransaction({
+        user: { id: 3, email: 'three@example.com' },
+        ipFingerprint: 'shared-ip',
+        source: 'email_verification',
+        now: 103,
+      })
+    )), /已经注册其他/);
   } finally { context.store.close(); }
 });
