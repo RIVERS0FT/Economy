@@ -14,7 +14,7 @@ function configurationError() {
 
 export function getRegistrationEmailConfiguration() {
   const apiKeyConfigured = Boolean(String(process.env.RESEND_API_KEY || '').trim());
-  const fromConfigured = Boolean(String(process.env.RESEND_FROM_EMAIL || '').trim());
+  const fromConfigured = Boolean(String(process.env.EMAIL_FROM || '').trim());
   return {
     configured: apiKeyConfigured && fromConfigured,
     apiKeyConfigured,
@@ -24,7 +24,7 @@ export function getRegistrationEmailConfiguration() {
 
 export async function sendRegistrationEmail({ to, code, idempotencyKey, expiresInMinutes }) {
   const apiKey = String(process.env.RESEND_API_KEY || '').trim();
-  const from = String(process.env.RESEND_FROM_EMAIL || '').trim();
+  const from = String(process.env.EMAIL_FROM || '').trim();
   if (!apiKey || !from) throw configurationError();
 
   const controller = new AbortController();

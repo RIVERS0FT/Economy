@@ -8,6 +8,7 @@ import {
 function withEmailEnvironment(values, callback) {
   const previous = {
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
     RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
   };
   for (const [name, value] of Object.entries(values)) {
@@ -24,8 +25,12 @@ function withEmailEnvironment(values, callback) {
     });
 }
 
-test('reports whether both Resend settings are configured', async () => {
-  await withEmailEnvironment({ RESEND_API_KEY: 're_test', RESEND_FROM_EMAIL: undefined }, () => {
+test('reports whether RESEND_API_KEY and EMAIL_FROM are configured', async () => {
+  await withEmailEnvironment({
+    RESEND_API_KEY: 're_test',
+    EMAIL_FROM: undefined,
+    RESEND_FROM_EMAIL: 'legacy@example.com',
+  }, () => {
     assert.deepEqual(getRegistrationEmailConfiguration(), {
       configured: false,
       apiKeyConfigured: true,
@@ -35,7 +40,8 @@ test('reports whether both Resend settings are configured', async () => {
 
   await withEmailEnvironment({
     RESEND_API_KEY: 're_test',
-    RESEND_FROM_EMAIL: 'RIVERSOFT <noreply@example.com>',
+    EMAIL_FROM: 'RIVERSOFT <noreply@example.com>',
+    RESEND_FROM_EMAIL: undefined,
   }, () => {
     assert.deepEqual(getRegistrationEmailConfiguration(), {
       configured: true,
@@ -46,7 +52,11 @@ test('reports whether both Resend settings are configured', async () => {
 });
 
 test('returns a safe explicit error when email delivery is not configured', async () => {
-  await withEmailEnvironment({ RESEND_API_KEY: undefined, RESEND_FROM_EMAIL: undefined }, async () => {
+  await withEmailEnvironment({
+    RESEND_API_KEY: undefined,
+    EMAIL_FROM: undefined,
+    RESEND_FROM_EMAIL: undefined,
+  }, async () => {
     await assert.rejects(
       () => sendRegistrationEmail({
         to: 'player@example.com',
