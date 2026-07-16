@@ -1,0 +1,49 @@
+name: Apply unified market flow chart
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: ${{ github.head_ref == 'agent/unify-market-flow-chart' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/unify-market-flow-chart
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply market flow chart changes
+        run: node .github/apply-unify-market-flow-chart.mjs
+      - name: Install dependencies
+        run: npm install
+      - name: Run complete build
+        run: npm run build
+      - name: Commit verified changes
+        run: |
+          if git diff --quiet; then
+            echo "No patch changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/types.ts \
+            server/src/balanced-market.js \
+            server/src/facility-groups.js \
+            src/utils/marketHistory.ts \
+            src/components/charts/PriceSparkline.tsx \
+            src/pages/OverviewPage.tsx \
+            src/pages/MarketPage.tsx \
+            src/styles/overview.css \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            scripts/verify-market-chart.mjs \
+            scripts/verify-overview-content.mjs
+          git commit -m "Unify overview and market flow charts [chart-applied]"
+          git push origin HEAD:agent/unify-market-flow-chart
