@@ -15,7 +15,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import { economyConstants } from '../config/economy';
-import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
+import { formatCurrency, formatDuration, formatNumber, formatRank, formatTime } from '../utils/formatters';
 
 function greetingForHour(hour: number) {
   if (hour < 5) return '凌晨好';
@@ -48,6 +48,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
   const pendingJoin = game.facilityGroups.reduce((sum, group) => sum + group.pendingJoinCount, 0);
   const greeting = greetingForHour(new Date(now).getHours());
   const ownOpenOrders = [...derived.ownOpenOrders].sort((left, right) => right.createdAt - left.createdAt);
+  const currentRank = derived.currentRank?.rank;
 
   const overviewMarket = useMemo(() => {
     const product = game.products.find((item) => item.id === overviewProductId) ?? game.products[0];
@@ -89,7 +90,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
       <div className="home-grid">
         <Panel className="widget work-widget">
           <WidgetHeading title="基础工作" action={<StatusTag tone="success">兜底收入</StatusTag>} />
-          <p>每次有效工作获得 ¤1，工作冷却固定为 10 秒。</p>
+          <p>每次有效工作获得 ¤1，工作冷却固定为 10s。</p>
           <Button block className="work-compact-button" disabled={isWorking || workRemaining > 0} onClick={() => void showResult(work())}>
             <strong>{isWorking ? '处理中…' : workRemaining > 0 ? formatDuration(workRemaining) : '开始工作'}</strong>
             <span>{isWorking ? '正在提交工作结果' : workRemaining > 0 ? '等待冷却结束' : '获得 ¤ 1'}</span>
@@ -149,7 +150,14 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
           </Panel>
 
           <Panel className="widget wealth-summary overview-summary-card">
-            <WidgetHeading title="财富构成" action={<StatusTag tone="warning">第 {derived.currentRank?.rank ?? '--'} 名</StatusTag>} />
+            <WidgetHeading
+              title="财富构成"
+              action={(
+                <StatusTag tone="warning">
+                  <span aria-label={currentRank ? `排名第 ${currentRank} 名` : '暂无排名'}>{formatRank(currentRank)}</span>
+                </StatusTag>
+              )}
+            />
             <MetricCard tone="success" className="wealth-total" label="当前总资产" value={`¤ ${formatCurrency(derived.totalAssets)}`} />
             <DataList className="compact">
               <DataRow label="现金资产" value={`¤ ${formatCurrency(derived.cashValue)}`} />

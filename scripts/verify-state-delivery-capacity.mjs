@@ -92,11 +92,16 @@ if (!canAcceptRevision(null, 1)
 
 requireText('src/pages/SettingsPage.tsx', [
   '状态刷新频率',
+  '<option value="3">每 3s</option>',
+  '<option value="5">每 5s</option>',
+  '<option value="10">每 10s</option>',
+]);
+forbidText('src/pages/SettingsPage.tsx', [
+  '<option value="1">每 1s</option>',
   '<option value="3">每 3 秒</option>',
   '<option value="5">每 5 秒</option>',
   '<option value="10">每 10 秒</option>',
 ]);
-forbidText('src/pages/SettingsPage.tsx', ['<option value="1">每 1 秒</option>']);
 
 for (const path of [
   'deploy/nginx/game.riversoft.top.economy-location.conf',

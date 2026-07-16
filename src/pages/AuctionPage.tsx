@@ -3,7 +3,7 @@ import { gameActions } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { getCollectibleState, type CollectibleAuction } from '../collectibles/types';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
-import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
+import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 
 const statusNames = {
   open: '进行中',
@@ -14,11 +14,7 @@ const statusNames = {
 
 function remainingText(endsAt: number, now: number) {
   const remaining = Math.max(0, endsAt - now);
-  if (remaining === 0) return '等待服务器结算';
-  const hours = Math.floor(remaining / 3_600_000);
-  const minutes = Math.floor((remaining % 3_600_000) / 60_000);
-  if (hours > 0) return `${formatNumber(hours)} 小时 ${formatNumber(minutes)} 分`;
-  return `${Math.max(1, minutes)} 分钟`;
+  return remaining === 0 ? '等待服务器结算' : formatDuration(remaining);
 }
 
 function auctionTone(status: CollectibleAuction['status']) {
@@ -63,7 +59,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
       actions={<StatusTag tone="warning">进行中 {formatNumber(openAuctions.length)} 场</StatusTag>}
     >
       <Panel className="collectible-auction-create">
-        <WidgetHeading title="发起藏品拍卖" action={<StatusTag>最长 168 小时</StatusTag>} />
+        <WidgetHeading title="发起藏品拍卖" action={<StatusTag>最长 168h</StatusTag>} />
         {available.length === 0 ? (
           <EmptyState>当前没有可发起拍卖的藏品；拍卖中的藏品不能重复发布。</EmptyState>
         ) : (
@@ -79,7 +75,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
               <input type="number" min="1" max="1000000000" value={startingBid} onChange={(event) => setStartingBid(Number(event.target.value))} />
             </label>
             <label>
-              时长（小时）
+              时长（h）
               <input type="number" min="1" max="168" value={durationHours} onChange={(event) => setDurationHours(Number(event.target.value))} />
             </label>
             <Button disabled={submitting || !selectedId} onClick={() => void run(() => gameActions.createCollectibleAuction(selectedId, startingBid, durationHours))}>发布拍卖</Button>
