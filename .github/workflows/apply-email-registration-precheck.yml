@@ -20,6 +20,18 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Correct generated test template
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/apply-email-registration-precheck.mjs')
+          source = path.read_text()
+          source = source.replace(
+              '`http://127.0.0.1:${server.address().port}`',
+              '`http://127.0.0.1:\\${server.address().port}`',
+          )
+          path.write_text(source)
+          PY
       - run: node .github/apply-email-registration-precheck.mjs
       - run: npm ci
       - run: npm run build
