@@ -75,7 +75,7 @@ export class EconomyRegistrationStore {
     this.selectRecentVerification = this.database.prepare(`
       SELECT * FROM economy_email_verifications
       WHERE (email = ? OR ip_fingerprint = ?)
-        AND status IN ('pending', 'sent')
+        AND status IN ('pending', 'sent', 'failed')
         AND created_at > ?
       ORDER BY created_at DESC LIMIT 1
     `);
@@ -115,6 +115,9 @@ export class EconomyRegistrationStore {
       if (existing) {
         if (existing.email !== normalizedEmail || existing.ip_fingerprint !== ipFingerprint) {
           throw httpError('幂等键已被其他验证码请求使用', 409);
+        }
+        if (['used', 'invalid', 'expired'].includes(existing.status)) {
+          throw httpError('该验证码请求已经结束，请重新发送', 409);
         }
         return {
           ...existing,
@@ -249,6 +252,8 @@ export class EconomyRegistrationStore {
   }
 
   ensureLoggedInPlayer({ user, ipFingerprint, now = Date.now() }) {
+    const existing = this.selectRegistrationByUser.get(Number(user.id));
+    if (existing) return { playerCreated: false, repeated: true };
     return this.store.transaction(() => this.ensurePlayerRegistrationInTransaction({
       user,
       ipFingerprint,
