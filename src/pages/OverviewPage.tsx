@@ -3,6 +3,7 @@ import { orderAssetId, orderKind, orderStatusNames, type LoadedGameViewModel } f
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
+import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   Button,
   DataList,
@@ -90,10 +91,10 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
       <div className="home-grid">
         <Panel className="widget work-widget">
           <WidgetHeading title="基础工作" action={<StatusTag tone="success">兜底收入</StatusTag>} />
-          <p>每次有效工作获得 ¤1，工作冷却固定为 10s。</p>
+          <p>每次有效工作获得 <CurrencyAmount>{formatCurrency(1)}</CurrencyAmount>，工作冷却固定为 10s。</p>
           <Button block className="work-compact-button" disabled={isWorking || workRemaining > 0} onClick={() => void showResult(work())}>
             <strong>{isWorking ? '处理中…' : workRemaining > 0 ? formatDuration(workRemaining) : '开始工作'}</strong>
-            <span>{isWorking ? '正在提交工作结果' : workRemaining > 0 ? '等待冷却结束' : '获得 ¤ 1'}</span>
+            <span>{isWorking ? '正在提交工作结果' : workRemaining > 0 ? '等待冷却结束' : <>获得 <CurrencyAmount>{formatCurrency(1)}</CurrencyAmount></>}</span>
           </Button>
         </Panel>
 
@@ -121,9 +122,9 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
           {overviewMarket ? (
             <>
               <div className="market-quote-grid">
-                <MetricCard label="最近成交" value={`¤ ${formatCurrency(overviewMarket.lastPrice)}`} />
-                <MetricCard tone="success" label="最高买价" value={overviewMarket.bestBid ? `¤ ${formatCurrency(overviewMarket.bestBid)}` : '¤ --'} />
-                <MetricCard tone="danger" label="最低卖价" value={overviewMarket.bestAsk ? `¤ ${formatCurrency(overviewMarket.bestAsk)}` : '¤ --'} />
+                <MetricCard label="最近成交" value={<CurrencyAmount>{formatCurrency(overviewMarket.lastPrice)}</CurrencyAmount>} />
+                <MetricCard tone="success" label="最高买价" value={<CurrencyAmount>{overviewMarket.bestBid ? formatCurrency(overviewMarket.bestBid) : '--'}</CurrencyAmount>} />
+                <MetricCard tone="danger" label="最低卖价" value={<CurrencyAmount>{overviewMarket.bestAsk ? formatCurrency(overviewMarket.bestAsk) : '--'}</CurrencyAmount>} />
                 <MetricCard label="持仓" value={formatNumber(overviewMarket.inventory.available)} detail={`冻结 ${formatNumber(overviewMarket.inventory.frozen)}`} />
               </div>
               <PriceSparkline values={overviewMarket.history.slice(-24)} />
@@ -158,11 +159,11 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
                 </StatusTag>
               )}
             />
-            <MetricCard tone="success" className="wealth-total" label="当前总资产" value={`¤ ${formatCurrency(derived.totalAssets)}`} />
+            <MetricCard tone="success" className="wealth-total" label="当前总资产" value={<CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>} />
             <DataList className="compact">
-              <DataRow label="现金资产" value={`¤ ${formatCurrency(derived.cashValue)}`} />
-              <DataRow label="商品估值" value={`¤ ${formatCurrency(derived.commodityValue)}`} />
-              <DataRow label="工厂估值" value={`¤ ${formatCurrency(derived.facilityValue)}`} />
+              <DataRow label="现金资产" value={<CurrencyAmount>{formatCurrency(derived.cashValue)}</CurrencyAmount>} />
+              <DataRow label="商品估值" value={<CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount>} />
+              <DataRow label="工厂估值" value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>} />
             </DataList>
           </Panel>
 
@@ -190,7 +191,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
                     </div>
                     <div className="overview-open-order-values">
                       <StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag>
-                      <strong>¤ {formatCurrency(order.price)}</strong>
+                      <strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong>
                       <small>{formatNumber(order.remaining)}/{formatNumber(order.quantity)} · {orderStatusNames[order.status]}</small>
                     </div>
                   </div>
