@@ -1,0 +1,180 @@
+name: Configure Economy Registration Email
+
+on:
+  workflow_run:
+    workflows:
+      - Deploy Economy Website
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: configure-economy-registration-email
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  configure:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SERVER_HOST"
+          test -n "$SERVER_PORT"
+          test -n "$SERVER_SSH_KEY"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
+
+      - name: Install or validate Resend configuration
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}
+        run: |
+          exec > >(tee /tmp/economy-email-configure.log) 2>&1
+          set -euo pipefail
+          test -n "$SERVER_USER"
+
+          has_api_key=false
+          has_from=false
+          if [ -n "$RESEND_API_KEY" ]; then has_api_key=true; fi
+          if [ -n "$RESEND_FROM_EMAIL" ]; then has_from=true; fi
+
+          if [ "$has_api_key" != "$has_from" ]; then
+            echo ECONOMY_EMAIL_SECRETS_INCOMPLETE >&2
+            exit 1
+          fi
+
+          remote_temp="/tmp/riversoft-economy-email-${GITHUB_RUN_ID}.env"
+          if [ "$has_api_key" = true ]; then
+            umask 077
+            RESEND_API_KEY="$RESEND_API_KEY" RESEND_FROM_EMAIL="$RESEND_FROM_EMAIL" python3 - <<'PYTHON'
+          import os
+          from pathlib import Path
+
+          def quote(value: str) -> str:
+              return '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n') + '"'
+
+          content = (
+              f"RESEND_API_KEY={quote(os.environ['RESEND_API_KEY'])}\n"
+              f"RESEND_FROM_EMAIL={quote(os.environ['RESEND_FROM_EMAIL'])}\n"
+          )
+          Path('/tmp/riversoft-economy-email.env').write_text(content, encoding='utf-8')
+          PYTHON
+            scp -i ~/.ssh/deploy_key -P "$SERVER_PORT" \
+              /tmp/riversoft-economy-email.env \
+              "$SERVER_USER@$SERVER_HOST:$remote_temp"
+            rm -f /tmp/riversoft-economy-email.env
+
+            ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+              "bash -s -- '$remote_temp'" <<'REMOTE'
+          set -euo pipefail
+          remote_temp="$1"
+
+          run_privileged() {
+            if [ "$(id -u)" -eq 0 ]; then
+              "$@"
+            elif command -v sudo >/dev/null 2>&1 && sudo -n true; then
+              sudo -n "$@"
+            else
+              echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2
+              exit 1
+            fi
+          }
+
+          run_privileged install -o root -g root -m 600 "$remote_temp" /etc/riversoft-economy-api.env
+          rm -f "$remote_temp"
+          REMOTE
+          fi
+
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          environment_file=/etc/riversoft-economy-api.env
+
+          run_privileged() {
+            if [ "$(id -u)" -eq 0 ]; then
+              "$@"
+            elif command -v sudo >/dev/null 2>&1 && sudo -n true; then
+              sudo -n "$@"
+            else
+              echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2
+              exit 1
+            fi
+          }
+
+          run_privileged test -s "$environment_file" || { echo ECONOMY_EMAIL_CONFIGURATION_MISSING >&2; exit 1; }
+          run_privileged grep -Eq '^RESEND_API_KEY=.+$' "$environment_file" || { echo ECONOMY_RESEND_API_KEY_MISSING >&2; exit 1; }
+          run_privileged grep -Eq '^RESEND_FROM_EMAIL=.+$' "$environment_file" || { echo ECONOMY_RESEND_FROM_EMAIL_MISSING >&2; exit 1; }
+
+          run_privileged systemctl restart riversoft-economy-api.service
+          run_privileged systemctl is-active --quiet riversoft-economy-api.service
+          service_pid="$(run_privileged systemctl show riversoft-economy-api.service --property=MainPID --value)"
+          run_privileged python3 - "$service_pid" <<'PYTHON'
+          import sys
+          from pathlib import Path
+
+          pid = int(sys.argv[1])
+          pairs = Path(f'/proc/{pid}/environ').read_bytes().split(b'\0')
+          environment = {}
+          for pair in pairs:
+              if b'=' in pair:
+                  name, value = pair.split(b'=', 1)
+                  environment[name.decode('utf-8', 'replace')] = value
+          for required in ('RESEND_API_KEY', 'RESEND_FROM_EMAIL'):
+              if not environment.get(required):
+                  raise SystemExit(f'ECONOMY_PROCESS_{required}_MISSING')
+          PYTHON
+          curl --fail --silent --show-error http://127.0.0.1:3002/health >/dev/null
+          REMOTE
+
+      - name: Report email configuration status
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$JOB_STATUS" = "success" ]; then
+            STATE="success"
+            DESCRIPTION="Economy registration email configuration loaded"
+          else
+            STATE="failure"
+            DESCRIPTION="Economy registration email configuration failed"
+            DETAIL="$(grep -Eai 'ECONOMY_[A-Z0-9_]+|permission denied|connection refused|failed|error' /tmp/economy-email-configure.log 2>/dev/null | tail -n 1 | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-125 || true)"
+            if [ -n "$DETAIL" ]; then DESCRIPTION="$DETAIL"; fi
+          fi
+
+          TARGET_URL="https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          python3 - "$STATE" "$DESCRIPTION" "$TARGET_URL" <<'PYTHON' > /tmp/economy-email-status.json
+          import json
+          import sys
+          print(json.dumps({
+              'state': sys.argv[1],
+              'description': sys.argv[2],
+              'context': 'deploy/economy-email',
+              'target_url': sys.argv[3],
+          }))
+          PYTHON
+
+          curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --data-binary @/tmp/economy-email-status.json \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$TARGET_SHA" > /dev/null

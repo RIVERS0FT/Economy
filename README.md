@@ -52,6 +52,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 主页账号认证使用单进程短缓存：状态读取 10 秒、普通写操作最多 2 秒、管理员不使用缓存；同会话并发认证合并，LRU 上限 5,000 条，缓存键只保存 Cookie 的 SHA-256 摘要。
 - Economy 注册完成时点是统一账号第一次创建 Economy 玩家档案；已登录主页账号首次进入仍可自动建档并记录 IP 指纹。主页已完成验证的账号属于可信账号，不受 Economy 注册 IP 多账号限制；Economy 自身邮箱验证码入口继续执行该限制。
 - 邮箱验证码只保存 HMAC，10 分钟过期、60 秒禁止重发、错误 5 次作废、不可重复使用，且发送与提交 IP 指纹必须一致。
+- 生产验证码必须同时配置 GitHub Secrets `RESEND_API_KEY` 和 `RESEND_FROM_EMAIL`，由独立配置工作流安全写入 `/etc/riversoft-economy-api.env` 并验证运行进程已加载；缺少配置时客户端明确显示“邮箱验证码服务未配置，请联系管理员”，不得显示为整个游戏服务器不可用。
 - 管理员可以在单个事务中一次生成最多 50,000 个礼品码；礼品码业务表只保存 SHA-256 哈希，明文仅用于本次响应、TXT 下载和现有 24 小时幂等重试缓存。
 - 藏品是服务器记录归属的唯一资产实例，图片由芝加哥艺术博物馆 IIIF 外链渲染，不复制到游戏服务器。
 - 管理员只能导入明确标记为公版且具有 `imageId` 的芝加哥艺术博物馆藏品；图片 URL 由服务器固定生成，不接受任意外链。
@@ -97,6 +98,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 数据库：`/var/lib/riversoft-economy/economy.sqlite`
 - 注册秘密：`/var/lib/riversoft-economy/registration-secret`
 - 邮件环境：`/etc/riversoft-economy-api.env`
+- 邮件配置状态：`deploy/economy-email`
 - systemd：`riversoft-economy-api.service`
 - 网页目录：`/var/www/game/economy`
 - API 目录：`/var/www/game/economy-api`

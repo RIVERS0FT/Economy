@@ -14,6 +14,7 @@ const files = [
   'server/src/email.js',
   'server/src/registration.js',
   'server/src/registration-store.js',
+  'server/test/email.test.js',
   'server/test/registration.test.js',
   'src/api/auth.ts',
   'src/app/LoginPage.tsx',
@@ -21,6 +22,7 @@ const files = [
   'src/styles/registration-auth.css',
   'scripts/configure-economy-registration-nginx.py',
   'scripts/test_configure_economy_registration_nginx.py',
+  '.github/workflows/configure-registration-email.yml',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
 ];
@@ -50,6 +52,10 @@ for (const text of [
   "'Idempotency-Key': idempotencyKey",
   'RESEND_API_KEY',
   'RESEND_FROM_EMAIL',
+  'getRegistrationEmailConfiguration',
+  'statusCode: 424',
+  'EMAIL_SERVICE_NOT_CONFIGURED',
+  '邮箱验证码服务未配置，请联系管理员',
 ]) requireText('server/src/email.js', text);
 forbidText('server/src/email.js', 'console.');
 
@@ -103,7 +109,7 @@ for (const text of [
   '某个统一账号第一次创建 Economy 玩家档案',
   '任何已登录主页账号首次进入 Economy 时仍允许自动创建玩家档案',
   '主页已经完成账号信任与邮箱验证',
-  '只对 Economy 自身邮箱验证码入口执行注册 IP 多账号限制',
+  '多账号限制只对 Economy 自身邮箱验证码入口执行',
   '`economy_email_verifications`',
   '`economy_registrations`',
   '10 分钟',
@@ -112,6 +118,9 @@ for (const text of [
   '发送 IP 和提交 IP',
   '`/economy-api/registration/email-code`',
   '`/economy-api/registration/complete`',
+  '`RESEND_API_KEY` 与 `RESEND_FROM_EMAIL`',
+  '邮箱验证码服务未配置，请联系管理员',
+  '`deploy/economy-email`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 
 for (const text of [
@@ -129,6 +138,14 @@ for (const text of [
   'configure-economy-registration-nginx.py',
   'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE',
 ]) requireText('.github/workflows/deploy.yml', text);
+for (const text of [
+  'RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}',
+  'RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }}',
+  '/etc/riversoft-economy-api.env',
+  'systemctl restart riversoft-economy-api.service',
+  "'RESEND_API_KEY', 'RESEND_FROM_EMAIL'",
+  "'context': 'deploy/economy-email'",
+]) requireText('.github/workflows/configure-registration-email.yml', text);
 
 for (const text of [
   'trusted homepage accounts may share a network',
@@ -139,4 +156,4 @@ if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：首次建档定义、主页可信账号自动建档、Economy 验证入口 IP 限制、验证码安全、Resend、双模式页面、邀请与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：首次建档定义、主页账号信任、验证码安全、Resend 配置、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
