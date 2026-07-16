@@ -57,10 +57,14 @@ const design = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 for (const text of [
   '近 24 小时价格与成交量趋势图',
   '成交量柱状图位于下方',
-  '时间（系统时区）',
   'buildMarketAxisTicks',
   'fill="var(--color-warning)"',
+  'useChartFooterAxisFontSize',
+  "querySelector<HTMLElement>('.chart-footer')",
+  'fontSize={axisFontSize}',
+  '        时间\n      </text>',
 ]) assert.ok(chart.includes(text), `PriceSparkline 缺少: ${text}`);
+assert.ok(!chart.includes('时间（系统时区）'), '横坐标轴标题必须简化为“时间”');
 
 for (const text of [
   'buildMarketHistoryBuckets',
@@ -73,6 +77,8 @@ for (const text of [
   '按 6 分钟聚合为 240 个数据分段',
   '横轴固定划分为 12 个 2h 分段',
   '浏览器系统时区的 `HH:mm`',
+  '横纵坐标刻度与轴标题的屏幕渲染字号必须与图表下方统计栏一致',
+  '横轴标题固定为“时间”',
   '没有成交量柱状图或没有坐标轴',
 ]) assert.ok(design.includes(text), `设计文档缺少: ${text}`);
 
