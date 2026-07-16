@@ -121,6 +121,13 @@
 
 服务器未来返回未知商品 ID 时必须使用统一包装箱 SVG 回退，页面仍按服务器数组动态渲染，不得隐藏商品。市场商品标签、概览商品行情、仓库商品卡、商品订单和商品资产变动必须使用相同的 `ProductIcon`／`ProductIconLabel`。
 
+### 5.2 主页品牌 Logo
+
+- `https://riversoft.top/logo.svg` 是 Economy 登录页与桌面侧栏显示品牌 Logo 的唯一权威资源，统一通过 `src/config/brand.ts` 的 `BRAND_LOGO_URL` 引用；不得恢复直接引用兼容 PNG、复制本地 Logo 或创建平行品牌图标。
+- 页面 favicon 使用同一 SVG，并声明 `image/svg+xml`。
+- Apple Touch Icon、Open Graph 和 Twitter 图片继续使用主页同步生成的 `https://riversoft.top/1000002880.png`，用于不稳定支持 SVG 的平台；兼容 PNG 不得替代页面内可见 Logo。
+- Logo 保持正方形比例并沿用当前圆形裁剪展示，不得拉伸、改色、叠加滤镜或在 Economy 内重新绘制。
+
 ## 6. 设计令牌、按钮与表单
 
 - 基础视觉必须使用 `design-system.css` 中的颜色、文字、间距、圆角、阴影和控件高度令牌。
