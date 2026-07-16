@@ -124,6 +124,15 @@ for (const text of [
   'height: auto;',
 ]) requireText(stylePath, text);
 
+requireText(stylePath, `.overview-market-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+}`);
+
 requireText(mainPath, "import './styles/overview.css'");
 const main = read(mainPath);
 const overviewStyleIndex = main.indexOf("import './styles/overview.css'");
@@ -147,6 +156,8 @@ for (const text of [
   '让普通页面切换重置仍有效的概览商品选择',
   '概览页与市场页的商品行情统一统计当前资产最近 24h',
   '不得恢复“最近 24 笔成交”',
+  '市场页 `.chart-footer` 与概览页 `.overview-market-footer` 必须在容器本身统一使用 `--font-size-xs`',
+  '不得只给容器内部的 `small` 设置字号',
 ]) requireText(pageDesignPath, text);
 
 for (const text of [
