@@ -40,13 +40,14 @@ function ensurePlayer(world, user, now) {
   return world.players[String(user.id)];
 }
 
-function setup() {
+function setup({ accountAvailabilityChecker = async () => {} } = {}) {
   const store = new FakeEconomyStore();
   const registrationStore = new EconomyRegistrationStore(store, { secret: 'x'.repeat(64), ensurePlayer });
   const deliveries = [];
   const service = createRegistrationService({
     registrationStore,
     emailSender: async (message) => { deliveries.push(message); return { id: `mail-${deliveries.length}` }; },
+    accountAvailabilityChecker,
     accountClient: async ({ email }) => ({ user: { id: 7, email, role: 'user' }, setCookie: ['sid=test'] }),
   });
   return { store, registrationStore, deliveries, service };
@@ -58,6 +59,26 @@ async function send(setupResult, now = 1_700_000_000_000, requestKey = 'send-key
   });
   return setupResult.deliveries.at(-1).code;
 }
+
+test('rejects an existing unified account before creating or sending a verification', async () => {
+  let checks = 0;
+  const context = setup({
+    accountAvailabilityChecker: async ({ email }) => {
+      checks += 1;
+      assert.equal(email, 'alice@example.com');
+      throw Object.assign(new Error('该邮箱已注册，请直接登录'), { statusCode: 409 });
+    },
+  });
+  try {
+    await assert.rejects(() => context.service.requestEmailCode({
+      email: 'Alice@Example.com', ipFingerprint: 'ip-a', requestKey: 'send-existing-001', now: 100,
+    }), (error) => error.statusCode === 409 && /已注册/.test(error.message));
+    assert.equal(checks, 1);
+    assert.equal(context.deliveries.length, 0);
+    const row = context.store.database.prepare('SELECT COUNT(*) AS count FROM economy_email_verifications').get();
+    assert.equal(row.count, 0);
+  } finally { context.store.close(); }
+});
 
 test('sends and completes a verification without storing plaintext code', async () => {
   const context = setup();

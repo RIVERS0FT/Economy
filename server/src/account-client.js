@@ -57,6 +57,30 @@ function parseUser(upstream) {
   return { ...user, id: Number(user.id) };
 }
 
+export async function assertUnifiedAccountEmailAvailable({ email }) {
+  let upstream;
+  try {
+    upstream = await requestAccount('/api/internal/account-email-exists', { email });
+  } catch {
+    throw accountError('统一账号服务暂时不可用', 503);
+  }
+
+  if (upstream.status < 200 || upstream.status >= 300) {
+    throw accountError('统一账号服务暂时不可用', 503);
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(upstream.body);
+  } catch {
+    throw accountError('统一账号服务返回了无效数据', 502);
+  }
+  if (typeof payload?.exists !== 'boolean') {
+    throw accountError('统一账号服务返回了无效数据', 502);
+  }
+  if (payload.exists) throw accountError('该邮箱已注册，请直接登录', 409);
+}
+
 export async function createOrLoginUnifiedAccount({ email, password }) {
   let registration;
   try {

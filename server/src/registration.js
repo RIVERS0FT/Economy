@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { createOrLoginUnifiedAccount } from './account-client.js';
+import { assertUnifiedAccountEmailAvailable, createOrLoginUnifiedAccount } from './account-client.js';
 import { sendRegistrationEmail } from './email.js';
 
 function httpError(message, statusCode) {
@@ -54,10 +54,12 @@ export function createRegistrationService({
   registrationStore,
   emailSender = sendRegistrationEmail,
   accountClient = createOrLoginUnifiedAccount,
+  accountAvailabilityChecker = assertUnifiedAccountEmailAvailable,
 }) {
   return {
     async requestEmailCode({ email, ipFingerprint, requestKey, now = Date.now() }) {
       const normalizedEmail = validateRegistrationInput(email);
+      await accountAvailabilityChecker({ email: normalizedEmail });
       const verification = registrationStore.beginEmailVerification({
         email: normalizedEmail,
         ipFingerprint,
