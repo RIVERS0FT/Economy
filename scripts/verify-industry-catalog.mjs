@@ -127,7 +127,7 @@ assert.match(tests, /初始参考价必须为整数/);
 
 for (const [path, required] of [
   ['README.md', ['当前目录共 13 种商品和 12 种工厂类型', '基础原料 1／分钟、中间产品 3／分钟、最终产品 6／分钟', '周期 120 秒', '单座周期成本 6']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['当前基线为 13 种商品和 12 种工厂类型', '参考分钟利润', '基础原料 1／分钟', '中间产品 3／分钟', '最终产品 6／分钟', '价格、数量、周期秒数和成本必须保持整数']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['当前基线为 13 种商品和 12 种工厂类型', '参考分钟利润', '基础原料 1／分钟', '中间产品 3／分钟', '最终产品 6／分钟', '商品初始参考价、配方输入输出数量、生产周期秒数和周期成本必须保持整数']],
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['经济目录中的价格、数量、周期秒数和成本保持整数', '当前初始参考价为小麦 2、水稻 2、食品 15']],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['商品与工厂目录扩展规则', '不得写死 6 个商品 ID']],
   ['docs/UI_DESIGN_SYSTEM.md', ['当前 13 种正式商品', '服务器未来返回未知商品 ID']],
