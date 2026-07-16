@@ -14,6 +14,7 @@ SERVICE_NAME = "riversoft-economy-api.service"
 SERVICE_PATH = Path("/etc/systemd/system") / SERVICE_NAME
 STATE_DIRECTORY = Path("/var/lib/riversoft-economy")
 REGISTRATION_SECRET_PATH = STATE_DIRECTORY / "registration-secret"
+SHARED_EMAIL_ENVIRONMENT_FILE = Path("/etc/riversoft-email.env")
 ENVIRONMENT_FILE = Path("/etc/riversoft-economy-api.env")
 MINIMUM_NODE = (22, 16, 0)
 
@@ -90,6 +91,7 @@ Type=simple
 User={service_user}
 Group={service_group}
 WorkingDirectory={release_dir}
+EnvironmentFile=-{SHARED_EMAIL_ENVIRONMENT_FILE}
 EnvironmentFile=-{ENVIRONMENT_FILE}
 Environment=NODE_ENV=production
 Environment=PORT=3002
