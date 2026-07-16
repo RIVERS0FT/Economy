@@ -144,8 +144,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
               maxLength={64}
               autoComplete="off"
               placeholder="RIVER-XXXX-XXXX"
-              onChange={(event) => setGiftCode(event.target.value.toUpperCase())
-              }
+              onChange={(event) => setGiftCode(event.target.value.toUpperCase())}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') void submitGift();
               }}
