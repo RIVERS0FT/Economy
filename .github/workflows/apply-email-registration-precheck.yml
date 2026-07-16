@@ -13,7 +13,6 @@ permissions:
 
 jobs:
   patch-and-verify:
-    if: ${{ !contains(github.event.pull_request.head.sha || github.sha, '[patch-applied]') && !contains(github.event.head_commit.message || '', '[patch-applied]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +21,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - name: Correct generated test template
         run: |
           python3 - <<'PY'
@@ -36,7 +34,7 @@ jobs:
           path.write_text(source)
           PY
       - run: node .github/apply-email-registration-precheck.mjs
-      - run: npm ci
+      - run: npm install
       - run: npm run build
       - name: Commit verified changes
         run: |
