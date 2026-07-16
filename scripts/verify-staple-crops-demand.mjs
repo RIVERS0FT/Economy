@@ -86,7 +86,7 @@ for (const [path, required] of [
   ['README.md', ['13 种商品和 12 种工厂类型', '食品、小麦和水稻共享', '每 5 分钟最多 330', '45 秒', '单座产量 4']],
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['人口饮食替代需求', '消费效用', '食品最多获得 80%', '满足率按效用计算']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['4 小麦或 4 水稻', '45 秒', '单座成本', '矿场和钢铁厂本轮保持不变']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`domain.js` 是当前权威门面', '`domain-core.js`', '不得绕过 `domain.js`']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`server/src/domain.js` 是当前权威门面', '`domain-core.js`', '不得绕过 `domain.js`']],
 ]) {
   const content = read(path);
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
