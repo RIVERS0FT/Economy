@@ -38,6 +38,7 @@ for (const text of [
   'CREATE TABLE IF NOT EXISTS economy_registrations',
   "source IN ('email_verification', 'homepage_session')",
   'ensureLoggedInPlayer',
+  "source !== 'homepage_session'",
 ]) requireText('server/src/registration-store.js', text);
 for (const text of ['code TEXT', 'verification_code TEXT', 'plain_code']) {
   forbidText('server/src/registration-store.js', text);
@@ -101,6 +102,8 @@ for (const text of [
 for (const text of [
   '某个统一账号第一次创建 Economy 玩家档案',
   '任何已登录主页账号首次进入 Economy 时仍允许自动创建玩家档案',
+  '主页已经完成账号信任与邮箱验证',
+  '只对 Economy 自身邮箱验证码入口执行注册 IP 多账号限制',
   '`economy_email_verifications`',
   '`economy_registrations`',
   '10 分钟',
@@ -127,8 +130,13 @@ for (const text of [
   'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE',
 ]) requireText('.github/workflows/deploy.yml', text);
 
+for (const text of [
+  'trusted homepage accounts may share a network',
+  "source: 'email_verification'",
+]) requireText('server/test/registration.test.js', text);
+
 if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：首次建档定义、主页账号自动建档、验证码安全、Resend、双模式页面、邀请与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：首次建档定义、主页可信账号自动建档、Economy 验证入口 IP 限制、验证码安全、Resend、双模式页面、邀请与 Nginx 路由均已锁定。');
