@@ -116,6 +116,9 @@ export class EconomyRegistrationStore {
         if (existing.email !== normalizedEmail || existing.ip_fingerprint !== ipFingerprint) {
           throw httpError('幂等键已被其他验证码请求使用', 409);
         }
+        if (Number(existing.expires_at) <= now) {
+          throw httpError('该验证码请求已经过期，请重新发送', 409);
+        }
         if (['used', 'invalid', 'expired'].includes(existing.status)) {
           throw httpError('该验证码请求已经结束，请重新发送', 409);
         }
