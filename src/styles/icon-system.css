@@ -24,6 +24,29 @@
   min-width: 0;
 }
 
+.currency-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: .2em;
+  max-width: 100%;
+  color: inherit;
+  line-height: inherit;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.currency-amount__icon,
+.currency-inline-icon {
+  width: 1em;
+  height: 1em;
+}
+
+.currency-inline-icon {
+  display: inline-block;
+  margin: 0 .16em;
+  vertical-align: -.14em;
+}
+
 .sidebar-nav-button > span {
   width: 1.5rem;
   height: 1.5rem;
