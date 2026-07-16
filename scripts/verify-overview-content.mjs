@@ -61,6 +61,9 @@ for (const text of [
   'overviewProductId: string;',
   'onOverviewProductChange: (productId: string) => void;',
   'const overviewMarket = useMemo(() => {',
+  'buildMarketHistoryBuckets',
+  'summarizeMarketFlow',
+  '<PriceSparkline buckets={overviewMarket.buckets} variant="compact" />',
   "value={overviewMarket?.product.id ?? ''}",
   'onOverviewProductChange(event.target.value)',
   'aria-label="选择概览商品市场"',
@@ -88,6 +91,8 @@ for (const text of [
   'overview-product-strip',
   'localTrades.slice(0, 6)',
   '当前浏览器最近成交',
+  'slice(-24)',
+  '<PriceSparkline values=',
 ]) forbidText(overviewPath, text);
 
 for (const text of [
@@ -140,6 +145,8 @@ for (const text of [
   '刷新整个页面或重新登录后，从服务器目录首项重新初始化',
   '市场中的后续商品切换不得反向覆盖概览选择',
   '让普通页面切换重置仍有效的概览商品选择',
+  '概览页与市场页的商品行情统一统计当前资产最近 24h',
+  '不得恢复“最近 24 笔成交”',
 ]) requireText(pageDesignPath, text);
 
 for (const text of [

@@ -2,36 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { buildMarketAxisTicks } from '../../utils/marketHistory';
 
-function CompactPriceSparkline({ values }: { values: number[] }) {
-  const width = 720;
-  const height = 220;
-  const padding = 18;
-  const safeValues = values.length > 1 ? values : [7, 7];
-  const min = Math.min(...safeValues);
-  const max = Math.max(...safeValues);
-  const range = Math.max(1, max - min);
-  const points = safeValues
-    .map((value, index) => {
-      const x = padding + (index / (safeValues.length - 1)) * (width - padding * 2);
-      const y = height - padding - ((value - min) / range) * (height - padding * 2);
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  return (
-    <svg className="price-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="近期成交价格曲线">
-      <defs>
-        <linearGradient id="priceFillCompact" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <line x1={padding} x2={width - padding} y1={height / 2} y2={height / 2} className="chart-gridline" />
-      <polygon points={`${padding},${height - padding} ${points} ${width - padding},${height - padding}`} fill="url(#priceFillCompact)" />
-      <polyline points={points} fill="none" className="chart-line" />
-    </svg>
-  );
-}
+type MarketChartVariant = 'compact' | 'full';
 
 function formatAxisValue(value: number) {
   return new Intl.NumberFormat(undefined, {
@@ -48,7 +19,8 @@ function useChartFooterAxisFontSize(viewBoxWidth: number, viewBoxHeight: number)
     const svg = svgRef.current;
     if (!svg) return undefined;
 
-    const footer = svg.closest('.market-chart-card')?.querySelector<HTMLElement>('.chart-footer');
+    const container = svg.closest('.market-chart-card, .market-summary');
+    const footer = container?.querySelector<HTMLElement>('.chart-footer, .overview-market-footer');
     const updateFontSize = () => {
       const bounds = svg.getBoundingClientRect();
       const scale = Math.min(bounds.width / viewBoxWidth, bounds.height / viewBoxHeight);
@@ -75,22 +47,34 @@ function useChartFooterAxisFontSize(viewBoxWidth: number, viewBoxHeight: number)
   return { svgRef, axisFontSize };
 }
 
-function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
+function volumeColor(bucket: MarketHistoryBucket) {
+  if (bucket.direction === 'buy') return 'var(--color-success)';
+  if (bucket.direction === 'sell') return 'var(--color-danger)';
+  return 'var(--color-text-muted)';
+}
+
+function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket[]; variant: MarketChartVariant }) {
   const width = 960;
-  const height = 520;
+  const height = 540;
   const { svgRef, axisFontSize } = useChartFooterAxisFontSize(width, height);
   const left = Math.max(82, axisFontSize * 3.5);
   const right = 24;
   const top = 22;
   const priceBottom = 230;
   const volumeTop = 276;
-  const volumeBottom = 372;
-  const xLabelY = 395;
-  const xAxisTitleY = 512;
+  const volumeBottom = 382;
+  const xLabelY = 408;
+  const legendY = 452;
+  const xAxisTitleY = 526;
   const axisTitleX = Math.max(14, axisFontSize * 0.6);
   const tickBaselineOffset = axisFontSize * 0.32;
   const plotWidth = width - left - right;
-  const safeBuckets = buckets.length > 0 ? buckets : [{ startAt: Date.now(), price: 1, volume: 0 }];
+  const safeBuckets: MarketHistoryBucket[] = buckets.length > 0
+    ? buckets
+    : [{
+        startAt: Date.now(), price: 1, volume: 0, buyVolume: 0, sellVolume: 0,
+        neutralVolume: 0, netVolume: 0, direction: 'neutral' as const,
+      }];
   const rawMinPrice = Math.min(...safeBuckets.map((bucket) => bucket.price));
   const rawMaxPrice = Math.max(...safeBuckets.map((bucket) => bucket.price));
   const rawPriceRange = rawMaxPrice - rawMinPrice;
@@ -103,7 +87,10 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
   const volumeHeight = volumeBottom - volumeTop;
   const barSlotWidth = plotWidth / safeBuckets.length;
   const barWidth = Math.max(1, barSlotWidth * 0.74);
-  const axisTicks = buildMarketAxisTicks(safeBuckets);
+  const allAxisTicks = buildMarketAxisTicks(safeBuckets);
+  const axisTicks = variant === 'compact'
+    ? allAxisTicks.filter((_, index) => index % 2 === 0 || index === allAxisTicks.length - 1)
+    : allAxisTicks;
   const priceTicks = Array.from({ length: 5 }, (_, index) => maxPrice - (index / 4) * priceRange);
   const volumeTicks = [maxVolume, maxVolume / 2, 0];
   const pricePoints = safeBuckets.map((bucket, index) => {
@@ -115,14 +102,14 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
   return (
     <svg
       ref={svgRef}
-      className="price-chart"
+      className={`price-chart market-history-chart ${variant}`}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label="近 24 小时价格与成交量趋势图"
-      style={{ height: 'clamp(320px, 42vw, 410px)' }}
+      aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
+      style={{ height: variant === 'compact' ? 'clamp(220px, 34vw, 300px)' : 'clamp(320px, 42vw, 410px)' }}
     >
-      <title>近 24 小时价格与成交量趋势</title>
-      <desc>每 6 分钟一个数据分段，共 240 个分段。价格折线位于上方，成交量柱状图位于下方，共用按系统时区显示的时间横轴。</desc>
+      <title>近 24 小时价格、成交量与主动买卖方向趋势</title>
+      <desc>每 6 分钟一个数据分段，共 240 个分段。价格折线位于上方，成交量柱状图位于下方；绿色表示净主动买入，红色表示净主动卖出，灰色表示主动买卖均衡或旧历史方向未知。</desc>
       <defs>
         <linearGradient id="marketPriceFill" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="currentColor" stopOpacity="0.24" />
@@ -130,8 +117,9 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
         </linearGradient>
       </defs>
 
-      {axisTicks.map((tick, index) => {
-        const x = left + (index / (axisTicks.length - 1)) * plotWidth;
+      {axisTicks.map((tick) => {
+        const index = allAxisTicks.findIndex((candidate) => candidate.timestamp === tick.timestamp);
+        const x = left + (index / (allAxisTicks.length - 1)) * plotWidth;
         return (
           <g key={tick.timestamp}>
             <line x1={x} x2={x} y1={top} y2={volumeBottom} className="chart-gridline" />
@@ -190,8 +178,9 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
             width={barWidth}
             height={Math.max(0, barHeight)}
             rx={Math.min(1.5, barWidth / 2)}
-            fill="var(--color-warning)"
-            opacity={bucket.volume > 0 ? 0.72 : 0}
+            fill={volumeColor(bucket)}
+            opacity={bucket.volume > 0 ? 0.78 : 0}
+            data-direction={bucket.direction}
           />
         );
       })}
@@ -205,6 +194,16 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
       <text x={axisTitleX} y={(volumeTop + volumeBottom) / 2} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle" transform={`rotate(-90 ${axisTitleX} ${(volumeTop + volumeBottom) / 2})`}>
         成交量
       </text>
+
+      <g fontSize={axisFontSize} fill="var(--color-text-muted)">
+        <circle cx={left + 12} cy={legendY} r={6} fill="var(--color-success)" />
+        <text x={left + 26} y={legendY + tickBaselineOffset}>净主动买入</text>
+        <circle cx={left + 190} cy={legendY} r={6} fill="var(--color-danger)" />
+        <text x={left + 204} y={legendY + tickBaselineOffset}>净主动卖出</text>
+        <circle cx={left + 368} cy={legendY} r={6} fill="var(--color-text-muted)" />
+        <text x={left + 382} y={legendY + tickBaselineOffset}>均衡／方向未知</text>
+      </g>
+
       <text x={(left + width - right) / 2} y={xAxisTitleY} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle">
         时间
       </text>
@@ -212,7 +211,12 @@ function MarketHistoryChart({ buckets }: { buckets: MarketHistoryBucket[] }) {
   );
 }
 
-export function PriceSparkline(props: { values: number[] } | { buckets: MarketHistoryBucket[] }) {
-  if ('values' in props) return <CompactPriceSparkline values={props.values} />;
-  return <MarketHistoryChart buckets={props.buckets} />;
+export function PriceSparkline({
+  buckets,
+  variant = 'full',
+}: {
+  buckets: MarketHistoryBucket[];
+  variant?: MarketChartVariant;
+}) {
+  return <MarketHistoryChart buckets={buckets} variant={variant} />;
 }

@@ -72,11 +72,11 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '市场');
   }
 
-  function recordPrice(world, productId, price, quantity, createdAt) {
+  function recordPrice(world, productId, price, quantity, takerSide, createdAt) {
     const market = marketFor(world, productId, createdAt);
     market.lastPrice = price;
     market.priceHistory ||= [];
-    market.priceHistory.push({ price, quantity, createdAt });
+    market.priceHistory.push({ price, quantity, createdAt, takerSide });
     market.priceHistory = market.priceHistory.slice(-constants.maxPricePoints);
   }
 
@@ -142,7 +142,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
     appendFill(sell, { ...fill, counterparty: counterparty(buy), liquidity: sell.id === resting.id ? 'maker' : 'taker' });
     if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);
     if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, createdAt);
-    recordPrice(world, incoming.productId, price, quantity, createdAt);
+    recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt);
   }
 
   function matchOrder(world, incoming, createdAt) {

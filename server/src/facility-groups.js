@@ -199,11 +199,11 @@ function facilityMarketFor(world, typeId, now = Date.now()) {
   return world.facilityMarkets[type.id];
 }
 
-function recordFacilityPrice(world, typeId, price, quantity, createdAt) {
+function recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt) {
   const market = facilityMarketFor(world, typeId, createdAt);
   if (!market) return;
   market.lastPrice = price;
-  market.priceHistory.push({ price, quantity, createdAt });
+  market.priceHistory.push({ price, quantity, createdAt, takerSide });
   market.priceHistory = market.priceHistory.slice(-MAX_PRICE_POINTS);
 }
 
@@ -591,7 +591,7 @@ function executeFacilityTrade(world, incoming, resting, quantity, createdAt) {
     if (group.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== group);
   }
 
-  recordFacilityPrice(world, typeId, price, quantity, createdAt);
+  recordFacilityPrice(world, typeId, price, quantity, incoming.side, createdAt);
 }
 
 function matchFacilityOrder(world, incoming, createdAt) {

@@ -17,6 +17,7 @@ import {
 } from '../components/ui/layout';
 import { economyConstants } from '../config/economy';
 import { formatCurrency, formatDuration, formatNumber, formatRank, formatTime } from '../utils/formatters';
+import { buildMarketHistoryBuckets, summarizeMarketFlow } from '../utils/marketHistory';
 
 function greetingForHour(hour: number) {
   if (hour < 5) return '凌晨好';
@@ -57,6 +58,8 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
 
     const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
     const market = game.markets[product.id];
+    const lastPrice = market?.lastPrice ?? product.basePrice;
+    const buckets = buildMarketHistoryBuckets(market?.priceHistory ?? [], lastPrice, now);
     let bestBid = 0;
     let bestAsk = 0;
 
@@ -70,12 +73,13 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
     return {
       product,
       inventory,
-      lastPrice: market?.lastPrice ?? product.basePrice,
-      history: market?.priceHistory.map((point) => point.price) ?? [],
+      lastPrice,
+      buckets,
+      flow: summarizeMarketFlow(buckets),
       bestBid,
       bestAsk,
     };
-  }, [game, overviewProductId]);
+  }, [game, now, overviewProductId]);
 
   return (
     <PageLayout
@@ -127,8 +131,13 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
                 <MetricCard tone="danger" label="最低卖价" value={<CurrencyAmount>{overviewMarket.bestAsk ? formatCurrency(overviewMarket.bestAsk) : '--'}</CurrencyAmount>} />
                 <MetricCard label="持仓" value={formatNumber(overviewMarket.inventory.available)} detail={`冻结 ${formatNumber(overviewMarket.inventory.frozen)}`} />
               </div>
-              <PriceSparkline values={overviewMarket.history.slice(-24)} />
+              <PriceSparkline buckets={overviewMarket.buckets} variant="compact" />
               <div className="overview-market-footer">
+                <small>{overviewMarket.flow.netVolume > 0
+                  ? `24h 净主动买入 ${formatNumber(overviewMarket.flow.netVolume)}`
+                  : overviewMarket.flow.netVolume < 0
+                    ? `24h 净主动卖出 ${formatNumber(Math.abs(overviewMarket.flow.netVolume))}`
+                    : '24h 主动买卖均衡／方向未知'}</small>
                 <Button variant="text" onClick={() => selectMarketAsset('commodity', overviewMarket.product.id)}>进入该商品市场 →</Button>
               </div>
             </>
