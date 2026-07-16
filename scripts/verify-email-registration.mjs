@@ -143,17 +143,20 @@ for (const text of [
 ]) requireText('.github/workflows/deploy.yml', text);
 for (const text of [
   'Validate server Resend configuration',
-  '/etc/riversoft-economy-api.env',
-  "grep -Eq '^RESEND_API_KEY=.+$'",
-  "grep -Eq '^EMAIL_FROM=.+$'",
-  'systemctl restart riversoft-economy-api.service',
-  "'RESEND_API_KEY', 'EMAIL_FROM'",
+  "exec sudo -n python3 -",
+  "environment_file = Path('/etc/riversoft-economy-api.env')",
+  "for required in ('RESEND_API_KEY', 'EMAIL_FROM')",
+  "subprocess.run(['systemctl', 'restart', service_name], check=True)",
+  "Path(f'/proc/{pid}/environ')",
+  'ECONOMY_EMAIL_CONFIGURATION_LOADED',
   "'context': 'deploy/economy-email'",
 ]) requireText('.github/workflows/configure-registration-email.yml', text);
 for (const text of [
   'secrets.RESEND_API_KEY',
   'secrets.EMAIL_FROM',
   'RESEND_FROM_EMAIL',
+  'run_privileged test',
+  'run_privileged grep',
 ]) forbidText('.github/workflows/configure-registration-email.yml', text);
 
 for (const text of [
@@ -165,4 +168,4 @@ if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：首次建档定义、主页账号信任、验证码安全、服务器 Resend 配置、EMAIL_FROM、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：首次建档定义、主页账号信任、验证码安全、服务器 Resend 配置、EMAIL_FROM、白名单验证、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
