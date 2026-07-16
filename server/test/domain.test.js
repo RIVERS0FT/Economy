@@ -29,7 +29,7 @@ test('different products never match in the same order book', () => {
   buyer.credits = 1_000;
 
   assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'ore', side: 'sell', quantity: 5, price: 8,
+    productId: 'ore', side: 'sell', quantity: 5, price: 6,
   }, now + 1).ok, true);
   assert.equal(applyAction(world, alice, 'placeOrder', {
     productId: 'wheat', side: 'buy', quantity: 5, price: 9,
