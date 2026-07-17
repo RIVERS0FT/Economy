@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { AuthUser } from '../types';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
@@ -10,6 +11,11 @@ import { useGameViewModel } from './gameViewModel';
 
 export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
   const viewModel = useGameViewModel(user, onSignedOut);
+  const compactNumbers = viewModel.status === 'ready' ? viewModel.model.compactNumbers : false;
+
+  useEffect(() => {
+    setCompactNumbersEnabled(compactNumbers);
+  }, [compactNumbers]);
 
   if (viewModel.status === 'loading') return <main className="loading-screen">正在连接权威游戏服务器…</main>;
   if (viewModel.status === 'error') {
@@ -22,7 +28,6 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
 
   const { model } = viewModel;
   const { game, derived } = model;
-  setCompactNumbersEnabled(model.compactNumbers);
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const currentRank = derived.currentRank?.rank ?? '--';
   const formattedRank = formatRank(derived.currentRank?.rank);
