@@ -33,6 +33,7 @@ jobs:
               "  if (!source.includes(before)) throw new Error(`${path} 缺少预期片段`);\n  writeFileSync(path, source.replace(before, after));",
               "  if (!source.includes(before)) {\n    if (!source.includes(after)) console.warn(`${path} 缺少预期片段`);\n    return;\n  }\n  writeFileSync(path, source.replace(before, after));",
           )
+          text = text.replace("\\\\`", "\\`")
           path.write_text(text)
           PY
       - name: Apply source changes
