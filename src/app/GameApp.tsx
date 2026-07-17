@@ -29,10 +29,16 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   const { model } = viewModel;
   const { game, derived } = model;
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
+  const weeklyMagnitude = Math.abs(weeklyChange);
   const currentRank = derived.currentRank?.rank ?? '--';
   const formattedRank = formatRank(derived.currentRank?.rank);
   const rankLabel = derived.currentRank ? `排名第 ${derived.currentRank.rank} 名` : '暂无排名';
   const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→';
+  const weeklyChangeLabel = weeklyChange > 0
+    ? `本周资产上升 ${formatCurrency(weeklyMagnitude)}`
+    : weeklyChange < 0
+      ? `本周资产下降 ${formatCurrency(weeklyMagnitude)}`
+      : '本周资产无变化';
   const statusItems: StatusBarItem[] = [
     {
       id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>,
@@ -41,7 +47,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
     {
       id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
       compactValue: formatCompactNumber(derived.totalAssets),
-      detail: <span className={weeklyChange >= 0 ? 'positive' : 'negative'}>{weeklyTrend} 本周 <CurrencyAmount sign={weeklyChange > 0 ? '+' : undefined}>{formatCurrency(weeklyChange)}</CurrencyAmount></span>,
+      detail: <span className={weeklyChange >= 0 ? 'positive' : 'negative'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
       onClick: () => model.setTab('assets'),
     },
