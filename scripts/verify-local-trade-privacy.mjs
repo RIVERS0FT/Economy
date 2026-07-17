@@ -61,9 +61,7 @@ for (const [path, text] of [
 ]) requireText(path, text);
 
 if (failures.length) {
-  console.error('普通玩家成交匿名化验证失败:
-- ' + failures.join('
-- '));
+  console.error(`普通玩家成交匿名化验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 console.log('普通玩家订单 API、本地存储和市场成交展示均已匿名化。');
