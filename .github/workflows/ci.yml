@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -13,55 +13,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
-
-      - name: Assemble gem shop change
-        if: ${{ hashFiles('scripts/apply-gem-shop-change.mjs') != '' }}
-        run: |
-          set +e
-          : > assembly-error.log
-          node scripts/repair-gem-shop-script.mjs >> assembly-error.log 2>&1
-          repair_status=$?
-          if [ "$repair_status" -ne 0 ]; then
-            cat assembly-error.log
-            cp scripts/apply-gem-shop-change.mjs assembly-repaired.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add assembly-error.log assembly-repaired.txt
-            git commit -m "记录宝石商店组装错误"
-            git push origin HEAD:${{ github.head_ref }}
-            exit "$repair_status"
-          fi
-          node scripts/apply-gem-shop-change.mjs >> assembly-error.log 2>&1
-          apply_status=$?
-          if [ "$apply_status" -ne 0 ]; then
-            cat assembly-error.log
-            cp scripts/apply-gem-shop-change.mjs assembly-repaired.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add assembly-error.log assembly-repaired.txt
-            git commit -m "记录宝石商店组装错误"
-            git push origin HEAD:${{ github.head_ref }}
-            exit "$apply_status"
-          fi
-          set -e
-          rm -f assembly-error.log assembly-repaired.txt
-          rm -f scripts/apply-gem-shop-change.mjs
-          rm -f scripts/repair-gem-shop-script.mjs
-          rm -f .github/workflows/apply-gem-shop.yml
-          git checkout origin/main -- .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "增加独立宝石商店"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
