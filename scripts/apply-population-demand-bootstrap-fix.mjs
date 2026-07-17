@@ -103,7 +103,7 @@ replaceExact(
 );
 replaceExact(
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-  '- 客户端 `EconomyState.version` 固定为 12.\n- SQLite 世界版本固定为 8.\n- 邮箱验证码注册不修改世界 JSON 结构，不提高世界版本。\n- 现有玩家订单、成交和价格历史不重写；新世界、缺失市场及后续系统流动性使用正式参考价。',
+  '- 客户端 `EconomyState.version` 固定为 12。\n- SQLite 世界版本固定为 8。\n- 邮箱验证码注册不修改世界 JSON 结构，不提高世界版本。\n- 现有玩家订单、成交和价格历史不重写；新世界、缺失市场及后续系统流动性使用正式参考价。',
   '- 客户端 `EconomyState.version` 固定为 14。\n- SQLite 世界版本固定为 11。\n- 邮箱验证码注册不修改世界 JSON 结构，不提高世界版本。\n- 世界版本 10 升级到 11 时删除旧人口／系统订单，保留玩家订单及冻结资产，并把两类人口需求标记为当前事务立即执行；不得留下一个需求周期的空窗。',
 );
 
