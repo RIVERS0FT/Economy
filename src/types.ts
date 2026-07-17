@@ -15,6 +15,7 @@ export interface ProductDefinition {
   category: ProductCategory;
   family?: string;
   substitutionGroupId?: string;
+  systemDemandMode?: 'none' | 'single' | 'grouped';
   basePrice: number;
 }
 
@@ -33,7 +34,9 @@ export interface FacilityRecipeDefinition {
   name: string;
   cycleMs: number;
   operatingCost: number;
-  input: FacilityRecipeItem | null;
+  inputs: FacilityRecipeItem[];
+  /** @deprecated Compatibility alias for older single-input states. */
+  input?: FacilityRecipeItem | null;
   output: FacilityRecipeItem;
 }
 
@@ -45,7 +48,9 @@ export interface FacilityTypeDefinition {
   buildTimeMs: number;
   cycleMs: number;
   operatingCost: number;
-  input: FacilityRecipeItem | null;
+  inputs: FacilityRecipeItem[];
+  /** @deprecated Compatibility alias for older single-input states. */
+  input?: FacilityRecipeItem | null;
   output: FacilityRecipeItem;
   defaultRecipeId: string;
   recipes: FacilityRecipeDefinition[];
@@ -203,10 +208,8 @@ export interface AssetProductionChange {
   facilityTypeId: string;
   facilityName?: string;
   action: 'produced';
-  inputProductId?: string;
-  inputQuantity: number;
-  outputProductId?: string;
-  outputQuantity: number;
+  inputs: FacilityRecipeItem[];
+  output: FacilityRecipeItem;
   outputQuantityDelta: number;
 }
 
@@ -297,7 +300,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 12;
+  version: 13;
   userId: number;
   playerName: string;
   registeredAt: number;

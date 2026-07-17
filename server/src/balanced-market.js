@@ -216,6 +216,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
 
   function createPopulationDemand(world, productId, now) {
     const product = productFor(productId);
+    if (product.systemDemandMode && product.systemDemandMode !== 'single') return;
     const market = marketFor(world, product.id, now);
     for (const order of world.orders || []) {
       if (order.productId === product.id && order.ownerType === 'population' && isOpenOrder(order)) {

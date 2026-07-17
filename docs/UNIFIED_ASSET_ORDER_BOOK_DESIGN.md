@@ -3,8 +3,8 @@
 > 状态：商品和工厂交易、成交价格与估值的当前权威设计  
 > 适用项目：`RIVERS0FT/Economy`  
 > 更新时间：2026-07-17
-> 客户端状态版本：12
-> 世界状态版本：8
+> 客户端状态版本：13
+> 世界状态版本：9
 
 ## 1. 统一资产模型
 
@@ -245,7 +245,7 @@ maxBuy = min(warehouseAvailableCapacity, floor(credits / price))
 
 浏览器本地成交记录只比较相邻权威状态中新出现的 fill ID，并使用 `fill.price`、`fill.quantity`、`fill.total` 和 `fill.counterparty`。
 
-本地日志 v3 升级时清空由旧 `lastPrice` 推导的成交记录，保留其他资产事件，并先建立新快照。
+本地日志 v3 升级时清空由旧 `lastPrice` 推导的成交记录；v4 将生产记录升级为多输入结构并建立包含工厂目录的新快照。
 
 ## 11. 防回退
 

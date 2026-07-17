@@ -46,7 +46,7 @@ function recipesFor(type) {
     name: type.name,
     cycleMs: type.cycleMs,
     operatingCost: type.operatingCost,
-    input: type.input,
+    inputs: Array.isArray(type.inputs) ? type.inputs : type.input ? [type.input] : [],
     output: type.output,
   }] : [];
 }
@@ -318,14 +318,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 8;
+  world.version = 9;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 8;
+  world.version = 9;
   return world;
 }
 
@@ -377,15 +377,32 @@ function startGroupRuntime(group, count, now) {
   group.cycleStartedAt = now;
 }
 
+function recipeInputs(recipe) {
+  const items = Array.isArray(recipe?.inputs) ? recipe.inputs : recipe?.input ? [recipe.input] : [];
+  const quantities = new Map();
+  for (const item of items) {
+    const productId = String(item?.productId || '');
+    const quantity = Math.max(0, Number(item?.quantity || 0));
+    if (!productId || quantity <= 0) continue;
+    quantities.set(productId, (quantities.get(productId) || 0) + quantity);
+  }
+  return [...quantities].map(([productId, quantity]) => ({ productId, quantity }));
+}
+
 function groupRequirements(recipe, count) {
   const participating = Math.max(0, Number(count || 0));
+  const inputs = recipeInputs(recipe).map((item) => ({
+    productId: item.productId,
+    quantity: item.quantity * participating,
+  }));
   const output = recipe.output.quantity * participating;
-  const input = (recipe.input?.quantity || 0) * participating;
+  const inputTotal = inputs.reduce((sum, item) => sum + item.quantity, 0);
   return {
     output,
-    input,
+    inputs,
+    inputTotal,
     cost: recipe.operatingCost * participating,
-    netStorage: Math.max(0, output - input),
+    netStorage: Math.max(0, output - inputTotal),
   };
 }
 
@@ -399,7 +416,7 @@ function blockReason(world, player, group, type, count) {
   if (requirements.cost > player.credits) {
     return { reason: 'insufficient_funds', message: '运营资金不足' };
   }
-  if (recipe.input && inventoryFor(player, recipe.input.productId).available < requirements.input) {
+  if (requirements.inputs.some((item) => inventoryFor(player, item.productId).available < item.quantity)) {
     return { reason: 'insufficient_input', message: '生产原料不足' };
   }
   return null;
@@ -458,7 +475,7 @@ function executeCycle(player, group, type, count) {
   player.credits -= requirements.cost;
   player.stats.systemSinks += requirements.cost;
   player.stats.producedGoods = Number(player.stats.producedGoods || 0) + requirements.output;
-  if (recipe.input) inventoryFor(player, recipe.input.productId).available -= requirements.input;
+  for (const item of requirements.inputs) inventoryFor(player, item.productId).available -= item.quantity;
   inventoryFor(player, recipe.output.productId).available += requirements.output;
   group.lifetimeOutput += requirements.output;
   group.cycleStartedAt += recipe.cycleMs;
@@ -923,7 +940,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const normalizedOrders = (world.orders || []).map((order) => clone(normalizeOrder(order)));
   return {
     ...withoutFacilities,
-    version: 12,
+    version: 13,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
     facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),

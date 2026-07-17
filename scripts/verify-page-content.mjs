@@ -178,7 +178,7 @@ for (const text of [
   'asset-event-virtual-list',
   'ProductIconLabel',
   'formatNumber(change.availableAfter)',
-  'formatNumber(change.outputQuantity)',
+  'formatNumber(change.output.quantity)',
 ]) requireText('src/pages/AssetsPage.tsx', text);
 for (const text of ['filteredEvents.map(', '商品库存与估值', 'product-asset-grid', 'product-asset-card', 'setSelectedProductId']) {
   forbidText('src/pages/AssetsPage.tsx', text);

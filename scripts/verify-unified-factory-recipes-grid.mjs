@@ -15,7 +15,8 @@ for (const facility of FACILITY_TYPE_CATALOG) {
     assert.ok(recipe.cycleMs > 0, `${facility.id}/${recipe.id} 周期无效`);
     assert.ok(recipe.operatingCost >= 0, `${facility.id}/${recipe.id} 成本无效`);
     assert.ok(productIds.has(recipe.output.productId), `${facility.id}/${recipe.id} 输出商品无效`);
-    if (recipe.input) assert.ok(productIds.has(recipe.input.productId), `${facility.id}/${recipe.id} 输入商品无效`);
+    assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
+    for (const input of recipe.inputs) assert.ok(productIds.has(input.productId), `${facility.id}/${recipe.id} 输入商品无效`);
   }
 }
 
@@ -52,6 +53,8 @@ for (const forbidden of [
 const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
 for (const text of [
   'function recipeDescription',
+  'extendedType.inputs',
+  'facility-formula-separator',
   '单座配方每',
   'formatDuration(type.cycleMs)',
   'formatCurrency(type.operatingCost)',

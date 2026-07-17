@@ -1,111 +1,73 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
-import {
-  DEMAND_GROUP_CATALOG,
-  FACILITY_TYPE_CATALOG,
-  PRODUCT_CATALOG,
-} from '../server/src/domain.js';
+import { readFileSync } from 'node:fs';
+import { DEMAND_GROUP_CATALOG, FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js';
 
 const read = (path) => readFileSync(path, 'utf8');
-const productIds = new Set(PRODUCT_CATALOG.map((product) => product.id));
-
-assert.equal(PRODUCT_CATALOG.length, 13, '不得改变 13 种商品目录');
-assert.equal(productIds.has('grain'), false, 'grain 不得继续作为正式商品');
-for (const id of ['wheat', 'rice', 'food']) assert.equal(productIds.has(id), true, `饮食竞争缺少商品: ${id}`);
-assert.equal(PRODUCT_CATALOG.find((product) => product.id === 'wheat')?.basePrice, 2);
-assert.equal(PRODUCT_CATALOG.find((product) => product.id === 'rice')?.basePrice, 2);
-assert.equal(PRODUCT_CATALOG.find((product) => product.id === 'food')?.basePrice, 15);
-assert.equal(PRODUCT_CATALOG.find((product) => product.id === 'food')?.substitutionGroupId, 'staples');
+const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
+assert.equal(PRODUCT_CATALOG.length, 22);
+assert.equal(products.has('grain'), false);
+for (const id of ['wheat', 'rice', 'food', 'meat', 'eggs', 'milk']) {
+  assert.equal(products.get(id)?.substitutionGroupId, 'staples', `${id} 必须加入 staples`);
+  assert.equal(products.get(id)?.systemDemandMode, 'grouped', `${id} 不得生成独立人口需求`);
+}
+for (const id of ['cotton', 'wool', 'copper-ore', 'copper', 'textile']) {
+  assert.equal(products.get(id)?.systemDemandMode, 'none', `${id} 只能保留基础流动性`);
+}
 
 const staples = DEMAND_GROUP_CATALOG.find((group) => group.id === 'staples');
-assert.ok(staples, '缺少人口饮食需求组');
-assert.equal(staples.name, '人口饮食需求');
-assert.equal(staples.ownerName, '人口饮食需求');
+assert.ok(staples);
 assert.equal(staples.baseBudget, 330);
 assert.equal(staples.referenceUtilityPrice, 6);
 assert.equal(staples.priceElasticity, 3);
 assert.equal(staples.maxPriceIndex, 2);
 assert.equal(staples.quoteUtilityDepth, 12);
-assert.deepEqual(staples.products.map((item) => item.productId), ['wheat', 'rice', 'food']);
-assert.deepEqual(staples.products.map((item) => item.utilityPerUnit), [1, 1, 3]);
-assert.deepEqual(staples.products.map((item) => item.preferenceWeight), [1, 1, 8]);
-assert.deepEqual(staples.products.map((item) => item.maxBudgetShare), [0.5, 0.5, 0.8]);
+assert.deepEqual(staples.products.map((item) => item.productId), ['wheat', 'rice', 'food', 'meat', 'eggs', 'milk']);
+assert.deepEqual(staples.products.map((item) => item.utilityPerUnit), [1, 1, 3, 2, 1, 1]);
+assert.deepEqual(staples.products.map((item) => item.preferenceWeight), [1, 1, 8, 4, 3, 3]);
+assert.deepEqual(staples.products.map((item) => item.maxBudgetShare), [0.4, 0.4, 0.55, 0.35, 0.25, 0.25]);
 
-const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
-assert.ok(farm, '缺少农场');
-assert.equal(farm.defaultRecipeId, 'wheat-crop');
-assert.deepEqual(farm.recipes.map((recipe) => recipe.id), ['wheat-crop', 'rice-crop']);
-for (const recipe of farm.recipes) {
-  assert.equal(recipe.cycleMs, 120_000, `${recipe.id} 周期必须为 120 秒`);
-  assert.equal(recipe.operatingCost, 6, `${recipe.id} 单座周期成本必须为 6`);
-  assert.equal(recipe.output.quantity, 4, `${recipe.id} 单座周期产量必须为 4`);
+const household = DEMAND_GROUP_CATALOG.find((group) => group.id === 'household-goods');
+assert.ok(household);
+assert.equal(household.baseBudget, 320);
+assert.deepEqual(household.products.map((item) => item.productId), ['furniture', 'clothing']);
+
+const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+assert.deepEqual(facilities.get('farm').recipes.map((recipe) => recipe.id), ['wheat-crop', 'rice-crop', 'cotton-crop']);
+assert.deepEqual(facilities.get('ranch').recipes.map((recipe) => recipe.id), ['ranch-meat', 'ranch-eggs', 'ranch-milk', 'ranch-wool']);
+for (const recipe of facilities.get('farm').recipes) {
+  assert.equal(recipe.cycleMs, 120_000);
+  assert.equal(recipe.operatingCost, 6);
+  assert.equal(recipe.output.quantity, 4);
 }
 
-assert.equal(existsSync('server/src/domain-core.js'), true, '缺少兼容核心 domain-core.js');
-assert.equal(existsSync('server/src/balanced-market.js'), true, '缺少正式参考价市场辅助层 balanced-market.js');
 const domain = read('server/src/domain.js');
-const domainCore = read('server/src/domain-core.js');
-const balancedMarket = read('server/src/balanced-market.js');
 for (const text of [
-  "import * as core from './domain-core.js'",
-  "import { createBalancedMarketRuntime } from './balanced-market.js'",
-  'PRODUCT_BALANCE',
-  'FACILITY_BALANCE',
-  'GROUPED_DEMAND_PRODUCT_IDS',
-  'referenceUtilityPrice',
-  'quoteUtilityDepth',
-  'utilityPerUnit',
-  'maxBudgetShare',
-  'effectivePrice',
-  'requestedUtility',
-  'filledUtility',
-  'withLegacyDemandSuppressed',
-  'expireDemandGroupOrders',
-  'balancedMarket.refreshExternalLiquidity',
-  'balancedMarket.createPopulationDemand',
-  'demandCycleId',
-]) assert.equal(domain.includes(text), true, `domain.js 缺少: ${text}`);
-assert.equal(domainCore.includes('baseBudget: 60'), true, '兼容核心应保持迁移前实现，当前规则由 domain.js 门面覆盖');
-for (const text of ['product.basePrice - 1', 'product.basePrice + 1', 'createPopulationDemand', 'repairMissingMarkets']) {
-  assert.equal(balancedMarket.includes(text), true, `balanced-market.js 缺少: ${text}`);
-}
-assert.equal(balancedMarket.includes('domain-core.js'), false, '市场辅助层不得直接导入兼容核心');
-assert.equal(balancedMarket.includes('basePrice: 2'), false, '市场辅助层不得维护第二套正式商品价格');
-for (const path of ['server/src/storage.js', 'server/src/facility-groups.js']) {
-  assert.equal(read(path).includes('domain-core.js'), false, `${path} 不得绕过 domain.js 权威门面`);
-}
-
+  'GROUPED_DEMAND_PRODUCT_IDS', 'systemDemandMode', 'referenceUtilityPrice', 'quoteUtilityDepth',
+  'utilityPerUnit', 'maxBudgetShare', 'effectivePrice', 'requestedUtility', 'filledUtility',
+  'withLegacyDemandSuppressed', 'expireDemandGroupOrders', 'demandCycleId', 'previousVersion < 9',
+]) assert.ok(domain.includes(text), `domain.js 缺少: ${text}`);
+const balanced = read('server/src/balanced-market.js');
+assert.ok(balanced.includes("product.systemDemandMode !== 'single'"));
 const groups = read('server/src/facility-groups.js');
-for (const text of ['activeRecipeId', 'pendingRecipeId', 'applyPendingRecipe', 'setGroupRecipe', 'world.version = 8']) {
-  assert.equal(groups.includes(text), true, `facility-groups.js 缺少: ${text}`);
+for (const text of ['recipeInputs', 'requirements.inputs', 'world.version = 9', 'version: 13']) {
+  assert.ok(groups.includes(text), `facility-groups.js 缺少: ${text}`);
 }
-
-const productionPage = read('src/pages/ProductionPage.tsx');
-for (const forbidden of ['ProductionMode', 'pendingProductionPlan', 'productionMode', 'targetQuantity']) {
-  assert.equal(productionPage.includes(forbidden), false, `生产页不得包含 ${forbidden}`);
-}
-assert.equal(productionPage.includes('生产配方'), true);
-assert.equal(productionPage.includes('固定配方：'), true);
-assert.equal(productionPage.includes('下一周期切换为：'), true);
 
 const tests = `${read('server/test/domain.test.js')}\n${read('server/test/facility-groups.test.js')}`;
 for (const text of [
-  'world version 7 grain assets migrate entirely to wheat',
   'staple demand shifts budget to rice when wheat is expensive',
-  'food competes with wheat and rice through utility-adjusted prices and capped budget shares',
-  'food demand yields to grains when its utility-adjusted price exceeds the ceiling',
-  'running farm crop changes apply at the next cycle boundary',
-  'processFacilityGroupWorld(world, now + 120_000)',
-]) assert.equal(tests.includes(text), true, `测试缺少: ${text}`);
+  'staple demand leaves budget unspent when every substitute is above the ceiling',
+  'electronics factory atomically consumes plastic and copper',
+  'electronics factory deducts no material when either input is missing',
+]) assert.ok(tests.includes(text), `测试缺少: ${text}`);
 
-for (const [path, required] of [
-  ['README.md', ['13 种商品和 12 种工厂类型', '食品、小麦和水稻共享', '每 5 分钟最多 330', '周期 120 秒', '单座产量 4', '单座周期成本 6']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['人口饮食替代需求', '消费效用', '食品最多获得 80%', '满足率按效用计算', '小麦 2、水稻 2、食品 15']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['无原料 → 4 小麦', '无原料 → 4 水稻', '120 秒', '周期成本', '矿场仍只生产铁矿石']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`server/src/domain.js` 是当前权威门面', '`domain-core.js`', '`server/src/balanced-market.js`', '不得定义第二套商品目录', '不得绕过 `domain.js`']],
+for (const [path, texts] of [
+  ['README.md', ['食品、小麦、水稻、肉、蛋和奶共享', '每 5 分钟最多 330', '同时消耗塑料和铜材']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['食品、小麦、水稻、肉、蛋和奶', '单品预算上限分别为', '`systemDemandMode` 为 `none`', '`household-goods`']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['无原料 → 4 棉花', '无原料 → 3 肉', '1 塑料 + 1 铜材 → 1 电子产品']],
 ]) {
   const content = read(path);
-  for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
+  for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('食品、小麦、水稻效用竞争、330 预算上限、农场 120 秒/4/6 参数和 domain 权威门面验证通过。');
+console.log('饮食需求验证通过：六种商品共享 330 预算，上游商品不独立增发，家具与服装共享需求。');

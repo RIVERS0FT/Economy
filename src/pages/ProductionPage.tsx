@@ -49,7 +49,7 @@ function recipesForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[
     name: type.name,
     cycleMs: type.cycleMs,
     operatingCost: type.operatingCost,
-    input: type.input,
+    inputs: Array.isArray(type.inputs) ? type.inputs : type.input ? [type.input] : [],
     output: type.output,
   }];
 }
@@ -59,6 +59,7 @@ function typeForRecipe(type: FacilityTypeDefinition, recipe: FacilityRecipeDefin
     ...type,
     cycleMs: recipe.cycleMs,
     operatingCost: recipe.operatingCost,
+    inputs: Array.isArray(recipe.inputs) ? recipe.inputs : recipe.input ? [recipe.input] : [],
     input: recipe.input,
     output: recipe.output,
   };

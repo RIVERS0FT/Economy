@@ -9,30 +9,42 @@ const clone = (value) => structuredClone(value);
 const PRODUCT_BALANCE = Object.freeze({
   wheat: Object.freeze({ basePrice: 2 }),
   rice: Object.freeze({ basePrice: 2 }),
+  cotton: Object.freeze({ basePrice: 2 }),
   timber: Object.freeze({ basePrice: 5 }),
   ore: Object.freeze({ basePrice: 6 }),
+  'copper-ore': Object.freeze({ basePrice: 6 }),
   'crude-oil': Object.freeze({ basePrice: 8 }),
+  meat: Object.freeze({ basePrice: 6 }),
+  eggs: Object.freeze({ basePrice: 3 }),
+  milk: Object.freeze({ basePrice: 3 }),
+  wool: Object.freeze({ basePrice: 6 }),
   flour: Object.freeze({ basePrice: 13 }),
   lumber: Object.freeze({ basePrice: 15 }),
   steel: Object.freeze({ basePrice: 24 }),
+  copper: Object.freeze({ basePrice: 24 }),
   plastic: Object.freeze({ basePrice: 24 }),
+  textile: Object.freeze({ basePrice: 18 }),
   food: Object.freeze({ basePrice: 15 }),
   furniture: Object.freeze({ basePrice: 20 }),
+  clothing: Object.freeze({ basePrice: 48 }),
   machinery: Object.freeze({ basePrice: 60 }),
   electronics: Object.freeze({ basePrice: 64 }),
 });
 
 const FACILITY_BALANCE = Object.freeze({
-  farm: Object.freeze({ cycleMs: 120_000, operatingCost: 6, outputQuantity: 4 }),
+  farm: Object.freeze({ cycleMs: 120_000, operatingCost: 6 }),
   'logging-camp': Object.freeze({ cycleMs: 60_000, operatingCost: 9 }),
   mine: Object.freeze({ cycleMs: 60_000, operatingCost: 11 }),
+  ranch: Object.freeze({ cycleMs: 120_000, operatingCost: 16 }),
   'oil-field': Object.freeze({ cycleMs: 60_000, operatingCost: 15 }),
   mill: Object.freeze({ cycleMs: 40_000, operatingCost: 7 }),
   sawmill: Object.freeze({ cycleMs: 40_000, operatingCost: 3 }),
   steelworks: Object.freeze({ cycleMs: 40_000, operatingCost: 4 }),
   refinery: Object.freeze({ cycleMs: 40_000, operatingCost: 6 }),
+  'textile-mill': Object.freeze({ cycleMs: 40_000, operatingCost: 4 }),
   'food-factory': Object.freeze({ cycleMs: 50_000, operatingCost: 14 }),
   'furniture-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 4 }),
+  'garment-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 6 }),
   'machine-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 6 }),
   'electronics-factory': Object.freeze({ cycleMs: 60_000, operatingCost: 10 }),
 });
@@ -40,25 +52,25 @@ const FACILITY_BALANCE = Object.freeze({
 export const PRODUCT_CATALOG = Object.freeze(core.PRODUCT_CATALOG.map((product) => Object.freeze({
   ...product,
   ...PRODUCT_BALANCE[product.id],
-  ...(product.id === 'food' ? { substitutionGroupId: 'staples' } : {}),
 })));
 
 export const FACILITY_TYPE_CATALOG = Object.freeze(core.FACILITY_TYPE_CATALOG.map((facility) => {
   const balance = FACILITY_BALANCE[facility.id] || {};
-  const cycleMs = balance.cycleMs ?? facility.cycleMs;
-  const operatingCost = balance.operatingCost ?? facility.operatingCost;
-  const outputQuantity = balance.outputQuantity ?? facility.output.quantity;
   const recipes = facility.recipes.map((recipe) => Object.freeze({
     ...recipe,
-    cycleMs,
-    operatingCost,
-    output: Object.freeze({ ...recipe.output, quantity: balance.outputQuantity ?? recipe.output.quantity }),
+    cycleMs: balance.cycleMs ?? recipe.cycleMs,
+    operatingCost: balance.operatingCost ?? recipe.operatingCost,
+    inputs: Object.freeze((recipe.inputs || []).map((item) => Object.freeze({ ...item }))),
+    output: Object.freeze({ ...recipe.output }),
   }));
+  const defaultRecipe = recipes.find((recipe) => recipe.id === facility.defaultRecipeId) || recipes[0];
   return Object.freeze({
     ...facility,
-    cycleMs,
-    operatingCost,
-    output: Object.freeze({ ...facility.output, quantity: outputQuantity }),
+    cycleMs: defaultRecipe.cycleMs,
+    operatingCost: defaultRecipe.operatingCost,
+    inputs: defaultRecipe.inputs,
+    input: defaultRecipe.inputs.length === 1 ? defaultRecipe.inputs[0] : null,
+    output: defaultRecipe.output,
     recipes: Object.freeze(recipes),
   });
 }));
@@ -75,9 +87,27 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
     maxPriceIndex: 2,
     quoteUtilityDepth: 12,
     products: Object.freeze([
-      Object.freeze({ productId: 'wheat', utilityPerUnit: 1, preferenceWeight: 1, maxBudgetShare: 0.5 }),
-      Object.freeze({ productId: 'rice', utilityPerUnit: 1, preferenceWeight: 1, maxBudgetShare: 0.5 }),
-      Object.freeze({ productId: 'food', utilityPerUnit: 3, preferenceWeight: 8, maxBudgetShare: 0.8 }),
+      Object.freeze({ productId: 'wheat', utilityPerUnit: 1, preferenceWeight: 1, maxBudgetShare: 0.4 }),
+      Object.freeze({ productId: 'rice', utilityPerUnit: 1, preferenceWeight: 1, maxBudgetShare: 0.4 }),
+      Object.freeze({ productId: 'food', utilityPerUnit: 3, preferenceWeight: 8, maxBudgetShare: 0.55 }),
+      Object.freeze({ productId: 'meat', utilityPerUnit: 2, preferenceWeight: 4, maxBudgetShare: 0.35 }),
+      Object.freeze({ productId: 'eggs', utilityPerUnit: 1, preferenceWeight: 3, maxBudgetShare: 0.25 }),
+      Object.freeze({ productId: 'milk', utilityPerUnit: 1, preferenceWeight: 3, maxBudgetShare: 0.25 }),
+    ]),
+  }),
+  Object.freeze({
+    id: 'household-goods',
+    name: '家庭用品需求',
+    ownerName: '家庭用品需求',
+    cycleMs: core.ECONOMY_CONSTANTS.demandCycleMs,
+    baseBudget: 320,
+    referenceUtilityPrice: 24,
+    priceElasticity: 2,
+    maxPriceIndex: 2,
+    quoteUtilityDepth: 8,
+    products: Object.freeze([
+      Object.freeze({ productId: 'furniture', utilityPerUnit: 1, preferenceWeight: 1, maxBudgetShare: 0.75 }),
+      Object.freeze({ productId: 'clothing', utilityPerUnit: 2, preferenceWeight: 2, maxBudgetShare: 0.75 }),
     ]),
   }),
 ]);
@@ -356,7 +386,9 @@ function withLegacyDemandSuppressed(world, now, callback) {
   for (const product of PRODUCT_CATALOG) {
     const market = balancedMarket.marketFor(world, product.id, now);
     marketSnapshots.set(product.id, market.demand.nextDemandAt);
-    if (!GROUPED_DEMAND_PRODUCT_IDS.has(product.id) && now >= Number(market.demand.nextDemandAt)) {
+    if (product.systemDemandMode !== 'none'
+      && !GROUPED_DEMAND_PRODUCT_IDS.has(product.id)
+      && now >= Number(market.demand.nextDemandAt)) {
       dueProducts.push(product.id);
     }
     market.demand.nextDemandAt = FAR_FUTURE;
@@ -393,6 +425,7 @@ export function createWorld(now = Date.now()) {
 
 export function migrateWorld(world, now = Date.now()) {
   if (!world || typeof world !== 'object') return createWorld(now);
+  const previousVersion = Number(world.version || 0);
   const existingMarketIds = new Set(Object.keys(world.markets || {}));
   const legacy = {
     price: Number.isFinite(Number(world.marketPrice)) ? Number(world.marketPrice) : undefined,
@@ -404,6 +437,23 @@ export function migrateWorld(world, now = Date.now()) {
   };
   const migrated = core.migrateWorld(world, now);
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
+  for (const order of migrated.orders || []) {
+    if (order.ownerType !== 'population' || !isOpenOrder(order)) continue;
+    const product = PRODUCTS.get(String(order.productId || ''));
+    if (!product) continue;
+    const expectedGroupId = product.substitutionGroupId;
+    if (product.systemDemandMode === 'none'
+      || (product.systemDemandMode === 'grouped' && order.demandGroupId !== expectedGroupId)) {
+      order.status = 'cancelled';
+    }
+  }
+  if (previousVersion < 9) {
+    for (const player of Object.values(migrated.players || {})) {
+      const group = (player.facilityGroups || []).find((item) => item.facilityTypeId === 'electronics-factory');
+      if (group?.enabled && group.status === 'running') group.cycleStartedAt = now;
+    }
+  }
+  migrated.version = 9;
   return normalizeDemandWorld(migrated, now);
 }
 

@@ -26,11 +26,11 @@ function assertPlayerLogsAbsent(player) {
   assert.equal(Object.hasOwn(player, 'assetEvents'), false);
 }
 
-test('client state version 12 excludes all player log arrays and factory instances', () => {
+test('client state version 13 excludes all player log arrays and factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, 1_700_000_000_000);
-    assert.equal(state.version, 12);
+    assert.equal(state.version, 13);
     assert.equal(Object.hasOwn(state, 'trades'), false);
     assert.equal(Object.hasOwn(state, 'ledger'), false);
     assert.equal(Object.hasOwn(state, 'assetEvents'), false);
