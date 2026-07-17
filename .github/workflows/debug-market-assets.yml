@@ -1,0 +1,19 @@
+name: Debug Market Assets
+
+on:
+  push:
+    branches:
+      - agent/population-demand-price-transmission
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/verify-market-assets.mjs
