@@ -51,9 +51,8 @@ function forbidText(path, fragments) {
 
 requireText('src/app/GameApp.tsx', ['formatRank(', 'aria-label={rankLabel}']);
 requireText('src/pages/OverviewPage.tsx', [
-  'formatRank(currentRank)',
-  '排名第 ${currentRank} 名',
-  '工作冷却固定为 10s',
+  '固定 10s 冷却',
+  'formatDuration(workRemaining)',
 ]);
 requireText('src/pages/LeaderboardPage.tsx', [
   'formatRank(currentRank)',
@@ -75,6 +74,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '所有排名数值统一通过 `formatRank` 显示为 `#N`',
   '恢复中文“秒／分钟／小时”的玩家时长展示',
   '恢复“第 N 名”或裸数字排名展示',
+  '不得重复状态栏已经显示的总资产和排名',
 ]);
 
 forbidText('src/pages/LeaderboardPage.tsx', [
@@ -83,6 +83,8 @@ forbidText('src/pages/LeaderboardPage.tsx', [
 ]);
 forbidText('src/app/GameApp.tsx', ['<>第 {currentRank} 名</>']);
 forbidText('src/pages/OverviewPage.tsx', [
+  'formatRank(',
+  '排名第 ${currentRank} 名',
   '第 {derived.currentRank?.rank ?? \'--\'} 名',
   '工作冷却固定为 10 秒',
 ]);
@@ -104,4 +106,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('时间与排名格式验证通过：持续时间统一使用 s/m/h，排名统一使用 #N。');
+console.log('时间与排名格式验证通过：持续时间统一使用 s/m/h，排名统一由状态栏和排行榜使用 #N。');
