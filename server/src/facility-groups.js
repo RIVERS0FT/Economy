@@ -318,14 +318,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 9;
+  world.version = 10;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 9;
+  world.version = 10;
   return world;
 }
 
@@ -940,7 +940,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const normalizedOrders = (world.orders || []).map((order) => clone(normalizeOrder(order)));
   return {
     ...withoutFacilities,
-    version: 13,
+    version: 14,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
     facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),

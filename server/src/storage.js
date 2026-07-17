@@ -66,7 +66,7 @@ function createVersionedClientState(world, userId, now) {
     ...authoritativeState,
     ...createWarehouseSummary(world, player),
     ...createCollectibleClientState(world, userId, now),
-    version: 13,
+    version: 14,
   };
 }
 

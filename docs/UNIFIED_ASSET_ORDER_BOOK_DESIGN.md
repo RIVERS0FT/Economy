@@ -3,8 +3,8 @@
 > 状态：商品和工厂交易、成交价格与估值的当前权威设计  
 > 适用项目：`RIVERS0FT/Economy`  
 > 更新时间：2026-07-17
-> 客户端状态版本：13
-> 世界状态版本：9
+> 客户端状态版本：14
+> 世界状态版本：10
 
 ## 1. 统一资产模型
 
@@ -18,10 +18,11 @@ interface AssetOrder {
   productId?: string;
   facilityTypeId?: string;
   side: 'buy' | 'sell';
-  ownerType: 'player' | 'population' | 'market';
+  ownerType: 'player' | 'population';
   ownerId?: number;
   ownerName: string;
-  demandGroupId?: string;
+  demandGroupId?: 'food' | 'household';
+  demandTier?: 'raw' | 'intermediate' | 'final';
   demandCycleId?: number;
   price: number;
   quantity: number;
@@ -38,7 +39,7 @@ interface AssetOrder {
 
 `FacilityListing` 只允许作为版本 10 迁移兼容空结构存在，不得重新成为业务模型。
 
-人口主食买单使用可选的 `demandGroupId` 和 `demandCycleId` 标记预算组与周期，但仍遵守同一价格优先、同价时间优先规则。主食预算、替代价格与过期规则以 `PRODUCT_AND_GAMEPLAY_DESIGN.md` 为唯一权威来源。
+人口买单使用 `demandGroupId`、`demandTier` 和 `demandCycleId` 标记需求组、产业层级与周期，但仍遵守同一价格优先、同价时间优先规则。预算与双向价格传导以 `PRODUCT_AND_GAMEPLAY_DESIGN.md` 为唯一权威来源。
 
 ## 2. 下单与冻结
 
@@ -198,33 +199,17 @@ maxBuy = min(warehouseAvailableCapacity, floor(credits / price))
 
 工厂买卖快捷数量使用当前可用资金或未冻结工厂数量，不使用共享仓库容量。
 
-## 8. 系统商品流动性与工厂订单来源
+## 8. 订单来源
 
-商品市场允许服务器在某一侧没有有效系统流动性订单时补充一张系统订单。补单价格只读取补单前的当前有效订单簿，不读取最近成交价：
+商品订单只允许玩家或人口需求作为所有者：
 
-```text
-系统买单：最高买入价
-          → 没有买单时使用最低卖出价 - 1
-          → 买卖盘均为空时使用 max(1, 商品基础价 - 1)
+- 玩家可以提交商品买单和卖单。
+- 人口需求只提交买单，且名称只能是“饮食需求”或“家庭用品需求”。
+- 不提供系统流动性买单或卖单，不生成企业采购或普通人口需求。
+- 商品订单簿允许单侧为空或完全为空；服务器不得为了填充盘口制造订单、成交量或最近成交价。
+- 迁移必须删除旧 `ownerType = market` 商品订单和旧企业采购／普通人口需求订单，同时保留玩家订单及其冻结资产。
 
-系统卖单：最低卖出价
-          → 没有卖单时使用最高买入价 + 1
-          → 买卖盘均为空时使用 商品基础价 + 1
-```
-
-有效订单必须属于同一商品，状态为 `open` 或 `partial`、剩余数量大于零且价格为正整数。取消和全部成交订单不得参与报价。
-
-同一轮买卖补单使用补单前的同一订单簿快照。系统买价必须低于当前最低卖价，系统卖价必须高于当前最高买价；最低卖价已经为 1 且没有买单时不补系统买单。系统订单不得制造立即成交、系统内部成交、虚假成交量或虚假最近成交价。
-
-商品 `lastPrice` 只记录真实成交并用于行情和价格曲线，不得作为系统商品补单价格来源。商品初始订单簿完全为空时，才允许用基础价建立一档初始价差。
-
-工厂市场不提供任何系统买单或系统卖单：
-
-- 工厂订单只能由玩家提交；
-- 服务器周期、迁移、刷新和进入游戏都不得创建工厂订单；
-- 旧世界中 `assetKind = facility` 且 `ownerType = market` 的订单必须清理；
-- 工厂订单簿允许单侧为空或完全为空；
-- 玩家工厂订单、逐笔成交、价格时间优先、maker price、部分成交和禁止自成交规则保持不变。
+工厂订单仍只能由玩家提交；服务器周期、迁移、刷新和进入游戏都不得创建工厂订单。
 
 ## 9. 估值与排行榜
 

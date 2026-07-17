@@ -13,9 +13,8 @@ export interface ProductDefinition {
   id: string;
   name: string;
   category: ProductCategory;
-  family?: string;
-  substitutionGroupId?: string;
-  systemDemandMode?: 'none' | 'single' | 'grouped';
+  populationDemandGroupId?: 'food' | 'household';
+  populationDemandTier?: 'raw' | 'intermediate' | 'final';
   basePrice: number;
 }
 
@@ -92,7 +91,7 @@ export interface FacilityConstruction {
 
 export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'open' | 'partial' | 'filled' | 'cancelled';
-export type OrderOwnerType = 'player' | 'population' | 'market';
+export type OrderOwnerType = 'player' | 'population';
 
 export interface OrderFill {
   id: string;
@@ -116,7 +115,8 @@ export interface AssetOrder {
   ownerType: OrderOwnerType;
   ownerId?: number;
   ownerName: string;
-  demandGroupId?: string;
+  demandGroupId?: 'food' | 'household';
+  demandTier?: 'raw' | 'intermediate' | 'final';
   demandCycleId?: number;
   price: number;
   quantity: number;
@@ -246,6 +246,11 @@ export interface DemandState {
   lastQuantity: number;
   lastPrice: number;
   satisfaction: number;
+  referencePrice: number;
+  observedPrice: number;
+  costAnchor: number | null;
+  downstreamValueAnchor: number | null;
+  targetPrice: number;
 }
 
 export interface PricePoint {
@@ -300,7 +305,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 13;
+  version: 14;
   userId: number;
   playerName: string;
   registeredAt: number;
