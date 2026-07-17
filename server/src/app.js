@@ -1,7 +1,12 @@
 import { createServer } from 'node:http';
 import { authenticateRequest, authenticationCacheMaxAgeForRequest } from './auth.js';
 import { ensurePlayer } from './domain.js';
-import { configureGiftCodeAdminStore, createGiftCodeBatch } from './gift-code-batch.js';
+import {
+  configureGiftCodeAdminStore,
+  createGiftCodeBatch,
+  listGiftCodePage,
+  listGiftRedemptionPage,
+} from './gift-code-batch.js';
 import { checkRateLimit } from './rateLimit.js';
 import { EconomyRegistrationStore } from './registration-store.js';
 import {
@@ -243,7 +248,15 @@ const server = createServer(async (request, response) => {
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/gift-codes') {
-        sendJson(response, 200, { giftCodes: store.listGiftCodes(user) });
+        const page = listGiftCodePage(store, user, {
+          cursor: url.searchParams.get('cursor'),
+          limit: url.searchParams.get('limit'),
+        });
+        sendJson(response, 200, {
+          giftCodes: page.items,
+          total: page.total,
+          nextCursor: page.nextCursor,
+        });
         return;
       }
       if (method === 'POST' && path === '/api/game/admin/gift-codes') {
@@ -270,8 +283,14 @@ const server = createServer(async (request, response) => {
       }
       const redemptionsMatch = path.match(/^\/api\/game\/admin\/gift-codes\/(\d+)\/redemptions$/);
       if (method === 'GET' && redemptionsMatch) {
+        const page = listGiftRedemptionPage(store, user, Number(redemptionsMatch[1]), {
+          cursor: url.searchParams.get('cursor'),
+          limit: url.searchParams.get('limit'),
+        });
         sendJson(response, 200, {
-          redemptions: store.listGiftRedemptions(user, Number(redemptionsMatch[1])),
+          redemptions: page.items,
+          total: page.total,
+          nextCursor: page.nextCursor,
         });
         return;
       }
