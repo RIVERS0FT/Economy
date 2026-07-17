@@ -28,6 +28,7 @@ const browserSpecPath = 'tests/browser/runtime.spec.ts';
 const mainPath = 'src/main.tsx';
 const pageDesignPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
 const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
+const layoutIntegrityDesignPath = 'docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md';
 const packagePath = 'package.json';
 
 [
@@ -45,6 +46,7 @@ const packagePath = 'package.json';
   mainPath,
   pageDesignPath,
   uiDesignPath,
+  layoutIntegrityDesignPath,
   packagePath,
 ].forEach(requireFile);
 
@@ -79,6 +81,7 @@ for (const text of [
   'label="买单"',
   'label="卖单"',
   'theoreticalDailyOutput',
+  'home-grid',
   'overview-primary-grid',
   "selectMarketAsset('commodity', overviewMarket.product.id)",
 ]) requireText(overviewPath, text);
@@ -103,12 +106,19 @@ for (const text of [
 for (const text of [
   '--overview-primary-card-height: 330px;',
   '--overview-summary-card-height: 320px;',
+  'grid-template-columns: minmax(0, 1fr);',
+  'container: overview / inline-size;',
   'grid-template-columns: minmax(320px, 5fr) minmax(0, 7fr);',
+  '.overview-primary-grid .widget-heading h2',
+  'white-space: nowrap;',
   '@media (max-width: 1199px)',
+  '@media (max-width: 760px)',
+  '@container overview (max-width: 1050px)',
+  '@container overview (max-width: 580px)',
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
   '.overview-open-orders-card {',
   'grid-column: 1 / -1;',
-  '@media (max-width: 760px)',
+  'overflow-y: visible;',
   '.overview-market-empty {',
 ]) requireText(stylePath, text);
 
@@ -167,13 +177,20 @@ for (const text of [
 
 for (const text of [
   'overview prioritizes business decisions and uses a compact market empty state',
+  'overview spans the available desktop width without compressing cards into strips',
   'overview renders the real market chart only when activity exists',
   'overview keeps the decision rows visible and adapts to a narrower desktop',
-  'desktop sidebar collapses without removing keyboard navigation',
+  'desktop sidebar collapse recomputes overview columns from the real content width',
+  "page.setViewportSize({ width: 1684, height: 931 })",
   "page.setViewportSize({ width: 1440, height: 900 })",
   "page.setViewportSize({ width: 900, height: 1000 })",
+  "page.setViewportSize({ width: 1280, height: 900 })",
+  "page.locator('.home-grid')",
+  'getBoundingClientRect()',
+  'scrollWidth > element.clientWidth + 1',
   "page.getByTestId('overview-market-empty')",
   "page.getByRole('button', { name: '折叠侧栏' })",
+  'expect.poll',
 ]) requireText(browserSpecPath, text);
 
 for (const text of [
@@ -201,7 +218,19 @@ for (const text of [
   '宽屏桌面侧栏必须提供键盘可操作的显式折叠按钮',
 ]) requireText(uiDesignPath, text);
 
-for (const path of [pageDesignPath, uiDesignPath]) forbidText(path, '统一为 `384px` 高');
+for (const text of [
+  '外层轨道唯一性',
+  'grid-template-columns: minmax(0, 1fr);',
+  '实际内容宽度响应式',
+  '大于 `1050px`',
+  '不大于 `580px`',
+  '`1684×931`',
+  'getBoundingClientRect()',
+  'scrollWidth',
+  '不得保留嵌套纵向滚动',
+]) requireText(layoutIntegrityDesignPath, text);
+
+for (const path of [pageDesignPath, uiDesignPath, layoutIntegrityDesignPath]) forbidText(path, '统一为 `384px` 高');
 
 requireText(mainPath, "import './styles/overview.css'");
 requireText(packagePath, 'node scripts/verify-overview-content.mjs');
@@ -211,4 +240,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：经营提醒、紧凑工作、市场空状态、两排响应式布局、状态栏入口与可折叠侧栏满足设计基线。');
+console.log('概览验证通过：外层单轨、真实内容宽度响应式、经营提醒、市场空状态、状态栏入口、可折叠侧栏与浏览器几何回归满足设计基线。');
