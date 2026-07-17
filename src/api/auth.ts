@@ -100,11 +100,12 @@ export async function completeRegistration(
   password: string,
   code: string,
   inviteCode?: string,
+  invitationSource?: 'share_link' | 'manual_code',
 ): Promise<AuthUser> {
   const payload = await requestGameApi<AuthResponse>('/registration/complete', {
     method: 'POST',
     headers: { 'Idempotency-Key': createIdempotencyKey('registration-complete') },
-    body: JSON.stringify({ email, password, code, inviteCode }),
+    body: JSON.stringify({ email, password, code, inviteCode, invitationSource }),
   });
   return payload.user;
 }

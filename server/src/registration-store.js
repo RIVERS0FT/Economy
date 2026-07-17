@@ -223,7 +223,7 @@ export class EconomyRegistrationStore {
     return outcome;
   }
 
-  completeEmailRegistration({ verificationId, requestKey, user, ipFingerprint, inviteCode, now = Date.now() }) {
+  completeEmailRegistration({ verificationId, requestKey, user, ipFingerprint, inviteCode, invitationSource, now = Date.now() }) {
     return this.store.transaction(() => {
       const row = this.selectVerificationById.get(verificationId);
       if (!row) throw httpError('验证码记录不存在', 400);
@@ -242,6 +242,7 @@ export class EconomyRegistrationStore {
         ipFingerprint,
         source: 'email_verification',
         inviteCode,
+        invitationSource,
         invitationRequestKey: requestKey,
         now,
       });
@@ -266,6 +267,7 @@ export class EconomyRegistrationStore {
         ipFingerprint,
         source: 'homepage_session',
         inviteCode,
+        invitationSource: 'share_link',
         invitationRequestKey: requestKey,
         now,
       }));
@@ -298,6 +300,7 @@ export class EconomyRegistrationStore {
     ipFingerprint,
     source,
     inviteCode,
+    invitationSource,
     invitationRequestKey,
     now,
   }) {
@@ -326,6 +329,7 @@ export class EconomyRegistrationStore {
         user,
         ipFingerprint,
         inviteCode: playerExisted ? undefined : inviteCode,
+        invitationSource,
         requestKey: invitationRequestKey || `registration:${userId}:${now}`,
         now,
       });

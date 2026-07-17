@@ -202,6 +202,7 @@ const server = createServer(async (request, response) => {
           password: body.password,
           code: body.code,
           inviteCode: body.inviteCode,
+          invitationSource: body.invitationSource,
           ipFingerprint,
           requestKey,
         });

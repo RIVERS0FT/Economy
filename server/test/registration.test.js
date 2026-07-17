@@ -136,7 +136,8 @@ test('sends share-link invite code through email registration and immediately re
     const code = await send(context, now + 1);
     await context.service.complete({
       email: 'alice@example.com', password: 'password123', code,
-      inviteCode, ipFingerprint: 'ip-a', requestKey: 'complete-share-1', now: now + 2,
+      inviteCode, invitationSource: 'share_link',
+      ipFingerprint: 'ip-a', requestKey: 'complete-share-1', now: now + 2,
     });
     const world = context.store.loadWorld(now + 3).world;
     assert.equal(world.players['1'].gems, 10);
@@ -144,6 +145,32 @@ test('sends share-link invite code through email registration and immediately re
     const relation = context.registrationStore.invitations.invitationByInvitee(7);
     assert.equal(relation.source, 'share_link');
     assert.equal(relation.status, 'rewarded');
+    const summary = context.registrationStore.getInvitationSummary(7, now + 3);
+    assert.equal(summary.claimedInvitation.inviteCode, inviteCode);
+  } finally { context.store.close(); }
+});
+
+test('accepts a manually entered invite code during registration and rewards immediately', async () => {
+  const context = setup();
+  try {
+    const now = 1_700_000_100_000;
+    context.registrationStore.ensureLoggedInPlayer({
+      user: { id: 1, email: 'inviter@example.com', name: '邀请人' }, ipFingerprint: 'ip-inviter', now,
+    });
+    const inviteCode = context.registrationStore.invitations.ensureInviteCode(1, now).code;
+    const code = await send(context, now + 1, 'send-manual-register');
+    await context.service.complete({
+      email: 'alice@example.com', password: 'password123', code,
+      inviteCode, invitationSource: 'manual_code',
+      ipFingerprint: 'ip-a', requestKey: 'complete-manual-register', now: now + 2,
+    });
+    const world = context.store.loadWorld(now + 3).world;
+    assert.equal(world.players['1'].gems, 10);
+    assert.equal(world.players['7'].gems, 0);
+    const relation = context.registrationStore.invitations.invitationByInvitee(7);
+    assert.equal(relation.source, 'manual_code');
+    assert.equal(relation.invite_code, inviteCode);
+    assert.equal(context.registrationStore.getInvitationSummary(7, now + 3).claimedInvitation.inviteCode, inviteCode);
   } finally { context.store.close(); }
 });
 

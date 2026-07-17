@@ -21,12 +21,14 @@ const files = [
   'src/components/icons/GemIcon.tsx',
   'src/pages/SettingsPage.tsx',
   'src/app/App.tsx',
+  'src/app/LoginPage.tsx',
   'src/app/GameApp.tsx',
   'src/types.ts',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
+  'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
 ];
 files.forEach(requireFile);
 
@@ -63,8 +65,16 @@ for (const text of [
   '分享链接',
   '我的邀请码',
   '填写好友邀请码',
+  '已填写的邀请码',
+  'disabled',
   '累计宝石',
 ]) requireText('src/components/InvitationSettings.tsx', text);
+for (const text of ['邀请码（可选）', 'name="inviteCode"', "defaultValue={inviteCode ?? ''}", '邀请码已自动填写']) {
+  requireText('src/app/LoginPage.tsx', text);
+}
+for (const text of ['注册表单固定提供', '分享链接', 'disabled', '不得更换邀请码']) {
+  requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
+}
 
 for (const text of [
   '同 IP 账号封禁',

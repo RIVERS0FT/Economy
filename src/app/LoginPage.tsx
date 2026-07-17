@@ -66,6 +66,11 @@ export function LoginPage({
     const email = String(formData.get('email') ?? '').trim();
     const password = String(formData.get('password') ?? '');
     const code = String(formData.get('code') ?? '').trim();
+    const submittedInviteCode = String(formData.get('inviteCode') ?? '').trim().toUpperCase();
+    const linkInviteCode = inviteCode?.trim().toUpperCase();
+    const invitationSource = submittedInviteCode
+      ? linkInviteCode && submittedInviteCode === linkInviteCode ? 'share_link' : 'manual_code'
+      : undefined;
 
     setSubmitting(true);
     setError('');
@@ -73,7 +78,13 @@ export function LoginPage({
     try {
       const user = mode === 'login'
         ? await login(email, password)
-        : await completeRegistration(email, password, code, inviteCode);
+        : await completeRegistration(
+          email,
+          password,
+          code,
+          submittedInviteCode || undefined,
+          invitationSource,
+        );
       await onAuthenticated(user);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : mode === 'login' ? '登录失败' : '注册失败');
@@ -95,7 +106,7 @@ export function LoginPage({
       <section className="login-card panel">
         {inviteCode ? (
           <p className="form-notice invite-recognized" role="status">
-            已识别好友分享链接。完成注册后，分享者将立即获得宝石奖励。
+            已识别好友分享链接，邀请码已自动填写。完成注册后，分享者将立即获得宝石奖励。
           </p>
         ) : null}
         <div className="auth-mode-switch" role="tablist" aria-label="账号操作">
@@ -127,28 +138,45 @@ export function LoginPage({
             />
           </label>
           {mode === 'register' ? (
-            <label>
-              邮箱验证码
-              <span className="email-code-field">
+            <>
+              <label>
+                邀请码（可选）
                 <input
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  name="code"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  placeholder="6 位验证码"
-                  required
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  name="inviteCode"
+                  maxLength={8}
+                  defaultValue={inviteCode ?? ''}
+                  placeholder="8 位邀请码"
+                  onInput={(event) => {
+                    event.currentTarget.value = event.currentTarget.value.toUpperCase();
+                  }}
                 />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={sendingCode || submitting || resendSeconds > 0}
-                  onClick={() => void sendCode()}
-                >
-                  {sendingCode ? '发送中…' : resendSeconds > 0 ? `${resendSeconds}s` : '发送验证码'}
-                </Button>
-              </span>
-            </label>
+              </label>
+              <label>
+                邮箱验证码
+                <span className="email-code-field">
+                  <input
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    name="code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    placeholder="6 位验证码"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={sendingCode || submitting || resendSeconds > 0}
+                    onClick={() => void sendCode()}
+                  >
+                    {sendingCode ? '发送中…' : resendSeconds > 0 ? `${resendSeconds}s` : '发送验证码'}
+                  </Button>
+                </span>
+              </label>
+            </>
           ) : null}
           {notice ? <p className="form-notice" role="status">{notice}</p> : null}
           {error ? <p className="form-error" role="alert">{error}</p> : null}
