@@ -29,6 +29,18 @@ export type GiftCodeBatchResult = GiftCodeCreationPayload & {
   note: string;
 };
 
+export interface CursorPage<T> {
+  items: T[];
+  total: number;
+  nextCursor: string | null;
+}
+
+export interface GiftRedemptionRecord {
+  user_id: number;
+  reward_credits: number;
+  redeemed_at: number;
+}
+
 export interface BanIncidentSummary {
   id: number;
   status: 'active' | 'reviewed' | 'closed';
@@ -81,9 +93,20 @@ async function request<T>(path: string, init?: RequestInit, idempotencyKey?: str
   return response.json() as Promise<T>;
 }
 
+function pagePath(path: string, cursor?: string | null) {
+  if (!cursor) return path;
+  return `${path}?cursor=${encodeURIComponent(cursor)}`;
+}
+
 export const adminApi = {
   summary: async () => (await request<{ summary: ExtendedAdminSummary }>('/summary', { method: 'GET' })).summary,
-  giftCodes: async () => (await request<{ giftCodes: GiftCodeAdminRecord[] }>('/gift-codes', { method: 'GET' })).giftCodes,
+  giftCodes: async (cursor?: string | null): Promise<CursorPage<GiftCodeAdminRecord>> => {
+    const payload = await request<{ giftCodes: GiftCodeAdminRecord[]; total: number; nextCursor: string | null }>(
+      pagePath('/gift-codes', cursor),
+      { method: 'GET' },
+    );
+    return { items: payload.giftCodes, total: payload.total, nextCursor: payload.nextCursor };
+  },
   createGiftCode: async (payload: GiftCodeCreationPayload & { code?: string }, idempotencyKey?: string) => (
     await request<{ giftCode: { id: number; code: string } & GiftCodeCreationPayload }>('/gift-codes', {
       method: 'POST',
@@ -97,7 +120,13 @@ export const adminApi = {
     }, idempotencyKey)
   ).result,
   disableGiftCode: (id: number) => request<{ ok: boolean; id: number }>(`/gift-codes/${id}/disable`, { method: 'POST' }),
-  redemptions: async (id: number) => (await request<{ redemptions: Array<{ user_id: number; reward_credits: number; redeemed_at: number }> }>(`/gift-codes/${id}/redemptions`, { method: 'GET' })).redemptions,
+  redemptions: async (id: number, cursor?: string | null): Promise<CursorPage<GiftRedemptionRecord>> => {
+    const payload = await request<{ redemptions: GiftRedemptionRecord[]; total: number; nextCursor: string | null }>(
+      pagePath(`/gift-codes/${id}/redemptions`, cursor),
+      { method: 'GET' },
+    );
+    return { items: payload.redemptions, total: payload.total, nextCursor: payload.nextCursor };
+  },
   collectibles: async () => (await request<{ collectibles: CollectibleAdminRecord[] }>('/collectibles', { method: 'GET' })).collectibles,
   importCollectibles: async (items: CollectibleImportRecord[]) => (
     await request<{ result: { importedCount: number; collectibles: CollectibleAdminRecord[] } }>('/collectibles/import', {
