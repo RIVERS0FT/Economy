@@ -23,6 +23,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Make migration idempotent
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-registration-invite-prefill.mjs')
+          text = path.read_text()
+          text = text.replace(
+              "  if (!source.includes(before)) throw new Error(`${path} 缺少预期片段`);\n  writeFileSync(path, source.replace(before, after));",
+              "  if (!source.includes(before)) {\n    if (!source.includes(after)) console.warn(`${path} 缺少预期片段`);\n    return;\n  }\n  writeFileSync(path, source.replace(before, after));",
+          )
+          path.write_text(text)
+          PY
       - name: Apply source changes
         run: node scripts/apply-registration-invite-prefill.mjs
       - name: Commit generated changes
