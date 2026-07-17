@@ -55,11 +55,11 @@ test('overview prioritizes business decisions and uses a compact market empty st
   await expect(page.getByText('暂无有效挂单或近期成交', { exact: true })).toBeVisible();
   await expect(page.getByRole('img', { name: '近 24 小时价格、成交量与主动买卖方向趋势图' })).toHaveCount(0);
   await expect(page.getByText('当前总资产', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('#1', { exact: true })).toHaveCount(1);
+  await expect(page.locator('.overview-assets-card').getByText('#1', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '开始工作' })).toBeVisible();
 
   const workButtonWidth = await page.getByRole('button', { name: '开始工作' }).evaluate((element) => element.getBoundingClientRect().width);
-  const todayPanelWidth = await page.getByRole('heading', { name: '今日经营', exact: true }).locator('xpath=ancestor::article').evaluate((element) => element.getBoundingClientRect().width);
+  const todayPanelWidth = await page.locator('.overview-today-panel').evaluate((element) => element.getBoundingClientRect().width);
   expect(workButtonWidth).toBeLessThan(todayPanelWidth * 0.55);
   expect(pageErrors).toEqual([]);
 });
