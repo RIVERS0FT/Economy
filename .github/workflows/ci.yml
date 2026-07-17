@@ -18,23 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Apply local trade anonymization bundle
-        run: |
-          set +e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          node scripts/fix-anonymize-script.mjs
-          git add -A scripts/apply-anonymize-local-trades.mjs scripts/fix-anonymize-script.mjs scripts/anonymize-error.log
-          git commit -m "修正成交匿名化组装脚本" || true
-          git push origin HEAD:agent/anonymize-local-trades
-          node scripts/apply-anonymize-local-trades.mjs 2> /tmp/anonymize-error.log
-          status=$?
-          if [ $status -ne 0 ]; then
-            cp /tmp/anonymize-error.log scripts/anonymize-error.log
-            git add scripts/anonymize-error.log
-            git commit -m "记录成交匿名化组装错误"
-            git push origin HEAD:agent/anonymize-local-trades
-            exit $status
-          fi
+        run: node scripts/apply-anonymize-local-trades.mjs
 
       - name: Setup Node
         uses: actions/setup-node@v4
