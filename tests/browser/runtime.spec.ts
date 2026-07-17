@@ -1,9 +1,22 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
-async function capturePageErrors(page: import('@playwright/test').Page) {
+async function capturePageErrors(page: Page) {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   return pageErrors;
+}
+
+async function requireBox(locator: Locator) {
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  return box!;
+}
+
+async function gridTrackCount(locator: Locator) {
+  return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns
+    .split(' ')
+    .filter(Boolean)
+    .length);
 }
 
 test('storage denial does not block the settings runtime', async ({ page }) => {
@@ -64,6 +77,60 @@ test('overview prioritizes business decisions and uses a compact market empty st
   expect(pageErrors).toEqual([]);
 });
 
+test('overview spans the available desktop width without compressing cards into strips', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+  const layout = await requireBox(page.locator('.home-grid'));
+  const primary = await requireBox(page.locator('.overview-primary-grid'));
+  const summary = await requireBox(page.locator('.overview-summary-row'));
+  const today = await requireBox(page.locator('.overview-today-panel'));
+  const market = await requireBox(page.locator('.market-summary'));
+  const summaryCards = page.locator('.overview-summary-card');
+
+  expect(await gridTrackCount(page.locator('.home-grid'))).toBe(1);
+  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
+  expect(Math.abs(primary.x - layout.x)).toBeLessThan(2);
+  expect(Math.abs(summary.x - layout.x)).toBeLessThan(2);
+  expect(Math.abs(primary.width - layout.width)).toBeLessThan(2);
+  expect(Math.abs(summary.width - layout.width)).toBeLessThan(2);
+  expect(summary.y).toBeGreaterThanOrEqual(primary.y + primary.height);
+  expect(Math.abs(today.y - market.y)).toBeLessThan(2);
+  expect(market.width).toBeGreaterThan(today.width);
+  expect(today.width).toBeGreaterThan(420);
+  expect(market.width).toBeGreaterThan(560);
+
+  await expect(summaryCards).toHaveCount(3);
+  const summaryBoxes = await Promise.all([0, 1, 2].map((index) => requireBox(summaryCards.nth(index))));
+  expect(Math.max(...summaryBoxes.map((box) => box.y)) - Math.min(...summaryBoxes.map((box) => box.y))).toBeLessThan(2);
+  expect(Math.min(...summaryBoxes.map((box) => box.width))).toBeGreaterThan(280);
+
+  const overflowingElements = await page.locator([
+    '.home-grid',
+    '.overview-primary-grid',
+    '.overview-summary-row',
+    '.overview-today-panel',
+    '.market-summary',
+    '.overview-summary-card',
+  ].join(', ')).evaluateAll((elements) => elements
+    .filter((element) => element.scrollWidth > element.clientWidth + 1)
+    .map((element) => (element as HTMLElement).className));
+  expect(overflowingElements).toEqual([]);
+
+  const headingHeights = await page.locator('.overview-primary-grid h2, .overview-summary-row h2')
+    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
+  expect(Math.max(...headingHeights)).toBeLessThan(48);
+
+  const emptyListOverflow = await page.locator('.overview-alert-list, .overview-open-orders-list')
+    .evaluateAll((elements) => elements
+      .filter((element) => element.scrollHeight > element.clientHeight + 1)
+      .map((element) => (element as HTMLElement).className));
+  expect(emptyListOverflow).toEqual([]);
+  expect(pageErrors).toEqual([]);
+});
+
 test('overview renders the real market chart only when activity exists', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1600, height: 1000 });
@@ -92,17 +159,22 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   await expect(page.getByText('机械工厂生产受阻', { exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 900, height: 1000 });
-  const primaryGridColumns = await page.locator('.overview-primary-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
-  const summaryGridColumns = await page.locator('.overview-summary-row').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').length);
-  expect(primaryGridColumns).toBe(1);
-  expect(summaryGridColumns).toBe(2);
+  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(1);
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(2);
+
+  const nestedOverflowModes = await page.locator('.overview-alert-list, .overview-open-orders-list, .overview-asset-events')
+    .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowY));
+  expect(nestedOverflowModes).toEqual(['visible', 'visible', 'visible']);
   expect(pageErrors).toEqual([]);
 });
 
-test('desktop sidebar collapses without removing keyboard navigation', async ({ page }) => {
+test('desktop sidebar collapse recomputes overview columns from the real content width', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+  expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(1);
+  expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(2);
 
   const toggle = page.getByRole('button', { name: '折叠侧栏' });
   await toggle.focus();
@@ -110,5 +182,7 @@ test('desktop sidebar collapses without removing keyboard navigation', async ({ 
   await expect(page.getByRole('button', { name: '展开侧栏' })).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.game-shell')).toHaveClass(/sidebar-collapsed/);
   await expect(page.getByRole('button', { name: '市场', exact: true })).toBeVisible();
+  await expect.poll(() => gridTrackCount(page.locator('.overview-primary-grid'))).toBe(2);
+  await expect.poll(() => gridTrackCount(page.locator('.overview-summary-row'))).toBe(3);
   expect(pageErrors).toEqual([]);
 });
