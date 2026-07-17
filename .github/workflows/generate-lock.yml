@@ -1,9 +1,10 @@
 name: Finalize build workflows
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/harden-runtime-and-tests
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
