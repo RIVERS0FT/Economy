@@ -448,7 +448,6 @@ export class EconomyInvitationStore {
         : 'blocked_banned_account'
       : null;
     const source = invitationSource === 'manual_code' ? 'manual_code' : 'share_link';
-    const source = invitationSource === 'manual_code' ? 'manual_code' : 'share_link';
     const invitation = this.createInvitationInTransaction({
       world,
       user,
