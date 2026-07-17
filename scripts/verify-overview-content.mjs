@@ -140,8 +140,8 @@ requireAll(paths.shell, [
 ]);
 requireAll(paths.sidebar, [
   "aria-label={collapsed ? '展开侧栏' : '折叠侧栏'}",
-  'aria-expanded={!collapsed)',
-].map((text) => text === 'aria-expanded={!collapsed)' ? 'aria-expanded={!collapsed}' : text));
+  'aria-expanded={!collapsed}',
+]);
 requireAll(paths.sidebarStyle, ['.game-shell.sidebar-collapsed {', 'grid-template-columns: 78px minmax(0, 1fr);', '@media (max-width: 960px)']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
 
@@ -204,7 +204,7 @@ requireAll(paths.integrityDesign, [
   'getBoundingClientRect()',
   '超过三条时',
 ]);
-for ([paths.pageDesign, paths.uiDesign, paths.integrityDesign].forEach((path) => forbidText(path, '统一为 `384px` 高'))); // eslint-disable-line no-empty
+for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
 
 requireText(paths.main, "import './styles/overview.css'");
 requireText(paths.main, "import './styles/overview-polish.css'");
