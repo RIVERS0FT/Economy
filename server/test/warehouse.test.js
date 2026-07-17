@@ -48,11 +48,11 @@ function buyOrder(overrides = {}) {
   };
 }
 
-test('warehouse state defaults to level 1 and client version 13', () => {
+test('warehouse state defaults to level 1 and client version 14', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 13);
+    assert.equal(state.version, 14);
     assert.equal(state.warehouseLevel, 1);
     assert.equal(state.inventoryCapacity, 500);
     assert.equal(Object.hasOwn(state, 'warehouseMaxLevel'), false);

@@ -75,7 +75,7 @@ test('version 1 state migrates inventory and commodity orders without losing ass
       },
     },
     orders: [{
-      id: 'legacy-order', side: 'buy', ownerType: 'market', ownerName: '市场',
+      id: 'legacy-order', side: 'sell', ownerType: 'player', ownerId: 1, ownerName: 'Alice',
       price: 5, quantity: 1, remaining: 1, status: 'open', createdAt: now,
     }],
     facilityListings: [],
