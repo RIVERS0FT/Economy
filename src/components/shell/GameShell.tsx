@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { CurrencyText } from '../ui/CurrencyAmount';
 import { DesktopSidebar } from './DesktopSidebar';
@@ -10,12 +10,16 @@ export function GameShell({ model, statusItems, children }: {
   statusItems: StatusBarItem[];
   children: ReactNode;
 }) {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   return (
-    <main className="game-shell">
+    <main className={sidebarCollapsed ? 'game-shell sidebar-collapsed' : 'game-shell'}>
       <DesktopSidebar
         playerName={model.game.playerName}
         activeTab={model.tab}
         openOrderCount={model.derived.ownOpenOrders.length}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         onSelect={model.setTab}
         onSignOut={() => void model.signOut()}
       />
