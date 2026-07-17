@@ -112,9 +112,7 @@ replaceExact('scripts/verify-staple-crops-demand.mjs', "['世界版本 10 升级
 replaceExact('scripts/verify-staple-crops-demand.mjs', '仅保留两类固定预算需求，并按生产链双向滞后传导价格。', '两类人口需求预算提高至 500／480，并按生产链双向滞后传导价格。');
 
 for (const path of ['scripts/verify-market-assets.mjs', 'scripts/verify-facility-groups.mjs']) {
-  const source = read(path);
-  if (!source.includes('world.version = 11;')) throw new Error(`${path} 缺少世界版本 11 锚点`);
-  write(path, source.replaceAll('world.version = 11;', 'world.version = 12;'));
+  replaceExact(path, 'world.version = 11', 'world.version = 12');
 }
 
 let tests = read('server/test/domain.test.js');
