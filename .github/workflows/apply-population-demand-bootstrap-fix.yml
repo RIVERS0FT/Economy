@@ -39,7 +39,7 @@ jobs:
           path: population-demand-fix-result.txt
 
       - name: Stop after apply failure
-        if: steps.apply.outcome != 'success'
+        if: ${{ steps.apply.outcome == 'failure' }}
         run: exit 1
 
       - name: Install dependencies
@@ -58,7 +58,7 @@ jobs:
           path: population-demand-build-result.txt
 
       - name: Stop after build failure
-        if: steps.build.outcome != 'success'
+        if: ${{ steps.build.outcome == 'failure' }}
         run: exit 1
 
       - name: Remove temporary automation
