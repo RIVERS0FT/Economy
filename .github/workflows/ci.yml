@@ -10,6 +10,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,109 +18,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 24.4.0
+          cache: npm
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm ci
 
-      - name: Export repair workspace
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-repair-workspace
-          path: |
-            .github
-            docs
-            scripts
-            server
-            src
-            src-tauri
-            index.html
-            package.json
-            package-lock.json
-            postcss.config.js
-            tailwind.config.js
-            tsconfig.json
-            vite.config.ts
-          include-hidden-files: true
-          if-no-files-found: error
+      - name: Build and test
+        run: npm run build
 
-      - name: Verify document authority
-        run: node scripts/verify-document-authority.mjs
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Verify state delivery
-        run: node scripts/verify-state-delivery-capacity.mjs
-
-      - name: Verify authentication cache
-        run: node scripts/verify-authentication-cache.mjs
-
-      - name: Verify email registration
-        run: node scripts/verify-email-registration.mjs
-
-      - name: Verify page content
-        run: node scripts/verify-page-content.mjs
-
-      - name: Verify display format
-        run: node --experimental-strip-types scripts/verify-display-format.mjs
-
-      - name: Verify UI architecture
-        run: node scripts/verify-ui-architecture-runner.mjs
-
-      - name: Verify currency SVG
-        run: node scripts/verify-currency-svg.mjs
-
-      - name: Verify mobile touch feedback
-        run: node scripts/verify-mobile-touch-feedback.mjs
-
-      - name: Verify virtual list scroll chaining
-        run: node scripts/verify-virtual-list-scroll-chaining.mjs
-
-      - name: Verify overview content
-        run: node scripts/verify-overview-content.mjs
-
-      - name: Verify industry catalog
-        run: node scripts/verify-industry-catalog.mjs
-
-      - name: Verify factory recipes
-        run: node scripts/verify-unified-factory-recipes-grid.mjs
-
-      - name: Verify staple demand
-        run: node scripts/verify-staple-crops-demand.mjs
-
-      - name: Verify market assets
-        run: node scripts/verify-market-assets.mjs
-
-      - name: Verify local trade privacy
-        run: node scripts/verify-local-trade-privacy.mjs
-
-      - name: Verify market chart
-        run: node --experimental-strip-types scripts/verify-market-chart.mjs
-
-      - name: Verify liquid glass chrome
-        run: node scripts/verify-liquid-glass-chrome.mjs
-
-      - name: Verify warehouse expansion
-        run: node scripts/verify-warehouse-expansion.mjs
-
-      - name: Verify facility groups
-        run: node scripts/verify-facility-groups.mjs
-
-      - name: Verify collectibles and auctions
-        run: node scripts/verify-collectibles-auctions.mjs
-
-      - name: Verify gift code batches
-        run: node scripts/verify-gift-code-batches.mjs
-
-      - name: Test Nginx configuration
-        run: npm run test:nginx-config
-
-      - name: Check server syntax
-        run: npm run server:check
-
-      - name: Test server
-        run: npm run server:test
-
-      - name: TypeScript build
-        run: npx tsc
-
-      - name: Vite production build
-        run: npx vite build
+      - name: Test browser runtime
+        run: npm run test:browser
