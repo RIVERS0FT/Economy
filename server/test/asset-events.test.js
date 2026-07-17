@@ -26,7 +26,7 @@ function assertPlayerLogsAbsent(player) {
   assert.equal(Object.hasOwn(player, 'assetEvents'), false);
 }
 
-test('client state version 14 excludes all player log arrays and factory instances', () => {
+test('client state version 15 excludes all player log arrays and factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, 1_700_000_000_000);
@@ -59,7 +59,7 @@ test('actions update authoritative state without writing player logs to SQLite',
     assert.equal(Object.hasOwn(placed.state, 'assetEvents'), false);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
 
-    const order = placed.state.orders.find((item) => item.ownerId === alice.id && item.status === 'open');
+    const order = placed.state.orders.find((item) => item.isOwn && item.status === 'open');
     assert.ok(order);
     const cancelled = store.apply(alice, request(
       'cancelOrder',
