@@ -21,6 +21,7 @@ import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
 import '../../src/styles/overview.css';
 import '../../src/styles/design-system.css';
+import '../../src/styles/overview-polish.css';
 
 const localActivityResult = loadLocalActivity(123);
 Object.assign(window, { __localActivityResult: localActivityResult });
@@ -33,21 +34,37 @@ const fixedNow = new Date(2026, 6, 17, 22, 30, 0).getTime();
 document.documentElement.dataset.appSurface = view === 'overview' ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
-  const hasActivity = scenario === 'activity';
+  const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
   const hasAlerts = scenario === 'alerts';
-  const orders = hasActivity || hasAlerts ? [{
-    id: 'order-1',
+  const hasTwoSidedOrders = scenario === 'two-sided';
+  const hasManyOrders = scenario === 'many-orders';
+  const hasThreeCashEvents = scenario === 'cash-three';
+  const hasCashMovement = scenario !== 'cash-empty';
+  const baseOrder = {
     assetKind: 'commodity',
     assetId: 'machinery',
     productId: 'machinery',
-    side: 'buy',
     isOwn: true,
-    price: 46,
     quantity: 20,
     remaining: 8,
     status: 'partial',
-    createdAt: fixedNow - 20 * 60_000,
-  }] : [];
+  };
+  const orders = hasManyOrders
+    ? Array.from({ length: 6 }, (_, index) => ({
+        ...baseOrder,
+        id: `order-${index + 1}`,
+        side: index % 2 === 0 ? 'buy' : 'sell',
+        price: index % 2 === 0 ? 46 - index : 50 + index,
+        createdAt: fixedNow - (index + 1) * 10 * 60_000,
+      }))
+    : hasTwoSidedOrders
+      ? [
+          { ...baseOrder, id: 'order-buy', side: 'buy', price: 46, createdAt: fixedNow - 20 * 60_000 },
+          { ...baseOrder, id: 'order-sell', side: 'sell', price: 50, createdAt: fixedNow - 10 * 60_000 },
+        ]
+      : hasActivity || hasAlerts
+        ? [{ ...baseOrder, id: 'order-1', side: 'buy', price: 46, createdAt: fixedNow - 20 * 60_000 }]
+        : [];
   const priceHistory = hasActivity ? [
     { price: 44, quantity: 4, createdAt: fixedNow - 3 * 60 * 60_000, takerSide: 'buy' },
     { price: 46, quantity: 2, createdAt: fixedNow - 2 * 60 * 60_000, takerSide: 'sell' },
@@ -64,7 +81,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     playerName: 'MEVIUS',
     registeredAt: fixedNow - 60 * 86_400_000,
     credits: 2,
-    frozenCredits: hasActivity || hasAlerts ? 368 : 0,
+    frozenCredits: orders.length > 0 ? 368 : 0,
     gems: 0,
     inventories: { machinery: { available: 580, frozen: 0 } },
     inventoryCapacity,
@@ -182,20 +199,37 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     inventoryUsed: game.warehouseStoredQuantity,
   };
 
-  const localAssetEvents = [{
-    id: 'asset-event-1',
-    category: 'facility',
-    createdAt: fixedNow - 2 * 60 * 60_000,
-    description: '购置机械工厂',
-    cashDelta: -80_000,
+  const syncEvent = {
+    id: 'asset-event-sync',
+    category: 'system',
+    createdAt: fixedNow - 60 * 60_000,
+    description: '服务器资产状态已同步',
+    cashDelta: 0,
     availableCashAfter: 2,
     frozenCashDelta: 0,
     inventoryChanges: [],
     facilityChanges: [],
     productionChanges: [],
-    sourceType: 'facility',
+    sourceType: 'sync',
     localOnly: true,
-  }];
+  };
+  const cashEvents = hasCashMovement
+    ? Array.from({ length: hasThreeCashEvents ? 3 : 1 }, (_, index) => ({
+        id: `asset-event-${index + 1}`,
+        category: 'facility',
+        createdAt: fixedNow - (index + 2) * 60 * 60_000,
+        description: index === 0 ? '购置机械工厂' : `经营现金变动 ${index + 1}`,
+        cashDelta: index === 1 ? 8_420 : -(80_000 + index * 1_000),
+        availableCashAfter: 2,
+        frozenCashDelta: 0,
+        inventoryChanges: [],
+        facilityChanges: [],
+        productionChanges: [],
+        sourceType: 'facility',
+        localOnly: true,
+      }))
+    : [];
+  const localAssetEvents = [syncEvent, ...cashEvents];
 
   return {
     user: { id: 123, email: 'runtime@example.com', role: 'user' },
@@ -286,9 +320,10 @@ function OverviewHarness() {
   const [overviewProductId, setOverviewProductId] = useState('machinery');
   const model = useMemo(() => buildOverviewModel(tab, setTab), [tab]);
   const weeklyChange = model.derived.currentRank?.weeklyChange ?? 0;
+  const weeklyMagnitude = Math.abs(weeklyChange);
   const statusItems: StatusBarItem[] = [
     { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
-    { id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: <span className="negative">↓ 本周 <CurrencyAmount>{formatCurrency(weeklyChange)}</CurrencyAmount></span>, emphasis: 'primary', onClick: () => model.setTab('assets') },
+    { id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: <span className="negative" aria-label={`本周资产下降 ${formatCurrency(weeklyMagnitude)}`}>↓ 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>, emphasis: 'primary', onClick: () => model.setTab('assets') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
     { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
