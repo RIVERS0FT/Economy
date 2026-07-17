@@ -109,6 +109,6 @@ test('desktop sidebar collapses without removing keyboard navigation', async ({ 
   await page.keyboard.press('Enter');
   await expect(page.getByRole('button', { name: '展开侧栏' })).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.game-shell')).toHaveClass(/sidebar-collapsed/);
-  await expect(page.getByRole('button', { name: '市场' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '市场', exact: true })).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
