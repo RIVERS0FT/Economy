@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { getStableAdminSummary } from './admin-summary.js';
 import { authenticateRequest, authenticationCacheMaxAgeForRequest } from './auth.js';
 import { ensurePlayer } from './domain.js';
 import {
@@ -16,6 +17,7 @@ import {
   requestIpAddress,
 } from './registration.js';
 import { EconomyStore } from './storage.js';
+import { cleanupEmailVerificationRecords } from './verification-retention.js';
 
 const port = Number(process.env.PORT || 3002);
 const databasePath = process.env.ECONOMY_DB_PATH || '/var/lib/riversoft-economy/economy.sqlite';
@@ -188,6 +190,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (isRegistrationPath) {
+      cleanupEmailVerificationRecords(registrationStore.database);
       const requestKey = requireIdempotencyKey(request);
       const body = await readJson(request);
       const ipFingerprint = registrationIpFingerprint(request);
@@ -244,7 +247,7 @@ const server = createServer(async (request, response) => {
     if (path.startsWith('/api/game/admin/')) {
       requireAdmin(user);
       if (method === 'GET' && path === '/api/game/admin/summary') {
-        sendJson(response, 200, { summary: store.getAdminSummary(user) });
+        sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/gift-codes') {
