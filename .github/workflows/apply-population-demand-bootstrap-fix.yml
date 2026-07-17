@@ -27,7 +27,20 @@ jobs:
           node-version: 24
 
       - name: Apply fix
-        run: node scripts/apply-population-demand-bootstrap-fix.mjs
+        id: apply
+        continue-on-error: true
+        run: node scripts/apply-population-demand-bootstrap-fix.mjs > population-demand-fix-result.txt 2>&1
+
+      - name: Upload fix result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: population-demand-fix-result
+          path: population-demand-fix-result.txt
+
+      - name: Stop after apply failure
+        if: steps.apply.outcome != 'success'
+        run: exit 1
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
