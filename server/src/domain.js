@@ -195,8 +195,8 @@ function defaultDemandGroupState(group, now) {
   return {
     demandGroupId: group.id,
     cycleMs: group.cycleMs,
-    nextDemandAt: now + group.cycleMs,
-    lastCycleId: Math.floor(now / group.cycleMs),
+    nextDemandAt: now,
+    lastCycleId: Math.floor(now / group.cycleMs) - 1,
     lastBudget: group.baseBudget,
     lastCommitted: 0,
     satisfaction: 0,
@@ -644,7 +644,7 @@ export function createWorld(now = Date.now()) {
     defaultDemandGroupState(group, now),
   ]));
   world.priceTransmission = defaultPriceTransmissionState(now);
-  world.version = 10;
+  world.version = 11;
   return normalizeDemandWorld(world, now);
 }
 
@@ -665,7 +665,7 @@ export function migrateWorld(world, now = Date.now()) {
   migrated.orders = (migrated.orders || []).filter((order) => {
     if (order.ownerType === 'player') return true;
     if (order.ownerType !== 'population') return false;
-    return previousVersion >= 10 && isValidPopulationOrder(order);
+    return previousVersion >= 11 && isValidPopulationOrder(order);
   });
   if (previousVersion < 9) {
     for (const player of Object.values(migrated.players || {})) {
@@ -673,8 +673,19 @@ export function migrateWorld(world, now = Date.now()) {
       if (group?.enabled && group.status === 'running') group.cycleStartedAt = now;
     }
   }
-  migrated.version = 10;
-  return normalizeDemandWorld(migrated, now);
+  const normalized = normalizeDemandWorld(migrated, now);
+  if (previousVersion < 11) {
+    for (const group of DEMAND_GROUP_CATALOG) {
+      const state = normalized.demandGroups[group.id];
+      state.nextDemandAt = now;
+      state.lastCycleId = Math.floor(now / group.cycleMs) - 1;
+      state.lastCommitted = 0;
+      state.satisfaction = 0;
+      state.lastAllocation = {};
+    }
+  }
+  normalized.version = 11;
+  return normalized;
 }
 
 export function ensurePlayer(world, user, now = Date.now()) {

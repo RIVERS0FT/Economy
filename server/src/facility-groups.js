@@ -318,14 +318,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 10;
+  world.version = 11;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 10;
+  world.version = 11;
   return world;
 }
 
