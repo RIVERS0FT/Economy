@@ -31,9 +31,10 @@ jobs:
           repair_status=$?
           if [ "$repair_status" -ne 0 ]; then
             cat assembly-error.log
+            cp scripts/apply-gem-shop-change.mjs assembly-repaired.txt
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add assembly-error.log
+            git add assembly-error.log assembly-repaired.txt
             git commit -m "记录宝石商店组装错误"
             git push origin HEAD:${{ github.head_ref }}
             exit "$repair_status"
@@ -42,15 +43,16 @@ jobs:
           apply_status=$?
           if [ "$apply_status" -ne 0 ]; then
             cat assembly-error.log
+            cp scripts/apply-gem-shop-change.mjs assembly-repaired.txt
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add assembly-error.log
+            git add assembly-error.log assembly-repaired.txt
             git commit -m "记录宝石商店组装错误"
             git push origin HEAD:${{ github.head_ref }}
             exit "$apply_status"
           fi
           set -e
-          rm -f assembly-error.log
+          rm -f assembly-error.log assembly-repaired.txt
           rm -f scripts/apply-gem-shop-change.mjs
           rm -f scripts/repair-gem-shop-script.mjs
           rm -f .github/workflows/apply-gem-shop.yml
