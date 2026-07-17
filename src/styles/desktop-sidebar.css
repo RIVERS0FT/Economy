@@ -91,7 +91,6 @@
 
 .sidebar-collapsed .desktop-sidebar .sidebar-brand > div,
 .sidebar-collapsed .desktop-sidebar .sidebar-nav-button strong,
-.sidebar-collapsed .desktop-sidebar .sidebar-nav-button small,
 .sidebar-collapsed .desktop-sidebar .connection-state div {
   display: none;
 }
@@ -114,6 +113,15 @@
 
 .sidebar-collapsed .desktop-sidebar .sidebar-nav-button > span {
   width: 100%;
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-nav-button small {
+  position: absolute;
+  top: 0.18rem;
+  right: 0.18rem;
+  min-width: 18px;
+  padding: 0.08rem 0.28rem;
+  font-size: 0.66rem;
 }
 
 .sidebar-collapsed .desktop-sidebar .sidebar-footer {
