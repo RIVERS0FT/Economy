@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/registration-invite-prefill
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
