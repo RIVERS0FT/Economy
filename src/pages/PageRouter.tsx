@@ -7,6 +7,7 @@ import { LeaderboardPage } from './LeaderboardPage';
 import { MarketPage } from './MarketPage';
 import { OverviewPage } from './OverviewPage';
 import { ProductionPage } from './ProductionPage';
+import { GemShopPage } from './GemShopPage';
 import { SettingsPage } from './SettingsPage';
 
 export function PageRouter({ model }: { model: LoadedGameViewModel }) {
@@ -30,6 +31,8 @@ export function PageRouter({ model }: { model: LoadedGameViewModel }) {
       return <AuctionPage model={model} />;
     case 'leaderboard':
       return <LeaderboardPage model={model} />;
+    case 'gem-shop':
+      return <GemShopPage model={model} />;
     case 'settings':
       return <SettingsPage model={model} />;
     case 'home':

@@ -6,6 +6,7 @@ export const navigationItems = [
   { id: 'collections', label: '藏品' },
   { id: 'auction', label: '拍卖' },
   { id: 'leaderboard', label: '排行' },
+  { id: 'gem-shop', label: '宝石商店' },
   { id: 'settings', label: '设置' },
 ] as const;
 

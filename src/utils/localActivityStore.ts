@@ -35,7 +35,8 @@ export type LocalActivityAction =
   | 'buyFacility'
   | 'renamePlayer'
   | 'resetPlayer'
-  | 'redeemGift';
+  | 'redeemGift'
+  | 'exchangeGems';
 
 export interface LocalActivityView {
   assetEvents: AssetEvent[];
@@ -84,6 +85,7 @@ const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   renamePlayer: 'system',
   resetPlayer: 'system',
   redeemGift: 'system',
+  exchangeGems: 'system',
 };
 
 function storageKey(userId: number, version = STORAGE_VERSION) {

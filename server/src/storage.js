@@ -27,6 +27,7 @@ import {
   processCollectibleAuctions,
 } from './collectibles.js';
 import { ensureGemState } from './invitations.js';
+import { createGemShopSummary, exchangeGems } from './gem-shop.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const COLLECTIBLE_ACTIONS = new Set([
@@ -120,6 +121,16 @@ export class EconomyStore {
       ) STRICT;
       CREATE INDEX IF NOT EXISTS idx_economy_gift_redemptions_user
         ON economy_gift_redemptions(user_id, redeemed_at DESC);
+      CREATE TABLE IF NOT EXISTS economy_gem_shop_exchanges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        request_key TEXT NOT NULL UNIQUE,
+        gems_spent INTEGER NOT NULL CHECK (gems_spent > 0),
+        credits_received INTEGER NOT NULL CHECK (credits_received > 0),
+        created_at INTEGER NOT NULL
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS idx_economy_gem_shop_exchanges_user
+        ON economy_gem_shop_exchanges(user_id, created_at DESC);
     `);
     this.selectWorld = this.database.prepare('SELECT revision, state_json FROM economy_world WHERE id = 1');
     this.insertWorld = this.database.prepare(
@@ -172,6 +183,21 @@ export class EconomyStore {
       SELECT user_id, reward_credits, redeemed_at
       FROM economy_gift_redemptions WHERE gift_code_id = ?
       ORDER BY redeemed_at DESC LIMIT 500
+    `);
+    this.insertGemShopExchange = this.database.prepare(`
+      INSERT INTO economy_gem_shop_exchanges (
+        user_id, request_key, gems_spent, credits_received, created_at
+      ) VALUES (?, ?, ?, ?, ?)
+    `);
+    this.sumGemShopExchanges = this.database.prepare(`
+      SELECT COALESCE(SUM(gems_spent), 0) AS total_gems_spent,
+             COALESCE(SUM(credits_received), 0) AS total_credits_received
+      FROM economy_gem_shop_exchanges WHERE user_id = ?
+    `);
+    this.listGemShopExchanges = this.database.prepare(`
+      SELECT gems_spent, credits_received, created_at
+      FROM economy_gem_shop_exchanges
+      WHERE user_id = ? ORDER BY created_at DESC LIMIT 20
     `);
   }
 
@@ -292,6 +318,19 @@ export class EconomyStore {
     return { ok: true, message: `礼品兑换成功，获得 ¤${Number(row.reward_credits)}` };
   }
 
+  getGemShopSummary(user, now = Date.now()) {
+    return this.transaction(() => {
+      const { world } = this.loadWorld(now);
+      const player = ensurePlayer(world, user, now);
+      ensureGemState(player);
+      return createGemShopSummary(
+        player,
+        this.sumGemShopExchanges.get(Number(user.id)),
+        this.listGemShopExchanges.all(Number(user.id)),
+      );
+    }, { immediate: false });
+  }
+
   apply(user, { action, payload, requestKey, method, path }, now = Date.now()) {
     return this.transaction(() => {
       const cached = this.selectIdempotency.get(Number(user.id), requestKey);
@@ -317,6 +356,18 @@ export class EconomyStore {
       } else if (action === 'redeemGift') {
         processFacilityGroupWorld(world, now);
         gameResult = this.redeemGiftInTransaction(world, user, payload, now);
+      } else if (action === 'exchangeGems') {
+        processFacilityGroupWorld(world, now);
+        gameResult = exchangeGems(player, payload.gems, now);
+        if (gameResult.ok) {
+          this.insertGemShopExchange.run(
+            Number(user.id),
+            requestKey,
+            gameResult.gemsSpent,
+            gameResult.creditsReceived,
+            now,
+          );
+        }
       } else if (COLLECTIBLE_ACTIONS.has(action)) {
         processFacilityGroupWorld(world, now);
         gameResult = applyCollectibleAction(world, user, action, payload, now);

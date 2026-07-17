@@ -98,6 +98,7 @@ function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/orders') return { action: 'placeOrder', category: 'orders' };
   if (method === 'POST' && path === '/api/game/warehouse/upgrade') return { action: 'upgradeWarehouse', category: 'general' };
   if (method === 'POST' && path === '/api/game/gifts/redeem') return { action: 'redeemGift', category: 'general' };
+  if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/reset') return { action: 'resetPlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/collectible-auctions') {
@@ -360,6 +361,11 @@ const server = createServer(async (request, response) => {
         inviteCode: body.inviteCode,
         requestKey,
       }));
+      return;
+    }
+
+    if (method === 'GET' && path === '/api/game/gem-shop') {
+      sendJson(response, 200, { gemShop: store.getGemShopSummary(user) });
       return;
     }
 

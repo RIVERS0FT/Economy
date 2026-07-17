@@ -38,7 +38,7 @@
 
 ## 2. 服务器权威边界
 
-服务器保存并判定可用与冻结资金、宝石余额与流水、商品库存、仓库、工厂集群及配方、商品与工厂订单、逐笔成交、需求预算、市场价格历史、藏品归属、拍卖、工作冷却、礼品、Economy 注册信息、邀请码、邀请关系、注册 IP 封禁、总资产和排行榜。
+服务器保存并判定可用与冻结资金、宝石余额与流水、宝石商店兑换记录、商品库存、仓库、工厂集群及配方、商品与工厂订单、逐笔成交、需求预算、市场价格历史、藏品归属、拍卖、工作冷却、礼品、Economy 注册信息、邀请码、邀请关系、注册 IP 封禁、总资产和排行榜。
 
 服务器不得把浏览器展示用 `trades`、`ledger`、`assetEvents` 数组保存进世界 JSON。宝石属于服务器权威资产，但不参与普通货币结算、总资产和排行榜。芝加哥艺术博物馆图片由浏览器直接加载；服务器只保存馆藏 ID、IIIF `imageId` 和元数据。
 
@@ -56,7 +56,9 @@
 
 `server/src/balanced-market.js` 是 `domain.js` 使用的市场运行辅助层，负责市场结构修复、商品订单撮合和逐笔成交记录。它不得定义第二套商品目录，只能接收 `domain.js` 已生成的正式目录，也不得生成系统流动性、企业采购或普通人口需求订单。
 
-`server/src/invitations.js` 是宝石邀请、邀请码、邀请关系、注册 IP 封禁与解禁审计的唯一业务模块。它可以通过注入的 `EconomyStore` 事务和 `ensurePlayer` 操作世界状态，但不得重新定义玩家、普通货币、总资产或市场规则。邀请奖励、邀请关系、宝石流水和封禁记录必须在同一 SQLite 事务中保持一致。
+`server/src/invitations.js` 是宝石邀请、邀请码、邀请关系、注册 IP 封禁与解禁审计的唯一业务模块。
+
+`server/src/gem-shop.js` 是宝石兑换普通货币的唯一规则模块，固定定义 1 宝石兑换 10 普通货币和单次 1～100 宝石边界；`storage.js` 只负责在同一事务中保存世界与 `economy_gem_shop_exchanges` 记录，不得另设客户端汇率。它可以通过注入的 `EconomyStore` 事务和 `ensurePlayer` 操作世界状态，但不得重新定义玩家、普通货币、总资产或市场规则。邀请奖励、邀请关系、宝石流水和封禁记录必须在同一 SQLite 事务中保持一致。
 
 除 `domain.js` 外，任何业务文件不得绕过 `domain.js` 直接导入 `domain-core.js`。辅助层也不得导入兼容核心。否则可能重新启用旧价格、旧 60 预算主食需求、独立食品需求或旧农场参数。未来合并兼容核心前必须保持相同测试，且不得形成平行权威目录或需求引擎。
 
@@ -65,7 +67,7 @@
 - 客户端 `EconomyState.version` 固定为 14。
 - SQLite 世界版本固定为 11。
 - 宝石字段采用同版本加法迁移：读取或序列化旧玩家时将缺失的 `gems` 与 `stats.invitationGemsIssued` 初始化为 0，不提高世界版本或客户端状态版本。
-- 邀请码、邀请关系、宝石流水、封禁事件和审计属于 SQLite 业务表，不写入世界 JSON。
+- 邀请码、邀请关系、宝石流水、宝石商店兑换记录、封禁事件和审计属于 SQLite 业务表，不写入世界 JSON。
 - 邮箱验证码注册不修改世界 JSON 结构，不提高世界版本。
 - 世界版本 10 升级到 11 时删除旧人口／系统订单，保留玩家订单及冻结资产，并把两类人口需求标记为当前事务立即执行；不得留下一个需求周期的空窗。所有日志清理、兼容结构清理和序列化辅助函数只能保留或提升当前世界版本，不得把世界版本写回旧值，否则会重复执行迁移、重复生成需求并持续推进修订号。
 - 旧 `grain` 库存、冻结量、订单和行情幂等迁移到 `wheat`，初始化 `rice` 和 `wheat-crop`。
@@ -106,7 +108,7 @@
 
 - `economy_email_verifications` 保存请求幂等键、邮箱、验证码 HMAC、IP 指纹、有效期、错误次数、投递状态、使用状态和完成账号；不得保存验证码明文。
 - `economy_registrations` 以统一账号 ID 为主键，保存首次玩家档案创建时的邮箱、注册 IP 指纹、完成时间和来源。
-- `economy_invite_codes`、`economy_invitation_relations`、`economy_gem_ledger`、`economy_ip_ban_incidents`、`economy_ip_ban_members`、`economy_account_bans` 与 `economy_ban_audit` 是邀请、宝石和封禁的权威业务表。
+- `economy_invite_codes`、`economy_invitation_relations`、`economy_gem_ledger`、`economy_gem_shop_exchanges`、`economy_ip_ban_incidents`、`economy_ip_ban_members`、`economy_account_bans` 与 `economy_ban_audit` 是邀请、宝石兑换和封禁的权威业务表。
 - 生成验证码记录和调用 Resend 前，Economy 必须通过主页账号服务仅限同机回环的 `POST /api/internal/account-email-exists` 查询邮箱是否已经注册。已注册邮箱返回 `409` 和“该邮箱已注册，请直接登录”，不得创建 `economy_email_verifications` 记录，也不得发送邮件；查询失败时返回统一账号服务不可用，不得绕过查重继续投递。
 - 验证码固定为 6 位数字，有效期 10 分钟；同一邮箱或同一 IP 指纹 60 秒内禁止再次发送。
 - 验证码错误 5 次后状态变为不可用；过期、已使用或作废验证码不能重复使用。
@@ -134,6 +136,8 @@
 | GET | `/api/game/state` | 获取完整状态或修订号轻量确认 |
 | GET | `/api/game/invitations` | 获取宝石余额、邀请码、分享链接和邀请统计 |
 | POST | `/api/game/invitations/claim` | 注册后 24 小时内手动填写邀请码 |
+| GET | `/api/game/gem-shop` | 获取服务器汇率、兑换边界、累计与最近记录 |
+| POST | `/api/game/gem-shop/exchange` | 原子扣除宝石并增加普通货币 |
 | POST | `/api/game/work` | 工作 |
 | POST | `/api/game/facilities` | 建设工厂 |
 | POST | `/api/game/facilities/:facilityTypeId/start` | 开启工厂集群 |
@@ -157,6 +161,12 @@
 旧工厂固定挂牌路由只作迁移兼容。旧 `/api/game/facilities/:facilityTypeId/plan` 返回 `410 Gone`，不得恢复生产模式或目标产量。
 
 人口饮食需求以 `world.demandGroups.staples` 为唯一预算周期状态，每周期最多承诺 330，在食品、小麦、水稻、肉、蛋和奶间按卖盘深度、效用、偏好和预算上限分配。六种商品不得生成独立人口订单，满足率按效用计算。棉花、毛、铜矿石、铜材和纺织品只保留基础流动性，不生成独立人口消费；家具和服装共享 `household-goods` 固定预算。
+
+### 6.1 宝石商店事务
+
+宝石商店固定使用 1 宝石兑换 10 普通货币，单次接受 1～100 的整数宝石。`POST /api/game/gem-shop/exchange` 必须先通过封禁检查和普通写操作限流，并要求 `Idempotency-Key`。在一个 `BEGIN IMMEDIATE` 事务中完成宝石余额校验、扣除宝石、增加可用资金、普通货币账本写入、`economy_gem_shop_exchanges` 插入、世界修订号更新和幂等响应保存；任一步失败全部回滚。
+
+`GET /api/game/gem-shop` 只返回服务器固定汇率、当前余额、累计值和最近 20 笔兑换。客户端预览不得成为结算依据。相同幂等键重试返回第一次响应，不重复扣除或发行；不同路径复用幂等键继续返回冲突。
 
 ## 7. 容量与客户端交付
 
