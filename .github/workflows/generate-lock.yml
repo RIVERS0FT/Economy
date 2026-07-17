@@ -1,41 +1,34 @@
-name: Prepare repair workspace
+name: Generate dependency lock
 
 on:
   push:
     branches:
       - agent/harden-runtime-and-tests
-  pull_request:
-    branches:
-      - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  workspace:
+  lock:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: agent/harden-runtime-and-tests
       - uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
-      - run: npm install --package-lock-only --ignore-scripts
-      - uses: actions/upload-artifact@v4
-        with:
-          name: economy-repair-workspace
-          path: |
-            .github
-            docs
-            scripts
-            server
-            src
-            src-tauri
-            index.html
-            package.json
-            package-lock.json
-            postcss.config.js
-            tailwind.config.js
-            tsconfig.json
-            vite.config.ts
-          include-hidden-files: true
-          if-no-files-found: error
+      - name: Generate package lock
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit package lock
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "package-lock.json is already current"
+            exit 0
+          fi
+          git commit -m "锁定前端依赖"
+          git push origin HEAD:agent/harden-runtime-and-tests
