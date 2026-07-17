@@ -5,6 +5,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 项目：`RIVERS0FT/Economy`
 - 生产网页：`https://game.riversoft.top/economy/`
 - 管理员页面：`https://game.riversoft.top/economy/admin`
+- 封禁管理页面：`https://game.riversoft.top/economy/admin/bans`
 - 客户端状态版本：`14`
 - 世界状态版本：`11`
 
@@ -17,6 +18,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 → 产成品直接进入共享仓库
 → 在统一资产订单簿交易商品和工厂
 → 参与唯一艺术藏品拍卖
+→ 邀请新玩家获得独立宝石
 → 调整产业链、库存、资金与收藏
 → 提升服务器计算的总资产和排行榜名次
 ```
@@ -55,7 +57,10 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 客户端只接受不低于当前值的状态修订号；权威动作期间必须取消旧轮询并暂停新轮询，工作按钮立即显示“处理中”。
 - `/economy-api/game/` 的大型 JSON 响应必须使用 gzip 压缩，避免完整状态占满服务器出口带宽。
 - 主页账号认证使用单进程短缓存：状态读取 10 秒、普通写操作最多 2 秒、管理员不使用缓存；同会话并发认证合并，LRU 上限 5,000 条，缓存键只保存 Cookie 的 SHA-256 摘要。
-- Economy 注册完成时点是统一账号第一次创建 Economy 玩家档案；已登录主页账号首次进入仍可自动建档并记录 IP 指纹。主页已完成验证的账号属于可信账号，不受 Economy 注册 IP 多账号限制；Economy 自身邮箱验证码入口继续执行该限制。
+- Economy 注册完成时点是统一账号第一次创建 Economy 玩家档案；邮箱验证码和已登录主页账号首次进入共用相同建档、邀请归因与注册 IP 检测逻辑。
+- 宝石是独立于普通货币的整数资产，不参与市场、生产、总资产或排行榜。每名玩家拥有永久 8 位邀请码和专属分享链接；新玩家通过分享链接首次建档，或注册后 24 小时内在设置页填写邀请码时，邀请人立即获得 10 宝石，被邀请人不获得宝石。
+- 一个账号只能绑定一次邀请关系，分享链接与手动邀请码互斥；游戏重置不清空宝石、邀请码、邀请关系、宝石流水或封禁记录。
+- 同一个注册 IP 指纹出现多个 Economy 账号时，该指纹下全部账号封禁且邀请奖励被阻断；普通游戏接口返回 423。管理员可在独立封禁页面解禁单个账号或整个事件，所有操作保留审计，解禁不自动补发被拦截的邀请宝石。
 - 邮箱验证码只保存 HMAC，10 分钟过期、60 秒禁止重发、错误 5 次作废、不可重复使用，且发送与提交 IP 指纹必须一致。
 - 发送验证码前必须先通过主页账号服务仅限回环的邮箱存在性接口查重；已注册邮箱返回 409 并引导登录，不创建验证码记录，也不调用 Resend。
 - 生产验证码使用服务器上的 `RESEND_API_KEY` 和大写 `EMAIL_FROM`。systemd 先加载共享 `/etc/riversoft-email.env`，再加载 `/etc/riversoft-economy-api.env`；邮件密钥不存入 GitHub Actions。独立配置工作流只验证运行进程已加载两个变量；缺少配置时客户端明确显示“邮箱验证码服务未配置，请联系管理员”，不得显示为整个游戏服务器不可用。
@@ -78,7 +83,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 藏品：当前账号持有的艺术藏品、图片、来源与归属。
 - 拍卖：发起藏品拍卖、竞价、取消无出价拍卖和查看结算结果。
 - 排行：服务器总资产排行榜。
-- 设置：玩家资料、偏好、邀请、礼品兑换、退出与重置。
+- 设置：玩家资料、偏好、宝石、分享链接、邀请码、礼品兑换、退出与重置。
 
 ## 权威设计文档
 
@@ -86,16 +91,16 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 
 | 主题 | 权威文档 |
 |---|---|
-| 产品定位、工作、货币与需求 | `docs/PRODUCT_AND_GAMEPLAY_DESIGN.md` |
+| 产品定位、工作、普通货币、宝石、邀请与需求 | `docs/PRODUCT_AND_GAMEPLAY_DESIGN.md` |
 | 商品目录、整数经济数值、工厂集群与生产 | `docs/INDUSTRY_AND_PRODUCTION_DESIGN.md` |
 | 商品与工厂统一订单簿 | `docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` |
 | 共享仓库和扩容 | `docs/WAREHOUSE_EXPANSION_DESIGN.md` |
 | 页面内容与导航职责 | `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | UI 组件、SVG 图标与响应式系统 | `docs/UI_DESIGN_SYSTEM.md` |
 | 状态栏与移动底栏玻璃外壳 | `docs/LIQUID_GLASS_CHROME_DESIGN.md` |
-| 服务器、API、注册、容量与部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |
+| 服务器、API、注册、邀请、封禁、容量与部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |
 | 浏览器本地活动日志 | `docs/LOCAL_ACTIVITY_LOG_DESIGN.md` |
-| 礼品码、藏品、拍卖与管理员后台 | `docs/GIFT_CODE_AND_ADMIN_DESIGN.md` |
+| 礼品码、藏品、拍卖、封禁复核与管理员后台 | `docs/GIFT_CODE_AND_ADMIN_DESIGN.md` |
 
 ## 数据与部署
 
@@ -118,4 +123,4 @@ npm run dev
 npm run build
 ```
 
-`npm run build` 会执行文档权威性、邮箱验证码注册、页面职责、UI 架构、产业目录与整数经济平衡、统一资产市场、液态玻璃、仓库、工厂集群、饮食竞争、礼品码批量生成、藏品拍卖、Nginx、服务器测试、TypeScript 和 Vite 生产构建检查。
+`npm run build` 会执行文档权威性、邮箱验证码注册、宝石邀请与同 IP 封禁、页面职责、UI 架构、产业目录与整数经济平衡、统一资产市场、液态玻璃、仓库、工厂集群、饮食竞争、礼品码批量生成、藏品拍卖、Nginx、服务器测试、TypeScript 和 Vite 生产构建检查。

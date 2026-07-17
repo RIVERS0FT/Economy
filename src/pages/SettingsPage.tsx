@@ -1,5 +1,6 @@
 import { type ChangeEvent, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { InvitationSettings } from '../components/InvitationSettings';
 import {
   Button,
   PageLayout,
@@ -30,9 +31,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     reset,
   } = model;
   const [giftCode, setGiftCode] = useState('');
-  const [inviteStatus, setInviteStatus] = useState('');
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
-  const inviteUrl = `${window.location.origin}/economy/`;
 
   async function submitGift() {
     const code = giftCode.trim().toUpperCase();
@@ -40,22 +39,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     const result = await redeemGift(code);
     model.notify(result.message);
     if (result.ok) setGiftCode('');
-  }
-
-  async function shareInvite() {
-    setInviteStatus('');
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Economy', text: '一起来经营你的经济帝国。', url: inviteUrl });
-        setInviteStatus('邀请链接已分享');
-        return;
-      }
-      await navigator.clipboard.writeText(inviteUrl);
-      setInviteStatus('邀请链接已复制');
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      setInviteStatus('无法自动复制，请手动复制浏览器地址');
-    }
   }
 
   return (
@@ -82,13 +65,16 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
 
           <div className="profile-action-stack">
             <a className="ui-link" href="https://riversoft.top/profile">前往主页修改账号资料</a>
-            {user.role === 'admin' ? <a className="ui-link" href="/economy/admin">进入管理员后台</a> : null}
+            {user.role === 'admin' ? <>
+              <a className="ui-link" href="/economy/admin">进入管理员后台</a>
+              <a className="ui-link" href="/economy/admin/bans">账号封禁管理</a>
+            </> : null}
             <Button block variant="secondary" onClick={() => void signOut()}>退出登录</Button>
             <Button
               block
               variant="danger"
               onClick={() => {
-                if (window.confirm('确认重置当前账号的金融帝国服务器数据？统计、订单和工厂也会清空。')) void showResult(reset());
+                if (window.confirm('确认重置当前账号的金融帝国服务器数据？统计、订单和工厂也会清空。宝石、邀请关系和封禁记录将保留。')) void showResult(reset());
               }}
             >重置经济状态</Button>
           </div>
@@ -126,13 +112,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
           </label>
         </Panel>
 
-        <Panel className="widget invite-card">
-          <WidgetHeading title="邀请好友" action={<StatusTag tone="neutral">正式入口</StatusTag>} />
-          <p>分享 Economy 正式入口。第一阶段不生成邀请码、邀请奖励或归因记录。</p>
-          <input value={inviteUrl} readOnly aria-label="Economy 邀请链接" />
-          <Button block onClick={() => void shareInvite()}>分享或复制邀请链接</Button>
-          {inviteStatus ? <small role="status">{inviteStatus}</small> : null}
-        </Panel>
+        <InvitationSettings />
 
         <Panel className="widget gift-redemption-card">
           <WidgetHeading title="礼品兑换" action={<StatusTag tone="info">游戏货币</StatusTag>} />

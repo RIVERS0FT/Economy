@@ -12,16 +12,16 @@
 
 | 文档 | 唯一职责 |
 |---|---|
-| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、货币来源回收、需求与排行榜目标 |
+| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、普通货币与宝石、邀请奖励、货币来源回收、需求与排行榜目标 |
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 22 种商品、15 种工厂、整数经济数值、参考利润、持续生产、通用工厂配方、生产周期、三态、自动恢复和生产页面结构 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值和资产统计 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡和生产空间约束 |
-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 八个正式页面、登录注册入口、邀请、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
+| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 八个正式页面、登录注册入口、宝石、分享链接、邀请码、封禁提示、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一 SVG 图标、中文界面、响应式、移动触摸反馈与可访问性 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 桌面与移动端状态栏、移动底栏和玻璃外壳 |
-| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、邮箱验证码注册、统一账号首次建档、API、SQLite、容量限制、Nginx、systemd 和部署 |
+| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、SQLite、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地快照、资产事件和权威逐笔成交记录 |
-| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖、管理员权限和后台范围 |
+| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖、封禁复核、管理员权限和后台范围 |
 
 ## 修改规则
 
@@ -39,6 +39,6 @@
 12. 状态轮询修订号、响应防倒退、动作／轮询互斥、空闲读取不写库、默认刷新间隔和游戏 JSON 压缩属于服务器容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-state-delivery-capacity.mjs` 防回退。
 13. 主页账号认证缓存的分级 TTL、Cookie 摘要、并发合并、错误策略和 LRU 上限属于安全与容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-authentication-cache.mjs` 防回退。
 14. 小麦／水稻目录、农场改种、持续生产和主食替代预算属于产业与需求权威规则；必须同步更新产业、产品、服务器文档，并通过产业、工厂与主食需求验证脚本防回退。
-15. Economy 注册完成时点、主页账号自动建档、邮箱验证码、IP 指纹、多账号限制、Resend、注册路由和登录注册双模式属于服务器与页面权威规则；必须同步更新服务器、页面、根 README 和 `scripts/verify-email-registration.mjs`。
-
+15. Economy 注册完成时点、主页账号自动建档、邮箱验证码、IP 指纹、多账号封禁、Resend、注册路由和登录注册双模式属于服务器与页面权威规则；必须同步更新服务器、页面、根 README、`scripts/verify-email-registration.mjs` 与服务器测试。
 16. 人口需求订单来源、固定预算、生产链双向滞后价格传导和迁移清理属于产品、产业与订单簿权威规则；必须同步更新对应文档、测试和 `scripts/verify-staple-crops-demand.mjs`。
+17. 宝石、永久邀请码、分享链接即时奖励、注册后 24 小时手动填写、同 IP 全组封禁、423 响应、管理员解禁与审计属于产品、页面、服务器和管理员权威规则；必须同步更新对应文档、测试和 `scripts/verify-gems-invitations-and-bans.mjs`。

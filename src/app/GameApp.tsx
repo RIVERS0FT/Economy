@@ -1,5 +1,6 @@
 import type { AuthUser } from '../types';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons';
+import { GemIcon } from '../components/icons/GemIcon';
 import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
 import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
@@ -30,6 +31,10 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
     {
       id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>,
       compactValue: formatCompactNumber(game.credits), detail: <>冻结 <CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></>,
+    },
+    {
+      id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),
+      compactValue: formatCompactNumber(game.gems), detail: <>邀请好友可获得宝石</>,
     },
     {
       id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,

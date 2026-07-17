@@ -29,6 +29,35 @@ export type GiftCodeBatchResult = GiftCodeCreationPayload & {
   note: string;
 };
 
+export interface BanIncidentSummary {
+  id: number;
+  status: 'active' | 'reviewed' | 'closed';
+  detected_at: number;
+  updated_at: number;
+  detected_user_count: number;
+  fingerprint_preview: string;
+  active_ban_count: number;
+}
+
+export interface BanIncidentMember {
+  user_id: number;
+  registered_at: number;
+  registration_source: 'email_verification' | 'homepage_session';
+  email: string;
+  ban_status: 'active' | 'lifted' | null;
+  banned_at: number | null;
+  unbanned_at: number | null;
+  admin_note: string | null;
+}
+
+export interface BanIncidentDetails {
+  incident: BanIncidentSummary & {
+    fingerprint_preview: string;
+    created_reason: string;
+  };
+  members: BanIncidentMember[];
+}
+
 export function createAdminRequestKey() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   return `admin-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -79,4 +108,20 @@ export const adminApi = {
   collectibleOwnership: async (id: string) => (
     await request<{ ownership: CollectibleOwnershipRecord[] }>(`/collectibles/${encodeURIComponent(id)}/ownership`, { method: 'GET' })
   ).ownership,
+  banIncidents: async () => (
+    await request<{ incidents: BanIncidentSummary[] }>('/bans', { method: 'GET' })
+  ).incidents,
+  banIncident: (id: number) => request<BanIncidentDetails>(`/bans/${id}`, { method: 'GET' }),
+  unbanUser: (userId: number, note: string) => request<{ ok: boolean; message: string }>(
+    `/bans/users/${userId}/unban`,
+    { method: 'POST', body: JSON.stringify({ note }) },
+  ),
+  rebanUser: (userId: number, note: string) => request<{ ok: boolean; message: string }>(
+    `/bans/users/${userId}/reban`,
+    { method: 'POST', body: JSON.stringify({ note }) },
+  ),
+  unbanIncident: (incidentId: number, note: string) => request<{ ok: boolean; message: string; changedCount: number }>(
+    `/bans/${incidentId}/unban-all`,
+    { method: 'POST', body: JSON.stringify({ note }) },
+  ),
 };

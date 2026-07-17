@@ -2,15 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { EconomyRegistrationStore } from '../src/registration-store.js';
-import { createRegistrationService } from '../src/registration.js';
+import { createRegistrationService, requestIpAddress } from '../src/registration.js';
 
 class FakeEconomyStore {
   constructor() {
     this.database = new DatabaseSync(':memory:');
     this.database.exec(`CREATE TABLE economy_world (id INTEGER PRIMARY KEY, revision INTEGER, state_json TEXT, updated_at INTEGER) STRICT;`);
   }
-  transaction(callback) {
-    this.database.exec('BEGIN IMMEDIATE');
+  transaction(callback, { immediate = true } = {}) {
+    this.database.exec(immediate ? 'BEGIN IMMEDIATE' : 'BEGIN');
     try {
       const result = callback();
       this.database.exec('COMMIT');
@@ -22,10 +22,14 @@ class FakeEconomyStore {
   }
   loadWorld(now) {
     const row = this.database.prepare('SELECT revision, state_json FROM economy_world WHERE id = 1').get();
-    if (row) return { revision: row.revision, world: JSON.parse(row.state_json) };
-    const world = { players: {} };
-    this.database.prepare('INSERT INTO economy_world VALUES (1, 1, ?, ?)').run(JSON.stringify(world), now);
-    return { revision: 1, world };
+    if (row) {
+      const stateJson = String(row.state_json);
+      return { revision: row.revision, stateJson, world: JSON.parse(stateJson) };
+    }
+    const world = { version: 11, players: {} };
+    const stateJson = JSON.stringify(world);
+    this.database.prepare('INSERT INTO economy_world VALUES (1, 1, ?, ?)').run(stateJson, now);
+    return { revision: 1, stateJson, world };
   }
   saveWorld(revision, world, now) {
     this.database.prepare('UPDATE economy_world SET revision = ?, state_json = ?, updated_at = ? WHERE id = 1')
@@ -36,7 +40,14 @@ class FakeEconomyStore {
 }
 
 function ensurePlayer(world, user, now) {
-  world.players[String(user.id)] ||= { id: Number(user.id), email: user.email, registeredAt: now };
+  world.players[String(user.id)] ||= {
+    userId: Number(user.id),
+    email: user.email,
+    playerName: user.name || `玩家 ${user.id}`,
+    registeredAt: now,
+    gems: 0,
+    stats: { invitationGemsIssued: 0 },
+  };
   return world.players[String(user.id)];
 }
 
@@ -59,6 +70,21 @@ async function send(setupResult, now = 1_700_000_000_000, requestKey = 'send-key
   });
   return setupResult.deliveries.at(-1).code;
 }
+
+
+test('registration IP prefers trusted reverse-proxy real IP over a client-supplied forwarded chain', () => {
+  assert.equal(requestIpAddress({
+    headers: {
+      'x-real-ip': '203.0.113.8',
+      'x-forwarded-for': '198.51.100.9, 127.0.0.1',
+    },
+    socket: { remoteAddress: '127.0.0.1' },
+  }), '203.0.113.8');
+  assert.equal(requestIpAddress({
+    headers: { 'x-forwarded-for': '198.51.100.9, 203.0.113.8' },
+    socket: { remoteAddress: '127.0.0.1' },
+  }), '203.0.113.8');
+});
 
 test('rejects an existing unified account before creating or sending a verification', async () => {
   let checks = 0;
@@ -96,6 +122,28 @@ test('sends and completes a verification without storing plaintext code', async 
     assert.equal(verification.status, 'used');
     assert.equal(JSON.stringify(verification).includes(code), false);
     assert.equal(context.registrationStore.getRegistration(7).registration_ip_fingerprint, 'ip-a');
+  } finally { context.store.close(); }
+});
+
+test('sends share-link invite code through email registration and immediately rewards inviter', async () => {
+  const context = setup();
+  try {
+    const now = 1_700_000_000_000;
+    context.registrationStore.ensureLoggedInPlayer({
+      user: { id: 1, email: 'inviter@example.com', name: '邀请人' }, ipFingerprint: 'ip-inviter', now,
+    });
+    const inviteCode = context.registrationStore.invitations.ensureInviteCode(1, now).code;
+    const code = await send(context, now + 1);
+    await context.service.complete({
+      email: 'alice@example.com', password: 'password123', code,
+      inviteCode, ipFingerprint: 'ip-a', requestKey: 'complete-share-1', now: now + 2,
+    });
+    const world = context.store.loadWorld(now + 3).world;
+    assert.equal(world.players['1'].gems, 10);
+    assert.equal(world.players['7'].gems, 0);
+    const relation = context.registrationStore.invitations.invitationByInvitee(7);
+    assert.equal(relation.source, 'share_link');
+    assert.equal(relation.status, 'rewarded');
   } finally { context.store.close(); }
 });
 
@@ -153,30 +201,17 @@ test('used code cannot be reused but the same completion request is idempotent',
   } finally { context.store.close(); }
 });
 
-test('trusted homepage accounts may share a network while direct Economy registration still enforces the IP limit', () => {
+test('homepage and direct Economy registrations both participate in duplicate-IP group bans', () => {
   const context = setup();
   try {
-    const first = context.registrationStore.ensureLoggedInPlayer({
+    context.registrationStore.ensureLoggedInPlayer({
       user: { id: 1, email: 'one@example.com' }, ipFingerprint: 'shared-ip', now: 100,
     });
-    assert.equal(first.playerCreated, true);
-    assert.equal(context.registrationStore.ensureLoggedInPlayer({
-      user: { id: 1, email: 'one@example.com' }, ipFingerprint: 'shared-ip', now: 101,
-    }).playerCreated, false);
-
-    const second = context.registrationStore.ensureLoggedInPlayer({
+    context.registrationStore.ensureLoggedInPlayer({
       user: { id: 2, email: 'two@example.com' }, ipFingerprint: 'shared-ip', now: 102,
     });
-    assert.equal(second.playerCreated, true);
     assert.equal(context.registrationStore.getRegistration(2).source, 'homepage_session');
-
-    assert.throws(() => context.store.transaction(() => (
-      context.registrationStore.ensurePlayerRegistrationInTransaction({
-        user: { id: 3, email: 'three@example.com' },
-        ipFingerprint: 'shared-ip',
-        source: 'email_verification',
-        now: 103,
-      })
-    )), /已经注册其他/);
+    assert.throws(() => context.registrationStore.assertPlayerActive(1), { statusCode: 423 });
+    assert.throws(() => context.registrationStore.assertPlayerActive(2), { statusCode: 423 });
   } finally { context.store.close(); }
 });

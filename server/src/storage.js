@@ -26,6 +26,7 @@ import {
   migrateCollectibleWorld,
   processCollectibleAuctions,
 } from './collectibles.js';
+import { ensureGemState } from './invitations.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const COLLECTIBLE_ACTIONS = new Set([
@@ -54,6 +55,7 @@ function generateGiftCode() {
 function createVersionedClientState(world, userId, now) {
   const player = world.players[String(userId)];
   ensureWarehouse(player);
+  ensureGemState(player);
   processCollectibleAuctions(world, now);
   const state = createFacilityGroupClientState(world, userId, now);
   const {
@@ -64,6 +66,7 @@ function createVersionedClientState(world, userId, now) {
   } = state;
   return {
     ...authoritativeState,
+    gems: player.gems,
     ...createWarehouseSummary(world, player),
     ...createCollectibleClientState(world, userId, now),
     version: 14,
@@ -195,6 +198,8 @@ export class EconomyStore {
       migrateFacilityGroupWorld(world, now);
       migrateCollectibleWorld(world, now);
       stripLegacyFacilityInstances(world);
+      for (const player of Object.values(world.players || {})) ensureGemState(player);
+      world.version = 11;
       const stateJson = JSON.stringify(world);
       this.insertWorld.run(1, stateJson, now);
       return { revision: 1, stateJson, world };
@@ -204,16 +209,24 @@ export class EconomyStore {
     stripPlayerLogs(world);
     migrateFacilityGroupWorld(world, now);
     migrateCollectibleWorld(world, now);
-    for (const player of Object.values(world.players || {})) ensureWarehouse(player);
+    for (const player of Object.values(world.players || {})) {
+      ensureWarehouse(player);
+      ensureGemState(player);
+    }
+    world.version = 11;
     return { revision: Number(row.revision), stateJson, world };
   }
 
   serializeWorld(world, now) {
-    for (const player of Object.values(world.players || {})) ensureWarehouse(player);
+    for (const player of Object.values(world.players || {})) {
+      ensureWarehouse(player);
+      ensureGemState(player);
+    }
     migrateFacilityGroupWorld(world, now);
     migrateCollectibleWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
+    world.version = 11;
     return JSON.stringify(world);
   }
 
@@ -236,10 +249,12 @@ export class EconomyStore {
       const { revision, stateJson, world } = this.loadWorld(now);
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
+      ensureGemState(player);
       migrateFacilityGroupWorld(world, now);
       processFacilityGroupWorld(world, now);
       processCollectibleAuctions(world, now);
       ensureWarehouse(world.players[String(user.id)]);
+      ensureGemState(world.players[String(user.id)]);
       const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
       const unchanged = Number.isInteger(knownRevision) && knownRevision === nextRevision;
       if (unchanged) return { revision: nextRevision, unchanged: true };
@@ -292,6 +307,7 @@ export class EconomyStore {
       const { revision, world } = this.loadWorld(now);
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
+      ensureGemState(player);
       migrateFacilityGroupWorld(world, now);
       processCollectibleAuctions(world, now);
       let gameResult;
@@ -306,15 +322,24 @@ export class EconomyStore {
         gameResult = applyCollectibleAction(world, user, action, payload, now);
       } else if (action === 'resetPlayer') {
         const resetCheck = canResetCollectibles(world, Number(user.id), now);
-        gameResult = resetCheck.ok
-          ? applyFacilityGroupAction(world, user, action, payload, now)
-          : resetCheck;
+        if (resetCheck.ok) {
+          const preservedGems = player.gems;
+          const preservedInvitationGemsIssued = player.stats.invitationGemsIssued;
+          gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+          const resetPlayer = world.players[String(user.id)];
+          ensureGemState(resetPlayer);
+          resetPlayer.gems = preservedGems;
+          resetPlayer.stats.invitationGemsIssued = preservedInvitationGemsIssued;
+        } else {
+          gameResult = resetCheck;
+        }
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
       }
       processFacilityGroupWorld(world, now);
       processCollectibleAuctions(world, now);
       ensureWarehouse(world.players[String(user.id)]);
+      ensureGemState(world.players[String(user.id)]);
       const nextRevision = this.saveWorld(revision, world, now);
       const state = createVersionedClientState(world, Number(user.id), now);
       const response = normalizeJson({ result: gameResult, revision: nextRevision, state });

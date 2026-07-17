@@ -12,13 +12,25 @@ interface EmailCodeResponse {
   resendAfterSeconds: number;
 }
 
+export interface EconomySessionResponse {
+  playerCreated: boolean;
+  banned: boolean;
+  incidentId?: number;
+  invitationBound: boolean;
+  invalidInvite: boolean;
+}
+
 class ApiRequestError extends Error {
   status: number;
+  code?: string;
+  incidentId?: number;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, details: { code?: string; incidentId?: number } = {}) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = status;
+    this.code = details.code;
+    this.incidentId = details.incidentId;
   }
 }
 
@@ -40,13 +52,17 @@ async function request<T>(base: string, path: string, init?: RequestInit): Promi
 
   if (!response.ok) {
     let message = '请求失败';
+    let code: string | undefined;
+    let incidentId: number | undefined;
     try {
-      const payload = (await response.json()) as { message?: string };
+      const payload = (await response.json()) as { message?: string; code?: string; incidentId?: number };
       if (payload.message) message = payload.message;
+      code = payload.code;
+      incidentId = payload.incidentId;
     } catch {
       // Keep the generic message when the upstream response is not JSON.
     }
-    throw new ApiRequestError(response.status, message);
+    throw new ApiRequestError(response.status, message, { code, incidentId });
   }
 
   return response.json() as Promise<T>;
@@ -79,13 +95,26 @@ export async function sendRegistrationEmailCode(email: string): Promise<EmailCod
   });
 }
 
-export async function completeRegistration(email: string, password: string, code: string): Promise<AuthUser> {
+export async function completeRegistration(
+  email: string,
+  password: string,
+  code: string,
+  inviteCode?: string,
+): Promise<AuthUser> {
   const payload = await requestGameApi<AuthResponse>('/registration/complete', {
     method: 'POST',
     headers: { 'Idempotency-Key': createIdempotencyKey('registration-complete') },
-    body: JSON.stringify({ email, password, code }),
+    body: JSON.stringify({ email, password, code, inviteCode }),
   });
   return payload.user;
+}
+
+export async function initializeEconomySession(inviteCode?: string): Promise<EconomySessionResponse> {
+  return requestGameApi<EconomySessionResponse>('/game/session', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': createIdempotencyKey('economy-session') },
+    body: JSON.stringify({ inviteCode }),
+  });
 }
 
 export async function logout(): Promise<void> {

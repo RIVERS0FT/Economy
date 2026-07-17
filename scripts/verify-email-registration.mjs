@@ -14,19 +14,24 @@ const files = [
   'server/src/email.js',
   'server/src/registration.js',
   'server/src/registration-store.js',
+  'server/src/invitations.js',
   'server/test/email.test.js',
   'server/test/account-client.test.js',
   'server/test/registration.test.js',
+  'server/test/invitations.test.js',
   'src/api/auth.ts',
+  'src/api/invitations.ts',
   'src/app/LoginPage.tsx',
+  'src/app/App.tsx',
   'src/pages/SettingsPage.tsx',
-  'src/styles/registration-auth.css',
+  'src/components/InvitationSettings.tsx',
   'scripts/configure-economy-registration-nginx.py',
   'scripts/test_configure_economy_registration_nginx.py',
   '.github/workflows/configure-registration-email.yml',
   'README.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
 ];
 files.forEach(requireFile);
 
@@ -41,12 +46,14 @@ for (const text of [
   'completion_request_key TEXT',
   'CREATE TABLE IF NOT EXISTS economy_registrations',
   "source IN ('email_verification', 'homepage_session')",
-  'ensureLoggedInPlayer',
-  "source !== 'homepage_session'",
+  'initializeSession',
+  'assertPlayerActive',
+  'processNewRegistrationInTransaction',
 ]) requireText('server/src/registration-store.js', text);
 for (const text of ['code TEXT', 'verification_code TEXT', 'plain_code']) {
   forbidText('server/src/registration-store.js', text);
 }
+forbidText('server/src/registration-store.js', "source !== 'homepage_session'");
 
 for (const text of [
   "const RESEND_ENDPOINT = 'https://api.resend.com/emails'",
@@ -65,8 +72,11 @@ forbidText('server/src/email.js', 'console.');
 for (const text of [
   "path === '/api/registration/email-code'",
   "path === '/api/registration/complete'",
+  "path === '/api/game/session'",
   'registrationStore.ensureLoggedInPlayer',
+  'registrationStore.assertPlayerActive',
   "'Set-Cookie': account.setCookie",
+  'inviteCode: body.inviteCode',
 ]) requireText('server/src/app.js', text);
 
 for (const text of [
@@ -81,13 +91,18 @@ for (const text of [
 for (const text of [
   'accountAvailabilityChecker',
   'await accountAvailabilityChecker({ email: normalizedEmail })',
+  'inviteCode',
+  "request.headers['x-real-ip']",
+  '.at(-1)',
 ]) requireText('server/src/registration.js', text);
 
 for (const text of [
   'sendRegistrationEmailCode',
   'completeRegistration',
+  'initializeEconomySession',
   "'/registration/email-code'",
   "'/registration/complete'",
+  "'/game/session'",
 ]) requireText('src/api/auth.ts', text);
 for (const text of ['HOMEPAGE_ACCOUNT_API_BASE', 'registerAtHomepage', "'/register'"]) {
   forbidText('src/api/auth.ts', text);
@@ -100,15 +115,18 @@ for (const text of [
   'autoComplete="one-time-code"',
   "mode === 'login'",
   '完成注册',
+  '已识别好友分享链接',
 ]) requireText('src/app/LoginPage.tsx', text);
 forbidText('src/app/LoginPage.tsx', '登录或注册');
 
 for (const text of [
   '邀请好友',
-  'shareInvite',
-  '分享或复制邀请链接',
-  '第一阶段不生成邀请码、邀请奖励或归因记录',
-]) requireText('src/pages/SettingsPage.tsx', text);
+  '分享链接',
+  '我的邀请码',
+  '填写好友邀请码',
+  'claimInvitation',
+]) requireText('src/components/InvitationSettings.tsx', text);
+forbidText('src/pages/SettingsPage.tsx', '第一阶段不生成邀请码、邀请奖励或归因记录');
 
 for (const text of [
   'location ^~ /economy-api/registration/',
@@ -120,7 +138,6 @@ for (const text of [
   '某个统一账号第一次创建 Economy 玩家档案',
   '任何已登录主页账号首次进入 Economy 时仍允许自动创建玩家档案',
   '主页已经完成账号信任与邮箱验证',
-  '多账号限制只对 Economy 自身邮箱验证码入口执行',
   '`economy_email_verifications`',
   '`economy_registrations`',
   '10 分钟',
@@ -145,7 +162,6 @@ forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMA
 for (const text of [
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',
   '设置页只允许玩家资料与四项统计、客户端偏好、邀请入口、礼品兑换、管理员入口、退出登录和重置经济状态',
-  '第一阶段邀请功能只分享或复制 Economy 正式入口',
   '已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
@@ -185,12 +201,13 @@ for (const text of [
 
 for (const text of [
   'rejects an existing unified account before creating or sending a verification',
-  'trusted homepage accounts may share a network',
-  "source: 'email_verification'",
+  'homepage and direct Economy registrations both participate in duplicate-IP group bans',
+  'sends share-link invite code through email registration and immediately rewards inviter',
+  'registration IP prefers trusted reverse-proxy real IP over a client-supplied forwarded chain',
 ]) requireText('server/test/registration.test.js', text);
 
 if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：发送前统一账号邮箱查重、首次建档定义、主页账号信任、验证码安全、共享服务器 Resend 配置、EMAIL_FROM、运行进程验证、明确错误、双模式页面、邀请与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：发送前查重、验证码安全、分享链接归因、统一同 IP 封禁、双模式页面与 Nginx 路由均已锁定。');
