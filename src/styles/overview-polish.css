@@ -1,0 +1,86 @@
+.home-grid {
+  --overview-primary-card-height: 370px;
+  --overview-summary-card-height: 330px;
+}
+
+.market-summary .price-chart.compact {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  flex: 0 0 auto;
+  aspect-ratio: 80 / 19;
+  display: block;
+  box-sizing: border-box;
+  padding-inline: 3px;
+}
+
+.overview-market-order-state {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: max(var(--font-size-xs), 0.75rem);
+  line-height: 1.4;
+}
+
+.overview-market-footer {
+  margin-top: 0;
+}
+
+.overview-alert-list,
+.overview-asset-events,
+.overview-open-orders-list {
+  overflow-y: visible;
+  padding-right: 0;
+}
+
+.overview-open-orders-list--scrollable {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: var(--space-1);
+}
+
+.overview-assets-card .overview-core-data .ui-data-row {
+  padding-block: var(--space-2);
+}
+
+.overview-assets-card .overview-subsection-heading {
+  margin-top: var(--space-2);
+}
+
+.overview-asset-events {
+  flex: 0 0 auto;
+}
+
+.overview-asset-events > div:not(.empty-state),
+.overview-open-order {
+  padding-block: var(--space-1);
+}
+
+.overview-work-copy span,
+.overview-alert-heading span,
+.overview-subsection-heading span,
+.overview-production-footnote,
+.overview-market-footer,
+.overview-market-footer small,
+.overview-asset-events small,
+.overview-open-order-identity small,
+.overview-open-order-values small {
+  font-size: max(var(--font-size-xs), 0.75rem);
+  line-height: 1.4;
+}
+
+.market-summary .chart-x-tick-label,
+.market-summary .chart-price-tick-label,
+.market-summary .chart-volume-tick-label,
+.market-summary .chart-axis-title,
+.market-summary .chart-legend-item {
+  text-rendering: geometricPrecision;
+}
+
+@container overview (max-width: 1050px) {
+  .market-summary .price-chart.compact {
+    width: min(100%, 960px);
+    justify-self: center;
+  }
+}

@@ -4,6 +4,42 @@ import { buildMarketAxisTicks } from '../../utils/marketHistory';
 
 type MarketChartVariant = 'compact' | 'full';
 
+type ChartGeometry = {
+  width: number;
+  height: number;
+  top: number;
+  priceBottom: number;
+  volumeTop: number;
+  volumeBottom: number;
+  xLabelY: number;
+  legendY: number;
+  xAxisTitleY: number;
+};
+
+const compactGeometry: ChartGeometry = {
+  width: 960,
+  height: 228,
+  top: 12,
+  priceBottom: 90,
+  volumeTop: 110,
+  volumeBottom: 143,
+  xLabelY: 164,
+  legendY: 190,
+  xAxisTitleY: 222,
+};
+
+const fullGeometry: ChartGeometry = {
+  width: 960,
+  height: 540,
+  top: 22,
+  priceBottom: 230,
+  volumeTop: 276,
+  volumeBottom: 382,
+  xLabelY: 408,
+  legendY: 452,
+  xAxisTitleY: 526,
+};
+
 function formatAxisValue(value: number) {
   return new Intl.NumberFormat(undefined, {
     maximumFractionDigits: value < 10 ? 2 : 1,
@@ -11,9 +47,9 @@ function formatAxisValue(value: number) {
   }).format(value);
 }
 
-function useChartFooterAxisFontSize(viewBoxWidth: number, viewBoxHeight: number) {
+function useChartFooterAxisFontSize(viewBoxWidth: number, viewBoxHeight: number, initialFontSize: number) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [axisFontSize, setAxisFontSize] = useState(18);
+  const [axisFontSize, setAxisFontSize] = useState(initialFontSize);
 
   useLayoutEffect(() => {
     const svg = svgRef.current;
@@ -27,7 +63,7 @@ function useChartFooterAxisFontSize(viewBoxWidth: number, viewBoxHeight: number)
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       const footerFontSize = footer
         ? Number.parseFloat(getComputedStyle(footer).fontSize)
-        : rootFontSize * 0.68;
+        : rootFontSize * 0.75;
       if (!(scale > 0) || !Number.isFinite(footerFontSize)) return;
       const nextFontSize = footerFontSize / scale;
       setAxisFontSize((current) => (Math.abs(current - nextFontSize) < 0.1 ? current : nextFontSize));
@@ -53,20 +89,31 @@ function volumeColor(bucket: MarketHistoryBucket) {
   return 'var(--color-text-muted)';
 }
 
+function compactAxisLabelIndexes(length: number) {
+  const visibleCount = Math.min(6, length);
+  if (visibleCount <= 1) return new Set([0]);
+  return new Set(Array.from({ length: visibleCount }, (_, index) => (
+    Math.round((index / (visibleCount - 1)) * (length - 1))
+  )));
+}
+
 function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket[]; variant: MarketChartVariant }) {
-  const width = 960;
-  const height = 540;
-  const { svgRef, axisFontSize } = useChartFooterAxisFontSize(width, height);
-  const left = Math.max(82, axisFontSize * 3.5);
-  const right = 24;
-  const top = 22;
-  const priceBottom = 230;
-  const volumeTop = 276;
-  const volumeBottom = 382;
-  const xLabelY = 408;
-  const legendY = 452;
-  const xAxisTitleY = 526;
-  const axisTitleX = Math.max(14, axisFontSize * 0.6);
+  const geometry = variant === 'compact' ? compactGeometry : fullGeometry;
+  const {
+    width,
+    height,
+    top,
+    priceBottom,
+    volumeTop,
+    volumeBottom,
+    xLabelY,
+    legendY,
+    xAxisTitleY,
+  } = geometry;
+  const { svgRef, axisFontSize } = useChartFooterAxisFontSize(width, height, variant === 'compact' ? 14 : 18);
+  const left = Math.max(variant === 'compact' ? 68 : 82, axisFontSize * (variant === 'compact' ? 3.1 : 3.5));
+  const right = variant === 'compact' ? 18 : 24;
+  const axisTitleX = Math.max(12, axisFontSize * 0.55);
   const tickBaselineOffset = axisFontSize * 0.32;
   const plotWidth = width - left - right;
   const safeBuckets: MarketHistoryBucket[] = buckets.length > 0
@@ -88,25 +135,39 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const barSlotWidth = plotWidth / safeBuckets.length;
   const barWidth = Math.max(1, barSlotWidth * 0.74);
   const allAxisTicks = buildMarketAxisTicks(safeBuckets);
-  const axisTicks = variant === 'compact'
-    ? allAxisTicks.filter((_, index) => index % 2 === 0 || index === allAxisTicks.length - 1)
-    : allAxisTicks;
-  const priceTicks = Array.from({ length: 5 }, (_, index) => maxPrice - (index / 4) * priceRange);
-  const volumeTicks = [maxVolume, maxVolume / 2, 0];
+  const labelIndexes = variant === 'compact' ? compactAxisLabelIndexes(allAxisTicks.length) : null;
+  const axisLabelTicks = allAxisTicks.filter((_, index) => labelIndexes === null || labelIndexes.has(index));
+  const priceTickCount = variant === 'compact' ? 3 : 5;
+  const priceTicks = Array.from({ length: priceTickCount }, (_, index) => (
+    maxPrice - (index / (priceTickCount - 1)) * priceRange
+  ));
+  const volumeTicks = variant === 'compact' ? [maxVolume, 0] : [maxVolume, maxVolume / 2, 0];
   const pricePoints = safeBuckets.map((bucket, index) => {
     const x = left + ((index + 0.5) / safeBuckets.length) * plotWidth;
     const y = priceBottom - ((bucket.price - minPrice) / priceRange) * priceHeight;
     return `${x},${y}`;
   }).join(' ');
+  const tickX = (timestamp: number) => {
+    const index = allAxisTicks.findIndex((candidate) => candidate.timestamp === timestamp);
+    return left + (index / Math.max(1, allAxisTicks.length - 1)) * plotWidth;
+  };
+  const legendItems = [
+    { label: variant === 'compact' ? '主动买入' : '净主动买入', color: 'var(--color-success)' },
+    { label: variant === 'compact' ? '主动卖出' : '净主动卖出', color: 'var(--color-danger)' },
+    { label: variant === 'compact' ? '均衡' : '均衡／方向未知', color: 'var(--color-text-muted)' },
+  ];
+  const legendSlotWidth = plotWidth / legendItems.length;
 
   return (
     <svg
       ref={svgRef}
       className={`price-chart market-history-chart ${variant}`}
       viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
-      style={{ height: variant === 'compact' ? 'clamp(168px, 20vw, 210px)' : 'clamp(320px, 42vw, 410px)' }}
+      data-chart-variant={variant}
+      style={variant === 'full' ? { height: 'clamp(320px, 42vw, 410px)' } : undefined}
     >
       <title>近 24 小时价格、成交量与主动买卖方向趋势</title>
       <desc>每 6 分钟一个数据分段，共 240 个分段。价格折线位于上方，成交量柱状图位于下方；绿色表示净主动买入，红色表示净主动卖出，灰色表示主动买卖均衡或旧历史方向未知。</desc>
@@ -117,23 +178,26 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         </linearGradient>
       </defs>
 
-      {axisTicks.map((tick) => {
-        const index = allAxisTicks.findIndex((candidate) => candidate.timestamp === tick.timestamp);
-        const x = left + (index / (allAxisTicks.length - 1)) * plotWidth;
+      {allAxisTicks.map((tick) => {
+        const x = tickX(tick.timestamp);
+        return <line key={`grid-${tick.timestamp}`} x1={x} x2={x} y1={top} y2={volumeBottom} className="chart-gridline" />;
+      })}
+
+      {axisLabelTicks.map((tick) => {
+        const x = tickX(tick.timestamp);
         return (
-          <g key={tick.timestamp}>
-            <line x1={x} x2={x} y1={top} y2={volumeBottom} className="chart-gridline" />
-            <text
-              x={x}
-              y={xLabelY}
-              fill="var(--color-text-muted)"
-              fontSize={axisFontSize}
-              textAnchor={variant === 'compact' ? 'middle' : 'end'}
-              transform={variant === 'compact' ? undefined : `rotate(-45 ${x} ${xLabelY})`}
-            >
-              {tick.label}
-            </text>
-          </g>
+          <text
+            key={`label-${tick.timestamp}`}
+            className="chart-x-tick-label"
+            x={x}
+            y={xLabelY}
+            fill="var(--color-text-muted)"
+            fontSize={axisFontSize}
+            textAnchor={variant === 'compact' ? 'middle' : 'end'}
+            transform={variant === 'compact' ? undefined : `rotate(-45 ${x} ${xLabelY})`}
+          >
+            {tick.label}
+          </text>
         );
       })}
 
@@ -142,7 +206,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         return (
           <g key={`price-${index}`}>
             <line x1={left} x2={width - right} y1={y} y2={y} className="chart-gridline" />
-            <text x={left - 8} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
+            <text className="chart-price-tick-label" x={left - 8} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
               {formatAxisValue(tick)}
             </text>
           </g>
@@ -154,7 +218,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         return (
           <g key={`volume-${index}`}>
             <line x1={left} x2={width - right} y1={y} y2={y} className="chart-gridline" />
-            <text x={left - 8} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
+            <text className="chart-volume-tick-label" x={left - 8} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
               {formatAxisValue(tick)}
             </text>
           </g>
@@ -188,23 +252,27 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       <line x1={left} x2={left} y1={top} y2={priceBottom} stroke="var(--color-text-muted)" strokeWidth="1" />
       <line x1={left} x2={left} y1={volumeTop} y2={volumeBottom} stroke="var(--color-text-muted)" strokeWidth="1" />
       <line x1={left} x2={width - right} y1={volumeBottom} y2={volumeBottom} stroke="var(--color-text-muted)" strokeWidth="1" />
-      <text x={axisTitleX} y={(top + priceBottom) / 2} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle" transform={`rotate(-90 ${axisTitleX} ${(top + priceBottom) / 2})`}>
+      <text className="chart-axis-title" x={axisTitleX} y={(top + priceBottom) / 2} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle" transform={`rotate(-90 ${axisTitleX} ${(top + priceBottom) / 2})`}>
         价格
       </text>
-      <text x={axisTitleX} y={(volumeTop + volumeBottom) / 2} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle" transform={`rotate(-90 ${axisTitleX} ${(volumeTop + volumeBottom) / 2})`}>
+      <text className="chart-axis-title" x={axisTitleX} y={(volumeTop + volumeBottom) / 2} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle" transform={`rotate(-90 ${axisTitleX} ${(volumeTop + volumeBottom) / 2})`}>
         成交量
       </text>
 
-      <g fontSize={axisFontSize} fill="var(--color-text-muted)">
-        <circle cx={left + 12} cy={legendY} r={6} fill="var(--color-success)" />
-        <text x={left + 26} y={legendY + tickBaselineOffset}>净主动买入</text>
-        <circle cx={left + 190} cy={legendY} r={6} fill="var(--color-danger)" />
-        <text x={left + 204} y={legendY + tickBaselineOffset}>净主动卖出</text>
-        <circle cx={left + 368} cy={legendY} r={6} fill="var(--color-text-muted)" />
-        <text x={left + 382} y={legendY + tickBaselineOffset}>均衡／方向未知</text>
-      </g>
+      {legendItems.map((item, index) => (
+        <g
+          className="chart-legend-item"
+          key={item.label}
+          transform={`translate(${left + index * legendSlotWidth}, ${legendY})`}
+          fontSize={axisFontSize}
+          fill="var(--color-text-muted)"
+        >
+          <circle cx={variant === 'compact' ? 5 : 6} cy={0} r={variant === 'compact' ? 4 : 6} fill={item.color} />
+          <text x={variant === 'compact' ? 14 : 18} y={tickBaselineOffset}>{item.label}</text>
+        </g>
+      ))}
 
-      <text x={(left + width - right) / 2} y={xAxisTitleY} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle">
+      <text className="chart-axis-title" x={(left + width - right) / 2} y={xAxisTitleY} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle">
         时间
       </text>
     </svg>
