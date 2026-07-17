@@ -55,9 +55,7 @@ for (const text of ['宝石商店', '`gem-shop`', '`GemShopPage`']) requireText(
 for (const text of ['/api/game/gem-shop', '/api/game/gem-shop/exchange', 'economy_gem_shop_exchanges']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 
 if (failures.length) {
-  console.error(`宝石商店验证失败:
-- ${failures.join('
-- ')}`);
+  console.error(`宝石商店验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 console.log('宝石商店验证通过：独立页面、服务器固定汇率、原子兑换、幂等和记录规则均已锁定。');
