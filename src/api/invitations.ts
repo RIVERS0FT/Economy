@@ -14,6 +14,7 @@ export interface InvitationSummary {
   invitationGemsEarned: number;
   claimExpiresAt?: number;
   claimedInvitation?: {
+    inviteCode: string;
     inviterName: string;
     source: InvitationSource;
     status: InvitationStatus;

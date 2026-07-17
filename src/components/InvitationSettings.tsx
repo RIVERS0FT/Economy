@@ -111,8 +111,16 @@ export function InvitationSettings() {
           </div>
 
           {summary.claimedInvitation ? (
-            <div className="invitation-bound-state">
-              <strong>邀请关系已绑定</strong>
+            <div className="manual-invite-claim invitation-bound-state">
+              <label>
+                已填写的邀请码
+                <input
+                  value={summary.claimedInvitation.inviteCode}
+                  disabled
+                  aria-label="已填写的邀请码"
+                />
+              </label>
+              <strong>邀请关系已绑定，邀请码不可修改</strong>
               <span>邀请人：{summary.claimedInvitation.inviterName}</span>
               <span>来源：{sourceLabel(summary.claimedInvitation.source)}</span>
               <span>状态：{statusLabel(summary.claimedInvitation.status)}</span>
@@ -131,7 +139,7 @@ export function InvitationSettings() {
                   onKeyDown={(event) => { if (event.key === 'Enter') void claim(); }}
                 />
               </label>
-              <p>首次创建 Economy 玩家档案后的 24 小时内可以填写一次。填写成功后，邀请人立即获得宝石。</p>
+              <p>注册时可以直接填写邀请码；未填写的账号仍可在首次创建 Economy 玩家档案后的 24 小时内填写一次。</p>
               <Button disabled={!inviteCode.trim() || claiming} onClick={() => void claim()}>
                 {claiming ? '正在绑定…' : '确认填写'}
               </Button>

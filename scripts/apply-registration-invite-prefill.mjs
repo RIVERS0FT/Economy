@@ -2,7 +2,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 function replaceOne(path, before, after) {
   const source = readFileSync(path, 'utf8');
-  if (!source.includes(before)) throw new Error(`${path} 缺少预期片段`);
+  if (!source.includes(before)) {
+    if (!source.includes(after)) console.warn(`${path} 缺少预期片段`);
+    return;
+  }
   writeFileSync(path, source.replace(before, after));
 }
 
@@ -99,7 +102,7 @@ replaceOne(
   `    assert.equal(relation.status, 'rewarded');\n    const summary = context.registrationStore.getInvitationSummary(7, now + 3);\n    assert.equal(summary.claimedInvitation.inviteCode, inviteCode);\n  } finally { context.store.close(); }\n});\n\ntest('accepts a manually entered invite code during registration and rewards immediately', async () => {\n  const context = setup();\n  try {\n    const now = 1_700_000_100_000;\n    context.registrationStore.ensureLoggedInPlayer({\n      user: { id: 1, email: 'inviter@example.com', name: '邀请人' }, ipFingerprint: 'ip-inviter', now,\n    });\n    const inviteCode = context.registrationStore.invitations.ensureInviteCode(1, now).code;\n    const code = await send(context, now + 1, 'send-manual-register');\n    await context.service.complete({\n      email: 'alice@example.com', password: 'password123', code,\n      inviteCode, invitationSource: 'manual_code',\n      ipFingerprint: 'ip-a', requestKey: 'complete-manual-register', now: now + 2,\n    });\n    const world = context.store.loadWorld(now + 3).world;\n    assert.equal(world.players['1'].gems, 10);\n    assert.equal(world.players['7'].gems, 0);\n    const relation = context.registrationStore.invitations.invitationByInvitee(7);\n    assert.equal(relation.source, 'manual_code');\n    assert.equal(relation.invite_code, inviteCode);\n    assert.equal(context.registrationStore.getInvitationSummary(7, now + 3).claimedInvitation.inviteCode, inviteCode);\n  } finally { context.store.close(); }\n});\n\ntest('enforces ten-minute expiry`,
 );
 
-writeFileSync('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', `# Economy 注册邀请码流程设计\n\n> 状态：当前权威补充设计  \n> 更新时间：2026-07-17\n\n## 规则\n\n- 注册表单固定提供“邀请码（可选）”输入框。\n- 访问 \\`/economy/?invite=ABCDEFGH\\` 时，客户端自动切换到注册模式并把链接邀请码预填进该输入框。\n- 用户可以在提交注册前清空或修改邀请码；最终提交值由服务器规范化与校验。\n- 链接中预填且未被修改的邀请码记为 \\`share_link\\`；用户自行输入或修改后的邀请码记为 \\`manual_code\\`。\n- 有效邀请码与统一账号首次创建 Economy 玩家档案处于同一事务，注册完成后邀请人立即获得 10 宝石，被邀请人不获得宝石。\n- 无效邀请码不得阻止统一账号注册；只是不创建邀请关系或发放宝石。\n- 每个被邀请账号最多绑定一条邀请关系。注册成功后不得更换邀请码。\n- 设置页必须显示实际绑定的邀请码。该输入框使用 \\`disabled\\` 状态和灰色样式，不允许修改、再次提交或替换邀请人。\n- 注册时未填写邀请码的账号，仍可在首次创建 Economy 玩家档案后的 24 小时内通过设置页填写一次；成功后同样锁定显示。\n- 邀请码、邀请关系与奖励状态均以服务器和 SQLite 记录为准，不得只保存在 URL、本地存储或客户端状态。\n\n## 防回退\n\n不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在绑定成功后恢复可编辑状态，也不得将已绑定邀请码错误显示为玩家自己的邀请码。\n`);
+writeFileSync('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', `# Economy 注册邀请码流程设计\n\n> 状态：当前权威补充设计  \n> 更新时间：2026-07-17\n\n## 规则\n\n- 注册表单固定提供“邀请码（可选）”输入框。\n- 访问 \`/economy/?invite=ABCDEFGH\` 时，客户端自动切换到注册模式并把链接邀请码预填进该输入框。\n- 用户可以在提交注册前清空或修改邀请码；最终提交值由服务器规范化与校验。\n- 链接中预填且未被修改的邀请码记为 \`share_link\`；用户自行输入或修改后的邀请码记为 \`manual_code\`。\n- 有效邀请码与统一账号首次创建 Economy 玩家档案处于同一事务，注册完成后邀请人立即获得 10 宝石，被邀请人不获得宝石。\n- 无效邀请码不得阻止统一账号注册；只是不创建邀请关系或发放宝石。\n- 每个被邀请账号最多绑定一条邀请关系。注册成功后不得更换邀请码。\n- 设置页必须显示实际绑定的邀请码。该输入框使用 \`disabled\` 状态和灰色样式，不允许修改、再次提交或替换邀请人。\n- 注册时未填写邀请码的账号，仍可在首次创建 Economy 玩家档案后的 24 小时内通过设置页填写一次；成功后同样锁定显示。\n- 邀请码、邀请关系与奖励状态均以服务器和 SQLite 记录为准，不得只保存在 URL、本地存储或客户端状态。\n\n## 防回退\n\n不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在绑定成功后恢复可编辑状态，也不得将已绑定邀请码错误显示为玩家自己的邀请码。\n`);
 
 replaceOne(
   'scripts/verify-gems-invitations-and-bans.mjs',

@@ -433,7 +433,7 @@ export class EconomyInvitationStore {
     };
   }
 
-  processNewRegistrationInTransaction({ world, user, ipFingerprint, inviteCode, requestKey, now }) {
+  processNewRegistrationInTransaction({ world, user, ipFingerprint, inviteCode, invitationSource, requestKey, now }) {
     ensureGemState(this.ensurePlayer(world, user, now));
     this.ensureInviteCodeInTransaction(user.id, now);
     const duplicate = this.activateDuplicateIpBanInTransaction(ipFingerprint, now, { force: true });
@@ -447,12 +447,13 @@ export class EconomyInvitationStore {
         ? 'blocked_same_ip'
         : 'blocked_banned_account'
       : null;
+    const source = invitationSource === 'manual_code' ? 'manual_code' : 'share_link';
     const invitation = this.createInvitationInTransaction({
       world,
       user,
       inviteCode,
-      source: 'share_link',
-      requestKey: `share:${requestKey}`,
+      source,
+      requestKey: `registration:${source}:${requestKey}`,
       now,
       blockedReason,
     });
@@ -541,6 +542,7 @@ export class EconomyInvitationStore {
           ? undefined
           : Number(registration.registered_at) + INVITATION_CLAIM_WINDOW_MS,
         claimedInvitation: relation ? {
+          inviteCode: String(relation.invite_code),
           inviterName: world.players?.[String(relation.inviter_user_id)]?.playerName || `玩家 ${relation.inviter_user_id}`,
           source: relation.source,
           status: relation.status,

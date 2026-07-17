@@ -89,7 +89,7 @@ export function createRegistrationService({
       };
     },
 
-    async complete({ email, password, code, inviteCode, ipFingerprint, requestKey, now = Date.now() }) {
+    async complete({ email, password, code, inviteCode, invitationSource, ipFingerprint, requestKey, now = Date.now() }) {
       const normalizedEmail = validateRegistrationInput(email, password);
       if (!/^\d{6}$/.test(String(code || ''))) throw httpError('请输入 6 位邮箱验证码', 400);
       const prepared = registrationStore.prepareEmailCompletion({
@@ -106,6 +106,7 @@ export function createRegistrationService({
         user: account.user,
         ipFingerprint,
         inviteCode,
+        invitationSource,
         now,
       });
       return { ...account, economyRegistration };
