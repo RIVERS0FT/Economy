@@ -19,6 +19,39 @@ async function gridTrackCount(locator: Locator) {
     .length);
 }
 
+async function expectNoPairOverlap(locator: Locator, tolerance = 1) {
+  const boxes = await locator.evaluateAll((elements) => elements.map((element) => {
+    const box = element.getBoundingClientRect();
+    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+  }));
+
+  for (let leftIndex = 0; leftIndex < boxes.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < boxes.length; rightIndex += 1) {
+      const left = boxes[leftIndex];
+      const right = boxes[rightIndex];
+      const overlaps = left.left < right.right - tolerance
+        && left.right > right.left + tolerance
+        && left.top < right.bottom - tolerance
+        && left.bottom > right.top + tolerance;
+      expect(overlaps, `元素 ${leftIndex} 与 ${rightIndex} 不应重叠`).toBe(false);
+    }
+  }
+}
+
+async function expectElementsInside(locator: Locator, container: Locator, tolerance = 2) {
+  const containerBox = await requireBox(container);
+  const boxes = await locator.evaluateAll((elements) => elements.map((element) => {
+    const box = element.getBoundingClientRect();
+    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+  }));
+  for (const box of boxes) {
+    expect(box.left).toBeGreaterThanOrEqual(containerBox.x - tolerance);
+    expect(box.right).toBeLessThanOrEqual(containerBox.x + containerBox.width + tolerance);
+    expect(box.top).toBeGreaterThanOrEqual(containerBox.y - tolerance);
+    expect(box.bottom).toBeLessThanOrEqual(containerBox.y + containerBox.height + tolerance);
+  }
+}
+
 test('storage denial does not block the settings runtime', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.addInitScript(() => {
@@ -70,6 +103,8 @@ test('overview prioritizes business decisions and uses a compact market empty st
   await expect(page.getByText('当前总资产', { exact: true })).toHaveCount(0);
   await expect(page.locator('.overview-assets-card').getByText('#1', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '开始工作' })).toBeVisible();
+  await expect(page.getByLabel('本周资产下降 116,543')).toBeVisible();
+  await expect(page.getByText(/↓ 本周 -/)).toHaveCount(0);
 
   const workButtonWidth = await page.getByRole('button', { name: '开始工作' }).evaluate((element) => element.getBoundingClientRect().width);
   const todayPanelWidth = await page.locator('.overview-today-panel').evaluate((element) => element.getBoundingClientRect().width);
@@ -123,7 +158,7 @@ test('overview spans the available desktop width without compressing cards into 
     .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
   expect(Math.max(...headingHeights)).toBeLessThan(48);
 
-  const emptyListOverflow = await page.locator('.overview-alert-list, .overview-open-orders-list')
+  const emptyListOverflow = await page.locator('.overview-alert-list, .overview-open-orders-list, .overview-asset-events')
     .evaluateAll((elements) => elements
       .filter((element) => element.scrollHeight > element.clientHeight + 1)
       .map((element) => (element as HTMLElement).className));
@@ -131,17 +166,90 @@ test('overview spans the available desktop width without compressing cards into 
   expect(pageErrors).toEqual([]);
 });
 
-test('overview renders the real market chart only when activity exists', async ({ page }) => {
+test('compact overview chart fills the market card without label collisions', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+  const chart = page.getByRole('img', { name: '近 24 小时价格、成交量与主动买卖方向趋势图' });
+  const market = page.locator('.market-summary');
+  await expect(chart).toBeVisible();
+  await expect(page.getByTestId('overview-market-empty')).toHaveCount(0);
+  await expect(page.getByText(/24h 净主动买入/)).toBeVisible();
+
+  const chartBox = await requireBox(chart);
+  const marketBox = await requireBox(market);
+  expect(chartBox.width).toBeGreaterThan(marketBox.width * 0.85);
+  expect(chartBox.height).toBeGreaterThan(150);
+  expect(chartBox.height).toBeLessThan(230);
+  expect(Math.abs((chartBox.x + chartBox.width / 2) - (marketBox.x + marketBox.width / 2))).toBeLessThan(4);
+
+  const xLabels = chart.locator('.chart-x-tick-label');
+  expect(await xLabels.count()).toBeGreaterThanOrEqual(4);
+  expect(await xLabels.count()).toBeLessThanOrEqual(6);
+  await expectNoPairOverlap(xLabels);
+  await expectNoPairOverlap(chart.locator('.chart-price-tick-label'));
+  await expectNoPairOverlap(chart.locator('.chart-volume-tick-label'));
+  await expectNoPairOverlap(chart.locator('.chart-legend-item'));
+  await expectElementsInside(chart.locator('.chart-x-tick-label, .chart-price-tick-label, .chart-volume-tick-label, .chart-axis-title, .chart-legend-item'), chart);
+  await expect(chart.locator('.chart-axis-title')).toHaveCount(3);
+  expect(await chart.locator('text[transform*="rotate(-45"]').count()).toBe(0);
+  expect(pageErrors).toEqual([]);
+});
+
+test('overview market empty values stay neutral and explain one-sided order books', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.goto('runtime-test.html?view=overview&scenario=activity');
 
-  const chart = page.getByRole('img', { name: '近 24 小时价格、成交量与主动买卖方向趋势图' });
-  await expect(chart).toBeVisible();
-  await expect(page.getByTestId('overview-market-empty')).toHaveCount(0);
-  await expect(page.getByText(/24h 净主动买入/)).toBeVisible();
-  const rotatedCompactLabels = await chart.locator('text[transform*="rotate(-45"]').count();
-  expect(rotatedCompactLabels).toBe(0);
+  const bestBidMetric = page.getByText('最高买价', { exact: true }).locator('..');
+  const bestAskMetric = page.getByText('最低卖价', { exact: true }).locator('..');
+  await expect(bestBidMetric).toHaveClass(/overview-metric--success/);
+  await expect(bestAskMetric).toHaveClass(/overview-metric--neutral/);
+  await expect(page.getByTestId('overview-market-order-state')).toHaveText('当前只有买单，暂无可供买入的卖单');
+
+  await page.goto('runtime-test.html?view=overview&scenario=two-sided');
+  await expect(page.getByText('最低卖价', { exact: true }).locator('..')).toHaveClass(/overview-metric--danger/);
+  await expect(page.getByTestId('overview-market-order-state')).toHaveText('当前买卖价差：4');
+  expect(pageErrors).toEqual([]);
+});
+
+test('overview cash changes exclude synchronization events and short lists do not scroll', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+  await expect(page.getByText('购置机械工厂', { exact: true })).toBeVisible();
+  await expect(page.getByText('服务器资产状态已同步', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('当前设备现金记录', { exact: true })).toBeVisible();
+  expect(await page.locator('.overview-asset-events').evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+
+  await page.goto('runtime-test.html?view=overview&scenario=cash-empty');
+  await expect(page.getByText('服务器资产状态已同步', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('本周暂无现金收入或支出记录。', { exact: true })).toBeVisible();
+  expect(await page.locator('.overview-asset-events').evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+
+  await page.goto('runtime-test.html?view=overview&scenario=cash-three');
+  await expect(page.locator('.overview-asset-events > div:not(.empty-state)')).toHaveCount(3);
+  expect(await page.locator('.overview-asset-events').evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
+test('overview only scrolls the order list after the visible capacity is exceeded', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+  const shortList = page.locator('.overview-open-orders-list');
+  await expect(shortList).not.toHaveClass(/overview-open-orders-list--scrollable/);
+  expect(await shortList.evaluate((element) => getComputedStyle(element).overflowY)).toBe('visible');
+  expect(await shortList.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+
+  await page.goto('runtime-test.html?view=overview&scenario=many-orders');
+  const longList = page.locator('.overview-open-orders-list');
+  await expect(longList).toHaveClass(/overview-open-orders-list--scrollable/);
+  expect(await longList.evaluate((element) => getComputedStyle(element).overflowY)).toBe('auto');
+  expect(await longList.evaluate((element) => element.scrollHeight > element.clientHeight + 1)).toBe(true);
   expect(pageErrors).toEqual([]);
 });
 
