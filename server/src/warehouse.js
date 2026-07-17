@@ -2,6 +2,8 @@ export const WAREHOUSE_BASE_CAPACITY = 500;
 export const WAREHOUSE_CAPACITY_STEP = 250;
 export const WAREHOUSE_CAPACITY_STEP_GROWTH = 50;
 export const WAREHOUSE_BASE_UPGRADE_COST = 150;
+export const WAREHOUSE_COST_SLOPE_NUMERATOR = 3;
+export const WAREHOUSE_COST_SLOPE_DENOMINATOR = 5;
 
 function normalizeLevel(value) {
   const level = Math.floor(Number(value || 1));
@@ -56,9 +58,19 @@ export function warehouseCapacityForLevel(level) {
   );
 }
 
-export function warehouseUpgradeCostForLevel(level) {
-  const normalized = normalizeLevel(level);
-  return safeInteger(WAREHOUSE_BASE_UPGRADE_COST * normalized * normalized);
+export function warehouseUpgradeCostForCapacity(capacity) {
+  const numericCapacity = Math.floor(Number(capacity || 0));
+  if (!Number.isSafeInteger(numericCapacity)) return null;
+  const normalizedCapacity = Math.max(WAREHOUSE_BASE_CAPACITY, numericCapacity);
+  const excessCapacity = normalizedCapacity - WAREHOUSE_BASE_CAPACITY;
+  const wholeSteps = Math.floor(excessCapacity / WAREHOUSE_COST_SLOPE_DENOMINATOR);
+  const remainder = excessCapacity % WAREHOUSE_COST_SLOPE_DENOMINATOR;
+  const wholeCost = wholeSteps * WAREHOUSE_COST_SLOPE_NUMERATOR;
+  if (!Number.isSafeInteger(wholeCost)) return null;
+  const variableCost = wholeCost + Math.ceil(
+    (remainder * WAREHOUSE_COST_SLOPE_NUMERATOR) / WAREHOUSE_COST_SLOPE_DENOMINATOR,
+  );
+  return safeInteger(WAREHOUSE_BASE_UPGRADE_COST + variableCost);
 }
 
 function inferLevelForCapacity(capacity) {
@@ -112,7 +124,9 @@ export function createWarehouseSummary(world, player) {
     : safeInteger(player.inventoryCapacity + capacityIncrease);
   return {
     warehouseLevel: level,
-    warehouseUpgradeCost: nextCapacity === null ? null : warehouseUpgradeCostForLevel(level),
+    warehouseUpgradeCost: nextCapacity === null
+      ? null
+      : warehouseUpgradeCostForCapacity(player.inventoryCapacity),
     warehouseNextCapacity: nextCapacity ?? player.inventoryCapacity,
     warehouseNextCapacityIncrease: nextCapacity === null ? 0 : capacityIncrease,
     ...createWarehouseUsage(world, player),
@@ -123,7 +137,7 @@ export function upgradeWarehouse(player) {
   ensureWarehouse(player);
   const currentLevel = player.warehouseLevel;
   const nextLevel = currentLevel + 1;
-  const cost = warehouseUpgradeCostForLevel(currentLevel);
+  const cost = warehouseUpgradeCostForCapacity(player.inventoryCapacity);
   const capacityIncrease = warehouseCapacityIncreaseForLevel(currentLevel);
   const nextCapacity = capacityIncrease === null
     ? null

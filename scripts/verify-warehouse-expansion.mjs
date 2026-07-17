@@ -9,6 +9,7 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
 
 [
+  'README.md',
   'server/src/warehouse.js',
   'server/src/facility-groups.js',
   'server/test/warehouse.test.js',
@@ -29,7 +30,11 @@ for (const text of [
   'WAREHOUSE_CAPACITY_STEP = 250',
   'WAREHOUSE_CAPACITY_STEP_GROWTH = 50',
   'WAREHOUSE_BASE_UPGRADE_COST = 150',
+  'WAREHOUSE_COST_SLOPE_NUMERATOR = 3',
+  'WAREHOUSE_COST_SLOPE_DENOMINATOR = 5',
   'warehouseCapacityIncreaseForLevel',
+  'warehouseUpgradeCostForCapacity',
+  'warehouseUpgradeCostForCapacity(player.inventoryCapacity)',
   'warehouseNextCapacityIncrease',
   'export function createWarehouseUsage',
   'warehouseReservedQuantity: reserved',
@@ -37,7 +42,19 @@ for (const text of [
   'player.credits -= cost',
   'player.warehouseLevel = nextLevel',
 ]) requireText('server/src/warehouse.js', text);
-for (const forbidden of ['WAREHOUSE_MAX_LEVEL', '仓库已达到最高等级']) forbidText('server/src/warehouse.js', forbidden);
+for (const forbidden of [
+  'WAREHOUSE_MAX_LEVEL',
+  '仓库已达到最高等级',
+  'warehouseUpgradeCostForLevel',
+  'WAREHOUSE_BASE_UPGRADE_COST * normalized * normalized',
+]) forbidText('server/src/warehouse.js', forbidden);
+
+for (const text of [
+  'warehouseUpgradeCostForCapacity',
+  '[150, 300, 480, 690, 930, 1_200]',
+  'warehouse summary price matches the amount deducted for the same actual capacity',
+]) requireText('server/test/warehouse.test.js', text);
+for (const forbidden of ['warehouseUpgradeCostForLevel']) forbidText('server/test/warehouse.test.js', forbidden);
 
 for (const text of [
   'title="生产"',
@@ -114,12 +131,18 @@ for (const text of ['activeCount', 'multiplier={activeCount}', 'type.operatingCo
 
 for (const text of [
   '无限等级、容量与费用',
+  '扩容费用必须由当前实际总容量线性计算',
+  '仓库等级只能决定容量增量，不能直接决定扩容费用',
   '仓库没有玩家可见的最高等级',
   '容器查询',
   '2／3／4／5／6 列',
   '84px',
   '8px',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+for (const forbidden of ['升级费用：150 × L²', 'warehouseUpgradeCostForLevel']) {
+  forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', forbidden);
+}
+requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 0.6)`');
 for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式固定显示单座正式配方']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 }
@@ -134,4 +157,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、商品卡 2 至 6 列容器密度、建设卡精简和固定单座配方验证通过。');
+console.log('仓库无限扩容、容量线性定价、商品卡 2 至 6 列容器密度、建设卡精简和固定单座配方验证通过。');
