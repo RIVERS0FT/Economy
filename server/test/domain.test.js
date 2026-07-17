@@ -139,6 +139,29 @@ test('staple demand shifts budget to rice when wheat is expensive', () => {
   assert.equal(world.orders.filter((order) => order.demandGroupId === 'staples').length, orderCount);
 });
 
+test('meat eggs and milk compete inside the fixed staple budget', () => {
+  const world = createWorld(now);
+  prepareStapleDemand(world);
+
+  processWorld(world, now + 1);
+
+  const allocation = world.demandGroups.staples.lastAllocation;
+  assert.deepEqual(Object.keys(allocation).sort(), ['eggs', 'food', 'meat', 'milk', 'rice', 'wheat']);
+  assert.ok(allocation.meat.budget > 0);
+  assert.ok(allocation.eggs.budget > 0);
+  assert.ok(allocation.milk.budget > 0);
+  assert.ok(world.demandGroups.staples.lastCommitted <= 330);
+  for (const productId of ['wheat', 'rice', 'food', 'meat', 'eggs', 'milk']) {
+    assert.equal(
+      world.orders.some((order) => order.ownerType === 'population'
+        && order.productId === productId
+        && order.demandGroupId === 'staples'),
+      true,
+      `${productId} 应由同一人口饮食需求组购买`,
+    );
+  }
+});
+
 test('food competes with wheat and rice through utility-adjusted prices and capped budget shares', () => {
   const world = createWorld(now);
   const sellerA = ensurePlayer(world, bob, now);
@@ -198,15 +221,41 @@ test('staple demand leaves budget unspent when every substitute is above the cei
   seller.inventories.wheat.frozen = 20;
   seller.inventories.rice.frozen = 20;
   seller.inventories.food.frozen = 20;
+  seller.inventories.meat.frozen = 20;
+  seller.inventories.eggs.frozen = 20;
+  seller.inventories.milk.frozen = 20;
   world.orders = [
     { id: 'wheat-expensive', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 13, quantity: 20, remaining: 20, status: 'open', createdAt: now },
     { id: 'rice-expensive', productId: 'rice', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 13, quantity: 20, remaining: 20, status: 'open', createdAt: now + 1 },
     { id: 'food-too-expensive', productId: 'food', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 37, quantity: 20, remaining: 20, status: 'open', createdAt: now + 2 },
+    { id: 'meat-too-expensive', productId: 'meat', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 25, quantity: 20, remaining: 20, status: 'open', createdAt: now + 3 },
+    { id: 'eggs-too-expensive', productId: 'eggs', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 13, quantity: 20, remaining: 20, status: 'open', createdAt: now + 4 },
+    { id: 'milk-too-expensive', productId: 'milk', side: 'sell', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob', price: 13, quantity: 20, remaining: 20, status: 'open', createdAt: now + 5 },
   ];
   prepareStapleDemand(world);
   processWorld(world, now + 1);
   assert.equal(world.orders.some((order) => order.demandGroupId === 'staples'), false);
   assert.equal(world.demandGroups.staples.lastCommitted, 0);
+});
+
+test('furniture and clothing share one fixed household goods budget', () => {
+  const world = createWorld(now);
+  world.demandGroups['household-goods'].nextDemandAt = now;
+  world.demandGroups['household-goods'].lastCycleId = -1;
+
+  processWorld(world, now + 1);
+
+  const state = world.demandGroups['household-goods'];
+  assert.deepEqual(Object.keys(state.lastAllocation).sort(), ['clothing', 'furniture']);
+  assert.ok(state.lastAllocation.furniture.budget > 0);
+  assert.ok(state.lastAllocation.clothing.budget > 0);
+  assert.ok(state.lastCommitted <= 320);
+  assert.equal(
+    world.orders.filter((order) => order.ownerType === 'population'
+      && ['furniture', 'clothing'].includes(order.productId))
+      .every((order) => order.demandGroupId === 'household-goods'),
+    true,
+  );
 });
 
 test('idempotency returns the original response without applying an action twice', () => {
@@ -228,15 +277,15 @@ test('idempotency returns the original response without applying an action twice
   }
 });
 
-test('client state uses version 12 and exposes no factory instances', () => {
+test('client state uses version 13 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 12);
+    assert.equal(state.version, 13);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
-    assert.equal(state.products.length, 13);
-    assert.equal(state.facilityTypes.length, 12);
+    assert.equal(state.products.length, 22);
+    assert.equal(state.facilityTypes.length, 15);
   } finally {
     store.close();
   }
@@ -244,8 +293,8 @@ test('client state uses version 12 and exposes no factory instances', () => {
 
 
 test('expanded industry catalog exposes complete production chains', () => {
-  assert.equal(PRODUCT_CATALOG.length, 13);
-  assert.equal(FACILITY_TYPE_CATALOG.length, 12);
+  assert.equal(PRODUCT_CATALOG.length, 22);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 15);
 
   const productIds = new Set(PRODUCT_CATALOG.map((product) => product.id));
   const facilityIds = new Set(FACILITY_TYPE_CATALOG.map((facility) => facility.id));
@@ -255,15 +304,24 @@ test('expanded industry catalog exposes complete production chains', () => {
   const expectedPrices = {
     wheat: 2,
     rice: 2,
+    cotton: 2,
     timber: 5,
     ore: 6,
+    'copper-ore': 6,
     'crude-oil': 8,
+    meat: 6,
+    eggs: 3,
+    milk: 3,
+    wool: 6,
     flour: 13,
     lumber: 15,
     steel: 24,
+    copper: 24,
     plastic: 24,
+    textile: 18,
     food: 15,
     furniture: 20,
+    clothing: 48,
     machinery: 60,
     electronics: 64,
   };
@@ -273,13 +331,16 @@ test('expanded industry catalog exposes complete production chains', () => {
     farm: [120_000, 6],
     'logging-camp': [60_000, 9],
     mine: [60_000, 11],
+    ranch: [120_000, 16],
     'oil-field': [60_000, 15],
     mill: [40_000, 7],
     sawmill: [40_000, 3],
     steelworks: [40_000, 4],
     refinery: [40_000, 6],
+    'textile-mill': [40_000, 4],
     'food-factory': [50_000, 14],
     'furniture-factory': [60_000, 4],
+    'garment-factory': [60_000, 6],
     'machine-factory': [60_000, 6],
     'electronics-factory': [60_000, 10],
   };
@@ -289,7 +350,8 @@ test('expanded industry catalog exposes complete production chains', () => {
   }
   for (const facility of FACILITY_TYPE_CATALOG) {
     assert.equal(productIds.has(facility.output.productId), true);
-    if (facility.input) assert.equal(productIds.has(facility.input.productId), true);
+    assert.ok(Array.isArray(facility.inputs));
+    for (const input of facility.inputs) assert.equal(productIds.has(input.productId), true);
     assert.ok(Array.isArray(facility.recipes) && facility.recipes.length >= 1);
     assert.ok(facility.recipes.some((recipe) => recipe.id === facility.defaultRecipeId));
     assert.deepEqual([facility.cycleMs, facility.operatingCost], expectedFacilityBalance[facility.id]);
@@ -297,40 +359,46 @@ test('expanded industry catalog exposes complete production chains', () => {
     assert.equal(Number.isInteger(facility.operatingCost), true, `${facility.id} 周期成本必须为整数`);
     for (const recipe of facility.recipes) {
       assert.equal(productIds.has(recipe.output.productId), true);
-      if (recipe.input) assert.equal(productIds.has(recipe.input.productId), true);
+      assert.ok(Array.isArray(recipe.inputs));
+      for (const input of recipe.inputs) {
+        assert.equal(productIds.has(input.productId), true);
+        assert.equal(Number.isInteger(input.quantity), true);
+      }
       assert.equal(recipe.cycleMs, facility.cycleMs);
       assert.equal(recipe.operatingCost, facility.operatingCost);
       assert.equal(Number.isInteger(recipe.output.quantity), true);
-      if (recipe.input) assert.equal(Number.isInteger(recipe.input.quantity), true);
+      const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
+      const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
+        * 60_000 / recipe.cycleMs;
+      const expectedProfit = facility.category === 'raw' ? 1 : facility.category === 'processing' ? 3 : 6;
+      assert.equal(profit, expectedProfit, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
     }
-  }
-  const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
-  assert.deepEqual(farm.recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice']);
-  for (const recipe of farm.recipes) {
-    assert.equal(recipe.cycleMs, 120_000);
-    assert.equal(recipe.operatingCost, 6);
-    assert.equal(recipe.output.quantity, 4);
   }
 
   const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
-  assert.deepEqual(facilities.get('logging-camp').output, { productId: 'timber', quantity: 2 });
-  assert.deepEqual(facilities.get('sawmill').input, { productId: 'timber', quantity: 2 });
-  assert.deepEqual(facilities.get('sawmill').output, { productId: 'lumber', quantity: 1 });
-  assert.deepEqual(facilities.get('oil-field').output, { productId: 'crude-oil', quantity: 2 });
-  assert.deepEqual(facilities.get('refinery').input, { productId: 'crude-oil', quantity: 2 });
-  assert.deepEqual(facilities.get('refinery').output, { productId: 'plastic', quantity: 1 });
-  assert.deepEqual(facilities.get('furniture-factory').input, { productId: 'lumber', quantity: 2 });
-  assert.deepEqual(facilities.get('furniture-factory').output, { productId: 'furniture', quantity: 2 });
-  assert.deepEqual(facilities.get('electronics-factory').input, { productId: 'plastic', quantity: 2 });
+  assert.deepEqual(facilities.get('farm').recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice', 'cotton']);
+  assert.deepEqual(facilities.get('mine').recipes.map((recipe) => recipe.output.productId), ['ore', 'copper-ore']);
+  assert.deepEqual(facilities.get('ranch').recipes.map((recipe) => recipe.output.productId), ['meat', 'eggs', 'milk', 'wool']);
+  assert.equal(facilities.get('steelworks').name, '冶炼厂');
+  assert.deepEqual(facilities.get('steelworks').recipes.map((recipe) => recipe.output.productId), ['steel', 'copper']);
+  assert.deepEqual(facilities.get('textile-mill').recipes.map((recipe) => recipe.inputs), [
+    [{ productId: 'cotton', quantity: 6 }],
+    [{ productId: 'wool', quantity: 2 }],
+  ]);
+  assert.deepEqual(facilities.get('electronics-factory').recipes[0].inputs, [
+    { productId: 'plastic', quantity: 1 },
+    { productId: 'copper', quantity: 1 },
+  ]);
   assert.deepEqual(facilities.get('electronics-factory').output, { productId: 'electronics', quantity: 1 });
 });
+
 
 test('existing worlds receive new inventories, markets, and liquidity without resetting assets', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
   player.inventories.wheat.available = 9;
-  const newProductIds = ['timber', 'crude-oil', 'lumber', 'plastic', 'furniture', 'electronics'];
+  const newProductIds = ['cotton', 'copper-ore', 'meat', 'eggs', 'milk', 'wool', 'copper', 'textile', 'clothing'];
 
   for (const productId of newProductIds) {
     delete player.inventories[productId];
@@ -348,6 +416,72 @@ test('existing worlds receive new inventories, markets, and liquidity without re
     assert.equal(world.markets[productId].productId, productId);
     assert.equal(world.orders.some((order) => order.productId === productId && order.side === 'buy' && order.ownerType === 'market'), true);
     assert.equal(world.orders.some((order) => order.productId === productId && order.side === 'sell' && order.ownerType === 'market'), true);
+  }
+});
+
+test('world version 8 migration restarts running electronics cycle without resetting assets', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  world.version = 8;
+  player.credits = 777;
+  player.inventories.plastic.available = 9;
+  player.inventories.copper.available = 4;
+  player.facilityGroups = [{
+    facilityTypeId: 'electronics-factory',
+    count: 2,
+    participatingCount: 2,
+    pendingJoinCount: 0,
+    enabled: true,
+    status: 'running',
+    activeRecipeId: 'electronics-factory-default',
+    cycleStartedAt: now - 30_000,
+    lifetimeOutput: 5,
+  }];
+
+  migrateWorld(world, now);
+
+  assert.equal(world.version, 9);
+  assert.equal(player.credits, 777);
+  assert.equal(player.inventories.plastic.available, 9);
+  assert.equal(player.inventories.copper.available, 4);
+  assert.equal(player.facilityGroups[0].count, 2);
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 5);
+  assert.equal(player.facilityGroups[0].cycleStartedAt, now);
+});
+
+test('version 9 migration cancels incompatible legacy population orders', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  world.version = 8;
+  player.credits = 777;
+  player.inventories.wheat.available = 9;
+  world.orders.push(
+    { id: 'legacy-furniture-demand', productId: 'furniture', side: 'buy', ownerType: 'population', ownerName: '人口需求', price: 20, quantity: 2, remaining: 2, status: 'open', createdAt: now - 1 },
+    { id: 'legacy-cotton-demand', productId: 'cotton', side: 'buy', ownerType: 'population', ownerName: '人口需求', price: 2, quantity: 2, remaining: 2, status: 'open', createdAt: now - 1 },
+    { id: 'current-food-demand', productId: 'food', side: 'buy', ownerType: 'population', ownerName: '人口饮食需求', demandGroupId: 'staples', price: 15, quantity: 2, remaining: 2, status: 'open', createdAt: now - 1 },
+  );
+
+  migrateWorld(world, now);
+
+  assert.equal(world.orders.find((order) => order.id === 'legacy-furniture-demand').status, 'cancelled');
+  assert.equal(world.orders.find((order) => order.id === 'legacy-cotton-demand').status, 'cancelled');
+  assert.equal(world.orders.find((order) => order.id === 'current-food-demand').status, 'open');
+  assert.equal(player.credits, 777);
+  assert.equal(player.inventories.wheat.available, 9);
+});
+
+test('upstream-only products never receive independent population demand', () => {
+  const world = createWorld(now);
+  for (const productId of ['cotton', 'wool', 'copper-ore', 'copper', 'textile']) {
+    world.markets[productId].demand.nextDemandAt = now;
+  }
+  processWorld(world, now + 1);
+  for (const productId of ['cotton', 'wool', 'copper-ore', 'copper', 'textile']) {
+    assert.equal(
+      world.orders.some((order) => order.ownerType === 'population' && order.productId === productId),
+      false,
+      `${productId} 不得获得独立人口需求`,
+    );
   }
 });
 

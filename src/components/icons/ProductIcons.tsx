@@ -3,15 +3,24 @@ import type { ReactNode, SVGProps } from 'react';
 export const PRODUCT_ICON_IDS = [
   'wheat',
   'rice',
+  'cotton',
   'timber',
   'ore',
+  'copper-ore',
   'crude-oil',
+  'meat',
+  'eggs',
+  'milk',
+  'wool',
   'flour',
   'lumber',
   'steel',
+  'copper',
   'plastic',
+  'textile',
   'food',
   'furniture',
+  'clothing',
   'machinery',
   'electronics',
 ] as const;
@@ -71,6 +80,14 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M12 8c2.1 0 3.4-.9 3.9-2.7-2.2-.1-3.5.8-3.9 2.7Z" />
         </ProductSvg>
       );
+    case 'cotton':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M12 20v-7" />
+          <path d="M8.5 14.5C5.7 14.5 4 12.8 4 10.5 4 8.3 5.7 7 7.7 7c.5-2.2 2.1-3.5 4.3-3.5S15.8 4.8 16.3 7c2 0 3.7 1.3 3.7 3.5 0 2.3-1.7 4-4.5 4Z" />
+          <path d="M8 20h8" />
+        </ProductSvg>
+      );
     case 'timber':
       return (
         <ProductSvg productId={productId} {...props}>
@@ -90,11 +107,50 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="m12 12-4 7" />
         </ProductSvg>
       );
+    case 'copper-ore':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="m4 15 3-7 5-3 6 3 2 7-5 4H8Z" />
+          <circle cx="10" cy="11" r="1.3" />
+          <circle cx="15.5" cy="14.5" r="1.5" />
+          <path d="m7 8 3 3M18 8l-2.5 5" />
+        </ProductSvg>
+      );
     case 'crude-oil':
       return (
         <ProductSvg productId={productId} {...props}>
           <path d="M12 3c3.2 4.2 5.5 7.1 5.5 10.1A5.5 5.5 0 0 1 6.5 13C6.5 10.1 8.8 7.2 12 3Z" />
           <path d="M9.2 14.4a3.1 3.1 0 0 0 2.8 1.7" />
+        </ProductSvg>
+      );
+    case 'meat':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M8.5 5.5c3-2.2 7.1-1.5 9.1 1.2 2 2.8.8 6.7-2.4 8.4-2.6 1.4-4.8.7-6.3 2.2L6.8 19.5 4.5 17.2 6.7 15c1.5-1.5.8-3.7 2.2-6.3" />
+          <circle cx="16.5" cy="7.5" r="1" />
+        </ProductSvg>
+      );
+    case 'eggs':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M9.5 4C7.6 6.5 6.3 9.2 6.3 12a5.7 5.7 0 0 0 11.4 0c0-2.8-1.3-5.5-3.2-8a3.1 3.1 0 0 0-5 0Z" />
+          <path d="M9.2 15.2c1.7 1.2 3.6 1.2 5.3 0" />
+        </ProductSvg>
+      );
+    case 'milk':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M8 4h7l2 4v12H7V8Z" />
+          <path d="M8 4v4h9" />
+          <path d="M10 12c1.2-1 2.8-1 4 0v4c-1.2 1-2.8 1-4 0Z" />
+        </ProductSvg>
+      );
+    case 'wool':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M7 17a4 4 0 0 1-1-7.9A4.5 4.5 0 0 1 14.4 6 4 4 0 0 1 18 12.8 3.5 3.5 0 0 1 15 18H8" />
+          <path d="M9 18v2M15 18v2" />
+          <path d="M7.5 12h9" />
         </ProductSvg>
       );
     case 'flour':
@@ -123,6 +179,14 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M10 16h4" />
         </ProductSvg>
       );
+    case 'copper':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M5 7h14l-2 4H7Z" />
+          <path d="M7 13h10l2 4H5Z" />
+          <path d="M8 7V5h8v2M8 17v2h8v-2" />
+        </ProductSvg>
+      );
     case 'plastic':
       return (
         <ProductSvg productId={productId} {...props}>
@@ -130,6 +194,14 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M10 3v3l-2 2v10c0 1.7 1.3 3 3 3h2c1.7 0 3-1.3 3-3V8l-2-2V3" />
           <path d="M8 11h8" />
           <path d="M10.5 15.5h3" />
+        </ProductSvg>
+      );
+    case 'textile':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M5 6h12l2 3-2 9H5L3 9Z" />
+          <path d="M6 9h12M8 6v12M12 6v12M16 6v12" />
+          <path d="M5 13h12" />
         </ProductSvg>
       );
     case 'food':
@@ -149,6 +221,13 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M7 15v5" />
           <path d="M17 15v5" />
           <path d="M7 8h10" />
+        </ProductSvg>
+      );
+    case 'clothing':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="m8 4-5 4 3 4 2-1v9h8v-9l2 1 3-4-5-4c-.8 1.3-2.2 2-4 2s-3.2-.7-4-2Z" />
+          <path d="M10 4c.4 1 1 1.5 2 1.5S13.6 5 14 4" />
         </ProductSvg>
       );
     case 'machinery':

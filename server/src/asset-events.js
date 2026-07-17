@@ -14,6 +14,6 @@ export function stripPlayerLogs(world) {
     delete player.ledger;
     delete player.assetEvents;
   }
-  world.version = 3;
+  world.version = 9;
   return world;
 }

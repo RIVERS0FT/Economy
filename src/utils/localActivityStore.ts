@@ -10,12 +10,13 @@ import type {
   FacilityConstruction,
   FacilityGroup,
   FacilityListing,
+  FacilityTypeDefinition,
   ProductDefinition,
   ProductInventory,
   TradeRecord,
 } from '../types';
 
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 const MAX_ASSET_EVENTS = 480;
 const MAX_TRADES = 240;
 
@@ -53,6 +54,7 @@ interface LocalStateSnapshot {
   orders: CommodityOrder[];
   facilityListings: FacilityListing[];
   products: ProductDefinition[];
+  facilityTypes: FacilityTypeDefinition[];
 }
 
 interface LocalActivityDocument extends LocalActivityView {
@@ -103,13 +105,40 @@ function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function normalizeAssetEvents(events: unknown[]): AssetEvent[] {
+  return events.slice(0, MAX_ASSET_EVENTS).map((raw) => {
+    const event = raw as AssetEvent & { productionChanges?: Array<Record<string, unknown>> };
+    return {
+      ...event,
+      productionChanges: (event.productionChanges ?? []).map((rawChange) => {
+        const change = rawChange as unknown as Record<string, unknown>;
+        if (change.output && Array.isArray(change.inputs)) return change as unknown as AssetProductionChange;
+        const inputQuantity = Number(change.inputQuantity || 0);
+        return {
+          facilityTypeId: String(change.facilityTypeId || ''),
+          facilityName: typeof change.facilityName === 'string' ? change.facilityName : undefined,
+          action: 'produced' as const,
+          inputs: inputQuantity > 0 && change.inputProductId
+            ? [{ productId: String(change.inputProductId), quantity: inputQuantity }]
+            : [],
+          output: {
+            productId: String(change.outputProductId || 'unknown'),
+            quantity: Number(change.outputQuantity || change.outputQuantityDelta || 0),
+          },
+          outputQuantityDelta: Number(change.outputQuantityDelta || change.outputQuantity || 0),
+        };
+      }),
+    };
+  });
+}
+
 function parseDocument(raw: string | null): LocalActivityDocument | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<LocalActivityDocument>;
     return {
       version: STORAGE_VERSION,
-      assetEvents: Array.isArray(parsed.assetEvents) ? parsed.assetEvents.slice(0, MAX_ASSET_EVENTS) : [],
+      assetEvents: Array.isArray(parsed.assetEvents) ? normalizeAssetEvents(parsed.assetEvents) : [],
       trades: Array.isArray(parsed.trades) ? parsed.trades.slice(0, MAX_TRADES) : [],
       snapshot: parsed.version === STORAGE_VERSION ? parsed.snapshot : undefined,
     };
@@ -122,7 +151,7 @@ function readDocument(userId: number): LocalActivityDocument {
   if (typeof window === 'undefined') return emptyDocument();
   const current = parseDocument(window.localStorage.getItem(storageKey(userId)));
   if (current) return current;
-  for (const legacyVersion of [2, 1]) {
+  for (const legacyVersion of [3, 2, 1]) {
     const legacy = parseDocument(window.localStorage.getItem(storageKey(userId, legacyVersion)));
     if (legacy) {
       return {
@@ -158,6 +187,7 @@ function snapshotState(state: EconomyState): LocalStateSnapshot {
     orders: state.orders.filter((order) => order.ownerId === state.userId),
     facilityListings: state.facilityListings.filter((listing) => listing.ownerId === state.userId),
     products: state.products,
+    facilityTypes: state.facilityTypes,
   });
 }
 
@@ -168,11 +198,20 @@ function productName(snapshot: LocalStateSnapshot, productId?: string) {
 function facilityName(typeId: string) {
   const names: Record<string, string> = {
     farm: '农场',
+    'logging-camp': '伐木场',
     mine: '矿场',
+    ranch: '畜牧场',
+    'oil-field': '油田',
     mill: '面粉厂',
-    steelworks: '钢铁厂',
+    sawmill: '锯木厂',
+    steelworks: '冶炼厂',
+    refinery: '炼油厂',
+    'textile-mill': '纺织厂',
     'food-factory': '食品厂',
+    'furniture-factory': '家具厂',
+    'garment-factory': '制衣厂',
     'machine-factory': '机械厂',
+    'electronics-factory': '电子工厂',
   };
   return names[typeId] ?? typeId;
 }
@@ -287,16 +326,28 @@ function diffFacilityGroups(
     if (!previous || !current) continue;
     const outputQuantityDelta = current.lifetimeOutput - previous.lifetimeOutput;
     if (outputQuantityDelta <= 0) continue;
-    const inventoryOutput = Object.entries(after.inventories).find(([productId]) => (
-      (after.inventories[productId]?.available ?? 0) > (before.inventories[productId]?.available ?? 0)
-    ));
+    const type = before.facilityTypes.find((item) => item.id === typeId)
+      ?? after.facilityTypes.find((item) => item.id === typeId);
+    const recipe = type?.recipes.find((item) => item.id === previous.activeRecipeId)
+      ?? type?.recipes.find((item) => item.id === type?.defaultRecipeId)
+      ?? type?.recipes[0];
+    const outputPerCycle = Math.max(1, Number(recipe?.output.quantity || 1));
+    const completedCycles = outputQuantityDelta / outputPerCycle;
+    const inputs = (recipe?.inputs ?? (recipe?.input ? [recipe.input] : [])).map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity * completedCycles,
+    }));
+    const outputProductId = recipe?.output.productId
+      ?? Object.entries(after.inventories).find(([productId]) => (
+        (after.inventories[productId]?.available ?? 0) > (before.inventories[productId]?.available ?? 0)
+      ))?.[0]
+      ?? 'unknown';
     productionChanges.push({
       facilityTypeId: typeId,
       facilityName: facilityName(typeId),
       action: 'produced',
-      outputProductId: inventoryOutput?.[0],
-      outputQuantity: outputQuantityDelta,
-      inputQuantity: 0,
+      inputs,
+      output: { productId: outputProductId, quantity: outputQuantityDelta },
       outputQuantityDelta,
     });
   }

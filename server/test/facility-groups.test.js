@@ -55,6 +55,47 @@ test('production increments produced goods statistics', () => {
   assert.equal(player.inventories.wheat.available, 8);
 });
 
+test('electronics factory atomically consumes plastic and copper', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 100;
+  player.inventories.plastic.available = 2;
+  player.inventories.copper.available = 2;
+  player.facilityGroups = [group('electronics-factory', 2, {
+    enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now,
+  })];
+  migrateFacilityGroupWorld(world, now);
+
+  processFacilityGroupWorld(world, now + 60_000);
+
+  assert.equal(player.inventories.plastic.available, 0);
+  assert.equal(player.inventories.copper.available, 0);
+  assert.equal(player.inventories.electronics.available, 2);
+  assert.equal(player.credits, 80);
+  assert.equal(player.stats.producedGoods, 2);
+});
+
+test('electronics factory deducts no material when either input is missing', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 100;
+  player.inventories.plastic.available = 1;
+  player.inventories.copper.available = 0;
+  player.facilityGroups = [group('electronics-factory', 1, {
+    enabled: true, status: 'running', participatingCount: 1, cycleStartedAt: now,
+  })];
+  migrateFacilityGroupWorld(world, now);
+
+  processFacilityGroupWorld(world, now + 60_000);
+
+  assert.equal(player.facilityGroups[0].status, 'error');
+  assert.equal(player.facilityGroups[0].statusReason, 'insufficient_input');
+  assert.equal(player.inventories.plastic.available, 1);
+  assert.equal(player.inventories.copper.available, 0);
+  assert.equal(player.inventories.electronics.available, 0);
+  assert.equal(player.credits, 100);
+});
+
 test('asset valuation excludes the current players own buy order', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);

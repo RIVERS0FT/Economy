@@ -13,201 +13,147 @@ export const ECONOMY_CONSTANTS = Object.freeze({
 });
 
 export const PRODUCT_CATALOG = Object.freeze([
-  { id: 'wheat', name: '小麦', category: 'raw', family: 'staple', substitutionGroupId: 'staples', basePrice: 6 },
-  { id: 'rice', name: '水稻', category: 'raw', family: 'staple', substitutionGroupId: 'staples', basePrice: 6 },
-  { id: 'timber', name: '木材', category: 'raw', basePrice: 7 },
-  { id: 'ore', name: '铁矿石', category: 'raw', basePrice: 8 },
-  { id: 'crude-oil', name: '原油', category: 'raw', basePrice: 10 },
-  { id: 'flour', name: '面粉', category: 'intermediate', basePrice: 13 },
-  { id: 'lumber', name: '木板', category: 'intermediate', basePrice: 16 },
-  { id: 'steel', name: '钢材', category: 'intermediate', basePrice: 20 },
-  { id: 'plastic', name: '塑料', category: 'intermediate', basePrice: 30 },
-  { id: 'food', name: '食品', category: 'consumer', basePrice: 18 },
-  { id: 'furniture', name: '家具', category: 'consumer', basePrice: 38 },
-  { id: 'machinery', name: '机械', category: 'industrial', basePrice: 45 },
-  { id: 'electronics', name: '电子产品', category: 'industrial', basePrice: 72 },
+  { id: 'wheat', name: '小麦', category: 'raw', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 2 },
+  { id: 'rice', name: '水稻', category: 'raw', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 2 },
+  { id: 'cotton', name: '棉花', category: 'raw', systemDemandMode: 'none', basePrice: 2 },
+  { id: 'timber', name: '木材', category: 'raw', systemDemandMode: 'single', basePrice: 5 },
+  { id: 'ore', name: '铁矿石', category: 'raw', systemDemandMode: 'single', basePrice: 6 },
+  { id: 'copper-ore', name: '铜矿石', category: 'raw', systemDemandMode: 'none', basePrice: 6 },
+  { id: 'crude-oil', name: '原油', category: 'raw', systemDemandMode: 'single', basePrice: 8 },
+  { id: 'meat', name: '肉', category: 'consumer', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 6 },
+  { id: 'eggs', name: '蛋', category: 'consumer', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 3 },
+  { id: 'milk', name: '奶', category: 'consumer', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 3 },
+  { id: 'wool', name: '毛', category: 'raw', systemDemandMode: 'none', basePrice: 6 },
+  { id: 'flour', name: '面粉', category: 'intermediate', systemDemandMode: 'single', basePrice: 13 },
+  { id: 'lumber', name: '木板', category: 'intermediate', systemDemandMode: 'single', basePrice: 15 },
+  { id: 'steel', name: '钢材', category: 'intermediate', systemDemandMode: 'single', basePrice: 24 },
+  { id: 'copper', name: '铜材', category: 'intermediate', systemDemandMode: 'none', basePrice: 24 },
+  { id: 'plastic', name: '塑料', category: 'intermediate', systemDemandMode: 'single', basePrice: 24 },
+  { id: 'textile', name: '纺织品', category: 'intermediate', systemDemandMode: 'none', basePrice: 18 },
+  { id: 'food', name: '食品', category: 'consumer', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 15 },
+  { id: 'furniture', name: '家具', category: 'consumer', substitutionGroupId: 'household-goods', systemDemandMode: 'grouped', basePrice: 20 },
+  { id: 'clothing', name: '服装', category: 'consumer', substitutionGroupId: 'household-goods', systemDemandMode: 'grouped', basePrice: 48 },
+  { id: 'machinery', name: '机械', category: 'industrial', systemDemandMode: 'single', basePrice: 60 },
+  { id: 'electronics', name: '电子产品', category: 'industrial', systemDemandMode: 'single', basePrice: 64 },
 ]);
 
 const FACILITY_TYPE_BASE_CATALOG = [
   {
-    id: 'farm',
-    name: '农场',
-    category: 'raw',
-    buildCost: 60,
-    buildTimeMs: 5 * 60 * 1000,
-    cycleMs: 30_000,
-    operatingCost: 1,
-    input: null,
-    output: { productId: 'wheat', quantity: 2 },
-    defaultRecipeId: 'wheat-crop',
+    id: 'farm', name: '农场', category: 'raw', buildCost: 60, buildTimeMs: 5 * 60 * 1000,
+    cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'wheat', quantity: 4 },
+    defaultRecipeId: 'wheat-crop', internalCapacity: 40, systemValue: 80,
     recipes: [
-      {
-        id: 'wheat-crop',
-        name: '种植小麦',
-        cycleMs: 30_000,
-        operatingCost: 1,
-        input: null,
-        output: { productId: 'wheat', quantity: 2 },
-      },
-      {
-        id: 'rice-crop',
-        name: '种植水稻',
-        cycleMs: 30_000,
-        operatingCost: 1,
-        input: null,
-        output: { productId: 'rice', quantity: 2 },
-      },
+      { id: 'wheat-crop', name: '种植小麦', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'wheat', quantity: 4 } },
+      { id: 'rice-crop', name: '种植水稻', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'rice', quantity: 4 } },
+      { id: 'cotton-crop', name: '种植棉花', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'cotton', quantity: 4 } },
     ],
-    internalCapacity: 40,
-    systemValue: 80,
   },
   {
-    id: 'logging-camp',
-    name: '伐木场',
-    category: 'raw',
-    buildCost: 65,
-    buildTimeMs: 5 * 60 * 1000,
-    cycleMs: 32_000,
-    operatingCost: 1,
-    input: null,
-    output: { productId: 'timber', quantity: 2 },
-    internalCapacity: 40,
-    systemValue: 85,
+    id: 'logging-camp', name: '伐木场', category: 'raw', buildCost: 65, buildTimeMs: 5 * 60 * 1000,
+    cycleMs: 60_000, operatingCost: 9, inputs: [], output: { productId: 'timber', quantity: 2 },
+    defaultRecipeId: 'logging-camp-default', internalCapacity: 40, systemValue: 85,
+    recipes: [{ id: 'logging-camp-default', name: '采伐木材', cycleMs: 60_000, operatingCost: 9, inputs: [], output: { productId: 'timber', quantity: 2 } }],
   },
   {
-    id: 'mine',
-    name: '矿场',
-    category: 'raw',
-    buildCost: 70,
-    buildTimeMs: 5 * 60 * 1000,
-    cycleMs: 35_000,
-    operatingCost: 1,
-    input: null,
-    output: { productId: 'ore', quantity: 2 },
-    internalCapacity: 40,
-    systemValue: 90,
+    id: 'mine', name: '矿场', category: 'raw', buildCost: 70, buildTimeMs: 5 * 60 * 1000,
+    cycleMs: 60_000, operatingCost: 11, inputs: [], output: { productId: 'ore', quantity: 2 },
+    defaultRecipeId: 'mine-default', internalCapacity: 40, systemValue: 90,
+    recipes: [
+      { id: 'mine-default', name: '开采铁矿石', cycleMs: 60_000, operatingCost: 11, inputs: [], output: { productId: 'ore', quantity: 2 } },
+      { id: 'copper-ore-mining', name: '开采铜矿石', cycleMs: 60_000, operatingCost: 11, inputs: [], output: { productId: 'copper-ore', quantity: 2 } },
+    ],
   },
   {
-    id: 'oil-field',
-    name: '油田',
-    category: 'raw',
-    buildCost: 95,
-    buildTimeMs: 7 * 60 * 1000,
-    cycleMs: 42_000,
-    operatingCost: 2,
-    input: null,
-    output: { productId: 'crude-oil', quantity: 2 },
-    internalCapacity: 40,
-    systemValue: 120,
+    id: 'ranch', name: '畜牧场', category: 'raw', buildCost: 90, buildTimeMs: 7 * 60 * 1000,
+    cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'meat', quantity: 3 },
+    defaultRecipeId: 'ranch-meat', internalCapacity: 40, systemValue: 120,
+    recipes: [
+      { id: 'ranch-meat', name: '生产肉', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'meat', quantity: 3 } },
+      { id: 'ranch-eggs', name: '生产蛋', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'eggs', quantity: 6 } },
+      { id: 'ranch-milk', name: '生产奶', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'milk', quantity: 6 } },
+      { id: 'ranch-wool', name: '生产毛', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'wool', quantity: 3 } },
+    ],
   },
   {
-    id: 'mill',
-    name: '面粉厂',
-    category: 'processing',
-    buildCost: 100,
-    buildTimeMs: 8 * 60 * 1000,
-    cycleMs: 40_000,
-    operatingCost: 2,
-    input: { productId: 'wheat', quantity: 2 },
-    output: { productId: 'flour', quantity: 1 },
-    internalCapacity: 30,
-    systemValue: 130,
+    id: 'oil-field', name: '油田', category: 'raw', buildCost: 95, buildTimeMs: 7 * 60 * 1000,
+    cycleMs: 60_000, operatingCost: 15, inputs: [], output: { productId: 'crude-oil', quantity: 2 },
+    defaultRecipeId: 'oil-field-default', internalCapacity: 40, systemValue: 120,
+    recipes: [{ id: 'oil-field-default', name: '开采原油', cycleMs: 60_000, operatingCost: 15, inputs: [], output: { productId: 'crude-oil', quantity: 2 } }],
   },
   {
-    id: 'sawmill',
-    name: '锯木厂',
-    category: 'processing',
-    buildCost: 115,
-    buildTimeMs: 8 * 60 * 1000,
-    cycleMs: 45_000,
-    operatingCost: 2,
-    input: { productId: 'timber', quantity: 2 },
-    output: { productId: 'lumber', quantity: 1 },
-    internalCapacity: 30,
-    systemValue: 150,
+    id: 'mill', name: '面粉厂', category: 'processing', buildCost: 100, buildTimeMs: 8 * 60 * 1000,
+    cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 },
+    defaultRecipeId: 'mill-default', internalCapacity: 30, systemValue: 130,
+    recipes: [{ id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } }],
   },
   {
-    id: 'steelworks',
-    name: '钢铁厂',
-    category: 'processing',
-    buildCost: 140,
-    buildTimeMs: 10 * 60 * 1000,
-    cycleMs: 50_000,
-    operatingCost: 3,
-    input: { productId: 'ore', quantity: 3 },
-    output: { productId: 'steel', quantity: 1 },
-    internalCapacity: 25,
-    systemValue: 180,
+    id: 'sawmill', name: '锯木厂', category: 'processing', buildCost: 115, buildTimeMs: 8 * 60 * 1000,
+    cycleMs: 40_000, operatingCost: 3, inputs: [{ productId: 'timber', quantity: 2 }], output: { productId: 'lumber', quantity: 1 },
+    defaultRecipeId: 'sawmill-default', internalCapacity: 30, systemValue: 150,
+    recipes: [{ id: 'sawmill-default', name: '加工木板', cycleMs: 40_000, operatingCost: 3, inputs: [{ productId: 'timber', quantity: 2 }], output: { productId: 'lumber', quantity: 1 } }],
   },
   {
-    id: 'refinery',
-    name: '炼油厂',
-    category: 'processing',
-    buildCost: 185,
-    buildTimeMs: 12 * 60 * 1000,
-    cycleMs: 65_000,
-    operatingCost: 4,
-    input: { productId: 'crude-oil', quantity: 2 },
-    output: { productId: 'plastic', quantity: 1 },
-    internalCapacity: 25,
-    systemValue: 240,
+    id: 'steelworks', name: '冶炼厂', category: 'processing', buildCost: 140, buildTimeMs: 10 * 60 * 1000,
+    cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'ore', quantity: 3 }], output: { productId: 'steel', quantity: 1 },
+    defaultRecipeId: 'steelworks-default', internalCapacity: 25, systemValue: 180,
+    recipes: [
+      { id: 'steelworks-default', name: '冶炼钢材', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'ore', quantity: 3 }], output: { productId: 'steel', quantity: 1 } },
+      { id: 'copper-smelting', name: '冶炼铜材', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'copper-ore', quantity: 3 }], output: { productId: 'copper', quantity: 1 } },
+    ],
   },
   {
-    id: 'food-factory',
-    name: '食品厂',
-    category: 'consumer',
-    buildCost: 160,
-    buildTimeMs: 10 * 60 * 1000,
-    cycleMs: 45_000,
-    operatingCost: 3,
-    input: { productId: 'flour', quantity: 2 },
-    output: { productId: 'food', quantity: 3 },
-    internalCapacity: 45,
-    systemValue: 210,
+    id: 'refinery', name: '炼油厂', category: 'processing', buildCost: 185, buildTimeMs: 12 * 60 * 1000,
+    cycleMs: 40_000, operatingCost: 6, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'plastic', quantity: 1 },
+    defaultRecipeId: 'refinery-default', internalCapacity: 25, systemValue: 240,
+    recipes: [{ id: 'refinery-default', name: '生产塑料', cycleMs: 40_000, operatingCost: 6, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'plastic', quantity: 1 } }],
   },
   {
-    id: 'furniture-factory',
-    name: '家具厂',
-    category: 'consumer',
-    buildCost: 210,
-    buildTimeMs: 12 * 60 * 1000,
-    cycleMs: 60_000,
-    operatingCost: 4,
-    input: { productId: 'lumber', quantity: 2 },
-    output: { productId: 'furniture', quantity: 2 },
-    internalCapacity: 35,
-    systemValue: 275,
+    id: 'textile-mill', name: '纺织厂', category: 'processing', buildCost: 145, buildTimeMs: 10 * 60 * 1000,
+    cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 },
+    defaultRecipeId: 'cotton-textile', internalCapacity: 25, systemValue: 190,
+    recipes: [
+      { id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } },
+      { id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } },
+    ],
   },
   {
-    id: 'machine-factory',
-    name: '机械厂',
-    category: 'industrial',
-    buildCost: 240,
-    buildTimeMs: 15 * 60 * 1000,
-    cycleMs: 90_000,
-    operatingCost: 6,
-    input: { productId: 'steel', quantity: 2 },
-    output: { productId: 'machinery', quantity: 1 },
-    internalCapacity: 15,
-    systemValue: 320,
+    id: 'food-factory', name: '食品厂', category: 'consumer', buildCost: 160, buildTimeMs: 10 * 60 * 1000,
+    cycleMs: 50_000, operatingCost: 14, inputs: [{ productId: 'flour', quantity: 2 }], output: { productId: 'food', quantity: 3 },
+    defaultRecipeId: 'food-factory-default', internalCapacity: 45, systemValue: 210,
+    recipes: [{ id: 'food-factory-default', name: '生产食品', cycleMs: 50_000, operatingCost: 14, inputs: [{ productId: 'flour', quantity: 2 }], output: { productId: 'food', quantity: 3 } }],
   },
   {
-    id: 'electronics-factory',
-    name: '电子工厂',
-    category: 'industrial',
-    buildCost: 320,
-    buildTimeMs: 18 * 60 * 1000,
-    cycleMs: 110_000,
-    operatingCost: 8,
-    input: { productId: 'plastic', quantity: 2 },
-    output: { productId: 'electronics', quantity: 1 },
-    internalCapacity: 15,
-    systemValue: 420,
+    id: 'furniture-factory', name: '家具厂', category: 'consumer', buildCost: 210, buildTimeMs: 12 * 60 * 1000,
+    cycleMs: 60_000, operatingCost: 4, inputs: [{ productId: 'lumber', quantity: 2 }], output: { productId: 'furniture', quantity: 2 },
+    defaultRecipeId: 'furniture-factory-default', internalCapacity: 35, systemValue: 275,
+    recipes: [{ id: 'furniture-factory-default', name: '生产家具', cycleMs: 60_000, operatingCost: 4, inputs: [{ productId: 'lumber', quantity: 2 }], output: { productId: 'furniture', quantity: 2 } }],
   },
-
+  {
+    id: 'garment-factory', name: '制衣厂', category: 'consumer', buildCost: 225, buildTimeMs: 14 * 60 * 1000,
+    cycleMs: 60_000, operatingCost: 6, inputs: [{ productId: 'textile', quantity: 2 }], output: { productId: 'clothing', quantity: 1 },
+    defaultRecipeId: 'garment-factory-default', internalCapacity: 30, systemValue: 295,
+    recipes: [{ id: 'garment-factory-default', name: '生产服装', cycleMs: 60_000, operatingCost: 6, inputs: [{ productId: 'textile', quantity: 2 }], output: { productId: 'clothing', quantity: 1 } }],
+  },
+  {
+    id: 'machine-factory', name: '机械厂', category: 'industrial', buildCost: 240, buildTimeMs: 15 * 60 * 1000,
+    cycleMs: 60_000, operatingCost: 6, inputs: [{ productId: 'steel', quantity: 2 }], output: { productId: 'machinery', quantity: 1 },
+    defaultRecipeId: 'machine-factory-default', internalCapacity: 15, systemValue: 320,
+    recipes: [{ id: 'machine-factory-default', name: '生产机械', cycleMs: 60_000, operatingCost: 6, inputs: [{ productId: 'steel', quantity: 2 }], output: { productId: 'machinery', quantity: 1 } }],
+  },
+  {
+    id: 'electronics-factory', name: '电子工厂', category: 'industrial', buildCost: 320, buildTimeMs: 18 * 60 * 1000,
+    cycleMs: 60_000, operatingCost: 10, inputs: [{ productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 }], output: { productId: 'electronics', quantity: 1 },
+    defaultRecipeId: 'electronics-factory-default', internalCapacity: 15, systemValue: 420,
+    recipes: [{ id: 'electronics-factory-default', name: '生产电子产品', cycleMs: 60_000, operatingCost: 10, inputs: [{ productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 }], output: { productId: 'electronics', quantity: 1 } }],
+  },
 ];
 
 const FACILITY_PRODUCT_NAMES = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.name]));
+
+function frozenRecipeInputs(source) {
+  const inputs = Array.isArray(source?.inputs) ? source.inputs : source?.input ? [source.input] : [];
+  return Object.freeze(inputs.map((item) => Object.freeze({ ...item })));
+}
 
 export const FACILITY_TYPE_CATALOG = Object.freeze(FACILITY_TYPE_BASE_CATALOG.map((facility) => {
   const recipes = Array.isArray(facility.recipes) && facility.recipes.length > 0
@@ -217,29 +163,51 @@ export const FACILITY_TYPE_CATALOG = Object.freeze(FACILITY_TYPE_BASE_CATALOG.ma
       name: `生产${FACILITY_PRODUCT_NAMES.get(facility.output.productId) || facility.name}`,
       cycleMs: facility.cycleMs,
       operatingCost: facility.operatingCost,
-      input: facility.input,
+      inputs: facility.inputs || [],
       output: facility.output,
     }];
+  const normalizedRecipes = recipes.map((recipe) => {
+    const inputs = frozenRecipeInputs(recipe);
+    return Object.freeze({
+      ...recipe,
+      inputs,
+      input: inputs.length === 1 ? inputs[0] : null,
+      output: Object.freeze({ ...recipe.output }),
+    });
+  });
+  const defaultRecipeId = facility.defaultRecipeId || normalizedRecipes[0].id;
+  const defaultRecipe = normalizedRecipes.find((recipe) => recipe.id === defaultRecipeId) || normalizedRecipes[0];
   return Object.freeze({
     ...facility,
-    defaultRecipeId: facility.defaultRecipeId || recipes[0].id,
-    recipes: Object.freeze(recipes.map((recipe) => Object.freeze({ ...recipe }))),
+    cycleMs: defaultRecipe.cycleMs,
+    operatingCost: defaultRecipe.operatingCost,
+    inputs: defaultRecipe.inputs,
+    input: defaultRecipe.input,
+    output: defaultRecipe.output,
+    defaultRecipeId,
+    recipes: Object.freeze(normalizedRecipes),
   });
 }));
 
 export const DEMAND_GROUP_CATALOG = Object.freeze([
   {
-    id: 'staples',
-    name: '人口主食需求',
-    ownerName: '人口主食需求',
-    cycleMs: ECONOMY_CONSTANTS.demandCycleMs,
-    baseBudget: 60,
-    priceElasticity: 3,
-    maxPriceIndex: 2,
-    quoteDepth: 4,
+    id: 'staples', name: '人口饮食需求', ownerName: '人口饮食需求',
+    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 330,
     products: [
       { productId: 'wheat', preferenceWeight: 1 },
       { productId: 'rice', preferenceWeight: 1 },
+      { productId: 'food', preferenceWeight: 8 },
+      { productId: 'meat', preferenceWeight: 4 },
+      { productId: 'eggs', preferenceWeight: 3 },
+      { productId: 'milk', preferenceWeight: 3 },
+    ],
+  },
+  {
+    id: 'household-goods', name: '家庭用品需求', ownerName: '家庭用品需求',
+    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 320,
+    products: [
+      { productId: 'furniture', preferenceWeight: 1 },
+      { productId: 'clothing', preferenceWeight: 2 },
     ],
   },
 ]);
@@ -443,7 +411,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 8,
+    version: 9,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
@@ -601,7 +569,7 @@ export function migrateWorld(world, now = Date.now()) {
   for (const group of DEMAND_GROUP_CATALOG) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
-  world.version = 8;
+  world.version = 9;
   return world;
 }
 
@@ -961,7 +929,7 @@ export function processWorld(world, now = Date.now()) {
   const stapleDemand = world.demandGroups?.staples;
   if (!stapleDemand || now >= stapleDemand.nextDemandAt) createGroupedDemand(world, 'staples', now);
   for (const product of PRODUCT_CATALOG) {
-    if (product.substitutionGroupId === 'staples') continue;
+    if (product.systemDemandMode === 'grouped' || product.systemDemandMode === 'none') continue;
     const market = marketFor(world, product.id);
     if (now >= market.demand.nextDemandAt) createPopulationDemand(world, product.id, now);
   }

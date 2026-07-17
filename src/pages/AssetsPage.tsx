@@ -239,10 +239,12 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
                   ))}
                   {event.productionChanges.map((change) => (
                     <span key={`${event.id}-${change.facilityTypeId}-${change.action}`}>
-                      <ProductIconLabel productId={change.outputProductId ?? 'unknown'}>{productName(change.outputProductId)}</ProductIconLabel>
-                      <strong>{change.facilityName ?? '生产'} · 产出入仓 {formatNumber(change.outputQuantity)}</strong>
+                      <ProductIconLabel productId={change.output.productId}>{productName(change.output.productId)}</ProductIconLabel>
+                      <strong>{change.facilityName ?? '生产'} · 产出入仓 {formatNumber(change.output.quantity)}</strong>
                       <small>
-                        {change.inputQuantity > 0 ? `消耗 ${formatNumber(change.inputQuantity)} ${productName(change.inputProductId)} · ` : ''}
+                        {change.inputs.length > 0
+                          ? `消耗 ${change.inputs.map((item) => `${formatNumber(item.quantity)} ${productName(item.productId)}`).join(' + ')} · `
+                          : ''}
                         已直接进入共享仓库
                       </small>
                     </span>

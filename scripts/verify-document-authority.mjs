@@ -59,12 +59,12 @@ for (const path of forbiddenLegacyDocs) {
 if (existsSync(pathFor('README.md'))) {
   const rootReadme = read('README.md');
   for (const text of [
-    '客户端状态版本：`12`',
-    '世界状态版本：`8`',
+    '客户端状态版本：`13`',
+    '世界状态版本：`9`',
     '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜设置',
     '共享仓库允许无限扩容',
     '所有工厂集群统一使用服务器正式配方',
-    '食品、小麦和水稻共享同一个人口饮食需求组',
+    '食品、小麦、水稻、肉、蛋和奶共享同一个人口饮食需求组',
     '每 5 分钟最多 330',
     '藏品是服务器记录归属的唯一资产实例',
     '不得通过新增“补充说明”、V2/V3 文件或平行专题文档覆盖现行规则',
@@ -85,8 +85,8 @@ if (existsSync(pathFor('README.md'))) {
 for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
-  if (!content.includes('客户端状态版本：12')) failures.push(`${path} 客户端状态版本必须为 12`);
-  if (!content.includes('世界状态版本：8')) failures.push(`${path} 世界状态版本必须为 8`);
+  if (!content.includes('客户端状态版本：13')) failures.push(`${path} 客户端状态版本必须为 13`);
+  if (!content.includes('世界状态版本：9')) failures.push(`${path} 世界状态版本必须为 9`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -109,4 +109,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：唯一文档结构、版本 12/8、整数经济基线、文档整理规则和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：唯一文档结构、版本 13/9、整数经济基线、文档整理规则和旧文件禁令均满足当前基线。');
