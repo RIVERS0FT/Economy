@@ -27,7 +27,9 @@ jobs:
           node-version: 24
 
       - name: Apply fix
-        run: node scripts/apply-population-demand-bootstrap-fix.mjs
+        run: |
+          node scripts/apply-population-demand-bootstrap-fix.mjs
+          node scripts/refine-population-demand-bootstrap-fix.mjs
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
@@ -54,7 +56,9 @@ jobs:
       - name: Remove temporary automation
         run: |
           rm scripts/apply-population-demand-bootstrap-fix.mjs
+          rm scripts/refine-population-demand-bootstrap-fix.mjs
           rm .github/workflows/apply-population-demand-bootstrap-fix.yml
+          rm -f population-demand-build-result.txt population-demand-build-status.txt
 
       - name: Commit verified fix
         run: |
