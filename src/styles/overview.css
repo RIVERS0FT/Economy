@@ -2,7 +2,9 @@
   --overview-primary-card-height: 330px;
   --overview-summary-card-height: 320px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--layout-gutter);
+  container: overview / inline-size;
 }
 
 .overview-primary-grid {
@@ -17,6 +19,19 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.overview-primary-grid .widget-heading h2,
+.overview-summary-row .widget-heading h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-primary-grid .widget-heading > :last-child,
+.overview-summary-row .widget-heading > :last-child {
+  flex: 0 0 auto;
 }
 
 .overview-work-strip {
@@ -354,6 +369,9 @@
   }
 }
 
+/* Viewport fallbacks preserve the documented tablet and mobile layout even
+ * where container queries are unavailable. Desktop transitions below are
+ * additionally governed by the actual overview content width. */
 @media (max-width: 1199px) {
   .home-grid {
     --overview-primary-card-height: auto;
@@ -431,6 +449,84 @@
     width: 100%;
     min-width: 0;
     flex: 1;
+  }
+
+  .overview-alert {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-alert .ui-button {
+    justify-self: start;
+  }
+}
+
+/* The desktop shell can remove more than 250px from the viewport. These
+ * container rules therefore use the real page width rather than assuming that
+ * a nominal desktop viewport always has enough room for five readable cards. */
+@container overview (max-width: 1050px) {
+  .overview-primary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-today-panel,
+  .market-summary,
+  .overview-summary-card {
+    height: auto;
+  }
+
+  .overview-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overview-open-orders-card {
+    grid-column: 1 / -1;
+    min-height: 280px;
+  }
+
+  .overview-alert-list,
+  .overview-open-orders-list,
+  .overview-asset-events {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+}
+
+@container overview (max-width: 580px) {
+  .overview-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-open-orders-card {
+    grid-column: auto;
+  }
+
+  .overview-work-strip,
+  .overview-market-empty {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-work-button,
+  .overview-market-empty > .ui-button {
+    width: 100%;
+  }
+
+  .overview-market-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overview-market-footer,
+  .overview-alert-heading,
+  .overview-subsection-heading,
+  .market-summary .widget-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .overview-market-select,
+  .overview-market-select select {
+    width: 100%;
+    min-width: 0;
   }
 
   .overview-alert {
