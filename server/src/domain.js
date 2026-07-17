@@ -120,7 +120,7 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
     name: '饮食需求',
     ownerName: '饮食需求',
     cycleMs: core.ECONOMY_CONSTANTS.demandCycleMs,
-    baseBudget: 330,
+    baseBudget: 500,
     priceElasticity: 3,
     maxQuoteIndex: 2,
     quoteUtilityDepth: 12,
@@ -139,7 +139,7 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
     name: '家庭用品需求',
     ownerName: '家庭用品需求',
     cycleMs: core.ECONOMY_CONSTANTS.demandCycleMs,
-    baseBudget: 320,
+    baseBudget: 480,
     priceElasticity: 2,
     maxQuoteIndex: 2,
     quoteUtilityDepth: 8,
@@ -644,7 +644,7 @@ export function createWorld(now = Date.now()) {
     defaultDemandGroupState(group, now),
   ]));
   world.priceTransmission = defaultPriceTransmissionState(now);
-  world.version = 11;
+  world.version = 12;
   return normalizeDemandWorld(world, now);
 }
 
@@ -665,7 +665,7 @@ export function migrateWorld(world, now = Date.now()) {
   migrated.orders = (migrated.orders || []).filter((order) => {
     if (order.ownerType === 'player') return true;
     if (order.ownerType !== 'population') return false;
-    return previousVersion >= 11 && isValidPopulationOrder(order);
+    return previousVersion >= 12 && isValidPopulationOrder(order);
   });
   if (previousVersion < 9) {
     for (const player of Object.values(migrated.players || {})) {
@@ -674,7 +674,7 @@ export function migrateWorld(world, now = Date.now()) {
     }
   }
   const normalized = normalizeDemandWorld(migrated, now);
-  if (previousVersion < 11) {
+  if (previousVersion < 12) {
     for (const group of DEMAND_GROUP_CATALOG) {
       const state = normalized.demandGroups[group.id];
       state.nextDemandAt = now;
@@ -684,7 +684,7 @@ export function migrateWorld(world, now = Date.now()) {
       state.lastAllocation = {};
     }
   }
-  normalized.version = 11;
+  normalized.version = 12;
   return normalized;
 }
 

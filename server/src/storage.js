@@ -225,7 +225,7 @@ export class EconomyStore {
       migrateCollectibleWorld(world, now);
       stripLegacyFacilityInstances(world);
       for (const player of Object.values(world.players || {})) ensureGemState(player);
-      world.version = 11;
+      world.version = 12;
       const stateJson = JSON.stringify(world);
       this.insertWorld.run(1, stateJson, now);
       return { revision: 1, stateJson, world };
@@ -239,7 +239,7 @@ export class EconomyStore {
       ensureWarehouse(player);
       ensureGemState(player);
     }
-    world.version = 11;
+    world.version = 12;
     return { revision: Number(row.revision), stateJson, world };
   }
 
@@ -252,7 +252,7 @@ export class EconomyStore {
     migrateCollectibleWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
-    world.version = 11;
+    world.version = 12;
     return JSON.stringify(world);
   }
 
