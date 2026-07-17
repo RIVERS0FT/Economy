@@ -167,12 +167,20 @@ function parseDocument(raw: string | null): LocalActivityDocument | null {
   }
 }
 
+function readStorageItem(key: string) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 function readDocument(userId: number): LocalActivityDocument {
   if (typeof window === 'undefined') return emptyDocument();
-  const current = parseDocument(window.localStorage.getItem(storageKey(userId)));
+  const current = parseDocument(readStorageItem(storageKey(userId)));
   if (current) return current;
   for (const legacyVersion of [4, 3, 2, 1]) {
-    const legacy = parseDocument(window.localStorage.getItem(storageKey(userId, legacyVersion)));
+    const legacy = parseDocument(readStorageItem(storageKey(userId, legacyVersion)));
     if (legacy) {
       const migrated: LocalActivityDocument = {
         version: STORAGE_VERSION,
