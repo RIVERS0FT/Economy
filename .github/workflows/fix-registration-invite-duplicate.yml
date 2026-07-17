@@ -1,0 +1,36 @@
+name: Fix registration invite duplicate
+
+on:
+  push:
+    branches:
+      - agent/registration-invite-prefill
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/registration-invite-prefill
+      - name: Remove duplicate source declaration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('server/src/invitations.js')
+          text = path.read_text()
+          duplicate = "    const source = invitationSource === 'manual_code' ? 'manual_code' : 'share_link';\n    const source = invitationSource === 'manual_code' ? 'manual_code' : 'share_link';"
+          if duplicate not in text:
+              raise SystemExit('duplicate declaration not found')
+          path.write_text(text.replace(duplicate, "    const source = invitationSource === 'manual_code' ? 'manual_code' : 'share_link';", 1))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add server/src/invitations.js
+          git commit -m "修复注册邀请来源重复声明"
+          git push origin HEAD:agent/registration-invite-prefill
