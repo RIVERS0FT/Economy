@@ -1,9 +1,9 @@
 name: Debug Market Assets
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/population-demand-price-transmission
+      - main
 
 permissions:
   contents: read
