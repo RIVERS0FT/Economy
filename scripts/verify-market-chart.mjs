@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import {
   buildMarketAxisTicks,
   buildMarketHistoryBuckets,
+  countMarketHistoryPointsInWindow,
   MARKET_AXIS_SEGMENTS,
   MARKET_BUCKET_COUNT,
   MARKET_BUCKET_MS,
@@ -17,17 +18,19 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const now = Date.UTC(2026, 6, 17, 8, 3, 0);
 const windowEnd = Math.floor(now / MARKET_BUCKET_MS) * MARKET_BUCKET_MS + MARKET_BUCKET_MS;
 const windowStart = windowEnd - MARKET_WINDOW_MS;
-const buckets = buildMarketHistoryBuckets([
+const points = [
   { price: 8, quantity: 9, createdAt: windowStart - 1_000 },
   { price: 10, quantity: 2, takerSide: 'buy', createdAt: windowStart + 60_000 },
   { price: 12, quantity: 3, takerSide: 'sell', createdAt: windowStart + 3 * 60_000 },
   { price: 13, quantity: 4, createdAt: windowStart + 5 * 60_000 },
   { price: 15, quantity: 4, takerSide: 'buy', createdAt: windowStart + MARKET_BUCKET_MS + 60_000 },
-], 6, now);
+];
+const buckets = buildMarketHistoryBuckets(points, 6, now);
 
 assert.equal(MARKET_BUCKET_COUNT, 240, '24h / 6m 必须等于 240 个分段');
 assert.equal(MARKET_AXIS_SEGMENTS, 12, '横轴必须保持 12 个分段');
 assert.equal(buckets.length, 240, '行情聚合必须输出固定 240 个分段');
+assert.equal(countMarketHistoryPointsInWindow(points, now), 4, '成交笔数必须只统计与图表相同的最近 24h 窗口');
 assert.deepEqual(
   {
     price: buckets[0].price,
@@ -105,9 +108,10 @@ for (const text of ['slice(-24)', '<PriceSparkline values=']) {
 
 for (const text of [
   'buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now)',
+  'countMarketHistoryPointsInWindow(marketHistory, now)',
   '<PriceSparkline buckets={marketBuckets} variant="full" />',
   '净主动买入',
-  '24h · 6m × 240',
+  '最近 24h {formatNumber(marketHistoryCount)} 笔 · 6m × 240',
 ]) assert.ok(marketPage.includes(text), `MarketPage 缺少: ${text}`);
 
 assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
@@ -127,4 +131,4 @@ for (const text of [
   '禁止伪造迁移方向',
 ]) assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 
-console.log('Market chart verification passed: overview and market share 24h buckets with net active flow colors.');
+console.log('Market chart verification passed: overview and market share 24h buckets with net active flow colors and windowed trade counts.');
