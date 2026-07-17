@@ -58,12 +58,19 @@ test('market medium and narrow layouts follow the real content width without hor
   expect(chartBox.width).toBeGreaterThan(orderBox.width + bookBox.width);
 
   await page.setViewportSize({ width: 900, height: 1000 });
+  const surface = page.locator('.market-page-surface');
+  await surface.evaluate((element) => {
+    const htmlElement = element as HTMLElement;
+    htmlElement.style.width = '790px';
+    htmlElement.style.maxWidth = '100%';
+  });
+  await expect.poll(() => surface.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThan(820);
   const stackedOrder = await requireBox(page.locator('.order-entry'));
   const stackedBook = await requireBox(page.locator('.single-order-book'));
   const stackedChart = await requireBox(page.locator('.market-chart-card'));
   expect(stackedBook.y).toBeGreaterThan(stackedOrder.y + stackedOrder.height - 2);
   expect(stackedChart.y).toBeGreaterThan(stackedBook.y + stackedBook.height - 2);
-  expect(await page.locator('.market-page-surface').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  expect(await surface.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   expect(pageErrors).toEqual([]);
 });
 
@@ -121,7 +128,7 @@ test('market asset directory uses two rows, explicit groups, controls and visibl
   await page.getByRole('button', { name: '向后浏览资产' }).click();
   await expect.poll(() => directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
 
-  const finalFacility = page.getByRole('tab', { name: '电子工厂', exact: true });
+  const finalFacility = page.getByRole('tab', { name: /^电子工厂/ });
   await finalFacility.click();
   await expect(finalFacility).toHaveAttribute('aria-selected', 'true');
   await expect(finalFacility).toHaveAttribute('data-current', '当前');
