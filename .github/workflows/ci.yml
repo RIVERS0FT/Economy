@@ -20,6 +20,7 @@ jobs:
       - name: Apply local trade anonymization bundle
         run: |
           set +e
+          node scripts/fix-anonymize-script.mjs
           node scripts/apply-anonymize-local-trades.mjs 2> /tmp/anonymize-error.log
           status=$?
           if [ $status -ne 0 ]; then
