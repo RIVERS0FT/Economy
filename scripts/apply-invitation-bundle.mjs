@@ -3,12 +3,20 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'nod
 import { dirname } from 'node:path';
 
 const bundleDir = 'scripts/.invitation-bundle';
-const payload = readdirSync(bundleDir)
-  .filter((name) => name.startsWith('part-'))
+const textPrefix = readdirSync(bundleDir)
+  .filter((name) => name.endsWith('.txt'))
   .sort()
   .map((name) => readFileSync(`${bundleDir}/${name}`, 'utf8').trim())
   .join('');
-const files = JSON.parse(gunzipSync(Buffer.from(payload, 'base64')).toString('utf8'));
+const binaryParts = readdirSync(bundleDir)
+  .filter((name) => name.endsWith('.bin'))
+  .sort()
+  .map((name) => readFileSync(`${bundleDir}/${name}`));
+const compressed = Buffer.concat([
+  Buffer.from(textPrefix, 'base64'),
+  ...binaryParts,
+]);
+const files = JSON.parse(gunzipSync(compressed).toString('utf8'));
 for (const [path, content] of Object.entries(files)) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content, 'utf8');
