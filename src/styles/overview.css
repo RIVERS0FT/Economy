@@ -165,8 +165,8 @@
 .overview-metric--danger > strong { color: var(--color-danger); }
 
 .market-summary .price-chart.compact {
-  min-height: 0;
-  flex: 1;
+  min-height: 120px;
+  flex: 0 1 auto;
 }
 
 .overview-market-footer {
