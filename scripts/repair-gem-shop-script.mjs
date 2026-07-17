@@ -3,10 +3,29 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const path = 'scripts/apply-gem-shop-change.mjs';
 let source = readFileSync(path, 'utf8');
 
-source = source.replace(/write\('([^']+)', `([\s\S]*?)`\);/g, (whole, file, body) => {
-  const escapedBody = body.replace(/(?<!\\)\$\{/g, '\\${');
-  return `write('${file}', \`${escapedBody}\`);`;
-});
+const writePrefix = "write('";
+const bodyMarker = "', `";
+const closingMarker = "\n`);";
+let cursor = 0;
+while (cursor < source.length) {
+  const writeStart = source.indexOf(writePrefix, cursor);
+  if (writeStart < 0) break;
+  const markerStart = source.indexOf(bodyMarker, writeStart + writePrefix.length);
+  if (markerStart < 0) break;
+  const bodyStart = markerStart + bodyMarker.length;
+  const blockEnd = source.indexOf(closingMarker, bodyStart);
+  const nextWrite = source.indexOf(writePrefix, bodyStart);
+  if (blockEnd < 0 || (nextWrite >= 0 && nextWrite < blockEnd)) {
+    cursor = bodyStart;
+    continue;
+  }
+  const body = source.slice(bodyStart, blockEnd);
+  const escapedBody = body
+    .replace(/(?<!\\)`/g, '\\`')
+    .replace(/(?<!\\)\$\{/g, '\\${');
+  source = `${source.slice(0, bodyStart)}${escapedBody}${source.slice(blockEnd)}`;
+  cursor = bodyStart + escapedBody.length + closingMarker.length;
+}
 
 source = source
   .replace("import { ECONOMY_CONSTANTS } from './domain-core.js';", "import { ECONOMY_CONSTANTS } from './domain.js';")
