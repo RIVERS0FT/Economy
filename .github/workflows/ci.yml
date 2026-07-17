@@ -67,6 +67,9 @@ jobs:
       - name: Verify market assets
         run: node scripts/verify-market-assets.mjs
 
+      - name: Verify local trade privacy
+        run: node scripts/verify-local-trade-privacy.mjs
+
       - name: Verify market chart
         run: node --experimental-strip-types scripts/verify-market-chart.mjs
 

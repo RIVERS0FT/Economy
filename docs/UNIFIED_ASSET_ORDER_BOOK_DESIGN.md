@@ -3,7 +3,7 @@
 > 状态：商品和工厂交易、成交价格与估值的当前权威设计  
 > 适用项目：`RIVERS0FT/Economy`  
 > 更新时间：2026-07-17
-> 客户端状态版本：14
+> 客户端状态版本：15
 > 世界状态版本：12
 
 ## 1. 统一资产模型
@@ -255,3 +255,11 @@ maxBuy = min(warehouseAvailableCapacity, floor(credits / price))
 - 系统商品订单越过当前最佳买卖价或制造立即成交；
 - 创建任何系统工厂买单、系统工厂卖单或固定价格工厂供给；
 - 保留旧世界中的系统工厂订单。
+
+## 普通玩家订单与成交匿名化
+
+服务器内部订单继续保存真实所有者、需求组和 maker/taker 关系，用于撮合、结算、人口货币发行统计和管理员审计。普通玩家状态必须经过集中式公开订单序列化：本人订单仅增加 `isOwn: true` 并返回由 `id / quantity / price / total / createdAt` 组成的匿名 fills；其他订单返回 `isOwn: false` 且不返回 fills。
+
+普通玩家状态中的所有订单都不得返回真实 `ownerId`、`ownerName`、`ownerType`、`demandGroupId`、`demandTier` 或 `demandCycleId`。公开 fill 不得返回 `counterparty`、`makerOrderId`、`takerOrderId` 或 `liquidity`。人口需求订单与玩家订单在普通玩家 JSON 中必须使用相同结构，不能通过字段差异判断来源。
+
+客户端通过 `isOwn` 识别本人订单，并只显示订单部分成交、全部成交、成交数量、价格、总额和时间。隐藏界面列不能替代 API 脱敏。

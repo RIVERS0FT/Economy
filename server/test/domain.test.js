@@ -139,7 +139,7 @@ test('client state uses version 14 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 14);
+    assert.equal(state.version, 15);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
     assert.equal(state.products.length, 22);
@@ -277,10 +277,17 @@ test('new worlds create population demand during the first authoritative state r
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    const populationOrders = state.orders.filter((order) => order.ownerType === 'population');
+    const externalBuyOrders = state.orders.filter((order) => order.isOwn === false && order.side === 'buy');
+    assert.ok(externalBuyOrders.length > 0);
+    assert.ok(externalBuyOrders.every((order) => (
+      !Object.hasOwn(order, 'ownerType')
+      && !Object.hasOwn(order, 'ownerName')
+      && !Object.hasOwn(order, 'demandGroupId')
+    )));
+    const persisted = JSON.parse(String(store.selectWorld.get().state_json));
+    const populationOrders = persisted.orders.filter((order) => order.ownerType === 'population');
     assert.ok(populationOrders.length > 0);
     assert.deepEqual([...new Set(populationOrders.map((order) => order.ownerName))].sort(), ['家庭用品需求', '饮食需求']);
-    const persisted = JSON.parse(String(store.selectWorld.get().state_json));
     assert.equal(persisted.version, 12);
     assert.ok(persisted.demandGroups.food.lastCommitted <= 500);
     assert.ok(persisted.demandGroups.household.lastCommitted <= 480);

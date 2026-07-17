@@ -87,6 +87,31 @@ function normalizeOrder(order) {
   return order;
 }
 
+function publicOrderFill(fill) {
+  return {
+    id: String(fill.id || ''),
+    quantity: Number(fill.quantity || 0),
+    price: Number(fill.price || 0),
+    total: Number(fill.total || 0),
+    createdAt: Number(fill.createdAt || 0),
+  };
+}
+
+function publicOrderView(order, userId) {
+  const normalized = clone(normalizeOrder(order));
+  const isOwn = Number(normalized.ownerId) === Number(userId);
+  normalized.isOwn = isOwn;
+  delete normalized.ownerType;
+  delete normalized.ownerId;
+  delete normalized.ownerName;
+  delete normalized.demandGroupId;
+  delete normalized.demandTier;
+  delete normalized.demandCycleId;
+  if (isOwn) normalized.fills = normalized.fills.map(publicOrderFill);
+  else delete normalized.fills;
+  return normalized;
+}
+
 function facilityOrders(world, typeId) {
   return (world.orders || []).filter((order) => (
     orderKind(order) === 'facility' && orderAssetId(order) === typeId
@@ -937,10 +962,10 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const base = withLegacyFacilitiesSuppressed(world, () => createClientState(world, userId, now));
   const player = getPlayer(world, userId);
   const { facilities: _legacyFacilities, ...withoutFacilities } = base;
-  const normalizedOrders = (world.orders || []).map((order) => clone(normalizeOrder(order)));
+  const normalizedOrders = (world.orders || []).map((order) => publicOrderView(order, userId));
   return {
     ...withoutFacilities,
-    version: 14,
+    version: 15,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
     facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),

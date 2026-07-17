@@ -86,7 +86,7 @@ for (const text of [
 for (const text of [
   'gems: number;',
   'invitationGemsIssued: number;',
-  'version: 14;',
+  'version: 15;',
 ]) requireText('src/types.ts', text);
 
 for (const text of [
