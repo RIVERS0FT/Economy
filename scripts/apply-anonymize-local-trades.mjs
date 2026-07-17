@@ -97,7 +97,6 @@ function publicOrderView(order, userId) {
 replace('server/src/facility-groups.js', 'const normalizedOrders = (world.orders || []).map((order) => clone(normalizeOrder(order)));', 'const normalizedOrders = (world.orders || []).map((order) => publicOrderView(order, userId));');
 replace('server/src/facility-groups.js', '    version: 14,', '    version: 15,');
 replace('server/src/storage.js', '    version: 14,', '    version: 15,');
-replace('server/src/domain-core.js', '    version: 14,', '    version: 15,');
 
 replace('src/types.ts', `export interface OrderFill {
   id: string;
@@ -430,12 +429,12 @@ test('ordinary player order state removes counterparties, demand sources, and li
 
   for (const order of state.orders) {
     for (const field of ['ownerType', 'ownerId', 'ownerName', 'demandGroupId', 'demandTier', 'demandCycleId']) {
-      assert.equal(field in order, false, `${field} must not be public`);
+      assert.equal(field in order, false, field + ' must not be public');
     }
   }
   const serialized = JSON.stringify(state.orders);
   for (const secret of ['饮食需求', 'counterparty', 'makerOrderId', 'takerOrderId', 'liquidity']) {
-    assert.equal(serialized.includes(secret), false, `${secret} leaked`);
+    assert.equal(serialized.includes(secret), false, secret + ' leaked');
   }
 });
 `);
