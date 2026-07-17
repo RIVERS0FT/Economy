@@ -32,8 +32,24 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Run full build
-        run: npm run build
+      - name: Capture full build
+        shell: bash
+        run: |
+          set +e
+          npm run build > population-demand-build-result.txt 2>&1
+          echo "$?" > population-demand-build-status.txt
+          exit 0
+
+      - name: Upload build result
+        uses: actions/upload-artifact@v4
+        with:
+          name: population-demand-build-result
+          path: |
+            population-demand-build-result.txt
+            population-demand-build-status.txt
+
+      - name: Verify build status
+        run: test "$(cat population-demand-build-status.txt)" = "0"
 
       - name: Remove temporary automation
         run: |
