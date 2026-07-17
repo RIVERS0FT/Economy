@@ -1,0 +1,25 @@
+name: Generate dependency lock
+
+on:
+  push:
+    branches:
+      - agent/harden-runtime-and-tests
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm install --package-lock-only --ignore-scripts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-package-lock
+          path: package-lock.json
+          if-no-files-found: error
