@@ -5,69 +5,49 @@ import { DEMAND_GROUP_CATALOG, FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '..
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 22);
-assert.equal(products.has('grain'), false);
-for (const id of ['wheat', 'rice', 'food', 'meat', 'eggs', 'milk']) {
-  assert.equal(products.get(id)?.substitutionGroupId, 'staples', `${id} 必须加入 staples`);
-  assert.equal(products.get(id)?.systemDemandMode, 'grouped', `${id} 不得生成独立人口需求`);
-}
-for (const id of ['cotton', 'wool', 'copper-ore', 'copper', 'textile']) {
-  assert.equal(products.get(id)?.systemDemandMode, 'none', `${id} 只能保留基础流动性`);
-}
+const foodIds = ['wheat', 'rice', 'flour', 'food', 'meat', 'eggs', 'milk'];
+const householdIds = ['timber', 'cotton', 'wool', 'copper-ore', 'crude-oil', 'lumber', 'textile', 'copper', 'plastic', 'furniture', 'clothing', 'electronics'];
+for (const id of foodIds) assert.equal(products.get(id)?.populationDemandGroupId, 'food', id);
+for (const id of householdIds) assert.equal(products.get(id)?.populationDemandGroupId, 'household', id);
+for (const id of ['ore', 'steel', 'machinery']) assert.equal(products.get(id)?.populationDemandGroupId, undefined, id);
+assert.ok(PRODUCT_CATALOG.every((product) => !Object.hasOwn(product, 'systemDemandMode')));
 
-const staples = DEMAND_GROUP_CATALOG.find((group) => group.id === 'staples');
-assert.ok(staples);
-assert.equal(staples.baseBudget, 330);
-assert.equal(staples.referenceUtilityPrice, 6);
-assert.equal(staples.priceElasticity, 3);
-assert.equal(staples.maxPriceIndex, 2);
-assert.equal(staples.quoteUtilityDepth, 12);
-assert.deepEqual(staples.products.map((item) => item.productId), ['wheat', 'rice', 'food', 'meat', 'eggs', 'milk']);
-assert.deepEqual(staples.products.map((item) => item.utilityPerUnit), [1, 1, 3, 2, 1, 1]);
-assert.deepEqual(staples.products.map((item) => item.preferenceWeight), [1, 1, 8, 4, 3, 3]);
-assert.deepEqual(staples.products.map((item) => item.maxBudgetShare), [0.4, 0.4, 0.55, 0.35, 0.25, 0.25]);
-
-const household = DEMAND_GROUP_CATALOG.find((group) => group.id === 'household-goods');
-assert.ok(household);
+const food = DEMAND_GROUP_CATALOG.find((group) => group.id === 'food');
+const household = DEMAND_GROUP_CATALOG.find((group) => group.id === 'household');
+assert.equal(food.ownerName, '饮食需求');
+assert.equal(food.baseBudget, 330);
+assert.deepEqual(food.products.map((item) => item.productId), foodIds);
+assert.equal(household.ownerName, '家庭用品需求');
 assert.equal(household.baseBudget, 320);
-assert.deepEqual(household.products.map((item) => item.productId), ['furniture', 'clothing']);
-
-const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
-assert.deepEqual(facilities.get('farm').recipes.map((recipe) => recipe.id), ['wheat-crop', 'rice-crop', 'cotton-crop']);
-assert.deepEqual(facilities.get('ranch').recipes.map((recipe) => recipe.id), ['ranch-meat', 'ranch-eggs', 'ranch-milk', 'ranch-wool']);
-for (const recipe of facilities.get('farm').recipes) {
-  assert.equal(recipe.cycleMs, 120_000);
-  assert.equal(recipe.operatingCost, 6);
-  assert.equal(recipe.output.quantity, 4);
-}
+assert.deepEqual(household.products.map((item) => item.productId), householdIds);
 
 const domain = read('server/src/domain.js');
 for (const text of [
-  'GROUPED_DEMAND_PRODUCT_IDS', 'systemDemandMode', 'referenceUtilityPrice', 'quoteUtilityDepth',
-  'utilityPerUnit', 'maxBudgetShare', 'effectivePrice', 'requestedUtility', 'filledUtility',
-  'withLegacyDemandSuppressed', 'expireDemandGroupOrders', 'demandCycleId', 'previousVersion < 9',
-]) assert.ok(domain.includes(text), `domain.js 缺少: ${text}`);
+  'processPriceTransmission', 'realTradeStats', 'costAnchor', 'downstreamValueAnchor',
+  'geometricWeightedMean', 'PRICE_MAX_RISE_PER_CYCLE', 'PRICE_MAX_FALL_PER_CYCLE',
+  "ownerName: '饮食需求'", "ownerName: '家庭用品需求'", 'previousVersion >= 10',
+]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
 const balanced = read('server/src/balanced-market.js');
-assert.ok(balanced.includes("product.systemDemandMode !== 'single'"));
-const groups = read('server/src/facility-groups.js');
-for (const text of ['recipeInputs', 'requirements.inputs', 'world.version = 9', 'version: 13']) {
-  assert.ok(groups.includes(text), `facility-groups.js 缺少: ${text}`);
+for (const forbidden of ['市场流动采购', '市场流动供给', '企业采购', "ownerType: 'market'"]) {
+  assert.equal(balanced.includes(forbidden), false, forbidden);
 }
-
-const tests = `${read('server/test/domain.test.js')}\n${read('server/test/facility-groups.test.js')}`;
+const tests = read('server/test/demand-transmission.test.js');
 for (const text of [
-  'staple demand shifts budget to rice when wheat is expensive',
-  'staple demand leaves budget unspent when every substitute is above the ceiling',
-  'electronics factory atomically consumes plastic and copper',
-  'electronics factory deducts no material when either input is missing',
-]) assert.ok(tests.includes(text), `测试缺少: ${text}`);
-
+  'upstream cost changes propagate downstream one production edge per cycle',
+  'downstream value changes propagate upstream one production edge per cycle',
+  'multi-input downstream value reaches both copper and plastic with lag',
+  'price transmission is damped and also carries price decreases',
+]) assert.ok(tests.includes(text), '测试缺少: ' + text);
+const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+assert.deepEqual(facilities.get('electronics-factory').recipes[0].inputs, [
+  { productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 },
+]);
 for (const [path, texts] of [
-  ['README.md', ['食品、小麦、水稻、肉、蛋和奶共享', '每 5 分钟最多 330', '同时消耗塑料和铜材']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['食品、小麦、水稻、肉、蛋和奶', '单品预算上限分别为', '`systemDemandMode` 为 `none`', '`household-goods`']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['无原料 → 4 棉花', '无原料 → 3 肉', '1 塑料 + 1 铜材 → 1 电子产品']],
+  ['README.md', ['仅允许玩家订单和人口需求订单', '饮食需求', '家庭用品需求', '双向价格传导']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['成本推动', '需求拉动', '上一周期快照', '固定预算']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ["ownerType: 'player' | 'population'", '不提供系统流动性买单或卖单']],
 ]) {
   const content = read(path);
-  for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
+  for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
-
-console.log('饮食需求验证通过：六种商品共享 330 预算，上游商品不独立增发，家具与服装共享需求。');
+console.log('人口需求验证通过：仅保留两类固定预算需求，并按生产链双向滞后传导价格。');

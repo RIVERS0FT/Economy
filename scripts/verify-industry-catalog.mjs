@@ -36,7 +36,7 @@ assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((item) => [item.id, item
 const productIds = new Set(expectedProducts);
 for (const product of PRODUCT_CATALOG) {
   assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
-  assert.ok(['none', 'single', 'grouped'].includes(product.systemDemandMode), `${product.id} 缺少系统需求模式`);
+  assert.ok(product.populationDemandGroupId === undefined || ['food', 'household'].includes(product.populationDemandGroupId), `${product.id} 人口需求组无效`);
 }
 for (const facility of FACILITY_TYPE_CATALOG) {
   const [cycleMs, operatingCost, expectedProfit] = expectedFacilityBalance[facility.id];

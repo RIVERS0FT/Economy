@@ -13,28 +13,28 @@ export const ECONOMY_CONSTANTS = Object.freeze({
 });
 
 export const PRODUCT_CATALOG = Object.freeze([
-  { id: 'wheat', name: '小麦', category: 'raw', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 2 },
-  { id: 'rice', name: '水稻', category: 'raw', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 2 },
-  { id: 'cotton', name: '棉花', category: 'raw', systemDemandMode: 'none', basePrice: 2 },
-  { id: 'timber', name: '木材', category: 'raw', systemDemandMode: 'single', basePrice: 5 },
-  { id: 'ore', name: '铁矿石', category: 'raw', systemDemandMode: 'single', basePrice: 6 },
-  { id: 'copper-ore', name: '铜矿石', category: 'raw', systemDemandMode: 'none', basePrice: 6 },
-  { id: 'crude-oil', name: '原油', category: 'raw', systemDemandMode: 'single', basePrice: 8 },
-  { id: 'meat', name: '肉', category: 'consumer', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 6 },
-  { id: 'eggs', name: '蛋', category: 'consumer', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 3 },
-  { id: 'milk', name: '奶', category: 'consumer', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 3 },
-  { id: 'wool', name: '毛', category: 'raw', systemDemandMode: 'none', basePrice: 6 },
-  { id: 'flour', name: '面粉', category: 'intermediate', systemDemandMode: 'single', basePrice: 13 },
-  { id: 'lumber', name: '木板', category: 'intermediate', systemDemandMode: 'single', basePrice: 15 },
-  { id: 'steel', name: '钢材', category: 'intermediate', systemDemandMode: 'single', basePrice: 24 },
-  { id: 'copper', name: '铜材', category: 'intermediate', systemDemandMode: 'none', basePrice: 24 },
-  { id: 'plastic', name: '塑料', category: 'intermediate', systemDemandMode: 'single', basePrice: 24 },
-  { id: 'textile', name: '纺织品', category: 'intermediate', systemDemandMode: 'none', basePrice: 18 },
-  { id: 'food', name: '食品', category: 'consumer', family: 'staple', substitutionGroupId: 'staples', systemDemandMode: 'grouped', basePrice: 15 },
-  { id: 'furniture', name: '家具', category: 'consumer', substitutionGroupId: 'household-goods', systemDemandMode: 'grouped', basePrice: 20 },
-  { id: 'clothing', name: '服装', category: 'consumer', substitutionGroupId: 'household-goods', systemDemandMode: 'grouped', basePrice: 48 },
-  { id: 'machinery', name: '机械', category: 'industrial', systemDemandMode: 'single', basePrice: 60 },
-  { id: 'electronics', name: '电子产品', category: 'industrial', systemDemandMode: 'single', basePrice: 64 },
+  { id: 'wheat', name: '小麦', category: 'raw', populationDemandGroupId: 'food', populationDemandTier: 'raw', basePrice: 2 },
+  { id: 'rice', name: '水稻', category: 'raw', populationDemandGroupId: 'food', populationDemandTier: 'raw', basePrice: 2 },
+  { id: 'cotton', name: '棉花', category: 'raw', populationDemandGroupId: 'household', populationDemandTier: 'raw', basePrice: 2 },
+  { id: 'timber', name: '木材', category: 'raw', populationDemandGroupId: 'household', populationDemandTier: 'raw', basePrice: 5 },
+  { id: 'ore', name: '铁矿石', category: 'raw', basePrice: 6 },
+  { id: 'copper-ore', name: '铜矿石', category: 'raw', populationDemandGroupId: 'household', populationDemandTier: 'raw', basePrice: 6 },
+  { id: 'crude-oil', name: '原油', category: 'raw', populationDemandGroupId: 'household', populationDemandTier: 'raw', basePrice: 8 },
+  { id: 'meat', name: '肉', category: 'consumer', populationDemandGroupId: 'food', populationDemandTier: 'final', basePrice: 6 },
+  { id: 'eggs', name: '蛋', category: 'consumer', populationDemandGroupId: 'food', populationDemandTier: 'final', basePrice: 3 },
+  { id: 'milk', name: '奶', category: 'consumer', populationDemandGroupId: 'food', populationDemandTier: 'final', basePrice: 3 },
+  { id: 'wool', name: '毛', category: 'raw', populationDemandGroupId: 'household', populationDemandTier: 'raw', basePrice: 6 },
+  { id: 'flour', name: '面粉', category: 'intermediate', populationDemandGroupId: 'food', populationDemandTier: 'intermediate', basePrice: 13 },
+  { id: 'lumber', name: '木板', category: 'intermediate', populationDemandGroupId: 'household', populationDemandTier: 'intermediate', basePrice: 15 },
+  { id: 'steel', name: '钢材', category: 'intermediate', basePrice: 24 },
+  { id: 'copper', name: '铜材', category: 'intermediate', populationDemandGroupId: 'household', populationDemandTier: 'intermediate', basePrice: 24 },
+  { id: 'plastic', name: '塑料', category: 'intermediate', populationDemandGroupId: 'household', populationDemandTier: 'intermediate', basePrice: 24 },
+  { id: 'textile', name: '纺织品', category: 'intermediate', populationDemandGroupId: 'household', populationDemandTier: 'intermediate', basePrice: 18 },
+  { id: 'food', name: '食品', category: 'consumer', populationDemandGroupId: 'food', populationDemandTier: 'final', basePrice: 15 },
+  { id: 'furniture', name: '家具', category: 'consumer', populationDemandGroupId: 'household', populationDemandTier: 'final', basePrice: 20 },
+  { id: 'clothing', name: '服装', category: 'consumer', populationDemandGroupId: 'household', populationDemandTier: 'final', basePrice: 48 },
+  { id: 'machinery', name: '机械', category: 'industrial', basePrice: 60 },
+  { id: 'electronics', name: '电子产品', category: 'industrial', populationDemandGroupId: 'household', populationDemandTier: 'final', basePrice: 64 },
 ]);
 
 const FACILITY_TYPE_BASE_CATALOG = [
@@ -191,11 +191,12 @@ export const FACILITY_TYPE_CATALOG = Object.freeze(FACILITY_TYPE_BASE_CATALOG.ma
 
 export const DEMAND_GROUP_CATALOG = Object.freeze([
   {
-    id: 'staples', name: '人口饮食需求', ownerName: '人口饮食需求',
+    id: 'food', name: '饮食需求', ownerName: '饮食需求',
     cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 330,
     products: [
       { productId: 'wheat', preferenceWeight: 1 },
       { productId: 'rice', preferenceWeight: 1 },
+      { productId: 'flour', preferenceWeight: 4 },
       { productId: 'food', preferenceWeight: 8 },
       { productId: 'meat', preferenceWeight: 4 },
       { productId: 'eggs', preferenceWeight: 3 },
@@ -203,11 +204,21 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
     ],
   },
   {
-    id: 'household-goods', name: '家庭用品需求', ownerName: '家庭用品需求',
+    id: 'household', name: '家庭用品需求', ownerName: '家庭用品需求',
     cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 320,
     products: [
-      { productId: 'furniture', preferenceWeight: 1 },
-      { productId: 'clothing', preferenceWeight: 2 },
+      { productId: 'timber', preferenceWeight: 1 },
+      { productId: 'cotton', preferenceWeight: 1 },
+      { productId: 'wool', preferenceWeight: 1 },
+      { productId: 'copper-ore', preferenceWeight: 1 },
+      { productId: 'crude-oil', preferenceWeight: 1 },
+      { productId: 'lumber', preferenceWeight: 2 },
+      { productId: 'textile', preferenceWeight: 2 },
+      { productId: 'copper', preferenceWeight: 2 },
+      { productId: 'plastic', preferenceWeight: 2 },
+      { productId: 'furniture', preferenceWeight: 4 },
+      { productId: 'clothing', preferenceWeight: 5 },
+      { productId: 'electronics', preferenceWeight: 5 },
     ],
   },
 ]);
@@ -316,33 +327,8 @@ function marketFor(world, productId) {
   return world.markets[product.id];
 }
 
-function seedOrders(now) {
-  return PRODUCT_CATALOG.flatMap((product, index) => [
-    {
-      id: createId('market-order'),
-      productId: product.id,
-      side: 'buy',
-      ownerType: 'market',
-      ownerName: '市场流动采购',
-      price: Math.max(1, product.basePrice - 1),
-      quantity: 18,
-      remaining: 18,
-      status: 'open',
-      createdAt: now - 8_000 + index,
-    },
-    {
-      id: createId('market-order'),
-      productId: product.id,
-      side: 'sell',
-      ownerType: 'market',
-      ownerName: '市场流动供给',
-      price: product.basePrice + 1,
-      quantity: 14,
-      remaining: 14,
-      status: 'open',
-      createdAt: now - 5_000 + index,
-    },
-  ]);
+function seedOrders() {
+  return [];
 }
 
 function createFacilityFromType(typeId, ownerId, now, overrides = {}) {
@@ -411,7 +397,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 9,
+    version: 10,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
@@ -569,7 +555,7 @@ export function migrateWorld(world, now = Date.now()) {
   for (const group of DEMAND_GROUP_CATALOG) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
-  world.version = 9;
+  world.version = 10;
   return world;
 }
 
@@ -584,10 +570,10 @@ function isOpenOrder(order) {
   return order.remaining > 0 && (order.status === 'open' || order.status === 'partial');
 }
 
-function recordPrice(world, productId, price, quantity, createdAt) {
+function recordPrice(world, productId, price, quantity, takerSide, createdAt) {
   const market = marketFor(world, productId);
   market.lastPrice = price;
-  market.priceHistory.push({ price, quantity, createdAt });
+  market.priceHistory.push({ price, quantity, createdAt, takerSide });
   market.priceHistory = market.priceHistory.slice(-ECONOMY_CONSTANTS.maxPricePoints);
 }
 
@@ -616,7 +602,7 @@ function sortCandidates(orders, side) {
 }
 
 function describeCounterparty(order) {
-  return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '市场');
+  return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '玩家');
 }
 
 function appendPlayerOrderFill(order, fill) {
@@ -712,7 +698,7 @@ function executeTrade(world, incoming, resting, quantity, createdAt) {
   });
   if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
   if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, createdAt);
-  recordPrice(world, incoming.productId, price, quantity, createdAt);
+  recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt);
 }
 
 function matchOrder(world, incoming, createdAt) {
@@ -742,106 +728,12 @@ function expirePopulationOrders(world, productId) {
   }
 }
 
-function createPopulationDemand(world, productId, now) {
-  const product = productDefinition(productId);
-  const market = marketFor(world, product.id);
-  expirePopulationOrders(world, product.id);
-  const tick = Math.floor(now / market.demand.cycleMs);
-  const price = Math.max(1, product.basePrice + ((tick + product.id.length) % 3) - 1);
-  const baseQuantity = product.category === 'consumer' ? 14 : product.category === 'industrial' ? 4 : 8;
-  const quantity = baseQuantity + (tick % 4);
-  const order = {
-    id: createId('population-order'),
-    productId: product.id,
-    side: 'buy',
-    ownerType: 'population',
-    ownerName: product.category === 'industrial' ? '企业采购' : '人口需求',
-    price,
-    quantity,
-    remaining: quantity,
-    status: 'open',
-    createdAt: now,
-  };
-  world.orders.push(order);
-  market.demand.lastPrice = price;
-  market.demand.lastQuantity = quantity;
-  market.demand.lastBudget = price * quantity;
-  market.demand.nextDemandAt = now + market.demand.cycleMs;
-  matchOrder(world, order, now);
-  market.demand.satisfaction = quantity === 0 ? 1 : Math.max(0.2, Math.min(1, (quantity - order.remaining) / quantity));
+function createPopulationDemand() {
+  return undefined;
 }
 
-function commodityBookPrices(world, productId) {
-  let bestBid;
-  let bestAsk;
-  for (const order of world.orders || []) {
-    const price = Number(order.price);
-    if (order.productId !== productId || !isOpenOrder(order) || !Number.isInteger(price) || price < 1) continue;
-    if (order.side === 'buy') bestBid = bestBid === undefined ? price : Math.max(bestBid, price);
-    if (order.side === 'sell') bestAsk = bestAsk === undefined ? price : Math.min(bestAsk, price);
-  }
-  return { bestBid, bestAsk };
-}
-
-function commodityLiquidityPrices(product, bestBid, bestAsk) {
-  let buyPrice = bestBid ?? (bestAsk === undefined ? Math.max(1, product.basePrice - 1) : bestAsk - 1);
-  let sellPrice = bestAsk ?? (bestBid === undefined ? product.basePrice + 1 : bestBid + 1);
-
-  if (bestAsk !== undefined) buyPrice = Math.min(buyPrice, bestAsk - 1);
-  if (bestBid !== undefined) sellPrice = Math.max(sellPrice, bestBid + 1);
-
-  return {
-    buyPrice: Number.isInteger(buyPrice) && buyPrice >= 1 ? buyPrice : null,
-    sellPrice: Math.max(1, Math.floor(sellPrice)),
-  };
-}
-
-function refreshExternalLiquidity(world, now) {
-  for (const product of PRODUCT_CATALOG) {
-    const openBuy = world.orders.filter((order) => (
-      order.productId === product.id && order.ownerType === 'market' && order.side === 'buy' && isOpenOrder(order)
-    ));
-    const openSell = world.orders.filter((order) => (
-      order.productId === product.id && order.ownerType === 'market' && order.side === 'sell' && isOpenOrder(order)
-    ));
-    if (openBuy.length > 0 && openSell.length > 0) continue;
-
-    const { bestBid, bestAsk } = commodityBookPrices(world, product.id);
-    const { buyPrice, sellPrice } = commodityLiquidityPrices(product, bestBid, bestAsk);
-
-    if (openBuy.length < 1 && buyPrice !== null) {
-      const order = {
-        id: createId('market-order'),
-        productId: product.id,
-        side: 'buy',
-        ownerType: 'market',
-        ownerName: '市场流动采购',
-        price: buyPrice,
-        quantity: 18,
-        remaining: 18,
-        status: 'open',
-        createdAt: now,
-      };
-      world.orders.push(order);
-      matchOrder(world, order, now);
-    }
-    if (openSell.length < 1) {
-      const order = {
-        id: createId('market-order'),
-        productId: product.id,
-        side: 'sell',
-        ownerType: 'market',
-        ownerName: '市场流动供给',
-        price: sellPrice,
-        quantity: 14,
-        remaining: 14,
-        status: 'open',
-        createdAt: now,
-      };
-      world.orders.push(order);
-      matchOrder(world, order, now);
-    }
-  }
+function refreshExternalLiquidity() {
+  return undefined;
 }
 
 function stopFacility(facility, status, reason) {
@@ -926,14 +818,6 @@ function pruneWorld(world, now) {
 export function processWorld(world, now = Date.now()) {
   migrateWorld(world, now);
   for (const player of Object.values(world.players)) processFacilities(player, now);
-  const stapleDemand = world.demandGroups?.staples;
-  if (!stapleDemand || now >= stapleDemand.nextDemandAt) createGroupedDemand(world, 'staples', now);
-  for (const product of PRODUCT_CATALOG) {
-    if (product.systemDemandMode === 'grouped' || product.systemDemandMode === 'none') continue;
-    const market = marketFor(world, product.id);
-    if (now >= market.demand.nextDemandAt) createPopulationDemand(world, product.id, now);
-  }
-  refreshExternalLiquidity(world, now);
   pruneWorld(world, now);
   return world;
 }

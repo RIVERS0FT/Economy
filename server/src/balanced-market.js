@@ -2,11 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 export function createBalancedMarketRuntime({ products, constants }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
-
   const createId = (prefix) => `${prefix}-${randomUUID()}`;
   const productFor = (productId) => productMap.get(String(productId || '')) || productMap.get('wheat');
   const isOpenOrder = (order) => Number(order?.remaining || 0) > 0
     && (order?.status === 'open' || order?.status === 'partial');
+  const isCommodityOwner = (order) => order?.ownerType === 'player' || order?.ownerType === 'population';
 
   function createMarket(product, now) {
     const offsets = [-1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 0, 0, 1, -1, 0, 1, 0, 1, 0, -1, 0, 1, 0, 0];
@@ -17,14 +17,20 @@ export function createBalancedMarketRuntime({ products, constants }) {
         price: Math.max(1, product.basePrice + offset),
         quantity: 3 + (index % 5),
         createdAt: now - 60_000 * (offsets.length - index),
+        synthetic: true,
       })),
       demand: {
         cycleMs: constants.demandCycleMs,
         nextDemandAt: now + constants.demandCycleMs,
-        lastBudget: product.basePrice * 8,
-        lastQuantity: 8,
+        lastBudget: 0,
+        lastQuantity: 0,
         lastPrice: product.basePrice,
-        satisfaction: 0.7,
+        satisfaction: 0,
+        referencePrice: product.basePrice,
+        observedPrice: product.basePrice,
+        costAnchor: null,
+        downstreamValueAnchor: null,
+        targetPrice: product.basePrice,
       },
     };
   }
@@ -69,7 +75,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
   }
 
   function counterparty(order) {
-    return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '市场');
+    return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '玩家');
   }
 
   function recordPrice(world, productId, price, quantity, takerSide, createdAt) {
@@ -146,10 +152,12 @@ export function createBalancedMarketRuntime({ products, constants }) {
   }
 
   function matchOrder(world, incoming, createdAt) {
+    if (!isCommodityOwner(incoming)) throw new Error(`Unsupported commodity order owner: ${incoming?.ownerType}`);
     const opposite = incoming.side === 'buy' ? 'sell' : 'buy';
     const candidates = (world.orders || [])
       .filter((order) => (
         order.id !== incoming.id
+        && isCommodityOwner(order)
         && order.productId === incoming.productId
         && order.side === opposite
         && isOpenOrder(order)
@@ -168,28 +176,9 @@ export function createBalancedMarketRuntime({ products, constants }) {
     }
   }
 
-  function seedOrders(now) {
-    return products.flatMap((product, index) => [
-      {
-        id: createId('market-order'), productId: product.id, side: 'buy', ownerType: 'market',
-        ownerName: '市场流动采购', price: Math.max(1, product.basePrice - 1), quantity: 18,
-        remaining: 18, status: 'open', createdAt: now - 8_000 + index,
-      },
-      {
-        id: createId('market-order'), productId: product.id, side: 'sell', ownerType: 'market',
-        ownerName: '市场流动供给', price: product.basePrice + 1, quantity: 14,
-        remaining: 14, status: 'open', createdAt: now - 5_000 + index,
-      },
-    ]);
-  }
-
   function rebalanceNewWorld(world, now) {
     world.markets = Object.fromEntries(products.map((product) => [product.id, createMarket(product, now)]));
-    world.orders = [
-      ...(world.orders || []).filter((order) => order.ownerType !== 'market'
-        || order.assetKind === 'facility' || order.facilityTypeId),
-      ...seedOrders(now),
-    ];
+    world.orders = (world.orders || []).filter((order) => isCommodityOwner(order));
     return world;
   }
 
@@ -205,7 +194,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
       if (product.id === 'wheat' && legacy.history?.length) {
         market.priceHistory = legacy.history.map((point) => ({
           price: Number(point.price || market.lastPrice), quantity: Number(point.quantity || 1),
-          createdAt: Number(point.createdAt || now),
+          createdAt: Number(point.createdAt || now), takerSide: point.takerSide,
         }));
       }
       if (product.id === 'wheat' && legacy.demand) market.demand = { ...market.demand, ...legacy.demand };
@@ -214,85 +203,12 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return world;
   }
 
-  function createPopulationDemand(world, productId, now) {
-    const product = productFor(productId);
-    if (product.systemDemandMode && product.systemDemandMode !== 'single') return;
-    const market = marketFor(world, product.id, now);
-    for (const order of world.orders || []) {
-      if (order.productId === product.id && order.ownerType === 'population' && isOpenOrder(order)) {
-        order.status = 'cancelled';
-      }
-    }
-    const tick = Math.floor(now / market.demand.cycleMs);
-    const price = Math.max(1, product.basePrice + ((tick + product.id.length) % 3) - 1);
-    const baseQuantity = product.category === 'consumer' ? 14 : product.category === 'industrial' ? 4 : 8;
-    const quantity = baseQuantity + (tick % 4);
-    const order = {
-      id: createId('population-order'), productId: product.id, side: 'buy', ownerType: 'population',
-      ownerName: product.category === 'industrial' ? '企业采购' : '人口需求',
-      price, quantity, remaining: quantity, status: 'open', createdAt: now,
-    };
-    world.orders.push(order);
-    market.demand.lastPrice = price;
-    market.demand.lastQuantity = quantity;
-    market.demand.lastBudget = price * quantity;
-    market.demand.nextDemandAt = now + market.demand.cycleMs;
-    matchOrder(world, order, now);
-    market.demand.satisfaction = quantity === 0
-      ? 1
-      : Math.max(0.2, Math.min(1, (quantity - order.remaining) / quantity));
-  }
-
-  function refreshExternalLiquidity(world, now) {
-    for (const product of products) {
-      const openBuy = (world.orders || []).filter((order) => order.productId === product.id
-        && order.ownerType === 'market' && order.side === 'buy' && isOpenOrder(order));
-      const openSell = (world.orders || []).filter((order) => order.productId === product.id
-        && order.ownerType === 'market' && order.side === 'sell' && isOpenOrder(order));
-      if (openBuy.length > 0 && openSell.length > 0) continue;
-
-      let bestBid;
-      let bestAsk;
-      for (const order of world.orders || []) {
-        const price = Number(order.price);
-        if (order.productId !== product.id || !isOpenOrder(order) || !Number.isInteger(price) || price < 1) continue;
-        if (order.side === 'buy') bestBid = bestBid === undefined ? price : Math.max(bestBid, price);
-        if (order.side === 'sell') bestAsk = bestAsk === undefined ? price : Math.min(bestAsk, price);
-      }
-      let buyPrice = bestBid ?? (bestAsk === undefined ? Math.max(1, product.basePrice - 1) : bestAsk - 1);
-      let sellPrice = bestAsk ?? (bestBid === undefined ? product.basePrice + 1 : bestBid + 1);
-      if (bestAsk !== undefined) buyPrice = Math.min(buyPrice, bestAsk - 1);
-      if (bestBid !== undefined) sellPrice = Math.max(sellPrice, bestBid + 1);
-
-      if (openBuy.length < 1 && Number.isInteger(buyPrice) && buyPrice >= 1) {
-        const order = {
-          id: createId('market-order'), productId: product.id, side: 'buy', ownerType: 'market',
-          ownerName: '市场流动采购', price: buyPrice, quantity: 18, remaining: 18,
-          status: 'open', createdAt: now,
-        };
-        world.orders.push(order);
-        matchOrder(world, order, now);
-      }
-      if (openSell.length < 1) {
-        const order = {
-          id: createId('market-order'), productId: product.id, side: 'sell', ownerType: 'market',
-          ownerName: '市场流动供给', price: Math.max(1, Math.floor(sellPrice)), quantity: 14,
-          remaining: 14, status: 'open', createdAt: now,
-        };
-        world.orders.push(order);
-        matchOrder(world, order, now);
-      }
-    }
-  }
-
   return {
     createMarket,
-    createPopulationDemand,
     isOpenOrder,
     marketFor,
     matchOrder,
     rebalanceNewWorld,
-    refreshExternalLiquidity,
     repairMissingMarkets,
   };
 }

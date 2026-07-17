@@ -90,7 +90,7 @@ for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/Game
 for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','bestBidFor','world.version = 9','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
 const domainSource = `${read('server/src/domain.js')}\n${read('server/src/domain-core.js')}`;
-for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','commodityBookPrices','commodityLiquidityPrices','bestAsk - 1','bestBid + 1']) {
+for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor']) {
   if (!domainSource.includes(text)) failures.push('领域实现缺少: ' + text);
 }
 for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
@@ -106,7 +106,8 @@ for (const text of [
   '默认价格只从客户端当前已经加载的 `game.orders` 本地快照计算',
   '从其他页面重新进入市场页',
   '自动刷新、下单响应、成交、撤单或其他权威状态同步只更新本地订单快照，不得直接覆盖当前价格输入',
-  '商品市场允许服务器在某一侧没有有效系统流动性订单时补充一张系统订单',
+  '商品订单只允许玩家或人口需求作为所有者',
+  '不提供系统流动性买单或卖单',
   '工厂订单只能由玩家提交',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 for (const text of [
