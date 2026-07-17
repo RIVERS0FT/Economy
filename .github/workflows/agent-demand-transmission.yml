@@ -4,18 +4,22 @@ on:
   push:
     branches:
       - agent/population-demand-price-transmission
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply-and-verify:
-    if: ${{ !contains(github.event.head_commit.message, '[agent-applied]') }}
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[agent-applied]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
+          ref: agent/population-demand-price-transmission
           fetch-depth: 0
 
       - name: Setup Node
@@ -45,4 +49,4 @@ jobs:
             exit 0
           fi
           git commit -m "实施人口需求双向价格传导 [agent-applied]"
-          git push
+          git push origin HEAD:agent/population-demand-price-transmission
