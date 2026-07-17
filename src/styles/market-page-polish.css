@@ -1,0 +1,214 @@
+/* Market page layout and interaction integrity.
+ * Imported after the shared design system so these rules are the market-page authority. */
+
+.market-page-surface {
+  min-width: 0;
+  container: market-page / inline-size;
+}
+
+.asset-directory-shell {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin-bottom: var(--layout-gutter);
+}
+
+.asset-directory-control {
+  width: var(--control-height);
+  min-width: var(--control-height);
+  padding: 0;
+  align-self: stretch;
+  font-size: 1.35rem;
+}
+
+.unified-asset-tabs {
+  min-width: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, minmax(72px, auto));
+  grid-auto-columns: 138px;
+  gap: var(--space-2);
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+  scrollbar-color: rgba(123, 228, 158, 0.42) rgba(255, 255, 255, 0.04);
+}
+
+.asset-directory-divider {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 46px;
+  min-width: 46px;
+  grid-row: 1 / -1;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-secondary);
+  background: rgba(7, 20, 15, 0.96);
+  font-size: var(--font-size-sm);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  writing-mode: vertical-rl;
+}
+
+.asset-directory-divider--facility {
+  color: var(--color-warning);
+}
+
+.unified-asset-tab {
+  position: relative;
+  min-height: 72px;
+  padding: 9px 11px;
+}
+
+.unified-asset-tab.active {
+  border-color: var(--color-success);
+  background: linear-gradient(145deg, rgba(49, 175, 94, 0.19), rgba(15, 34, 26, 0.92));
+  box-shadow: inset 0 0 0 1px rgba(123, 228, 158, 0.36);
+}
+
+.unified-asset-tab.active::after {
+  content: attr(data-current);
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  border-radius: var(--radius-pill);
+  padding: 1px 5px;
+  color: var(--color-on-primary);
+  background: var(--color-success);
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.market-page-surface .unified-market-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--layout-gutter);
+  align-items: start;
+}
+
+.market-page-surface .unified-market-grid > .market-account-panel {
+  grid-column: 1 / -1;
+}
+
+.single-order-book {
+  align-self: start;
+}
+
+.order-book-empty {
+  margin: 0;
+  padding: var(--space-3) var(--space-2);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+  text-align: center;
+}
+
+.order-disabled-reason {
+  margin: 0 0 var(--space-3);
+  border-left: 3px solid var(--color-warning);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.market-chart-card {
+  min-width: 0;
+  container: market-chart / inline-size;
+}
+
+.market-chart-card .market-history-chart.full {
+  width: 100%;
+  height: auto !important;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+}
+
+.market-chart-card .chart-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.market-chart-card .chart-footer > span:nth-child(even) {
+  text-align: right;
+}
+
+.market-trend-tag.status-neutral {
+  color: var(--color-text-secondary);
+}
+
+@container market-page (max-width: 819px) {
+  .market-page-surface .unified-market-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .market-page-surface .unified-market-grid > * {
+    grid-column: 1;
+  }
+}
+
+@container market-page (min-width: 820px) {
+  .market-page-surface .unified-market-grid {
+    grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+  }
+
+  .market-page-surface .unified-market-grid > .market-chart-card,
+  .market-page-surface .unified-market-grid > .market-account-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@container market-page (min-width: 1280px) {
+  .market-page-surface .unified-market-grid {
+    grid-template-columns: 320px 360px minmax(620px, 1fr);
+  }
+
+  .market-page-surface .unified-market-grid > .market-chart-card {
+    grid-column: auto;
+  }
+
+  .market-page-surface .unified-market-grid > .market-account-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@container market-chart (max-width: 520px) {
+  .market-chart-card .chart-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .market-chart-card .chart-footer > span {
+    text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+  .asset-directory-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .asset-directory-control {
+    display: none;
+  }
+
+  .unified-asset-tabs {
+    grid-auto-columns: 132px;
+  }
+}

@@ -29,6 +29,7 @@ import './styles/virtual-list.css';
 import './styles/production-surface.css';
 import './styles/design-system.css';
 import './styles/overview-polish.css';
+import './styles/market-page-polish.css';
 
 configureRuntimePerformance();
 
