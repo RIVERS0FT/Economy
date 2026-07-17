@@ -311,8 +311,8 @@ function createDemandGroups(now) {
   return Object.fromEntries(DEMAND_GROUP_CATALOG.map((group) => [group.id, {
     demandGroupId: group.id,
     cycleMs: group.cycleMs,
-    nextDemandAt: now + group.cycleMs,
-    lastCycleId: -1,
+    nextDemandAt: now,
+    lastCycleId: Math.floor(now / group.cycleMs) - 1,
     lastBudget: group.baseBudget,
     lastCommitted: 0,
     satisfaction: 0,
@@ -397,7 +397,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 10,
+    version: 11,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
@@ -555,7 +555,7 @@ export function migrateWorld(world, now = Date.now()) {
   for (const group of DEMAND_GROUP_CATALOG) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
-  world.version = 10;
+  world.version = 11;
   return world;
 }
 

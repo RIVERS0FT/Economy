@@ -85,7 +85,7 @@ test('warehouse usage counts stored goods and remaining open commodity buy order
     orders: [
       buyOrder({ remaining: 40, status: 'partial' }),
       buyOrder({ remaining: 12, status: 'filled' }),
-      buyOrder({ remaining: 7, side: 'sell' }),
+      buyOrder({ remaining: 7, side: 'sell', price: 999 }),
       buyOrder({ remaining: 9, ownerId: 2 }),
       buyOrder({ assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm', productId: undefined, remaining: 20 }),
     ],
