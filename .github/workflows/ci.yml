@@ -15,21 +15,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
+          fetch-depth: 1
+          show-progress: false
 
       - name: Diagnose local trade anonymization bundle
-        run: |
-          set +e
-          node scripts/apply-anonymize-local-trades.mjs 2> /tmp/anonymize-error.txt
-          status=$?
-          if [ $status -ne 0 ]; then
-            encoded=$(base64 -w0 /tmp/anonymize-error.txt)
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit --allow-empty -m "anonymize-diagnostic:${encoded}"
-            git push origin HEAD:agent/anonymize-local-trades
-            exit $status
-          fi
+        run: node scripts/apply-anonymize-local-trades.mjs
 
       - name: Setup Node
         uses: actions/setup-node@v4
