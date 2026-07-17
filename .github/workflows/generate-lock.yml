@@ -1,4 +1,4 @@
-name: Finalize runtime reliability changes
+name: Finalize build workflows
 
 on:
   push:
@@ -16,186 +16,103 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: agent/harden-runtime-and-tests
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-      - name: Generate package lock
-        run: npm install --package-lock-only --ignore-scripts
-      - name: Apply documented reliability rules
+      - name: Unify CI and web build
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
+          cat > .github/workflows/ci.yml <<'EOF'
+          name: Economy CI
 
-          def replace(path, old, new):
-              file = Path(path)
-              text = file.read_text()
-              if old not in text:
-                  raise SystemExit(f'missing expected text in {path}: {old[:80]}')
-              file.write_text(text.replace(old, new))
+          on:
+            pull_request:
+            workflow_dispatch:
 
-          replace(
-              'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
-              '清除日志时保留当前匿名权威快照，避免把现有资产误记为新变化。localStorage 读取或写入失败时继续接受服务器状态，不阻断任何权威游戏动作，也不向服务器上传本地日志恢复。',
-              '清除日志时保留当前匿名权威快照，避免把现有资产误记为新变化。读取、写入或删除 localStorage 失败时必须捕获异常并返回空日志或继续使用内存中的当前结果；不得阻断服务器状态加载、权威游戏动作或页面渲染，也不得向服务器上传本地日志恢复。浏览器运行时测试必须模拟 `getItem`、`setItem` 和 `removeItem` 抛出 `SecurityError`，确认设置页面仍可渲染。',
-          )
+          permissions:
+            contents: read
 
-          replace(
-              'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
-              '''藏品列表、礼品码列表、归属历史和兑换记录可能持续增长，必须复用共享 `VirtualList`。封禁事件同样必须复用共享 `VirtualList` 或等价窗口化结构：
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              timeout-minutes: 20
+              steps:
+                - name: Checkout code
+                  uses: actions/checkout@v4
 
-          - API 返回的完整数组仍保留在客户端状态中；
-          - DOM 只渲染可视区域和少量预加载行；
-          - 表头与虚拟记录使用统一列定义，并保持横向滚动对齐；
-          - 每条记录必须使用服务器稳定 ID；兑换记录使用玩家 ID 与兑换时间组合键；
-          - 不得用分页、截断、`slice` 或只显示最近记录替代窗口化；
-          - 窗口化不得改变查看归属、停用礼品码、查看兑换记录、馆藏链接或封禁复核等操作。''',
-              '''藏品列表、礼品码列表、归属历史和兑换记录可能持续增长。藏品、归属和封禁事件继续复用共享 `VirtualList` 或等价窗口化结构；礼品码历史与单码兑换记录必须同时使用服务端游标分页和客户端 `VirtualList`：
+                - name: Setup Node
+                  uses: actions/setup-node@v4
+                  with:
+                    node-version: 24.4.0
+                    cache: npm
 
-          - 礼品码与兑换记录默认每页 100 条、最多 200 条，响应返回当前页数组、完整总数和 `nextCursor`；
-          - 首屏只请求第一页，管理员明确点击“加载更多”后才使用游标继续读取，不得全表返回后仅靠窗口化隐藏 DOM；
-          - 已加载页面合并进客户端状态，DOM 只渲染可视区域和少量预加载行；
-          - 表头与虚拟记录使用统一列定义，并保持横向滚动对齐；
-          - 礼品码游标按递减 ID 稳定翻页；兑换记录按兑换时间和玩家 ID 组合游标稳定翻页；
-          - 每条记录必须使用服务器稳定 ID；兑换记录使用玩家 ID 与兑换时间组合键；
-          - 分页和窗口化不得改变查看归属、停用礼品码、查看兑换记录、馆藏链接或封禁复核等操作。''',
-          )
-          replace(
-              'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
-              '- 对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染；',
-              '- 对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染；\n- 让礼品码或兑换记录接口恢复无边界全表返回，或只在客户端收到全量数据后伪分页；',
-          )
+                - name: Install dependencies
+                  run: npm ci
 
-          replace(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              '`GET /api/game/state` 返回单调递增的世界 `revision`。首次不带修订号，后续使用 `?revision=N`；未变化时只返回 `{ revision, unchanged: true }`。空闲状态读取不得仅因服务器时间推进而修改 `lastProcessedAt`、增加修订号或写回相同的 `state_json`。',
-              '`GET /api/game/state` 返回单调递增的世界 `revision`。首次不带修订号，后续使用 `?revision=N`；未变化时只返回 `{ revision, unchanged: true }`。空闲状态读取不得仅因服务器时间推进而修改 `lastProcessedAt`、增加修订号或写回相同的 `state_json`。管理员世界概况同样属于只读入口；只有处理生产或拍卖后序列化结果实际变化时才允许保存并增加修订号。',
-          )
-          replace(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              '- Nginx 游戏 API 请求体上限为 256 KB；普通 JSON 仍由应用限制为 16 KB。',
-              '- Nginx 游戏 API 请求体上限为 256 KB；普通 JSON 仍由应用限制为 16 KB。\n- 单进程操作限流缓存每分钟清理已过期桶，并限制最多 10,000 个用户／类别桶；不得让历史用户键永久累积。',
-          )
-          replace(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              '- 验证码错误 5 次后状态变为不可用；过期、已使用或作废验证码不能重复使用。',
-              '- 验证码错误 5 次后状态变为不可用；过期、已使用或作废验证码不能重复使用。\n- 验证码终态记录保留 30 天；注册请求触发的清理任务最多每小时执行一次，先将已过期的 `pending`／`sent` 标记为 `expired`，再删除超过保留期的 `failed`、`expired`、`invalid` 和 `used` 记录。未过期活动验证码和永久注册记录不得删除。',
-          )
-          replace(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              '- GitHub Actions 使用 Node 24 构建和测试。\n- 部署包携带匹配架构的官方 Node 运行时。\n- Node 最低版本 `22.16.0`，必须支持 `node:sqlite`。',
-              '- GitHub Actions 固定使用 Node 24.4.0 构建和测试；根依赖必须使用精确版本并提交 `package-lock.json`，CI、Web Build 和 Deploy 统一使用 `npm ci`，不得恢复 `latest`、范围依赖或无锁安装。\n- 浏览器运行时测试使用固定 Playwright 版本与 Chromium，至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在。\n- 部署包携带匹配架构的官方 Node 运行时。\n- 服务端 Node 最低版本 `22.16.0`，必须支持 `node:sqlite`；构建工具链固定在 Node 24.4.0。',
-          )
-          replace(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              '`npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。',
-              '`npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。CI 还必须安装固定 Chromium 并执行 `npm run test:browser`；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。',
-          )
-          replace(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              '- 空闲读取写库、每秒完整状态轮询或迟到响应覆盖新状态；',
-              '- 空闲读取或管理员摘要无变化时写库、每秒完整状态轮询或迟到响应覆盖新状态；',
-          )
-          replace(
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              '- 原始 Cookie 缓存、管理员认证缓存或超过 5,000 条 LRU；',
-              '- 原始 Cookie 缓存、管理员认证缓存或超过 5,000 条 LRU；\n- 永久保留失效验证码、让操作限流 Map 无边界增长、恢复浮动依赖或删除依赖锁；\n- 删除 Chromium 浏览器运行时测试、localStorage 拒绝访问覆盖或顶层错误边界；',
-          )
+                - name: Build and test
+                  run: npm run build
 
-          replace(
-              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-              '设置页只允许玩家资料与四项统计、客户端偏好、邀请入口、礼品兑换、管理员入口、退出登录和重置经济状态。状态刷新频率默认 `5s`，可选 `3s`／`5s`／`10s`。不得作为经营仪表盘。',
-              '设置页只允许玩家资料与四项统计、已经实现的客户端偏好、邀请入口、礼品兑换、管理员入口、退出登录和重置经济状态。当前客户端偏好只有“紧凑数字”和“状态刷新频率”；状态刷新频率默认 `5s`，可选 `3s`／`5s`／`10s`。不得显示没有实际运行效果的“界面音效”或“画面性能”控件，也不得作为经营仪表盘。',
-          )
-          replace(
-              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-              '- 从管理员页面移除同 IP 封禁复核和手动解禁入口。',
-              '- 从管理员页面移除同 IP 封禁复核和手动解禁入口；\n- 在设置页恢复未接入运行时行为和持久化的“界面音效”或“画面性能”占位控件。',
-          )
+                - name: Install Chromium
+                  run: npx playwright install --with-deps chromium
 
-          docs_index = Path('docs/README.md')
-          index_text = docs_index.read_text()
-          rule = '20. 运行时可靠性、依赖锁、浏览器测试、localStorage 容错、管理员记录分页、验证码保留和限流缓存上限属于服务器、页面与管理员共同规则；必须同步更新对应权威文档并通过 `scripts/verify-runtime-reliability.mjs` 防回退。'
-          if rule not in index_text:
-              docs_index.write_text(index_text.rstrip() + '\n' + rule + '\n')
-
-          replace(
-              'docs/UI_DESIGN_SYSTEM.md',
-              '- “紧凑数字”是全局客户端显示偏好；`GameApp` 必须在状态栏和页面内容渲染前通过 `setCompactNumbersEnabled` 同步当前偏好。',
-              '- “紧凑数字”是全局客户端显示偏好；`GameApp` 必须在 React effect 中通过 `setCompactNumbersEnabled` 同步当前偏好，不得在渲染函数中修改模块级格式化状态。',
-          )
-          replace(
-              'scripts/verify-page-content.mjs',
-              "  'setCompactNumbersEnabled(model.compactNumbers)',",
-              "  'setCompactNumbersEnabled(compactNumbers)',",
-          )
-          replace(
-              'scripts/verify-page-content.mjs',
-              '`GameApp` 必须在状态栏和页面内容渲染前通过 `setCompactNumbersEnabled` 同步当前偏好',
-              '`GameApp` 必须在 React effect 中通过 `setCompactNumbersEnabled` 同步当前偏好',
-          )
-
-          readme = Path('README.md')
-          text = readme.read_text()
-          additions = [
-              ('- 邮箱验证码只保存 HMAC，10 分钟过期、60 秒禁止重发、错误 5 次作废、不可重复使用，且发送与提交 IP 指纹必须一致。', '- 邮箱验证码只保存 HMAC，10 分钟过期、60 秒禁止重发、错误 5 次作废、不可重复使用，且发送与提交 IP 指纹必须一致。\n- 邮箱验证码终态记录保留 30 天，注册请求最多每小时触发一次过期标记和历史清理；永久 Economy 注册记录不受影响。'),
-              ('- 管理员可以在单个事务中一次生成最多 50,000 个礼品码；礼品码业务表只保存 SHA-256 哈希，明文仅用于本次响应、TXT 下载和现有 24 小时幂等重试缓存。', '- 管理员可以在单个事务中一次生成最多 50,000 个礼品码；礼品码业务表只保存 SHA-256 哈希，明文仅用于本次响应、TXT 下载和现有 24 小时幂等重试缓存。\n- 管理员礼品码与兑换记录按游标分页，默认每页 100 条、最多 200 条；首屏不得全表传输，页面通过“加载更多”继续读取。'),
-              ('- 设置：玩家资料、偏好、宝石、分享链接、邀请码、礼品兑换、退出与重置。', '- 设置：玩家资料、偏好、宝石、分享链接、邀请码、礼品兑换、退出与重置。客户端偏好只显示已实现的“紧凑数字”和 3s／5s／10s 状态刷新频率。'),
-          ]
-          for old, new in additions:
-              if new in text:
-                  continue
-              if old not in text:
-                  raise SystemExit(f'missing README text: {old[:80]}')
-              text = text.replace(old, new)
-          marker = '## 权威设计文档'
-          reliability = '- 前端依赖使用精确版本与 `package-lock.json`，CI、Web Build 和 Deploy 固定 Node 24.4.0 并使用 `npm ci`；CI 额外运行 Chromium 浏览器测试，覆盖存储拒绝与设置页运行时行为。\n\n'
-          if reliability not in text:
-              text = text.replace(marker, reliability + marker)
-          readme.write_text(text)
-          PY
-      - name: Prepare browser runtime entry
-        run: |
-          cat > runtime-test.html <<'EOF'
-          <!doctype html>
-          <html lang="zh-CN">
-            <head>
-              <meta charset="UTF-8" />
-              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-              <title>Economy runtime test</title>
-            </head>
-            <body>
-              <div id="root"></div>
-              <script type="module" src="/economy/tests/browser/runtime-harness.tsx"></script>
-            </body>
-          </html>
+                - name: Test browser runtime
+                  run: npm run test:browser
           EOF
+
+          cat > .github/workflows/web-build.yml <<'EOF'
+          name: Web build
+
+          on:
+            pull_request:
+              branches: [main]
+            push:
+              branches: [main]
+
+          permissions:
+            contents: read
+
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              timeout-minutes: 10
+              steps:
+                - name: Checkout
+                  uses: actions/checkout@v4
+                - name: Set up Node.js
+                  uses: actions/setup-node@v4
+                  with:
+                    node-version: 24.4.0
+                    cache: npm
+                - name: Install dependencies
+                  run: npm ci
+                - name: Typecheck, test server, and build
+                  shell: bash
+                  run: |
+                    set -o pipefail
+                    npm run build 2>&1 | tee build.log
+                - name: Upload build log
+                  if: always()
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: build-log
+                    path: build.log
+                    if-no-files-found: error
+          EOF
+
           python3 - <<'PY'
           from pathlib import Path
-          config = Path('playwright.config.ts')
-          text = config.read_text()
-          if 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH' not in text:
-              text = text.replace(
-                  "import { defineConfig, devices } from '@playwright/test';\n",
-                  "import { defineConfig, devices } from '@playwright/test';\n\nconst executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;\n",
-              )
-              text = text.replace(
-                  "    trace: 'retain-on-failure',\n",
-                  "    trace: 'retain-on-failure',\n    launchOptions: executablePath ? { executablePath } : undefined,\n",
-              )
-              config.write_text(text)
-          spec = Path('tests/browser/runtime.spec.ts')
-          spec.write_text(spec.read_text().replace("tests/browser/runtime-harness.html", "runtime-test.html"))
-          Path('tests/browser/runtime-harness.html').unlink(missing_ok=True)
-          Path('src/utils/audio.ts').unlink(missing_ok=True)
+          path = Path('.github/workflows/deploy.yml')
+          text = path.read_text()
+          old_node = '          node-version: 24\n'
+          old_install = '        run: npm install --legacy-peer-deps\n'
+          if old_node not in text or old_install not in text:
+              raise SystemExit('deploy dependency setup did not match expected content')
+          text = text.replace(old_node, '          node-version: 24.4.0\n', 1)
+          text = text.replace(old_install, '        run: npm ci\n', 1)
+          path.write_text(text)
           PY
-      - name: Commit generated changes
+
+          rm .github/workflows/generate-lock.yml
+      - name: Commit workflow changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          if git diff --cached --quiet; then
-            echo "generated files are already current"
-            exit 0
-          fi
-          git commit -m "补齐运行时可靠性设计与依赖锁"
+          git commit -m "统一可复现构建与浏览器测试"
           git push origin HEAD:agent/harden-runtime-and-tests
