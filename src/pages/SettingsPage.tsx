@@ -18,8 +18,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     avatarText,
     playerName,
     setPlayerName,
-    soundEnabled,
-    setSoundEnabled,
     compactNumbers,
     setCompactNumbers,
     refreshRate,
@@ -83,12 +81,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
         <Panel className="widget">
           <WidgetHeading title="游戏设置" />
           <ToggleField
-            label="界面音效"
-            description="订单成交与生产完成提示"
-            checked={soundEnabled}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => setSoundEnabled(event.target.checked)}
-          />
-          <ToggleField
             label="紧凑数字"
             description="全局使用 K/M/B/T 缩写大额金额、库存、数量与容量"
             checked={compactNumbers}
@@ -100,14 +92,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
               <option value="3">每 3s</option>
               <option value="5">每 5s</option>
               <option value="10">每 10s</option>
-            </select>
-          </label>
-          <label>
-            画面性能
-            <select defaultValue="balanced">
-              <option value="quality">高质量</option>
-              <option value="balanced">平衡</option>
-              <option value="performance">高性能</option>
             </select>
           </label>
         </Panel>
