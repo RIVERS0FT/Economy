@@ -49,7 +49,7 @@ for (const path of versionedDocs) {
 
 replaceExact('server/src/domain.js', '    baseBudget: 330,', '    baseBudget: 500,');
 replaceExact('server/src/domain.js', '    baseBudget: 320,', '    baseBudget: 480,');
-replaceExact('server/src/domain.js', '  world.version = 11;', '  world.version = 12;', 2);
+replaceExact('server/src/domain.js', '  world.version = 11;', '  world.version = 12;');
 replaceExact('server/src/domain.js', '    return previousVersion >= 11 && isValidPopulationOrder(order);', '    return previousVersion >= 12 && isValidPopulationOrder(order);');
 replaceExact('server/src/domain.js', '  if (previousVersion < 11) {', '  if (previousVersion < 12) {');
 replaceExact('server/src/domain.js', '  normalized.version = 11;', '  normalized.version = 12;');
