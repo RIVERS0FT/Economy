@@ -1,4 +1,5 @@
 .home-grid {
+  --overview-primary-card-height: 370px;
   --overview-summary-card-height: 330px;
 }
 
@@ -8,7 +9,7 @@
   min-height: 0;
   max-height: none;
   flex: 0 0 auto;
-  aspect-ratio: 240 / 47;
+  aspect-ratio: 80 / 19;
   display: block;
 }
 
