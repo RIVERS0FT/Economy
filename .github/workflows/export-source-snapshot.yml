@@ -19,15 +19,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          payload=.github/economy-implementation.patch.gz.b64
-          if [[ ! -f "$payload" ]]; then
-            echo "Implementation payload is not present yet."
+          payload_dir=.github/economy-patch
+          if [[ ! -f "$payload_dir/ready" ]]; then
+            echo "Implementation payload is not complete yet."
             exit 0
           fi
-          base64 -d "$payload" | gzip -d > /tmp/economy-implementation.patch
+          cat "$payload_dir"/part-* | base64 -d | gzip -d > /tmp/economy-implementation.patch
           git apply --check /tmp/economy-implementation.patch
           git apply /tmp/economy-implementation.patch
-          rm -f "$payload" .github/workflows/export-source-snapshot.yml
+          rm -rf "$payload_dir" .github/workflows/export-source-snapshot.yml
           git diff --check
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
