@@ -61,7 +61,7 @@ if (existsSync(pathFor('README.md'))) {
   for (const text of [
     '客户端状态版本：`14`',
     '世界状态版本：`11`',
-    '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜设置',
+    '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜宝石商店｜设置',
     '共享仓库允许无限扩容',
     '所有工厂集群统一使用服务器正式配方',
     '商品订单仅允许玩家订单和人口需求订单',
@@ -99,6 +99,7 @@ if (existsSync(pathFor('docs/README.md'))) {
     '`scripts/verify-document-authority.mjs`',
     '过长文档优先通过删除重复表格',
     '参考分钟利润必须由正式目录自动校验',
+    '宝石商店固定汇率、单向兑换、兑换幂等与独立页面',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
   }
@@ -109,4 +110,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：唯一文档结构、版本 14/11、整数经济基线、文档整理规则和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：唯一文档结构、版本 14/11、九页导航、宝石商店、整数经济基线、文档整理规则和旧文件禁令均满足当前基线。');
