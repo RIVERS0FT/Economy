@@ -1,4 +1,12 @@
 /* Desktop sidebar identity is rendered in the brand lockup. */
+.game-shell {
+  grid-template-columns: 224px minmax(0, 1fr);
+}
+
+.desktop-sidebar {
+  position: relative;
+}
+
 .desktop-sidebar .sidebar-brand > div {
   min-width: 0;
 }
@@ -13,4 +21,121 @@
 
 .desktop-sidebar > .sidebar-nav {
   margin-top: var(--space-3);
+}
+
+.sidebar-collapse-button {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  margin-left: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: 0;
+  color: var(--color-text-muted);
+  background: var(--color-surface-inset);
+}
+
+.sidebar-collapse-button:hover,
+.sidebar-collapse-button:focus-visible {
+  color: var(--color-text-primary);
+  border-color: var(--color-success);
+}
+
+.sidebar-collapse-button span {
+  width: 8px;
+  height: 8px;
+  display: block;
+  border-bottom: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.desktop-sidebar[data-collapsed="true"] .sidebar-collapse-button span {
+  transform: rotate(225deg);
+}
+
+.desktop-sidebar .sidebar-nav-button,
+.desktop-sidebar .sidebar-nav-button > span {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.desktop-sidebar .sidebar-nav-button.active {
+  color: var(--color-text-primary);
+}
+
+.desktop-sidebar .sidebar-nav-button.active > span {
+  color: var(--color-success);
+}
+
+.game-shell.sidebar-collapsed {
+  grid-template-columns: 78px minmax(0, 1fr);
+}
+
+.sidebar-collapsed .desktop-sidebar {
+  padding-inline: var(--space-2);
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-brand {
+  justify-content: center;
+  gap: var(--space-2);
+  padding-inline: 0;
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-brand img {
+  width: 34px;
+  height: 34px;
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-brand > div,
+.sidebar-collapsed .desktop-sidebar .sidebar-nav-button strong,
+.sidebar-collapsed .desktop-sidebar .connection-state div {
+  display: none;
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-collapse-button {
+  position: absolute;
+  top: var(--space-3);
+  right: -11px;
+  z-index: 4;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-nav-button {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding-inline: var(--space-2);
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-nav-button > span {
+  width: 100%;
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-nav-button small {
+  position: absolute;
+  top: 0.18rem;
+  right: 0.18rem;
+  min-width: 18px;
+  padding: 0.08rem 0.28rem;
+  font-size: 0.66rem;
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-footer {
+  justify-items: center;
+}
+
+.sidebar-collapsed .desktop-sidebar .sidebar-logout {
+  min-width: 48px;
+  padding-inline: var(--space-1);
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 960px) {
+  .sidebar-collapse-button {
+    display: none;
+  }
 }

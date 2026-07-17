@@ -32,20 +32,22 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   const currentRank = derived.currentRank?.rank ?? '--';
   const formattedRank = formatRank(derived.currentRank?.rank);
   const rankLabel = derived.currentRank ? `排名第 ${derived.currentRank.rank} 名` : '暂无排名';
+  const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→';
   const statusItems: StatusBarItem[] = [
     {
       id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>,
       compactValue: formatCompactNumber(game.credits), detail: <>冻结 <CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></>,
     },
     {
-      id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),
-      compactValue: formatCompactNumber(game.gems), detail: <>邀请好友可获得宝石</>,
-    },
-    {
       id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
       compactValue: formatCompactNumber(derived.totalAssets),
-      detail: <span className={weeklyChange >= 0 ? 'positive' : 'negative'}>本周 <CurrencyAmount sign={weeklyChange >= 0 ? '+' : undefined}>{formatCurrency(weeklyChange)}</CurrencyAmount></span>,
+      detail: <span className={weeklyChange >= 0 ? 'positive' : 'negative'}>{weeklyTrend} 本周 <CurrencyAmount sign={weeklyChange > 0 ? '+' : undefined}>{formatCurrency(weeklyChange)}</CurrencyAmount></span>,
       emphasis: 'primary',
+      onClick: () => model.setTab('assets'),
+    },
+    {
+      id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),
+      compactValue: formatCompactNumber(game.gems), detail: <>邀请好友可获得宝石</>,
     },
     {
       id: 'rank', icon: <RankIcon />, label: '排行榜',

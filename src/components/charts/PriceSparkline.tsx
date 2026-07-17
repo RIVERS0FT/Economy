@@ -106,7 +106,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
-      style={{ height: variant === 'compact' ? 'clamp(220px, 34vw, 300px)' : 'clamp(320px, 42vw, 410px)' }}
+      style={{ height: variant === 'compact' ? 'clamp(168px, 20vw, 210px)' : 'clamp(320px, 42vw, 410px)' }}
     >
       <title>近 24 小时价格、成交量与主动买卖方向趋势</title>
       <desc>每 6 分钟一个数据分段，共 240 个分段。价格折线位于上方，成交量柱状图位于下方；绿色表示净主动买入，红色表示净主动卖出，灰色表示主动买卖均衡或旧历史方向未知。</desc>
@@ -128,8 +128,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
               y={xLabelY}
               fill="var(--color-text-muted)"
               fontSize={axisFontSize}
-              textAnchor="end"
-              transform={`rotate(-45 ${x} ${xLabelY})`}
+              textAnchor={variant === 'compact' ? 'middle' : 'end'}
+              transform={variant === 'compact' ? undefined : `rotate(-45 ${x} ${xLabelY})`}
             >
               {tick.label}
             </text>

@@ -16,8 +16,15 @@ const forbidText = (path, text) => {
 
 const routerPath = 'src/pages/PageRouter.tsx';
 const overviewPath = 'src/pages/OverviewPage.tsx';
-const viewModelPath = 'src/app/gameViewModel.ts';
+const chartPath = 'src/components/charts/PriceSparkline.tsx';
+const gameAppPath = 'src/app/GameApp.tsx';
+const shellPath = 'src/components/shell/GameShell.tsx';
+const sidebarPath = 'src/components/shell/DesktopSidebar.tsx';
+const statusBarPath = 'src/components/shell/StatusBar.tsx';
 const stylePath = 'src/styles/overview.css';
+const sidebarStylePath = 'src/styles/desktop-sidebar.css';
+const browserHarnessPath = 'tests/browser/runtime-harness.tsx';
+const browserSpecPath = 'tests/browser/runtime.spec.ts';
 const mainPath = 'src/main.tsx';
 const pageDesignPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
 const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
@@ -26,8 +33,15 @@ const packagePath = 'package.json';
 [
   routerPath,
   overviewPath,
-  viewModelPath,
+  chartPath,
+  gameAppPath,
+  shellPath,
+  sidebarPath,
+  statusBarPath,
   stylePath,
+  sidebarStylePath,
+  browserHarnessPath,
+  browserSpecPath,
   mainPath,
   pageDesignPath,
   uiDesignPath,
@@ -38,142 +52,163 @@ for (const text of [
   "import { useEffect, useState } from 'react'",
   "const [overviewProductId, setOverviewProductId] = useState(() => model.game.products[0]?.id ?? '')",
   'model.game.products.some((product) => product.id === overviewProductId)',
-  "setOverviewProductId(model.game.products[0]?.id ?? '')",
   'overviewProductId={overviewProductId}',
   'onOverviewProductChange={setOverviewProductId}',
 ]) requireText(routerPath, text);
 
-for (const text of [
-  'localStorage',
-  'sessionStorage',
-  'marketAssetId',
-]) forbidText(routerPath, text);
+for (const text of ['localStorage', 'sessionStorage', 'marketAssetId']) forbidText(routerPath, text);
 
 for (const text of [
-  "import { useMemo } from 'react'",
   'function greetingForHour(hour: number)',
-  "if (hour < 5) return '凌晨好'",
-  "if (hour < 12) return '早上好'",
-  "if (hour < 14) return '中午好'",
-  "if (hour < 18) return '下午好'",
-  "return '晚上好'",
   'new Date(now).getHours()',
-  'overviewProductId: string;',
-  'onOverviewProductChange: (productId: string) => void;',
-  'const overviewMarket = useMemo(() => {',
-  'buildMarketHistoryBuckets',
-  'summarizeMarketFlow',
+  'title="今日经营"',
+  '<strong>经营提醒</strong>',
+  'const visibleAlerts = businessAlerts.slice(0, 3)',
+  "id: 'warehouse-full'",
+  "id: `facility-error-${group.facilityTypeId}`",
+  "id: 'open-orders'",
+  'const primaryAction = ownOpenOrders.length > 0',
+  'hasMarketActivity: history.length > 0 || bestBid > 0 || bestAsk > 0',
+  'data-testid="overview-market-empty"',
+  '暂无有效挂单或近期成交',
   '<PriceSparkline buckets={overviewMarket.buckets} variant="compact" />',
-  "value={overviewMarket?.product.id ?? ''}",
-  'onOverviewProductChange(event.target.value)',
-  'aria-label="选择概览商品市场"',
-  "selectMarketAsset('commodity', overviewMarket.product.id)",
-  'derived.ownOpenOrders',
-  'orderKind(order)',
-  'orderAssetId(order)',
-  'orderStatusNames[order.status]',
+  'title="生产摘要"',
+  'title="资产构成"',
+  '<strong>本周资金变化</strong>',
   'title="当前挂单"',
-  'overview-summary-row span-3',
-  'overview-summary-card',
-  'label="停止工厂"',
-  '当前没有未完成订单。',
-  '管理订单 →',
+  'label="买单"',
+  'label="卖单"',
+  'theoreticalDailyOutput',
+  'overview-primary-grid',
+  "selectMarketAsset('commodity', overviewMarket.product.id)",
 ]) requireText(overviewPath, text);
 
 for (const text of [
-  'const [overviewProductId, setOverviewProductId] = useState',
-  'setOverviewProductId(',
-  'selectedProductId',
-  'setSelectedProductId',
-  'localStorage',
-  'sessionStorage',
-  'title={<>早上好',
-  'overview-product-strip',
-  'localTrades.slice(0, 6)',
+  'title="基础工作"',
+  'wealth-total',
+  'label="当前总资产"',
+  'formatRank',
+  'overview-summary-row span-3',
+  '<MetricCard',
   '当前浏览器最近成交',
-  'slice(-24)',
-  '<PriceSparkline values=',
+  'overview-product-strip',
 ]) forbidText(overviewPath, text);
 
 for (const text of [
-  'function deriveGameData(game: EconomyState): DerivedGameData',
-  'const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);',
-  "if (kind === 'facility') setSelectedFacilityTypeId(assetId);",
-  'marketAssetKind, marketAssetId, selectMarketAsset',
-]) requireText(viewModelPath, text);
+  "variant === 'compact' ? 'clamp(168px, 20vw, 210px)'",
+  "textAnchor={variant === 'compact' ? 'middle' : 'end'}",
+  "transform={variant === 'compact' ? undefined : `rotate(-45 ${x} ${xLabelY})`}",
+]) requireText(chartPath, text);
 
 for (const text of [
-  'selectedProductId',
-  'setSelectedProductId',
-  'selectedProduct: ProductDefinition',
-  'selectedInventory: ProductInventory',
-  'selectedMarket: ProductMarketState',
-  'ownSelectedOpenOrders',
-  'placeCommodityOrder:',
-]) forbidText(viewModelPath, text);
-
-for (const text of [
-  '--overview-summary-card-height: 384px;',
-  '.overview-summary-row {',
-  'grid-template-columns: repeat(3, minmax(0, 1fr));',
-  'height: var(--overview-summary-card-height);',
-  '.overview-open-orders-list {',
-  'overflow-y: auto;',
-  '@media (max-width: 960px)',
-  'grid-template-columns: 1fr;',
-  'height: auto;',
+  '--overview-primary-card-height: 330px;',
+  '--overview-summary-card-height: 320px;',
+  'grid-template-columns: minmax(320px, 5fr) minmax(0, 7fr);',
+  '@media (max-width: 1199px)',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  '.overview-open-orders-card {',
+  'grid-column: 1 / -1;',
+  '@media (max-width: 760px)',
+  '.overview-market-empty {',
 ]) requireText(stylePath, text);
 
-requireText(stylePath, `.overview-market-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-  font-size: var(--font-size-xs);
-}`);
+for (const text of ['384px', 'overscroll-behavior: contain']) forbidText(stylePath, text);
 
-requireText(mainPath, "import './styles/overview.css'");
-const main = read(mainPath);
-const overviewStyleIndex = main.indexOf("import './styles/overview.css'");
-const designSystemIndex = main.indexOf("import './styles/design-system.css'");
-if (overviewStyleIndex < 0 || designSystemIndex < 0 || overviewStyleIndex > designSystemIndex) {
-  failures.push('overview.css 必须在 design-system.css 之前加载');
+for (const text of [
+  'const [sidebarCollapsed, setSidebarCollapsed] = useState(false)',
+  "sidebarCollapsed ? 'game-shell sidebar-collapsed' : 'game-shell'",
+  'onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}',
+]) requireText(shellPath, text);
+
+for (const text of [
+  "aria-label={collapsed ? '展开侧栏' : '折叠侧栏'}",
+  'aria-expanded={!collapsed}',
+  "data-collapsed={collapsed ? 'true' : 'false'}",
+]) requireText(sidebarPath, text);
+
+for (const text of [
+  '.game-shell.sidebar-collapsed {',
+  'grid-template-columns: 78px minmax(0, 1fr);',
+  '.sidebar-collapse-button:focus-visible',
+  '@media (max-width: 960px)',
+]) requireText(sidebarStylePath, text);
+
+for (const text of [
+  'onClick?: () => void;',
+  "if (item.onClick) classNames.push('asset-bar-item--interactive')",
+  "aria-label={`${item.label}，打开详情`}",
+]) requireText(statusBarPath, text);
+
+for (const text of [
+  "id: 'credits'",
+  "id: 'assets'",
+  "id: 'gems'",
+  "id: 'rank'",
+  "id: 'warehouse'",
+  "const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→'",
+  "onClick: () => model.setTab('assets')",
+]) requireText(gameAppPath, text);
+
+const gameApp = read(gameAppPath);
+const statusOrder = ["id: 'credits'", "id: 'assets'", "id: 'gems'", "id: 'rank'", "id: 'warehouse'"];
+for (let index = 1; index < statusOrder.length; index += 1) {
+  if (gameApp.indexOf(statusOrder[index - 1]) >= gameApp.indexOf(statusOrder[index])) {
+    failures.push('src/app/GameApp.tsx 状态栏顺序必须为可用资金／总资产／宝石／排行榜／仓库剩余');
+    break;
+  }
 }
 
 for (const text of [
-  '浏览器本地系统时间',
-  '商品下拉框',
-  '当前玩家所有等待成交或部分成交的商品与工厂挂单摘要',
-  '三张卡片统一为 `384px` 高',
-  '不得包含当前浏览器最近成交',
-  '不得恢复全部商品快捷切换条',
-  '属于 `PageRouter` 当前登录会话的页面级 UI 状态',
-  '切换到市场、生产、资产或其他正式页面后再返回概览时必须保留选择',
-  '不得写入服务器、`localStorage`、`sessionStorage` 或全局 `LoadedGameViewModel`',
-  '刷新整个页面或重新登录后，从服务器目录首项重新初始化',
-  '市场中的后续商品切换不得反向覆盖概览选择',
-  '让普通页面切换重置仍有效的概览商品选择',
-  '概览页与市场页的商品行情统一统计当前资产最近 24h',
-  '不得恢复“最近 24 笔成交”',
-  '市场页 `.chart-footer` 与概览页 `.overview-market-footer` 必须在容器本身统一使用 `--font-size-xs`',
-  '不得只给容器内部的 `small` 设置字号',
+  "view === 'overview' ? <OverviewHarness /> : <SettingsHarness />",
+  "scenario === 'activity'",
+  "scenario === 'alerts'",
+  '<GameShell model={model} statusItems={statusItems}>',
+]) requireText(browserHarnessPath, text);
+
+for (const text of [
+  'overview prioritizes business decisions and uses a compact market empty state',
+  'overview renders the real market chart only when activity exists',
+  'overview keeps the decision rows visible and adapts to a narrower desktop',
+  'desktop sidebar collapses without removing keyboard navigation',
+  "page.setViewportSize({ width: 1440, height: 900 })",
+  "page.setViewportSize({ width: 900, height: 1000 })",
+  "page.getByTestId('overview-market-empty')",
+  "page.getByRole('button', { name: '折叠侧栏' })",
+]) requireText(browserSpecPath, text);
+
+for (const text of [
+  '概览是经营决策首页',
+  '宽度比例为 `5:7`',
+  '卡片高度约 `330px`',
+  '既无近期成交也无有效挂单时必须显示',
+  '宽度不小于 `1200px`',
+  '统一约 `320px` 高',
+  '`1920×1080`',
+  '`1440×900`',
+  '不得重复状态栏已经显示的总资产和排名',
+  '桌面侧栏在宽屏提供显式折叠按钮',
 ]) requireText(pageDesignPath, text);
 
 for (const text of [
-  '`src/styles/overview.css`',
   '## 10. 概览布局',
-  '切换选择器只更新概览数据，不触发页面跳转',
-  '卡片高度统一为 `384px`',
-  '概览不提供撤单按钮',
-  '不超过 `960px` 时三张摘要卡改为单列并恢复自然高度',
+  '经营决策优先',
+  '桌面按 `5:7` 分栏',
+  '约 `330px` 高',
+  '不得渲染大面积空坐标系',
+  '宽度不小于 `1200px`',
+  '约 `320px` 高',
+  '资产构成不得重复状态栏中的总资产或排名',
+  '宽屏桌面侧栏必须提供键盘可操作的显式折叠按钮',
 ]) requireText(uiDesignPath, text);
 
+for (const path of [pageDesignPath, uiDesignPath]) forbidText(path, '统一为 `384px` 高');
+
+requireText(mainPath, "import './styles/overview.css'");
 requireText(packagePath, 'node scripts/verify-overview-content.mjs');
 
 if (failures.length > 0) {
-  console.error('概览内容、页面导航商品选择与布局验证失败:\n- ' + failures.join('\n- '));
+  console.error('概览经营决策布局验证失败:\n- ' + failures.join('\n- '));
   process.exit(1);
 }
 
-console.log('概览验证通过：本地时间问候、跨页面保留的路由会话商品选择、当前挂单与三卡等高布局满足设计基线。');
+console.log('概览验证通过：经营提醒、紧凑工作、市场空状态、两排响应式布局、状态栏入口与可折叠侧栏满足设计基线。');

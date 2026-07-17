@@ -93,6 +93,23 @@
   color: var(--color-warning);
 }
 
+.asset-bar-item--interactive {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.asset-bar-item--interactive:hover,
+.asset-bar-item--interactive:focus-visible {
+  background: rgba(123, 228, 158, 0.07);
+}
+
+.asset-bar-item--interactive:focus-visible {
+  outline: 2px solid var(--color-success);
+  outline-offset: -2px;
+}
+
 /* The fade removes a hard lower edge without introducing another blurred layer. */
 .workspace::before {
   content: "";
