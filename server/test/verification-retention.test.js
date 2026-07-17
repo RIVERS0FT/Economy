@@ -49,7 +49,8 @@ test('email verification cleanup expires active rows and deletes only old termin
     insertVerification(database, { id: 'active-sent', status: 'sent', createdAt: now - 1_000, expiresAt: now + 60_000 });
 
     assert.equal(cleanupEmailVerificationRecords(database, now, { force: true }), 2);
-    const rows = database.prepare('SELECT id, status FROM economy_email_verifications ORDER BY id').all();
+    const rows = database.prepare('SELECT id, status FROM economy_email_verifications ORDER BY id').all()
+      .map((row) => ({ ...row }));
     assert.deepEqual(rows, [
       { id: 'active-sent', status: 'sent' },
       { id: 'recent-failed', status: 'failed' },
