@@ -60,12 +60,13 @@ if (existsSync(pathFor('README.md'))) {
   const rootReadme = read('README.md');
   for (const text of [
     '客户端状态版本：`14`',
-    '世界状态版本：`11`',
+    '世界状态版本：`12`',
     '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜宝石商店｜设置',
     '共享仓库允许无限扩容',
     '所有工厂集群统一使用服务器正式配方',
     '商品订单仅允许玩家订单和人口需求订单',
-    '饮食需求每 5 分钟最多 330',
+    '饮食需求每 5 分钟最多 500',
+    '家庭用品需求每 5 分钟最多 480',
     '藏品是服务器记录归属的唯一资产实例',
     '不得通过新增“补充说明”、V2/V3 文件或平行专题文档覆盖现行规则',
     '过长文档优先通过合并重复表格',
@@ -86,7 +87,7 @@ for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
   if (!content.includes('客户端状态版本：14')) failures.push(`${path} 客户端状态版本必须为 14`);
-  if (!content.includes('世界状态版本：11')) failures.push(`${path} 世界状态版本必须为 10`);
+  if (!content.includes('世界状态版本：12')) failures.push(`${path} 世界状态版本必须为 12`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -110,4 +111,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：唯一文档结构、版本 14/11、九页导航、宝石商店、整数经济基线、文档整理规则和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：唯一文档结构、版本 14/12、九页导航、宝石商店、人口需求 500／480、整数经济基线、文档整理规则和旧文件禁令均满足当前基线。');

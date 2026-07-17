@@ -264,8 +264,8 @@ test('population demand only creates food and household orders within fixed budg
   assert.ok(populationOrders.length > 0);
   assert.deepEqual([...new Set(populationOrders.map((order) => order.ownerName))].sort(), ['家庭用品需求', '饮食需求']);
   assert.ok(populationOrders.every((order) => ['food', 'household'].includes(order.demandGroupId)));
-  assert.ok(world.demandGroups.food.lastCommitted <= 330);
-  assert.ok(world.demandGroups.household.lastCommitted <= 320);
+  assert.ok(world.demandGroups.food.lastCommitted <= 500);
+  assert.ok(world.demandGroups.household.lastCommitted <= 480);
   assert.deepEqual(Object.keys(world.demandGroups.food.lastAllocation).sort(), ['eggs', 'flour', 'food', 'meat', 'milk', 'rice', 'wheat']);
   assert.deepEqual(Object.keys(world.demandGroups.household.lastAllocation).sort(), [
     'clothing', 'copper', 'copper-ore', 'cotton', 'crude-oil', 'electronics',
@@ -281,19 +281,19 @@ test('new worlds create population demand during the first authoritative state r
     assert.ok(populationOrders.length > 0);
     assert.deepEqual([...new Set(populationOrders.map((order) => order.ownerName))].sort(), ['家庭用品需求', '饮食需求']);
     const persisted = JSON.parse(String(store.selectWorld.get().state_json));
-    assert.equal(persisted.version, 11);
-    assert.ok(persisted.demandGroups.food.lastCommitted <= 330);
-    assert.ok(persisted.demandGroups.household.lastCommitted <= 320);
+    assert.equal(persisted.version, 12);
+    assert.ok(persisted.demandGroups.food.lastCommitted <= 500);
+    assert.ok(persisted.demandGroups.household.lastCommitted <= 480);
   } finally {
     store.close();
   }
 });
 
-test('world version 10 migration immediately rebuilds current-cycle population demand', () => {
+test('world version 11 migration immediately rebuilds current-cycle population demand', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.inventories.wheat.available = 2;
-  world.version = 10;
+  world.version = 11;
   world.orders = [{
     id: 'player-wheat-sell', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
     side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice',
@@ -307,7 +307,7 @@ test('world version 10 migration immediately rebuilds current-cycle population d
 
   processWorld(world, now + 1);
 
-  assert.equal(world.version, 11);
+  assert.equal(world.version, 12);
   assert.ok(world.orders.some((order) => order.id === 'player-wheat-sell'));
   const populationOrders = world.orders.filter((order) => order.ownerType === 'population');
   assert.ok(populationOrders.length > 0);
@@ -330,7 +330,7 @@ test('migration removes market and legacy population orders while preserving pla
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 11);
+  assert.equal(world.version, 12);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-order']);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.wheat.available, 9);
@@ -351,7 +351,7 @@ test('world version 8 migration restarts electronics and upgrades demand state w
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 11);
+  assert.equal(world.version, 12);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.plastic.available, 9);
   assert.equal(player.inventories.copper.available, 4);
