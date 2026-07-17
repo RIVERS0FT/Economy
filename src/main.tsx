@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { AppErrorBoundary } from './app/AppErrorBoundary';
 import { configureRuntimePerformance } from './utils/runtimePerformance';
 import './styles/globals.css';
 import './styles/desktop-sidebar.css';
@@ -32,6 +33,8 @@ configureRuntimePerformance();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    <AppErrorBoundary>
+      <App />
+    </AppErrorBoundary>
   </React.StrictMode>,
 );
