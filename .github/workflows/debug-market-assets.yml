@@ -16,4 +16,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node scripts/verify-market-assets.mjs
+      - name: Capture verification output
+        id: verify
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          node scripts/verify-market-assets.mjs > market-assets-result.txt 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload verification output
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-assets-result
+          path: market-assets-result.txt
+      - name: Fail when verification failed
+        if: steps.verify.outputs.status != '0'
+        run: exit 1
