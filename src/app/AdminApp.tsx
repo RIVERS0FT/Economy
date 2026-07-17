@@ -1,5 +1,10 @@
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { adminApi, createAdminRequestKey, type ExtendedAdminSummary } from '../api/admin';
+import {
+  adminApi,
+  createAdminRequestKey,
+  type ExtendedAdminSummary,
+  type GiftRedemptionRecord,
+} from '../api/admin';
 import { GameApiError } from '../api/game';
 import type {
   CollectibleAdminRecord,
@@ -57,6 +62,9 @@ function downloadGiftCodes(codes: string[]) {
 export function AdminApp({ user }: { user: AuthUser }) {
   const [summary, setSummary] = useState<ExtendedAdminSummary | null>(null);
   const [giftCodes, setGiftCodes] = useState<GiftCodeAdminRecord[]>([]);
+  const [giftCodeTotal, setGiftCodeTotal] = useState(0);
+  const [giftCodeCursor, setGiftCodeCursor] = useState<string | null>(null);
+  const [loadingMoreGiftCodes, setLoadingMoreGiftCodes] = useState(false);
   const [collectibles, setCollectibles] = useState<CollectibleAdminRecord[]>([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -69,7 +77,10 @@ export function AdminApp({ user }: { user: AuthUser }) {
   const [createdCodes, setCreatedCodes] = useState<string[]>([]);
   const [creatingGift, setCreatingGift] = useState(false);
   const giftRequestKeyRef = useRef('');
-  const [redemptions, setRedemptions] = useState<Array<{ user_id: number; reward_credits: number; redeemed_at: number }>>([]);
+  const [redemptions, setRedemptions] = useState<GiftRedemptionRecord[]>([]);
+  const [redemptionTotal, setRedemptionTotal] = useState(0);
+  const [redemptionCursor, setRedemptionCursor] = useState<string | null>(null);
+  const [loadingMoreRedemptions, setLoadingMoreRedemptions] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<number | null>(null);
   const [importItems, setImportItems] = useState<CollectibleImportRecord[]>([]);
   const [importFileName, setImportFileName] = useState('');
@@ -79,13 +90,15 @@ export function AdminApp({ user }: { user: AuthUser }) {
 
   const load = useCallback(async () => {
     try {
-      const [nextSummary, nextCodes, nextCollectibles] = await Promise.all([
+      const [nextSummary, nextCodesPage, nextCollectibles] = await Promise.all([
         adminApi.summary(),
         adminApi.giftCodes(),
         adminApi.collectibles(),
       ]);
       setSummary(nextSummary);
-      setGiftCodes(nextCodes);
+      setGiftCodes(nextCodesPage.items);
+      setGiftCodeTotal(nextCodesPage.total);
+      setGiftCodeCursor(nextCodesPage.nextCursor);
       setCollectibles(nextCollectibles);
       setError('');
     } catch (reason) {
@@ -148,12 +161,45 @@ export function AdminApp({ user }: { user: AuthUser }) {
     }
   }
 
+  async function loadMoreGiftCodes() {
+    if (!giftCodeCursor || loadingMoreGiftCodes) return;
+    setLoadingMoreGiftCodes(true);
+    try {
+      const page = await adminApi.giftCodes(giftCodeCursor);
+      setGiftCodes((current) => [...current, ...page.items]);
+      setGiftCodeTotal(page.total);
+      setGiftCodeCursor(page.nextCursor);
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : '读取更多礼品码失败');
+    } finally {
+      setLoadingMoreGiftCodes(false);
+    }
+  }
+
   async function showRedemptions(id: number) {
     try {
+      const page = await adminApi.redemptions(id);
       setSelectedGiftId(id);
-      setRedemptions(await adminApi.redemptions(id));
+      setRedemptions(page.items);
+      setRedemptionTotal(page.total);
+      setRedemptionCursor(page.nextCursor);
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : '读取兑换记录失败');
+    }
+  }
+
+  async function loadMoreRedemptions() {
+    if (selectedGiftId === null || !redemptionCursor || loadingMoreRedemptions) return;
+    setLoadingMoreRedemptions(true);
+    try {
+      const page = await adminApi.redemptions(selectedGiftId, redemptionCursor);
+      setRedemptions((current) => [...current, ...page.items]);
+      setRedemptionTotal(page.total);
+      setRedemptionCursor(page.nextCursor);
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : '读取更多兑换记录失败');
+    } finally {
+      setLoadingMoreRedemptions(false);
     }
   }
 
@@ -316,6 +362,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
 
       <section className="admin-panel admin-gift-list">
         <h2>礼品码记录</h2>
+        <p>已加载 {giftCodes.length}/{giftCodeTotal} 条；服务端按游标分页返回。</p>
         {giftCodes.length === 0 ? <p>暂无礼品码。</p> : (
           <div className="virtual-record-table admin-gifts-virtual-table" role="table" aria-label="礼品码记录">
             <div className="virtual-record-header" role="row">
@@ -347,11 +394,13 @@ export function AdminApp({ user }: { user: AuthUser }) {
             />
           </div>
         )}
+        {giftCodeCursor ? <button type="button" disabled={loadingMoreGiftCodes} onClick={() => void loadMoreGiftCodes()}>{loadingMoreGiftCodes ? '正在加载…' : '加载更多礼品码'}</button> : null}
       </section>
 
       {selectedGiftId !== null ? (
         <section className="admin-panel admin-redemptions">
           <h2>礼品码 #{selectedGiftId} 兑换记录</h2>
+          <p>已加载 {redemptions.length}/{redemptionTotal} 条。</p>
           {redemptions.length === 0 ? <p>暂无兑换记录。</p> : (
             <div className="virtual-record-table admin-redemptions-virtual-table" role="table" aria-label={`礼品码 ${selectedGiftId} 兑换记录`}>
               <div className="virtual-record-header" role="row"><span role="columnheader">玩家 ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换时间</span></div>
@@ -374,6 +423,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
               />
             </div>
           )}
+          {redemptionCursor ? <button type="button" disabled={loadingMoreRedemptions} onClick={() => void loadMoreRedemptions()}>{loadingMoreRedemptions ? '正在加载…' : '加载更多兑换记录'}</button> : null}
         </section>
       ) : null}
     </main>

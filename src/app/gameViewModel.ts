@@ -95,8 +95,6 @@ export interface LoadedGameViewModel {
   setOrderPrice: Dispatch<SetStateAction<number>>;
   playerName: string;
   setPlayerName: Dispatch<SetStateAction<string>>;
-  soundEnabled: boolean;
-  setSoundEnabled: Dispatch<SetStateAction<boolean>>;
   compactNumbers: boolean;
   setCompactNumbers: Dispatch<SetStateAction<boolean>>;
   refreshRate: string;
@@ -183,7 +181,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderPrice, setOrderPrice] = useState(1);
   const [playerName, setPlayerName] = useState('');
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [compactNumbers, setCompactNumbers] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
   ));
@@ -195,6 +192,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const refreshAbortRef = useRef<AbortController | null>(null);
   const actionsInFlightRef = useRef(0);
   const workPendingRef = useRef(false);
+  const noticeTimerRef = useRef<number | null>(null);
 
   const handleUnauthorized = useCallback(() => { setGame(null); onSignedOut(); }, [onSignedOut]);
   const acceptState = useCallback((state: EconomyState, action: LocalActivityAction, message?: string) => {
@@ -246,7 +244,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     setLocalActivity(loadLocalActivity(user.id));
     void refresh();
   }, [refresh, reloadVersion, user.id]);
-  useEffect(() => () => refreshAbortRef.current?.abort(), []);
+  useEffect(() => () => {
+    refreshAbortRef.current?.abort();
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+  }, []);
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1_000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!game) return undefined;
@@ -300,7 +301,14 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   }, [acceptVersionedState, handleUnauthorized]);
 
   const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);
-  function notify(message: string) { setNotice(message); window.setTimeout(() => setNotice(''), 3_000); }
+  function notify(message: string) {
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
+    setNotice(message);
+    noticeTimerRef.current = window.setTimeout(() => {
+      noticeTimerRef.current = null;
+      setNotice('');
+    }, 3_000);
+  }
   async function showResult(actionResult: ActionResult | Promise<ActionResult>) { notify((await actionResult).message); }
   async function signOut() { try { await logout(); } finally { onSignedOut(); } }
 
@@ -353,7 +361,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     selectedFacilityTypeId, setSelectedFacilityTypeId,
     marketAssetKind, marketAssetId, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
-    playerName, setPlayerName, soundEnabled, setSoundEnabled, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
+    playerName, setPlayerName, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
     now, workRemaining, isWorking, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, allocationStyle, avatarText,
     showResult, notify, refresh,

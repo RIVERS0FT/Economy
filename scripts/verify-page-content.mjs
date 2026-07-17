@@ -265,7 +265,7 @@ for (const text of ['登录会话', '重置服务器经济状态', '使用万和
 for (const text of [
   "label: '仓库剩余'",
   "id: 'warehouse'",
-  'setCompactNumbersEnabled(model.compactNumbers)',
+  'setCompactNumbersEnabled(compactNumbers)',
   'formatNumber(game.warehouseUsedCapacity)',
 ]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
@@ -310,7 +310,7 @@ for (const text of [
 
 for (const text of [
   '“紧凑数字”是全局客户端显示偏好',
-  '`GameApp` 必须在状态栏和页面内容渲染前通过 `setCompactNumbersEnabled` 同步当前偏好',
+  '`GameApp` 必须在 React effect 中通过 `setCompactNumbersEnabled` 同步当前偏好',
   '`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T',
   '切换后当前游戏外壳和所有使用统一格式器的页面立即同步',
   '`VirtualList` 是高增长记录的唯一窗口化基础组件',

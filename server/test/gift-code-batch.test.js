@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { configureGiftCodeAdminStore, createGiftCodeBatch, MAX_GIFT_CODE_BATCH_SIZE } from '../src/gift-code-batch.js';
+import {
+  configureGiftCodeAdminStore,
+  createGiftCodeBatch,
+  listGiftCodePage,
+  MAX_GIFT_CODE_BATCH_SIZE,
+} from '../src/gift-code-batch.js';
 import { EconomyStore } from '../src/storage.js';
 
 const now = 1_700_000_000_000;
@@ -31,11 +36,14 @@ test('admins can atomically generate and retry a 50000-code batch', () => {
     assert.equal(created.codes.length, MAX_GIFT_CODE_BATCH_SIZE);
     assert.equal(new Set(created.codes).size, MAX_GIFT_CODE_BATCH_SIZE);
     assert.match(created.codes[0], /^RIVER-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}$/);
-    assert.equal(store.listGiftCodes(admin).length, MAX_GIFT_CODE_BATCH_SIZE);
+    const firstPage = listGiftCodePage(store, admin);
+    assert.equal(firstPage.total, MAX_GIFT_CODE_BATCH_SIZE);
+    assert.equal(firstPage.items.length, 100);
+    assert.ok(firstPage.nextCursor);
 
     const retried = createGiftCodeBatch(store, admin, payload, requestMeta(), now + 1);
     assert.deepEqual(retried, created);
-    assert.equal(store.listGiftCodes(admin).length, MAX_GIFT_CODE_BATCH_SIZE);
+    assert.equal(listGiftCodePage(store, admin).total, MAX_GIFT_CODE_BATCH_SIZE);
 
     const redeemed = store.apply(player, {
       action: 'redeemGift',

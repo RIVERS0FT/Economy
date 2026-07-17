@@ -1,7 +1,13 @@
 import { createServer } from 'node:http';
+import { getStableAdminSummary } from './admin-summary.js';
 import { authenticateRequest, authenticationCacheMaxAgeForRequest } from './auth.js';
 import { ensurePlayer } from './domain.js';
-import { configureGiftCodeAdminStore, createGiftCodeBatch } from './gift-code-batch.js';
+import {
+  configureGiftCodeAdminStore,
+  createGiftCodeBatch,
+  listGiftCodePage,
+  listGiftRedemptionPage,
+} from './gift-code-batch.js';
 import { checkRateLimit } from './rateLimit.js';
 import { EconomyRegistrationStore } from './registration-store.js';
 import {
@@ -11,6 +17,7 @@ import {
   requestIpAddress,
 } from './registration.js';
 import { EconomyStore } from './storage.js';
+import { cleanupEmailVerificationRecords } from './verification-retention.js';
 
 const port = Number(process.env.PORT || 3002);
 const databasePath = process.env.ECONOMY_DB_PATH || '/var/lib/riversoft-economy/economy.sqlite';
@@ -183,6 +190,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (isRegistrationPath) {
+      cleanupEmailVerificationRecords(registrationStore.database);
       const requestKey = requireIdempotencyKey(request);
       const body = await readJson(request);
       const ipFingerprint = registrationIpFingerprint(request);
@@ -239,11 +247,19 @@ const server = createServer(async (request, response) => {
     if (path.startsWith('/api/game/admin/')) {
       requireAdmin(user);
       if (method === 'GET' && path === '/api/game/admin/summary') {
-        sendJson(response, 200, { summary: store.getAdminSummary(user) });
+        sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/gift-codes') {
-        sendJson(response, 200, { giftCodes: store.listGiftCodes(user) });
+        const page = listGiftCodePage(store, user, {
+          cursor: url.searchParams.get('cursor'),
+          limit: url.searchParams.get('limit'),
+        });
+        sendJson(response, 200, {
+          giftCodes: page.items,
+          total: page.total,
+          nextCursor: page.nextCursor,
+        });
         return;
       }
       if (method === 'POST' && path === '/api/game/admin/gift-codes') {
@@ -270,8 +286,14 @@ const server = createServer(async (request, response) => {
       }
       const redemptionsMatch = path.match(/^\/api\/game\/admin\/gift-codes\/(\d+)\/redemptions$/);
       if (method === 'GET' && redemptionsMatch) {
+        const page = listGiftRedemptionPage(store, user, Number(redemptionsMatch[1]), {
+          cursor: url.searchParams.get('cursor'),
+          limit: url.searchParams.get('limit'),
+        });
         sendJson(response, 200, {
-          redemptions: store.listGiftRedemptions(user, Number(redemptionsMatch[1])),
+          redemptions: page.items,
+          total: page.total,
+          nextCursor: page.nextCursor,
         });
         return;
       }
