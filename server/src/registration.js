@@ -38,10 +38,14 @@ export function loadRegistrationSecret() {
 }
 
 export function requestIpAddress(request) {
-  const forwarded = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
   const realIp = String(request.headers['x-real-ip'] || '').trim();
+  const forwarded = String(request.headers['x-forwarded-for'] || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .at(-1) || '';
   const socketIp = String(request.socket?.remoteAddress || '').trim();
-  return (forwarded || realIp || socketIp || 'unknown').replace(/^::ffff:/, '');
+  return (realIp || forwarded || socketIp || 'unknown').replace(/^::ffff:/, '');
 }
 
 export function fingerprintIpAddress(ipAddress, secret) {
@@ -85,7 +89,7 @@ export function createRegistrationService({
       };
     },
 
-    async complete({ email, password, code, ipFingerprint, requestKey, now = Date.now() }) {
+    async complete({ email, password, code, inviteCode, ipFingerprint, requestKey, now = Date.now() }) {
       const normalizedEmail = validateRegistrationInput(email, password);
       if (!/^\d{6}$/.test(String(code || ''))) throw httpError('请输入 6 位邮箱验证码', 400);
       const prepared = registrationStore.prepareEmailCompletion({
@@ -96,14 +100,15 @@ export function createRegistrationService({
         now,
       });
       const account = await accountClient({ email: normalizedEmail, password: String(password) });
-      registrationStore.completeEmailRegistration({
+      const economyRegistration = registrationStore.completeEmailRegistration({
         verificationId: prepared.verificationId,
         requestKey,
         user: account.user,
         ipFingerprint,
+        inviteCode,
         now,
       });
-      return account;
+      return { ...account, economyRegistration };
     },
   };
 }

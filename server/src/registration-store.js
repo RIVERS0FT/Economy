@@ -1,4 +1,5 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { EconomyInvitationStore, ensureGemState } from './invitations.js';
 
 export const EMAIL_CODE_TTL_MS = 10 * 60 * 1000;
 export const EMAIL_CODE_RESEND_MS = 60 * 1000;
@@ -33,11 +34,12 @@ export function hashEmailCode(secret, verificationId, email, code) {
 }
 
 export class EconomyRegistrationStore {
-  constructor(economyStore, { secret, ensurePlayer }) {
+  constructor(economyStore, { secret, ensurePlayer, publicOrigin = 'https://game.riversoft.top' }) {
     this.store = economyStore;
     this.database = economyStore.database;
     this.secret = secret;
     this.ensurePlayer = ensurePlayer;
+    this.publicOrigin = publicOrigin;
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS economy_email_verifications (
         id TEXT PRIMARY KEY,
@@ -96,16 +98,12 @@ export class EconomyRegistrationStore {
     this.selectRegistrationByUser = this.database.prepare(`
       SELECT * FROM economy_registrations WHERE user_id = ?
     `);
-    this.selectOtherRegistrationByIp = this.database.prepare(`
-      SELECT user_id FROM economy_registrations
-      WHERE registration_ip_fingerprint = ? AND user_id <> ?
-      ORDER BY registered_at LIMIT 1
-    `);
     this.insertRegistration = this.database.prepare(`
       INSERT INTO economy_registrations (
         user_id, email, registration_ip_fingerprint, registered_at, source
       ) VALUES (?, ?, ?, ?, ?)
     `);
+    this.invitations = new EconomyInvitationStore(economyStore, { secret, ensurePlayer });
   }
 
   beginEmailVerification({ email, ipFingerprint, requestKey, now = Date.now() }) {
@@ -225,13 +223,13 @@ export class EconomyRegistrationStore {
     return outcome;
   }
 
-  completeEmailRegistration({ verificationId, requestKey, user, ipFingerprint, now = Date.now() }) {
+  completeEmailRegistration({ verificationId, requestKey, user, ipFingerprint, inviteCode, now = Date.now() }) {
     return this.store.transaction(() => {
       const row = this.selectVerificationById.get(verificationId);
       if (!row) throw httpError('验证码记录不存在', 400);
       if (row.status === 'used') {
         if (row.completion_request_key === requestKey && Number(row.completed_user_id) === Number(user.id)) {
-          return { playerCreated: false, repeated: true };
+          return { playerCreated: false, repeated: true, ban: this.invitations.activeBan(user.id) || null };
         }
         throw httpError('验证码已经使用', 409);
       }
@@ -243,6 +241,8 @@ export class EconomyRegistrationStore {
         user,
         ipFingerprint,
         source: 'email_verification',
+        inviteCode,
+        invitationRequestKey: requestKey,
         now,
       });
       this.database.prepare(`
@@ -254,34 +254,126 @@ export class EconomyRegistrationStore {
     });
   }
 
+  initializeSession({ user, ipFingerprint, inviteCode, requestKey, now = Date.now() }) {
+    const existing = this.selectRegistrationByUser.get(Number(user.id));
+    let result;
+    if (existing) {
+      this.invitations.ensureInviteCode(user.id, now);
+      result = { playerCreated: false, repeated: true, invalidInvite: Boolean(inviteCode) };
+    } else {
+      result = this.store.transaction(() => this.ensurePlayerRegistrationInTransaction({
+        user,
+        ipFingerprint,
+        source: 'homepage_session',
+        inviteCode,
+        invitationRequestKey: requestKey,
+        now,
+      }));
+    }
+    const ban = this.invitations.activeBan(user.id);
+    return {
+      playerCreated: Boolean(result.playerCreated),
+      banned: Boolean(ban),
+      incidentId: ban ? Number(ban.incident_id) : undefined,
+      invitationBound: Boolean(result.relation),
+      invalidInvite: Boolean(result.invalidInvite),
+    };
+  }
+
   ensureLoggedInPlayer({ user, ipFingerprint, now = Date.now() }) {
     const existing = this.selectRegistrationByUser.get(Number(user.id));
-    if (existing) return { playerCreated: false, repeated: true };
+    if (existing) return { playerCreated: false, repeated: true, ban: this.invitations.activeBan(user.id) || null };
     return this.store.transaction(() => this.ensurePlayerRegistrationInTransaction({
       user,
       ipFingerprint,
       source: 'homepage_session',
+      inviteCode: undefined,
+      invitationRequestKey: `automatic:${Number(user.id)}:${now}`,
       now,
     }));
   }
 
-  ensurePlayerRegistrationInTransaction({ user, ipFingerprint, source, now }) {
+  ensurePlayerRegistrationInTransaction({
+    user,
+    ipFingerprint,
+    source,
+    inviteCode,
+    invitationRequestKey,
+    now,
+  }) {
     const { revision, world } = this.store.loadWorld(now);
     const userId = Number(user.id);
     const playerExisted = Boolean(world.players?.[String(userId)]);
     const registration = this.selectRegistrationByUser.get(userId);
+    const registrationCreated = !registration;
 
-    if (source !== 'homepage_session' && !playerExisted && !registration) {
-      const other = this.selectOtherRegistrationByIp.get(ipFingerprint, userId);
-      if (other) throw httpError('该网络已经注册其他 Economy 账号', 409);
-    }
+    const player = this.ensurePlayer(world, user, now);
+    const gemsBefore = player.gems;
+    const invitationIssuedBefore = player.stats?.invitationGemsIssued;
+    ensureGemState(player);
+    let worldChanged = !playerExisted
+      || gemsBefore !== player.gems
+      || invitationIssuedBefore !== player.stats.invitationGemsIssued;
 
-    this.ensurePlayer(world, user, now);
-    if (!registration) {
+    if (registrationCreated) {
       this.insertRegistration.run(userId, normalizeEmail(user.email), ipFingerprint, now, source);
     }
-    if (!playerExisted) this.store.saveWorld(revision, world, now);
-    return { playerCreated: !playerExisted, repeated: false };
+
+    let invitationResult = {};
+    if (registrationCreated) {
+      invitationResult = this.invitations.processNewRegistrationInTransaction({
+        world,
+        user,
+        ipFingerprint,
+        inviteCode: playerExisted ? undefined : inviteCode,
+        requestKey: invitationRequestKey || `registration:${userId}:${now}`,
+        now,
+      });
+      worldChanged ||= Boolean(invitationResult.worldChanged);
+    } else {
+      this.invitations.ensureInviteCodeInTransaction(userId, now);
+    }
+
+    if (worldChanged) this.store.saveWorld(revision, world, now);
+    return {
+      playerCreated: !playerExisted,
+      repeated: false,
+      relation: invitationResult.relation,
+      invalidInvite: invitationResult.invalidInvite,
+      ban: invitationResult.ban || this.invitations.activeBan(userId) || null,
+    };
+  }
+
+  assertPlayerActive(userId) {
+    this.invitations.assertActive(userId);
+  }
+
+  getInvitationSummary(userId, now = Date.now()) {
+    return this.invitations.getInvitationSummary(userId, now, this.publicOrigin);
+  }
+
+  claimManualInvitation(input) {
+    return this.invitations.claimManualInvitation(input);
+  }
+
+  listBanIncidents() {
+    return this.invitations.listBanIncidents();
+  }
+
+  getBanIncident(incidentId) {
+    return this.invitations.getBanIncident(incidentId);
+  }
+
+  unbanUser(input) {
+    return this.invitations.unbanUser(input);
+  }
+
+  unbanIncident(input) {
+    return this.invitations.unbanIncident(input);
+  }
+
+  rebanUser(input) {
+    return this.invitations.rebanUser(input);
   }
 
   getVerification(id) {

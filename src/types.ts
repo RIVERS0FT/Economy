@@ -284,6 +284,7 @@ export interface EconomyStats {
   boughtGoods: number;
   soldGoods: number;
   giftIssued: number;
+  invitationGemsIssued: number;
 }
 
 export interface AssetSummary {
@@ -311,6 +312,7 @@ export interface EconomyState {
   registeredAt: number;
   credits: number;
   frozenCredits: number;
+  gems: number;
   inventories: Record<string, ProductInventory>;
   inventoryCapacity: number;
   warehouseLevel: number;

@@ -1,0 +1,124 @@
+.invite-link-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.invite-link-grid label {
+  min-width: 0;
+}
+
+.invite-link-grid input {
+  width: 100%;
+}
+
+.invite-action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.invitation-stat-grid {
+  margin-top: 16px;
+}
+
+.manual-invite-claim,
+.invitation-bound-state,
+.recent-invitations {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.25));
+}
+
+.invitation-bound-state span,
+.invitation-bound-state small {
+  display: block;
+}
+
+.recent-invitations > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.2));
+}
+
+.banned-account-card {
+  max-width: 560px;
+}
+
+.admin-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.admin-panel-heading h2,
+.admin-panel-heading p {
+  margin-top: 0;
+}
+
+.admin-ban-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  gap: 16px;
+}
+
+.admin-ban-incidents,
+.admin-ban-details,
+.admin-ban-members {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-ban-incidents > button {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+}
+
+.admin-ban-incidents > button.active {
+  outline: 2px solid currentColor;
+}
+
+.admin-ban-summary {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-ban-members > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid rgba(127, 127, 127, 0.25);
+}
+
+.admin-ban-members > div > div {
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 720px) {
+  .invite-link-grid,
+  .admin-ban-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .recent-invitations > div {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-panel-heading,
+  .admin-ban-members > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -20,6 +20,7 @@ const registrationSecret = loadRegistrationSecret();
 const registrationStore = new EconomyRegistrationStore(store, {
   secret: registrationSecret,
   ensurePlayer,
+  publicOrigin,
 });
 const registrationService = createRegistrationService({ registrationStore });
 configureGiftCodeAdminStore(store);
@@ -36,8 +37,8 @@ function sendJson(response, statusCode, payload, extraHeaders = {}) {
   response.end(body);
 }
 
-function sendError(response, statusCode, message) {
-  sendJson(response, statusCode, { message });
+function sendError(response, statusCode, message, extra = {}) {
+  sendJson(response, statusCode, { message, ...extra });
 }
 
 function validateRequestOrigin(request) {
@@ -200,6 +201,7 @@ const server = createServer(async (request, response) => {
           email: body.email,
           password: body.password,
           code: body.code,
+          inviteCode: body.inviteCode,
           ipFingerprint,
           requestKey,
         });
@@ -220,22 +222,15 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    registrationStore.ensureLoggedInPlayer({
-      user,
-      ipFingerprint: registrationIpFingerprint(request),
-    });
-
-    if (method === 'GET' && path === '/api/game/state') {
-      const revisionValue = url.searchParams.get('revision');
-      const knownRevision = revisionValue !== null && /^\d+$/.test(revisionValue)
-        ? Number(revisionValue)
-        : undefined;
-      sendJson(response, 200, store.getStateSnapshot(user, knownRevision));
-      return;
-    }
-
-    if (method === 'POST' && /^\/api\/game\/facilities\/[^/]+\/plan$/.test(path)) {
-      sendError(response, 410, '生产计划已移除，工厂开启后仅持续生产');
+    if (method === 'POST' && path === '/api/game/session') {
+      const requestKey = requireIdempotencyKey(request);
+      const body = await readJson(request);
+      sendJson(response, 200, registrationStore.initializeSession({
+        user,
+        ipFingerprint: registrationIpFingerprint(request),
+        inviteCode: body.inviteCode,
+        requestKey,
+      }));
       return;
     }
 
@@ -297,7 +292,87 @@ const server = createServer(async (request, response) => {
         });
         return;
       }
+      if (method === 'GET' && path === '/api/game/admin/bans') {
+        sendJson(response, 200, { incidents: registrationStore.listBanIncidents() });
+        return;
+      }
+      const banIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)$/);
+      if (method === 'GET' && banIncident) {
+        sendJson(response, 200, registrationStore.getBanIncident(Number(banIncident[1])));
+        return;
+      }
+      const unbanUser = path.match(/^\/api\/game\/admin\/bans\/users\/(\d+)\/unban$/);
+      if (method === 'POST' && unbanUser) {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, registrationStore.unbanUser({
+          userId: Number(unbanUser[1]),
+          adminUserId: Number(user.id),
+          note: body.note,
+          requestKey,
+        }));
+        return;
+      }
+      const rebanUser = path.match(/^\/api\/game\/admin\/bans\/users\/(\d+)\/reban$/);
+      if (method === 'POST' && rebanUser) {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, registrationStore.rebanUser({
+          userId: Number(rebanUser[1]),
+          adminUserId: Number(user.id),
+          note: body.note,
+          requestKey,
+        }));
+        return;
+      }
+      const unbanIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)\/unban-all$/);
+      if (method === 'POST' && unbanIncident) {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, registrationStore.unbanIncident({
+          incidentId: Number(unbanIncident[1]),
+          adminUserId: Number(user.id),
+          note: body.note,
+          requestKey,
+        }));
+        return;
+      }
       sendError(response, 404, '管理员接口不存在');
+      return;
+    }
+
+    registrationStore.ensureLoggedInPlayer({
+      user,
+      ipFingerprint: registrationIpFingerprint(request),
+    });
+    registrationStore.assertPlayerActive(user.id);
+
+    if (method === 'GET' && path === '/api/game/invitations') {
+      sendJson(response, 200, { invitation: registrationStore.getInvitationSummary(user.id) });
+      return;
+    }
+    if (method === 'POST' && path === '/api/game/invitations/claim') {
+      const requestKey = requireIdempotencyKey(request);
+      const body = await readJson(request);
+      sendJson(response, 200, registrationStore.claimManualInvitation({
+        user,
+        inviteCode: body.inviteCode,
+        requestKey,
+      }));
+      return;
+    }
+
+    if (method === 'GET' && path === '/api/game/state') {
+      const revisionValue = url.searchParams.get('revision');
+      const knownRevision = revisionValue !== null && /^\d+$/.test(revisionValue)
+        ? Number(revisionValue)
+        : undefined;
+      sendJson(response, 200, store.getStateSnapshot(user, knownRevision));
+      return;
+    }
+
+    if (method === 'POST' && /^\/api\/game\/facilities\/[^/]+\/plan$/.test(path)) {
+      sendError(response, 410, '生产计划已移除，工厂开启后仅持续生产');
       return;
     }
 
@@ -329,7 +404,15 @@ const server = createServer(async (request, response) => {
     const statusCode = Number(error?.statusCode) || 500;
     if (error?.retryAfterSeconds) response.setHeader('Retry-After', String(error.retryAfterSeconds));
     if (statusCode >= 500) console.error(error);
-    sendError(response, statusCode, statusCode >= 500 ? '游戏服务器暂时不可用' : error.message);
+    sendError(
+      response,
+      statusCode,
+      statusCode >= 500 ? '游戏服务器暂时不可用' : error.message,
+      statusCode >= 500 ? {} : {
+        ...(error?.code ? { code: error.code } : {}),
+        ...(error?.incidentId ? { incidentId: Number(error.incidentId) } : {}),
+      },
+    );
   }
 });
 

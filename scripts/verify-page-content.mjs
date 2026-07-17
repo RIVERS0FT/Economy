@@ -17,6 +17,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/AuctionPage.tsx',
   'src/pages/LeaderboardPage.tsx',
   'src/pages/SettingsPage.tsx',
+  'src/components/InvitationSettings.tsx',
   'src/components/facilities/FacilityProductionFormula.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/components/shell/NavigationItems.tsx',
@@ -245,14 +246,16 @@ for (const text of [
   '生产商品总数',
   '买入商品总数',
   '卖出商品总数',
-  '邀请好友',
-  '分享或复制邀请链接',
+  'InvitationSettings',
   '礼品兑换',
   '退出登录',
   '重置经济状态',
   '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',
   'formatNumber(game.stats.workClicks)',
 ]) requireText('src/pages/SettingsPage.tsx', text);
+for (const text of ['邀请好友', '分享链接', '我的邀请码', '填写好友邀请码', '累计宝石']) {
+  requireText('src/components/InvitationSettings.tsx', text);
+}
 for (const text of ['登录会话', '重置服务器经济状态', '使用万和百万单位缩写大额资产', '全局使用 K/M/B/T 缩写大额金额与状态栏容量']) {
   forbidText('src/pages/SettingsPage.tsx', text);
 }
@@ -299,7 +302,7 @@ for (const text of [
   '以箭头替代生产进度条',
   '最高出价资金、退款、拍卖状态和归属转移全部由服务器判定',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
-  '第一阶段邀请功能只分享或复制 Economy 正式入口',
+  '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [

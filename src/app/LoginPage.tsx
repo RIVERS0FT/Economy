@@ -6,9 +6,15 @@ import type { AuthUser } from '../types';
 
 type AuthMode = 'login' | 'register';
 
-export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUser) => void }) {
+export function LoginPage({
+  inviteCode,
+  onAuthenticated,
+}: {
+  inviteCode?: string;
+  onAuthenticated: (user: AuthUser) => void | Promise<void>;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [mode, setMode] = useState<AuthMode>(inviteCode ? 'register' : 'login');
   const [submitting, setSubmitting] = useState(false);
   const [sendingCode, setSendingCode] = useState(false);
   const [resendSeconds, setResendSeconds] = useState(0);
@@ -67,8 +73,8 @@ export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUse
     try {
       const user = mode === 'login'
         ? await login(email, password)
-        : await completeRegistration(email, password, code);
-      onAuthenticated(user);
+        : await completeRegistration(email, password, code, inviteCode);
+      await onAuthenticated(user);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : mode === 'login' ? '登录失败' : '注册失败');
     } finally {
@@ -87,6 +93,11 @@ export function LoginPage({ onAuthenticated }: { onAuthenticated: (user: AuthUse
       </section>
 
       <section className="login-card panel">
+        {inviteCode ? (
+          <p className="form-notice invite-recognized" role="status">
+            已识别好友分享链接。完成注册后，分享者将立即获得宝石奖励。
+          </p>
+        ) : null}
         <div className="auth-mode-switch" role="tablist" aria-label="账号操作">
           <button type="button" role="tab" aria-selected={mode === 'login'} onClick={() => switchMode('login')}>登录</button>
           <button type="button" role="tab" aria-selected={mode === 'register'} onClick={() => switchMode('register')}>注册</button>
