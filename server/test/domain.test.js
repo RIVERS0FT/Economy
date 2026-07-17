@@ -139,7 +139,7 @@ test('client state uses version 14 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 14);
+    assert.equal(state.version, 15);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
     assert.equal(state.products.length, 22);

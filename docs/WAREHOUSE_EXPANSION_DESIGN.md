@@ -3,7 +3,7 @@
 > 状态：当前共享仓库容量、买单预占、生产空间与扩容规则基线
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-07-17
-> 客户端状态版本：14
+> 客户端状态版本：15
 > 世界状态版本：12
 
 生产与工厂集群以 `INDUSTRY_AND_PRODUCTION_DESIGN.md` 为准；页面归属以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。

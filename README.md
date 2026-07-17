@@ -6,7 +6,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 生产网页：`https://game.riversoft.top/economy/`
 - 管理员页面：`https://game.riversoft.top/economy/admin`
 - 封禁管理页面：`https://game.riversoft.top/economy/admin/bans`
-- 客户端状态版本：`14`
+- 客户端状态版本：`15`
 - 世界状态版本：`12`
 
 ## 当前核心循环
@@ -126,3 +126,5 @@ npm run build
 ```
 
 `npm run build` 会执行文档权威性、邮箱验证码注册、宝石邀请与同 IP 封禁、页面职责、UI 架构、产业目录与整数经济平衡、统一资产市场、液态玻璃、仓库、工厂集群、饮食竞争、礼品码批量生成、藏品拍卖、Nginx、服务器测试、TypeScript 和 Vite 生产构建检查。
+
+- 普通玩家成交回报只展示本人订单的成交结果；订单簿、状态接口和浏览器本地记录不得暴露成交来源、去向、人口需求组、对手身份或对手订单 ID。

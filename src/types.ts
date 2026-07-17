@@ -93,16 +93,13 @@ export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'open' | 'partial' | 'filled' | 'cancelled';
 export type OrderOwnerType = 'player' | 'population';
 
+/** Public fill returned to ordinary players. Counterparties and order links stay server-internal. */
 export interface OrderFill {
   id: string;
   quantity: number;
   price: number;
   total: number;
-  counterparty: string;
   createdAt: number;
-  makerOrderId: string;
-  takerOrderId: string;
-  liquidity: 'maker' | 'taker';
 }
 
 export interface AssetOrder {
@@ -112,9 +109,12 @@ export interface AssetOrder {
   productId?: string;
   facilityTypeId?: string;
   side: OrderSide;
-  ownerType: OrderOwnerType;
+  /** True only for the authenticated player's own order. */
+  isOwn?: boolean;
+  /** Server-internal ownership fields are omitted from ordinary player responses. */
+  ownerType?: OrderOwnerType;
   ownerId?: number;
-  ownerName: string;
+  ownerName?: string;
   demandGroupId?: 'food' | 'household';
   demandTier?: 'raw' | 'intermediate' | 'final';
   demandCycleId?: number;
@@ -150,7 +150,6 @@ export interface TradeRecord {
   quantity: number;
   price: number;
   total: number;
-  counterparty: string;
   createdAt: number;
   description: string;
 }
@@ -306,7 +305,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 14;
+  version: 15;
   userId: number;
   playerName: string;
   registeredAt: number;

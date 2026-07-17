@@ -16,7 +16,7 @@ import type {
   TradeRecord,
 } from '../types';
 
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 const MAX_ASSET_EVENTS = 480;
 const MAX_TRADES = 240;
 
@@ -134,6 +134,24 @@ function normalizeAssetEvents(events: unknown[]): AssetEvent[] {
   });
 }
 
+function normalizeTrades(trades: unknown[]): TradeRecord[] {
+  return trades.slice(0, MAX_TRADES).map((raw) => {
+    const trade = raw as Partial<TradeRecord>;
+    return {
+      id: String(trade.id || createId('local-trade')),
+      type: trade.type === 'facility' ? 'facility' : 'commodity',
+      productId: typeof trade.productId === 'string' ? trade.productId : undefined,
+      facilityTypeId: typeof trade.facilityTypeId === 'string' ? trade.facilityTypeId : undefined,
+      side: trade.side === 'sell' ? 'sell' : 'buy',
+      quantity: Number(trade.quantity || 0),
+      price: Number(trade.price || 0),
+      total: Number(trade.total || 0),
+      createdAt: Number(trade.createdAt || 0),
+      description: String(trade.description || '订单成交'),
+    };
+  });
+}
+
 function parseDocument(raw: string | null): LocalActivityDocument | null {
   if (!raw) return null;
   try {
@@ -141,7 +159,7 @@ function parseDocument(raw: string | null): LocalActivityDocument | null {
     return {
       version: STORAGE_VERSION,
       assetEvents: Array.isArray(parsed.assetEvents) ? normalizeAssetEvents(parsed.assetEvents) : [],
-      trades: Array.isArray(parsed.trades) ? parsed.trades.slice(0, MAX_TRADES) : [],
+      trades: Array.isArray(parsed.trades) ? normalizeTrades(parsed.trades) : [],
       snapshot: parsed.version === STORAGE_VERSION ? parsed.snapshot : undefined,
     };
   } catch {
@@ -153,15 +171,17 @@ function readDocument(userId: number): LocalActivityDocument {
   if (typeof window === 'undefined') return emptyDocument();
   const current = parseDocument(window.localStorage.getItem(storageKey(userId)));
   if (current) return current;
-  for (const legacyVersion of [3, 2, 1]) {
+  for (const legacyVersion of [4, 3, 2, 1]) {
     const legacy = parseDocument(window.localStorage.getItem(storageKey(userId, legacyVersion)));
     if (legacy) {
-      return {
+      const migrated: LocalActivityDocument = {
         version: STORAGE_VERSION,
-        assetEvents: legacy.assetEvents,
+        assetEvents: legacy.assetEvents.filter((event) => event.category !== 'trade' && event.sourceType !== 'trade'),
         trades: [],
         snapshot: undefined,
       };
+      writeDocument(userId, migrated);
+      return migrated;
     }
   }
   return emptyDocument();
@@ -171,6 +191,9 @@ function writeDocument(userId: number, document: LocalActivityDocument) {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(storageKey(userId), JSON.stringify(document));
+    for (const legacyVersion of [4, 3, 2, 1]) {
+      window.localStorage.removeItem(storageKey(userId, legacyVersion));
+    }
   } catch {
     // Local logs are optional and must never block authoritative game actions.
   }
@@ -186,7 +209,7 @@ function snapshotState(state: EconomyState): LocalStateSnapshot {
     warehouseLevel: state.warehouseLevel,
     facilityGroups: state.facilityGroups,
     facilityConstruction: state.facilityConstruction,
-    orders: state.orders.filter((order) => order.ownerId === state.userId),
+    orders: state.orders.filter((order) => order.isOwn),
     facilityListings: state.facilityListings.filter((listing) => listing.ownerId === state.userId),
     products: state.products,
     facilityTypes: state.facilityTypes,
@@ -373,7 +396,7 @@ function deriveAssetTrades(
   const previousById = new Map(before.orders.map((order) => [order.id, order]));
   const records: TradeRecord[] = [];
   for (const order of after.orders) {
-    if (order.ownerId !== after.userId) continue;
+    if (!order.isOwn) continue;
     const previousFillIds = new Set((previousById.get(order.id)?.fills ?? []).map((fill) => fill.id));
     const kind = order.assetKind === 'facility' || order.facilityTypeId ? 'facility' : 'commodity';
     const assetId = order.assetId ?? order.facilityTypeId ?? order.productId ?? 'wheat';
@@ -389,7 +412,6 @@ function deriveAssetTrades(
         quantity: fill.quantity,
         price: fill.price,
         total: fill.total,
-        counterparty: fill.counterparty,
         createdAt: fill.createdAt || createdAt,
         description: `${order.side === 'buy' ? '买入' : '卖出'} ${name}`,
       });

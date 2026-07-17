@@ -70,7 +70,7 @@ function createVersionedClientState(world, userId, now) {
     gems: player.gems,
     ...createWarehouseSummary(world, player),
     ...createCollectibleClientState(world, userId, now),
-    version: 14,
+    version: 15,
   };
 }
 

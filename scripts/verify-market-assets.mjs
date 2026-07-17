@@ -97,8 +97,10 @@ for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
   if (domainSource.includes(text)) failures.push('领域实现不应包含: ' + text);
 }
 for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
-for (const text of ['export interface OrderFill','fills?: OrderFill[]','makerOrderId','takerOrderId',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
-for (const text of ['STORAGE_VERSION = 4','previousFillIds','fill.price','fill.total','fill.counterparty']) requireText('src/utils/localActivityStore.ts', text);
+for (const text of ['export interface OrderFill','fills?: OrderFill[]','isOwn?: boolean',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
+for (const text of ['STORAGE_VERSION = 5','previousFillIds','fill.price','fill.total','normalizeTrades']) requireText('src/utils/localActivityStore.ts', text);
+for (const text of ['makerOrderId','takerOrderId','counterparty: string']) forbidText('src/types.ts', text);
+for (const text of ['fill.counterparty','trade.counterparty']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['after.markets[assetId]?.lastPrice','after.facilityMarkets[assetId]?.lastPrice','executedQuantity * price']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of [
   'maker price','反推玩家成交价','逐笔','工厂资产标签使用独立厂房 SVG',

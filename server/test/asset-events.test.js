@@ -30,7 +30,7 @@ test('client state version 14 excludes all player log arrays and factory instanc
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, 1_700_000_000_000);
-    assert.equal(state.version, 14);
+    assert.equal(state.version, 15);
     assert.equal(Object.hasOwn(state, 'trades'), false);
     assert.equal(Object.hasOwn(state, 'ledger'), false);
     assert.equal(Object.hasOwn(state, 'assetEvents'), false);

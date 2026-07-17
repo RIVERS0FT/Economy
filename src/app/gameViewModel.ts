@@ -145,7 +145,7 @@ export function orderAssetId(order: AssetOrder): string {
 
 function deriveGameData(game: EconomyState): DerivedGameData {
   const ownOpenOrders = game.orders.filter((order) => (
-    order.ownerId === game.userId && ['open', 'partial'].includes(order.status)
+    order.isOwn && ['open', 'partial'].includes(order.status)
   ));
   const currentRank = game.leaderboard.find((entry) => entry.isCurrentPlayer);
   const previousRank = currentRank ? game.leaderboard.find((entry) => entry.rank === currentRank.rank - 1) ?? null : null;
