@@ -207,10 +207,23 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
       ? { label: '查看经营提醒', onClick: () => setTab('production') }
       : { label: '进入市场', onClick: () => setTab('market') };
 
-  const recentAssetEvents = useMemo(() => localAssetEvents
-    .filter((event) => event.createdAt >= now - 7 * 86_400_000)
+  const recentCashEvents = useMemo(() => localAssetEvents
+    .filter((event) => event.createdAt >= now - 7 * 86_400_000 && event.cashDelta !== 0)
     .sort((left, right) => right.createdAt - left.createdAt)
     .slice(0, 3), [localAssetEvents, now]);
+
+  const marketOrderState = overviewMarket
+    ? overviewMarket.bestBid > 0 && overviewMarket.bestAsk > 0
+      ? `当前买卖价差：${formatCurrency(Math.max(0, overviewMarket.bestAsk - overviewMarket.bestBid))}`
+      : overviewMarket.bestBid > 0
+        ? '当前只有买单，暂无可供买入的卖单'
+        : overviewMarket.bestAsk > 0
+          ? '当前只有卖单，暂无可立即成交的买单'
+          : '当前没有有效买卖挂单'
+    : '';
+  const openOrdersListClassName = ownOpenOrders.length > 3
+    ? 'overview-open-orders-list overview-open-orders-list--scrollable'
+    : 'overview-open-orders-list';
 
   return (
     <PageLayout
@@ -296,12 +309,12 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
                 <div className="overview-market-metrics">
                   <OverviewMetric label="最近成交" value={<CurrencyAmount>{formatCurrency(overviewMarket.lastPrice)}</CurrencyAmount>} />
                   <OverviewMetric
-                    tone="success"
+                    tone={overviewMarket.bestBid ? 'success' : 'neutral'}
                     label="最高买价"
                     value={overviewMarket.bestBid ? <CurrencyAmount>{formatCurrency(overviewMarket.bestBid)}</CurrencyAmount> : '暂无'}
                   />
                   <OverviewMetric
-                    tone="danger"
+                    tone={overviewMarket.bestAsk ? 'danger' : 'neutral'}
                     label="最低卖价"
                     value={overviewMarket.bestAsk ? <CurrencyAmount>{formatCurrency(overviewMarket.bestAsk)}</CurrencyAmount> : '暂无'}
                   />
@@ -313,6 +326,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
                 </div>
                 {overviewMarket.hasMarketActivity ? (
                   <>
+                    <p className="overview-market-order-state" data-testid="overview-market-order-state">{marketOrderState}</p>
                     <PriceSparkline buckets={overviewMarket.buckets} variant="compact" />
                     <div className="overview-market-footer">
                       <small>{overviewMarket.flow.netVolume > 0
@@ -365,20 +379,18 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
             </DataList>
             <div className="overview-subsection-heading">
               <strong>本周资金变化</strong>
-              <span>当前浏览器记录</span>
+              <span>当前设备现金记录</span>
             </div>
             <div className="overview-asset-events">
-              {recentAssetEvents.map((event) => (
+              {recentCashEvents.map((event) => (
                 <div key={event.id}>
                   <span><strong>{event.description}</strong><small>{formatTime(event.createdAt)}</small></span>
-                  {event.cashDelta !== 0 ? (
-                    <CurrencyAmount className={event.cashDelta > 0 ? 'positive' : 'negative'} sign={event.cashDelta > 0 ? '+' : undefined}>
-                      {formatCurrency(event.cashDelta)}
-                    </CurrencyAmount>
-                  ) : <small>资产状态更新</small>}
+                  <CurrencyAmount className={event.cashDelta > 0 ? 'positive' : 'negative'} sign={event.cashDelta > 0 ? '+' : undefined}>
+                    {formatCurrency(event.cashDelta)}
+                  </CurrencyAmount>
                 </div>
               ))}
-              {recentAssetEvents.length === 0 ? <EmptyState className="overview-compact-empty">本周暂无本地资金变化记录。</EmptyState> : null}
+              {recentCashEvents.length === 0 ? <EmptyState className="overview-compact-empty">本周暂无现金收入或支出记录。</EmptyState> : null}
             </div>
           </Panel>
 
@@ -389,7 +401,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
               <DataRow label="卖单" value={`${formatNumber(sellOrderCount)} 笔`} tone={sellOrderCount ? 'danger' : 'neutral'} />
               <DataRow label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} tone={game.frozenCredits ? 'warning' : 'neutral'} />
             </DataList>
-            <div className="overview-open-orders-list">
+            <div className={openOrdersListClassName}>
               {ownOpenOrders.map((order) => {
                 const assetId = orderAssetId(order);
                 const facilityOrder = orderKind(order) === 'facility';
