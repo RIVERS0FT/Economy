@@ -37,14 +37,32 @@ function flowDirection(netVolume: number): MarketFlowDirection {
   return 'neutral';
 }
 
+export function getMarketWindowBounds(now = Date.now()) {
+  const windowEnd = Math.floor(now / MARKET_BUCKET_MS) * MARKET_BUCKET_MS + MARKET_BUCKET_MS;
+  return {
+    windowStart: windowEnd - MARKET_WINDOW_MS,
+    windowEnd,
+  };
+}
+
+export function countMarketHistoryPointsInWindow(points: PricePoint[], now = Date.now()) {
+  const { windowStart, windowEnd } = getMarketWindowBounds(now);
+  return points.reduce((count, point) => (
+    Number.isFinite(Number(point.createdAt))
+    && Number(point.createdAt) >= windowStart
+    && Number(point.createdAt) < windowEnd
+      ? count + 1
+      : count
+  ), 0);
+}
+
 export function buildMarketHistoryBuckets(
   points: PricePoint[],
   fallbackPrice: number,
   now = Date.now(),
 ): MarketHistoryBucket[] {
   const normalizedFallback = validPrice(Number(fallbackPrice), 1);
-  const windowEnd = Math.floor(now / MARKET_BUCKET_MS) * MARKET_BUCKET_MS + MARKET_BUCKET_MS;
-  const windowStart = windowEnd - MARKET_WINDOW_MS;
+  const { windowStart, windowEnd } = getMarketWindowBounds(now);
   const normalizedPoints = points
     .map((point) => ({
       price: validPrice(Number(point.price), normalizedFallback),
