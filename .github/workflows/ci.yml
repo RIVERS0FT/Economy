@@ -25,7 +25,20 @@ jobs:
       - name: Assemble population demand increase
         if: ${{ hashFiles('scripts/apply-increase-population-demand.mjs') != '' }}
         run: |
-          node scripts/apply-increase-population-demand.mjs
+          set +e
+          node scripts/apply-increase-population-demand.mjs > assembly-error.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            cat assembly-error.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add assembly-error.log
+            git commit -m "记录人口需求组装错误"
+            git push origin HEAD:${{ github.head_ref }}
+            exit "$status"
+          fi
+          set -e
+          rm -f assembly-error.log
           rm -f scripts/apply-increase-population-demand.mjs
           git checkout origin/main -- .github/workflows/ci.yml
           git config user.name "github-actions[bot]"
