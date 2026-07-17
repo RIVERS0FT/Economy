@@ -126,6 +126,7 @@ export interface LoadedGameViewModel {
   cancelOrder: (orderId: string) => Promise<ActionResult>;
   renamePlayer: (name: string) => Promise<ActionResult>;
   redeemGift: (code: string) => Promise<ActionResult>;
+  exchangeGems: (gems: number) => Promise<ActionResult>;
   reset: () => Promise<ActionResult>;
 }
 
@@ -369,6 +370,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     cancelOrder: (orderId) => runAction('cancelOrder', () => gameActions.cancelOrder(orderId)),
     renamePlayer: (name) => runAction('renamePlayer', () => gameActions.renamePlayer(name)),
     redeemGift: (code) => runAction('redeemGift', () => gameActions.redeemGift(code)),
+    exchangeGems: (gems) => runAction('exchangeGems', () => gameActions.exchangeGems(gems)),
     reset: () => runAction('resetPlayer', gameActions.reset),
   };
   return { status: 'ready', model };

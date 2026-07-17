@@ -16,6 +16,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/CollectionsPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/LeaderboardPage.tsx',
+  'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
   'src/components/InvitationSettings.tsx',
   'src/components/facilities/FacilityProductionFormula.tsx',
@@ -207,6 +208,7 @@ for (const text of [
   "{ id: 'assets', label: '资产' }",
   "{ id: 'collections', label: '藏品' }",
   "{ id: 'auction', label: '拍卖' }",
+  "{ id: 'gem-shop', label: '宝石商店' }",
 ]) requireText('src/config/navigation.ts', text);
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 
@@ -286,9 +288,10 @@ for (const [path, text] of [
 ]) requireText(path, text);
 
 for (const text of [
-  '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜设置',
+  '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜宝石商店｜设置',
   '| 藏品 | `collections` | `CollectionsPage` | 当前玩家持有的唯一艺术藏品 |',
   '| 拍卖 | `auction` | `AuctionPage` | 藏品竞价拍卖与结算结果 |',
+  '| 宝石商店 | `gem-shop` | `GemShopPage` | 宝石单向兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',
   '页面主标题固定为“生产”',
   '不显示独立库存总量行',
@@ -342,4 +345,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、八页导航、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、九页导航、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、宝石商店、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。');

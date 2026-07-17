@@ -1,7 +1,8 @@
 import type { PropsWithChildren, SVGProps } from 'react';
+import { GemIcon } from './GemIcon';
 
 type GameIconProps = SVGProps<SVGSVGElement>;
-export type NavigationIconName = 'home' | 'market' | 'production' | 'assets' | 'collections' | 'auction' | 'leaderboard' | 'settings';
+export type NavigationIconName = 'home' | 'market' | 'production' | 'assets' | 'collections' | 'auction' | 'leaderboard' | 'gem-shop' | 'settings';
 
 function GameIcon({ children, className, ...props }: PropsWithChildren<GameIconProps>) {
   return (
@@ -94,6 +95,7 @@ export function NavigationIcon({ name, ...props }: { name: NavigationIconName } 
     case 'collections': return <CollectionIcon {...props} />;
     case 'auction': return <AuctionIcon {...props} />;
     case 'leaderboard': return <LeaderboardIcon {...props} />;
+    case 'gem-shop': return <GemIcon {...props} />;
     case 'settings': return <SettingsIcon {...props} />;
   }
 }

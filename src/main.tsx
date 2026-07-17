@@ -22,6 +22,7 @@ import './styles/facility-group-card-grid.css';
 import './styles/market-funds.css';
 import './styles/warehouse-expansion.css';
 import './styles/collectibles-auctions.css';
+import './styles/gem-shop.css';
 import './styles/unified-market-admin.css';
 import './styles/virtual-list.css';
 import './styles/production-surface.css';

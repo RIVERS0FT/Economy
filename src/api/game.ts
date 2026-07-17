@@ -5,6 +5,22 @@ const GAME_API_BASE = '/economy-api/game';
 export interface GameActionResult { ok: boolean; message: string; }
 export interface GameActionResponse { result: GameActionResult; revision: number; state: EconomyState; }
 export interface GameStatePollResponse { revision: number; unchanged: boolean; state?: EconomyState; }
+export interface GemShopExchangeRecord {
+  gemsSpent: number;
+  creditsReceived: number;
+  createdAt: number;
+}
+export interface GemShopSummary {
+  gems: number;
+  credits: number;
+  creditsPerGem: number;
+  minExchangeGems: number;
+  maxExchangeGems: number;
+  maxExchangeableGems: number;
+  totalGemsSpent: number;
+  totalCreditsReceived: number;
+  recentExchanges: GemShopExchangeRecord[];
+}
 
 export class GameApiError extends Error {
   status: number;
@@ -43,6 +59,11 @@ function postAction(path: string, body: Record<string, unknown> = {}) {
 export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
   const suffix = Number.isInteger(revision) ? `?revision=${revision}` : '';
   return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET', signal });
+}
+
+export async function getGemShopSummary(): Promise<GemShopSummary> {
+  const payload = await request<{ gemShop: GemShopSummary }>('/gem-shop', { method: 'GET' });
+  return payload.gemShop;
 }
 
 export const gameActions = {
@@ -84,5 +105,6 @@ export const gameActions = {
     body: JSON.stringify({ playerName }),
   }),
   redeemGift: (code: string) => postAction('/gifts/redeem', { code }),
+  exchangeGems: (gems: number) => postAction('/gem-shop/exchange', { gems }),
   reset: () => postAction('/reset'),
 };
