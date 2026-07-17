@@ -18,8 +18,10 @@ jobs:
           fetch-depth: 1
           show-progress: false
 
-      - name: Diagnose local trade anonymization bundle
-        run: node scripts/apply-anonymize-local-trades.mjs
+      - name: Apply local trade anonymization bundle
+        run: |
+          node scripts/prepare-anonymize-push.mjs
+          node scripts/apply-anonymize-local-trades.mjs
 
       - name: Setup Node
         uses: actions/setup-node@v4
