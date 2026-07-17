@@ -11,6 +11,8 @@
   flex: 0 0 auto;
   aspect-ratio: 80 / 19;
   display: block;
+  box-sizing: border-box;
+  padding-inline: 3px;
 }
 
 .overview-market-order-state {
@@ -36,6 +38,18 @@
   flex: 1;
   overflow-y: auto;
   padding-right: var(--space-1);
+}
+
+.overview-assets-card .overview-core-data .ui-data-row {
+  padding-block: var(--space-2);
+}
+
+.overview-assets-card .overview-subsection-heading {
+  margin-top: var(--space-2);
+}
+
+.overview-asset-events {
+  flex: 0 0 auto;
 }
 
 .overview-asset-events > div:not(.empty-state),
