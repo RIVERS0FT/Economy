@@ -10,10 +10,23 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Package repository source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude=.git --exclude=node_modules -czf economy-source.tar.gz .
+
+      - name: Upload repository source
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-source
+          path: economy-source.tar.gz
+          if-no-files-found: error
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -21,95 +34,11 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Reassemble bundled auction implementation
-        shell: bash
-        run: |
-          set -euo pipefail
-          for file in scripts/.auction-patch/frontend-00 scripts/.auction-patch/frontend-01 scripts/.auction-patch/frontend-03 scripts/.auction-patch/frontend-05; do
-            base64 --decode "$file"
-          done > /tmp/apply-auction-frontend.mjs
-          for file in scripts/.auction-patch/server-00 scripts/.auction-patch/server-02; do
-            base64 --decode "$file"
-          done > /tmp/apply-auction-server.mjs
-          for file in scripts/.auction-patch/docs-00 scripts/.auction-patch/docs-02; do
-            base64 --decode "$file"
-          done > /tmp/apply-auction-docs.mjs
-          node --check /tmp/apply-auction-frontend.mjs
-          node --check /tmp/apply-auction-server.mjs
-          node --check /tmp/apply-auction-docs.mjs
-
-      - name: Apply bundled auction implementation
-        id: apply_patch
-        continue-on-error: true
-        shell: bash
-        run: |
-          set +e
-          {
-            node /tmp/apply-auction-frontend.mjs
-            node /tmp/apply-auction-server.mjs
-            node /tmp/apply-auction-docs.mjs
-          } > apply-auction.log 2>&1
-          status=$?
-          cat apply-auction.log
-          echo "$status" > apply-auction.status
-          exit "$status"
-
-      - name: Upload patch diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bundled-auctions-diagnostics
-          path: |
-            apply-auction.log
-            apply-auction.status
-            /tmp/apply-auction-frontend.mjs
-            /tmp/apply-auction-server.mjs
-            /tmp/apply-auction-docs.mjs
-          if-no-files-found: error
-
-      - name: Require successful patch
-        shell: bash
-        run: test "$(cat apply-auction.status)" = "0"
-
       - name: Install dependencies
         run: npm ci
 
       - name: Build and test
         run: npm run build
-
-      - name: Package implementation source
-        shell: bash
-        run: |
-          set -euo pipefail
-          tar -czf bundled-auctions-source.tar.gz \
-            README.md \
-            docs/README.md \
-            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
-            docs/GIFT_CODE_AND_ADMIN_DESIGN.md \
-            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
-            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
-            docs/WAREHOUSE_EXPANSION_DESIGN.md \
-            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
-            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
-            docs/UI_DESIGN_SYSTEM.md \
-            server/src/collectibles.js \
-            server/src/facility-groups.js \
-            server/src/warehouse.js \
-            server/test/collectibles-auctions.test.js \
-            src/api/game.ts \
-            src/collectibles/types.ts \
-            src/pages/AuctionPage.tsx \
-            src/pages/AssetsPage.tsx \
-            src/styles/collectibles-auctions.css \
-            src/types.ts \
-            scripts/verify-collectibles-auctions.mjs
-
-      - name: Upload implementation source
-        uses: actions/upload-artifact@v4
-        with:
-          name: bundled-auctions-source
-          path: bundled-auctions-source.tar.gz
-          if-no-files-found: error
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
