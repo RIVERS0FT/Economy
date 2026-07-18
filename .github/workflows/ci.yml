@@ -25,9 +25,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat scripts/.auction-patch/frontend-* | base64 --decode > /tmp/apply-auction-frontend.mjs
-          cat scripts/.auction-patch/server-* | base64 --decode > /tmp/apply-auction-server.mjs
-          cat scripts/.auction-patch/docs-* | base64 --decode > /tmp/apply-auction-docs.mjs
+          for file in scripts/.auction-patch/frontend-00 scripts/.auction-patch/frontend-01 scripts/.auction-patch/frontend-03 scripts/.auction-patch/frontend-05; do
+            base64 --decode "$file"
+          done > /tmp/apply-auction-frontend.mjs
+          for file in scripts/.auction-patch/server-00 scripts/.auction-patch/server-02; do
+            base64 --decode "$file"
+          done > /tmp/apply-auction-server.mjs
+          for file in scripts/.auction-patch/docs-00 scripts/.auction-patch/docs-02; do
+            base64 --decode "$file"
+          done > /tmp/apply-auction-docs.mjs
           node /tmp/apply-auction-frontend.mjs
           node /tmp/apply-auction-server.mjs
           node /tmp/apply-auction-docs.mjs
