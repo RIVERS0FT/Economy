@@ -1,0 +1,103 @@
+path = 'docs/GIFT_CODE_AND_ADMIN_DESIGN.md'
+text = read(path)
+text = replace_once(text, '# Economy 礼品兑换、藏品拍卖与管理员设计', '# Economy 礼品兑换、资产拍卖与管理员设计', path)
+text = replace_once(text, '> 状态：礼品码、藏品、拍卖、宝石邀请封禁与管理员后台的当前权威设计', '> 状态：礼品码、藏品、藏品／商品／工厂拍卖、宝石邀请封禁与管理员后台的当前权威设计', path)
+start = text.index('## 3. 藏品拍卖')
+end = text.index('## 4. 玩家页面职责', start)
+new_section = '''## 3. 资产拍卖
+
+商品和工厂均可进入竞价拍卖，且与唯一藏品使用同一公开竞价、最高出价冻结和服务器自动结算模型。持久化继续沿用 `collectibleAuctions` 数组以兼容旧世界，但每条新记录必须写入 `assetKind`、`assetId`、`quantity` 和 `escrowStatus`；客户端同时返回通用 `assetAuctions`，并保留仅含藏品的 `collectibleAuctions` 兼容别名。本次属于加法迁移，不提高世界版本 13 或客户端状态版本 15。
+
+- 只有当前所有者可以发起拍卖；藏品数量固定为 1，商品和工厂数量必须为正整数。同一藏品同时最多存在一场进行中拍卖。
+- 发布时必须冻结卖方资产：商品从 `available` 转入 `frozen`；工厂拍卖冻结数量与订单簿卖单冻结合并计算，并立即退出当前参与数量和后续生产；藏品保持卖方归属但进入逻辑托管。
+- 起拍价为正整数，且表示整批资产总价；拍卖时长为 1～168 小时。卖家不能竞拍自己的任何资产。
+- 首次出价不得低于起拍价；后续出价至少比当前最高价高 1。最高出价资金转入冻结资金；被超价时原最高出价立即完整释放，同一最高出价者只冻结提高报价的差额。
+- 商品最高出价者必须拥有足够仓库剩余容量；进行中的商品拍卖按数量预占仓库，与商品买单预占合并计算。被超价、取消、流拍或结算后释放预占；成交时预占等量转换为实物库存。
+- 没有出价的拍卖可由卖家取消并立即解冻资产；出现任何有效出价后不得取消。
+- 拍卖结束由服务器在状态读取、游戏操作或管理员读取时自动结算。成交时冻结资金支付给卖家，商品数量、工厂数量或藏品归属转移给最高出价者；没有出价时标记为流拍并释放资产。
+- 工厂成交给正在运行的买方集群时从下一完整周期加入。卖方剩余工厂保持原运行意图；全部工厂曾被冻结导致异常时，解冻后从新的完整周期恢复，不补算冻结期间产出。
+- 拍卖成交价不得写入商品或工厂订单簿行情，不更新 `lastPrice`、价格历史、最高买价估值或统一订单簿成交量；拍卖与订单簿是两种独立交易机制。
+- 结算时若归属、玩家、卖方冻结资产、买方仓库或最高出价冻结资金异常，拍卖取消并尽可能释放双方冻结，不得生成负余额、重复转移或错误归属。
+- 玩家存在进行中的出售拍卖或作为最高出价者参与任何资产拍卖时，禁止重置经济状态。
+
+'''
+text = text[:start] + new_section + text[end:]
+text = replace_once(text, '- “拍卖”页负责发起藏品拍卖、查看进行中拍卖、提交竞价、取消无出价拍卖以及查看最近结算结果。', '- “拍卖”页负责在藏品、商品和工厂之间选择资产与数量，查看进行中拍卖、提交竞价、取消无出价拍卖以及查看最近结算结果。', path)
+text = replace_once(text, '- `POST /api/game/collectible-auctions`\n- `POST /api/game/collectible-auctions/:auctionId/bids`\n- `POST /api/game/collectible-auctions/:auctionId/cancel`', '- `POST /api/game/auctions`\n- `POST /api/game/auctions/:auctionId/bids`\n- `POST /api/game/auctions/:auctionId/cancel`\n- 原 `/api/game/collectible-auctions*` 路径保留为仅供旧客户端使用的兼容别名', path)
+write(path, text)
+
+path = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md'
+text = read(path)
+text = replace_once(text, '| 拍卖 | `auction` | `AuctionPage` | 藏品竞价拍卖与结算结果 |', '| 拍卖 | `auction` | `AuctionPage` | 藏品、商品与工厂竞价拍卖与结算结果 |', path)
+old = '''## 8. 拍卖
+
+页面主标题固定为“拍卖”。必须包含当前玩家可拍卖藏品选择、起拍价和时长、进行中拍卖、最低有效出价、无出价取消以及最近结束结果。拍卖时长输入和上限使用 `h`，进行中倒计时复用全局 `formatDuration`。
+
+最高出价资金、退款、拍卖状态和归属转移全部由服务器判定。客户端倒计时只用于展示，显示到零时不得自行宣布成交，必须等待服务器返回结算状态。
+
+拍卖页不得允许卖家竞拍自己的藏品、在已有出价后取消、同时为同一藏品创建多场拍卖、把拍卖保存为浏览器唯一状态，或将拍卖最高价写入商品／工厂估值。'''
+new = '''## 8. 拍卖
+
+页面主标题固定为“拍卖”。必须包含当前玩家可拍卖资产类型（藏品／商品／工厂）、资产选择、商品或工厂数量、整批起拍价和时长、进行中拍卖、最低有效出价、无出价取消以及最近结束结果。藏品数量固定为 1；商品选项只显示可用库存，工厂选项只显示未被订单簿或拍卖冻结的可用数量。拍卖时长输入和上限使用 `h`，进行中倒计时复用全局 `formatDuration`。
+
+拍卖卡必须明确显示资产类型、资产名称、数量、当前价、出价次数、卖家和最高出价者。商品使用 `ProductIcon`，工厂使用 `FactoryIcon`，藏品继续使用 IIIF 缩略图；不得用同一个通用字符替代三种资产语义。
+
+最高出价资金、商品仓库预占、卖方资产冻结、退款、拍卖状态和归属转移全部由服务器判定。客户端倒计时只用于展示，显示到零时不得自行宣布成交，必须等待服务器返回结算状态。
+
+拍卖页不得允许卖家竞拍自己的资产、在已有出价后取消、同时为同一藏品创建多场拍卖、拍卖超过可用商品或工厂数量、把拍卖保存为浏览器唯一状态，或将拍卖最高价写入商品／工厂订单簿行情和估值。'''
+text = replace_once(text, old, new, path)
+write(path, text)
+path = 'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md'
+text = read(path)
+text = replace_once(text, '- 工厂卖单冻结对应工厂数量。\n- 撤单释放未成交部分资产。', '- 工厂卖单冻结对应工厂数量。\n- 商品与工厂拍卖也冻结卖方资产；拍卖冻结与订单簿冻结必须合并计算，任何一方都只能使用扣除另一方冻结后的可用数量。\n- 撤单释放未成交部分资产。', path)
+text = replace_once(text, '商品买单还会预占共享仓库容量；工厂买单不占仓库。', '商品买单和商品拍卖最高出价都会预占共享仓库容量；两者合并计算。工厂买单和工厂竞拍不占仓库。', path)
+insert = '''## 3.1 拍卖与订单簿隔离
+
+拍卖成交不属于订单簿成交。商品或工厂拍卖的起拍价、当前最高价和成交价不得进入 `AssetOrder`、订单簿买卖盘、`lastPrice`、价格历史、主动方向成交量或最高非本人买价估值。订单簿冻结与拍卖冻结只在可用资产校验和工厂参与数量上合并，撮合、价格发现和成交统计保持独立。
+
+商品拍卖最高出价者的数量按仓库预占处理；工厂拍卖冻结数量与工厂卖单冻结数量共同退出生产。拍卖取消或流拍释放对应冻结，成交时直接完成资产转移，不创建伪造订单或成交明细。
+
+'''
+text = replace_once(text, '## 4. 撮合\n', insert + '## 4. 撮合\n', path)
+write(path, text)
+
+path = 'docs/WAREHOUSE_EXPANSION_DESIGN.md'
+text = read(path)
+text = replace_once(text, '- 商品买单预占容量；工厂买单不预占仓库。', '- 商品买单与商品拍卖最高出价预占容量；工厂买单和工厂拍卖不预占仓库。', path)
+text = replace_once(text, '买单预占 = Σ(当前玩家 open/partial 商品买单剩余数量)\n已用容量 = 实物库存 + 买单预占', '订单预占 = Σ(当前玩家 open/partial 商品买单剩余数量)\n拍卖预占 = Σ(当前玩家作为最高出价者的进行中商品拍卖数量)\n已用容量 = 实物库存 + 订单预占 + 拍卖预占', path)
+text = replace_once(text, '- 工厂买单；\n- 商品卖单；', '- 工厂买单与工厂竞拍；\n- 商品卖单与卖方商品拍卖（商品已经计入冻结实物库存）；', path)
+text = replace_once(text, '提交商品买单前，服务器必须确认剩余容量可以覆盖订单的未成交数量。', '提交商品买单或成为商品拍卖最高出价者前，服务器必须确认剩余容量可以覆盖新增数量。进行中的商品拍卖由最高出价者预占；被超价、取消或流拍后立即释放，成交后等量转换为实物库存。', path)
+write(path, text)
+
+path = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
+text = read(path)
+text = replace_once(text, '''  listedCount: number;
+  availableCount: number;''', '''  listedCount: number;
+  auctionedCount: number;
+  frozenCount: number;
+  availableCount: number;''', path)
+text = replace_once(text, '施工完成、工厂买单成交或卖单撤销解冻发生在运行期间时：', '施工完成、工厂买单或工厂拍卖成交、订单簿卖单撤销或拍卖取消／流拍解冻发生在运行期间时：', path)
+text = replace_once(text, '新增数量不得重置 `cycleStartedAt`，不得获得部分周期产出。运行中提交工厂卖单时，服务器先结算已经完成的完整周期，再从当前参与数量和待加入数量中冻结对应数量。冻结数量立即降低当前或下一周期产能。', '新增数量不得重置 `cycleStartedAt`，不得获得部分周期产出。运行中提交工厂卖单或工厂拍卖时，服务器先结算已经完成的完整周期，再从当前参与数量和待加入数量中冻结对应数量。订单簿卖单与拍卖冻结数量合并计算，并立即降低当前或下一周期产能；取消或流拍解冻后从下一完整周期加入。', path)
+write(path, text)
+
+path = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'
+text = read(path)
+text = replace_once(text, '- 服务器重新校验价格、数量、资金、库存、仓库、工厂、订单归属、藏品、拍卖、邀请码、封禁和管理员角色。', '- 服务器重新校验价格、数量、资金、库存、仓库、工厂、订单归属、藏品、拍卖资产归属与冻结、邀请码、封禁和管理员角色。', path)
+text = replace_once(text, '- 禁止玩家自成交，卖家不得竞拍自己的藏品，玩家不得填写自己的邀请码。', '- 禁止玩家自成交，卖家不得竞拍自己的藏品、商品或工厂，玩家不得填写自己的邀请码。', path)
+text = replace_once(text, '- 邮箱验证码注册不修改世界 JSON 结构，不提高世界版本。', '- 邮箱验证码注册不修改世界 JSON 结构，不提高世界版本。\n- 通用资产拍卖继续复用世界 JSON 的 `collectibleAuctions` 持久化数组，并为记录增加 `assetKind`、`assetId`、`quantity` 与 `escrowStatus`；客户端增加 `assetAuctions` 并保留藏品兼容别名。本次加法迁移不提高世界版本 13 或客户端状态版本 15。', path)
+write(path, text)
+
+path = 'docs/UI_DESIGN_SYSTEM.md'
+text = read(path)
+text += '\n\n## 资产拍卖图标规则\n\n拍卖页的藏品继续使用 IIIF 缩略图；商品必须使用 `ProductIcon`；工厂必须使用 `FactoryIcon`。创建表单在藏品、商品和工厂之间使用明确文字按钮切换，移动端改为单列但不得隐藏数量、起拍价或时长。\n'
+write(path, text)
+# Keep page-document static assertions aligned with the expanded auction responsibility.
+path = 'scripts/verify-page-content.mjs'
+text = read(path)
+text = replace_once(text, """  '| 拍卖 | `auction` | `AuctionPage` | 藏品竞价拍卖与结算结果 |',
+""", """  '| 拍卖 | `auction` | `AuctionPage` | 藏品、商品与工厂竞价拍卖与结算结果 |',
+""", path)
+text = replace_once(text, """  '最高出价资金、退款、拍卖状态和归属转移全部由服务器判定',
+""", """  '最高出价资金、商品仓库预占、卖方资产冻结、退款、拍卖状态和归属转移全部由服务器判定',
+""", path)
+write(path, text)
