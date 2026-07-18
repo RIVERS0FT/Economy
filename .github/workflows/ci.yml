@@ -19,13 +19,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tar --exclude=.git --exclude=node_modules -czf economy-source.tar.gz .
+          tar --exclude=.git --exclude=node_modules -czf /tmp/economy-source.tar.gz .
 
       - name: Upload repository source
         uses: actions/upload-artifact@v4
         with:
           name: economy-source
-          path: economy-source.tar.gz
+          path: /tmp/economy-source.tar.gz
           if-no-files-found: error
 
       - name: Setup Node
