@@ -30,7 +30,7 @@ function storedQuantity(player) {
 }
 
 function reservedBuyQuantity(world, userId) {
-  return (world?.orders || []).reduce((sum, order) => {
+  const orderReserved = (world?.orders || []).reduce((sum, order) => {
     if (
       Number(order?.ownerId) !== Number(userId)
       || order?.assetKind === 'facility'
@@ -39,6 +39,17 @@ function reservedBuyQuantity(world, userId) {
     ) return sum;
     return sum + Math.max(0, Number(order.remaining || 0));
   }, 0);
+  const auctionReserved = (world?.collectibleAuctions || []).reduce((sum, auction) => {
+    if (
+      auction?.assetKind !== 'commodity'
+      || Number(auction?.highestBidderId) !== Number(userId)
+      || auction?.status !== 'open'
+      || auction?.escrowStatus === 'released'
+      || auction?.escrowStatus === 'transferred'
+    ) return sum;
+    return sum + Math.max(0, Number(auction.quantity || 0));
+  }, 0);
+  return orderReserved + auctionReserved;
 }
 
 export function warehouseCapacityIncreaseForLevel(level) {

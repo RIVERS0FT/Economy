@@ -31,6 +31,9 @@ import { createGemShopSummary, exchangeGems } from './gem-shop.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const COLLECTIBLE_ACTIONS = new Set([
+  'createAuction',
+  'placeAuctionBid',
+  'cancelAuction',
   'createCollectibleAuction',
   'placeCollectibleBid',
   'cancelCollectibleAuction',
@@ -39,8 +42,8 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
-  'exchangeGems', 'createCollectibleAuction', 'placeCollectibleBid',
-  'cancelCollectibleAuction', 'resetPlayer',
+  'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
+  'createCollectibleAuction', 'placeCollectibleBid', 'cancelCollectibleAuction', 'resetPlayer',
 ]);
 
 function normalizeJson(value) {

@@ -180,7 +180,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                     <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
                       <span>运行中 <strong>{formatNumber(group.participatingCount)}</strong></span>
                       <span>下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong></span>
-                      <span>冻结中 <strong>{formatNumber(group.listedCount)}</strong></span>
+                      <span>冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong></span>
                     </div>
                   </div>
 

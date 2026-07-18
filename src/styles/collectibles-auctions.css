@@ -139,3 +139,62 @@
   .collectible-auction-history-list .ui-status-tag { grid-column: 1 / -1; justify-self: start; }
   .admin-ownership-list > div { grid-template-columns: 1fr; }
 }
+
+
+.asset-auction-kind-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.asset-auction-form {
+  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(110px, 1fr)) auto;
+}
+
+.asset-auction-icon {
+  display: grid;
+  min-height: 210px;
+  max-height: 280px;
+  place-items: center;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: radial-gradient(circle at 50% 35%, rgba(236, 196, 116, .13), transparent 48%), rgba(5, 9, 12, .82);
+}
+
+.asset-auction-icon .game-icon {
+  width: clamp(5rem, 16vw, 8.5rem);
+  height: clamp(5rem, 16vw, 8.5rem);
+  color: var(--color-text-secondary);
+}
+
+.asset-auction-history-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: .45rem;
+  background: rgba(255, 255, 255, .045);
+  color: var(--color-text-secondary);
+}
+
+.asset-auction-history-icon .game-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.collectible-auction-history-list > div > img {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: .45rem;
+}
+
+@media (max-width: 960px) {
+  .asset-auction-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .asset-auction-form label:first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 600px) {
+  .asset-auction-form { grid-template-columns: 1fr; }
+  .asset-auction-form label:first-child { grid-column: auto; }
+  .asset-auction-history-icon { width: 44px; height: 44px; }
+}
