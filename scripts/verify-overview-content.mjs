@@ -162,7 +162,9 @@ for (let index = 1; index < statusOrder.length; index += 1) {
 }
 
 requireAll(paths.harness, [
-  "view === 'overview' ? <OverviewHarness /> : <SettingsHarness />",
+  "view === 'overview'",
+  '<OverviewHarness />',
+  '<SettingsHarness />',
   "['activity', 'two-sided', 'many-orders'].includes(scenario)",
   "scenario === 'alerts'",
   "scenario !== 'cash-empty'",
