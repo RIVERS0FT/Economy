@@ -144,6 +144,8 @@ function normalizeTrades(trades: unknown[]): TradeRecord[] {
       quantity: Number(trade.quantity || 0),
       price: Number(trade.price || 0),
       total: Number(trade.total || 0),
+      fee: Number(trade.fee || 0),
+      netTotal: Number(trade.netTotal ?? trade.total ?? 0),
       createdAt: Number(trade.createdAt || 0),
       description: String(trade.description || '订单成交'),
     };
@@ -418,6 +420,8 @@ function deriveAssetTrades(
         quantity: fill.quantity,
         price: fill.price,
         total: fill.total,
+        fee: Number(fill.fee || 0),
+        netTotal: Number(fill.netTotal ?? fill.total),
         createdAt: fill.createdAt || createdAt,
         description: `${order.side === 'buy' ? '买入' : '卖出'} ${name}`,
       });

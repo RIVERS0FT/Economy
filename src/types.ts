@@ -101,6 +101,10 @@ export interface OrderFill {
   quantity: number;
   price: number;
   total: number;
+  /** Seller-side fee for this fill; buyers receive 0. */
+  fee?: number;
+  /** Seller proceeds after fee; buyers receive the gross total. */
+  netTotal?: number;
   createdAt: number;
 }
 
@@ -152,6 +156,8 @@ export interface TradeRecord {
   quantity: number;
   price: number;
   total: number;
+  fee?: number;
+  netTotal?: number;
   createdAt: number;
   description: string;
 }

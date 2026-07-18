@@ -1,1 +1,0 @@
-src/pages/MarketPage.tsx: expected one exact or uniformly indented match: '                           <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>\n                    '

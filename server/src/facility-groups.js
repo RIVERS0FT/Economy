@@ -6,6 +6,7 @@ import {
   processWorld,
 } from './domain.js';
 import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
+import { applyMarketSellFee } from './market-sell-fee.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -93,6 +94,8 @@ function publicOrderFill(fill) {
     quantity: Number(fill.quantity || 0),
     price: Number(fill.price || 0),
     total: Number(fill.total || 0),
+    fee: Math.max(0, Number(fill.fee || 0)),
+    netTotal: Math.max(0, Number(fill.netTotal ?? fill.total ?? 0)),
     createdAt: Number(fill.createdAt || 0),
   };
 }
@@ -107,6 +110,9 @@ function publicOrderView(order, userId) {
   delete normalized.demandGroupId;
   delete normalized.demandTier;
   delete normalized.demandCycleId;
+  delete normalized.marketSellFeeVersion;
+  delete normalized.marketSellFeeGross;
+  delete normalized.marketSellFeeCharged;
   if (isOwn) normalized.fills = normalized.fills.map(publicOrderFill);
   else delete normalized.fills;
   return normalized;
@@ -622,6 +628,9 @@ function executeFacilityTrade(world, incoming, resting, quantity, createdAt) {
     makerOrderId: resting.id,
     takerOrderId: incoming.id,
   };
+  const settlement = sell.ownerType === 'player'
+    ? applyMarketSellFee(sell, fillBase.total)
+    : { fee: 0, netTotal: fillBase.total };
 
   incoming.remaining -= quantity;
   resting.remaining -= quantity;
@@ -629,11 +638,14 @@ function executeFacilityTrade(world, incoming, resting, quantity, createdAt) {
   resting.status = resting.remaining === 0 ? 'filled' : 'partial';
   appendPlayerOrderFill(buy, {
     ...fillBase,
+    fee: 0,
+    netTotal: fillBase.total,
     counterparty: describeCounterparty(sell),
     liquidity: buy.id === resting.id ? 'maker' : 'taker',
   });
   appendPlayerOrderFill(sell, {
     ...fillBase,
+    ...settlement,
     counterparty: describeCounterparty(buy),
     liquidity: sell.id === resting.id ? 'maker' : 'taker',
   });
@@ -655,7 +667,8 @@ function executeFacilityTrade(world, incoming, resting, quantity, createdAt) {
     const group = groupFor(seller, typeId);
     if (!group || group.count < quantity) throw new Error('卖方工厂数量不足');
     group.count -= quantity;
-    seller.credits += quantity * price;
+    seller.credits += settlement.netTotal;
+    seller.stats.systemSinks = Number(seller.stats.systemSinks || 0) + settlement.fee;
     seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + quantity * price;
     if (group.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== group);
   }
