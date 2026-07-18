@@ -1,0 +1,140 @@
+path = 'src/api/game.ts'
+text = read(path)
+text = replace_once(text, """  createCollectibleAuction: (collectibleId: string, startingBid: number, durationHours: number) => (
+    postAction('/collectible-auctions', { collectibleId, startingBid, durationHours })
+  ),
+  placeCollectibleBid: (auctionId: string, amount: number) => (
+    postAction(`/collectible-auctions/${encodeURIComponent(auctionId)}/bids`, { amount })
+  ),
+  cancelCollectibleAuction: (auctionId: string) => (
+    postAction(`/collectible-auctions/${encodeURIComponent(auctionId)}/cancel`)
+  ),
+""", """  createAuction: (assetKind: AssetKind | 'collectible', assetId: string, quantity: number, startingBid: number, durationHours: number) => (
+    postAction('/auctions', { assetKind, assetId, quantity, startingBid, durationHours })
+  ),
+  placeAuctionBid: (auctionId: string, amount: number) => (
+    postAction(`/auctions/${encodeURIComponent(auctionId)}/bids`, { amount })
+  ),
+  cancelAuction: (auctionId: string) => (
+    postAction(`/auctions/${encodeURIComponent(auctionId)}/cancel`)
+  ),
+  createCollectibleAuction: (collectibleId: string, startingBid: number, durationHours: number) => (
+    postAction('/collectible-auctions', { collectibleId, startingBid, durationHours })
+  ),
+  placeCollectibleBid: (auctionId: string, amount: number) => (
+    postAction(`/collectible-auctions/${encodeURIComponent(auctionId)}/bids`, { amount })
+  ),
+  cancelCollectibleAuction: (auctionId: string) => (
+    postAction(`/collectible-auctions/${encodeURIComponent(auctionId)}/cancel`)
+  ),
+""", path)
+write(path, text)
+
+path = 'src/types.ts'
+text = read(path)
+text = replace_once(text, """  listedCount: number;
+  availableCount: number;
+""", """  listedCount: number;
+  auctionedCount?: number;
+  frozenCount?: number;
+  availableCount: number;
+""", path)
+write(path, text)
+
+path = 'src/pages/ProductionPage.tsx'
+text = read(path)
+text = replace_once(text, """                       <span>冻结中 <strong>{formatNumber(group.listedCount)}</strong></span>
+""", """                       <span>冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong></span>
+""", path)
+write(path, text)
+
+path = 'src/styles/collectibles-auctions.css'
+text = read(path)
+text += """
+
+.asset-auction-kind-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.asset-auction-form {
+  grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(110px, 1fr)) auto;
+}
+
+.asset-auction-icon {
+  display: grid;
+  min-height: 210px;
+  max-height: 280px;
+  place-items: center;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: radial-gradient(circle at 50% 35%, rgba(236, 196, 116, .13), transparent 48%), rgba(5, 9, 12, .82);
+}
+
+.asset-auction-icon .game-icon {
+  width: clamp(5rem, 16vw, 8.5rem);
+  height: clamp(5rem, 16vw, 8.5rem);
+  color: var(--color-text-secondary);
+}
+
+.asset-auction-history-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: .45rem;
+  background: rgba(255, 255, 255, .045);
+  color: var(--color-text-secondary);
+}
+
+.asset-auction-history-icon .game-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.collectible-auction-history-list > div > img {
+  width: 52px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: .45rem;
+}
+
+@media (max-width: 960px) {
+  .asset-auction-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .asset-auction-form label:first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 600px) {
+  .asset-auction-form { grid-template-columns: 1fr; }
+  .asset-auction-form label:first-child { grid-column: auto; }
+  .asset-auction-history-icon { width: 44px; height: 44px; }
+}
+"""
+write(path, text)
+
+path = 'scripts/verify-page-content.mjs'
+text = read(path)
+text = replace_once(text, """for (const text of ['title="拍卖"', 'createCollectibleAuction', 'placeCollectibleBid', 'cancelCollectibleAuction', '最高出价资金会冻结', '等待服务器结算']) {
+  requireText('src/pages/AuctionPage.tsx', text);
+}
+""", """for (const text of ['title="拍卖"', '发起资产拍卖', 'createAuction', 'placeAuctionBid', 'cancelAuction', '藏品', '商品', '工厂', '最高出价资金都会冻结', '等待服务器结算']) {
+  requireText('src/pages/AuctionPage.tsx', text);
+}
+""", path)
+write(path, text)
+# Root README and design authority updates.
+path = 'README.md'
+text = read(path)
+text = replace_once(text, 'Economy 是一款网页端多人在线经济模拟、产业经营、统一资产交易与艺术藏品拍卖游戏。', 'Economy 是一款网页端多人在线经济模拟、产业经营、统一资产交易与藏品／商品／工厂竞价拍卖游戏。', path)
+text = replace_once(text, '→ 参与唯一艺术藏品拍卖', '→ 通过拍卖交易藏品、商品和工厂', path)
+text = replace_once(text, '- 藏品拍卖采用公开竞价；最高出价冻结资金，被超价时自动释放，结束后服务器自动结算资金并转移归属。', '- 藏品、商品和工厂均可采用公开竞价拍卖；卖方资产与最高出价资金同时冻结，被超价时自动释放资金，结束后服务器自动结算并转移资产。商品最高出价预占仓库，工厂拍卖冻结数量退出生产；拍卖成交价不写入订单簿行情或估值。', path)
+text = replace_once(text, '- 拍卖：发起藏品拍卖、竞价、取消无出价拍卖和查看结算结果。', '- 拍卖：选择藏品、商品或工厂发起竞价，取消无出价拍卖并查看自动结算结果。', path)
+text = replace_once(text, '| 礼品码、藏品、拍卖、封禁复核与管理员后台 | `docs/GIFT_CODE_AND_ADMIN_DESIGN.md` |', '| 礼品码、藏品、资产拍卖、封禁复核与管理员后台 | `docs/GIFT_CODE_AND_ADMIN_DESIGN.md` |', path)
+write(path, text)
+
+path = 'docs/README.md'
+text = read(path)
+text = replace_once(text, '`GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖、封禁复核、管理员权限和后台范围', '`GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、藏品／商品／工厂竞价拍卖、封禁复核、管理员权限和后台范围', path)
+text += '\n21. 藏品、商品与工厂竞价拍卖、卖方资产冻结、最高出价资金、商品仓库预占、工厂生产冻结和订单簿行情隔离属于拍卖、订单簿、仓库、生产、页面与服务器共同规则；必须同步更新对应权威文档、测试和 `scripts/verify-collectibles-auctions.mjs`。\n'
+write(path, text)
+
