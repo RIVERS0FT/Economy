@@ -1,0 +1,18 @@
+
+def _indent_block(value, width):
+    prefix = ' ' * width
+    return '\n'.join(prefix + line if line else line for line in value.split('\n'))
+
+def replace_once(path, old, new):
+    content = read(path)
+    if content.count(old) == 1:
+        write(path, content.replace(old, new, 1))
+        return
+    for width in range(1, 9):
+        indented_old = _indent_block(old, width)
+        count = content.count(indented_old)
+        if count == 1:
+            write(path, content.replace(indented_old, _indent_block(new, width), 1))
+            return
+    raise SystemExit(f'{path}: expected one exact or uniformly indented match: {old[:160]!r}')
+
