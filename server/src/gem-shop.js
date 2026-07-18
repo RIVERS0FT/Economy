@@ -53,7 +53,7 @@ export function exchangeGems(player, rawAmount, now = Date.now()) {
     amount: creditsReceived,
     balanceAfter: player.credits,
     createdAt: now,
-    description: `宝石商店兑换：消耗 ${gems} 宝石，获得 ${creditsReceived} 货币`,
+    description: `商店兑换：消耗 ${gems} 宝石，获得 ${creditsReceived} 货币`,
   });
   player.ledger = player.ledger.slice(0, ECONOMY_CONSTANTS.maxLedgerPerPlayer);
 

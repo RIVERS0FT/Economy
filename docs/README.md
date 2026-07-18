@@ -12,11 +12,11 @@
 
 | 文档 | 唯一职责 |
 |---|---|
-| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、普通货币与宝石、邀请奖励、宝石商店兑换、货币来源回收、需求与排行榜目标 |
+| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、普通货币与宝石、邀请奖励、商店兑换、货币来源回收、需求与排行榜目标 |
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 22 种商品、15 种工厂、整数经济数值、参考利润、持续生产、通用工厂配方、生产周期、三态、自动恢复和生产页面结构 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡和生产空间约束 |
-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、登录注册入口、独立宝石商店、分享链接、邀请码、封禁提示、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
+| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、登录注册入口、独立商店、分享链接、邀请码、封禁提示、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一 SVG 图标、中文界面、响应式、移动触摸反馈与可访问性 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 桌面与移动端状态栏、移动底栏和玻璃外壳 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、SQLite、容量限制、Nginx、systemd 和部署 |
@@ -42,7 +42,7 @@
 15. Economy 注册完成时点、主页账号自动建档、邮箱验证码、IP 指纹、多账号封禁、Resend、注册路由和登录注册双模式属于服务器与页面权威规则；必须同步更新服务器、页面、根 README、`scripts/verify-email-registration.mjs` 与服务器测试。
 16. 人口需求订单来源、活跃玩家与库存动态预算、生产链双向滞后价格传导和迁移清理属于产品、产业与订单簿权威规则；必须同步更新对应文档、测试和 `scripts/verify-staple-crops-demand.mjs`。
 17. 宝石、永久邀请码、分享链接即时奖励、注册后 24 小时手动填写、同 IP 全组封禁、423 响应、管理员解禁与审计属于产品、页面、服务器和管理员权威规则；必须同步更新对应文档、测试和 `scripts/verify-gems-invitations-and-bans.mjs`。
-18. 宝石商店固定汇率、单向兑换、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`。
+18. 商店固定汇率、单向兑换、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`。
 19. 普通玩家成交记录不得暴露来源、去向或对手订单；API、本地存储和市场页面必须同时匿名化，并通过 `scripts/verify-local-trade-privacy.mjs` 防回退。
 20. 运行时可靠性、依赖锁、浏览器测试、localStorage 容错、管理员记录分页、验证码保留和限流缓存上限属于服务器、页面与管理员共同规则；必须同步更新对应权威文档并通过 `scripts/verify-runtime-reliability.mjs` 防回退。
 
