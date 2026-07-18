@@ -1,0 +1,10 @@
+# Preserve the established document-authority keyword while expanding its scope.
+path = 'docs/README.md'
+text = read(path)
+text = replace_once(
+    text,
+    '芝加哥艺术博物馆藏品导入、唯一归属、藏品／商品／工厂竞价拍卖',
+    '芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖（藏品／商品／工厂）',
+    path,
+)
+write(path, text)
