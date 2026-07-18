@@ -1,0 +1,14 @@
+# Normalize Markdown line endings after replacing headings that previously used hard-break spaces.
+for path in [
+    'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
+    'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+    'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+    'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+    'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+    'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+    'docs/UI_DESIGN_SYSTEM.md',
+    'docs/README.md',
+    'README.md',
+]:
+    content = read(path)
+    write(path, '\n'.join(line.rstrip() for line in content.splitlines()) + '\n')
