@@ -1,6 +1,7 @@
 import type { EconomyState } from '../types';
 
-export type CollectibleAuctionStatus = 'open' | 'sold' | 'ended' | 'cancelled';
+export type AuctionStatus = 'open' | 'sold' | 'ended' | 'cancelled';
+export type AuctionAssetKind = 'collectible' | 'commodity' | 'facility';
 
 export interface Collectible {
   id: string;
@@ -25,32 +26,58 @@ export interface Collectible {
   createdBy: number;
 }
 
-export interface CollectibleBid {
+export interface AuctionBid {
   bidderId: number;
   bidderName: string;
   amount: number;
   createdAt: number;
 }
 
-export interface CollectibleAuction {
+export interface AuctionAssetSummary {
+  kind: AuctionAssetKind;
   id: string;
-  collectibleId: string;
-  collectible: Collectible;
+  name: string;
+  subtitle: string;
+  thumbnailUrl?: string;
+  sourceUrl?: string;
+  collectible?: Collectible;
+}
+
+export interface AssetAuction {
+  id: string;
+  assetKind: AuctionAssetKind;
+  assetId: string;
+  collectibleId?: string;
+  productId?: string;
+  facilityTypeId?: string;
+  quantity: number;
+  asset: AuctionAssetSummary;
+  /** Compatibility field retained for collectible-only callers. */
+  collectible?: Collectible;
   sellerId: number;
   sellerName: string;
   startingBid: number;
   highestBid: number | null;
   highestBidderId: number | null;
   highestBidderName: string | null;
-  status: CollectibleAuctionStatus;
+  status: AuctionStatus;
+  escrowStatus: 'held' | 'released' | 'transferred';
   createdAt: number;
   endsAt: number;
   settledAt?: number;
-  bids: CollectibleBid[];
+  bids: AuctionBid[];
   isSeller: boolean;
   isHighestBidder: boolean;
   minimumBid: number;
 }
+
+export type CollectibleAuctionStatus = AuctionStatus;
+export type CollectibleBid = AuctionBid;
+export type CollectibleAuction = AssetAuction & {
+  assetKind: 'collectible';
+  collectibleId: string;
+  collectible: Collectible;
+};
 
 export interface CollectibleOwnershipRecord {
   id: string;
@@ -84,13 +111,19 @@ export interface CollectibleImportRecord {
 
 export interface CollectibleState {
   collectibles: Collectible[];
+  assetAuctions: AssetAuction[];
   collectibleAuctions: CollectibleAuction[];
 }
 
 export function getCollectibleState(game: EconomyState): CollectibleState {
   const state = game as EconomyState & Partial<CollectibleState>;
+  const collectibleAuctions = Array.isArray(state.collectibleAuctions) ? state.collectibleAuctions : [];
+  const assetAuctions = Array.isArray(state.assetAuctions) ? state.assetAuctions : collectibleAuctions;
   return {
     collectibles: Array.isArray(state.collectibles) ? state.collectibles : [],
-    collectibleAuctions: Array.isArray(state.collectibleAuctions) ? state.collectibleAuctions : [],
+    assetAuctions,
+    collectibleAuctions: collectibleAuctions.length > 0
+      ? collectibleAuctions
+      : assetAuctions.filter((auction): auction is CollectibleAuction => auction.assetKind === 'collectible'),
   };
 }

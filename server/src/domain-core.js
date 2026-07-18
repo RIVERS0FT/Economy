@@ -589,9 +589,20 @@ function totalAssets(world, player) {
 }
 
 function pendingBuyQuantity(world, userId) {
-  return world.orders
+  const orderQuantity = world.orders
     .filter((order) => order.ownerId === userId && order.side === 'buy' && order.assetKind !== 'facility' && isOpenOrder(order))
     .reduce((sum, order) => sum + order.remaining, 0);
+  const auctionQuantity = (world.collectibleAuctions || []).reduce((sum, auction) => {
+    if (
+      auction?.assetKind !== 'commodity'
+      || Number(auction?.highestBidderId) !== Number(userId)
+      || auction?.status !== 'open'
+      || auction?.escrowStatus === 'released'
+      || auction?.escrowStatus === 'transferred'
+    ) return sum;
+    return sum + Math.max(0, Number(auction.quantity || 0));
+  }, 0);
+  return orderQuantity + auctionQuantity;
 }
 
 function sortCandidates(orders, side) {

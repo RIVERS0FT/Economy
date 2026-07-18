@@ -72,7 +72,7 @@ for (const text of [
   'SwitchControl',
   '运行中 <strong>{formatNumber(group.participatingCount)}</strong>',
   '下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>',
-  '冻结中 <strong>{formatNumber(group.listedCount)}</strong>',
+  '冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>',
   'facility-recipe-section',
   '生产配方',
   '下一周期切换为：',

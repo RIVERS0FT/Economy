@@ -125,6 +125,26 @@ function listedQuantity(world, ownerId, typeId) {
   }, 0);
 }
 
+function auctionedQuantity(world, ownerId, typeId) {
+  return (world.collectibleAuctions || []).reduce((sum, auction) => {
+    const kind = auction?.assetKind || (auction?.collectibleId ? 'collectible' : undefined);
+    const assetId = String(auction?.assetId || auction?.facilityTypeId || '');
+    if (
+      kind !== 'facility'
+      || assetId !== typeId
+      || Number(auction?.sellerId) !== Number(ownerId)
+      || auction?.status !== 'open'
+      || auction?.escrowStatus === 'released'
+      || auction?.escrowStatus === 'transferred'
+    ) return sum;
+    return sum + Math.max(0, Number(auction.quantity || 0));
+  }, 0);
+}
+
+function frozenFacilityQuantity(world, ownerId, typeId) {
+  return listedQuantity(world, ownerId, typeId) + auctionedQuantity(world, ownerId, typeId);
+}
+
 function normalizeStatusReason(value, enabled) {
   const raw = String(value || '');
   const mapped = raw === 'output_full' ? 'warehouse_full' : raw === 'listed' ? 'no_available_facility' : raw;
@@ -329,8 +349,8 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
   for (const player of Object.values(world.players)) {
     player.facilityGroups = (player.facilityGroups || []).map(normalizeGroup).filter(Boolean);
     for (const group of player.facilityGroups) {
-      const listed = listedQuantity(world, player.userId, group.facilityTypeId);
-      const available = Math.max(0, group.count - listed);
+      const frozen = frozenFacilityQuantity(world, player.userId, group.facilityTypeId);
+      const available = Math.max(0, group.count - frozen);
       if (group.status === 'running') {
         group.participatingCount = Math.min(group.participatingCount, available);
         group.pendingJoinCount = Math.min(
@@ -455,7 +475,7 @@ function applyPendingRecipe(group) {
 }
 
 function availableGroupCount(world, player, group) {
-  return Math.max(0, group.count - listedQuantity(world, player.userId, group.facilityTypeId));
+  return Math.max(0, group.count - frozenFacilityQuantity(world, player.userId, group.facilityTypeId));
 }
 
 function reconcileFacilityGroup(world, player, group, now) {
@@ -789,7 +809,7 @@ function placeFacilityOrder(world, userId, payload, now) {
     player.frozenCredits += total;
   } else {
     const group = groupFor(player, type.id);
-    const available = group ? Math.max(0, group.count - listedQuantity(world, userId, type.id)) : 0;
+    const available = group ? Math.max(0, group.count - frozenFacilityQuantity(world, userId, type.id)) : 0;
     if (!group || quantity > available) return result(false, '可出售工厂数量不足');
     reduceRunningGroupForSellOrder(group, type, quantity);
   }
@@ -826,6 +846,44 @@ function cancelFacilityOrder(world, userId, order) {
   }
   order.status = 'cancelled';
   return result(true, '订单已撤销，冻结资产已释放');
+}
+
+export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity) {
+  const account = world.players?.[String(userId)];
+  const type = typeFor(typeId);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const group = account && type ? groupFor(account, type.id) : null;
+  const available = group ? availableGroupCount(world, account, group) : 0;
+  if (!account || !type || !group || !normalizedQuantity || normalizedQuantity > available) {
+    return result(false, '可拍卖工厂数量不足');
+  }
+  reduceRunningGroupForSellOrder(group, type, normalizedQuantity);
+  return result(true, '工厂已为拍卖冻结');
+}
+
+export function releaseFacilityAuctionQuantity(world, userId, typeId, quantity) {
+  const account = world.players?.[String(userId)];
+  const group = account ? groupFor(account, typeId) : null;
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  if (!group || !normalizedQuantity) return result(false, '拍卖工厂不存在');
+  if (group.status === 'running') group.pendingJoinCount += normalizedQuantity;
+  return result(true, '拍卖工厂已解冻');
+}
+
+export function transferFacilityAuctionQuantity(world, sellerId, buyerId, typeId, quantity) {
+  const seller = world.players?.[String(sellerId)];
+  const buyer = world.players?.[String(buyerId)];
+  const type = typeFor(typeId);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const sellerGroup = seller && type ? groupFor(seller, type.id) : null;
+  if (!seller || !buyer || !type || !sellerGroup || !normalizedQuantity) return result(false, '拍卖工厂归属异常');
+  if (sellerGroup.count < normalizedQuantity || auctionedQuantity(world, sellerId, type.id) < normalizedQuantity) {
+    return result(false, '拍卖工厂冻结数量不足');
+  }
+  sellerGroup.count -= normalizedQuantity;
+  if (sellerGroup.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== sellerGroup);
+  addPurchasedGroup(buyer, type.id, normalizedQuantity);
+  return result(true, '拍卖工厂已转移');
 }
 
 function renameFacilityOrders(world, userId) {
@@ -946,10 +1004,14 @@ function createLeaderboard(world, currentUserId, now) {
 
 function clientGroup(world, player, group) {
   const listedCount = listedQuantity(world, player.userId, group.facilityTypeId);
-  const availableCount = Math.max(0, group.count - listedCount);
+  const auctionedCount = auctionedQuantity(world, player.userId, group.facilityTypeId);
+  const frozenCount = listedCount + auctionedCount;
+  const availableCount = Math.max(0, group.count - frozenCount);
   return {
     ...clone(group),
     listedCount,
+    auctionedCount,
+    frozenCount,
     availableCount,
     nextCycleCount: group.status === 'running'
       ? group.participatingCount + group.pendingJoinCount

@@ -91,6 +91,15 @@ export const gameActions = {
     postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
   ),
   cancelOrder: (orderId: string) => postAction(`/orders/${encodeURIComponent(orderId)}/cancel`),
+  createAuction: (assetKind: AssetKind | 'collectible', assetId: string, quantity: number, startingBid: number, durationHours: number) => (
+    postAction('/auctions', { assetKind, assetId, quantity, startingBid, durationHours })
+  ),
+  placeAuctionBid: (auctionId: string, amount: number) => (
+    postAction(`/auctions/${encodeURIComponent(auctionId)}/bids`, { amount })
+  ),
+  cancelAuction: (auctionId: string) => (
+    postAction(`/auctions/${encodeURIComponent(auctionId)}/cancel`)
+  ),
   createCollectibleAuction: (collectibleId: string, startingBid: number, durationHours: number) => (
     postAction('/collectible-auctions', { collectibleId, startingBid, durationHours })
   ),

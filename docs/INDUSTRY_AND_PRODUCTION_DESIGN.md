@@ -135,6 +135,8 @@ interface FacilityGroup {
   participatingCount: number;
   pendingJoinCount: number;
   listedCount: number;
+  auctionedCount: number;
+  frozenCount: number;
   availableCount: number;
   nextCycleCount: number;
   enabled: boolean;
@@ -179,7 +181,7 @@ interface FacilityGroup {
 
 ## 6. 下一周期加入
 
-施工完成、工厂买单成交或卖单撤销解冻发生在运行期间时：
+施工完成、工厂买单或工厂拍卖成交、订单簿卖单撤销或拍卖取消／流拍解冻发生在运行期间时：
 
 ```text
 当前参与数量保持不变
@@ -188,7 +190,7 @@ interface FacilityGroup {
 下一周期合并新增数量
 ```
 
-新增数量不得重置 `cycleStartedAt`，不得获得部分周期产出。运行中提交工厂卖单时，服务器先结算已经完成的完整周期，再从当前参与数量和待加入数量中冻结对应数量。冻结数量立即降低当前或下一周期产能。
+新增数量不得重置 `cycleStartedAt`，不得获得部分周期产出。运行中提交工厂卖单或工厂拍卖时，服务器先结算已经完成的完整周期，再从当前参与数量和待加入数量中冻结对应数量。订单簿卖单与拍卖冻结数量合并计算，并立即降低当前或下一周期产能；取消或流拍解冻后从下一完整周期加入。
 
 ## 7. 运行、停止与自动恢复
 

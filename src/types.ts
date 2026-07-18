@@ -72,6 +72,8 @@ export interface FacilityGroup {
   participatingCount: number;
   pendingJoinCount: number;
   listedCount: number;
+  auctionedCount?: number;
+  frozenCount?: number;
   availableCount: number;
   nextCycleCount: number;
   enabled: boolean;

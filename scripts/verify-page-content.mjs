@@ -215,7 +215,7 @@ forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 for (const text of ['title="藏品"', 'getCollectibleState', 'collectible-gallery', '芝加哥艺术博物馆 IIIF', "model.setTab('auction')"]) {
   requireText('src/pages/CollectionsPage.tsx', text);
 }
-for (const text of ['title="拍卖"', 'createCollectibleAuction', 'placeCollectibleBid', 'cancelCollectibleAuction', '最高出价资金会冻结', '等待服务器结算']) {
+for (const text of ['title="拍卖"', '发起资产拍卖', 'createAuction', 'placeAuctionBid', 'cancelAuction', '藏品', '商品', '工厂', '最高出价资金都会冻结', '等待服务器结算']) {
   requireText('src/pages/AuctionPage.tsx', text);
 }
 
@@ -290,7 +290,7 @@ for (const [path, text] of [
 for (const text of [
   '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜宝石商店｜设置',
   '| 藏品 | `collections` | `CollectionsPage` | 当前玩家持有的唯一艺术藏品 |',
-  '| 拍卖 | `auction` | `AuctionPage` | 藏品竞价拍卖与结算结果 |',
+  '| 拍卖 | `auction` | `AuctionPage` | 藏品、商品与工厂竞价拍卖与结算结果 |',
   '| 宝石商店 | `gem-shop` | `GemShopPage` | 宝石单向兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',
   '页面主标题固定为“生产”',
@@ -303,7 +303,7 @@ for (const text of [
   '集群生产公式',
   '多输入、多输出和逐输入库存兼容展示',
   '以箭头替代生产进度条',
-  '最高出价资金、退款、拍卖状态和归属转移全部由服务器判定',
+  '最高出价资金、商品仓库预占、卖方资产冻结、退款、拍卖状态和归属转移全部由服务器判定',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
   '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);

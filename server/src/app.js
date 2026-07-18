@@ -108,6 +108,28 @@ function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/reset') return { action: 'resetPlayer', category: 'general' };
+  if (method === 'POST' && path === '/api/game/auctions') {
+    return { action: 'createAuction', category: 'orders' };
+  }
+
+  const auctionBid = path.match(/^\/api\/game\/auctions\/([^/]+)\/bids$/);
+  if (method === 'POST' && auctionBid) {
+    return {
+      action: 'placeAuctionBid',
+      category: 'orders',
+      routePayload: { auctionId: decodeURIComponent(auctionBid[1]) },
+    };
+  }
+
+  const auctionCancel = path.match(/^\/api\/game\/auctions\/([^/]+)\/cancel$/);
+  if (method === 'POST' && auctionCancel) {
+    return {
+      action: 'cancelAuction',
+      category: 'orders',
+      routePayload: { auctionId: decodeURIComponent(auctionCancel[1]) },
+    };
+  }
+
   if (method === 'POST' && path === '/api/game/collectible-auctions') {
     return { action: 'createCollectibleAuction', category: 'orders' };
   }
