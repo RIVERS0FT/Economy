@@ -150,9 +150,12 @@
 | POST | `/api/game/orders/:orderId/cancel` | 撤销订单 |
 | POST | `/api/game/warehouse/upgrade` | 扩容仓库 |
 | POST | `/api/game/gifts/redeem` | 兑换礼品 |
-| POST | `/api/game/collectible-auctions` | 发起藏品拍卖 |
-| POST | `/api/game/collectible-auctions/:auctionId/bids` | 竞价 |
-| POST | `/api/game/collectible-auctions/:auctionId/cancel` | 取消无出价拍卖 |
+| POST | `/api/game/auctions` | 以 `items[]` 创建单项或捆绑资产包拍卖 |
+| POST | `/api/game/auctions/:auctionId/bids` | 对整个资产包竞价 |
+| POST | `/api/game/auctions/:auctionId/cancel` | 取消无出价资产包拍卖 |
+| POST | `/api/game/collectible-auctions` | 旧藏品单项拍卖兼容入口 |
+| POST | `/api/game/collectible-auctions/:auctionId/bids` | 旧藏品竞价兼容入口 |
+| POST | `/api/game/collectible-auctions/:auctionId/cancel` | 旧藏品取消兼容入口 |
 | PATCH | `/api/game/profile` | 修改昵称 |
 | POST | `/api/game/reset` | 已永久移除；兼容旧客户端固定返回 `410 Gone`，不得执行任何状态写入 |
 | GET | `/api/game/admin/bans` | 管理员查看同 IP 封禁事件 |
@@ -183,7 +186,7 @@
 2. 系统需求与公共市场；
 3. 排行榜、长周期图表和公开统计。
 
-资源不足时宁可拒绝写操作，也不能产生负库存、重复发放、重复扣款、重复邀请奖励或超额成交。
+资源不足时宁可拒绝写操作，也不能产生负库存、重复发放、重复扣款、重复邀请奖励或超额成交。资产包拍卖必须先预检全部 `items[]` 再冻结，并在结算前再次验证全部归属、冻结资金、商品仓库和工厂数量；任一项目失败时回滚整包。总资产只从资金、库存和工厂归属等权威余额派生，拍卖托管记录不得重复计价。
 
 ## 8. Node、systemd 与部署权限
 

@@ -12,58 +12,59 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/src/collectibles.js',
   'server/src/facility-groups.js',
   'server/src/warehouse.js',
-  'server/src/domain-core.js',
   'server/src/storage.js',
   'server/src/app.js',
-  'server/src/index.js',
   'server/test/collectibles-auctions.test.js',
   'src/collectibles/types.ts',
   'src/pages/CollectionsPage.tsx',
   'src/pages/AuctionPage.tsx',
+  'src/pages/AssetsPage.tsx',
   'src/api/game.ts',
-  'src/api/admin.ts',
-  'src/app/AdminApp.tsx',
-  'src/config/navigation.ts',
-  'src/pages/PageRouter.tsx',
+  'src/types.ts',
   'src/components/icons/GameIcons.tsx',
   'src/components/icons/ProductIcons.tsx',
   'src/styles/collectibles-auctions.css',
+  'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+  'docs/UI_DESIGN_SYSTEM.md',
 ].forEach(requireFile);
 
 for (const text of [
   "const AIC_IIIF_BASE = 'https://www.artic.edu/iiif/2'",
-  'assetKind',
-  'assetAuctions',
-  'escrowStatus',
-  'reserveFacilityAuctionQuantity',
-  'releaseFacilityAuctionQuantity',
-  'transferFacilityAuctionQuantity',
-  "auction.assetKind === 'commodity'",
+  'MAX_AUCTION_ITEMS',
+  'normalizeRequestedItems',
+  'auction.items',
+  'itemSummaries',
+  'isBundle',
+  'validateFacilityAuctionQuantity',
+  'requiredCommodityCapacity',
   'createWarehouseUsage(world, bidder)',
   'previousBidder.frozenCredits',
   "action === 'createAuction'",
   "action === 'placeAuctionBid'",
   "action === 'cancelAuction'",
+  'auctionTotalPrice',
 ]) requireText('server/src/collectibles.js', text);
 
 for (const text of [
+  'auctionItems',
   'auctionedQuantity',
+  'validateFacilityAuctionQuantity',
   'reserveFacilityAuctionQuantity',
   'releaseFacilityAuctionQuantity',
   'transferFacilityAuctionQuantity',
-  'auctionedCount',
-  'frozenCount',
+  'availableAssetValue',
+  'frozenAssetValue',
+  'frozenFacilityValue',
 ]) requireText('server/src/facility-groups.js', text);
 
+for (const text of ['auctionItems', 'auctionCommodityQuantity', 'highestBidderId']) requireText('server/src/warehouse.js', text);
 for (const [path, text] of [
-  ['server/src/warehouse.js', "auction?.assetKind !== 'commodity'"],
-  ['server/src/warehouse.js', 'highestBidderId'],
-  ['server/src/domain-core.js', "auction?.assetKind !== 'commodity'"],
-  ['server/src/domain-core.js', 'highestBidderId'],
   ['server/src/storage.js', "'createAuction'"],
   ['server/src/storage.js', "'placeAuctionBid'"],
   ['server/src/storage.js', "'cancelAuction'"],
@@ -71,54 +72,48 @@ for (const [path, text] of [
   ['server/src/app.js', '/api\\/game\\/auctions'],
 ]) requireText(path, text);
 
-for (const text of [
-  'createAuction',
-  'placeAuctionBid',
-  'cancelAuction',
-  "postAction('/auctions'",
-]) requireText('src/api/game.ts', text);
+for (const text of ['createAuction', 'AuctionItem[]', "postAction('/auctions'", 'items']) requireText('src/api/game.ts', text);
+for (const text of ['AuctionItem', 'itemSummaries', 'itemCount', 'isBundle', 'auctionTotalPrice']) requireText('src/collectibles/types.ts', text);
+for (const text of ['frozenAssetValue', 'availableAssetValue', '冻结资产仍归当前玩家所有']) requireText('src/pages/AssetsPage.tsx', text);
+for (const text of ['availableCashValue', 'frozenCashValue', 'frozenCommodityValue', 'frozenFacilityValue']) requireText('src/types.ts', text);
 
 for (const text of [
-  'assetAuctions',
-  "AuctionAssetKind = 'collectible' | 'commodity' | 'facility'",
-  'escrowStatus',
-]) requireText('src/collectibles/types.ts', text);
-
-for (const text of [
-  '发起资产拍卖',
-  "(['collectible', 'commodity', 'facility'] as const)",
-  'gameActions.createAuction',
+  '发布资产包拍卖',
+  '加入资产包',
+  'gameActions.createAuction(bundleItems',
   'gameActions.placeAuctionBid',
   'gameActions.cancelAuction',
-  '<ProductIcon productId={auction.assetId} />',
-  '<FactoryIcon />',
-  'selectedQuantity',
-  '最高出价资金都会冻结',
-  '等待服务器结算',
+  '不可拆分资产包',
+  'aria-pressed={assetKind === kind}',
+  '暂无最近结束的拍卖',
+  '冻结资产仍归卖方所有并计入总资产',
 ]) requireText('src/pages/AuctionPage.tsx', text);
 
 for (const text of [
-  '商品拍卖冻结商品',
-  '商品竞拍必须有足够仓库容量',
-  '工厂拍卖冻结运行数量',
+  '捆绑拍卖在任一项目无效时不冻结任何资产',
+  '混合资产包整体冻结、预占仓库并原子成交',
+  '冻结资产继续计入总资产并提供可用与冻结明细',
   '拍卖成交不得写入订单簿行情',
-  '通用拍卖与藏品兼容别名',
 ]) requireText('server/test/collectibles-auctions.test.js', text);
 
-for (const text of [
-  '商品和工厂均可进入竞价拍卖',
-  '拍卖成交价不得写入商品或工厂订单簿行情',
-  '最高出价者的商品仓库预占',
-]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
-for (const text of ['藏品、商品与工厂竞价拍卖', '当前玩家可拍卖资产类型']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-for (const text of ['拍卖冻结与订单簿冻结必须合并计算', '拍卖成交不属于订单簿成交']) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
-for (const text of ['商品拍卖最高出价预占', '进行中的商品拍卖']) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
+for (const [path, texts] of [
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['冻结只改变可用性，不改变所有权', '冻结资产价值']],
+  ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['不可拆分的资产包', '最多 20 个规范化资产项目', '冻结资产继续计入卖方总资产']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['资产包编辑器', '最近结束区域必须始终存在', '可支配资产']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['捆绑拍卖', '托管记录不得作为第二份资产余额']],
+  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包中全部商品数量之和', '捆绑拍卖']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['同一资产包中的多种工厂', '总持有数量不变']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['items[]', '托管记录不得重复计价']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['资产包编辑器', '冻结资产明细']],
+]) for (const text of texts) requireText(path, text);
 
 for (const text of ['currentOwnerId: payload', 'highestBid: payload.highestBid']) forbidText('server/src/app.js', text);
 for (const text of ['market.lastPrice = auction.highestBid', 'recordFacilityPrice(world, auction']) forbidText('server/src/collectibles.js', text);
+forbidText('src/pages/AuctionPage.tsx', 'actions={<StatusTag tone="warning">进行中');
+forbidText('src/pages/AuctionPage.tsx', '<Panel><EmptyState>暂无进行中的资产拍卖');
 
 if (failures.length) {
-  console.error(`资产拍卖验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`资产包拍卖验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('藏品、商品与工厂拍卖的资产冻结、竞价资金、仓库预占、自动结算、兼容接口和页面职责验证通过。');
+console.log('单项与捆绑资产包拍卖、冻结资产计价、仓库预占、原子结算、页面结构和权威文档验证通过。');

@@ -4,6 +4,8 @@ import {
   releaseFacilityAuctionQuantity,
   reserveFacilityAuctionQuantity,
   transferFacilityAuctionQuantity,
+  validateFacilityAuctionQuantity,
+  validateFacilityAuctionTransferQuantity,
 } from './facility-groups.js';
 import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 
@@ -12,6 +14,7 @@ const AIC_IIIF_BASE = 'https://www.artic.edu/iiif/2';
 const MAX_BID = 1_000_000_000;
 const MAX_AUCTION_HOURS = 168;
 const MAX_AUCTION_QUANTITY = 1_000_000;
+const MAX_AUCTION_ITEMS = 20;
 const MAX_HISTORY = 5_000;
 const PRODUCTS = new Map(PRODUCT_CATALOG.map((item) => [item.id, item]));
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((item) => [item.id, item]));
@@ -33,35 +36,74 @@ function inventoryFor(account, productId) {
   account.inventories[productId] ||= { available: 0, frozen: 0 };
   return account.inventories[productId];
 }
-function auctionKind(auction) {
-  if (auction?.assetKind === 'commodity' || auction?.assetKind === 'facility') return auction.assetKind;
-  return 'collectible';
+function normalizeAuctionItem(raw) {
+  const kind = raw?.assetKind === 'commodity' || raw?.assetKind === 'facility'
+    ? raw.assetKind
+    : 'collectible';
+  const assetId = kind === 'commodity'
+    ? String(raw?.assetId || raw?.productId || '')
+    : kind === 'facility'
+      ? String(raw?.assetId || raw?.facilityTypeId || '')
+      : String(raw?.assetId || raw?.collectibleId || '');
+  const quantity = kind === 'collectible' ? 1 : integer(raw?.quantity, MAX_AUCTION_QUANTITY);
+  return assetId && quantity ? { assetKind: kind, assetId, quantity } : null;
 }
-function auctionAssetId(auction) {
-  const kind = auctionKind(auction);
-  if (kind === 'commodity') return String(auction.assetId || auction.productId || '');
-  if (kind === 'facility') return String(auction.assetId || auction.facilityTypeId || '');
-  return String(auction.assetId || auction.collectibleId || '');
+
+function normalizeAuctionItems(source) {
+  if (!Array.isArray(source) || source.length < 1 || source.length > MAX_AUCTION_ITEMS) return null;
+  const normalized = [];
+  const byKey = new Map();
+  for (const raw of source) {
+    const item = normalizeAuctionItem(raw);
+    if (!item) return null;
+    const key = `${item.assetKind}:${item.assetId}`;
+    if (item.assetKind === 'collectible' && byKey.has(key)) return null;
+    const existing = byKey.get(key);
+    if (existing) {
+      const quantity = existing.quantity + item.quantity;
+      if (!integer(quantity, MAX_AUCTION_QUANTITY)) return null;
+      existing.quantity = quantity;
+    } else {
+      normalized.push(item);
+      byKey.set(key, item);
+    }
+  }
+  return normalized.length <= MAX_AUCTION_ITEMS ? normalized : null;
 }
+
+function auctionItems(auction) {
+  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
+  const legacy = normalizeAuctionItem(auction);
+  return legacy ? [legacy] : [];
+}
+
+function applyAuctionAliases(auction) {
+  const first = auction.items[0];
+  auction.assetKind = first.assetKind;
+  auction.assetId = first.assetId;
+  auction.quantity = first.quantity;
+  if (first.assetKind === 'collectible') auction.collectibleId = first.assetId;
+  else delete auction.collectibleId;
+  if (first.assetKind === 'commodity') auction.productId = first.assetId;
+  else delete auction.productId;
+  if (first.assetKind === 'facility') auction.facilityTypeId = first.assetId;
+  else delete auction.facilityTypeId;
+  return auction;
+}
+
 function openCollectibleAuction(world, collectibleId) {
   return world.collectibleAuctions.find((auction) => (
-    auctionKind(auction) === 'collectible'
-    && auctionAssetId(auction) === collectibleId
+    auctionItems(auction).some((item) => item.assetKind === 'collectible' && item.assetId === collectibleId)
     && auction.status === 'open'
   ));
 }
+
 function normalizeAuction(auction, now) {
-  const kind = auctionKind(auction);
-  const assetId = auctionAssetId(auction);
-  auction.assetKind = kind;
-  auction.assetId = assetId;
-  auction.quantity = kind === 'collectible' ? 1 : integer(auction.quantity, MAX_AUCTION_QUANTITY) || 1;
-  if (kind === 'collectible') auction.collectibleId = assetId;
-  else delete auction.collectibleId;
-  if (kind === 'commodity') auction.productId = assetId;
-  else delete auction.productId;
-  if (kind === 'facility') auction.facilityTypeId = assetId;
-  else delete auction.facilityTypeId;
+  const legacy = normalizeAuctionItem(auction);
+  auction.items = normalizeAuctionItems(Array.isArray(auction.items) ? auction.items : legacy ? [legacy] : [])
+    || (legacy ? [legacy] : []);
+  if (auction.items.length === 0) auction.items = [{ assetKind: 'collectible', assetId: '', quantity: 1 }];
+  applyAuctionAliases(auction);
   auction.sellerId = integer(auction.sellerId) || 0;
   auction.sellerName = text(auction.sellerName, 64, `玩家 ${auction.sellerId}`);
   auction.startingBid = integer(auction.startingBid, MAX_BID) || 1;
@@ -108,6 +150,8 @@ function appendOwnership(world, collectible, fromOwnerId, toOwnerId, reason, now
     reason,
     auctionId: details.auctionId,
     price: details.price,
+    auctionTotalPrice: details.auctionTotalPrice,
+    bundleItemCount: details.bundleItemCount,
     createdAt: now,
   });
   world.collectibleOwnershipHistory = world.collectibleOwnershipHistory.slice(-MAX_HISTORY);
@@ -125,58 +169,103 @@ function releaseBid(world, auction) {
 function releaseAuctionAsset(world, auction) {
   if (auction.escrowStatus !== 'held') return;
   const seller = player(world, auction.sellerId);
-  if (auction.assetKind === 'commodity' && seller) {
-    const inventory = inventoryFor(seller, auction.assetId);
-    const quantity = Math.min(inventory.frozen, auction.quantity);
-    inventory.frozen -= quantity;
-    inventory.available += quantity;
-  } else if (auction.assetKind === 'facility') {
-    releaseFacilityAuctionQuantity(world, auction.sellerId, auction.assetId, auction.quantity);
+  for (const item of auctionItems(auction)) {
+    if (item.assetKind === 'commodity' && seller) {
+      const inventory = inventoryFor(seller, item.assetId);
+      const quantity = Math.min(inventory.frozen, item.quantity);
+      inventory.frozen -= quantity;
+      inventory.available += quantity;
+    } else if (item.assetKind === 'facility') {
+      releaseFacilityAuctionQuantity(world, auction.sellerId, item.assetId, item.quantity);
+    }
   }
   auction.escrowStatus = 'released';
 }
 
-function transferAuctionAsset(world, auction, bidder, now) {
+function validateAuctionTransfer(world, auction, bidder) {
   const seller = player(world, auction.sellerId);
   if (!seller) return result(false, '卖家不存在');
-  if (auction.assetKind === 'collectible') {
-    const collectible = world.collectibles.find((item) => item.id === auction.assetId);
-    if (!collectible || collectible.currentOwnerId !== auction.sellerId) return result(false, '藏品归属异常');
-    const previousOwnerId = collectible.currentOwnerId;
-    collectible.currentOwnerId = auction.highestBidderId;
-    appendOwnership(world, collectible, previousOwnerId, auction.highestBidderId, 'auction', now, {
-      auctionId: auction.id,
-      price: auction.highestBid,
-    });
-  } else if (auction.assetKind === 'commodity') {
-    const sellerInventory = inventoryFor(seller, auction.assetId);
-    if (sellerInventory.frozen < auction.quantity) return result(false, '拍卖商品冻结数量不足');
-    const usage = createWarehouseUsage(world, bidder);
-    if (usage.warehouseUsedCapacity > bidder.inventoryCapacity) return result(false, '买家仓库容量不足');
-    sellerInventory.frozen -= auction.quantity;
-    inventoryFor(bidder, auction.assetId).available += auction.quantity;
-    seller.stats ||= {};
-    bidder.stats ||= {};
-    seller.stats.commodityVolume = Number(seller.stats.commodityVolume || 0) + auction.quantity;
-    bidder.stats.commodityVolume = Number(bidder.stats.commodityVolume || 0) + auction.quantity;
-    seller.stats.soldGoods = Number(seller.stats.soldGoods || 0) + auction.quantity;
-    bidder.stats.boughtGoods = Number(bidder.stats.boughtGoods || 0) + auction.quantity;
-  } else {
-    const transferred = transferFacilityAuctionQuantity(
-      world,
-      auction.sellerId,
-      auction.highestBidderId,
-      auction.assetId,
-      auction.quantity,
-    );
-    if (!transferred.ok) return transferred;
-    seller.stats ||= {};
-    bidder.stats ||= {};
-    seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + auction.highestBid;
-    bidder.stats.facilityVolume = Number(bidder.stats.facilityVolume || 0) + auction.highestBid;
+  for (const item of auctionItems(auction)) {
+    if (item.assetKind === 'collectible') {
+      const collectible = world.collectibles.find((entry) => entry.id === item.assetId);
+      if (!collectible || collectible.currentOwnerId !== auction.sellerId) return result(false, '藏品归属异常');
+    } else if (item.assetKind === 'commodity') {
+      if (inventoryFor(seller, item.assetId).frozen < item.quantity) return result(false, '拍卖商品冻结数量不足');
+    } else {
+      const validation = validateFacilityAuctionTransferQuantity(world, auction.sellerId, item.assetId, item.quantity);
+      if (!validation.ok) return validation;
+    }
+  }
+  ensureWarehouse(bidder);
+  if (createWarehouseUsage(world, bidder).warehouseUsedCapacity > bidder.inventoryCapacity) {
+    return result(false, '买家仓库容量不足');
+  }
+  return result(true, '拍卖资产可以转移');
+}
+
+function transferAuctionAsset(world, auction, bidder, now) {
+  const seller = player(world, auction.sellerId);
+  const validation = validateAuctionTransfer(world, auction, bidder);
+  if (!seller || !validation.ok) return validation;
+  const sellerSnapshot = structuredClone(seller);
+  const bidderSnapshot = structuredClone(bidder);
+  const collectibleOwners = new Map(auctionItems(auction)
+    .filter((item) => item.assetKind === 'collectible')
+    .map((item) => [item.assetId, world.collectibles.find((entry) => entry.id === item.assetId)?.currentOwnerId]));
+  const ownershipLength = world.collectibleOwnershipHistory.length;
+  try {
+    for (const item of auctionItems(auction).filter((entry) => entry.assetKind === 'facility')) {
+      const transferred = transferFacilityAuctionQuantity(
+        world,
+        auction.sellerId,
+        auction.highestBidderId,
+        item.assetId,
+        item.quantity,
+      );
+      if (!transferred.ok) throw new Error(transferred.message);
+    }
+    for (const item of auctionItems(auction)) {
+      if (item.assetKind === 'collectible') {
+        const collectible = world.collectibles.find((entry) => entry.id === item.assetId);
+        const previousOwnerId = collectible.currentOwnerId;
+        collectible.currentOwnerId = auction.highestBidderId;
+        appendOwnership(world, collectible, previousOwnerId, auction.highestBidderId, 'auction', now, {
+          auctionId: auction.id,
+          price: auction.items.length === 1 ? auction.highestBid : undefined,
+          auctionTotalPrice: auction.items.length > 1 ? auction.highestBid : undefined,
+          bundleItemCount: auction.items.length > 1 ? auction.items.length : undefined,
+        });
+      } else if (item.assetKind === 'commodity') {
+        const sellerInventory = inventoryFor(seller, item.assetId);
+        sellerInventory.frozen -= item.quantity;
+        inventoryFor(bidder, item.assetId).available += item.quantity;
+        seller.stats ||= {};
+        bidder.stats ||= {};
+        seller.stats.commodityVolume = Number(seller.stats.commodityVolume || 0) + item.quantity;
+        bidder.stats.commodityVolume = Number(bidder.stats.commodityVolume || 0) + item.quantity;
+        seller.stats.soldGoods = Number(seller.stats.soldGoods || 0) + item.quantity;
+        bidder.stats.boughtGoods = Number(bidder.stats.boughtGoods || 0) + item.quantity;
+      }
+    }
+    const onlyItem = auction.items.length === 1 ? auction.items[0] : null;
+    if (onlyItem?.assetKind === 'facility') {
+      seller.stats ||= {};
+      bidder.stats ||= {};
+      seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + auction.highestBid;
+      bidder.stats.facilityVolume = Number(bidder.stats.facilityVolume || 0) + auction.highestBid;
+    }
+  } catch (error) {
+    world.players[String(auction.sellerId)] = sellerSnapshot;
+    world.players[String(auction.highestBidderId)] = bidderSnapshot;
+    for (const [collectibleId, ownerId] of collectibleOwners) {
+      const collectible = world.collectibles.find((entry) => entry.id === collectibleId);
+      if (collectible) collectible.currentOwnerId = ownerId;
+    }
+    world.collectibleOwnershipHistory.length = ownershipLength;
+    return result(false, error instanceof Error ? error.message : '拍卖资产转移失败');
   }
   auction.escrowStatus = 'transferred';
-  return result(true, '拍卖资产已转移');
+  return result(true, '拍卖资产包已整体转移');
 }
 
 function cancelBrokenAuction(world, auction, now) {
@@ -223,52 +312,65 @@ export function processCollectibleAuctions(world, now = Date.now()) {
   return world;
 }
 
-function requestedAsset(payload) {
-  const kind = payload.assetKind === 'commodity' || payload.assetKind === 'facility'
-    ? payload.assetKind
-    : 'collectible';
-  const assetId = kind === 'commodity'
-    ? String(payload.assetId || payload.productId || '')
-    : kind === 'facility'
-      ? String(payload.assetId || payload.facilityTypeId || '')
-      : String(payload.assetId || payload.collectibleId || '');
-  const quantity = kind === 'collectible' ? 1 : integer(payload.quantity, MAX_AUCTION_QUANTITY);
-  return { kind, assetId, quantity };
+function normalizeRequestedItems(payload) {
+  const source = Array.isArray(payload.items) ? payload.items : [payload];
+  return normalizeAuctionItems(source);
+}
+
+function validateAuctionItems(world, seller, userId, items) {
+  for (const item of items) {
+    if (item.assetKind === 'collectible') {
+      const collectible = world.collectibles.find((entry) => entry.id === item.assetId);
+      if (!collectible) return result(false, '藏品不存在');
+      if (collectible.currentOwnerId !== userId) return result(false, '只有当前持有人可以发起拍卖');
+      if (openCollectibleAuction(world, collectible.id)) return result(false, '该藏品已经在拍卖中');
+    } else if (item.assetKind === 'commodity') {
+      if (!PRODUCTS.has(item.assetId)) return result(false, '商品不存在');
+      if (inventoryFor(seller, item.assetId).available < item.quantity) return result(false, '可拍卖商品数量不足');
+    } else {
+      if (!FACILITY_TYPES.has(item.assetId)) return result(false, '工厂类型不存在');
+      const validation = validateFacilityAuctionQuantity(world, userId, item.assetId, item.quantity);
+      if (!validation.ok) return validation;
+    }
+  }
+  return result(true, '资产包可以冻结');
+}
+
+function holdAuctionItems(world, seller, userId, items) {
+  const inventoriesBefore = structuredClone(seller.inventories || {});
+  const facilityGroupsBefore = structuredClone(seller.facilityGroups || []);
+  for (const item of items) {
+    if (item.assetKind === 'commodity') {
+      const inventory = inventoryFor(seller, item.assetId);
+      inventory.available -= item.quantity;
+      inventory.frozen += item.quantity;
+    } else if (item.assetKind === 'facility') {
+      const reserved = reserveFacilityAuctionQuantity(world, userId, item.assetId, item.quantity);
+      if (!reserved.ok) {
+        seller.inventories = inventoriesBefore;
+        seller.facilityGroups = facilityGroupsBefore;
+        return reserved;
+      }
+    }
+  }
+  return result(true, '资产包已冻结');
 }
 
 function createAuction(world, userId, payload, now) {
   const startingBid = integer(payload.startingBid, MAX_BID);
   const durationHours = integer(payload.durationHours, MAX_AUCTION_HOURS);
-  const { kind, assetId, quantity } = requestedAsset(payload);
-  if (!startingBid || !durationHours || !assetId || !quantity) return result(false, '拍卖资产、数量、起拍价或时长无效');
+  const items = normalizeRequestedItems(payload);
+  if (!startingBid || !durationHours || !items) return result(false, '拍卖资产包、起拍价或时长无效');
   const seller = player(world, userId);
   if (!seller) return result(false, '玩家不存在');
+  const validation = validateAuctionItems(world, seller, userId, items);
+  if (!validation.ok) return validation;
+  const held = holdAuctionItems(world, seller, userId, items);
+  if (!held.ok) return held;
 
-  if (kind === 'collectible') {
-    const collectible = world.collectibles.find((item) => item.id === assetId);
-    if (!collectible) return result(false, '藏品不存在');
-    if (collectible.currentOwnerId !== userId) return result(false, '只有当前持有人可以发起拍卖');
-    if (openCollectibleAuction(world, collectible.id)) return result(false, '该藏品已经在拍卖中');
-  } else if (kind === 'commodity') {
-    if (!PRODUCTS.has(assetId)) return result(false, '商品不存在');
-    const inventory = inventoryFor(seller, assetId);
-    if (inventory.available < quantity) return result(false, '可拍卖商品数量不足');
-    inventory.available -= quantity;
-    inventory.frozen += quantity;
-  } else {
-    if (!FACILITY_TYPES.has(assetId)) return result(false, '工厂类型不存在');
-    const reserved = reserveFacilityAuctionQuantity(world, userId, assetId, quantity);
-    if (!reserved.ok) return reserved;
-  }
-
-  world.collectibleAuctions.push({
+  const auction = applyAuctionAliases({
     id: `asset-auction-${randomUUID()}`,
-    assetKind: kind,
-    assetId,
-    collectibleId: kind === 'collectible' ? assetId : undefined,
-    productId: kind === 'commodity' ? assetId : undefined,
-    facilityTypeId: kind === 'facility' ? assetId : undefined,
-    quantity,
+    items,
     sellerId: userId,
     sellerName: playerName(world, userId, `玩家 ${userId}`),
     startingBid,
@@ -281,9 +383,12 @@ function createAuction(world, userId, payload, now) {
     endsAt: now + durationHours * 60 * 60 * 1_000,
     bids: [],
   });
+  world.collectibleAuctions.push(auction);
   world.collectibleAuctions = world.collectibleAuctions.slice(-2_000);
-  const label = kind === 'collectible' ? '藏品' : kind === 'commodity' ? '商品' : '工厂';
-  return result(true, `${label}拍卖已发布，资产已冻结`);
+  const label = items.length > 1
+    ? '资产包'
+    : items[0].assetKind === 'collectible' ? '藏品' : items[0].assetKind === 'commodity' ? '商品' : '工厂';
+  return result(true, `${label}拍卖已发布，资产已冻结且继续计入总资产`);
 }
 
 function placeBid(world, userId, payload, now) {
@@ -300,10 +405,13 @@ function placeBid(world, userId, payload, now) {
   const bidder = player(world, userId);
   if (!bidder) return result(false, '玩家不存在');
 
-  if (auction.assetKind === 'commodity' && auction.highestBidderId !== userId) {
+  const requiredCommodityCapacity = auctionItems(auction)
+    .filter((item) => item.assetKind === 'commodity')
+    .reduce((sum, item) => sum + item.quantity, 0);
+  if (requiredCommodityCapacity > 0 && auction.highestBidderId !== userId) {
     ensureWarehouse(bidder);
-    if (createWarehouseUsage(world, bidder).warehouseAvailableCapacity < auction.quantity) {
-      return result(false, '仓库剩余容量不足，无法竞拍该批商品');
+    if (createWarehouseUsage(world, bidder).warehouseAvailableCapacity < requiredCommodityCapacity) {
+      return result(false, '仓库剩余容量不足，无法竞拍该资产包');
     }
   }
 
@@ -363,9 +471,9 @@ function clientCollectible(world, item) {
   };
 }
 
-function clientAuctionAsset(world, auction) {
-  if (auction.assetKind === 'collectible') {
-    const collectible = world.collectibles.find((item) => item.id === auction.assetId);
+function clientAuctionItem(world, item) {
+  if (item.assetKind === 'collectible') {
+    const collectible = world.collectibles.find((entry) => entry.id === item.assetId);
     if (!collectible) return null;
     const client = clientCollectible(world, collectible);
     return {
@@ -376,27 +484,33 @@ function clientAuctionAsset(world, auction) {
       thumbnailUrl: client.thumbnailUrl,
       sourceUrl: client.sourceUrl,
       collectible: client,
+      quantity: 1,
     };
   }
-  if (auction.assetKind === 'commodity') {
-    const product = PRODUCTS.get(auction.assetId);
+  if (item.assetKind === 'commodity') {
+    const product = PRODUCTS.get(item.assetId);
     return product ? {
-      kind: 'commodity', id: product.id, name: product.name, subtitle: '商品资产',
+      kind: 'commodity', id: product.id, name: product.name, subtitle: '商品资产', quantity: item.quantity,
     } : null;
   }
-  const type = FACILITY_TYPES.get(auction.assetId);
+  const type = FACILITY_TYPES.get(item.assetId);
   return type ? {
-    kind: 'facility', id: type.id, name: type.name, subtitle: '工厂资产',
+    kind: 'facility', id: type.id, name: type.name, subtitle: '工厂资产', quantity: item.quantity,
   } : null;
 }
 
 function clientAuction(world, auction, userId) {
-  const asset = clientAuctionAsset(world, auction);
-  if (!asset) return null;
+  const itemSummaries = auctionItems(auction).map((item) => clientAuctionItem(world, item));
+  if (itemSummaries.some((item) => !item)) return null;
+  const asset = itemSummaries[0];
   return {
     ...auction,
+    items: auctionItems(auction).map((item) => ({ ...item })),
+    itemSummaries,
+    itemCount: itemSummaries.length,
+    isBundle: itemSummaries.length > 1,
     asset,
-    collectible: asset.collectible,
+    collectible: itemSummaries.length === 1 ? asset.collectible : undefined,
     isSeller: auction.sellerId === userId,
     isHighestBidder: auction.highestBidderId === userId,
     minimumBid: auction.highestBid ? auction.highestBid + 1 : auction.startingBid,
@@ -414,7 +528,7 @@ export function createCollectibleClientState(world, userId, now = Date.now()) {
   return {
     collectibles: world.collectibles.map((item) => clientCollectible(world, item)),
     assetAuctions,
-    collectibleAuctions: assetAuctions.filter((auction) => auction.assetKind === 'collectible'),
+    collectibleAuctions: assetAuctions.filter((auction) => auction.itemCount === 1 && auction.assetKind === 'collectible'),
   };
 }
 
