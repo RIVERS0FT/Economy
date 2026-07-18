@@ -6,6 +6,7 @@ const failures = [];
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
 const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
+const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不得包含: ${text}`); };
 
 [
   'server/src/gem-shop.js',
@@ -13,11 +14,14 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
   'server/src/app.js',
   'server/test/gem-shop.test.js',
   'src/pages/GemShopPage.tsx',
+  'src/components/icons/GemIcon.tsx',
   'src/styles/gem-shop.css',
+  'tests/browser/gem-shop-layout.spec.ts',
   'src/config/navigation.ts',
   'src/pages/PageRouter.tsx',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
 ].forEach(requireFile);
 
@@ -50,8 +54,17 @@ for (const text of [
   '宝石不能用货币买回',
   '兑换记录',
 ]) requireText('src/pages/GemShopPage.tsx', text);
+for (const text of [
+  "className ? `game-icon ${className}` : 'game-icon'",
+  'width="1em"',
+  'height="1em"',
+]) requireText('src/components/icons/GemIcon.tsx', text);
+for (const text of ['align-items: start;', 'width: 1.35rem;', 'height: 1.35rem;', '@media (max-width: 960px)']) requireText('src/styles/gem-shop.css', text);
+for (const text of ['view=gem-shop', '.gem-shop-balance-row svg', "name: '确认兑换'"]) requireText('tests/browser/gem-shop-layout.spec.ts', text);
 for (const text of ['固定汇率', '单向兑换', '不可撤销']) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
-for (const text of ['商店', '`gem-shop`', '`GemShopPage`']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of ['商店', '`gem-shop`', '`GemShopPage`', '`1440×900`', '“兑换货币”和“兑换记录”']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '排名在桌面与移动端统一通过 `formatRank`');
+forbidText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '桌面继续使用“第 1 名”');
 for (const text of ['/api/game/gem-shop', '/api/game/gem-shop/exchange', 'economy_gem_shop_exchanges']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 
 if (failures.length) {

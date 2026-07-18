@@ -6,6 +6,7 @@ import { GemIcon } from '../../src/components/icons/GemIcon';
 import { GameShell } from '../../src/components/shell/GameShell';
 import type { StatusBarItem } from '../../src/components/shell/StatusBar';
 import { CurrencyAmount } from '../../src/components/ui/CurrencyAmount';
+import { GemShopPage } from '../../src/pages/GemShopPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
 import { SettingsPage } from '../../src/pages/SettingsPage';
 import type { TabId } from '../../src/config/navigation';
@@ -19,6 +20,7 @@ import '../../src/styles/liquid-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
+import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
 import '../../src/styles/design-system.css';
 import '../../src/styles/overview-polish.css';
@@ -31,7 +33,7 @@ const view = params.get('view') ?? 'settings';
 const scenario = params.get('scenario') ?? 'empty';
 const fixedNow = new Date(2026, 6, 17, 22, 30, 0).getTime();
 
-document.documentElement.dataset.appSurface = view === 'overview' ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = view === 'overview' || view === 'gem-shop' ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -278,6 +280,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     clearLocalActivity: () => {},
     signOut: async () => {},
     work: async () => ({ ok: true, message: '工作完成' }),
+    exchangeGems: async () => ({ ok: true, message: '兑换成功' }),
   } as unknown as LoadedGameViewModel;
 }
 
@@ -335,6 +338,34 @@ function OverviewHarness() {
   );
 }
 
+
+function GemShopHarness() {
+  const [tab, setTab] = useState<TabId>('gem-shop');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    next.game.gems = 40;
+    next.game.credits = 23_594;
+    return next;
+  }, [tab]);
+  const statusItems: StatusBarItem[] = [
+    { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
+    { id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('assets') },
+    { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
+    { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+  ];
+
+  return (
+    <GameShell model={model} statusItems={statusItems}>
+      <GemShopPage model={model} />
+    </GameShell>
+  );
+}
+
 createRoot(document.getElementById('root') as HTMLElement).render(
-  view === 'overview' ? <OverviewHarness /> : <SettingsHarness />,
+  view === 'overview'
+    ? <OverviewHarness />
+    : view === 'gem-shop'
+      ? <GemShopHarness />
+      : <SettingsHarness />,
 );
