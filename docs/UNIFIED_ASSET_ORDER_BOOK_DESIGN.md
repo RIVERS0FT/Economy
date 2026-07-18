@@ -110,6 +110,8 @@ interface OrderFill {
   quantity: number;
   price: number;
   total: number;
+  fee: number;
+  netTotal: number;
   counterparty: string;
   createdAt: number;
   makerOrderId: string;
@@ -122,7 +124,25 @@ interface OrderFill {
 
 订单簿和价格曲线属于市场状态；玩家成交记录属于订单级权威明细。两者不得互相替代。
 
-### 5.1 行情主动方向
+### 5.1 玩家卖出手续费
+
+统一订单簿只向玩家卖方收取手续费，买方仍按 `quantity × maker price` 支付完整成交总额。商品卖单、工厂卖单以及玩家卖给“饮食需求”或“家庭用品需求”的成交使用同一规则；拍卖结算不属于订单簿，不收取统一订单簿玩家卖出手续费。
+
+手续费按单张卖单自规则启用后的累计成交总额计算，而不是对每条 fill 重复应用最低值：
+
+```text
+累计应收手续费 = max(1, ceil(累计成交总额 × 1%))
+本次 fill 手续费 = 累计应收手续费 - 此前累计已收手续费
+本次卖方实收 = 本次成交总额 - 本次 fill 手续费
+```
+
+累计成交总额为 0 时手续费为 0。成交额 1～100 的单张卖单累计手续费为 1，101～200 为 2；同一卖单拆成 30、30、40 三次成交时只在第一笔收取 1，再成交 1 时补收 1。每张新卖单独立应用最低手续费，撤销未成交部分不收费。
+
+`fill.total` 始终保持成交总额，卖方 fill 的 `fee` 表示本笔增量手续费，`netTotal` 表示本笔实际到账；买方公开 fill 的 `fee` 为 0，`netTotal` 等于 `total`。人口需求的 `populationIssued` 继续记录成交总额，手续费进入卖方 `stats.systemSinks`，因此净货币变化等于发行总额减手续费。
+
+上线迁移不得追收既有成交：旧卖单第一次发生新成交时，已有 fill 统一标记 `fee = 0`、`netTotal = total`，累计字段从 0 开始，只对启用后的新 fill 收费。服务器必须在同一成交事务完成扣费、fill 标记和系统回收，重复序列化、幂等重试或状态轮询不得重复扣费。
+
+### 5.2 行情主动方向
 
 商品和工厂每笔成交除价格、数量和时间外，还必须保存吃单方（taker／incoming order）的买卖方向。主动买单吃掉已有卖单时记为主动买入，主动卖单吃掉已有买单时记为主动卖出；不得把成交双方的买卖数量直接相减，也不得按价格涨跌猜测主动方向。
 
@@ -236,7 +256,7 @@ maxBuy = min(warehouseAvailableCapacity, floor(credits / price))
 
 ## 10. 本地成交
 
-浏览器本地成交记录只比较相邻权威状态中新出现的 fill ID，并使用 `fill.price`、`fill.quantity`、`fill.total` 和 `fill.counterparty`。
+浏览器本地成交记录只比较相邻权威状态中新出现的 fill ID，并使用匿名 `fill.price`、`fill.quantity`、`fill.total`、`fill.fee`、`fill.netTotal` 和 `fill.createdAt`；不得读取或推断对手信息。
 
 本地日志 v3 升级时清空由旧 `lastPrice` 推导的成交记录；v4 将生产记录升级为多输入结构并建立包含工厂目录的新快照。
 
@@ -261,15 +281,16 @@ maxBuy = min(warehouseAvailableCapacity, floor(credits / price))
 - 使用商品最近成交价生成系统商品买卖订单；
 - 系统商品订单越过当前最佳买卖价或制造立即成交；
 - 创建任何系统工厂买单、系统工厂卖单或固定价格工厂供给；
-- 保留旧世界中的系统工厂订单。
+- 保留旧世界中的系统工厂订单；
+- 对同一卖单的每条部分成交重复收取最低手续费、向买方加收手续费、追收上线前成交，或对拍卖收取统一订单簿玩家卖出手续费。
 
 ## 普通玩家订单与成交匿名化
 
-服务器内部订单继续保存真实所有者、需求组和 maker/taker 关系，用于撮合、结算、人口货币发行统计和管理员审计。普通玩家状态必须经过集中式公开订单序列化：本人订单仅增加 `isOwn: true` 并返回由 `id / quantity / price / total / createdAt` 组成的匿名 fills；其他订单返回 `isOwn: false` 且不返回 fills。
+服务器内部订单继续保存真实所有者、需求组和 maker/taker 关系，用于撮合、结算、人口货币发行统计和管理员审计。普通玩家状态必须经过集中式公开订单序列化：本人订单仅增加 `isOwn: true` 并返回由 `id / quantity / price / total / fee / netTotal / createdAt` 组成的匿名 fills；其他订单返回 `isOwn: false` 且不返回 fills。
 
 普通玩家状态中的所有订单都不得返回真实 `ownerId`、`ownerName`、`ownerType`、`demandGroupId`、`demandTier` 或 `demandCycleId`。公开 fill 不得返回 `counterparty`、`makerOrderId`、`takerOrderId` 或 `liquidity`。人口需求订单与玩家订单在普通玩家 JSON 中必须使用相同结构，不能通过字段差异判断来源。
 
-客户端通过 `isOwn` 识别本人订单，并只显示订单部分成交、全部成交、成交数量、价格、总额和时间。隐藏界面列不能替代 API 脱敏。
+客户端通过 `isOwn` 识别本人订单，并只显示订单部分成交、全部成交、成交数量、价格、总额、手续费、实收和时间。隐藏界面列不能替代 API 脱敏。
 
 ## 市场页面布局与可用性
 

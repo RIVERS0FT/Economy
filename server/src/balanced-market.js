@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { applyMarketSellFee } from './market-sell-fee.js';
 
 export function createBalancedMarketRuntime({ products, constants }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
@@ -105,14 +106,15 @@ export function createBalancedMarketRuntime({ products, constants }) {
     addLedger(player, 'market_trade', -actual, `买入 ${quantity} 个${product.name}，成交价 ${tradePrice}`, createdAt);
   }
 
-  function settlePlayerSell(world, order, quantity, tradePrice, buyer, createdAt) {
+  function settlePlayerSell(world, order, quantity, tradePrice, buyer, settlement, createdAt) {
     const player = world.players?.[String(order.ownerId)];
     if (!player) throw new Error(`Missing seller ${order.ownerId}`);
     const inventory = inventoryFor(player, order.productId);
     const total = quantity * tradePrice;
     inventory.frozen -= quantity;
-    player.credits += total;
+    player.credits += settlement.netTotal;
     player.stats ||= {};
+    player.stats.systemSinks = Number(player.stats.systemSinks || 0) + settlement.fee;
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
     player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
     if (buyer.ownerType === 'population') {
@@ -121,13 +123,14 @@ export function createBalancedMarketRuntime({ products, constants }) {
     const product = productFor(order.productId);
     addTrade(player, {
       type: 'commodity', productId: product.id, side: 'sell', quantity, price: tradePrice,
-      total, counterparty: counterparty(buyer), createdAt, description: `卖出 ${product.name}`,
+      total, fee: settlement.fee, netTotal: settlement.netTotal,
+      counterparty: counterparty(buyer), createdAt, description: `卖出 ${product.name}`,
     });
     addLedger(
       player,
       buyer.ownerType === 'population' ? 'population_income' : 'market_trade',
-      total,
-      `${buyer.ownerType === 'population' ? '人口需求消费' : '卖出'} ${quantity} 个${product.name}，成交价 ${tradePrice}`,
+      settlement.netTotal,
+      `${buyer.ownerType === 'population' ? '人口需求消费' : '卖出'} ${quantity} 个${product.name}，成交价 ${tradePrice}，手续费 ${settlement.fee}`,
       createdAt,
     );
   }
@@ -144,10 +147,19 @@ export function createBalancedMarketRuntime({ products, constants }) {
     resting.remaining -= quantity;
     incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
     resting.status = resting.remaining === 0 ? 'filled' : 'partial';
-    appendFill(buy, { ...fill, counterparty: counterparty(sell), liquidity: buy.id === resting.id ? 'maker' : 'taker' });
-    appendFill(sell, { ...fill, counterparty: counterparty(buy), liquidity: sell.id === resting.id ? 'maker' : 'taker' });
+    const settlement = sell.ownerType === 'player'
+      ? applyMarketSellFee(sell, fill.total)
+      : { fee: 0, netTotal: fill.total };
+    appendFill(buy, {
+      ...fill, fee: 0, netTotal: fill.total,
+      counterparty: counterparty(sell), liquidity: buy.id === resting.id ? 'maker' : 'taker',
+    });
+    appendFill(sell, {
+      ...fill, ...settlement,
+      counterparty: counterparty(buy), liquidity: sell.id === resting.id ? 'maker' : 'taker',
+    });
     if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);
-    if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, createdAt);
+    if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, settlement, createdAt);
     recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt);
   }
 

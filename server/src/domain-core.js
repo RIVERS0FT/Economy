@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { applyMarketSellFee } from './market-sell-fee.js';
 
 export const ECONOMY_CONSTANTS = Object.freeze({
   maxOpenOrders: 10,
@@ -648,13 +649,14 @@ function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, created
   addLedger(player, 'market_trade', -actual, `买入 ${quantity} 个${product.name}，成交价 ${tradePrice}`, createdAt);
 }
 
-function settlePlayerSell(world, order, quantity, tradePrice, buyer, createdAt) {
+function settlePlayerSell(world, order, quantity, tradePrice, buyer, settlement, createdAt) {
   const player = world.players[String(order.ownerId)];
   if (!player) throw new Error(`Missing seller ${order.ownerId}`);
   const inventory = inventoryFor(player, order.productId);
   const total = quantity * tradePrice;
   inventory.frozen -= quantity;
-  player.credits += total;
+  player.credits += settlement.netTotal;
+  player.stats.systemSinks = Number(player.stats.systemSinks || 0) + settlement.fee;
   player.stats.commodityVolume += quantity;
   player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
   if (buyer.ownerType === 'population') player.stats.populationIssued += total;
@@ -666,6 +668,8 @@ function settlePlayerSell(world, order, quantity, tradePrice, buyer, createdAt) 
     quantity,
     price: tradePrice,
     total,
+    fee: settlement.fee,
+    netTotal: settlement.netTotal,
     counterparty: describeCounterparty(buyer),
     createdAt,
     description: `卖出 ${product.name}`,
@@ -673,8 +677,8 @@ function settlePlayerSell(world, order, quantity, tradePrice, buyer, createdAt) 
   addLedger(
     player,
     buyer.ownerType === 'population' ? 'population_income' : 'market_trade',
-    total,
-    `${buyer.ownerType === 'population' ? '人口需求消费' : '卖出'} ${quantity} 个${product.name}，成交价 ${tradePrice}`,
+    settlement.netTotal,
+    `${buyer.ownerType === 'population' ? '人口需求消费' : '卖出'} ${quantity} 个${product.name}，成交价 ${tradePrice}，手续费 ${settlement.fee}`,
     createdAt,
   );
 }
@@ -697,18 +701,24 @@ function executeTrade(world, incoming, resting, quantity, createdAt) {
   resting.remaining -= quantity;
   incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
   resting.status = resting.remaining === 0 ? 'filled' : 'partial';
+  const settlement = sell.ownerType === 'player'
+    ? applyMarketSellFee(sell, fillBase.total)
+    : { fee: 0, netTotal: fillBase.total };
   appendPlayerOrderFill(buy, {
     ...fillBase,
+    fee: 0,
+    netTotal: fillBase.total,
     counterparty: describeCounterparty(sell),
     liquidity: buy.id === resting.id ? 'maker' : 'taker',
   });
   appendPlayerOrderFill(sell, {
     ...fillBase,
+    ...settlement,
     counterparty: describeCounterparty(buy),
     liquidity: sell.id === resting.id ? 'maker' : 'taker',
   });
   if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
-  if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, createdAt);
+  if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, settlement, createdAt);
   recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt);
 }
 

@@ -104,6 +104,11 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     ? selectedInventory.available
     : selectedGroup?.availableCount ?? 0;
   const maxTradeQuantity = orderSide === 'buy' ? maxBuyQuantity : maxSellQuantity;
+  const orderTotal = Math.max(0, orderQuantity * orderPrice);
+  const estimatedSellFee = orderSide === 'sell' && orderTotal > 0
+    ? Math.max(1, Math.ceil(orderTotal / 100))
+    : 0;
+  const estimatedNetTotal = Math.max(0, orderTotal - estimatedSellFee);
 
   const availabilityReason = orderPrice < 1
     ? '请输入有效价格。'
@@ -269,7 +274,14 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>1/2 仓</Button>
               <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>全仓</Button>
             </div>
-            <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderQuantity * orderPrice)}</CurrencyAmount></strong></div>
+            <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderTotal)}</CurrencyAmount></strong></div>
+            {orderSide === 'sell' ? (
+              <>
+                <div className="order-summary"><span>预计手续费（1%，最低 1）</span><strong><CurrencyAmount>{formatCurrency(estimatedSellFee)}</CurrencyAmount></strong></div>
+                <div className="order-summary"><span>预计到账</span><strong><CurrencyAmount>{formatCurrency(estimatedNetTotal)}</CurrencyAmount></strong></div>
+                {orderTotal > 0 && estimatedNetTotal === 0 ? <p className="order-disabled-reason">成交额将全部用于支付最低手续费。</p> : null}
+              </>
+            ) : null}
             <div className="order-capacity">
               <span>可用资金 <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></span>
               {marketAssetKind === 'commodity' ? (
@@ -378,7 +390,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 {localTrades.length === 0 ? <p className="muted">当前浏览器暂无成交记录。</p> : (
                   <div className="virtual-record-table local-trades-virtual-table" role="table" aria-label="本地成交记录">
                     <div className="virtual-record-header" role="row">
-                      <span role="columnheader">类型</span><span role="columnheader">资产</span><span role="columnheader">方向</span><span role="columnheader" className="numeric-cell">数量</span><span role="columnheader" className="numeric-cell">价格</span><span role="columnheader" className="numeric-cell">总额</span><span role="columnheader">时间</span>
+                      <span role="columnheader">类型</span><span role="columnheader">资产</span><span role="columnheader">方向</span><span role="columnheader" className="numeric-cell">数量</span><span role="columnheader" className="numeric-cell">价格</span><span role="columnheader" className="numeric-cell">总额</span><span role="columnheader" className="numeric-cell">手续费 / 实收</span><span role="columnheader">时间</span>
                     </div>
                     <VirtualList
                       items={localTrades}
@@ -402,6 +414,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                           <span role="cell" className="numeric-cell">{formatNumber(trade.quantity)}</span>
                           <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.price)}</CurrencyAmount></span>
                           <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>
+                          <span role="cell" className="numeric-cell">{trade.side === 'sell' ? <><CurrencyAmount>{formatCurrency(trade.fee ?? 0)}</CurrencyAmount> / <CurrencyAmount>{formatCurrency(trade.netTotal ?? trade.total)}</CurrencyAmount></> : '—'}</span>
                           <span role="cell">{formatTime(trade.createdAt)}</span>
                         </div>
                       )}
