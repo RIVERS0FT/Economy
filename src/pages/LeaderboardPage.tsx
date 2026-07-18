@@ -111,6 +111,7 @@ function LeaderboardRow({ board, entry }: { board: RankedLeaderboardBoard; entry
 
 function LeaderboardCard({ board, period }: { board: RankedLeaderboardBoard; period: RankedLeaderboardsState['period'] }) {
   const current = board.currentPlayer;
+  const currentRank = current?.rank;
   return (
     <Panel className="leaderboard-board-card">
       <header className="leaderboard-board-heading">
@@ -137,7 +138,7 @@ function LeaderboardCard({ board, period }: { board: RankedLeaderboardBoard; per
       <footer className="leaderboard-current-player">
         <div>
           <span>我的排名</span>
-          <strong>{formatRank(current?.rank)}</strong>
+          <strong>{formatRank(currentRank)}</strong>
         </div>
         <div>
           <span>我的成绩</span>
