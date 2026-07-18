@@ -44,6 +44,8 @@ export function exchangeGems(player, rawAmount, now = Date.now()) {
 
   player.gems -= gems;
   player.credits = Number(player.credits || 0) + creditsReceived;
+  player.stats ||= {};
+  player.stats.gemExchangeCredits = Number(player.stats.gemExchangeCredits || 0) + creditsReceived;
   player.ledger ||= [];
   player.ledger.unshift({
     id: `ledger-${randomUUID()}`,
