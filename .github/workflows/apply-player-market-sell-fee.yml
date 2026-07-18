@@ -24,7 +24,14 @@ jobs:
       - name: Apply transparent patch
         shell: bash
         run: |
-          cat .github/patches/player-market-sell-fee/part-*.pyfrag > /tmp/apply-player-market-sell-fee.py
+          cat \
+            .github/patches/player-market-sell-fee/part-0.pyfrag \
+            .github/patches/player-market-sell-fee/part-0a.pyfrag \
+            .github/patches/player-market-sell-fee/part-1.pyfrag \
+            .github/patches/player-market-sell-fee/part-2.pyfrag \
+            .github/patches/player-market-sell-fee/part-3.pyfrag \
+            .github/patches/player-market-sell-fee/part-4.pyfrag \
+            > /tmp/apply-player-market-sell-fee.py
           set +e
           python3 /tmp/apply-player-market-sell-fee.py > /tmp/apply-player-market-sell-fee.log 2>&1
           status=$?
