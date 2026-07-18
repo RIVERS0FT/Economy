@@ -36,6 +36,7 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
     playerName: entry.playerName,
     score: entry.totalAssets,
     secondary: entry.cashAssets,
+    detail: `${formatNumber(entry.facilityCount)} 座工厂`,
     isCurrentPlayer: entry.isCurrentPlayer,
   }));
   const wealthCurrent = game.leaderboard.find((entry) => entry.isCurrentPlayer);
@@ -72,6 +73,7 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
           playerName: wealthCurrent.playerName,
           score: wealthCurrent.totalAssets,
           secondary: wealthCurrent.cashAssets,
+          detail: `${formatNumber(wealthCurrent.facilityCount)} 座工厂`,
           isCurrentPlayer: true,
         } : null,
         totalPlayers: game.leaderboard.length,
@@ -92,7 +94,10 @@ function scoreValue(board: RankedLeaderboardBoard, score: number): ReactNode {
 
 function LeaderboardRow({ board, entry }: { board: RankedLeaderboardBoard; entry: RankedLeaderboardEntry }) {
   return (
-    <li className={entry.isCurrentPlayer ? 'leaderboard-row current-player-row' : 'leaderboard-row'}>
+    <li
+      className={entry.isCurrentPlayer ? 'leaderboard-row current-player-row' : 'leaderboard-row'}
+      aria-label={entry.detail ? `${entry.playerName}，${entry.detail}` : undefined}
+    >
       <span className={`rank-number rank-${entry.rank}`} aria-label={`排名第 ${entry.rank} 名`}>{formatRank(entry.rank)}</span>
       <span className="leaderboard-player">
         <strong>{entry.playerName}</strong>
