@@ -1,0 +1,35 @@
+name: Apply remove reset runner
+
+on:
+  push:
+    branches:
+      - codex/remove-economy-reset
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/remove-economy-reset
+          fetch-depth: 0
+
+      - name: Apply migration
+        shell: bash
+        run: |
+          python3 scripts/apply-remove-reset-policy.py
+          rm -f .github/workflows/apply-remove-reset-runner.yml
+
+      - name: Commit generated changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "永久移除经济状态重置能力 [remove-reset-applied]"
+          git push origin HEAD:codex/remove-economy-reset
