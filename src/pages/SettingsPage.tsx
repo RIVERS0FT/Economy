@@ -26,7 +26,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     redeemGift,
     showResult,
     signOut,
-    reset,
   } = model;
   const [giftCode, setGiftCode] = useState('');
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
@@ -128,18 +127,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
             <section className="account-action-group" aria-labelledby="current-session-heading">
               <h3 id="current-session-heading">当前会话</h3>
               <Button block variant="secondary" onClick={() => void signOut()}>退出登录</Button>
-            </section>
-
-            <section className="settings-danger-zone" aria-labelledby="settings-danger-heading">
-              <h3 id="settings-danger-heading">危险区域</h3>
-              <p>清空资金、统计、订单和工厂；宝石、邀请关系和封禁记录将保留。</p>
-              <Button
-                block
-                variant="danger"
-                onClick={() => {
-                  if (window.confirm('确认重置当前账号的金融帝国服务器数据？统计、订单和工厂也会清空。宝石、邀请关系和封禁记录将保留。')) void showResult(reset());
-                }}
-              >重置经济状态</Button>
             </section>
           </Panel>
         </div>
