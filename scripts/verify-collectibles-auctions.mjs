@@ -87,7 +87,17 @@ for (const text of [
   'aria-pressed={assetKind === kind}',
   '暂无最近结束的拍卖',
   '冻结资产仍归卖方所有并计入总资产',
+  'className="widget collectible-auction-create"',
+  'className="widget collectible-auction-history"',
 ]) requireText('src/pages/AuctionPage.tsx', text);
+
+for (const text of [
+  '.ui-segmented.asset-auction-kind-switch',
+  'grid-template-columns: repeat(3, minmax(0, 1fr));',
+  '.collectible-auction-create > .widget-heading',
+  '.widget.collectible-auction-create',
+  'align-items: start;',
+]) requireText('src/styles/collectibles-auctions.css', text);
 
 for (const text of [
   '捆绑拍卖在任一项目无效时不冻结任何资产',
@@ -99,7 +109,7 @@ for (const text of [
 for (const [path, texts] of [
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['冻结只改变可用性，不改变所有权', '冻结资产价值']],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['不可拆分的资产包', '最多 20 个规范化资产项目', '冻结资产继续计入卖方总资产']],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['资产包编辑器', '最近结束区域必须始终存在', '可支配资产']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['资产包编辑器', '最近结束区域必须始终存在', '可支配资产', '固定为三等分单行布局']],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['捆绑拍卖', '托管记录不得作为第二份资产余额']],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包中全部商品数量之和', '捆绑拍卖']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['同一资产包中的多种工厂', '总持有数量不变']],

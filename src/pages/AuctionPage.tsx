@@ -205,7 +205,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
       title="拍卖"
       description="发起资产拍卖：将藏品、商品和工厂组合为不可拆分的资产包公开竞价。卖方资产与最高出价资金都会冻结；冻结只限制使用，成交前仍计入各自总资产。"
     >
-      <Panel className="collectible-auction-create">
+      <Panel className="widget collectible-auction-create">
         <WidgetHeading title="发布资产包拍卖" action={<StatusTag>{formatNumber(bundleItems.length)}/{MAX_AUCTION_ITEMS} 项 · 最长 168h</StatusTag>} />
         <div className="asset-auction-builder">
           <section className="asset-auction-add" aria-labelledby="auction-add-heading">
@@ -358,7 +358,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
         )}
       </section>
 
-      <Panel className="collectible-auction-history">
+      <Panel className="widget collectible-auction-history">
         <WidgetHeading title="最近结束" />
         {closedAuctions.length === 0 ? <EmptyState>暂无最近结束的拍卖。</EmptyState> : (
           <div className="collectible-auction-history-list">
