@@ -22,7 +22,7 @@
 | 拍卖 | `auction` | `AuctionPage` | 藏品、商品与工厂竞价拍卖与结算结果 |
 | 排行 | `leaderboard` | `LeaderboardPage` | 服务器总资产排名 |
 | 宝石商店 | `gem-shop` | `GemShopPage` | 宝石单向兑换普通货币 |
-| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |
+| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品和退出 |
 
 显示名称从“资金”统一改为“资产”，但路由 ID 继续使用 `assets`，不得为文案改名新增路由、状态迁移或兼容分支。不得恢复独立订单页、成交记录页、仓库页、工厂实例页、`records` 路由或设施槽位页面。藏品和拍卖是正式独立页面，不得合并进商品与工厂市场。
 
