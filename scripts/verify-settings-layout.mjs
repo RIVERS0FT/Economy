@@ -72,14 +72,15 @@ if (failures.length === 0) {
     if (!styles.includes(text)) failures.push(`settings.css 缺少: ${text}`);
   }
 
-  for (const forbidden of [
-    '.ui-button {',
-    '.ui-switch {',
-    '.panel {',
-    'input {',
-    'select {',
-  ]) {
-    if (styles.includes(forbidden)) failures.push(`settings.css 不得复制基础控件视觉: ${forbidden}`);
+  const forbiddenBaseSelectors = [
+    ['.ui-button', /(^|\n)\.ui-button\s*\{/],
+    ['.ui-switch', /(^|\n)\.ui-switch\s*\{/],
+    ['.panel', /(^|\n)\.panel\s*\{/],
+    ['input', /(^|\n)input\s*\{/],
+    ['select', /(^|\n)select\s*\{/],
+  ];
+  for (const [selector, pattern] of forbiddenBaseSelectors) {
+    if (pattern.test(styles)) failures.push(`settings.css 不得复制基础控件视觉: ${selector}`);
   }
 
   const settingsImport = "import './styles/settings.css';";
