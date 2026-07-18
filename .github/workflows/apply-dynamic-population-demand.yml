@@ -42,6 +42,16 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-dynamic-population-demand.py')
+          text = path.read_text(encoding='utf-8')
+          needle = '  normalized.version = 13;""", """  if (previousVersion < 13) {'
+          replacement = '  normalized.version = 12;""", """  if (previousVersion < 13) {'
+          if needle not in text:
+              raise SystemExit('未找到世界版本迁移补丁定位')
+          path.write_text(text.replace(needle, replacement, 1), encoding='utf-8')
+          PY
           python3 scripts/apply-dynamic-population-demand.py 2>&1 | tee dynamic-demand-patch.log
           python3 - <<'PY'
           from pathlib import Path
@@ -54,7 +64,7 @@ jobs:
                 tradeAt,
                 ledgerAt,
                 now,
-              );"""
+              );""".replace('                ', '      ').replace('              );', '    );')
           new = """    const inferredActivityAt = Math.max(
                 Number(player.registeredAt || 0),
                 Number(player.work?.lastWorkedAt || 0),
@@ -62,7 +72,7 @@ jobs:
                 tradeAt,
                 ledgerAt,
               );
-              player.lastEconomicActivityAt = inferredActivityAt > 0 ? inferredActivityAt : now;"""
+              player.lastEconomicActivityAt = inferredActivityAt > 0 ? inferredActivityAt : now;""".replace('                ', '      ').replace('              );', '    );').replace('              player.', '    player.')
           if old not in text:
               raise SystemExit('未找到玩家活跃时间迁移片段')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
