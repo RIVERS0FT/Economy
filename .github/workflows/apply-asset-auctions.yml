@@ -41,14 +41,17 @@ jobs:
         if: steps.guard.outputs.needed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
-          cat .asset-auction-stage/collectibles.js.part* > server/src/collectibles.js
-          cp .asset-auction-stage/collectibles-auctions.test.js server/test/collectibles-auctions.test.js
-          cp .asset-auction-stage/types.ts src/collectibles/types.ts
-          cp .asset-auction-stage/AuctionPage.tsx src/pages/AuctionPage.tsx
-          cat .asset-auction-stage/verify-collectibles-auctions.mjs.part* > scripts/verify-collectibles-auctions.mjs
-          cat .asset-auction-stage/patch-targets.py.part* > /tmp/patch-targets.py
-          python3 /tmp/patch-targets.py
+          set -o pipefail
+          {
+            set -euo pipefail
+            cat .asset-auction-stage/collectibles.js.part* > server/src/collectibles.js
+            cp .asset-auction-stage/collectibles-auctions.test.js server/test/collectibles-auctions.test.js
+            cp .asset-auction-stage/types.ts src/collectibles/types.ts
+            cp .asset-auction-stage/AuctionPage.tsx src/pages/AuctionPage.tsx
+            cat .asset-auction-stage/verify-collectibles-auctions.mjs.part* > scripts/verify-collectibles-auctions.mjs
+            cat .asset-auction-stage/patch-targets.py.part* > /tmp/patch-targets.py
+            python3 /tmp/patch-targets.py
+          } 2>&1 | tee asset-auctions-assembly.log
       - name: Install dependencies
         if: steps.guard.outputs.needed == 'true'
         run: npm ci
@@ -69,13 +72,15 @@ jobs:
         if: always() && steps.guard.outputs.needed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: asset-auctions-validation
-          path: asset-auctions-validation.log
+          name: asset-auctions-diagnostics
+          path: |
+            asset-auctions-assembly.log
+            asset-auctions-validation.log
       - name: Commit official changes
         if: steps.guard.outputs.needed == 'true'
         shell: bash
         run: |
-          rm -f asset-auctions-validation.log
+          rm -f asset-auctions-assembly.log asset-auctions-validation.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md docs server src scripts/verify-collectibles-auctions.mjs scripts/verify-page-content.mjs
