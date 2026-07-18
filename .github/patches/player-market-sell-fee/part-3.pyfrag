@@ -1,0 +1,141 @@
+"  const estimatedSellFee = orderSide === 'sell' && orderTotal > 0\n"
+    "    ? Math.max(1, Math.ceil(orderTotal / 100))\n"
+    "    : 0;\n"
+    "  const estimatedNetTotal = Math.max(0, orderTotal - estimatedSellFee);\n\n"
+    "  const availabilityReason = orderPrice < 1\n",
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    '            <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderQuantity * orderPrice)}</CurrencyAmount></strong></div>\n',
+    '            <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderTotal)}</CurrencyAmount></strong></div>\n'
+    "            {orderSide === 'sell' ? (\n"
+    "              <>\n"
+    '                <div className="order-summary"><span>预计手续费（1%，最低 1）</span><strong><CurrencyAmount>{formatCurrency(estimatedSellFee)}</CurrencyAmount></strong></div>\n'
+    '                <div className="order-summary"><span>预计到账</span><strong><CurrencyAmount>{formatCurrency(estimatedNetTotal)}</CurrencyAmount></strong></div>\n'
+    "                {orderTotal > 0 && estimatedNetTotal === 0 ? <p className=\"order-disabled-reason\">成交额将全部用于支付最低手续费。</p> : null}\n"
+    "              </>\n"
+    "            ) : null}\n",
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    '                      <span role="columnheader">类型</span><span role="columnheader">资产</span><span role="columnheader">方向</span><span role="columnheader" className="numeric-cell">数量</span><span role="columnheader" className="numeric-cell">价格</span><span role="columnheader" className="numeric-cell">总额</span><span role="columnheader">时间</span>\n',
+    '                      <span role="columnheader">类型</span><span role="columnheader">资产</span><span role="columnheader">方向</span><span role="columnheader" className="numeric-cell">数量</span><span role="columnheader" className="numeric-cell">价格</span><span role="columnheader" className="numeric-cell">总额</span><span role="columnheader" className="numeric-cell">手续费 / 实收</span><span role="columnheader">时间</span>\n',
+)
+replace_once(
+    'src/pages/MarketPage.tsx',
+    '                           <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>\n'
+    '                           <span role="cell">{formatTime(trade.createdAt)}</span>\n',
+    '                           <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>\n'
+    '                           <span role="cell" className="numeric-cell">{trade.side === \'sell\' ? <><CurrencyAmount>{formatCurrency(trade.fee ?? 0)}</CurrencyAmount> / <CurrencyAmount>{formatCurrency(trade.netTotal ?? trade.total)}</CurrencyAmount></> : \'—\'}</span>\n'
+    '                           <span role="cell">{formatTime(trade.createdAt)}</span>\n',
+)
+
+replace_once(
+    'package.json',
+    'node scripts/verify-market-page-layout.mjs && node scripts/verify-local-trade-privacy.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs',
+    'node scripts/verify-market-page-layout.mjs && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs',
+)
+
+replace_once(
+    'README.md',
+    '- 商品和工厂共用统一限价订单结构，支持价格优先、同价时间优先、部分成交、撤单和禁止自成交。\n',
+    '- 商品和工厂共用统一限价订单结构，支持价格优先、同价时间优先、部分成交、撤单和禁止自成交。\n'
+    '- 玩家通过统一订单簿卖出商品或工厂时，按单张卖单累计成交总额收取 1% 手续费，向上取整且最低为 1；买方仍支付成交总额，卖方获得扣费后净额，手续费由系统回收。卖给人口需求同样收费，拍卖不收取该手续费。\n',
+)
+replace_once(
+    'docs/README.md',
+    '21. 藏品、商品与工厂单项或捆绑资产包竞价、卖方资产冻结、最高出价资金、冻结资产总资产计价、商品仓库预占、工厂生产冻结和订单簿行情隔离属于拍卖、订单簿、仓库、生产、页面与服务器共同规则；必须同步更新对应权威文档、测试和 `scripts/verify-collectibles-auctions.mjs`。\n',
+    '21. 藏品、商品与工厂单项或捆绑资产包竞价、卖方资产冻结、最高出价资金、冻结资产总资产计价、商品仓库预占、工厂生产冻结和订单簿行情隔离属于拍卖、订单簿、仓库、生产、页面与服务器共同规则；必须同步更新对应权威文档、测试和 `scripts/verify-collectibles-auctions.mjs`。\n'
+    '22. 统一订单簿玩家卖出手续费、按卖单累计部分成交、最低手续费、人口需求成交、匿名 `fee/netTotal`、系统回收和拍卖豁免属于产品、订单簿、本地日志、页面、服务器与拍卖共同规则；必须同步更新对应文档、测试和 `scripts/verify-market-sell-fee.mjs`。\n',
+)
+replace_once(
+    'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+    '- 共享仓库扩容费用。\n',
+    '- 共享仓库扩容费用；\n'
+    '- 统一订单簿玩家卖出手续费：按单张卖单自规则启用后的累计成交总额收取 1%，向上取整且最低为 1。买方不额外承担，卖方实收为成交总额减手续费；卖给人口需求同样回收，拍卖不适用。\n',
+)
+
+replace_once(
+    'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+    '  total: number;\n'
+    '  counterparty: string;\n',
+    '  total: number;\n'
+    '  fee: number;\n'
+    '  netTotal: number;\n'
+    '  counterparty: string;\n',
+)
+replace_once(
+    'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+    '### 5.1 行情主动方向\n',
+    """### 5.1 玩家卖出手续费
+
+统一订单簿只向玩家卖方收取手续费，买方仍按 `quantity × maker price` 支付完整成交总额。商品卖单、工厂卖单以及玩家卖给“饮食需求”或“家庭用品需求”的成交使用同一规则；拍卖结算不属于订单簿，不收取统一订单簿玩家卖出手续费。
+
+手续费按单张卖单自规则启用后的累计成交总额计算，而不是对每条 fill 重复应用最低值：
+
+```text
+累计应收手续费 = max(1, ceil(累计成交总额 × 1%))
+本次 fill 手续费 = 累计应收手续费 - 此前累计已收手续费
+本次卖方实收 = 本次成交总额 - 本次 fill 手续费
+```
+
+累计成交总额为 0 时手续费为 0。成交额 1～100 的单张卖单累计手续费为 1，101～200 为 2；同一卖单拆成 30、30、40 三次成交时只在第一笔收取 1，再成交 1 时补收 1。每张新卖单独立应用最低手续费，撤销未成交部分不收费。
+
+`fill.total` 始终保持成交总额，卖方 fill 的 `fee` 表示本笔增量手续费，`netTotal` 表示本笔实际到账；买方公开 fill 的 `fee` 为 0，`netTotal` 等于 `total`。人口需求的 `populationIssued` 继续记录成交总额，手续费进入卖方 `stats.systemSinks`，因此净货币变化等于发行总额减手续费。
+
+上线迁移不得追收既有成交：旧卖单第一次发生新成交时，已有 fill 统一标记 `fee = 0`、`netTotal = total`，累计字段从 0 开始，只对启用后的新 fill 收费。服务器必须在同一成交事务完成扣费、fill 标记和系统回收，重复序列化、幂等重试或状态轮询不得重复扣费。
+
+### 5.2 行情主动方向
+""".replace('\n          ', '\n').lstrip(),
+)
+replace_once(
+    'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+    '浏览器本地成交记录只比较相邻权威状态中新出现的 fill ID，并使用 `fill.price`、`fill.quantity`、`fill.total` 和 `fill.counterparty`。\n',
+    '浏览器本地成交记录只比较相邻权威状态中新出现的 fill ID，并使用匿名 `fill.price`、`fill.quantity`、`fill.total`、`fill.fee`、`fill.netTotal` 和 `fill.createdAt`；不得读取或推断对手信息。\n',
+)
+replace_once(
+    'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+    '服务器内部订单继续保存真实所有者、需求组和 maker/taker 关系，用于撮合、结算、人口货币发行统计和管理员审计。普通玩家状态必须经过集中式公开订单序列化：本人订单仅增加 `isOwn: true` 并返回由 `id / quantity / price / total / createdAt` 组成的匿名 fills；其他订单返回 `isOwn: false` 且不返回 fills。\n',
+    '服务器内部订单继续保存真实所有者、需求组和 maker/taker 关系，用于撮合、结算、人口货币发行统计和管理员审计。普通玩家状态必须经过集中式公开订单序列化：本人订单仅增加 `isOwn: true` 并返回由 `id / quantity / price / total / fee / netTotal / createdAt` 组成的匿名 fills；其他订单返回 `isOwn: false` 且不返回 fills。\n',
+)
+replace_once(
+    'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+    '客户端通过 `isOwn` 识别本人订单，并只显示订单部分成交、全部成交、成交数量、价格、总额和时间。隐藏界面列不能替代 API 脱敏。\n',
+    '客户端通过 `isOwn` 识别本人订单，并只显示订单部分成交、全部成交、成交数量、价格、总额、手续费、实收和时间。隐藏界面列不能替代 API 脱敏。\n',
+)
+replace_once(
+    'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+    '- 保留旧世界中的系统工厂订单。\n',
+    '- 保留旧世界中的系统工厂订单；\n'
+    '- 对同一卖单的每条部分成交重复收取最低手续费、向买方加收手续费、追收上线前成交，或对拍卖收取统一订单簿玩家卖出手续费。\n',
+)
+
+replace_once(
+    'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
+    'total\n'
+    'createdAt\n',
+    'total\n'
+    'fee\n'
+    'netTotal\n'
+    'createdAt\n',
+)
+replace_once(
+    'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
+    '同一订单扫过多个价格时仍按真实成交价逐笔记录，不得合并为平均价。玩家可以看到部分成交、全部成交、数量、价格、总额和时间，但不能判断成交来自玩家还是人口需求。\n',
+    '同一订单扫过多个价格时仍按真实成交价逐笔记录，不得合并为平均价。玩家可以看到部分成交、全部成交、数量、价格、成交总额、卖方手续费、卖方实收和时间，但不能判断成交来自玩家还是人口需求。买方记录的 `fee` 为 0、`netTotal` 等于成交总额；卖方记录使用服务器公开 fill 的增量手续费与实际到账，不得在浏览器重新按每笔最低值计算。\n',
+)
+replace_once(
+    'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
+    '- 市场页显示商品和工厂统一资产的本地匿名成交，列为类型、资产、方向、数量、价格、总额和时间，不设置“来源”列。\n',
+    '- 市场页显示商品和工厂统一资产的本地匿名成交，列为类型、资产、方向、数量、价格、成交总额、手续费／实收和时间，不设置“来源”列。\n',
+)
+
+replace_once(
+    'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+    '必须包含商品和工厂统一资产标签、买入／卖出方向、价格、数量、快捷仓位、订单总额和提交、当前资产未完成订单与撤单、全部自有未完成订单、单列最优 5 笔卖单与最优 5 笔买单、近 24h 价格与成交量趋势图和当前浏览器本地成交记录。\n',
+    '必须包含商品和工厂统一资产标签、买入／卖出方向、价格、数量、快捷仓位、订单总额和提交、当前资产未完成订单与撤单、全部自有未完成订单、单列最优 5 笔卖单与最优 5 笔买单、近 24h 价格与成交量趋势图和当前浏览器本地成交记录。卖出方向必须在订单总额下显示按整张订单完全成交估算的“预计手续费（1%，最低 1）”和“预计到账”；成交额全部被最低手续费抵扣时显示明确提示。服务器仍按真实逐笔成交和单张卖单累计额结算，客户端估算不参与扣费。\n',
+)
+replace_once(
+    'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+    '商品和工厂保持同一连续目录，但目录使用两行横向布局、明确分组标记、前后滚动控制和“当前”文字状态。下单禁用必须说明资金、仓库或可售资产不足的具体原因。最近 24h 成交笔数与 240 个六分钟行情分段使用同一时间窗口；零涨跌使用中性色。买盘和卖盘标题必须位于对应订单之前，稀疏订单簿按内容自然高度显示。\n',
+    '商品和工厂保持同一连续目录，但目录使用两行横向布局、明确分组标记、前后滚动控制
