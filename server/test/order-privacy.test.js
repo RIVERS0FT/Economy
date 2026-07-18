@@ -35,7 +35,9 @@ test('ordinary player order state removes counterparties, demand sources, and li
   const external = state.orders.find((order) => order.id === 'population-secret');
 
   assert.equal(own.isOwn, true);
-  assert.deepEqual(own.fills, [{ id: 'fill-secret', quantity: 5, price: 4, total: 20, createdAt: now }]);
+  assert.deepEqual(own.fills, [{
+    id: 'fill-secret', quantity: 5, price: 4, total: 20, fee: 0, netTotal: 20, createdAt: now,
+  }]);
   assert.equal(external.isOwn, false);
   assert.equal('fills' in external, false);
 
