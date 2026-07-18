@@ -1,0 +1,85 @@
+    .slice(0, 200)
+    .map((auction) => clientAuction(world, auction, userId))
+    .filter(Boolean);
+  return {
+    collectibles: world.collectibles.map((item) => clientCollectible(world, item)),
+    assetAuctions,
+    collectibleAuctions: assetAuctions.filter((auction) => auction.assetKind === 'collectible'),
+  };
+}
+
+function importRecord(record, userId, now) {
+  const sourceArtworkId = integer(record.sourceArtworkId ?? record.id);
+  const imageId = text(record.imageId ?? record.image_id, 128);
+  const title = text(record.title, 180);
+  if (!sourceArtworkId || !imageId || !title) {
+    throw Object.assign(new Error('藏品记录缺少 sourceArtworkId、imageId 或 title'), { statusCode: 400 });
+  }
+  if (!(record.isPublicDomain === true || record.is_public_domain === true)) {
+    throw Object.assign(new Error(`藏品 ${sourceArtworkId} 必须明确标记 isPublicDomain=true`), { statusCode: 400 });
+  }
+  if (!/^[A-Za-z0-9-]{8,128}$/.test(imageId)) {
+    throw Object.assign(new Error(`藏品 ${sourceArtworkId} 的 imageId 格式无效`), { statusCode: 400 });
+  }
+  const initialOwnerId = record.initialOwnerId === null || record.initialOwnerId === undefined || record.initialOwnerId === ''
+    ? null
+    : integer(record.initialOwnerId);
+  return {
+    id: `collectible-${sourceArtworkId}-${randomUUID()}`,
+    source: 'art-institute-of-chicago',
+    sourceArtworkId,
+    title,
+    artist: text(record.artist ?? record.artist_title ?? record.artistTitle, 180, '佚名'),
+    dateDisplay: text(record.dateDisplay ?? record.date_display, 120),
+    mediumDisplay: text(record.mediumDisplay ?? record.medium_display, 240),
+    dimensions: text(record.dimensions, 240),
+    description: text(record.description, 1_000),
+    imageId,
+    isPublicDomain: true,
+    currentOwnerId: initialOwnerId,
+    createdAt: now,
+    createdBy: userId,
+  };
+}
+
+export function importCollectibles(world, user, payload, now = Date.now()) {
+  migrateCollectibleWorld(world, now);
+  const records = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
+  if (records.length < 1 || records.length > 100) {
+    throw Object.assign(new Error('每次必须上传 1～100 条藏品记录'), { statusCode: 400 });
+  }
+  const imported = records.map((record) => importRecord(record, Number(user.id), now));
+  const seen = new Set();
+  for (const item of imported) {
+    if (seen.has(item.sourceArtworkId) || world.collectibles.some((existing) => existing.sourceArtworkId === item.sourceArtworkId)) {
+      throw Object.assign(new Error(`芝加哥艺术博物馆藏品 ${item.sourceArtworkId} 已存在`), { statusCode: 409 });
+    }
+    seen.add(item.sourceArtworkId);
+    if (item.currentOwnerId && !player(world, item.currentOwnerId)) {
+      throw Object.assign(new Error(`初始持有人 ${item.currentOwnerId} 不存在`), { statusCode: 400 });
+    }
+  }
+  for (const item of imported) {
+    world.collectibles.push(item);
+    appendOwnership(world, item, null, item.currentOwnerId, item.currentOwnerId ? 'assigned' : 'created', now);
+  }
+  return { importedCount: imported.length, collectibles: imported.map((item) => clientCollectible(world, item)) };
+}
+
+export function listCollectiblesForAdmin(world, now = Date.now()) {
+  processCollectibleAuctions(world, now);
+  return world.collectibles.map((item) => ({
+    ...clientCollectible(world, item),
+    ownershipCount: world.collectibleOwnershipHistory.filter((entry) => entry.collectibleId === item.id).length,
+  })).sort((left, right) => right.createdAt - left.createdAt);
+}
+
+export function collectibleOwnershipHistory(world, collectibleId, now = Date.now()) {
+  migrateCollectibleWorld(world, now);
+  if (!world.collectibles.some((item) => item.id === collectibleId)) {
+    throw Object.assign(new Error('藏品不存在'), { statusCode: 404 });
+  }
+  return world.collectibleOwnershipHistory
+    .filter((entry) => entry.collectibleId === collectibleId)
+    .sort((left, right) => right.createdAt - left.createdAt);
+}
