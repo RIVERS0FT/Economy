@@ -25,11 +25,22 @@ jobs:
         shell: bash
         run: |
           cat .github/patches/player-market-sell-fee/part-*.pyfrag > /tmp/apply-player-market-sell-fee.py
-          python3 /tmp/apply-player-market-sell-fee.py
-          rm -rf .github/patches/player-market-sell-fee
-          rm .github/workflows/apply-player-market-sell-fee.yml
+          set +e
+          python3 /tmp/apply-player-market-sell-fee.py > /tmp/apply-player-market-sell-fee.log 2>&1
+          status=$?
+          set -e
           git config user.name "OpenAI"
           git config user.email "openai@users.noreply.github.com"
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/apply-player-market-sell-fee.log .github/player-market-sell-fee-error.txt
+            git add .github/player-market-sell-fee-error.txt
+            git commit -m "记录卖出手续费修改失败信息" || true
+            git push origin HEAD:agent/player-market-sell-fee
+            exit "$status"
+          fi
+          rm -rf .github/patches/player-market-sell-fee
+          rm -f .github/player-market-sell-fee-error.txt
+          rm .github/workflows/apply-player-market-sell-fee.yml
           git add -A
           git commit -m "玩家市场卖出收取手续费"
           git push origin HEAD:agent/player-market-sell-fee
