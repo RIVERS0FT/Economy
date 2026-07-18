@@ -1,0 +1,75 @@
+name: Apply remove reset followup
+
+on:
+  push:
+    branches:
+      - codex/remove-economy-reset
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/remove-economy-reset
+          fetch-depth: 0
+      - name: Update remaining reset rules
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'pattern not found in {path}: {old!r}')
+              file.write_text(text.replace(old, new, count), encoding='utf-8')
+
+          replace(
+              'scripts/verify-page-content.mjs',
+              "  '退出登录',\n  '重置经济状态',\n  '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',",
+              "  '退出登录',\n  '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',",
+          )
+          replace(
+              'scripts/verify-page-content.mjs',
+              "for (const text of ['登录会话', '重置服务器经济状态', '使用万和百万单位缩写大额资产', '全局使用 K/M/B/T 缩写大额金额与状态栏容量']) {",
+              "for (const text of ['登录会话', '重置经济状态', '重置服务器经济状态', '使用万和百万单位缩写大额资产', '全局使用 K/M/B/T 缩写大额金额与状态栏容量']) {",
+          )
+          replace(
+              'scripts/verify-page-content.mjs',
+              "  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',",
+              "  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品和退出 |',",
+          )
+
+          replace(
+              'scripts/verify-market-assets.mjs',
+              "for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录','重置经济状态']) requireText('src/pages/SettingsPage.tsx', text);",
+              "for (const text of ['点击工作次数','生产商品总数','买入商品总数','卖出商品总数','礼品兑换','退出登录']) requireText('src/pages/SettingsPage.tsx', text);",
+          )
+          replace(
+              'scripts/verify-market-assets.mjs',
+              "for (const text of ['登录会话','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);",
+              "for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);",
+          )
+
+          replace(
+              'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
+              '- 玩家存在进行中的出售拍卖或作为最高出价者参与任何资产拍卖时，禁止重置经济状态。',
+              '- 进行中的出售拍卖或最高出价不得被客户端清除；玩家不提供经济状态重置、清空进度或重新开始能力。',
+          )
+
+          Path('.github/workflows/apply-remove-reset-followup.yml').unlink()
+          PY
+      - name: Commit followup
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "补全经济重置禁用规则 [remove-reset-followup]"
+          git push origin HEAD:codex/remove-economy-reset
