@@ -1,0 +1,140 @@
+    availableCount,
+""", """function clientGroup(world, player, group) {
+  const listedCount = listedQuantity(world, player.userId, group.facilityTypeId);
+  const auctionedCount = auctionedQuantity(world, player.userId, group.facilityTypeId);
+  const frozenCount = listedCount + auctionedCount;
+  const availableCount = Math.max(0, group.count - frozenCount);
+  return {
+    ...clone(group),
+    listedCount,
+    auctionedCount,
+    frozenCount,
+    availableCount,
+""", path)
+write(path, text)
+
+# Highest commodity bidder reserves warehouse capacity until outbid, cancellation or settlement.
+path = 'server/src/warehouse.js'
+text = read(path)
+text = replace_once(text, """function reservedBuyQuantity(world, userId) {
+  return (world?.orders || []).reduce((sum, order) => {
+    if (
+      Number(order?.ownerId) !== Number(userId)
+      || order?.assetKind === 'facility'
+      || order?.side !== 'buy'
+      || !isOpenOrder(order)
+    ) return sum;
+    return sum + Math.max(0, Number(order.remaining || 0));
+  }, 0);
+}
+""", """function reservedBuyQuantity(world, userId) {
+  const orderReserved = (world?.orders || []).reduce((sum, order) => {
+    if (
+      Number(order?.ownerId) !== Number(userId)
+      || order?.assetKind === 'facility'
+      || order?.side !== 'buy'
+      || !isOpenOrder(order)
+    ) return sum;
+    return sum + Math.max(0, Number(order.remaining || 0));
+  }, 0);
+  const auctionReserved = (world?.collectibleAuctions || []).reduce((sum, auction) => {
+    if (
+      auction?.assetKind !== 'commodity'
+      || Number(auction?.highestBidderId) !== Number(userId)
+      || auction?.status !== 'open'
+      || auction?.escrowStatus === 'released'
+      || auction?.escrowStatus === 'transferred'
+    ) return sum;
+    return sum + Math.max(0, Number(auction.quantity || 0));
+  }, 0);
+  return orderReserved + auctionReserved;
+}
+""", path)
+write(path, text)
+
+path = 'server/src/domain-core.js'
+text = read(path)
+text = replace_once(text, """function pendingBuyQuantity(world, userId) {
+  return world.orders
+    .filter((order) => order.ownerId === userId && order.side === 'buy' && order.assetKind !== 'facility' && isOpenOrder(order))
+    .reduce((sum, order) => sum + order.remaining, 0);
+}
+""", """function pendingBuyQuantity(world, userId) {
+  const orderQuantity = world.orders
+    .filter((order) => order.ownerId === userId && order.side === 'buy' && order.assetKind !== 'facility' && isOpenOrder(order))
+    .reduce((sum, order) => sum + order.remaining, 0);
+  const auctionQuantity = (world.collectibleAuctions || []).reduce((sum, auction) => {
+    if (
+      auction?.assetKind !== 'commodity'
+      || Number(auction?.highestBidderId) !== Number(userId)
+      || auction?.status !== 'open'
+      || auction?.escrowStatus === 'released'
+      || auction?.escrowStatus === 'transferred'
+    ) return sum;
+    return sum + Math.max(0, Number(auction.quantity || 0));
+  }, 0);
+  return orderQuantity + auctionQuantity;
+}
+""", path)
+write(path, text)
+# Route generic auction actions while preserving legacy collectible endpoints.
+path = 'server/src/storage.js'
+text = read(path)
+text = replace_once(text, """const COLLECTIBLE_ACTIONS = new Set([
+  'createCollectibleAuction',
+  'placeCollectibleBid',
+  'cancelCollectibleAuction',
+]);
+""", """const COLLECTIBLE_ACTIONS = new Set([
+  'createAuction',
+  'placeAuctionBid',
+  'cancelAuction',
+  'createCollectibleAuction',
+  'placeCollectibleBid',
+  'cancelCollectibleAuction',
+]);
+""", path)
+text = replace_once(text, """  'exchangeGems', 'createCollectibleAuction', 'placeCollectibleBid',
+  'cancelCollectibleAuction', 'resetPlayer',
+""", """  'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
+  'createCollectibleAuction', 'placeCollectibleBid', 'cancelCollectibleAuction', 'resetPlayer',
+""", path)
+write(path, text)
+
+path = 'server/src/app.js'
+text = read(path)
+text = replace_once(text, """  if (method === 'POST' && path === '/api/game/collectible-auctions') {
+    return { action: 'createCollectibleAuction', category: 'orders' };
+  }
+
+  const collectibleBid = path.match(/^\/api\/game\/collectible-auctions\/([^/]+)\/bids$/);
+""", """  if (method === 'POST' && path === '/api/game/auctions') {
+    return { action: 'createAuction', category: 'orders' };
+  }
+
+  const auctionBid = path.match(/^\/api\/game\/auctions\/([^/]+)\/bids$/);
+  if (method === 'POST' && auctionBid) {
+    return {
+      action: 'placeAuctionBid',
+      category: 'orders',
+      routePayload: { auctionId: decodeURIComponent(auctionBid[1]) },
+    };
+  }
+
+  const auctionCancel = path.match(/^\/api\/game\/auctions\/([^/]+)\/cancel$/);
+  if (method === 'POST' && auctionCancel) {
+    return {
+      action: 'cancelAuction',
+      category: 'orders',
+      routePayload: { auctionId: decodeURIComponent(auctionCancel[1]) },
+    };
+  }
+
+  if (method === 'POST' && path === '/api/game/collectible-auctions') {
+    return { action: 'createCollectibleAuction', category: 'orders' };
+  }
+
+  const collectibleBid = path.match(/^\/api\/game\/collectible-auctions\/([^/]+)\/bids$/);
+""", path)
+write(path, text)
+
