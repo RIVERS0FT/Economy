@@ -55,8 +55,8 @@ jobs:
           python3 scripts/apply-dynamic-population-demand.py 2>&1 | tee dynamic-demand-patch.log
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('server/src/domain.js')
-          text = path.read_text(encoding='utf-8')
+          domain_path = Path('server/src/domain.js')
+          domain = domain_path.read_text(encoding='utf-8')
           old = """    player.lastEconomicActivityAt = Math.max(
                 Number(player.registeredAt || 0),
                 Number(player.work?.lastWorkedAt || 0),
@@ -73,9 +73,16 @@ jobs:
                 ledgerAt,
               );
               player.lastEconomicActivityAt = inferredActivityAt > 0 ? inferredActivityAt : now;""".replace('                ', '      ').replace('              );', '    );').replace('              player.', '    player.')
-          if old not in text:
+          if old not in domain:
               raise SystemExit('未找到玩家活跃时间迁移片段')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          domain_path.write_text(domain.replace(old, new, 1), encoding='utf-8')
+
+          verify_path = Path('scripts/verify-staple-crops-demand.mjs')
+          verify = verify_path.read_text(encoding='utf-8')
+          verify_path.write_text(
+              verify.replace("'读取状态不得更新'", "'空闲状态读取不得仅因服务器时间推进而修改'", 1),
+              encoding='utf-8',
+          )
           PY
       - name: Install dependencies
         if: steps.guard.outputs.needed == 'true'
