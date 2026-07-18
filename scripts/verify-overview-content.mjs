@@ -139,10 +139,20 @@ requireAll(paths.shell, [
   'onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}',
 ]);
 requireAll(paths.sidebar, [
-  "aria-label={collapsed ? '展开侧栏' : '折叠侧栏'}",
-  'aria-expanded={!collapsed}',
+  'className="sidebar-logo-expand-button"',
+  'aria-label="展开侧栏"',
+  'aria-expanded="false"',
+  'aria-label="折叠侧栏"',
+  'aria-expanded="true"',
 ]);
-requireAll(paths.sidebarStyle, ['.game-shell.sidebar-collapsed {', 'grid-template-columns: 78px minmax(0, 1fr);', '@media (max-width: 960px)']);
+requireAll(paths.sidebarStyle, [
+  '.game-shell.sidebar-collapsed {',
+  'grid-template-columns: 78px minmax(0, 1fr);',
+  '.sidebar-logo-expand-button:hover',
+  '.sidebar-logo-expand-button:focus-visible',
+  '@media (max-width: 960px)',
+]);
+forbidAll(paths.sidebarStyle, ['right: -11px;']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
 
 requireAll(paths.gameApp, [
