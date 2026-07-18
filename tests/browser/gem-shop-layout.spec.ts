@@ -39,6 +39,8 @@ async function openGemShop(page: Page, width: number, height: number) {
   });
   await page.goto('runtime-test.html?view=gem-shop');
   await expect(page.getByRole('heading', { name: '商店', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '兑换货币', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '兑换记录', exact: true })).toBeVisible();
   await expect(page.getByText('1 宝石 = 10 货币', { exact: true })).toBeVisible();
 }
 
