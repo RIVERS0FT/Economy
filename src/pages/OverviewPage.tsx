@@ -1,8 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import {
   facilityStatusReasonNames,
-  orderAssetId,
-  orderKind,
   orderStatusNames,
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
@@ -22,6 +20,7 @@ import {
 } from '../components/ui/layout';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 import { buildMarketHistoryBuckets, summarizeMarketFlow } from '../utils/marketHistory';
+import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
 function greetingForHour(hour: number) {
   if (hour < 5) return '凌晨好';

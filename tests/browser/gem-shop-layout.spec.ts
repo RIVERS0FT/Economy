@@ -13,7 +13,12 @@ async function gridTrackCount(locator: Locator) {
     .length);
 }
 
-async function openGemShop(page: Page, width: number, height: number) {
+const populatedExchanges = [
+  { gemsSpent: 10, creditsReceived: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },
+  { gemsSpent: 5, creditsReceived: 50, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },
+];
+
+async function openGemShop(page: Page, width: number, height: number, recentExchanges = populatedExchanges) {
   await page.setViewportSize({ width, height });
   await page.route('**/economy-api/game/gem-shop', async (route) => {
     await route.fulfill({
@@ -29,10 +34,7 @@ async function openGemShop(page: Page, width: number, height: number) {
           maxExchangeableGems: 40,
           totalGemsSpent: 15,
           totalCreditsReceived: 150,
-          recentExchanges: [
-            { gemsSpent: 10, creditsReceived: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },
-            { gemsSpent: 5, creditsReceived: 50, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },
-          ],
+          recentExchanges,
         },
       }),
     });
@@ -73,6 +75,21 @@ test('desktop shop keeps compact icons and places the primary exchange action in
   expect(iconBox.height).toBeLessThanOrEqual(24);
   expect(confirmBox.y + confirmBox.height).toBeLessThanOrEqual(900);
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+test('desktop empty shop keeps the balance summary and action area dense', async ({ page }) => {
+  await openGemShop(page, 1680, 930, []);
+
+  const balance = await requireBox(page.locator('.gem-shop-balance-card'));
+  const exchange = await requireBox(page.locator('.gem-shop-exchange-card'));
+  const history = await requireBox(page.locator('.gem-shop-history-card'));
+  const confirm = await requireBox(page.getByRole('button', { name: '确认兑换', exact: true }));
+
+  expect(await gridTrackCount(page.locator('.gem-shop-balance-row'))).toBe(3);
+  expect(balance.height).toBeLessThan(130);
+  expect(exchange.height).toBeLessThan(340);
+  expect(history.height).toBeLessThan(170);
+  expect(confirm.y + confirm.height).toBeLessThan(720);
 });
 
 test('compact shop stacks all cards without icon or horizontal overflow', async ({ page }) => {

@@ -86,6 +86,74 @@ test('storage denial does not block the settings runtime', async ({ page }) => {
   expect(pageErrors).toEqual([]);
 });
 
+test('desktop sidebar uses the server-configured QQ group link', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route('**/economy-api/game/community-link', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        communityLink: {
+          qqGroupUrl: 'https://qm.qq.com/q/browser-test',
+          updatedAt: Date.UTC(2026, 6, 18, 12, 0, 0),
+        },
+      }),
+    });
+  });
+
+  await page.goto('runtime-test.html?view=overview&scenario=empty');
+  const communityLink = page.getByRole('link', { name: '加入 QQ 群（在新窗口打开）' });
+  const expandedLogo = page.locator('.sidebar-brand > img');
+  await expect(communityLink).toBeVisible();
+  await expect(communityLink).toHaveAttribute('href', 'https://qm.qq.com/q/browser-test');
+  await expect(communityLink).toHaveAttribute('target', '_blank');
+  await expect(communityLink.locator('svg.sidebar-community-icon')).toHaveCount(1);
+  await expect(page.locator('.sidebar-logout svg.sidebar-logout-icon')).toHaveCount(1);
+  const expandedLogoBox = await requireBox(expandedLogo);
+  expect(expandedLogoBox.width).toBe(40);
+  expect(expandedLogoBox.height).toBe(40);
+
+  await page.getByRole('button', { name: '折叠侧栏' }).click();
+  await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'true');
+  await expect(page.getByRole('button', { name: '折叠侧栏' })).toHaveCount(0);
+
+  const expandButton = page.getByRole('button', { name: '展开侧栏' });
+  const collapsedLogo = expandButton.locator('img');
+  const expandIcon = expandButton.locator('.sidebar-logo-expand-icon');
+  const collapsedLogoBox = await requireBox(collapsedLogo);
+  expect(collapsedLogoBox.width).toBe(40);
+  expect(collapsedLogoBox.height).toBe(40);
+  await expect(expandButton).toHaveAttribute('aria-expanded', 'false');
+  await expect(collapsedLogo).toHaveCSS('opacity', '1');
+  await expect(expandIcon).toHaveCSS('opacity', '0');
+
+  await expandButton.hover();
+  await expect(collapsedLogo).toHaveCSS('opacity', '0');
+  await expect(expandIcon).toHaveCSS('opacity', '1');
+
+  await page.mouse.move(400, 400);
+  await page.keyboard.press('Tab');
+  await expect(expandButton).toBeFocused();
+  await expect(collapsedLogo).toHaveCSS('opacity', '0');
+  await expect(expandIcon).toHaveCSS('opacity', '1');
+
+  const communityBox = await requireBox(communityLink);
+  const logoutButton = page.getByRole('button', { name: '退出登录' });
+  const logoutBox = await requireBox(logoutButton);
+  expect(communityBox.width).toBe(48);
+  expect(communityBox.height).toBe(48);
+  expect(logoutBox.width).toBe(48);
+  expect(logoutBox.height).toBe(48);
+  await expect(communityLink.locator('strong')).toBeHidden();
+  await expect(logoutButton.locator('strong')).toBeHidden();
+
+  await expandButton.click();
+  await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'false');
+  await expect(page.getByRole('button', { name: '折叠侧栏' })).toBeVisible();
+  await expect(page.getByText('市场在线', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('服务器权威经济', { exact: true })).toHaveCount(0);
+});
+
 test('overview prioritizes business decisions and uses a compact market empty state', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });

@@ -3,6 +3,8 @@ import type { AuctionItem } from '../collectibles/types';
 
 const GAME_API_BASE = '/economy-api/game';
 
+export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
+
 export interface GameActionResult { ok: boolean; message: string; }
 export interface GameActionResponse { result: GameActionResult; revision: number; state: EconomyState; }
 export interface GameStatePollResponse { revision: number; unchanged: boolean; state?: EconomyState; }
@@ -21,6 +23,10 @@ export interface GemShopSummary {
   totalGemsSpent: number;
   totalCreditsReceived: number;
   recentExchanges: GemShopExchangeRecord[];
+}
+export interface CommunityLinkConfig {
+  qqGroupUrl: string;
+  updatedAt: number | null;
 }
 
 export class GameApiError extends Error {
@@ -65,6 +71,11 @@ export async function getGameState(revision?: number | null, signal?: AbortSigna
 export async function getGemShopSummary(): Promise<GemShopSummary> {
   const payload = await request<{ gemShop: GemShopSummary }>('/gem-shop', { method: 'GET' });
   return payload.gemShop;
+}
+
+export async function getCommunityLink(signal?: AbortSignal): Promise<CommunityLinkConfig> {
+  const payload = await request<{ communityLink: CommunityLinkConfig }>('/community-link', { method: 'GET', signal });
+  return payload.communityLink;
 }
 
 export const gameActions = {

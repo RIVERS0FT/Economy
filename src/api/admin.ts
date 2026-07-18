@@ -4,7 +4,7 @@ import type {
   CollectibleOwnershipRecord,
 } from '../collectibles/types';
 import type { AdminSummary, GiftCodeAdminRecord } from '../types';
-import { GameApiError } from './game';
+import { GameApiError, type CommunityLinkConfig } from './game';
 
 const ADMIN_API_BASE = '/economy-api/game/admin';
 
@@ -100,6 +100,15 @@ function pagePath(path: string, cursor?: string | null) {
 
 export const adminApi = {
   summary: async () => (await request<{ summary: ExtendedAdminSummary }>('/summary', { method: 'GET' })).summary,
+  communityLink: async () => (
+    await request<{ communityLink: CommunityLinkConfig }>('/community-link', { method: 'GET' })
+  ).communityLink,
+  updateCommunityLink: async (qqGroupUrl: string) => (
+    await request<{ communityLink: CommunityLinkConfig }>('/community-link', {
+      method: 'PUT',
+      body: JSON.stringify({ qqGroupUrl }),
+    })
+  ).communityLink,
   giftCodes: async (cursor?: string | null): Promise<CursorPage<GiftCodeAdminRecord>> => {
     const payload = await request<{ giftCodes: GiftCodeAdminRecord[]; total: number; nextCursor: string | null }>(
       pagePath('/gift-codes', cursor),

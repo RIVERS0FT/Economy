@@ -87,19 +87,23 @@ export function AdminApp({ user }: { user: AuthUser }) {
   const [ownership, setOwnership] = useState<CollectibleOwnershipRecord[]>([]);
   const [selectedCollectible, setSelectedCollectible] = useState<CollectibleAdminRecord | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [qqGroupUrl, setQqGroupUrl] = useState('');
+  const [savingCommunityLink, setSavingCommunityLink] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [nextSummary, nextCodesPage, nextCollectibles] = await Promise.all([
+      const [nextSummary, nextCodesPage, nextCollectibles, nextCommunityLink] = await Promise.all([
         adminApi.summary(),
         adminApi.giftCodes(),
         adminApi.collectibles(),
+        adminApi.communityLink(),
       ]);
       setSummary(nextSummary);
       setGiftCodes(nextCodesPage.items);
       setGiftCodeTotal(nextCodesPage.total);
       setGiftCodeCursor(nextCodesPage.nextCursor);
       setCollectibles(nextCollectibles);
+      setQqGroupUrl(nextCommunityLink.qqGroupUrl);
       setError('');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '无法加载管理员数据');
@@ -246,6 +250,20 @@ export function AdminApp({ user }: { user: AuthUser }) {
     }
   }
 
+  async function saveCommunityLink() {
+    if (savingCommunityLink) return;
+    setSavingCommunityLink(true);
+    try {
+      const saved = await adminApi.updateCommunityLink(qqGroupUrl.trim());
+      setQqGroupUrl(saved.qqGroupUrl);
+      setNotice('QQ群跳转链接已保存，玩家侧边栏将读取新地址。');
+    } catch (reason) {
+      setNotice(reason instanceof Error ? reason.message : '保存QQ群跳转链接失败');
+    } finally {
+      setSavingCommunityLink(false);
+    }
+  }
+
   return (
     <main className="admin-shell">
       <header className="admin-header">
@@ -265,6 +283,27 @@ export function AdminApp({ user }: { user: AuthUser }) {
         <article><span>进行中拍卖</span><strong>{summary?.openAuctionCount ?? '--'}</strong></article>
         <article><span>世界版本</span><strong>{summary?.worldVersion ?? '--'}</strong></article>
         <article><span>API 状态</span><strong>{summary?.apiStatus ?? '--'}</strong></article>
+      </section>
+
+      <section className="admin-panel admin-community-link-panel">
+        <div>
+          <h2>玩家社区入口</h2>
+          <p>配置桌面侧边栏“加入 QQ 群”按钮的跳转地址，仅接受 HTTPS 链接。</p>
+        </div>
+        <label>
+          QQ群跳转链接
+          <input
+            type="url"
+            inputMode="url"
+            maxLength={2048}
+            value={qqGroupUrl}
+            onChange={(event) => setQqGroupUrl(event.target.value)}
+            placeholder="https://qm.qq.com/q/..."
+          />
+        </label>
+        <button type="button" disabled={savingCommunityLink} onClick={() => void saveCommunityLink()}>
+          {savingCommunityLink ? '正在保存…' : '保存链接'}
+        </button>
       </section>
 
       <section className="admin-grid">

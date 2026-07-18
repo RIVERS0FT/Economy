@@ -27,6 +27,7 @@ import {
 } from './collectibles.js';
 import { ensureGemState } from './invitations.js';
 import { createGemShopSummary, exchangeGems } from './gem-shop.js';
+import { DEFAULT_QQ_GROUP_URL, normalizeQqGroupUrl } from './community-link.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const COLLECTIBLE_ACTIONS = new Set([
@@ -140,6 +141,12 @@ export class EconomyStore {
       ) STRICT;
       CREATE INDEX IF NOT EXISTS idx_economy_gem_shop_exchanges_user
         ON economy_gem_shop_exchanges(user_id, created_at DESC);
+      CREATE TABLE IF NOT EXISTS economy_settings (
+        setting_key TEXT PRIMARY KEY,
+        setting_value TEXT NOT NULL,
+        updated_at INTEGER NOT NULL,
+        updated_by INTEGER NOT NULL
+      ) STRICT;
     `);
     this.selectWorld = this.database.prepare('SELECT revision, state_json FROM economy_world WHERE id = 1');
     this.insertWorld = this.database.prepare(
@@ -207,6 +214,17 @@ export class EconomyStore {
       SELECT gems_spent, credits_received, created_at
       FROM economy_gem_shop_exchanges
       WHERE user_id = ? ORDER BY created_at DESC LIMIT 20
+    `);
+    this.selectSetting = this.database.prepare(
+      'SELECT setting_value, updated_at FROM economy_settings WHERE setting_key = ?',
+    );
+    this.upsertSetting = this.database.prepare(`
+      INSERT INTO economy_settings (setting_key, setting_value, updated_at, updated_by)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(setting_key) DO UPDATE SET
+        setting_value = excluded.setting_value,
+        updated_at = excluded.updated_at,
+        updated_by = excluded.updated_by
     `);
   }
 
@@ -413,6 +431,22 @@ export class EconomyStore {
       error.statusCode = 403;
       throw error;
     }
+  }
+
+  getCommunityLink() {
+    const row = this.selectSetting.get('qq_group_url');
+    return {
+      qqGroupUrl: row ? String(row.setting_value) : DEFAULT_QQ_GROUP_URL,
+      updatedAt: row ? Number(row.updated_at) : null,
+    };
+  }
+
+  updateCommunityLink(user, payload, requestMeta, now = Date.now()) {
+    return this.adminMutation(user, requestMeta, () => {
+      const qqGroupUrl = normalizeQqGroupUrl(payload?.qqGroupUrl);
+      this.upsertSetting.run('qq_group_url', qqGroupUrl, now, Number(user.id));
+      return { qqGroupUrl, updatedAt: now };
+    }, now);
   }
 
   adminMutation(user, { requestKey, method, path }, callback, now = Date.now()) {

@@ -13,7 +13,7 @@ import {
 } from '../src/utils/marketHistory.ts';
 
 const root = process.cwd();
-const read = (path) => readFileSync(resolve(root, path), 'utf8');
+const read = (path) => readFileSync(resolve(root, path), 'utf8').replace(/\r\n?/g, '\n');
 
 const now = Date.UTC(2026, 6, 17, 8, 3, 0);
 const windowEnd = Math.floor(now / MARKET_BUCKET_MS) * MARKET_BUCKET_MS + MARKET_BUCKET_MS;

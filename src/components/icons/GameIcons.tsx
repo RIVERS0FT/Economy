@@ -86,6 +86,24 @@ export function SettingsIcon(props: GameIconProps) {
   );
 }
 
+export function QqIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M8.3 9.2C7.9 5.8 9.4 3.5 12 3.5s4.1 2.3 3.7 5.7" />
+      <path d="M8.7 8.7c-1.6 1.8-2.4 4-2.4 6.3 0 3 2.3 5 5.7 5s5.7-2 5.7-5c0-2.3-.8-4.5-2.4-6.3" />
+      <path d="M9.7 8h.01M14.3 8h.01M10.6 10.5l1.4.8 1.4-.8M6.7 13.5 4.5 16M17.3 13.5l2.2 2.5M9.2 19.8 7 21M14.8 19.8 17 21" />
+    </GameIcon>
+  );
+}
+
+export function LogoutIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9" />
+    </GameIcon>
+  );
+}
+
 export function NavigationIcon({ name, ...props }: { name: NavigationIconName } & GameIconProps) {
   switch (name) {
     case 'home': return <HomeIcon {...props} />;

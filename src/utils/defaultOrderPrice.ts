@@ -1,12 +1,5 @@
 import type { AssetKind, AssetOrder, OrderSide } from '../types';
-
-function orderKind(order: AssetOrder): AssetKind {
-  return order.assetKind ?? (order.facilityTypeId ? 'facility' : 'commodity');
-}
-
-function orderAssetId(order: AssetOrder): string {
-  return order.assetId ?? order.facilityTypeId ?? order.productId ?? 'wheat';
-}
+import { orderAssetId, orderKind } from './orderIdentity';
 
 function validOrderPrice(price: number) {
   return Number.isFinite(price) && Number.isInteger(price) && price >= 1;

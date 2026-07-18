@@ -12,6 +12,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/src/gem-shop.js',
   'server/src/storage.js',
   'server/src/app.js',
+  'server/src/game-routes.js',
   'server/test/gem-shop.test.js',
   'src/pages/GemShopPage.tsx',
   'src/components/icons/GemIcon.tsx',
@@ -40,10 +41,8 @@ for (const text of [
   'this.insertGemShopExchange.run',
   'getGemShopSummary',
 ]) requireText('server/src/storage.js', text);
-for (const text of [
-  "path === '/api/game/gem-shop'",
-  "path === '/api/game/gem-shop/exchange'",
-]) requireText('server/src/app.js', text);
+requireText('server/src/app.js', "path === '/api/game/gem-shop'");
+requireText('server/src/game-routes.js', "path === '/api/game/gem-shop/exchange'");
 for (const text of [
   "{ id: 'gem-shop', label: '商店' }",
 ]) requireText('src/config/navigation.ts', text);
@@ -59,10 +58,10 @@ for (const text of [
   'width="1em"',
   'height="1em"',
 ]) requireText('src/components/icons/GemIcon.tsx', text);
-for (const text of ['align-items: start;', 'width: 1.35rem;', 'height: 1.35rem;', '@media (max-width: 960px)']) requireText('src/styles/gem-shop.css', text);
-for (const text of ['view=gem-shop', '.gem-shop-balance-row svg', "name: '确认兑换'"]) requireText('tests/browser/gem-shop-layout.spec.ts', text);
+for (const text of ['align-items: start;', 'width: 1.35rem;', 'height: 1.35rem;', 'grid-template-columns: repeat(3, minmax(0, 1fr));', '.gem-shop-grid > .widget { padding: var(--space-3); }', '@media (max-width: 960px)']) requireText('src/styles/gem-shop.css', text);
+for (const text of ['view=gem-shop', '.gem-shop-balance-row svg', "name: '确认兑换'", 'balance.height).toBeLessThan(130)', 'exchange.height).toBeLessThan(340)']) requireText('tests/browser/gem-shop-layout.spec.ts', text);
 for (const text of ['固定汇率', '单向兑换', '不可撤销']) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
-for (const text of ['商店', '`gem-shop`', '`GemShopPage`', '`1440×900`', '“兑换货币”和“兑换记录”']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of ['商店', '`gem-shop`', '`GemShopPage`', '`1440×900`', '宝石、可用资金和固定汇率三项', '快捷兑换使用紧凑按钮', '“兑换货币”和“兑换记录”']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '排名在桌面与移动端统一通过 `formatRank`');
 forbidText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '桌面继续使用“第 1 名”');
 for (const text of ['/api/game/gem-shop', '/api/game/gem-shop/exchange', 'economy_gem_shop_exchanges']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);

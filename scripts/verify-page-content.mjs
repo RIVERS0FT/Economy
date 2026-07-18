@@ -22,6 +22,8 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/facilities/FacilityProductionFormula.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/components/shell/NavigationItems.tsx',
+  'src/components/shell/DesktopSidebar.tsx',
+  'src/components/shell/GameShell.tsx',
   'src/components/ui/VirtualList.tsx',
   'src/app/gameViewModel.ts',
   'src/config/navigation.ts',
@@ -195,6 +197,35 @@ for (const text of [
   'admin-gifts-virtual-table',
   'admin-redemptions-virtual-table',
 ]) requireText('src/app/AdminApp.tsx', text);
+for (const text of [
+  '玩家社区入口',
+  'adminApi.updateCommunityLink',
+  'QQ群跳转链接',
+]) requireText('src/app/AdminApp.tsx', text);
+for (const text of [
+  'sidebar-community-link',
+  '加入 QQ 群',
+  'QqIcon',
+  'LogoutIcon',
+  'sidebar-logo-expand-button',
+  'aria-label="展开侧栏"',
+  'target="_blank"',
+  'rel="noopener noreferrer"',
+]) requireText('src/components/shell/DesktopSidebar.tsx', text);
+for (const text of ['<span aria-hidden="true">QQ</span>', '>退出登录</Button>']) {
+  forbidText('src/components/shell/DesktopSidebar.tsx', text);
+}
+for (const text of ['export function QqIcon', 'export function LogoutIcon']) {
+  requireText('src/components/icons/GameIcons.tsx', text);
+}
+for (const text of [
+  '.sidebar-logo-expand-button:hover img',
+  '.sidebar-logo-expand-button:focus-visible img',
+  '.sidebar-collapsed .desktop-sidebar .sidebar-logout strong',
+]) requireText('src/styles/desktop-sidebar.css', text);
+for (const text of ['getCommunityLink(controller.signal)', 'DEFAULT_QQ_GROUP_URL']) {
+  requireText('src/components/shell/GameShell.tsx', text);
+}
 for (const text of ['collectibles.map(', 'giftCodes.map(', 'ownership.map(', 'redemptions.map(']) forbidText('src/app/AdminApp.tsx', text);
 
 for (const text of ['ResizeObserver', 'measuredSizesRef', 'overscan', 'aria-setsize', 'virtual-list__canvas']) {
@@ -305,6 +336,8 @@ for (const text of [
   '最高出价资金、商品仓库预占、卖方资产冻结、退款、拍卖状态和归属转移全部由服务器判定',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
   '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',
+  'Logo 在展开与折叠状态统一为 `40×40px`',
+  '两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
@@ -334,6 +367,7 @@ for (const text of [
 for (const text of [
   '藏品列表、礼品码列表、归属历史和兑换记录可能持续增长，必须复用共享 `VirtualList`',
   '对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染',
+  '社区入口默认使用 `https://qm.qq.com/q/eN8hya0Yn0`',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 for (const text of [
   '实际数字格式遵循全局“紧凑数字”偏好',

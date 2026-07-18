@@ -41,8 +41,7 @@ button {
 }
 
 button:hover:not(:disabled) { transform: none; }
-.notice-toast,
-.status-dot { box-shadow: none; }
+.notice-toast { box-shadow: none; }
 .progress-track > span { transition: width 180ms linear; }
 
 .table-wrap,

@@ -2,6 +2,7 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG, ensurePlayer } from './domain.j
 import { processFacilityGroupWorld } from './facility-groups.js';
 import { processCollectibleAuctions } from './collectibles.js';
 import { ensureGemState } from './invitations.js';
+import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 
 export const LEADERBOARD_TIME_ZONE = 'Asia/Taipei';
 export const LEADERBOARD_REWARDS = Object.freeze([30, 20, 10]);
@@ -79,20 +80,6 @@ export function operatingAssetsFor(player) {
     return sum + (facility ? safeNonNegativeInteger(group.count) * facility.systemValue : 0);
   }, 0);
   return cash + commodity + facilities;
-}
-
-function isOpenOrder(order) {
-  return safeNonNegativeInteger(order?.remaining) > 0 && (order?.status === 'open' || order?.status === 'partial');
-}
-
-function orderKind(order) {
-  return order?.assetKind === 'facility' || order?.facilityTypeId ? 'facility' : 'commodity';
-}
-
-function orderAssetId(order) {
-  return orderKind(order) === 'facility'
-    ? String(order?.assetId || order?.facilityTypeId || '')
-    : String(order?.assetId || order?.productId || 'wheat');
 }
 
 function bestBidFor(world, kind, assetId, excludedUserId) {

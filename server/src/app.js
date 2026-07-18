@@ -8,6 +8,7 @@ import {
   listGiftCodePage,
   listGiftRedemptionPage,
 } from './gift-code-batch.js';
+import { decodeRouteParameter, resolveAction } from './game-routes.js';
 import { checkRateLimit } from './rateLimit.js';
 import { EconomyRegistrationStore } from './registration-store.js';
 import {
@@ -99,94 +100,6 @@ function registrationIpFingerprint(request) {
   return fingerprintIpAddress(requestIpAddress(request), registrationSecret);
 }
 
-function resolveAction(method, path) {
-  if (method === 'POST' && path === '/api/game/work') return { action: 'work', category: 'general' };
-  if (method === 'POST' && path === '/api/game/facilities') return { action: 'buildFacility', category: 'general' };
-  if (method === 'POST' && path === '/api/game/orders') return { action: 'placeOrder', category: 'orders' };
-  if (method === 'POST' && path === '/api/game/warehouse/upgrade') return { action: 'upgradeWarehouse', category: 'general' };
-  if (method === 'POST' && path === '/api/game/gifts/redeem') return { action: 'redeemGift', category: 'general' };
-  if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
-  if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
-  if (method === 'POST' && path === '/api/game/auctions') {
-    return { action: 'createAuction', category: 'orders' };
-  }
-
-  const auctionBid = path.match(/^\/api\/game\/auctions\/([^/]+)\/bids$/);
-  if (method === 'POST' && auctionBid) {
-    return {
-      action: 'placeAuctionBid',
-      category: 'orders',
-      routePayload: { auctionId: decodeURIComponent(auctionBid[1]) },
-    };
-  }
-
-  const auctionCancel = path.match(/^\/api\/game\/auctions\/([^/]+)\/cancel$/);
-  if (method === 'POST' && auctionCancel) {
-    return {
-      action: 'cancelAuction',
-      category: 'orders',
-      routePayload: { auctionId: decodeURIComponent(auctionCancel[1]) },
-    };
-  }
-
-  if (method === 'POST' && path === '/api/game/collectible-auctions') {
-    return { action: 'createCollectibleAuction', category: 'orders' };
-  }
-
-  const collectibleBid = path.match(/^\/api\/game\/collectible-auctions\/([^/]+)\/bids$/);
-  if (method === 'POST' && collectibleBid) {
-    return {
-      action: 'placeCollectibleBid',
-      category: 'orders',
-      routePayload: { auctionId: decodeURIComponent(collectibleBid[1]) },
-    };
-  }
-
-  const collectibleCancel = path.match(/^\/api\/game\/collectible-auctions\/([^/]+)\/cancel$/);
-  if (method === 'POST' && collectibleCancel) {
-    return {
-      action: 'cancelCollectibleAuction',
-      category: 'orders',
-      routePayload: { auctionId: decodeURIComponent(collectibleCancel[1]) },
-    };
-  }
-
-  const facilityAction = path.match(/^\/api\/game\/facilities\/([^/]+)\/(start|pause|stop|list|recipe)$/);
-  if (method === 'POST' && facilityAction) {
-    const actionMap = {
-      start: 'startFacility',
-      pause: 'pauseFacility',
-      stop: 'pauseFacility',
-      list: 'listFacility',
-      recipe: 'setFacilityRecipe',
-    };
-    return {
-      action: actionMap[facilityAction[2]],
-      category: 'general',
-      routePayload: { facilityTypeId: decodeURIComponent(facilityAction[1]) },
-    };
-  }
-
-  const listingAction = path.match(/^\/api\/game\/facility-listings\/([^/]+)\/(cancel|buy)$/);
-  if (method === 'POST' && listingAction) {
-    return {
-      action: listingAction[2] === 'cancel' ? 'cancelFacilityListing' : 'buyFacility',
-      category: 'general',
-      routePayload: { listingId: decodeURIComponent(listingAction[1]) },
-    };
-  }
-
-  const orderAction = path.match(/^\/api\/game\/orders\/([^/]+)\/cancel$/);
-  if (method === 'POST' && orderAction) {
-    return {
-      action: 'cancelOrder',
-      category: 'orders',
-      routePayload: { orderId: decodeURIComponent(orderAction[1]) },
-    };
-  }
-  return null;
-}
-
 const server = createServer(async (request, response) => {
   const method = request.method || 'GET';
   const url = new URL(request.url || '/', 'http://localhost');
@@ -271,6 +184,18 @@ const server = createServer(async (request, response) => {
         sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
         return;
       }
+      if (method === 'GET' && path === '/api/game/admin/community-link') {
+        sendJson(response, 200, { communityLink: store.getCommunityLink() });
+        return;
+      }
+      if (method === 'PUT' && path === '/api/game/admin/community-link') {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, {
+          communityLink: store.updateCommunityLink(user, body, { requestKey, method, path }),
+        });
+        return;
+      }
       if (method === 'GET' && path === '/api/game/admin/gift-codes') {
         const page = listGiftCodePage(store, user, {
           cursor: url.searchParams.get('cursor'),
@@ -333,7 +258,7 @@ const server = createServer(async (request, response) => {
       const collectibleHistory = path.match(/^\/api\/game\/admin\/collectibles\/([^/]+)\/ownership$/);
       if (method === 'GET' && collectibleHistory) {
         sendJson(response, 200, {
-          ownership: store.listCollectibleOwnership(user, decodeURIComponent(collectibleHistory[1])),
+          ownership: store.listCollectibleOwnership(user, decodeRouteParameter(collectibleHistory[1])),
         });
         return;
       }
@@ -409,6 +334,11 @@ const server = createServer(async (request, response) => {
 
     if (method === 'GET' && path === '/api/game/gem-shop') {
       sendJson(response, 200, { gemShop: store.getGemShopSummary(user) });
+      return;
+    }
+
+    if (method === 'GET' && path === '/api/game/community-link') {
+      sendJson(response, 200, { communityLink: store.getCommunityLink() });
       return;
     }
 

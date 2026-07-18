@@ -1,3 +1,5 @@
+import { isOpenOrder, orderKind } from './order-identity.js';
+
 export const WAREHOUSE_BASE_CAPACITY = 500;
 export const WAREHOUSE_CAPACITY_STEP = 250;
 export const WAREHOUSE_CAPACITY_STEP_GROWTH = 50;
@@ -12,10 +14,6 @@ function normalizeLevel(value) {
 
 function safeInteger(value) {
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
-}
-
-function isOpenOrder(order) {
-  return order?.status === 'open' || order?.status === 'partial';
 }
 
 function storedQuantity(player) {
@@ -46,7 +44,7 @@ function reservedBuyQuantity(world, userId) {
   const orderReserved = (world?.orders || []).reduce((sum, order) => {
     if (
       Number(order?.ownerId) !== Number(userId)
-      || order?.assetKind === 'facility'
+      || orderKind(order) === 'facility'
       || order?.side !== 'buy'
       || !isOpenOrder(order)
     ) return sum;

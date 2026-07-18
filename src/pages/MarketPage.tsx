@@ -1,5 +1,5 @@
 import { type ChangeEvent, useEffect, useRef } from 'react';
-import { orderAssetId, orderKind, orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
+import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
@@ -22,6 +22,7 @@ import {
   countMarketHistoryPointsInWindow,
   summarizeMarketFlow,
 } from '../utils/marketHistory';
+import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
 function orderTone(status: AssetOrder['status']): StatusTone {
   if (status === 'filled') return 'success';

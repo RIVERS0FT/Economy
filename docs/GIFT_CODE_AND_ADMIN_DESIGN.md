@@ -126,6 +126,8 @@
 
 管理员接口：
 
+- `GET /api/game/admin/community-link`
+- `PUT /api/game/admin/community-link`
 - `GET /api/game/admin/gift-codes`
 - `POST /api/game/admin/gift-codes`
 - `POST /api/game/admin/gift-codes/batch`
@@ -143,6 +145,8 @@
 批量接口请求体包含 `count`、`rewardCredits`、`maxRedemptions`、可选 `startsAt`、可选 `expiresAt` 和可选 `note`。`count` 必须为 1～50,000 的整数；响应包含 `createdCount` 与 `codes` 明文数组，仅供本次 TXT 导出和幂等重试。
 
 封禁写接口请求体只接受可选管理备注 `note`，并要求 `Idempotency-Key`。查询响应可以显示指纹前 12 位作为事件区分，但不得返回完整指纹或注册 IP 明文。
+
+社区入口默认使用 `https://qm.qq.com/q/eN8hya0Yn0`。管理员后台必须允许保存侧边栏“加入 QQ 群”按钮地址；服务端只接受长度不超过 2048、无账号信息的 HTTPS URL，写入 `economy_settings` 并要求 `Idempotency-Key`。普通玩家只通过 `GET /api/game/community-link` 读取有效配置，不得由浏览器本地存储覆盖服务器配置。
 
 ## 8. 防回退
 
@@ -167,3 +171,4 @@
 - 让管理员解禁删除封禁事件、成员或审计记录；
 - 解禁时自动补发被同 IP 规则阻止的宝石，或让服务重启无条件推翻人工解禁；
 - 在普通玩家页面暴露完整 IP 指纹、邮箱、统一账号 ID 或管理员备注。
+- 允许普通玩家写入社区入口、接受 HTTP 或脚本协议，或把社区链接仅保存在管理员浏览器。

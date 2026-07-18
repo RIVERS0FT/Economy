@@ -144,6 +144,7 @@
 | POST | `/api/game/invitations/claim` | 注册后 24 小时内手动填写邀请码 |
 | GET | `/api/game/gem-shop` | 获取服务器汇率、兑换边界、累计与最近记录 |
 | POST | `/api/game/gem-shop/exchange` | 原子扣除宝石并增加普通货币 |
+| GET | `/api/game/community-link` | 获取侧边栏社区跳转链接 |
 | POST | `/api/game/work` | 工作 |
 | POST | `/api/game/facilities` | 建设工厂 |
 | POST | `/api/game/facilities/:facilityTypeId/start` | 开启工厂集群 |
@@ -161,6 +162,8 @@
 | POST | `/api/game/collectible-auctions/:auctionId/cancel` | 旧藏品取消兼容入口 |
 | PATCH | `/api/game/profile` | 修改昵称 |
 | POST | `/api/game/reset` | 已永久移除；兼容旧客户端固定返回 `410 Gone`，不得执行任何状态写入 |
+| GET | `/api/game/admin/community-link` | 管理员读取社区跳转链接 |
+| PUT | `/api/game/admin/community-link` | 管理员幂等更新社区跳转链接 |
 | GET | `/api/game/admin/bans` | 管理员查看同 IP 封禁事件 |
 | GET | `/api/game/admin/bans/:incidentId` | 管理员查看事件成员 |
 | POST | `/api/game/admin/bans/users/:userId/unban` | 管理员解禁单个账号 |
@@ -176,6 +179,10 @@
 商店固定使用 1 宝石兑换 10 普通货币，单次接受 1～100 的整数宝石。`POST /api/game/gem-shop/exchange` 必须先通过封禁检查和普通写操作限流，并要求 `Idempotency-Key`。在一个 `BEGIN IMMEDIATE` 事务中完成宝石余额校验、扣除宝石、增加可用资金、普通货币账本写入、`economy_gem_shop_exchanges` 插入、世界修订号更新和幂等响应保存；任一步失败全部回滚。
 
 `GET /api/game/gem-shop` 只返回服务器固定汇率、当前余额、累计值和最近 20 笔兑换。客户端预览不得成为结算依据。相同幂等键重试返回第一次响应，不重复扣除或发行；不同路径复用幂等键继续返回冲突。
+
+### 6.2 社区入口配置
+
+QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改链接不得推进世界修订号。默认地址为 `https://qm.qq.com/q/eN8hya0Yn0`；普通已登录玩家可以读取，只有管理员可以写入。写接口要求 `Idempotency-Key`，并只接受长度不超过 2048、无账号信息的 HTTPS URL，避免脚本协议、明文 HTTP 和带凭据地址进入侧边栏。
 
 ## 7. 容量与客户端交付
 

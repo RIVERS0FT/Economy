@@ -8,7 +8,7 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
 [
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
-  'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts',
+  'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts',
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/icons/GameIcons.tsx'
@@ -44,6 +44,11 @@ for (const text of [
   ': bestBid ?? bestAsk ?? 1',
 ]) requireText('src/utils/defaultOrderPrice.ts', text);
 for (const text of ['lastPrice','basePrice','systemValue','valuationPrices','getGameState','refresh']) forbidText('src/utils/defaultOrderPrice.ts', text);
+for (const text of [
+  "order.assetKind === 'facility' || order.facilityTypeId",
+  "order.assetId || order.facilityTypeId || ''",
+  "order.assetId || order.productId || 'wheat'",
+]) requireText('src/utils/orderIdentity.ts', text);
 
 for (const text of [
   "import { defaultOrderPrice } from '../utils/defaultOrderPrice'",

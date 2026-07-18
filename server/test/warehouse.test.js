@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
 import {
+  createWarehouseUsage,
   warehouseCapacityForLevel,
   warehouseCapacityIncreaseForLevel,
   warehouseUpgradeCostForCapacity,
@@ -101,6 +102,29 @@ test('warehouse usage counts stored goods and remaining open commodity buy order
     assert.equal(state.warehouseUsedCapacity, 70);
     assert.equal(state.warehouseAvailableCapacity, 430);
   } finally { store.close(); }
+});
+
+test('warehouse usage excludes legacy facility buy orders before migration', () => {
+  const player = {
+    userId: alice.id,
+    inventoryCapacity: 500,
+    inventories: { wheat: { available: 10, frozen: 0 } },
+  };
+  const world = {
+    orders: [buyOrder({
+      assetKind: undefined,
+      assetId: undefined,
+      productId: undefined,
+      facilityTypeId: 'farm',
+      remaining: 25,
+    })],
+  };
+
+  const usage = createWarehouseUsage(world, player);
+
+  assert.equal(usage.warehouseStoredQuantity, 10);
+  assert.equal(usage.warehouseReservedQuantity, 0);
+  assert.equal(usage.warehouseAvailableCapacity, 490);
 });
 
 test('warehouse upgrade deducts server funds and increases shared capacity', () => {

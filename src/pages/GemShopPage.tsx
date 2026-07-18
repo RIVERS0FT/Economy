@@ -59,8 +59,11 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
           <div className="gem-shop-balance-row">
             <div><GemIcon /><span>宝石</span><strong>{formatNumber(model.game.gems)}</strong></div>
             <div><CreditsIcon /><span>可用资金</span><strong><CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount></strong></div>
+            <div className="gem-shop-rate-summary">
+              <span>固定汇率</span>
+              <strong>{summary ? `1 宝石 = ${formatNumber(summary.creditsPerGem)} 货币` : loading ? '读取中…' : '暂不可用'}</strong>
+            </div>
           </div>
-          <p>{summary ? `1 宝石 = ${formatNumber(summary.creditsPerGem)} 货币` : loading ? '正在读取服务器汇率…' : '服务器汇率暂时不可用'}</p>
         </Panel>
 
         <Panel className="widget gem-shop-exchange-card">
@@ -82,9 +85,9 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
               </label>
               <div className="gem-shop-quick-row" aria-label="快捷兑换数量">
                 {QUICK_AMOUNTS.map((value) => (
-                  <Button key={value} variant="secondary" disabled={value > model.game.gems} onClick={() => setAmount(value)}>{value}</Button>
+                  <Button key={value} variant="compact" disabled={value > model.game.gems} onClick={() => setAmount(value)}>{value}</Button>
                 ))}
-                <Button variant="secondary" disabled={summary.maxExchangeableGems < 1} onClick={() => setAmount(summary.maxExchangeableGems)}>最大</Button>
+                <Button variant="compact" disabled={summary.maxExchangeableGems < 1} onClick={() => setAmount(summary.maxExchangeableGems)}>最大</Button>
               </div>
               <div className="gem-shop-preview">
                 <span>预计获得</span>
@@ -110,7 +113,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
                 </div>
               ))}
             </div>
-          ) : <p>{loading ? '正在读取兑换记录…' : '尚无兑换记录'}</p>}
+          ) : <p className="gem-shop-empty-copy">{loading ? '正在读取兑换记录…' : '尚无兑换记录'}</p>}
           {summary ? (
             <div className="gem-shop-total-row">
               <span>累计消耗 {formatNumber(summary.totalGemsSpent)} 宝石</span>

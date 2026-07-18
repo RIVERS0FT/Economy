@@ -7,6 +7,7 @@ import {
 } from './domain.js';
 import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 import { applyMarketSellFee } from './market-sell-fee.js';
+import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -61,20 +62,6 @@ function recipeFor(type, recipeId) {
 
 function activeRecipeFor(type, group) {
   return recipeFor(type, group?.activeRecipeId);
-}
-
-function isOpenOrder(order) {
-  return order?.remaining > 0 && (order.status === 'open' || order.status === 'partial');
-}
-
-function orderKind(order) {
-  return order?.assetKind === 'facility' || order?.facilityTypeId ? 'facility' : 'commodity';
-}
-
-function orderAssetId(order) {
-  return orderKind(order) === 'facility'
-    ? String(order.assetId || order.facilityTypeId || '')
-    : String(order.assetId || order.productId || 'wheat');
 }
 
 function normalizeOrder(order) {

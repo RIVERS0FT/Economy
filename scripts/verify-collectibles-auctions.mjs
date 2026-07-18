@@ -14,6 +14,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/src/warehouse.js',
   'server/src/storage.js',
   'server/src/app.js',
+  'server/src/game-routes.js',
   'server/test/collectibles-auctions.test.js',
   'src/collectibles/types.ts',
   'src/pages/CollectionsPage.tsx',
@@ -68,8 +69,8 @@ for (const [path, text] of [
   ['server/src/storage.js', "'createAuction'"],
   ['server/src/storage.js', "'placeAuctionBid'"],
   ['server/src/storage.js', "'cancelAuction'"],
-  ['server/src/app.js', "path === '/api/game/auctions'"],
-  ['server/src/app.js', '/api\\/game\\/auctions'],
+  ['server/src/game-routes.js', "path === '/api/game/auctions'"],
+  ['server/src/game-routes.js', '/api\\/game\\/auctions'],
 ]) requireText(path, text);
 
 for (const text of ['createAuction', 'AuctionItem[]', "postAction('/auctions'", 'items']) requireText('src/api/game.ts', text);

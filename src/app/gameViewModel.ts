@@ -132,14 +132,6 @@ export type GameViewModelState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; model: LoadedGameViewModel };
 
-export function orderKind(order: AssetOrder): AssetKind {
-  return order.assetKind ?? (order.facilityTypeId ? 'facility' : 'commodity');
-}
-
-export function orderAssetId(order: AssetOrder): string {
-  return order.assetId ?? order.facilityTypeId ?? order.productId ?? 'wheat';
-}
-
 function deriveGameData(game: EconomyState): DerivedGameData {
   const ownOpenOrders = game.orders.filter((order) => (
     order.isOwn && ['open', 'partial'].includes(order.status)

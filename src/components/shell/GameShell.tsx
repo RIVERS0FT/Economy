@@ -1,5 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
+import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
 import { CurrencyText } from '../ui/CurrencyAmount';
 import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
@@ -11,6 +12,15 @@ export function GameShell({ model, statusItems, children }: {
   children: ReactNode;
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [qqGroupUrl, setQqGroupUrl] = useState(DEFAULT_QQ_GROUP_URL);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void getCommunityLink(controller.signal)
+      .then((config) => setQqGroupUrl(config.qqGroupUrl))
+      .catch(() => { /* Keep the bundled default when configuration cannot be loaded. */ });
+    return () => controller.abort();
+  }, []);
 
   return (
     <main className={sidebarCollapsed ? 'game-shell sidebar-collapsed' : 'game-shell'}>
@@ -19,6 +29,7 @@ export function GameShell({ model, statusItems, children }: {
         activeTab={model.tab}
         openOrderCount={model.derived.ownOpenOrders.length}
         collapsed={sidebarCollapsed}
+        qqGroupUrl={qqGroupUrl}
         onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
         onSelect={model.setTab}
         onSignOut={() => void model.signOut()}
