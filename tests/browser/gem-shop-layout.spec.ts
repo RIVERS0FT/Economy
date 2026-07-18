@@ -21,18 +21,18 @@ async function openGemShop(page: Page, width: number, height: number) {
       contentType: 'application/json',
       body: JSON.stringify({
         gemShop: {
-gems: 40,
-credits: 23_594,
-creditsPerGem: 10,
-minExchangeGems: 1,
-maxExchangeGems: 100,
-maxExchangeableGems: 40,
-totalGemsSpent: 15,
-totalCreditsReceived: 150,
-recentExchanges: [
-  { gemsSpent: 10, creditsReceived: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },
-  { gemsSpent: 5, creditsReceived: 50, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },
-],
+          gems: 40,
+          credits: 23_594,
+          creditsPerGem: 10,
+          minExchangeGems: 1,
+          maxExchangeGems: 100,
+          maxExchangeableGems: 40,
+          totalGemsSpent: 15,
+          totalCreditsReceived: 150,
+          recentExchanges: [
+            { gemsSpent: 10, creditsReceived: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },
+            { gemsSpent: 5, creditsReceived: 50, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },
+          ],
         },
       }),
     });
