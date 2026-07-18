@@ -1,9 +1,12 @@
 name: Apply dynamic population demand
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/dynamic-population-demand
+      - main
+    types:
+      - opened
+      - synchronize
 
 permissions:
   contents: write
