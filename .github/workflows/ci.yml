@@ -21,7 +21,7 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Apply bundled auction implementation
+      - name: Reassemble bundled auction implementation
         shell: bash
         run: |
           set -euo pipefail
@@ -34,9 +34,42 @@ jobs:
           for file in scripts/.auction-patch/docs-00 scripts/.auction-patch/docs-02; do
             base64 --decode "$file"
           done > /tmp/apply-auction-docs.mjs
-          node /tmp/apply-auction-frontend.mjs
-          node /tmp/apply-auction-server.mjs
-          node /tmp/apply-auction-docs.mjs
+          node --check /tmp/apply-auction-frontend.mjs
+          node --check /tmp/apply-auction-server.mjs
+          node --check /tmp/apply-auction-docs.mjs
+
+      - name: Apply bundled auction implementation
+        id: apply_patch
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          {
+            node /tmp/apply-auction-frontend.mjs
+            node /tmp/apply-auction-server.mjs
+            node /tmp/apply-auction-docs.mjs
+          } > apply-auction.log 2>&1
+          status=$?
+          cat apply-auction.log
+          echo "$status" > apply-auction.status
+          exit "$status"
+
+      - name: Upload patch diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundled-auctions-diagnostics
+          path: |
+            apply-auction.log
+            apply-auction.status
+            /tmp/apply-auction-frontend.mjs
+            /tmp/apply-auction-server.mjs
+            /tmp/apply-auction-docs.mjs
+          if-no-files-found: error
+
+      - name: Require successful patch
+        shell: bash
+        run: test "$(cat apply-auction.status)" = "0"
 
       - name: Install dependencies
         run: npm ci
