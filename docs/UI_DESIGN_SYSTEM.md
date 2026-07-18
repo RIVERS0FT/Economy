@@ -93,6 +93,7 @@
 - `FactoryIcon` 使用厂房与烟囱轮廓，`machinery` 商品继续使用齿轮机械轮廓，两者不得共用路径；
 - 工厂生产公式的周期使用 `GameIcons.tsx` 的 `CycleIcon`，成本使用 `CreditsIcon`，输入库存使用 `WarehouseIcon`；不得用 Emoji 替代；
 - 所有玩家端和管理员端可见货币金额必须使用 `CurrencyAmount` 与 `CreditsIcon`，包括状态栏、指标卡、数据行、订单簿、成交记录、排行榜、拍卖、仓库、按钮和管理员记录；
+- `GemIcon` 必须接受并转发标准 SVG props、在根节点使用 `.game-icon`，并提供明确的 `1em × 1em` 基础尺寸；商店、状态栏和导航不得依赖父容器裁切或只设置 `font-size` 来约束宝石 SVG；
 - 玩家界面不得直接显示 `¤`、`￥`、`¥`、`$`、`€`、`£` 等字符货币符号；服务器消息中的遗留字符必须在通知边界通过 `CurrencyText` 转换为 `CreditsIcon`；
 - 所有图标使用统一 `24 × 24` `viewBox`、`currentColor` 和圆角描边；
 - SVG 根节点必须带 `.game-icon`，商品 SVG 额外带 `.product-icon`；
