@@ -43,9 +43,7 @@ write(path, text)
 
 path = 'src/pages/ProductionPage.tsx'
 text = read(path)
-text = replace_once(text, """                       <span>冻结中 <strong>{formatNumber(group.listedCount)}</strong></span>
-""", """                       <span>冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong></span>
-""", path)
+text = replace_once(text, 'formatNumber(group.listedCount)', 'formatNumber(group.frozenCount ?? group.listedCount)', path)
 write(path, text)
 
 path = 'src/styles/collectibles-auctions.css'
@@ -137,4 +135,3 @@ text = read(path)
 text = replace_once(text, '`GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖、封禁复核、管理员权限和后台范围', '`GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、藏品／商品／工厂竞价拍卖、封禁复核、管理员权限和后台范围', path)
 text += '\n21. 藏品、商品与工厂竞价拍卖、卖方资产冻结、最高出价资金、商品仓库预占、工厂生产冻结和订单簿行情隔离属于拍卖、订单簿、仓库、生产、页面与服务器共同规则；必须同步更新对应权威文档、测试和 `scripts/verify-collectibles-auctions.mjs`。\n'
 write(path, text)
-
