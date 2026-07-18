@@ -1,0 +1,222 @@
+from pathlib import Path
+
+def read(path):
+    return Path(path).read_text(encoding='utf-8')
+
+def write(path, content):
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding='utf-8')
+
+def replace_once(path, old, new):
+    content = read(path)
+    count = content.count(old)
+    if count != 1:
+        raise SystemExit(f'{path}: expected one match, found {count}: {old[:160]!r}')
+    write(path, content.replace(old, new, 1))
+
+write('server/src/market-sell-fee.js', """export const MARKET_SELL_FEE_RATE_BPS = 100;
+export const MARKET_SELL_FEE_MINIMUM = 1;
+export const MARKET_SELL_FEE_VERSION = 1;
+
+const BASIS_POINTS = 10_000;
+
+function normalizedFillTotal(fill) {
+  const fallback = Number(fill?.quantity || 0) * Number(fill?.price || 0);
+  return Math.max(0, Math.floor(Number(fill?.total ?? fallback) || 0));
+}
+
+function initializeMarketSellFeeOrder(order) {
+  if (Number(order?.marketSellFeeVersion || 0) >= MARKET_SELL_FEE_VERSION) return;
+  for (const fill of order?.fills || []) {
+    const total = normalizedFillTotal(fill);
+    fill.fee = 0;
+    fill.netTotal = total;
+  }
+  order.marketSellFeeVersion = MARKET_SELL_FEE_VERSION;
+  order.marketSellFeeGross = 0;
+  order.marketSellFeeCharged = 0;
+}
+
+export function calculateCumulativeMarketSellFee(grossTotal) {
+  const normalizedGross = Math.max(0, Math.floor(Number(grossTotal) || 0));
+  if (normalizedGross < 1) return 0;
+  return Math.max(
+    MARKET_SELL_FEE_MINIMUM,
+    Math.ceil(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS),
+  );
+}
+
+export function applyMarketSellFee(order, fillTotal) {
+  if (order?.ownerType !== 'player' || order?.side !== 'sell') {
+    const total = Math.max(0, Math.floor(Number(fillTotal) || 0));
+    return { fee: 0, netTotal: total };
+  }
+
+  initializeMarketSellFeeOrder(order);
+  const total = Math.max(0, Math.floor(Number(fillTotal) || 0));
+  const previousGross = Math.max(0, Math.floor(Number(order.marketSellFeeGross) || 0));
+  const previousCharged = Math.max(0, Math.floor(Number(order.marketSellFeeCharged) || 0));
+  const nextGross = previousGross + total;
+  const nextCharged = calculateCumulativeMarketSellFee(nextGross);
+  const fee = Math.max(0, nextCharged - previousCharged);
+
+  order.marketSellFeeGross = nextGross;
+  order.marketSellFeeCharged = nextCharged;
+  return {
+    fee,
+    netTotal: total - fee,
+  };
+}
+""".replace('\n          ', '\n').lstrip())
+
+write('server/test/market-sell-fee.test.js', """import assert from 'node:assert/strict';
+import test from 'node:test';
+import { applyAction, createWorld, ensurePlayer } from '../src/domain.js';
+import {
+  applyFacilityGroupAction,
+  createFacilityGroupClientState,
+  migrateFacilityGroupWorld,
+} from '../src/facility-groups.js';
+import {
+  applyMarketSellFee,
+  calculateCumulativeMarketSellFee,
+} from '../src/market-sell-fee.js';
+
+const now = 1_700_000_000_000;
+const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
+const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
+
+function group(typeId, count) {
+  return {
+    facilityTypeId: typeId,
+    count,
+    participatingCount: 0,
+    pendingJoinCount: 0,
+    enabled: false,
+    status: 'stopped',
+    statusReason: 'manual',
+    activeRecipeId: typeId === 'farm' ? 'wheat-crop' : `${typeId}-default`,
+    lifetimeOutput: 0,
+  };
+}
+
+test('累计卖出手续费按 1% 向上取整且最低为 1', () => {
+  assert.equal(calculateCumulativeMarketSellFee(0), 0);
+  assert.equal(calculateCumulativeMarketSellFee(1), 1);
+  assert.equal(calculateCumulativeMarketSellFee(100), 1);
+  assert.equal(calculateCumulativeMarketSellFee(101), 2);
+  assert.equal(calculateCumulativeMarketSellFee(200), 2);
+});
+
+test('既有卖单只从新成交开始累计且不追收旧 fill', () => {
+  const order = {
+    id: 'legacy',
+    ownerType: 'player',
+    ownerId: bob.id,
+    side: 'sell',
+    fills: [{ id: 'old', quantity: 100, price: 1, total: 100, createdAt: now }],
+  };
+  const next = applyMarketSellFee(order, 1);
+  assert.deepEqual(next, { fee: 1, netTotal: 0 });
+  assert.equal(order.fills[0].fee, 0);
+  assert.equal(order.fills[0].netTotal, 100);
+  assert.equal(order.marketSellFeeGross, 1);
+  assert.equal(order.marketSellFeeCharged, 1);
+});
+
+test('商品卖单部分成交按同一卖单累计补收手续费', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  const buyer = ensurePlayer(world, alice, now);
+  seller.credits = 0;
+  seller.inventories.ore.available = 101;
+  buyer.credits = 1_000;
+
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'ore', side: 'sell', quantity: 101, price: 1,
+  }, now + 1).ok, true);
+
+  for (const [index, quantity] of [30, 30, 40, 1].entries()) {
+    assert.equal(applyAction(world, alice, 'placeOrder', {
+      productId: 'ore', side: 'buy', quantity, price: 1,
+    }, now + 2 + index).ok, true);
+  }
+
+  const order = world.orders.find((item) => item.ownerId === bob.id && item.productId === 'ore');
+  assert.deepEqual(order.fills.map((fill) => fill.fee), [1, 0, 0, 1]);
+  assert.deepEqual(order.fills.map((fill) => fill.netTotal), [29, 30, 40, 0]);
+  assert.equal(order.marketSellFeeGross, 101);
+  assert.equal(order.marketSellFeeCharged, 2);
+  assert.equal(seller.credits, 99);
+  assert.equal(seller.stats.systemSinks, 2);
+  assert.equal(buyer.credits, 899);
+});
+
+test('工厂卖单使用相同手续费并只向本人公开匿名金额字段', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  const buyer = ensurePlayer(world, alice, now);
+  seller.credits = 0;
+  seller.facilityGroups = [group('farm', 2)];
+  buyer.credits = 1_000;
+  migrateFacilityGroupWorld(world, now);
+
+  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 80,
+  }, now + 1).ok, true);
+  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 2, price: 80,
+  }, now + 2).ok, true);
+
+  const internal = world.orders.find((item) => item.ownerId === bob.id && item.assetKind === 'facility');
+  assert.equal(seller.credits, 158);
+  assert.equal(seller.stats.systemSinks, 2);
+  assert.equal(internal.fills[0].total, 160);
+  assert.equal(internal.fills[0].fee, 2);
+  assert.equal(internal.fills[0].netTotal, 158);
+
+  const state = createFacilityGroupClientState(world, bob.id, now + 3);
+  const publicOrder = state.orders.find((item) => item.id === internal.id);
+  assert.equal(publicOrder.fills[0].fee, 2);
+  assert.equal(publicOrder.fills[0].netTotal, 158);
+  assert.equal('counterparty' in publicOrder.fills[0], false);
+  assert.equal('marketSellFeeGross' in publicOrder, false);
+  assert.equal('marketSellFeeCharged' in publicOrder, false);
+});
+""".replace('\n          ', '\n').lstrip())
+
+write('scripts/verify-market-sell-fee.mjs', """import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const root = process.cwd();
+const read = (path) => readFileSync(resolve(root, path), 'utf8');
+const failures = [];
+const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
+const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
+
+[
+  'server/src/market-sell-fee.js',
+  'server/src/balanced-market.js',
+  'server/src/domain-core.js',
+  'server/src/facility-groups.js',
+  'server/test/market-sell-fee.test.js',
+  'src/types.ts',
+  'src/utils/localActivityStore.ts',
+  'src/pages/MarketPage.tsx',
+  'README.md',
+  'docs/README.md',
+  'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+  'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+  'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+  'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
+].forEach(requireFile);
+
+for (const text of [
+  'MARKET_SELL_FEE_RATE_BPS = 100',
+  'MARKET_SELL_FEE_MINIMUM = 1',
+  'calculateCumulativeMarketSellFee',
+  'Math.ceil(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS)',
+  'ma
