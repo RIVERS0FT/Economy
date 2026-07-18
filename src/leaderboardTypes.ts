@@ -8,6 +8,7 @@ export interface RankedLeaderboardEntry {
   playerName: string;
   score: number;
   secondary: number;
+  detail?: string;
   isCurrentPlayer?: boolean;
   rewardGems?: number;
 }
