@@ -192,7 +192,7 @@ export const FACILITY_TYPE_CATALOG = Object.freeze(FACILITY_TYPE_BASE_CATALOG.ma
 export const DEMAND_GROUP_CATALOG = Object.freeze([
   {
     id: 'food', name: '饮食需求', ownerName: '饮食需求',
-    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 500,
+    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 1_000,
     products: [
       { productId: 'wheat', preferenceWeight: 1 },
       { productId: 'rice', preferenceWeight: 1 },
@@ -205,7 +205,7 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
   },
   {
     id: 'household', name: '家庭用品需求', ownerName: '家庭用品需求',
-    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 480,
+    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 900,
     products: [
       { productId: 'timber', preferenceWeight: 1 },
       { productId: 'cotton', preferenceWeight: 1 },
@@ -397,7 +397,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 12,
+    version: 13,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
@@ -555,7 +555,7 @@ export function migrateWorld(world, now = Date.now()) {
   for (const group of DEMAND_GROUP_CATALOG) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
-  world.version = 12;
+  world.version = 13;
   return world;
 }
 

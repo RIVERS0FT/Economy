@@ -303,7 +303,7 @@ text = replace_once(text, """  if (previousVersion < 12) {
       state.lastAllocation = {};
     }
   }
-  normalized.version = 13;""", """  if (previousVersion < 13) {
+  normalized.version = 12;""", """  if (previousVersion < 13) {
     for (const group of DEMAND_GROUP_CATALOG) {
       const state = normalized.demandGroups[group.id];
       const previousBudget = Math.max(1, Math.floor(Number(state.lastBudget || group.baseBudget)));

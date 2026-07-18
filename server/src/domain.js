@@ -13,6 +13,14 @@ const PRICE_FALL_RATE = 0.2;
 const PRICE_MAX_RISE_PER_CYCLE = 0.08;
 const PRICE_MAX_FALL_PER_CYCLE = 0.06;
 const PRICE_BASE_REVERSION = 0.02;
+const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const DEMAND_PLAYER_SCALE_MAX = 6;
+const DEMAND_INVENTORY_BOOST_RATE = 0.10;
+const DEMAND_INVENTORY_BOOST_MAX_SHARE = 0.40;
+const DEMAND_BUDGET_SMOOTHING = 0.35;
+const DEMAND_BUDGET_MAX_RISE = 0.20;
+const DEMAND_BUDGET_MAX_FALL = 0.20;
+const DEMAND_STOCK_TARGET_CYCLES = 3;
 
 const PRODUCT_BALANCE = Object.freeze({
   wheat: Object.freeze({ basePrice: 2 }),
@@ -120,7 +128,7 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
     name: '饮食需求',
     ownerName: '饮食需求',
     cycleMs: core.ECONOMY_CONSTANTS.demandCycleMs,
-    baseBudget: 500,
+    baseBudget: 1_000,
     priceElasticity: 3,
     maxQuoteIndex: 2,
     quoteUtilityDepth: 12,
@@ -139,7 +147,7 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
     name: '家庭用品需求',
     ownerName: '家庭用品需求',
     cycleMs: core.ECONOMY_CONSTANTS.demandCycleMs,
-    baseBudget: 480,
+    baseBudget: 900,
     priceElasticity: 2,
     maxQuoteIndex: 2,
     quoteUtilityDepth: 8,
@@ -191,6 +199,29 @@ function marketFor(world, productId) {
   return balancedMarket.marketFor(world, productId);
 }
 
+function normalizePlayerActivity(world, now) {
+  world.players ||= {};
+  const latestOrderAt = new Map();
+  for (const order of world.orders || []) {
+    if (order.ownerType !== 'player' || !Number.isFinite(Number(order.ownerId))) continue;
+    const ownerId = String(order.ownerId);
+    latestOrderAt.set(ownerId, Math.max(latestOrderAt.get(ownerId) || 0, Number(order.createdAt || 0)));
+  }
+  for (const [playerId, player] of Object.entries(world.players)) {
+    if (Number.isFinite(Number(player.lastEconomicActivityAt)) && Number(player.lastEconomicActivityAt) > 0) continue;
+    const tradeAt = (player.trades || []).reduce((latest, item) => Math.max(latest, Number(item.createdAt || 0)), 0);
+    const ledgerAt = (player.ledger || []).reduce((latest, item) => Math.max(latest, Number(item.createdAt || 0)), 0);
+    const inferredActivityAt = Math.max(
+      Number(player.registeredAt || 0),
+      Number(player.work?.lastWorkedAt || 0),
+      latestOrderAt.get(playerId) || 0,
+      tradeAt,
+      ledgerAt,
+    );
+    player.lastEconomicActivityAt = inferredActivityAt > 0 ? inferredActivityAt : now;
+  }
+}
+
 function defaultDemandGroupState(group, now) {
   return {
     demandGroupId: group.id,
@@ -198,6 +229,11 @@ function defaultDemandGroupState(group, now) {
     nextDemandAt: now,
     lastCycleId: Math.floor(now / group.cycleMs) - 1,
     lastBudget: group.baseBudget,
+    lastTargetBudget: 0,
+    lastPlayerScaleBudget: group.baseBudget,
+    lastInventoryBoost: 0,
+    lastActivePlayerCount: 0,
+    lastStockValue: 0,
     lastCommitted: 0,
     satisfaction: 0,
     lastAllocation: {},
@@ -228,6 +264,7 @@ function defaultPriceTransmissionState(now) {
 }
 
 function normalizeDemandWorld(world, now = Date.now()) {
+  normalizePlayerActivity(world, now);
   world.demandGroups ||= {};
   const legacyGroups = world.demandGroups;
   const normalizedGroups = {};
@@ -242,6 +279,12 @@ function normalizeDemandWorld(world, now = Date.now()) {
     };
     if (!Number.isFinite(Number(state.nextDemandAt))) state.nextDemandAt = now + group.cycleMs;
     if (!Number.isFinite(Number(state.lastCycleId))) state.lastCycleId = Math.floor(now / group.cycleMs);
+    state.lastBudget = Math.max(0, Math.floor(Number(state.lastBudget ?? group.baseBudget)));
+    state.lastTargetBudget = Math.max(0, Math.floor(Number(state.lastTargetBudget || 0)));
+    state.lastPlayerScaleBudget = Math.max(0, Math.floor(Number(state.lastPlayerScaleBudget || group.baseBudget)));
+    state.lastInventoryBoost = Math.max(0, Math.floor(Number(state.lastInventoryBoost || 0)));
+    state.lastActivePlayerCount = Math.max(0, Math.floor(Number(state.lastActivePlayerCount || 0)));
+    state.lastStockValue = Math.max(0, Number(state.lastStockValue || 0));
     if (!state.lastAllocation || typeof state.lastAllocation !== 'object') state.lastAllocation = {};
     normalizedGroups[group.id] = state;
     for (const option of group.products) {
@@ -499,6 +542,51 @@ function allocateDemandBudgets(choices, totalBudget) {
   return budgets;
 }
 
+function activePlayerCount(world, now) {
+  const cutoff = now - ACTIVE_PLAYER_WINDOW_MS;
+  const count = Object.values(world.players || {}).filter((player) => (
+    Number(player.lastEconomicActivityAt || 0) >= cutoff
+  )).length;
+  return Math.max(1, count);
+}
+
+function demandStockSnapshot(world, group) {
+  const byProduct = Object.fromEntries(group.products.map((option) => {
+    const product = productDefinition(option.productId);
+    const priceState = world.priceTransmission.products[product.id];
+    const referencePrice = Math.max(0.01, Number(priceState?.referencePrice || product.basePrice));
+    const quantity = Object.values(world.players || {}).reduce((sum, player) => {
+      const inventory = player.inventories?.[product.id] || {};
+      return sum + Math.max(0, Number(inventory.available || 0)) + Math.max(0, Number(inventory.frozen || 0));
+    }, 0);
+    return [product.id, { quantity, referencePrice, value: quantity * referencePrice }];
+  }));
+  return {
+    byProduct,
+    totalValue: Object.values(byProduct).reduce((sum, item) => sum + item.value, 0),
+  };
+}
+
+function dynamicDemandBudget(world, group, state, now, stockSnapshot) {
+  const activePlayers = activePlayerCount(world, now);
+  const playerScale = Math.min(DEMAND_PLAYER_SCALE_MAX, Math.max(1, 0.5 + 0.5 * Math.sqrt(activePlayers)));
+  const playerScaleBudget = Math.max(1, Math.floor(group.baseBudget * playerScale));
+  const inventoryBoost = Math.max(0, Math.floor(Math.min(
+    playerScaleBudget * DEMAND_INVENTORY_BOOST_MAX_SHARE,
+    stockSnapshot.totalValue * DEMAND_INVENTORY_BOOST_RATE,
+  )));
+  const targetBudget = playerScaleBudget + inventoryBoost;
+  const previousBudget = Math.max(1, Math.floor(Number(state.lastBudget || group.baseBudget)));
+  let budget = targetBudget;
+  if (Number(state.lastTargetBudget || 0) > 0) {
+    const smoothed = Math.round(previousBudget * (1 - DEMAND_BUDGET_SMOOTHING) + targetBudget * DEMAND_BUDGET_SMOOTHING);
+    const minimum = Math.ceil(previousBudget * (1 - DEMAND_BUDGET_MAX_FALL));
+    const maximum = Math.floor(previousBudget * (1 + DEMAND_BUDGET_MAX_RISE));
+    budget = Math.max(minimum, Math.min(maximum, smoothed));
+  }
+  return { activePlayers, playerScale, playerScaleBudget, inventoryBoost, targetBudget, budget };
+}
+
 function createGroupedDemand(world, groupId, now) {
   const group = DEMAND_GROUPS.get(groupId);
   if (!group) return;
@@ -511,6 +599,9 @@ function createGroupedDemand(world, groupId, now) {
   }
 
   expireDemandGroupOrders(world, group.id);
+  const stockSnapshot = demandStockSnapshot(world, group);
+  const dynamicBudget = dynamicDemandBudget(world, group, state, now, stockSnapshot);
+  const cycleBudget = dynamicBudget.budget;
   const choices = group.products.map((option) => {
     const product = productDefinition(option.productId);
     const priceState = world.priceTransmission.products[product.id];
@@ -518,8 +609,15 @@ function createGroupedDemand(world, groupId, now) {
     const { quote, quoteQuantity } = demandQuote(world, product, group, option, limitPrice);
     const utilityPerUnit = Math.max(1, Number(option.utilityPerUnit || 1));
     const priceIndex = quote / limitPrice;
+    const stock = stockSnapshot.byProduct[product.id];
+    const targetStockValue = Math.max(
+      1,
+      dynamicBudget.playerScaleBudget * option.baseBudgetWeight * DEMAND_STOCK_TARGET_CYCLES,
+    );
+    const stockRatio = stock.value / targetStockValue;
+    const inventoryFactor = Math.max(0.7, Math.min(1.8, 0.7 + 0.3 * Math.sqrt(stockRatio)));
     const score = priceIndex <= group.maxQuoteIndex
-      ? option.baseBudgetWeight * priceIndex ** -group.priceElasticity
+      ? option.baseBudgetWeight * priceIndex ** -group.priceElasticity * inventoryFactor
       : 0;
     return {
       option,
@@ -528,22 +626,26 @@ function createGroupedDemand(world, groupId, now) {
       quote,
       quoteQuantity,
       priceIndex,
+      stock,
+      targetStockValue,
+      stockRatio,
+      inventoryFactor,
       score,
-      maxBudget: Math.floor(group.baseBudget * option.maxBudgetShare),
+      maxBudget: Math.floor(cycleBudget * option.maxBudgetShare),
       limitPrice,
       quantity: 0,
       committed: 0,
     };
   });
 
-  const budgetTargets = allocateDemandBudgets(choices, group.baseBudget);
+  const budgetTargets = allocateDemandBudgets(choices, cycleBudget);
   for (const choice of choices) {
     const target = budgetTargets.get(choice.product.id) || 0;
     choice.quantity = choice.score > 0 ? Math.floor(target / choice.limitPrice) : 0;
     choice.committed = choice.quantity * choice.limitPrice;
   }
 
-  let remainingBudget = group.baseBudget - choices.reduce((sum, choice) => sum + choice.committed, 0);
+  let remainingBudget = cycleBudget - choices.reduce((sum, choice) => sum + choice.committed, 0);
   const remainderOrder = [...choices].sort((left, right) => (
     left.priceIndex - right.priceIndex
     || right.score - left.score
@@ -576,6 +678,11 @@ function createGroupedDemand(world, groupId, now) {
       quoteQuantity: choice.quoteQuantity,
       priceIndex: Number(choice.priceIndex.toFixed(4)),
       utilityPerUnit: choice.utilityPerUnit,
+      stockQuantity: choice.stock.quantity,
+      stockValue: Number(choice.stock.value.toFixed(4)),
+      targetStockValue: Number(choice.targetStockValue.toFixed(4)),
+      stockRatio: Number(choice.stockRatio.toFixed(4)),
+      inventoryFactor: Number(choice.inventoryFactor.toFixed(4)),
       budget: choice.committed,
       quantity: choice.quantity,
       requestedUtility: requestedChoiceUtility,
@@ -615,7 +722,12 @@ function createGroupedDemand(world, groupId, now) {
 
   state.lastCycleId = cycleId;
   state.nextDemandAt = (cycleId + 1) * group.cycleMs;
-  state.lastBudget = group.baseBudget;
+  state.lastBudget = cycleBudget;
+  state.lastTargetBudget = dynamicBudget.targetBudget;
+  state.lastPlayerScaleBudget = dynamicBudget.playerScaleBudget;
+  state.lastInventoryBoost = dynamicBudget.inventoryBoost;
+  state.lastActivePlayerCount = dynamicBudget.activePlayers;
+  state.lastStockValue = Number(stockSnapshot.totalValue.toFixed(4));
   state.lastCommitted = choices.reduce((sum, choice) => sum + choice.committed, 0);
   state.satisfaction = requestedUtility === 0 ? 0 : filledUtility / requestedUtility;
   state.lastAllocation = allocation;
@@ -644,7 +756,7 @@ export function createWorld(now = Date.now()) {
     defaultDemandGroupState(group, now),
   ]));
   world.priceTransmission = defaultPriceTransmissionState(now);
-  world.version = 12;
+  world.version = 13;
   return normalizeDemandWorld(world, now);
 }
 
@@ -665,7 +777,7 @@ export function migrateWorld(world, now = Date.now()) {
   migrated.orders = (migrated.orders || []).filter((order) => {
     if (order.ownerType === 'player') return true;
     if (order.ownerType !== 'population') return false;
-    return previousVersion >= 12 && isValidPopulationOrder(order);
+    return previousVersion >= 13 && isValidPopulationOrder(order);
   });
   if (previousVersion < 9) {
     for (const player of Object.values(migrated.players || {})) {
@@ -674,17 +786,24 @@ export function migrateWorld(world, now = Date.now()) {
     }
   }
   const normalized = normalizeDemandWorld(migrated, now);
-  if (previousVersion < 12) {
+  if (previousVersion < 13) {
     for (const group of DEMAND_GROUP_CATALOG) {
       const state = normalized.demandGroups[group.id];
+      const previousBudget = Math.max(1, Math.floor(Number(state.lastBudget || group.baseBudget)));
       state.nextDemandAt = now;
       state.lastCycleId = Math.floor(now / group.cycleMs) - 1;
+      state.lastBudget = previousBudget;
+      state.lastTargetBudget = previousBudget;
+      state.lastPlayerScaleBudget = previousBudget;
+      state.lastInventoryBoost = 0;
+      state.lastActivePlayerCount = 0;
+      state.lastStockValue = 0;
       state.lastCommitted = 0;
       state.satisfaction = 0;
       state.lastAllocation = {};
     }
   }
-  normalized.version = 12;
+  normalized.version = 13;
   return normalized;
 }
 
