@@ -21,7 +21,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
       setSummary(await getGemShopSummary());
       setError('');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '无法读取宝石商店');
+      setError(reason instanceof Error ? reason.message : '无法读取商店');
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   return (
-    <PageLayout title="宝石商店" description="使用宝石单向兑换普通货币。所有兑换由服务器即时结算且不可撤销。">
+    <PageLayout title="商店" description="使用宝石单向兑换普通货币。所有兑换由服务器即时结算且不可撤销。">
       <div className="gem-shop-grid">
         <Panel className="widget gem-shop-balance-card">
           <WidgetHeading title="当前余额" action={<StatusTag tone="info">固定汇率</StatusTag>} />
@@ -95,7 +95,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
               </Button>
               <small>单次可兑换 {formatNumber(summary.minExchangeGems)}～{formatNumber(summary.maxExchangeGems)} 宝石；宝石不能用货币买回。</small>
             </>
-          ) : <p>{loading ? '正在加载宝石商店…' : error || '宝石商店暂时不可用'}</p>}
+          ) : <p>{loading ? '正在加载商店…' : error || '商店暂时不可用'}</p>}
         </Panel>
 
         <Panel className="widget gem-shop-history-card">

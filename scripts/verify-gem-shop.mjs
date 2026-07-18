@@ -41,21 +41,21 @@ for (const text of [
   "path === '/api/game/gem-shop/exchange'",
 ]) requireText('server/src/app.js', text);
 for (const text of [
-  "{ id: 'gem-shop', label: '宝石商店' }",
+  "{ id: 'gem-shop', label: '商店' }",
 ]) requireText('src/config/navigation.ts', text);
 for (const text of [
-  'title="宝石商店"',
+  'title="商店"',
   '1 宝石 =',
   '确认兑换',
   '宝石不能用货币买回',
   '兑换记录',
 ]) requireText('src/pages/GemShopPage.tsx', text);
 for (const text of ['固定汇率', '单向兑换', '不可撤销']) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
-for (const text of ['宝石商店', '`gem-shop`', '`GemShopPage`']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of ['商店', '`gem-shop`', '`GemShopPage`']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of ['/api/game/gem-shop', '/api/game/gem-shop/exchange', 'economy_gem_shop_exchanges']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 
 if (failures.length) {
-  console.error(`宝石商店验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`商店验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('宝石商店验证通过：独立页面、服务器固定汇率、原子兑换、幂等和记录规则均已锁定。');
+console.log('商店验证通过：独立页面、服务器固定汇率、原子兑换、幂等和记录规则均已锁定。');
