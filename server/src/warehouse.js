@@ -29,6 +29,19 @@ function storedQuantity(player) {
   );
 }
 
+function auctionItems(auction) {
+  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
+  const kind = auction?.assetKind || (auction?.collectibleId ? 'collectible' : undefined);
+  const assetId = String(auction?.assetId || auction?.productId || auction?.facilityTypeId || auction?.collectibleId || '');
+  return kind && assetId ? [{ assetKind: kind, assetId, quantity: Math.max(1, Number(auction.quantity || 1)) }] : [];
+}
+
+function auctionCommodityQuantity(auction) {
+  return auctionItems(auction).reduce((sum, item) => (
+    item.assetKind === 'commodity' ? sum + Math.max(0, Number(item.quantity || 0)) : sum
+  ), 0);
+}
+
 function reservedBuyQuantity(world, userId) {
   const orderReserved = (world?.orders || []).reduce((sum, order) => {
     if (
@@ -41,13 +54,12 @@ function reservedBuyQuantity(world, userId) {
   }, 0);
   const auctionReserved = (world?.collectibleAuctions || []).reduce((sum, auction) => {
     if (
-      auction?.assetKind !== 'commodity'
-      || Number(auction?.highestBidderId) !== Number(userId)
+      Number(auction?.highestBidderId) !== Number(userId)
       || auction?.status !== 'open'
       || auction?.escrowStatus === 'released'
       || auction?.escrowStatus === 'transferred'
     ) return sum;
-    return sum + Math.max(0, Number(auction.quantity || 0));
+    return sum + auctionCommodityQuantity(auction);
   }, 0);
   return orderReserved + auctionReserved;
 }

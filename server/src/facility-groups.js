@@ -125,19 +125,26 @@ function listedQuantity(world, ownerId, typeId) {
   }, 0);
 }
 
+function auctionItems(auction) {
+  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
+  const kind = auction?.assetKind || (auction?.collectibleId ? 'collectible' : undefined);
+  const assetId = String(auction?.assetId || auction?.facilityTypeId || auction?.productId || auction?.collectibleId || '');
+  return kind && assetId ? [{ assetKind: kind, assetId, quantity: Math.max(1, Number(auction.quantity || 1)) }] : [];
+}
+
 function auctionedQuantity(world, ownerId, typeId) {
   return (world.collectibleAuctions || []).reduce((sum, auction) => {
-    const kind = auction?.assetKind || (auction?.collectibleId ? 'collectible' : undefined);
-    const assetId = String(auction?.assetId || auction?.facilityTypeId || '');
     if (
-      kind !== 'facility'
-      || assetId !== typeId
-      || Number(auction?.sellerId) !== Number(ownerId)
+      Number(auction?.sellerId) !== Number(ownerId)
       || auction?.status !== 'open'
       || auction?.escrowStatus === 'released'
       || auction?.escrowStatus === 'transferred'
     ) return sum;
-    return sum + Math.max(0, Number(auction.quantity || 0));
+    return sum + auctionItems(auction).reduce((itemSum, item) => (
+      item.assetKind === 'facility' && item.assetId === typeId
+        ? itemSum + Math.max(0, Number(item.quantity || 0))
+        : itemSum
+    ), 0);
   }, 0);
 }
 
@@ -848,7 +855,7 @@ function cancelFacilityOrder(world, userId, order) {
   return result(true, '订单已撤销，冻结资产已释放');
 }
 
-export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity) {
+export function validateFacilityAuctionQuantity(world, userId, typeId, quantity) {
   const account = world.players?.[String(userId)];
   const type = typeFor(typeId);
   const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
@@ -857,6 +864,34 @@ export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity) 
   if (!account || !type || !group || !normalizedQuantity || normalizedQuantity > available) {
     return result(false, '可拍卖工厂数量不足');
   }
+  return result(true, '工厂拍卖数量有效');
+}
+
+export function validateFacilityAuctionTransferQuantity(world, userId, typeId, quantity) {
+  const account = world.players?.[String(userId)];
+  const type = typeFor(typeId);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const group = account && type ? groupFor(account, type.id) : null;
+  if (
+    !account
+    || !type
+    || !group
+    || !normalizedQuantity
+    || group.count < normalizedQuantity
+    || auctionedQuantity(world, userId, type.id) < normalizedQuantity
+  ) {
+    return result(false, '拍卖工厂冻结数量不足');
+  }
+  return result(true, '拍卖工厂冻结数量有效');
+}
+
+export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity) {
+  const validation = validateFacilityAuctionQuantity(world, userId, typeId, quantity);
+  if (!validation.ok) return validation;
+  const account = world.players[String(userId)];
+  const type = typeFor(typeId);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const group = groupFor(account, type.id);
   reduceRunningGroupForSellOrder(group, type, normalizedQuantity);
   return result(true, '工厂已为拍卖冻结');
 }
@@ -950,16 +985,45 @@ function bestBidFor(world, kind, assetId, excludedUserId) {
 }
 
 function assetSummaryFor(world, player) {
-  const commodityValue = PRODUCT_CATALOG.reduce((sum, product) => {
+  const commodity = PRODUCT_CATALOG.reduce((summary, product) => {
     const inventory = inventoryFor(player, product.id);
     const price = bestBidFor(world, 'commodity', product.id, player.userId);
-    return sum + (inventory.available + inventory.frozen) * price;
-  }, 0);
-  const facilityValue = (player.facilityGroups || []).reduce((sum, group) => (
-    sum + group.count * bestBidFor(world, 'facility', group.facilityTypeId, player.userId)
-  ), 0);
-  const cashValue = player.credits + player.frozenCredits;
-  return { cashValue, commodityValue, facilityValue, totalAssets: cashValue + commodityValue + facilityValue };
+    summary.available += inventory.available * price;
+    summary.frozen += inventory.frozen * price;
+    return summary;
+  }, { available: 0, frozen: 0 });
+  const facility = (player.facilityGroups || []).reduce((summary, group) => {
+    const price = bestBidFor(world, 'facility', group.facilityTypeId, player.userId);
+    const frozenCount = Math.min(group.count, frozenFacilityQuantity(world, player.userId, group.facilityTypeId));
+    summary.available += Math.max(0, group.count - frozenCount) * price;
+    summary.frozen += frozenCount * price;
+    return summary;
+  }, { available: 0, frozen: 0 });
+  const availableCashValue = Number(player.credits || 0);
+  const frozenCashValue = Number(player.frozenCredits || 0);
+  const availableCommodityValue = commodity.available;
+  const frozenCommodityValue = commodity.frozen;
+  const availableFacilityValue = facility.available;
+  const frozenFacilityValue = facility.frozen;
+  const cashValue = availableCashValue + frozenCashValue;
+  const commodityValue = availableCommodityValue + frozenCommodityValue;
+  const facilityValue = availableFacilityValue + frozenFacilityValue;
+  const availableAssetValue = availableCashValue + availableCommodityValue + availableFacilityValue;
+  const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue;
+  return {
+    cashValue,
+    commodityValue,
+    facilityValue,
+    availableCashValue,
+    frozenCashValue,
+    availableCommodityValue,
+    frozenCommodityValue,
+    availableFacilityValue,
+    frozenFacilityValue,
+    availableAssetValue,
+    frozenAssetValue,
+    totalAssets: availableAssetValue + frozenAssetValue,
+  };
 }
 
 function valuationPricesFor(world, player) {

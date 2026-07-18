@@ -88,6 +88,13 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
   const [eventFilter, setEventFilter] = useState<AssetEventFilter>('all');
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
+  const frozenFacilities = game.facilityGroups.reduce((sum, group) => sum + Number(group.frozenCount || 0), 0);
+  const frozenAssetValue = game.assetSummary.frozenAssetValue ?? game.frozenCredits;
+  const availableAssetValue = game.assetSummary.availableAssetValue ?? Math.max(0, derived.totalAssets - frozenAssetValue);
+  const availableCommodityValue = game.assetSummary.availableCommodityValue ?? derived.commodityValue;
+  const frozenCommodityValue = game.assetSummary.frozenCommodityValue ?? 0;
+  const availableFacilityValue = game.assetSummary.availableFacilityValue ?? derived.facilityValue;
+  const frozenFacilityValue = game.assetSummary.frozenFacilityValue ?? 0;
   const filteredEvents = useMemo(
     () => localAssetEvents.filter((event) => matchesFilter(event, eventFilter)),
     [eventFilter, localAssetEvents],
@@ -105,10 +112,10 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
     >
       <div className="funds-summary-grid">
         <MetricCard label="可用资金" value={<CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>} tone="success" />
-        <MetricCard label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} detail="用于未完成买单" tone="warning" />
-        <MetricCard label="当前总资产" value={<CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>} tone="success" />
-        <MetricCard label="商品资产" value={<CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount>} detail={`冻结商品 ${formatNumber(frozenInventory)}`} />
-        <MetricCard label="工厂资产" value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>} detail={`${formatNumber(totalFacilities)} 座工厂`} tone="info" />
+        <MetricCard label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} detail="用于未完成买单和拍卖最高出价" tone="warning" />
+        <MetricCard label="当前总资产" value={<CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>} detail="包含仍归你所有的冻结资产" tone="success" />
+        <MetricCard label="冻结资产" value={<CurrencyAmount>{formatCurrency(frozenAssetValue)}</CurrencyAmount>} detail="资金、商品与工厂冻结估值" tone="warning" />
+        <MetricCard label="可支配资产" value={<CurrencyAmount>{formatCurrency(availableAssetValue)}</CurrencyAmount>} detail="当前未被冻结的资产估值" tone="info" />
       </div>
 
       <div className="asset-overview-grid">
@@ -124,15 +131,20 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
 
         <Panel className="widget asset-breakdown span-2">
           <WidgetHeading title="资产估值明细" action={<span className="muted">商品和工厂均按订单簿最高有效买入价估值</span>} />
+          <p className="ui-helper-text">冻结资产仍归当前玩家所有并计入总资产；冻结只限制交易、生产或使用。</p>
           <div className="asset-card-grid">
-            <MetricCard label="可用现金" value={<CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>} detail="可用于建设、运营和交易" tone="success" />
-            <MetricCard label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} detail="未成交买单的服务器冻结额" tone="warning" />
+            <MetricCard label="现金资产" value={<CurrencyAmount>{formatCurrency(derived.cashValue)}</CurrencyAmount>} detail={`可用 ${formatCurrency(game.credits)} · 冻结 ${formatCurrency(game.frozenCredits)}`} tone="success" />
             <MetricCard
               label="全部商品估值"
               value={<CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount>}
-              detail={`可用与冻结商品合计 ${formatNumber(game.warehouseStoredQuantity)}`}
+              detail={`可用 ${formatCurrency(availableCommodityValue)} · 冻结 ${formatCurrency(frozenCommodityValue)} · 冻结数量 ${formatNumber(frozenInventory)}`}
             />
-            <MetricCard label="工厂资产估值" value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>} detail={`${formatNumber(totalFacilities)} 座，按各类型最高有效买价计算`} tone="info" />
+            <MetricCard
+              label="工厂资产估值"
+              value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>}
+              detail={`可用 ${formatCurrency(availableFacilityValue)} · 冻结 ${formatCurrency(frozenFacilityValue)} · ${formatNumber(frozenFacilities)}/${formatNumber(totalFacilities)} 座冻结`}
+              tone="info"
+            />
           </div>
         </Panel>
 

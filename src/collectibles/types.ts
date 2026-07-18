@@ -33,6 +33,12 @@ export interface AuctionBid {
   createdAt: number;
 }
 
+export interface AuctionItem {
+  assetKind: AuctionAssetKind;
+  assetId: string;
+  quantity: number;
+}
+
 export interface AuctionAssetSummary {
   kind: AuctionAssetKind;
   id: string;
@@ -43,8 +49,17 @@ export interface AuctionAssetSummary {
   collectible?: Collectible;
 }
 
+export interface AuctionItemSummary extends AuctionAssetSummary {
+  quantity: number;
+}
+
 export interface AssetAuction {
   id: string;
+  items: AuctionItem[];
+  itemSummaries: AuctionItemSummary[];
+  itemCount: number;
+  isBundle: boolean;
+  /** Compatibility aliases for historical single-asset callers. */
   assetKind: AuctionAssetKind;
   assetId: string;
   collectibleId?: string;
@@ -89,6 +104,8 @@ export interface CollectibleOwnershipRecord {
   reason: 'created' | 'assigned' | 'auction';
   auctionId?: string;
   price?: number;
+  auctionTotalPrice?: number;
+  bundleItemCount?: number;
   createdAt: number;
 }
 
@@ -124,6 +141,8 @@ export function getCollectibleState(game: EconomyState): CollectibleState {
     assetAuctions,
     collectibleAuctions: collectibleAuctions.length > 0
       ? collectibleAuctions
-      : assetAuctions.filter((auction): auction is CollectibleAuction => auction.assetKind === 'collectible'),
+      : assetAuctions.filter((auction): auction is CollectibleAuction => (
+        auction.itemCount === 1 && auction.assetKind === 'collectible'
+      )),
   };
 }

@@ -293,6 +293,14 @@ export interface AssetSummary {
   commodityValue: number;
   facilityValue: number;
   totalAssets: number;
+  availableCashValue?: number;
+  frozenCashValue?: number;
+  availableCommodityValue?: number;
+  frozenCommodityValue?: number;
+  availableFacilityValue?: number;
+  frozenFacilityValue?: number;
+  availableAssetValue?: number;
+  frozenAssetValue?: number;
 }
 
 export interface LeaderboardEntry {

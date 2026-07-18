@@ -202,3 +202,97 @@ test('客户端状态同时提供通用拍卖与藏品兼容别名', () => {
   assert.equal(client.collectibleAuctions[0].collectible.currentOwnerName, '卖家');
   assert.equal(client.assetAuctions.find((auction) => auction.assetKind === 'commodity').quantity, 2);
 });
+
+test('捆绑拍卖在任一项目无效时不冻结任何资产', () => {
+  const state = world();
+  state.players['1'].inventories.wheat.available = 5;
+  const response = createAuction(state, seller, {
+    items: [
+      { assetKind: 'commodity', assetId: 'wheat', quantity: 2 },
+      { assetKind: 'facility', assetId: 'farm', quantity: 1 },
+    ],
+    startingBid: 20,
+    durationHours: 1,
+  });
+  assert.equal(response.ok, false);
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 5, frozen: 0 });
+  assert.equal(state.collectibleAuctions.length, 0);
+});
+
+test('混合资产包整体冻结、预占仓库并原子成交', () => {
+  const state = world();
+  importOne(state, 1_000);
+  const collectibleId = state.collectibles[0].id;
+  state.players['1'].inventories.wheat.available = 6;
+  state.players['1'].inventories.rice.available = 3;
+  state.players['1'].facilityGroups = [{
+    facilityTypeId: 'farm', count: 2, participatingCount: 2, pendingJoinCount: 0,
+    enabled: true, status: 'running', cycleStartedAt: 1_000, lifetimeOutput: 0,
+  }];
+  migrateFacilityGroupWorld(state, 1_500);
+
+  const created = createAuction(state, seller, {
+    items: [
+      { assetKind: 'collectible', assetId: collectibleId, quantity: 1 },
+      { assetKind: 'commodity', assetId: 'wheat', quantity: 2 },
+      { assetKind: 'commodity', assetId: 'wheat', quantity: 1 },
+      { assetKind: 'commodity', assetId: 'rice', quantity: 2 },
+      { assetKind: 'facility', assetId: 'farm', quantity: 1 },
+    ],
+    startingBid: 100,
+    durationHours: 1,
+  });
+  assert.equal(created.ok, true);
+  const auction = state.collectibleAuctions.at(-1);
+  assert.equal(auction.items.length, 4, '重复商品项目应合并');
+  assert.equal(auction.items.find((item) => item.assetId === 'wheat').quantity, 3);
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 3 });
+  assert.deepEqual(state.players['1'].inventories.rice, { available: 1, frozen: 2 });
+  assert.equal(state.players['1'].facilityGroups[0].participatingCount, 1);
+
+  assert.equal(bid(state, bidderA, auction.id, 120, 3_000).ok, true);
+  assert.equal(createWarehouseUsage(state, state.players['2']).warehouseReservedQuantity, 5);
+  processCollectibleAuctions(state, auction.endsAt + 1);
+
+  assert.equal(auction.status, 'sold');
+  assert.equal(auction.escrowStatus, 'transferred');
+  assert.equal(state.collectibles[0].currentOwnerId, 2);
+  assert.equal(state.players['2'].inventories.wheat.available, 3);
+  assert.equal(state.players['2'].inventories.rice.available, 2);
+  assert.equal(state.players['2'].facilityGroups.find((group) => group.facilityTypeId === 'farm').count, 1);
+  const ownership = state.collectibleOwnershipHistory.at(-1);
+  assert.equal(ownership.price, undefined, '捆绑总价不得伪装成单件藏品价格');
+  assert.equal(ownership.auctionTotalPrice, 120);
+  assert.equal(ownership.bundleItemCount, 4);
+});
+
+test('冻结资产继续计入总资产并提供可用与冻结明细', () => {
+  const state = world();
+  state.orders.push(
+    { id: 'wheat-bid', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'buy', ownerType: 'player', ownerId: 2, ownerName: '买家甲', price: 10, quantity: 10, remaining: 10, status: 'open', createdAt: 1_500 },
+    { id: 'farm-bid', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm', side: 'buy', ownerType: 'player', ownerId: 2, ownerName: '买家甲', price: 50, quantity: 2, remaining: 2, status: 'open', createdAt: 1_501 },
+  );
+  state.players['1'].inventories.wheat.available = 5;
+  state.players['1'].facilityGroups = [{
+    facilityTypeId: 'farm', count: 2, participatingCount: 0, pendingJoinCount: 0,
+    enabled: false, status: 'stopped', lifetimeOutput: 0,
+  }];
+  migrateFacilityGroupWorld(state, 1_600);
+  const before = createFacilityGroupClientState(state, 1, 1_700).assetSummary;
+
+  const created = createAuction(state, seller, {
+    items: [
+      { assetKind: 'commodity', assetId: 'wheat', quantity: 2 },
+      { assetKind: 'facility', assetId: 'farm', quantity: 1 },
+    ],
+    startingBid: 90,
+    durationHours: 1,
+  });
+  assert.equal(created.ok, true);
+  const after = createFacilityGroupClientState(state, 1, 2_100).assetSummary;
+  assert.equal(after.totalAssets, before.totalAssets, '冻结只改变可用性，不应改变总资产');
+  assert.equal(after.frozenCommodityValue, 20);
+  assert.equal(after.frozenFacilityValue, 50);
+  assert.equal(after.frozenAssetValue, 70);
+  assert.equal(after.availableAssetValue + after.frozenAssetValue, after.totalAssets);
+});

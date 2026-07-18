@@ -1,4 +1,5 @@
 import type { AssetKind, EconomyState, OrderSide } from '../types';
+import type { AuctionItem } from '../collectibles/types';
 
 const GAME_API_BASE = '/economy-api/game';
 
@@ -91,8 +92,8 @@ export const gameActions = {
     postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
   ),
   cancelOrder: (orderId: string) => postAction(`/orders/${encodeURIComponent(orderId)}/cancel`),
-  createAuction: (assetKind: AssetKind | 'collectible', assetId: string, quantity: number, startingBid: number, durationHours: number) => (
-    postAction('/auctions', { assetKind, assetId, quantity, startingBid, durationHours })
+  createAuction: (items: AuctionItem[], startingBid: number, durationHours: number) => (
+    postAction('/auctions', { items, startingBid, durationHours })
   ),
   placeAuctionBid: (auctionId: string, amount: number) => (
     postAction(`/auctions/${encodeURIComponent(auctionId)}/bids`, { amount })
