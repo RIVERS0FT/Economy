@@ -22,12 +22,12 @@ jobs:
           cd repo
           python3 <<'PY'
           from pathlib import Path
-          from textwrap import dedent
 
           lines = Path('.github/workflows/apply-shop-layout-fix.yml').read_text().splitlines()
           start = next(index for index, line in enumerate(lines) if line.strip() == "python3 <<'PY'") + 1
           end = next(index for index in range(start, len(lines)) if lines[index].strip() == 'PY')
-          exec(compile(dedent('\n'.join(lines[start:end])), 'apply-shop-layout-fix', 'exec'))
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end])
+          exec(compile(script, 'apply-shop-layout-fix', 'exec'))
           PY
           rm .github/workflows/apply-shop-layout-fix.yml
           rm .github/workflows/apply-shop-layout-fix-pr.yml
