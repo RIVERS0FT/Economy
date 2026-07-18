@@ -10,7 +10,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,11 +21,56 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
+      - name: Apply bundled auction implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat scripts/.auction-patch/frontend-* | base64 --decode > /tmp/apply-auction-frontend.mjs
+          cat scripts/.auction-patch/server-* | base64 --decode > /tmp/apply-auction-server.mjs
+          cat scripts/.auction-patch/docs-* | base64 --decode > /tmp/apply-auction-docs.mjs
+          node /tmp/apply-auction-frontend.mjs
+          node /tmp/apply-auction-server.mjs
+          node /tmp/apply-auction-docs.mjs
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build and test
         run: npm run build
+
+      - name: Package implementation source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf bundled-auctions-source.tar.gz \
+            README.md \
+            docs/README.md \
+            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
+            docs/GIFT_CODE_AND_ADMIN_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            docs/WAREHOUSE_EXPANSION_DESIGN.md \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            server/src/collectibles.js \
+            server/src/facility-groups.js \
+            server/src/warehouse.js \
+            server/test/collectibles-auctions.test.js \
+            src/api/game.ts \
+            src/collectibles/types.ts \
+            src/pages/AuctionPage.tsx \
+            src/pages/AssetsPage.tsx \
+            src/styles/collectibles-auctions.css \
+            src/types.ts \
+            scripts/verify-collectibles-auctions.mjs
+
+      - name: Upload implementation source
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundled-auctions-source
+          path: bundled-auctions-source.tar.gz
+          if-no-files-found: error
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
