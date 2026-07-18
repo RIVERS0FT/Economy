@@ -1,1 +1,4 @@
-server/src/balanced-market.js: expected one match, found 0: 'function settlePlayerSell(world, order, quantity, tradePrice, buyer, createdAt) {\n  const player = world.players?.[String(order.ownerId)];\n  if (!player) throw '
+  File "/tmp/apply-player-market-sell-fee.py", line 23
+    write(path, content.replace(indented_old, _indent_block(new, width), 1))
+                                                                            ^
+IndentationError: unindent does not match any outer indentation level
