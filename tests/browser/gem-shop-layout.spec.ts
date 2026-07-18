@@ -52,6 +52,7 @@ test('desktop shop keeps compact icons and places the primary exchange action in
   const icon = page.locator('.gem-shop-balance-row svg').first();
   const confirm = page.getByRole('button', { name: '确认兑换', exact: true });
 
+  await expect(confirm).toBeEnabled();
   expect(await gridTrackCount(grid)).toBe(2);
   const gridBox = await requireBox(grid);
   const balanceBox = await requireBox(balance);
