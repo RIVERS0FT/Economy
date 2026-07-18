@@ -107,7 +107,6 @@ function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/gifts/redeem') return { action: 'redeemGift', category: 'general' };
   if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
-  if (method === 'POST' && path === '/api/game/reset') return { action: 'resetPlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/auctions') {
     return { action: 'createAuction', category: 'orders' };
   }
@@ -424,6 +423,11 @@ const server = createServer(async (request, response) => {
 
     if (method === 'POST' && /^\/api\/game\/facilities\/[^/]+\/plan$/.test(path)) {
       sendError(response, 410, '生产计划已移除，工厂开启后仅持续生产');
+      return;
+    }
+
+    if (method === 'POST' && path === '/api/game/reset') {
+      sendError(response, 410, '经济状态重置功能已永久移除');
       return;
     }
 

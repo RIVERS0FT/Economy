@@ -146,7 +146,6 @@
         <text class="eyebrow">Log</text>
         <text class="section-title">操作日志</text>
       </view>
-      <button class="ghost-button" bindtap="resetGame">重置</button>
     </view>
     <view class="log-list">
       <block tt:for="{{logs}}" tt:key="id">

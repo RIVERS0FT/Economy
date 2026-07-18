@@ -35,12 +35,9 @@ if (failures.length === 0) {
     'game-preferences-card',
     'account-management-card',
     'account-action-group',
-    'settings-danger-zone',
     '账号与管理',
     '账号资料',
     '当前会话',
-    '危险区域',
-    '清空资金、统计、订单和工厂；宝石、邀请关系和封禁记录将保留。',
   ]) {
     if (!page.includes(text)) failures.push(`SettingsPage 缺少设置页结构或文案: ${text}`);
   }
@@ -49,6 +46,9 @@ if (failures.length === 0) {
     'settings-grid unified-settings-grid',
     'profile-settings-card span-2',
     'profile-action-stack',
+    'settings-danger-zone',
+    '重置经济状态',
+    '危险区域',
   ]) {
     if (page.includes(forbidden)) failures.push(`SettingsPage 不应恢复旧布局: ${forbidden}`);
   }
@@ -67,7 +67,6 @@ if (failures.length === 0) {
     'display: contents;',
     '@media (max-width: 760px)',
     'grid-template-columns: repeat(2, minmax(0, 1fr));',
-    '.settings-danger-zone',
   ]) {
     if (!styles.includes(text)) failures.push(`settings.css 缺少: ${text}`);
   }
@@ -93,7 +92,7 @@ if (failures.length === 0) {
   for (const text of [
     '两个互不共享网格行高的纵向内容栈',
     '玩家资料／游戏设置／邀请好友／礼品兑换／账号与管理',
-    '危险区域',
+    '不得提供经济状态重置',
     '共享三列网格',
   ]) {
     if (!pageDesign.includes(text)) failures.push(`页面职责设计缺少设置页防回退规则: ${text}`);
@@ -111,8 +110,8 @@ if (failures.length === 0) {
 }
 
 if (failures.length) {
-  console.error(`设置页独立列、统计密度、账号分组和危险区域验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`设置页独立列、统计密度、账号分组和禁用重置验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('设置页独立主列／侧列、四项统计、账号分组、危险区域与设计文档验证通过。');
+console.log('设置页独立主列／侧列、四项统计、账号分组、禁用重置与设计文档验证通过。');

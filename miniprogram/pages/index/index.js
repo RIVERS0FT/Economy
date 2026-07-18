@@ -375,17 +375,4 @@ Page({
     this.persistAndSync(`花费 ${nextHouse.cost} 金融货币，房子升级为${nextHouse.name}。`);
   },
 
-  resetGame() {
-    tt.showModal({
-      title: '重置存档',
-      content: '确定要清空当前单机进度吗？',
-      success: (res) => {
-        if (!res.confirm) return;
-        this.saveData = createDefaultSave();
-        writeSave(this.saveData);
-        this.syncView('已重置存档');
-        tt.showToast({ title: '已重置', icon: 'success' });
-      },
-    });
-  },
 });

@@ -34,7 +34,6 @@ export type LocalActivityAction =
   | 'cancelFacilityListing'
   | 'buyFacility'
   | 'renamePlayer'
-  | 'resetPlayer'
   | 'redeemGift'
   | 'exchangeGems';
 
@@ -83,7 +82,6 @@ const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   cancelFacilityListing: 'facility',
   buyFacility: 'facility',
   renamePlayer: 'system',
-  resetPlayer: 'system',
   redeemGift: 'system',
   exchangeGems: 'system',
 };

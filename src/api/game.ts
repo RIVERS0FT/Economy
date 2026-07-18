@@ -115,5 +115,4 @@ export const gameActions = {
   }),
   redeemGift: (code: string) => postAction('/gifts/redeem', { code }),
   exchangeGems: (gems: number) => postAction('/gem-shop/exchange', { gems }),
-  reset: () => Promise.reject(new GameApiError(410, '经济状态重置功能已永久移除')),
 };
