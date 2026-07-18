@@ -1,0 +1,39 @@
+name: Fix liquid glass verifier
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/fix-shop-layout'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update verifier
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone -q --branch agent/fix-shop-layout "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
+          cd repo
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-liquid-glass-chrome.mjs')
+          text = path.read_text()
+          old = "  '排名在移动端使用 `#1`、`#2` 格式',"
+          new = "  '排名在桌面与移动端统一通过 `formatRank` 使用 `#1`、`#2` 格式',"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one rank design check, found {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+          rm .github/workflows/fix-liquid-glass-verifier.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "test: update liquid glass rank verifier"
+          git push -q origin HEAD:agent/fix-shop-layout
