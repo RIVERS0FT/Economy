@@ -251,14 +251,13 @@ for (const text of [
   'InvitationSettings',
   '礼品兑换',
   '退出登录',
-  '重置经济状态',
   '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',
   'formatNumber(game.stats.workClicks)',
 ]) requireText('src/pages/SettingsPage.tsx', text);
 for (const text of ['邀请好友', '分享链接', '我的邀请码', '填写好友邀请码', '累计宝石']) {
   requireText('src/components/InvitationSettings.tsx', text);
 }
-for (const text of ['登录会话', '重置服务器经济状态', '使用万和百万单位缩写大额资产', '全局使用 K/M/B/T 缩写大额金额与状态栏容量']) {
+for (const text of ['登录会话', '重置经济状态', '重置服务器经济状态', '使用万和百万单位缩写大额资产', '全局使用 K/M/B/T 缩写大额金额与状态栏容量']) {
   forbidText('src/pages/SettingsPage.tsx', text);
 }
 
@@ -292,7 +291,7 @@ for (const text of [
   '| 藏品 | `collections` | `CollectionsPage` | 当前玩家持有的唯一艺术藏品 |',
   '| 拍卖 | `auction` | `AuctionPage` | 藏品、商品与工厂竞价拍卖与结算结果 |',
   '| 宝石商店 | `gem-shop` | `GemShopPage` | 宝石单向兑换普通货币 |',
-  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',
+  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品和退出 |',
   '页面主标题固定为“生产”',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
