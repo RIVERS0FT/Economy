@@ -77,27 +77,33 @@ jobs:
               raise SystemExit('未找到玩家活跃时间迁移片段')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
           PY
-      - name: Upload patch diagnostics
-        if: always() && steps.guard.outputs.needed == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: dynamic-demand-patch-log-v2
-          path: dynamic-demand-patch.log
       - name: Install dependencies
         if: steps.guard.outputs.needed == 'true'
         run: npm ci
       - name: Validate server and demand model
         if: steps.guard.outputs.needed == 'true'
+        shell: bash
         run: |
-          git diff --check
-          npm run server:check
-          node scripts/verify-document-authority.mjs
-          node scripts/verify-staple-crops-demand.mjs
-          node --test server/test/domain.test.js
+          set -o pipefail
+          {
+            git diff --check
+            npm run server:check
+            node scripts/verify-document-authority.mjs
+            node scripts/verify-staple-crops-demand.mjs
+            node --test server/test/domain.test.js
+          } 2>&1 | tee dynamic-demand-validation.log
+      - name: Upload diagnostics
+        if: always() && steps.guard.outputs.needed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dynamic-demand-diagnostics-v2
+          path: |
+            dynamic-demand-patch.log
+            dynamic-demand-validation.log
       - name: Commit upgraded model
         if: steps.guard.outputs.needed == 'true'
         run: |
-          rm -f dynamic-demand-patch.log
+          rm -f dynamic-demand-patch.log dynamic-demand-validation.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add README.md docs server/src server/test/domain.test.js scripts
