@@ -891,13 +891,6 @@ function renameFacilityOrders(world, userId) {
   for (const order of world.orders || []) if (order.ownerId === userId) order.ownerName = player.playerName;
 }
 
-function resetFacilityGroups(world, userId) {
-  const player = getPlayer(world, userId);
-  player.facilityGroups = [];
-  delete player.facilityConstruction;
-  delete player.facilities;
-}
-
 export function applyFacilityGroupAction(world, user, action, payload = {}, now = Date.now()) {
   processFacilityGroupWorld(world, now);
   const userId = Number(user.id);
@@ -939,7 +932,6 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
 
   migrateFacilityGroupWorld(world, now);
   if (action === 'renamePlayer' && actionResult.ok) renameFacilityOrders(world, userId);
-  if (action === 'resetPlayer' && actionResult.ok) resetFacilityGroups(world, userId);
   reconcileAllFacilityGroups(world, now);
   stripLegacyFacilityInstances(world);
   return actionResult;

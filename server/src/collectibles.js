@@ -351,16 +351,6 @@ export function applyCollectibleAction(world, user, action, payload = {}, now = 
   return result(false, '拍卖操作不存在');
 }
 
-export function canResetCollectibles(world, userId, now = Date.now()) {
-  processCollectibleAuctions(world, now);
-  const active = world.collectibleAuctions.some((auction) => auction.status === 'open' && (
-    auction.sellerId === userId || auction.highestBidderId === userId
-  ));
-  return active
-    ? result(false, '存在进行中的资产拍卖或竞拍，无法重置经济状态')
-    : result(true, '可以重置');
-}
-
 function clientCollectible(world, item) {
   return {
     ...item,

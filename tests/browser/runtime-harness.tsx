@@ -309,7 +309,6 @@ function SettingsHarness() {
     showResult: async () => {},
     notify: () => {},
     signOut: async () => {},
-    reset: async () => ({ ok: true, message: '测试环境已重置' }),
   } as unknown as LoadedGameViewModel;
 
   return <SettingsPage model={model} />;

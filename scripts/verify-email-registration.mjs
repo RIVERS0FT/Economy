@@ -160,10 +160,11 @@ for (const text of [
 forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMAIL');
 
 for (const text of [
-  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品、退出和重置 |',
-  '设置页只允许玩家资料与四项统计、已经实现的客户端偏好、邀请入口、礼品兑换、管理员入口、退出登录和重置经济状态',
+  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品和退出 |',
+  '设置页只允许玩家资料与四项统计、已经实现的客户端偏好、邀请入口、礼品兑换、管理员入口和退出登录',
   '已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '资料、偏好、邀请、礼品、退出和重置');
 
 for (const text of [
   '发送验证码前必须先通过主页账号服务仅限回环的邮箱存在性接口查重',

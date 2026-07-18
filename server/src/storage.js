@@ -18,7 +18,6 @@ import {
 import { createWarehouseSummary, ensureWarehouse, upgradeWarehouse } from './warehouse.js';
 import {
   applyCollectibleAction,
-  canResetCollectibles,
   collectibleOwnershipHistory,
   createCollectibleClientState,
   importCollectibles,
@@ -43,7 +42,7 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
-  'createCollectibleAuction', 'placeCollectibleBid', 'cancelCollectibleAuction', 'resetPlayer',
+  'createCollectibleAuction', 'placeCollectibleBid', 'cancelCollectibleAuction',
 ]);
 
 function normalizeJson(value) {
@@ -381,19 +380,6 @@ export class EconomyStore {
       } else if (COLLECTIBLE_ACTIONS.has(action)) {
         processFacilityGroupWorld(world, now);
         gameResult = applyCollectibleAction(world, user, action, payload, now);
-      } else if (action === 'resetPlayer') {
-        const resetCheck = canResetCollectibles(world, Number(user.id), now);
-        if (resetCheck.ok) {
-          const preservedGems = player.gems;
-          const preservedInvitationGemsIssued = player.stats.invitationGemsIssued;
-          gameResult = applyFacilityGroupAction(world, user, action, payload, now);
-          const resetPlayer = world.players[String(user.id)];
-          ensureGemState(resetPlayer);
-          resetPlayer.gems = preservedGems;
-          resetPlayer.stats.invitationGemsIssued = preservedInvitationGemsIssued;
-        } else {
-          gameResult = resetCheck;
-        }
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
       }

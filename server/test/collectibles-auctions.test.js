@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applyCollectibleAction,
-  canResetCollectibles,
   createCollectibleClientState,
   importCollectibles,
   migrateCollectibleWorld,
@@ -185,18 +184,6 @@ test('工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂�
   assert.equal(state.players['1'].facilityGroups.find((group) => group.facilityTypeId === 'farm').count, 1);
   assert.equal(state.players['2'].facilityGroups.find((group) => group.facilityTypeId === 'farm').count, 2);
   assert.equal(state.facilityMarkets.farm.priceHistory.length, historyLength, '拍卖成交不得写入订单簿行情');
-});
-
-test('存在任意资产拍卖或最高竞拍时禁止重置', () => {
-  const state = world();
-  state.players['1'].inventories.wheat.available = 2;
-  createAuction(state, seller, {
-    assetKind: 'commodity', assetId: 'wheat', quantity: 1, startingBid: 10, durationHours: 1,
-  });
-  const auction = state.collectibleAuctions.at(-1);
-  assert.equal(canResetCollectibles(state, 1, 2_100).ok, false);
-  assert.equal(bid(state, bidderA, auction.id, 10, 2_200).ok, true);
-  assert.equal(canResetCollectibles(state, 2, 2_300).ok, false);
 });
 
 test('客户端状态同时提供通用拍卖与藏品兼容别名', () => {

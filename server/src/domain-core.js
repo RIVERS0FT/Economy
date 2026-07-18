@@ -1228,13 +1228,6 @@ function renamePlayer(world, userId, payload) {
   return result(true, '玩家昵称已更新');
 }
 
-function resetPlayer(world, user, now) {
-  world.orders = world.orders.filter((order) => order.ownerId !== Number(user.id));
-  world.facilityListings = world.facilityListings.filter((listing) => listing.ownerId !== Number(user.id));
-  world.players[String(user.id)] = createPlayer(user, now);
-  return result(true, '服务器经济状态已重置');
-}
-
 export function applyAction(world, user, action, payload = {}, now = Date.now()) {
   migrateWorld(world, now);
   ensurePlayer(world, user, now);
@@ -1252,7 +1245,6 @@ export function applyAction(world, user, action, payload = {}, now = Date.now())
     case 'placeOrder': return placeOrder(world, userId, payload, now);
     case 'cancelOrder': return cancelOrder(world, userId, payload, now);
     case 'renamePlayer': return renamePlayer(world, userId, payload, now);
-    case 'resetPlayer': return resetPlayer(world, user, now);
     default: return result(false, '不支持的游戏操作');
   }
 }

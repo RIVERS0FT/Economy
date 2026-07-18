@@ -40,8 +40,8 @@ test('desktop settings columns stack independently without shared-row gaps', asy
   const account = page.locator('.account-management-card');
 
   await expect(layout).toBeVisible();
-  await expect(account.getByRole('heading', { name: '危险区域', exact: true })).toBeVisible();
-  await expect(account.getByText('清空资金、统计、订单和工厂；宝石、邀请关系和封禁记录将保留。', { exact: true })).toBeVisible();
+  await expect(account.getByRole('button', { name: '重置经济状态', exact: true })).toHaveCount(0);
+  await expect(account.getByRole('heading', { name: '危险区域', exact: true })).toHaveCount(0);
   expect(await gridTrackCount(layout)).toBe(2);
   expect(await gridTrackCount(profile.locator('.player-stat-grid'))).toBe(4);
 
