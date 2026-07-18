@@ -35,6 +35,13 @@ const COLLECTIBLE_ACTIONS = new Set([
   'placeCollectibleBid',
   'cancelCollectibleAuction',
 ]);
+const ECONOMIC_ACTIVITY_ACTIONS = new Set([
+  'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
+  'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
+  'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
+  'exchangeGems', 'createCollectibleAuction', 'placeCollectibleBid',
+  'cancelCollectibleAuction', 'resetPlayer',
+]);
 
 function normalizeJson(value) {
   return JSON.parse(JSON.stringify(value));
@@ -225,7 +232,7 @@ export class EconomyStore {
       migrateCollectibleWorld(world, now);
       stripLegacyFacilityInstances(world);
       for (const player of Object.values(world.players || {})) ensureGemState(player);
-      world.version = 12;
+      world.version = 13;
       const stateJson = JSON.stringify(world);
       this.insertWorld.run(1, stateJson, now);
       return { revision: 1, stateJson, world };
@@ -239,7 +246,7 @@ export class EconomyStore {
       ensureWarehouse(player);
       ensureGemState(player);
     }
-    world.version = 12;
+    world.version = 13;
     return { revision: Number(row.revision), stateJson, world };
   }
 
@@ -252,7 +259,7 @@ export class EconomyStore {
     migrateCollectibleWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
-    world.version = 12;
+    world.version = 13;
     return JSON.stringify(world);
   }
 
@@ -387,6 +394,10 @@ export class EconomyStore {
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
       }
+      if (gameResult?.ok && ECONOMIC_ACTIVITY_ACTIONS.has(action)) {
+        const activePlayer = world.players[String(user.id)];
+        if (activePlayer) activePlayer.lastEconomicActivityAt = now;
+      }
       processFacilityGroupWorld(world, now);
       processCollectibleAuctions(world, now);
       ensureWarehouse(world.players[String(user.id)]);
@@ -454,6 +465,16 @@ export class EconomyStore {
         revision,
         lastProcessedAt: Number(world.lastProcessedAt || now),
         apiStatus: 'ok',
+        demandGroups: Object.fromEntries(Object.entries(world.demandGroups || {}).map(([groupId, group]) => [groupId, {
+          lastBudget: Number(group.lastBudget || 0),
+          lastTargetBudget: Number(group.lastTargetBudget || 0),
+          lastPlayerScaleBudget: Number(group.lastPlayerScaleBudget || 0),
+          lastInventoryBoost: Number(group.lastInventoryBoost || 0),
+          lastActivePlayerCount: Number(group.lastActivePlayerCount || 0),
+          lastStockValue: Number(group.lastStockValue || 0),
+          lastCommitted: Number(group.lastCommitted || 0),
+          satisfaction: Number(group.satisfaction || 0),
+        }])),
       };
       this.saveWorld(revision, world, now);
       return summary;
