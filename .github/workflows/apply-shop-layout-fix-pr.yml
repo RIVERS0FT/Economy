@@ -13,20 +13,21 @@ jobs:
     if: github.head_ref == 'agent/fix-shop-layout'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
       - name: Execute embedded patch
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          git clone -q --branch agent/fix-shop-layout "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
+          cd repo
           python3 <<'PY'
           from pathlib import Path
           from textwrap import dedent
 
-          workflow = Path('.github/workflows/apply-shop-layout-fix.yml').read_text()
-          start = workflow.index("python3 <<'PY'\n") + len("python3 <<'PY'\n")
-          end = workflow.index("\n          PY", start)
-          exec(compile(dedent(workflow[start:end]), 'apply-shop-layout-fix', 'exec'))
+          lines = Path('.github/workflows/apply-shop-layout-fix.yml').read_text().splitlines()
+          start = next(index for index, line in enumerate(lines) if line.strip() == "python3 <<'PY'") + 1
+          end = next(index for index in range(start, len(lines)) if lines[index].strip() == 'PY')
+          exec(compile(dedent('\n'.join(lines[start:end])), 'apply-shop-layout-fix', 'exec'))
           PY
           rm .github/workflows/apply-shop-layout-fix.yml
           rm .github/workflows/apply-shop-layout-fix-pr.yml
@@ -34,4 +35,4 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
           git commit -m "fix: restore shop layout"
-          git push origin HEAD:agent/fix-shop-layout
+          git push -q origin HEAD:agent/fix-shop-layout
