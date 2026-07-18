@@ -1,0 +1,31 @@
+name: Apply player market sell fee
+
+on:
+  push:
+    branches:
+      - agent/player-market-sell-fee
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply transparent patch
+        shell: bash
+        run: |
+          cat .github/patches/player-market-sell-fee/part-*.pyfrag > /tmp/apply-player-market-sell-fee.py
+          python3 /tmp/apply-player-market-sell-fee.py
+          rm -rf .github/patches/player-market-sell-fee
+          rm .github/workflows/apply-player-market-sell-fee.yml
+          git config user.name "OpenAI"
+          git config user.email "openai@users.noreply.github.com"
+          git add -A
+          git commit -m "玩家市场卖出收取手续费"
+          git push origin HEAD:${GITHUB_REF_NAME}
