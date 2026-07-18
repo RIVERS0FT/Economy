@@ -1,0 +1,10 @@
+# State the warehouse-reservation rule with the exact authority phrase used by regression checks.
+path = 'docs/GIFT_CODE_AND_ADMIN_DESIGN.md'
+text = read(path)
+text = replace_once(
+    text,
+    '- 商品最高出价者必须拥有足够仓库剩余容量；',
+    '- 最高出价者的商品仓库预占必须覆盖拍卖数量；商品最高出价者必须拥有足够仓库剩余容量；',
+    path,
+)
+write(path, text)
