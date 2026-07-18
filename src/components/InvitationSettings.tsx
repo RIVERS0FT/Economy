@@ -79,7 +79,7 @@ export function InvitationSettings() {
   }
 
   return (
-    <Panel className="widget invite-card span-2">
+    <Panel className="widget invite-card">
       <WidgetHeading
         title="邀请好友"
         action={<StatusTag tone="info">宝石 {loading ? '--' : formatNumber(summary?.gems ?? 0)}</StatusTag>}
