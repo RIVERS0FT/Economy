@@ -1,0 +1,10 @@
+# Keep the unified market guard aligned with total factory freezing from orders and auctions.
+path = 'scripts/verify-market-assets.mjs'
+text = read(path)
+text = replace_once(
+    text,
+    '冻结中 <strong>{formatNumber(group.listedCount)}</strong>',
+    '冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>',
+    path,
+)
+write(path, text)
