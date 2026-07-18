@@ -1,0 +1,84 @@
+name: Apply asset auctions
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+
+permissions:
+  contents: write
+
+concurrency:
+  group: asset-auctions-upgrade
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/asset-auctions
+          fetch-depth: 0
+      - name: Check whether upgrade is needed
+        id: guard
+        shell: bash
+        run: |
+          if grep -q "assetAuctions" server/src/collectibles.js; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.guard.outputs.needed == 'true'
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Assemble source and design changes
+        if: steps.guard.outputs.needed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .asset-auction-stage/collectibles.js.part* > server/src/collectibles.js
+          cp .asset-auction-stage/collectibles-auctions.test.js server/test/collectibles-auctions.test.js
+          cp .asset-auction-stage/types.ts src/collectibles/types.ts
+          cp .asset-auction-stage/AuctionPage.tsx src/pages/AuctionPage.tsx
+          cat .asset-auction-stage/verify-collectibles-auctions.mjs.part* > scripts/verify-collectibles-auctions.mjs
+          cat .asset-auction-stage/patch-targets.py.part* > /tmp/patch-targets.py
+          python3 /tmp/patch-targets.py
+      - name: Install dependencies
+        if: steps.guard.outputs.needed == 'true'
+        run: npm ci
+      - name: Validate asset auctions
+        if: steps.guard.outputs.needed == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          {
+            git diff --check
+            node --check server/src/*.js
+            node scripts/verify-document-authority.mjs
+            node scripts/verify-collectibles-auctions.mjs
+            node --test server/test/collectibles-auctions.test.js
+            npm run build
+          } 2>&1 | tee asset-auctions-validation.log
+      - name: Upload diagnostics
+        if: always() && steps.guard.outputs.needed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-auctions-validation
+          path: asset-auctions-validation.log
+      - name: Commit official changes
+        if: steps.guard.outputs.needed == 'true'
+        shell: bash
+        run: |
+          rm -f asset-auctions-validation.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md docs server src scripts/verify-collectibles-auctions.mjs scripts/verify-page-content.mjs
+          git commit -m "允许拍卖商品和工厂"
+          git pull --rebase origin agent/asset-auctions
+          git push origin HEAD:agent/asset-auctions
