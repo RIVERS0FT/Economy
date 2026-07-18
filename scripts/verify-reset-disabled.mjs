@@ -15,8 +15,11 @@ const required = [
   'server/src/collectibles.js',
   'miniprogram/pages/index/index.js',
   'miniprogram/pages/index/index.ttml',
+  'scripts/verify-page-content.mjs',
+  'scripts/verify-market-assets.mjs',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+  'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
 ];
 
 for (const path of required) {
@@ -38,8 +41,13 @@ if (failures.length === 0) {
     read('miniprogram/pages/index/index.js'),
     read('miniprogram/pages/index/index.ttml'),
   ].join('\n');
+  const pageVerifiers = [
+    read('scripts/verify-page-content.mjs'),
+    read('scripts/verify-market-assets.mjs'),
+  ].join('\n');
   const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
   const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
+  const adminDesign = read('docs/GIFT_CODE_AND_ADMIN_DESIGN.md');
 
   for (const [name, content, forbidden] of [
     ['SettingsPage', settings, ['重置经济状态', 'settings-danger-zone', '危险区域', 'reset()']],
@@ -59,11 +67,17 @@ if (failures.length === 0) {
   if (serverApp.includes("return { action: 'resetPlayer'")) {
     failures.push('服务器不得把重置路径映射为领域动作');
   }
+  if (!pageVerifiers.includes("'重置经济状态'")) {
+    failures.push('页面验证脚本必须把重置经济状态列为禁止文案');
+  }
   if (!pageDesign.includes('不得提供经济状态重置、清空进度或重新开始入口')) {
     failures.push('页面设计缺少禁用重置规则');
   }
   if (!serverDesign.includes('兼容旧客户端固定返回 `410 Gone`')) {
     failures.push('服务器设计缺少退役接口规则');
+  }
+  if (!adminDesign.includes('玩家不提供经济状态重置、清空进度或重新开始能力')) {
+    failures.push('礼品与管理员设计缺少拍卖资产不可通过重置清除规则');
   }
 }
 
