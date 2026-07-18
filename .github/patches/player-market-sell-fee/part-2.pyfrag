@@ -1,0 +1,228 @@
+s.commodityVolume += quantity;
+  player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
+  if (buyer.ownerType === 'population') player.stats.populationIssued += total;
+  const product = productDefinition(order.productId);
+  addTrade(player, {
+    type: 'commodity',
+    productId: product.id,
+    side: 'sell',
+    quantity,
+    price: tradePrice,
+    total,
+    fee: settlement.fee,
+    netTotal: settlement.netTotal,
+    counterparty: describeCounterparty(buyer),
+    createdAt,
+    description: `卖出 ${product.name}`,
+  });
+  addLedger(
+    player,
+    buyer.ownerType === 'population' ? 'population_income' : 'market_trade',
+    settlement.netTotal,
+    `${buyer.ownerType === 'population' ? '人口需求消费' : '卖出'} ${quantity} 个${product.name}，成交价 ${tradePrice}，手续费 ${settlement.fee}`,
+    createdAt,
+  );
+}
+""".replace('\n          ', '\n').lstrip(),
+)
+replace_once(
+    'server/src/domain-core.js',
+    """  incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
+  resting.status = resting.remaining === 0 ? 'filled' : 'partial';
+  appendPlayerOrderFill(buy, {
+    ...fillBase,
+    counterparty: describeCounterparty(sell),
+    liquidity: buy.id === resting.id ? 'maker' : 'taker',
+  });
+  appendPlayerOrderFill(sell, {
+    ...fillBase,
+    counterparty: describeCounterparty(buy),
+    liquidity: sell.id === resting.id ? 'maker' : 'taker',
+  });
+  if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
+  if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, createdAt);
+""".replace('\n          ', '\n').lstrip(),
+    """  incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
+  resting.status = resting.remaining === 0 ? 'filled' : 'partial';
+  const settlement = sell.ownerType === 'player'
+    ? applyMarketSellFee(sell, fillBase.total)
+    : { fee: 0, netTotal: fillBase.total };
+  appendPlayerOrderFill(buy, {
+    ...fillBase,
+    fee: 0,
+    netTotal: fillBase.total,
+    counterparty: describeCounterparty(sell),
+    liquidity: buy.id === resting.id ? 'maker' : 'taker',
+  });
+  appendPlayerOrderFill(sell, {
+    ...fillBase,
+    ...settlement,
+    counterparty: describeCounterparty(buy),
+    liquidity: sell.id === resting.id ? 'maker' : 'taker',
+  });
+  if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, describeCounterparty(sell), createdAt);
+  if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, settlement, createdAt);
+""".replace('\n          ', '\n').lstrip(),
+)
+
+replace_once(
+    'server/src/facility-groups.js',
+    "import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';\n",
+    "import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';\n"
+    "import { applyMarketSellFee } from './market-sell-fee.js';\n",
+)
+replace_once(
+    'server/src/facility-groups.js',
+    """    total: Number(fill.total || 0),
+  createdAt: Number(fill.createdAt || 0),
+};
+""".replace('\n          ', '\n').lstrip(),
+    """    total: Number(fill.total || 0),
+  fee: Math.max(0, Number(fill.fee || 0)),
+  netTotal: Math.max(0, Number(fill.netTotal ?? fill.total ?? 0)),
+  createdAt: Number(fill.createdAt || 0),
+};
+""".replace('\n          ', '\n').lstrip(),
+)
+replace_once(
+    'server/src/facility-groups.js',
+    """  delete normalized.demandGroupId;
+  delete normalized.demandTier;
+  delete normalized.demandCycleId;
+  if (isOwn) normalized.fills = normalized.fills.map(publicOrderFill);
+""".replace('\n          ', '\n').lstrip(),
+    """  delete normalized.demandGroupId;
+  delete normalized.demandTier;
+  delete normalized.demandCycleId;
+  delete normalized.marketSellFeeVersion;
+  delete normalized.marketSellFeeGross;
+  delete normalized.marketSellFeeCharged;
+  if (isOwn) normalized.fills = normalized.fills.map(publicOrderFill);
+""".replace('\n          ', '\n').lstrip(),
+)
+replace_once(
+    'server/src/facility-groups.js',
+    """  const fillBase = {
+  id: fillId,
+  quantity,
+  price,
+  total: quantity * price,
+  createdAt,
+  makerOrderId: resting.id,
+  takerOrderId: incoming.id,
+};
+
+incoming.remaining -= quantity;
+""".replace('\n          ', '\n').lstrip(),
+    """  const fillBase = {
+  id: fillId,
+  quantity,
+  price,
+  total: quantity * price,
+  createdAt,
+  makerOrderId: resting.id,
+  takerOrderId: incoming.id,
+};
+const settlement = sell.ownerType === 'player'
+  ? applyMarketSellFee(sell, fillBase.total)
+  : { fee: 0, netTotal: fillBase.total };
+
+incoming.remaining -= quantity;
+""".replace('\n          ', '\n').lstrip(),
+)
+replace_once(
+    'server/src/facility-groups.js',
+    """  appendPlayerOrderFill(buy, {
+  ...fillBase,
+  counterparty: describeCounterparty(sell),
+  liquidity: buy.id === resting.id ? 'maker' : 'taker',
+});
+appendPlayerOrderFill(sell, {
+  ...fillBase,
+  counterparty: describeCounterparty(buy),
+  liquidity: sell.id === resting.id ? 'maker' : 'taker',
+});
+""".replace('\n          ', '\n').lstrip(),
+    """  appendPlayerOrderFill(buy, {
+  ...fillBase,
+  fee: 0,
+  netTotal: fillBase.total,
+  counterparty: describeCounterparty(sell),
+  liquidity: buy.id === resting.id ? 'maker' : 'taker',
+});
+appendPlayerOrderFill(sell, {
+  ...fillBase,
+  ...settlement,
+  counterparty: describeCounterparty(buy),
+  liquidity: sell.id === resting.id ? 'maker' : 'taker',
+});
+""".replace('\n          ', '\n').lstrip(),
+)
+replace_once(
+    'server/src/facility-groups.js',
+    """    group.count -= quantity;
+  seller.credits += quantity * price;
+  seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + quantity * price;
+  if (group.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== group);
+""".replace('\n          ', '\n').lstrip(),
+    """    group.count -= quantity;
+  seller.credits += settlement.netTotal;
+  seller.stats.systemSinks = Number(seller.stats.systemSinks || 0) + settlement.fee;
+  seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + quantity * price;
+  if (group.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== group);
+""".replace('\n          ', '\n').lstrip(),
+)
+
+replace_once(
+    'src/types.ts',
+    "  total: number;\n"
+    "  createdAt: number;\n"
+    "}\n\nexport interface AssetOrder",
+    "  total: number;\n"
+    "  /** Seller-side fee for this fill; buyers receive 0. */\n"
+    "  fee?: number;\n"
+    "  /** Seller proceeds after fee; buyers receive the gross total. */\n"
+    "  netTotal?: number;\n"
+    "  createdAt: number;\n"
+    "}\n\nexport interface AssetOrder",
+)
+replace_once(
+    'src/types.ts',
+    "  total: number;\n"
+    "  createdAt: number;\n"
+    "  description: string;\n"
+    "}\n\nexport type AssetEventCategory",
+    "  total: number;\n"
+    "  fee?: number;\n"
+    "  netTotal?: number;\n"
+    "  createdAt: number;\n"
+    "  description: string;\n"
+    "}\n\nexport type AssetEventCategory",
+)
+
+replace_once(
+    'src/utils/localActivityStore.ts',
+    "      total: Number(trade.total || 0),\n"
+    "      createdAt: Number(trade.createdAt || 0),\n",
+    "      total: Number(trade.total || 0),\n"
+    "      fee: Number(trade.fee || 0),\n"
+    "      netTotal: Number(trade.netTotal ?? trade.total ?? 0),\n"
+    "      createdAt: Number(trade.createdAt || 0),\n",
+)
+replace_once(
+    'src/utils/localActivityStore.ts',
+    "        total: fill.total,\n"
+    "        createdAt: fill.createdAt || createdAt,\n",
+    "        total: fill.total,\n"
+    "        fee: Number(fill.fee || 0),\n"
+    "        netTotal: Number(fill.netTotal ?? fill.total),\n"
+    "        createdAt: fill.createdAt || createdAt,\n",
+)
+
+replace_once(
+    'src/pages/MarketPage.tsx',
+    "  const maxTradeQuantity = orderSide === 'buy' ? maxBuyQuantity : maxSellQuantity;\n\n"
+    "  const availabilityReason = orderPrice < 1\n",
+    "  const maxTradeQuantity = orderSide === 'buy' ? maxBuyQuantity : maxSellQuantity;\n"
+    "  const orderTotal = Math.max(0, orderQuantity * orderPrice);\n"
+    
