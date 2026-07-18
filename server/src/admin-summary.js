@@ -1,8 +1,13 @@
 import { processCollectibleAuctions } from './collectibles.js';
 import { processFacilityGroupWorld } from './facility-groups.js';
+import { installLeaderboardStoreHooks, prepareLeaderboardStore } from './leaderboards.js';
+import { EconomyStore } from './storage.js';
+
+installLeaderboardStoreHooks(EconomyStore);
 
 export function getStableAdminSummary(store, user, now = Date.now()) {
   store.requireAdmin(user);
+  prepareLeaderboardStore(store, user, now);
   return store.transaction(() => {
     const { revision, stateJson, world } = store.loadWorld(now);
     processFacilityGroupWorld(world, now);
