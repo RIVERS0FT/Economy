@@ -64,9 +64,7 @@ for (const [path, text] of [
 ]) requireText(path, text);
 
 if (failures.length) {
-  console.error(`玩家市场卖出手续费验证失败:
-- ${failures.join('
-- ')}`);
+  console.error(`玩家市场卖出手续费验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 console.log('玩家商品与工厂卖出手续费、累计部分成交、匿名公开字段、前端展示和拍卖隔离验证通过。');
