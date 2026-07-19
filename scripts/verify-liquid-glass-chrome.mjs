@@ -54,6 +54,7 @@ const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
 [
   surfacePath,
   surfaceStylePath,
+  'src/styles/liquid-glass-chrome.css',
   statusPath,
   mobileNavigationComponentPath,
   viewportPath,
@@ -68,9 +69,15 @@ const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
   'package.json',
 ].forEach(requireFile);
 
-if (existsSync(resolve(root, 'src/styles/liquid-glass-chrome.css'))) {
-  failures.push('旧 liquid-glass-chrome.css 已被第三方组件替代，不得继续存在');
+const compatibilityStylePath = 'src/styles/liquid-glass-chrome.css';
+const compatibilityStyles = read(compatibilityStylePath);
+if (!compatibilityStyles.includes("@import './liquid-glass-surfaces.css';")) {
+  failures.push('历史 liquid-glass-chrome.css 只能转发到新外壳几何样式');
 }
+for (const forbidden of ['backdrop-filter:', '-webkit-backdrop-filter:', '--liquid-glass-surface:', '.workspace::before']) {
+  if (compatibilityStyles.includes(forbidden)) failures.push(`${compatibilityStylePath} 不得恢复旧玻璃实现: ${forbidden}`);
+}
+
 if (existsSync(resolve(root, 'src/components/icons/StatusIcons.tsx'))) {
   failures.push('旧 StatusIcons.tsx 不应与统一 GameIcons.tsx 并存');
 }
@@ -232,7 +239,7 @@ for (const text of [
   '`mode="standard"`',
   '`elasticity={0}`',
   'Safari、iOS WebKit 和 Firefox',
-  '旧 `src/styles/liquid-glass-chrome.css` 必须删除，且不得恢复',
+  '`src/styles/liquid-glass-chrome.css` 只允许作为历史路径转发入口',
 ]) requireText(designPath, text);
 
 if (failures.length > 0) {
