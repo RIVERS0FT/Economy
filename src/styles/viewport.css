@@ -1,10 +1,7 @@
 /* Authentication pages use document scrolling. The signed-in game keeps its
- * fixed application viewport and intentional internal scrollports. */
+ * fixed application viewport and intentional internal scrollports. Shared
+ * scrollbar visuals are owned by scrollbars.css. */
 :root {
-  --scrollbar-size: 10px;
-  --scrollbar-track: rgba(4, 15, 10, 0.72);
-  --scrollbar-thumb: rgba(105, 220, 145, 0.42);
-  --scrollbar-thumb-hover: rgba(125, 238, 163, 0.68);
   --app-card-radius: 1rem;
 }
 
@@ -69,7 +66,7 @@ html[data-app-surface="game"] body {
   overflow: hidden;
 }
 
-.asset-bar {
+.asset-bar-scroll-area {
   position: absolute;
   z-index: 3;
   top: 0;
@@ -78,9 +75,26 @@ html[data-app-surface="game"] body {
   height: var(--desktop-asset-bar-height);
   min-width: 0;
   min-height: 0;
+}
+
+.asset-bar-scroll-track,
+.asset-bar {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.asset-bar {
+  position: relative;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
+}
+
+.sidebar-nav-frame {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar-nav {
@@ -92,18 +106,21 @@ html[data-app-surface="game"] body {
 
 /* The only vertical page scrollport for signed-in pages. On desktop it fills
  * the workspace and scrolls beneath the floating glass asset bar. */
+.page-scroll-area,
 .page-scroll {
-  position: relative;
-  z-index: 1;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
+}
+
+.page-scroll {
+  position: relative;
+  z-index: 1;
   padding-top: calc(var(--desktop-asset-bar-height) + var(--desktop-status-gap));
   overflow-x: hidden;
   overflow-y: auto;
   scroll-padding-top: calc(var(--desktop-asset-bar-height) + var(--desktop-status-gap));
-  scrollbar-gutter: auto;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -138,98 +155,6 @@ html[data-app-surface="game"] body {
 
 .ledger-list {
   -webkit-overflow-scrolling: touch;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  html[data-app-surface="auth"],
-  .page-scroll {
-    scrollbar-gutter: stable;
-  }
-
-  html[data-app-surface="auth"],
-  .asset-bar,
-  .sidebar-nav,
-  .table-wrap,
-  .ledger-list {
-    scrollbar-width: thin;
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-  }
-
-  .page-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-  }
-
-  .page-scroll[data-scrollbar-active="true"] {
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-  }
-
-  html[data-app-surface="auth"]::-webkit-scrollbar,
-  .page-scroll::-webkit-scrollbar,
-  .asset-bar::-webkit-scrollbar,
-  .sidebar-nav::-webkit-scrollbar,
-  .table-wrap::-webkit-scrollbar,
-  .ledger-list::-webkit-scrollbar {
-    width: var(--scrollbar-size);
-    height: var(--scrollbar-size);
-  }
-
-  html[data-app-surface="auth"]::-webkit-scrollbar-track,
-  .asset-bar::-webkit-scrollbar-track,
-  .sidebar-nav::-webkit-scrollbar-track,
-  .table-wrap::-webkit-scrollbar-track,
-  .ledger-list::-webkit-scrollbar-track {
-    border-radius: 999px;
-    background: var(--scrollbar-track);
-  }
-
-  .page-scroll::-webkit-scrollbar-track {
-    border-radius: 999px;
-    background: transparent;
-  }
-
-  .page-scroll[data-scrollbar-active="true"]::-webkit-scrollbar-track {
-    background: var(--scrollbar-track);
-  }
-
-  html[data-app-surface="auth"]::-webkit-scrollbar-thumb,
-  .page-scroll::-webkit-scrollbar-thumb,
-  .asset-bar::-webkit-scrollbar-thumb,
-  .sidebar-nav::-webkit-scrollbar-thumb,
-  .table-wrap::-webkit-scrollbar-thumb,
-  .ledger-list::-webkit-scrollbar-thumb {
-    min-height: 36px;
-    border: 2px solid transparent;
-    border-radius: 999px;
-    background-color: var(--scrollbar-thumb);
-    background-clip: padding-box;
-  }
-
-  .page-scroll::-webkit-scrollbar-thumb {
-    background-color: transparent;
-  }
-
-  .page-scroll[data-scrollbar-active="true"]::-webkit-scrollbar-thumb {
-    background-color: var(--scrollbar-thumb);
-  }
-
-  html[data-app-surface="auth"]::-webkit-scrollbar-thumb:hover,
-  .asset-bar::-webkit-scrollbar-thumb:hover,
-  .sidebar-nav::-webkit-scrollbar-thumb:hover,
-  .table-wrap::-webkit-scrollbar-thumb:hover,
-  .ledger-list::-webkit-scrollbar-thumb:hover,
-  .page-scroll[data-scrollbar-active="true"]::-webkit-scrollbar-thumb:hover {
-    background-color: var(--scrollbar-thumb-hover);
-  }
-
-  html[data-app-surface="auth"]::-webkit-scrollbar-corner,
-  .page-scroll::-webkit-scrollbar-corner,
-  .asset-bar::-webkit-scrollbar-corner,
-  .sidebar-nav::-webkit-scrollbar-corner,
-  .table-wrap::-webkit-scrollbar-corner,
-  .ledger-list::-webkit-scrollbar-corner {
-    background: transparent;
-  }
 }
 
 @media (max-height: 760px) and (min-width: 721px) {
@@ -286,12 +211,13 @@ html[data-app-surface="game"] body {
     );
   }
 
-  .asset-bar {
+  .asset-bar-scroll-area {
     position: absolute;
     z-index: 3;
     top: var(--mobile-chrome-inset);
     right: var(--mobile-chrome-inset);
     left: var(--mobile-chrome-inset);
+    width: auto;
     height: var(--mobile-asset-bar-height);
   }
 
