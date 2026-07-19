@@ -5,6 +5,7 @@ const root = process.cwd();
 const failures = [];
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
+const forbidFile = (path) => { if (existsSync(resolve(root, path))) failures.push(`不应存在文件: ${path}`); };
 const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
 
@@ -21,7 +22,11 @@ for (const path of [
   'server/test/admin-summary.test.js',
   'server/test/rate-limit.test.js',
   'server/test/verification-retention.test.js',
+  '.github/workflows/ci.yml',
+  '.github/workflows/deploy.yml',
+  '.github/workflows/configure-registration-email.yml',
 ]) requireFile(path);
+forbidFile('.github/workflows/web-build.yml');
 
 const packageJson = JSON.parse(read('package.json'));
 for (const [group, dependencies] of Object.entries({
@@ -49,18 +54,38 @@ requireText('src/app/GameApp.tsx', 'setCompactNumbersEnabled(compactNumbers);');
 requireText('src/main.tsx', '<AppErrorBoundary>');
 for (const text of ['Storage.prototype', '界面音效', '画面性能', '__localActivityResult']) requireText('tests/browser/runtime.spec.ts', text);
 
+for (const text of [
+  'group: economy-ci-${{ github.event.pull_request.number || github.ref }}',
+  'cancel-in-progress: true',
+  'npm run build',
+  'npx playwright install --with-deps chromium',
+  'npm run test:browser 2>&1 | tee browser-test.log',
+  'if: failure()',
+  'retention-days: 3',
+]) requireText('.github/workflows/ci.yml', text);
+for (const text of [
+  'node-version: 24.4.0',
+  'cache: npm',
+  'run: npm ci',
+  'npm run build',
+  'Ensure rsync is available',
+  'if ! command -v rsync >/dev/null 2>&1; then',
+]) requireText('.github/workflows/deploy.yml', text);
+
 for (const [path, text] of [
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '读取、写入或删除 localStorage 失败'],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '默认每页 100 条、最多 200 条'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '验证码终态记录保留 30 天'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'Node 24.4.0'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/README.md', '运行时可靠性、依赖锁、浏览器测试'],
   ['README.md', '管理员礼品码与兑换记录按游标分页'],
+  ['README.md', '同一 PR 的旧 CI 在新提交到达后自动取消'],
 ]) requireText(path, text);
 
 if (failures.length) {
   console.error(`运行时可靠性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('依赖锁、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');
+console.log('依赖锁、CI 去重、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');
