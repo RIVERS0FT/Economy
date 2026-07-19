@@ -1,7 +1,7 @@
 /* liquid-glass-react is the only liquid-glass renderer. This stylesheet owns
  * geometry, sizing, content layout, clipping, minimum contrast and a single
- * non-material structural border. It must not recreate blur, refraction,
- * chromatic aberration, glass highlights or glass shadows in CSS. */
+ * non-material structural border. It must not recreate blur, refraction or
+ * chromatic aberration in CSS. One upstream highlight layer remains visible. */
 :root {
   --desktop-asset-bar-height: 76px;
   --desktop-status-gap: var(--space-3);
@@ -94,16 +94,22 @@
   border-radius: var(--radius-card) !important;
 }
 
-/* The upstream component emits two decorative border/highlight siblings whose
- * blend modes vary by platform. The desktop status bar hides those siblings
- * and uses one deterministic structural border on the host instead. */
+/* The upstream component emits two decorative border/highlight siblings. The
+ * status bar keeps only the first low-intensity screen highlight and uses one
+ * deterministic structural border on the host. */
 .liquid-glass-surface--statusBar {
   box-sizing: border-box;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(212, 245, 224, 0.12);
+  background: transparent;
 }
 
 .liquid-glass-surface--statusBar > span {
   opacity: 0 !important;
+}
+
+.liquid-glass-surface--statusBar > span:first-of-type {
+  opacity: 0.18 !important;
+  mix-blend-mode: screen !important;
 }
 
 .mobile-bottom-navigation .liquid-glass-surface,
@@ -200,7 +206,8 @@
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .liquid-glass-surface {
+  .liquid-glass-surface,
+  .liquid-glass-surface--statusBar {
     background: var(--liquid-glass-contrast-strong);
   }
 }
