@@ -75,7 +75,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
   });
 }
 
-function expectFlushWorkspace(layout: ShellGeometry, sidebarInset: number) {
+function expectFlushWorkspace(layout: ShellGeometry, shellInset: number) {
   expect(layout.shell.left).toBeCloseTo(0, 0);
   expect(layout.shell.top).toBeCloseTo(0, 0);
   expect(layout.shell.right).toBeCloseTo(layout.viewportWidth, 0);
@@ -83,10 +83,10 @@ function expectFlushWorkspace(layout: ShellGeometry, sidebarInset: number) {
   expect(layout.shellGap).toBe('0px');
   expect(layout.shellPadding).toEqual(['0px', '0px', '0px', '0px']);
 
-  expect(layout.sidebar.left).toBeCloseTo(sidebarInset, 0);
-  expect(layout.sidebar.top).toBeCloseTo(sidebarInset, 0);
-  expect(layout.viewportHeight - layout.sidebar.bottom).toBeCloseTo(sidebarInset, 0);
-  expect(layout.workspace.left - layout.sidebar.right).toBeCloseTo(sidebarInset, 0);
+  expect(layout.sidebar.left).toBeCloseTo(shellInset, 0);
+  expect(layout.sidebar.top).toBeCloseTo(shellInset, 0);
+  expect(layout.viewportHeight - layout.sidebar.bottom).toBeCloseTo(shellInset, 0);
+  expect(layout.workspace.left - layout.sidebar.right).toBeCloseTo(shellInset, 0);
 
   expect(layout.workspace.top).toBeCloseTo(0, 0);
   expect(layout.workspace.right).toBeCloseTo(layout.viewportWidth, 0);
@@ -94,8 +94,8 @@ function expectFlushWorkspace(layout: ShellGeometry, sidebarInset: number) {
   expect(layout.workspaceMargin).toEqual(['0px', '0px', '0px', '0px']);
 
   expect(layout.assetBar.left).toBeCloseTo(layout.workspace.left, 0);
-  expect(layout.assetBar.top).toBeCloseTo(layout.workspace.top, 0);
-  expect(layout.assetBar.right).toBeCloseTo(layout.workspace.right, 0);
+  expect(layout.assetBar.top - layout.workspace.top).toBeCloseTo(shellInset, 0);
+  expect(layout.workspace.right - layout.assetBar.right).toBeCloseTo(shellInset, 0);
 
   expect(layout.pageScroll.left).toBeCloseTo(layout.workspace.left, 0);
   expect(layout.pageScroll.top).toBeCloseTo(layout.workspace.top, 0);
@@ -112,7 +112,7 @@ function expectFlushWorkspace(layout: ShellGeometry, sidebarInset: number) {
 }
 
 test.describe('full-width signed-in game shell', () => {
-  test('game shell keeps only the sidebar inset while the workspace stays flush', async ({ page }) => {
+  test('game shell shares one inset between the sidebar and status bar while the workspace stays flush', async ({ page }) => {
     await page.setViewportSize({ width: 1684, height: 931 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
@@ -124,7 +124,7 @@ test.describe('full-width signed-in game shell', () => {
     expectFlushWorkspace(await readShellGeometry(page), 12);
   });
 
-  test('sidebar collapse keeps the status bar and page on the same workspace track', async ({ page }) => {
+  test('sidebar collapse keeps the inset status bar and page on the same workspace track', async ({ page }) => {
     await page.setViewportSize({ width: 1684, height: 931 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
 
