@@ -33,9 +33,24 @@ jobs:
           python3 -c 'from pathlib import Path; p=Path("agent-apply-industry.py"); b=bytearray(p.read_bytes()); b[60705:60706]=b"5a"; b[61027]=34; p.write_bytes(b)'
           echo "3cdb03ef5b6fe0123fa7745cc6a583837b1361a0dd59fd6460383ab0637b1a1e  agent-apply-industry.py" | sha256sum --check -
           python3 agent-apply-industry.py
+          echo "TRANSFORM_OK"
           rm -f "${parts[@]}" agent-apply-industry.py agent-transform-diagnostic.txt
+          echo "CLEANUP_OK"
+          git status --short
           git add -A
+          echo "ADD_OK"
+          git status --short
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          set +e
           git commit -m "feat: 扩展水果与产业目录"
+          commit_status=$?
+          set -e
+          echo "COMMIT_STATUS=${commit_status}"
+          if (( commit_status != 0 )); then exit "$commit_status"; fi
+          set +e
           git push origin HEAD:agent/expand-industry-fruit
+          push_status=$?
+          set -e
+          echo "PUSH_STATUS=${push_status}"
+          exit "$push_status"
