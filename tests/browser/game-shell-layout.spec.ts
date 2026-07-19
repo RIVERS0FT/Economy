@@ -157,11 +157,12 @@ test.describe('full-width signed-in game shell', () => {
     const before = await pageScroll.evaluate((element) => ({
       overflowY: getComputedStyle(element).overflowY,
       clientWidth: element.clientWidth,
+      clientHeight: element.clientHeight,
       scrollTop: element.scrollTop,
       scrollHeight: element.scrollHeight,
     }));
     expect(before.overflowY).toBe('auto');
-    expect(before.scrollHeight).toBeGreaterThan(elementClientHeightPlaceholder(before.scrollHeight));
+    expect(before.scrollHeight).toBeGreaterThan(before.clientHeight);
 
     await pageScroll.dispatchEvent('pointermove', { clientX: 100, clientY: 100 });
     await page.waitForTimeout(100);
@@ -177,7 +178,3 @@ test.describe('full-width signed-in game shell', () => {
     await expect(pageScrollArea).not.toHaveAttribute('data-scrollbar-active-y', 'true', { timeout: 2_500 });
   });
 });
-
-function elementClientHeightPlaceholder(scrollHeight: number) {
-  return Math.min(scrollHeight - 1, 900);
-}
