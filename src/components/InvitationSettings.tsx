@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { claimInvitation, getInvitationSummary, type InvitationSummary } from '../api/invitations';
 import { formatDate, formatNumber } from '../utils/formatters';
+import { TextInput } from './ui/FormControls';
 import { Button, Panel, StatusTag, WidgetHeading } from './ui/layout';
 
 function sourceLabel(source: 'share_link' | 'manual_code') {
@@ -88,18 +89,22 @@ export function InvitationSettings() {
         <>
           <p>好友通过分享链接完成注册，或在注册后填写你的邀请码，你将立即获得 {summary.rewardGems} 宝石。</p>
           <div className="invite-link-grid">
-            <label>
-              分享链接
-              <input value={summary.shareUrl} readOnly aria-label="Economy 专属分享链接" />
-            </label>
+            <TextInput
+              label="分享链接"
+              value={summary.shareUrl}
+              readOnly
+              aria-label="Economy 专属分享链接"
+            />
             <div className="invite-action-row">
               <Button onClick={() => void share()}>分享链接</Button>
               <Button variant="secondary" onClick={() => void copyText(summary.shareUrl, '分享链接已复制')}>复制链接</Button>
             </div>
-            <label>
-              我的邀请码
-              <input value={summary.inviteCode} readOnly aria-label="我的邀请码" />
-            </label>
+            <TextInput
+              label="我的邀请码"
+              value={summary.inviteCode}
+              readOnly
+              aria-label="我的邀请码"
+            />
             <Button variant="secondary" onClick={() => void copyText(summary.inviteCode, '邀请码已复制')}>复制邀请码</Button>
           </div>
 
@@ -112,14 +117,12 @@ export function InvitationSettings() {
 
           {summary.claimedInvitation ? (
             <div className="manual-invite-claim invitation-bound-state">
-              <label>
-                已填写的邀请码
-                <input
-                  value={summary.claimedInvitation.inviteCode}
-                  disabled
-                  aria-label="已填写的邀请码"
-                />
-              </label>
+              <TextInput
+                label="已填写的邀请码"
+                value={summary.claimedInvitation.inviteCode}
+                disabled
+                aria-label="已填写的邀请码"
+              />
               <strong>邀请关系已绑定，邀请码不可修改</strong>
               <span>邀请人：{summary.claimedInvitation.inviterName}</span>
               <span>来源：{sourceLabel(summary.claimedInvitation.source)}</span>
@@ -128,17 +131,15 @@ export function InvitationSettings() {
             </div>
           ) : (
             <div className="manual-invite-claim">
-              <label>
-                填写好友邀请码
-                <input
-                  value={inviteCode}
-                  maxLength={8}
-                  autoComplete="off"
-                  placeholder="8 位邀请码"
-                  onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
-                  onKeyDown={(event) => { if (event.key === 'Enter') void claim(); }}
-                />
-              </label>
+              <TextInput
+                label="填写好友邀请码"
+                value={inviteCode}
+                maxLength={8}
+                autoComplete="off"
+                placeholder="8 位邀请码"
+                onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                onKeyDown={(event) => { if (event.key === 'Enter') void claim(); }}
+              />
               <p>注册时可以直接填写邀请码；未填写的账号仍可在首次创建 Economy 玩家档案后的 24 小时内填写一次。</p>
               <Button disabled={!inviteCode.trim() || claiming} onClick={() => void claim()}>
                 {claiming ? '正在绑定…' : '确认填写'}
