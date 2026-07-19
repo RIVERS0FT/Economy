@@ -62,8 +62,13 @@ if (failures.length === 0) {
     'viewport.scrollTop += event.deltaY',
     'new ResizeObserver(scheduleSync)',
     'window.requestAnimationFrame',
+    "window.addEventListener('pointermove', handlePointerMove)",
   ]) requireText(paths.hook, text);
-  for (const text of ['pointermove', 'pointerdown', 'focusin']) forbidText(paths.hook, text);
+  for (const text of [
+    "viewport.addEventListener('pointermove'",
+    "viewport.addEventListener('pointerdown'",
+    "viewport.addEventListener('focusin'",
+  ]) forbidText(paths.hook, text);
 
   for (const text of [
     '--scrollbar-visual-size: 6px;',
