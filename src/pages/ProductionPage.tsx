@@ -84,6 +84,16 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     () => game.facilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? game.facilityTypes[0],
     [game.facilityTypes, selectedFacilityTypeId],
   );
+  const orderedFacilityGroups = useMemo(() => {
+    const groupsByTypeId = new Map<string, FacilityGroup>(
+      game.facilityGroups.map((group) => [group.facilityTypeId, group]),
+    );
+
+    return game.facilityTypes.flatMap((type) => {
+      const group = groupsByTypeId.get(type.id);
+      return group ? [{ type, group }] : [];
+    });
+  }, [game.facilityGroups, game.facilityTypes]);
   const hasConstruction = Boolean(game.facilityConstruction);
   const selectedRecipes = selectedType ? recipesForType(selectedType) : [];
 
@@ -147,9 +157,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
         </Panel>
 
         <div className="facility-list facility-group-list">
-          {game.facilityGroups.map((group) => {
-            const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
-            if (!type) return null;
+          {orderedFacilityGroups.map(({ group, type }) => {
             const recipes = recipesForType(type);
             const activeRecipe = recipes.find((recipe) => recipe.id === group.activeRecipeId)
               ?? recipes.find((recipe) => recipe.id === type.defaultRecipeId)
@@ -231,7 +239,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
               </div>
             );
           })}
-          {game.facilityGroups.length === 0 ? <Panel className="empty-state tall">尚未拥有工厂集群。先确认共享仓库容量，再建设第一座工厂。</Panel> : null}
+          {orderedFacilityGroups.length === 0 ? <Panel className="empty-state tall">尚未拥有工厂集群。先确认共享仓库容量，再建设第一座工厂。</Panel> : null}
         </div>
       </div>
     </PageLayout>

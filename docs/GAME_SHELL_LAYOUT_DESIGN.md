@@ -17,6 +17,8 @@
       └─ .page-content
 ```
 
+侧栏与状态栏共用一个桌面外距令牌：侧栏使用上、左、下外距，状态栏使用上、右外距；页面主体仍然铺满工作区，不因状态栏外距缩窄。
+
 ## 2. 唯一几何权威
 
 `src/styles/game-shell-layout.css` 是登录后游戏外壳最终几何权威，并在 `viewport.css` 之后加载。
@@ -24,7 +26,7 @@
 - `globals.css` 只提供历史通用基础布局；其中旧的 `.game-shell` 间距和 `.page-content` 最大宽度不得成为最终计算样式。
 - `desktop-sidebar.css` 负责侧栏内部布局、展开／折叠宽度和过渡。
 - `viewport.css` 负责固定视口、滚动容器、安全区和移动端结构。
-- `game-shell-layout.css` 统一收束桌面双列轨道、侧栏外边距、工作区边界和页面全宽规则。
+- `game-shell-layout.css` 统一收束桌面双列轨道、共享外距、工作区边界和页面全宽规则。
 
 ## 3. 桌面水平双列结构
 
@@ -34,23 +36,25 @@
 - 第一列宽度由“侧栏左侧外边距 + 侧栏实际宽度 + 侧栏与工作区间隔”组成。
 - 第二列 `.workspace` 使用剩余全部宽度，并贴合视口顶部、右侧和底部。
 - 侧栏展开／折叠只能改变 `--sidebar-column-width`；状态栏和页面跟随同一个工作区起点移动。
+- `--desktop-shell-outer-inset` 是侧栏和状态栏唯一桌面外距令牌。
+- `--desktop-sidebar-workspace-gap` 默认引用 `--desktop-shell-outer-inset`，不得复制硬编码间距。
 
 桌面默认值：
 
 - 侧栏展开宽度：`224px`；
 - 侧栏折叠宽度：`78px`；
-- 侧栏外边距：`12px`；
+- 统一桌面外距：`12px`；
 - 侧栏与工作区间隔：`12px`；
 - 过渡时长继续由桌面侧栏设计控制。
 
-`721px–960px` 使用自动紧凑侧栏，并把侧栏外边距和工作区间隔降为 `8px`。矮桌面继续使用 `.45rem`，但不得恢复整个 `.game-shell` 的 padding 或 grid gap。
+`721px–960px` 使用自动紧凑侧栏，并把统一桌面外距降为 `8px`。矮桌面继续使用 `.45rem`，但不得恢复整个 `.game-shell` 的 padding 或 grid gap。
 
 ## 4. 侧栏规则
 
-只有 `.desktop-sidebar` 拥有桌面外边距：
+`.desktop-sidebar` 使用统一桌面外距：
 
 - 左、上、下边距相同；
-- 右侧不使用 margin，侧栏与工作区的距离由第一列轨道中的专用 gap 变量提供；
+- 右侧不使用 margin，侧栏与工作区的距离由第一列轨道中的 gap 变量提供；
 - 侧栏高度为视口高度减去上下外边距；
 - 展开和折叠时 Logo、导航图标及底部操作的锚点继续保持稳定。
 
@@ -65,9 +69,15 @@
 - `bottom = viewport.bottom`；
 - `width = viewport.width - workspace.left`。
 
-`.asset-bar` 始终铺满 `.workspace` 顶部，不设置独立侧栏偏移、最大宽度或居中 margin。桌面液态玻璃只保留下方圆角，使状态栏与视口顶部和右侧形成连续边界。
+`.asset-bar` 位于 `.workspace` 内部：
 
-`.page-scroll` 始终铺满工作区，只保留顶部状态栏避让和底部内容空间；桌面左右 padding 必须为 `0`，滚动条位于工作区最右边。
+- 左边缘与工作区左边缘一致；
+- 顶部和右侧使用 `--desktop-shell-outer-inset`；
+- 使用 `left: 0`、`right: var(--desktop-shell-outer-inset)` 和 `width: auto`；
+- 不设置独立侧栏偏移、最大宽度或居中 margin；
+- 状态栏外距不改变 `.workspace` 和页面主体的宽度。
+
+`.page-scroll` 始终铺满工作区，只保留“统一桌面外距 + 状态栏高度 + 状态栏下间距”的顶部避让和底部内容空间；桌面左右 padding 必须为 `0`，滚动条位于工作区最右边。
 
 `.page-content` 在游戏表面中必须：
 
@@ -84,7 +94,7 @@
 
 - 桌面侧栏隐藏；
 - 移动状态栏、页面内容和底部导航继续尊重安全区；
-- `mobile-content-inset` 属于移动触控安全区，不受桌面无外边距规则影响；
+- `mobile-content-inset` 属于移动触控安全区，不受桌面统一外距规则影响；
 - 移动状态栏继续使用胶囊圆角。
 
 ## 7. 验收标准
@@ -93,11 +103,11 @@
 
 1. `.game-shell` 四边与视口一致。
 2. `.game-shell` 的最终 `padding` 和 `gap` 均为 `0`。
-3. 侧栏左、上、下外边距符合当前断点变量。
-4. 工作区与侧栏之间的距离符合当前断点变量。
+3. 侧栏左、上、下外边距符合当前 `--desktop-shell-outer-inset`。
+4. 工作区与侧栏之间的距离符合当前 gap 变量。
 5. `.workspace` 贴合视口顶部、右侧和底部。
-6. `.asset-bar` 与 `.workspace` 左右边界一致。
-7. `.page-scroll` 与 `.workspace` 左右边界一致。
+6. `.asset-bar` 左边缘与工作区一致，顶部和右侧间距等于统一桌面外距。
+7. `.page-scroll` 与 `.workspace` 左右边界一致，并在状态栏下方开始显示初始页面内容。
 8. `.page-content` 使用页面滚动区全部可用内容宽度，没有居中最大宽度和左右外层 padding。
 9. 展开与折叠侧栏后，上述关系都保持成立。
 10. 页面不存在非预期水平滚动，最右侧卡片和内容不得被裁切。
@@ -109,6 +119,8 @@
 - 给桌面 `.game-shell` 恢复 padding 或 grid gap；
 - 给 `.workspace` 添加顶部、右侧或底部外边距；
 - 让状态栏和页面分别读取侧栏宽度或维护两套左偏移；
+- 给状态栏单独硬编码与侧栏不同的桌面外距；
+- 给状态栏恢复 `top: 0`、`right: 0` 或在同时设置左右定位时恢复 `width: 100%`；
 - 给游戏 `.page-content` 恢复 `--content-max-width`、`margin: 0 auto` 或左右 padding；
 - 把侧栏外边距重新移动到整个游戏外壳；
 - 通过 JavaScript、ResizeObserver 或滚动事件计算工作区横向位置；

@@ -11,7 +11,7 @@
 - `liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现。
 - `src/components/ui/LiquidGlassSurface.tsx` 是唯一允许直接导入该依赖的文件。
 - 状态栏和移动底栏只能使用 `LiquidGlassSurface` 预设，不得在业务组件中直接设置第三方参数。
-- `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切和最低可读性底色；不得用 CSS 重新实现模糊、折射、色差、高光或玻璃阴影。
+- `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、最低可读性底色和单层非材质结构描边；不得用 CSS 重新实现模糊、折射、色差、玻璃高光或玻璃阴影。
 - `src/styles/liquid-glass-chrome.css` 只允许作为历史路径转发入口，内容只能导入 `liquid-glass-surfaces.css`。
 
 ## 2. 文件职责
@@ -21,7 +21,8 @@
 | `src/components/ui/LiquidGlassSurface.tsx` | 第三方库适配、参数预设、静态鼠标输入和统一 DOM |
 | `src/components/shell/StatusBar.tsx` | 状态项语义、交互和内容入口 |
 | `src/components/shell/MobileBottomNavigation.tsx` | 移动导航语义与内容入口 |
-| `src/styles/liquid-glass-surfaces.css` | 玻璃宿主几何、第三方 DOM 尺寸适配、裁切、内容网格与最低对比度 |
+| `src/styles/liquid-glass-surfaces.css` | 玻璃宿主几何、第三方 DOM 尺寸适配、裁切、内容网格、最低对比度和状态栏结构描边 |
+| `src/styles/game-shell-layout.css` | 桌面状态栏统一外距、页面避让和工作区几何 |
 | `src/styles/viewport.css` | 桌面悬浮定位、滚动层和移动安全区 |
 | `src/styles/mobile-status-navigation.css` | 移动导航按钮尺寸、滚动和交互 |
 | `src/styles/mobile-status-layout.css` | 移动顶部状态栏全宽等距布局 |
@@ -41,7 +42,8 @@
 - `saturation: 135`
 - `aberrationIntensity: 0.45`
 - `elasticity={0}`
-- 桌面圆角 `18px`，移动端通过宿主几何覆盖为胶囊圆角
+- 桌面圆角固定为 `24px`，与桌面一级卡片的 `--radius-card: 1.5rem` 一致
+- 移动端通过宿主几何覆盖为胶囊圆角
 
 ### 3.2 移动底部导航
 
@@ -63,7 +65,7 @@
 - 不支持 `backdrop-filter` 的环境只使用高不透明度对比底色保证可读性，不模拟第二套玻璃。
 - 平台能力差异不允许改变状态栏高度、安全区、导航尺寸或内容顺序。
 
-## 5. DOM 与布局
+## 5. DOM、外距与布局
 
 状态栏结构固定为：
 
@@ -87,11 +89,22 @@
 
 `.asset-bar` 只负责定位、尺寸和横向滚动，最终计算样式必须是单一块级宿主，不得以五列 Grid 排列 `LiquidGlassSurface`。五列布局只能存在于 `.asset-bar-content`。历史基础样式中的外层 Grid 必须由液态玻璃专题样式明确覆盖，不得重新成为生效布局。
 
-桌面玻璃宿主宽度必须覆盖整个工作区；可用宽度低于内容最小值时，宿主扩展至 `675px`，961px 以下桌面扩展至 `725px`，由 `.asset-bar` 横向滚动。移动端清除最小宽度并使用全宽安全区胶囊。
+桌面 `.asset-bar` 左侧贴合工作区，上侧和右侧使用 `--desktop-shell-outer-inset`；其内部玻璃宿主覆盖状态栏全部可用宽度。可用宽度低于内容最小值时，宿主扩展至 `675px`，961px 以下桌面扩展至 `725px`，由 `.asset-bar` 横向滚动。移动端清除最小宽度并使用全宽安全区胶囊。
 
 `LiquidGlassSurface` 必须裁切第三方组件生成的并列高光、边框和覆盖层，所有装饰层圆角必须与宿主一致，不得在右侧或底部产生滤镜光晕溢出。
 
-## 6. 状态项和移动导航
+## 6. 桌面状态栏边框和一级圆角
+
+桌面状态栏属于桌面一级表面，必须复用通用 `--radius-card`，不得在 CSS 中维护独立的 `18px`、`20px` 或仅下方圆角。React 预设使用对应的 `24px` 数值，以便第三方 SVG 和宿主裁切几何一致。
+
+第三方组件生成的直属装饰 `span` 使用平台相关混合模式，容易产生双线、亮度不均和角部断线。顶部状态栏必须：
+
+- 隐藏这些直属装饰边框层；
+- 在 `.liquid-glass-surface--statusBar` 上只保留一条 `1px solid var(--color-border)` 结构描边；
+- 结构描边不得实现模糊、折射、高光或阴影；
+- 移动底栏继续使用自身移动端圆角和上游视觉，不受状态栏专用规则影响。
+
+## 7. 状态项和移动导航
 
 - 整个状态栏只有一个玻璃实例，不得为每个状态项单独创建实例。
 - 整个移动底栏只有一个玻璃实例，不得为每个导航按钮单独创建实例。
@@ -104,30 +117,32 @@
 - 移动导航按钮固定 `48px × 48px`，活动、悬停和触摸状态不得位移或缩放。
 - 图标继续统一来自 `GameIcons.tsx`。
 
-## 7. 性能与可访问性
+## 8. 性能与可访问性
 
 - 桌面同时可见一个玻璃实例；移动同时可见两个玻璃实例。
 - 禁止 `shader` 模式、滚动事件更新参数、噪点动画和每项独立滤镜。
 - `elasticity={0}` 保证外壳几何稳定；内部按钮保留键盘焦点和点击反馈。
-- 页面内容从状态栏下方开始，并在滚动后进入玻璃后方；初始页面标题不得位于状态栏视觉边界内。
+- 页面内容从“统一桌面外距 + 状态栏高度 + 状态栏下间距”之后开始；初始页面标题不得位于状态栏视觉边界内。
 - 玻璃生成的装饰 SVG 和覆盖层不得阻止内部按钮事件。
 
-## 8. 验收标准
+## 9. 验收标准
 
 必须检查桌面 `1920px`、`1440px`、`1024px`、`768px`，以及移动 `430px`、`390px`、`375px`、`360px`、`320px`：
 
 1. 状态栏和移动底栏均由 `LiquidGlassSurface` 渲染。
-2. 桌面状态栏宽度与工作区一致，玻璃宿主宽度与状态栏一致；窄桌面只允许预期横向滚动。
-3. `.asset-bar` 计算样式不是 Grid，五列 Grid 只存在于 `.asset-bar-content`。
-4. `.asset-bar` 和 `.mobile-bottom-navigation` 不包含 `.panel`，计算样式不包含外层 `backdrop-filter`。
-5. 第三方高光和滤镜层被宿主圆角裁切，没有右侧或底部光晕溢出。
-6. 页面初始标题位于状态栏底部以下，滚动时内容可进入状态栏后方。
-7. Chromium 显示折射，Safari／Firefox 缺少折射时仍清晰可读。
-8. 移动顶部四项完整显示且不可横向滚动。
-9. 移动底栏可横向滚动，按钮固定 `48px × 48px`。
-10. `npm run build` 与浏览器测试通过。
+2. 桌面状态栏顶部和右侧间距等于 `--desktop-shell-outer-inset`，左边缘与工作区一致；玻璃宿主宽度与状态栏一致。
+3. 桌面状态栏四角与一级 `.panel` 的计算圆角一致。
+4. 状态栏只有一条确定性结构描边，上游直属装饰边框层不可见。
+5. `.asset-bar` 计算样式不是 Grid，五列 Grid 只存在于 `.asset-bar-content`。
+6. `.asset-bar` 和 `.mobile-bottom-navigation` 不包含 `.panel`，计算样式不包含外层 `backdrop-filter`。
+7. 第三方高光和滤镜层被宿主圆角裁切，没有右侧或底部光晕溢出。
+8. 页面初始标题位于状态栏底部以下，滚动时内容可进入状态栏后方。
+9. Chromium 显示折射，Safari／Firefox 缺少折射时仍清晰可读。
+10. 移动顶部四项完整显示且不可横向滚动。
+11. 移动底栏可横向滚动，按钮固定 `48px × 48px`。
+12. `npm run build` 与浏览器测试通过。
 
-## 9. 不可回退规则
+## 10. 不可回退规则
 
 除非先更新本设计和架构检查，否则不得：
 
@@ -135,11 +150,13 @@
 - 在 `LiquidGlassSurface.tsx` 之外直接导入 `liquid-glass-react`；
 - 给 `.asset-bar` 或 `.mobile-bottom-navigation` 添加 `.panel`；
 - 让 `.asset-bar` 的最终计算样式恢复五列 Grid 或外层内边距；
+- 给桌面状态栏恢复独立硬编码圆角、仅下方圆角或与一级卡片不同的圆角；
+- 恢复上游状态栏双装饰边框，或在单层结构描边之外叠加第二条 CSS 边框；
 - 取消玻璃宿主圆角裁切，或允许第三方并列装饰层溢出；
 - 改用 `shader` 模式或把应用外壳 `elasticity` 调为非零；
 - 为状态项或导航按钮分别创建玻璃实例；
 - 删除固定鼠标输入并恢复全局鼠标跟踪；
 - 因 Safari、iOS WebKit 和 Firefox 折射受限而切换到另一套玻璃；
 - 恢复旧 `.workspace::before` 下沿渐隐；
-- 破坏桌面全宽状态栏、移动安全区、四项等距布局、`48px` 状态栏、`68px` 底栏或 `48px × 48px` 导航按钮；
+- 破坏桌面状态栏统一外距、移动安全区、四项等距布局、`48px` 状态栏、`68px` 底栏或 `48px × 48px` 导航按钮；
 - 绕过架构检查或浏览器几何测试合并视觉回退。

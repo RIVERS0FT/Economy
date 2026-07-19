@@ -18,7 +18,7 @@ const PRESETS = {
     blurAmount: 0.25,
     saturation: 135,
     aberrationIntensity: 0.45,
-    cornerRadius: 18,
+    cornerRadius: 24,
   },
   mobileNavigation: {
     displacementScale: 20,
