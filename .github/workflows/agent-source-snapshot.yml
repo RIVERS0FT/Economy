@@ -30,7 +30,7 @@ jobs:
             exit 1
           fi
           cat "${parts[@]}" > agent-apply-industry.py
-          python3 -c 'from pathlib import Path; p=Path("agent-apply-industry.py"); b=bytearray(p.read_bytes()); b[52472:52473]=b"5a"; b[52758]=34; p.write_bytes(b)'
+          python3 -c 'from pathlib import Path; p=Path("agent-apply-industry.py"); b=bytearray(p.read_bytes()); b[60705:60706]=b"5a"; b[61027]=34; p.write_bytes(b)'
           echo "3cdb03ef5b6fe0123fa7745cc6a583837b1361a0dd59fd6460383ab0637b1a1e  agent-apply-industry.py" | sha256sum --check -
           python3 agent-apply-industry.py
           rm -f "${parts[@]}" agent-apply-industry.py agent-transform-diagnostic.txt
