@@ -195,7 +195,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
           <p className="ui-helper-text asset-freeze-note">冻结资产仍归当前玩家所有并计入总资产；冻结只限制交易、生产或使用。</p>
         </Panel>
 
-        <Panel className="widget asset-event-panel">
+        <Panel className="widget span-3 asset-event-panel">
           <WidgetHeading
             title="本地资产变动"
             action={
