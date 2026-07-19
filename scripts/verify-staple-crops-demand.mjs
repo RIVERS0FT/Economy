@@ -86,7 +86,7 @@ for (const text of [
   'consumer substitutes shift demand toward the cheaper grain without changing total budget',
   'complement gating prioritizes the bottleneck input for electronics',
   'downstream price signals move upstream only after relation lag cycles',
-  'legacy demand migration removes old system orders while preserving player assets and orders',
+  'legacy demand migration immediately rebuilds market demand without losing player assets',
 ]) assert.ok(tests.includes(text), '测试缺少: ' + text);
 
 for (const [path, texts] of [
