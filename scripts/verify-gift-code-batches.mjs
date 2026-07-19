@@ -52,7 +52,8 @@ for (const text of [
 ]) requireText('src/api/admin.ts', text);
 
 for (const text of [
-  'max="50000"',
+  '<IntegerInput',
+  'max={50_000}',
   'new Blob',
   "type: 'text/plain;charset=utf-8'",
   '.txt`',
