@@ -101,7 +101,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="生产"
-      description="同类未冻结工厂共享生产周期和服务器正式配方；配方固定显示单座参数，实际结算按当前参与规模计算。"
+      description="同类未冻结工厂共享生产周期和服务器正式配方；公式展示本周期或恢复后的集群输入、输出与成本。"
       actions={(
         <>
           <StatusTag tone="success">运行 {formatNumber(model.derived.runningFacilities)}</StatusTag>
