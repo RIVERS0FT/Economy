@@ -25,6 +25,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/icons/GameIcons.tsx',
   'src/components/icons/ProductIcons.tsx',
   'src/styles/collectibles-auctions.css',
+  'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
@@ -90,7 +91,24 @@ for (const text of [
   '冻结资产仍归卖方所有并计入总资产',
   'className="widget collectible-auction-create"',
   'className="widget collectible-auction-history"',
+  'function parseAuctionQuantity(value: string)',
+  "const [quantityInput, setQuantityInput] = useState('1')",
+  'const [bundleQuantityDrafts, setBundleQuantityDrafts] = useState<Record<string, string>>({})',
+  'const hasInvalidBundleQuantity = bundleItems.some',
+  '&& !hasInvalidBundleQuantity',
+  'onChange={(event) => setQuantityInput(event.target.value)}',
+  'onChange={(event) => updateBundleQuantityDraft(item, event.target.value)}',
+  'onBlur={() => commitBundleQuantityDraft(item)}',
+  'aria-invalid={selectedQuantity === null',
+  'aria-invalid={parsedQuantity === null',
+  'clearBundleBuilder',
 ]) requireText('src/pages/AuctionPage.tsx', text);
+for (const text of [
+  'const [quantity, setQuantity] = useState(1)',
+  'setQuantity(Number(event.target.value))',
+  'updateBundleQuantity(item, Number(event.target.value))',
+  'Math.floor(nextQuantity || 1)',
+]) forbidText('src/pages/AuctionPage.tsx', text);
 
 for (const text of [
   '.ui-segmented.asset-auction-kind-switch',
@@ -116,6 +134,7 @@ for (const [path, texts] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['同一资产包中的多种工厂', '总持有数量不变']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['items[]', '托管记录不得重复计价']],
   ['docs/UI_DESIGN_SYSTEM.md', ['资产包编辑器', '冻结资产明细']],
+  ['docs/README.md', ['受控正整数输入必须保存原始字符串草稿', '不得在每次按键时把空字符串立即强制回填为 `1`']],
 ]) for (const text of texts) requireText(path, text);
 
 for (const text of ['currentOwnerId: payload', 'highestBid: payload.highestBid']) forbidText('server/src/app.js', text);
@@ -127,4 +146,4 @@ if (failures.length) {
   console.error(`资产包拍卖验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('单项与捆绑资产包拍卖、冻结资产计价、仓库预占、原子结算、页面结构和权威文档验证通过。');
+console.log('单项与捆绑资产包拍卖、可编辑数量草稿、冻结资产计价、仓库预占、原子结算、页面结构和权威文档验证通过。');
