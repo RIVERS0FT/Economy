@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/expand-industry-fruit
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -14,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: agent/expand-industry-fruit
           fetch-depth: 0
       - name: Apply implementation payload
         shell: bash
