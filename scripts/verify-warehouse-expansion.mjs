@@ -76,7 +76,7 @@ for (const forbidden of [
 ]) forbidText('src/pages/ProductionPage.tsx', forbidden);
 
 for (const text of [
-  "import { ProductIconLabel } from '../icons/ProductIcons'",
+  "import { ProductIcon } from '../icons/ProductIcons'",
   'warehouse-layout',
   'warehouse-management',
   'warehouse-content',
@@ -84,12 +84,17 @@ for (const text of [
   'warehouse-product-card',
   'const stockedProducts = useMemo',
   'inventory.available > 0 || inventory.frozen > 0',
-  '<strong>可用 {formatNumber(inventory.available)}</strong>',
-  '<small>冻结 {formatNumber(inventory.frozen)}</small>',
+  'warehouse-product-card-name',
+  'warehouse-product-card-icon',
+  'warehouse-product-card-available',
+  'warehouse-product-card-frozen',
+  '<ProductIcon productId={product.id} />',
+  '可用 {formatNumber(inventory.available)}',
+  '冻结 {formatNumber(inventory.frozen)}',
   "selectMarketAsset('commodity', product.id)",
   '等级 {formatNumber(game.warehouseLevel)}',
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
-for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>']) {
+for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>', 'ProductIconLabel']) {
   forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', forbidden);
 }
 
@@ -107,8 +112,16 @@ for (const text of [
   'grid-template-columns: repeat(5, minmax(0, 1fr));',
   '@container (min-width: 960px)',
   'grid-template-columns: repeat(6, minmax(0, 1fr));',
-  'min-height: 84px;',
-  'padding: var(--space-2);',
+  'min-height: 112px;',
+  'padding: 30px var(--space-2) var(--space-2);',
+  '.warehouse-product-card-name',
+  'position: absolute;',
+  '.warehouse-product-card-icon .product-icon',
+  'width: 44px;',
+  'height: 44px;',
+  '@container (max-width: 359px)',
+  'width: 38px;',
+  'height: 38px;',
   '@media (max-width: 960px)',
 ]) requireText(css, text);
 for (const text of [
@@ -136,8 +149,10 @@ for (const text of [
   '仓库没有玩家可见的最高等级',
   '容器查询',
   '2／3／4／5／6 列',
-  '84px',
+  '112px',
   '8px',
+  '商品名称固定在卡片左上角',
+  '居中大图标主体结构',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
 for (const forbidden of ['升级费用：150 × L²', 'warehouseUpgradeCostForLevel']) {
   forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', forbidden);
@@ -146,10 +161,10 @@ requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 5
 for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式固定显示单座正式配方']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 }
-for (const text of ['仓库商品网格按内容区宽度', '建设卡不显示生产周期、单座产量和单座成本']) {
+for (const text of ['仓库商品网格按内容区宽度', '商品名称固定在左上角', '居中大尺寸统一商品 SVG', '建设卡不显示生产周期、单座产量和单座成本']) {
   requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 }
-for (const text of ['仓库商品网格使用容器查询', '生产配方是配置展示，不是运行统计']) {
+for (const text of ['仓库商品网格使用容器查询', '左上名称／居中大图标／可用主值／冻结辅助值', '商品卡最小高度 `112px`', '生产配方是配置展示，不是运行统计']) {
   requireText('docs/UI_DESIGN_SYSTEM.md', text);
 }
 
@@ -157,4 +172,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、容量线性定价、商品卡 2 至 6 列容器密度、建设卡精简和固定单座配方验证通过。');
+console.log('仓库无限扩容、容量线性定价、商品卡图标主导布局、2 至 6 列容器密度、建设卡精简和固定单座配方验证通过。');
