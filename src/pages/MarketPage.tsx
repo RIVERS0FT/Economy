@@ -1,9 +1,10 @@
-import { type ChangeEvent, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { IntegerInput } from '../components/ui/FormControls';
 import {
   Button,
   PageLayout,
@@ -17,6 +18,7 @@ import { VirtualList } from '../components/ui/VirtualList';
 import { economyConstants } from '../config/economy';
 import type { AssetOrder } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
+import { parseIntegerDraft } from '../utils/integerDraft';
 import {
   buildMarketHistoryBuckets,
   countMarketHistoryPointsInWindow,
@@ -50,6 +52,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     showResult,
   } = model;
   const assetDirectoryRef = useRef<HTMLDivElement>(null);
+  const [priceDraft, setPriceDraft] = useState(String(orderPrice));
+  const [quantityDraft, setQuantityDraft] = useState(String(orderQuantity));
 
   const selectedProduct = marketAssetKind === 'commodity'
     ? game.products.find((product) => product.id === marketAssetId) ?? game.products[0]
@@ -96,26 +100,29 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const marketFlow = summarizeMarketFlow(marketBuckets);
   const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
-  const maxBuyQuantity = orderPrice > 0
+  const parsedOrderPrice = parseIntegerDraft(priceDraft, { min: 1 });
+  const effectiveOrderPrice = parsedOrderPrice ?? 0;
+  const maxBuyQuantity = effectiveOrderPrice > 0
     ? marketAssetKind === 'commodity'
-      ? Math.max(0, Math.min(game.warehouseAvailableCapacity, Math.floor(game.credits / orderPrice)))
-      : Math.max(0, Math.floor(game.credits / orderPrice))
+      ? Math.max(0, Math.min(game.warehouseAvailableCapacity, Math.floor(game.credits / effectiveOrderPrice)))
+      : Math.max(0, Math.floor(game.credits / effectiveOrderPrice))
     : 0;
   const maxSellQuantity = marketAssetKind === 'commodity'
     ? selectedInventory.available
     : selectedGroup?.availableCount ?? 0;
   const maxTradeQuantity = orderSide === 'buy' ? maxBuyQuantity : maxSellQuantity;
-  const orderTotal = Math.max(0, orderQuantity * orderPrice);
+  const parsedOrderQuantity = parseIntegerDraft(quantityDraft, { min: 1 });
+  const orderTotal = Math.max(0, (parsedOrderQuantity ?? 0) * effectiveOrderPrice);
   const estimatedSellFee = orderSide === 'sell' && orderTotal > 0
     ? Math.max(1, Math.ceil(orderTotal / 100))
     : 0;
   const estimatedNetTotal = Math.max(0, orderTotal - estimatedSellFee);
 
-  const availabilityReason = orderPrice < 1
-    ? '请输入有效价格。'
+  const availabilityReason = parsedOrderPrice === null
+    ? '请输入不低于 1 的整数价格。'
     : orderSide === 'buy'
-      ? game.credits < orderPrice
-        ? `可用资金不足，当前价格至少需要 ${formatCurrency(orderPrice)}。`
+      ? game.credits < parsedOrderPrice
+        ? `可用资金不足，当前价格至少需要 ${formatCurrency(parsedOrderPrice)}。`
         : marketAssetKind === 'commodity' && game.warehouseAvailableCapacity < 1
           ? '仓库剩余空间不足，无法提交商品买单。'
           : undefined
@@ -127,9 +134,9 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           ? `当前没有可出售的${assetName}。`
           : undefined;
   const quantityReason = availabilityReason === undefined
-    ? orderQuantity < 1
-      ? '数量必须至少为 1。'
-      : orderQuantity > maxTradeQuantity
+    ? parsedOrderQuantity === null
+      ? '数量必须是不低于 1 的整数。'
+      : parsedOrderQuantity > maxTradeQuantity
         ? `数量超过当前可交易上限 ${formatNumber(maxTradeQuantity)}。`
         : undefined
     : undefined;
@@ -139,6 +146,26 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     const active = assetDirectoryRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
     active?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [assetId, marketAssetKind]);
+
+  useEffect(() => {
+    setPriceDraft(String(orderPrice));
+  }, [orderPrice]);
+
+  useEffect(() => {
+    setQuantityDraft(String(orderQuantity));
+  }, [orderQuantity]);
+
+  function updatePriceDraft(value: string) {
+    setPriceDraft(value);
+    const parsed = parseIntegerDraft(value, { min: 1 });
+    if (parsed !== null) setOrderPrice(parsed);
+  }
+
+  function updateQuantityDraft(value: string) {
+    setQuantityDraft(value);
+    const parsed = parseIntegerDraft(value, { min: 1, max: maxTradeQuantity > 0 ? maxTradeQuantity : undefined });
+    if (parsed !== null) setOrderQuantity(parsed);
+  }
 
   function assetLabel(order: AssetOrder) {
     const id = orderAssetId(order);
@@ -161,13 +188,21 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
   function fillQuickQuantity(fraction: number) {
     const quantity = quickQuantity(fraction);
-    if (quantity > 0) setOrderQuantity(quantity);
+    if (quantity > 0) {
+      setOrderQuantity(quantity);
+      setQuantityDraft(String(quantity));
+    }
   }
 
   function scrollAssetDirectory(direction: -1 | 1) {
     const directory = assetDirectoryRef.current;
     if (!directory) return;
     directory.scrollBy({ left: direction * directory.clientWidth * 0.82, behavior: 'smooth' });
+  }
+
+  function submitOrder() {
+    if (orderDisabledReason || parsedOrderPrice === null || parsedOrderQuantity === null) return;
+    void showResult(placeAssetOrder(marketAssetKind, assetId, orderSide, parsedOrderQuantity, parsedOrderPrice));
   }
 
   return (
@@ -254,22 +289,27 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 onClick={() => selectOrderSide('sell')}
               >卖出</Button>
             </div>
-            <label>
-              价格
-              <input type="number" min="1" value={orderPrice} onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderPrice(Number(event.target.value))} />
-            </label>
-            <label>
-              数量
-              <input
-                type="number"
-                min="1"
-                max={maxTradeQuantity > 0 ? maxTradeQuantity : undefined}
-                disabled={maxTradeQuantity < 1}
-                aria-describedby={orderDisabledReason ? 'order-disabled-reason' : undefined}
-                value={orderQuantity}
-                onChange={(event: ChangeEvent<HTMLInputElement>) => setOrderQuantity(Number(event.target.value))}
-              />
-            </label>
+            <IntegerInput
+              label="价格"
+              value={priceDraft}
+              fallbackValue={orderPrice}
+              min={1}
+              error={parsedOrderPrice === null ? '请输入不低于 1 的整数价格。' : undefined}
+              onValueChange={updatePriceDraft}
+              onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
+            />
+            <IntegerInput
+              label="数量"
+              value={quantityDraft}
+              fallbackValue={Math.min(Math.max(1, orderQuantity), Math.max(1, maxTradeQuantity))}
+              min={1}
+              max={maxTradeQuantity > 0 ? maxTradeQuantity : undefined}
+              disabled={maxTradeQuantity < 1}
+              error={quantityReason}
+              aria-describedby={orderDisabledReason ? 'order-disabled-reason' : undefined}
+              onValueChange={updateQuantityDraft}
+              onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
+            />
             <div className="order-quick-fill" role="group" aria-label="快捷填写交易数量">
               <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>1/4 仓</Button>
               <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>1/2 仓</Button>
@@ -300,11 +340,9 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               )}
             </div>
             {orderDisabledReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{orderDisabledReason}</p> : null}
-            <Button
-              block
-              disabled={Boolean(orderDisabledReason)}
-              onClick={() => void showResult(placeAssetOrder(marketAssetKind, assetId, orderSide, orderQuantity, orderPrice))}
-            >提交{assetName}{orderSide === 'buy' ? '买单' : '卖单'}</Button>
+            <Button block disabled={Boolean(orderDisabledReason)} onClick={submitOrder}>
+              提交{assetName}{orderSide === 'buy' ? '买单' : '卖单'}
+            </Button>
             <div className="inline-order-list" aria-label={`我的${assetName}未完成订单`}>
               {ownSelectedOrders.map((order) => (
                 <div key={order.id}>
