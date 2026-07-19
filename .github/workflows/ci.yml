@@ -29,7 +29,10 @@ jobs:
         run: npm ci
 
       - name: Build and test
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -46,6 +49,7 @@ jobs:
         with:
           name: browser-test-artifacts
           path: |
+            build-test.log
             browser-test.log
             playwright-report
             test-results
