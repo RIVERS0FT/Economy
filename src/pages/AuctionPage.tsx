@@ -35,6 +35,17 @@ interface AuctionOption {
   available: number;
 }
 
+function parseAuctionQuantity(value: string) {
+  const normalized = value.trim();
+  if (!/^\d+$/.test(normalized)) return null;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : null;
+}
+
+function auctionItemKey(item: Pick<AuctionItem, 'assetKind' | 'assetId'>) {
+  return `${item.assetKind}:${item.assetId}`;
+}
+
 function remainingText(endsAt: number, now: number) {
   const remaining = Math.max(0, endsAt - now);
   return remaining === 0 ? '等待服务器结算' : formatDuration(remaining);
@@ -110,8 +121,9 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const closedAuctions = assetAuctions.filter((auction) => auction.status !== 'open').slice(0, 12);
   const [assetKind, setAssetKind] = useState<AuctionAssetKind>('collectible');
   const [selectedAssetId, setSelectedAssetId] = useState('');
-  const [quantity, setQuantity] = useState(1);
+  const [quantityInput, setQuantityInput] = useState('1');
   const [bundleItems, setBundleItems] = useState<AuctionItem[]>([]);
+  const [bundleQuantityDrafts, setBundleQuantityDrafts] = useState<Record<string, string>>({});
   const [startingBid, setStartingBid] = useState(100);
   const [durationHours, setDurationHours] = useState(24);
   const [bidAmounts, setBidAmounts] = useState<Record<string, string>>({});
@@ -146,11 +158,18 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const selectedOption = useMemo(() => (
     availableOptions.find((item) => item.id === selectedAssetId) ?? availableOptions[0]
   ), [availableOptions, selectedAssetId]);
-  const selectedQuantity = assetKind === 'collectible' ? 1 : Math.max(1, Math.floor(quantity));
+  const selectedQuantity = assetKind === 'collectible' ? 1 : parseAuctionQuantity(quantityInput);
   const canAdd = Boolean(selectedOption)
+    && selectedQuantity !== null
     && selectedQuantity <= Number(selectedOption?.available || 0)
     && (bundleItems.length < MAX_AUCTION_ITEMS || bundledQuantity(assetKind, selectedOption?.id || '') > 0);
+  const hasInvalidBundleQuantity = bundleItems.some((item) => {
+    const draft = bundleQuantityDrafts[auctionItemKey(item)] ?? String(item.quantity);
+    const parsed = parseAuctionQuantity(draft);
+    return parsed === null || parsed > availableForItem(item);
+  });
   const canPublish = bundleItems.length > 0
+    && !hasInvalidBundleQuantity
     && Number.isInteger(startingBid) && startingBid > 0
     && Number.isInteger(durationHours) && durationHours >= 1 && durationHours <= 168;
 
@@ -166,8 +185,18 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     return model.game.facilityGroups.find((entry) => entry.facilityTypeId === item.assetId)?.availableCount ?? 0;
   }
 
+  function clearBundleQuantityDraft(key: string) {
+    setBundleQuantityDrafts((current) => {
+      if (!(key in current)) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
+
   function addSelectedItem() {
-    if (!selectedOption || !canAdd) return;
+    if (!selectedOption || !canAdd || selectedQuantity === null) return;
+    const key = `${assetKind}:${selectedOption.id}`;
     setBundleItems((current) => {
       const existing = current.find((item) => item.assetKind === assetKind && item.assetId === selectedOption.id);
       if (existing && assetKind !== 'collectible') {
@@ -175,14 +204,54 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
       }
       return [...current, { assetKind, assetId: selectedOption.id, quantity: selectedQuantity }];
     });
+    clearBundleQuantityDraft(key);
     setSelectedAssetId('');
-    setQuantity(1);
+    setQuantityInput('1');
   }
 
-  function updateBundleQuantity(target: AuctionItem, nextQuantity: number) {
+  function updateBundleQuantityDraft(target: AuctionItem, value: string) {
+    const key = auctionItemKey(target);
+    setBundleQuantityDrafts((current) => ({ ...current, [key]: value }));
+    const parsed = parseAuctionQuantity(value);
+    if (parsed === null || parsed > availableForItem(target)) return;
+    setBundleItems((current) => current.map((item) => (
+      auctionItemKey(item) === key ? { ...item, quantity: parsed } : item
+    )));
+  }
+
+  function commitBundleQuantityDraft(target: AuctionItem) {
+    const key = auctionItemKey(target);
+    const draft = bundleQuantityDrafts[key];
+    if (draft === undefined) return;
     const maximum = availableForItem(target);
-    const normalized = Math.min(maximum, Math.max(1, Math.floor(nextQuantity || 1)));
-    setBundleItems((current) => current.map((item) => item === target ? { ...item, quantity: normalized } : item));
+    const parsed = parseAuctionQuantity(draft);
+    const normalized = maximum < 1
+      ? target.quantity
+      : parsed === null
+        ? target.quantity
+        : Math.min(maximum, parsed);
+    setBundleItems((current) => current.map((item) => (
+      auctionItemKey(item) === key ? { ...item, quantity: normalized } : item
+    )));
+    setBundleQuantityDrafts((current) => ({ ...current, [key]: String(normalized) }));
+  }
+
+  function resetBundleQuantityDraft(target: AuctionItem) {
+    setBundleQuantityDrafts((current) => ({
+      ...current,
+      [auctionItemKey(target)]: String(target.quantity),
+    }));
+  }
+
+  function removeBundleItem(target: AuctionItem) {
+    const key = auctionItemKey(target);
+    setBundleItems((current) => current.filter((item) => auctionItemKey(item) !== key));
+    clearBundleQuantityDraft(key);
+  }
+
+  function clearBundleBuilder() {
+    setBundleItems([]);
+    setBundleQuantityDrafts({});
   }
 
   async function run(operation: () => ReturnType<typeof gameActions.createAuction>, onSuccess?: () => void) {
@@ -220,7 +289,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                   onClick={() => {
                     setAssetKind(kind);
                     setSelectedAssetId('');
-                    setQuantity(1);
+                    setQuantityInput('1');
                   }}
                 >
                   {assetKindNames[kind]}
@@ -242,10 +311,17 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                     数量
                     <input
                       type="number"
+                      inputMode="numeric"
                       min="1"
+                      step="1"
                       max={selectedOption?.available || 1}
-                      value={selectedQuantity}
-                      onChange={(event) => setQuantity(Number(event.target.value))}
+                      value={quantityInput}
+                      aria-invalid={selectedQuantity === null || selectedQuantity > Number(selectedOption?.available || 0)}
+                      onChange={(event) => setQuantityInput(event.target.value)}
+                      onBlur={() => {
+                        const parsed = parseAuctionQuantity(quantityInput);
+                        setQuantityInput(String(parsed === null ? 1 : Math.min(selectedOption?.available || 1, parsed)));
+                      }}
                     />
                   </label>
                 )}
@@ -260,8 +336,11 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
               <div className="asset-auction-package-list">
                 {bundleItems.map((item) => {
                   const collectible = item.assetKind === 'collectible' ? collectibles.find((entry) => entry.id === item.assetId) : null;
+                  const key = auctionItemKey(item);
+                  const quantityDraft = bundleQuantityDrafts[key] ?? String(item.quantity);
+                  const parsedQuantity = parseAuctionQuantity(quantityDraft);
                   return (
-                    <div className="asset-auction-package-row" key={`${item.assetKind}:${item.assetId}`}>
+                    <div className="asset-auction-package-row" key={key}>
                       <div className="asset-auction-package-icon" aria-hidden="true">
                         {collectible?.thumbnailUrl ? <img src={collectible.thumbnailUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" /> : item.assetKind === 'commodity' ? <ProductIcon productId={item.assetId} /> : <FactoryIcon />}
                       </div>
@@ -270,13 +349,24 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                         <input
                           aria-label={`${labelForItem(item)}数量`}
                           type="number"
+                          inputMode="numeric"
                           min="1"
+                          step="1"
                           max={availableForItem(item)}
-                          value={item.quantity}
-                          onChange={(event) => updateBundleQuantity(item, Number(event.target.value))}
+                          value={quantityDraft}
+                          aria-invalid={parsedQuantity === null || parsedQuantity > availableForItem(item)}
+                          onChange={(event) => updateBundleQuantityDraft(item, event.target.value)}
+                          onBlur={() => commitBundleQuantityDraft(item)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') event.currentTarget.blur();
+                            if (event.key === 'Escape') {
+                              event.preventDefault();
+                              resetBundleQuantityDraft(item);
+                            }
+                          }}
                         />
                       )}
-                      <Button variant="danger" className="asset-auction-remove" onClick={() => setBundleItems((current) => current.filter((entry) => entry !== item))}>移除</Button>
+                      <Button variant="danger" className="asset-auction-remove" onClick={() => removeBundleItem(item)}>移除</Button>
                     </div>
                   );
                 })}
@@ -296,7 +386,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
           </label>
           <Button
             disabled={submitting || !canPublish}
-            onClick={() => void run(() => gameActions.createAuction(bundleItems, startingBid, durationHours), () => setBundleItems([]))}
+            onClick={() => void run(() => gameActions.createAuction(bundleItems, startingBid, durationHours), clearBundleBuilder)}
           >
             {submitting ? '发布中' : '发布资产包拍卖'}
           </Button>
