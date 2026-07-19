@@ -20,20 +20,41 @@ jobs:
           ref: agent/expand-industry-fruit
           fetch-depth: 0
       - name: Apply implementation payload
+        id: transform
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
           shopt -s nullglob
           parts=(agent-industry-script-part-*)
           if (( ${#parts[@]} != 6 )); then
-            echo "Implementation payload is not complete."
-            exit 0
+            echo "Implementation payload is not complete." | tee agent-transform.log
+            exit 1
           fi
           cat "${parts[@]}" > agent-apply-industry.py
-          python3 agent-apply-industry.py
-          rm -f "${parts[@]}" agent-apply-industry.py
+          set +e
+          python3 agent-apply-industry.py > agent-transform.log 2>&1
+          status=$?
+          set -e
+          if (( status != 0 )); then
+            exit "$status"
+          fi
+          rm -f "${parts[@]}" agent-apply-industry.py agent-transform.log
           git add -A
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git commit -m "feat: 扩展水果与产业目录"
           git push origin HEAD:agent/expand-industry-fruit
+      - name: Upload transformation diagnostics
+        if: steps.transform.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-industry-diagnostics
+          path: |
+            agent-apply-industry.py
+            agent-transform.log
+            agent-industry-script-part-*
+          retention-days: 1
+      - name: Fail transformation
+        if: steps.transform.outcome == 'failure'
+        run: exit 1
