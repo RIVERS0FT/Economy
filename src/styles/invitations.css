@@ -38,20 +38,6 @@
   display: block;
 }
 
-.invitation-bound-state input:disabled {
-  color: var(--text-muted, rgba(127, 127, 127, 0.9));
-  background: var(--surface-muted, rgba(127, 127, 127, 0.12));
-  cursor: not-allowed;
-  opacity: 1;
-}
-
-.invitation-bound-state input:disabled {
-  color: var(--text-muted, rgba(127, 127, 127, 0.9));
-  background: var(--surface-muted, rgba(127, 127, 127, 0.12));
-  cursor: not-allowed;
-  opacity: 1;
-}
-
 .recent-invitations > div {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto auto;
