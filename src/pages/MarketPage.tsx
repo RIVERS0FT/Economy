@@ -35,6 +35,11 @@ function orderTone(status: AssetOrder['status']): StatusTone {
   return 'neutral';
 }
 
+function localTradeAssetName(trade: { description: string; side: 'buy' | 'sell' }) {
+  const historicalPrefix = trade.side === 'buy' ? '买入' : '卖出';
+  return trade.description.replace(new RegExp(`^${historicalPrefix}\\s+`), '').trim() || '资产';
+}
+
 export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
@@ -492,8 +497,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                       renderItem={(trade) => (
                         <div className="virtual-record-row" role="row">
                           <span role="cell">{trade.type === 'commodity' && trade.productId
-                            ? <ProductIconLabel productId={trade.productId}>{trade.description}</ProductIconLabel>
-                            : <span className="product-icon-label facility-icon-label"><FactoryIcon />{trade.description}</span>}</span>
+                            ? <ProductIconLabel productId={trade.productId}>{localTradeAssetName(trade)}</ProductIconLabel>
+                            : <span className="product-icon-label facility-icon-label"><FactoryIcon />{localTradeAssetName(trade)}</span>}</span>
                           <span role="cell" className="trade-side-cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
                           <span role="cell" className="numeric-cell">{formatNumber(trade.quantity)}</span>
                           <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.price)}</CurrencyAmount></span>
