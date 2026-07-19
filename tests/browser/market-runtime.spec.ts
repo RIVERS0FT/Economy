@@ -12,6 +12,34 @@ async function requireBox(locator: Locator) {
   return box!;
 }
 
+async function inspectHorizontalOverflow(locator: Locator) {
+  return locator.evaluate((element) => {
+    const surface = element as HTMLElement;
+    const surfaceRect = surface.getBoundingClientRect();
+    const offenders = Array.from(surface.querySelectorAll<HTMLElement>('*'))
+      .map((node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+          selector: `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ''}${Array.from(node.classList).map((name) => `.${name}`).join('')}`,
+          left: Math.round(rect.left - surfaceRect.left),
+          right: Math.round(rect.right - surfaceRect.left),
+          width: Math.round(rect.width),
+          clientWidth: node.clientWidth,
+          scrollWidth: node.scrollWidth,
+          position: getComputedStyle(node).position,
+        };
+      })
+      .filter((item) => item.right > surface.clientWidth + 1 || item.left < -1)
+      .sort((a, b) => b.right - a.right)
+      .slice(0, 12);
+    return {
+      clientWidth: surface.clientWidth,
+      scrollWidth: surface.scrollWidth,
+      offenders,
+    };
+  });
+}
+
 test('market desktop layout gives the full chart the dominant column and intrinsic ratio', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
@@ -70,7 +98,11 @@ test('market medium and narrow layouts follow the real content width without hor
   const stackedChart = await requireBox(page.locator('.market-chart-card'));
   expect(stackedBook.y).toBeGreaterThan(stackedOrder.y + stackedOrder.height - 2);
   expect(stackedChart.y).toBeGreaterThan(stackedBook.y + stackedBook.height - 2);
-  expect(await surface.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  const overflow = await inspectHorizontalOverflow(surface);
+  expect(overflow, JSON.stringify(overflow, null, 2)).toMatchObject({
+    scrollWidth: overflow.clientWidth,
+    offenders: [],
+  });
   expect(pageErrors).toEqual([]);
 });
 
