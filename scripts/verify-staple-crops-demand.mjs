@@ -1,66 +1,101 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DEMAND_GROUP_CATALOG, FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js';
+import {
+  FACILITY_TYPE_CATALOG,
+  MARKET_DEMAND_GROUP_CATALOG,
+  MARKET_DEMAND_PRODUCT_IDS,
+  PRODUCT_CATALOG,
+} from '../server/src/domain.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 22);
-const foodIds = ['wheat', 'rice', 'flour', 'food', 'meat', 'eggs', 'milk'];
-const householdIds = ['timber', 'cotton', 'wool', 'copper-ore', 'crude-oil', 'lumber', 'textile', 'copper', 'plastic', 'furniture', 'clothing', 'electronics'];
-for (const id of foodIds) assert.equal(products.get(id)?.populationDemandGroupId, 'food', id);
-for (const id of householdIds) assert.equal(products.get(id)?.populationDemandGroupId, 'household', id);
-for (const id of ['ore', 'steel', 'machinery']) assert.equal(products.get(id)?.populationDemandGroupId, undefined, id);
+assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
+assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
+assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.baseBudget), [1_000, 900]);
+assert.ok(MARKET_DEMAND_GROUP_CATALOG.every((group) => group.directBudgetShare === 0.85));
+assert.ok(MARKET_DEMAND_GROUP_CATALOG.every((group) => group.classes.length > 0));
 
-const food = DEMAND_GROUP_CATALOG.find((group) => group.id === 'food');
-const household = DEMAND_GROUP_CATALOG.find((group) => group.id === 'household');
-assert.equal(food.ownerName, '饮食需求');
-assert.equal(food.baseBudget, 1_000);
-assert.deepEqual(food.products.map((item) => item.productId), foodIds);
-assert.equal(household.ownerName, '家庭用品需求');
-assert.equal(household.baseBudget, 900);
-assert.deepEqual(household.products.map((item) => item.productId), householdIds);
+for (const id of ['wheat', 'rice', 'flour', 'food', 'meat', 'eggs', 'milk']) {
+  assert.equal(products.get(id)?.marketDemandGroupId, 'food', id);
+  assert.equal(products.get(id)?.marketDemandRole, 'direct', id);
+}
+for (const id of ['furniture', 'clothing', 'electronics']) {
+  assert.equal(products.get(id)?.marketDemandGroupId, 'household', id);
+  assert.equal(products.get(id)?.marketDemandRole, 'direct', id);
+}
+for (const id of ['timber', 'cotton', 'wool', 'copper-ore', 'crude-oil', 'lumber', 'textile', 'copper', 'plastic']) {
+  assert.equal(products.get(id)?.marketDemandGroupId, 'household', id);
+  assert.equal(products.get(id)?.marketDemandRole, 'derived-liquidity', id);
+}
+for (const id of ['ore', 'steel', 'machinery']) assert.equal(products.get(id)?.marketDemandGroupId, undefined, id);
+assert.ok(MARKET_DEMAND_PRODUCT_IDS.includes('electronics'));
+assert.equal(MARKET_DEMAND_PRODUCT_IDS.includes('copper'), false);
+
+const runtime = [
+  'server/src/market-demand.js',
+  'server/src/market-demand/catalog.js',
+  'server/src/market-demand/math.js',
+  'server/src/market-demand/signals.js',
+  'server/src/market-demand/state.js',
+  'server/src/market-demand/price-transmission.js',
+  'server/src/market-demand/allocation.js',
+].map(read).join('\n');
+for (const text of [
+  'DIRECT_BUDGET_SHARE = 0.85',
+  'RELATION_LAG_WEIGHTS',
+  'ACTIVE_PLAYER_WINDOW_MS',
+  'lastInventoryBoost: 0',
+  'lastStockValue: 0',
+  'smoothShares',
+  'recipeSharesFor',
+  'complementGate',
+  'derivedRequirements',
+  'previousDemandQuantities',
+  'demandPressureAnchor',
+  'processPriceTransmission',
+  'ownerName: \'食品市场需求\'',
+  'ownerName: \'家庭消费市场需求\'',
+]) assert.ok(runtime.includes(text), 'market-demand.js 缺少: ' + text);
+for (const forbidden of ['DEMAND_INVENTORY_BOOST_RATE', 'stockSnapshot.totalValue', 'inventoryFactor']) {
+  assert.equal(runtime.includes(forbidden), false, '市场需求不得恢复库存增发逻辑: ' + forbidden);
+}
 
 const domain = read('server/src/domain.js');
 for (const text of [
-  'ACTIVE_PLAYER_WINDOW_MS', 'DEMAND_PLAYER_SCALE_MAX', 'DEMAND_INVENTORY_BOOST_RATE',
-  'dynamicDemandBudget', 'demandStockSnapshot', 'lastEconomicActivityAt',
-  'lastTargetBudget', 'lastPlayerScaleBudget', 'lastInventoryBoost',
-  'lastActivePlayerCount', 'lastStockValue', 'inventoryFactor',
-  'available || 0', 'frozen || 0', 'previousVersion >= 13', 'previousVersion < 13',
-  'processPriceTransmission', 'costAnchor', 'downstreamValueAnchor',
+  "import {\n  createMarketDemandRuntime",
+  'marketDemand.initializeWorld',
+  'marketDemand.normalizeWorld',
+  'marketDemand.process',
+  'marketDemand.isValidMarketOrder',
+  'world.version = 13',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
-assert.equal(domain.includes('allocateDemandBudgets(choices, group.baseBudget)'), false);
-assert.equal(domain.includes('maxBudget: Math.floor(group.baseBudget * option.maxBudgetShare)'), false);
-
-const storage = read('server/src/storage.js');
-for (const text of ['ECONOMIC_ACTIVITY_ACTIONS', 'gameResult?.ok', 'activePlayer.lastEconomicActivityAt = now', 'demandGroups: Object.fromEntries']) {
-  assert.ok(storage.includes(text), 'storage.js 缺少: ' + text);
-}
-const assetEvents = read('server/src/asset-events.js');
-assert.ok(assetEvents.includes('world.version = 13;'), '日志清理器必须保留世界版本 13');
-assert.equal(assetEvents.includes('world.version = 12;'), false, '日志清理器不得把世界版本降回 12');
-
-const tests = read('server/test/domain.test.js');
-for (const text of [
-  'population demand scales sublinearly with active players and stops at the configured cap',
-  'inactive players stop scaling demand after seven days',
-  'population demand grows with stock value and favors stocked products without double counting frozen inventory',
-  'state polling and failed actions do not refresh economic activity',
-  'world version 12 migration immediately rebuilds smoothed dynamic population demand',
-]) assert.ok(tests.includes(text), '测试缺少: ' + text);
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
+assert.deepEqual(facilities.get('textile-mill').recipes.map((recipe) => recipe.inputs), [
+  [{ productId: 'cotton', quantity: 6 }],
+  [{ productId: 'wool', quantity: 2 }],
+]);
 assert.deepEqual(facilities.get('electronics-factory').recipes[0].inputs, [
   { productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 },
 ]);
+
+const tests = read('server/test/domain.test.js');
+for (const text of [
+  'player inventory never increases market demand budget or product allocation',
+  'consumer substitutes shift demand toward the cheaper grain without changing total budget',
+  'complement gating prioritizes the bottleneck input for electronics',
+  'downstream price signals move upstream only after relation lag cycles',
+  'legacy demand migration removes old system orders while preserving player assets and orders',
+]) assert.ok(tests.includes(text), '测试缺少: ' + text);
+
 for (const [path, texts] of [
-  ['README.md', ['饮食需求基础预算为 1,000', '家庭用品需求基础预算为 900', '近 7 天经济活跃玩家', '库存追加预算']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['平方根增长', '库存追加预算', '单周期最多上涨 20%', 'lastEconomicActivityAt']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['库存分配系数', '可用与冻结库存只统计一次']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['活跃玩家数量', '库存价值', '动态预算']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['世界版本 12 升级到 13', '空闲状态读取不得仅因服务器时间推进而修改', 'lastEconomicActivityAt']],
+  ['README.md', ['市场需求', '替代关系', '互补关系', '派生流动性']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型', '库存不得扩大市场需求总预算', '85%', '15%', '替代弹性']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求订单', 'ownerType: \'population\'', '兼容标识']],
 ]) {
   const content = read(path);
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
-console.log('人口需求验证通过：基础预算提高，并按近 7 天活跃玩家、全服库存、平滑与单周期上限动态调整。');
+
+console.log('市场需求验证通过：预算不读取库存，直接需求与派生流动性共享总预算，并支持替代、互补与逐边滞后传导。');
