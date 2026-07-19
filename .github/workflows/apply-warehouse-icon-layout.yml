@@ -1,11 +1,9 @@
 name: Apply warehouse icon layout
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/apply-warehouse-icon-layout.yml
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -22,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - name: Create implementation branch
-        run: git switch -c codex/warehouse-icon-led-result
+        run: git switch -C codex/warehouse-icon-led-result
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -51,4 +49,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "feat: emphasize warehouse product icons"
-          git push origin HEAD:codex/warehouse-icon-led-result
+          git push --force origin HEAD:codex/warehouse-icon-led-result
