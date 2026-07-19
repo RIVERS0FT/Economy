@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminApi, type BanIncidentDetails, type BanIncidentSummary } from '../api/admin';
 import { formatDate, formatTime } from '../utils/formatters';
+import { TextArea } from './ui/FormControls';
 import { Button, EmptyState, Panel, StatusTag, WidgetHeading } from './ui/layout';
 
 export function AdminBanPanel({
@@ -90,15 +91,13 @@ export function AdminBanPanel({
                   <StatusTag tone={details.incident.status === 'active' ? 'danger' : 'success'}>{details.incident.status}</StatusTag>
                   <span>检测时间：{formatTime(details.incident.detected_at)}</span>
                 </div>
-                <label>
-                  管理员备注
-                  <textarea
-                    value={note}
-                    maxLength={240}
-                    placeholder="例如：家庭共享网络，人工核验通过"
-                    onChange={(event) => setNote(event.target.value)}
-                  />
-                </label>
+                <TextArea
+                  label="管理员备注"
+                  value={note}
+                  maxLength={240}
+                  placeholder="例如：家庭共享网络，人工核验通过"
+                  onChange={(event) => setNote(event.target.value)}
+                />
                 <Button
                   variant="secondary"
                   disabled={working}
