@@ -128,13 +128,21 @@ for (const text of [
 for (const [path, texts] of [
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['冻结只改变可用性，不改变所有权', '冻结资产价值']],
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['不可拆分的资产包', '最多 20 个规范化资产项目', '冻结资产继续计入卖方总资产']],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['资产包编辑器', '最近结束区域必须始终存在', '可支配资产', '固定为三等分单行布局']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
+    '资产包编辑器',
+    '最近结束区域必须始终存在',
+    '可支配资产',
+    '固定为三等分单行布局',
+    '资产包添加数量和资产包行数量必须把输入中的原始字符串作为编辑草稿',
+    '不得在 `onChange` 阶段立即把空字符串强制回填为 `1`',
+    '把资产包数量输入恢复为每次按键立即数字化并把空值强制回填为 `1`',
+  ]],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['捆绑拍卖', '托管记录不得作为第二份资产余额']],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包中全部商品数量之和', '捆绑拍卖']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['同一资产包中的多种工厂', '总持有数量不变']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['items[]', '托管记录不得重复计价']],
   ['docs/UI_DESIGN_SYSTEM.md', ['资产包编辑器', '冻结资产明细']],
-  ['docs/README.md', ['受控正整数输入必须保存原始字符串草稿', '不得在每次按键时把空字符串立即强制回填为 `1`']],
+  ['docs/README.md', ['拍卖资产包数量输入的字符串草稿', '不得恢复空值立即回填为 `1` 的实现']],
 ]) for (const text of texts) requireText(path, text);
 
 for (const text of ['currentOwnerId: payload', 'highestBid: payload.highestBid']) forbidText('server/src/app.js', text);
