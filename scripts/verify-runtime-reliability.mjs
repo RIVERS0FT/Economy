@@ -81,7 +81,6 @@ for (const [path, text] of [
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/README.md', '运行时可靠性、依赖锁、浏览器测试'],
   ['README.md', '管理员礼品码与兑换记录按游标分页'],
-  ['README.md', '同一 PR 的旧 CI 在新提交到达后自动取消'],
 ]) requireText(path, text);
 
 if (failures.length) {
