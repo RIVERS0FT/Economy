@@ -165,9 +165,14 @@ requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 5
 for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式固定显示单座正式配方']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 }
-for (const text of ['仓库商品网格按内容区宽度', '商品名称固定在左上角', '居中大尺寸统一商品 SVG', '建设卡不显示生产周期、单座产量和单座成本']) {
-  requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-}
+for (const text of [
+  '仓库商品网格按内容区宽度',
+  '小于 300px 为 2 列，300px 起 3 列',
+  '内容区小于 360px 时允许使用 6px 水平内边距',
+  '商品名称固定在左上角',
+  '居中大尺寸统一商品 SVG',
+  '建设卡不显示生产周期、单座产量和单座成本',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of ['仓库商品网格使用容器查询', '左上名称／居中大图标／可用主值／冻结辅助值', '断点为 300、560、760、960px', '商品卡最小高度 `112px`', '生产配方是配置展示，不是运行统计']) {
   requireText('docs/UI_DESIGN_SYSTEM.md', text);
 }
