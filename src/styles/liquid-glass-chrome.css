@@ -1,0 +1,4 @@
+/* Compatibility entry for browser harnesses that still import the historical
+ * stylesheet path. The liquid-glass material is rendered exclusively by
+ * LiquidGlassSurface; this file may only forward to the geometry stylesheet. */
+@import './liquid-glass-surfaces.css';
