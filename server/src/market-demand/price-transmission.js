@@ -6,7 +6,7 @@ import {
   PRICE_RISE_RATE,
   RELATION_LAG_WEIGHTS,
 } from './catalog.js';
-import { clamp, clone, geometricWeightedMean } from './math.js';
+import { clamp, clone, geometricWeightedMean, round4 } from './math.js';
 
 export function createPriceTransmissionRuntime({
   products,
@@ -19,6 +19,7 @@ export function createPriceTransmissionRuntime({
   defaultProductState,
 }) {
   const relationId = (recipe, input) => `${recipe.facilityTypeId}/${recipe.recipeId}:${input.productId}`;
+  const roundNullable = (value) => value === null ? null : round4(value);
 
   function signalPrice(snapshot, product) {
     const state = snapshot[product.id] || defaultProductState(product, 0);
@@ -52,7 +53,6 @@ export function createPriceTransmissionRuntime({
   function calculatePriceAnchors(world, snapshot, now) {
     const costCandidates = new Map(products.map((product) => [product.id, []]));
     const downstreamCandidates = new Map(products.map((product) => [product.id, []]));
-    const pendingSignals = new Map();
 
     for (const recipe of recipes) {
       const outputProduct = productFor(recipe.output.productId);
@@ -62,23 +62,14 @@ export function createPriceTransmissionRuntime({
       const outputStats = realTradeStats(world, outputProduct.id, now);
       const outputPressure = clamp(0.75, 1.5, Number(world.marketDemand.productPressure[outputProduct.id] || 1));
       const activityWeight = Math.max(0.25, outputStats.quantity) * outputPressure;
-      const outputValue = signalPrice(snapshot, outputProduct) * recipe.output.quantity;
       for (const input of recipe.inputs) {
-        const otherInputCost = recipe.inputs.reduce((sum, other) => (
-          other.productId === input.productId
-            ? sum
-            : sum + signalPrice(snapshot, productFor(other.productId)) * other.quantity
-        ), 0);
-        const netback = (outputValue - recipe.operatingCost - profit - otherInputCost) / input.quantity;
-        if (!Number.isFinite(netback) || netback <= 0) continue;
         const id = relationId(recipe, input);
         const lagged = laggedRelationValue(world, id, productFor(input.productId).basePrice);
         downstreamCandidates.get(input.productId).push({ value: lagged, weight: activityWeight });
-        pendingSignals.set(id, netback);
       }
     }
 
-    const anchors = Object.fromEntries(products.map((product) => {
+    return Object.fromEntries(products.map((product) => {
       const costs = costCandidates.get(product.id);
       const downstream = downstreamCandidates.get(product.id);
       return [product.id, {
@@ -89,7 +80,26 @@ export function createPriceTransmissionRuntime({
           : null,
       }];
     }));
-    return { anchors, pendingSignals };
+  }
+
+  function calculatePendingSignals(currentStates) {
+    const pendingSignals = new Map();
+    for (const recipe of recipes) {
+      const outputProduct = productFor(recipe.output.productId);
+      const profit = targetProfit(recipe);
+      const outputValue = signalPrice(currentStates, outputProduct) * recipe.output.quantity;
+      for (const input of recipe.inputs) {
+        const otherInputCost = recipe.inputs.reduce((sum, other) => (
+          other.productId === input.productId
+            ? sum
+            : sum + signalPrice(currentStates, productFor(other.productId)) * other.quantity
+        ), 0);
+        const netback = (outputValue - recipe.operatingCost - profit - otherInputCost) / input.quantity;
+        if (!Number.isFinite(netback) || netback <= 0) continue;
+        pendingSignals.set(relationId(recipe, input), round4(netback));
+      }
+    }
+    return pendingSignals;
   }
 
   function priceWeights(product) {
@@ -113,20 +123,24 @@ export function createPriceTransmissionRuntime({
     if (cycleId <= Number(transmission.lastCycleId)) return false;
     for (const product of products) {
       const previousPressure = Number(world.marketDemand.productPressure[product.id] || 1);
-      world.marketDemand.productPressure[product.id] = 1 + (previousPressure - 1) * 0.70;
+      world.marketDemand.productPressure[product.id] = round4(1 + (previousPressure - 1) * 0.70);
     }
     const snapshot = clone(transmission.products);
-    const { anchors, pendingSignals } = calculatePriceAnchors(world, snapshot, now);
+    const anchors = calculatePriceAnchors(world, snapshot, now);
 
     for (const product of products) {
       const previous = snapshot[product.id] || defaultProductState(product, cycleId - 1);
       const trades = realTradeStats(world, product.id, now);
-      const observedPrice = trades.vwap === null
+      const observedPriceRaw = trades.vwap === null
         ? Number(previous.observedPrice || product.basePrice) * (1 - PRICE_BASE_REVERSION) + product.basePrice * PRICE_BASE_REVERSION
         : Number(previous.observedPrice || product.basePrice) * 0.70 + trades.vwap * 0.30;
       const pressure = clamp(0.75, 1.5, Number(world.marketDemand.productPressure[product.id] || 1));
-      const demandPressureAnchor = product.basePrice * pressure;
-      const { costAnchor, downstreamValueAnchor } = anchors[product.id];
+      const demandPressureAnchorRaw = product.basePrice * pressure;
+      const { costAnchor: costAnchorRaw, downstreamValueAnchor: downstreamValueAnchorRaw } = anchors[product.id];
+      const observedPrice = round4(observedPriceRaw);
+      const demandPressureAnchor = round4(demandPressureAnchorRaw);
+      const costAnchor = roundNullable(costAnchorRaw);
+      const downstreamValueAnchor = roundNullable(downstreamValueAnchorRaw);
       const weights = priceWeights(product);
       const targetRaw = geometricWeightedMean([
         { value: product.basePrice, weight: weights.base },
@@ -135,15 +149,19 @@ export function createPriceTransmissionRuntime({
         { value: downstreamValueAnchor, weight: weights.downstream },
         { value: demandPressureAnchor, weight: weights.demand },
       ]) || product.basePrice;
-      const targetPrice = clamp(product.basePrice * PRICE_MIN_MULTIPLIER, product.basePrice * PRICE_MAX_MULTIPLIER, targetRaw);
+      const targetPrice = round4(clamp(
+        product.basePrice * PRICE_MIN_MULTIPLIER,
+        product.basePrice * PRICE_MAX_MULTIPLIER,
+        targetRaw,
+      ));
       const oldReference = Math.max(0.01, Number(previous.referencePrice || product.basePrice));
       const unconstrained = oldReference + (targetPrice >= oldReference ? PRICE_RISE_RATE : PRICE_FALL_RATE) * (targetPrice - oldReference);
       const limits = priceLimits(product);
-      const referencePrice = clamp(
+      const referencePrice = round4(clamp(
         product.basePrice * PRICE_MIN_MULTIPLIER,
         product.basePrice * PRICE_MAX_MULTIPLIER,
         clamp(oldReference * (1 - limits.fall), oldReference * (1 + limits.rise), unconstrained),
-      );
+      ));
       transmission.products[product.id] = {
         observedPrice,
         costAnchor,
@@ -156,9 +174,13 @@ export function createPriceTransmissionRuntime({
       Object.assign(marketFor(world, product.id, now).demand, transmission.products[product.id]);
     }
 
+    const pendingSignals = calculatePendingSignals(transmission.products);
     for (const [id, value] of pendingSignals) {
       const previous = world.marketDemand.relations[id]?.lagSignals || [];
-      world.marketDemand.relations[id] = { lagSignals: [value, ...previous].slice(0, 3), lastUpdatedCycleId: cycleId };
+      world.marketDemand.relations[id] = {
+        lagSignals: [value, ...previous].slice(0, 3),
+        lastUpdatedCycleId: cycleId,
+      };
     }
     transmission.lastCycleId = cycleId;
     world.priceTransmission = transmission;
