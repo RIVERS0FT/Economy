@@ -6,7 +6,9 @@ test.describe('liquid glass shell geometry', () => {
   test('desktop status bar uses enhanced refraction, shared inset and one visible highlight', async ({ page }) => {
     await page.goto('runtime-test.html?view=overview&scenario=activity');
     await expect(page.locator('.asset-bar-scroll-area')).toBeVisible();
-    await expect(page.locator('.asset-bar .liquid-glass-surface')).toBeVisible();
+    const glassSurface = page.locator('.asset-bar .liquid-glass-surface');
+    await expect(glassSurface).toBeVisible();
+    await expect(glassSurface).toHaveAttribute('data-liquid-glass-mode', 'prominent');
     await expect(page.locator('.overview-today-panel')).toBeVisible();
 
     const layout = await page.evaluate(() => {
@@ -28,7 +30,7 @@ test.describe('liquid glass shell geometry', () => {
       const headingRect = heading.getBoundingClientRect();
       const assetBarStyle = getComputedStyle(assetBar);
       const surfaceStyle = getComputedStyle(surface);
-      const warpStyle = getComputedStyle(warp);
+      const warpStyle = getComputedStyle(warp) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
       const primaryPanelStyle = getComputedStyle(primaryPanel);
       const directDecorationSpans = Array.from(surface.children)
         .filter((element) => element.tagName === 'SPAN') as HTMLElement[];
@@ -55,7 +57,7 @@ test.describe('liquid glass shell geometry', () => {
         surfaceBorderStyle: surfaceStyle.borderTopStyle,
         surfaceBackgroundColor: surfaceStyle.backgroundColor,
         glassMode: surface.dataset.liquidGlassMode,
-        warpBackdropFilter: warpStyle.backdropFilter || warpStyle.webkitBackdropFilter,
+        warpBackdropFilter: warpStyle.backdropFilter || warpStyle.webkitBackdropFilter || '',
         warpFilter: warpStyle.filter,
         directDecorationSpanCount: directDecorationSpans.length,
         visibleDecorationSpanCount: directDecorationSpans
