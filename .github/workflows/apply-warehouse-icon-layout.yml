@@ -14,7 +14,7 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -22,47 +22,20 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Create implementation branch
+      - name: Apply and publish implementation
         run: |
-          git switch -C codex/warehouse-icon-led-result
-          git push --force origin HEAD:codex/warehouse-icon-led-result
+          set -euo pipefail
+          git switch -C codex/warehouse-icon-led-final
+          python3 scripts/apply-warehouse-icon-layout.py
+          python3 scripts/apply-warehouse-page-verifier.py
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-          cache: npm
-
-      - name: Apply, verify, and publish result
-        run: |
-          set -uo pipefail
-          python3 scripts/apply-warehouse-icon-layout.py > warehouse-migration.log 2>&1
-          migration_status=$?
-          if [ "$migration_status" -eq 0 ]; then
-            python3 scripts/apply-warehouse-page-verifier.py >> warehouse-migration.log 2>&1
-            migration_status=$?
-          fi
-          if [ "$migration_status" -eq 0 ]; then
-            npm ci >> warehouse-migration.log 2>&1
-            migration_status=$?
-          fi
-          if [ "$migration_status" -eq 0 ]; then
-            npm run build >> warehouse-migration.log 2>&1
-            migration_status=$?
-          fi
+          rm scripts/apply-warehouse-icon-layout.py
+          rm scripts/apply-warehouse-page-verifier.py
+          rm .github/warehouse-icon-layout-trigger
+          rm .github/workflows/apply-warehouse-icon-layout.yml
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          if [ "$migration_status" -eq 0 ]; then
-            rm scripts/apply-warehouse-icon-layout.py
-            rm scripts/apply-warehouse-page-verifier.py
-            rm .github/warehouse-icon-layout-trigger
-            rm .github/workflows/apply-warehouse-icon-layout.yml
-            rm warehouse-migration.log
-          fi
-
           git add -A
           git commit -m "feat: emphasize warehouse product icons"
-          git push --force origin HEAD:codex/warehouse-icon-led-result
-          exit "$migration_status"
+          git push --force origin HEAD:codex/warehouse-icon-led-final
