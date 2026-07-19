@@ -16,6 +16,7 @@ const forbidText = (path, text) => {
 
 const paths = {
   main: 'src/main.tsx',
+  viewport: 'src/styles/viewport.css',
   layout: 'src/styles/game-shell-layout.css',
   shell: 'src/components/shell/GameShell.tsx',
   design: 'docs/GAME_SHELL_LAYOUT_DESIGN.md',
@@ -66,13 +67,40 @@ if (failures.length === 0) {
   forbidText(paths.layout, '--content-max-width');
   forbidText(paths.layout, 'ResizeObserver');
 
-  requireText(paths.shell, "sidebarCollapsed ? 'game-shell sidebar-layout sidebar-collapsed' : 'game-shell sidebar-layout'");
+  for (const text of [
+    'PAGE_SCROLLBAR_IDLE_DELAY_MS = 1_200',
+    'PAGE_SCROLL_ACTIVITY_KEYS',
+    "scrollport.dataset.scrollbarActive = 'true'",
+    'delete scrollport.dataset.scrollbarActive',
+    "scrollport.addEventListener('scroll', revealScrollbar",
+    "scrollport.addEventListener('wheel', revealScrollbar",
+    "scrollport.addEventListener('pointermove', revealScrollbar",
+    "scrollport.addEventListener('pointerdown', revealScrollbar",
+    "scrollport.addEventListener('focusin', revealScrollbar",
+    "window.addEventListener('keydown', handleKeyDown)",
+    'ref={pageScrollRef}',
+    "sidebarCollapsed ? 'game-shell sidebar-layout sidebar-collapsed' : 'game-shell sidebar-layout'",
+  ]) requireText(paths.shell, text);
+
+  for (const text of [
+    'scrollbar-gutter: stable;',
+    'scrollbar-color: transparent transparent;',
+    '.page-scroll[data-scrollbar-active="true"]',
+    '.page-scroll::-webkit-scrollbar-track',
+    '.page-scroll::-webkit-scrollbar-thumb',
+    '.page-scroll[data-scrollbar-active="true"]::-webkit-scrollbar-thumb:hover',
+  ]) requireText(paths.viewport, text);
+  forbidText(paths.viewport, 'scrollbar-width: none;');
+  forbidText(paths.viewport, '.page-scroll::-webkit-scrollbar {\n    width: 0;');
 
   for (const text of [
     '覆盖整个视口的水平双列结构',
     '`src/styles/game-shell-layout.css` 是登录后游戏外壳最终几何权威',
     '`--desktop-shell-outer-inset` 是侧栏和状态栏唯一桌面外距令牌',
     '顶部和右侧使用 `--desktop-shell-outer-inset`',
+    '桌面精细指针环境中的页面滚动条采用空闲隐藏规则',
+    '最后一次活动后 `1200ms` 自动恢复透明',
+    '为隐藏滚动条把 `.page-scroll` 改成 `overflow-y: hidden`',
     '`.page-content` 在游戏表面中必须',
     '给桌面 `.game-shell` 恢复 padding 或 grid gap',
     '绕过浏览器几何测试合并布局回退',
@@ -83,6 +111,7 @@ if (failures.length === 0) {
   for (const text of [
     'game shell shares one inset between the sidebar and status bar while the workspace stays flush',
     'sidebar collapse keeps the inset status bar and page on the same workspace track',
+    'page scrollbar appears during activity and hides again after idle',
     "page.locator('.game-shell')",
     "page.locator('.workspace')",
     "page.locator('.asset-bar')",
@@ -90,6 +119,10 @@ if (failures.length === 0) {
     "page.locator('.page-content')",
     'layout.assetBar.top - layout.workspace.top',
     'layout.workspace.right - layout.assetBar.right',
+    "dispatchEvent('wheel'",
+    "page.keyboard.press('PageDown')",
+    'scrollbarGutter',
+    'data-scrollbar-active',
   ]) {
     requireText(paths.browser, text);
   }
@@ -101,4 +134,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('游戏外壳共享桌面外距、全宽工作区与页面几何验证通过。');
+console.log('游戏外壳共享桌面外距、全宽工作区、页面几何与滚动条空闲隐藏验证通过。');
