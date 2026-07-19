@@ -1,0 +1,184 @@
+/* liquid-glass-react is the only liquid-glass renderer. This stylesheet owns
+ * geometry, sizing, content layout and minimum contrast only. It must not
+ * recreate blur, refraction, highlights or glass shadows in CSS. */
+:root {
+  --desktop-asset-bar-height: 76px;
+  --desktop-status-gap: var(--space-3);
+  --liquid-glass-contrast: rgba(9, 25, 18, 0.34);
+  --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
+}
+
+.asset-bar.panel,
+.mobile-bottom-navigation.panel {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0 !important;
+}
+
+.liquid-glass-surface {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  isolation: isolate;
+  border-radius: inherit;
+  background: var(--liquid-glass-contrast);
+}
+
+.liquid-glass-surface__effect,
+.liquid-glass-surface__effect > .glass,
+.liquid-glass-surface__effect > .glass > div,
+.liquid-glass-surface__content {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.liquid-glass-surface__effect {
+  z-index: 0;
+}
+
+.liquid-glass-surface__effect > svg,
+.liquid-glass-surface > span,
+.liquid-glass-surface > div:not(.liquid-glass-surface__effect) {
+  pointer-events: none;
+}
+
+.liquid-glass-surface__effect > .glass {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  padding: 0 !important;
+}
+
+.liquid-glass-surface__effect > .glass > div {
+  z-index: 1;
+  font: inherit !important;
+  color: inherit !important;
+  text-shadow: none !important;
+}
+
+.liquid-glass-surface__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  color: inherit;
+}
+
+.asset-bar .liquid-glass-surface,
+.asset-bar .liquid-glass-surface > span,
+.asset-bar .liquid-glass-surface > div,
+.asset-bar .liquid-glass-surface__effect > .glass {
+  border-radius: 18px !important;
+}
+
+.mobile-bottom-navigation .liquid-glass-surface,
+.mobile-bottom-navigation .liquid-glass-surface > span,
+.mobile-bottom-navigation .liquid-glass-surface > div,
+.mobile-bottom-navigation .liquid-glass-surface__effect > .glass {
+  border-radius: 20px !important;
+}
+
+.asset-bar .liquid-glass-surface {
+  min-width: max(100%, 675px);
+}
+
+.asset-bar-content {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(135px, 1fr));
+  align-items: stretch;
+  gap: 0;
+  padding: var(--space-1);
+}
+
+.asset-bar-item,
+.asset-bar-item:last-child {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid rgba(225, 255, 235, 0.1);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.asset-bar-item:last-child {
+  border-right: 0;
+}
+
+.asset-bar-item.primary {
+  border-radius: 0;
+  background: transparent;
+}
+
+.asset-bar-item.primary .asset-bar-item-icon,
+.asset-bar-item.primary .asset-bar-item-value,
+.asset-bar-item.primary strong {
+  color: var(--color-success);
+}
+
+.asset-bar-item.market-ticker .asset-bar-item-icon,
+.asset-bar-item.market-ticker .asset-bar-item-value,
+.asset-bar-item.market-ticker strong {
+  color: var(--color-warning);
+}
+
+.asset-bar-item--interactive {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.asset-bar-item--interactive:hover,
+.asset-bar-item--interactive:focus-visible {
+  background: rgba(123, 228, 158, 0.07);
+}
+
+.asset-bar-item--interactive:focus-visible {
+  outline: 2px solid var(--color-success);
+  outline-offset: -2px;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .liquid-glass-surface {
+    background: var(--liquid-glass-contrast-strong);
+  }
+}
+
+@media (max-width: 960px) and (min-width: 721px) {
+  .asset-bar .liquid-glass-surface {
+    min-width: max(100%, 725px);
+  }
+
+  .asset-bar-content {
+    grid-template-columns: repeat(5, minmax(145px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .asset-bar .liquid-glass-surface,
+  .asset-bar .liquid-glass-surface > span,
+  .asset-bar .liquid-glass-surface > div,
+  .asset-bar .liquid-glass-surface__effect > .glass {
+    min-width: 0;
+    border-radius: 999px !important;
+  }
+
+  .asset-bar-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-evenly;
+    gap: 0;
+    padding: .25rem .3rem;
+    overflow: hidden;
+  }
+
+  .mobile-bottom-navigation .liquid-glass-surface__content {
+    padding: .3rem 0;
+  }
+}
