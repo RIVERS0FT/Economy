@@ -3,7 +3,7 @@ import fs from 'node:fs';
 const assetsPage = fs.readFileSync('src/pages/AssetsPage.tsx', 'utf8');
 const assetsStyles = fs.readFileSync('src/styles/assets.css', 'utf8');
 const main = fs.readFileSync('src/main.tsx', 'utf8');
-const design = fs.readFileSync('docs/ASSETS_PAGE_DESIGN.md', 'utf8');
+const design = fs.readFileSync('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', 'utf8');
 const runtimeHarness = fs.readFileSync('tests/browser/assets-runtime-harness.tsx', 'utf8');
 const runtimeSpec = fs.readFileSync('tests/browser/assets-runtime.spec.ts', 'utf8');
 const runtimeHtml = fs.readFileSync('assets-runtime-test.html', 'utf8');
@@ -54,9 +54,9 @@ for (const text of [
 ]) requireText(assetsStyles, text, `资产页专用样式缺少响应式规则：${text}`);
 
 requireText(main, "import './styles/assets.css';", '主入口必须加载资产页专用样式。');
-requireText(design, '资产页固定只有两个一级 `Panel`', '资产页设计必须记录两个一级区域。');
-requireText(design, '当前总资产只显示一次', '资产页设计必须禁止重复总资产。');
-requireText(design, '不得恢复顶部五张资金／总资产摘要卡', '资产页设计必须记录防回退规则。');
+requireText(design, '资产页固定只有“资产总览”和“本地资产变动”两个一级 `Panel`', '页面职责设计必须记录资产页两个一级区域。');
+requireText(design, '当前总资产、可支配资产和冻结资产合计在资产总览中各只显示一次', '页面职责设计必须禁止重复资产主指标。');
+requireText(design, '恢复资产页顶部五张资金／总资产摘要卡', '页面职责设计必须记录资产页防回退规则。');
 requireText(runtimeHtml, '/tests/browser/assets-runtime-harness.tsx', '必须提供资产页浏览器测试入口。');
 requireText(runtimeHarness, '<AssetsPage model={model} />', '资产页浏览器夹具必须渲染真实页面组件。');
 requireText(runtimeSpec, "getByText('当前总资产', { exact: true })).toHaveCount(1)", 'Playwright 必须验证总资产可见文案只出现一次。');
