@@ -3,9 +3,9 @@ name: Debug final warehouse branch
 on:
   push:
     branches:
-      - codex/warehouse-icon-led-final
+      - main
     paths:
-      - .github/debug-final-warehouse-trigger
+      - .github/debug-main-warehouse-trigger
 
 permissions:
   contents: write
