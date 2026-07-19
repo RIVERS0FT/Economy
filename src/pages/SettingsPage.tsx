@@ -1,6 +1,7 @@
 import { type ChangeEvent, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { InvitationSettings } from '../components/InvitationSettings';
+import { SelectInput, TextInput } from '../components/ui/FormControls';
 import {
   Button,
   PageLayout,
@@ -50,10 +51,12 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
             </div>
 
             <div className="nickname-editor">
-              <label>
-                玩家昵称
-                <input value={playerName} maxLength={32} onChange={(event: ChangeEvent<HTMLInputElement>) => setPlayerName(event.target.value)} />
-              </label>
+              <TextInput
+                label="玩家昵称"
+                value={playerName}
+                maxLength={32}
+                onChange={(event: ChangeEvent<HTMLInputElement>) => setPlayerName(event.target.value)}
+              />
               <Button onClick={() => void showResult(renamePlayer(playerName))}>保存昵称</Button>
             </div>
 
@@ -77,32 +80,31 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
               checked={compactNumbers}
               onChange={(event: ChangeEvent<HTMLInputElement>) => setCompactNumbers(event.target.checked)}
             />
-            <label>
-              状态刷新频率
-              <select value={refreshRate} onChange={(event: ChangeEvent<HTMLSelectElement>) => setRefreshRate(event.target.value)}>
-                <option value="3">每 3s</option>
-                <option value="5">每 5s</option>
-                <option value="10">每 10s</option>
-              </select>
-            </label>
+            <SelectInput
+              label="状态刷新频率"
+              value={refreshRate}
+              onChange={(event: ChangeEvent<HTMLSelectElement>) => setRefreshRate(event.target.value)}
+            >
+              <option value="3">每 3s</option>
+              <option value="5">每 5s</option>
+              <option value="10">每 10s</option>
+            </SelectInput>
           </Panel>
 
           <Panel className="widget gift-redemption-card">
             <WidgetHeading title="礼品兑换" action={<StatusTag tone="info">游戏货币</StatusTag>} />
             <p>输入有效礼品码兑换游戏货币。同一账号对同一礼品只能兑换一次。</p>
-            <label>
-              礼品兑换码
-              <input
-                value={giftCode}
-                maxLength={64}
-                autoComplete="off"
-                placeholder="RIVER-XXXX-XXXX"
-                onChange={(event) => setGiftCode(event.target.value.toUpperCase())}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') void submitGift();
-                }}
-              />
-            </label>
+            <TextInput
+              label="礼品兑换码"
+              value={giftCode}
+              maxLength={64}
+              autoComplete="off"
+              placeholder="RIVER-XXXX-XXXX"
+              onChange={(event) => setGiftCode(event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') void submitGift();
+              }}
+            />
             <Button block disabled={!giftCode.trim()} onClick={() => void submitGift()}>兑换礼品</Button>
           </Panel>
 
