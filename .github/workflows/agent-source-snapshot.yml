@@ -20,15 +20,15 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          parts=(agent-industry-patch-part-*)
-          if (( ${#parts[@]} != 4 )); then
+          parts=(agent-industry-script-part-*)
+          if (( ${#parts[@]} != 6 )); then
             echo "Implementation payload is not complete."
             exit 0
           fi
-          cat "${parts[@]}" > agent-industry.patch
-          echo "8227828d7b6a7a23e0b92be205e41c66d26ed846ef871e694dbb598d504d12c3  agent-industry.patch" | sha256sum --check -
-          git apply --index agent-industry.patch
-          rm -f "${parts[@]}" agent-industry.patch
+          cat "${parts[@]}" > agent-apply-industry.py
+          echo "3cdb03ef5b6fe0123fa7745cc6a583837b1361a0dd59fd6460383ab0637b1a1e  agent-apply-industry.py" | sha256sum --check -
+          python3 agent-apply-industry.py
+          rm -f "${parts[@]}" agent-apply-industry.py
           git add -A
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
