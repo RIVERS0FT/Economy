@@ -45,11 +45,13 @@ const mobileNavigationComponentPath = 'src/components/shell/MobileBottomNavigati
 const viewportPath = 'src/styles/viewport.css';
 const mobilePath = 'src/styles/mobile-status-navigation.css';
 const mobileStatusPath = 'src/styles/mobile-status-layout.css';
+const cardStylePath = 'src/styles/card-system.css';
 const iconStylePath = 'src/styles/icon-system.css';
 const gameIconPath = 'src/components/icons/GameIcons.tsx';
 const gameAppPath = 'src/app/GameApp.tsx';
 const formatterPath = 'src/utils/formatters.ts';
 const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
+const browserTestPath = 'tests/browser/liquid-glass-layout.spec.ts';
 
 [
   surfacePath,
@@ -60,11 +62,13 @@ const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
   viewportPath,
   mobilePath,
   mobileStatusPath,
+  cardStylePath,
   iconStylePath,
   gameIconPath,
   gameAppPath,
   formatterPath,
   designPath,
+  browserTestPath,
   'src/main.tsx',
   'package.json',
 ].forEach(requireFile);
@@ -97,7 +101,10 @@ if (componentImports.length !== 1 || componentImports[0] !== surfacePath) {
 for (const text of [
   "import LiquidGlass from 'liquid-glass-react'",
   "export type LiquidGlassSurfaceVariant = 'statusBar' | 'mobileNavigation'",
-  'displacementScale: 28',
+  'displacementScale: 18',
+  'blurAmount: 0.25',
+  'saturation: 135',
+  'aberrationIntensity: 0.45',
   'displacementScale: 20',
   'elasticity={0}',
   'mode="standard"',
@@ -108,16 +115,18 @@ for (const text of [
 
 for (const text of [
   "import { LiquidGlassSurface } from '../ui/LiquidGlassSurface'",
-  'className="asset-bar panel"',
+  'className="asset-bar"',
   '<LiquidGlassSurface variant="statusBar">',
   'className="asset-bar-content"',
 ]) requireText(statusPath, text);
+forbidText(statusPath, 'asset-bar panel');
 
 for (const text of [
   "import { LiquidGlassSurface } from '../ui/LiquidGlassSurface'",
-  'className="sidebar mobile-bottom-navigation panel"',
+  'className="sidebar mobile-bottom-navigation"',
   '<LiquidGlassSurface variant="mobileNavigation">',
 ]) requireText(mobileNavigationComponentPath, text);
+forbidText(mobileNavigationComponentPath, 'mobile-bottom-navigation panel');
 
 requireOrder('src/main.tsx', [
   "import './styles/card-system.css'",
@@ -133,13 +142,26 @@ const surfaceStyles = read(surfaceStylePath);
 for (const text of [
   '--desktop-asset-bar-height: 76px;',
   '--desktop-status-gap: var(--space-3);',
-  '.asset-bar.panel,',
-  '.mobile-bottom-navigation.panel',
+  '--liquid-glass-contrast: rgba(9, 25, 18, 0.18);',
+  '.asset-bar,',
+  '.mobile-bottom-navigation',
+  'display: block;',
+  'grid-template-columns: none;',
   'background: transparent;',
-  'padding: 0 !important;',
+  'padding: 0;',
+  'contain: paint;',
+  'overflow: hidden;',
+  '@supports (overflow: clip)',
+  '.liquid-glass-surface > *',
   '.liquid-glass-surface__effect > .glass',
+  'width: max(100%, 675px);',
+  'min-width: 675px;',
   '.asset-bar-content',
   'grid-template-columns: repeat(5, minmax(135px, 1fr))',
+  '.asset-bar-item .asset-bar-item-label',
+  '.asset-bar-item .asset-bar-item-value',
+  'color: var(--color-text-secondary);',
+  'color: var(--color-text-primary);',
   '@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))',
   'border-radius: 999px !important;',
   '.mobile-bottom-navigation .liquid-glass-surface__content',
@@ -162,6 +184,11 @@ for (const legacyToken of [
   '.workspace::before',
 ]) {
   if (surfaceStyles.includes(legacyToken)) failures.push(`${surfaceStylePath} 不得恢复旧 CSS 玻璃规则: ${legacyToken}`);
+}
+
+for (const path of [viewportPath, mobilePath, mobileStatusPath, cardStylePath, surfaceStylePath]) {
+  forbidText(path, '.asset-bar.panel');
+  forbidText(path, '.mobile-bottom-navigation.panel');
 }
 
 for (const rule of [
@@ -205,7 +232,7 @@ if (!mobileActiveIconBlock.includes('transform: none') || /translateY\(|scale\(/
 }
 
 const mobileStatus = read(mobileStatusPath);
-const mobileStatusBarBlock = mobileStatus.match(/\.asset-bar\.panel\s*\{[^{}]*\}/)?.[0] ?? '';
+const mobileStatusBarBlock = mobileStatus.match(/\.asset-bar\s*\{[^{}]*\}/)?.[0] ?? '';
 for (const rule of ['right: var(--mobile-status-right-inset)', 'left: var(--mobile-status-left-inset)', 'width: auto', 'max-width: none', 'display: flex', 'justify-content: space-evenly', 'gap: 0', 'overflow-x: hidden', 'transform: none']) {
   if (!mobileStatusBarBlock.includes(rule)) failures.push(`移动顶部状态栏缺少: ${rule}`);
 }
@@ -240,7 +267,20 @@ for (const text of [
   '`elasticity={0}`',
   'Safari、iOS WebKit 和 Firefox',
   '`src/styles/liquid-glass-chrome.css` 只允许作为历史路径转发入口',
+  '不得包含 `.panel`',
+  '五列布局只能存在于 `.asset-bar-content`',
+  '必须裁切第三方组件生成的并列高光',
+  '真实浏览器中的全宽、裁切、单材质与页面避让验证',
 ]) requireText(designPath, text);
+
+for (const text of [
+  "page.goto('runtime-test.html?view=overview&scenario=activity')",
+  "assetBar.classList.contains('panel')",
+  'workspaceWidth',
+  'surfaceOverflowX',
+  'headingTop',
+  'glassSurfaceCount',
+]) requireText(browserTestPath, text);
 
 if (failures.length > 0) {
   console.error('liquid-glass-react 外壳架构验证失败：');
@@ -248,4 +288,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 唯一材质、全平台降级、外壳布局与防回退验证通过。');
+console.log('liquid-glass-react 唯一材质、全宽裁切、全平台降级与外壳布局验证通过。');
