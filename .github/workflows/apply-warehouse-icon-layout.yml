@@ -29,7 +29,9 @@ jobs:
           cache: npm
 
       - name: Apply warehouse card redesign
-        run: python3 scripts/apply-warehouse-icon-layout.py
+        run: |
+          python3 scripts/apply-warehouse-icon-layout.py
+          python3 scripts/apply-warehouse-page-verifier.py
 
       - name: Install dependencies
         run: npm ci
@@ -40,6 +42,7 @@ jobs:
       - name: Remove one-time migration files
         run: |
           rm scripts/apply-warehouse-icon-layout.py
+          rm scripts/apply-warehouse-page-verifier.py
           rm .github/workflows/apply-warehouse-icon-layout.yml
 
       - name: Commit implementation
