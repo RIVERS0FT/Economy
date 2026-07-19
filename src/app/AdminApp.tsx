@@ -18,6 +18,7 @@ import {
   type AdminSectionId,
 } from '../components/shell/AdminSidebar';
 import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
+import { FileInput, IntegerInput, TextArea, TextInput } from '../components/ui/FormControls';
 import {
   Button,
   EmptyState,
@@ -30,6 +31,7 @@ import {
 import { VirtualList } from '../components/ui/VirtualList';
 import type { AuthUser, GiftCodeAdminRecord } from '../types';
 import { formatCurrency, formatDate, formatTime } from '../utils/formatters';
+import { parseIntegerDraft } from '../utils/integerDraft';
 
 const collectibleFormatExample = `[
   {
@@ -96,8 +98,11 @@ export function AdminApp({ user }: { user: AuthUser }) {
   const [notice, setNotice] = useState('');
   const [code, setCode] = useState('');
   const [giftCount, setGiftCount] = useState(1);
+  const [giftCountInput, setGiftCountInput] = useState('1');
   const [rewardCredits, setRewardCredits] = useState(100);
+  const [rewardCreditsInput, setRewardCreditsInput] = useState('100');
   const [maxRedemptions, setMaxRedemptions] = useState(100);
+  const [maxRedemptionsInput, setMaxRedemptionsInput] = useState('100');
   const [expiresAt, setExpiresAt] = useState('');
   const [note, setNote] = useState('');
   const [createdCodes, setCreatedCodes] = useState<string[]>([]);
@@ -115,6 +120,13 @@ export function AdminApp({ user }: { user: AuthUser }) {
   const [uploading, setUploading] = useState(false);
   const [qqGroupUrl, setQqGroupUrl] = useState('');
   const [savingCommunityLink, setSavingCommunityLink] = useState(false);
+
+  const parsedGiftCount = parseIntegerDraft(giftCountInput, { min: 1, max: 50_000 });
+  const parsedRewardCredits = parseIntegerDraft(rewardCreditsInput, { min: 1, max: 1_000_000 });
+  const parsedMaxRedemptions = parseIntegerDraft(maxRedemptionsInput, { min: 1, max: 1_000_000 });
+  const giftFormValid = parsedGiftCount !== null
+    && parsedRewardCredits !== null
+    && parsedMaxRedemptions !== null;
 
   const loadOverview = useCallback(async () => {
     setSummary(await adminApi.summary());
@@ -158,10 +170,35 @@ export function AdminApp({ user }: { user: AuthUser }) {
     giftRequestKeyRef.current = '';
   }
 
+  function updateGiftCount(value: string) {
+    resetGiftRequestKey();
+    setGiftCountInput(value);
+    const parsed = parseIntegerDraft(value, { min: 1, max: 50_000 });
+    if (parsed !== null) setGiftCount(parsed);
+  }
+
+  function updateRewardCredits(value: string) {
+    resetGiftRequestKey();
+    setRewardCreditsInput(value);
+    const parsed = parseIntegerDraft(value, { min: 1, max: 1_000_000 });
+    if (parsed !== null) setRewardCredits(parsed);
+  }
+
+  function updateMaxRedemptions(value: string) {
+    resetGiftRequestKey();
+    setMaxRedemptionsInput(value);
+    const parsed = parseIntegerDraft(value, { min: 1, max: 1_000_000 });
+    if (parsed !== null) setMaxRedemptions(parsed);
+  }
+
   async function createGift() {
     if (creatingGift) return;
-    if (!Number.isInteger(giftCount) || giftCount < 1 || giftCount > 50_000) {
+    if (parsedGiftCount === null) {
       setNotice('生成数量必须为 1～50000');
+      return;
+    }
+    if (parsedRewardCredits === null || parsedMaxRedemptions === null) {
+      setNotice('奖励货币和每码最大兑换次数必须为 1～1000000 的整数');
       return;
     }
 
@@ -170,14 +207,14 @@ export function AdminApp({ user }: { user: AuthUser }) {
     setCreatingGift(true);
     try {
       const payload = {
-        rewardCredits,
-        maxRedemptions,
+        rewardCredits: parsedRewardCredits,
+        maxRedemptions: parsedMaxRedemptions,
         expiresAt: expiresAt ? new Date(expiresAt).getTime() : null,
         note,
       };
-      const nextCodes = giftCount === 1
+      const nextCodes = parsedGiftCount === 1
         ? [(await adminApi.createGiftCode({ ...payload, code: code.trim() || undefined }, requestKey)).code]
-        : (await adminApi.createGiftCodeBatch({ ...payload, count: giftCount }, requestKey)).codes;
+        : (await adminApi.createGiftCodeBatch({ ...payload, count: parsedGiftCount }, requestKey)).codes;
       giftRequestKeyRef.current = '';
       setCreatedCodes(nextCodes);
       setCode('');
@@ -350,10 +387,15 @@ export function AdminApp({ user }: { user: AuthUser }) {
                 <Panel className="admin-panel admin-community-link-panel">
                   <WidgetHeading title="玩家社区入口" />
                   <p>配置桌面侧边栏“加入 QQ 群”按钮的跳转地址，仅接受 HTTPS 链接。</p>
-                  <label>
-                    QQ群跳转链接
-                    <input type="url" inputMode="url" maxLength={2048} value={qqGroupUrl} onChange={(event) => setQqGroupUrl(event.target.value)} placeholder="https://qm.qq.com/q/..." />
-                  </label>
+                  <TextInput
+                    label="QQ群跳转链接"
+                    type="url"
+                    inputMode="url"
+                    maxLength={2048}
+                    value={qqGroupUrl}
+                    onChange={(event) => setQqGroupUrl(event.target.value)}
+                    placeholder="https://qm.qq.com/q/..."
+                  />
                   <Button disabled={savingCommunityLink} onClick={() => void saveCommunityLink()}>
                     {savingCommunityLink ? '正在保存…' : '保存链接'}
                   </Button>
@@ -365,7 +407,11 @@ export function AdminApp({ user }: { user: AuthUser }) {
                   <Panel className="admin-panel admin-collectible-upload">
                     <WidgetHeading title="上传藏品" />
                     <p>仅接受芝加哥艺术博物馆公版藏品。图片地址由服务器根据 IIIF image_id 生成，不允许上传任意图片 URL。</p>
-                    <label>藏品 JSON 文件<input type="file" accept="application/json,.json" onChange={(event) => void readCollectibleFile(event)} /></label>
+                    <FileInput
+                      label="藏品 JSON 文件"
+                      accept="application/json,.json"
+                      onChange={(event) => void readCollectibleFile(event)}
+                    />
                     <pre className="admin-collectible-format">{collectibleFormatExample}</pre>
                     <div className="admin-collectible-preview">
                       <span>{importFileName ? `${importFileName} · ${importItems.length} 条` : '尚未选择文件'}</span>
@@ -411,14 +457,65 @@ export function AdminApp({ user }: { user: AuthUser }) {
                   <Panel className="admin-panel admin-gift-create">
                     <WidgetHeading title="创建礼品码" />
                     <div className="admin-form-grid">
-                      <label>生成数量（最多 50000）<input type="number" min="1" max="50000" step="1" value={giftCount} onChange={(event) => { resetGiftRequestKey(); setGiftCount(Number(event.target.value)); }} /></label>
-                      <label>指定兑换码（仅生成 1 个时可用）<input value={code} maxLength={64} disabled={giftCount !== 1} onChange={(event: ChangeEvent<HTMLInputElement>) => { resetGiftRequestKey(); setCode(event.target.value.toUpperCase()); }} placeholder="RIVER-XXXX-XXXX" /></label>
-                      <label>奖励货币<input type="number" min="1" max="1000000" value={rewardCredits} onChange={(event) => { resetGiftRequestKey(); setRewardCredits(Number(event.target.value)); }} /></label>
-                      <label>每码最大兑换次数<input type="number" min="1" max="1000000" value={maxRedemptions} onChange={(event) => { resetGiftRequestKey(); setMaxRedemptions(Number(event.target.value)); }} /></label>
-                      <label>过期时间（可选）<input type="datetime-local" value={expiresAt} onChange={(event) => { resetGiftRequestKey(); setExpiresAt(event.target.value); }} /></label>
-                      <label className="admin-form-wide">管理备注<textarea value={note} maxLength={240} onChange={(event) => { resetGiftRequestKey(); setNote(event.target.value); }} /></label>
+                      <IntegerInput
+                        label="生成数量（最多 50000）"
+                        value={giftCountInput}
+                        fallbackValue={giftCount}
+                        min={1}
+                        max={50_000}
+                        error={parsedGiftCount === null ? '请输入 1～50000 的整数。' : undefined}
+                        onValueChange={updateGiftCount}
+                      />
+                      <TextInput
+                        label="指定兑换码（仅生成 1 个时可用）"
+                        value={code}
+                        maxLength={64}
+                        disabled={parsedGiftCount !== 1}
+                        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                          resetGiftRequestKey();
+                          setCode(event.target.value.toUpperCase());
+                        }}
+                        placeholder="RIVER-XXXX-XXXX"
+                      />
+                      <IntegerInput
+                        label="奖励货币"
+                        value={rewardCreditsInput}
+                        fallbackValue={rewardCredits}
+                        min={1}
+                        max={1_000_000}
+                        error={parsedRewardCredits === null ? '请输入 1～1000000 的整数。' : undefined}
+                        onValueChange={updateRewardCredits}
+                      />
+                      <IntegerInput
+                        label="每码最大兑换次数"
+                        value={maxRedemptionsInput}
+                        fallbackValue={maxRedemptions}
+                        min={1}
+                        max={1_000_000}
+                        error={parsedMaxRedemptions === null ? '请输入 1～1000000 的整数。' : undefined}
+                        onValueChange={updateMaxRedemptions}
+                      />
+                      <TextInput
+                        label="过期时间（可选）"
+                        type="datetime-local"
+                        value={expiresAt}
+                        onChange={(event) => {
+                          resetGiftRequestKey();
+                          setExpiresAt(event.target.value);
+                        }}
+                      />
+                      <TextArea
+                        label="管理备注"
+                        fieldClassName="admin-form-wide"
+                        value={note}
+                        maxLength={240}
+                        onChange={(event) => {
+                          resetGiftRequestKey();
+                          setNote(event.target.value);
+                        }}
+                      />
                     </div>
-                    <Button disabled={creatingGift} onClick={() => void createGift()}>{creatingGift ? '正在生成…' : giftCount > 1 ? `批量生成 ${giftCount || 0} 个` : '创建礼品码'}</Button>
+                    <Button disabled={creatingGift || !giftFormValid} onClick={() => void createGift()}>{creatingGift ? '正在生成…' : parsedGiftCount && parsedGiftCount > 1 ? `批量生成 ${parsedGiftCount} 个` : '创建礼品码'}</Button>
                     {createdCodes.length > 0 ? <div className="created-gift-code" aria-live="polite"><span>本次生成 {createdCodes.length} 个礼品码</span>{createdCodes.length === 1 ? <strong>{createdCodes[0]}</strong> : <small>为避免页面渲染大量明文，批量结果不逐条显示。</small>}<Button variant="secondary" onClick={() => downloadGiftCodes(createdCodes)}>下载 TXT</Button></div> : null}
                   </Panel>
 
