@@ -35,25 +35,33 @@ if (failures.length === 0) {
 
   const layout = read(paths.layout);
   const requiredLayoutPatterns = [
+    /--desktop-shell-outer-inset:\s*var\(--space-3\);/,
+    /--desktop-sidebar-workspace-gap:\s*var\(--desktop-shell-outer-inset\);/,
     /\.game-shell\.sidebar-layout\s*\{[\s\S]*?grid-template-columns:/,
     /\.game-shell\.sidebar-layout\s*\{[\s\S]*?gap:\s*0;/,
     /\.game-shell\.sidebar-layout\s*\{[\s\S]*?padding:\s*0;/,
-    /\.desktop-sidebar\s*\{[\s\S]*?margin:/,
+    /\.desktop-sidebar\s*\{[\s\S]*?var\(--desktop-shell-outer-inset\)/,
     /\.workspace\s*\{[\s\S]*?margin:\s*0;/,
     /\.workspace\s*\{[\s\S]*?padding:\s*0;/,
-    /\.asset-bar\s*\{[\s\S]*?width:\s*100%;/,
+    /\.asset-bar\s*\{[\s\S]*?top:\s*var\(--desktop-shell-outer-inset\);/,
+    /\.asset-bar\s*\{[\s\S]*?right:\s*var\(--desktop-shell-outer-inset\);/,
+    /\.asset-bar\s*\{[\s\S]*?left:\s*0;/,
+    /\.asset-bar\s*\{[\s\S]*?width:\s*auto;/,
+    /\.page-scroll\s*\{[\s\S]*?padding-top:\s*calc\([\s\S]*?var\(--desktop-shell-outer-inset\)/,
+    /\.page-scroll\s*\{[\s\S]*?scroll-padding-top:\s*calc\([\s\S]*?var\(--desktop-shell-outer-inset\)/,
     /\.page-scroll\s*\{[\s\S]*?padding-right:\s*0;/,
     /\.page-scroll\s*\{[\s\S]*?padding-left:\s*0;/,
     /\.page-content\s*\{[\s\S]*?width:\s*100%;/,
     /\.page-content\s*\{[\s\S]*?max-width:\s*none;/,
     /\.page-content\s*\{[\s\S]*?margin:\s*0;/,
     /\.page-content\s*\{[\s\S]*?padding:\s*0 0 var\(--space-4\);/,
-    /border-radius:\s*0 0 18px 18px !important;/,
   ];
   for (const pattern of requiredLayoutPatterns) {
     if (!pattern.test(layout)) failures.push(`game-shell-layout.css 缺少规则: ${pattern}`);
   }
 
+  forbidText(paths.layout, '--desktop-sidebar-outer-inset');
+  forbidText(paths.layout, 'border-radius: 0 0 18px 18px');
   forbidText(paths.layout, 'margin-inline: auto');
   forbidText(paths.layout, '--content-max-width');
   forbidText(paths.layout, 'ResizeObserver');
@@ -63,7 +71,8 @@ if (failures.length === 0) {
   for (const text of [
     '覆盖整个视口的水平双列结构',
     '`src/styles/game-shell-layout.css` 是登录后游戏外壳最终几何权威',
-    '只有 `.desktop-sidebar` 拥有桌面外边距',
+    '`--desktop-shell-outer-inset` 是侧栏和状态栏唯一桌面外距令牌',
+    '顶部和右侧使用 `--desktop-shell-outer-inset`',
     '`.page-content` 在游戏表面中必须',
     '给桌面 `.game-shell` 恢复 padding 或 grid gap',
     '绕过浏览器几何测试合并布局回退',
@@ -72,13 +81,15 @@ if (failures.length === 0) {
   }
 
   for (const text of [
-    'game shell keeps only the sidebar inset while the workspace stays flush',
-    'sidebar collapse keeps the status bar and page on the same workspace track',
+    'game shell shares one inset between the sidebar and status bar while the workspace stays flush',
+    'sidebar collapse keeps the inset status bar and page on the same workspace track',
     "page.locator('.game-shell')",
     "page.locator('.workspace')",
     "page.locator('.asset-bar')",
     "page.locator('.page-scroll')",
     "page.locator('.page-content')",
+    'layout.assetBar.top - layout.workspace.top',
+    'layout.workspace.right - layout.assetBar.right',
   ]) {
     requireText(paths.browser, text);
   }
@@ -90,4 +101,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('游戏外壳布局架构验证通过。');
+console.log('游戏外壳共享桌面外距、全宽工作区与页面几何验证通过。');
