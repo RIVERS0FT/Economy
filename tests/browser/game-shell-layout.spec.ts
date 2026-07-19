@@ -24,10 +24,11 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
     const shell = document.querySelector<HTMLElement>('.game-shell');
     const sidebar = document.querySelector<HTMLElement>('.desktop-sidebar');
     const workspace = document.querySelector<HTMLElement>('.workspace');
-    const assetBar = document.querySelector<HTMLElement>('.asset-bar');
+    const assetBar = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+    const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const pageContent = document.querySelector<HTMLElement>('.page-content');
-    if (!shell || !sidebar || !workspace || !assetBar || !pageScroll || !pageContent) {
+    if (!shell || !sidebar || !workspace || !assetBar || !pageScrollArea || !pageScroll || !pageContent) {
       throw new Error('game shell geometry fixture is incomplete');
     }
 
@@ -47,7 +48,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       sidebar: rect(sidebar),
       workspace: rect(workspace),
       assetBar: rect(assetBar),
-      pageScroll: rect(pageScroll),
+      pageScroll: rect(pageScrollArea),
       pageContent: {
         left: pageContentRect.left,
         width: pageContentRect.width,
@@ -117,8 +118,8 @@ test.describe('full-width signed-in game shell', () => {
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
     await expect(page.locator('.workspace')).toBeVisible();
-    await expect(page.locator('.asset-bar')).toBeVisible();
-    await expect(page.locator('.page-scroll')).toBeVisible();
+    await expect(page.locator('.asset-bar-scroll-area')).toBeVisible();
+    await expect(page.locator('.page-scroll-area')).toBeVisible();
     await expect(page.locator('.page-content')).toBeVisible();
 
     expectFlushWorkspace(await readShellGeometry(page), 12);
@@ -144,26 +145,39 @@ test.describe('full-width signed-in game shell', () => {
     expect(expanded.pageContent.left - collapsed.pageContent.left).toBeCloseTo(146, 0);
   });
 
-  test('page scrollbar appears during activity and hides again after idle', async ({ page }) => {
+  test('page vertical scrollbar reacts only to actual scrolling and hides after idle', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
+    const pageScrollArea = page.locator('.page-scroll-area');
     const pageScroll = page.locator('.page-scroll');
-    await expect(pageScroll).toBeVisible();
-    await expect(pageScroll).not.toHaveAttribute('data-scrollbar-active', 'true');
+    await expect(pageScrollArea).toBeVisible();
+    await expect(pageScrollArea).not.toHaveAttribute('data-scrollbar-active-y', 'true');
 
-    const scrollportStyle = await pageScroll.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return { overflowY: style.overflowY, scrollbarGutter: style.scrollbarGutter };
-    });
-    expect(scrollportStyle.overflowY).toBe('auto');
-    expect(scrollportStyle.scrollbarGutter).toBe('stable');
+    const before = await pageScroll.evaluate((element) => ({
+      overflowY: getComputedStyle(element).overflowY,
+      clientWidth: element.clientWidth,
+      scrollTop: element.scrollTop,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(before.overflowY).toBe('auto');
+    expect(before.scrollHeight).toBeGreaterThan(elementClientHeightPlaceholder(before.scrollHeight));
 
-    await pageScroll.dispatchEvent('wheel', { deltaY: 120 });
-    await expect(pageScroll).toHaveAttribute('data-scrollbar-active', 'true');
-    await expect(pageScroll).not.toHaveAttribute('data-scrollbar-active', 'true', { timeout: 2_500 });
+    await pageScroll.dispatchEvent('pointermove', { clientX: 100, clientY: 100 });
+    await page.waitForTimeout(100);
+    await expect(pageScrollArea).not.toHaveAttribute('data-scrollbar-active-y', 'true');
 
-    await page.keyboard.press('PageDown');
-    await expect(pageScroll).toHaveAttribute('data-scrollbar-active', 'true');
+    await pageScroll.evaluate((element) => { element.scrollTop = Math.min(180, element.scrollHeight - element.clientHeight); });
+    await expect(pageScrollArea).toHaveAttribute('data-scrollbar-active-y', 'true');
+
+    const during = await pageScroll.evaluate((element) => ({ clientWidth: element.clientWidth, scrollTop: element.scrollTop }));
+    expect(during.scrollTop).toBeGreaterThan(before.scrollTop);
+    expect(during.clientWidth).toBe(before.clientWidth);
+
+    await expect(pageScrollArea).not.toHaveAttribute('data-scrollbar-active-y', 'true', { timeout: 2_500 });
   });
 });
+
+function elementClientHeightPlaceholder(scrollHeight: number) {
+  return Math.min(scrollHeight - 1, 900);
+}
