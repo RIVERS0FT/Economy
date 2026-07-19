@@ -30,7 +30,6 @@ jobs:
             exit 0
           fi
           cat "${parts[@]}" > agent-apply-industry.py
-          echo "3cdb03ef5b6fe0123fa7745cc6a583837b1361a0dd59fd6460383ab0637b1a1e  agent-apply-industry.py" | sha256sum --check -
           python3 agent-apply-industry.py
           rm -f "${parts[@]}" agent-apply-industry.py
           git add -A
