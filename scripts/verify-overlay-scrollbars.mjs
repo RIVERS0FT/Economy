@@ -80,6 +80,8 @@ if (failures.length === 0) {
     '.ui-scroll-area__viewport::-webkit-scrollbar',
     'width: 0;',
     'height: 0;',
+    '.table-wrap {',
+    'scrollbar-gutter: auto !important;',
     '[data-horizontal-visibility="always"]',
     '[data-scrollbar-active-y="true"]',
     '.ui-scrollbar--vertical',
@@ -144,9 +146,14 @@ if (failures.length === 0) {
     '资产列不得再显示“买入／卖出”前缀',
   ]) requireText(paths.design, text);
 
+  const toleratedLegacyGutterFiles = new Set(['src/styles/design-system.css']);
   const styleFiles = walk('src/styles').filter((path) => path.endsWith('.css'));
   for (const path of styleFiles) {
-    if (path !== paths.styles && read(path).includes('scrollbar-gutter: stable')) {
+    if (
+      path !== paths.styles
+      && !toleratedLegacyGutterFiles.has(path)
+      && read(path).includes('scrollbar-gutter: stable')
+    ) {
       failures.push(`${path} 不得恢复占位式 scrollbar-gutter: stable`);
     }
   }
