@@ -17,7 +17,7 @@
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡和生产空间约束 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、登录注册入口、独立商店、分享链接、邀请码、封禁提示、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
-| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一 SVG 图标、中文界面、响应式、移动触摸反馈与可访问性 |
+| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、中文界面、响应式、移动触摸反馈与可访问性 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 桌面与移动端状态栏、移动底栏和玻璃外壳 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、SQLite、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地快照、资产事件和匿名逐笔成交记录 |
@@ -45,7 +45,7 @@
 18. 商店固定汇率、单向兑换、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`。
 19. 普通玩家成交记录不得暴露来源、去向或对手订单；API、本地存储和市场页面必须同时匿名化，并通过 `scripts/verify-local-trade-privacy.mjs` 防回退。
 20. 运行时可靠性、依赖锁、浏览器测试、localStorage 容错、管理员记录分页、验证码保留和限流缓存上限属于服务器、页面与管理员共同规则；必须同步更新对应权威文档并通过 `scripts/verify-runtime-reliability.mjs` 防回退。
-
 21. 藏品、商品与工厂单项或捆绑资产包竞价、卖方资产冻结、最高出价资金、冻结资产总资产计价、商品仓库预占、工厂生产冻结和订单簿行情隔离属于拍卖、订单簿、仓库、生产、页面与服务器共同规则；必须同步更新对应权威文档、测试和 `scripts/verify-collectibles-auctions.mjs`。
 22. 统一订单簿玩家卖出手续费、按卖单累计部分成交、最低手续费、人口需求成交、匿名 `fee/netTotal`、系统回收和拍卖豁免属于产品、订单簿、本地日志、页面、服务器与拍卖共同规则；必须同步更新对应文档、测试和 `scripts/verify-market-sell-fee.mjs`。
 23. 拍卖资产包数量输入的字符串草稿、空白编辑、合法性门控、失焦归一化和草稿清理属于页面权威规则；必须同步更新 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`AuctionPage.tsx` 与 `scripts/verify-collectibles-auctions.mjs`，不得恢复空值立即回填为 `1` 的实现。
+24. 统一表单组件、正整数字符串草稿、错误／只读／禁用状态、移动端 `48px`／`16px`、登录未受控自动填充和最终样式加载顺序属于 UI 权威规则；必须同步更新 `UI_DESIGN_SYSTEM.md`、`FormControls.tsx`、`form-controls.css`、`integerDraft.ts` 与 `scripts/verify-form-controls.mjs`，不得在业务页面恢复平行基础输入视觉。
