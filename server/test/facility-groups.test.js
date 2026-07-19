@@ -96,6 +96,26 @@ test('electronics factory deducts no material when either input is missing', () 
   assert.equal(player.credits, 100);
 });
 
+test('fruit beverage recipe uses its own cost and atomically consumes fruit and sugar', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 100;
+  player.inventories.fruit.available = 2;
+  player.inventories.sugar.available = 1;
+  player.facilityGroups = [group('beverage-factory', 1, {
+    enabled: true, status: 'running', participatingCount: 1,
+    activeRecipeId: 'fruit-beverage', cycleStartedAt: now,
+  })];
+  migrateFacilityGroupWorld(world, now);
+
+  processFacilityGroupWorld(world, now + 60_000);
+
+  assert.equal(player.inventories.fruit.available, 0);
+  assert.equal(player.inventories.sugar.available, 0);
+  assert.equal(player.inventories.beverage.available, 2);
+  assert.equal(player.credits, 95);
+});
+
 test('asset valuation excludes the current players own buy order', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);

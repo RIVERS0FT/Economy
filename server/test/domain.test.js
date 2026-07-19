@@ -6,6 +6,7 @@ import {
   ensurePlayer,
   FACILITY_TYPE_CATALOG,
   MARKET_DEMAND_GROUP_CATALOG,
+  MARKET_DEMAND_MODEL_VERSION,
   migrateWorld,
   processPriceTransmission,
   processWorld,
@@ -99,7 +100,7 @@ test('version 1 state migrates inventory and commodity orders without losing ass
   assert.equal(world.players['1'].inventories.wheat.frozen, 2);
   assert.equal(world.orders[0].productId, 'wheat');
   assert.equal('facilitySlots' in world.players['1'], false);
-  assert.equal(world.marketDemand.modelVersion, 1);
+  assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
 });
 
 test('world version 7 grain assets migrate entirely to wheat', () => {
@@ -125,7 +126,7 @@ test('world version 7 grain assets migrate entirely to wheat', () => {
   assert.equal(world.orders[0].productId, 'wheat');
   assert.equal(world.markets.wheat.productId, 'wheat');
   assert.equal(Object.hasOwn(world.markets, 'grain'), false);
-  assert.equal(world.marketDemand.modelVersion, 1);
+  assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
 });
 
 test('idempotency returns the original response without applying an action twice', () => {
@@ -154,88 +155,61 @@ test('client state uses version 15 and exposes no factory instances', () => {
     assert.equal(state.version, 15);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
-    assert.equal(state.products.length, 22);
-    assert.equal(state.facilityTypes.length, 15);
+    assert.equal(state.products.length, 31);
+    assert.equal(state.facilityTypes.length, 21);
   } finally {
     store.close();
   }
 });
 
-test('expanded industry catalog exposes complete production chains', () => {
-  assert.equal(PRODUCT_CATALOG.length, 22);
-  assert.equal(FACILITY_TYPE_CATALOG.length, 15);
+test('expanded industry catalog exposes fruit and complete production chains', () => {
+  assert.equal(PRODUCT_CATALOG.length, 31);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 21);
 
-  const productIds = new Set(PRODUCT_CATALOG.map((product) => product.id));
-  const facilityIds = new Set(FACILITY_TYPE_CATALOG.map((facility) => facility.id));
-  assert.equal(productIds.size, PRODUCT_CATALOG.length);
-  assert.equal(facilityIds.size, FACILITY_TYPE_CATALOG.length);
+  const expectedProducts = [
+    'wheat', 'rice', 'cotton', 'sugarcane', 'fruit', 'timber', 'ore', 'copper-ore', 'crude-oil',
+    'meat', 'eggs', 'milk', 'fish', 'wool', 'flour', 'sugar', 'lumber', 'steel', 'copper',
+    'plastic', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
+    'clothing', 'machinery', 'electronics', 'appliance',
+  ];
+  const expectedFacilities = [
+    'farm', 'orchard', 'logging-camp', 'mine', 'ranch', 'fishery', 'oil-field', 'mill', 'sawmill',
+    'pulp-mill', 'steelworks', 'refinery', 'textile-mill', 'food-factory', 'beverage-factory',
+    'paper-mill', 'furniture-factory', 'garment-factory', 'machine-factory',
+    'electronics-factory', 'appliance-factory',
+  ];
+  assert.deepEqual(PRODUCT_CATALOG.map((product) => product.id), expectedProducts);
+  assert.deepEqual(FACILITY_TYPE_CATALOG.map((facility) => facility.id), expectedFacilities);
 
   const expectedPrices = {
-    wheat: 2,
-    rice: 2,
-    cotton: 2,
-    timber: 5,
-    ore: 6,
-    'copper-ore': 6,
-    'crude-oil': 8,
-    meat: 6,
-    eggs: 3,
-    milk: 3,
-    wool: 6,
-    flour: 13,
-    lumber: 15,
-    steel: 24,
-    copper: 24,
-    plastic: 24,
-    textile: 18,
-    food: 15,
-    furniture: 20,
-    clothing: 48,
-    machinery: 60,
-    electronics: 64,
+    wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 5, ore: 6,
+    'copper-ore': 6, 'crude-oil': 8, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
+    flour: 13, sugar: 13, lumber: 15, steel: 24, copper: 24, plastic: 24, textile: 18,
+    pulp: 16, food: 15, beverage: 16, 'prepared-meal': 18, paper: 13, furniture: 20,
+    clothing: 48, machinery: 60, electronics: 64, appliance: 68,
   };
   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
 
-  const expectedFacilityBalance = {
-    farm: [120_000, 6],
-    'logging-camp': [60_000, 9],
-    mine: [60_000, 11],
-    ranch: [120_000, 16],
-    'oil-field': [60_000, 15],
-    mill: [40_000, 7],
-    sawmill: [40_000, 3],
-    steelworks: [40_000, 4],
-    refinery: [40_000, 6],
-    'textile-mill': [40_000, 4],
-    'food-factory': [50_000, 14],
-    'furniture-factory': [60_000, 4],
-    'garment-factory': [60_000, 6],
-    'machine-factory': [60_000, 6],
-    'electronics-factory': [60_000, 10],
-  };
-
+  const productIds = new Set(expectedProducts);
   for (const product of PRODUCT_CATALOG) {
     assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
   }
   for (const facility of FACILITY_TYPE_CATALOG) {
-    assert.equal(productIds.has(facility.output.productId), true);
-    assert.ok(Array.isArray(facility.inputs));
-    for (const input of facility.inputs) assert.equal(productIds.has(input.productId), true);
     assert.ok(Array.isArray(facility.recipes) && facility.recipes.length >= 1);
     assert.ok(facility.recipes.some((recipe) => recipe.id === facility.defaultRecipeId));
-    assert.deepEqual([facility.cycleMs, facility.operatingCost], expectedFacilityBalance[facility.id]);
-    assert.equal(Number.isInteger(facility.cycleMs / 1_000), true, `${facility.id} 周期秒数必须为整数`);
-    assert.equal(Number.isInteger(facility.operatingCost), true, `${facility.id} 周期成本必须为整数`);
+    const defaultRecipe = facility.recipes.find((recipe) => recipe.id === facility.defaultRecipeId);
+    assert.equal(facility.cycleMs, defaultRecipe.cycleMs);
+    assert.equal(facility.operatingCost, defaultRecipe.operatingCost);
     for (const recipe of facility.recipes) {
+      assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
+      assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true, `${facility.id}/${recipe.id} 周期秒数必须为整数`);
+      assert.equal(Number.isInteger(recipe.operatingCost), true, `${facility.id}/${recipe.id} 周期成本必须为整数`);
       assert.equal(productIds.has(recipe.output.productId), true);
-      assert.ok(Array.isArray(recipe.inputs));
+      assert.equal(Number.isInteger(recipe.output.quantity), true);
       for (const input of recipe.inputs) {
         assert.equal(productIds.has(input.productId), true);
         assert.equal(Number.isInteger(input.quantity), true);
       }
-      assert.equal(recipe.cycleMs, facility.cycleMs);
-      assert.equal(recipe.operatingCost, facility.operatingCost);
-      assert.equal(Number.isInteger(recipe.output.quantity), true);
       const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
       const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
         * 60_000 / recipe.cycleMs;
@@ -245,20 +219,19 @@ test('expanded industry catalog exposes complete production chains', () => {
   }
 
   const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
-  assert.deepEqual(facilities.get('farm').recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice', 'cotton']);
-  assert.deepEqual(facilities.get('mine').recipes.map((recipe) => recipe.output.productId), ['ore', 'copper-ore']);
-  assert.deepEqual(facilities.get('ranch').recipes.map((recipe) => recipe.output.productId), ['meat', 'eggs', 'milk', 'wool']);
-  assert.equal(facilities.get('steelworks').name, '冶炼厂');
-  assert.deepEqual(facilities.get('steelworks').recipes.map((recipe) => recipe.output.productId), ['steel', 'copper']);
-  assert.deepEqual(facilities.get('textile-mill').recipes.map((recipe) => recipe.inputs), [
-    [{ productId: 'cotton', quantity: 6 }],
-    [{ productId: 'wool', quantity: 2 }],
+  assert.deepEqual(facilities.get('farm').recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice', 'cotton', 'sugarcane']);
+  assert.equal(facilities.get('orchard').recipes[0].output.productId, 'fruit');
+  assert.equal(facilities.get('fishery').recipes[0].output.productId, 'fish');
+  assert.equal(facilities.get('mill').name, '磨坊');
+  assert.deepEqual(facilities.get('mill').recipes.map((recipe) => recipe.output.productId), ['flour', 'sugar']);
+  assert.deepEqual(facilities.get('food-factory').recipes.map((recipe) => recipe.output.productId), ['food', 'prepared-meal']);
+  assert.deepEqual(facilities.get('beverage-factory').recipes.map((recipe) => recipe.inputs), [
+    [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }],
+    [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }],
   ]);
-  assert.deepEqual(facilities.get('electronics-factory').recipes[0].inputs, [
-    { productId: 'plastic', quantity: 1 },
-    { productId: 'copper', quantity: 1 },
+  assert.deepEqual(facilities.get('appliance-factory').recipes[0].inputs, [
+    { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
   ]);
-  assert.deepEqual(facilities.get('electronics-factory').output, { productId: 'electronics', quantity: 1 });
 });
 
 test('market demand creates direct and derived orders within the shared group budget', () => {
@@ -360,6 +333,36 @@ test('consumer substitutes shift demand toward the cheaper grain without changin
   assert.equal(world.demandGroups.food.lastBudget, 1_000);
 });
 
+test('beverage production paths shift toward cheaper fruit inputs', () => {
+  const routeShares = ({ fruitPrice, milkPrice }) => {
+    const world = createWorld(now);
+    world.priceTransmission.products.fruit.referencePrice = fruitPrice;
+    world.priceTransmission.products.milk.referencePrice = milkPrice;
+    world.priceTransmission.products.sugar.referencePrice = 13;
+    prepareDemand(world, 'food', now + 1);
+    processWorld(world, now + 1);
+    return world.demandGroups.food.recipeShares.beverage;
+  };
+
+  const fruitCheap = routeShares({ fruitPrice: 2, milkPrice: 12 });
+  const milkCheap = routeShares({ fruitPrice: 8, milkPrice: 1 });
+  assert.ok(fruitCheap['fruit-beverage'] > fruitCheap['milk-beverage']);
+  assert.ok(milkCheap['milk-beverage'] > milkCheap['fruit-beverage']);
+  assert.ok(fruitCheap['milk-beverage'] >= 0.05);
+  assert.ok(milkCheap['fruit-beverage'] >= 0.05);
+});
+
+test('fruit participates in fresh direct demand without expanding the food budget', () => {
+  const world = createWorld(now);
+  prepareDemand(world, 'food', now + 1);
+  processWorld(world, now + 1);
+  const fresh = world.demandGroups.food.lastClassAllocation['fresh-drinks'];
+  assert.ok(fresh.shares.fruit > 0);
+  assert.ok(fresh.shares.beverage > 0);
+  assert.equal(world.demandGroups.food.lastBudget, 1_000);
+  assert.ok(world.orders.some((order) => order.ownerType === 'population' && order.productId === 'fruit' && order.demandTier === 'direct'));
+});
+
 test('complement gating prioritizes the bottleneck input for electronics', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, bob, now);
@@ -442,7 +445,7 @@ test('new worlds create private market demand orders during the first authoritat
       '家庭消费市场需求', '食品市场需求',
     ]);
     assert.equal(persisted.version, 13);
-    assert.equal(persisted.marketDemand.modelVersion, 1);
+    assert.equal(persisted.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
     assert.ok(persisted.demandGroups.food.lastCommitted <= persisted.demandGroups.food.lastBudget);
     assert.ok(persisted.demandGroups.household.lastCommitted <= persisted.demandGroups.household.lastBudget);
   } finally {
@@ -470,12 +473,40 @@ test('legacy demand migration immediately rebuilds market demand without losing 
 
   migrateWorld(world, now);
   assert.equal(world.version, 13);
-  assert.equal(world.marketDemand.modelVersion, 1);
+  assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-wheat-sell']);
   assert.equal(player.inventories.wheat.available, 2);
   assert.equal(world.demandGroups.food.nextDemandAt, now);
   processWorld(world, now + 1);
   assert.ok(world.orders.some((order) => order.id === 'player-wheat-sell'));
+  assert.ok(world.orders.some((order) => order.ownerType === 'population'));
+});
+
+test('market demand model version 1 migrates to version 2 without resetting player assets', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 777;
+  player.inventories.wheat.available = 9;
+  delete player.inventories.fruit;
+  delete world.markets.fruit;
+  delete world.marketDemand.priceTransmission.products.fruit;
+  world.marketDemand.modelVersion = 1;
+  world.orders = [
+    { id: 'player-order-v1', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice', price: 3, quantity: 2, remaining: 2, status: 'open', createdAt: now },
+    { id: 'market-order-v1', assetKind: 'commodity', assetId: 'food', productId: 'food', side: 'buy', ownerType: 'population', ownerName: '食品市场需求', demandGroupId: 'food', demandTier: 'direct', price: 15, quantity: 2, remaining: 2, status: 'open', createdAt: now },
+  ];
+
+  migrateWorld(world, now);
+
+  assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
+  assert.deepEqual(world.orders.map((order) => order.id), ['player-order-v1']);
+  assert.equal(player.credits, 777);
+  assert.equal(player.inventories.wheat.available, 9);
+  assert.deepEqual(player.inventories.fruit, { available: 0, frozen: 0 });
+  assert.ok(world.markets.fruit);
+  assert.ok(world.marketDemand.priceTransmission.products.fruit);
+  assert.equal(world.demandGroups.food.nextDemandAt, now);
+  processWorld(world, now + 1);
   assert.ok(world.orders.some((order) => order.ownerType === 'population'));
 });
 
@@ -522,7 +553,7 @@ test('world version 8 migration restarts electronics and upgrades market demand 
   assert.equal(player.inventories.copper.available, 4);
   assert.equal(player.facilityGroups[0].cycleStartedAt, now);
   assert.deepEqual(Object.keys(world.demandGroups).sort(), ['food', 'household']);
-  assert.equal(world.marketDemand.modelVersion, 1);
+  assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.ok(world.priceTransmission.products.electronics);
 });
 

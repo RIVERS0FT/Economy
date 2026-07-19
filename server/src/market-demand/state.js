@@ -1,4 +1,4 @@
-import { MARKET_DEMAND_GROUP_CATALOG } from './catalog.js';
+import { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION } from './catalog.js';
 import { clamp } from './math.js';
 
 export function createMarketDemandStateRuntime({ products, constants, marketFor, isOpenOrder }) {
@@ -68,7 +68,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
   function defaultWorldState(now) {
     const cycleId = Math.floor(now / constants.demandCycleMs);
     return {
-      modelVersion: 1,
+      modelVersion: MARKET_DEMAND_MODEL_VERSION,
       cycleMs: constants.demandCycleMs,
       groups: Object.fromEntries(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, defaultGroupState(group, now)])),
       priceTransmission: {
@@ -92,12 +92,12 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
     normalizePlayerActivity(world, now);
     const legacyGroups = world.demandGroups && typeof world.demandGroups === 'object' ? world.demandGroups : {};
     const previousModel = world.marketDemand && typeof world.marketDemand === 'object' ? world.marketDemand : null;
-    const isUpgrade = forceRebuild || Number(previousModel?.modelVersion || 0) < 1;
+    const isUpgrade = forceRebuild || Number(previousModel?.modelVersion || 0) < MARKET_DEMAND_MODEL_VERSION;
     const fallback = defaultWorldState(now);
     world.marketDemand = {
       ...fallback,
       ...(previousModel || {}),
-      modelVersion: 1,
+      modelVersion: MARKET_DEMAND_MODEL_VERSION,
       cycleMs: constants.demandCycleMs,
       groups: {},
       priceTransmission: {},
@@ -137,6 +137,9 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         state.derivedCommitted = 0;
         state.lastAllocation = {};
         state.lastClassAllocation = {};
+        state.lastProductShares = {};
+        state.previousDemandQuantities = structuredClone(group.seedDemandQuantities);
+        state.recipeShares = {};
       }
       world.marketDemand.groups[group.id] = state;
     }

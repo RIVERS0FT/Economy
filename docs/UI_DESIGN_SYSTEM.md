@@ -106,21 +106,30 @@
 
 ### 5.1 商品 SVG 图标目录
 
-当前 22 种正式商品必须在 `ProductIcons.tsx` 中各有一个独立、可辨识的本地内联 SVG。 棉花、铜矿石、肉、蛋、奶、毛、铜材、纺织品和服装不得长期使用默认包装箱图标。
+当前 31 种正式商品必须在 `ProductIcons.tsx` 中各有一个独立、可辨识的本地内联 SVG。甘蔗、水果、鱼类、砂糖、纸浆、饮料、预制餐、纸品和家电不得使用默认包装箱图标。
 
 - `wheat`：麦穗；
 - `rice`：稻穗与米碗；
+- `sugarcane`：甘蔗秆与叶片；
+- `fruit`：带叶水果；
 - `timber`：原木；
 - `ore`：矿石；
 - `crude-oil`：油滴；
+- `fish`：鱼；
 - `flour`：面粉袋；
+- `sugar`：砂糖袋；
 - `lumber`：堆叠木板；
 - `steel`：工字钢；
 - `plastic`：塑料瓶；
+- `pulp`：纸浆卷；
 - `food`：食物碗；
+- `beverage`：饮料瓶；
+- `prepared-meal`：分格餐盒；
+- `paper`：叠放纸张；
 - `furniture`：椅子；
 - `machinery`：齿轮机械；
-- `electronics`：芯片。
+- `electronics`：芯片；
+- `appliance`：家电机身与滚筒。
 
 服务器未来返回未知商品 ID 时必须使用统一包装箱 SVG 回退，页面仍按服务器数组动态渲染，不得隐藏商品。市场商品标签、概览商品行情、仓库商品卡、商品订单和商品资产变动必须使用相同的 `ProductIcon`／`ProductIconLabel`。
 

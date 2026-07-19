@@ -49,7 +49,7 @@
 `server/src/domain-core.js` 保存迁移前的兼容经济核心，只允许被 `domain.js` 导入。当前门面统一覆盖：
 
 - 正式 `PRODUCT_CATALOG`、`FACILITY_TYPE_CATALOG` 和 `DEMAND_GROUP_CATALOG`；
-- 22 种商品与 15 种工厂的整数价格、数量、周期和成本；
+- 31 种商品与 21 种工厂的整数价格、数量、周期和成本；
 - 农场 120 秒、产量 4、成本 6 的小麦和水稻配方；
 - 食品、小麦、水稻、肉、蛋和奶共享需求、家庭用品聚合需求及无直接需求商品抑制；
 - `createWorld`、`migrateWorld`、`processWorld`、`applyAction` 和 `createClientState` 的权威出口。
