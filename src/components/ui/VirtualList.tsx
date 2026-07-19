@@ -1,4 +1,5 @@
 import {
+  type AriaRole,
   type CSSProperties,
   type ReactNode,
   useCallback,
@@ -8,6 +9,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { ScrollArea } from './ScrollArea';
 
 type VirtualKey = string | number;
 
@@ -22,8 +24,8 @@ export interface VirtualListProps<T> {
   gap?: number;
   className?: string;
   ariaLabel?: string;
-  role?: string;
-  itemRole?: string;
+  role?: AriaRole;
+  itemRole?: AriaRole;
   empty?: ReactNode;
   style?: CSSProperties;
 }
@@ -159,14 +161,17 @@ export function VirtualList<T>({
   if (items.length === 0) return <>{empty}</>;
 
   return (
-    <div
-      ref={viewportRef}
-      className={`virtual-list ${className}`.trim()}
-      style={{ ...style, height: displayHeight }}
-      onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      role={role}
-      aria-label={ariaLabel}
-      tabIndex={0}
+    <ScrollArea
+      axis="y"
+      className="virtual-list-scroll-area"
+      style={{ height: displayHeight }}
+      viewportRef={viewportRef}
+      viewportClassName={`virtual-list ${className}`.trim()}
+      viewportStyle={{ ...style, height: '100%' }}
+      viewportRole={role}
+      viewportAriaLabel={ariaLabel}
+      viewportTabIndex={0}
+      onViewportScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
     >
       <div className="virtual-list__canvas" style={{ height: layout.totalSize }}>
         {visibleEntries.map((entry) => (
@@ -185,6 +190,6 @@ export function VirtualList<T>({
           </div>
         ))}
       </div>
-    </div>
+    </ScrollArea>
   );
 }

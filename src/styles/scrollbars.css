@@ -1,0 +1,216 @@
+/* Shared overlay scrollbar system. Native scrolling remains authoritative while
+ * project-owned rails provide one width, color and axis policy without taking
+ * layout space. Horizontal rails stay visible whenever overflow exists;
+ * vertical rails appear only after actual vertical scroll movement. */
+:root {
+  --scrollbar-visual-size: 6px;
+  --scrollbar-hit-size: 14px;
+  --scrollbar-edge-offset: 2px;
+  --scrollbar-min-thumb-size: 28px;
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(105, 220, 145, 0.42);
+  --scrollbar-thumb-hover: rgba(125, 238, 163, 0.68);
+  --scrollbar-thumb-active: rgba(125, 238, 163, 0.9);
+  --scrollbar-fade-duration: 120ms;
+  --scrollbar-idle-delay: 1200ms;
+}
+
+.ui-scroll-area {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-scroll-area__viewport {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.ui-scroll-area__viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* The final table primitive is imported after this file and still contains a
+ * historical stable gutter. Important auto keeps the overlay contract without
+ * duplicating the complete design-system stylesheet. */
+.table-wrap {
+  scrollbar-gutter: auto !important;
+}
+
+.ui-scrollbar {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+  transition: opacity var(--scrollbar-fade-duration) ease;
+}
+
+.ui-scrollbar--horizontal {
+  z-index: 3;
+  right: var(--scrollbar-edge-offset);
+  bottom: var(--scrollbar-edge-offset);
+  left: var(--scrollbar-edge-offset);
+  height: var(--scrollbar-hit-size);
+}
+
+.ui-scrollbar--vertical {
+  z-index: 4;
+  top: var(--scrollbar-edge-offset);
+  right: var(--scrollbar-edge-offset);
+  bottom: var(--scrollbar-edge-offset);
+  width: var(--scrollbar-hit-size);
+}
+
+.ui-scroll-area[data-scrollable-y="true"] .ui-scrollbar--horizontal {
+  right: calc(var(--scrollbar-hit-size) + var(--scrollbar-edge-offset));
+}
+
+.ui-scrollbar__thumb {
+  position: absolute;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  box-shadow: inset 0 0 0 1px rgba(221, 255, 232, 0.08);
+  cursor: grab;
+  outline: 0;
+  will-change: transform;
+}
+
+.ui-scrollbar--horizontal .ui-scrollbar__thumb {
+  top: calc((var(--scrollbar-hit-size) - var(--scrollbar-visual-size)) / 2);
+  left: 0;
+  min-width: var(--scrollbar-min-thumb-size);
+  height: var(--scrollbar-visual-size);
+}
+
+.ui-scrollbar--vertical .ui-scrollbar__thumb {
+  top: 0;
+  left: calc((var(--scrollbar-hit-size) - var(--scrollbar-visual-size)) / 2);
+  width: var(--scrollbar-visual-size);
+  min-height: var(--scrollbar-min-thumb-size);
+}
+
+.ui-scroll-area[data-scrollable-x="true"][data-horizontal-visibility="always"]
+  > .ui-scrollbar--horizontal,
+.ui-scroll-area[data-scrollbar-active-x="true"]
+  > .ui-scrollbar--horizontal,
+.ui-scroll-area[data-scrollbar-dragging-x="true"]
+  > .ui-scrollbar--horizontal,
+.ui-scroll-area[data-scrollbar-active-y="true"]
+  > .ui-scrollbar--vertical,
+.ui-scroll-area[data-scrollbar-dragging-y="true"]
+  > .ui-scrollbar--vertical {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ui-scrollbar__thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+.ui-scrollbar__thumb:active,
+.ui-scroll-area[data-scrollbar-dragging-x="true"] .ui-scrollbar--horizontal .ui-scrollbar__thumb,
+.ui-scroll-area[data-scrollbar-dragging-y="true"] .ui-scrollbar--vertical .ui-scrollbar__thumb {
+  cursor: grabbing;
+  background: var(--scrollbar-thumb-active);
+}
+
+.ui-scrollbar__thumb:focus-visible {
+  background: var(--scrollbar-thumb-hover);
+  box-shadow: 0 0 0 2px var(--color-surface-panel), 0 0 0 4px var(--color-focus-ring);
+}
+
+.page-scroll-area,
+.admin-page-scroll-area,
+.asset-bar-scroll-area,
+.asset-bar-scroll-track {
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar-nav-frame,
+.mobile-navigation-frame {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sidebar-nav-frame {
+  flex: 1 1 auto;
+  margin-top: var(--space-3);
+}
+
+.mobile-navigation-frame {
+  height: 100%;
+}
+
+.sidebar-nav-scroll-area,
+.mobile-navigation-scroll-area,
+.table-scroll-area,
+.virtual-list-scroll-area,
+.asset-directory-scroll-area,
+.local-trades-scroll-area {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.sidebar-nav-scroll-area,
+.mobile-navigation-scroll-area {
+  height: 100%;
+}
+
+.virtual-list-scroll-area {
+  contain: layout paint;
+}
+
+/* Remaining native document or legacy scrollports inherit the same compact
+ * fallback colors. Shared ScrollArea viewports override these rules to zero. */
+*:not(.ui-scroll-area__viewport) {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+*:not(.ui-scroll-area__viewport)::-webkit-scrollbar {
+  width: var(--scrollbar-visual-size);
+  height: var(--scrollbar-visual-size);
+}
+
+*:not(.ui-scroll-area__viewport)::-webkit-scrollbar-track,
+*:not(.ui-scroll-area__viewport)::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
+}
+
+*:not(.ui-scroll-area__viewport)::-webkit-scrollbar-thumb {
+  min-width: var(--scrollbar-min-thumb-size);
+  min-height: var(--scrollbar-min-thumb-size);
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+}
+
+*:not(.ui-scroll-area__viewport)::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+@media (max-width: 960px) and (min-width: 721px) {
+  .desktop-sidebar .sidebar-nav-frame {
+    margin-top: var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-scrollbar {
+    transition: none;
+  }
+}

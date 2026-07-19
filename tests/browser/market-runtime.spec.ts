@@ -12,6 +12,44 @@ async function requireBox(locator: Locator) {
   return box!;
 }
 
+async function inspectMarketLayoutBounds(locator: Locator) {
+  return locator.evaluate((element) => {
+    const surface = element as HTMLElement;
+    const surfaceRect = surface.getBoundingClientRect();
+    const pageScroll = surface.closest<HTMLElement>('.page-scroll');
+    const directChildren = Array.from(surface.children)
+      .filter((child): child is HTMLElement => child instanceof HTMLElement)
+      .map((child) => {
+        const rect = child.getBoundingClientRect();
+        return {
+          selector: `${child.tagName.toLowerCase()}${Array.from(child.classList).map((name) => `.${name}`).join('')}`,
+          left: Math.round(rect.left - surfaceRect.left),
+          right: Math.round(rect.right - surfaceRect.left),
+          width: Math.round(rect.width),
+        };
+      });
+    const accountSections = Array.from(surface.querySelectorAll<HTMLElement>('.market-account-grid > section'))
+      .map((section) => {
+        const sectionRect = section.getBoundingClientRect();
+        const scrollArea = section.querySelector<HTMLElement>('.table-scroll-area, .local-trades-scroll-area');
+        const scrollRect = scrollArea?.getBoundingClientRect();
+        return {
+          sectionWidth: Math.round(sectionRect.width),
+          scrollAreaWidth: Math.round(scrollRect?.width ?? 0),
+          scrollAreaLeft: Math.round((scrollRect?.left ?? sectionRect.left) - sectionRect.left),
+          scrollAreaRight: Math.round((scrollRect?.right ?? sectionRect.right) - sectionRect.left),
+        };
+      });
+    return {
+      surfaceWidth: Math.round(surfaceRect.width),
+      directChildren,
+      accountSections,
+      pageScrollClientWidth: pageScroll?.clientWidth ?? 0,
+      pageScrollScrollWidth: pageScroll?.scrollWidth ?? 0,
+    };
+  });
+}
+
 test('market desktop layout gives the full chart the dominant column and intrinsic ratio', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
@@ -40,7 +78,9 @@ test('market desktop layout gives the full chart the dominant column and intrins
     getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
   ));
   expect(footerColumns).toBe(2);
-  expect(await page.locator('.market-page-surface').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  const layout = await inspectMarketLayoutBounds(page.locator('.market-page-surface'));
+  expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
+  expect(layout.directChildren.every((child) => child.left >= -1 && child.right <= layout.surfaceWidth + 1)).toBe(true);
   expect(pageErrors).toEqual([]);
 });
 
@@ -70,7 +110,16 @@ test('market medium and narrow layouts follow the real content width without hor
   const stackedChart = await requireBox(page.locator('.market-chart-card'));
   expect(stackedBook.y).toBeGreaterThan(stackedOrder.y + stackedOrder.height - 2);
   expect(stackedChart.y).toBeGreaterThan(stackedBook.y + stackedBook.height - 2);
-  expect(await surface.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+
+  const layout = await inspectMarketLayoutBounds(surface);
+  expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
+  expect(layout.directChildren.every((child) => child.left >= -1 && child.right <= layout.surfaceWidth + 1)).toBe(true);
+  expect(layout.accountSections.length).toBe(2);
+  for (const section of layout.accountSections) {
+    expect(section.scrollAreaLeft).toBeGreaterThanOrEqual(-1);
+    expect(section.scrollAreaRight).toBeLessThanOrEqual(section.sectionWidth + 1);
+    expect(section.scrollAreaWidth).toBeLessThanOrEqual(section.sectionWidth + 1);
+  }
   expect(pageErrors).toEqual([]);
 });
 

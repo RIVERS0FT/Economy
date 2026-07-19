@@ -62,7 +62,7 @@ for (const text of ['align-items: start;', 'width: 1.35rem;', 'height: 1.35rem;'
 for (const text of ['view=gem-shop', '.gem-shop-balance-row svg', "name: '确认兑换'", 'balance.height).toBeLessThan(130)', 'exchange.height).toBeLessThan(340)']) requireText('tests/browser/gem-shop-layout.spec.ts', text);
 for (const text of ['固定汇率', '单向兑换', '不可撤销']) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 for (const text of ['商店', '`gem-shop`', '`GemShopPage`', '`1440×900`', '宝石、可用资金和固定汇率三项', '快捷兑换使用紧凑按钮', '“兑换货币”和“兑换记录”']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '排名在桌面与移动端统一通过 `formatRank`');
+requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '排名统一通过 `formatRank` 显示为 `#N`');
 forbidText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '桌面继续使用“第 1 名”');
 for (const text of ['/api/game/gem-shop', '/api/game/gem-shop/exchange', 'economy_gem_shop_exchanges']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 

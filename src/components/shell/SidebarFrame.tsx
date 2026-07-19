@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { BRAND_LOGO_URL } from '../../config/brand';
+import { ScrollArea } from '../ui/ScrollArea';
 
 function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -74,8 +75,10 @@ export function SidebarFrame({
         </button>
       </div>
 
-      <nav className="sidebar-nav" aria-label={navLabel}>
-        {children}
+      <nav className="sidebar-nav-frame" aria-label={navLabel}>
+        <ScrollArea axis="y" className="sidebar-nav-scroll-area" viewportClassName="sidebar-nav">
+          {children}
+        </ScrollArea>
       </nav>
 
       <div className="sidebar-footer">{footer}</div>

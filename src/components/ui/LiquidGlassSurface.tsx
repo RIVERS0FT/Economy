@@ -14,11 +14,12 @@ const STATIC_MOUSE_OFFSET = { x: 0, y: 0 };
 
 const PRESETS = {
   statusBar: {
-    displacementScale: 18,
-    blurAmount: 0.25,
-    saturation: 135,
-    aberrationIntensity: 0.45,
+    displacementScale: 38,
+    blurAmount: 0.14,
+    saturation: 145,
+    aberrationIntensity: 1.15,
     cornerRadius: 24,
+    mode: 'prominent',
   },
   mobileNavigation: {
     displacementScale: 20,
@@ -26,6 +27,7 @@ const PRESETS = {
     saturation: 145,
     aberrationIntensity: 0.5,
     cornerRadius: 20,
+    mode: 'standard',
   },
 } as const;
 
@@ -36,7 +38,7 @@ export function LiquidGlassSurface({ variant, children, className = '' }: Liquid
     .join(' ');
 
   return (
-    <div className={classes} data-liquid-glass-variant={variant}>
+    <div className={classes} data-liquid-glass-variant={variant} data-liquid-glass-mode={preset.mode}>
       <LiquidGlass
         className="liquid-glass-surface__effect"
         style={{
@@ -53,7 +55,7 @@ export function LiquidGlassSurface({ variant, children, className = '' }: Liquid
         elasticity={0}
         cornerRadius={preset.cornerRadius}
         padding="0"
-        mode="standard"
+        mode={preset.mode}
         globalMousePos={STATIC_MOUSE_POSITION}
         mouseOffset={STATIC_MOUSE_OFFSET}
       >

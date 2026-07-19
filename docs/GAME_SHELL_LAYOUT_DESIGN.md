@@ -1,7 +1,7 @@
 # Economy 游戏外壳布局设计
 
-> 状态：当前实现与不可回退规则
-> 适用项目：`RIVERS0FT/Economy`
+> 状态：当前实现与不可回退规则  
+> 适用项目：`RIVERS0FT/Economy`  
 > 更新时间：2026-07-19
 
 ## 1. 目标
@@ -12,20 +12,23 @@
 .game-shell
 ├─ .desktop-sidebar
 └─ .workspace
-   ├─ .asset-bar
-   └─ .page-scroll
-      └─ .page-content
+   ├─ .asset-bar-scroll-area
+   │  └─ .asset-bar
+   └─ .page-scroll-area
+      └─ .page-scroll
+         └─ .page-content
 ```
 
-侧栏与状态栏共用一个桌面外距令牌：侧栏使用上、左、下外距，状态栏使用上、右外距；页面主体仍然铺满工作区，不因状态栏外距缩窄。
+侧栏与状态栏共用一个桌面外距令牌：侧栏使用上、左、下外距，状态栏滚动包装器使用上、右外距；页面主体仍然铺满工作区，不因状态栏外距缩窄。
 
 ## 2. 唯一几何权威
 
-`src/styles/game-shell-layout.css` 是登录后游戏外壳最终几何权威，并在 `viewport.css` 之后加载。
+`src/styles/game-shell-layout.css` 是登录后游戏外壳最终几何权威，并在 `viewport.css` 和 `scrollbars.css` 之后加载。
 
 - `globals.css` 只提供历史通用基础布局；其中旧的 `.game-shell` 间距和 `.page-content` 最大宽度不得成为最终计算样式。
 - `desktop-sidebar.css` 负责侧栏内部布局、展开／折叠宽度和过渡。
-- `viewport.css` 负责固定视口、滚动容器、安全区和移动端结构。
+- `viewport.css` 负责固定视口、原生滚动视口、安全区和移动端结构。
+- `scrollbars.css` 负责覆盖式滚动条，不参与外壳几何占位。
 - `game-shell-layout.css` 统一收束桌面双列轨道、共享外距、工作区边界和页面全宽规则。
 
 ## 3. 桌面水平双列结构
@@ -56,9 +59,10 @@
 - 左、上、下边距相同；
 - 右侧不使用 margin，侧栏与工作区的距离由第一列轨道中的 gap 变量提供；
 - 侧栏高度为视口高度减去上下外边距；
-- 展开和折叠时 Logo、导航图标及底部操作的锚点继续保持稳定。
+- 展开和折叠时 Logo、导航图标及底部操作的锚点继续保持稳定；
+- 中部导航使用共享纵向 `ScrollArea`，只有实际滚动后显示纵向滚动条。
 
-不得给整个 `.game-shell`、`.workspace`、`.page-scroll` 或 `.page-content` 添加桌面外边距来模拟侧栏留白。
+不得给整个 `.game-shell`、`.workspace`、`.page-scroll-area`、`.page-scroll` 或 `.page-content` 添加桌面外边距来模拟侧栏留白。
 
 ## 5. 工作区、状态栏和页面
 
@@ -69,24 +73,25 @@
 - `bottom = viewport.bottom`；
 - `width = viewport.width - workspace.left`。
 
-`.asset-bar` 位于 `.workspace` 内部：
+`.asset-bar-scroll-area` 位于 `.workspace` 内部：
 
 - 左边缘与工作区左边缘一致；
 - 顶部和右侧使用 `--desktop-shell-outer-inset`；
 - 使用 `left: 0`、`right: var(--desktop-shell-outer-inset)` 和 `width: auto`；
 - 不设置独立侧栏偏移、最大宽度或居中 margin；
+- 内部 `.asset-bar` 是横向原生滚动视口，不再负责绝对定位；
 - 状态栏外距不改变 `.workspace` 和页面主体的宽度。
 
-`.page-scroll` 始终铺满工作区，只保留“统一桌面外距 + 状态栏高度 + 状态栏下间距”的顶部避让和底部内容空间；桌面左右 padding 必须为 `0`，滚动条位于工作区最右边。
+`.page-scroll-area` 和 `.page-scroll` 始终铺满工作区，只保留“统一桌面外距 + 状态栏高度 + 状态栏下间距”的顶部避让和底部内容空间；桌面左右 padding 必须为 `0`。
 
-桌面精细指针环境中的页面滚动条采用空闲隐藏规则：
+页面纵向滚动条使用共享覆盖式规则：
 
-- `.page-scroll` 始终保持 `overflow-y: auto` 和 `scrollbar-gutter: stable`，隐藏只改变滚动条颜色，不得取消滚动能力或引发布局宽度变化；
-- 初始和无活动状态的轨道、滑块都透明；
-- 页面滚动、滚轮、指针移动、指针按下、焦点进入或 PageUp／PageDown／Home／End／方向键／空格翻页会显示滚动条；
-- 最后一次活动后 `1200ms` 自动恢复透明；
-- 输入框、选择器、文本域和可编辑区域中的按键不得误触发页面滚动条；
-- 移动端继续使用系统原生滚动条行为，不强制桌面显隐样式。
+- `.page-scroll` 始终保持 `overflow-y: auto`，原生滚动条视觉隐藏，覆盖式轨道不占布局空间；
+- 初始和无实际纵向滚动状态下纵向轨道透明；
+- 只有 `scrollTop` 确实变化才显示纵向滚动条；鼠标移动、点击、焦点、滚轮或按键事件本身不算滚动活动；
+- 停止实际纵向滚动 `1200ms` 后恢复透明；
+- 普通滚轮默认垂直滚动，滚动到边界后允许滚动链传递；
+- 完整滚动规则以 `docs/OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md` 为专题权威。
 
 `.page-content` 在游戏表面中必须：
 
@@ -102,9 +107,10 @@
 不大于 `720px` 时继续使用单列移动结构：
 
 - 桌面侧栏隐藏；
-- 移动状态栏、页面内容和底部导航继续尊重安全区；
+- `.asset-bar-scroll-area`、页面内容和底部导航继续尊重安全区；
 - `mobile-content-inset` 属于移动触控安全区，不受桌面统一外距规则影响；
-- 移动状态栏继续使用胶囊圆角。
+- 移动状态栏继续使用胶囊圆角；
+- 页面纵向滚动仍由共享覆盖式组件承载，但不得破坏触控惯性或安全区。
 
 ## 7. 验收标准
 
@@ -115,12 +121,13 @@
 3. 侧栏左、上、下外边距符合当前 `--desktop-shell-outer-inset`。
 4. 工作区与侧栏之间的距离符合当前 gap 变量。
 5. `.workspace` 贴合视口顶部、右侧和底部。
-6. `.asset-bar` 左边缘与工作区一致，顶部和右侧间距等于统一桌面外距。
-7. `.page-scroll` 与 `.workspace` 左右边界一致，并在状态栏下方开始显示初始页面内容。
+6. `.asset-bar-scroll-area` 左边缘与工作区一致，顶部和右侧间距等于统一桌面外距。
+7. `.page-scroll-area` 与 `.workspace` 左右边界一致，并在状态栏下方开始显示初始页面内容。
 8. `.page-content` 使用页面滚动区全部可用内容宽度，没有居中最大宽度和左右外层 padding。
 9. 展开与折叠侧栏后，上述关系都保持成立。
 10. 页面不存在非预期水平滚动，最右侧卡片和内容不得被裁切。
-11. 桌面页面滚动条初始透明，发生滚动活动时显示，`1200ms` 无活动后重新透明，同时 `.page-scroll` 仍可滚动且 gutter 不变化。
+11. 页面纵向滚动条初始透明，实际滚动后显示，停止 `1200ms` 后重新透明；显隐前后页面宽度不变化。
+12. 指针移动、点击和焦点不会显示页面纵向滚动条。
 
 ## 8. 不可回退规则
 
@@ -130,9 +137,10 @@
 - 给 `.workspace` 添加顶部、右侧或底部外边距；
 - 让状态栏和页面分别读取侧栏宽度或维护两套左偏移；
 - 给状态栏单独硬编码与侧栏不同的桌面外距；
-- 给状态栏恢复 `top: 0`、`right: 0` 或在同时设置左右定位时恢复 `width: 100%`；
+- 把绝对定位重新放回内部 `.asset-bar`，或给包装器恢复 `top: 0`、`right: 0`；
 - 给游戏 `.page-content` 恢复 `--content-max-width`、`margin: 0 auto` 或左右 padding；
-- 为隐藏滚动条把 `.page-scroll` 改成 `overflow-y: hidden`、移除稳定 gutter，或使用永久 `display: none`／零宽滚动条；
+- 为隐藏滚动条把 `.page-scroll` 改成 `overflow-y: hidden`；
+- 恢复 `scrollbar-gutter: stable`、原生滚动条占位或 GameShell 内的指针／焦点计时器；
 - 把侧栏外边距重新移动到整个游戏外壳；
 - 通过 JavaScript、ResizeObserver 或滚动事件计算工作区横向位置；
 - 破坏移动端安全区与移动内容内边距；

@@ -1,19 +1,24 @@
 /* ListView-style windowing for high-growth local and admin records. */
+.virtual-list-scroll-area {
+  width: 100%;
+  min-width: 0;
+}
+
 .virtual-list {
   position: relative;
   width: 100%;
   min-width: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
-  scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
   contain: strict;
 }
 
 .virtual-list:focus-visible {
   outline: 2px solid var(--color-focus-ring, var(--accent));
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 .virtual-list__canvas {
@@ -62,6 +67,10 @@
   font-weight: 700;
 }
 
+.virtual-record-table > .virtual-list-scroll-area {
+  min-width: var(--virtual-table-min-width, 720px);
+}
+
 .virtual-record-viewport {
   min-width: var(--virtual-table-min-width, 720px);
   overflow-x: hidden;
@@ -91,9 +100,16 @@
 }
 
 .local-trades-virtual-table {
-  --virtual-table-columns: minmax(64px, .65fr) minmax(150px, 1.5fr) minmax(72px, .7fr) minmax(72px, .8fr) minmax(92px, 1fr) minmax(100px, 1fr) minmax(110px, 1.1fr) minmax(130px, 1.2fr);
-  --virtual-table-min-width: 900px;
+  --virtual-table-columns: minmax(140px, 1.45fr) 60px 72px 88px 96px minmax(108px, 1fr) 118px;
+  --virtual-table-min-width: 760px;
   --virtual-row-height: 54px;
+}
+
+.trade-side-cell {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+  white-space: nowrap;
 }
 
 .admin-collectibles-virtual-table {
@@ -138,10 +154,6 @@
 }
 
 @media (max-width: 720px) {
-  .virtual-list {
-    scrollbar-gutter: auto;
-  }
-
   .asset-event-virtual-list {
     padding-right: 0;
   }

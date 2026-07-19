@@ -10,8 +10,12 @@ const styles = read('src/styles/virtual-list.css');
 const design = read('docs/UI_DESIGN_SYSTEM.md');
 
 assert.ok(
-  component.includes('className={`virtual-list ${className}`.trim()}'),
-  '所有 VirtualList 实例必须继续共用 .virtual-list 根类',
+  component.includes('viewportClassName={`virtual-list ${className}`.trim()}'),
+  '所有 VirtualList 实例必须继续把 .virtual-list 作为共享滚动视口根类',
+);
+assert.ok(
+  component.includes('className="virtual-list-scroll-area"'),
+  'VirtualList 必须通过共享覆盖式 ScrollArea 承载滚动条',
 );
 assert.ok(
   styles.includes('overscroll-behavior-x: contain;'),
@@ -32,4 +36,4 @@ for (const text of [
   assert.ok(design.includes(text), `UI 设计文档缺少: ${text}`);
 }
 
-console.log('Virtual list scroll chaining verification passed.');
+console.log('Virtual list overlay scrollbar and scroll chaining verification passed.');
