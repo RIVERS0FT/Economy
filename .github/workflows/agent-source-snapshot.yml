@@ -19,17 +19,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          payload=agent-industry-payload.tar.gz.b64
-          if [[ ! -f "$payload" ]]; then
-            echo "No implementation payload in this commit."
+          shopt -s nullglob
+          parts=(agent-industry-payload-part-*)
+          if (( ${#parts[@]} != 2 )); then
+            echo "Implementation payload is not complete."
             exit 0
           fi
-          base64 --decode "$payload" > agent-industry-payload.tar.gz
-          echo "a0f28189bf6be3bc67dfeb4ec6fbe08d218afccad3c15446c36cf258988727eb  agent-industry-payload.tar.gz" | sha256sum --check -
-          tar -xzf agent-industry-payload.tar.gz
-          rm -f "$payload" agent-industry-payload.tar.gz
+          cat "${parts[@]}" | base64 --decode > agent-industry.patch.gz
+          echo "cdd657ef88baca24005104b8fd4bea4dd4c44e8576f5f8600ed039aa28702bf4  agent-industry.patch.gz" | sha256sum --check -
+          gzip --decompress --stdout agent-industry.patch.gz > agent-industry.patch
+          git apply --index agent-industry.patch
+          rm -f "${parts[@]}" agent-industry.patch.gz agent-industry.patch
+          git add -A
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
           git commit -m "feat: 扩展水果与产业目录"
           git push origin HEAD:agent/expand-industry-fruit
