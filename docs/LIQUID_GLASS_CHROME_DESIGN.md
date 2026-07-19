@@ -12,7 +12,7 @@
 - `src/components/ui/LiquidGlassSurface.tsx` 是唯一允许直接导入该依赖的文件。
 - 状态栏和移动底栏只能使用 `LiquidGlassSurface` 的预设，不得在业务组件中直接设置第三方参数。
 - `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、透明通用面板覆盖和最低可读性底色；不得用 CSS 重新实现模糊、折射、色差、高光或玻璃阴影。
-- 旧 `src/styles/liquid-glass-chrome.css` 必须删除，且不得恢复。
+- `src/styles/liquid-glass-chrome.css` 只允许作为历史路径转发入口，内容只能导入 `liquid-glass-surfaces.css`，不得包含任何玻璃材质规则。
 
 ## 2. 文件职责
 
@@ -22,6 +22,7 @@
 | `src/components/shell/StatusBar.tsx` | 状态项语义、交互和状态栏内容布局入口 |
 | `src/components/shell/MobileBottomNavigation.tsx` | 移动导航语义与内容入口 |
 | `src/styles/liquid-glass-surfaces.css` | 玻璃宿主几何、第三方 DOM 尺寸适配、状态栏内容网格和最低对比度 |
+| `src/styles/liquid-glass-chrome.css` | 仅供历史浏览器测试入口转发到新样式，不得定义材质 |
 | `src/styles/viewport.css` | 桌面悬浮定位、滚动层和移动安全区 |
 | `src/styles/mobile-status-navigation.css` | 移动导航按钮尺寸、滚动和交互 |
 | `src/styles/mobile-status-layout.css` | 移动顶部状态栏全宽等距布局 |
@@ -126,7 +127,7 @@
 
 除非先更新本设计和架构检查，否则不得：
 
-- 恢复 `liquid-glass-chrome.css` 或 CSS `backdrop-filter` 玻璃材质；
+- 在 `liquid-glass-chrome.css` 中恢复任何材质规则，或恢复 CSS `backdrop-filter` 玻璃材质；
 - 在 `LiquidGlassSurface.tsx` 之外直接导入 `liquid-glass-react`；
 - 改用 `shader` 模式或把应用外壳 `elasticity` 调为非零；
 - 为状态项或导航按钮分别创建玻璃实例；
