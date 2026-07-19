@@ -113,7 +113,7 @@ for (const text of [
   '默认价格只从客户端当前已经加载的 `game.orders` 本地快照计算',
   '从其他页面重新进入市场页',
   '自动刷新、下单响应、成交、撤单或其他权威状态同步只更新本地订单快照，不得直接覆盖当前价格输入',
-  '商品订单只允许玩家或人口需求作为所有者',
+  '商品订单只允许玩家或市场需求作为所有者',
   '不提供系统流动性买单或卖单',
   '工厂订单仍只能由玩家提交',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
@@ -132,4 +132,4 @@ for (const text of [
   '对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 if (failures.length) { console.error('统一资产市场、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、玩家与人口商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
+console.log('统一资产市场、玩家与市场需求商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
