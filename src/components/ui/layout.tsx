@@ -3,6 +3,7 @@ import type {
   InputHTMLAttributes,
   ReactNode,
 } from 'react';
+import { ScrollArea } from './ScrollArea';
 
 export type StatusTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'text' | 'compact';
@@ -166,7 +167,16 @@ export function ToggleField({
 }
 
 export function ScrollableTable({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={classNames('table-wrap', className)}>{children}</div>;
+  return (
+    <ScrollArea
+      axis="x"
+      className="table-scroll-area"
+      viewportClassName={classNames('table-wrap', className)}
+      horizontalVisibility="always"
+    >
+      {children}
+    </ScrollArea>
+  );
 }
 
 export function EmptyState({ children, className = '' }: { children: ReactNode; className?: string }) {
