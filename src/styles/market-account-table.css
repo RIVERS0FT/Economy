@@ -1,0 +1,62 @@
+.own-open-orders-table {
+  min-width: 700px;
+}
+
+.own-open-orders-table .order-side-cell,
+.local-trades-virtual-table .trade-side-cell {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+  padding-inline: 6px;
+  white-space: nowrap;
+}
+
+.own-open-orders-table .order-action-cell {
+  position: sticky;
+  right: 0;
+  z-index: 4;
+  width: 76px;
+  min-width: 76px;
+  max-width: 76px;
+  padding-inline: 8px;
+  white-space: nowrap;
+  background: var(--color-surface-inset);
+  box-shadow: -12px 0 16px -14px rgba(0, 0, 0, 0.9);
+}
+
+.own-open-orders-table thead .order-action-cell {
+  z-index: 5;
+  background: var(--color-surface-raised);
+}
+
+.own-open-orders-table tbody tr:hover .order-action-cell {
+  background: var(--color-surface-raised);
+}
+
+.local-trades-scroll-area,
+.local-trades-virtual-table {
+  border-radius: var(--radius-control);
+}
+
+.local-trades-scroll-area > .ui-scrollbar--horizontal,
+.table-scroll-area > .ui-scrollbar--horizontal {
+  bottom: 1px;
+}
+
+.facility-icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: .42rem;
+}
+
+.facility-icon-label > .game-icon {
+  flex: 0 0 auto;
+  width: 1.1em;
+  height: 1.1em;
+}
+
+@media (max-width: 720px) {
+  .own-open-orders-table {
+    min-width: 680px;
+  }
+}
