@@ -12,6 +12,7 @@ export function createPriceTransmissionRuntime({
   products,
   recipes,
   directProductIds,
+  productRoles,
   productFor,
   marketFor,
   realTradeStats,
@@ -102,22 +103,38 @@ export function createPriceTransmissionRuntime({
     return pendingSignals;
   }
 
+  function productRole(product) {
+    return productRoles.get(product.id) || {
+      isDirectDemandProduct: directProductIds.has(product.id),
+      hasProducingRecipe: false,
+      hasDownstreamRecipe: false,
+    };
+  }
+
   function priceWeights(product) {
-    const direct = directProductIds.has(product.id);
-    if (direct && product.category === 'raw') {
-      return { base: 0.15, observed: 0.25, cost: 0, downstream: 0.40, demand: 0.20 };
+    const role = productRole(product);
+    if (role.isDirectDemandProduct && role.hasDownstreamRecipe) {
+      return { base: 0.10, observed: 0.30, cost: 0.20, downstream: 0.20, demand: 0.20 };
     }
-    if (direct && product.category === 'intermediate') {
-      return { base: 0.10, observed: 0.25, cost: 0.20, downstream: 0.25, demand: 0.20 };
+    if (role.isDirectDemandProduct) {
+      return { base: 0.15, observed: 0.35, cost: 0.30, downstream: 0, demand: 0.20 };
     }
-    if (direct) return { base: 0.15, observed: 0.35, cost: 0.30, downstream: 0, demand: 0.20 };
-    if (product.category === 'raw') return { base: 0.15, observed: 0.25, cost: 0, downstream: 0.45, demand: 0.15 };
-    if (product.category === 'intermediate') return { base: 0.10, observed: 0.25, cost: 0.25, downstream: 0.30, demand: 0.10 };
+    if (role.hasProducingRecipe && role.hasDownstreamRecipe) {
+      return { base: 0.10, observed: 0.25, cost: 0.25, downstream: 0.30, demand: 0.10 };
+    }
+    if (product.category === 'raw') {
+      return { base: 0.15, observed: 0.25, cost: 0, downstream: 0.45, demand: 0.15 };
+    }
+    if (product.category === 'intermediate') {
+      return { base: 0.10, observed: 0.25, cost: 0.25, downstream: 0.30, demand: 0.10 };
+    }
     return { base: 0.35, observed: 0.45, cost: 0.10, downstream: 0.10, demand: 0 };
   }
 
   function priceLimits(product) {
-    if (directProductIds.has(product.id)) return { rise: 0.08, fall: 0.06 };
+    const role = productRole(product);
+    if (role.isDirectDemandProduct) return { rise: 0.08, fall: 0.06 };
+    if (role.hasProducingRecipe && role.hasDownstreamRecipe) return { rise: 0.06, fall: 0.05 };
     if (product.category === 'intermediate') return { rise: 0.06, fall: 0.05 };
     if (product.category === 'raw') return { rise: 0.05, fall: 0.04 };
     return { rise: 0.06, fall: 0.05 };

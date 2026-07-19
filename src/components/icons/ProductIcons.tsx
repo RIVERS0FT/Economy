@@ -4,6 +4,8 @@ export const PRODUCT_ICON_IDS = [
   'wheat',
   'rice',
   'cotton',
+  'sugarcane',
+  'fruit',
   'timber',
   'ore',
   'copper-ore',
@@ -11,18 +13,25 @@ export const PRODUCT_ICON_IDS = [
   'meat',
   'eggs',
   'milk',
+  'fish',
   'wool',
   'flour',
+  'sugar',
   'lumber',
   'steel',
   'copper',
   'plastic',
   'textile',
+  'pulp',
   'food',
+  'beverage',
+  'prepared-meal',
+  'paper',
   'furniture',
   'clothing',
   'machinery',
   'electronics',
+  'appliance',
 ] as const;
 
 type ProductIconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & {
@@ -88,6 +97,20 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M8 20h8" />
         </ProductSvg>
       );
+    case 'sugarcane':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M10 21 13 3M7 20l3-4M13 15l4-4M9 12 6-4M8 7l5 2" />
+          <path d="M6 18c-1.5-2.3-1.4-4.4.2-6.2 1.7 1.8 2 3.9.8 6.2ZM15 10c.2-2.6 1.5-4.3 3.8-5-.1 2.5-1.3 4.2-3.8 5Z" />
+        </ProductSvg>
+      );
+    case 'fruit':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M12 7c-4-2-7 .6-7 5.2C5 17 8.1 20 12 20s7-3 7-7.8C19 7.6 16 5 12 7Z" />
+          <path d="M12 7c0-2 1-3.5 3-4M12 6C10.3 4.5 8.6 4.2 7 5" />
+        </ProductSvg>
+      );
     case 'timber':
       return (
         <ProductSvg productId={productId} {...props}>
@@ -145,6 +168,14 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M10 12c1.2-1 2.8-1 4 0v4c-1.2 1-2.8 1-4 0Z" />
         </ProductSvg>
       );
+    case 'fish':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M4 12c3.2-4 7.4-5.4 11.5-2.8L20 6v12l-4.5-3.2C11.4 17.4 7.2 16 4 12Z" />
+          <circle cx="13.5" cy="11" r=".8" />
+          <path d="M7 12h4M16 9.5v5" />
+        </ProductSvg>
+      );
     case 'wool':
       return (
         <ProductSvg productId={productId} {...props}>
@@ -160,6 +191,13 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M9 7h6" />
           <path d="M9.5 13.5c1.8-1.2 3.2-1.2 5 0" />
           <path d="M12 11.5v4" />
+        </ProductSvg>
+      );
+    case 'sugar':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M8 5h8l2 4-1 10H7L6 9Z" />
+          <path d="M6 9h12M10 12h4v4h-4z" />
         </ProductSvg>
       );
     case 'lumber':
@@ -204,6 +242,14 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M5 13h12" />
         </ProductSvg>
       );
+    case 'pulp':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M5 6h11a4 4 0 0 1 0 8H8a3 3 0 0 0 0 6h9" />
+          <circle cx="16" cy="10" r="4" />
+          <path d="M13.5 10c1.5-1.5 3.2-1.5 5 0" />
+        </ProductSvg>
+      );
     case 'food':
       return (
         <ProductSvg productId={productId} {...props}>
@@ -211,6 +257,28 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="M7 8c0-1.5 1-2.5 2.5-3" />
           <path d="M12 8c0-1.7 1.1-2.8 2.8-3.5" />
           <path d="M8 21h8" />
+        </ProductSvg>
+      );
+    case 'beverage':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M9 3h6M10 3v4l-2 3v10h8V10l-2-3V3" />
+          <path d="M8 12h8M11 8h2" />
+        </ProductSvg>
+      );
+    case 'prepared-meal':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <rect x="4" y="7" width="16" height="12" rx="2" />
+          <path d="M4 12h16M12 7v12M7 4h10" />
+        </ProductSvg>
+      );
+    case 'paper':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M7 3h8l3 3v15H7Z" />
+          <path d="M15 3v4h3M10 11h5M10 15h5" />
+          <path d="M4 6v15h10" />
         </ProductSvg>
       );
     case 'furniture':
@@ -251,6 +319,14 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <rect x="6" y="6" width="12" height="12" rx="2" />
           <rect x="9" y="9" width="6" height="6" rx="1" />
           <path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" />
+        </ProductSvg>
+      );
+    case 'appliance':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <rect x="5" y="3" width="14" height="18" rx="2" />
+          <path d="M5 9h14M9 6h.01M12 6h.01" />
+          <circle cx="12" cy="15" r="3.5" />
         </ProductSvg>
       );
     default:

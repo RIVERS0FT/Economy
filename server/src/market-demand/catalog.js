@@ -4,6 +4,7 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
+export const MARKET_DEMAND_MODEL_VERSION = 2;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -33,7 +34,7 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
     quoteUtilityDepth: 12,
     classes: freezeClasses([
       {
-        id: 'staples', name: '主食', budgetShare: 0.50, minBudgetShare: 0.35, maxBudgetShare: 0.65,
+        id: 'staples', name: '主食', budgetShare: 0.40, minBudgetShare: 0.30, maxBudgetShare: 0.55,
         elasticity: 1.8,
         products: [
           { productId: 'wheat', baseWeight: 0.25, utilityPerUnit: 1, minShare: 0.08 },
@@ -43,21 +44,36 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
         ],
       },
       {
-        id: 'protein', name: '蛋白质', budgetShare: 0.35, minBudgetShare: 0.20, maxBudgetShare: 0.50,
-        elasticity: 2.5,
+        id: 'protein', name: '蛋白质', budgetShare: 0.30, minBudgetShare: 0.20, maxBudgetShare: 0.45,
+        elasticity: 2.3,
         products: [
-          { productId: 'meat', baseWeight: 0.40, utilityPerUnit: 2, minShare: 0.08 },
-          { productId: 'eggs', baseWeight: 0.30, utilityPerUnit: 1, minShare: 0.08 },
-          { productId: 'milk', baseWeight: 0.30, utilityPerUnit: 1, minShare: 0.08 },
+          { productId: 'meat', baseWeight: 0.32, utilityPerUnit: 2, minShare: 0.08 },
+          { productId: 'eggs', baseWeight: 0.23, utilityPerUnit: 1, minShare: 0.08 },
+          { productId: 'milk', baseWeight: 0.20, utilityPerUnit: 1, minShare: 0.08 },
+          { productId: 'fish', baseWeight: 0.25, utilityPerUnit: 2, minShare: 0.08 },
         ],
       },
       {
-        id: 'convenience', name: '便利食品', budgetShare: 0.15, minBudgetShare: 0.05, maxBudgetShare: 0.30,
+        id: 'fresh-drinks', name: '新鲜与饮品', budgetShare: 0.15, minBudgetShare: 0.08, maxBudgetShare: 0.25,
+        elasticity: 1.4,
+        products: [
+          { productId: 'fruit', baseWeight: 0.45, utilityPerUnit: 1, minShare: 0.20 },
+          { productId: 'milk', baseWeight: 0.20, utilityPerUnit: 1, minShare: 0.10 },
+          { productId: 'beverage', baseWeight: 0.35, utilityPerUnit: 2, minShare: 0.15 },
+        ],
+      },
+      {
+        id: 'convenience', name: '便利食品', budgetShare: 0.15, minBudgetShare: 0.08, maxBudgetShare: 0.30,
         elasticity: 0.8,
-        products: [{ productId: 'food', baseWeight: 1, utilityPerUnit: 3, minShare: 1 }],
+        products: [
+          { productId: 'food', baseWeight: 0.45, utilityPerUnit: 3, minShare: 0.20 },
+          { productId: 'prepared-meal', baseWeight: 0.55, utilityPerUnit: 3, minShare: 0.20 },
+        ],
       },
     ]),
-    seedDemandQuantities: Object.freeze({ food: 12, meat: 5, eggs: 8, milk: 8, flour: 6 }),
+    seedDemandQuantities: Object.freeze({
+      food: 10, meat: 4, eggs: 7, milk: 7, flour: 5, fruit: 8, fish: 5, beverage: 5, 'prepared-meal': 4,
+    }),
   }),
   Object.freeze({
     id: 'household',
@@ -70,22 +86,30 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
     quoteUtilityDepth: 8,
     classes: freezeClasses([
       {
-        id: 'home', name: '家居', budgetShare: 0.30, minBudgetShare: 0.15, maxBudgetShare: 0.45,
+        id: 'home', name: '家居', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.40,
         elasticity: 0.4,
         products: [{ productId: 'furniture', baseWeight: 1, utilityPerUnit: 1, minShare: 1 }],
       },
       {
-        id: 'wear', name: '穿着', budgetShare: 0.35, minBudgetShare: 0.20, maxBudgetShare: 0.50,
+        id: 'wear', name: '穿着', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.40,
         elasticity: 0.4,
         products: [{ productId: 'clothing', baseWeight: 1, utilityPerUnit: 2, minShare: 1 }],
       },
       {
-        id: 'durables', name: '耐用消费', budgetShare: 0.35, minBudgetShare: 0.15, maxBudgetShare: 0.50,
-        elasticity: 0.4,
-        products: [{ productId: 'electronics', baseWeight: 1, utilityPerUnit: 2, minShare: 1 }],
+        id: 'daily', name: '日用消耗', budgetShare: 0.20, minBudgetShare: 0.10, maxBudgetShare: 0.35,
+        elasticity: 0.9,
+        products: [{ productId: 'paper', baseWeight: 1, utilityPerUnit: 1, minShare: 1 }],
+      },
+      {
+        id: 'durables', name: '耐用消费', budgetShare: 0.30, minBudgetShare: 0.15, maxBudgetShare: 0.50,
+        elasticity: 0.6,
+        products: [
+          { productId: 'electronics', baseWeight: 0.45, utilityPerUnit: 2, minShare: 0.20 },
+          { productId: 'appliance', baseWeight: 0.55, utilityPerUnit: 3, minShare: 0.20 },
+        ],
       },
     ]),
-    seedDemandQuantities: Object.freeze({ furniture: 8, clothing: 5, electronics: 4 }),
+    seedDemandQuantities: Object.freeze({ furniture: 7, clothing: 5, paper: 7, electronics: 4, appliance: 3 }),
   }),
 ]);
 

@@ -9,15 +9,14 @@ import { createPriceTransmissionRuntime } from './market-demand/price-transmissi
 import { createMarketSignalRuntime } from './market-demand/signals.js';
 import { createMarketDemandStateRuntime } from './market-demand/state.js';
 
-export { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_PRODUCT_IDS } from './market-demand/catalog.js';
+export { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, MARKET_DEMAND_PRODUCT_IDS } from './market-demand/catalog.js';
 
 export function createMarketDemandRuntime({ products, facilities, constants, marketFor, matchOrder, isOpenOrder }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
   const groupMap = new Map(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));
   const directProductIds = new Set(MARKET_DEMAND_PRODUCT_IDS);
   const productFor = (productId) => productMap.get(String(productId || '')) || productMap.get('wheat');
-  const recipes = Object.freeze(facilities.flatMap((facility) => facility.recipes
-    .filter((recipe) => Array.isArray(recipe.inputs) && recipe.inputs.length > 0)
+  const allRecipes = Object.freeze(facilities.flatMap((facility) => facility.recipes
     .map((recipe) => Object.freeze({
       facilityTypeId: facility.id,
       recipeId: recipe.id,
@@ -27,6 +26,14 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       inputs: recipe.inputs,
       output: recipe.output,
     }))));
+  const recipes = Object.freeze(allRecipes.filter((recipe) => recipe.inputs.length > 0));
+  const producingProductIds = new Set(allRecipes.map((recipe) => recipe.output.productId));
+  const downstreamProductIds = new Set(allRecipes.flatMap((recipe) => recipe.inputs.map((input) => input.productId)));
+  const productRoles = new Map(products.map((product) => [product.id, Object.freeze({
+    isDirectDemandProduct: directProductIds.has(product.id),
+    hasProducingRecipe: producingProductIds.has(product.id),
+    hasDownstreamRecipe: downstreamProductIds.has(product.id),
+  })]));
   const recipesByOutput = new Map();
   for (const recipe of recipes) {
     const candidates = recipesByOutput.get(recipe.output.productId) || [];
@@ -40,6 +47,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     products,
     recipes,
     directProductIds,
+    productRoles,
     productFor,
     marketFor,
     realTradeStats: signals.realTradeStats,
@@ -214,6 +222,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     processPriceTransmission: priceRuntime.processPriceTransmission,
     isValidMarketOrder,
     directProductIds,
+    productRoles,
     recipes,
   };
 }

@@ -75,3 +75,28 @@ test('price transmission is damped and also carries price decreases', () => {
   processPriceTransmission(world, now + cycle * 2 + 1);
   assert.ok(world.priceTransmission.products.flour.referencePrice < flourBase);
 });
+
+
+test('hybrid fruit prices respond to beverage value after one relation lag', () => {
+  const world = createWorld(now);
+  realTrade(world, 'beverage', 32, now + cycle - 1);
+  const fruitBase = world.priceTransmission.products.fruit.referencePrice;
+
+  processPriceTransmission(world, now + cycle + 1);
+  assert.equal(world.priceTransmission.products.fruit.referencePrice, fruitBase);
+  processPriceTransmission(world, now + cycle * 2 + 1);
+  assert.ok(world.priceTransmission.products.fruit.downstreamValueAnchor > fruitBase);
+  assert.ok(world.priceTransmission.products.fruit.referencePrice > fruitBase);
+});
+
+test('appliance value makes machinery an automatically derived chain product', () => {
+  const world = createWorld(now);
+  realTrade(world, 'appliance', 120, now + cycle - 1);
+  const machineryBase = world.priceTransmission.products.machinery.referencePrice;
+
+  processPriceTransmission(world, now + cycle + 1);
+  assert.equal(world.priceTransmission.products.machinery.referencePrice, machineryBase);
+  processPriceTransmission(world, now + cycle * 2 + 1);
+  assert.ok(world.priceTransmission.products.machinery.downstreamValueAnchor > machineryBase);
+  assert.ok(world.priceTransmission.products.machinery.referencePrice > machineryBase);
+});
