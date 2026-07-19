@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { completeRegistration, login, sendRegistrationEmailCode } from '../api/auth';
+import { InputGroup, TextInput } from '../components/ui/FormControls';
 import { Button } from '../components/ui/layout';
 import { BRAND_LOGO_URL, BRAND_NAME, BRAND_SLOGAN } from '../config/brand';
 import type { AuthUser } from '../types';
@@ -114,68 +115,60 @@ export function LoginPage({
           <button type="button" role="tab" aria-selected={mode === 'register'} onClick={() => switchMode('register')}>注册</button>
         </div>
         <form ref={formRef} onSubmit={submit} className="login-form" aria-busy={submitting || sendingCode}>
-          <label>
-            账号邮箱
-            <input
-              autoComplete="email"
-              autoCapitalize="none"
-              spellCheck={false}
-              name="email"
-              type="email"
-              placeholder="请输入账号邮箱"
-              required
-            />
-          </label>
-          <label>
-            密码
-            <input
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              name="password"
-              type="password"
-              placeholder="至少 8 位"
-              minLength={8}
-              required
-            />
-          </label>
+          <TextInput
+            label="账号邮箱"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            name="email"
+            type="email"
+            placeholder="请输入账号邮箱"
+            required
+          />
+          <TextInput
+            label="密码"
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            name="password"
+            type="password"
+            placeholder="至少 8 位"
+            minLength={8}
+            required
+          />
           {mode === 'register' ? (
             <>
-              <label>
-                邀请码（可选）
-                <input
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  name="inviteCode"
-                  maxLength={8}
-                  defaultValue={inviteCode ?? ''}
-                  placeholder="8 位邀请码"
-                  onInput={(event) => {
-                    event.currentTarget.value = event.currentTarget.value.toUpperCase();
-                  }}
+              <TextInput
+                label="邀请码（可选）"
+                autoComplete="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                name="inviteCode"
+                maxLength={8}
+                defaultValue={inviteCode ?? ''}
+                placeholder="8 位邀请码"
+                onInput={(event) => {
+                  event.currentTarget.value = event.currentTarget.value.toUpperCase();
+                }}
+              />
+              <InputGroup className="email-code-field">
+                <TextInput
+                  label="邮箱验证码"
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
+                  name="code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="6 位验证码"
+                  required
                 />
-              </label>
-              <label>
-                邮箱验证码
-                <span className="email-code-field">
-                  <input
-                    autoComplete="one-time-code"
-                    inputMode="numeric"
-                    name="code"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    placeholder="6 位验证码"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={sendingCode || submitting || resendSeconds > 0}
-                    onClick={() => void sendCode()}
-                  >
-                    {sendingCode ? '发送中…' : resendSeconds > 0 ? `${resendSeconds}s` : '发送验证码'}
-                  </Button>
-                </span>
-              </label>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={sendingCode || submitting || resendSeconds > 0}
+                  onClick={() => void sendCode()}
+                >
+                  {sendingCode ? '发送中…' : resendSeconds > 0 ? `${resendSeconds}s` : '发送验证码'}
+                </Button>
+              </InputGroup>
             </>
           ) : null}
           {notice ? <p className="form-notice" role="status">{notice}</p> : null}
