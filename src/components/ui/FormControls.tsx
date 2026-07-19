@@ -220,9 +220,11 @@ export function IntegerInput({
       <input
         {...props}
         id={inputId}
-        type="text"
+        type="number"
         inputMode="numeric"
-        pattern="[0-9]*"
+        min={min}
+        max={max}
+        step={1}
         required={required}
         value={value}
         className={classNames('ui-control', 'ui-control--integer', className)}
