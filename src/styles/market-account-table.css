@@ -1,3 +1,17 @@
+.market-account-grid > section {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.market-account-grid .table-scroll-area,
+.market-account-grid .local-trades-scroll-area {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .own-open-orders-table {
   min-width: 700px;
 }
