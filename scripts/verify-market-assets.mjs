@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 const root = process.cwd();
@@ -8,7 +9,7 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
 [
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
-  'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts',
+  'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts','src/utils/orderBookLevels.ts',
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
   'server/src/market-demand.js','server/src/market-demand/price-transmission.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
@@ -19,9 +20,30 @@ for (const text of [
   'local-trades-virtual-table','virtual-record-viewport','VirtualList',
   "import { FactoryIcon } from '../components/icons/GameIcons'",'<FactoryIcon />','selectOrderSide',
   'title={selectedAssetTitle(`${assetName}订单`)}','label="价格"','className="numeric-cell">价格</th>',
-  'formatNumber(order.remaining)','formatCurrency(order.price)'
+  'formatNumber(order.remaining)','formatCurrency(order.price)',
+  "import { buildOrderBookLevels } from '../utils/orderBookLevels'",
+  "buildOrderBookLevels(selectedOrders, 'sell').reverse()",
+  "buildOrderBookLevels(selectedOrders, 'buy')",
+  '最低价前 5 档','最高价前 5 档','data-order-count={level.orderCount}',
+  '合计剩余 ${formatNumber(level.remaining)}','包含 ${formatNumber(level.orderCount)} 笔订单',
+  'key={`sell-${level.price}`}','key={`buy-${level.price}`}',
 ]) requireText('src/pages/MarketPage.tsx', text);
-for (const text of ['localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价']) forbidText('src/pages/MarketPage.tsx', text);
+for (const text of [
+  'localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价',
+  '最低价前 5 笔','最高价前 5 笔',
+  ".filter((order) => order.side === 'sell')\n    .sort(",
+  ".filter((order) => order.side === 'buy')\n    .sort(",
+]) forbidText('src/pages/MarketPage.tsx', text);
+
+for (const text of [
+  'export interface OrderBookLevel','export function buildOrderBookLevels','const levels = new Map<number, OrderBookLevel>()',
+  "order.side !== side", "!['open', 'partial'].includes(order.status)", 'order.remaining <= 0',
+  'current.remaining += order.remaining','current.orderCount += 1','price: order.price','remaining: order.remaining','orderCount: 1',
+  ".sort(side === 'buy'", '.slice(0, normalizedLimit)',
+]) requireText('src/utils/orderBookLevels.ts', text);
+for (const text of ['order.quantity +', 'order.quantity *', 'createdAt', 'ownerId', 'ownerName']) {
+  forbidText('src/utils/orderBookLevels.ts', text);
+}
 
 for (const text of [
   'items={collectibles}','items={giftCodes}','items={ownership}','items={redemptions}',
@@ -122,11 +144,16 @@ for (const text of [
   '商品订单只允许玩家或市场需求作为所有者',
   '不提供系统流动性买单或卖单',
   '工厂订单仍只能由玩家提交',
+  '同资产、同方向、同价格的有效订单按当前剩余数量聚合为价格档位',
+  '档位聚合只属于客户端匿名展示',
+  '聚合完成后再按最优价格截取 5 档',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
 for (const text of [
   '玩家可见输入字段、订单标题和未完成订单表头统一使用“价格”',
   '从其他页面重新进入市场',
   '自动刷新和下单后的状态同步不得覆盖当前输入',
+  '订单簿按价格档位聚合展示',
+  '我的未完成订单继续逐单展示并可单独撤销',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
   '必须使用共享 `VirtualList` 窗口化组件',
@@ -137,5 +164,60 @@ for (const text of [
   '藏品列表、礼品码列表、归属历史和兑换记录可能持续增长，必须复用共享 `VirtualList`',
   '对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
-if (failures.length) { console.error('统一资产市场、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、玩家与市场需求商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
+
+if (!failures.length) {
+  const { buildOrderBookLevels } = await import('../src/utils/orderBookLevels.ts');
+  const order = (id, side, price, quantity, remaining, status = 'open') => ({
+    id,
+    assetKind: 'commodity',
+    assetId: 'wheat',
+    productId: 'wheat',
+    side,
+    price,
+    quantity,
+    remaining,
+    status,
+    createdAt: Number(id.replace(/\D/g, '')) || 1,
+  });
+
+  const buyLevels = buildOrderBookLevels([
+    order('buy-1', 'buy', 10, 100, 2),
+    order('buy-2', 'buy', 10, 200, 3, 'partial'),
+    order('buy-3', 'buy', 9, 1, 1),
+    order('buy-4', 'buy', 8, 1, 1),
+    order('buy-5', 'buy', 7, 1, 1),
+    order('buy-6', 'buy', 6, 1, 1),
+    order('buy-7', 'buy', 5, 1, 1),
+    order('buy-filled', 'buy', 99, 50, 50, 'filled'),
+    order('buy-cancelled', 'buy', 98, 50, 50, 'cancelled'),
+    order('buy-zero', 'buy', 97, 50, 0),
+    order('sell-other-side', 'sell', 100, 1, 1),
+  ], 'buy');
+  assert.deepEqual(buyLevels, [
+    { side: 'buy', price: 10, remaining: 5, orderCount: 2 },
+    { side: 'buy', price: 9, remaining: 1, orderCount: 1 },
+    { side: 'buy', price: 8, remaining: 1, orderCount: 1 },
+    { side: 'buy', price: 7, remaining: 1, orderCount: 1 },
+    { side: 'buy', price: 6, remaining: 1, orderCount: 1 },
+  ]);
+
+  const sellLevels = buildOrderBookLevels([
+    order('sell-1', 'sell', 4, 8, 2),
+    order('sell-2', 'sell', 2, 8, 3),
+    order('sell-3', 'sell', 2, 9, 4, 'partial'),
+    order('sell-4', 'sell', 3, 1, 1),
+    order('sell-5', 'sell', 1, 1, 1),
+    order('sell-6', 'sell', 5, 1, 1),
+    order('sell-7', 'sell', 6, 1, 1),
+  ], 'sell');
+  assert.deepEqual(sellLevels, [
+    { side: 'sell', price: 1, remaining: 1, orderCount: 1 },
+    { side: 'sell', price: 2, remaining: 7, orderCount: 2 },
+    { side: 'sell', price: 3, remaining: 1, orderCount: 1 },
+    { side: 'sell', price: 4, remaining: 2, orderCount: 1 },
+    { side: 'sell', price: 5, remaining: 1, orderCount: 1 },
+  ]);
+}
+
+if (failures.length) { console.error('统一资产市场、价格档位、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
+console.log('统一资产市场、价格档位聚合、玩家与市场需求商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');

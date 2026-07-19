@@ -24,6 +24,7 @@ import {
   countMarketHistoryPointsInWindow,
   summarizeMarketFlow,
 } from '../utils/marketHistory';
+import { buildOrderBookLevels } from '../utils/orderBookLevels';
 import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
 function orderTone(status: AssetOrder['status']): StatusTone {
@@ -81,15 +82,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const ownOpenOrders = game.orders.filter((order) => (
     order.isOwn && ['open', 'partial'].includes(order.status)
   ));
-  const bestAsks = selectedOrders
-    .filter((order) => order.side === 'sell')
-    .sort((a, b) => a.price - b.price || a.createdAt - b.createdAt)
-    .slice(0, 5)
-    .reverse();
-  const bestBids = selectedOrders
-    .filter((order) => order.side === 'buy')
-    .sort((a, b) => b.price - a.price || a.createdAt - b.createdAt)
-    .slice(0, 5);
+  const bestAsks = buildOrderBookLevels(selectedOrders, 'sell').reverse();
+  const bestBids = buildOrderBookLevels(selectedOrders, 'buy');
   const marketHistory = selectedMarket?.priceHistory ?? [];
   const marketFallbackPrice = selectedMarket?.lastPrice
     ?? selectedProduct?.basePrice
@@ -361,15 +355,33 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           <Panel className="widget order-book single-order-book">
             <WidgetHeading title={selectedAssetTitle(`${assetName}订单簿`)} />
             <div className="order-book-stack" aria-label={`${assetName}买卖盘`}>
-              <div className="order-book-side-label ask-label"><span>卖盘</span><small>最低价前 5 笔</small></div>
-              {bestAsks.map((order) => (
-                <div className="book-order-row ask" key={order.id}><StatusTag tone="danger">卖</StatusTag><strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong><span>{formatNumber(order.remaining)}</span></div>
+              <div className="order-book-side-label ask-label"><span>卖盘</span><small>最低价前 5 档</small></div>
+              {bestAsks.map((level) => (
+                <div
+                  className="book-order-row ask"
+                  key={`sell-${level.price}`}
+                  aria-label={`卖盘，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，包含 ${formatNumber(level.orderCount)} 笔订单`}
+                  data-order-count={level.orderCount}
+                >
+                  <StatusTag tone="danger">卖</StatusTag>
+                  <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
+                  <span>{formatNumber(level.remaining)}</span>
+                </div>
               ))}
               {bestAsks.length === 0 ? <p className="muted order-book-empty">暂无卖单</p> : null}
               <div className="order-book-divider" aria-hidden="true" />
-              <div className="order-book-side-label bid-label"><span>买盘</span><small>最高价前 5 笔</small></div>
-              {bestBids.map((order) => (
-                <div className="book-order-row bid" key={order.id}><StatusTag tone="success">买</StatusTag><strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong><span>{formatNumber(order.remaining)}</span></div>
+              <div className="order-book-side-label bid-label"><span>买盘</span><small>最高价前 5 档</small></div>
+              {bestBids.map((level) => (
+                <div
+                  className="book-order-row bid"
+                  key={`buy-${level.price}`}
+                  aria-label={`买盘，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，包含 ${formatNumber(level.orderCount)} 笔订单`}
+                  data-order-count={level.orderCount}
+                >
+                  <StatusTag tone="success">买</StatusTag>
+                  <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
+                  <span>{formatNumber(level.remaining)}</span>
+                </div>
               ))}
               {bestBids.length === 0 ? <p className="muted order-book-empty">暂无买单</p> : null}
             </div>

@@ -28,20 +28,30 @@ requireText(marketPage, 'max={maxTradeQuantity > 0 ? maxTradeQuantity : undefine
 requireText(marketPage, 'orderDisabledReason', '下单禁用必须提供明确原因。');
 requireText(marketPage, 'countMarketHistoryPointsInWindow', '市场页成交笔数必须使用最近 24h 窗口函数。');
 requireText(marketPage, "marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral'", '零涨跌必须使用中性状态。');
-requireText(marketPage, '<div className="order-book-side-label bid-label"', '买盘标题必须位于买单行之前。');
+requireText(marketPage, '<div className="order-book-side-label bid-label"', '买盘标题必须位于买入档位之前。');
+requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'sell').reverse()", '卖盘必须先聚合最优档位，再反向显示使最低卖价靠近中线。');
+requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'buy')", '买盘必须使用共享价格档位聚合。');
 requireText(marketHistory, 'export function getMarketWindowBounds', '市场窗口边界必须由共享函数生成。');
 requireText(marketHistory, 'export function countMarketHistoryPointsInWindow', '必须提供最近 24h 成交计数函数。');
 requireText(runtimeHarness, "scenario === 'funds-empty'", '浏览器运行时必须覆盖资金不足。');
 requireText(runtimeHarness, "scenario === 'warehouse-full'", '浏览器运行时必须覆盖仓库不足。');
 requireText(runtimeHarness, "scenario === 'sell-empty'", '浏览器运行时必须覆盖无可卖库存。');
+requireText(runtimeHarness, "...Array.from({ length: 5 }", '浏览器运行时必须提供五张同价买单。');
+requireText(runtimeHarness, 'remaining: 1', '同价档位测试必须使用当前剩余数量。');
 requireText(runtimeSpec, 'market desktop layout gives the full chart the dominant column', 'Playwright 必须覆盖宽屏行情主列。');
 requireText(runtimeSpec, '最近 24h 3 笔', 'Playwright 必须验证 24h 成交计数。');
 requireText(runtimeSpec, 'status-neutral', 'Playwright 必须验证零涨跌中性状态。');
 requireText(runtimeSpec, '向后浏览资产', 'Playwright 必须验证资产目录滚动控制。');
 requireText(runtimeSpec, 'askLabel.y', 'Playwright 必须验证订单簿标题顺序。');
+requireText(runtimeSpec, 'aggregates same-price orders into one price level', 'Playwright 必须验证同价订单聚合为单一价格档位。');
+requireText(runtimeSpec, "toHaveAttribute('data-order-count', '5')", 'Playwright 必须验证档位内独立订单笔数。');
+requireText(runtimeSpec, '买盘，价格 2，合计剩余 5，包含 5 笔订单', 'Playwright 必须验证价格档位无障碍名称。');
 requireText(marketDesign, '## 市场页面布局与可用性', '订单簿设计必须记录市场布局与可用性规则。');
+requireText(marketDesign, '聚合完成后再按最优价格截取 5 档', '订单簿设计必须记录聚合后截取规则。');
 requireText(pageDesign, '### 4.1 市场页桌面布局与反馈', '页面职责设计必须记录市场页布局。');
+requireText(pageDesign, '订单簿按价格档位聚合展示', '页面职责设计必须记录价格档位职责。');
 requireText(uiDesign, '## 市场页布局完整性', 'UI 设计系统必须记录市场页布局完整性。');
+requireText(uiDesign, '同价档位聚合及水平溢出', 'UI 设计系统必须要求浏览器验证同价档位聚合。');
 
 if (failures.length > 0) {
   console.error('市场页布局与运行时验证失败：');
@@ -49,4 +59,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场页布局、数据口径、禁用反馈与浏览器回归基线验证通过。');
+console.log('市场页布局、价格档位、数据口径、禁用反馈与浏览器回归基线验证通过。');
