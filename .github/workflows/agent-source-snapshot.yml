@@ -35,20 +35,7 @@ jobs:
           python3 agent-apply-industry.py
           rm -f "${parts[@]}" agent-apply-industry.py agent-transform-diagnostic.txt
           git add -A
-          echo "STAGED_FILES=$(git status --porcelain | wc -l)"
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          set +e
-          git commit --no-verify -m "feat: 扩展水果与产业目录" > /tmp/commit.log 2>&1
-          commit_status=$?
-          set -e
-          echo "COMMIT_STATUS=${commit_status}"
-          cat /tmp/commit.log
-          if (( commit_status != 0 )); then exit "$commit_status"; fi
-          set +e
-          git push origin HEAD:agent/expand-industry-fruit > /tmp/push.log 2>&1
-          push_status=$?
-          set -e
-          echo "PUSH_STATUS=${push_status}"
-          cat /tmp/push.log
-          exit "$push_status"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --no-verify -m "feat: 扩展水果与产业目录"
+          git push origin HEAD:agent/expand-industry-fruit
