@@ -129,20 +129,20 @@
   border-right: 0;
 }
 
-.asset-bar-item-label {
+.asset-bar-item .asset-bar-item-label {
   color: var(--color-text-secondary);
   font-size: .72rem;
   line-height: 1.2;
 }
 
-.asset-bar-item-value {
+.asset-bar-item .asset-bar-item-value {
   color: var(--color-text-primary);
   font-size: 1rem;
   line-height: 1.15;
 }
 
-.asset-bar-item-value,
-.asset-bar-item-value * {
+.asset-bar-item .asset-bar-item-value,
+.asset-bar-item .asset-bar-item-value * {
   color: inherit;
 }
 
