@@ -32,10 +32,22 @@ jobs:
           cat "${parts[@]}" > agent-apply-industry.py
           python3 -c 'from pathlib import Path; p=Path("agent-apply-industry.py"); b=bytearray(p.read_bytes()); b[52472:52473]=b"5a"; b[52758]=34; p.write_bytes(b)'
           echo "3cdb03ef5b6fe0123fa7745cc6a583837b1361a0dd59fd6460383ab0637b1a1e  agent-apply-industry.py" | sha256sum --check -
-          python3 agent-apply-industry.py
-          rm -f "${parts[@]}" agent-apply-industry.py agent-transform-diagnostic.txt
-          git add -A
+          set +e
+          python3 agent-apply-industry.py > /tmp/agent-transform.log 2>&1
+          status=$?
+          set -e
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if (( status != 0 )); then
+            git reset --hard HEAD
+            git clean -fd
+            cp /tmp/agent-transform.log agent-transform-diagnostic.txt
+            git add agent-transform-diagnostic.txt
+            git commit -m "chore: record industry transformation diagnostic"
+            git push origin HEAD:agent/expand-industry-fruit
+            exit "$status"
+          fi
+          rm -f "${parts[@]}" agent-apply-industry.py agent-transform-diagnostic.txt
+          git add -A
           git commit -m "feat: 扩展水果与产业目录"
           git push origin HEAD:agent/expand-industry-fruit
