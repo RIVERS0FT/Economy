@@ -36,6 +36,13 @@
   display: none;
 }
 
+/* The final table primitive is imported after this file and still contains a
+ * historical stable gutter. Important auto keeps the overlay contract without
+ * duplicating the complete design-system stylesheet. */
+.table-wrap {
+  scrollbar-gutter: auto !important;
+}
+
 .ui-scrollbar {
   position: absolute;
   box-sizing: border-box;
