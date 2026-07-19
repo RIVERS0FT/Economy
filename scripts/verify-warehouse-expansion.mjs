@@ -137,12 +137,19 @@ for (const text of [
   'facility-formula-center',
   'facility-formula-output-group',
   'facility-formula-progress',
-  '单座配方每',
-  'formatCurrency(type.operatingCost)',
+  'function currentFormulaScope',
+  'group.participatingCount',
+  'group.nextCycleCount',
+  'item.quantity * multiplier',
+  'type.operatingCost * scope.count',
+  'facility-formula-scope',
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
-for (const text of ['activeCount', 'multiplier={activeCount}', 'type.operatingCost * activeCount']) {
-  forbidText('src/components/facilities/FacilityProductionFormula.tsx', text);
-}
+for (const text of [
+  '单座配方每',
+  'multiplier={group.count}',
+  'type.operatingCost * group.count',
+  'item.quantity * group.count',
+]) forbidText('src/components/facilities/FacilityProductionFormula.tsx', text);
 
 for (const text of [
   '无限等级、容量与费用',
@@ -162,7 +169,7 @@ for (const forbidden of ['升级费用：150 × L²', 'warehouseUpgradeCostForLe
   forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', forbidden);
 }
 requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 0.6)`');
-for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式固定显示单座正式配方']) {
+for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式只展示集群参数']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 }
 for (const text of [
@@ -172,13 +179,18 @@ for (const text of [
   '商品名称固定在左上角',
   '居中大尺寸统一商品 SVG',
   '建设卡不显示生产周期、单座产量和单座成本',
+  '公式只展示集群输入、输出、周期和成本',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-for (const text of ['仓库商品网格使用容器查询', '左上名称／居中大图标／可用主值／冻结辅助值', '断点为 300、560、760、960px', '商品卡最小高度 `112px`', '生产配方是配置展示，不是运行统计']) {
-  requireText('docs/UI_DESIGN_SYSTEM.md', text);
-}
+for (const text of [
+  '仓库商品网格使用容器查询',
+  '左上名称／居中大图标／可用主值／冻结辅助值',
+  '断点为 300、560、760、960px',
+  '商品卡最小高度 `112px`',
+  '生产公式是集群运行能力展示',
+]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、容量线性定价、商品卡图标主导布局、移动端三列与 2 至 6 列容器密度、建设卡精简和固定单座配方验证通过。');
+console.log('仓库无限扩容、容量线性定价、商品卡图标主导布局、移动端三列与 2 至 6 列容器密度、建设卡精简和集群公式验证通过。');
