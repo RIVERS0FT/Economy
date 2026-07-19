@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
-import { ProductIconLabel } from '../icons/ProductIcons';
+import { ProductIcon } from '../icons/ProductIcons';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { Button, Panel, StatusTag, WidgetHeading } from '../ui/layout';
 
@@ -119,14 +119,19 @@ export function WarehouseUpgradeCard({
                     type="button"
                     className="warehouse-product-card"
                     key={product.id}
-                    aria-label={`前往${product.name}市场`}
+                    aria-label={`${product.name}，可用 ${formatNumber(inventory.available)}，冻结 ${formatNumber(inventory.frozen)}，前往市场`}
                     onClick={() => selectMarketAsset('commodity', product.id)}
                   >
-                    <ProductIconLabel productId={product.id} className="warehouse-product-card-title">
-                      {product.name}
-                    </ProductIconLabel>
-                    <strong>可用 {formatNumber(inventory.available)}</strong>
-                    <small>冻结 {formatNumber(inventory.frozen)}</small>
+                    <span className="warehouse-product-card-name">{product.name}</span>
+                    <span className="warehouse-product-card-icon">
+                      <ProductIcon productId={product.id} />
+                    </span>
+                    <strong className="warehouse-product-card-available">
+                      可用 {formatNumber(inventory.available)}
+                    </strong>
+                    <small className="warehouse-product-card-frozen">
+                      冻结 {formatNumber(inventory.frozen)}
+                    </small>
                   </button>
                 );
               })}
