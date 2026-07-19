@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { normalizeIntegerDraft } from '../../utils/integerDraft';
 
-function classNames(...values: Array<string | false | null | undefined>) {
+function classNames(...values: Array<string | number | bigint | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
 }
 
