@@ -10,7 +10,7 @@
   min-width: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-x: auto;
+  overscroll-behavior-x: contain;
   overscroll-behavior-y: auto;
   -webkit-overflow-scrolling: touch;
   contain: strict;
@@ -46,7 +46,7 @@
   border: 1px solid var(--color-border, var(--border-subtle));
   border-radius: var(--radius-control, var(--radius-md));
   background: var(--color-surface-inset, var(--surface-muted));
-  overscroll-behavior-x: auto;
+  overscroll-behavior-x: contain;
 }
 
 .virtual-record-header,
