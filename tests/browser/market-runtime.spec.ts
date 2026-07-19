@@ -159,3 +159,22 @@ test('market order book headings precede their rows and sparse books keep natura
   expect(book.height).toBeLessThan(chart.height * 0.8);
   expect(pageErrors).toEqual([]);
 });
+
+test('market order book aggregates same-price orders into one price level', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 720, height: 1000 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  await expect(page.getByText('最低价前 5 档', { exact: true })).toBeVisible();
+  await expect(page.getByText('最高价前 5 档', { exact: true })).toBeVisible();
+
+  const askLevels = page.locator('.book-order-row.ask');
+  const bidLevels = page.locator('.book-order-row.bid');
+  await expect(askLevels).toHaveCount(1);
+  await expect(bidLevels).toHaveCount(1);
+  await expect(askLevels).toHaveAttribute('data-order-count', '2');
+  await expect(bidLevels).toHaveAttribute('data-order-count', '5');
+  await expect(askLevels).toHaveAttribute('aria-label', '卖盘，价格 13，合计剩余 4，包含 2 笔订单');
+  await expect(bidLevels).toHaveAttribute('aria-label', '买盘，价格 2，合计剩余 5，包含 5 笔订单');
+  expect(pageErrors).toEqual([]);
+});
