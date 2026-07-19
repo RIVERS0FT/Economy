@@ -23,7 +23,7 @@ export function GameShell({ model, statusItems, children }: {
   }, []);
 
   return (
-    <main className={sidebarCollapsed ? 'game-shell sidebar-collapsed' : 'game-shell'}>
+    <main className={sidebarCollapsed ? 'game-shell sidebar-layout sidebar-collapsed' : 'game-shell sidebar-layout'}>
       <DesktopSidebar
         playerName={model.game.playerName}
         activeTab={model.tab}

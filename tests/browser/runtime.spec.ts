@@ -12,6 +12,11 @@ async function requireBox(locator: Locator) {
   return box!;
 }
 
+async function centerOf(locator: Locator) {
+  const box = await requireBox(locator);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
 async function gridTrackCount(locator: Locator) {
   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns
     .split(' ')
@@ -103,7 +108,9 @@ test('desktop sidebar uses the server-configured QQ group link', async ({ page }
 
   await page.goto('runtime-test.html?view=overview&scenario=empty');
   const communityLink = page.getByRole('link', { name: '加入 QQ 群（在新窗口打开）' });
-  const expandedLogo = page.locator('.sidebar-brand > img');
+  const expandedLogo = page.locator('.sidebar-logo-expand-button img');
+  const overviewIcon = page.getByRole('button', { name: '概览', exact: true }).locator('svg');
+  const logoutButton = page.getByRole('button', { name: '退出登录' });
   await expect(communityLink).toBeVisible();
   await expect(communityLink).toHaveAttribute('href', 'https://qm.qq.com/q/browser-test');
   await expect(communityLink).toHaveAttribute('target', '_blank');
@@ -112,10 +119,28 @@ test('desktop sidebar uses the server-configured QQ group link', async ({ page }
   const expandedLogoBox = await requireBox(expandedLogo);
   expect(expandedLogoBox.width).toBe(40);
   expect(expandedLogoBox.height).toBe(40);
+  const expandedAnchors = {
+    logo: await centerOf(expandedLogo),
+    overview: await centerOf(overviewIcon),
+    community: await centerOf(communityLink.locator('svg')),
+    logout: await centerOf(logoutButton.locator('svg')),
+  };
 
   await page.getByRole('button', { name: '折叠侧栏' }).click();
   await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'true');
   await expect(page.getByRole('button', { name: '折叠侧栏' })).toHaveCount(0);
+  await page.waitForTimeout(100);
+  const midpointAnchors = {
+    logo: await centerOf(expandedLogo),
+    overview: await centerOf(overviewIcon),
+    community: await centerOf(communityLink.locator('svg')),
+    logout: await centerOf(logoutButton.locator('svg')),
+  };
+  for (const key of Object.keys(expandedAnchors) as Array<keyof typeof expandedAnchors>) {
+    expect(Math.abs(expandedAnchors[key].x - midpointAnchors[key].x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(expandedAnchors[key].y - midpointAnchors[key].y)).toBeLessThanOrEqual(1);
+  }
+  await page.waitForTimeout(120);
 
   const expandButton = page.getByRole('button', { name: '展开侧栏' });
   const collapsedLogo = expandButton.locator('img');
@@ -127,18 +152,32 @@ test('desktop sidebar uses the server-configured QQ group link', async ({ page }
   await expect(collapsedLogo).toHaveCSS('opacity', '1');
   await expect(expandIcon).toHaveCSS('opacity', '0');
 
+  const collapsedAnchors = {
+    logo: await centerOf(collapsedLogo),
+    overview: await centerOf(overviewIcon),
+    community: await centerOf(communityLink.locator('svg')),
+    logout: await centerOf(logoutButton.locator('svg')),
+  };
+  for (const key of Object.keys(expandedAnchors) as Array<keyof typeof expandedAnchors>) {
+    expect(Math.abs(expandedAnchors[key].x - collapsedAnchors[key].x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(expandedAnchors[key].y - collapsedAnchors[key].y)).toBeLessThanOrEqual(1);
+  }
+
+  const expandButtonBeforeHover = await requireBox(expandButton);
   await expandButton.hover();
   await expect(collapsedLogo).toHaveCSS('opacity', '0');
   await expect(expandIcon).toHaveCSS('opacity', '1');
+  const expandButtonAfterHover = await requireBox(expandButton);
+  expect(expandButtonAfterHover).toEqual(expandButtonBeforeHover);
 
   await page.mouse.move(400, 400);
   await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
   await expect(expandButton).toBeFocused();
   await expect(collapsedLogo).toHaveCSS('opacity', '0');
   await expect(expandIcon).toHaveCSS('opacity', '1');
 
   const communityBox = await requireBox(communityLink);
-  const logoutButton = page.getByRole('button', { name: '退出登录' });
   const logoutBox = await requireBox(logoutButton);
   expect(communityBox.width).toBe(48);
   expect(communityBox.height).toBe(48);

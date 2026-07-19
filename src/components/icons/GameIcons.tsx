@@ -104,6 +104,25 @@ export function LogoutIcon(props: GameIconProps) {
   );
 }
 
+export function GiftIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <rect x="3" y="9" width="18" height="11" rx="2" />
+      <path d="M12 9v11M3 13h18M5 9h14" />
+      <path d="M12 9H8.5A2.5 2.5 0 1 1 11 6.5V9ZM12 9h3.5A2.5 2.5 0 1 0 13 6.5V9Z" />
+    </GameIcon>
+  );
+}
+
+export function ShieldIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M12 3 20 6v5c0 5-3.2 8.4-8 10-4.8-1.6-8-5-8-10V6l8-3Z" />
+      <path d="M9 12.2 11.1 14 15.5 9.5" />
+    </GameIcon>
+  );
+}
+
 export function NavigationIcon({ name, ...props }: { name: NavigationIconName } & GameIconProps) {
   switch (name) {
     case 'home': return <HomeIcon {...props} />;

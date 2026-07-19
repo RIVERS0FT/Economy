@@ -18,6 +18,7 @@ const files = [
   'src/api/invitations.ts',
   'src/components/InvitationSettings.tsx',
   'src/components/AdminBanPanel.tsx',
+  'src/app/AdminApp.tsx',
   'src/components/icons/GemIcon.tsx',
   'src/pages/SettingsPage.tsx',
   'src/app/App.tsx',
@@ -82,6 +83,10 @@ for (const text of [
   'unbanUser',
   'rebanUser',
 ]) requireText('src/components/AdminBanPanel.tsx', text);
+for (const text of ["activeSection === 'bans'", '<AdminBanPanel']) requireText('src/app/AdminApp.tsx', text);
+forbidText('src/app/App.tsx', "path === '/economy/admin/bans'");
+forbidText('src/pages/SettingsPage.tsx', '/economy/admin/bans');
+if (existsSync(resolve(root, 'src/app/AdminBanApp.tsx'))) failures.push('独立封禁页面 AdminBanApp 不得恢复');
 
 for (const text of [
   'gems: number;',

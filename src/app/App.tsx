@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { getCurrentUser, initializeEconomySession, type EconomySessionResponse } from '../api/auth';
 import type { AuthUser } from '../types';
 import { AdminApp } from './AdminApp';
-import { AdminBanApp } from './AdminBanApp';
 import { GameApp } from './GameApp';
 import { LoginPage } from './LoginPage';
 import '../styles/invitations.css';
@@ -11,7 +10,6 @@ type AppSurface = 'loading' | 'auth' | 'game' | 'admin' | 'banned';
 
 function adminSurface() {
   const path = window.location.pathname.replace(/\/+$/, '');
-  if (path === '/economy/admin/bans') return 'bans';
   if (path === '/economy/admin') return 'main';
   return null;
 }
@@ -108,7 +106,6 @@ export default function App() {
     );
   }
   if (banned) return <BannedAccount incidentId={session?.incidentId} />;
-  if (adminPath === 'bans') return <AdminBanApp user={user} />;
   if (adminPath === 'main') return <AdminApp user={user} />;
   return <GameApp user={user} onSignedOut={() => { setUser(null); setSession(null); }} />;
 }

@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react';
 import { adminApi, type BanIncidentDetails, type BanIncidentSummary } from '../api/admin';
 import { formatDate, formatTime } from '../utils/formatters';
+import { Button, EmptyState, Panel, StatusTag, WidgetHeading } from './ui/layout';
 
-export function AdminBanPanel({ onNotice }: { onNotice: (message: string) => void }) {
+export function AdminBanPanel({
+  onNotice,
+  refreshToken = 0,
+}: {
+  onNotice: (message: string) => void;
+  refreshToken?: number;
+}) {
   const [incidents, setIncidents] = useState<BanIncidentSummary[]>([]);
   const [details, setDetails] = useState<BanIncidentDetails | null>(null);
   const [note, setNote] = useState('');
@@ -10,6 +17,7 @@ export function AdminBanPanel({ onNotice }: { onNotice: (message: string) => voi
   const [working, setWorking] = useState(false);
 
   async function load() {
+    setLoading(true);
     try {
       const next = await adminApi.banIncidents();
       setIncidents(next);
@@ -26,7 +34,7 @@ export function AdminBanPanel({ onNotice }: { onNotice: (message: string) => voi
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [refreshToken]);
 
   async function selectIncident(id: number) {
     try {
@@ -52,12 +60,13 @@ export function AdminBanPanel({ onNotice }: { onNotice: (message: string) => voi
   }
 
   return (
-    <section className="admin-panel admin-ban-panel">
+    <Panel className="admin-panel admin-ban-panel">
       <div className="admin-panel-heading">
-        <div><h2>同 IP 账号封禁</h2><p>同一个注册 IP 指纹出现多个 Economy 账号时，系统会封禁该组全部账号。</p></div>
-        <button type="button" onClick={() => void load()}>刷新封禁记录</button>
+        <WidgetHeading title="同 IP 账号封禁" />
+        <Button variant="secondary" onClick={() => void load()}>刷新封禁记录</Button>
       </div>
-      {loading ? <p>正在读取封禁事件…</p> : incidents.length === 0 ? <p>暂无同 IP 封禁事件。</p> : (
+      <p className="ui-helper-text">同一个注册 IP 指纹出现多个 Economy 账号时，系统会封禁该组全部账号。</p>
+      {loading ? <p>正在读取封禁事件…</p> : incidents.length === 0 ? <EmptyState>暂无同 IP 封禁事件。</EmptyState> : (
         <div className="admin-ban-layout">
           <div className="admin-ban-incidents" role="list" aria-label="封禁事件">
             {incidents.map((incident) => (
@@ -78,7 +87,7 @@ export function AdminBanPanel({ onNotice }: { onNotice: (message: string) => voi
               <>
                 <div className="admin-ban-summary">
                   <strong>事件 #{details.incident.id}</strong>
-                  <span>状态：{details.incident.status}</span>
+                  <StatusTag tone={details.incident.status === 'active' ? 'danger' : 'success'}>{details.incident.status}</StatusTag>
                   <span>检测时间：{formatTime(details.incident.detected_at)}</span>
                 </div>
                 <label>
@@ -90,11 +99,11 @@ export function AdminBanPanel({ onNotice }: { onNotice: (message: string) => voi
                     onChange={(event) => setNote(event.target.value)}
                   />
                 </label>
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   disabled={working}
                   onClick={() => void mutate(() => adminApi.unbanIncident(details.incident.id, note))}
-                >解除本事件全部账号封禁</button>
+                >解除本事件全部账号封禁</Button>
                 <div className="admin-ban-members">
                   {details.members.map((member) => (
                     <div key={member.user_id}>
@@ -104,27 +113,26 @@ export function AdminBanPanel({ onNotice }: { onNotice: (message: string) => voi
                         <small>注册于 {formatTime(member.registered_at)} · {member.ban_status === 'active' ? '封禁中' : '已解禁'}</small>
                       </div>
                       {member.ban_status === 'active' ? (
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
                           disabled={working}
                           onClick={() => void mutate(() => adminApi.unbanUser(member.user_id, note))}
-                        >解禁</button>
+                        >解禁</Button>
                       ) : (
-                        <button
-                          type="button"
+                        <Button
+                          variant="danger"
                           disabled={working}
-                          className="danger"
                           onClick={() => void mutate(() => adminApi.rebanUser(member.user_id, note))}
-                        >重新封禁</button>
+                        >重新封禁</Button>
                       )}
                     </div>
                   ))}
                 </div>
               </>
-            ) : <p>选择一个封禁事件查看账号并进行复核。</p>}
+            ) : <EmptyState>选择一个封禁事件查看账号并进行复核。</EmptyState>}
           </div>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }

@@ -23,12 +23,15 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/components/shell/NavigationItems.tsx',
   'src/components/shell/DesktopSidebar.tsx',
+  'src/components/shell/SidebarFrame.tsx',
+  'src/components/shell/AdminSidebar.tsx',
   'src/components/shell/GameShell.tsx',
   'src/components/ui/VirtualList.tsx',
   'src/app/gameViewModel.ts',
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
+  'tests/browser/admin-runtime.spec.ts',
   'src/app/LoginPage.tsx',
   'src/config/brand.ts',
   'index.html',
@@ -201,17 +204,29 @@ for (const text of [
   '玩家社区入口',
   'adminApi.updateCommunityLink',
   'QQ群跳转链接',
+  "activeSection === 'bans'",
+  '<AdminBanPanel',
+  '<AdminSidebar',
 ]) requireText('src/app/AdminApp.tsx', text);
 for (const text of [
   'sidebar-community-link',
   '加入 QQ 群',
   'QqIcon',
   'LogoutIcon',
-  'sidebar-logo-expand-button',
-  'aria-label="展开侧栏"',
   'target="_blank"',
   'rel="noopener noreferrer"',
 ]) requireText('src/components/shell/DesktopSidebar.tsx', text);
+for (const text of [
+  'sidebar-logo-expand-button',
+  'aria-label="展开侧栏"',
+  'aria-label="折叠侧栏"',
+  'sidebar-brand-copy',
+]) requireText('src/components/shell/SidebarFrame.tsx', text);
+for (const text of [
+  "export type AdminSectionId = 'overview' | 'community' | 'collectibles' | 'gift-codes' | 'bans'",
+  '管理员导航',
+  'admin-mobile-navigation',
+]) requireText('src/components/shell/AdminSidebar.tsx', text);
 for (const text of ['<span aria-hidden="true">QQ</span>', '>退出登录</Button>']) {
   forbidText('src/components/shell/DesktopSidebar.tsx', text);
 }
@@ -219,14 +234,26 @@ for (const text of ['export function QqIcon', 'export function LogoutIcon']) {
   requireText('src/components/icons/GameIcons.tsx', text);
 }
 for (const text of [
-  '.sidebar-logo-expand-button:hover img',
-  '.sidebar-logo-expand-button:focus-visible img',
-  '.sidebar-collapsed .desktop-sidebar .sidebar-logout strong',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:hover img',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:focus-visible img',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-footer-action strong',
+  '.desktop-sidebar button:hover:not(:disabled)',
+  '--desktop-sidebar-motion: 200ms',
 ]) requireText('src/styles/desktop-sidebar.css', text);
+for (const text of ['AdminBanApp', "path === '/economy/admin/bans'"]) forbidText('src/app/App.tsx', text);
+forbidText('src/pages/SettingsPage.tsx', '/economy/admin/bans');
 for (const text of ['getCommunityLink(controller.signal)', 'DEFAULT_QQ_GROUP_URL']) {
   requireText('src/components/shell/GameShell.tsx', text);
 }
 for (const text of ['collectibles.map(', 'giftCodes.map(', 'ownership.map(', 'redemptions.map(']) forbidText('src/app/AdminApp.tsx', text);
+for (const text of ['MetricCard', 'PageLayout', 'Panel', 'StatusTag', 'Button']) requireText('src/app/AdminApp.tsx', text);
+for (const text of ['grid-template-columns: repeat(4, minmax(0, 1fr));', 'max-width: 1440px;', '.admin-mobile-navigation']) {
+  requireText('src/styles/unified-market-admin.css', text);
+}
+if (existsSync(resolve(root, 'src/app/AdminBanApp.tsx'))) failures.push('独立 AdminBanApp 不得恢复');
+for (const text of ['admin backend uses unified sections and embeds ban review', 'admin navigation becomes a horizontal client-style bar on mobile']) {
+  requireText('tests/browser/admin-runtime.spec.ts', text);
+}
 
 for (const text of ['ResizeObserver', 'measuredSizesRef', 'overscan', 'aria-setsize', 'virtual-list__canvas']) {
   requireText('src/components/ui/VirtualList.tsx', text);
@@ -338,6 +365,7 @@ for (const text of [
   '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',
   'Logo 在展开与折叠状态统一为 `40×40px`',
   '两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG',
+  '管理员后台左侧导航复用同一侧栏骨架与动画',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [

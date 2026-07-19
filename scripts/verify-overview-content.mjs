@@ -23,6 +23,7 @@ const paths = {
   gameApp: 'src/app/GameApp.tsx',
   shell: 'src/components/shell/GameShell.tsx',
   sidebar: 'src/components/shell/DesktopSidebar.tsx',
+  sidebarFrame: 'src/components/shell/SidebarFrame.tsx',
   statusBar: 'src/components/shell/StatusBar.tsx',
   overviewStyle: 'src/styles/overview.css',
   polishStyle: 'src/styles/overview-polish.css',
@@ -135,10 +136,10 @@ forbidAll(paths.polishStyle, ['clamp(168px, 20vw, 210px)', '.overview-asset-even
 
 requireAll(paths.shell, [
   'const [sidebarCollapsed, setSidebarCollapsed] = useState(false)',
-  "sidebarCollapsed ? 'game-shell sidebar-collapsed' : 'game-shell'",
+  "sidebarCollapsed ? 'game-shell sidebar-layout sidebar-collapsed' : 'game-shell sidebar-layout'",
   'onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}',
 ]);
-requireAll(paths.sidebar, [
+requireAll(paths.sidebarFrame, [
   'className="sidebar-logo-expand-button"',
   'aria-label="展开侧栏"',
   'aria-expanded="false"',
@@ -146,10 +147,12 @@ requireAll(paths.sidebar, [
   'aria-expanded="true"',
 ]);
 requireAll(paths.sidebarStyle, [
-  '.game-shell.sidebar-collapsed {',
-  'grid-template-columns: 78px minmax(0, 1fr);',
-  '.sidebar-logo-expand-button:hover',
-  '.sidebar-logo-expand-button:focus-visible',
+  '.sidebar-layout.sidebar-collapsed {',
+  '--desktop-sidebar-collapsed-width: 78px;',
+  'grid-template-columns: var(--sidebar-column-width) minmax(0, 1fr);',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:hover',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:focus-visible',
+  '.desktop-sidebar button:hover:not(:disabled)',
   '@media (max-width: 960px)',
 ]);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
@@ -193,6 +196,8 @@ requireAll(paths.browserSpec, [
   'overview only scrolls the order list after the visible capacity is exceeded',
   'overview keeps the decision rows visible and adapts to a narrower desktop',
   'desktop sidebar collapse recomputes overview columns from the real content width',
+  'midpointAnchors',
+  'expandButtonAfterHover',
   'async function expectNoPairOverlap',
   'async function expectElementsInside',
   "page.setViewportSize({ width: 1684, height: 931 })",

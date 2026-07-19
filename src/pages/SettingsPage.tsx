@@ -119,7 +119,6 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
                 <h3 id="administrator-tools-heading">管理员工具</h3>
                 <div className="account-action-links">
                   <a className="ui-link" href="/economy/admin">进入管理员后台</a>
-                  <a className="ui-link" href="/economy/admin/bans">账号封禁管理</a>
                 </div>
               </section>
             ) : null}
