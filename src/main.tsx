@@ -10,7 +10,7 @@ import './styles/viewport.css';
 import './styles/auth.css';
 import './styles/registration-auth.css';
 import './styles/card-system.css';
-import './styles/liquid-glass-chrome.css';
+import './styles/liquid-glass-surfaces.css';
 import './styles/mobile-status-navigation.css';
 import './styles/mobile-interaction.css';
 import './styles/mobile-pages.css';
