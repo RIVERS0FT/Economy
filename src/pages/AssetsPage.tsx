@@ -4,10 +4,7 @@ import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   Button,
-  DataList,
-  DataRow,
   EmptyState,
-  MetricCard,
   PageLayout,
   Panel,
   StatusTag,
@@ -110,45 +107,95 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
       title="资产"
       description="查看现金、商品、工厂资产与当前浏览器中的资产变化记录。"
     >
-      <div className="funds-summary-grid">
-        <MetricCard label="可用资金" value={<CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>} tone="success" />
-        <MetricCard label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} detail="用于未完成买单和拍卖最高出价" tone="warning" />
-        <MetricCard label="当前总资产" value={<CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>} detail="包含仍归你所有的冻结资产" tone="success" />
-        <MetricCard label="冻结资产" value={<CurrencyAmount>{formatCurrency(frozenAssetValue)}</CurrencyAmount>} detail="资金、商品与工厂冻结估值" tone="warning" />
-        <MetricCard label="可支配资产" value={<CurrencyAmount>{formatCurrency(availableAssetValue)}</CurrencyAmount>} detail="当前未被冻结的资产估值" tone="info" />
-      </div>
+      <div className="assets-page-grid">
+        <Panel className="widget asset-overview-card">
+          <WidgetHeading
+            title="资产总览"
+            action={<span className="muted">商品和工厂按订单簿最高有效买入价估值</span>}
+          />
 
-      <div className="asset-overview-grid">
-        <Panel className="widget allocation-card">
-          <WidgetHeading title="资产配置" action={<strong><CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount></strong>} />
-          <div className="allocation-visual" style={allocationStyle}><div><strong>{cashShare}%</strong><span>现金占比</span></div></div>
-          <div className="allocation-legend">
-            <span><i className="cash-dot" />现金 <strong>{cashShare}%</strong></span>
-            <span><i className="commodity-dot" />商品 <strong>{commodityShare}%</strong></span>
-            <span><i className="facility-dot" />工厂 <strong>{facilityShare}%</strong></span>
+          <div className="asset-overview-body">
+            <section className="asset-total-summary" aria-label="当前总资产">
+              <span className="asset-summary-label">当前总资产</span>
+              <strong className="asset-total-value">
+                <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>
+              </strong>
+              <div className="asset-total-splits">
+                <span>
+                  <small>可支配资产</small>
+                  <strong><CurrencyAmount>{formatCurrency(availableAssetValue)}</CurrencyAmount></strong>
+                </span>
+                <span>
+                  <small>冻结资产</small>
+                  <strong><CurrencyAmount>{formatCurrency(frozenAssetValue)}</CurrencyAmount></strong>
+                </span>
+              </div>
+            </section>
+
+            <section className="asset-allocation-summary" aria-label="资产配置比例">
+              <div className="allocation-visual" style={allocationStyle}>
+                <div><strong>资产配置</strong><span>按估值占比</span></div>
+              </div>
+              <div className="allocation-legend">
+                <span><i className="cash-dot" />现金 <strong>{cashShare}%</strong></span>
+                <span><i className="commodity-dot" />商品 <strong>{commodityShare}%</strong></span>
+                <span><i className="facility-dot" />工厂 <strong>{facilityShare}%</strong></span>
+              </div>
+            </section>
+
+            <section className="asset-composition-section" aria-labelledby="asset-composition-title">
+              <h3 id="asset-composition-title">资产构成</h3>
+              <div className="asset-composition-table" role="table" aria-label="资产构成明细">
+                <div className="asset-composition-header" role="row">
+                  <span role="columnheader">类型</span>
+                  <span role="columnheader">总计</span>
+                  <span role="columnheader">可用</span>
+                  <span role="columnheader">冻结</span>
+                </div>
+                <div
+                  className="asset-composition-row cash"
+                  role="row"
+                  aria-label={`现金，总计 ${formatCurrency(derived.cashValue)}，可用 ${formatCurrency(game.credits)}，冻结 ${formatCurrency(game.frozenCredits)}`}
+                >
+                  <span className="asset-composition-name" role="cell"><i className="cash-dot" />现金</span>
+                  <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(derived.cashValue)}</CurrencyAmount></strong>
+                  <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></span>
+                  <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></span>
+                </div>
+                <div
+                  className="asset-composition-row commodity"
+                  role="row"
+                  aria-label={`商品，总计 ${formatCurrency(derived.commodityValue)}，可用 ${formatCurrency(availableCommodityValue)}，冻结 ${formatCurrency(frozenCommodityValue)}，冻结数量 ${formatNumber(frozenInventory)}`}
+                >
+                  <span className="asset-composition-name" role="cell">
+                    <i className="commodity-dot" />
+                    <span>商品<small>冻结数量 {formatNumber(frozenInventory)}</small></span>
+                  </span>
+                  <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount></strong>
+                  <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(availableCommodityValue)}</CurrencyAmount></span>
+                  <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenCommodityValue)}</CurrencyAmount></span>
+                </div>
+                <div
+                  className="asset-composition-row facility"
+                  role="row"
+                  aria-label={`工厂，总计 ${formatCurrency(derived.facilityValue)}，可用 ${formatCurrency(availableFacilityValue)}，冻结 ${formatCurrency(frozenFacilityValue)}，冻结 ${formatNumber(frozenFacilities)} 座，共 ${formatNumber(totalFacilities)} 座`}
+                >
+                  <span className="asset-composition-name" role="cell">
+                    <i className="facility-dot" />
+                    <span>工厂<small>{formatNumber(frozenFacilities)}/{formatNumber(totalFacilities)} 座冻结</small></span>
+                  </span>
+                  <strong role="cell" data-label="总计"><CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount></strong>
+                  <span role="cell" data-label="可用"><CurrencyAmount>{formatCurrency(availableFacilityValue)}</CurrencyAmount></span>
+                  <span role="cell" data-label="冻结"><CurrencyAmount>{formatCurrency(frozenFacilityValue)}</CurrencyAmount></span>
+                </div>
+              </div>
+            </section>
           </div>
+
+          <p className="ui-helper-text asset-freeze-note">冻结资产仍归当前玩家所有并计入总资产；冻结只限制交易、生产或使用。</p>
         </Panel>
 
-        <Panel className="widget asset-breakdown span-2">
-          <WidgetHeading title="资产估值明细" action={<span className="muted">商品和工厂均按订单簿最高有效买入价估值</span>} />
-          <p className="ui-helper-text">冻结资产仍归当前玩家所有并计入总资产；冻结只限制交易、生产或使用。</p>
-          <div className="asset-card-grid">
-            <MetricCard label="现金资产" value={<CurrencyAmount>{formatCurrency(derived.cashValue)}</CurrencyAmount>} detail={`可用 ${formatCurrency(game.credits)} · 冻结 ${formatCurrency(game.frozenCredits)}`} tone="success" />
-            <MetricCard
-              label="全部商品估值"
-              value={<CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount>}
-              detail={`可用 ${formatCurrency(availableCommodityValue)} · 冻结 ${formatCurrency(frozenCommodityValue)} · 冻结数量 ${formatNumber(frozenInventory)}`}
-            />
-            <MetricCard
-              label="工厂资产估值"
-              value={<CurrencyAmount>{formatCurrency(derived.facilityValue)}</CurrencyAmount>}
-              detail={`可用 ${formatCurrency(availableFacilityValue)} · 冻结 ${formatCurrency(frozenFacilityValue)} · ${formatNumber(frozenFacilities)}/${formatNumber(totalFacilities)} 座冻结`}
-              tone="info"
-            />
-          </div>
-        </Panel>
-
-        <Panel className="widget span-3 asset-event-panel">
+        <Panel className="widget asset-event-panel">
           <WidgetHeading
             title="本地资产变动"
             action={
