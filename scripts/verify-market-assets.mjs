@@ -10,6 +10,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
   'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts',
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
+  'server/src/market-demand.js','server/src/market-demand/price-transmission.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
@@ -94,7 +95,12 @@ for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('sr
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
 for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','bestBidFor','world.version = 13','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
-const domainSource = `${read('server/src/domain.js')}\n${read('server/src/domain-core.js')}`;
+const domainSource = [
+  'server/src/domain.js',
+  'server/src/domain-core.js',
+  'server/src/market-demand.js',
+  'server/src/market-demand/price-transmission.js',
+].map(read).join('\n');
 for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor']) {
   if (!domainSource.includes(text)) failures.push('领域实现缺少: ' + text);
 }
