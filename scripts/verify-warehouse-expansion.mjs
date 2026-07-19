@@ -104,7 +104,11 @@ for (const text of [
   'container-type: inline-size;',
   '.warehouse-product-grid',
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
-  '@container (min-width: 360px)',
+  '@container (max-width: 359px)',
+  'padding: 27px 6px 6px;',
+  'width: 36px;',
+  'height: 36px;',
+  '@container (min-width: 300px)',
   'grid-template-columns: repeat(3, minmax(0, 1fr));',
   '@container (min-width: 560px)',
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
@@ -119,15 +123,13 @@ for (const text of [
   '.warehouse-product-card-icon .product-icon',
   'width: 44px;',
   'height: 44px;',
-  '@container (max-width: 359px)',
-  'width: 38px;',
-  'height: 38px;',
   '@media (max-width: 960px)',
 ]) requireText(css, text);
 for (const text of [
   'repeat(4, minmax(130px, 1fr))',
   '@media (max-width: 1220px)',
   'grid-template-columns: repeat(3, minmax(130px, 1fr));',
+  '@container (min-width: 360px)',
 ]) forbidText(css, text);
 
 for (const text of [
@@ -149,6 +151,8 @@ for (const text of [
   '仓库没有玩家可见的最高等级',
   '容器查询',
   '2／3／4／5／6 列',
+  '300px–559px',
+  '300px–359px',
   '112px',
   '8px',
   '商品名称固定在卡片左上角',
@@ -161,10 +165,15 @@ requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 5
 for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式固定显示单座正式配方']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 }
-for (const text of ['仓库商品网格按内容区宽度', '商品名称固定在左上角', '居中大尺寸统一商品 SVG', '建设卡不显示生产周期、单座产量和单座成本']) {
-  requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-}
-for (const text of ['仓库商品网格使用容器查询', '左上名称／居中大图标／可用主值／冻结辅助值', '商品卡最小高度 `112px`', '生产配方是配置展示，不是运行统计']) {
+for (const text of [
+  '仓库商品网格按内容区宽度',
+  '小于 300px 为 2 列，300px 起 3 列',
+  '内容区小于 360px 时允许使用 6px 水平内边距',
+  '商品名称固定在左上角',
+  '居中大尺寸统一商品 SVG',
+  '建设卡不显示生产周期、单座产量和单座成本',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of ['仓库商品网格使用容器查询', '左上名称／居中大图标／可用主值／冻结辅助值', '断点为 300、560、760、960px', '商品卡最小高度 `112px`', '生产配方是配置展示，不是运行统计']) {
   requireText('docs/UI_DESIGN_SYSTEM.md', text);
 }
 
@@ -172,4 +181,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、容量线性定价、商品卡图标主导布局、2 至 6 列容器密度、建设卡精简和固定单座配方验证通过。');
+console.log('仓库无限扩容、容量线性定价、商品卡图标主导布局、移动端三列与 2 至 6 列容器密度、建设卡精简和固定单座配方验证通过。');
