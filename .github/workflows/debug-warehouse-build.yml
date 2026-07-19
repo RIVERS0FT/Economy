@@ -1,0 +1,39 @@
+name: Debug warehouse build
+
+on:
+  push:
+    branches:
+      - codex/warehouse-icon-led-final
+    paths:
+      - .github/workflows/debug-warehouse-build.yml
+
+permissions:
+  contents: write
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/warehouse-icon-led-final
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Capture build output
+        run: |
+          set +e
+          npm ci > build-debug.log 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            npm run build >> build-debug.log 2>&1
+            status=$?
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build-debug.log
+          git commit -m "chore: capture build diagnostics"
+          git push origin HEAD:codex/warehouse-icon-led-final
+          exit "$status"
