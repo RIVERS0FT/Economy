@@ -143,4 +143,27 @@ test.describe('full-width signed-in game shell', () => {
     expect(expanded.pageScroll.left - collapsed.pageScroll.left).toBeCloseTo(146, 0);
     expect(expanded.pageContent.left - collapsed.pageContent.left).toBeCloseTo(146, 0);
   });
+
+  test('page scrollbar appears during activity and hides again after idle', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+    const pageScroll = page.locator('.page-scroll');
+    await expect(pageScroll).toBeVisible();
+    await expect(pageScroll).not.toHaveAttribute('data-scrollbar-active', 'true');
+
+    const scrollportStyle = await pageScroll.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { overflowY: style.overflowY, scrollbarGutter: style.scrollbarGutter };
+    });
+    expect(scrollportStyle.overflowY).toBe('auto');
+    expect(scrollportStyle.scrollbarGutter).toBe('stable');
+
+    await pageScroll.dispatchEvent('wheel', { deltaY: 120 });
+    await expect(pageScroll).toHaveAttribute('data-scrollbar-active', 'true');
+    await expect(pageScroll).not.toHaveAttribute('data-scrollbar-active', 'true', { timeout: 2_500 });
+
+    await page.keyboard.press('PageDown');
+    await expect(pageScroll).toHaveAttribute('data-scrollbar-active', 'true');
+  });
 });
