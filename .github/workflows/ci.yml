@@ -29,7 +29,10 @@ jobs:
         run: npm ci
 
       - name: Build and test
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -40,12 +43,13 @@ jobs:
           set -o pipefail
           npm run test:browser 2>&1 | tee browser-test.log
 
-      - name: Upload browser test artifacts
+      - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-test-artifacts
+          name: economy-test-artifacts
           path: |
+            build-test.log
             browser-test.log
             playwright-report
             test-results
