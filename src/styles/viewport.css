@@ -262,7 +262,7 @@ html[data-app-surface="game"] body {
     );
   }
 
-  .asset-bar.panel {
+  .asset-bar {
     position: absolute;
     z-index: 3;
     top: var(--mobile-chrome-inset);
@@ -271,7 +271,7 @@ html[data-app-surface="game"] body {
     height: var(--mobile-asset-bar-height);
   }
 
-  .mobile-bottom-navigation.panel {
+  .mobile-bottom-navigation {
     position: fixed;
     z-index: 50;
     right: var(--mobile-chrome-inset);

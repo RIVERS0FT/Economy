@@ -4,16 +4,23 @@
 :root {
   --desktop-asset-bar-height: 76px;
   --desktop-status-gap: var(--space-3);
-  --liquid-glass-contrast: rgba(9, 25, 18, 0.34);
+  --liquid-glass-contrast: rgba(9, 25, 18, 0.18);
   --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
 }
 
-.asset-bar.panel,
-.mobile-bottom-navigation.panel {
+.asset-bar,
+.mobile-bottom-navigation {
   border: 0;
   background: transparent;
   box-shadow: none;
-  padding: 0 !important;
+  padding: 0;
+}
+
+/* globals.css historically made the outer status-bar host a five-column grid.
+ * The five columns now belong exclusively to .asset-bar-content. */
+.asset-bar {
+  display: block;
+  grid-template-columns: none;
 }
 
 .liquid-glass-surface {
@@ -23,8 +30,20 @@
   min-width: 0;
   min-height: 0;
   isolation: isolate;
+  contain: paint;
+  overflow: hidden;
   border-radius: inherit;
   background: var(--liquid-glass-contrast);
+}
+
+@supports (overflow: clip) {
+  .liquid-glass-surface {
+    overflow: clip;
+  }
+}
+
+.liquid-glass-surface > * {
+  border-radius: inherit !important;
 }
 
 .liquid-glass-surface__effect,
@@ -65,25 +84,24 @@
   position: relative;
   z-index: 1;
   display: flex;
-  color: inherit;
+  color: var(--color-text-primary);
 }
 
 .asset-bar .liquid-glass-surface,
-.asset-bar .liquid-glass-surface > span,
-.asset-bar .liquid-glass-surface > div,
+.asset-bar .liquid-glass-surface > *,
 .asset-bar .liquid-glass-surface__effect > .glass {
   border-radius: 18px !important;
 }
 
 .mobile-bottom-navigation .liquid-glass-surface,
-.mobile-bottom-navigation .liquid-glass-surface > span,
-.mobile-bottom-navigation .liquid-glass-surface > div,
+.mobile-bottom-navigation .liquid-glass-surface > *,
 .mobile-bottom-navigation .liquid-glass-surface__effect > .glass {
   border-radius: 20px !important;
 }
 
 .asset-bar .liquid-glass-surface {
-  min-width: max(100%, 675px);
+  width: max(100%, 675px);
+  min-width: 675px;
 }
 
 .asset-bar-content {
@@ -102,12 +120,36 @@
   border: 0;
   border-right: 1px solid rgba(225, 255, 235, 0.1);
   border-radius: 0;
+  color: inherit;
   background: transparent;
   box-shadow: none;
 }
 
 .asset-bar-item:last-child {
   border-right: 0;
+}
+
+.asset-bar-item .asset-bar-item-label {
+  color: var(--color-text-secondary);
+  font-size: .72rem;
+  line-height: 1.2;
+}
+
+.asset-bar-item .asset-bar-item-value {
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.asset-bar-item .asset-bar-item-value,
+.asset-bar-item .asset-bar-item-value * {
+  color: inherit;
+}
+
+.asset-bar-item > small {
+  color: var(--color-text-muted);
+  font-size: .7rem;
+  line-height: 1.2;
 }
 
 .asset-bar-item.primary {
@@ -152,7 +194,8 @@
 
 @media (max-width: 960px) and (min-width: 721px) {
   .asset-bar .liquid-glass-surface {
-    min-width: max(100%, 725px);
+    width: max(100%, 725px);
+    min-width: 725px;
   }
 
   .asset-bar-content {
@@ -162,9 +205,9 @@
 
 @media (max-width: 720px) {
   .asset-bar .liquid-glass-surface,
-  .asset-bar .liquid-glass-surface > span,
-  .asset-bar .liquid-glass-surface > div,
+  .asset-bar .liquid-glass-surface > *,
   .asset-bar .liquid-glass-surface__effect > .glass {
+    width: 100%;
     min-width: 0;
     border-radius: 999px !important;
   }

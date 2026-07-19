@@ -14,10 +14,10 @@ const STATIC_MOUSE_OFFSET = { x: 0, y: 0 };
 
 const PRESETS = {
   statusBar: {
-    displacementScale: 28,
-    blurAmount: 0.6875,
-    saturation: 145,
-    aberrationIntensity: 0.8,
+    displacementScale: 18,
+    blurAmount: 0.25,
+    saturation: 135,
+    aberrationIntensity: 0.45,
     cornerRadius: 18,
   },
   mobileNavigation: {

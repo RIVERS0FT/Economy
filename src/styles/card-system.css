@@ -20,7 +20,6 @@
 
 @media (max-width: 720px) {
   .login-shell,
-  .asset-bar.panel,
   .sidebar.panel {
     border-radius: var(--radius-card-mobile);
   }

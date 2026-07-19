@@ -12,7 +12,7 @@ export function MobileBottomNavigation({
   onSelect: (tab: TabId) => void;
 }) {
   return (
-    <aside className="sidebar mobile-bottom-navigation panel" aria-label="移动端游戏导航">
+    <aside className="sidebar mobile-bottom-navigation" aria-label="移动端游戏导航">
       <LiquidGlassSurface variant="mobileNavigation">
         <nav className="sidebar-nav" aria-label="游戏主导航">
           <NavigationItems activeTab={activeTab} onSelect={onSelect} openOrderCount={openOrderCount} />

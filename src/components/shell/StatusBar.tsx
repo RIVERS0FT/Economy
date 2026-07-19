@@ -14,7 +14,7 @@ export interface StatusBarItem {
 
 export function StatusBar({ items }: { items: StatusBarItem[] }) {
   return (
-    <header className="asset-bar panel" aria-label="玩家状态">
+    <header className="asset-bar" aria-label="玩家状态">
       <LiquidGlassSurface variant="statusBar">
         <div className="asset-bar-content">
           {items.map((item) => {

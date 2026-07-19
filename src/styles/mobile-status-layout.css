@@ -5,7 +5,7 @@
     --mobile-status-right-inset: max(var(--mobile-chrome-inset), env(safe-area-inset-right));
   }
 
-  .asset-bar.panel {
+  .asset-bar {
     top: var(--mobile-status-top-inset);
     right: var(--mobile-status-right-inset);
     left: var(--mobile-status-left-inset);
@@ -82,7 +82,7 @@
     );
   }
 
-  .mobile-bottom-navigation.panel {
+  .mobile-bottom-navigation {
     right: var(--mobile-status-right-inset);
     left: var(--mobile-status-left-inset);
   }
