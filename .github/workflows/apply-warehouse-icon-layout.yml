@@ -1,8 +1,11 @@
 name: Apply warehouse icon layout
 
 on:
-  schedule:
-    - cron: '2-59/5 * * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - .github/warehouse-icon-layout-trigger
   workflow_dispatch:
 
 permissions:
@@ -43,6 +46,7 @@ jobs:
         run: |
           rm scripts/apply-warehouse-icon-layout.py
           rm scripts/apply-warehouse-page-verifier.py
+          rm .github/warehouse-icon-layout-trigger
           rm .github/workflows/apply-warehouse-icon-layout.yml
 
       - name: Commit implementation
