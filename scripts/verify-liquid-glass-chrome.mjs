@@ -223,15 +223,16 @@ for (const rule of [
 requireText(iconStylePath, '.asset-bar-item-icon > .game-icon');
 requireText(iconStylePath, '.mobile-bottom-navigation .sidebar-nav-button > span > .game-icon');
 requireText(gameAppPath, 'formatRank');
-requireText(formatterPath, "return `#${Math.max(1, Math.trunc(rank))}`;");
+requireText(formatterPath, 'export function formatRank');
+requireText(formatterPath, "? `#${value}` : '#--'");
 
 for (const text of [
   '`liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现',
-  '`LiquidGlassSurface.tsx` 是唯一允许直接导入该依赖的文件',
+  '`src/components/ui/LiquidGlassSurface.tsx` 是唯一允许直接导入该依赖的文件',
   '`mode="standard"`',
   '`elasticity={0}`',
   'Safari、iOS WebKit 和 Firefox',
-  '不得恢复 `liquid-glass-chrome.css`',
+  '旧 `src/styles/liquid-glass-chrome.css` 必须删除，且不得恢复',
 ]) requireText(designPath, text);
 
 if (failures.length > 0) {
