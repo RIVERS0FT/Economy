@@ -1,0 +1,30 @@
+name: Agent Source Snapshot
+
+on:
+  push:
+    branches:
+      - agent/expand-industry-fruit
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record source metadata
+        run: |
+          git rev-parse HEAD > commit-sha.txt
+          git rev-parse 'HEAD^{tree}' > tree-sha.txt
+          tar --exclude=.git --exclude=source-snapshot.tar.gz -czf source-snapshot.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-source-snapshot
+          path: |
+            source-snapshot.tar.gz
+            commit-sha.txt
+            tree-sha.txt
+          retention-days: 1
