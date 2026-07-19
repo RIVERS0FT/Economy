@@ -19,7 +19,7 @@ function classNames(...values: Array<string | false | null | undefined>) {
 
 function assignRef<T>(ref: Ref<T> | undefined, value: T | null) {
   if (typeof ref === 'function') ref(value);
-  else if (ref) ref.current = value;
+  else if (ref) (ref as { current: T | null }).current = value;
 }
 
 export interface ScrollAreaProps {
@@ -113,7 +113,6 @@ export function ScrollArea({
       <div
         ref={horizontalTrackRef}
         className="ui-scrollbar ui-scrollbar--horizontal"
-        aria-hidden="true"
         onPointerDown={(event) => handleTrackPointerDown('x', event)}
       >
         <div
@@ -131,7 +130,6 @@ export function ScrollArea({
       <div
         ref={verticalTrackRef}
         className="ui-scrollbar ui-scrollbar--vertical"
-        aria-hidden="true"
         onPointerDown={(event) => handleTrackPointerDown('y', event)}
       >
         <div
