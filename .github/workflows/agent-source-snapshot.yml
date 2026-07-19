@@ -32,6 +32,21 @@ jobs:
             exit 1
           fi
           cat "${parts[@]}" > agent-apply-industry.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('agent-apply-industry.py')
+          source = path.read_text()
+          source = source.replace(
+              'bc490100ee79db775ad248fc99a4ab18447ead5a5eea70603c90f2c4b4006d9',
+              'bc490100ee79db775ad248fc99a4ab18447ead5a5e5aa70603c90f2c4b4006d9',
+          )
+          source = source.replace(
+              "    'appliance-factory': '家电厂',\\n']]}}",
+              "    'appliance-factory': '家电厂',\\n\"]]}}",
+          )
+          path.write_text(source)
+          PY
+          echo "3cdb03ef5b6fe0123fa7745cc6a583837b1361a0dd59fd6460383ab0637b1a1e  agent-apply-industry.py" | sha256sum --check -
           set +e
           python3 agent-apply-industry.py > agent-transform.log 2>&1
           status=$?
