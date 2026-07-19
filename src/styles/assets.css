@@ -1,6 +1,11 @@
 .assets-page-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--layout-gutter);
+}
+
+.assets-page-grid > .span-3 {
+  grid-column: 1;
 }
 
 .asset-overview-card {
