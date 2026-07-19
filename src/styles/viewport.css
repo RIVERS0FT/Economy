@@ -147,12 +147,20 @@ html[data-app-surface="game"] body {
   }
 
   html[data-app-surface="auth"],
-  .page-scroll,
   .asset-bar,
   .sidebar-nav,
   .table-wrap,
   .ledger-list {
     scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  .page-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .page-scroll[data-scrollbar-active="true"] {
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
   }
 
@@ -167,12 +175,20 @@ html[data-app-surface="game"] body {
   }
 
   html[data-app-surface="auth"]::-webkit-scrollbar-track,
-  .page-scroll::-webkit-scrollbar-track,
   .asset-bar::-webkit-scrollbar-track,
   .sidebar-nav::-webkit-scrollbar-track,
   .table-wrap::-webkit-scrollbar-track,
   .ledger-list::-webkit-scrollbar-track {
     border-radius: 999px;
+    background: var(--scrollbar-track);
+  }
+
+  .page-scroll::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .page-scroll[data-scrollbar-active="true"]::-webkit-scrollbar-track {
     background: var(--scrollbar-track);
   }
 
@@ -189,12 +205,20 @@ html[data-app-surface="game"] body {
     background-clip: padding-box;
   }
 
+  .page-scroll::-webkit-scrollbar-thumb {
+    background-color: transparent;
+  }
+
+  .page-scroll[data-scrollbar-active="true"]::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+  }
+
   html[data-app-surface="auth"]::-webkit-scrollbar-thumb:hover,
-  .page-scroll::-webkit-scrollbar-thumb:hover,
   .asset-bar::-webkit-scrollbar-thumb:hover,
   .sidebar-nav::-webkit-scrollbar-thumb:hover,
   .table-wrap::-webkit-scrollbar-thumb:hover,
-  .ledger-list::-webkit-scrollbar-thumb:hover {
+  .ledger-list::-webkit-scrollbar-thumb:hover,
+  .page-scroll[data-scrollbar-active="true"]::-webkit-scrollbar-thumb:hover {
     background-color: var(--scrollbar-thumb-hover);
   }
 
