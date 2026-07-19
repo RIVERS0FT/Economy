@@ -14,6 +14,7 @@ import {
   type StatusTone,
   WidgetHeading,
 } from '../components/ui/layout';
+import { ScrollArea } from '../components/ui/ScrollArea';
 import { VirtualList } from '../components/ui/VirtualList';
 import { economyConstants } from '../config/economy';
 import type { AssetOrder } from '../types';
@@ -163,7 +164,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
   function assetLabel(order: AssetOrder) {
     const id = orderAssetId(order);
-    if (orderKind(order) === 'facility') return game.facilityTypes.find((type) => type.id === id)?.name ?? id;
+    if (orderKind(order) === 'facility') {
+      const facilityName = game.facilityTypes.find((type) => type.id === id)?.name ?? id;
+      return <span className="product-icon-label facility-icon-label"><FactoryIcon />{facilityName}</span>;
+    }
     const productName = game.products.find((product) => product.id === id)?.name ?? id;
     return <ProductIconLabel productId={id}>{productName}</ProductIconLabel>;
   }
@@ -209,7 +213,15 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             aria-label="向前浏览资产"
             onClick={() => scrollAssetDirectory(-1)}
           >‹</Button>
-          <div ref={assetDirectoryRef} className="unified-asset-tabs" role="tablist" aria-label="选择交易资产">
+          <ScrollArea
+            axis="x"
+            className="asset-directory-scroll-area"
+            viewportRef={assetDirectoryRef}
+            viewportClassName="unified-asset-tabs"
+            viewportRole="tablist"
+            viewportAriaLabel="选择交易资产"
+            horizontalVisibility="always"
+          >
             <span className="asset-directory-divider" role="presentation" aria-hidden="true">商品</span>
             {game.products.map((product) => {
               const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
@@ -254,7 +266,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 </button>
               );
             })}
-          </div>
+          </ScrollArea>
           <Button
             variant="compact"
             className="asset-directory-control asset-directory-control--next"
@@ -414,23 +426,32 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             <div className="market-account-grid">
               <section>
                 <h3>未完成订单</h3>
-                <ScrollableTable>
-                  <table>
-                    <thead><tr><th>类型</th><th>资产</th><th>方向</th><th className="numeric-cell">价格</th><th className="numeric-cell">剩余/原始</th><th>状态</th><th>时间</th><th /></tr></thead>
+                <ScrollableTable className="own-open-orders-table-wrap">
+                  <table className="own-open-orders-table">
+                    <thead>
+                      <tr>
+                        <th>资产</th>
+                        <th className="order-side-cell">方向</th>
+                        <th className="numeric-cell">价格</th>
+                        <th className="numeric-cell">剩余/原始</th>
+                        <th>状态</th>
+                        <th>时间</th>
+                        <th className="order-action-cell"><span className="visually-hidden">操作</span></th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {ownOpenOrders.map((order) => (
                         <tr key={order.id}>
-                          <td>{orderKind(order) === 'facility' ? '工厂' : '商品'}</td>
                           <td><strong>{assetLabel(order)}</strong></td>
-                          <td><StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
+                          <td className="order-side-cell"><StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag></td>
                           <td className="numeric-cell"><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></td>
                           <td className="numeric-cell">{formatNumber(order.remaining)}/{formatNumber(order.quantity)}</td>
                           <td><StatusTag tone={orderTone(order.status)}>{orderStatusNames[order.status]}</StatusTag></td>
                           <td>{formatTime(order.createdAt)}</td>
-                          <td><Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button></td>
+                          <td className="order-action-cell"><Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button></td>
                         </tr>
                       ))}
-                      {ownOpenOrders.length === 0 ? <tr><td colSpan={8} className="empty-cell">暂无未完成订单。</td></tr> : null}
+                      {ownOpenOrders.length === 0 ? <tr><td colSpan={7} className="empty-cell">暂无未完成订单。</td></tr> : null}
                     </tbody>
                   </table>
                 </ScrollableTable>
@@ -439,9 +460,22 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               <section className="local-trades-section">
                 <h3>本地成交记录</h3>
                 {localTrades.length === 0 ? <p className="muted">当前浏览器暂无成交记录。</p> : (
-                  <div className="virtual-record-table local-trades-virtual-table" role="table" aria-label="本地成交记录">
+                  <ScrollArea
+                    axis="x"
+                    className="local-trades-scroll-area"
+                    viewportClassName="virtual-record-table local-trades-virtual-table"
+                    viewportRole="table"
+                    viewportAriaLabel="本地成交记录"
+                    horizontalVisibility="always"
+                  >
                     <div className="virtual-record-header" role="row">
-                      <span role="columnheader">类型</span><span role="columnheader">资产</span><span role="columnheader">方向</span><span role="columnheader" className="numeric-cell">数量</span><span role="columnheader" className="numeric-cell">价格</span><span role="columnheader" className="numeric-cell">总额</span><span role="columnheader" className="numeric-cell">手续费 / 实收</span><span role="columnheader">时间</span>
+                      <span role="columnheader">资产</span>
+                      <span role="columnheader" className="trade-side-cell">方向</span>
+                      <span role="columnheader" className="numeric-cell">数量</span>
+                      <span role="columnheader" className="numeric-cell">价格</span>
+                      <span role="columnheader" className="numeric-cell">总额</span>
+                      <span role="columnheader" className="numeric-cell">手续费 / 实收</span>
+                      <span role="columnheader">时间</span>
                     </div>
                     <VirtualList
                       items={localTrades}
@@ -457,11 +491,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                       ariaLabel="本地成交记录行"
                       renderItem={(trade) => (
                         <div className="virtual-record-row" role="row">
-                          <span role="cell">{trade.type === 'facility' ? '工厂' : '商品'}</span>
                           <span role="cell">{trade.type === 'commodity' && trade.productId
                             ? <ProductIconLabel productId={trade.productId}>{trade.description}</ProductIconLabel>
-                            : trade.description}</span>
-                          <span role="cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
+                            : <span className="product-icon-label facility-icon-label"><FactoryIcon />{trade.description}</span>}</span>
+                          <span role="cell" className="trade-side-cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
                           <span role="cell" className="numeric-cell">{formatNumber(trade.quantity)}</span>
                           <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.price)}</CurrencyAmount></span>
                           <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>
@@ -470,7 +503,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                         </div>
                       )}
                     />
-                  </div>
+                  </ScrollArea>
                 )}
               </section>
             </div>
