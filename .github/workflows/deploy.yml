@@ -26,6 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -36,8 +37,13 @@ jobs:
           set -euo pipefail
           npm run build
 
-      - name: Install rsync
-        run: sudo apt-get update && sudo apt-get install -y rsync
+      - name: Ensure rsync is available
+        run: |
+          set -euo pipefail
+          if ! command -v rsync >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y rsync
+          fi
 
       - name: Configure SSH
         env:
