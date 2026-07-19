@@ -1,217 +1,135 @@
-# Economy 液态玻璃状态栏设计
+# Economy liquid-glass-react 应用外壳设计
 
 > 状态：桌面与移动端顶部状态栏、移动底部导航的视觉与布局基线  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-13
+> 更新时间：2026-07-19
 
-本文件定义桌面顶部状态栏、移动顶部状态栏和移动底部导航的统一液态玻璃材质、悬浮布局、透明下沿、性能降级和防回退规则。
+本文件定义应用外壳唯一液态玻璃实现、跨浏览器能力边界、稳定几何、性能约束和防回退规则。通用 UI 仍以 `docs/UI_DESIGN_SYSTEM.md` 为准；涉及状态栏和移动底栏材质时，以本文件为专题权威基线。
 
-通用 UI 仍以 `docs/UI_DESIGN_SYSTEM.md` 为准；涉及应用外壳玻璃材质时，以本文件为专题基线。
+## 1. 唯一材质来源
 
-## 1. 文件职责
+- `liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现。
+- `src/components/ui/LiquidGlassSurface.tsx` 是唯一允许直接导入该依赖的文件。
+- 状态栏和移动底栏只能使用 `LiquidGlassSurface` 的预设，不得在业务组件中直接设置第三方参数。
+- `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、透明通用面板覆盖和最低可读性底色；不得用 CSS 重新实现模糊、折射、色差、高光或玻璃阴影。
+- 旧 `src/styles/liquid-glass-chrome.css` 必须删除，且不得恢复。
+
+## 2. 文件职责
 
 | 文件 | 职责 |
 |---|---|
-| `src/styles/liquid-glass-chrome.css` | 通用玻璃令牌、玻璃材质、状态项透明化和下沿渐隐 |
-| `src/styles/viewport.css` | 桌面悬浮定位、全高滚动层、顶部安全距离和移动安全区 |
-| `src/styles/mobile-status-navigation.css` | 移动端尺寸、横向滚动、导航按钮几何和交互，不重复定义玻璃材质 |
-| `src/styles/mobile-status-layout.css` | 移动安全区、顶部状态栏全宽等距 Flex 布局和状态项样式 |
-| `src/styles/icon-system.css` | 状态栏与导航 SVG 的统一尺寸和图标槽位 |
-| `src/components/icons/GameIcons.tsx` | 状态栏和桌面／移动导航共用的本地 SVG 图标库 |
-| `src/app/GameApp.tsx` | 状态项完整值、移动值、全局紧凑偏好同步和图标绑定 |
-| `src/utils/formatters.ts` | 全局 K/M/B/T 紧凑数字与完整整数格式切换 |
-| `scripts/verify-liquid-glass-chrome.mjs` | 液态玻璃架构防回退检查 |
+| `src/components/ui/LiquidGlassSurface.tsx` | 第三方库适配、参数预设、静态鼠标输入和统一 DOM |
+| `src/components/shell/StatusBar.tsx` | 状态项语义、交互和状态栏内容布局入口 |
+| `src/components/shell/MobileBottomNavigation.tsx` | 移动导航语义与内容入口 |
+| `src/styles/liquid-glass-surfaces.css` | 玻璃宿主几何、第三方 DOM 尺寸适配、状态栏内容网格和最低对比度 |
+| `src/styles/viewport.css` | 桌面悬浮定位、滚动层和移动安全区 |
+| `src/styles/mobile-status-navigation.css` | 移动导航按钮尺寸、滚动和交互 |
+| `src/styles/mobile-status-layout.css` | 移动顶部状态栏全宽等距布局 |
+| `scripts/verify-liquid-glass-chrome.mjs` | 依赖、适配层、布局与防回退检查 |
 
-`liquid-glass-chrome.css` 必须在移动端布局样式之前加载，`icon-system.css` 必须在移动布局之后、业务样式之前加载，`design-system.css` 仍保持最后加载。玻璃选择器必须使用 `.asset-bar.panel` 或 `.mobile-bottom-navigation.panel`，以专业外壳材质覆盖普通面板表面。
+样式加载顺序固定为：`card-system.css` → `liquid-glass-surfaces.css` → 移动外壳样式 → `icon-system.css` → 业务样式 → `design-system.css`。
 
-## 2. 统一玻璃令牌
+## 3. 统一参数预设
 
-以下令牌只允许在 `liquid-glass-chrome.css` 定义：
+应用外壳固定使用 `mode="standard"`，不使用稳定性较低的 `shader` 模式。
+
+### 3.1 顶部状态栏
+
+- `displacementScale: 28`
+- `blurAmount: 0.6875`
+- `saturation: 145`
+- `aberrationIntensity: 0.8`
+- `elasticity={0}`
+- 桌面圆角 `18px`，移动端通过宿主几何覆盖为胶囊圆角
+
+### 3.2 移动底部导航
+
+- `displacementScale: 20`
+- `blurAmount: 0.5`
+- `saturation: 145`
+- `aberrationIntensity: 0.5`
+- `elasticity={0}`
+- 圆角 `20px`
+
+外壳必须传入固定 `globalMousePos` 和 `mouseOffset`，禁止第三方组件为状态栏和底栏注册鼠标移动监听。状态项或导航按钮的交互由内部原生按钮承担，不给玻璃外壳传 `onClick`。
+
+## 4. 全平台能力边界
+
+所有平台都渲染同一个 `LiquidGlassSurface`，不得按浏览器切换回另一套 CSS 玻璃：
+
+- Chromium、Android Chromium WebView、Windows WebView2 显示完整标准折射、模糊和边缘色差。
+- Safari、iOS WebKit 和 Firefox 使用同一组件；受浏览器 SVG displacement 支持限制，折射可能不可见，但模糊、高光和内容结构继续保留。
+- 不支持 `backdrop-filter` 的环境只使用高不透明度对比底色保证可读性，不模拟第二套玻璃。
+- 平台能力差异不允许改变状态栏高度、安全区、导航尺寸或内容顺序。
+
+## 5. DOM 与布局
+
+状态栏结构固定为：
 
 ```text
---liquid-glass-surface
---liquid-glass-surface-fallback
---liquid-glass-border
---liquid-glass-highlight
---liquid-glass-lowlight
---liquid-glass-shadow
---liquid-glass-blur
---liquid-glass-saturation
---liquid-glass-fade-height
+.asset-bar.panel
+└─ LiquidGlassSurface(statusBar)
+   └─ .asset-bar-content
+      └─ .asset-bar-item × 5
 ```
 
-桌面与移动端必须使用同一材质：
+移动底栏结构固定为：
 
-- 半透明深绿色表面；
-- 白绿色弱边框；
-- 顶部高光和底部弱高光；
-- `26px` 模糊；
-- `150%` 饱和度；
-- 单一外阴影；
-- 不支持 `backdrop-filter` 时使用不透明度更高的回退背景。
+```text
+.mobile-bottom-navigation.panel
+└─ LiquidGlassSurface(mobileNavigation)
+   └─ .sidebar-nav
+      └─ 导航按钮
+```
 
-移动样式文件不得重新定义 `--mobile-liquid-glass-*` 或其他平行玻璃颜色。
+保留 `panel` 类只为兼容既有定位和移动规则；`liquid-glass-surfaces.css` 必须以更高选择器优先级清除通用面板背景、边框、阴影和外层内边距，实际材质只来自第三方组件。状态栏内容内边距由 `.asset-bar-content` 管理，移动底栏垂直内边距由 `.liquid-glass-surface__content` 管理。
 
-## 3. 桌面悬浮布局
+桌面状态栏继续保持单行五列，最小内容宽度为 `675px`；961px 以下桌面最小内容宽度为 `725px`，空间不足时由外层状态栏横向滚动。移动端清除该最小宽度并使用全宽安全区胶囊。
 
-桌面 `.workspace` 是相对定位和隔离的容器。
+## 6. 状态项和移动导航
 
-顶部 `.asset-bar` 必须：
+- 整个状态栏只有一个玻璃实例，不得为每个状态项单独创建实例。
+- 整个移动底栏只有一个玻璃实例，不得为每个导航按钮单独创建实例。
+- 桌面状态项保留弱分隔线；移动状态项不显示分隔线、独立边框或图标底板。
+- 移动顶部固定显示可用资金、总资产、排行榜和仓库剩余四项，使用 `space-evenly` 和内容宽度项目。
+- 移动顶部状态栏固定 `48px`，移动底栏固定 `68px`。
+- 移动导航按钮固定 `48px × 48px`，活动、悬停和触摸状态不得位移或缩放。
+- 图标继续统一来自 `GameIcons.tsx`，不得恢复 Unicode、Emoji 或第二套图标。
 
-- 使用绝对定位；
-- 位于工作区顶部、左右贴合工作区；
-- 高度使用 `--desktop-asset-bar-height`；
-- 层级高于 `.page-scroll`；
-- 保持单行；
-- 空间不足时横向滚动；
-- 不占据正常布局行。
+## 7. 性能与可访问性
 
-`.page-scroll` 必须：
-
-- 占满工作区高度；
-- 作为唯一页面垂直滚动层；
-- 顶部内边距为状态栏高度加 `--desktop-status-gap`；
-- 初始页面标题不被遮挡；
-- 滚动后内容可以进入状态栏后方并通过玻璃显示。
-
-不得恢复“状态栏一行、页面一行”的两行网格布局。
-
-## 4. 状态项
-
-桌面保留完整信息密度，移动端保留紧凑图标与数值槽位，但实际数字格式遵循全局“紧凑数字”偏好。
-
-状态项规则：
-
-- 单项背景透明；
-- 单项不得使用 `backdrop-filter`；
-- 桌面状态项保留弱垂直分隔线；
-- 移动顶部状态项不得显示分隔线、独立边框或图标底板；
-- 总资产不使用独立绿色实心块；
-- 总资产数值和图标使用成功色；
-- 标签和说明使用弱化文字色；
-- 整个状态栏只应用一次玻璃模糊；
-- 状态栏与导航图标统一来自 `GameIcons.tsx`，不得恢复专用字符图标文件。
-
-## 5. 透明下沿
-
-状态栏下方必须通过 `.workspace::before` 提供弱渐隐：
-
-- 高度使用 `--liquid-glass-fade-height`；
-- 从极淡深色过渡到完全透明；
-- `pointer-events: none`；
-- 不使用第二次模糊；
-- 不得形成不透明横条；
-- 移动端位置必须跟随顶部安全区。
-
-## 6. 移动端保持项
-
-移动端外壳必须保持：
-
-- `safe-area-inset-top`、左右安全区和底部安全区；
-- 顶部状态栏 `48px` 高度；
-- 底部导航 `68px` 高度；
-- 顶部状态栏固定单行且不可横向滚动；
-- 底部导航允许横向滚动并隐藏滚动条；
-- 导航活动状态和键盘焦点；
-- 页面顶部和底部避让距离。
-
-### 6.1 移动顶部状态栏全宽等距布局
-
-移动顶部状态栏固定显示可用资金、总资产、排行榜和仓库剩余四项：
-
-- 容器通过左右安全区变量同时设置 `left` 和 `right`，铺满当前可用屏幕宽度；
-- 容器使用 `width: auto`、`max-width: none` 和 `transform: none`；
-- 容器使用 Flex、`justify-content: space-evenly` 和 `gap: 0`；
-- 每个状态项使用 `flex: 0 0 auto` 和 `width: auto`，宽度仅由自身 SVG 图标与紧凑数值决定；
-- `space-evenly` 必须让四项之间的可见间隔一致，并让首尾项目到状态栏内边缘的间隔与项目间隔一致；
-- 图标与数值在单项内部使用固定小间距，不得通过等宽槽位、`flex: 1` 或 `width: 0` 分配空间；
-- 不得使用 `space-between`、`space-around`、整体居中或非零容器 `gap` 模拟等距分布；
-- 顶部状态栏必须设置 `overflow-x: hidden`，不得恢复横向滚动或滚动吸附；
-- 四项必须使用 `GameIcons.tsx` 提供的本地内联 SVG，不得恢复 `¤`、`◆`、`♛`、`▣` 等字符图标；
-- SVG 使用统一 `24 × 24` 视图、`currentColor` 和约 `1.9` 的描边，移动显示尺寸不得小于 `18px`；
-- 状态项之间不增加分隔线，间隔仅由 `space-evenly` 产生；
-- 可用资金、总资产和仓库剩余默认使用 K/M/B/T 紧凑数字；玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数；
-- 排名在桌面与移动端统一通过 `formatRank` 使用 `#1`、`#2` 格式，不得恢复“第 1 名”或裸数字；
-- 不得通过扩大状态栏高度、隐藏整个状态项或恢复横向滚动解决宽度问题。
-
-### 6.2 移动底部导航活动态、尺寸与图文间距
-
-移动底部导航活动状态不得改变按钮或图标位置；同时使用固定方形、紧凑但仍可触控的按钮：
-
-- 底栏高度固定为 `68px`，面板垂直内边距为 `.3rem`；
-- 每个导航按钮固定为 `48px × 48px`，使用 `flex: 0 0 48px`、`width: 48px`、`min-width: 48px` 和 `height: 48px`；
-- 导航按钮不得随底栏剩余空间拉伸，宽度始终与高度一致；
-- 导航按钮圆角为 `.85rem`，内边距为 `.16rem .2rem .2rem`；
-- 导航列表使用 `align-items: center`，按钮不得继续拉伸占满底栏内容高度；
-- 选中按钮不得使用 `translateY`、缩放、尺寸变化或负外边距；
-- 图标只允许改变颜色，不得上移或放大；
-- 通用按钮 hover 上浮效果必须在移动底部导航中明确覆盖为 `transform: none`；
-- 选中状态继续通过文字颜色、图标颜色、边框、半透明背景和内侧高光表达；
-- 桌面侧栏和移动底栏必须复用 `GameIcons.tsx` 的同一套导航 SVG；
-- 移动导航按钮使用 `grid-template-rows: 1.35rem min-content` 和 `align-content: center`；
-- 图标行与文字行的 CSS 间距固定为 `gap: .06rem`；
-- 移动导航 SVG 显示尺寸为 `1.15rem`，文字字号为 `.66rem`；
-- 不得通过放开 `overflow-y`、破坏安全区或把按钮缩小到不足 `44px` 来压缩底栏。
-
-## 7. 性能与降级
-
-- 只对状态栏整体和移动底栏应用玻璃模糊；
-- 状态项不单独模糊；
-- 滚动过程不执行 JavaScript 样式计算；
-- 下沿渐隐不使用模糊；
-- 通过 `@supports` 提供无模糊回退；
-- 不添加噪点动画或滚动动画；
-- 保留 `prefers-reduced-motion` 的全局约束。
+- 桌面同时可见一个玻璃实例；移动同时可见两个玻璃实例。
+- 禁止 `shader` 模式、滚动事件更新参数、噪点动画和每项独立滤镜。
+- `elasticity={0}` 保证外壳几何稳定；内部按钮仍保留键盘焦点和点击反馈。
+- 页面内容继续从状态栏下方开始并可滚动到玻璃后方。
+- 玻璃生成的装饰 SVG 和覆盖层不得阻止内部按钮事件。
 
 ## 8. 验收标准
 
-必须检查桌面 `1920px`、`1440px`、`1024px`、`768px` 和移动端：
+必须检查桌面 `1920px`、`1440px`、`1024px`、`768px`，以及移动 `430px`、`390px`、`375px`、`360px`、`320px`：
 
-1. 桌面状态栏呈液态玻璃材质。
-2. 页面首屏从状态栏下方开始。
-3. 页面滚动时内容经过状态栏后方。
-4. 状态栏下方没有不透明横条。
-5. 总资产没有独立绿色实心背景。
-6. 紧凑桌面不换行，空间不足时横向滚动。
-7. 移动顶部状态栏与底部导航视觉保持一致。
-8. 移动顶部状态栏在 `320px` 及以上宽度固定显示四项且不可横向滚动。
-9. 状态栏铺满左右安全区之间的可用宽度，四项按自身内容宽度展示。
-10. 四项之间的可见间隔一致，首尾项目到状态栏内边缘的间隔也保持一致。
-11. 状态栏和导航 SVG 的视觉尺寸、基线和描边一致，移动状态图标不低于 `18px`。
-12. 移动状态项之间没有分隔线、独立边框或图标底板。
-13. “紧凑数字”开启时移动资金和资产显示紧凑数值，关闭时显示完整整数；排名始终显示为 `#N`。
-14. 桌面侧栏和移动底栏不再出现 Unicode、Emoji 或字体符号图标。
-15. 移动底栏高度为 `68px`，所有内部导航按钮固定为 `48px × 48px`。
-16. 移动导航按钮不随剩余空间拉伸，图标与文字紧凑排列并整体垂直居中。
-17. 不支持模糊时仍有清晰、可读的回退表面。
-18. 页面滚动、表格滚动和移动安全区不受影响。
-19. 移动底部导航选中、悬停或触摸后按钮与图标均不发生位移或缩放。
-20. 完整构建和液态玻璃架构检查通过。
+1. 状态栏和移动底栏均由 `LiquidGlassSurface` 渲染。
+2. Chromium 显示折射，Safari／Firefox 缺少折射时仍清晰可读。
+3. 页面滚动时内容可进入状态栏后方。
+4. 状态栏没有旧 CSS 渐隐横条。
+5. 桌面状态栏不换行，空间不足时横向滚动。
+6. 移动顶部四项完整显示且不可横向滚动。
+7. 移动底栏可横向滚动，按钮固定 `48px × 48px`。
+8. 玻璃外壳和内部按钮不发生弹性位移或缩放。
+9. 键盘焦点、触摸、安全区和页面避让正常。
+10. `npm run build` 与浏览器测试通过。
 
 ## 9. 不可回退规则
 
-除非先更新本设计并完成评审，否则不得：
+除非先更新本设计和架构检查，否则不得：
 
-- 恢复桌面状态栏占据独立布局行；
-- 删除 `.page-scroll` 的桌面顶部安全距离；
-- 恢复状态项实体卡片背景；
-- 为每个状态项单独添加玻璃模糊；
-- 在移动样式中重新定义另一套玻璃材质；
-- 删除无模糊回退；
-- 删除透明下沿或把它改为不透明横条；
-- 删除下沿的 `pointer-events: none`；
-- 破坏移动端安全区和底部导航布局；
-- 恢复移动顶部状态栏横向滚动、`space-between`、`space-around`、整体居中、非零容器间距或“第 N 名”移动格式；
-- 恢复移动状态项 `flex: 1 1 0`、`width: 0`、固定四等分槽位或其他拉伸分布；
-- 恢复移动顶部状态栏字符图标、分隔线、独立图标底板或小于 `18px` 的图标；
-- 恢复导航 Unicode、Emoji、字体符号图标或独立的第二套导航图标；
-- 恢复移动导航按钮 `flex: 1`、`60px × 50px`、其他非方形尺寸或随剩余空间拉伸；
-- 删除移动导航按钮 `48px × 48px` 固定尺寸、居中对齐或紧凑内边距；
-- 恢复移动导航 `grid-template-rows: 1.5rem min-content`、`.08rem` 图文间距或大于 `1.15rem` 的移动导航 SVG；
-- 恢复移动状态栏 `width: max-content`、`left: 50%`、`translateX(-50%)` 或其他内容宽度胶囊布局；
-- 删除移动状态栏全宽安全区定位、`space-evenly` 等距分布、紧凑数值格式或内容宽度状态项规则；
-- 让移动状态栏忽略全局“紧凑数字”偏好并固定为某一种数字格式；
-- 恢复移动底部导航活动态或 hover 态的位移、缩放与尺寸变化；
+- 恢复 `liquid-glass-chrome.css` 或 CSS `backdrop-filter` 玻璃材质；
+- 在 `LiquidGlassSurface.tsx` 之外直接导入 `liquid-glass-react`；
+- 改用 `shader` 模式或把应用外壳 `elasticity` 调为非零；
+- 为状态项或导航按钮分别创建玻璃实例；
+- 删除固定鼠标输入并恢复全局鼠标跟踪；
+- 因 Safari、iOS WebKit 和 Firefox 折射受限而切换到另一套玻璃；
+- 恢复旧 `.workspace::before` 下沿渐隐；
+- 让通用 `.panel` 背景或外层内边距覆盖第三方玻璃；
+- 破坏桌面悬浮状态栏、移动安全区、四项等距布局、`48px` 状态栏、`68px` 底栏或 `48px × 48px` 导航按钮；
 - 绕过架构检查合并视觉回退。
-
-未更新设计文档和架构检查的液态玻璃回退不应合并。
