@@ -4,14 +4,17 @@ import { getGemShopSummary, type GemShopSummary } from '../api/game';
 import { CreditsIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { IntegerInput } from '../components/ui/FormControls';
 import { Button, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { formatCurrency, formatDate, formatNumber } from '../utils/formatters';
+import { parseIntegerDraft } from '../utils/integerDraft';
 
 const QUICK_AMOUNTS = [1, 5, 10, 25];
 
 export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   const [summary, setSummary] = useState<GemShopSummary | null>(null);
   const [amount, setAmount] = useState(1);
+  const [amountDraft, setAmountDraft] = useState('1');
   const [loading, setLoading] = useState(true);
   const [exchanging, setExchanging] = useState(false);
   const [error, setError] = useState('');
@@ -29,23 +32,45 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
 
   useEffect(() => { void load(); }, []);
 
+  const parsedAmount = summary
+    ? parseIntegerDraft(amountDraft, {
+      min: summary.minExchangeGems,
+      max: Math.min(summary.maxExchangeGems, Math.max(summary.maxExchangeableGems, 1)),
+    })
+    : null;
   const creditsPreview = useMemo(
-    () => amount * (summary?.creditsPerGem ?? 0),
-    [amount, summary?.creditsPerGem],
+    () => (parsedAmount ?? 0) * (summary?.creditsPerGem ?? 0),
+    [parsedAmount, summary?.creditsPerGem],
   );
+  const amountError = summary && parsedAmount === null
+    ? `请输入 ${formatNumber(summary.minExchangeGems)}～${formatNumber(Math.min(summary.maxExchangeGems, Math.max(summary.maxExchangeableGems, 1)))} 的整数。`
+    : undefined;
   const validAmount = Boolean(summary)
-    && Number.isInteger(amount)
-    && amount >= summary!.minExchangeGems
-    && amount <= summary!.maxExchangeGems
-    && amount <= model.game.gems;
+    && parsedAmount !== null
+    && parsedAmount <= model.game.gems;
+
+  function setAmountValue(value: number) {
+    setAmount(value);
+    setAmountDraft(String(value));
+  }
+
+  function updateAmountDraft(value: string) {
+    setAmountDraft(value);
+    if (!summary) return;
+    const parsed = parseIntegerDraft(value, {
+      min: summary.minExchangeGems,
+      max: Math.min(summary.maxExchangeGems, Math.max(summary.maxExchangeableGems, 1)),
+    });
+    if (parsed !== null) setAmount(parsed);
+  }
 
   async function exchange() {
-    if (!validAmount || exchanging) return;
+    if (!validAmount || exchanging || parsedAmount === null) return;
     setExchanging(true);
-    const result = await model.exchangeGems(amount);
+    const result = await model.exchangeGems(parsedAmount);
     model.notify(result.message);
     if (result.ok) {
-      setAmount(1);
+      setAmountValue(1);
       await load();
     }
     setExchanging(false);
@@ -70,24 +95,21 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
           <WidgetHeading title="兑换货币" />
           {summary ? (
             <>
-              <label>
-                消耗宝石数量
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={summary.minExchangeGems}
-                  max={Math.min(summary.maxExchangeGems, Math.max(summary.maxExchangeableGems, 1))}
-                  step={1}
-                  value={amount}
-                  onChange={(event) => setAmount(Number(event.target.value))}
-                  onKeyDown={(event) => { if (event.key === 'Enter') void exchange(); }}
-                />
-              </label>
+              <IntegerInput
+                label="消耗宝石数量"
+                value={amountDraft}
+                fallbackValue={amount}
+                min={summary.minExchangeGems}
+                max={Math.min(summary.maxExchangeGems, Math.max(summary.maxExchangeableGems, 1))}
+                error={amountError}
+                onValueChange={updateAmountDraft}
+                onKeyDown={(event) => { if (event.key === 'Enter') void exchange(); }}
+              />
               <div className="gem-shop-quick-row" aria-label="快捷兑换数量">
                 {QUICK_AMOUNTS.map((value) => (
-                  <Button key={value} variant="compact" disabled={value > model.game.gems} onClick={() => setAmount(value)}>{value}</Button>
+                  <Button key={value} variant="compact" disabled={value > model.game.gems} onClick={() => setAmountValue(value)}>{value}</Button>
                 ))}
-                <Button variant="compact" disabled={summary.maxExchangeableGems < 1} onClick={() => setAmount(summary.maxExchangeableGems)}>最大</Button>
+                <Button variant="compact" disabled={summary.maxExchangeableGems < 1} onClick={() => setAmountValue(summary.maxExchangeableGems)}>最大</Button>
               </div>
               <div className="gem-shop-preview">
                 <span>预计获得</span>

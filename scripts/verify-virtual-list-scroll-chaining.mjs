@@ -27,7 +27,7 @@ assert.ok(
 );
 for (const text of [
   '纵向滚动到顶或到底后必须把后续滚动链交给外层 `.page-scroll`',
-  '不得恢复会阻断纵向滚动链的 `overscroll-behavior: contain`',
+  '恢复会阻断纵向滚动链的 `overscroll-behavior: contain`',
 ]) {
   assert.ok(design.includes(text), `UI 设计文档缺少: ${text}`);
 }

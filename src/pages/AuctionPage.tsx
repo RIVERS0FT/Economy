@@ -11,8 +11,10 @@ import {
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { IntegerInput, SelectInput } from '../components/ui/FormControls';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
+import { parseIntegerDraft } from '../utils/integerDraft';
 
 const MAX_AUCTION_ITEMS = 20;
 
@@ -35,11 +37,8 @@ interface AuctionOption {
   available: number;
 }
 
-function parseAuctionQuantity(value: string) {
-  const normalized = value.trim();
-  if (!/^\d+$/.test(normalized)) return null;
-  const parsed = Number(normalized);
-  return Number.isSafeInteger(parsed) && parsed >= 1 ? parsed : null;
+function parseAuctionQuantity(value: string, maximum?: number) {
+  return parseIntegerDraft(value, { min: 1, max: maximum });
 }
 
 function auctionItemKey(item: Pick<AuctionItem, 'assetKind' | 'assetId'>) {
@@ -125,7 +124,9 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const [bundleItems, setBundleItems] = useState<AuctionItem[]>([]);
   const [bundleQuantityDrafts, setBundleQuantityDrafts] = useState<Record<string, string>>({});
   const [startingBid, setStartingBid] = useState(100);
+  const [startingBidInput, setStartingBidInput] = useState('100');
   const [durationHours, setDurationHours] = useState(24);
+  const [durationHoursInput, setDurationHoursInput] = useState('24');
   const [bidAmounts, setBidAmounts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -158,20 +159,24 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const selectedOption = useMemo(() => (
     availableOptions.find((item) => item.id === selectedAssetId) ?? availableOptions[0]
   ), [availableOptions, selectedAssetId]);
-  const selectedQuantity = assetKind === 'collectible' ? 1 : parseAuctionQuantity(quantityInput);
+  const selectedQuantity = assetKind === 'collectible'
+    ? 1
+    : parseAuctionQuantity(quantityInput, selectedOption?.available);
+  const parsedStartingBid = parseIntegerDraft(startingBidInput, { min: 1, max: 1_000_000_000 });
+  const parsedDurationHours = parseIntegerDraft(durationHoursInput, { min: 1, max: 168 });
   const canAdd = Boolean(selectedOption)
     && selectedQuantity !== null
     && selectedQuantity <= Number(selectedOption?.available || 0)
     && (bundleItems.length < MAX_AUCTION_ITEMS || bundledQuantity(assetKind, selectedOption?.id || '') > 0);
   const hasInvalidBundleQuantity = bundleItems.some((item) => {
     const draft = bundleQuantityDrafts[auctionItemKey(item)] ?? String(item.quantity);
-    const parsed = parseAuctionQuantity(draft);
-    return parsed === null || parsed > availableForItem(item);
+    const parsed = parseAuctionQuantity(draft, availableForItem(item));
+    return parsed === null;
   });
   const canPublish = bundleItems.length > 0
     && !hasInvalidBundleQuantity
-    && Number.isInteger(startingBid) && startingBid > 0
-    && Number.isInteger(durationHours) && durationHours >= 1 && durationHours <= 168;
+    && parsedStartingBid !== null
+    && parsedDurationHours !== null;
 
   function labelForItem(item: AuctionItem) {
     if (item.assetKind === 'collectible') return collectibles.find((entry) => entry.id === item.assetId)?.title ?? item.assetId;
@@ -194,6 +199,18 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     });
   }
 
+  function updateStartingBid(value: string) {
+    setStartingBidInput(value);
+    const parsed = parseIntegerDraft(value, { min: 1, max: 1_000_000_000 });
+    if (parsed !== null) setStartingBid(parsed);
+  }
+
+  function updateDurationHours(value: string) {
+    setDurationHoursInput(value);
+    const parsed = parseIntegerDraft(value, { min: 1, max: 168 });
+    if (parsed !== null) setDurationHours(parsed);
+  }
+
   function addSelectedItem() {
     if (!selectedOption || !canAdd || selectedQuantity === null) return;
     const key = `${assetKind}:${selectedOption.id}`;
@@ -212,8 +229,8 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   function updateBundleQuantityDraft(target: AuctionItem, value: string) {
     const key = auctionItemKey(target);
     setBundleQuantityDrafts((current) => ({ ...current, [key]: value }));
-    const parsed = parseAuctionQuantity(value);
-    if (parsed === null || parsed > availableForItem(target)) return;
+    const parsed = parseAuctionQuantity(value, availableForItem(target));
+    if (parsed === null) return;
     setBundleItems((current) => current.map((item) => (
       auctionItemKey(item) === key ? { ...item, quantity: parsed } : item
     )));
@@ -224,12 +241,8 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     const draft = bundleQuantityDrafts[key];
     if (draft === undefined) return;
     const maximum = availableForItem(target);
-    const parsed = parseAuctionQuantity(draft);
-    const normalized = maximum < 1
-      ? target.quantity
-      : parsed === null
-        ? target.quantity
-        : Math.min(maximum, parsed);
+    const parsed = parseAuctionQuantity(draft, maximum);
+    const normalized = maximum < 1 || parsed === null ? target.quantity : parsed;
     setBundleItems((current) => current.map((item) => (
       auctionItemKey(item) === key ? { ...item, quantity: normalized } : item
     )));
@@ -300,30 +313,23 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
               <p className="ui-helper-text">当前没有可继续加入的{assetKindNames[assetKind]}；已冻结、已拍卖或已加入资产包的数量不能重复使用。</p>
             ) : (
               <div className="asset-auction-add-form">
-                <label>
-                  资产
-                  <select value={selectedOption?.id || ''} onChange={(event) => setSelectedAssetId(event.target.value)}>
-                    {availableOptions.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
-                  </select>
-                </label>
+                <SelectInput
+                  label="资产"
+                  value={selectedOption?.id || ''}
+                  onChange={(event) => setSelectedAssetId(event.target.value)}
+                >
+                  {availableOptions.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
+                </SelectInput>
                 {assetKind === 'collectible' ? null : (
-                  <label>
-                    数量
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      step="1"
-                      max={selectedOption?.available || 1}
-                      value={quantityInput}
-                      aria-invalid={selectedQuantity === null || selectedQuantity > Number(selectedOption?.available || 0)}
-                      onChange={(event) => setQuantityInput(event.target.value)}
-                      onBlur={() => {
-                        const parsed = parseAuctionQuantity(quantityInput);
-                        setQuantityInput(String(parsed === null ? 1 : Math.min(selectedOption?.available || 1, parsed)));
-                      }}
-                    />
-                  </label>
+                  <IntegerInput
+                    label="数量"
+                    value={quantityInput}
+                    fallbackValue={selectedQuantity ?? 1}
+                    min={1}
+                    max={selectedOption?.available || 1}
+                    error={selectedQuantity === null ? `请输入 1～${formatNumber(selectedOption?.available || 1)} 的整数。` : undefined}
+                    onValueChange={setQuantityInput}
+                  />
                 )}
                 <Button variant="secondary" disabled={!canAdd} onClick={addSelectedItem}>加入资产包</Button>
               </div>
@@ -338,7 +344,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                   const collectible = item.assetKind === 'collectible' ? collectibles.find((entry) => entry.id === item.assetId) : null;
                   const key = auctionItemKey(item);
                   const quantityDraft = bundleQuantityDrafts[key] ?? String(item.quantity);
-                  const parsedQuantity = parseAuctionQuantity(quantityDraft);
+                  const parsedQuantity = parseAuctionQuantity(quantityDraft, availableForItem(item));
                   return (
                     <div className="asset-auction-package-row" key={key}>
                       <div className="asset-auction-package-icon" aria-hidden="true">
@@ -347,14 +353,13 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                       <span><strong>{labelForItem(item)}</strong><small>{assetKindNames[item.assetKind]}</small></span>
                       {item.assetKind === 'collectible' ? <strong>× 1</strong> : (
                         <input
+                          className="ui-control ui-control--integer ui-control--compact"
                           aria-label={`${labelForItem(item)}数量`}
-                          type="number"
+                          type="text"
                           inputMode="numeric"
-                          min="1"
-                          step="1"
-                          max={availableForItem(item)}
+                          pattern="[0-9]*"
                           value={quantityDraft}
-                          aria-invalid={parsedQuantity === null || parsedQuantity > availableForItem(item)}
+                          aria-invalid={parsedQuantity === null}
                           onChange={(event) => updateBundleQuantityDraft(item, event.target.value)}
                           onBlur={() => commitBundleQuantityDraft(item)}
                           onKeyDown={(event) => {
@@ -376,17 +381,30 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
         </div>
 
         <div className="asset-auction-parameters">
-          <label>
-            整包起拍价
-            <input type="number" min="1" max="1000000000" value={startingBid} onChange={(event) => setStartingBid(Number(event.target.value))} />
-          </label>
-          <label>
-            拍卖时长（h）
-            <input type="number" min="1" max="168" value={durationHours} onChange={(event) => setDurationHours(Number(event.target.value))} />
-          </label>
+          <IntegerInput
+            label="整包起拍价"
+            value={startingBidInput}
+            fallbackValue={startingBid}
+            min={1}
+            max={1_000_000_000}
+            error={parsedStartingBid === null ? '请输入 1～1000000000 的整数。' : undefined}
+            onValueChange={updateStartingBid}
+          />
+          <IntegerInput
+            label="拍卖时长（h）"
+            value={durationHoursInput}
+            fallbackValue={durationHours}
+            min={1}
+            max={168}
+            error={parsedDurationHours === null ? '请输入 1～168 的整数。' : undefined}
+            onValueChange={updateDurationHours}
+          />
           <Button
             disabled={submitting || !canPublish}
-            onClick={() => void run(() => gameActions.createAuction(bundleItems, startingBid, durationHours), clearBundleBuilder)}
+            onClick={() => {
+              if (parsedStartingBid === null || parsedDurationHours === null) return;
+              void run(() => gameActions.createAuction(bundleItems, parsedStartingBid, parsedDurationHours), clearBundleBuilder);
+            }}
           >
             {submitting ? '发布中' : '发布资产包拍卖'}
           </Button>
@@ -399,7 +417,8 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
         {openAuctions.length === 0 ? <EmptyState>暂无进行中的资产拍卖。</EmptyState> : (
           <div className="collectible-auction-grid">
             {openAuctions.map((auction) => {
-              const amount = Number(bidAmounts[auction.id] || auction.minimumBid);
+              const bidInput = bidAmounts[auction.id] ?? String(auction.minimumBid);
+              const amount = parseIntegerDraft(bidInput, { min: auction.minimumBid, max: 1_000_000_000 });
               const items = auctionItems(auction);
               return (
                 <Panel className={`collectible-auction-card asset-auction-card ${auction.isBundle ? 'asset-auction-bundle' : `asset-auction-${auction.assetKind}`}`} key={auction.id}>
@@ -425,17 +444,19 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                       </div>
                     ) : (
                       <div className="collectible-bid-form">
-                        <label>
-                          <span>整包出价（最低 <CurrencyAmount>{formatCurrency(auction.minimumBid)}</CurrencyAmount>）</span>
-                          <input
-                            type="number"
-                            min={auction.minimumBid}
-                            max="1000000000"
-                            value={bidAmounts[auction.id] ?? String(auction.minimumBid)}
-                            onChange={(event) => setBidAmounts((current) => ({ ...current, [auction.id]: event.target.value }))}
-                          />
-                        </label>
-                        <Button disabled={submitting || !Number.isFinite(amount) || amount < auction.minimumBid} onClick={() => void run(() => gameActions.placeAuctionBid(auction.id, amount))}>
+                        <IntegerInput
+                          label={<span>整包出价（最低 <CurrencyAmount>{formatCurrency(auction.minimumBid)}</CurrencyAmount>）</span>}
+                          value={bidInput}
+                          fallbackValue={amount ?? auction.minimumBid}
+                          min={auction.minimumBid}
+                          max={1_000_000_000}
+                          error={amount === null ? `请输入不低于 ${formatCurrency(auction.minimumBid)} 的整数。` : undefined}
+                          onValueChange={(value) => setBidAmounts((current) => ({ ...current, [auction.id]: value }))}
+                        />
+                        <Button disabled={submitting || amount === null} onClick={() => {
+                          if (amount === null) return;
+                          void run(() => gameActions.placeAuctionBid(auction.id, amount));
+                        }}>
                           {auction.isHighestBidder ? '提高出价' : '提交出价'}
                         </Button>
                       </div>

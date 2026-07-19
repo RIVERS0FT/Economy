@@ -23,7 +23,8 @@
 
 | 文件 | 唯一职责 |
 |---|---|
-| `src/styles/design-system.css` | 设计令牌、基础控件、共享视觉、状态、表格和焦点 |
+| `src/styles/design-system.css` | 设计令牌、按钮、面板、状态、表格、开关和通用焦点视觉 |
+| `src/styles/form-controls.css` | 输入、选择器、文本域、文件控件、自动填充、错误／只读／禁用状态和移动尺寸的最终视觉权威 |
 | `src/styles/globals.css` | 通用业务布局 |
 | `src/styles/overview.css` | 概览经营提醒、市场空状态、两排核心卡片和响应式布局 |
 | `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |
@@ -33,14 +34,14 @@
 | `src/styles/facility-production-formula.css` | 工厂生产公式、多输入输出、周期成本图标和进度条布局 |
 | `src/styles/warehouse-expansion.css` | 共享仓库布局、容器查询和紧凑商品卡 |
 | `src/styles/production-surface.css` | 生产页共享仓库、建设卡和工厂集群同一一级平面的统一内边距、标题锚点和紧凑开关 |
-| `src/styles/auth.css` | 登录布局、动态视口与自动填充兼容 |
+| `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠与导航可访问状态 |
 | `src/styles/liquid-glass-chrome.css` | 状态栏和移动底栏玻璃材质 |
 | `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
 | `src/styles/mobile-*.css` | 移动导航、安全区和页面布局 |
 
-`design-system.css` 保持最后加载。页面样式不得重新实现按钮、输入、面板、状态标签、开关、表格、图标或焦点的基础外观。
+业务页面样式先加载，`design-system.css` 在页面样式之后收束共享基础视觉，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现按钮、输入、面板、状态标签、开关、表格、图标或焦点的基础外观。
 
 ## 3. 共享 React 组件
 
@@ -61,6 +62,15 @@
 - `CurrencyAmount`
 - `CurrencyText`
 - `EmptyState`
+- `FormField`
+- `TextInput`
+- `IntegerInput`
+- `SelectInput`
+- `TextArea`
+- `FileInput`
+- `InputGroup`
+
+`src/components/ui/FormControls.tsx` 是统一表单控件的唯一 React 包装层。新页面不得为文本、整数、选择器、文本域、文件或组合输入创建平行基础组件；紧凑表格行内输入可以直接使用原生控件，但必须带 `.ui-control` 并遵守相同解析和状态规则。
 
 `SwitchControl` 是布尔开关的唯一 React 基础组件，`.ui-switch` 是唯一视觉实现。不得新增工厂开关、音乐开关或设置开关的平行 CSS。
 
@@ -148,9 +158,20 @@
 - 同一页面背景上、处于同一视觉平面的一级卡片必须共用同一语义内边距，不得按卡片类型、内容数量或自身宽度分别改变外层 `padding`。
 - 业务操作使用 `Button` 的正式变体。
 - 危险操作不得使用绿色主要按钮。
-- 输入框、选择器和文本域使用统一高度、背景、边框和焦点。
+- 输入框、选择器、文本域、文件控件和组合输入统一使用 `FormControls.tsx` 与 `form-controls.css`。
 - 除生产页工厂紧凑开关的明确例外外，所有可点击控件在移动端至少提供 44px 的有效触控高度。
 - 禁用状态使用原生 `disabled`。
+
+### 6.1 统一表单控件
+
+- `src/components/ui/FormControls.tsx` 负责标签、必填标记、说明、错误消息和 ARIA 关联；`src/styles/form-controls.css` 是表单视觉的最终权威，业务 CSS 只负责宽度、网格位置、行内／块级排列与明确的紧凑变体。
+- 标准控件桌面最小高度为 `44px`，移动端为 `48px`；紧凑控件桌面可为 `36px`，移动端仍不得低于 `44px`。移动端输入字号不得低于 `16px`，避免聚焦时浏览器自动缩放。
+- `aria-invalid="true"` 必须同时有错误文字；`readonly` 保持可选择和复制，`disabled` 使用原生禁用语义，两者视觉必须可区分。
+- 选择器箭头、日期时间图标、文件选择按钮、自动填充、占位符、焦点、悬浮、错误、只读和禁用状态统一由 `form-controls.css` 实现。
+- 所有可编辑正整数使用字符串草稿保存当前文本，允许用户暂时清空；合法值才同步到业务数值、参与预览或提交。不得在 `onChange` 中直接执行 `Number(event.target.value)`，不得把空白立即回填为 `0` 或 `1`。
+- 正整数统一通过 `src/utils/integerDraft.ts` 的 `parseIntegerDraft` 和 `normalizeIntegerDraft` 解析；非法或越界时禁用操作，失焦恢复上一个合法值或收敛到范围，Escape 恢复上一个合法值。
+- 精确输入永远不使用 K/M/B/T 紧凑格式。快捷数量按钮必须同时更新草稿和业务值。
+- 登录邮箱和密码是自动填充例外：继续使用原生未受控值、稳定 `name` 和 `FormData`，不得绑定到初始为空的 React `value`。
 
 ## 7. 状态、表格、数据与窗口化
 
@@ -246,7 +267,7 @@
 - 昵称编辑在桌面使用输入框和自然宽度“保存昵称”按钮同行；`760px` 以下改为单列且按钮占满可用宽度。
 - 当视口不超过 `1180px` 时页面降为单列，顺序固定为“玩家资料／游戏设置／邀请好友／礼品兑换／账号与管理”。列包装器可以使用 `display: contents`，但卡片、标题和表单语义不得丢失。
 - “账号与管理”卡必须把账号资料、管理员工具和当前会话分组。管理员工具只对管理员显示；不得显示危险区域、经济状态重置按钮或清空进度说明。
-- 设置页专用布局只允许在 `src/styles/settings.css` 维护；按钮、输入、选择器、面板、开关和焦点继续由共享组件与 `design-system.css` 提供，不得在设置样式中复制基础视觉。
+- 设置页专用布局只允许在 `src/styles/settings.css` 维护；按钮、面板和开关由共享组件与 `design-system.css` 提供，输入、选择器、文本域和焦点由 `FormControls.tsx` 与 `form-controls.css` 提供，不得在设置样式中复制基础视觉。
 
 ## 14. 中文、品牌、响应式与安全区
 
@@ -273,6 +294,10 @@
 不得：
 
 - 在业务页面复制基础控件视觉；
+- 绕过 `FormControls.tsx` 为普通表单新增平行输入组件，或把 `form-controls.css` 移到 `design-system.css` 之前；
+- 在正整数输入的 `onChange` 中恢复 `Number(event.target.value)`、把空白立即改成 `0`／`1`，或绕过统一字符串草稿解析；
+- 把移动端标准输入高度降到 `48px` 以下、紧凑输入降到 `44px` 以下，或把移动端输入字号降到 `16px` 以下；
+- 在页面 CSS 中重新定义输入背景、边框、圆角、焦点、错误、只读、禁用、自动填充或文件选择器基础视觉；
 - 恢复英文眉题；
 - 恢复价格档位聚合订单簿；
 - 恢复 `records` 导航；
@@ -306,7 +331,7 @@
 - 给导航活动态添加位移或缩放；
 - 删除桌面侧栏折叠按钮、折叠状态的导航可访问名称或键盘操作能力；
 - 对高增长记录恢复全量 `.map()` DOM 渲染，或用分页、截断替代 `VirtualList`；
-- 不得恢复会阻断纵向滚动链的 `overscroll-behavior: contain` 或其他双轴越界隔离；
+- 恢复会阻断纵向滚动链的 `overscroll-behavior: contain` 或其他双轴越界隔离；
 - 使用 `.login-shell:focus-within` 或其他焦点选择器改变移动登录页标题字号、区块间距或整体对齐；
 - 把账号或密码重新绑定到初始为空的 React `value` 状态；
 - 把设置页恢复为共享三列网格、`span-2` 跨列卡片、宽卡片两列统计或整卡宽度昵称保存按钮；
@@ -318,7 +343,7 @@
 
 ## 市场页布局完整性
 
-市场页专用布局规则由 `src/styles/market-page-polish.css` 最终负责，并在共享设计系统之后加载。宽屏行情卡必须成为交易主区最宽列，完整 SVG 使用自身宽度计算 `16:9` 高度。订单簿不得通过 `stretch` 跟随行情卡制造空白。
+市场页专用布局规则由 `src/styles/market-page-polish.css` 负责，但必须先于 `design-system.css` 与 `form-controls.css` 加载，只允许控制页面结构和尺寸，不得覆盖共享基础控件视觉。宽屏行情卡必须成为交易主区最宽列，完整 SVG 使用自身宽度计算 `16:9` 高度。订单簿不得通过 `stretch` 跟随行情卡制造空白。
 
 连续资产目录在桌面使用两行横向网格。当前资产必须同时使用边框／背景和可见“当前”文字，不能只依赖颜色；前后滚动按钮必须具有稳定可访问名称。市场底部统计允许两列和单列重排，不得使用不可换行的单行 `space-between` 挤压文字。
 

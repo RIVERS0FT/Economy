@@ -28,10 +28,11 @@ import './styles/unified-market-admin.css';
 import './styles/virtual-list.css';
 import './styles/production-surface.css';
 import './styles/settings.css';
-import './styles/design-system.css';
 import './styles/overview-polish.css';
 import './styles/market-page-polish.css';
 import './styles/leaderboards.css';
+import './styles/design-system.css';
+import './styles/form-controls.css';
 
 configureRuntimePerformance();
 

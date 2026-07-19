@@ -4,6 +4,7 @@ import {
 } from '../app/gameViewModel';
 import { FacilityProductionFormula } from '../components/facilities/FacilityProductionFormula';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { SelectInput } from '../components/ui/FormControls';
 import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
 import {
   Button,
@@ -115,12 +116,13 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       <div className="production-grid">
         <Panel className="production-surface widget build-card production-build-card">
           <WidgetHeading title="建设新工厂" />
-          <label>
-            工厂类型
-            <select value={selectedType.id} onChange={(event) => setSelectedFacilityTypeId(event.target.value)}>
-              {game.facilityTypes.map((type) => <option value={type.id} key={type.id}>{type.name}</option>)}
-            </select>
-          </label>
+          <SelectInput
+            label="工厂类型"
+            value={selectedType.id}
+            onChange={(event) => setSelectedFacilityTypeId(event.target.value)}
+          >
+            {game.facilityTypes.map((type) => <option value={type.id} key={type.id}>{type.name}</option>)}
+          </SelectInput>
           <div className="facility-type-summary">
             <h3>{selectedType.name}</h3>
             <p>{selectedRecipes.length > 1
@@ -193,14 +195,15 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                         </small>
                       ) : null}
                     </div>
-                    <select
+                    <SelectInput
+                      label={<span className="sr-only">{type.name}生产配方</span>}
                       aria-label={`${type.name}生产配方`}
                       value={pendingRecipe?.id ?? activeRecipe.id}
                       disabled={group.count < 1 || recipes.length === 1}
                       onChange={(event) => void showResult(setFacilityRecipe(group.facilityTypeId, event.target.value))}
                     >
                       {recipes.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.name}</option>)}
-                    </select>
+                    </SelectInput>
                   </div>
 
                   <FacilityProductionFormula

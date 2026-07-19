@@ -18,7 +18,7 @@ for (const text of [
   'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','items={localTrades}',
   'local-trades-virtual-table','virtual-record-viewport','VirtualList',
   "import { FactoryIcon } from '../components/icons/GameIcons'",'<FactoryIcon />','selectOrderSide',
-  'title={selectedAssetTitle(`${assetName}订单`)}','            价格','className="numeric-cell">价格</th>',
+  'title={selectedAssetTitle(`${assetName}订单`)}','label="价格"','className="numeric-cell">价格</th>',
   'formatNumber(order.remaining)','formatCurrency(order.price)'
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of ['localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价']) forbidText('src/pages/MarketPage.tsx', text);
