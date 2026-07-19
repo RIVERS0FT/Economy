@@ -1,5 +1,5 @@
 /* Mobile chrome owns mobile geometry and navigation behavior.
- * Shared liquid-glass material lives in liquid-glass-chrome.css. */
+ * Shared liquid-glass geometry lives in liquid-glass-surfaces.css. */
 :root {
   --mobile-chrome-inset: 1rem;
   --mobile-content-inset: .4rem;
@@ -60,7 +60,7 @@
     display: block;
   }
 
-  .asset-bar.panel {
+  .asset-bar {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -69,7 +69,7 @@
     scrollbar-width: none;
   }
 
-  .asset-bar.panel::-webkit-scrollbar,
+  .asset-bar::-webkit-scrollbar,
   .mobile-bottom-navigation .sidebar-nav::-webkit-scrollbar {
     display: none;
   }
@@ -132,7 +132,7 @@
     color: var(--gold);
   }
 
-  .mobile-bottom-navigation.panel {
+  .mobile-bottom-navigation {
     padding: .3rem 0;
   }
 
