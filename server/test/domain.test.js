@@ -5,7 +5,9 @@ import {
   createWorld,
   ensurePlayer,
   FACILITY_TYPE_CATALOG,
+  MARKET_DEMAND_GROUP_CATALOG,
   migrateWorld,
+  processPriceTransmission,
   processWorld,
   PRODUCT_CATALOG,
 } from '../src/domain.js';
@@ -15,14 +17,20 @@ const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 const carol = { id: 3, email: 'carol@example.com', name: 'Carol' };
 const now = 1_700_000_000_000;
+const cycleMs = 5 * 60 * 1000;
 
-function prepareDemand(world, groupId) {
-  world.demandGroups[groupId].nextDemandAt = now;
-  world.demandGroups[groupId].lastCycleId = -1;
+function prepareDemand(world, groupId, at = now) {
+  world.demandGroups[groupId].nextDemandAt = at;
+  world.demandGroups[groupId].lastCycleId = Math.floor(at / cycleMs) - 1;
+}
+
+function deferDemand(world, at = now + cycleMs) {
+  for (const state of Object.values(world.demandGroups)) state.nextDemandAt = at;
 }
 
 test('different products never match in the same order book', () => {
   const world = createWorld(now);
+  deferDemand(world);
   const seller = ensurePlayer(world, bob, now);
   const buyer = ensurePlayer(world, alice, now);
   seller.inventories.ore.available = 10;
@@ -46,6 +54,7 @@ test('different products never match in the same order book', () => {
 
 test('work cooldown uses server time', () => {
   const world = createWorld(now);
+  deferDemand(world);
   ensurePlayer(world, alice, now);
   assert.equal(applyAction(world, alice, 'work', {}, now).ok, true);
   assert.equal(applyAction(world, alice, 'work', {}, now + 1_000).ok, false);
@@ -90,12 +99,14 @@ test('version 1 state migrates inventory and commodity orders without losing ass
   assert.equal(world.players['1'].inventories.wheat.frozen, 2);
   assert.equal(world.orders[0].productId, 'wheat');
   assert.equal('facilitySlots' in world.players['1'], false);
+  assert.equal(world.marketDemand.modelVersion, 1);
 });
 
 test('world version 7 grain assets migrate entirely to wheat', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   world.version = 7;
+  delete world.marketDemand;
   player.inventories.grain = { available: 7, frozen: 3 };
   delete player.inventories.wheat;
   world.markets.grain = { ...world.markets.wheat, productId: 'grain' };
@@ -114,6 +125,7 @@ test('world version 7 grain assets migrate entirely to wheat', () => {
   assert.equal(world.orders[0].productId, 'wheat');
   assert.equal(world.markets.wheat.productId, 'wheat');
   assert.equal(Object.hasOwn(world.markets, 'grain'), false);
+  assert.equal(world.marketDemand.modelVersion, 1);
 });
 
 test('idempotency returns the original response without applying an action twice', () => {
@@ -135,7 +147,7 @@ test('idempotency returns the original response without applying an action twice
   }
 });
 
-test('client state uses version 14 and exposes no factory instances', () => {
+test('client state uses version 15 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
@@ -148,7 +160,6 @@ test('client state uses version 14 and exposes no factory instances', () => {
     store.close();
   }
 });
-
 
 test('expanded industry catalog exposes complete production chains', () => {
   assert.equal(PRODUCT_CATALOG.length, 22);
@@ -250,32 +261,29 @@ test('expanded industry catalog exposes complete production chains', () => {
   assert.deepEqual(facilities.get('electronics-factory').output, { productId: 'electronics', quantity: 1 });
 });
 
-
-
-
-test('population demand only creates food and household orders within dynamic budgets', () => {
+test('market demand creates direct and derived orders within the shared group budget', () => {
   const world = createWorld(now);
   prepareDemand(world, 'food');
   prepareDemand(world, 'household');
   processWorld(world, now + 1);
 
-  assert.ok(world.orders.every((order) => ['player', 'population'].includes(order.ownerType)));
-  const populationOrders = world.orders.filter((order) => order.ownerType === 'population');
-  assert.ok(populationOrders.length > 0);
-  assert.deepEqual([...new Set(populationOrders.map((order) => order.ownerName))].sort(), ['家庭用品需求', '饮食需求']);
-  assert.ok(populationOrders.every((order) => ['food', 'household'].includes(order.demandGroupId)));
-  assert.equal(world.demandGroups.food.lastBudget, 1_000);
-  assert.ok(world.demandGroups.food.lastCommitted <= world.demandGroups.food.lastBudget);
-  assert.equal(world.demandGroups.household.lastBudget, 900);
-  assert.ok(world.demandGroups.household.lastCommitted <= world.demandGroups.household.lastBudget);
-  assert.deepEqual(Object.keys(world.demandGroups.food.lastAllocation).sort(), ['eggs', 'flour', 'food', 'meat', 'milk', 'rice', 'wheat']);
-  assert.deepEqual(Object.keys(world.demandGroups.household.lastAllocation).sort(), [
-    'clothing', 'copper', 'copper-ore', 'cotton', 'crude-oil', 'electronics',
-    'furniture', 'lumber', 'plastic', 'textile', 'timber', 'wool',
+  const marketOrders = world.orders.filter((order) => order.ownerType === 'population');
+  assert.ok(marketOrders.some((order) => order.demandTier === 'direct'));
+  assert.ok(marketOrders.some((order) => order.demandTier === 'derived-liquidity'));
+  assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [
+    '家庭消费市场需求', '食品市场需求',
   ]);
+  for (const group of MARKET_DEMAND_GROUP_CATALOG) {
+    const state = world.demandGroups[group.id];
+    assert.equal(state.lastCommitted, state.directCommitted + state.derivedCommitted);
+    assert.ok(state.lastCommitted <= state.lastBudget);
+    assert.ok(state.directCommitted <= Math.floor(state.lastBudget * group.directBudgetShare));
+    assert.equal(state.lastInventoryBoost, 0);
+    assert.equal(state.lastStockValue, 0);
+  }
 });
 
-test('population demand scales sublinearly with active players and stops at the configured cap', () => {
+test('market demand scales sublinearly with active players and stops at the configured cap', () => {
   const foodBudgetFor = (playerCount) => {
     const world = createWorld(now);
     for (let index = 1; index <= playerCount; index += 1) {
@@ -297,7 +305,7 @@ test('population demand scales sublinearly with active players and stops at the 
   assert.equal(foodBudgetFor(144).food, 6_000);
 });
 
-test('inactive players stop scaling demand after seven days', () => {
+test('inactive players stop scaling market demand after seven days', () => {
   const world = createWorld(now);
   for (let index = 1; index <= 9; index += 1) {
     const player = ensurePlayer(world, { id: index, email: `inactive-${index}@example.com`, name: `Inactive ${index}` }, now);
@@ -309,7 +317,7 @@ test('inactive players stop scaling demand after seven days', () => {
   assert.equal(world.demandGroups.food.lastBudget, 1_000);
 });
 
-test('population demand grows with stock value and favors stocked products without double counting frozen inventory', () => {
+test('player inventory never increases market demand budget or product allocation', () => {
   const demandWithWheat = (available, frozen) => {
     const world = createWorld(now);
     const player = ensurePlayer(world, alice, now);
@@ -325,14 +333,65 @@ test('population demand grows with stock value and favors stocked products witho
   const availableOnly = demandWithWheat(10, 0);
   const splitAvailableFrozen = demandWithWheat(5, 5);
 
-  assert.equal(empty.lastBudget, 1_000);
-  assert.equal(stocked.lastBudget, 1_400);
-  assert.equal(stocked.lastInventoryBoost, 400);
-  assert.equal(stocked.lastStockValue, 20_000);
-  assert.ok(stocked.lastAllocation.wheat.budget > empty.lastAllocation.wheat.budget);
-  assert.ok(empty.lastAllocation.wheat.quantity > 0);
-  assert.equal(availableOnly.lastStockValue, splitAvailableFrozen.lastStockValue);
+  assert.equal(stocked.lastBudget, empty.lastBudget);
+  assert.equal(stocked.lastClassAllocation.staples.shares.wheat, empty.lastClassAllocation.staples.shares.wheat);
+  assert.equal(stocked.lastInventoryBoost, 0);
+  assert.equal(stocked.lastStockValue, 0);
   assert.equal(availableOnly.lastBudget, splitAvailableFrozen.lastBudget);
+});
+
+test('consumer substitutes shift demand toward the cheaper grain without changing total budget', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  seller.inventories.wheat.available = 100;
+  seller.inventories.rice.available = 100;
+  deferDemand(world);
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'wheat', side: 'sell', quantity: 100, price: 6,
+  }, now + 1).ok, true);
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'rice', side: 'sell', quantity: 100, price: 2,
+  }, now + 2).ok, true);
+
+  prepareDemand(world, 'food', now + 3);
+  processWorld(world, now + 3);
+  const shares = world.demandGroups.food.lastClassAllocation.staples.shares;
+  assert.ok(shares.rice > shares.wheat);
+  assert.equal(world.demandGroups.food.lastBudget, 1_000);
+});
+
+test('complement gating prioritizes the bottleneck input for electronics', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  seller.inventories.plastic.available = 1_000;
+  deferDemand(world);
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'plastic', side: 'sell', quantity: 1_000, price: 24,
+  }, now + 1).ok, true);
+
+  prepareDemand(world, 'household', now + 2);
+  processWorld(world, now + 2);
+  const allocation = world.demandGroups.household.lastAllocation;
+  assert.ok(allocation.copper.requiredQuantity > allocation.plastic.requiredQuantity);
+  const relations = world.demandGroups.household.lastDerivedRelations
+    .filter((item) => item.outputProductId === 'electronics');
+  assert.ok(relations.find((item) => item.inputProductId === 'copper').complementGate
+    > relations.find((item) => item.inputProductId === 'plastic').complementGate);
+});
+
+test('downstream price signals move upstream only after relation lag cycles', () => {
+  const world = createWorld(now);
+  deferDemand(world, now + 4 * cycleMs);
+  world.markets.electronics.priceHistory.push({
+    price: 128, quantity: 20, createdAt: now + 1, takerSide: 'buy',
+  });
+  const initialCopper = world.priceTransmission.products.copper.referencePrice;
+
+  processPriceTransmission(world, now + cycleMs + 1);
+  assert.equal(world.priceTransmission.products.copper.referencePrice, initialCopper);
+  processPriceTransmission(world, now + 2 * cycleMs + 1);
+  processPriceTransmission(world, now + 3 * cycleMs + 1);
+  assert.ok(world.priceTransmission.products.copper.referencePrice > initialCopper);
 });
 
 test('state polling and failed actions do not refresh economic activity', () => {
@@ -364,7 +423,7 @@ test('state polling and failed actions do not refresh economic activity', () => 
   }
 });
 
-test('new worlds create population demand during the first authoritative state read', () => {
+test('new worlds create private market demand orders during the first authoritative state read', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
@@ -374,12 +433,16 @@ test('new worlds create population demand during the first authoritative state r
       !Object.hasOwn(order, 'ownerType')
       && !Object.hasOwn(order, 'ownerName')
       && !Object.hasOwn(order, 'demandGroupId')
+      && !Object.hasOwn(order, 'demandTier')
     )));
     const persisted = JSON.parse(String(store.selectWorld.get().state_json));
-    const populationOrders = persisted.orders.filter((order) => order.ownerType === 'population');
-    assert.ok(populationOrders.length > 0);
-    assert.deepEqual([...new Set(populationOrders.map((order) => order.ownerName))].sort(), ['家庭用品需求', '饮食需求']);
+    const marketOrders = persisted.orders.filter((order) => order.ownerType === 'population');
+    assert.ok(marketOrders.length > 0);
+    assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [
+      '家庭消费市场需求', '食品市场需求',
+    ]);
     assert.equal(persisted.version, 13);
+    assert.equal(persisted.marketDemand.modelVersion, 1);
     assert.ok(persisted.demandGroups.food.lastCommitted <= persisted.demandGroups.food.lastBudget);
     assert.ok(persisted.demandGroups.household.lastCommitted <= persisted.demandGroups.household.lastBudget);
   } finally {
@@ -387,44 +450,41 @@ test('new worlds create population demand during the first authoritative state r
   }
 });
 
-test('world version 12 migration immediately rebuilds smoothed dynamic population demand', () => {
+test('legacy demand migration immediately rebuilds market demand without losing player assets', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.inventories.wheat.available = 2;
+  delete world.marketDemand;
   world.version = 12;
   world.demandGroups.food.lastBudget = 500;
   world.demandGroups.household.lastBudget = 480;
-  delete world.demandGroups.food.lastTargetBudget;
-  delete world.demandGroups.household.lastTargetBudget;
   world.orders = [{
     id: 'player-wheat-sell', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
     side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice',
     price: 99, quantity: 2, remaining: 2, status: 'open', createdAt: now,
+  }, {
+    id: 'legacy-demand', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+    side: 'buy', ownerType: 'population', ownerName: '饮食需求', demandGroupId: 'food',
+    price: 2, quantity: 2, remaining: 2, status: 'open', createdAt: now,
   }];
-  for (const group of Object.values(world.demandGroups)) {
-    group.nextDemandAt = now + 5 * 60 * 1000;
-    group.lastCycleId = Math.floor(now / group.cycleMs);
-    group.lastCommitted = group.lastBudget;
-  }
 
-  processWorld(world, now + 1);
-
+  migrateWorld(world, now);
   assert.equal(world.version, 13);
+  assert.equal(world.marketDemand.modelVersion, 1);
+  assert.deepEqual(world.orders.map((order) => order.id), ['player-wheat-sell']);
+  assert.equal(player.inventories.wheat.available, 2);
+  assert.equal(world.demandGroups.food.nextDemandAt, now);
+  processWorld(world, now + 1);
   assert.ok(world.orders.some((order) => order.id === 'player-wheat-sell'));
-  const populationOrders = world.orders.filter((order) => order.ownerType === 'population');
-  assert.ok(populationOrders.length > 0);
-  assert.ok(populationOrders.every((order) => order.demandCycleId === Math.floor((now + 1) / (5 * 60 * 1000))));
-  assert.equal(world.demandGroups.food.lastBudget, 600);
-  assert.equal(world.demandGroups.household.lastBudget, 576);
-  assert.ok(world.demandGroups.food.nextDemandAt > now + 1);
-  assert.ok(world.demandGroups.household.nextDemandAt > now + 1);
+  assert.ok(world.orders.some((order) => order.ownerType === 'population'));
 });
 
-test('migration removes market and legacy population orders while preserving player orders', () => {
+test('migration removes obsolete system orders while preserving player orders', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
   player.inventories.wheat.available = 9;
+  delete world.marketDemand;
   world.version = 9;
   world.orders = [
     { id: 'player-order', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice', price: 3, quantity: 2, remaining: 2, status: 'open', createdAt: now },
@@ -440,9 +500,10 @@ test('migration removes market and legacy population orders while preserving pla
   assert.equal(player.inventories.wheat.available, 9);
 });
 
-test('world version 8 migration restarts electronics and upgrades demand state without resetting assets', () => {
+test('world version 8 migration restarts electronics and upgrades market demand state without resetting assets', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  delete world.marketDemand;
   world.version = 8;
   player.credits = 777;
   player.inventories.plastic.available = 9;
@@ -461,12 +522,14 @@ test('world version 8 migration restarts electronics and upgrades demand state w
   assert.equal(player.inventories.copper.available, 4);
   assert.equal(player.facilityGroups[0].cycleStartedAt, now);
   assert.deepEqual(Object.keys(world.demandGroups).sort(), ['food', 'household']);
+  assert.equal(world.marketDemand.modelVersion, 1);
   assert.ok(world.priceTransmission.products.electronics);
 });
 
 test('commodity order fills preserve every exact player resting price without system liquidity', () => {
   const world = createWorld(now);
   world.orders = [];
+  deferDemand(world);
   const buyer = ensurePlayer(world, alice, now);
   const sellerA = ensurePlayer(world, bob, now);
   const sellerB = ensurePlayer(world, carol, now);

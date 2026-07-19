@@ -18,12 +18,12 @@ test('ordinary player order state removes counterparties, demand sources, and li
       price: 4, quantity: 10, remaining: 5, status: 'partial', createdAt: now,
       fills: [{
         id: 'fill-secret', quantity: 5, price: 4, total: 20, createdAt: now,
-        counterparty: '饮食需求', makerOrderId: 'alice-sell', takerOrderId: 'population-secret', liquidity: 'maker',
+        counterparty: '食品市场需求', makerOrderId: 'alice-sell', takerOrderId: 'population-secret', liquidity: 'maker',
       }],
     },
     {
       id: 'population-secret', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
-      side: 'buy', ownerType: 'population', ownerName: '饮食需求', demandGroupId: 'food', demandTier: 'raw', demandCycleId: 99,
+      side: 'buy', ownerType: 'population', ownerName: '食品市场需求', demandGroupId: 'food', demandTier: 'direct', demandCycleId: 99,
       price: 3, quantity: 20, remaining: 20, status: 'open', createdAt: now,
       fills: [{ id: 'hidden-fill', quantity: 1, price: 3, total: 3, createdAt: now }],
     },
@@ -47,7 +47,7 @@ test('ordinary player order state removes counterparties, demand sources, and li
     }
   }
   const serialized = JSON.stringify(state.orders);
-  for (const secret of ['饮食需求', 'counterparty', 'makerOrderId', 'takerOrderId', 'liquidity']) {
+  for (const secret of ['食品市场需求', 'counterparty', 'makerOrderId', 'takerOrderId', 'liquidity']) {
     assert.equal(serialized.includes(secret), false, secret + ' leaked');
   }
 });

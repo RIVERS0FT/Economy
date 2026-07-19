@@ -10,6 +10,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
   'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts',
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
+  'server/src/market-demand.js','server/src/market-demand/price-transmission.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
@@ -94,7 +95,12 @@ for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('sr
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
 for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','bestBidFor','world.version = 13','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
-const domainSource = `${read('server/src/domain.js')}\n${read('server/src/domain-core.js')}`;
+const domainSource = [
+  'server/src/domain.js',
+  'server/src/domain-core.js',
+  'server/src/market-demand.js',
+  'server/src/market-demand/price-transmission.js',
+].map(read).join('\n');
 for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor']) {
   if (!domainSource.includes(text)) failures.push('领域实现缺少: ' + text);
 }
@@ -113,7 +119,7 @@ for (const text of [
   '默认价格只从客户端当前已经加载的 `game.orders` 本地快照计算',
   '从其他页面重新进入市场页',
   '自动刷新、下单响应、成交、撤单或其他权威状态同步只更新本地订单快照，不得直接覆盖当前价格输入',
-  '商品订单只允许玩家或人口需求作为所有者',
+  '商品订单只允许玩家或市场需求作为所有者',
   '不提供系统流动性买单或卖单',
   '工厂订单仍只能由玩家提交',
 ]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
@@ -132,4 +138,4 @@ for (const text of [
   '对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 if (failures.length) { console.error('统一资产市场、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、玩家与人口商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
+console.log('统一资产市场、玩家与市场需求商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
