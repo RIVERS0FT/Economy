@@ -3,7 +3,6 @@
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   padding-bottom: var(--space-2);
-  scrollbar-gutter: stable;
 }
 
 .leaderboard-grid-scroll:focus-visible {
