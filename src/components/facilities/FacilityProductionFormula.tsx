@@ -18,6 +18,12 @@ type MultiRecipeFacilityType = FacilityTypeDefinition & {
 
 type ProductNameMap = Map<string, string>;
 
+type FormulaScope = {
+  count: number;
+  label: string;
+  description: string;
+};
+
 function recipeInputs(type: FacilityTypeDefinition) {
   const extendedType = type as MultiRecipeFacilityType;
   if (extendedType.inputs?.length) return extendedType.inputs;
@@ -30,9 +36,44 @@ function recipeOutputs(type: FacilityTypeDefinition) {
   return [extendedType.output];
 }
 
-function recipeText(items: FacilityRecipeItem[], productNames: ProductNameMap) {
+function currentFormulaScope(group: FacilityGroup): FormulaScope {
+  if (group.status === 'running') {
+    const count = Math.max(0, group.participatingCount);
+    return {
+      count,
+      label: `本周期 × ${formatNumber(count)}`,
+      description: `本周期 ${formatNumber(count)} 座工厂`,
+    };
+  }
+
+  const count = Math.max(0, group.nextCycleCount);
+  if (group.status === 'error') {
+    return {
+      count,
+      label: `恢复后 × ${formatNumber(count)}`,
+      description: `条件恢复后 ${formatNumber(count)} 座工厂`,
+    };
+  }
+
+  return {
+    count,
+    label: `启动后 × ${formatNumber(count)}`,
+    description: `启动后 ${formatNumber(count)} 座工厂`,
+  };
+}
+
+function nextFormulaScope(group: FacilityGroup): FormulaScope {
+  const count = Math.max(0, group.nextCycleCount);
+  return {
+    count,
+    label: `下一周期 × ${formatNumber(count)}`,
+    description: `下一周期 ${formatNumber(count)} 座工厂`,
+  };
+}
+
+function recipeText(items: FacilityRecipeItem[], productNames: ProductNameMap, multiplier: number) {
   return items
-    .map((item) => `${formatNumber(item.quantity)} ${productNames.get(item.productId) ?? item.productId}`)
+    .map((item) => `${formatNumber(item.quantity * multiplier)} ${productNames.get(item.productId) ?? item.productId}`)
     .join('和');
 }
 
@@ -40,6 +81,7 @@ function RecipeItems({
   items,
   productNames,
   inventories,
+  multiplier,
   showInventory = false,
   groupClassName,
   itemClassName,
@@ -47,6 +89,7 @@ function RecipeItems({
   items: FacilityRecipeItem[];
   productNames: ProductNameMap;
   inventories: Record<string, ProductInventory>;
+  multiplier: number;
   showInventory?: boolean;
   groupClassName: string;
   itemClassName: string;
@@ -55,12 +98,13 @@ function RecipeItems({
     <div className={groupClassName}>
       {items.map((item, index) => {
         const productName = productNames.get(item.productId) ?? item.productId;
+        const quantity = item.quantity * multiplier;
         return (
           <Fragment key={`${item.productId}-${index}`}>
             {index > 0 ? <span className="facility-formula-separator">+</span> : null}
             <span className="facility-formula-item-group">
-              <span className={itemClassName} title={`${formatNumber(item.quantity)} ${productName}`}>
-                <strong>{formatNumber(item.quantity)} ×</strong>
+              <span className={itemClassName} title={`${formatNumber(quantity)} ${productName}`}>
+                <strong>{formatNumber(quantity)} ×</strong>
                 <ProductIcon productId={item.productId} />
               </span>
               {showInventory ? (
@@ -88,13 +132,17 @@ function progressDescription(group: FacilityGroup, type: FacilityTypeDefinition,
   return `当前生产进度 ${Math.round(progress)}%`;
 }
 
-function recipeDescription(type: FacilityTypeDefinition, productNames: ProductNameMap) {
+function clusterRecipeDescription(
+  type: FacilityTypeDefinition,
+  productNames: ProductNameMap,
+  scope: FormulaScope,
+) {
   const inputs = recipeInputs(type);
   const outputs = recipeOutputs(type);
   const inputDescription = inputs.length > 0
-    ? `消耗${recipeText(inputs, productNames)}`
+    ? `消耗${recipeText(inputs, productNames, scope.count)}`
     : '不消耗原料';
-  return `单座配方每${formatDuration(type.cycleMs)}${inputDescription}，产出${recipeText(outputs, productNames)}，成本${formatCurrency(type.operatingCost)}`;
+  return `${scope.description}每${formatDuration(type.cycleMs)}${inputDescription}，产出${recipeText(outputs, productNames, scope.count)}，成本${formatCurrency(type.operatingCost * scope.count)}`;
 }
 
 export function FacilityProductionFormula({
@@ -117,14 +165,18 @@ export function FacilityProductionFormula({
   const inputs = recipeInputs(type);
   const outputs = recipeOutputs(type);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
-  const currentDescription = recipeDescription(type, productNames);
+  const scope = currentFormulaScope(group);
+  const currentDescription = clusterRecipeDescription(type, productNames, scope);
   const nextDescription = showNextCyclePreview
-    ? `下一周期${recipeDescription(nextType, productNames)}`
+    ? clusterRecipeDescription(nextType, productNames, nextFormulaScope(group))
     : '';
-  const description = `${currentDescription}。${progressDescription(group, type, now)}。${nextDescription}`;
+  const description = [currentDescription, progressDescription(group, type, now), nextDescription]
+    .filter(Boolean)
+    .join('。');
 
   return (
     <div className="facility-production-formula" role="group" aria-label={description}>
+      <div className="facility-formula-scope" aria-hidden="true">{scope.label}</div>
       <div className="facility-formula-visual" aria-hidden="true">
         <div className="facility-formula-top">
           <div className="facility-formula-input">
@@ -133,6 +185,7 @@ export function FacilityProductionFormula({
                 items={inputs}
                 productNames={productNames}
                 inventories={inventories}
+                multiplier={scope.count}
                 showInventory
                 groupClassName="facility-formula-input-group"
                 itemClassName="facility-formula-input-item"
@@ -148,7 +201,7 @@ export function FacilityProductionFormula({
             <span className="facility-formula-meta-divider">·</span>
             <span className="facility-formula-meta-unit">
               <CreditsIcon className="facility-formula-meta-icon" />
-              <span>{formatCurrency(type.operatingCost)}</span>
+              <span>{formatCurrency(type.operatingCost * scope.count)}</span>
             </span>
           </div>
 
@@ -157,6 +210,7 @@ export function FacilityProductionFormula({
               items={outputs}
               productNames={productNames}
               inventories={inventories}
+              multiplier={scope.count}
               groupClassName="facility-formula-output-group"
               itemClassName="facility-formula-output-item"
             />

@@ -1,10 +1,24 @@
-/* Factory production formula: recipe, cycle/cost metadata, and progress. */
+/* Factory production formula: cluster recipe, cycle/cost metadata, and progress. */
 .facility-production-formula {
   min-width: 0;
+  display: grid;
+  gap: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   padding: var(--space-2);
   background: var(--color-surface-inset);
+}
+
+.facility-formula-scope {
+  min-width: 0;
+  justify-self: end;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .facility-formula-visual {
