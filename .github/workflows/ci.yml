@@ -4,6 +4,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -37,7 +41,7 @@ jobs:
           npm run test:browser 2>&1 | tee browser-test.log
 
       - name: Upload browser test artifacts
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: browser-test-artifacts
@@ -46,3 +50,4 @@ jobs:
             playwright-report
             test-results
           if-no-files-found: warn
+          retention-days: 3
