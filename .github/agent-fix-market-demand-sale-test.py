@@ -1,0 +1,54 @@
+from pathlib import Path
+import re
+
+path = Path('server/test/domain.test.js')
+text = path.read_text()
+replacement = r'''test('market demand cancels carried orders and resets to the model price after a sale', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  seller.inventories.wheat.available = 1;
+  deferDemand(world, now + 10 * cycleMs);
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'wheat', side: 'sell', quantity: 1, price: 1,
+  }, now).ok, true);
+
+  prepareDemand(world, 'food', now + 1);
+  processWorld(world, now + 1);
+  const filledOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && order.lastFilledAt === now + 1
+  ));
+  assert.ok(filledOrder);
+
+  const firstCycleId = world.demandGroups.food.lastCycleId;
+  prepareDemand(world, 'food', now + cycleMs + 1);
+  processWorld(world, now + cycleMs + 1);
+  const nextCycleId = world.demandGroups.food.lastCycleId;
+  assert.ok(nextCycleId > firstCycleId);
+  assert.equal(world.orders.some((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && Number(order.demandCycleId) < nextCycleId
+    && (order.status === 'open' || order.status === 'partial')
+  )), false);
+  const nextOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && order.demandCycleId === nextCycleId
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(nextOrder);
+  assert.equal(nextOrder.price, Math.round(world.priceTransmission.products.wheat.referencePrice));
+});
+'''
+pattern = r"test\('market demand cancels carried orders and resets to the model price after a sale', \(\) => \{.*?\n\}\);\n(?=\ntest\('market demand scales sublinearly)"
+updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+if count != 1:
+    raise SystemExit(f'expected one sale reset test block, found {count}')
+path.write_text(updated)
+Path('.github/agent-fix-market-demand-sale-test.py').unlink()
+Path('.github/workflows/agent-run-market-demand-sale-test-fix.yml').unlink()
