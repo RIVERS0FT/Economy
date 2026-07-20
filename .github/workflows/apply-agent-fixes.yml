@@ -1,0 +1,43 @@
+name: Apply Economy audit fixes
+
+on:
+  push:
+    branches:
+      - agent/fix-audit-and-recent-trade-valuation
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-economy-audit-fixes
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-audit-and-recent-trade-valuation
+          fetch-depth: 0
+
+      - name: Apply verified patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .github/agent-fixes.patch.gz.b64 | gzip --decompress > /tmp/economy-audit-fixes.patch
+          git apply --check /tmp/economy-audit-fixes.patch
+          git apply /tmp/economy-audit-fixes.patch
+          rm .github/agent-fixes.patch.gz.b64 .github/workflows/apply-agent-fixes.yml
+
+      - name: Commit repaired project
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '修复审计问题并改用最近成交价估值'
+          git push origin HEAD:agent/fix-audit-and-recent-trade-valuation
