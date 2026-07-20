@@ -315,7 +315,13 @@ test('market demand cancels carried orders and resets to the model price after a
   assert.equal(applyAction(world, bob, 'placeOrder', {
     productId: 'wheat', side: 'sell', quantity: 1, price: firstOrder.price,
   }, now + 2).ok, true);
-  assert.equal(firstOrder.lastFilledAt, now + 2);
+  const filledOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && order.lastFilledAt === now + 2
+  ));
+  assert.ok(filledOrder);
 
   prepareDemand(world, 'food', now + cycleMs + 1);
   processWorld(world, now + cycleMs + 1);
