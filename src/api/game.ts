@@ -102,7 +102,8 @@ export async function getGameState(revision?: number | null, signal?: AbortSigna
   for (const [name, value] of Object.entries(knownPartitionRevisions())) {
     if (value) params.set(name, value);
   }
-  const suffix = params.size > 0 ? `?${params.toString()}` : '';
+  const query = params.toString();
+  const suffix = query ? `?${query}` : '';
   return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET', signal });
 }
 
