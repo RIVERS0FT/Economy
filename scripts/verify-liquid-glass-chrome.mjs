@@ -33,6 +33,7 @@ const walk = (path) => readdirSync(resolve(root, path)).flatMap((entry) => {
 const files = {
   surface: 'src/components/ui/LiquidGlassSurface.tsx',
   styles: 'src/styles/liquid-glass-surfaces.css',
+  compatibility: 'src/styles/liquid-glass-chrome.css',
   shell: 'src/components/shell/GameShell.tsx',
   status: 'src/components/shell/StatusBar.tsx',
   mobile: 'src/components/shell/MobileBottomNavigation.tsx',
@@ -49,7 +50,6 @@ const files = {
 };
 
 Object.values(files).forEach(requireFile);
-requireFile('src/styles/liquid-glass-chrome.css');
 
 if (failures.length === 0) {
   const packageJson = JSON.parse(read(files.package));
@@ -131,6 +131,13 @@ if (failures.length === 0) {
     "import './styles/mobile-status-navigation.css'",
     "import './styles/design-system.css'",
   ]);
+  requireOrder(files.compatibility, [
+    "@import './performance.css';",
+    "@import './scrollbars.css';",
+    "@import './game-shell-layout.css';",
+    "@import './liquid-glass-surfaces.css';",
+  ]);
+  requireText(files.compatibility, 'Production imports these files directly through src/main.tsx.');
 
   for (const text of [
     '--layout-gutter: var(--mobile-primary-surface-gap);',
@@ -184,6 +191,7 @@ if (failures.length === 0) {
     '不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
     '固定到视口安全边缘',
     'right: env(safe-area-inset-right, 0px)',
+    '浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式',
   ]) requireText(files.design, text);
   for (const text of [
     'mobile chrome shares the workspace gutter and fixed glass heights',
@@ -203,4 +211,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 外壳、移动玻璃共线、40px 底栏圆角与固定安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 外壳、浏览器真实样式入口、移动玻璃共线、40px 底栏圆角与固定安全边缘滚动条验证通过。');
