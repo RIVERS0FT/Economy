@@ -84,3 +84,34 @@
     justify-self: center;
   }
 }
+
+@media (max-width: 760px) {
+  .overview-market-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .overview-market-metrics .overview-metric {
+    min-height: 72px;
+    padding-inline: clamp(4px, 1.8vw, 8px);
+  }
+
+  .overview-market-metrics .overview-metric:nth-child(2) {
+    border-right: 1px solid var(--color-divider);
+  }
+
+  .overview-market-metrics .overview-metric:nth-child(-n + 2) {
+    border-bottom: 0;
+  }
+
+  .overview-market-metrics .overview-metric > span,
+  .overview-market-metrics .overview-metric > small {
+    overflow: hidden;
+    font-size: clamp(0.65rem, 2.7vw, 0.75rem);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .overview-market-metrics .overview-metric > strong {
+    font-size: clamp(0.95rem, 4.2vw, 1.15rem);
+  }
+}
