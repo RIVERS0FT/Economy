@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -18,9 +18,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -30,12 +27,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Merge leaderboard rules into canonical docs
-        if: github.event_name == 'pull_request' && hashFiles('.github/automation/finalize-leaderboard-docs.mjs') != ''
-        run: |
-          node .github/automation/finalize-leaderboard-docs.mjs
-          rm docs/LEADERBOARD_DESIGN.md
 
       - name: Build and test
         shell: bash
@@ -51,23 +42,6 @@ jobs:
         run: |
           set -o pipefail
           npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Validate patch formatting
-        run: git diff --check
-
-      - name: Commit canonical document merge
-        if: github.event_name == 'pull_request' && hashFiles('.github/automation/finalize-leaderboard-docs.mjs') != ''
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          git show "${BASE_SHA}:.github/workflows/ci.yml" > .github/workflows/ci.yml
-          rm .github/automation/finalize-leaderboard-docs.mjs
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md docs/PRODUCT_AND_GAMEPLAY_DESIGN.md docs/LEADERBOARD_DESIGN.md scripts/verify-leaderboards.mjs .github
-          git commit -m "合并交易榜规则到权威设计文档"
-          git push origin "HEAD:${HEAD_BRANCH}"
 
       - name: Upload test artifacts
         if: failure()

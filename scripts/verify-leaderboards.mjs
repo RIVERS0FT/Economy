@@ -13,7 +13,7 @@ const check = (condition, message) => {
 const server = read('server/src/leaderboards.js');
 const page = read('src/pages/LeaderboardPage.tsx');
 const styles = read('src/styles/leaderboards.css');
-const leaderboardDesign = read('docs/LEADERBOARD_DESIGN.md');
+const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const navigationDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 
 for (const board of ['wealth', 'growth', 'production', 'trading']) {
@@ -37,10 +37,10 @@ check(page.includes("const BOARD_ORDER: LeaderboardBoardId[] = ['wealth', 'growt
 check(page.includes("timeZone: 'Asia/Shanghai'"), 'leaderboard page must format periods in Beijing time');
 check(styles.includes('grid-template-columns: repeat(4, minmax(280px, 1fr))'), 'desktop leaderboard must remain a four-column grid');
 check(styles.includes('overflow-x: auto'), 'narrow viewports must preserve four columns with horizontal scrolling');
-check(leaderboardDesign.includes('30 / 20 / 10'), 'leaderboard design must record gem rewards');
-check(leaderboardDesign.includes('撤单的未成交剩余数量不计入'), 'leaderboard design must exclude cancelled remainder');
-check(leaderboardDesign.includes('Asia/Shanghai'), 'leaderboard design must record Beijing leaderboard time');
-check(leaderboardDesign.includes('实际卖出成交额'), 'leaderboard design must record gross sell volume');
+check(productDesign.includes('30 / 20 / 10'), 'product design must record gem rewards');
+check(productDesign.includes('撤单的未成交剩余数量不计入'), 'product design must exclude cancelled remainder');
+check(productDesign.includes('Asia/Shanghai'), 'product design must record Beijing leaderboard time');
+check(productDesign.includes('实际卖出成交额'), 'product design must record gross sell volume');
 check(navigationDesign.includes('四列'), 'navigation design must record the four-column leaderboard page');
 
 if (failures.length > 0) {
