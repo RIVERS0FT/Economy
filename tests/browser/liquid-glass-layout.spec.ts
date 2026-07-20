@@ -3,12 +3,12 @@ import { expect, test } from '@playwright/test';
 test.describe('liquid glass shell geometry', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('desktop status bar uses enhanced refraction, shared inset and one visible highlight', async ({ page }) => {
+  test('desktop status bar uses the shared clear thick glass capsule and shell inset', async ({ page }) => {
     await page.goto('runtime-test.html?view=overview&scenario=activity');
     await expect(page.locator('.asset-bar-scroll-area')).toBeVisible();
     const glassSurface = page.locator('.asset-bar .liquid-glass-surface');
     await expect(glassSurface).toBeVisible();
-    await expect(glassSurface).toHaveAttribute('data-liquid-glass-mode', 'prominent');
+    await expect(glassSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
     await expect(page.locator('.overview-today-panel')).toBeVisible();
 
     const layout = await page.evaluate(() => {
@@ -78,17 +78,12 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.surfaceOverflowX).toBe('hidden');
     expect(layout.surfaceContain).toBe('none');
     expect(layout.surfaceIsolation).toBe('auto');
-    expect(layout.surfaceRadius).toEqual([
-      layout.panelRadius,
-      layout.panelRadius,
-      layout.panelRadius,
-      layout.panelRadius,
-    ]);
+    expect(layout.surfaceRadius).toEqual(['40px', '40px', '40px', '40px']);
     expect(layout.panelRadius).toBe('24px');
     expect(layout.surfaceBorderWidth).toBe('1px');
     expect(layout.surfaceBorderStyle).toBe('solid');
-    expect(layout.surfaceBackgroundColor).toBe('rgba(0, 0, 0, 0)');
-    expect(layout.glassMode).toBe('prominent');
+    expect(layout.surfaceBackgroundColor).toBe('rgba(194, 231, 214, 0.06)');
+    expect(layout.glassMode).toBe('standard');
     expect(layout.warpBackdropFilter).not.toBe('none');
     expect(layout.warpFilter).toContain('url(');
     expect(layout.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
@@ -100,7 +95,7 @@ test.describe('liquid glass shell geometry', () => {
 });
 
 test.describe('mobile liquid glass host geometry', () => {
-  test('mobile chrome shares the workspace gutter and fixed glass heights', async ({ page }) => {
+  test('mobile status and navigation share one clear thick glass material and capsule radius', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
@@ -113,8 +108,10 @@ test.describe('mobile liquid glass host geometry', () => {
     await expect(chromeOverlay).toBeVisible();
     await expect(statusHost).toBeVisible();
     await expect(statusSurface).toBeVisible();
+    await expect(statusSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
     await expect(navigationHost).toBeVisible();
     await expect(navigationSurface).toBeVisible();
+    await expect(navigationSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
     await expect(primaryPanel).toBeVisible();
     await expect(statusHost).toHaveCSS('height', '48px');
     await expect(statusSurface).toHaveCSS('height', '48px');
@@ -160,8 +157,13 @@ test.describe('mobile liquid glass host geometry', () => {
         statusSurface: rect(statusSurfaceElement),
         navigationSurface: rect(navigationSurfaceElement),
         primaryPanel: rect(primaryPanelElement),
+        statusRadius: statusSurfaceStyle.borderTopLeftRadius,
         navigationRadius: navigationSurfaceStyle.borderTopLeftRadius,
         primaryPanelRadius: getComputedStyle(primaryPanelElement).borderTopLeftRadius,
+        statusMode: statusSurfaceElement.dataset.liquidGlassMode,
+        navigationMode: navigationSurfaceElement.dataset.liquidGlassMode,
+        statusBackground: statusSurfaceStyle.backgroundColor,
+        navigationBackground: navigationSurfaceStyle.backgroundColor,
         statusContain: statusSurfaceStyle.contain,
         navigationContain: navigationSurfaceStyle.contain,
         statusIsolation: statusSurfaceStyle.isolation,
@@ -185,8 +187,13 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusSurface.right).toBeCloseTo(geometry.primaryPanel.right, 0);
     expect(geometry.navigationSurface.left).toBeCloseTo(geometry.primaryPanel.left, 0);
     expect(geometry.navigationSurface.right).toBeCloseTo(geometry.primaryPanel.right, 0);
-    expect(geometry.navigationRadius).toBe(geometry.primaryPanelRadius);
+    expect(geometry.statusRadius).toBe('40px');
     expect(geometry.navigationRadius).toBe('40px');
+    expect(geometry.primaryPanelRadius).toBe('40px');
+    expect(geometry.statusMode).toBe('standard');
+    expect(geometry.navigationMode).toBe('standard');
+    expect(geometry.statusBackground).toBe(geometry.navigationBackground);
+    expect(geometry.statusBackground).toBe('rgba(194, 231, 214, 0.06)');
     expect(geometry.statusContain).toBe('none');
     expect(geometry.navigationContain).toBe('none');
     expect(geometry.statusIsolation).toBe('auto');
@@ -195,6 +202,7 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.navigationOverflow).toBe('hidden');
     expect(geometry.statusBackdropFilter).not.toBe('none');
     expect(geometry.navigationBackdropFilter).not.toBe('none');
+    expect(geometry.statusBackdropFilter).toBe(geometry.navigationBackdropFilter);
     expect(geometry.statusFilterTargetExists).toBe(true);
     expect(geometry.navigationFilterTargetExists).toBe(true);
     expect(geometry.workspaceIsolation).toBe('auto');
