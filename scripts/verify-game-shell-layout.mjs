@@ -135,11 +135,12 @@ if (failures.length === 0) {
   for (const text of [
     '--mobile-workspace-gutter: var(--space-3);',
     '--mobile-primary-surface-gap: var(--mobile-workspace-gutter);',
+    '--mobile-workspace-inline-end: max(',
+    '--mobile-scrollbar-edge-escape: calc(',
+    'var(--mobile-workspace-inline-end) - env(safe-area-inset-right)',
     '--mobile-chrome-block-inset: var(--space-4);',
     '--mobile-nav-gap: var(--mobile-workspace-gutter);',
     '--mobile-content-gap: var(--mobile-workspace-gutter);',
-    '--mobile-scrollbar-edge-escape: max(',
-    'calc(var(--mobile-workspace-gutter) - env(safe-area-inset-right))',
   ]) requireText(paths.mobileNavigation, text);
   for (const text of ['--mobile-chrome-inset', '--mobile-content-inset']) {
     forbidText(paths.mobileNavigation, text);
@@ -178,7 +179,8 @@ if (failures.length === 0) {
     '.page-scroll-area {',
     'overflow: visible;',
     '.page-scroll-area > .ui-scrollbar--vertical {',
-    'right: calc(0px - var(--mobile-scrollbar-edge-escape));',
+    'right: 0;',
+    'transform: translateX(var(--mobile-scrollbar-edge-escape));',
     '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
     'right: var(--scrollbar-edge-offset);',
     'left: auto;',
@@ -221,8 +223,11 @@ if (failures.length === 0) {
     '`--mobile-workspace-gutter` 固定引用 `var(--space-3)`',
     '状态栏和底栏的可见液态玻璃表面必须与一级卡片左右边缘共线',
     '状态栏实际玻璃、页面一级卡片、底部导航宿主和底栏实际玻璃左右边缘共线',
-    '`--mobile-scrollbar-edge-escape`',
+    '`--mobile-workspace-inline-end`',
+    '`--mobile-scrollbar-edge-escape` 等于 `--mobile-workspace-inline-end - env(safe-area-inset-right)`',
+    '通过 `translateX()` 越过普通 gutter',
     '纵向滑块右边缘位于屏幕或安全区内缘 `2px`',
+    '移动一级卡片 `--radius-card-mobile` 一致，当前为 `40px`',
     '`scrollbars.css` 不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
     '只有 `scrollTop` 确实变化才显示纵向滚动条',
     '停止实际纵向滚动 `1200ms` 后恢复透明',
@@ -234,7 +239,9 @@ if (failures.length === 0) {
     '覆盖式轨道不得使用 `scrollbar-gutter: stable`',
     '鼠标移动、指针按下、点击内容、焦点进入',
     '移动页面右侧贴边规则',
+    '`--mobile-workspace-inline-end`',
     '`--mobile-scrollbar-edge-escape`',
+    '`translateX(var(--mobile-scrollbar-edge-escape))`',
     '滑块右边缘距屏幕右边 `2px`',
   ]) requireText(paths.scrollbarDesign, text);
 
