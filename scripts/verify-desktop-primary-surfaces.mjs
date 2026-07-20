@@ -18,6 +18,7 @@ const paths = {
   designSystem: 'src/styles/design-system.css',
   surfaceComponent: 'src/components/ui/LiquidGlassSurface.tsx',
   surfaceStyles: 'src/styles/liquid-glass-surfaces.css',
+  statusComponent: 'src/components/shell/StatusBar.tsx',
   shellStyles: 'src/styles/game-shell-layout.css',
   liquidDesign: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   browser: 'tests/browser/liquid-glass-layout.spec.ts',
@@ -29,31 +30,43 @@ if (failures.length === 0) {
   requireText(paths.designSystem, '--radius-card: 1.5rem;');
   requireText(paths.designSystem, 'border-radius: var(--radius-card);');
   for (const text of [
-    'const IOS_CLEAR_THICK_GLASS = {',
-    'cornerRadius: 40,',
-    'statusBar: IOS_CLEAR_THICK_GLASS',
-    'mobileNavigation: IOS_CLEAR_THICK_GLASS',
+    'const DESKTOP_STATUS_GLASS = {',
+    'displacementScale: 20',
+    'blurAmount: 0.0625',
+    'saturation: 120',
+    'aberrationIntensity: 0.15',
+    'cornerRadius: 24,',
+    'desktopStatusBar: DESKTOP_STATUS_GLASS',
+    'const MOBILE_CHROME_GLASS = {',
+    'mobileStatusBar: MOBILE_CHROME_GLASS',
+    'mobileNavigation: MOBILE_CHROME_GLASS',
   ]) requireText(paths.surfaceComponent, text);
+  forbidText(paths.surfaceComponent, 'const IOS_CLEAR_THICK_GLASS = {');
+  forbidText(paths.surfaceComponent, 'statusBar: IOS_CLEAR_THICK_GLASS');
 
   for (const text of [
-    '.asset-bar .liquid-glass-surface,',
-    '.mobile-bottom-navigation .liquid-glass-surface__effect > .glass {',
-    'border-radius: 40px !important;',
-    '.liquid-glass-surface--statusBar,',
-    '.liquid-glass-surface--mobileNavigation {',
+    "type StatusBarSurfaceVariant = Extract<LiquidGlassSurfaceVariant, 'desktopStatusBar' | 'mobileStatusBar'>",
+    "return window.matchMedia(MOBILE_STATUS_MEDIA_QUERY).matches ? 'mobileStatusBar' : 'desktopStatusBar'",
+    '<LiquidGlassSurface variant={surfaceVariant}>',
+  ]) requireText(paths.statusComponent, text);
+
+  for (const text of [
+    '.asset-bar .liquid-glass-surface--desktopStatusBar,',
+    'border-radius: 24px !important;',
+    '.liquid-glass-surface--desktopStatusBar .glass__warp {',
+    '-webkit-backdrop-filter: blur(6px) saturate(120%);',
+    '.liquid-glass-surface--desktopStatusBar,',
     'border: 1px solid var(--liquid-glass-structure-border);',
     'background: var(--liquid-glass-contrast);',
-    '.liquid-glass-surface--statusBar > span,',
-    '.liquid-glass-surface--mobileNavigation > span {',
-    'opacity: 0 !important;',
-    '.liquid-glass-surface--statusBar > span:first-of-type,',
-    '.liquid-glass-surface--mobileNavigation > span:first-of-type {',
-    'opacity: 0.22 !important;',
+    '.liquid-glass-surface--desktopStatusBar > span,',
+    'display: none !important;',
+    '.asset-bar .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,',
+    'box-shadow: none !important;',
   ]) requireText(paths.surfaceStyles, text);
 
   for (const text of [
+    '.liquid-glass-surface--statusBar',
     'border-radius: 18px !important;',
-    'border-radius: var(--radius-card) !important;',
     'border: 1px solid rgba(212, 245, 224, 0.12);',
     'opacity: 0.18 !important;',
   ]) forbidText(paths.surfaceStyles, text);
@@ -61,28 +74,31 @@ if (failures.length === 0) {
 
   for (const text of [
     '桌面状态栏高度保持 `76px`',
-    '材质轮廓改为与移动底栏一致的 `40px` 胶囊',
-    '桌面一级卡片继续使用 `--radius-card: 24px`',
-    '一条低强度 `1px` 结构描边',
-    '只允许第一层 `opacity: 0.22` 的 screen 高光可见',
-    '第二层 overlay 装饰必须隐藏',
+    '实际玻璃圆角为 `24px`',
+    '与桌面一级卡片 `--radius-card: 24px` 一致',
+    '`DESKTOP_STATUS_GLASS`',
+    '`blur(6px) saturate(120%)`',
+    '直属装饰 `span` 可见数量为 `0`',
+    '第三方 `.glass` 无 box-shadow',
     '`--desktop-shell-outer-inset` 是侧栏与状态栏唯一桌面外距令牌',
     '状态栏顶部／右侧间距都来自统一桌面外距',
   ]) requireText(paths.liquidDesign, text);
 
   for (const text of [
-    'desktop status bar uses the shared clear thick glass capsule and shell inset',
-    "expect(layout.surfaceRadius).toEqual(['40px', '40px', '40px', '40px'])",
+    'desktop status bar uses its dedicated single-shell glass preset and shell inset',
+    "toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar')",
+    "expect(layout.surfaceRadius).toEqual(['24px', '24px', '24px', '24px'])",
     "expect(layout.panelRadius).toBe('24px')",
     "expect(layout.surfaceBorderWidth).toBe('1px')",
-    'expect(layout.visibleDecorationSpanCount).toBe(1)',
+    'expect(layout.visibleDecorationSpanCount).toBe(0)',
+    "expect(layout.glassBoxShadow).toBe('none')",
   ]) requireText(paths.browser, text);
 }
 
 if (failures.length > 0) {
-  console.error('桌面一级表面圆角、状态栏清透厚玻璃胶囊与单层高光验证失败:');
+  console.error('桌面一级表面圆角、桌面状态栏独立预设与单壳结构验证失败:');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('桌面一级卡片 24px 圆角与状态栏 40px 清透厚玻璃胶囊、单层结构边框和单层高光验证通过。');
+console.log('桌面一级卡片与状态栏 24px 圆角、桌面独立玻璃预设、单层结构边框、零第三方装饰层和无外部阴影验证通过。');

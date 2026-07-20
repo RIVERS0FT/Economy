@@ -3,11 +3,12 @@ import { expect, test } from '@playwright/test';
 test.describe('liquid glass shell geometry', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('desktop status bar uses the shared clear thick glass capsule and shell inset', async ({ page }) => {
+  test('desktop status bar uses its dedicated single-shell glass preset and shell inset', async ({ page }) => {
     await page.goto('runtime-test.html?view=overview&scenario=activity');
     await expect(page.locator('.asset-bar-scroll-area')).toBeVisible();
     const glassSurface = page.locator('.asset-bar .liquid-glass-surface');
     await expect(glassSurface).toBeVisible();
+    await expect(glassSurface).toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar');
     await expect(glassSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
     await expect(page.locator('.overview-today-panel')).toBeVisible();
 
@@ -17,9 +18,10 @@ test.describe('liquid glass shell geometry', () => {
       const assetBar = document.querySelector<HTMLElement>('.asset-bar');
       const surface = document.querySelector<HTMLElement>('.asset-bar .liquid-glass-surface');
       const warp = document.querySelector<HTMLElement>('.asset-bar .glass__warp');
+      const glass = document.querySelector<HTMLElement>('.asset-bar .liquid-glass-surface__effect > .glass');
       const heading = document.querySelector<HTMLElement>('.page-heading');
       const primaryPanel = document.querySelector<HTMLElement>('.overview-today-panel');
-      if (!workspace || !assetBarArea || !assetBar || !surface || !warp || !heading || !primaryPanel) {
+      if (!workspace || !assetBarArea || !assetBar || !surface || !warp || !glass || !heading || !primaryPanel) {
         throw new Error('status bar geometry fixture is incomplete');
       }
 
@@ -30,10 +32,17 @@ test.describe('liquid glass shell geometry', () => {
       const headingRect = heading.getBoundingClientRect();
       const assetBarStyle = getComputedStyle(assetBar);
       const surfaceStyle = getComputedStyle(surface);
+      const glassStyle = getComputedStyle(glass);
       const warpStyle = getComputedStyle(warp) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
       const primaryPanelStyle = getComputedStyle(primaryPanel);
       const directDecorationSpans = Array.from(surface.children)
         .filter((element) => element.tagName === 'SPAN') as HTMLElement[];
+      const directAuxiliaryDivs = Array.from(surface.children)
+        .filter((element) => element.tagName === 'DIV' && !element.classList.contains('liquid-glass-surface__effect')) as HTMLElement[];
+      const isVisible = (element: HTMLElement) => {
+        const style = getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity) > 0;
+      };
 
       return {
         workspaceWidth: workspaceRect.width,
@@ -59,11 +68,14 @@ test.describe('liquid glass shell geometry', () => {
         surfaceBorderStyle: surfaceStyle.borderTopStyle,
         surfaceBackgroundColor: surfaceStyle.backgroundColor,
         glassMode: surface.dataset.liquidGlassMode,
+        glassVariant: surface.dataset.liquidGlassVariant,
+        glassBoxShadow: glassStyle.boxShadow,
         warpBackdropFilter: warpStyle.backdropFilter || warpStyle.webkitBackdropFilter || '',
         warpFilter: warpStyle.filter,
         directDecorationSpanCount: directDecorationSpans.length,
-        visibleDecorationSpanCount: directDecorationSpans
-          .filter((element) => Number.parseFloat(getComputedStyle(element).opacity) > 0).length,
+        visibleDecorationSpanCount: directDecorationSpans.filter(isVisible).length,
+        directAuxiliaryDivCount: directAuxiliaryDivs.length,
+        visibleAuxiliaryDivCount: directAuxiliaryDivs.filter(isVisible).length,
         hasPanelClass: assetBar.classList.contains('panel'),
         glassSurfaceCount: assetBar.querySelectorAll('.liquid-glass-surface').length,
       };
@@ -78,24 +90,49 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.surfaceOverflowX).toBe('hidden');
     expect(layout.surfaceContain).toBe('none');
     expect(layout.surfaceIsolation).toBe('auto');
-    expect(layout.surfaceRadius).toEqual(['40px', '40px', '40px', '40px']);
+    expect(layout.surfaceRadius).toEqual(['24px', '24px', '24px', '24px']);
     expect(layout.panelRadius).toBe('24px');
     expect(layout.surfaceBorderWidth).toBe('1px');
     expect(layout.surfaceBorderStyle).toBe('solid');
     expect(layout.surfaceBackgroundColor).toBe('rgba(194, 231, 214, 0.06)');
     expect(layout.glassMode).toBe('standard');
-    expect(layout.warpBackdropFilter).not.toBe('none');
+    expect(layout.glassVariant).toBe('desktopStatusBar');
+    expect(layout.glassBoxShadow).toBe('none');
+    expect(layout.warpBackdropFilter).toContain('blur(6px)');
+    expect(layout.warpBackdropFilter).toMatch(/saturate\((?:120%|1\.2)\)/);
     expect(layout.warpFilter).toContain('url(');
     expect(layout.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
-    expect(layout.visibleDecorationSpanCount).toBe(1);
+    expect(layout.visibleDecorationSpanCount).toBe(0);
+    expect(layout.directAuxiliaryDivCount).toBeGreaterThanOrEqual(1);
+    expect(layout.visibleAuxiliaryDivCount).toBe(0);
     expect(layout.hasPanelClass).toBe(false);
     expect(layout.glassSurfaceCount).toBe(1);
     expect(layout.headingTop).toBeGreaterThanOrEqual(layout.assetBarBottom);
   });
+
+  test('status bar changes platform preset in place without rendering duplicate glass hosts', async ({ page }) => {
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+    const statusSurface = page.locator('.asset-bar .liquid-glass-surface');
+    await expect(statusSurface).toHaveCount(1);
+    await expect(statusSurface).toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar');
+    await statusSurface.evaluate((element) => {
+      (element as HTMLElement).dataset.instanceProbe = 'single-host';
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(statusSurface).toHaveCount(1);
+    await expect(statusSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileStatusBar');
+    await expect(statusSurface).toHaveAttribute('data-instance-probe', 'single-host');
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(statusSurface).toHaveCount(1);
+    await expect(statusSurface).toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar');
+    await expect(statusSurface).toHaveAttribute('data-instance-probe', 'single-host');
+  });
 });
 
 test.describe('mobile liquid glass host geometry', () => {
-  test('mobile status and navigation share one clear thick glass material and capsule radius', async ({ page }) => {
+  test('mobile status and navigation share the mobile chrome preset while status remains single-shell', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
@@ -107,10 +144,13 @@ test.describe('mobile liquid glass host geometry', () => {
     const primaryPanel = page.locator('.overview-today-panel');
     await expect(chromeOverlay).toBeVisible();
     await expect(statusHost).toBeVisible();
+    await expect(statusSurface).toHaveCount(1);
     await expect(statusSurface).toBeVisible();
+    await expect(statusSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileStatusBar');
     await expect(statusSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
     await expect(navigationHost).toBeVisible();
     await expect(navigationSurface).toBeVisible();
+    await expect(navigationSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileNavigation');
     await expect(navigationSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
     await expect(primaryPanel).toBeVisible();
     await expect(statusHost).toHaveCSS('height', '48px');
@@ -132,11 +172,14 @@ test.describe('mobile liquid glass host geometry', () => {
       const navigationWarpElement = document.querySelector<HTMLElement>(
         '.mobile-bottom-navigation .glass__warp',
       );
+      const statusGlassElement = document.querySelector<HTMLElement>(
+        '.asset-bar .liquid-glass-surface__effect > .glass',
+      );
       const primaryPanelElement = document.querySelector<HTMLElement>('.overview-today-panel');
       if (!workspaceElement || !pageOverlayElement || !chromeOverlayElement || !pageScrollElement
         || !statusHostElement || !navigationHostElement || !statusSurfaceElement
         || !navigationSurfaceElement || !statusWarpElement || !navigationWarpElement
-        || !primaryPanelElement) {
+        || !statusGlassElement || !primaryPanelElement) {
         throw new Error('mobile liquid glass geometry fixture is incomplete');
       }
       const rect = (element: HTMLElement) => {
@@ -151,6 +194,12 @@ test.describe('mobile liquid glass host geometry', () => {
         const match = element.style.filter.match(/url\(["']?#([^"')]+)["']?\)/);
         return Boolean(match?.[1] && document.getElementById(match[1]));
       };
+      const visibleDirectSpanCount = (surface: HTMLElement) => Array.from(surface.children)
+        .filter((element): element is HTMLElement => element instanceof HTMLElement && element.tagName === 'SPAN')
+        .filter((element) => {
+          const style = getComputedStyle(element);
+          return style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity) > 0;
+        }).length;
       const statusSurfaceStyle = getComputedStyle(statusSurfaceElement);
       const navigationSurfaceStyle = getComputedStyle(navigationSurfaceElement);
       return {
@@ -162,6 +211,8 @@ test.describe('mobile liquid glass host geometry', () => {
         primaryPanelRadius: getComputedStyle(primaryPanelElement).borderTopLeftRadius,
         statusMode: statusSurfaceElement.dataset.liquidGlassMode,
         navigationMode: navigationSurfaceElement.dataset.liquidGlassMode,
+        statusVariant: statusSurfaceElement.dataset.liquidGlassVariant,
+        navigationVariant: navigationSurfaceElement.dataset.liquidGlassVariant,
         statusBackground: statusSurfaceStyle.backgroundColor,
         navigationBackground: navigationSurfaceStyle.backgroundColor,
         statusContain: statusSurfaceStyle.contain,
@@ -174,6 +225,10 @@ test.describe('mobile liquid glass host geometry', () => {
         navigationBackdropFilter: backdropFilter(navigationWarpElement),
         statusFilterTargetExists: hasSvgFilterTarget(statusWarpElement),
         navigationFilterTargetExists: hasSvgFilterTarget(navigationWarpElement),
+        statusVisibleDecorationSpanCount: visibleDirectSpanCount(statusSurfaceElement),
+        navigationVisibleDecorationSpanCount: visibleDirectSpanCount(navigationSurfaceElement),
+        statusGlassBoxShadow: getComputedStyle(statusGlassElement).boxShadow,
+        statusGlassSurfaceCount: statusHostElement.querySelectorAll('.liquid-glass-surface').length,
         workspaceIsolation: getComputedStyle(workspaceElement).isolation,
         pageOverlayZIndex: getComputedStyle(pageOverlayElement).zIndex,
         chromeOverlayZIndex: getComputedStyle(chromeOverlayElement).zIndex,
@@ -192,6 +247,8 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.primaryPanelRadius).toBe('40px');
     expect(geometry.statusMode).toBe('standard');
     expect(geometry.navigationMode).toBe('standard');
+    expect(geometry.statusVariant).toBe('mobileStatusBar');
+    expect(geometry.navigationVariant).toBe('mobileNavigation');
     expect(geometry.statusBackground).toBe(geometry.navigationBackground);
     expect(geometry.statusBackground).toBe('rgba(194, 231, 214, 0.06)');
     expect(geometry.statusContain).toBe('none');
@@ -203,8 +260,14 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusBackdropFilter).not.toBe('none');
     expect(geometry.navigationBackdropFilter).not.toBe('none');
     expect(geometry.statusBackdropFilter).toBe(geometry.navigationBackdropFilter);
+    expect(geometry.statusBackdropFilter).toContain('blur(7.2px)');
+    expect(geometry.statusBackdropFilter).toMatch(/saturate\((?:125%|1\.25)\)/);
     expect(geometry.statusFilterTargetExists).toBe(true);
     expect(geometry.navigationFilterTargetExists).toBe(true);
+    expect(geometry.statusVisibleDecorationSpanCount).toBe(0);
+    expect(geometry.navigationVisibleDecorationSpanCount).toBe(1);
+    expect(geometry.statusGlassBoxShadow).toBe('none');
+    expect(geometry.statusGlassSurfaceCount).toBe(1);
     expect(geometry.workspaceIsolation).toBe('auto');
     expect(geometry.pageOverlayZIndex).toBe('auto');
     expect(geometry.chromeOverlayZIndex).toBe('auto');

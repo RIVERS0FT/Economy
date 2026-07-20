@@ -1,7 +1,7 @@
 import LiquidGlass from 'liquid-glass-react';
 import type { ReactNode } from 'react';
 
-export type LiquidGlassSurfaceVariant = 'statusBar' | 'mobileNavigation';
+export type LiquidGlassSurfaceVariant = 'desktopStatusBar' | 'mobileStatusBar' | 'mobileNavigation';
 
 interface LiquidGlassSurfaceProps {
   variant: LiquidGlassSurfaceVariant;
@@ -12,7 +12,16 @@ interface LiquidGlassSurfaceProps {
 const STATIC_MOUSE_POSITION = { x: 0, y: 0 };
 const STATIC_MOUSE_OFFSET = { x: 0, y: 0 };
 
-const IOS_CLEAR_THICK_GLASS = {
+const DESKTOP_STATUS_GLASS = {
+  displacementScale: 20,
+  blurAmount: 0.0625,
+  saturation: 120,
+  aberrationIntensity: 0.15,
+  cornerRadius: 24,
+  mode: 'standard',
+} as const;
+
+const MOBILE_CHROME_GLASS = {
   displacementScale: 32,
   blurAmount: 0.1,
   saturation: 125,
@@ -22,8 +31,9 @@ const IOS_CLEAR_THICK_GLASS = {
 } as const;
 
 const PRESETS = {
-  statusBar: IOS_CLEAR_THICK_GLASS,
-  mobileNavigation: IOS_CLEAR_THICK_GLASS,
+  desktopStatusBar: DESKTOP_STATUS_GLASS,
+  mobileStatusBar: MOBILE_CHROME_GLASS,
+  mobileNavigation: MOBILE_CHROME_GLASS,
 } as const;
 
 export function LiquidGlassSurface({ variant, children, className = '' }: LiquidGlassSurfaceProps) {

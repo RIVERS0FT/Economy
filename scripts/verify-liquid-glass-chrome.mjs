@@ -66,52 +66,92 @@ if (failures.length === 0) {
   }
 
   for (const text of [
-    "export type LiquidGlassSurfaceVariant = 'statusBar' | 'mobileNavigation'",
-    'const IOS_CLEAR_THICK_GLASS = {',
+    "export type LiquidGlassSurfaceVariant = 'desktopStatusBar' | 'mobileStatusBar' | 'mobileNavigation'",
+    'const DESKTOP_STATUS_GLASS = {',
+    'displacementScale: 20',
+    'blurAmount: 0.0625',
+    'saturation: 120',
+    'aberrationIntensity: 0.15',
+    'cornerRadius: 24',
+    'const MOBILE_CHROME_GLASS = {',
     'displacementScale: 32',
     'blurAmount: 0.1',
     'saturation: 125',
     'aberrationIntensity: 0.3',
     'cornerRadius: 40',
     "mode: 'standard'",
-    'statusBar: IOS_CLEAR_THICK_GLASS',
-    'mobileNavigation: IOS_CLEAR_THICK_GLASS',
+    'desktopStatusBar: DESKTOP_STATUS_GLASS',
+    'mobileStatusBar: MOBILE_CHROME_GLASS',
+    'mobileNavigation: MOBILE_CHROME_GLASS',
     'elasticity={0}',
     'globalMousePos={STATIC_MOUSE_POSITION}',
     'mouseOffset={STATIC_MOUSE_OFFSET}',
   ]) requireText(files.surface, text);
   for (const text of [
+    'const IOS_CLEAR_THICK_GLASS = {',
+    'statusBar: IOS_CLEAR_THICK_GLASS',
     "mode: 'prominent'",
     'displacementScale: 38',
-    'displacementScale: 20',
     'blurAmount: 0.14',
     'blurAmount: 0.5',
     'aberrationIntensity: 1.15',
     'aberrationIntensity: 0.5',
     'mode="shader"',
     'cornerRadius: 20',
-    'cornerRadius: 24',
   ]) forbidText(files.surface, text);
-  if ((read(files.surface).match(/cornerRadius:\s*40/g) ?? []).length !== 1) {
-    failures.push('状态栏和移动底栏必须共享唯一 40px 胶囊 cornerRadius 预设');
+  if ((read(files.surface).match(/cornerRadius:\s*24/g) ?? []).length !== 1) {
+    failures.push('桌面状态栏必须只定义一个 24px cornerRadius 预设');
   }
+  if ((read(files.surface).match(/cornerRadius:\s*40/g) ?? []).length !== 1) {
+    failures.push('移动状态栏和移动底栏必须共享唯一 40px cornerRadius 预设');
+  }
+
+  for (const text of [
+    "import { useEffect, useState, type ReactNode } from 'react'",
+    "type StatusBarSurfaceVariant = Extract<LiquidGlassSurfaceVariant, 'desktopStatusBar' | 'mobileStatusBar'>",
+    "const MOBILE_STATUS_MEDIA_QUERY = '(max-width: 720px)'",
+    "return window.matchMedia(MOBILE_STATUS_MEDIA_QUERY).matches ? 'mobileStatusBar' : 'desktopStatusBar'",
+    'mediaQuery.addEventListener(\'change\', updateVariant)',
+    '<LiquidGlassSurface variant={surfaceVariant}>',
+    'className="asset-bar-scroll-area"',
+    'viewportClassName="asset-bar"',
+    'className="asset-bar-content"',
+  ]) requireText(files.status, text);
+  for (const text of [
+    '<LiquidGlassSurface variant="statusBar">',
+    '<LiquidGlassSurface variant="desktopStatusBar">',
+    '<LiquidGlassSurface variant="mobileStatusBar">',
+  ]) forbidText(files.status, text);
 
   for (const text of [
     '--liquid-glass-contrast: rgba(194, 231, 214, 0.06);',
     '--liquid-glass-structure-border: rgba(232, 255, 244, 0.3);',
     '.liquid-glass-surface {',
     'overflow: hidden;',
-    '.liquid-glass-surface--statusBar .glass__warp,',
+    '.liquid-glass-surface--desktopStatusBar .glass__warp {',
+    '-webkit-backdrop-filter: blur(6px) saturate(120%);',
+    '.liquid-glass-surface--mobileStatusBar .glass__warp,',
     '.liquid-glass-surface--mobileNavigation .glass__warp {',
     '-webkit-backdrop-filter: blur(7.2px) saturate(125%);',
-    '.asset-bar .liquid-glass-surface,',
+    '.asset-bar .liquid-glass-surface--desktopStatusBar,',
+    'border-radius: 24px !important;',
+    '.asset-bar .liquid-glass-surface--mobileStatusBar,',
     '.mobile-bottom-navigation .liquid-glass-surface__effect > .glass {',
     'border-radius: 40px !important;',
-    '.liquid-glass-surface--statusBar,',
+    '.liquid-glass-surface--desktopStatusBar,',
+    '.liquid-glass-surface--mobileStatusBar,',
     '.liquid-glass-surface--mobileNavigation {',
     'border: 1px solid var(--liquid-glass-structure-border);',
     'background: var(--liquid-glass-contrast);',
-    '.liquid-glass-surface--statusBar > span:first-of-type,',
+    '.liquid-glass-surface--desktopStatusBar > div:not(.liquid-glass-surface__effect),',
+    '.liquid-glass-surface--mobileStatusBar > div:not(.liquid-glass-surface__effect),',
+    'display: none !important;',
+    '.liquid-glass-surface--desktopStatusBar > span,',
+    '.liquid-glass-surface--mobileStatusBar > span {',
+    'opacity: 0 !important;',
+    '.asset-bar .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,',
+    '.asset-bar .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {',
+    'box-shadow: none !important;',
     '.liquid-glass-surface--mobileNavigation > span:first-of-type {',
     'opacity: 0.22 !important;',
     'mix-blend-mode: screen !important;',
@@ -122,6 +162,7 @@ if (failures.length === 0) {
     'only vertical padding owner',
   ]) requireText(files.styles, text);
   for (const text of [
+    '.liquid-glass-surface--statusBar',
     '-webkit-backdrop-filter: blur(8.48px) saturate(145%);',
     '-webkit-backdrop-filter: blur(20px) saturate(145%);',
     'border-radius: 999px !important;',
@@ -142,12 +183,6 @@ if (failures.length === 0) {
     '<StatusBar items={statusItems} />',
     '<MobileBottomNavigation',
   ]) requireText(files.shell, text);
-  for (const text of [
-    'className="asset-bar-scroll-area"',
-    'viewportClassName="asset-bar"',
-    '<LiquidGlassSurface variant="statusBar">',
-    'className="asset-bar-content"',
-  ]) requireText(files.status, text);
   for (const text of [
     'className="sidebar mobile-bottom-navigation"',
     '<LiquidGlassSurface variant="mobileNavigation">',
@@ -251,16 +286,25 @@ if (failures.length === 0) {
 
   for (const text of [
     '`liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现',
-    'iOS 工具栏式清透厚玻璃',
-    '`IOS_CLEAR_THICK_GLASS`',
+    '`DESKTOP_STATUS_GLASS`',
+    '`MOBILE_CHROME_GLASS`',
+    '`desktopStatusBar`',
+    '`mobileStatusBar`',
+    '`mobileNavigation`',
+    '`displacementScale: 20`',
+    '`blurAmount: 0.0625`',
+    '`saturation: 120`',
+    '`aberrationIntensity: 0.15`',
+    '`cornerRadius: 24`',
     '`displacementScale: 32`',
     '`blurAmount: 0.1`',
     '`saturation: 125`',
     '`aberrationIntensity: 0.3`',
-    '`mode="standard"`',
     '`cornerRadius: 40`',
-    '状态栏与移动底栏不得维护两套材质参数',
+    '`blur(6px) saturate(120%)`',
     '`blur(7.2px) saturate(125%)`',
+    '桌面与移动不得再次合并为同一个参数常量',
+    '任一时刻只能渲染一个状态栏玻璃实例',
     '状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线',
     '不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
     '固定到视口安全边缘',
@@ -276,17 +320,19 @@ if (failures.length === 0) {
     '移动底栏垂直留白只允许由 `.liquid-glass-surface__content` 提供',
   ]) requireText(files.design, text);
   for (const text of [
-    'desktop status bar uses the shared clear thick glass capsule and shell inset',
-    'mobile status and navigation share one clear thick glass material and capsule radius',
-    "toHaveAttribute('data-liquid-glass-mode', 'standard')",
-    'statusRadius',
-    'navigationRadius',
-    'statusBackdropFilter',
-    'navigationBackdropFilter',
+    'desktop status bar uses its dedicated single-shell glass preset and shell inset',
+    'status bar changes platform preset in place without rendering duplicate glass hosts',
+    'mobile status and navigation share the mobile chrome preset while status remains single-shell',
+    "toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar')",
+    "toHaveAttribute('data-liquid-glass-variant', 'mobileStatusBar')",
+    "toHaveAttribute('data-liquid-glass-variant', 'mobileNavigation')",
+    "expect(layout.surfaceRadius).toEqual(['24px', '24px', '24px', '24px'])",
+    'expect(layout.visibleDecorationSpanCount).toBe(0)',
+    'expect(geometry.statusVisibleDecorationSpanCount).toBe(0)',
+    'expect(geometry.navigationVisibleDecorationSpanCount).toBe(1)',
     'expect(geometry.statusBackdropFilter).toBe(geometry.navigationBackdropFilter)',
     "expect(geometry.statusRadius).toBe('40px')",
     "expect(geometry.navigationRadius).toBe('40px')",
-    "toBe('24px')",
   ]) requireText(files.browser, text);
   for (const text of [
     'mobile page scrollbar reaches the safe right edge without changing content width',
@@ -307,4 +353,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 外壳、统一 iOS 清透厚玻璃胶囊、移动底栏单一原生滚动视口、开放背景采样链与固定安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 外壳、桌面状态栏独立预设、移动 Chrome 共享预设、状态栏单壳结构、移动底栏单一原生滚动视口、开放背景采样链与固定安全边缘滚动条验证通过。');
