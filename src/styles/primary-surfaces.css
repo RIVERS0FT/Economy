@@ -6,6 +6,8 @@
 }
 
 .panel.widget,
+.panel.production-surface,
+.panel.leaderboard-board-card,
 .panel.ui-primary-surface {
   min-width: 0;
   padding: var(--primary-surface-inset);
