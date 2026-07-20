@@ -234,8 +234,6 @@ if (failures.length === 0) {
     '--mobile-primary-surface-gap: var(--mobile-workspace-gutter);',
     '--mobile-chrome-block-inset: var(--space-4);',
     '--mobile-scrollbar-edge-escape: max(',
-    'padding: 0;',
-    'scroll-padding-inline: 0;',
   ]) requireText(mobileNavigationStylePath, text);
   for (const text of ['--mobile-chrome-inset', '--mobile-content-inset']) {
     forbidText(mobileNavigationStylePath, text);
@@ -251,13 +249,16 @@ if (failures.length === 0) {
     'min-height: var(--mobile-asset-bar-height);',
     'max-height: var(--mobile-asset-bar-height);',
     '.asset-bar-scroll-track,',
+    '.asset-bar {',
+    'padding: 0;',
+    'scroll-padding-inline: 0;',
   ]) requireText(mobileStatusStylePath, text);
 
   for (const text of [
     '.page-scroll-area {',
     'overflow: visible;',
     '.page-scroll-area > .ui-scrollbar--vertical {',
-    'right: calc(-1 * var(--mobile-scrollbar-edge-escape));',
+    'right: calc(0px - var(--mobile-scrollbar-edge-escape));',
     '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
     'right: var(--scrollbar-edge-offset);',
     'left: auto;',
