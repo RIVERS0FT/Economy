@@ -188,6 +188,56 @@ test('market asset directory uses two rows, explicit groups, controls and visibl
   expect(pageErrors).toEqual([]);
 });
 
+test('mobile market sticky asset divider stays below the status bar chrome', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const pageScroll = page.locator('.page-scroll');
+  const statusBar = page.locator('.asset-bar-scroll-area');
+  const directoryShell = page.locator('.asset-directory-shell');
+  const divider = page.locator('.asset-directory-divider').first();
+  await expect(statusBar).toBeVisible();
+  await expect(directoryShell).toBeVisible();
+  await expect(divider).toBeVisible();
+
+  const localStacking = await directoryShell.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { position: style.position, zIndex: style.zIndex };
+  });
+  expect(localStacking.position).toBe('relative');
+  expect(localStacking.zIndex).toBe('0');
+
+  await pageScroll.evaluate((element) => {
+    const status = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+    const assetDivider = document.querySelector<HTMLElement>('.asset-directory-divider');
+    if (!status || !assetDivider) throw new Error('mobile market stacking fixture is incomplete');
+    const statusRect = status.getBoundingClientRect();
+    const dividerRect = assetDivider.getBoundingClientRect();
+    element.scrollTop += dividerRect.top - statusRect.top;
+  });
+
+  const stacking = await page.evaluate(() => {
+    const status = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+    const assetDivider = document.querySelector<HTMLElement>('.asset-directory-divider');
+    if (!status || !assetDivider) throw new Error('mobile market stacking fixture is incomplete');
+    const statusRect = status.getBoundingClientRect();
+    const dividerRect = assetDivider.getBoundingClientRect();
+    const x = Math.max(statusRect.left + 2, Math.min(dividerRect.right - 2, dividerRect.left + dividerRect.width / 2));
+    const y = statusRect.top + statusRect.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    return {
+      overlaps: dividerRect.top < statusRect.bottom && dividerRect.bottom > statusRect.top,
+      hitInsideStatus: hit instanceof Element && status.contains(hit),
+      hitClassName: hit instanceof HTMLElement ? hit.className : hit?.nodeName ?? '',
+    };
+  });
+
+  expect(stacking.overlaps).toBe(true);
+  expect(stacking.hitInsideStatus, `命中元素应属于状态栏，实际为 ${stacking.hitClassName}`).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
 test('market order book headings precede their rows and sparse books keep natural height', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
