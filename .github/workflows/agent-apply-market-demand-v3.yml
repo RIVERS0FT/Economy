@@ -1,0 +1,443 @@
+name: Apply market demand V3 changes
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/accumulate-market-demand-orders
+          fetch-depth: 0
+      - name: Patch implementation, tests, and design documents
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path):
+              return Path(path).read_text()
+
+          def write(path, text):
+              Path(path).write_text(text)
+
+          def replace_exact(path, old, new, expected=1):
+              text = read(path)
+              count = text.count(old)
+              if count != expected:
+                  raise RuntimeError(f'{path}: expected {expected} matches, found {count}: {old[:100]!r}')
+              write(path, text.replace(old, new, expected))
+
+          def replace_regex(path, pattern, replacement, expected=1, flags=0):
+              text = read(path)
+              updated, count = re.subn(pattern, replacement, text, count=expected, flags=flags)
+              if count != expected:
+                  raise RuntimeError(f'{path}: expected {expected} regex matches, found {count}: {pattern[:100]!r}')
+              write(path, updated)
+
+          # Market demand constants and model version.
+          replace_exact('server/src/market-demand/catalog.js',
+              'export const MARKET_DEMAND_MODEL_VERSION = 2;',
+              'export const MARKET_DEMAND_MODEL_VERSION = 3;')
+          replace_exact('server/src/market-demand/catalog.js',
+              'export const DIRECT_BUDGET_SHARE = 0.85;',
+              'export const DIRECT_BUDGET_SHARE = 0.70;\n'
+              'export const SYSTEM_ORDER_RETENTION_RATE = 0.50;\n'
+              'export const SYSTEM_ORDER_PRICE_STEP = 0.03;\n'
+              'export const SYSTEM_ORDER_VALUE_CYCLES = 3;')
+
+          # Record fills on both sides so the next demand cycle can detect a real sale.
+          replace_exact('server/src/balanced-market.js',
+              "    incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';\n"
+              "    resting.status = resting.remaining === 0 ? 'filled' : 'partial';",
+              "    incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';\n"
+              "    resting.status = resting.remaining === 0 ? 'filled' : 'partial';\n"
+              '    incoming.lastFilledAt = createdAt;\n'
+              '    resting.lastFilledAt = createdAt;')
+
+          # Persist cycle boundary and carried-order audit values.
+          replace_exact('server/src/market-demand/state.js',
+              '      lastCycleId: Math.floor(now / group.cycleMs) - 1,\n',
+              '      lastCycleId: Math.floor(now / group.cycleMs) - 1,\n'
+              '      lastCycleStartedAt: now,\n')
+          replace_exact('server/src/market-demand/state.js',
+              '      derivedCommitted: 0,\n',
+              '      derivedCommitted: 0,\n'
+              '      lastRetainedOrderValue: 0,\n'
+              '      lastOpenOrderValue: 0,\n')
+          replace_exact('server/src/market-demand/state.js',
+              '      state.cycleMs = group.cycleMs;\n',
+              '      state.cycleMs = group.cycleMs;\n'
+              '      state.lastCycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || now));\n')
+          replace_exact('server/src/market-demand/state.js',
+              '      state.lastNeedPressure = Number.isFinite(Number(state.lastNeedPressure)) ? Number(state.lastNeedPressure) : 1;\n',
+              '      state.lastNeedPressure = Number.isFinite(Number(state.lastNeedPressure)) ? Number(state.lastNeedPressure) : 1;\n'
+              '      state.lastRetainedOrderValue = Math.max(0, Math.floor(Number(state.lastRetainedOrderValue || 0)));\n'
+              '      state.lastOpenOrderValue = Math.max(0, Math.floor(Number(state.lastOpenOrderValue || 0)));\n')
+          replace_exact('server/src/market-demand/state.js',
+              '        state.lastTargetBudget = state.lastBudget;\n',
+              '        state.lastTargetBudget = state.lastBudget;\n'
+              '        state.lastCycleStartedAt = now;\n'
+              '        state.lastRetainedOrderValue = 0;\n'
+              '        state.lastOpenOrderValue = 0;\n')
+
+          # Import the new order-retention controls.
+          replace_exact('server/src/market-demand.js',
+              "import {\n  MARKET_DEMAND_GROUP_CATALOG,\n  MARKET_DEMAND_PRODUCT_IDS,\n} from './market-demand/catalog.js';",
+              "import {\n  MARKET_DEMAND_GROUP_CATALOG,\n  MARKET_DEMAND_PRODUCT_IDS,\n  PRICE_MAX_MULTIPLIER,\n  SYSTEM_ORDER_PRICE_STEP,\n  SYSTEM_ORDER_RETENTION_RATE,\n  SYSTEM_ORDER_VALUE_CYCLES,\n} from './market-demand/catalog.js';")
+
+          helpers = r'''  function trimOrderRemaining(order, keepQuantity) {
+    const originalRemaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
+    const originalQuantity = Math.max(originalRemaining, Math.floor(Number(order.quantity || 0)));
+    const filledQuantity = Math.max(0, originalQuantity - originalRemaining);
+    const keep = Math.max(0, Math.min(originalRemaining, Math.floor(Number(keepQuantity || 0))));
+    order.quantity = filledQuantity + keep;
+    order.remaining = keep;
+    order.status = keep <= 0 ? (filledQuantity > 0 ? 'filled' : 'cancelled') : (filledQuantity > 0 ? 'partial' : 'open');
+    return keep;
+  }
+
+  function prepareGroupOrders(world, group, state) {
+    const groupOrders = (world.orders || []).filter((order) => (
+      order.ownerType === 'population' && order.demandGroupId === group.id
+    ));
+    const cycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || 0));
+    const soldProducts = new Set(groupOrders
+      .filter((order) => Number(order.lastFilledAt || 0) > 0 && Number(order.lastFilledAt) >= cycleStartedAt)
+      .map((order) => order.productId));
+    const highestRetainedPrice = new Map();
+
+    for (const order of groupOrders) {
+      if (!isOpenOrder(order)) continue;
+      if (soldProducts.has(order.productId)) {
+        trimOrderRemaining(order, 0);
+        continue;
+      }
+      const retained = trimOrderRemaining(
+        order,
+        Math.floor(Number(order.remaining || 0) * SYSTEM_ORDER_RETENTION_RATE),
+      );
+      if (retained <= 0) continue;
+      highestRetainedPrice.set(
+        order.productId,
+        Math.max(Number(highestRetainedPrice.get(order.productId) || 0), Number(order.price || 0)),
+      );
+    }
+    return { soldProducts, highestRetainedPrice };
+  }
+
+  function issuePriceFor(product, referencePrice, orderContext) {
+    const normalPrice = Math.max(1, Math.round(Number(referencePrice || product.basePrice)));
+    if (orderContext.soldProducts.has(product.id)) return normalPrice;
+    const highestRetained = Number(orderContext.highestRetainedPrice.get(product.id) || 0);
+    if (highestRetained <= 0) return normalPrice;
+    const priceCap = Math.max(1, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
+    return Math.min(priceCap, Math.max(normalPrice, Math.ceil(highestRetained * (1 + SYSTEM_ORDER_PRICE_STEP))));
+  }
+
+  function groupOpenOrderValue(world, groupId, predicate = () => true) {
+    return (world.orders || []).filter((order) => (
+      order.ownerType === 'population'
+      && order.demandGroupId === groupId
+      && isOpenOrder(order)
+      && predicate(order)
+    )).reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
+  }
+
+  function enforceGroupOrderValueCap(world, group, cycleBudget) {
+    const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+    const orders = (world.orders || []).filter((order) => (
+      order.ownerType === 'population' && order.demandGroupId === group.id && isOpenOrder(order)
+    ));
+    let total = orders.reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
+    if (total <= cap) return total;
+    orders.sort((left, right) => (
+      Number(left.price || 0) - Number(right.price || 0)
+      || Number(left.createdAt || 0) - Number(right.createdAt || 0)
+    ));
+    for (const order of orders) {
+      if (total <= cap) break;
+      const price = Math.max(1, Number(order.price || 1));
+      const removeQuantity = Math.min(
+        Number(order.remaining || 0),
+        Math.ceil((total - cap) / price),
+      );
+      trimOrderRemaining(order, Number(order.remaining || 0) - removeQuantity);
+      total -= removeQuantity * price;
+    }
+    return Math.max(0, total);
+  }
+'''
+          replace_regex('server/src/market-demand.js',
+              r"  function expireGroupOrders\(world, groupId\) \{.*?\n  \}\n\n(?=  function createOrder)",
+              helpers + '\n',
+              flags=re.S)
+          replace_exact('server/src/market-demand.js',
+              '  function applyChoices(world, group, role, cycleId, now, budgets, details, totals, allocations) {',
+              '  function applyChoices(world, group, role, cycleId, now, budgets, details, orderContext, totals, allocations) {')
+          replace_exact('server/src/market-demand.js',
+              '      const referencePrice = Math.max(1, Math.round(Number(detail.price.referencePrice || product.basePrice)));\n'
+              '      const quantity = Math.max(0, Math.floor(budget / referencePrice));\n'
+              '      const committed = quantity * referencePrice;\n'
+              '      const { filled } = createOrder(world, group, role, product, referencePrice, quantity, cycleId, now);',
+              '      const referencePrice = Math.max(1, Math.round(Number(detail.price.referencePrice || product.basePrice)));\n'
+              '      const orderPrice = issuePriceFor(product, referencePrice, orderContext);\n'
+              '      const quantity = Math.max(0, Math.floor(budget / orderPrice));\n'
+              '      const committed = quantity * orderPrice;\n'
+              '      const { filled } = createOrder(world, group, role, product, orderPrice, quantity, cycleId, now);')
+          replace_exact('server/src/market-demand.js',
+              '      existing.referencePrice = round4(detail.price.referencePrice);\n',
+              '      existing.referencePrice = round4(detail.price.referencePrice);\n'
+              '      existing.orderPrice = orderPrice;\n')
+          replace_exact('server/src/market-demand.js',
+              '      market.demand.lastPrice = referencePrice;',
+              '      market.demand.lastPrice = orderPrice;')
+          replace_exact('server/src/market-demand.js',
+              '    expireGroupOrders(world, group.id);\n',
+              '    const orderContext = prepareGroupOrders(world, group, state);\n')
+          replace_exact('server/src/market-demand.js',
+              "    applyChoices(world, group, 'direct', cycleId, now, direct.productBudgets, direct.productDetails, totals, allocations);\n"
+              "    applyChoices(world, group, 'derived-liquidity', cycleId, now, derived.productBudgets, derived.productDetails, totals, allocations);",
+              "    applyChoices(world, group, 'direct', cycleId, now, direct.productBudgets, direct.productDetails, orderContext, totals, allocations);\n"
+              "    applyChoices(world, group, 'derived-liquidity', cycleId, now, derived.productBudgets, derived.productDetails, orderContext, totals, allocations);\n"
+              '    const openOrderValue = enforceGroupOrderValueCap(world, group, cycleBudget);')
+          replace_exact('server/src/market-demand.js',
+              '    state.derivedCommitted = totals.derivedCommitted;\n',
+              '    state.derivedCommitted = totals.derivedCommitted;\n'
+              '    state.lastRetainedOrderValue = groupOpenOrderValue(\n'
+              '      world,\n'
+              '      group.id,\n'
+              '      (order) => Number(order.demandCycleId) !== cycleId,\n'
+              '    );\n'
+              '    state.lastOpenOrderValue = openOrderValue;\n'
+              '    state.lastCycleStartedAt = now;\n')
+
+          # Regression tests for 70/30 allocation, carry, price escalation, and sale reset.
+          replace_exact('server/test/domain.test.js',
+              '    assert.ok(state.directCommitted <= Math.floor(state.lastBudget * group.directBudgetShare));\n',
+              '    assert.equal(group.directBudgetShare, 0.70);\n'
+              '    assert.ok(state.directCommitted <= Math.floor(state.lastBudget * group.directBudgetShare));\n'
+              '    assert.ok(state.derivedCommitted <= state.lastBudget - Math.floor(state.lastBudget * group.directBudgetShare));\n')
+          new_tests = r'''
+
+test('market demand keeps half of unsold system orders and raises the next cycle price', () => {
+  const world = createWorld(now);
+  deferDemand(world, now + 10 * cycleMs);
+  prepareDemand(world, 'food', now);
+  processWorld(world, now + 1);
+
+  const firstCycleId = world.demandGroups.food.lastCycleId;
+  const firstOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.demandTier === 'direct'
+    && order.productId === 'wheat'
+    && order.demandCycleId === firstCycleId
+    && order.status === 'open'
+  ));
+  assert.ok(firstOrder);
+  const firstRemaining = firstOrder.remaining;
+  const firstPrice = firstOrder.price;
+
+  prepareDemand(world, 'food', now + cycleMs + 1);
+  processWorld(world, now + cycleMs + 1);
+
+  assert.equal(firstOrder.remaining, Math.floor(firstRemaining * 0.50));
+  const nextCycleId = world.demandGroups.food.lastCycleId;
+  const nextOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.demandTier === 'direct'
+    && order.productId === 'wheat'
+    && order.demandCycleId === nextCycleId
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(nextOrder);
+  assert.ok(nextOrder.price > firstPrice);
+  assert.ok(world.demandGroups.food.lastRetainedOrderValue > 0);
+  assert.ok(world.demandGroups.food.lastOpenOrderValue <= world.demandGroups.food.lastBudget * 3);
+});
+
+test('market demand cancels carried orders and resets to the model price after a sale', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  seller.inventories.wheat.available = 1;
+  deferDemand(world, now + 10 * cycleMs);
+  prepareDemand(world, 'food', now);
+  processWorld(world, now + 1);
+
+  const firstOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(firstOrder);
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'wheat', side: 'sell', quantity: 1, price: firstOrder.price,
+  }, now + 2).ok, true);
+  assert.equal(firstOrder.lastFilledAt, now + 2);
+
+  prepareDemand(world, 'food', now + cycleMs + 1);
+  processWorld(world, now + cycleMs + 1);
+  const nextCycleId = world.demandGroups.food.lastCycleId;
+  assert.equal(world.orders.some((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && Number(order.demandCycleId) < nextCycleId
+    && (order.status === 'open' || order.status === 'partial')
+  )), false);
+  const nextOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && order.demandCycleId === nextCycleId
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(nextOrder);
+  assert.equal(nextOrder.price, Math.round(world.priceTransmission.products.wheat.referencePrice));
+});
+'''
+          replace_exact('server/test/domain.test.js',
+              "\ntest('market demand scales sublinearly with active players and stops at the configured cap', () => {",
+              new_tests + "\ntest('market demand scales sublinearly with active players and stops at the configured cap', () => {")
+          replace_exact('server/test/domain.test.js',
+              "test('market demand model version 1 migrates to version 2 without resetting player assets', () => {",
+              "test('market demand model version 2 migrates to version 3 without resetting player assets', () => {")
+          replace_exact('server/test/domain.test.js',
+              '  delete player.inventories.fruit;\n'
+              '  delete world.markets.fruit;\n'
+              '  delete world.marketDemand.priceTransmission.products.fruit;\n'
+              '  world.marketDemand.modelVersion = 1;',
+              '  world.marketDemand.modelVersion = 2;')
+          replace_exact('server/test/domain.test.js', "player-order-v1", "player-order-v2", expected=2)
+          replace_exact('server/test/domain.test.js', "market-order-v1", "market-order-v2")
+
+          # Root rules.
+          replace_exact('README.md', '市场需求模型版本：`2`', '市场需求模型版本：`3`')
+          replace_exact('README.md',
+              '每组周期预算中 85% 用于最终消费的直接需求，15% 用于沿正式配方反向推导的派生流动性；两者共享同一总预算，未使用预算不结转且当期只能发行一次。',
+              '每组周期预算中 70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性；无人卖出时旧系统买单按剩余数量保留 50%，新周期使用新预算发布更高价买单，未提交预算仍不结转。')
+          replace_exact('README.md',
+              '新世界首次状态处理和模型 1 升级通过 `marketDemand.modelVersion = 2` 补齐新增目录并立即生成当前周期市场买单；世界版本继续保持 13。',
+              '新世界首次状态处理和模型 2 升级通过 `marketDemand.modelVersion = 3` 启用 70%／30% 预算与有限阶梯买单，并立即生成当前周期市场买单；世界版本继续保持 13。')
+
+          # Authoritative gameplay design.
+          replace_exact('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '> 市场需求模型版本：2', '> 市场需求模型版本：3')
+          replace_exact('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '直接最终需求预算 = 周期总预算 × 85%\n派生流动性预算 = 周期总预算 × 15%',
+              '直接最终需求预算 = 周期总预算 × 70%\n派生流动性预算 = 周期总预算 × 30%')
+          replace_exact('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '直接需求和派生流动性共享同一总预算。两者已提交金额之和不得超过周期总预算；未使用预算不结转，也不得在产业链每一层重复发行相同预算。',
+              '直接需求和派生流动性共享同一总预算。两者当期新增买单的已提交金额之和不得超过周期总预算；未提交预算不结转，也不得在产业链每一层重复发行相同预算。此前已提交预算形成的未成交系统买单可以按本节规则部分保留，且不重复占用新周期预算。')
+          replace_exact('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '派生流动性只使用本组 15% 预算。直接需求与派生需求之和不得超过本组总预算；新增商品和工厂不得自动提高食品市场 3,000 或家庭消费市场 2,700 的基础预算。',
+              '派生流动性只使用本组 30% 预算。直接需求与派生需求当期新增买单之和不得超过本组总预算；新增商品和工厂不得自动提高食品市场 3,000 或家庭消费市场 2,700 的基础预算。')
+          replace_exact('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '权威状态使用 `marketDemand.modelVersion = 2`。',
+              '权威状态使用 `marketDemand.modelVersion = 3`。')
+          migration = '''这些内部字段不得暴露给普通玩家。
+
+市场需求系统买单按以下规则跨周期处理：
+
+1. 若某商品自上个需求周期开始后发生过市场需求成交，下一周期取消该商品旧系统买单的未成交部分，并按当前模型参考价重新报价；
+2. 若无人卖出，旧系统买单保留剩余数量的 50%，不足 1 个时取消；
+3. 新周期只使用本周期分配预算追加买单，新买价为当前模型参考价与“保留买单最高价上调 3% 并向上取整”中的较高值；
+4. 系统买价仍不得超过商品基础价的 300%，达到上限后只累积数量；
+5. 每个需求组的有效系统买单总价值不得超过当前周期预算的 3 倍，超过时优先缩减价格最低、发布时间最早的订单；
+6. 保留订单不占用新周期预算，未提交预算仍不得结转。
+
+从模型 2 升级到模型 3 时：
+
+1. 世界版本继续保持 13，客户端状态版本继续保持 15；
+2. 取消模型 2 的未完成市场需求订单，并将需求组安排为立即生成当前周期模型 3 订单；
+3. 重置需求类别份额、生产路径份额和上一周期种子需求，按 70%／30% 预算重新分配；
+4. 保留全部玩家订单、资金、既有库存、工厂、冻结资产、仓库等级、排行榜数据、成交历史和未改变产业边的滞后信号；
+5. 迁移本身不得增加或删除玩家普通货币，同一模型版本迁移只能执行一次。
+'''
+          replace_regex('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              r'这些内部字段不得暴露给普通玩家。\n\n从模型 1 升级到模型 2 时：.*?\n(?=## 6\.)',
+              migration + '\n',
+              flags=re.S)
+
+          # Order-book authority and production cross-reference.
+          replace_exact('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '> 市场需求模型版本：2', '> 市场需求模型版本：3')
+          replace_exact('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '  createdAt: number;\n}',
+              '  createdAt: number;\n  lastFilledAt?: number;\n}')
+          replace_exact('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '市场需求订单使用 `demandGroupId`、`demandTier` 和 `demandCycleId` 标记需求组、需求角色与周期，但仍遵守同一价格优先、同价时间优先规则。直接需求和派生流动性共享同一周期预算；库存不得扩大预算，派生需求不得沿产业链重复发行。',
+              '市场需求订单使用 `demandGroupId`、`demandTier` 和 `demandCycleId` 标记需求组、需求角色与周期，但仍遵守同一价格优先、同价时间优先规则。直接需求和派生流动性按 70%／30% 共享同一周期预算；库存不得扩大预算，派生需求不得沿产业链重复发行。无人卖出时旧系统买单只保留剩余数量的 50%，新周期使用新预算追加更高价买单。')
+          replace_exact('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '- 市场需求订单不冻结玩家资金，其成交总额受服务器周期预算约束。',
+              '- 市场需求订单不冻结玩家资金；当期新增订单受服务器周期预算约束，按规则保留的旧订单属于此前周期已提交预算。')
+          replace_exact('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '商品订单和工厂订单不得互相撮合；不同商品或不同工厂类型也不得互相撮合。市场需求订单只能与同商品的玩家卖单成交。',
+              '商品订单和工厂订单不得互相撮合；不同商品或不同工厂类型也不得互相撮合。市场需求订单只能与同商品的玩家卖单成交。市场需求成交必须记录 `lastFilledAt`，用于下一周期停止该商品的阶梯提价；无人卖出时旧买单保留 50%，新买单在保留最高价基础上上调 3%，有效系统买单总价值最多为当前周期预算的 3 倍。')
+          replace_exact('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '> 市场需求模型版本：2', '> 市场需求模型版本：3')
+
+          # Static authority checks.
+          replace_exact('scripts/verify-document-authority.mjs', "'市场需求模型版本：`2`'", "'市场需求模型版本：`3`'")
+          replace_exact('scripts/verify-document-authority.mjs',
+              "'85% 用于最终消费的直接需求，15% 用于沿正式配方反向推导的派生流动性'",
+              "'70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性'")
+          replace_exact('scripts/verify-document-authority.mjs',
+              "    '玩家库存数量和库存价值不得扩大市场需求总预算',\n",
+              "    '玩家库存数量和库存价值不得扩大市场需求总预算',\n"
+              "    '旧系统买单按剩余数量保留 50%',\n"
+              "    '新周期使用新预算发布更高价买单',\n")
+
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              'assert.equal(MARKET_DEMAND_MODEL_VERSION, 2);',
+              'assert.equal(MARKET_DEMAND_MODEL_VERSION, 3);')
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              'group.directBudgetShare === 0.85',
+              'group.directBudgetShare === 0.70')
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              "  'MARKET_DEMAND_MODEL_VERSION = 2',",
+              "  'MARKET_DEMAND_MODEL_VERSION = 3',")
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              "  'DIRECT_BUDGET_SHARE = 0.85',",
+              "  'DIRECT_BUDGET_SHARE = 0.70',")
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              "  'ACTIVE_PLAYER_WINDOW_MS',\n",
+              "  'ACTIVE_PLAYER_WINDOW_MS',\n"
+              "  'SYSTEM_ORDER_RETENTION_RATE',\n"
+              "  'SYSTEM_ORDER_PRICE_STEP',\n"
+              "  'SYSTEM_ORDER_VALUE_CYCLES',\n")
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              "  'market demand model version 1 migrates to version 2 without resetting player assets',",
+              "  'market demand model version 2 migrates to version 3 without resetting player assets',")
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              "  ['README.md', ['市场需求模型版本：`2`', '水果', '家电', '库存数量和库存价值不得扩大市场需求总预算']],",
+              "  ['README.md', ['市场需求模型版本：`3`', '70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性', '旧系统买单按剩余数量保留 50%', '水果', '家电', '库存数量和库存价值不得扩大市场需求总预算']],")
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              "  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['marketDemand.modelVersion = 2', '新鲜与饮品', '混合消费输入品', '新增商品和工厂不得自动提高']],",
+              "  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['marketDemand.modelVersion = 3', '70%／30%', '保留剩余数量的 50%', '新鲜与饮品', '混合消费输入品', '新增商品和工厂不得自动提高']],")
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              "  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：2', '兼容标识']],",
+              "  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：3', 'lastFilledAt', '兼容标识']],")
+          replace_exact('scripts/verify-staple-crops-demand.mjs',
+              "console.log('市场需求验证通过：模型 2 在固定总预算内支持水果直接需求、饮料路线替代、多输入互补和图驱动价格角色。');",
+              "console.log('市场需求验证通过：模型 3 使用 70%／30% 预算、有限阶梯买单、水果直接需求、路线替代、多输入互补和图驱动价格角色。');")
+
+          Path('.github/workflows/agent-apply-market-demand-v3.yml').unlink()
+          PY
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Accumulate and raise market demand orders"
+          git push origin HEAD:agent/accumulate-market-demand-orders
