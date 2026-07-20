@@ -1,9 +1,6 @@
 name: Apply Economy audit fixes
 
 on:
-  push:
-    branches:
-      - agent/fix-audit-and-recent-trade-valuation
   pull_request:
     types:
       - reopened
@@ -27,14 +24,17 @@ jobs:
           ref: agent/fix-audit-and-recent-trade-valuation
           fetch-depth: 0
 
-      - name: Apply verified patch
+      - name: Reassemble and apply verified patch
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode .github/agent-fixes.patch.gz.b64 | gzip --decompress > /tmp/economy-audit-fixes.patch
+          cat .github/agent-patch/part-* > /tmp/economy-audit-fixes.patch.gz.b64
+          base64 --decode /tmp/economy-audit-fixes.patch.gz.b64 | gzip --decompress > /tmp/economy-audit-fixes.patch
+          echo 'b8b5b61a49a46bbfb8e273810f2a7456b318e6f69f41f4ccb2d273587869f8f7  /tmp/economy-audit-fixes.patch' | sha256sum --check
           git apply --check /tmp/economy-audit-fixes.patch
           git apply /tmp/economy-audit-fixes.patch
-          rm .github/agent-fixes.patch.gz.b64 .github/workflows/apply-agent-fixes.yml
+          rm -rf .github/agent-patch
+          rm -f .github/agent-fixes.patch.gz.b64 .github/workflows/apply-agent-fixes.yml
 
       - name: Commit repaired project
         shell: bash
