@@ -78,14 +78,14 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
         id: 'convenience', name: '便利食品', budgetShare: 0.15, minBudgetShare: 0.08, maxBudgetShare: 0.30,
         elasticity: 0.8,
         products: [
-          { productId: 'prepared-meal', baseWeight: 0.60, utilityPerUnit: 3, minShare: 0.35 },
-          { productId: 'food', baseWeight: 0.40, utilityPerUnit: 2, minShare: 0.20 },
+          { productId: 'food', baseWeight: 0.45, utilityPerUnit: 3, minShare: 0.20 },
+          { productId: 'prepared-meal', baseWeight: 0.55, utilityPerUnit: 3, minShare: 0.20 },
         ],
       },
     ]),
     seedDemandQuantities: Object.freeze({
-      wheat: 18, rice: 18, flour: 8, food: 10, meat: 8, eggs: 10, milk: 10, fish: 8,
-      fruit: 10, beverage: 8, 'prepared-meal': 8,
+      wheat: 14, rice: 14, food: 10, meat: 4, eggs: 7, milk: 7, flour: 5,
+      fruit: 8, fish: 5, beverage: 5, 'prepared-meal': 4,
     }),
   }),
   Object.freeze({
@@ -96,39 +96,38 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
     baseBudget: 2_700,
     targetSatisfaction: 0.78,
     directBudgetShare: DIRECT_BUDGET_SHARE,
-    quoteUtilityDepth: 10,
+    quoteUtilityDepth: 8,
     classes: freezeClasses([
       {
-        id: 'home-goods', name: '家庭用品', budgetShare: 0.45, minBudgetShare: 0.30, maxBudgetShare: 0.60,
-        elasticity: 1.0,
-        products: [
-          { productId: 'furniture', baseWeight: 0.55, utilityPerUnit: 4, minShare: 0.25 },
-          { productId: 'paper', baseWeight: 0.45, utilityPerUnit: 2, minShare: 0.20 },
-        ],
+        id: 'home', name: '家居', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.40,
+        elasticity: 0.4,
+        products: [{ productId: 'furniture', baseWeight: 1, utilityPerUnit: 1, minShare: 1 }],
       },
       {
-        id: 'apparel', name: '服装', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.35,
-        elasticity: 1.2,
-        products: [
-          { productId: 'clothing', baseWeight: 1, utilityPerUnit: 5, minShare: 1 },
-        ],
+        id: 'wear', name: '穿着', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.40,
+        elasticity: 0.4,
+        products: [{ productId: 'clothing', baseWeight: 1, utilityPerUnit: 2, minShare: 1 }],
       },
       {
-        id: 'durables', name: '耐用品', budgetShare: 0.30, minBudgetShare: 0.20, maxBudgetShare: 0.45,
-        elasticity: 0.7,
+        id: 'daily', name: '日用消耗', budgetShare: 0.20, minBudgetShare: 0.10, maxBudgetShare: 0.35,
+        elasticity: 0.9,
+        products: [{ productId: 'paper', baseWeight: 1, utilityPerUnit: 1, minShare: 1 }],
+      },
+      {
+        id: 'durables', name: '耐用消费', budgetShare: 0.30, minBudgetShare: 0.15, maxBudgetShare: 0.50,
+        elasticity: 0.6,
         products: [
-          { productId: 'electronics', baseWeight: 0.45, utilityPerUnit: 6, minShare: 0.30 },
-          { productId: 'appliance', baseWeight: 0.55, utilityPerUnit: 8, minShare: 0.35 },
+          { productId: 'electronics', baseWeight: 0.45, utilityPerUnit: 2, minShare: 0.20 },
+          { productId: 'appliance', baseWeight: 0.55, utilityPerUnit: 3, minShare: 0.20 },
         ],
       },
     ]),
-    seedDemandQuantities: Object.freeze({
-      furniture: 8, paper: 12, clothing: 7, electronics: 6, appliance: 5,
-    }),
+    seedDemandQuantities: Object.freeze({ furniture: 7, clothing: 5, paper: 7, electronics: 4, appliance: 3 }),
   }),
 ]);
 
-export const MARKET_DEMAND_PRODUCT_IDS = Object.freeze([
-  ...new Set(MARKET_DEMAND_GROUP_CATALOG.flatMap((group) => group.classes
-    .flatMap((demandClass) => demandClass.products.map((option) => option.productId)))),
-]);
+export const MARKET_DEMAND_PRODUCT_IDS = Object.freeze([...new Set(
+  MARKET_DEMAND_GROUP_CATALOG.flatMap((group) => group.classes.flatMap((demandClass) => (
+    demandClass.products.map((option) => option.productId)
+  ))),
+)]);
