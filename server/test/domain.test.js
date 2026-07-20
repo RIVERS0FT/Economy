@@ -250,10 +250,92 @@ test('market demand creates direct and derived orders within the shared group bu
     const state = world.demandGroups[group.id];
     assert.equal(state.lastCommitted, state.directCommitted + state.derivedCommitted);
     assert.ok(state.lastCommitted <= state.lastBudget);
+    assert.equal(group.directBudgetShare, 0.70);
     assert.ok(state.directCommitted <= Math.floor(state.lastBudget * group.directBudgetShare));
+    assert.ok(state.derivedCommitted <= state.lastBudget - Math.floor(state.lastBudget * group.directBudgetShare));
     assert.equal(state.lastInventoryBoost, 0);
     assert.equal(state.lastStockValue, 0);
   }
+});
+
+
+test('market demand keeps half of unsold system orders and raises the next cycle price', () => {
+  const world = createWorld(now);
+  deferDemand(world, now + 10 * cycleMs);
+  prepareDemand(world, 'food', now);
+  processWorld(world, now + 1);
+
+  const firstCycleId = world.demandGroups.food.lastCycleId;
+  const firstOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.demandTier === 'direct'
+    && order.productId === 'wheat'
+    && order.demandCycleId === firstCycleId
+    && order.status === 'open'
+  ));
+  assert.ok(firstOrder);
+  const firstRemaining = firstOrder.remaining;
+  const firstPrice = firstOrder.price;
+
+  prepareDemand(world, 'food', now + cycleMs + 1);
+  processWorld(world, now + cycleMs + 1);
+
+  assert.equal(firstOrder.remaining, Math.floor(firstRemaining * 0.50));
+  const nextCycleId = world.demandGroups.food.lastCycleId;
+  const nextOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.demandTier === 'direct'
+    && order.productId === 'wheat'
+    && order.demandCycleId === nextCycleId
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(nextOrder);
+  assert.ok(nextOrder.price > firstPrice);
+  assert.ok(world.demandGroups.food.lastRetainedOrderValue > 0);
+  assert.ok(world.demandGroups.food.lastOpenOrderValue <= world.demandGroups.food.lastBudget * 3);
+});
+
+test('market demand cancels carried orders and resets to the model price after a sale', () => {
+  const world = createWorld(now);
+  const seller = ensurePlayer(world, bob, now);
+  seller.inventories.wheat.available = 1;
+  deferDemand(world, now + 10 * cycleMs);
+  prepareDemand(world, 'food', now);
+  processWorld(world, now + 1);
+
+  const firstOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(firstOrder);
+  assert.equal(applyAction(world, bob, 'placeOrder', {
+    productId: 'wheat', side: 'sell', quantity: 1, price: firstOrder.price,
+  }, now + 2).ok, true);
+  assert.equal(firstOrder.lastFilledAt, now + 2);
+
+  prepareDemand(world, 'food', now + cycleMs + 1);
+  processWorld(world, now + cycleMs + 1);
+  const nextCycleId = world.demandGroups.food.lastCycleId;
+  assert.equal(world.orders.some((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && Number(order.demandCycleId) < nextCycleId
+    && (order.status === 'open' || order.status === 'partial')
+  )), false);
+  const nextOrder = world.orders.find((order) => (
+    order.ownerType === 'population'
+    && order.demandGroupId === 'food'
+    && order.productId === 'wheat'
+    && order.demandCycleId === nextCycleId
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(nextOrder);
+  assert.equal(nextOrder.price, Math.round(world.priceTransmission.products.wheat.referencePrice));
 });
 
 test('market demand scales sublinearly with active players and stops at the configured cap', () => {
@@ -482,24 +564,21 @@ test('legacy demand migration immediately rebuilds market demand without losing 
   assert.ok(world.orders.some((order) => order.ownerType === 'population'));
 });
 
-test('market demand model version 1 migrates to version 2 without resetting player assets', () => {
+test('market demand model version 2 migrates to version 3 without resetting player assets', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
   player.inventories.wheat.available = 9;
-  delete player.inventories.fruit;
-  delete world.markets.fruit;
-  delete world.marketDemand.priceTransmission.products.fruit;
-  world.marketDemand.modelVersion = 1;
+  world.marketDemand.modelVersion = 2;
   world.orders = [
-    { id: 'player-order-v1', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice', price: 3, quantity: 2, remaining: 2, status: 'open', createdAt: now },
-    { id: 'market-order-v1', assetKind: 'commodity', assetId: 'food', productId: 'food', side: 'buy', ownerType: 'population', ownerName: '食品市场需求', demandGroupId: 'food', demandTier: 'direct', price: 15, quantity: 2, remaining: 2, status: 'open', createdAt: now },
+    { id: 'player-order-v2', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice', price: 3, quantity: 2, remaining: 2, status: 'open', createdAt: now },
+    { id: 'market-order-v2', assetKind: 'commodity', assetId: 'food', productId: 'food', side: 'buy', ownerType: 'population', ownerName: '食品市场需求', demandGroupId: 'food', demandTier: 'direct', price: 15, quantity: 2, remaining: 2, status: 'open', createdAt: now },
   ];
 
   migrateWorld(world, now);
 
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
-  assert.deepEqual(world.orders.map((order) => order.id), ['player-order-v1']);
+  assert.deepEqual(world.orders.map((order) => order.id), ['player-order-v2']);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.wheat.available, 9);
   assert.deepEqual(player.inventories.fruit, { available: 0, frozen: 0 });
