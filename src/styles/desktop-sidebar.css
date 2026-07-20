@@ -164,6 +164,11 @@
   margin-top: var(--space-3);
 }
 
+.desktop-sidebar .sidebar-nav {
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
 .desktop-sidebar .sidebar-nav-button {
   width: 100%;
   grid-template-columns: var(--desktop-sidebar-rail) minmax(0, 1fr);

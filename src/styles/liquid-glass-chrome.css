@@ -1,5 +1,8 @@
 /* Compatibility entry for browser harnesses that still import the historical
  * stylesheet path. LiquidGlassSurface remains the only glass renderer; this
- * file may only forward to geometry styles used by those harnesses. */
-@import './liquid-glass-surfaces.css';
+ * file may only forward shared shell styles required by those harnesses.
+ * Production imports these files directly through src/main.tsx. */
+@import './performance.css';
+@import './scrollbars.css';
 @import './game-shell-layout.css';
+@import './liquid-glass-surfaces.css';

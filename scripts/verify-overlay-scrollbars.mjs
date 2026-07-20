@@ -24,6 +24,8 @@ const paths = {
   scrollArea: 'src/components/ui/ScrollArea.tsx',
   hook: 'src/hooks/useOverlayScrollbar.ts',
   styles: 'src/styles/scrollbars.css',
+  performance: 'src/styles/performance.css',
+  mobileNavigation: 'src/styles/mobile-status-navigation.css',
   market: 'src/pages/MarketPage.tsx',
   marketStyles: 'src/styles/market-account-table.css',
   virtualStyles: 'src/styles/virtual-list.css',
@@ -33,7 +35,7 @@ const paths = {
   sidebar: 'src/components/shell/SidebarFrame.tsx',
   status: 'src/components/shell/StatusBar.tsx',
   mobile: 'src/components/shell/MobileBottomNavigation.tsx',
-  design: 'docs/OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md',
+  design: 'docs/UI_DESIGN_SYSTEM.md',
 };
 
 Object.values(paths).forEach(requireFile);
@@ -89,7 +91,14 @@ if (failures.length === 0) {
     '.ui-scrollbar--horizontal',
     'z-index: 3;',
     'right: calc(var(--scrollbar-hit-size) + var(--scrollbar-edge-offset));',
+    'position: fixed;',
+    'right: env(safe-area-inset-right, 0px);',
+    'transform: none;',
   ]) requireText(paths.styles, text);
+  for (const text of [
+    'translateX(var(--mobile-scrollbar-edge-escape))',
+    '--mobile-scrollbar-edge-escape',
+  ]) forbidText(paths.styles, text);
 
   for (const [path, texts] of [
     [paths.layout, ["import { ScrollArea } from './ScrollArea'", 'axis="x"', 'horizontalVisibility="always"']],
@@ -136,15 +145,23 @@ if (failures.length === 0) {
   ]) requireText(paths.virtualStyles, text);
 
   for (const text of [
+    '统一覆盖式滚动条',
     '有横向溢出时水平滚动条必须常驻可见',
     '没有发生实际滚动位置变化',
     '普通滚轮和以 `deltaY` 为主的触控板输入优先垂直滚动',
     '纵向轨道 `z-index` 更高',
+    '移动页面纵向轨道固定到视口安全边缘',
+    'right: env(safe-area-inset-right, 0px)',
     '资产｜方向｜价格｜剩余/原始｜状态｜时间｜操作',
     '资产｜方向｜数量｜价格｜总额｜手续费/实收｜时间',
     '撤单按钮必须始终位于横向滚动视口右侧',
     '资产列不得再显示“买入／卖出”前缀',
+    '不得使用 `overscroll-behavior: contain` 阻断纵向滚动链',
   ]) requireText(paths.design, text);
+
+  forbidText(paths.performance, '.page-scroll,\n.asset-bar,\n.sidebar-nav {\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior: contain;');
+  forbidText(paths.mobileNavigation, '.page-scroll {\n  overscroll-behavior: contain;');
+  forbidText(paths.mobileNavigation, '--mobile-scrollbar-edge-escape');
 
   const toleratedLegacyGutterFiles = new Set(['src/styles/design-system.css']);
   const styleFiles = walk('src/styles').filter((path) => path.endsWith('.css'));
@@ -165,4 +182,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('统一覆盖式滚动条、纵向优先、水平常驻与订单成交表验证通过。');
+console.log('统一覆盖式滚动条、纵向优先、滚动链、视口安全边缘、水平常驻与订单成交表验证通过。');

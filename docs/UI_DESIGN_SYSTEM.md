@@ -3,9 +3,9 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-07-19
+> 更新时间：2026-07-20
 
-产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
+产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
 ## 1. 界面目标
 
@@ -36,7 +36,9 @@
 | `src/styles/production-surface.css` | 生产页共享仓库、建设卡和工厂集群同一一级平面的统一内边距、标题锚点和紧凑开关 |
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
-| `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠与导航可访问状态 |
+| `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高与可访问状态 |
+| `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面视口安全边缘轨道 |
+| `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
 | `src/styles/liquid-glass-chrome.css` | 状态栏和移动底栏玻璃材质 |
 | `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
 | `src/styles/mobile-*.css` | 移动导航、安全区和页面布局 |
@@ -189,6 +191,36 @@
 - 偏好开启时，`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T；关闭时统一恢复带千分位的完整整数。
 - 排名、百分比、时间、时长和可编辑数字输入保持精确原值，不得因紧凑偏好改变业务值。
 
+### 7.1 统一覆盖式滚动条
+
+- `src/components/ui/ScrollArea.tsx` 是应用内覆盖式滚动区域的唯一共享组件，`src/hooks/useOverlayScrollbar.ts` 是滑块尺寸、位置、拖动、轨道翻页、实际滚动活动判断和双轴输入分派的唯一实现，`src/styles/scrollbars.css` 是滚动条视觉的唯一来源。
+- 原生滚动容器继续负责可访问滚动和浏览器滚动链；原生滚动条视觉在 `ScrollArea` 视口内隐藏，项目轨道绝对定位覆盖在内容上方，不占布局空间。
+- 固定令牌为视觉宽度 `6px`、可点击轨道 `14px`、边缘偏移 `2px`、最小滑块 `28px`、纵向空闲延迟 `1200ms`、淡入淡出 `120ms`；颜色统一由 `--scrollbar-thumb*` 令牌提供。
+- 覆盖式轨道不得使用 `scrollbar-gutter: stable`，不得通过内边距预留永久空间；显隐前后页面、卡片、表头、表格列宽和 `clientWidth` 必须不变。
+- “无活动”表示没有发生实际滚动位置变化：`scrollTop` 变化后才显示纵向轨道，停止 `1200ms` 后隐藏；鼠标移动、点击、焦点、滚轮或按键事件本身都不算活动。有横向溢出时水平滚动条必须常驻可见。
+- 普通滚轮和以 `deltaY` 为主的触控板输入优先垂直滚动；只有 `Shift + 滚轮`、明确以 `deltaX` 为主的触控板输入、水平滑块拖动或水平轨道点击才执行水平滚动。到达内部纵向边界后必须把滚动链交给外层，不得自动改成水平滚动。
+- 双轴轨道同时存在时纵向轨道 `z-index` 更高，水平轨道在右侧避让纵向命中区，不绘制额外右下角块。
+- 不得使用 `overscroll-behavior: contain` 阻断纵向滚动链；只有明确的横向视口可以使用 `overscroll-behavior-x: contain`，并保持 `overscroll-behavior-y: auto`。
+- 移动页面纵向轨道固定到视口安全边缘：仅 `.page-scroll-area > .ui-scrollbar--vertical` 在不大于 `720px` 时使用 `position: fixed`，顶部和底部保留 `var(--scrollbar-edge-offset)`，右侧使用 `right: env(safe-area-inset-right, 0px)`，滑块在轨道内再保留 `2px` 边缘偏移。固定的只有覆盖式轨道，`.page-scroll-area`、`.page-scroll`、`.page-content` 和卡片仍受 `.workspace` gutter 约束，宽度与滚动视口不得改变。
+- 移动页面贴边不得恢复 `--mobile-workspace-inline-end`、`--mobile-scrollbar-edge-escape` 或 `translateX(...)` 逃逸令牌，也不得用负 `right`、扩大页面 viewport、改变卡片宽度或让轨道越过右侧安全区。真实浏览器几何必须验证滑块右边缘距屏幕或安全区内缘约 `2px`。
+- 滚动过程中不得用 React state 更新滑块位置；使用 ref、CSS transform、`requestAnimationFrame` 和 `ResizeObserver`。滑块保留 `role="scrollbar"`、方向和范围语义，支持拖动、轨道翻页与键盘控制。
+
+“我的未完成订单”列顺序固定为：
+
+```text
+资产｜方向｜价格｜剩余/原始｜状态｜时间｜操作
+```
+
+方向列固定 `60px`，操作列固定 `76px` 并使用 `position: sticky; right: 0`；撤单按钮必须始终位于横向滚动视口右侧，空状态 `colSpan` 为 `7`，不得恢复独立“类型”列。
+
+“本地成交记录”列顺序固定为：
+
+```text
+资产｜方向｜数量｜价格｜总额｜手续费/实收｜时间
+```
+
+`TradeRecord.type` 只用于内部图标与类型判断；资产列不得再显示“买入／卖出”前缀，方向只由 `TradeRecord.side` 和方向列表达。外层只负责横向滚动，内部 `VirtualList` 只负责纵向滚动，表头和内容列必须保持对齐。
+
 ## 8. 统一资产市场
 
 - 商品和工厂使用同一资产标签和下单区域。
@@ -262,6 +294,7 @@
 - 背景、边框和玻璃材质仍可使用透明度；
 - hover、focus、active 不得降低图标或文字透明度。
 - 宽屏桌面侧栏必须提供键盘可操作的显式折叠按钮；游戏与管理员后台复用同一侧栏框架，在 `224px`／`78px` 间以约 `200ms` 过渡。Logo 在折叠前后固定为 `40×40px`，导航与底部操作固定使用 `48px` 图标轨道；文字只允许通过裁切、透明度与可见性分阶段切换，按钮 hover、focus、active 不得发生几何位移。折叠后 Logo 区域通过 hover 与 focus 显示展开箭头并承担展开操作，不得在侧栏边缘另放悬浮按钮。折叠后导航、QQ群和退出按钮仍保留稳定可访问名称，底部两个按钮固定为 `48×48px`；`721px–960px` 继续使用自动紧凑侧栏，减少动态效果时关闭过渡。
+- 桌面侧栏导航网格必须从顶部开始排列，使用固有内容行高；`.sidebar-nav` 固定为 `align-content: start` 与 `grid-auto-rows: max-content`。共享纵向 `ScrollArea` 可以占满剩余高度，但不得把九个导航按钮平均拉伸到整列高度。
 
 ## 13. 设置页布局
 
@@ -336,8 +369,12 @@
 - 让移动状态栏或底栏忽略安全区；
 - 给导航活动态添加位移或缩放；
 - 删除桌面侧栏折叠按钮、折叠状态的导航可访问名称或键盘操作能力；
+- 让桌面侧栏导航网格拉伸自动行、使用 `align-content: stretch`，或把九个导航按钮平均分散到整个侧栏高度；
 - 对高增长记录恢复全量 `.map()` DOM 渲染，或用分页、截断替代 `VirtualList`；
 - 恢复会阻断纵向滚动链的 `overscroll-behavior: contain` 或其他双轴越界隔离；
+- 为页面、侧栏或业务表格复制滚动条宽度、颜色、计时器或活动判断；
+- 隐藏存在横向溢出的水平滚动条，把普通纵向滚轮转换为水平滚动，或让水平轨道覆盖纵向轨道；
+- 把移动页面纵向轨道重新限制在工作区或卡片右边缘，恢复 `--mobile-scrollbar-edge-escape`／`translateX(...)` 逃逸实现，越过右侧安全区，或通过改变 viewport／卡片宽度实现贴边；
 - 使用 `.login-shell:focus-within` 或其他焦点选择器改变移动登录页标题字号、区块间距或整体对齐；
 - 把账号或密码重新绑定到初始为空的 React `value` 状态；
 - 把设置页恢复为共享三列网格、`span-2` 跨列卡片、宽卡片两列统计或整卡宽度昵称保存按钮；

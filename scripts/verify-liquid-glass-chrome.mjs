@@ -33,6 +33,7 @@ const walk = (path) => readdirSync(resolve(root, path)).flatMap((entry) => {
 const files = {
   surface: 'src/components/ui/LiquidGlassSurface.tsx',
   styles: 'src/styles/liquid-glass-surfaces.css',
+  compatibility: 'src/styles/liquid-glass-chrome.css',
   shell: 'src/components/shell/GameShell.tsx',
   status: 'src/components/shell/StatusBar.tsx',
   mobile: 'src/components/shell/MobileBottomNavigation.tsx',
@@ -49,7 +50,6 @@ const files = {
 };
 
 Object.values(files).forEach(requireFile);
-requireFile('src/styles/liquid-glass-chrome.css');
 
 if (failures.length === 0) {
   const packageJson = JSON.parse(read(files.package));
@@ -131,6 +131,13 @@ if (failures.length === 0) {
     "import './styles/mobile-status-navigation.css'",
     "import './styles/design-system.css'",
   ]);
+  requireOrder(files.compatibility, [
+    "@import './performance.css';",
+    "@import './scrollbars.css';",
+    "@import './game-shell-layout.css';",
+    "@import './liquid-glass-surfaces.css';",
+  ]);
+  requireText(files.compatibility, 'Production imports these files directly through src/main.tsx.');
 
   for (const text of [
     '--layout-gutter: var(--mobile-primary-surface-gap);',
@@ -150,10 +157,10 @@ if (failures.length === 0) {
   for (const text of [
     '--mobile-workspace-gutter: var(--space-3);',
     '--mobile-primary-surface-gap: var(--mobile-workspace-gutter);',
-    '--mobile-workspace-inline-end: max(',
-    '--mobile-scrollbar-edge-escape: calc(',
-    'var(--mobile-workspace-inline-end) - env(safe-area-inset-right)',
   ]) requireText(files.mobileNavigation, text);
+  for (const text of ['--mobile-workspace-inline-end', '--mobile-scrollbar-edge-escape']) {
+    forbidText(files.mobileNavigation, text);
+  }
   for (const text of [
     '.asset-bar {',
     'padding: 0;',
@@ -166,13 +173,15 @@ if (failures.length === 0) {
     '.page-scroll-area {',
     'overflow: visible;',
     '.page-scroll-area > .ui-scrollbar--vertical {',
-    'right: 0;',
-    'transform: translateX(var(--mobile-scrollbar-edge-escape));',
+    'position: fixed;',
+    'right: env(safe-area-inset-right, 0px);',
+    'transform: none;',
     '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
     'right: var(--scrollbar-edge-offset);',
     'left: auto;',
   ]) requireText(files.scrollbars, text);
   forbidText(files.scrollbars, '.asset-bar-scroll-area,');
+  forbidText(files.scrollbars, 'translateX(var(--mobile-scrollbar-edge-escape))');
 
   for (const text of [
     '`liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现',
@@ -180,6 +189,9 @@ if (failures.length === 0) {
     '状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线',
     '移动底栏玻璃圆角与移动一级卡片 `--radius-card-mobile` 一致',
     '不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
+    '固定到视口安全边缘',
+    'right: env(safe-area-inset-right, 0px)',
+    '浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式',
   ]) requireText(files.design, text);
   for (const text of [
     'mobile chrome shares the workspace gutter and fixed glass heights',
@@ -199,4 +211,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 外壳、移动玻璃共线、40px 底栏圆角与贴边滚动条验证通过。');
+console.log('liquid-glass-react 外壳、浏览器真实样式入口、移动玻璃共线、40px 底栏圆角与固定安全边缘滚动条验证通过。');

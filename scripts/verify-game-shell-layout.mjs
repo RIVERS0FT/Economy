@@ -52,9 +52,6 @@ check('src/styles/viewport.css', [
 check('src/styles/mobile-status-navigation.css', [
   '--mobile-workspace-gutter: var(--space-3);',
   '--mobile-primary-surface-gap: var(--mobile-workspace-gutter);',
-  '--mobile-workspace-inline-end: max(',
-  '--mobile-scrollbar-edge-escape: calc(',
-  'var(--mobile-workspace-inline-end) - env(safe-area-inset-right)',
   '--mobile-asset-bar-height: 48px;',
   '--mobile-nav-height: 68px;',
 ]);
@@ -65,31 +62,59 @@ check('src/styles/mobile-status-layout.css', [
   'min-height: var(--mobile-asset-bar-height);',
   'max-height: var(--mobile-asset-bar-height);',
 ]);
+check('src/styles/desktop-sidebar.css', [
+  '.desktop-sidebar .sidebar-nav {',
+  'align-content: start;',
+  'grid-auto-rows: max-content;',
+]);
 check('src/styles/scrollbars.css', [
   '.page-scroll-area {',
   'overflow: visible;',
   '.page-scroll-area > .ui-scrollbar--vertical {',
-  'right: 0;',
-  'transform: translateX(var(--mobile-scrollbar-edge-escape));',
+  'position: fixed;',
+  'top: var(--scrollbar-edge-offset);',
+  'right: env(safe-area-inset-right, 0px);',
+  'bottom: var(--scrollbar-edge-offset);',
+  'transform: none;',
   '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
   'right: var(--scrollbar-edge-offset);',
   'left: auto;',
 ]);
-forbid('src/styles/scrollbars.css', ['.asset-bar-scroll-area,']);
-forbid('src/styles/viewport.css', ['position: fixed;\n    right: 0;\n    bottom: max(var(--mobile-chrome-block-inset)']);
-check('docs/GAME_SHELL_LAYOUT_DESIGN.md', [
-  '移动工作区统一水平间距',
-  '移动两层 Overlay',
+check('src/styles/performance.css', [
+  '.page-scroll {',
+  'overscroll-behavior: auto;',
+  'overscroll-behavior-x: contain;',
+  'overscroll-behavior-y: auto;',
+]);
+forbid('src/styles/mobile-status-navigation.css', [
   '--mobile-workspace-inline-end',
   '--mobile-scrollbar-edge-escape',
-  'translateX()',
+  '.page-scroll {\n  overscroll-behavior: contain;',
+]);
+forbid('src/styles/scrollbars.css', [
+  '.asset-bar-scroll-area,',
+  'translateX(var(--mobile-scrollbar-edge-escape))',
+]);
+forbid('src/styles/performance.css', ['.page-scroll,\n.asset-bar,\n.sidebar-nav {\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior: contain;']);
+forbid('src/styles/viewport.css', ['position: fixed;\n    right: 0;\n    bottom: max(var(--mobile-chrome-block-inset)']);
+check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
+  '桌面应用外壳几何',
+  '--desktop-shell-outer-inset',
+  '固定到视口安全边缘',
+  'right: env(safe-area-inset-right, 0px)',
   '--radius-card-mobile',
   '`40px`',
 ]);
-check('docs/OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md', [
-  '移动页面右侧贴边规则',
-  'translateX(var(--mobile-scrollbar-edge-escape))',
-  '滑块右边缘距屏幕右边 `2px`',
+check('docs/UI_DESIGN_SYSTEM.md', [
+  '统一覆盖式滚动条',
+  '桌面侧栏导航网格必须从顶部开始排列',
+  '不得使用 `overscroll-behavior: contain` 阻断纵向滚动链',
+  '移动页面纵向轨道固定到视口安全边缘',
+]);
+check('tests/browser/game-shell-layout.spec.ts', [
+  'desktop navigation rows keep intrinsic height and stack from the top',
+  "expect(geometry.alignContent).toBe('start')",
+  "expect(geometry.gridAutoRows).toBe('max-content')",
 ]);
 check('tests/browser/mobile-workspace-overlay.spec.ts', [
   'mobile page scrollbar reaches the safe right edge without changing content width',
@@ -103,4 +128,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏外壳移动双层 Overlay、玻璃共线、40px 底栏圆角与贴边滚动条验证通过。');
+console.log('游戏外壳桌面导航、移动双层 Overlay、玻璃共线、40px 底栏圆角、视口安全边缘滚动条与纵向滚动链验证通过。');

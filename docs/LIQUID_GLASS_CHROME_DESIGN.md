@@ -1,35 +1,37 @@
 # Economy liquid-glass-react 应用外壳设计
 
-> 状态：桌面与移动端顶部状态栏、移动底部导航的视觉与布局基线  
+> 状态：桌面与移动端顶部状态栏、移动底部导航及游戏外壳几何基线  
 > 适用项目：`RIVERS0FT/Economy`  
 > 更新时间：2026-07-20
 
-本文件定义应用外壳唯一液态玻璃实现、稳定几何、跨浏览器能力边界、性能约束和防回退规则。通用 UI 仍以 `docs/UI_DESIGN_SYSTEM.md` 为准；涉及状态栏和移动底栏材质时，以本文件为专题权威基线。
+本文件定义应用外壳唯一液态玻璃实现、桌面与移动工作区几何、浏览器运行时样式入口、性能约束和防回退规则。通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
 ## 1. 唯一材质来源
 
 - `liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现。
 - `src/components/ui/LiquidGlassSurface.tsx` 是唯一允许直接导入该依赖的文件。
 - 状态栏和移动底栏只能使用 `LiquidGlassSurface` 预设，不得在业务组件中直接设置第三方参数。
-- `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、最低可读性回退、单层上游高光选择和单层非材质结构描边；不得用 CSS 重新实现模糊、折射或色差。
-- `src/styles/liquid-glass-chrome.css` 只允许作为历史路径转发入口，内容只能导入 `liquid-glass-surfaces.css`。
+- `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、可读性回退、单层高光和单层结构描边；不得用 CSS 重新实现模糊、折射或色差。
+- `src/styles/liquid-glass-chrome.css` 是浏览器测试兼容入口，不是第二套材质。它只允许按固定顺序转发 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`；生产入口 `src/main.tsx` 继续直接导入正式样式。
+- 浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式，不得只加载历史全局样式后用错误计算结果验证布局。
 
-## 2. 文件职责
+## 2. 文件职责与加载顺序
 
-| 文件 | 职责 |
+| 文件 | 唯一职责 |
 |---|---|
-| `src/components/ui/LiquidGlassSurface.tsx` | 第三方库适配、参数预设、静态鼠标输入和统一 DOM |
-| `src/components/shell/GameShell.tsx` | 页面 Overlay 与 Chrome Overlay 的语义结构 |
-| `src/components/shell/StatusBar.tsx` | 状态项语义、交互和覆盖式水平滚动入口 |
-| `src/components/shell/MobileBottomNavigation.tsx` | 移动导航语义与覆盖式水平滚动入口 |
-| `src/styles/liquid-glass-surfaces.css` | 玻璃宿主几何、第三方 DOM 尺寸适配、裁切、内容网格、单层高光和结构描边 |
-| `src/styles/game-shell-layout.css` | 桌面状态栏统一外距、页面避让和工作区几何 |
-| `src/styles/viewport.css` | 桌面悬浮定位、移动工作区统一 gutter、两层 Overlay、滚动层和安全区 |
-| `src/styles/scrollbars.css` | 状态栏与移动底栏的滚动条视觉，不决定外层宿主高度 |
-| `scripts/verify-liquid-glass-chrome.mjs` | 依赖、适配层、布局与防回退检查 |
-| `tests/browser/liquid-glass-layout.spec.ts` | 真实浏览器中的全宽、裁切、折射层、单高光、移动 Overlay 与页面避让验证 |
+| `LiquidGlassSurface.tsx` | 第三方库适配、参数预设、静态鼠标输入和统一 DOM |
+| `liquid-glass-surfaces.css` | 玻璃宿主、第三方 DOM 尺寸、裁切、内容网格、高光和结构描边 |
+| `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口 |
+| `game-shell-layout.css` | 桌面双列轨道、状态栏外距、页面避让和工作区几何 |
+| `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
+| `viewport.css` | 固定视口、移动工作区 gutter、两层 Overlay 和安全区 |
+| `scrollbars.css` | 全局覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘 |
+| `verify-liquid-glass-chrome.mjs` | 依赖、适配层、兼容入口、布局和防回退检查 |
+| `verify-game-shell-layout.mjs` | 桌面双列、导航行高、移动 Overlay、滚动条和滚动链检查 |
+| `liquid-glass-layout.spec.ts` | 真实浏览器玻璃、圆角、共线和页面避让验证 |
+| `mobile-workspace-overlay.spec.ts` | 移动安全边缘轨道和内容宽度验证 |
 
-样式加载顺序固定为：`viewport.css` → `scrollbars.css` → `game-shell-layout.css`，以及 `card-system.css` → `liquid-glass-surfaces.css` → 移动外壳样式 → `icon-system.css` → 业务样式 → `design-system.css`。
+生产几何样式顺序固定为 `viewport.css` → `scrollbars.css` → `game-shell-layout.css`。浏览器兼容入口在 harness 已加载 `viewport.css` 后，固定转发 `performance.css` → `scrollbars.css` → `game-shell-layout.css` → `liquid-glass-surfaces.css`。
 
 ## 3. 统一参数预设
 
@@ -39,14 +41,11 @@
 
 - `mode="prominent"`；
 - `displacementScale: 38`；
-- `blurAmount: 0.14`，对应库内部约 `8.5px` 模糊；
+- `blurAmount: 0.14`；
 - `saturation: 145`；
 - `aberrationIntensity: 1.15`；
 - `elasticity={0}`；
-- 桌面圆角固定为 `24px`，与桌面一级卡片的 `--radius-card: 1.5rem` 一致；
-- 移动端通过宿主几何覆盖为胶囊圆角。
-
-该预设面向超宽、低高度状态栏，折射和边缘色差必须比旧标准预设更清晰，但不得达到按钮示例的高强度形变。
+- 桌面 `cornerRadius: 24`，与 `--radius-card: 1.5rem` 一致。
 
 ### 3.2 移动底部导航
 
@@ -56,143 +55,123 @@
 - `saturation: 145`；
 - `aberrationIntensity: 0.5`；
 - `elasticity={0}`；
-- `cornerRadius: 40`，并与 CSS `--radius-card-mobile` 的当前 `40px` 保持同步；
-- 可见玻璃、第三方折射层和移动一级卡片的计算圆角必须一致。
+- `cornerRadius: 40`；
+- 移动底栏玻璃圆角与移动一级卡片 `--radius-card-mobile` 一致，当前均为 `40px`。
 
-外壳必须传入固定 `globalMousePos` 和 `mouseOffset`，禁止第三方组件为状态栏和底栏注册鼠标移动监听。状态项和导航按钮的交互由内部原生按钮承担，不给玻璃外壳传 `onClick`。
+外壳必须传入固定 `globalMousePos` 和 `mouseOffset`，不得为状态栏或导航注册全局鼠标跟踪。状态项和导航按钮由内部原生控件承担交互。
 
-## 4. 全平台能力边界
+## 4. 平台能力边界
 
-所有平台都渲染同一个 `LiquidGlassSurface`，不得按浏览器切换回另一套 CSS 玻璃：
+所有平台都渲染同一个 `LiquidGlassSurface`：
 
-- Chromium、Android Chromium WebView、Windows WebView2 显示完整 prominent 折射、模糊和边缘色差；
-- Safari、iOS WebKit 和 Firefox 使用同一组件；受浏览器 SVG displacement 支持限制，折射可能不可见，但模糊、单层高光和内容结构继续保留；
-- 不支持 `backdrop-filter` 的环境只使用高不透明度对比底色保证可读性，不模拟第二套玻璃；
-- 平台能力差异不允许改变状态栏高度、安全区、导航尺寸或内容顺序。
+- Chromium、Android Chromium WebView 和 Windows WebView2 显示完整折射、模糊和边缘色差；
+- Safari、iOS WebKit 和 Firefox 在折射能力受限时仍保留同一组件、模糊、高光和内容结构；
+- 不支持 `backdrop-filter` 时只使用可读性回退底色，不切换到另一套玻璃；
+- 平台能力差异不得改变状态栏高度、安全区、导航尺寸或内容顺序。
 
-## 5. DOM、外距与布局
+## 5. 桌面应用外壳几何
 
-桌面状态栏结构固定为：
+大于 `720px` 时：
 
-```text
-.asset-bar-scroll-area
-└─ ScrollArea(axis=x, horizontalVisibility=always)
-   └─ .asset-bar
-      └─ LiquidGlassSurface(statusBar)
-         └─ .asset-bar-content
-            └─ .asset-bar-item × 5
+- `.game-shell` 固定覆盖视口，最终 `padding` 和 `gap` 都为 `0`；
+- 第一列由侧栏左侧外距、侧栏宽度和侧栏与工作区间隔组成；第二列 `.workspace` 使用全部剩余宽度并贴合视口顶部、右侧和底部；
+- `--desktop-shell-outer-inset` 是侧栏与状态栏唯一桌面外距令牌，默认 `12px`；
+- 状态栏顶部／右侧间距都来自统一桌面外距，左边缘与 `.workspace` 一致；
+- 侧栏展开宽度为 `224px`，折叠宽度为 `78px`，只能通过 `--sidebar-column-width` 改变工作区起点；
+- `721px–960px` 使用自动紧凑侧栏和 `8px` 统一外距；
+- 桌面侧栏导航必须从顶部按固有行高排列，不能把九个按钮平均拉伸到整列高度；
+- `.page-scroll-area` 与 `.page-scroll` 铺满工作区，桌面左右 padding 为 `0`；
+- `.page-content` 使用 `width: 100%`、`max-width: none`、`margin: 0`，桌面左右 padding 为 `0`。
+
+不得给 `.game-shell`、`.workspace`、`.page-scroll-area`、`.page-scroll` 或 `.page-content` 添加外边距模拟侧栏留白。
+
+## 6. 移动工作区、Overlay 与滚动条
+
+不大于 `720px` 时：
+
+- `.workspace` 是页面、状态栏和底栏唯一水平边界，左右 padding 使用 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left/right))`；
+- `.mobile-page-overlay` 和 `.mobile-chrome-overlay` 占据同一 Grid 单元；页面层负责滚动，Chrome 层负责状态栏和底栏；
+- Chrome Overlay 使用 `pointer-events: none`，只有状态栏和底栏恢复交互；
+- 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
+- `.asset-bar` 不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
+- `.page-scroll` 左右 padding 必须为 `0`；
+- 移动状态栏固定 `48px`，移动底栏固定 `68px`，底栏相对 Chrome Overlay 使用 `position: absolute`；
+- 不得给 `.asset-bar-scroll-area` 设置 `height: 100%`。
+
+移动页面纵向覆盖式轨道固定到视口安全边缘：
+
+```css
+.page-scroll-area > .ui-scrollbar--vertical {
+  position: fixed;
+  top: var(--scrollbar-edge-offset);
+  right: env(safe-area-inset-right, 0px);
+  bottom: var(--scrollbar-edge-offset);
+  transform: none;
+}
 ```
 
-移动端结构固定为：
+固定的只有覆盖式轨道；`.page-scroll-area`、`.page-scroll`、`.page-content` 和卡片仍由 `.workspace` 控制。滑块在轨道内右对齐并保留 `2px` 偏移，因此无安全区时距视口右边约 `2px`，有安全区时距安全区内缘约 `2px`。滚动条显隐不得改变页面 `clientWidth` 或卡片宽度。
 
-```text
-.workspace
-├─ .mobile-page-overlay
-│  └─ .page-scroll-area
-└─ .mobile-chrome-overlay
-   ├─ .asset-bar-scroll-area
-   └─ .mobile-bottom-navigation
-      └─ LiquidGlassSurface(mobileNavigation)
-         └─ .mobile-navigation-frame
-            └─ ScrollArea(axis=x, horizontalVisibility=always)
-               └─ .sidebar-nav
-```
+不得恢复 `--mobile-workspace-inline-end`、`--mobile-scrollbar-edge-escape`、`right: 0 + translateX(...)`、负 `right` 或扩大页面宽度的逃逸实现。
 
-桌面端两个移动包装层使用 `display: contents`。移动端两个 Overlay 占据 `.workspace` 的同一个 Grid 单元；页面层负责纵向滚动，Chrome 层承载状态栏和底栏。Chrome 层自身使用 `pointer-events: none`，只有状态栏和底栏恢复交互。
+## 7. 材质、圆角和结构边缘
 
-移动 `.workspace` 是唯一水平几何边界，左右 `padding-inline` 使用 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left/right))`。该 gutter 与移动一级卡片 gap 都为 `12px`。状态栏、页面和底栏填满工作区内容框，不得分别设置水平 inset；`.page-scroll` 的左右 padding 必须为 `0`。
-
-移动端必须比较实际 `.liquid-glass-surface`，而不只比较外层宿主：状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线。`.asset-bar` 移动端不得使用水平 padding 缩窄玻璃；状态项内部留白放在 `.asset-bar-content`。
-
-`.asset-bar` 和 `.mobile-bottom-navigation` 不得包含 `.panel`。通用 `.panel` 会在最终设计系统中加入背景、阴影和 `backdrop-filter`，与第三方玻璃形成双重材质。
-
-`.asset-bar-scroll-area` 负责定位、统一外距和高度；`.asset-bar` 只负责原生横向滚动视口。五列布局只能存在于 `.asset-bar-content`。可用宽度低于内容最小值时玻璃宿主扩展至 `675px`，961px 以下桌面扩展至 `725px`，由共享覆盖式水平滚动条常驻显示。移动端清除最小宽度并使用工作区内容框内的全宽安全区胶囊。
-
-移动状态栏的 `height`、`min-height` 和 `max-height` 同时固定为 `48px`。`scrollbars.css` 只能让 `.asset-bar-scroll-track` 和内部 viewport 使用 `height: 100%`，不得给 `.asset-bar-scroll-area` 设置 `height: 100%`。移动底栏与状态栏同处 Chrome Overlay，使用 `position: absolute`，不得移回 `.workspace` 外部或恢复 `position: fixed`。
-
-`LiquidGlassSurface` 必须裁切第三方组件生成的并列高光、边框和覆盖层，所有装饰层圆角必须与宿主一致，不得在右侧或底部产生滤镜光晕溢出。
-
-## 6. 状态栏背景、边框和高光
-
-支持 `backdrop-filter` 的平台中，`.liquid-glass-surface--statusBar` 背景必须透明，让第三方 `.glass__warp` 直接采样页面内容；不得用均匀深色底层提前遮蔽折射。
-
-桌面状态栏属于桌面一级表面，必须复用通用 `--radius-card`。边缘结构固定为：
-
+- `.asset-bar` 和 `.mobile-bottom-navigation` 不得包含 `.panel`；
+- 整个状态栏只允许一个玻璃实例，整个移动底栏只允许一个玻璃实例；
+- 支持环境中的状态栏宿主背景透明，由第三方 `.glass__warp` 采样页面内容；
+- 桌面状态栏属于桌面一级表面，必须复用通用 `--radius-card`；
 - 宿主只保留一条低强度 `1px` 结构描边；
-- 第三方两个直属装饰 `span` 中只允许第一层低透明度 screen 高光可见；
-- 第二层 overlay 装饰必须隐藏，防止双边框、角部断线和亮度不均；
-- 结构描边不得实现模糊、折射、高光或阴影；
-- 不支持 `backdrop-filter` 时才使用 `--liquid-glass-contrast-strong` 可读性回退；
-- 移动底栏继续使用自身上游视觉，不受桌面状态栏单高光选择规则影响。
+- 第三方直属装饰中只允许第一层低透明度 screen 高光可见；
+- 第二层 overlay 装饰必须隐藏，避免双边框和角部断线；
+- 移动底栏的 React `cornerRadius`、CSS 裁切和第三方折射层必须都为 `40px`；
+- 所有第三方装饰层必须受宿主圆角裁切，不得在右侧或底部溢出。
 
-## 7. 状态项和移动导航
+## 8. 状态项、数字和导航
 
-- 整个状态栏只有一个玻璃实例，不得为每个状态项单独创建实例。
-- 整个移动底栏只有一个玻璃实例，不得为每个导航按钮单独创建实例。
-- 桌面状态项保留弱分隔线；移动状态项不显示分隔线、独立边框或图标底板。
-- 标签使用次级文字色，主数值使用主文字色，说明使用弱化文字色。
-- 桌面保留完整信息密度，移动端使用紧凑图标与数值槽位。
-- 排名统一通过 `formatRank` 显示为 `#N`。
-- 实际数字格式遵循全局“紧凑数字”偏好。
-- 玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数。
-- 移动顶部状态栏固定 `48px`，移动底栏固定 `68px`。
-- 移动导航按钮固定 `48px × 48px`，活动、悬停和触摸状态不得位移或缩放。
-- 移动底栏玻璃圆角与移动一级卡片 `--radius-card-mobile` 一致，React 预设和 CSS 裁切必须同步为 `40px`。
-- 状态栏和移动底栏有横向溢出时水平滚动条常驻，普通纵向滚轮不得转换为水平滚动。
+- 标签使用次级文字色，主数值使用主文字色，说明使用弱化文字色；
+- 排名统一通过 `formatRank` 显示为 `#N`；
+- 实际数字格式遵循全局“紧凑数字”偏好；
+- 玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数；
+- 移动导航按钮固定 `48px × 48px`，活动、悬停和触摸状态不得位移或缩放；
+- 状态栏和移动底栏有横向溢出时水平轨道常驻，普通纵向滚轮不得转换为水平滚动。
 
-## 8. 性能与可访问性
+## 9. 性能与可访问性
 
-- 桌面同时可见一个玻璃实例；移动同时可见两个玻璃实例。
-- 禁止 `shader` 模式、滚动事件更新玻璃参数、噪点动画和每项独立滤镜。
-- `elasticity={0}` 保证外壳几何稳定；内部按钮保留键盘焦点和点击反馈。
-- 页面内容从状态栏下方开始，最后一项可滚动到导航上方；滚动时内容允许进入玻璃后方。
-- 玻璃生成的装饰 SVG 和覆盖层不得阻止内部按钮事件。
-- 滚动条交互遵循 `docs/OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md`。
+- 桌面同时可见一个玻璃实例，移动同时可见两个；
+- 禁止滚动事件更新玻璃参数、噪点动画和每项独立滤镜；
+- 页面初始内容避让状态栏和底栏，滚动时允许进入玻璃后方；
+- 装饰 SVG 和覆盖层不得阻止内部按钮事件；
+- 页面和内部列表到达纵向边界后必须保留滚动链；
+- 滑块保留 `role="scrollbar"`、方向、范围、拖动、轨道翻页和键盘语义。
 
-## 9. 验收标准
+## 10. 验收标准
 
-必须检查桌面 `1920px`、`1440px`、`1024px`、`768px`，以及移动 `430px`、`390px`、`375px`、`360px`、`320px`：
+必须检查桌面 `1920×1080`、`1684×931`、`1440×900`、`1024×768`、`900×768`，以及移动 `430px`、`390px`、`375px`、`360px`、`320px`：
 
-1. 状态栏和移动底栏均由 `LiquidGlassSurface` 渲染。
-2. 桌面状态栏顶部和右侧间距等于 `--desktop-shell-outer-inset`，左边缘与工作区一致。
-3. 桌面状态栏四角与一级 `.panel` 的计算圆角一致。
-4. 状态栏只有一条结构描边和一层低强度上游高光。
-5. `.asset-bar` 计算样式不是 Grid，五列 Grid 只存在于 `.asset-bar-content`。
-6. `.asset-bar` 和 `.mobile-bottom-navigation` 不包含 `.panel`，计算样式不包含外层 `backdrop-filter`。
-7. 第三方 `.glass__warp` 存在且 Chromium 中 `backdrop-filter` 不是 `none`，滤镜引用存在。
-8. 状态栏宿主在支持环境中背景透明，后方高对比纹理滚动到状态栏下时可观察到折射和模糊。
-9. `data-liquid-glass-mode="prominent"` 只用于顶部状态栏；移动底栏保持 standard。
-10. 页面初始标题位于状态栏底部以下，滚动时内容可进入状态栏后方。
-11. Chromium 显示折射，Safari／Firefox 缺少折射时仍清晰可读。
-12. 移动页面 Overlay 与 Chrome Overlay 边界一致，状态栏实际玻璃、一级卡片和底栏实际玻璃左右共线。
-13. 移动顶部状态栏宿主和玻璃都固定 `48px`，不得被 ScrollArea 拉伸或 viewport padding 缩小；移动底栏固定 `68px`。
-14. 移动底栏玻璃和移动一级卡片的计算圆角都为 `40px`。
-15. Chrome Overlay 透明区域不阻断页面滚动，状态栏和导航仍可操作。
-16. 移动顶部四项完整显示且不可横向滚动。
-17. 移动底栏可横向滚动，按钮固定 `48px × 48px`。
-18. `npm run build` 与浏览器测试通过。
+1. 状态栏和移动底栏都由 `LiquidGlassSurface` 渲染。
+2. 桌面外壳覆盖整个视口，侧栏、状态栏和工作区共享统一外距。
+3. 桌面导航按钮从顶部按固有高度排列。
+4. 桌面状态栏与一级卡片圆角均为 `24px`，只有一条结构描边和一层高光。
+5. 移动状态栏、一级卡片和底栏实际玻璃左右共线。
+6. 移动状态栏固定 `48px`，底栏固定 `68px`，底栏和移动卡片圆角均为 `40px`。
+7. 移动页面轨道固定到视口安全边缘，滑块右边缘约为 `2px`，显隐前后内容宽度不变。
+8. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
+9. `npm run build` 与全部 Chromium 浏览器测试通过。
 
-## 10. 不可回退规则
+## 11. 不可回退规则
 
-除非先更新本设计和架构检查，否则不得：
+除非先更新本文档、架构检查和浏览器测试，否则不得：
 
-- 在 `liquid-glass-chrome.css` 中恢复任何材质规则，或恢复 CSS `backdrop-filter` 玻璃材质；
 - 在 `LiquidGlassSurface.tsx` 之外直接导入 `liquid-glass-react`；
-- 给 `.asset-bar` 或 `.mobile-bottom-navigation` 添加 `.panel`；
-- 让 `.asset-bar` 的最终计算样式恢复五列 Grid 或外层水平内边距；
-- 只让移动状态栏宿主与卡片共线，却让内部玻璃继续被 viewport padding 缩窄；
-- 给桌面状态栏恢复独立硬编码圆角或与一级卡片不同的圆角；
-- 把移动底栏 React `cornerRadius` 或 CSS 裁切恢复为与 `--radius-card-mobile: 40px` 不一致的独立值；
-- 隐藏两个上游状态栏高光层，或恢复两个上游装饰层同时可见；
-- 在单层结构描边之外叠加第二条 CSS 边框；
-- 给支持环境恢复不透明状态栏宿主背景；
-- 取消玻璃宿主圆角裁切，或允许第三方并列装饰层溢出；
-- 改用 `shader` 模式或把应用外壳 `elasticity` 调为非零；
-- 为状态项或导航按钮分别创建玻璃实例；
-- 删除固定鼠标输入并恢复全局鼠标跟踪；
-- 因 Safari、iOS WebKit 和 Firefox 折射受限而切换到另一套玻璃；
-- 给移动页面、状态栏或底栏恢复独立水平 inset；
-- 把移动底栏移回工作区外或恢复 `position: fixed`；
-- 在 `scrollbars.css` 中给 `.asset-bar-scroll-area` 恢复 `height: 100%`；
-- 破坏桌面状态栏统一外距、移动安全区、工作区 gutter、四项等距布局、`48px` 状态栏、`68px` 底栏、`40px` 底栏圆角或 `48px × 48px` 导航按钮；
+- 在项目 CSS 中重新实现液态玻璃材质或改用 `shader`；
+- 给状态项或导航按钮分别创建玻璃实例；
+- 给桌面 `.game-shell` 恢复 padding／gap，或给 `.page-content` 恢复居中最大宽度；
+- 让桌面侧栏导航自动行拉伸；
+- 给移动状态栏、页面或底栏恢复独立水平 inset；
+- 把移动底栏恢复为相对视口的 `position: fixed`；
+- 把移动页面轨道限制在卡片边缘、恢复 escape／translateX 方案、越过安全区或改变卡片宽度；
+- 在 `.page-scroll` 上使用 `overscroll-behavior: contain` 阻断纵向滚动链；
+- 给 `.asset-bar-scroll-area` 设置 `height: 100%`；
+- 删除 `liquid-glass-chrome.css` 中浏览器 harness 所需的真实滚动条或外壳几何导入；
+- 只验证宿主边界而不验证实际 `.liquid-glass-surface`；
 - 绕过架构检查或浏览器几何测试合并视觉回退。
