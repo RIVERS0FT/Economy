@@ -122,7 +122,7 @@ export interface AssetOrder {
   ownerId?: number;
   ownerName?: string;
   demandGroupId?: 'food' | 'household';
-  demandTier?: 'raw' | 'intermediate' | 'final';
+  demandTier?: 'direct' | 'derived-liquidity' | 'liquidity-buy' | 'liquidity-sell';
   demandCycleId?: number;
   price: number;
   quantity: number;

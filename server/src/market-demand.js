@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { createMarketLiquidityRuntime } from './market-liquidity.js';
 import {
   MARKET_DEMAND_GROUP_CATALOG,
+  MARKET_DEMAND_MODEL_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
   PRICE_MAX_MULTIPLIER,
   SYSTEM_ORDER_PRICE_STEP,
@@ -14,6 +16,9 @@ import { createMarketSignalRuntime } from './market-demand/signals.js';
 import { createMarketDemandStateRuntime } from './market-demand/state.js';
 
 export { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, MARKET_DEMAND_PRODUCT_IDS } from './market-demand/catalog.js';
+
+const CONSUMPTION_TIERS = new Set(['direct', 'derived-liquidity']);
+const LIQUIDITY_TIERS = new Set(['liquidity-buy', 'liquidity-sell']);
 
 export function createMarketDemandRuntime({ products, facilities, constants, marketFor, matchOrder, isOpenOrder }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
@@ -47,6 +52,37 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
 
   const signals = createMarketSignalRuntime({ marketFor, isOpenOrder });
   const stateRuntime = createMarketDemandStateRuntime({ products, constants, marketFor, isOpenOrder });
+  const allocationRuntime = createDemandAllocationRuntime({
+    productFor,
+    recipesByOutput,
+    effectivePrice: signals.effectivePrice,
+    orderBookQuote: signals.orderBookQuote,
+    realTradeStats: signals.realTradeStats,
+  });
+  const liquidityRuntime = createMarketLiquidityRuntime({
+    products,
+    groups: MARKET_DEMAND_GROUP_CATALOG,
+    marketFor,
+    matchOrder,
+    isOpenOrder,
+    realTradeStats: signals.realTradeStats,
+  });
+
+  function normalizeWorld(world, now = Date.now(), options = {}) {
+    const previousVersion = Number(world.marketDemand?.modelVersion || 0);
+    stateRuntime.normalizeWorld(world, now, options);
+    liquidityRuntime.normalizeWorld(world, {
+      seed: Boolean(options.forceRebuild) || previousVersion < MARKET_DEMAND_MODEL_VERSION,
+    });
+    return world;
+  }
+
+  function initializeWorld(world, now = Date.now()) {
+    stateRuntime.initializeWorld(world, now);
+    liquidityRuntime.normalizeWorld(world, { seed: true });
+    return world;
+  }
+
   const priceRuntime = createPriceTransmissionRuntime({
     products,
     recipes,
@@ -55,16 +91,15 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     productFor,
     marketFor,
     realTradeStats: signals.realTradeStats,
-    normalizeWorld: stateRuntime.normalizeWorld,
+    normalizeWorld,
     defaultProductState: stateRuntime.defaultProductState,
   });
-  const allocationRuntime = createDemandAllocationRuntime({
-    productFor,
-    recipesByOutput,
-    effectivePrice: signals.effectivePrice,
-    orderBookQuote: signals.orderBookQuote,
-    realTradeStats: signals.realTradeStats,
-  });
+
+  function isConsumptionOrder(order, groupId) {
+    return order?.ownerType === 'population'
+      && order?.demandGroupId === groupId
+      && CONSUMPTION_TIERS.has(order?.demandTier);
+  }
 
   function trimOrderRemaining(order, keepQuantity) {
     const originalRemaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
@@ -78,9 +113,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   }
 
   function prepareGroupOrders(world, group, state) {
-    const groupOrders = (world.orders || []).filter((order) => (
-      order.ownerType === 'population' && order.demandGroupId === group.id
-    ));
+    const groupOrders = (world.orders || []).filter((order) => isConsumptionOrder(order, group.id));
     const cycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || 0));
     const soldProducts = new Set(groupOrders
       .filter((order) => Number(order.lastFilledAt || 0) > 0 && Number(order.lastFilledAt) >= cycleStartedAt)
@@ -117,8 +150,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
 
   function groupOpenOrderValue(world, groupId, predicate = () => true) {
     return (world.orders || []).filter((order) => (
-      order.ownerType === 'population'
-      && order.demandGroupId === groupId
+      isConsumptionOrder(order, groupId)
       && isOpenOrder(order)
       && predicate(order)
     )).reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
@@ -127,7 +159,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   function enforceGroupOrderValueCap(world, group, cycleBudget) {
     const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
     const orders = (world.orders || []).filter((order) => (
-      order.ownerType === 'population' && order.demandGroupId === group.id && isOpenOrder(order)
+      isConsumptionOrder(order, group.id) && isOpenOrder(order)
     ));
     let total = orders.reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
     if (total <= cap) return total;
@@ -216,7 +248,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   function processGroup(world, groupId, now) {
     const group = groupMap.get(groupId);
     if (!group) return false;
-    stateRuntime.normalizeWorld(world, now);
+    normalizeWorld(world, now);
     const state = world.marketDemand.groups[group.id];
     const cycleId = Math.floor(now / group.cycleMs);
     if (Number(state.lastCycleId) === cycleId) {
@@ -282,11 +314,12 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         pressure,
       );
     }
+    liquidityRuntime.processGroup(world, group, state, cycleId, now);
     return true;
   }
 
   function process(world, now = Date.now()) {
-    stateRuntime.normalizeWorld(world, now);
+    normalizeWorld(world, now);
     priceRuntime.processPriceTransmission(world, now);
     for (const group of MARKET_DEMAND_GROUP_CATALOG) {
       if (now >= Number(world.marketDemand.groups[group.id].nextDemandAt)) processGroup(world, group.id, now);
@@ -297,14 +330,21 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   function isValidMarketOrder(order) {
     if (order?.ownerType !== 'population') return false;
     const group = groupMap.get(String(order.demandGroupId || ''));
-    if (!group || order.ownerName !== group.ownerName) return false;
-    if (!['direct', 'derived-liquidity'].includes(order.demandTier)) return false;
-    return productMap.has(String(order.productId || ''));
+    const product = productMap.get(String(order.productId || ''));
+    if (!group || !product || product.marketDemandGroupId !== group.id) return false;
+    if (CONSUMPTION_TIERS.has(order.demandTier)) {
+      return order.side === 'buy' && order.ownerName === group.ownerName;
+    }
+    if (LIQUIDITY_TIERS.has(order.demandTier)) {
+      const expectedSide = order.demandTier === 'liquidity-buy' ? 'buy' : 'sell';
+      return order.side === expectedSide && order.ownerName === `${group.name}储备`;
+    }
+    return false;
   }
 
   return {
-    initializeWorld: stateRuntime.initializeWorld,
-    normalizeWorld: stateRuntime.normalizeWorld,
+    initializeWorld,
+    normalizeWorld,
     process,
     processGroup,
     processPriceTransmission: priceRuntime.processPriceTransmission,

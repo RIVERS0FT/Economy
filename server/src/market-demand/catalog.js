@@ -4,7 +4,7 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 3;
+export const MARKET_DEMAND_MODEL_VERSION = 4;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -24,6 +24,15 @@ export const PRICE_MAX_MULTIPLIER = 3;
 export const PRICE_RISE_RATE = 0.30;
 export const PRICE_FALL_RATE = 0.20;
 export const PRICE_BASE_REVERSION = 0.02;
+export const LIQUIDITY_BASE_SPREAD = 0.08;
+export const LIQUIDITY_MIN_SPREAD = 0.04;
+export const LIQUIDITY_MAX_SPREAD = 0.24;
+export const LIQUIDITY_INVENTORY_SKEW = 0.10;
+export const LIQUIDITY_QUOTE_BUDGET_SHARE = 0.25;
+export const LIQUIDITY_TRADE_SHARE = 0.25;
+export const LIQUIDITY_MIN_TARGET = 2;
+export const LIQUIDITY_MAX_TARGET = 30;
+export const LIQUIDITY_SIGNAL_WEIGHT = 0.50;
 
 export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
   Object.freeze({

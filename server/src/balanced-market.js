@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
+import { LIQUIDITY_SIGNAL_WEIGHT } from './market-demand/catalog.js';
+
+const LIQUIDITY_BUY = 'liquidity-buy';
+const LIQUIDITY_SELL = 'liquidity-sell';
 
 export function createBalancedMarketRuntime({ products, constants }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
@@ -8,6 +12,9 @@ export function createBalancedMarketRuntime({ products, constants }) {
   const isOpenOrder = (order) => Number(order?.remaining || 0) > 0
     && (order?.status === 'open' || order?.status === 'partial');
   const isCommodityOwner = (order) => order?.ownerType === 'player' || order?.ownerType === 'population';
+  const isLiquidityOrder = (order) => order?.ownerType === 'population'
+    && (order?.demandTier === LIQUIDITY_BUY || order?.demandTier === LIQUIDITY_SELL);
+  const isConsumptionOrder = (order) => order?.ownerType === 'population' && !isLiquidityOrder(order);
 
   function createMarket(product, now) {
     const offsets = [-1, 0, 1, 0, 1, 1, 0, -1, 0, 1, 0, 0, 1, -1, 0, 1, 0, 1, 0, -1, 0, 1, 0, 0];
@@ -50,6 +57,14 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return player.inventories[productId];
   }
 
+  function liquidityGroupFor(world, order) {
+    return world.marketDemand?.liquidity?.groups?.[String(order?.demandGroupId || '')];
+  }
+
+  function liquidityReserveFor(world, order) {
+    return liquidityGroupFor(world, order)?.reserves?.[String(order?.productId || '')];
+  }
+
   function addTrade(player, trade) {
     player.trades ||= [];
     player.trades.unshift({ id: createId('trade'), ...trade });
@@ -77,15 +92,15 @@ export function createBalancedMarketRuntime({ products, constants }) {
   }
 
   function counterparty(order) {
-    return order.ownerName || (order.ownerType === 'population' ? '人口需求' : '玩家');
+    return order.ownerName || (order.ownerType === 'population' ? '市场系统' : '玩家');
   }
 
-  function recordPrice(world, productId, price, quantity, takerSide, createdAt) {
+  function recordPrice(world, productId, price, quantity, takerSide, createdAt, signalWeight = 1) {
     const market = marketFor(world, productId, createdAt);
     market.lastPrice = price;
     market.lastTradePrice = price;
     market.priceHistory ||= [];
-    market.priceHistory.push({ price, quantity, createdAt, takerSide });
+    market.priceHistory.push({ price, quantity, createdAt, takerSide, signalWeight });
     market.priceHistory = market.priceHistory.slice(-constants.maxPricePoints);
   }
 
@@ -119,7 +134,8 @@ export function createBalancedMarketRuntime({ products, constants }) {
     player.stats.systemSinks = Number(player.stats.systemSinks || 0) + settlement.fee;
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
     player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
-    if (buyer.ownerType === 'population') {
+    const consumptionIncome = isConsumptionOrder(buyer);
+    if (consumptionIncome) {
       player.stats.populationIssued = Number(player.stats.populationIssued || 0) + total;
     }
     const product = productFor(order.productId);
@@ -130,11 +146,34 @@ export function createBalancedMarketRuntime({ products, constants }) {
     });
     addLedger(
       player,
-      buyer.ownerType === 'population' ? 'population_income' : 'market_trade',
+      consumptionIncome ? 'population_income' : 'market_trade',
       settlement.netTotal,
-      `${buyer.ownerType === 'population' ? '人口需求消费' : '卖出'} ${quantity} 个${product.name}，成交价 ${tradePrice}，手续费 ${settlement.fee}`,
+      `${consumptionIncome ? '市场需求消费' : '卖给市场储备'} ${quantity} 个${product.name}，成交价 ${tradePrice}，手续费 ${settlement.fee}`,
       createdAt,
     );
+  }
+
+  function settleLiquidityBuy(world, order, quantity, tradePrice) {
+    const group = liquidityGroupFor(world, order);
+    const reserve = liquidityReserveFor(world, order);
+    if (!group || !reserve) throw new Error(`Missing liquidity reserve for ${order.productId}`);
+    const reserved = quantity * Number(order.price);
+    const actual = quantity * tradePrice;
+    group.frozenCredits -= reserved;
+    group.credits += reserved - actual;
+    reserve.inventory += quantity;
+    reserve.totalBought = Number(reserve.totalBought || 0) + quantity;
+    reserve.totalBuyValue = Number(reserve.totalBuyValue || 0) + actual;
+  }
+
+  function settleLiquiditySell(world, order, quantity, tradePrice) {
+    const group = liquidityGroupFor(world, order);
+    const reserve = liquidityReserveFor(world, order);
+    if (!group || !reserve) throw new Error(`Missing liquidity reserve for ${order.productId}`);
+    reserve.frozenInventory -= quantity;
+    group.credits += quantity * tradePrice;
+    reserve.totalSold = Number(reserve.totalSold || 0) + quantity;
+    reserve.totalSellValue = Number(reserve.totalSellValue || 0) + quantity * tradePrice;
   }
 
   function executeTrade(world, incoming, resting, quantity, createdAt) {
@@ -164,7 +203,10 @@ export function createBalancedMarketRuntime({ products, constants }) {
     });
     if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);
     if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, settlement, createdAt);
-    recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt);
+    if (buy.demandTier === LIQUIDITY_BUY) settleLiquidityBuy(world, buy, quantity, price);
+    if (sell.demandTier === LIQUIDITY_SELL) settleLiquiditySell(world, sell, quantity, price);
+    const signalWeight = isLiquidityOrder(buy) || isLiquidityOrder(sell) ? LIQUIDITY_SIGNAL_WEIGHT : 1;
+    recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt, signalWeight);
   }
 
   function matchOrder(world, incoming, createdAt) {
@@ -177,6 +219,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
         && order.productId === incoming.productId
         && order.side === opposite
         && isOpenOrder(order)
+        && !(order.ownerType === 'population' && incoming.ownerType === 'population')
         && !(order.ownerType === 'player' && incoming.ownerType === 'player'
           && Number(order.ownerId) === Number(incoming.ownerId))
         && (incoming.side === 'buy'
