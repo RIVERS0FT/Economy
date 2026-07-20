@@ -109,7 +109,7 @@
 - `--mobile-primary-surface-gap` 必须引用 `--mobile-workspace-gutter`；
 - `.workspace` 将自身 `--layout-gutter` 设为 `--mobile-primary-surface-gap`，使一级卡片间距与工作区左右内边距保持相同；
 - 左内边距为 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left))`；
-- 右内边距为 `max(var(--mobile-workspace-gutter), env(safe-area-inset-right))`；
+- 右内边距为 `--mobile-workspace-inline-end = max(var(--mobile-workspace-gutter), env(safe-area-inset-right))`；
 - 页面层、状态栏和底部导航均填满 `.workspace` 的内容框，不得再次设置独立水平 inset；
 - 状态栏和底栏的可见液态玻璃表面必须与一级卡片左右边缘共线，不能只让外层宿主共线；
 - 移动 `.asset-bar` 不得设置水平 padding 缩窄玻璃表面，状态项留白统一放在 `.asset-bar-content`；
@@ -127,7 +127,7 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 - Chrome Overlay 自身使用 `pointer-events: none`，只有状态栏和导航栏恢复 `pointer-events: auto`，透明区域不得阻断页面触控滚动；
 - 两个 Overlay 的边界必须等于 `.workspace` 的内容框，因此状态栏、一级卡片和底栏左右边缘天然共线；
 - `.mobile-page-overlay` 和 `.page-scroll-area` 允许覆盖式纵向轨道进入右侧 gutter，最终仍由 `.workspace` 裁切；该可见溢出不得产生页面水平滚动；
-- `--mobile-scrollbar-edge-escape` 只抵消普通 gutter，保留 `env(safe-area-inset-right)`，纵向滑块右边缘位于屏幕或安全区内缘 `2px`；
+- `--mobile-scrollbar-edge-escape` 等于 `--mobile-workspace-inline-end - env(safe-area-inset-right)`；轨道保持 `right: 0` 并通过 `translateX()` 越过普通 gutter，纵向滑块右边缘位于屏幕或安全区内缘 `2px`；
 - 页面滚动时内容允许进入玻璃状态栏和底栏后方，但初始标题与最后一项操作必须通过上下 padding 完整避让外壳。
 
 移动状态栏：
@@ -146,7 +146,7 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 - `left: 0`、`right: 0`；
 - 底部使用 `max(var(--mobile-chrome-block-inset), env(safe-area-inset-bottom))`；
 - 高度、最小高度和最大高度都固定为 `68px`；
-- 可见玻璃及第三方折射层圆角必须与一级卡片 `--radius-card` 一致，当前为 `24px`。
+- 可见玻璃及第三方折射层圆角必须与移动一级卡片 `--radius-card-mobile` 一致，当前为 `40px`。
 
 ## 8. 验收标准
 
@@ -168,7 +168,7 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 3. 状态栏宿主、状态栏实际玻璃、页面一级卡片、底部导航宿主和底栏实际玻璃左右边缘共线。
 4. `.page-scroll` 左右计算 padding 为 `0`。
 5. 状态栏宿主和实际玻璃始终为 `48px`，不得被 ScrollArea 或 viewport padding 缩小、拉伸。
-6. 底部导航始终为 `68px`，并相对于工作区定位；底栏玻璃圆角与一级卡片都为 `24px`。
+6. 底部导航始终为 `68px`，并相对于工作区定位；底栏玻璃圆角与移动一级卡片都为 `40px`。
 7. Chrome Overlay 透明区域不阻断页面滑动，状态栏和导航按钮仍可点击。
 8. 初始标题位于状态栏下方，最后一张卡和操作可以滚动到导航栏上方。
 9. 页面不存在双重水平内边距或水平滚动。
@@ -194,9 +194,10 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 - 给移动 `.asset-bar` 恢复会缩窄实际玻璃表面的水平 padding；
 - 只验证状态栏或底栏宿主而不验证实际 `.liquid-glass-surface` 边界；
 - 把移动底栏移回 `.workspace` 外部或恢复 `position: fixed`；
-- 把移动底栏圆角恢复为独立硬编码值，导致其与一级卡片不一致；
+- 把移动底栏圆角恢复为独立硬编码值，导致其与 `--radius-card-mobile` 不一致；
 - 给 `.mobile-chrome-overlay` 恢复会拦截整屏触控的 `pointer-events: auto`；
 - 把移动页面覆盖式滚动条重新限制在卡片右边缘，或通过扩大 viewport／负 margin 改变卡片宽度；
+- 用无效的负 `right` 计算替代 `right: 0 + translateX(--mobile-scrollbar-edge-escape)` 的贴边规则；
 - 在 `scrollbars.css` 中重新给 `.asset-bar-scroll-area` 设置 `height: 100%`；
 - 破坏移动状态栏 `48px`、底栏 `68px`、上下安全区或最后一项内容避让；
 - 绕过浏览器几何测试合并布局回退。
