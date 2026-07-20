@@ -37,6 +37,16 @@ jobs:
           set -euo pipefail
           npm run build
 
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test browser runtime before deployment
+        shell: bash
+        run: |
+          exec > >(tee /tmp/economy-browser-test.log) 2>&1
+          set -euo pipefail
+          npm run test:browser
+
       - name: Ensure rsync is available
         run: |
           set -euo pipefail
@@ -255,6 +265,7 @@ jobs:
             DESCRIPTION="Economy deployment failed"
             DETAIL="$({
               cat /tmp/economy-build.log 2>/dev/null || true
+              cat /tmp/economy-browser-test.log 2>/dev/null || true
               cat /tmp/economy-deploy.log 2>/dev/null || true
               cat /tmp/economy-runtime.log 2>/dev/null || true
               cat /tmp/economy-api-install.log 2>/dev/null || true
