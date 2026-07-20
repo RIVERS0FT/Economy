@@ -1,0 +1,4 @@
+  File "/tmp/apply-complexity-profit-curve.py", line 47
+    domain_old_prices = '
+                        ^
+SyntaxError: unterminated string literal (detected at line 47)
