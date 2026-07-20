@@ -182,15 +182,16 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   assert.deepEqual(FACILITY_TYPE_CATALOG.map((facility) => facility.id), expectedFacilities);
 
   const expectedPrices = {
-    wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 5, ore: 6,
-    'copper-ore': 6, 'crude-oil': 8, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
-    flour: 13, sugar: 13, lumber: 15, steel: 24, copper: 24, plastic: 24, textile: 18,
-    pulp: 16, food: 15, beverage: 16, 'prepared-meal': 18, paper: 13, furniture: 20,
-    clothing: 48, machinery: 60, electronics: 64, appliance: 68,
+    wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
+    'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
+    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, textile: 20,
+    pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
+    clothing: 55, machinery: 76, electronics: 84, appliance: 92,
   };
   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
 
   const productIds = new Set(expectedProducts);
+  const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 9, C5: 12, C6: 15, C7: 18 };
   for (const product of PRODUCT_CATALOG) {
     assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
   }
@@ -213,7 +214,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
       const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
       const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
         * 60_000 / recipe.cycleMs;
-      const expectedProfit = facility.category === 'raw' ? 1 : facility.category === 'processing' ? 3 : 6;
+      const expectedProfit = expectedProfitByComplexity[facility.complexity];
       assert.equal(profit, expectedProfit, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
     }
   }

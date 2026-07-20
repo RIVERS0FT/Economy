@@ -15,11 +15,11 @@ const expectedFacilities = [
   'electronics-factory', 'appliance-factory',
 ];
 const expectedPrices = {
-  wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 5, ore: 6,
-  'copper-ore': 6, 'crude-oil': 8, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
-  flour: 13, sugar: 13, lumber: 15, steel: 24, copper: 24, plastic: 24, textile: 18,
-  pulp: 16, food: 15, beverage: 16, 'prepared-meal': 18, paper: 13, furniture: 20,
-  clothing: 48, machinery: 60, electronics: 64, appliance: 68,
+  wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
+  'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
+  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, textile: 20,
+  pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
+  clothing: 55, machinery: 76, electronics: 84, appliance: 92,
 };
 const expectedConstruction = {
   farm: { complexity: 'C1', buildCost: 50, buildTimeMs: 30_000, systemValue: 65 },
@@ -53,6 +53,8 @@ const constructionTimeRanges = {
   C6: [60 * 60_000, 120 * 60_000],
   C7: [60 * 60_000, 120 * 60_000],
 };
+
+const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 9, C5: 12, C6: 15, C7: 18 };
 
 assert.equal(PRODUCT_CATALOG.length, 31, '商品目录必须为 31 项');
 assert.equal(FACILITY_TYPE_CATALOG.length, 21, '工厂目录必须为 21 项');
@@ -102,7 +104,7 @@ for (const facility of FACILITY_TYPE_CATALOG) {
     const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
     const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
       * 60_000 / recipe.cycleMs;
-    const expectedProfit = facility.category === 'raw' ? 1 : facility.category === 'processing' ? 3 : 6;
+    const expectedProfit = expectedProfitByComplexity[facility.complexity];
     assert.equal(profit, expectedProfit, `${facility.id}/${recipe.id} 参考分钟利润错误`);
   }
 }
@@ -117,7 +119,8 @@ assert.equal(facilities.get('steelworks').name, '冶炼厂');
 assert.equal(facilities.has('copper-smelter'), false, '不得新增铜冶炼厂');
 assert.deepEqual(facilities.get('food-factory').recipes.map((item) => item.id), ['food-factory-default', 'prepared-meal-production']);
 assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.id), ['milk-beverage', 'fruit-beverage']);
-assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.operatingCost), [10, 5]);
+assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.operatingCost), [11, 6]);
+assert.equal(facilities.get('furniture-factory').recipes[0].operatingCost, 5);
 assert.deepEqual(facilities.get('electronics-factory').recipes[0].inputs, [
   { productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 },
 ]);
@@ -140,7 +143,7 @@ for (const [path, texts] of [
   ['README.md', ['当前目录共 31 种商品和 21 种工厂类型', '`steelworks` ID 永久保留', '机械+电子产品', 'inputs[]']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '当前基线为 31 种商品和 21 种工厂类型',
-    '基础原料 1／分钟、中间产品 3／分钟、最终产品 6／分钟',
+    'C1=1、C2=3、C3=6、C4=9、C5=12、C6=15、C7=18',
     '不新增铜冶炼厂',
     '任一输入不足时不得扣除其他输入',
     '模型 1 的未完成市场需求订单',
@@ -156,4 +159,4 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6 参考分钟利润梯度。');
+console.log('产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6/9/12/15/18 参考分钟利润梯度。');
