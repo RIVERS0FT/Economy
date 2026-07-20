@@ -11,7 +11,7 @@ import {
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 31);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 4);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 5);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.baseBudget), [3_000, 2_700]);
@@ -53,9 +53,10 @@ const runtime = [
   'server/src/market-demand/price-transmission.js',
   'server/src/market-demand/allocation.js',
   'server/src/balanced-market.js',
+  'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 4',
+  'MARKET_DEMAND_MODEL_VERSION = 5',
   'DIRECT_BUDGET_SHARE = 0.70',
   'LIQUIDITY_BASE_SPREAD = 0.08',
   'LIQUIDITY_MIN_SPREAD = 0.04',
@@ -65,12 +66,15 @@ for (const text of [
   "LIQUIDITY_BUY = 'liquidity-buy'",
   "LIQUIDITY_SELL = 'liquidity-sell'",
   'seeded: wasSeeded || seedNow',
+  'rebuildSeededState',
   'groupState.frozenCredits += reservedCredits',
   'reserve.frozenInventory += sellQuantity',
   "order.ownerType === 'population' && incoming.ownerType === 'population'",
   'settleLiquidityBuy',
   'settleLiquiditySell',
   'signalWeight',
+  'bestSystemPrice',
+  'systemBookIsCrossed',
   "id: 'fresh-drinks'",
   "productId: 'fruit'",
   "productId: 'appliance'",
@@ -105,6 +109,7 @@ for (const text of [
   'marketDemand.process',
   'applyCommodityOrder',
   'balancedMarket.matchOrder(world, incoming, now)',
+  'reconcileCommodityOrderBook',
   'world.version = 13',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
 
@@ -125,11 +130,13 @@ for (const text of [
 ]) assert.ok(domainTests.includes(text), '领域测试缺少: ' + text);
 const liquidityTests = read('server/test/market-liquidity.test.js');
 for (const text of [
-  'market model 4 creates inventory-backed buy and sell orders without system self-trades',
+  'market model 5 creates inventory-backed buy and sell orders without system self-trades',
+  'system liquidity asks reprice above retained consumption bids instead of crossing',
   'selling to a reserve transfers reserve funds and does not count as consumption issuance',
   'buying from a reserve transfers real inventory and returns credits to the reserve',
   'liquidity orders are cancelled and re-reserved on the next cycle',
-  'model 3 migrates to model 4 without changing player assets',
+  'model 3 migrates directly to model 5 with one-time reserve seeding',
+  'model 4 migrates to model 5 and releases obsolete liquidity reservations',
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 const transmissionTests = read('server/test/demand-transmission.test.js');
 for (const text of [
@@ -138,13 +145,13 @@ for (const text of [
 ]) assert.ok(transmissionTests.includes(text), '价格传导测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`4`', '市场储备每 5 分钟撤销并重挂双边商品订单', '真实资金和库存同时生成商品买单与卖单']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['marketDemand.modelVersion = 4', '双边市场储备', '一次性种子资金', '所有系统订单互相禁止成交']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：4', 'liquidity-buy', 'liquidity-sell', '真实储备可用资金', '任何系统订单之间都不得成交']],
+  ['README.md', ['市场需求模型版本：`5`', '市场储备每 5 分钟撤销并重挂双边商品订单', '真实资金和库存同时生成商品买单与卖单', '最高系统买价严格低于最低系统卖价']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：5', 'marketDemand.modelVersion = 5', '双边市场储备', '一次性种子资金', '所有系统订单互相禁止成交', '模型 4 升级到模型 5']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：5', 'liquidity-buy', 'liquidity-sell', '真实储备可用资金', '任何系统订单之间都不得成交', '最高系统买价 < 最低系统卖价']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['market-liquidity.js', '市场需求模型 3 升级到 4', '重复补发储备资产']],
 ]) {
   const content = read(path);
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 4 保留 70%／30% 消费预算，并使用真实资金与库存创建受限双边市场储备。');
+console.log('市场需求验证通过：模型 5 保留 70%／30% 消费预算，使用真实资金与库存创建受限双边市场储备，并保证系统盘口不交叉。');
