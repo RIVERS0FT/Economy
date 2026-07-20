@@ -125,6 +125,36 @@ test.describe('full-width signed-in game shell', () => {
     expectFlushWorkspace(await readShellGeometry(page), 12);
   });
 
+  test('desktop navigation rows keep intrinsic height and stack from the top', async ({ page }) => {
+    await page.setViewportSize({ width: 1684, height: 931 });
+    await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+    const navigation = page.locator('.desktop-sidebar .sidebar-nav');
+    const buttons = navigation.locator('.sidebar-nav-button');
+    await expect(navigation).toBeVisible();
+    await expect(buttons).toHaveCount(9);
+
+    const geometry = await navigation.evaluate((element) => {
+      const navRect = element.getBoundingClientRect();
+      const rows = [...element.querySelectorAll<HTMLElement>('.sidebar-nav-button')]
+        .map((button) => button.getBoundingClientRect());
+      return {
+        alignContent: getComputedStyle(element).alignContent,
+        gridAutoRows: getComputedStyle(element).gridAutoRows,
+        firstOffset: rows[0]?.top - navRect.top,
+        heights: rows.map((row) => row.height),
+        gaps: rows.slice(1).map((row, index) => row.top - rows[index].bottom),
+      };
+    });
+
+    expect(geometry.alignContent).toBe('start');
+    expect(geometry.gridAutoRows).toBe('max-content');
+    expect(geometry.firstOffset).toBeCloseTo(0, 0);
+    expect(Math.max(...geometry.heights)).toBeLessThanOrEqual(56);
+    expect(Math.min(...geometry.heights)).toBeGreaterThanOrEqual(40);
+    expect(Math.max(...geometry.gaps)).toBeLessThanOrEqual(12);
+  });
+
   test('sidebar collapse keeps the inset status bar and page on the same workspace track', async ({ page }) => {
     await page.setViewportSize({ width: 1684, height: 931 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
