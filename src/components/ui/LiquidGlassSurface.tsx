@@ -26,7 +26,7 @@ const PRESETS = {
     blurAmount: 0.5,
     saturation: 145,
     aberrationIntensity: 0.5,
-    cornerRadius: 24,
+    cornerRadius: 40,
     mode: 'standard',
   },
 } as const;
