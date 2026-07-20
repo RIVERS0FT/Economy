@@ -102,7 +102,6 @@ test('HTTP API authenticates through the shared account service and honors idemp
       Origin: 'https://game.riversoft.top',
       'Content-Type': 'application/json',
       'Idempotency-Key': 'http-test-request-1',
-      'X-Economy-State-Revisions': JSON.stringify(statePayload.partitionRevisions),
     };
     const first = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
       method: 'POST',
@@ -111,24 +110,40 @@ test('HTTP API authenticates through the shared account service and honors idemp
     });
     assert.equal(first.status, 200);
     const firstPayload = await first.json();
-    const actionState = mergePatches(initialState, firstPayload.patches);
-    assert.equal(actionState.credits, 101);
-    assert.equal('state' in firstPayload, false);
+    assert.deepEqual(Object.keys(firstPayload).sort(), ['result', 'revision']);
+    assert.deepEqual(Object.keys(firstPayload.result).sort(), ['message', 'ok']);
+    assert.equal(firstPayload.result.ok, true);
+    assert.equal(typeof firstPayload.result.message, 'string');
     assert.equal(firstPayload.revision > statePayload.revision, true);
+
+    const actionStateResponse = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/state?${revisionQuery(statePayload.revision, statePayload.partitionRevisions)}`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(actionStateResponse.status, 200);
+    const actionStatePayload = await actionStateResponse.json();
+    const actionState = mergePatches(initialState, actionStatePayload.patches);
+    assert.equal(actionState.credits, 101);
+    assert.equal(actionStatePayload.revision >= firstPayload.revision, true);
 
     const repeated = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
       method: 'POST',
-      headers: {
-        ...headers,
-        'X-Economy-State-Revisions': JSON.stringify(firstPayload.partitionRevisions),
-      },
+      headers,
       body: '{}',
     });
     assert.equal(repeated.status, 200);
     const repeatedPayload = await repeated.json();
-    assert.equal(repeatedPayload.unchanged, true);
-    assert.deepEqual(repeatedPayload.patches, {});
-    assert.equal(repeatedPayload.revision, firstPayload.revision);
+    assert.deepEqual(repeatedPayload, firstPayload);
+
+    const repeatedStateResponse = await fetch(
+      `http://127.0.0.1:${gamePort}/api/game/state?${revisionQuery(actionStatePayload.revision, actionStatePayload.partitionRevisions)}`,
+      { headers: { Cookie: 'session=ok' } },
+    );
+    assert.equal(repeatedStateResponse.status, 200);
+    assert.deepEqual(await repeatedStateResponse.json(), {
+      revision: actionStatePayload.revision,
+      unchanged: true,
+    });
     assert.equal(accountRequestCount, 1);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
