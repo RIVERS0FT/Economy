@@ -20,7 +20,6 @@ const paths = {
   surfaceStyles: 'src/styles/liquid-glass-surfaces.css',
   shellStyles: 'src/styles/game-shell-layout.css',
   liquidDesign: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
-  shellDesign: 'docs/GAME_SHELL_LAYOUT_DESIGN.md',
   browser: 'tests/browser/liquid-glass-layout.spec.ts',
 };
 
@@ -51,12 +50,9 @@ if (failures.length === 0) {
     '宿主只保留一条低强度 `1px` 结构描边',
     '只允许第一层低透明度 screen 高光可见',
     '第二层 overlay 装饰必须隐藏',
+    '`--desktop-shell-outer-inset` 是侧栏与状态栏唯一桌面外距令牌',
+    '状态栏顶部／右侧间距都来自统一桌面外距',
   ]) requireText(paths.liquidDesign, text);
-
-  for (const text of [
-    '`--desktop-shell-outer-inset` 是侧栏和状态栏唯一桌面外距令牌',
-    '状态栏外距不改变 `.workspace` 和页面主体的宽度',
-  ]) requireText(paths.shellDesign, text);
 
   for (const text of [
     'desktop status bar uses enhanced refraction, shared inset and one visible highlight',
