@@ -17,6 +17,7 @@ const canonicalDocs = [
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
+  'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md',
   'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
   'docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md',
   'docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md',
@@ -138,6 +139,8 @@ if (existsSync(pathFor('docs/README.md'))) {
     '`OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md`',
     '`PRODUCTION_PILL_ALIGNMENT_DESIGN.md`',
     '`REGISTRATION_INVITE_FLOW_DESIGN.md`',
+    '`AUTHORITATIVE_COUNTDOWN_DESIGN.md`',
+    '权威状态转换倒计时',
     '`PRIMARY_SURFACE_INSET_DESIGN.md`',
     '一级卡片外层内边距',
     '不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md`',
@@ -151,4 +154,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：登记文档清单、未知 Markdown 拒绝、版本 15/13、市场需求模型 4、双边市场储备、九页导航、商店、整数经济基线、一级卡片外层内边距、外壳与滚动条归属、单一职责专题、文档整理规则和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：登记文档清单、未知 Markdown 拒绝、版本 15/13、市场需求模型 4、双边市场储备、九页导航、商店、整数经济基线、权威倒计时、一级卡片外层内边距、外壳与滚动条归属、单一职责专题、文档整理规则和旧文件禁令均满足当前基线。');
