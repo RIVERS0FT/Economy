@@ -19,7 +19,7 @@ export const ECONOMY_CONSTANTS = Object.freeze({
 export const DEMAND_GROUP_CATALOG = Object.freeze([
   {
     id: 'food', name: '饮食需求', ownerName: '饮食需求',
-    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 1_000,
+    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 3_000,
     products: [
       { productId: 'wheat', preferenceWeight: 1 },
       { productId: 'rice', preferenceWeight: 1 },
@@ -32,7 +32,7 @@ export const DEMAND_GROUP_CATALOG = Object.freeze([
   },
   {
     id: 'household', name: '家庭用品需求', ownerName: '家庭用品需求',
-    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 900,
+    cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 2_700,
     products: [
       { productId: 'timber', preferenceWeight: 1 },
       { productId: 'cotton', preferenceWeight: 1 },
