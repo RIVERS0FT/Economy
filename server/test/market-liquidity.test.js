@@ -206,6 +206,30 @@ test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   )));
 });
 
+test('model 3 migrates directly to model 5 with one-time reserve seeding', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 777;
+  player.inventories.wheat.available = 9;
+  world.marketDemand.modelVersion = 3;
+  delete world.marketDemand.liquidity;
+  world.orders.push({
+    id: 'model-3-market-order', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+    side: 'buy', ownerType: 'population', ownerName: '食品市场需求', demandGroupId: 'food',
+    demandTier: 'direct', demandCycleId: 1, price: 2, quantity: 2, remaining: 2,
+    status: 'open', createdAt: now,
+  });
+
+  migrateWorld(world, now + 1);
+
+  assert.equal(world.marketDemand.modelVersion, 5);
+  assert.equal(world.players[String(alice.id)].credits, 777);
+  assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
+  assert.equal(world.orders.some((order) => order.id === 'model-3-market-order'), false);
+  assert.equal(world.marketDemand.liquidity.groups.food.initialCredits, 3_000);
+  assert.ok(world.marketDemand.liquidity.groups.food.reserves.wheat.inventory > 0);
+});
+
 test('model 4 migrates to model 5 and releases obsolete liquidity reservations', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
