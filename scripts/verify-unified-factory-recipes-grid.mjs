@@ -109,18 +109,27 @@ for (const text of [
 const surfaceCss = read('src/styles/production-surface.css');
 for (const text of [
   '.panel.production-surface',
-  '--production-surface-inset: var(--space-4);',
   '--production-pill-visible-height: 1.6rem;',
-  'padding: var(--production-surface-inset);',
   '.panel.production-surface .facility-card-title-row',
   'min-height: var(--production-pill-visible-height);',
   '.panel.production-surface .facility-card-title-row > .ui-switch {',
   'height: var(--production-pill-visible-height);',
   '.panel.production-surface .facility-card-title-row > .ui-switch::before',
   'inset: 0;',
-  '@media (max-width: 720px)',
-  '--production-surface-inset: var(--space-3);',
+  'Primary surface padding is owned by primary-surfaces.css.',
 ]) assert.equal(surfaceCss.includes(text), true, `生产一级表面样式缺少: ${text}`);
+for (const forbidden of ['--production-surface-inset', 'padding: var(--production-surface-inset);']) {
+  assert.equal(surfaceCss.includes(forbidden), false, `生产一级表面样式不应包含: ${forbidden}`);
+}
+
+const primarySurfaceCss = read('src/styles/primary-surfaces.css');
+for (const text of [
+  '--primary-surface-inset: var(--space-4);',
+  '.panel.ui-primary-surface {',
+  'padding: var(--primary-surface-inset);',
+  '@media (max-width: 720px)',
+  '--primary-surface-inset: var(--space-3);',
+]) assert.equal(primarySurfaceCss.includes(text), true, `共享一级表面样式缺少: ${text}`);
 
 const warehouse = read('src/components/warehouse/WarehouseUpgradeCard.tsx');
 assert.equal(warehouse.includes('production-surface warehouse-upgrade-card'), true, '共享仓库必须使用 production-surface');
@@ -130,9 +139,10 @@ for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式只展示集群参数', '停止或异常使用 `nextCycleCount`']],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['建设卡不显示生产周期、单座产量和单座成本', '公式只展示集群输入、输出、周期和成本', '当前周期只使用 `participatingCount`']],
   ['docs/UI_DESIGN_SYSTEM.md', ['生产公式是集群运行能力展示', '停止或异常使用 `nextCycleCount`', '不得使用 `group.count` 作为公式乘数']],
+  ['docs/PRIMARY_SURFACE_INSET_DESIGN.md', ['生产页 `.panel.production-surface` 的独立桌面／移动 padding', '`src/styles/primary-surfaces.css` 是玩家端一级卡片外层内边距的唯一 CSS 权威']],
 ]) {
   const content = read(path);
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('通用工厂配方、建设卡精简、集群规模公式、三行标题结构和底部市场入口验证通过。');
+console.log('通用工厂配方、建设卡精简、集群规模公式、三行标题结构、底部市场入口和共享一级表面内边距验证通过。');
