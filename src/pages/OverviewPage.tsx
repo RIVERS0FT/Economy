@@ -77,7 +77,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
     setTab,
     selectMarketAsset,
   } = model;
-  const now = useNow();
+  const now = useNow(game.lastProcessedAt);
   const workRemaining = Math.max(0, game.work.cooldownUntil - now);
   const pendingRecipeChanges = game.facilityGroups.filter((group) => Boolean(group.pendingRecipeId)).length;
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);

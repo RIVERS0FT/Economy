@@ -80,7 +80,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     showResult,
   } = model;
 
-  const now = useNow();
+  const now = useNow(game.lastProcessedAt);
   const selectedType = useMemo(
     () => game.facilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? game.facilityTypes[0],
     [game.facilityTypes, selectedFacilityTypeId],

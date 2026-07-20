@@ -60,6 +60,15 @@ if (/setInterval\s*\([^)]*1_?000/.test(viewModel) || /\bsetNow\b/.test(viewModel
 }
 if (/\bworkRemaining\b/.test(viewModel)) fail('workRemaining 必须由局部页面计算');
 
+for (const [path, pattern] of [
+  ['src/pages/OverviewPage.tsx', /useNow\(game\.lastProcessedAt\)/],
+  ['src/pages/ProductionPage.tsx', /useNow\(game\.lastProcessedAt\)/],
+  ['src/pages/AuctionPage.tsx', /useNow\(model\.game\.lastProcessedAt\)/],
+  ['src/pages/MarketPage.tsx', /const now = game\.lastProcessedAt/],
+]) {
+  if (!pattern.test(read(path))) fail(`${path} 必须以权威 lastProcessedAt 作为局部时间基准`);
+}
+
 const virtualList = read('src/components/ui/VirtualList.tsx');
 if (!/requestAnimationFrame\s*\(/.test(virtualList)) fail('VirtualList 必须使用 requestAnimationFrame 合并滚动更新');
 if (!/findVisibleRange\s*\(/.test(virtualList)) fail('VirtualList 必须调用二分可视区间函数');

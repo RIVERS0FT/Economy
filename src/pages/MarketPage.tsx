@@ -59,7 +59,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     cancelOrder,
     showResult,
   } = model;
-  const now = Date.now();
+  const now = game.lastProcessedAt;
   const assetDirectoryRef = useRef<HTMLDivElement>(null);
   const [priceDraft, setPriceDraft] = useState(String(orderPrice));
   const [quantityDraft, setQuantityDraft] = useState(String(orderQuantity));

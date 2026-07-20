@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 
-export function useNow(intervalMs = 1_000) {
-  const [now, setNow] = useState(Date.now);
+export function useNow(referenceNow = Date.now(), intervalMs = 1_000) {
+  const [now, setNow] = useState(referenceNow);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), intervalMs);
+    const receivedAt = Date.now();
+    const update = () => setNow(referenceNow + Math.max(0, Date.now() - receivedAt));
+    update();
+    const timer = window.setInterval(update, intervalMs);
     return () => window.clearInterval(timer);
-  }, [intervalMs]);
+  }, [intervalMs, referenceNow]);
 
   return now;
 }

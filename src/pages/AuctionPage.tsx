@@ -116,7 +116,7 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
 }
 
 export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
-  const now = useNow();
+  const now = useNow(model.game.lastProcessedAt);
   const { collectibles, assetAuctions } = getCollectibleState(model.game);
   const openAuctions = assetAuctions.filter((auction) => auction.status === 'open');
   const closedAuctions = assetAuctions.filter((auction) => auction.status !== 'open').slice(0, 12);
