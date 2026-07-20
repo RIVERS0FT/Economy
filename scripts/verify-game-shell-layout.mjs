@@ -102,8 +102,8 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '--desktop-shell-outer-inset',
   '固定到视口安全边缘',
   'right: env(safe-area-inset-right, 0px)',
-  '--radius-card-mobile',
-  '`40px`',
+  'iOS 工具栏式清透厚玻璃',
+  '两者使用同一 `40px` 胶囊圆角',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
   '统一覆盖式滚动条',
@@ -128,4 +128,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏外壳桌面导航、移动双层 Overlay、玻璃共线、40px 底栏圆角、视口安全边缘滚动条与纵向滚动链验证通过。');
+console.log('游戏外壳桌面导航、移动双层 Overlay、玻璃共线、统一 40px 清透厚玻璃胶囊、视口安全边缘滚动条与纵向滚动链验证通过。');

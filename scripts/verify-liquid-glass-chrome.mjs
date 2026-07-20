@@ -66,43 +66,61 @@ if (failures.length === 0) {
 
   for (const text of [
     "export type LiquidGlassSurfaceVariant = 'statusBar' | 'mobileNavigation'",
-    'displacementScale: 38',
-    'blurAmount: 0.14',
-    'aberrationIntensity: 1.15',
-    "mode: 'prominent'",
-    'displacementScale: 20',
-    "mode: 'standard'",
-    'cornerRadius: 24',
+    'const IOS_CLEAR_THICK_GLASS = {',
+    'displacementScale: 32',
+    'blurAmount: 0.1',
+    'saturation: 125',
+    'aberrationIntensity: 0.3',
     'cornerRadius: 40',
+    "mode: 'standard'",
+    'statusBar: IOS_CLEAR_THICK_GLASS',
+    'mobileNavigation: IOS_CLEAR_THICK_GLASS',
     'elasticity={0}',
     'globalMousePos={STATIC_MOUSE_POSITION}',
     'mouseOffset={STATIC_MOUSE_OFFSET}',
   ]) requireText(files.surface, text);
-  for (const text of ['mode="shader"', 'cornerRadius: 20']) forbidText(files.surface, text);
-  if ((read(files.surface).match(/cornerRadius:\s*24/g) ?? []).length !== 1
-    || (read(files.surface).match(/cornerRadius:\s*40/g) ?? []).length !== 1) {
-    failures.push('状态栏必须使用 24px，移动底栏必须使用 40px cornerRadius');
+  for (const text of [
+    "mode: 'prominent'",
+    'displacementScale: 38',
+    'displacementScale: 20',
+    'blurAmount: 0.14',
+    'blurAmount: 0.5',
+    'aberrationIntensity: 1.15',
+    'aberrationIntensity: 0.5',
+    'mode="shader"',
+    'cornerRadius: 20',
+    'cornerRadius: 24',
+  ]) forbidText(files.surface, text);
+  if ((read(files.surface).match(/cornerRadius:\s*40/g) ?? []).length !== 1) {
+    failures.push('状态栏和移动底栏必须共享唯一 40px 胶囊 cornerRadius 预设');
   }
 
   for (const text of [
+    '--liquid-glass-contrast: rgba(194, 231, 214, 0.06);',
+    '--liquid-glass-structure-border: rgba(232, 255, 244, 0.3);',
     '.liquid-glass-surface {',
     'overflow: hidden;',
-    '.liquid-glass-surface--statusBar .glass__warp {',
-    '-webkit-backdrop-filter: blur(8.48px) saturate(145%);',
+    '.liquid-glass-surface--statusBar .glass__warp,',
     '.liquid-glass-surface--mobileNavigation .glass__warp {',
-    '-webkit-backdrop-filter: blur(20px) saturate(145%);',
-    '.liquid-glass-surface--statusBar {',
-    'border: 1px solid rgba(212, 245, 224, 0.12);',
-    'background: transparent;',
-    '.liquid-glass-surface--statusBar > span:first-of-type',
+    '-webkit-backdrop-filter: blur(7.2px) saturate(125%);',
+    '.asset-bar .liquid-glass-surface,',
+    '.mobile-bottom-navigation .liquid-glass-surface__effect > .glass {',
+    'border-radius: 40px !important;',
+    '.liquid-glass-surface--statusBar,',
+    '.liquid-glass-surface--mobileNavigation {',
+    'border: 1px solid var(--liquid-glass-structure-border);',
+    'background: var(--liquid-glass-contrast);',
+    '.liquid-glass-surface--statusBar > span:first-of-type,',
+    '.liquid-glass-surface--mobileNavigation > span:first-of-type {',
+    'opacity: 0.22 !important;',
     'mix-blend-mode: screen !important;',
-    '.mobile-bottom-navigation .liquid-glass-surface__effect > .glass',
-    'border-radius: var(--radius-card) !important;',
-    'border-radius: var(--radius-card-mobile) !important;',
     'width: max(100%, 675px);',
     'padding: .25rem .8rem;',
   ]) requireText(files.styles, text);
   for (const text of [
+    '-webkit-backdrop-filter: blur(8.48px) saturate(145%);',
+    '-webkit-backdrop-filter: blur(20px) saturate(145%);',
+    'border-radius: 999px !important;',
     'border-radius: 20px !important;',
     '.workspace::before',
     'contain: paint;',
@@ -201,9 +219,17 @@ if (failures.length === 0) {
 
   for (const text of [
     '`liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现',
+    'iOS 工具栏式清透厚玻璃',
+    '`IOS_CLEAR_THICK_GLASS`',
+    '`displacementScale: 32`',
+    '`blurAmount: 0.1`',
+    '`saturation: 125`',
+    '`aberrationIntensity: 0.3`',
+    '`mode="standard"`',
     '`cornerRadius: 40`',
+    '状态栏与移动底栏不得维护两套材质参数',
+    '`blur(7.2px) saturate(125%)`',
     '状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线',
-    '移动底栏玻璃圆角与移动一级卡片 `--radius-card-mobile` 一致',
     '不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
     '固定到视口安全边缘',
     'right: env(safe-area-inset-right, 0px)',
@@ -215,16 +241,17 @@ if (failures.length === 0) {
     '浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式',
   ]) requireText(files.design, text);
   for (const text of [
-    'mobile chrome shares the workspace gutter and fixed glass heights',
+    'desktop status bar uses the shared clear thick glass capsule and shell inset',
+    'mobile status and navigation share one clear thick glass material and capsule radius',
+    "toHaveAttribute('data-liquid-glass-mode', 'standard')",
+    'statusRadius',
     'navigationRadius',
-    'statusContain',
-    'navigationContain',
-    'workspaceIsolation',
-    'chromeOverlayZIndex',
-    "expect(geometry.statusContain).toBe('none')",
-    "expect(geometry.workspaceIsolation).toBe('auto')",
+    'statusBackdropFilter',
+    'navigationBackdropFilter',
+    'expect(geometry.statusBackdropFilter).toBe(geometry.navigationBackdropFilter)',
+    "expect(geometry.statusRadius).toBe('40px')",
+    "expect(geometry.navigationRadius).toBe('40px')",
     "toBe('24px')",
-    "toBe('40px')",
   ]) requireText(files.browser, text);
   for (const text of [
     'mobile page scrollbar reaches the safe right edge without changing content width',
@@ -238,4 +265,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 外壳、移动开放背景采样链、WebKit 兼容别名、40px 底栏圆角与固定安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 外壳、统一 iOS 清透厚玻璃胶囊、移动开放背景采样链与固定安全边缘滚动条验证通过。');

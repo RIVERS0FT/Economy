@@ -12,23 +12,18 @@ interface LiquidGlassSurfaceProps {
 const STATIC_MOUSE_POSITION = { x: 0, y: 0 };
 const STATIC_MOUSE_OFFSET = { x: 0, y: 0 };
 
+const IOS_CLEAR_THICK_GLASS = {
+  displacementScale: 32,
+  blurAmount: 0.1,
+  saturation: 125,
+  aberrationIntensity: 0.3,
+  cornerRadius: 40,
+  mode: 'standard',
+} as const;
+
 const PRESETS = {
-  statusBar: {
-    displacementScale: 38,
-    blurAmount: 0.14,
-    saturation: 145,
-    aberrationIntensity: 1.15,
-    cornerRadius: 24,
-    mode: 'prominent',
-  },
-  mobileNavigation: {
-    displacementScale: 20,
-    blurAmount: 0.5,
-    saturation: 145,
-    aberrationIntensity: 0.5,
-    cornerRadius: 40,
-    mode: 'standard',
-  },
+  statusBar: IOS_CLEAR_THICK_GLASS,
+  mobileNavigation: IOS_CLEAR_THICK_GLASS,
 } as const;
 
 export function LiquidGlassSurface({ variant, children, className = '' }: LiquidGlassSurfaceProps) {

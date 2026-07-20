@@ -5,8 +5,9 @@
 :root {
   --desktop-asset-bar-height: 76px;
   --desktop-status-gap: var(--space-3);
-  --liquid-glass-contrast: rgba(9, 25, 18, 0.18);
+  --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
   --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
+  --liquid-glass-structure-border: rgba(232, 255, 244, 0.3);
 }
 
 .asset-bar,
@@ -84,44 +85,40 @@
 }
 
 /* liquid-glass-react emits the authoritative unprefixed backdrop-filter inline.
- * These matching WebKit aliases only restore that same preset on Safari and
- * older Android WebView builds; they are not a second material implementation. */
-.liquid-glass-surface--statusBar .glass__warp {
-  -webkit-backdrop-filter: blur(8.48px) saturate(145%);
-}
-
+ * This shared WebKit alias restores the same iOS-style clear thick-glass preset
+ * on Safari and older Android WebView builds; it is not a second material. */
+.liquid-glass-surface--statusBar .glass__warp,
 .liquid-glass-surface--mobileNavigation .glass__warp {
-  -webkit-backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(7.2px) saturate(125%);
 }
 
 .asset-bar .liquid-glass-surface,
 .asset-bar .liquid-glass-surface > *,
-.asset-bar .liquid-glass-surface__effect > .glass {
-  border-radius: var(--radius-card) !important;
-}
-
-/* The upstream component emits two decorative border/highlight siblings. The
- * status bar keeps only the first low-intensity screen highlight and uses one
- * deterministic structural border on the host. */
-.liquid-glass-surface--statusBar {
-  box-sizing: border-box;
-  border: 1px solid rgba(212, 245, 224, 0.12);
-  background: transparent;
-}
-
-.liquid-glass-surface--statusBar > span {
-  opacity: 0 !important;
-}
-
-.liquid-glass-surface--statusBar > span:first-of-type {
-  opacity: 0.18 !important;
-  mix-blend-mode: screen !important;
-}
-
+.asset-bar .liquid-glass-surface__effect > .glass,
 .mobile-bottom-navigation .liquid-glass-surface,
 .mobile-bottom-navigation .liquid-glass-surface > *,
 .mobile-bottom-navigation .liquid-glass-surface__effect > .glass {
-  border-radius: var(--radius-card-mobile) !important;
+  border-radius: 40px !important;
+}
+
+/* Status and navigation are one material: a clear center, a low-density tint,
+ * one structural outline and one upstream screen highlight around the capsule. */
+.liquid-glass-surface--statusBar,
+.liquid-glass-surface--mobileNavigation {
+  box-sizing: border-box;
+  border: 1px solid var(--liquid-glass-structure-border);
+  background: var(--liquid-glass-contrast);
+}
+
+.liquid-glass-surface--statusBar > span,
+.liquid-glass-surface--mobileNavigation > span {
+  opacity: 0 !important;
+}
+
+.liquid-glass-surface--statusBar > span:first-of-type,
+.liquid-glass-surface--mobileNavigation > span:first-of-type {
+  opacity: 0.22 !important;
+  mix-blend-mode: screen !important;
 }
 
 .asset-bar .liquid-glass-surface {
@@ -213,7 +210,8 @@
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .liquid-glass-surface,
-  .liquid-glass-surface--statusBar {
+  .liquid-glass-surface--statusBar,
+  .liquid-glass-surface--mobileNavigation {
     background: var(--liquid-glass-contrast-strong);
   }
 }
@@ -235,7 +233,6 @@
   .asset-bar .liquid-glass-surface__effect > .glass {
     width: 100%;
     min-width: 0;
-    border-radius: 999px !important;
   }
 
   .asset-bar-content {
