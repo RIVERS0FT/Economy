@@ -1,0 +1,85 @@
+name: Apply triple market demand base budgets
+
+on:
+  push:
+    branches:
+      - agent/triple-market-demand-base-budget
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/triple-market-demand-base-budget
+          fetch-depth: 0
+
+      - name: Apply budget baseline updates
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'README.md': [
+                  ('食品市场基础预算为 1,000／5 分钟，家庭消费市场基础预算为 900／5 分钟',
+                   '食品市场基础预算为 3,000／5 分钟，家庭消费市场基础预算为 2,700／5 分钟'),
+              ],
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': [
+                  ('基础预算 1,000；', '基础预算 3,000；'),
+                  ('基础预算 900。', '基础预算 2,700。'),
+                  ('食品市场 1,000 或家庭消费市场 900 的基础预算',
+                   '食品市场 3,000 或家庭消费市场 2,700 的基础预算'),
+              ],
+              'server/src/market-demand/catalog.js': [
+                  ('baseBudget: 1_000,', 'baseBudget: 3_000,'),
+                  ('baseBudget: 900,', 'baseBudget: 2_700,'),
+              ],
+              'server/src/domain-core.js': [
+                  ('cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 1_000,',
+                   'cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 3_000,'),
+                  ('cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 900,',
+                   'cycleMs: ECONOMY_CONSTANTS.demandCycleMs, baseBudget: 2_700,'),
+              ],
+              'scripts/verify-staple-crops-demand.mjs': [
+                  ('assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.baseBudget), [1_000, 900]);',
+                   'assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.baseBudget), [3_000, 2_700]);'),
+              ],
+              'scripts/verify-document-authority.mjs': [
+                  ("'食品市场基础预算为 1,000／5 分钟',", "'食品市场基础预算为 3,000／5 分钟',"),
+                  ("'家庭消费市场基础预算为 900／5 分钟',", "'家庭消费市场基础预算为 2,700／5 分钟',"),
+              ],
+              'server/test/domain.test.js': [
+                  ('[1_000, 1_500, 2_000, 3_000, 6_000]', '[3_000, 4_500, 6_000, 9_000, 18_000]'),
+                  ('[900, 1_350, 1_800, 2_700, 5_400]', '[2_700, 4_050, 5_400, 8_100, 16_200]'),
+                  ('assert.equal(foodBudgetFor(144).food, 6_000);', 'assert.equal(foodBudgetFor(144).food, 18_000);'),
+                  ('assert.equal(world.demandGroups.food.lastBudget, 1_000);', 'assert.equal(world.demandGroups.food.lastBudget, 3_000);'),
+              ],
+          }
+
+          for filename, pairs in replacements.items():
+              path = Path(filename)
+              text = path.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  count = text.count(old)
+                  if count == 0:
+                      raise SystemExit(f'{filename}: missing expected text: {old}')
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/triple-market-budget-patch.yml')
+          workflow.unlink()
+          PY
+
+      - name: Commit patched files
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add README.md docs/PRODUCT_AND_GAMEPLAY_DESIGN.md server/src/market-demand/catalog.js server/src/domain-core.js scripts/verify-staple-crops-demand.mjs scripts/verify-document-authority.mjs server/test/domain.test.js .github/workflows/triple-market-budget-patch.yml
+          git commit -m "Triple market demand base budgets"
+          git push origin HEAD:agent/triple-market-demand-base-budget
