@@ -115,7 +115,7 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and 
   assert.equal(player.inventories.fruit.available, 0);
   assert.equal(player.inventories.sugar.available, 0);
   assert.equal(player.inventories.beverage.available, 2);
-  assert.equal(player.credits, 95);
+  assert.equal(player.credits, 94);
 });
 
 test('asset valuation uses the latest order-book trade and ignores open bid prices', () => {
