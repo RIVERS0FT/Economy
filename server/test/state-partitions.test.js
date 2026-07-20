@@ -80,21 +80,20 @@ test('a global revision change unrelated to the viewer can return no patches', (
   assert.equal(later.revision, 11);
 });
 
-test('action delivery keeps the result and returns only changed partitions', () => {
-  const initial = createPartitionedStateDelivery({
-    revision: 20,
-    unchanged: false,
-    state: sampleState(),
-  });
+test('action delivery keeps only result status, message, and committed revision', () => {
   const action = createPartitionedActionDelivery({
+    result: { ok: true, message: '工作完成', creditsReceived: 10 },
+    revision: 21,
+    unchanged: false,
+    partitionRevisions: { player: 'player-00001' },
+    patches: { player: { credits: 101 } },
+    state: sampleState({ credits: 101 }),
+  });
+
+  assert.deepEqual(action, {
     result: { ok: true, message: '工作完成' },
     revision: 21,
-    state: sampleState({ credits: 101 }),
-  }, initial.partitionRevisions);
-
-  assert.deepEqual(action.result, { ok: true, message: '工作完成' });
-  assert.deepEqual(Object.keys(action.patches), ['player']);
-  assert.equal(action.patches.player.credits, 101);
+  });
 });
 
 test('partition revisions accept only bounded safe tokens', () => {
