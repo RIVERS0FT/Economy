@@ -26,10 +26,10 @@
 | `src/styles/game-shell-layout.css` | 桌面双列轨道、状态栏统一外距、页面避让和工作区几何 |
 | `src/styles/desktop-sidebar.css` | 侧栏展开／折叠宽度、内部布局、导航固有行高和过渡 |
 | `src/styles/viewport.css` | 固定视口、移动工作区统一 gutter、两层 Overlay、滚动层和安全区 |
-| `src/styles/mobile-status-navigation.css` | 移动工作区令牌、外壳尺寸和页面滚动条边缘逃逸量 |
-| `src/styles/scrollbars.css` | 状态栏、移动底栏和页面覆盖式滚动条视觉；不得决定外层宿主高度或页面宽度 |
+| `src/styles/mobile-status-navigation.css` | 移动工作区、外壳尺寸和导航内部布局令牌 |
+| `src/styles/scrollbars.css` | 状态栏、移动底栏和页面覆盖式滚动条视觉；移动页面纵向轨道固定到视口安全边缘，不决定页面宽度 |
 | `scripts/verify-liquid-glass-chrome.mjs` | 依赖、适配层、布局与防回退检查 |
-| `scripts/verify-game-shell-layout.mjs` | 桌面双列、侧栏导航、移动 Overlay、贴边滚动条和滚动链检查 |
+| `scripts/verify-game-shell-layout.mjs` | 桌面双列、侧栏导航、移动 Overlay、视口安全边缘滚动条和滚动链检查 |
 | `tests/browser/liquid-glass-layout.spec.ts` | 真实浏览器中的全宽、裁切、折射层、单高光、移动 Overlay 与页面避让验证 |
 | `tests/browser/game-shell-layout.spec.ts` | 桌面工作区、侧栏折叠、导航固有行高和页面滚动条验证 |
 | `tests/browser/mobile-workspace-overlay.spec.ts` | 移动共线、固定高度、圆角和安全区贴边轨道验证 |
@@ -127,11 +127,11 @@
 
 移动 `.workspace` 是唯一水平几何边界，左右 `padding-inline` 使用 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left/right))`。该 gutter 与移动一级卡片 gap 都为 `12px`。状态栏、页面和底栏填满工作区内容框，不得分别设置水平 inset；`.page-scroll` 的左右 padding 必须为 `0`。
 
-- `--mobile-workspace-inline-end` 等于 `max(var(--mobile-workspace-gutter), env(safe-area-inset-right))`。
-- `--mobile-scrollbar-edge-escape` 等于 `--mobile-workspace-inline-end - env(safe-area-inset-right)`，只允许页面纵向覆盖式轨道越过普通 gutter，不得越过安全区。
 - `.mobile-page-overlay` 使用 `z-index: 1`，`.mobile-chrome-overlay` 使用 `z-index: 10`；两者边界必须等于 `.workspace` 内容框。
-- `.mobile-page-overlay` 与 `.page-scroll-area` 允许轨道可见溢出，最终由 `.workspace` 裁切，不得产生页面水平滚动。
-- `.page-scroll-area > .ui-scrollbar--vertical` 保持 `right: 0`，通过 `translateX(var(--mobile-scrollbar-edge-escape))` 进入右侧 gutter；滑块右边缘距屏幕或安全区内缘 `2px`。不得改成 `position: fixed`、负 `right` 或通过扩大页面／卡片宽度实现贴边。
+- `.mobile-page-overlay` 与 `.page-scroll-area` 允许覆盖式轨道可见溢出，但不得产生页面水平滚动，也不得扩大 `.page-scroll`、`.page-content` 或卡片宽度。
+- 移动页面纵向覆盖式轨道固定到视口安全边缘：`.page-scroll-area > .ui-scrollbar--vertical` 使用 `position: fixed`，顶部和底部使用 `var(--scrollbar-edge-offset)`，右侧使用 `right: env(safe-area-inset-right, 0px)`，轨道内滑块再右对齐并保留 `2px` 边缘偏移。
+- 固定的只是覆盖式轨道，页面 viewport、滚动容器和一级卡片仍由 `.workspace` 内容框控制；滚动条显隐前后页面 `clientWidth` 和卡片宽度必须不变。
+- 不得恢复 `--mobile-workspace-inline-end`、`--mobile-scrollbar-edge-escape`、`right: 0 + translateX(...)`、负 `right` 或扩大页面宽度的逃逸实现。真实浏览器测试必须验证无右侧安全区时滑块右边缘距视口右边约 `2px`，存在安全区时距安全区内缘约 `2px`。
 - 页面滚动时内容允许进入玻璃状态栏和底栏后方，但初始标题与最后一项操作必须通过上下 padding 完整避让外壳。
 
 移动端必须比较实际 `.liquid-glass-surface`，而不只比较外层宿主：状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线。`.asset-bar` 移动端不得使用水平 padding 缩窄玻璃；状态项内部留白放在 `.asset-bar-content`。
@@ -179,7 +179,7 @@
 - `elasticity={0}` 保证外壳几何稳定；内部按钮保留键盘焦点和点击反馈。
 - 页面内容从状态栏下方开始，最后一项可滚动到导航上方；滚动时内容允许进入玻璃后方。
 - 玻璃生成的装饰 SVG 和覆盖层不得阻止内部按钮事件。
-- 覆盖式滚动条的显隐、输入优先级、滚动链、移动贴边和订单成交表规则遵循 `docs/UI_DESIGN_SYSTEM.md` 的“统一覆盖式滚动条”章节。
+- 覆盖式滚动条的显隐、输入优先级、滚动链、移动视口安全边缘和订单成交表规则遵循 `docs/UI_DESIGN_SYSTEM.md` 的“统一覆盖式滚动条”章节。
 
 ## 9. 验收标准
 
@@ -204,7 +204,7 @@
 17. Chrome Overlay 透明区域不阻断页面滚动，状态栏和导航仍可操作。
 18. 移动顶部四项完整显示且不可横向滚动。
 19. 移动底栏可横向滚动，按钮固定 `48px × 48px`。
-20. 实际纵向滚动时，移动页面滑块右边缘距屏幕或安全区内缘约 `2px`，显隐前后卡片宽度不变。
+20. 实际纵向滚动时，移动页面轨道固定到视口安全边缘，滑块右边缘距屏幕或安全区内缘约 `2px`，显隐前后卡片宽度不变。
 21. `npm run build` 与浏览器测试通过。
 
 ## 10. 不可回退规则
@@ -231,7 +231,7 @@
 - 让桌面侧栏导航自动行拉伸、平均分布到整列高度，或绕过共享纵向 `ScrollArea`；
 - 给移动页面、状态栏或底栏恢复独立水平 inset；
 - 把移动底栏移回工作区外或恢复 `position: fixed`；
-- 把移动页面纵向覆盖式轨道改为 `position: fixed`、负 `right`，限制在卡片边缘，越过安全区，或通过扩大 viewport／卡片宽度实现贴边；
+- 把移动页面纵向覆盖式轨道重新限制在卡片边缘，恢复 `--mobile-scrollbar-edge-escape`／`translateX(...)` 逃逸实现，越过安全区，或通过扩大 viewport／卡片宽度实现贴边；
 - 在 `scrollbars.css` 中给 `.asset-bar-scroll-area` 恢复 `height: 100%`；
 - 为隐藏滚动条把 `.page-scroll` 改成 `overflow-y: hidden`，恢复 `scrollbar-gutter: stable`，或使用 `overscroll-behavior: contain` 阻断纵向滚动链；
 - 破坏桌面状态栏统一外距、移动安全区、工作区 gutter、四项等距布局、`48px` 状态栏、`68px` 底栏、`40px` 底栏圆角或 `48px × 48px` 导航按钮；
