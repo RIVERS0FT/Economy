@@ -33,7 +33,7 @@ export interface RankedLeaderboardsState {
     partial: boolean;
     rewardEnabled: boolean;
     rewards: number[];
-    timeZone: 'Asia/Taipei';
+    timeZone: 'Asia/Shanghai';
   };
   boards: Record<LeaderboardBoardId, RankedLeaderboardBoard>;
 }
