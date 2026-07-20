@@ -17,6 +17,12 @@ import {
   loadRegistrationSecret,
   requestIpAddress,
 } from './registration.js';
+import {
+  createPartitionedActionDelivery,
+  createPartitionedStateDelivery,
+  readKnownPartitionRevisionsFromHeader,
+  readKnownPartitionRevisionsFromSearch,
+} from './state-partitions.js';
 import { EconomyStore } from './storage.js';
 import { cleanupEmailVerificationRecords } from './verification-retention.js';
 
@@ -347,7 +353,11 @@ const server = createServer(async (request, response) => {
       const knownRevision = revisionValue !== null && /^\d+$/.test(revisionValue)
         ? Number(revisionValue)
         : undefined;
-      sendJson(response, 200, store.getStateSnapshot(user, knownRevision));
+      const knownPartitions = readKnownPartitionRevisionsFromSearch(url.searchParams);
+      sendJson(response, 200, createPartitionedStateDelivery(
+        store.getStateSnapshot(user, knownRevision),
+        knownPartitions,
+      ));
       return;
     }
 
@@ -384,7 +394,10 @@ const server = createServer(async (request, response) => {
       method,
       path,
     });
-    sendJson(response, 200, actionResponse);
+    const knownPartitions = readKnownPartitionRevisionsFromHeader(
+      request.headers['x-economy-state-revisions'],
+    );
+    sendJson(response, 200, createPartitionedActionDelivery(actionResponse, knownPartitions));
   } catch (error) {
     const statusCode = Number(error?.statusCode) || 500;
     if (error?.retryAfterSeconds) response.setHeader('Retry-After', String(error.retryAfterSeconds));
