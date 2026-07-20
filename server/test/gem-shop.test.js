@@ -68,6 +68,39 @@ test('gem shop idempotency prevents duplicate deduction and issuance', () => {
   }
 });
 
+test('legacy full idempotency responses are projected to slim acknowledgements', () => {
+  const { store, now } = setup();
+  try {
+    store.insertIdempotency.run(
+      Number(user.id),
+      'legacy-full-action-0001',
+      'POST',
+      '/api/game/gem-shop/exchange',
+      JSON.stringify({
+        result: { ok: true, message: '旧响应', gemsSpent: 2, creditsReceived: 20 },
+        revision: 9,
+        state: { version: 15, userId: 1, credits: 120 },
+      }),
+      now,
+    );
+
+    const response = store.apply(user, {
+      action: 'exchangeGems',
+      payload: { gems: 2 },
+      requestKey: 'legacy-full-action-0001',
+      method: 'POST',
+      path: '/api/game/gem-shop/exchange',
+    }, now + 1);
+
+    assert.deepEqual(response, {
+      result: { ok: true, message: '旧响应' },
+      revision: 9,
+    });
+  } finally {
+    store.close();
+  }
+});
+
 test('gem shop rejects invalid quantities and insufficient balance without mutation', () => {
   const { store, now } = setup();
   try {
