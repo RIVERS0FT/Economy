@@ -4,7 +4,7 @@
 > 适用项目：`RIVERS0FT/Economy`  
 > 更新时间：2026-07-20
 
-本文件定义应用外壳唯一液态玻璃实现、桌面与移动工作区几何、浏览器运行时样式入口、性能约束和防回退规则。通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
+本文件定义应用外壳唯一液态玻璃实现、桌面与移动工作区几何、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
 ## 1. 唯一材质来源
 
@@ -21,19 +21,19 @@
 | 文件 | 唯一职责 |
 |---|---|
 | `LiquidGlassSurface.tsx` | 第三方库适配、共享清透厚玻璃参数、静态鼠标输入和统一 DOM |
-| `liquid-glass-surfaces.css` | 玻璃宿主、第三方 DOM 尺寸、开放背景采样链、胶囊裁切、透明染色、高光、结构描边和 WebKit 兼容别名 |
+| `liquid-glass-surfaces.css` | 玻璃宿主、第三方 DOM 尺寸、开放背景采样链、胶囊裁切、透明染色、高光、结构描边、底栏唯一垂直留白和 WebKit 兼容别名 |
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口 |
 | `game-shell-layout.css` | 桌面双列轨道、状态栏外距、页面避让和工作区几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
 | `viewport.css` | 固定视口、移动工作区 gutter、两层 Overlay、安全区和移动背景采样层级 |
-| `scrollbars.css` | 全局覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘 |
-| `mobile-status-navigation.css` | 移动导航布局、原生滚动能力和移动底栏可见轨道隐藏规则 |
-| `verify-liquid-glass-chrome.mjs` | 依赖、共享预设、兼容入口、背景采样链、布局和防回退检查 |
+| `scrollbars.css` | 通用覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘，不负责移动底栏 |
+| `mobile-status-navigation.css` | 移动导航唯一原生横向滚动视口、原生轨道隐藏、按钮几何和内部焦点环 |
+| `verify-liquid-glass-chrome.mjs` | 依赖、共享预设、兼容入口、背景采样链、移动导航结构和防回退检查 |
 | `verify-game-shell-layout.mjs` | 桌面双列、导航行高、移动 Overlay、滚动条和滚动链检查 |
-| `verify-overlay-scrollbars.mjs` | 覆盖式滚动条、移动底栏隐藏轨道和滚动能力检查 |
+| `verify-overlay-scrollbars.mjs` | 覆盖式滚动条、移动底栏原生滚动视口和滚动能力检查 |
 | `liquid-glass-layout.spec.ts` | 真实浏览器共享材质、背景采样链、胶囊圆角、共线和页面避让验证 |
 | `mobile-workspace-overlay.spec.ts` | 移动安全边缘轨道和内容宽度验证 |
-| `mobile-navigation-scrollbar.spec.ts` | 移动底栏隐藏可见轨道且仍可横向滚动的验证 |
+| `mobile-navigation-scrollbar.spec.ts` | 移动底栏单一原生滚动视口、隐藏轨道、完整按钮边界和末项可达性验证 |
 
 生产几何样式顺序固定为 `viewport.css` → `scrollbars.css` → `game-shell-layout.css`。浏览器兼容入口在 harness 已加载 `viewport.css` 后，固定转发 `performance.css` → `scrollbars.css` → `game-shell-layout.css` → `liquid-glass-surfaces.css`。
 
@@ -125,14 +125,20 @@
 - 状态栏和移动底栏的 React `cornerRadius`、CSS 裁切和第三方折射层必须都来自共享的 `40px` 规则；
 - 所有第三方装饰层必须受宿主圆角裁切，不得在右侧或底部溢出。
 
-## 8. 状态项、数字和导航
+## 8. 状态项、数字和移动导航结构
 
 - 标签使用次级文字色，主数值使用主文字色，说明使用弱化文字色；
 - 排名统一通过 `formatRank` 显示为 `#N`；
 - 实际数字格式遵循全局“紧凑数字”偏好；
 - 玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数；
 - 移动导航按钮固定 `48px × 48px`，活动、悬停和触摸状态不得位移或缩放；
-- 状态栏有横向溢出时水平轨道常驻；移动底栏隐藏可见水平轨道，但保留触控、触控板、滚轮和键盘横向滚动能力。普通纵向滚轮不得转换为水平滚动。
+- 移动底栏隐藏可见水平轨道，但保留触控、触控板、滚轮和键盘横向滚动能力。普通纵向滚轮不得转换为水平滚动；
+- 语义化 `<nav>` 是移动底栏唯一横向滚动视口；DOM 固定为 `aside.mobile-bottom-navigation → LiquidGlassSurface → .liquid-glass-surface__content → nav.mobile-bottom-navigation__viewport → buttons`；
+- 移动底栏不得重新引入 `ScrollArea`、`.mobile-navigation-frame`、`.mobile-navigation-scroll-area`、项目自绘水平轨道或用于制造左右留白的 `::before`／`::after` 占位元素；
+- 左右滚动留白只由 `nav` 的 `padding-inline: var(--mobile-nav-scroll-gutter)` 提供；
+- 只有 `.liquid-glass-surface` 负责胶囊裁切，`nav` 只保留横向滚动所必需的 `overflow-x: auto` 和 `overflow-y: hidden`；不得增加额外垂直裁切包装层；
+- 移动底栏垂直留白只允许由 `.liquid-glass-surface__content` 提供，固定为 `padding: 8px 0`；`.mobile-bottom-navigation` 必须保持 `padding: 0`，不得恢复双层垂直 padding；
+- `48px` 按钮在 `68px` 胶囊内必须完整显示，上下边缘不得被裁剪；焦点环必须使用内部 `inset` 绘制，不得使用向外扩张的 `outline-offset`。
 
 ## 9. 性能与可访问性
 
@@ -141,7 +147,7 @@
 - 页面初始内容避让状态栏和底栏，滚动时允许进入玻璃后方；
 - 装饰 SVG 和覆盖层不得阻止内部按钮事件；
 - 页面和内部列表到达纵向边界后必须保留滚动链；
-- 滑块保留 `role="scrollbar"`、方向、范围、拖动、轨道翻页和键盘语义；移动底栏隐藏的水平轨道不承担键盘焦点，导航按钮和原生滚动视口继续可访问。
+- 通用滑块保留 `role="scrollbar"`、方向、范围、拖动、轨道翻页和键盘语义；移动底栏不渲染项目自绘滑块，导航按钮和原生 `<nav>` 滚动视口继续可访问。
 
 ## 10. 验收标准
 
@@ -158,9 +164,10 @@
 9. 状态栏和移动底栏的宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
 10. 移动背景采样链中的 `.workspace`、两层 Overlay、`.page-scroll`、状态栏宿主和底栏宿主计算 `z-index` 均为 `auto`。
 11. 移动页面轨道固定到视口安全边缘，滑块右边缘约为 `2px`，显隐前后内容宽度不变。
-12. 移动底栏的原生与项目水平滚动条都不可见，但导航视口仍存在横向溢出并可滚动到最后一项。
-13. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
-14. `npm run build` 与全部 Chromium 浏览器测试通过。
+12. 移动底栏不包含 `ScrollArea`、额外 frame 或项目自绘水平轨道；原生滚动条不可见，唯一 `<nav>` 仍存在横向溢出并可滚动到最后一项。
+13. 移动底栏外层 padding 为 `0`，内容层上下 padding 为 `8px`；活动按钮上下边缘完全位于滚动视口内。
+14. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
+15. `npm run build` 与全部 Chromium 浏览器测试通过。
 
 ## 11. 不可回退规则
 
@@ -178,6 +185,8 @@
 - 给移动状态栏、页面或底栏恢复独立水平 inset；
 - 把移动底栏恢复为相对视口的 `position: fixed`；
 - 不得恢复移动底栏可见水平轨道，也不得因隐藏轨道而禁用触控、触控板、滚轮或键盘横向滚动；
+- 不得重新引入 `ScrollArea`、`.mobile-navigation-frame`、`.mobile-navigation-scroll-area`、项目自绘水平轨道、伪元素留白或多层垂直裁切包装；
+- 不得在 `.mobile-bottom-navigation` 恢复垂直 padding，不得把内容层 `8px` 留白复制到其他层，也不得恢复外扩焦点 outline；
 - 把移动页面轨道限制在卡片边缘、恢复 escape／translateX 方案、越过安全区或改变卡片宽度；
 - 在 `.page-scroll` 上使用 `overscroll-behavior: contain` 阻断纵向滚动链；
 - 给 `.asset-bar-scroll-area` 设置 `height: 100%`；
