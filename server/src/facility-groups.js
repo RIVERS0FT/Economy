@@ -8,6 +8,7 @@ import {
 import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -816,6 +817,13 @@ function placeFacilityOrder(world, userId, payload, now) {
   if (price < Math.ceil(type.systemValue * 0.5) || price > type.systemValue * 2) {
     return result(false, '工厂订单价格必须在系统参考价的 50%～200% 之间');
   }
+  if (findSelfCrossingOrder(world, {
+    ownerId: userId,
+    assetKind: 'facility',
+    assetId: type.id,
+    side,
+    price,
+  })) return result(false, SELF_CROSS_MESSAGE);
 
   if (side === 'buy') {
     const total = quantity * price;
@@ -890,7 +898,7 @@ export function validateFacilityAuctionTransferQuantity(world, userId, typeId, q
   ) {
     return result(false, '拍卖工厂冻结数量不足');
   }
-  return result(true, '拍卖工厂冻结数量有效');
+  return result(true, '工厂拍卖数量有效');
 }
 
 export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity) {
@@ -1095,6 +1103,6 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
     facilityMarkets: clone(world.facilityMarkets || {}),
     valuationPrices: valuationPricesFor(world, player),
     assetSummary: assetSummaryFor(world, player),
-    leaderboard: createLeaderboard(world, userId, now),
+    leaderboard: createLeaderboard(world, currentUserId, now),
   };
 }
