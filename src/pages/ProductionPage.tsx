@@ -108,6 +108,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const constructionRemaining = game.facilityConstruction
     ? Math.max(0, game.facilityConstruction.completesAt - now)
     : 0;
+  const constructionAwaitingConfirmation = Boolean(game.facilityConstruction && constructionRemaining === 0);
 
   return (
     <PageLayout
@@ -145,14 +146,14 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             <DataRow label="施工时间" value={formatDuration(selectedType.buildTimeMs)} tone="warning" />
           </DataList>
           {game.facilityConstruction ? (
-            <div className="construction-status">
-              <strong>{constructionType?.name ?? '工厂'}施工中</strong>
-              <span>剩余 {formatDuration(constructionRemaining)}</span>
+            <div className="construction-status" aria-live="polite">
+              <strong>{constructionType?.name ?? '工厂'}{constructionAwaitingConfirmation ? '确认完工中' : '施工中'}</strong>
+              <span>{constructionAwaitingConfirmation ? '正在同步服务器结算结果' : `剩余 ${formatDuration(constructionRemaining)}`}</span>
               <small>建成后不会重置当前集群进度，将在下一生产周期加入。</small>
             </div>
           ) : null}
           <Button block onClick={() => void showResult(buildFacility(selectedType.id))} disabled={hasConstruction || game.credits < selectedType.buildCost}>
-            {hasConstruction ? '已有工厂正在施工' : `建设${selectedType.name}`}
+            {constructionAwaitingConfirmation ? '确认完工中…' : hasConstruction ? '已有工厂正在施工' : `建设${selectedType.name}`}
           </Button>
           <small className="ui-helper-text">工厂按类型和数量保存；同一时间只能施工一座工厂。</small>
         </Panel>
