@@ -21,7 +21,7 @@ const FALLBACK_TITLES: Record<LeaderboardBoardId, string> = {
 
 function formatPeriodTime(timestamp: number) {
   return new Intl.DateTimeFormat('zh-CN', {
-    timeZone: 'Asia/Taipei',
+    timeZone: 'Asia/Shanghai',
     month: 'numeric',
     day: 'numeric',
     hour: '2-digit',
@@ -44,7 +44,7 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
     id,
     title: FALLBACK_TITLES[id],
     description: '周榜数据正在由服务器初始化',
-    unit: id === 'growth' ? 'currency' : 'points',
+    unit: id === 'growth' || id === 'trading' ? 'currency' : 'points',
     rewarded: id !== 'wealth',
     entries: [],
     currentPlayer: null,
@@ -58,7 +58,7 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
       partial: true,
       rewardEnabled: false,
       rewards: [30, 20, 10],
-      timeZone: 'Asia/Taipei',
+      timeZone: 'Asia/Shanghai',
     },
     boards: {
       wealth: {
@@ -159,7 +159,7 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="排行榜"
-      description="四榜并列展示；财富榜实时更新，增长榜、生产榜和交易榜按台北时间每周一 00:00 结算。"
+      description="四榜并列展示；财富榜实时更新，增长榜、生产榜和交易榜按北京时间每周一 00:00 结算。"
       actions={<StatusTag tone={period.partial ? 'neutral' : 'success'}>{period.partial ? '首个不完整周不发奖' : periodLabel}</StatusTag>}
     >
       <div className="leaderboard-grid-scroll" role="region" aria-label="四个排行榜" tabIndex={0}>
