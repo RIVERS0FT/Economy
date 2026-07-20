@@ -15,9 +15,9 @@ export function authoritativeCountdownDeadlines(game: EconomyState): number[] {
   for (const group of game.facilityGroups) {
     if (group.status !== 'running' || !Number.isFinite(group.cycleStartedAt)) continue;
     const type = game.facilityTypes.find((item) => item.id === group.facilityTypeId);
-    const recipe = type?.recipes.find((item) => item.id === group.activeRecipeId)
-      ?? type?.recipes.find((item) => item.id === type.defaultRecipeId)
-      ?? type?.recipes[0];
+    const recipe = type?.recipes?.find((item) => item.id === group.activeRecipeId)
+      ?? type?.recipes?.find((item) => item.id === type.defaultRecipeId)
+      ?? type?.recipes?.[0];
     if (!recipe) continue;
     addDeadline(deadlines, Number(group.cycleStartedAt) + recipe.cycleMs);
   }
