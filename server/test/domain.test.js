@@ -302,30 +302,25 @@ test('market demand cancels carried orders and resets to the model price after a
   const seller = ensurePlayer(world, bob, now);
   seller.inventories.wheat.available = 1;
   deferDemand(world, now + 10 * cycleMs);
-  prepareDemand(world, 'food', now);
-  processWorld(world, now + 1);
-
-  const firstOrder = world.orders.find((order) => (
-    order.ownerType === 'population'
-    && order.demandGroupId === 'food'
-    && order.productId === 'wheat'
-    && (order.status === 'open' || order.status === 'partial')
-  ));
-  assert.ok(firstOrder);
   assert.equal(applyAction(world, bob, 'placeOrder', {
-    productId: 'wheat', side: 'sell', quantity: 1, price: firstOrder.price,
-  }, now + 2).ok, true);
+    productId: 'wheat', side: 'sell', quantity: 1, price: 1,
+  }, now).ok, true);
+
+  prepareDemand(world, 'food', now + 1);
+  processWorld(world, now + 1);
   const filledOrder = world.orders.find((order) => (
     order.ownerType === 'population'
     && order.demandGroupId === 'food'
     && order.productId === 'wheat'
-    && order.lastFilledAt === now + 2
+    && order.lastFilledAt === now + 1
   ));
   assert.ok(filledOrder);
 
+  const firstCycleId = world.demandGroups.food.lastCycleId;
   prepareDemand(world, 'food', now + cycleMs + 1);
   processWorld(world, now + cycleMs + 1);
   const nextCycleId = world.demandGroups.food.lastCycleId;
+  assert.ok(nextCycleId > firstCycleId);
   assert.equal(world.orders.some((order) => (
     order.ownerType === 'population'
     && order.demandGroupId === 'food'
