@@ -14,10 +14,10 @@ test('gift codes can be created by admins and redeemed once per player', () => {
     const request = { action: 'redeemGift', payload: { code: 'river-test' }, requestKey: 'redeem-gift-1234', method: 'POST', path: '/api/game/gifts/redeem' };
     const first = store.apply(alice, request, now + 1);
     assert.equal(first.result.ok, true);
-    assert.equal(first.state.credits, 125);
-    const duplicate = store.apply(alice, { ...request, requestKey: 'redeem-gift-5678' }, now + 2);
+    assert.equal(store.getState(alice, now + 2).credits, 125);
+    const duplicate = store.apply(alice, { ...request, requestKey: 'redeem-gift-5678' }, now + 3);
     assert.equal(duplicate.result.ok, false);
-    assert.equal(duplicate.state.stats.giftIssued, 25);
+    assert.equal(store.getState(alice, now + 4).stats.giftIssued, 25);
   } finally { store.close(); }
 });
 
