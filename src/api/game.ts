@@ -8,15 +8,14 @@ import {
 } from '../app/stateDelivery.js';
 
 const GAME_API_BASE = '/economy-api/game';
-const STATE_REVISIONS_HEADER = 'X-Economy-State-Revisions';
 const stateDeliveryCache = createStateDeliveryCache();
 
 export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
 
 export interface GameActionResult { ok: boolean; message: string; }
-export interface GameActionResponse extends StateDeliveryEnvelope {
+export interface GameActionResponse {
   result: GameActionResult;
-  state?: EconomyState;
+  revision: number;
 }
 export interface GameStatePollResponse extends StateDeliveryEnvelope { state?: EconomyState; }
 export interface GemShopExchangeRecord {
@@ -73,11 +72,7 @@ export function resetGameStateDelivery() {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body) headers.set('Content-Type', 'application/json');
-  if (init?.method && init.method !== 'GET') {
-    headers.set('Idempotency-Key', createRequestKey());
-    const revisions = knownPartitionRevisions();
-    if (Object.keys(revisions).length > 0) headers.set(STATE_REVISIONS_HEADER, JSON.stringify(revisions));
-  }
+  if (init?.method && init.method !== 'GET') headers.set('Idempotency-Key', createRequestKey());
   const response = await fetch(`${GAME_API_BASE}${path}`, { ...init, credentials: 'include', headers });
   if (!response.ok) {
     let message = '游戏服务器请求失败';
