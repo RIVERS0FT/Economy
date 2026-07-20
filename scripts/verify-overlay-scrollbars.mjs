@@ -91,8 +91,14 @@ if (failures.length === 0) {
     '.ui-scrollbar--horizontal',
     'z-index: 3;',
     'right: calc(var(--scrollbar-hit-size) + var(--scrollbar-edge-offset));',
-    'transform: translateX(var(--mobile-scrollbar-edge-escape));',
+    'position: fixed;',
+    'right: env(safe-area-inset-right, 0px);',
+    'transform: none;',
   ]) requireText(paths.styles, text);
+  for (const text of [
+    'translateX(var(--mobile-scrollbar-edge-escape))',
+    '--mobile-scrollbar-edge-escape',
+  ]) forbidText(paths.styles, text);
 
   for (const [path, texts] of [
     [paths.layout, ["import { ScrollArea } from './ScrollArea'", 'axis="x"', 'horizontalVisibility="always"']],
@@ -144,7 +150,8 @@ if (failures.length === 0) {
     '没有发生实际滚动位置变化',
     '普通滚轮和以 `deltaY` 为主的触控板输入优先垂直滚动',
     '纵向轨道 `z-index` 更高',
-    'translateX(var(--mobile-scrollbar-edge-escape))',
+    '移动页面纵向轨道固定到视口安全边缘',
+    'right: env(safe-area-inset-right, 0px)',
     '资产｜方向｜价格｜剩余/原始｜状态｜时间｜操作',
     '资产｜方向｜数量｜价格｜总额｜手续费/实收｜时间',
     '撤单按钮必须始终位于横向滚动视口右侧',
@@ -154,6 +161,7 @@ if (failures.length === 0) {
 
   forbidText(paths.performance, '.page-scroll,\n.asset-bar,\n.sidebar-nav {\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior: contain;');
   forbidText(paths.mobileNavigation, '.page-scroll {\n  overscroll-behavior: contain;');
+  forbidText(paths.mobileNavigation, '--mobile-scrollbar-edge-escape');
 
   const toleratedLegacyGutterFiles = new Set(['src/styles/design-system.css']);
   const styleFiles = walk('src/styles').filter((path) => path.endsWith('.css'));
@@ -174,4 +182,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('统一覆盖式滚动条、纵向优先、滚动链、水平常驻与订单成交表验证通过。');
+console.log('统一覆盖式滚动条、纵向优先、滚动链、视口安全边缘、水平常驻与订单成交表验证通过。');
