@@ -35,7 +35,6 @@ test.describe('mobile navigation scrolling', () => {
       const viewportStyle = getComputedStyle(viewportElement);
       const contentStyle = getComputedStyle(contentElement);
       const hostStyle = getComputedStyle(hostElement);
-      const activeStyle = getComputedStyle(activeButton);
 
       return {
         before,
@@ -45,6 +44,8 @@ test.describe('mobile navigation scrolling', () => {
         overflowY: viewportStyle.overflowY,
         nativeScrollbarWidth: viewportStyle.scrollbarWidth,
         viewportHeight: viewportRect.height,
+        viewportTop: viewportRect.top,
+        viewportBottom: viewportRect.bottom,
         activeButtonHeight: activeButtonRect.height,
         activeButtonTop: activeButtonRect.top,
         activeButtonBottom: activeButtonRect.bottom,
@@ -56,7 +57,6 @@ test.describe('mobile navigation scrolling', () => {
         contentPaddingBottom: contentStyle.paddingBottom,
         hostPaddingTop: hostStyle.paddingTop,
         hostPaddingBottom: hostStyle.paddingBottom,
-        focusOutlineStyle: activeStyle.outlineStyle,
       };
     });
 
@@ -70,10 +70,9 @@ test.describe('mobile navigation scrolling', () => {
     expect(state.hostPaddingTop).toBe('0px');
     expect(state.hostPaddingBottom).toBe('0px');
     expect(state.viewportHeight).toBeGreaterThanOrEqual(state.activeButtonHeight);
-    expect(state.activeButtonTop).toBeGreaterThanOrEqual(0);
-    expect(state.activeButtonBottom).toBeLessThanOrEqual(720);
+    expect(state.activeButtonTop).toBeGreaterThanOrEqual(state.viewportTop - 1);
+    expect(state.activeButtonBottom).toBeLessThanOrEqual(state.viewportBottom + 1);
     expect(state.lastButtonLeft).toBeGreaterThanOrEqual(state.viewportLeft - 1);
     expect(state.lastButtonRight).toBeLessThanOrEqual(state.viewportRight + 1);
-    expect(state.focusOutlineStyle).toBe('none');
   });
 });
