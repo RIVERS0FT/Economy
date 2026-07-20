@@ -218,11 +218,8 @@
   }
 
   .page-scroll-area > .ui-scrollbar--vertical {
-    position: fixed;
-    top: var(--scrollbar-edge-offset);
-    right: env(safe-area-inset-right, 0px);
-    bottom: var(--scrollbar-edge-offset);
-    transform: none;
+    right: 0;
+    transform: translateX(var(--mobile-scrollbar-edge-escape));
   }
 
   .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
