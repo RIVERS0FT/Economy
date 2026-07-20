@@ -898,7 +898,7 @@ export function validateFacilityAuctionTransferQuantity(world, userId, typeId, q
   ) {
     return result(false, '拍卖工厂冻结数量不足');
   }
-  return result(true, '工厂拍卖数量有效');
+  return result(true, '拍卖工厂冻结数量有效');
 }
 
 export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity) {
@@ -918,7 +918,7 @@ export function releaseFacilityAuctionQuantity(world, userId, typeId, quantity) 
   const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
   if (!group || !normalizedQuantity) return result(false, '拍卖工厂不存在');
   if (group.status === 'running') group.pendingJoinCount += normalizedQuantity;
-  return result(true, '拍卖工厂已解冻');
+  return result(true, '工厂拍卖已解冻');
 }
 
 export function transferFacilityAuctionQuantity(world, sellerId, buyerId, typeId, quantity) {
@@ -1103,6 +1103,6 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
     facilityMarkets: clone(world.facilityMarkets || {}),
     valuationPrices: valuationPricesFor(world, player),
     assetSummary: assetSummaryFor(world, player),
-    leaderboard: createLeaderboard(world, currentUserId, now),
+    leaderboard: createLeaderboard(world, userId, now),
   };
 }
