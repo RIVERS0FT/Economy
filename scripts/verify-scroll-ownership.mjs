@@ -23,9 +23,12 @@ for (const [path, selector] of [
   ['src/styles/unified-market-admin.css', '.admin-page-scroll'],
 ]) {
   const source = read(path);
-  const start = source.lastIndexOf(selector);
-  const block = source.slice(start, source.indexOf('}', start) + 1);
-  assert.ok(block.includes('overscroll-behavior-y: auto;'), `${path} 的 ${selector} 必须释放纵向边界`);
+  const blocks = source.split(`${selector} {`).slice(1).map((part) => part.slice(0, part.indexOf('}')));
+  assert.ok(blocks.length > 0, `${path} 缺少 ${selector}`);
+  assert.ok(
+    blocks.some((block) => block.includes('overscroll-behavior-y: auto;')),
+    `${path} 的 ${selector} 必须释放纵向边界`,
+  );
 }
 
 for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
