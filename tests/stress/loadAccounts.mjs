@@ -8,6 +8,12 @@ export async function loadStressAccountRegistry() {
   assert.equal(registry.version, 1, '不支持的压力测试账号池版本');
   assert.equal(typeof registry.passwordEnv, 'string');
   assert.ok(Array.isArray(registry.accounts) && registry.accounts.length > 0, '压力测试账号池为空');
+  registry.accounts.forEach((account, index) => {
+    assert.equal(account.slot, index + 1, '压力测试账号槽位必须连续且稳定');
+    assert.equal(account.role, 'player', '压力测试账号只能使用普通玩家角色');
+    assert.equal(typeof account.id, 'string');
+    assert.equal(typeof account.email, 'string');
+  });
   return registry;
 }
 
