@@ -143,6 +143,6 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.navigationSurface.left).toBeCloseTo(geometry.primaryPanel.left, 0);
     expect(geometry.navigationSurface.right).toBeCloseTo(geometry.primaryPanel.right, 0);
     expect(geometry.navigationRadius).toBe(geometry.primaryPanelRadius);
-    expect(geometry.navigationRadius).toBe('24px');
+    expect(geometry.navigationRadius).toBe('40px');
   });
 });
