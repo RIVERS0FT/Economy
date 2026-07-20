@@ -211,11 +211,28 @@
 - 覆盖式轨道不得使用 `scrollbar-gutter: stable`，不得通过内边距预留永久空间；显隐前后页面、卡片、表头、表格列宽和 `clientWidth` 必须不变。
 - “无活动”表示没有发生实际滚动位置变化：`scrollTop` 变化后才显示纵向轨道，停止 `1200ms` 后隐藏；鼠标移动、点击、焦点、滚轮或按键事件本身都不算活动。有横向溢出时水平滚动条必须常驻可见。
 - 普通滚轮和以 `deltaY` 为主的触控板输入优先垂直滚动；只有 `Shift + 滚轮`、明确以 `deltaX` 为主的触控板输入、水平滑块拖动或水平轨道点击才执行水平滚动。到达内部纵向边界后必须把滚动链交给外层，不得自动改成水平滚动。
+- 同一滚轮事件经过嵌套视口时，最近且仍能沿当前方向滚动的后代视口拥有事件；祖先 `ScrollArea` 必须先检查事件目标到自身视口之间的原生或共享滚动容器，不得在后代尚未到边界时抢走滚动。
+- 当前视口真正发生滚动时必须同时调用 `preventDefault()` 与 `stopPropagation()`，避免共享内层和页面外层同时位移；到顶、到底或该轴不可滚动时两者都不得调用，使事件继续交给祖先或浏览器。仅横向控件不得消费普通纵向滚轮。
 - 双轴轨道同时存在时纵向轨道 `z-index` 更高，水平轨道在右侧避让纵向命中区，不绘制额外右下角块。
 - 不得使用 `overscroll-behavior: contain` 阻断纵向滚动链；只有明确的横向视口可以使用 `overscroll-behavior-x: contain`，并保持 `overscroll-behavior-y: auto`。
 - 移动页面纵向轨道固定到视口安全边缘：仅 `.page-scroll-area > .ui-scrollbar--vertical` 在不大于 `720px` 时使用 `position: fixed`，顶部和底部保留 `var(--scrollbar-edge-offset)`，右侧使用 `right: env(safe-area-inset-right, 0px)`，滑块在轨道内再保留 `2px` 边缘偏移。固定的只有覆盖式轨道，`.page-scroll-area`、`.page-scroll`、`.page-content` 和卡片仍受 `.workspace` gutter 约束，宽度与滚动视口不得改变。
 - 移动页面贴边不得恢复 `--mobile-workspace-inline-end`、`--mobile-scrollbar-edge-escape` 或 `translateX(...)` 逃逸令牌，也不得用负 `right`、扩大页面 viewport、改变卡片宽度或让轨道越过右侧安全区。真实浏览器几何必须验证滑块右边缘距屏幕或安全区内缘约 `2px`。
 - 滚动过程中不得用 React state 更新滑块位置；使用 ref、CSS transform、`requestAnimationFrame` 和 `ResizeObserver`。滑块保留 `role="scrollbar"`、方向和范围语义，支持拖动、轨道翻页与键盘控制。
+
+### 7.2 滚轮事件归属与前端控件位置
+
+本次滚动链审计确认以下纵向控件必须遵守“内部可滚动时由内部消费，边界后释放给外层”的同一规则：
+
+- 全部玩家页面的根视口：`GameShell.tsx` 中的 `.page-scroll`；它只在没有更近的可滚动后代时消费。
+- 概览页“当前挂单”卡：`OverviewPage.tsx` / `overview-polish.css` 的 `.overview-open-orders-list--scrollable`。
+- 生产页桌面“建设新工厂”卡：`ProductionPage.tsx` / `industry-system.css` 的 `.production-build-card`；不得再使用会吞掉纵向边界的双轴 `overscroll-behavior: contain`。
+- 排行页四个榜单卡：`LeaderboardsPage.tsx` / `leaderboards.css` 的 `.leaderboard-list`。
+- 资产页“本地资产变动”：`AssetsPage.tsx` 的 `.asset-event-virtual-list` `VirtualList`。
+- 市场页“我的订单与成交 → 本地成交记录”：`MarketPage.tsx` 的 `.local-trades-scroll-area` 内层 `.virtual-record-viewport`。
+- 管理员后台整页滚动区：`AdminApp.tsx` / `unified-market-admin.css` 的 `.admin-page-scroll`，以及其中的藏品管理、藏品归属历史、礼品码记录和兑换记录四类 `VirtualList`。
+- 桌面侧栏导航：`SidebarFrame.tsx` 的 `.sidebar-nav`；其外层没有可滚动页面时，到边界仍不得人为阻止事件继续传播。
+
+横向状态栏、市场资产目录、表格横向视口和移动底栏不是纵向消费控件；未按下 `Shift` 且输入以 `deltaY` 为主时必须放行。所有新增固定高度、`overflow-y: auto|scroll` 或 `VirtualList` 控件都必须加入滚轮归属浏览器测试或复用已经覆盖的共享实现。
 
 “我的未完成订单”列顺序固定为：
 

@@ -576,7 +576,8 @@
   gap: var(--space-3);
   max-height: calc(100dvh - var(--space-6));
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
 }
 
 .production-build-card .widget-heading,

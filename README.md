@@ -131,6 +131,12 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 网页目录：`/var/www/game/economy`
 - API 目录：`/var/www/game/economy-api`
 
+## 固定压力测试账号
+
+压力测试统一复用 `tests/stress/accounts.json` 中的 24 个普通玩家槽位，避免每轮测试注册新邮箱。账号在主页账号服务中一次性预置后保持不变；Node 测试脚本通过 `tests/stress/loadAccounts.mjs` 读取，并用 `offset` / `limit` 分配并发槽位。
+
+仓库只记录测试邮箱和逻辑槽位，不保存密码、Cookie 或 Token。运行前在测试环境注入 `ECONOMY_STRESS_TEST_PASSWORD`；压力脚本不得调用注册接口，也不得把运行时凭据写入日志或 artifact。
+
 ## 本地开发与完整检查
 
 ```bash

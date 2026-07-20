@@ -6,6 +6,7 @@ import { GemIcon } from '../../src/components/icons/GemIcon';
 import { GameShell } from '../../src/components/shell/GameShell';
 import type { StatusBarItem } from '../../src/components/shell/StatusBar';
 import { CurrencyAmount } from '../../src/components/ui/CurrencyAmount';
+import { ScrollArea } from '../../src/components/ui/ScrollArea';
 import { GemShopPage } from '../../src/pages/GemShopPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
 import { SettingsPage } from '../../src/pages/SettingsPage';
@@ -33,7 +34,7 @@ const view = params.get('view') ?? 'settings';
 const scenario = params.get('scenario') ?? 'empty';
 const fixedNow = new Date(2026, 6, 17, 22, 30, 0).getTime();
 
-document.documentElement.dataset.appSurface = view === 'overview' || view === 'gem-shop' ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -361,10 +362,54 @@ function GemShopHarness() {
   );
 }
 
+function ScrollOwnershipHarness() {
+  return (
+    <main style={{ minHeight: '100dvh', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 24, padding: 24 }}>
+      <ScrollArea
+        axis="y"
+        className="scroll-ownership-custom-outer"
+        viewportClassName="scroll-ownership-custom-outer-viewport"
+        viewportStyle={{ height: 220, overflowY: 'auto' }}
+        verticalAutoHide={false}
+      >
+        <ScrollArea
+          axis="y"
+          className="scroll-ownership-custom-inner"
+          viewportClassName="scroll-ownership-custom-inner-viewport"
+          viewportStyle={{ height: 120, overflowY: 'auto' }}
+          verticalAutoHide={false}
+        >
+          <div style={{ height: 560 }} aria-hidden="true" />
+        </ScrollArea>
+        <div style={{ height: 760 }} aria-hidden="true" />
+      </ScrollArea>
+
+      <ScrollArea
+        axis="y"
+        className="scroll-ownership-native-outer"
+        viewportClassName="scroll-ownership-native-outer-viewport"
+        viewportStyle={{ height: 220, overflowY: 'auto' }}
+        verticalAutoHide={false}
+      >
+        <div
+          className="scroll-ownership-native-inner"
+          style={{ height: 120, overflowY: 'auto' }}
+          tabIndex={0}
+        >
+          <div style={{ height: 560 }} aria-hidden="true" />
+        </div>
+        <div style={{ height: 760 }} aria-hidden="true" />
+      </ScrollArea>
+    </main>
+  );
+}
+
 createRoot(document.getElementById('root') as HTMLElement).render(
   view === 'overview'
     ? <OverviewHarness />
     : view === 'gem-shop'
       ? <GemShopHarness />
-      : <SettingsHarness />,
+      : view === 'scroll-ownership'
+        ? <ScrollOwnershipHarness />
+        : <SettingsHarness />,
 );
