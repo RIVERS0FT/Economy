@@ -11,10 +11,14 @@ const canonicalDocs = [
   'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+  'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
+  'docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md',
+  'docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
@@ -114,7 +118,7 @@ if (existsSync(pathFor('docs/README.md'))) {
   const index = read('docs/README.md');
   for (const text of [
     '本目录只保留当前设计',
-    '不得以“补充说明”“V2/V3”或新专题文档的形式继续并行存在',
+    '不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在',
     '未列入下方权威文档表的 Markdown 文件不得存在',
     '新的功能规则必须合并进现有权威文档',
     '芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖',
@@ -123,6 +127,10 @@ if (existsSync(pathFor('docs/README.md'))) {
     '参考分钟利润必须由正式目录自动校验',
     '商店固定汇率、单向兑换、兑换幂等与独立页面',
     '普通玩家成交记录不得暴露来源、去向或对手订单',
+    '`FACILITY_CATALOG_PRESENTATION_DESIGN.md`',
+    '`OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md`',
+    '`PRODUCTION_PILL_ALIGNMENT_DESIGN.md`',
+    '`REGISTRATION_INVITE_FLOW_DESIGN.md`',
     '不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md`',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
@@ -134,4 +142,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：唯一文档清单、未知 Markdown 拒绝、版本 15/13、市场需求模型、九页导航、商店、整数经济基线、外壳与滚动条归属、文档整理规则和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：登记文档清单、未知 Markdown 拒绝、版本 15/13、市场需求模型、九页导航、商店、整数经济基线、外壳与滚动条归属、单一职责专题、文档整理规则和旧文件禁令均满足当前基线。');
