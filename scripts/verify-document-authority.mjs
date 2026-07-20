@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
@@ -20,6 +20,12 @@ const canonicalDocs = [
   'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
 ];
+
+const canonicalDocsDirectoryEntries = new Set(
+  canonicalDocs
+    .filter((path) => path.startsWith('docs/'))
+    .map((path) => path.slice('docs/'.length)),
+);
 
 const versionedDocs = [
   'docs/README.md',
@@ -47,6 +53,8 @@ const forbiddenLegacyDocs = [
   'docs/SERVER_AUTHORITATIVE_API.md',
   'docs/SERVER_CAPACITY_DESIGN.md',
   'docs/CLIENT_COMPUTATION_DESIGN.md',
+  'docs/GAME_SHELL_LAYOUT_DESIGN.md',
+  'docs/OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md',
 ];
 
 for (const path of canonicalDocs) {
@@ -54,6 +62,14 @@ for (const path of canonicalDocs) {
 }
 for (const path of forbiddenLegacyDocs) {
   if (existsSync(pathFor(path))) failures.push(`旧文档不得重新创建: ${path}`);
+}
+
+if (existsSync(pathFor('docs'))) {
+  for (const entry of readdirSync(pathFor('docs'))) {
+    if (entry.endsWith('.md') && !canonicalDocsDirectoryEntries.has(entry)) {
+      failures.push(`未登记 Markdown 文档不得存在: docs/${entry}`);
+    }
+  }
 }
 
 if (existsSync(pathFor('README.md'))) {
@@ -99,13 +115,15 @@ if (existsSync(pathFor('docs/README.md'))) {
   for (const text of [
     '本目录只保留当前设计',
     '不得以“补充说明”“V2/V3”或新专题文档的形式继续并行存在',
+    '未列入下方权威文档表的 Markdown 文件不得存在',
     '新的功能规则必须合并进现有权威文档',
     '芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖',
-    '`scripts/verify-document-authority.mjs`',
+    '`scripts/verify-document-authority.mjs` 必须遍历 `docs/*.md`',
     '过长文档优先通过删除重复表格',
     '参考分钟利润必须由正式目录自动校验',
     '商店固定汇率、单向兑换、兑换幂等与独立页面',
     '普通玩家成交记录不得暴露来源、去向或对手订单',
+    '不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md`',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
   }
@@ -116,4 +134,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：唯一文档结构、版本 15/13、市场需求模型、九页导航、商店、整数经济基线、文档整理规则和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：唯一文档清单、未知 Markdown 拒绝、版本 15/13、市场需求模型、九页导航、商店、整数经济基线、外壳与滚动条归属、文档整理规则和旧文件禁令均满足当前基线。');
