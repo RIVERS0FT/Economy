@@ -115,7 +115,7 @@
 .mobile-bottom-navigation .liquid-glass-surface,
 .mobile-bottom-navigation .liquid-glass-surface > *,
 .mobile-bottom-navigation .liquid-glass-surface__effect > .glass {
-  border-radius: var(--radius-card) !important;
+  border-radius: var(--radius-card-mobile) !important;
 }
 
 .asset-bar .liquid-glass-surface {
