@@ -212,6 +212,21 @@
   }
 }
 
+@media (max-width: 720px) {
+  .page-scroll-area {
+    overflow: visible;
+  }
+
+  .page-scroll-area > .ui-scrollbar--vertical {
+    right: calc(-1 * var(--mobile-scrollbar-edge-escape));
+  }
+
+  .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
+    right: var(--scrollbar-edge-offset);
+    left: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-scrollbar {
     transition: none;
