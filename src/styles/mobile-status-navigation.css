@@ -55,6 +55,7 @@
 
   .mobile-bottom-navigation {
     display: block;
+    padding: 0;
   }
 
   .asset-bar {
@@ -67,13 +68,9 @@
   }
 
   .asset-bar::-webkit-scrollbar,
-  .mobile-bottom-navigation .sidebar-nav::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* The navigation viewport remains horizontally scrollable by touch, wheel and
-   * keyboard; only its project-owned visual rail is hidden on mobile. */
-  .mobile-navigation-scroll-area > .ui-scrollbar--horizontal {
+  .mobile-bottom-navigation__viewport::-webkit-scrollbar {
+    width: 0;
+    height: 0;
     display: none;
   }
 
@@ -135,29 +132,26 @@
     color: var(--gold);
   }
 
-  .mobile-bottom-navigation {
-    padding: .3rem 0;
-  }
-
-  .mobile-bottom-navigation .sidebar-nav {
+  /* The semantic nav is the only horizontal scrolling viewport. Native rails are
+   * hidden without introducing a project-owned ScrollArea or extra clip wrapper. */
+  .mobile-bottom-navigation__viewport {
     width: 100%;
     height: 100%;
+    min-width: 0;
+    min-height: 0;
     display: flex;
     align-items: center;
     gap: .16rem;
-    padding-inline: 0;
+    padding-inline: var(--mobile-nav-scroll-gutter);
     overflow-x: auto;
     overflow-y: hidden;
+    overscroll-behavior-x: auto;
+    overscroll-behavior-y: auto;
     scroll-padding-inline: var(--mobile-nav-scroll-gutter);
     scrollbar-width: none;
-  }
-
-  .mobile-bottom-navigation .sidebar-nav::before,
-  .mobile-bottom-navigation .sidebar-nav::after {
-    content: "";
-    flex: 0 0 var(--mobile-nav-scroll-gutter);
-    align-self: stretch;
-    pointer-events: none;
+    -ms-overflow-style: none;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
   }
 
   .mobile-bottom-navigation .sidebar-nav-button {
@@ -232,7 +226,7 @@
   }
 
   .mobile-bottom-navigation .sidebar-nav-button:focus-visible {
-    outline: 2px solid rgba(123, 228, 158, .72);
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: inset 0 0 0 2px rgba(123, 228, 158, .72);
   }
 }
