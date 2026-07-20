@@ -22,6 +22,7 @@
 - 新增一级卡片必须使用 `PagePanel`。
 - `PagePanel` 固定输出 `panel widget ui-primary-surface` 三个语义类。
 - 现有 `Panel className="widget ..."` 由 `Panel` 兼容桥自动补充 `ui-primary-surface`，用于避免一次性重写全部页面造成无关风险。
+- 现有 `.panel.production-surface` 与 `.panel.leaderboard-board-card` 由 `primary-surfaces.css` 作为旧类兼容入口统一接管，直到对应组件迁移为 `PagePanel`；这两个类不得在业务 CSS 中重新声明外层 padding。
 - 修改现有一级卡片时应优先迁移为 `PagePanel`；不得创建新的页面专属一级卡片基础组件。
 - 普通 `Panel` 继续用于登录、管理员、弹窗、嵌套面板或其他不属于玩家页面一级平面的表面。
 
@@ -61,7 +62,7 @@
 `scripts/verify-primary-surface-insets.mjs` 必须验证：
 
 - 唯一令牌、桌面 `16px` 和移动 `12px` 规则存在；
-- `PagePanel` 与旧 `Panel + widget` 兼容桥存在；
+- `PagePanel`、旧 `Panel + widget` 兼容桥以及生产／排行旧类兼容入口存在；
 - 样式加载顺序正确；
 - 已清理页面不再声明旧外层 padding；
 - 本设计文档中的唯一权威和禁止回退规则仍存在。
