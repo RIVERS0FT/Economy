@@ -45,6 +45,7 @@ const files = {
   design: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   browser: 'tests/browser/liquid-glass-layout.spec.ts',
   mobileBrowser: 'tests/browser/mobile-workspace-overlay.spec.ts',
+  navigationBrowser: 'tests/browser/mobile-navigation-scrollbar.spec.ts',
   main: 'src/main.tsx',
   package: 'package.json',
 };
@@ -116,6 +117,9 @@ if (failures.length === 0) {
     'mix-blend-mode: screen !important;',
     'width: max(100%, 675px);',
     'padding: .25rem .8rem;',
+    '.mobile-bottom-navigation .liquid-glass-surface__content {',
+    'padding: 8px 0;',
+    'only vertical padding owner',
   ]) requireText(files.styles, text);
   for (const text of [
     '-webkit-backdrop-filter: blur(8.48px) saturate(145%);',
@@ -147,8 +151,15 @@ if (failures.length === 0) {
   for (const text of [
     'className="sidebar mobile-bottom-navigation"',
     '<LiquidGlassSurface variant="mobileNavigation">',
-    'className="mobile-navigation-scroll-area"',
+    'className="mobile-bottom-navigation__viewport"',
+    '<NavigationItems',
   ]) requireText(files.mobile, text);
+  for (const text of [
+    "import { ScrollArea }",
+    '<ScrollArea',
+    'mobile-navigation-frame',
+    'mobile-navigation-scroll-area',
+  ]) forbidText(files.mobile, text);
 
   requireOrder(files.main, [
     "import './styles/viewport.css'",
@@ -191,10 +202,27 @@ if (failures.length === 0) {
   for (const text of [
     '--mobile-workspace-gutter: var(--space-3);',
     '--mobile-primary-surface-gap: var(--mobile-workspace-gutter);',
+    '.mobile-bottom-navigation {',
+    'padding: 0;',
+    '.mobile-bottom-navigation__viewport::-webkit-scrollbar',
+    '.mobile-bottom-navigation__viewport {',
+    'padding-inline: var(--mobile-nav-scroll-gutter);',
+    'overflow-x: auto;',
+    'overflow-y: hidden;',
+    'scrollbar-width: none;',
+    '-webkit-overflow-scrolling: touch;',
+    'outline: none;',
+    'box-shadow: inset 0 0 0 2px rgba(123, 228, 158, .72);',
   ]) requireText(files.mobileNavigation, text);
-  for (const text of ['--mobile-workspace-inline-end', '--mobile-scrollbar-edge-escape']) {
-    forbidText(files.mobileNavigation, text);
-  }
+  for (const text of [
+    '--mobile-workspace-inline-end',
+    '--mobile-scrollbar-edge-escape',
+    '.mobile-navigation-frame',
+    '.mobile-navigation-scroll-area',
+    '.mobile-bottom-navigation .sidebar-nav::before',
+    '.mobile-bottom-navigation .sidebar-nav::after',
+    'outline-offset: 2px;',
+  ]) forbidText(files.mobileNavigation, text);
   for (const text of [
     '.asset-bar {',
     'padding: 0;',
@@ -214,8 +242,12 @@ if (failures.length === 0) {
     'right: var(--scrollbar-edge-offset);',
     'left: auto;',
   ]) requireText(files.scrollbars, text);
-  forbidText(files.scrollbars, '.asset-bar-scroll-area,');
-  forbidText(files.scrollbars, 'translateX(var(--mobile-scrollbar-edge-escape))');
+  for (const text of [
+    '.asset-bar-scroll-area,',
+    'translateX(var(--mobile-scrollbar-edge-escape))',
+    '.mobile-navigation-frame',
+    '.mobile-navigation-scroll-area',
+  ]) forbidText(files.scrollbars, text);
 
   for (const text of [
     '`liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现',
@@ -239,6 +271,9 @@ if (failures.length === 0) {
     '`overflow: clip`',
     '`-webkit-backdrop-filter`',
     '浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式',
+    '语义化 `<nav>` 是移动底栏唯一横向滚动视口',
+    '不得重新引入 `ScrollArea`',
+    '移动底栏垂直留白只允许由 `.liquid-glass-surface__content` 提供',
   ]) requireText(files.design, text);
   for (const text of [
     'desktop status bar uses the shared clear thick glass capsule and shell inset',
@@ -257,6 +292,13 @@ if (failures.length === 0) {
     'mobile page scrollbar reaches the safe right edge without changing content width',
     'viewportRight - geometry.thumbRight',
   ]) requireText(files.mobileBrowser, text);
+  for (const text of [
+    'mobile navigation uses one native scroll viewport without clipping its buttons',
+    "locator('.ui-scroll-area')",
+    "expect(state.contentPaddingTop).toBe('8px')",
+    'expect(state.activeButtonTop).toBeGreaterThanOrEqual(state.viewportTop - 1)',
+    'expect(state.activeButtonBottom).toBeLessThanOrEqual(state.viewportBottom + 1)',
+  ]) requireText(files.navigationBrowser, text);
 }
 
 if (failures.length > 0) {
@@ -265,4 +307,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 外壳、统一 iOS 清透厚玻璃胶囊、移动开放背景采样链与固定安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 外壳、统一 iOS 清透厚玻璃胶囊、移动底栏单一原生滚动视口、开放背景采样链与固定安全边缘滚动条验证通过。');
