@@ -19,17 +19,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create source snapshot
-        run: git archive --format=zip --output=economy-source.zip HEAD
-
-      - name: Upload source snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-source-snapshot
-          path: economy-source.zip
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
