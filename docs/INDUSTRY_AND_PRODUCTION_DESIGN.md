@@ -5,7 +5,7 @@
 > 更新时间：2026-07-20
 > 客户端状态版本：15
 > 世界状态版本：13
-> 市场需求模型版本：2
+> 市场需求模型版本：3
 
 市场交易以 `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` 为准；共享仓库以 `WAREHOUSE_EXPANSION_DESIGN.md` 为准；页面归属以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。
 

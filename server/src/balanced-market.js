@@ -149,6 +149,8 @@ export function createBalancedMarketRuntime({ products, constants }) {
     resting.remaining -= quantity;
     incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
     resting.status = resting.remaining === 0 ? 'filled' : 'partial';
+    incoming.lastFilledAt = createdAt;
+    resting.lastFilledAt = createdAt;
     const settlement = sell.ownerType === 'player'
       ? applyMarketSellFee(sell, fill.total)
       : { fee: 0, netTotal: fill.total };

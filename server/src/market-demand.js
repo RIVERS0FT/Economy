@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto';
 import {
   MARKET_DEMAND_GROUP_CATALOG,
   MARKET_DEMAND_PRODUCT_IDS,
+  PRICE_MAX_MULTIPLIER,
+  SYSTEM_ORDER_PRICE_STEP,
+  SYSTEM_ORDER_RETENTION_RATE,
+  SYSTEM_ORDER_VALUE_CYCLES,
 } from './market-demand/catalog.js';
 import { createDemandAllocationRuntime } from './market-demand/allocation.js';
 import { clamp, round4 } from './market-demand/math.js';
@@ -62,12 +66,86 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     realTradeStats: signals.realTradeStats,
   });
 
-  function expireGroupOrders(world, groupId) {
-    for (const order of world.orders || []) {
-      if (order.ownerType === 'population' && isOpenOrder(order) && order.demandGroupId === groupId) {
-        order.status = 'cancelled';
+  function trimOrderRemaining(order, keepQuantity) {
+    const originalRemaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
+    const originalQuantity = Math.max(originalRemaining, Math.floor(Number(order.quantity || 0)));
+    const filledQuantity = Math.max(0, originalQuantity - originalRemaining);
+    const keep = Math.max(0, Math.min(originalRemaining, Math.floor(Number(keepQuantity || 0))));
+    order.quantity = filledQuantity + keep;
+    order.remaining = keep;
+    order.status = keep <= 0 ? (filledQuantity > 0 ? 'filled' : 'cancelled') : (filledQuantity > 0 ? 'partial' : 'open');
+    return keep;
+  }
+
+  function prepareGroupOrders(world, group, state) {
+    const groupOrders = (world.orders || []).filter((order) => (
+      order.ownerType === 'population' && order.demandGroupId === group.id
+    ));
+    const cycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || 0));
+    const soldProducts = new Set(groupOrders
+      .filter((order) => Number(order.lastFilledAt || 0) > 0 && Number(order.lastFilledAt) >= cycleStartedAt)
+      .map((order) => order.productId));
+    const highestRetainedPrice = new Map();
+
+    for (const order of groupOrders) {
+      if (!isOpenOrder(order)) continue;
+      if (soldProducts.has(order.productId)) {
+        trimOrderRemaining(order, 0);
+        continue;
       }
+      const retained = trimOrderRemaining(
+        order,
+        Math.floor(Number(order.remaining || 0) * SYSTEM_ORDER_RETENTION_RATE),
+      );
+      if (retained <= 0) continue;
+      highestRetainedPrice.set(
+        order.productId,
+        Math.max(Number(highestRetainedPrice.get(order.productId) || 0), Number(order.price || 0)),
+      );
     }
+    return { soldProducts, highestRetainedPrice };
+  }
+
+  function issuePriceFor(product, referencePrice, orderContext) {
+    const normalPrice = Math.max(1, Math.round(Number(referencePrice || product.basePrice)));
+    if (orderContext.soldProducts.has(product.id)) return normalPrice;
+    const highestRetained = Number(orderContext.highestRetainedPrice.get(product.id) || 0);
+    if (highestRetained <= 0) return normalPrice;
+    const priceCap = Math.max(1, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
+    return Math.min(priceCap, Math.max(normalPrice, Math.ceil(highestRetained * (1 + SYSTEM_ORDER_PRICE_STEP))));
+  }
+
+  function groupOpenOrderValue(world, groupId, predicate = () => true) {
+    return (world.orders || []).filter((order) => (
+      order.ownerType === 'population'
+      && order.demandGroupId === groupId
+      && isOpenOrder(order)
+      && predicate(order)
+    )).reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
+  }
+
+  function enforceGroupOrderValueCap(world, group, cycleBudget) {
+    const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+    const orders = (world.orders || []).filter((order) => (
+      order.ownerType === 'population' && order.demandGroupId === group.id && isOpenOrder(order)
+    ));
+    let total = orders.reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
+    if (total <= cap) return total;
+    orders.sort((left, right) => (
+      Number(left.price || 0) - Number(right.price || 0)
+      || Number(left.createdAt || 0) - Number(right.createdAt || 0)
+    ));
+    for (const order of orders) {
+      if (total <= cap) break;
+      const price = Math.max(1, Number(order.price || 1));
+      const removeQuantity = Math.min(
+        Number(order.remaining || 0),
+        Math.ceil((total - cap) / price),
+      );
+      trimOrderRemaining(order, Number(order.remaining || 0) - removeQuantity);
+      total -= removeQuantity * price;
+    }
+    return Math.max(0, total);
   }
 
   function createOrder(world, group, role, product, price, quantity, cycleId, now) {
@@ -94,15 +172,16 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     return { filled: quantity - order.remaining, order };
   }
 
-  function applyChoices(world, group, role, cycleId, now, budgets, details, totals, allocations) {
+  function applyChoices(world, group, role, cycleId, now, budgets, details, orderContext, totals, allocations) {
     for (const [productId, budget] of budgets) {
       const detail = details.get(productId);
       if (!detail || budget <= 0) continue;
       const product = detail.product;
       const referencePrice = Math.max(1, Math.round(Number(detail.price.referencePrice || product.basePrice)));
-      const quantity = Math.max(0, Math.floor(budget / referencePrice));
-      const committed = quantity * referencePrice;
-      const { filled } = createOrder(world, group, role, product, referencePrice, quantity, cycleId, now);
+      const orderPrice = issuePriceFor(product, referencePrice, orderContext);
+      const quantity = Math.max(0, Math.floor(budget / orderPrice));
+      const committed = quantity * orderPrice;
+      const { filled } = createOrder(world, group, role, product, orderPrice, quantity, cycleId, now);
       totals.currentDemandQuantities[productId] = (totals.currentDemandQuantities[productId] || 0) + quantity;
       if (role === 'direct') {
         totals.directCommitted += committed;
@@ -119,13 +198,14 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       existing[role === 'direct' ? 'directQuantity' : 'derivedQuantity'] += quantity;
       existing.filled += filled;
       existing.referencePrice = round4(detail.price.referencePrice);
+      existing.orderPrice = orderPrice;
       existing.effectivePrice = round4(detail.price.effective);
       existing.quote = round4(detail.price.quote);
       existing.coverage = round4(detail.price.coverage);
       if (detail.requiredQuantity !== undefined) existing.requiredQuantity = round4(detail.requiredQuantity);
       allocations[productId] = existing;
       const market = marketFor(world, productId, now);
-      market.demand.lastPrice = referencePrice;
+      market.demand.lastPrice = orderPrice;
       market.demand.lastQuantity = quantity;
       market.demand.lastBudget = committed;
       market.demand.nextDemandAt = (cycleId + 1) * group.cycleMs;
@@ -144,7 +224,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       return false;
     }
 
-    expireGroupOrders(world, group.id);
+    const orderContext = prepareGroupOrders(world, group, state);
     const budgetState = allocationRuntime.dynamicBudget(world, group, state, now);
     const cycleBudget = budgetState.budget;
     const directBudget = Math.floor(cycleBudget * group.directBudgetShare);
@@ -159,8 +239,9 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       directRequestedUtility: 0,
       directFilledUtility: 0,
     };
-    applyChoices(world, group, 'direct', cycleId, now, direct.productBudgets, direct.productDetails, totals, allocations);
-    applyChoices(world, group, 'derived-liquidity', cycleId, now, derived.productBudgets, derived.productDetails, totals, allocations);
+    applyChoices(world, group, 'direct', cycleId, now, direct.productBudgets, direct.productDetails, orderContext, totals, allocations);
+    applyChoices(world, group, 'derived-liquidity', cycleId, now, derived.productBudgets, derived.productDetails, orderContext, totals, allocations);
+    const openOrderValue = enforceGroupOrderValueCap(world, group, cycleBudget);
 
     const satisfaction = totals.directRequestedUtility <= 0 ? 0 : totals.directFilledUtility / totals.directRequestedUtility;
     state.satisfaction = satisfaction;
@@ -176,6 +257,13 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     state.lastCommitted = totals.directCommitted + totals.derivedCommitted;
     state.directCommitted = totals.directCommitted;
     state.derivedCommitted = totals.derivedCommitted;
+    state.lastRetainedOrderValue = groupOpenOrderValue(
+      world,
+      group.id,
+      (order) => Number(order.demandCycleId) !== cycleId,
+    );
+    state.lastOpenOrderValue = openOrderValue;
+    state.lastCycleStartedAt = now;
     state.lastClassAllocation = direct.classAllocation;
     state.lastAllocation = allocations;
     state.lastDerivedRelations = derived.relationDetails;

@@ -32,6 +32,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       cycleMs: group.cycleMs,
       nextDemandAt: now,
       lastCycleId: Math.floor(now / group.cycleMs) - 1,
+      lastCycleStartedAt: now,
       lastBudget: group.baseBudget,
       lastTargetBudget: 0,
       lastPlayerScaleBudget: group.baseBudget,
@@ -41,6 +42,8 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       lastCommitted: 0,
       directCommitted: 0,
       derivedCommitted: 0,
+      lastRetainedOrderValue: 0,
+      lastOpenOrderValue: 0,
       satisfaction: group.targetSatisfaction,
       satisfactionEma: group.targetSatisfaction,
       lastClassAllocation: {},
@@ -111,12 +114,15 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       const previous = previousModel?.groups?.[group.id] || legacyGroups[group.id] || {};
       const state = { ...defaultGroupState(group, now), ...previous, marketDemandGroupId: group.id, demandGroupId: group.id };
       state.cycleMs = group.cycleMs;
+      state.lastCycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || now));
       state.lastBudget = Math.max(1, Math.floor(Number(state.lastBudget || group.baseBudget)));
       state.lastTargetBudget = Math.max(0, Math.floor(Number(state.lastTargetBudget || 0)));
       state.lastPlayerScaleBudget = Math.max(1, Math.floor(Number(state.lastPlayerScaleBudget || group.baseBudget)));
       state.lastActivePlayerCount = Math.max(0, Math.floor(Number(state.lastActivePlayerCount || 0)));
       state.lastTradeActivityFactor = Number.isFinite(Number(state.lastTradeActivityFactor)) ? Number(state.lastTradeActivityFactor) : 1;
       state.lastNeedPressure = Number.isFinite(Number(state.lastNeedPressure)) ? Number(state.lastNeedPressure) : 1;
+      state.lastRetainedOrderValue = Math.max(0, Math.floor(Number(state.lastRetainedOrderValue || 0)));
+      state.lastOpenOrderValue = Math.max(0, Math.floor(Number(state.lastOpenOrderValue || 0)));
       state.satisfaction = clamp(0, 1, Number(state.satisfaction ?? group.targetSatisfaction));
       state.satisfactionEma = clamp(0, 1, Number(state.satisfactionEma ?? state.satisfaction));
       state.lastClassAllocation = state.lastClassAllocation && typeof state.lastClassAllocation === 'object' ? state.lastClassAllocation : {};
@@ -132,6 +138,9 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         state.nextDemandAt = now;
         state.lastCycleId = Math.floor(now / group.cycleMs) - 1;
         state.lastTargetBudget = state.lastBudget;
+        state.lastCycleStartedAt = now;
+        state.lastRetainedOrderValue = 0;
+        state.lastOpenOrderValue = 0;
         state.lastCommitted = 0;
         state.directCommitted = 0;
         state.derivedCommitted = 0;

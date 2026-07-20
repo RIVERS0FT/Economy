@@ -11,11 +11,11 @@ import {
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 31);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 2);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 3);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.baseBudget), [3_000, 2_700]);
-assert.ok(MARKET_DEMAND_GROUP_CATALOG.every((group) => group.directBudgetShare === 0.85));
+assert.ok(MARKET_DEMAND_GROUP_CATALOG.every((group) => group.directBudgetShare === 0.70));
 
 const groups = new Map(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));
 assert.deepEqual(groups.get('food').classes.map((item) => item.id), ['staples', 'protein', 'fresh-drinks', 'convenience']);
@@ -53,13 +53,16 @@ const runtime = [
   'server/src/market-demand/allocation.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 2',
-  'DIRECT_BUDGET_SHARE = 0.85',
+  'MARKET_DEMAND_MODEL_VERSION = 3',
+  'DIRECT_BUDGET_SHARE = 0.70',
   "id: 'fresh-drinks'",
   "productId: 'fruit'",
   "productId: 'appliance'",
   'RELATION_LAG_WEIGHTS',
   'ACTIVE_PLAYER_WINDOW_MS',
+  'SYSTEM_ORDER_RETENTION_RATE',
+  'SYSTEM_ORDER_PRICE_STEP',
+  'SYSTEM_ORDER_VALUE_CYCLES',
   'lastInventoryBoost: 0',
   'lastStockValue: 0',
   'smoothShares',
@@ -101,7 +104,7 @@ for (const text of [
   'player inventory never increases market demand budget or product allocation',
   'beverage production paths shift toward cheaper fruit inputs',
   'fruit participates in fresh direct demand without expanding the food budget',
-  'market demand model version 1 migrates to version 2 without resetting player assets',
+  'market demand model version 2 migrates to version 3 without resetting player assets',
 ]) assert.ok(domainTests.includes(text), '领域测试缺少: ' + text);
 const transmissionTests = read('server/test/demand-transmission.test.js');
 for (const text of [
@@ -110,12 +113,12 @@ for (const text of [
 ]) assert.ok(transmissionTests.includes(text), '价格传导测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`2`', '水果', '家电', '库存数量和库存价值不得扩大市场需求总预算']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['marketDemand.modelVersion = 2', '新鲜与饮品', '混合消费输入品', '新增商品和工厂不得自动提高']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：2', '兼容标识']],
+  ['README.md', ['市场需求模型版本：`3`', '70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性', '旧系统买单按剩余数量保留 50%', '水果', '家电', '库存数量和库存价值不得扩大市场需求总预算']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['marketDemand.modelVersion = 3', '70%／30%', '保留剩余数量的 50%', '新鲜与饮品', '混合消费输入品', '新增商品和工厂不得自动提高']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：3', 'lastFilledAt', '兼容标识']],
 ]) {
   const content = read(path);
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 2 在固定总预算内支持水果直接需求、饮料路线替代、多输入互补和图驱动价格角色。');
+console.log('市场需求验证通过：模型 3 使用 70%／30% 预算、有限阶梯买单、水果直接需求、路线替代、多输入互补和图驱动价格角色。');
