@@ -1,5 +1,0 @@
-Traceback (most recent call last):
-  File "<stdin>", line 9, in <module>
-  File "<string>", line 29, in <module>
-  File "<string>", line 8, in replace_once
-SystemExit: server/src/market-demand/state.js: expected exactly one match, found 0: '      lastCycleId: Math.floor(now / group.cycleMs) - 1,\n    lastBudget: group.baseBudget,'
