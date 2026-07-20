@@ -23,7 +23,6 @@
   min-height: 620px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
-  padding: var(--space-4);
 }
 
 .leaderboard-board-heading {
