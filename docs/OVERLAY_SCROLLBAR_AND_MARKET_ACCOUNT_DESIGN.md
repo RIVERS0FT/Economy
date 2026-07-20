@@ -59,9 +59,10 @@
 
 移动端 `.workspace` 仍是页面和外壳的唯一水平几何边界，页面 viewport 和一级卡片继续受 `--mobile-workspace-gutter` 约束。只有覆盖式纵向轨道允许越过工作区内容框进入右侧 gutter：
 
-- `--mobile-scrollbar-edge-escape` 等于普通工作区 gutter 减去右侧安全区后的非负值；
+- `--mobile-workspace-inline-end` 等于 `max(var(--mobile-workspace-gutter), env(safe-area-inset-right))`；
+- `--mobile-scrollbar-edge-escape` 等于 `--mobile-workspace-inline-end - env(safe-area-inset-right)`，只越过普通 gutter，不越过右侧安全区；
 - `.mobile-page-overlay` 与 `.page-scroll-area` 允许轨道可见溢出，最终由 `.workspace` 裁切；
-- `.page-scroll-area > .ui-scrollbar--vertical` 使用负的边缘逃逸量，不得扩大 `.page-scroll`、`.page-content` 或卡片宽度；
+- `.page-scroll-area > .ui-scrollbar--vertical` 保持 `right: 0`，通过 `translateX(var(--mobile-scrollbar-edge-escape))` 进入右侧 gutter，不得扩大 `.page-scroll`、`.page-content` 或卡片宽度；
 - 移动纵向滑块在轨道内改为右侧对齐，并保留 `--scrollbar-edge-offset: 2px`；
 - 无右侧安全区时，滑块右边缘距屏幕右边 `2px`；存在安全区时，距安全区内缘 `2px`；
 - 滚动条显隐前后，页面 `clientWidth`、一级卡片宽度和状态栏／底栏边界必须不变；
@@ -124,6 +125,7 @@
 - 在双轴交叉区域让水平轨道覆盖纵向轨道；
 - 让移动页面纵向滑块停留在一级卡片右边缘，或通过改变 viewport／卡片宽度实现贴边；
 - 让移动轨道越过右侧安全区，或删除 `2px` 边缘偏移；
+- 用负 `right` 计算代替 `right: 0 + translateX(--mobile-scrollbar-edge-escape)`；
 - 把移动页面专用边缘逃逸规则扩散到其他 `ScrollArea`；
 - 恢复未完成订单或本地成交的“类型”列；
 - 让撤单操作列离开可视区域；
