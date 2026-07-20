@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { canAcceptRevision } from '../src/app/revisionGate.js';
+import { createStateDeliveryCache } from '../src/app/stateDelivery.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 const failures = [];
@@ -19,14 +20,16 @@ function forbidText(path, fragments) {
 }
 
 requireText('README.md', [
-  '游戏状态使用世界修订号轮询',
+  '游戏状态使用全局世界修订号排序，并按目录、玩家、市场、拍卖、排行榜五个分区增量同步',
   '客户端默认每 5 秒轮询状态',
   '客户端只接受不低于当前值的状态修订号',
   '大型 JSON 响应必须使用 gzip 压缩',
 ]);
 
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
-  '?revision=N',
+  '?revision=N&catalog=',
+  '`catalog`、`player`、`market`、`auction`、`leaderboard`',
+  '`X-Economy-State-Revisions`',
   '{ revision, unchanged: true }',
   '普通轮询不得承担时间推进',
   '正式服务的全局调度器保证到期处理延后不超过 1 秒',
@@ -39,7 +42,8 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
 ]);
 
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
-  '默认每 5 秒按服务器修订号轮询',
+  '默认每 5 秒按服务器全局修订号轮询',
+  '目录、玩家、市场、拍卖和排行榜五个状态分区',
   '可选 3／5／10 秒',
   '不得恢复每 1 秒完整状态刷新',
   '按钮必须在同一交互周期立即显示“处理中”',
@@ -69,16 +73,43 @@ forbidText('server/src/leaderboards.js', [
   'EconomyStore.prototype',
 ]);
 
+requireText('server/src/state-partitions.js', [
+  "'catalog'",
+  "'player'",
+  "'market'",
+  "'auction'",
+  "'leaderboard'",
+  "createHash('sha256')",
+  'createPartitionedStateDelivery',
+  'createPartitionedActionDelivery',
+  'readKnownPartitionRevisionsFromSearch',
+  'readKnownPartitionRevisionsFromHeader',
+]);
+
 requireText('server/src/app.js', [
   "url.searchParams.get('revision')",
   'store.getStateSnapshot(user, knownRevision)',
+  'createPartitionedStateDelivery(',
+  'createPartitionedActionDelivery(actionResponse, knownPartitions)',
+  "request.headers['x-economy-state-revisions']",
 ]);
 
 requireText('server/src/index.js', ["import './app.js'"]);
 
+requireText('src/app/stateDelivery.js', [
+  'STATE_PARTITION_NAMES',
+  'mergeStatePatches',
+  'createStateDeliveryCache',
+  'payload.revision < revision',
+]);
+
 requireText('src/api/game.ts', [
   'GameStatePollResponse',
-  '`?revision=${revision}`',
+  "const STATE_REVISIONS_HEADER = 'X-Economy-State-Revisions'",
+  'knownPartitionRevisions()',
+  "params.set('revision', String(revision))",
+  'params.set(name, value)',
+  'stateDeliveryCache.accept(payload)',
   'signal?: AbortSignal',
 ]);
 
@@ -106,6 +137,50 @@ if (!canAcceptRevision(null, 1)
   || canAcceptRevision(null, undefined)
   || canAcceptRevision(7, undefined)) {
   failures.push('revision 门禁必须只接受不低于当前值的有效修订号');
+}
+
+const deliveryCache = createStateDeliveryCache();
+const initialDelivery = deliveryCache.accept({
+  revision: 7,
+  unchanged: false,
+  partitionRevisions: {
+    catalog: 'catalog-0001',
+    player: 'player-00001',
+    market: 'market-00001',
+    auction: 'auction-0001',
+    leaderboard: 'leader-00001',
+  },
+  patches: {
+    catalog: { version: 15, products: [], facilityTypes: [] },
+    player: { userId: 1, credits: 100 },
+    market: { orders: [] },
+    auction: { collectibles: [] },
+    leaderboard: { leaderboard: [] },
+  },
+});
+const incrementalDelivery = deliveryCache.accept({
+  revision: 8,
+  unchanged: false,
+  partitionRevisions: {
+    catalog: 'catalog-0001',
+    player: 'player-00002',
+    market: 'market-00001',
+    auction: 'auction-0001',
+    leaderboard: 'leader-00001',
+  },
+  patches: { player: { credits: 101 } },
+});
+const staleDelivery = deliveryCache.accept({
+  revision: 6,
+  unchanged: false,
+  partitionRevisions: { player: 'player-stale' },
+  patches: { player: { credits: 1 } },
+});
+if (initialDelivery.state?.credits !== 100
+  || incrementalDelivery.state?.credits !== 101
+  || staleDelivery.state?.credits !== 101
+  || deliveryCache.getPartitionRevisions().player !== 'player-00002') {
+  failures.push('客户端分区缓存必须合并增量补丁，并拒绝旧全局修订号覆盖当前状态');
 }
 
 requireText('src/pages/SettingsPage.tsx', [
@@ -140,4 +215,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：世界缓存、单一全局调度、事务外同修订号快路径、修订号门禁、动作互斥、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量补丁、动作增量响应、修订号门禁、5 秒默认间隔和 JSON gzip 均已锁定。');

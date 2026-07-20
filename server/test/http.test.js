@@ -24,6 +24,17 @@ async function waitFor(url, attempts = 50) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
+function mergePatches(current, patches) {
+  const next = { ...(current || {}) };
+  for (const patch of Object.values(patches || {})) Object.assign(next, patch);
+  return next;
+}
+
+function revisionQuery(revision, partitionRevisions) {
+  const params = new URLSearchParams({ revision: String(revision), ...partitionRevisions });
+  return params.toString();
+}
+
 test('HTTP API authenticates through the shared account service and honors idempotency', async () => {
   const directory = mkdtempSync(join(tmpdir(), 'economy-api-test-'));
   let accountRequestCount = 0;
@@ -67,12 +78,17 @@ test('HTTP API authenticates through the shared account service and honors idemp
     });
     assert.equal(stateResponse.status, 200);
     const statePayload = await stateResponse.json();
-    assert.equal(statePayload.state.credits, 100);
+    const initialState = mergePatches(null, statePayload.patches);
+    assert.equal(initialState.credits, 100);
     assert.equal(statePayload.unchanged, false);
+    assert.equal('state' in statePayload, false);
+    assert.deepEqual(Object.keys(statePayload.partitionRevisions).sort(), [
+      'auction', 'catalog', 'leaderboard', 'market', 'player',
+    ]);
     assert.equal(Number.isInteger(statePayload.revision), true);
 
     const unchangedResponse = await fetch(
-      `http://127.0.0.1:${gamePort}/api/game/state?revision=${statePayload.revision}`,
+      `http://127.0.0.1:${gamePort}/api/game/state?${revisionQuery(statePayload.revision, statePayload.partitionRevisions)}`,
       { headers: { Cookie: 'session=ok' } },
     );
     assert.equal(unchangedResponse.status, 200);
@@ -86,6 +102,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
       Origin: 'https://game.riversoft.top',
       'Content-Type': 'application/json',
       'Idempotency-Key': 'http-test-request-1',
+      'X-Economy-State-Revisions': JSON.stringify(statePayload.partitionRevisions),
     };
     const first = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
       method: 'POST',
@@ -94,17 +111,23 @@ test('HTTP API authenticates through the shared account service and honors idemp
     });
     assert.equal(first.status, 200);
     const firstPayload = await first.json();
-    assert.equal(firstPayload.state.credits, 101);
+    const actionState = mergePatches(initialState, firstPayload.patches);
+    assert.equal(actionState.credits, 101);
+    assert.equal('state' in firstPayload, false);
     assert.equal(firstPayload.revision > statePayload.revision, true);
 
     const repeated = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
       method: 'POST',
-      headers,
+      headers: {
+        ...headers,
+        'X-Economy-State-Revisions': JSON.stringify(firstPayload.partitionRevisions),
+      },
       body: '{}',
     });
     assert.equal(repeated.status, 200);
     const repeatedPayload = await repeated.json();
-    assert.equal(repeatedPayload.state.credits, 101);
+    assert.equal(repeatedPayload.unchanged, true);
+    assert.deepEqual(repeatedPayload.patches, {});
     assert.equal(repeatedPayload.revision, firstPayload.revision);
     assert.equal(accountRequestCount, 1);
   } finally {

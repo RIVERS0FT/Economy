@@ -1,13 +1,24 @@
 import type { AssetKind, EconomyState, OrderSide } from '../types';
 import type { AuctionItem } from '../collectibles/types';
+import {
+  createStateDeliveryCache,
+  type StateDeliveryEnvelope,
+  type StatePartitionPatches,
+  type StatePartitionRevisions,
+} from '../app/stateDelivery.js';
 
 const GAME_API_BASE = '/economy-api/game';
+const STATE_REVISIONS_HEADER = 'X-Economy-State-Revisions';
+const stateDeliveryCache = createStateDeliveryCache();
 
 export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
 
 export interface GameActionResult { ok: boolean; message: string; }
-export interface GameActionResponse { result: GameActionResult; revision: number; state: EconomyState; }
-export interface GameStatePollResponse { revision: number; unchanged: boolean; state?: EconomyState; }
+export interface GameActionResponse extends StateDeliveryEnvelope {
+  result: GameActionResult;
+  state?: EconomyState;
+}
+export interface GameStatePollResponse extends StateDeliveryEnvelope { state?: EconomyState; }
 export interface GemShopExchangeRecord {
   gemsSpent: number;
   creditsReceived: number;
@@ -29,6 +40,8 @@ export interface CommunityLinkConfig {
   updatedAt: number | null;
 }
 
+export type { StatePartitionPatches, StatePartitionRevisions };
+
 export class GameApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -43,10 +56,28 @@ function createRequestKey() {
   return `request-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function isStateDeliveryPayload(value: unknown): value is StateDeliveryEnvelope {
+  if (!value || typeof value !== 'object') return false;
+  const payload = value as Partial<StateDeliveryEnvelope>;
+  return Number.isInteger(payload.revision) && typeof payload.unchanged === 'boolean';
+}
+
+function knownPartitionRevisions() {
+  return stateDeliveryCache.getPartitionRevisions();
+}
+
+export function resetGameStateDelivery() {
+  stateDeliveryCache.reset();
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body) headers.set('Content-Type', 'application/json');
-  if (init?.method && init.method !== 'GET') headers.set('Idempotency-Key', createRequestKey());
+  if (init?.method && init.method !== 'GET') {
+    headers.set('Idempotency-Key', createRequestKey());
+    const revisions = knownPartitionRevisions();
+    if (Object.keys(revisions).length > 0) headers.set(STATE_REVISIONS_HEADER, JSON.stringify(revisions));
+  }
   const response = await fetch(`${GAME_API_BASE}${path}`, { ...init, credentials: 'include', headers });
   if (!response.ok) {
     let message = '游戏服务器请求失败';
@@ -56,7 +87,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch { /* preserve generic message */ }
     throw new GameApiError(response.status, message);
   }
-  return response.json() as Promise<T>;
+  const payload = await response.json() as unknown;
+  return (isStateDeliveryPayload(payload) ? stateDeliveryCache.accept(payload) : payload) as T;
 }
 
 function postAction(path: string, body: Record<string, unknown> = {}) {
@@ -64,7 +96,14 @@ function postAction(path: string, body: Record<string, unknown> = {}) {
 }
 
 export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
-  const suffix = Number.isInteger(revision) ? `?revision=${revision}` : '';
+  if (!Number.isInteger(revision)) stateDeliveryCache.reset();
+  const params = new URLSearchParams();
+  if (Number.isInteger(revision)) params.set('revision', String(revision));
+  for (const [name, value] of Object.entries(knownPartitionRevisions())) {
+    if (value) params.set(name, value);
+  }
+  const query = params.toString();
+  const suffix = query ? `?${query}` : '';
   return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET', signal });
 }
 
