@@ -9,9 +9,12 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
       && Number(point.quantity || 0) > 0
       && Number(point.price || 0) > 0
     ));
-    const quantity = points.reduce((sum, point) => sum + Number(point.quantity), 0);
-    const value = points.reduce((sum, point) => sum + Number(point.quantity) * Number(point.price), 0);
-    const netActive = points.reduce((sum, point) => sum + Number(point.quantity) * (point.takerSide === 'buy' ? 1 : -1), 0);
+    const weightedQuantity = (point) => Number(point.quantity) * clamp(0, 1, Number(point.signalWeight ?? 1));
+    const quantity = points.reduce((sum, point) => sum + weightedQuantity(point), 0);
+    const value = points.reduce((sum, point) => sum + weightedQuantity(point) * Number(point.price), 0);
+    const netActive = points.reduce((sum, point) => (
+      sum + weightedQuantity(point) * (point.takerSide === 'buy' ? 1 : -1)
+    ), 0);
     return { quantity, value, netActive, vwap: quantity > 0 ? value / quantity : null };
   }
 

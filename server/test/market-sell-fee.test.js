@@ -29,6 +29,10 @@ function group(typeId, count) {
   };
 }
 
+function deferMarketDemand(world) {
+  for (const state of Object.values(world.demandGroups)) state.nextDemandAt = now + 24 * 60 * 60 * 1000;
+}
+
 test('累计卖出手续费按 1% 向上取整且最低为 1', () => {
   assert.equal(calculateCumulativeMarketSellFee(0), 0);
   assert.equal(calculateCumulativeMarketSellFee(1), 1);
@@ -55,6 +59,7 @@ test('既有卖单只从新成交开始累计且不追收旧 fill', () => {
 
 test('商品卖单部分成交按同一卖单累计补收手续费', () => {
   const world = createWorld(now);
+  deferMarketDemand(world);
   const seller = ensurePlayer(world, bob, now);
   const buyer = ensurePlayer(world, alice, now);
   seller.credits = 0;

@@ -120,6 +120,7 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and 
 
 test('asset valuation uses the latest order-book trade and ignores open bid prices', () => {
   const world = createWorld(now);
+  for (const state of Object.values(world.demandGroups)) state.nextDemandAt = now + 5 * 60 * 1000;
   const buyer = ensurePlayer(world, alice, now);
   const seller = ensurePlayer(world, bob, now);
   buyer.credits = 10_000;

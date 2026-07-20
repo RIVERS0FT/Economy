@@ -11,7 +11,7 @@ import {
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 31);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 3);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 4);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.baseBudget), [3_000, 2_700]);
@@ -45,16 +45,32 @@ assert.equal(MARKET_DEMAND_PRODUCT_IDS.includes('sugar'), false);
 
 const runtime = [
   'server/src/market-demand.js',
+  'server/src/market-liquidity.js',
   'server/src/market-demand/catalog.js',
   'server/src/market-demand/math.js',
   'server/src/market-demand/signals.js',
   'server/src/market-demand/state.js',
   'server/src/market-demand/price-transmission.js',
   'server/src/market-demand/allocation.js',
+  'server/src/balanced-market.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 3',
+  'MARKET_DEMAND_MODEL_VERSION = 4',
   'DIRECT_BUDGET_SHARE = 0.70',
+  'LIQUIDITY_BASE_SPREAD = 0.08',
+  'LIQUIDITY_MIN_SPREAD = 0.04',
+  'LIQUIDITY_MAX_SPREAD = 0.24',
+  'LIQUIDITY_QUOTE_BUDGET_SHARE = 0.25',
+  'LIQUIDITY_SIGNAL_WEIGHT = 0.50',
+  "LIQUIDITY_BUY = 'liquidity-buy'",
+  "LIQUIDITY_SELL = 'liquidity-sell'",
+  'seeded: wasSeeded || seedNow',
+  'groupState.frozenCredits += reservedCredits',
+  'reserve.frozenInventory += sellQuantity',
+  "order.ownerType === 'population' && incoming.ownerType === 'population'",
+  'settleLiquidityBuy',
+  'settleLiquiditySell',
+  'signalWeight',
   "id: 'fresh-drinks'",
   "productId: 'fruit'",
   "productId: 'appliance'",
@@ -76,7 +92,7 @@ for (const text of [
   'processPriceTransmission',
 ]) assert.ok(runtime.includes(text), '市场需求实现缺少: ' + text);
 for (const forbidden of ['DEMAND_INVENTORY_BOOST_RATE', 'stockSnapshot.totalValue', 'inventoryFactor']) {
-  assert.equal(runtime.includes(forbidden), false, '市场需求不得恢复库存增发逻辑: ' + forbidden);
+  assert.equal(runtime.includes(forbidden), false, '消费需求不得恢复库存增发逻辑: ' + forbidden);
 }
 
 const domain = read('server/src/domain.js');
@@ -87,6 +103,8 @@ for (const text of [
   'marketDemand.initializeWorld',
   'marketDemand.normalizeWorld',
   'marketDemand.process',
+  'applyCommodityOrder',
+  'balancedMarket.matchOrder(world, incoming, now)',
   'world.version = 13',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
 
@@ -104,8 +122,15 @@ for (const text of [
   'player inventory never increases market demand budget or product allocation',
   'beverage production paths shift toward cheaper fruit inputs',
   'fruit participates in fresh direct demand without expanding the food budget',
-  'market demand model version 2 migrates to version 3 without resetting player assets',
 ]) assert.ok(domainTests.includes(text), '领域测试缺少: ' + text);
+const liquidityTests = read('server/test/market-liquidity.test.js');
+for (const text of [
+  'market model 4 creates inventory-backed buy and sell orders without system self-trades',
+  'selling to a reserve transfers reserve funds and does not count as consumption issuance',
+  'buying from a reserve transfers real inventory and returns credits to the reserve',
+  'liquidity orders are cancelled and re-reserved on the next cycle',
+  'model 3 migrates to model 4 without changing player assets',
+]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 const transmissionTests = read('server/test/demand-transmission.test.js');
 for (const text of [
   'hybrid fruit prices respond to beverage value after one relation lag',
@@ -113,12 +138,13 @@ for (const text of [
 ]) assert.ok(transmissionTests.includes(text), '价格传导测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`3`', '70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性', '旧系统买单按剩余数量保留 50%', '水果', '家电', '库存数量和库存价值不得扩大市场需求总预算']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['marketDemand.modelVersion = 3', '70%／30%', '保留剩余数量的 50%', '新鲜与饮品', '混合消费输入品', '新增商品和工厂不得自动提高']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：3', 'lastFilledAt', '兼容标识']],
+  ['README.md', ['市场需求模型版本：`4`', '市场储备每 5 分钟撤销并重挂双边商品订单', '真实资金和库存同时生成商品买单与卖单']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['marketDemand.modelVersion = 4', '双边市场储备', '一次性种子资金', '所有系统订单互相禁止成交']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：4', 'liquidity-buy', 'liquidity-sell', '真实储备可用资金', '任何系统订单之间都不得成交']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['market-liquidity.js', '市场需求模型 3 升级到 4', '重复补发储备资产']],
 ]) {
   const content = read(path);
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 3 使用 70%／30% 预算、有限阶梯买单、水果直接需求、路线替代、多输入互补和图驱动价格角色。');
+console.log('市场需求验证通过：模型 4 保留 70%／30% 消费预算，并使用真实资金与库存创建受限双边市场储备。');
