@@ -1,0 +1,22 @@
+/* Final authority for player-page primary surface insets.
+ * Business page styles may arrange content inside the surface, but must not
+ * override the outer padding of .ui-primary-surface. */
+:root {
+  --primary-surface-inset: var(--space-4);
+}
+
+.panel.widget,
+.panel.ui-primary-surface {
+  min-width: 0;
+  padding: var(--primary-surface-inset);
+}
+
+.panel.ui-primary-surface > .widget-heading:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  :root {
+    --primary-surface-inset: var(--space-3);
+  }
+}
