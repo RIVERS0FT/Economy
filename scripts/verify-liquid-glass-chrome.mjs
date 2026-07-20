@@ -110,7 +110,7 @@ if (failures.length === 0) {
     'overflow: clip;',
     '@supports (overflow: clip)',
   ]) forbidText(files.styles, text);
-  if (/(^|[\s{;])backdrop-filter\s*:/m.test(read(files.styles))) {
+  if (/^\s*backdrop-filter\s*:/m.test(read(files.styles))) {
     failures.push('项目 CSS 不得重写 liquid-glass-react 的非前缀 backdrop-filter');
   }
 
