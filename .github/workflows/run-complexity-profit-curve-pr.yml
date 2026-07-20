@@ -28,6 +28,18 @@ jobs:
         run: |
           sed -n "/python3 <<'PY'/,/^          PY$/p" .github/workflows/apply-complexity-profit-curve.yml \
             | sed '1d;$d;s/^          //' > /tmp/apply-complexity-profit-curve.py
+          python3 <<'PYFIX'
+          from pathlib import Path
+          path = Path('/tmp/apply-complexity-profit-curve.py')
+          text = path.read_text(encoding='utf-8')
+          old = "replace_once('server/test/domain.test.js', old_prices, new_prices)"
+          new = """domain_old_prices = '\n'.join(f'  {line}' for line in old_prices.splitlines())
+          domain_new_prices = '\n'.join(f'  {line}' for line in new_prices.splitlines())
+          replace_once('server/test/domain.test.js', domain_old_prices, domain_new_prices)"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one domain price replacement call, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PYFIX
           python3 /tmp/apply-complexity-profit-curve.py
 
       - name: Install dependencies
