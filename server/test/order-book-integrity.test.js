@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyAction, createWorld, ensurePlayer } from '../src/domain.js';
-import { findSelfCrossingOrderForPayload, SELF_CROSS_MESSAGE } from '../src/order-book-integrity.js';
+import { applyAction, createWorld, ensurePlayer, FACILITY_TYPE_CATALOG } from '../src/domain.js';
+import { applyFacilityGroupAction } from '../src/facility-groups.js';
+import { SELF_CROSS_MESSAGE } from '../src/order-book-integrity.js';
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
@@ -37,18 +38,29 @@ test('commodity orders reject a price that crosses the same player resting order
   assert.equal(world.orders.length, orderCountBefore);
 });
 
-test('self-cross detection applies to facility payloads used by the unified order book', () => {
+test('facility orders reject a price that crosses the same player resting order before freezing funds', () => {
   const world = createWorld(now);
-  world.orders.push({
-    id: 'facility-sell', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm',
-    side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice',
-    price: 100, quantity: 1, remaining: 1, status: 'open', createdAt: now,
-  });
+  deferDemand(world);
+  const player = ensurePlayer(world, alice, now);
+  const farm = FACILITY_TYPE_CATALOG.find((type) => type.id === 'farm');
+  assert.ok(farm);
+  player.credits = 100_000;
+  player.facilityGroups = [{ facilityTypeId: farm.id, count: 1 }];
 
-  assert.equal(Boolean(findSelfCrossingOrderForPayload(world, alice.id, {
-    assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 1, price: 100,
-  })), true);
-  assert.equal(Boolean(findSelfCrossingOrderForPayload(world, alice.id, {
-    assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 1, price: 99,
-  })), false);
+  const sell = applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'facility', assetId: farm.id, side: 'sell', quantity: 1, price: farm.systemValue,
+  }, now + 1);
+  assert.equal(sell.ok, true);
+
+  const creditsBefore = player.credits;
+  const frozenCreditsBefore = player.frozenCredits;
+  const orderCountBefore = world.orders.length;
+  const buy = applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'facility', assetId: farm.id, side: 'buy', quantity: 1, price: farm.systemValue,
+  }, now + 2);
+
+  assert.deepEqual(buy, { ok: false, message: SELF_CROSS_MESSAGE });
+  assert.equal(player.credits, creditsBefore);
+  assert.equal(player.frozenCredits, frozenCreditsBefore);
+  assert.equal(world.orders.length, orderCountBefore);
 });
