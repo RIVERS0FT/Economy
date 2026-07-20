@@ -32,9 +32,9 @@
 - `globals.css` 只提供历史通用基础布局；其中旧的 `.game-shell` 间距和 `.page-content` 最大宽度不得成为最终计算样式。
 - `desktop-sidebar.css` 负责侧栏内部布局、展开／折叠宽度和过渡。
 - `viewport.css` 负责固定视口、原生滚动视口、移动 `.workspace` 内边距、两层 Overlay、安全区和上下避让。
-- `scrollbars.css` 负责覆盖式滚动条，不参与状态栏宿主或工作区几何占位。
+- `scrollbars.css` 负责覆盖式滚动条，不参与状态栏宿主或工作区几何占位；移动页面轨道可以越过工作区内容框进入右侧 gutter，但不得改变页面 viewport 或卡片宽度。
 - `game-shell-layout.css` 统一收束桌面双列轨道、共享外距、工作区边界和页面全宽规则。
-- `mobile-status-navigation.css` 定义移动工作区统一间距和外壳尺寸令牌，只负责状态栏与导航内部布局。
+- `mobile-status-navigation.css` 定义移动工作区统一间距、滚动条边缘逃逸量和外壳尺寸令牌，只负责状态栏与导航内部布局。
 - `mobile-status-layout.css` 只收束移动状态项密度和固定高度，不得重新给页面或外壳设置水平边距。
 
 ## 3. 桌面水平双列结构
@@ -111,6 +111,8 @@
 - 左内边距为 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left))`；
 - 右内边距为 `max(var(--mobile-workspace-gutter), env(safe-area-inset-right))`；
 - 页面层、状态栏和底部导航均填满 `.workspace` 的内容框，不得再次设置独立水平 inset；
+- 状态栏和底栏的可见液态玻璃表面必须与一级卡片左右边缘共线，不能只让外层宿主共线；
+- 移动 `.asset-bar` 不得设置水平 padding 缩窄玻璃表面，状态项留白统一放在 `.asset-bar-content`；
 - `.page-scroll` 的左右 padding 必须为 `0`，防止与 `.workspace` 形成双重边距；
 - 一级卡片自身只管理内部 padding，卡片之间的外部距离继续由布局容器的 `gap` 管理，不得给所有 `.panel` 添加统一 margin。
 
@@ -124,6 +126,8 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 - `.mobile-chrome-overlay` 使用 `z-index: 10`，承载状态栏和导航栏；
 - Chrome Overlay 自身使用 `pointer-events: none`，只有状态栏和导航栏恢复 `pointer-events: auto`，透明区域不得阻断页面触控滚动；
 - 两个 Overlay 的边界必须等于 `.workspace` 的内容框，因此状态栏、一级卡片和底栏左右边缘天然共线；
+- `.mobile-page-overlay` 和 `.page-scroll-area` 允许覆盖式纵向轨道进入右侧 gutter，最终仍由 `.workspace` 裁切；该可见溢出不得产生页面水平滚动；
+- `--mobile-scrollbar-edge-escape` 只抵消普通 gutter，保留 `env(safe-area-inset-right)`，纵向滑块右边缘位于屏幕或安全区内缘 `2px`；
 - 页面滚动时内容允许进入玻璃状态栏和底栏后方，但初始标题与最后一项操作必须通过上下 padding 完整避让外壳。
 
 移动状态栏：
@@ -132,7 +136,8 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 - `left: 0`、`right: 0`，不得再读取独立左右安全区变量；
 - 顶部使用 `max(var(--mobile-chrome-block-inset), env(safe-area-inset-top))`；
 - 高度、最小高度和最大高度都固定为 `48px`；
-- `.asset-bar-scroll-track` 和 `.asset-bar` 可以使用 `height: 100%` 填满固定宿主，但 `scrollbars.css` 不得给 `.asset-bar-scroll-area` 设置 `height: 100%`。
+- `.asset-bar-scroll-track` 和 `.asset-bar` 可以使用 `height: 100%` 填满固定宿主，但 `scrollbars.css` 不得给 `.asset-bar-scroll-area` 设置 `height: 100%`；
+- `.asset-bar` 的移动端 padding 必须为 `0`，玻璃表面宽高与状态栏宿主一致。
 
 移动底部导航：
 
@@ -140,7 +145,8 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 - 使用 `position: absolute`，不得继续相对视口使用 `position: fixed`；
 - `left: 0`、`right: 0`；
 - 底部使用 `max(var(--mobile-chrome-block-inset), env(safe-area-inset-bottom))`；
-- 高度、最小高度和最大高度都固定为 `68px`。
+- 高度、最小高度和最大高度都固定为 `68px`；
+- 可见玻璃及第三方折射层圆角必须与一级卡片 `--radius-card` 一致，当前为 `24px`。
 
 ## 8. 验收标准
 
@@ -159,13 +165,14 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 
 1. `.workspace` 左右计算 padding 等于 `12px` 或更大的对应安全区。
 2. 页面 Overlay 和 Chrome Overlay 占据同一内容框。
-3. 状态栏、页面一级卡片和底部导航左右边缘共线。
+3. 状态栏宿主、状态栏实际玻璃、页面一级卡片、底部导航宿主和底栏实际玻璃左右边缘共线。
 4. `.page-scroll` 左右计算 padding 为 `0`。
-5. 状态栏始终为 `48px`，不得被 ScrollArea 拉伸为工作区高度。
-6. 底部导航始终为 `68px`，并相对于工作区定位。
+5. 状态栏宿主和实际玻璃始终为 `48px`，不得被 ScrollArea 或 viewport padding 缩小、拉伸。
+6. 底部导航始终为 `68px`，并相对于工作区定位；底栏玻璃圆角与一级卡片都为 `24px`。
 7. Chrome Overlay 透明区域不阻断页面滑动，状态栏和导航按钮仍可点击。
 8. 初始标题位于状态栏下方，最后一张卡和操作可以滚动到导航栏上方。
 9. 页面不存在双重水平内边距或水平滚动。
+10. 实际纵向滚动时，页面滑块右边缘距屏幕或安全区内缘约 `2px`，并且显隐前后卡片宽度不变化。
 
 ## 9. 不可回退规则
 
@@ -184,8 +191,12 @@ CSS 中所称“移动端全局左右外边距”必须使用 `.workspace` 的 `
 - 在移动页面层、状态栏或导航栏重新增加独立左右 inset；
 - 把移动左右内边距重新放回 `.page-scroll`；
 - 让移动工作区 gutter 与一级卡片 gap 使用不同数值；
+- 给移动 `.asset-bar` 恢复会缩窄实际玻璃表面的水平 padding；
+- 只验证状态栏或底栏宿主而不验证实际 `.liquid-glass-surface` 边界；
 - 把移动底栏移回 `.workspace` 外部或恢复 `position: fixed`；
+- 把移动底栏圆角恢复为独立硬编码值，导致其与一级卡片不一致；
 - 给 `.mobile-chrome-overlay` 恢复会拦截整屏触控的 `pointer-events: auto`；
+- 把移动页面覆盖式滚动条重新限制在卡片右边缘，或通过扩大 viewport／负 margin 改变卡片宽度；
 - 在 `scrollbars.css` 中重新给 `.asset-bar-scroll-area` 设置 `height: 100%`；
 - 破坏移动状态栏 `48px`、底栏 `68px`、上下安全区或最后一项内容避让；
 - 绕过浏览器几何测试合并布局回退。
