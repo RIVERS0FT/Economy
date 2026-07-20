@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useNow } from '../hooks/useNow';
 import {
   type LoadedGameViewModel,
 } from '../app/gameViewModel';
@@ -69,7 +70,6 @@ function typeForRecipe(type: FacilityTypeDefinition, recipe: FacilityRecipeDefin
 export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
-    now,
     selectedFacilityTypeId,
     setSelectedFacilityTypeId,
     buildFacility,
@@ -80,6 +80,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     showResult,
   } = model;
 
+  const now = useNow();
   const selectedType = useMemo(
     () => game.facilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? game.facilityTypes[0],
     [game.facilityTypes, selectedFacilityTypeId],

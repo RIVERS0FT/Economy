@@ -265,8 +265,6 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     setCompactNumbers: () => {},
     refreshRate: '5',
     setRefreshRate: () => {},
-    now: fixedNow,
-    workRemaining: 0,
     isWorking: false,
     inventoryUsed: game.warehouseStoredQuantity,
     cashShare: 0,

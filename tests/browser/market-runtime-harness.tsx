@@ -274,8 +274,6 @@ function MarketHarness() {
       setCompactNumbers: () => {},
       refreshRate: '5',
       setRefreshRate: () => {},
-      now: fixedNow,
-      workRemaining: 0,
       isWorking: false,
       inventoryUsed: game.warehouseUsedCapacity,
       cashShare: 0,

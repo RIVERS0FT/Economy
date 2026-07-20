@@ -28,7 +28,8 @@ requireText('README.md', [
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '?revision=N',
   '{ revision, unchanged: true }',
-  '空闲状态读取不得仅因服务器时间推进而修改 `lastProcessedAt`',
+  '普通轮询不得承担时间推进',
+  '正式服务的全局调度器保证到期处理延后不超过 1 秒',
   '正式客户端默认每 5 秒轮询一次修订号',
   '轮询和动作响应只有在 `revision` 不低于当前值时才能更新界面',
   '发起任一权威动作时必须使用 `AbortController` 取消正在进行的状态轮询',
@@ -47,10 +48,25 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
 
 requireText('server/src/storage.js', [
   "immediate ? 'BEGIN IMMEDIATE' : 'BEGIN'",
-  'saveWorldIfChanged(',
-  'if (candidate === previousStateJson) return revision',
+  'this.worldCache = null',
+  'this.scheduledProcessing = Boolean(scheduledProcessing)',
+  'setInterval(() =>',
+  'processScheduledWorld(now = Date.now())',
+  'structuredClone(this.worldCache.world)',
+  'isDeepStrictEqual(world, cached.world)',
+  'processWorldIfDue(world, now',
+  '(this.scheduledProcessing || now < this.nextWorldProcessingAt)',
   'getStateSnapshot(user, knownRevision',
   'unchanged: true',
+]);
+
+forbidText('server/src/storage.js', [
+  'JSON.parse(stateJson)',
+  'candidate === previousStateJson',
+]);
+forbidText('server/src/leaderboards.js', [
+  'STORE_HOOK',
+  'EconomyStore.prototype',
 ]);
 
 requireText('server/src/app.js', [
@@ -124,4 +140,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：修订号门禁、动作轮询互斥、空闲读取不写库、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、事务外同修订号快路径、修订号门禁、动作互斥、5 秒默认间隔和 JSON gzip 均已锁定。');

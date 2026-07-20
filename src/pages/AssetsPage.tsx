@@ -16,6 +16,8 @@ import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 
 type AssetEventFilter = 'all' | 'cash' | 'inventory' | 'warehouse' | 'facility' | 'production' | 'order';
 
+function assetEventKey(event: AssetEvent) { return event.id; }
+
 const eventCategoryNames: Record<AssetEventCategory, string> = {
   work: '工作',
   order: '订单',
@@ -111,7 +113,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
         <Panel className="widget asset-overview-card">
           <WidgetHeading
             title="资产总览"
-            action={<span className="muted">商品和工厂按订单簿最高有效买入价估值</span>}
+            action={<span className="muted">商品和工厂按最近一次订单簿真实成交价估值</span>}
           />
 
           <div className="asset-overview-body">
@@ -223,7 +225,7 @@ export function AssetsPage({ model }: { model: LoadedGameViewModel }) {
           <VirtualList
             key={eventFilter}
             items={filteredEvents}
-            getKey={(event) => event.id}
+            getKey={assetEventKey}
             estimateSize={190}
             viewportHeight={720}
             minViewportHeight={128}

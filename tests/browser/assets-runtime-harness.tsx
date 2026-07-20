@@ -57,7 +57,6 @@ const model = {
   allocationStyle: {
     background: 'conic-gradient(var(--color-success) 0 21%, var(--color-warning) 21% 56%, var(--color-info) 56% 100%)',
   },
-  now: fixedNow,
 } as unknown as LoadedGameViewModel;
 
 createRoot(document.getElementById('root') as HTMLElement).render(<AssetsPage model={model} />);

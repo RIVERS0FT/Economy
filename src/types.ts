@@ -270,6 +270,7 @@ export interface PricePoint {
 export interface ProductMarketState {
   productId: string;
   lastPrice: number;
+  lastTradePrice: number | null;
   priceHistory: PricePoint[];
   demand: DemandState;
 }
@@ -277,6 +278,7 @@ export interface ProductMarketState {
 export interface FacilityMarketState {
   facilityTypeId: string;
   lastPrice: number;
+  lastTradePrice: number | null;
   priceHistory: PricePoint[];
 }
 

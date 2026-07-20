@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
-import { AssetsPage } from './AssetsPage';
-import { AuctionPage } from './AuctionPage';
-import { CollectionsPage } from './CollectionsPage';
-import { LeaderboardPage } from './LeaderboardPage';
-import { MarketPage } from './MarketPage';
-import { OverviewPage } from './OverviewPage';
-import { ProductionPage } from './ProductionPage';
-import { GemShopPage } from './GemShopPage';
-import { SettingsPage } from './SettingsPage';
+
+const AssetsPage = lazy(() => import('./AssetsPage').then((module) => ({ default: module.AssetsPage })));
+const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ default: module.AuctionPage })));
+const CollectionsPage = lazy(() => import('./CollectionsPage').then((module) => ({ default: module.CollectionsPage })));
+const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => ({ default: module.LeaderboardPage })));
+const MarketPage = lazy(() => import('./MarketPage').then((module) => ({ default: module.MarketPage })));
+const OverviewPage = lazy(() => import('./OverviewPage').then((module) => ({ default: module.OverviewPage })));
+const ProductionPage = lazy(() => import('./ProductionPage').then((module) => ({ default: module.ProductionPage })));
+const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
+const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
 export function PageRouter({ model }: { model: LoadedGameViewModel }) {
   const [overviewProductId, setOverviewProductId] = useState(() => model.game.products[0]?.id ?? '');
@@ -18,26 +19,35 @@ export function PageRouter({ model }: { model: LoadedGameViewModel }) {
     setOverviewProductId(model.game.products[0]?.id ?? '');
   }, [model.game.products, overviewProductId]);
 
+  let page;
   switch (model.tab) {
     case 'market':
-      return <MarketPage model={model} />;
+      page = <MarketPage model={model} />;
+      break;
     case 'production':
-      return <ProductionPage model={model} />;
+      page = <ProductionPage model={model} />;
+      break;
     case 'assets':
-      return <AssetsPage model={model} />;
+      page = <AssetsPage model={model} />;
+      break;
     case 'collections':
-      return <CollectionsPage model={model} />;
+      page = <CollectionsPage model={model} />;
+      break;
     case 'auction':
-      return <AuctionPage model={model} />;
+      page = <AuctionPage model={model} />;
+      break;
     case 'leaderboard':
-      return <LeaderboardPage model={model} />;
+      page = <LeaderboardPage model={model} />;
+      break;
     case 'gem-shop':
-      return <GemShopPage model={model} />;
+      page = <GemShopPage model={model} />;
+      break;
     case 'settings':
-      return <SettingsPage model={model} />;
+      page = <SettingsPage model={model} />;
+      break;
     case 'home':
     default:
-      return (
+      page = (
         <OverviewPage
           model={model}
           overviewProductId={overviewProductId}
@@ -45,4 +55,6 @@ export function PageRouter({ model }: { model: LoadedGameViewModel }) {
         />
       );
   }
+
+  return <Suspense fallback={<div className="page-loading" role="status">正在加载页面…</div>}>{page}</Suspense>;
 }

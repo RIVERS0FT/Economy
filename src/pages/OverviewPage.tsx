@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from 'react';
+import { useNow } from '../hooks/useNow';
 import {
   facilityStatusReasonNames,
   orderStatusNames,
@@ -70,14 +71,14 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
     game,
     derived,
     localAssetEvents,
-    now,
-    workRemaining,
     isWorking,
     work,
     showResult,
     setTab,
     selectMarketAsset,
   } = model;
+  const now = useNow();
+  const workRemaining = Math.max(0, game.work.cooldownUntil - now);
   const pendingRecipeChanges = game.facilityGroups.filter((group) => Boolean(group.pendingRecipeId)).length;
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
   const pendingJoin = game.facilityGroups.reduce((sum, group) => sum + group.pendingJoinCount, 0);

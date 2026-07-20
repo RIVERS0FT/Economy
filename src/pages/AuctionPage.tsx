@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNow } from '../hooks/useNow';
 import { gameActions } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
@@ -115,6 +116,7 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
 }
 
 export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
+  const now = useNow();
   const { collectibles, assetAuctions } = getCollectibleState(model.game);
   const openAuctions = assetAuctions.filter((auction) => auction.status === 'open');
   const closedAuctions = assetAuctions.filter((auction) => auction.status !== 'open').slice(0, 12);
@@ -424,7 +426,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                 <Panel className={`collectible-auction-card asset-auction-card ${auction.isBundle ? 'asset-auction-bundle' : `asset-auction-${auction.assetKind}`}`} key={auction.id}>
                   <AuctionAssetVisual auction={auction} />
                   <div className="collectible-auction-body">
-                    <WidgetHeading title={auctionTitle(auction)} action={<StatusTag tone="warning">{remainingText(auction.endsAt, model.now)}</StatusTag>} />
+                    <WidgetHeading title={auctionTitle(auction)} action={<StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>} />
                     <p>{auction.isBundle ? '不可拆分资产包' : assetKindNames[items[0].kind]} · 整包竞价</p>
                     <div className="asset-auction-item-list">
                       {items.slice(0, 3).map((item) => <span key={`${item.kind}:${item.id}`}><strong>{item.name}</strong><small>{assetKindNames[item.kind]} · × {formatNumber(item.quantity)}</small></span>)}

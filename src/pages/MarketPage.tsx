@@ -28,6 +28,8 @@ import {
 import { buildOrderBookLevels } from '../utils/orderBookLevels';
 import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
+function localTradeKey(trade: { id: string }) { return trade.id; }
+
 function orderTone(status: AssetOrder['status']): StatusTone {
   if (status === 'filled') return 'success';
   if (status === 'partial') return 'warning';
@@ -43,7 +45,6 @@ function localTradeAssetName(trade: { description: string; side: 'buy' | 'sell' 
 export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
-    now,
     localTrades,
     marketAssetKind,
     marketAssetId,
@@ -58,6 +59,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     cancelOrder,
     showResult,
   } = model;
+  const now = Date.now();
   const assetDirectoryRef = useRef<HTMLDivElement>(null);
   const [priceDraft, setPriceDraft] = useState(String(orderPrice));
   const [quantityDraft, setQuantityDraft] = useState(String(orderQuantity));
@@ -416,7 +418,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             <PriceSparkline buckets={marketBuckets} variant="full" />
             <div className="chart-footer">
               <span>最近 24h {formatNumber(marketHistoryCount)} 笔 · 6m × 240</span>
-              <span>估值买价 <CurrencyAmount>{game.valuationPrices[`${marketAssetKind}:${assetId}`] ? formatCurrency(game.valuationPrices[`${marketAssetKind}:${assetId}`]) : '--'}</CurrencyAmount></span>
+              <span>最近成交估值 <CurrencyAmount>{formatCurrency(game.valuationPrices[`${marketAssetKind}:${assetId}`] ?? 0)}</CurrencyAmount></span>
               <span>{marketFlow.netVolume > 0
                 ? `净主动买入 ${formatNumber(marketFlow.netVolume)}`
                 : marketFlow.netVolume < 0
@@ -484,7 +486,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                     </div>
                     <VirtualList
                       items={localTrades}
-                      getKey={(trade) => trade.id}
+                      getKey={localTradeKey}
                       estimateSize={54}
                       viewportHeight={520}
                       minViewportHeight={96}

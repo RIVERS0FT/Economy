@@ -39,7 +39,8 @@ const paths = {
 Object.values(paths).forEach(requireFile);
 
 requireAll(paths.router, [
-  "import { useEffect, useState } from 'react'",
+  "import { lazy, Suspense, useEffect, useState } from 'react'",
+  "const OverviewPage = lazy(() => import('./OverviewPage')",
   "const [overviewProductId, setOverviewProductId] = useState(() => model.game.products[0]?.id ?? '')",
   'model.game.products.some((product) => product.id === overviewProductId)',
   'overviewProductId={overviewProductId}',

@@ -118,6 +118,7 @@ function createMarket(product, now) {
   return {
     productId: product.id,
     lastPrice: product.basePrice,
+    lastTradePrice: null,
     priceHistory: seedPriceHistory(product, now),
     demand: {
       cycleMs: ECONOMY_CONSTANTS.demandCycleMs,
@@ -315,7 +316,14 @@ export function migrateWorld(world, now = Date.now()) {
     world.markets.wheat.productId = 'wheat';
     delete world.markets.grain;
   }
-  for (const product of PRODUCT_CATALOG) world.markets[product.id] ||= createMarket(product, now);
+  for (const product of PRODUCT_CATALOG) {
+    world.markets[product.id] ||= createMarket(product, now);
+    const market = world.markets[product.id];
+    if (market.lastTradePrice === undefined) {
+      const latestTrade = [...(market.priceHistory || [])].reverse().find((point) => point.takerSide === 'buy' || point.takerSide === 'sell');
+      market.lastTradePrice = latestTrade ? Number(latestTrade.price) : null;
+    }
+  }
 
   world.orders ||= [];
   for (const order of world.orders) {
@@ -400,6 +408,7 @@ function isOpenOrder(order) {
 function recordPrice(world, productId, price, quantity, takerSide, createdAt) {
   const market = marketFor(world, productId);
   market.lastPrice = price;
+  market.lastTradePrice = price;
   market.priceHistory.push({ price, quantity, createdAt, takerSide });
   market.priceHistory = market.priceHistory.slice(-ECONOMY_CONSTANTS.maxPricePoints);
 }

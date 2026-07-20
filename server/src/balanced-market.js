@@ -14,6 +14,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return {
       productId: product.id,
       lastPrice: product.basePrice,
+      lastTradePrice: null,
       priceHistory: offsets.map((offset, index) => ({
         price: Math.max(1, product.basePrice + offset),
         quantity: 3 + (index % 5),
@@ -82,6 +83,7 @@ export function createBalancedMarketRuntime({ products, constants }) {
   function recordPrice(world, productId, price, quantity, takerSide, createdAt) {
     const market = marketFor(world, productId, createdAt);
     market.lastPrice = price;
+    market.lastTradePrice = price;
     market.priceHistory ||= [];
     market.priceHistory.push({ price, quantity, createdAt, takerSide });
     market.priceHistory = market.priceHistory.slice(-constants.maxPricePoints);
@@ -209,6 +211,8 @@ export function createBalancedMarketRuntime({ products, constants }) {
           createdAt: Number(point.createdAt || now), takerSide: point.takerSide,
         }));
       }
+      const latestTrade = [...market.priceHistory].reverse().find((point) => point.takerSide === 'buy' || point.takerSide === 'sell');
+      market.lastTradePrice = latestTrade ? Number(latestTrade.price) : null;
       if (product.id === 'wheat' && legacy.demand) market.demand = { ...market.demand, ...legacy.demand };
       world.markets[product.id] = market;
     }

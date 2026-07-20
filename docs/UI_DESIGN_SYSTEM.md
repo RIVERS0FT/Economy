@@ -39,7 +39,8 @@
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高与可访问状态 |
 | `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面视口安全边缘轨道 |
 | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
-| `src/styles/liquid-glass-chrome.css` | 状态栏和移动底栏玻璃材质 |
+| `src/styles/liquid-glass-surfaces.css` | 正式状态栏与移动底栏玻璃宿主、材质适配和结构描边 |
+| `src/styles/liquid-glass-chrome.css` | 仅供浏览器运行时 harness 使用的固定样式聚合兼容入口，不是第二套材质 |
 | `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
 | `src/styles/mobile-*.css` | 移动导航、安全区和页面布局 |
 
@@ -74,9 +75,11 @@
 
 `src/components/ui/FormControls.tsx` 是统一表单控件的唯一 React 包装层。新页面不得为文本、整数、选择器、文本域、文件或组合输入创建平行基础组件；紧凑表格行内输入可以直接使用原生控件，但必须带 `.ui-control` 并遵守相同解析和状态规则。
 
+管理员入口、游戏入口和九个游戏页面必须使用 `React.lazy` 与动态 `import()` 按需加载；登录页不得静态拉入管理员和全部游戏页面。根游戏模型不得维护每秒变化的时间状态，倒计时只在概览、生产和拍卖等实际需要的局部页面通过共享 `useNow` 维护，市场订单簿、资产页、导航和静态卡片不得被全局秒级时钟重渲染。
+
 `SwitchControl` 是布尔开关的唯一 React 基础组件，`.ui-switch` 是唯一视觉实现。不得新增工厂开关、音乐开关或设置开关的平行 CSS。
 
-`VirtualList` 是高增长记录的唯一窗口化基础组件。它根据滚动位置只挂载可视条目与少量 `overscan` 条目，使用稳定业务 ID 作为键，并通过 `ResizeObserver` 修正可变高度。DOM 只渲染可视区域和少量预加载行；资产事件、本地成交、管理员藏品、礼品码、归属历史和兑换记录不得各自实现另一套虚拟滚动器。
+`VirtualList` 是高增长记录的唯一窗口化基础组件。它根据滚动位置只挂载可视条目与少量 `overscan` 条目，使用模块级稳定业务 ID 取键函数，并通过 `ResizeObserver` 修正可变高度。滚动事件必须通过 `requestAnimationFrame` 合并为每帧最多一次 React 状态更新，可视起止索引必须使用累计偏移二分查找，不得每帧从第 0 项线性扫描。DOM 只渲染可视区域和少量预加载行；资产事件、本地成交、管理员藏品、礼品码、归属历史和兑换记录不得各自实现另一套虚拟滚动器。
 
 `CurrencyAmount` 是玩家端和管理员端可见货币金额的唯一组合组件，固定复用 `GameIcons.tsx` 的 `CreditsIcon`。`CurrencyText` 只用于把服务器或旧数据返回字符串中的遗留货币字符转换为同一 SVG，不得用运行时 DOM 扫描替代组件渲染。
 
@@ -125,20 +128,29 @@
 - `sugarcane`：甘蔗秆与叶片；
 - `fruit`：带叶水果；
 - `timber`：原木；
-- `ore`：矿石；
+- `cotton`：棉花；
+- `ore`：铁矿石；
+- `copper-ore`：铜矿石；
 - `crude-oil`：油滴；
 - `fish`：鱼；
+- `meat`：肉；
+- `eggs`：鸡蛋；
+- `milk`：牛奶；
+- `wool`：羊毛；
 - `flour`：面粉袋；
 - `sugar`：砂糖袋；
 - `lumber`：堆叠木板；
 - `steel`：工字钢；
+- `copper`：铜材；
 - `plastic`：塑料瓶；
 - `pulp`：纸浆卷；
+- `textile`：纺织布卷；
 - `food`：食物碗；
 - `beverage`：饮料瓶；
 - `prepared-meal`：分格餐盒；
 - `paper`：叠放纸张；
 - `furniture`：椅子；
+- `clothing`：服装；
 - `machinery`：齿轮机械；
 - `electronics`：芯片；
 - `appliance`：家电机身与滚筒。
@@ -189,7 +201,7 @@
 - “紧凑数字”是全局客户端显示偏好；`GameApp` 必须在 React effect 中通过 `setCompactNumbersEnabled` 同步当前偏好，不得在渲染函数中修改模块级格式化状态。
 - 切换后当前游戏外壳和所有使用统一格式器的页面立即同步，不得要求刷新或重新登录。
 - 偏好开启时，`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T；关闭时统一恢复带千分位的完整整数。
-- 排名、百分比、时间、时长和可编辑数字输入保持精确原值，不得因紧凑偏好改变业务值。
+- 排名、百分比、时间、时长和可编辑数字输入保持精确原值，不得因紧凑偏好改变业务值。资产配置圆环使用未舍入的精确比例绘制，三个可见整数百分比使用统一余数分配并严格合计为 100%；不得分别四舍五入后显示 99% 或 101%。
 
 ### 7.1 统一覆盖式滚动条
 

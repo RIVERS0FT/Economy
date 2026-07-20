@@ -232,6 +232,7 @@ function createFacilityMarket(type, now) {
   return {
     facilityTypeId: type.id,
     lastPrice: type.systemValue,
+    lastTradePrice: null,
     priceHistory: seedFacilityHistory(type, now),
   };
 }
@@ -248,6 +249,7 @@ function recordFacilityPrice(world, typeId, price, quantity, takerSide, createdA
   const market = facilityMarketFor(world, typeId, createdAt);
   if (!market) return;
   market.lastPrice = price;
+  market.lastTradePrice = price;
   market.priceHistory.push({ price, quantity, createdAt, takerSide });
   market.priceHistory = market.priceHistory.slice(-MAX_PRICE_POINTS);
 }
@@ -343,7 +345,13 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
   migrateLegacyListings(world);
   removeSystemFacilityOrders(world);
   world.facilityMarkets ||= {};
-  for (const type of FACILITY_TYPE_CATALOG) facilityMarketFor(world, type.id, now);
+  for (const type of FACILITY_TYPE_CATALOG) {
+    const market = facilityMarketFor(world, type.id, now);
+    if (market.lastTradePrice === undefined) {
+      const latestTrade = [...(market.priceHistory || [])].reverse().find((point) => point.takerSide === 'buy' || point.takerSide === 'sell');
+      market.lastTradePrice = latestTrade ? Number(latestTrade.price) : null;
+    }
+  }
   for (const player of Object.values(world.players)) migrateLegacyPlayer(player, now);
 
   for (const player of Object.values(world.players)) {
@@ -972,28 +980,23 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
   return actionResult;
 }
 
-function bestBidFor(world, kind, assetId, excludedUserId) {
-  return (world.orders || [])
-    .filter((order) => (
-      orderKind(order) === kind
-      && orderAssetId(order) === assetId
-      && order.side === 'buy'
-      && isOpenOrder(order)
-      && Number(order.ownerId) !== Number(excludedUserId)
-    ))
-    .reduce((best, order) => Math.max(best, Number(order.price || 0)), 0);
+function recentTradePriceFor(world, kind, assetId) {
+  const market = kind === 'facility'
+    ? facilityMarketFor(world, assetId)
+    : world.markets?.[assetId];
+  return Number.isFinite(Number(market?.lastTradePrice)) ? Math.max(0, Number(market.lastTradePrice)) : 0;
 }
 
 function assetSummaryFor(world, player) {
   const commodity = PRODUCT_CATALOG.reduce((summary, product) => {
     const inventory = inventoryFor(player, product.id);
-    const price = bestBidFor(world, 'commodity', product.id, player.userId);
+    const price = recentTradePriceFor(world, 'commodity', product.id);
     summary.available += inventory.available * price;
     summary.frozen += inventory.frozen * price;
     return summary;
   }, { available: 0, frozen: 0 });
   const facility = (player.facilityGroups || []).reduce((summary, group) => {
-    const price = bestBidFor(world, 'facility', group.facilityTypeId, player.userId);
+    const price = recentTradePriceFor(world, 'facility', group.facilityTypeId);
     const frozenCount = Math.min(group.count, frozenFacilityQuantity(world, player.userId, group.facilityTypeId));
     summary.available += Math.max(0, group.count - frozenCount) * price;
     summary.frozen += frozenCount * price;
@@ -1030,11 +1033,11 @@ function valuationPricesFor(world, player) {
   return {
     ...Object.fromEntries(PRODUCT_CATALOG.map((product) => [
       `commodity:${product.id}`,
-      bestBidFor(world, 'commodity', product.id, player.userId),
+      recentTradePriceFor(world, 'commodity', product.id),
     ])),
     ...Object.fromEntries(FACILITY_TYPE_CATALOG.map((type) => [
       `facility:${type.id}`,
-      bestBidFor(world, 'facility', type.id, player.userId),
+      recentTradePriceFor(world, 'facility', type.id),
     ])),
   };
 }
