@@ -140,8 +140,6 @@ if (failures.length === 0) {
     '--mobile-content-gap: var(--mobile-workspace-gutter);',
     '--mobile-scrollbar-edge-escape: max(',
     'calc(var(--mobile-workspace-gutter) - env(safe-area-inset-right))',
-    'padding: 0;',
-    'scroll-padding-inline: 0;',
   ]) requireText(paths.mobileNavigation, text);
   for (const text of ['--mobile-chrome-inset', '--mobile-content-inset']) {
     forbidText(paths.mobileNavigation, text);
@@ -151,10 +149,13 @@ if (failures.length === 0) {
 
   for (const text of [
     '--mobile-status-top-inset: max(var(--mobile-chrome-block-inset), env(safe-area-inset-top));',
+    '.asset-bar {',
     'right: 0;',
     'left: 0;',
     'min-height: var(--mobile-asset-bar-height);',
     'max-height: var(--mobile-asset-bar-height);',
+    'padding: 0;',
+    'scroll-padding-inline: 0;',
   ]) requireText(paths.mobileStatus, text);
   for (const text of ['--mobile-status-left-inset', '--mobile-status-right-inset', '.page-scroll {']) {
     forbidText(paths.mobileStatus, text);
@@ -177,7 +178,7 @@ if (failures.length === 0) {
     '.page-scroll-area {',
     'overflow: visible;',
     '.page-scroll-area > .ui-scrollbar--vertical {',
-    'right: calc(-1 * var(--mobile-scrollbar-edge-escape));',
+    'right: calc(0px - var(--mobile-scrollbar-edge-escape));',
     '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
     'right: var(--scrollbar-edge-offset);',
     'left: auto;',
