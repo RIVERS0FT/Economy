@@ -6,6 +6,7 @@ import {
   MARKET_DEMAND_MODEL_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
 } from './market-demand.js';
+import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 
 export * from './domain-core.js';
 export {
@@ -166,6 +167,15 @@ function applyCommodityOrder(world, user, payload, now) {
   const productId = productIds.has(String(payload.productId || 'wheat'))
     ? String(payload.productId || 'wheat')
     : null;
+  if (side && productId && findSelfCrossingOrder(world, {
+    ownerId: userId,
+    assetKind: 'commodity',
+    assetId: productId,
+    side,
+    price: payload.price,
+  })) {
+    return { ok: false, message: SELF_CROSS_MESSAGE };
+  }
   const originalOrders = world.orders || [];
   const hiddenIds = new Set(side && productId ? originalOrders
     .filter((order) => (
