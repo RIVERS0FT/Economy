@@ -102,11 +102,47 @@ test.describe('mobile liquid glass host geometry', () => {
 
     const chromeOverlay = page.locator('.mobile-chrome-overlay');
     const statusHost = page.locator('.asset-bar-scroll-area');
+    const statusSurface = page.locator('.asset-bar .liquid-glass-surface');
     const navigationHost = page.locator('.mobile-bottom-navigation');
+    const navigationSurface = page.locator('.mobile-bottom-navigation .liquid-glass-surface');
+    const primaryPanel = page.locator('.overview-today-panel');
     await expect(chromeOverlay).toBeVisible();
     await expect(statusHost).toBeVisible();
+    await expect(statusSurface).toBeVisible();
     await expect(navigationHost).toBeVisible();
+    await expect(navigationSurface).toBeVisible();
+    await expect(primaryPanel).toBeVisible();
     await expect(statusHost).toHaveCSS('height', '48px');
+    await expect(statusSurface).toHaveCSS('height', '48px');
     await expect(navigationHost).toHaveCSS('height', '68px');
+
+    const geometry = await page.evaluate(() => {
+      const statusSurfaceElement = document.querySelector<HTMLElement>('.asset-bar .liquid-glass-surface');
+      const navigationSurfaceElement = document.querySelector<HTMLElement>(
+        '.mobile-bottom-navigation .liquid-glass-surface',
+      );
+      const primaryPanelElement = document.querySelector<HTMLElement>('.overview-today-panel');
+      if (!statusSurfaceElement || !navigationSurfaceElement || !primaryPanelElement) {
+        throw new Error('mobile liquid glass geometry fixture is incomplete');
+      }
+      const rect = (element: HTMLElement) => {
+        const box = element.getBoundingClientRect();
+        return { left: box.left, right: box.right, width: box.width, height: box.height };
+      };
+      return {
+        statusSurface: rect(statusSurfaceElement),
+        navigationSurface: rect(navigationSurfaceElement),
+        primaryPanel: rect(primaryPanelElement),
+        navigationRadius: getComputedStyle(navigationSurfaceElement).borderTopLeftRadius,
+        primaryPanelRadius: getComputedStyle(primaryPanelElement).borderTopLeftRadius,
+      };
+    });
+
+    expect(geometry.statusSurface.left).toBeCloseTo(geometry.primaryPanel.left, 0);
+    expect(geometry.statusSurface.right).toBeCloseTo(geometry.primaryPanel.right, 0);
+    expect(geometry.navigationSurface.left).toBeCloseTo(geometry.primaryPanel.left, 0);
+    expect(geometry.navigationSurface.right).toBeCloseTo(geometry.primaryPanel.right, 0);
+    expect(geometry.navigationRadius).toBe(geometry.primaryPanelRadius);
+    expect(geometry.navigationRadius).toBe('40px');
   });
 });

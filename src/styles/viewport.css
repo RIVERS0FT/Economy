@@ -209,7 +209,7 @@ html[data-app-surface="game"] body {
   .mobile-page-overlay {
     position: relative;
     z-index: 1;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .mobile-chrome-overlay {

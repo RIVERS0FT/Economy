@@ -212,6 +212,25 @@
   }
 }
 
+@media (max-width: 720px) {
+  .page-scroll-area {
+    overflow: visible;
+  }
+
+  .page-scroll-area > .ui-scrollbar--vertical {
+    position: fixed;
+    top: var(--scrollbar-edge-offset);
+    right: env(safe-area-inset-right, 0px);
+    bottom: var(--scrollbar-edge-offset);
+    transform: none;
+  }
+
+  .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
+    right: var(--scrollbar-edge-offset);
+    left: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ui-scrollbar {
     transition: none;

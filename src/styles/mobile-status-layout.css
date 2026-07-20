@@ -29,7 +29,8 @@
     align-items: center;
     justify-content: space-evenly;
     gap: 0;
-    padding: .25rem .3rem;
+    padding: 0;
+    scroll-padding-inline: 0;
     overflow-x: hidden;
     overflow-y: hidden;
     transform: none;
