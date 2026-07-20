@@ -1,0 +1,112 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {
+  createPartitionedActionDelivery,
+  createPartitionedStateDelivery,
+  readKnownPartitionRevisionsFromHeader,
+  readKnownPartitionRevisionsFromSearch,
+} from '../src/state-partitions.js';
+
+function sampleState(overrides = {}) {
+  return {
+    version: 15,
+    products: [{ id: 'wheat' }],
+    facilityTypes: [{ id: 'farm' }],
+    userId: 1,
+    playerName: 'Alice',
+    credits: 100,
+    inventories: {},
+    markets: { wheat: { lastPrice: 2 } },
+    facilityMarkets: {},
+    orders: [],
+    facilityListings: [],
+    valuationPrices: {},
+    collectibles: [],
+    assetAuctions: [],
+    collectibleAuctions: [],
+    leaderboard: [{ rank: 1, playerName: 'Alice' }],
+    ...overrides,
+  };
+}
+
+test('initial delivery returns all five state partitions without a full state field', () => {
+  const delivery = createPartitionedStateDelivery({
+    revision: 7,
+    unchanged: false,
+    state: sampleState(),
+  });
+
+  assert.equal(delivery.revision, 7);
+  assert.equal(delivery.unchanged, false);
+  assert.equal('state' in delivery, false);
+  assert.deepEqual(Object.keys(delivery.patches).sort(), [
+    'auction', 'catalog', 'leaderboard', 'market', 'player',
+  ]);
+  assert.equal(delivery.patches.catalog.products[0].id, 'wheat');
+  assert.equal(delivery.patches.player.credits, 100);
+  assert.equal(delivery.patches.market.markets.wheat.lastPrice, 2);
+});
+
+test('known partition revisions suppress unchanged partitions', () => {
+  const initial = createPartitionedStateDelivery({
+    revision: 7,
+    unchanged: false,
+    state: sampleState(),
+  });
+  const changed = createPartitionedStateDelivery({
+    revision: 8,
+    unchanged: false,
+    state: sampleState({ credits: 101 }),
+  }, initial.partitionRevisions);
+
+  assert.equal(changed.unchanged, false);
+  assert.deepEqual(Object.keys(changed.patches), ['player']);
+  assert.equal(changed.patches.player.credits, 101);
+  assert.equal(changed.partitionRevisions.catalog, initial.partitionRevisions.catalog);
+  assert.notEqual(changed.partitionRevisions.player, initial.partitionRevisions.player);
+});
+
+test('a global revision change unrelated to the viewer can return no patches', () => {
+  const state = sampleState();
+  const initial = createPartitionedStateDelivery({ revision: 10, unchanged: false, state });
+  const later = createPartitionedStateDelivery({
+    revision: 11,
+    unchanged: false,
+    state: structuredClone(state),
+  }, initial.partitionRevisions);
+
+  assert.deepEqual(later.patches, {});
+  assert.equal(later.unchanged, true);
+  assert.equal(later.revision, 11);
+});
+
+test('action delivery keeps the result and returns only changed partitions', () => {
+  const initial = createPartitionedStateDelivery({
+    revision: 20,
+    unchanged: false,
+    state: sampleState(),
+  });
+  const action = createPartitionedActionDelivery({
+    result: { ok: true, message: '工作完成' },
+    revision: 21,
+    state: sampleState({ credits: 101 }),
+  }, initial.partitionRevisions);
+
+  assert.deepEqual(action.result, { ok: true, message: '工作完成' });
+  assert.deepEqual(Object.keys(action.patches), ['player']);
+  assert.equal(action.patches.player.credits, 101);
+});
+
+test('partition revisions accept only bounded safe tokens', () => {
+  const query = new URLSearchParams({
+    catalog: 'catalog_1234',
+    player: 'bad token',
+    market: 'm'.repeat(65),
+  });
+  assert.deepEqual(readKnownPartitionRevisionsFromSearch(query), { catalog: 'catalog_1234' });
+  assert.deepEqual(
+    readKnownPartitionRevisionsFromHeader(JSON.stringify({ player: 'player-1234', auction: 7 })),
+    { player: 'player-1234' },
+  );
+  assert.deepEqual(readKnownPartitionRevisionsFromHeader('{bad json'), {});
+});
