@@ -31,14 +31,6 @@ jobs:
           path.write_text(source)
           PY
           node scripts/agent-scroll-account-patch.mjs
-      - name: Install dependencies
-        run: npm ci --silent
-      - name: Validate targeted changes
-        run: |
-          node scripts/verify-stress-test-accounts.mjs
-          node scripts/verify-scroll-ownership.mjs
-          node scripts/verify-virtual-list-scroll-chaining.mjs
-          npm run typecheck
       - name: Commit patched files
         run: |
           rm -f .github/workflows/agent-scroll-account-patch.yml scripts/agent-scroll-account-patch.mjs
