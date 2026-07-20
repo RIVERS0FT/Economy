@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/fix-audit-and-recent-trade-valuation
+  pull_request:
+    types:
+      - reopened
   workflow_dispatch:
 
 permissions:
@@ -15,6 +18,7 @@ concurrency:
 
 jobs:
   apply:
+    if: github.event_name != 'pull_request' || github.event.pull_request.number == 190
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repair branch
