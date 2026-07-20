@@ -95,11 +95,12 @@ export function createPartitionedStateDelivery(snapshot, knownRevisions = {}) {
   };
 }
 
-export function createPartitionedActionDelivery(actionResponse, knownRevisions = {}) {
-  if (!actionResponse?.state) return actionResponse;
-  const { result, revision, state } = actionResponse;
+export function createPartitionedActionDelivery(actionResponse) {
   return {
-    result,
-    ...createPartitionedStateDelivery({ revision, unchanged: false, state }, knownRevisions),
+    result: {
+      ok: actionResponse?.result?.ok === true,
+      message: String(actionResponse?.result?.message || ''),
+    },
+    revision: Number(actionResponse?.revision),
   };
 }
