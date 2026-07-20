@@ -96,6 +96,7 @@ function postAction(path: string, body: Record<string, unknown> = {}) {
 }
 
 export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
+  if (!Number.isInteger(revision)) stateDeliveryCache.reset();
   const params = new URLSearchParams();
   if (Number.isInteger(revision)) params.set('revision', String(revision));
   for (const [name, value] of Object.entries(knownPartitionRevisions())) {
