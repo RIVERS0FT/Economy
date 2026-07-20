@@ -42,6 +42,35 @@ function canScrollInDirection(position: number, maximum: number, delta: number) 
   return false;
 }
 
+const SCROLLABLE_OVERFLOW_VALUES = new Set(['auto', 'scroll', 'overlay']);
+
+function elementCanScrollInDirection(element: HTMLElement, targetAxis: 'x' | 'y', delta: number) {
+  const style = window.getComputedStyle(element);
+  const overflow = targetAxis === 'x' ? style.overflowX : style.overflowY;
+  if (!SCROLLABLE_OVERFLOW_VALUES.has(overflow)) return false;
+  const maximum = targetAxis === 'x'
+    ? Math.max(0, element.scrollWidth - element.clientWidth)
+    : Math.max(0, element.scrollHeight - element.clientHeight);
+  const position = targetAxis === 'x' ? element.scrollLeft : element.scrollTop;
+  return maximum > 1 && canScrollInDirection(position, maximum, delta);
+}
+
+function descendantCanScrollInDirection(
+  target: EventTarget | null,
+  viewport: HTMLElement,
+  targetAxis: 'x' | 'y',
+  delta: number,
+) {
+  let element = target instanceof Element ? target : null;
+  while (element && element !== viewport) {
+    if (element instanceof HTMLElement && elementCanScrollInDirection(element, targetAxis, delta)) {
+      return true;
+    }
+    element = element.parentElement;
+  }
+  return false;
+}
+
 export function useOverlayScrollbar({
   rootRef,
   viewportRef,
@@ -178,8 +207,10 @@ export function useOverlayScrollbar({
 
       if (horizontalIntent && supportsAxis(axis, 'x') && maximumX > 0) {
         const delta = event.shiftKey ? event.deltaY : event.deltaX;
+        if (descendantCanScrollInDirection(event.target, viewport, 'x', delta)) return;
         if (canScrollInDirection(viewport.scrollLeft, maximumX, delta)) {
           event.preventDefault();
+          event.stopPropagation();
           viewport.scrollLeft += delta;
         }
         return;
@@ -188,12 +219,14 @@ export function useOverlayScrollbar({
       if (
         verticalPriority
         && supportsAxis(axis, 'y')
-        && maximumY > 0
         && Math.abs(event.deltaY) >= Math.abs(event.deltaX)
-        && canScrollInDirection(viewport.scrollTop, maximumY, event.deltaY)
       ) {
-        event.preventDefault();
-        viewport.scrollTop += event.deltaY;
+        if (descendantCanScrollInDirection(event.target, viewport, 'y', event.deltaY)) return;
+        if (maximumY > 0 && canScrollInDirection(viewport.scrollTop, maximumY, event.deltaY)) {
+          event.preventDefault();
+          event.stopPropagation();
+          viewport.scrollTop += event.deltaY;
+        }
       }
     };
 

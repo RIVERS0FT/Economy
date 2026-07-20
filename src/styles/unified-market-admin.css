@@ -110,7 +110,8 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
 }
 
 .admin-page-frame {

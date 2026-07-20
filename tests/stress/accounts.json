@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "description": "Economy 固定压力测试普通玩家账号池；账号只需在主页账号服务中预置一次。",
+  "passwordEnv": "ECONOMY_STRESS_TEST_PASSWORD",
+  "accounts": [
+    {
+      "slot": 1,
+      "id": "stress-player-01",
+      "email": "economy-stress-01@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 2,
+      "id": "stress-player-02",
+      "email": "economy-stress-02@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 3,
+      "id": "stress-player-03",
+      "email": "economy-stress-03@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 4,
+      "id": "stress-player-04",
+      "email": "economy-stress-04@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 5,
+      "id": "stress-player-05",
+      "email": "economy-stress-05@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 6,
+      "id": "stress-player-06",
+      "email": "economy-stress-06@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 7,
+      "id": "stress-player-07",
+      "email": "economy-stress-07@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 8,
+      "id": "stress-player-08",
+      "email": "economy-stress-08@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 9,
+      "id": "stress-player-09",
+      "email": "economy-stress-09@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 10,
+      "id": "stress-player-10",
+      "email": "economy-stress-10@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 11,
+      "id": "stress-player-11",
+      "email": "economy-stress-11@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 12,
+      "id": "stress-player-12",
+      "email": "economy-stress-12@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 13,
+      "id": "stress-player-13",
+      "email": "economy-stress-13@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 14,
+      "id": "stress-player-14",
+      "email": "economy-stress-14@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 15,
+      "id": "stress-player-15",
+      "email": "economy-stress-15@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 16,
+      "id": "stress-player-16",
+      "email": "economy-stress-16@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 17,
+      "id": "stress-player-17",
+      "email": "economy-stress-17@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 18,
+      "id": "stress-player-18",
+      "email": "economy-stress-18@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 19,
+      "id": "stress-player-19",
+      "email": "economy-stress-19@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 20,
+      "id": "stress-player-20",
+      "email": "economy-stress-20@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 21,
+      "id": "stress-player-21",
+      "email": "economy-stress-21@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 22,
+      "id": "stress-player-22",
+      "email": "economy-stress-22@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 23,
+      "id": "stress-player-23",
+      "email": "economy-stress-23@riversoft.top",
+      "role": "player"
+    },
+    {
+      "slot": 24,
+      "id": "stress-player-24",
+      "email": "economy-stress-24@riversoft.top",
+      "role": "player"
+    }
+  ]
+}
