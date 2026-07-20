@@ -14,7 +14,7 @@ assert.equal(PRODUCT_CATALOG.length, 31);
 assert.equal(MARKET_DEMAND_MODEL_VERSION, 2);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
-assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.baseBudget), [1_000, 900]);
+assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.baseBudget), [3_000, 2_700]);
 assert.ok(MARKET_DEMAND_GROUP_CATALOG.every((group) => group.directBudgetShare === 0.85));
 
 const groups = new Map(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));

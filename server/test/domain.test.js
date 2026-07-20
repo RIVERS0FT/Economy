@@ -272,10 +272,10 @@ test('market demand scales sublinearly with active players and stops at the conf
     };
   };
 
-  assert.deepEqual([1, 4, 9, 25, 121].map((count) => foodBudgetFor(count).food), [1_000, 1_500, 2_000, 3_000, 6_000]);
-  assert.deepEqual([1, 4, 9, 25, 121].map((count) => foodBudgetFor(count).household), [900, 1_350, 1_800, 2_700, 5_400]);
+  assert.deepEqual([1, 4, 9, 25, 121].map((count) => foodBudgetFor(count).food), [3_000, 4_500, 6_000, 9_000, 18_000]);
+  assert.deepEqual([1, 4, 9, 25, 121].map((count) => foodBudgetFor(count).household), [2_700, 4_050, 5_400, 8_100, 16_200]);
   assert.equal(foodBudgetFor(144).active, 144);
-  assert.equal(foodBudgetFor(144).food, 6_000);
+  assert.equal(foodBudgetFor(144).food, 18_000);
 });
 
 test('inactive players stop scaling market demand after seven days', () => {
@@ -287,7 +287,7 @@ test('inactive players stop scaling market demand after seven days', () => {
   prepareDemand(world, 'food');
   processWorld(world, now + 1);
   assert.equal(world.demandGroups.food.lastActivePlayerCount, 1);
-  assert.equal(world.demandGroups.food.lastBudget, 1_000);
+  assert.equal(world.demandGroups.food.lastBudget, 3_000);
 });
 
 test('player inventory never increases market demand budget or product allocation', () => {
@@ -330,7 +330,7 @@ test('consumer substitutes shift demand toward the cheaper grain without changin
   processWorld(world, now + 3);
   const shares = world.demandGroups.food.lastClassAllocation.staples.shares;
   assert.ok(shares.rice > shares.wheat);
-  assert.equal(world.demandGroups.food.lastBudget, 1_000);
+  assert.equal(world.demandGroups.food.lastBudget, 3_000);
 });
 
 test('beverage production paths shift toward cheaper fruit inputs', () => {
@@ -359,7 +359,7 @@ test('fruit participates in fresh direct demand without expanding the food budge
   const fresh = world.demandGroups.food.lastClassAllocation['fresh-drinks'];
   assert.ok(fresh.shares.fruit > 0);
   assert.ok(fresh.shares.beverage > 0);
-  assert.equal(world.demandGroups.food.lastBudget, 1_000);
+  assert.equal(world.demandGroups.food.lastBudget, 3_000);
   assert.ok(world.orders.some((order) => order.ownerType === 'population' && order.productId === 'fruit' && order.demandTier === 'direct'));
 });
 
