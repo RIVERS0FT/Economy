@@ -46,6 +46,7 @@ const mobileNavigationStylePath = 'src/styles/mobile-status-navigation.css';
 const mobileStatusStylePath = 'src/styles/mobile-status-layout.css';
 const designPath = 'docs/LIQUID_GLASS_CHROME_DESIGN.md';
 const browserTestPath = 'tests/browser/liquid-glass-layout.spec.ts';
+const mobileBrowserTestPath = 'tests/browser/mobile-workspace-overlay.spec.ts';
 
 [
   surfacePath,
@@ -62,6 +63,7 @@ const browserTestPath = 'tests/browser/liquid-glass-layout.spec.ts';
   mobileStatusStylePath,
   designPath,
   browserTestPath,
+  mobileBrowserTestPath,
   'src/main.tsx',
   'package.json',
 ].forEach(requireFile);
@@ -98,13 +100,17 @@ if (failures.length === 0) {
     "mode: 'prominent'",
     'displacementScale: 20',
     "mode: 'standard'",
+    'cornerRadius: 24',
     'elasticity={0}',
     'mode={preset.mode}',
     'globalMousePos={STATIC_MOUSE_POSITION}',
     'mouseOffset={STATIC_MOUSE_OFFSET}',
     'data-liquid-glass-mode={preset.mode}',
   ]) requireText(surfacePath, text);
-  for (const text of ['mode="shader"', 'elasticity={0.']) forbidText(surfacePath, text);
+  for (const text of ['mode="shader"', 'elasticity={0.', 'cornerRadius: 20']) forbidText(surfacePath, text);
+  if ((read(surfacePath).match(/cornerRadius:\s*24/g) ?? []).length !== 2) {
+    failures.push('状态栏和移动底栏预设必须同时使用 24px cornerRadius');
+  }
 
   for (const text of [
     'className="mobile-page-overlay"',
@@ -164,8 +170,11 @@ if (failures.length === 0) {
     'contain: paint;',
     '@supports (overflow: clip)',
     '.asset-bar .liquid-glass-surface__effect > .glass',
+    '.mobile-bottom-navigation .liquid-glass-surface__effect > .glass',
+    'border-radius: var(--radius-card) !important;',
     'width: max(100%, 675px);',
     'grid-template-columns: repeat(5, minmax(135px, 1fr))',
+    'padding: .25rem .8rem;',
     '@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))',
     'background: var(--liquid-glass-contrast-strong);',
   ]) {
@@ -182,6 +191,7 @@ if (failures.length === 0) {
     '--liquid-glass-blur:',
     '--liquid-glass-saturation:',
     '.workspace::before',
+    'border-radius: 20px !important;',
   ]) {
     if (surfaceStyles.includes(legacyToken)) failures.push(`${surfaceStylePath} 不得恢复旧 CSS 玻璃规则: ${legacyToken}`);
   }
@@ -193,6 +203,8 @@ if (failures.length === 0) {
     '--layout-gutter: var(--mobile-primary-surface-gap);',
     'padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
     'padding-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));',
+    '.mobile-page-overlay {',
+    'overflow: visible;',
     'pointer-events: none;',
     '.asset-bar-scroll-area {',
     'height: var(--desktop-asset-bar-height);',
@@ -221,6 +233,9 @@ if (failures.length === 0) {
     '--mobile-workspace-gutter: var(--space-3);',
     '--mobile-primary-surface-gap: var(--mobile-workspace-gutter);',
     '--mobile-chrome-block-inset: var(--space-4);',
+    '--mobile-scrollbar-edge-escape: max(',
+    'padding: 0;',
+    'scroll-padding-inline: 0;',
   ]) requireText(mobileNavigationStylePath, text);
   for (const text of ['--mobile-chrome-inset', '--mobile-content-inset']) {
     forbidText(mobileNavigationStylePath, text);
@@ -238,6 +253,15 @@ if (failures.length === 0) {
     '.asset-bar-scroll-track,',
   ]) requireText(mobileStatusStylePath, text);
 
+  for (const text of [
+    '.page-scroll-area {',
+    'overflow: visible;',
+    '.page-scroll-area > .ui-scrollbar--vertical {',
+    'right: calc(-1 * var(--mobile-scrollbar-edge-escape));',
+    '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
+    'right: var(--scrollbar-edge-offset);',
+    'left: auto;',
+  ]) requireText(scrollbarPath, text);
   forbidText(scrollbarPath, '.asset-bar-scroll-area,');
   if (/\.asset-bar-scroll-area\s*\{[\s\S]*?height:\s*100%;/.test(read(scrollbarPath))) {
     failures.push('共享滚动条样式不得把状态栏宿主设置为全高');
@@ -249,12 +273,15 @@ if (failures.length === 0) {
     '`displacementScale: 38`',
     '`aberrationIntensity: 1.15`',
     '`elasticity={0}`',
+    '`cornerRadius: 24`',
     'Safari、iOS WebKit 和 Firefox',
     '只允许第一层低透明度 screen 高光可见',
     '第二层 overlay 装饰必须隐藏',
     '背景必须透明',
     '真实浏览器中的全宽、裁切、折射层、单高光、移动 Overlay 与页面避让验证',
     '移动 `.workspace` 是唯一水平几何边界',
+    '状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线',
+    '移动底栏玻璃圆角与一级卡片 `--radius-card` 一致',
     '不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
   ]) requireText(designPath, text);
 
@@ -262,12 +289,24 @@ if (failures.length === 0) {
     "page.goto('runtime-test.html?view=overview&scenario=activity')",
     "page.locator('.asset-bar-scroll-area')",
     "page.locator('.mobile-chrome-overlay')",
+    "page.locator('.asset-bar .liquid-glass-surface')",
+    "page.locator('.mobile-bottom-navigation .liquid-glass-surface')",
     'mobile chrome shares the workspace gutter and fixed glass heights',
     'data-liquid-glass-mode',
     'glass__warp',
     'visibleDecorationSpanCount',
     'surfaceBackgroundColor',
+    'navigationRadius',
+    "toBe('24px')",
   ]) requireText(browserTestPath, text);
+
+  for (const text of [
+    'mobile page scrollbar reaches the safe right edge without changing content width',
+    'statusSurface',
+    'navigationSurface',
+    'navigationRadius',
+    'viewportRight - geometry.thumbRight',
+  ]) requireText(mobileBrowserTestPath, text);
 }
 
 if (failures.length > 0) {
@@ -276,4 +315,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 增强折射、单高光、移动双层 Overlay 与固定宿主验证通过。');
+console.log('liquid-glass-react 增强折射、单高光、移动玻璃共线、统一圆角与固定宿主验证通过。');
