@@ -184,7 +184,7 @@ html[data-app-surface="game"] body {
     --layout-gutter: var(--mobile-primary-surface-gap);
 
     position: relative;
-    isolation: isolate;
+    isolation: auto;
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -197,10 +197,14 @@ html[data-app-surface="game"] body {
     overflow: hidden;
   }
 
+  /* Mobile glass relies on normal DOM paint order: the page layer is emitted
+   * first and the chrome layer second. Positive z-index stacking contexts here
+   * can turn into backdrop roots on older Android Chromium/WebView builds. */
   .mobile-page-overlay,
   .mobile-chrome-overlay {
     grid-column: 1;
     grid-row: 1;
+    z-index: auto;
     min-width: 0;
     min-height: 0;
     display: block;
@@ -208,20 +212,18 @@ html[data-app-surface="game"] body {
 
   .mobile-page-overlay {
     position: relative;
-    z-index: 1;
     overflow: visible;
   }
 
   .mobile-chrome-overlay {
     position: relative;
-    z-index: 10;
     overflow: visible;
     pointer-events: none;
   }
 
   .page-scroll {
     position: relative;
-    z-index: 1;
+    z-index: auto;
     width: 100%;
     height: 100%;
     padding-top: calc(
@@ -263,7 +265,7 @@ html[data-app-surface="game"] body {
 
   .asset-bar-scroll-area {
     position: absolute;
-    z-index: 3;
+    z-index: auto;
     top: max(var(--mobile-chrome-block-inset), env(safe-area-inset-top));
     right: 0;
     left: 0;
@@ -276,7 +278,7 @@ html[data-app-surface="game"] body {
 
   .mobile-bottom-navigation {
     position: absolute;
-    z-index: 3;
+    z-index: auto;
     right: 0;
     bottom: max(var(--mobile-chrome-block-inset), env(safe-area-inset-bottom));
     left: 0;

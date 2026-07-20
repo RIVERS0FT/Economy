@@ -11,7 +11,7 @@
 - `liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现。
 - `src/components/ui/LiquidGlassSurface.tsx` 是唯一允许直接导入该依赖的文件。
 - 状态栏和移动底栏只能使用 `LiquidGlassSurface` 预设，不得在业务组件中直接设置第三方参数。
-- `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、可读性回退、单层高光和单层结构描边；不得用 CSS 重新实现模糊、折射或色差。
+- `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、可读性回退、单层高光、单层结构描边和与第三方参数完全一致的 WebKit 属性别名；不得用 CSS 创建第二套模糊、折射或色差材质。
 - `src/styles/liquid-glass-chrome.css` 是浏览器测试兼容入口，不是第二套材质。它只允许按固定顺序转发 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`；生产入口 `src/main.tsx` 继续直接导入正式样式。
 - 浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式，不得只加载历史全局样式后用错误计算结果验证布局。
 
@@ -20,17 +20,17 @@
 | 文件 | 唯一职责 |
 |---|---|
 | `LiquidGlassSurface.tsx` | 第三方库适配、参数预设、静态鼠标输入和统一 DOM |
-| `liquid-glass-surfaces.css` | 玻璃宿主、第三方 DOM 尺寸、裁切、内容网格、高光和结构描边 |
+| `liquid-glass-surfaces.css` | 玻璃宿主、第三方 DOM 尺寸、开放背景采样链、裁切、内容网格、高光、结构描边和 WebKit 兼容别名 |
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口 |
 | `game-shell-layout.css` | 桌面双列轨道、状态栏外距、页面避让和工作区几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
-| `viewport.css` | 固定视口、移动工作区 gutter、两层 Overlay 和安全区 |
+| `viewport.css` | 固定视口、移动工作区 gutter、两层 Overlay、安全区和移动背景采样层级 |
 | `scrollbars.css` | 全局覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘 |
 | `mobile-status-navigation.css` | 移动导航布局、原生滚动能力和移动底栏可见轨道隐藏规则 |
-| `verify-liquid-glass-chrome.mjs` | 依赖、适配层、兼容入口、布局和防回退检查 |
+| `verify-liquid-glass-chrome.mjs` | 依赖、适配层、兼容入口、背景采样链、布局和防回退检查 |
 | `verify-game-shell-layout.mjs` | 桌面双列、导航行高、移动 Overlay、滚动条和滚动链检查 |
 | `verify-overlay-scrollbars.mjs` | 覆盖式滚动条、移动底栏隐藏轨道和滚动能力检查 |
-| `liquid-glass-layout.spec.ts` | 真实浏览器玻璃、圆角、共线和页面避让验证 |
+| `liquid-glass-layout.spec.ts` | 真实浏览器玻璃、背景采样链、圆角、共线和页面避让验证 |
 | `mobile-workspace-overlay.spec.ts` | 移动安全边缘轨道和内容宽度验证 |
 | `mobile-navigation-scrollbar.spec.ts` | 移动底栏隐藏可见轨道且仍可横向滚动的验证 |
 
@@ -69,6 +69,7 @@
 
 - Chromium、Android Chromium WebView 和 Windows WebView2 显示完整折射、模糊和边缘色差；
 - Safari、iOS WebKit 和 Firefox 在折射能力受限时仍保留同一组件、模糊、高光和内容结构；
+- `liquid-glass-react` 内联的非前缀 `backdrop-filter` 始终是参数权威；CSS 只允许为同一个 `.glass__warp` 写入与预设完全一致的 `-webkit-backdrop-filter` 别名，以兼容 Safari 和旧 Android WebView；
 - 不支持 `backdrop-filter` 时只使用可读性回退底色，不切换到另一套玻璃；
 - 平台能力差异不得改变状态栏高度、安全区、导航尺寸或内容顺序。
 
@@ -94,6 +95,7 @@
 
 - `.workspace` 是页面、状态栏和底栏唯一水平边界，左右 padding 使用 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left/right))`；
 - `.mobile-page-overlay` 和 `.mobile-chrome-overlay` 占据同一 Grid 单元；页面层负责滚动，Chrome 层负责状态栏和底栏；
+- 移动层级依赖 DOM 绘制顺序：页面 Overlay 先渲染，Chrome Overlay 后渲染；`.workspace`、两层 Overlay、`.page-scroll`、状态栏宿主和底栏宿主在移动端都不得建立正 `z-index` 或 `isolation: isolate` 背景根；
 - Chrome Overlay 使用 `pointer-events: none`，只有状态栏和底栏恢复交互；
 - 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
 - `.asset-bar` 不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
@@ -117,11 +119,13 @@
 
 不得恢复 `--mobile-workspace-inline-end`、`--mobile-scrollbar-edge-escape`、`right: 0 + translateX(...)`、负 `right` 或扩大页面宽度的逃逸实现。
 
-## 7. 材质、圆角和结构边缘
+## 7. 材质、背景采样、圆角和结构边缘
 
 - `.asset-bar` 和 `.mobile-bottom-navigation` 不得包含 `.panel`；
 - 整个状态栏只允许一个玻璃实例，整个移动底栏只允许一个玻璃实例；
 - 支持环境中的状态栏宿主背景透明，由第三方 `.glass__warp` 采样页面内容；
+- `.glass__warp` 到页面内容之间必须保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切；
+- 状态栏 WebKit 兼容别名必须严格匹配上游 `blurAmount: 0.14` 的 `blur(8.48px) saturate(145%)`，移动底栏必须严格匹配 `blurAmount: 0.5` 的 `blur(20px) saturate(145%)`；不得添加不同参数或通用宿主滤镜；
 - 桌面状态栏属于桌面一级表面，必须复用通用 `--radius-card`；
 - 宿主只保留一条低强度 `1px` 结构描边；
 - 第三方直属装饰中只允许第一层低透明度 screen 高光可见；
@@ -157,10 +161,12 @@
 4. 桌面状态栏与一级卡片圆角均为 `24px`，只有一条结构描边和一层高光。
 5. 移动状态栏、一级卡片和底栏实际玻璃左右共线。
 6. 移动状态栏固定 `48px`，底栏固定 `68px`，底栏和移动卡片圆角均为 `40px`。
-7. 移动页面轨道固定到视口安全边缘，滑块右边缘约为 `2px`，显隐前后内容宽度不变。
-8. 移动底栏的原生与项目水平滚动条都不可见，但导航视口仍存在横向溢出并可滚动到最后一项。
-9. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
-10. `npm run build` 与全部 Chromium 浏览器测试通过。
+7. 状态栏和移动底栏的宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`，第三方 `.glass__warp` 的模糊和 SVG 折射引用均有效。
+8. 移动背景采样链中的 `.workspace`、两层 Overlay、`.page-scroll`、状态栏宿主和底栏宿主计算 `z-index` 均为 `auto`。
+9. 移动页面轨道固定到视口安全边缘，滑块右边缘约为 `2px`，显隐前后内容宽度不变。
+10. 移动底栏的原生与项目水平滚动条都不可见，但导航视口仍存在横向溢出并可滚动到最后一项。
+11. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
+12. `npm run build` 与全部 Chromium 浏览器测试通过。
 
 ## 11. 不可回退规则
 
@@ -169,6 +175,8 @@
 - 在 `LiquidGlassSurface.tsx` 之外直接导入 `liquid-glass-react`；
 - 在项目 CSS 中重新实现液态玻璃材质或改用 `shader`；
 - 给状态项或导航按钮分别创建玻璃实例；
+- 在 `.liquid-glass-surface` 恢复 `contain: paint`、`isolation: isolate`、`overflow: clip`，或在移动玻璃与页面之间恢复正 `z-index` 背景根；
+- 删除或改变与上游预设严格一致的 `.glass__warp` `-webkit-backdrop-filter` 兼容别名；
 - 给桌面 `.game-shell` 恢复 padding／gap，或给 `.page-content` 恢复居中最大宽度；
 - 让桌面侧栏导航自动行拉伸；
 - 给移动状态栏、页面或底栏恢复独立水平 inset；
@@ -178,5 +186,5 @@
 - 在 `.page-scroll` 上使用 `overscroll-behavior: contain` 阻断纵向滚动链；
 - 给 `.asset-bar-scroll-area` 设置 `height: 100%`；
 - 删除 `liquid-glass-chrome.css` 中浏览器 harness 所需的真实滚动条或外壳几何导入；
-- 只验证宿主边界而不验证实际 `.liquid-glass-surface`；
+- 只验证宿主边界而不验证实际 `.liquid-glass-surface` 与 `.glass__warp`；
 - 绕过架构检查或浏览器几何测试合并视觉回退。
