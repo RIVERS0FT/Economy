@@ -5,6 +5,7 @@ import { GemIcon } from '../components/icons/GemIcon';
 import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
 import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
+import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';
 import { PageRouter } from '../pages/PageRouter';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameViewModel } from './gameViewModel';
@@ -75,8 +76,11 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   ];
 
   return (
-    <GameShell model={model} statusItems={statusItems}>
-      <PageRouter model={model} />
-    </GameShell>
+    <>
+      <AuthoritativeCountdownRefresh game={game} refresh={model.refresh} />
+      <GameShell model={model} statusItems={statusItems}>
+        <PageRouter model={model} />
+      </GameShell>
+    </>
   );
 }
