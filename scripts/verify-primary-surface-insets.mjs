@@ -40,6 +40,8 @@ if (failures.length === 0) {
   for (const text of [
     '--primary-surface-inset: var(--space-4);',
     '.panel.widget,',
+    '.panel.production-surface,',
+    '.panel.leaderboard-board-card,',
     '.panel.ui-primary-surface {',
     'padding: var(--primary-surface-inset);',
     '@media (max-width: 720px)',
@@ -50,7 +52,7 @@ if (failures.length === 0) {
     "const usesLegacyPrimarySurfaceSemantic = className.split(/\\s+/).includes('widget');",
     "usesLegacyPrimarySurfaceSemantic && 'ui-primary-surface'",
     'export function PagePanel',
-    "classNames('widget', 'ui-primary-surface', className)",
+    "classNames('widget', className)",
   ]) requireText(paths.layout, text);
 
   for (const [path, forbidden] of [
@@ -66,6 +68,7 @@ if (failures.length === 0) {
     '宽度大于 `720px` 时使用 `var(--space-4)`，即 `16px`',
     '宽度不大于 `720px` 时使用 `var(--space-3)`，即 `12px`',
     '新增一级卡片必须使用 `PagePanel`',
+    '`.panel.production-surface` 与 `.panel.leaderboard-board-card`',
     '业务页面 CSS 不得',
     '该验证必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
@@ -77,4 +80,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、加载顺序和页面覆盖清理均已锁定。');
+console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、旧类兼容、加载顺序和页面覆盖清理均已锁定。');
