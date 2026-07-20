@@ -11,7 +11,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
   'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts','src/utils/orderBookLevels.ts',
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
-  'server/src/market-demand.js','server/src/market-demand/price-transmission.js',
+  'server/src/market-demand.js','server/src/market-liquidity.js','server/src/balanced-market.js','server/src/market-demand/price-transmission.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
@@ -121,9 +121,11 @@ const domainSource = [
   'server/src/domain.js',
   'server/src/domain-core.js',
   'server/src/market-demand.js',
+  'server/src/market-liquidity.js',
+  'server/src/balanced-market.js',
   'server/src/market-demand/price-transmission.js',
 ].map(read).join('\n');
-for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor']) {
+for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor','liquidity-buy','liquidity-sell','settleLiquidityBuy','settleLiquiditySell']) {
   if (!domainSource.includes(text)) failures.push('领域实现缺少: ' + text);
 }
 for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
@@ -141,8 +143,9 @@ for (const text of [
   '默认价格只从客户端当前已经加载的 `game.orders` 本地快照计算',
   '从其他页面重新进入市场页',
   '自动刷新、下单响应、成交、撤单或其他权威状态同步只更新本地订单快照，不得直接覆盖当前价格输入',
-  '商品订单只允许玩家或市场需求作为所有者',
-  '不提供系统流动性买单或卖单',
+  '商品订单只允许玩家、消费需求或市场储备作为所有者',
+  '市场储备可以提交商品买单和卖单',
+  '任何系统订单之间都不得成交',
   '工厂订单仍只能由玩家提交',
   '同资产、同方向、同价格的有效订单按当前剩余数量聚合为价格档位',
   '档位聚合只属于客户端匿名展示',
@@ -220,4 +223,4 @@ if (!failures.length) {
 }
 
 if (failures.length) { console.error('统一资产市场、价格档位、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、价格档位聚合、玩家与市场需求商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
+console.log('统一资产市场、价格档位聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');

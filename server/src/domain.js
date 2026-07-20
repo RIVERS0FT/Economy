@@ -91,6 +91,7 @@ export const FACILITY_TYPE_CATALOG = core.FACILITY_TYPE_CATALOG;
 export const DEMAND_GROUP_CATALOG = MARKET_DEMAND_GROUP_CATALOG;
 export const POPULATION_DEMAND_PRODUCT_IDS = new Set(MARKET_DEMAND_PRODUCT_IDS);
 
+const productIds = new Set(PRODUCT_CATALOG.map((product) => product.id));
 const balancedMarket = createBalancedMarketRuntime({
   products: PRODUCT_CATALOG,
   constants: core.ECONOMY_CONSTANTS,
@@ -159,9 +160,50 @@ export function processWorld(world, now = Date.now()) {
   return world;
 }
 
+function applyCommodityOrder(world, user, payload, now) {
+  const userId = Number(user.id);
+  const side = payload.side === 'buy' ? 'buy' : payload.side === 'sell' ? 'sell' : null;
+  const productId = productIds.has(String(payload.productId || 'wheat'))
+    ? String(payload.productId || 'wheat')
+    : null;
+  const originalOrders = world.orders || [];
+  const hiddenIds = new Set(side && productId ? originalOrders
+    .filter((order) => (
+      order.productId === productId
+      && order.side !== side
+      && balancedMarket.isOpenOrder(order)
+      && Number(order.ownerId) !== userId
+    ))
+    .map((order) => order.id) : []);
+  world.orders = originalOrders.filter((order) => !hiddenIds.has(order.id));
+  const existingIds = new Set(world.orders.map((order) => order.id));
+  let actionResult;
+  let newOrders = [];
+  try {
+    actionResult = core.applyAction(world, user, 'placeOrder', payload, now);
+    newOrders = (world.orders || []).filter((order) => !existingIds.has(order.id));
+  } finally {
+    world.orders = [...originalOrders, ...newOrders];
+  }
+  if (!actionResult?.ok) return actionResult;
+  const incoming = newOrders.find((order) => (
+    order.ownerType === 'player'
+    && Number(order.ownerId) === userId
+    && order.productId === productId
+    && order.side === side
+  ));
+  if (!incoming) return actionResult;
+  balancedMarket.matchOrder(world, incoming, now);
+  if (incoming.status === 'filled') return { ok: true, message: '订单已全部成交' };
+  if (incoming.status === 'partial') return { ok: true, message: '订单已部分成交' };
+  return { ok: true, message: '订单已进入订单簿' };
+}
+
 export function applyAction(world, user, action, payload = {}, now = Date.now()) {
   migrateWorld(world, now);
-  const result = core.applyAction(world, user, action, payload, now);
+  const result = action === 'placeOrder' && payload.assetKind !== 'facility'
+    ? applyCommodityOrder(world, user, payload, now)
+    : core.applyAction(world, user, action, payload, now);
   marketDemand.process(world, now);
   return result;
 }

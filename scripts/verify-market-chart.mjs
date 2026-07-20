@@ -115,7 +115,8 @@ for (const text of [
 ]) assert.ok(marketPage.includes(text), `MarketPage 缺少: ${text}`);
 
 assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
-assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt);'), '商品成交必须记录吃单方方向');
+assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt, signalWeight);'), '商品成交必须记录吃单方方向与需求信号权重');
+assert.ok(commodityMarket.includes('LIQUIDITY_SIGNAL_WEIGHT'), '储备成交必须降低价格传导信号权重');
 assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, incoming.side, createdAt);'), '工厂成交必须记录吃单方方向');
 
 for (const text of [
@@ -131,4 +132,4 @@ for (const text of [
   '禁止伪造迁移方向',
 ]) assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 
-console.log('Market chart verification passed: overview and market share 24h buckets with net active flow colors and windowed trade counts.');
+console.log('Market chart verification passed: overview and market share 24h buckets with net active flow colors, weighted reserve signals and windowed trade counts.');
