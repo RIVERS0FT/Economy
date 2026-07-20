@@ -248,6 +248,19 @@ html[data-app-surface="game"] body {
     );
   }
 
+  .page-content {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .page-heading {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
   .asset-bar-scroll-area {
     position: absolute;
     z-index: 3;
