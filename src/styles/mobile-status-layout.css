@@ -1,15 +1,16 @@
 @media (max-width: 720px) {
   :root {
-    --mobile-status-top-inset: max(var(--mobile-chrome-inset), env(safe-area-inset-top));
-    --mobile-status-left-inset: max(var(--mobile-chrome-inset), env(safe-area-inset-left));
-    --mobile-status-right-inset: max(var(--mobile-chrome-inset), env(safe-area-inset-right));
+    --mobile-status-top-inset: max(var(--mobile-chrome-block-inset), env(safe-area-inset-top));
   }
 
   .asset-bar-scroll-area {
     top: var(--mobile-status-top-inset);
-    right: var(--mobile-status-right-inset);
-    left: var(--mobile-status-left-inset);
+    right: 0;
+    left: 0;
     width: auto;
+    height: var(--mobile-asset-bar-height);
+    min-height: var(--mobile-asset-bar-height);
+    max-height: var(--mobile-asset-bar-height);
     max-width: none;
     border-radius: 999px;
     transform: none;
@@ -77,25 +78,5 @@
   .asset-bar-item-value > span {
     color: inherit;
     font-size: inherit;
-  }
-
-  .page-scroll {
-    padding-top: calc(
-      var(--mobile-status-top-inset) +
-      var(--mobile-asset-bar-height) +
-      var(--mobile-content-gap)
-    );
-    padding-right: max(var(--mobile-content-inset), env(safe-area-inset-right));
-    padding-left: max(var(--mobile-content-inset), env(safe-area-inset-left));
-    scroll-padding-top: calc(
-      var(--mobile-status-top-inset) +
-      var(--mobile-asset-bar-height) +
-      var(--mobile-content-gap)
-    );
-  }
-
-  .mobile-bottom-navigation {
-    right: var(--mobile-status-right-inset);
-    left: var(--mobile-status-left-inset);
   }
 }
