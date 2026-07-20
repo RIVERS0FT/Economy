@@ -272,8 +272,17 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     }
     try {
       const response = await operation();
-      acceptVersionedState(response.revision, response.state, action, response.result.message);
-      setLoadError('');
+      try {
+        const stateResponse = await getGameState(revisionRef.current);
+        if (stateResponse.revision < response.revision) {
+          throw new Error('服务器状态同步落后于已确认操作');
+        }
+        acceptVersionedState(stateResponse.revision, stateResponse.state, action, response.result.message);
+        setLoadError('');
+      } catch (syncReason) {
+        if (syncReason instanceof GameApiError && syncReason.status === 401) handleUnauthorized();
+        else setLoadError(`操作已完成，但状态同步失败：${messageFromError(syncReason)}`);
+      }
       return response.result;
     } catch (reason) {
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();

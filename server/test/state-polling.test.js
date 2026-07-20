@@ -31,7 +31,6 @@ test('idle version polling returns a compact response without writing the world'
   }
 });
 
-
 test('same-revision polls inside the processing window bypass SQLite transactions', () => {
   const store = new EconomyStore(':memory:');
   try {
@@ -65,7 +64,7 @@ test('an authoritative action advances the revision and invalidates an older pol
     }, now + 2_000);
 
     assert.equal(action.revision > initial.revision, true);
-    assert.equal(action.state.credits, 101);
+    assert.deepEqual(Object.keys(action).sort(), ['result', 'revision']);
 
     const changed = store.getStateSnapshot(alice, initial.revision, now + 2_001);
     assert.equal(changed.unchanged, false);
@@ -93,7 +92,6 @@ test('due world processing advances the revision during version polling', () => 
     store.close();
   }
 });
-
 
 test('scheduled production polling always uses the revision fast path until the global scheduler changes it', () => {
   const store = new EconomyStore(':memory:', { scheduledProcessing: true });

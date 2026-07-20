@@ -21,6 +21,8 @@ function forbidText(path, fragments) {
 
 requireText('README.md', [
   '游戏状态使用全局世界修订号排序，并按目录、玩家、市场、拍卖、排行榜五个分区增量同步',
+  '权威动作响应固定只返回 `{ result: { ok, message }, revision }`',
+  '动作已经提交但补拉失败时不得改写为操作失败',
   '客户端默认每 5 秒轮询状态',
   '客户端只接受不低于当前值的状态修订号',
   '大型 JSON 响应必须使用 gzip 压缩',
@@ -29,12 +31,18 @@ requireText('README.md', [
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '?revision=N&catalog=',
   '`catalog`、`player`、`market`、`auction`、`leaderboard`',
+  '普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`',
+  '不得携带订单 ID、兑换数量、结算金额或其他动作内部字段',
+  '动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认',
+  '动作发起前已经接受的全局 `revision`',
+  '不得在补拉前直接写入客户端状态修订号',
+  '补拉失败不得把已经提交成功的动作改写为失败',
   '`X-Economy-State-Revisions`',
   '{ revision, unchanged: true }',
   '普通轮询不得承担时间推进',
   '正式服务的全局调度器保证到期处理延后不超过 1 秒',
   '正式客户端默认每 5 秒轮询一次修订号',
-  '轮询和动作响应只有在 `revision` 不低于当前值时才能更新界面',
+  '只有 `GET state` 的分区交付响应可以更新 `EconomyState`',
   '发起任一权威动作时必须使用 `AbortController` 取消正在进行的状态轮询',
   '工作动作必须在请求发出时同步进入本地“处理中”状态',
   'gzip_types application/json',
@@ -62,11 +70,16 @@ requireText('server/src/storage.js', [
   '(this.scheduledProcessing || now < this.nextWorldProcessingAt)',
   'getStateSnapshot(user, knownRevision',
   'unchanged: true',
+  'function createActionAcknowledgement(result, revision)',
+  'const response = createActionAcknowledgement(gameResult, nextRevision);',
+  'createActionAcknowledgement(cachedResponse.result, cachedResponse.revision)',
 ]);
 
 forbidText('server/src/storage.js', [
   'JSON.parse(stateJson)',
   'candidate === previousStateJson',
+  'const state = createVersionedClientState(world, Number(user.id), now);\n      const response',
+  'normalizeJson({ result: gameResult, revision: nextRevision, state })',
 ]);
 forbidText('server/src/leaderboards.js', [
   'STORE_HOOK',
@@ -82,6 +95,7 @@ requireText('server/src/state-partitions.js', [
   "createHash('sha256')",
   'createPartitionedStateDelivery',
   'createPartitionedActionDelivery',
+  "message: String(actionResponse?.result?.message || '')",
   'readKnownPartitionRevisionsFromSearch',
   'readKnownPartitionRevisionsFromHeader',
 ]);
@@ -105,12 +119,20 @@ requireText('src/app/stateDelivery.js', [
 
 requireText('src/api/game.ts', [
   'GameStatePollResponse',
-  "const STATE_REVISIONS_HEADER = 'X-Economy-State-Revisions'",
+  'export interface GameActionResponse {',
+  'result: GameActionResult;',
+  'revision: number;',
   'knownPartitionRevisions()',
   "params.set('revision', String(revision))",
   'params.set(name, value)',
   'stateDeliveryCache.accept(payload)',
   'signal?: AbortSignal',
+]);
+forbidText('src/api/game.ts', [
+  "const STATE_REVISIONS_HEADER = 'X-Economy-State-Revisions'",
+  'headers.set(STATE_REVISIONS_HEADER',
+  'export interface GameActionResponse extends StateDeliveryEnvelope',
+  'state?: EconomyState;\n}',
 ]);
 
 requireText('src/app/gameViewModel.ts', [
@@ -118,11 +140,18 @@ requireText('src/app/gameViewModel.ts', [
   'revisionRef.current',
   'canAcceptRevision(currentRevision, incomingRevision)',
   'getGameState(revisionRef.current, controller.signal)',
+  'const stateResponse = await getGameState(revisionRef.current);',
+  'stateResponse.revision < response.revision',
+  '操作已完成，但状态同步失败',
+  'return response.result;',
   'refreshAbortRef.current?.abort()',
   'actionsInFlightRef.current > 0',
   "action === 'work' && workPendingRef.current",
   'setIsWorking(true)',
   'setIsWorking(false)',
+]);
+forbidText('src/app/gameViewModel.ts', [
+  'acceptVersionedState(response.revision, response.state, action',
 ]);
 
 requireText('src/pages/OverviewPage.tsx', [
@@ -215,4 +244,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量补丁、动作增量响应、修订号门禁、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量补丁、动作精简确认与确认后分区补拉、修订号门禁、5 秒默认间隔和 JSON gzip 均已锁定。');

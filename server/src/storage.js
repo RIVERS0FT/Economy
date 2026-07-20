@@ -51,6 +51,16 @@ function normalizeJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function createActionAcknowledgement(result, revision) {
+  return normalizeJson({
+    result: {
+      ok: result?.ok === true,
+      message: String(result?.message || ''),
+    },
+    revision: Number(revision),
+  });
+}
+
 function normalizeGiftCode(value) {
   return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
 }
@@ -449,7 +459,8 @@ export class EconomyStore {
           error.statusCode = 409;
           throw error;
         }
-        return JSON.parse(String(cached.response_json));
+        const cachedResponse = JSON.parse(String(cached.response_json));
+        return createActionAcknowledgement(cachedResponse.result, cachedResponse.revision);
       }
 
       const { revision, world } = this.loadWorld(now);
@@ -486,8 +497,7 @@ export class EconomyStore {
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
       const nextRevision = this.saveWorld(revision, world, now);
-      const state = createVersionedClientState(world, Number(user.id), now);
-      const response = normalizeJson({ result: gameResult, revision: nextRevision, state });
+      const response = createActionAcknowledgement(gameResult, nextRevision);
       this.insertIdempotency.run(
         Number(user.id),
         requestKey,

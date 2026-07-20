@@ -54,21 +54,22 @@ test('actions update authoritative state without writing player logs to SQLite',
       '/api/game/orders',
     ), now + 1);
     assert.equal(placed.result.ok, true);
-    assert.equal(placed.state.frozenCredits, 5);
-    assert.equal(Object.hasOwn(placed.state, 'trades'), false);
-    assert.equal(Object.hasOwn(placed.state, 'assetEvents'), false);
+    const placedState = store.getState(alice, now + 2);
+    assert.equal(placedState.frozenCredits, 5);
+    assert.equal(Object.hasOwn(placedState, 'trades'), false);
+    assert.equal(Object.hasOwn(placedState, 'assetEvents'), false);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
 
-    const order = placed.state.orders.find((item) => item.isOwn && item.status === 'open');
+    const order = placedState.orders.find((item) => item.isOwn && item.status === 'open');
     assert.ok(order);
     const cancelled = store.apply(alice, request(
       'cancelOrder',
       { orderId: order.id },
       'cancel-order-12345678',
       `/api/game/orders/${order.id}/cancel`,
-    ), now + 2);
+    ), now + 3);
     assert.equal(cancelled.result.ok, true);
-    assert.equal(cancelled.state.frozenCredits, 0);
+    assert.equal(store.getState(alice, now + 4).frozenCredits, 0);
     assertPlayerLogsAbsent(persistedWorld(store).players['1']);
   } finally {
     store.close();

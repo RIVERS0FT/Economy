@@ -16,6 +16,12 @@ function request(requestKey = 'warehouse-upgrade-12345678') {
   return { action: 'upgradeWarehouse', payload: {}, requestKey, method: 'POST', path: '/api/game/warehouse/upgrade' };
 }
 
+function applyAndReadState(store, actionRequest, actionNow) {
+  const response = store.apply(alice, actionRequest, actionNow);
+  const state = store.getState(alice, actionNow + 1);
+  return { response, state };
+}
+
 function seedStore({ credits = 10_000, inventoryCapacity = 500, warehouseLevel, wheatAvailable = 0, wheatFrozen = 0, orders = [] } = {}) {
   const store = new EconomyStore(':memory:');
   const world = createWorld(now);
@@ -130,16 +136,18 @@ test('warehouse usage excludes legacy facility buy orders before migration', () 
 test('warehouse upgrade deducts server funds and increases shared capacity', () => {
   const store = seedStore();
   try {
-    const response = store.apply(alice, request(), now + 1);
+    const { response, state } = applyAndReadState(store, request(), now + 1);
+    assert.deepEqual(Object.keys(response).sort(), ['result', 'revision']);
+    assert.deepEqual(Object.keys(response.result).sort(), ['message', 'ok']);
     assert.equal(response.result.ok, true);
-    assert.equal(response.state.warehouseLevel, 2);
-    assert.equal(response.state.inventoryCapacity, 750);
-    assert.equal(response.state.credits, 9_850);
-    assert.equal(response.state.stats.systemSinks, 150);
-    assert.equal(response.state.warehouseUpgradeCost, 300);
-    assert.equal(response.state.warehouseNextCapacity, 1_050);
-    assert.equal(response.state.warehouseNextCapacityIncrease, 300);
-    assert.equal(response.state.warehouseAvailableCapacity, 750);
+    assert.equal(state.warehouseLevel, 2);
+    assert.equal(state.inventoryCapacity, 750);
+    assert.equal(state.credits, 9_850);
+    assert.equal(state.stats.systemSinks, 150);
+    assert.equal(state.warehouseUpgradeCost, 300);
+    assert.equal(state.warehouseNextCapacity, 1_050);
+    assert.equal(state.warehouseNextCapacityIncrease, 300);
+    assert.equal(state.warehouseAvailableCapacity, 750);
   } finally { store.close(); }
 });
 
@@ -149,36 +157,36 @@ test('warehouse summary price matches the amount deducted for the same actual ca
     const before = store.getState(alice, now + 1);
     assert.equal(before.warehouseUpgradeCost, 480);
 
-    const response = store.apply(alice, request('warehouse-linear-cost-12345678'), now + 2);
+    const { response, state } = applyAndReadState(store, request('warehouse-linear-cost-12345678'), now + 2);
     assert.equal(response.result.ok, true);
-    assert.equal(response.state.warehouseLevel, 4);
-    assert.equal(response.state.inventoryCapacity, 1_400);
-    assert.equal(response.state.credits, 9_520);
-    assert.equal(response.state.stats.systemSinks, 480);
-    assert.equal(response.state.warehouseUpgradeCost, 690);
+    assert.equal(state.warehouseLevel, 4);
+    assert.equal(state.inventoryCapacity, 1_400);
+    assert.equal(state.credits, 9_520);
+    assert.equal(state.stats.systemSinks, 480);
+    assert.equal(state.warehouseUpgradeCost, 690);
   } finally { store.close(); }
 });
 
 test('warehouse upgrade preserves stored and reserved usage while adding free capacity', () => {
   const store = seedStore({ wheatAvailable: 25, wheatFrozen: 5, orders: [buyOrder({ remaining: 40, status: 'partial' })] });
   try {
-    const response = store.apply(alice, request('warehouse-usage-upgrade-12345678'), now + 1);
+    const { response, state } = applyAndReadState(store, request('warehouse-usage-upgrade-12345678'), now + 1);
     assert.equal(response.result.ok, true);
-    assert.equal(response.state.warehouseStoredQuantity, 30);
-    assert.equal(response.state.warehouseReservedQuantity, 40);
-    assert.equal(response.state.warehouseUsedCapacity, 70);
-    assert.equal(response.state.warehouseAvailableCapacity, 680);
+    assert.equal(state.warehouseStoredQuantity, 30);
+    assert.equal(state.warehouseReservedQuantity, 40);
+    assert.equal(state.warehouseUsedCapacity, 70);
+    assert.equal(state.warehouseAvailableCapacity, 680);
   } finally { store.close(); }
 });
 
 test('warehouse upgrade rejects insufficient funds without changing capacity', () => {
   const store = seedStore({ credits: 149 });
   try {
-    const response = store.apply(alice, request('warehouse-insufficient-12345678'), now + 1);
+    const { response, state } = applyAndReadState(store, request('warehouse-insufficient-12345678'), now + 1);
     assert.equal(response.result.ok, false);
-    assert.equal(response.state.credits, 149);
-    assert.equal(response.state.warehouseLevel, 1);
-    assert.equal(response.state.inventoryCapacity, 500);
+    assert.equal(state.credits, 149);
+    assert.equal(state.warehouseLevel, 1);
+    assert.equal(state.inventoryCapacity, 500);
   } finally { store.close(); }
 });
 
@@ -203,11 +211,11 @@ test('legacy stored level behind capacity is advanced and can still expand', () 
     assert.equal(state.warehouseNextCapacityIncrease, 500);
     assert.equal(state.warehouseNextCapacity, 2_750);
 
-    const response = store.apply(alice, request('warehouse-legacy-capacity-12345678'), now + 2);
+    const { response, state: upgradedState } = applyAndReadState(store, request('warehouse-legacy-capacity-12345678'), now + 2);
     assert.equal(response.result.ok, true);
-    assert.equal(response.state.warehouseLevel, 7);
-    assert.equal(response.state.inventoryCapacity, 2_750);
-    assert.equal(response.state.warehouseUpgradeCost, 1_500);
+    assert.equal(upgradedState.warehouseLevel, 7);
+    assert.equal(upgradedState.inventoryCapacity, 2_750);
+    assert.equal(upgradedState.warehouseUpgradeCost, 1_500);
   } finally { store.close(); }
 });
 
@@ -218,13 +226,13 @@ test('warehouse can continue upgrading after former level 12 limit', () => {
     inventoryCapacity: warehouseCapacityForLevel(12),
   });
   try {
-    const response = store.apply(alice, request('warehouse-level-12-12345678'), now + 1);
+    const { response, state } = applyAndReadState(store, request('warehouse-level-12-12345678'), now + 1);
     assert.equal(response.result.ok, true);
-    assert.equal(response.state.warehouseLevel, 13);
-    assert.equal(response.state.inventoryCapacity, warehouseCapacityForLevel(13));
-    assert.equal(response.state.warehouseNextCapacityIncrease, warehouseCapacityIncreaseForLevel(13));
+    assert.equal(state.warehouseLevel, 13);
+    assert.equal(state.inventoryCapacity, warehouseCapacityForLevel(13));
+    assert.equal(state.warehouseNextCapacityIncrease, warehouseCapacityIncreaseForLevel(13));
     assert.equal(
-      response.state.warehouseUpgradeCost,
+      state.warehouseUpgradeCost,
       warehouseUpgradeCostForCapacity(warehouseCapacityForLevel(13)),
     );
   } finally { store.close(); }
@@ -237,6 +245,7 @@ test('warehouse upgrade is idempotent', () => {
     const first = store.apply(alice, actionRequest, now + 1);
     const second = store.apply(alice, actionRequest, now + 2);
     assert.deepEqual(second, first);
+    assert.deepEqual(Object.keys(second).sort(), ['result', 'revision']);
     assert.equal(store.getState(alice, now + 3).warehouseLevel, 2);
   } finally { store.close(); }
 });
