@@ -53,7 +53,7 @@ test('admins can atomically generate and retry a 50000-code batch', () => {
       path: '/api/game/gifts/redeem',
     }, now + 2);
     assert.equal(redeemed.result.ok, true);
-    assert.equal(redeemed.state.credits, 125);
+    assert.equal(store.getState(player, now + 3).credits, 125);
   } finally {
     store.close();
   }
