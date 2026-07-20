@@ -6,6 +6,8 @@ import {
   MARKET_DEMAND_MODEL_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
 } from './market-demand.js';
+import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
+import { orderAssetId, orderKind } from './order-identity.js';
 
 export * from './domain-core.js';
 export {
@@ -106,6 +108,57 @@ const marketDemand = createMarketDemandRuntime({
   isOpenOrder: (order) => balancedMarket.isOpenOrder(order),
 });
 
+function newestOrdersFirst(left, right) {
+  return Number(right.createdAt || 0) - Number(left.createdAt || 0)
+    || String(right.id || '').localeCompare(String(left.id || ''));
+}
+
+function cancelLegacyCommodityOrder(world, order) {
+  if (!balancedMarket.isOpenOrder(order) || order.ownerType !== 'player') return false;
+  const player = world.players?.[String(order.ownerId)];
+  const remaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
+  if (player && order.side === 'buy') {
+    const expectedRelease = remaining * Math.max(1, Math.floor(Number(order.price || 1)));
+    const release = Math.min(Math.max(0, Number(player.frozenCredits || 0)), expectedRelease);
+    player.frozenCredits = Math.max(0, Number(player.frozenCredits || 0) - release);
+    player.credits = Number(player.credits || 0) + release;
+  } else if (player && order.side === 'sell') {
+    player.inventories ||= {};
+    const productId = orderAssetId(order);
+    const inventory = player.inventories[productId] ||= { available: 0, frozen: 0 };
+    const release = Math.min(Math.max(0, Number(inventory.frozen || 0)), remaining);
+    inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - release);
+    inventory.available = Math.max(0, Number(inventory.available || 0)) + release;
+  }
+  order.status = 'cancelled';
+  return true;
+}
+
+function reconcileCommodityOrderBook(world, now) {
+  const playerOrders = (world.orders || [])
+    .filter((order) => (
+      order.ownerType === 'player'
+      && orderKind(order) === 'commodity'
+      && balancedMarket.isOpenOrder(order)
+    ))
+    .sort(newestOrdersFirst);
+
+  for (const order of playerOrders) {
+    if (balancedMarket.isOpenOrder(order)) balancedMarket.matchOrder(world, order, now);
+  }
+
+  for (const order of playerOrders) {
+    if (!balancedMarket.isOpenOrder(order)) continue;
+    if (findSelfCrossingOrder(world, {
+      ownerId: order.ownerId,
+      assetKind: 'commodity',
+      assetId: orderAssetId(order),
+      side: order.side,
+      price: order.price,
+    })) cancelLegacyCommodityOrder(world, order);
+  }
+}
+
 export function createWorld(now = Date.now()) {
   const world = core.createWorld(now);
   balancedMarket.rebalanceNewWorld(world, now);
@@ -143,6 +196,7 @@ export function migrateWorld(world, now = Date.now()) {
   marketDemand.normalizeWorld(migrated, now, {
     forceRebuild: !hadCurrentMarketDemandModel || previousVersion < 13,
   });
+  reconcileCommodityOrderBook(migrated, now);
   migrated.version = 13;
   return migrated;
 }
@@ -166,6 +220,15 @@ function applyCommodityOrder(world, user, payload, now) {
   const productId = productIds.has(String(payload.productId || 'wheat'))
     ? String(payload.productId || 'wheat')
     : null;
+  if (side && productId && findSelfCrossingOrder(world, {
+    ownerId: userId,
+    assetKind: 'commodity',
+    assetId: productId,
+    side,
+    price: payload.price,
+  })) {
+    return { ok: false, message: SELF_CROSS_MESSAGE };
+  }
   const originalOrders = world.orders || [];
   const hiddenIds = new Set(side && productId ? originalOrders
     .filter((order) => (

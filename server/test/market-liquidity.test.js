@@ -44,12 +44,33 @@ function cancelConsumptionBuys(world, productId) {
   }
 }
 
-test('market model 4 creates inventory-backed buy and sell orders without system self-trades', () => {
+function openSystemOrders(world, productId, side) {
+  return world.orders.filter((order) => (
+    order.ownerType === 'population'
+    && order.productId === productId
+    && order.side === side
+    && order.remaining > 0
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+}
+
+function reserveTotals(world, groupId) {
+  const group = world.marketDemand.liquidity.groups[groupId];
+  return {
+    credits: group.credits + group.frozenCredits,
+    inventory: Object.fromEntries(Object.entries(group.reserves).map(([productId, reserve]) => [
+      productId,
+      reserve.inventory + reserve.frozenInventory,
+    ])),
+  };
+}
+
+test('market model 5 creates inventory-backed buy and sell orders without system self-trades', () => {
   const world = createWorld(now);
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 4);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 5);
   const systemOrders = world.orders.filter((order) => order.ownerType === 'population');
   assert.ok(systemOrders.some((order) => order.demandTier === 'direct'));
   assert.ok(systemOrders.some((order) => order.demandTier === 'derived-liquidity'));
@@ -64,6 +85,50 @@ test('market model 4 creates inventory-backed buy and sell orders without system
       assert.ok(reserve.inventory >= 0);
       assert.ok(reserve.frozenInventory >= 0);
     }
+  }
+});
+
+test('system liquidity asks reprice above retained consumption bids instead of crossing', () => {
+  const world = createWorld(now);
+  prepareAllDemand(world);
+  processWorld(world, now + 1);
+
+  world.orders.push({
+    id: 'retained-appliance-demand',
+    assetKind: 'commodity',
+    assetId: 'appliance',
+    productId: 'appliance',
+    side: 'buy',
+    ownerType: 'population',
+    ownerName: '家庭消费市场需求',
+    demandGroupId: 'household',
+    demandTier: 'direct',
+    demandCycleId: world.demandGroups.household.lastCycleId,
+    price: 151,
+    quantity: 10,
+    remaining: 10,
+    status: 'open',
+    createdAt: now + 2,
+  });
+
+  prepareAllDemand(world, now + cycleMs + 1);
+  processWorld(world, now + cycleMs + 1);
+
+  for (const productId of Object.keys(world.markets)) {
+    const buys = openSystemOrders(world, productId, 'buy');
+    const sells = openSystemOrders(world, productId, 'sell');
+    if (buys.length === 0 || sells.length === 0) continue;
+    const bestBid = Math.max(...buys.map((order) => order.price));
+    const bestAsk = Math.min(...sells.map((order) => order.price));
+    assert.ok(bestBid < bestAsk, `${productId} system book crossed at ${bestBid}/${bestAsk}`);
+  }
+
+  const applianceBuys = openSystemOrders(world, 'appliance', 'buy');
+  const applianceSell = liquidityOrders(world, 'household', 'appliance')
+    .find((order) => order.demandTier === 'liquidity-sell' && order.remaining > 0);
+  assert.ok(applianceBuys.length > 0);
+  if (applianceSell) {
+    assert.ok(applianceSell.price > Math.max(...applianceBuys.map((order) => order.price)));
   }
 });
 
@@ -141,7 +206,7 @@ test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   )));
 });
 
-test('model 3 migrates to model 4 without changing player assets', () => {
+test('model 3 migrates directly to model 5 with one-time reserve seeding', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
@@ -157,10 +222,42 @@ test('model 3 migrates to model 4 without changing player assets', () => {
 
   migrateWorld(world, now + 1);
 
-  assert.equal(world.marketDemand.modelVersion, 4);
+  assert.equal(world.marketDemand.modelVersion, 5);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => order.id === 'model-3-market-order'), false);
   assert.equal(world.marketDemand.liquidity.groups.food.initialCredits, 3_000);
   assert.ok(world.marketDemand.liquidity.groups.food.reserves.wheat.inventory > 0);
+});
+
+test('model 4 migrates to model 5 and releases obsolete liquidity reservations', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 777;
+  player.inventories.wheat.available = 9;
+  prepareAllDemand(world);
+  processWorld(world, now + 1);
+  world.marketDemand.modelVersion = 4;
+  const oldSystemOrderIds = new Set(world.orders
+    .filter((order) => order.ownerType === 'population')
+    .map((order) => order.id));
+  const before = Object.fromEntries(['food', 'household'].map((groupId) => [groupId, reserveTotals(world, groupId)]));
+
+  migrateWorld(world, now + 2);
+
+  assert.equal(world.marketDemand.modelVersion, 5);
+  assert.equal(world.players[String(alice.id)].credits, 777);
+  assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
+  assert.equal(world.orders.some((order) => oldSystemOrderIds.has(order.id)), false);
+  for (const groupId of ['food', 'household']) {
+    const group = world.marketDemand.liquidity.groups[groupId];
+    assert.equal(group.frozenCredits, 0);
+    assert.equal(group.credits, before[groupId].credits);
+    for (const [productId, reserve] of Object.entries(group.reserves)) {
+      assert.equal(reserve.frozenInventory, 0);
+      assert.equal(reserve.inventory, before[groupId].inventory[productId]);
+    }
+  }
+  processWorld(world, now + 3);
+  assert.ok(world.orders.some((order) => order.ownerType === 'population'));
 });
