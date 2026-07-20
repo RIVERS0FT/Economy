@@ -55,7 +55,7 @@ export function Panel({ className = '', children }: { className?: string; childr
 
 export function PagePanel({ className = '', children }: { className?: string; children: ReactNode }) {
   return (
-    <Panel className={classNames('widget', 'ui-primary-surface', className)}>
+    <Panel className={classNames('widget', className)}>
       {children}
     </Panel>
   );
