@@ -23,6 +23,7 @@ const paths = {
   shopStyles: 'src/styles/gem-shop.css',
   leaderboardStyles: 'src/styles/leaderboards.css',
   design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
+  uiDesign: 'docs/UI_DESIGN_SYSTEM.md',
 };
 
 Object.values(paths).forEach(requireFile);
@@ -72,6 +73,15 @@ if (failures.length === 0) {
     '业务页面 CSS 不得',
     '该验证必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
+
+  for (const text of [
+    '| `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |',
+    '- `PagePanel`',
+    '`PagePanel` 是新增玩家端一级卡片的唯一 React 入口',
+    '`--primary-surface-inset` 唯一控制',
+    '不得定义一级卡片外层内边距',
+    '在业务页面 CSS 中重新声明一级卡片外层 padding',
+  ]) requireText(paths.uiDesign, text);
 }
 
 if (failures.length > 0) {
@@ -80,4 +90,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、旧类兼容、加载顺序和页面覆盖清理均已锁定。');
+console.log('一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、旧类兼容、样式与设计文档权威、加载顺序和页面覆盖清理均已锁定。');
