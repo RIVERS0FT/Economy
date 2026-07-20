@@ -1,0 +1,45 @@
+name: Apply authoritative clock baseline fix
+
+on:
+  pull_request:
+    types:
+      - reopened
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-authoritative-clock-baseline-fix
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.event_name != 'pull_request' || github.event.pull_request.number == 190
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-audit-and-recent-trade-valuation
+          fetch-depth: 0
+
+      - name: Apply verified source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode .github/agent-clock-fix.patch.b64 > /tmp/economy-clock-fix.patch
+          echo '3cf469bd71dbf389d09b82d078792adc6e7e691eae66f341701a8bef189b33f0  /tmp/economy-clock-fix.patch' | sha256sum --check
+          git apply --check /tmp/economy-clock-fix.patch
+          git apply /tmp/economy-clock-fix.patch
+          rm .github/agent-clock-fix.patch.b64
+
+      - name: Commit repaired clock baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '以权威快照时间驱动局部时钟'
+          git push origin HEAD:agent/fix-audit-and-recent-trade-valuation
