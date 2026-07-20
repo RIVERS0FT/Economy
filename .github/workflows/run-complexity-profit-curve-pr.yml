@@ -33,8 +33,8 @@ jobs:
           path = Path('/tmp/apply-complexity-profit-curve.py')
           text = path.read_text(encoding='utf-8')
           old = "replace_once('server/test/domain.test.js', old_prices, new_prices)"
-          new = """domain_old_prices = '\n'.join(f'  {line}' for line in old_prices.splitlines())
-          domain_new_prices = '\n'.join(f'  {line}' for line in new_prices.splitlines())
+          new = """domain_old_prices = chr(10).join(f'  {line}' for line in old_prices.splitlines())
+          domain_new_prices = chr(10).join(f'  {line}' for line in new_prices.splitlines())
           replace_once('server/test/domain.test.js', domain_old_prices, domain_new_prices)"""
           if text.count(old) != 1:
               raise SystemExit(f'expected one domain price replacement call, found {text.count(old)}')
