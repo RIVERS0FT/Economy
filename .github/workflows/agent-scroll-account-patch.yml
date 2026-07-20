@@ -19,7 +19,18 @@ jobs:
           fetch-depth: 1
           show-progress: false
       - name: Apply repository patch
-        run: node scripts/agent-scroll-account-patch.mjs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/agent-scroll-account-patch.mjs')
+          source = path.read_text()
+          source = source.replace(
+              "'当前视口真正发生滚动时必须同时调用 `preventDefault()` 与 `stopPropagation()`'",
+              "'当前视口真正发生滚动时必须同时调用 \\`preventDefault()\\` 与 \\`stopPropagation()\\`'",
+          )
+          path.write_text(source)
+          PY
+          node scripts/agent-scroll-account-patch.mjs
       - name: Install dependencies
         run: npm ci --silent
       - name: Validate targeted changes
