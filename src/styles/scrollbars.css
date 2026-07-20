@@ -218,7 +218,7 @@
   }
 
   .page-scroll-area > .ui-scrollbar--vertical {
-    right: calc(-1 * var(--mobile-scrollbar-edge-escape));
+    right: calc(0px - var(--mobile-scrollbar-edge-escape));
   }
 
   .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
