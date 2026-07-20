@@ -38,7 +38,27 @@ export function PageLayout({
 }
 
 export function Panel({ className = '', children }: { className?: string; children: ReactNode }) {
-  return <article className={classNames('panel', className)}>{children}</article>;
+  const usesLegacyPrimarySurfaceSemantic = className.split(/\s+/).includes('widget');
+
+  return (
+    <article
+      className={classNames(
+        'panel',
+        usesLegacyPrimarySurfaceSemantic && 'ui-primary-surface',
+        className,
+      )}
+    >
+      {children}
+    </article>
+  );
+}
+
+export function PagePanel({ className = '', children }: { className?: string; children: ReactNode }) {
+  return (
+    <Panel className={classNames('widget', className)}>
+      {children}
+    </Panel>
+  );
 }
 
 export function WidgetHeading({

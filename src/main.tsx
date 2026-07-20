@@ -36,6 +36,7 @@ import './styles/overview-polish.css';
 import './styles/market-page-polish.css';
 import './styles/leaderboards.css';
 import './styles/design-system.css';
+import './styles/primary-surfaces.css';
 import './styles/form-controls.css';
 
 configureRuntimePerformance();

@@ -192,11 +192,6 @@
 }
 
 @media (max-width: 720px) {
-  .asset-overview-card,
-  .asset-event-panel {
-    padding: var(--space-3);
-  }
-
   .asset-overview-card .widget-heading {
     align-items: flex-start;
     flex-direction: column;

@@ -1,12 +1,10 @@
-/* Final authority for same-plane primary surfaces on the production page. */
+/* Production-only title and switch alignment.
+ * Primary surface padding is owned by primary-surfaces.css. */
 .panel.production-surface {
-  --production-surface-inset: var(--space-4);
   --production-pill-visible-height: 1.6rem;
   --production-switch-thumb-size: 1rem;
   --production-switch-thumb-inset: 0.25rem;
   --production-switch-thumb-travel: 1.25rem;
-
-  padding: var(--production-surface-inset);
 }
 
 .panel.production-surface > .widget-heading,
@@ -48,10 +46,4 @@
 
 .panel.production-surface .facility-card-title-row > .ui-switch:checked::after {
   transform: translateX(var(--production-switch-thumb-travel));
-}
-
-@media (max-width: 720px) {
-  .panel.production-surface {
-    --production-surface-inset: var(--space-3);
-  }
 }
