@@ -37,7 +37,7 @@
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高与可访问状态 |
-| `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面贴边轨道 |
+| `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面视口安全边缘轨道 |
 | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
 | `src/styles/liquid-glass-chrome.css` | 状态栏和移动底栏玻璃材质 |
 | `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
@@ -201,7 +201,8 @@
 - 普通滚轮和以 `deltaY` 为主的触控板输入优先垂直滚动；只有 `Shift + 滚轮`、明确以 `deltaX` 为主的触控板输入、水平滑块拖动或水平轨道点击才执行水平滚动。到达内部纵向边界后必须把滚动链交给外层，不得自动改成水平滚动。
 - 双轴轨道同时存在时纵向轨道 `z-index` 更高，水平轨道在右侧避让纵向命中区，不绘制额外右下角块。
 - 不得使用 `overscroll-behavior: contain` 阻断纵向滚动链；只有明确的横向视口可以使用 `overscroll-behavior-x: contain`，并保持 `overscroll-behavior-y: auto`。
-- 移动页面仍受 `.workspace` gutter 约束，只有纵向覆盖式轨道允许越过内容框：`--mobile-workspace-inline-end` 等于 `max(var(--mobile-workspace-gutter), env(safe-area-inset-right))`，`--mobile-scrollbar-edge-escape` 只越过普通 gutter；轨道保持 `right: 0` 并使用 `translateX(var(--mobile-scrollbar-edge-escape))`，滑块右边缘距屏幕或安全区内缘 `2px`。不得用 `position: fixed`、负 `right`、扩大 viewport 或改变卡片宽度实现贴边。
+- 移动页面纵向轨道固定到视口安全边缘：仅 `.page-scroll-area > .ui-scrollbar--vertical` 在不大于 `720px` 时使用 `position: fixed`，顶部和底部保留 `var(--scrollbar-edge-offset)`，右侧使用 `right: env(safe-area-inset-right, 0px)`，滑块在轨道内再保留 `2px` 边缘偏移。固定的只有覆盖式轨道，`.page-scroll-area`、`.page-scroll`、`.page-content` 和卡片仍受 `.workspace` gutter 约束，宽度与滚动视口不得改变。
+- 移动页面贴边不得恢复 `--mobile-workspace-inline-end`、`--mobile-scrollbar-edge-escape` 或 `translateX(...)` 逃逸令牌，也不得用负 `right`、扩大页面 viewport、改变卡片宽度或让轨道越过右侧安全区。真实浏览器几何必须验证滑块右边缘距屏幕或安全区内缘约 `2px`。
 - 滚动过程中不得用 React state 更新滑块位置；使用 ref、CSS transform、`requestAnimationFrame` 和 `ResizeObserver`。滑块保留 `role="scrollbar"`、方向和范围语义，支持拖动、轨道翻页与键盘控制。
 
 “我的未完成订单”列顺序固定为：
@@ -373,7 +374,7 @@
 - 恢复会阻断纵向滚动链的 `overscroll-behavior: contain` 或其他双轴越界隔离；
 - 为页面、侧栏或业务表格复制滚动条宽度、颜色、计时器或活动判断；
 - 隐藏存在横向溢出的水平滚动条，把普通纵向滚轮转换为水平滚动，或让水平轨道覆盖纵向轨道；
-- 把移动页面纵向轨道改成 `position: fixed`、停留在卡片右边缘、越过右侧安全区，或通过改变 viewport／卡片宽度实现贴边；
+- 把移动页面纵向轨道重新限制在工作区或卡片右边缘，恢复 `--mobile-scrollbar-edge-escape`／`translateX(...)` 逃逸实现，越过右侧安全区，或通过改变 viewport／卡片宽度实现贴边；
 - 使用 `.login-shell:focus-within` 或其他焦点选择器改变移动登录页标题字号、区块间距或整体对齐；
 - 把账号或密码重新绑定到初始为空的 React `value` 状态；
 - 把设置页恢复为共享三列网格、`span-2` 跨列卡片、宽卡片两列统计或整卡宽度昵称保存按钮；
