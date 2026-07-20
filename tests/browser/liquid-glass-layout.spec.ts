@@ -94,3 +94,19 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.headingTop).toBeGreaterThanOrEqual(layout.assetBarBottom);
   });
 });
+
+test.describe('mobile liquid glass host geometry', () => {
+  test('mobile chrome shares the workspace gutter and fixed glass heights', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+    const chromeOverlay = page.locator('.mobile-chrome-overlay');
+    const statusHost = page.locator('.asset-bar-scroll-area');
+    const navigationHost = page.locator('.mobile-bottom-navigation');
+    await expect(chromeOverlay).toBeVisible();
+    await expect(statusHost).toBeVisible();
+    await expect(navigationHost).toBeVisible();
+    await expect(statusHost).toHaveCSS('height', '48px');
+    await expect(navigationHost).toHaveCSS('height', '68px');
+  });
+});

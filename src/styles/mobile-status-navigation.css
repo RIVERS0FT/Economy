@@ -1,12 +1,13 @@
 /* Mobile chrome owns mobile geometry and navigation behavior.
  * Shared liquid-glass geometry lives in liquid-glass-surfaces.css. */
 :root {
-  --mobile-chrome-inset: 1rem;
-  --mobile-content-inset: .4rem;
+  --mobile-workspace-gutter: var(--space-3);
+  --mobile-primary-surface-gap: var(--mobile-workspace-gutter);
+  --mobile-chrome-block-inset: var(--space-4);
   --mobile-asset-bar-height: 48px;
   --mobile-nav-height: 68px;
-  --mobile-nav-gap: 1rem;
-  --mobile-content-gap: .75rem;
+  --mobile-nav-gap: var(--mobile-workspace-gutter);
+  --mobile-content-gap: var(--mobile-workspace-gutter);
   --mobile-nav-scroll-gutter: 1.25rem;
 }
 

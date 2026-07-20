@@ -35,10 +35,12 @@ function walk(path) {
 
 const surfacePath = 'src/components/ui/LiquidGlassSurface.tsx';
 const surfaceStylePath = 'src/styles/liquid-glass-surfaces.css';
+const shellPath = 'src/components/shell/GameShell.tsx';
 const statusPath = 'src/components/shell/StatusBar.tsx';
 const mobilePath = 'src/components/shell/MobileBottomNavigation.tsx';
 const scrollAreaPath = 'src/components/ui/ScrollArea.tsx';
 const viewportPath = 'src/styles/viewport.css';
+const scrollbarPath = 'src/styles/scrollbars.css';
 const layoutPath = 'src/styles/game-shell-layout.css';
 const mobileNavigationStylePath = 'src/styles/mobile-status-navigation.css';
 const mobileStatusStylePath = 'src/styles/mobile-status-layout.css';
@@ -49,10 +51,12 @@ const browserTestPath = 'tests/browser/liquid-glass-layout.spec.ts';
   surfacePath,
   surfaceStylePath,
   'src/styles/liquid-glass-chrome.css',
+  shellPath,
   statusPath,
   mobilePath,
   scrollAreaPath,
   viewportPath,
+  scrollbarPath,
   layoutPath,
   mobileNavigationStylePath,
   mobileStatusStylePath,
@@ -101,6 +105,13 @@ if (failures.length === 0) {
     'data-liquid-glass-mode={preset.mode}',
   ]) requireText(surfacePath, text);
   for (const text of ['mode="shader"', 'elasticity={0.']) forbidText(surfacePath, text);
+
+  for (const text of [
+    'className="mobile-page-overlay"',
+    'className="mobile-chrome-overlay"',
+    '<StatusBar items={statusItems} />',
+    '<MobileBottomNavigation',
+  ]) requireText(shellPath, text);
 
   for (const text of [
     "import { LiquidGlassSurface } from '../ui/LiquidGlassSurface'",
@@ -176,14 +187,27 @@ if (failures.length === 0) {
   }
 
   for (const text of [
+    '.mobile-page-overlay,',
+    '.mobile-chrome-overlay {',
+    'display: contents;',
+    '--layout-gutter: var(--mobile-primary-surface-gap);',
+    'padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
+    'padding-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));',
+    'pointer-events: none;',
     '.asset-bar-scroll-area {',
     'height: var(--desktop-asset-bar-height);',
+    'min-height: var(--mobile-asset-bar-height);',
+    'max-height: var(--mobile-asset-bar-height);',
     '.asset-bar-scroll-track,',
     '.asset-bar {',
     'overflow-x: auto;',
     '.page-scroll-area,',
     'safe-area-inset-bottom',
   ]) requireText(viewportPath, text);
+
+  if (/\.mobile-bottom-navigation\s*\{[\s\S]*?position:\s*fixed;/.test(read(viewportPath))) {
+    failures.push('移动底栏不得恢复 position: fixed');
+  }
 
   for (const text of [
     '.asset-bar-scroll-area {',
@@ -194,12 +218,30 @@ if (failures.length === 0) {
   ]) requireText(layoutPath, text);
 
   for (const text of [
+    '--mobile-workspace-gutter: var(--space-3);',
+    '--mobile-primary-surface-gap: var(--mobile-workspace-gutter);',
+    '--mobile-chrome-block-inset: var(--space-4);',
+  ]) requireText(mobileNavigationStylePath, text);
+  for (const text of ['--mobile-chrome-inset', '--mobile-content-inset']) {
+    forbidText(mobileNavigationStylePath, text);
+    forbidText(mobileStatusStylePath, text);
+    forbidText(viewportPath, text);
+  }
+
+  for (const text of [
     '.asset-bar-scroll-area {',
     'top: var(--mobile-status-top-inset);',
-    'right: var(--mobile-status-right-inset);',
-    'left: var(--mobile-status-left-inset);',
+    'right: 0;',
+    'left: 0;',
+    'min-height: var(--mobile-asset-bar-height);',
+    'max-height: var(--mobile-asset-bar-height);',
     '.asset-bar-scroll-track,',
   ]) requireText(mobileStatusStylePath, text);
+
+  forbidText(scrollbarPath, '.asset-bar-scroll-area,');
+  if (/\.asset-bar-scroll-area\s*\{[\s\S]*?height:\s*100%;/.test(read(scrollbarPath))) {
+    failures.push('共享滚动条样式不得把状态栏宿主设置为全高');
+  }
 
   for (const text of [
     '`liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现',
@@ -211,12 +253,16 @@ if (failures.length === 0) {
     '只允许第一层低透明度 screen 高光可见',
     '第二层 overlay 装饰必须隐藏',
     '背景必须透明',
-    '真实浏览器中的全宽、裁切、折射层、单高光与页面避让验证',
+    '真实浏览器中的全宽、裁切、折射层、单高光、移动 Overlay 与页面避让验证',
+    '移动 `.workspace` 是唯一水平几何边界',
+    '不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
   ]) requireText(designPath, text);
 
   for (const text of [
     "page.goto('runtime-test.html?view=overview&scenario=activity')",
     "page.locator('.asset-bar-scroll-area')",
+    "page.locator('.mobile-chrome-overlay')",
+    'mobile chrome shares the workspace gutter and fixed glass heights',
     'data-liquid-glass-mode',
     'glass__warp',
     'visibleDecorationSpanCount',
@@ -230,4 +276,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 增强折射、单高光、覆盖式状态栏与平台降级验证通过。');
+console.log('liquid-glass-react 增强折射、单高光、移动双层 Overlay 与固定宿主验证通过。');

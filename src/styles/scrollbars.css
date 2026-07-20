@@ -131,8 +131,11 @@
 }
 
 .page-scroll-area,
-.admin-page-scroll-area,
-.asset-bar-scroll-area,
+.admin-page-scroll-area {
+  width: 100%;
+  height: 100%;
+}
+
 .asset-bar-scroll-track {
   width: 100%;
   height: 100%;

@@ -1,0 +1,130 @@
+import { expect, test } from '@playwright/test';
+
+test.describe('mobile workspace overlay geometry', () => {
+  test('mobile workspace owns the shared gutter and overlay geometry', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+    await expect(page.locator('.mobile-page-overlay')).toBeVisible();
+    await expect(page.locator('.mobile-chrome-overlay')).toBeVisible();
+    await expect(page.locator('.asset-bar-scroll-area')).toBeVisible();
+    await expect(page.locator('.mobile-bottom-navigation')).toBeVisible();
+    await expect(page.locator('.overview-today-panel')).toBeVisible();
+
+    const geometry = await page.evaluate(() => {
+      const workspace = document.querySelector<HTMLElement>('.workspace');
+      const pageOverlay = document.querySelector<HTMLElement>('.mobile-page-overlay');
+      const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
+      const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
+      const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
+      const assetBar = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+      const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
+      const primaryPanel = document.querySelector<HTMLElement>('.overview-today-panel');
+      if (!workspace || !pageOverlay || !chromeOverlay || !pageScrollArea || !pageScroll
+        || !assetBar || !navigation || !primaryPanel) {
+        throw new Error('mobile overlay geometry fixture is incomplete');
+      }
+
+      const rect = (element: HTMLElement) => {
+        const box = element.getBoundingClientRect();
+        return {
+          left: box.left,
+          top: box.top,
+          right: box.right,
+          bottom: box.bottom,
+          width: box.width,
+          height: box.height,
+        };
+      };
+      const workspaceStyle = getComputedStyle(workspace);
+      const pageScrollStyle = getComputedStyle(pageScroll);
+      const chromeStyle = getComputedStyle(chromeOverlay);
+      const assetStyle = getComputedStyle(assetBar);
+      const navigationStyle = getComputedStyle(navigation);
+
+      return {
+        workspace: rect(workspace),
+        pageOverlay: rect(pageOverlay),
+        chromeOverlay: rect(chromeOverlay),
+        pageScrollArea: rect(pageScrollArea),
+        assetBar: rect(assetBar),
+        navigation: rect(navigation),
+        primaryPanel: rect(primaryPanel),
+        workspaceDisplay: workspaceStyle.display,
+        workspacePaddingLeft: Number.parseFloat(workspaceStyle.paddingLeft),
+        workspacePaddingRight: Number.parseFloat(workspaceStyle.paddingRight),
+        pageScrollPaddingLeft: pageScrollStyle.paddingLeft,
+        pageScrollPaddingRight: pageScrollStyle.paddingRight,
+        pageScrollHasHorizontalOverflow: pageScroll.scrollWidth > pageScroll.clientWidth + 1,
+        chromePointerEvents: chromeStyle.pointerEvents,
+        assetPointerEvents: assetStyle.pointerEvents,
+        navigationPointerEvents: navigationStyle.pointerEvents,
+        navigationPosition: navigationStyle.position,
+        pageOverlayOwnsScroll: pageScrollArea.parentElement === pageOverlay,
+        chromeOwnsStatus: assetBar.parentElement === chromeOverlay,
+        chromeOwnsNavigation: navigation.parentElement === chromeOverlay,
+      };
+    });
+
+    const contentLeft = geometry.workspace.left + geometry.workspacePaddingLeft;
+    const contentRight = geometry.workspace.right - geometry.workspacePaddingRight;
+
+    expect(geometry.workspaceDisplay).toBe('grid');
+    expect(geometry.workspacePaddingLeft).toBeCloseTo(12, 0);
+    expect(geometry.workspacePaddingRight).toBeCloseTo(12, 0);
+    for (const layer of [
+      geometry.pageOverlay,
+      geometry.chromeOverlay,
+      geometry.pageScrollArea,
+      geometry.assetBar,
+      geometry.navigation,
+      geometry.primaryPanel,
+    ]) {
+      expect(layer.left).toBeCloseTo(contentLeft, 0);
+      expect(layer.right).toBeCloseTo(contentRight, 0);
+    }
+    expect(geometry.pageScrollPaddingLeft).toBe('0px');
+    expect(geometry.pageScrollPaddingRight).toBe('0px');
+    expect(geometry.pageScrollHasHorizontalOverflow).toBe(false);
+    expect(geometry.assetBar.height).toBeCloseTo(48, 0);
+    expect(geometry.navigation.height).toBeCloseTo(68, 0);
+    expect(geometry.assetBar.height).toBeLessThan(geometry.workspace.height);
+    expect(geometry.navigationPosition).toBe('absolute');
+    expect(geometry.chromePointerEvents).toBe('none');
+    expect(geometry.assetPointerEvents).toBe('auto');
+    expect(geometry.navigationPointerEvents).toBe('auto');
+    expect(geometry.pageOverlayOwnsScroll).toBe(true);
+    expect(geometry.chromeOwnsStatus).toBe(true);
+    expect(geometry.chromeOwnsNavigation).toBe(true);
+  });
+
+  test('mobile chrome shares the workspace gutter and fixed glass heights', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+    const workspace = page.locator('.workspace');
+    const status = page.locator('.asset-bar-scroll-area');
+    const navigation = page.locator('.mobile-bottom-navigation');
+    const pageScroll = page.locator('.page-scroll');
+
+    await expect(workspace).toBeVisible();
+    await expect(status).toBeVisible();
+    await expect(navigation).toBeVisible();
+    await expect(status).toHaveCSS('height', '48px');
+    await expect(navigation).toHaveCSS('height', '68px');
+    await expect(pageScroll).toHaveCSS('padding-left', '0px');
+    await expect(pageScroll).toHaveCSS('padding-right', '0px');
+
+    const heights = await page.evaluate(() => {
+      const workspaceElement = document.querySelector<HTMLElement>('.workspace');
+      const statusElement = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+      if (!workspaceElement || !statusElement) throw new Error('mobile status height fixture is incomplete');
+      return {
+        workspace: workspaceElement.getBoundingClientRect().height,
+        status: statusElement.getBoundingClientRect().height,
+      };
+    });
+    expect(heights.status).toBe(48);
+    expect(heights.status).toBeLessThan(heights.workspace);
+  });
+});

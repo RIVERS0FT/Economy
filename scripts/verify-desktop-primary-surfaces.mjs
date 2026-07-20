@@ -53,7 +53,10 @@ if (failures.length === 0) {
     '第二层 overlay 装饰必须隐藏',
   ]) requireText(paths.liquidDesign, text);
 
-  requireText(paths.shellDesign, '侧栏与状态栏共用一个桌面外距令牌');
+  for (const text of [
+    '`--desktop-shell-outer-inset` 是侧栏和状态栏唯一桌面外距令牌',
+    '状态栏外距不改变 `.workspace` 和页面主体的宽度',
+  ]) requireText(paths.shellDesign, text);
 
   for (const text of [
     'desktop status bar uses enhanced refraction, shared inset and one visible highlight',

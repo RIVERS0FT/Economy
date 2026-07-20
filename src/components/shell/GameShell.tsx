@@ -36,23 +36,27 @@ export function GameShell({ model, statusItems, children }: {
         onSignOut={() => void model.signOut()}
       />
       <section className="workspace">
-        <StatusBar items={statusItems} />
-        {model.notice ? <div className="notice-toast"><CurrencyText>{model.notice}</CurrencyText></div> : null}
-        <ScrollArea
-          axis="y"
-          className="page-scroll-area"
-          viewportClassName="page-scroll"
-          verticalAutoHide
-          idleDelay={1_200}
-        >
-          {children}
-        </ScrollArea>
+        <div className="mobile-page-overlay">
+          {model.notice ? <div className="notice-toast"><CurrencyText>{model.notice}</CurrencyText></div> : null}
+          <ScrollArea
+            axis="y"
+            className="page-scroll-area"
+            viewportClassName="page-scroll"
+            verticalAutoHide
+            idleDelay={1_200}
+          >
+            {children}
+          </ScrollArea>
+        </div>
+        <div className="mobile-chrome-overlay">
+          <StatusBar items={statusItems} />
+          <MobileBottomNavigation
+            activeTab={model.tab}
+            openOrderCount={model.derived.ownOpenOrders.length}
+            onSelect={model.setTab}
+          />
+        </div>
       </section>
-      <MobileBottomNavigation
-        activeTab={model.tab}
-        openOrderCount={model.derived.ownOpenOrders.length}
-        onSelect={model.setTab}
-      />
     </main>
   );
 }
