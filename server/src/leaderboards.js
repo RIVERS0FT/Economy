@@ -2,16 +2,15 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
 import { processFacilityGroupWorld } from './facility-groups.js';
 import { processCollectibleAuctions } from './collectibles.js';
 import { ensureGemState } from './invitations.js';
-import { orderAssetId, orderKind } from './order-identity.js';
 
-export const LEADERBOARD_TIME_ZONE = 'Asia/Taipei';
+export const LEADERBOARD_TIME_ZONE = 'Asia/Shanghai';
 export const LEADERBOARD_REWARDS = Object.freeze([30, 20, 10]);
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_HISTORY_LIMIT = 52;
-export const PLAYER_PAIR_DAILY_SCORE_LIMIT = 10_000;
 
-const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;
+const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const TRADING_RULE_VERSION = 2;
 const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 const FACILITY_BY_ID = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
 const BOARD_IDS = Object.freeze(['wealth', 'growth', 'production', 'trading']);
@@ -36,22 +35,22 @@ function playerStats(player) {
   return player.stats;
 }
 
-function localDateKey(timestamp) {
-  return new Date(Number(timestamp) + TAIPEI_OFFSET_MS).toISOString().slice(0, 10);
+function beijingDateKey(timestamp) {
+  return new Date(Number(timestamp) + BEIJING_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 export function leaderboardPeriodFor(now = Date.now()) {
   const timestamp = Number(now);
-  const local = new Date(timestamp + TAIPEI_OFFSET_MS);
+  const local = new Date(timestamp + BEIJING_OFFSET_MS);
   const daysSinceMonday = (local.getUTCDay() + 6) % 7;
   const localMonday = Date.UTC(
     local.getUTCFullYear(),
     local.getUTCMonth(),
     local.getUTCDate() - daysSinceMonday,
   );
-  const startsAt = localMonday - TAIPEI_OFFSET_MS;
+  const startsAt = localMonday - BEIJING_OFFSET_MS;
   return {
-    key: localDateKey(startsAt),
+    key: beijingDateKey(startsAt),
     startsAt,
     endsAt: startsAt + WEEK_MS,
   };
@@ -110,6 +109,7 @@ function recipeOutputProductId(group) {
 function createEmptyPeriodState(period, partial) {
   return {
     version: 1,
+    tradingRuleVersion: TRADING_RULE_VERSION,
     periodKey: period.key,
     startsAt: period.startsAt,
     endsAt: period.endsAt,
@@ -120,7 +120,6 @@ function createEmptyPeriodState(period, partial) {
     trading: {},
     productionCheckpoints: {},
     processedFillIds: {},
-    pairDayScores: {},
   };
 }
 
@@ -207,16 +206,11 @@ function fillIdentifier(order, fill) {
   return String(fill?.id || `${order.id}:${fill?.createdAt}:${fill?.quantity}:${fill?.price}`);
 }
 
-function tradeScoreFor(order, fill) {
+function tradeGrossFor(fill) {
   const quantity = safeNonNegativeInteger(fill?.quantity);
   const price = safeNonNegativeInteger(fill?.price);
   if (quantity < 1 || price < 1) return 0;
-  if (orderKind(order) === 'facility') {
-    const facility = FACILITY_BY_ID.get(orderAssetId(order));
-    return facility ? quantity * Math.min(price, facility.systemValue * 2) : 0;
-  }
-  const product = PRODUCT_BY_ID.get(orderAssetId(order));
-  return product ? quantity * Math.min(price, product.basePrice * 3) : 0;
+  return quantity * price;
 }
 
 function counterpartFor(order, fill, orderById) {
@@ -253,27 +247,40 @@ export function captureTradingFills(world, state, observedOrders = world.orders 
         continue;
       }
       if (createdAt >= state.endsAt) continue;
-      const rawScore = tradeScoreFor(order, fill);
+      const grossVolume = tradeGrossFor(fill);
       const counterpart = counterpartFor(order, fill, orderById);
-      let creditedScore = rawScore;
       if (counterpart?.ownerType === 'player') {
-        const buyerId = String(counterpart.ownerId || 'unknown');
-        const pairKey = `${userId}:${buyerId}:${localDateKey(createdAt)}`;
-        const used = safeNonNegativeInteger(state.pairDayScores[pairKey]);
-        creditedScore = Math.max(0, Math.min(rawScore, PLAYER_PAIR_DAILY_SCORE_LIMIT - used));
-        state.pairDayScores[pairKey] = used + creditedScore;
-        state.trading[userId].buyers[buyerId] = true;
+        state.trading[userId].buyers[String(counterpart.ownerId || 'unknown')] = true;
       }
-      if (creditedScore > 0) {
-        state.trading[userId].score += creditedScore;
+      if (grossVolume > 0) {
+        state.trading[userId].score += grossVolume;
         state.trading[userId].tradeCount += 1;
         const stats = playerStats(seller);
-        stats.marketSellScore += creditedScore;
+        stats.marketSellScore += grossVolume;
         stats.marketTradeCount += 1;
       }
       state.processedFillIds[fillId] = createdAt;
     }
   }
+}
+
+function migrateTradingRule(world, state) {
+  if (Number(state.tradingRuleVersion) === TRADING_RULE_VERSION) return;
+
+  for (const [userId, trading] of Object.entries(state.trading || {})) {
+    const player = world.players?.[userId];
+    if (!player) continue;
+    const stats = playerStats(player);
+    stats.marketSellScore = Math.max(0, stats.marketSellScore - safeNonNegativeInteger(trading?.score));
+    stats.marketTradeCount = Math.max(0, stats.marketTradeCount - safeNonNegativeInteger(trading?.tradeCount));
+  }
+
+  state.tradingRuleVersion = TRADING_RULE_VERSION;
+  state.trading = {};
+  state.processedFillIds = {};
+  delete state.pairDayScores;
+  ensureAllPlayers(world, state);
+  captureTradingFills(world, state, world.orders || []);
 }
 
 function internalRowsFor(world, state, boardId) {
@@ -320,13 +327,14 @@ function boardDefinition(boardId) {
   if (boardId === 'wealth') return { title: '财富榜', description: '按最近订单簿成交价计算的实时总资产', unit: 'currency', rewarded: false };
   if (boardId === 'growth') return { title: '增长榜', description: '本周经营资产净增长', unit: 'currency', rewarded: true };
   if (boardId === 'production') return { title: '生产榜', description: '本周产出数量 × 商品基础价', unit: 'points', rewarded: true };
-  return { title: '交易榜', description: '本周有效卖出成交积分', unit: 'points', rewarded: true };
+  return { title: '交易榜', description: '本周订单簿实际卖出成交额', unit: 'currency', rewarded: true };
 }
 
 export function createLeaderboardSnapshot(world, currentUserId, now = Date.now()) {
   const state = validLeaderboardState(world.leaderboardState)
     ? world.leaderboardState
     : initializeLeaderboardState(world, now, true);
+  migrateTradingRule(world, state);
   ensureAllPlayers(world, state);
   const boards = {};
   for (const boardId of BOARD_IDS) {
@@ -424,6 +432,7 @@ export function processLeaderboardWorld(world, now = Date.now()) {
   }
 
   let state = world.leaderboardState;
+  migrateTradingRule(world, state);
   while (now >= state.endsAt) {
     const priorOrders = [...(world.orders || [])];
     processWorldAt(world, state.endsAt - 1, priorOrders);
