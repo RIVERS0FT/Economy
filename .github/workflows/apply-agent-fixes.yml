@@ -33,8 +33,9 @@ jobs:
           echo 'b8b5b61a49a46bbfb8e273810f2a7456b318e6f69f41f4ccb2d273587869f8f7  /tmp/economy-audit-fixes.patch' | sha256sum --check
           git apply --check /tmp/economy-audit-fixes.patch
           git apply /tmp/economy-audit-fixes.patch
+          git restore --source=HEAD -- .github/workflows/ci.yml .github/workflows/deploy.yml
           rm -rf .github/agent-patch
-          rm -f .github/agent-fixes.patch.gz.b64 .github/workflows/apply-agent-fixes.yml
+          rm -f .github/agent-fixes.patch.gz.b64
 
       - name: Commit repaired project
         shell: bash
