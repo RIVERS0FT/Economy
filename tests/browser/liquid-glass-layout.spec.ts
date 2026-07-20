@@ -46,6 +46,8 @@ test.describe('liquid glass shell geometry', () => {
         headingTop: headingRect.top,
         assetBarDisplay: assetBarStyle.display,
         surfaceOverflowX: surfaceStyle.overflowX,
+        surfaceContain: surfaceStyle.contain,
+        surfaceIsolation: surfaceStyle.isolation,
         surfaceRadius: [
           surfaceStyle.borderTopLeftRadius,
           surfaceStyle.borderTopRightRadius,
@@ -73,7 +75,9 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.assetBarTopInset).toBeCloseTo(12, 0);
     expect(layout.assetBarRightInset).toBeCloseTo(12, 0);
     expect(layout.assetBarDisplay).not.toBe('grid');
-    expect(['hidden', 'clip']).toContain(layout.surfaceOverflowX);
+    expect(layout.surfaceOverflowX).toBe('hidden');
+    expect(layout.surfaceContain).toBe('none');
+    expect(layout.surfaceIsolation).toBe('auto');
     expect(layout.surfaceRadius).toEqual([
       layout.panelRadius,
       layout.panelRadius,
@@ -117,24 +121,63 @@ test.describe('mobile liquid glass host geometry', () => {
     await expect(navigationHost).toHaveCSS('height', '68px');
 
     const geometry = await page.evaluate(() => {
+      const workspaceElement = document.querySelector<HTMLElement>('.workspace');
+      const pageOverlayElement = document.querySelector<HTMLElement>('.mobile-page-overlay');
+      const chromeOverlayElement = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
+      const pageScrollElement = document.querySelector<HTMLElement>('.page-scroll');
+      const statusHostElement = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+      const navigationHostElement = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
       const statusSurfaceElement = document.querySelector<HTMLElement>('.asset-bar .liquid-glass-surface');
       const navigationSurfaceElement = document.querySelector<HTMLElement>(
         '.mobile-bottom-navigation .liquid-glass-surface',
       );
+      const statusWarpElement = document.querySelector<HTMLElement>('.asset-bar .glass__warp');
+      const navigationWarpElement = document.querySelector<HTMLElement>(
+        '.mobile-bottom-navigation .glass__warp',
+      );
       const primaryPanelElement = document.querySelector<HTMLElement>('.overview-today-panel');
-      if (!statusSurfaceElement || !navigationSurfaceElement || !primaryPanelElement) {
+      if (!workspaceElement || !pageOverlayElement || !chromeOverlayElement || !pageScrollElement
+        || !statusHostElement || !navigationHostElement || !statusSurfaceElement
+        || !navigationSurfaceElement || !statusWarpElement || !navigationWarpElement
+        || !primaryPanelElement) {
         throw new Error('mobile liquid glass geometry fixture is incomplete');
       }
       const rect = (element: HTMLElement) => {
         const box = element.getBoundingClientRect();
         return { left: box.left, right: box.right, width: box.width, height: box.height };
       };
+      const backdropFilter = (element: HTMLElement) => {
+        const style = getComputedStyle(element) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
+        return style.backdropFilter || style.webkitBackdropFilter || '';
+      };
+      const hasSvgFilterTarget = (element: HTMLElement) => {
+        const match = element.style.filter.match(/url\(["']?#([^"')]+)["']?\)/);
+        return Boolean(match?.[1] && document.getElementById(match[1]));
+      };
+      const statusSurfaceStyle = getComputedStyle(statusSurfaceElement);
+      const navigationSurfaceStyle = getComputedStyle(navigationSurfaceElement);
       return {
         statusSurface: rect(statusSurfaceElement),
         navigationSurface: rect(navigationSurfaceElement),
         primaryPanel: rect(primaryPanelElement),
-        navigationRadius: getComputedStyle(navigationSurfaceElement).borderTopLeftRadius,
+        navigationRadius: navigationSurfaceStyle.borderTopLeftRadius,
         primaryPanelRadius: getComputedStyle(primaryPanelElement).borderTopLeftRadius,
+        statusContain: statusSurfaceStyle.contain,
+        navigationContain: navigationSurfaceStyle.contain,
+        statusIsolation: statusSurfaceStyle.isolation,
+        navigationIsolation: navigationSurfaceStyle.isolation,
+        statusOverflow: statusSurfaceStyle.overflow,
+        navigationOverflow: navigationSurfaceStyle.overflow,
+        statusBackdropFilter: backdropFilter(statusWarpElement),
+        navigationBackdropFilter: backdropFilter(navigationWarpElement),
+        statusFilterTargetExists: hasSvgFilterTarget(statusWarpElement),
+        navigationFilterTargetExists: hasSvgFilterTarget(navigationWarpElement),
+        workspaceIsolation: getComputedStyle(workspaceElement).isolation,
+        pageOverlayZIndex: getComputedStyle(pageOverlayElement).zIndex,
+        chromeOverlayZIndex: getComputedStyle(chromeOverlayElement).zIndex,
+        pageScrollZIndex: getComputedStyle(pageScrollElement).zIndex,
+        statusHostZIndex: getComputedStyle(statusHostElement).zIndex,
+        navigationHostZIndex: getComputedStyle(navigationHostElement).zIndex,
       };
     });
 
@@ -144,5 +187,21 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.navigationSurface.right).toBeCloseTo(geometry.primaryPanel.right, 0);
     expect(geometry.navigationRadius).toBe(geometry.primaryPanelRadius);
     expect(geometry.navigationRadius).toBe('40px');
+    expect(geometry.statusContain).toBe('none');
+    expect(geometry.navigationContain).toBe('none');
+    expect(geometry.statusIsolation).toBe('auto');
+    expect(geometry.navigationIsolation).toBe('auto');
+    expect(geometry.statusOverflow).toBe('hidden');
+    expect(geometry.navigationOverflow).toBe('hidden');
+    expect(geometry.statusBackdropFilter).not.toBe('none');
+    expect(geometry.navigationBackdropFilter).not.toBe('none');
+    expect(geometry.statusFilterTargetExists).toBe(true);
+    expect(geometry.navigationFilterTargetExists).toBe(true);
+    expect(geometry.workspaceIsolation).toBe('auto');
+    expect(geometry.pageOverlayZIndex).toBe('auto');
+    expect(geometry.chromeOverlayZIndex).toBe('auto');
+    expect(geometry.pageScrollZIndex).toBe('auto');
+    expect(geometry.statusHostZIndex).toBe('auto');
+    expect(geometry.navigationHostZIndex).toBe('auto');
   });
 });
