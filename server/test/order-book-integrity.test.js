@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { applyAction, createWorld, ensurePlayer, FACILITY_TYPE_CATALOG } from '../src/domain.js';
+import {
+  applyAction,
+  createWorld,
+  ensurePlayer,
+  FACILITY_TYPE_CATALOG,
+  migrateWorld,
+} from '../src/domain.js';
 import { applyFacilityGroupAction } from '../src/facility-groups.js';
 import { SELF_CROSS_MESSAGE } from '../src/order-book-integrity.js';
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
+const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 
 function deferDemand(world) {
   for (const state of Object.values(world.demandGroups)) state.nextDemandAt = now + 60 * 60 * 1000;
@@ -63,4 +70,73 @@ test('facility orders reject a price that crosses the same player resting order 
   assert.equal(player.credits, creditsBefore);
   assert.equal(player.frozenCredits, frozenCreditsBefore);
   assert.equal(world.orders.length, orderCountBefore);
+});
+
+test('migration immediately settles legacy crossed commodity orders from different players at maker price', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const seller = ensurePlayer(world, alice, now);
+  const buyer = ensurePlayer(world, bob, now);
+  world.orders = [];
+  seller.credits = 100;
+  seller.inventories.wheat.available = 0;
+  seller.inventories.wheat.frozen = 1;
+  buyer.credits = 88;
+  buyer.frozenCredits = 12;
+  buyer.inventories.wheat.available = 0;
+  world.orders.push(
+    {
+      id: 'legacy-sell', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+      side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice',
+      price: 10, quantity: 1, remaining: 1, status: 'open', createdAt: now + 1, fills: [],
+    },
+    {
+      id: 'legacy-buy', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+      side: 'buy', ownerType: 'player', ownerId: bob.id, ownerName: 'Bob',
+      price: 12, quantity: 1, remaining: 1, status: 'open', createdAt: now + 2, fills: [],
+    },
+  );
+
+  migrateWorld(world, now + 3);
+
+  assert.equal(world.orders.find((order) => order.id === 'legacy-sell').status, 'filled');
+  assert.equal(world.orders.find((order) => order.id === 'legacy-buy').status, 'filled');
+  assert.equal(world.orders.find((order) => order.id === 'legacy-buy').fills[0].price, 10);
+  assert.equal(seller.inventories.wheat.frozen, 0);
+  assert.equal(seller.credits, 109);
+  assert.equal(seller.stats.systemSinks, 1);
+  assert.equal(buyer.frozenCredits, 0);
+  assert.equal(buyer.credits, 90);
+  assert.equal(buyer.inventories.wheat.available, 1);
+});
+
+test('migration cancels the newer legacy self-crossing commodity order and releases its frozen funds', () => {
+  const world = createWorld(now);
+  deferDemand(world);
+  const player = ensurePlayer(world, alice, now);
+  world.orders = [];
+  player.credits = 90;
+  player.frozenCredits = 10;
+  player.inventories.wheat.available = 0;
+  player.inventories.wheat.frozen = 1;
+  world.orders.push(
+    {
+      id: 'own-sell-older', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+      side: 'sell', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice',
+      price: 10, quantity: 1, remaining: 1, status: 'open', createdAt: now + 1, fills: [],
+    },
+    {
+      id: 'own-buy-newer', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+      side: 'buy', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice',
+      price: 10, quantity: 1, remaining: 1, status: 'open', createdAt: now + 2, fills: [],
+    },
+  );
+
+  migrateWorld(world, now + 3);
+
+  assert.equal(world.orders.find((order) => order.id === 'own-sell-older').status, 'open');
+  assert.equal(world.orders.find((order) => order.id === 'own-buy-newer').status, 'cancelled');
+  assert.equal(player.credits, 100);
+  assert.equal(player.frozenCredits, 0);
+  assert.equal(player.inventories.wheat.frozen, 1);
 });
