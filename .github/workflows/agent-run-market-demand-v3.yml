@@ -1,0 +1,40 @@
+name: Run market demand V3 patch
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/accumulate-market-demand-orders
+          fetch-depth: 0
+      - name: Execute patch script
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/agent-apply-market-demand-v3.yml').read_text()
+          marker = "          python3 <<'PY'\n"
+          end_marker = "\n          PY\n"
+          script = source.split(marker, 1)[1].rsplit(end_marker, 1)[0]
+          normalized = '\n'.join(line[10:] if line.startswith('          ') else line for line in script.splitlines())
+          exec(normalized, {'__name__': '__main__'})
+          Path('.github/workflows/agent-run-market-demand-v3.yml').unlink(missing_ok=True)
+          PY
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Accumulate and raise market demand orders"
+          git push origin HEAD:agent/accumulate-market-demand-orders
