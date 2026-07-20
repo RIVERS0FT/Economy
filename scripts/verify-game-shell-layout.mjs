@@ -119,7 +119,7 @@ if (failures.length === 0) {
     /\.workspace\s*\{[\s\S]*?--layout-gutter:\s*var\(--mobile-primary-surface-gap\);[\s\S]*?display:\s*grid;/,
     /\.workspace\s*\{[\s\S]*?padding-inline-start:\s*max\(var\(--mobile-workspace-gutter\), env\(safe-area-inset-left\)\);/,
     /\.workspace\s*\{[\s\S]*?padding-inline-end:\s*max\(var\(--mobile-workspace-gutter\), env\(safe-area-inset-right\)\);/,
-    /\.mobile-page-overlay\s*\{[\s\S]*?z-index:\s*1;[\s\S]*?overflow:\s*hidden;/,
+    /\.mobile-page-overlay\s*\{[\s\S]*?z-index:\s*1;[\s\S]*?overflow:\s*visible;/,
     /\.mobile-chrome-overlay\s*\{[\s\S]*?z-index:\s*10;[\s\S]*?pointer-events:\s*none;/,
     /\.page-scroll\s*\{[\s\S]*?padding-right:\s*0;[\s\S]*?padding-left:\s*0;/,
     /\.asset-bar-scroll-area\s*\{[\s\S]*?right:\s*0;[\s\S]*?left:\s*0;[\s\S]*?min-height:\s*var\(--mobile-asset-bar-height\);[\s\S]*?max-height:\s*var\(--mobile-asset-bar-height\);[\s\S]*?pointer-events:\s*auto;/,
@@ -138,6 +138,10 @@ if (failures.length === 0) {
     '--mobile-chrome-block-inset: var(--space-4);',
     '--mobile-nav-gap: var(--mobile-workspace-gutter);',
     '--mobile-content-gap: var(--mobile-workspace-gutter);',
+    '--mobile-scrollbar-edge-escape: max(',
+    'calc(var(--mobile-workspace-gutter) - env(safe-area-inset-right))',
+    'padding: 0;',
+    'scroll-padding-inline: 0;',
   ]) requireText(paths.mobileNavigation, text);
   for (const text of ['--mobile-chrome-inset', '--mobile-content-inset']) {
     forbidText(paths.mobileNavigation, text);
@@ -170,6 +174,13 @@ if (failures.length === 0) {
     '.ui-scrollbar--horizontal',
     'z-index: 3;',
     '.asset-bar-scroll-track {',
+    '.page-scroll-area {',
+    'overflow: visible;',
+    '.page-scroll-area > .ui-scrollbar--vertical {',
+    'right: calc(-1 * var(--mobile-scrollbar-edge-escape));',
+    '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
+    'right: var(--scrollbar-edge-offset);',
+    'left: auto;',
   ]) requireText(paths.scrollbars, text);
   forbidText(paths.scrollbars, '.asset-bar-scroll-area,');
   if (/\.asset-bar-scroll-area\s*\{[\s\S]*?height:\s*100%;/.test(read(paths.scrollbars))) {
@@ -208,6 +219,9 @@ if (failures.length === 0) {
     '移动两层 Overlay',
     '`--mobile-workspace-gutter` 固定引用 `var(--space-3)`',
     '状态栏、页面一级卡片和底部导航左右边缘共线',
+    '状态栏实际玻璃、页面一级卡片、底部导航宿主和底栏实际玻璃左右边缘共线',
+    '`--mobile-scrollbar-edge-escape`',
+    '纵向滑块右边缘位于屏幕或安全区内缘 `2px`',
     '`scrollbars.css` 不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
     '只有 `scrollTop` 确实变化才显示纵向滚动条',
     '停止实际纵向滚动 `1200ms` 后恢复透明',
@@ -218,6 +232,9 @@ if (failures.length === 0) {
     '普通滚轮和以 `deltaY` 为主的触控板输入优先垂直滚动',
     '覆盖式轨道不得使用 `scrollbar-gutter: stable`',
     '鼠标移动、指针按下、点击内容、焦点进入',
+    '移动页面右侧贴边规则',
+    '`--mobile-scrollbar-edge-escape`',
+    '滑块右边缘距屏幕右边 `2px`',
   ]) requireText(paths.scrollbarDesign, text);
 
   for (const text of [
@@ -234,10 +251,13 @@ if (failures.length === 0) {
   for (const text of [
     'mobile workspace owns the shared gutter and overlay geometry',
     'mobile chrome shares the workspace gutter and fixed glass heights',
+    'mobile page scrollbar reaches the safe right edge without changing content width',
     "page.locator('.mobile-page-overlay')",
     "page.locator('.mobile-chrome-overlay')",
     "page.locator('.asset-bar-scroll-area')",
     "page.locator('.mobile-bottom-navigation')",
+    "'.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb'",
+    'viewportRight - geometry.thumbRight',
   ]) requireText(paths.mobileBrowser, text);
 }
 
@@ -247,4 +267,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('游戏外壳桌面共享外距、移动统一 gutter、双层 Overlay 与覆盖式滚动规则验证通过。');
+console.log('游戏外壳桌面共享外距、移动统一 gutter、双层 Overlay、玻璃共线与右侧贴边滚动条验证通过。');
