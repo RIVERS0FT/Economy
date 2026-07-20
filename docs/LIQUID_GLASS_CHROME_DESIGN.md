@@ -26,10 +26,13 @@
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
 | `viewport.css` | 固定视口、移动工作区 gutter、两层 Overlay 和安全区 |
 | `scrollbars.css` | 全局覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘 |
+| `mobile-status-navigation.css` | 移动导航布局、原生滚动能力和移动底栏可见轨道隐藏规则 |
 | `verify-liquid-glass-chrome.mjs` | 依赖、适配层、兼容入口、布局和防回退检查 |
 | `verify-game-shell-layout.mjs` | 桌面双列、导航行高、移动 Overlay、滚动条和滚动链检查 |
+| `verify-overlay-scrollbars.mjs` | 覆盖式滚动条、移动底栏隐藏轨道和滚动能力检查 |
 | `liquid-glass-layout.spec.ts` | 真实浏览器玻璃、圆角、共线和页面避让验证 |
 | `mobile-workspace-overlay.spec.ts` | 移动安全边缘轨道和内容宽度验证 |
+| `mobile-navigation-scrollbar.spec.ts` | 移动底栏隐藏可见轨道且仍可横向滚动的验证 |
 
 生产几何样式顺序固定为 `viewport.css` → `scrollbars.css` → `game-shell-layout.css`。浏览器兼容入口在 harness 已加载 `viewport.css` 后，固定转发 `performance.css` → `scrollbars.css` → `game-shell-layout.css` → `liquid-glass-surfaces.css`。
 
@@ -133,7 +136,7 @@
 - 实际数字格式遵循全局“紧凑数字”偏好；
 - 玩家关闭全局“紧凑数字”后，桌面和移动状态栏都显示带千分位的完整整数；
 - 移动导航按钮固定 `48px × 48px`，活动、悬停和触摸状态不得位移或缩放；
-- 状态栏和移动底栏有横向溢出时水平轨道常驻，普通纵向滚轮不得转换为水平滚动。
+- 状态栏有横向溢出时水平轨道常驻；移动底栏隐藏可见水平轨道，但保留触控、触控板、滚轮和键盘横向滚动能力。普通纵向滚轮不得转换为水平滚动。
 
 ## 9. 性能与可访问性
 
@@ -142,7 +145,7 @@
 - 页面初始内容避让状态栏和底栏，滚动时允许进入玻璃后方；
 - 装饰 SVG 和覆盖层不得阻止内部按钮事件；
 - 页面和内部列表到达纵向边界后必须保留滚动链；
-- 滑块保留 `role="scrollbar"`、方向、范围、拖动、轨道翻页和键盘语义。
+- 滑块保留 `role="scrollbar"`、方向、范围、拖动、轨道翻页和键盘语义；移动底栏隐藏的水平轨道不承担键盘焦点，导航按钮和原生滚动视口继续可访问。
 
 ## 10. 验收标准
 
@@ -155,8 +158,9 @@
 5. 移动状态栏、一级卡片和底栏实际玻璃左右共线。
 6. 移动状态栏固定 `48px`，底栏固定 `68px`，底栏和移动卡片圆角均为 `40px`。
 7. 移动页面轨道固定到视口安全边缘，滑块右边缘约为 `2px`，显隐前后内容宽度不变。
-8. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
-9. `npm run build` 与全部 Chromium 浏览器测试通过。
+8. 移动底栏的原生与项目水平滚动条都不可见，但导航视口仍存在横向溢出并可滚动到最后一项。
+9. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
+10. `npm run build` 与全部 Chromium 浏览器测试通过。
 
 ## 11. 不可回退规则
 
@@ -169,6 +173,7 @@
 - 让桌面侧栏导航自动行拉伸；
 - 给移动状态栏、页面或底栏恢复独立水平 inset；
 - 把移动底栏恢复为相对视口的 `position: fixed`；
+- 不得恢复移动底栏可见水平轨道，也不得因隐藏轨道而禁用触控、触控板、滚轮或键盘横向滚动；
 - 把移动页面轨道限制在卡片边缘、恢复 escape／translateX 方案、越过安全区或改变卡片宽度；
 - 在 `.page-scroll` 上使用 `overscroll-behavior: contain` 阻断纵向滚动链；
 - 给 `.asset-bar-scroll-area` 设置 `height: 100%`；

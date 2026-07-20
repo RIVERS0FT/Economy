@@ -71,6 +71,12 @@
     display: none;
   }
 
+  /* The navigation viewport remains horizontally scrollable by touch, wheel and
+   * keyboard; only its project-owned visual rail is hidden on mobile. */
+  .mobile-navigation-scroll-area > .ui-scrollbar--horizontal {
+    display: none;
+  }
+
   .asset-bar-item,
   .asset-bar-item:last-child {
     flex: 0 0 auto;

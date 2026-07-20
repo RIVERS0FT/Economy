@@ -35,7 +35,9 @@ const paths = {
   sidebar: 'src/components/shell/SidebarFrame.tsx',
   status: 'src/components/shell/StatusBar.tsx',
   mobile: 'src/components/shell/MobileBottomNavigation.tsx',
+  mobileBrowser: 'tests/browser/mobile-navigation-scrollbar.spec.ts',
   design: 'docs/UI_DESIGN_SYSTEM.md',
+  chromeDesign: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
 };
 
 Object.values(paths).forEach(requireFile);
@@ -112,6 +114,18 @@ if (failures.length === 0) {
   }
 
   for (const text of [
+    '.mobile-navigation-scroll-area > .ui-scrollbar--horizontal {',
+    'only its project-owned visual rail is hidden on mobile',
+  ]) requireText(paths.mobileNavigation, text);
+
+  for (const text of [
+    'mobile navigation hides its scrollbar without disabling horizontal scrolling',
+    "toHaveAttribute('data-scrollable-x', 'true')",
+    "expect(state.nativeScrollbarWidth).toBe('none')",
+    'expect(state.after).toBeGreaterThan(state.before)',
+  ]) requireText(paths.mobileBrowser, text);
+
+  for (const text of [
     'className="own-open-orders-table"',
     '<th>资产</th>',
     'className="order-side-cell">方向',
@@ -158,6 +172,10 @@ if (failures.length === 0) {
     '资产列不得再显示“买入／卖出”前缀',
     '不得使用 `overscroll-behavior: contain` 阻断纵向滚动链',
   ]) requireText(paths.design, text);
+  for (const text of [
+    '移动底栏隐藏可见水平轨道，但保留触控、触控板、滚轮和键盘横向滚动能力',
+    '不得恢复移动底栏可见水平轨道',
+  ]) requireText(paths.chromeDesign, text);
 
   forbidText(paths.performance, '.page-scroll,\n.asset-bar,\n.sidebar-nav {\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior: contain;');
   forbidText(paths.mobileNavigation, '.page-scroll {\n  overscroll-behavior: contain;');
@@ -182,4 +200,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('统一覆盖式滚动条、纵向优先、滚动链、视口安全边缘、水平常驻与订单成交表验证通过。');
+console.log('统一覆盖式滚动条、移动底栏隐藏轨道、纵向优先、滚动链、视口安全边缘与订单成交表验证通过。');
