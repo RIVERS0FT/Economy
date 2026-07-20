@@ -100,7 +100,7 @@ test.describe('mobile workspace overlay geometry', () => {
 
   test('mobile chrome shares the workspace gutter and fixed glass heights', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 720 });
-    await page.goto('runtime-test.html?view=production&scenario=activity');
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
 
     const workspace = page.locator('.workspace');
     const status = page.locator('.asset-bar-scroll-area');
