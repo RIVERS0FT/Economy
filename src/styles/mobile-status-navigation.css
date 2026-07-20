@@ -3,13 +3,6 @@
 :root {
   --mobile-workspace-gutter: var(--space-3);
   --mobile-primary-surface-gap: var(--mobile-workspace-gutter);
-  --mobile-workspace-inline-end: max(
-    var(--mobile-workspace-gutter),
-    env(safe-area-inset-right)
-  );
-  --mobile-scrollbar-edge-escape: calc(
-    var(--mobile-workspace-inline-end) - env(safe-area-inset-right)
-  );
   --mobile-chrome-block-inset: var(--space-4);
   --mobile-asset-bar-height: 48px;
   --mobile-nav-height: 68px;
