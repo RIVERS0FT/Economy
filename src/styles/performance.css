@@ -50,7 +50,18 @@ button:hover:not(:disabled) { transform: none; }
 .asset-bar,
 .sidebar-nav {
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+}
+
+.table-wrap,
+.ledger-list,
+.asset-bar,
+.sidebar-nav {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+}
+
+.page-scroll {
+  overscroll-behavior: auto;
 }
 
 @media (max-width: 720px), (pointer: coarse) {
