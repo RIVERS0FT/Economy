@@ -201,6 +201,8 @@
 
 @media (max-width: 720px) {
   .asset-directory-shell {
+    position: relative;
+    z-index: 0;
     grid-template-columns: minmax(0, 1fr);
   }
 
