@@ -89,6 +89,7 @@
 - `.workspace` 是页面、状态栏和底栏唯一水平边界，左右 padding 使用 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left/right))`；
 - `.mobile-page-overlay` 和 `.mobile-chrome-overlay` 占据同一 Grid 单元；页面层负责滚动，Chrome 层负责状态栏和底栏；
 - 移动层级依赖 DOM 绘制顺序：页面 Overlay 先渲染，Chrome Overlay 后渲染；`.workspace`、两层 Overlay、`.page-scroll`、状态栏宿主和底栏宿主在移动端都不得建立正 `z-index` 或 `isolation: isolate` 背景根；
+- 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须由页面局部堆叠上下文收口，不能让其层级逃逸到 Chrome Overlay 之上。市场资产目录在移动端固定由 `.asset-directory-shell { position: relative; z-index: 0; }` 收口，使 `.asset-directory-divider` 的层级只在目录内部生效；
 - Chrome Overlay 使用 `pointer-events: none`，只有状态栏和底栏恢复交互；
 - 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
 - `.asset-bar` 不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
@@ -163,11 +164,12 @@
 8. 状态栏和移动底栏使用相同透明染色、结构描边、高光透明度和 `blur(7.2px) saturate(125%)` 兼容滤镜。
 9. 状态栏和移动底栏的宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
 10. 移动背景采样链中的 `.workspace`、两层 Overlay、`.page-scroll`、状态栏宿主和底栏宿主计算 `z-index` 均为 `auto`。
-11. 移动页面轨道固定到视口安全边缘，滑块右边缘约为 `2px`，显隐前后内容宽度不变。
-12. 移动底栏不包含 `ScrollArea`、额外 frame 或项目自绘水平轨道；原生滚动条不可见，唯一 `<nav>` 仍存在横向溢出并可滚动到最后一项。
-13. 移动底栏外层 padding 为 `0`，内容层上下 padding 为 `8px`；活动按钮上下边缘完全位于滚动视口内。
-14. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
-15. `npm run build` 与全部 Chromium 浏览器测试通过。
+11. 移动页面内部的 sticky／定位层级不得逃逸到 Chrome Overlay 上方；市场目录滚入状态栏后方时，命中测试必须仍返回状态栏内部元素。
+12. 移动页面轨道固定到视口安全边缘，滑块右边缘约为 `2px`，显隐前后内容宽度不变。
+13. 移动底栏不包含 `ScrollArea`、额外 frame 或项目自绘水平轨道；原生滚动条不可见，唯一 `<nav>` 仍存在横向溢出并可滚动到最后一项。
+14. 移动底栏外层 padding 为 `0`，内容层上下 padding 为 `8px`；活动按钮上下边缘完全位于滚动视口内。
+15. 浏览器运行时 harness 实际加载 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`。
+16. `npm run build` 与全部 Chromium 浏览器测试通过。
 
 ## 11. 不可回退规则
 
@@ -179,6 +181,7 @@
 - 改变共享的 `displacementScale: 32`、`blurAmount: 0.1`、`saturation: 125`、`aberrationIntensity: 0.3`、`mode="standard"` 或 `cornerRadius: 40` 而不同时更新本文档与测试；
 - 给状态项或导航按钮分别创建玻璃实例；
 - 在 `.liquid-glass-surface` 恢复 `contain: paint`、`isolation: isolate`、`overflow: clip`，或在移动玻璃与页面之间恢复正 `z-index` 背景根；
+- 让页面内带正层级的 sticky／定位元素脱离局部堆叠上下文并覆盖状态栏或移动底栏；市场 `.asset-directory-shell` 不得删除移动端 `position: relative; z-index: 0`；
 - 删除或改变与共享上游预设严格一致的 `.glass__warp` `-webkit-backdrop-filter` 兼容别名；
 - 给桌面 `.game-shell` 恢复 padding／gap，或给 `.page-content` 恢复居中最大宽度；
 - 让桌面侧栏导航自动行拉伸；
