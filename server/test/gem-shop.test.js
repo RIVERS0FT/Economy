@@ -27,13 +27,15 @@ test('gem shop exchanges gems for credits atomically and records history', () =>
       method: 'POST', path: '/api/game/gem-shop/exchange',
     }, now + 2);
 
+    assert.deepEqual(Object.keys(response).sort(), ['result', 'revision']);
+    assert.deepEqual(Object.keys(response.result).sort(), ['message', 'ok']);
     assert.equal(response.result.ok, true);
-    assert.equal(response.result.gemsSpent, 5);
-    assert.equal(response.result.creditsReceived, 5 * GEM_SHOP_CREDITS_PER_GEM);
-    assert.equal(response.state.gems, 7);
-    assert.equal(response.state.credits, 100 + 5 * GEM_SHOP_CREDITS_PER_GEM);
 
-    const summary = store.getGemShopSummary(user, now + 3);
+    const state = store.getState(user, now + 3);
+    assert.equal(state.gems, 7);
+    assert.equal(state.credits, 100 + 5 * GEM_SHOP_CREDITS_PER_GEM);
+
+    const summary = store.getGemShopSummary(user, now + 4);
     assert.equal(summary.totalGemsSpent, 5);
     assert.equal(summary.totalCreditsReceived, 5 * GEM_SHOP_CREDITS_PER_GEM);
     assert.equal(summary.recentExchanges.length, 1);
@@ -56,10 +58,11 @@ test('gem shop idempotency prevents duplicate deduction and issuance', () => {
     const first = store.apply(user, input, now + 2);
     const repeated = store.apply(user, input, now + 3);
     assert.deepEqual(repeated, first);
-    const summary = store.getGemShopSummary(user, now + 4);
+    const state = store.getState(user, now + 4);
+    assert.equal(state.gems, 8);
+    const summary = store.getGemShopSummary(user, now + 5);
     assert.equal(summary.totalGemsSpent, 2);
     assert.equal(summary.recentExchanges.length, 1);
-    assert.equal(repeated.state.gems, 8);
   } finally {
     store.close();
   }
@@ -78,10 +81,12 @@ test('gem shop rejects invalid quantities and insufficient balance without mutat
         method: 'POST', path: '/api/game/gem-shop/exchange',
       }, now + 2 + index);
       assert.equal(response.result.ok, false);
-      assert.equal(response.state.gems, 3);
-      assert.equal(response.state.credits, 100);
+      assert.deepEqual(Object.keys(response.result).sort(), ['message', 'ok']);
     });
-    assert.equal(store.getGemShopSummary(user, now + 10).recentExchanges.length, 0);
+    const state = store.getState(user, now + 10);
+    assert.equal(state.gems, 3);
+    assert.equal(state.credits, 100);
+    assert.equal(store.getGemShopSummary(user, now + 11).recentExchanges.length, 0);
   } finally {
     store.close();
   }
