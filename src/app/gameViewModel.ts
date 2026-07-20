@@ -1,5 +1,4 @@
 import {
-  type CSSProperties,
   type Dispatch,
   type SetStateAction,
   useCallback,
@@ -25,6 +24,7 @@ import type {
   TradeRecord,
 } from '../types';
 import { canAcceptRevision } from './revisionGate.js';
+import { buildAssetAllocation } from '../utils/assetAllocation';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
 import {
   clearLocalActivity as clearLocalActivityStore,
@@ -99,14 +99,12 @@ export interface LoadedGameViewModel {
   setCompactNumbers: Dispatch<SetStateAction<boolean>>;
   refreshRate: string;
   setRefreshRate: Dispatch<SetStateAction<string>>;
-  now: number;
-  workRemaining: number;
   isWorking: boolean;
   inventoryUsed: number;
   cashShare: number;
   commodityShare: number;
   facilityShare: number;
-  allocationStyle: CSSProperties;
+  allocationStyle: ReturnType<typeof buildAssetAllocation>['allocationStyle'];
   avatarText: string;
   showResult: (result: ActionResult | Promise<ActionResult>) => Promise<void>;
   notify: (message: string) => void;
@@ -177,7 +175,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   ));
   const [refreshRate, setRefreshRate] = useState('5');
   const [isWorking, setIsWorking] = useState(false);
-  const [now, setNow] = useState(Date.now());
   const refreshing = useRef(false);
   const revisionRef = useRef<number | null>(null);
   const refreshAbortRef = useRef<AbortController | null>(null);
@@ -239,7 +236,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     refreshAbortRef.current?.abort();
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
   }, []);
-  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1_000); return () => window.clearInterval(timer); }, []);
   useEffect(() => {
     if (!game) return undefined;
     const timer = window.setInterval(() => void refresh(), Math.max(1, Number(refreshRate)) * 1_000);
@@ -309,13 +305,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   }
 
   const loadedGame = game;
-  const workRemaining = Math.max(0, loadedGame.work.cooldownUntil - now);
-  const cashShare = derived.totalAssets ? Math.round((derived.cashValue / derived.totalAssets) * 100) : 0;
-  const commodityShare = derived.totalAssets ? Math.round((derived.commodityValue / derived.totalAssets) * 100) : 0;
-  const facilityShare = Math.max(0, 100 - cashShare - commodityShare);
-  const cashEnd = cashShare * 3.6;
-  const commodityEnd = (cashShare + commodityShare) * 3.6;
-  const allocationStyle: CSSProperties = { background: `conic-gradient(var(--green) 0deg ${cashEnd}deg, var(--gold) ${cashEnd}deg ${commodityEnd}deg, var(--blue) ${commodityEnd}deg 360deg)` };
+  const { cashShare, commodityShare, facilityShare, allocationStyle } = buildAssetAllocation(
+    derived.cashValue,
+    derived.commodityValue,
+    derived.facilityValue,
+  );
   const avatarText = (loadedGame.playerName || user.email).slice(0, 1).toUpperCase();
 
   function setTab(nextTab: TabId) {
@@ -353,7 +347,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     marketAssetKind, marketAssetId, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
     playerName, setPlayerName, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
-    now, workRemaining, isWorking, inventoryUsed: derived.inventoryUsed,
+    isWorking, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, allocationStyle, avatarText,
     showResult, notify, refresh,
     clearLocalActivity: () => { setLocalActivity(clearLocalActivityStore(user.id, loadedGame)); notify('本地活动记录已清除'); },

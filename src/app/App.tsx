@@ -1,9 +1,9 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { getCurrentUser, initializeEconomySession, type EconomySessionResponse } from '../api/auth';
 import type { AuthUser } from '../types';
-import { AdminApp } from './AdminApp';
-import { GameApp } from './GameApp';
 import { LoginPage } from './LoginPage';
+const AdminApp = lazy(() => import('./AdminApp').then((module) => ({ default: module.AdminApp })));
+const GameApp = lazy(() => import('./GameApp').then((module) => ({ default: module.GameApp })));
 import '../styles/invitations.css';
 
 type AppSurface = 'loading' | 'auth' | 'game' | 'admin' | 'banned';
@@ -106,6 +106,11 @@ export default function App() {
     );
   }
   if (banned) return <BannedAccount incidentId={session?.incidentId} />;
-  if (adminPath === 'main') return <AdminApp user={user} />;
-  return <GameApp user={user} onSignedOut={() => { setUser(null); setSession(null); }} />;
+  return (
+    <Suspense fallback={<main className="loading-screen">正在加载金融帝国…</main>}>
+      {adminPath === 'main'
+        ? <AdminApp user={user} />
+        : <GameApp user={user} onSignedOut={() => { setUser(null); setSession(null); }} />}
+    </Suspense>
+  );
 }

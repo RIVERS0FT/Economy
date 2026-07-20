@@ -19,6 +19,11 @@ import type {
 const STORAGE_VERSION = 5;
 const MAX_ASSET_EVENTS = 480;
 const MAX_TRADES = 240;
+const documentCache = new Map<number, LocalActivityDocument>();
+const pendingDocuments = new Map<number, LocalActivityDocument>();
+let pendingWriteHandle: number | null = null;
+let pendingWriteUsesIdleCallback = false;
+let flushListenerInstalled = false;
 
 export type LocalActivityAction =
   | 'refresh'
@@ -95,7 +100,7 @@ function emptyDocument(): LocalActivityDocument {
 }
 
 function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
+  return typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value)) as T;
 }
 
 function createId(prefix: string) {
@@ -175,27 +180,7 @@ function readStorageItem(key: string) {
   }
 }
 
-function readDocument(userId: number): LocalActivityDocument {
-  if (typeof window === 'undefined') return emptyDocument();
-  const current = parseDocument(readStorageItem(storageKey(userId)));
-  if (current) return current;
-  for (const legacyVersion of [4, 3, 2, 1]) {
-    const legacy = parseDocument(readStorageItem(storageKey(userId, legacyVersion)));
-    if (legacy) {
-      const migrated: LocalActivityDocument = {
-        version: STORAGE_VERSION,
-        assetEvents: legacy.assetEvents.filter((event) => event.category !== 'trade' && event.sourceType !== 'trade'),
-        trades: [],
-        snapshot: undefined,
-      };
-      writeDocument(userId, migrated);
-      return migrated;
-    }
-  }
-  return emptyDocument();
-}
-
-function writeDocument(userId: number, document: LocalActivityDocument) {
+function persistDocument(userId: number, document: LocalActivityDocument) {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(storageKey(userId), JSON.stringify(document));
@@ -205,6 +190,75 @@ function writeDocument(userId: number, document: LocalActivityDocument) {
   } catch {
     // Local logs are optional and must never block authoritative game actions.
   }
+}
+
+function flushPendingDocuments() {
+  pendingWriteHandle = null;
+  pendingWriteUsesIdleCallback = false;
+  for (const [userId, document] of pendingDocuments) persistDocument(userId, document);
+  pendingDocuments.clear();
+}
+
+function ensureFlushListener() {
+  if (flushListenerInstalled || typeof window === 'undefined') return;
+  flushListenerInstalled = true;
+  window.addEventListener('pagehide', flushPendingDocuments);
+}
+
+function scheduleDocumentWrite(userId: number, document: LocalActivityDocument) {
+  documentCache.set(userId, document);
+  if (typeof window === 'undefined') return;
+  ensureFlushListener();
+  pendingDocuments.set(userId, document);
+  if (pendingWriteHandle !== null) return;
+  if (typeof window.requestIdleCallback === 'function') {
+    pendingWriteUsesIdleCallback = true;
+    pendingWriteHandle = window.requestIdleCallback(flushPendingDocuments, { timeout: 1_000 });
+  } else {
+    pendingWriteHandle = window.setTimeout(flushPendingDocuments, 0);
+  }
+}
+
+function writeDocumentImmediately(userId: number, document: LocalActivityDocument) {
+  documentCache.set(userId, document);
+  pendingDocuments.delete(userId);
+  if (pendingDocuments.size === 0 && pendingWriteHandle !== null && typeof window !== 'undefined') {
+    if (pendingWriteUsesIdleCallback && typeof window.cancelIdleCallback === 'function') {
+      window.cancelIdleCallback(pendingWriteHandle);
+    } else {
+      window.clearTimeout(pendingWriteHandle);
+    }
+    pendingWriteHandle = null;
+    pendingWriteUsesIdleCallback = false;
+  }
+  persistDocument(userId, document);
+}
+
+function readDocument(userId: number): LocalActivityDocument {
+  const cached = documentCache.get(userId);
+  if (cached) return cached;
+  if (typeof window === 'undefined') return emptyDocument();
+  const current = parseDocument(readStorageItem(storageKey(userId)));
+  if (current) {
+    documentCache.set(userId, current);
+    return current;
+  }
+  for (const legacyVersion of [4, 3, 2, 1]) {
+    const legacy = parseDocument(readStorageItem(storageKey(userId, legacyVersion)));
+    if (legacy) {
+      const migrated: LocalActivityDocument = {
+        version: STORAGE_VERSION,
+        assetEvents: legacy.assetEvents.filter((event) => event.category !== 'trade' && event.sourceType !== 'trade'),
+        trades: [],
+        snapshot: undefined,
+      };
+      writeDocumentImmediately(userId, migrated);
+      return migrated;
+    }
+  }
+  const empty = emptyDocument();
+  documentCache.set(userId, empty);
+  return empty;
 }
 
 function snapshotState(state: EconomyState): LocalStateSnapshot {
@@ -394,12 +448,48 @@ function diffFacilityGroups(
   return { facilityChanges, productionChanges };
 }
 
+function fillsChanged(before: CommodityOrder, after: CommodityOrder) {
+  const previous = before.fills ?? [];
+  const current = after.fills ?? [];
+  if (previous.length !== current.length) return true;
+  return current.some((fill, index) => {
+    const earlier = previous[index];
+    return !earlier
+      || fill.id !== earlier.id
+      || fill.quantity !== earlier.quantity
+      || fill.price !== earlier.price
+      || fill.total !== earlier.total
+      || fill.fee !== earlier.fee
+      || fill.netTotal !== earlier.netTotal
+      || fill.createdAt !== earlier.createdAt;
+  });
+}
+
 function orderChanged(before: LocalStateSnapshot, after: LocalStateSnapshot) {
-  return JSON.stringify(before.orders) !== JSON.stringify(after.orders);
+  if (before.orders.length !== after.orders.length) return true;
+  const previousById = new Map(before.orders.map((order) => [order.id, order]));
+  return after.orders.some((order) => {
+    const previous = previousById.get(order.id);
+    return !previous
+      || order.status !== previous.status
+      || order.quantity !== previous.quantity
+      || order.remaining !== previous.remaining
+      || order.price !== previous.price
+      || order.side !== previous.side
+      || fillsChanged(previous, order);
+  });
 }
 
 function listingChanged(before: LocalStateSnapshot, after: LocalStateSnapshot) {
-  return JSON.stringify(before.facilityListings) !== JSON.stringify(after.facilityListings);
+  if (before.facilityListings.length !== after.facilityListings.length) return true;
+  const previousById = new Map(before.facilityListings.map((listing) => [listing.id, listing]));
+  return after.facilityListings.some((listing) => {
+    const previous = previousById.get(listing.id);
+    return !previous
+      || listing.unitPrice !== previous.unitPrice
+      || listing.ownerId !== previous.ownerId
+      || listing.facilityTypeId !== previous.facilityTypeId;
+  });
 }
 
 function deriveAssetTrades(
@@ -553,7 +643,7 @@ export function syncLocalActivity(
   const after = snapshotState(state);
   if (!document.snapshot || document.snapshot.userId !== state.userId) {
     document.snapshot = after;
-    writeDocument(userId, document);
+    scheduleDocumentWrite(userId, document);
     return viewOf(document);
   }
 
@@ -561,7 +651,8 @@ export function syncLocalActivity(
   if (event) document.assetEvents = [event, ...document.assetEvents].slice(0, MAX_ASSET_EVENTS);
   if (trades.length) document.trades = [...trades, ...document.trades].slice(0, MAX_TRADES);
   document.snapshot = after;
-  writeDocument(userId, document);
+  if (event || trades.length) scheduleDocumentWrite(userId, document);
+  else documentCache.set(userId, document);
   return viewOf(document);
 }
 
@@ -572,6 +663,6 @@ export function clearLocalActivity(userId: number, state?: EconomyState): LocalA
     trades: [],
     snapshot: state ? snapshotState(state) : undefined,
   };
-  writeDocument(userId, document);
+  writeDocumentImmediately(userId, document);
   return viewOf(document);
 }

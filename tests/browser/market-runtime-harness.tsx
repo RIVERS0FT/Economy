@@ -176,6 +176,7 @@ function MarketHarness() {
     ]));
     const game = {
       version: 15,
+      lastProcessedAt: fixedNow,
       userId: 123,
       playerName: 'MEVIUS',
       registeredAt: fixedNow - 60 * 86_400_000,
@@ -274,8 +275,6 @@ function MarketHarness() {
       setCompactNumbers: () => {},
       refreshRate: '5',
       setRefreshRate: () => {},
-      now: fixedNow,
-      workRemaining: 0,
       isWorking: false,
       inventoryUsed: game.warehouseUsedCapacity,
       cashShare: 0,

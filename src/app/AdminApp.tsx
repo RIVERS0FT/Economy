@@ -33,6 +33,11 @@ import type { AuthUser, GiftCodeAdminRecord } from '../types';
 import { formatCurrency, formatDate, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 
+function collectibleKey(item: CollectibleAdminRecord) { return item.id; }
+function ownershipKey(record: CollectibleOwnershipRecord) { return record.id; }
+function giftCodeKey(gift: GiftCodeAdminRecord) { return gift.id; }
+function redemptionKey(record: GiftRedemptionRecord) { return `${record.user_id}-${record.redeemed_at}`; }
+
 const collectibleFormatExample = `[
   {
     "sourceArtworkId": 28560,
@@ -426,7 +431,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                         <div className="virtual-record-header" role="row">
                           <span role="columnheader">图片</span><span role="columnheader">藏品</span><span role="columnheader">艺术家</span><span role="columnheader">当前归属</span><span role="columnheader">状态</span><span role="columnheader">归属记录</span><span role="columnheader">操作</span>
                         </div>
-                        <VirtualList items={collectibles} getKey={(item) => item.id} estimateSize={72} viewportHeight={560} minViewportHeight={96} overscan={5} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="藏品管理行" renderItem={(item) => (
+                        <VirtualList items={collectibles} getKey={collectibleKey} estimateSize={72} viewportHeight={560} minViewportHeight={96} overscan={5} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="藏品管理行" renderItem={(item) => (
                           <div className="virtual-record-row" role="row">
                             <span role="cell"><img className="admin-collectible-thumb" src={item.thumbnailUrl} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" /></span>
                             <span role="cell"><strong>{item.title}</strong><small> AIC #{item.sourceArtworkId}</small></span>
@@ -444,7 +449,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                   {selectedCollectible ? (
                     <Panel className="admin-panel">
                       <WidgetHeading title={`《${selectedCollectible.title}》归属历史`} />
-                      <VirtualList key={selectedCollectible.id} items={ownership} getKey={(record) => record.id} estimateSize={72} viewportHeight={420} minViewportHeight={80} overscan={5} gap={8} className="admin-ownership-list admin-ownership-virtual-list" ariaLabel={`${selectedCollectible.title}归属历史`} empty={<EmptyState>暂无归属记录。</EmptyState>} renderItem={(record) => (
+                      <VirtualList key={selectedCollectible.id} items={ownership} getKey={ownershipKey} estimateSize={72} viewportHeight={420} minViewportHeight={80} overscan={5} gap={8} className="admin-ownership-list admin-ownership-virtual-list" ariaLabel={`${selectedCollectible.title}归属历史`} empty={<EmptyState>暂无归属记录。</EmptyState>} renderItem={(record) => (
                         <div><span>{record.fromOwnerId ? `${record.fromOwnerName} (#${record.fromOwnerId})` : '系统'}</span><strong>→</strong><span>{record.toOwnerId ? `${record.toOwnerName} (#${record.toOwnerId})` : '未分配'}</span><small>{ownershipReason(record)}{record.price ? <> · <CurrencyAmount>{formatCurrency(record.price)}</CurrencyAmount></> : null} · {formatTime(record.createdAt)}</small></div>
                       )} />
                     </Panel>
@@ -524,7 +529,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                     {giftCodes.length === 0 ? <EmptyState>暂无礼品码。</EmptyState> : (
                       <div className="virtual-record-table admin-gifts-virtual-table" role="table" aria-label="礼品码记录">
                         <div className="virtual-record-header" role="row"><span role="columnheader">ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换</span><span role="columnheader">状态</span><span role="columnheader">有效期</span><span role="columnheader">备注</span><span role="columnheader">操作</span></div>
-                        <VirtualList items={giftCodes} getKey={(gift) => gift.id} estimateSize={58} viewportHeight={520} minViewportHeight={96} overscan={6} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="礼品码记录行" renderItem={(gift) => (
+                        <VirtualList items={giftCodes} getKey={giftCodeKey} estimateSize={58} viewportHeight={520} minViewportHeight={96} overscan={6} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="礼品码记录行" renderItem={(gift) => (
                           <div className="virtual-record-row" role="row"><span role="cell">#{gift.id}</span><span role="cell"><CurrencyAmount>{formatCurrency(gift.reward_credits)}</CurrencyAmount></span><span role="cell">{gift.redeemed_count}/{gift.max_redemptions}</span><span role="cell"><StatusTag tone={gift.enabled ? 'success' : 'neutral'}>{gift.enabled ? '启用' : '停用'}</StatusTag></span><span role="cell">{gift.expires_at ? formatDate(gift.expires_at) : '长期'}</span><span role="cell">{gift.note || '—'}</span><span role="cell"><span className="admin-row-actions"><Button variant="compact" onClick={() => void showRedemptions(gift.id)}>兑换记录</Button>{gift.enabled ? <Button variant="danger" onClick={() => void disableGift(gift.id)}>停用</Button> : null}</span></span></div>
                         )} />
                       </div>
@@ -538,7 +543,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                       {redemptions.length === 0 ? <EmptyState>暂无兑换记录。</EmptyState> : (
                         <div className="virtual-record-table admin-redemptions-virtual-table" role="table" aria-label={`礼品码 ${selectedGiftId} 兑换记录`}>
                           <div className="virtual-record-header" role="row"><span role="columnheader">玩家 ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换时间</span></div>
-                          <VirtualList key={selectedGiftId} items={redemptions} getKey={(record) => `${record.user_id}-${record.redeemed_at}`} estimateSize={52} viewportHeight={420} minViewportHeight={80} overscan={6} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="礼品码兑换记录行" renderItem={(record) => (
+                          <VirtualList key={selectedGiftId} items={redemptions} getKey={redemptionKey} estimateSize={52} viewportHeight={420} minViewportHeight={80} overscan={6} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="礼品码兑换记录行" renderItem={(record) => (
                             <div className="virtual-record-row" role="row"><span role="cell">{record.user_id}</span><span role="cell"><CurrencyAmount>{formatCurrency(record.reward_credits)}</CurrencyAmount></span><span role="cell">{formatTime(record.redeemed_at)}</span></div>
                           )} />
                         </div>

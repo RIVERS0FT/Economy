@@ -31,6 +31,8 @@ test('factory buy and sell orders use price-time matching and partial fills', ()
   assert.deepEqual(buyOrder.fills.map((fill) => ({ price: fill.price, quantity: fill.quantity })), [
     { price: 80, quantity: 2 },
   ]);
+  assert.equal(world.facilityMarkets.farm.lastTradePrice, 80);
+  assert.equal(createFacilityGroupClientState(world, alice.id, now + 2).valuationPrices['facility:farm'], 80);
 });
 
 test('running factory sell order immediately reduces participating output', () => {
@@ -116,15 +118,28 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and 
   assert.equal(player.credits, 95);
 });
 
-test('asset valuation excludes the current players own buy order', () => {
+test('asset valuation uses the latest order-book trade and ignores open bid prices', () => {
   const world = createWorld(now);
-  const player = ensurePlayer(world, alice, now);
-  player.inventories.wheat.available = 10;
-  world.orders.push({ id: 'self-bid', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'buy', ownerType: 'player', ownerId: alice.id, ownerName: 'Alice', price: 999, quantity: 1, remaining: 1, status: 'open', createdAt: now });
+  const buyer = ensurePlayer(world, alice, now);
+  const seller = ensurePlayer(world, bob, now);
+  buyer.credits = 10_000;
+  seller.inventories.wheat.available = 10;
   migrateFacilityGroupWorld(world, now);
-  const state = createFacilityGroupClientState(world, alice.id, now);
-  assert.notEqual(state.valuationPrices['commodity:wheat'], 999);
-  assert.equal(state.assetSummary.commodityValue, 10 * state.valuationPrices['commodity:wheat']);
+
+  const initial = createFacilityGroupClientState(world, alice.id, now);
+  assert.equal(initial.valuationPrices['commodity:wheat'], 0, 'synthetic seed history is not a real trade');
+
+  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 2, price: 7 }, now + 1).ok, true);
+  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'buy', quantity: 2, price: 9 }, now + 2).ok, true);
+  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: 11 }, now + 3).ok, true);
+  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', { assetKind: 'commodity', assetId: 'wheat', side: 'buy', quantity: 1, price: 12 }, now + 4).ok, true);
+
+  world.orders.push({ id: 'open-bid', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat', side: 'buy', ownerType: 'player', ownerId: 3, ownerName: 'Charlie', price: 999, quantity: 1, remaining: 1, status: 'open', createdAt: now + 5 });
+  buyer.inventories.wheat.available = 10;
+  const state = createFacilityGroupClientState(world, alice.id, now + 5);
+  assert.equal(world.markets.wheat.lastTradePrice, 11);
+  assert.equal(state.valuationPrices['commodity:wheat'], 11);
+  assert.equal(state.assetSummary.commodityValue, 110);
 });
 
 test('factory automatically recovers after funds return', () => {

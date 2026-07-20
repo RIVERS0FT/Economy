@@ -79,6 +79,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
 
   const game = {
     version: 15,
+    lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',
     registeredAt: fixedNow - 60 * 86_400_000,
@@ -265,8 +266,6 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     setCompactNumbers: () => {},
     refreshRate: '5',
     setRefreshRate: () => {},
-    now: fixedNow,
-    workRemaining: 0,
     isWorking: false,
     inventoryUsed: game.warehouseStoredQuantity,
     cashShare: 0,

@@ -64,7 +64,7 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
       wealth: {
         id: 'wealth',
         title: '财富榜',
-        description: '按服务器市场估值计算的实时总资产',
+        description: '按最近一次订单簿真实成交价计算的实时总资产',
         unit: 'currency',
         rewarded: false,
         entries: wealthEntries,

@@ -1,8 +1,8 @@
-import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG, ensurePlayer } from './domain.js';
+import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
 import { processFacilityGroupWorld } from './facility-groups.js';
 import { processCollectibleAuctions } from './collectibles.js';
 import { ensureGemState } from './invitations.js';
-import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import { orderAssetId, orderKind } from './order-identity.js';
 
 export const LEADERBOARD_TIME_ZONE = 'Asia/Taipei';
 export const LEADERBOARD_REWARDS = Object.freeze([30, 20, 10]);
@@ -14,7 +14,6 @@ const TAIPEI_OFFSET_MS = 8 * 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 const FACILITY_BY_ID = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
-const STORE_HOOK = Symbol.for('riversoft.economy.leaderboard-store-hook');
 const BOARD_IDS = Object.freeze(['wealth', 'growth', 'production', 'trading']);
 const REWARDED_BOARD_IDS = Object.freeze(['growth', 'production', 'trading']);
 
@@ -82,29 +81,19 @@ export function operatingAssetsFor(player) {
   return cash + commodity + facilities;
 }
 
-function bestBidFor(world, kind, assetId, excludedUserId) {
-  let best = 0;
-  for (const order of world.orders || []) {
-    if (
-      orderKind(order) !== kind
-      || orderAssetId(order) !== assetId
-      || order.side !== 'buy'
-      || !isOpenOrder(order)
-      || Number(order.ownerId) === Number(excludedUserId)
-    ) continue;
-    best = Math.max(best, safeNonNegativeInteger(order.price));
-  }
-  return best;
+function recentTradePriceFor(world, kind, assetId) {
+  const market = kind === 'facility' ? world.facilityMarkets?.[assetId] : world.markets?.[assetId];
+  return Number.isFinite(Number(market?.lastTradePrice)) ? safeNonNegativeInteger(market.lastTradePrice) : 0;
 }
 
 export function wealthAssetsFor(world, player) {
   const cash = safeNonNegativeInteger(player.credits) + safeNonNegativeInteger(player.frozenCredits);
   const commodity = PRODUCT_CATALOG.reduce((sum, product) => (
-    sum + inventoryQuantity(player, product.id) * bestBidFor(world, 'commodity', product.id, player.userId)
+    sum + inventoryQuantity(player, product.id) * recentTradePriceFor(world, 'commodity', product.id)
   ), 0);
   const facility = (player.facilityGroups || []).reduce((sum, group) => (
     sum + safeNonNegativeInteger(group.count)
-      * bestBidFor(world, 'facility', String(group.facilityTypeId || ''), player.userId)
+      * recentTradePriceFor(world, 'facility', String(group.facilityTypeId || ''))
   ), 0);
   return cash + commodity + facility;
 }
@@ -328,7 +317,7 @@ function publicEntry(entry, currentUserId, rewardEnabled) {
 }
 
 function boardDefinition(boardId) {
-  if (boardId === 'wealth') return { title: '财富榜', description: '按服务器市场估值计算的实时总资产', unit: 'currency', rewarded: false };
+  if (boardId === 'wealth') return { title: '财富榜', description: '按最近订单簿成交价计算的实时总资产', unit: 'currency', rewarded: false };
   if (boardId === 'growth') return { title: '增长榜', description: '本周经营资产净增长', unit: 'currency', rewarded: true };
   if (boardId === 'production') return { title: '生产榜', description: '本周产出数量 × 商品基础价', unit: 'points', rewarded: true };
   return { title: '交易榜', description: '本周有效卖出成交积分', unit: 'points', rewarded: true };
@@ -365,22 +354,6 @@ export function createLeaderboardSnapshot(world, currentUserId, now = Date.now()
     },
     boards,
   };
-}
-
-function leaderboardSnapshotComparable(snapshot) {
-  if (!snapshot) return null;
-  const comparable = clone(snapshot);
-  delete comparable.generatedAt;
-  return comparable;
-}
-
-function updateViewerSnapshot(world, userId, now) {
-  const player = world.players?.[String(userId)];
-  if (!player) return;
-  const stats = playerStats(player);
-  const candidate = createLeaderboardSnapshot(world, userId, now);
-  if (JSON.stringify(leaderboardSnapshotComparable(stats.leaderboards)) === JSON.stringify(candidate)) return;
-  stats.leaderboards = { ...candidate, generatedAt: now };
 }
 
 function awardPeriod(world, state, settledAt) {
@@ -438,7 +411,7 @@ function processWorldAt(world, now, priorOrderReferences = []) {
   }
 }
 
-export function processLeaderboardWorld(world, now = Date.now(), currentUserId) {
+export function processLeaderboardWorld(world, now = Date.now()) {
   world.players ||= {};
   for (const player of Object.values(world.players)) playerStats(player);
 
@@ -447,7 +420,6 @@ export function processLeaderboardWorld(world, now = Date.now(), currentUserId) 
     processCollectibleAuctions(world, now);
     const state = initializeLeaderboardState(world, now, true);
     captureTradingFills(world, state, world.orders || []);
-    if (currentUserId !== undefined) updateViewerSnapshot(world, currentUserId, now);
     return world;
   }
 
@@ -463,42 +435,5 @@ export function processLeaderboardWorld(world, now = Date.now(), currentUserId) 
   const priorOrders = [...(world.orders || [])];
   processWorldAt(world, now, priorOrders);
   ensureAllPlayers(world, state);
-  if (currentUserId !== undefined) updateViewerSnapshot(world, currentUserId, now);
   return world;
-}
-
-export function prepareLeaderboardStore(store, user, now = Date.now()) {
-  return store.transaction(() => {
-    const { revision, stateJson, world } = store.loadWorld(now);
-    if (user) ensurePlayer(world, user, now);
-    processLeaderboardWorld(world, now, user?.id);
-    const nextRevision = store.saveWorldIfChanged(revision, world, now, stateJson);
-    return { revision: nextRevision };
-  });
-}
-
-export function installLeaderboardStoreHooks(EconomyStoreClass) {
-  const prototype = EconomyStoreClass?.prototype;
-  if (!prototype || prototype[STORE_HOOK]) return;
-  Object.defineProperty(prototype, STORE_HOOK, { value: true });
-
-  const getStateSnapshot = prototype.getStateSnapshot;
-  prototype.getStateSnapshot = function leaderboardStateSnapshot(user, knownRevision, now = Date.now()) {
-    prepareLeaderboardStore(this, user, now);
-    return getStateSnapshot.call(this, user, knownRevision, now);
-  };
-
-  const apply = prototype.apply;
-  prototype.apply = function leaderboardApply(user, request, now = Date.now()) {
-    prepareLeaderboardStore(this, user, now);
-    const response = apply.call(this, user, request, now);
-    prepareLeaderboardStore(this, user, now);
-    return response;
-  };
-
-  const getGemShopSummary = prototype.getGemShopSummary;
-  prototype.getGemShopSummary = function leaderboardGemShopSummary(user, now = Date.now()) {
-    prepareLeaderboardStore(this, user, now);
-    return getGemShopSummary.call(this, user, now);
-  };
 }

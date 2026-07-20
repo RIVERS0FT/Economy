@@ -47,7 +47,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
     {
       id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
       compactValue: formatCompactNumber(derived.totalAssets),
-      detail: <span className={weeklyChange >= 0 ? 'positive' : 'negative'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
+      detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
       onClick: () => model.setTab('assets'),
     },
@@ -59,9 +59,13 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
       id: 'rank', icon: <RankIcon />, label: '排行榜',
       value: <span aria-label={rankLabel}>{formattedRank}</span>,
       compactValue: <>#{currentRank}</>,
-      detail: derived.previousRank
-        ? <>距上一名 <CurrencyAmount>{formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</CurrencyAmount></>
-        : <>当前位于榜首</>,
+      detail: !derived.currentRank
+        ? <>暂无排名数据</>
+        : derived.currentRank.rank === 1
+          ? <>当前位于榜首</>
+          : derived.previousRank
+            ? <>距上一名 <CurrencyAmount>{formatCurrency(derived.previousRank.totalAssets - derived.totalAssets)}</CurrencyAmount></>
+            : <>暂无上一名数据</>,
     },
     {
       id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(game.warehouseAvailableCapacity),

@@ -2,6 +2,7 @@ import {
   type AriaRole,
   type CSSProperties,
   type ReactNode,
+  type UIEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,6 +10,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { findVisibleRange } from '../../utils/virtualListRange';
 import { ScrollArea } from './ScrollArea';
 
 type VirtualKey = string | number;
@@ -57,6 +59,8 @@ export function VirtualList<T>({
   const nodesRef = useRef(new Map<VirtualKey, HTMLDivElement>());
   const measuredSizesRef = useRef(new Map<VirtualKey, number>());
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const scrollFrameRef = useRef<number | null>(null);
+  const pendingScrollTopRef = useRef(0);
   const [measurementVersion, setMeasurementVersion] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
 
@@ -132,16 +136,7 @@ export function VirtualList<T>({
     viewportHeight,
     Math.max(minViewportHeight, layout.totalSize || minViewportHeight),
   );
-  const viewportBottom = scrollTop + displayHeight;
-
-  let startIndex = 0;
-  while (
-    startIndex < layout.entries.length
-    && layout.entries[startIndex].start + layout.entries[startIndex].size < scrollTop
-  ) startIndex += 1;
-
-  let endIndex = startIndex;
-  while (endIndex < layout.entries.length && layout.entries[endIndex].start < viewportBottom) endIndex += 1;
+  const { startIndex, endIndex } = findVisibleRange(layout.entries, scrollTop, displayHeight);
 
   const visibleEntries = layout.entries.slice(
     Math.max(0, startIndex - overscan),
@@ -158,6 +153,20 @@ export function VirtualList<T>({
     }
   }, [layout.totalSize]);
 
+
+  const handleViewportScroll = useCallback((event: UIEvent<HTMLDivElement>) => {
+    pendingScrollTopRef.current = event.currentTarget.scrollTop;
+    if (scrollFrameRef.current !== null) return;
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      setScrollTop(pendingScrollTopRef.current);
+    });
+  }, []);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current !== null) window.cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
+
   if (items.length === 0) return <>{empty}</>;
 
   return (
@@ -171,7 +180,7 @@ export function VirtualList<T>({
       viewportRole={role}
       viewportAriaLabel={ariaLabel}
       viewportTabIndex={0}
-      onViewportScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+      onViewportScroll={handleViewportScroll}
     >
       <div className="virtual-list__canvas" style={{ height: layout.totalSize }}>
         {visibleEntries.map((entry) => (
