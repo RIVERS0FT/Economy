@@ -1,0 +1,188 @@
+name: Apply complexity profit curve
+
+on:
+  push:
+    branches:
+      - balance/complexity-profit-curve
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply catalog, tests, and design updates
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one occurrence, found {count}: {old!r}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          catalog_replacements = [
+              ("{ id: 'timber', name: '木材', category: 'raw', basePrice: 5 }", "{ id: 'timber', name: '木材', category: 'raw', basePrice: 6 }"),
+              ("{ id: 'ore', name: '铁矿石', category: 'raw', basePrice: 6 }", "{ id: 'ore', name: '铁矿石', category: 'raw', basePrice: 7 }"),
+              ("{ id: 'copper-ore', name: '铜矿石', category: 'raw', basePrice: 6 }", "{ id: 'copper-ore', name: '铜矿石', category: 'raw', basePrice: 7 }"),
+              ("{ id: 'crude-oil', name: '原油', category: 'raw', basePrice: 8 }", "{ id: 'crude-oil', name: '原油', category: 'raw', basePrice: 9 }"),
+              ("{ id: 'lumber', name: '木板', category: 'intermediate', basePrice: 15 }", "{ id: 'lumber', name: '木板', category: 'intermediate', basePrice: 17 }"),
+              ("{ id: 'steel', name: '钢材', category: 'intermediate', basePrice: 24 }", "{ id: 'steel', name: '钢材', category: 'intermediate', basePrice: 29 }"),
+              ("{ id: 'copper', name: '铜材', category: 'intermediate', basePrice: 24 }", "{ id: 'copper', name: '铜材', category: 'intermediate', basePrice: 29 }"),
+              ("{ id: 'plastic', name: '塑料', category: 'intermediate', basePrice: 24 }", "{ id: 'plastic', name: '塑料', category: 'intermediate', basePrice: 30 }"),
+              ("{ id: 'textile', name: '纺织品', category: 'intermediate', basePrice: 18 }", "{ id: 'textile', name: '纺织品', category: 'intermediate', basePrice: 20 }"),
+              ("{ id: 'pulp', name: '纸浆', category: 'intermediate', basePrice: 16 }", "{ id: 'pulp', name: '纸浆', category: 'intermediate', basePrice: 20 }"),
+              ("{ id: 'beverage', name: '饮料', category: 'consumer', basePrice: 16 }", "{ id: 'beverage', name: '饮料', category: 'consumer', basePrice: 18 }"),
+              ("{ id: 'paper', name: '纸品', category: 'consumer', basePrice: 13 }", "{ id: 'paper', name: '纸品', category: 'consumer', basePrice: 15 }"),
+              ("{ id: 'furniture', name: '家具', category: 'consumer', basePrice: 20 }", "{ id: 'furniture', name: '家具', category: 'consumer', basePrice: 24 }"),
+              ("{ id: 'clothing', name: '服装', category: 'consumer', basePrice: 48 }", "{ id: 'clothing', name: '服装', category: 'consumer', basePrice: 55 }"),
+              ("{ id: 'machinery', name: '机械', category: 'industrial', basePrice: 60 }", "{ id: 'machinery', name: '机械', category: 'industrial', basePrice: 76 }"),
+              ("{ id: 'electronics', name: '电子产品', category: 'industrial', basePrice: 64 }", "{ id: 'electronics', name: '电子产品', category: 'industrial', basePrice: 84 }"),
+              ("{ id: 'appliance', name: '家电', category: 'industrial', basePrice: 68 }", "{ id: 'appliance', name: '家电', category: 'industrial', basePrice: 92 }"),
+              ("id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 10,", "id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 11,"),
+              ("id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 5,", "id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 6,"),
+              ("id: 'furniture-factory-default', name: '生产家具', cycleMs: 60_000, operatingCost: 4,", "id: 'furniture-factory-default', name: '生产家具', cycleMs: 60_000, operatingCost: 5,"),
+          ]
+          for old, new in catalog_replacements:
+              replace_once('server/src/industry-catalog.js', old, new)
+
+          old_prices = """  wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 5, ore: 6,
+            'copper-ore': 6, 'crude-oil': 8, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
+            flour: 13, sugar: 13, lumber: 15, steel: 24, copper: 24, plastic: 24, textile: 18,
+            pulp: 16, food: 15, beverage: 16, 'prepared-meal': 18, paper: 13, furniture: 20,
+            clothing: 48, machinery: 60, electronics: 64, appliance: 68,"""
+          new_prices = """  wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
+            'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
+            flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, textile: 20,
+            pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
+            clothing: 55, machinery: 76, electronics: 84, appliance: 92,"""
+          replace_once('scripts/verify-industry-catalog.mjs', old_prices, new_prices)
+          replace_once('server/test/domain.test.js', old_prices, new_prices)
+
+          replace_once(
+              'scripts/verify-industry-catalog.mjs',
+              "\nassert.equal(PRODUCT_CATALOG.length, 31, '商品目录必须为 31 项');",
+              "\nconst expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 9, C5: 12, C6: 15, C7: 18 };\n\nassert.equal(PRODUCT_CATALOG.length, 31, '商品目录必须为 31 项');",
+          )
+          replace_once(
+              'scripts/verify-industry-catalog.mjs',
+              "    const expectedProfit = facility.category === 'raw' ? 1 : facility.category === 'processing' ? 3 : 6;",
+              "    const expectedProfit = expectedProfitByComplexity[facility.complexity];",
+          )
+          replace_once(
+              'scripts/verify-industry-catalog.mjs',
+              "assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.operatingCost), [10, 5]);",
+              "assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.operatingCost), [11, 6]);\nassert.equal(facilities.get('furniture-factory').recipes[0].operatingCost, 5);",
+          )
+          replace_once(
+              'scripts/verify-industry-catalog.mjs',
+              "    '基础原料 1／分钟、中间产品 3／分钟、最终产品 6／分钟',",
+              "    'C1=1、C2=3、C3=6、C4=9、C5=12、C6=15、C7=18',",
+          )
+          replace_once(
+              'scripts/verify-industry-catalog.mjs',
+              "console.log('产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6 参考分钟利润梯度。');",
+              "console.log('产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6/9/12/15/18 参考分钟利润梯度。');",
+          )
+
+          replace_once(
+              'server/test/domain.test.js',
+              "  const productIds = new Set(expectedProducts);\n  for (const product of PRODUCT_CATALOG) {",
+              "  const productIds = new Set(expectedProducts);\n  const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 9, C5: 12, C6: 15, C7: 18 };\n  for (const product of PRODUCT_CATALOG) {",
+          )
+          replace_once(
+              'server/test/domain.test.js',
+              "      const expectedProfit = facility.category === 'raw' ? 1 : facility.category === 'processing' ? 3 : 6;",
+              "      const expectedProfit = expectedProfitByComplexity[facility.complexity];",
+          )
+
+          replace_once(
+              'README.md',
+              '- 商品初始参考价、生产数量、周期秒数和周期成本全部保持整数；当前平衡目标为基础原料 1／分钟、中间产品 3／分钟、最终产品 6／分钟。',
+              '- 商品初始参考价、生产数量、周期秒数和周期成本全部保持整数；参考分钟利润按工厂复杂度固定为 C1=1、C2=3、C3=6、C4=9、C5=12、C6=15、C7=18。',
+          )
+
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '- 工厂建设复杂度只决定建设门槛，不得改变生产配方、周期收益梯度或市场需求预算。',
+              '- 工厂复杂度同时约束建设门槛和参考分钟利润；正式梯度固定为 C1=1、C2=3、C3=6、C4=9、C5=12、C6=15、C7=18。复杂度不得改变市场需求预算。',
+          )
+          design_rows = [
+              ('| 木材 (`timber`) | 5 | 无原料 → 2 木材 | 60 秒 | 9 | 1 |', '| 木材 (`timber`) | 6 | 无原料 → 2 木材 | 60 秒 | 9 | 3 |'),
+              ('| 铁矿石 (`ore`) | 6 | 无原料 → 2 铁矿石 | 60 秒 | 11 | 1 |', '| 铁矿石 (`ore`) | 7 | 无原料 → 2 铁矿石 | 60 秒 | 11 | 3 |'),
+              ('| 铜矿石 (`copper-ore`) | 6 | 无原料 → 2 铜矿石 | 60 秒 | 11 | 1 |', '| 铜矿石 (`copper-ore`) | 7 | 无原料 → 2 铜矿石 | 60 秒 | 11 | 3 |'),
+              ('| 原油 (`crude-oil`) | 8 | 无原料 → 2 原油 | 60 秒 | 15 | 1 |', '| 原油 (`crude-oil`) | 9 | 无原料 → 2 原油 | 60 秒 | 15 | 3 |'),
+              ('| 木板 (`lumber`) | 15 | 2 木材 → 1 木板 | 40 秒 | 3 | 3 |', '| 木板 (`lumber`) | 17 | 2 木材 → 1 木板 | 40 秒 | 3 | 3 |'),
+              ('| 钢材 (`steel`) | 24 | 3 铁矿石 → 1 钢材 | 40 秒 | 4 | 3 |', '| 钢材 (`steel`) | 29 | 3 铁矿石 → 1 钢材 | 40 秒 | 4 | 6 |'),
+              ('| 铜材 (`copper`) | 24 | 3 铜矿石 → 1 铜材 | 40 秒 | 4 | 3 |', '| 铜材 (`copper`) | 29 | 3 铜矿石 → 1 铜材 | 40 秒 | 4 | 6 |'),
+              ('| 塑料 (`plastic`) | 24 | 2 原油 → 1 塑料 | 40 秒 | 6 | 3 |', '| 塑料 (`plastic`) | 30 | 2 原油 → 1 塑料 | 40 秒 | 6 | 9 |'),
+              ('| 纺织品 (`textile`) | 18 | 6 棉花或 2 毛 → 1 纺织品 | 40 秒 | 4 | 3 |', '| 纺织品 (`textile`) | 20 | 6 棉花或 2 毛 → 1 纺织品 | 40 秒 | 4 | 6 |'),
+              ('| 纸浆 (`pulp`) | 16 | 2 木材 → 1 纸浆 | 40 秒 | 4 | 3 |', '| 纸浆 (`pulp`) | 20 | 2 木材 → 1 纸浆 | 40 秒 | 4 | 6 |'),
+              ('| 饮料 (`beverage`) | 16 | 1 砂糖 + 1 奶 → 2 饮料；或 2 水果 + 1 砂糖 → 2 饮料 | 60 秒 | 10；或 5 | 6 |', '| 饮料 (`beverage`) | 18 | 1 砂糖 + 1 奶 → 2 饮料；或 2 水果 + 1 砂糖 → 2 饮料 | 60 秒 | 11；或 6 | 9 |'),
+              ('| 纸品 (`paper`) | 13 | 1 纸浆 → 2 纸品 | 60 秒 | 4 | 6 |', '| 纸品 (`paper`) | 15 | 1 纸浆 → 2 纸品 | 60 秒 | 4 | 6 |'),
+              ('| 家具 (`furniture`) | 20 | 2 木板 → 2 家具 | 60 秒 | 4 | 6 |', '| 家具 (`furniture`) | 24 | 2 木板 → 2 家具 | 60 秒 | 5 | 9 |'),
+              ('| 服装 (`clothing`) | 48 | 2 纺织品 → 1 服装 | 60 秒 | 6 | 6 |', '| 服装 (`clothing`) | 55 | 2 纺织品 → 1 服装 | 60 秒 | 6 | 9 |'),
+              ('| 机械 (`machinery`) | 60 | 2 钢材 → 1 机械 | 60 秒 | 6 | 6 |', '| 机械 (`machinery`) | 76 | 2 钢材 → 1 机械 | 60 秒 | 6 | 12 |'),
+              ('| 电子产品 (`electronics`) | 64 | 1 塑料 + 1 铜材 → 1 电子产品 | 60 秒 | 10 | 6 |', '| 电子产品 (`electronics`) | 84 | 1 塑料 + 1 铜材 → 1 电子产品 | 60 秒 | 10 | 15 |'),
+              ('| 家电 (`appliance`) | 68 | 1 机械 + 1 电子产品 → 2 家电 | 60 秒 | 6 | 6 |', '| 家电 (`appliance`) | 92 | 1 机械 + 1 电子产品 → 2 家电 | 60 秒 | 6 | 18 |'),
+          ]
+          for old, new in design_rows:
+              replace_once('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', old, new)
+
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '正式收益梯度是：基础原料 1／分钟、中间产品 3／分钟、最终产品 6／分钟。水果和鱼类虽然进入直接消费，也按基础生产计入 1／分钟；加工层级承担更高原料、资金与停产风险，并获得更高参考利润。',
+              """正式收益梯度按工厂复杂度固定：
+
+          | 复杂度 | C1 | C2 | C3 | C4 | C5 | C6 | C7 |
+          |---|---:|---:|---:|---:|---:|---:|---:|
+          | 参考分钟利润 | 1 | 3 | 6 | 9 | 12 | 15 | 18 |
+
+          同一工厂的所有正式配方必须精确达到该工厂复杂度对应的参考分钟利润。为保持初始参考价和周期成本均为整数，乳制饮料、果汁饮料和家具的周期成本分别固定为 11、6、5，不得回退到 10、5、4。""",
+          )
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '生产收益参数与建造门槛分开维护，避免为了调整利润误改资产建设节奏。复杂度由产业链深度、原料组合、设备规模和技术门槛共同决定；不能只按工厂所属商品类别推断。',
+              '生产参数与建造参数继续分字段维护，避免调整利润时误改资产建设节奏；但两者都必须按同一个 `complexity` 等级接受验证。复杂度由产业链深度、原料组合、设备规模和技术门槛共同决定，不能只按工厂所属商品类别推断。',
+          )
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '8. 同一产业层级的目标利润改变时，必须整体检查所有产业链，不能只修补单个亏损商品。',
+              '8. 任一复杂度的目标利润改变时，必须整体检查所有同级工厂和完整产业链，不能只修补单个亏损商品。',
+          )
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              '9. 新工厂必须声明 C1～C7 复杂度，施工时间必须落在对应区间；调整现有复杂度时必须同步审查同级和相邻等级的时间递增关系。',
+              '9. 新工厂必须声明 C1～C7 复杂度，施工时间必须落在对应区间，且所有正式配方必须精确达到该复杂度的参考分钟利润；调整现有复杂度时必须同步审查利润、同级工厂及相邻等级的时间递增关系。',
+          )
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate repository
+        run: npm run build
+
+      - name: Commit validated changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md docs/INDUSTRY_AND_PRODUCTION_DESIGN.md server/src/industry-catalog.js scripts/verify-industry-catalog.mjs server/test/domain.test.js
+          git commit -m "balance industry profits by complexity"
+          git push
