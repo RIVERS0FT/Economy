@@ -244,7 +244,8 @@
     overflow: hidden;
   }
 
+  /* This is the only vertical padding owner for the 68px mobile capsule. */
   .mobile-bottom-navigation .liquid-glass-surface__content {
-    padding: .3rem 0;
+    padding: 8px 0;
   }
 }
