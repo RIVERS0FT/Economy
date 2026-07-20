@@ -24,23 +24,18 @@
   grid-template-columns: none;
 }
 
+/* The upstream .glass__warp must be able to sample the page behind this host.
+ * Do not add paint containment, isolation or overflow: clip here: older Android
+ * Chromium/WebView builds treat those boundaries as an opaque backdrop root. */
 .liquid-glass-surface {
   position: relative;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
-  isolation: isolate;
-  contain: paint;
   overflow: hidden;
   border-radius: inherit;
   background: var(--liquid-glass-contrast);
-}
-
-@supports (overflow: clip) {
-  .liquid-glass-surface {
-    overflow: clip;
-  }
 }
 
 .liquid-glass-surface > * {
@@ -86,6 +81,17 @@
   z-index: 1;
   display: flex;
   color: var(--color-text-primary);
+}
+
+/* liquid-glass-react emits the authoritative unprefixed backdrop-filter inline.
+ * These matching WebKit aliases only restore that same preset on Safari and
+ * older Android WebView builds; they are not a second material implementation. */
+.liquid-glass-surface--statusBar .glass__warp {
+  -webkit-backdrop-filter: blur(8.48px) saturate(145%);
+}
+
+.liquid-glass-surface--mobileNavigation .glass__warp {
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
 }
 
 .asset-bar .liquid-glass-surface,
