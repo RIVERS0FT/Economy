@@ -65,6 +65,11 @@ check('src/styles/mobile-status-layout.css', [
   'min-height: var(--mobile-asset-bar-height);',
   'max-height: var(--mobile-asset-bar-height);',
 ]);
+check('src/styles/desktop-sidebar.css', [
+  '.desktop-sidebar .sidebar-nav {',
+  'align-content: start;',
+  'grid-auto-rows: max-content;',
+]);
 check('src/styles/scrollbars.css', [
   '.page-scroll-area {',
   'overflow: visible;',
@@ -75,21 +80,34 @@ check('src/styles/scrollbars.css', [
   'right: var(--scrollbar-edge-offset);',
   'left: auto;',
 ]);
-forbid('src/styles/scrollbars.css', ['.asset-bar-scroll-area,']);
+check('src/styles/performance.css', [
+  '.page-scroll {',
+  'overscroll-behavior: auto;',
+  'overscroll-behavior-x: contain;',
+  'overscroll-behavior-y: auto;',
+]);
+forbid('src/styles/scrollbars.css', ['.asset-bar-scroll-area,', 'position: fixed;']);
+forbid('src/styles/mobile-status-navigation.css', ['.page-scroll {\n  overscroll-behavior: contain;']);
+forbid('src/styles/performance.css', ['.page-scroll,\n.asset-bar,\n.sidebar-nav {\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior: contain;']);
 forbid('src/styles/viewport.css', ['position: fixed;\n    right: 0;\n    bottom: max(var(--mobile-chrome-block-inset)']);
-check('docs/GAME_SHELL_LAYOUT_DESIGN.md', [
-  '移动工作区统一水平间距',
-  '移动两层 Overlay',
+check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
+  '桌面应用外壳几何',
+  '--desktop-shell-outer-inset',
   '--mobile-workspace-inline-end',
   '--mobile-scrollbar-edge-escape',
-  'translateX()',
+  'translateX(var(--mobile-scrollbar-edge-escape))',
   '--radius-card-mobile',
   '`40px`',
 ]);
-check('docs/OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md', [
-  '移动页面右侧贴边规则',
-  'translateX(var(--mobile-scrollbar-edge-escape))',
-  '滑块右边缘距屏幕右边 `2px`',
+check('docs/UI_DESIGN_SYSTEM.md', [
+  '统一覆盖式滚动条',
+  '桌面侧栏导航网格必须从顶部开始排列',
+  '不得使用 `overscroll-behavior: contain` 阻断纵向滚动链',
+]);
+check('tests/browser/game-shell-layout.spec.ts', [
+  'desktop navigation rows keep intrinsic height and stack from the top',
+  "expect(geometry.alignContent).toBe('start')",
+  "expect(geometry.gridAutoRows).toBe('max-content')",
 ]);
 check('tests/browser/mobile-workspace-overlay.spec.ts', [
   'mobile page scrollbar reaches the safe right edge without changing content width',
@@ -103,4 +121,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏外壳移动双层 Overlay、玻璃共线、40px 底栏圆角与贴边滚动条验证通过。');
+console.log('游戏外壳桌面导航、移动双层 Overlay、玻璃共线、40px 底栏圆角、贴边滚动条与纵向滚动链验证通过。');
