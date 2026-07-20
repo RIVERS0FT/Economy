@@ -66,7 +66,12 @@ test.describe('nested scroll ownership', () => {
     await inner.evaluate((element) => { element.scrollTop = element.scrollHeight - element.clientHeight; });
     await outer.evaluate((element) => { element.scrollTop = element.scrollHeight - element.clientHeight; });
 
-    await wheelOver(page, inner, 160);
+    const dispatchResult = await inner.evaluate((element) => element.dispatchEvent(new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 160,
+    })));
+    expect(dispatchResult).toBe(true);
     await expect.poll(() => page.evaluate(() => (
       window as typeof window & { __boundaryWheel?: { seen: boolean; defaultPrevented: boolean } }
     ).__boundaryWheel)).toEqual({ seen: true, defaultPrevented: false });
