@@ -85,21 +85,33 @@ if (failures.length === 0) {
   }
 
   for (const text of [
+    '.liquid-glass-surface {',
+    'overflow: hidden;',
+    '.liquid-glass-surface--statusBar .glass__warp {',
+    '-webkit-backdrop-filter: blur(8.48px) saturate(145%);',
+    '.liquid-glass-surface--mobileNavigation .glass__warp {',
+    '-webkit-backdrop-filter: blur(20px) saturate(145%);',
     '.liquid-glass-surface--statusBar {',
     'border: 1px solid rgba(212, 245, 224, 0.12);',
     'background: transparent;',
     '.liquid-glass-surface--statusBar > span:first-of-type',
     'mix-blend-mode: screen !important;',
-    'contain: paint;',
     '.mobile-bottom-navigation .liquid-glass-surface__effect > .glass',
     'border-radius: var(--radius-card) !important;',
     'border-radius: var(--radius-card-mobile) !important;',
     'width: max(100%, 675px);',
     'padding: .25rem .8rem;',
   ]) requireText(files.styles, text);
-  for (const text of ['border-radius: 20px !important;', '.workspace::before']) forbidText(files.styles, text);
-  if (/^\s*(?:-webkit-)?backdrop-filter\s*:/m.test(read(files.styles))) {
-    failures.push('项目 CSS 不得重新实现液态玻璃 backdrop-filter');
+  for (const text of [
+    'border-radius: 20px !important;',
+    '.workspace::before',
+    'contain: paint;',
+    'isolation: isolate;',
+    'overflow: clip;',
+    '@supports (overflow: clip)',
+  ]) forbidText(files.styles, text);
+  if (/(^|[\s{;])backdrop-filter\s*:/m.test(read(files.styles))) {
+    failures.push('项目 CSS 不得重写 liquid-glass-react 的非前缀 backdrop-filter');
   }
 
   for (const text of [
@@ -143,6 +155,10 @@ if (failures.length === 0) {
     '--layout-gutter: var(--mobile-primary-surface-gap);',
     'padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
     'padding-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));',
+    'isolation: auto;',
+    '.mobile-page-overlay,',
+    '.mobile-chrome-overlay {',
+    'z-index: auto;',
     '.mobile-page-overlay {',
     'overflow: visible;',
     '.mobile-chrome-overlay {',
@@ -191,11 +207,22 @@ if (failures.length === 0) {
     '不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
     '固定到视口安全边缘',
     'right: env(safe-area-inset-right, 0px)',
+    '开放的背景采样链',
+    '`contain: paint`',
+    '`isolation: isolate`',
+    '`overflow: clip`',
+    '`-webkit-backdrop-filter`',
     '浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式',
   ]) requireText(files.design, text);
   for (const text of [
     'mobile chrome shares the workspace gutter and fixed glass heights',
     'navigationRadius',
+    'statusContain',
+    'navigationContain',
+    'workspaceIsolation',
+    'chromeOverlayZIndex',
+    "expect(geometry.statusContain).toBe('none')",
+    "expect(geometry.workspaceIsolation).toBe('auto')",
     "toBe('24px')",
     "toBe('40px')",
   ]) requireText(files.browser, text);
@@ -211,4 +238,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 外壳、浏览器真实样式入口、移动玻璃共线、40px 底栏圆角与固定安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 外壳、移动开放背景采样链、WebKit 兼容别名、40px 底栏圆角与固定安全边缘滚动条验证通过。');
