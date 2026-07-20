@@ -27,6 +27,7 @@ const paths = {
   design: 'docs/GAME_SHELL_LAYOUT_DESIGN.md',
   scrollbarDesign: 'docs/OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md',
   browser: 'tests/browser/game-shell-layout.spec.ts',
+  mobileBrowser: 'tests/browser/mobile-workspace-overlay.spec.ts',
 };
 
 Object.values(paths).forEach(requireFile);
@@ -222,16 +223,22 @@ if (failures.length === 0) {
   for (const text of [
     'game shell shares one inset between the sidebar and status bar while the workspace stays flush',
     'sidebar collapse keeps the inset status bar and page on the same workspace track',
-    'mobile workspace owns the shared gutter and overlay geometry',
     'page vertical scrollbar reacts only to actual scrolling and hides after idle',
     "page.locator('.asset-bar-scroll-area')",
     "page.locator('.page-scroll-area')",
-    "page.locator('.mobile-page-overlay')",
-    "page.locator('.mobile-chrome-overlay')",
     'data-scrollbar-active-y',
     'pointermove',
     'scrollTop',
   ]) requireText(paths.browser, text);
+
+  for (const text of [
+    'mobile workspace owns the shared gutter and overlay geometry',
+    'mobile chrome shares the workspace gutter and fixed glass heights',
+    "page.locator('.mobile-page-overlay')",
+    "page.locator('.mobile-chrome-overlay')",
+    "page.locator('.asset-bar-scroll-area')",
+    "page.locator('.mobile-bottom-navigation')",
+  ]) requireText(paths.mobileBrowser, text);
 }
 
 if (failures.length > 0) {
