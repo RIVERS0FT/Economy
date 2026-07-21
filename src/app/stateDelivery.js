@@ -18,30 +18,42 @@ function validPartitionRevisions(value) {
   }));
 }
 
-export function mergeStatePatches(currentState, patches) {
-  const next = { ...(currentState || {}) };
-  if (patches && typeof patches === 'object' && !Array.isArray(patches)) {
+function validPartitionSnapshot(value) {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value));
+}
+
+export function mergeStatePatches(currentPartitions, patches) {
+  const partitions = validPartitionSnapshot(currentPartitions) ? { ...currentPartitions } : {};
+  if (validPartitionSnapshot(patches)) {
     for (const name of STATE_PARTITION_NAMES) {
       const patch = patches[name];
-      if (patch && typeof patch === 'object' && !Array.isArray(patch)) Object.assign(next, patch);
+      if (validPartitionSnapshot(patch)) partitions[name] = { ...patch };
     }
   }
-  if (next.version !== 15 || !Number.isInteger(next.userId)) {
+
+  const state = {};
+  for (const name of STATE_PARTITION_NAMES) {
+    const partition = partitions[name];
+    if (validPartitionSnapshot(partition)) Object.assign(state, partition);
+  }
+  if (state.version !== 15 || !Number.isInteger(state.userId)) {
     throw new Error('服务器未返回完整的初始分区状态');
   }
-  return next;
+  return { partitions, state };
 }
 
 export function createStateDeliveryCache() {
   let state = null;
   let revision = null;
   let partitionRevisions = {};
+  let partitions = {};
 
   return {
     reset() {
       state = null;
       revision = null;
       partitionRevisions = {};
+      partitions = {};
     },
     getPartitionRevisions() {
       return { ...partitionRevisions };
@@ -54,7 +66,9 @@ export function createStateDeliveryCache() {
       const incomingPartitionRevisions = validPartitionRevisions(payload.partitionRevisions);
       if (Object.keys(incomingPartitionRevisions).length > 0) partitionRevisions = incomingPartitionRevisions;
       if (payload.patches && Object.keys(payload.patches).length > 0) {
-        state = mergeStatePatches(state, payload.patches);
+        const merged = mergeStatePatches(partitions, payload.patches);
+        partitions = merged.partitions;
+        state = merged.state;
       }
       revision = payload.revision;
       return state ? { ...payload, state } : payload;
