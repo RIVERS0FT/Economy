@@ -89,6 +89,14 @@ jobs:
           if target not in overlay_source:
               raise SystemExit('overlay verifier unrelated status target not found')
           overlay_path.write_text(overlay_source.replace(target, ''))
+
+          local_design_path = Path('docs/LOCAL_ACTIVITY_LOG_DESIGN.md')
+          local_design = local_design_path.read_text()
+          old_guard = '- 不得用分页、截断、`slice`、全量 `.map()` 或只显示最近记录替代窗口化，也不得降低本地存储上限。'
+          new_guard = '- 不得用分页、截断、`slice` 或只显示最近记录替代窗口化，也不得降低本地存储上限；不得对资产事件或本地成交直接使用全量 `.map()` 创建全部 DOM。'
+          if old_guard not in local_design:
+              raise SystemExit('local activity virtualization guard not found')
+          local_design_path.write_text(local_design.replace(old_guard, new_guard))
           PY
 
       - name: Install dependencies
