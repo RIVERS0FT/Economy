@@ -30,11 +30,29 @@ check('src/components/shell/GameShell.tsx', [
   'className="mobile-page-overlay"',
   'className="mobile-chrome-overlay"',
   '<StatusBar items={statusItems} />',
+  'className="mobile-notice-region"',
+  'className="notice-toast" role="status" aria-live="polite" aria-atomic="true"',
   '<MobileBottomNavigation',
   'className="page-scroll-area"',
   'viewportClassName="page-scroll"',
   'scrollbarVisibility="adaptive"',
 ]);
+const shellContent = read('src/components/shell/GameShell.tsx');
+const pageOverlayStart = shellContent.indexOf('className="mobile-page-overlay"');
+const pageOverlayEnd = shellContent.indexOf('</div>', pageOverlayStart);
+const chromeOverlayStart = shellContent.indexOf('className="mobile-chrome-overlay"');
+const statusBarIndex = shellContent.indexOf('<StatusBar items={statusItems} />', chromeOverlayStart);
+const noticeRegionIndex = shellContent.indexOf('className="mobile-notice-region"', chromeOverlayStart);
+const mobileNavigationIndex = shellContent.indexOf('<MobileBottomNavigation', chromeOverlayStart);
+if (!(pageOverlayStart >= 0 && pageOverlayEnd > pageOverlayStart && chromeOverlayStart > pageOverlayEnd)) {
+  failures.push('GameShell 的页面 Overlay 与 Chrome Overlay 顺序无效');
+}
+if (!(statusBarIndex > chromeOverlayStart && noticeRegionIndex > statusBarIndex && mobileNavigationIndex > noticeRegionIndex)) {
+  failures.push('移动通知必须位于 Chrome Overlay 内的状态栏之后、底部导航之前');
+}
+if (noticeRegionIndex > pageOverlayStart && noticeRegionIndex < pageOverlayEnd) {
+  failures.push('移动通知不得放回页面 Overlay');
+}
 check('src/styles/viewport.css', [
   '--layout-gutter: var(--mobile-primary-surface-gap);',
   'padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
@@ -56,12 +74,28 @@ check('src/styles/mobile-status-navigation.css', [
   '--mobile-nav-height: 68px;',
 ]);
 check('src/styles/mobile-status-layout.css', [
+  '--mobile-status-top-inset: max(var(--mobile-chrome-block-inset), env(safe-area-inset-top));',
+  '--mobile-notice-gap: var(--space-2);',
+  '--mobile-notice-inline-inset: var(--space-2);',
   '.asset-bar {',
   'padding: 0;',
   'display: block;',
   'overflow: visible;',
   'min-height: var(--mobile-asset-bar-height);',
   'max-height: var(--mobile-asset-bar-height);',
+  '.mobile-notice-region {',
+  'var(--mobile-status-top-inset)',
+  '+ var(--mobile-asset-bar-height)',
+  '+ var(--mobile-notice-gap)',
+  'right: var(--mobile-notice-inline-inset);',
+  'left: var(--mobile-notice-inline-inset);',
+  'pointer-events: none;',
+  '.mobile-notice-region .notice-toast {',
+  'position: static;',
+  'z-index: auto;',
+  'width: min(100%, 30rem);',
+  'transform: none;',
+  'white-space: normal;',
 ]);
 check('src/styles/desktop-sidebar.css', [
   '.desktop-sidebar .sidebar-nav {',
@@ -116,6 +150,12 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '两者使用同一 `40px` 胶囊圆角',
   '顶部状态栏不得包含 `ScrollArea`',
 ]);
+check('docs/README.md', [
+  '移动操作结果通知归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `GameShell` Chrome Overlay',
+  'DOM 必须位于 `StatusBar` 后、`MobileBottomNavigation` 前',
+  '安全区顶部 + `48px` 状态栏 + `8px` 间距',
+  '不新增液态玻璃实例、不推动页面内容、不拦截状态栏或底栏交互',
+]);
 check('docs/UI_DESIGN_SYSTEM.md', [
   '统一覆盖式滚动条',
   '桌面侧栏导航网格必须从顶部开始排列',
@@ -128,6 +168,9 @@ check('tests/browser/game-shell-layout.spec.ts', [
   "expect(geometry.gridAutoRows).toBe('max-content')",
 ]);
 check('tests/browser/mobile-workspace-overlay.spec.ts', [
+  'mobile notice stays below the status bar without shifting the page',
+  'geometry.notice.top - geometry.status.bottom',
+  'glassCountAfter',
   'mobile page scrollbar reaches the safe right edge without changing content width',
   'viewportRight - geometry.thumbRight',
   "toBe('40px')",
@@ -139,4 +182,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏外壳桌面导航、固定状态栏、移动双层 Overlay、玻璃共线、统一 40px 清透厚玻璃胶囊、视口安全边缘滚动条与纵向滚动链验证通过。');
+console.log('游戏外壳桌面导航、固定状态栏、移动双层 Overlay、状态栏下方通知、玻璃共线、统一 40px 清透厚玻璃胶囊、视口安全边缘滚动条与纵向滚动链验证通过。');

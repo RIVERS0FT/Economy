@@ -37,7 +37,6 @@ export function GameShell({ model, statusItems, children }: {
       />
       <section className="workspace">
         <div className="mobile-page-overlay">
-          {model.notice ? <div className="notice-toast"><CurrencyText>{model.notice}</CurrencyText></div> : null}
           <ScrollArea
             axis="y"
             className="page-scroll-area"
@@ -49,6 +48,13 @@ export function GameShell({ model, statusItems, children }: {
         </div>
         <div className="mobile-chrome-overlay">
           <StatusBar items={statusItems} />
+          {model.notice ? (
+            <div className="mobile-notice-region">
+              <div className="notice-toast" role="status" aria-live="polite" aria-atomic="true">
+                <CurrencyText>{model.notice}</CurrencyText>
+              </div>
+            </div>
+          ) : null}
           <MobileBottomNavigation
             activeTab={model.tab}
             openOrderCount={model.derived.ownOpenOrders.length}

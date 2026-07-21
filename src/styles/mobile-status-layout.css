@@ -1,6 +1,8 @@
 @media (max-width: 720px) {
   :root {
     --mobile-status-top-inset: max(var(--mobile-chrome-block-inset), env(safe-area-inset-top));
+    --mobile-notice-gap: var(--space-2);
+    --mobile-notice-inline-inset: var(--space-2);
   }
 
   .asset-bar {
@@ -82,5 +84,36 @@
   .asset-bar-item-value > span {
     color: inherit;
     font-size: inherit;
+  }
+
+  .mobile-notice-region {
+    position: absolute;
+    top: calc(
+      var(--mobile-status-top-inset)
+      + var(--mobile-asset-bar-height)
+      + var(--mobile-notice-gap)
+    );
+    right: var(--mobile-notice-inline-inset);
+    left: var(--mobile-notice-inline-inset);
+    display: grid;
+    justify-items: center;
+    pointer-events: none;
+  }
+
+  .mobile-notice-region .notice-toast {
+    position: static;
+    z-index: auto;
+    top: auto;
+    left: auto;
+    width: min(100%, 30rem);
+    max-width: 100%;
+    margin: 0;
+    transform: none;
+    padding: 10px 12px;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+    text-align: center;
+    white-space: normal;
+    pointer-events: none;
   }
 }
