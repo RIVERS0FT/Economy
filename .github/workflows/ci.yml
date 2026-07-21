@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -18,108 +18,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
-
-      - name: Apply production desktop layout documentation
-        if: github.head_ref == 'codex/production-desktop-layout-v2'
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 <<'PYTHON'
-          from pathlib import Path
-
-          def replace_once(path, old, new):
-              target = Path(path)
-              content = target.read_text(encoding='utf-8')
-              count = content.count(old)
-              if count != 1:
-                  raise SystemExit(f'{path}: expected one match, found {count}')
-              target.write_text(content.replace(old, new, 1), encoding='utf-8')
-
-          css = Path('src/styles/facility-group-card-grid.css')
-          marker = '/* Desktop production workspace density. */'
-          if marker not in css.read_text(encoding='utf-8'):
-              css.write_text(css.read_text(encoding='utf-8').rstrip() + '''
-
-/* Desktop production workspace density. */
-@media (min-width: 961px) {
-  .production-build-card {
-    top: var(--desktop-page-top-offset);
-    max-height: calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter));
-  }
-
-  .facility-cluster-detail-shell {
-    align-self: start;
-  }
-
-  .facility-cluster-detail-card {
-    min-height: 0;
-  }
-
-  .facility-cluster-detail-card.facility-group-card {
-    grid-template-rows: auto;
-    align-content: start;
-  }
-
-  .facility-card-spacer {
-    display: none;
-  }
-}
-
-@media (min-width: 1600px) {
-  .production-workspace {
-    grid-template-columns: minmax(280px, 320px) minmax(440px, 520px) minmax(480px, 680px);
-    justify-content: start;
-  }
-
-  .facility-cluster-selector-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-''', encoding='utf-8')
-
-          replace_once(
-              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
-              '- 使用 `position: sticky`，只在生产管理区范围内常驻。\n- 低于 960px 恢复普通文档流并位于工厂集群选择之前。',
-              '- 使用 `position: sticky`，只在生产管理区范围内常驻；固定后的顶部偏移必须读取 `--desktop-page-top-offset`，不得使用独立 `--space-*` 或像素值重复计算状态栏避让。\n- sticky 最大高度必须扣除 `--desktop-page-top-offset` 与底部 `--desktop-layout-gutter`，使卡片上下均保留同一个桌面间隔。\n- 低于 960px 恢复普通文档流并位于工厂集群选择之前。',
-          )
-          replace_once(
-              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
-              '- 大于 `1380px` 时生产管理区使用三列：建设卡 `280px–320px`、工厂集群选择 `260px–300px`、当前工厂详情最小 `480px` 并占据剩余宽度。\n- `961px–1380px` 时使用两列：建设卡位于左列，工厂选择和当前详情在右列上下排列。\n- `721px–960px` 时恢复单列文档流，顺序为建设卡、工厂选择、当前详情；详情仍直接显示，不使用悬浮框。\n- 桌面和平板只渲染一个当前工厂的完整详情，不再同时铺开所有完整工厂卡。',
-              '- 大于等于 `1600px` 时使用紧凑三列：建设卡 `280px–320px`、工厂集群选择 `440px–520px` 并固定两列选择卡、当前工厂详情 `480px–680px`；三列从左侧开始排列，详情不得继续吞占全部剩余宽度。\n- `1381px–1599px` 时保持原三列：建设卡 `280px–320px`、工厂集群选择 `260px–300px`、当前工厂详情最小 `480px` 并占据剩余宽度；该区间选择卡保持单列。\n- `961px–1380px` 时使用两列：建设卡位于左列，工厂选择和当前详情在右列上下排列。\n- `721px–960px` 时恢复单列文档流，顺序为建设卡、工厂选择、当前详情；详情仍直接显示，不使用悬浮框。\n- 桌面和平板只渲染一个当前工厂的完整详情，不再同时铺开所有完整工厂卡。',
-          )
-          replace_once(
-              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
-              '- 详情显示工厂名称和总数量、运行开关、完整状态、“运行中／下一周期加入／冻结中”三列摘要、生产配方、集群生产公式、生产进度、玩家可见配方利润分析和市场入口。',
-              '- 详情显示工厂名称和总数量、运行开关、完整状态、“运行中／下一周期加入／冻结中”三列摘要、生产配方、集群生产公式、生产进度、玩家可见配方利润分析和市场入口。\n- 桌面详情卡高度由内容决定：详情壳使用交叉轴起始对齐，详情卡不得使用 `min-height: 100%`、弹性空白行或可见占位 spacer；市场入口紧跟在实际详情内容之后。\n- 桌面详情卡不得增加独立纵向滚动条；页面仍由唯一页面滚动视口负责纵向滚动。',
-          )
-          replace_once(
-              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
-              '- 恢复同时铺开所有完整工厂卡、四列完整卡网格或瀑布流；\n- 按名称、数量、状态或最近操作重排工厂选择卡；',
-              '- 恢复同时铺开所有完整工厂卡、四列完整卡网格或瀑布流；\n- 在 `1600px` 及以上把工厂集群选择恢复为单列，或让当前详情列继续扩张到超过 `680px`；\n- 让桌面详情壳恢复交叉轴拉伸、`min-height: 100%`、弹性空白行或可见占位 spacer；\n- 让 sticky 建设卡使用独立 `--space-*` 或像素顶部值，而不是统一的 `--desktop-page-top-offset`；\n- 按名称、数量、状态或最近操作重排工厂选择卡；',
-          )
-          replace_once(
-              'docs/LIQUID_GLASS_CHROME_DESIGN.md',
-              '- `.page-scroll-area` 与 `.page-scroll` 铺满工作区，桌面左右 padding 为 `0`；页面顶部避让固定为“沟槽 + 状态栏高度 + 沟槽”；\n- `.page-content` 使用 `width: 100%`、`max-width: none`、`margin: 0`，左侧 padding 为 `0`，右侧与底部 padding 使用 `--desktop-layout-gutter`；最外层页面网格的右边缘必须与状态栏右边缘共线；',
-              '- `.page-scroll-area` 与 `.page-scroll` 铺满工作区，桌面左右 padding 为 `0`；页面顶部避让固定为“沟槽 + 状态栏高度 + 沟槽”；\n- 页面顶部避让必须集中为 `--desktop-page-top-offset`，其值固定由“`--desktop-layout-gutter` + `--desktop-asset-bar-height` + `--desktop-layout-gutter`”派生；需要避让状态栏的桌面 sticky 一级卡片必须直接读取该令牌，底部余量继续读取 `--desktop-layout-gutter`，不得重复维护另一套顶部数值。\n- `.page-content` 使用 `width: 100%`、`max-width: none`、`margin: 0`，左侧 padding 为 `0`，右侧与底部 padding 使用 `--desktop-layout-gutter`；最外层页面网格的右边缘必须与状态栏右边缘共线；',
-          )
-          replace_once(
-              'README.md',
-              '- 生产管理区采用工厂集群主从布局：桌面由常驻建设卡、按正式目录排序的紧凑集群选择器和单张当前详情卡组成；961px–1380px 保持建设卡左列、选择器与详情右列，低于 960px 改为单列。移动端不展开全部详情，点击选择卡或“查看详情”后从底部打开悬浮详情框，默认选中正式目录中的第一种已拥有工厂但首次进入不自动弹出。',
-              '- 生产管理区采用工厂集群主从布局：大于等于 1600px 时建设卡、两列工厂集群选择器和自然高度的当前详情卡紧凑排列，详情宽度上限为 680px；1381px–1599px 保持三列单列选择器，961px–1380px 保持建设卡左列、选择器与详情右列，低于 960px 改为单列。移动端不展开全部详情，点击选择卡或“查看详情”后从底部打开悬浮详情框，默认选中正式目录中的第一种已拥有工厂但首次进入不自动弹出。',
-          )
-          PYTHON
-
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "完善桌面生产页布局文档与样式"
-          git push origin "HEAD:${{ github.head_ref }}"
 
       - name: Setup Node
         uses: actions/setup-node@v4
