@@ -87,6 +87,15 @@
     );
   }
 
+  html[data-app-surface="game"] .page-scroll-area > .ui-scrollbar--vertical {
+    right: 0;
+  }
+
+  html[data-app-surface="game"] .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
+    right: 0;
+    left: auto;
+  }
+
   html[data-app-surface="game"] .page-content {
     width: 100%;
     max-width: none;
