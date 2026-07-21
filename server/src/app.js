@@ -266,7 +266,7 @@ const server = createServer(async (request, response) => {
       const collectibleHistory = path.match(/^\/api\/game\/admin\/collectibles\/([^/]+)\/ownership$/);
       if (method === 'GET' && collectibleHistory) {
         sendJson(response, 200, {
-          ownership: registrationStore.listCollectibleOwnership(user, decodeRouteParameter(collectibleHistory[1])),
+          ownership: store.listCollectibleOwnership(user, decodeRouteParameter(collectibleHistory[1])),
         });
         return;
       }
