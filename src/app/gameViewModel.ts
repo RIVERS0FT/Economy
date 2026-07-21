@@ -72,6 +72,19 @@ export interface DerivedGameData {
 }
 
 export type ActionResult = GameActionResult;
+export type RefreshMode = 'normal' | 'authoritative';
+export interface RefreshOptions {
+  mode?: RefreshMode;
+  expectedDeadline?: number;
+}
+
+interface RefreshTask {
+  controller: AbortController;
+  startedAt: number;
+  mode: RefreshMode;
+  expectedDeadline?: number;
+  promise: Promise<void>;
+}
 
 export interface LoadedGameViewModel {
   user: AuthUser;
@@ -108,7 +121,7 @@ export interface LoadedGameViewModel {
   avatarText: string;
   showResult: (result: ActionResult | Promise<ActionResult>) => Promise<void>;
   notify: (message: string) => void;
-  refresh: () => Promise<void>;
+  refresh: (options?: RefreshOptions) => Promise<void>;
   clearLocalActivity: () => void;
   signOut: () => Promise<void>;
   work: () => Promise<ActionResult>;
@@ -175,11 +188,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   ));
   const [refreshRate, setRefreshRate] = useState('5');
   const [isWorking, setIsWorking] = useState(false);
-  const refreshing = useRef(false);
   const revisionRef = useRef<number | null>(null);
-  const refreshAbortRef = useRef<AbortController | null>(null);
+  const refreshTaskRef = useRef<RefreshTask | null>(null);
   const actionsInFlightRef = useRef(0);
   const workPendingRef = useRef(false);
+  const orderPendingRef = useRef(false);
   const noticeTimerRef = useRef<number | null>(null);
 
   const handleUnauthorized = useCallback(() => { setGame(null); onSignedOut(); }, [onSignedOut]);
@@ -201,39 +214,51 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     if (state) acceptState(state, action, message);
     return true;
   }, [acceptState]);
-  const refresh = useCallback(async () => {
-    if (refreshing.current || actionsInFlightRef.current > 0) return;
+
+  const refresh = useCallback((options: RefreshOptions = {}) => {
+    const mode = options.mode ?? 'normal';
+    if (mode === 'normal' && actionsInFlightRef.current > 0) return Promise.resolve();
+
+    const existing = refreshTaskRef.current;
+    if (existing) {
+      if (mode === 'normal' || existing.mode === 'authoritative') return existing.promise;
+      existing.controller.abort();
+    }
+
     const controller = new AbortController();
-    refreshAbortRef.current = controller;
-    refreshing.current = true;
-    try {
-      const response = await getGameState(revisionRef.current, controller.signal);
-      if (actionsInFlightRef.current > 0) return;
-      acceptVersionedState(response.revision, response.state, 'refresh');
-      setLoadError('');
-    }
-    catch (reason) {
-      if (reason instanceof Error && reason.name === 'AbortError') return;
-      if (reason instanceof GameApiError && reason.status === 401) { handleUnauthorized(); return; }
-      setLoadError(messageFromError(reason));
-    } finally {
-      if (refreshAbortRef.current === controller) {
-        refreshAbortRef.current = null;
-        refreshing.current = false;
+    const promise = (async () => {
+      try {
+        const response = await getGameState(revisionRef.current, controller.signal);
+        if (mode === 'normal' && actionsInFlightRef.current > 0) return;
+        acceptVersionedState(response.revision, response.state, 'refresh');
+        setLoadError('');
+      } catch (reason) {
+        if (reason instanceof Error && reason.name === 'AbortError') return;
+        if (reason instanceof GameApiError && reason.status === 401) { handleUnauthorized(); return; }
+        setLoadError(messageFromError(reason));
+      } finally {
+        if (refreshTaskRef.current?.controller === controller) refreshTaskRef.current = null;
       }
-    }
+    })();
+    refreshTaskRef.current = {
+      controller,
+      startedAt: Date.now(),
+      mode,
+      expectedDeadline: options.expectedDeadline,
+      promise,
+    };
+    return promise;
   }, [acceptVersionedState, handleUnauthorized]);
 
   useEffect(() => {
-    refreshAbortRef.current?.abort();
-    refreshAbortRef.current = null;
-    refreshing.current = false;
+    refreshTaskRef.current?.controller.abort();
+    refreshTaskRef.current = null;
     revisionRef.current = null;
     setLocalActivity(loadLocalActivity(user.id));
     void refresh();
   }, [refresh, reloadVersion, user.id]);
   useEffect(() => () => {
-    refreshAbortRef.current?.abort();
+    refreshTaskRef.current?.controller.abort();
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
   }, []);
   useEffect(() => {
@@ -260,29 +285,36 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     if (type.id !== selectedFacilityTypeId) setSelectedFacilityTypeId(type.id);
   }, [game, marketAssetId, marketAssetKind, selectedFacilityTypeId]);
 
+  const syncConfirmedAction = useCallback(async (
+    response: GameActionResponse,
+    action: LocalActivityAction,
+  ) => {
+    try {
+      const stateResponse = await getGameState(revisionRef.current);
+      if (stateResponse.revision < response.revision) {
+        throw new Error('服务器状态同步落后于已确认操作');
+      }
+      acceptVersionedState(stateResponse.revision, stateResponse.state, action, response.result.message);
+      setLoadError('');
+    } catch (syncReason) {
+      if (syncReason instanceof GameApiError && syncReason.status === 401) handleUnauthorized();
+      else setLoadError(`操作已完成，但状态同步失败：${messageFromError(syncReason)}`);
+    }
+  }, [acceptVersionedState, handleUnauthorized]);
+
   const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
     if (action === 'work' && workPendingRef.current) {
       return { ok: false, message: '工作正在处理中' };
     }
     actionsInFlightRef.current += 1;
-    refreshAbortRef.current?.abort();
+    refreshTaskRef.current?.controller.abort();
     if (action === 'work') {
       workPendingRef.current = true;
       setIsWorking(true);
     }
     try {
       const response = await operation();
-      try {
-        const stateResponse = await getGameState(revisionRef.current);
-        if (stateResponse.revision < response.revision) {
-          throw new Error('服务器状态同步落后于已确认操作');
-        }
-        acceptVersionedState(stateResponse.revision, stateResponse.state, action, response.result.message);
-        setLoadError('');
-      } catch (syncReason) {
-        if (syncReason instanceof GameApiError && syncReason.status === 401) handleUnauthorized();
-        else setLoadError(`操作已完成，但状态同步失败：${messageFromError(syncReason)}`);
-      }
+      await syncConfirmedAction(response, action);
       return response.result;
     } catch (reason) {
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
@@ -294,7 +326,33 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
         setIsWorking(false);
       }
     }
-  }, [acceptVersionedState, handleUnauthorized]);
+  }, [handleUnauthorized, syncConfirmedAction]);
+
+  const placeAssetOrder = useCallback(async (
+    assetKind: AssetKind,
+    assetId: string,
+    side: OrderSide,
+    quantity: number,
+    price: number,
+  ): Promise<ActionResult> => {
+    if (orderPendingRef.current) return { ok: false, message: '市场订单正在同步中，请勿重复提交' };
+    orderPendingRef.current = true;
+    actionsInFlightRef.current += 1;
+    refreshTaskRef.current?.controller.abort();
+    const finish = () => {
+      actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
+      orderPendingRef.current = false;
+    };
+    try {
+      const response = await gameActions.placeAssetOrder(assetKind, assetId, side, quantity, price);
+      void syncConfirmedAction(response, 'placeOrder').finally(finish);
+      return response.result;
+    } catch (reason) {
+      finish();
+      if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
+      return { ok: false, message: messageFromError(reason) };
+    }
+  }, [handleUnauthorized, syncConfirmedAction]);
 
   const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);
   function notify(message: string) {
@@ -368,7 +426,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),
     pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
     setFacilityRecipe: (facilityTypeId, recipeId) => runAction('setFacilityRecipe', () => gameActions.setFacilityRecipe(facilityTypeId, recipeId)),
-    placeAssetOrder: (assetKind, assetId, side, quantity, price) => runAction('placeOrder', () => gameActions.placeAssetOrder(assetKind, assetId, side, quantity, price)),
+    placeAssetOrder,
     cancelOrder: (orderId) => runAction('cancelOrder', () => gameActions.cancelOrder(orderId)),
     renamePlayer: (name) => runAction('renamePlayer', () => gameActions.renamePlayer(name)),
     redeemGift: (code) => runAction('redeemGift', () => gameActions.redeemGift(code)),
