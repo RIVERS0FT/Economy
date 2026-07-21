@@ -1,0 +1,261 @@
+
+> economy@0.4.0 test:browser
+> playwright test
+
+
+Running 46 tests using 2 workers
+····[WebServer] 2:29:54 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:29:54 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:29:55 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:29:55 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:29:56 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:29:57 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:29:58 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:29:58 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:29:59 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:29:59 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:01 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:30:02 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:02 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:30:03 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:04 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:04 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:04 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:05 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:06 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:06 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:07 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:08 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:09 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:10 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:11 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:12 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:12 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+···[WebServer] 2:30:16 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:17 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:18 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:19 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:19 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:20 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:21 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:21 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:22 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:30:22 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:23 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:24 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:25 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:27 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:30:30 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·····×·[WebServer] 2:30:35 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+T::error file=tests/browser/market-runtime.spec.ts,title=[chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state::  1) [chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state %0A    Test timeout of 30000ms exceeded.
+::error file=tests/browser/market-runtime.spec.ts,title=[chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state,line=177,col=54::  1) [chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state %0A    Error: locator.click: Test timeout of 30000ms exceeded.%0A    Call log:%0A      - waiting for getByRole('button', { name: '向后浏览资产' })%0A        - locator resolved to <button type="button" aria-label="向后浏览资产" class="ui-button ui-button--compact asset-directory-control asset-directory-control--next">›</button>%0A      - attempting click action%0A        - waiting for element to be visible, enabled and stable%0A        - element is visible, enabled and stable%0A        - scrolling into view if needed%0A        - done scrolling%0A        - performing click action%0A        - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events%0A      - retrying click action%0A        - waiting for element to be visible, enabled and stable%0A        - element is visible, enabled and stable%0A        - scrolling into view if needed%0A        - done scrolling%0A        - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events%0A      - retrying click action%0A        - waiting 20ms%0A        2 × waiting for element to be visible, enabled and stable%0A          - element is visible, enabled and stable%0A          - scrolling into view if needed%0A          - done scrolling%0A          - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events%0A        - retrying click action%0A          - waiting 100ms%0A        55 × waiting for element to be visible, enabled and stable%0A           - element is visible, enabled and stable%0A           - scrolling into view if needed%0A           - done scrolling%0A           - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events%0A         - retrying click action%0A           - waiting 500ms%0A%0A%0A      175 |   await expect(page.getByRole('button', { name: '向后浏览资产' })).toBeVisible();%0A      176 |%0A    > 177 |   await page.getByRole('button', { name: '向后浏览资产' }).click();%0A          |                                                      ^%0A      178 |   await expect.poll(() => directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);%0A      179 |%0A      180 |   const finalFacility = page.getByRole('tab', { name: /^电子工厂/ });%0A        at /home/runner/work/Economy/Economy/tests/browser/market-runtime.spec.ts:177:54
+::error file=tests/browser/market-runtime.spec.ts,title=[chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state::  1) [chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state %0A%0A    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────%0A    Test timeout of 30000ms exceeded.
+::error file=tests/browser/market-runtime.spec.ts,title=[chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state,line=177,col=54::  1) [chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state %0A%0A    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────%0A    Error: locator.click: Test timeout of 30000ms exceeded.%0A    Call log:%0A      - waiting for getByRole('button', { name: '向后浏览资产' })%0A        - locator resolved to <button type="button" aria-label="向后浏览资产" class="ui-button ui-button--compact asset-directory-control asset-directory-control--next">›</button>%0A      - attempting click action%0A        - waiting for element to be visible, enabled and stable%0A        - element is visible, enabled and stable%0A        - scrolling into view if needed%0A        - done scrolling%0A        - performing click action%0A        - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events%0A      - retrying click action%0A        - waiting for element to be visible, enabled and stable%0A        - element is visible, enabled and stable%0A        - scrolling into view if needed%0A        - done scrolling%0A        - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events%0A      - retrying click action%0A        - waiting 20ms%0A        2 × waiting for element to be visible, enabled and stable%0A          - element is visible, enabled and stable%0A          - scrolling into view if needed%0A          - done scrolling%0A          - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events%0A        - retrying click action%0A          - waiting 100ms%0A        56 × waiting for element to be visible, enabled and stable%0A           - element is visible, enabled and stable%0A           - scrolling into view if needed%0A           - done scrolling%0A           - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events%0A         - retrying click action%0A           - waiting 500ms%0A%0A%0A      175 |   await expect(page.getByRole('button', { name: '向后浏览资产' })).toBeVisible();%0A      176 |%0A    > 177 |   await page.getByRole('button', { name: '向后浏览资产' }).click();%0A          |                                                      ^%0A      178 |   await expect.poll(() => directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);%0A      179 |%0A      180 |   const finalFacility = page.getByRole('tab', { name: /^电子工厂/ });%0A        at /home/runner/work/Economy/Economy/tests/browser/market-runtime.spec.ts:177:54
+
+::notice title=🎭 Playwright Run Summary::  1 failed%0A    [chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state %0A  45 passed (1.3m)
+
+  1) [chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '向后浏览资产' })
+        - locator resolved to <button type="button" aria-label="向后浏览资产" class="ui-button ui-button--compact asset-directory-control asset-directory-control--next">›</button>
+      - attempting click action
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - performing click action
+        - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events
+      - retrying click action
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events
+      - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        55 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      175 |   await expect(page.getByRole('button', { name: '向后浏览资产' })).toBeVisible();
+      176 |
+    > 177 |   await page.getByRole('button', { name: '向后浏览资产' }).click();
+          |                                                      ^
+      178 |   await expect.poll(() => directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      179 |
+      180 |   const finalFacility = page.getByRole('tab', { name: /^电子工厂/ });
+        at /home/runner/work/Economy/Economy/tests/browser/market-runtime.spec.ts:177:54
+
+    Error Context: test-results/market-runtime-market-asse-768f2-s-and-visible-current-state-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/market-runtime-market-asse-768f2-s-and-visible-current-state-chromium/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/market-runtime-market-asse-768f2-s-and-visible-current-state-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '向后浏览资产' })
+        - locator resolved to <button type="button" aria-label="向后浏览资产" class="ui-button ui-button--compact asset-directory-control asset-directory-control--next">›</button>
+      - attempting click action
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - performing click action
+        - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events
+      - retrying click action
+        - waiting for element to be visible, enabled and stable
+        - element is visible, enabled and stable
+        - scrolling into view if needed
+        - done scrolling
+        - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events
+      - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is visible, enabled and stable
+          - scrolling into view if needed
+          - done scrolling
+          - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events
+        - retrying click action
+          - waiting 100ms
+        56 × waiting for element to be visible, enabled and stable
+           - element is visible, enabled and stable
+           - scrolling into view if needed
+           - done scrolling
+           - <div class="ui-scrollbar ui-scrollbar--vertical">…</div> intercepts pointer events
+         - retrying click action
+           - waiting 500ms
+
+
+      175 |   await expect(page.getByRole('button', { name: '向后浏览资产' })).toBeVisible();
+      176 |
+    > 177 |   await page.getByRole('button', { name: '向后浏览资产' }).click();
+          |                                                      ^
+      178 |   await expect.poll(() => directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+      179 |
+      180 |   const finalFacility = page.getByRole('tab', { name: /^电子工厂/ });
+        at /home/runner/work/Economy/Economy/tests/browser/market-runtime.spec.ts:177:54
+
+    Error Context: test-results/market-runtime-market-asse-768f2-s-and-visible-current-state-chromium-retry1/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/market-runtime-market-asse-768f2-s-and-visible-current-state-chromium-retry1/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/market-runtime-market-asse-768f2-s-and-visible-current-state-chromium-retry1/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [chromium] › tests/browser/market-runtime.spec.ts:163:1 › market asset directory uses two rows, explicit groups, controls and visible current state 
+  45 passed (1.3m)
