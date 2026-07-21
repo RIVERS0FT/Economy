@@ -6,9 +6,11 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const failures = [];
 const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
 const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
+const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
 
 [
   'server/src/market-sell-fee.js',
+  'server/src/order-matching.js',
   'server/src/balanced-market.js',
   'server/src/domain-core.js',
   'server/src/facility-groups.js',
@@ -35,8 +37,12 @@ for (const text of [
   'marketSellFeeCharged',
 ]) requireText('server/src/market-sell-fee.js', text);
 
-for (const path of ['server/src/balanced-market.js', 'server/src/domain-core.js', 'server/src/facility-groups.js']) {
+for (const path of ['server/src/order-matching.js', 'server/src/domain-core.js']) {
   for (const text of ['applyMarketSellFee', 'fee: 0', 'netTotal']) requireText(path, text);
+}
+for (const path of ['server/src/balanced-market.js', 'server/src/facility-groups.js']) {
+  for (const text of ['matchIncomingOrder', 'sellerSettlement']) requireText(path, text);
+  forbidText(path, "import { applyMarketSellFee } from './market-sell-fee.js'");
 }
 for (const text of [
   'delete normalized.marketSellFeeVersion',
