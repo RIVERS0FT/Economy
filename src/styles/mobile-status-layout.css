@@ -28,6 +28,7 @@
     border-radius: inherit;
   }
 
+  /* Status content is a fixed five-column grid; do not restore scrolling. */
   .asset-bar-content {
     width: 100%;
     height: 100%;
