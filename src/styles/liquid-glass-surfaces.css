@@ -117,4 +117,183 @@
 .liquid-glass-surface--mobileStatusBar,
 .liquid-glass-surface--mobileNavigation {
   box-sizing: border-box;
+  background: var(--liquid-glass-contrast);
+}
+
+.liquid-glass-surface--desktopStatusBar,
+.liquid-glass-surface--mobileStatusBar {
+  border: 0;
+}
+
+.liquid-glass-surface--mobileNavigation {
+  border: 1px solid var(--liquid-glass-structure-border);
+}
+
+.liquid-glass-surface--desktopStatusBar::after,
+.liquid-glass-surface--mobileStatusBar::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--liquid-glass-structure-border);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.liquid-glass-surface--desktopStatusBar > div:not(.liquid-glass-surface__effect),
+.liquid-glass-surface--mobileStatusBar > div:not(.liquid-glass-surface__effect),
+.liquid-glass-surface--mobileNavigation > div:not(.liquid-glass-surface__effect) {
+  display: none !important;
+}
+
+.liquid-glass-surface--desktopStatusBar > span,
+.liquid-glass-surface--mobileStatusBar > span {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,
+.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {
+  box-shadow: none !important;
+}
+
+/* The mobile navigation remains the only chrome surface that keeps one
+ * low-intensity upstream screen highlight for depth. */
+.liquid-glass-surface--mobileNavigation > span {
+  opacity: 0 !important;
+}
+
+.liquid-glass-surface--mobileNavigation > span:first-of-type {
+  opacity: 0.22 !important;
+  mix-blend-mode: screen !important;
+}
+
+.asset-bar > .liquid-glass-surface {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.asset-bar-content {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 0;
+  padding: var(--space-1);
+  overflow: visible;
+}
+
+.asset-bar-item,
+.asset-bar-item:last-child {
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid rgba(225, 255, 235, 0.1);
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+
+.asset-bar-item:last-child {
+  border-right: 0;
+}
+
+.asset-bar-item .asset-bar-item-label {
+  color: var(--color-text-secondary);
+  font-size: .72rem;
+  line-height: 1.2;
+}
+
+.asset-bar-item .asset-bar-item-value {
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  line-height: 1.15;
+}
+
+.asset-bar-item .asset-bar-item-value,
+.asset-bar-item .asset-bar-item-value * {
+  color: inherit;
+}
+
+.asset-bar-item > small {
+  color: var(--color-text-muted);
+  font-size: .7rem;
+  line-height: 1.2;
+}
+
+.asset-bar-item.primary {
+  border-radius: 0;
+  background: transparent;
+}
+
+.asset-bar-item.primary .asset-bar-item-icon,
+.asset-bar-item.primary .asset-bar-item-value,
+.asset-bar-item.primary strong {
+  color: var(--color-success);
+}
+
+.asset-bar-item.market-ticker .asset-bar-item-icon,
+.asset-bar-item.market-ticker .asset-bar-item-value,
+.asset-bar-item.market-ticker strong {
+  color: var(--color-warning);
+}
+
+.asset-bar-item--interactive {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.asset-bar-item--interactive:hover,
+.asset-bar-item--interactive:focus-visible {
+  background: rgba(123, 228, 158, 0.07);
+}
+
+.asset-bar-item--interactive:focus-visible {
+  outline: 2px solid var(--color-success);
+  outline-offset: -2px;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .liquid-glass-surface,
+  .liquid-glass-surface--desktopStatusBar,
+  .liquid-glass-surface--mobileStatusBar,
+  .liquid-glass-surface--mobileNavigation {
+    background: var(--liquid-glass-contrast-strong);
+  }
+}
+
+@media (max-width: 960px) and (min-width: 721px) {
+  .asset-bar-content {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: .25rem;
+  }
+
+  .asset-bar-item {
+    padding-inline: .35rem;
+  }
+
+  .asset-bar-item-label,
+  .asset-bar-item > small {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .asset-bar > .liquid-glass-surface,
+  .asset-bar > .liquid-glass-surface > *,
+  .asset-bar > .liquid-glass-surface .liquid-glass-surface__effect > .glass {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* This is the only vertical padding owner for the 68px mobile capsule. */
+  .mobile-bottom-navigation .liquid-glass-surface__content {
+    padding: 8px 0;
+  }
 }
