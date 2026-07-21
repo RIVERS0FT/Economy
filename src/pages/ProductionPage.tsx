@@ -784,6 +784,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('');
   const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false);
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
   const selectedType = useMemo(
     () => game.facilityTypes.find((type) => type.id === selectedFacilityTypeId) ?? game.facilityTypes[0],
@@ -829,7 +830,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     ? Math.max(0, game.facilityConstruction.completesAt - now)
     : 0;
   const constructionAwaitingConfirmation = Boolean(game.facilityConstruction && constructionRemaining === 0);
-  const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
   const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
