@@ -23,6 +23,7 @@ import './styles/overview.css';
 import './styles/industry-system.css';
 import './styles/facility-production-formula.css';
 import './styles/facility-group-card-grid.css';
+import './styles/facility-detail-sheet.css';
 import './styles/market-funds.css';
 import './styles/market-account-table.css';
 import './styles/assets.css';
