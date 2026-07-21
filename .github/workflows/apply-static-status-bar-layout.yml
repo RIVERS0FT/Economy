@@ -1,0 +1,47 @@
+name: Apply static status bar layout
+
+on:
+  push:
+    branches:
+      - codex/remove-status-bar-scroll-area
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/remove-status-bar-scroll-area
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Validate migration script
+        run: node --check scripts/apply-static-status-bar-layout.mjs
+
+      - name: Apply migration
+        run: node scripts/apply-static-status-bar-layout.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        run: npm run build
+
+      - name: Commit migration
+        run: |
+          rm scripts/apply-static-status-bar-layout.mjs
+          rm .github/workflows/apply-static-status-bar-layout.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "refactor: remove status bar scroll area"
+          git push origin HEAD:codex/remove-status-bar-scroll-area
