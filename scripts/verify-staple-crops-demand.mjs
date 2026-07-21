@@ -53,6 +53,7 @@ const runtime = [
   'server/src/market-demand/price-transmission.js',
   'server/src/market-demand/allocation.js',
   'server/src/balanced-market.js',
+  'server/src/order-matching.js',
   'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
@@ -69,7 +70,7 @@ for (const text of [
   'rebuildSeededState',
   'groupState.frozenCredits += reservedCredits',
   'reserve.frozenInventory += sellQuantity',
-  "order.ownerType === 'population' && incoming.ownerType === 'population'",
+  "resting.ownerType === 'population' && incoming.ownerType === 'population'",
   'settleLiquidityBuy',
   'settleLiquiditySell',
   'signalWeight',
