@@ -17,5 +17,282 @@ Fixed reusable stress-test account registry and secret boundary verification pas
 Nested custom/native scroll ownership, boundary release and control location verification passed.
 宝石、邀请与封禁验证通过：服务器权威宝石、双邀请入口、立即奖励、同 IP 全组封禁、管理员解禁、版本与防回退规则均已锁定。
 商店验证通过：独立页面、服务器固定汇率、原子兑换、幂等、记录规则和共享一级卡片内边距均已锁定。
-页面内容与职责验证失败:
-- src/pages/ProductionPage.tsx 缺少: >异常 {formatNumber(model.derived.blockedFacilities)}
+页面内容、九页导航、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。
+Game tutorial verification passed.
+资产页统一总览、构成拆分、移动布局与防回退验证通过。
+设置页独立主列／侧列、四项统计、账号分组、禁用重置与设计文档验证通过。
+经济状态重置已从网页、小程序、客户端动作和服务器领域写入中移除；教程重开仅清除本地教程轮次，旧重置接口仅返回 410。
+时间与排名格式验证通过：持续时间统一使用 s/m/h，排名统一由状态栏和排行榜使用 #N。
+共享 UI、唯一开关、导航完全不透明状态色、独立工厂 SVG 与统一商品图标验证通过。
+统一表单组件、数字草稿、输入状态和移动端尺寸验证通过。
+货币 SVG 验证通过：60 处可见金额统一使用 CreditsIcon，通知边界兼容旧字符串，玩家端源码无字符货币符号。
+移动触摸反馈验证通过：原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。
+Shared virtual windowing, single two-axis record viewport and boundary scroll chaining verification passed.
+统一尺寸、鼠标与触控策略、隐藏触控横向轨道、无级资产目录和单一双轴虚拟成交表验证通过。
+概览验证通过：外层单轨、教程提醒容量、紧凑图表几何、市场空值、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。
+产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6/9/12/15/18 参考分钟利润梯度。
+工厂集群主从布局、可拖动移动详情框、共享活动滚动条、启用单配方选择器、目录顺序默认选择、焦点与滚动控制、通用配方和集群公式验证通过。
+市场需求验证通过：模型 5 保留 70%／30% 消费预算，使用真实资金与库存创建受限双边市场储备，并保证系统盘口不交叉。
+统一资产市场、非交叉撮合、价格档位聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。
+市场页布局、价格档位、数据口径、禁用反馈与浏览器回归基线验证通过。
+普通玩家订单 API、本地存储和市场成交展示均已匿名化。
+玩家商品与工厂卖出手续费、累计部分成交、匿名公开字段、前端展示和拍卖隔离验证通过。
+Leaderboard verification passed.
+Market chart verification passed: overview and market share 24h buckets with net active flow colors, weighted reserve signals and windowed trade counts.
+liquid-glass-react 外壳、桌面状态栏独立预设、移动 Chrome 共享预设、状态栏固定五列单壳结构、顶层连续描边、移动底栏单一原生滚动视口、开放背景采样链与固定安全边缘滚动条验证通过。
+桌面一级卡片与状态栏 24px 圆角、桌面独立玻璃预设、顶层连续结构描边、零第三方装饰层和无外部阴影验证通过。
+权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，轮询不得重置工作冷却；权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认，状态分区使用完整快照替换。
+一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、旧类兼容、样式与设计文档权威、加载顺序和页面覆盖清理均已锁定。
+游戏外壳统一桌面沟槽、桌面导航、悬浮状态栏、贴边页面滚动条、移动双层 Overlay、状态栏下方通知、玻璃共线、统一 40px 清透厚玻璃胶囊与纵向滚动链验证通过。
+仓库无限扩容、容量线性定价、商品卡图标主导布局、移动端四列、目录顺序工厂卡、建设卡精简和集群公式验证通过。
+工厂持续生产、通用配方周期边界切换、三态自动恢复、多输入输出公式和自适应卡片验证通过。
+玩家可见配方利润分析、逐档盘口、手续费、库存缺口和利润倒挂验证通过。
+单项与捆绑资产包拍卖、可编辑数量草稿、冻结资产计价、仓库预占、原子结算、页面结构和权威文档验证通过。
+最多 50000 个礼品码的原子批量生成、幂等重试、游标分页和 TXT 下载验证通过。
+依赖锁、CI 去重、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。
+
+> economy@0.4.0 test:nginx-config
+> python3 scripts/test_configure_economy_nginx.py && python3 scripts/test_configure_economy_registration_nginx.py
+
+.........
+----------------------------------------------------------------------
+Ran 9 tests in 0.004s
+
+OK
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+OK
+
+> economy@0.4.0 server:check
+> node --check server/src/*.js
+
+
+> economy@0.4.0 server:test
+> node --test server/test/*.test.js
+
+✔ checks the homepage loopback endpoint and rejects registered emails (29.89333ms)
+(node:2715) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gift codes and redemptions use stable cursor pagination (5.271583ms)
+(node:2717) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ unchanged admin summary does not advance the world revision (57.713468ms)
+(node:2735) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ client state version 15 excludes all player log arrays and factory instances (69.848636ms)
+✔ actions update authoritative state without writing player logs to SQLite (82.601339ms)
+✔ legacy server logs and factory instance array are removed during the next state load (30.223352ms)
+✔ idempotency preserves authoritative response without creating server logs (25.625238ms)
+✔ authentication cache enforces TTL, LRU order, and request coalescing (23.086438ms)
+✔ authentication policy separates state, write, and administrator requests (2.716172ms)
+✔ authentication caches valid state reads, coalesces misses, and never caches upstream failures (75.880073ms)
+✔ 管理员导入芝加哥艺术博物馆公版藏品并记录初始归属 (7.441233ms)
+✔ 旧藏品拍卖动作兼容冻结、超价退款与归属转移 (3.967584ms)
+✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (2.790502ms)
+✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (2.662452ms)
+✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (15.14061ms)
+✔ 客户端状态同时提供通用拍卖与藏品兼容别名 (1.871642ms)
+✔ 捆绑拍卖在任一项目无效时不冻结任何资产 (0.949597ms)
+✔ 混合资产包整体冻结、预占仓库并原子成交 (2.008689ms)
+✔ 冻结资产继续计入总资产并提供可用与冻结明细 (8.712762ms)
+(node:2756) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ community link has a stable default and persists an idempotent admin update (3.748314ms)
+✔ community link rejects unsafe URLs and non-admin updates (1.60858ms)
+✔ upstream cost changes propagate downstream one production edge per cycle (13.268006ms)
+✔ downstream value changes propagate upstream one production edge per cycle (3.458181ms)
+✔ multi-input downstream value reaches both copper and plastic with lag (3.948819ms)
+✔ price transmission is damped and also carries price decreases (3.009561ms)
+✔ hybrid fruit prices respond to beverage value after one relation lag (3.881773ms)
+✔ appliance value makes machinery an automatically derived chain product (4.775656ms)
+(node:2770) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ different products never match in the same order book (19.261621ms)
+✔ work cooldown uses server time (7.265335ms)
+✔ version 1 state migrates inventory and commodity orders without losing assets (1.465462ms)
+✔ world version 7 grain assets migrate entirely to wheat (2.116069ms)
+✔ idempotency returns the original response without applying an action twice (57.150739ms)
+✔ client state uses version 15 and exposes no factory instances (18.653022ms)
+✔ expanded industry catalog exposes fruit and complete production chains (1.550891ms)
+✔ market demand creates direct and derived orders within the shared group budget (8.226824ms)
+✔ market demand keeps half of unsold system orders and raises the next cycle price (17.28083ms)
+✔ market demand cancels carried orders and resets to the model price after a sale (13.483708ms)
+✔ market demand scales sublinearly with active players and stops at the configured cap (398.498613ms)
+✔ inactive players stop scaling market demand after seven days (4.667414ms)
+✔ player inventory never increases market demand budget or product allocation (18.518942ms)
+✔ consumer substitutes shift demand toward the cheaper grain without changing total budget (4.641054ms)
+✔ beverage production paths shift toward cheaper fruit inputs (6.617452ms)
+✔ fruit participates in fresh direct demand without expanding the food budget (5.420953ms)
+✔ complement gating prioritizes the bottleneck input for electronics (2.842388ms)
+✔ downstream price signals move upstream only after relation lag cycles (3.293513ms)
+✔ state polling and failed actions do not refresh economic activity (56.910157ms)
+✔ new worlds create private market demand orders during the first authoritative state read (26.183373ms)
+✔ legacy demand migration immediately rebuilds market demand without losing player assets (6.614718ms)
+✔ market demand model version 2 migrates to version 3 without resetting player assets (5.769295ms)
+✔ migration removes obsolete system orders while preserving player orders (2.005392ms)
+✔ world version 8 migration restarts electronics and upgrades market demand state without resetting assets (0.825865ms)
+✔ commodity order fills preserve every exact player resting price without system liquidity (5.527232ms)
+✔ reports whether RESEND_API_KEY and EMAIL_FROM are configured (2.055376ms)
+✔ returns a safe explicit error when email delivery is not configured (1.145133ms)
+✔ factory buy and sell orders use price-time matching and partial fills (44.890508ms)
+✔ running factory sell order immediately reduces participating output (9.171129ms)
+✔ production increments produced goods statistics (9.314493ms)
+✔ electronics factory atomically consumes plastic and copper (5.713581ms)
+✔ electronics factory deducts no material when either input is missing (6.524018ms)
+✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (6.25849ms)
+✔ asset valuation uses the latest order-book trade and ignores open bid prices (20.452329ms)
+✔ factory automatically recovers after funds return (7.586094ms)
+✔ manual stop disables automatic recovery (8.159448ms)
+✔ running farm crop changes apply at the next cycle boundary (20.785693ms)
+✔ warehouse errors recover without backfilling missed cycles (9.891015ms)
+✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (7.16692ms)
+✔ legacy completed target plans migrate to a manual stop (0.921435ms)
+✔ legacy running target plans become continuous production (5.220055ms)
+✔ factory order books contain player orders only (3.907082ms)
+✔ empty factory order books stay empty after world processing (3.309943ms)
+✔ game routes decode identifiers and reject unsupported methods (1.634498ms)
+✔ malformed route encoding is rejected as a client error (0.752117ms)
+(node:2798) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gem shop exchanges gems for credits atomically and records history (108.767018ms)
+✔ gem shop idempotency prevents duplicate deduction and issuance (62.185557ms)
+✔ legacy full idempotency responses are projected to slim acknowledgements (23.8249ms)
+✔ gem shop rejects invalid quantities and insufficient balance without mutation (63.393458ms)
+(node:2805) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ admins can atomically generate and retry a 50000-code batch (1182.247491ms)
+✔ bulk gift code generation validates count and administrator role (2.120739ms)
+✔ HTTP API authenticates through the shared account service and honors idempotency (446.352107ms)
+(node:2826) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ share link registration immediately rewards only the inviter with gems (8.37448ms)
+✔ manual code claim rewards inviter once and remains mutually exclusive with link attribution (4.647075ms)
+✔ manual invitation claim expires after twenty four hours (3.513003ms)
+✔ a second registration on the same IP bans the whole account group before invitation reward (5.570734ms)
+✔ administrator can unban one account or an entire duplicate-IP incident (4.578447ms)
+✔ manual unban survives restart reconciliation until a new same-IP registration appears (5.218304ms)
+✔ manual same-IP code is consumed without a gem reward after administrator review (3.659768ms)
+✔ leaderboard week starts Monday 00:00 in Beijing time (1.695242ms)
+✔ trading board sums actual seller gross volume, counts completed fills on cancelled orders, and ignores unfilled remainder and auctions (48.371429ms)
+✔ legacy capped trading state is rebuilt once from current-period actual fills (14.38171ms)
+✔ three weekly boards grant 30, 20, and 10 gems and allow repeat winners (35.036383ms)
+✔ the first partial week records results without granting gems (15.032155ms)
+✔ top ten payload still returns the current player outside the visible rows (9.193482ms)
+✔ cancelling a running factory sell order joins the quantity next cycle (40.370517ms)
+✔ selling every participating factory puts the enabled group in error (9.66969ms)
+✔ commodity sell order is created once and frozen once (8.70049ms)
+✔ commodity order-book repair runs only when the persisted integrity version is stale (4.11516ms)
+✔ market model 5 creates inventory-backed buy and sell orders without system self-trades (28.550542ms)
+✔ system liquidity asks reprice above retained consumption bids instead of crossing (24.089445ms)
+✔ selling to a reserve transfers reserve funds and does not count as consumption issuance (10.926536ms)
+✔ buying from a reserve transfers real inventory and returns credits to the reserve (9.941171ms)
+✔ liquidity orders are cancelled and re-reserved on the next cycle (14.050781ms)
+✔ model 3 migrates directly to model 5 with one-time reserve seeding (1.300253ms)
+✔ model 4 migrates to model 5 and releases obsolete liquidity reservations (8.463496ms)
+✔ 累计卖出手续费按 1% 向上取整且最低为 1 (0.889785ms)
+✔ 既有卖单只从新成交开始累计且不追收旧 fill (0.985494ms)
+✔ 商品卖单部分成交按同一卖单累计补收手续费 (15.744021ms)
+✔ 工厂卖单使用相同手续费并只向本人公开匿名金额字段 (31.272094ms)
+✔ commodity orders reject a price that crosses the same player resting order before freezing assets (15.443287ms)
+✔ facility orders reject a price that crosses the same player resting order before freezing funds (9.535842ms)
+✔ migration immediately settles legacy crossed commodity orders from different players at maker price (3.670699ms)
+✔ migration cancels the newer legacy self-crossing commodity order and releases its frozen funds (1.871162ms)
+✔ shared matcher preserves price-time priority, maker price, and partial fills for commodity (2.294443ms)
+✔ shared matcher preserves price-time priority, maker price, and partial fills for facility (0.451265ms)
+✔ shared matcher skips a same-player crossing order and continues to an eligible counterparty (0.715349ms)
+✔ asset adapter can exclude otherwise crossing system orders without duplicating the matching loop (0.494515ms)
+✔ ordinary player order state removes counterparties, demand sources, and linked order ids (28.847748ms)
+✔ rate limit removes expired user buckets instead of growing forever (2.513854ms)
+✔ rate limit still enforces the configured window after sweeping (0.271497ms)
+(node:2896) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ registration IP prefers trusted reverse-proxy real IP over a client-supplied forwarded chain (1.715039ms)
+✔ rejects an existing unified account before creating or sending a verification (4.561155ms)
+✔ sends and completes a verification without storing plaintext code (6.496756ms)
+✔ sends share-link invite code through email registration and immediately rewards inviter (4.358365ms)
+✔ accepts a manually entered invite code during registration and rewards immediately (3.846687ms)
+✔ enforces ten-minute expiry and sixty-second resend cooldown (3.355979ms)
+✔ invalidates after five wrong attempts and rejects IP changes (3.064715ms)
+✔ used code cannot be reused but the same completion request is idempotent (2.932607ms)
+✔ homepage and direct Economy registrations both participate in duplicate-IP group bans (2.662021ms)
+✔ initial delivery returns all five state partitions without a full state field (2.402024ms)
+✔ known partition revisions suppress unchanged partitions (0.597007ms)
+✔ a global revision change unrelated to the viewer can return no patches (0.419145ms)
+✔ unchanged delivery still returns a fresh server time without creating patches (0.199634ms)
+✔ action delivery keeps only result status, message, and committed revision (0.218018ms)
+✔ partition revisions accept only bounded safe tokens (0.388236ms)
+(node:2910) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ idle version polling returns a compact response without writing the world (82.24418ms)
+✔ same-revision polls inside the processing window bypass SQLite transactions (28.693239ms)
+✔ an authoritative action advances the revision and invalidates an older poll (64.597558ms)
+✔ due world processing advances the revision during version polling (41.884981ms)
+✔ scheduled production polling always uses the revision fast path until the global scheduler changes it (35.247024ms)
+✔ rolled back transactions restore the in-memory world cache (21.47911ms)
+(node:2917) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing players migrate as completed while new players start incomplete (94.105594ms)
+✔ tutorial completion is idempotent and does not mutate world state (32.622331ms)
+(node:2924) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gift codes can be created by admins and redeemed once per player (64.919814ms)
+✔ non-admin users cannot read administrator summary (1.144191ms)
+(node:2931) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ email verification cleanup expires active rows and deletes only old terminal records (2.936374ms)
+(node:2938) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ warehouse state defaults to level 1 and client version 14 (47.814617ms)
+✔ warehouse capacity increase grows by level while upgrade cost grows linearly with capacity (0.505556ms)
+✔ warehouse usage counts stored goods and remaining open commodity buy orders only (19.450565ms)
+✔ warehouse usage excludes legacy facility buy orders before migration (0.268913ms)
+✔ warehouse upgrade deducts server funds and increases shared capacity (20.322556ms)
+✔ warehouse summary price matches the amount deducted for the same actual capacity (27.840218ms)
+✔ warehouse upgrade preserves stored and reserved usage while adding free capacity (17.088875ms)
+✔ warehouse upgrade rejects insufficient funds without changing capacity (18.590816ms)
+✔ legacy custom capacity infers a non-decreasing warehouse level (14.193527ms)
+✔ legacy stored level behind capacity is advanced and can still expand (28.742982ms)
+✔ warehouse can continue upgrading after former level 12 limit (15.481818ms)
+✔ warehouse upgrade is idempotent (16.384909ms)
+ℹ tests 156
+ℹ suites 0
+ℹ pass 156
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2540.325862
+[36mvite v8.1.4 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 134 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                        1.67 kB │ gzip:  0.68 kB
+dist/assets/GameApp-CKgZ6OWf.css                       1.77 kB │ gzip:  0.62 kB
+dist/assets/ProductionPage-C3kWl53v.css                3.19 kB │ gzip:  0.75 kB
+dist/assets/index-DWkRLRo_.css                       185.14 kB │ gzip: 29.11 kB
+dist/assets/leaderboardTypes-CaR1dw0m.js               0.05 kB │ gzip:  0.07 kB
+dist/assets/FacilityRecipeProfitContext-B6GRWLtv.js    0.24 kB │ gzip:  0.19 kB
+dist/assets/types-B1OINg7J.js                          0.32 kB │ gzip:  0.17 kB
+dist/assets/useNow-adT4kOdY.js                         0.34 kB │ gzip:  0.26 kB
+dist/assets/VirtualList-4XlJLbsm.js                    1.22 kB │ gzip:  0.64 kB
+dist/assets/useVirtualWindow-C0MoG17U.js               2.55 kB │ gzip:  1.14 kB
+dist/assets/CollectionsPage-DfgjUFpV.js                2.97 kB │ gzip:  1.35 kB
+dist/assets/GemShopPage-BqzqDxZM.js                    4.32 kB │ gzip:  1.77 kB
+dist/assets/LeaderboardPage-DC52PYSE.js                4.55 kB │ gzip:  1.96 kB
+dist/assets/PriceSparkline-DhBCj0Fz.js                 8.59 kB │ gzip:  3.38 kB
+dist/assets/ProductIcons-0WiJn8iQ.js                   8.65 kB │ gzip:  2.34 kB
+dist/assets/SettingsPage-4kB2SBK-.js                  10.38 kB │ gzip:  3.73 kB
+dist/assets/AssetsPage-yUavxjdv.js                    10.97 kB │ gzip:  3.45 kB
+dist/assets/AuctionPage-D8nErHeu.js                   13.64 kB │ gzip:  4.75 kB
+dist/assets/CurrencyAmount-DjlAZLNH.js                13.95 kB │ gzip:  5.26 kB
+dist/assets/OverviewPage-CGcZsC9J.js                  14.21 kB │ gzip:  4.92 kB
+dist/assets/MarketPage-CqJOZ9uN.js                    18.26 kB │ gzip:  5.58 kB
+dist/assets/gameViewModel-BjGK1Eb2.js                 19.77 kB │ gzip:  7.29 kB
+dist/assets/AdminApp-CbEadWYI.js                      24.59 kB │ gzip:  7.80 kB
+dist/assets/ProductionPage-DnYPRscn.js                36.97 kB │ gzip: 11.13 kB
+dist/assets/GameApp-DXSAwzkT.js                       75.27 kB │ gzip: 41.44 kB
+dist/assets/index-DvblOZJS.js                        220.43 kB │ gzip: 69.73 kB
+
+[32m✓ built in 661ms[39m
