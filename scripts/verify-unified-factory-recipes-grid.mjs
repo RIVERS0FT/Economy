@@ -22,26 +22,46 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 
 const page = read('src/pages/ProductionPage.tsx');
 for (const text of [
-  'facility-group-card-shell',
-  'facility-card-title-row',
-  'facility-card-status-row',
-  'facility-count-summary',
-  'facility-recipe-section',
+  'interface FacilityClusterEntry',
+  'function FacilityClusterSelectorCard',
+  'function FacilityClusterDetailContent',
+  'function MobileFacilityDetailSheet',
+  "import { createPortal } from 'react-dom';",
+  'return createPortal(',
+  "const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('')",
+  "const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false)",
+  "window.matchMedia('(max-width: 720px)')",
+  'game.facilityTypes.flatMap((type) =>',
+  'group && group.count > 0',
+  '?? orderedFacilityGroups[0]',
+  'aria-pressed={isSelected}',
+  'className={`facility-cluster-selector-card',
+  'className="facility-current-selection-bar"',
+  'className="facility-cluster-detail-shell"',
+  'role="dialog"',
+  'aria-modal="true"',
+  'aria-labelledby="mobile-facility-detail-title"',
+  "event.key === 'Escape'",
+  "event.key !== 'Tab'",
+  "document.body.style.overflow = 'hidden'",
+  "document.querySelector<HTMLElement>('.page-scroll')",
+  "pageScroll.style.overflowY = 'hidden'",
+  'detailTriggerRef.current?.focus()',
   '<strong>生产配方</strong>',
   '下一周期切换为：',
-  '公式展示本周期或恢复后的集群输入、输出与成本',
-  '固定配方：',
-  '可选配方：',
-  'label="建造费用"',
-  'label="施工时间"',
-  'disabled={group.count < 1 || recipes.length === 1}',
   'showNextCyclePreview={showNextCyclePreview}',
-  'facility-card-spacer',
   '前往市场交易该工厂 →',
-  'className="production-surface widget build-card production-build-card"',
-  'className="production-surface facility-card facility-group-card"',
+  'className="production-surface build-card production-build-card"',
+  'className="production-surface facility-cluster-navigation"',
+  'className="production-surface facility-card facility-group-card facility-cluster-detail-card"',
 ]) assert.equal(page.includes(text), true, `生产页缺少: ${text}`);
+
+assert.equal((page.match(/aria-labelledby="mobile-facility-detail-title"/g) ?? []).length, 1, '移动详情框只能声明一次 aria-labelledby');
+
 for (const forbidden of [
+  'facility-group-card-shell',
+  'className="facility-list facility-group-list"',
+  'orderedFacilityGroups.map(({ group, type })',
   'label="生产周期"',
   'label="单座周期产量"',
   'label="单座周期成本"',
@@ -81,23 +101,33 @@ for (const forbidden of [
 
 const css = read('src/styles/facility-group-card-grid.css');
 for (const text of [
+  '.production-workspace',
+  'grid-template-areas: "build navigation detail";',
+  '.facility-cluster-navigation',
+  '.facility-cluster-selector-list',
+  '.facility-cluster-selector-card',
+  '.facility-cluster-selector-card.is-selected',
+  '.facility-cluster-detail-shell',
+  '.facility-cluster-detail-card',
+  '.facility-detail-sheet-backdrop',
+  '.facility-detail-sheet',
+  'max-height: min(88dvh, 760px);',
+  'env(safe-area-inset-bottom)',
+  '.facility-detail-sheet-scroll',
+  'overscroll-behavior-y: auto;',
+  '.facility-detail-sheet .facility-status-header',
+  '.facility-detail-sheet .facility-card-title-row > .ui-switch',
+  'position: sticky;',
+  '.facility-detail-sheet .facility-market-link-row',
+  '@media (max-width: 720px)',
+  '@media (prefers-reduced-motion: reduce)',
+]) assert.equal(css.includes(text), true, `生产主从与悬浮框样式缺少: ${text}`);
+for (const forbidden of [
   '.facility-group-card-shell',
-  'container-type: inline-size;',
-  'grid-template-areas:',
-  'grid-area: title;',
-  'grid-area: status;',
-  'grid-area: summary;',
-  '.facility-card-title-row',
-  'grid-template-columns: minmax(0, 1fr) auto;',
-  '.facility-card-status-row',
-  '.facility-count-summary',
-  '.facility-market-link-row',
-  'align-self: end;',
-  '.facility-card-spacer',
-]) assert.equal(css.includes(text), true, `卡片样式缺少: ${text}`);
-for (const forbidden of ['--facility-card-height', 'grid-auto-rows: 1fr;', 'height: var(--facility-card-height)']) {
-  assert.equal(css.includes(forbidden), false, `卡片样式不应包含: ${forbidden}`);
-}
+  'grid-template-columns: repeat(4, minmax(0, 1fr));',
+  '--facility-card-height',
+  'height: var(--facility-card-height)',
+]) assert.equal(css.includes(forbidden), false, `生产主从与悬浮框样式不应包含: ${forbidden}`);
 
 const formulaCss = read('src/styles/facility-production-formula.css');
 for (const text of [
@@ -134,9 +164,45 @@ for (const text of [
 const warehouse = read('src/components/warehouse/WarehouseUpgradeCard.tsx');
 assert.equal(warehouse.includes('production-surface warehouse-upgrade-card'), true, '共享仓库必须使用 production-surface');
 
+const industryDoc = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
+for (const text of [
+  '生产管理区：建设新工厂 + 工厂集群选择 + 当前工厂详情',
+  '默认详情工厂是正式目录顺序中的第一种已拥有工厂',
+  '首次进入移动端只选中默认工厂，不自动弹出详情悬浮框',
+  '当前详情工厂必须使用独立本地状态',
+  '桌面和平板只渲染一个当前工厂的完整详情',
+  '不大于 `720px` 时页面内只显示当前选择栏和紧凑工厂选择网格',
+  '悬浮框最大高度为 `min(88dvh, 760px)`',
+  '关闭后焦点返回触发卡',
+  '视口变为大于 `720px` 时必须自动关闭并解除滚动锁',
+  '选择卡内部不得嵌套运行开关、配方选择器或市场按钮',
+  '生产公式只展示集群参数',
+  '公式不得使用总持有 `count` 作为生产乘数',
+]) assert.equal(industryDoc.includes(text), true, `产业设计缺少: ${text}`);
+for (const forbidden of [
+  '右侧工厂集群列表',
+  '大于 1380px 时右侧固定四列',
+  '移动端恢复自然高度；不得在单张卡内部增加纵向滚动条',
+]) assert.equal(industryDoc.includes(forbidden), false, `产业设计不应保留旧页面规则: ${forbidden}`);
+
+const catalogDoc = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
+for (const text of [
+  '生产页已拥有工厂集群选择卡',
+  '默认选择过滤结果中的第一项',
+  '详情选择状态与建设下拉框状态必须独立',
+  '五秒状态轮询只替换权威工厂数据',
+  '不得把“运行中优先”“最近查看”作为默认详情规则',
+]) assert.equal(catalogDoc.includes(text), true, `工厂目录展示设计缺少: ${text}`);
+
 for (const [path, required] of [
-  ['README.md', ['建设卡只显示建造费用和施工时间', '生产公式只展示集群参数', '运行中按 `participatingCount`']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式只展示集群参数', '停止或异常使用 `nextCycleCount`']],
+  ['README.md', [
+    '建设卡只显示建造费用和施工时间',
+    '生产公式只展示集群参数',
+    '运行中按 `participatingCount`',
+    '生产管理区采用工厂集群主从布局',
+    '移动端不展开全部详情',
+    '工厂详情选择与建设类型选择使用独立客户端状态',
+  ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['建设卡不显示生产周期、单座产量和单座成本', '公式只展示集群输入、输出、周期和成本', '当前周期只使用 `participatingCount`']],
   ['docs/UI_DESIGN_SYSTEM.md', ['生产公式是集群运行能力展示', '停止或异常使用 `nextCycleCount`', '不得使用 `group.count` 作为公式乘数']],
   ['docs/PRIMARY_SURFACE_INSET_DESIGN.md', ['生产页 `.panel.production-surface` 的独立桌面／移动 padding', '`src/styles/primary-surfaces.css` 是玩家端一级卡片外层内边距的唯一 CSS 权威']],
@@ -145,4 +211,4 @@ for (const [path, required] of [
   for (const text of required) assert.equal(content.includes(text), true, `${path} 缺少: ${text}`);
 }
 
-console.log('通用工厂配方、建设卡精简、集群规模公式、三行标题结构、底部市场入口和共享一级表面内边距验证通过。');
+console.log('工厂集群主从布局、移动端底部详情悬浮框、目录顺序默认选择、焦点与滚动控制、通用配方和集群公式验证通过。');
