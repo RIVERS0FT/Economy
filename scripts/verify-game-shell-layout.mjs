@@ -169,7 +169,7 @@ check('tests/browser/game-shell-layout.spec.ts', [
 ]);
 check('tests/browser/mobile-workspace-overlay.spec.ts', [
   'mobile notice stays below the status bar without shifting the page',
-  'notice.top - status.bottom',
+  'geometry.notice.top - geometry.status.bottom',
   'glassCountAfter',
   'mobile page scrollbar reaches the safe right edge without changing content width',
   'viewportRight - geometry.thumbRight',
