@@ -192,7 +192,7 @@ export function ScrollableTable({ children, className = '' }: { children: ReactN
       axis="x"
       className="table-scroll-area"
       viewportClassName={classNames('table-wrap', className)}
-      horizontalVisibility="always"
+      scrollbarVisibility="adaptive"
     >
       {children}
     </ScrollArea>

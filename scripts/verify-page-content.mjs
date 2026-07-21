@@ -27,6 +27,8 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/shell/AdminSidebar.tsx',
   'src/components/shell/GameShell.tsx',
   'src/components/ui/VirtualList.tsx',
+  'src/components/ui/VirtualRecordTable.tsx',
+  'src/hooks/useVirtualWindow.ts',
   'src/app/gameViewModel.ts',
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
@@ -255,9 +257,11 @@ for (const text of ['admin backend uses unified sections and embeds ban review',
   requireText('tests/browser/admin-runtime.spec.ts', text);
 }
 
-for (const text of ['ResizeObserver', 'measuredSizesRef', 'overscan', 'aria-setsize', 'virtual-list__canvas']) {
-  requireText('src/components/ui/VirtualList.tsx', text);
+for (const text of ['ResizeObserver', 'measuredSizesRef', 'overscan', 'requestAnimationFrame', 'findVisibleRange']) {
+  requireText('src/hooks/useVirtualWindow.ts', text);
 }
+for (const text of ['useVirtualWindow', 'aria-setsize', 'virtual-list__canvas']) requireText('src/components/ui/VirtualList.tsx', text);
+for (const text of ['useVirtualWindow', 'axis="both"', 'virtual-record-canvas']) requireText('src/components/ui/VirtualRecordTable.tsx', text);
 for (const text of ['.virtual-list', '.virtual-record-table', '.virtual-record-row', '.asset-event-virtual-list']) {
   requireText('src/styles/virtual-list.css', text);
 }
@@ -379,8 +383,8 @@ for (const text of [
   '`GameApp` 必须在 React effect 中通过 `setCompactNumbersEnabled` 同步当前偏好',
   '`formatCurrency` 和 `formatCompactNumber` 对大额数值统一使用 K/M/B/T',
   '切换后当前游戏外壳和所有使用统一格式器的页面立即同步',
-  '`VirtualList` 是高增长记录的唯一窗口化基础组件',
-  'DOM 只渲染可视区域和少量预加载行',
+  '`VirtualList` 与 `VirtualRecordTable` 共用 `src/hooks/useVirtualWindow.ts` 的唯一窗口化内核',
+  '根据滚动位置只挂载可视条目与少量 `overscan` 条目',
   '移动登录页面通过 `100dvh` 和矮屏媒体查询适配软键盘',
   '输入、按钮焦点和提交中的原生 `disabled` 状态不得改变标题字号、区块间距或整体对齐',
   '表单使用 `aria-busy` 表达提交状态',
@@ -395,7 +399,7 @@ for (const text of [
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 for (const text of [
-  '资产页资产事件和市场页本地成交属于高增长记录列表，必须使用共享 `VirtualList` 窗口化组件',
+  '资产页资产事件和市场页本地成交属于高增长记录，必须共用 `useVirtualWindow` 窗口化内核',
   '对资产事件或本地成交直接使用全量 `.map()` 创建全部 DOM',
 ]) requireText('docs/LOCAL_ACTIVITY_LOG_DESIGN.md', text);
 for (const text of [

@@ -42,8 +42,7 @@ export function GameShell({ model, statusItems, children }: {
             axis="y"
             className="page-scroll-area"
             viewportClassName="page-scroll"
-            verticalAutoHide
-            idleDelay={1_200}
+            scrollbarVisibility="adaptive"
           >
             {children}
           </ScrollArea>

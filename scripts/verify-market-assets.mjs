@@ -13,11 +13,11 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
   'server/src/market-demand.js','server/src/market-liquidity.js','server/src/balanced-market.js','server/src/order-book-integrity.js','server/src/market-demand/price-transmission.js',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md','docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md','docs/GIFT_CODE_AND_ADMIN_DESIGN.md','docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
-  'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/icons/GameIcons.tsx'
+  'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/ui/VirtualRecordTable.tsx','src/hooks/useVirtualWindow.ts','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
 for (const text of [
   'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','items={localTrades}',
-  'local-trades-virtual-table','virtual-record-viewport','VirtualList',
+  'local-trades-virtual-table','VirtualRecordTable',
   "import { FactoryIcon } from '../components/icons/GameIcons'",'<FactoryIcon />','selectOrderSide',
   'title={selectedAssetTitle(`${assetName}订单`)}','label="价格"','className="numeric-cell">价格</th>',
   'formatNumber(order.remaining)','formatCurrency(order.price)',
@@ -51,9 +51,9 @@ for (const text of [
 ]) requireText('src/app/AdminApp.tsx', text);
 for (const text of ['collectibles.map(','giftCodes.map(','ownership.map(','redemptions.map(']) forbidText('src/app/AdminApp.tsx', text);
 
-for (const text of [
-  'ResizeObserver','overscan','measuredSizesRef','aria-setsize','virtual-list__canvas',
-]) requireText('src/components/ui/VirtualList.tsx', text);
+for (const text of ['ResizeObserver','overscan','measuredSizesRef','requestAnimationFrame','findVisibleRange']) requireText('src/hooks/useVirtualWindow.ts', text);
+for (const text of ['useVirtualWindow','aria-setsize','virtual-list__canvas']) requireText('src/components/ui/VirtualList.tsx', text);
+for (const text of ['useVirtualWindow','axis="both"','virtual-record-canvas']) requireText('src/components/ui/VirtualRecordTable.tsx', text);
 for (const text of ['virtual-record-table','virtual-record-row','asset-event-virtual-list']) requireText('src/styles/virtual-list.css', text);
 
 for (const text of [
@@ -165,7 +165,7 @@ for (const text of [
   '我的未完成订单继续逐单展示并可单独撤销',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
-  '必须使用共享 `VirtualList` 窗口化组件',
+  '必须共用 `useVirtualWindow` 窗口化内核',
   'DOM 只创建当前滚动视口及少量 `overscan` 范围内的记录',
   '不得用分页、截断、`slice` 或只显示最近记录替代窗口化',
 ]) requireText('docs/LOCAL_ACTIVITY_LOG_DESIGN.md', text);

@@ -15,7 +15,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import { ScrollArea } from '../components/ui/ScrollArea';
-import { VirtualList } from '../components/ui/VirtualList';
+import { VirtualRecordTable } from '../components/ui/VirtualRecordTable';
 import { economyConstants } from '../config/economy';
 import type { AssetOrder } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
@@ -227,7 +227,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             viewportClassName="unified-asset-tabs"
             viewportRole="tablist"
             viewportAriaLabel="选择交易资产"
-            horizontalVisibility="always"
+            scrollbarVisibility="adaptive"
           >
             <span className="asset-directory-divider" role="presentation" aria-hidden="true">商品</span>
             {game.products.map((product) => {
@@ -467,50 +467,42 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               <section className="local-trades-section">
                 <h3>本地成交记录</h3>
                 {localTrades.length === 0 ? <p className="muted">当前浏览器暂无成交记录。</p> : (
-                  <ScrollArea
-                    axis="x"
+                  <VirtualRecordTable
+                    items={localTrades}
+                    getKey={localTradeKey}
+                    estimateSize={54}
+                    viewportHeight={520}
+                    minViewportHeight={96}
+                    overscan={6}
+                    gap={0}
                     className="local-trades-scroll-area"
-                    viewportClassName="virtual-record-table local-trades-virtual-table"
-                    viewportRole="table"
-                    viewportAriaLabel="本地成交记录"
-                    horizontalVisibility="always"
-                  >
-                    <div className="virtual-record-header" role="row">
-                      <span role="columnheader">资产</span>
-                      <span role="columnheader" className="trade-side-cell">方向</span>
-                      <span role="columnheader" className="numeric-cell">数量</span>
-                      <span role="columnheader" className="numeric-cell">价格</span>
-                      <span role="columnheader" className="numeric-cell">总额</span>
-                      <span role="columnheader" className="numeric-cell">手续费 / 实收</span>
-                      <span role="columnheader">时间</span>
-                    </div>
-                    <VirtualList
-                      items={localTrades}
-                      getKey={localTradeKey}
-                      estimateSize={54}
-                      viewportHeight={520}
-                      minViewportHeight={96}
-                      overscan={6}
-                      gap={0}
-                      className="virtual-record-viewport"
-                      role="rowgroup"
-                      itemRole="presentation"
-                      ariaLabel="本地成交记录行"
-                      renderItem={(trade) => (
-                        <div className="virtual-record-row" role="row">
-                          <span role="cell">{trade.type === 'commodity' && trade.productId
-                            ? <ProductIconLabel productId={trade.productId}>{localTradeAssetName(trade)}</ProductIconLabel>
-                            : <span className="product-icon-label facility-icon-label"><FactoryIcon />{localTradeAssetName(trade)}</span>}</span>
-                          <span role="cell" className="trade-side-cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
-                          <span role="cell" className="numeric-cell">{formatNumber(trade.quantity)}</span>
-                          <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.price)}</CurrencyAmount></span>
-                          <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>
-                          <span role="cell" className="numeric-cell">{trade.side === 'sell' ? <><CurrencyAmount>{formatCurrency(trade.fee ?? 0)}</CurrencyAmount> / <CurrencyAmount>{formatCurrency(trade.netTotal ?? trade.total)}</CurrencyAmount></> : '—'}</span>
-                          <span role="cell">{formatTime(trade.createdAt)}</span>
-                        </div>
-                      )}
-                    />
-                  </ScrollArea>
+                    tableClassName="local-trades-virtual-table"
+                    ariaLabel="本地成交记录"
+                    header={(
+                      <>
+                        <span role="columnheader">资产</span>
+                        <span role="columnheader" className="trade-side-cell">方向</span>
+                        <span role="columnheader" className="numeric-cell">数量</span>
+                        <span role="columnheader" className="numeric-cell">价格</span>
+                        <span role="columnheader" className="numeric-cell">总额</span>
+                        <span role="columnheader" className="numeric-cell">手续费 / 实收</span>
+                        <span role="columnheader">时间</span>
+                      </>
+                    )}
+                    renderRow={(trade) => (
+                      <div className="virtual-record-row" role="row">
+                        <span role="cell">{trade.type === 'commodity' && trade.productId
+                          ? <ProductIconLabel productId={trade.productId}>{localTradeAssetName(trade)}</ProductIconLabel>
+                          : <span className="product-icon-label facility-icon-label"><FactoryIcon />{localTradeAssetName(trade)}</span>}</span>
+                        <span role="cell" className="trade-side-cell"><StatusTag tone={trade.side === 'buy' ? 'success' : 'danger'}>{trade.side === 'buy' ? '买入' : '卖出'}</StatusTag></span>
+                        <span role="cell" className="numeric-cell">{formatNumber(trade.quantity)}</span>
+                        <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.price)}</CurrencyAmount></span>
+                        <span role="cell" className="numeric-cell"><CurrencyAmount>{formatCurrency(trade.total)}</CurrencyAmount></span>
+                        <span role="cell" className="numeric-cell">{trade.side === 'sell' ? <><CurrencyAmount>{formatCurrency(trade.fee ?? 0)}</CurrencyAmount> / <CurrencyAmount>{formatCurrency(trade.netTotal ?? trade.total)}</CurrencyAmount></> : '—'}</span>
+                        <span role="cell">{formatTime(trade.createdAt)}</span>
+                      </div>
+                    )}
+                  />
                 )}
               </section>
             </div>

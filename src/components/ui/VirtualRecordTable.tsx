@@ -1,40 +1,36 @@
-import type { AriaRole, CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useVirtualWindow, type VirtualKey } from '../../hooks/useVirtualWindow';
 import { ScrollArea } from './ScrollArea';
 
-export interface VirtualListProps<T> {
+export interface VirtualRecordTableProps<T> {
   items: readonly T[];
   getKey: (item: T, index: number) => VirtualKey;
-  renderItem: (item: T, index: number) => ReactNode;
+  header: ReactNode;
+  renderRow: (item: T, index: number) => ReactNode;
   estimateSize: number;
   viewportHeight?: number;
   minViewportHeight?: number;
   overscan?: number;
   gap?: number;
   className?: string;
-  ariaLabel?: string;
-  role?: AriaRole;
-  itemRole?: AriaRole;
-  empty?: ReactNode;
-  style?: CSSProperties;
+  tableClassName?: string;
+  ariaLabel: string;
 }
 
-export function VirtualList<T>({
+export function VirtualRecordTable<T>({
   items,
   getKey,
-  renderItem,
+  header,
+  renderRow,
   estimateSize,
-  viewportHeight = 640,
+  viewportHeight = 520,
   minViewportHeight = 96,
-  overscan = 4,
-  gap = 8,
+  overscan = 6,
+  gap = 0,
   className = '',
+  tableClassName = '',
   ariaLabel,
-  role = 'list',
-  itemRole = 'listitem',
-  empty = null,
-  style,
-}: VirtualListProps<T>) {
+}: VirtualRecordTableProps<T>) {
   const {
     viewportRef,
     displayHeight,
@@ -52,36 +48,33 @@ export function VirtualList<T>({
     gap,
   });
 
-  if (items.length === 0) return <>{empty}</>;
-
   return (
     <ScrollArea
-      axis="y"
-      className="virtual-list-scroll-area"
-      style={{ height: displayHeight }}
+      axis="both"
+      className={className}
+      style={{ height: `calc(${displayHeight}px + var(--virtual-record-header-height, 42px))` }}
       viewportRef={viewportRef}
-      viewportClassName={`virtual-list ${className}`.trim()}
-      viewportStyle={{ ...style, height: '100%' }}
-      viewportRole={role}
+      viewportClassName={`virtual-record-table ${tableClassName}`.trim()}
+      viewportRole="table"
       viewportAriaLabel={ariaLabel}
       viewportTabIndex={0}
       onViewportScroll={handleViewportScroll}
       scrollbarVisibility="adaptive"
     >
-      <div className="virtual-list__canvas" style={{ height: totalSize }}>
+      <div className="virtual-record-header" role="row">
+        {header}
+      </div>
+      <div className="virtual-record-canvas" role="rowgroup" style={{ height: totalSize }}>
         {visibleEntries.map((entry) => (
           <div
             key={entry.key}
             ref={(node) => setItemNode(entry.key, node)}
-            className="virtual-list__item"
+            className="virtual-record-item"
             data-virtual-key={String(entry.key)}
             data-virtual-key-type={typeof entry.key}
-            role={itemRole}
-            aria-setsize={items.length}
-            aria-posinset={entry.index + 1}
             style={{ transform: `translateY(${entry.start}px)` }}
           >
-            {renderItem(entry.item, entry.index)}
+            {renderRow(entry.item, entry.index)}
           </div>
         ))}
       </div>

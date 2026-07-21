@@ -6,7 +6,7 @@
   overflow-x: auto;
   padding-bottom: var(--space-2);
   margin-bottom: var(--layout-gutter);
-  scroll-snap-type: x proximity;
+  scroll-snap-type: none;
 }
 
 .unified-asset-tab {
@@ -21,7 +21,6 @@
   background: var(--surface-raised);
   color: inherit;
   padding: 10px 12px;
-  scroll-snap-align: start;
   cursor: pointer;
 }
 

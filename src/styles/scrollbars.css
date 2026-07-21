@@ -1,18 +1,20 @@
 /* Shared overlay scrollbar system. Native scrolling remains authoritative while
- * project-owned rails provide one width, color and axis policy without taking
- * layout space. Horizontal rails stay visible whenever overflow exists;
- * vertical rails appear only after actual vertical scroll movement. */
+ * project-owned rails use one visual size, hit size and minimum thumb length.
+ * Mouse and keyboard input can operate both axes; touch input hides horizontal
+ * rails and exposes an interactive vertical rail only after real movement. */
 :root {
   --scrollbar-visual-size: 6px;
   --scrollbar-hit-size: 14px;
+  --scrollbar-touch-target-size: 44px;
   --scrollbar-edge-offset: 2px;
-  --scrollbar-min-thumb-size: 28px;
+  --scrollbar-min-thumb-size: 44px;
   --scrollbar-track: transparent;
   --scrollbar-thumb: rgba(105, 220, 145, 0.42);
   --scrollbar-thumb-hover: rgba(125, 238, 163, 0.68);
   --scrollbar-thumb-active: rgba(125, 238, 163, 0.9);
   --scrollbar-fade-duration: 120ms;
   --scrollbar-idle-delay: 1200ms;
+  --scrollbar-touch-idle-delay: 1600ms;
 }
 
 .ui-scroll-area {
@@ -49,9 +51,11 @@
   box-sizing: border-box;
   border-radius: 999px;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   touch-action: none;
-  transition: opacity var(--scrollbar-fade-duration) ease;
+  transition: opacity var(--scrollbar-fade-duration) ease,
+    visibility 0s linear var(--scrollbar-fade-duration);
 }
 
 .ui-scrollbar--horizontal {
@@ -86,11 +90,20 @@
   will-change: transform;
 }
 
+.ui-scrollbar__thumb::before {
+  content: "";
+  position: absolute;
+}
+
 .ui-scrollbar--horizontal .ui-scrollbar__thumb {
   top: calc((var(--scrollbar-hit-size) - var(--scrollbar-visual-size)) / 2);
   left: 0;
   min-width: var(--scrollbar-min-thumb-size);
   height: var(--scrollbar-visual-size);
+}
+
+.ui-scrollbar--horizontal .ui-scrollbar__thumb::before {
+  inset: 0;
 }
 
 .ui-scrollbar--vertical .ui-scrollbar__thumb {
@@ -100,18 +113,52 @@
   min-height: var(--scrollbar-min-thumb-size);
 }
 
-.ui-scroll-area[data-scrollable-x="true"][data-horizontal-visibility="always"]
+.ui-scrollbar--vertical .ui-scrollbar__thumb::before {
+  inset: 0;
+}
+
+html[data-input-modality="touch"] .ui-scrollbar--vertical .ui-scrollbar__thumb::before {
+  inset-block: 0;
+  inset-inline: calc((var(--scrollbar-touch-target-size) - var(--scrollbar-visual-size)) / -2);
+}
+
+.ui-scroll-area[data-scrollbar-visibility="always"][data-scrollable-x="true"]
   > .ui-scrollbar--horizontal,
+.ui-scroll-area[data-scrollbar-visibility="always"][data-scrollable-y="true"]
+  > .ui-scrollbar--vertical,
+html[data-input-modality="mouse"]
+  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-x="true"]:hover
+  > .ui-scrollbar--horizontal,
+html[data-input-modality="mouse"]
+  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-y="true"]:hover
+  > .ui-scrollbar--vertical,
+html[data-input-modality="keyboard"]
+  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-x="true"]:focus-within
+  > .ui-scrollbar--horizontal,
+html[data-input-modality="keyboard"]
+  .ui-scroll-area[data-scrollbar-visibility="adaptive"][data-scrollable-y="true"]:focus-within
+  > .ui-scrollbar--vertical,
 .ui-scroll-area[data-scrollbar-active-x="true"]
   > .ui-scrollbar--horizontal,
 .ui-scroll-area[data-scrollbar-dragging-x="true"]
   > .ui-scrollbar--horizontal,
+.ui-scroll-area[data-scrollbar-track-pressing-x="true"]
+  > .ui-scrollbar--horizontal,
 .ui-scroll-area[data-scrollbar-active-y="true"]
   > .ui-scrollbar--vertical,
 .ui-scroll-area[data-scrollbar-dragging-y="true"]
+  > .ui-scrollbar--vertical,
+.ui-scroll-area[data-scrollbar-track-pressing-y="true"]
   > .ui-scrollbar--vertical {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.ui-scroll-area[data-scrollbar-visibility="hidden"] > .ui-scrollbar,
+html[data-input-modality="touch"] .ui-scrollbar--horizontal {
+  display: none !important;
 }
 
 .ui-scrollbar__thumb:hover {
@@ -189,6 +236,17 @@
 
 *:not(.ui-scroll-area__viewport)::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
+}
+
+html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 @media (max-width: 960px) and (min-width: 721px) {

@@ -6,9 +6,12 @@ import {
   useEffect,
   useRef,
 } from 'react';
+import { getInputModality, useInputModality } from '../utils/inputModality';
 
 export type ScrollAxis = 'x' | 'y' | 'both';
-export type HorizontalScrollbarVisibility = 'always' | 'activity';
+export type ScrollbarVisibility = 'adaptive' | 'always' | 'hidden';
+
+type TargetAxis = 'x' | 'y';
 
 interface UseOverlayScrollbarOptions {
   rootRef: RefObject<HTMLElement | null>;
@@ -18,16 +21,16 @@ interface UseOverlayScrollbarOptions {
   verticalTrackRef: RefObject<HTMLElement | null>;
   verticalThumbRef: RefObject<HTMLElement | null>;
   axis: ScrollAxis;
-  horizontalVisibility: HorizontalScrollbarVisibility;
-  verticalAutoHide: boolean;
-  idleDelay: number;
+  scrollbarVisibility: ScrollbarVisibility;
+  mouseIdleDelay: number;
+  touchVerticalIdleDelay: number;
   verticalPriority: boolean;
 }
 
-const MIN_THUMB_SIZE = 28;
+const MIN_THUMB_SIZE = 44;
 const AXIS_DOMINANCE_RATIO = 1.25;
 
-function supportsAxis(axis: ScrollAxis, target: 'x' | 'y') {
+function supportsAxis(axis: ScrollAxis, target: TargetAxis) {
   return axis === 'both' || axis === target;
 }
 
@@ -44,7 +47,7 @@ function canScrollInDirection(position: number, maximum: number, delta: number) 
 
 const SCROLLABLE_OVERFLOW_VALUES = new Set(['auto', 'scroll', 'overlay']);
 
-function elementCanScrollInDirection(element: HTMLElement, targetAxis: 'x' | 'y', delta: number) {
+function elementCanScrollInDirection(element: HTMLElement, targetAxis: TargetAxis, delta: number) {
   const style = window.getComputedStyle(element);
   const overflow = targetAxis === 'x' ? style.overflowX : style.overflowY;
   if (!SCROLLABLE_OVERFLOW_VALUES.has(overflow)) return false;
@@ -58,7 +61,7 @@ function elementCanScrollInDirection(element: HTMLElement, targetAxis: 'x' | 'y'
 function descendantCanScrollInDirection(
   target: EventTarget | null,
   viewport: HTMLElement,
-  targetAxis: 'x' | 'y',
+  targetAxis: TargetAxis,
   delta: number,
 ) {
   let element = target instanceof Element ? target : null;
@@ -71,6 +74,10 @@ function descendantCanScrollInDirection(
   return false;
 }
 
+function axisSuffix(targetAxis: TargetAxis) {
+  return targetAxis === 'x' ? 'X' : 'Y';
+}
+
 export function useOverlayScrollbar({
   rootRef,
   viewportRef,
@@ -79,36 +86,78 @@ export function useOverlayScrollbar({
   verticalTrackRef,
   verticalThumbRef,
   axis,
-  horizontalVisibility,
-  verticalAutoHide,
-  idleDelay,
+  scrollbarVisibility,
+  mouseIdleDelay,
+  touchVerticalIdleDelay,
   verticalPriority,
 }: UseOverlayScrollbarOptions) {
-  const hideTimerRef = useRef<number | undefined>(undefined);
+  const inputModality = useInputModality();
+  const horizontalHideTimerRef = useRef<number | undefined>(undefined);
+  const verticalHideTimerRef = useRef<number | undefined>(undefined);
   const frameRef = useRef<number | undefined>(undefined);
+  const dragFrameRef = useRef<number | undefined>(undefined);
+  const pendingDragRef = useRef<{ axis: TargetAxis; value: number } | null>(null);
+  const dragCleanupRef = useRef<(() => void) | null>(null);
   const previousPositionRef = useRef({ left: 0, top: 0 });
 
-  const clearHideTimer = useCallback(() => {
-    if (hideTimerRef.current !== undefined) {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = undefined;
+  const clearAxisHideTimer = useCallback((targetAxis: TargetAxis) => {
+    const timerRef = targetAxis === 'x' ? horizontalHideTimerRef : verticalHideTimerRef;
+    if (timerRef.current !== undefined) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = undefined;
     }
   }, []);
 
-  const hideVertical = useCallback(() => {
+  const hideAxis = useCallback((targetAxis: TargetAxis) => {
     const root = rootRef.current;
-    if (!root || root.dataset.scrollbarDraggingY === 'true') return;
-    delete root.dataset.scrollbarActiveY;
-    hideTimerRef.current = undefined;
+    if (!root) return;
+    const suffix = axisSuffix(targetAxis);
+    const modality = getInputModality();
+    if (
+      root.dataset[`scrollbarDragging${suffix}`] === 'true'
+      || root.dataset[`scrollbarTrackPressing${suffix}`] === 'true'
+      || (modality === 'mouse' && root.dataset.scrollbarHover === 'true')
+    ) return;
+    delete root.dataset[`scrollbarActive${suffix}`];
+    const timerRef = targetAxis === 'x' ? horizontalHideTimerRef : verticalHideTimerRef;
+    timerRef.current = undefined;
   }, [rootRef]);
 
-  const revealVertical = useCallback(() => {
+  const scheduleHideAxis = useCallback((targetAxis: TargetAxis) => {
+    clearAxisHideTimer(targetAxis);
+    if (scrollbarVisibility !== 'adaptive') return;
+    if (targetAxis === 'x' && getInputModality() === 'touch') return;
+    const delay = getInputModality() === 'touch' && targetAxis === 'y'
+      ? touchVerticalIdleDelay
+      : mouseIdleDelay;
+    const timerRef = targetAxis === 'x' ? horizontalHideTimerRef : verticalHideTimerRef;
+    timerRef.current = window.setTimeout(() => hideAxis(targetAxis), delay);
+  }, [clearAxisHideTimer, hideAxis, mouseIdleDelay, scrollbarVisibility, touchVerticalIdleDelay]);
+
+  const revealAxis = useCallback((targetAxis: TargetAxis) => {
     const root = rootRef.current;
-    if (!root || root.dataset.scrollableY !== 'true') return;
-    root.dataset.scrollbarActiveY = 'true';
-    clearHideTimer();
-    if (verticalAutoHide) hideTimerRef.current = window.setTimeout(hideVertical, idleDelay);
-  }, [clearHideTimer, hideVertical, idleDelay, rootRef, verticalAutoHide]);
+    if (!root || scrollbarVisibility === 'hidden') return;
+    const suffix = axisSuffix(targetAxis);
+    if (root.dataset[`scrollable${suffix}`] !== 'true') return;
+    if (targetAxis === 'x' && getInputModality() === 'touch') {
+      delete root.dataset.scrollbarActiveX;
+      clearAxisHideTimer('x');
+      return;
+    }
+    root.dataset[`scrollbarActive${suffix}`] = 'true';
+    clearAxisHideTimer(targetAxis);
+    if (scrollbarVisibility === 'adaptive') scheduleHideAxis(targetAxis);
+  }, [clearAxisHideTimer, rootRef, scheduleHideAxis, scrollbarVisibility]);
+
+  const clearAxisState = useCallback((targetAxis: TargetAxis) => {
+    const root = rootRef.current;
+    if (!root) return;
+    const suffix = axisSuffix(targetAxis);
+    clearAxisHideTimer(targetAxis);
+    delete root.dataset[`scrollbarActive${suffix}`];
+    delete root.dataset[`scrollbarDragging${suffix}`];
+    delete root.dataset[`scrollbarTrackPressing${suffix}`];
+  }, [clearAxisHideTimer, rootRef]);
 
   const syncMetrics = useCallback(() => {
     const root = rootRef.current;
@@ -119,21 +168,33 @@ export function useOverlayScrollbar({
     const verticalTrack = verticalTrackRef.current;
     const horizontalThumb = horizontalThumbRef.current;
     const verticalThumb = verticalThumbRef.current;
+    const modality = getInputModality();
 
     const scrollableX = supportsAxis(axis, 'x') && viewport.scrollWidth > viewport.clientWidth + 1;
     const scrollableY = supportsAxis(axis, 'y') && viewport.scrollHeight > viewport.clientHeight + 1;
     setBooleanData(root, 'scrollableX', scrollableX);
     setBooleanData(root, 'scrollableY', scrollableY);
 
-    if (!scrollableY) {
-      clearHideTimer();
-      delete root.dataset.scrollbarActiveY;
-      delete root.dataset.scrollbarDraggingY;
-    } else if (!verticalAutoHide) {
+    if (!scrollableX || scrollbarVisibility === 'hidden' || modality === 'touch') {
+      clearAxisState('x');
+    } else if (scrollbarVisibility === 'always') {
+      root.dataset.scrollbarActiveX = 'true';
+    }
+
+    if (!scrollableY || scrollbarVisibility === 'hidden') {
+      clearAxisState('y');
+    } else if (scrollbarVisibility === 'always') {
       root.dataset.scrollbarActiveY = 'true';
     }
 
-    if (scrollableX && horizontalTrack && horizontalThumb) {
+    if (horizontalThumb) {
+      horizontalThumb.setAttribute('aria-hidden', String(!scrollableX || scrollbarVisibility === 'hidden' || modality === 'touch'));
+    }
+    if (verticalThumb) {
+      verticalThumb.setAttribute('aria-hidden', String(!scrollableY || scrollbarVisibility === 'hidden'));
+    }
+
+    if (scrollableX && horizontalTrack && horizontalThumb && horizontalTrack.clientWidth > 0) {
       const trackSize = horizontalTrack.clientWidth;
       const maximum = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
       const thumbSize = Math.min(trackSize, Math.max(MIN_THUMB_SIZE, trackSize * viewport.clientWidth / viewport.scrollWidth));
@@ -146,7 +207,7 @@ export function useOverlayScrollbar({
       horizontalThumb.setAttribute('aria-valuenow', String(Math.round(viewport.scrollLeft)));
     }
 
-    if (scrollableY && verticalTrack && verticalThumb) {
+    if (scrollableY && verticalTrack && verticalThumb && verticalTrack.clientHeight > 0) {
       const trackSize = verticalTrack.clientHeight;
       const maximum = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
       const thumbSize = Math.min(trackSize, Math.max(MIN_THUMB_SIZE, trackSize * viewport.clientHeight / viewport.scrollHeight));
@@ -158,17 +219,13 @@ export function useOverlayScrollbar({
       verticalThumb.setAttribute('aria-valuemax', String(Math.round(maximum)));
       verticalThumb.setAttribute('aria-valuenow', String(Math.round(viewport.scrollTop)));
     }
-
-    if (horizontalVisibility === 'always' && scrollableX) root.dataset.scrollbarActiveX = 'true';
-    else if (!scrollableX) delete root.dataset.scrollbarActiveX;
   }, [
     axis,
-    clearHideTimer,
+    clearAxisState,
     horizontalThumbRef,
     horizontalTrackRef,
-    horizontalVisibility,
     rootRef,
-    verticalAutoHide,
+    scrollbarVisibility,
     verticalThumbRef,
     verticalTrackRef,
     viewportRef,
@@ -188,13 +245,12 @@ export function useOverlayScrollbar({
     if (!root || !viewport) return undefined;
 
     previousPositionRef.current = { left: viewport.scrollLeft, top: viewport.scrollTop };
+
     const handleScroll = () => {
       const previous = previousPositionRef.current;
       const next = { left: viewport.scrollLeft, top: viewport.scrollTop };
-      if (next.top !== previous.top) revealVertical();
-      if (next.left !== previous.left && horizontalVisibility === 'activity') {
-        root.dataset.scrollbarActiveX = 'true';
-      }
+      if (next.top !== previous.top) revealAxis('y');
+      if (next.left !== previous.left && getInputModality() !== 'touch') revealAxis('x');
       previousPositionRef.current = next;
       scheduleSync();
     };
@@ -230,8 +286,39 @@ export function useOverlayScrollbar({
       }
     };
 
+    const handlePointerEnter = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse' || getInputModality() !== 'mouse') return;
+      root.dataset.scrollbarHover = 'true';
+      revealAxis('x');
+      revealAxis('y');
+    };
+
+    const handlePointerLeave = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') return;
+      delete root.dataset.scrollbarHover;
+      scheduleHideAxis('x');
+      scheduleHideAxis('y');
+    };
+
+    const handleFocusIn = () => {
+      root.dataset.scrollbarKeyboardFocus = 'true';
+      revealAxis('x');
+      revealAxis('y');
+    };
+
+    const handleFocusOut = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof Node && root.contains(event.relatedTarget)) return;
+      delete root.dataset.scrollbarKeyboardFocus;
+      scheduleHideAxis('x');
+      scheduleHideAxis('y');
+    };
+
     viewport.addEventListener('scroll', handleScroll, { passive: true });
     viewport.addEventListener('wheel', handleWheel, { passive: false });
+    root.addEventListener('pointerenter', handlePointerEnter);
+    root.addEventListener('pointerleave', handlePointerLeave);
+    root.addEventListener('focusin', handleFocusIn);
+    root.addEventListener('focusout', handleFocusOut);
 
     const observer = typeof ResizeObserver === 'undefined'
       ? null
@@ -240,41 +327,71 @@ export function useOverlayScrollbar({
     observer?.observe(viewport);
     Array.from(viewport.children).forEach((child) => observer?.observe(child));
     window.addEventListener('resize', scheduleSync);
+
+    if (inputModality === 'touch') clearAxisState('x');
+    if (inputModality === 'mouse' && root.matches(':hover')) {
+      root.dataset.scrollbarHover = 'true';
+      revealAxis('x');
+      revealAxis('y');
+    }
     scheduleSync();
 
     return () => {
       viewport.removeEventListener('scroll', handleScroll);
       viewport.removeEventListener('wheel', handleWheel);
+      root.removeEventListener('pointerenter', handlePointerEnter);
+      root.removeEventListener('pointerleave', handlePointerLeave);
+      root.removeEventListener('focusin', handleFocusIn);
+      root.removeEventListener('focusout', handleFocusOut);
       observer?.disconnect();
       window.removeEventListener('resize', scheduleSync);
-      clearHideTimer();
+      clearAxisHideTimer('x');
+      clearAxisHideTimer('y');
+      dragCleanupRef.current?.();
+      dragCleanupRef.current = null;
       if (frameRef.current !== undefined) window.cancelAnimationFrame(frameRef.current);
+      if (dragFrameRef.current !== undefined) window.cancelAnimationFrame(dragFrameRef.current);
       frameRef.current = undefined;
+      dragFrameRef.current = undefined;
+      pendingDragRef.current = null;
       delete root.dataset.scrollbarActiveX;
       delete root.dataset.scrollbarActiveY;
       delete root.dataset.scrollbarDraggingX;
       delete root.dataset.scrollbarDraggingY;
+      delete root.dataset.scrollbarTrackPressingX;
+      delete root.dataset.scrollbarTrackPressingY;
+      delete root.dataset.scrollbarHover;
+      delete root.dataset.scrollbarKeyboardFocus;
     };
   }, [
     axis,
-    clearHideTimer,
-    horizontalVisibility,
-    revealVertical,
+    clearAxisHideTimer,
+    clearAxisState,
+    inputModality,
+    revealAxis,
     rootRef,
+    scheduleHideAxis,
     scheduleSync,
     verticalPriority,
     viewportRef,
   ]);
 
-  const startThumbDrag = useCallback((targetAxis: 'x' | 'y', event: ReactPointerEvent<HTMLElement>) => {
+  const startThumbDrag = useCallback((targetAxis: TargetAxis, event: ReactPointerEvent<HTMLElement>) => {
     const root = rootRef.current;
     const viewport = viewportRef.current;
     const track = targetAxis === 'x' ? horizontalTrackRef.current : verticalTrackRef.current;
     const thumb = targetAxis === 'x' ? horizontalThumbRef.current : verticalThumbRef.current;
-    if (!root || !viewport || !track || !thumb) return;
+    if (!root || !viewport || !track || !thumb || scrollbarVisibility === 'hidden') return;
+    if (targetAxis === 'x' && getInputModality() === 'touch') return;
 
     event.preventDefault();
     event.stopPropagation();
+    dragCleanupRef.current?.();
+
+    const pointerId = event.pointerId;
+    const dragTarget = event.currentTarget;
+    try { dragTarget.setPointerCapture(pointerId); } catch { /* Synthetic pointer events may not own capture. */ }
+
     const startPointer = targetAxis === 'x' ? event.clientX : event.clientY;
     const startScroll = targetAxis === 'x' ? viewport.scrollLeft : viewport.scrollTop;
     const trackSize = targetAxis === 'x' ? track.clientWidth : track.clientHeight;
@@ -284,57 +401,121 @@ export function useOverlayScrollbar({
       : Math.max(0, viewport.scrollHeight - viewport.clientHeight);
     const travel = Math.max(1, trackSize - thumbSize);
     const ratio = maximum / travel;
+    const suffix = axisSuffix(targetAxis);
 
-    root.dataset[targetAxis === 'x' ? 'scrollbarDraggingX' : 'scrollbarDraggingY'] = 'true';
-    if (targetAxis === 'x') root.dataset.scrollbarActiveX = 'true';
-    else revealVertical();
+    clearAxisHideTimer(targetAxis);
+    root.dataset[`scrollbarDragging${suffix}`] = 'true';
+    root.dataset[`scrollbarActive${suffix}`] = 'true';
+
+    const commitPendingDrag = () => {
+      dragFrameRef.current = undefined;
+      const pending = pendingDragRef.current;
+      if (!pending || pending.axis !== targetAxis) return;
+      pendingDragRef.current = null;
+      if (targetAxis === 'x') viewport.scrollLeft = pending.value;
+      else viewport.scrollTop = pending.value;
+    };
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      moveEvent.preventDefault();
       const currentPointer = targetAxis === 'x' ? moveEvent.clientX : moveEvent.clientY;
-      const next = startScroll + (currentPointer - startPointer) * ratio;
-      if (targetAxis === 'x') viewport.scrollLeft = next;
-      else viewport.scrollTop = next;
+      pendingDragRef.current = {
+        axis: targetAxis,
+        value: startScroll + (currentPointer - startPointer) * ratio,
+      };
+      if (dragFrameRef.current === undefined) {
+        dragFrameRef.current = window.requestAnimationFrame(commitPendingDrag);
+      }
     };
-    const handlePointerUp = () => {
-      delete root.dataset[targetAxis === 'x' ? 'scrollbarDraggingX' : 'scrollbarDraggingY'];
+
+    const cleanup = () => {
+      if (dragFrameRef.current !== undefined) {
+        window.cancelAnimationFrame(dragFrameRef.current);
+        dragFrameRef.current = undefined;
+      }
+      const pending = pendingDragRef.current;
+      if (pending?.axis === targetAxis) {
+        if (targetAxis === 'x') viewport.scrollLeft = pending.value;
+        else viewport.scrollTop = pending.value;
+        pendingDragRef.current = null;
+      }
+      delete root.dataset[`scrollbarDragging${suffix}`];
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);
-      if (targetAxis === 'y') revealVertical();
+      try {
+        if (dragTarget.hasPointerCapture(pointerId)) dragTarget.releasePointerCapture(pointerId);
+      } catch { /* Ignore capture cleanup for synthetic events. */ }
+      dragCleanupRef.current = null;
+      revealAxis(targetAxis);
+      scheduleSync();
     };
 
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp, { once: true });
-    window.addEventListener('pointercancel', handlePointerUp, { once: true });
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      if (upEvent.pointerId !== pointerId) return;
+      cleanup();
+    };
+
+    dragCleanupRef.current = cleanup;
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
   }, [
+    clearAxisHideTimer,
     horizontalThumbRef,
     horizontalTrackRef,
-    revealVertical,
+    revealAxis,
     rootRef,
+    scheduleSync,
+    scrollbarVisibility,
     verticalThumbRef,
     verticalTrackRef,
     viewportRef,
   ]);
 
-  const handleTrackPointerDown = useCallback((targetAxis: 'x' | 'y', event: ReactPointerEvent<HTMLElement>) => {
-    if (event.target !== event.currentTarget) return;
+  const handleTrackPointerDown = useCallback((targetAxis: TargetAxis, event: ReactPointerEvent<HTMLElement>) => {
+    if (event.target !== event.currentTarget || scrollbarVisibility === 'hidden') return;
+    if (targetAxis === 'x' && getInputModality() === 'touch') return;
+    const root = rootRef.current;
     const viewport = viewportRef.current;
-    if (!viewport) return;
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (targetAxis === 'x') {
-      const direction = event.clientX < rect.left + rect.width / 2 ? -1 : 1;
-      viewport.scrollLeft += direction * viewport.clientWidth * 0.8;
-    } else {
-      const direction = event.clientY < rect.top + rect.height / 2 ? -1 : 1;
-      revealVertical();
-      viewport.scrollTop += direction * viewport.clientHeight * 0.8;
-    }
-  }, [revealVertical, viewportRef]);
+    const thumb = targetAxis === 'x' ? horizontalThumbRef.current : verticalThumbRef.current;
+    if (!root || !viewport || !thumb) return;
 
-  const handleThumbKeyDown = useCallback((targetAxis: 'x' | 'y', event: ReactKeyboardEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const suffix = axisSuffix(targetAxis);
+    root.dataset[`scrollbarTrackPressing${suffix}`] = 'true';
+    revealAxis(targetAxis);
+
+    const thumbRect = thumb.getBoundingClientRect();
+    const pointer = targetAxis === 'x' ? event.clientX : event.clientY;
+    const thumbStart = targetAxis === 'x' ? thumbRect.left : thumbRect.top;
+    const thumbEnd = targetAxis === 'x' ? thumbRect.right : thumbRect.bottom;
+    const direction = pointer < thumbStart ? -1 : pointer > thumbEnd ? 1 : 0;
+    if (direction !== 0) {
+      if (targetAxis === 'x') viewport.scrollLeft += direction * viewport.clientWidth * 0.8;
+      else viewport.scrollTop += direction * viewport.clientHeight * 0.8;
+    }
+
+    window.requestAnimationFrame(() => {
+      delete root.dataset[`scrollbarTrackPressing${suffix}`];
+      revealAxis(targetAxis);
+      scheduleSync();
+    });
+  }, [
+    horizontalThumbRef,
+    revealAxis,
+    rootRef,
+    scheduleSync,
+    scrollbarVisibility,
+    verticalThumbRef,
+    viewportRef,
+  ]);
+
+  const handleThumbKeyDown = useCallback((targetAxis: TargetAxis, event: ReactKeyboardEvent<HTMLElement>) => {
     const viewport = viewportRef.current;
-    if (!viewport) return;
+    if (!viewport || scrollbarVisibility === 'hidden') return;
     const horizontal = targetAxis === 'x';
     const line = 40;
     const page = (horizontal ? viewport.clientWidth : viewport.clientHeight) * 0.8;
@@ -353,12 +534,10 @@ export function useOverlayScrollbar({
     if (next === undefined) return;
 
     event.preventDefault();
+    revealAxis(targetAxis);
     if (horizontal) viewport.scrollLeft = next;
-    else {
-      revealVertical();
-      viewport.scrollTop = next;
-    }
-  }, [revealVertical, viewportRef]);
+    else viewport.scrollTop = next;
+  }, [revealAxis, scrollbarVisibility, viewportRef]);
 
   return {
     scheduleSync,

@@ -16,7 +16,8 @@
   contain: strict;
 }
 
-.virtual-list:focus-visible {
+.virtual-list:focus-visible,
+.virtual-record-table:focus-visible {
   outline: 2px solid var(--color-focus-ring, var(--accent));
   outline-offset: -2px;
 }
@@ -40,17 +41,23 @@
 }
 
 .virtual-record-table {
+  position: relative;
+  width: 100%;
   min-width: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: auto;
   border: 1px solid var(--color-border, var(--border-subtle));
   border-radius: var(--radius-control, var(--radius-md));
   background: var(--color-surface-inset, var(--surface-muted));
   overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .virtual-record-header,
 .virtual-record-row {
+  width: 100%;
   min-width: var(--virtual-table-min-width, 720px);
   display: grid;
   grid-template-columns: var(--virtual-table-columns);
@@ -59,6 +66,10 @@
 }
 
 .virtual-record-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: var(--virtual-record-header-height, 42px);
   padding: 10px;
   color: var(--color-text-muted, var(--text-muted));
   background: var(--color-surface-raised, var(--surface-raised));
@@ -67,19 +78,18 @@
   font-weight: 700;
 }
 
-.virtual-record-table > .virtual-list-scroll-area {
+.virtual-record-canvas {
+  position: relative;
+  width: 100%;
   min-width: var(--virtual-table-min-width, 720px);
 }
 
-.virtual-record-viewport {
+.virtual-record-item {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
   min-width: var(--virtual-table-min-width, 720px);
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.virtual-record-viewport .virtual-list__canvas,
-.virtual-record-viewport .virtual-list__item {
-  min-width: var(--virtual-table-min-width, 720px);
+  will-change: transform;
 }
 
 .virtual-record-row {
@@ -100,6 +110,7 @@
 }
 
 .local-trades-virtual-table {
+  --virtual-record-header-height: 42px;
   --virtual-table-columns: minmax(140px, 1.45fr) 60px 72px 88px 96px minmax(108px, 1fr) 118px;
   --virtual-table-min-width: 760px;
   --virtual-row-height: 54px;

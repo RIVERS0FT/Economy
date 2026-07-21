@@ -8,8 +8,8 @@ import {
   useRef,
 } from 'react';
 import {
-  type HorizontalScrollbarVisibility,
   type ScrollAxis,
+  type ScrollbarVisibility,
   useOverlayScrollbar,
 } from '../../hooks/useOverlayScrollbar';
 
@@ -35,9 +35,9 @@ export interface ScrollAreaProps {
   viewportAriaLabel?: string;
   viewportTabIndex?: number;
   onViewportScroll?: UIEventHandler<HTMLDivElement>;
-  horizontalVisibility?: HorizontalScrollbarVisibility;
-  verticalAutoHide?: boolean;
-  idleDelay?: number;
+  scrollbarVisibility?: ScrollbarVisibility;
+  mouseIdleDelay?: number;
+  touchVerticalIdleDelay?: number;
   verticalPriority?: boolean;
 }
 
@@ -54,9 +54,9 @@ export function ScrollArea({
   viewportAriaLabel,
   viewportTabIndex,
   onViewportScroll,
-  horizontalVisibility = 'always',
-  verticalAutoHide = true,
-  idleDelay = 1_200,
+  scrollbarVisibility = 'adaptive',
+  mouseIdleDelay = 1_200,
+  touchVerticalIdleDelay = 1_600,
   verticalPriority = true,
 }: ScrollAreaProps) {
   const generatedId = useId().replace(/:/g, '');
@@ -80,9 +80,9 @@ export function ScrollArea({
     verticalTrackRef,
     verticalThumbRef,
     axis,
-    horizontalVisibility,
-    verticalAutoHide,
-    idleDelay,
+    scrollbarVisibility,
+    mouseIdleDelay,
+    touchVerticalIdleDelay,
     verticalPriority,
   });
 
@@ -91,7 +91,7 @@ export function ScrollArea({
       ref={rootRef}
       className={classNames('ui-scroll-area', className)}
       data-scroll-axis={axis}
-      data-horizontal-visibility={horizontalVisibility}
+      data-scrollbar-visibility={scrollbarVisibility}
       style={style}
     >
       <div
@@ -121,6 +121,7 @@ export function ScrollArea({
           role="scrollbar"
           aria-controls={resolvedViewportId}
           aria-orientation="horizontal"
+          aria-hidden="true"
           tabIndex={-1}
           onPointerDown={(event) => startThumbDrag('x', event)}
           onKeyDown={(event) => handleThumbKeyDown('x', event)}
@@ -138,6 +139,7 @@ export function ScrollArea({
           role="scrollbar"
           aria-controls={resolvedViewportId}
           aria-orientation="vertical"
+          aria-hidden="true"
           tabIndex={-1}
           onPointerDown={(event) => startThumbDrag('y', event)}
           onKeyDown={(event) => handleThumbKeyDown('y', event)}
