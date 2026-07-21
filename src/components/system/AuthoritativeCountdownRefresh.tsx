@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { RefreshOptions } from '../../app/gameViewModel';
 import type { EconomyState } from '../../types';
 import { nextAuthoritativeCountdownDeadline } from '../../utils/authoritativeCountdowns';
+import { estimateServerNow, subscribeServerClock } from '../../utils/serverClock.js';
 
 export const AUTHORITY_CONFIRMATION_RETRY_MS = 1_000;
 
@@ -21,10 +22,6 @@ export function AuthoritativeCountdownRefresh({
     let confirming = false;
     let deadlineTimer: number | null = null;
     let confirmationTimer: number | null = null;
-    const receivedAt = Date.now();
-    const estimatedServerNow = () => (
-      game.lastProcessedAt + Math.max(0, Date.now() - receivedAt)
-    );
 
     const confirmAuthority = async () => {
       if (disposed) return;
@@ -38,17 +35,24 @@ export function AuthoritativeCountdownRefresh({
       confirming = true;
       void confirmAuthority();
     };
+    const scheduleDeadline = () => {
+      if (disposed || confirming) return;
+      if (deadlineTimer !== null) window.clearTimeout(deadlineTimer);
+      const remaining = Math.max(0, deadline - estimateServerNow(game.lastProcessedAt));
+      if (remaining === 0) beginConfirmation();
+      else deadlineTimer = window.setTimeout(beginConfirmation, remaining);
+    };
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && deadline <= estimatedServerNow()) beginConfirmation();
+      if (document.visibilityState === 'visible') scheduleDeadline();
     };
 
-    const remaining = Math.max(0, deadline - estimatedServerNow());
-    if (remaining === 0) beginConfirmation();
-    else deadlineTimer = window.setTimeout(beginConfirmation, remaining);
+    const unsubscribe = subscribeServerClock(scheduleDeadline);
+    scheduleDeadline();
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       disposed = true;
+      unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (deadlineTimer !== null) window.clearTimeout(deadlineTimer);
       if (confirmationTimer !== null) window.clearTimeout(confirmationTimer);
