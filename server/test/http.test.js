@@ -81,6 +81,8 @@ test('HTTP API authenticates through the shared account service and honors idemp
     const initialState = mergePatches(null, statePayload.patches);
     assert.equal(initialState.credits, 100);
     assert.equal(statePayload.unchanged, false);
+    assert.equal(Number.isFinite(statePayload.serverNow), true);
+    assert.equal('serverNow' in initialState, false);
     assert.equal('state' in statePayload, false);
     assert.deepEqual(Object.keys(statePayload.partitionRevisions).sort(), [
       'auction', 'catalog', 'leaderboard', 'market', 'player',
@@ -92,10 +94,11 @@ test('HTTP API authenticates through the shared account service and honors idemp
       { headers: { Cookie: 'session=ok' } },
     );
     assert.equal(unchangedResponse.status, 200);
-    assert.deepEqual(await unchangedResponse.json(), {
-      revision: statePayload.revision,
-      unchanged: true,
-    });
+    const unchangedPayload = await unchangedResponse.json();
+    assert.deepEqual(Object.keys(unchangedPayload).sort(), ['revision', 'serverNow', 'unchanged']);
+    assert.equal(unchangedPayload.revision, statePayload.revision);
+    assert.equal(unchangedPayload.unchanged, true);
+    assert.equal(unchangedPayload.serverNow >= statePayload.serverNow, true);
 
     const headers = {
       Cookie: 'session=ok',
@@ -125,6 +128,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
     const actionState = mergePatches(initialState, actionStatePayload.patches);
     assert.equal(actionState.credits, 101);
     assert.equal(actionStatePayload.revision >= firstPayload.revision, true);
+    assert.equal(actionStatePayload.serverNow >= unchangedPayload.serverNow, true);
 
     const repeated = await fetch(`http://127.0.0.1:${gamePort}/api/game/work`, {
       method: 'POST',
@@ -140,10 +144,11 @@ test('HTTP API authenticates through the shared account service and honors idemp
       { headers: { Cookie: 'session=ok' } },
     );
     assert.equal(repeatedStateResponse.status, 200);
-    assert.deepEqual(await repeatedStateResponse.json(), {
-      revision: actionStatePayload.revision,
-      unchanged: true,
-    });
+    const repeatedStatePayload = await repeatedStateResponse.json();
+    assert.deepEqual(Object.keys(repeatedStatePayload).sort(), ['revision', 'serverNow', 'unchanged']);
+    assert.equal(repeatedStatePayload.revision, actionStatePayload.revision);
+    assert.equal(repeatedStatePayload.unchanged, true);
+    assert.equal(repeatedStatePayload.serverNow >= actionStatePayload.serverNow, true);
     assert.equal(accountRequestCount, 1);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
