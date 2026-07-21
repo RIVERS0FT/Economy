@@ -69,10 +69,14 @@ for (const [path, pattern] of [
   if (!pattern.test(read(path))) fail(`${path} 必须以权威 lastProcessedAt 作为局部时间基准`);
 }
 
+const virtualWindow = read('src/hooks/useVirtualWindow.ts');
 const virtualList = read('src/components/ui/VirtualList.tsx');
-if (!/requestAnimationFrame\s*\(/.test(virtualList)) fail('VirtualList 必须使用 requestAnimationFrame 合并滚动更新');
-if (!/findVisibleRange\s*\(/.test(virtualList)) fail('VirtualList 必须调用二分可视区间函数');
-if (/while\s*\([^)]*(startIndex|endIndex)/.test(virtualList)) fail('VirtualList 不得在滚动渲染中线性扫描可视区间');
+const virtualRecordTable = read('src/components/ui/VirtualRecordTable.tsx');
+if (!/requestAnimationFrame\s*\(/.test(virtualWindow)) fail('共享窗口化内核必须使用 requestAnimationFrame 合并滚动更新');
+if (!/findVisibleRange\s*\(/.test(virtualWindow)) fail('共享窗口化内核必须调用二分可视区间函数');
+if (/while\s*\([^)]*(startIndex|endIndex)/.test(virtualWindow)) fail('共享窗口化内核不得在滚动渲染中线性扫描可视区间');
+if (!virtualList.includes('useVirtualWindow')) fail('VirtualList 必须复用共享窗口化内核');
+if (!virtualRecordTable.includes('useVirtualWindow')) fail('VirtualRecordTable 必须复用共享窗口化内核');
 
 assert.deepEqual(findVisibleRange([], 0, 100), { startIndex: 0, endIndex: 0 });
 const virtualItems = Array.from({ length: 10_000 }, (_, index) => ({ start: index * 20, size: 20 }));

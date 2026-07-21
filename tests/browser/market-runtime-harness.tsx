@@ -12,12 +12,14 @@ import { formatCurrency, formatNumber, formatRank } from '../../src/utils/format
 import '../../src/styles/globals.css';
 import '../../src/styles/desktop-sidebar.css';
 import '../../src/styles/viewport.css';
+import '../../src/styles/scrollbars.css';
 import '../../src/styles/card-system.css';
 import '../../src/styles/liquid-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
 import '../../src/styles/market-funds.css';
+import '../../src/styles/market-account-table.css';
 import '../../src/styles/unified-market-admin.css';
 import '../../src/styles/virtual-list.css';
 import '../../src/styles/design-system.css';
@@ -251,7 +253,26 @@ function MarketHarness() {
       game,
       derived,
       localAssetEvents: [],
-      localTrades: [],
+      localTrades: Array.from({ length: 80 }, (_, index) => {
+        const side = index % 2 === 0 ? 'buy' as const : 'sell' as const;
+        const quantity = (index % 5) + 1;
+        const price = 2 + (index % 4);
+        const total = quantity * price;
+        const fee = side === 'sell' ? 1 : 0;
+        return {
+          id: 'trade-' + (index + 1),
+          type: 'commodity' as const,
+          productId: 'wheat',
+          side,
+          description: (side === 'buy' ? '买入 ' : '卖出 ') + '小麦',
+          quantity,
+          price,
+          total,
+          fee,
+          netTotal: total - fee,
+          createdAt: fixedNow - index * 60_000,
+        };
+      }),
       tab,
       setTab,
       notice: '',

@@ -4,7 +4,7 @@
  * rails and exposes an interactive vertical rail only after real movement. */
 :root {
   --scrollbar-visual-size: 6px;
-  --scrollbar-hit-size: 20px;
+  --scrollbar-hit-size: 14px;
   --scrollbar-touch-target-size: 44px;
   --scrollbar-edge-offset: 2px;
   --scrollbar-min-thumb-size: 44px;
@@ -103,8 +103,7 @@
 }
 
 .ui-scrollbar--horizontal .ui-scrollbar__thumb::before {
-  inset-block: calc((var(--scrollbar-touch-target-size) - var(--scrollbar-visual-size)) / -2);
-  inset-inline: 0;
+  inset: 0;
 }
 
 .ui-scrollbar--vertical .ui-scrollbar__thumb {
@@ -115,6 +114,10 @@
 }
 
 .ui-scrollbar--vertical .ui-scrollbar__thumb::before {
+  inset: 0;
+}
+
+html[data-input-modality="touch"] .ui-scrollbar--vertical .ui-scrollbar__thumb::before {
   inset-block: 0;
   inset-inline: calc((var(--scrollbar-touch-target-size) - var(--scrollbar-visual-size)) / -2);
 }

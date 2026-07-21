@@ -63,7 +63,7 @@ if (failures.length === 0) {
 
   for (const text of [
     '--scrollbar-visual-size: 6px;',
-    '--scrollbar-hit-size: 20px;',
+    '--scrollbar-hit-size: 14px;',
     '--scrollbar-touch-target-size: 44px;',
     '--scrollbar-min-thumb-size: 44px;',
     'html[data-input-modality="touch"] .ui-scrollbar--horizontal',
@@ -92,7 +92,6 @@ if (failures.length === 0) {
   for (const text of ['className="page-scroll-area"', 'scrollbarVisibility="adaptive"']) requireText(paths.shell, text);
 
   for (const text of [
-    '顶部状态栏不得包含 `ScrollArea`',
     '触控模式下横向项目轨道始终 `display: none`',
     '市场商品与工厂资产目录必须支持无级滑动',
     '单一双轴原生视口',

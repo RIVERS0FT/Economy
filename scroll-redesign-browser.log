@@ -1,0 +1,135 @@
+
+> economy@0.4.0 test:browser
+> playwright test
+
+
+Running 46 tests using 2 workers
+····[WebServer] 2:33:09 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:10 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:10 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:11 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:12 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:33:13 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:13 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:14 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:14 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:15 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:16 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:33:17 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:17 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:33:18 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:18 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:19 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:19 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:20 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:21 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:21 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:22 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:23 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:23 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:24 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:25 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:25 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:26 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:33:27 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:28 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:33:30 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:30 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:30 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:31 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:31 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:31 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:32 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:32 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:33:33 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:33 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+··[WebServer] 2:33:34 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+[WebServer] 2:33:35 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·[WebServer] 2:33:36 AM [vite] http proxy error: /api/game/community-link
+[WebServer] Error: connect ECONNREFUSED 127.0.0.1:3002
+[WebServer]     at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16)
+·······
+::notice title=🎭 Playwright Run Summary::  46 passed (35.9s)
+  46 passed (35.9s)

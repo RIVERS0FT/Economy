@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-07-20
+> 更新时间：2026-07-21
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -64,6 +64,7 @@
 - `ToggleField`
 - `ScrollableTable`
 - `VirtualList`
+- `VirtualRecordTable`
 - `CurrencyAmount`
 - `CurrencyText`
 - `EmptyState`
@@ -83,7 +84,7 @@
 
 `SwitchControl` 是布尔开关的唯一 React 基础组件，`.ui-switch` 是唯一视觉实现。不得新增工厂开关、音乐开关或设置开关的平行 CSS。
 
-`VirtualList` 是高增长记录的唯一窗口化基础组件。它根据滚动位置只挂载可视条目与少量 `overscan` 条目，使用模块级稳定业务 ID 取键函数，并通过 `ResizeObserver` 修正可变高度。滚动事件必须通过 `requestAnimationFrame` 合并为每帧最多一次 React 状态更新，可视起止索引必须使用累计偏移二分查找，不得每帧从第 0 项线性扫描。DOM 只渲染可视区域和少量预加载行；资产事件、本地成交、管理员藏品、礼品码、归属历史和兑换记录不得各自实现另一套虚拟滚动器。
+`VirtualList` 与 `VirtualRecordTable` 共用 `src/hooks/useVirtualWindow.ts` 的唯一窗口化内核。该内核根据滚动位置只挂载可视条目与少量 `overscan` 条目，使用模块级稳定业务 ID 取键，并通过 `ResizeObserver` 修正可变高度。滚动事件必须通过 `requestAnimationFrame` 合并为每帧最多一次 React 状态更新，可视起止索引必须使用累计偏移二分查找，不得每帧从第 0 项线性扫描。普通高增长列表使用 `VirtualList`；需要表头与数据共享横纵偏移的记录表使用单一双轴视口 `VirtualRecordTable`，不得各自实现另一套虚拟滚动器。
 
 `CurrencyAmount` 是玩家端和管理员端可见货币金额的唯一组合组件，固定复用 `GameIcons.tsx` 的 `CreditsIcon`。`CurrencyText` 只用于把服务器或旧数据返回字符串中的遗留货币字符转换为同一 SVG，不得用运行时 DOM 扫描替代组件渲染。
 
@@ -210,18 +211,23 @@
 
 ### 7.1 统一覆盖式滚动条
 
-- `src/components/ui/ScrollArea.tsx` 是应用内覆盖式滚动区域的唯一共享组件，`src/hooks/useOverlayScrollbar.ts` 是滑块尺寸、位置、拖动、轨道翻页、实际滚动活动判断和双轴输入分派的唯一实现，`src/styles/scrollbars.css` 是滚动条视觉的唯一来源。
-- 原生滚动容器继续负责可访问滚动和浏览器滚动链；原生滚动条视觉在 `ScrollArea` 视口内隐藏，项目轨道绝对定位覆盖在内容上方，不占布局空间。
-- 固定令牌为视觉宽度 `6px`、可点击轨道 `14px`、边缘偏移 `2px`、最小滑块 `28px`、纵向空闲延迟 `1200ms`、淡入淡出 `120ms`；颜色统一由 `--scrollbar-thumb*` 令牌提供。
-- 覆盖式轨道不得使用 `scrollbar-gutter: stable`，不得通过内边距预留永久空间；显隐前后页面、卡片、表头、表格列宽和 `clientWidth` 必须不变。
-- “无活动”表示没有发生实际滚动位置变化：`scrollTop` 变化后才显示纵向轨道，停止 `1200ms` 后隐藏；鼠标移动、点击、焦点、滚轮或按键事件本身都不算活动。有横向溢出时水平滚动条必须常驻可见。
+- `src/components/ui/ScrollArea.tsx` 是应用内覆盖式滚动区域的唯一共享组件，`src/hooks/useOverlayScrollbar.ts` 是尺寸、位置、拖动、轨道翻页、活动判断和双轴输入分派的唯一实现，`src/styles/scrollbars.css` 是滚动条视觉的唯一来源。
+- 原生滚动容器继续负责可访问滚动、触控惯性与浏览器滚动链；原生滚动条视觉在 `ScrollArea` 视口内隐藏，项目轨道覆盖在内容上方且不占布局空间。
+- 全局统一令牌为视觉宽度 `6px`、轨道命中尺寸 `14px`、透明滑块触控目标 `44px`、边缘偏移 `2px`、最小滑块 `44px`、鼠标空闲延迟 `1200ms`、触控纵向空闲延迟 `1600ms`、淡入淡出 `120ms`。横轴、纵轴、鼠标和触控不得定义第二套尺寸。
+- 当前输入方式由最近一次有效输入动态决定：鼠标或触控板为 `mouse`，手指或笔为 `touch`，键盘为 `keyboard`；`pointer: coarse` 只决定首次默认值。混合输入设备必须在运行时切换，不得只按视口宽度判断。
+- 鼠标模式下，横纵轨道在悬停、键盘聚焦、实际滚动、滑块拖动或轨道操作时显示；离开且空闲后隐藏。滑块必须使用 pointer capture，拖动写入通过 `requestAnimationFrame` 合并，指针离开轨道后仍连续工作。
+- 触控模式下横向项目轨道始终 `display: none`，不得在横向滚动时闪现，也不得拦截内容。横向内容继续通过原生手指滑动、惯性与 `touch-action: pan-x pan-y` 操作。
+- 触控模式下纵向轨道只在 `scrollTop` 实际变化后显示；显示期间允许触摸拖动滑块与点击轨道翻页，拖动或轨道操作期间不得隐藏，结束并空闲 `1600ms` 后淡出，隐藏时必须 `pointer-events: none`。
+- `scrollbarVisibility="adaptive"` 是普通区域默认策略；`always` 只允许明确需要常驻轨道的管理工具使用，`hidden` 用于移动底栏等保留滚动但永久隐藏项目轨道的区域。触控模式隐藏横向轨道的规则高于 `always`。
+- “活动”只由实际 `scrollLeft` 或 `scrollTop` 变化、滑块拖动或轨道操作产生；鼠标移动、触摸按下、点击、焦点、无法继续滚动的滚轮或边界手势本身不算活动。
 - 普通滚轮和以 `deltaY` 为主的触控板输入优先垂直滚动；只有 `Shift + 滚轮`、明确以 `deltaX` 为主的触控板输入、水平滑块拖动或水平轨道点击才执行水平滚动。到达内部纵向边界后必须把滚动链交给外层，不得自动改成水平滚动。
 - 同一滚轮事件经过嵌套视口时，最近且仍能沿当前方向滚动的后代视口拥有事件；祖先 `ScrollArea` 必须先检查事件目标到自身视口之间的原生或共享滚动容器，不得在后代尚未到边界时抢走滚动。
-- 当前视口真正发生滚动时必须同时调用 `preventDefault()` 与 `stopPropagation()`，避免共享内层和页面外层同时位移；到顶、到底或该轴不可滚动时两者都不得调用，使事件继续交给祖先或浏览器。仅横向控件不得消费普通纵向滚轮。
-- 双轴轨道同时存在时纵向轨道 `z-index` 更高，水平轨道在右侧避让纵向命中区，不绘制额外右下角块。
+- 当前视口真正发生滚动时必须同时调用 `preventDefault()` 与 `stopPropagation()`；到顶、到底或该轴不可滚动时两者都不得调用，使事件继续交给祖先或浏览器。仅横向控件不得消费普通纵向滚轮。
+- 双轴轨道同时存在时纵向轨道 `z-index` 更高，水平轨道在右侧避让纵向命中区，不绘制额外右下角块。触控模式隐藏横向轨道后不得留下空白或命中区域。
 - 不得使用 `overscroll-behavior: contain` 阻断纵向滚动链；只有明确的横向视口可以使用 `overscroll-behavior-x: contain`，并保持 `overscroll-behavior-y: auto`。
-- 移动页面纵向轨道固定到视口安全边缘：仅 `.page-scroll-area > .ui-scrollbar--vertical` 在不大于 `720px` 时使用 `position: fixed`，顶部和底部保留 `var(--scrollbar-edge-offset)`，右侧使用 `right: env(safe-area-inset-right, 0px)`，滑块在轨道内再保留 `2px` 边缘偏移。固定的只有覆盖式轨道，`.page-scroll-area`、`.page-scroll`、`.page-content` 和卡片仍受 `.workspace` gutter 约束，宽度与滚动视口不得改变。
-- 移动页面贴边不得恢复 `--mobile-workspace-inline-end`、`--mobile-scrollbar-edge-escape` 或 `translateX(...)` 逃逸令牌，也不得用负 `right`、扩大页面 viewport、改变卡片宽度或让轨道越过右侧安全区。真实浏览器几何必须验证滑块右边缘距屏幕或安全区内缘约 `2px`。
+- 移动页面纵向轨道固定到视口安全边缘：仅 `.page-scroll-area > .ui-scrollbar--vertical` 在不大于 `720px` 时使用 `position: fixed`，右侧使用 `right: env(safe-area-inset-right, 0px)`。固定的只有覆盖式轨道，工作区和卡片宽度不得改变。
+- 市场商品与工厂资产目录必须支持无级滑动：不得使用 `scroll-snap-type`、`scroll-snap-align` 或容器级 `scroll-behavior: smooth`。手动滑动与滑块拖动使用即时连续位置，只有左右浏览按钮和明确的程序化定位可以显式使用平滑滚动。
+- 本地成交记录必须使用单一双轴原生视口的 `VirtualRecordTable`；表头与虚拟数据共享同一个 `scrollLeft`，数据单元格本身必须能作为横向触控起点，不得恢复“外层横向 + 内层纵向”的正交嵌套视口。
 - 滚动过程中不得用 React state 更新滑块位置；使用 ref、CSS transform、`requestAnimationFrame` 和 `ResizeObserver`。滑块保留 `role="scrollbar"`、方向和范围语义，支持拖动、轨道翻页与键盘控制。
 
 ### 7.2 滚轮事件归属与前端控件位置
@@ -233,7 +239,7 @@
 - 生产页桌面“建设新工厂”卡：`ProductionPage.tsx` / `industry-system.css` 的 `.production-build-card`；不得再使用会吞掉纵向边界的双轴 `overscroll-behavior: contain`。
 - 排行页四个榜单卡：`LeaderboardsPage.tsx` / `leaderboards.css` 的 `.leaderboard-list`。
 - 资产页“本地资产变动”：`AssetsPage.tsx` 的 `.asset-event-virtual-list` `VirtualList`。
-- 市场页“我的订单与成交 → 本地成交记录”：`MarketPage.tsx` 的 `.local-trades-scroll-area` 内层 `.virtual-record-viewport`。
+- 市场页“我的订单与成交 → 本地成交记录”：`MarketPage.tsx` 的 `.local-trades-scroll-area` 单一双轴 `.virtual-record-table`。
 - 管理员后台整页滚动区：`AdminApp.tsx` / `unified-market-admin.css` 的 `.admin-page-scroll`，以及其中的藏品管理、藏品归属历史、礼品码记录和兑换记录四类 `VirtualList`。
 - 桌面侧栏导航：`SidebarFrame.tsx` 的 `.sidebar-nav`；其外层没有可滚动页面时，到边界仍不得人为阻止事件继续传播。
 
@@ -253,7 +259,7 @@
 资产｜方向｜数量｜价格｜总额｜手续费/实收｜时间
 ```
 
-`TradeRecord.type` 只用于内部图标与类型判断；资产列不得再显示“买入／卖出”前缀，方向只由 `TradeRecord.side` 和方向列表达。外层只负责横向滚动，内部 `VirtualList` 只负责纵向滚动，表头和内容列必须保持对齐。
+`TradeRecord.type` 只用于内部图标与类型判断；资产列不得再显示“买入／卖出”前缀，方向只由 `TradeRecord.side` 和方向列表达。本地成交使用单一双轴 `VirtualRecordTable`，表头和内容共享同一个横向位置；触控模式隐藏横向轨道但保留从任意数据单元格开始的原生横滑，纵向轨道在活动后显示并允许触摸操作。
 
 ## 8. 统一资产市场
 

@@ -33,7 +33,7 @@ check('src/components/shell/GameShell.tsx', [
   '<MobileBottomNavigation',
   'className="page-scroll-area"',
   'viewportClassName="page-scroll"',
-  'verticalAutoHide',
+  'scrollbarVisibility="adaptive"',
 ]);
 check('src/styles/viewport.css', [
   '--layout-gutter: var(--mobile-primary-surface-gap);',

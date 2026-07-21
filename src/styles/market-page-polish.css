@@ -34,8 +34,8 @@
   overflow-y: hidden;
   margin: 0;
   padding: 0 0 var(--space-2);
-  scroll-behavior: smooth;
-  scroll-snap-type: x proximity;
+  scroll-behavior: auto;
+  scroll-snap-type: none;
   overscroll-behavior-x: contain;
   scrollbar-color: rgba(123, 228, 158, 0.42) rgba(255, 255, 255, 0.04);
 }
