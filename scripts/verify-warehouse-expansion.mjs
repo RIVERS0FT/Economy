@@ -19,6 +19,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/styles/warehouse-expansion.css',
   'src/styles/facility-production-formula.css',
   'src/styles/facility-group-card-grid.css',
+  'docs/README.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
@@ -108,19 +109,7 @@ for (const text of [
   'grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);',
   'container-type: inline-size;',
   '.warehouse-product-grid',
-  'grid-template-columns: repeat(2, minmax(0, 1fr));',
-  '@container (max-width: 359px)',
-  'padding: 27px 6px 6px;',
-  'width: 36px;',
-  'height: 36px;',
-  '@container (min-width: 300px)',
-  'grid-template-columns: repeat(3, minmax(0, 1fr));',
-  '@container (min-width: 560px)',
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
-  '@container (min-width: 760px)',
-  'grid-template-columns: repeat(5, minmax(0, 1fr));',
-  '@container (min-width: 960px)',
-  'grid-template-columns: repeat(6, minmax(0, 1fr));',
   'min-height: 112px;',
   'padding: 30px var(--space-2) var(--space-2);',
   '.warehouse-product-card-name',
@@ -128,9 +117,24 @@ for (const text of [
   '.warehouse-product-card-icon .product-icon',
   'width: 44px;',
   'height: 44px;',
+  '@container (max-width: 559px)',
+  'gap: 6px;',
+  'min-height: 96px;',
+  'padding: 24px 4px 6px;',
+  'width: 30px;',
+  'height: 30px;',
+  '@container (min-width: 760px)',
+  'grid-template-columns: repeat(5, minmax(0, 1fr));',
+  '@container (min-width: 960px)',
+  'grid-template-columns: repeat(6, minmax(0, 1fr));',
   '@media (max-width: 960px)',
 ]) requireText(css, text);
 for (const text of [
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  'grid-template-columns: repeat(3, minmax(0, 1fr));',
+  '@container (min-width: 300px)',
+  '@container (min-width: 560px)',
+  '@container (max-width: 359px)',
   'repeat(4, minmax(130px, 1fr))',
   '@media (max-width: 1220px)',
   'grid-template-columns: repeat(3, minmax(130px, 1fr));',
@@ -162,17 +166,26 @@ for (const text of [
   '仓库等级只能决定容量增量，不能直接决定扩容费用',
   '仓库没有玩家可见的最高等级',
   '容器查询',
-  '2／3／4／5／6 列',
-  '300px–559px',
-  '300px–359px',
-  '112px',
-  '8px',
+  '4／5／6 列',
+  '`< 760px` | 4 列',
+  '任何移动或窄容器都不得少于四列',
+  '内容区小于 `560px`',
+  '`96px` 最小高度',
+  '`30px` 图标',
   '商品名称固定在卡片左上角',
   '居中大图标主体结构',
+  '只以本文第 7.1 节为准',
 ]) requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', text);
-for (const forbidden of ['升级费用：150 × L²', 'warehouseUpgradeCostForLevel']) {
-  forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', forbidden);
-}
+for (const forbidden of [
+  '升级费用：150 × L²',
+  'warehouseUpgradeCostForLevel',
+  '2／3／4／5／6 列',
+  '| `< 300px` | 2 列 |',
+  '| `300px–559px` | 3 列 |',
+]) forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', forbidden);
+
+requireText('docs/README.md', '仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`');
+requireText('docs/README.md', '移动和窄容器固定每行四张卡');
 requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 0.6)`');
 for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式只展示集群参数']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
@@ -183,9 +196,6 @@ for (const text of [
   '不得按 `facilityGroups` 返回顺序、中文名称、ID 或 `localeCompare` 重新排序',
 ]) requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', text);
 for (const text of [
-  '仓库商品网格按内容区宽度',
-  '小于 300px 为 2 列，300px 起 3 列',
-  '内容区小于 360px 时允许使用 6px 水平内边距',
   '商品名称固定在左上角',
   '居中大尺寸统一商品 SVG',
   '建设卡不显示生产周期、单座产量和单座成本',
@@ -194,8 +204,6 @@ for (const text of [
 for (const text of [
   '仓库商品网格使用容器查询',
   '左上名称／居中大图标／可用主值／冻结辅助值',
-  '断点为 300、560、760、960px',
-  '商品卡最小高度 `112px`',
   '生产公式是集群运行能力展示',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
@@ -203,4 +211,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、容量线性定价、商品卡图标主导布局、移动端三列、目录顺序工厂卡、建设卡精简和集群公式验证通过。');
+console.log('仓库无限扩容、容量线性定价、商品卡图标主导布局、移动端四列、目录顺序工厂卡、建设卡精简和集群公式验证通过。');
