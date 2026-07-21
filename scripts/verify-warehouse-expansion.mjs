@@ -105,6 +105,7 @@ for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品�
 }
 
 const css = 'src/styles/warehouse-expansion.css';
+const cssContent = read(css);
 for (const text of [
   'grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);',
   'container-type: inline-size;',
@@ -129,9 +130,10 @@ for (const text of [
   'grid-template-columns: repeat(6, minmax(0, 1fr));',
   '@media (max-width: 960px)',
 ]) requireText(css, text);
+if (!/\.warehouse-product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s.test(cssContent)) {
+  failures.push('仓库商品网格默认必须为四列');
+}
 for (const text of [
-  'grid-template-columns: repeat(2, minmax(0, 1fr));',
-  'grid-template-columns: repeat(3, minmax(0, 1fr));',
   '@container (min-width: 300px)',
   '@container (min-width: 560px)',
   '@container (max-width: 359px)',
