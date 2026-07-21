@@ -5,6 +5,22 @@ test('desktop market asset directory supports continuous unsnapped scrolling', a
   await page.goto('market-runtime-test.html?scenario=active');
   await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
 
+  const scrollbarTokens = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement);
+    return {
+      visualSize: style.getPropertyValue('--scrollbar-visual-size').trim(),
+      hitSize: style.getPropertyValue('--scrollbar-hit-size').trim(),
+      touchTargetSize: style.getPropertyValue('--scrollbar-touch-target-size').trim(),
+      minimumThumbSize: style.getPropertyValue('--scrollbar-min-thumb-size').trim(),
+    };
+  });
+  expect(scrollbarTokens).toEqual({
+    visualSize: '6px',
+    hitSize: '14px',
+    touchTargetSize: '44px',
+    minimumThumbSize: '44px',
+  });
+
   const directory = page.getByRole('tablist', { name: '选择交易资产' });
   const root = page.locator('.asset-directory-scroll-area');
   const styles = await directory.evaluate((element) => {
