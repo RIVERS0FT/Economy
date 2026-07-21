@@ -42,7 +42,7 @@
 9. 过长文档优先通过删除重复表格、合并同一责任和调整章节顺序整理。只有拆分后的文件具备明确且唯一的职责时才允许拆分，并必须同步修改本索引、根 `README.md` 和权威性验证脚本。
 10. 商品初始参考价、生产数量、周期秒数和周期成本必须保持整数；参考分钟利润必须由正式目录自动校验，不得只在文档中手算。
 11. 移动端触控元素必须关闭浏览器原生蓝色 tap highlight，同时保留 `:focus-visible` 键盘焦点；实现统一放在 `src/styles/mobile-interaction.css`，并由 `scripts/verify-mobile-touch-feedback.mjs` 防回退。
-12. 状态轮询修订号、响应防倒退、动作／轮询互斥、空闲读取不写库、默认刷新间隔和游戏 JSON 压缩属于服务器容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-state-delivery-capacity.mjs` 防回退。
+12. 状态轮询修订号、响应防倒退、动作／轮询互斥、空闲读取不写库、默认刷新间隔、五分区完整快照替换和游戏 JSON 压缩属于服务器容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-state-delivery-capacity.mjs` 防回退。
 13. 主页账号认证缓存的分级 TTL、Cookie 摘要、并发合并、错误策略和 LRU 上限属于安全与容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-authentication-cache.mjs` 防回退。
 14. 小麦／水稻目录、农场改种、持续生产和主食替代预算属于产业与需求权威规则；必须同步更新产业、产品、服务器文档，并通过产业、工厂与主食需求验证脚本防回退。
 15. Economy 注册完成时点、主页账号自动建档、邮箱验证码、IP 指纹、多账号封禁、Resend、注册路由和登录注册双模式属于服务器与页面权威规则；必须同步更新服务器、页面、根 README、`scripts/verify-email-registration.mjs` 与服务器测试。
@@ -60,3 +60,4 @@
 27. 玩家端一级卡片外层内边距统一归属 `PRIMARY_SURFACE_INSET_DESIGN.md` 与 `primary-surfaces.css`；业务页面不得重新声明一级卡片外层 padding，新增一级卡片必须使用 `PagePanel`，并通过 `scripts/verify-primary-surface-insets.mjs` 防回退。
 28. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；施工、生产周期、拍卖和排行榜结算统一登记在 `authoritativeCountdowns.ts`，到期立即刷新并每秒确认，工作冷却按服务器绝对截止时间本地解锁，并通过 `scripts/verify-authoritative-countdowns.mjs` 防回退。
 29. 权威刷新抢占与请求超时归属 `AUTHORITATIVE_COUNTDOWN_DESIGN.md`；商品订单单次共享撮合、订单簿完整性版本迁移、动作精简确认后的异步状态补拉和重复提交锁归属订单簿与服务器容量规则，必须通过 `scripts/verify-market-action-latency.mjs`、`scripts/verify-state-delivery-capacity.mjs` 和服务器测试共同防回退。
+30. 五分区协议只在分区之间增量传输；每个返回分区内部都是完整快照，客户端必须整块替换同名缓存分区后再重组 `EconomyState`。服务器省略可选字段即表示删除，空对象也必须清空旧分区内容，不得恢复对旧完整状态的字段级浅合并。
