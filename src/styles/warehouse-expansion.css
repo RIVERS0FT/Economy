@@ -139,7 +139,7 @@
 
 .warehouse-product-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
@@ -230,43 +230,37 @@
   color: var(--color-text-muted);
 }
 
-@container (max-width: 359px) {
+@container (max-width: 559px) {
+  .warehouse-product-grid {
+    gap: 6px;
+  }
+
   .warehouse-product-card {
-    padding: 27px 6px 6px;
+    min-height: 96px;
+    grid-template-rows: minmax(34px, 1fr) auto auto;
+    padding: 24px 4px 6px;
     gap: 1px;
   }
 
   .warehouse-product-card-name {
     top: 6px;
-    left: 6px;
-    right: 6px;
+    left: 4px;
+    right: 4px;
     font-size: var(--font-size-xs);
   }
 
   .warehouse-product-card-icon {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
   }
 
   .warehouse-product-card-icon .product-icon {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
   }
 
   .warehouse-product-card-available {
-    font-size: var(--font-size-md);
-  }
-}
-
-@container (min-width: 300px) {
-  .warehouse-product-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@container (min-width: 560px) {
-  .warehouse-product-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    font-size: var(--font-size-xs);
   }
 }
 
