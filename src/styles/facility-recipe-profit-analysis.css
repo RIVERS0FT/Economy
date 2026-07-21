@@ -1,0 +1,164 @@
+.facility-profit-analysis {
+  min-width: 0;
+  align-self: start;
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  background: var(--color-surface-inset);
+}
+
+.facility-profit-analysis__heading {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.facility-profit-analysis__heading > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.facility-profit-analysis__heading strong {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-tight);
+}
+
+.facility-profit-analysis__heading small,
+.facility-profit-analysis__note,
+.facility-profit-analysis__input-detail,
+.facility-profit-analysis__warning-list {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}
+
+.facility-profit-analysis__summary,
+.facility-profit-analysis__metrics {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.facility-profit-analysis__summary {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.facility-profit-analysis__metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.facility-profit-analysis__metric {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 0.15rem;
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  background: var(--color-surface);
+}
+
+.facility-profit-analysis__metric > small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-tight);
+}
+
+.facility-profit-analysis__metric > strong,
+.facility-profit-analysis__metric > .currency-amount {
+  min-width: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
+}
+
+.facility-profit-analysis__metric > span:last-child {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}
+
+.facility-profit-analysis__metric.is-positive > strong,
+.facility-profit-analysis__metric.is-positive > .currency-amount {
+  color: var(--color-success);
+}
+
+.facility-profit-analysis__metric.is-negative > strong,
+.facility-profit-analysis__metric.is-negative > .currency-amount {
+  color: var(--color-danger);
+}
+
+.facility-profit-analysis__inputs {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-2);
+}
+
+.facility-profit-analysis__input-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.facility-profit-analysis__input-row > strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facility-profit-analysis__input-detail {
+  min-width: 0;
+  text-align: right;
+}
+
+.facility-profit-analysis__warning-list {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.facility-profit-analysis__warning-list li::before {
+  content: "·";
+  margin-right: 0.35rem;
+  color: var(--color-warning);
+}
+
+.facility-profit-analysis__note {
+  margin: 0;
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-2);
+}
+
+@container (max-width: 620px) {
+  .facility-profit-analysis__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 460px) {
+  .facility-profit-analysis__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .facility-profit-analysis__input-row {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .facility-profit-analysis__input-detail {
+    text-align: left;
+  }
+}
