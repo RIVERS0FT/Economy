@@ -47,6 +47,28 @@ jobs:
           path.write_text(source[:index] + "console.log('Adaptive scroll input redesign applied.');\n")
           PY
           node scripts/apply-scroll-input-redesign.mjs 2>&1 | tee scroll-redesign-apply.log
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-runtime-architecture.mjs')
+          source = path.read_text()
+          old = """const virtualList = read('src/components/ui/VirtualList.tsx');
+          if (!/requestAnimationFrame\\s*\\(/.test(virtualList)) fail('VirtualList 必须使用 requestAnimationFrame 合并滚动更新');
+          if (!/findVisibleRange\\s*\\(/.test(virtualList)) fail('VirtualList 必须调用二分可视区间函数');
+          if (/while\\s*\\([^)]*(startIndex|endIndex)/.test(virtualList)) fail('VirtualList 不得在滚动渲染中线性扫描可视区间');
+          """
+          new = """const virtualWindow = read('src/hooks/useVirtualWindow.ts');
+          const virtualList = read('src/components/ui/VirtualList.tsx');
+          const virtualRecordTable = read('src/components/ui/VirtualRecordTable.tsx');
+          if (!/requestAnimationFrame\\s*\\(/.test(virtualWindow)) fail('共享窗口化内核必须使用 requestAnimationFrame 合并滚动更新');
+          if (!/findVisibleRange\\s*\\(/.test(virtualWindow)) fail('共享窗口化内核必须调用二分可视区间函数');
+          if (/while\\s*\\([^)]*(startIndex|endIndex)/.test(virtualWindow)) fail('共享窗口化内核不得在滚动渲染中线性扫描可视区间');
+          if (!virtualList.includes('useVirtualWindow')) fail('VirtualList 必须复用共享窗口化内核');
+          if (!virtualRecordTable.includes('useVirtualWindow')) fail('VirtualRecordTable 必须复用共享窗口化内核');
+          """
+          if old not in source:
+              raise SystemExit('runtime verifier virtual-list block not found')
+          path.write_text(source.replace(old, new))
+          PY
 
       - name: Install dependencies
         run: npm ci
