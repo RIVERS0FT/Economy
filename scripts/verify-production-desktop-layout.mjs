@@ -1,3 +1,4 @@
+// Desktop production workspace geometry regression guard.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
