@@ -829,6 +829,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     ? Math.max(0, game.facilityConstruction.completesAt - now)
     : 0;
   const constructionAwaitingConfirmation = Boolean(game.facilityConstruction && constructionRemaining === 0);
+  const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
   const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -1007,7 +1008,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
         now={now}
         isOpen={isFacilityDetailOpen}
         returnFocusRef={detailTriggerRef}
-        onClose={() => setFacilityDetailOpen(false)}
+        onClose={closeFacilityDetail}
         onToggle={toggleSelectedFacility}
         onRecipeChange={changeSelectedFacilityRecipe}
         onOpenMarket={openSelectedFacilityMarket}
