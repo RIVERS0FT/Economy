@@ -19,9 +19,7 @@ const overview = read('src/pages/OverviewPage.tsx');
 const settings = read('src/pages/SettingsPage.tsx');
 const serverApp = read('server/src/app.js');
 const tutorialStore = read('server/src/tutorial-store.js');
-const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
-const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 
 requireText(storage, 'economy.game-tutorial.v', '教程本轮状态必须按玩家保存在浏览器本地');
 requireText(storage, 'sellOrderBaselineIds', '教程必须记录本轮卖单基线');
@@ -41,8 +39,8 @@ requireText(tutorialStore, 'game_tutorial_completion_migration_version', '老玩
 forbidText(tutorialStore, 'workClicks', '服务器教程完成记录不得保存步骤统计');
 forbidText(tutorialStore, 'producedGoods', '服务器教程完成记录不得读取生产累计统计');
 forbidText(tutorialStore, 'soldGoods', '服务器教程完成记录不得读取出售累计统计');
-requireText(productDesign, '客户端本轮教程', '产品设计必须记录客户端本轮教程规则');
-requireText(pageDesign, '重新开始教程', '页面设计必须记录设置页重开入口');
-requireText(serverDesign, 'economy_tutorial_completions', '服务器设计必须记录教程完成表');
+requireText(pageDesign, '### 11.1 客户端本轮教程', '页面权威设计必须记录客户端本轮教程规则');
+requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录教程完成表和服务器负担边界');
+requireText(pageDesign, '重新开始教程', '页面权威设计必须记录设置页重开入口');
 
 console.log('Game tutorial verification passed.');
