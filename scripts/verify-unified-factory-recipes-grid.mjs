@@ -246,9 +246,18 @@ for (const text of [
   '当前详情工厂必须使用独立本地状态',
   '桌面和平板只渲染一个当前工厂的完整详情',
   '不大于 `720px` 时页面内只显示当前选择栏和紧凑工厂选择网格',
+  '所有工厂详情统一显示启用的“生产配方”选择器',
+  '单配方工厂显示唯一选项并保持启用',
+  '重复选择当前正式配方不得提交经济动作',
   '悬浮框最大高度为 `min(88dvh, 760px)`',
   '关闭后焦点返回触发卡',
-  '视口变为大于 `720px` 时必须自动关闭并解除滚动锁',
+  '固定头部／唯一 `ScrollArea` 正文／固定底部操作区',
+  '正文 `scrollTop` 实际变化后显示',
+  '空闲 `1600ms` 后淡出',
+  '正文 `scrollTop = 0`',
+  '向下距离达到悬浮框高度的 `25%`',
+  '`src/styles/facility-detail-sheet.css`',
+  '视口变为大于 `720px` 时必须自动关闭并解除滚动锁与轨道抑制',
   '选择卡内部不得嵌套运行开关、配方选择器或市场按钮',
   '生产公式只展示集群参数',
   '公式不得使用总持有 `count` 作为公式乘数',
@@ -258,24 +267,9 @@ for (const forbidden of [
   '右侧工厂集群列表',
   '大于 1380px 时右侧固定四列',
   '移动端恢复自然高度；不得在单张卡内部增加纵向滚动条',
+  '单配方工厂显示唯一选项并禁用',
 ])
   assert.equal(industryDoc.includes(forbidden), false, `产业设计不应保留旧页面规则: ${forbidden}`);
-
-const sheetDoc = read('docs/MOBILE_FACILITY_DETAIL_SHEET_DESIGN.md');
-for (const text of [
-  '本文件是移动工厂详情悬浮框的最终设计权威',
-  '单配方工厂显示唯一选项并保持启用',
-  '重复选择相同正式配方不得提交经济动作',
-  '唯一 ScrollArea 正文',
-  '固定底部操作区',
-  '仅在 `scrollTop` 实际变化后显示纵向轨道',
-  '空闲 `1600ms` 后淡出',
-  '正文 `scrollTop = 0`',
-  '向下距离达到悬浮框高度的 `25%`',
-  '关闭后焦点返回触发控件',
-  '`src/styles/facility-detail-sheet.css`',
-])
-  assert.equal(sheetDoc.includes(text), true, `移动工厂详情设计缺少: ${text}`);
 
 const catalogDoc = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 for (const text of [
