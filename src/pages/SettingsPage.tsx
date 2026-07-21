@@ -98,12 +98,15 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
               <option value="10">每 10s</option>
             </SelectInput>
 
-            <section className="tutorial-settings-section" aria-labelledby="tutorial-settings-heading">
-              <div>
+            <section
+              className="tutorial-settings-section"
+              aria-labelledby="tutorial-settings-heading"
+              aria-description="重新开始只清除本轮教程进度，不会重置游戏资产。"
+            >
+              <div className="tutorial-settings-copy">
                 <h3 id="tutorial-settings-heading">基础教程</h3>
                 <p>{tutorial.statusLabel}</p>
               </div>
-              <p>教程只记录本轮操作，不读取玩家累计统计。重新开始不会重置资金、库存、工厂或订单。</p>
               <div className="tutorial-settings-actions">
                 {tutorial.isActive && !tutorial.isVisible ? (
                   <Button variant="secondary" onClick={tutorial.show}>显示基础教程</Button>
