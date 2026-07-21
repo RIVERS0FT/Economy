@@ -67,6 +67,19 @@ jobs:
           fi
           rm migration-error.txt
 
+      - name: Align authoritative wording
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/LIQUID_GLASS_CHROME_DESIGN.md')
+          content = path.read_text()
+          marker = '- `.asset-bar-content` 固定使用五列'
+          replacement = '- `.asset-bar-content` 固定五列布局使用'
+          if marker not in content:
+              raise SystemExit('missing fixed-column design marker')
+          path.write_text(content.replace(marker, replacement, 1))
+          PY
+
       - name: Install dependencies
         run: npm ci
 
