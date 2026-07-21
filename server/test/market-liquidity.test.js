@@ -197,6 +197,7 @@ test('buying from a reserve transfers real inventory and returns credits to the 
 test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
+  world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
   const oldOrders = liquidityOrders(world, 'food', 'wheat').filter((order) => order.remaining > 0);
