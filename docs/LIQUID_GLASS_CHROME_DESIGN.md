@@ -116,7 +116,8 @@
 - Chrome Overlay 使用 `pointer-events: none`，只有状态栏和底栏恢复交互；
 - 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
 - `.asset-bar` 是固定定位宿主并直接包含唯一 `LiquidGlassSurface`；不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
-- `.asset-bar-content` 固定五列布局，列内容不得把玻璃撑宽；
+- `.asset-bar-content` 固定五列布局使用 `repeat(5, minmax(0, 1fr))`，不得通过横向滚动解决空间不足；`721px–960px` 隐藏标签与说明并切换紧凑数值，不大于 `720px` 时继续使用紧凑数值与自适应字号；
+- `.page-scroll` 左右 padding 必须为 `0`；
 - 移动操作结果通知必须位于 `GameShell` 的 `.mobile-chrome-overlay` 内，DOM 顺序固定为 `StatusBar` 后、`MobileBottomNavigation` 前；不得放入 `.mobile-page-overlay` 或 `.page-scroll`；
 - 通知顶部固定为安全区顶部 + `48px` 状态栏 + `8px` 间距，左右各 `8px`，内容水平居中且最大宽度 `30rem`；通知使用普通半透明提示样式，不新增液态玻璃实例；
 - 通知宿主与提示本体均不得拦截指针事件，通知显示／隐藏不得推动页面内容、状态栏或底栏，也不得改变页面滚动高度；
