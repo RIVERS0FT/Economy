@@ -99,6 +99,7 @@
 - 桌面侧栏导航必须从顶部按固有行高排列，不能把九个按钮平均拉伸到整列高度；
 - 桌面状态栏高度保持 `76px`，实际玻璃圆角为 `24px`，与桌面一级卡片 `--radius-card: 24px` 一致；
 - `.page-scroll-area` 与 `.page-scroll` 铺满工作区，桌面左右 padding 为 `0`；页面顶部避让固定为“沟槽 + 状态栏高度 + 沟槽”；
+- 页面顶部避让必须集中为 `--desktop-page-top-offset`，其值固定由“`--desktop-layout-gutter` + `--desktop-asset-bar-height` + `--desktop-layout-gutter`”派生；需要避让状态栏的桌面 sticky 一级卡片必须直接读取该令牌，底部余量继续读取 `--desktop-layout-gutter`，不得重复维护另一套顶部数值。
 - `.page-content` 使用 `width: 100%`、`max-width: none`、`margin: 0`，左侧 padding 为 `0`，右侧与底部 padding 使用 `--desktop-layout-gutter`；最外层页面网格的右边缘必须与状态栏右边缘共线；
 - 一级卡片父网格继续使用 `gap: var(--layout-gutter)`，桌面 `--layout-gutter` 由 `--desktop-layout-gutter` 接管，因此卡片与卡片、卡片与页面右边缘使用相同距离；页面内部二级卡片、列表行、按钮组和表单间距不属于该规则；
 - 页面主滚动条的轨道和可见滑块都使用 `right: 0`，直接贴合视口右边缘；通用滚动条仍保留 `--scrollbar-edge-offset: 2px`，桌面页面主滚动条只在 `game-shell-layout.css` 中覆盖，不得影响侧栏、表格、虚拟列表或移动页面轨道。
