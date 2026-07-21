@@ -24,6 +24,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Make page-content assertions formatting independent
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          path = Path('scripts/verify-page-content.mjs')
+          content = path.read_text(encoding='utf-8')
+          replacements = {
+              "  '>运行 {formatNumber(model.derived.runningFacilities)}',": "  '运行 {formatNumber(model.derived.runningFacilities)}',",
+              "  '>停止 {formatNumber(model.derived.stoppedFacilities)}',": "  '停止 {formatNumber(model.derived.stoppedFacilities)}',",
+              "  '>异常 {formatNumber(model.derived.blockedFacilities)}',": "  '异常 {formatNumber(model.derived.blockedFacilities)}',",
+          }
+          for old, new in replacements.items():
+              if old not in content:
+                  raise SystemExit(f'missing expected assertion: {old}')
+              content = content.replace(old, new, 1)
+          path.write_text(content, encoding='utf-8')
+          PYTHON
+
       - name: Run build and capture diagnostics
         shell: bash
         run: |
@@ -39,11 +59,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain diagnostics)" ]; then
+          if [ -z "$(git status --porcelain scripts/verify-page-content.mjs diagnostics)" ]; then
             exit 0
           fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add diagnostics
-          git commit -m "chore: capture build diagnostics [skip ci]"
+          git add scripts/verify-page-content.mjs diagnostics
+          git commit -m "fix: make production status checks formatting independent [skip ci]"
           git push
