@@ -1,13 +1,18 @@
 /* Final geometry authority for the signed-in game shell.
- * The viewport itself has no padding or grid gap. The desktop sidebar and
- * status bar share one outer inset while the workspace and page remain flush. */
+ * The viewport itself has no padding or grid gap. One desktop layout gutter
+ * controls sidebar, status bar, primary content edges and primary-card gaps,
+ * while the workspace and page scrollport remain flush to the viewport. */
 :root {
-  --desktop-shell-outer-inset: var(--space-3);
-  --desktop-sidebar-workspace-gap: var(--desktop-shell-outer-inset);
+  --desktop-layout-gutter: var(--space-3);
 }
 
 @media (min-width: 721px) {
   html[data-app-surface="game"] .game-shell.sidebar-layout {
+    --desktop-shell-outer-inset: var(--desktop-layout-gutter);
+    --desktop-sidebar-workspace-gap: var(--desktop-layout-gutter);
+    --desktop-status-gap: var(--desktop-layout-gutter);
+    --layout-gutter: var(--desktop-layout-gutter);
+
     width: 100%;
     height: 100%;
     grid-template-columns:
@@ -46,8 +51,8 @@
   html[data-app-surface="game"] .asset-bar {
     position: absolute;
     z-index: 3;
-    top: var(--desktop-shell-outer-inset);
-    right: var(--desktop-shell-outer-inset);
+    top: var(--desktop-layout-gutter);
+    right: var(--desktop-layout-gutter);
     left: 0;
     width: auto;
     height: var(--desktop-asset-bar-height);
@@ -69,16 +74,16 @@
 
   html[data-app-surface="game"] .page-scroll {
     padding-top: calc(
-      var(--desktop-shell-outer-inset)
+      var(--desktop-layout-gutter)
       + var(--desktop-asset-bar-height)
-      + var(--desktop-status-gap)
+      + var(--desktop-layout-gutter)
     );
     padding-right: 0;
     padding-left: 0;
     scroll-padding-top: calc(
-      var(--desktop-shell-outer-inset)
+      var(--desktop-layout-gutter)
       + var(--desktop-asset-bar-height)
-      + var(--desktop-status-gap)
+      + var(--desktop-layout-gutter)
     );
   }
 
@@ -87,7 +92,7 @@
     max-width: none;
     min-width: 0;
     margin: 0;
-    padding: 0 0 var(--space-4);
+    padding: 0 var(--desktop-layout-gutter) var(--desktop-layout-gutter) 0;
   }
 
   html[data-app-surface="game"] .page-heading {
@@ -97,13 +102,13 @@
 
 @media (max-width: 960px) and (min-width: 721px) {
   html[data-app-surface="game"] .game-shell.sidebar-layout {
-    --desktop-shell-outer-inset: var(--space-2);
+    --desktop-layout-gutter: var(--space-2);
   }
 }
 
 @media (max-height: 760px) and (min-width: 721px) {
   html[data-app-surface="game"] .game-shell.sidebar-layout {
-    --desktop-shell-outer-inset: .45rem;
+    --desktop-layout-gutter: var(--space-2);
     gap: 0;
     padding: 0;
   }
