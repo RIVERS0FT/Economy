@@ -51,16 +51,17 @@ if (failures.length === 0) {
   ]) requireText(paths.statusComponent, text);
 
   for (const text of [
-    '.asset-bar .liquid-glass-surface--desktopStatusBar,',
+    '.asset-bar > .liquid-glass-surface--desktopStatusBar,',
     'border-radius: 24px !important;',
     '.liquid-glass-surface--desktopStatusBar .glass__warp {',
     '-webkit-backdrop-filter: blur(6px) saturate(120%);',
-    '.liquid-glass-surface--desktopStatusBar,',
+    '.liquid-glass-surface--desktopStatusBar::after,',
+    'z-index: 2;',
     'border: 1px solid var(--liquid-glass-structure-border);',
     'background: var(--liquid-glass-contrast);',
     '.liquid-glass-surface--desktopStatusBar > span,',
     'display: none !important;',
-    '.asset-bar .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,',
+    '.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,',
     'box-shadow: none !important;',
   ]) requireText(paths.surfaceStyles, text);
 
@@ -89,7 +90,9 @@ if (failures.length === 0) {
     "toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar')",
     "expect(layout.surfaceRadius).toEqual(['24px', '24px', '24px', '24px'])",
     "expect(layout.panelRadius).toBe('24px')",
-    "expect(layout.surfaceBorderWidth).toBe('1px')",
+    "expect(layout.surfaceBorderWidth).toBe('0px')",
+    "expect(layout.outlineBorderWidth).toBe('1px')",
+    "expect(layout.outlineZIndex).toBe('2')",
     'expect(layout.visibleDecorationSpanCount).toBe(0)',
     "expect(layout.glassBoxShadow).toBe('none')",
   ]) requireText(paths.browser, text);
@@ -101,4 +104,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('桌面一级卡片与状态栏 24px 圆角、桌面独立玻璃预设、单层结构边框、零第三方装饰层和无外部阴影验证通过。');
+console.log('桌面一级卡片与状态栏 24px 圆角、桌面独立玻璃预设、顶层连续结构描边、零第三方装饰层和无外部阴影验证通过。');

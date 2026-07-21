@@ -194,7 +194,7 @@ test('mobile market sticky asset divider stays below the status bar chrome', asy
   await page.goto('market-runtime-test.html?scenario=active');
 
   const pageScroll = page.locator('.page-scroll');
-  const statusBar = page.locator('.asset-bar-scroll-area');
+  const statusBar = page.locator('.asset-bar');
   const directoryShell = page.locator('.asset-directory-shell');
   const divider = page.locator('.asset-directory-divider').first();
   await expect(statusBar).toBeVisible();
@@ -209,7 +209,7 @@ test('mobile market sticky asset divider stays below the status bar chrome', asy
   expect(localStacking.zIndex).toBe('0');
 
   await pageScroll.evaluate((element) => {
-    const status = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+    const status = document.querySelector<HTMLElement>('.asset-bar');
     const assetDivider = document.querySelector<HTMLElement>('.asset-directory-divider');
     if (!status || !assetDivider) throw new Error('mobile market stacking fixture is incomplete');
     const statusRect = status.getBoundingClientRect();
@@ -218,7 +218,7 @@ test('mobile market sticky asset divider stays below the status bar chrome', asy
   });
 
   const stacking = await page.evaluate(() => {
-    const status = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+    const status = document.querySelector<HTMLElement>('.asset-bar');
     const assetDivider = document.querySelector<HTMLElement>('.asset-directory-divider');
     if (!status || !assetDivider) throw new Error('mobile market stacking fixture is incomplete');
     const statusRect = status.getBoundingClientRect();

@@ -1,6 +1,6 @@
 /* liquid-glass-react is the only liquid-glass renderer. This stylesheet owns
  * geometry, sizing, content layout, clipping, minimum contrast and one
- * non-material structural border. It must not recreate blur, refraction or
+ * top-layer structural outline. It must not recreate blur, refraction or
  * chromatic aberration in CSS. Status bars suppress upstream decorative shells. */
 :root {
   --desktop-asset-bar-height: 76px;
@@ -96,30 +96,50 @@
   -webkit-backdrop-filter: blur(7.2px) saturate(125%);
 }
 
-.asset-bar .liquid-glass-surface--desktopStatusBar,
-.asset-bar .liquid-glass-surface--desktopStatusBar > *,
-.asset-bar .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass {
+.asset-bar > .liquid-glass-surface--desktopStatusBar,
+.asset-bar > .liquid-glass-surface--desktopStatusBar > *,
+.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass {
   border-radius: 24px !important;
 }
 
-.asset-bar .liquid-glass-surface--mobileStatusBar,
-.asset-bar .liquid-glass-surface--mobileStatusBar > *,
-.asset-bar .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass,
+.asset-bar > .liquid-glass-surface--mobileStatusBar,
+.asset-bar > .liquid-glass-surface--mobileStatusBar > *,
+.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass,
 .mobile-bottom-navigation .liquid-glass-surface,
 .mobile-bottom-navigation .liquid-glass-surface > *,
 .mobile-bottom-navigation .liquid-glass-surface__effect > .glass {
   border-radius: 40px !important;
 }
 
-/* All chrome hosts keep one deterministic structural outline. Desktop and
- * mobile status bars intentionally suppress every upstream border/highlight
- * sibling so the status bar cannot render as nested or duplicated capsules. */
+/* Chrome hosts keep one deterministic structural outline. Status bars draw
+ * that outline above the glass effect so sampled page edges cannot erase it;
+ * mobile navigation keeps its existing host border and low-intensity highlight. */
 .liquid-glass-surface--desktopStatusBar,
 .liquid-glass-surface--mobileStatusBar,
 .liquid-glass-surface--mobileNavigation {
   box-sizing: border-box;
-  border: 1px solid var(--liquid-glass-structure-border);
   background: var(--liquid-glass-contrast);
+}
+
+.liquid-glass-surface--desktopStatusBar,
+.liquid-glass-surface--mobileStatusBar {
+  border: 0;
+}
+
+.liquid-glass-surface--mobileNavigation {
+  border: 1px solid var(--liquid-glass-structure-border);
+}
+
+.liquid-glass-surface--desktopStatusBar::after,
+.liquid-glass-surface--mobileStatusBar::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--liquid-glass-structure-border);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .liquid-glass-surface--desktopStatusBar > div:not(.liquid-glass-surface__effect),
@@ -134,8 +154,8 @@
   opacity: 0 !important;
 }
 
-.asset-bar .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,
-.asset-bar .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {
+.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,
+.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {
   box-shadow: none !important;
 }
 
@@ -150,19 +170,22 @@
   mix-blend-mode: screen !important;
 }
 
-.asset-bar .liquid-glass-surface {
-  width: max(100%, 675px);
-  min-width: 675px;
+.asset-bar > .liquid-glass-surface {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
 }
 
 .asset-bar-content {
   width: 100%;
   height: 100%;
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(135px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: stretch;
   gap: 0;
   padding: var(--space-1);
+  overflow: visible;
 }
 
 .asset-bar-item,
@@ -247,31 +270,27 @@
 }
 
 @media (max-width: 960px) and (min-width: 721px) {
-  .asset-bar .liquid-glass-surface {
-    width: max(100%, 725px);
-    min-width: 725px;
+  .asset-bar-content {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: .25rem;
   }
 
-  .asset-bar-content {
-    grid-template-columns: repeat(5, minmax(145px, 1fr));
+  .asset-bar-item {
+    padding-inline: .35rem;
+  }
+
+  .asset-bar-item-label,
+  .asset-bar-item > small {
+    display: none;
   }
 }
 
 @media (max-width: 720px) {
-  .asset-bar .liquid-glass-surface,
-  .asset-bar .liquid-glass-surface > *,
-  .asset-bar .liquid-glass-surface__effect > .glass {
+  .asset-bar > .liquid-glass-surface,
+  .asset-bar > .liquid-glass-surface > *,
+  .asset-bar > .liquid-glass-surface .liquid-glass-surface__effect > .glass {
     width: 100%;
     min-width: 0;
-  }
-
-  .asset-bar-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-evenly;
-    gap: 0;
-    padding: .25rem .8rem;
-    overflow: hidden;
   }
 
   /* This is the only vertical padding owner for the 68px mobile capsule. */

@@ -113,10 +113,15 @@ if (failures.length === 0) {
     "return window.matchMedia(MOBILE_STATUS_MEDIA_QUERY).matches ? 'mobileStatusBar' : 'desktopStatusBar'",
     'mediaQuery.addEventListener(\'change\', updateVariant)',
     '<LiquidGlassSurface variant={surfaceVariant}>',
-    'className="asset-bar-scroll-area"',
-    'viewportClassName="asset-bar"',
+    'className="asset-bar"',
     'className="asset-bar-content"',
   ]) requireText(files.status, text);
+  for (const text of [
+    "import { ScrollArea }",
+    '<ScrollArea',
+    'asset-bar-scroll-area',
+    'asset-bar-scroll-track',
+  ]) forbidText(files.status, text);
   for (const text of [
     '<LiquidGlassSurface variant="statusBar">',
     '<LiquidGlassSurface variant="desktopStatusBar">',
@@ -133,15 +138,20 @@ if (failures.length === 0) {
     '.liquid-glass-surface--mobileStatusBar .glass__warp,',
     '.liquid-glass-surface--mobileNavigation .glass__warp {',
     '-webkit-backdrop-filter: blur(7.2px) saturate(125%);',
-    '.asset-bar .liquid-glass-surface--desktopStatusBar,',
+    '.asset-bar > .liquid-glass-surface--desktopStatusBar,',
     'border-radius: 24px !important;',
-    '.asset-bar .liquid-glass-surface--mobileStatusBar,',
+    '.asset-bar > .liquid-glass-surface--mobileStatusBar,',
     '.mobile-bottom-navigation .liquid-glass-surface__effect > .glass {',
     'border-radius: 40px !important;',
     '.liquid-glass-surface--desktopStatusBar,',
     '.liquid-glass-surface--mobileStatusBar,',
     '.liquid-glass-surface--mobileNavigation {',
+    '.liquid-glass-surface--desktopStatusBar::after,',
+    '.liquid-glass-surface--mobileStatusBar::after {',
+    'content: "";',
+    'z-index: 2;',
     'border: 1px solid var(--liquid-glass-structure-border);',
+    'pointer-events: none;',
     'background: var(--liquid-glass-contrast);',
     '.liquid-glass-surface--desktopStatusBar > div:not(.liquid-glass-surface__effect),',
     '.liquid-glass-surface--mobileStatusBar > div:not(.liquid-glass-surface__effect),',
@@ -149,14 +159,15 @@ if (failures.length === 0) {
     '.liquid-glass-surface--desktopStatusBar > span,',
     '.liquid-glass-surface--mobileStatusBar > span {',
     'opacity: 0 !important;',
-    '.asset-bar .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,',
-    '.asset-bar .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {',
+    '.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,',
+    '.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {',
     'box-shadow: none !important;',
     '.liquid-glass-surface--mobileNavigation > span:first-of-type {',
     'opacity: 0.22 !important;',
     'mix-blend-mode: screen !important;',
-    'width: max(100%, 675px);',
-    'padding: .25rem .8rem;',
+    '.asset-bar > .liquid-glass-surface {',
+    'grid-template-columns: repeat(5, minmax(0, 1fr));',
+    'overflow: visible;',
     '.mobile-bottom-navigation .liquid-glass-surface__content {',
     'padding: 8px 0;',
     'only vertical padding owner',
@@ -260,8 +271,10 @@ if (failures.length === 0) {
   ]) forbidText(files.mobileNavigation, text);
   for (const text of [
     '.asset-bar {',
+    'display: block;',
     'padding: 0;',
-    'scroll-padding-inline: 0;',
+    'overflow: visible;',
+    'grid-template-columns: repeat(5, minmax(0, 1fr));',
     'min-height: var(--mobile-asset-bar-height);',
     'max-height: var(--mobile-asset-bar-height);',
   ]) requireText(files.mobileStatus, text);
@@ -278,7 +291,8 @@ if (failures.length === 0) {
     'left: auto;',
   ]) requireText(files.scrollbars, text);
   for (const text of [
-    '.asset-bar-scroll-area,',
+    'asset-bar-scroll-area',
+    'asset-bar-scroll-track',
     'translateX(var(--mobile-scrollbar-edge-escape))',
     '.mobile-navigation-frame',
     '.mobile-navigation-scroll-area',
@@ -306,7 +320,9 @@ if (failures.length === 0) {
     '桌面与移动不得再次合并为同一个参数常量',
     '任一时刻只能渲染一个状态栏玻璃实例',
     '状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线',
-    '不得给 `.asset-bar-scroll-area` 设置 `height: 100%`',
+    '顶部状态栏不得包含 `ScrollArea`',
+    '固定五列布局',
+    '最上层连续结构描边',
     '固定到视口安全边缘',
     'right: env(safe-area-inset-right, 0px)',
     '开放的背景采样链',
@@ -353,4 +369,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 外壳、桌面状态栏独立预设、移动 Chrome 共享预设、状态栏单壳结构、移动底栏单一原生滚动视口、开放背景采样链与固定安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 外壳、桌面状态栏独立预设、移动 Chrome 共享预设、状态栏固定五列单壳结构、顶层连续描边、移动底栏单一原生滚动视口、开放背景采样链与固定安全边缘滚动条验证通过。');

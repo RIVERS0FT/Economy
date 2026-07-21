@@ -11,7 +11,6 @@
   --mobile-nav-scroll-gutter: 1.25rem;
 }
 
-.asset-bar,
 .sidebar-nav,
 .table-wrap,
 .ledger-list,
@@ -58,16 +57,6 @@
     padding: 0;
   }
 
-  .asset-bar {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0;
-    scroll-padding-inline: 0;
-    scrollbar-width: none;
-  }
-
-  .asset-bar::-webkit-scrollbar,
   .mobile-bottom-navigation__viewport::-webkit-scrollbar {
     width: 0;
     height: 0;

@@ -58,7 +58,8 @@ check('src/styles/mobile-status-navigation.css', [
 check('src/styles/mobile-status-layout.css', [
   '.asset-bar {',
   'padding: 0;',
-  'scroll-padding-inline: 0;',
+  'display: block;',
+  'overflow: visible;',
   'min-height: var(--mobile-asset-bar-height);',
   'max-height: var(--mobile-asset-bar-height);',
 ]);
@@ -92,9 +93,18 @@ forbid('src/styles/mobile-status-navigation.css', [
   '.page-scroll {\n  overscroll-behavior: contain;',
 ]);
 forbid('src/styles/scrollbars.css', [
-  '.asset-bar-scroll-area,',
+  'asset-bar-scroll-area',
+  'asset-bar-scroll-track',
   'translateX(var(--mobile-scrollbar-edge-escape))',
 ]);
+forbid('src/components/shell/StatusBar.tsx', [
+  "import { ScrollArea }",
+  '<ScrollArea',
+  'asset-bar-scroll-area',
+  'asset-bar-scroll-track',
+]);
+forbid('src/styles/viewport.css', ['asset-bar-scroll-area', 'asset-bar-scroll-track']);
+forbid('src/styles/game-shell-layout.css', ['asset-bar-scroll-area', 'asset-bar-scroll-track']);
 forbid('src/styles/performance.css', ['.page-scroll,\n.asset-bar,\n.sidebar-nav {\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior: contain;']);
 forbid('src/styles/viewport.css', ['position: fixed;\n    right: 0;\n    bottom: max(var(--mobile-chrome-block-inset)']);
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
@@ -104,6 +114,7 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   'right: env(safe-area-inset-right, 0px)',
   'iOS 工具栏式清透厚玻璃',
   '两者使用同一 `40px` 胶囊圆角',
+  '顶部状态栏不得包含 `ScrollArea`',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
   '统一覆盖式滚动条',
@@ -128,4 +139,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏外壳桌面导航、移动双层 Overlay、玻璃共线、统一 40px 清透厚玻璃胶囊、视口安全边缘滚动条与纵向滚动链验证通过。');
+console.log('游戏外壳桌面导航、固定状态栏、移动双层 Overlay、玻璃共线、统一 40px 清透厚玻璃胶囊、视口安全边缘滚动条与纵向滚动链验证通过。');
