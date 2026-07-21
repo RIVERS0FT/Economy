@@ -145,6 +145,116 @@ test.describe('mobile workspace overlay geometry', () => {
     expect(heights.status).toBeLessThan(heights.workspace);
   });
 
+  test('mobile notice stays below the status bar without shifting the page', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+    const before = await page.evaluate(() => {
+      const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
+      if (!pageScroll) throw new Error('mobile notice scroll fixture is incomplete');
+      pageScroll.scrollTop = Math.min(180, pageScroll.scrollHeight - pageScroll.clientHeight);
+      return {
+        scrollTop: pageScroll.scrollTop,
+        glassCount: document.querySelectorAll('.liquid-glass-surface').length,
+      };
+    });
+    expect(before.scrollTop).toBeGreaterThan(0);
+
+    await page.evaluate(() => {
+      const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
+      const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
+      if (!chromeOverlay || !navigation) throw new Error('mobile notice chrome fixture is incomplete');
+
+      const region = document.createElement('div');
+      region.className = 'mobile-notice-region';
+      const notice = document.createElement('div');
+      notice.className = 'notice-toast';
+      notice.setAttribute('role', 'status');
+      notice.setAttribute('aria-live', 'polite');
+      notice.setAttribute('aria-atomic', 'true');
+      notice.textContent = '操作已完成，服务器状态已经同步';
+      region.append(notice);
+      chromeOverlay.insertBefore(region, navigation);
+    });
+
+    const noticeLocator = page.locator('.mobile-notice-region .notice-toast');
+    await expect(noticeLocator).toBeVisible();
+    await expect(noticeLocator).toHaveAttribute('role', 'status');
+    await expect(noticeLocator).toHaveAttribute('aria-live', 'polite');
+    await expect(noticeLocator).toHaveAttribute('aria-atomic', 'true');
+
+    const geometry = await page.evaluate(() => {
+      const workspace = document.querySelector<HTMLElement>('.workspace');
+      const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
+      const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
+      const status = document.querySelector<HTMLElement>('.asset-bar');
+      const region = document.querySelector<HTMLElement>('.mobile-notice-region');
+      const notice = document.querySelector<HTMLElement>('.mobile-notice-region .notice-toast');
+      const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
+      if (!workspace || !chromeOverlay || !pageScroll || !status || !region || !notice || !navigation) {
+        throw new Error('mobile notice geometry fixture is incomplete');
+      }
+      const rect = (element: HTMLElement) => {
+        const box = element.getBoundingClientRect();
+        return {
+          left: box.left,
+          top: box.top,
+          right: box.right,
+          bottom: box.bottom,
+          width: box.width,
+          height: box.height,
+        };
+      };
+      const workspaceStyle = getComputedStyle(workspace);
+      const regionStyle = getComputedStyle(region);
+      const noticeStyle = getComputedStyle(notice);
+      const chromeChildren = Array.from(chromeOverlay.children);
+      const statusIndex = chromeChildren.indexOf(status);
+      const noticeIndex = chromeChildren.indexOf(region);
+      const navigationIndex = chromeChildren.indexOf(navigation);
+
+      return {
+        workspace: rect(workspace),
+        status: rect(status),
+        region: rect(region),
+        notice: rect(notice),
+        navigation: rect(navigation),
+        workspacePaddingLeft: Number.parseFloat(workspaceStyle.paddingLeft),
+        workspacePaddingRight: Number.parseFloat(workspaceStyle.paddingRight),
+        regionPointerEvents: regionStyle.pointerEvents,
+        noticePointerEvents: noticeStyle.pointerEvents,
+        noticePosition: noticeStyle.position,
+        noticeTransform: noticeStyle.transform,
+        noticeZIndex: noticeStyle.zIndex,
+        pageScrollTop: pageScroll.scrollTop,
+        pageHasHorizontalOverflow: pageScroll.scrollWidth > pageScroll.clientWidth + 1,
+        chromeOwnsNotice: region.parentElement === chromeOverlay,
+        orderedBetweenChrome: statusIndex >= 0 && statusIndex < noticeIndex && noticeIndex < navigationIndex,
+        glassCountAfter: document.querySelectorAll('.liquid-glass-surface').length,
+      };
+    });
+
+    const contentLeft = geometry.workspace.left + geometry.workspacePaddingLeft;
+    const contentRight = geometry.workspace.right - geometry.workspacePaddingRight;
+    expect(geometry.notice.top - geometry.status.bottom).toBeCloseTo(8, 0);
+    expect(geometry.region.left).toBeCloseTo(contentLeft + 8, 0);
+    expect(geometry.region.right).toBeCloseTo(contentRight - 8, 0);
+    expect(geometry.notice.left).toBeGreaterThanOrEqual(geometry.region.left);
+    expect(geometry.notice.right).toBeLessThanOrEqual(geometry.region.right);
+    expect(geometry.notice.bottom).toBeLessThan(geometry.navigation.top);
+    expect(geometry.regionPointerEvents).toBe('none');
+    expect(geometry.noticePointerEvents).toBe('none');
+    expect(geometry.noticePosition).toBe('static');
+    expect(geometry.noticeTransform).toBe('none');
+    expect(geometry.noticeZIndex).toBe('auto');
+    expect(geometry.pageScrollTop).toBeCloseTo(before.scrollTop, 0);
+    expect(geometry.pageHasHorizontalOverflow).toBe(false);
+    expect(geometry.chromeOwnsNotice).toBe(true);
+    expect(geometry.orderedBetweenChrome).toBe(true);
+    expect(geometry.glassCountAfter).toBe(before.glassCount);
+    expect(geometry.glassCountAfter).toBe(2);
+  });
+
   test('mobile page scrollbar reaches the safe right edge without changing content width', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
