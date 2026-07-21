@@ -57,10 +57,19 @@
 }
 
 .tutorial-settings-section {
+  min-width: 0;
   display: grid;
-  gap: 12px;
-  padding-top: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding-top: 10px;
   border-top: 1px solid var(--border-color);
+}
+
+.tutorial-settings-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
 }
 
 .tutorial-settings-section h3,
@@ -68,21 +77,38 @@
   margin: 0;
 }
 
+.tutorial-settings-section h3 {
+  font-size: var(--font-size-md);
+}
+
 .tutorial-settings-section p {
+  overflow: hidden;
   color: var(--text-secondary);
-  font-size: 0.88rem;
-  line-height: 1.55;
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tutorial-settings-actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 }
 
 @media (max-width: 720px) {
   .game-guide-strip {
     padding: 12px;
+  }
+
+  .tutorial-settings-section {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .tutorial-settings-actions {
+    justify-content: flex-start;
   }
 
   .game-guide-actions .ui-button,
