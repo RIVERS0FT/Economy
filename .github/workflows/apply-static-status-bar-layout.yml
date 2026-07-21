@@ -52,7 +52,20 @@ jobs:
         run: node --check scripts/apply-static-status-bar-layout.mjs
 
       - name: Apply migration
-        run: node scripts/apply-static-status-bar-layout.mjs
+        run: |
+          set +e
+          node scripts/apply-static-status-bar-layout.mjs > migration-error.txt 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add migration-error.txt
+            git commit -m "chore: capture status bar migration error"
+            git push origin HEAD:codex/remove-status-bar-scroll-area
+            exit "$status"
+          fi
+          rm migration-error.txt
 
       - name: Install dependencies
         run: npm ci
