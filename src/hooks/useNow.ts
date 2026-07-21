@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
+import { estimateServerNow, subscribeServerClock } from '../utils/serverClock.js';
 
 export function useNow(referenceNow = Date.now(), intervalMs = 1_000) {
-  const [now, setNow] = useState(referenceNow);
+  const [now, setNow] = useState(() => estimateServerNow(referenceNow));
 
   useEffect(() => {
-    const receivedAt = Date.now();
-    const update = () => setNow(referenceNow + Math.max(0, Date.now() - receivedAt));
+    const update = () => setNow((current) => Math.max(current, estimateServerNow(referenceNow)));
     update();
+    const unsubscribe = subscribeServerClock(update);
     const timer = window.setInterval(update, intervalMs);
-    return () => window.clearInterval(timer);
+    return () => {
+      unsubscribe();
+      window.clearInterval(timer);
+    };
   }, [intervalMs, referenceNow]);
 
   return now;

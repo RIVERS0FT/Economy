@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { canAcceptRevision } from '../src/app/revisionGate.js';
 import { createStateDeliveryCache } from '../src/app/stateDelivery.js';
+import { createServerClock } from '../src/utils/serverClock.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 const failures = [];
@@ -21,9 +22,12 @@ function forbidText(path, fragments) {
 
 requireText('README.md', [
   '游戏状态使用全局世界修订号排序，并按目录、玩家、市场、拍卖、排行榜五个分区增量同步',
+  '每个 `GET state` 响应都在分区 envelope 顶层携带响应生成时的 `serverNow`',
   '权威动作响应固定只返回 `{ result: { ok, message }, revision }`',
   '动作已经提交但补拉失败时不得改写为操作失败',
   '客户端默认每 5 秒轮询状态',
+  '共享单调服务器时钟',
+  '`lastProcessedAt` 不得在每次轮询时被重新解释为当前服务器时间',
   '客户端只接受不低于当前值的状态修订号',
   '大型 JSON 响应必须使用 gzip 压缩',
 ]);
@@ -31,6 +35,11 @@ requireText('README.md', [
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '?revision=N&catalog=',
   '`catalog`、`player`、`market`、`auction`、`leaderboard`',
+  '{ revision, unchanged: true, serverNow }',
+  '`serverNow` 是状态交付 envelope 的顶层响应元数据',
+  '不属于 `EconomyState`、世界 JSON 或任何状态分区',
+  '每次 `GET state` 都必须生成当前值',
+  '不能在客户端每次接收轮询时重新解释为当前服务器时间',
   '每个返回的 `patches[name]` 都是该分区的完整快照',
   '整块替换同名缓存分区',
   '字段缺失即代表该字段已经被服务器删除',
@@ -41,10 +50,10 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '不得在补拉前直接写入客户端状态修订号',
   '补拉失败不得把已经提交成功的动作改写为失败',
   '`X-Economy-State-Revisions`',
-  '{ revision, unchanged: true }',
   '普通轮询不得承担时间推进',
   '正式服务的全局调度器保证到期处理延后不超过 1 秒',
   '正式客户端默认每 5 秒轮询一次修订号',
+  '共享单调服务器时钟',
   '只有 `GET state` 的分区交付响应可以更新 `EconomyState`',
   '发起任一权威动作时必须使用 `AbortController` 取消正在进行的状态轮询',
   '工作动作必须在请求发出时同步进入本地“处理中”状态',
@@ -96,11 +105,16 @@ requireText('server/src/state-partitions.js', [
   "'auction'",
   "'leaderboard'",
   "createHash('sha256')",
-  'createPartitionedStateDelivery',
+  'createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now())',
+  'serverNow: responseServerNow',
   'createPartitionedActionDelivery',
   "message: String(actionResponse?.result?.message || '')",
   'readKnownPartitionRevisionsFromSearch',
   'readKnownPartitionRevisionsFromHeader',
+]);
+forbidText('server/src/state-partitions.js', [
+  "const CATALOG_KEYS = new Set(['version', 'products', 'facilityTypes', 'serverNow'])",
+  "const MARKET_KEYS = new Set(['serverNow'",
 ]);
 
 requireText('server/src/app.js', [
@@ -112,6 +126,11 @@ requireText('server/src/app.js', [
 ]);
 
 requireText('server/src/index.js', ["import './app.js'"]);
+
+requireText('src/app/stateDelivery.d.ts', [
+  'serverNow: number;',
+  'StateDeliveryEnvelope',
+]);
 
 requireText('src/app/stateDelivery.js', [
   'STATE_PARTITION_NAMES',
@@ -126,6 +145,13 @@ forbidText('src/app/stateDelivery.js', [
   'Object.assign(next, patch)',
 ]);
 
+requireText('src/utils/serverClock.js', [
+  'createServerClock',
+  'Math.max(incomingServerNow, currentEstimate)',
+  'performance.now',
+  'subscribe(listener)',
+]);
+
 requireText('src/api/game.ts', [
   'GameStatePollResponse',
   'export interface GameActionResponse {',
@@ -134,7 +160,9 @@ requireText('src/api/game.ts', [
   'knownPartitionRevisions()',
   "params.set('revision', String(revision))",
   'params.set(name, value)',
+  'acceptServerNow(payload.serverNow)',
   'stateDeliveryCache.accept(payload)',
+  'resetServerClock()',
   'signal?: AbortSignal',
 ]);
 forbidText('src/api/game.ts', [
@@ -165,6 +193,15 @@ forbidText('src/app/gameViewModel.ts', [
   'refreshAbortRef.current',
 ]);
 
+requireText('src/hooks/useNow.ts', [
+  'estimateServerNow(referenceNow)',
+  'subscribeServerClock(update)',
+  'Math.max(current, estimateServerNow(referenceNow))',
+]);
+forbidText('src/hooks/useNow.ts', [
+  'referenceNow + Math.max(0, Date.now() - receivedAt)',
+]);
+
 requireText('src/pages/OverviewPage.tsx', [
   "isWorking ? '处理中…'",
   'disabled={isWorking || workRemaining > 0}',
@@ -183,6 +220,7 @@ const deliveryCache = createStateDeliveryCache();
 const initialDelivery = deliveryCache.accept({
   revision: 7,
   unchanged: false,
+  serverNow: 10_000,
   partitionRevisions: {
     catalog: 'catalog-0001',
     player: 'player-00001',
@@ -206,6 +244,7 @@ const initialDelivery = deliveryCache.accept({
 const incrementalDelivery = deliveryCache.accept({
   revision: 8,
   unchanged: false,
+  serverNow: 11_000,
   partitionRevisions: {
     catalog: 'catalog-0001',
     player: 'player-00002',
@@ -224,6 +263,7 @@ const incrementalDelivery = deliveryCache.accept({
 const emptyPartitionDelivery = deliveryCache.accept({
   revision: 9,
   unchanged: false,
+  serverNow: 12_000,
   partitionRevisions: {
     catalog: 'catalog-0001',
     player: 'player-00002',
@@ -236,6 +276,7 @@ const emptyPartitionDelivery = deliveryCache.accept({
 const staleDelivery = deliveryCache.accept({
   revision: 6,
   unchanged: false,
+  serverNow: 9_000,
   partitionRevisions: { player: 'player-stale' },
   patches: {
     player: {
@@ -260,6 +301,17 @@ if (initialDelivery.state?.credits !== 100
   || deliveryCache.getPartitionRevisions().player !== 'player-00002'
   || deliveryCache.getPartitionRevisions().auction !== 'auction-0002') {
   failures.push('客户端必须整块替换变化分区、删除服务器已省略字段、保留未变化分区，并拒绝旧全局修订号覆盖当前状态');
+}
+
+let monotonicNow = 1_000;
+const serverClock = createServerClock(() => monotonicNow);
+serverClock.accept(10_000);
+monotonicNow = 6_000;
+const beforeStalePoll = serverClock.now();
+serverClock.accept(10_100);
+const afterStalePoll = serverClock.now();
+if (beforeStalePoll !== 15_000 || afterStalePoll !== 15_000) {
+  failures.push('5 秒状态轮询携带较旧时间时，共享服务器时钟和工作冷却不得重新计时');
 }
 
 requireText('src/pages/SettingsPage.tsx', [
@@ -294,4 +346,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量交付与完整快照替换、可选字段删除、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量交付与完整快照替换、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');

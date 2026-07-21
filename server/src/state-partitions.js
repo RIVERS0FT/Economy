@@ -48,6 +48,11 @@ function normalizeRevisionRecord(value) {
   return normalized;
 }
 
+function normalizeServerNow(value) {
+  const serverNow = Number(value);
+  return Number.isFinite(serverNow) && serverNow >= 0 ? serverNow : Date.now();
+}
+
 export function splitClientState(state) {
   const partitions = Object.fromEntries(STATE_PARTITION_NAMES.map((name) => [name, {}]));
   for (const [key, value] of Object.entries(state || {})) {
@@ -78,8 +83,9 @@ export function readKnownPartitionRevisionsFromHeader(value) {
   }
 }
 
-export function createPartitionedStateDelivery(snapshot, knownRevisions = {}) {
-  if (snapshot?.unchanged || !snapshot?.state) return snapshot;
+export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now()) {
+  const responseServerNow = normalizeServerNow(serverNow);
+  if (snapshot?.unchanged || !snapshot?.state) return { ...snapshot, serverNow: responseServerNow };
   const partitions = splitClientState(snapshot.state);
   const partitionRevisions = createPartitionRevisions(partitions);
   const known = normalizeRevisionRecord(knownRevisions);
@@ -90,6 +96,7 @@ export function createPartitionedStateDelivery(snapshot, knownRevisions = {}) {
   return {
     revision: snapshot.revision,
     unchanged: Object.keys(patches).length === 0,
+    serverNow: responseServerNow,
     partitionRevisions,
     patches,
   };

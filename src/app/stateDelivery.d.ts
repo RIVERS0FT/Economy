@@ -8,6 +8,7 @@ export type StatePartitionPatches = StatePartitionSnapshots;
 export interface StateDeliveryEnvelope {
   revision: number;
   unchanged: boolean;
+  serverNow: number;
   partitionRevisions?: StatePartitionRevisions;
   patches?: StatePartitionPatches;
 }
