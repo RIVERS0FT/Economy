@@ -6,6 +6,10 @@ import { createTutorialStore, CURRENT_TUTORIAL_VERSION } from '../src/tutorial-s
 const oldUser = { id: 101, email: 'old-player@example.com', name: 'Old Player' };
 const newUser = { id: 202, email: 'new-player@example.com', name: 'New Player' };
 
+function totalChanges(store) {
+  return Number(store.database.prepare('SELECT total_changes() AS count').get().count);
+}
+
 test('existing players migrate as completed while new players start incomplete', () => {
   const store = new EconomyStore(':memory:', { scheduledProcessing: false });
   try {
@@ -58,6 +62,15 @@ test('tutorial completion is idempotent and does not mutate world state', () => 
     assert.equal(first.tutorial.completedVersion, CURRENT_TUTORIAL_VERSION);
     assert.equal(first.tutorial.completedAt, 3_000);
     assert.equal(store.loadWorld(3_001).revision, beforeCompletion);
+
+    const changesBeforeNewKey = totalChanges(store);
+    const repeatedWithNewKey = tutorialStore.complete(
+      newUser.id,
+      CURRENT_TUTORIAL_VERSION,
+      { ...context, requestKey: 'tutorial-request-repeat-202', now: 4_000 },
+    );
+    assert.deepEqual(repeatedWithNewKey, first);
+    assert.equal(totalChanges(store), changesBeforeNewKey);
 
     assert.throws(
       () => tutorialStore.complete(newUser.id, CURRENT_TUTORIAL_VERSION + 1, {
