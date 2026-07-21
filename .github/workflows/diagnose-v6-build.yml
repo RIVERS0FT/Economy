@@ -22,149 +22,25 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - run: npm ci
-      - name: Align regression tests with V6 rules
+      - name: Add explicit reserve deficit to the re-quote scenario
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
-          def replace_once(path, old, new):
-              file = Path(path)
-              text = file.read_text()
-              if old not in text:
-                  raise SystemExit(f'missing replacement target in {path}: {old[:80]!r}')
-              file.write_text(text.replace(old, new, 1))
-
-          replace_once(
-              'server/test/domain.test.js',
-              """test('market demand creates direct and derived orders within the shared group budget', () => {
-            const world = createWorld(now);
-            prepareDemand(world, 'food');""",
-              """test('market demand creates direct and derived orders within the shared group budget', () => {
-            const world = createWorld(now);
-            ensurePlayer(world, alice, now);
-            prepareDemand(world, 'food');""",
-          )
-
-          replace_once(
-              'server/test/domain.test.js',
-              """test('market demand keeps half of unsold system orders and raises the next cycle price', () => {
-            const world = createWorld(now);
-            deferDemand(world, now + 10 * cycleMs);
-            prepareDemand(world, 'food', now);
-            processWorld(world, now + 1);
-
-            const firstCycleId = world.demandGroups.food.lastCycleId;
-            const firstOrder = world.orders.find((order) => (
-              order.ownerType === 'population'
-              && order.demandGroupId === 'food'
-              && order.demandTier === 'direct'
-              && order.productId === 'wheat'
-              && order.demandCycleId === firstCycleId
-              && order.status === 'open'
-            ));
-            assert.ok(firstOrder);
-            const firstRemaining = firstOrder.remaining;
-            const firstPrice = firstOrder.price;
-
-            prepareDemand(world, 'food', now + cycleMs + 1);
-            processWorld(world, now + cycleMs + 1);
-
-            assert.equal(firstOrder.remaining, Math.floor(firstRemaining * 0.50));
-            const nextCycleId = world.demandGroups.food.lastCycleId;
-            const nextOrder = world.orders.find((order) => (
-              order.ownerType === 'population'
-              && order.demandGroupId === 'food'
-              && order.demandTier === 'direct'
-              && order.productId === 'wheat'
-              && order.demandCycleId === nextCycleId
-              && (order.status === 'open' || order.status === 'partial')
-            ));
-            assert.ok(nextOrder);
-            assert.ok(nextOrder.price > firstPrice);
-            assert.ok(world.demandGroups.food.lastRetainedOrderValue > 0);
-            assert.ok(world.demandGroups.food.lastOpenOrderValue <= world.demandGroups.food.lastBudget * 3);
-          });""",
-              """test('market demand retains at most 35% of unsold orders and publishes a bounded demand curve', () => {
-            const world = createWorld(now);
-            ensurePlayer(world, alice, now);
-            deferDemand(world, now + 10 * cycleMs);
-            prepareDemand(world, 'food', now);
-            processWorld(world, now + 1);
-
-            const firstCycleId = world.demandGroups.food.lastCycleId;
-            const firstOrder = world.orders.find((order) => (
-              order.ownerType === 'population'
-              && order.demandGroupId === 'food'
-              && order.demandTier === 'direct'
-              && order.productId === 'food'
-              && order.demandCycleId === firstCycleId
-              && order.status === 'open'
-            ));
-            assert.ok(firstOrder);
-            const firstRemaining = firstOrder.remaining;
-
-            prepareDemand(world, 'food', now + cycleMs + 1);
-            processWorld(world, now + cycleMs + 1);
-
-            assert.ok(firstOrder.remaining > 0);
-            assert.ok(firstOrder.remaining <= Math.floor(firstRemaining * 0.35));
-            const nextCycleId = world.demandGroups.food.lastCycleId;
-            const nextOrders = world.orders.filter((order) => (
-              order.ownerType === 'population'
-              && order.demandGroupId === 'food'
-              && order.demandTier === 'direct'
-              && order.productId === 'food'
-              && order.demandCycleId === nextCycleId
-              && (order.status === 'open' || order.status === 'partial')
-            ));
-            assert.ok(nextOrders.length >= 2);
-            assert.ok(new Set(nextOrders.map((order) => order.price)).size >= 2);
-            assert.ok(world.demandGroups.food.lastRetainedOrderValue > 0);
-            assert.ok(world.demandGroups.food.lastOpenOrderValue <= world.demandGroups.food.lastBudget * 2.5);
-          });""",
-          )
-
-          replace_once(
-              'server/test/domain.test.js',
-              """test('fruit participates in fresh direct demand without expanding the food budget', () => {
-            const world = createWorld(now);
-            prepareDemand(world, 'food', now + 1);""",
-              """test('fruit participates in fresh direct demand without expanding the food budget', () => {
-            const world = createWorld(now);
-            ensurePlayer(world, alice, now);
-            prepareDemand(world, 'food', now + 1);""",
-          )
-
-          path = Path('server/test/market-demand-v6.test.js')
-          text = path.read_text()
-          text = text.replace('const now = 1_800_000;', 'const now = 1_700_000_000_000;')
-          path.write_text(text)
-
           path = Path('server/test/market-liquidity.test.js')
           text = path.read_text()
-          marker = """  ensurePlayer(world, alice, now);
-            prepareAllDemand(world);
-            processWorld(world, now + 1);"""
-          replacement = """  ensurePlayer(world, alice, now);
-            world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
-            prepareAllDemand(world);
-            processWorld(world, now + 1);"""
-          if text.count(marker) < 2:
-              raise SystemExit('expected at least two liquidity setup targets')
-          text = text.replace(marker, replacement, 1)
-          text = text.replace(marker, replacement, 1)
-          sell_marker = """  const player = ensurePlayer(world, alice, now);
-            player.inventories.wheat.available = 10;
+          old = """test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
+            const world = createWorld(now);
+            ensurePlayer(world, alice, now);
             prepareAllDemand(world);"""
-          sell_replacement = """  const player = ensurePlayer(world, alice, now);
-            player.inventories.wheat.available = 10;
+          new = """test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
+            const world = createWorld(now);
+            ensurePlayer(world, alice, now);
             world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
             prepareAllDemand(world);"""
-          if sell_marker not in text:
-              raise SystemExit('missing reserve sell setup target')
-          text = text.replace(sell_marker, sell_replacement, 1)
-          path.write_text(text)
+          if old not in text:
+              raise SystemExit('missing next-cycle liquidity setup target')
+          path.write_text(text.replace(old, new, 1))
           PY
       - name: Build and preserve diagnostics
         shell: bash
@@ -175,14 +51,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$status" -ne 0 ]; then
-            tail -n 260 /tmp/v6-build.log > v6-build-diagnostic.txt
+            tail -n 280 /tmp/v6-build.log > v6-build-diagnostic.txt
             printf '\nexit=%s\n' "$status" >> v6-build-diagnostic.txt
             git add -A
-            git commit -m "更新 V6 回归场景并记录构建诊断"
+            git commit -m "补充储备缺口场景并记录构建诊断"
             git push origin HEAD:${{ github.head_ref }}
             exit "$status"
           fi
           rm -f v6-build-diagnostic.txt .github/workflows/diagnose-v6-build.yml
           git add -A
-          git commit -m "更新 V6 回归场景并验证完整构建"
+          git commit -m "补充储备缺口场景并验证完整构建"
           git push origin HEAD:${{ github.head_ref }}
