@@ -70,8 +70,11 @@ if (failures.length === 0) {
   if (!pageVerifiers.includes("'重置经济状态'")) {
     failures.push('页面验证脚本必须把重置经济状态列为禁止文案');
   }
-  if (!pageDesign.includes('不得提供经济状态重置、清空进度或重新开始入口')) {
-    failures.push('页面设计缺少禁用重置规则');
+  if (!pageDesign.includes('不得提供经济状态重置、服务器进度清空或经济重新开始入口')) {
+    failures.push('页面设计缺少禁用服务器经济重置规则');
+  }
+  if (!pageDesign.includes('教程“重新开始”不得清除或改写任何服务器经济状态')) {
+    failures.push('页面设计必须明确教程重开不属于经济重置');
   }
   if (!serverDesign.includes('兼容旧客户端固定返回 `410 Gone`')) {
     failures.push('服务器设计缺少退役接口规则');
@@ -86,4 +89,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('经济状态重置已从网页、小程序、客户端动作和服务器领域写入中移除；旧接口仅返回 410。');
+console.log('经济状态重置已从网页、小程序、客户端动作和服务器领域写入中移除；教程重开仅清除本地教程轮次，旧重置接口仅返回 410。');

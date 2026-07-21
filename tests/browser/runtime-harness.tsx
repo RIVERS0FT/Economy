@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { LoadedGameViewModel } from '../../src/app/gameViewModel';
+import type { GameTutorialController, TutorialAwareGameViewModel } from '../../src/game-guide/useGameTutorial';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../../src/components/icons/GameIcons';
 import { GemIcon } from '../../src/components/icons/GemIcon';
 import { GameShell } from '../../src/components/shell/GameShell';
@@ -25,6 +25,7 @@ import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
 import '../../src/styles/design-system.css';
 import '../../src/styles/overview-polish.css';
+import '../../src/styles/game-guide.css';
 
 const localActivityResult = loadLocalActivity(123);
 Object.assign(window, { __localActivityResult: localActivityResult });
@@ -33,6 +34,26 @@ const params = new URLSearchParams(window.location.search);
 const view = params.get('view') ?? 'settings';
 const scenario = params.get('scenario') ?? 'empty';
 const fixedNow = new Date(2026, 6, 17, 22, 30, 0).getTime();
+
+const completedTutorial: GameTutorialController = {
+  ready: true,
+  run: null,
+  isActive: false,
+  isVisible: false,
+  isCompleted: true,
+  currentStep: null,
+  currentStepIndex: 0,
+  totalSteps: 6,
+  statusLabel: '已完成当前版本教程',
+  restart: () => {},
+  hide: () => {},
+  show: () => {},
+  openCurrentTarget: () => {},
+  recordWorkClick: () => {},
+  recordBuildSubmit: () => {},
+  recordFacilityStartClick: () => {},
+  recordSellOrderSubmit: () => {},
+};
 
 document.documentElement.dataset.appSurface = ['overview', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
@@ -281,7 +302,8 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     signOut: async () => {},
     work: async () => ({ ok: true, message: '工作完成' }),
     exchangeGems: async () => ({ ok: true, message: '兑换成功' }),
-  } as unknown as LoadedGameViewModel;
+    tutorial: completedTutorial,
+  } as unknown as TutorialAwareGameViewModel;
 }
 
 function SettingsHarness() {
@@ -312,7 +334,8 @@ function SettingsHarness() {
     showResult: async () => {},
     notify: () => {},
     signOut: async () => {},
-  } as unknown as LoadedGameViewModel;
+    tutorial: completedTutorial,
+  } as unknown as TutorialAwareGameViewModel;
 
   return <SettingsPage model={model} />;
 }
@@ -337,7 +360,6 @@ function OverviewHarness() {
     </GameShell>
   );
 }
-
 
 function GemShopHarness() {
   const [tab, setTab] = useState<TabId>('gem-shop');

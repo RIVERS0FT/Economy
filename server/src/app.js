@@ -24,12 +24,14 @@ import {
   readKnownPartitionRevisionsFromSearch,
 } from './state-partitions.js';
 import { EconomyStore } from './storage.js';
+import { createTutorialStore, CURRENT_TUTORIAL_VERSION } from './tutorial-store.js';
 import { cleanupEmailVerificationRecords } from './verification-retention.js';
 
 const port = Number(process.env.PORT || 3002);
 const databasePath = process.env.ECONOMY_DB_PATH || '/var/lib/riversoft-economy/economy.sqlite';
 const publicOrigin = process.env.PUBLIC_ORIGIN || 'https://game.riversoft.top';
 const store = new EconomyStore(databasePath);
+const tutorialStore = createTutorialStore(store);
 const registrationSecret = loadRegistrationSecret();
 const registrationStore = new EconomyRegistrationStore(store, {
   secret: registrationSecret,
@@ -322,6 +324,31 @@ const server = createServer(async (request, response) => {
       ipFingerprint: registrationIpFingerprint(request),
     });
     registrationStore.assertPlayerActive(user.id);
+
+    if (method === 'GET' && path === '/api/game/tutorial') {
+      sendJson(response, 200, {
+        tutorial: tutorialStore.getStatus(user.id),
+        currentVersion: CURRENT_TUTORIAL_VERSION,
+      });
+      return;
+    }
+
+    if (method === 'POST' && path === '/api/game/tutorial/complete') {
+      const retryAfter = checkRateLimit(user.id, 'general');
+      if (retryAfter) {
+        response.setHeader('Retry-After', String(retryAfter));
+        sendError(response, 429, `操作过于频繁，请在 ${retryAfter} 秒后重试`);
+        return;
+      }
+      const requestKey = requireIdempotencyKey(request);
+      const body = await readJson(request);
+      sendJson(response, 200, tutorialStore.complete(user.id, body.version, {
+        requestKey,
+        method,
+        path,
+      }));
+      return;
+    }
 
     if (method === 'GET' && path === '/api/game/invitations') {
       sendJson(response, 200, { invitation: registrationStore.getInvitationSummary(user.id) });

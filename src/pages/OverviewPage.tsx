@@ -3,11 +3,12 @@ import { useNow } from '../hooks/useNow';
 import {
   facilityStatusReasonNames,
   orderStatusNames,
-  type LoadedGameViewModel,
 } from '../app/gameViewModel';
+import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
+import { GameGuideStrip } from '../components/GameGuideStrip';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import {
   Button,
@@ -32,7 +33,7 @@ function greetingForHour(hour: number) {
 }
 
 type OverviewPageProps = {
-  model: LoadedGameViewModel;
+  model: TutorialAwareGameViewModel;
   overviewProductId: string;
   onOverviewProductChange: (productId: string) => void;
 };
@@ -200,7 +201,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
     return alerts;
   }, [buyOrderCount, derived.stoppedFacilities, game, now, ownOpenOrders.length, sellOrderCount, setTab]);
 
-  const visibleAlerts = businessAlerts.slice(0, 3);
+  const visibleAlerts = businessAlerts.slice(0, model.tutorial.isVisible ? 2 : 3);
   const primaryAction = ownOpenOrders.length > 0
     ? { label: '处理订单', onClick: () => setTab('market') }
     : businessAlerts.some((alert) => alert.id !== 'open-orders')
@@ -245,6 +246,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
               title="今日经营"
               action={<StatusTag tone="success">工作收益 <CurrencyAmount>{formatCurrency(1)}</CurrencyAmount></StatusTag>}
             />
+            <GameGuideStrip tutorial={model.tutorial} />
             <div className="overview-work-strip">
               <div className="overview-work-copy">
                 <strong>基础工作</strong>

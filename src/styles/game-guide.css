@@ -1,0 +1,118 @@
+.game-guide-strip {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #4f7cff) 30%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent, #4f7cff) 8%, transparent);
+}
+
+.game-guide-heading,
+.game-guide-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.game-guide-heading > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.game-guide-heading span,
+.game-guide-strip p {
+  color: var(--text-secondary);
+}
+
+.game-guide-heading strong {
+  font-size: 1rem;
+}
+
+.game-guide-strip p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.game-guide-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.game-guide-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent, #4f7cff);
+  transition: width 180ms ease;
+}
+
+.game-guide-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.tutorial-settings-section {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.tutorial-settings-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.tutorial-settings-section h3,
+.tutorial-settings-section p {
+  margin: 0;
+}
+
+.tutorial-settings-section h3 {
+  font-size: var(--font-size-md);
+}
+
+.tutorial-settings-section p {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tutorial-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .game-guide-strip {
+    padding: 12px;
+  }
+
+  .tutorial-settings-section {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .tutorial-settings-actions {
+    justify-content: flex-start;
+  }
+
+  .game-guide-actions .ui-button,
+  .tutorial-settings-actions .ui-button {
+    min-height: 48px;
+  }
+}

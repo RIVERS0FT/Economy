@@ -359,7 +359,7 @@ for (const text of [
   '| 藏品 | `collections` | `CollectionsPage` | 当前玩家持有的唯一艺术藏品 |',
   '| 拍卖 | `auction` | `AuctionPage` | 藏品、商品与工厂竞价拍卖与结算结果 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 宝石单向兑换普通货币 |',
-  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、邀请、礼品和退出 |',
+  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、邀请、礼品和退出 |',
   '页面主标题固定为“生产”',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
