@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { AuthUser } from '../types';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
@@ -8,27 +8,39 @@ import type { StatusBarItem } from '../components/shell/StatusBar';
 import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';
 import { PageRouter } from '../pages/PageRouter';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
-import { useGameViewModel } from './gameViewModel';
+import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
+import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+import '../styles/game-guide.css';
 
-export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
-  const viewModel = useGameViewModel(user, onSignedOut);
-  const compactNumbers = viewModel.status === 'ready' ? viewModel.model.compactNumbers : false;
+function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
+  const tutorial = useGameTutorial(model);
+  const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
+    ...model,
+    tutorial,
+    work: () => {
+      tutorial.recordWorkClick();
+      return model.work();
+    },
+    buildFacility: (facilityTypeId = model.selectedFacilityTypeId) => {
+      tutorial.recordBuildSubmit(facilityTypeId);
+      return model.buildFacility(facilityTypeId);
+    },
+    startFacility: (facilityTypeId) => {
+      tutorial.recordFacilityStartClick(facilityTypeId);
+      return model.startFacility(facilityTypeId);
+    },
+    placeAssetOrder: (assetKind, assetId, side, quantity, price) => {
+      tutorial.recordSellOrderSubmit(assetKind, assetId, side);
+      return model.placeAssetOrder(assetKind, assetId, side, quantity, price);
+    },
+  }), [model, tutorial]);
+  const compactNumbers = tutorialModel.compactNumbers;
 
   useEffect(() => {
     setCompactNumbersEnabled(compactNumbers);
   }, [compactNumbers]);
 
-  if (viewModel.status === 'loading') return <main className="loading-screen">正在连接权威游戏服务器…</main>;
-  if (viewModel.status === 'error') {
-    return (
-      <main className="loading-screen">
-        <div><strong>无法加载游戏状态</strong><p><CurrencyText>{viewModel.message}</CurrencyText></p><button type="button" onClick={viewModel.retry}>重新连接</button></div>
-      </main>
-    );
-  }
-
-  const { model } = viewModel;
-  const { game, derived } = model;
+  const { game, derived } = tutorialModel;
   const weeklyChange = derived.currentRank?.weeklyChange ?? 0;
   const weeklyMagnitude = Math.abs(weeklyChange);
   const currentRank = derived.currentRank?.rank ?? '--';
@@ -50,7 +62,7 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
       compactValue: formatCompactNumber(derived.totalAssets),
       detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
-      onClick: () => model.setTab('assets'),
+      onClick: () => tutorialModel.setTab('assets'),
     },
     {
       id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),
@@ -77,10 +89,25 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
 
   return (
     <>
-      <AuthoritativeCountdownRefresh game={game} refresh={model.refresh} />
-      <GameShell model={model} statusItems={statusItems}>
-        <PageRouter model={model} />
+      <AuthoritativeCountdownRefresh game={game} refresh={tutorialModel.refresh} />
+      <GameShell model={tutorialModel} statusItems={statusItems}>
+        <PageRouter model={tutorialModel} />
       </GameShell>
     </>
   );
+}
+
+export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
+  const viewModel = useGameViewModel(user, onSignedOut);
+
+  if (viewModel.status === 'loading') return <main className="loading-screen">正在连接权威游戏服务器…</main>;
+  if (viewModel.status === 'error') {
+    return (
+      <main className="loading-screen">
+        <div><strong>无法加载游戏状态</strong><p><CurrencyText>{viewModel.message}</CurrencyText></p><button type="button" onClick={viewModel.retry}>重新连接</button></div>
+      </main>
+    );
+  }
+
+  return <ReadyGameApp model={viewModel.model} />;
 }
