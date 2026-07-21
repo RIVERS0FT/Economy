@@ -65,12 +65,14 @@ function reserveTotals(world, groupId) {
   };
 }
 
-test('market model 5 creates inventory-backed buy and sell orders without system self-trades', () => {
+test('market model 6 creates inventory-backed buy and sell orders without system self-trades', () => {
   const world = createWorld(now);
+  ensurePlayer(world, alice, now);
+  world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 5);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 6);
   const systemOrders = world.orders.filter((order) => order.ownerType === 'population');
   assert.ok(systemOrders.some((order) => order.demandTier === 'direct'));
   assert.ok(systemOrders.some((order) => order.demandTier === 'derived-liquidity'));
@@ -90,6 +92,8 @@ test('market model 5 creates inventory-backed buy and sell orders without system
 
 test('system liquidity asks reprice above retained consumption bids instead of crossing', () => {
   const world = createWorld(now);
+  ensurePlayer(world, alice, now);
+  world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
@@ -136,6 +140,7 @@ test('selling to a reserve transfers reserve funds and does not count as consump
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.inventories.wheat.available = 10;
+  world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
   cancelConsumptionBuys(world, 'wheat');
@@ -191,6 +196,8 @@ test('buying from a reserve transfers real inventory and returns credits to the 
 
 test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   const world = createWorld(now);
+  ensurePlayer(world, alice, now);
+  world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
   const oldOrders = liquidityOrders(world, 'food', 'wheat').filter((order) => order.remaining > 0);
@@ -206,7 +213,7 @@ test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   )));
 });
 
-test('model 3 migrates directly to model 5 with one-time reserve seeding', () => {
+test('model 3 migrates directly to model 6 with one-time reserve seeding', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
@@ -222,7 +229,7 @@ test('model 3 migrates directly to model 5 with one-time reserve seeding', () =>
 
   migrateWorld(world, now + 1);
 
-  assert.equal(world.marketDemand.modelVersion, 5);
+  assert.equal(world.marketDemand.modelVersion, 6);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => order.id === 'model-3-market-order'), false);
@@ -230,14 +237,14 @@ test('model 3 migrates directly to model 5 with one-time reserve seeding', () =>
   assert.ok(world.marketDemand.liquidity.groups.food.reserves.wheat.inventory > 0);
 });
 
-test('model 4 migrates to model 5 and releases obsolete liquidity reservations', () => {
+test('model 5 migrates to model 6 and releases obsolete liquidity reservations', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
   player.inventories.wheat.available = 9;
   prepareAllDemand(world);
   processWorld(world, now + 1);
-  world.marketDemand.modelVersion = 4;
+  world.marketDemand.modelVersion = 5;
   const oldSystemOrderIds = new Set(world.orders
     .filter((order) => order.ownerType === 'population')
     .map((order) => order.id));
@@ -245,7 +252,7 @@ test('model 4 migrates to model 5 and releases obsolete liquidity reservations',
 
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 5);
+  assert.equal(world.marketDemand.modelVersion, 6);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => oldSystemOrderIds.has(order.id)), false);

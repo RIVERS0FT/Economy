@@ -187,20 +187,32 @@ export function createMarketLiquidityRuntime({
   }
 
   function recentVolatility(world, product, now) {
-    const prices = (marketFor(world, product.id, now).priceHistory || [])
+    const points = (marketFor(world, product.id, now).priceHistory || [])
       .filter((point) => (
         Number(point.createdAt || 0) >= now - PRICE_WINDOW_MS
         && (point.takerSide === 'buy' || point.takerSide === 'sell')
         && Number(point.price || 0) > 0
+        && point.synthetic !== true
+        && point.marketRole !== 'liquidity'
       ))
-      .map((point) => Number(point.price));
-    if (prices.length < 2) return 0;
-    return Math.max(...prices) / Math.max(1, Math.min(...prices)) - 1;
+      .sort((left, right) => Number(left.createdAt || 0) - Number(right.createdAt || 0));
+    if (points.length < 2) return 0;
+    let variance = 0;
+    let weight = 0;
+    for (let index = 1; index < points.length; index += 1) {
+      const previous = Math.max(1, Number(points[index - 1].price));
+      const current = Math.max(1, Number(points[index].price));
+      const returnValue = Math.log(current / previous);
+      variance = variance * 0.75 + returnValue * returnValue * 0.25;
+      weight = weight * 0.75 + 0.25;
+    }
+    return weight <= 0 ? 0 : Math.sqrt(variance / weight);
   }
 
   function targetInventoryFor(world, state, product, now) {
     const demandQuantity = Math.max(0, Number(state.previousDemandQuantities?.[product.id] || 0));
-    const tradeQuantity = Math.max(0, Number(realTradeStats(world, product.id, now, ACTIVITY_WINDOW_MS).quantity || 0));
+    const stats = realTradeStats(world, product.id, now, ACTIVITY_WINDOW_MS);
+    const tradeQuantity = Math.max(0, Number(stats.playerQuantity || 0) + Number(stats.consumptionQuantity || 0));
     return clamp(
       LIQUIDITY_MIN_TARGET,
       LIQUIDITY_MAX_TARGET,
@@ -221,7 +233,7 @@ export function createMarketLiquidityRuntime({
     const spread = clamp(
       LIQUIDITY_MIN_SPREAD,
       LIQUIDITY_MAX_SPREAD,
-      LIQUIDITY_BASE_SPREAD + volatility * 0.5,
+      LIQUIDITY_BASE_SPREAD + volatility * 1.5,
     );
     const minimum = Math.max(1, Math.ceil(product.basePrice * PRICE_MIN_MULTIPLIER));
     const maximum = Math.max(minimum + 1, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
@@ -246,7 +258,6 @@ export function createMarketLiquidityRuntime({
       productId: product.id,
       side,
       ownerType: 'population',
-      // ownerName remains the demand-group compatibility label; demandTier is authoritative.
       ownerName: group.ownerName,
       demandGroupId: group.id,
       demandTier: side === 'buy' ? LIQUIDITY_BUY : LIQUIDITY_SELL,
@@ -276,12 +287,15 @@ export function createMarketLiquidityRuntime({
       quotes.set(product.id, quote);
       const totalInventory = reserve.inventory + reserve.frozenInventory;
       const deficit = clamp(0, 1, (reserve.targetInventory - totalInventory) / Math.max(1, reserve.targetInventory));
-      entries.push({ id: product.id, weight: 0.25 + deficit, maxBudget: state.lastBudget });
+      const stats = realTradeStats(world, product.id, now, ACTIVITY_WINDOW_MS);
+      const sellerFlow = stats.playerQuantity <= 0 ? 0 : clamp(0, 1, -stats.playerNetActive / stats.playerQuantity);
+      const weight = deficit + sellerFlow * 0.25;
+      if (weight > 0) entries.push({ id: product.id, weight, maxBudget: Math.max(0, Number(state.lastBudget || 0)) });
     }
 
     const quoteBudget = Math.min(
       groupState.credits,
-      Math.max(0, Math.floor(Number(state.lastBudget || group.baseBudget) * LIQUIDITY_QUOTE_BUDGET_SHARE)),
+      Math.max(0, Math.floor(Number(state.lastBudget ?? group.baseBudget) * LIQUIDITY_QUOTE_BUDGET_SHARE)),
     );
     const budgets = allocateIntegerBudget(entries, quoteBudget);
     let remainingQuoteBudget = quoteBudget;
@@ -295,7 +309,7 @@ export function createMarketLiquidityRuntime({
       let buyQuantity = 0;
       if (quote.bid !== null) {
         let budget = Math.min(remainingQuoteBudget, budgets.get(product.id) || 0);
-        if (budget < quote.bid && remainingQuoteBudget >= quote.bid) budget = quote.bid;
+        if (budget < quote.bid && remainingQuoteBudget >= quote.bid && (budgets.get(product.id) || 0) > 0) budget = quote.bid;
         buyQuantity = Math.min(
           tradeCap,
           inventoryRoom,

@@ -237,6 +237,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
 
 test('market demand creates direct and derived orders within the shared group budget', () => {
   const world = createWorld(now);
+  ensurePlayer(world, alice, now);
   prepareDemand(world, 'food');
   prepareDemand(world, 'household');
   processWorld(world, now + 1);
@@ -260,8 +261,9 @@ test('market demand creates direct and derived orders within the shared group bu
 });
 
 
-test('market demand keeps half of unsold system orders and raises the next cycle price', () => {
+test('market demand retains at most 35% of unsold orders and publishes a bounded demand curve', () => {
   const world = createWorld(now);
+  ensurePlayer(world, alice, now);
   deferDemand(world, now + 10 * cycleMs);
   prepareDemand(world, 'food', now);
   processWorld(world, now + 1);
@@ -271,31 +273,31 @@ test('market demand keeps half of unsold system orders and raises the next cycle
     order.ownerType === 'population'
     && order.demandGroupId === 'food'
     && order.demandTier === 'direct'
-    && order.productId === 'wheat'
+    && order.productId === 'food'
     && order.demandCycleId === firstCycleId
     && order.status === 'open'
   ));
   assert.ok(firstOrder);
   const firstRemaining = firstOrder.remaining;
-  const firstPrice = firstOrder.price;
 
   prepareDemand(world, 'food', now + cycleMs + 1);
   processWorld(world, now + cycleMs + 1);
 
-  assert.equal(firstOrder.remaining, Math.floor(firstRemaining * 0.50));
+  assert.ok(firstOrder.remaining > 0);
+  assert.ok(firstOrder.remaining <= Math.floor(firstRemaining * 0.35));
   const nextCycleId = world.demandGroups.food.lastCycleId;
-  const nextOrder = world.orders.find((order) => (
+  const nextOrders = world.orders.filter((order) => (
     order.ownerType === 'population'
     && order.demandGroupId === 'food'
     && order.demandTier === 'direct'
-    && order.productId === 'wheat'
+    && order.productId === 'food'
     && order.demandCycleId === nextCycleId
     && (order.status === 'open' || order.status === 'partial')
   ));
-  assert.ok(nextOrder);
-  assert.ok(nextOrder.price > firstPrice);
+  assert.ok(nextOrders.length >= 2);
+  assert.ok(new Set(nextOrders.map((order) => order.price)).size >= 2);
   assert.ok(world.demandGroups.food.lastRetainedOrderValue > 0);
-  assert.ok(world.demandGroups.food.lastOpenOrderValue <= world.demandGroups.food.lastBudget * 3);
+  assert.ok(world.demandGroups.food.lastOpenOrderValue <= world.demandGroups.food.lastBudget * 2.5);
 });
 
 test('market demand cancels carried orders and resets to the model price after a sale', () => {
@@ -438,6 +440,7 @@ test('beverage production paths shift toward cheaper fruit inputs', () => {
 
 test('fruit participates in fresh direct demand without expanding the food budget', () => {
   const world = createWorld(now);
+  ensurePlayer(world, alice, now);
   prepareDemand(world, 'food', now + 1);
   processWorld(world, now + 1);
   const fresh = world.demandGroups.food.lastClassAllocation['fresh-drinks'];
