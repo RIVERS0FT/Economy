@@ -53,8 +53,5 @@ jobs:
             browser-test.log
             playwright-report
             test-results
-            docs/UI_DESIGN_SYSTEM.md
-            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
-            scripts/verify-page-content.mjs
           if-no-files-found: warn
           retention-days: 3
