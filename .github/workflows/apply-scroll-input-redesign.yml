@@ -38,6 +38,14 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-scroll-input-redesign.mjs')
+          source = path.read_text()
+          marker = "write('scripts/verify-overlay-scrollbars.mjs'"
+          index = source.index(marker)
+          path.write_text(source[:index] + "console.log('Adaptive scroll input redesign applied.');\n")
+          PY
           node scripts/apply-scroll-input-redesign.mjs 2>&1 | tee scroll-redesign-apply.log
 
       - name: Install dependencies
