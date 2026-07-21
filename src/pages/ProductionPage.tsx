@@ -163,7 +163,7 @@ function FacilityClusterDetailContent({
             onChange={(event) => onToggle(event.target.checked)}
           />
         </div>
-        <div className="facility-detail-header-actions">
+        <div className="facility-detail-header-actions facility-card-status-row">
           <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
           {closeAction}
         </div>
