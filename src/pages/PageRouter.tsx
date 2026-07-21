@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import type { LoadedGameViewModel } from '../app/gameViewModel';
+import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 
 const AssetsPage = lazy(() => import('./AssetsPage').then((module) => ({ default: module.AssetsPage })));
 const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ default: module.AuctionPage })));
@@ -11,7 +11,7 @@ const ProductionPage = lazy(() => import('./ProductionPage').then((module) => ({
 const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
-export function PageRouter({ model }: { model: LoadedGameViewModel }) {
+export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
   const [overviewProductId, setOverviewProductId] = useState(() => model.game.products[0]?.id ?? '');
 
   useEffect(() => {
