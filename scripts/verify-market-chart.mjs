@@ -117,7 +117,7 @@ for (const text of [
 
 assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
 assert.ok(matchingCore.includes('takerSide: incoming.side'), '共享撮合内核必须把吃单方方向传给行情适配器');
-assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight);'), '商品成交必须记录吃单方方向与需求信号权重');
+assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight, marketRole);'), '商品成交必须记录吃单方方向、需求信号权重和成交角色');
 assert.ok(commodityMarket.includes('LIQUIDITY_SIGNAL_WEIGHT'), '储备成交必须降低价格传导信号权重');
 assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt);'), '工厂成交必须记录吃单方方向');
 
