@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode,
   type RefObject,
   type TouchEvent as ReactTouchEvent,
 } from 'react';
@@ -212,21 +211,22 @@ function FacilityClusterDetailHeader({
   entry,
   onToggle,
   titleId,
-  closeAction,
 }: {
   entry: FacilityClusterEntry;
   onToggle: (enabled: boolean) => void;
   titleId: string;
-  closeAction?: ReactNode;
 }) {
   const { group, type } = entry;
 
   return (
     <div className="facility-card-head facility-status-header">
       <div className="facility-card-title-row">
-        <h2 id={titleId}>
-          {type.name} × {formatNumber(group.count)}
-        </h2>
+        <div className="facility-card-title-block facility-cluster-selector-heading">
+          <h2 id={titleId}>
+            {type.name} × {formatNumber(group.count)}
+          </h2>
+          <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
+        </div>
         <SwitchControl
           checked={group.enabled}
           aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
@@ -234,10 +234,6 @@ function FacilityClusterDetailHeader({
           disabled={group.count < 1}
           onChange={(event) => onToggle(event.target.checked)}
         />
-      </div>
-      <div className="facility-detail-header-actions facility-card-status-row">
-        <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
-        {closeAction}
       </div>
       <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
         <span>
@@ -324,14 +320,12 @@ function FacilityClusterDetailContent({
   onRecipeChange,
   onOpenMarket,
   titleId,
-  closeAction,
 }: FacilityClusterDetailSharedProps & {
   titleId: string;
-  closeAction?: ReactNode;
 }) {
   return (
     <>
-      <FacilityClusterDetailHeader entry={entry} onToggle={onToggle} titleId={titleId} closeAction={closeAction} />
+      <FacilityClusterDetailHeader entry={entry} onToggle={onToggle} titleId={titleId} />
       <FacilityClusterDetailBody
         entry={entry}
         products={products}
@@ -351,8 +345,7 @@ function MobileFacilityDetailSheet({
   inventories,
   now,
   isOpen,
-  sheetRef,
-  closeButtonRef,
+  returnFocusRef,
   onClose,
   onToggle,
   onRecipeChange,
@@ -360,15 +353,17 @@ function MobileFacilityDetailSheet({
 }: Omit<FacilityClusterDetailSharedProps, 'entry'> & {
   entry: FacilityClusterEntry | undefined;
   isOpen: boolean;
-  sheetRef: RefObject<HTMLDivElement | null>;
-  closeButtonRef: RefObject<HTMLButtonElement | null>;
+  returnFocusRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 }) {
   const backdropRef = useRef<HTMLDivElement | null>(null);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const dragSessionRef = useRef<FacilitySheetDragSession | null>(null);
   const dragFrameRef = useRef<number | undefined>(undefined);
   const settleTimerRef = useRef<number | undefined>(undefined);
+  const closeCompletionRef = useRef<(() => void) | undefined>(undefined);
+  const isClosingRef = useRef(false);
   const pendingOffsetRef = useRef(0);
 
   const clearSettleTimer = useCallback(() => {
@@ -388,7 +383,7 @@ function MobileFacilityDetailSheet({
     const backdropProgress = Math.max(0.3, 1 - (offset / height) * 0.7);
     sheet.style.setProperty('--facility-sheet-drag-offset', `${offset}px`);
     backdrop.style.setProperty('--facility-sheet-backdrop-progress', String(backdropProgress));
-  }, [sheetRef]);
+  }, []);
 
   const applyDragOffset = useCallback(
     (offset: number) => {
@@ -409,35 +404,58 @@ function MobileFacilityDetailSheet({
     backdrop.style.removeProperty('--facility-sheet-backdrop-progress');
     delete sheet.dataset.dragSource;
     pendingOffsetRef.current = 0;
-  }, [sheetRef]);
+    isClosingRef.current = false;
+  }, []);
+
+  const completeClose = useCallback(() => {
+    const completion = closeCompletionRef.current;
+    closeCompletionRef.current = undefined;
+    onClose();
+    completion?.();
+  }, [onClose]);
+
+  const requestClose = useCallback(
+    (completion?: () => void) => {
+      if (isClosingRef.current) return;
+      isClosingRef.current = true;
+      closeCompletionRef.current = completion;
+      dragSessionRef.current = null;
+      clearSettleTimer();
+
+      const sheet = sheetRef.current;
+      const backdrop = backdropRef.current;
+      if (!sheet || !backdrop || isReducedMotionPreferred()) {
+        completeClose();
+        return;
+      }
+
+      sheet.classList.remove('is-dragging');
+      sheet.classList.add('is-settling', 'is-closing');
+      applyDragOffset(sheet.getBoundingClientRect().height);
+      backdrop.style.setProperty('--facility-sheet-backdrop-progress', '0');
+      settleTimerRef.current = window.setTimeout(completeClose, FACILITY_SHEET_SETTLE_DURATION);
+    },
+    [applyDragOffset, clearSettleTimer, completeClose],
+  );
 
   const settleDrag = useCallback(
     (close: boolean) => {
       const sheet = sheetRef.current;
       const backdrop = backdropRef.current;
       if (!sheet || !backdrop) {
-        if (close) onClose();
+        if (close) requestClose();
+        return;
+      }
+
+      if (close) {
+        requestClose();
         return;
       }
 
       clearSettleTimer();
-      const reducedMotion = isReducedMotionPreferred();
       sheet.classList.remove('is-dragging');
       sheet.classList.add('is-settling');
-
-      if (close) {
-        if (reducedMotion) {
-          onClose();
-          return;
-        }
-        sheet.classList.add('is-closing');
-        applyDragOffset(sheet.getBoundingClientRect().height);
-        backdrop.style.setProperty('--facility-sheet-backdrop-progress', '0');
-        settleTimerRef.current = window.setTimeout(onClose, FACILITY_SHEET_SETTLE_DURATION);
-        return;
-      }
-
-      if (reducedMotion) {
+      if (isReducedMotionPreferred()) {
         resetDragStyles();
         return;
       }
@@ -445,12 +463,12 @@ function MobileFacilityDetailSheet({
       backdrop.style.setProperty('--facility-sheet-backdrop-progress', '1');
       settleTimerRef.current = window.setTimeout(resetDragStyles, FACILITY_SHEET_SETTLE_DURATION);
     },
-    [applyDragOffset, clearSettleTimer, onClose, resetDragStyles, sheetRef],
+    [applyDragOffset, clearSettleTimer, requestClose, resetDragStyles],
   );
 
   const beginDrag = useCallback(
     (clientX: number, clientY: number, target: EventTarget | null, pointerId?: number) => {
-      if (isFacilitySheetInteractiveTarget(target)) return false;
+      if (isClosingRef.current || isFacilitySheetInteractiveTarget(target)) return false;
       const targetElement = target instanceof Element ? target : null;
       const source = targetElement?.closest('.facility-detail-sheet-header, .facility-detail-sheet-drag-handle')
         ? 'header'
@@ -502,15 +520,15 @@ function MobileFacilityDetailSheet({
       }
 
       preventDefault();
-      const now = performance.now();
-      const elapsed = Math.max(1, now - session.lastTime);
+      const currentTime = performance.now();
+      const elapsed = Math.max(1, currentTime - session.lastTime);
       session.velocity = Math.max(0, (clientY - session.lastY) / elapsed);
       session.lastY = clientY;
-      session.lastTime = now;
+      session.lastTime = currentTime;
       session.offset = Math.max(0, deltaY);
       applyDragOffset(session.offset);
     },
-    [applyDragOffset, sheetRef],
+    [applyDragOffset],
   );
 
   const finishDrag = useCallback(
@@ -533,7 +551,7 @@ function MobileFacilityDetailSheet({
         (session.offset >= FACILITY_SHEET_MIN_FLING_DISTANCE && velocity >= FACILITY_SHEET_CLOSE_VELOCITY);
       settleDrag(shouldClose);
     },
-    [resetDragStyles, settleDrag, sheetRef],
+    [resetDragStyles, settleDrag],
   );
 
   const handlePointerDown = useCallback(
@@ -599,12 +617,83 @@ function MobileFacilityDetailSheet({
     [finishDrag],
   );
 
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
+    const pageScrollArea = pageScroll?.closest<HTMLElement>('.page-scroll-area');
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousPageOverflow = pageScroll?.style.overflowY ?? '';
+    const previousPageScrollbarSuppressed = pageScrollArea?.dataset.modalScrollbarSuppressed;
+    document.body.style.overflow = 'hidden';
+    if (pageScroll) pageScroll.style.overflowY = 'hidden';
+    if (pageScrollArea) pageScrollArea.dataset.modalScrollbarSuppressed = 'true';
+
+    const focusFrame = window.requestAnimationFrame(() => sheetRef.current?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        requestClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusable = Array.from(
+        sheetRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+      if (focusable.length === 0) {
+        event.preventDefault();
+        sheetRef.current?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (document.activeElement === sheetRef.current) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      if (pageScroll) pageScroll.style.overflowY = previousPageOverflow;
+      if (pageScrollArea) {
+        if (previousPageScrollbarSuppressed === undefined) delete pageScrollArea.dataset.modalScrollbarSuppressed;
+        else pageScrollArea.dataset.modalScrollbarSuppressed = previousPageScrollbarSuppressed;
+      }
+      requestAnimationFrame(() => returnFocusRef.current?.focus());
+    };
+  }, [isOpen, requestClose, returnFocusRef]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const mediaQuery = window.matchMedia('(max-width: 720px)');
+    const closeOnDesktop = (event: MediaQueryListEvent) => {
+      if (!event.matches) onClose();
+    };
+    mediaQuery.addEventListener('change', closeOnDesktop);
+    return () => mediaQuery.removeEventListener('change', closeOnDesktop);
+  }, [isOpen, onClose]);
+
   useEffect(
     () => () => {
       clearSettleTimer();
       if (dragFrameRef.current !== undefined) window.cancelAnimationFrame(dragFrameRef.current);
       dragFrameRef.current = undefined;
       dragSessionRef.current = null;
+      closeCompletionRef.current = undefined;
       resetDragStyles();
     },
     [clearSettleTimer, resetDragStyles],
@@ -617,7 +706,7 @@ function MobileFacilityDetailSheet({
       ref={backdropRef}
       className="facility-detail-sheet-backdrop"
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) requestClose();
       }}
     >
       <div
@@ -626,6 +715,7 @@ function MobileFacilityDetailSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-facility-detail-title"
+        tabIndex={-1}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
@@ -646,18 +736,6 @@ function MobileFacilityDetailSheet({
             entry={entry}
             onToggle={onToggle}
             titleId="mobile-facility-detail-title"
-            closeAction={
-              <button
-                ref={closeButtonRef}
-                type="button"
-                className="ui-button ui-button--text facility-detail-sheet-close"
-                aria-label="关闭工厂详情"
-                onClick={onClose}
-                data-facility-sheet-no-drag
-              >
-                ×
-              </button>
-            }
           />
         </div>
 
@@ -681,7 +759,7 @@ function MobileFacilityDetailSheet({
         </ScrollArea>
 
         <div className="facility-detail-sheet-footer">
-          <FacilityMarketAction onOpenMarket={onOpenMarket} />
+          <FacilityMarketAction onOpenMarket={() => requestClose(onOpenMarket)} />
         </div>
       </div>
     </div>,
@@ -705,8 +783,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const now = useNow(game.lastProcessedAt);
   const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('');
   const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false);
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const selectedType = useMemo(
@@ -738,66 +814,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     }
   }, [effectiveSelectedFacilityGroupId, isFacilityDetailOpen, selectedFacilityGroupId]);
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 720px)');
-    const closeOnDesktop = (event: MediaQueryListEvent) => {
-      if (!event.matches) setFacilityDetailOpen(false);
-    };
-    mediaQuery.addEventListener('change', closeOnDesktop);
-    return () => mediaQuery.removeEventListener('change', closeOnDesktop);
-  }, []);
-
-  useEffect(() => {
-    if (!isFacilityDetailOpen) return undefined;
-
-    const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
-    const pageScrollArea = pageScroll?.closest<HTMLElement>('.page-scroll-area');
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousPageOverflow = pageScroll?.style.overflowY ?? '';
-    const previousPageScrollbarSuppressed = pageScrollArea?.dataset.modalScrollbarSuppressed;
-    document.body.style.overflow = 'hidden';
-    if (pageScroll) pageScroll.style.overflowY = 'hidden';
-    if (pageScrollArea) pageScrollArea.dataset.modalScrollbarSuppressed = 'true';
-    closeButtonRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setFacilityDetailOpen(false);
-        return;
-      }
-      if (event.key !== 'Tab') return;
-
-      const focusable = Array.from(
-        sheetRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousBodyOverflow;
-      if (pageScroll) pageScroll.style.overflowY = previousPageOverflow;
-      if (pageScrollArea) {
-        if (previousPageScrollbarSuppressed === undefined) delete pageScrollArea.dataset.modalScrollbarSuppressed;
-        else pageScrollArea.dataset.modalScrollbarSuppressed = previousPageScrollbarSuppressed;
-      }
-      requestAnimationFrame(() => detailTriggerRef.current?.focus());
-    };
-  }, [isFacilityDetailOpen]);
-
   if (!selectedType) {
     return (
       <PageLayout title="生产" description="服务器尚未返回工厂目录。">
@@ -820,7 +836,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     if (isMobileFacilityLayout()) setFacilityDetailOpen(true);
   };
 
-  const closeFacilityDetail = () => setFacilityDetailOpen(false);
   const toggleSelectedFacility = (enabled: boolean) => {
     if (!selectedFacilityEntry) return;
     void showResult(
@@ -837,7 +852,6 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   };
   const openSelectedFacilityMarket = () => {
     if (!selectedFacilityEntry) return;
-    closeFacilityDetail();
     selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId);
   };
 
@@ -992,9 +1006,8 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
         inventories={game.inventories}
         now={now}
         isOpen={isFacilityDetailOpen}
-        sheetRef={sheetRef}
-        closeButtonRef={closeButtonRef}
-        onClose={closeFacilityDetail}
+        returnFocusRef={detailTriggerRef}
+        onClose={() => setFacilityDetailOpen(false)}
         onToggle={toggleSelectedFacility}
         onRecipeChange={changeSelectedFacilityRecipe}
         onOpenMarket={openSelectedFacilityMarket}
