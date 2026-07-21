@@ -21,6 +21,18 @@ export interface GameActionResponse {
   revision: number;
 }
 export interface GameStatePollResponse extends StateDeliveryEnvelope { state?: EconomyState; }
+export interface TutorialCompletionState {
+  completedVersion: number;
+  completedAt?: number;
+}
+export interface TutorialStatusResponse {
+  tutorial: TutorialCompletionState;
+  currentVersion: number;
+}
+export interface TutorialCompletionResponse {
+  result: GameActionResult;
+  tutorial: TutorialCompletionState;
+}
 export interface GemShopExchangeRecord {
   gemsSpent: number;
   creditsReceived: number;
@@ -146,6 +158,17 @@ export async function getGameState(revision?: number | null, signal?: AbortSigna
   const query = params.toString();
   const suffix = query ? `?${query}` : '';
   return request<GameStatePollResponse>(`/state${suffix}`, { method: 'GET', signal });
+}
+
+export async function getTutorialStatus(signal?: AbortSignal): Promise<TutorialStatusResponse> {
+  return request<TutorialStatusResponse>('/tutorial', { method: 'GET', signal });
+}
+
+export async function completeTutorial(version: number): Promise<TutorialCompletionResponse> {
+  return request<TutorialCompletionResponse>('/tutorial/complete', {
+    method: 'POST',
+    body: JSON.stringify({ version }),
+  });
 }
 
 export async function getGemShopSummary(): Promise<GemShopSummary> {
