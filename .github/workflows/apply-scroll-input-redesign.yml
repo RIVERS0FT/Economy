@@ -49,14 +49,15 @@ jobs:
           node scripts/apply-scroll-input-redesign.mjs 2>&1 | tee scroll-redesign-apply.log
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('scripts/verify-runtime-architecture.mjs')
-          source = path.read_text()
-          old = """const virtualList = read('src/components/ui/VirtualList.tsx');
+
+          runtime_path = Path('scripts/verify-runtime-architecture.mjs')
+          runtime_source = runtime_path.read_text()
+          runtime_old = """const virtualList = read('src/components/ui/VirtualList.tsx');
           if (!/requestAnimationFrame\\s*\\(/.test(virtualList)) fail('VirtualList 必须使用 requestAnimationFrame 合并滚动更新');
           if (!/findVisibleRange\\s*\\(/.test(virtualList)) fail('VirtualList 必须调用二分可视区间函数');
           if (/while\\s*\\([^)]*(startIndex|endIndex)/.test(virtualList)) fail('VirtualList 不得在滚动渲染中线性扫描可视区间');
           """
-          new = """const virtualWindow = read('src/hooks/useVirtualWindow.ts');
+          runtime_new = """const virtualWindow = read('src/hooks/useVirtualWindow.ts');
           const virtualList = read('src/components/ui/VirtualList.tsx');
           const virtualRecordTable = read('src/components/ui/VirtualRecordTable.tsx');
           if (!/requestAnimationFrame\\s*\\(/.test(virtualWindow)) fail('共享窗口化内核必须使用 requestAnimationFrame 合并滚动更新');
@@ -65,9 +66,22 @@ jobs:
           if (!virtualList.includes('useVirtualWindow')) fail('VirtualList 必须复用共享窗口化内核');
           if (!virtualRecordTable.includes('useVirtualWindow')) fail('VirtualRecordTable 必须复用共享窗口化内核');
           """
-          if old not in source:
+          if runtime_old not in runtime_source:
               raise SystemExit('runtime verifier virtual-list block not found')
-          path.write_text(source.replace(old, new))
+          runtime_path.write_text(runtime_source.replace(runtime_old, runtime_new))
+
+          page_path = Path('scripts/verify-page-content.mjs')
+          page_source = page_path.read_text()
+          replacements = {
+              '`VirtualList` 是高增长记录的唯一窗口化基础组件': '`VirtualList` 与 `VirtualRecordTable` 共用 `src/hooks/useVirtualWindow.ts` 的唯一窗口化内核',
+              'DOM 只渲染可视区域和少量预加载行': '根据滚动位置只挂载可视条目与少量 `overscan` 条目',
+              '资产页资产事件和市场页本地成交属于高增长记录列表，必须使用共享 `VirtualList` 窗口化组件': '资产页资产事件和市场页本地成交属于高增长记录，必须共用 `useVirtualWindow` 窗口化内核',
+          }
+          for old, new in replacements.items():
+              if old not in page_source:
+                  raise SystemExit('page content verifier target not found: ' + old)
+              page_source = page_source.replace(old, new)
+          page_path.write_text(page_source)
           PY
 
       - name: Install dependencies
