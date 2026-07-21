@@ -1,0 +1,49 @@
+name: Diagnose Economy Build
+
+on:
+  push:
+    branches:
+      - codex/diagnose-post-merge-build
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run build and capture diagnostics
+        shell: bash
+        run: |
+          set +e
+          mkdir -p diagnostics
+          npm run build > /tmp/economy-build.log 2>&1
+          status=$?
+          tail -n 300 /tmp/economy-build.log > diagnostics/latest-build.log
+          printf '%s\n' "$status" > diagnostics/build-exit-code.txt
+          exit 0
+
+      - name: Commit diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain diagnostics)" ]; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics
+          git commit -m "chore: capture build diagnostics [skip ci]"
+          git push
