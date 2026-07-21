@@ -248,7 +248,7 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
             <div className="overview-work-strip">
               <div className="overview-work-copy">
                 <strong>基础工作</strong>
-                <span>固定 10s 冷却，为产业调整提供兜底资金。</span>
+                <span>固定 3s 冷却，为产业调整提供兜底资金。</span>
               </div>
               <Button
                 variant="secondary"

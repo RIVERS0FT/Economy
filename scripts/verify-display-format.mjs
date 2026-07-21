@@ -51,7 +51,7 @@ function forbidText(path, fragments) {
 
 requireText('src/app/GameApp.tsx', ['formatRank(', 'aria-label={rankLabel}']);
 requireText('src/pages/OverviewPage.tsx', [
-  '固定 10s 冷却',
+  '固定 3s 冷却',
   'formatDuration(workRemaining)',
 ]);
 requireText('src/pages/LeaderboardPage.tsx', [
@@ -86,7 +86,7 @@ forbidText('src/pages/OverviewPage.tsx', [
   'formatRank(',
   '排名第 ${currentRank} 名',
   '第 {derived.currentRank?.rank ?? \'--\'} 名',
-  '工作冷却固定为 10 秒',
+  '工作冷却固定为 3 秒',
 ]);
 forbidText('src/pages/AuctionPage.tsx', [
   'const hours = Math.floor',

@@ -7,7 +7,7 @@ export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 export const ECONOMY_CONSTANTS = Object.freeze({
   maxOpenOrders: 10,
   maxOrderQuantity: 10_000,
-  workCooldownMs: 10_000,
+  workCooldownMs: 3_000,
   demandCycleMs: 5 * 60 * 1000,
   maxPricePoints: 288,
   maxTradesPerPlayer: 240,
@@ -817,7 +817,7 @@ function work(world, userId, now) {
   player.credits += 1;
   player.stats.workIssued += 1;
   player.stats.workClicks = Number(player.stats.workClicks || 0) + 1;
-  addLedger(player, 'work_income', 1, '完成工作，固定冷却 10 秒', now);
+  addLedger(player, 'work_income', 1, '完成工作，固定冷却 3 秒', now);
   return result(true, '工作完成，获得 1 货币');
 }
 
