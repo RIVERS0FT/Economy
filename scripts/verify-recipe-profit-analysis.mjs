@@ -112,11 +112,26 @@ for (const text of [
 ]) assert.ok(analysisSource.includes(text), `利润分析界面缺少: ${text}`);
 assert.ok(contextSource.includes('createContext<AssetOrder[]>([])'), '利润分析订单上下文必须保持只读公开订单数组');
 assert.ok(routerSource.includes('FacilityRecipeProfitOrdersProvider orders={model.game.orders}'), '生产页必须读取当前状态快照中的公开订单簿');
-assert.ok(styleSource.includes('.facility-profit-analysis'), '缺少利润分析样式');
+for (const text of [
+  '.facility-profit-analysis',
+  'grid-template-columns: minmax(0, 1fr) auto;',
+  '@container (max-width: 520px)',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  '.facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(3)',
+  'grid-column: 1 / -1;',
+  'grid-row: 1;',
+]) assert.ok(styleSource.includes(text), `利润分析紧凑样式缺少: ${text}`);
+assert.equal(
+  styleSource.includes('@container (max-width: 460px)') && styleSource.includes('grid-template-columns: 1fr;'),
+  false,
+  '移动端利润摘要不得恢复三项逐项单列',
+);
 for (const text of [
   '玩家可见配方利润分析',
   '不得使用基础价、参考价或未成交价格外推',
   '排除当前玩家自己的反向订单',
+  '窄屏利润分析保持紧凑而不删减信息',
+  '摘要使用两列，本轮现金利润占满一行并优先显示',
 ]) assert.ok(designSource.includes(text), `产业权威设计缺少利润分析规则: ${text}`);
 
-console.log('玩家可见配方利润分析、逐档盘口、手续费、库存缺口和利润倒挂验证通过。');
+console.log('玩家可见配方利润分析、逐档盘口、手续费、库存缺口、利润倒挂和移动端紧凑布局验证通过。');
