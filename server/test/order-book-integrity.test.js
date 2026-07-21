@@ -78,6 +78,7 @@ test('migration immediately settles legacy crossed commodity orders from differe
   const seller = ensurePlayer(world, alice, now);
   const buyer = ensurePlayer(world, bob, now);
   world.orders = [];
+  world.orderBookIntegrityVersion = 0;
   seller.credits = 100;
   seller.inventories.wheat.available = 0;
   seller.inventories.wheat.frozen = 1;
@@ -115,6 +116,7 @@ test('migration cancels the newer legacy self-crossing commodity order and relea
   deferDemand(world);
   const player = ensurePlayer(world, alice, now);
   world.orders = [];
+  world.orderBookIntegrityVersion = 0;
   player.credits = 90;
   player.frozenCredits = 10;
   player.inventories.wheat.available = 0;

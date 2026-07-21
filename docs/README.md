@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-07-20
+> 更新时间：2026-07-21
 > 客户端状态版本：15
 > 世界状态版本：13
 
@@ -59,3 +59,4 @@
 26. 工厂目录展示顺序、概览布局完整性、生产页胶囊例外、注册邀请码交互和一级卡片外层内边距虽使用独立文档，但职责必须保持在本索引限定范围内；不得把产品经济、页面模块归属、通用 UI、服务器事务或部署规则复制进这些专题文档。
 27. 玩家端一级卡片外层内边距统一归属 `PRIMARY_SURFACE_INSET_DESIGN.md` 与 `primary-surfaces.css`；业务页面不得重新声明一级卡片外层 padding，新增一级卡片必须使用 `PagePanel`，并通过 `scripts/verify-primary-surface-insets.mjs` 防回退。
 28. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；施工、生产周期、拍卖和排行榜结算统一登记在 `authoritativeCountdowns.ts`，到期立即刷新并每秒确认，工作冷却按服务器绝对截止时间本地解锁，并通过 `scripts/verify-authoritative-countdowns.mjs` 防回退。
+29. 权威刷新抢占与请求超时归属 `AUTHORITATIVE_COUNTDOWN_DESIGN.md`；商品订单单次共享撮合、订单簿完整性版本迁移、动作精简确认后的异步状态补拉和重复提交锁归属订单簿与服务器容量规则，必须通过 `scripts/verify-market-action-latency.mjs`、`scripts/verify-state-delivery-capacity.mjs` 和服务器测试共同防回退。

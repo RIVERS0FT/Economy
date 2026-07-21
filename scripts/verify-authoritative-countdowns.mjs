@@ -10,10 +10,15 @@ const requireFile = (path) => {
 const requireText = (path, text) => {
   if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`);
 };
+const forbidText = (path, text) => {
+  if (read(path).includes(text)) failures.push(`${path} 不得包含: ${text}`);
+};
 
 const paths = {
   registry: 'src/utils/authoritativeCountdowns.ts',
   coordinator: 'src/components/system/AuthoritativeCountdownRefresh.tsx',
+  model: 'src/app/gameViewModel.ts',
+  api: 'src/api/game.ts',
   app: 'src/app/GameApp.tsx',
   production: 'src/pages/ProductionPage.tsx',
   overview: 'src/pages/OverviewPage.tsx',
@@ -40,12 +45,28 @@ if (failures.length === 0) {
     'AUTHORITY_CONFIRMATION_RETRY_MS = 1_000',
     'nextAuthoritativeCountdownDeadline(game)',
     'game.lastProcessedAt + Math.max(0, Date.now() - receivedAt)',
-    'confirmAuthority();',
+    "mode: 'authoritative'",
+    'expectedDeadline: deadline',
     'window.setTimeout(beginConfirmation, remaining)',
-    'window.setInterval(confirmAuthority, AUTHORITY_CONFIRMATION_RETRY_MS)',
+    'window.setTimeout(() => void confirmAuthority(), AUTHORITY_CONFIRMATION_RETRY_MS)',
+    "document.addEventListener('visibilitychange', handleVisibilityChange)",
     'window.clearTimeout(deadlineTimer)',
-    'window.clearInterval(confirmationTimer)',
+    'window.clearTimeout(confirmationTimer)',
   ]) requireText(paths.coordinator, text);
+  forbidText(paths.coordinator, 'window.setInterval(confirmAuthority');
+
+  for (const text of [
+    "export type RefreshMode = 'normal' | 'authoritative'",
+    'refreshTaskRef.current',
+    "mode === 'normal' && actionsInFlightRef.current > 0",
+    'existing.controller.abort()',
+  ]) requireText(paths.model, text);
+
+  for (const text of [
+    'DEFAULT_READ_TIMEOUT_MS = 8_000',
+    'DEFAULT_WRITE_TIMEOUT_MS = 12_000',
+    "throw new GameApiError(408, '游戏服务器响应超时，请稍后重试')",
+  ]) requireText(paths.api, text);
 
   for (const text of [
     "import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';",
@@ -74,10 +95,10 @@ if (failures.length === 0) {
     '本地资格倒计时',
     '权威状态转换倒计时',
     '`src/utils/authoritativeCountdowns.ts`',
-    '每 `1,000ms` 再确认一次',
-    '页面切换不得中止到期确认',
+    '每 `1,000ms` 继续确认',
+    '浏览器从后台恢复可见时立即重新判断截止时间',
     '施工卡固定在归零后显示“确认完工中…”',
-    '工作冷却 `work.cooldownUntil`',
+    '普通状态读取超时为 8 秒',
     '`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
 
@@ -97,4 +118,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('权威倒计时验证通过：工作冷却本地解锁，施工、生产周期、拍卖和排行榜到期统一立即刷新并每秒确认，页面确认状态与文档规则均已锁定。');
+console.log('权威倒计时验证通过：权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认并在浏览器恢复可见时立即重试。');

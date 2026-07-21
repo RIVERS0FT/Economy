@@ -9,6 +9,8 @@ import {
 
 const GAME_API_BASE = '/economy-api/game';
 const stateDeliveryCache = createStateDeliveryCache();
+const DEFAULT_READ_TIMEOUT_MS = 8_000;
+const DEFAULT_WRITE_TIMEOUT_MS = 12_000;
 
 export const DEFAULT_QQ_GROUP_URL = 'https://qm.qq.com/q/eN8hya0Yn0';
 
@@ -69,21 +71,59 @@ export function resetGameStateDelivery() {
   stateDeliveryCache.reset();
 }
 
+function createTimedSignal(source: AbortSignal | null | undefined, timeoutMs: number) {
+  const controller = new AbortController();
+  let timedOut = false;
+  const forwardAbort = () => controller.abort();
+  if (source?.aborted) controller.abort();
+  else source?.addEventListener('abort', forwardAbort, { once: true });
+  const timeoutId = globalThis.setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  return {
+    signal: controller.signal,
+    didTimeout: () => timedOut,
+    cleanup: () => {
+      globalThis.clearTimeout(timeoutId);
+      source?.removeEventListener('abort', forwardAbort);
+    },
+  };
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   if (init?.body) headers.set('Content-Type', 'application/json');
   if (init?.method && init.method !== 'GET') headers.set('Idempotency-Key', createRequestKey());
-  const response = await fetch(`${GAME_API_BASE}${path}`, { ...init, credentials: 'include', headers });
-  if (!response.ok) {
-    let message = '游戏服务器请求失败';
-    try {
-      const payload = (await response.json()) as { message?: string };
-      if (payload.message) message = payload.message;
-    } catch { /* preserve generic message */ }
-    throw new GameApiError(response.status, message);
+  const timeoutMs = init?.method && init.method !== 'GET'
+    ? DEFAULT_WRITE_TIMEOUT_MS
+    : DEFAULT_READ_TIMEOUT_MS;
+  const timedSignal = createTimedSignal(init?.signal, timeoutMs);
+  try {
+    const response = await fetch(`${GAME_API_BASE}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers,
+      signal: timedSignal.signal,
+    });
+    if (!response.ok) {
+      let message = '游戏服务器请求失败';
+      try {
+        const payload = (await response.json()) as { message?: string };
+        if (payload.message) message = payload.message;
+      } catch { /* preserve generic message */ }
+      throw new GameApiError(response.status, message);
+    }
+    const payload = await response.json() as unknown;
+    return (isStateDeliveryPayload(payload) ? stateDeliveryCache.accept(payload) : payload) as T;
+  } catch (reason) {
+    if (timedSignal.didTimeout() && reason instanceof Error && reason.name === 'AbortError') {
+      throw new GameApiError(408, '游戏服务器响应超时，请稍后重试');
+    }
+    throw reason;
+  } finally {
+    timedSignal.cleanup();
   }
-  const payload = await response.json() as unknown;
-  return (isStateDeliveryPayload(payload) ? stateDeliveryCache.accept(payload) : payload) as T;
 }
 
 function postAction(path: string, body: Record<string, unknown> = {}) {
