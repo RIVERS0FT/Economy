@@ -51,16 +51,18 @@ for (const text of [
   'className={`facility-cluster-selector-card',
   'className="facility-current-selection-bar"',
   'className="facility-cluster-detail-shell"',
+  'className="facility-card-title-block facility-cluster-selector-heading"',
   'role="dialog"',
   'aria-modal="true"',
   'aria-labelledby="mobile-facility-detail-title"',
+  'tabIndex={-1}',
   "event.key === 'Escape'",
   "event.key !== 'Tab'",
   "document.body.style.overflow = 'hidden'",
   "document.querySelector<HTMLElement>('.page-scroll')",
   "pageScroll.style.overflowY = 'hidden'",
   "pageScrollArea.dataset.modalScrollbarSuppressed = 'true'",
-  'detailTriggerRef.current?.focus()',
+  'returnFocusRef.current?.focus()',
   '<strong>生产配方</strong>',
   '下一周期切换为：',
   'showNextCyclePreview={recipeState.showNextCyclePreview}',
@@ -68,6 +70,11 @@ for (const text of [
   'FACILITY_SHEET_CLOSE_VELOCITY',
   'FACILITY_SHEET_AXIS_DOMINANCE',
   'setPointerCapture',
+  'const requestClose = useCallback',
+  'const isClosingRef = useRef(false)',
+  "sheet.classList.add('is-settling', 'is-closing')",
+  'if (event.target === event.currentTarget) requestClose();',
+  'requestClose(onOpenMarket)',
   'className="facility-detail-sheet-drag-handle"',
   'className="facility-detail-sheet-header"',
   'className="facility-detail-sheet-footer"',
@@ -99,6 +106,10 @@ for (const forbidden of [
   '>前往市场 →',
   'showNextCyclePreview = Boolean(pendingRecipe) || group.pendingJoinCount > 0',
   'recipes.length === 1',
+  'closeButtonRef',
+  'closeAction',
+  'facility-detail-sheet-close',
+  'aria-label="关闭工厂详情"',
 ])
   assert.equal(page.includes(forbidden), false, `生产页不应包含: ${forbidden}`);
 
@@ -170,10 +181,14 @@ for (const text of [
   ".page-scroll-area[data-modal-scrollbar-suppressed='true']",
   '--facility-sheet-backdrop-progress',
   '--facility-sheet-drag-offset',
+  '.facility-detail-sheet:focus',
   '.facility-detail-sheet.is-dragging',
   '.facility-detail-sheet.is-settling',
+  '.facility-detail-sheet.is-closing',
+  'pointer-events: none;',
   '.facility-detail-sheet-drag-handle',
   'touch-action: none;',
+  '.facility-card-title-block',
   '.facility-detail-sheet-scroll-area',
   '.facility-detail-sheet-scroll',
   'overflow-y: auto;',
@@ -184,7 +199,11 @@ for (const text of [
   '@media (prefers-reduced-motion: reduce)',
 ])
   assert.equal(sheetCss.includes(text), true, `移动工厂详情样式缺少: ${text}`);
-for (const forbidden of ['overscroll-behavior-y: contain', 'display: none !important; /* vertical */'])
+for (const forbidden of [
+  'overscroll-behavior-y: contain',
+  'display: none !important; /* vertical */',
+  '.facility-detail-sheet-close',
+])
   assert.equal(sheetCss.includes(forbidden), false, `移动工厂详情样式不应包含: ${forbidden}`);
 
 const main = read('src/main.tsx');
@@ -249,6 +268,12 @@ for (const text of [
   '所有工厂详情统一显示启用的“生产配方”选择器',
   '单配方工厂显示唯一选项并保持启用',
   '重复选择当前正式配方不得提交经济动作',
+  '完整状态固定放在工厂名称下方',
+  '窄屏利润分析保持紧凑而不删减信息',
+  '摘要使用两列，本轮现金利润占满一行并优先显示',
+  '打开后焦点进入可程序化聚焦的对话框容器',
+  '不包含顶部关闭按钮',
+  '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '悬浮框最大高度为 `min(88dvh, 760px)`',
   '关闭后焦点返回触发卡',
   '固定头部／唯一 `ScrollArea` 正文／固定底部操作区',
@@ -268,6 +293,9 @@ for (const forbidden of [
   '大于 1380px 时右侧固定四列',
   '移动端恢复自然高度；不得在单张卡内部增加纵向滚动条',
   '单配方工厂显示唯一选项并禁用',
+  '打开后焦点进入关闭按钮',
+  '`Escape`、关闭按钮、点击遮罩',
+  '关闭按钮点击区域不得小于',
 ])
   assert.equal(industryDoc.includes(forbidden), false, `产业设计不应保留旧页面规则: ${forbidden}`);
 
@@ -318,5 +346,5 @@ for (const [path, required] of [
 }
 
 console.log(
-  '工厂集群主从布局、可拖动移动详情框、共享活动滚动条、启用单配方选择器、目录顺序默认选择、焦点与滚动控制、通用配方和集群公式验证通过。',
+  '工厂集群主从布局、状态标题层级、无顶部关闭按钮、统一收起动画、紧凑利润布局、共享活动滚动条、目录顺序默认选择、焦点与滚动控制、通用配方和集群公式验证通过。',
 );

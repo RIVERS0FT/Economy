@@ -133,7 +133,7 @@ for (const text of [
   '异常 {formatNumber(model.derived.blockedFacilities)}',
   'facility-status-header',
   'facility-card-title-row',
-  'facility-card-status-row',
+  'facility-card-title-block',
   '异常：资金不足',
   '异常：仓库已满',
   '异常：原料不足',
@@ -176,6 +176,8 @@ for (const text of [
   '当前计划：持续运行',
   '>保存计划</Button>',
   'facility-group-specs',
+  'facility-card-status-row',
+  'facility-detail-sheet-close',
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
@@ -366,10 +368,12 @@ for (const text of [
   '资产页不得再显示逐商品“商品库存与估值”卡片',
   '仓库不再提供“有库存／全部商品”筛选',
   '建设新工厂卡独占左侧列并在桌面滚动时常驻',
-  '大于 1380px 时工厂列表固定四列',
+  '生产页只显示按正式目录排序的紧凑选择卡和单张当前工厂完整详情',
   '集群生产公式',
   '多输入、多输出和逐输入库存兼容展示',
   '以箭头替代生产进度条',
+  '移动详情不显示顶部关闭按钮',
+  '点击遮罩、按 `Escape` 和有效下拉共用收起动画',
   '最高出价资金、商品仓库预占、卖方资产冻结、退款、拍卖状态和归属转移全部由服务器判定',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
   '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',
