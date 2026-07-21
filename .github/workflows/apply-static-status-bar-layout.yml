@@ -35,15 +35,15 @@ jobs:
           content = path.read_text()
           content = content.replace(
               "expect(state.contentOverflow, `状态栏内容在 ${width}px 发生横向溢出`).toBe(false);",
-              "expect(state.contentOverflow, \\`状态栏内容在 ${width}px 发生横向溢出\\`).toBe(false);",
+              "expect(state.contentOverflow, \\`状态栏内容在 \\${width}px 发生横向溢出\\`).toBe(false);",
           )
           content = content.replace(
               "expect(state.hostOverflow, `状态栏宿主在 ${width}px 发生横向溢出`).toBe(false);",
-              "expect(state.hostOverflow, \\`状态栏宿主在 ${width}px 发生横向溢出\\`).toBe(false);",
+              "expect(state.hostOverflow, \\`状态栏宿主在 \\${width}px 发生横向溢出\\`).toBe(false);",
           )
           content = content.replace(
               "expect(state.itemsInside, `状态项在 ${width}px 超出固定五列`).toBe(true);",
-              "expect(state.itemsInside, \\`状态项在 ${width}px 超出固定五列\\`).toBe(true);",
+              "expect(state.itemsInside, \\`状态项在 \\${width}px 超出固定五列\\`).toBe(true);",
           )
           path.write_text(content)
           PY
