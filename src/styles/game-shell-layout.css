@@ -12,6 +12,11 @@
     --desktop-sidebar-workspace-gap: var(--desktop-layout-gutter);
     --desktop-status-gap: var(--desktop-layout-gutter);
     --layout-gutter: var(--desktop-layout-gutter);
+    --desktop-page-top-offset: calc(
+      var(--desktop-layout-gutter)
+      + var(--desktop-asset-bar-height)
+      + var(--desktop-layout-gutter)
+    );
 
     width: 100%;
     height: 100%;
@@ -73,18 +78,10 @@
   }
 
   html[data-app-surface="game"] .page-scroll {
-    padding-top: calc(
-      var(--desktop-layout-gutter)
-      + var(--desktop-asset-bar-height)
-      + var(--desktop-layout-gutter)
-    );
+    padding-top: var(--desktop-page-top-offset);
     padding-right: 0;
     padding-left: 0;
-    scroll-padding-top: calc(
-      var(--desktop-layout-gutter)
-      + var(--desktop-asset-bar-height)
-      + var(--desktop-layout-gutter)
-    );
+    scroll-padding-top: var(--desktop-page-top-offset);
   }
 
   html[data-app-surface="game"] .page-scroll-area > .ui-scrollbar--vertical {
