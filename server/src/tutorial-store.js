@@ -17,6 +17,13 @@ function normalizeStatus(row) {
   };
 }
 
+function completionResponse(tutorial) {
+  return {
+    result: { ok: true, message: '基础教程已完成' },
+    tutorial,
+  };
+}
+
 export function createTutorialStore(store, now = Date.now()) {
   const { database } = store;
   database.exec(`
@@ -121,12 +128,12 @@ export function createTutorialStore(store, now = Date.now()) {
       return JSON.parse(String(cached.response_json));
     }
 
+    const existing = getStatus(normalizedUserId);
+    if (existing.completedVersion >= version) return completionResponse(existing);
+
     return store.transaction(() => {
       upsertStatus.run(normalizedUserId, version, completedAt);
-      const response = {
-        result: { ok: true, message: '基础教程已完成' },
-        tutorial: getStatus(normalizedUserId),
-      };
+      const response = completionResponse(getStatus(normalizedUserId));
       insertIdempotency.run(
         normalizedUserId,
         requestKey,
