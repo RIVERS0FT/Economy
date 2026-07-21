@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { applyMarketSellFee } from './market-sell-fee.js';
+import { isOpenOrder } from './order-identity.js';
+import { matchIncomingOrder } from './order-matching.js';
 import { LIQUIDITY_SIGNAL_WEIGHT } from './market-demand/catalog.js';
 
 const LIQUIDITY_BUY = 'liquidity-buy';
@@ -9,8 +10,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
   const createId = (prefix) => `${prefix}-${randomUUID()}`;
   const productFor = (productId) => productMap.get(String(productId || '')) || productMap.get('wheat');
-  const isOpenOrder = (order) => Number(order?.remaining || 0) > 0
-    && (order?.status === 'open' || order?.status === 'partial');
   const isCommodityOwner = (order) => order?.ownerType === 'player' || order?.ownerType === 'population';
   const isLiquidityOrder = (order) => order?.ownerType === 'population'
     && (order?.demandTier === LIQUIDITY_BUY || order?.demandTier === LIQUIDITY_SELL);
@@ -84,13 +83,6 @@ export function createBalancedMarketRuntime({ products, constants }) {
       description,
     });
     player.ledger = player.ledger.slice(0, constants.maxLedgerPerPlayer);
-  }
-
-  function appendFill(order, fill) {
-    if (order.ownerType !== 'player') return;
-    order.fills = Array.isArray(order.fills) ? order.fills : [];
-    order.fills.push(fill);
-    order.fills = order.fills.slice(-120);
   }
 
   function counterparty(order) {
@@ -178,65 +170,30 @@ export function createBalancedMarketRuntime({ products, constants }) {
     reserve.totalSellValue = Number(reserve.totalSellValue || 0) + quantity * tradePrice;
   }
 
-  function executeTrade(world, incoming, resting, quantity, createdAt) {
-    const buy = incoming.side === 'buy' ? incoming : resting;
-    const sell = incoming.side === 'sell' ? incoming : resting;
-    const price = Number(resting.price);
-    const fill = {
-      id: createId('order-fill'), quantity, price, total: quantity * price, createdAt,
-      makerOrderId: resting.id, takerOrderId: incoming.id,
-    };
-    incoming.remaining -= quantity;
-    resting.remaining -= quantity;
-    incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
-    resting.status = resting.remaining === 0 ? 'filled' : 'partial';
-    incoming.lastFilledAt = createdAt;
-    resting.lastFilledAt = createdAt;
-    const settlement = sell.ownerType === 'player'
-      ? applyMarketSellFee(sell, fill.total)
-      : { fee: 0, netTotal: fill.total };
-    appendFill(buy, {
-      ...fill, fee: 0, netTotal: fill.total,
-      counterparty: counterparty(sell), liquidity: buy.id === resting.id ? 'maker' : 'taker',
-    });
-    appendFill(sell, {
-      ...fill, ...settlement,
-      counterparty: counterparty(buy), liquidity: sell.id === resting.id ? 'maker' : 'taker',
-    });
-    if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);
-    if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, settlement, createdAt);
-    if (buy.demandTier === LIQUIDITY_BUY) settleLiquidityBuy(world, buy, quantity, price);
-    if (sell.demandTier === LIQUIDITY_SELL) settleLiquiditySell(world, sell, quantity, price);
-    const signalWeight = isLiquidityOrder(buy) || isLiquidityOrder(sell) ? LIQUIDITY_SIGNAL_WEIGHT : 1;
-    recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt, signalWeight);
-  }
-
   function matchOrder(world, incoming, createdAt) {
     if (!isCommodityOwner(incoming)) throw new Error(`Unsupported commodity order owner: ${incoming?.ownerType}`);
-    if (!hasValidOwner(world, incoming)) return;
-    const opposite = incoming.side === 'buy' ? 'sell' : 'buy';
-    const candidates = (world.orders || [])
-      .filter((order) => (
-        order.id !== incoming.id
-        && isCommodityOwner(order)
-        && hasValidOwner(world, order)
-        && order.productId === incoming.productId
-        && order.side === opposite
-        && isOpenOrder(order)
-        && !(order.ownerType === 'population' && incoming.ownerType === 'population')
-        && !(order.ownerType === 'player' && incoming.ownerType === 'player'
-          && Number(order.ownerId) === Number(incoming.ownerId))
-        && (incoming.side === 'buy'
-          ? Number(order.price) <= Number(incoming.price)
-          : Number(order.price) >= Number(incoming.price))
-      ))
-      .sort((left, right) => incoming.side === 'buy'
-        ? Number(left.price) - Number(right.price) || Number(left.createdAt) - Number(right.createdAt)
-        : Number(right.price) - Number(left.price) || Number(left.createdAt) - Number(right.createdAt));
-    for (const candidate of candidates) {
-      if (!isOpenOrder(incoming)) break;
-      executeTrade(world, incoming, candidate, Math.min(incoming.remaining, candidate.remaining), createdAt);
-    }
+    if (!hasValidOwner(world, incoming)) return { fillCount: 0, filledQuantity: 0 };
+    return matchIncomingOrder({
+      world,
+      incoming,
+      createdAt,
+      canMatch: ({ resting }) => (
+        isCommodityOwner(resting)
+        && hasValidOwner(world, resting)
+        && !(resting.ownerType === 'population' && incoming.ownerType === 'population')
+      ),
+      describeCounterparty: counterparty,
+      settleTrade: ({ buy, sell, quantity, price, sellerSettlement }) => {
+        if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);
+        if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, sellerSettlement, createdAt);
+        if (buy.demandTier === LIQUIDITY_BUY) settleLiquidityBuy(world, buy, quantity, price);
+        if (sell.demandTier === LIQUIDITY_SELL) settleLiquiditySell(world, sell, quantity, price);
+      },
+      recordTrade: ({ buy, sell, quantity, price, takerSide }) => {
+        const signalWeight = isLiquidityOrder(buy) || isLiquidityOrder(sell) ? LIQUIDITY_SIGNAL_WEIGHT : 1;
+        recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight);
+      },
+    });
   }
 
   function rebalanceNewWorld(world, now) {
