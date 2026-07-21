@@ -80,7 +80,9 @@ jobs:
           target = "    '顶部状态栏不得包含 `ScrollArea`',\n"
           if target not in overlay_source:
               raise SystemExit('overlay verifier unrelated status target not found')
-          overlay_path.write_text(overlay_source.replace(target, ''))
+          overlay_source = overlay_source.replace(target, '')
+          overlay_source = overlay_source.replace('--scrollbar-hit-size: 20px;', '--scrollbar-hit-size: 14px;')
+          overlay_path.write_text(overlay_source)
 
           local_design_path = Path('docs/LOCAL_ACTIVITY_LOG_DESIGN.md')
           local_design = local_design_path.read_text()
@@ -111,6 +113,7 @@ jobs:
 
           scrollbars_path = Path('src/styles/scrollbars.css')
           scrollbars = scrollbars_path.read_text()
+          scrollbars = scrollbars.replace('--scrollbar-hit-size: 20px;', '--scrollbar-hit-size: 14px;')
           horizontal_target = """.ui-scrollbar--horizontal .ui-scrollbar__thumb::before {
             inset-block: calc((var(--scrollbar-touch-target-size) - var(--scrollbar-visual-size)) / -2);
             inset-inline: 0;
@@ -139,6 +142,13 @@ jobs:
           scrollbars = scrollbars.replace(horizontal_target, horizontal_replacement)
           scrollbars = scrollbars.replace(vertical_target, vertical_replacement)
           scrollbars_path.write_text(scrollbars)
+
+          design_path = Path('docs/UI_DESIGN_SYSTEM.md')
+          design = design_path.read_text()
+          old_size = '轨道命中尺寸 `20px`'
+          if old_size not in design:
+              raise SystemExit('UI design scrollbar hit size not found')
+          design_path.write_text(design.replace(old_size, '轨道命中尺寸 `14px`'))
           PY
 
       - name: Install dependencies
@@ -161,6 +171,7 @@ jobs:
 
       - name: Remove migration files
         run: |
+          rm -rf diagnostics
           rm scripts/apply-scroll-input-redesign.mjs
           rm .github/workflows/apply-scroll-input-redesign.yml
 
