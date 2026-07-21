@@ -144,14 +144,16 @@ requireText('src/app/gameViewModel.ts', [
   'stateResponse.revision < response.revision',
   '操作已完成，但状态同步失败',
   'return response.result;',
-  'refreshAbortRef.current?.abort()',
-  'actionsInFlightRef.current > 0',
+  'refreshTaskRef.current?.controller.abort()',
+  "mode === 'normal' && actionsInFlightRef.current > 0",
+  'existing.controller.abort()',
   "action === 'work' && workPendingRef.current",
   'setIsWorking(true)',
   'setIsWorking(false)',
 ]);
 forbidText('src/app/gameViewModel.ts', [
   'acceptVersionedState(response.revision, response.state, action',
+  'refreshAbortRef.current',
 ]);
 
 requireText('src/pages/OverviewPage.tsx', [
@@ -244,4 +246,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量补丁、动作精简确认与确认后分区补拉、修订号门禁、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量补丁、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
