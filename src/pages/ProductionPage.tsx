@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { useNow } from '../hooks/useNow';
 import { type LoadedGameViewModel } from '../app/gameViewModel';
 import { FacilityProductionFormula } from '../components/facilities/FacilityProductionFormula';
+import { FactoryIcon } from '../components/icons/GameIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { SelectInput } from '../components/ui/FormControls';
 import { ScrollArea } from '../components/ui/ScrollArea';
@@ -170,11 +171,9 @@ function isFacilitySheetInteractiveTarget(target: EventTarget | null) {
 
 function FacilityClusterSelectorCard({
   entry,
-  isSelected,
   onSelect,
 }: {
   entry: FacilityClusterEntry;
-  isSelected: boolean;
   onSelect: (trigger: HTMLButtonElement) => void;
 }) {
   const { group, type } = entry;
@@ -182,27 +181,14 @@ function FacilityClusterSelectorCard({
   return (
     <button
       type="button"
-      className={`facility-cluster-selector-card${isSelected ? ' is-selected' : ''}`}
-      aria-pressed={isSelected}
+      className="facility-cluster-selector-card"
+      data-status={group.status}
+      aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}
       onClick={(event) => onSelect(event.currentTarget)}
     >
-      <span className="facility-cluster-selector-heading">
-        <strong>
-          {type.name} × {formatNumber(group.count)}
-        </strong>
-        <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
-      </span>
-      <span className="facility-cluster-selector-summary" aria-label={`${type.name}运行数量`}>
-        <span>
-          运行 <strong>{formatNumber(group.participatingCount)}</strong>
-        </span>
-        <span>
-          待加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>
-        </span>
-        <span>
-          冻结 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>
-        </span>
-      </span>
+      <strong className="facility-cluster-name">{type.name}</strong>
+      <FactoryIcon className="facility-cluster-icon" />
+      <span className="facility-cluster-count">{formatNumber(group.count)}</span>
     </button>
   );
 }
@@ -942,33 +928,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
             <StatusTag tone="neutral">{formatNumber(orderedFacilityGroups.length)} 类</StatusTag>
           </div>
 
-          {selectedFacilityEntry ? (
-            <div className="facility-current-selection-bar">
-              <span>
-                <small>当前工厂</small>
-                <strong>
-                  {selectedFacilityEntry.type.name} × {formatNumber(selectedFacilityEntry.group.count)}
-                </strong>
-                <em>{facilityStatusLabel(selectedFacilityEntry.group)}</em>
-              </span>
-              <Button
-                variant="secondary"
-                onClick={(event) => {
-                  detailTriggerRef.current = event.currentTarget;
-                  setFacilityDetailOpen(true);
-                }}
-              >
-                查看详情
-              </Button>
-            </div>
-          ) : null}
-
           <div className="facility-cluster-selector-list">
             {orderedFacilityGroups.map((entry) => (
               <FacilityClusterSelectorCard
                 key={entry.group.facilityTypeId}
                 entry={entry}
-                isSelected={entry.type.id === effectiveSelectedFacilityGroupId}
                 onSelect={(trigger) => selectFacilityEntry(entry.type.id, trigger)}
               />
             ))}
