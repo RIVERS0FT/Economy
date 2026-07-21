@@ -4,7 +4,6 @@
  * chromatic aberration in CSS. Status bars suppress upstream decorative shells. */
 :root {
   --desktop-asset-bar-height: 76px;
-  --desktop-status-gap: var(--space-3);
   --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
   --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
   --liquid-glass-structure-border: rgba(232, 255, 244, 0.3);

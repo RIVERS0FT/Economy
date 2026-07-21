@@ -8,7 +8,10 @@ type ShellGeometry = {
   workspace: { left: number; top: number; right: number; bottom: number };
   assetBar: { left: number; top: number; right: number; bottom: number };
   pageScroll: { left: number; top: number; right: number; bottom: number };
-  pageContent: { left: number; width: number; right: number };
+  pageContent: { left: number; width: number; right: number; contentRight: number };
+  contentGrid: { left: number; right: number };
+  primaryCardGap: number;
+  pageScrollbar: { railRight: number; thumbRight: number };
   pageScrollClientWidth: number;
   pageScrollHasHorizontalOverflow: boolean;
   shellGap: string;
@@ -16,7 +19,7 @@ type ShellGeometry = {
   workspaceMargin: [string, string, string, string];
   pageContentMaxWidth: string;
   pageContentMargin: [string, string];
-  pageContentPadding: [string, string];
+  pageContentPadding: [string, string, string];
 };
 
 async function readShellGeometry(page: Page): Promise<ShellGeometry> {
@@ -28,7 +31,27 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
     const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const pageContent = document.querySelector<HTMLElement>('.page-content');
-    if (!shell || !sidebar || !workspace || !assetBar || !pageScrollArea || !pageScroll || !pageContent) {
+    const contentGrid = document.querySelector<HTMLElement>('.home-grid');
+    const primaryGrid = document.querySelector<HTMLElement>('.overview-primary-grid');
+    const pageScrollbarRail = pageScrollArea?.querySelector<HTMLElement>(':scope > .ui-scrollbar--vertical');
+    const pageScrollbarThumb = pageScrollbarRail?.querySelector<HTMLElement>('.ui-scrollbar__thumb');
+    const primaryCards = primaryGrid
+      ? [...primaryGrid.children].filter((child): child is HTMLElement => child instanceof HTMLElement).slice(0, 2)
+      : [];
+    if (
+      !shell
+      || !sidebar
+      || !workspace
+      || !assetBar
+      || !pageScrollArea
+      || !pageScroll
+      || !pageContent
+      || !contentGrid
+      || !primaryGrid
+      || !pageScrollbarRail
+      || !pageScrollbarThumb
+      || primaryCards.length < 2
+    ) {
       throw new Error('game shell geometry fixture is incomplete');
     }
 
@@ -40,6 +63,15 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
     const workspaceStyle = getComputedStyle(workspace);
     const pageContentStyle = getComputedStyle(pageContent);
     const pageContentRect = pageContent.getBoundingClientRect();
+    const contentGridRect = contentGrid.getBoundingClientRect();
+    const firstCardRect = primaryCards[0].getBoundingClientRect();
+    const secondCardRect = primaryCards[1].getBoundingClientRect();
+    const pageScrollbarRailRect = pageScrollbarRail.getBoundingClientRect();
+    const pageScrollbarThumbRect = pageScrollbarThumb.getBoundingClientRect();
+    const paddingRight = Number.parseFloat(pageContentStyle.paddingRight) || 0;
+    const primaryCardGap = secondCardRect.left >= firstCardRect.right - 1
+      ? secondCardRect.left - firstCardRect.right
+      : secondCardRect.top - firstCardRect.bottom;
 
     return {
       viewportWidth: document.documentElement.clientWidth,
@@ -53,6 +85,16 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
         left: pageContentRect.left,
         width: pageContentRect.width,
         right: pageContentRect.right,
+        contentRight: pageContentRect.right - paddingRight,
+      },
+      contentGrid: {
+        left: contentGridRect.left,
+        right: contentGridRect.right,
+      },
+      primaryCardGap,
+      pageScrollbar: {
+        railRight: pageScrollbarRailRect.right,
+        thumbRight: pageScrollbarThumbRect.right,
       },
       pageScrollClientWidth: pageScroll.clientWidth,
       pageScrollHasHorizontalOverflow: pageScroll.scrollWidth > pageScroll.clientWidth + 1,
@@ -71,12 +113,16 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
       ],
       pageContentMaxWidth: pageContentStyle.maxWidth,
       pageContentMargin: [pageContentStyle.marginLeft, pageContentStyle.marginRight],
-      pageContentPadding: [pageContentStyle.paddingLeft, pageContentStyle.paddingRight],
+      pageContentPadding: [
+        pageContentStyle.paddingLeft,
+        pageContentStyle.paddingRight,
+        pageContentStyle.paddingBottom,
+      ],
     };
   });
 }
 
-function expectFlushWorkspace(layout: ShellGeometry, shellInset: number) {
+function expectUnifiedDesktopGutter(layout: ShellGeometry, gutter: number) {
   expect(layout.shell.left).toBeCloseTo(0, 0);
   expect(layout.shell.top).toBeCloseTo(0, 0);
   expect(layout.shell.right).toBeCloseTo(layout.viewportWidth, 0);
@@ -84,10 +130,10 @@ function expectFlushWorkspace(layout: ShellGeometry, shellInset: number) {
   expect(layout.shellGap).toBe('0px');
   expect(layout.shellPadding).toEqual(['0px', '0px', '0px', '0px']);
 
-  expect(layout.sidebar.left).toBeCloseTo(shellInset, 0);
-  expect(layout.sidebar.top).toBeCloseTo(shellInset, 0);
-  expect(layout.viewportHeight - layout.sidebar.bottom).toBeCloseTo(shellInset, 0);
-  expect(layout.workspace.left - layout.sidebar.right).toBeCloseTo(shellInset, 0);
+  expect(layout.sidebar.left).toBeCloseTo(gutter, 0);
+  expect(layout.sidebar.top).toBeCloseTo(gutter, 0);
+  expect(layout.viewportHeight - layout.sidebar.bottom).toBeCloseTo(gutter, 0);
+  expect(layout.workspace.left - layout.sidebar.right).toBeCloseTo(gutter, 0);
 
   expect(layout.workspace.top).toBeCloseTo(0, 0);
   expect(layout.workspace.right).toBeCloseTo(layout.viewportWidth, 0);
@@ -95,8 +141,9 @@ function expectFlushWorkspace(layout: ShellGeometry, shellInset: number) {
   expect(layout.workspaceMargin).toEqual(['0px', '0px', '0px', '0px']);
 
   expect(layout.assetBar.left).toBeCloseTo(layout.workspace.left, 0);
-  expect(layout.assetBar.top - layout.workspace.top).toBeCloseTo(shellInset, 0);
-  expect(layout.workspace.right - layout.assetBar.right).toBeCloseTo(shellInset, 0);
+  expect(layout.assetBar.left - layout.sidebar.right).toBeCloseTo(gutter, 0);
+  expect(layout.assetBar.top - layout.workspace.top).toBeCloseTo(gutter, 0);
+  expect(layout.workspace.right - layout.assetBar.right).toBeCloseTo(gutter, 0);
 
   expect(layout.pageScroll.left).toBeCloseTo(layout.workspace.left, 0);
   expect(layout.pageScroll.top).toBeCloseTo(layout.workspace.top, 0);
@@ -106,14 +153,21 @@ function expectFlushWorkspace(layout: ShellGeometry, shellInset: number) {
   expect(layout.pageContent.left).toBeCloseTo(layout.pageScroll.left, 0);
   expect(layout.pageContent.width).toBeCloseTo(layout.pageScrollClientWidth, 0);
   expect(layout.pageContent.right).toBeLessThanOrEqual(layout.pageScroll.right + 1);
+  expect(layout.pageContent.contentRight).toBeCloseTo(layout.assetBar.right, 0);
+  expect(layout.contentGrid.left).toBeCloseTo(layout.assetBar.left, 0);
+  expect(layout.contentGrid.right).toBeCloseTo(layout.assetBar.right, 0);
+  expect(layout.primaryCardGap).toBeCloseTo(gutter, 0);
   expect(layout.pageContentMaxWidth).toBe('none');
   expect(layout.pageContentMargin).toEqual(['0px', '0px']);
-  expect(layout.pageContentPadding).toEqual(['0px', '0px']);
+  expect(layout.pageContentPadding).toEqual(['0px', `${gutter}px`, `${gutter}px`]);
   expect(layout.pageScrollHasHorizontalOverflow).toBe(false);
+
+  expect(layout.pageScrollbar.railRight).toBeCloseTo(layout.viewportWidth, 0);
+  expect(layout.pageScrollbar.thumbRight).toBeCloseTo(layout.viewportWidth, 0);
 }
 
 test.describe('full-width signed-in game shell', () => {
-  test('game shell shares one inset between the sidebar and status bar while the workspace stays flush', async ({ page }) => {
+  test('desktop shell uses one 12px gutter for sidebar, status bar, cards and page edges', async ({ page }) => {
     await page.setViewportSize({ width: 1684, height: 931 });
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
@@ -122,7 +176,23 @@ test.describe('full-width signed-in game shell', () => {
     await expect(page.locator('.page-scroll-area')).toBeVisible();
     await expect(page.locator('.page-content')).toBeVisible();
 
-    expectFlushWorkspace(await readShellGeometry(page), 12);
+    expectUnifiedDesktopGutter(await readShellGeometry(page), 12);
+  });
+
+  test('compact desktop width uses the same 8px gutter everywhere', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 900 });
+    await page.goto('runtime-test.html?view=overview&scenario=empty');
+    await expect(page.locator('.game-shell')).toBeVisible();
+
+    expectUnifiedDesktopGutter(await readShellGeometry(page), 8);
+  });
+
+  test('short desktop height uses the same 8px gutter everywhere', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 700 });
+    await page.goto('runtime-test.html?view=overview&scenario=empty');
+    await expect(page.locator('.game-shell')).toBeVisible();
+
+    expectUnifiedDesktopGutter(await readShellGeometry(page), 8);
   });
 
   test('desktop navigation rows keep intrinsic height and stack from the top', async ({ page }) => {
@@ -160,19 +230,20 @@ test.describe('full-width signed-in game shell', () => {
     await page.goto('runtime-test.html?view=overview&scenario=empty');
 
     const expanded = await readShellGeometry(page);
-    expectFlushWorkspace(expanded, 12);
+    expectUnifiedDesktopGutter(expanded, 12);
 
     await page.getByRole('button', { name: '折叠侧栏' }).click();
     await expect(page.locator('.desktop-sidebar')).toHaveAttribute('data-collapsed', 'true');
     await page.waitForTimeout(240);
 
     const collapsed = await readShellGeometry(page);
-    expectFlushWorkspace(collapsed, 12);
+    expectUnifiedDesktopGutter(collapsed, 12);
     expect(expanded.sidebar.left).toBeCloseTo(collapsed.sidebar.left, 0);
     expect(expanded.workspace.left - collapsed.workspace.left).toBeCloseTo(146, 0);
     expect(expanded.assetBar.left - collapsed.assetBar.left).toBeCloseTo(146, 0);
     expect(expanded.pageScroll.left - collapsed.pageScroll.left).toBeCloseTo(146, 0);
     expect(expanded.pageContent.left - collapsed.pageContent.left).toBeCloseTo(146, 0);
+    expect(expanded.contentGrid.left - collapsed.contentGrid.left).toBeCloseTo(146, 0);
   });
 
   test('page vertical scrollbar reacts only to actual scrolling and hides after idle', async ({ page }) => {
@@ -204,6 +275,19 @@ test.describe('full-width signed-in game shell', () => {
     const during = await pageScroll.evaluate((element) => ({ clientWidth: element.clientWidth, scrollTop: element.scrollTop }));
     expect(during.scrollTop).toBeGreaterThan(before.scrollTop);
     expect(during.clientWidth).toBe(before.clientWidth);
+
+    const scrollbarEdge = await pageScrollArea.evaluate((element) => {
+      const rail = element.querySelector<HTMLElement>(':scope > .ui-scrollbar--vertical');
+      const thumb = rail?.querySelector<HTMLElement>('.ui-scrollbar__thumb');
+      if (!rail || !thumb) throw new Error('page scrollbar is missing');
+      return {
+        viewportRight: document.documentElement.clientWidth,
+        railRight: rail.getBoundingClientRect().right,
+        thumbRight: thumb.getBoundingClientRect().right,
+      };
+    });
+    expect(scrollbarEdge.railRight).toBeCloseTo(scrollbarEdge.viewportRight, 0);
+    expect(scrollbarEdge.thumbRight).toBeCloseTo(scrollbarEdge.viewportRight, 0);
 
     await expect(pageScrollArea).not.toHaveAttribute('data-scrollbar-active-y', 'true', { timeout: 2_500 });
   });
