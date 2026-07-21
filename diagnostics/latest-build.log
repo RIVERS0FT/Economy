@@ -1,0 +1,21 @@
+
+> economy@0.4.0 build
+> npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build
+
+
+> economy@0.4.0 verify:architecture
+> node scripts/verify-document-authority.mjs && node scripts/verify-order-matching-core.mjs && node scripts/verify-market-action-latency.mjs && node --experimental-strip-types scripts/verify-runtime-architecture.mjs && node scripts/verify-state-delivery-capacity.mjs && node scripts/verify-authentication-cache.mjs && node scripts/verify-email-registration.mjs && node scripts/verify-stress-test-accounts.mjs && node scripts/verify-scroll-ownership.mjs && node scripts/verify-gems-invitations-and-bans.mjs && node scripts/verify-gem-shop.mjs && node scripts/verify-page-content.mjs && node scripts/verify-game-tutorial.mjs && node scripts/verify-assets-page.mjs && node scripts/verify-settings-layout.mjs && node scripts/verify-reset-disabled.mjs && node --experimental-strip-types scripts/verify-display-format.mjs && node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-form-controls.mjs && node scripts/verify-currency-svg.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-virtual-list-scroll-chaining.mjs && node scripts/verify-overlay-scrollbars.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && node scripts/verify-staple-crops-demand.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs && node scripts/verify-market-page-layout.mjs && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node scripts/verify-leaderboards.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-desktop-primary-surfaces.mjs && node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs && node scripts/verify-game-shell-layout.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs && node scripts/verify-collectibles-auctions.mjs && node scripts/verify-gift-code-batches.mjs && node scripts/verify-runtime-reliability.mjs
+
+文档权威性验证通过：登记文档清单、未知 Markdown 拒绝、版本 15/13、市场需求模型 5、非交叉统一订单簿、双边市场储备、九页导航、商店、整数经济基线、权威倒计时、一级卡片外层内边距、外壳与滚动条归属、单一职责专题、文档整理规则和旧文件禁令均满足当前基线。
+共享撮合内核验证通过：商品与工厂复用价格时间优先、maker price、部分成交、fill 和手续费状态机。
+市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、POST 后异步补拉、重复提交锁和请求超时均已锁定。
+运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、资产比例和本地日志缓存均已锁定。
+状态交付容量验证通过：世界缓存、单一全局调度、五分区增量交付与完整快照替换、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。
+认证缓存验证通过：状态 10 秒、写操作 2 秒、管理员零缓存、请求合并和 5000 条 LRU 已锁定。
+邮箱验证码注册验证通过：发送前查重、验证码安全、分享链接归因、统一同 IP 封禁、双模式页面与 Nginx 路由均已锁定。
+Fixed reusable stress-test account registry and secret boundary verification passed.
+Nested custom/native scroll ownership, boundary release and control location verification passed.
+宝石、邀请与封禁验证通过：服务器权威宝石、双邀请入口、立即奖励、同 IP 全组封禁、管理员解禁、版本与防回退规则均已锁定。
+商店验证通过：独立页面、服务器固定汇率、原子兑换、幂等、记录规则和共享一级卡片内边距均已锁定。
+页面内容与职责验证失败:
+- src/pages/ProductionPage.tsx 缺少: >异常 {formatNumber(model.derived.blockedFacilities)}
