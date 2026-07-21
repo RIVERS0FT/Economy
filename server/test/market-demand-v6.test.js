@@ -61,7 +61,7 @@ function createTestWorld(now) {
 }
 
 test('market model 6 settles fills that happen after demand orders are created', () => {
-  const now = 1_800_000;
+  const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
   runtime.initializeWorld(world, now);
@@ -83,7 +83,7 @@ test('market model 6 settles fills that happen after demand orders are created',
 });
 
 test('market model 6 stops issuing new consumption budget when no player is active', () => {
-  const now = 1_800_000;
+  const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
   world.players['1'].registeredAt = now - 8 * 24 * 60 * 60 * 1000;
@@ -99,7 +99,7 @@ test('market model 6 stops issuing new consumption budget when no player is acti
 });
 
 test('player-only activity excludes consumption and reserve trades from budget activity', () => {
-  const now = 1_800_000;
+  const now = 1_700_000_000_000;
   const world = { markets: { wheat: { priceHistory: [
     { price: 2, quantity: 5, createdAt: now, takerSide: 'buy', signalWeight: 1, marketRole: 'player' },
     { price: 3, quantity: 7, createdAt: now, takerSide: 'buy', signalWeight: 1, marketRole: 'consumption' },

@@ -68,6 +68,7 @@ function reserveTotals(world, groupId) {
 test('market model 6 creates inventory-backed buy and sell orders without system self-trades', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
+  world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
@@ -92,6 +93,7 @@ test('market model 6 creates inventory-backed buy and sell orders without system
 test('system liquidity asks reprice above retained consumption bids instead of crossing', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
+  world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
@@ -138,6 +140,7 @@ test('selling to a reserve transfers reserve funds and does not count as consump
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.inventories.wheat.available = 10;
+  world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
   cancelConsumptionBuys(world, 'wheat');
