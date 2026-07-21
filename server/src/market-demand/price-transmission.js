@@ -21,6 +21,10 @@ export function createPriceTransmissionRuntime({
 }) {
   const relationId = (recipe, input) => `${recipe.facilityTypeId}/${recipe.recipeId}:${input.productId}`;
   const roundNullable = (value) => value === null ? null : round4(value);
+  const recipeCountByOutput = recipes.reduce((map, recipe) => {
+    map.set(recipe.output.productId, (map.get(recipe.output.productId) || 0) + 1);
+    return map;
+  }, new Map());
 
   function signalPrice(snapshot, product) {
     const state = snapshot[product.id] || defaultProductState(product, 0);
@@ -51,6 +55,14 @@ export function createPriceTransmissionRuntime({
     return totalWeight > 0 ? weighted / totalWeight : fallbackValue;
   }
 
+  function recipeShare(world, recipe) {
+    for (const state of Object.values(world.marketDemand.groups || {})) {
+      const share = Number(state.recipeShares?.[recipe.output.productId]?.[recipe.recipeId]);
+      if (Number.isFinite(share) && share > 0) return share;
+    }
+    return 1 / Math.max(1, recipeCountByOutput.get(recipe.output.productId) || 1);
+  }
+
   function calculatePriceAnchors(world, snapshot, now) {
     const costCandidates = new Map(products.map((product) => [product.id, []]));
     const downstreamCandidates = new Map(products.map((product) => [product.id, []]));
@@ -59,10 +71,14 @@ export function createPriceTransmissionRuntime({
       const outputProduct = productFor(recipe.output.productId);
       const profit = targetProfit(recipe);
       const inputCost = recipe.inputs.reduce((sum, input) => sum + signalPrice(snapshot, productFor(input.productId)) * input.quantity, 0);
-      costCandidates.get(outputProduct.id).push((inputCost + recipe.operatingCost + profit) / recipe.output.quantity);
+      costCandidates.get(outputProduct.id).push({
+        value: (inputCost + recipe.operatingCost + profit) / recipe.output.quantity,
+        weight: recipeShare(world, recipe),
+      });
       const outputStats = realTradeStats(world, outputProduct.id, now);
-      const outputPressure = clamp(0.75, 1.5, Number(world.marketDemand.productPressure[outputProduct.id] || 1));
-      const activityWeight = Math.max(0.25, outputStats.quantity) * outputPressure;
+      const outputPressure = clamp(0.75, 1.35, Number(world.marketDemand.productPressure[outputProduct.id] || 1));
+      const activityQuantity = outputStats.playerQuantity + outputStats.consumptionQuantity;
+      const activityWeight = Math.max(0.25, activityQuantity) * outputPressure;
       for (const input of recipe.inputs) {
         const id = relationId(recipe, input);
         const lagged = laggedRelationValue(world, id, productFor(input.productId).basePrice);
@@ -73,8 +89,11 @@ export function createPriceTransmissionRuntime({
     return Object.fromEntries(products.map((product) => {
       const costs = costCandidates.get(product.id);
       const downstream = downstreamCandidates.get(product.id);
+      const costWeight = costs.reduce((sum, item) => sum + item.weight, 0);
       return [product.id, {
-        costAnchor: costs.length > 0 ? Math.min(...costs) : null,
+        costAnchor: costWeight > 0
+          ? costs.reduce((sum, item) => sum + item.value * item.weight, 0) / costWeight
+          : null,
         downstreamValueAnchor: downstream.length > 0
           ? downstream.reduce((sum, item) => sum + item.value * item.weight, 0)
             / downstream.reduce((sum, item) => sum + item.weight, 0)
@@ -147,7 +166,7 @@ export function createPriceTransmissionRuntime({
     if (cycleId <= Number(transmission.lastCycleId)) return false;
     for (const product of products) {
       const previousPressure = Number(world.marketDemand.productPressure[product.id] || 1);
-      world.marketDemand.productPressure[product.id] = round4(1 + (previousPressure - 1) * 0.70);
+      world.marketDemand.productPressure[product.id] = round4(1 + (previousPressure - 1) * 0.85);
     }
     const snapshot = clone(transmission.products);
     const anchors = calculatePriceAnchors(world, snapshot, now);
@@ -158,7 +177,7 @@ export function createPriceTransmissionRuntime({
       const observedPriceRaw = trades.vwap === null
         ? Number(previous.observedPrice || product.basePrice) * (1 - PRICE_BASE_REVERSION) + product.basePrice * PRICE_BASE_REVERSION
         : Number(previous.observedPrice || product.basePrice) * 0.70 + trades.vwap * 0.30;
-      const pressure = clamp(0.75, 1.5, Number(world.marketDemand.productPressure[product.id] || 1));
+      const pressure = clamp(0.75, 1.35, Number(world.marketDemand.productPressure[product.id] || 1));
       const demandPressureAnchorRaw = product.basePrice * pressure;
       const { costAnchor: costAnchorRaw, downstreamValueAnchor: downstreamValueAnchorRaw } = anchors[product.id];
       const observedPrice = round4(observedPriceRaw);

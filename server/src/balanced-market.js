@@ -89,12 +89,12 @@ export function createBalancedMarketRuntime({ products, constants }) {
     return order.ownerName || (order.ownerType === 'population' ? '市场系统' : '玩家');
   }
 
-  function recordPrice(world, productId, price, quantity, takerSide, createdAt, signalWeight = 1) {
+  function recordPrice(world, productId, price, quantity, takerSide, createdAt, signalWeight = 1, marketRole = 'player') {
     const market = marketFor(world, productId, createdAt);
     market.lastPrice = price;
     market.lastTradePrice = price;
     market.priceHistory ||= [];
-    market.priceHistory.push({ price, quantity, createdAt, takerSide, signalWeight });
+    market.priceHistory.push({ price, quantity, createdAt, takerSide, signalWeight, marketRole });
     market.priceHistory = market.priceHistory.slice(-constants.maxPricePoints);
   }
 
@@ -190,8 +190,11 @@ export function createBalancedMarketRuntime({ products, constants }) {
         if (sell.demandTier === LIQUIDITY_SELL) settleLiquiditySell(world, sell, quantity, price);
       },
       recordTrade: ({ buy, sell, quantity, price, takerSide }) => {
-        const signalWeight = isLiquidityOrder(buy) || isLiquidityOrder(sell) ? LIQUIDITY_SIGNAL_WEIGHT : 1;
-        recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight);
+        const liquidityTrade = isLiquidityOrder(buy) || isLiquidityOrder(sell);
+        const consumptionTrade = !liquidityTrade && (isConsumptionOrder(buy) || isConsumptionOrder(sell));
+        const signalWeight = liquidityTrade ? LIQUIDITY_SIGNAL_WEIGHT : 1;
+        const marketRole = liquidityTrade ? 'liquidity' : consumptionTrade ? 'consumption' : 'player';
+        recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight, marketRole);
       },
     });
   }

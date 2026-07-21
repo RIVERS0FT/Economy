@@ -1,11 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { createMarketLiquidityRuntime } from './market-liquidity.js';
 import {
+  DEMAND_CURVE,
+  DEMAND_CURVE_SHORTAGE_MULTIPLIER,
+  DERIVED_BACKLOG_WEIGHT,
+  DERIVED_UNMET_WEIGHT,
   MARKET_DEMAND_GROUP_CATALOG,
   MARKET_DEMAND_MODEL_VERSION,
   MARKET_DEMAND_PRODUCT_IDS,
   PRICE_MAX_MULTIPLIER,
-  SYSTEM_ORDER_PRICE_STEP,
+  PRODUCT_ORDER_VALUE_CYCLES,
+  PRODUCT_PRESSURE_MAX,
+  PRODUCT_PRESSURE_MIN,
+  PRODUCT_PRESSURE_SMOOTHING,
+  SYSTEM_ORDER_MAX_AGE_CYCLES,
   SYSTEM_ORDER_RETENTION_RATE,
   SYSTEM_ORDER_VALUE_CYCLES,
 } from './market-demand/catalog.js';
@@ -48,6 +56,15 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     const candidates = recipesByOutput.get(recipe.output.productId) || [];
     candidates.push(recipe);
     recipesByOutput.set(recipe.output.productId, candidates);
+  }
+  const groupUtility = new Map(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, new Map()]));
+  for (const group of MARKET_DEMAND_GROUP_CATALOG) {
+    const utilities = groupUtility.get(group.id);
+    for (const demandClass of group.classes) {
+      for (const option of demandClass.products) {
+        utilities.set(option.productId, Math.max(Number(utilities.get(option.productId) || 0), Number(option.utilityPerUnit || 1)));
+      }
+    }
   }
 
   const signals = createMarketSignalRuntime({ marketFor, isOpenOrder });
@@ -112,40 +129,152 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     return keep;
   }
 
-  function prepareGroupOrders(world, group, state) {
+  function settlePreviousCycle(world, group, state, now) {
+    const previousCycleId = Number(state.lastCycleId);
+    const cycleOrders = (world.orders || []).filter((order) => (
+      isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+    ));
+    if (cycleOrders.length === 0) {
+      return {
+        hasOrders: false,
+        satisfaction: Number(state.satisfaction || group.targetSatisfaction),
+        products: {},
+        classService: state.lastClassService || {},
+        effectiveDemandQuantities: state.previousDemandQuantities || {},
+      };
+    }
+
+    const productStats = {};
+    let directRequestedUtility = 0;
+    let directFilledUtility = 0;
+    let delayWeightedUtility = 0;
+    let directOpenValue = 0;
+    const utilities = groupUtility.get(group.id);
+
+    for (const order of cycleOrders) {
+      const quantity = Math.max(0, Math.floor(Number(order.quantity || 0)));
+      const remaining = Math.max(0, Math.min(quantity, Math.floor(Number(order.remaining || 0))));
+      const filled = Math.max(0, quantity - remaining);
+      const productId = String(order.productId || '');
+      const stats = productStats[productId] || {
+        requested: 0,
+        filled: 0,
+        unmet: 0,
+        backlog: 0,
+        openValue: 0,
+        fillValue: 0,
+        delayWeight: 0,
+        delayScoreTotal: 0,
+      };
+      stats.requested += quantity;
+      stats.filled += filled;
+      stats.unmet += remaining;
+      stats.openValue += remaining * Number(order.price || 0);
+      stats.fillValue += filled * Number(order.price || 0);
+      if (filled > 0) {
+        const delay = Math.max(0, Number(order.lastFilledAt || order.createdAt || now) - Number(order.createdAt || now));
+        const delayScore = Math.exp(-delay / Math.max(1, group.cycleMs));
+        stats.delayWeight += filled;
+        stats.delayScoreTotal += filled * delayScore;
+      }
+      productStats[productId] = stats;
+      if (order.demandTier === 'direct') {
+        const utility = Math.max(1, Number(utilities.get(productId) || 1));
+        directRequestedUtility += quantity * utility;
+        directFilledUtility += filled * utility;
+        directOpenValue += remaining * Number(order.price || 0);
+        if (filled > 0) {
+          const delay = Math.max(0, Number(order.lastFilledAt || order.createdAt || now) - Number(order.createdAt || now));
+          delayWeightedUtility += filled * utility * Math.exp(-delay / Math.max(1, group.cycleMs));
+        }
+      }
+    }
+
+    for (const order of world.orders || []) {
+      if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;
+      if (Number(order.demandCycleId) >= previousCycleId) continue;
+      const productId = String(order.productId || '');
+      const stats = productStats[productId] || {
+        requested: 0,
+        filled: 0,
+        unmet: 0,
+        backlog: 0,
+        openValue: 0,
+        fillValue: 0,
+        delayWeight: 0,
+        delayScoreTotal: 0,
+      };
+      stats.backlog += Math.max(0, Number(order.remaining || 0));
+      productStats[productId] = stats;
+    }
+
+    const fillRatio = directRequestedUtility <= 0 ? 1 : directFilledUtility / directRequestedUtility;
+    const delayScore = directFilledUtility <= 0 ? 0 : delayWeightedUtility / directFilledUtility;
+    const backlogScore = 1 - clamp(0, 1, directOpenValue / Math.max(1, Number(state.lastBudget || group.baseBudget) * 2));
+    const satisfaction = clamp(0, 1, 0.65 * fillRatio + 0.20 * delayScore + 0.15 * backlogScore);
+    const effectiveDemandQuantities = {};
+    const productService = {};
+
+    for (const [productId, stats] of Object.entries(productStats)) {
+      const productFillRatio = stats.requested <= 0 ? 1 : stats.filled / stats.requested;
+      const productDelayScore = stats.delayWeight <= 0 ? 0 : stats.delayScoreTotal / stats.delayWeight;
+      const productBacklogScore = 1 - clamp(0, 1, stats.openValue / Math.max(1, stats.fillValue + stats.openValue));
+      const service = clamp(0, 1, 0.65 * productFillRatio + 0.20 * productDelayScore + 0.15 * productBacklogScore);
+      productService[productId] = service;
+      effectiveDemandQuantities[productId] = round4(
+        stats.filled + DERIVED_UNMET_WEIGHT * stats.unmet + DERIVED_BACKLOG_WEIGHT * stats.backlog,
+      );
+      Object.assign(stats, {
+        fillRatio: round4(productFillRatio),
+        delayScore: round4(productDelayScore),
+        service: round4(service),
+      });
+    }
+
+    const classService = {};
+    for (const demandClass of group.classes) {
+      let weighted = 0;
+      let totalWeight = 0;
+      for (const option of demandClass.products) {
+        const service = Number(productService[option.productId] ?? satisfaction);
+        weighted += service * Number(option.baseWeight || 1);
+        totalWeight += Number(option.baseWeight || 1);
+      }
+      classService[demandClass.id] = round4(totalWeight <= 0 ? satisfaction : weighted / totalWeight);
+    }
+
+    return {
+      hasOrders: true,
+      satisfaction,
+      fillRatio: round4(fillRatio),
+      delayScore: round4(delayScore),
+      backlogScore: round4(backlogScore),
+      requestedUtility: round4(directRequestedUtility),
+      filledUtility: round4(directFilledUtility),
+      products: productStats,
+      productService,
+      classService,
+      effectiveDemandQuantities,
+    };
+  }
+
+  function prepareGroupOrders(world, group, state, cycleId) {
     const groupOrders = (world.orders || []).filter((order) => isConsumptionOrder(order, group.id));
     const cycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || 0));
     const soldProducts = new Set(groupOrders
       .filter((order) => Number(order.lastFilledAt || 0) > 0 && Number(order.lastFilledAt) >= cycleStartedAt)
       .map((order) => order.productId));
-    const highestRetainedPrice = new Map();
 
     for (const order of groupOrders) {
       if (!isOpenOrder(order)) continue;
-      if (soldProducts.has(order.productId)) {
+      const age = cycleId - Number(order.demandCycleId || cycleId);
+      if (age >= SYSTEM_ORDER_MAX_AGE_CYCLES || soldProducts.has(order.productId)) {
         trimOrderRemaining(order, 0);
         continue;
       }
-      const retained = trimOrderRemaining(
-        order,
-        Math.floor(Number(order.remaining || 0) * SYSTEM_ORDER_RETENTION_RATE),
-      );
-      if (retained <= 0) continue;
-      highestRetainedPrice.set(
-        order.productId,
-        Math.max(Number(highestRetainedPrice.get(order.productId) || 0), Number(order.price || 0)),
-      );
+      trimOrderRemaining(order, Math.floor(Number(order.remaining || 0) * SYSTEM_ORDER_RETENTION_RATE));
     }
-    return { soldProducts, highestRetainedPrice };
-  }
-
-  function issuePriceFor(product, referencePrice, orderContext) {
-    const normalPrice = Math.max(1, Math.round(Number(referencePrice || product.basePrice)));
-    if (orderContext.soldProducts.has(product.id)) return normalPrice;
-    const highestRetained = Number(orderContext.highestRetainedPrice.get(product.id) || 0);
-    if (highestRetained <= 0) return normalPrice;
-    const priceCap = Math.max(1, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
-    return Math.min(priceCap, Math.max(normalPrice, Math.ceil(highestRetained * (1 + SYSTEM_ORDER_PRICE_STEP))));
+    return { soldProducts };
   }
 
   function groupOpenOrderValue(world, groupId, predicate = () => true) {
@@ -156,11 +285,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     )).reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
   }
 
-  function enforceGroupOrderValueCap(world, group, cycleBudget) {
-    const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
-    const orders = (world.orders || []).filter((order) => (
-      isConsumptionOrder(order, group.id) && isOpenOrder(order)
-    ));
+  function trimOrdersToValue(orders, cap) {
     let total = orders.reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
     if (total <= cap) return total;
     orders.sort((left, right) => (
@@ -178,6 +303,20 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       total -= removeQuantity * price;
     }
     return Math.max(0, total);
+  }
+
+  function enforceOrderValueCaps(world, group, cycleBudget, allocations) {
+    for (const [productId, allocation] of Object.entries(allocations)) {
+      const productCap = Math.max(0, Math.floor(
+        (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
+      ));
+      trimOrdersToValue((world.orders || []).filter((order) => (
+        isConsumptionOrder(order, group.id) && order.productId === productId && isOpenOrder(order)
+      )), productCap);
+    }
+    const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+    const orders = (world.orders || []).filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
+    return trimOrdersToValue(orders, cap);
   }
 
   function createOrder(world, group, role, product, price, quantity, cycleId, now) {
@@ -204,44 +343,100 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     return { filled: quantity - order.remaining, order };
   }
 
-  function applyChoices(world, group, role, cycleId, now, budgets, details, orderContext, totals, allocations) {
+  function priceCurveFor(product, referencePrice, pressure) {
+    const cap = Math.max(1, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
+    const shortageMultiplier = pressure >= 1.15 ? DEMAND_CURVE_SHORTAGE_MULTIPLIER : 1;
+    return DEMAND_CURVE.map((tier, index) => ({
+      weight: tier.weight,
+      price: Math.min(cap, Math.max(1, Math.round(referencePrice * tier.multiplier * (index === 0 ? shortageMultiplier : 1)))),
+    }));
+  }
+
+  function applyChoices(world, group, role, cycleId, now, budgets, details, totals, allocations) {
     for (const [productId, budget] of budgets) {
       const detail = details.get(productId);
       if (!detail || budget <= 0) continue;
       const product = detail.product;
       const referencePrice = Math.max(1, Math.round(Number(detail.price.referencePrice || product.basePrice)));
-      const orderPrice = issuePriceFor(product, referencePrice, orderContext);
-      const quantity = Math.max(0, Math.floor(budget / orderPrice));
-      const committed = quantity * orderPrice;
-      const { filled } = createOrder(world, group, role, product, orderPrice, quantity, cycleId, now);
-      totals.currentDemandQuantities[productId] = (totals.currentDemandQuantities[productId] || 0) + quantity;
-      if (role === 'direct') {
-        totals.directCommitted += committed;
-        const utility = Math.max(1, Number(detail.option?.utilityPerUnit || 1));
-        totals.directRequestedUtility += quantity * utility;
-        totals.directFilledUtility += filled * utility;
-      } else {
-        totals.derivedCommitted += committed;
+      const pressure = Number(world.marketDemand.productPressure[productId] || 1);
+      const curve = priceCurveFor(product, referencePrice, pressure);
+      const budgetByPrice = new Map();
+      let assignedBudget = 0;
+      curve.forEach((tier, index) => {
+        const tierBudget = index === curve.length - 1
+          ? Math.max(0, Math.floor(budget) - assignedBudget)
+          : Math.max(0, Math.floor(budget * tier.weight));
+        assignedBudget += tierBudget;
+        budgetByPrice.set(tier.price, (budgetByPrice.get(tier.price) || 0) + tierBudget);
+      });
+
+      let totalQuantity = 0;
+      let committed = 0;
+      let filled = 0;
+      let topPrice = 0;
+      for (const [price, tierBudget] of [...budgetByPrice.entries()].sort((left, right) => right[0] - left[0])) {
+        const quantity = Math.max(0, Math.floor(tierBudget / price));
+        if (quantity <= 0) continue;
+        const result = createOrder(world, group, role, product, price, quantity, cycleId, now);
+        totalQuantity += quantity;
+        committed += quantity * price;
+        filled += result.filled;
+        topPrice = Math.max(topPrice, price);
       }
+      totals.currentDemandQuantities[productId] = (totals.currentDemandQuantities[productId] || 0) + totalQuantity;
+      if (role === 'direct') totals.directCommitted += committed;
+      else totals.derivedCommitted += committed;
       const existing = allocations[productId] || {
         directBudget: 0, derivedBudget: 0, directQuantity: 0, derivedQuantity: 0, filled: 0,
       };
       existing[role === 'direct' ? 'directBudget' : 'derivedBudget'] += committed;
-      existing[role === 'direct' ? 'directQuantity' : 'derivedQuantity'] += quantity;
+      existing[role === 'direct' ? 'directQuantity' : 'derivedQuantity'] += totalQuantity;
       existing.filled += filled;
       existing.referencePrice = round4(detail.price.referencePrice);
-      existing.orderPrice = orderPrice;
+      existing.orderPrice = topPrice || referencePrice;
       existing.effectivePrice = round4(detail.price.effective);
       existing.quote = round4(detail.price.quote);
       existing.coverage = round4(detail.price.coverage);
       if (detail.requiredQuantity !== undefined) existing.requiredQuantity = round4(detail.requiredQuantity);
       allocations[productId] = existing;
       const market = marketFor(world, productId, now);
-      market.demand.lastPrice = orderPrice;
-      market.demand.lastQuantity = quantity;
+      market.demand.lastPrice = topPrice || referencePrice;
+      market.demand.lastQuantity = totalQuantity;
       market.demand.lastBudget = committed;
       market.demand.nextDemandAt = (cycleId + 1) * group.cycleMs;
-      market.demand.satisfaction = quantity === 0 ? 0 : filled / quantity;
+    }
+  }
+
+  function updateProductPressure(world, group, settlement, allocations, now) {
+    const productIds = new Set([
+      ...Object.keys(settlement.products || {}),
+      ...Object.keys(allocations || {}),
+    ]);
+    for (const productId of productIds) {
+      const product = productFor(productId);
+      const settled = settlement.products?.[productId];
+      const requested = Math.max(1, Number(settled?.requested || allocations?.[productId]?.directQuantity || 1));
+      const fillRatio = settled ? Number(settled.fillRatio || 0) : group.targetSatisfaction;
+      const priceState = world.marketDemand.priceTransmission.products[productId];
+      const quote = signals.orderBookQuote(
+        world,
+        product,
+        requested,
+        Number(priceState?.referencePrice || product.basePrice),
+      );
+      const tradeStats = signals.realTradeStats(world, productId, now);
+      const activeImbalance = tradeStats.playerQuantity <= 0 ? 0 : tradeStats.playerNetActive / tradeStats.playerQuantity;
+      const supplyRelief = Math.max(0, quote.coverage - 0.75);
+      const target = clamp(
+        PRODUCT_PRESSURE_MIN,
+        PRODUCT_PRESSURE_MAX,
+        1 + 0.55 * (group.targetSatisfaction - fillRatio) + 0.15 * activeImbalance - 0.20 * supplyRelief,
+      );
+      const previous = Number(world.marketDemand.productPressure[productId] || 1);
+      world.marketDemand.productPressure[productId] = round4(
+        previous * (1 - PRODUCT_PRESSURE_SMOOTHING) + target * PRODUCT_PRESSURE_SMOOTHING,
+      );
+      marketFor(world, productId, now).demand.satisfaction = Number(settlement.productService?.[productId] ?? settlement.satisfaction);
     }
   }
 
@@ -256,7 +451,17 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       return false;
     }
 
-    const orderContext = prepareGroupOrders(world, group, state);
+    const settlement = settlePreviousCycle(world, group, state, now);
+    if (settlement.hasOrders) {
+      state.satisfaction = settlement.satisfaction;
+      state.satisfactionEma = clamp(0, 1, state.satisfactionEma * 0.70 + settlement.satisfaction * 0.30);
+      state.lastCycleSettlement = settlement;
+      state.lastProductService = settlement.productService;
+      state.lastClassService = settlement.classService;
+      state.previousDemandQuantities = settlement.effectiveDemandQuantities;
+    }
+
+    prepareGroupOrders(world, group, state, cycleId);
     const budgetState = allocationRuntime.dynamicBudget(world, group, state, now);
     const cycleBudget = budgetState.budget;
     const directBudget = Math.floor(cycleBudget * group.directBudgetShare);
@@ -268,16 +473,12 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       currentDemandQuantities: {},
       directCommitted: 0,
       derivedCommitted: 0,
-      directRequestedUtility: 0,
-      directFilledUtility: 0,
     };
-    applyChoices(world, group, 'direct', cycleId, now, direct.productBudgets, direct.productDetails, orderContext, totals, allocations);
-    applyChoices(world, group, 'derived-liquidity', cycleId, now, derived.productBudgets, derived.productDetails, orderContext, totals, allocations);
-    const openOrderValue = enforceGroupOrderValueCap(world, group, cycleBudget);
+    applyChoices(world, group, 'direct', cycleId, now, direct.productBudgets, direct.productDetails, totals, allocations);
+    applyChoices(world, group, 'derived-liquidity', cycleId, now, derived.productBudgets, derived.productDetails, totals, allocations);
+    const openOrderValue = enforceOrderValueCaps(world, group, cycleBudget, allocations);
+    updateProductPressure(world, group, settlement, allocations, now);
 
-    const satisfaction = totals.directRequestedUtility <= 0 ? 0 : totals.directFilledUtility / totals.directRequestedUtility;
-    state.satisfaction = satisfaction;
-    state.satisfactionEma = clamp(0, 1, state.satisfactionEma * 0.70 + satisfaction * 0.30);
     state.lastCycleId = cycleId;
     state.nextDemandAt = (cycleId + 1) * group.cycleMs;
     state.lastBudget = cycleBudget;
@@ -299,21 +500,9 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     state.lastClassAllocation = direct.classAllocation;
     state.lastAllocation = allocations;
     state.lastDerivedRelations = derived.relationDetails;
-    state.previousDemandQuantities = totals.currentDemandQuantities;
     state.lastInventoryBoost = 0;
     state.lastStockValue = 0;
 
-    for (const [productId, allocation] of Object.entries(allocations)) {
-      const requested = allocation.directQuantity + allocation.derivedQuantity;
-      const fillRatio = requested <= 0 ? 1 : allocation.filled / requested;
-      const tradeStats = signals.realTradeStats(world, productId, now);
-      const activeImbalance = tradeStats.quantity <= 0 ? 0 : tradeStats.netActive / tradeStats.quantity;
-      const pressure = clamp(0.75, 1.5, 1 + 0.30 * (1 - fillRatio) + 0.10 * activeImbalance);
-      world.marketDemand.productPressure[productId] = Math.max(
-        Number(world.marketDemand.productPressure[productId] || 1),
-        pressure,
-      );
-    }
     liquidityRuntime.processGroup(world, group, state, cycleId, now);
     return true;
   }

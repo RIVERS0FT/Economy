@@ -10,12 +10,28 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
       && Number(point.price || 0) > 0
     ));
     const weightedQuantity = (point) => Number(point.quantity) * clamp(0, 1, Number(point.signalWeight ?? 1));
-    const quantity = points.reduce((sum, point) => sum + weightedQuantity(point), 0);
-    const value = points.reduce((sum, point) => sum + weightedQuantity(point) * Number(point.price), 0);
-    const netActive = points.reduce((sum, point) => (
-      sum + weightedQuantity(point) * (point.takerSide === 'buy' ? 1 : -1)
-    ), 0);
-    return { quantity, value, netActive, vwap: quantity > 0 ? value / quantity : null };
+    const summarize = (selected) => {
+      const quantity = selected.reduce((sum, point) => sum + weightedQuantity(point), 0);
+      const value = selected.reduce((sum, point) => sum + weightedQuantity(point) * Number(point.price), 0);
+      const netActive = selected.reduce((sum, point) => (
+        sum + weightedQuantity(point) * (point.takerSide === 'buy' ? 1 : -1)
+      ), 0);
+      return { quantity, value, netActive, vwap: quantity > 0 ? value / quantity : null };
+    };
+    const all = summarize(points);
+    const player = summarize(points.filter((point) => point.marketRole === 'player'));
+    const consumption = summarize(points.filter((point) => point.marketRole === 'consumption'));
+    const liquidity = summarize(points.filter((point) => point.marketRole === 'liquidity'));
+    return {
+      ...all,
+      playerQuantity: player.quantity,
+      playerValue: player.value,
+      playerNetActive: player.netActive,
+      consumptionQuantity: consumption.quantity,
+      consumptionValue: consumption.value,
+      liquidityQuantity: liquidity.quantity,
+      liquidityValue: liquidity.value,
+    };
   }
 
   function orderBookQuote(world, product, depth, referencePrice) {
