@@ -1,0 +1,44 @@
+name: Diagnose V6 Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - run: npm ci
+      - name: Build and preserve diagnostics
+        shell: bash
+        run: |
+          set +e
+          npm run build > /tmp/v6-build.log 2>&1
+          status=$?
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$status" -ne 0 ]; then
+            tail -n 240 /tmp/v6-build.log > v6-build-diagnostic.txt
+            printf '\nexit=%s\n' "$status" >> v6-build-diagnostic.txt
+            git add v6-build-diagnostic.txt
+            git commit -m "记录 V6 构建失败诊断"
+            git push origin HEAD:${{ github.head_ref }}
+            exit "$status"
+          fi
+          rm -f v6-build-diagnostic.txt .github/workflows/diagnose-v6-build.yml
+          git add -A
+          git commit -m "验证市场供需模型 V6 构建通过"
+          git push origin HEAD:${{ github.head_ref }}
