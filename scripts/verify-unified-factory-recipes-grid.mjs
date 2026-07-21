@@ -40,6 +40,7 @@ for (const text of [
   'function MobileFacilityDetailSheet',
   "import { createPortal } from 'react-dom';",
   "import { ScrollArea } from '../components/ui/ScrollArea';",
+  "import { FactoryIcon } from '../components/icons/GameIcons';",
   'return createPortal(',
   "const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('')",
   'const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false)',
@@ -47,9 +48,12 @@ for (const text of [
   'game.facilityTypes.flatMap((type) =>',
   'group && group.count > 0',
   '?? orderedFacilityGroups[0]',
-  'aria-pressed={isSelected}',
-  'className={`facility-cluster-selector-card',
-  'className="facility-current-selection-bar"',
+  'className="facility-cluster-selector-card"',
+  'data-status={group.status}',
+  'aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}',
+  'className="facility-cluster-name"',
+  'className="facility-cluster-icon"',
+  'className="facility-cluster-count"',
   'className="facility-cluster-detail-shell"',
   'className="facility-card-title-block facility-cluster-selector-heading"',
   'role="dialog"',
@@ -94,6 +98,13 @@ assert.equal(
   '移动详情框只能声明一次 aria-labelledby',
 );
 
+const selectorCardSource = page.slice(
+  page.indexOf('function FacilityClusterSelectorCard'),
+  page.indexOf('function FacilityClusterDetailHeader'),
+);
+assert.equal(selectorCardSource.includes('×'), false, '工厂选择卡数量不得显示乘号');
+assert.equal(selectorCardSource.includes(' x '), false, '工厂选择卡数量不得显示字母 x');
+
 for (const forbidden of [
   'facility-group-card-shell',
   'className="facility-list facility-group-list"',
@@ -110,6 +121,10 @@ for (const forbidden of [
   'closeAction',
   'facility-detail-sheet-close',
   'aria-label="关闭工厂详情"',
+  'aria-pressed={isSelected}',
+  'isSelected: boolean',
+  'facility-current-selection-bar',
+  '查看详情',
 ])
   assert.equal(page.includes(forbidden), false, `生产页不应包含: ${forbidden}`);
 
@@ -150,7 +165,14 @@ for (const text of [
   '.facility-cluster-navigation',
   '.facility-cluster-selector-list',
   '.facility-cluster-selector-card',
-  '.facility-cluster-selector-card.is-selected',
+  ".facility-cluster-selector-card[data-status='running']",
+  ".facility-cluster-selector-card[data-status='error']",
+  ".facility-cluster-selector-card[data-status='stopped']",
+  '.facility-cluster-name',
+  '.facility-cluster-icon',
+  '.facility-cluster-count',
+  'grid-template-columns: repeat(3, minmax(0, 1fr));',
+  'aspect-ratio: 1;',
   '.facility-cluster-detail-shell',
   '.facility-cluster-detail-card',
   '.facility-detail-sheet-backdrop',
@@ -172,6 +194,9 @@ for (const forbidden of [
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
   '--facility-card-height',
   'height: var(--facility-card-height)',
+  '.facility-cluster-selector-card.is-selected',
+  '.facility-current-selection-bar',
+  '@media (max-width: 359px)',
 ])
   assert.equal(css.includes(forbidden), false, `生产主从与悬浮框样式不应包含: ${forbidden}`);
 
@@ -261,10 +286,14 @@ const industryDoc = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 for (const text of [
   '生产管理区：建设新工厂 + 工厂集群选择 + 当前工厂详情',
   '默认详情工厂是正式目录顺序中的第一种已拥有工厂',
-  '首次进入移动端只选中默认工厂，不自动弹出详情悬浮框',
+  '首次进入移动端只建立默认详情目标，不自动弹出详情悬浮框',
   '当前详情工厂必须使用独立本地状态',
   '桌面和平板只渲染一个当前工厂的完整详情',
-  '不大于 `720px` 时页面内只显示当前选择栏和紧凑工厂选择网格',
+  '不大于 `720px` 时页面内只显示固定三列的紧凑工厂选择网格',
+  '不显示独立“当前工厂”栏或“查看详情”按钮',
+  '名称固定左上角、图标居中、数量固定右下角',
+  '不使用 `aria-pressed`、选中描边或持久选中背景',
+  '绿色、红色、灰色分别表达运行中、异常、已停止',
   '所有工厂详情统一显示启用的“生产配方”选择器',
   '单配方工厂显示唯一选项并保持启用',
   '重复选择当前正式配方不得提交经济动作',
@@ -303,7 +332,8 @@ const catalogDoc = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 for (const text of [
   '生产页已拥有工厂集群选择卡',
   '默认选择过滤结果中的第一项',
-  '详情选择状态与建设下拉框状态必须独立',
+  '详情目标状态与建设下拉框状态必须独立',
+  '选择卡不绘制持久选中态',
   '五秒状态轮询只替换权威工厂数据',
   '不得把“运行中优先”“最近查看”作为默认详情规则',
 ])
@@ -318,6 +348,9 @@ for (const [path, required] of [
       '运行中按 `participatingCount`',
       '生产管理区采用工厂集群主从布局',
       '移动端不展开全部详情',
+      '移动端不显示独立“当前工厂”栏',
+      '工厂卡固定三列',
+      '不保留选中态',
       '工厂详情选择与建设类型选择使用独立客户端状态',
     ],
   ],
@@ -327,11 +360,19 @@ for (const [path, required] of [
       '建设卡不显示生产周期、单座产量和单座成本',
       '公式只展示集群输入、输出、周期和成本',
       '当前周期只使用 `participatingCount`',
+      '移动端选择网格固定三列',
+      '左上名称、居中 `FactoryIcon` 和右下纯数字数量',
     ],
   ],
   [
     'docs/UI_DESIGN_SYSTEM.md',
-    ['生产公式是集群运行能力展示', '停止或异常使用 `nextCycleCount`', '不得使用 `group.count` 作为公式乘数'],
+    [
+      '生产公式是集群运行能力展示',
+      '停止或异常使用 `nextCycleCount`',
+      '不得使用 `group.count` 作为公式乘数',
+      '工厂集群选择卡使用统一 `FactoryIcon`',
+      '卡片点击不保留选中态',
+    ],
   ],
   [
     'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
@@ -346,5 +387,5 @@ for (const [path, required] of [
 }
 
 console.log(
-  '工厂集群主从布局、状态标题层级、无顶部关闭按钮、统一收起动画、紧凑利润布局、共享活动滚动条、目录顺序默认选择、焦点与滚动控制、通用配方和集群公式验证通过。',
+  '工厂集群三列状态卡、无持久选中态、主从布局、状态标题层级、无顶部关闭按钮、统一收起动画、紧凑利润布局、共享活动滚动条、目录顺序默认详情、焦点与滚动控制、通用配方和集群公式验证通过。',
 );

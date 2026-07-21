@@ -53,10 +53,6 @@
   line-height: var(--line-height-normal);
 }
 
-.facility-current-selection-bar {
-  display: none;
-}
-
 .facility-cluster-selector-list {
   min-width: 0;
   display: grid;
@@ -66,33 +62,53 @@
 }
 
 .facility-cluster-selector-card {
+  --facility-cluster-status-color: var(--color-text-muted);
+  --facility-cluster-status-soft: color-mix(
+    in srgb,
+    var(--color-text-muted) 8%,
+    var(--color-surface-inset)
+  );
+
+  position: relative;
   width: 100%;
   min-width: 0;
-  min-height: 5.4rem;
-  display: grid;
-  align-content: space-between;
-  gap: var(--space-2);
-  border: 1px solid var(--color-border);
+  min-height: 6rem;
+  display: block;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--facility-cluster-status-color) 48%, var(--color-border));
   border-radius: var(--radius-control);
-  padding: var(--space-3);
-  color: var(--color-text-primary);
-  background: var(--color-surface-inset);
+  padding: var(--space-2);
+  color: var(--facility-cluster-status-color);
+  background: var(--facility-cluster-status-soft);
   text-align: left;
   cursor: pointer;
   transition:
     border-color 160ms ease,
     background-color 160ms ease,
-    box-shadow 160ms ease,
     transform 160ms ease;
 }
 
+.facility-cluster-selector-card[data-status='running'] {
+  --facility-cluster-status-color: var(--color-success);
+  --facility-cluster-status-soft: var(--color-success-soft);
+}
+
+.facility-cluster-selector-card[data-status='error'] {
+  --facility-cluster-status-color: var(--color-danger);
+  --facility-cluster-status-soft: var(--color-danger-soft);
+}
+
+.facility-cluster-selector-card[data-status='stopped'] {
+  --facility-cluster-status-color: var(--color-text-muted);
+}
+
 .facility-cluster-selector-card:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-hover);
+  border-color: color-mix(in srgb, var(--facility-cluster-status-color) 78%, var(--color-border-strong));
+  background: color-mix(in srgb, var(--facility-cluster-status-color) 16%, var(--color-surface-inset));
 }
 
 .facility-cluster-selector-card:active {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 
 .facility-cluster-selector-card:focus-visible {
@@ -100,62 +116,38 @@
   outline-offset: 2px;
 }
 
-.facility-cluster-selector-card.is-selected {
-  border-color: var(--color-success);
-  background: var(--color-success-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-success) 22%, transparent);
-}
-
-.facility-cluster-selector-heading {
-  min-width: 0;
-  display: grid;
-  gap: var(--space-1);
-}
-
-.facility-cluster-selector-heading > strong {
-  min-width: 0;
+.facility-cluster-name {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  max-width: calc(100% - var(--space-3));
   overflow: hidden;
+  color: var(--color-text-primary);
   font-size: var(--font-size-md);
   line-height: var(--line-height-tight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.facility-cluster-selector-heading .ui-status-tag {
-  width: fit-content;
-  max-width: 100%;
-  white-space: normal;
+.facility-cluster-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2rem;
+  height: 2rem;
+  transform: translate(-50%, -50%);
+  color: var(--facility-cluster-status-color);
 }
 
-.facility-cluster-selector-summary {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: baseline;
-  gap: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.facility-cluster-selector-summary > span {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 0.2rem;
-  white-space: nowrap;
-}
-
-.facility-cluster-selector-summary > span:nth-child(2) {
-  justify-content: center;
-}
-
-.facility-cluster-selector-summary > span:last-child {
-  justify-content: flex-end;
-}
-
-.facility-cluster-selector-summary strong {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+.facility-cluster-count {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  color: var(--facility-cluster-status-color);
+  font-size: var(--font-size-md);
+  font-weight: 750;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .facility-cluster-navigation > .empty-state {
@@ -433,58 +425,32 @@
     display: none;
   }
 
-  .facility-current-selection-bar {
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-control);
-    padding: var(--space-2);
-    background: var(--color-surface-inset);
-  }
-
-  .facility-current-selection-bar > span {
-    min-width: 0;
-    display: grid;
-    gap: 0.1rem;
-  }
-
-  .facility-current-selection-bar small,
-  .facility-current-selection-bar em {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
-    font-style: normal;
-  }
-
-  .facility-current-selection-bar strong,
-  .facility-current-selection-bar em {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .facility-current-selection-bar .ui-button {
-    flex: 0 0 auto;
-  }
-
   .facility-cluster-selector-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .facility-cluster-selector-card {
-    min-height: 6rem;
-    padding: var(--space-2);
+    min-height: 0;
+    aspect-ratio: 1;
+    padding: 0.5rem;
   }
 
-  .facility-cluster-selector-summary {
-    gap: 0.2rem;
-    font-size: 0.68rem;
-  }
-
-  .facility-cluster-selector-summary strong {
+  .facility-cluster-name {
+    top: 0.5rem;
+    left: 0.5rem;
+    max-width: calc(100% - 0.75rem);
     font-size: var(--font-size-xs);
+  }
+
+  .facility-cluster-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .facility-cluster-count {
+    right: 0.5rem;
+    bottom: 0.45rem;
+    font-size: var(--font-size-sm);
   }
 
   .facility-cluster-detail-shell {
@@ -619,12 +585,6 @@
   @keyframes facility-sheet-in {
     from { transform: translateY(100%); }
     to { transform: translateY(0); }
-  }
-}
-
-@media (max-width: 359px) {
-  .facility-cluster-selector-list {
-    grid-template-columns: 1fr;
   }
 }
 
