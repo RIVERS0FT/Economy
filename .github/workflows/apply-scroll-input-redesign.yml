@@ -97,6 +97,25 @@ jobs:
           if old_guard not in local_design:
               raise SystemExit('local activity virtualization guard not found')
           local_design_path.write_text(local_design.replace(old_guard, new_guard))
+
+          market_verify_path = Path('scripts/verify-market-page-layout.mjs')
+          market_verify = market_verify_path.read_text()
+          harness_line = "const runtimeSpec = fs.readFileSync('tests/browser/market-runtime.spec.ts', 'utf8');"
+          if harness_line not in market_verify:
+              raise SystemExit('market verifier runtime spec declaration not found')
+          market_verify = market_verify.replace(
+              harness_line,
+              harness_line + "\nconst scrollInputSpec = fs.readFileSync('tests/browser/scroll-input-modality.spec.ts', 'utf8');",
+          )
+          market_verify = market_verify.replace(
+              "requireText(runtimeSpec, 'desktop market asset directory supports continuous unsnapped scrolling'",
+              "requireText(scrollInputSpec, 'desktop market asset directory supports continuous unsnapped scrolling'",
+          )
+          market_verify = market_verify.replace(
+              "requireText(runtimeSpec, 'touch input hides horizontal rails while local trade cells keep native two-axis scrolling'",
+              "requireText(scrollInputSpec, 'touch input hides horizontal rails while local trade cells keep native two-axis scrolling'",
+          )
+          market_verify_path.write_text(market_verify)
           PY
 
       - name: Install dependencies
