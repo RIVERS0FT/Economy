@@ -73,6 +73,7 @@ const chart = read('src/components/charts/PriceSparkline.tsx');
 const overviewPage = read('src/pages/OverviewPage.tsx');
 const marketPage = read('src/pages/MarketPage.tsx');
 const types = read('src/types.ts');
+const matchingCore = read('server/src/order-matching.js');
 const commodityMarket = read('server/src/balanced-market.js');
 const facilityMarket = read('server/src/facility-groups.js');
 const design = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -115,9 +116,10 @@ for (const text of [
 ]) assert.ok(marketPage.includes(text), `MarketPage 缺少: ${text}`);
 
 assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
-assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, incoming.side, createdAt, signalWeight);'), '商品成交必须记录吃单方方向与需求信号权重');
+assert.ok(matchingCore.includes('takerSide: incoming.side'), '共享撮合内核必须把吃单方方向传给行情适配器');
+assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight);'), '商品成交必须记录吃单方方向与需求信号权重');
 assert.ok(commodityMarket.includes('LIQUIDITY_SIGNAL_WEIGHT'), '储备成交必须降低价格传导信号权重');
-assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, incoming.side, createdAt);'), '工厂成交必须记录吃单方方向');
+assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt);'), '工厂成交必须记录吃单方方向');
 
 for (const text of [
   '概览页与市场页的商品行情统一统计当前资产最近 24h',

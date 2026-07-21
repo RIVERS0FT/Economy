@@ -54,7 +54,7 @@
 - 食品、小麦、水稻、肉、蛋和奶共享需求、家庭用品聚合需求及无直接需求商品抑制；
 - `createWorld`、`migrateWorld`、`processWorld`、`applyAction` 和 `createClientState` 的权威出口。
 
-`server/src/balanced-market.js` 是 `domain.js` 使用的商品市场撮合与结算层，负责市场结构修复、统一玩家／消费需求／市场储备撮合、逐笔成交记录和储备资产转移。`server/src/market-liquidity.js` 是双边储备报价的唯一模块，负责一次性种子、真实资金与库存冻结、周期撤单重挂、库存目标和动态价差。两者不得定义第二套商品目录，只能接收 `domain.js` 已生成的正式目录；商品玩家订单必须在保留兼容核心参数校验与冻结后转交 `balanced-market.js` 撮合，不得绕回旧撮合路径。企业采购、普通人口需求和系统工厂订单仍禁止。
+`server/src/order-matching.js` 是商品与工厂统一限价订单的唯一撮合状态机，统一负责价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill、自成交阻断和玩家卖方手续费；不得导入商品目录、工厂目录、仓库或生产规则。`server/src/balanced-market.js` 是 `domain.js` 使用的商品结算适配层，负责市场结构修复、玩家／消费需求／市场储备资产转移和商品行情记录；`server/src/facility-groups.js` 是工厂数量与生产状态结算适配层。两者必须调用 `order-matching.js`，不得各自重新实现候选排序或成交循环。`server/src/market-liquidity.js` 是双边储备报价的唯一模块，负责一次性种子、真实资金与库存冻结、周期撤单重挂、库存目标和动态价差。上述模块不得定义第二套商品或工厂目录，只能接收 `domain.js` 已生成的正式目录；商品玩家订单必须在保留兼容核心参数校验与冻结后转交共享撮合内核，不得绕回旧撮合路径。企业采购、普通人口需求和系统工厂订单仍禁止。
 
 `server/src/market-sell-fee.js` 是统一订单簿玩家卖出手续费的唯一规则模块。商品玩家撮合、人口需求撮合和工厂撮合都必须调用同一 `applyMarketSellFee`，按卖单内部累计成交额补收 1%（向上取整、最低 1），并在同一成交事务中把卖方资金增加改为净额、把手续费计入 `stats.systemSinks`、为双方匿名 fill 写入 `fee/netTotal`。拍卖模块不得调用该结算。
 

@@ -6,7 +6,7 @@ import {
   processWorld,
 } from './domain.js';
 import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
-import { applyMarketSellFee } from './market-sell-fee.js';
+import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 
@@ -584,22 +584,8 @@ function reconcileAllFacilityGroups(world, now) {
   }
 }
 
-function sortCandidates(orders, incomingSide) {
-  return [...orders].sort((left, right) => {
-    if (left.price !== right.price) return incomingSide === 'buy' ? left.price - right.price : right.price - left.price;
-    return left.createdAt - right.createdAt;
-  });
-}
-
 function describeCounterparty(order) {
   return order.ownerName || (order.ownerType === 'market' ? '系统资产市场' : '玩家');
-}
-
-function appendPlayerOrderFill(order, fill) {
-  if (order.ownerType !== 'player') return;
-  order.fills = Array.isArray(order.fills) ? order.fills : [];
-  order.fills.push(fill);
-  order.fills = order.fills.slice(-120);
 }
 
 function addPurchasedGroup(player, typeId, quantity) {
@@ -609,86 +595,42 @@ function addPurchasedGroup(player, typeId, quantity) {
   return group;
 }
 
-function executeFacilityTrade(world, incoming, resting, quantity, createdAt) {
-  const buy = incoming.side === 'buy' ? incoming : resting;
-  const sell = incoming.side === 'sell' ? incoming : resting;
-  const typeId = orderAssetId(incoming);
-  const price = resting.price;
-  const fillId = `facility-order-fill-${crypto.randomUUID()}`;
-  const fillBase = {
-    id: fillId,
-    quantity,
-    price,
-    total: quantity * price,
-    createdAt,
-    makerOrderId: resting.id,
-    takerOrderId: incoming.id,
-  };
-  const settlement = sell.ownerType === 'player'
-    ? applyMarketSellFee(sell, fillBase.total)
-    : { fee: 0, netTotal: fillBase.total };
-
-  incoming.remaining -= quantity;
-  resting.remaining -= quantity;
-  incoming.status = incoming.remaining === 0 ? 'filled' : 'partial';
-  resting.status = resting.remaining === 0 ? 'filled' : 'partial';
-  appendPlayerOrderFill(buy, {
-    ...fillBase,
-    fee: 0,
-    netTotal: fillBase.total,
-    counterparty: describeCounterparty(sell),
-    liquidity: buy.id === resting.id ? 'maker' : 'taker',
-  });
-  appendPlayerOrderFill(sell, {
-    ...fillBase,
-    ...settlement,
-    counterparty: describeCounterparty(buy),
-    liquidity: sell.id === resting.id ? 'maker' : 'taker',
-  });
-
-  if (buy.ownerType === 'player') {
-    const buyer = world.players[String(buy.ownerId)];
-    if (!buyer) throw new Error(`Missing facility buyer ${buy.ownerId}`);
-    const reserved = quantity * buy.price;
-    const actual = quantity * price;
-    buyer.frozenCredits -= reserved;
-    buyer.credits += reserved - actual;
-    buyer.stats.facilityVolume = Number(buyer.stats.facilityVolume || 0) + actual;
-    addPurchasedGroup(buyer, typeId, quantity);
-  }
-
-  if (sell.ownerType === 'player') {
-    const seller = world.players[String(sell.ownerId)];
-    if (!seller) throw new Error(`Missing facility seller ${sell.ownerId}`);
-    const group = groupFor(seller, typeId);
-    if (!group || group.count < quantity) throw new Error('卖方工厂数量不足');
-    group.count -= quantity;
-    seller.credits += settlement.netTotal;
-    seller.stats.systemSinks = Number(seller.stats.systemSinks || 0) + settlement.fee;
-    seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + quantity * price;
-    if (group.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== group);
-  }
-
-  recordFacilityPrice(world, typeId, price, quantity, incoming.side, createdAt);
-}
-
 function matchFacilityOrder(world, incoming, createdAt) {
-  const opposite = incoming.side === 'buy' ? 'sell' : 'buy';
   const typeId = orderAssetId(incoming);
-  const candidates = sortCandidates(
-    facilityOrders(world, typeId).filter((order) => (
-      order.id !== incoming.id
-      && order.side === opposite
-      && isOpenOrder(order)
-      && !(order.ownerType === 'player' && incoming.ownerType === 'player' && order.ownerId === incoming.ownerId)
-      && (incoming.side === 'buy' ? order.price <= incoming.price : order.price >= incoming.price)
-    )),
-    incoming.side,
-  );
-  for (const candidate of candidates) {
-    if (!isOpenOrder(incoming)) break;
-    executeFacilityTrade(world, incoming, candidate, Math.min(incoming.remaining, candidate.remaining), createdAt);
-  }
+  return matchIncomingOrder({
+    world,
+    incoming,
+    createdAt,
+    canMatch: ({ resting }) => resting.ownerType === 'player' && incoming.ownerType === 'player',
+    describeCounterparty,
+    settleTrade: ({ buy, sell, quantity, price, sellerSettlement }) => {
+      if (buy.ownerType === 'player') {
+        const buyer = world.players[String(buy.ownerId)];
+        if (!buyer) throw new Error(`Missing facility buyer ${buy.ownerId}`);
+        const reserved = quantity * Number(buy.price);
+        const actual = quantity * price;
+        buyer.frozenCredits -= reserved;
+        buyer.credits += reserved - actual;
+        buyer.stats.facilityVolume = Number(buyer.stats.facilityVolume || 0) + actual;
+        addPurchasedGroup(buyer, typeId, quantity);
+      }
+
+      if (sell.ownerType === 'player') {
+        const seller = world.players[String(sell.ownerId)];
+        if (!seller) throw new Error(`Missing facility seller ${sell.ownerId}`);
+        const group = groupFor(seller, typeId);
+        if (!group || group.count < quantity) throw new Error('卖方工厂数量不足');
+        group.count -= quantity;
+        seller.credits += sellerSettlement.netTotal;
+        seller.stats.systemSinks = Number(seller.stats.systemSinks || 0) + sellerSettlement.fee;
+        seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + quantity * price;
+        if (group.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== group);
+      }
+    },
+    recordTrade: ({ quantity, price, takerSide }) => {
+      recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt);
+    },
+  });
 }
 
 export function processFacilityGroupWorld(world, now = Date.now()) {
