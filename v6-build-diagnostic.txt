@@ -1,60 +1,242 @@
+✔ share link registration immediately rewards only the inviter with gems (8.428428ms)
+✔ manual code claim rewards inviter once and remains mutually exclusive with link attribution (4.485618ms)
+✔ manual invitation claim expires after twenty four hours (2.925987ms)
+✔ a second registration on the same IP bans the whole account group before invitation reward (3.688555ms)
+✔ administrator can unban one account or an entire duplicate-IP incident (4.24155ms)
+✔ manual unban survives restart reconciliation until a new same-IP registration appears (5.270447ms)
+✔ manual same-IP code is consumed without a gem reward after administrator review (3.688194ms)
+✔ leaderboard week starts Monday 00:00 in Beijing time (2.055849ms)
+✔ trading board sums actual seller gross volume, counts completed fills on cancelled orders, and ignores unfilled remainder and auctions (45.656932ms)
+✔ legacy capped trading state is rebuilt once from current-period actual fills (13.2907ms)
+✔ three weekly boards grant 30, 20, and 10 gems and allow repeat winners (29.680085ms)
+✔ the first partial week records results without granting gems (18.078665ms)
+✔ top ten payload still returns the current player outside the visible rows (13.17641ms)
+✔ cancelling a running factory sell order joins the quantity next cycle (41.863905ms)
+✔ selling every participating factory puts the enabled group in error (6.157627ms)
+✔ commodity sell order is created once and frozen once (13.540839ms)
+✔ commodity order-book repair runs only when the persisted integrity version is stale (6.735068ms)
+✔ market model 6 settles fills that happen after demand orders are created (32.694948ms)
+✖ market model 6 stops issuing new consumption budget when no player is active (6.302288ms)
+✔ player-only activity excludes consumption and reserve trades from budget activity (0.434454ms)
+✖ market model 6 creates inventory-backed buy and sell orders without system self-trades (55.078159ms)
+✔ system liquidity asks reprice above retained consumption bids instead of crossing (27.836381ms)
+✖ selling to a reserve transfers reserve funds and does not count as consumption issuance (12.528845ms)
+✔ buying from a reserve transfers real inventory and returns credits to the reserve (11.900619ms)
+✖ liquidity orders are cancelled and re-reserved on the next cycle (6.16415ms)
+✔ model 3 migrates directly to model 6 with one-time reserve seeding (1.793448ms)
+✔ model 5 migrates to model 6 and releases obsolete liquidity reservations (9.542984ms)
+✔ 累计卖出手续费按 1% 向上取整且最低为 1 (1.060335ms)
+✔ 既有卖单只从新成交开始累计且不追收旧 fill (0.834102ms)
+✔ 商品卖单部分成交按同一卖单累计补收手续费 (15.564427ms)
+✔ 工厂卖单使用相同手续费并只向本人公开匿名金额字段 (36.234823ms)
+✔ commodity orders reject a price that crosses the same player resting order before freezing assets (16.069242ms)
+✔ facility orders reject a price that crosses the same player resting order before freezing funds (7.665951ms)
+✔ migration immediately settles legacy crossed commodity orders from different players at maker price (3.210891ms)
+✔ migration cancels the newer legacy self-crossing commodity order and releases its frozen funds (1.602219ms)
+✔ shared matcher preserves price-time priority, maker price, and partial fills for commodity (3.68089ms)
+✔ shared matcher preserves price-time priority, maker price, and partial fills for facility (0.663041ms)
+✔ shared matcher skips a same-player crossing order and continues to an eligible counterparty (0.911185ms)
+✔ asset adapter can exclude otherwise crossing system orders without duplicating the matching loop (0.603791ms)
+✔ ordinary player order state removes counterparties, demand sources, and linked order ids (31.689665ms)
+✔ rate limit removes expired user buckets instead of growing forever (3.502517ms)
+✔ rate limit still enforces the configured window after sweeping (0.299721ms)
+(node:2915) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ registration IP prefers trusted reverse-proxy real IP over a client-supplied forwarded chain (1.164489ms)
+✔ rejects an existing unified account before creating or sending a verification (3.884642ms)
+✔ sends and completes a verification without storing plaintext code (6.807063ms)
+✔ sends share-link invite code through email registration and immediately rewards inviter (5.317555ms)
+✔ accepts a manually entered invite code during registration and rewards immediately (3.38509ms)
+✔ enforces ten-minute expiry and sixty-second resend cooldown (2.744478ms)
+✔ invalidates after five wrong attempts and rejects IP changes (2.872257ms)
+✔ used code cannot be reused but the same completion request is idempotent (2.528824ms)
+✔ homepage and direct Economy registrations both participate in duplicate-IP group bans (3.618795ms)
+✔ initial delivery returns all five state partitions without a full state field (3.364638ms)
+✔ known partition revisions suppress unchanged partitions (0.612466ms)
+✔ a global revision change unrelated to the viewer can return no patches (0.539911ms)
+✔ unchanged delivery still returns a fresh server time without creating patches (0.25614ms)
+✔ action delivery keeps only result status, message, and committed revision (0.387595ms)
+✔ partition revisions accept only bounded safe tokens (0.661659ms)
+(node:2924) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ idle version polling returns a compact response without writing the world (77.926653ms)
+✔ same-revision polls inside the processing window bypass SQLite transactions (20.172995ms)
+✔ an authoritative action advances the revision and invalidates an older poll (37.459697ms)
+✔ due world processing advances the revision during version polling (45.481533ms)
+✔ scheduled production polling always uses the revision fast path until the global scheduler changes it (64.07915ms)
+✔ rolled back transactions restore the in-memory world cache (34.89207ms)
+(node:2938) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing players migrate as completed while new players start incomplete (94.026934ms)
+✔ tutorial completion is idempotent and does not mutate world state (23.413953ms)
+(node:2945) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gift codes can be created by admins and redeemed once per player (107.287157ms)
+✔ non-admin users cannot read administrator summary (1.667461ms)
+(node:2952) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ email verification cleanup expires active rows and deletes only old terminal records (2.4095ms)
+(node:2959) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ warehouse state defaults to level 1 and client version 14 (41.365057ms)
+✔ warehouse capacity increase grows by level while upgrade cost grows linearly with capacity (0.350166ms)
+✔ warehouse usage counts stored goods and remaining open commodity buy orders only (18.702132ms)
+✔ warehouse usage excludes legacy facility buy orders before migration (0.26163ms)
+✔ warehouse upgrade deducts server funds and increases shared capacity (19.888682ms)
+✔ warehouse summary price matches the amount deducted for the same actual capacity (27.310207ms)
+✔ warehouse upgrade preserves stored and reserved usage while adding free capacity (17.429758ms)
+✔ warehouse upgrade rejects insufficient funds without changing capacity (17.821843ms)
+✔ legacy custom capacity infers a non-decreasing warehouse level (15.808955ms)
+✔ legacy stored level behind capacity is advanced and can still expand (27.550898ms)
+✔ warehouse can continue upgrading after former level 12 limit (20.654336ms)
+✔ warehouse upgrade is idempotent (14.978921ms)
+ℹ tests 159
+ℹ suites 0
+ℹ pass 152
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2734.7023
 
-> economy@0.4.0 build
-> npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build
+✖ failing tests:
 
+test at server/test/domain.test.js:238:1
+✖ market demand creates direct and derived orders within the shared group budget (17.00755ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(marketOrders.some((order) => order.demandTier === 'direct'))
+  
+      at TestContext.<anonymous> (file:///home/runner/work/Economy/Economy/server/test/domain.test.js:245:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+      at Test.postRun (node:internal/test_runner/test:1191:19)
+      at Test.run (node:internal/test_runner/test:1119:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '=='
+  }
 
-> economy@0.4.0 verify:architecture
-> node scripts/verify-document-authority.mjs && node scripts/verify-order-matching-core.mjs && node scripts/verify-market-action-latency.mjs && node --experimental-strip-types scripts/verify-runtime-architecture.mjs && node scripts/verify-state-delivery-capacity.mjs && node scripts/verify-authentication-cache.mjs && node scripts/verify-email-registration.mjs && node scripts/verify-stress-test-accounts.mjs && node scripts/verify-scroll-ownership.mjs && node scripts/verify-gems-invitations-and-bans.mjs && node scripts/verify-gem-shop.mjs && node scripts/verify-page-content.mjs && node scripts/verify-game-tutorial.mjs && node scripts/verify-assets-page.mjs && node scripts/verify-settings-layout.mjs && node scripts/verify-reset-disabled.mjs && node --experimental-strip-types scripts/verify-display-format.mjs && node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-form-controls.mjs && node scripts/verify-currency-svg.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-virtual-list-scroll-chaining.mjs && node scripts/verify-overlay-scrollbars.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && node scripts/verify-production-desktop-layout.mjs && node scripts/verify-staple-crops-demand.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs && node scripts/verify-market-page-layout.mjs && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node scripts/verify-leaderboards.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-desktop-primary-surfaces.mjs && node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs && node scripts/verify-game-shell-layout.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs && node scripts/verify-collectibles-auctions.mjs && node scripts/verify-gift-code-batches.mjs && node scripts/verify-runtime-reliability.mjs
+test at server/test/domain.test.js:263:1
+✖ market demand keeps half of unsold system orders and raises the next cycle price (4.10218ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(firstOrder)
+  
+      at TestContext.<anonymous> (file:///home/runner/work/Economy/Economy/server/test/domain.test.js:278:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+      at Test.postRun (node:internal/test_runner/test:1191:19)
+      at Test.run (node:internal/test_runner/test:1119:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '=='
+  }
 
-文档权威性验证通过：登记文档清单、未知 Markdown 拒绝、版本 15/13、市场需求模型 6、周期末需求结算、三档需求曲线、非交叉统一订单簿、双边市场储备、九页导航、商店、整数经济基线、权威倒计时、一级卡片外层内边距、外壳与滚动条归属、单一职责专题、文档整理规则和旧文件禁令均满足当前基线。
-共享撮合内核验证通过：商品与工厂复用价格时间优先、maker price、部分成交、fill 和手续费状态机。
-市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、POST 后异步补拉、重复提交锁和请求超时均已锁定。
-运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、资产比例和本地日志缓存均已锁定。
-状态交付容量验证通过：世界缓存、单一全局调度、五分区增量交付与完整快照替换、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。
-认证缓存验证通过：状态 10 秒、写操作 2 秒、管理员零缓存、请求合并和 5000 条 LRU 已锁定。
-邮箱验证码注册验证通过：发送前查重、验证码安全、分享链接归因、统一同 IP 封禁、双模式页面与 Nginx 路由均已锁定。
-Fixed reusable stress-test account registry and secret boundary verification passed.
-Nested custom/native scroll ownership, boundary release and control location verification passed.
-宝石、邀请与封禁验证通过：服务器权威宝石、双邀请入口、立即奖励、同 IP 全组封禁、管理员解禁、版本与防回退规则均已锁定。
-商店验证通过：独立页面、服务器固定汇率、原子兑换、幂等、记录规则和共享一级卡片内边距均已锁定。
-页面内容、九页导航、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。
-Game tutorial verification passed.
-资产页统一总览、构成拆分、移动布局与防回退验证通过。
-设置页独立主列／侧列、四项统计、账号分组、禁用重置与设计文档验证通过。
-经济状态重置已从网页、小程序、客户端动作和服务器领域写入中移除；教程重开仅清除本地教程轮次，旧重置接口仅返回 410。
-时间与排名格式验证通过：持续时间统一使用 s/m/h，排名统一由状态栏和排行榜使用 #N。
-共享 UI、唯一开关、导航完全不透明状态色、独立工厂 SVG 与统一商品图标验证通过。
-统一表单组件、数字草稿、输入状态和移动端尺寸验证通过。
-货币 SVG 验证通过：60 处可见金额统一使用 CreditsIcon，通知边界兼容旧字符串，玩家端源码无字符货币符号。
-移动触摸反馈验证通过：原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。
-Shared virtual windowing, single two-axis record viewport and boundary scroll chaining verification passed.
-统一尺寸、鼠标与触控策略、隐藏触控横向轨道、无级资产目录和单一双轴虚拟成交表验证通过。
-概览验证通过：外层单轨、教程提醒容量、紧凑图表几何、市场空值、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。
-产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6/9/12/15/18 参考分钟利润梯度。
-工厂集群主从布局、状态标题层级、无顶部关闭按钮、统一收起动画、紧凑利润布局、共享活动滚动条、目录顺序默认选择、焦点与滚动控制、通用配方和集群公式验证通过。
-桌面生产页两列集群、自然高度详情、宽度约束与统一 sticky 间隔验证通过。
-市场需求验证通过：模型 6 使用周期末结算、玩家成交活跃度、三档需求曲线、双向压力和资产守恒市场储备。
-统一资产市场、非交叉撮合、价格档位聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。
-市场页布局、价格档位、数据口径、禁用反馈与浏览器回归基线验证通过。
-普通玩家订单 API、本地存储和市场成交展示均已匿名化。
-玩家商品与工厂卖出手续费、累计部分成交、匿名公开字段、前端展示和拍卖隔离验证通过。
-Leaderboard verification passed.
-node:internal/modules/run_main:105
-    triggerUncaughtException(
-    ^
+test at server/test/domain.test.js:439:1
+✖ fruit participates in fresh direct demand without expanding the food budget (17.037027ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 3000
+  
+      at TestContext.<anonymous> (file:///home/runner/work/Economy/Economy/server/test/domain.test.js:446:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+      at Test.postRun (node:internal/test_runner/test:1191:19)
+      at Test.run (node:internal/test_runner/test:1119:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 3000,
+    operator: 'strictEqual'
+  }
 
-AssertionError [ERR_ASSERTION]: 商品成交必须记录吃单方方向与需求信号权重
-    at file:///home/runner/work/Economy/Economy/scripts/verify-market-chart.mjs:120:8
-    at ModuleJob.run (node:internal/modules/esm/module_job:370:25)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5) {
-  generatedMessage: false,
-  code: 'ERR_ASSERTION',
-  actual: false,
-  expected: true,
-  operator: '=='
-}
+test at server/test/market-demand-v6.test.js:85:1
+✖ market model 6 stops issuing new consumption budget when no player is active (6.302288ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///home/runner/work/Economy/Economy/server/test/market-demand-v6.test.js:96:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+      at Test.postRun (node:internal/test_runner/test:1191:19)
+      at Test.run (node:internal/test_runner/test:1119:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:332:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual'
+  }
 
-Node.js v24.4.0
+test at server/test/market-liquidity.test.js:68:1
+✖ market model 6 creates inventory-backed buy and sell orders without system self-trades (55.078159ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(systemOrders.some((order) => order.demandTier === 'liquidity-buy'))
+  
+      at TestContext.<anonymous> (file:///home/runner/work/Economy/Economy/server/test/market-liquidity.test.js:78:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.start (node:internal/test_runner/test:959:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:332:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '=='
+  }
+
+test at server/test/market-liquidity.test.js:137:1
+✖ selling to a reserve transfers reserve funds and does not count as consumption issuance (12.528845ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(buyOrder)
+  
+      at TestContext.<anonymous> (file:///home/runner/work/Economy/Economy/server/test/market-liquidity.test.js:147:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+      at Test.postRun (node:internal/test_runner/test:1191:19)
+      at Test.run (node:internal/test_runner/test:1119:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '=='
+  }
+
+test at server/test/market-liquidity.test.js:194:1
+✖ liquidity orders are cancelled and re-reserved on the next cycle (6.16415ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(oldOrders.length >= 2)
+  
+      at TestContext.<anonymous> (file:///home/runner/work/Economy/Economy/server/test/market-liquidity.test.js:200:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1062:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
+      at Test.postRun (node:internal/test_runner/test:1191:19)
+      at Test.run (node:internal/test_runner/test:1119:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '=='
+  }
 
 exit=1
