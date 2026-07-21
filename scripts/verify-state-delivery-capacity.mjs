@@ -31,6 +31,9 @@ requireText('README.md', [
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '?revision=N&catalog=',
   '`catalog`、`player`、`market`、`auction`、`leaderboard`',
+  '每个返回的 `patches[name]` 都是该分区的完整快照',
+  '整块替换同名缓存分区',
+  '字段缺失即代表该字段已经被服务器删除',
   '普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`',
   '不得携带订单 ID、兑换数量、结算金额或其他动作内部字段',
   '动作事务和 `economy_idempotency.response_json` 只生成并保存这份精简确认',
@@ -112,9 +115,15 @@ requireText('server/src/index.js', ["import './app.js'"]);
 
 requireText('src/app/stateDelivery.js', [
   'STATE_PARTITION_NAMES',
+  'validPartitionSnapshot',
   'mergeStatePatches',
+  'partitions[name] = { ...patch }',
+  'Object.assign(state, partition)',
   'createStateDeliveryCache',
   'payload.revision < revision',
+]);
+forbidText('src/app/stateDelivery.js', [
+  'Object.assign(next, patch)',
 ]);
 
 requireText('src/api/game.ts', [
@@ -183,9 +192,14 @@ const initialDelivery = deliveryCache.accept({
   },
   patches: {
     catalog: { version: 15, products: [], facilityTypes: [] },
-    player: { userId: 1, credits: 100 },
+    player: {
+      userId: 1,
+      credits: 100,
+      facilityGroups: [{ facilityTypeId: 'farm', count: 11 }],
+      facilityConstruction: { facilityTypeId: 'farm', startedAt: 0, completesAt: 1_000 },
+    },
     market: { orders: [] },
-    auction: { collectibles: [] },
+    auction: { collectibles: [{ id: 'collectible-1' }] },
     leaderboard: { leaderboard: [] },
   },
 });
@@ -199,19 +213,53 @@ const incrementalDelivery = deliveryCache.accept({
     auction: 'auction-0001',
     leaderboard: 'leader-00001',
   },
-  patches: { player: { credits: 101 } },
+  patches: {
+    player: {
+      userId: 1,
+      credits: 101,
+      facilityGroups: [{ facilityTypeId: 'farm', count: 12 }],
+    },
+  },
+});
+const emptyPartitionDelivery = deliveryCache.accept({
+  revision: 9,
+  unchanged: false,
+  partitionRevisions: {
+    catalog: 'catalog-0001',
+    player: 'player-00002',
+    market: 'market-00001',
+    auction: 'auction-0002',
+    leaderboard: 'leader-00001',
+  },
+  patches: { auction: {} },
 });
 const staleDelivery = deliveryCache.accept({
   revision: 6,
   unchanged: false,
   partitionRevisions: { player: 'player-stale' },
-  patches: { player: { credits: 1 } },
+  patches: {
+    player: {
+      userId: 1,
+      credits: 1,
+      facilityGroups: [{ facilityTypeId: 'farm', count: 9 }],
+      facilityConstruction: { facilityTypeId: 'farm', startedAt: 0, completesAt: 1_000 },
+    },
+  },
 });
 if (initialDelivery.state?.credits !== 100
+  || initialDelivery.state?.facilityGroups?.[0]?.count !== 11
+  || !initialDelivery.state?.facilityConstruction
   || incrementalDelivery.state?.credits !== 101
+  || incrementalDelivery.state?.facilityGroups?.[0]?.count !== 12
+  || incrementalDelivery.state?.facilityConstruction !== undefined
+  || emptyPartitionDelivery.state?.collectibles !== undefined
+  || emptyPartitionDelivery.state?.orders?.length !== 0
   || staleDelivery.state?.credits !== 101
-  || deliveryCache.getPartitionRevisions().player !== 'player-00002') {
-  failures.push('客户端分区缓存必须合并增量补丁，并拒绝旧全局修订号覆盖当前状态');
+  || staleDelivery.state?.facilityGroups?.[0]?.count !== 12
+  || staleDelivery.state?.facilityConstruction !== undefined
+  || deliveryCache.getPartitionRevisions().player !== 'player-00002'
+  || deliveryCache.getPartitionRevisions().auction !== 'auction-0002') {
+  failures.push('客户端必须整块替换变化分区、删除服务器已省略字段、保留未变化分区，并拒绝旧全局修订号覆盖当前状态');
 }
 
 requireText('src/pages/SettingsPage.tsx', [
@@ -246,4 +294,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量补丁、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量交付与完整快照替换、可选字段删除、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');

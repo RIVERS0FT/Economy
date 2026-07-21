@@ -2,7 +2,8 @@ import type { EconomyState } from '../types';
 
 export type StatePartitionName = 'catalog' | 'player' | 'market' | 'auction' | 'leaderboard';
 export type StatePartitionRevisions = Partial<Record<StatePartitionName, string>>;
-export type StatePartitionPatches = Partial<Record<StatePartitionName, Partial<EconomyState>>>;
+export type StatePartitionSnapshots = Partial<Record<StatePartitionName, Partial<EconomyState>>>;
+export type StatePartitionPatches = StatePartitionSnapshots;
 
 export interface StateDeliveryEnvelope {
   revision: number;
@@ -11,11 +12,16 @@ export interface StateDeliveryEnvelope {
   patches?: StatePartitionPatches;
 }
 
+export interface StatePatchMerge {
+  partitions: StatePartitionSnapshots;
+  state: EconomyState;
+}
+
 export const STATE_PARTITION_NAMES: readonly StatePartitionName[];
 export function mergeStatePatches(
-  currentState: EconomyState | null,
+  currentPartitions: StatePartitionSnapshots | undefined,
   patches: StatePartitionPatches | undefined,
-): EconomyState;
+): StatePatchMerge;
 export function createStateDeliveryCache(): {
   reset(): void;
   getPartitionRevisions(): StatePartitionRevisions;

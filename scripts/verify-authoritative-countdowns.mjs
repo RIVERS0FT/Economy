@@ -19,6 +19,7 @@ const paths = {
   coordinator: 'src/components/system/AuthoritativeCountdownRefresh.tsx',
   model: 'src/app/gameViewModel.ts',
   api: 'src/api/game.ts',
+  delivery: 'src/app/stateDelivery.js',
   app: 'src/app/GameApp.tsx',
   production: 'src/pages/ProductionPage.tsx',
   overview: 'src/pages/OverviewPage.tsx',
@@ -69,6 +70,13 @@ if (failures.length === 0) {
   ]) requireText(paths.api, text);
 
   for (const text of [
+    'validPartitionSnapshot',
+    'partitions[name] = { ...patch }',
+    'Object.assign(state, partition)',
+  ]) requireText(paths.delivery, text);
+  forbidText(paths.delivery, 'Object.assign(next, patch)');
+
+  for (const text of [
     "import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';",
     '<AuthoritativeCountdownRefresh game={game} refresh={model.refresh} />',
   ]) requireText(paths.app, text);
@@ -97,6 +105,10 @@ if (failures.length === 0) {
     '`src/utils/authoritativeCountdowns.ts`',
     '每 `1,000ms` 继续确认',
     '浏览器从后台恢复可见时立即重新判断截止时间',
+    '到期状态的分区替换语义',
+    '完整快照，不是分区对象内部的字段级补丁',
+    '整块替换同名分区',
+    '从 11 增加到 12',
     '施工卡固定在归零后显示“确认完工中…”',
     '普通状态读取超时为 8 秒',
     '`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`',
@@ -105,6 +117,7 @@ if (failures.length === 0) {
   for (const text of [
     '`AUTHORITATIVE_COUNTDOWN_DESIGN.md`',
     '所有可见倒计时必须先区分本地资格到期与服务器权威状态转换',
+    '每个返回分区内部都是完整快照',
     '`scripts/verify-authoritative-countdowns.mjs`',
   ]) requireText(paths.docsIndex, text);
 
@@ -118,4 +131,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('权威倒计时验证通过：权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认并在浏览器恢复可见时立即重试。');
+console.log('权威倒计时验证通过：权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认，状态分区使用完整快照替换，并在浏览器恢复可见时立即重试。');
