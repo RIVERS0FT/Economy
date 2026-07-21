@@ -1,5 +1,5 @@
 import { type ChangeEvent, useState } from 'react';
-import type { LoadedGameViewModel } from '../app/gameViewModel';
+import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { InvitationSettings } from '../components/InvitationSettings';
 import { SelectInput, TextInput } from '../components/ui/FormControls';
 import {
@@ -12,7 +12,7 @@ import {
 } from '../components/ui/layout';
 import { formatDate, formatNumber } from '../utils/formatters';
 
-export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
+export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
   const {
     user,
     game,
@@ -27,6 +27,7 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     redeemGift,
     showResult,
     signOut,
+    tutorial,
   } = model;
   const [giftCode, setGiftCode] = useState('');
   const roleLabel = user.role === 'admin' ? '管理员' : '普通用户';
@@ -39,8 +40,15 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
     if (result.ok) setGiftCode('');
   }
 
+  function restartTutorial() {
+    const confirmed = window.confirm(
+      '重新开始后，当前教程进度会被清除。工作、建设、启动、生产、挂单和成交均需重新完成；游戏资产不会重置。',
+    );
+    if (confirmed) tutorial.restart();
+  }
+
   return (
-    <PageLayout title="设置" description="管理玩家资料、客户端偏好、邀请和礼品兑换。">
+    <PageLayout title="设置" description="管理玩家资料、客户端偏好、基础教程、邀请和礼品兑换。">
       <div className="settings-layout">
         <div className="settings-primary-column">
           <Panel className="widget profile-settings-card">
@@ -89,6 +97,20 @@ export function SettingsPage({ model }: { model: LoadedGameViewModel }) {
               <option value="5">每 5s</option>
               <option value="10">每 10s</option>
             </SelectInput>
+
+            <section className="tutorial-settings-section" aria-labelledby="tutorial-settings-heading">
+              <div>
+                <h3 id="tutorial-settings-heading">基础教程</h3>
+                <p>{tutorial.statusLabel}</p>
+              </div>
+              <p>教程只记录本轮操作，不读取玩家累计统计。重新开始不会重置资金、库存、工厂或订单。</p>
+              <div className="tutorial-settings-actions">
+                {tutorial.isActive && !tutorial.isVisible ? (
+                  <Button variant="secondary" onClick={tutorial.show}>显示基础教程</Button>
+                ) : null}
+                <Button onClick={restartTutorial}>重新开始教程</Button>
+              </div>
+            </section>
           </Panel>
 
           <Panel className="widget gift-redemption-card">
