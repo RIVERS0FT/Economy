@@ -260,7 +260,7 @@ for (const text of [
   '视口变为大于 `720px` 时必须自动关闭并解除滚动锁与轨道抑制',
   '选择卡内部不得嵌套运行开关、配方选择器或市场按钮',
   '生产公式只展示集群参数',
-  '公式不得使用总持有 `count` 作为公式乘数',
+  '公式不得使用总持有 `count` 作为生产乘数',
 ])
   assert.equal(industryDoc.includes(text), true, `产业设计缺少: ${text}`);
 for (const forbidden of [
