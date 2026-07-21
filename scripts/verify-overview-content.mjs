@@ -19,6 +19,7 @@ const forbidAll = (path, texts) => texts.forEach((text) => forbidText(path, text
 const paths = {
   router: 'src/pages/PageRouter.tsx',
   overview: 'src/pages/OverviewPage.tsx',
+  guide: 'src/components/GameGuideStrip.tsx',
   chart: 'src/components/charts/PriceSparkline.tsx',
   gameApp: 'src/app/GameApp.tsx',
   shell: 'src/components/shell/GameShell.tsx',
@@ -27,6 +28,7 @@ const paths = {
   statusBar: 'src/components/shell/StatusBar.tsx',
   overviewStyle: 'src/styles/overview.css',
   polishStyle: 'src/styles/overview-polish.css',
+  guideStyle: 'src/styles/game-guide.css',
   sidebarStyle: 'src/styles/desktop-sidebar.css',
   harness: 'tests/browser/runtime-harness.tsx',
   browserSpec: 'tests/browser/runtime.spec.ts',
@@ -52,8 +54,9 @@ requireAll(paths.overview, [
   'function greetingForHour(hour: number)',
   'new Date(now).getHours()',
   'title="今日经营"',
+  '<GameGuideStrip tutorial={model.tutorial} />',
   '<strong>经营提醒</strong>',
-  'const visibleAlerts = businessAlerts.slice(0, 3)',
+  'const visibleAlerts = businessAlerts.slice(0, model.tutorial.isVisible ? 2 : 3)',
   "id: 'warehouse-full'",
   "id: `facility-error-${group.facilityTypeId}`",
   "id: 'open-orders'",
@@ -90,6 +93,12 @@ forbidAll(paths.overview, [
   'overview-product-strip',
   '资产状态更新',
   '当前浏览器记录',
+]);
+requireAll(paths.guide, [
+  'role="progressbar"',
+  '步骤 {tutorial.currentStepIndex}/{tutorial.totalSteps}',
+  'tutorial.openCurrentTarget',
+  'tutorial.hide',
 ]);
 
 requireAll(paths.chart, [
@@ -134,6 +143,7 @@ requireAll(paths.polishStyle, [
   'font-size: max(var(--font-size-xs), 0.75rem);',
 ]);
 forbidAll(paths.polishStyle, ['clamp(168px, 20vw, 210px)', '.overview-asset-events {\n  overflow-y: auto;']);
+requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-progress {', '@media (max-width: 720px)']);
 
 requireAll(paths.shell, [
   'const [sidebarCollapsed, setSidebarCollapsed] = useState(false)',
@@ -207,7 +217,7 @@ requireAll(paths.browserSpec, [
   'scrollWidth > element.clientWidth + 1',
 ]);
 
-requireAll(paths.pageDesign, ['概览是经营决策首页', '宽度比例为 `5:7`', '既无近期成交也无有效挂单时必须显示', '`1920×1080`', '`1440×900`']);
+requireAll(paths.pageDesign, ['概览是经营决策首页', '宽度比例为 `5:7`', '既无近期成交也无有效挂单时必须显示', '`1920×1080`', '`1440×900`', '基础教程显示时']);
 requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '桌面按 `5:7` 分栏', '不得渲染大面积空坐标系']);
 requireAll(paths.integrityDesign, [
   '外层轨道唯一性',
@@ -233,4 +243,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：外层单轨、紧凑图表几何、市场空值、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：外层单轨、教程提醒容量、紧凑图表几何、市场空值、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。');
