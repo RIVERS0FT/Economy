@@ -23,6 +23,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/styles/industry-system.css',
   'src/styles/facility-production-formula.css',
   'src/styles/facility-group-card-grid.css',
+  'src/styles/facility-detail-sheet.css',
   'src/styles/unified-market-admin.css',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
@@ -60,7 +61,7 @@ for (const text of [
   '异常：原料不足',
   'facility-status-header',
   'facility-card-title-row',
-  'facility-card-status-row',
+  'facility-card-title-block',
   'facility-count-summary',
   'FacilityProductionFormula',
   'products={game.products}',
@@ -86,6 +87,8 @@ for (const forbidden of [
   '<span>产量 <strong>',
   '<span>成本 <strong>',
   '<span>原料 <strong>',
+  'facility-card-status-row',
+  'facility-detail-sheet-close',
 ]) forbidText('src/pages/ProductionPage.tsx', forbidden);
 
 for (const text of [
@@ -151,13 +154,18 @@ for (const text of [
 
 for (const text of [
   '.facility-card-title-row',
-  '.facility-card-status-row',
   '.facility-count-summary',
   'align-self: stretch;',
   'grid-auto-rows: auto;',
   'grid-template-rows: auto auto auto minmax(0, 1fr) auto;',
 ]) requireText('src/styles/facility-group-card-grid.css', text);
 for (const forbidden of ['--facility-card-height', 'grid-auto-rows: 1fr;']) forbidText('src/styles/facility-group-card-grid.css', forbidden);
+
+for (const text of [
+  '.facility-detail-sheet .facility-card-title-block',
+  '.facility-detail-sheet.is-closing',
+]) requireText('src/styles/facility-detail-sheet.css', text);
+for (const forbidden of ['.facility-detail-sheet-close']) forbidText('src/styles/facility-detail-sheet.css', forbidden);
 
 for (const text of [
   '.facility-production-formula',
@@ -170,7 +178,6 @@ for (const text of [
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)',
   'grid-template-rows: auto minmax(112px, auto) minmax(0, 1fr) auto',
 ]) requireText('src/styles/facility-production-formula.css', text);
-forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');
 
 forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');
 
@@ -208,16 +215,15 @@ for (const text of [
   '进度条',
   '周期 SVG 图标',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
+  '完整状态固定放在工厂名称下方',
+  '不包含顶部关闭按钮',
+  '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
   'SwitchControl',
   '.ui-switch',
   '唯一',
-  '同一网格行中的卡片等高',
-  '名称与 `SwitchControl` 位于第一行',
-  '状态位于第二行',
-  '数量摘要位于第三行',
   '生产配方',
   'facility-production-formula.css',
   'CycleIcon',
@@ -233,4 +239,4 @@ if (failures.length) {
   console.error(`工厂三态、生产公式、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('工厂持续生产、通用配方周期边界切换、三态自动恢复、多输入输出公式和自适应卡片验证通过。');
+console.log('工厂持续生产、名称下状态、统一收起动画、通用配方周期边界切换、三态自动恢复、多输入输出公式和自适应卡片验证通过。');
