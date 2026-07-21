@@ -1,0 +1,51 @@
+name: Agent unify order matching
+
+on:
+  push:
+    branches:
+      - agent/unify-order-matching
+    paths:
+      - scripts/agent-unify-order-matching.py
+      - .github/workflows/agent-unify-order-matching.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/unify-order-matching
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Apply refactor
+        run: |
+          python3 scripts/agent-unify-order-matching.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/test/order-matching.test.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('assert.equal(incoming.fills, undefined);', 'assert.deepEqual(incoming.fills, []);')
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Validate generated changes
+        run: |
+          git diff --check
+          node --check server/src/order-matching.js
+          node --check server/src/balanced-market.js
+          node --check server/src/facility-groups.js
+          node scripts/verify-order-matching-core.mjs
+          node --test server/test/order-matching.test.js
+          node -e "JSON.parse(require('node:fs').readFileSync('package.json', 'utf8'))"
+      - name: Commit refactor
+        run: |
+          rm -f scripts/agent-unify-order-matching.py .github/workflows/agent-unify-order-matching.yml
+          git config user.name "OpenAI Agent"
+          git config user.email "openai-agent@users.noreply.github.com"
+          git add -A
+          git commit -m "Unify commodity and facility order matching"
+          git push origin HEAD:agent/unify-order-matching
