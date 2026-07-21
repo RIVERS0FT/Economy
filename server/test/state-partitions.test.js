@@ -34,10 +34,11 @@ test('initial delivery returns all five state partitions without a full state fi
     revision: 7,
     unchanged: false,
     state: sampleState(),
-  });
+  }, {}, 1_700_000_000_000);
 
   assert.equal(delivery.revision, 7);
   assert.equal(delivery.unchanged, false);
+  assert.equal(delivery.serverNow, 1_700_000_000_000);
   assert.equal('state' in delivery, false);
   assert.deepEqual(Object.keys(delivery.patches).sort(), [
     'auction', 'catalog', 'leaderboard', 'market', 'player',
@@ -78,6 +79,19 @@ test('a global revision change unrelated to the viewer can return no patches', (
   assert.deepEqual(later.patches, {});
   assert.equal(later.unchanged, true);
   assert.equal(later.revision, 11);
+});
+
+test('unchanged delivery still returns a fresh server time without creating patches', () => {
+  const delivery = createPartitionedStateDelivery({
+    revision: 12,
+    unchanged: true,
+  }, {}, 1_700_000_005_000);
+
+  assert.deepEqual(delivery, {
+    revision: 12,
+    unchanged: true,
+    serverNow: 1_700_000_005_000,
+  });
 });
 
 test('action delivery keeps only result status, message, and committed revision', () => {
