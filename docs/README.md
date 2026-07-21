@@ -16,7 +16,7 @@
 | `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 31 种商品、21 种工厂、整数经济数值、参考利润、持续生产、通用工厂配方、生产周期、三态、自动恢复和生产页面结构 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
-| `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡和生产空间约束 |
+| `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、登录注册入口、独立商店、分享链接、邀请码、封禁提示、藏品与拍卖、资产导航、模块唯一归属和页面防回退规则 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、24 小时补填和锁定展示交互 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
@@ -61,3 +61,4 @@
 28. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；施工、生产周期、拍卖和排行榜结算统一登记在 `authoritativeCountdowns.ts`，到期立即刷新并每秒确认，工作冷却按服务器绝对截止时间本地解锁，并通过 `scripts/verify-authoritative-countdowns.mjs` 防回退。
 29. 权威刷新抢占与请求超时归属 `AUTHORITATIVE_COUNTDOWN_DESIGN.md`；商品订单单次共享撮合、订单簿完整性版本迁移、动作精简确认后的异步状态补拉和重复提交锁归属订单簿与服务器容量规则，必须通过 `scripts/verify-market-action-latency.mjs`、`scripts/verify-state-delivery-capacity.mjs` 和服务器测试共同防回退。
 30. 五分区协议只在分区之间增量传输；每个返回分区内部都是完整快照，客户端必须整块替换同名缓存分区后再重组 `EconomyState`。服务器省略可选字段即表示删除，空对象也必须清空旧分区内容，不得恢复对旧完整状态的字段级浅合并。
+31. 仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`；移动和窄容器固定每行四张卡，760px 起五列、960px 起六列，并通过 `scripts/verify-warehouse-expansion.mjs` 防回退。页面职责与通用 UI 文档只能引用该规则，不得维护另一套断点。
