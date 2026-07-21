@@ -6,6 +6,7 @@ import {
   type StatePartitionPatches,
   type StatePartitionRevisions,
 } from '../app/stateDelivery.js';
+import { acceptServerNow, resetServerClock } from '../utils/serverClock.js';
 
 const GAME_API_BASE = '/economy-api/game';
 const stateDeliveryCache = createStateDeliveryCache();
@@ -69,6 +70,7 @@ function knownPartitionRevisions() {
 
 export function resetGameStateDelivery() {
   stateDeliveryCache.reset();
+  resetServerClock();
 }
 
 function createTimedSignal(source: AbortSignal | null | undefined, timeoutMs: number) {
@@ -115,7 +117,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       throw new GameApiError(response.status, message);
     }
     const payload = await response.json() as unknown;
-    return (isStateDeliveryPayload(payload) ? stateDeliveryCache.accept(payload) : payload) as T;
+    if (isStateDeliveryPayload(payload)) {
+      acceptServerNow(payload.serverNow);
+      return stateDeliveryCache.accept(payload) as T;
+    }
+    return payload as T;
   } catch (reason) {
     if (timedSignal.didTimeout() && reason instanceof Error && reason.name === 'AbortError') {
       throw new GameApiError(408, '游戏服务器响应超时，请稍后重试');
@@ -131,7 +137,7 @@ function postAction(path: string, body: Record<string, unknown> = {}) {
 }
 
 export async function getGameState(revision?: number | null, signal?: AbortSignal): Promise<GameStatePollResponse> {
-  if (!Number.isInteger(revision)) stateDeliveryCache.reset();
+  if (!Number.isInteger(revision)) resetGameStateDelivery();
   const params = new URLSearchParams();
   if (Number.isInteger(revision)) params.set('revision', String(revision));
   for (const [name, value] of Object.entries(knownPartitionRevisions())) {
