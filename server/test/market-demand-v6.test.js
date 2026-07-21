@@ -95,6 +95,7 @@ test('market model 6 stops issuing new consumption budget when no player is acti
 
   assert.equal(world.marketDemand.groups.food.lastActivePlayerCount, 0);
   assert.equal(world.marketDemand.groups.food.lastBudget, 0);
+  assert.equal(world.marketDemand.groups.food.lastCommitted, 0);
   assert.equal(world.orders.some((order) => order.demandGroupId === 'food' && (order.demandTier === 'direct' || order.demandTier === 'derived-liquidity')), false);
 });
 
