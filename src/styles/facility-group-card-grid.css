@@ -182,6 +182,7 @@
 
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-auto-rows: auto;
   align-content: stretch;
   align-items: start;
   gap: var(--facility-card-section-gap);
@@ -231,7 +232,8 @@
   margin: 0;
 }
 
-.facility-detail-header-actions {
+.facility-detail-header-actions,
+.facility-card-status-row {
   grid-area: actions;
   min-width: 0;
   min-height: var(--control-height-compact);
@@ -579,7 +581,8 @@
     font-size: var(--font-size-lg);
   }
 
-  .facility-detail-sheet .facility-detail-header-actions {
+  .facility-detail-sheet .facility-detail-header-actions,
+  .facility-detail-sheet .facility-card-status-row {
     align-items: center;
   }
 
