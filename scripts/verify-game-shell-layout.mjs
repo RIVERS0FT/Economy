@@ -102,6 +102,39 @@ check('src/styles/desktop-sidebar.css', [
   'align-content: start;',
   'grid-auto-rows: max-content;',
 ]);
+check('src/styles/game-shell-layout.css', [
+  '--desktop-layout-gutter: var(--space-3);',
+  '--desktop-shell-outer-inset: var(--desktop-layout-gutter);',
+  '--desktop-sidebar-workspace-gap: var(--desktop-layout-gutter);',
+  '--desktop-status-gap: var(--desktop-layout-gutter);',
+  '--layout-gutter: var(--desktop-layout-gutter);',
+  'top: var(--desktop-layout-gutter);',
+  'right: var(--desktop-layout-gutter);',
+  '+ var(--desktop-asset-bar-height)',
+  'padding: 0 var(--desktop-layout-gutter) var(--desktop-layout-gutter) 0;',
+  '.page-scroll-area > .ui-scrollbar--vertical {',
+  '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
+  'right: 0;',
+  'left: auto;',
+  '--desktop-layout-gutter: var(--space-2);',
+]);
+const desktopLayout = read('src/styles/game-shell-layout.css');
+if ((desktopLayout.match(/--desktop-layout-gutter: var\(--space-3\);/g) ?? []).length !== 1) {
+  failures.push('普通桌面只能定义一个 12px --desktop-layout-gutter 默认值');
+}
+if ((desktopLayout.match(/--desktop-layout-gutter: var\(--space-2\);/g) ?? []).length !== 2) {
+  failures.push('窄桌面与矮桌面必须统一使用 8px --desktop-layout-gutter');
+}
+forbid('src/styles/game-shell-layout.css', [
+  '--desktop-shell-outer-inset: var(--space-3);',
+  '--desktop-sidebar-workspace-gap: var(--desktop-shell-outer-inset);',
+  '--desktop-status-gap: var(--space-3);',
+  '--desktop-shell-outer-inset: .45rem;',
+  'padding: 0 0 var(--space-4);',
+]);
+forbid('src/styles/liquid-glass-surfaces.css', [
+  '--desktop-status-gap:',
+]);
 check('src/styles/scrollbars.css', [
   '.page-scroll-area {',
   'overflow: visible;',
@@ -143,7 +176,12 @@ forbid('src/styles/performance.css', ['.page-scroll,\n.asset-bar,\n.sidebar-nav 
 forbid('src/styles/viewport.css', ['position: fixed;\n    right: 0;\n    bottom: max(var(--mobile-chrome-block-inset)']);
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '桌面应用外壳几何',
+  '--desktop-layout-gutter',
   '--desktop-shell-outer-inset',
+  '普通桌面使用 `12px`',
+  '紧凑桌面使用 `8px`',
+  '工作区和页面滚动视口继续铺满视口右边缘',
+  '页面主滚动条的轨道和可见滑块都使用 `right: 0`',
   '固定到视口安全边缘',
   'right: env(safe-area-inset-right, 0px)',
   'iOS 工具栏式清透厚玻璃',
@@ -155,6 +193,8 @@ check('docs/README.md', [
   'DOM 必须位于 `StatusBar` 后、`MobileBottomNavigation` 前',
   '安全区顶部 + `48px` 状态栏 + `8px` 间距',
   '不新增液态玻璃实例、不推动页面内容、不拦截状态栏或底栏交互',
+  '桌面侧栏外距、侧栏与工作区间距、状态栏外距、状态栏与内容间距、一级卡片间距和页面右／下留白统一读取 `--desktop-layout-gutter`',
+  '桌面页面主滚动条固定贴合视口右边缘',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
   '统一覆盖式滚动条',
@@ -163,6 +203,12 @@ check('docs/UI_DESIGN_SYSTEM.md', [
   '移动页面纵向轨道固定到视口安全边缘',
 ]);
 check('tests/browser/game-shell-layout.spec.ts', [
+  'desktop shell uses one 12px gutter for sidebar, status bar, cards and page edges',
+  'compact desktop width uses the same 8px gutter everywhere',
+  'short desktop height uses the same 8px gutter everywhere',
+  'expect(layout.primaryCardGap).toBeCloseTo(gutter, 0)',
+  'expect(layout.pageScrollbar.railRight).toBeCloseTo(layout.viewportWidth, 0)',
+  'expect(layout.pageScrollbar.thumbRight).toBeCloseTo(layout.viewportWidth, 0)',
   'desktop navigation rows keep intrinsic height and stack from the top',
   "expect(geometry.alignContent).toBe('start')",
   "expect(geometry.gridAutoRows).toBe('max-content')",
@@ -182,4 +228,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏外壳桌面导航、固定状态栏、移动双层 Overlay、状态栏下方通知、玻璃共线、统一 40px 清透厚玻璃胶囊、视口安全边缘滚动条与纵向滚动链验证通过。');
+console.log('游戏外壳统一桌面沟槽、桌面导航、悬浮状态栏、贴边页面滚动条、移动双层 Overlay、状态栏下方通知、玻璃共线、统一 40px 清透厚玻璃胶囊与纵向滚动链验证通过。');
