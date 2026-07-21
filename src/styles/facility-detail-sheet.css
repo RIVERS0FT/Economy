@@ -41,6 +41,10 @@
     will-change: transform;
   }
 
+  .facility-detail-sheet:focus {
+    outline: none;
+  }
+
   .facility-detail-sheet.is-dragging {
     animation: none;
     transition: none;
@@ -55,6 +59,10 @@
   .facility-detail-sheet.is-settling {
     animation: none;
     transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .facility-detail-sheet.is-closing {
+    pointer-events: none;
   }
 
   .facility-detail-sheet-header,
@@ -99,17 +107,17 @@
   }
 
   .facility-detail-sheet .facility-card-title-row,
-  .facility-detail-sheet .facility-detail-header-actions,
-  .facility-detail-sheet .facility-card-status-row,
+  .facility-detail-sheet .facility-card-title-block,
   .facility-detail-sheet .facility-count-summary {
     touch-action: pan-y;
   }
 
-  .facility-detail-sheet-close {
-    width: 44px;
-    min-width: 44px;
-    height: 44px;
-    min-height: 44px;
+  .facility-detail-sheet .facility-card-title-block {
+    min-width: 0;
+  }
+
+  .facility-detail-sheet .facility-card-title-block .ui-status-tag {
+    justify-self: start;
   }
 
   .facility-detail-sheet-scroll-area {
