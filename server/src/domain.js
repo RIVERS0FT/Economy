@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import * as core from './domain-core.js';
 import { createBalancedMarketRuntime } from './balanced-market.js';
 import {
@@ -17,6 +18,8 @@ export {
 } from './market-demand.js';
 
 const clone = (value) => structuredClone(value);
+const ORDER_BOOK_INTEGRITY_VERSION = 1;
+const processedWorldAt = new WeakMap();
 
 function buildMarketDemandMetadata() {
   const directGroups = new Map();
@@ -163,6 +166,7 @@ export function createWorld(now = Date.now()) {
   const world = core.createWorld(now);
   balancedMarket.rebalanceNewWorld(world, now);
   marketDemand.initializeWorld(world, now);
+  world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   world.version = 13;
   return world;
 }
@@ -170,6 +174,7 @@ export function createWorld(now = Date.now()) {
 export function migrateWorld(world, now = Date.now()) {
   if (!world || typeof world !== 'object') return createWorld(now);
   const previousVersion = Number(world.version || 0);
+  const needsOrderBookRepair = Number(world.orderBookIntegrityVersion || 0) < ORDER_BOOK_INTEGRITY_VERSION;
   const hadCurrentMarketDemandModel = Number(world.marketDemand?.modelVersion || 0) >= MARKET_DEMAND_MODEL_VERSION;
   const existingMarketIds = new Set(Object.keys(world.markets || {}));
   const legacy = {
@@ -196,7 +201,8 @@ export function migrateWorld(world, now = Date.now()) {
   marketDemand.normalizeWorld(migrated, now, {
     forceRebuild: !hadCurrentMarketDemandModel || previousVersion < 13,
   });
-  reconcileCommodityOrderBook(migrated, now);
+  if (needsOrderBookRepair) reconcileCommodityOrderBook(migrated, now);
+  migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   migrated.version = 13;
   return migrated;
 }
@@ -208,54 +214,104 @@ export function ensurePlayer(world, user, now = Date.now()) {
 }
 
 export function processWorld(world, now = Date.now()) {
+  if (processedWorldAt.get(world) === now) return world;
   migrateWorld(world, now);
   core.processWorld(world, now);
   marketDemand.process(world, now);
+  processedWorldAt.set(world, now);
   return world;
+}
+
+function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
+  const normalized = Math.floor(number);
+  return normalized >= 1 && normalized <= max ? normalized : null;
+}
+
+function playerInventoryFor(player, productId) {
+  player.inventories ||= {};
+  player.inventories[productId] ||= { available: 0, frozen: 0 };
+  return player.inventories[productId];
+}
+
+function playerInventoryUsed(player) {
+  return Object.values(player.inventories || {}).reduce((sum, inventory) => (
+    sum + Math.max(0, Number(inventory.available || 0)) + Math.max(0, Number(inventory.frozen || 0))
+  ), 0);
+}
+
+function pendingPlayerBuyQuantity(world, userId) {
+  return (world.orders || []).reduce((sum, order) => (
+    Number(order.ownerId) === userId
+      && order.ownerType === 'player'
+      && orderKind(order) === 'commodity'
+      && order.side === 'buy'
+      && balancedMarket.isOpenOrder(order)
+      ? sum + Math.max(0, Number(order.remaining || 0))
+      : sum
+  ), 0);
 }
 
 function applyCommodityOrder(world, user, payload, now) {
   const userId = Number(user.id);
   const side = payload.side === 'buy' ? 'buy' : payload.side === 'sell' ? 'sell' : null;
-  const productId = productIds.has(String(payload.productId || 'wheat'))
-    ? String(payload.productId || 'wheat')
+  const productId = productIds.has(String(payload.productId || payload.assetId || 'wheat'))
+    ? String(payload.productId || payload.assetId || 'wheat')
     : null;
-  if (side && productId && findSelfCrossingOrder(world, {
+  const quantity = normalizePositiveInteger(payload.quantity, core.ECONOMY_CONSTANTS.maxOrderQuantity);
+  const price = normalizePositiveInteger(payload.price, 1_000_000);
+  if (!side || !productId || !quantity || !price) return { ok: false, message: '订单参数无效' };
+  if (findSelfCrossingOrder(world, {
     ownerId: userId,
     assetKind: 'commodity',
     assetId: productId,
     side,
-    price: payload.price,
-  })) {
-    return { ok: false, message: SELF_CROSS_MESSAGE };
-  }
-  const originalOrders = world.orders || [];
-  const hiddenIds = new Set(side && productId ? originalOrders
-    .filter((order) => (
-      order.productId === productId
-      && order.side !== side
-      && balancedMarket.isOpenOrder(order)
-      && Number(order.ownerId) !== userId
-    ))
-    .map((order) => order.id) : []);
-  world.orders = originalOrders.filter((order) => !hiddenIds.has(order.id));
-  const existingIds = new Set(world.orders.map((order) => order.id));
-  let actionResult;
-  let newOrders = [];
-  try {
-    actionResult = core.applyAction(world, user, 'placeOrder', payload, now);
-    newOrders = (world.orders || []).filter((order) => !existingIds.has(order.id));
-  } finally {
-    world.orders = [...originalOrders, ...newOrders];
-  }
-  if (!actionResult?.ok) return actionResult;
-  const incoming = newOrders.find((order) => (
-    order.ownerType === 'player'
-    && Number(order.ownerId) === userId
-    && order.productId === productId
-    && order.side === side
+    price,
+  })) return { ok: false, message: SELF_CROSS_MESSAGE };
+
+  world.orders ||= [];
+  const openOrders = world.orders.filter((order) => (
+    Number(order.ownerId) === userId && balancedMarket.isOpenOrder(order)
   ));
-  if (!incoming) return actionResult;
+  if (openOrders.length >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
+    return { ok: false, message: '未完成订单数量已达上限' };
+  }
+
+  const player = core.ensurePlayer(world, user, now);
+  if (side === 'buy') {
+    const total = quantity * price;
+    if (Number(player.credits || 0) < total) return { ok: false, message: '可用资金不足' };
+    const capacity = Math.max(0, Number(player.inventoryCapacity || 0))
+      - playerInventoryUsed(player)
+      - pendingPlayerBuyQuantity(world, userId);
+    if (capacity < quantity) return { ok: false, message: '仓库容量不足' };
+    player.credits -= total;
+    player.frozenCredits = Number(player.frozenCredits || 0) + total;
+  } else {
+    const inventory = playerInventoryFor(player, productId);
+    if (Number(inventory.available || 0) < quantity) return { ok: false, message: '可用商品库存不足' };
+    inventory.available -= quantity;
+    inventory.frozen = Number(inventory.frozen || 0) + quantity;
+  }
+
+  const incoming = {
+    id: `order-${randomUUID()}`,
+    assetKind: 'commodity',
+    assetId: productId,
+    productId,
+    side,
+    ownerType: 'player',
+    ownerId: userId,
+    ownerName: player.playerName,
+    price,
+    quantity,
+    remaining: quantity,
+    status: 'open',
+    fills: [],
+    createdAt: now,
+  };
+  world.orders.push(incoming);
   balancedMarket.matchOrder(world, incoming, now);
   if (incoming.status === 'filled') return { ok: true, message: '订单已全部成交' };
   if (incoming.status === 'partial') return { ok: true, message: '订单已部分成交' };
@@ -264,10 +320,11 @@ function applyCommodityOrder(world, user, payload, now) {
 
 export function applyAction(world, user, action, payload = {}, now = Date.now()) {
   migrateWorld(world, now);
+  if (processedWorldAt.get(world) !== now) processWorld(world, now);
   const result = action === 'placeOrder' && payload.assetKind !== 'facility'
     ? applyCommodityOrder(world, user, payload, now)
     : core.applyAction(world, user, action, payload, now);
-  marketDemand.process(world, now);
+  processedWorldAt.delete(world);
   return result;
 }
 
