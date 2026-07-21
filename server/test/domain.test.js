@@ -59,8 +59,8 @@ test('work cooldown uses server time', () => {
   ensurePlayer(world, alice, now);
   assert.equal(applyAction(world, alice, 'work', {}, now).ok, true);
   assert.equal(applyAction(world, alice, 'work', {}, now + 1_000).ok, false);
-  assert.equal(applyAction(world, alice, 'work', {}, now + 9_999).ok, false);
-  assert.equal(applyAction(world, alice, 'work', {}, now + 10_000).ok, true);
+  assert.equal(applyAction(world, alice, 'work', {}, now + 2_999).ok, false);
+  assert.equal(applyAction(world, alice, 'work', {}, now + 3_000).ok, true);
 });
 
 test('version 1 state migrates inventory and commodity orders without losing assets', () => {

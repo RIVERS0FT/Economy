@@ -127,7 +127,7 @@ const domainSource = [
   'server/src/order-book-integrity.js',
   'server/src/market-demand/price-transmission.js',
 ].map(read).join('\n');
-for (const text of ['workCooldownMs: 10_000','workClicks','boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor','liquidity-buy','liquidity-sell','settleLiquidityBuy','settleLiquiditySell','findSelfCrossingOrder','systemBookIsCrossed']) {
+for (const text of ['workCooldownMs: 3_000','workClicks','boughtGoods','soldGoods','processPriceTransmission','costAnchor','downstreamValueAnchor','liquidity-buy','liquidity-sell','settleLiquidityBuy','settleLiquiditySell','findSelfCrossingOrder','systemBookIsCrossed']) {
   if (!domainSource.includes(text)) failures.push('领域实现缺少: ' + text);
 }
 for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
