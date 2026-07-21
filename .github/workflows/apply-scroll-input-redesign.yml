@@ -116,6 +116,37 @@ jobs:
               "requireText(scrollInputSpec, 'touch input hides horizontal rails while local trade cells keep native two-axis scrolling'",
           )
           market_verify_path.write_text(market_verify)
+
+          scrollbars_path = Path('src/styles/scrollbars.css')
+          scrollbars = scrollbars_path.read_text()
+          horizontal_target = """.ui-scrollbar--horizontal .ui-scrollbar__thumb::before {
+            inset-block: calc((var(--scrollbar-touch-target-size) - var(--scrollbar-visual-size)) / -2);
+            inset-inline: 0;
+          }
+          """
+          horizontal_replacement = """.ui-scrollbar--horizontal .ui-scrollbar__thumb::before {
+            inset: 0;
+          }
+          """
+          vertical_target = """.ui-scrollbar--vertical .ui-scrollbar__thumb::before {
+            inset-block: 0;
+            inset-inline: calc((var(--scrollbar-touch-target-size) - var(--scrollbar-visual-size)) / -2);
+          }
+          """
+          vertical_replacement = """.ui-scrollbar--vertical .ui-scrollbar__thumb::before {
+            inset: 0;
+          }
+
+          html[data-input-modality=\"touch\"] .ui-scrollbar--vertical .ui-scrollbar__thumb::before {
+            inset-block: 0;
+            inset-inline: calc((var(--scrollbar-touch-target-size) - var(--scrollbar-visual-size)) / -2);
+          }
+          """
+          if horizontal_target not in scrollbars or vertical_target not in scrollbars:
+              raise SystemExit('scrollbar expanded target blocks not found')
+          scrollbars = scrollbars.replace(horizontal_target, horizontal_replacement)
+          scrollbars = scrollbars.replace(vertical_target, vertical_replacement)
+          scrollbars_path.write_text(scrollbars)
           PY
 
       - name: Install dependencies
