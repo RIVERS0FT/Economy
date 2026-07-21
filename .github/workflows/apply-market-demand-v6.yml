@@ -1,9 +1,6 @@
 name: Apply Market Demand V6
 
 on:
-  push:
-    branches:
-      - codex/market-demand-v6
   pull_request:
     branches:
       - main
@@ -19,30 +16,35 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.head_ref }}
       - name: Apply V6 patch
         shell: bash
         run: |
-          sha256sum scripts/.v6-patch/part0{0,1,2,3,4,5,6,7} > scripts/.v6-patch/diagnostic.txt
-          cat scripts/.v6-patch/part0{0,1,2,3,4,5,6,7} > /tmp/apply-market-demand-v6.mjs.gz.b64
-          sha256sum /tmp/apply-market-demand-v6.mjs.gz.b64 >> scripts/.v6-patch/diagnostic.txt
-          if ! echo "7a8fa9d6095d5d1e7d0c6e0b7896532663dc6dcc8b85e57a905a9971b59e137b  /tmp/apply-market-demand-v6.mjs.gz.b64" | sha256sum -c -; then
+          set +e
+          {
+            cat scripts/.v6-patch/part0{0,1,2,3,4,5,6,7} > /tmp/apply-market-demand-v6.mjs.gz.b64
+            echo "7a8fa9d6095d5d1e7d0c6e0b7896532663dc6dcc8b85e57a905a9971b59e137b  /tmp/apply-market-demand-v6.mjs.gz.b64" | sha256sum -c -
+            base64 -d /tmp/apply-market-demand-v6.mjs.gz.b64 | gzip -d > /tmp/apply-market-demand-v6.mjs
+            node --check /tmp/apply-market-demand-v6.mjs
+            node /tmp/apply-market-demand-v6.mjs
+          } > /tmp/v6-apply.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/v6-apply.log v6-apply-diagnostic.txt
+            printf '\nexit=%s\n' "$status" >> v6-apply-diagnostic.txt
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add scripts/.v6-patch/diagnostic.txt
-            git commit -m "记录 V6 补丁分片校验结果"
-            git push origin HEAD:${{ github.head_ref || github.ref_name }}
-            exit 1
+            git add v6-apply-diagnostic.txt
+            git commit -m "记录 V6 应用失败诊断"
+            git push origin HEAD:${{ github.head_ref }}
+            exit "$status"
           fi
-          base64 -d /tmp/apply-market-demand-v6.mjs.gz.b64 | gzip -d > /tmp/apply-market-demand-v6.mjs
-          node --check /tmp/apply-market-demand-v6.mjs
-          node /tmp/apply-market-demand-v6.mjs
-          rm -rf scripts/.v6-patch .github/workflows/apply-market-demand-v6.yml
+          rm -rf scripts/.v6-patch .github/workflows/apply-market-demand-v6.yml v6-apply-diagnostic.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "实现市场供需模型 V6"
-          git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          git push origin HEAD:${{ github.head_ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
