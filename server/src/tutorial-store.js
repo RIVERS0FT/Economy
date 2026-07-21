@@ -9,12 +9,13 @@ function normalizeVersion(value) {
 }
 
 function normalizeStatus(row) {
-  return {
+  const status = {
     completedVersion: normalizeVersion(row?.completed_version),
-    completedAt: row?.completed_at === null || row?.completed_at === undefined
-      ? undefined
-      : Number(row.completed_at),
   };
+  if (row?.completed_at !== null && row?.completed_at !== undefined) {
+    status.completedAt = Number(row.completed_at);
+  }
+  return status;
 }
 
 function completionResponse(tutorial) {
