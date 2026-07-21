@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/remove-status-bar-scroll-area
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
