@@ -4,7 +4,7 @@
   display: none;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 960px) {
   .asset-bar-item-value-full {
     display: none;
   }
@@ -12,7 +12,9 @@
   .asset-bar-item-value-compact {
     display: inline;
   }
+}
 
+@media (max-width: 720px) {
   .production-grid {
     width: 100%;
     grid-template-columns: minmax(0, 1fr);

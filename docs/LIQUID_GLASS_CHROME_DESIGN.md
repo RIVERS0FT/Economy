@@ -2,7 +2,7 @@
 
 > 状态：桌面与移动端顶部状态栏、移动底部导航及游戏外壳几何基线  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-20
+> 更新时间：2026-07-21
 
 本文件定义应用外壳唯一液态玻璃实现、桌面与移动工作区几何、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
@@ -12,7 +12,7 @@
 - `src/components/ui/LiquidGlassSurface.tsx` 是唯一允许直接导入该依赖的文件。
 - 桌面状态栏、移动状态栏和移动底栏只能使用 `LiquidGlassSurface` 预设，不得在业务组件中直接设置第三方参数。
 - 桌面状态栏必须使用独立的 `DESKTOP_STATUS_GLASS`；移动状态栏与移动底栏共同使用 `MOBILE_CHROME_GLASS`。桌面与移动不得再次合并为同一个参数常量。
-- `StatusBar.tsx` 通过 `(max-width: 720px)` 媒体查询在 `desktopStatusBar` 与 `mobileStatusBar` 之间切换；任一时刻只能渲染一个状态栏玻璃实例，不得通过同时渲染两套后再用 CSS 隐藏。
+- `StatusBar.tsx` 通过 `(max-width: 720px)` 媒体查询在 `desktopStatusBar` 与 `mobileStatusBar` 之间切换；任一时刻只能渲染一个状态栏玻璃实例，不得通过同时渲染两套后再用 CSS 隐藏。顶部状态栏不得包含 `ScrollArea`、原生滚动视口或项目自绘滚动条。
 - `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、低密度透明染色、可读性回退、单层结构描边、第三方装饰层显隐和与各预设完全一致的 WebKit 属性别名；不得用 CSS 创建第二套模糊、折射或色差材质。
 - 桌面与移动状态栏必须隐藏 `liquid-glass-react` 直属的两层边框／高光 `span`、两个 over-light 辅助 `div`，并清除第三方 `.glass` 外部阴影，只保留 `.glass__warp` 材质和宿主的一条结构描边。移动底栏允许保留第一层低强度 screen 高光。
 - `src/styles/liquid-glass-chrome.css` 是浏览器测试兼容入口，不是第二套材质。它只允许按固定顺序转发 `performance.css`、`scrollbars.css`、`game-shell-layout.css` 和 `liquid-glass-surfaces.css`；生产入口 `src/main.tsx` 继续直接导入正式样式。
@@ -23,8 +23,8 @@
 | 文件 | 唯一职责 |
 |---|---|
 | `LiquidGlassSurface.tsx` | 第三方库适配、桌面状态栏预设、移动 Chrome 预设、静态鼠标输入和统一 DOM |
-| `StatusBar.tsx` | 保持单一状态栏实例，并按 `720px` 断点选择桌面／移动状态栏预设 |
-| `liquid-glass-surfaces.css` | 玻璃宿主、第三方 DOM 尺寸、开放背景采样链、平台圆角、透明染色、状态栏单壳层级、移动底栏单层高光、结构描边、底栏唯一垂直留白和 WebKit 兼容别名 |
+| `StatusBar.tsx` | 保持单一状态栏实例，按 `720px` 断点选择预设，并直接承载固定五列状态内容；不得引入 `ScrollArea` |
+| `liquid-glass-surfaces.css` | 玻璃宿主、第三方 DOM 尺寸、开放背景采样链、平台圆角、透明染色、状态栏单壳层级、状态栏最上层连续结构描边、移动底栏单层高光、底栏唯一垂直留白和 WebKit 兼容别名 |
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口 |
 | `game-shell-layout.css` | 桌面双列轨道、状态栏外距、页面避让和工作区几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
@@ -110,10 +110,11 @@
 - 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须由页面局部堆叠上下文收口，不能让其层级逃逸到 Chrome Overlay 之上。市场资产目录在移动端固定由 `.asset-directory-shell { position: relative; z-index: 0; }` 收口，使 `.asset-directory-divider` 的层级只在目录内部生效；
 - Chrome Overlay 使用 `pointer-events: none`，只有状态栏和底栏恢复交互；
 - 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
-- `.asset-bar` 不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
+- `.asset-bar` 是固定定位宿主并直接包含唯一 `LiquidGlassSurface`；不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
+- `.asset-bar-content` 固定五列布局使用 `repeat(5, minmax(0, 1fr))`，不得通过横向滚动解决空间不足；`721px–960px` 隐藏标签与说明并切换紧凑数值，不大于 `720px` 时继续使用紧凑数值与自适应字号；
 - `.page-scroll` 左右 padding 必须为 `0`；
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`，两者使用同一 `40px` 胶囊圆角和同一移动材质参数；底栏相对 Chrome Overlay 使用 `position: absolute`；
-- 不得给 `.asset-bar-scroll-area` 设置 `height: 100%`。
+- 不得给 `.asset-bar` 设置 `height: 100%`。
 
 移动页面纵向覆盖式轨道固定到视口安全边缘：
 
@@ -138,7 +139,7 @@
 - 支持环境中的桌面状态栏、移动状态栏和底栏使用同一低密度透明染色 `rgba(194, 231, 214, 0.06)`，第三方 `.glass__warp` 继续采样页面内容；
 - `.glass__warp` 到页面内容之间必须保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切；
 - 桌面与移动预设的 WebKit 兼容别名必须分别匹配上游参数，不得使用一个通用数值覆盖两个平台；
-- 三种宿主都只保留一条低强度 `1px` 结构描边；桌面状态栏圆角为 `24px`，移动状态栏和底栏圆角为 `40px`；
+- 三种宿主都只保留一条低强度 `1px` 结构描边；桌面与移动状态栏使用 `::after` 在玻璃效果与内容上方绘制连续内描边，移动底栏继续使用宿主边框；桌面状态栏圆角为 `24px`，移动状态栏和底栏圆角为 `40px`；
 - 桌面与移动状态栏直属的所有 `span` 装饰必须为 `display: none`，所有非 `.liquid-glass-surface__effect` 直属辅助 `div` 必须隐藏，第三方 `.glass` 计算后的 `box-shadow` 必须为 `none`；
 - 移动底栏的两个直属 `span` 中只允许第一层 `opacity: 0.22` 的 screen 高光可见，第二层 overlay 装饰必须隐藏；
 - React `cornerRadius`、CSS 裁切和第三方折射层必须分别与所属平台预设一致；
@@ -159,6 +160,13 @@
 - 移动底栏垂直留白只允许由 `.liquid-glass-surface__content` 提供，固定为 `padding: 8px 0`；`.mobile-bottom-navigation` 必须保持 `padding: 0`，不得恢复双层垂直 padding；
 - `48px` 按钮在 `68px` 胶囊内必须完整显示，上下边缘不得被裁剪；焦点环必须使用内部 `inset` 绘制，不得使用向外扩张的 `outline-offset`。
 
+### 8.1 顶部状态栏固定内容规则
+
+- DOM 固定为 `header.asset-bar → LiquidGlassSurface → .liquid-glass-surface__content → .asset-bar-content → 五个状态项`；状态栏范围内不得出现 `.ui-scroll-area`、`.ui-scroll-area__viewport`、`.ui-scrollbar`、`.asset-bar-scroll-area` 或 `.asset-bar-scroll-track`。
+- 状态栏玻璃宽度始终等于宿主可视宽度，内容不得扩大玻璃最小宽度；所有受支持宽度下 `.asset-bar-content.scrollWidth <= clientWidth + 1`。
+- 顶部状态栏的结构描边必须位于玻璃效果和状态内容之上，使用 `z-index: 2`、`pointer-events: none` 的 `::after` 内描边；玻璃宿主继续负责唯一圆角裁切。
+- 页面滚动到卡片、卡片边框或深色表面后方时，状态栏顶部、底部与两端圆角描边必须保持连续，不能依赖第三方高光补边。
+
 ## 9. 性能与可访问性
 
 - 桌面同时可见一个玻璃实例，移动同时可见两个；
@@ -172,7 +180,7 @@
 
 必须检查桌面 `1920×1080`、`1684×931`、`1440×900`、`1024×768`、`900×768`，以及移动 `430px`、`390px`、`375px`、`360px`、`320px`：
 
-1. 桌面状态栏使用 `desktopStatusBar`／`DESKTOP_STATUS_GLASS`；移动状态栏使用 `mobileStatusBar`，移动底栏使用 `mobileNavigation`，后两者共同引用 `MOBILE_CHROME_GLASS`。
+1. 顶部状态栏不包含任何内部活动区域或滚动条，五个状态项在 900px、720px、430px、390px、375px、360px 和 320px 下均完整位于固定五列内；桌面状态栏使用 `desktopStatusBar`／`DESKTOP_STATUS_GLASS`；移动状态栏使用 `mobileStatusBar`，移动底栏使用 `mobileNavigation`，后两者共同引用 `MOBILE_CHROME_GLASS`。
 2. 从桌面调整到移动断点时，顶部状态栏始终只有一个 `.liquid-glass-surface`，variant 原地切换，不出现并列或残留玻璃实例。
 3. 三者计算后的 `data-liquid-glass-mode` 都为 `standard`，WebKit 与非前缀背景滤镜一致，模糊和 SVG 折射引用均有效。
 4. 桌面外壳覆盖整个视口，侧栏、状态栏和工作区共享统一外距。
@@ -215,7 +223,7 @@
 - 不得在 `.mobile-bottom-navigation` 恢复垂直 padding，不得把内容层 `8px` 留白复制到其他层，也不得恢复外扩焦点 outline；
 - 把移动页面轨道限制在卡片边缘、恢复 escape／translateX 方案、越过安全区或改变卡片宽度；
 - 在 `.page-scroll` 上使用 `overscroll-behavior: contain` 阻断纵向滚动链；
-- 给 `.asset-bar-scroll-area` 设置 `height: 100%`；
+- 给 `.asset-bar` 设置 `height: 100%`；
 - 删除 `liquid-glass-chrome.css` 中浏览器 harness 所需的真实滚动条或外壳几何导入；
 - 只验证宿主边界而不验证实际 `.liquid-glass-surface`、`.glass__warp`、直属装饰层与第三方 `.glass`；
 - 绕过架构检查或浏览器几何测试合并视觉回退。

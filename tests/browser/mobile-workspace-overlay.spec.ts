@@ -7,7 +7,7 @@ test.describe('mobile workspace overlay geometry', () => {
 
     await expect(page.locator('.mobile-page-overlay')).toBeVisible();
     await expect(page.locator('.mobile-chrome-overlay')).toBeVisible();
-    await expect(page.locator('.asset-bar-scroll-area')).toBeVisible();
+    await expect(page.locator('.asset-bar')).toBeVisible();
     await expect(page.locator('.mobile-bottom-navigation')).toBeVisible();
     await expect(page.locator('.overview-today-panel')).toBeVisible();
 
@@ -17,7 +17,7 @@ test.describe('mobile workspace overlay geometry', () => {
       const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
       const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
       const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
-      const assetBar = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+      const assetBar = document.querySelector<HTMLElement>('.asset-bar');
       const statusSurface = document.querySelector<HTMLElement>('.asset-bar .liquid-glass-surface');
       const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
       const navigationSurface = document.querySelector<HTMLElement>(
@@ -118,7 +118,7 @@ test.describe('mobile workspace overlay geometry', () => {
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
     const workspace = page.locator('.workspace');
-    const status = page.locator('.asset-bar-scroll-area');
+    const status = page.locator('.asset-bar');
     const statusSurface = page.locator('.asset-bar .liquid-glass-surface');
     const navigation = page.locator('.mobile-bottom-navigation');
     const pageScroll = page.locator('.page-scroll');
@@ -134,7 +134,7 @@ test.describe('mobile workspace overlay geometry', () => {
 
     const heights = await page.evaluate(() => {
       const workspaceElement = document.querySelector<HTMLElement>('.workspace');
-      const statusElement = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+      const statusElement = document.querySelector<HTMLElement>('.asset-bar');
       if (!workspaceElement || !statusElement) throw new Error('mobile status height fixture is incomplete');
       return {
         workspace: workspaceElement.getBoundingClientRect().height,

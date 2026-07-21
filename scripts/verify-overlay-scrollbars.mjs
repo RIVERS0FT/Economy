@@ -110,10 +110,22 @@ if (failures.length === 0) {
     [paths.virtualList, ["import { ScrollArea } from './ScrollArea'", 'axis="y"', 'className="virtual-list-scroll-area"']],
     [paths.shell, ['className="page-scroll-area"', 'viewportClassName="page-scroll"']],
     [paths.sidebar, ['className="sidebar-nav-scroll-area"', 'viewportClassName="sidebar-nav"']],
-    [paths.status, ['className="asset-bar-scroll-track"', 'viewportClassName="asset-bar"', 'horizontalVisibility="always"']],
   ]) {
     for (const text of texts) requireText(path, text);
   }
+
+  for (const text of [
+    "import { ScrollArea }",
+    '<ScrollArea',
+    'asset-bar-scroll-area',
+    'asset-bar-scroll-track',
+  ]) forbidText(paths.status, text);
+
+  for (const text of [
+    'className="asset-bar"',
+    '<LiquidGlassSurface variant={surfaceVariant}>',
+    'className="asset-bar-content"',
+  ]) requireText(paths.status, text);
 
   for (const text of [
     'className="sidebar mobile-bottom-navigation"',
@@ -240,9 +252,9 @@ if (failures.length === 0) {
 }
 
 if (failures.length > 0) {
-  console.error('统一覆盖式滚动条、移动导航原生滚动视口与订单成交表验证失败：');
+  console.error('统一覆盖式滚动条、固定状态栏、移动导航原生滚动视口与订单成交表验证失败：');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('统一覆盖式滚动条、移动底栏单一原生滚动视口、纵向优先、滚动链、视口安全边缘与订单成交表验证通过。');
+console.log('统一覆盖式滚动条、无活动区状态栏、移动底栏单一原生滚动视口、纵向优先、滚动链、视口安全边缘与订单成交表验证通过。');

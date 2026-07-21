@@ -43,7 +43,7 @@
     padding: 0;
   }
 
-  html[data-app-surface="game"] .asset-bar-scroll-area {
+  html[data-app-surface="game"] .asset-bar {
     position: absolute;
     z-index: 3;
     top: var(--desktop-shell-outer-inset);
@@ -51,22 +51,11 @@
     left: 0;
     width: auto;
     height: var(--desktop-asset-bar-height);
-    margin: 0;
-    padding: 0;
-  }
-
-  html[data-app-surface="game"] .asset-bar-scroll-track,
-  html[data-app-surface="game"] .asset-bar {
-    width: 100%;
-    height: 100%;
     min-width: 0;
+    min-height: 0;
     margin: 0;
     padding: 0;
-  }
-
-  html[data-app-surface="game"] .asset-bar {
-    position: relative;
-    inset: auto;
+    overflow: visible;
   }
 
   html[data-app-surface="game"] .page-scroll-area,

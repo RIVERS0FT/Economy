@@ -24,7 +24,7 @@ async function readShellGeometry(page: Page): Promise<ShellGeometry> {
     const shell = document.querySelector<HTMLElement>('.game-shell');
     const sidebar = document.querySelector<HTMLElement>('.desktop-sidebar');
     const workspace = document.querySelector<HTMLElement>('.workspace');
-    const assetBar = document.querySelector<HTMLElement>('.asset-bar-scroll-area');
+    const assetBar = document.querySelector<HTMLElement>('.asset-bar');
     const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const pageContent = document.querySelector<HTMLElement>('.page-content');
@@ -118,7 +118,7 @@ test.describe('full-width signed-in game shell', () => {
     await page.goto('runtime-test.html?view=overview&scenario=empty');
     await expect(page.locator('.game-shell')).toBeVisible();
     await expect(page.locator('.workspace')).toBeVisible();
-    await expect(page.locator('.asset-bar-scroll-area')).toBeVisible();
+    await expect(page.locator('.asset-bar')).toBeVisible();
     await expect(page.locator('.page-scroll-area')).toBeVisible();
     await expect(page.locator('.page-content')).toBeVisible();
 
