@@ -4,20 +4,32 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 5;
+export const MARKET_DEMAND_MODEL_VERSION = 6;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 export const PLAYER_SCALE_MAX = 6;
 export const BUDGET_SMOOTHING = 0.35;
-export const BUDGET_MAX_RISE = 0.20;
-export const BUDGET_MAX_FALL = 0.20;
+export const BUDGET_MAX_RISE = 0.12;
+export const BUDGET_MAX_FALL = 0.15;
 export const SHARE_SMOOTHING = 0.30;
 export const SHARE_MAX_CHANGE = 0.15;
 export const DIRECT_BUDGET_SHARE = 0.70;
-export const SYSTEM_ORDER_RETENTION_RATE = 0.50;
-export const SYSTEM_ORDER_PRICE_STEP = 0.03;
-export const SYSTEM_ORDER_VALUE_CYCLES = 3;
+export const SYSTEM_ORDER_RETENTION_RATE = 0.35;
+export const SYSTEM_ORDER_VALUE_CYCLES = 2.5;
+export const PRODUCT_ORDER_VALUE_CYCLES = 1.5;
+export const SYSTEM_ORDER_MAX_AGE_CYCLES = 2;
+export const DEMAND_CURVE = Object.freeze([
+  Object.freeze({ weight: 0.50, multiplier: 1.00 }),
+  Object.freeze({ weight: 0.30, multiplier: 0.97 }),
+  Object.freeze({ weight: 0.20, multiplier: 0.93 }),
+]);
+export const DEMAND_CURVE_SHORTAGE_MULTIPLIER = 1.03;
+export const PRODUCT_PRESSURE_SMOOTHING = 0.30;
+export const PRODUCT_PRESSURE_MIN = 0.75;
+export const PRODUCT_PRESSURE_MAX = 1.35;
+export const DERIVED_UNMET_WEIGHT = 0.50;
+export const DERIVED_BACKLOG_WEIGHT = 0.15;
 export const RELATION_LAG_WEIGHTS = Object.freeze([0.60, 0.30, 0.10]);
 export const PRICE_MIN_MULTIPLIER = 0.5;
 export const PRICE_MAX_MULTIPLIER = 3;
