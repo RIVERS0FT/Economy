@@ -82,6 +82,13 @@ jobs:
                   raise SystemExit('page content verifier target not found: ' + old)
               page_source = page_source.replace(old, new)
           page_path.write_text(page_source)
+
+          overlay_path = Path('scripts/verify-overlay-scrollbars.mjs')
+          overlay_source = overlay_path.read_text()
+          target = "    '顶部状态栏不得包含 `ScrollArea`',\n"
+          if target not in overlay_source:
+              raise SystemExit('overlay verifier unrelated status target not found')
+          overlay_path.write_text(overlay_source.replace(target, ''))
           PY
 
       - name: Install dependencies
