@@ -10,6 +10,7 @@ import type {
 } from '../../types';
 import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
 import { FacilityGroupProgress } from './FacilityProgress';
+import { FacilityRecipeProfitAnalysis } from './FacilityRecipeProfitAnalysis';
 
 type MultiRecipeFacilityType = FacilityTypeDefinition & {
   inputs?: FacilityRecipeItem[];
@@ -166,61 +167,75 @@ export function FacilityProductionFormula({
   const outputs = recipeOutputs(type);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
   const scope = currentFormulaScope(group);
+  const nextScope = nextFormulaScope(group);
   const currentDescription = clusterRecipeDescription(type, productNames, scope);
   const nextDescription = showNextCyclePreview
-    ? clusterRecipeDescription(nextType, productNames, nextFormulaScope(group))
+    ? clusterRecipeDescription(nextType, productNames, nextScope)
     : '';
   const description = [currentDescription, progressDescription(group, type, now), nextDescription]
     .filter(Boolean)
     .join('。');
+  const profitScope = showNextCyclePreview ? nextScope : scope;
+  const profitType = showNextCyclePreview ? nextType : type;
+  const profitScopeLabel = profitScope.label.split(' × ')[0];
 
   return (
-    <div className="facility-production-formula" role="group" aria-label={description}>
-      <div className="facility-formula-scope" aria-hidden="true">{scope.label}</div>
-      <div className="facility-formula-visual" aria-hidden="true">
-        <div className="facility-formula-top">
-          <div className="facility-formula-input">
-            {inputs.length > 0 ? (
+    <>
+      <div className="facility-production-formula" role="group" aria-label={description}>
+        <div className="facility-formula-scope" aria-hidden="true">{scope.label}</div>
+        <div className="facility-formula-visual" aria-hidden="true">
+          <div className="facility-formula-top">
+            <div className="facility-formula-input">
+              {inputs.length > 0 ? (
+                <RecipeItems
+                  items={inputs}
+                  productNames={productNames}
+                  inventories={inventories}
+                  multiplier={scope.count}
+                  showInventory
+                  groupClassName="facility-formula-input-group"
+                  itemClassName="facility-formula-input-item"
+                />
+              ) : <span className="facility-formula-empty">无</span>}
+            </div>
+
+            <div className="facility-formula-center">
+              <span className="facility-formula-meta-unit">
+                <CycleIcon className="facility-formula-meta-icon" />
+                <span>{formatDuration(type.cycleMs)}</span>
+              </span>
+              <span className="facility-formula-meta-divider">·</span>
+              <span className="facility-formula-meta-unit">
+                <CreditsIcon className="facility-formula-meta-icon" />
+                <span>{formatCurrency(type.operatingCost * scope.count)}</span>
+              </span>
+            </div>
+
+            <div className="facility-formula-output">
               <RecipeItems
-                items={inputs}
+                items={outputs}
                 productNames={productNames}
                 inventories={inventories}
                 multiplier={scope.count}
-                showInventory
-                groupClassName="facility-formula-input-group"
-                itemClassName="facility-formula-input-item"
+                groupClassName="facility-formula-output-group"
+                itemClassName="facility-formula-output-item"
               />
-            ) : <span className="facility-formula-empty">无</span>}
+            </div>
           </div>
 
-          <div className="facility-formula-center">
-            <span className="facility-formula-meta-unit">
-              <CycleIcon className="facility-formula-meta-icon" />
-              <span>{formatDuration(type.cycleMs)}</span>
-            </span>
-            <span className="facility-formula-meta-divider">·</span>
-            <span className="facility-formula-meta-unit">
-              <CreditsIcon className="facility-formula-meta-icon" />
-              <span>{formatCurrency(type.operatingCost * scope.count)}</span>
-            </span>
+          <div className="facility-formula-progress">
+            <FacilityGroupProgress group={group} type={type} now={now} />
           </div>
-
-          <div className="facility-formula-output">
-            <RecipeItems
-              items={outputs}
-              productNames={productNames}
-              inventories={inventories}
-              multiplier={scope.count}
-              groupClassName="facility-formula-output-group"
-              itemClassName="facility-formula-output-item"
-            />
-          </div>
-        </div>
-
-        <div className="facility-formula-progress">
-          <FacilityGroupProgress group={group} type={type} now={now} />
         </div>
       </div>
-    </div>
+
+      <FacilityRecipeProfitAnalysis
+        type={profitType}
+        scopeCount={profitScope.count}
+        scopeLabel={profitScopeLabel}
+        products={products}
+        inventories={inventories}
+      />
+    </>
   );
 }
