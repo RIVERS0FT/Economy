@@ -1,0 +1,180 @@
+/* Final authority for the mobile factory detail sheet. The shared production
+ * card stylesheet remains authoritative for desktop detail cards; this file is
+ * loaded afterwards and owns the mobile overlay structure, drag feedback,
+ * fixed header/footer, and shared ScrollArea integration. */
+
+.page-scroll-area[data-modal-scrollbar-suppressed='true'] > .ui-scrollbar--vertical {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 720px) {
+  .facility-detail-sheet-backdrop {
+    --facility-sheet-backdrop-progress: 1;
+
+    isolation: isolate;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .facility-detail-sheet-backdrop::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: color-mix(in srgb, var(--color-background) 42%, transparent);
+    backdrop-filter: blur(6px);
+    opacity: var(--facility-sheet-backdrop-progress);
+    pointer-events: none;
+    transition: opacity 200ms ease-out;
+  }
+
+  .facility-detail-sheet {
+    --facility-sheet-drag-offset: 0px;
+
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    transform: translate3d(0, var(--facility-sheet-drag-offset), 0);
+    will-change: transform;
+  }
+
+  .facility-detail-sheet.is-dragging {
+    animation: none;
+    transition: none;
+    user-select: none;
+  }
+
+  .facility-detail-sheet.is-dragging,
+  .facility-detail-sheet.is-dragging * {
+    cursor: grabbing;
+  }
+
+  .facility-detail-sheet.is-settling {
+    animation: none;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .facility-detail-sheet-header,
+  .facility-detail-sheet-footer {
+    position: relative;
+    z-index: 3;
+    min-width: 0;
+    background: var(--color-surface);
+  }
+
+  .facility-detail-sheet-header {
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .facility-detail-sheet-drag-handle {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .facility-detail-sheet-handle {
+    width: 2.75rem;
+    height: 0.25rem;
+    display: block;
+    flex: 0 0 auto;
+    margin: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-border-strong);
+  }
+
+  .facility-detail-sheet .facility-status-header {
+    position: static;
+    top: auto;
+    z-index: auto;
+    margin: 0;
+    border-bottom: 0;
+    padding: 0 var(--space-3) var(--space-2);
+    background: transparent;
+  }
+
+  .facility-detail-sheet .facility-card-title-row,
+  .facility-detail-sheet .facility-detail-header-actions,
+  .facility-detail-sheet .facility-card-status-row,
+  .facility-detail-sheet .facility-count-summary {
+    touch-action: pan-y;
+  }
+
+  .facility-detail-sheet-close {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .facility-detail-sheet-scroll-area {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .facility-detail-sheet-scroll {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto auto;
+    align-content: start;
+    gap: var(--space-3);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: auto;
+    touch-action: pan-y;
+    padding: var(--space-3) calc(var(--space-3) + var(--scrollbar-hit-size)) var(--space-3) var(--space-3);
+    container-type: inline-size;
+  }
+
+  .facility-detail-sheet-scroll-area > .ui-scrollbar--vertical {
+    top: var(--scrollbar-edge-offset);
+    right: var(--scrollbar-edge-offset);
+    bottom: var(--scrollbar-edge-offset);
+  }
+
+  .facility-detail-sheet-footer {
+    border-top: 1px solid var(--color-divider);
+    padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
+  }
+
+  .facility-detail-sheet .facility-detail-sheet-footer .facility-market-link-row {
+    position: static;
+    bottom: auto;
+    z-index: auto;
+    margin: 0;
+    border-top: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .facility-detail-sheet .facility-detail-sheet-footer .facility-market-link {
+    width: 100%;
+    min-height: 48px;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--color-success) 38%, var(--color-border));
+    border-radius: var(--radius-control);
+    padding-inline: var(--space-3);
+    background: var(--color-success-soft);
+    text-align: center;
+  }
+
+  .facility-detail-sheet .facility-detail-sheet-footer .facility-market-link:hover {
+    border-color: color-mix(in srgb, var(--color-success) 62%, var(--color-border));
+    background: color-mix(in srgb, var(--color-success-soft) 82%, var(--color-surface-hover));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .facility-detail-sheet-backdrop::before,
+  .facility-detail-sheet.is-settling {
+    transition: none;
+  }
+}
