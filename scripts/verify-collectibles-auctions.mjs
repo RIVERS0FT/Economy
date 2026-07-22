@@ -7,6 +7,22 @@ const failures = [];
 const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
 const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
+const requireOrder = (path, texts) => {
+  const source = read(path);
+  let cursor = -1;
+  for (const text of texts) {
+    const next = source.indexOf(text, cursor + 1);
+    if (next === -1) {
+      failures.push(`${path} 缺少顺序节点: ${text}`);
+      return;
+    }
+    if (next < cursor) {
+      failures.push(`${path} 顺序错误: ${texts.join(' → ')}`);
+      return;
+    }
+    cursor = next;
+  }
+};
 
 [
   'server/src/collectibles.js',
@@ -25,6 +41,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/icons/GameIcons.tsx',
   'src/components/icons/ProductIcons.tsx',
   'src/styles/collectibles-auctions.css',
+  'src/styles/auction-card-layers.css',
   'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
@@ -86,6 +103,14 @@ for (const text of [
   'gameActions.placeAuctionBid',
   'gameActions.cancelAuction',
   'className="asset-auction-card-heading"',
+  'function AuctionAssetSummary({ auction }',
+  'className="asset-auction-icon-layer"',
+  'className="asset-auction-summary-icon"',
+  'className="asset-auction-summary-quantity"',
+  'className="asset-auction-summary-more"',
+  'asset-auction-data-layer',
+  "if (items.length === 1) return items[0].name;",
+  "import '../styles/auction-card-layers.css';",
   'className="asset-auction-tile-quantity"',
   'className="asset-auction-more-count"',
   'asset-auction-primary-metrics',
@@ -107,6 +132,12 @@ for (const text of [
   'clearBundleBuilder',
   "import { IntegerInput, SelectInput } from '../components/ui/FormControls'",
 ]) requireText('src/pages/AuctionPage.tsx', text);
+requireOrder('src/pages/AuctionPage.tsx', [
+  '<AuctionAssetVisual auction={auction} />',
+  'className="asset-auction-card-heading"',
+  '<AuctionAssetSummary auction={auction} />',
+  'asset-auction-data-layer',
+]);
 for (const text of [
   'const [quantity, setQuantity] = useState(1)',
   'setQuantity(Number(event.target.value))',
@@ -117,6 +148,7 @@ for (const text of [
   '<dt>资产项目</dt>',
   '<dt>出价次数</dt>',
   '<dt>卖家</dt>',
+  'return `${items[0].name} × ${formatNumber(items[0].quantity)}`',
 ]) forbidText('src/pages/AuctionPage.tsx', text);
 
 for (const text of [
@@ -137,6 +169,19 @@ for (const text of [
 ]) forbidText('src/styles/collectibles-auctions.css', text);
 
 for (const text of [
+  '.asset-auction-icon-layer',
+  '.asset-auction-summary-icon',
+  'position: relative;',
+  '.asset-auction-summary-quantity',
+  'right: 3px;',
+  'bottom: 3px;',
+  '.asset-auction-summary-more',
+  'background: var(--color-success-strong);',
+  '.asset-auction-data-layer',
+  'border-top: 1px solid var(--color-border-subtle);',
+]) requireText('src/styles/auction-card-layers.css', text);
+
+for (const text of [
   '捆绑拍卖在任一项目无效时不冻结任何资产',
   '混合资产包整体冻结、预占仓库并原子成交',
   '冻结资产继续计入总资产并提供可用与冻结明细',
@@ -154,10 +199,15 @@ for (const [path, texts] of [
     '资产包添加数量和资产包行数量必须把输入中的原始字符串作为编辑草稿',
     '不得在 `onChange` 阶段立即把空字符串强制回填为 `1`',
     '把资产包数量输入恢复为每次按键立即数字化并把空值强制回填为 `1`',
-    '资产标题与权威倒计时必须保持同一行',
-    '绿色 `+N` 徽标',
+    '必须保留标题上方的顶部大型资产主视觉',
+    '标题下方额外分为图标层和数据层',
+    '实际数量以 `×N` 徽标叠加在图标右下角',
+    '数据层只能展示“当前总价”和“最高出价者”',
+    '单项拍卖标题只显示资产名称',
+    '移除进行中拍卖卡顶部大型主视觉',
+    '把数量移出图标右下角',
+    '绿色 `+N` 方格',
     '不得重复展示“不可拆分资产包 · 整包竞价”说明',
-    '主要指标只保留“当前总价”和“最高出价者”',
   ]],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['捆绑拍卖', '托管记录不得作为第二份资产余额']],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包中全部商品数量之和', '捆绑拍卖']],
@@ -176,4 +226,4 @@ if (failures.length) {
   console.error(`资产包拍卖验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('单项与捆绑资产包拍卖、可编辑数量草稿、冻结资产计价、仓库预占、原子结算、紧凑卡片展示、页面结构和权威文档验证通过。');
+console.log('单项与捆绑资产包拍卖、可编辑数量草稿、冻结资产计价、仓库预占、原子结算、顶部主视觉、图标层、数据层、页面结构和权威文档验证通过。');
