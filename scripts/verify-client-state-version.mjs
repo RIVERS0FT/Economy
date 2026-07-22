@@ -3,7 +3,7 @@ import {
   CURRENT_CLIENT_STATE_VERSION,
   isCompatibleClientStateVersion,
   MIN_COMPATIBLE_CLIENT_STATE_VERSION,
-} from '../shared/economy-state-version.js';
+} from '../server/shared/economy-state-version.js';
 import { mergeStatePatches } from '../src/app/stateDelivery.js';
 
 const failures = [];
@@ -51,19 +51,15 @@ requireCurrentVersion(
   '客户端状态版本',
 );
 
-const storage = read('server/src/storage.js');
-const serializerStart = storage.indexOf('function createVersionedClientState');
-const serializerEnd = storage.indexOf('\n}\n\nexport class EconomyStore', serializerStart);
-if (serializerStart < 0 || serializerEnd < 0) {
-  fail('server/src/storage.js 缺少 createVersionedClientState 序列化入口');
-} else {
-  const serializer = storage.slice(serializerStart, serializerEnd);
-  const match = serializer.match(/\bversion:\s*(\d+),/);
-  if (!match) fail('server/src/storage.js 缺少客户端状态版本字段');
-  else if (Number(match[1]) !== CURRENT_CLIENT_STATE_VERSION) {
-    fail(`server/src/storage.js 返回版本 ${match[1]}，应为 ${CURRENT_CLIENT_STATE_VERSION}`);
-  }
-}
+requireText('server/shared/economy-state-version.js', [
+  `export const CURRENT_CLIENT_STATE_VERSION = ${CURRENT_CLIENT_STATE_VERSION};`,
+  `export const MIN_COMPATIBLE_CLIENT_STATE_VERSION = ${MIN_COMPATIBLE_CLIENT_STATE_VERSION};`,
+  'isCompatibleClientStateVersion',
+]);
+requireText('server/src/storage.js', [
+  "from '../shared/economy-state-version.js'",
+  'version: CURRENT_CLIENT_STATE_VERSION',
+]);
 
 const types = read('src/types.ts');
 const stateTypeStart = types.indexOf('export interface EconomyState');
@@ -79,18 +75,18 @@ if (stateTypeStart < 0 || stateTypeEnd < 0) {
 }
 
 requireText('src/app/stateDelivery.js', [
-  "from '../../shared/economy-state-version.js'",
+  "from '../../server/shared/economy-state-version.js'",
   'isCompatibleClientStateVersion(state.version)',
   '客户端状态版本不兼容',
   'missingPartitions',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
-  '`shared/economy-state-version.js`',
+  '`server/shared/economy-state-version.js`',
   '上一客户端状态版本',
   '`scripts/verify-client-state-version.mjs`',
 ]);
 requireText('docs/README.md', [
-  '`shared/economy-state-version.js`',
+  '`server/shared/economy-state-version.js`',
   '`scripts/verify-client-state-version.mjs`',
 ]);
 
