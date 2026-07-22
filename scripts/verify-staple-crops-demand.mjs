@@ -144,6 +144,9 @@ for (const [path, texts] of [
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：8', '三类人口账户', '真实冻结资金', '稳定需求补充', '三周期目标钱包']],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：8', '`populationModelId`', '`fundingPool`', '真实人口冻结资金']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '市场需求模型 8', '人口消费不得发行普通货币']],
+  ['src/api/admin.ts', ['stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
+  ['src/app/AdminApp.tsx', ['累计稳定需求补充', '稳定预算／本次补充']],
+  ['tests/browser/admin-runtime.spec.ts', ['stabilization: 684', '累计稳定需求补充', '稳定预算／本次补充']],
 ]) {
   const content = read(path);
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);

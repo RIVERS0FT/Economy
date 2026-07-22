@@ -407,6 +407,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                           <MetricCard label="累计人口消费" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.totalConsumption)}</CurrencyAmount>} />
                           <MetricCard label="本周期消费预算" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.lastBudget)}</CurrencyAmount>} />
                           <MetricCard label="累计货币发行" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.total)}</CurrencyAmount>} />
+                          <MetricCard label="累计稳定需求补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.stabilization)}</CurrencyAmount>} />
                         </section>
 
                         <div className="admin-population-model-grid">
@@ -417,6 +418,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                                 <div><dt>可用／冻结</dt><dd><CurrencyAmount>{formatCurrency(model.credits)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.frozenCredits)}</CurrencyAmount></dd></div>
                                 <div><dt>最近收入／EMA</dt><dd><CurrencyAmount>{formatCurrency(model.lastIncome)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.incomeEma)}</CurrencyAmount></dd></div>
                                 <div><dt>当前预算</dt><dd><CurrencyAmount>{formatCurrency(model.lastBudget)}</CurrencyAmount></dd></div>
+                                <div><dt>稳定预算／本次补充</dt><dd><CurrencyAmount>{formatCurrency(model.stabilizationBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.lastStabilizationIssued)}</CurrencyAmount></dd></div>
                                 <div><dt>食品／家庭</dt><dd><CurrencyAmount>{formatCurrency(model.foodBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.householdBudget)}</CurrencyAmount></dd></div>
                                 <div><dt>连续无收入周期</dt><dd>{model.noIncomeCycles}</dd></div>
                                 <div><dt>待结算</dt><dd><CurrencyAmount>{formatCurrency(Object.values(model.pendingIncome).reduce((sum, value) => sum + value, 0))}</CurrencyAmount></dd></div>

@@ -24,6 +24,8 @@ export interface PopulationModelAdminSummary {
   lastBudget: number;
   foodBudget: number;
   householdBudget: number;
+  stabilizationBudget: number;
+  lastStabilizationIssued: number;
   totalIncome: number;
   totalSpent: number;
 }
@@ -42,7 +44,7 @@ export interface PopulationEconomyAdminSummary {
   models: Record<PopulationModelId, PopulationModelAdminSummary>;
   sources: Record<'production' | 'construction' | 'warehouse' | 'marketService', number>;
   productionByComplexity: Record<'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7', number>;
-  issuance: { work: number; exchange: number; gift: number; legacyPopulation: number; migration: number; total: number };
+  issuance: { work: number; exchange: number; gift: number; legacyPopulation: number; migration: number; stabilization: number; total: number };
 }
 
 export type ExtendedAdminSummary = AdminSummary & {
