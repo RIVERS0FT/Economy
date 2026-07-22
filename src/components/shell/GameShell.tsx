@@ -2,9 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
 import { CurrencyText } from '../ui/CurrencyAmount';
-import { ScrollArea } from '../ui/ScrollArea';
 import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
+import { SignedInShell } from './SignedInShell';
 import { StatusBar, type StatusBarItem } from './StatusBar';
 
 export function GameShell({ model, statusItems, children }: {
@@ -24,29 +24,23 @@ export function GameShell({ model, statusItems, children }: {
   }, []);
 
   return (
-    <main className={sidebarCollapsed ? 'game-shell sidebar-layout sidebar-collapsed' : 'game-shell sidebar-layout'}>
-      <DesktopSidebar
-        playerName={model.game.playerName}
-        activeTab={model.tab}
-        openOrderCount={model.derived.ownOpenOrders.length}
-        collapsed={sidebarCollapsed}
-        qqGroupUrl={qqGroupUrl}
-        onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-        onSelect={model.setTab}
-        onSignOut={() => void model.signOut()}
-      />
-      <section className="workspace">
-        <div className="mobile-page-overlay">
-          <ScrollArea
-            axis="y"
-            className="page-scroll-area"
-            viewportClassName="page-scroll"
-            scrollbarVisibility="adaptive"
-          >
-            {children}
-          </ScrollArea>
-        </div>
-        <div className="mobile-chrome-overlay">
+    <SignedInShell
+      rootClassName="game-shell"
+      sidebarCollapsed={sidebarCollapsed}
+      sidebar={(
+        <DesktopSidebar
+          playerName={model.game.playerName}
+          activeTab={model.tab}
+          openOrderCount={model.derived.ownOpenOrders.length}
+          collapsed={sidebarCollapsed}
+          qqGroupUrl={qqGroupUrl}
+          onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+          onSelect={model.setTab}
+          onSignOut={() => void model.signOut()}
+        />
+      )}
+      chrome={(
+        <>
           <StatusBar items={statusItems} />
           {model.notice ? (
             <div className="mobile-notice-region">
@@ -60,8 +54,10 @@ export function GameShell({ model, statusItems, children }: {
             openOrderCount={model.derived.ownOpenOrders.length}
             onSelect={model.setTab}
           />
-        </div>
-      </section>
-    </main>
+        </>
+      )}
+    >
+      {children}
+    </SignedInShell>
   );
 }
