@@ -2,6 +2,7 @@ import {
   calculatePopulationStabilizationBudgets,
   defaultPopulationPolicy,
   ensurePopulationPolicyState,
+  POPULATION_POLICY_CYCLE_MS,
   POPULATION_POLICY_DEFAULTS,
   POPULATION_POLICY_LIMITS,
   populationPolicyRefillCap,
@@ -195,7 +196,7 @@ function bindPlayers(world) {
   for (const player of Object.values(world.players || {})) boundWorldByPlayer.set(player, world);
 }
 
-export function ensurePopulationEconomy(world, now = Date.now()) {
+export function ensurePopulationEconomy(world, now = undefined) {
   const previous = world.populationEconomy && typeof world.populationEconomy === 'object'
     ? world.populationEconomy
     : null;
@@ -218,7 +219,10 @@ export function ensurePopulationEconomy(world, now = Date.now()) {
   state.demandCycle = state.demandCycle && typeof state.demandCycle === 'object'
     ? state.demandCycle
     : { cycleId: -1, groups: {} };
-  ensurePopulationPolicyState(state, now);
+  const policyNow = now === undefined || now === null
+    ? Math.max(0, Number(state.policyCycle?.cycleId || 0)) * POPULATION_POLICY_CYCLE_MS
+    : Number(now);
+  ensurePopulationPolicyState(state, policyNow);
 
   if (needsBootstrap) {
     const seed = bootstrapAmount(world);

@@ -274,7 +274,7 @@ function allocateByWeights(total, weights) {
 }
 
 export function calculatePopulationStabilizationBudgets(totalBaseBudget, policyValue) {
-  const policy = normalizePopulationPolicy(policyValue);
+  const policy = normalizePopulationPolicy(policyValue, 0);
   const baseTotal = Math.max(0, Math.floor(Number(totalBaseBudget || 0) * policy.stabilizationShareBps / 10_000));
   const baseByModel = allocateByWeights(baseTotal, DEFAULT_MODEL_SHARES_BPS);
   const adjustedByModel = Object.fromEntries(MODEL_IDS.map((id) => [
