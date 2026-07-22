@@ -1,4 +1,4 @@
-import { createPopulationEconomySummary } from './population-economy.js';
+import { createPopulationAdminSummary } from './population-admin-control.js';
 
 export function getStableAdminSummary(store, user, now = Date.now()) {
   store.requireAdmin(user);
@@ -20,7 +20,7 @@ export function getStableAdminSummary(store, user, now = Date.now()) {
       revision: nextRevision,
       lastProcessedAt: Number(world.lastProcessedAt || now),
       apiStatus: 'ok',
-      populationEconomy: createPopulationEconomySummary(world),
+      populationEconomy: createPopulationAdminSummary(world, now),
     };
   });
 }

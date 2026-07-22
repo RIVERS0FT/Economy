@@ -153,3 +153,31 @@ for (const [path, texts] of [
 }
 
 console.log('市场需求验证通过：模型 8 使用三类人口真实钱包、受控稳定需求补充、85/15 基础需求、70/30 就业需求、证据置信度压力和最低储备买盘。');
+
+
+const populationPolicy = readFileSync('server/src/population-policy.js', 'utf8');
+const populationControl = readFileSync('server/src/population-admin-control.js', 'utf8');
+const adminPopulationUi = readFileSync('src/components/AdminPopulationControl.tsx', 'utf8');
+for (const required of [
+  'POPULATION_POLICY_DEFAULTS',
+  'stabilizationShareBps: 1_200',
+  'targetWalletCycles: 3',
+  'refillCapBps: 10_000',
+  'durationCycles: Object.freeze({ min: 1, max: 288 })',
+]) {
+  if (!populationPolicy.includes(required)) throw new Error(`人口政策默认值或上限缺失: ${required}`);
+}
+for (const required of [
+  'topUpPopulationByPolicy',
+  'policyCycle.issuedByModel',
+  'state.stats.adminPopulationIssued',
+]) {
+  if (!populationControl.includes(required)) throw new Error(`人口主动调控约束缺失: ${required}`);
+}
+for (const required of [
+  '人口政策调控',
+  '按当前政策立即补充',
+  '人口调控记录',
+]) {
+  if (!adminPopulationUi.includes(required)) throw new Error(`管理员人口调控界面缺失: ${required}`);
+}
