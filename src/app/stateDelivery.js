@@ -49,7 +49,10 @@ export function mergeStatePatches(currentPartitions, patches) {
   }
 
   const state = {};
-  for (const name of STATE_PARTITION_NAMES) Object.assign(state, partitions[name]);
+  for (const name of STATE_PARTITION_NAMES) {
+    const partition = partitions[name];
+    Object.assign(state, partition);
+  }
 
   if (!isCompatibleClientStateVersion(state.version)) {
     throw new Error(
