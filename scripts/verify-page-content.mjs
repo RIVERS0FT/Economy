@@ -26,6 +26,8 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/components/shell/SidebarFrame.tsx',
   'src/components/shell/AdminSidebar.tsx',
   'src/components/shell/GameShell.tsx',
+  'src/components/shell/SignedInShell.tsx',
+  'src/components/shell/AdminDesktopBar.tsx',
   'src/components/ui/VirtualList.tsx',
   'src/components/ui/VirtualRecordTable.tsx',
   'src/hooks/useVirtualWindow.ts',
@@ -211,6 +213,8 @@ for (const text of [
   "activeSection === 'bans'",
   '<AdminBanPanel',
   '<AdminSidebar',
+  '<SignedInShell',
+  '<AdminDesktopBar',
 ]) requireText('src/app/AdminApp.tsx', text);
 for (const text of [
   'sidebar-community-link',
@@ -231,6 +235,17 @@ for (const text of [
   '管理员导航',
   'admin-mobile-navigation',
 ]) requireText('src/components/shell/AdminSidebar.tsx', text);
+for (const text of [
+  "import { ScrollArea } from '../ui/ScrollArea'",
+  "'signed-in-shell'",
+  'className="mobile-page-overlay"',
+  "'mobile-chrome-overlay'",
+]) requireText('src/components/shell/SignedInShell.tsx', text);
+for (const text of [
+  'className="asset-bar admin-command-bar"',
+  'variant="desktopStatusBar"',
+  '刷新当前分区',
+]) requireText('src/components/shell/AdminDesktopBar.tsx', text);
 for (const text of ['<span aria-hidden="true">QQ</span>', '>退出登录</Button>']) {
   forbidText('src/components/shell/DesktopSidebar.tsx', text);
 }
@@ -251,13 +266,28 @@ for (const text of ['getCommunityLink(controller.signal)', 'DEFAULT_QQ_GROUP_URL
 }
 for (const text of ['collectibles.map(', 'giftCodes.map(', 'ownership.map(', 'redemptions.map(']) forbidText('src/app/AdminApp.tsx', text);
 for (const text of ['MetricCard', 'PageLayout', 'Panel', 'StatusTag', 'Button']) requireText('src/app/AdminApp.tsx', text);
-for (const text of ['grid-template-columns: repeat(4, minmax(0, 1fr));', 'max-width: 1440px;', '.admin-mobile-navigation']) {
+for (const text of ['grid-template-columns: repeat(4, minmax(0, 1fr));', 'max-width: none;']) {
   requireText('src/styles/unified-market-admin.css', text);
 }
-if (existsSync(resolve(root, 'src/app/AdminBanApp.tsx'))) failures.push('独立 AdminBanApp 不得恢复');
-for (const text of ['admin backend uses unified sections and embeds ban review', 'admin navigation becomes a horizontal client-style bar on mobile']) {
-  requireText('tests/browser/admin-runtime.spec.ts', text);
+for (const text of [
+  '.signed-in-shell.sidebar-layout {',
+  '--desktop-layout-gutter: var(--space-3);',
+  '.signed-in-shell .page-scroll-area > .ui-scrollbar--vertical {',
+]) requireText('src/styles/game-shell-layout.css', text);
+for (const text of [
+  '.admin-command-bar-content {',
+  '.admin-page-frame .page-heading {',
+  'display: none;',
+  '.admin-mobile-chrome-layer .admin-mobile-bottom-navigation',
+]) requireText('src/styles/admin-navigation.css', text);
+for (const text of ['max-width: 1440px;', 'max-width: 1600px;', '.admin-mobile-navigation {']) {
+  forbidText('src/styles/unified-market-admin.css', text);
 }
+if (existsSync(resolve(root, 'src/app/AdminBanApp.tsx'))) failures.push('独立 AdminBanApp 不得恢复');
+for (const text of [
+  'admin desktop shares the game shell gutter, command bar and edge scrollbar',
+  'admin navigation uses the shared mobile overlay and stays above page cards',
+]) requireText('tests/browser/admin-runtime.spec.ts', text);
 
 for (const text of ['ResizeObserver', 'measuredSizesRef', 'overscan', 'requestAnimationFrame', 'findVisibleRange']) {
   requireText('src/hooks/useVirtualWindow.ts', text);
@@ -420,4 +450,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、九页导航、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、藏品拍卖、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、九页导航、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、藏品拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
