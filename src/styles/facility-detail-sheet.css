@@ -78,7 +78,7 @@
   }
 
   .facility-detail-sheet-drag-handle {
-    min-height: 44px;
+    min-height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -102,7 +102,7 @@
     z-index: auto;
     margin: 0;
     border-bottom: 0;
-    padding: 0 var(--space-3) var(--space-2);
+    padding: 0 var(--space-3) var(--space-1);
     background: transparent;
   }
 
@@ -132,13 +132,13 @@
     display: grid;
     grid-template-rows: auto auto;
     align-content: start;
-    gap: var(--space-3);
+    gap: var(--space-2);
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior-x: none;
     overscroll-behavior-y: auto;
     touch-action: pan-y;
-    padding: var(--space-3) calc(var(--space-3) + var(--scrollbar-hit-size)) var(--space-3) var(--space-3);
+    padding: var(--space-2) calc(var(--space-3) + var(--scrollbar-hit-size)) var(--space-2) var(--space-3);
     container-type: inline-size;
   }
 
@@ -184,5 +184,26 @@
   .facility-detail-sheet-backdrop::before,
   .facility-detail-sheet.is-settling {
     transition: none;
+  }
+}
+
+
+@media (max-width: 720px) {
+  .facility-detail-sheet .facility-status-header {
+    gap: 0.35rem var(--space-2);
+  }
+
+  .facility-detail-sheet .facility-cluster-selector-heading {
+    gap: 0.35rem var(--space-1);
+  }
+
+  .facility-detail-sheet .facility-count-summary {
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    line-height: var(--line-height-tight);
+  }
+
+  .facility-detail-sheet .facility-count-summary strong {
+    font-size: var(--font-size-xs);
   }
 }
