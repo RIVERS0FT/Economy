@@ -25,6 +25,9 @@ jobs:
           node-version: '24.4.0'
           cache: npm
 
+      - name: Patch migration verifier
+        run: python3 scripts/patch-market-card-migration.py
+
       - name: Apply market card artwork changes
         run: python3 scripts/apply-market-card-artwork-sizing.py
 
@@ -37,7 +40,13 @@ jobs:
       - name: Remove branch migration helpers
         run: |
           rm scripts/apply-market-card-artwork-sizing.py
+          rm scripts/patch-market-card-migration.py
           rm .github/workflows/apply-market-card-artwork-sizing.yml
+          rm -f scripts/market-card-build.log
+          rm -f scripts/market-card-build-trigger.txt
+          rm -f scripts/market-card-error.txt
+          rm -f scripts/market-card-debug-trigger.txt
+          rm -f scripts/market-card-artwork-trigger.txt
 
       - name: Commit validated changes
         run: |
