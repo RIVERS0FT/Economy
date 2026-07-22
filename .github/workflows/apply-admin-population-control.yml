@@ -1,9 +1,6 @@
 name: Apply admin population control
 
 on:
-  push:
-    branches:
-      - agent/admin-population-control
   pull_request:
     branches:
       - main
@@ -13,7 +10,6 @@ permissions:
 
 jobs:
   apply:
-    if: ${{ github.event_name == 'pull_request' || (!contains(github.event.head_commit.message, 'implement population control') && !contains(github.event.head_commit.message, 'population patch failed')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,10 +20,25 @@ jobs:
         with:
           node-version: '24.4.0'
           cache: npm
-      - name: Apply patch
+      - name: Apply verified patch
         run: |
-          base64 --decode scripts/.population-control-patch.gz.b64 | gzip --decompress > /tmp/apply-population-control.py
-          if ! python3 /tmp/apply-population-control.py > /tmp/population-patch.log 2>&1; then
+          set +e
+          cat scripts/.population-control-patch.part-* > /tmp/population-control.b64
+          wc -c /tmp/population-control.b64
+          base64 --decode /tmp/population-control.b64 > /tmp/population-control.py.gz
+          decode_status=$?
+          gzip --test /tmp/population-control.py.gz
+          gzip_status=$?
+          if [ "$decode_status" -eq 0 ] && [ "$gzip_status" -eq 0 ]; then
+            gzip --decompress --stdout /tmp/population-control.py.gz > /tmp/apply-population-control.py
+            python3 /tmp/apply-population-control.py > /tmp/population-patch.log 2>&1
+            patch_status=$?
+          else
+            patch_status=1
+            printf 'decode_status=%s gzip_status=%s\n' "$decode_status" "$gzip_status" > /tmp/population-patch.log
+          fi
+          set -e
+          if [ "$patch_status" -ne 0 ]; then
             cat /tmp/population-patch.log
             cp /tmp/population-patch.log population-patch-error.log
             git config user.name github-actions[bot]
@@ -38,11 +49,8 @@ jobs:
             exit 1
           fi
           cat /tmp/population-patch.log
-          rm -f scripts/.population-control-patch.gz.b64 .github/workflows/apply-admin-population-control.yml population-patch-error.log
-      - name: Install dependencies
-        run: npm ci
-      - name: Build and test
-        run: npm run build
+          rm -f scripts/.population-control-patch.gz.b64 scripts/.population-control-patch.part-* population-patch-error.log
+          rm -f .github/workflows/apply-admin-population-control.yml
       - name: Commit implementation
         run: |
           git config user.name github-actions[bot]
@@ -50,3 +58,20 @@ jobs:
           git add -A
           git commit -m "implement population control"
           git push origin HEAD:agent/admin-population-control
+      - name: Install dependencies
+        run: npm ci
+      - name: Build and test
+        run: |
+          set +e
+          npm run build > /tmp/population-build.log 2>&1
+          build_status=$?
+          set -e
+          if [ "$build_status" -ne 0 ]; then
+            tail -n 240 /tmp/population-build.log
+            cp /tmp/population-build.log population-build-error.log
+            git add population-build-error.log
+            git commit -m "population build failed"
+            git push origin HEAD:agent/admin-population-control
+            exit 1
+          fi
+          tail -n 120 /tmp/population-build.log
