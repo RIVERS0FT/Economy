@@ -27,6 +27,12 @@ import {
 import { ensureGemState } from './invitations.js';
 import { createGemShopSummary, exchangeGems } from './gem-shop.js';
 import { DEFAULT_QQ_GROUP_URL, normalizeQqGroupUrl } from './community-link.js';
+import {
+  applyPopulationPolicy,
+  createPopulationAdminSummary,
+  resetPopulationPolicy,
+  topUpPopulationByPolicy,
+} from './population-admin-control.js';
 import { createLeaderboardSnapshot, processLeaderboardWorld } from './leaderboards.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
@@ -156,6 +162,23 @@ export class EconomyStore {
       ) STRICT;
       CREATE INDEX IF NOT EXISTS idx_economy_gem_shop_exchanges_user
         ON economy_gem_shop_exchanges(user_id, created_at DESC);
+      CREATE TABLE IF NOT EXISTS economy_population_policy_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        admin_user_id INTEGER NOT NULL,
+        action_type TEXT NOT NULL,
+        target_model TEXT NOT NULL,
+        before_policy_json TEXT NOT NULL,
+        after_policy_json TEXT NOT NULL,
+        issued_credits INTEGER NOT NULL DEFAULT 0 CHECK (issued_credits >= 0),
+        issued_by_model_json TEXT NOT NULL,
+        revision_before INTEGER NOT NULL,
+        revision_after INTEGER NOT NULL,
+        request_key TEXT NOT NULL UNIQUE,
+        note TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS idx_economy_population_policy_audit_created
+        ON economy_population_policy_audit(id DESC);
       CREATE TABLE IF NOT EXISTS economy_settings (
         setting_key TEXT PRIMARY KEY,
         setting_value TEXT NOT NULL,
@@ -229,6 +252,13 @@ export class EconomyStore {
       SELECT gems_spent, credits_received, created_at
       FROM economy_gem_shop_exchanges
       WHERE user_id = ? ORDER BY created_at DESC LIMIT 20
+    `);
+    this.insertPopulationPolicyAudit = this.database.prepare(`
+      INSERT INTO economy_population_policy_audit (
+        admin_user_id, action_type, target_model, before_policy_json, after_policy_json,
+        issued_credits, issued_by_model_json, revision_before, revision_after,
+        request_key, note, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     this.selectSetting = this.database.prepare(
       'SELECT setting_value, updated_at FROM economy_settings WHERE setting_key = ?',
@@ -518,6 +548,134 @@ export class EconomyStore {
       error.statusCode = 403;
       throw error;
     }
+  }
+
+  updatePopulationPolicy(user, payload, requestMeta, now = Date.now()) {
+    return this.adminMutation(user, requestMeta, () => {
+      const { revision, stateJson, world } = this.loadWorld(now);
+      this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      const result = applyPopulationPolicy(world, payload, { adminUserId: Number(user.id), now });
+      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
+      this.insertPopulationPolicyAudit.run(
+        Number(user.id),
+        'update_policy',
+        'all',
+        JSON.stringify(result.beforePolicy),
+        JSON.stringify(result.afterPolicy),
+        0,
+        JSON.stringify({ basic: 0, skilled: 0, professional: 0 }),
+        revision,
+        nextRevision,
+        requestMeta.requestKey,
+        result.afterPolicy.note,
+        now,
+      );
+      return {
+        policy: result.afterPolicy,
+        populationEconomy: createPopulationAdminSummary(world, now),
+        revision: nextRevision,
+      };
+    }, now);
+  }
+
+  resetPopulationPolicy(user, payload, requestMeta, now = Date.now()) {
+    return this.adminMutation(user, requestMeta, () => {
+      const { revision, stateJson, world } = this.loadWorld(now);
+      this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      const result = resetPopulationPolicy(world, payload, { adminUserId: Number(user.id), now });
+      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
+      this.insertPopulationPolicyAudit.run(
+        Number(user.id),
+        'reset_policy',
+        'all',
+        JSON.stringify(result.beforePolicy),
+        JSON.stringify(result.afterPolicy),
+        0,
+        JSON.stringify({ basic: 0, skilled: 0, professional: 0 }),
+        revision,
+        nextRevision,
+        requestMeta.requestKey,
+        result.afterPolicy.note,
+        now,
+      );
+      return {
+        policy: result.afterPolicy,
+        populationEconomy: createPopulationAdminSummary(world, now),
+        revision: nextRevision,
+      };
+    }, now);
+  }
+
+  topUpPopulation(user, payload, requestMeta, now = Date.now()) {
+    return this.adminMutation(user, requestMeta, () => {
+      const { revision, stateJson, world } = this.loadWorld(now);
+      this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      const beforePolicy = createPopulationAdminSummary(world, now).policy;
+      const result = topUpPopulationByPolicy(world, payload, { now });
+      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
+      this.insertPopulationPolicyAudit.run(
+        Number(user.id),
+        'top_up',
+        result.targetModel,
+        JSON.stringify(beforePolicy),
+        JSON.stringify(result.policy),
+        result.issuedTotal,
+        JSON.stringify(result.issuedByModel),
+        revision,
+        nextRevision,
+        requestMeta.requestKey,
+        result.note,
+        now,
+      );
+      return {
+        ...result,
+        populationEconomy: createPopulationAdminSummary(world, now),
+        revision: nextRevision,
+      };
+    }, now);
+  }
+
+  listPopulationPolicyAudit(user, { cursor, limit } = {}) {
+    this.requireAdmin(user);
+    const normalizedLimit = Math.min(100, Math.max(1, Number.parseInt(String(limit || '50'), 10) || 50));
+    const cursorId = cursor === null || cursor === undefined || cursor === ''
+      ? null
+      : Number.parseInt(String(cursor), 10);
+    if (cursorId !== null && (!Number.isSafeInteger(cursorId) || cursorId <= 0)) {
+      const error = new Error('人口调控记录游标无效');
+      error.statusCode = 400;
+      throw error;
+    }
+    const rows = cursorId === null
+      ? this.database.prepare(`
+        SELECT * FROM economy_population_policy_audit ORDER BY id DESC LIMIT ?
+      `).all(normalizedLimit + 1)
+      : this.database.prepare(`
+        SELECT * FROM economy_population_policy_audit WHERE id < ? ORDER BY id DESC LIMIT ?
+      `).all(cursorId, normalizedLimit + 1);
+    const hasMore = rows.length > normalizedLimit;
+    const selected = rows.slice(0, normalizedLimit);
+    const total = Number(this.database.prepare(
+      'SELECT COUNT(*) AS count FROM economy_population_policy_audit',
+    ).get().count || 0);
+    return {
+      items: selected.map((row) => ({
+        id: Number(row.id),
+        adminUserId: Number(row.admin_user_id),
+        actionType: String(row.action_type),
+        targetModel: String(row.target_model),
+        beforePolicy: JSON.parse(String(row.before_policy_json)),
+        afterPolicy: JSON.parse(String(row.after_policy_json)),
+        issuedCredits: Number(row.issued_credits),
+        issuedByModel: JSON.parse(String(row.issued_by_model_json)),
+        revisionBefore: Number(row.revision_before),
+        revisionAfter: Number(row.revision_after),
+        note: String(row.note),
+        createdAt: Number(row.created_at),
+      })),
+      total,
+      nextCursor: hasMore ? String(selected[selected.length - 1].id) : null,
+    };
   }
 
   getCommunityLink() {

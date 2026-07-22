@@ -192,6 +192,40 @@ const server = createServer(async (request, response) => {
         sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
         return;
       }
+      if (method === 'GET' && path === '/api/game/admin/population-economy') {
+        sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
+        return;
+      }
+      if (method === 'PUT' && path === '/api/game/admin/population-economy/policy') {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, store.updatePopulationPolicy(user, body, { requestKey, method, path }));
+        return;
+      }
+      if (method === 'POST' && path === '/api/game/admin/population-economy/policy/reset') {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, store.resetPopulationPolicy(user, body, { requestKey, method, path }));
+        return;
+      }
+      if (method === 'POST' && path === '/api/game/admin/population-economy/top-up') {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, store.topUpPopulation(user, body, { requestKey, method, path }));
+        return;
+      }
+      if (method === 'GET' && path === '/api/game/admin/population-economy/audit') {
+        const page = store.listPopulationPolicyAudit(user, {
+          cursor: url.searchParams.get('cursor'),
+          limit: url.searchParams.get('limit'),
+        });
+        sendJson(response, 200, {
+          records: page.items,
+          total: page.total,
+          nextCursor: page.nextCursor,
+        });
+        return;
+      }
       if (method === 'GET' && path === '/api/game/admin/community-link') {
         sendJson(response, 200, { communityLink: store.getCommunityLink() });
         return;

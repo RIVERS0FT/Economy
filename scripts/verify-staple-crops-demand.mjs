@@ -145,11 +145,39 @@ for (const [path, texts] of [
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：8', '`populationModelId`', '`fundingPool`', '真实人口冻结资金']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '市场需求模型 8', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ['stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
-  ['src/app/AdminApp.tsx', ['累计稳定需求补充', '稳定预算／本次补充']],
-  ['tests/browser/admin-runtime.spec.ts', ['stabilization: 684', '累计稳定需求补充', '稳定预算／本次补充']],
+  ['src/app/AdminApp.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', 'AdminPopulationControl']],
+  ['tests/browser/admin-runtime.spec.ts', ['stabilization: 684', 'adminPopulation: 0', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', '人口政策调控']],
 ]) {
   const content = read(path);
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
 console.log('市场需求验证通过：模型 8 使用三类人口真实钱包、受控稳定需求补充、85/15 基础需求、70/30 就业需求、证据置信度压力和最低储备买盘。');
+
+
+const populationPolicy = readFileSync('server/src/population-policy.js', 'utf8');
+const populationControl = readFileSync('server/src/population-admin-control.js', 'utf8');
+const adminPopulationUi = readFileSync('src/components/AdminPopulationControl.tsx', 'utf8');
+for (const required of [
+  'POPULATION_POLICY_DEFAULTS',
+  'stabilizationShareBps: 1_200',
+  'targetWalletCycles: 3',
+  'refillCapBps: 10_000',
+  'durationCycles: Object.freeze({ min: 1, max: 288 })',
+]) {
+  if (!populationPolicy.includes(required)) throw new Error(`人口政策默认值或上限缺失: ${required}`);
+}
+for (const required of [
+  'topUpPopulationByPolicy',
+  'policyCycle.issuedByModel',
+  'state.stats.adminPopulationIssued',
+]) {
+  if (!populationControl.includes(required)) throw new Error(`人口主动调控约束缺失: ${required}`);
+}
+for (const required of [
+  '人口政策调控',
+  '按当前政策立即补充',
+  '人口调控记录',
+]) {
+  if (!adminPopulationUi.includes(required)) throw new Error(`管理员人口调控界面缺失: ${required}`);
+}

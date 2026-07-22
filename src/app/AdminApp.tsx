@@ -12,6 +12,7 @@ import type {
   CollectibleOwnershipRecord,
 } from '../collectibles/types';
 import { AdminBanPanel } from '../components/AdminBanPanel';
+import { AdminPopulationControl } from '../components/AdminPopulationControl';
 import {
   AdminMobileNavigation,
   AdminSidebar,
@@ -408,6 +409,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                           <MetricCard label="本周期消费预算" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.lastBudget)}</CurrencyAmount>} />
                           <MetricCard label="累计货币发行" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.total)}</CurrencyAmount>} />
                           <MetricCard label="累计稳定需求补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.stabilization)}</CurrencyAmount>} />
+                          <MetricCard label="累计管理员人口补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.adminPopulation)}</CurrencyAmount>} />
                         </section>
 
                         <div className="admin-population-model-grid">
@@ -418,7 +420,8 @@ export function AdminApp({ user }: { user: AuthUser }) {
                                 <div><dt>可用／冻结</dt><dd><CurrencyAmount>{formatCurrency(model.credits)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.frozenCredits)}</CurrencyAmount></dd></div>
                                 <div><dt>最近收入／EMA</dt><dd><CurrencyAmount>{formatCurrency(model.lastIncome)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.incomeEma)}</CurrencyAmount></dd></div>
                                 <div><dt>当前预算</dt><dd><CurrencyAmount>{formatCurrency(model.lastBudget)}</CurrencyAmount></dd></div>
-                                <div><dt>稳定预算／本次补充</dt><dd><CurrencyAmount>{formatCurrency(model.stabilizationBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.lastStabilizationIssued)}</CurrencyAmount></dd></div>
+                                <div><dt>稳定预算／自动补充</dt><dd><CurrencyAmount>{formatCurrency(model.stabilizationBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.lastStabilizationIssued)}</CurrencyAmount></dd></div>
+                                <div><dt>最近管理员补充</dt><dd><CurrencyAmount>{formatCurrency(model.lastAdminPopulationIssued)}</CurrencyAmount></dd></div>
                                 <div><dt>食品／家庭</dt><dd><CurrencyAmount>{formatCurrency(model.foodBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.householdBudget)}</CurrencyAmount></dd></div>
                                 <div><dt>连续无收入周期</dt><dd>{model.noIncomeCycles}</dd></div>
                                 <div><dt>待结算</dt><dd><CurrencyAmount>{formatCurrency(Object.values(model.pendingIncome).reduce((sum, value) => sum + value, 0))}</CurrencyAmount></dd></div>
@@ -446,6 +449,11 @@ export function AdminApp({ user }: { user: AuthUser }) {
                             </div>
                           </section>
                         </div>
+                        <AdminPopulationControl
+                          economy={summary.populationEconomy}
+                          onChanged={loadOverview}
+                          onNotice={setNotice}
+                        />
                       </>
                     ) : <EmptyState>人口经济数据尚未初始化。</EmptyState>}
                   </Panel>
