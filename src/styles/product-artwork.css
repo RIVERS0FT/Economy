@@ -32,7 +32,7 @@
 
 :is(
   .warehouse-product-card-icon,
-  .unified-asset-tab:not(.facility) .asset-kind-icon,
+  .market-asset-card__icon-layer,
   .market-summary > .widget-heading .product-icon-label,
   .asset-auction-icon,
   .asset-auction-package-icon,
@@ -47,7 +47,7 @@
 
 :is(
   .warehouse-product-card-icon,
-  .unified-asset-tab:not(.facility) .asset-kind-icon,
+  .market-asset-card__icon-layer,
   .market-summary > .widget-heading .product-icon-label,
   .asset-auction-icon,
   .asset-auction-package-icon,
@@ -94,12 +94,7 @@
   contain-intrinsic-size: 138px 92px;
 }
 
-.unified-asset-tab:not(.facility) .asset-kind-icon {
-  width: 40px;
-  height: 40px;
-}
-
-.unified-asset-tab:not(.facility) .asset-kind-icon > .product-icon {
+.market-asset-card__icon-layer > .product-icon {
   width: 38px;
   height: 38px;
 }
@@ -134,8 +129,7 @@
 }
 
 @media (max-width: 720px) {
-  .unified-asset-tab:not(.facility) .asset-kind-icon,
-  .unified-asset-tab:not(.facility) .asset-kind-icon > .product-icon {
+  .market-asset-card__icon-layer > .product-icon {
     width: 34px;
     height: 34px;
   }
@@ -149,7 +143,7 @@
 @media (prefers-reduced-data: reduce) {
   :is(
     .warehouse-product-card-icon,
-    .unified-asset-tab:not(.facility) .asset-kind-icon,
+    .market-asset-card__icon-layer,
     .market-summary > .widget-heading .product-icon-label,
     .asset-auction-icon,
     .asset-auction-package-icon,
