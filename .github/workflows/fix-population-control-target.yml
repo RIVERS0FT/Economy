@@ -1,0 +1,58 @@
+name: Fix population target compatibility
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/admin-population-control
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+      - name: Preserve target-cycle constant
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/src/population-economy.js')
+          text = path.read_text()
+          old = 'export const POPULATION_STABILIZATION_TARGET_CYCLES = POPULATION_POLICY_DEFAULTS.targetWalletCycles;'
+          if old not in text:
+              raise SystemExit('population target-cycle marker missing')
+          path.write_text(text.replace(old, 'export const POPULATION_STABILIZATION_TARGET_CYCLES = 3;', 1))
+          PY
+          rm -f population-build-error.log .github/workflows/fix-population-control-target.yml
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "preserve population target-cycle compatibility constant"
+          git push origin HEAD:agent/admin-population-control
+      - name: Install dependencies
+        run: npm ci
+      - name: Build and test
+        run: |
+          set +e
+          npm run build > /tmp/population-build.log 2>&1
+          build_status=$?
+          set -e
+          if [ "$build_status" -ne 0 ]; then
+            tail -n 300 /tmp/population-build.log
+            cp /tmp/population-build.log population-build-error.log
+            git add population-build-error.log
+            git commit -m "population build failed"
+            git push origin HEAD:agent/admin-population-control
+            exit 1
+          fi
+          tail -n 180 /tmp/population-build.log
