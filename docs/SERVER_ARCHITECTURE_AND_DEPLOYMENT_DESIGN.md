@@ -9,7 +9,7 @@
 
 市场需求模型 8 在 `population-economy.js` 记录 `stabilizationIssued`，以三周期目标钱包和单周期上限补足人口钱包缺口；人口经济内部版本 3 补齐 `productionWageSubsidyIssued` 与 `productionWageWithheld`，`facility-groups.js` 在生产周期开始时锁定工资系数且保持目录成本固定；`market-demand.js` 使用 85/15 稳定预算与成交证据置信度，`market-liquidity.js` 保留基础预算 5% 的最低储备买盘。
 
-> 人口政策写入由服务器管理员接口执行：稳定需求参数、生产工资系数、世界 revision、管理员补充发行、`economy_population_policy_audit` 与通用幂等响应必须位于同一 SQLite 事务。临时政策按五分钟周期编号到期，服务重启不得延长；自动和管理员补充共享世界状态中的周期发行台账，已开始生产周期保存内部工资系数快照且不得暴露给普通客户端。
+人口政策更新、恢复默认和立即补充只保存权威世界状态与通用幂等响应，不要求管理备注，也不新增调控审计记录；既有 `economy_population_policy_audit` 历史表仅为数据库兼容保留，不再写入或提供查询接口。
 
 
 ## 1. 目标与生产拓扑
