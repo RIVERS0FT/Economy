@@ -49,6 +49,16 @@ jobs:
           path.write_text(text)
           PY
           node scripts/apply-market-model-8.mjs 2>&1 | tee /tmp/model8-apply.log
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/src/population-economy.js')
+          text = path.read_text()
+          old = '  const maximum = Math.max(minimum, Math.floor(model.lastBudget * 1.15));\n'
+          new = '  const maximum = Math.max(minimum, stabilizationBudget, Math.floor(model.lastBudget * 1.15));\n'
+          if old not in text:
+              raise SystemExit('missing stabilization budget rise-floor line')
+          path.write_text(text.replace(old, new))
+          PY
       - name: Preserve applicator error
         if: failure()
         run: |
