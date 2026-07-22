@@ -6,19 +6,19 @@ const failures = [];
 function requireText(path, fragments) {
   const content = read(path);
   for (const fragment of fragments) {
-    if (!content.includes(fragment)) failures.push(`${path} 缺少管理员统一导航规则: ${fragment}`);
+    if (!content.includes(fragment)) failures.push(`${path} 缺少管理员统一导航或运营控制台规则: ${fragment}`);
   }
 }
 
 function forbidText(path, fragments) {
   const content = read(path);
   for (const fragment of fragments) {
-    if (content.includes(fragment)) failures.push(`${path} 不得恢复管理员独立移动导航: ${fragment}`);
+    if (content.includes(fragment)) failures.push(`${path} 不得恢复管理员独立移动导航或旧式后台布局: ${fragment}`);
   }
 }
 
 requireText('src/components/shell/MobileBottomNavigationFrame.tsx', [
-  "variant=\"mobileNavigation\"",
+  'variant="mobileNavigation"',
   'mobile-bottom-navigation__viewport',
   'data-navigation-surface={surfaceId}',
 ]);
@@ -39,6 +39,15 @@ forbidText('src/components/shell/AdminSidebar.tsx', [
   "from '../ui/LiquidGlassSurface'",
 ]);
 requireText('src/styles/admin-navigation.css', [
+  'ADMIN_CONSOLE_SCHEME: command-center',
+  '@media (min-width: 721px)',
+  '.admin-page-frame .page-heading {',
+  'position: sticky;',
+  '@media (min-width: 1180px)',
+  '.admin-section-stack:has(.admin-collectible-upload)',
+  '.admin-section-stack:has(.admin-gift-create)',
+  'grid-template-columns: minmax(320px, .72fr) minmax(0, 1.68fr);',
+  '.admin-ban-incidents',
   '.admin-workspace',
   'padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
   'var(--mobile-nav-height)',
@@ -59,11 +68,15 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '桌面端复用统一 `SidebarFrame`',
   '移动端复用统一 `MobileBottomNavigationFrame`',
   '不得恢复顶部横向 `panel` 导航条',
+  '运营控制台布局方案',
+  '编辑与创建工作台位于左侧',
+  '结果列表与详情位于右侧',
+  '`ADMIN_CONSOLE_SCHEME: command-center`',
 ]);
 
 if (failures.length) {
-  console.error(`管理员导航验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`管理员导航与运营控制台验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('管理员导航验证通过：桌面统一侧栏与移动统一液态玻璃底栏均已锁定。');
+console.log('管理员导航与运营控制台验证通过：桌面统一侧栏、双栏工作台与移动统一液态玻璃底栏均已锁定。');
