@@ -1,0 +1,49 @@
+name: Diagnose Profit Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run complete build and capture log
+        id: build
+        shell: bash
+        run: |
+          set +e
+          npm run build > /tmp/economy-diagnose-build.log 2>&1
+          exit_code=$?
+          tail -n 120 /tmp/economy-diagnose-build.log
+          echo "exit_code=$exit_code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-diagnose-build-log
+          path: /tmp/economy-diagnose-build.log
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Fail when build failed
+        if: steps.build.outputs.exit_code != '0'
+        run: exit 1
