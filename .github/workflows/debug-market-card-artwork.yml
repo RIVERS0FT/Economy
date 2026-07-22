@@ -1,0 +1,33 @@
+name: Debug market card artwork migration
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  capture-error:
+    if: github.head_ref == 'agent/market-card-artwork-64' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/market-card-artwork-64
+          fetch-depth: 0
+      - name: Capture migration error
+        run: |
+          set +e
+          python3 scripts/apply-market-card-artwork-sizing.py > /tmp/market-card-error.txt 2>&1
+          status=$?
+          git reset --hard HEAD
+          cp /tmp/market-card-error.txt scripts/market-card-error.txt
+          rm -f scripts/market-card-debug-trigger.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/market-card-error.txt scripts/market-card-debug-trigger.txt
+          git commit -m "capture market card migration error"
+          git push origin HEAD:agent/market-card-artwork-64
+          exit $status
