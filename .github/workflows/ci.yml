@@ -38,10 +38,7 @@ jobs:
           import_new = "  defaultPopulationPolicy,\n  ensurePopulationPolicyState,\n  POPULATION_POLICY_CYCLE_MS,"
           signature_old = 'export function ensurePopulationEconomy(world, now = Date.now()) {'
           marker_old = '  ensurePopulationPolicyState(state, now);'
-          marker_new = """  const policyNow = now === undefined || now === null
-    ? Math.max(0, Number(state.policyCycle?.cycleId || 0)) * POPULATION_POLICY_CYCLE_MS
-    : Number(now);
-  ensurePopulationPolicyState(state, policyNow);"""
+          marker_new = '  const policyNow = now === undefined || now === null\n    ? Math.max(0, Number(state.policyCycle?.cycleId || 0)) * POPULATION_POLICY_CYCLE_MS\n    : Number(now);\n  ensurePopulationPolicyState(state, policyNow);'
           for marker in (import_old, signature_old, marker_old):
               if marker not in text:
                   raise SystemExit(f'population clock marker missing: {marker}')
