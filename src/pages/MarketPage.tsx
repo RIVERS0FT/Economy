@@ -264,19 +264,23 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                   role="tab"
                   aria-selected={active}
                   aria-label={`${product.name}，最近成交价 ${priceLabel}，可用库存 ${formatNumber(inventory.available)}${active ? '，当前选择' : ''}`}
-                  data-current={active ? '当前' : undefined}
                   className={active ? 'unified-asset-tab active' : 'unified-asset-tab'}
                   key={`commodity-${product.id}`}
                   onClick={() => selectMarketAsset('commodity', product.id)}
                 >
-                  <strong className="market-asset-card__name">{product.name}</strong>
-                  <span className="market-asset-card__price" title={`最近成交价：${priceLabel}`} aria-hidden="true">
-                    <CurrencyAmount>{hasLastPrice ? formatCurrency(lastPrice) : '—'}</CurrencyAmount>
+                  <span className="market-asset-card__icon-layer" aria-hidden="true">
+                    <ProductIcon productId={product.id} />
                   </span>
-                  <span className="asset-kind-icon market-asset-card__artwork" aria-hidden="true"><ProductIcon productId={product.id} /></span>
-                  <span className="market-asset-card__inventory" title={`可用库存：${formatNumber(inventory.available)}`} aria-hidden="true">
-                    <WarehouseIcon />
-                    <span>{formatNumber(inventory.available)}</span>
+                  <span className="market-asset-card__data-layer" aria-hidden="true">
+                    <strong className="market-asset-card__name">{product.name}</strong>
+                    <span className="market-asset-card__price" title={`最近成交价：${priceLabel}`}>
+                      <CurrencyAmount>{hasLastPrice ? formatCurrency(lastPrice) : '—'}</CurrencyAmount>
+                    </span>
+                    {active ? <span className="market-asset-card__current">当前</span> : null}
+                    <span className="market-asset-card__inventory" title={`可用库存：${formatNumber(inventory.available)}`}>
+                      <WarehouseIcon />
+                      <span>{formatNumber(inventory.available)}</span>
+                    </span>
                   </span>
                 </button>
               );

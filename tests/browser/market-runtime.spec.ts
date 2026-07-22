@@ -198,6 +198,64 @@ test('market quick quantities use funds, inventory and holdings without duplicat
   expect(pageErrors).toEqual([]);
 });
 
+test('market product card renders icon layer before the data layer with independent stacking', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const wheatTab = page.getByRole('tab', { name: /^小麦/ });
+  await expect(wheatTab).toHaveAttribute('aria-selected', 'true');
+
+  const directLayers = await wheatTab.locator(':scope > span').evaluateAll((elements) => (
+    elements.map((element) => element.className)
+  ));
+  expect(directLayers).toEqual([
+    'market-asset-card__icon-layer',
+    'market-asset-card__data-layer',
+  ]);
+
+  const iconLayer = wheatTab.locator(':scope > .market-asset-card__icon-layer');
+  const dataLayer = wheatTab.locator(':scope > .market-asset-card__data-layer');
+  await expect(iconLayer.locator(':scope > .product-icon')).toHaveCount(1);
+  await expect(iconLayer.locator(':scope > :not(.product-icon)')).toHaveCount(0);
+  await expect(dataLayer.locator(':scope > .market-asset-card__name')).toHaveText('小麦');
+  await expect(dataLayer.locator(':scope > .market-asset-card__price')).toContainText('2');
+  await expect(dataLayer.locator(':scope > .market-asset-card__current')).toHaveText('当前');
+  await expect(dataLayer.locator(':scope > .market-asset-card__inventory')).toContainText('8');
+
+  const stacking = await wheatTab.evaluate((element) => {
+    const icon = element.querySelector<HTMLElement>(':scope > .market-asset-card__icon-layer');
+    const data = element.querySelector<HTMLElement>(':scope > .market-asset-card__data-layer');
+    if (!icon || !data) return null;
+    const iconStyle = getComputedStyle(icon);
+    const dataStyle = getComputedStyle(data);
+    const tabRect = element.getBoundingClientRect();
+    const iconRect = icon.getBoundingClientRect();
+    return {
+      iconPosition: iconStyle.position,
+      dataPosition: dataStyle.position,
+      iconZIndex: iconStyle.zIndex,
+      dataZIndex: dataStyle.zIndex,
+      iconPointerEvents: iconStyle.pointerEvents,
+      dataPointerEvents: dataStyle.pointerEvents,
+      horizontalCenterDelta: Math.abs((iconRect.left + iconRect.width / 2) - (tabRect.left + tabRect.width / 2)),
+      verticalCenterDelta: Math.abs((iconRect.top + iconRect.height / 2) - (tabRect.top + tabRect.height / 2)),
+    };
+  });
+  expect(stacking).not.toBeNull();
+  expect(stacking).toMatchObject({
+    iconPosition: 'absolute',
+    dataPosition: 'absolute',
+    iconZIndex: '1',
+    dataZIndex: '2',
+    iconPointerEvents: 'none',
+    dataPointerEvents: 'none',
+  });
+  expect(stacking!.horizontalCenterDelta).toBeLessThan(2);
+  expect(stacking!.verticalCenterDelta).toBeLessThan(2);
+  expect(pageErrors).toEqual([]);
+});
+
 test('market asset directory uses two rows, explicit groups, controls and visible current state', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });

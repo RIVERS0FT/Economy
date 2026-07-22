@@ -125,7 +125,7 @@ if (failures.length === 0) {
 
   for (const required of [
     '.warehouse-product-card-icon',
-    '.unified-asset-tab:not(.facility) .asset-kind-icon',
+    '.market-asset-card__icon-layer',
     '.market-summary > .widget-heading .product-icon-label',
     '.asset-auction-icon',
     '.asset-auction-package-icon',
