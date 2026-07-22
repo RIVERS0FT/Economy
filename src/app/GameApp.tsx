@@ -96,7 +96,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <>
-      <AuthoritativeCountdownRefresh game={game} refresh={tutorialModel.refresh} />
+      <AuthoritativeCountdownRefresh game={game} refresh={model.refresh} />
       <GameShell model={tutorialModel} statusItems={statusItems}>
         <PageRouter model={tutorialModel} />
       </GameShell>
