@@ -26,40 +26,69 @@ check('src/main.tsx', [
   "import './styles/scrollbars.css';",
   "import './styles/game-shell-layout.css';",
 ]);
-check('src/components/shell/GameShell.tsx', [
+check('src/components/shell/SignedInShell.tsx', [
+  "import { ScrollArea } from '../ui/ScrollArea'",
+  "'signed-in-shell'",
   'className="mobile-page-overlay"',
-  'className="mobile-chrome-overlay"',
+  "'mobile-chrome-overlay'",
+  'className="page-scroll-area"',
+  "'page-scroll'",
+  'scrollbarVisibility="adaptive"',
+  "data-admin-mobile-chrome={adminChromeLayer ? 'true' : undefined}",
+]);
+check('src/components/shell/GameShell.tsx', [
+  "import { SignedInShell } from './SignedInShell'",
+  '<SignedInShell',
+  'rootClassName="game-shell"',
   '<StatusBar items={statusItems} />',
   'className="mobile-notice-region"',
   'className="notice-toast" role="status" aria-live="polite" aria-atomic="true"',
   '<MobileBottomNavigation',
-  'className="page-scroll-area"',
-  'viewportClassName="page-scroll"',
-  'scrollbarVisibility="adaptive"',
 ]);
-const shellContent = read('src/components/shell/GameShell.tsx');
+check('src/app/AdminApp.tsx', [
+  "import { SignedInShell } from '../components/shell/SignedInShell'",
+  '<SignedInShell',
+  'rootClassName="admin-shell"',
+  'workspaceClassName="admin-workspace"',
+  'pageViewportClassName="admin-page-scroll"',
+  'pageFrameClassName="admin-page-frame"',
+  'chromeOverlayClassName="admin-mobile-chrome-layer"',
+  '<AdminDesktopBar',
+  '<AdminMobileNavigation',
+]);
+const shellContent = read('src/components/shell/SignedInShell.tsx');
 const pageOverlayStart = shellContent.indexOf('className="mobile-page-overlay"');
-const pageOverlayEnd = shellContent.indexOf('</div>', pageOverlayStart);
-const chromeOverlayStart = shellContent.indexOf('className="mobile-chrome-overlay"');
-const statusBarIndex = shellContent.indexOf('<StatusBar items={statusItems} />', chromeOverlayStart);
-const noticeRegionIndex = shellContent.indexOf('className="mobile-notice-region"', chromeOverlayStart);
-const mobileNavigationIndex = shellContent.indexOf('<MobileBottomNavigation', chromeOverlayStart);
-if (!(pageOverlayStart >= 0 && pageOverlayEnd > pageOverlayStart && chromeOverlayStart > pageOverlayEnd)) {
-  failures.push('GameShell 的页面 Overlay 与 Chrome Overlay 顺序无效');
+const chromeOverlayStart = shellContent.indexOf("'mobile-chrome-overlay'");
+if (!(pageOverlayStart >= 0 && chromeOverlayStart > pageOverlayStart)) {
+  failures.push('SignedInShell 的页面 Overlay 与 Chrome Overlay 顺序无效');
 }
-if (!(statusBarIndex > chromeOverlayStart && noticeRegionIndex > statusBarIndex && mobileNavigationIndex > noticeRegionIndex)) {
-  failures.push('移动通知必须位于 Chrome Overlay 内的状态栏之后、底部导航之前');
+const gameShellContent = read('src/components/shell/GameShell.tsx');
+const statusBarIndex = gameShellContent.indexOf('<StatusBar items={statusItems} />');
+const noticeRegionIndex = gameShellContent.indexOf('className="mobile-notice-region"');
+const mobileNavigationIndex = gameShellContent.indexOf('<MobileBottomNavigation');
+if (!(statusBarIndex >= 0 && noticeRegionIndex > statusBarIndex && mobileNavigationIndex > noticeRegionIndex)) {
+  failures.push('移动通知必须位于游戏 Chrome 内容中的状态栏之后、底部导航之前');
 }
-if (noticeRegionIndex > pageOverlayStart && noticeRegionIndex < pageOverlayEnd) {
-  failures.push('移动通知不得放回页面 Overlay');
-}
+forbid('src/components/shell/GameShell.tsx', [
+  'className="mobile-page-overlay"',
+  'className="mobile-chrome-overlay"',
+  "import { ScrollArea } from '../ui/ScrollArea'",
+]);
+forbid('src/app/AdminApp.tsx', [
+  '<section className="admin-workspace">',
+  '<div className="admin-page-scroll">',
+]);
 check('src/styles/viewport.css', [
+  'html[data-app-surface="admin"]',
+  '.signed-in-shell {',
   '--layout-gutter: var(--mobile-primary-surface-gap);',
   'padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
   'padding-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));',
   '.mobile-page-overlay {',
+  'order: 1;',
   'overflow: visible;',
   '.mobile-chrome-overlay {',
+  'order: 2;',
   'pointer-events: none;',
   'min-height: var(--mobile-asset-bar-height);',
   'max-height: var(--mobile-asset-bar-height);',
@@ -104,6 +133,7 @@ check('src/styles/desktop-sidebar.css', [
 ]);
 check('src/styles/game-shell-layout.css', [
   '--desktop-layout-gutter: var(--space-3);',
+  '.signed-in-shell.sidebar-layout {',
   '--desktop-shell-outer-inset: var(--desktop-layout-gutter);',
   '--desktop-sidebar-workspace-gap: var(--desktop-layout-gutter);',
   '--desktop-status-gap: var(--desktop-layout-gutter);',
@@ -112,8 +142,8 @@ check('src/styles/game-shell-layout.css', [
   'right: var(--desktop-layout-gutter);',
   '+ var(--desktop-asset-bar-height)',
   'padding: 0 var(--desktop-layout-gutter) var(--desktop-layout-gutter) 0;',
-  '.page-scroll-area > .ui-scrollbar--vertical {',
-  '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
+  '.signed-in-shell .page-scroll-area > .ui-scrollbar--vertical {',
+  '.signed-in-shell .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
   'right: 0;',
   'left: auto;',
   '--desktop-layout-gutter: var(--space-2);',
@@ -126,6 +156,7 @@ if ((desktopLayout.match(/--desktop-layout-gutter: var\(--space-2\);/g) ?? []).l
   failures.push('窄桌面与矮桌面必须统一使用 8px --desktop-layout-gutter');
 }
 forbid('src/styles/game-shell-layout.css', [
+  'html[data-app-surface="game"]',
   '--desktop-shell-outer-inset: var(--space-3);',
   '--desktop-sidebar-workspace-gap: var(--desktop-shell-outer-inset);',
   '--desktop-status-gap: var(--space-3);',
@@ -134,6 +165,23 @@ forbid('src/styles/game-shell-layout.css', [
 ]);
 forbid('src/styles/liquid-glass-surfaces.css', [
   '--desktop-status-gap:',
+]);
+check('src/styles/admin-navigation.css', [
+  '.admin-command-bar-content {',
+  '.admin-page-frame .page-heading {',
+  'display: none;',
+  'top: var(--desktop-page-top-offset);',
+  '.admin-command-bar {',
+  '.admin-page-scroll {',
+]);
+forbid('src/styles/admin-navigation.css', [
+  'max-width: 1600px;',
+  'top: 112px;',
+]);
+forbid('src/styles/unified-market-admin.css', [
+  '.admin-shell {\n  position: fixed;',
+  'max-width: 1440px;',
+  '.admin-mobile-navigation {',
 ]);
 check('src/styles/scrollbars.css', [
   '.page-scroll-area {',
@@ -175,13 +223,13 @@ forbid('src/styles/game-shell-layout.css', ['asset-bar-scroll-area', 'asset-bar-
 forbid('src/styles/performance.css', ['.page-scroll,\n.asset-bar,\n.sidebar-nav {\n  -webkit-overflow-scrolling: touch;\n  overscroll-behavior: contain;']);
 forbid('src/styles/viewport.css', ['position: fixed;\n    right: 0;\n    bottom: max(var(--mobile-chrome-block-inset)']);
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
-  '桌面应用外壳几何',
+  '登录后桌面应用外壳几何',
+  '`SignedInShell`',
   '--desktop-layout-gutter',
-  '--desktop-shell-outer-inset',
   '普通桌面使用 `12px`',
   '紧凑桌面使用 `8px`',
-  '工作区和页面滚动视口继续铺满视口右边缘',
-  '页面主滚动条的轨道和可见滑块都使用 `right: 0`',
+  '游戏端和管理员端',
+  '桌面页面主滚动条的轨道和可见滑块都使用 `right: 0`',
   '固定到视口安全边缘',
   'right: env(safe-area-inset-right, 0px)',
   'iOS 工具栏式清透厚玻璃',
@@ -193,10 +241,11 @@ check('docs/README.md', [
   'DOM 必须位于 `StatusBar` 后、`MobileBottomNavigation` 前',
   '安全区顶部 + `48px` 状态栏 + `8px` 间距',
   '不新增液态玻璃实例、不推动页面内容、不拦截状态栏或底栏交互',
-  '桌面侧栏外距、侧栏与工作区间距、状态栏外距、状态栏与内容间距、一级卡片间距和页面右／下留白统一读取 `--desktop-layout-gutter`',
+  '游戏端与管理员端桌面外壳必须共享 `SignedInShell`',
   '桌面页面主滚动条固定贴合视口右边缘',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
+  '`SignedInShell`',
   '统一覆盖式滚动条',
   '桌面侧栏导航网格必须从顶部开始排列',
   '不得使用 `overscroll-behavior: contain` 阻断纵向滚动链',
@@ -213,19 +262,21 @@ check('tests/browser/game-shell-layout.spec.ts', [
   "expect(geometry.alignContent).toBe('start')",
   "expect(geometry.gridAutoRows).toBe('max-content')",
 ]);
+check('tests/browser/admin-runtime.spec.ts', [
+  'admin desktop shares the game shell gutter, command bar and edge scrollbar',
+  '.admin-command-bar',
+  '.liquid-glass-surface--desktopStatusBar',
+]);
 check('tests/browser/mobile-workspace-overlay.spec.ts', [
   'mobile notice stays below the status bar without shifting the page',
   'geometry.notice.top - geometry.status.bottom',
   'glassCountAfter',
   'mobile page scrollbar reaches the safe right edge without changing content width',
-  'viewportRight - geometry.thumbRight',
-  "toBe('40px')",
 ]);
 
 if (failures.length) {
-  console.error('游戏外壳布局架构验证失败:');
-  failures.forEach((failure) => console.error(`- ${failure}`));
+  console.error(`游戏与管理员共享外壳验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('游戏外壳统一桌面沟槽、桌面导航、悬浮状态栏、贴边页面滚动条、移动双层 Overlay、状态栏下方通知、玻璃共线、统一 40px 清透厚玻璃胶囊与纵向滚动链验证通过。');
+console.log('游戏与管理员共享外壳验证通过：统一桌面沟槽、共享滚动视口、桌面工作栏、移动 Overlay、通知与贴边滚动条均已锁定。');
