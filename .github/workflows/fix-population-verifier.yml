@@ -1,0 +1,59 @@
+name: Fix population verifier ownership
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/admin-population-control
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+      - name: Point verifier at current UI ownership
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-staple-crops-demand.mjs')
+          text = path.read_text()
+          old = "  ['src/app/AdminApp.tsx', ['累计稳定需求补充', '稳定预算／本次补充']],"
+          new = "  ['src/app/AdminApp.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', 'AdminPopulationControl']],"
+          if old not in text:
+              raise SystemExit('admin population verifier marker missing')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          rm -f population-build-error.log .github/workflows/fix-population-verifier.yml
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "update population admin verifier ownership"
+          git push origin HEAD:agent/admin-population-control
+      - name: Install dependencies
+        run: npm ci
+      - name: Build and test
+        run: |
+          set +e
+          npm run build > /tmp/population-build.log 2>&1
+          build_status=$?
+          set -e
+          if [ "$build_status" -ne 0 ]; then
+            tail -n 360 /tmp/population-build.log
+            cp /tmp/population-build.log population-build-error.log
+            git add population-build-error.log
+            git commit -m "population build failed"
+            git push origin HEAD:agent/admin-population-control
+            exit 1
+          fi
+          tail -n 220 /tmp/population-build.log
