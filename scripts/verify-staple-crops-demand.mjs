@@ -154,30 +154,53 @@ for (const [path, texts] of [
 
 console.log('市场需求验证通过：模型 8 使用三类人口真实钱包、受控稳定需求补充、85/15 基础需求、70/30 就业需求、证据置信度压力和最低储备买盘。');
 
-
-const populationPolicy = readFileSync('server/src/population-policy.js', 'utf8');
-const populationControl = readFileSync('server/src/population-admin-control.js', 'utf8');
-const adminPopulationUi = readFileSync('src/components/AdminPopulationControl.tsx', 'utf8');
+const populationPolicy = read('server/src/population-policy.js');
+const populationControl = read('server/src/population-admin-control.js');
+const runtimeStore = read('server/src/runtime-store.js');
+const serverApp = read('server/src/app.js');
+const adminPopulationUi = read('src/components/AdminPopulationControl.tsx');
 for (const required of [
   'POPULATION_POLICY_DEFAULTS',
   'stabilizationShareBps: 1_200',
   'targetWalletCycles: 3',
   'refillCapBps: 10_000',
-  'durationCycles: Object.freeze({ min: 1, max: 288 })',
+  'durationCycles: Object.freeze({ min: 1 })',
+  'validatePopulationPolicyCapacity',
+  'safeMultiplyDivideFloor',
 ]) {
-  if (!populationPolicy.includes(required)) throw new Error(`人口政策默认值或上限缺失: ${required}`);
+  if (!populationPolicy.includes(required)) throw new Error(`人口政策默认值或安全边界缺失: ${required}`);
+}
+for (const forbidden of ['max: 2_000', 'max: 5', 'max: 15_000', 'max: 288', 'noteLength', 'normalizePopulationAdminNote']) {
+  assert.equal(populationPolicy.includes(forbidden), false, `人口政策不得恢复业务上限或管理备注: ${forbidden}`);
 }
 for (const required of [
   'topUpPopulationByPolicy',
   'policyCycle.issuedByModel',
   'state.stats.adminPopulationIssued',
+  'populationPolicyWalletTarget',
 ]) {
   if (!populationControl.includes(required)) throw new Error(`人口主动调控约束缺失: ${required}`);
 }
 for (const required of [
+  'class EconomyStore extends PersistentEconomyStore',
+  'updatePopulationPolicy',
+  'resetPopulationPolicy',
+  'topUpPopulation',
+]) {
+  if (!runtimeStore.includes(required)) throw new Error(`运行时人口政策存储缺失: ${required}`);
+}
+assert.ok(serverApp.includes("from './runtime-store.js'"), '生产服务必须使用不写入人口调控记录的运行时存储');
+assert.equal(serverApp.includes('/population-economy/audit'), false, '人口调控记录接口不得恢复');
+for (const required of [
   '人口政策调控',
+  '当前政策',
+  '基础／技术／专业人口倍率',
+  '总持续时间',
   '按当前政策立即补充',
-  '人口调控记录',
+  '参数不设业务上限',
 ]) {
   if (!adminPopulationUi.includes(required)) throw new Error(`管理员人口调控界面缺失: ${required}`);
+}
+for (const forbidden of ['管理备注', '人口调控记录', 'populationPolicyAudit', 'max={20}', 'max={150}', 'max={288}']) {
+  assert.equal(adminPopulationUi.includes(forbidden), false, `管理员人口政策界面不得恢复: ${forbidden}`);
 }

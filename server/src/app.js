@@ -23,7 +23,7 @@ import {
   readKnownPartitionRevisionsFromHeader,
   readKnownPartitionRevisionsFromSearch,
 } from './state-partitions.js';
-import { EconomyStore } from './storage.js';
+import { EconomyStore } from './runtime-store.js';
 import { createTutorialStore, CURRENT_TUTORIAL_VERSION } from './tutorial-store.js';
 import { cleanupEmailVerificationRecords } from './verification-retention.js';
 
@@ -212,18 +212,6 @@ const server = createServer(async (request, response) => {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
         sendJson(response, 200, store.topUpPopulation(user, body, { requestKey, method, path }));
-        return;
-      }
-      if (method === 'GET' && path === '/api/game/admin/population-economy/audit') {
-        const page = store.listPopulationPolicyAudit(user, {
-          cursor: url.searchParams.get('cursor'),
-          limit: url.searchParams.get('limit'),
-        });
-        sendJson(response, 200, {
-          records: page.items,
-          total: page.total,
-          nextCursor: page.nextCursor,
-        });
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/community-link') {

@@ -76,12 +76,20 @@ requireText('src/components/AdminPopulationHealth.tsx', [
   '当前钱包总缺口',
   '食品／家庭',
   'C1—C7 生产工资',
+  'max(4px,',
 ]);
 requireText('src/components/AdminPopulationControl.tsx', [
   "import { AdminPopulationHealth } from './AdminPopulationHealth'",
   '<AdminPopulationHealth economy={economy} />',
-  '展开调控',
+  '展开拟应用政策',
+  '当前政策',
+  '总持续时间',
+  '参数不设业务上限',
+]);
+forbidText('src/components/AdminPopulationControl.tsx', [
   '查看全部记录',
+  '人口调控记录',
+  '管理备注',
 ]);
 requireText('src/styles/admin-overview-density.css', [
   'ADMIN_OVERVIEW_SCHEME: population-health-matrix',
@@ -168,6 +176,8 @@ requireText('tests/browser/admin-runtime.spec.ts', [
   'chromeLayerOrder',
   'pageLayerOrder',
   'topmostInsideNavigation',
+  'visiblePositiveBarWidth',
+  'zeroBarWidth',
 ]);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '桌面端复用统一 `SignedInShell`',
@@ -179,6 +189,8 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '结果列表与详情位于右侧',
   '`ADMIN_CONSOLE_SCHEME: command-center`',
   '封禁事件继续使用窗口化结构',
+  '人口政策区域始终显示服务器当前执行的完整参数',
+  '比例条的真实值为正时必须至少保留 4px 可见填充',
 ]);
 
 if (failures.length) {
@@ -186,4 +198,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('管理员导航与运营控制台验证通过：桌面共享外壳与玻璃工作栏、双栏工作台、封禁事件窗口化及移动统一 Chrome 层均已锁定。');
+console.log('管理员导航与运营控制台验证通过：桌面共享外壳与玻璃工作栏、人口政策当前参数、正数最小可见比例条、双栏工作台、封禁事件窗口化及移动统一 Chrome 层均已锁定。');

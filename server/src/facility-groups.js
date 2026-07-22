@@ -35,9 +35,22 @@ function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
 
 function normalizeProductionWageMultiplier(value) {
   const normalized = Math.floor(Number(value));
-  return Number.isSafeInteger(normalized) && normalized >= 5_000 && normalized <= 15_000
+  return Number.isSafeInteger(normalized) && normalized >= 5_000
     ? normalized
     : null;
+}
+
+function calculateProductionWage(cost, multiplierBps) {
+  const normalizedCost = Math.max(0, Math.floor(Number(cost)));
+  const normalizedMultiplier = normalizeProductionWageMultiplier(multiplierBps);
+  if (!Number.isSafeInteger(normalizedCost) || normalizedMultiplier === null) {
+    throw new Error('生产工资参数超出系统可表示范围');
+  }
+  const rounded = (BigInt(normalizedCost) * BigInt(normalizedMultiplier) + 5_000n) / 10_000n;
+  if (rounded > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error('生产工资计算结果超出系统可表示范围');
+  }
+  return Number(rounded);
 }
 
 function currentProductionWageMultiplier(world, now) {
@@ -564,7 +577,7 @@ function executeCycle(world, player, group, type, count, now) {
   const recipe = activeRecipeFor(type, group);
   const requirements = groupRequirements(recipe, count);
   const wageMultiplierBps = normalizeProductionWageMultiplier(group.cycleWageMultiplierBps) || 10_000;
-  const populationWage = Math.max(0, Math.round(requirements.cost * wageMultiplierBps / 10_000));
+  const populationWage = calculateProductionWage(requirements.cost, wageMultiplierBps);
   player.credits -= requirements.cost;
   creditPopulationEmployment(world, populationWage, 'production', {
     complexity: type.complexity,
