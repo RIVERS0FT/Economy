@@ -11,9 +11,10 @@ import {
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 31);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 8);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 9);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
+assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.name), ['食品市场', '社会消费市场']);
 assert.ok(MARKET_DEMAND_GROUP_CATALOG.every((group) => group.directBudgetShare === 0.70));
 
 const groups = new Map(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));
@@ -22,17 +23,19 @@ assert.deepEqual(groups.get('household').classes.map((item) => item.id), ['home'
 assert.ok(groups.get('food').classes.find((item) => item.id === 'fresh-drinks').products.some((item) => item.productId === 'fruit'));
 assert.ok(groups.get('household').classes.find((item) => item.id === 'durables').products.some((item) => item.productId === 'appliance'));
 
-for (const id of ['wheat', 'rice', 'flour', 'food', 'meat', 'eggs', 'milk', 'fruit', 'fish', 'beverage', 'prepared-meal']) {
-  assert.equal(products.get(id)?.marketDemandGroupId, 'food', id);
-  assert.equal(products.get(id)?.marketDemandRole, 'direct', id);
+assert.deepEqual([...MARKET_DEMAND_PRODUCT_IDS].sort(), PRODUCT_CATALOG.map((product) => product.id).sort());
+for (const product of PRODUCT_CATALOG) {
+  assert.equal(product.marketDemandRole, 'direct', product.id);
+  assert.ok(product.marketDemandGroupId === 'food' || product.marketDemandGroupId === 'household', product.id);
 }
-for (const id of ['furniture', 'clothing', 'electronics', 'paper', 'appliance']) {
-  assert.equal(products.get(id)?.marketDemandGroupId, 'household', id);
-  assert.equal(products.get(id)?.marketDemandRole, 'direct', id);
+for (const group of MARKET_DEMAND_GROUP_CATALOG) {
+  for (const demandClass of group.classes) {
+    const minimumTotal = demandClass.products.reduce((sum, option) => sum + Number(option.minShare || 0), 0);
+    assert.ok(minimumTotal > 0 && minimumTotal <= 1, `${group.id}/${demandClass.id} 最低份额无效`);
+    assert.ok(demandClass.products.every((option) => Number(option.minShare || 0) > 0));
+  }
 }
-assert.ok(MARKET_DEMAND_PRODUCT_IDS.includes('fruit'));
-assert.ok(MARKET_DEMAND_PRODUCT_IDS.includes('appliance'));
-assert.equal(MARKET_DEMAND_PRODUCT_IDS.includes('sugar'), false);
+assert.equal(MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + group.baseBudget, 0), 5_700);
 
 const runtime = [
   'server/src/population-economy.js',
@@ -49,7 +52,7 @@ const runtime = [
   'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 8',
+  'MARKET_DEMAND_MODEL_VERSION = 9',
   'DIRECT_BUDGET_SHARE = 0.70',
   "POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional'])",
   "const CONSTRUCTION_PROFILE = Object.freeze({ basic: 0.60, skilled: 0.30, professional: 0.10 })",
@@ -140,10 +143,10 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`8`', '三类人口使用真实余额', '稳定需求补充', '人口消费成交不再发行普通货币']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：8', '三类人口账户', '真实冻结资金', '稳定需求补充', '三周期目标钱包']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：8', '`populationModelId`', '`fundingPool`', '真实人口冻结资金']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '市场需求模型 8', '人口消费不得发行普通货币']],
+  ['README.md', ['市场需求模型版本：`9`', '三类人口使用真实余额', '稳定需求补充', '人口消费成交不再发行普通货币']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：9', '三类人口账户', '真实冻结资金', '稳定需求补充', '三周期目标钱包']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：9', '`populationModelId`', '`fundingPool`', '真实人口冻结资金']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '市场需求模型 9', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ['stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/app/AdminApp.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', 'AdminPopulationControl']],
   ['tests/browser/admin-runtime.spec.ts', ['stabilization: 684', 'adminPopulation: 0', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', '人口政策调控']],
@@ -152,7 +155,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 8 使用三类人口真实钱包、受控稳定需求补充、85/15 基础需求、70/30 就业需求、证据置信度压力和最低储备买盘。');
+console.log('市场需求验证通过：模型 9 使用真实人口钱包覆盖全部 31 种商品，并保持既有总预算、派生流动性和市场储备约束。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');
