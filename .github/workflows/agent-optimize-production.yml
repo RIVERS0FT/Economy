@@ -52,8 +52,8 @@ jobs:
           import re
           from pathlib import Path
 
-          path = Path('src/styles/industry-system.css')
-          lines = path.read_text(encoding='utf-8').splitlines(keepends=True)
+          industry_path = Path('src/styles/industry-system.css')
+          lines = industry_path.read_text(encoding='utf-8').splitlines(keepends=True)
           banned = {
               'position',
               'top',
@@ -94,13 +94,30 @@ jobs:
 
           if found == 0:
               raise SystemExit('no production-build-card blocks were found')
-          text = ''.join(output)
-          if 'top: var(--space-3);' in text:
-              position = text.index('top: var(--space-3);')
-              raise SystemExit('old build top remains:\n' + text[max(0, position - 180):position + 220])
-          if 'max-height: calc(100dvh - var(--space-6));' in text:
-              raise SystemExit('old build max-height remains')
-          path.write_text(text, encoding='utf-8')
+          industry_path.write_text(''.join(output), encoding='utf-8')
+
+          verify_path = Path('scripts/verify-production-desktop-layout.mjs')
+          verify = verify_path.read_text(encoding='utf-8')
+          old = """assert.equal(legacyIndustryStyles.includes('top: var(--space-3);'), false, '建设卡不得使用独立顶部间距');
+          assert.equal(legacyIndustryStyles.includes('max-height: calc(100dvh - var(--space-6));'), false, '建设卡不得维护旧最大高度');
+          """
+          new = """const legacyBuildBlocks = [...legacyIndustryStyles.matchAll(/\\.production-build-card\\s*\\{([^}]*)\\}/gs)]
+            .map((match) => match[1]);
+          for (const block of legacyBuildBlocks) {
+            for (const property of [
+              'position:',
+              'top:',
+              'align-self:',
+              'max-height:',
+              'overflow:',
+              'overflow-y:',
+              'overscroll-behavior',
+            ]) assert.equal(block.includes(property), false, `旧产业建设卡不得声明: ${property}`);
+          }
+          """
+          if verify.count(old) != 1:
+              raise SystemExit(f'verify assertion replacement mismatch: {verify.count(old)}')
+          verify_path.write_text(verify.replace(old, new, 1), encoding='utf-8')
           PY
             node scripts/verify-production-desktop-layout.mjs
           } > /tmp/production-transform.log 2>&1
