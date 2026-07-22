@@ -79,18 +79,13 @@ export function AdminMobileNavigation({
   onSelect: (section: AdminSectionId) => void;
 }) {
   return (
-    <div
-      className="mobile-chrome-overlay admin-mobile-chrome-layer"
-      data-admin-mobile-chrome="true"
+    <MobileBottomNavigationFrame
+      ariaLabel="移动端管理员导航"
+      navLabel="管理员移动导航"
+      className="admin-mobile-bottom-navigation"
+      surfaceId="admin-mobile-navigation"
     >
-      <MobileBottomNavigationFrame
-        ariaLabel="移动端管理员导航"
-        navLabel="管理员移动导航"
-        className="admin-mobile-bottom-navigation"
-        surfaceId="admin-mobile-navigation"
-      >
-        <AdminNavigationItems activeSection={activeSection} onSelect={onSelect} />
-      </MobileBottomNavigationFrame>
-    </div>
+      <AdminNavigationItems activeSection={activeSection} onSelect={onSelect} />
+    </MobileBottomNavigationFrame>
   );
 }

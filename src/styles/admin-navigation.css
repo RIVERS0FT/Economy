@@ -1,53 +1,82 @@
-/* Admin chrome reuses the same mobile bottom-navigation surface and geometry as the player shell.
+/* Admin chrome reuses the signed-in shell, desktop status-bar material and mobile bottom-navigation geometry.
  * ADMIN_CONSOLE_SCHEME: command-center
- * This file is the final authority for administrator shell, navigation and console orchestration.
+ * This file owns only administrator command-bar content and console orchestration.
  */
 
-.admin-mobile-chrome-layer {
-  display: none;
+.admin-command-bar {
+  display: block;
 }
 
 @media (min-width: 721px) {
   .admin-page-frame {
-    --content-max-width: 1600px;
-    max-width: 1600px;
-    padding-inline: clamp(0px, 1.2vw, 16px);
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding: 0;
   }
 
   .admin-page-frame .page-heading {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    align-items: center;
-    margin: 0;
-    padding: var(--space-3) 0 var(--space-4);
-    background: var(--page-background);
+    display: none;
   }
 
-  .admin-page-frame .page-heading::after {
-    content: '';
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    height: 1px;
-    background: var(--border-subtle);
-  }
-
-  .admin-page-frame .page-heading > div {
+  .admin-command-bar-content {
+    height: 100%;
     min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-4);
+    padding: 0 var(--space-5);
   }
 
-  .admin-page-frame .page-heading h1 {
-    font-size: clamp(1.55rem, 1.2rem + .7vw, 2.1rem);
+  .admin-command-bar-copy {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+
+  .admin-command-bar-copy h1 {
+    margin: 0;
+    font-size: clamp(1.35rem, 1.05rem + .65vw, 1.85rem);
     letter-spacing: -.02em;
   }
 
-  .admin-page-frame .page-heading p {
-    max-width: 780px;
+  .admin-command-bar-copy p {
+    max-width: 760px;
+    margin: 0;
+    overflow: hidden;
+    color: var(--color-text-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .admin-page-frame .page-heading-actions {
-    flex: 0 0 auto;
+  .admin-command-bar-actions {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, auto) auto;
+    grid-template-areas:
+      "identity button"
+      "meta button";
+    align-items: center;
+    column-gap: var(--space-3);
+  }
+
+  .admin-command-bar-actions > span {
+    grid-area: identity;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-command-bar-actions > small {
+    grid-area: meta;
+    color: var(--color-text-muted);
+    text-align: right;
+  }
+
+  .admin-command-bar-actions > .ui-button {
+    grid-area: button;
   }
 
   .admin-summary-grid .ui-metric-card,
@@ -95,7 +124,7 @@
   }
 
   .admin-ban-panel {
-    min-height: min(760px, calc(100dvh - 190px));
+    min-height: min(760px, calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter)));
   }
 
   .admin-ban-layout {
@@ -106,7 +135,7 @@
 
   .admin-ban-incidents-column {
     position: sticky;
-    top: 112px;
+    top: var(--desktop-page-top-offset);
     min-width: 0;
   }
 
@@ -166,7 +195,7 @@
   .admin-section-stack:has(.admin-collectible-upload) > :first-child,
   .admin-section-stack:has(.admin-gift-create) > :first-child {
     position: sticky;
-    top: 112px;
+    top: var(--desktop-page-top-offset);
   }
 
   .admin-section-stack:has(.admin-collectible-upload) > :nth-child(n + 2),
@@ -184,33 +213,11 @@
 }
 
 @media (max-width: 720px) {
-  .admin-shell,
-  .admin-shell.sidebar-collapsed {
-    padding: 0;
-  }
-
-  .admin-workspace {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
-    padding-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
-    overflow: hidden;
+  .admin-command-bar {
+    display: none;
   }
 
   .admin-page-scroll {
-    grid-column: 1;
-    grid-row: 1;
-    order: 1;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
     padding-top: max(var(--mobile-chrome-block-inset), env(safe-area-inset-top));
     padding-bottom: calc(
       var(--mobile-nav-height)
@@ -226,6 +233,7 @@
   }
 
   .admin-page-frame .page-heading {
+    display: flex;
     align-items: stretch;
   }
 
@@ -265,21 +273,6 @@
     max-height: 260px;
     overflow: auto;
     font-size: .75rem;
-  }
-
-  .admin-mobile-chrome-layer {
-    position: relative;
-    grid-column: 1;
-    grid-row: 1;
-    order: 2;
-    z-index: auto;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    display: block;
-    overflow: visible;
-    pointer-events: none;
   }
 
   .admin-mobile-chrome-layer .admin-mobile-bottom-navigation {

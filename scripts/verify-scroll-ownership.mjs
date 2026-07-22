@@ -18,18 +18,35 @@ for (const text of [
   'event.stopPropagation()',
 ]) assert.ok(hook.includes(text), `覆盖式滚动条缺少滚轮归属规则: ${text}`);
 
-for (const [path, selector] of [
-  ['src/styles/facility-group-card-grid.css', '.production-build-card'],
-  ['src/styles/unified-market-admin.css', '.admin-page-scroll'],
-]) {
-  const source = read(path);
-  const blocks = source.split(`${selector} {`).slice(1).map((part) => part.slice(0, part.indexOf('}')));
-  assert.ok(blocks.length > 0, `${path} 缺少 ${selector}`);
-  assert.ok(
-    blocks.some((block) => block.includes('overscroll-behavior-y: auto;')),
-    `${path} 的 ${selector} 必须释放纵向边界`,
-  );
-}
+const productionStyles = read('src/styles/facility-group-card-grid.css');
+const productionBlocks = productionStyles
+  .split('.production-build-card {')
+  .slice(1)
+  .map((part) => part.slice(0, part.indexOf('}')));
+assert.ok(productionBlocks.length > 0, 'src/styles/facility-group-card-grid.css 缺少 .production-build-card');
+assert.ok(
+  productionBlocks.some((block) => block.includes('overscroll-behavior-y: auto;')),
+  '生产建设卡必须释放纵向边界',
+);
+
+const performanceStyles = read('src/styles/performance.css');
+assert.ok(
+  performanceStyles.includes('.page-scroll {\n  overscroll-behavior: auto;\n}'),
+  '共享 .page-scroll 必须使用 overscroll-behavior: auto 释放纵向边界',
+);
+
+const sharedShell = read('src/components/shell/SignedInShell.tsx');
+for (const text of [
+  'className="page-scroll-area"',
+  "'page-scroll'",
+  'scrollbarVisibility="adaptive"',
+]) assert.ok(sharedShell.includes(text), `共享登录后外壳缺少页面滚动接入: ${text}`);
+
+const adminApp = read('src/app/AdminApp.tsx');
+for (const text of [
+  '<SignedInShell',
+  'pageViewportClassName="admin-page-scroll"',
+]) assert.ok(adminApp.includes(text), `管理员后台未接入共享页面滚动视口: ${text}`);
 
 for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
   assert.equal(
@@ -55,4 +72,10 @@ for (const text of [
   '管理员后台整页滚动区',
 ]) assert.ok(design.includes(text), `UI 设计文档缺少滚轮规则或控件位置: ${text}`);
 
-console.log('Nested custom/native scroll ownership, boundary release and control location verification passed.');
+const shellDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
+for (const text of [
+  '`SignedInShell`',
+  '不得为管理员创建第二个原生主滚动容器',
+]) assert.ok(shellDesign.includes(text), `共享外壳设计缺少管理员滚动所有权规则: ${text}`);
+
+console.log('Nested custom/native scroll ownership, shared signed-in page scroll, boundary release and control location verification passed.');

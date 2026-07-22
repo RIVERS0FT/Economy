@@ -10,7 +10,6 @@
 
 > 人口政策权威规则已纳入 `GIFT_CODE_AND_ADMIN_DESIGN.md`：仅允许受控稳定需求参数、缺口式立即补充、同周期上限、到期恢复、幂等和审计，不允许任意余额编辑。
 
-
 ## 权威文档
 
 | 文档 | 唯一职责 |
@@ -27,10 +26,10 @@
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家端一级卡片外层内边距令牌、共享组件语义、加载顺序、页面 CSS 边界和贴边内容例外 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、紧凑图表、短列表滚动、市场空值和浏览器几何回归 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
-| `LIQUID_GLASS_CHROME_DESIGN.md` | 桌面统一布局沟槽、侧栏与悬浮状态栏几何、桌面贴边页面滚动条、移动工作区与 Overlay、移动操作结果通知、移动底栏和液态玻璃外壳 |
+| `LIQUID_GLASS_CHROME_DESIGN.md` | 游戏与管理员共享桌面外壳、统一布局沟槽、侧栏与悬浮工作栏几何、桌面贴边页面滚动条、移动工作区与 Overlay、移动操作结果通知、移动底栏和液态玻璃材质 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、SQLite、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地快照、资产事件和匿名逐笔成交记录 |
-| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖（单项与捆绑资产包）、封禁复核、管理员权限和后台范围 |
+| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖（单项与捆绑资产包）、封禁复核、管理员权限、后台范围与运营控制台编排 |
 
 ## 修改规则
 
@@ -58,7 +57,7 @@
 22. 统一订单簿玩家卖出手续费、按卖单累计精确 1%、人口真实冻结资金、匿名 `fee/netTotal`、市场服务就业和拍卖豁免属于产品、订单簿、本地日志、页面、服务器与拍卖共同规则；必须同步更新对应文档、测试和 `scripts/verify-market-sell-fee.mjs`。
 23. 拍卖资产包数量输入的字符串草稿、空白编辑、合法性门控、失焦归一化和草稿清理属于页面权威规则；必须同步更新 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`AuctionPage.tsx` 与 `scripts/verify-collectibles-auctions.mjs`，不得恢复空值立即回填为 `1` 的实现。
 24. 统一表单组件、正整数字符串草稿、错误／只读／禁用状态、移动端 `48px`／`16px`、登录未受控自动填充和最终样式加载顺序属于 UI 权威规则；必须同步更新 `UI_DESIGN_SYSTEM.md`、`FormControls.tsx`、`form-controls.css`、`integerDraft.ts` 与 `scripts/verify-form-controls.mjs`，不得在业务页面恢复平行基础输入视觉。
-25. 桌面游戏外壳几何、侧栏导航固有行高、覆盖式滚动条、移动贴边轨道和纵向滚动链分别归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `UI_DESIGN_SYSTEM.md`；不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md` 或其他职责重叠的平行专题文档。
+25. 登录后游戏与管理员桌面外壳几何、侧栏导航固有行高、覆盖式滚动条、移动贴边轨道和纵向滚动链分别归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `UI_DESIGN_SYSTEM.md`；不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md` 或其他职责重叠的平行专题文档。
 26. 工厂目录展示顺序、概览布局完整性、生产页胶囊例外、注册邀请码交互和一级卡片外层内边距虽使用独立文档，但职责必须保持在本索引限定范围内；不得把产品经济、页面模块归属、通用 UI、服务器事务或部署规则复制进这些专题文档。
 27. 玩家端一级卡片外层内边距统一归属 `PRIMARY_SURFACE_INSET_DESIGN.md` 与 `primary-surfaces.css`；业务页面不得重新声明一级卡片外层 padding，新增一级卡片必须使用 `PagePanel`，并通过 `scripts/verify-primary-surface-insets.mjs` 防回退。
 28. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；施工、生产周期、拍卖和排行榜结算统一登记在 `authoritativeCountdowns.ts`，到期立即刷新并每秒确认，工作冷却按服务器绝对截止时间本地解锁；所有倒计时读取共享单调服务器时钟，并通过 `scripts/verify-authoritative-countdowns.mjs` 防回退。
@@ -66,7 +65,8 @@
 30. 五分区协议只在分区之间增量传输；每个返回分区内部都是完整快照，客户端必须整块替换同名缓存分区后再重组 `EconomyState`。服务器省略可选字段即表示删除，空对象也必须清空旧分区内容，不得恢复对旧完整状态的字段级浅合并。
 31. 仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`；移动和窄容器固定每行四张卡，760px 起五列、960px 起六列，并通过 `scripts/verify-warehouse-expansion.mjs` 防回退。页面职责与通用 UI 文档只能引用该规则，不得维护另一套断点。
 32. 移动操作结果通知归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `GameShell` Chrome Overlay；DOM 必须位于 `StatusBar` 后、`MobileBottomNavigation` 前，顶部位置固定为安全区顶部 + `48px` 状态栏 + `8px` 间距。通知采用普通半透明提示样式，不新增液态玻璃实例、不推动页面内容、不拦截状态栏或底栏交互，并通过 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/mobile-workspace-overlay.spec.ts` 防回退。
-33. 桌面侧栏外距、侧栏与工作区间距、状态栏外距、状态栏与内容间距、一级卡片间距和页面右／下留白统一读取 `--desktop-layout-gutter`；普通桌面为 `12px`，宽度不大于 `960px` 或高度不大于 `760px` 的桌面为 `8px`。工作区与页面滚动视口继续铺满视口，桌面页面主滚动条固定贴合视口右边缘，并通过 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/game-shell-layout.spec.ts` 防回退。
+33. 游戏端与管理员端桌面外壳必须共享 `SignedInShell`、`--desktop-layout-gutter`、唯一页面 `ScrollArea`、悬浮桌面工作栏几何和贴边滚动条；普通桌面为 `12px`，宽度不大于 `960px` 或高度不大于 `760px` 的桌面为 `8px`。工作区与页面滚动视口继续铺满视口，桌面页面主滚动条固定贴合视口右边缘，并通过 `scripts/verify-game-shell-layout.mjs`、`scripts/verify-admin-navigation.mjs`、`tests/browser/game-shell-layout.spec.ts` 与 `tests/browser/admin-runtime.spec.ts` 防回退。
 34. `GET state` 的响应时钟必须使用 envelope 顶层 `serverNow`，即使 `unchanged: true` 也必须返回；`serverNow` 不得进入五分区或世界 JSON。客户端只能用它向前校准共享单调服务器时钟，迟到或较旧响应不得让工作冷却、施工、生产、拍卖或排行榜倒计时回退，也不得把 `lastProcessedAt` 在每次轮询时重新解释为当前服务器时间。
 35. 人口就业收入、三类人口真实钱包、生产复杂度岗位结构、固定建造业岗位结构、施工托管、仓储与市场服务就业、人口消费不得发行、工作与商店兑换直接发行、不设置人口回收或通胀控制属于产品、产业、订单簿、仓库、管理员与服务器共同规则；必须同步更新对应文档、测试和人口经济验证。
 36. 状态刷新设置继续只保存和显示 `3s`／`5s`／`10s`，前台活跃时使用玩家选择的间隔；连续 30 秒无交互后临时使用 15 秒，页面隐藏时临时使用 60 秒，重新可见、网络恢复或从限速状态恢复交互时立即请求一次权威状态，临时间隔不得覆盖玩家偏好。正式服务每 60 秒输出一次按方法与归一化路由聚合的请求指标，包含平均／最大处理时长和应用层 JSON 响应字节数；超过 1 秒、超过 200 KB 或返回 5xx 的请求立即输出异常摘要。`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限。以上规则通过 `scripts/verify-runtime-efficiency.mjs` 和服务器测试防回退，不得记录 Cookie、请求体、玩家资产或其他敏感内容。
+37. 管理员桌面 `PageLayout` 标题必须隐藏并由 `AdminDesktopBar` 的桌面玻璃工作栏承载标题、说明、身份、世界／API 摘要和刷新操作；管理员移动端不得渲染该顶部工作栏，继续使用页面标题和统一移动底栏。管理员专属 CSS 只能负责业务内容网格、表单、表格和局部 sticky 编排，不得恢复独立根外壳、页面主滚动视口、全局居中限宽框或管理员专属玻璃参数。
