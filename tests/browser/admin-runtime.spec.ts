@@ -103,7 +103,7 @@ async function configureAdminRoutes(page: Page) {
   });
 }
 
-test('admin backend uses the command-center layout and embeds ban review', async ({ page }) => {
+test('admin backend uses unified sections and embeds ban review', async ({ page }) => {
   await page.setViewportSize({ width: 2048, height: 1144 });
   await configureAdminRoutes(page);
   await page.goto('/economy/admin');
@@ -153,7 +153,7 @@ test('admin backend uses the command-center layout and embeds ban review', async
   await expect(page.getByRole('button', { name: '展开侧栏' })).toBeFocused();
 });
 
-test('admin navigation stays on the shared mobile bottom bar', async ({ page }) => {
+test('admin navigation becomes a horizontal client-style bar on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await configureAdminRoutes(page);
   await page.goto('/economy/admin');
