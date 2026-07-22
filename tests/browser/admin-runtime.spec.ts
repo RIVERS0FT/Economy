@@ -153,7 +153,7 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await expect(page.getByRole('button', { name: '展开侧栏' })).toBeFocused();
 });
 
-test('admin mobile navigation uses the player chrome layer and stays above page cards', async ({ page }) => {
+test('admin navigation becomes a horizontal client-style bar on mobile and stays above page cards', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await configureAdminRoutes(page);
   await page.goto('/economy/admin');
