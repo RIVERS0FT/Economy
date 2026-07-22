@@ -85,7 +85,10 @@ for (const text of [
   'gameActions.createAuction(bundleItems',
   'gameActions.placeAuctionBid',
   'gameActions.cancelAuction',
-  '不可拆分资产包',
+  'className="asset-auction-card-heading"',
+  'className="asset-auction-tile-quantity"',
+  'className="asset-auction-more-count"',
+  'asset-auction-primary-metrics',
   'aria-pressed={assetKind === kind}',
   '暂无最近结束的拍卖',
   '冻结资产仍归卖方所有并计入总资产',
@@ -109,6 +112,11 @@ for (const text of [
   'setQuantity(Number(event.target.value))',
   'updateBundleQuantity(item, Number(event.target.value))',
   'Math.floor(nextQuantity || 1)',
+  '· 整包竞价',
+  'className="asset-auction-item-list"',
+  '<dt>资产项目</dt>',
+  '<dt>出价次数</dt>',
+  '<dt>卖家</dt>',
 ]) forbidText('src/pages/AuctionPage.tsx', text);
 
 for (const text of [
@@ -117,7 +125,16 @@ for (const text of [
   '.collectible-auction-create > .widget-heading',
   '.widget.collectible-auction-create',
   'align-items: start;',
+  '.asset-auction-card-heading',
+  '.asset-auction-tile-quantity',
+  '.asset-auction-more-count',
+  'background: var(--color-success-strong);',
+  'white-space: nowrap;',
 ]) requireText('src/styles/collectibles-auctions.css', text);
+for (const text of [
+  '.asset-auction-item-list',
+  '.asset-auction-bundle-visual > strong',
+]) forbidText('src/styles/collectibles-auctions.css', text);
 
 for (const text of [
   '捆绑拍卖在任一项目无效时不冻结任何资产',
@@ -137,6 +154,10 @@ for (const [path, texts] of [
     '资产包添加数量和资产包行数量必须把输入中的原始字符串作为编辑草稿',
     '不得在 `onChange` 阶段立即把空字符串强制回填为 `1`',
     '把资产包数量输入恢复为每次按键立即数字化并把空值强制回填为 `1`',
+    '资产标题与权威倒计时必须保持同一行',
+    '绿色 `+N` 徽标',
+    '不得重复展示“不可拆分资产包 · 整包竞价”说明',
+    '主要指标只保留“当前总价”和“最高出价者”',
   ]],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['捆绑拍卖', '托管记录不得作为第二份资产余额']],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包中全部商品数量之和', '捆绑拍卖']],
@@ -155,4 +176,4 @@ if (failures.length) {
   console.error(`资产包拍卖验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('单项与捆绑资产包拍卖、可编辑数量草稿、冻结资产计价、仓库预占、原子结算、页面结构和权威文档验证通过。');
+console.log('单项与捆绑资产包拍卖、可编辑数量草稿、冻结资产计价、仓库预占、原子结算、紧凑卡片展示、页面结构和权威文档验证通过。');
