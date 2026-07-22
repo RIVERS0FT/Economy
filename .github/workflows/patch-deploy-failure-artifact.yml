@@ -1,0 +1,254 @@
+name: Patch Deploy Failure Artifact
+
+on:
+  push:
+    branches:
+      - codex/deploy-failure-artifact
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/deploy-failure-artifact
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Patch workflow, verifier, and design
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one match, found {count}')
+              return text.replace(old, new, 1)
+
+          deploy_path = Path('.github/workflows/deploy.yml')
+          deploy = deploy_path.read_text()
+
+          replacements = [
+              (
+                  "      - name: Install dependencies\n        run: npm ci\n",
+                  """      - name: Install dependencies
+                  id: install_dependencies
+                  run: |
+                    exec > >(tee /tmp/economy-install-dependencies.log) 2>&1
+                    set -euo pipefail
+                    npm ci
+          """,
+                  'install dependencies logging',
+              ),
+              (
+                  "      - name: Build website and test authoritative API\n        run: |\n",
+                  "      - name: Build website and test authoritative API\n        id: build\n        run: |\n",
+                  'build id',
+              ),
+              (
+                  "      - name: Install Chromium\n        run: npx playwright install --with-deps chromium\n",
+                  """      - name: Install Chromium
+                  id: install_chromium
+                  run: |
+                    exec > >(tee /tmp/economy-install-chromium.log) 2>&1
+                    set -euo pipefail
+                    npx playwright install --with-deps chromium
+          """,
+                  'chromium logging',
+              ),
+              (
+                  "      - name: Test browser runtime before deployment\n        shell: bash\n",
+                  "      - name: Test browser runtime before deployment\n        id: browser_test\n        shell: bash\n",
+                  'browser test id',
+              ),
+              (
+                  "      - name: Ensure rsync is available\n        run: |\n          set -euo pipefail\n",
+                  "      - name: Ensure rsync is available\n        id: ensure_rsync\n        run: |\n          exec > >(tee /tmp/economy-rsync.log) 2>&1\n          set -euo pipefail\n",
+                  'rsync logging',
+              ),
+              (
+                  "      - name: Configure SSH\n        env:\n",
+                  "      - name: Configure SSH\n        id: configure_ssh\n        env:\n",
+                  'ssh id',
+              ),
+              (
+                  "        run: |\n          set -euo pipefail\n          test -n \"$SERVER_HOST\"\n",
+                  "        run: |\n          exec > >(tee /tmp/economy-ssh.log) 2>&1\n          set -euo pipefail\n          test -n \"$SERVER_HOST\"\n",
+                  'ssh logging',
+              ),
+              (
+                  "      - name: Prepare remote directories\n        env:\n",
+                  "      - name: Prepare remote directories\n        id: prepare_remote\n        env:\n",
+                  'prepare remote id',
+              ),
+              (
+                  "      - name: Prepare portable Node runtime\n        env:\n",
+                  "      - name: Prepare portable Node runtime\n        id: prepare_runtime\n        env:\n",
+                  'prepare runtime id',
+              ),
+              (
+                  "      - name: Upload website and game API\n        env:\n",
+                  "      - name: Upload website and game API\n        id: upload_assets\n        env:\n",
+                  'upload id',
+              ),
+              (
+                  "        run: |\n          set -euo pipefail\n          rsync -az --delete \\\n",
+                  "        run: |\n          exec > >(tee /tmp/economy-upload.log) 2>&1\n          set -euo pipefail\n          rsync -az --delete \\\n",
+                  'upload logging',
+              ),
+              (
+                  "      - name: Install authoritative game service\n        env:\n",
+                  "      - name: Install authoritative game service\n        id: install_service\n        env:\n",
+                  'install service id',
+              ),
+              (
+                  "      - name: Configure Nginx routes\n        env:\n",
+                  "      - name: Configure Nginx routes\n        id: configure_nginx\n        env:\n",
+                  'configure nginx id',
+              ),
+              (
+                  "      - name: Verify website, account routes, and game API\n        env:\n",
+                  "      - name: Verify website, account routes, and game API\n        id: verify_deployment\n        env:\n",
+                  'verify deployment id',
+              ),
+          ]
+          for old, new, label in replacements:
+              deploy = replace_once(deploy, old, new, label)
+
+          gh = lambda expression: '$' + '{{ ' + expression + ' }}'
+          collector = f"""      - name: Collect failed step log
+                  if: failure()
+                  shell: bash
+                  env:
+                    INSTALL_DEPENDENCIES_OUTCOME: {gh('steps.install_dependencies.outcome')}
+                    BUILD_OUTCOME: {gh('steps.build.outcome')}
+                    INSTALL_CHROMIUM_OUTCOME: {gh('steps.install_chromium.outcome')}
+                    BROWSER_TEST_OUTCOME: {gh('steps.browser_test.outcome')}
+                    ENSURE_RSYNC_OUTCOME: {gh('steps.ensure_rsync.outcome')}
+                    CONFIGURE_SSH_OUTCOME: {gh('steps.configure_ssh.outcome')}
+                    PREPARE_REMOTE_OUTCOME: {gh('steps.prepare_remote.outcome')}
+                    PREPARE_RUNTIME_OUTCOME: {gh('steps.prepare_runtime.outcome')}
+                    UPLOAD_ASSETS_OUTCOME: {gh('steps.upload_assets.outcome')}
+                    INSTALL_SERVICE_OUTCOME: {gh('steps.install_service.outcome')}
+                    CONFIGURE_NGINX_OUTCOME: {gh('steps.configure_nginx.outcome')}
+                    VERIFY_DEPLOYMENT_OUTCOME: {gh('steps.verify_deployment.outcome')}
+                  run: |
+                    set -euo pipefail
+                    failure_dir=\"$RUNNER_TEMP/economy-failure-log\"
+                    rm -rf \"$failure_dir\"
+                    mkdir -p \"$failure_dir\"
+
+                    collect_failed_log() {{
+                      local outcome=\"$1\"
+                      local source=\"$2\"
+                      local target=\"$3\"
+                      if [ \"$outcome\" != \"failure\" ]; then
+                        return
+                      fi
+                      if [ -s \"$source\" ]; then
+                        cp \"$source\" \"$failure_dir/$target\"
+                      else
+                        printf '步骤失败，但未生成可读取的命令日志：%s\\n' \"$target\" > \"$failure_dir/$target\"
+                      fi
+                    }}
+
+                    collect_failed_log \"$INSTALL_DEPENDENCIES_OUTCOME\" /tmp/economy-install-dependencies.log install-dependencies.log
+                    collect_failed_log \"$BUILD_OUTCOME\" /tmp/economy-build.log build.log
+                    collect_failed_log \"$INSTALL_CHROMIUM_OUTCOME\" /tmp/economy-install-chromium.log install-chromium.log
+                    collect_failed_log \"$BROWSER_TEST_OUTCOME\" /tmp/economy-browser-test.log browser-test.log
+                    collect_failed_log \"$ENSURE_RSYNC_OUTCOME\" /tmp/economy-rsync.log rsync.log
+                    collect_failed_log \"$CONFIGURE_SSH_OUTCOME\" /tmp/economy-ssh.log configure-ssh.log
+                    collect_failed_log \"$PREPARE_REMOTE_OUTCOME\" /tmp/economy-deploy.log prepare-remote.log
+                    collect_failed_log \"$PREPARE_RUNTIME_OUTCOME\" /tmp/economy-runtime.log prepare-runtime.log
+                    collect_failed_log \"$UPLOAD_ASSETS_OUTCOME\" /tmp/economy-upload.log upload-assets.log
+                    collect_failed_log \"$INSTALL_SERVICE_OUTCOME\" /tmp/economy-api-install.log install-service.log
+                    collect_failed_log \"$CONFIGURE_NGINX_OUTCOME\" /tmp/economy-proxy-configure.log configure-nginx.log
+                    collect_failed_log \"$VERIFY_DEPLOYMENT_OUTCOME\" /tmp/economy-verify.log verify-deployment.log
+
+                    if ! compgen -G \"$failure_dir/*\" > /dev/null; then
+                      printf '失败发生在非 shell Action 步骤；完整输出保留在 GitHub Actions job log。\\n' > \"$failure_dir/action-step-failure.txt\"
+                    fi
+
+                - name: Upload failed step log
+                  if: failure()
+                  uses: actions/upload-artifact@v7
+                  with:
+                    name: economy-deploy-failure-{gh('github.run_id')}-{gh('github.run_attempt')}
+                    path: {gh('runner.temp')}/economy-failure-log
+                    if-no-files-found: warn
+                    retention-days: 3
+                    compression-level: 9
+
+          """
+          deploy = replace_once(
+              deploy,
+              "      - name: Report deployment status\n",
+              collector + "      - name: Report deployment status\n",
+              'failure artifact insertion',
+          )
+          deploy_path.write_text(deploy)
+
+          design_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          design = design_path.read_text()
+          anchor = "- 浏览器运行时测试使用固定 Playwright 版本与 Chromium，至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。\n"
+          rule = "- 部署中的每个 shell 命令步骤必须把标准输出和标准错误保存到独立临时日志；任一步失败时只把该失败步骤的完整命令输出复制到 `economy-deploy-failure-<run>-<attempt>` Artifact，成功步骤日志不得上传。Artifact 保留 3 天并使用文本高压缩；完整失败输出不得依赖可能被截断的 job log，也不得再为单次构建失败创建临时诊断工作流。\n"
+          design = replace_once(design, anchor, anchor + rule, 'deployment log design rule')
+          design_path.write_text(design)
+
+          verifier_path = Path('scripts/verify-runtime-reliability.mjs')
+          verifier = verifier_path.read_text()
+          verifier = replace_once(
+              verifier,
+              "  'if ! command -v rsync >/dev/null 2>&1; then',\n",
+              """  'if ! command -v rsync >/dev/null 2>&1; then',
+                'Collect failed step log',
+                'collect_failed_log',
+                'actions/upload-artifact@v7',
+                'name: economy-deploy-failure-${{ github.run_id }}-${{ github.run_attempt }}',
+                'path: ${{ runner.temp }}/economy-failure-log',
+                'retention-days: 3',
+                'compression-level: 9',
+          """,
+              'deploy verifier requirements',
+          )
+          verifier = replace_once(
+              verifier,
+              "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],\n",
+              """  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],
+                ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '成功步骤日志不得上传'],
+                ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得再为单次构建失败创建临时诊断工作流'],
+          """,
+              'design verifier requirements',
+          )
+          verifier = replace_once(
+              verifier,
+              "console.log('依赖锁、CI 去重、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');\n",
+              "console.log('依赖锁、CI 去重、失败步骤日志 Artifact、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');\n",
+              'verifier success message',
+          )
+          verifier_path.write_text(verifier)
+          PY
+
+      - name: Validate targeted rules
+        run: node scripts/verify-runtime-reliability.mjs
+
+      - name: Commit patched files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/deploy.yml docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs
+          git commit -m "部署失败仅上传失败步骤日志"
+          git push origin HEAD:codex/deploy-failure-artifact
