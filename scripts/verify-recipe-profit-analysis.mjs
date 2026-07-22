@@ -31,7 +31,7 @@ assert.equal(cluster.cycleProfit, 32);
 assert.equal(cluster.profitPerMinute, 32);
 assert.equal(cluster.inputs[0].lastTradePrice, 3, '不得回退到 lastPrice');
 
-const singleFactory = analyzeRecipeProfit({ recipe, scopeCount: 1, markets, buildCost: 50 });
+const singleFactory = analyzeRecipeProfit({ recipe, scopeCount: 1, markets, buildCost: 0 });
 assert.equal(singleFactory.inputMarketCost, 6);
 assert.equal(singleFactory.outputMarketValue, 24);
 assert.equal(singleFactory.operatingCost, 2);
@@ -42,7 +42,7 @@ const changedInventoryAndOrders = analyzeRecipeProfit({
   recipe,
   scopeCount: 1,
   markets,
-  buildCost: 50,
+  buildCost: 0,
   inventories: { wheat: { available: 0, frozen: 999_999 } },
   orders: [],
 });
@@ -52,7 +52,7 @@ const missingPrice = analyzeRecipeProfit({
   recipe,
   scopeCount: 1,
   markets: { wheat: market('wheat', null, 3), food: market('food', 12) },
-  buildCost: 50,
+  buildCost: 0,
 });
 assert.equal(missingPrice.profitPerMinute, null);
 assert.deepEqual(missingPrice.missingPriceProductIds, ['wheat']);
@@ -68,7 +68,7 @@ const noInput = analyzeRecipeProfit({
   },
   scopeCount: 1,
   markets: { wheat: market('wheat', 2) },
-  buildCost: 50,
+  buildCost: 0,
 });
 assert.equal(noInput.inputMarketCost, 0);
 assert.equal(noInput.profitPerMinute, 1);
@@ -84,18 +84,20 @@ const designSource = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 for (const text of [
   '单厂平均利润／分钟',
   'scopeCount: scopeCount > 0 ? 1 : 0',
+  'buildCost: 0',
   '最近真实成交价',
   '不计玩家库存、挂单深度和交易手续费',
 ]) assert.ok(analysisSource.includes(text), `单厂平均利润界面缺少: ${text}`);
 for (const removedText of [
   '市场利润分析',
-  '原料市场成本',
-  '产出市场价值',
-  '周期运营成本',
-  '单周期利润',
+  '<small>原料市场成本</small>',
+  '<small>产出市场价值</small>',
+  '<small>周期运营成本</small>',
+  '<small>单周期利润</small>',
   '静态建造回本',
   '预计盈利',
   '最近成交价明细',
+  'buildCost: type.buildCost',
 ]) assert.equal(analysisSource.includes(removedText), false, `详情不得恢复完整利润分析: ${removedText}`);
 
 assert.ok(contextSource.includes('createContext<Record<string, ProductMarketState>>({})'));
