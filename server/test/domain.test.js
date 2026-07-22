@@ -391,7 +391,7 @@ test('player inventory never increases market demand budget or product allocatio
   const splitAvailableFrozen = demandWithWheat(5, 5);
 
   assert.equal(stocked.lastBudget, empty.lastBudget);
-  assert.equal(stocked.lastClassAllocation.staples.shares.wheat, empty.lastClassAllocation.staples.shares.wheat);
+  assert.equal(stocked.lastClassAllocation.basic.staples.shares.wheat, empty.lastClassAllocation.basic.staples.shares.wheat);
   assert.equal(stocked.lastInventoryBoost, 0);
   assert.equal(stocked.lastStockValue, 0);
   assert.equal(availableOnly.lastBudget, splitAvailableFrozen.lastBudget);
