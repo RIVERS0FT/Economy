@@ -109,7 +109,9 @@ for (const text of [
   'className="asset-auction-summary-quantity"',
   'className="asset-auction-summary-more"',
   'asset-auction-data-layer',
-  "if (items.length === 1) return items[0].name;",
+  'function auctionCardTitle(auction: AssetAuction)',
+  'return items.length === 1 ? items[0].name : auctionTitle(auction);',
+  'title={auctionCardTitle(auction)}',
   "import '../styles/auction-card-layers.css';",
   'className="asset-auction-tile-quantity"',
   'className="asset-auction-more-count"',
@@ -148,7 +150,6 @@ for (const text of [
   '<dt>资产项目</dt>',
   '<dt>出价次数</dt>',
   '<dt>卖家</dt>',
-  'return `${items[0].name} × ${formatNumber(items[0].quantity)}`',
 ]) forbidText('src/pages/AuctionPage.tsx', text);
 
 for (const text of [
