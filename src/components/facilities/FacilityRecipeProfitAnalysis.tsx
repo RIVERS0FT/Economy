@@ -41,7 +41,7 @@ export function FacilityRecipeProfitAnalysis({
     recipe: type,
     scopeCount: scopeCount > 0 ? 1 : 0,
     markets,
-    buildCost: type.buildCost,
+    buildCost: 0,
   });
   const profitPerMinute = analysis.profitPerMinute;
   const description = scopeDescription(scopeLabel);
@@ -69,9 +69,9 @@ export function FacilityRecipeProfitAnalysis({
       </div>
       <div className="facility-average-profit__value">
         {profitPerMinute === null ? (
-<strong>{fallback}</strong>
+          <strong>{fallback}</strong>
         ) : (
-<CurrencyAmount sign={sign}>{formatCurrency(Math.abs(profitPerMinute))}</CurrencyAmount>
+          <CurrencyAmount sign={sign}>{formatCurrency(Math.abs(profitPerMinute))}</CurrencyAmount>
         )}
       </div>
     </section>
