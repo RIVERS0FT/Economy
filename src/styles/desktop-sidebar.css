@@ -171,7 +171,7 @@
 
 .desktop-sidebar .sidebar-nav-button {
   width: 100%;
-  grid-template-columns: var(--desktop-sidebar-rail) minmax(0, 1fr);
+  grid-template-columns: var(--desktop-sidebar-rail) minmax(0, 1fr) auto;
   gap: var(--space-2);
   padding-inline: 0;
   overflow: hidden;
@@ -199,13 +199,15 @@
     visibility 0s linear 0s;
 }
 
-.desktop-sidebar .sidebar-nav-button small {
-  position: absolute;
-  top: .12rem;
-  left: 32px;
+.desktop-sidebar .sidebar-nav-count {
+  position: static;
+  justify-self: end;
   min-width: 18px;
+  margin-inline-end: 2px;
   padding: .08rem .28rem;
   font-size: .66rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .desktop-sidebar .sidebar-nav-button.active {
@@ -264,6 +266,19 @@
   gap: 0;
 }
 
+.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button {
+  grid-template-columns: var(--desktop-sidebar-rail);
+}
+
+.desktop-sidebar[data-collapsed="true"] .sidebar-nav-count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  left: auto;
+  z-index: 1;
+  margin: 0;
+}
+
 .desktop-sidebar button:hover:not(:disabled),
 .desktop-sidebar button:focus-visible,
 .desktop-sidebar button:active,
@@ -304,6 +319,15 @@
   .desktop-sidebar .sidebar-nav-button {
     grid-template-columns: var(--desktop-sidebar-rail);
     gap: 0;
+  }
+
+  .desktop-sidebar .sidebar-nav-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    left: auto;
+    z-index: 1;
+    margin: 0;
   }
 }
 
