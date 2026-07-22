@@ -8,7 +8,6 @@ import {
 } from 'react';
 import {
   effectivePollingRate,
-  isConfiguredPollingRate,
   normalizeConfiguredPollingRate,
   POLLING_IDLE_AFTER_MS,
 } from './adaptivePolling.js';
@@ -68,10 +67,12 @@ export function useAdaptivePolling({
 
   useEffect(() => {
     effectiveRateRef.current = effectiveRate;
-    if (!isConfiguredPollingRate(effectiveRate) || effectiveRate === configuredRateRef.current) return;
-    configuredRateRef.current = effectiveRate;
-    setConfiguredRateState(effectiveRate);
   }, [effectiveRate]);
+
+  useEffect(() => {
+    configuredRateRef.current = configuredRate;
+    scheduleCurrentMode();
+  }, [configuredRate, scheduleCurrentMode]);
 
   useEffect(() => {
     if (typeof document === 'undefined' || typeof window === 'undefined') return undefined;
@@ -117,15 +118,9 @@ export function useAdaptivePolling({
   const setConfiguredRate = useCallback<Dispatch<SetStateAction<string>>>((value) => {
     setConfiguredRateState((current) => {
       const requested = typeof value === 'function' ? value(current) : value;
-      const nextRate = normalizeConfiguredPollingRate(requested, current);
-      configuredRateRef.current = nextRate;
-      const active = typeof document === 'undefined'
-        || (document.visibilityState !== 'hidden'
-          && Date.now() - lastActivityAtRef.current < POLLING_IDLE_AFTER_MS);
-      if (active) applyEffectiveRate(nextRate);
-      return nextRate;
+      return normalizeConfiguredPollingRate(requested, current);
     });
-  }, [applyEffectiveRate]);
+  }, []);
 
   return { refreshRate: configuredRate, setRefreshRate: setConfiguredRate };
 }
