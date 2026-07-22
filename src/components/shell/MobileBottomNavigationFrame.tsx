@@ -18,6 +18,8 @@ export function MobileBottomNavigationFrame({
   surfaceId?: string;
   children: ReactNode;
 }) {
+  // The shared base remains equivalent to className="sidebar mobile-bottom-navigation";
+  // callers may only append a surface-specific class.
   return (
     <aside
       className={classNames('sidebar mobile-bottom-navigation', className)}
