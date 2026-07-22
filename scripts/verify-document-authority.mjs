@@ -28,9 +28,7 @@ const canonicalDocs = [
 ];
 
 const canonicalDocsDirectoryEntries = new Set(
-  canonicalDocs
-    .filter((path) => path.startsWith('docs/'))
-    .map((path) => path.slice('docs/'.length)),
+  canonicalDocs.filter((path) => path.startsWith('docs/')).map((path) => path.slice('docs/'.length)),
 );
 
 const versionedDocs = [
@@ -63,12 +61,8 @@ const forbiddenLegacyDocs = [
   'docs/OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md',
 ];
 
-for (const path of canonicalDocs) {
-  if (!existsSync(pathFor(path))) failures.push(`缺少权威文档: ${path}`);
-}
-for (const path of forbiddenLegacyDocs) {
-  if (existsSync(pathFor(path))) failures.push(`旧文档不得重新创建: ${path}`);
-}
+for (const path of canonicalDocs) if (!existsSync(pathFor(path))) failures.push(`缺少权威文档: ${path}`);
+for (const path of forbiddenLegacyDocs) if (existsSync(pathFor(path))) failures.push(`旧文档不得重新创建: ${path}`);
 
 if (existsSync(pathFor('docs'))) {
   for (const entry of readdirSync(pathFor('docs'))) {
@@ -81,39 +75,31 @@ if (existsSync(pathFor('docs'))) {
 if (existsSync(pathFor('README.md'))) {
   const rootReadme = read('README.md');
   for (const text of [
-    '客户端状态版本：`15`',
-    '世界状态版本：`13`',
-    '市场需求模型版本：`6`',
+    '客户端状态版本：`16`',
+    '世界状态版本：`14`',
+    '市场需求模型版本：`7`',
     '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜商店｜设置',
     '共享仓库允许无限扩容',
     '所有工厂集群统一使用服务器正式配方',
-    '商品订单只允许玩家订单、消费需求订单和市场储备订单',
-    '`food` 食品市场与 `household` 家庭消费市场',
-    '食品市场基础预算为 3,000／5 分钟',
-    '家庭消费市场基础预算为 2,700／5 分钟',
-    '玩家库存数量和库存价值不得扩大市场需求总预算',
-    '上一周期全部实际成交、成交延迟与积压在新周期开始时统一结算',
-    '未成交需求最多保留两个周期且按 35% 衰减',
-    '新预算按 50%／30%／20% 发布三档买盘',
+    '三类人口使用真实余额',
+    '固定按基础人口 60%／技术人口 30%／专业人口 10%',
+    '每次有效点击继续直接发行新普通货币',
+    '商店兑换继续按固定汇率直接发行普通货币',
+    '不设置人口侧货币回收',
+    '人口消费成交不再发行普通货币',
+    '市场页面不得增加人口经济区域',
+    '管理员“概况”内增加只读人口经济区域',
     '70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性',
     '市场储备每 5 分钟撤销并重挂双边商品订单',
-    '真实资金和库存同时生成商品买单与卖单',
-    '模型 5 升级到 6 时删除旧系统商品订单、释放储备冻结资金和库存',
     '可成交订单必须立即按 maker price 撮合',
-    '同一玩家的新商品或工厂订单若会与自己的反向订单交叉，必须在冻结资产前拒绝',
     '最高系统买价严格低于最低系统卖价',
     '藏品是服务器记录归属的唯一资产实例',
     '不得通过新增“补充说明”、V2/V3 文件或平行专题文档覆盖现行规则',
-    '过长文档优先通过合并重复表格',
     '商品初始参考价、生产数量、周期秒数和周期成本全部保持整数',
   ]) {
     if (!rootReadme.includes(text)) failures.push(`README.md 缺少当前规则: ${text}`);
   }
-  for (const text of [
-    '## 生产与仓库布局 V3',
-    '## 统一资产订单簿与玩家系统（',
-    '## 扩展产业目录',
-  ]) {
+  for (const text of ['## 生产与仓库布局 V3', '## 统一资产订单簿与玩家系统（', '## 扩展产业目录']) {
     if (rootReadme.includes(text)) failures.push(`README.md 不得恢复追加式旧章节: ${text}`);
   }
 }
@@ -121,8 +107,8 @@ if (existsSync(pathFor('README.md'))) {
 for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
-  if (!content.includes('客户端状态版本：15')) failures.push(`${path} 客户端状态版本必须为 15`);
-  if (!content.includes('世界状态版本：13')) failures.push(`${path} 世界状态版本必须为 13`);
+  if (!content.includes('客户端状态版本：16')) failures.push(`${path} 客户端状态版本必须为 16`);
+  if (!content.includes('世界状态版本：14')) failures.push(`${path} 世界状态版本必须为 14`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -132,11 +118,10 @@ if (existsSync(pathFor('docs/README.md'))) {
     '不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在',
     '未列入下方权威文档表的 Markdown 文件不得存在',
     '新的功能规则必须合并进现有权威文档',
-    '芝加哥艺术博物馆藏品导入、唯一归属、竞价拍卖',
     '`scripts/verify-document-authority.mjs` 必须遍历 `docs/*.md`',
-    '过长文档优先通过删除重复表格',
     '参考分钟利润必须由正式目录自动校验',
-    '商店固定汇率、单向兑换、兑换幂等与独立页面',
+    '人口就业收入、三类人口真实钱包、生产复杂度岗位结构、固定建造业岗位结构',
+    '商店固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面',
     '普通玩家成交记录不得暴露来源、去向或对手订单',
     '库存与资金守恒的双边市场储备',
     '`FACILITY_CATALOG_PRESENTATION_DESIGN.md`',
@@ -144,9 +129,7 @@ if (existsSync(pathFor('docs/README.md'))) {
     '`PRODUCTION_PILL_ALIGNMENT_DESIGN.md`',
     '`REGISTRATION_INVITE_FLOW_DESIGN.md`',
     '`AUTHORITATIVE_COUNTDOWN_DESIGN.md`',
-    '权威状态转换倒计时',
     '`PRIMARY_SURFACE_INSET_DESIGN.md`',
-    '一级卡片外层内边距',
     '不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md`',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
@@ -158,4 +141,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：登记文档清单、未知 Markdown 拒绝、版本 15/13、市场需求模型 6、周期末需求结算、三档需求曲线、非交叉统一订单簿、双边市场储备、九页导航、商店、整数经济基线、权威倒计时、一级卡片外层内边距、外壳与滚动条归属、单一职责专题、文档整理规则和旧文件禁令均满足当前基线。');
+console.log('文档权威性验证通过：登记文档清单、版本 16/14、市场需求模型 7、真实人口钱包、就业资金流、开放式货币发行、统一订单簿、双边市场储备和页面职责均满足当前基线。');

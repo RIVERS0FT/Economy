@@ -73,7 +73,7 @@ test('electronics factory atomically consumes plastic and copper', () => {
   assert.equal(player.inventories.plastic.available, 0);
   assert.equal(player.inventories.copper.available, 0);
   assert.equal(player.inventories.electronics.available, 2);
-  assert.equal(player.credits, 80);
+  assert.equal(player.credits, 70);
   assert.equal(player.stats.producedGoods, 2);
 });
 
@@ -115,7 +115,7 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and 
   assert.equal(player.inventories.fruit.available, 0);
   assert.equal(player.inventories.sugar.available, 0);
   assert.equal(player.inventories.beverage.available, 2);
-  assert.equal(player.credits, 94);
+  assert.equal(player.credits, 91);
 });
 
 test('asset valuation uses the latest order-book trade and ignores open bid prices', () => {

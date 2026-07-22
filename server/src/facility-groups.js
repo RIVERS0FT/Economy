@@ -9,6 +9,7 @@ import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
+import { creditPopulationEmployment, releaseConstructionEmployment } from './population-economy.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -98,6 +99,8 @@ function publicOrderView(order, userId) {
   delete normalized.demandGroupId;
   delete normalized.demandTier;
   delete normalized.demandCycleId;
+  delete normalized.populationModelId;
+  delete normalized.fundingPool;
   delete normalized.marketSellFeeVersion;
   delete normalized.marketSellFeeGross;
   delete normalized.marketSellFeeCharged;
@@ -299,6 +302,21 @@ function migrateLegacyPlayer(player, now) {
   player.stats.boughtGoods = Number(player.stats.boughtGoods || 0);
   player.stats.soldGoods = Number(player.stats.soldGoods || 0);
   player.stats.giftIssued = Number(player.stats.giftIssued || 0);
+  player.stats.gemExchangeCredits = Number(player.stats.gemExchangeCredits || 0);
+  player.stats.populationIncome = Number(player.stats.populationIncome || 0);
+  player.stats.employmentPayments = Number(player.stats.employmentPayments || 0);
+  player.stats.productionPayroll = Number(player.stats.productionPayroll || 0);
+  player.stats.constructionPayroll = Number(player.stats.constructionPayroll || 0);
+  player.stats.warehousePayroll = Number(player.stats.warehousePayroll || 0);
+  player.stats.marketServiceFees = Number(player.stats.marketServiceFees || 0);
+
+  if (player.facilityConstruction) {
+    const constructionType = typeFor(player.facilityConstruction.facilityTypeId);
+    if (constructionType && player.facilityConstruction.buildCost === undefined) {
+      player.facilityConstruction.buildCost = constructionType.buildCost;
+      player.facilityConstruction.employmentReleased = constructionType.buildCost;
+    }
+  }
 
   if (Array.isArray(player.facilities) && player.facilities.length > 0) {
     const byType = new Map();
@@ -313,6 +331,8 @@ function migrateLegacyPlayer(player, now) {
             facilityTypeId: type.id,
             startedAt: Math.max(0, Number(facility.constructionCompletesAt || now) - type.buildTimeMs),
             completesAt: Number(facility.constructionCompletesAt || now),
+            buildCost: type.buildCost,
+            employmentReleased: type.buildCost,
           };
         }
         continue;
@@ -372,14 +392,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 13;
+  world.version = 14;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 13;
+  world.version = 14;
   return world;
 }
 
@@ -523,11 +543,13 @@ function reconcileFacilityGroup(world, player, group, now) {
   setGroupError(group, blocked.reason);
 }
 
-function executeCycle(player, group, type, count) {
+function executeCycle(world, player, group, type, count) {
   const recipe = activeRecipeFor(type, group);
   const requirements = groupRequirements(recipe, count);
   player.credits -= requirements.cost;
-  player.stats.systemSinks += requirements.cost;
+  creditPopulationEmployment(world, requirements.cost, 'production', { complexity: type.complexity });
+  player.stats.productionPayroll = Number(player.stats.productionPayroll || 0) + requirements.cost;
+  player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + requirements.cost;
   player.stats.producedGoods = Number(player.stats.producedGoods || 0) + requirements.output;
   for (const item of requirements.inputs) inventoryFor(player, item.productId).available -= item.quantity;
   inventoryFor(player, recipe.output.productId).available += requirements.output;
@@ -535,9 +557,11 @@ function executeCycle(player, group, type, count) {
   group.cycleStartedAt += recipe.cycleMs;
 }
 
-function finishConstruction(player, now) {
+function finishConstruction(world, player, now) {
   const construction = player.facilityConstruction;
-  if (!construction || now < construction.completesAt) return;
+  if (!construction) return;
+  releaseConstructionEmployment(world, construction, now);
+  if (now < construction.completesAt) return;
   const group = groupFor(player, construction.facilityTypeId, true);
   group.count += 1;
   if (group.status === 'running') group.pendingJoinCount += 1;
@@ -559,7 +583,7 @@ function processGroup(world, player, group, now) {
       break;
     }
 
-    executeCycle(player, group, type, group.participatingCount);
+    executeCycle(world, player, group, type, group.participatingCount);
     processed += 1;
 
     if (group.pendingJoinCount > 0) {
@@ -622,7 +646,11 @@ function matchFacilityOrder(world, incoming, createdAt) {
         if (!group || group.count < quantity) throw new Error('卖方工厂数量不足');
         group.count -= quantity;
         seller.credits += sellerSettlement.netTotal;
-        seller.stats.systemSinks = Number(seller.stats.systemSinks || 0) + sellerSettlement.fee;
+        if (sellerSettlement.fee > 0) {
+          creditPopulationEmployment(world, sellerSettlement.fee, 'marketService');
+          seller.stats.marketServiceFees = Number(seller.stats.marketServiceFees || 0) + sellerSettlement.fee;
+          seller.stats.employmentPayments = Number(seller.stats.employmentPayments || 0) + sellerSettlement.fee;
+        }
         seller.stats.facilityVolume = Number(seller.stats.facilityVolume || 0) + quantity * price;
         if (group.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== group);
       }
@@ -641,7 +669,7 @@ export function processFacilityGroupWorld(world, now = Date.now()) {
   removeSystemFacilityOrders(world);
   for (const player of Object.values(world.players || {})) {
     ensureWarehouse(player);
-    finishConstruction(player, now);
+    finishConstruction(world, player, now);
     for (const group of player.facilityGroups || []) processGroup(world, player, group, now);
   }
   reconcileAllFacilityGroups(world, now);
@@ -662,11 +690,14 @@ function buildFacilityGroup(world, userId, payload, now) {
   if (player.facilityConstruction) return result(false, '同时只能施工一座工厂');
   if (player.credits < type.buildCost) return result(false, '建造资金不足');
   player.credits -= type.buildCost;
-  player.stats.systemSinks += type.buildCost;
+  player.stats.constructionPayroll = Number(player.stats.constructionPayroll || 0) + type.buildCost;
+  player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + type.buildCost;
   player.facilityConstruction = {
     facilityTypeId: type.id,
     startedAt: now,
     completesAt: now + type.buildTimeMs,
+    buildCost: type.buildCost,
+    employmentReleased: 0,
   };
   return result(true, `${type.name}开始施工，建成后将在下一生产周期加入同类工厂集群`);
 }
@@ -1001,7 +1032,13 @@ function createLeaderboard(world, currentUserId, now) {
         totalAssets: summary.totalAssets,
         cashAssets: summary.cashValue,
         facilityCount: (player.facilityGroups || []).reduce((sum, group) => sum + group.count, 0),
-        weeklyChange: Number(player.stats.workIssued || 0) + Number(player.stats.populationIssued || 0) + Number(player.stats.giftIssued || 0) - Number(player.stats.systemSinks || 0),
+        weeklyChange: Number(player.stats.workIssued || 0)
+          + Number(player.stats.gemExchangeCredits || 0)
+          + Number(player.stats.populationIncome || 0)
+          + Number(player.stats.populationIssued || 0)
+          + Number(player.stats.giftIssued || 0)
+          - Number(player.stats.systemSinks || 0)
+          - Number(player.stats.employmentPayments || 0),
         updatedAt: now,
         isCurrentPlayer: player.userId === currentUserId,
       };
@@ -1036,7 +1073,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const normalizedOrders = (world.orders || []).map((order) => publicOrderView(order, userId));
   return {
     ...withoutFacilities,
-    version: 15,
+    version: 16,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
     facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),

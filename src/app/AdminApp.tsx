@@ -75,6 +75,12 @@ function ownershipReason(record: CollectibleOwnershipRecord) {
   return '创建藏品';
 }
 
+function populationStateLabel(state: 'normal' | 'cautious' | 'subsistence') {
+  if (state === 'cautious') return '谨慎';
+  if (state === 'subsistence') return '生存';
+  return '正常';
+}
+
 function downloadGiftCodes(codes: string[]) {
   if (codes.length === 0) return;
   const blob = new Blob([`${codes.join('\n')}\n`], { type: 'text/plain;charset=utf-8' });
@@ -376,16 +382,72 @@ export function AdminApp({ user }: { user: AuthUser }) {
               {notice ? <div className="admin-alert" role="status"><CurrencyText>{notice}</CurrencyText></div> : null}
 
               {activeSection === 'overview' ? (
-                <section className="admin-summary-grid" aria-label="世界概况">
-                  <MetricCard label="玩家数量" value={summary?.playerCount ?? '--'} />
-                  <MetricCard label="未完成订单" value={summary?.openOrderCount ?? '--'} />
-                  <MetricCard label="商品订单" value={summary?.commodityOrderCount ?? '--'} />
-                  <MetricCard label="工厂订单" value={summary?.facilityOrderCount ?? '--'} />
-                  <MetricCard label="藏品数量" value={summary?.collectibleCount ?? '--'} />
-                  <MetricCard label="进行中拍卖" value={summary?.openAuctionCount ?? '--'} />
-                  <MetricCard label="世界版本" value={summary?.worldVersion ?? '--'} />
-                  <MetricCard label="API 状态" value={summary?.apiStatus ?? '--'} tone={summary?.apiStatus === 'ok' ? 'success' : 'neutral'} />
-                </section>
+                <div className="admin-section-stack">
+                  <section className="admin-summary-grid" aria-label="世界概况">
+                    <MetricCard label="玩家数量" value={summary?.playerCount ?? '--'} />
+                    <MetricCard label="未完成订单" value={summary?.openOrderCount ?? '--'} />
+                    <MetricCard label="商品订单" value={summary?.commodityOrderCount ?? '--'} />
+                    <MetricCard label="工厂订单" value={summary?.facilityOrderCount ?? '--'} />
+                    <MetricCard label="藏品数量" value={summary?.collectibleCount ?? '--'} />
+                    <MetricCard label="进行中拍卖" value={summary?.openAuctionCount ?? '--'} />
+                    <MetricCard label="世界版本" value={summary?.worldVersion ?? '--'} />
+                    <MetricCard label="API 状态" value={summary?.apiStatus ?? '--'} tone={summary?.apiStatus === 'ok' ? 'success' : 'neutral'} />
+                  </section>
+
+                  <Panel className="admin-panel admin-population-economy">
+                    <WidgetHeading title="人口经济" />
+                    {summary?.populationEconomy ? (
+                      <>
+                        <section className="admin-population-summary-grid" aria-label="人口经济总览">
+                          <MetricCard label="人口可用资金" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.credits)}</CurrencyAmount>} />
+                          <MetricCard label="人口冻结资金" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.frozenCredits)}</CurrencyAmount>} />
+                          <MetricCard label="待结算就业收入" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.pendingIncome)}</CurrencyAmount>} />
+                          <MetricCard label="施工就业托管" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.constructionEscrow)}</CurrencyAmount>} />
+                          <MetricCard label="累计就业收入" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.totalEmploymentIncome)}</CurrencyAmount>} />
+                          <MetricCard label="累计人口消费" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.totalConsumption)}</CurrencyAmount>} />
+                          <MetricCard label="本周期消费预算" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.lastBudget)}</CurrencyAmount>} />
+                          <MetricCard label="累计货币发行" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.total)}</CurrencyAmount>} />
+                        </section>
+
+                        <div className="admin-population-model-grid">
+                          {Object.values(summary.populationEconomy.models).map((model) => (
+                            <section className="admin-population-model-card" key={model.id}>
+                              <header><h3>{model.name}</h3><StatusTag tone={model.consumptionState === 'normal' ? 'success' : model.consumptionState === 'cautious' ? 'warning' : 'danger'}>{populationStateLabel(model.consumptionState)}</StatusTag></header>
+                              <dl>
+                                <div><dt>可用／冻结</dt><dd><CurrencyAmount>{formatCurrency(model.credits)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.frozenCredits)}</CurrencyAmount></dd></div>
+                                <div><dt>最近收入／EMA</dt><dd><CurrencyAmount>{formatCurrency(model.lastIncome)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.incomeEma)}</CurrencyAmount></dd></div>
+                                <div><dt>当前预算</dt><dd><CurrencyAmount>{formatCurrency(model.lastBudget)}</CurrencyAmount></dd></div>
+                                <div><dt>食品／家庭</dt><dd><CurrencyAmount>{formatCurrency(model.foodBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.householdBudget)}</CurrencyAmount></dd></div>
+                                <div><dt>连续无收入周期</dt><dd>{model.noIncomeCycles}</dd></div>
+                                <div><dt>待结算</dt><dd><CurrencyAmount>{formatCurrency(Object.values(model.pendingIncome).reduce((sum, value) => sum + value, 0))}</CurrencyAmount></dd></div>
+                              </dl>
+                            </section>
+                          ))}
+                        </div>
+
+                        <div className="admin-population-detail-grid">
+                          <section>
+                            <h3>就业收入来源</h3>
+                            <dl className="admin-population-source-list">
+                              <div><dt>生产运营</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.production)}</CurrencyAmount></dd></div>
+                              <div><dt>建造业（固定 60/30/10）</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.construction)}</CurrencyAmount></dd></div>
+                              <div><dt>仓库扩容</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.warehouse)}</CurrencyAmount></dd></div>
+                              <div><dt>市场服务</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.marketService)}</CurrencyAmount></dd></div>
+                            </dl>
+                          </section>
+                          <section>
+                            <h3>生产工资复杂度</h3>
+                            <div className="admin-population-complexity-grid">
+                              {Object.entries(summary.populationEconomy.productionByComplexity).map(([complexity, amount]) => (
+                                <div key={complexity}><span>{complexity}</span><strong><CurrencyAmount>{formatCurrency(amount)}</CurrencyAmount></strong></div>
+                              ))}
+                            </div>
+                          </section>
+                        </div>
+                      </>
+                    ) : <EmptyState>人口经济数据尚未初始化。</EmptyState>}
+                  </Panel>
+                </div>
               ) : null}
 
               {activeSection === 'community' ? (

@@ -1,5 +1,6 @@
 import { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION } from './catalog.js';
 import { clamp } from './math.js';
+import { ensurePopulationEconomy, releasePopulationOrderFunds } from '../population-economy.js';
 
 export function createMarketDemandStateRuntime({ products, constants, marketFor, isOpenOrder }) {
   function normalizePlayerActivity(world, now) {
@@ -92,11 +93,13 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
     world.marketDemand = defaultWorldState(now);
     world.demandGroups = world.marketDemand.groups;
     world.priceTransmission = world.marketDemand.priceTransmission;
+    ensurePopulationEconomy(world, now);
     return normalizeWorld(world, now);
   }
 
   function normalizeWorld(world, now = Date.now(), { forceRebuild = false } = {}) {
     normalizePlayerActivity(world, now);
+    ensurePopulationEconomy(world, now);
     const legacyGroups = world.demandGroups && typeof world.demandGroups === 'object' ? world.demandGroups : {};
     const previousModel = world.marketDemand && typeof world.marketDemand === 'object' ? world.marketDemand : null;
     const isUpgrade = forceRebuild || Number(previousModel?.modelVersion || 0) < MARKET_DEMAND_MODEL_VERSION;
@@ -206,7 +209,9 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
 
     if (isUpgrade) {
       for (const order of world.orders || []) {
-        if (order.ownerType === 'population' && isOpenOrder(order)) order.status = 'cancelled';
+        if (order.ownerType !== 'population' || !isOpenOrder(order)) continue;
+        releasePopulationOrderFunds(world, order);
+        order.status = 'cancelled';
       }
     }
     return world;

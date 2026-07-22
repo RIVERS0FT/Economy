@@ -94,7 +94,7 @@ function createVersionedClientState(world, userId, now) {
     gems: player.gems,
     ...createWarehouseSummary(world, player),
     ...createCollectibleClientState(world, userId, now),
-    version: 15,
+    version: 16,
   };
 }
 
@@ -286,7 +286,7 @@ export class EconomyStore {
     migrateCollectibleWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
-    world.version = 13;
+    world.version = 14;
     return world;
   }
 

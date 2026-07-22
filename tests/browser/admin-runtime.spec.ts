@@ -25,10 +25,22 @@ async function configureAdminRoutes(page: Page) {
         facilityOrderCount: 0,
         collectibleCount: 4,
         openAuctionCount: 2,
-        worldVersion: 13,
+        worldVersion: 14,
         revision: 120,
         lastProcessedAt: Date.UTC(2026, 6, 19, 10),
         apiStatus: 'ok',
+        populationEconomy: {
+          credits: 5_000, frozenCredits: 500, pendingIncome: 300, lastIncome: 200, lastBudget: 1_000,
+          totalIncome: 10_000, totalSpent: 5_000, constructionEscrow: 250, totalEmploymentIncome: 8_000, totalConsumption: 5_000,
+          models: {
+            basic: { id: 'basic', name: '基础人口', consumptionState: 'normal', credits: 3_000, frozenCredits: 300, pendingIncome: { production: 100, construction: 50, warehouse: 20, marketService: 10 }, lastIncome: 120, incomeEma: 110, recentPeakIncome: 130, noIncomeCycles: 0, lastBudget: 600, foodBudget: 468, householdBudget: 132, totalIncome: 6_000, totalSpent: 3_000 },
+            skilled: { id: 'skilled', name: '技术人口', consumptionState: 'cautious', credits: 1_500, frozenCredits: 150, pendingIncome: { production: 60, construction: 20, warehouse: 10, marketService: 10 }, lastIncome: 60, incomeEma: 70, recentPeakIncome: 100, noIncomeCycles: 1, lastBudget: 300, foodBudget: 219, householdBudget: 81, totalIncome: 3_000, totalSpent: 1_500 },
+            professional: { id: 'professional', name: '专业人口', consumptionState: 'subsistence', credits: 500, frozenCredits: 50, pendingIncome: { production: 10, construction: 5, warehouse: 3, marketService: 2 }, lastIncome: 20, incomeEma: 20, recentPeakIncome: 100, noIncomeCycles: 2, lastBudget: 100, foodBudget: 85, householdBudget: 15, totalIncome: 1_000, totalSpent: 500 },
+          },
+          sources: { production: 4_000, construction: 2_000, warehouse: 1_000, marketService: 1_000 },
+          productionByComplexity: { C1: 500, C2: 500, C3: 500, C4: 500, C5: 500, C6: 500, C7: 1_000 },
+          issuance: { work: 20_000, exchange: 5_000, gift: 1_000, legacyPopulation: 0, migration: 5_700, total: 31_700 },
+        },
       } });
       return;
     }
@@ -98,6 +110,8 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
 
   await expect(page.getByRole('heading', { name: '世界概况', exact: true })).toBeVisible();
   await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(8);
+  await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-model-card')).toHaveCount(3);
   const contentWidth = await page.locator('.admin-page-frame').evaluate((element) => element.getBoundingClientRect().width);
   expect(contentWidth).toBeLessThanOrEqual(1440);
   const metricColumns = await page.locator('.admin-summary-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);

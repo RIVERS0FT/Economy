@@ -29,13 +29,15 @@ for (const text of [
   'delete normalized.demandGroupId',
   'delete normalized.demandTier',
   'delete normalized.demandCycleId',
+  'delete normalized.populationModelId',
+  'delete normalized.fundingPool',
   'normalized.fills.map(publicOrderFill)',
   'else delete normalized.fills',
-  'version: 15',
+  'version: 16',
 ]) requireText('server/src/facility-groups.js', text);
 
-for (const text of ['isOwn?: boolean', 'version: 15;', 'export interface OrderFill']) requireText('src/types.ts', text);
-for (const text of ['counterparty: string', 'makerOrderId', 'takerOrderId', "liquidity: 'maker' | 'taker'"]) forbidText('src/types.ts', text);
+for (const text of ['isOwn?: boolean', 'version: 16;', 'export interface OrderFill']) requireText('src/types.ts', text);
+for (const text of ['counterparty: string', 'makerOrderId', 'takerOrderId', "liquidity: 'maker' | 'taker'", 'populationModelId?:', 'fundingPool?:']) forbidText('src/types.ts', text);
 
 for (const text of [
   'STORAGE_VERSION = 5',
@@ -46,17 +48,19 @@ for (const text of [
   'orders: state.orders.filter((order) => order.isOwn)',
   'if (!order.isOwn) continue',
 ]) requireText('src/utils/localActivityStore.ts', text);
-for (const text of ['fill.counterparty', 'trade.counterparty', 'counterparty:']) forbidText('src/utils/localActivityStore.ts', text);
+for (const text of ['fill.counterparty', 'trade.counterparty', 'counterparty:', 'populationModelId', 'fundingPool']) forbidText('src/utils/localActivityStore.ts', text);
 
 requireText('src/app/gameViewModel.ts', 'order.isOwn &&');
 requireText('src/pages/MarketPage.tsx', 'order.isOwn');
-for (const text of ['trade.counterparty', 'role="columnheader">来源']) forbidText('src/pages/MarketPage.tsx', text);
+for (const text of ['trade.counterparty', 'role="columnheader">来源', '人口经济']) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const [path, text] of [
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '普通玩家只能感知自己的订单完成情况'],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '隐藏页面列但继续在 API 或 localStorage 中保留来源信息'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '集中式公开订单序列化'],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '`populationModelId`'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得设置“来源”列'],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '市场页面不得增加人口经济区域'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '单一公开订单序列化函数'],
 ]) requireText(path, text);
 
@@ -64,4 +68,4 @@ if (failures.length) {
   console.error(`普通玩家成交匿名化验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('普通玩家订单 API、本地存储和市场成交展示均已匿名化。');
+console.log('普通玩家订单 API、本地存储和市场成交展示均已匿名化，人口模型及资金池字段不会公开。');

@@ -30,9 +30,9 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 
 for (const text of [
   'MARKET_SELL_FEE_RATE_BPS = 100',
-  'MARKET_SELL_FEE_MINIMUM = 1',
+  'MARKET_SELL_FEE_MINIMUM = 0',
   'calculateCumulativeMarketSellFee',
-  'Math.ceil(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS)',
+  'Math.floor(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS)',
   'marketSellFeeGross',
   'marketSellFeeCharged',
 ]) requireText('server/src/market-sell-fee.js', text);
@@ -54,15 +54,15 @@ for (const text of ['fee?: number', 'netTotal?: number']) requireText('src/types
 for (const text of ['fee: Number(fill.fee || 0)', 'netTotal: Number(fill.netTotal ?? fill.total)']) {
   requireText('src/utils/localActivityStore.ts', text);
 }
-for (const text of ['预计手续费（1%，最低 1）', '预计到账', '手续费 / 实收']) {
+for (const text of ['预计手续费（累计成交额的 1%）', '预计到账', '手续费 / 实收']) {
   requireText('src/pages/MarketPage.tsx', text);
 }
 
 for (const [path, text] of [
-  ['README.md', '按单张卖单累计成交总额收取 1% 手续费'],
+  ['README.md', '按单张卖单累计成交总额精确收取 1% 手续费'],
   ['docs/README.md', '统一订单簿玩家卖出手续费'],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '玩家卖出手续费'],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '单张卖单自规则启用后的累计成交总额'],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '不设最低手续费'],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '累计成交总额精确计算'],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', 'fee'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '预计手续费'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'market-sell-fee.js'],

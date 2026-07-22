@@ -65,7 +65,7 @@ for (const assetKind of ['commodity', 'facility']) {
     assert.deepEqual(incoming.fills.map((fill) => fill.makerOrderId), [priceTenOlder.id, priceTenNewer.id, priceElevenEarlier.id]);
     assert.ok(incoming.fills.every((fill) => fill.takerOrderId === incoming.id && fill.liquidity === 'taker'));
     assert.equal(priceTenOlder.fills[0].liquidity, 'maker');
-    assert.equal(priceTenOlder.fills[0].fee, 1);
+    assert.equal(priceTenOlder.fills[0].fee, 0);
     assert.equal(priceTenOlder.lastFilledAt, 5);
   });
 }

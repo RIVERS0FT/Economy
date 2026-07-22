@@ -1,4 +1,5 @@
 import { isOpenOrder, orderKind } from './order-identity.js';
+import { creditPopulationEmploymentForPlayer } from './population-economy.js';
 
 export const WAREHOUSE_BASE_CAPACITY = 500;
 export const WAREHOUSE_CAPACITY_STEP = 250;
@@ -179,7 +180,11 @@ export function upgradeWarehouse(player) {
   player.warehouseLevel = nextLevel;
   player.inventoryCapacity = nextCapacity;
   player.stats ||= {};
-  player.stats.systemSinks = Number(player.stats.systemSinks || 0) + cost;
+  if (!creditPopulationEmploymentForPlayer(player, cost, 'warehouse')) {
+    throw new Error('仓库扩容无法连接人口经济账户');
+  }
+  player.stats.warehousePayroll = Number(player.stats.warehousePayroll || 0) + cost;
+  player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + cost;
   return {
     ok: true,
     message: `仓库已扩容至 ${player.inventoryCapacity}，等级 ${player.warehouseLevel}`,

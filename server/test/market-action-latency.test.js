@@ -101,5 +101,5 @@ test('commodity order-book repair runs only when the persisted integrity version
   assert.equal(buyer.frozenCredits, 0);
   assert.equal(buyer.inventories.wheat.available, 1);
   assert.equal(seller.inventories.wheat.frozen, 0);
-  assert.equal(seller.credits, 9);
+  assert.equal(seller.credits, 10);
 });
