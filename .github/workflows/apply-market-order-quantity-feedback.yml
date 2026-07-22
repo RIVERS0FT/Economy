@@ -1,11 +1,13 @@
 name: Apply market order quantity feedback patch
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/market-order-quantity-feedback
-    paths:
-      - .github/workflows/apply-market-order-quantity-feedback.yml
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
