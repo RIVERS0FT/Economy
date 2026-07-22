@@ -6,15 +6,18 @@ on:
       - agent/market-card-artwork-64
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -33,3 +36,12 @@ jobs:
 
       - name: Test browser runtime
         run: npm run test:browser
+
+      - name: Record success
+        run: |
+          printf 'Full build and Playwright browser suite passed for %s\n' "$GITHUB_SHA" > scripts/final-market-card-ci-passed.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/final-market-card-ci-passed.txt
+          git commit -m "record final market card CI success"
+          git push origin HEAD:agent/market-card-artwork-64
