@@ -107,13 +107,15 @@ for (const text of [
   'className="asset-auction-icon-layer"',
   'className="asset-auction-summary-icon"',
   'className="asset-auction-summary-quantity"',
-  'className="asset-auction-summary-more"',
+  'className="asset-auction-summary-placeholder"',
+  'const placeholderCount = Math.max(0, MAX_AUCTION_ITEMS - items.length);',
+  '{items.map((item) => (',
+  'Array.from({ length: placeholderCount }',
   'asset-auction-data-layer',
   'function auctionCardTitle(auction: AssetAuction)',
   'return items.length === 1 ? items[0].name : auctionTitle(auction);',
   'title={auctionCardTitle(auction)}',
   "import '../styles/auction-card-layers.css';",
-  'className="asset-auction-tile-quantity"',
   'className="asset-auction-more-count"',
   'asset-auction-primary-metrics',
   'aria-pressed={assetKind === kind}',
@@ -150,6 +152,8 @@ for (const text of [
   '<dt>资产项目</dt>',
   '<dt>出价次数</dt>',
   '<dt>卖家</dt>',
+  'className="asset-auction-tile-quantity"',
+  'className="asset-auction-summary-more"',
 ]) forbidText('src/pages/AuctionPage.tsx', text);
 
 for (const text of [
@@ -159,7 +163,6 @@ for (const text of [
   '.widget.collectible-auction-create',
   'align-items: start;',
   '.asset-auction-card-heading',
-  '.asset-auction-tile-quantity',
   '.asset-auction-more-count',
   'background: var(--color-success-strong);',
   'white-space: nowrap;',
@@ -171,16 +174,26 @@ for (const text of [
 
 for (const text of [
   '.asset-auction-icon-layer',
+  'grid-template-columns: repeat(5, minmax(0, 1fr));',
+  'grid-auto-flow: row;',
+  'width: 100%;',
+  'max-width: 272px;',
   '.asset-auction-summary-icon',
   'position: relative;',
   '.asset-auction-summary-quantity',
   'right: 3px;',
   'bottom: 3px;',
-  '.asset-auction-summary-more',
-  'background: var(--color-success-strong);',
+  '.asset-auction-summary-placeholder',
+  'border: 1px dashed rgba(255, 255, 255, .1);',
+  'pointer-events: none;',
+  'max-width: 244px;',
   '.asset-auction-data-layer',
   'border-top: 1px solid var(--color-border-subtle);',
 ]) requireText('src/styles/auction-card-layers.css', text);
+for (const text of [
+  'overflow-x: auto;',
+  '.asset-auction-summary-more',
+]) forbidText('src/styles/auction-card-layers.css', text);
 
 for (const text of [
   '捆绑拍卖在任一项目无效时不冻结任何资产',
@@ -201,13 +214,18 @@ for (const [path, texts] of [
     '不得在 `onChange` 阶段立即把空字符串强制回填为 `1`',
     '把资产包数量输入恢复为每次按键立即数字化并把空值强制回填为 `1`',
     '必须保留标题上方的顶部大型资产主视觉',
-    '标题下方额外分为图标层和数据层',
-    '实际数量以 `×N` 徽标叠加在图标右下角',
+    '五列四行资产矩阵',
+    '大图标不得显示 `×N` 数量胶囊',
+    '绿色 `+N`',
+    '固定为五列四行、共 20 个槽位',
+    '完整展示全部规范化项目',
+    '不可交互、对辅助技术隐藏的低对比度空卡片补齐',
+    '资产矩阵不得使用 `+N`',
+    '不得改成四列五行',
     '数据层只能展示“当前总价”和“最高出价者”',
     '单项拍卖标题只显示资产名称',
-    '移除进行中拍卖卡顶部大型主视觉',
-    '把数量移出图标右下角',
-    '绿色 `+N` 方格',
+    '在大图标恢复 `×N` 数量胶囊',
+    '让标题下方资产矩阵少于 20 个槽位',
     '不得重复展示“不可拆分资产包 · 整包竞价”说明',
   ]],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['捆绑拍卖', '托管记录不得作为第二份资产余额']],
@@ -227,4 +245,4 @@ if (failures.length) {
   console.error(`资产包拍卖验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('单项与捆绑资产包拍卖、可编辑数量草稿、冻结资产计价、仓库预占、原子结算、顶部主视觉、图标层、数据层、页面结构和权威文档验证通过。');
+console.log('单项与捆绑资产包拍卖、可编辑数量草稿、顶部无数量主视觉、完整五列四行资产矩阵、空槽位补齐、数据层、冻结资产计价、仓库预占、原子结算和权威设计验证通过。');
