@@ -1,0 +1,50 @@
+name: Apply market card artwork sizing branch
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.head_ref == 'agent/market-card-artwork-64' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out market card branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/market-card-artwork-64
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+
+      - name: Apply market card artwork changes
+        run: python3 scripts/apply-market-card-artwork-sizing.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full build validation
+        run: npm run build
+
+      - name: Remove branch migration helpers
+        run: |
+          rm scripts/apply-market-card-artwork-sizing.py
+          rm .github/workflows/apply-market-card-artwork-sizing.yml
+          rm -f scripts/market-card-artwork-trigger.txt
+          rm -f .github/workflows/apply-market-card-artwork-sizing-base.yml
+
+      - name: Commit validated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "enlarge market product artwork and separate cards"
+          git push origin HEAD:agent/market-card-artwork-64
