@@ -2,7 +2,7 @@ import {
   CURRENT_CLIENT_STATE_VERSION,
   isCompatibleClientStateVersion,
   MIN_COMPATIBLE_CLIENT_STATE_VERSION,
-} from '../../shared/economy-state-version.js';
+} from '../../server/shared/economy-state-version.js';
 
 export const STATE_PARTITION_NAMES = Object.freeze([
   'catalog',
