@@ -195,7 +195,8 @@ for (const legacyOpacity of [
 }
 
 for (const text of [
-  "import { FactoryIcon } from '../components/icons/GameIcons'",
+  "from '../components/icons/GameIcons'",
+  'FactoryIcon',
   '<span className="asset-kind-icon" aria-hidden="true"><FactoryIcon /></span>',
 ]) requireText(marketPagePath, text);
 for (const forbidden of ['>⚙</span>', '<ProductIcon productId="machinery" />']) {
