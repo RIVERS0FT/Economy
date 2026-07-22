@@ -86,7 +86,8 @@
   .admin-collectible-format {
     max-height: 320px;
     overflow: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
   }
 
   .admin-ban-panel {
