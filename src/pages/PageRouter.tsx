@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { FacilityRecipeProfitOrdersProvider } from '../components/facilities/FacilityRecipeProfitContext';
+import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 
 const AssetsPage = lazy(() => import('./AssetsPage').then((module) => ({ default: module.AssetsPage })));
@@ -27,9 +27,9 @@ export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
       break;
     case 'production':
       page = (
-        <FacilityRecipeProfitOrdersProvider orders={model.game.orders}>
+        <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
           <ProductionPage model={model} />
-        </FacilityRecipeProfitOrdersProvider>
+        </FacilityRecipeProfitMarketsProvider>
       );
       break;
     case 'assets':

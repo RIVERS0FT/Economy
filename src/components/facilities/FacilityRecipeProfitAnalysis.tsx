@@ -7,7 +7,7 @@ import { analyzeRecipeProfit } from '../../utils/recipeProfitAnalysis';
 import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { StatusTag, type StatusTone } from '../ui/layout';
-import { useFacilityRecipeProfitOrders } from './FacilityRecipeProfitContext';
+import { useFacilityRecipeProfitMarkets } from './FacilityRecipeProfitContext';
 import '../../styles/facility-recipe-profit-analysis.css';
 
 function amountTone(value: number | null) {
@@ -17,7 +17,7 @@ function amountTone(value: number | null) {
 
 function MoneyValue({
   value,
-  fallback = '盘口不足',
+  fallback = '暂无成交数据',
   showSign = false,
 }: {
   value: number | null;
@@ -31,18 +31,22 @@ function MoneyValue({
 
 function profitStatus({
   scopeCount,
-  cashProfit,
-  valueAddedProfit,
+  cycleProfit,
+  missingPriceCount,
 }: {
   scopeCount: number;
-  cashProfit: number | null;
-  valueAddedProfit: number | null;
+  cycleProfit: number | null;
+  missingPriceCount: number;
 }): { label: string; tone: StatusTone } {
   if (scopeCount < 1) return { label: '无可生产工厂', tone: 'neutral' };
-  if (cashProfit === null) return { label: '盘口不足', tone: 'warning' };
-  if (cashProfit < 0) return { label: '预计亏损', tone: 'danger' };
-  if (valueAddedProfit !== null && valueAddedProfit < 0) return { label: '加工倒挂', tone: 'warning' };
+  if (missingPriceCount > 0 || cycleProfit === null) return { label: '暂无成交数据', tone: 'warning' };
+  if (cycleProfit < 0) return { label: '预计亏损', tone: 'danger' };
   return { label: '预计盈利', tone: 'success' };
+}
+
+function priceDescription(price: number | null, total: number | null, valueLabel: string) {
+  if (price === null || total === null) return '暂无最近真实成交价';
+  return `最近成交价 ${formatCurrency(price)}；${valueLabel} ${formatCurrency(total)}`;
 }
 
 export function FacilityRecipeProfitAnalysis({
@@ -50,7 +54,7 @@ export function FacilityRecipeProfitAnalysis({
   scopeCount,
   scopeLabel,
   products,
-  inventories,
+  inventories: _inventories,
 }: {
   type: FacilityTypeDefinition;
   scopeCount: number;
@@ -58,56 +62,35 @@ export function FacilityRecipeProfitAnalysis({
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
 }) {
-  const orders = useFacilityRecipeProfitOrders();
+  void _inventories;
+  const markets = useFacilityRecipeProfitMarkets();
   const analysis = analyzeRecipeProfit({
     recipe: type,
     scopeCount,
-    inventories,
-    orders,
+    markets,
     buildCost: type.buildCost,
   });
   const productNames = new Map(products.map((product) => [product.id, product.name]));
-  const outputName = productNames.get(analysis.outputProductId) ?? analysis.outputProductId;
+  const outputName = productNames.get(analysis.output.productId) ?? analysis.output.productId;
   const hasInputs = analysis.inputs.length > 0;
   const status = profitStatus({
     scopeCount: analysis.scopeCount,
-    cashProfit: analysis.cashProfit,
-    valueAddedProfit: hasInputs ? analysis.valueAddedProfit : null,
+    cycleProfit: analysis.cycleProfit,
+    missingPriceCount: analysis.missingPriceProductIds.length,
   });
   const warnings: string[] = [];
 
   if (analysis.scopeCount < 1) {
     warnings.push('当前没有可参与本轮生产的工厂，利润分析将在工厂解冻或加入后恢复。');
-  }
-  for (const input of analysis.inputs) {
-    if (input.purchaseQuantity > 0 && !input.shortagePurchase.fullyFilled) {
-      const name = productNames.get(input.productId) ?? input.productId;
-      warnings.push(`${name}卖盘只能补齐 ${formatNumber(input.shortagePurchase.filledQuantity)}／${formatNumber(input.purchaseQuantity)}。`);
-    }
-  }
-  if (analysis.outputQuantity > 0 && !analysis.outputSale.fullyFilled) {
-    warnings.push(`${outputName}买盘只能立即承接 ${formatNumber(analysis.outputSale.filledQuantity)}／${formatNumber(analysis.outputQuantity)}。`);
-  }
-  if (hasInputs && analysis.fullPurchaseCost === null && analysis.scopeCount > 0) {
-    warnings.push('全量采购原料的卖盘深度不足，持续采购利润暂不可计算。');
-  }
-  if (hasInputs && analysis.directInputSaleNet === null && analysis.scopeCount > 0) {
-    warnings.push('原料买盘深度不足，暂无法与直接出售原料比较。');
-  }
-  if (analysis.cashProfit !== null && analysis.cashProfit < 0) {
-    warnings.push(`按当前库存、补料和产出买盘，本轮预计亏损 ${formatCurrency(Math.abs(analysis.cashProfit))}。`);
-  } else if (hasInputs && analysis.valueAddedProfit !== null && analysis.valueAddedProfit < 0) {
-    warnings.push(`按当前盘口，直接卖出原料比加工后出售多获得 ${formatCurrency(Math.abs(analysis.valueAddedProfit))}。`);
+  } else if (analysis.missingPriceProductIds.length > 0) {
+    const names = analysis.missingPriceProductIds.map((productId) => productNames.get(productId) ?? productId);
+    warnings.push(`缺少最近真实成交价：${names.join('、')}。相关利润暂不可计算。`);
+  } else if (analysis.cycleProfit !== null && analysis.cycleProfit < 0) {
+    warnings.push(`按最近真实成交价估算，本轮预计亏损 ${formatCurrency(Math.abs(analysis.cycleProfit))}。`);
   }
 
-  const coverageDescription = hasInputs
-    ? `库存覆盖 ${formatNumber(analysis.inventoryCoverageQuantity)}／${formatNumber(analysis.requiredInputQuantity)}`
-    : '该配方不消耗商品原料';
-  const outputDescription = analysis.outputNetRevenue !== null
-    ? `卖方手续费 ${formatCurrency(analysis.outputSellFee)}`
-    : `当前买盘 ${formatNumber(analysis.outputSale.filledQuantity)}／${formatNumber(analysis.outputQuantity)}`;
   const paybackLabel = analysis.profitPerMinute === null
-    ? '盘口不足'
+    ? '暂无成交数据'
     : analysis.profitPerMinute <= 0 || analysis.paybackMinutes === null
       ? '不可回本'
       : formatDuration(analysis.paybackMinutes * 60_000);
@@ -117,95 +100,68 @@ export function FacilityRecipeProfitAnalysis({
       <div className="facility-profit-analysis__heading">
         <div>
           <strong>市场利润分析</strong>
-          <small>{scopeLabel} × {formatNumber(analysis.scopeCount)}，按当前公开盘口即时成交估算</small>
+          <small>{scopeLabel} × {formatNumber(analysis.scopeCount)}，按最近真实成交价估算</small>
         </div>
         <StatusTag tone={status.tone}>{status.label}</StatusTag>
       </div>
 
       <div className="facility-profit-analysis__summary">
         <div className="facility-profit-analysis__metric">
-          <small>补料成本</small>
+          <small>原料市场成本</small>
           {hasInputs ? (
-            <MoneyValue
-              value={analysis.shortagePurchaseCost}
-              fallback={analysis.scopeCount < 1 ? '暂无范围' : '盘口不足'}
-            />
+            <MoneyValue value={analysis.inputMarketCost} fallback={analysis.scopeCount < 1 ? '暂无范围' : '暂无成交数据'} />
           ) : <strong>无需原料</strong>}
-          <span>{coverageDescription}</span>
+          <span>全部输入均按最近真实成交价计价</span>
         </div>
         <div className="facility-profit-analysis__metric">
-          <small>产出净额</small>
-          <MoneyValue
-            value={analysis.outputNetRevenue}
-            fallback={analysis.scopeCount < 1 ? '暂无范围' : `${formatNumber(analysis.outputSale.filledQuantity)}／${formatNumber(analysis.outputQuantity)}`}
-          />
-          <span>{outputDescription}</span>
+          <small>产出市场价值</small>
+          <MoneyValue value={analysis.outputMarketValue} fallback={analysis.scopeCount < 1 ? '暂无范围' : '暂无成交数据'} />
+          <span>{outputName} × {formatNumber(analysis.output.quantity)}</span>
         </div>
-        <div className={`facility-profit-analysis__metric${amountTone(analysis.cashProfit)}`}>
-          <small>本轮现金利润</small>
-          <MoneyValue value={analysis.cashProfit} fallback={analysis.scopeCount < 1 ? '暂无范围' : '无法估算'} showSign />
-          <span>使用现有库存并从卖盘补齐缺口</span>
+        <div className="facility-profit-analysis__metric">
+          <small>周期运营成本</small>
+          <MoneyValue value={analysis.scopeCount > 0 ? analysis.operatingCost : null} fallback="暂无范围" />
+          <span>服务器正式配方固定成本</span>
+        </div>
+        <div className={`facility-profit-analysis__metric${amountTone(analysis.cycleProfit)}`}>
+          <small>单周期利润</small>
+          <MoneyValue value={analysis.cycleProfit} fallback={analysis.scopeCount < 1 ? '暂无范围' : '无法估算'} showSign />
+          <span>产出价值减原料成本与周期运营成本</span>
         </div>
       </div>
 
       <div className="facility-profit-analysis__metrics">
-        {hasInputs ? (
-          <>
-            <div className={`facility-profit-analysis__metric${amountTone(analysis.fullPurchaseProfit)}`}>
-              <small>全量采购利润</small>
-              <MoneyValue value={analysis.fullPurchaseProfit} fallback="盘口不足" showSign />
-              <span>全部原料按当前最低卖盘逐档买入</span>
-            </div>
-            <div className={`facility-profit-analysis__metric${amountTone(analysis.valueAddedProfit)}`}>
-              <small>相比直接卖原料</small>
-              <MoneyValue value={analysis.valueAddedProfit} fallback="盘口不足" showSign />
-              <span>原料与产出均按当前最高买盘逐档卖出</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={`facility-profit-analysis__metric${amountTone(analysis.cashProfit)}`}>
-              <small>周期净收益</small>
-              <MoneyValue value={analysis.cashProfit} fallback="盘口不足" showSign />
-              <span>产出净额扣除周期运营成本</span>
-            </div>
-            <div className="facility-profit-analysis__metric">
-              <small>预计卖方手续费</small>
-              <MoneyValue value={analysis.outputQuantity > 0 ? analysis.outputSellFee : null} fallback="暂无范围" />
-              <span>按一张卖单累计成交额估算</span>
-            </div>
-          </>
-        )}
         <div className={`facility-profit-analysis__metric${amountTone(analysis.profitPerMinute)}`}>
-          <small>{hasInputs ? '加工增值／分钟' : '生产利润／分钟'}</small>
-          <MoneyValue value={analysis.profitPerMinute} fallback="盘口不足" showSign />
+          <small>利润／分钟</small>
+          <MoneyValue value={analysis.profitPerMinute} fallback={analysis.scopeCount < 1 ? '暂无范围' : '暂无成交数据'} showSign />
           <span>按当前配方周期折算</span>
         </div>
         <div className="facility-profit-analysis__metric">
           <small>静态建造回本</small>
-          <strong>{paybackLabel}</strong>
+          <strong>{analysis.scopeCount < 1 ? '暂无范围' : paybackLabel}</strong>
           <span>按当前集群对应建造成本静态估算</span>
         </div>
       </div>
 
-      {analysis.inputs.length > 0 ? (
-        <div className="facility-profit-analysis__inputs" aria-label="原料盘口明细">
-          {analysis.inputs.map((input) => {
-            const name = productNames.get(input.productId) ?? input.productId;
-            const purchaseDetail = input.purchaseQuantity <= 0
-              ? '库存已覆盖，无需补买'
-              : `补买 ${formatNumber(input.shortagePurchase.filledQuantity)}／${formatNumber(input.purchaseQuantity)}，盘口成本 ${formatCurrency(input.shortagePurchase.total)}`;
-            return (
-              <div className="facility-profit-analysis__input-row" key={input.productId}>
-                <strong>{name} × {formatNumber(input.requiredQuantity)}</strong>
-                <span className="facility-profit-analysis__input-detail">
-                  可用 {formatNumber(input.inventoryQuantity)}；{purchaseDetail}
-                </span>
-              </div>
-            );
-          })}
+      <div className="facility-profit-analysis__inputs" aria-label="最近成交价明细">
+        {analysis.inputs.map((input) => {
+          const name = productNames.get(input.productId) ?? input.productId;
+          return (
+            <div className="facility-profit-analysis__input-row" key={`input-${input.productId}`}>
+              <strong>原料 · {name} × {formatNumber(input.quantity)}</strong>
+              <span className="facility-profit-analysis__input-detail">
+                {priceDescription(input.lastTradePrice, input.totalValue, '成本')}
+              </span>
+            </div>
+          );
+        })}
+        <div className="facility-profit-analysis__input-row" key={`output-${analysis.output.productId}`}>
+          <strong>产出 · {outputName} × {formatNumber(analysis.output.quantity)}</strong>
+          <span className="facility-profit-analysis__input-detail">
+            {priceDescription(analysis.output.lastTradePrice, analysis.output.totalValue, '价值')}
+          </span>
         </div>
-      ) : null}
+      </div>
 
       {warnings.length > 0 ? (
         <ul className="facility-profit-analysis__warning-list" aria-live="polite">
@@ -214,7 +170,7 @@ export function FacilityRecipeProfitAnalysis({
       ) : null}
 
       <p className="facility-profit-analysis__note">
-        逐档读取公开订单簿并排除自己的反向订单，不使用基础价、参考价或未成交挂单外推。实际成交仍受价格时间优先、卖单累计手续费和后续盘口变化影响。
+        根据各商品最近一次统一订单簿真实成交价估算，不考虑玩家库存、挂单深度和交易手续费。该结果仅用于配方比较，不代表当前可立即成交的实际收益。
       </p>
     </section>
   );

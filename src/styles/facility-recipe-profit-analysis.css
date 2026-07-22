@@ -45,11 +45,11 @@
 }
 
 .facility-profit-analysis__summary {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .facility-profit-analysis__metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .facility-profit-analysis__metric {
@@ -89,13 +89,13 @@
   line-height: var(--line-height-tight);
 }
 
-.facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(3) {
+.facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(4) {
   border: 1px solid color-mix(in srgb, var(--color-success) 22%, var(--color-border));
   background: color-mix(in srgb, var(--color-success-soft) 58%, var(--color-surface));
 }
 
-.facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(3) > strong,
-.facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(3) > .currency-amount {
+.facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(4) > strong,
+.facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(4) > .currency-amount {
   font-size: var(--font-size-md);
 }
 
@@ -158,8 +158,8 @@
   padding-top: var(--space-1);
 }
 
-@container (max-width: 620px) {
-  .facility-profit-analysis__metrics {
+@container (max-width: 760px) {
+  .facility-profit-analysis__summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -173,11 +173,7 @@
     flex: 0 0 auto;
   }
 
-  .facility-profit-analysis__summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(3) {
+  .facility-profit-analysis__summary .facility-profit-analysis__metric:nth-child(4) {
     grid-column: 1 / -1;
     grid-row: 1;
   }

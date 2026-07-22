@@ -1,22 +1,22 @@
 import { createContext, useContext, type ReactNode } from 'react';
-import type { AssetOrder } from '../../types';
+import type { ProductMarketState } from '../../types';
 
-const FacilityRecipeProfitOrdersContext = createContext<AssetOrder[]>([]);
+const FacilityRecipeProfitMarketsContext = createContext<Record<string, ProductMarketState>>({});
 
-export function FacilityRecipeProfitOrdersProvider({
-  orders,
+export function FacilityRecipeProfitMarketsProvider({
+  markets,
   children,
 }: {
-  orders: AssetOrder[];
+  markets: Record<string, ProductMarketState>;
   children: ReactNode;
 }) {
   return (
-    <FacilityRecipeProfitOrdersContext.Provider value={orders}>
+    <FacilityRecipeProfitMarketsContext.Provider value={markets}>
       {children}
-    </FacilityRecipeProfitOrdersContext.Provider>
+    </FacilityRecipeProfitMarketsContext.Provider>
   );
 }
 
-export function useFacilityRecipeProfitOrders() {
-  return useContext(FacilityRecipeProfitOrdersContext);
+export function useFacilityRecipeProfitMarkets() {
+  return useContext(FacilityRecipeProfitMarketsContext);
 }
