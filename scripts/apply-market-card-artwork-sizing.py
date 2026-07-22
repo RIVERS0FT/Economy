@@ -13,9 +13,8 @@ def replace_once(path: str, old: str, new: str) -> None:
 def append_once(path: str, marker: str, addition: str) -> None:
     file_path = Path(path)
     source = file_path.read_text(encoding='utf-8')
-    if marker in source:
-        return
-    file_path.write_text(source.rstrip() + '\n\n' + addition.strip() + '\n', encoding='utf-8')
+    if marker not in source:
+        file_path.write_text(source.rstrip() + '\n\n' + addition.strip() + '\n', encoding='utf-8')
 
 
 replace_once(
@@ -182,6 +181,16 @@ replace_once(
     '''  .market-page-surface .market-asset-card__icon-layer {
     inset: 17px 0;
   }
+
+  .market-page-surface .market-asset-card__data-layer {
+    gap: 2px 5px;
+    padding: 7px 9px 6px;
+  }
+
+  .market-page-surface .market-asset-card__inventory > .game-icon {
+    width: 13px;
+    height: 13px;
+  }
 }''',
     '''  .market-page-surface .market-asset-card__icon-layer {
     inset: 18px 0;
@@ -190,6 +199,11 @@ replace_once(
   .market-page-surface .market-asset-card__data-layer {
     gap: 2px 5px;
     padding: 6px 8px;
+  }
+
+  .market-page-surface .market-asset-card__inventory > .game-icon {
+    width: 13px;
+    height: 13px;
   }
 }''',
 )
@@ -206,8 +220,8 @@ index_old = '40. 市场商品目录卡内部信息布局归属页面职责与市
 index_new = '40. 市场商品目录卡内部信息布局归属页面职责与市场专用样式：卡片必须先渲染只包含居中 `ProductIcon` 的图标层，再渲染包含左上名称、右上 `CurrencyAmount` 最近真实成交价、左下真实 DOM“当前”胶囊和右下 `WarehouseIcon` 可用库存的数据层。桌面／移动卡片继续固定为 `138 × 92px`／`132 × 88px`，中央插画固定为 `64 × 64px`／`48 × 48px`，名称前固定增加 `14 × 14px` 对应商品 SVG；卡片使用 `var(--radius-control)` 圆角、`var(--space-3)` 间距、强边框和轻量阴影区分相邻项目，悬停不得位移。图标层必须位于数据层下方且不参与数据网格，两层均覆盖卡片并禁用指针事件；商品卡不得用 `::after` 生成“当前”胶囊。没有真实成交时商品和工厂目录价格统一显示 `—`，不得回退到商品基础价或工厂系统价值；实现必须同步 `MarketPage.tsx`、`market-page-polish.css`、`product-artwork.css`、`scripts/verify-market-page-layout.mjs` 与市场浏览器测试。'
 replace_once('docs/README.md', index_old, index_new)
 
-verify_insert_after = "requireText(productArtworkStyles, '.market-asset-card__icon-layer', '商品插画映射必须识别市场商品图标层。');"
-verify_addition = """requireText(productArtworkStyles, 'width: 64px;\\n  height: 64px;', '桌面市场商品中央插画必须固定为 64px。');
+verify_anchor = "requireText(productArtworkStyles, '.market-asset-card__icon-layer', '商品插画映射必须识别市场商品图标层。');"
+verify_lines = """requireText(productArtworkStyles, 'width: 64px;\\n  height: 64px;', '桌面市场商品中央插画必须固定为 64px。');
 requireText(productArtworkStyles, 'width: 48px;\\n    height: 48px;', '移动市场商品中央插画必须固定为 48px。');
 requireText(marketStyles, 'gap: var(--space-3);\\n  overflow-x: auto;', '市场资产卡间距必须使用 12px 设计令牌。');
 requireText(marketStyles, 'border-radius: var(--radius-control);', '市场资产卡必须使用统一圆角令牌。');
@@ -217,11 +231,7 @@ requireText(marketStyles, '.market-page-surface .market-asset-card__name-icon', 
 requireText(marketStyles, 'transform: none;', '市场资产卡悬停不得位移。');
 requireText(marketPage, 'className=\"market-asset-card__name-icon\"', '市场商品名称前必须渲染对应商品 SVG。');
 requireText(runtimeSpec, 'market product artwork uses 64px desktop and 48px mobile without resizing cards', 'Playwright 必须覆盖市场中央插画尺寸、卡片尺寸、圆角和间距。');"""
-replace_once(
-    'scripts/verify-market-page-layout.mjs',
-    verify_insert_after,
-    verify_insert_after + '\n' + verify_addition,
-)
+replace_once('scripts/verify-market-page-layout.mjs', verify_anchor, verify_anchor + '\n' + verify_lines)
 
 append_once(
     'tests/browser/market-runtime.spec.ts',
@@ -286,5 +296,12 @@ append_once(
   expect(pageErrors).toEqual([]);
 });''',
 )
+
+for helper in (
+    'scripts/market-card-error.txt',
+    'scripts/market-card-debug-trigger.txt',
+    'scripts/market-card-artwork-trigger.txt',
+):
+    Path(helper).unlink(missing_ok=True)
 
 print('Market asset card artwork sizing, SVG labels, rounded separation, docs and regressions updated.')
