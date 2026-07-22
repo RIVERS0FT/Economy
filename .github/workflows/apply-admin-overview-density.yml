@@ -1,0 +1,65 @@
+name: Apply Admin Overview Density
+
+on:
+  push:
+    branches:
+      - codex/admin-overview-density
+    paths:
+      - scripts/apply-admin-overview-density.py.gz.b64
+      - .github/workflows/apply-admin-overview-density.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-admin-overview-density
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply redesign
+        run: |
+          set -euo pipefail
+          base64 --decode scripts/apply-admin-overview-density.py.gz.b64 | gzip --decompress > scripts/apply-admin-overview-density.py
+          python3 scripts/apply-admin-overview-density.py
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and verify architecture
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test administrator runtime
+        run: npx playwright test tests/browser/admin-runtime.spec.ts
+
+      - name: Commit verified changes
+        run: |
+          set -euo pipefail
+          rm -f scripts/apply-admin-overview-density.py scripts/apply-admin-overview-density.py.gz.b64 .github/workflows/apply-admin-overview-density.yml
+          git diff --check
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "重构管理员概况人口健康矩阵"
+          git push origin HEAD:codex/admin-overview-density
