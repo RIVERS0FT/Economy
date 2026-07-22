@@ -47,6 +47,12 @@ for (const text of [
   'export function InputGroup',
   "classNames('ui-control'",
   "classNames('ui-control', 'ui-control--integer'",
+  'useEffect',
+  'useRef<HTMLInputElement>',
+  'parseIntegerDraft',
+  "input.addEventListener('wheel', handleWheel, { passive: false })",
+  'event.preventDefault();',
+  'event.stopPropagation();',
 ]) requireText(componentPath, text);
 
 for (const text of [
@@ -111,6 +117,8 @@ for (const text of [
   '字符串草稿',
   '不得在 `onChange` 中直接执行 `Number(event.target.value)`',
   '移动端输入字号不得低于 `16px`',
+  '整数输入始终拥有发生在自身命中区域内的滚轮事件',
+  '非被动原生 `wheel` 监听器',
 ]) requireText(designDocPath, text);
 
 if (failures.length) {
@@ -118,4 +126,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('统一表单组件、数字草稿、输入状态和移动端尺寸验证通过。');
+console.log('统一表单组件、数字草稿、整数输入滚轮归属、输入状态和移动端尺寸验证通过。');
