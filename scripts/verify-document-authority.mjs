@@ -132,7 +132,10 @@ if (existsSync(pathFor('docs/README.md'))) {
     '`PRIMARY_SURFACE_INSET_DESIGN.md`',
     '商品插画主视觉',
     '`product-artwork.css`',
+    '`src/assets/product-icons/generated/128/`',
+    '`scripts/generate-product-artwork-thumbnails.mjs`',
     '`scripts/verify-product-artwork.mjs`',
+    '`128 × 128`',
     '不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md`',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
