@@ -19,7 +19,7 @@ for (const text of [
 ]) assert.ok(hook.includes(text), `覆盖式滚动条缺少滚轮归属规则: ${text}`);
 
 for (const [path, selector] of [
-  ['src/styles/industry-system.css', '.production-build-card'],
+  ['src/styles/facility-group-card-grid.css', '.production-build-card'],
   ['src/styles/unified-market-admin.css', '.admin-page-scroll'],
 ]) {
   const source = read(path);

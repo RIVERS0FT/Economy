@@ -319,7 +319,6 @@ function FacilityClusterDetailContent({
         now={now}
         onRecipeChange={onRecipeChange}
       />
-      <div className="facility-card-spacer" aria-hidden="true" />
       <FacilityMarketAction onOpenMarket={onOpenMarket} />
     </>
   );
