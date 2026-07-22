@@ -91,10 +91,12 @@ for (const text of [
   'grid-template-columns: var(--desktop-sidebar-rail) minmax(0, 1fr) auto;',
   '.desktop-sidebar .sidebar-nav-count {',
   'position: static;',
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-nav-count {',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .sidebar-nav-count {',
+  '.desktop-sidebar .sidebar-nav-button .sidebar-nav-count {',
   'top: 2px;',
   'right: 2px;',
   'left: auto;',
+  'transform: none;',
   '@media (max-width: 960px) and (min-width: 721px)',
 ]) requireText(sidebarStylePath, text);
 for (const forbidden of [
