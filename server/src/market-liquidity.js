@@ -6,6 +6,7 @@ import {
   LIQUIDITY_MAX_SPREAD,
   LIQUIDITY_MAX_TARGET,
   LIQUIDITY_MIN_SPREAD,
+  LIQUIDITY_MIN_QUOTE_BUDGET_SHARE,
   LIQUIDITY_MIN_TARGET,
   LIQUIDITY_QUOTE_BUDGET_SHARE,
   LIQUIDITY_TRADE_SHARE,
@@ -295,7 +296,10 @@ export function createMarketLiquidityRuntime({
 
     const quoteBudget = Math.min(
       groupState.credits,
-      Math.max(0, Math.floor(Number(state.lastBudget ?? group.baseBudget) * LIQUIDITY_QUOTE_BUDGET_SHARE)),
+      Math.max(
+        Math.max(0, Math.floor(Number(state.lastBudget ?? group.baseBudget) * LIQUIDITY_QUOTE_BUDGET_SHARE)),
+        Math.max(0, Math.floor(Number(group.baseBudget || 0) * LIQUIDITY_MIN_QUOTE_BUDGET_SHARE)),
+      ),
     );
     const budgets = allocateIntegerBudget(entries, quoteBudget);
     let remainingQuoteBudget = quoteBudget;

@@ -4,7 +4,7 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 7;
+export const MARKET_DEMAND_MODEL_VERSION = 8;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -28,6 +28,9 @@ export const DEMAND_CURVE_SHORTAGE_MULTIPLIER = 1.03;
 export const PRODUCT_PRESSURE_SMOOTHING = 0.30;
 export const PRODUCT_PRESSURE_MIN = 0.75;
 export const PRODUCT_PRESSURE_MAX = 1.35;
+export const PRODUCT_PRESSURE_ACTIVE_IMBALANCE_WEIGHT = 0.08;
+export const PRODUCT_PRESSURE_SUPPLY_RELIEF_WEIGHT = 0.10;
+export const PRODUCT_PRESSURE_EVIDENCE_TARGET = 8;
 export const DERIVED_UNMET_WEIGHT = 0.50;
 export const DERIVED_BACKLOG_WEIGHT = 0.15;
 export const RELATION_LAG_WEIGHTS = Object.freeze([0.60, 0.30, 0.10]);
@@ -41,6 +44,7 @@ export const LIQUIDITY_MIN_SPREAD = 0.04;
 export const LIQUIDITY_MAX_SPREAD = 0.24;
 export const LIQUIDITY_INVENTORY_SKEW = 0.10;
 export const LIQUIDITY_QUOTE_BUDGET_SHARE = 0.25;
+export const LIQUIDITY_MIN_QUOTE_BUDGET_SHARE = 0.05;
 export const LIQUIDITY_TRADE_SHARE = 0.25;
 export const LIQUIDITY_MIN_TARGET = 2;
 export const LIQUIDITY_MAX_TARGET = 30;

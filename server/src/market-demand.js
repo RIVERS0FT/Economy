@@ -12,6 +12,9 @@ import {
   PRODUCT_ORDER_VALUE_CYCLES,
   PRODUCT_PRESSURE_MAX,
   PRODUCT_PRESSURE_MIN,
+  PRODUCT_PRESSURE_ACTIVE_IMBALANCE_WEIGHT,
+  PRODUCT_PRESSURE_SUPPLY_RELIEF_WEIGHT,
+  PRODUCT_PRESSURE_EVIDENCE_TARGET,
   PRODUCT_PRESSURE_SMOOTHING,
   SYSTEM_ORDER_MAX_AGE_CYCLES,
   SYSTEM_ORDER_RETENTION_RATE,
@@ -24,6 +27,7 @@ import { createMarketSignalRuntime } from './market-demand/signals.js';
 import { createMarketDemandStateRuntime } from './market-demand/state.js';
 import {
   POPULATION_MODEL_IDS,
+  POPULATION_STABILIZATION_DIRECT_SHARE,
   populationClassShares,
   preparePopulationDemandCycle,
   releasePopulationOrderFunds,
@@ -39,6 +43,7 @@ const FUNDING_POOL_BY_ROLE = Object.freeze({ direct: 'direct', 'derived-liquidit
 export function createMarketDemandRuntime({ products, facilities, constants, marketFor, matchOrder, isOpenOrder }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
   const groupMap = new Map(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));
+  const totalPopulationBaseBudget = MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + Number(group.baseBudget || 0), 0);
   const directProductIds = new Set(MARKET_DEMAND_PRODUCT_IDS);
   const productFor = (productId) => productMap.get(String(productId || '')) || productMap.get('wheat');
   const allRecipes = Object.freeze(facilities.flatMap((facility) => facility.recipes
@@ -444,10 +449,16 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       const tradeStats = signals.realTradeStats(world, productId, now);
       const activeImbalance = tradeStats.playerQuantity <= 0 ? 0 : tradeStats.playerNetActive / tradeStats.playerQuantity;
       const supplyRelief = Math.max(0, quote.coverage - 0.75);
+      const evidenceQuantity = Math.max(0, Number(tradeStats.playerQuantity || 0) + Number(tradeStats.consumptionQuantity || 0));
+      const evidenceConfidence = clamp(0, 1, evidenceQuantity / Math.max(PRODUCT_PRESSURE_EVIDENCE_TARGET, requested));
       const target = clamp(
         PRODUCT_PRESSURE_MIN,
         PRODUCT_PRESSURE_MAX,
-        1 + 0.55 * (group.targetSatisfaction - fillRatio) + 0.15 * activeImbalance - 0.20 * supplyRelief,
+        1 + 0.55 * (group.targetSatisfaction - fillRatio)
+          + evidenceConfidence * (
+            PRODUCT_PRESSURE_ACTIVE_IMBALANCE_WEIGHT * activeImbalance
+            - PRODUCT_PRESSURE_SUPPLY_RELIEF_WEIGHT * supplyRelief
+          ),
       );
       const previous = Number(world.marketDemand.productPressure[productId] || 1);
       world.marketDemand.productPressure[productId] = round4(
@@ -500,7 +511,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     }
 
     prepareGroupOrders(world, group, state, cycleId);
-    const populationCycle = preparePopulationDemandCycle(world, cycleId, now);
+    const populationCycle = preparePopulationDemandCycle(world, cycleId, now, { totalBaseBudget: totalPopulationBaseBudget });
     const allocations = {};
     const totals = {
       currentDemandQuantities: {},
@@ -515,7 +526,11 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       const modelBudget = Math.max(0, Math.floor(Number(populationCycle.groups?.[group.id]?.[modelId] || 0)));
       if (modelBudget <= 0) continue;
       cycleBudget += modelBudget;
-      const directBudget = Math.floor(modelBudget * group.directBudgetShare);
+      const stabilizationBudget = Math.max(0, Math.floor(Number(populationCycle.baseGroups?.[group.id]?.[modelId] || 0)));
+      const employmentBudget = Math.max(0, modelBudget - stabilizationBudget);
+      const directBudget = Math.min(modelBudget,
+        Math.floor(stabilizationBudget * POPULATION_STABILIZATION_DIRECT_SHARE)
+          + Math.floor(employmentBudget * group.directBudgetShare));
       const derivedBudget = modelBudget - directBudget;
       const modelState = allocationStateForModel(state, modelId);
       const direct = allocationRuntime.directDemandChoices(world, group, modelState, directBudget, now, {
