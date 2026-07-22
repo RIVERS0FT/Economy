@@ -139,7 +139,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         : (selectedGroup?.availableCount ?? 0) < 1
           ? `当前没有可出售的${assetName}。`
           : undefined;
-  const quantityReason = availabilityReason === undefined
+  const quantityReason = priceReason === undefined && availabilityReason === undefined
     ? parsedOrderQuantity === null
       ? '数量必须是不低于 1 的整数。'
       : parsedOrderQuantity > maxTradeQuantity

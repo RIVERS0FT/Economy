@@ -160,6 +160,44 @@ test('market order form explains why an order cannot be submitted', async ({ pag
   expect(pageErrors).toEqual([]);
 });
 
+test('market quick quantities use funds, inventory and holdings without duplicate quantity errors', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const quantityInput = page.getByRole('spinbutton', { name: '数量' });
+  await expect(page.getByRole('button', { name: '1/4 资金', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '1/2 资金', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '全部资金', exact: true })).toBeVisible();
+  await expect(page.getByText('当前价格下最多可买 500。', { exact: true })).toHaveCount(1);
+
+  await page.getByRole('button', { name: '全部资金', exact: true }).click();
+  await expect(quantityInput).toHaveValue('500');
+  await quantityInput.fill('501');
+  await expect(page.getByRole('alert')).toHaveText('当前价格下最多可买 500。');
+  await expect(page.getByText('当前价格下最多可买 500。', { exact: true })).toHaveCount(1);
+  await expect(page.getByRole('status')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '提交小麦买单' })).toBeDisabled();
+
+  await page.getByRole('button', { name: '卖出', exact: true }).click();
+  await expect(page.getByRole('button', { name: '1/4 库存', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '1/2 库存', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '全部库存', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '全部库存', exact: true }).click();
+  await expect(quantityInput).toHaveValue('8');
+
+  const machineryTab = page.getByRole('tab', { name: /^机械工厂/ });
+  await machineryTab.click();
+  await expect(machineryTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('button', { name: '1/4 持有', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '1/2 持有', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '全部持有', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '全部持有', exact: true }).click();
+  await expect(quantityInput).toHaveValue('18');
+  await expect(page.getByRole('status')).toHaveCount(0);
+  expect(pageErrors).toEqual([]);
+});
+
 test('market asset directory uses two rows, explicit groups, controls and visible current state', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
