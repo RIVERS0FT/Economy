@@ -206,6 +206,14 @@ requireText('src/main.tsx', "import './styles/icon-system.css'");
 
 for (const text of [
   '统一 SVG 图标',
+  '商品物资插画图标绘制规范',
+  '`src/assets/product-icons/`',
+  '写实与游戏插画融合的 3D 手绘风格',
+  '轻微俯视的三分之四视角、居中悬浮构图',
+  '主体约占画布 75%',
+  '柔和暖色主光从左上方照射',
+  '非常柔和的半透明接触阴影',
+  '`1024 × 1024`、PNG RGBA 和真实 Alpha 透明通道',
   '`src/components/icons/GameIcons.tsx`',
   '不得继续使用 Unicode 字符、Emoji 或字体符号作为图标',
   '导航配置只保存 `id` 与中文 `label`',
