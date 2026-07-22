@@ -60,7 +60,29 @@ export function createDemandAllocationRuntime({
     return { activePlayers, playerScaleBudget, tradeActivityFactor, needPressure, targetBudget, budget };
   }
 
-  function allocateClassBudgets(group, state, directBudget, classDetails) {
+  function allocateClassBudgets(group, state, directBudget, classDetails, classShareOverride) {
+    if (classShareOverride && typeof classShareOverride === 'object') {
+      const entries = group.classes.map((demandClass) => ({
+        id: demandClass.id,
+        weight: Math.max(0, Number(classShareOverride[demandClass.id] || 0)),
+        maxBudget: directBudget,
+      }));
+      const hasWeight = entries.some((entry) => entry.weight > 0);
+      const budgets = allocateIntegerBudget(
+        hasWeight ? entries : group.classes.map((demandClass) => ({
+          id: demandClass.id,
+          weight: Math.max(0, Number(demandClass.budgetShare || 0)),
+          maxBudget: directBudget,
+        })),
+        directBudget,
+      );
+      state.lastClassShares = Object.fromEntries(group.classes.map((demandClass) => {
+        const budget = budgets.get(demandClass.id) || 0;
+        return [demandClass.id, directBudget <= 0 ? 0 : budget / directBudget];
+      }));
+      return budgets;
+    }
+
     const minima = new Map();
     let minimumTotal = 0;
     for (const demandClass of group.classes) {
@@ -99,7 +121,7 @@ export function createDemandAllocationRuntime({
     return budgets;
   }
 
-  function directDemandChoices(world, group, state, directBudget, now) {
+  function directDemandChoices(world, group, state, directBudget, now, { classShares } = {}) {
     const productBudgets = new Map();
     const classAllocation = {};
     const productDetails = new Map();
@@ -131,7 +153,7 @@ export function createDemandAllocationRuntime({
       });
     }
 
-    const classBudgets = allocateClassBudgets(group, state, directBudget, classDetails);
+    const classBudgets = allocateClassBudgets(group, state, directBudget, classDetails, classShares);
     for (const demandClass of group.classes) {
       const classBudget = classBudgets.get(demandClass.id) || 0;
       const detail = classDetails.get(demandClass.id);
