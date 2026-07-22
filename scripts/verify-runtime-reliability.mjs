@@ -66,10 +66,18 @@ for (const text of [
 for (const text of [
   'node-version: 24.4.0',
   'cache: npm',
-  'run: npm ci',
+  'economy-install-dependencies.log',
   'npm run build',
   'Ensure rsync is available',
   'if ! command -v rsync >/dev/null 2>&1; then',
+  'Collect failed step log',
+  'collect_failed_log',
+  'if [ "$outcome" != "failure" ]; then',
+  'actions/upload-artifact@v7',
+  'name: economy-deploy-failure-${{ github.run_id }}-${{ github.run_attempt }}',
+  'path: ${{ runner.temp }}/economy-failure-log',
+  'retention-days: 3',
+  'compression-level: 9',
 ]) requireText('.github/workflows/deploy.yml', text);
 
 for (const [path, text] of [
@@ -78,6 +86,8 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '验证码终态记录保留 30 天'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'Node 24.4.0'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '成功步骤日志不得上传'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得再为单次构建失败创建临时诊断工作流'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/README.md', '运行时可靠性、依赖锁、浏览器测试'],
   ['README.md', '管理员礼品码与兑换记录按游标分页'],
@@ -87,4 +97,4 @@ if (failures.length) {
   console.error(`运行时可靠性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('依赖锁、CI 去重、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');
+console.log('依赖锁、CI 去重、失败步骤日志 Artifact、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。');

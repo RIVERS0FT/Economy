@@ -29,18 +29,28 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        id: install_dependencies
+        run: |
+          exec > >(tee /tmp/economy-install-dependencies.log) 2>&1
+          set -euo pipefail
+          npm ci
 
       - name: Build website and test authoritative API
+        id: build
         run: |
           exec > >(tee /tmp/economy-build.log) 2>&1
           set -euo pipefail
           npm run build
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        id: install_chromium
+        run: |
+          exec > >(tee /tmp/economy-install-chromium.log) 2>&1
+          set -euo pipefail
+          npx playwright install --with-deps chromium
 
       - name: Test browser runtime before deployment
+        id: browser_test
         shell: bash
         run: |
           exec > >(tee /tmp/economy-browser-test.log) 2>&1
@@ -48,7 +58,9 @@ jobs:
           npm run test:browser
 
       - name: Ensure rsync is available
+        id: ensure_rsync
         run: |
+          exec > >(tee /tmp/economy-rsync.log) 2>&1
           set -euo pipefail
           if ! command -v rsync >/dev/null 2>&1; then
             sudo apt-get update
@@ -56,11 +68,13 @@ jobs:
           fi
 
       - name: Configure SSH
+        id: configure_ssh
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
           SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
         run: |
+          exec > >(tee /tmp/economy-ssh.log) 2>&1
           set -euo pipefail
           test -n "$SERVER_HOST"
           test -n "$SERVER_PORT"
@@ -71,6 +85,7 @@ jobs:
           ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
 
       - name: Prepare remote directories
+        id: prepare_remote
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -106,6 +121,7 @@ jobs:
           REMOTE
 
       - name: Prepare portable Node runtime
+        id: prepare_runtime
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -134,11 +150,13 @@ jobs:
           "$runtime_dir/bin/node" -e 'require("node:sqlite"); console.log(process.versions.node)'
 
       - name: Upload website and game API
+        id: upload_assets
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
           SERVER_PORT: ${{ secrets.SERVER_PORT }}
         run: |
+          exec > >(tee /tmp/economy-upload.log) 2>&1
           set -euo pipefail
           rsync -az --delete \
             -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
@@ -151,6 +169,7 @@ jobs:
             /tmp/economy-node-runtime/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy-api/runtime/"
 
       - name: Install authoritative game service
+        id: install_service
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -163,6 +182,7 @@ jobs:
             < scripts/install-economy-api.py
 
       - name: Configure Nginx routes
+        id: configure_nginx
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -177,6 +197,7 @@ jobs:
           done
 
       - name: Verify website, account routes, and game API
+        id: verify_deployment
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
@@ -250,6 +271,69 @@ jobs:
             exit 1
           fi
 
+      - name: Collect failed step log
+        if: failure()
+        shell: bash
+        env:
+          INSTALL_DEPENDENCIES_OUTCOME: ${{ steps.install_dependencies.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          INSTALL_CHROMIUM_OUTCOME: ${{ steps.install_chromium.outcome }}
+          BROWSER_TEST_OUTCOME: ${{ steps.browser_test.outcome }}
+          ENSURE_RSYNC_OUTCOME: ${{ steps.ensure_rsync.outcome }}
+          CONFIGURE_SSH_OUTCOME: ${{ steps.configure_ssh.outcome }}
+          PREPARE_REMOTE_OUTCOME: ${{ steps.prepare_remote.outcome }}
+          PREPARE_RUNTIME_OUTCOME: ${{ steps.prepare_runtime.outcome }}
+          UPLOAD_ASSETS_OUTCOME: ${{ steps.upload_assets.outcome }}
+          INSTALL_SERVICE_OUTCOME: ${{ steps.install_service.outcome }}
+          CONFIGURE_NGINX_OUTCOME: ${{ steps.configure_nginx.outcome }}
+          VERIFY_DEPLOYMENT_OUTCOME: ${{ steps.verify_deployment.outcome }}
+        run: |
+          set -euo pipefail
+          failure_dir="$RUNNER_TEMP/economy-failure-log"
+          rm -rf "$failure_dir"
+          mkdir -p "$failure_dir"
+
+          collect_failed_log() {
+            local outcome="$1"
+            local source="$2"
+            local target="$3"
+            if [ "$outcome" != "failure" ]; then
+              return
+            fi
+            if [ -s "$source" ]; then
+              cp "$source" "$failure_dir/$target"
+            else
+              printf '步骤失败，但未生成可读取的命令日志：%s\n' "$target" > "$failure_dir/$target"
+            fi
+          }
+
+          collect_failed_log "$INSTALL_DEPENDENCIES_OUTCOME" /tmp/economy-install-dependencies.log install-dependencies.log
+          collect_failed_log "$BUILD_OUTCOME" /tmp/economy-build.log build.log
+          collect_failed_log "$INSTALL_CHROMIUM_OUTCOME" /tmp/economy-install-chromium.log install-chromium.log
+          collect_failed_log "$BROWSER_TEST_OUTCOME" /tmp/economy-browser-test.log browser-test.log
+          collect_failed_log "$ENSURE_RSYNC_OUTCOME" /tmp/economy-rsync.log rsync.log
+          collect_failed_log "$CONFIGURE_SSH_OUTCOME" /tmp/economy-ssh.log configure-ssh.log
+          collect_failed_log "$PREPARE_REMOTE_OUTCOME" /tmp/economy-deploy.log prepare-remote.log
+          collect_failed_log "$PREPARE_RUNTIME_OUTCOME" /tmp/economy-runtime.log prepare-runtime.log
+          collect_failed_log "$UPLOAD_ASSETS_OUTCOME" /tmp/economy-upload.log upload-assets.log
+          collect_failed_log "$INSTALL_SERVICE_OUTCOME" /tmp/economy-api-install.log install-service.log
+          collect_failed_log "$CONFIGURE_NGINX_OUTCOME" /tmp/economy-proxy-configure.log configure-nginx.log
+          collect_failed_log "$VERIFY_DEPLOYMENT_OUTCOME" /tmp/economy-verify.log verify-deployment.log
+
+          if ! compgen -G "$failure_dir/*" > /dev/null; then
+            printf '失败发生在非 shell Action 步骤；完整输出保留在 GitHub Actions job log。\n' > "$failure_dir/action-step-failure.txt"
+          fi
+
+      - name: Upload failed step log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: economy-deploy-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/economy-failure-log
+          if-no-files-found: warn
+          retention-days: 3
+          compression-level: 9
+
       - name: Report deployment status
         if: always()
         env:
@@ -264,10 +348,15 @@ jobs:
             STATE="failure"
             DESCRIPTION="Economy deployment failed"
             DETAIL="$({
+              cat /tmp/economy-install-dependencies.log 2>/dev/null || true
               cat /tmp/economy-build.log 2>/dev/null || true
+              cat /tmp/economy-install-chromium.log 2>/dev/null || true
               cat /tmp/economy-browser-test.log 2>/dev/null || true
+              cat /tmp/economy-rsync.log 2>/dev/null || true
+              cat /tmp/economy-ssh.log 2>/dev/null || true
               cat /tmp/economy-deploy.log 2>/dev/null || true
               cat /tmp/economy-runtime.log 2>/dev/null || true
+              cat /tmp/economy-upload.log 2>/dev/null || true
               cat /tmp/economy-api-install.log 2>/dev/null || true
               cat /tmp/economy-proxy-configure.log 2>/dev/null || true
               cat /tmp/economy-verify.log 2>/dev/null || true
