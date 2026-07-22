@@ -152,9 +152,33 @@ test('admin navigation becomes a horizontal client-style bar on mobile', async (
   await page.goto('/economy/admin');
 
   await expect(page.locator('.admin-sidebar')).toBeHidden();
-  await expect(page.getByRole('navigation', { name: '管理员移动导航' })).toBeVisible();
+  const navigation = page.getByRole('navigation', { name: '管理员移动导航' });
+  const mobileBottomNavigation = page.locator('.admin-mobile-bottom-navigation');
+  await expect(navigation).toBeVisible();
+  await expect(mobileBottomNavigation).toBeVisible();
+  await expect(page.locator('.admin-mobile-navigation')).toHaveCount(0);
+  await expect(mobileBottomNavigation.locator('.liquid-glass-surface')).toHaveCount(1);
+  await expect(mobileBottomNavigation.locator('.mobile-bottom-navigation__viewport')).toHaveCount(1);
+
+  const geometry = await page.evaluate(() => {
+    const nav = document.querySelector<HTMLElement>('.admin-mobile-bottom-navigation');
+    const scroll = document.querySelector<HTMLElement>('.admin-page-scroll');
+    if (!nav || !scroll) throw new Error('管理员移动导航结构缺失');
+    const navRect = nav.getBoundingClientRect();
+    const scrollStyle = getComputedStyle(scroll);
+    return {
+      navHeight: navRect.height,
+      navBottomGap: window.innerHeight - navRect.bottom,
+      scrollPaddingBottom: Number.parseFloat(scrollStyle.paddingBottom),
+      documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+  expect(geometry.navHeight).toBe(68);
+  expect(geometry.navBottomGap).toBeGreaterThanOrEqual(0);
+  expect(geometry.navBottomGap).toBeLessThanOrEqual(20);
+  expect(geometry.scrollPaddingBottom).toBeGreaterThan(geometry.navHeight);
+  expect(geometry.documentOverflow).toBeLessThanOrEqual(1);
+
   await page.getByRole('button', { name: '账号封禁', exact: true }).click();
   await expect(page.getByRole('heading', { name: '同 IP 账号封禁', exact: true })).toBeVisible();
-  const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-  expect(hasHorizontalOverflow).toBe(false);
 });
