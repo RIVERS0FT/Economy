@@ -31,6 +31,7 @@ import './styles/warehouse-expansion.css';
 import './styles/collectibles-auctions.css';
 import './styles/gem-shop.css';
 import './styles/unified-market-admin.css';
+import './styles/admin-navigation.css';
 import './styles/virtual-list.css';
 import './styles/production-surface.css';
 import './styles/settings.css';
