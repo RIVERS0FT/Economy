@@ -18,7 +18,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 for (const text of [
   'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','items={localTrades}',
   'local-trades-virtual-table','VirtualRecordTable',
-  "import { FactoryIcon } from '../components/icons/GameIcons'",'<FactoryIcon />','selectOrderSide',
+  "from '../components/icons/GameIcons'",'FactoryIcon','<FactoryIcon />','selectOrderSide',
   'title={selectedAssetTitle(`${assetName}订单`)}','label="价格"','className="numeric-cell">价格</th>',
   'formatNumber(order.remaining)','formatCurrency(order.price)',
   "import { buildOrderBookLevels } from '../utils/orderBookLevels'",
