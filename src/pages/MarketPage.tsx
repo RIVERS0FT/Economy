@@ -272,7 +272,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                     <ProductIcon productId={product.id} />
                   </span>
                   <span className="market-asset-card__data-layer" aria-hidden="true">
-                    <strong className="market-asset-card__name">{product.name}</strong>
+                    <strong className="market-asset-card__name">
+                      <ProductIcon productId={product.id} className="market-asset-card__name-icon" />
+                      <span>{product.name}</span>
+                    </strong>
                     <span className="market-asset-card__price" title={`最近成交价：${priceLabel}`}>
                       <CurrencyAmount>{hasLastPrice ? formatCurrency(lastPrice) : '—'}</CurrencyAmount>
                     </span>

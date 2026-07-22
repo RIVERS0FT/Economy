@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/home/runner/work/Economy/Economy/scripts/apply-market-card-artwork-sizing.py", line 180, in <module>
-    replace_once(
-  File "/home/runner/work/Economy/Economy/scripts/apply-market-card-artwork-sizing.py", line 9, in replace_once
-    raise RuntimeError(f'{path}: expected one match, found {count}: {old[:120]!r}')
-RuntimeError: src/styles/market-page-polish.css: expected one match, found 0: '  .market-page-surface .market-asset-card__icon-layer {\n    inset: 17px 0;\n  }\n}'
