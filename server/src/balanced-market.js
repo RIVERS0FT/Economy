@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { isOpenOrder } from './order-identity.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { LIQUIDITY_SIGNAL_WEIGHT } from './market-demand/catalog.js';
+import {
+  creditPopulationEmployment,
+  recordPopulationSellerIncome,
+  settlePopulationPurchase,
+} from './population-economy.js';
 
 const LIQUIDITY_BUY = 'liquidity-buy';
 const LIQUIDITY_SELL = 'liquidity-sell';
@@ -125,13 +130,15 @@ export function createBalancedMarketRuntime({ products, constants }) {
     inventory.frozen -= quantity;
     player.credits += settlement.netTotal;
     player.stats ||= {};
-    player.stats.systemSinks = Number(player.stats.systemSinks || 0) + settlement.fee;
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
     player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
-    const consumptionIncome = isConsumptionOrder(buyer);
-    if (consumptionIncome) {
-      player.stats.populationIssued = Number(player.stats.populationIssued || 0) + total;
+    if (settlement.fee > 0) {
+      creditPopulationEmployment(world, settlement.fee, 'marketService');
+      player.stats.marketServiceFees = Number(player.stats.marketServiceFees || 0) + settlement.fee;
+      player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + settlement.fee;
     }
+    const consumptionIncome = isConsumptionOrder(buyer);
+    if (consumptionIncome) recordPopulationSellerIncome(player, settlement.netTotal);
     const product = productFor(order.productId);
     addTrade(player, {
       type: 'commodity', productId: product.id, side: 'sell', quantity, price: tradePrice,
@@ -142,9 +149,13 @@ export function createBalancedMarketRuntime({ products, constants }) {
       player,
       consumptionIncome ? 'population_income' : 'market_trade',
       settlement.netTotal,
-      `${consumptionIncome ? '市场需求消费' : '卖给市场储备'} ${quantity} 个${product.name}，成交价 ${tradePrice}，手续费 ${settlement.fee}`,
+      `${consumptionIncome ? '人口消费购买' : '卖给市场储备'} ${quantity} 个${product.name}，成交价 ${tradePrice}，市场服务费 ${settlement.fee}`,
       createdAt,
     );
+  }
+
+  function settlePopulationBuy(world, order, quantity, tradePrice) {
+    settlePopulationPurchase(world, order, quantity, tradePrice);
   }
 
   function settleLiquidityBuy(world, order, quantity, tradePrice) {
@@ -185,8 +196,9 @@ export function createBalancedMarketRuntime({ products, constants }) {
       describeCounterparty: counterparty,
       settleTrade: ({ buy, sell, quantity, price, sellerSettlement }) => {
         if (buy.ownerType === 'player') settlePlayerBuy(world, buy, quantity, price, counterparty(sell), createdAt);
-        if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, sellerSettlement, createdAt);
+        if (isConsumptionOrder(buy)) settlePopulationBuy(world, buy, quantity, price);
         if (buy.demandTier === LIQUIDITY_BUY) settleLiquidityBuy(world, buy, quantity, price);
+        if (sell.ownerType === 'player') settlePlayerSell(world, sell, quantity, price, buy, sellerSettlement, createdAt);
         if (sell.demandTier === LIQUIDITY_SELL) settleLiquiditySell(world, sell, quantity, price);
       },
       recordTrade: ({ buy, sell, quantity, price, takerSide }) => {
