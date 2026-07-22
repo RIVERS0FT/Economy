@@ -47,3 +47,34 @@
 .panel.production-surface .facility-card-title-row > .ui-switch:checked::after {
   transform: translateX(var(--production-switch-thumb-travel));
 }
+
+
+/* Compact factory detail header: title, status, switch and counts stay in two dense rows. */
+.panel.production-surface.facility-group-card {
+  --facility-card-section-gap: var(--space-2);
+  --facility-card-inner-gap: var(--space-1);
+}
+
+.panel.production-surface .facility-status-header {
+  gap: var(--space-1) var(--space-2);
+}
+
+.panel.production-surface .facility-cluster-selector-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.panel.production-surface .facility-cluster-selector-heading h2 {
+  flex: 0 1 auto;
+}
+
+.panel.production-surface .facility-cluster-selector-heading .ui-status-tag {
+  flex: 0 0 auto;
+}
+
+.panel.production-surface .facility-count-summary {
+  line-height: var(--line-height-tight);
+}
