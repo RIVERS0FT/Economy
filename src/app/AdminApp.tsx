@@ -18,6 +18,8 @@ import {
   AdminSidebar,
   type AdminSectionId,
 } from '../components/shell/AdminSidebar';
+import { AdminDesktopBar } from '../components/shell/AdminDesktopBar';
+import { SignedInShell } from '../components/shell/SignedInShell';
 import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
 import { FileInput, IntegerInput, TextArea, TextInput } from '../components/ui/FormControls';
 import {
@@ -361,276 +363,291 @@ export function AdminApp({ user }: { user: AuthUser }) {
   }
 
   return (
-    <main className={sidebarCollapsed ? 'admin-shell sidebar-layout sidebar-collapsed' : 'admin-shell sidebar-layout'}>
-      <AdminSidebar
-        email={user.email}
-        activeSection={activeSection}
-        collapsed={sidebarCollapsed}
-        onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-        onSelect={setActiveSection}
-      />
+    <SignedInShell
+      rootClassName="admin-shell"
+      workspaceClassName="admin-workspace"
+      pageViewportClassName="admin-page-scroll"
+      pageFrameClassName="admin-page-frame"
+      chromeOverlayClassName="admin-mobile-chrome-layer"
+      adminChromeLayer
+      sidebarCollapsed={sidebarCollapsed}
+      sidebar={(
+        <AdminSidebar
+          email={user.email}
+          activeSection={activeSection}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+          onSelect={setActiveSection}
+        />
+      )}
+      chrome={(
+        <>
+          <AdminDesktopBar
+            title={ADMIN_SECTION_COPY[activeSection].title}
+            description={ADMIN_SECTION_COPY[activeSection].description}
+            email={user.email}
+            worldVersion={summary?.worldVersion}
+            apiStatus={summary?.apiStatus}
+            onRefresh={refreshActiveSection}
+          />
+          <AdminMobileNavigation activeSection={activeSection} onSelect={setActiveSection} />
+        </>
+      )}
+    >
+      <PageLayout
+        title={ADMIN_SECTION_COPY[activeSection].title}
+        description={ADMIN_SECTION_COPY[activeSection].description}
+        actions={<Button variant="secondary" onClick={refreshActiveSection}>刷新当前分区</Button>}
+      >
+        {error ? <div className="admin-alert danger" role="alert"><CurrencyText>{error}</CurrencyText></div> : null}
+        {notice ? <div className="admin-alert" role="status"><CurrencyText>{notice}</CurrencyText></div> : null}
 
-      <section className="admin-workspace">
-        <AdminMobileNavigation activeSection={activeSection} onSelect={setActiveSection} />
-        <div className="admin-page-scroll">
-          <div className="admin-page-frame">
-            <PageLayout
-              title={ADMIN_SECTION_COPY[activeSection].title}
-              description={ADMIN_SECTION_COPY[activeSection].description}
-              actions={<Button variant="secondary" onClick={refreshActiveSection}>刷新当前分区</Button>}
-            >
-              {error ? <div className="admin-alert danger" role="alert"><CurrencyText>{error}</CurrencyText></div> : null}
-              {notice ? <div className="admin-alert" role="status"><CurrencyText>{notice}</CurrencyText></div> : null}
+        {activeSection === 'overview' ? (
+          <div className="admin-section-stack">
+            <section className="admin-summary-grid" aria-label="世界概况">
+              <MetricCard label="玩家数量" value={summary?.playerCount ?? '--'} />
+              <MetricCard label="未完成订单" value={summary?.openOrderCount ?? '--'} />
+              <MetricCard label="商品订单" value={summary?.commodityOrderCount ?? '--'} />
+              <MetricCard label="工厂订单" value={summary?.facilityOrderCount ?? '--'} />
+              <MetricCard label="藏品数量" value={summary?.collectibleCount ?? '--'} />
+              <MetricCard label="进行中拍卖" value={summary?.openAuctionCount ?? '--'} />
+              <MetricCard label="世界版本" value={summary?.worldVersion ?? '--'} />
+              <MetricCard label="API 状态" value={summary?.apiStatus ?? '--'} tone={summary?.apiStatus === 'ok' ? 'success' : 'neutral'} />
+            </section>
 
-              {activeSection === 'overview' ? (
-                <div className="admin-section-stack">
-                  <section className="admin-summary-grid" aria-label="世界概况">
-                    <MetricCard label="玩家数量" value={summary?.playerCount ?? '--'} />
-                    <MetricCard label="未完成订单" value={summary?.openOrderCount ?? '--'} />
-                    <MetricCard label="商品订单" value={summary?.commodityOrderCount ?? '--'} />
-                    <MetricCard label="工厂订单" value={summary?.facilityOrderCount ?? '--'} />
-                    <MetricCard label="藏品数量" value={summary?.collectibleCount ?? '--'} />
-                    <MetricCard label="进行中拍卖" value={summary?.openAuctionCount ?? '--'} />
-                    <MetricCard label="世界版本" value={summary?.worldVersion ?? '--'} />
-                    <MetricCard label="API 状态" value={summary?.apiStatus ?? '--'} tone={summary?.apiStatus === 'ok' ? 'success' : 'neutral'} />
+            <Panel className="admin-panel admin-population-economy">
+              <WidgetHeading title="人口经济" />
+              {summary?.populationEconomy ? (
+                <>
+                  <section className="admin-population-summary-grid" aria-label="人口经济总览">
+                    <MetricCard label="人口可用资金" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.credits)}</CurrencyAmount>} />
+                    <MetricCard label="人口冻结资金" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.frozenCredits)}</CurrencyAmount>} />
+                    <MetricCard label="待结算就业收入" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.pendingIncome)}</CurrencyAmount>} />
+                    <MetricCard label="施工就业托管" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.constructionEscrow)}</CurrencyAmount>} />
+                    <MetricCard label="累计就业收入" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.totalEmploymentIncome)}</CurrencyAmount>} />
+                    <MetricCard label="累计人口消费" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.totalConsumption)}</CurrencyAmount>} />
+                    <MetricCard label="本周期消费预算" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.lastBudget)}</CurrencyAmount>} />
+                    <MetricCard label="累计货币发行" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.total)}</CurrencyAmount>} />
+                    <MetricCard label="累计稳定需求补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.stabilization)}</CurrencyAmount>} />
+                    <MetricCard label="累计管理员人口补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.adminPopulation)}</CurrencyAmount>} />
                   </section>
 
-                  <Panel className="admin-panel admin-population-economy">
-                    <WidgetHeading title="人口经济" />
-                    {summary?.populationEconomy ? (
-                      <>
-                        <section className="admin-population-summary-grid" aria-label="人口经济总览">
-                          <MetricCard label="人口可用资金" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.credits)}</CurrencyAmount>} />
-                          <MetricCard label="人口冻结资金" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.frozenCredits)}</CurrencyAmount>} />
-                          <MetricCard label="待结算就业收入" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.pendingIncome)}</CurrencyAmount>} />
-                          <MetricCard label="施工就业托管" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.constructionEscrow)}</CurrencyAmount>} />
-                          <MetricCard label="累计就业收入" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.totalEmploymentIncome)}</CurrencyAmount>} />
-                          <MetricCard label="累计人口消费" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.totalConsumption)}</CurrencyAmount>} />
-                          <MetricCard label="本周期消费预算" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.lastBudget)}</CurrencyAmount>} />
-                          <MetricCard label="累计货币发行" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.total)}</CurrencyAmount>} />
-                          <MetricCard label="累计稳定需求补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.stabilization)}</CurrencyAmount>} />
-                          <MetricCard label="累计管理员人口补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.adminPopulation)}</CurrencyAmount>} />
-                        </section>
+                  <div className="admin-population-model-grid">
+                    {Object.values(summary.populationEconomy.models).map((model) => (
+                      <section className="admin-population-model-card" key={model.id}>
+                        <header><h3>{model.name}</h3><StatusTag tone={model.consumptionState === 'normal' ? 'success' : model.consumptionState === 'cautious' ? 'warning' : 'danger'}>{populationStateLabel(model.consumptionState)}</StatusTag></header>
+                        <dl>
+                          <div><dt>可用／冻结</dt><dd><CurrencyAmount>{formatCurrency(model.credits)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.frozenCredits)}</CurrencyAmount></dd></div>
+                          <div><dt>最近收入／EMA</dt><dd><CurrencyAmount>{formatCurrency(model.lastIncome)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.incomeEma)}</CurrencyAmount></dd></div>
+                          <div><dt>当前预算</dt><dd><CurrencyAmount>{formatCurrency(model.lastBudget)}</CurrencyAmount></dd></div>
+                          <div><dt>稳定预算／自动补充</dt><dd><CurrencyAmount>{formatCurrency(model.stabilizationBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.lastStabilizationIssued)}</CurrencyAmount></dd></div>
+                          <div><dt>最近管理员补充</dt><dd><CurrencyAmount>{formatCurrency(model.lastAdminPopulationIssued)}</CurrencyAmount></dd></div>
+                          <div><dt>食品／家庭</dt><dd><CurrencyAmount>{formatCurrency(model.foodBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.householdBudget)}</CurrencyAmount></dd></div>
+                          <div><dt>连续无收入周期</dt><dd>{model.noIncomeCycles}</dd></div>
+                          <div><dt>待结算</dt><dd><CurrencyAmount>{formatCurrency(Object.values(model.pendingIncome).reduce((sum, value) => sum + value, 0))}</CurrencyAmount></dd></div>
+                        </dl>
+                      </section>
+                    ))}
+                  </div>
 
-                        <div className="admin-population-model-grid">
-                          {Object.values(summary.populationEconomy.models).map((model) => (
-                            <section className="admin-population-model-card" key={model.id}>
-                              <header><h3>{model.name}</h3><StatusTag tone={model.consumptionState === 'normal' ? 'success' : model.consumptionState === 'cautious' ? 'warning' : 'danger'}>{populationStateLabel(model.consumptionState)}</StatusTag></header>
-                              <dl>
-                                <div><dt>可用／冻结</dt><dd><CurrencyAmount>{formatCurrency(model.credits)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.frozenCredits)}</CurrencyAmount></dd></div>
-                                <div><dt>最近收入／EMA</dt><dd><CurrencyAmount>{formatCurrency(model.lastIncome)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.incomeEma)}</CurrencyAmount></dd></div>
-                                <div><dt>当前预算</dt><dd><CurrencyAmount>{formatCurrency(model.lastBudget)}</CurrencyAmount></dd></div>
-                                <div><dt>稳定预算／自动补充</dt><dd><CurrencyAmount>{formatCurrency(model.stabilizationBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.lastStabilizationIssued)}</CurrencyAmount></dd></div>
-                                <div><dt>最近管理员补充</dt><dd><CurrencyAmount>{formatCurrency(model.lastAdminPopulationIssued)}</CurrencyAmount></dd></div>
-                                <div><dt>食品／家庭</dt><dd><CurrencyAmount>{formatCurrency(model.foodBudget)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.householdBudget)}</CurrencyAmount></dd></div>
-                                <div><dt>连续无收入周期</dt><dd>{model.noIncomeCycles}</dd></div>
-                                <div><dt>待结算</dt><dd><CurrencyAmount>{formatCurrency(Object.values(model.pendingIncome).reduce((sum, value) => sum + value, 0))}</CurrencyAmount></dd></div>
-                              </dl>
-                            </section>
-                          ))}
-                        </div>
-
-                        <div className="admin-population-detail-grid">
-                          <section>
-                            <h3>就业收入来源</h3>
-                            <dl className="admin-population-source-list">
-                              <div><dt>生产运营</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.production)}</CurrencyAmount></dd></div>
-                              <div><dt>建造业（固定 60/30/10）</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.construction)}</CurrencyAmount></dd></div>
-                              <div><dt>仓库扩容</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.warehouse)}</CurrencyAmount></dd></div>
-                              <div><dt>市场服务</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.marketService)}</CurrencyAmount></dd></div>
-                            </dl>
-                          </section>
-                          <section>
-                            <h3>生产工资复杂度</h3>
-                            <div className="admin-population-complexity-grid">
-                              {Object.entries(summary.populationEconomy.productionByComplexity).map(([complexity, amount]) => (
-                                <div key={complexity}><span>{complexity}</span><strong><CurrencyAmount>{formatCurrency(amount)}</CurrencyAmount></strong></div>
-                              ))}
-                            </div>
-                          </section>
-                        </div>
-                        <AdminPopulationControl
-                          economy={summary.populationEconomy}
-                          onChanged={loadOverview}
-                          onNotice={setNotice}
-                        />
-                      </>
-                    ) : <EmptyState>人口经济数据尚未初始化。</EmptyState>}
-                  </Panel>
-                </div>
-              ) : null}
-
-              {activeSection === 'community' ? (
-                <Panel className="admin-panel admin-community-link-panel">
-                  <WidgetHeading title="玩家社区入口" />
-                  <p>配置桌面侧边栏“加入 QQ 群”按钮的跳转地址，仅接受 HTTPS 链接。</p>
-                  <TextInput
-                    label="QQ群跳转链接"
-                    type="url"
-                    inputMode="url"
-                    maxLength={2048}
-                    value={qqGroupUrl}
-                    onChange={(event) => setQqGroupUrl(event.target.value)}
-                    placeholder="https://qm.qq.com/q/..."
+                  <div className="admin-population-detail-grid">
+                    <section>
+                      <h3>就业收入来源</h3>
+                      <dl className="admin-population-source-list">
+                        <div><dt>生产运营</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.production)}</CurrencyAmount></dd></div>
+                        <div><dt>建造业（固定 60/30/10）</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.construction)}</CurrencyAmount></dd></div>
+                        <div><dt>仓库扩容</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.warehouse)}</CurrencyAmount></dd></div>
+                        <div><dt>市场服务</dt><dd><CurrencyAmount>{formatCurrency(summary.populationEconomy.sources.marketService)}</CurrencyAmount></dd></div>
+                      </dl>
+                    </section>
+                    <section>
+                      <h3>生产工资复杂度</h3>
+                      <div className="admin-population-complexity-grid">
+                        {Object.entries(summary.populationEconomy.productionByComplexity).map(([complexity, amount]) => (
+                          <div key={complexity}><span>{complexity}</span><strong><CurrencyAmount>{formatCurrency(amount)}</CurrencyAmount></strong></div>
+                        ))}
+                      </div>
+                    </section>
+                  </div>
+                  <AdminPopulationControl
+                    economy={summary.populationEconomy}
+                    onChanged={loadOverview}
+                    onNotice={setNotice}
                   />
-                  <Button disabled={savingCommunityLink} onClick={() => void saveCommunityLink()}>
-                    {savingCommunityLink ? '正在保存…' : '保存链接'}
-                  </Button>
-                </Panel>
-              ) : null}
-
-              {activeSection === 'collectibles' ? (
-                <div className="admin-section-stack">
-                  <Panel className="admin-panel admin-collectible-upload">
-                    <WidgetHeading title="上传藏品" />
-                    <p>仅接受芝加哥艺术博物馆公版藏品。图片地址由服务器根据 IIIF image_id 生成，不允许上传任意图片 URL。</p>
-                    <FileInput
-                      label="藏品 JSON 文件"
-                      accept="application/json,.json"
-                      onChange={(event) => void readCollectibleFile(event)}
-                    />
-                    <pre className="admin-collectible-format">{collectibleFormatExample}</pre>
-                    <div className="admin-collectible-preview">
-                      <span>{importFileName ? `${importFileName} · ${importItems.length} 条` : '尚未选择文件'}</span>
-                      <Button disabled={uploading || importItems.length === 0} onClick={() => void uploadCollectibles()}>{uploading ? '正在导入…' : '导入藏品'}</Button>
-                    </div>
-                  </Panel>
-
-                  <Panel className="admin-panel admin-gift-list">
-                    <WidgetHeading title="藏品管理与当前归属" />
-                    {collectibles.length === 0 ? <EmptyState>暂无藏品。</EmptyState> : (
-                      <div className="virtual-record-table admin-collectibles-virtual-table" role="table" aria-label="藏品管理与当前归属">
-                        <div className="virtual-record-header" role="row">
-                          <span role="columnheader">图片</span><span role="columnheader">藏品</span><span role="columnheader">艺术家</span><span role="columnheader">当前归属</span><span role="columnheader">状态</span><span role="columnheader">归属记录</span><span role="columnheader">操作</span>
-                        </div>
-                        <VirtualList items={collectibles} getKey={collectibleKey} estimateSize={72} viewportHeight={560} minViewportHeight={96} overscan={5} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="藏品管理行" renderItem={(item) => (
-                          <div className="virtual-record-row" role="row">
-                            <span role="cell"><img className="admin-collectible-thumb" src={item.thumbnailUrl} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" /></span>
-                            <span role="cell"><strong>{item.title}</strong><small> AIC #{item.sourceArtworkId}</small></span>
-                            <span role="cell">{item.artist || '佚名'}</span>
-                            <span role="cell">{item.currentOwnerId ? `${item.currentOwnerName} (#${item.currentOwnerId})` : '未分配'}</span>
-                            <span role="cell"><StatusTag tone={item.auctionId ? 'warning' : 'neutral'}>{item.auctionId ? '拍卖中' : '未拍卖'}</StatusTag></span>
-                            <span role="cell">{item.ownershipCount}</span>
-                            <span role="cell"><span className="admin-row-actions"><a className="ui-link" href={item.sourceUrl} target="_blank" rel="noreferrer">馆藏页</a><Button variant="compact" onClick={() => void showOwnership(item)}>归属历史</Button></span></span>
-                          </div>
-                        )} />
-                      </div>
-                    )}
-                  </Panel>
-
-                  {selectedCollectible ? (
-                    <Panel className="admin-panel">
-                      <WidgetHeading title={`《${selectedCollectible.title}》归属历史`} />
-                      <VirtualList key={selectedCollectible.id} items={ownership} getKey={ownershipKey} estimateSize={72} viewportHeight={420} minViewportHeight={80} overscan={5} gap={8} className="admin-ownership-list admin-ownership-virtual-list" ariaLabel={`${selectedCollectible.title}归属历史`} empty={<EmptyState>暂无归属记录。</EmptyState>} renderItem={(record) => (
-                        <div><span>{record.fromOwnerId ? `${record.fromOwnerName} (#${record.fromOwnerId})` : '系统'}</span><strong>→</strong><span>{record.toOwnerId ? `${record.toOwnerName} (#${record.toOwnerId})` : '未分配'}</span><small>{ownershipReason(record)}{record.price ? <> · <CurrencyAmount>{formatCurrency(record.price)}</CurrencyAmount></> : null} · {formatTime(record.createdAt)}</small></div>
-                      )} />
-                    </Panel>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {activeSection === 'gift-codes' ? (
-                <div className="admin-section-stack">
-                  <Panel className="admin-panel admin-gift-create">
-                    <WidgetHeading title="创建礼品码" />
-                    <div className="admin-form-grid">
-                      <IntegerInput
-                        label="生成数量（最多 50000）"
-                        value={giftCountInput}
-                        fallbackValue={giftCount}
-                        min={1}
-                        max={50_000}
-                        error={parsedGiftCount === null ? '请输入 1～50000 的整数。' : undefined}
-                        onValueChange={updateGiftCount}
-                      />
-                      <TextInput
-                        label="指定兑换码（仅生成 1 个时可用）"
-                        value={code}
-                        maxLength={64}
-                        disabled={parsedGiftCount !== 1}
-                        onChange={(event: ChangeEvent<HTMLInputElement>) => {
-                          resetGiftRequestKey();
-                          setCode(event.target.value.toUpperCase());
-                        }}
-                        placeholder="RIVER-XXXX-XXXX"
-                      />
-                      <IntegerInput
-                        label="奖励货币"
-                        value={rewardCreditsInput}
-                        fallbackValue={rewardCredits}
-                        min={1}
-                        max={1_000_000}
-                        error={parsedRewardCredits === null ? '请输入 1～1000000 的整数。' : undefined}
-                        onValueChange={updateRewardCredits}
-                      />
-                      <IntegerInput
-                        label="每码最大兑换次数"
-                        value={maxRedemptionsInput}
-                        fallbackValue={maxRedemptions}
-                        min={1}
-                        max={1_000_000}
-                        error={parsedMaxRedemptions === null ? '请输入 1～1000000 的整数。' : undefined}
-                        onValueChange={updateMaxRedemptions}
-                      />
-                      <TextInput
-                        label="过期时间（可选）"
-                        type="datetime-local"
-                        value={expiresAt}
-                        onChange={(event) => {
-                          resetGiftRequestKey();
-                          setExpiresAt(event.target.value);
-                        }}
-                      />
-                      <TextArea
-                        label="管理备注"
-                        fieldClassName="admin-form-wide"
-                        value={note}
-                        maxLength={240}
-                        onChange={(event) => {
-                          resetGiftRequestKey();
-                          setNote(event.target.value);
-                        }}
-                      />
-                    </div>
-                    <Button disabled={creatingGift || !giftFormValid} onClick={() => void createGift()}>{creatingGift ? '正在生成…' : parsedGiftCount && parsedGiftCount > 1 ? `批量生成 ${parsedGiftCount} 个` : '创建礼品码'}</Button>
-                    {createdCodes.length > 0 ? <div className="created-gift-code" aria-live="polite"><span>本次生成 {createdCodes.length} 个礼品码</span>{createdCodes.length === 1 ? <strong>{createdCodes[0]}</strong> : <small>为避免页面渲染大量明文，批量结果不逐条显示。</small>}<Button variant="secondary" onClick={() => downloadGiftCodes(createdCodes)}>下载 TXT</Button></div> : null}
-                  </Panel>
-
-                  <Panel className="admin-panel admin-gift-list">
-                    <WidgetHeading title="礼品码记录" action={<span>已加载 {giftCodes.length}/{giftCodeTotal} 条</span>} />
-                    {giftCodes.length === 0 ? <EmptyState>暂无礼品码。</EmptyState> : (
-                      <div className="virtual-record-table admin-gifts-virtual-table" role="table" aria-label="礼品码记录">
-                        <div className="virtual-record-header" role="row"><span role="columnheader">ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换</span><span role="columnheader">状态</span><span role="columnheader">有效期</span><span role="columnheader">备注</span><span role="columnheader">操作</span></div>
-                        <VirtualList items={giftCodes} getKey={giftCodeKey} estimateSize={58} viewportHeight={520} minViewportHeight={96} overscan={6} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="礼品码记录行" renderItem={(gift) => (
-                          <div className="virtual-record-row" role="row"><span role="cell">#{gift.id}</span><span role="cell"><CurrencyAmount>{formatCurrency(gift.reward_credits)}</CurrencyAmount></span><span role="cell">{gift.redeemed_count}/{gift.max_redemptions}</span><span role="cell"><StatusTag tone={gift.enabled ? 'success' : 'neutral'}>{gift.enabled ? '启用' : '停用'}</StatusTag></span><span role="cell">{gift.expires_at ? formatDate(gift.expires_at) : '长期'}</span><span role="cell">{gift.note || '—'}</span><span role="cell"><span className="admin-row-actions"><Button variant="compact" onClick={() => void showRedemptions(gift.id)}>兑换记录</Button>{gift.enabled ? <Button variant="danger" onClick={() => void disableGift(gift.id)}>停用</Button> : null}</span></span></div>
-                        )} />
-                      </div>
-                    )}
-                    {giftCodeCursor ? <Button variant="secondary" disabled={loadingMoreGiftCodes} onClick={() => void loadMoreGiftCodes()}>{loadingMoreGiftCodes ? '正在加载…' : '加载更多礼品码'}</Button> : null}
-                  </Panel>
-
-                  {selectedGiftId !== null ? (
-                    <Panel className="admin-panel admin-redemptions">
-                      <WidgetHeading title={`礼品码 #${selectedGiftId} 兑换记录`} action={<span>已加载 {redemptions.length}/{redemptionTotal} 条</span>} />
-                      {redemptions.length === 0 ? <EmptyState>暂无兑换记录。</EmptyState> : (
-                        <div className="virtual-record-table admin-redemptions-virtual-table" role="table" aria-label={`礼品码 ${selectedGiftId} 兑换记录`}>
-                          <div className="virtual-record-header" role="row"><span role="columnheader">玩家 ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换时间</span></div>
-                          <VirtualList key={selectedGiftId} items={redemptions} getKey={redemptionKey} estimateSize={52} viewportHeight={420} minViewportHeight={80} overscan={6} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="礼品码兑换记录行" renderItem={(record) => (
-                            <div className="virtual-record-row" role="row"><span role="cell">{record.user_id}</span><span role="cell"><CurrencyAmount>{formatCurrency(record.reward_credits)}</CurrencyAmount></span><span role="cell">{formatTime(record.redeemed_at)}</span></div>
-                          )} />
-                        </div>
-                      )}
-                      {redemptionCursor ? <Button variant="secondary" disabled={loadingMoreRedemptions} onClick={() => void loadMoreRedemptions()}>{loadingMoreRedemptions ? '正在加载…' : '加载更多兑换记录'}</Button> : null}
-                    </Panel>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {activeSection === 'bans' ? <AdminBanPanel onNotice={setNotice} refreshToken={banRefreshToken} /> : null}
-            </PageLayout>
+                </>
+              ) : <EmptyState>人口经济数据尚未初始化。</EmptyState>}
+            </Panel>
           </div>
-        </div>
-      </section>
-    </main>
+        ) : null}
+
+        {activeSection === 'community' ? (
+          <Panel className="admin-panel admin-community-link-panel">
+            <WidgetHeading title="玩家社区入口" />
+            <p>配置桌面侧边栏“加入 QQ 群”按钮的跳转地址，仅接受 HTTPS 链接。</p>
+            <TextInput
+              label="QQ群跳转链接"
+              type="url"
+              inputMode="url"
+              maxLength={2048}
+              value={qqGroupUrl}
+              onChange={(event) => setQqGroupUrl(event.target.value)}
+              placeholder="https://qm.qq.com/q/..."
+            />
+            <Button disabled={savingCommunityLink} onClick={() => void saveCommunityLink()}>
+              {savingCommunityLink ? '正在保存…' : '保存链接'}
+            </Button>
+          </Panel>
+        ) : null}
+
+        {activeSection === 'collectibles' ? (
+          <div className="admin-section-stack">
+            <Panel className="admin-panel admin-collectible-upload">
+              <WidgetHeading title="上传藏品" />
+              <p>仅接受芝加哥艺术博物馆公版藏品。图片地址由服务器根据 IIIF image_id 生成，不允许上传任意图片 URL。</p>
+              <FileInput
+                label="藏品 JSON 文件"
+                accept="application/json,.json"
+                onChange={(event) => void readCollectibleFile(event)}
+              />
+              <pre className="admin-collectible-format">{collectibleFormatExample}</pre>
+              <div className="admin-collectible-preview">
+                <span>{importFileName ? `${importFileName} · ${importItems.length} 条` : '尚未选择文件'}</span>
+                <Button disabled={uploading || importItems.length === 0} onClick={() => void uploadCollectibles()}>{uploading ? '正在导入…' : '导入藏品'}</Button>
+              </div>
+            </Panel>
+
+            <Panel className="admin-panel admin-gift-list">
+              <WidgetHeading title="藏品管理与当前归属" />
+              {collectibles.length === 0 ? <EmptyState>暂无藏品。</EmptyState> : (
+                <div className="virtual-record-table admin-collectibles-virtual-table" role="table" aria-label="藏品管理与当前归属">
+                  <div className="virtual-record-header" role="row">
+                    <span role="columnheader">图片</span><span role="columnheader">藏品</span><span role="columnheader">艺术家</span><span role="columnheader">当前归属</span><span role="columnheader">状态</span><span role="columnheader">归属记录</span><span role="columnheader">操作</span>
+                  </div>
+                  <VirtualList items={collectibles} getKey={collectibleKey} estimateSize={72} viewportHeight={560} minViewportHeight={96} overscan={5} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="藏品管理行" renderItem={(item) => (
+                    <div className="virtual-record-row" role="row">
+                      <span role="cell"><img className="admin-collectible-thumb" src={item.thumbnailUrl} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" /></span>
+                      <span role="cell"><strong>{item.title}</strong><small> AIC #{item.sourceArtworkId}</small></span>
+                      <span role="cell">{item.artist || '佚名'}</span>
+                      <span role="cell">{item.currentOwnerId ? `${item.currentOwnerName} (#${item.currentOwnerId})` : '未分配'}</span>
+                      <span role="cell"><StatusTag tone={item.auctionId ? 'warning' : 'neutral'}>{item.auctionId ? '拍卖中' : '未拍卖'}</StatusTag></span>
+                      <span role="cell">{item.ownershipCount}</span>
+                      <span role="cell"><span className="admin-row-actions"><a className="ui-link" href={item.sourceUrl} target="_blank" rel="noreferrer">馆藏页</a><Button variant="compact" onClick={() => void showOwnership(item)}>归属历史</Button></span></span>
+                    </div>
+                  )} />
+                </div>
+              )}
+            </Panel>
+
+            {selectedCollectible ? (
+              <Panel className="admin-panel">
+                <WidgetHeading title={`《${selectedCollectible.title}》归属历史`} />
+                <VirtualList key={selectedCollectible.id} items={ownership} getKey={ownershipKey} estimateSize={72} viewportHeight={420} minViewportHeight={80} overscan={5} gap={8} className="admin-ownership-list admin-ownership-virtual-list" ariaLabel={`${selectedCollectible.title}归属历史`} empty={<EmptyState>暂无归属记录。</EmptyState>} renderItem={(record) => (
+                  <div><span>{record.fromOwnerId ? `${record.fromOwnerName} (#${record.fromOwnerId})` : '系统'}</span><strong>→</strong><span>{record.toOwnerId ? `${record.toOwnerName} (#${record.toOwnerId})` : '未分配'}</span><small>{ownershipReason(record)}{record.price ? <> · <CurrencyAmount>{formatCurrency(record.price)}</CurrencyAmount></> : null} · {formatTime(record.createdAt)}</small></div>
+                )} />
+              </Panel>
+            ) : null}
+          </div>
+        ) : null}
+
+        {activeSection === 'gift-codes' ? (
+          <div className="admin-section-stack">
+            <Panel className="admin-panel admin-gift-create">
+              <WidgetHeading title="创建礼品码" />
+              <div className="admin-form-grid">
+                <IntegerInput
+                  label="生成数量（最多 50000）"
+                  value={giftCountInput}
+                  fallbackValue={giftCount}
+                  min={1}
+                  max={50_000}
+                  error={parsedGiftCount === null ? '请输入 1～50000 的整数。' : undefined}
+                  onValueChange={updateGiftCount}
+                />
+                <TextInput
+                  label="指定兑换码（仅生成 1 个时可用）"
+                  value={code}
+                  maxLength={64}
+                  disabled={parsedGiftCount !== 1}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                    resetGiftRequestKey();
+                    setCode(event.target.value.toUpperCase());
+                  }}
+                  placeholder="RIVER-XXXX-XXXX"
+                />
+                <IntegerInput
+                  label="奖励货币"
+                  value={rewardCreditsInput}
+                  fallbackValue={rewardCredits}
+                  min={1}
+                  max={1_000_000}
+                  error={parsedRewardCredits === null ? '请输入 1～1000000 的整数。' : undefined}
+                  onValueChange={updateRewardCredits}
+                />
+                <IntegerInput
+                  label="每码最大兑换次数"
+                  value={maxRedemptionsInput}
+                  fallbackValue={maxRedemptions}
+                  min={1}
+                  max={1_000_000}
+                  error={parsedMaxRedemptions === null ? '请输入 1～1000000 的整数。' : undefined}
+                  onValueChange={updateMaxRedemptions}
+                />
+                <TextInput
+                  label="过期时间（可选）"
+                  type="datetime-local"
+                  value={expiresAt}
+                  onChange={(event) => {
+                    resetGiftRequestKey();
+                    setExpiresAt(event.target.value);
+                  }}
+                />
+                <TextArea
+                  label="管理备注"
+                  fieldClassName="admin-form-wide"
+                  value={note}
+                  maxLength={240}
+                  onChange={(event) => {
+                    resetGiftRequestKey();
+                    setNote(event.target.value);
+                  }}
+                />
+              </div>
+              <Button disabled={creatingGift || !giftFormValid} onClick={() => void createGift()}>{creatingGift ? '正在生成…' : parsedGiftCount && parsedGiftCount > 1 ? `批量生成 ${parsedGiftCount} 个` : '创建礼品码'}</Button>
+              {createdCodes.length > 0 ? <div className="created-gift-code" aria-live="polite"><span>本次生成 {createdCodes.length} 个礼品码</span>{createdCodes.length === 1 ? <strong>{createdCodes[0]}</strong> : <small>为避免页面渲染大量明文，批量结果不逐条显示。</small>}<Button variant="secondary" onClick={() => downloadGiftCodes(createdCodes)}>下载 TXT</Button></div> : null}
+            </Panel>
+
+            <Panel className="admin-panel admin-gift-list">
+              <WidgetHeading title="礼品码记录" action={<span>已加载 {giftCodes.length}/{giftCodeTotal} 条</span>} />
+              {giftCodes.length === 0 ? <EmptyState>暂无礼品码。</EmptyState> : (
+                <div className="virtual-record-table admin-gifts-virtual-table" role="table" aria-label="礼品码记录">
+                  <div className="virtual-record-header" role="row"><span role="columnheader">ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换</span><span role="columnheader">状态</span><span role="columnheader">有效期</span><span role="columnheader">备注</span><span role="columnheader">操作</span></div>
+                  <VirtualList items={giftCodes} getKey={giftCodeKey} estimateSize={58} viewportHeight={520} minViewportHeight={96} overscan={6} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="礼品码记录行" renderItem={(gift) => (
+                    <div className="virtual-record-row" role="row"><span role="cell">#{gift.id}</span><span role="cell"><CurrencyAmount>{formatCurrency(gift.reward_credits)}</CurrencyAmount></span><span role="cell">{gift.redeemed_count}/{gift.max_redemptions}</span><span role="cell"><StatusTag tone={gift.enabled ? 'success' : 'neutral'}>{gift.enabled ? '启用' : '停用'}</StatusTag></span><span role="cell">{gift.expires_at ? formatDate(gift.expires_at) : '长期'}</span><span role="cell">{gift.note || '—'}</span><span role="cell"><span className="admin-row-actions"><Button variant="compact" onClick={() => void showRedemptions(gift.id)}>兑换记录</Button>{gift.enabled ? <Button variant="danger" onClick={() => void disableGift(gift.id)}>停用</Button> : null}</span></span></div>
+                  )} />
+                </div>
+              )}
+              {giftCodeCursor ? <Button variant="secondary" disabled={loadingMoreGiftCodes} onClick={() => void loadMoreGiftCodes()}>{loadingMoreGiftCodes ? '正在加载…' : '加载更多礼品码'}</Button> : null}
+            </Panel>
+
+            {selectedGiftId !== null ? (
+              <Panel className="admin-panel admin-redemptions">
+                <WidgetHeading title={`礼品码 #${selectedGiftId} 兑换记录`} action={<span>已加载 {redemptions.length}/{redemptionTotal} 条</span>} />
+                {redemptions.length === 0 ? <EmptyState>暂无兑换记录。</EmptyState> : (
+                  <div className="virtual-record-table admin-redemptions-virtual-table" role="table" aria-label={`礼品码 ${selectedGiftId} 兑换记录`}>
+                    <div className="virtual-record-header" role="row"><span role="columnheader">玩家 ID</span><span role="columnheader">奖励</span><span role="columnheader">兑换时间</span></div>
+                    <VirtualList key={selectedGiftId} items={redemptions} getKey={redemptionKey} estimateSize={52} viewportHeight={420} minViewportHeight={80} overscan={6} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="礼品码兑换记录行" renderItem={(record) => (
+                      <div className="virtual-record-row" role="row"><span role="cell">{record.user_id}</span><span role="cell"><CurrencyAmount>{formatCurrency(record.reward_credits)}</CurrencyAmount></span><span role="cell">{formatTime(record.redeemed_at)}</span></div>
+                    )} />
+                  </div>
+                )}
+                {redemptionCursor ? <Button variant="secondary" disabled={loadingMoreRedemptions} onClick={() => void loadMoreRedemptions()}>{loadingMoreRedemptions ? '正在加载…' : '加载更多兑换记录'}</Button> : null}
+              </Panel>
+            ) : null}
+          </div>
+        ) : null}
+
+        {activeSection === 'bans' ? <AdminBanPanel onNotice={setNotice} refreshToken={banRefreshToken} /> : null}
+      </PageLayout>
+    </SignedInShell>
   );
 }
