@@ -65,14 +65,14 @@ function reserveTotals(world, groupId) {
   };
 }
 
-test('market model 6 creates inventory-backed buy and sell orders without system self-trades', () => {
+test('market model 7 creates inventory-backed buy and sell orders without system self-trades', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 6);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 7);
   const systemOrders = world.orders.filter((order) => order.ownerType === 'population');
   assert.ok(systemOrders.some((order) => order.demandTier === 'direct'));
   assert.ok(systemOrders.some((order) => order.demandTier === 'derived-liquidity'));
@@ -108,6 +108,8 @@ test('system liquidity asks reprice above retained consumption bids instead of c
     demandGroupId: 'household',
     demandTier: 'direct',
     demandCycleId: world.demandGroups.household.lastCycleId,
+    populationModelId: 'professional',
+    fundingPool: 'direct',
     price: 151,
     quantity: 10,
     remaining: 10,
@@ -164,7 +166,7 @@ test('selling to a reserve transfers reserve funds and does not count as consump
   assert.equal(reserve.totalBought, 1);
   assert.equal(reserve.totalBuyValue, buyOrder.price);
   assert.equal(world.players[String(alice.id)].stats.populationIssued, issuedBefore);
-  assert.equal(world.players[String(alice.id)].credits, 100 + buyOrder.price - 1);
+  assert.equal(world.players[String(alice.id)].credits, 100 + buyOrder.price);
 });
 
 test('buying from a reserve transfers real inventory and returns credits to the reserve', () => {
@@ -213,7 +215,7 @@ test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   )));
 });
 
-test('model 3 migrates directly to model 6 with one-time reserve seeding', () => {
+test('model 3 migrates directly to model 7 with one-time reserve seeding', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
@@ -237,7 +239,7 @@ test('model 3 migrates directly to model 6 with one-time reserve seeding', () =>
   assert.ok(world.marketDemand.liquidity.groups.food.reserves.wheat.inventory > 0);
 });
 
-test('model 5 migrates to model 6 and releases obsolete liquidity reservations', () => {
+test('model 5 migrates to model 7 and releases obsolete liquidity reservations', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;

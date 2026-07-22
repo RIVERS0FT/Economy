@@ -60,7 +60,7 @@ function createTestWorld(now) {
   };
 }
 
-test('market model 6 settles fills that happen after demand orders are created', () => {
+test('market model 7 settles fills that happen after demand orders are created', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
@@ -82,7 +82,7 @@ test('market model 6 settles fills that happen after demand orders are created',
   assert.ok(state.satisfaction > 0);
 });
 
-test('market model 6 stops issuing new consumption budget when no player is active', () => {
+test('market model 7 uses funded population wallets when no player is active', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
@@ -94,9 +94,9 @@ test('market model 6 stops issuing new consumption budget when no player is acti
   runtime.processGroup(world, 'food', now);
 
   assert.equal(world.marketDemand.groups.food.lastActivePlayerCount, 0);
-  assert.equal(world.marketDemand.groups.food.lastBudget, 0);
-  assert.equal(world.marketDemand.groups.food.lastCommitted, 0);
-  assert.equal(world.orders.some((order) => order.demandGroupId === 'food' && (order.demandTier === 'direct' || order.demandTier === 'derived-liquidity')), false);
+  assert.ok(world.marketDemand.groups.food.lastBudget > 0);
+  assert.ok(world.marketDemand.groups.food.lastCommitted > 0);
+  assert.equal(world.orders.some((order) => order.demandGroupId === 'food' && (order.demandTier === 'direct' || order.demandTier === 'derived-liquidity')), true);
 });
 
 test('player-only activity excludes consumption and reserve trades from budget activity', () => {

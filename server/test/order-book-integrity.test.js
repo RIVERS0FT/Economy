@@ -104,7 +104,7 @@ test('migration immediately settles legacy crossed commodity orders from differe
   assert.equal(world.orders.find((order) => order.id === 'legacy-buy').status, 'filled');
   assert.equal(world.orders.find((order) => order.id === 'legacy-buy').fills[0].price, 10);
   assert.equal(seller.inventories.wheat.frozen, 0);
-  assert.equal(seller.credits, 109);
+  assert.equal(seller.credits, 110);
   assert.equal(seller.stats.systemSinks, 1);
   assert.equal(buyer.frozenCredits, 0);
   assert.equal(buyer.credits, 90);

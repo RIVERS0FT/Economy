@@ -177,23 +177,27 @@ export function ensurePopulationEconomy(world, now = Date.now()) {
   const previous = world.populationEconomy && typeof world.populationEconomy === 'object'
     ? world.populationEconomy
     : null;
-  const state = {
-    ...defaultState(),
-    ...(previous || {}),
-    modelVersion: POPULATION_ECONOMY_VERSION,
-    models: {},
-    stats: { ...defaultState().stats, ...(previous?.stats || {}) },
-  };
-  for (const modelId of POPULATION_MODEL_IDS) state.models[modelId] = normalizeModel(modelId, previous?.models?.[modelId]);
+  const needsBootstrap = !previous || Number(previous.modelVersion || 0) < POPULATION_ECONOMY_VERSION;
+  const state = previous || defaultState();
+  state.modelVersion = POPULATION_ECONOMY_VERSION;
+  state.models ||= {};
+  for (const modelId of POPULATION_MODEL_IDS) {
+    const existing = state.models[modelId] && typeof state.models[modelId] === 'object'
+      ? state.models[modelId]
+      : {};
+    Object.assign(existing, normalizeModel(modelId, existing));
+    state.models[modelId] = existing;
+  }
+  state.stats = { ...defaultState().stats, ...(state.stats || {}) };
   state.stats.productionByComplexity = {
     ...defaultState().stats.productionByComplexity,
-    ...(previous?.stats?.productionByComplexity || {}),
+    ...(state.stats.productionByComplexity || {}),
   };
-  state.demandCycle = previous?.demandCycle && typeof previous.demandCycle === 'object'
-    ? previous.demandCycle
+  state.demandCycle = state.demandCycle && typeof state.demandCycle === 'object'
+    ? state.demandCycle
     : { cycleId: -1, groups: {} };
 
-  if (!previous || Number(previous.modelVersion || 0) < POPULATION_ECONOMY_VERSION) {
+  if (needsBootstrap) {
     const seed = bootstrapAmount(world);
     const allocation = allocateInteger(seed, CONSTRUCTION_PROFILE);
     for (const modelId of POPULATION_MODEL_IDS) {

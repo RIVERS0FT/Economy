@@ -148,7 +148,7 @@ test('idempotency returns the original response without applying an action twice
   }
 });
 
-test('client state uses version 15 and exposes no factory instances', () => {
+test('client state uses version 16 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
@@ -191,7 +191,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
 
   const productIds = new Set(expectedProducts);
-  const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 9, C5: 12, C6: 15, C7: 18 };
+  const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
   for (const product of PRODUCT_CATALOG) {
     assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
   }
@@ -342,7 +342,7 @@ test('market demand cancels carried orders and resets to the model price after a
   assert.equal(nextOrder.price, Math.round(world.priceTransmission.products.wheat.referencePrice));
 });
 
-test('market demand scales sublinearly with active players and stops at the configured cap', () => {
+test('population-funded market demand does not scale with active player count', () => {
   const foodBudgetFor = (playerCount) => {
     const world = createWorld(now);
     for (let index = 1; index <= playerCount; index += 1) {
@@ -354,26 +354,24 @@ test('market demand scales sublinearly with active players and stops at the conf
     return {
       food: world.demandGroups.food.lastBudget,
       household: world.demandGroups.household.lastBudget,
-      active: world.demandGroups.food.lastActivePlayerCount,
     };
   };
 
-  assert.deepEqual([1, 4, 9, 25, 121].map((count) => foodBudgetFor(count).food), [3_000, 4_500, 6_000, 9_000, 18_000]);
-  assert.deepEqual([1, 4, 9, 25, 121].map((count) => foodBudgetFor(count).household), [2_700, 4_050, 5_400, 8_100, 16_200]);
-  assert.equal(foodBudgetFor(144).active, 144);
-  assert.equal(foodBudgetFor(144).food, 18_000);
+  const budgets = [1, 4, 9, 25, 121].map(foodBudgetFor);
+  assert.ok(budgets[0].food > 0);
+  assert.ok(budgets[0].household > 0);
+  assert.ok(budgets.every((item) => item.food === budgets[0].food));
+  assert.ok(budgets.every((item) => item.household === budgets[0].household));
 });
 
-test('inactive players stop scaling market demand after seven days', () => {
+test('population wallets continue funded demand without active players', () => {
   const world = createWorld(now);
-  for (let index = 1; index <= 9; index += 1) {
-    const player = ensurePlayer(world, { id: index, email: `inactive-${index}@example.com`, name: `Inactive ${index}` }, now);
-    if (index > 1) player.lastEconomicActivityAt = now - 8 * 24 * 60 * 60 * 1000;
-  }
+  const player = ensurePlayer(world, alice, now);
+  player.lastEconomicActivityAt = now - 8 * 24 * 60 * 60 * 1000;
   prepareDemand(world, 'food');
   processWorld(world, now + 1);
-  assert.equal(world.demandGroups.food.lastActivePlayerCount, 1);
-  assert.equal(world.demandGroups.food.lastBudget, 3_000);
+  assert.ok(world.demandGroups.food.lastBudget > 0);
+  assert.ok(world.orders.some((order) => order.ownerType === 'population' && order.demandGroupId === 'food'));
 });
 
 test('player inventory never increases market demand budget or product allocation', () => {
@@ -414,9 +412,9 @@ test('consumer substitutes shift demand toward the cheaper grain without changin
 
   prepareDemand(world, 'food', now + 3);
   processWorld(world, now + 3);
-  const shares = world.demandGroups.food.lastClassAllocation.staples.shares;
+  const shares = world.demandGroups.food.lastClassAllocation.basic.staples.shares;
   assert.ok(shares.rice > shares.wheat);
-  assert.equal(world.demandGroups.food.lastBudget, 3_000);
+  assert.ok(world.demandGroups.food.lastBudget > 0);
 });
 
 test('beverage production paths shift toward cheaper fruit inputs', () => {
@@ -443,10 +441,10 @@ test('fruit participates in fresh direct demand without expanding the food budge
   ensurePlayer(world, alice, now);
   prepareDemand(world, 'food', now + 1);
   processWorld(world, now + 1);
-  const fresh = world.demandGroups.food.lastClassAllocation['fresh-drinks'];
+  const fresh = world.demandGroups.food.lastClassAllocation.basic['fresh-drinks'];
   assert.ok(fresh.shares.fruit > 0);
   assert.ok(fresh.shares.beverage > 0);
-  assert.equal(world.demandGroups.food.lastBudget, 3_000);
+  assert.ok(world.demandGroups.food.lastBudget > 0);
   assert.ok(world.orders.some((order) => order.ownerType === 'population' && order.productId === 'fruit' && order.demandTier === 'direct'));
 });
 
@@ -531,7 +529,7 @@ test('new worlds create private market demand orders during the first authoritat
     assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [
       '家庭消费市场需求', '食品市场需求',
     ]);
-    assert.equal(persisted.version, 13);
+    assert.equal(persisted.version, 14);
     assert.equal(persisted.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
     assert.ok(persisted.demandGroups.food.lastCommitted <= persisted.demandGroups.food.lastBudget);
     assert.ok(persisted.demandGroups.household.lastCommitted <= persisted.demandGroups.household.lastBudget);

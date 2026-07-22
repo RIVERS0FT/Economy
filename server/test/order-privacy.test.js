@@ -23,14 +23,14 @@ test('ordinary player order state removes counterparties, demand sources, and li
     },
     {
       id: 'population-secret', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
-      side: 'buy', ownerType: 'population', ownerName: '食品市场需求', demandGroupId: 'food', demandTier: 'direct', demandCycleId: 99,
+      side: 'buy', ownerType: 'population', ownerName: '食品市场需求', demandGroupId: 'food', demandTier: 'direct', demandCycleId: 99, populationModelId: 'basic', fundingPool: 'direct',
       price: 3, quantity: 20, remaining: 20, status: 'open', createdAt: now,
       fills: [{ id: 'hidden-fill', quantity: 1, price: 3, total: 3, createdAt: now }],
     },
   ];
 
   const state = createFacilityGroupClientState(world, alice.id, now);
-  assert.equal(state.version, 15);
+  assert.equal(state.version, 16);
   const own = state.orders.find((order) => order.id === 'alice-sell');
   const external = state.orders.find((order) => order.id === 'population-secret');
 
@@ -42,7 +42,7 @@ test('ordinary player order state removes counterparties, demand sources, and li
   assert.equal('fills' in external, false);
 
   for (const order of state.orders) {
-    for (const field of ['ownerType', 'ownerId', 'ownerName', 'demandGroupId', 'demandTier', 'demandCycleId']) {
+    for (const field of ['ownerType', 'ownerId', 'ownerName', 'demandGroupId', 'demandTier', 'demandCycleId', 'populationModelId', 'fundingPool']) {
       assert.equal(field in order, false, field + ' must not be public');
     }
   }
