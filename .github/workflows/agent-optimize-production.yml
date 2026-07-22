@@ -1,0 +1,47 @@
+name: Apply Desktop Production Optimization
+
+on:
+  push:
+    branches:
+      - agent/optimize-desktop-production-page
+    paths:
+      - .github/workflows/agent-optimize-production.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Apply production patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check .github/agent-optimize-production.patch
+          git apply .github/agent-optimize-production.patch
+          rm .github/agent-optimize-production.patch
+          rm .github/workflows/agent-optimize-production.yml
+
+      - name: Commit optimized production layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/pages/ProductionPage.tsx \
+            src/styles/facility-group-card-grid.css \
+            src/styles/industry-system.css \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            scripts/verify-production-desktop-layout.mjs \
+            .github/agent-optimize-production.patch \
+            .github/workflows/agent-optimize-production.yml
+          git commit -m '优化桌面生产页布局权威'
+          git push origin HEAD:${{ github.ref_name }}
