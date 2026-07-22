@@ -1,10 +1,15 @@
 name: Apply Desktop Production Optimization
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/optimize-desktop-production-page
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
     paths:
+      - .github/agent-optimize-production.patch
       - .github/workflows/agent-optimize-production.yml
 
 permissions:
@@ -12,13 +17,13 @@ permissions:
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Apply production patch
@@ -44,4 +49,4 @@ jobs:
             .github/agent-optimize-production.patch \
             .github/workflows/agent-optimize-production.yml
           git commit -m '优化桌面生产页布局权威'
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin HEAD:${{ github.head_ref }}
