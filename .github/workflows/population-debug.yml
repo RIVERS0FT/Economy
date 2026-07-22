@@ -9,7 +9,7 @@ jobs:
   validate:
     if: contains(github.event.head_commit.message, '[population-debug-')
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,13 +25,24 @@ jobs:
           npm ci > population-validation.log 2>&1
           install_status=$?
           build_status=99
+          browser_status=99
           if [ "$install_status" -eq 0 ]; then
             npm run build >> population-validation.log 2>&1
             build_status=$?
           fi
-          printf '\nVALIDATION_STATUS install=%s build=%s\n' "$install_status" "$build_status" >> population-validation.log
+          if [ "$build_status" -eq 0 ]; then
+            npx playwright install --with-deps chromium >> population-validation.log 2>&1
+            playwright_status=$?
+            if [ "$playwright_status" -eq 0 ]; then
+              npm run test:browser >> population-validation.log 2>&1
+              browser_status=$?
+            else
+              browser_status=$playwright_status
+            fi
+          fi
+          printf '\nVALIDATION_STATUS install=%s build=%s browser=%s\n' "$install_status" "$build_status" "$browser_status" >> population-validation.log
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add population-validation.log
-          git commit -m "test: record population validation pass 4" || true
+          git commit -m "test: record full population validation" || true
           git push origin HEAD:codex/population-economy-v7
