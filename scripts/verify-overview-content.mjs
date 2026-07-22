@@ -23,6 +23,7 @@ const paths = {
   chart: 'src/components/charts/PriceSparkline.tsx',
   gameApp: 'src/app/GameApp.tsx',
   shell: 'src/components/shell/GameShell.tsx',
+  sharedShell: 'src/components/shell/SignedInShell.tsx',
   sidebar: 'src/components/shell/DesktopSidebar.tsx',
   sidebarFrame: 'src/components/shell/SidebarFrame.tsx',
   statusBar: 'src/components/shell/StatusBar.tsx',
@@ -147,8 +148,15 @@ requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-progress {', '
 
 requireAll(paths.shell, [
   'const [sidebarCollapsed, setSidebarCollapsed] = useState(false)',
-  "sidebarCollapsed ? 'game-shell sidebar-layout sidebar-collapsed' : 'game-shell sidebar-layout'",
+  '<SignedInShell',
+  'rootClassName="game-shell"',
+  'sidebarCollapsed={sidebarCollapsed}',
   'onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}',
+]);
+requireAll(paths.sharedShell, [
+  "sidebarCollapsed && 'sidebar-collapsed'",
+  "'signed-in-shell'",
+  "'sidebar-layout'",
 ]);
 requireAll(paths.sidebarFrame, [
   'className="sidebar-logo-expand-button"',
@@ -243,4 +251,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：外层单轨、教程提醒容量、紧凑图表几何、市场空值、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：共享外壳折叠、教程提醒容量、紧凑图表几何、市场空值、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。');
