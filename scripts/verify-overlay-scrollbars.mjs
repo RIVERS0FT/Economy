@@ -22,7 +22,9 @@ const paths = {
   virtualList: 'src/components/ui/VirtualList.tsx',
   virtualTable: 'src/components/ui/VirtualRecordTable.tsx',
   layout: 'src/components/ui/layout.tsx',
-  shell: 'src/components/shell/GameShell.tsx',
+  shell: 'src/components/shell/SignedInShell.tsx',
+  gameShell: 'src/components/shell/GameShell.tsx',
+  adminApp: 'src/app/AdminApp.tsx',
   status: 'src/components/shell/StatusBar.tsx',
   mobile: 'src/components/shell/MobileBottomNavigation.tsx',
   design: 'docs/UI_DESIGN_SYSTEM.md',
@@ -89,7 +91,14 @@ if (failures.length === 0) {
   for (const text of ['useVirtualWindow', 'axis="both"', 'virtual-record-canvas']) requireText(paths.virtualTable, text);
   for (const text of ['ResizeObserver', 'requestAnimationFrame', 'findVisibleRange']) requireText(paths.virtualHook, text);
   for (const text of ["import { ScrollArea } from './ScrollArea'", 'scrollbarVisibility="adaptive"']) requireText(paths.layout, text);
-  for (const text of ['className="page-scroll-area"', 'scrollbarVisibility="adaptive"']) requireText(paths.shell, text);
+  for (const text of [
+    "import { ScrollArea } from '../ui/ScrollArea'",
+    'className="page-scroll-area"',
+    "'page-scroll'",
+    'scrollbarVisibility="adaptive"',
+  ]) requireText(paths.shell, text);
+  requireText(paths.gameShell, '<SignedInShell');
+  for (const text of ['<SignedInShell', 'pageViewportClassName="admin-page-scroll"']) requireText(paths.adminApp, text);
 
   for (const text of [
     '触控模式下横向项目轨道始终 `display: none`',
@@ -110,9 +119,9 @@ if (failures.length === 0) {
 }
 
 if (failures.length > 0) {
-  console.error('输入方式滚动条、无级资产目录与单一双轴虚拟成交表验证失败：');
+  console.error('输入方式滚动条、共享登录后外壳、无级资产目录与单一双轴虚拟成交表验证失败：');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('统一尺寸、鼠标与触控策略、隐藏触控横向轨道、无级资产目录和单一双轴虚拟成交表验证通过。');
+console.log('统一尺寸、共享登录后页面滚动、鼠标与触控策略、隐藏触控横向轨道、无级资产目录和单一双轴虚拟成交表验证通过。');
