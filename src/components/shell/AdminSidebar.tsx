@@ -1,4 +1,5 @@
 import { CollectionIcon, GiftIcon, HomeIcon, QqIcon, ShieldIcon } from '../icons/GameIcons';
+import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 import { SidebarFrame } from './SidebarFrame';
 
 export type AdminSectionId = 'overview' | 'community' | 'collectibles' | 'gift-codes' | 'bans';
@@ -78,8 +79,18 @@ export function AdminMobileNavigation({
   onSelect: (section: AdminSectionId) => void;
 }) {
   return (
-    <nav className="admin-mobile-navigation panel" aria-label="管理员移动导航">
-      <AdminNavigationItems activeSection={activeSection} onSelect={onSelect} />
-    </nav>
+    <div
+      className="mobile-chrome-overlay admin-mobile-chrome-layer"
+      data-admin-mobile-chrome="true"
+    >
+      <MobileBottomNavigationFrame
+        ariaLabel="移动端管理员导航"
+        navLabel="管理员移动导航"
+        className="admin-mobile-bottom-navigation"
+        surfaceId="admin-mobile-navigation"
+      >
+        <AdminNavigationItems activeSection={activeSection} onSelect={onSelect} />
+      </MobileBottomNavigationFrame>
+    </div>
   );
 }

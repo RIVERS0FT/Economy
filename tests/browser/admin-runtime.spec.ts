@@ -33,15 +33,37 @@ async function configureAdminRoutes(page: Page) {
           credits: 5_000, frozenCredits: 500, pendingIncome: 300, lastIncome: 200, lastBudget: 1_000,
           totalIncome: 10_000, totalSpent: 5_000, constructionEscrow: 250, totalEmploymentIncome: 8_000, totalConsumption: 5_000,
           models: {
-            basic: { id: 'basic', name: '基础人口', consumptionState: 'normal', credits: 3_000, frozenCredits: 300, pendingIncome: { production: 100, construction: 50, warehouse: 20, marketService: 10 }, lastIncome: 120, incomeEma: 110, recentPeakIncome: 130, noIncomeCycles: 0, lastBudget: 600, foodBudget: 468, householdBudget: 132, totalIncome: 6_000, totalSpent: 3_000 },
-            skilled: { id: 'skilled', name: '技术人口', consumptionState: 'cautious', credits: 1_500, frozenCredits: 150, pendingIncome: { production: 60, construction: 20, warehouse: 10, marketService: 10 }, lastIncome: 60, incomeEma: 70, recentPeakIncome: 100, noIncomeCycles: 1, lastBudget: 300, foodBudget: 219, householdBudget: 81, totalIncome: 3_000, totalSpent: 1_500 },
-            professional: { id: 'professional', name: '专业人口', consumptionState: 'subsistence', credits: 500, frozenCredits: 50, pendingIncome: { production: 10, construction: 5, warehouse: 3, marketService: 2 }, lastIncome: 20, incomeEma: 20, recentPeakIncome: 100, noIncomeCycles: 2, lastBudget: 100, foodBudget: 85, householdBudget: 15, totalIncome: 1_000, totalSpent: 500 },
+            basic: { id: 'basic', name: '基础人口', consumptionState: 'normal', credits: 3_000, frozenCredits: 300, pendingIncome: { production: 100, construction: 50, warehouse: 20, marketService: 10 }, lastIncome: 120, incomeEma: 110, recentPeakIncome: 130, noIncomeCycles: 0, lastBudget: 600, foodBudget: 468, householdBudget: 132, stabilizationBudget: 410, lastStabilizationIssued: 120, lastAdminPopulationIssued: 0, totalIncome: 6_000, totalSpent: 3_000 },
+            skilled: { id: 'skilled', name: '技术人口', consumptionState: 'cautious', credits: 1_500, frozenCredits: 150, pendingIncome: { production: 60, construction: 20, warehouse: 10, marketService: 10 }, lastIncome: 60, incomeEma: 70, recentPeakIncome: 100, noIncomeCycles: 1, lastBudget: 300, foodBudget: 219, householdBudget: 81, stabilizationBudget: 205, lastStabilizationIssued: 60, lastAdminPopulationIssued: 0, totalIncome: 3_000, totalSpent: 1_500 },
+            professional: { id: 'professional', name: '专业人口', consumptionState: 'subsistence', credits: 500, frozenCredits: 50, pendingIncome: { production: 10, construction: 5, warehouse: 3, marketService: 2 }, lastIncome: 20, incomeEma: 20, recentPeakIncome: 100, noIncomeCycles: 2, lastBudget: 100, foodBudget: 85, householdBudget: 15, stabilizationBudget: 69, lastStabilizationIssued: 20, lastAdminPopulationIssued: 0, totalIncome: 1_000, totalSpent: 500 },
           },
           sources: { production: 4_000, construction: 2_000, warehouse: 1_000, marketService: 1_000 },
           productionByComplexity: { C1: 500, C2: 500, C3: 500, C4: 500, C5: 500, C6: 500, C7: 1_000 },
-          issuance: { work: 20_000, exchange: 5_000, gift: 1_000, legacyPopulation: 0, migration: 5_700, total: 31_700 },
+          issuance: { work: 20_000, exchange: 5_000, gift: 1_000, legacyPopulation: 0, migration: 5_700, stabilization: 684, adminPopulation: 0, total: 32_384 },
+          policy: {
+            stabilizationShareBps: 1_200, targetWalletCycles: 3, refillCapBps: 10_000,
+            modelMultipliersBps: { basic: 10_000, skilled: 10_000, professional: 10_000 },
+            effectiveCycleId: 0, expiresAfterCycleId: null, updatedAt: null, updatedBy: null, note: '',
+            isDefault: true, currentCycleId: 100, remainingCycles: null, nextCycleAt: Date.UTC(2026, 6, 19, 10, 5),
+            currentCycleIssued: {
+              issuedByModel: { basic: 120, skilled: 60, professional: 20 },
+              automaticByModel: { basic: 120, skilled: 60, professional: 20 },
+              adminByModel: { basic: 0, skilled: 0, professional: 0 },
+            },
+          },
+          policyLimits: {
+            stabilizationShareBps: { min: 0, max: 2_000 }, targetWalletCycles: { min: 1, max: 5 },
+            refillCapBps: { min: 0, max: 15_000 }, modelMultiplierBps: { min: 5_000, max: 15_000 },
+            durationCycles: { min: 1, max: 288 }, noteLength: { min: 8, max: 200 },
+          },
+          policyBaseBudget: 5_700,
+          policyProjectedStabilizationTotal: 684,
         },
       } });
+      return;
+    }
+    if (path === '/population-economy/audit') {
+      await json(route, { records: [], total: 0, nextCursor: null });
       return;
     }
     if (path === '/community-link') {
@@ -112,10 +134,18 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(8);
   await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();
   await expect(page.locator('.admin-population-model-card')).toHaveCount(3);
+  await expect(page.getByText('累计稳定需求补充', { exact: true })).toBeVisible();
+  await expect(page.getByText('累计管理员人口补充', { exact: true })).toBeVisible();
+  await expect(page.getByText('稳定预算／自动补充', { exact: true })).toHaveCount(3);
+  await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '人口调控记录', exact: true })).toBeVisible();
   const contentWidth = await page.locator('.admin-page-frame').evaluate((element) => element.getBoundingClientRect().width);
-  expect(contentWidth).toBeLessThanOrEqual(1440);
+  expect(contentWidth).toBeLessThanOrEqual(1600);
+  expect(contentWidth).toBeGreaterThan(1440);
   const metricColumns = await page.locator('.admin-summary-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
   expect(metricColumns).toBe(4);
+  await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('position', 'sticky');
 
   await page.getByRole('button', { name: '社区', exact: true }).click();
   await expect(page.getByRole('heading', { name: '玩家社区入口', exact: true })).toBeVisible();
@@ -124,14 +154,19 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await page.getByRole('button', { name: '藏品', exact: true }).click();
   await expect(page.getByRole('heading', { name: '上传藏品', exact: true })).toBeVisible();
   await expect(page.getByText('暂无藏品。', { exact: true })).toBeVisible();
+  const collectibleColumns = await page.locator('.admin-section-stack').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
+  expect(collectibleColumns).toBe(2);
 
   await page.getByRole('button', { name: '礼品码', exact: true }).click();
   await expect(page.getByRole('heading', { name: '创建礼品码', exact: true })).toBeVisible();
   await expect(page.getByText('暂无礼品码。', { exact: true })).toBeVisible();
+  const giftColumns = await page.locator('.admin-section-stack').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
+  expect(giftColumns).toBe(2);
 
   await page.getByRole('button', { name: '账号封禁', exact: true }).click();
   await expect(page.getByRole('heading', { name: '同 IP 账号封禁', exact: true })).toBeVisible();
-  const incident = page.locator('.admin-ban-incidents > button');
+  const incident = page.locator('.admin-ban-incidents .virtual-list__item > button');
+  await expect(page.locator('.admin-ban-incidents .virtual-list__canvas')).toHaveCount(1);
   await expect(incident).toHaveCount(1);
   await incident.click();
   await expect(page.getByText('one@example.com', { exact: false })).toBeVisible();
@@ -146,15 +181,62 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await expect(page.getByRole('button', { name: '展开侧栏' })).toBeFocused();
 });
 
-test('admin navigation becomes a horizontal client-style bar on mobile', async ({ page }) => {
+test('admin navigation becomes a horizontal client-style bar on mobile and stays visible above page cards', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await configureAdminRoutes(page);
   await page.goto('/economy/admin');
 
   await expect(page.locator('.admin-sidebar')).toBeHidden();
-  await expect(page.getByRole('navigation', { name: '管理员移动导航' })).toBeVisible();
+  const navigation = page.getByRole('navigation', { name: '管理员移动导航' });
+  const mobileBottomNavigation = page.locator('.admin-mobile-bottom-navigation');
+  await expect(navigation).toBeVisible();
+  await expect(mobileBottomNavigation).toBeVisible();
+  await expect(page.locator('.admin-mobile-navigation')).toHaveCount(0);
+  await expect(page.locator('.admin-mobile-chrome-layer')).toHaveCount(1);
+  await expect(mobileBottomNavigation.locator('.liquid-glass-surface')).toHaveCount(1);
+  await expect(mobileBottomNavigation.locator('.mobile-bottom-navigation__viewport')).toHaveCount(1);
+
+  const geometry = await page.evaluate(() => {
+    const nav = document.querySelector<HTMLElement>('.admin-mobile-bottom-navigation');
+    const scroll = document.querySelector<HTMLElement>('.admin-page-scroll');
+    const layer = document.querySelector<HTMLElement>('.admin-mobile-chrome-layer');
+    const workspace = document.querySelector<HTMLElement>('.admin-workspace');
+    if (!nav || !scroll || !layer || !workspace) throw new Error('管理员移动导航结构缺失');
+    const navRect = nav.getBoundingClientRect();
+    const scrollStyle = getComputedStyle(scroll);
+    const layerStyle = getComputedStyle(layer);
+    const workspaceStyle = getComputedStyle(workspace);
+    const topmost = document.elementFromPoint(
+      navRect.left + navRect.width / 2,
+      navRect.top + navRect.height / 2,
+    );
+    return {
+      navHeight: navRect.height,
+      navBottomGap: window.innerHeight - navRect.bottom,
+      scrollPaddingBottom: Number.parseFloat(scrollStyle.paddingBottom),
+      documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      chromeLayerInsideWorkspace: workspace.contains(layer),
+      chromeLayerOrder: Number.parseInt(layerStyle.order, 10),
+      pageLayerOrder: Number.parseInt(scrollStyle.order, 10),
+      topmostInsideNavigation: Boolean(topmost && nav.contains(topmost)),
+      workspaceDisplay: workspaceStyle.display,
+      layerPosition: layerStyle.position,
+      layerZIndex: layerStyle.zIndex,
+    };
+  });
+  expect(geometry.navHeight).toBe(68);
+  expect(geometry.navBottomGap).toBeGreaterThanOrEqual(0);
+  expect(geometry.navBottomGap).toBeLessThanOrEqual(20);
+  expect(geometry.scrollPaddingBottom).toBeGreaterThan(geometry.navHeight);
+  expect(geometry.documentOverflow).toBeLessThanOrEqual(1);
+  expect(geometry.chromeLayerInsideWorkspace).toBe(true);
+  expect(geometry.chromeLayerOrder).toBeGreaterThan(geometry.pageLayerOrder);
+  expect(geometry.topmostInsideNavigation).toBe(true);
+  expect(geometry.workspaceDisplay).toBe('grid');
+  expect(geometry.layerPosition).toBe('relative');
+  expect(geometry.layerZIndex).toBe('auto');
+
   await page.getByRole('button', { name: '账号封禁', exact: true }).click();
   await expect(page.getByRole('heading', { name: '同 IP 账号封禁', exact: true })).toBeVisible();
-  const hasHorizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-  expect(hasHorizontalOverflow).toBe(false);
+  await expect(page.locator('.admin-ban-incidents .virtual-list__canvas')).toHaveCount(1);
 });

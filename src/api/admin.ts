@@ -24,8 +24,56 @@ export interface PopulationModelAdminSummary {
   lastBudget: number;
   foodBudget: number;
   householdBudget: number;
+  stabilizationBudget: number;
+  lastStabilizationIssued: number;
+  lastAdminPopulationIssued: number;
   totalIncome: number;
   totalSpent: number;
+}
+
+export interface PopulationPolicy {
+  stabilizationShareBps: number;
+  targetWalletCycles: number;
+  refillCapBps: number;
+  modelMultipliersBps: Record<PopulationModelId, number>;
+  effectiveCycleId: number;
+  expiresAfterCycleId: number | null;
+  updatedAt: number | null;
+  updatedBy: number | null;
+  note: string;
+  isDefault: boolean;
+  currentCycleId: number;
+  remainingCycles: number | null;
+  nextCycleAt: number;
+  currentCycleIssued: {
+    issuedByModel: Record<PopulationModelId, number>;
+    automaticByModel: Record<PopulationModelId, number>;
+    adminByModel: Record<PopulationModelId, number>;
+  };
+}
+
+export interface PopulationPolicyLimits {
+  stabilizationShareBps: { min: number; max: number };
+  targetWalletCycles: { min: number; max: number };
+  refillCapBps: { min: number; max: number };
+  modelMultiplierBps: { min: number; max: number };
+  durationCycles: { min: number; max: number };
+  noteLength: { min: number; max: number };
+}
+
+export interface PopulationPolicyAuditRecord {
+  id: number;
+  adminUserId: number;
+  actionType: 'update_policy' | 'reset_policy' | 'top_up';
+  targetModel: PopulationModelId | 'all';
+  beforePolicy: PopulationPolicy;
+  afterPolicy: PopulationPolicy;
+  issuedCredits: number;
+  issuedByModel: Record<PopulationModelId, number>;
+  revisionBefore: number;
+  revisionAfter: number;
+  note: string;
+  createdAt: number;
 }
 
 export interface PopulationEconomyAdminSummary {
@@ -42,7 +90,11 @@ export interface PopulationEconomyAdminSummary {
   models: Record<PopulationModelId, PopulationModelAdminSummary>;
   sources: Record<'production' | 'construction' | 'warehouse' | 'marketService', number>;
   productionByComplexity: Record<'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7', number>;
-  issuance: { work: number; exchange: number; gift: number; legacyPopulation: number; migration: number; total: number };
+  issuance: { work: number; exchange: number; gift: number; legacyPopulation: number; migration: number; stabilization: number; adminPopulation: number; total: number };
+  policy: PopulationPolicy;
+  policyLimits: PopulationPolicyLimits;
+  policyBaseBudget: number;
+  policyProjectedStabilizationTotal: number;
 }
 
 export type ExtendedAdminSummary = AdminSummary & {
@@ -50,6 +102,28 @@ export type ExtendedAdminSummary = AdminSummary & {
   openAuctionCount: number;
   populationEconomy: PopulationEconomyAdminSummary;
 };
+
+export interface PopulationPolicyPayload {
+  stabilizationShareBps: number;
+  targetWalletCycles: number;
+  refillCapBps: number;
+  modelMultipliersBps: Record<PopulationModelId, number>;
+  durationCycles: number;
+  note: string;
+}
+
+export interface PopulationPolicyMutationResponse {
+  policy: PopulationPolicy;
+  populationEconomy: PopulationEconomyAdminSummary;
+  revision: number;
+}
+
+export interface PopulationTopUpResponse extends PopulationPolicyMutationResponse {
+  targetModel: PopulationModelId | 'all';
+  currentCycleId: number;
+  issuedByModel: Record<PopulationModelId, number>;
+  issuedTotal: number;
+}
 
 export type GiftCodeCreationPayload = {
   rewardCredits: number;
@@ -138,6 +212,35 @@ function pagePath(path: string, cursor?: string | null) {
 
 export const adminApi = {
   summary: async () => (await request<{ summary: ExtendedAdminSummary }>('/summary', { method: 'GET' })).summary,
+  populationEconomy: async () => (
+    await request<{ summary: ExtendedAdminSummary }>('/population-economy', { method: 'GET' })
+  ).summary,
+  updatePopulationPolicy: (payload: PopulationPolicyPayload, idempotencyKey?: string) => request<PopulationPolicyMutationResponse>(
+    '/population-economy/policy',
+    { method: 'PUT', body: JSON.stringify(payload) },
+    idempotencyKey,
+  ),
+  resetPopulationPolicy: (note: string, idempotencyKey?: string) => request<PopulationPolicyMutationResponse>(
+    '/population-economy/policy/reset',
+    { method: 'POST', body: JSON.stringify({ note }) },
+    idempotencyKey,
+  ),
+  topUpPopulation: (
+    targetModel: PopulationModelId | 'all',
+    note: string,
+    idempotencyKey?: string,
+  ) => request<PopulationTopUpResponse>(
+    '/population-economy/top-up',
+    { method: 'POST', body: JSON.stringify({ targetModel, note }) },
+    idempotencyKey,
+  ),
+  populationPolicyAudit: async (cursor?: string | null): Promise<CursorPage<PopulationPolicyAuditRecord>> => {
+    const payload = await request<{ records: PopulationPolicyAuditRecord[]; total: number; nextCursor: string | null }>(
+      pagePath('/population-economy/audit', cursor),
+      { method: 'GET' },
+    );
+    return { items: payload.records, total: payload.total, nextCursor: payload.nextCursor };
+  },
   communityLink: async () => (
     await request<{ communityLink: CommunityLinkConfig }>('/community-link', { method: 'GET' })
   ).communityLink,

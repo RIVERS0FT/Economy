@@ -60,7 +60,7 @@ function createTestWorld(now) {
   };
 }
 
-test('market model 7 settles fills that happen after demand orders are created', () => {
+test('market model 8 settles fills that happen after demand orders are created', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
@@ -82,7 +82,7 @@ test('market model 7 settles fills that happen after demand orders are created',
   assert.ok(state.satisfaction > 0);
 });
 
-test('market model 7 uses funded population wallets when no player is active', () => {
+test('market model 8 uses funded population wallets when no player is active', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
