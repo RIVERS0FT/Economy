@@ -10,7 +10,7 @@ const production = read('src/styles/facility-group-card-grid.css');
 const productionSurface = read('src/styles/production-surface.css');
 const legacyIndustryStyles = read('src/styles/industry-system.css');
 const industry = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
-const stickyDesign = read('docs/PRODUCTION_STICKY_LAYOUT_DESIGN.md');
+const productionAlignmentDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
 const chrome = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 const readme = read('README.md');
 
@@ -92,13 +92,13 @@ for (const text of [
 ]) assert.equal(industry.includes(text), true, `产业设计缺少: ${text}`);
 
 for (const text of [
-  '以本文为准',
+  '生产页桌面 sticky 顶部定位也以本文为准',
   '`top: 0`',
   '`production-surface.css`',
   '建设卡与当前工厂详情外壳',
   '页面唯一纵向滚动视口',
   '`721px–960px` 恢复普通文档流',
-]) assert.equal(stickyDesign.includes(text), true, `生产 sticky 补充设计缺少: ${text}`);
+]) assert.equal(productionAlignmentDesign.includes(text), true, `生产对齐设计缺少: ${text}`);
 
 assert.equal(chrome.includes('页面顶部避让必须集中为 `--desktop-page-top-offset`'), true, '外壳设计缺少统一顶部避让规则');
 assert.equal(readme.includes('大于等于 1600px 时建设卡、两列工厂集群选择器和自然高度的当前详情卡紧凑排列'), true, 'README 缺少桌面生产布局摘要');
