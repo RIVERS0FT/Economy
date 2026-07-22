@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   CURRENT_CLIENT_STATE_VERSION,
   isCompatibleClientStateVersion,
@@ -43,6 +43,10 @@ if (!Number.isInteger(CURRENT_CLIENT_STATE_VERSION)
   fail('共享客户端状态版本及兼容下限必须是有效且有序的非负整数');
 }
 
+if (existsSync('shared/economy-state-version.js')) {
+  fail('不得恢复根目录平行客户端状态版本模块');
+}
+
 requireCurrentVersion('README.md', /客户端状态版本：`(\d+)`/, '客户端状态版本');
 requireCurrentVersion('docs/README.md', /> 客户端状态版本：(\d+)/, '客户端状态版本');
 requireCurrentVersion(
@@ -51,6 +55,10 @@ requireCurrentVersion(
   '客户端状态版本',
 );
 
+requireText('package.json', [
+  '"verify:state-version": "node scripts/verify-client-state-version.mjs"',
+  'node scripts/verify-client-state-version.mjs && node scripts/verify-order-matching-core.mjs',
+]);
 requireText('server/shared/economy-state-version.js', [
   `export const CURRENT_CLIENT_STATE_VERSION = ${CURRENT_CLIENT_STATE_VERSION};`,
   `export const MIN_COMPATIBLE_CLIENT_STATE_VERSION = ${MIN_COMPATIBLE_CLIENT_STATE_VERSION};`,
