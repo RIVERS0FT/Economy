@@ -99,13 +99,42 @@
     align-items: start;
   }
 
-  .admin-ban-incidents {
+  .admin-ban-incidents-column {
     position: sticky;
     top: 112px;
-    max-height: calc(100dvh - 154px);
-    overflow: auto;
-    overscroll-behavior: contain;
+    min-width: 0;
+  }
+
+  .admin-ban-incidents {
+    min-width: 0;
     padding-right: var(--space-1);
+  }
+
+  .admin-ban-incidents .virtual-list__item > button {
+    width: 100%;
+    min-height: 100%;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    padding: var(--space-3);
+    color: var(--color-text-primary);
+    background: var(--color-surface-inset);
+    box-shadow: none;
+    text-align: left;
+  }
+
+  .admin-ban-incidents .virtual-list__item > button:hover:not(:disabled) {
+    transform: none;
+    border-color: var(--color-success);
+  }
+
+  .admin-ban-incidents .virtual-list__item > button.active {
+    outline: none;
+    border-color: var(--color-success);
+    background: rgba(50, 159, 88, .16);
+    box-shadow: inset 2px 0 var(--color-success);
   }
 
   .admin-ban-details {
@@ -133,9 +162,6 @@
   .admin-section-stack:has(.admin-gift-create) > :first-child {
     position: sticky;
     top: 112px;
-    max-height: calc(100dvh - 154px);
-    overflow: auto;
-    overscroll-behavior: contain;
   }
 
   .admin-section-stack:has(.admin-collectible-upload) > :nth-child(n + 2),
@@ -202,11 +228,27 @@
     max-width: none;
   }
 
-  .admin-ban-incidents {
+  .admin-ban-incidents-column {
     position: static;
-    max-height: none;
-    overflow: visible;
+    min-width: 0;
+  }
+
+  .admin-ban-incidents {
     padding-right: 0;
+  }
+
+  .admin-ban-incidents .virtual-list__item > button {
+    width: 100%;
+    min-height: 100%;
+    display: grid;
+    align-content: center;
+    gap: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    padding: var(--space-3);
+    color: var(--color-text-primary);
+    background: var(--color-surface-inset);
+    text-align: left;
   }
 
   .admin-collectible-format {
