@@ -1,0 +1,50 @@
+name: Validate market card browser changes
+
+on:
+  pull_request:
+    types:
+      - reopened
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    if: github.head_ref == 'agent/market-card-artwork-64' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/market-card-artwork-64
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test browser runtime
+        run: npm run test:browser
+
+      - name: Record success
+        run: |
+          printf 'Full build and Playwright browser suite passed for %s\n' "$GITHUB_SHA" > scripts/final-market-card-ci-passed.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/final-market-card-ci-passed.txt
+          git commit -m "record final market card CI success"
+          git push origin HEAD:agent/market-card-artwork-64
