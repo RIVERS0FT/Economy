@@ -59,10 +59,10 @@ for (const text of ['预计手续费（累计成交额的 1%）', '预计到账'
 }
 
 for (const [path, text] of [
-  ['README.md', '按单张卖单累计成交总额收取 1% 手续费'],
+  ['README.md', '按单张卖单累计成交总额精确收取 1% 手续费'],
   ['docs/README.md', '统一订单簿玩家卖出手续费'],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '玩家卖出手续费'],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '单张卖单自规则启用后的累计成交总额'],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '不设最低手续费'],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '累计成交总额精确计算'],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', 'fee'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '预计手续费'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'market-sell-fee.js'],
