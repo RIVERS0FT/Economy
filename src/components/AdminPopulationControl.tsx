@@ -7,12 +7,13 @@ import {
   type PopulationPolicyAuditRecord,
   type PopulationPolicyPayload,
 } from '../api/admin';
-import { CurrencyAmount } from './ui/CurrencyAmount';
-import { IntegerInput, SelectInput, TextArea } from './ui/FormControls';
-import { Button, EmptyState, MetricCard, StatusTag } from './ui/layout';
-import { VirtualList } from './ui/VirtualList';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
+import { CurrencyAmount } from './ui/CurrencyAmount';
+import { IntegerInput, SelectInput, TextArea } from './ui/FormControls';
+import { Button, EmptyState, StatusTag } from './ui/layout';
+import { VirtualList } from './ui/VirtualList';
+import { AdminPopulationHealth } from './AdminPopulationHealth';
 
 type Draft = {
   sharePercent: string;
@@ -59,6 +60,16 @@ function calculatePreviewBudget(economy: PopulationEconomyAdminSummary, payload:
   return Math.min(maximum, adjusted.basic + adjusted.skilled + adjusted.professional);
 }
 
+function AuditRecord({ record }: { record: PopulationPolicyAuditRecord }) {
+  return (
+    <article className="admin-population-audit-record">
+      <header><strong>{policyActionLabel(record.actionType)}</strong><span>{formatDate(record.createdAt)}</span></header>
+      <p>{record.note}</p>
+      <small>管理员 #{record.adminUserId} · 目标 {record.targetModel === 'all' ? '全部人口' : record.targetModel} · 发行 <CurrencyAmount>{formatCurrency(record.issuedCredits)}</CurrencyAmount> · 世界修订 {record.revisionBefore}→{record.revisionAfter}</small>
+    </article>
+  );
+}
+
 export function AdminPopulationControl({
   economy,
   onChanged,
@@ -72,6 +83,8 @@ export function AdminPopulationControl({
   const [note, setNote] = useState('');
   const [targetModel, setTargetModel] = useState<PopulationModelId | 'all'>('all');
   const [previewVisible, setPreviewVisible] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [auditExpanded, setAuditExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [audit, setAudit] = useState<PopulationPolicyAuditRecord[]>([]);
   const [auditTotal, setAuditTotal] = useState(0);
@@ -135,6 +148,8 @@ export function AdminPopulationControl({
   const previewBudget = payload ? calculatePreviewBudget(economy, payload) : 0;
   const noteValid = note.trim().length >= economy.policyLimits.noteLength.min
     && note.trim().length <= economy.policyLimits.noteLength.max;
+  const automaticIssued = Object.values(economy.policy.currentCycleIssued.automaticByModel).reduce((sum, value) => sum + value, 0);
+  const adminIssued = Object.values(economy.policy.currentCycleIssued.adminByModel).reduce((sum, value) => sum + value, 0);
 
   function usePreset(name: 'default' | 'mild' | 'strong' | 'tight' | 'pause') {
     const presets: Record<typeof name, Draft> = {
@@ -207,101 +222,136 @@ export function AdminPopulationControl({
   }
 
   return (
-    <section className="admin-population-control" aria-label="人口政策调控">
-      <header className="admin-population-control__header">
-        <div>
-          <h3>人口政策调控</h3>
-          <p>调整未来稳定需求与生产工资补贴，不允许任意修改余额、收入状态或既有订单。</p>
-        </div>
-        <StatusTag tone={economy.policy.isDefault ? 'success' : economy.policy.remainingCycles !== null && economy.policy.remainingCycles <= 2 ? 'warning' : 'neutral'}>
-          {economy.policy.isDefault ? '默认政策' : `临时政策 · 剩余 ${economy.policy.remainingCycles} 周期`}
-        </StatusTag>
-      </header>
+    <>
+      <AdminPopulationHealth economy={economy} />
+      <section className="admin-population-control" aria-label="人口政策调控">
+        <header className="admin-population-control__header">
+          <div>
+            <h3>人口政策调控</h3>
+            <p>{economy.policy.isDefault ? '默认政策' : `临时政策 · 剩余 ${economy.policy.remainingCycles} 周期`} · 稳定需求 {economy.policy.stabilizationShareBps / 100}% · 生产工资 {economy.policy.productionWageMultiplierBps / 100}% · 目标 {economy.policy.targetWalletCycles} 周期</p>
+            <small>本周期自动补充 <CurrencyAmount>{formatCurrency(automaticIssued)}</CurrencyAmount> · 管理员补充 <CurrencyAmount>{formatCurrency(adminIssued)}</CurrencyAmount> · 下周期 {formatDate(economy.policy.nextCycleAt)}</small>
+          </div>
+          <div className="admin-population-control__header-actions">
+            <StatusTag tone={economy.policy.isDefault ? 'success' : economy.policy.remainingCycles !== null && economy.policy.remainingCycles <= 2 ? 'warning' : 'neutral'}>
+              {economy.policy.isDefault ? '默认' : '临时'}
+            </StatusTag>
+            <Button variant="secondary" aria-expanded={expanded} onClick={() => setExpanded((current) => !current)}>{expanded ? '收起调控' : '展开调控'}</Button>
+          </div>
+        </header>
 
-      <section className="admin-population-policy-metrics">
-        <MetricCard label="当前稳定预算" value={<CurrencyAmount>{formatCurrency(economy.policyProjectedStabilizationTotal)}</CurrencyAmount>} />
-        <MetricCard label="当前周期自动补充" value={<CurrencyAmount>{formatCurrency(Object.values(economy.policy.currentCycleIssued.automaticByModel).reduce((sum, value) => sum + value, 0))}</CurrencyAmount>} />
-        <MetricCard label="当前周期管理员补充" value={<CurrencyAmount>{formatCurrency(Object.values(economy.policy.currentCycleIssued.adminByModel).reduce((sum, value) => sum + value, 0))}</CurrencyAmount>} />
-        <MetricCard label="下个需求周期" value={formatDate(economy.policy.nextCycleAt)} />
-      </section>
+        {expanded ? (
+          <div className="admin-population-control__workspace">
+            <section className="admin-population-policy-editor">
+              <header><h4>政策参数</h4><p>预设只填充参数，确认应用前仍需预览并填写管理备注。</p></header>
+              <div className="admin-population-presets" aria-label="人口政策预设">
+                <Button variant="secondary" onClick={() => usePreset('default')}>默认参数</Button>
+                <Button variant="secondary" onClick={() => usePreset('mild')}>温和刺激</Button>
+                <Button variant="secondary" onClick={() => usePreset('strong')}>强力刺激</Button>
+                <Button variant="secondary" onClick={() => usePreset('tight')}>温和收紧</Button>
+                <Button variant="secondary" onClick={() => usePreset('pause')}>暂停稳定发行</Button>
+              </div>
 
-      <div className="admin-population-presets" aria-label="人口政策预设">
-        <Button variant="secondary" onClick={() => usePreset('default')}>默认参数</Button>
-        <Button variant="secondary" onClick={() => usePreset('mild')}>温和刺激</Button>
-        <Button variant="secondary" onClick={() => usePreset('strong')}>强力刺激</Button>
-        <Button variant="secondary" onClick={() => usePreset('tight')}>温和收紧</Button>
-        <Button variant="secondary" onClick={() => usePreset('pause')}>暂停稳定发行</Button>
-      </div>
+              <div className="admin-population-policy-groups">
+                <fieldset>
+                  <legend>需求规模</legend>
+                  <div className="admin-population-policy-grid">
+                    <IntegerInput label="稳定需求比例（%）" value={draft.sharePercent} fallbackValue={12} min={0} max={20} onValueChange={(value) => setField('sharePercent', value)} />
+                    <IntegerInput label="目标钱包周期" value={draft.targetCycles} fallbackValue={3} min={1} max={5} onValueChange={(value) => setField('targetCycles', value)} />
+                    <IntegerInput label="单周期补充上限（%）" value={draft.refillPercent} fallbackValue={100} min={0} max={150} onValueChange={(value) => setField('refillPercent', value)} />
+                    <IntegerInput label="政策有效周期" value={draft.durationCycles} fallbackValue={12} min={1} max={288} onValueChange={(value) => setField('durationCycles', value)} />
+                  </div>
+                </fieldset>
+                <fieldset>
+                  <legend>生产工资</legend>
+                  <IntegerInput label="生产工资系数（%）" value={draft.productionWagePercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('productionWagePercent', value)} />
+                </fieldset>
+                <fieldset>
+                  <legend>人口权重</legend>
+                  <div className="admin-population-policy-grid">
+                    <IntegerInput label="基础人口倍率（%）" value={draft.basicPercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('basicPercent', value)} />
+                    <IntegerInput label="技术人口倍率（%）" value={draft.skilledPercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('skilledPercent', value)} />
+                    <IntegerInput label="专业人口倍率（%）" value={draft.professionalPercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('professionalPercent', value)} />
+                  </div>
+                </fieldset>
+              </div>
+            </section>
 
-      <div className="admin-population-policy-grid">
-        <IntegerInput label="稳定需求比例（%）" value={draft.sharePercent} fallbackValue={12} min={0} max={20} onValueChange={(value) => setField('sharePercent', value)} />
-        <IntegerInput label="生产工资系数（%）" value={draft.productionWagePercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('productionWagePercent', value)} />
-        <IntegerInput label="目标钱包周期" value={draft.targetCycles} fallbackValue={3} min={1} max={5} onValueChange={(value) => setField('targetCycles', value)} />
-        <IntegerInput label="单周期补充上限（%）" value={draft.refillPercent} fallbackValue={100} min={0} max={150} onValueChange={(value) => setField('refillPercent', value)} />
-        <IntegerInput label="政策有效周期" value={draft.durationCycles} fallbackValue={12} min={1} max={288} onValueChange={(value) => setField('durationCycles', value)} />
-        <IntegerInput label="基础人口倍率（%）" value={draft.basicPercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('basicPercent', value)} />
-        <IntegerInput label="技术人口倍率（%）" value={draft.skilledPercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('skilledPercent', value)} />
-        <IntegerInput label="专业人口倍率（%）" value={draft.professionalPercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('professionalPercent', value)} />
-        <SelectInput label="立即补充目标" value={targetModel} onChange={(event) => setTargetModel(event.target.value as PopulationModelId | 'all')}>
-          <option value="all">全部人口</option>
-          <option value="basic">基础人口</option>
-          <option value="skilled">技术人口</option>
-          <option value="professional">专业人口</option>
-        </SelectInput>
-      </div>
+            <aside className="admin-population-policy-impact">
+              <section className="admin-population-policy-current">
+                <header><h4>当前周期</h4><small>只读</small></header>
+                <dl>
+                  <div><dt>当前稳定预算</dt><dd><CurrencyAmount>{formatCurrency(economy.policyProjectedStabilizationTotal)}</CurrencyAmount></dd></div>
+                  <div><dt>自动补充</dt><dd><CurrencyAmount>{formatCurrency(automaticIssued)}</CurrencyAmount></dd></div>
+                  <div><dt>管理员补充</dt><dd><CurrencyAmount>{formatCurrency(adminIssued)}</CurrencyAmount></dd></div>
+                  <div><dt>下个需求周期</dt><dd>{formatDate(economy.policy.nextCycleAt)}</dd></div>
+                </dl>
+              </section>
 
-      <TextArea
-        label="管理备注"
-        value={note}
-        minLength={economy.policyLimits.noteLength.min}
-        maxLength={economy.policyLimits.noteLength.max}
-        required
-        onChange={(event) => { requestKeyRef.current = ''; setNote(event.target.value); }}
-        description="8～200 字；将写入不可删除的调控审计记录。"
-      />
+              <section className="admin-population-policy-preview" aria-label="人口政策影响预估">
+                <header><h4>影响预估</h4><Button variant="secondary" disabled={!payload} onClick={() => setPreviewVisible(true)}>预览政策</Button></header>
+                {previewVisible && payload ? (
+                  <dl>
+                    <div><dt>当前／调整后稳定预算</dt><dd><CurrencyAmount>{formatCurrency(economy.policyProjectedStabilizationTotal)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(previewBudget)}</CurrencyAmount></dd></div>
+                    <div><dt>生产工资／生产成本</dt><dd>{payload.productionWageMultiplierBps / 100}%／成本不变</dd></div>
+                    <div><dt>目标钱包</dt><dd>{payload.targetWalletCycles} 个周期</dd></div>
+                    <div><dt>单周期最大补充</dt><dd>{payload.refillCapBps / 100}% 稳定预算</dd></div>
+                    <div><dt>持续时间</dt><dd>{payload.durationCycles} 个周期（约 {Math.round(payload.durationCycles * 5 / 60 * 10) / 10} 小时）</dd></div>
+                  </dl>
+                ) : <p>调整参数后点击“预览政策”，确认影响范围再执行。</p>}
+              </section>
 
-      <div className="admin-population-control__actions">
-        <Button variant="secondary" disabled={!payload} onClick={() => setPreviewVisible(true)}>预览政策</Button>
-        <Button disabled={!previewVisible || !payload || !noteValid || busy} onClick={() => void applyPolicy()}>
-          {busy ? '正在执行…' : '确认应用'}
-        </Button>
-        <Button variant="secondary" disabled={!noteValid || busy} onClick={() => void topUp()}>按当前政策立即补充</Button>
-        <Button variant="danger" disabled={!noteValid || busy || economy.policy.isDefault} onClick={() => void resetPolicy()}>恢复默认政策</Button>
-      </div>
+              <SelectInput label="立即补充目标" value={targetModel} onChange={(event) => setTargetModel(event.target.value as PopulationModelId | 'all')}>
+                <option value="all">全部人口</option>
+                <option value="basic">基础人口</option>
+                <option value="skilled">技术人口</option>
+                <option value="professional">专业人口</option>
+              </SelectInput>
 
-      {previewVisible && payload ? (
-        <section className="admin-population-policy-preview" aria-label="人口政策影响预估">
-          <h4>影响预估</h4>
-          <dl>
-            <div><dt>当前／调整后稳定预算</dt><dd><CurrencyAmount>{formatCurrency(economy.policyProjectedStabilizationTotal)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(previewBudget)}</CurrencyAmount></dd></div>
-            <div><dt>生产工资／生产成本</dt><dd>{payload.productionWageMultiplierBps / 100}%／成本不变</dd></div>
-            <div><dt>目标钱包</dt><dd>{payload.targetWalletCycles} 个周期</dd></div>
-            <div><dt>单周期最大补充</dt><dd>{payload.refillCapBps / 100}% 稳定预算</dd></div>
-            <div><dt>持续时间</dt><dd>{payload.durationCycles} 个周期（约 {Math.round(payload.durationCycles * 5 / 60 * 10) / 10} 小时）</dd></div>
-          </dl>
+              <TextArea
+                label="管理备注"
+                value={note}
+                minLength={economy.policyLimits.noteLength.min}
+                maxLength={economy.policyLimits.noteLength.max}
+                required
+                onChange={(event) => { requestKeyRef.current = ''; setNote(event.target.value); }}
+                description="8～200 字；将写入不可删除的调控审计记录。"
+              />
+
+              <div className="admin-population-control__actions">
+                <Button disabled={!previewVisible || !payload || !noteValid || busy} onClick={() => void applyPolicy()}>{busy ? '正在执行…' : '确认应用'}</Button>
+                <Button variant="secondary" disabled={!noteValid || busy} onClick={() => void topUp()}>按当前政策立即补充</Button>
+                <Button variant="danger" disabled={!noteValid || busy || economy.policy.isDefault} onClick={() => void resetPolicy()}>恢复默认政策</Button>
+              </div>
+            </aside>
+          </div>
+        ) : null}
+
+        <section className={`admin-population-audit ${auditExpanded ? 'is-expanded' : ''}`}>
+          <header>
+            <div><h3>人口调控记录</h3><span>已加载 {audit.length}／{auditTotal}</span></div>
+            {auditTotal > 3 ? <Button variant="secondary" aria-expanded={auditExpanded} onClick={() => setAuditExpanded((current) => !current)}>{auditExpanded ? '收起记录' : '查看全部记录'}</Button> : null}
+          </header>
+          {auditExpanded ? (
+            <>
+              <VirtualList
+                items={audit}
+                getKey={(record) => record.id}
+                estimateSize={92}
+                viewportHeight={360}
+                minViewportHeight={120}
+                ariaLabel="人口调控审计记录"
+                empty={<EmptyState>暂无人口调控记录。</EmptyState>}
+                renderItem={(record) => <AuditRecord record={record} />}
+              />
+              {auditCursor ? <Button variant="secondary" disabled={loadingAudit} onClick={() => void loadAudit(auditCursor)}>{loadingAudit ? '正在加载…' : '加载更多记录'}</Button> : null}
+            </>
+          ) : audit.length > 0 ? (
+            <div className="admin-population-audit-summary">
+              {audit.slice(0, 3).map((record) => <AuditRecord key={record.id} record={record} />)}
+            </div>
+          ) : <EmptyState>暂无人口调控记录。</EmptyState>}
         </section>
-      ) : null}
-
-      <section className="admin-population-audit">
-        <header><h3>人口调控记录</h3><span>已加载 {audit.length}／{auditTotal}</span></header>
-        <VirtualList
-          items={audit}
-          getKey={(record) => record.id}
-          estimateSize={92}
-          viewportHeight={360}
-          minViewportHeight={120}
-          ariaLabel="人口调控审计记录"
-          empty={<EmptyState>暂无人口调控记录。</EmptyState>}
-          renderItem={(record) => (
-            <article className="admin-population-audit-record">
-              <header><strong>{policyActionLabel(record.actionType)}</strong><span>{formatDate(record.createdAt)}</span></header>
-              <p>{record.note}</p>
-              <small>管理员 #{record.adminUserId} · 目标 {record.targetModel === 'all' ? '全部人口' : record.targetModel} · 发行 <CurrencyAmount>{formatCurrency(record.issuedCredits)}</CurrencyAmount> · 世界修订 {record.revisionBefore}→{record.revisionAfter}</small>
-            </article>
-          )}
-        />
-        {auditCursor ? <Button variant="secondary" disabled={loadingAudit} onClick={() => void loadAudit(auditCursor)}>{loadingAudit ? '正在加载…' : '加载更多记录'}</Button> : null}
       </section>
-    </section>
+    </>
   );
 }

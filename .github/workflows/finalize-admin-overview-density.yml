@@ -1,0 +1,136 @@
+name: Finalize Admin Overview Density
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/finalize-admin-overview-density.yml
+      - src/components/AdminPopulationHealth.tsx
+      - src/components/AdminPopulationControl.tsx
+      - src/styles/admin-overview-density.css
+
+permissions:
+  contents: write
+  statuses: write
+  actions: write
+
+concurrency:
+  group: finalize-admin-overview-density
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark finalization pending
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state=pending \
+            -f context='finalize/admin-overview' \
+            -f description='Updating design rules and running full verification'
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Update authority, tests and cleanup plan
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          design = Path('docs/GIFT_CODE_AND_ADMIN_DESIGN.md')
+          text = design.read_text()
+          old = '- “概况”保持全宽指标与人口经济纵向结构，世界指标优先显示，人口钱包、就业来源和复杂度工资继续作为同一分区的只读深度信息。'
+          new = '''- “概况”保持全宽结构，但世界指标必须压缩为高密度网格；世界版本与 API 状态由共享桌面工作栏承载，概况内容不得重复占用大卡片。\n- 人口经济默认使用 `ADMIN_OVERVIEW_SCHEME: population-health-matrix`：指标为行、基础／技术／专业人口为列，横向比较状态、钱包覆盖、可用／冻结、当前预算、食品／家庭、最近收入／EMA、稳定预算／自动补充和待结算／无收入周期。钱包目标固定按该类稳定预算乘当前目标钱包周期计算，可用与冻结共同计入覆盖；缺口与覆盖率只用于管理员只读诊断，不得成为新的客户端权威或绕过服务器补充上限。\n- 人口当前资金使用六项紧凑指标；就业来源、C1～C7 工资与累计资金流使用比例条和紧凑数据网格，不得恢复十二张等权指标卡和三张重复人口大卡。\n- 人口政策调控默认折叠为政策摘要，展开后才显示预设、参数、影响预估、备注与写操作；折叠不得清空草稿。审计默认显示最近三条摘要，展开后继续使用服务端游标分页与 `VirtualList`。\n- 不大于 720px 时隐藏桌面比较矩阵，改为三张紧凑人口卡；不得为矩阵创建页面级横向滚动或第二页面滚动视口。'''
+          if old not in text:
+              raise SystemExit('管理员概况权威设计锚点缺失')
+          design.write_text(text.replace(old, new, 1))
+
+          verify = Path('scripts/verify-admin-navigation.mjs')
+          text = verify.read_text()
+          anchor = "forbidText('src/app/AdminApp.tsx', [\n"
+          addition = """requireText('src/components/AdminPopulationHealth.tsx', [\n  'ADMIN_OVERVIEW_SCHEME: population-health-matrix',\n  '人口需求比较矩阵',\n  '当前钱包总缺口',\n  '食品／家庭',\n  'C1—C7 生产工资',\n]);\nrequireText('src/components/AdminPopulationControl.tsx', [\n  \"import { AdminPopulationHealth } from './AdminPopulationHealth'\",\n  '<AdminPopulationHealth economy={economy} />',\n  '展开调控',\n  '查看全部记录',\n]);\nrequireText('src/styles/admin-overview-density.css', [\n  'ADMIN_OVERVIEW_SCHEME: population-health-matrix',\n  '.admin-population-matrix',\n  '.admin-population-health-grid',\n  '.admin-population-control__workspace',\n  '@media (max-width: 720px)',\n]);\n"""
+          if addition not in text:
+              if anchor not in text:
+                  raise SystemExit('管理员验证脚本锚点缺失')
+              text = text.replace(anchor, addition + anchor, 1)
+          main_anchor = '  "import \'./styles/admin-navigation.css\';",\n'
+          if "admin-overview-density.css" not in text:
+              if main_anchor not in text:
+                  raise SystemExit('管理员样式验证锚点缺失')
+              text = text.replace(main_anchor, main_anchor + '  "import \'./styles/admin-overview-density.css\';",\n', 1)
+          verify.write_text(text)
+
+          test = Path('tests/browser/admin-runtime.spec.ts')
+          text = test.read_text()
+          old = '''  await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(8);\n  await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();\n  await expect(page.locator('.admin-population-model-card')).toHaveCount(3);\n  await expect(page.getByText('累计稳定需求补充', { exact: true })).toBeVisible();\n  await expect(page.getByText('累计管理员人口补充', { exact: true })).toBeVisible();\n  await expect(page.getByText('累计生产工资补贴', { exact: true })).toBeVisible();\n  await expect(page.getByText('累计生产工资扣留', { exact: true })).toBeVisible();\n  await expect(page.getByText('稳定预算／自动补充', { exact: true })).toHaveCount(3);\n  await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();\n  await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('100');\n  await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();\n  await expect(page.getByRole('heading', { name: '人口调控记录', exact: true })).toBeVisible();'''
+          new = '''  await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(8);\n  await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();\n  await expect(page.getByRole('table', { name: '人口需求比较矩阵' })).toBeVisible();\n  await expect(page.getByText('当前钱包总缺口', { exact: true })).toBeVisible();\n  await expect(page.locator('.admin-population-ledger').getByText('累计稳定需求补充', { exact: true })).toBeVisible();\n  await expect(page.locator('.admin-population-ledger').getByText('累计管理员人口补充', { exact: true })).toBeVisible();\n  await expect(page.locator('.admin-population-matrix').getByText('稳定预算／自动补充', { exact: true })).toBeVisible();\n  await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();\n  await expect(page.getByRole('button', { name: '展开调控', exact: true })).toBeVisible();\n  await page.getByRole('button', { name: '展开调控', exact: true }).click();\n  await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('100');\n  await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();\n  await expect(page.getByRole('heading', { name: '人口调控记录', exact: true })).toBeVisible();'''
+          if old not in text:
+              raise SystemExit('管理员浏览器回归锚点缺失')
+          text = text.replace(old, new, 1)
+          text = text.replace('expect(metricColumns).toBe(4);', 'expect(metricColumns).toBe(6);', 1)
+          test.write_text(text)
+
+          # Remove abandoned migration artifacts and the unused first-pass wrapper.
+          for name in [
+              'scripts/apply-admin-overview-density.py.gz.b64',
+              '.github/workflows/apply-admin-overview-density.yml',
+              '.github/workflows/admin-overview-diagnostic.yml',
+              'src/components/AdminOverview.tsx',
+          ]:
+              Path(name).unlink(missing_ok=True)
+          PY
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Full build and architecture verification
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Administrator browser regression
+        run: npx playwright test tests/browser/admin-runtime.spec.ts
+
+      - name: Commit verified final state
+        id: commit
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/finalize-admin-overview-density.yml
+          git diff --check
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m '完成管理员概况人口健康矩阵'
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Mark finalization successful
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          for sha in "$GITHUB_SHA" "$FINAL_SHA"; do
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${sha}" \
+              -f state=success \
+              -f context='finalize/admin-overview' \
+              -f description='Full build and administrator regression passed'
+          done
+
+      - name: Dispatch production deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/deploy.yml/dispatches" -f ref=main
