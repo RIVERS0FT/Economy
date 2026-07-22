@@ -5,6 +5,13 @@ const INSTALLATION_KEY = Symbol.for('riversoft.economy.requestMetrics');
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_SLOW_REQUEST_MS = 1_000;
 const DEFAULT_LARGE_RESPONSE_BYTES = 200 * 1024;
+const DYNAMIC_ROUTE_PATTERNS = [
+  [/^(\/api\/game\/(?:orders|auctions|collectible-auctions|facility-listings))\/[^/]+(\/(?:bids|cancel|buy))$/, '$1/:id$2'],
+  [/^(\/api\/game\/admin\/gift-codes)\/[^/]+(\/(?:disable|redemptions))$/, '$1/:id$2'],
+  [/^(\/api\/game\/admin\/collectibles)\/[^/]+(\/ownership)$/, '$1/:id$2'],
+  [/^(\/api\/game\/admin\/bans\/users)\/[^/]+(\/(?:unban|reban))$/, '$1/:id$2'],
+  [/^(\/api\/game\/admin\/bans)\/[^/]+(\/unban-all)?$/, '$1/:id$2'],
+];
 
 function finiteNonNegative(value) {
   const number = Number(value);
@@ -16,10 +23,14 @@ function round(value) {
 }
 
 export function normalizeMetricRoute(value) {
-  const pathname = String(value || '/').split('?')[0] || '/';
-  return pathname
+  let pathname = String(value || '/').split('?')[0] || '/';
+  for (const [pattern, replacement] of DYNAMIC_ROUTE_PATTERNS) {
+    if (pattern.test(pathname)) return pathname.replace(pattern, replacement);
+  }
+  pathname = pathname
     .replace(/\/\d+(?=\/|$)/g, '/:id')
     .replace(/\/[0-9a-f]{8,}(?:-[0-9a-f-]+)?(?=\/|$)/gi, '/:id');
+  return pathname;
 }
 
 export function createRequestMetricsCollector({
