@@ -26,21 +26,21 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
     tutorial,
     work: () => {
       tutorial.recordWorkClick();
-      return pollingModel.work();
+      return model.work();
     },
-    buildFacility: (facilityTypeId = pollingModel.selectedFacilityTypeId) => {
+    buildFacility: (facilityTypeId = model.selectedFacilityTypeId) => {
       tutorial.recordBuildSubmit(facilityTypeId);
-      return pollingModel.buildFacility(facilityTypeId);
+      return model.buildFacility(facilityTypeId);
     },
     startFacility: (facilityTypeId) => {
       tutorial.recordFacilityStartClick(facilityTypeId);
-      return pollingModel.startFacility(facilityTypeId);
+      return model.startFacility(facilityTypeId);
     },
     placeAssetOrder: (assetKind, assetId, side, quantity, price) => {
       tutorial.recordSellOrderSubmit(assetKind, assetId, side);
-      return pollingModel.placeAssetOrder(assetKind, assetId, side, quantity, price);
+      return model.placeAssetOrder(assetKind, assetId, side, quantity, price);
     },
-  }), [pollingModel, tutorial]);
+  }), [model, pollingModel, tutorial]);
   const compactNumbers = tutorialModel.compactNumbers;
 
   useEffect(() => {
