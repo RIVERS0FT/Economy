@@ -19,9 +19,11 @@ const paths = {
   surfaceComponent: 'src/components/ui/LiquidGlassSurface.tsx',
   surfaceStyles: 'src/styles/liquid-glass-surfaces.css',
   statusComponent: 'src/components/shell/StatusBar.tsx',
+  adminBar: 'src/components/shell/AdminDesktopBar.tsx',
   shellStyles: 'src/styles/game-shell-layout.css',
   liquidDesign: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   browser: 'tests/browser/liquid-glass-layout.spec.ts',
+  adminBrowser: 'tests/browser/admin-runtime.spec.ts',
 };
 
 Object.values(paths).forEach(requireFile);
@@ -49,6 +51,10 @@ if (failures.length === 0) {
     "return window.matchMedia(MOBILE_STATUS_MEDIA_QUERY).matches ? 'mobileStatusBar' : 'desktopStatusBar'",
     '<LiquidGlassSurface variant={surfaceVariant}>',
   ]) requireText(paths.statusComponent, text);
+  for (const text of [
+    'className="asset-bar admin-command-bar"',
+    'variant="desktopStatusBar"',
+  ]) requireText(paths.adminBar, text);
 
   for (const text of [
     '.asset-bar > .liquid-glass-surface--desktopStatusBar,',
@@ -74,15 +80,14 @@ if (failures.length === 0) {
   forbidText(paths.shellStyles, 'border-radius: 0 0 18px 18px');
 
   for (const text of [
-    '桌面状态栏高度保持 `76px`',
+    '桌面工作栏高度保持 `76px`',
     '实际玻璃圆角为 `24px`',
-    '与桌面一级卡片 `--radius-card: 24px` 一致',
     '`DESKTOP_STATUS_GLASS`',
     '`blur(6px) saturate(120%)`',
-    '直属装饰 `span` 可见数量为 `0`',
-    '第三方 `.glass` 无 box-shadow',
-    '`--desktop-shell-outer-inset` 是侧栏与状态栏唯一桌面外距令牌',
-    '状态栏顶部／右侧间距都来自统一桌面外距',
+    '隐藏 `liquid-glass-react` 直属的两层边框／高光 `span`',
+    '清除第三方 `.glass` 外部阴影',
+    '`--desktop-shell-outer-inset` 是侧栏与工作栏唯一桌面外距令牌',
+    '顶部／右侧间距都来自统一桌面外距',
   ]) requireText(paths.liquidDesign, text);
 
   for (const text of [
@@ -96,12 +101,16 @@ if (failures.length === 0) {
     'expect(layout.visibleDecorationSpanCount).toBe(0)',
     "expect(layout.glassBoxShadow).toBe('none')",
   ]) requireText(paths.browser, text);
+  for (const text of [
+    'admin desktop shares the game shell gutter, command bar and edge scrollbar',
+    '.liquid-glass-surface--desktopStatusBar',
+  ]) requireText(paths.adminBrowser, text);
 }
 
 if (failures.length > 0) {
-  console.error('桌面一级表面圆角、桌面状态栏独立预设与单壳结构验证失败:');
+  console.error('桌面一级表面圆角、共享桌面工作栏预设与单壳结构验证失败:');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('桌面一级卡片与状态栏 24px 圆角、桌面独立玻璃预设、顶层连续结构描边、零第三方装饰层和无外部阴影验证通过。');
+console.log('桌面一级卡片与共享工作栏 24px 圆角、桌面独立玻璃预设、顶层连续结构描边、零第三方装饰层和无外部阴影验证通过。');
