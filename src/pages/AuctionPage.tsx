@@ -112,7 +112,6 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
           aria-label={`${item.name}，数量 ${formatNumber(item.quantity)}`}
         >
           <AuctionItemIcon item={item} compact />
-          <span className="asset-auction-tile-quantity" aria-hidden="true">×{formatNumber(item.quantity)}</span>
         </div>
       ))}
       {items.length > 4 ? <strong className="asset-auction-more-count">+{formatNumber(items.length - 4)}</strong> : null}
@@ -122,9 +121,10 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
 
 function AuctionAssetSummary({ auction }: { auction: AssetAuction }) {
   const items = auctionItems(auction);
+  const placeholderCount = Math.max(0, MAX_AUCTION_ITEMS - items.length);
   return (
     <div className="asset-auction-icon-layer" aria-label={`资产明细，共 ${formatNumber(items.length)} 项`}>
-      {items.slice(0, 4).map((item) => (
+      {items.map((item) => (
         <div
           className="asset-auction-summary-icon"
           key={`${item.kind}:${item.id}`}
@@ -135,15 +135,13 @@ function AuctionAssetSummary({ auction }: { auction: AssetAuction }) {
           <span className="asset-auction-summary-quantity" aria-hidden="true">×{formatNumber(item.quantity)}</span>
         </div>
       ))}
-      {items.length > 4 ? (
-        <strong
-          className="asset-auction-summary-more"
-          aria-label={`另有 ${formatNumber(items.length - 4)} 项资产`}
-          title={`另有 ${formatNumber(items.length - 4)} 项资产`}
-        >
-          +{formatNumber(items.length - 4)}
-        </strong>
-      ) : null}
+      {Array.from({ length: placeholderCount }, (_, index) => (
+        <span
+          className="asset-auction-summary-placeholder"
+          key={`placeholder-${index}`}
+          aria-hidden="true"
+        />
+      ))}
     </div>
   );
 }
