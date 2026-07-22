@@ -5,6 +5,7 @@ import {
   creditPopulationEmployment,
   ensurePopulationEconomy,
   populationModelState,
+  preparePopulationDemandCycle,
   releaseConstructionEmployment,
   releasePopulationOrderFunds,
   reservePopulationOrder,
@@ -72,4 +73,31 @@ test('population buy orders use real escrow and refund price improvement and can
   assert.equal(model.credits, 76);
   assert.equal(model.frozenCredits, 0);
   assert.equal(model.credits + model.totalSpent, 100);
+});
+
+
+test('stabilization budget refills wallet gaps with a capped three-cycle target', () => {
+  const world = createWorld(now);
+  const state = resetPopulation(world);
+  for (const model of Object.values(state.models)) {
+    model.incomeEma = 100;
+    model.recentPeakIncome = 100;
+    model.lastBudget = 100;
+  }
+  const cycle = preparePopulationDemandCycle(world, 1, now, { totalBaseBudget: 5_700 });
+  const issued = Object.values(state.models).reduce((sum, model) => sum + model.lastStabilizationIssued, 0);
+  const baseBudget = Object.values(cycle.baseGroups.food).reduce((sum, value) => sum + value, 0)
+    + Object.values(cycle.baseGroups.household).reduce((sum, value) => sum + value, 0);
+  assert.equal(issued, 684);
+  assert.equal(baseBudget, 684);
+  assert.equal(state.stats.stabilizationIssued, 684);
+  assert.ok(Object.values(state.models).every((model) => model.incomeEma === 85));
+
+  for (const model of Object.values(state.models)) {
+    model.credits = model.stabilizationBudget * 3;
+    model.frozenCredits = 0;
+  }
+  preparePopulationDemandCycle(world, 2, now + 300_000, { totalBaseBudget: 5_700 });
+  assert.ok(Object.values(state.models).every((model) => model.lastStabilizationIssued === 0));
+  assert.equal(state.stats.stabilizationIssued, 684);
 });
