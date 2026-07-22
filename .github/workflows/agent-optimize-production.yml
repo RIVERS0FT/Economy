@@ -53,7 +53,7 @@ jobs:
           from pathlib import Path
 
           path = Path('src/styles/industry-system.css')
-          text = path.read_text(encoding='utf-8')
+          lines = path.read_text(encoding='utf-8').splitlines(keepends=True)
           banned = {
               'position',
               'top',
@@ -64,26 +64,42 @@ jobs:
               'overscroll-behavior-x',
               'overscroll-behavior-y',
           }
-          pattern = re.compile(
-              r'(?ms)^(?P<indent>[ \t]*)\.production-build-card \{\n(?P<body>.*?)^(?P=indent)\}\n'
-          )
+          output: list[str] = []
+          index = 0
+          found = 0
+          selector = re.compile(r'^[ \t]*\.production-build-card \{[ \t]*$')
+          while index < len(lines):
+              line = lines[index]
+              if not selector.match(line.rstrip('\n')):
+                  output.append(line)
+                  index += 1
+                  continue
+              found += 1
+              header = line
+              index += 1
+              kept: list[str] = []
+              while index < len(lines) and lines[index].strip() != '}':
+                  candidate = lines[index]
+                  stripped = candidate.strip()
+                  property_name = stripped.split(':', 1)[0] if ':' in stripped else ''
+                  if property_name not in banned:
+                      kept.append(candidate)
+                  index += 1
+              if index >= len(lines):
+                  raise SystemExit('unterminated production-build-card block')
+              closing = lines[index]
+              index += 1
+              if ''.join(kept).strip():
+                  output.extend([header, *kept, closing])
 
-          def clean(match: re.Match[str]) -> str:
-              indent = match.group('indent')
-              kept = []
-              for line in match.group('body').splitlines(keepends=True):
-                  stripped = line.strip()
-                  name = stripped.split(':', 1)[0] if ':' in stripped else ''
-                  if name in banned:
-                      continue
-                  kept.append(line)
-              if not ''.join(kept).strip():
-                  return ''
-              return f'{indent}.production-build-card {{\n' + ''.join(kept) + f'{indent}}}\n'
-
-          text, count = pattern.subn(clean, text)
-          if count == 0:
+          if found == 0:
               raise SystemExit('no production-build-card blocks were found')
+          text = ''.join(output)
+          if 'top: var(--space-3);' in text:
+              position = text.index('top: var(--space-3);')
+              raise SystemExit('old build top remains:\n' + text[max(0, position - 180):position + 220])
+          if 'max-height: calc(100dvh - var(--space-6));' in text:
+              raise SystemExit('old build max-height remains')
           path.write_text(text, encoding='utf-8')
           PY
             node scripts/verify-production-desktop-layout.mjs
