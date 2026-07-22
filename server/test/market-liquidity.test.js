@@ -229,7 +229,7 @@ test('model 3 migrates directly to model 6 with one-time reserve seeding', () =>
 
   migrateWorld(world, now + 1);
 
-  assert.equal(world.marketDemand.modelVersion, 6);
+  assert.equal(world.marketDemand.modelVersion, 7);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => order.id === 'model-3-market-order'), false);
@@ -252,7 +252,7 @@ test('model 5 migrates to model 6 and releases obsolete liquidity reservations',
 
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 6);
+  assert.equal(world.marketDemand.modelVersion, 7);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => oldSystemOrderIds.has(order.id)), false);

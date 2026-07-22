@@ -152,7 +152,7 @@ test('client state uses version 15 and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 15);
+    assert.equal(state.version, 16);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
     assert.equal(state.products.length, 31);
@@ -559,7 +559,7 @@ test('legacy demand migration immediately rebuilds market demand without losing 
   }];
 
   migrateWorld(world, now);
-  assert.equal(world.version, 13);
+  assert.equal(world.version, 14);
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-wheat-sell']);
   assert.equal(player.inventories.wheat.available, 2);
@@ -609,7 +609,7 @@ test('migration removes obsolete system orders while preserving player orders', 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 13);
+  assert.equal(world.version, 14);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-order']);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.wheat.available, 9);
@@ -631,7 +631,7 @@ test('world version 8 migration restarts electronics and upgrades market demand 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 13);
+  assert.equal(world.version, 14);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.plastic.available, 9);
   assert.equal(player.inventories.copper.available, 4);
