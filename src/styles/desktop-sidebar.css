@@ -266,17 +266,14 @@
   gap: 0;
 }
 
-.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button {
-  grid-template-columns: var(--desktop-sidebar-rail);
-}
-
-.desktop-sidebar[data-collapsed="true"] .sidebar-nav-count {
+.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .sidebar-nav-count {
   position: absolute;
   top: 2px;
   right: 2px;
   left: auto;
   z-index: 1;
   margin: 0;
+  transform: none;
 }
 
 .desktop-sidebar button:hover:not(:disabled),
@@ -321,13 +318,14 @@
     gap: 0;
   }
 
-  .desktop-sidebar .sidebar-nav-count {
+  .desktop-sidebar .sidebar-nav-button .sidebar-nav-count {
     position: absolute;
     top: 2px;
     right: 2px;
     left: auto;
     z-index: 1;
     margin: 0;
+    transform: none;
   }
 }
 
