@@ -1,6 +1,6 @@
 export const MARKET_SELL_FEE_RATE_BPS = 100;
-export const MARKET_SELL_FEE_MINIMUM = 1;
-export const MARKET_SELL_FEE_VERSION = 1;
+export const MARKET_SELL_FEE_MINIMUM = 0;
+export const MARKET_SELL_FEE_VERSION = 2;
 
 const BASIS_POINTS = 10_000;
 
@@ -13,8 +13,8 @@ function initializeMarketSellFeeOrder(order) {
   if (Number(order?.marketSellFeeVersion || 0) >= MARKET_SELL_FEE_VERSION) return;
   for (const fill of order?.fills || []) {
     const total = normalizedFillTotal(fill);
-    fill.fee = 0;
-    fill.netTotal = total;
+    fill.fee = Math.max(0, Math.floor(Number(fill.fee || 0)));
+    fill.netTotal = Math.max(0, Math.floor(Number(fill.netTotal ?? total - fill.fee)));
   }
   order.marketSellFeeVersion = MARKET_SELL_FEE_VERSION;
   order.marketSellFeeGross = 0;
@@ -23,11 +23,7 @@ function initializeMarketSellFeeOrder(order) {
 
 export function calculateCumulativeMarketSellFee(grossTotal) {
   const normalizedGross = Math.max(0, Math.floor(Number(grossTotal) || 0));
-  if (normalizedGross < 1) return 0;
-  return Math.max(
-    MARKET_SELL_FEE_MINIMUM,
-    Math.ceil(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS),
-  );
+  return Math.floor(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS);
 }
 
 export function applyMarketSellFee(order, fillTotal) {
