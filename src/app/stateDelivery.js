@@ -1,3 +1,9 @@
+import {
+  CURRENT_CLIENT_STATE_VERSION,
+  isCompatibleClientStateVersion,
+  MIN_COMPATIBLE_CLIENT_STATE_VERSION,
+} from '../../shared/economy-state-version.js';
+
 export const STATE_PARTITION_NAMES = Object.freeze([
   'catalog',
   'player',
@@ -22,6 +28,10 @@ function validPartitionSnapshot(value) {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
+function describeVersion(value) {
+  return Number.isInteger(value) ? String(value) : '无效值';
+}
+
 export function mergeStatePatches(currentPartitions, patches) {
   const partitions = validPartitionSnapshot(currentPartitions) ? { ...currentPartitions } : {};
   if (validPartitionSnapshot(patches)) {
@@ -31,13 +41,23 @@ export function mergeStatePatches(currentPartitions, patches) {
     }
   }
 
-  const state = {};
-  for (const name of STATE_PARTITION_NAMES) {
-    const partition = partitions[name];
-    if (validPartitionSnapshot(partition)) Object.assign(state, partition);
+  const missingPartitions = STATE_PARTITION_NAMES.filter(
+    (name) => !validPartitionSnapshot(partitions[name]),
+  );
+  if (missingPartitions.length > 0) {
+    throw new Error(`服务器未返回完整的初始分区状态：缺少 ${missingPartitions.join('、')} 分区`);
   }
-  if (state.version !== 15 || !Number.isInteger(state.userId)) {
-    throw new Error('服务器未返回完整的初始分区状态');
+
+  const state = {};
+  for (const name of STATE_PARTITION_NAMES) Object.assign(state, partitions[name]);
+
+  if (!isCompatibleClientStateVersion(state.version)) {
+    throw new Error(
+      `客户端状态版本不兼容：支持 ${MIN_COMPATIBLE_CLIENT_STATE_VERSION}–${CURRENT_CLIENT_STATE_VERSION}，服务器返回 ${describeVersion(state.version)}`,
+    );
+  }
+  if (!Number.isInteger(state.userId)) {
+    throw new Error('服务器未返回有效的玩家状态');
   }
   return { partitions, state };
 }
