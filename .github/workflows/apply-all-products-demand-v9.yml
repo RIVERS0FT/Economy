@@ -1,4 +1,4 @@
-# PR sync trigger after installing the temporary base workflow.
+# PR sync trigger after enabling full failure-log capture.
 name: Apply all-products demand v9
 
 on:
