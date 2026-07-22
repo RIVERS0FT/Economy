@@ -1,0 +1,27 @@
+name: Export Source Temp
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Upload repository source
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-source-${{ github.event.pull_request.head.sha }}
+          path: |
+            .
+            !.git/**
+          include-hidden-files: true
+          retention-days: 1
+          compression-level: 9
