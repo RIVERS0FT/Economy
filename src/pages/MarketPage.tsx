@@ -104,11 +104,12 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
   const parsedOrderPrice = parseIntegerDraft(priceDraft, { min: 1 });
   const effectiveOrderPrice = parsedOrderPrice ?? 0;
-  const maxBuyQuantity = effectiveOrderPrice > 0
-    ? marketAssetKind === 'commodity'
-      ? Math.max(0, Math.min(game.warehouseAvailableCapacity, Math.floor(game.credits / effectiveOrderPrice)))
-      : Math.max(0, Math.floor(game.credits / effectiveOrderPrice))
+  const maxBuyByFunds = effectiveOrderPrice > 0
+    ? Math.max(0, Math.floor(game.credits / effectiveOrderPrice))
     : 0;
+  const maxBuyQuantity = marketAssetKind === 'commodity'
+    ? Math.min(game.warehouseAvailableCapacity, maxBuyByFunds)
+    : maxBuyByFunds;
   const maxSellQuantity = marketAssetKind === 'commodity'
     ? selectedInventory.available
     : selectedGroup?.availableCount ?? 0;
@@ -120,8 +121,11 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     : 0;
   const estimatedNetTotal = Math.max(0, orderTotal - estimatedSellFee);
 
-  const availabilityReason = parsedOrderPrice === null
+  const priceReason = parsedOrderPrice === null
     ? '请输入不低于 1 的整数价格。'
+    : undefined;
+  const availabilityReason = parsedOrderPrice === null
+    ? undefined
     : orderSide === 'buy'
       ? game.credits < parsedOrderPrice
         ? `可用资金不足，当前价格至少需要 ${formatCurrency(parsedOrderPrice)}。`
@@ -139,10 +143,27 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     ? parsedOrderQuantity === null
       ? '数量必须是不低于 1 的整数。'
       : parsedOrderQuantity > maxTradeQuantity
-        ? `数量超过当前可交易上限 ${formatNumber(maxTradeQuantity)}。`
+        ? orderSide === 'buy'
+          ? `当前价格下最多可买 ${formatNumber(maxTradeQuantity)}。`
+          : `当前最多可卖 ${formatNumber(maxTradeQuantity)}。`
         : undefined
     : undefined;
-  const orderDisabledReason = availabilityReason ?? quantityReason;
+  const orderDisabledReason = priceReason ?? availabilityReason ?? quantityReason;
+  const warehouseLimitsBuy = orderSide === 'buy'
+    && marketAssetKind === 'commodity'
+    && maxBuyByFunds > game.warehouseAvailableCapacity;
+  const quantityDescription = quantityReason || maxTradeQuantity < 1
+    ? undefined
+    : orderSide === 'buy'
+      ? warehouseLimitsBuy
+        ? `受仓库剩余容量限制，当前最多可买 ${formatNumber(maxTradeQuantity)}。`
+        : `当前价格下最多可买 ${formatNumber(maxTradeQuantity)}。`
+      : `当前最多可卖 ${formatNumber(maxTradeQuantity)}。`;
+  const quickQuantityLabels = orderSide === 'buy'
+    ? ['1/4 资金', '1/2 资金', warehouseLimitsBuy ? '最大可买' : '全部资金']
+    : marketAssetKind === 'commodity'
+      ? ['1/4 库存', '1/2 库存', '全部库存']
+      : ['1/4 持有', '1/2 持有', '全部持有'];
 
   useEffect(() => {
     const active = assetDirectoryRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
@@ -188,7 +209,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   function quickQuantity(fraction: number) {
     if (maxTradeQuantity <= 0) return 0;
     if (fraction >= 1) return maxTradeQuantity;
-    return Math.max(1, Math.floor(maxTradeQuantity * fraction));
+    const quantityBase = orderSide === 'buy' ? maxBuyByFunds : maxSellQuantity;
+    return Math.min(maxTradeQuantity, Math.max(1, Math.floor(quantityBase * fraction)));
   }
 
   function fillQuickQuantity(fraction: number) {
@@ -307,7 +329,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               value={priceDraft}
               fallbackValue={orderPrice}
               min={1}
-              error={parsedOrderPrice === null ? '请输入不低于 1 的整数价格。' : undefined}
+              error={priceReason}
               onValueChange={updatePriceDraft}
               onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
             />
@@ -318,15 +340,15 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               min={1}
               max={maxTradeQuantity > 0 ? maxTradeQuantity : undefined}
               disabled={maxTradeQuantity < 1}
+              description={quantityDescription}
               error={quantityReason}
-              aria-describedby={orderDisabledReason ? 'order-disabled-reason' : undefined}
               onValueChange={updateQuantityDraft}
               onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
             />
             <div className="order-quick-fill" role="group" aria-label="快捷填写交易数量">
-              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>1/4 仓</Button>
-              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>1/2 仓</Button>
-              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>全仓</Button>
+              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>{quickQuantityLabels[0]}</Button>
+              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>{quickQuantityLabels[1]}</Button>
+              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>{quickQuantityLabels[2]}</Button>
             </div>
             <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderTotal)}</CurrencyAmount></strong></div>
             {orderSide === 'sell' ? (
@@ -351,8 +373,13 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 </>
               )}
             </div>
-            {orderDisabledReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{orderDisabledReason}</p> : null}
-            <Button block disabled={Boolean(orderDisabledReason)} onClick={submitOrder}>
+            {availabilityReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{availabilityReason}</p> : null}
+            <Button
+              block
+              disabled={Boolean(orderDisabledReason)}
+              aria-describedby={availabilityReason ? 'order-disabled-reason' : undefined}
+              onClick={submitOrder}
+            >
               提交{assetName}{orderSide === 'buy' ? '买单' : '卖单'}
             </Button>
             <div className="inline-order-list" aria-label={`我的${assetName}未完成订单`}>
