@@ -1,5 +1,6 @@
 name: Diagnose Admin Overview Migration
 
+# Triggered through a GitHub-native auto-merge event so Actions executes the migration diagnostic.
 on:
   push:
     branches:
