@@ -9,13 +9,20 @@ import { AuthoritativeCountdownRefresh } from '../components/system/Authoritativ
 import { PageRouter } from '../pages/PageRouter';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
+import { useAdaptivePolling } from './useAdaptivePolling';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import '../styles/game-guide.css';
 
 function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
-  const tutorial = useGameTutorial(model);
-  const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
+  const pollingPreference = useAdaptivePolling(model);
+  const pollingModel = useMemo<LoadedGameViewModel>(() => ({
     ...model,
+    refreshRate: pollingPreference.refreshRate,
+    setRefreshRate: pollingPreference.setRefreshRate,
+  }), [model, pollingPreference.refreshRate, pollingPreference.setRefreshRate]);
+  const tutorial = useGameTutorial(pollingModel);
+  const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
+    ...pollingModel,
     tutorial,
     work: () => {
       tutorial.recordWorkClick();
@@ -33,7 +40,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       tutorial.recordSellOrderSubmit(assetKind, assetId, side);
       return model.placeAssetOrder(assetKind, assetId, side, quantity, price);
     },
-  }), [model, tutorial]);
+  }), [model, pollingModel, tutorial]);
   const compactNumbers = tutorialModel.compactNumbers;
 
   useEffect(() => {
