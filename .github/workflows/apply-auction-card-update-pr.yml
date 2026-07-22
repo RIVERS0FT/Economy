@@ -1,0 +1,49 @@
+name: Apply auction card update on PR
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'codex/auction-card-compact-icons'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/auction-card-compact-icons
+          fetch-depth: 0
+
+      - name: Execute prepared patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          workflow = Path('.github/workflows/apply-auction-card-update.yml').read_text(encoding='utf-8')
+          start_marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n\n          git diff --check"
+          start = workflow.index(start_marker) + len(start_marker)
+          end = workflow.index(end_marker, start)
+          script = dedent(workflow[start:end])
+          exec(compile(script, 'auction-card-patch.py', 'exec'))
+          PY
+
+          git diff --check
+          node scripts/verify-collectibles-auctions.mjs
+
+      - name: Commit final changes
+        shell: bash
+        run: |
+          git rm .github/workflows/apply-auction-card-update.yml .github/workflows/apply-auction-card-update-pr.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/pages/AuctionPage.tsx src/styles/collectibles-auctions.css docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md scripts/verify-collectibles-auctions.mjs
+          git commit -m "优化拍卖卡片资产展示"
+          git push origin HEAD:codex/auction-card-compact-icons
