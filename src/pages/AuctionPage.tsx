@@ -65,9 +65,14 @@ function auctionItems(auction: AssetAuction): AuctionItemSummary[] {
 
 function auctionTitle(auction: AssetAuction) {
   const items = auctionItems(auction);
-  if (items.length === 1) return items[0].name;
+  if (items.length === 1) return `${items[0].name} × ${formatNumber(items[0].quantity)}`;
   if (items.length === 2) return `${items[0].name} + ${items[1].name}`;
   return `${items[0].name}、${items[1].name}等 ${formatNumber(items.length)} 项资产`;
+}
+
+function auctionCardTitle(auction: AssetAuction) {
+  const items = auctionItems(auction);
+  return items.length === 1 ? items[0].name : auctionTitle(auction);
 }
 
 function AuctionItemIcon({ item, compact = false }: { item: AuctionItemSummary; compact?: boolean }) {
@@ -454,7 +459,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                   <AuctionAssetVisual auction={auction} />
                   <div className="collectible-auction-body">
                     <div className="asset-auction-card-heading">
-                      <h2 title={auctionTitle(auction)}>{auctionTitle(auction)}</h2>
+                      <h2 title={auctionCardTitle(auction)}>{auctionCardTitle(auction)}</h2>
                       <StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>
                     </div>
                     <AuctionAssetSummary auction={auction} />
