@@ -16,6 +16,7 @@ import { parseIntegerDraft } from '../utils/integerDraft';
 
 type Draft = {
   sharePercent: string;
+  productionWagePercent: string;
   targetCycles: string;
   refillPercent: string;
   basicPercent: string;
@@ -27,6 +28,7 @@ type Draft = {
 function draftFromEconomy(economy: PopulationEconomyAdminSummary): Draft {
   return {
     sharePercent: String(economy.policy.stabilizationShareBps / 100),
+    productionWagePercent: String(economy.policy.productionWageMultiplierBps / 100),
     targetCycles: String(economy.policy.targetWalletCycles),
     refillPercent: String(economy.policy.refillCapBps / 100),
     basicPercent: String(economy.policy.modelMultipliersBps.basic / 100),
@@ -107,15 +109,17 @@ export function AdminPopulationControl({
 
   const payload = useMemo<PopulationPolicyPayload | null>(() => {
     const share = parseIntegerDraft(draft.sharePercent, { min: 0, max: 20 });
+    const productionWage = parseIntegerDraft(draft.productionWagePercent, { min: 50, max: 150 });
     const target = parseIntegerDraft(draft.targetCycles, { min: 1, max: 5 });
     const refill = parseIntegerDraft(draft.refillPercent, { min: 0, max: 150 });
     const basic = parseIntegerDraft(draft.basicPercent, { min: 50, max: 150 });
     const skilled = parseIntegerDraft(draft.skilledPercent, { min: 50, max: 150 });
     const professional = parseIntegerDraft(draft.professionalPercent, { min: 50, max: 150 });
     const duration = parseIntegerDraft(draft.durationCycles, { min: 1, max: 288 });
-    if ([share, target, refill, basic, skilled, professional, duration].some((value) => value === null)) return null;
+    if ([share, productionWage, target, refill, basic, skilled, professional, duration].some((value) => value === null)) return null;
     return {
       stabilizationShareBps: share! * 100,
+      productionWageMultiplierBps: productionWage! * 100,
       targetWalletCycles: target!,
       refillCapBps: refill! * 100,
       modelMultipliersBps: {
@@ -134,11 +138,11 @@ export function AdminPopulationControl({
 
   function usePreset(name: 'default' | 'mild' | 'strong' | 'tight' | 'pause') {
     const presets: Record<typeof name, Draft> = {
-      default: { sharePercent: '12', targetCycles: '3', refillPercent: '100', basicPercent: '100', skilledPercent: '100', professionalPercent: '100', durationCycles: '12' },
-      mild: { sharePercent: '15', targetCycles: '4', refillPercent: '100', basicPercent: '110', skilledPercent: '100', professionalPercent: '90', durationCycles: '12' },
-      strong: { sharePercent: '18', targetCycles: '5', refillPercent: '150', basicPercent: '120', skilledPercent: '105', professionalPercent: '90', durationCycles: '6' },
-      tight: { sharePercent: '6', targetCycles: '2', refillPercent: '50', basicPercent: '100', skilledPercent: '100', professionalPercent: '100', durationCycles: '12' },
-      pause: { sharePercent: '0', targetCycles: '3', refillPercent: '0', basicPercent: '100', skilledPercent: '100', professionalPercent: '100', durationCycles: '6' },
+      default: { sharePercent: '12', productionWagePercent: '100', targetCycles: '3', refillPercent: '100', basicPercent: '100', skilledPercent: '100', professionalPercent: '100', durationCycles: '12' },
+      mild: { sharePercent: '15', productionWagePercent: '110', targetCycles: '4', refillPercent: '100', basicPercent: '110', skilledPercent: '100', professionalPercent: '90', durationCycles: '12' },
+      strong: { sharePercent: '18', productionWagePercent: '133', targetCycles: '5', refillPercent: '150', basicPercent: '120', skilledPercent: '105', professionalPercent: '90', durationCycles: '6' },
+      tight: { sharePercent: '6', productionWagePercent: '90', targetCycles: '2', refillPercent: '50', basicPercent: '100', skilledPercent: '100', professionalPercent: '100', durationCycles: '12' },
+      pause: { sharePercent: '0', productionWagePercent: '100', targetCycles: '3', refillPercent: '0', basicPercent: '100', skilledPercent: '100', professionalPercent: '100', durationCycles: '6' },
     };
     requestKeyRef.current = '';
     setDraft(presets[name]);
@@ -156,7 +160,7 @@ export function AdminPopulationControl({
     try {
       await adminApi.updatePopulationPolicy(payload, requestKey);
       requestKeyRef.current = '';
-      onNotice('人口政策已应用；当前订单不重建，新参数从后续需求处理开始生效。');
+      onNotice('人口政策已应用；当前订单与已开始的生产周期不重建，新参数从后续需求处理和下一完整生产周期开始生效。');
       setNote('');
       await Promise.all([onChanged(), loadAudit()]);
     } catch (reason) {
@@ -207,7 +211,7 @@ export function AdminPopulationControl({
       <header className="admin-population-control__header">
         <div>
           <h3>人口政策调控</h3>
-          <p>只调整未来稳定需求，不允许任意修改余额、收入状态或既有订单。</p>
+          <p>调整未来稳定需求与生产工资补贴，不允许任意修改余额、收入状态或既有订单。</p>
         </div>
         <StatusTag tone={economy.policy.isDefault ? 'success' : economy.policy.remainingCycles !== null && economy.policy.remainingCycles <= 2 ? 'warning' : 'neutral'}>
           {economy.policy.isDefault ? '默认政策' : `临时政策 · 剩余 ${economy.policy.remainingCycles} 周期`}
@@ -231,6 +235,7 @@ export function AdminPopulationControl({
 
       <div className="admin-population-policy-grid">
         <IntegerInput label="稳定需求比例（%）" value={draft.sharePercent} fallbackValue={12} min={0} max={20} onValueChange={(value) => setField('sharePercent', value)} />
+        <IntegerInput label="生产工资系数（%）" value={draft.productionWagePercent} fallbackValue={100} min={50} max={150} onValueChange={(value) => setField('productionWagePercent', value)} />
         <IntegerInput label="目标钱包周期" value={draft.targetCycles} fallbackValue={3} min={1} max={5} onValueChange={(value) => setField('targetCycles', value)} />
         <IntegerInput label="单周期补充上限（%）" value={draft.refillPercent} fallbackValue={100} min={0} max={150} onValueChange={(value) => setField('refillPercent', value)} />
         <IntegerInput label="政策有效周期" value={draft.durationCycles} fallbackValue={12} min={1} max={288} onValueChange={(value) => setField('durationCycles', value)} />
@@ -269,6 +274,7 @@ export function AdminPopulationControl({
           <h4>影响预估</h4>
           <dl>
             <div><dt>当前／调整后稳定预算</dt><dd><CurrencyAmount>{formatCurrency(economy.policyProjectedStabilizationTotal)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(previewBudget)}</CurrencyAmount></dd></div>
+            <div><dt>生产工资／生产成本</dt><dd>{payload.productionWageMultiplierBps / 100}%／成本不变</dd></div>
             <div><dt>目标钱包</dt><dd>{payload.targetWalletCycles} 个周期</dd></div>
             <div><dt>单周期最大补充</dt><dd>{payload.refillCapBps / 100}% 稳定预算</dd></div>
             <div><dt>持续时间</dt><dd>{payload.durationCycles} 个周期（约 {Math.round(payload.durationCycles * 5 / 60 * 10) / 10} 小时）</dd></div>

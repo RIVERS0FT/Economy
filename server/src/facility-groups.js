@@ -9,7 +9,7 @@ import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
-import { creditPopulationEmployment, releaseConstructionEmployment } from './population-economy.js';
+import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -31,6 +31,17 @@ function normalizePositiveInteger(value, max = Number.MAX_SAFE_INTEGER) {
   if (!Number.isFinite(number)) return null;
   const normalized = Math.floor(number);
   return normalized < 1 || normalized > max ? null : normalized;
+}
+
+function normalizeProductionWageMultiplier(value) {
+  const normalized = Math.floor(Number(value));
+  return Number.isSafeInteger(normalized) && normalized >= 5_000 && normalized <= 15_000
+    ? normalized
+    : null;
+}
+
+function currentProductionWageMultiplier(world, now) {
+  return normalizeProductionWageMultiplier(ensurePopulationEconomy(world, now).policy.productionWageMultiplierBps) || 10_000;
 }
 
 function inventoryFor(player, productId) {
@@ -185,6 +196,7 @@ function createGroup(typeId, overrides = {}) {
     status,
     statusReason: normalizeStatusReason(overrides.statusReason || overrides.stopReason, enabled),
     cycleStartedAt: overrides.cycleStartedAt,
+    cycleWageMultiplierBps: normalizeProductionWageMultiplier(overrides.cycleWageMultiplierBps) || undefined,
     lifetimeOutput: Math.max(0, Number(overrides.lifetimeOutput ?? overrides.completedQuantity ?? 0)),
     activeRecipeId: recipeFor(type, overrides.activeRecipeId)?.id,
     pendingRecipeId: recipesFor(type).some((recipe) => recipe.id === overrides.pendingRecipeId)
@@ -207,6 +219,7 @@ function normalizeGroup(group) {
     normalized.participatingCount = 0;
     normalized.pendingJoinCount = 0;
     delete normalized.cycleStartedAt;
+    delete normalized.cycleWageMultiplierBps;
     normalized.status = normalized.enabled ? 'error' : 'stopped';
   }
   delete normalized.stopReason;
@@ -426,6 +439,7 @@ function clearGroupRuntime(group) {
   group.participatingCount = 0;
   group.pendingJoinCount = 0;
   delete group.cycleStartedAt;
+  delete group.cycleWageMultiplierBps;
 }
 
 function setGroupStopped(group, reason = 'manual') {
@@ -442,13 +456,14 @@ function setGroupError(group, reason) {
   clearGroupRuntime(group);
 }
 
-function startGroupRuntime(group, count, now) {
+function startGroupRuntime(world, group, count, now) {
   group.enabled = true;
   group.status = 'running';
   delete group.statusReason;
   group.participatingCount = count;
   group.pendingJoinCount = 0;
   group.cycleStartedAt = now;
+  group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
 }
 
 function recipeInputs(recipe) {
@@ -520,6 +535,8 @@ function reconcileFacilityGroup(world, player, group, now) {
 
   const available = availableGroupCount(world, player, group);
   if (group.status === 'running') {
+    group.cycleWageMultiplierBps = normalizeProductionWageMultiplier(group.cycleWageMultiplierBps)
+      || currentProductionWageMultiplier(world, now);
     group.participatingCount = Math.min(group.participatingCount, available);
     group.pendingJoinCount = Math.min(
       group.pendingJoinCount,
@@ -537,17 +554,22 @@ function reconcileFacilityGroup(world, player, group, now) {
 
   const blocked = blockReason(world, player, group, type, available);
   if (!blocked) {
-    startGroupRuntime(group, available, now);
+    startGroupRuntime(world, group, available, now);
     return;
   }
   setGroupError(group, blocked.reason);
 }
 
-function executeCycle(world, player, group, type, count) {
+function executeCycle(world, player, group, type, count, now) {
   const recipe = activeRecipeFor(type, group);
   const requirements = groupRequirements(recipe, count);
+  const wageMultiplierBps = normalizeProductionWageMultiplier(group.cycleWageMultiplierBps) || 10_000;
+  const populationWage = Math.max(0, Math.round(requirements.cost * wageMultiplierBps / 10_000));
   player.credits -= requirements.cost;
-  creditPopulationEmployment(world, requirements.cost, 'production', { complexity: type.complexity });
+  creditPopulationEmployment(world, populationWage, 'production', {
+    complexity: type.complexity,
+    payerAmount: requirements.cost,
+  });
   player.stats.productionPayroll = Number(player.stats.productionPayroll || 0) + requirements.cost;
   player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + requirements.cost;
   player.stats.producedGoods = Number(player.stats.producedGoods || 0) + requirements.output;
@@ -555,6 +577,7 @@ function executeCycle(world, player, group, type, count) {
   inventoryFor(player, recipe.output.productId).available += requirements.output;
   group.lifetimeOutput += requirements.output;
   group.cycleStartedAt += recipe.cycleMs;
+  group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
 }
 
 function finishConstruction(world, player, now) {
@@ -583,7 +606,7 @@ function processGroup(world, player, group, now) {
       break;
     }
 
-    executeCycle(world, player, group, type, group.participatingCount);
+    executeCycle(world, player, group, type, group.participatingCount, now);
     processed += 1;
 
     if (group.pendingJoinCount > 0) {
@@ -1053,8 +1076,9 @@ function clientGroup(world, player, group) {
   const auctionedCount = auctionedQuantity(world, player.userId, group.facilityTypeId);
   const frozenCount = listedCount + auctionedCount;
   const availableCount = Math.max(0, group.count - frozenCount);
+  const { cycleWageMultiplierBps: _cycleWageMultiplierBps, ...publicGroup } = clone(group);
   return {
-    ...clone(group),
+    ...publicGroup,
     listedCount,
     auctionedCount,
     frozenCount,
