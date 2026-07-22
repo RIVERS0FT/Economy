@@ -1,0 +1,52 @@
+name: Apply Deploy Failure Artifact Patch
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/deploy-failure-artifact' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/deploy-failure-artifact
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply embedded patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from textwrap import dedent
+
+          workflow = Path('.github/workflows/patch-deploy-failure-artifact.yml').read_text()
+          start = "          python3 - <<'PY'\n"
+          end = "\n          PY\n\n      - name: Validate targeted rules"
+          script = workflow.split(start, 1)[1].split(end, 1)[0]
+          exec(compile(dedent(script), 'embedded-deploy-log-patch.py', 'exec'))
+          PY
+
+      - name: Validate targeted rules
+        run: node scripts/verify-runtime-reliability.mjs
+
+      - name: Commit patched files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/deploy.yml docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs
+          git commit -m "部署失败仅上传失败步骤日志"
+          git push origin HEAD:codex/deploy-failure-artifact
