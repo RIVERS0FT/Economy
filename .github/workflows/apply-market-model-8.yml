@@ -25,7 +25,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          rm -f .model8-error.log
+          rm -f .model8-error.log .model8-build-error.log
           python3 - <<'PY'
           from pathlib import Path
           path = Path('scripts/apply-market-model-8.mjs')
@@ -57,7 +57,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build and test
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/model8-build.log
+      - name: Preserve build error
+        if: failure()
+        run: |
+          cp /tmp/model8-build.log .model8-build-error.log
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .model8-build-error.log
+          git commit -m "记录模型 8 构建错误"
+          git push origin HEAD:agent/deflation-stabilizer-model-8
       - name: Commit verified changes
         run: |
           git config user.name github-actions[bot]
