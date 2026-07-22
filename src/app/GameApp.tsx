@@ -9,31 +9,38 @@ import { AuthoritativeCountdownRefresh } from '../components/system/Authoritativ
 import { PageRouter } from '../pages/PageRouter';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
+import { useAdaptivePolling } from './useAdaptivePolling';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import '../styles/game-guide.css';
 
 function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
-  const tutorial = useGameTutorial(model);
-  const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
+  const pollingPreference = useAdaptivePolling(model);
+  const pollingModel = useMemo<LoadedGameViewModel>(() => ({
     ...model,
+    refreshRate: pollingPreference.refreshRate,
+    setRefreshRate: pollingPreference.setRefreshRate,
+  }), [model, pollingPreference.refreshRate, pollingPreference.setRefreshRate]);
+  const tutorial = useGameTutorial(pollingModel);
+  const tutorialModel = useMemo<TutorialAwareGameViewModel>(() => ({
+    ...pollingModel,
     tutorial,
     work: () => {
       tutorial.recordWorkClick();
-      return model.work();
+      return pollingModel.work();
     },
-    buildFacility: (facilityTypeId = model.selectedFacilityTypeId) => {
+    buildFacility: (facilityTypeId = pollingModel.selectedFacilityTypeId) => {
       tutorial.recordBuildSubmit(facilityTypeId);
-      return model.buildFacility(facilityTypeId);
+      return pollingModel.buildFacility(facilityTypeId);
     },
     startFacility: (facilityTypeId) => {
       tutorial.recordFacilityStartClick(facilityTypeId);
-      return model.startFacility(facilityTypeId);
+      return pollingModel.startFacility(facilityTypeId);
     },
     placeAssetOrder: (assetKind, assetId, side, quantity, price) => {
       tutorial.recordSellOrderSubmit(assetKind, assetId, side);
-      return model.placeAssetOrder(assetKind, assetId, side, quantity, price);
+      return pollingModel.placeAssetOrder(assetKind, assetId, side, quantity, price);
     },
-  }), [model, tutorial]);
+  }), [pollingModel, tutorial]);
   const compactNumbers = tutorialModel.compactNumbers;
 
   useEffect(() => {
@@ -89,7 +96,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
 
   return (
     <>
-      <AuthoritativeCountdownRefresh game={game} refresh={model.refresh} />
+      <AuthoritativeCountdownRefresh game={game} refresh={tutorialModel.refresh} />
       <GameShell model={tutorialModel} statusItems={statusItems}>
         <PageRouter model={tutorialModel} />
       </GameShell>
