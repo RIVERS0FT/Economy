@@ -1,4 +1,5 @@
 node_modules/
 dist/
+src/assets/product-icons/generated/
 __pycache__/
 *.pyc
