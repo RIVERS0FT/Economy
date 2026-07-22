@@ -29,7 +29,7 @@
   grid-auto-flow: column;
   grid-template-rows: repeat(2, minmax(72px, auto));
   grid-auto-columns: 138px;
-  gap: var(--space-2);
+  gap: var(--space-3);
   overflow-x: auto;
   overflow-y: hidden;
   margin: 0;
@@ -66,7 +66,13 @@
 .unified-asset-tab {
   position: relative;
   min-height: 72px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
   padding: 9px 11px;
+  background: var(--gradient-panel);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 6px 16px rgba(0, 0, 0, 0.18);
 }
 
 .market-page-surface .unified-asset-tab:not(.facility) {
@@ -80,7 +86,7 @@
 .market-page-surface .market-asset-card__icon-layer {
   position: absolute;
   z-index: 1;
-  inset: 18px 0;
+  inset: 14px 0;
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -98,7 +104,7 @@
     ". ."
     "current inventory";
   gap: 2px 6px;
-  padding: 8px 10px 7px;
+  padding: 7px 9px 6px;
   pointer-events: none;
 }
 
@@ -106,10 +112,30 @@
   grid-area: name;
   min-width: 0;
   align-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
-  line-height: 1.25;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.market-page-surface .market-asset-card__name-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--color-text-secondary);
+}
+
+.market-page-surface .unified-asset-tab.active .market-asset-card__name-icon {
+  color: var(--color-success);
+}
+
+.market-page-surface .market-asset-card__name > span {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -165,10 +191,18 @@
   height: 14px;
 }
 
+.market-page-surface .unified-asset-tab:hover:not(:disabled) {
+  transform: none;
+  border-color: rgba(123, 228, 158, 0.42);
+  background: linear-gradient(145deg, rgba(18, 40, 31, 0.96), rgba(8, 21, 16, 0.94));
+}
+
 .unified-asset-tab.active {
   border-color: var(--color-success);
   background: linear-gradient(145deg, rgba(49, 175, 94, 0.19), rgba(15, 34, 26, 0.92));
-  box-shadow: inset 0 0 0 1px rgba(123, 228, 158, 0.36);
+  box-shadow:
+    inset 0 0 0 1px rgba(123, 228, 158, 0.36),
+    0 8px 18px rgba(0, 0, 0, 0.22);
 }
 
 .unified-asset-tab.facility.active::after {
@@ -315,12 +349,12 @@
   }
 
   .market-page-surface .market-asset-card__icon-layer {
-    inset: 17px 0;
+    inset: 18px 0;
   }
 
   .market-page-surface .market-asset-card__data-layer {
     gap: 2px 5px;
-    padding: 7px 9px 6px;
+    padding: 6px 8px;
   }
 
   .market-page-surface .market-asset-card__inventory > .game-icon {

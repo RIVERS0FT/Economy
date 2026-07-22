@@ -373,3 +373,63 @@ test('market order book aggregates same-price orders into one price level', asyn
   await expect(bidLevels).toHaveAttribute('aria-label', '买盘，价格 2，合计剩余 5，包含 5 笔订单');
   expect(pageErrors).toEqual([]);
 });
+
+test('market product artwork uses 64px desktop and 48px mobile without resizing cards', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const wheatTab = page.getByRole('tab', { name: /^小麦/ });
+  const desktopMetrics = await wheatTab.evaluate((element) => {
+    const card = element as HTMLElement;
+    const artwork = card.querySelector<HTMLElement>('.market-asset-card__icon-layer > .product-icon');
+    const nameIcon = card.querySelector<HTMLElement>('.market-asset-card__name-icon');
+    const directory = card.closest<HTMLElement>('.unified-asset-tabs');
+    if (!artwork || !nameIcon || !directory) throw new Error('market product card visual fixture is incomplete');
+    const cardRect = card.getBoundingClientRect();
+    const artworkRect = artwork.getBoundingClientRect();
+    const nameIconRect = nameIcon.getBoundingClientRect();
+    const cardStyle = getComputedStyle(card);
+    return {
+      cardWidth: cardRect.width,
+      cardHeight: cardRect.height,
+      artworkWidth: artworkRect.width,
+      artworkHeight: artworkRect.height,
+      nameIconWidth: nameIconRect.width,
+      nameIconHeight: nameIconRect.height,
+      borderRadius: Number.parseFloat(cardStyle.borderTopLeftRadius),
+      directoryGap: Number.parseFloat(getComputedStyle(directory).columnGap),
+      transform: cardStyle.transform,
+    };
+  });
+  expect(desktopMetrics.cardWidth).toBeCloseTo(138, 0);
+  expect(desktopMetrics.cardHeight).toBeCloseTo(92, 0);
+  expect(desktopMetrics.artworkWidth).toBeCloseTo(64, 0);
+  expect(desktopMetrics.artworkHeight).toBeCloseTo(64, 0);
+  expect(desktopMetrics.nameIconWidth).toBeCloseTo(14, 0);
+  expect(desktopMetrics.nameIconHeight).toBeCloseTo(14, 0);
+  expect(desktopMetrics.borderRadius).toBeCloseTo(12, 0);
+  expect(desktopMetrics.directoryGap).toBeCloseTo(12, 0);
+  expect(desktopMetrics.transform).toBe('none');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(() => wheatTab.evaluate((element) => {
+    const card = element as HTMLElement;
+    const artwork = card.querySelector<HTMLElement>('.market-asset-card__icon-layer > .product-icon');
+    if (!artwork) throw new Error('mobile market product artwork is missing');
+    const cardRect = card.getBoundingClientRect();
+    const artworkRect = artwork.getBoundingClientRect();
+    return {
+      cardWidth: Math.round(cardRect.width),
+      cardHeight: Math.round(cardRect.height),
+      artworkWidth: Math.round(artworkRect.width),
+      artworkHeight: Math.round(artworkRect.height),
+    };
+  })).toEqual({
+    cardWidth: 132,
+    cardHeight: 88,
+    artworkWidth: 48,
+    artworkHeight: 48,
+  });
+  expect(pageErrors).toEqual([]);
+});
