@@ -136,13 +136,14 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await expect(page.locator('.admin-command-bar .liquid-glass-surface--desktopStatusBar')).toHaveCount(1);
   await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(8);
   await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();
-  await expect(page.locator('.admin-population-model-card')).toHaveCount(3);
-  await expect(page.getByText('累计稳定需求补充', { exact: true })).toBeVisible();
-  await expect(page.getByText('累计管理员人口补充', { exact: true })).toBeVisible();
-  await expect(page.getByText('累计生产工资补贴', { exact: true })).toBeVisible();
-  await expect(page.getByText('累计生产工资扣留', { exact: true })).toBeVisible();
-  await expect(page.getByText('稳定预算／自动补充', { exact: true })).toHaveCount(3);
+  await expect(page.getByRole('table', { name: '人口需求比较矩阵' })).toBeVisible();
+  await expect(page.getByText('当前钱包总缺口', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-ledger').getByText('累计稳定需求补充', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-ledger').getByText('累计管理员人口补充', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('稳定预算／自动补充', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '展开调控', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '展开调控', exact: true }).click();
   await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('100');
   await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '人口调控记录', exact: true })).toBeVisible();
@@ -189,7 +190,7 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   expect(geometry.railRight).toBeCloseTo(geometry.viewportWidth, 0);
   expect(geometry.thumbRight).toBeCloseTo(geometry.viewportWidth, 0);
   const metricColumns = await page.locator('.admin-summary-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
-  expect(metricColumns).toBe(4);
+  expect(metricColumns).toBe(6);
 
   await page.getByRole('button', { name: '社区', exact: true }).click();
   await expect(page.getByRole('heading', { name: '玩家社区', exact: true })).toBeVisible();

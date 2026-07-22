@@ -70,6 +70,26 @@ requireText('src/app/AdminApp.tsx', [
   '<AdminDesktopBar',
   '<AdminMobileNavigation',
 ]);
+requireText('src/components/AdminPopulationHealth.tsx', [
+  'ADMIN_OVERVIEW_SCHEME: population-health-matrix',
+  '人口需求比较矩阵',
+  '当前钱包总缺口',
+  '食品／家庭',
+  'C1—C7 生产工资',
+]);
+requireText('src/components/AdminPopulationControl.tsx', [
+  "import { AdminPopulationHealth } from './AdminPopulationHealth'",
+  '<AdminPopulationHealth economy={economy} />',
+  '展开调控',
+  '查看全部记录',
+]);
+requireText('src/styles/admin-overview-density.css', [
+  'ADMIN_OVERVIEW_SCHEME: population-health-matrix',
+  '.admin-population-matrix',
+  '.admin-population-health-grid',
+  '.admin-population-control__workspace',
+  '@media (max-width: 720px)',
+]);
 forbidText('src/app/AdminApp.tsx', [
   '<section className="admin-workspace">',
   '<div className="admin-page-scroll">',
