@@ -93,8 +93,8 @@ test('runtime population policy mutations are idempotent, accept values above fo
 test('population policy rejects only unsafe numeric results rather than fixed business maxima', () => {
   const world = createWorld(now);
   assert.throws(() => applyPopulationPolicy(world, {
-    stabilizationShareBps: Number.MAX_SAFE_INTEGER,
-    targetWalletCycles: 1,
+    stabilizationShareBps: 10_000,
+    targetWalletCycles: Number.MAX_SAFE_INTEGER,
     refillCapBps: 0,
     productionWageMultiplierBps: 5_000,
     modelMultipliersBps: { basic: 5_000, skilled: 5_000, professional: 5_000 },
