@@ -34,6 +34,16 @@ jobs:
         run: |
           set +e
           {
+            python3 <<'PY'
+          from pathlib import Path
+          path = Path('.github/agent-optimize-production.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'industry = re.sub(r"\\n\\.production-grid \\{[^}]*\\}\\n", "\\n", industry)'
+          new = 'industry = re.sub(r"(?m)^[ \\t]*\\.production-grid \\{\\n(?:[ \\t]+[^\\n]*\\n)*[ \\t]*\\}\\n", "", industry)'
+          if text.count(old) != 1:
+              raise SystemExit(f'production-grid regex update mismatch: {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
             python3 .github/agent-optimize-production.py
             node scripts/verify-production-desktop-layout.mjs
           } > /tmp/production-transform.log 2>&1
