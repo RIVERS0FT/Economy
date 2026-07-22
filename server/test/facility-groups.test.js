@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { applyFacilityGroupAction, createFacilityGroupClientState, migrateFacilityGroupWorld, processFacilityGroupWorld } from '../src/facility-groups.js';
+import { applyPopulationPolicy } from '../src/population-admin-control.js';
+import { ensurePopulationEconomy } from '../src/population-economy.js';
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
@@ -55,6 +57,50 @@ test('production increments produced goods statistics', () => {
   processFacilityGroupWorld(world, now + 120_000);
   assert.equal(player.stats.producedGoods, 8);
   assert.equal(player.inventories.wheat.available, 8);
+});
+
+
+test('production wage multiplier changes population wages without changing production cost and only affects the next cycle', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 1_000;
+  player.facilityGroups = [group('farm', 1, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 1,
+    cycleStartedAt: now,
+  })];
+  const population = ensurePopulationEconomy(world, now);
+  const pendingProduction = () => Object.values(population.models).reduce(
+    (sum, model) => sum + model.pendingIncome.production,
+    0,
+  );
+  migrateFacilityGroupWorld(world, now);
+  assert.equal(player.facilityGroups[0].cycleWageMultiplierBps, 10_000);
+
+  applyPopulationPolicy(world, {
+    stabilizationShareBps: 1_200,
+    targetWalletCycles: 3,
+    refillCapBps: 10_000,
+    productionWageMultiplierBps: 13_300,
+    modelMultipliersBps: { basic: 10_000, skilled: 10_000, professional: 10_000 },
+    durationCycles: 12,
+    note: '测试生产工资系数仅影响后续周期',
+  }, { adminUserId: 1, now: now + 1 });
+
+  processFacilityGroupWorld(world, now + 120_000);
+  assert.equal(player.credits, 994);
+  assert.equal(pendingProduction(), 6);
+  assert.equal(population.stats.productionWageSubsidyIssued, 0);
+
+  processFacilityGroupWorld(world, now + 240_000);
+  assert.equal(player.credits, 988);
+  assert.equal(pendingProduction(), 14);
+  assert.equal(population.stats.productionWageSubsidyIssued, 2);
+  assert.equal(population.stats.productionWageWithheld, 0);
+  assert.equal(player.stats.productionPayroll, 12);
+  assert.equal(player.stats.employmentPayments, 12);
+  assert.equal('cycleWageMultiplierBps' in createFacilityGroupClientState(world, alice.id, now + 240_000).facilityGroups[0], false);
 });
 
 test('electronics factory atomically consumes plastic and copper', () => {

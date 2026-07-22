@@ -9,7 +9,7 @@ import {
   populationPolicySnapshot,
 } from './population-policy.js';
 
-export const POPULATION_ECONOMY_VERSION = 2;
+export const POPULATION_ECONOMY_VERSION = 3;
 export const POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional']);
 export const POPULATION_STABILIZATION_BUDGET_SHARE = 0.12;
 export const POPULATION_STABILIZATION_TARGET_CYCLES = 3;
@@ -146,6 +146,8 @@ function defaultState() {
       constructionIncome: 0,
       warehouseIncome: 0,
       marketServiceIncome: 0,
+      productionWageSubsidyIssued: 0,
+      productionWageWithheld: 0,
       totalConsumption: 0,
       migrationIssued: 0,
       stabilizationIssued: 0,
@@ -259,7 +261,7 @@ function profileFor(source, complexity) {
   throw new Error(`Unsupported population employment source: ${source}`);
 }
 
-export function creditPopulationEmployment(world, amount, source, { complexity } = {}) {
+export function creditPopulationEmployment(world, amount, source, { complexity, payerAmount = amount } = {}) {
   const total = nonNegativeInteger(amount);
   if (total <= 0) return Object.fromEntries(POPULATION_MODEL_IDS.map((id) => [id, 0]));
   const state = ensurePopulationEconomy(world);
@@ -275,6 +277,12 @@ export function creditPopulationEmployment(world, amount, source, { complexity }
     state.stats.productionByComplexity[normalizedComplexity] = nonNegativeInteger(
       state.stats.productionByComplexity[normalizedComplexity],
     ) + total;
+    const playerFunded = nonNegativeInteger(payerAmount);
+    if (total > playerFunded) {
+      state.stats.productionWageSubsidyIssued = nonNegativeInteger(state.stats.productionWageSubsidyIssued) + total - playerFunded;
+    } else if (playerFunded > total) {
+      state.stats.productionWageWithheld = nonNegativeInteger(state.stats.productionWageWithheld) + playerFunded - total;
+    }
   }
   return allocation;
 }
@@ -517,15 +525,21 @@ export function createPopulationEconomySummary(world, now = Date.now(), { totalB
     productionByComplexity: { ...state.stats.productionByComplexity },
     totalEmploymentIncome: nonNegativeInteger(state.stats.totalEmploymentIncome),
     totalConsumption: nonNegativeInteger(state.stats.totalConsumption),
+    productionWageAdjustment: {
+      subsidyIssued: nonNegativeInteger(state.stats.productionWageSubsidyIssued),
+      withheld: nonNegativeInteger(state.stats.productionWageWithheld),
+    },
     issuance: {
       ...issuance,
       migration: nonNegativeInteger(state.stats.migrationIssued),
       stabilization: nonNegativeInteger(state.stats.stabilizationIssued),
       adminPopulation: nonNegativeInteger(state.stats.adminPopulationIssued),
+      productionWageSubsidy: nonNegativeInteger(state.stats.productionWageSubsidyIssued),
       total: issuance.work + issuance.exchange + issuance.gift + issuance.legacyPopulation
         + nonNegativeInteger(state.stats.migrationIssued)
         + nonNegativeInteger(state.stats.stabilizationIssued)
-        + nonNegativeInteger(state.stats.adminPopulationIssued),
+        + nonNegativeInteger(state.stats.adminPopulationIssued)
+        + nonNegativeInteger(state.stats.productionWageSubsidyIssued),
     },
     policy,
     policyLimits: POPULATION_POLICY_LIMITS,

@@ -15,14 +15,14 @@ import { EconomyStore } from '../src/storage.js';
 
 const now = Date.UTC(2026, 6, 22, 8, 0, 0);
 
-test('population economy version 2 migration does not repeat bootstrap issuance', () => {
+test('population economy version 3 migration does not repeat bootstrap issuance', () => {
   const world = createWorld(now);
   const state = ensurePopulationEconomy(world, now);
   const beforeCredits = Object.values(state.models).reduce((sum, model) => sum + model.credits, 0);
   const beforeMigration = state.stats.migrationIssued;
   state.modelVersion = 1;
   ensurePopulationEconomy(world, now);
-  assert.equal(state.modelVersion, 2);
+  assert.equal(state.modelVersion, 3);
   assert.equal(Object.values(state.models).reduce((sum, model) => sum + model.credits, 0), beforeCredits);
   assert.equal(state.stats.migrationIssued, beforeMigration);
 });
@@ -41,6 +41,7 @@ test('manual population top-up shares the same per-cycle cap with automatic stab
     stabilizationShareBps: 2_000,
     targetWalletCycles: 5,
     refillCapBps: 15_000,
+    productionWageMultiplierBps: 13_300,
     modelMultipliersBps: { basic: 15_000, skilled: 15_000, professional: 15_000 },
     durationCycles: 12,
     note: '测试管理员人口需求强力刺激',
@@ -79,6 +80,7 @@ test('population policy store mutations are idempotent and audited', () => {
       stabilizationShareBps: 1_500,
       targetWalletCycles: 4,
       refillCapBps: 10_000,
+      productionWageMultiplierBps: 11_000,
       modelMultipliersBps: { basic: 11_000, skilled: 10_000, professional: 9_000 },
       durationCycles: 12,
       note: '测试应用温和人口刺激政策',
@@ -87,6 +89,7 @@ test('population policy store mutations are idempotent and audited', () => {
     const repeated = store.updatePopulationPolicy(admin, payload, requestMeta, now);
     assert.deepEqual(repeated, first);
     assert.equal(first.populationEconomy.policy.stabilizationShareBps, 1_500);
+    assert.equal(first.populationEconomy.policy.productionWageMultiplierBps, 11_000);
     const audit = store.listPopulationPolicyAudit(admin, {});
     assert.equal(audit.total, 1);
     assert.equal(audit.items[0].actionType, 'update_policy');

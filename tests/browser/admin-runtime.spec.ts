@@ -39,9 +39,10 @@ async function configureAdminRoutes(page: Page) {
           },
           sources: { production: 4_000, construction: 2_000, warehouse: 1_000, marketService: 1_000 },
           productionByComplexity: { C1: 500, C2: 500, C3: 500, C4: 500, C5: 500, C6: 500, C7: 1_000 },
-          issuance: { work: 20_000, exchange: 5_000, gift: 1_000, legacyPopulation: 0, migration: 5_700, stabilization: 684, adminPopulation: 0, total: 32_384 },
+          productionWageAdjustment: { subsidyIssued: 0, withheld: 0 },
+          issuance: { work: 20_000, exchange: 5_000, gift: 1_000, legacyPopulation: 0, migration: 5_700, stabilization: 684, adminPopulation: 0, productionWageSubsidy: 0, total: 32_384 },
           policy: {
-            stabilizationShareBps: 1_200, targetWalletCycles: 3, refillCapBps: 10_000,
+            stabilizationShareBps: 1_200, targetWalletCycles: 3, refillCapBps: 10_000, productionWageMultiplierBps: 10_000,
             modelMultipliersBps: { basic: 10_000, skilled: 10_000, professional: 10_000 },
             effectiveCycleId: 0, expiresAfterCycleId: null, updatedAt: null, updatedBy: null, note: '',
             isDefault: true, currentCycleId: 100, remainingCycles: null, nextCycleAt: Date.UTC(2026, 6, 19, 10, 5),
@@ -53,7 +54,7 @@ async function configureAdminRoutes(page: Page) {
           },
           policyLimits: {
             stabilizationShareBps: { min: 0, max: 2_000 }, targetWalletCycles: { min: 1, max: 5 },
-            refillCapBps: { min: 0, max: 15_000 }, modelMultiplierBps: { min: 5_000, max: 15_000 },
+            refillCapBps: { min: 0, max: 15_000 }, productionWageMultiplierBps: { min: 5_000, max: 15_000 }, modelMultiplierBps: { min: 5_000, max: 15_000 },
             durationCycles: { min: 1, max: 288 }, noteLength: { min: 8, max: 200 },
           },
           policyBaseBudget: 5_700,
@@ -138,8 +139,11 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await expect(page.locator('.admin-population-model-card')).toHaveCount(3);
   await expect(page.getByText('累计稳定需求补充', { exact: true })).toBeVisible();
   await expect(page.getByText('累计管理员人口补充', { exact: true })).toBeVisible();
+  await expect(page.getByText('累计生产工资补贴', { exact: true })).toBeVisible();
+  await expect(page.getByText('累计生产工资扣留', { exact: true })).toBeVisible();
   await expect(page.getByText('稳定预算／自动补充', { exact: true })).toHaveCount(3);
   await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
+  await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('100');
   await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '人口调控记录', exact: true })).toBeVisible();
   await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('display', 'none');

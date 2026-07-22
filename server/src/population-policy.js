@@ -15,12 +15,14 @@ export const POPULATION_POLICY_DEFAULTS = Object.freeze({
   stabilizationShareBps: 1_200,
   targetWalletCycles: 3,
   refillCapBps: 10_000,
+  productionWageMultiplierBps: 10_000,
   modelMultipliersBps: DEFAULT_MODEL_MULTIPLIERS_BPS,
 });
 export const POPULATION_POLICY_LIMITS = Object.freeze({
   stabilizationShareBps: Object.freeze({ min: 0, max: 2_000 }),
   targetWalletCycles: Object.freeze({ min: 1, max: 5 }),
   refillCapBps: Object.freeze({ min: 0, max: 15_000 }),
+  productionWageMultiplierBps: Object.freeze({ min: 5_000, max: 15_000 }),
   modelMultiplierBps: Object.freeze({ min: 5_000, max: 15_000 }),
   durationCycles: Object.freeze({ min: 1, max: 288 }),
   noteLength: Object.freeze({ min: 8, max: 200 }),
@@ -55,6 +57,7 @@ export function defaultPopulationPolicy({
     stabilizationShareBps: POPULATION_POLICY_DEFAULTS.stabilizationShareBps,
     targetWalletCycles: POPULATION_POLICY_DEFAULTS.targetWalletCycles,
     refillCapBps: POPULATION_POLICY_DEFAULTS.refillCapBps,
+    productionWageMultiplierBps: POPULATION_POLICY_DEFAULTS.productionWageMultiplierBps,
     modelMultipliersBps: { ...DEFAULT_MODEL_MULTIPLIERS_BPS },
     effectiveCycleId: 0,
     expiresAfterCycleId: null,
@@ -102,6 +105,12 @@ export function normalizePopulationPolicy(value, now = Date.now()) {
       POPULATION_POLICY_LIMITS.refillCapBps.min,
       POPULATION_POLICY_LIMITS.refillCapBps.max,
       fallback.refillCapBps,
+    ),
+    productionWageMultiplierBps: bounded(
+      policy.productionWageMultiplierBps,
+      POPULATION_POLICY_LIMITS.productionWageMultiplierBps.min,
+      POPULATION_POLICY_LIMITS.productionWageMultiplierBps.max,
+      fallback.productionWageMultiplierBps,
     ),
     modelMultipliersBps: normalizeMultipliers(policy.modelMultipliersBps),
     effectiveCycleId,
@@ -158,6 +167,7 @@ export function isDefaultPopulationPolicy(policy) {
   return Number(policy?.stabilizationShareBps) === POPULATION_POLICY_DEFAULTS.stabilizationShareBps
     && Number(policy?.targetWalletCycles) === POPULATION_POLICY_DEFAULTS.targetWalletCycles
     && Number(policy?.refillCapBps) === POPULATION_POLICY_DEFAULTS.refillCapBps
+    && Number(policy?.productionWageMultiplierBps) === POPULATION_POLICY_DEFAULTS.productionWageMultiplierBps
     && MODEL_IDS.every((id) => Number(policy?.modelMultipliersBps?.[id]) === DEFAULT_MODEL_MULTIPLIERS_BPS[id])
     && policy?.expiresAfterCycleId === null;
 }
@@ -224,6 +234,12 @@ export function createPopulationPolicyFromPayload(payload, { adminUserId, now = 
       '单周期补充上限',
       POPULATION_POLICY_LIMITS.refillCapBps.min,
       POPULATION_POLICY_LIMITS.refillCapBps.max,
+    ),
+    productionWageMultiplierBps: requireInteger(
+      payload?.productionWageMultiplierBps,
+      '生产工资系数',
+      POPULATION_POLICY_LIMITS.productionWageMultiplierBps.min,
+      POPULATION_POLICY_LIMITS.productionWageMultiplierBps.max,
     ),
     modelMultipliersBps: Object.fromEntries(MODEL_IDS.map((modelId) => [
       modelId,

@@ -430,6 +430,8 @@ export function AdminApp({ user }: { user: AuthUser }) {
                     <MetricCard label="累计货币发行" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.total)}</CurrencyAmount>} />
                     <MetricCard label="累计稳定需求补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.stabilization)}</CurrencyAmount>} />
                     <MetricCard label="累计管理员人口补充" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.issuance.adminPopulation)}</CurrencyAmount>} />
+                    <MetricCard label="累计生产工资补贴" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.productionWageAdjustment.subsidyIssued)}</CurrencyAmount>} />
+                    <MetricCard label="累计生产工资扣留" value={<CurrencyAmount>{formatCurrency(summary.populationEconomy.productionWageAdjustment.withheld)}</CurrencyAmount>} />
                   </section>
 
                   <div className="admin-population-model-grid">

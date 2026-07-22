@@ -35,6 +35,7 @@ export interface PopulationPolicy {
   stabilizationShareBps: number;
   targetWalletCycles: number;
   refillCapBps: number;
+  productionWageMultiplierBps: number;
   modelMultipliersBps: Record<PopulationModelId, number>;
   effectiveCycleId: number;
   expiresAfterCycleId: number | null;
@@ -56,6 +57,7 @@ export interface PopulationPolicyLimits {
   stabilizationShareBps: { min: number; max: number };
   targetWalletCycles: { min: number; max: number };
   refillCapBps: { min: number; max: number };
+  productionWageMultiplierBps: { min: number; max: number };
   modelMultiplierBps: { min: number; max: number };
   durationCycles: { min: number; max: number };
   noteLength: { min: number; max: number };
@@ -90,7 +92,8 @@ export interface PopulationEconomyAdminSummary {
   models: Record<PopulationModelId, PopulationModelAdminSummary>;
   sources: Record<'production' | 'construction' | 'warehouse' | 'marketService', number>;
   productionByComplexity: Record<'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7', number>;
-  issuance: { work: number; exchange: number; gift: number; legacyPopulation: number; migration: number; stabilization: number; adminPopulation: number; total: number };
+  productionWageAdjustment: { subsidyIssued: number; withheld: number };
+  issuance: { work: number; exchange: number; gift: number; legacyPopulation: number; migration: number; stabilization: number; adminPopulation: number; productionWageSubsidy: number; total: number };
   policy: PopulationPolicy;
   policyLimits: PopulationPolicyLimits;
   policyBaseBudget: number;
@@ -107,6 +110,7 @@ export interface PopulationPolicyPayload {
   stabilizationShareBps: number;
   targetWalletCycles: number;
   refillCapBps: number;
+  productionWageMultiplierBps: number;
   modelMultipliersBps: Record<PopulationModelId, number>;
   durationCycles: number;
   note: string;
