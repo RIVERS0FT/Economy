@@ -38,6 +38,16 @@ forbidText('src/components/shell/AdminSidebar.tsx', [
   '<nav className="admin-mobile-navigation',
   "from '../ui/LiquidGlassSurface'",
 ]);
+requireText('src/components/AdminBanPanel.tsx', [
+  "import { VirtualList } from './ui/VirtualList'",
+  'function incidentKey(incident: BanIncidentSummary)',
+  '<VirtualList',
+  'className="admin-ban-incidents admin-ban-incidents-virtual-list"',
+  'estimateSize={78}',
+]);
+forbidText('src/components/AdminBanPanel.tsx', [
+  'incidents.map(',
+]);
 requireText('src/styles/admin-navigation.css', [
   'ADMIN_CONSOLE_SCHEME: command-center',
   '@media (min-width: 721px)',
@@ -47,7 +57,8 @@ requireText('src/styles/admin-navigation.css', [
   '.admin-section-stack:has(.admin-collectible-upload)',
   '.admin-section-stack:has(.admin-gift-create)',
   'grid-template-columns: minmax(320px, .72fr) minmax(0, 1.68fr);',
-  '.admin-ban-incidents',
+  '.admin-ban-incidents-column',
+  '.admin-ban-incidents .virtual-list__item > button',
   '.admin-workspace',
   'padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
   'var(--mobile-nav-height)',
@@ -72,6 +83,7 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '编辑与创建工作台位于左侧',
   '结果列表与详情位于右侧',
   '`ADMIN_CONSOLE_SCHEME: command-center`',
+  '封禁事件继续使用窗口化结构',
 ]);
 
 if (failures.length) {
@@ -79,4 +91,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('管理员导航与运营控制台验证通过：桌面统一侧栏、双栏工作台与移动统一液态玻璃底栏均已锁定。');
+console.log('管理员导航与运营控制台验证通过：桌面统一侧栏、双栏工作台、封禁事件窗口化与移动统一液态玻璃底栏均已锁定。');
