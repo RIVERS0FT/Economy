@@ -9,7 +9,7 @@ import {
 } from './market-demand.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { orderAssetId, orderKind } from './order-identity.js';
-import { ensurePopulationEconomy } from './population-economy.js';
+import { ensurePopulationEconomy, releasePopulationOrderFunds } from './population-economy.js';
 
 export * from './domain-core.js';
 export {
@@ -189,6 +189,14 @@ export function migrateWorld(world, now = Date.now()) {
   };
   const migrated = core.migrateWorld(world, now);
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
+  if (!hadCurrentMarketDemandModel) {
+    ensurePopulationEconomy(migrated, now);
+    for (const order of migrated.orders || []) {
+      if (order.ownerType !== 'population' || !balancedMarket.isOpenOrder(order)) continue;
+      if (order.demandTier !== 'direct' && order.demandTier !== 'derived-liquidity') continue;
+      releasePopulationOrderFunds(migrated, order);
+    }
+  }
   migrated.orders = (migrated.orders || []).filter((order) => {
     if (order.ownerType === 'player') return true;
     if (order.ownerType !== 'population') return false;

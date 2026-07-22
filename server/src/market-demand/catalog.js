@@ -4,7 +4,7 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 8;
+export const MARKET_DEMAND_MODEL_VERSION = 9;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -91,22 +91,24 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
         ],
       },
       {
-        id: 'convenience', name: '便利食品', budgetShare: 0.15, minBudgetShare: 0.08, maxBudgetShare: 0.30,
+        id: 'convenience', name: '便利食品与糖类', budgetShare: 0.15, minBudgetShare: 0.08, maxBudgetShare: 0.30,
         elasticity: 0.8,
         products: [
-          { productId: 'food', baseWeight: 0.45, utilityPerUnit: 3, minShare: 0.20 },
-          { productId: 'prepared-meal', baseWeight: 0.55, utilityPerUnit: 3, minShare: 0.20 },
+          { productId: 'food', baseWeight: 0.30, utilityPerUnit: 3, minShare: 0.12 },
+          { productId: 'prepared-meal', baseWeight: 0.35, utilityPerUnit: 3, minShare: 0.12 },
+          { productId: 'sugarcane', baseWeight: 0.15, utilityPerUnit: 1, minShare: 0.05 },
+          { productId: 'sugar', baseWeight: 0.20, utilityPerUnit: 2, minShare: 0.08 },
         ],
       },
     ]),
     seedDemandQuantities: Object.freeze({
       wheat: 14, rice: 14, food: 10, meat: 4, eggs: 7, milk: 7, flour: 5,
-      fruit: 8, fish: 5, beverage: 5, 'prepared-meal': 4,
+      fruit: 8, fish: 5, beverage: 5, 'prepared-meal': 4, sugarcane: 8, sugar: 3,
     }),
   }),
   Object.freeze({
     id: 'household',
-    name: '家庭消费市场',
+    name: '社会消费市场',
     ownerName: '家庭消费市场需求',
     cycleMs: 5 * 60 * 1000,
     baseBudget: 2_700,
@@ -115,30 +117,54 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
     quoteUtilityDepth: 8,
     classes: freezeClasses([
       {
-        id: 'home', name: '家居', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.40,
+        id: 'home', name: '木材、纸品与家居', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.40,
         elasticity: 0.4,
-        products: [{ productId: 'furniture', baseWeight: 1, utilityPerUnit: 1, minShare: 1 }],
+        products: [
+          { productId: 'timber', baseWeight: 0.20, utilityPerUnit: 1, minShare: 0.05 },
+          { productId: 'lumber', baseWeight: 0.20, utilityPerUnit: 2, minShare: 0.05 },
+          { productId: 'pulp', baseWeight: 0.15, utilityPerUnit: 2, minShare: 0.04 },
+          { productId: 'furniture', baseWeight: 0.45, utilityPerUnit: 3, minShare: 0.12 },
+        ],
       },
       {
-        id: 'wear', name: '穿着', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.40,
+        id: 'wear', name: '穿着与纺织', budgetShare: 0.25, minBudgetShare: 0.15, maxBudgetShare: 0.40,
         elasticity: 0.4,
-        products: [{ productId: 'clothing', baseWeight: 1, utilityPerUnit: 2, minShare: 1 }],
+        products: [
+          { productId: 'cotton', baseWeight: 0.15, utilityPerUnit: 1, minShare: 0.05 },
+          { productId: 'wool', baseWeight: 0.15, utilityPerUnit: 1, minShare: 0.05 },
+          { productId: 'textile', baseWeight: 0.25, utilityPerUnit: 2, minShare: 0.08 },
+          { productId: 'clothing', baseWeight: 0.45, utilityPerUnit: 3, minShare: 0.12 },
+        ],
       },
       {
-        id: 'daily', name: '日用消耗', budgetShare: 0.20, minBudgetShare: 0.10, maxBudgetShare: 0.35,
+        id: 'daily', name: '能源、包装与日用消耗', budgetShare: 0.20, minBudgetShare: 0.10, maxBudgetShare: 0.35,
         elasticity: 0.9,
-        products: [{ productId: 'paper', baseWeight: 1, utilityPerUnit: 1, minShare: 1 }],
+        products: [
+          { productId: 'paper', baseWeight: 0.45, utilityPerUnit: 2, minShare: 0.15 },
+          { productId: 'crude-oil', baseWeight: 0.20, utilityPerUnit: 1, minShare: 0.05 },
+          { productId: 'plastic', baseWeight: 0.35, utilityPerUnit: 2, minShare: 0.10 },
+        ],
       },
       {
-        id: 'durables', name: '耐用消费', budgetShare: 0.30, minBudgetShare: 0.15, maxBudgetShare: 0.50,
+        id: 'durables', name: '金属建设与耐用品', budgetShare: 0.30, minBudgetShare: 0.15, maxBudgetShare: 0.50,
         elasticity: 0.6,
         products: [
-          { productId: 'electronics', baseWeight: 0.45, utilityPerUnit: 2, minShare: 0.20 },
-          { productId: 'appliance', baseWeight: 0.55, utilityPerUnit: 3, minShare: 0.20 },
+          { productId: 'ore', baseWeight: 0.08, utilityPerUnit: 1, minShare: 0.03 },
+          { productId: 'copper-ore', baseWeight: 0.08, utilityPerUnit: 1, minShare: 0.03 },
+          { productId: 'steel', baseWeight: 0.12, utilityPerUnit: 2, minShare: 0.04 },
+          { productId: 'copper', baseWeight: 0.12, utilityPerUnit: 2, minShare: 0.04 },
+          { productId: 'machinery', baseWeight: 0.18, utilityPerUnit: 3, minShare: 0.06 },
+          { productId: 'electronics', baseWeight: 0.18, utilityPerUnit: 3, minShare: 0.06 },
+          { productId: 'appliance', baseWeight: 0.24, utilityPerUnit: 4, minShare: 0.08 },
         ],
       },
     ]),
-    seedDemandQuantities: Object.freeze({ furniture: 7, clothing: 5, paper: 7, electronics: 4, appliance: 3 }),
+    seedDemandQuantities: Object.freeze({
+      timber: 6, lumber: 3, pulp: 3, furniture: 7,
+      cotton: 8, wool: 4, textile: 3, clothing: 5,
+      paper: 7, 'crude-oil': 4, plastic: 3,
+      ore: 5, 'copper-ore': 5, steel: 2, copper: 2, machinery: 1, electronics: 4, appliance: 3,
+    }),
   }),
 ]);
 
