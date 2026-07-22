@@ -16,9 +16,10 @@
     "verify:game-tutorial": "node scripts/verify-game-tutorial.mjs",
     "verify:recipe-profit-analysis": "node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs",
     "verify:production-desktop-layout": "node scripts/verify-production-desktop-layout.mjs",
+    "verify:admin-navigation": "node scripts/verify-admin-navigation.mjs",
     "verify:state-version": "node scripts/verify-client-state-version.mjs",
     "verify:runtime-efficiency": "node scripts/verify-runtime-efficiency.mjs",
-    "verify:architecture": "node scripts/verify-document-authority.mjs && node scripts/verify-client-state-version.mjs && node scripts/verify-order-matching-core.mjs && node scripts/verify-market-action-latency.mjs && node --experimental-strip-types scripts/verify-runtime-architecture.mjs && node scripts/verify-state-delivery-capacity.mjs && node scripts/verify-authentication-cache.mjs && node scripts/verify-email-registration.mjs && node scripts/verify-stress-test-accounts.mjs && node scripts/verify-scroll-ownership.mjs && node scripts/verify-gems-invitations-and-bans.mjs && node scripts/verify-gem-shop.mjs && node scripts/verify-page-content.mjs && node scripts/verify-game-tutorial.mjs && node scripts/verify-assets-page.mjs && node scripts/verify-settings-layout.mjs && node scripts/verify-reset-disabled.mjs && node --experimental-strip-types scripts/verify-display-format.mjs && node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-form-controls.mjs && node scripts/verify-currency-svg.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-virtual-list-scroll-chaining.mjs && node scripts/verify-overlay-scrollbars.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && node scripts/verify-production-desktop-layout.mjs && node scripts/verify-staple-crops-demand.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs && node scripts/verify-market-page-layout.mjs && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node scripts/verify-leaderboards.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-desktop-primary-surfaces.mjs && node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs && node scripts/verify-game-shell-layout.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs && node scripts/verify-collectibles-auctions.mjs && node scripts/verify-gift-code-batches.mjs && node scripts/verify-runtime-efficiency.mjs && node scripts/verify-runtime-reliability.mjs",
+    "verify:architecture": "node scripts/verify-document-authority.mjs && node scripts/verify-client-state-version.mjs && node scripts/verify-order-matching-core.mjs && node scripts/verify-market-action-latency.mjs && node --experimental-strip-types scripts/verify-runtime-architecture.mjs && node scripts/verify-state-delivery-capacity.mjs && node scripts/verify-authentication-cache.mjs && node scripts/verify-email-registration.mjs && node scripts/verify-stress-test-accounts.mjs && node scripts/verify-scroll-ownership.mjs && node scripts/verify-gems-invitations-and-bans.mjs && node scripts/verify-gem-shop.mjs && node scripts/verify-page-content.mjs && node scripts/verify-game-tutorial.mjs && node scripts/verify-assets-page.mjs && node scripts/verify-settings-layout.mjs && node scripts/verify-reset-disabled.mjs && node --experimental-strip-types scripts/verify-display-format.mjs && node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-form-controls.mjs && node scripts/verify-currency-svg.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-virtual-list-scroll-chaining.mjs && node scripts/verify-overlay-scrollbars.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && node scripts/verify-production-desktop-layout.mjs && node scripts/verify-staple-crops-demand.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs && node scripts/verify-market-page-layout.mjs && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node scripts/verify-leaderboards.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-desktop-primary-surfaces.mjs && node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs && node scripts/verify-game-shell-layout.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs && node scripts/verify-collectibles-auctions.mjs && node scripts/verify-gift-code-batches.mjs && node scripts/verify-admin-navigation.mjs && node scripts/verify-runtime-efficiency.mjs && node scripts/verify-runtime-reliability.mjs",
     "test:nginx-config": "python3 scripts/test_configure_economy_nginx.py && python3 scripts/test_configure_economy_registration_nginx.py",
     "server:check": "node --check server/src/*.js",
     "server:test": "node --test server/test/*.test.js",
@@ -39,12 +40,12 @@
     "@tauri-apps/cli": "2.11.4",
     "@tailwindcss/postcss": "4.3.2",
     "@types/react": "19.2.17",
-    "@types/react-dom": "19.1.7",
+    "@types/react-dom": "19.2.17",
     "@vitejs/plugin-react": "6.0.3",
-    "autoprefixer": "10.5.3",
-    "postcss": "8.5.19",
-    "tailwindcss": "4.3.2",
-    "typescript": "7.0.2",
-    "vite": "8.1.4"
+    "autoprefixer": "10.4.23",
+    "postcss": "8.5.6",
+    "tailwindcss": "4.1.14",
+    "typescript": "5.9.3",
+    "vite": "7.1.12"
   }
 }
