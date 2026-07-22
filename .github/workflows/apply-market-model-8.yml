@@ -25,6 +25,23 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          rm -f .model8-error.log
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-market-model-8.mjs')
+          text = path.read_text()
+          old = """insertAfterRequired(
+            'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+            '> 市场需求模型版本：8\\n',
+          """
+          new = """insertAfterRequired(
+            'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+            '> 世界状态版本：14\\n',
+          """
+          if old not in text:
+              raise SystemExit('missing server design insertion block')
+          path.write_text(text.replace(old, new))
+          PY
           node scripts/apply-market-model-8.mjs 2>&1 | tee /tmp/model8-apply.log
       - name: Preserve applicator error
         if: failure()
