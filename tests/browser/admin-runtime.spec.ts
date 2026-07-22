@@ -113,9 +113,11 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();
   await expect(page.locator('.admin-population-model-card')).toHaveCount(3);
   const contentWidth = await page.locator('.admin-page-frame').evaluate((element) => element.getBoundingClientRect().width);
-  expect(contentWidth).toBeLessThanOrEqual(1440);
+  expect(contentWidth).toBeLessThanOrEqual(1600);
+  expect(contentWidth).toBeGreaterThan(1440);
   const metricColumns = await page.locator('.admin-summary-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
   expect(metricColumns).toBe(4);
+  await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('position', 'sticky');
 
   await page.getByRole('button', { name: '社区', exact: true }).click();
   await expect(page.getByRole('heading', { name: '玩家社区入口', exact: true })).toBeVisible();
@@ -124,14 +126,19 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await page.getByRole('button', { name: '藏品', exact: true }).click();
   await expect(page.getByRole('heading', { name: '上传藏品', exact: true })).toBeVisible();
   await expect(page.getByText('暂无藏品。', { exact: true })).toBeVisible();
+  const collectibleColumns = await page.locator('.admin-section-stack').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
+  expect(collectibleColumns).toBe(2);
 
   await page.getByRole('button', { name: '礼品码', exact: true }).click();
   await expect(page.getByRole('heading', { name: '创建礼品码', exact: true })).toBeVisible();
   await expect(page.getByText('暂无礼品码。', { exact: true })).toBeVisible();
+  const giftColumns = await page.locator('.admin-section-stack').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
+  expect(giftColumns).toBe(2);
 
   await page.getByRole('button', { name: '账号封禁', exact: true }).click();
   await expect(page.getByRole('heading', { name: '同 IP 账号封禁', exact: true })).toBeVisible();
-  const incident = page.locator('.admin-ban-incidents > button');
+  const incident = page.locator('.admin-ban-incidents .virtual-list__item > button');
+  await expect(page.locator('.admin-ban-incidents .virtual-list__canvas')).toHaveCount(1);
   await expect(incident).toHaveCount(1);
   await incident.click();
   await expect(page.getByText('one@example.com', { exact: false })).toBeVisible();
@@ -181,4 +188,5 @@ test('admin navigation becomes a horizontal client-style bar on mobile', async (
 
   await page.getByRole('button', { name: '账号封禁', exact: true }).click();
   await expect(page.getByRole('heading', { name: '同 IP 账号封禁', exact: true })).toBeVisible();
+  await expect(page.locator('.admin-ban-incidents .virtual-list__canvas')).toHaveCount(1);
 });

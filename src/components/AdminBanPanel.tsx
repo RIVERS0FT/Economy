@@ -3,6 +3,11 @@ import { adminApi, type BanIncidentDetails, type BanIncidentSummary } from '../a
 import { formatDate, formatTime } from '../utils/formatters';
 import { TextArea } from './ui/FormControls';
 import { Button, EmptyState, Panel, StatusTag, WidgetHeading } from './ui/layout';
+import { VirtualList } from './ui/VirtualList';
+
+function incidentKey(incident: BanIncidentSummary) {
+  return incident.id;
+}
 
 export function AdminBanPanel({
   onNotice,
@@ -69,19 +74,29 @@ export function AdminBanPanel({
       <p className="ui-helper-text">同一个注册 IP 指纹出现多个 Economy 账号时，系统会封禁该组全部账号。</p>
       {loading ? <p>正在读取封禁事件…</p> : incidents.length === 0 ? <EmptyState>暂无同 IP 封禁事件。</EmptyState> : (
         <div className="admin-ban-layout">
-          <div className="admin-ban-incidents" role="list" aria-label="封禁事件">
-            {incidents.map((incident) => (
-              <button
-                type="button"
-                key={incident.id}
-                className={details?.incident.id === incident.id ? 'active' : ''}
-                onClick={() => void selectIncident(incident.id)}
-              >
-                <strong>事件 #{incident.id}</strong>
-                <span>{incident.detected_user_count} 个账号 · {incident.active_ban_count} 个封禁中</span>
-                <small>{incident.fingerprint_preview}… · {formatDate(incident.detected_at)}</small>
-              </button>
-            ))}
+          <div className="admin-ban-incidents-column">
+            <VirtualList
+              items={incidents}
+              getKey={incidentKey}
+              estimateSize={78}
+              viewportHeight={560}
+              minViewportHeight={96}
+              overscan={5}
+              gap={10}
+              className="admin-ban-incidents admin-ban-incidents-virtual-list"
+              ariaLabel="封禁事件"
+              renderItem={(incident) => (
+                <button
+                  type="button"
+                  className={details?.incident.id === incident.id ? 'active' : ''}
+                  onClick={() => void selectIncident(incident.id)}
+                >
+                  <strong>事件 #{incident.id}</strong>
+                  <span>{incident.detected_user_count} 个账号 · {incident.active_ban_count} 个封禁中</span>
+                  <small>{incident.fingerprint_preview}… · {formatDate(incident.detected_at)}</small>
+                </button>
+              )}
+            />
           </div>
           <div className="admin-ban-details">
             {details ? (
