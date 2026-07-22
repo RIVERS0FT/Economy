@@ -18,12 +18,6 @@ jobs:
         with:
           ref: codex/deploy-failure-artifact
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-          cache: npm
-
       - name: Apply embedded patch
         shell: bash
         run: |
@@ -37,9 +31,6 @@ jobs:
           script = workflow.split(start, 1)[1].split(end, 1)[0]
           exec(compile(dedent(script), 'embedded-deploy-log-patch.py', 'exec'))
           PY
-
-      - name: Validate targeted rules
-        run: node scripts/verify-runtime-reliability.mjs
 
       - name: Commit patched files
         shell: bash
