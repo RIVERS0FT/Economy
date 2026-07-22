@@ -25,6 +25,64 @@ jobs:
           node-version: '24.4.0'
           cache: npm
 
+      - name: Fix mobile selector in migration helper
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply-market-card-artwork-sizing.py')
+          source = path.read_text(encoding='utf-8')
+          old = """replace_once(
+              'src/styles/market-page-polish.css',
+              '''  .market-page-surface .market-asset-card__icon-layer {
+              inset: 17px 0;
+            }
+          }''',
+              '''  .market-page-surface .market-asset-card__icon-layer {
+              inset: 18px 0;
+            }
+          
+            .market-page-surface .market-asset-card__data-layer {
+              gap: 2px 5px;
+              padding: 6px 8px;
+            }
+          }''',
+          )"""
+          new = """replace_once(
+              'src/styles/market-page-polish.css',
+              '''  .market-page-surface .market-asset-card__icon-layer {
+              inset: 17px 0;
+            }
+          
+            .market-page-surface .market-asset-card__data-layer {
+              gap: 2px 5px;
+              padding: 7px 9px 6px;
+            }
+          
+            .market-page-surface .market-asset-card__inventory > .game-icon {
+              width: 13px;
+              height: 13px;
+            }
+          }''',
+              '''  .market-page-surface .market-asset-card__icon-layer {
+              inset: 18px 0;
+            }
+          
+            .market-page-surface .market-asset-card__data-layer {
+              gap: 2px 5px;
+              padding: 6px 8px;
+            }
+          
+            .market-page-surface .market-asset-card__inventory > .game-icon {
+              width: 13px;
+              height: 13px;
+            }
+          }''',
+          )"""
+          if old not in source:
+              raise SystemExit('mobile selector migration block was not found')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Apply market card artwork changes
         run: python3 scripts/apply-market-card-artwork-sizing.py
 
@@ -39,6 +97,8 @@ jobs:
           rm scripts/apply-market-card-artwork-sizing.py
           rm .github/workflows/apply-market-card-artwork-sizing.yml
           rm -f scripts/market-card-artwork-trigger.txt
+          rm -f scripts/market-card-debug-trigger.txt
+          rm -f scripts/market-card-error.txt
           rm -f .github/workflows/apply-market-card-artwork-sizing-base.yml
 
       - name: Commit validated changes
