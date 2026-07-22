@@ -167,9 +167,16 @@ for (const forbidden of [
   '--facility-card-height',
   'grid-auto-rows: 1fr;',
   'align-self: stretch;',
-  'grid-template-rows: auto auto auto minmax(0, 1fr) auto;',
   '.facility-card-spacer',
 ]) forbidText('src/styles/facility-group-card-grid.css', forbidden);
+
+const facilityGroupBlocks = read('src/styles/facility-group-card-grid.css')
+  .split('.facility-group-card {')
+  .slice(1)
+  .map((part) => part.slice(0, part.indexOf('}')));
+if (facilityGroupBlocks.some((block) => block.includes('grid-template-rows: auto auto auto minmax(0, 1fr) auto;'))) {
+  failures.push('工厂详情卡不得恢复弹性空白轨道');
+}
 
 for (const text of [
   '.facility-detail-sheet .facility-card-title-block',
