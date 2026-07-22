@@ -1,0 +1,28 @@
+name: Fix population documentation verifier
+
+on:
+  push:
+    branches: [codex/population-economy-v7]
+    paths:
+      - scripts/fix-population-doc-verifier.py
+      - .github/workflows/fix-population-doc-verifier.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: contains(github.event.head_commit.message, '[fix-population-verifier]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/population-economy-v7
+          fetch-depth: 0
+      - run: python3 scripts/fix-population-doc-verifier.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: align population documentation guard"
+          git push origin HEAD:codex/population-economy-v7
