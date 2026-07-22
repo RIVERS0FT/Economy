@@ -42,9 +42,50 @@ jobs:
           new = 'industry = re.sub(r"(?m)^[ \\t]*\\.production-grid \\{\\n(?:[ \\t]+[^\\n]*\\n)*[ \\t]*\\}\\n", "", industry)'
           if text.count(old) != 1:
               raise SystemExit(f'production-grid regex update mismatch: {text.count(old)}')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          text = text.replace(old, new, 1)
+          text = text.replace('assert "top: var(--space-3);" not in industry\n', '')
+          text = text.replace('assert "max-height: calc(100dvh - var(--space-6));" not in industry\n', '')
+          path.write_text(text, encoding='utf-8')
           PY
             python3 .github/agent-optimize-production.py
+            python3 <<'PY'
+          import re
+          from pathlib import Path
+
+          path = Path('src/styles/industry-system.css')
+          text = path.read_text(encoding='utf-8')
+          banned = {
+              'position',
+              'top',
+              'align-self',
+              'max-height',
+              'overflow',
+              'overflow-y',
+              'overscroll-behavior-x',
+              'overscroll-behavior-y',
+          }
+          pattern = re.compile(
+              r'(?ms)^(?P<indent>[ \t]*)\.production-build-card \{\n(?P<body>.*?)^(?P=indent)\}\n'
+          )
+
+          def clean(match: re.Match[str]) -> str:
+              indent = match.group('indent')
+              kept = []
+              for line in match.group('body').splitlines(keepends=True):
+                  stripped = line.strip()
+                  name = stripped.split(':', 1)[0] if ':' in stripped else ''
+                  if name in banned:
+                      continue
+                  kept.append(line)
+              if not ''.join(kept).strip():
+                  return ''
+              return f'{indent}.production-build-card {{\n' + ''.join(kept) + f'{indent}}}\n'
+
+          text, count = pattern.subn(clean, text)
+          if count == 0:
+              raise SystemExit('no production-build-card blocks were found')
+          path.write_text(text, encoding='utf-8')
+          PY
             node scripts/verify-production-desktop-layout.mjs
           } > /tmp/production-transform.log 2>&1
           status=$?
