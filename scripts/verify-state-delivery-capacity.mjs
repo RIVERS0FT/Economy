@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { canAcceptRevision } from '../src/app/revisionGate.js';
 import { createStateDeliveryCache } from '../src/app/stateDelivery.js';
+import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
 import { createServerClock } from '../src/utils/serverClock.js';
 
 const read = (path) => readFileSync(path, 'utf8');
@@ -229,7 +230,7 @@ const initialDelivery = deliveryCache.accept({
     leaderboard: 'leader-00001',
   },
   patches: {
-    catalog: { version: 15, products: [], facilityTypes: [] },
+    catalog: { version: CURRENT_CLIENT_STATE_VERSION, products: [], facilityTypes: [] },
     player: {
       userId: 1,
       credits: 100,

@@ -6,10 +6,11 @@ import {
   readKnownPartitionRevisionsFromHeader,
   readKnownPartitionRevisionsFromSearch,
 } from '../src/state-partitions.js';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
 function sampleState(overrides = {}) {
   return {
-    version: 15,
+    version: CURRENT_CLIENT_STATE_VERSION,
     products: [{ id: 'wheat' }],
     facilityTypes: [{ id: 'farm' }],
     userId: 1,
