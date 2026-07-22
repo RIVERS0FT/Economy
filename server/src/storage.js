@@ -28,6 +28,7 @@ import { ensureGemState } from './invitations.js';
 import { createGemShopSummary, exchangeGems } from './gem-shop.js';
 import { DEFAULT_QQ_GROUP_URL, normalizeQqGroupUrl } from './community-link.js';
 import { createLeaderboardSnapshot, processLeaderboardWorld } from './leaderboards.js';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
@@ -94,7 +95,7 @@ function createVersionedClientState(world, userId, now) {
     gems: player.gems,
     ...createWarehouseSummary(world, player),
     ...createCollectibleClientState(world, userId, now),
-    version: 16,
+    version: CURRENT_CLIENT_STATE_VERSION,
   };
 }
 
