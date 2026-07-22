@@ -1,3 +1,4 @@
+# PR sync trigger after installing the temporary base workflow.
 name: Apply all-products demand v9
 
 on:
