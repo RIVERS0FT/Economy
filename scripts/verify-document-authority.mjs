@@ -130,6 +130,9 @@ if (existsSync(pathFor('docs/README.md'))) {
     '`REGISTRATION_INVITE_FLOW_DESIGN.md`',
     '`AUTHORITATIVE_COUNTDOWN_DESIGN.md`',
     '`PRIMARY_SURFACE_INSET_DESIGN.md`',
+    '商品插画主视觉',
+    '`product-artwork.css`',
+    '`scripts/verify-product-artwork.mjs`',
     '不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md`',
   ]) {
     if (!index.includes(text)) failures.push(`docs/README.md 缺少防回退规则: ${text}`);
