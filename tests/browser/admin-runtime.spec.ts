@@ -37,15 +37,16 @@ async function configureAdminRoutes(page: Page) {
             skilled: { id: 'skilled', name: '技术人口', consumptionState: 'cautious', credits: 1_500, frozenCredits: 150, pendingIncome: { production: 60, construction: 20, warehouse: 10, marketService: 10 }, lastIncome: 60, incomeEma: 70, recentPeakIncome: 100, noIncomeCycles: 1, lastBudget: 300, foodBudget: 219, householdBudget: 81, stabilizationBudget: 205, lastStabilizationIssued: 60, lastAdminPopulationIssued: 0, totalIncome: 3_000, totalSpent: 1_500 },
             professional: { id: 'professional', name: '专业人口', consumptionState: 'subsistence', credits: 500, frozenCredits: 50, pendingIncome: { production: 10, construction: 5, warehouse: 3, marketService: 2 }, lastIncome: 20, incomeEma: 20, recentPeakIncome: 100, noIncomeCycles: 2, lastBudget: 100, foodBudget: 85, householdBudget: 15, stabilizationBudget: 69, lastStabilizationIssued: 20, lastAdminPopulationIssued: 0, totalIncome: 1_000, totalSpent: 500 },
           },
-          sources: { production: 4_000, construction: 2_000, warehouse: 1_000, marketService: 1_000 },
-          productionByComplexity: { C1: 500, C2: 500, C3: 500, C4: 500, C5: 500, C6: 500, C7: 1_000 },
+          sources: { production: 10_000, construction: 2_000, warehouse: 0, marketService: 1 },
+          productionByComplexity: { C1: 10_000, C2: 5_000, C3: 1_000, C4: 500, C5: 100, C6: 1, C7: 0 },
           productionWageAdjustment: { subsidyIssued: 0, withheld: 0 },
           issuance: { work: 20_000, exchange: 5_000, gift: 1_000, legacyPopulation: 0, migration: 5_700, stabilization: 684, adminPopulation: 0, productionWageSubsidy: 0, total: 32_384 },
           policy: {
             stabilizationShareBps: 1_200, targetWalletCycles: 3, refillCapBps: 10_000, productionWageMultiplierBps: 10_000,
             modelMultipliersBps: { basic: 10_000, skilled: 10_000, professional: 10_000 },
-            effectiveCycleId: 0, expiresAfterCycleId: null, updatedAt: null, updatedBy: null, note: '',
-            isDefault: true, currentCycleId: 100, remainingCycles: null, nextCycleAt: Date.UTC(2026, 6, 19, 10, 5),
+            effectiveCycleId: 0, expiresAfterCycleId: null, updatedAt: null, updatedBy: null,
+            isDefault: true, currentCycleId: 100, durationCycles: null, elapsedCycles: null, remainingCycles: null,
+            effectiveAt: null, expiresAt: null, nextCycleAt: Date.UTC(2026, 6, 19, 10, 5),
             currentCycleIssued: {
               issuedByModel: { basic: 120, skilled: 60, professional: 20 },
               automaticByModel: { basic: 120, skilled: 60, professional: 20 },
@@ -53,18 +54,14 @@ async function configureAdminRoutes(page: Page) {
             },
           },
           policyLimits: {
-            stabilizationShareBps: { min: 0, max: 2_000 }, targetWalletCycles: { min: 1, max: 5 },
-            refillCapBps: { min: 0, max: 15_000 }, productionWageMultiplierBps: { min: 5_000, max: 15_000 }, modelMultiplierBps: { min: 5_000, max: 15_000 },
-            durationCycles: { min: 1, max: 288 }, noteLength: { min: 8, max: 200 },
+            stabilizationShareBps: { min: 0 }, targetWalletCycles: { min: 1 },
+            refillCapBps: { min: 0 }, productionWageMultiplierBps: { min: 5_000 }, modelMultiplierBps: { min: 5_000 },
+            durationCycles: { min: 1 },
           },
           policyBaseBudget: 5_700,
           policyProjectedStabilizationTotal: 684,
         },
       } });
-      return;
-    }
-    if (path === '/population-economy/audit') {
-      await json(route, { records: [], total: 0, nextCursor: null });
       return;
     }
     if (path === '/community-link') {
@@ -142,12 +139,25 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await expect(page.locator('.admin-population-ledger').getByText('累计管理员人口补充', { exact: true })).toBeVisible();
   await expect(page.locator('.admin-population-matrix').getByText('稳定预算／自动补充', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '展开调控', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '展开调控', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '当前政策', exact: true })).toBeVisible();
+  await expect(page.getByText('稳定需求比例／目标钱包', { exact: true })).toBeVisible();
+  await expect(page.getByText('基础／技术／专业人口倍率', { exact: true })).toBeVisible();
+  await expect(page.getByText('总持续时间', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-policy-current--summary').getByText('长期', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: '展开拟应用政策', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '展开拟应用政策', exact: true }).click();
   await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('100');
+  await expect(page.getByLabel('稳定需求比例（%）', { exact: true })).not.toHaveAttribute('max');
+  await expect(page.getByLabel('政策有效周期', { exact: true })).not.toHaveAttribute('max');
   await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '人口调控记录', exact: true })).toBeVisible();
+  await expect(page.getByText('人口调控记录', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('管理备注', { exact: true })).toHaveCount(0);
   await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('display', 'none');
+
+  const visiblePositiveBarWidth = await page.locator('.admin-population-distribution-list > div').filter({ hasText: '市场服务' }).locator('.admin-population-bar > span').evaluate((element) => element.getBoundingClientRect().width);
+  const zeroBarWidth = await page.locator('.admin-population-distribution-list > div').filter({ hasText: '仓库扩容' }).locator('.admin-population-bar > span').evaluate((element) => element.getBoundingClientRect().width);
+  expect(visiblePositiveBarWidth).toBeGreaterThanOrEqual(3.5);
+  expect(zeroBarWidth).toBe(0);
 
   const geometry = await page.evaluate(() => {
     const workspace = document.querySelector<HTMLElement>('.admin-workspace');
