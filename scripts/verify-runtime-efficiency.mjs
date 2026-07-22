@@ -60,17 +60,16 @@ requireText('server/test/request-metrics.test.js', [
   'request metrics normalize route identifiers',
   'request metrics aggregate duration and application response bytes',
 ]);
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
-  '前台活跃时继续使用玩家选择的 3／5／10 秒间隔',
-  '连续 30 秒无交互后使用 15 秒间隔',
-  '页面隐藏时使用 60 秒间隔',
-  '重新可见或网络恢复时立即请求一次权威状态',
-]);
-requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
+requireText('docs/README.md', [
+  '状态刷新设置继续只保存和显示 `3s`／`5s`／`10s`',
+  '连续 30 秒无交互后临时使用 15 秒',
+  '页面隐藏时临时使用 60 秒',
+  '重新可见、网络恢复或从限速状态恢复交互时立即请求一次权威状态',
   '每 60 秒输出一次按方法与归一化路由聚合的请求指标',
   '平均／最大处理时长和应用层 JSON 响应字节数',
   '超过 1 秒、超过 200 KB 或返回 5xx',
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
+  '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
 ]);
 
 if (failures.length) {
