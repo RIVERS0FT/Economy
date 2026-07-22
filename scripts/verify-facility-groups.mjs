@@ -89,6 +89,7 @@ for (const forbidden of [
   '<span>原料 <strong>',
   'facility-card-status-row',
   'facility-detail-sheet-close',
+  'facility-card-spacer',
 ]) forbidText('src/pages/ProductionPage.tsx', forbidden);
 
 for (const text of [
@@ -147,19 +148,28 @@ for (const text of [
 ]) requireText('src/styles/design-system.css', text);
 
 for (const text of [
-  'Production management layout v3',
-  'grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);',
-  'position: sticky',
+  '.production-build-card',
+  'grid-template-columns: 1fr;',
+  'gap: var(--space-3);',
 ]) requireText('src/styles/industry-system.css', text);
+for (const forbidden of ['.production-grid {']) forbidText('src/styles/industry-system.css', forbidden);
 
 for (const text of [
   '.facility-card-title-row',
   '.facility-count-summary',
-  'align-self: stretch;',
+  'align-self: start;',
   'grid-auto-rows: auto;',
-  'grid-template-rows: auto auto auto minmax(0, 1fr) auto;',
+  'grid-template-rows: auto;',
+  'position: sticky;',
+  'top: var(--desktop-page-top-offset);',
 ]) requireText('src/styles/facility-group-card-grid.css', text);
-for (const forbidden of ['--facility-card-height', 'grid-auto-rows: 1fr;']) forbidText('src/styles/facility-group-card-grid.css', forbidden);
+for (const forbidden of [
+  '--facility-card-height',
+  'grid-auto-rows: 1fr;',
+  'align-self: stretch;',
+  'grid-template-rows: auto auto auto minmax(0, 1fr) auto;',
+  '.facility-card-spacer',
+]) forbidText('src/styles/facility-group-card-grid.css', forbidden);
 
 for (const text of [
   '.facility-detail-sheet .facility-card-title-block',
@@ -218,6 +228,7 @@ for (const text of [
   '完整状态固定放在工厂名称下方',
   '不包含顶部关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
+  '自然内容流是桌面详情高度的唯一来源',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [
@@ -239,4 +250,4 @@ if (failures.length) {
   console.error(`工厂三态、生产公式、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('工厂持续生产、名称下状态、统一收起动画、通用配方周期边界切换、三态自动恢复、多输入输出公式和自适应卡片验证通过。');
+console.log('工厂持续生产、名称下状态、统一收起动画、通用配方周期边界切换、三态自动恢复、多输入输出公式和自然高度主从卡片验证通过。');
