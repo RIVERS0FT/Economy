@@ -1,0 +1,525 @@
+name: Apply compact factory profit patch
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.head_ref == 'codex/compact-factory-profit'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Apply compact detail patch
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f'expected text missing in {path}: {old[:120]!r}')
+              file.write_text(text.replace(old, new, 1))
+
+          analysis_path = Path('src/components/facilities/FacilityRecipeProfitAnalysis.tsx')
+          if '单厂平均利润／分钟' in analysis_path.read_text():
+              raise SystemExit('compact factory profit patch already applied')
+
+          analysis_path.write_text("""import type {
+            FacilityTypeDefinition,
+            ProductDefinition,
+            ProductInventory,
+          } from '../../types';
+          import { analyzeRecipeProfit } from '../../utils/recipeProfitAnalysis';
+          import { formatCurrency } from '../../utils/formatters';
+          import { CurrencyAmount } from '../ui/CurrencyAmount';
+          import { useFacilityRecipeProfitMarkets } from './FacilityRecipeProfitContext';
+          import '../../styles/facility-recipe-profit-analysis.css';
+
+          function amountTone(value: number | null) {
+            if (value === null || value === 0) return '';
+            return value > 0 ? ' is-positive' : ' is-negative';
+          }
+
+          function scopeDescription(scopeLabel: string) {
+            if (scopeLabel === '下一周期') return '下一周期预计';
+            if (scopeLabel === '启动后') return '启动后预计';
+            if (scopeLabel === '恢复后') return '恢复后预计';
+            return '当前配方预计';
+          }
+
+          export function FacilityRecipeProfitAnalysis({
+            type,
+            scopeCount,
+            scopeLabel,
+            products: _products,
+            inventories: _inventories,
+          }: {
+            type: FacilityTypeDefinition;
+            scopeCount: number;
+            scopeLabel: string;
+            products: ProductDefinition[];
+            inventories: Record<string, ProductInventory>;
+          }) {
+            void _products;
+            void _inventories;
+            const markets = useFacilityRecipeProfitMarkets();
+            const analysis = analyzeRecipeProfit({
+              recipe: type,
+              scopeCount: scopeCount > 0 ? 1 : 0,
+              markets,
+              buildCost: type.buildCost,
+            });
+            const profitPerMinute = analysis.profitPerMinute;
+            const description = scopeDescription(scopeLabel);
+            const fallback = scopeCount < 1 ? '暂无范围' : '暂无成交数据';
+            const detail = profitPerMinute === null
+              ? `${description}；缺少最近真实成交价，无法估算`
+              : `${description}；按最近真实成交价估算，已扣除单座原料成本与周期运营成本，不计玩家库存、挂单深度和交易手续费`;
+            const sign = profitPerMinute === null
+              ? undefined
+              : profitPerMinute > 0
+                ? '+'
+                : profitPerMinute < 0
+                  ? '−'
+                  : undefined;
+
+            return (
+              <section
+                className={`facility-average-profit${amountTone(profitPerMinute)}`}
+                aria-label={`${type.name}单厂平均利润每分钟`}
+                title={detail}
+              >
+                <div className="facility-average-profit__copy">
+                  <strong>单厂平均利润／分钟</strong>
+                  <small>{description} · 最近真实成交价</small>
+                </div>
+                <div className="facility-average-profit__value">
+                  {profitPerMinute === null ? (
+                    <strong>{fallback}</strong>
+                  ) : (
+                    <CurrencyAmount sign={sign}>{formatCurrency(Math.abs(profitPerMinute))}</CurrencyAmount>
+                  )}
+                </div>
+              </section>
+            );
+          }
+          """.replace('          ', ''))
+
+          Path('src/styles/facility-recipe-profit-analysis.css').write_text(""".facility-average-profit {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-2);
+            border: 1px solid color-mix(in srgb, var(--color-success) 18%, var(--color-border));
+            border-radius: var(--radius-control);
+            padding: var(--space-1) var(--space-2);
+            background: color-mix(in srgb, var(--color-success-soft) 34%, var(--color-surface-inset));
+          }
+
+          .facility-average-profit__copy {
+            min-width: 0;
+            display: grid;
+            gap: 0.1rem;
+          }
+
+          .facility-average-profit__copy strong {
+            overflow: hidden;
+            font-size: var(--font-size-sm);
+            line-height: var(--line-height-tight);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .facility-average-profit__copy small {
+            overflow: hidden;
+            color: var(--color-text-muted);
+            font-size: var(--font-size-xs);
+            line-height: var(--line-height-tight);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .facility-average-profit__value {
+            flex: 0 0 auto;
+            color: var(--color-text-primary);
+            font-size: var(--font-size-md);
+            font-weight: 750;
+            line-height: var(--line-height-tight);
+            white-space: nowrap;
+          }
+
+          .facility-average-profit.is-positive .facility-average-profit__value {
+            color: var(--color-success);
+          }
+
+          .facility-average-profit.is-negative {
+            border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
+            background: color-mix(in srgb, var(--color-danger-soft) 40%, var(--color-surface-inset));
+          }
+
+          .facility-average-profit.is-negative .facility-average-profit__value {
+            color: var(--color-danger);
+          }
+
+          @container (max-width: 360px) {
+            .facility-average-profit {
+              gap: var(--space-1);
+              padding-inline: var(--space-1);
+            }
+
+            .facility-average-profit__copy small {
+              font-size: 0.68rem;
+            }
+          }
+          """.replace('          ', ''))
+
+          surface = Path('src/styles/production-surface.css')
+          surface.write_text(surface.read_text() + """
+
+          /* Compact factory detail header: title, status, switch and counts stay in two dense rows. */
+          .panel.production-surface.facility-group-card {
+            --facility-card-section-gap: var(--space-2);
+            --facility-card-inner-gap: var(--space-1);
+          }
+
+          .panel.production-surface .facility-status-header {
+            gap: var(--space-1) var(--space-2);
+          }
+
+          .panel.production-surface .facility-cluster-selector-heading {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-1);
+          }
+
+          .panel.production-surface .facility-cluster-selector-heading h2 {
+            flex: 0 1 auto;
+          }
+
+          .panel.production-surface .facility-cluster-selector-heading .ui-status-tag {
+            flex: 0 0 auto;
+          }
+
+          .panel.production-surface .facility-count-summary {
+            line-height: var(--line-height-tight);
+          }
+          """.replace('          ', ''))
+
+          sheet = Path('src/styles/facility-detail-sheet.css')
+          sheet_text = sheet.read_text()
+          sheet_text = sheet_text.replace('    min-height: 44px;\n', '    min-height: 32px;\n', 1)
+          sheet_text = sheet_text.replace(
+              '    padding: 0 var(--space-3) var(--space-2);\n',
+              '    padding: 0 var(--space-3) var(--space-1);\n',
+              1,
+          )
+          sheet_text = sheet_text.replace(
+              '    gap: var(--space-3);\n    overflow-x: hidden;\n',
+              '    gap: var(--space-2);\n    overflow-x: hidden;\n',
+              1,
+          )
+          sheet_text = sheet_text.replace(
+              '    padding: var(--space-3) calc(var(--space-3) + var(--scrollbar-hit-size)) var(--space-3) var(--space-3);\n',
+              '    padding: var(--space-2) calc(var(--space-3) + var(--scrollbar-hit-size)) var(--space-2) var(--space-3);\n',
+              1,
+          )
+          sheet_text += """
+
+          @media (max-width: 720px) {
+            .facility-detail-sheet .facility-status-header {
+              gap: 0.35rem var(--space-2);
+            }
+
+            .facility-detail-sheet .facility-cluster-selector-heading {
+              gap: 0.35rem var(--space-1);
+            }
+
+            .facility-detail-sheet .facility-count-summary {
+              gap: 0.25rem;
+              font-size: 0.72rem;
+              line-height: var(--line-height-tight);
+            }
+
+            .facility-detail-sheet .facility-count-summary strong {
+              font-size: var(--font-size-xs);
+            }
+          }
+          """.replace('          ', '')
+          sheet.write_text(sheet_text)
+
+          design = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
+          design_text = design.read_text()
+          design_text = design_text.replace(
+              '- 玩家可见配方利润分析只读取商品最近一次统一订单簿真实成交价、服务器正式配方、分析工厂数量和建造费；不得读取玩家库存、公开挂单或预计交易手续费，也不得改变生产、市场、资产或统计状态。',
+              '- 工厂详情只显示单厂平均利润／分钟；该指标只读取商品最近一次统一订单簿真实成交价和服务器正式配方，固定按一座工厂计算，不读取集群数量、玩家库存、公开挂单、预计交易手续费或建造费，也不得改变生产、市场、资产或统计状态。',
+              1,
+          )
+          design_text = design_text.replace(
+              '- 详情显示工厂名称和总数量、运行开关、完整状态、“运行中／下一周期加入／冻结中”三列摘要、生产配方、集群生产公式、生产进度、玩家可见配方利润分析和市场入口。',
+              '- 详情显示工厂名称和总数量、运行开关、完整状态、“运行中／下一周期加入／冻结中”三列摘要、生产配方、集群生产公式、生产进度、单厂平均利润／分钟和市场入口。',
+              1,
+          )
+          design_text = design_text.replace(
+              '- 完整状态固定放在工厂名称下方，运行开关位于标题区域右侧；移动端不得把状态移回右侧操作区或恢复顶部关闭按钮。',
+              '- 完整状态与工厂名称放在同一紧凑标题行，运行开关位于标题区域右侧；三项数量摘要保持下一行单行排列。移动端不得恢复独立状态行、把状态移回右侧操作区或恢复顶部关闭按钮。',
+              1,
+          )
+          design_text = design_text.replace(
+              '- 生产进度条是公式容器最后一个可见元素；进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字。利润分析是公式后的独立同级区域，不得塞入进度条容器。',
+              '- 生产进度条是公式容器最后一个可见元素；进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字。单厂平均利润行是公式后的独立同级区域，不得塞入进度条容器。',
+              1,
+          )
+
+          start = design_text.index('### 9.5 玩家可见配方利润分析')
+          end = design_text.index('### 9.6 移动端详情悬浮框')
+          compact_section = """### 9.5 单厂平均利润／分钟
+
+          单厂平均利润是客户端只读经营辅助，不是服务器承诺收益，也不参与生产结算、订单撮合、估值、排行榜或市场需求。运行中没有待切换配方时使用当前配方；存在 `pendingRecipeId` 时使用下一周期配方；停止或异常时仍按对应启动后或恢复后的配方显示。指标固定按一座工厂计算，不乘 `participatingCount`、`nextCycleCount`、`group.count` 或其他集群数量。
+
+          单厂平均利润只读取商品最近一次统一订单簿真实成交价和服务器正式配方。原料与产出均按一座工厂的完整配方数量乘对应商品 `lastTradePrice` 计价；不得读取玩家库存、公开挂单、预计交易手续费或建造费。不得回退到商品基础价、系统参考价、当前挂单价、未成交价格或 `lastPrice`。
+
+          固定口径：
+
+          ```text
+          单厂原料市场成本 = Σ（每项单座输入数量 × 对应商品最近真实成交价）
+          单厂产出市场价值 = 单座产出数量 × 产出商品最近真实成交价
+          单厂周期利润 = 单厂产出市场价值 − 单厂原料市场成本 − 配方固定周期运营成本
+          单厂平均利润／分钟 = 单厂周期利润 × 60000 ÷ 配方周期毫秒
+          ```
+
+          任一实际需要的原料或产出商品没有最近真实成交价时，该行显示“暂无成交数据”；不得使用部分盘口、基础价或其他替代价格补齐。无输入配方的单厂原料市场成本固定为零。正利润使用成功色和正号，负利润使用危险色和负号，零利润使用普通文字。
+
+          详情只显示一行“单厂平均利润／分钟”：左侧为指标名称和“当前配方预计／下一周期预计／启动后预计／恢复后预计 · 最近真实成交价”，右侧为数值。不得恢复市场利润分析标题、盈利状态标签、原料成本、产出价值、周期成本、单周期利润、静态回本、逐商品成交价明细、警告列表或说明段落。完整估算口径可通过该行的辅助说明提供，但不得增加第二行指标卡或内部滚动区。
+
+          状态轮询更新商品市场或配方后在本地重算；不得新增利润专用轮询、服务器字段、数据库写入或经济动作。
+
+          """.replace('          ', '')
+          design_text = design_text[:start] + compact_section + design_text[end:]
+          design_text = design_text.replace(
+              '头部包含拖动把手、标题、标题下方状态、运行开关和三项数量摘要，不包含顶部关闭按钮；正文只包含配方、公式、进度和利润分析；',
+              '头部包含拖动把手、同一行内的标题与状态、运行开关和下一行三项数量摘要，不包含顶部关闭按钮；正文只包含配方、公式、进度和单厂平均利润行；',
+              1,
+          )
+          design_text = design_text.replace(
+              '生产公式、配方区域、利润卡和底部操作区不得再创建嵌套纵向滚动。',
+              '生产公式、配方区域、单厂平均利润行和底部操作区不得再创建嵌套纵向滚动。',
+              1,
+          )
+          design_text = design_text.replace(
+              '最后一项利润数据必须能够完整滚动到底部操作区上方；',
+              '单厂平均利润行必须能够完整滚动到底部操作区上方；',
+              1,
+          )
+          design_text = design_text.replace(
+              '- 把完整状态从工厂名称下方移回右侧操作区；',
+              '- 把完整状态从工厂名称同行拆成独立状态行或移回右侧操作区；',
+              1,
+          )
+          design_text = design_text.replace(
+              '- 恢复正文内部负偏移 sticky 市场入口，或让固定头尾覆盖利润分析；',
+              '- 恢复正文内部负偏移 sticky 市场入口，或让固定头尾覆盖单厂平均利润行；',
+              1,
+          )
+          design_text = design_text.replace(
+              '- 移动端把利润摘要恢复为逐项单列、隐藏最近成交价说明或在利润卡中创建嵌套滚动；',
+              '- 恢复完整市场利润分析卡、原料成本／产出价值／周期成本／单周期利润／静态回本／成交价明细，或在单厂平均利润行中创建嵌套滚动；',
+              1,
+          )
+          design_text = design_text.replace(
+              '- 把利润分析塞入生产进度条容器，或让利润分析读取玩家库存、公开挂单、预计交易手续费、商品基础价、系统参考价、当前挂单价、未成交价格或 `lastPrice`；',
+              '- 把单厂平均利润塞入生产进度条容器，让该指标乘集群数量，或读取玩家库存、公开挂单、预计交易手续费、建造费、商品基础价、系统参考价、当前挂单价、未成交价格或 `lastPrice`；',
+              1,
+          )
+          design.write_text(design_text)
+
+          Path('scripts/verify-recipe-profit-analysis.mjs').write_text("""import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          import { resolve } from 'node:path';
+          import { analyzeRecipeProfit } from '../src/utils/recipeProfitAnalysis.ts';
+
+          const root = process.cwd();
+          const read = (path) => readFileSync(resolve(root, path), 'utf8');
+
+          function market(productId, lastTradePrice, lastPrice = 999) {
+            return { productId, lastPrice, lastTradePrice, priceHistory: [], demand: {} };
+          }
+
+          const recipe = {
+            id: 'food-production',
+            name: '生产食品',
+            cycleMs: 60_000,
+            operatingCost: 2,
+            inputs: [{ productId: 'wheat', quantity: 2 }],
+            output: { productId: 'food', quantity: 2 },
+          };
+          const markets = {
+            wheat: market('wheat', 3, 100),
+            food: market('food', 12, 200),
+          };
+
+          const cluster = analyzeRecipeProfit({ recipe, scopeCount: 2, markets, buildCost: 50 });
+          assert.equal(cluster.inputMarketCost, 12);
+          assert.equal(cluster.outputMarketValue, 48);
+          assert.equal(cluster.operatingCost, 4);
+          assert.equal(cluster.cycleProfit, 32);
+          assert.equal(cluster.profitPerMinute, 32);
+          assert.equal(cluster.inputs[0].lastTradePrice, 3, '不得回退到 lastPrice');
+
+          const singleFactory = analyzeRecipeProfit({ recipe, scopeCount: 1, markets, buildCost: 50 });
+          assert.equal(singleFactory.inputMarketCost, 6);
+          assert.equal(singleFactory.outputMarketValue, 24);
+          assert.equal(singleFactory.operatingCost, 2);
+          assert.equal(singleFactory.cycleProfit, 16);
+          assert.equal(singleFactory.profitPerMinute, 16, '界面单厂平均利润必须固定按一座工厂计算');
+
+          const changedInventoryAndOrders = analyzeRecipeProfit({
+            recipe,
+            scopeCount: 1,
+            markets,
+            buildCost: 50,
+            inventories: { wheat: { available: 0, frozen: 999_999 } },
+            orders: [],
+          });
+          assert.deepEqual(changedInventoryAndOrders, singleFactory, '库存与公开挂单不得影响单厂平均利润');
+
+          const missingPrice = analyzeRecipeProfit({
+            recipe,
+            scopeCount: 1,
+            markets: { wheat: market('wheat', null, 3), food: market('food', 12) },
+            buildCost: 50,
+          });
+          assert.equal(missingPrice.profitPerMinute, null);
+          assert.deepEqual(missingPrice.missingPriceProductIds, ['wheat']);
+
+          const noInput = analyzeRecipeProfit({
+            recipe: {
+              id: 'farm-production',
+              name: '种植小麦',
+              cycleMs: 120_000,
+              operatingCost: 6,
+              inputs: [],
+              output: { productId: 'wheat', quantity: 4 },
+            },
+            scopeCount: 1,
+            markets: { wheat: market('wheat', 2) },
+            buildCost: 50,
+          });
+          assert.equal(noInput.inputMarketCost, 0);
+          assert.equal(noInput.profitPerMinute, 1);
+
+          const analysisSource = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
+          const contextSource = read('src/components/facilities/FacilityRecipeProfitContext.tsx');
+          const routerSource = read('src/pages/PageRouter.tsx');
+          const styleSource = read('src/styles/facility-recipe-profit-analysis.css');
+          const surfaceSource = read('src/styles/production-surface.css');
+          const sheetSource = read('src/styles/facility-detail-sheet.css');
+          const designSource = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
+
+          for (const text of [
+            '单厂平均利润／分钟',
+            'scopeCount: scopeCount > 0 ? 1 : 0',
+            '最近真实成交价',
+            '不计玩家库存、挂单深度和交易手续费',
+          ]) assert.ok(analysisSource.includes(text), `单厂平均利润界面缺少: ${text}`);
+          for (const removedText of [
+            '市场利润分析',
+            '原料市场成本',
+            '产出市场价值',
+            '周期运营成本',
+            '单周期利润',
+            '静态建造回本',
+            '预计盈利',
+            '最近成交价明细',
+          ]) assert.equal(analysisSource.includes(removedText), false, `详情不得恢复完整利润分析: ${removedText}`);
+
+          assert.ok(contextSource.includes('createContext<Record<string, ProductMarketState>>({})'));
+          assert.ok(routerSource.includes('FacilityRecipeProfitMarketsProvider markets={model.game.markets}'));
+          for (const text of [
+            '.facility-average-profit',
+            'display: flex;',
+            'justify-content: space-between;',
+            '.facility-average-profit.is-positive',
+            '.facility-average-profit.is-negative',
+          ]) assert.ok(styleSource.includes(text), `单厂平均利润紧凑样式缺少: ${text}`);
+          assert.equal(styleSource.includes('.facility-profit-analysis__summary'), false);
+
+          for (const text of [
+            '.facility-cluster-selector-heading',
+            'flex-wrap: wrap;',
+            '--facility-card-section-gap: var(--space-2);',
+          ]) assert.ok(surfaceSource.includes(text), `工厂详情头部压缩样式缺少: ${text}`);
+          for (const text of [
+            'min-height: 32px;',
+            'gap: 0.35rem var(--space-2);',
+            'font-size: 0.72rem;',
+          ]) assert.ok(sheetSource.includes(text), `移动详情头部压缩样式缺少: ${text}`);
+
+          for (const text of [
+            '### 9.5 单厂平均利润／分钟',
+            '指标固定按一座工厂计算',
+            '单厂平均利润／分钟 = 单厂周期利润 × 60000 ÷ 配方周期毫秒',
+            '不得恢复市场利润分析标题',
+            '完整状态与工厂名称放在同一紧凑标题行',
+          ]) assert.ok(designSource.includes(text), `产业权威设计缺少单厂利润规则: ${text}`);
+          for (const removedText of [
+            '### 9.5 玩家可见配方利润分析',
+            '界面必须展示原料市场成本、产出市场价值',
+            '窄屏利润分析保持紧凑而不删减信息',
+          ]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
+
+          console.log('单厂平均利润最近成交价、固定单座口径、缺价保护、完整利润卡移除和详情头部压缩验证通过。');
+          """.replace('          ', ''))
+
+          unified = Path('scripts/verify-unified-factory-recipes-grid.mjs')
+          unified_text = unified.read_text()
+          unified_text = unified_text.replace(
+              "  '完整状态固定放在工厂名称下方',\n  '窄屏利润分析保持紧凑而不删减信息',\n  '摘要桌面使用四列，容器变窄后使用两列，单周期利润占满一行并优先显示',",
+              "  '完整状态与工厂名称放在同一紧凑标题行',\n  '详情只显示一行“单厂平均利润／分钟”',\n  '指标固定按一座工厂计算',",
+              1,
+          )
+          unified_text = unified_text.replace(
+              '紧凑利润布局、共享活动滚动条',
+              '单厂平均利润布局、紧凑标题、共享活动滚动条',
+              1,
+          )
+          unified.write_text(unified_text)
+          PY
+
+      - name: Verify targeted production rules
+        run: |
+          node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs
+          node scripts/verify-unified-factory-recipes-grid.mjs
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/components/facilities/FacilityRecipeProfitAnalysis.tsx \
+            src/styles/facility-recipe-profit-analysis.css \
+            src/styles/production-surface.css \
+            src/styles/facility-detail-sheet.css \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            scripts/verify-recipe-profit-analysis.mjs \
+            scripts/verify-unified-factory-recipes-grid.mjs
+          git commit -m "压缩工厂详情利润与顶部布局"
+          git push origin HEAD:${{ github.head_ref }}
