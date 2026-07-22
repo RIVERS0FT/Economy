@@ -16,6 +16,7 @@ import { IntegerInput, SelectInput } from '../components/ui/FormControls';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
+import '../styles/auction-card-layers.css';
 
 const MAX_AUCTION_ITEMS = 20;
 
@@ -69,6 +70,11 @@ function auctionTitle(auction: AssetAuction) {
   return `${items[0].name}、${items[1].name}等 ${formatNumber(items.length)} 项资产`;
 }
 
+function auctionCardTitle(auction: AssetAuction) {
+  const items = auctionItems(auction);
+  return items.length === 1 ? items[0].name : auctionTitle(auction);
+}
+
 function AuctionItemIcon({ item, compact = false }: { item: AuctionItemSummary; compact?: boolean }) {
   if (item.kind === 'collectible' && item.thumbnailUrl) {
     return (
@@ -110,6 +116,34 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
         </div>
       ))}
       {items.length > 4 ? <strong className="asset-auction-more-count">+{formatNumber(items.length - 4)}</strong> : null}
+    </div>
+  );
+}
+
+function AuctionAssetSummary({ auction }: { auction: AssetAuction }) {
+  const items = auctionItems(auction);
+  return (
+    <div className="asset-auction-icon-layer" aria-label={`资产明细，共 ${formatNumber(items.length)} 项`}>
+      {items.slice(0, 4).map((item) => (
+        <div
+          className="asset-auction-summary-icon"
+          key={`${item.kind}:${item.id}`}
+          aria-label={`${item.name}，数量 ${formatNumber(item.quantity)}`}
+          title={`${item.name} ×${formatNumber(item.quantity)}`}
+        >
+          <AuctionItemIcon item={item} compact />
+          <span className="asset-auction-summary-quantity" aria-hidden="true">×{formatNumber(item.quantity)}</span>
+        </div>
+      ))}
+      {items.length > 4 ? (
+        <strong
+          className="asset-auction-summary-more"
+          aria-label={`另有 ${formatNumber(items.length - 4)} 项资产`}
+          title={`另有 ${formatNumber(items.length - 4)} 项资产`}
+        >
+          +{formatNumber(items.length - 4)}
+        </strong>
+      ) : null}
     </div>
   );
 }
@@ -425,10 +459,11 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                   <AuctionAssetVisual auction={auction} />
                   <div className="collectible-auction-body">
                     <div className="asset-auction-card-heading">
-                      <h2 title={auctionTitle(auction)}>{auctionTitle(auction)}</h2>
+                      <h2 title={auctionCardTitle(auction)}>{auctionCardTitle(auction)}</h2>
                       <StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>
                     </div>
-                    <dl className="collectible-auction-metrics asset-auction-primary-metrics">
+                    <AuctionAssetSummary auction={auction} />
+                    <dl className="collectible-auction-metrics asset-auction-primary-metrics asset-auction-data-layer">
                       <div><dt>当前总价</dt><dd><CurrencyAmount>{formatCurrency(auction.highestBid ?? auction.startingBid)}</CurrencyAmount></dd></div>
                       <div><dt>最高出价者</dt><dd>{auction.highestBidderName || '暂无'}</dd></div>
                     </dl>
