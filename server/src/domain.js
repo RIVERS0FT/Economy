@@ -9,6 +9,7 @@ import {
 } from './market-demand.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { orderAssetId, orderKind } from './order-identity.js';
+import { ensurePopulationEconomy } from './population-economy.js';
 
 export * from './domain-core.js';
 export {
@@ -166,8 +167,9 @@ export function createWorld(now = Date.now()) {
   const world = core.createWorld(now);
   balancedMarket.rebalanceNewWorld(world, now);
   marketDemand.initializeWorld(world, now);
+  ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
-  world.version = 13;
+  world.version = 14;
   return world;
 }
 
@@ -202,13 +204,15 @@ export function migrateWorld(world, now = Date.now()) {
     forceRebuild: !hadCurrentMarketDemandModel || previousVersion < 13,
   });
   if (needsOrderBookRepair) reconcileCommodityOrderBook(migrated, now);
+  ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
-  migrated.version = 13;
+  migrated.version = 14;
   return migrated;
 }
 
 export function ensurePlayer(world, user, now = Date.now()) {
   const player = core.ensurePlayer(world, user, now);
+  ensurePopulationEconomy(world, now);
   marketDemand.normalizeWorld(world, now);
   return player;
 }
@@ -216,6 +220,7 @@ export function ensurePlayer(world, user, now = Date.now()) {
 export function processWorld(world, now = Date.now()) {
   if (processedWorldAt.get(world) === now) return world;
   migrateWorld(world, now);
+  ensurePopulationEconomy(world, now);
   core.processWorld(world, now);
   marketDemand.process(world, now);
   processedWorldAt.set(world, now);

@@ -225,7 +225,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 13,
+    version: 14,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
@@ -259,6 +259,13 @@ function createPlayer(user, now) {
       boughtGoods: 0,
       soldGoods: 0,
       giftIssued: 0,
+      gemExchangeCredits: 0,
+      populationIncome: 0,
+      employmentPayments: 0,
+      productionPayroll: 0,
+      constructionPayroll: 0,
+      warehousePayroll: 0,
+      marketServiceFees: 0,
     },
   };
   addLedger(player, 'system', 100, '服务器发放玩家启动资金', now);
@@ -378,6 +385,13 @@ export function migrateWorld(world, now = Date.now()) {
     player.stats.boughtGoods = Number(player.stats.boughtGoods || 0);
     player.stats.soldGoods = Number(player.stats.soldGoods || 0);
     player.stats.giftIssued = Number(player.stats.giftIssued || 0);
+    player.stats.gemExchangeCredits = Number(player.stats.gemExchangeCredits || 0);
+    player.stats.populationIncome = Number(player.stats.populationIncome || 0);
+    player.stats.employmentPayments = Number(player.stats.employmentPayments || 0);
+    player.stats.productionPayroll = Number(player.stats.productionPayroll || 0);
+    player.stats.constructionPayroll = Number(player.stats.constructionPayroll || 0);
+    player.stats.warehousePayroll = Number(player.stats.warehousePayroll || 0);
+    player.stats.marketServiceFees = Number(player.stats.marketServiceFees || 0);
     delete player.inventory;
     delete player.frozenInventory;
     delete player.facilitySlots;
@@ -390,7 +404,7 @@ export function migrateWorld(world, now = Date.now()) {
   for (const group of DEMAND_GROUP_CATALOG) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
-  world.version = 13;
+  world.version = 14;
   return world;
 }
 

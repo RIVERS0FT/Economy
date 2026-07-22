@@ -1,3 +1,5 @@
+import { createPopulationEconomySummary } from './population-economy.js';
+
 export function getStableAdminSummary(store, user, now = Date.now()) {
   store.requireAdmin(user);
   return store.transaction(() => {
@@ -18,6 +20,7 @@ export function getStableAdminSummary(store, user, now = Date.now()) {
       revision: nextRevision,
       lastProcessedAt: Number(world.lastProcessedAt || now),
       apiStatus: 'ok',
+      populationEconomy: createPopulationEconomySummary(world),
     };
   });
 }
