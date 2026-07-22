@@ -1,6 +1,6 @@
 import type { TabId } from '../../config/navigation';
-import { LiquidGlassSurface } from '../ui/LiquidGlassSurface';
 import { NavigationItems } from './NavigationItems';
+import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 
 export function MobileBottomNavigation({
   activeTab,
@@ -12,12 +12,12 @@ export function MobileBottomNavigation({
   onSelect: (tab: TabId) => void;
 }) {
   return (
-    <aside className="sidebar mobile-bottom-navigation" aria-label="移动端游戏导航">
-      <LiquidGlassSurface variant="mobileNavigation">
-        <nav className="mobile-bottom-navigation__viewport" aria-label="游戏主导航">
-          <NavigationItems activeTab={activeTab} onSelect={onSelect} openOrderCount={openOrderCount} />
-        </nav>
-      </LiquidGlassSurface>
-    </aside>
+    <MobileBottomNavigationFrame
+      ariaLabel="移动端游戏导航"
+      navLabel="游戏主导航"
+      surfaceId="game-mobile-navigation"
+    >
+      <NavigationItems activeTab={activeTab} onSelect={onSelect} openOrderCount={openOrderCount} />
+    </MobileBottomNavigationFrame>
   );
 }
