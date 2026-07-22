@@ -174,8 +174,10 @@ for (const text of [
 
 for (const text of [
   '.asset-auction-icon-layer',
-  'grid-template-columns: repeat(5, minmax(0, 48px));',
+  'grid-template-columns: repeat(5, minmax(0, 1fr));',
   'grid-auto-flow: row;',
+  'width: 100%;',
+  'max-width: 272px;',
   '.asset-auction-summary-icon',
   'position: relative;',
   '.asset-auction-summary-quantity',
@@ -184,7 +186,7 @@ for (const text of [
   '.asset-auction-summary-placeholder',
   'border: 1px dashed rgba(255, 255, 255, .1);',
   'pointer-events: none;',
-  'grid-template-columns: repeat(5, minmax(0, 44px));',
+  'max-width: 244px;',
   '.asset-auction-data-layer',
   'border-top: 1px solid var(--color-border-subtle);',
 ]) requireText('src/styles/auction-card-layers.css', text);
