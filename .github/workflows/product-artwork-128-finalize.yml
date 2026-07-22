@@ -1,0 +1,84 @@
+name: Finalize product artwork 128 thumbnails
+
+on:
+  push:
+    branches:
+      - agent/product-artwork-128-thumbnails
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Update authoritative design rules
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          ui_path = Path('docs/UI_DESIGN_SYSTEM.md')
+          ui = ui_path.read_text()
+
+          style_row = "| `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |"
+          artwork_row = "| `src/styles/product-artwork.css` | 商品插画 128px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |"
+          if artwork_row not in ui:
+              if style_row not in ui:
+                  raise SystemExit('UI design style responsibility anchor missing')
+              ui = ui.replace(style_row, f"{style_row}\n{artwork_row}", 1)
+
+          old_intro = "商品物资插画是仓库、市场和资产界面可使用的高识别度商品视觉资产，与导航、状态、周期、成本等功能型 SVG 分工明确。正式资源统一保存在 `src/assets/product-icons/`，每种商品使用与服务器商品 ID 同名的独立 `1024 × 1024` PNG 文件。24 × 24 的紧凑语义位置仍使用 `ProductIcon`／`ProductIconLabel`；页面不得绕过统一组件随意混用插画与功能型 SVG。"
+          new_intro = "商品物资插画是仓库、市场和资产界面可使用的高识别度商品视觉资产，与导航、状态、周期、成本等功能型 SVG 分工明确。正式源资源统一保存在 `src/assets/product-icons/`，每种商品使用与服务器商品 ID 同名的独立 `1024 × 1024` PNG 文件。24 × 24 的紧凑语义位置仍使用 `ProductIcon`／`ProductIconLabel`；页面不得绕过统一组件随意混用插画与功能型 SVG。\n\n页面运行时不得直接加载 `1024 × 1024` 源图。`npm run dev`、`npm run build` 和独立商品图片验证会先调用 `scripts/generate-product-artwork-thumbnails.mjs`，使用预乘 Alpha 的 8×8 面积采样生成 `src/assets/product-icons/generated/128/` 下与商品 ID 同名的 `128 × 128` RGBA PNG；`product-artwork.css` 只能引用该目录。生成目录是可复现构建产物，不是正式源资源，构建产物不得提交仓库。"
+          if new_intro not in ui:
+              if old_intro not in ui:
+                  raise SystemExit('UI design artwork introduction anchor missing')
+              ui = ui.replace(old_intro, new_intro, 1)
+
+          old_tail = "新增商品时必须同时提供同规格插画资源并扩展本目录；替换已有图标时必须保持商品语义和上述统一绘制语言，不得只替换部分尺寸或遗留非透明背景版本。"
+          new_tail = "新增商品时必须同时提供同规格源插画并扩展本目录，随后重新生成全部运行时缩略图；替换已有图标时必须保持商品语义和上述统一绘制语言，不得只替换部分尺寸或遗留非透明背景版本。`scripts/verify-product-artwork.mjs` 必须同时校验源图、128px 缩略图、CSS 映射、生成脚本、构建入口和 SVG 使用边界。"
+          if new_tail not in ui:
+              if old_tail not in ui:
+                  raise SystemExit('UI design artwork tail anchor missing')
+              ui = ui.replace(old_tail, new_tail, 1)
+
+          ui_path.write_text(ui)
+
+          index_path = Path('docs/README.md')
+          index = index_path.read_text()
+          old_rule = "38. 商品物资插画主视觉归属 `UI_DESIGN_SYSTEM.md` 的商品图标体系：正式资源只允许位于 `src/assets/product-icons/`，`product-artwork.css` 只能通过 `ProductIcon` 的 `data-product-icon` 映射图片；仓库商品卡、市场商品目录、概览商品行情和拍卖商品主视觉使用 PNG，生产公式、订单表格、资产变动和未知商品继续使用 SVG，并通过 `scripts/verify-product-artwork.mjs` 校验 31 种 `1024 × 1024` RGBA PNG、映射、降级和使用边界。"
+          new_rule = "38. 商品物资插画主视觉归属 `UI_DESIGN_SYSTEM.md` 的商品图标体系：`src/assets/product-icons/` 只保存 `1024 × 1024` RGBA PNG 正式源图，开发与构建统一由 `scripts/generate-product-artwork-thumbnails.mjs` 生成 `src/assets/product-icons/generated/128/` 下的 `128 × 128` RGBA PNG 运行时缩略图；`product-artwork.css` 只能通过 `ProductIcon` 的 `data-product-icon` 映射缩略图，禁止直接加载源图。仓库商品卡、市场商品目录、概览商品行情和拍卖商品主视觉使用缩略图，生产公式、订单表格、资产变动和未知商品继续使用 SVG，并通过 `scripts/verify-product-artwork.mjs` 校验 31 种源图、缩略图、映射、生成入口、降级和使用边界。"
+          if new_rule not in index:
+              if old_rule not in index:
+                  raise SystemExit('Design index artwork rule anchor missing')
+              index = index.replace(old_rule, new_rule, 1)
+          index_path.write_text(index)
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and validate
+        run: npm run build
+
+      - name: Commit validated changes and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/product-artwork-128-finalize.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "完成 128 像素商品运行时缩略图"
+          git push origin HEAD:agent/product-artwork-128-thumbnails
