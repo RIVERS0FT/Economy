@@ -145,7 +145,7 @@ for (const [path, texts] of [
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：8', '`populationModelId`', '`fundingPool`', '真实人口冻结资金']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '市场需求模型 8', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ['stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
-  ['src/app/AdminApp.tsx', ['累计稳定需求补充', '稳定预算／本次补充']],
+  ['src/app/AdminApp.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', 'AdminPopulationControl']],
   ['tests/browser/admin-runtime.spec.ts', ['stabilization: 684', '累计稳定需求补充', '稳定预算／本次补充']],
 ]) {
   const content = read(path);
