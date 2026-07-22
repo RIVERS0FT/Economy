@@ -195,13 +195,18 @@
     height: 100%;
     min-width: 0;
     min-height: 0;
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
     padding-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
     overflow: hidden;
   }
 
   .admin-page-scroll {
+    grid-column: 1;
+    grid-row: 1;
+    order: 1;
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -263,10 +268,15 @@
   }
 
   .admin-mobile-chrome-layer {
-    position: fixed;
-    inset-block: 0;
-    inset-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
-    inset-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
+    position: relative;
+    grid-column: 1;
+    grid-row: 1;
+    order: 2;
+    z-index: auto;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     display: block;
     overflow: visible;
     pointer-events: none;

@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom';
 import { CollectionIcon, GiftIcon, HomeIcon, QqIcon, ShieldIcon } from '../icons/GameIcons';
 import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 import { SidebarFrame } from './SidebarFrame';
@@ -79,26 +78,19 @@ export function AdminMobileNavigation({
   activeSection: AdminSectionId;
   onSelect: (section: AdminSectionId) => void;
 }) {
-  const navigation = (
-    <MobileBottomNavigationFrame
-      ariaLabel="移动端管理员导航"
-      navLabel="管理员移动导航"
-      className="admin-mobile-bottom-navigation"
-      surfaceId="admin-mobile-navigation"
-    >
-      <AdminNavigationItems activeSection={activeSection} onSelect={onSelect} />
-    </MobileBottomNavigationFrame>
-  );
-
-  if (typeof document === 'undefined') return navigation;
-
-  return createPortal(
+  return (
     <div
       className="mobile-chrome-overlay admin-mobile-chrome-layer"
       data-admin-mobile-chrome="true"
     >
-      {navigation}
-    </div>,
-    document.body,
+      <MobileBottomNavigationFrame
+        ariaLabel="移动端管理员导航"
+        navLabel="管理员移动导航"
+        className="admin-mobile-bottom-navigation"
+        surfaceId="admin-mobile-navigation"
+      >
+        <AdminNavigationItems activeSection={activeSection} onSelect={onSelect} />
+      </MobileBottomNavigationFrame>
+    </div>
   );
 }
