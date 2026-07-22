@@ -6,10 +6,14 @@ import {
 } from '../src/request-metrics.js';
 
 test('request metrics normalize route identifiers', () => {
-  assert.equal(normalizeMetricRoute('/api/game/orders/123/cancel?from=test'), '/api/game/orders/:id/cancel');
+  assert.equal(normalizeMetricRoute('/api/game/orders/order-owner-7-42/cancel?from=test'), '/api/game/orders/:id/cancel');
   assert.equal(
-    normalizeMetricRoute('/api/game/auctions/123e4567-e89b-12d3-a456-426614174000/bids'),
+    normalizeMetricRoute('/api/game/auctions/auction-owner-9-sequence-3/bids'),
     '/api/game/auctions/:id/bids',
+  );
+  assert.equal(
+    normalizeMetricRoute('/api/game/admin/collectibles/chicago-art-123/ownership'),
+    '/api/game/admin/collectibles/:id/ownership',
   );
   assert.equal(normalizeMetricRoute('/api/game/state?revision=4'), '/api/game/state');
 });
