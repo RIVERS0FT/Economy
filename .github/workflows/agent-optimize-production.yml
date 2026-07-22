@@ -26,18 +26,33 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
+          show-progress: false
 
       - name: Apply and verify production optimization
+        id: transform
         shell: bash
         run: |
-          set -euo pipefail
-          python3 .github/agent-optimize-production.py
-          node scripts/verify-production-desktop-layout.mjs
+          set +e
+          {
+            python3 .github/agent-optimize-production.py
+            node scripts/verify-production-desktop-layout.mjs
+          } > /tmp/production-transform.log 2>&1
+          status=$?
+          cat /tmp/production-transform.log
+          if [ "$status" -ne 0 ]; then exit "$status"; fi
           rm .github/agent-optimize-production.patch
           rm .github/agent-optimize-production.py
           rm .github/workflows/agent-optimize-production.yml
 
+      - name: Upload transform diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-transform-diagnostics
+          path: /tmp/production-transform.log
+
       - name: Commit optimized production layout
+        if: success()
         shell: bash
         run: |
           set -euo pipefail
