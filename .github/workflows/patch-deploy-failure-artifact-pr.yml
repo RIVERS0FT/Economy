@@ -6,11 +6,11 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   patch:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/deploy-failure-artifact' && github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'codex/deploy-failure-artifact'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
@@ -32,12 +32,14 @@ jobs:
           exec(compile(dedent(script), 'embedded-deploy-log-patch.py', 'exec'))
           PY
 
-      - name: Commit patched files
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .github/workflows/deploy.yml docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs
-          git commit -m "部署失败仅上传失败步骤日志"
-          git push origin HEAD:codex/deploy-failure-artifact
+      - name: Upload patched files
+        uses: actions/upload-artifact@v7
+        with:
+          name: deploy-failure-artifact-patched-files-${{ github.run_id }}
+          path: |
+            .github/workflows/deploy.yml
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+            scripts/verify-runtime-reliability.mjs
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 9
