@@ -1,4 +1,4 @@
-/* Production-only title and switch alignment.
+/* Production-only title, switch, and desktop sticky alignment.
  * Primary surface padding is owned by primary-surfaces.css. */
 .panel.production-surface {
   --production-pill-visible-height: 1.6rem;
@@ -77,4 +77,29 @@
 
 .panel.production-surface .facility-count-summary {
   line-height: var(--line-height-tight);
+}
+
+/* Desktop production sticky alignment.
+ * The page scrollport already owns asset-bar avoidance through its top padding,
+ * so sticky descendants use top: 0 instead of applying that offset twice. */
+@media (min-width: 961px) {
+  .production-workspace > .production-build-card,
+  .production-workspace > .facility-cluster-detail-shell {
+    position: sticky;
+    top: 0;
+    align-self: start;
+  }
+
+  .production-workspace > .production-build-card {
+    max-height: calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter));
+    overflow-y: auto;
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
+  }
+
+  .production-workspace > .facility-cluster-detail-shell,
+  .production-workspace .facility-cluster-detail-card {
+    max-height: none;
+    overflow: visible;
+  }
 }
