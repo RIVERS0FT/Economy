@@ -1,24 +1,28 @@
-/* Auction card body hierarchy: title, compact asset icon layer, data layer, actions. */
+/* Auction card body hierarchy: title, complete 5 × 4 asset matrix, data layer, actions. */
 .asset-auction-icon-layer {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 48px));
+  grid-auto-flow: row;
   gap: var(--space-2);
+  justify-content: start;
   min-width: 0;
-  overflow-x: auto;
   padding-block: var(--space-1);
-  scrollbar-width: thin;
+}
+
+.asset-auction-summary-icon,
+.asset-auction-summary-placeholder {
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1;
+  border-radius: var(--radius-control);
 }
 
 .asset-auction-summary-icon {
   position: relative;
   display: grid;
-  width: 48px;
-  height: 48px;
-  flex: 0 0 48px;
   place-items: center;
   overflow: hidden;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-control);
   background: rgba(255, 255, 255, .04);
   color: var(--color-text-secondary);
 }
@@ -30,8 +34,8 @@
 }
 
 .asset-auction-summary-icon .game-icon {
-  width: 32px;
-  height: 32px;
+  width: min(32px, 68%);
+  height: min(32px, 68%);
 }
 
 .asset-auction-summary-quantity {
@@ -55,21 +59,11 @@
   box-shadow: 0 3px 9px rgba(0, 0, 0, .28);
 }
 
-.asset-auction-summary-more {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  align-self: center;
-  place-items: center;
-  border: 1px solid var(--color-success);
-  border-radius: var(--radius-control);
-  background: var(--color-success-strong);
-  color: var(--color-text-primary);
-  font-weight: 850;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, .24);
+.asset-auction-summary-placeholder {
+  display: block;
+  border: 1px dashed rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .012);
+  pointer-events: none;
 }
 
 .asset-auction-data-layer {
@@ -79,23 +73,12 @@
 
 @media (max-width: 600px) {
   .asset-auction-icon-layer {
-    gap: var(--space-2);
-  }
-
-  .asset-auction-summary-icon {
-    width: 44px;
-    height: 44px;
-    flex-basis: 44px;
+    grid-template-columns: repeat(5, minmax(0, 44px));
+    gap: 6px;
   }
 
   .asset-auction-summary-icon .game-icon {
-    width: 28px;
-    height: 28px;
-  }
-
-  .asset-auction-summary-more {
-    width: 36px;
-    height: 36px;
-    flex-basis: 36px;
+    width: min(28px, 66%);
+    height: min(28px, 66%);
   }
 }
