@@ -6,6 +6,12 @@ async function requireBox(locator: Locator) {
   return box!;
 }
 
+async function wheelOver(page: Page, target: Locator, deltaY: number) {
+  const box = await requireBox(target);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, deltaY);
+}
+
 async function gridTrackCount(locator: Locator) {
   return locator.evaluate((element) => getComputedStyle(element).gridTemplateColumns
     .split(' ')
@@ -75,6 +81,26 @@ test('desktop shop keeps compact icons and places the primary exchange action in
   expect(iconBox.height).toBeLessThanOrEqual(24);
   expect(confirmBox.y + confirmBox.height).toBeLessThanOrEqual(900);
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+test('integer amount input always owns the wheel without moving the page', async ({ page }) => {
+  await openGemShop(page, 390, 520);
+
+  const input = page.getByLabel('消耗宝石数量');
+  const pageScroll = page.locator('.page-scroll');
+  await expect(input).toBeVisible();
+
+  await input.fill('5');
+  const beforeChange = await pageScroll.evaluate((element) => element.scrollTop);
+  await wheelOver(page, input, 160);
+  await expect(input).toHaveValue('4');
+  expect(await pageScroll.evaluate((element) => element.scrollTop)).toBe(beforeChange);
+
+  await input.fill('1');
+  const beforeBoundary = await pageScroll.evaluate((element) => element.scrollTop);
+  await wheelOver(page, input, 160);
+  await expect(input).toHaveValue('1');
+  expect(await pageScroll.evaluate((element) => element.scrollTop)).toBe(beforeBoundary);
 });
 
 test('desktop empty shop keeps the balance summary and action area dense', async ({ page }) => {

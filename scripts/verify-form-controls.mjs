@@ -17,15 +17,23 @@ const forbidText = (path, text) => {
 const componentPath = 'src/components/ui/FormControls.tsx';
 const draftPath = 'src/utils/integerDraft.ts';
 const stylePath = 'src/styles/form-controls.css';
+const navigationPath = 'src/components/shell/NavigationItems.tsx';
+const sidebarStylePath = 'src/styles/desktop-sidebar.css';
 const mainPath = 'src/main.tsx';
 const designDocPath = 'docs/UI_DESIGN_SYSTEM.md';
+const integerWheelTestPath = 'tests/browser/gem-shop-layout.spec.ts';
+const sidebarBadgeTestPath = 'tests/browser/sidebar-badge.spec.ts';
 
 [
   componentPath,
   draftPath,
   stylePath,
+  navigationPath,
+  sidebarStylePath,
   mainPath,
   designDocPath,
+  integerWheelTestPath,
+  sidebarBadgeTestPath,
   'src/app/LoginPage.tsx',
   'src/app/AdminApp.tsx',
   'src/pages/MarketPage.tsx',
@@ -47,6 +55,12 @@ for (const text of [
   'export function InputGroup',
   "classNames('ui-control'",
   "classNames('ui-control', 'ui-control--integer'",
+  'useEffect',
+  'useRef<HTMLInputElement>',
+  'parseIntegerDraft',
+  "input.addEventListener('wheel', handleWheel, { passive: false })",
+  'event.preventDefault();',
+  'event.stopPropagation();',
 ]) requireText(componentPath, text);
 
 for (const text of [
@@ -65,6 +79,30 @@ for (const text of [
   'min-height: 48px;',
   '.ui-input-group',
 ]) requireText(stylePath, text);
+
+for (const text of [
+  'const MAX_SIDEBAR_BADGE_COUNT = 999;',
+  'className="sidebar-nav-count"',
+  'aria-label={accessibleLabel}',
+  'title={`${formatNumber(openOrderCount)} 笔未完成订单`}',
+]) requireText(navigationPath, text);
+
+for (const text of [
+  'grid-template-columns: var(--desktop-sidebar-rail) minmax(0, 1fr) auto;',
+  '.desktop-sidebar .sidebar-nav-count {',
+  'position: static;',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .sidebar-nav-count {',
+  '.desktop-sidebar .sidebar-nav-button .sidebar-nav-count {',
+  'top: 2px;',
+  'right: 2px;',
+  'left: auto;',
+  'transform: none;',
+  '@media (max-width: 960px) and (min-width: 721px)',
+]) requireText(sidebarStylePath, text);
+for (const forbidden of [
+  '.desktop-sidebar .sidebar-nav-button small {',
+  'left: 32px;',
+]) forbidText(sidebarStylePath, forbidden);
 
 const main = read(mainPath);
 const designSystemIndex = main.indexOf("import './styles/design-system.css'");
@@ -92,7 +130,7 @@ for (const path of [
   'src/pages/ProductionPage.tsx',
   'src/components/InvitationSettings.tsx',
   'src/components/AdminBanPanel.tsx',
-]) requireText(path, "FormControls");
+]) requireText(path, 'FormControls');
 
 for (const text of [
   '<TextInput',
@@ -111,11 +149,27 @@ for (const text of [
   '字符串草稿',
   '不得在 `onChange` 中直接执行 `Number(event.target.value)`',
   '移动端输入字号不得低于 `16px`',
+  '整数输入始终拥有发生在自身命中区域内的滚轮事件',
+  '非被动原生 `wheel` 监听器',
+  '展开态固定在第三网格列的右侧',
+  '折叠态与 `721px–960px` 自动紧凑侧栏固定在按钮内部右上角',
 ]) requireText(designDocPath, text);
 
+for (const text of [
+  'integer amount input always owns the wheel without moving the page',
+  'await wheelOver(page, input, 160)',
+  "await expect(input).toHaveValue('1')",
+]) requireText(integerWheelTestPath, text);
+for (const text of [
+  'market order badge stays inside expanded, collapsed and compact sidebar buttons',
+  'expectBadgeInside(expanded)',
+  'expectBadgeInside(collapsed)',
+  'expectBadgeInside(compact)',
+]) requireText(sidebarBadgeTestPath, text);
+
 if (failures.length) {
-  console.error(`统一表单控件验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`统一表单与侧栏角标验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('统一表单组件、数字草稿、输入状态和移动端尺寸验证通过。');
+console.log('统一表单、数字草稿、整数输入滚轮归属、侧栏市场角标与移动端尺寸验证通过。');

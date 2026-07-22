@@ -1,5 +1,7 @@
 import {
+  useEffect,
   useId,
+  useRef,
   type ChangeEvent,
   type HTMLAttributes,
   type InputHTMLAttributes,
@@ -7,7 +9,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from 'react';
-import { normalizeIntegerDraft } from '../../utils/integerDraft';
+import { normalizeIntegerDraft, parseIntegerDraft } from '../../utils/integerDraft';
 
 function classNames(...values: Array<string | number | bigint | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -16,6 +18,13 @@ function classNames(...values: Array<string | number | bigint | false | null | u
 function mergeDescribedBy(...values: Array<string | undefined>) {
   const merged = values.filter(Boolean).join(' ');
   return merged || undefined;
+}
+
+function clampInteger(value: number, min?: number, max?: number) {
+  return Math.min(
+    max ?? Number.MAX_SAFE_INTEGER,
+    Math.max(min ?? Number.MIN_SAFE_INTEGER, value),
+  );
 }
 
 export function FormField({
@@ -203,6 +212,26 @@ export function IntegerInput({
 }: IntegerInputProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return undefined;
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (input.disabled || input.readOnly || event.deltaY === 0) return;
+
+      const parsed = parseIntegerDraft(input.value, { min, max });
+      const current = parsed ?? clampInteger(fallbackValue, min, max);
+      const direction = event.deltaY < 0 ? 1 : -1;
+      onValueChange(String(clampInteger(current + direction, min, max)));
+    };
+
+    input.addEventListener('wheel', handleWheel, { passive: false });
+    return () => input.removeEventListener('wheel', handleWheel);
+  }, [fallbackValue, max, min, onValueChange]);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     onValueChange(event.target.value);
@@ -219,6 +248,7 @@ export function IntegerInput({
     >
       <input
         {...props}
+        ref={inputRef}
         id={inputId}
         type="number"
         inputMode="numeric"
