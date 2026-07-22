@@ -1,13 +1,13 @@
-/* Final geometry authority for the signed-in game shell.
+/* Final geometry authority for signed-in game and administrator shells.
  * The viewport itself has no padding or grid gap. One desktop layout gutter
- * controls sidebar, status bar, primary content edges and primary-card gaps,
+ * controls sidebar, command bar, primary content edges and primary-card gaps,
  * while the workspace and page scrollport remain flush to the viewport. */
 :root {
   --desktop-layout-gutter: var(--space-3);
 }
 
 @media (min-width: 721px) {
-  html[data-app-surface="game"] .game-shell.sidebar-layout {
+  .signed-in-shell.sidebar-layout {
     --desktop-shell-outer-inset: var(--desktop-layout-gutter);
     --desktop-sidebar-workspace-gap: var(--desktop-layout-gutter);
     --desktop-status-gap: var(--desktop-layout-gutter);
@@ -31,7 +31,7 @@
     padding: 0;
   }
 
-  html[data-app-surface="game"] .desktop-sidebar {
+  .signed-in-shell .desktop-sidebar {
     width: var(--sidebar-column-width);
     min-width: 0;
     min-height: 0;
@@ -44,7 +44,7 @@
       var(--desktop-shell-outer-inset);
   }
 
-  html[data-app-surface="game"] .workspace {
+  .signed-in-shell .workspace {
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -53,7 +53,7 @@
     padding: 0;
   }
 
-  html[data-app-surface="game"] .asset-bar {
+  .signed-in-shell .asset-bar {
     position: absolute;
     z-index: 3;
     top: var(--desktop-layout-gutter);
@@ -68,8 +68,8 @@
     overflow: visible;
   }
 
-  html[data-app-surface="game"] .page-scroll-area,
-  html[data-app-surface="game"] .page-scroll {
+  .signed-in-shell .page-scroll-area,
+  .signed-in-shell .page-scroll {
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -77,23 +77,23 @@
     margin: 0;
   }
 
-  html[data-app-surface="game"] .page-scroll {
+  .signed-in-shell .page-scroll {
     padding-top: var(--desktop-page-top-offset);
     padding-right: 0;
     padding-left: 0;
     scroll-padding-top: var(--desktop-page-top-offset);
   }
 
-  html[data-app-surface="game"] .page-scroll-area > .ui-scrollbar--vertical {
+  .signed-in-shell .page-scroll-area > .ui-scrollbar--vertical {
     right: 0;
   }
 
-  html[data-app-surface="game"] .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
+  .signed-in-shell .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
     right: 0;
     left: auto;
   }
 
-  html[data-app-surface="game"] .page-content {
+  .signed-in-shell .page-content {
     width: 100%;
     max-width: none;
     min-width: 0;
@@ -101,19 +101,19 @@
     padding: 0 var(--desktop-layout-gutter) var(--desktop-layout-gutter) 0;
   }
 
-  html[data-app-surface="game"] .page-heading {
+  .signed-in-shell .page-heading {
     padding: var(--space-3) var(--space-4) var(--space-4);
   }
 }
 
 @media (max-width: 960px) and (min-width: 721px) {
-  html[data-app-surface="game"] .game-shell.sidebar-layout {
+  .signed-in-shell.sidebar-layout {
     --desktop-layout-gutter: var(--space-2);
   }
 }
 
 @media (max-height: 760px) and (min-width: 721px) {
-  html[data-app-surface="game"] .game-shell.sidebar-layout {
+  .signed-in-shell.sidebar-layout {
     --desktop-layout-gutter: var(--space-2);
     gap: 0;
     padding: 0;
