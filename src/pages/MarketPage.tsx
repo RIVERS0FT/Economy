@@ -116,7 +116,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const parsedOrderQuantity = parseIntegerDraft(quantityDraft, { min: 1 });
   const orderTotal = Math.max(0, (parsedOrderQuantity ?? 0) * effectiveOrderPrice);
   const estimatedSellFee = orderSide === 'sell' && orderTotal > 0
-    ? Math.max(1, Math.ceil(orderTotal / 100))
+    ? Math.floor(orderTotal / 100)
     : 0;
   const estimatedNetTotal = Math.max(0, orderTotal - estimatedSellFee);
 
@@ -331,9 +331,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderTotal)}</CurrencyAmount></strong></div>
             {orderSide === 'sell' ? (
               <>
-                <div className="order-summary"><span>预计手续费（1%，最低 1）</span><strong><CurrencyAmount>{formatCurrency(estimatedSellFee)}</CurrencyAmount></strong></div>
+                <div className="order-summary"><span>预计手续费（累计成交额的 1%）</span><strong><CurrencyAmount>{formatCurrency(estimatedSellFee)}</CurrencyAmount></strong></div>
                 <div className="order-summary"><span>预计到账</span><strong><CurrencyAmount>{formatCurrency(estimatedNetTotal)}</CurrencyAmount></strong></div>
-                {orderTotal > 0 && estimatedNetTotal === 0 ? <p className="order-disabled-reason">成交额将全部用于支付最低手续费。</p> : null}
               </>
             ) : null}
             <div className="order-capacity">

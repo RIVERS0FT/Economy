@@ -33,11 +33,11 @@ function deferMarketDemand(world) {
   for (const state of Object.values(world.demandGroups)) state.nextDemandAt = now + 24 * 60 * 60 * 1000;
 }
 
-test('累计卖出手续费按 1% 向上取整且最低为 1', () => {
+test('累计卖出手续费按成交总额精确收取 1%', () => {
   assert.equal(calculateCumulativeMarketSellFee(0), 0);
-  assert.equal(calculateCumulativeMarketSellFee(1), 1);
+  assert.equal(calculateCumulativeMarketSellFee(1), 0);
   assert.equal(calculateCumulativeMarketSellFee(100), 1);
-  assert.equal(calculateCumulativeMarketSellFee(101), 2);
+  assert.equal(calculateCumulativeMarketSellFee(101), 1);
   assert.equal(calculateCumulativeMarketSellFee(200), 2);
 });
 
@@ -50,11 +50,11 @@ test('既有卖单只从新成交开始累计且不追收旧 fill', () => {
     fills: [{ id: 'old', quantity: 100, price: 1, total: 100, createdAt: now }],
   };
   const next = applyMarketSellFee(order, 1);
-  assert.deepEqual(next, { fee: 1, netTotal: 0 });
+  assert.deepEqual(next, { fee: 0, netTotal: 1 });
   assert.equal(order.fills[0].fee, 0);
   assert.equal(order.fills[0].netTotal, 100);
   assert.equal(order.marketSellFeeGross, 1);
-  assert.equal(order.marketSellFeeCharged, 1);
+  assert.equal(order.marketSellFeeCharged, 0);
 });
 
 test('商品卖单部分成交按同一卖单累计补收手续费', () => {
@@ -77,12 +77,14 @@ test('商品卖单部分成交按同一卖单累计补收手续费', () => {
   }
 
   const order = world.orders.find((item) => item.ownerId === bob.id && item.productId === 'ore');
-  assert.deepEqual(order.fills.map((fill) => fill.fee), [1, 0, 0, 1]);
-  assert.deepEqual(order.fills.map((fill) => fill.netTotal), [29, 30, 40, 0]);
+  assert.deepEqual(order.fills.map((fill) => fill.fee), [0, 0, 1, 0]);
+  assert.deepEqual(order.fills.map((fill) => fill.netTotal), [30, 30, 39, 1]);
   assert.equal(order.marketSellFeeGross, 101);
-  assert.equal(order.marketSellFeeCharged, 2);
-  assert.equal(seller.credits, 99);
-  assert.equal(seller.stats.systemSinks, 2);
+  assert.equal(order.marketSellFeeCharged, 1);
+  assert.equal(seller.credits, 100);
+  assert.equal(seller.stats.systemSinks, 0);
+  assert.equal(seller.stats.marketServiceFees, 1);
+  assert.equal(seller.stats.employmentPayments, 1);
   assert.equal(buyer.credits, 899);
 });
 
@@ -103,16 +105,17 @@ test('工厂卖单使用相同手续费并只向本人公开匿名金额字段',
   }, now + 2).ok, true);
 
   const internal = world.orders.find((item) => item.ownerId === bob.id && item.assetKind === 'facility');
-  assert.equal(seller.credits, 158);
-  assert.equal(seller.stats.systemSinks, 2);
+  assert.equal(seller.credits, 159);
+  assert.equal(seller.stats.systemSinks, 0);
+  assert.equal(seller.stats.marketServiceFees, 1);
   assert.equal(internal.fills[0].total, 160);
-  assert.equal(internal.fills[0].fee, 2);
-  assert.equal(internal.fills[0].netTotal, 158);
+  assert.equal(internal.fills[0].fee, 1);
+  assert.equal(internal.fills[0].netTotal, 159);
 
   const state = createFacilityGroupClientState(world, bob.id, now + 3);
   const publicOrder = state.orders.find((item) => item.id === internal.id);
-  assert.equal(publicOrder.fills[0].fee, 2);
-  assert.equal(publicOrder.fills[0].netTotal, 158);
+  assert.equal(publicOrder.fills[0].fee, 1);
+  assert.equal(publicOrder.fills[0].netTotal, 159);
   assert.equal('counterparty' in publicOrder.fills[0], false);
   assert.equal('marketSellFeeGross' in publicOrder, false);
   assert.equal('marketSellFeeCharged' in publicOrder, false);

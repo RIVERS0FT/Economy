@@ -8,9 +8,47 @@ import { GameApiError, type CommunityLinkConfig } from './game';
 
 const ADMIN_API_BASE = '/economy-api/game/admin';
 
+export type PopulationModelId = 'basic' | 'skilled' | 'professional';
+
+export interface PopulationModelAdminSummary {
+  id: PopulationModelId;
+  name: string;
+  consumptionState: 'normal' | 'cautious' | 'subsistence';
+  credits: number;
+  frozenCredits: number;
+  pendingIncome: Record<'production' | 'construction' | 'warehouse' | 'marketService', number>;
+  lastIncome: number;
+  incomeEma: number;
+  recentPeakIncome: number;
+  noIncomeCycles: number;
+  lastBudget: number;
+  foodBudget: number;
+  householdBudget: number;
+  totalIncome: number;
+  totalSpent: number;
+}
+
+export interface PopulationEconomyAdminSummary {
+  credits: number;
+  frozenCredits: number;
+  pendingIncome: number;
+  lastIncome: number;
+  lastBudget: number;
+  totalIncome: number;
+  totalSpent: number;
+  constructionEscrow: number;
+  totalEmploymentIncome: number;
+  totalConsumption: number;
+  models: Record<PopulationModelId, PopulationModelAdminSummary>;
+  sources: Record<'production' | 'construction' | 'warehouse' | 'marketService', number>;
+  productionByComplexity: Record<'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7', number>;
+  issuance: { work: number; exchange: number; gift: number; legacyPopulation: number; migration: number; total: number };
+}
+
 export type ExtendedAdminSummary = AdminSummary & {
   collectibleCount: number;
   openAuctionCount: number;
+  populationEconomy: PopulationEconomyAdminSummary;
 };
 
 export type GiftCodeCreationPayload = {

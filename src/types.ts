@@ -43,6 +43,7 @@ export interface FacilityTypeDefinition {
   id: string;
   name: string;
   category: 'raw' | 'processing' | 'consumer' | 'industrial';
+  complexity: 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7';
   buildCost: number;
   buildTimeMs: number;
   cycleMs: number;
@@ -89,6 +90,8 @@ export interface FacilityConstruction {
   facilityTypeId: string;
   startedAt: number;
   completesAt: number;
+  buildCost?: number;
+  employmentReleased?: number;
 }
 
 export type OrderSide = 'buy' | 'sell';
@@ -293,6 +296,13 @@ export interface EconomyStats {
   boughtGoods: number;
   soldGoods: number;
   giftIssued: number;
+  gemExchangeCredits: number;
+  populationIncome: number;
+  employmentPayments: number;
+  productionPayroll: number;
+  constructionPayroll: number;
+  warehousePayroll: number;
+  marketServiceFees: number;
   invitationGemsIssued: number;
 }
 
@@ -323,7 +333,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 15;
+  version: 16;
   userId: number;
   playerName: string;
   registeredAt: number;

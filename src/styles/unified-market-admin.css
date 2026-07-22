@@ -151,6 +151,22 @@
   gap: var(--space-3);
 }
 
+.admin-population-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+.admin-population-model-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+.admin-population-model-card { min-width: 0; display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-muted); }
+.admin-population-model-card header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.admin-population-model-card h3, .admin-population-detail-grid h3 { margin: 0; font-size: var(--font-size-md); }
+.admin-population-model-card dl, .admin-population-source-list { display: grid; gap: var(--space-2); margin: 0; }
+.admin-population-model-card dl > div, .admin-population-source-list > div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.admin-population-model-card dt, .admin-population-source-list dt { color: var(--text-muted); }
+.admin-population-model-card dd, .admin-population-source-list dd { margin: 0; text-align: right; }
+.admin-population-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.admin-population-detail-grid > section { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }
+.admin-population-complexity-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); }
+.admin-population-complexity-grid > div { min-width: 0; display: grid; gap: 4px; padding: var(--space-2); border-radius: var(--radius-control); background: var(--surface-muted); text-align: center; }
+.admin-population-complexity-grid span { color: var(--text-muted); font-size: var(--font-size-sm); }
+.admin-population-complexity-grid strong { overflow: hidden; text-overflow: ellipsis; }
+
 .admin-section-stack {
   display: grid;
   gap: var(--layout-gutter);
@@ -283,9 +299,13 @@
 }
 
 @media (max-width: 1100px) {
-  .admin-summary-grid {
+  .admin-summary-grid,
+  .admin-population-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-population-model-grid { grid-template-columns: 1fr; }
+  .admin-population-complexity-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 720px) {
@@ -345,9 +365,13 @@
   }
 
   .admin-summary-grid,
+  .admin-population-summary-grid,
+  .admin-population-detail-grid,
   .admin-form-grid {
     grid-template-columns: 1fr;
   }
+
+  .admin-population-complexity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .admin-form-wide {
     grid-column: auto;

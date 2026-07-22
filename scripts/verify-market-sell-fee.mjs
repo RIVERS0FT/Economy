@@ -30,9 +30,9 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 
 for (const text of [
   'MARKET_SELL_FEE_RATE_BPS = 100',
-  'MARKET_SELL_FEE_MINIMUM = 1',
+  'MARKET_SELL_FEE_MINIMUM = 0',
   'calculateCumulativeMarketSellFee',
-  'Math.ceil(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS)',
+  'Math.floor(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS)',
   'marketSellFeeGross',
   'marketSellFeeCharged',
 ]) requireText('server/src/market-sell-fee.js', text);
@@ -54,7 +54,7 @@ for (const text of ['fee?: number', 'netTotal?: number']) requireText('src/types
 for (const text of ['fee: Number(fill.fee || 0)', 'netTotal: Number(fill.netTotal ?? fill.total)']) {
   requireText('src/utils/localActivityStore.ts', text);
 }
-for (const text of ['预计手续费（1%，最低 1）', '预计到账', '手续费 / 实收']) {
+for (const text of ['预计手续费（累计成交额的 1%）', '预计到账', '手续费 / 实收']) {
   requireText('src/pages/MarketPage.tsx', text);
 }
 

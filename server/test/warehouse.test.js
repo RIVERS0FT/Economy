@@ -55,11 +55,11 @@ function buyOrder(overrides = {}) {
   };
 }
 
-test('warehouse state defaults to level 1 and client version 14', () => {
+test('warehouse state defaults to level 1 and client version 16', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 15);
+    assert.equal(state.version, 16);
     assert.equal(state.warehouseLevel, 1);
     assert.equal(state.inventoryCapacity, 500);
     assert.equal(Object.hasOwn(state, 'warehouseMaxLevel'), false);
@@ -143,7 +143,9 @@ test('warehouse upgrade deducts server funds and increases shared capacity', () 
     assert.equal(state.warehouseLevel, 2);
     assert.equal(state.inventoryCapacity, 750);
     assert.equal(state.credits, 9_850);
-    assert.equal(state.stats.systemSinks, 150);
+    assert.equal(state.stats.systemSinks, 0);
+    assert.equal(state.stats.warehousePayroll, 150);
+    assert.equal(state.stats.employmentPayments, 150);
     assert.equal(state.warehouseUpgradeCost, 300);
     assert.equal(state.warehouseNextCapacity, 1_050);
     assert.equal(state.warehouseNextCapacityIncrease, 300);
@@ -162,7 +164,9 @@ test('warehouse summary price matches the amount deducted for the same actual ca
     assert.equal(state.warehouseLevel, 4);
     assert.equal(state.inventoryCapacity, 1_400);
     assert.equal(state.credits, 9_520);
-    assert.equal(state.stats.systemSinks, 480);
+    assert.equal(state.stats.systemSinks, 0);
+    assert.equal(state.stats.warehousePayroll, 480);
+    assert.equal(state.stats.employmentPayments, 480);
     assert.equal(state.warehouseUpgradeCost, 690);
   } finally { store.close(); }
 });

@@ -310,6 +310,14 @@ function migrateLegacyPlayer(player, now) {
   player.stats.warehousePayroll = Number(player.stats.warehousePayroll || 0);
   player.stats.marketServiceFees = Number(player.stats.marketServiceFees || 0);
 
+  if (player.facilityConstruction) {
+    const constructionType = typeFor(player.facilityConstruction.facilityTypeId);
+    if (constructionType && player.facilityConstruction.buildCost === undefined) {
+      player.facilityConstruction.buildCost = constructionType.buildCost;
+      player.facilityConstruction.employmentReleased = constructionType.buildCost;
+    }
+  }
+
   if (Array.isArray(player.facilities) && player.facilities.length > 0) {
     const byType = new Map();
     for (const facility of player.facilities) {

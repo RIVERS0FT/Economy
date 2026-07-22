@@ -54,7 +54,7 @@ const constructionTimeRanges = {
   C7: [60 * 60_000, 120 * 60_000],
 };
 
-const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 9, C5: 12, C6: 15, C7: 18 };
+const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
 
 assert.equal(PRODUCT_CATALOG.length, 31, '商品目录必须为 31 项');
 assert.equal(FACILITY_TYPE_CATALOG.length, 21, '工厂目录必须为 21 项');
@@ -119,8 +119,8 @@ assert.equal(facilities.get('steelworks').name, '冶炼厂');
 assert.equal(facilities.has('copper-smelter'), false, '不得新增铜冶炼厂');
 assert.deepEqual(facilities.get('food-factory').recipes.map((item) => item.id), ['food-factory-default', 'prepared-meal-production']);
 assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.id), ['milk-beverage', 'fruit-beverage']);
-assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.operatingCost), [11, 6]);
-assert.equal(facilities.get('furniture-factory').recipes[0].operatingCost, 5);
+assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.operatingCost), [14, 9]);
+assert.equal(facilities.get('furniture-factory').recipes[0].operatingCost, 8);
 assert.deepEqual(facilities.get('electronics-factory').recipes[0].inputs, [
   { productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 },
 ]);
@@ -143,7 +143,7 @@ for (const [path, texts] of [
   ['README.md', ['当前目录共 31 种商品和 21 种工厂类型', '`steelworks` ID 永久保留', '机械+电子产品', 'inputs[]']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '当前基线为 31 种商品和 21 种工厂类型',
-    'C1=1、C2=3、C3=6、C4=9、C5=12、C6=15、C7=18',
+    'C1=1、C2=3、C3=6、C4=6、C5=8、C6=10、C7=12',
     '不新增铜冶炼厂',
     '任一输入不足时不得扣除其他输入',
     '模型 1 的未完成市场需求订单',
@@ -159,4 +159,4 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6/9/12/15/18 参考分钟利润梯度。');
+console.log('产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6/6/8/10/12 参考分钟利润梯度。');
