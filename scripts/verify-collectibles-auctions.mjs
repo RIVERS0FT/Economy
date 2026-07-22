@@ -46,6 +46,7 @@ const requireOrder = (path, texts) => {
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/AUCTION_CARD_ASSET_MATRIX_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
@@ -107,13 +108,15 @@ for (const text of [
   'className="asset-auction-icon-layer"',
   'className="asset-auction-summary-icon"',
   'className="asset-auction-summary-quantity"',
-  'className="asset-auction-summary-more"',
+  'className="asset-auction-summary-placeholder"',
+  'const placeholderCount = Math.max(0, MAX_AUCTION_ITEMS - items.length);',
+  '{items.map((item) => (',
+  'Array.from({ length: placeholderCount }',
   'asset-auction-data-layer',
   'function auctionCardTitle(auction: AssetAuction)',
   'return items.length === 1 ? items[0].name : auctionTitle(auction);',
   'title={auctionCardTitle(auction)}',
   "import '../styles/auction-card-layers.css';",
-  'className="asset-auction-tile-quantity"',
   'className="asset-auction-more-count"',
   'asset-auction-primary-metrics',
   'aria-pressed={assetKind === kind}',
@@ -150,6 +153,8 @@ for (const text of [
   '<dt>资产项目</dt>',
   '<dt>出价次数</dt>',
   '<dt>卖家</dt>',
+  'className="asset-auction-tile-quantity"',
+  'className="asset-auction-summary-more"',
 ]) forbidText('src/pages/AuctionPage.tsx', text);
 
 for (const text of [
@@ -159,7 +164,6 @@ for (const text of [
   '.widget.collectible-auction-create',
   'align-items: start;',
   '.asset-auction-card-heading',
-  '.asset-auction-tile-quantity',
   '.asset-auction-more-count',
   'background: var(--color-success-strong);',
   'white-space: nowrap;',
@@ -171,16 +175,24 @@ for (const text of [
 
 for (const text of [
   '.asset-auction-icon-layer',
+  'grid-template-columns: repeat(5, minmax(0, 48px));',
+  'grid-auto-flow: row;',
   '.asset-auction-summary-icon',
   'position: relative;',
   '.asset-auction-summary-quantity',
   'right: 3px;',
   'bottom: 3px;',
-  '.asset-auction-summary-more',
-  'background: var(--color-success-strong);',
+  '.asset-auction-summary-placeholder',
+  'border: 1px dashed rgba(255, 255, 255, .1);',
+  'pointer-events: none;',
+  'grid-template-columns: repeat(5, minmax(0, 44px));',
   '.asset-auction-data-layer',
   'border-top: 1px solid var(--color-border-subtle);',
 ]) requireText('src/styles/auction-card-layers.css', text);
+for (const text of [
+  'overflow-x: auto;',
+  '.asset-auction-summary-more',
+]) forbidText('src/styles/auction-card-layers.css', text);
 
 for (const text of [
   '捆绑拍卖在任一项目无效时不冻结任何资产',
@@ -202,13 +214,21 @@ for (const [path, texts] of [
     '把资产包数量输入恢复为每次按键立即数字化并把空值强制回填为 `1`',
     '必须保留标题上方的顶部大型资产主视觉',
     '标题下方额外分为图标层和数据层',
-    '实际数量以 `×N` 徽标叠加在图标右下角',
     '数据层只能展示“当前总价”和“最高出价者”',
     '单项拍卖标题只显示资产名称',
     '移除进行中拍卖卡顶部大型主视觉',
-    '把数量移出图标右下角',
-    '绿色 `+N` 方格',
     '不得重复展示“不可拆分资产包 · 整包竞价”说明',
+  ]],
+  ['docs/AUCTION_CARD_ASSET_MATRIX_DESIGN.md', [
+    '本文件覆盖 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 第 8 节',
+    '大图标不得显示 `×N` 数量胶囊',
+    '允许在主视觉右下角显示基于成功色设计令牌的绿色 `+N`',
+    '矩阵固定为五列四行、共 20 个槽位',
+    '全部规范化项目',
+    '剩余槽位必须使用不可交互的低对比度空卡片补齐',
+    '小图标矩阵不得使用 `+N`',
+    '矩阵不得出现内部横向滚动条',
+    '不得在顶部大型主视觉恢复 `×N` 数量胶囊',
   ]],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['捆绑拍卖', '托管记录不得作为第二份资产余额']],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包中全部商品数量之和', '捆绑拍卖']],
@@ -227,4 +247,4 @@ if (failures.length) {
   console.error(`资产包拍卖验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('单项与捆绑资产包拍卖、可编辑数量草稿、冻结资产计价、仓库预占、原子结算、顶部主视觉、图标层、数据层、页面结构和权威文档验证通过。');
+console.log('单项与捆绑资产包拍卖、可编辑数量草稿、顶部无数量主视觉、完整五列四行资产矩阵、空槽位补齐、数据层、冻结资产计价、仓库预占、原子结算和权威设计验证通过。');
