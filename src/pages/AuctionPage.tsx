@@ -94,23 +94,22 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
       </div>
     );
   }
-  if (items.length === 1 && items[0].kind === 'collectible' && items[0].thumbnailUrl) {
-    const image = <AuctionItemIcon item={items[0]} />;
-    return items[0].sourceUrl ? (
-      <a className="collectible-auction-image" href={items[0].sourceUrl} target="_blank" rel="noreferrer">{image}</a>
-    ) : <div className="collectible-auction-image">{image}</div>;
-  }
-  if (items.length === 1) {
-    return <div className="asset-auction-icon" aria-hidden="true"><AuctionItemIcon item={items[0]} /></div>;
-  }
   return (
-    <div className="asset-auction-bundle-visual" aria-label={`资产包包含 ${items.length} 项资产`}>
+    <div
+      className={`asset-auction-bundle-visual asset-auction-item-count-${Math.min(items.length, 4)}`}
+      aria-label={`拍卖包含 ${items.length} 项资产`}
+    >
       {items.slice(0, 4).map((item) => (
-        <div className="asset-auction-bundle-tile" key={`${item.kind}:${item.id}`}>
+        <div
+          className="asset-auction-bundle-tile"
+          key={`${item.kind}:${item.id}`}
+          aria-label={`${item.name}，数量 ${formatNumber(item.quantity)}`}
+        >
           <AuctionItemIcon item={item} compact />
+          <span className="asset-auction-tile-quantity" aria-hidden="true">×{formatNumber(item.quantity)}</span>
         </div>
       ))}
-      {items.length > 4 ? <strong>+{formatNumber(items.length - 4)}</strong> : null}
+      {items.length > 4 ? <strong className="asset-auction-more-count">+{formatNumber(items.length - 4)}</strong> : null}
     </div>
   );
 }
@@ -421,22 +420,16 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
             {openAuctions.map((auction) => {
               const bidInput = bidAmounts[auction.id] ?? String(auction.minimumBid);
               const amount = parseIntegerDraft(bidInput, { min: auction.minimumBid, max: 1_000_000_000 });
-              const items = auctionItems(auction);
               return (
                 <Panel className={`collectible-auction-card asset-auction-card ${auction.isBundle ? 'asset-auction-bundle' : `asset-auction-${auction.assetKind}`}`} key={auction.id}>
                   <AuctionAssetVisual auction={auction} />
                   <div className="collectible-auction-body">
-                    <WidgetHeading title={auctionTitle(auction)} action={<StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>} />
-                    <p>{auction.isBundle ? '不可拆分资产包' : assetKindNames[items[0].kind]} · 整包竞价</p>
-                    <div className="asset-auction-item-list">
-                      {items.slice(0, 3).map((item) => <span key={`${item.kind}:${item.id}`}><strong>{item.name}</strong><small>{assetKindNames[item.kind]} · × {formatNumber(item.quantity)}</small></span>)}
-                      {items.length > 3 ? <span><strong>另有 {formatNumber(items.length - 3)} 项</strong><small>全部资产随成交一次性转移</small></span> : null}
+                    <div className="asset-auction-card-heading">
+                      <h2 title={auctionTitle(auction)}>{auctionTitle(auction)}</h2>
+                      <StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>
                     </div>
-                    <dl className="collectible-auction-metrics">
+                    <dl className="collectible-auction-metrics asset-auction-primary-metrics">
                       <div><dt>当前总价</dt><dd><CurrencyAmount>{formatCurrency(auction.highestBid ?? auction.startingBid)}</CurrencyAmount></dd></div>
-                      <div><dt>资产项目</dt><dd>{formatNumber(items.length)}</dd></div>
-                      <div><dt>出价次数</dt><dd>{formatNumber(auction.bids.length)}</dd></div>
-                      <div><dt>卖家</dt><dd>{auction.sellerName}</dd></div>
                       <div><dt>最高出价者</dt><dd>{auction.highestBidderName || '暂无'}</dd></div>
                     </dl>
                     {auction.isSeller ? (
