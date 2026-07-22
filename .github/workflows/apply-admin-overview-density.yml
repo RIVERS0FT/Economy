@@ -3,13 +3,14 @@ name: Apply Admin Overview Density
 on:
   push:
     branches:
-      - codex/admin-overview-density
+      - main
     paths:
       - scripts/apply-admin-overview-density.py.gz.b64
       - .github/workflows/apply-admin-overview-density.yml
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: apply-admin-overview-density
@@ -19,7 +20,7 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -62,4 +63,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "重构管理员概况人口健康矩阵"
-          git push origin HEAD:codex/admin-overview-density
+          git push origin HEAD:main
+
+      - name: Dispatch production deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/deploy.yml/dispatches" -f ref=main
