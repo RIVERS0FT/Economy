@@ -153,7 +153,7 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await expect(page.getByRole('button', { name: '展开侧栏' })).toBeFocused();
 });
 
-test('admin navigation becomes a horizontal client-style bar on mobile', async ({ page }) => {
+test('admin mobile navigation uses the player chrome layer and stays above page cards', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await configureAdminRoutes(page);
   await page.goto('/economy/admin');
@@ -164,20 +164,33 @@ test('admin navigation becomes a horizontal client-style bar on mobile', async (
   await expect(navigation).toBeVisible();
   await expect(mobileBottomNavigation).toBeVisible();
   await expect(page.locator('.admin-mobile-navigation')).toHaveCount(0);
+  await expect(page.locator('.admin-mobile-chrome-layer')).toHaveCount(1);
   await expect(mobileBottomNavigation.locator('.liquid-glass-surface')).toHaveCount(1);
   await expect(mobileBottomNavigation.locator('.mobile-bottom-navigation__viewport')).toHaveCount(1);
 
   const geometry = await page.evaluate(() => {
     const nav = document.querySelector<HTMLElement>('.admin-mobile-bottom-navigation');
     const scroll = document.querySelector<HTMLElement>('.admin-page-scroll');
-    if (!nav || !scroll) throw new Error('管理员移动导航结构缺失');
+    const layer = document.querySelector<HTMLElement>('.admin-mobile-chrome-layer');
+    const root = document.querySelector<HTMLElement>('#root');
+    if (!nav || !scroll || !layer || !root) throw new Error('管理员移动导航结构缺失');
     const navRect = nav.getBoundingClientRect();
     const scrollStyle = getComputedStyle(scroll);
+    const layerStyle = getComputedStyle(layer);
+    const topmost = document.elementFromPoint(
+      navRect.left + navRect.width / 2,
+      navRect.top + navRect.height / 2,
+    );
     return {
       navHeight: navRect.height,
       navBottomGap: window.innerHeight - navRect.bottom,
       scrollPaddingBottom: Number.parseFloat(scrollStyle.paddingBottom),
       documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      chromeLayerAfterRoot: Boolean(root.compareDocumentPosition(layer) & Node.DOCUMENT_POSITION_FOLLOWING),
+      chromeLayerOutsideRoot: !root.contains(layer),
+      topmostInsideNavigation: Boolean(topmost && nav.contains(topmost)),
+      layerPosition: layerStyle.position,
+      layerZIndex: layerStyle.zIndex,
     };
   });
   expect(geometry.navHeight).toBe(68);
@@ -185,6 +198,11 @@ test('admin navigation becomes a horizontal client-style bar on mobile', async (
   expect(geometry.navBottomGap).toBeLessThanOrEqual(20);
   expect(geometry.scrollPaddingBottom).toBeGreaterThan(geometry.navHeight);
   expect(geometry.documentOverflow).toBeLessThanOrEqual(1);
+  expect(geometry.chromeLayerAfterRoot).toBe(true);
+  expect(geometry.chromeLayerOutsideRoot).toBe(true);
+  expect(geometry.topmostInsideNavigation).toBe(true);
+  expect(geometry.layerPosition).toBe('fixed');
+  expect(geometry.layerZIndex).toBe('auto');
 
   await page.getByRole('button', { name: '账号封禁', exact: true }).click();
   await expect(page.getByRole('heading', { name: '同 IP 账号封禁', exact: true })).toBeVisible();

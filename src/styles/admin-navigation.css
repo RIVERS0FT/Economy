@@ -3,6 +3,10 @@
  * This file is the final authority for administrator shell, navigation and console orchestration.
  */
 
+.admin-mobile-chrome-layer {
+  display: none;
+}
+
 @media (min-width: 721px) {
   .admin-page-frame {
     --content-max-width: 1600px;
@@ -258,7 +262,17 @@
     font-size: .75rem;
   }
 
-  .admin-mobile-bottom-navigation {
+  .admin-mobile-chrome-layer {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
+    inset-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .admin-mobile-chrome-layer .admin-mobile-bottom-navigation {
     pointer-events: auto;
   }
 }
