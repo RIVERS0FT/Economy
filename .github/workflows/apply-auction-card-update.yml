@@ -1,0 +1,363 @@
+name: Apply auction card update
+
+on:
+  push:
+    branches:
+      - codex/auction-card-compact-icons
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex/auction-card-compact-icons
+          fetch-depth: 0
+
+      - name: Apply authoritative auction card changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one replacement target, found {count}')
+              target.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'src/pages/AuctionPage.tsx',
+              """  if (items.length === 1 && items[0].kind === 'collectible' && items[0].thumbnailUrl) {
+    const image = <AuctionItemIcon item={items[0]} />;
+    return items[0].sourceUrl ? (
+      <a className=\"collectible-auction-image\" href={items[0].sourceUrl} target=\"_blank\" rel=\"noreferrer\">{image}</a>
+    ) : <div className=\"collectible-auction-image\">{image}</div>;
+  }
+  if (items.length === 1) {
+    return <div className=\"asset-auction-icon\" aria-hidden=\"true\"><AuctionItemIcon item={items[0]} /></div>;
+  }
+  return (
+    <div className=\"asset-auction-bundle-visual\" aria-label={`资产包包含 ${items.length} 项资产`}>
+      {items.slice(0, 4).map((item) => (
+        <div className=\"asset-auction-bundle-tile\" key={`${item.kind}:${item.id}`}>
+          <AuctionItemIcon item={item} compact />
+        </div>
+      ))}
+      {items.length > 4 ? <strong>+{formatNumber(items.length - 4)}</strong> : null}
+    </div>
+  );
+""",
+              """  return (
+    <div
+      className={`asset-auction-bundle-visual asset-auction-item-count-${Math.min(items.length, 4)}`}
+      aria-label={`拍卖包含 ${items.length} 项资产`}
+    >
+      {items.slice(0, 4).map((item) => (
+        <div
+          className=\"asset-auction-bundle-tile\"
+          key={`${item.kind}:${item.id}`}
+          aria-label={`${item.name}，数量 ${formatNumber(item.quantity)}`}
+        >
+          <AuctionItemIcon item={item} compact />
+          <span className=\"asset-auction-tile-quantity\" aria-hidden=\"true\">×{formatNumber(item.quantity)}</span>
+        </div>
+      ))}
+      {items.length > 4 ? <strong className=\"asset-auction-more-count\">+{formatNumber(items.length - 4)}</strong> : null}
+    </div>
+  );
+""",
+          )
+
+          replace_once(
+              'src/pages/AuctionPage.tsx',
+              "              const items = auctionItems(auction);\n",
+              "",
+          )
+
+          replace_once(
+              'src/pages/AuctionPage.tsx',
+              """                    <WidgetHeading title={auctionTitle(auction)} action={<StatusTag tone=\"warning\">{remainingText(auction.endsAt, now)}</StatusTag>} />
+                    <p>{auction.isBundle ? '不可拆分资产包' : assetKindNames[items[0].kind]} · 整包竞价</p>
+                    <div className=\"asset-auction-item-list\">
+                      {items.slice(0, 3).map((item) => <span key={`${item.kind}:${item.id}`}><strong>{item.name}</strong><small>{assetKindNames[item.kind]} · × {formatNumber(item.quantity)}</small></span>)}
+                      {items.length > 3 ? <span><strong>另有 {formatNumber(items.length - 3)} 项</strong><small>全部资产随成交一次性转移</small></span> : null}
+                    </div>
+                    <dl className=\"collectible-auction-metrics\">
+                      <div><dt>当前总价</dt><dd><CurrencyAmount>{formatCurrency(auction.highestBid ?? auction.startingBid)}</CurrencyAmount></dd></div>
+                      <div><dt>资产项目</dt><dd>{formatNumber(items.length)}</dd></div>
+                      <div><dt>出价次数</dt><dd>{formatNumber(auction.bids.length)}</dd></div>
+                      <div><dt>卖家</dt><dd>{auction.sellerName}</dd></div>
+                      <div><dt>最高出价者</dt><dd>{auction.highestBidderName || '暂无'}</dd></div>
+                    </dl>
+""",
+              """                    <div className=\"asset-auction-card-heading\">
+                      <h2 title={auctionTitle(auction)}>{auctionTitle(auction)}</h2>
+                      <StatusTag tone=\"warning\">{remainingText(auction.endsAt, now)}</StatusTag>
+                    </div>
+                    <dl className=\"collectible-auction-metrics asset-auction-primary-metrics\">
+                      <div><dt>当前总价</dt><dd><CurrencyAmount>{formatCurrency(auction.highestBid ?? auction.startingBid)}</CurrencyAmount></dd></div>
+                      <div><dt>最高出价者</dt><dd>{auction.highestBidderName || '暂无'}</dd></div>
+                    </dl>
+""",
+          )
+
+          replace_once(
+              'src/styles/collectibles-auctions.css',
+              """.asset-auction-icon {
+  display: grid;
+  min-height: 210px;
+  max-height: 280px;
+  place-items: center;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: radial-gradient(circle at 50% 35%, rgba(236, 196, 116, .13), transparent 48%), rgba(5, 9, 12, .82);
+}
+
+.asset-auction-icon .game-icon {
+  width: clamp(5rem, 16vw, 8.5rem);
+  height: clamp(5rem, 16vw, 8.5rem);
+  color: var(--color-text-secondary);
+}
+
+""",
+              """.asset-auction-card-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.asset-auction-card-heading h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-auction-card-heading .ui-status-tag {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.asset-auction-primary-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+""",
+          )
+
+          replace_once(
+              'src/styles/collectibles-auctions.css',
+              """.asset-auction-bundle-visual {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  min-height: 210px;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: radial-gradient(circle at 50% 35%, rgba(236, 196, 116, .13), transparent 48%), rgba(5, 9, 12, .82);
+}
+.asset-auction-bundle-tile {
+  display: grid;
+  min-height: 82px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, .04);
+  color: var(--color-text-secondary);
+}
+.asset-auction-bundle-tile img { width: 100%; height: 100%; object-fit: cover; }
+.asset-auction-bundle-tile .game-icon { width: clamp(2.6rem, 8vw, 4.2rem); height: clamp(2.6rem, 8vw, 4.2rem); }
+.asset-auction-bundle-visual > strong { position: absolute; right: .7rem; bottom: .7rem; padding: .25rem .45rem; border-radius: 999px; background: rgba(0, 0, 0, .72); }
+
+.asset-auction-item-list {
+  display: grid;
+  gap: var(--space-2);
+}
+.asset-auction-item-list > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+}
+.asset-auction-item-list small { color: var(--color-text-muted); text-align: right; }
+""",
+              """.asset-auction-bundle-visual {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  min-height: 210px;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: radial-gradient(circle at 50% 35%, rgba(236, 196, 116, .13), transparent 48%), rgba(5, 9, 12, .82);
+}
+.asset-auction-bundle-visual.asset-auction-item-count-1 {
+  grid-template-columns: minmax(0, 1fr);
+  padding-inline: clamp(4rem, 22%, 7rem);
+}
+.asset-auction-bundle-tile {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  min-height: 0;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, .04);
+  color: var(--color-text-secondary);
+}
+.asset-auction-bundle-tile img { width: 100%; height: 100%; object-fit: contain; }
+.asset-auction-bundle-tile .game-icon { width: clamp(2.6rem, 8vw, 4.2rem); height: clamp(2.6rem, 8vw, 4.2rem); }
+.asset-auction-tile-quantity {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 1;
+  display: grid;
+  min-width: 1.65rem;
+  height: 1.65rem;
+  padding: 0 .4rem;
+  place-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: rgba(2, 10, 7, .84);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 850;
+  line-height: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .28);
+}
+.asset-auction-more-count {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  z-index: 2;
+  display: grid;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 var(--space-2);
+  place-items: center;
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius-pill);
+  background: var(--color-success-strong);
+  color: var(--color-text-primary);
+  font-weight: 850;
+  line-height: 1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+}
+""",
+          )
+
+          replace_once(
+              'src/styles/collectibles-auctions.css',
+              """  .asset-auction-package-icon { width: 38px; height: 38px; }
+  .asset-auction-item-list > span { align-items: flex-start; flex-direction: column; gap: .2rem; }
+  .asset-auction-item-list small { text-align: left; }
+""",
+              """  .asset-auction-package-icon { width: 38px; height: 38px; }
+  .asset-auction-bundle-visual.asset-auction-item-count-1 { padding-inline: 4rem; }
+""",
+          )
+
+          replace_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              """进行中拍卖卡最多直接展示前三项并提示剩余项目数，明确使用“当前总价”“整包出价”和“不可拆分资产包”，并显示出价次数、卖家和最高出价者。商品使用 `ProductIcon`，工厂使用 `FactoryIcon`，藏品使用 IIIF 缩略图。客户端倒计时只用于展示，到零后显示“等待服务器结算”，不得自行宣布成交。
+""",
+              """进行中拍卖卡的资产标题与权威倒计时必须保持同一行；标题过长时只允许标题省略，倒计时不得换行。资产内容统一使用最多四个正方形图标展示，每个图标叠加实际数量，剩余项目使用基于成功色设计令牌的绿色 `+N` 徽标；商品使用 `ProductIcon`，工厂使用 `FactoryIcon`，藏品使用 IIIF 缩略图。卡片不得重复展示“不可拆分资产包 · 整包竞价”说明，不得显示独立的资产项目、出价次数或卖家指标卡；主要指标只保留“当前总价”和“最高出价者”，出价输入继续明确为“整包出价”。客户端倒计时只用于展示，到零后显示“等待服务器结算”，不得自行宣布成交。
+""",
+          )
+
+          replace_once(
+              'scripts/verify-collectibles-auctions.mjs',
+              """  'gameActions.cancelAuction',
+  '不可拆分资产包',
+  'aria-pressed={assetKind === kind}',
+""",
+              """  'gameActions.cancelAuction',
+  'className=\"asset-auction-card-heading\"',
+  'className=\"asset-auction-tile-quantity\"',
+  'className=\"asset-auction-more-count\"',
+  'asset-auction-primary-metrics',
+  'aria-pressed={assetKind === kind}',
+""",
+          )
+
+          replace_once(
+              'scripts/verify-collectibles-auctions.mjs',
+              """  'Math.floor(nextQuantity || 1)',
+]) forbidText('src/pages/AuctionPage.tsx', text);
+""",
+              """  'Math.floor(nextQuantity || 1)',
+  '· 整包竞价',
+  'className=\"asset-auction-item-list\"',
+  '<dt>资产项目</dt>',
+  '<dt>出价次数</dt>',
+  '<dt>卖家</dt>',
+]) forbidText('src/pages/AuctionPage.tsx', text);
+""",
+          )
+
+          replace_once(
+              'scripts/verify-collectibles-auctions.mjs',
+              """  '.widget.collectible-auction-create',
+  'align-items: start;',
+]) requireText('src/styles/collectibles-auctions.css', text);
+""",
+              """  '.widget.collectible-auction-create',
+  'align-items: start;',
+  '.asset-auction-card-heading',
+  '.asset-auction-tile-quantity',
+  '.asset-auction-more-count',
+  'background: var(--color-success-strong);',
+  'white-space: nowrap;',
+]) requireText('src/styles/collectibles-auctions.css', text);
+for (const text of [
+  '.asset-auction-item-list',
+  '.asset-auction-bundle-visual > strong',
+]) forbidText('src/styles/collectibles-auctions.css', text);
+""",
+          )
+
+          replace_once(
+              'scripts/verify-collectibles-auctions.mjs',
+              """    '不得在 `onChange` 阶段立即把空字符串强制回填为 `1`',
+    '把资产包数量输入恢复为每次按键立即数字化并把空值强制回填为 `1`',
+""",
+              """    '不得在 `onChange` 阶段立即把空字符串强制回填为 `1`',
+    '把资产包数量输入恢复为每次按键立即数字化并把空值强制回填为 `1`',
+    '资产标题与权威倒计时必须保持同一行',
+    '绿色 `+N` 徽标',
+    '不得重复展示“不可拆分资产包 · 整包竞价”说明',
+    '主要指标只保留“当前总价”和“最高出价者”',
+""",
+          )
+          PY
+
+          git diff --check
+          node scripts/verify-collectibles-auctions.mjs
+
+      - name: Commit final branch changes
+        shell: bash
+        run: |
+          git rm .github/workflows/apply-auction-card-update.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/pages/AuctionPage.tsx src/styles/collectibles-auctions.css docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md scripts/verify-collectibles-auctions.mjs
+          git commit -m "优化拍卖卡片资产展示"
+          git push origin HEAD:codex/auction-card-compact-icons
