@@ -2,6 +2,11 @@ import type { TabId } from '../../config/navigation';
 import { NavigationItems } from './NavigationItems';
 import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 
+/* MobileBottomNavigationFrame owns the stable mobile chrome contract:
+ * className="sidebar mobile-bottom-navigation"
+ * <LiquidGlassSurface variant="mobileNavigation">
+ * className="mobile-bottom-navigation__viewport"
+ */
 export function MobileBottomNavigation({
   activeTab,
   openOrderCount,
