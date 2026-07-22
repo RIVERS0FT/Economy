@@ -346,13 +346,8 @@
 }
 
 /* Compact production card layout v2. */
-.production-grid {
-  grid-template-columns: minmax(0, 1fr);
-}
 
 .production-build-card {
-  position: static;
-  top: auto;
   display: grid;
   grid-template-columns: minmax(180px, 0.8fr) minmax(180px, 0.8fr) minmax(320px, 1.5fr) minmax(180px, 0.8fr);
   align-items: end;
@@ -561,23 +556,12 @@
   }
 }
 /* Production management layout v3: sticky build column and adaptive same-row factory cards. */
-.production-grid {
-  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
-  align-items: start;
-}
 
 .production-build-card {
-  position: sticky;
-  top: var(--space-3);
-  align-self: start;
   display: grid;
   grid-template-columns: 1fr;
   align-items: start;
   gap: var(--space-3);
-  max-height: calc(100dvh - var(--space-6));
-  overflow-y: auto;
-  overscroll-behavior-x: contain;
-  overscroll-behavior-y: auto;
 }
 
 .production-build-card .widget-heading,
@@ -689,17 +673,8 @@
 }
 
 @media (max-width: 960px) {
-  .production-grid {
-    grid-template-columns: 1fr;
-  }
 
-  .production-build-card {
-    position: static;
-    top: auto;
-    max-height: none;
-    overflow: visible;
-  }
-
+  
   .facility-group-card {
     height: auto;
     min-height: 0;
