@@ -1,5 +1,5 @@
-/* Authentication pages use document scrolling. The signed-in game keeps its
- * fixed application viewport and intentional internal scrollports. Shared
+/* Authentication pages use document scrolling. Signed-in game and administrator
+ * surfaces share one fixed application viewport and intentional internal scrollports. Shared
  * scrollbar visuals are owned by scrollbars.css. */
 :root {
   --app-card-radius: 1rem;
@@ -26,13 +26,17 @@ body {
 
 html[data-app-surface="game"],
 html[data-app-surface="game"] body,
-html[data-app-surface="game"] #root {
+html[data-app-surface="game"] #root,
+html[data-app-surface="admin"],
+html[data-app-surface="admin"] body,
+html[data-app-surface="admin"] #root {
   height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
-html[data-app-surface="game"] body {
+html[data-app-surface="game"] body,
+html[data-app-surface="admin"] body {
   overscroll-behavior: none;
 }
 
@@ -48,7 +52,7 @@ html[data-app-surface="game"] body {
   scrollbar-gutter: auto;
 }
 
-.game-shell {
+.signed-in-shell {
   position: fixed;
   inset: 0;
   height: auto;
@@ -155,14 +159,14 @@ html[data-app-surface="game"] body {
     --desktop-status-gap: .45rem;
   }
 
-  .game-shell { padding: .45rem; gap: .45rem; }
+  .signed-in-shell { padding: .45rem; gap: .45rem; }
   .asset-bar-item { padding-top: .45rem; padding-bottom: .45rem; }
   .page-heading { padding-bottom: .65rem; }
   .page-heading h1 { font-size: clamp(1.65rem, 2.5vw, 2.4rem); }
 }
 
 @media (max-width: 720px) {
-  .game-shell {
+  .signed-in-shell {
     display: block;
     padding: 0;
   }
@@ -199,11 +203,13 @@ html[data-app-surface="game"] body {
 
   .mobile-page-overlay {
     position: relative;
+    order: 1;
     overflow: visible;
   }
 
   .mobile-chrome-overlay {
     position: relative;
+    order: 2;
     overflow: visible;
     pointer-events: none;
   }
