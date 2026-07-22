@@ -125,12 +125,14 @@ async function configureAdminRoutes(page: Page) {
   });
 }
 
-test('admin backend uses unified sections and embeds ban review', async ({ page }) => {
+test('admin desktop shares the game shell gutter, command bar and edge scrollbar', async ({ page }) => {
   await page.setViewportSize({ width: 2048, height: 1144 });
   await configureAdminRoutes(page);
   await page.goto('/economy/admin');
 
   await expect(page.getByRole('heading', { name: '世界概况', exact: true })).toBeVisible();
+  await expect(page.locator('.admin-command-bar')).toBeVisible();
+  await expect(page.locator('.admin-command-bar .liquid-glass-surface--desktopStatusBar')).toHaveCount(1);
   await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(8);
   await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();
   await expect(page.locator('.admin-population-model-card')).toHaveCount(3);
@@ -140,16 +142,54 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '人口调控记录', exact: true })).toBeVisible();
-  const contentWidth = await page.locator('.admin-page-frame').evaluate((element) => element.getBoundingClientRect().width);
-  expect(contentWidth).toBeLessThanOrEqual(1600);
-  expect(contentWidth).toBeGreaterThan(1440);
+  await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('display', 'none');
+
+  const geometry = await page.evaluate(() => {
+    const workspace = document.querySelector<HTMLElement>('.admin-workspace');
+    const sidebar = document.querySelector<HTMLElement>('.admin-sidebar');
+    const commandBar = document.querySelector<HTMLElement>('.admin-command-bar');
+    const summary = document.querySelector<HTMLElement>('.admin-summary-grid');
+    const pageFrame = document.querySelector<HTMLElement>('.admin-page-frame');
+    const rail = document.querySelector<HTMLElement>('.admin-shell .page-scroll-area > .ui-scrollbar--vertical');
+    const thumb = document.querySelector<HTMLElement>('.admin-shell .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb');
+    if (!workspace || !sidebar || !commandBar || !summary || !pageFrame || !rail || !thumb) {
+      throw new Error('管理员共享桌面外壳结构缺失');
+    }
+    const workspaceRect = workspace.getBoundingClientRect();
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const commandRect = commandBar.getBoundingClientRect();
+    const summaryRect = summary.getBoundingClientRect();
+    const frameRect = pageFrame.getBoundingClientRect();
+    const railRect = rail.getBoundingClientRect();
+    const thumbRect = thumb.getBoundingClientRect();
+    return {
+      viewportWidth: window.innerWidth,
+      sidebarLeft: sidebarRect.left,
+      sidebarWorkspaceGap: workspaceRect.left - sidebarRect.right,
+      commandTop: commandRect.top,
+      commandRightGap: window.innerWidth - commandRect.right,
+      commandHeight: commandRect.height,
+      contentRightDifference: Math.abs(commandRect.right - summaryRect.right),
+      frameWorkspaceWidthDifference: Math.abs(frameRect.width - workspaceRect.width),
+      railRight: railRect.right,
+      thumbRight: thumbRect.right,
+    };
+  });
+  expect(geometry.sidebarLeft).toBeCloseTo(12, 0);
+  expect(geometry.sidebarWorkspaceGap).toBeCloseTo(12, 0);
+  expect(geometry.commandTop).toBeCloseTo(12, 0);
+  expect(geometry.commandRightGap).toBeCloseTo(12, 0);
+  expect(geometry.commandHeight).toBeCloseTo(76, 0);
+  expect(geometry.contentRightDifference).toBeLessThanOrEqual(1);
+  expect(geometry.frameWorkspaceWidthDifference).toBeLessThanOrEqual(1);
+  expect(geometry.railRight).toBeCloseTo(geometry.viewportWidth, 0);
+  expect(geometry.thumbRight).toBeCloseTo(geometry.viewportWidth, 0);
   const metricColumns = await page.locator('.admin-summary-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
   expect(metricColumns).toBe(4);
-  await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('position', 'sticky');
 
   await page.getByRole('button', { name: '社区', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '玩家社区', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '玩家社区入口', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '世界概况', exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: '藏品', exact: true }).click();
   await expect(page.getByRole('heading', { name: '上传藏品', exact: true })).toBeVisible();
@@ -181,12 +221,13 @@ test('admin backend uses unified sections and embeds ban review', async ({ page 
   await expect(page.getByRole('button', { name: '展开侧栏' })).toBeFocused();
 });
 
-test('admin navigation becomes a horizontal client-style bar on mobile and stays visible above page cards', async ({ page }) => {
+test('admin navigation uses the shared mobile overlay and stays above page cards', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await configureAdminRoutes(page);
   await page.goto('/economy/admin');
 
   await expect(page.locator('.admin-sidebar')).toBeHidden();
+  await expect(page.locator('.admin-command-bar')).toBeHidden();
   const navigation = page.getByRole('navigation', { name: '管理员移动导航' });
   const mobileBottomNavigation = page.locator('.admin-mobile-bottom-navigation');
   await expect(navigation).toBeVisible();
@@ -199,11 +240,13 @@ test('admin navigation becomes a horizontal client-style bar on mobile and stays
   const geometry = await page.evaluate(() => {
     const nav = document.querySelector<HTMLElement>('.admin-mobile-bottom-navigation');
     const scroll = document.querySelector<HTMLElement>('.admin-page-scroll');
+    const pageLayer = document.querySelector<HTMLElement>('.mobile-page-overlay');
     const layer = document.querySelector<HTMLElement>('.admin-mobile-chrome-layer');
     const workspace = document.querySelector<HTMLElement>('.admin-workspace');
-    if (!nav || !scroll || !layer || !workspace) throw new Error('管理员移动导航结构缺失');
+    if (!nav || !scroll || !pageLayer || !layer || !workspace) throw new Error('管理员移动导航结构缺失');
     const navRect = nav.getBoundingClientRect();
     const scrollStyle = getComputedStyle(scroll);
+    const pageLayerStyle = getComputedStyle(pageLayer);
     const layerStyle = getComputedStyle(layer);
     const workspaceStyle = getComputedStyle(workspace);
     const topmost = document.elementFromPoint(
@@ -217,7 +260,7 @@ test('admin navigation becomes a horizontal client-style bar on mobile and stays
       documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       chromeLayerInsideWorkspace: workspace.contains(layer),
       chromeLayerOrder: Number.parseInt(layerStyle.order, 10),
-      pageLayerOrder: Number.parseInt(scrollStyle.order, 10),
+      pageLayerOrder: Number.parseInt(pageLayerStyle.order, 10),
       topmostInsideNavigation: Boolean(topmost && nav.contains(topmost)),
       workspaceDisplay: workspaceStyle.display,
       layerPosition: layerStyle.position,
