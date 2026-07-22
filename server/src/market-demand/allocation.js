@@ -1,11 +1,3 @@
-import {
-  ACTIVE_PLAYER_WINDOW_MS,
-  ACTIVITY_WINDOW_MS,
-  BUDGET_MAX_FALL,
-  BUDGET_MAX_RISE,
-  BUDGET_SMOOTHING,
-  PLAYER_SCALE_MAX,
-} from './catalog.js';
 import { allocateIntegerBudget, clamp, normalizeShares, round4, smoothShares } from './math.js';
 
 export function createDemandAllocationRuntime({
@@ -15,51 +7,6 @@ export function createDemandAllocationRuntime({
   orderBookQuote,
   realTradeStats,
 }) {
-  function activePlayerCount(world, now) {
-    const cutoff = now - ACTIVE_PLAYER_WINDOW_MS;
-    return Object.values(world.players || {}).filter((player) => (
-      Number(player.lastEconomicActivityAt || 0) >= cutoff
-    )).length;
-  }
-
-  function groupTradeActivity(world, group, now) {
-    const ids = new Set(group.classes.flatMap((demandClass) => demandClass.products.map((option) => option.productId)));
-    return [...ids].reduce((sum, id) => sum + realTradeStats(world, id, now, ACTIVITY_WINDOW_MS).playerValue, 0);
-  }
-
-  function dynamicBudget(world, group, state, now) {
-    const activePlayers = activePlayerCount(world, now);
-    if (activePlayers <= 0) {
-      return {
-        activePlayers: 0,
-        playerScaleBudget: 0,
-        tradeActivityFactor: 1,
-        needPressure: 1,
-        targetBudget: 0,
-        budget: 0,
-      };
-    }
-    const playerScale = clamp(1, PLAYER_SCALE_MAX, 0.5 + 0.5 * Math.sqrt(activePlayers));
-    const playerScaleBudget = Math.max(1, Math.floor(group.baseBudget * playerScale));
-    const tradeValue = groupTradeActivity(world, group, now);
-    const tradeActivityFactor = tradeValue <= 0
-      ? 1
-      : clamp(0.90, 1.10, 0.95 + 0.15 * Math.tanh(tradeValue / Math.max(1, playerScaleBudget * 5)));
-    const needPressure = clamp(0.90, 1.12, 1 + 0.25 * (group.targetSatisfaction - state.satisfactionEma));
-    const targetBudget = Math.max(1, Math.floor(playerScaleBudget * tradeActivityFactor * needPressure));
-    const previousBudget = Math.max(0, Math.floor(Number(state.lastBudget ?? group.baseBudget)));
-    let budget = targetBudget;
-    if (Number(state.lastTargetBudget || 0) > 0 && previousBudget > 0) {
-      const smoothed = Math.round(previousBudget * (1 - BUDGET_SMOOTHING) + targetBudget * BUDGET_SMOOTHING);
-      budget = clamp(
-        Math.ceil(previousBudget * (1 - BUDGET_MAX_FALL)),
-        Math.floor(previousBudget * (1 + BUDGET_MAX_RISE)),
-        smoothed,
-      );
-    }
-    return { activePlayers, playerScaleBudget, tradeActivityFactor, needPressure, targetBudget, budget };
-  }
-
   function allocateClassBudgets(group, state, directBudget, classDetails, classShareOverride) {
     if (classShareOverride && typeof classShareOverride === 'object') {
       const entries = group.classes.map((demandClass) => ({
@@ -272,5 +219,5 @@ export function createDemandAllocationRuntime({
     };
   }
 
-  return { dynamicBudget, directDemandChoices, derivedDemandChoices };
+  return { directDemandChoices, derivedDemandChoices };
 }
