@@ -24,6 +24,7 @@ import '../../src/styles/unified-market-admin.css';
 import '../../src/styles/virtual-list.css';
 import '../../src/styles/design-system.css';
 import '../../src/styles/market-page-polish.css';
+import '../../src/styles/product-artwork.css';
 
 const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') ?? 'active';
