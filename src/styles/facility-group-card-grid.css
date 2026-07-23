@@ -321,7 +321,6 @@
   align-self: start;
 }
 
-
 .facility-market-link-row {
   width: 100%;
   align-self: end;
@@ -410,7 +409,6 @@
     min-height: 0;
     grid-template-rows: auto;
   }
-
 }
 
 @media (max-width: 720px) {
@@ -598,19 +596,7 @@
   }
 }
 
-/* Desktop production workspace density. */
-@media (min-width: 961px) {
-  .production-build-card {
-    position: sticky;
-    top: var(--desktop-page-top-offset);
-    align-self: start;
-    max-height: calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter));
-    overflow-y: auto;
-    overscroll-behavior-x: contain;
-    overscroll-behavior-y: auto;
-  }
-}
-
+/* Desktop production workspace density. Sticky positioning is owned by production-surface.css. */
 @media (min-width: 1600px) {
   .production-workspace {
     grid-template-columns: minmax(280px, 320px) minmax(440px, 520px) minmax(480px, 680px);
