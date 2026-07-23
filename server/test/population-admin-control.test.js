@@ -15,14 +15,14 @@ import { EconomyStore } from '../src/runtime-store.js';
 
 const now = Date.UTC(2026, 6, 22, 8, 0, 0);
 
-test('population economy version 3 migration does not repeat bootstrap issuance', () => {
+test('population economy version 4 migration does not repeat bootstrap issuance', () => {
   const world = createWorld(now);
   const state = ensurePopulationEconomy(world, now);
   const beforeCredits = Object.values(state.models).reduce((sum, model) => sum + model.credits, 0);
   const beforeMigration = state.stats.migrationIssued;
   state.modelVersion = 1;
   ensurePopulationEconomy(world, now);
-  assert.equal(state.modelVersion, 3);
+  assert.equal(state.modelVersion, 4);
   assert.equal(Object.values(state.models).reduce((sum, model) => sum + model.credits, 0), beforeCredits);
   assert.equal(state.stats.migrationIssued, beforeMigration);
 });

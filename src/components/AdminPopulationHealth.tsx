@@ -1,22 +1,38 @@
 import type { PopulationEconomyAdminSummary, PopulationModelAdminSummary, PopulationModelId } from '../api/admin';
 import { formatCurrency } from '../utils/formatters';
 import { CurrencyAmount } from './ui/CurrencyAmount';
-import { StatusTag } from './ui/layout';
+import { StatusTag, type StatusTone } from './ui/layout';
 
 // ADMIN_OVERVIEW_SCHEME: population-health-matrix
 const MODEL_IDS: PopulationModelId[] = ['basic', 'skilled', 'professional'];
 type HealthTone = 'success' | 'warning' | 'danger' | 'neutral';
 
 function stateLabel(state: PopulationModelAdminSummary['consumptionState']) {
-  if (state === 'cautious') return '谨慎';
+  if (state === 'lavish') return '奢靡';
+  if (state === 'prosperous') return '繁荣';
+  if (state === 'strained') return '拮据';
   if (state === 'subsistence') return '生存';
   return '正常';
 }
 
-function stateTone(state: PopulationModelAdminSummary['consumptionState']): HealthTone {
-  if (state === 'cautious') return 'warning';
+function stateTone(state: PopulationModelAdminSummary['consumptionState']): StatusTone {
+  if (state === 'lavish') return 'neutral';
+  if (state === 'prosperous') return 'info';
+  if (state === 'strained') return 'warning';
   if (state === 'subsistence') return 'danger';
   return 'success';
+}
+
+function stateClassName(state: PopulationModelAdminSummary['consumptionState']) {
+  return state === 'lavish' ? 'admin-population-state--lavish' : undefined;
+}
+
+function stateDescription(state: PopulationModelAdminSummary['consumptionState']) {
+  if (state === 'lavish') return '收入与钱包长期显著充裕';
+  if (state === 'prosperous') return '收入稳定且钱包充足';
+  if (state === 'strained') return '收入明显低于近期水平';
+  if (state === 'subsistence') return '收入严重不足或持续中断';
+  return '收入与储蓄处于稳定区间';
 }
 
 function pendingTotal(model: PopulationModelAdminSummary) {
@@ -43,11 +59,33 @@ function formatPercent(value: number) {
   return `${Math.round(value)}%`;
 }
 
+function formatBps(value: number) {
+  return formatPercent(Math.max(0, value) / 100);
+}
+
 function Bar({ value, rawValue = value, tone, label }: { value: number; rawValue?: number; tone: HealthTone; label: string }) {
   const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
   const hasValue = Number.isFinite(rawValue) && rawValue > 0;
   const width = hasValue ? `max(4px, ${clamped}%)` : '0%';
   return <span className={`admin-population-bar admin-population-bar--${tone}`} role="img" aria-label={label}><span style={{ width }} /></span>;
+}
+
+function PopulationState({ model }: { model: PopulationModelAdminSummary }) {
+  return (
+    <span className="admin-population-state-cell" title={stateDescription(model.consumptionState)}>
+      <StatusTag tone={stateTone(model.consumptionState)} className={stateClassName(model.consumptionState)}>{stateLabel(model.consumptionState)}</StatusTag>
+      <small>持续 {model.stateCycles} 周期</small>
+    </span>
+  );
+}
+
+function StateMetrics({ model }: { model: PopulationModelAdminSummary }) {
+  return (
+    <span className="admin-population-state-metrics">
+      <strong>健康 {formatBps(model.incomeHealthBps)}</strong>
+      <small>收入覆盖 {formatBps(model.incomeCoverageBps)} · 判定钱包 {formatBps(model.walletCoverageBps)}</small>
+    </span>
+  );
 }
 
 export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyAdminSummary }) {
@@ -81,7 +119,7 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
         </div>
         <div className="admin-population-matrix__row" role="row">
           <span role="rowheader">状态</span>
-          {models.map((model) => <span role="cell" key={model.id}><StatusTag tone={stateTone(model.consumptionState)}>{stateLabel(model.consumptionState)}</StatusTag></span>)}
+          {models.map((model) => <span role="cell" key={model.id}><PopulationState model={model} /></span>)}
         </div>
         <div className="admin-population-matrix__row" role="row">
           <span role="rowheader">钱包覆盖</span>
@@ -101,6 +139,7 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
           })}
         </div>
         <div className="admin-population-matrix__row" role="row"><span role="rowheader">最近收入／EMA</span>{models.map((model) => <span role="cell" key={model.id}><Amount value={model.lastIncome} />／<Amount value={model.incomeEma} /></span>)}</div>
+        <div className="admin-population-matrix__row" role="row"><span role="rowheader">状态判定指标</span>{models.map((model) => <span role="cell" key={model.id}><StateMetrics model={model} /></span>)}</div>
         <div className="admin-population-matrix__row" role="row"><span role="rowheader">稳定预算／自动补充</span>{models.map((model) => <span role="cell" key={model.id}><Amount value={model.stabilizationBudget} />／<Amount value={model.lastStabilizationIssued} /></span>)}</div>
         <div className="admin-population-matrix__row" role="row"><span role="rowheader">待结算／无收入周期</span>{models.map((model) => <span role="cell" key={model.id}><Amount value={pendingTotal(model)} />／{model.noIncomeCycles}</span>)}</div>
       </section>
@@ -110,7 +149,7 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
           const health = walletHealth(economy, model);
           const total = Math.max(0, model.foodBudget + model.householdBudget);
           const food = total > 0 ? Math.round(model.foodBudget / total * 100) : 0;
-          return <article className="admin-population-model-card" key={model.id}><header><h3>{model.name}</h3><StatusTag tone={stateTone(model.consumptionState)}>{stateLabel(model.consumptionState)}</StatusTag></header><div className="admin-population-mobile-coverage"><span><strong>钱包覆盖 {health.coverage}%</strong><small>{health.gap > 0 ? <>缺口 <Amount value={health.gap} /></> : '钱包充足'}</small></span><Bar value={health.coverage} rawValue={health.coverage} tone={health.tone} label={`${model.name}钱包覆盖 ${health.coverage}%`} /></div><dl><div><dt>可用／冻结</dt><dd><Amount value={model.credits} />／<Amount value={model.frozenCredits} /></dd></div><div><dt>当前预算</dt><dd><Amount value={model.lastBudget} /></dd></div><div><dt>食品／家庭</dt><dd>{food}%／{100 - food}%</dd></div><div><dt>收入／EMA</dt><dd><Amount value={model.lastIncome} />／<Amount value={model.incomeEma} /></dd></div><div><dt>稳定／补充</dt><dd><Amount value={model.stabilizationBudget} />／<Amount value={model.lastStabilizationIssued} /></dd></div></dl></article>;
+          return <article className="admin-population-model-card" key={model.id}><header><h3>{model.name}</h3><PopulationState model={model} /></header><div className="admin-population-mobile-coverage"><span><strong>钱包覆盖 {health.coverage}%</strong><small>{health.gap > 0 ? <>缺口 <Amount value={health.gap} /></> : '钱包充足'}</small></span><Bar value={health.coverage} rawValue={health.coverage} tone={health.tone} label={`${model.name}钱包覆盖 ${health.coverage}%`} /></div><dl><div><dt>可用／冻结</dt><dd><Amount value={model.credits} />／<Amount value={model.frozenCredits} /></dd></div><div><dt>当前预算</dt><dd><Amount value={model.lastBudget} /></dd></div><div><dt>食品／家庭</dt><dd>{food}%／{100 - food}%</dd></div><div><dt>收入／EMA</dt><dd><Amount value={model.lastIncome} />／<Amount value={model.incomeEma} /></dd></div><div><dt>状态判定</dt><dd><StateMetrics model={model} /></dd></div><div><dt>稳定／补充</dt><dd><Amount value={model.stabilizationBudget} />／<Amount value={model.lastStabilizationIssued} /></dd></div></dl></article>;
         })}
       </section>
 

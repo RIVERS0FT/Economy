@@ -168,6 +168,32 @@
 .admin-population-budget-split > .food { background: var(--color-warning); }
 .admin-population-budget-split > .household { background: var(--color-info); }
 
+.admin-population-state-cell,
+.admin-population-state-metrics {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+}
+
+.admin-population-state-cell small,
+.admin-population-state-metrics small {
+  color: var(--color-text-muted);
+  font-size: .72rem;
+  line-height: 1.35;
+}
+
+.admin-population-state--lavish {
+  color: var(--color-accent-violet);
+  border-color: rgba(185, 160, 255, .28);
+  background: rgba(185, 160, 255, .09);
+}
+
+.admin-population-state-metrics strong {
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
 .admin-population-mobile-models { display: none; }
 
 .admin-population-analysis-grid {

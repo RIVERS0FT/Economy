@@ -33,9 +33,9 @@ async function configureAdminRoutes(page: Page) {
           credits: 5_000, frozenCredits: 500, pendingIncome: 300, lastIncome: 200, lastBudget: 1_000,
           totalIncome: 10_000, totalSpent: 5_000, constructionEscrow: 250, totalEmploymentIncome: 8_000, totalConsumption: 5_000,
           models: {
-            basic: { id: 'basic', name: '基础人口', consumptionState: 'normal', credits: 3_000, frozenCredits: 300, pendingIncome: { production: 100, construction: 50, warehouse: 20, marketService: 10 }, lastIncome: 120, incomeEma: 110, recentPeakIncome: 130, noIncomeCycles: 0, lastBudget: 600, foodBudget: 468, householdBudget: 132, stabilizationBudget: 410, lastStabilizationIssued: 120, lastAdminPopulationIssued: 0, totalIncome: 6_000, totalSpent: 3_000 },
-            skilled: { id: 'skilled', name: '技术人口', consumptionState: 'cautious', credits: 1_500, frozenCredits: 150, pendingIncome: { production: 60, construction: 20, warehouse: 10, marketService: 10 }, lastIncome: 60, incomeEma: 70, recentPeakIncome: 100, noIncomeCycles: 1, lastBudget: 300, foodBudget: 219, householdBudget: 81, stabilizationBudget: 205, lastStabilizationIssued: 60, lastAdminPopulationIssued: 0, totalIncome: 3_000, totalSpent: 1_500 },
-            professional: { id: 'professional', name: '专业人口', consumptionState: 'subsistence', credits: 500, frozenCredits: 50, pendingIncome: { production: 10, construction: 5, warehouse: 3, marketService: 2 }, lastIncome: 20, incomeEma: 20, recentPeakIncome: 100, noIncomeCycles: 2, lastBudget: 100, foodBudget: 85, householdBudget: 15, stabilizationBudget: 69, lastStabilizationIssued: 20, lastAdminPopulationIssued: 0, totalIncome: 1_000, totalSpent: 500 },
+            basic: { id: 'basic', name: '基础人口', consumptionState: 'lavish', stateReason: 'lavish-qualified', stateCycles: 5, incomeHealthBps: 9_800, walletCoverageBps: 17_000, incomeCoverageBps: 16_000, credits: 3_000, frozenCredits: 300, pendingIncome: { production: 100, construction: 50, warehouse: 20, marketService: 10 }, lastIncome: 120, incomeEma: 110, recentPeakIncome: 112, noIncomeCycles: 0, lastBudget: 600, foodBudget: 390, householdBudget: 210, stabilizationBudget: 69, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 6_000, totalSpent: 3_000 },
+            skilled: { id: 'skilled', name: '技术人口', consumptionState: 'prosperous', stateReason: 'prosperous-qualified', stateCycles: 3, incomeHealthBps: 9_000, walletCoverageBps: 12_000, incomeCoverageBps: 12_000, credits: 1_500, frozenCredits: 150, pendingIncome: { production: 60, construction: 20, warehouse: 10, marketService: 10 }, lastIncome: 60, incomeEma: 70, recentPeakIncome: 78, noIncomeCycles: 0, lastBudget: 300, foodBudget: 150, householdBudget: 150, stabilizationBudget: 58, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 3_000, totalSpent: 1_500 },
+            professional: { id: 'professional', name: '专业人口', consumptionState: 'strained', stateReason: 'income-strained', stateCycles: 2, incomeHealthBps: 5_000, walletCoverageBps: 8_000, incomeCoverageBps: 6_000, credits: 500, frozenCredits: 50, pendingIncome: { production: 10, construction: 5, warehouse: 3, marketService: 2 }, lastIncome: 20, incomeEma: 20, recentPeakIncome: 40, noIncomeCycles: 1, lastBudget: 100, foodBudget: 58, householdBudget: 42, stabilizationBudget: 33, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 1_000, totalSpent: 500 },
           },
           sources: { production: 10_000, construction: 2_000, warehouse: 0, marketService: 1 },
           productionByComplexity: { C1: 10_000, C2: 5_000, C3: 1_000, C4: 500, C5: 100, C6: 1, C7: 0 },
@@ -138,6 +138,12 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await expect(page.locator('.admin-population-ledger').getByText('累计稳定需求补充', { exact: true })).toBeVisible();
   await expect(page.locator('.admin-population-ledger').getByText('累计管理员人口补充', { exact: true })).toBeVisible();
   await expect(page.locator('.admin-population-matrix').getByText('稳定预算／自动补充', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('奢靡', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('繁荣', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('拮据', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('状态判定指标', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('健康 98%', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-population-matrix').getByText('收入覆盖 160% · 判定钱包 170%', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '当前政策', exact: true })).toBeVisible();
   await expect(page.getByText('稳定需求比例／目标钱包', { exact: true })).toBeVisible();
