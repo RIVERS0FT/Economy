@@ -1,0 +1,287 @@
+name: Temporary apply real trade price fix
+
+on:
+  push:
+    branches:
+      - agent/fix-real-trade-profit-display
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message != '修复真实成交价与工厂利润提示'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-real-trade-profit-display
+          fetch-depth: 0
+      - name: Apply source, validation, and design changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          market_path = 'src/pages/MarketPage.tsx'
+          replace_once(
+              market_path,
+              """              const lastPrice = game.markets[product.id]?.lastPrice;
+              const hasLastPrice = typeof lastPrice === 'number';
+              const priceLabel = hasLastPrice ? formatCurrency(lastPrice) : '暂无成交';""",
+              """              const lastTradePrice = game.markets[product.id]?.lastTradePrice;
+              const hasLastTradePrice = typeof lastTradePrice === 'number';
+              const priceLabel = hasLastTradePrice ? formatCurrency(lastTradePrice) : '暂无成交';""",
+          )
+          replace_once(
+              market_path,
+              """                      <CurrencyAmount>{hasLastPrice ? formatCurrency(lastPrice) : '—'}</CurrencyAmount>""",
+              """                      <CurrencyAmount>{hasLastTradePrice ? formatCurrency(lastTradePrice) : '—'}</CurrencyAmount>""",
+          )
+          replace_once(
+              market_path,
+              """              const lastPrice = game.facilityMarkets[facility.id]?.lastPrice;
+              const hasLastPrice = typeof lastPrice === 'number';
+              const priceLabel = hasLastPrice ? formatCurrency(lastPrice) : '暂无成交';""",
+              """              const lastTradePrice = game.facilityMarkets[facility.id]?.lastTradePrice;
+              const hasLastTradePrice = typeof lastTradePrice === 'number';
+              const priceLabel = hasLastTradePrice ? formatCurrency(lastTradePrice) : '暂无成交';""",
+          )
+          replace_once(
+              market_path,
+              """                   <span><CurrencyAmount>{hasLastPrice ? formatCurrency(lastPrice) : '—'}</CurrencyAmount></span>""",
+              """                   <span><CurrencyAmount>{hasLastTradePrice ? formatCurrency(lastTradePrice) : '—'}</CurrencyAmount></span>""",
+          )
+
+          Path('src/components/facilities/FacilityRecipeProfitAnalysis.tsx').write_text("""import type {
+  FacilityTypeDefinition,
+  ProductDefinition,
+  ProductInventory,
+} from '../../types';
+import { analyzeRecipeProfit } from '../../utils/recipeProfitAnalysis';
+import { formatCurrency } from '../../utils/formatters';
+import { CurrencyAmount } from '../ui/CurrencyAmount';
+import { useFacilityRecipeProfitMarkets } from './FacilityRecipeProfitContext';
+import '../../styles/facility-recipe-profit-analysis.css';
+
+function amountTone(value: number | null) {
+  if (value === null || value === 0) return '';
+  return value > 0 ? ' is-positive' : ' is-negative';
+}
+
+function scopeDescription(scopeLabel: string) {
+  if (scopeLabel === '下一周期') return '下一周期预计';
+  if (scopeLabel === '启动后') return '启动后预计';
+  if (scopeLabel === '恢复后') return '恢复后预计';
+  return '当前配方预计';
+}
+
+export function FacilityRecipeProfitAnalysis({
+  type,
+  scopeCount,
+  scopeLabel,
+  products,
+  inventories: _inventories,
+}: {
+  type: FacilityTypeDefinition;
+  scopeCount: number;
+  scopeLabel: string;
+  products: ProductDefinition[];
+  inventories: Record<string, ProductInventory>;
+}) {
+  void _inventories;
+  const markets = useFacilityRecipeProfitMarkets();
+  const analysis = analyzeRecipeProfit({
+    recipe: type,
+    scopeCount: scopeCount > 0 ? 1 : 0,
+    markets,
+    buildCost: 0,
+  });
+  const profitPerMinute = analysis.profitPerMinute;
+  const description = scopeDescription(scopeLabel);
+  const productNames = new Map(products.map((product) => [product.id, product.name]));
+  const missingPriceNames = analysis.missingPriceProductIds.map((productId) => (
+    productNames.get(productId) ?? productId
+  ));
+  const missingPriceLabel = missingPriceNames.join('、');
+  const fallback = scopeCount < 1
+    ? '暂无范围'
+    : missingPriceNames.length > 0
+      ? `缺少${missingPriceLabel}成交价`
+      : '暂无成交数据';
+  const detail = scopeCount < 1
+    ? `${description}；没有可计算的工厂范围`
+    : profitPerMinute === null
+      ? missingPriceNames.length > 0
+        ? `${description}；缺少${missingPriceLabel}的最近真实成交价，无法估算`
+        : `${description}；缺少最近真实成交价，无法估算`
+      : `${description}；按最近真实成交价估算，已扣除单座原料成本与周期运营成本，不计玩家库存、挂单深度和交易手续费`;
+  const sign = profitPerMinute === null
+    ? undefined
+    : profitPerMinute > 0
+      ? '+'
+      : profitPerMinute < 0
+        ? '−'
+        : undefined;
+
+  return (
+    <section
+      className={`facility-average-profit${amountTone(profitPerMinute)}`}
+      aria-label={`${type.name}单厂平均利润每分钟`}
+      title={detail}
+    >
+      <div className="facility-average-profit__copy">
+        <strong>单厂平均利润／分钟</strong>
+        <small>{description} · 最近真实成交价</small>
+      </div>
+      <div className="facility-average-profit__value">
+        {profitPerMinute === null ? (
+          <strong>{fallback}</strong>
+        ) : (
+          <CurrencyAmount sign={sign}>{formatCurrency(Math.abs(profitPerMinute))}</CurrencyAmount>
+        )}
+      </div>
+    </section>
+  );
+}
+""", encoding='utf-8')
+
+          verify_path = 'scripts/verify-recipe-profit-analysis.mjs'
+          replace_once(
+              verify_path,
+              """const analysisSource = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
+const contextSource = read('src/components/facilities/FacilityRecipeProfitContext.tsx');""",
+              """const analysisSource = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
+const marketPageSource = read('src/pages/MarketPage.tsx');
+const contextSource = read('src/components/facilities/FacilityRecipeProfitContext.tsx');""",
+          )
+          replace_once(
+              verify_path,
+              """const designSource = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');""",
+              """const designSource = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
+const marketDesignSource = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');""",
+          )
+          replace_once(
+              verify_path,
+              """  '最近真实成交价',
+  '不计玩家库存、挂单深度和交易手续费',""",
+              """  '最近真实成交价',
+  'analysis.missingPriceProductIds',
+  "missingPriceNames.join('、')",
+  '不计玩家库存、挂单深度和交易手续费',""",
+          )
+          replace_once(
+              verify_path,
+              """for (const removedText of [
+  '市场利润分析',
+  '<small>原料市场成本</small>',
+  '<small>产出市场价值</small>',
+  '<small>周期运营成本</small>',
+  '<small>单周期利润</small>',
+  '静态建造回本',
+  '预计盈利',
+  '最近成交价明细',
+  'buildCost: type.buildCost',
+]) assert.equal(analysisSource.includes(removedText), false, `详情不得恢复完整利润分析: ${removedText}`);
+
+assert.ok(contextSource.includes('createContext<Record<string, ProductMarketState>>({})'));""",
+              """for (const removedText of [
+  '市场利润分析',
+  '<small>原料市场成本</small>',
+  '<small>产出市场价值</small>',
+  '<small>周期运营成本</small>',
+  '<small>单周期利润</small>',
+  '静态建造回本',
+  '预计盈利',
+  '最近成交价明细',
+  'buildCost: type.buildCost',
+]) assert.equal(analysisSource.includes(removedText), false, `详情不得恢复完整利润分析: ${removedText}`);
+
+for (const text of [
+  'const lastTradePrice = game.markets[product.id]?.lastTradePrice;',
+  'const lastTradePrice = game.facilityMarkets[facility.id]?.lastTradePrice;',
+  'const hasLastTradePrice = typeof lastTradePrice === \'number\';',
+]) assert.ok(marketPageSource.includes(text), `市场资产目录缺少真实成交价字段: ${text}`);
+for (const removedText of [
+  'const lastPrice = game.markets[product.id]?.lastPrice;',
+  'const lastPrice = game.facilityMarkets[facility.id]?.lastPrice;',
+]) assert.equal(marketPageSource.includes(removedText), false, `市场资产目录不得把 lastPrice 标为最近成交价: ${removedText}`);
+
+assert.ok(contextSource.includes('createContext<Record<string, ProductMarketState>>({})'));""",
+          )
+          replace_once(
+              verify_path,
+              """  '不得恢复市场利润分析标题',
+  '完整状态与工厂名称放在同一紧凑标题行',""",
+              """  '不得恢复市场利润分析标题',
+  '必须直接显示缺失商品名称',
+  '不得只显示笼统的“暂无成交数据”',
+  '完整状态与工厂名称放在同一紧凑标题行',""",
+          )
+          replace_once(
+              verify_path,
+              """for (const removedText of [
+  '### 9.5 玩家可见配方利润分析',
+  '界面必须展示原料市场成本、产出市场价值',
+  '窄屏利润分析保持紧凑而不删减信息',
+]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
+
+console.log('单厂平均利润最近成交价、固定单座口径、缺价保护、完整利润卡移除和详情头部压缩验证通过。');""",
+              """for (const removedText of [
+  '### 9.5 玩家可见配方利润分析',
+  '界面必须展示原料市场成本、产出市场价值',
+  '窄屏利润分析保持紧凑而不删减信息',
+]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
+assert.ok(
+  marketDesignSource.includes('横向资产目录中的商品和工厂价格都必须读取对应市场的 `lastTradePrice`'),
+  '统一订单簿设计必须锁定资产目录真实成交价字段',
+);
+
+console.log('市场目录真实成交价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。');""",
+          )
+
+          industry_path = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
+          replace_once(industry_path, '> 更新时间：2026-07-22', '> 更新时间：2026-07-23')
+          replace_once(
+              industry_path,
+              """任一实际需要的原料或产出商品没有最近真实成交价时，该行显示“暂无成交数据”；不得使用部分盘口、基础价或其他替代价格补齐。无输入配方的单厂原料市场成本固定为零。正利润使用成功色和正号，负利润使用危险色和负号，零利润使用普通文字。""",
+              """任一实际需要的原料或产出商品没有最近真实成交价时，该行右侧必须直接显示缺失商品名称，例如“缺少砂糖、奶成交价”；不得只显示笼统的“暂无成交数据”，也不得使用部分盘口、基础价或其他替代价格补齐。没有可计算工厂范围时显示“暂无范围”。无输入配方的单厂原料市场成本固定为零。正利润使用成功色和正号，负利润使用危险色和负号，零利润使用普通文字。""",
+          )
+          replace_once(
+              industry_path,
+              """详情只显示一行“单厂平均利润／分钟”：左侧为指标名称和“当前配方预计／下一周期预计／启动后预计／恢复后预计 · 最近真实成交价”，右侧为数值。不得恢复市场利润分析标题、盈利状态标签、原料成本、产出价值、周期成本、单周期利润、静态回本、逐商品成交价明细、警告列表或说明段落。完整估算口径可通过该行的辅助说明提供，但不得增加第二行指标卡或内部滚动区。""",
+              """详情只显示一行“单厂平均利润／分钟”：左侧为指标名称和“当前配方预计／下一周期预计／启动后预计／恢复后预计 · 最近真实成交价”，右侧为数值或内联缺价提示。缺失商品名称只允许出现在该行右侧和辅助说明中，不得扩展为逐商品成交价明细或第二张卡。不得恢复市场利润分析标题、盈利状态标签、原料成本、产出价值、周期成本、单周期利润、静态回本、警告列表或说明段落。完整估算口径可通过该行的辅助说明提供，但不得增加第二行指标卡或内部滚动区。""",
+          )
+
+          market_design_path = 'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md'
+          replace_once(market_design_path, '> 更新时间：2026-07-22', '> 更新时间：2026-07-23')
+          replace_once(
+              market_design_path,
+              """商品资产标签使用对应商品的 `ProductIcon`。工厂资产标签使用独立厂房 SVG `FactoryIcon`，不得使用机械商品的齿轮图标，也不得恢复 `⚙` 字符。图标只承担视觉语义，不改变资产 ID、撮合或估值规则。""",
+              """商品资产标签使用对应商品的 `ProductIcon`。工厂资产标签使用独立厂房 SVG `FactoryIcon`，不得使用机械商品的齿轮图标，也不得恢复 `⚙` 字符。图标只承担视觉语义，不改变资产 ID、撮合或估值规则。
+
+横向资产目录中的商品和工厂价格都必须读取对应市场的 `lastTradePrice` 并标注为“最近成交价”；从未发生真实订单簿成交时显示“—”，无障碍名称使用“暂无成交”。`lastPrice` 只可继续用于行情曲线的内部回退，不得作为资产标签成交价、工厂利润或正式估值。""",
+          )
+          PY
+      - name: Commit patched files
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/pages/MarketPage.tsx \
+            src/components/facilities/FacilityRecipeProfitAnalysis.tsx \
+            scripts/verify-recipe-profit-analysis.mjs \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+          git commit -m "修复真实成交价与工厂利润提示"
+          git push origin HEAD:agent/fix-real-trade-profit-display
