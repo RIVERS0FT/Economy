@@ -74,18 +74,22 @@ assert.equal(noInput.inputMarketCost, 0);
 assert.equal(noInput.profitPerMinute, 1);
 
 const analysisSource = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
+const marketPageSource = read('src/pages/MarketPage.tsx');
 const contextSource = read('src/components/facilities/FacilityRecipeProfitContext.tsx');
 const routerSource = read('src/pages/PageRouter.tsx');
 const styleSource = read('src/styles/facility-recipe-profit-analysis.css');
 const surfaceSource = read('src/styles/production-surface.css');
 const sheetSource = read('src/styles/facility-detail-sheet.css');
 const designSource = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
+const marketDesignSource = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 
 for (const text of [
   '单厂平均利润／分钟',
   'scopeCount: scopeCount > 0 ? 1 : 0',
   'buildCost: 0',
   '最近真实成交价',
+  'analysis.missingPriceProductIds',
+  "missingPriceNames.join('、')",
   '不计玩家库存、挂单深度和交易手续费',
 ]) assert.ok(analysisSource.includes(text), `单厂平均利润界面缺少: ${text}`);
 for (const removedText of [
@@ -99,6 +103,16 @@ for (const removedText of [
   '最近成交价明细',
   'buildCost: type.buildCost',
 ]) assert.equal(analysisSource.includes(removedText), false, `详情不得恢复完整利润分析: ${removedText}`);
+
+for (const text of [
+  'const lastTradePrice = game.markets[product.id]?.lastTradePrice;',
+  'const lastTradePrice = game.facilityMarkets[facility.id]?.lastTradePrice;',
+  "const hasLastTradePrice = typeof lastTradePrice === 'number';",
+]) assert.ok(marketPageSource.includes(text), `市场资产目录缺少真实成交价字段: ${text}`);
+for (const removedText of [
+  'const lastPrice = game.markets[product.id]?.lastPrice;',
+  'const lastPrice = game.facilityMarkets[facility.id]?.lastPrice;',
+]) assert.equal(marketPageSource.includes(removedText), false, `市场资产目录不得把 lastPrice 标为最近成交价: ${removedText}`);
 
 assert.ok(contextSource.includes('createContext<Record<string, ProductMarketState>>({})'));
 assert.ok(routerSource.includes('FacilityRecipeProfitMarketsProvider markets={model.game.markets}'));
@@ -127,6 +141,8 @@ for (const text of [
   '指标固定按一座工厂计算',
   '单厂平均利润／分钟 = 单厂周期利润 × 60000 ÷ 配方周期毫秒',
   '不得恢复市场利润分析标题',
+  '必须直接显示缺失商品名称',
+  '不得只显示笼统的“暂无成交数据”',
   '完整状态与工厂名称放在同一紧凑标题行',
 ]) assert.ok(designSource.includes(text), `产业权威设计缺少单厂利润规则: ${text}`);
 for (const removedText of [
@@ -134,5 +150,9 @@ for (const removedText of [
   '界面必须展示原料市场成本、产出市场价值',
   '窄屏利润分析保持紧凑而不删减信息',
 ]) assert.equal(designSource.includes(removedText), false, `产业设计不得保留旧利润卡规则: ${removedText}`);
+assert.ok(
+  marketDesignSource.includes('横向资产目录中的商品和工厂价格都必须读取对应市场的 `lastTradePrice`'),
+  '统一订单簿设计必须锁定资产目录真实成交价字段',
+);
 
-console.log('单厂平均利润最近成交价、固定单座口径、缺价保护、完整利润卡移除和详情头部压缩验证通过。');
+console.log('市场目录真实成交价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。');
