@@ -18,15 +18,15 @@ for (const text of [
   'event.stopPropagation()',
 ]) assert.ok(hook.includes(text), `覆盖式滚动条缺少滚轮归属规则: ${text}`);
 
-const productionStyles = read('src/styles/facility-group-card-grid.css');
+const productionStyles = read('src/styles/production-surface.css');
 const productionBlocks = productionStyles
-  .split('.production-build-card {')
+  .split('.production-workspace > .production-build-card {')
   .slice(1)
   .map((part) => part.slice(0, part.indexOf('}')));
-assert.ok(productionBlocks.length > 0, 'src/styles/facility-group-card-grid.css 缺少 .production-build-card');
+assert.ok(productionBlocks.length > 0, 'src/styles/production-surface.css 缺少生产建设卡滚动权威规则');
 assert.ok(
   productionBlocks.some((block) => block.includes('overscroll-behavior-y: auto;')),
-  '生产建设卡必须释放纵向边界',
+  '生产建设卡必须由 production-surface.css 释放纵向边界',
 );
 
 const performanceStyles = read('src/styles/performance.css');
