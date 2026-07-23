@@ -13,7 +13,7 @@ export type PopulationModelId = 'basic' | 'skilled' | 'professional';
 export interface PopulationModelAdminSummary {
   id: PopulationModelId;
   name: string;
-  consumptionState: 'normal' | 'cautious' | 'subsistence';
+  consumptionState: 'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence';
   credits: number;
   frozenCredits: number;
   pendingIncome: Record<'production' | 'construction' | 'warehouse' | 'marketService', number>;
@@ -21,6 +21,11 @@ export interface PopulationModelAdminSummary {
   incomeEma: number;
   recentPeakIncome: number;
   noIncomeCycles: number;
+  stateReason: string;
+  stateCycles: number;
+  incomeHealthBps: number;
+  walletCoverageBps: number;
+  incomeCoverageBps: number;
   lastBudget: number;
   foodBudget: number;
   householdBudget: number;

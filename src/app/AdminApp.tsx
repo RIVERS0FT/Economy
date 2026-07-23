@@ -4,6 +4,7 @@ import {
   createAdminRequestKey,
   type ExtendedAdminSummary,
   type GiftRedemptionRecord,
+  type PopulationModelAdminSummary,
 } from '../api/admin';
 import { GameApiError } from '../api/game';
 import type {
@@ -78,10 +79,20 @@ function ownershipReason(record: CollectibleOwnershipRecord) {
   return '创建藏品';
 }
 
-function populationStateLabel(state: 'normal' | 'cautious' | 'subsistence') {
-  if (state === 'cautious') return '谨慎';
+function populationStateLabel(state: PopulationModelAdminSummary['consumptionState']) {
+  if (state === 'lavish') return '奢靡';
+  if (state === 'prosperous') return '繁荣';
+  if (state === 'strained') return '拮据';
   if (state === 'subsistence') return '生存';
   return '正常';
+}
+
+function populationStateTone(state: PopulationModelAdminSummary['consumptionState']) {
+  if (state === 'lavish') return 'neutral' as const;
+  if (state === 'prosperous') return 'info' as const;
+  if (state === 'strained') return 'warning' as const;
+  if (state === 'subsistence') return 'danger' as const;
+  return 'success' as const;
 }
 
 function downloadGiftCodes(codes: string[]) {
@@ -437,7 +448,7 @@ export function AdminApp({ user }: { user: AuthUser }) {
                   <div className="admin-population-model-grid">
                     {Object.values(summary.populationEconomy.models).map((model) => (
                       <section className="admin-population-model-card" key={model.id}>
-                        <header><h3>{model.name}</h3><StatusTag tone={model.consumptionState === 'normal' ? 'success' : model.consumptionState === 'cautious' ? 'warning' : 'danger'}>{populationStateLabel(model.consumptionState)}</StatusTag></header>
+                        <header><h3>{model.name}</h3><StatusTag tone={populationStateTone(model.consumptionState)} className={model.consumptionState === 'lavish' ? 'admin-population-state--lavish' : undefined}>{populationStateLabel(model.consumptionState)}</StatusTag></header>
                         <dl>
                           <div><dt>可用／冻结</dt><dd><CurrencyAmount>{formatCurrency(model.credits)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.frozenCredits)}</CurrencyAmount></dd></div>
                           <div><dt>最近收入／EMA</dt><dd><CurrencyAmount>{formatCurrency(model.lastIncome)}</CurrencyAmount>／<CurrencyAmount>{formatCurrency(model.incomeEma)}</CurrencyAmount></dd></div>

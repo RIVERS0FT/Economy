@@ -55,6 +55,15 @@ for (const text of [
   'MARKET_DEMAND_MODEL_VERSION = 9',
   'DIRECT_BUDGET_SHARE = 0.70',
   "POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional'])",
+  "POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence'])",
+  'POPULATION_ECONOMY_VERSION = 4',
+  'POPULATION_GROUP_SHARES_BY_STATE',
+  'PROSPEROUS_ENTRY_CYCLES = 2',
+  'LAVISH_ENTRY_CYCLES = 3',
+  'UPPER_STATE_DOWNGRADE_CYCLES = 2',
+  'model.recentPeakIncome = Math.max(model.incomeEma',
+  "setConsumptionState(model, 'strained'",
+  "setConsumptionState(model, 'subsistence'",
   "const CONSTRUCTION_PROFILE = Object.freeze({ basic: 0.60, skilled: 0.30, professional: 0.10 })",
   'preparePopulationDemandCycle',
   'populationClassShares',
@@ -133,6 +142,14 @@ for (const text of [
   'construction employment is fixed at 60/30/10 and ignores factory complexity',
   'population buy orders use real escrow and refund price improvement and cancellation',
   'stabilization budget refills wallet gaps with a capped three-cycle target',
+  'five consumption states use the authoritative food and household budget shares',
+  'five consumption states expose complete food and household class shares',
+  'population enters prosperous and lavish only after sustained qualification',
+  'a single income spike does not immediately create prosperity and peak follows EMA',
+  'lavish and prosperous states use two-cycle downgrade grace',
+  'income stress downgrades immediately and two zero-income cycles enter subsistence',
+  'consumption state changes allocation but not the spendable budget formula',
+  'version 3 cautious state migrates to strained without reissuing bootstrap funds',
 ]) assert.ok(populationTests.includes(text), '人口经济测试缺少: ' + text);
 
 const liquidityTests = read('server/test/market-liquidity.test.js');
@@ -143,13 +160,13 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`9`', '三类人口使用真实余额', '稳定需求补充', '人口消费成交不再发行普通货币']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：9', '三类人口账户', '真实冻结资金', '稳定需求补充', '三周期目标钱包']],
+  ['README.md', ['市场需求模型版本：`9`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：9', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包']],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：9', '`populationModelId`', '`fundingPool`', '真实人口冻结资金']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '市场需求模型 9', '人口消费不得发行普通货币']],
-  ['src/api/admin.ts', ['stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 4', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 9', '人口消费不得发行普通货币']],
+  ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/app/AdminApp.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', 'AdminPopulationControl']],
-  ['tests/browser/admin-runtime.spec.ts', ['stabilization: 684', 'adminPopulation: 0', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', '人口政策调控']],
+  ['tests/browser/admin-runtime.spec.ts', ["consumptionState: 'lavish'", "consumptionState: 'prosperous'", "consumptionState: 'strained'", '状态判定指标', 'stabilization: 684', 'adminPopulation: 0', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', '人口政策调控']],
 ]) {
   const content = read(path);
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);

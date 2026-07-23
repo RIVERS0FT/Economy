@@ -9,13 +9,17 @@ import {
   populationPolicySnapshot,
 } from './population-policy.js';
 
-export const POPULATION_ECONOMY_VERSION = 3;
+export const POPULATION_ECONOMY_VERSION = 4;
 export const POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional']);
+export const POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence']);
 export const POPULATION_STABILIZATION_BUDGET_SHARE = 0.12;
 export const POPULATION_STABILIZATION_TARGET_CYCLES = 3;
 export const POPULATION_STABILIZATION_DIRECT_SHARE = 0.85;
 const INCOME_EMA_PREVIOUS_WEIGHT = 0.85;
 const BUDGET_MAX_FALL = 0.12;
+const PROSPEROUS_ENTRY_CYCLES = 2;
+const LAVISH_ENTRY_CYCLES = 3;
+const UPPER_STATE_DOWNGRADE_CYCLES = 2;
 
 const MODEL_CONFIG = Object.freeze({
   basic: Object.freeze({
@@ -41,6 +45,35 @@ const MODEL_CONFIG = Object.freeze({
   }),
 });
 
+
+export const POPULATION_GROUP_SHARES_BY_STATE = Object.freeze({
+  lavish: Object.freeze({
+    basic: Object.freeze({ food: 0.65, household: 0.35 }),
+    skilled: Object.freeze({ food: 0.42, household: 0.58 }),
+    professional: Object.freeze({ food: 0.22, household: 0.78 }),
+  }),
+  prosperous: Object.freeze({
+    basic: Object.freeze({ food: 0.72, household: 0.28 }),
+    skilled: Object.freeze({ food: 0.50, household: 0.50 }),
+    professional: Object.freeze({ food: 0.30, household: 0.70 }),
+  }),
+  normal: Object.freeze({
+    basic: MODEL_CONFIG.basic.normalGroupShares,
+    skilled: MODEL_CONFIG.skilled.normalGroupShares,
+    professional: MODEL_CONFIG.professional.normalGroupShares,
+  }),
+  strained: Object.freeze({
+    basic: Object.freeze({ food: 0.88, household: 0.12 }),
+    skilled: Object.freeze({ food: 0.73, household: 0.27 }),
+    professional: Object.freeze({ food: 0.58, household: 0.42 }),
+  }),
+  subsistence: Object.freeze({
+    basic: Object.freeze({ food: 0.95, household: 0.05 }),
+    skilled: Object.freeze({ food: 0.90, household: 0.10 }),
+    professional: Object.freeze({ food: 0.85, household: 0.15 }),
+  }),
+});
+
 const CONSTRUCTION_PROFILE = Object.freeze({ basic: 0.60, skilled: 0.30, professional: 0.10 });
 const WAREHOUSE_PROFILE = Object.freeze({ basic: 0.50, skilled: 0.40, professional: 0.10 });
 const MARKET_SERVICE_PROFILE = Object.freeze({ basic: 0.20, skilled: 0.60, professional: 0.20 });
@@ -52,6 +85,36 @@ const PRODUCTION_PROFILES = Object.freeze({
   C5: Object.freeze({ basic: 0.18, skilled: 0.55, professional: 0.27 }),
   C6: Object.freeze({ basic: 0.10, skilled: 0.40, professional: 0.50 }),
   C7: Object.freeze({ basic: 0.05, skilled: 0.25, professional: 0.70 }),
+});
+
+const LAVISH_CLASS_SHARES = Object.freeze({
+  basic: Object.freeze({
+    food: Object.freeze({ staples: 0.36, protein: 0.25, 'fresh-drinks': 0.16, convenience: 0.23 }),
+    household: Object.freeze({ home: 0.28, wear: 0.27, daily: 0.25, durables: 0.20 }),
+  }),
+  skilled: Object.freeze({
+    food: Object.freeze({ staples: 0.22, protein: 0.27, 'fresh-drinks': 0.22, convenience: 0.29 }),
+    household: Object.freeze({ home: 0.30, wear: 0.18, daily: 0.17, durables: 0.35 }),
+  }),
+  professional: Object.freeze({
+    food: Object.freeze({ staples: 0.10, protein: 0.24, 'fresh-drinks': 0.31, convenience: 0.35 }),
+    household: Object.freeze({ home: 0.25, wear: 0.12, daily: 0.06, durables: 0.57 }),
+  }),
+});
+
+const PROSPEROUS_CLASS_SHARES = Object.freeze({
+  basic: Object.freeze({
+    food: Object.freeze({ staples: 0.43, protein: 0.26, 'fresh-drinks': 0.13, convenience: 0.18 }),
+    household: Object.freeze({ home: 0.24, wear: 0.31, daily: 0.29, durables: 0.16 }),
+  }),
+  skilled: Object.freeze({
+    food: Object.freeze({ staples: 0.28, protein: 0.29, 'fresh-drinks': 0.18, convenience: 0.25 }),
+    household: Object.freeze({ home: 0.27, wear: 0.22, daily: 0.21, durables: 0.30 }),
+  }),
+  professional: Object.freeze({
+    food: Object.freeze({ staples: 0.15, protein: 0.28, 'fresh-drinks': 0.28, convenience: 0.29 }),
+    household: Object.freeze({ home: 0.22, wear: 0.16, daily: 0.08, durables: 0.54 }),
+  }),
 });
 
 const NORMAL_CLASS_SHARES = Object.freeze({
@@ -69,7 +132,7 @@ const NORMAL_CLASS_SHARES = Object.freeze({
   }),
 });
 
-const CAUTIOUS_CLASS_SHARES = Object.freeze({
+const STRAINED_CLASS_SHARES = Object.freeze({
   basic: Object.freeze({
     food: Object.freeze({ staples: 0.58, protein: 0.27, 'fresh-drinks': 0.07, convenience: 0.08 }),
     household: Object.freeze({ home: 0.16, wear: 0.38, daily: 0.41, durables: 0.05 }),
@@ -99,6 +162,15 @@ const SUBSISTENCE_CLASS_SHARES = Object.freeze({
   }),
 });
 
+
+const CLASS_SHARES_BY_STATE = Object.freeze({
+  lavish: LAVISH_CLASS_SHARES,
+  prosperous: PROSPEROUS_CLASS_SHARES,
+  normal: NORMAL_CLASS_SHARES,
+  strained: STRAINED_CLASS_SHARES,
+  subsistence: SUBSISTENCE_CLASS_SHARES,
+});
+
 const boundWorldByPlayer = new WeakMap();
 
 function nonNegativeInteger(value) {
@@ -122,6 +194,14 @@ function defaultModel(modelId) {
     recentPeakIncome: 0,
     noIncomeCycles: 0,
     consumptionState: 'normal',
+    stateReason: 'healthy',
+    stateCycles: 0,
+    prosperityCycles: 0,
+    lavishCycles: 0,
+    downgradeCycles: 0,
+    incomeHealthBps: 10_000,
+    walletCoverageBps: 0,
+    incomeCoverageBps: 0,
     lastBudget: 0,
     foodBudget: 0,
     householdBudget: 0,
@@ -174,15 +254,21 @@ function allocateInteger(amount, profile) {
 
 function normalizeModel(modelId, previous = {}) {
   const fallback = defaultModel(modelId);
+  const hadStateCycles = Object.prototype.hasOwnProperty.call(previous, 'stateCycles');
+  const migratedCautious = previous.consumptionState === 'cautious';
   const model = { ...fallback, ...previous, id: modelId, name: MODEL_CONFIG[modelId].name };
   model.credits = nonNegativeInteger(model.credits);
   model.frozenCredits = nonNegativeInteger(model.frozenCredits);
   model.pendingIncome = { ...emptyIncomeSources(), ...(previous.pendingIncome || {}) };
   for (const key of Object.keys(model.pendingIncome)) model.pendingIncome[key] = nonNegativeInteger(model.pendingIncome[key]);
-  for (const key of ['lastIncome', 'incomeEma', 'recentPeakIncome', 'noIncomeCycles', 'lastBudget', 'foodBudget', 'householdBudget', 'stabilizationBudget', 'lastStabilizationIssued', 'lastAdminPopulationIssued', 'totalIncome', 'totalSpent']) {
+  for (const key of ['lastIncome', 'incomeEma', 'recentPeakIncome', 'noIncomeCycles', 'stateCycles', 'prosperityCycles', 'lavishCycles', 'downgradeCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'lastBudget', 'foodBudget', 'householdBudget', 'stabilizationBudget', 'lastStabilizationIssued', 'lastAdminPopulationIssued', 'totalIncome', 'totalSpent']) {
     model[key] = nonNegativeInteger(model[key]);
   }
-  if (!['normal', 'cautious', 'subsistence'].includes(model.consumptionState)) model.consumptionState = 'normal';
+  if (model.consumptionState === 'cautious') model.consumptionState = 'strained';
+  if (!POPULATION_CONSUMPTION_STATES.includes(model.consumptionState)) model.consumptionState = 'normal';
+  if (migratedCautious) model.stateReason = 'income-strained';
+  if (typeof model.stateReason !== 'string' || !model.stateReason) model.stateReason = 'healthy';
+  if (!hadStateCycles) model.stateCycles = 1;
   return model;
 }
 
@@ -313,15 +399,24 @@ export function releaseConstructionEmployment(world, construction, now = Date.no
 }
 
 function groupSharesFor(modelId, state) {
-  if (state === 'subsistence') {
-    const food = modelId === 'basic' ? 0.95 : modelId === 'skilled' ? 0.90 : 0.85;
-    return { food, household: 1 - food };
-  }
-  if (state === 'cautious') {
-    const food = modelId === 'basic' ? 0.88 : modelId === 'skilled' ? 0.73 : 0.58;
-    return { food, household: 1 - food };
-  }
-  return MODEL_CONFIG[modelId].normalGroupShares;
+  return POPULATION_GROUP_SHARES_BY_STATE[state]?.[modelId] || POPULATION_GROUP_SHARES_BY_STATE.normal[modelId];
+}
+
+function incrementCounter(value, maximum = Number.MAX_SAFE_INTEGER) {
+  return Math.min(maximum, nonNegativeInteger(value) + 1);
+}
+
+function ratioToBps(numerator, denominator, fallbackBps = 10_000) {
+  if (denominator <= 0) return fallbackBps;
+  return nonNegativeInteger(Math.round(numerator / denominator * 10_000));
+}
+
+function setConsumptionState(model, nextState, reason) {
+  const changed = model.consumptionState !== nextState;
+  model.consumptionState = nextState;
+  model.stateReason = reason;
+  model.stateCycles = changed ? 1 : incrementCounter(model.stateCycles);
+  if (changed) model.downgradeCycles = 0;
 }
 
 function updateModelIncome(model) {
@@ -331,14 +426,104 @@ function updateModelIncome(model) {
   model.totalIncome += income;
   model.pendingIncome = emptyIncomeSources();
   model.incomeEma = Math.max(0, Math.round(model.incomeEma * INCOME_EMA_PREVIOUS_WEIGHT + income * (1 - INCOME_EMA_PREVIOUS_WEIGHT)));
-  model.recentPeakIncome = Math.max(income, Math.round(model.recentPeakIncome * 0.92));
-  model.noIncomeCycles = income > 0 ? 0 : model.noIncomeCycles + 1;
-  const ratio = model.recentPeakIncome <= 0 ? 1 : model.incomeEma / model.recentPeakIncome;
-  model.consumptionState = ratio >= 0.75
-    ? 'normal'
-    : ratio >= 0.35 && model.noIncomeCycles < 2
-      ? 'cautious'
-      : 'subsistence';
+  model.recentPeakIncome = Math.max(model.incomeEma, Math.round(model.recentPeakIncome * 0.92));
+  model.noIncomeCycles = income > 0 ? 0 : incrementCounter(model.noIncomeCycles);
+}
+
+function updateModelConsumptionState(model, stabilizationBudget, targetWallet, walletTotal) {
+  const incomeHealth = model.recentPeakIncome <= 0 ? 1 : model.incomeEma / model.recentPeakIncome;
+  const walletCoverage = targetWallet <= 0 ? 0 : walletTotal / targetWallet;
+  const incomeCoverage = stabilizationBudget <= 0 ? 0 : model.incomeEma / stabilizationBudget;
+  model.incomeHealthBps = ratioToBps(model.incomeEma, model.recentPeakIncome);
+  model.walletCoverageBps = ratioToBps(walletTotal, targetWallet, 0);
+  model.incomeCoverageBps = ratioToBps(model.incomeEma, stabilizationBudget, 0);
+
+  const prosperousEligible = model.lastIncome > 0
+    && incomeHealth >= 0.85
+    && walletCoverage >= 1
+    && incomeCoverage >= 1;
+  const lavishEligible = model.lastIncome > 0
+    && incomeHealth >= 0.95
+    && walletCoverage >= 1.5
+    && incomeCoverage >= 1.5;
+  model.prosperityCycles = prosperousEligible
+    ? incrementCounter(model.prosperityCycles, PROSPEROUS_ENTRY_CYCLES)
+    : 0;
+  model.lavishCycles = lavishEligible
+    ? incrementCounter(model.lavishCycles, LAVISH_ENTRY_CYCLES)
+    : 0;
+
+  if (model.noIncomeCycles >= 2) {
+    model.prosperityCycles = 0;
+    model.lavishCycles = 0;
+    model.downgradeCycles = 0;
+    setConsumptionState(model, 'subsistence', 'no-income');
+    return;
+  }
+  if (incomeHealth < 0.35) {
+    model.prosperityCycles = 0;
+    model.lavishCycles = 0;
+    model.downgradeCycles = 0;
+    setConsumptionState(model, 'subsistence', 'income-collapse');
+    return;
+  }
+  if (incomeHealth < 0.65) {
+    model.prosperityCycles = 0;
+    model.lavishCycles = 0;
+    model.downgradeCycles = 0;
+    setConsumptionState(model, 'strained', 'income-strained');
+    return;
+  }
+
+  if (model.consumptionState === 'subsistence') {
+    model.downgradeCycles = 0;
+    setConsumptionState(model, 'strained', 'recovering');
+    return;
+  }
+  if (model.consumptionState === 'strained') {
+    model.downgradeCycles = 0;
+    setConsumptionState(model, 'normal', 'recovering');
+    return;
+  }
+  if (model.consumptionState === 'normal') {
+    model.downgradeCycles = 0;
+    if (model.prosperityCycles >= PROSPEROUS_ENTRY_CYCLES) {
+      setConsumptionState(model, 'prosperous', 'prosperous-qualified');
+    } else {
+      setConsumptionState(model, 'normal', 'healthy');
+    }
+    return;
+  }
+  if (model.consumptionState === 'prosperous') {
+    if (model.lavishCycles >= LAVISH_ENTRY_CYCLES) {
+      model.downgradeCycles = 0;
+      setConsumptionState(model, 'lavish', 'lavish-qualified');
+      return;
+    }
+    if (prosperousEligible) {
+      model.downgradeCycles = 0;
+      setConsumptionState(model, 'prosperous', 'prosperous-qualified');
+      return;
+    }
+    model.downgradeCycles = incrementCounter(model.downgradeCycles, UPPER_STATE_DOWNGRADE_CYCLES);
+    if (model.downgradeCycles >= UPPER_STATE_DOWNGRADE_CYCLES) {
+      setConsumptionState(model, 'normal', 'healthy');
+    } else {
+      setConsumptionState(model, 'prosperous', 'downgrade-grace');
+    }
+    return;
+  }
+  if (lavishEligible) {
+    model.downgradeCycles = 0;
+    setConsumptionState(model, 'lavish', 'lavish-qualified');
+    return;
+  }
+  model.downgradeCycles = incrementCounter(model.downgradeCycles, UPPER_STATE_DOWNGRADE_CYCLES);
+  if (model.downgradeCycles >= UPPER_STATE_DOWNGRADE_CYCLES) {
+    setConsumptionState(model, 'prosperous', prosperousEligible ? 'prosperous-qualified' : 'downgrade-grace');
+  } else {
+    setConsumptionState(model, 'lavish', 'downgrade-grace');
+  }
 }
 
 function modelSpendableBudget(modelId, model, stabilizationBudget = 0) {
@@ -367,6 +552,7 @@ export function preparePopulationDemandCycle(world, cycleId, now = Date.now(), {
     const stabilizationBudget = stabilization.byModel[modelId];
     const targetWallet = stabilizationBudget * policy.targetWalletCycles;
     const walletTotal = model.credits + model.frozenCredits;
+    updateModelConsumptionState(model, stabilizationBudget, targetWallet, walletTotal);
     const refillCap = populationPolicyRefillCap(stabilizationBudget, policy);
     const remainingCap = Math.max(0, refillCap - nonNegativeInteger(policyCycle.issuedByModel[modelId]));
     const stabilizationIssued = Math.min(remainingCap, Math.max(0, targetWallet - walletTotal));
@@ -412,11 +598,7 @@ export function preparePopulationDemandCycle(world, cycleId, now = Date.now(), {
 
 export function populationClassShares(world, modelId, groupId) {
   const model = ensurePopulationEconomy(world).models[modelId];
-  const table = model?.consumptionState === 'subsistence'
-    ? SUBSISTENCE_CLASS_SHARES
-    : model?.consumptionState === 'cautious'
-      ? CAUTIOUS_CLASS_SHARES
-      : NORMAL_CLASS_SHARES;
+  const table = CLASS_SHARES_BY_STATE[model?.consumptionState] || NORMAL_CLASS_SHARES;
   return table[modelId]?.[groupId] || {};
 }
 
@@ -478,6 +660,11 @@ export function createPopulationEconomySummary(world, now = Date.now(), { totalB
       incomeEma: model.incomeEma,
       recentPeakIncome: model.recentPeakIncome,
       noIncomeCycles: model.noIncomeCycles,
+      stateReason: model.stateReason,
+      stateCycles: model.stateCycles,
+      incomeHealthBps: model.incomeHealthBps,
+      walletCoverageBps: model.walletCoverageBps,
+      incomeCoverageBps: model.incomeCoverageBps,
       lastBudget: model.lastBudget,
       foodBudget: model.foodBudget,
       householdBudget: model.householdBudget,
