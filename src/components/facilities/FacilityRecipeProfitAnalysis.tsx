@@ -25,7 +25,7 @@ export function FacilityRecipeProfitAnalysis({
   type,
   scopeCount,
   scopeLabel,
-  products: _products,
+  products,
   inventories: _inventories,
 }: {
   type: FacilityTypeDefinition;
@@ -34,7 +34,6 @@ export function FacilityRecipeProfitAnalysis({
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
 }) {
-  void _products;
   void _inventories;
   const markets = useFacilityRecipeProfitMarkets();
   const analysis = analyzeRecipeProfit({
@@ -45,10 +44,23 @@ export function FacilityRecipeProfitAnalysis({
   });
   const profitPerMinute = analysis.profitPerMinute;
   const description = scopeDescription(scopeLabel);
-  const fallback = scopeCount < 1 ? '暂无范围' : '暂无成交数据';
-  const detail = profitPerMinute === null
-    ? `${description}；缺少最近真实成交价，无法估算`
-    : `${description}；按最近真实成交价估算，已扣除单座原料成本与周期运营成本，不计玩家库存、挂单深度和交易手续费`;
+  const productNames = new Map(products.map((product) => [product.id, product.name]));
+  const missingPriceNames = analysis.missingPriceProductIds.map((productId) => (
+    productNames.get(productId) ?? productId
+  ));
+  const missingPriceLabel = missingPriceNames.join('、');
+  const fallback = scopeCount < 1
+    ? '暂无范围'
+    : missingPriceNames.length > 0
+      ? `缺少${missingPriceLabel}成交价`
+      : '暂无成交数据';
+  const detail = scopeCount < 1
+    ? `${description}；没有可计算的工厂范围`
+    : profitPerMinute === null
+      ? missingPriceNames.length > 0
+        ? `${description}；缺少${missingPriceLabel}的最近真实成交价，无法估算`
+        : `${description}；缺少最近真实成交价，无法估算`
+      : `${description}；按最近真实成交价估算，已扣除单座原料成本与周期运营成本，不计玩家库存、挂单深度和交易手续费`;
   const sign = profitPerMinute === null
     ? undefined
     : profitPerMinute > 0

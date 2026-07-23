@@ -255,9 +255,9 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             {game.products.map((product) => {
               const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
               const active = marketAssetKind === 'commodity' && product.id === assetId;
-              const lastPrice = game.markets[product.id]?.lastPrice;
-              const hasLastPrice = typeof lastPrice === 'number';
-              const priceLabel = hasLastPrice ? formatCurrency(lastPrice) : '暂无成交';
+              const lastTradePrice = game.markets[product.id]?.lastTradePrice;
+              const hasLastTradePrice = typeof lastTradePrice === 'number';
+              const priceLabel = hasLastTradePrice ? formatCurrency(lastTradePrice) : '暂无成交';
               return (
                 <button
                   type="button"
@@ -277,7 +277,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                       <span>{product.name}</span>
                     </strong>
                     <span className="market-asset-card__price" title={`最近成交价：${priceLabel}`}>
-                      <CurrencyAmount>{hasLastPrice ? formatCurrency(lastPrice) : '—'}</CurrencyAmount>
+                      <CurrencyAmount>{hasLastTradePrice ? formatCurrency(lastTradePrice) : '—'}</CurrencyAmount>
                     </span>
                     {active ? <span className="market-asset-card__current">当前</span> : null}
                     <span className="market-asset-card__inventory" title={`可用库存：${formatNumber(inventory.available)}`}>
@@ -292,9 +292,9 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
             {game.facilityTypes.map((facility) => {
               const group = game.facilityGroups.find((item) => item.facilityTypeId === facility.id);
               const active = marketAssetKind === 'facility' && facility.id === assetId;
-              const lastPrice = game.facilityMarkets[facility.id]?.lastPrice;
-              const hasLastPrice = typeof lastPrice === 'number';
-              const priceLabel = hasLastPrice ? formatCurrency(lastPrice) : '暂无成交';
+              const lastTradePrice = game.facilityMarkets[facility.id]?.lastTradePrice;
+              const hasLastTradePrice = typeof lastTradePrice === 'number';
+              const priceLabel = hasLastTradePrice ? formatCurrency(lastTradePrice) : '暂无成交';
               return (
                 <button
                   type="button"
@@ -308,7 +308,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 >
                   <span className="asset-kind-icon" aria-hidden="true"><FactoryIcon /></span>
                   <strong>{facility.name}</strong>
-                  <span><CurrencyAmount>{hasLastPrice ? formatCurrency(lastPrice) : '—'}</CurrencyAmount></span>
+                  <span><CurrencyAmount>{hasLastTradePrice ? formatCurrency(lastTradePrice) : '—'}</CurrencyAmount></span>
                   <small>持有 {formatNumber(group?.count ?? 0)}</small>
                 </button>
               );
