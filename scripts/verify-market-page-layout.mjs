@@ -26,6 +26,12 @@ requireText(marketStyles, 'grid-template-columns: 320px 360px minmax(620px, 1fr)
 requireText(marketStyles, 'aspect-ratio: 16 / 9', '完整行情图必须按自身宽度保持 16:9。');
 requireText(marketStyles, 'height: auto !important', '完整行情图必须覆盖旧视口高度内联规则。');
 requireText(marketStyles, 'grid-template-rows: repeat(2', '资产目录必须使用两行连续目录。');
+requireText(marketStyles, 'grid-auto-columns: max-content;', '市场资产目录的隐式列必须按分组标签或资产卡自身宽度布局。');
+requireText(marketStyles, 'width: 46px;\n  min-width: 46px;\n  max-width: 46px;', '市场资产分组标签必须只占 46px 网格轨道。');
+requireText(marketStyles, 'width: 138px;\n  min-width: 138px;\n  max-width: 138px;', '桌面市场资产卡必须固定为 138px 宽。');
+requireText(marketStyles, 'width: 132px;\n    min-width: 132px;\n    max-width: 132px;', '移动市场资产卡必须固定为 132px 宽。');
+forbidText(marketStyles, 'grid-auto-columns: 138px;', '市场分组标签不得继承桌面资产卡列宽。');
+forbidText(marketStyles, 'grid-auto-columns: 132px;', '市场分组标签不得继承移动资产卡列宽。');
 requireText(marketStyles, 'scroll-snap-type: none', '市场资产目录必须关闭吸附并允许无级滑动。');
 forbidText(marketStyles, 'scroll-behavior: smooth', '市场资产目录不得用容器级平滑滚动干扰拖动。');
 forbidText(sharedMarketStyles, 'scroll-snap-align: start', '市场资产卡不得恢复吸附锚点。');
@@ -124,6 +130,8 @@ requireText(designIndex, '先渲染只包含居中 `ProductIcon` 的图标层', 
 requireText(designIndex, '再渲染包含左上名称、右上 `CurrencyAmount` 最近真实成交价', '设计索引必须记录市场商品卡数据层内容。');
 requireText(designIndex, '商品卡不得用 `::after` 生成“当前”胶囊', '设计索引必须禁止商品卡伪元素当前胶囊。');
 requireText(designIndex, '不得回退到商品基础价或工厂系统价值', '设计索引必须禁止目录价格伪装真实成交价。');
+requireText(designIndex, '分组标签只占自身 `46px` 轨道', '设计索引必须记录市场分组标签独立轨道宽度。');
+requireText(designIndex, '标签与首张资产卡之间只保留 `var(--space-3)` 间距', '设计索引必须禁止市场目录左侧恢复额外空白。');
 
 if (failures.length > 0) {
   console.error('市场页布局与运行时验证失败：');
@@ -131,4 +139,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场页布局、商品卡双层结构、价格档位、数据口径、禁用反馈与共享移动层级浏览器回归基线验证通过。');
+console.log('市场页布局、资产目录轨道、商品卡双层结构、价格档位、数据口径、禁用反馈与共享移动层级浏览器回归基线验证通过。');
