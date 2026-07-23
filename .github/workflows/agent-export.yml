@@ -24,35 +24,12 @@ jobs:
         run: |
           cat .agent/population-five-states-*.b64 | base64 -d | gzip -d > /tmp/population-five-states.patch
           echo "29f095d2be8d4a642dd355a1ae7bec093653058d36dc2282b7fb8a2192f8b1cc  /tmp/population-five-states.patch" | sha256sum -c -
+          sed -n '/^diff --git a\/README.md/,$p' /tmp/population-five-states.patch > /tmp/population-five-states-business.patch
+          test -s /tmp/population-five-states-business.patch
       - name: Apply implementation
         run: |
-          cat > .github/workflows/agent-export.yml <<'WORKFLOW'
-          name: Agent repository export
-
-          on:
-            pull_request:
-              branches: [main]
-
-          permissions:
-            contents: read
-
-          jobs:
-            export:
-              runs-on: ubuntu-latest
-              steps:
-                - uses: actions/checkout@v4
-                - name: Create repository archive
-                  run: zip -qr economy-repo.zip . -x '.git/*'
-                - uses: actions/upload-artifact@v4
-                  with:
-                    name: economy-repo
-                    path: economy-repo.zip
-                    retention-days: 1
-          WORKFLOW
-          sed -i 's/^          //' .github/workflows/agent-export.yml
-          git apply --verbose /tmp/population-five-states.patch
+          git apply --verbose /tmp/population-five-states-business.patch
           rm -rf .agent
-          git checkout HEAD -- .github/workflows/agent-export.yml
           git add -A
           git diff --cached --check
       - name: Commit implementation
