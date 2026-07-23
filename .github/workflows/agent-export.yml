@@ -50,8 +50,7 @@ jobs:
                     retention-days: 1
           WORKFLOW
           sed -i 's/^          //' .github/workflows/agent-export.yml
-          git add .github/workflows/agent-export.yml
-          git apply --index /tmp/population-five-states.patch
+          git apply --verbose /tmp/population-five-states.patch
           rm -rf .agent
           git checkout HEAD -- .github/workflows/agent-export.yml
           git add -A
