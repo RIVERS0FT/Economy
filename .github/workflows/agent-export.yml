@@ -1,0 +1,21 @@
+name: Agent repository export
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create repository archive
+        run: zip -qr economy-repo.zip . -x '.git/*'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-repo
+          path: economy-repo.zip
+          retention-days: 1
