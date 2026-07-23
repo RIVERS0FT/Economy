@@ -20,11 +20,12 @@ jobs:
         with:
           ref: agent/population-five-states
           fetch-depth: 0
-      - name: Apply validated patch
-        shell: bash
+      - name: Rebuild validated patch
         run: |
           cat .agent/population-five-states-*.b64 | base64 -d | gzip -d > /tmp/population-five-states.patch
           echo "29f095d2be8d4a642dd355a1ae7bec093653058d36dc2282b7fb8a2192f8b1cc  /tmp/population-five-states.patch" | sha256sum -c -
+      - name: Apply implementation
+        run: |
           cat > .github/workflows/agent-export.yml <<'WORKFLOW'
           name: Agent repository export
 
@@ -52,8 +53,11 @@ jobs:
           git add .github/workflows/agent-export.yml
           git apply --index /tmp/population-five-states.patch
           rm -rf .agent
+          git checkout HEAD -- .github/workflows/agent-export.yml
           git add -A
           git diff --cached --check
+      - name: Commit implementation
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "implement population five-state budgets"
