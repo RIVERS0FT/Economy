@@ -99,6 +99,7 @@ requireText(runtimeHarness, "scenario === 'warehouse-full'", '浏览器运行时
 requireText(runtimeHarness, "scenario === 'sell-empty'", '浏览器运行时必须覆盖无可卖库存。');
 requireText(runtimeHarness, '...Array.from({ length: 5 }', '浏览器运行时必须提供五张同价买单。');
 requireText(runtimeHarness, 'remaining: 1', '同价档位测试必须使用当前剩余数量。');
+requireText(runtimeHarness, "lastTradePrice: product.id === 'wheat' ? 2 : null", '浏览器夹具必须显式提供真实成交价。');
 requireText(runtimeSpec, 'market desktop layout gives the full chart the dominant column', 'Playwright 必须覆盖宽屏行情主列。');
 requireText(runtimeSpec, '最近 24h 3 笔', 'Playwright 必须验证 24h 成交计数。');
 requireText(runtimeSpec, 'status-neutral', 'Playwright 必须验证零涨跌中性状态。');
