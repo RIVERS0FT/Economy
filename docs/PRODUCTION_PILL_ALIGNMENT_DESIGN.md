@@ -2,7 +2,7 @@
 
 > 状态：生产页一级卡片胶囊、开关与桌面固定卡片几何基线  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-22
+> 更新时间：2026-07-23
 
 本设计补充 `UI_DESIGN_SYSTEM.md`、`WAREHOUSE_EXPANSION_DESIGN.md`、`INDUSTRY_AND_PRODUCTION_DESIGN.md` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。生产页工厂集群开关的点击区域规则以本文为准；这是对全局 44 × 44px 开关点击区域规则的明确场景例外。生产页桌面 sticky 顶部定位也以本文为准；当旧文档要求业务 sticky 卡片直接将 `--desktop-page-top-offset` 用作 `top` 时，本文针对已经通过页面滚动容器顶部 padding 完成工作栏避让的生产页作出明确场景例外。
 
@@ -51,9 +51,9 @@ top: calc((可见轨道高度 - 滑块尺寸) / 2);
 ## 5. 样式职责
 
 - `design-system.css` 定义 `StatusTag`、全局开关基础外观和焦点环；
-- `production-surface.css` 负责生产页工厂开关点击区域、可见轨道、标题行高度以及桌面建设卡与详情外壳的 sticky 对齐；
-- `facility-group-card-grid.css` 负责生产主网格、响应式轨道、工厂标题、状态、数量摘要和详情自然高度，不得重新设置工厂开关高度或透明命中区；
-- `production-surface.css` 必须在 `facility-group-card-grid.css` 之后加载，使场景专用的 sticky 顶部基线成为最终结果。
+- `production-surface.css` 是生产页工厂开关点击区域、可见轨道、标题行高度，以及桌面建设卡与详情外壳 sticky 行为的唯一权威样式文件；
+- `facility-group-card-grid.css` 只负责生产主网格、响应式轨道、工厂标题、状态、数量摘要和详情自然高度，不得声明建设卡或详情外壳的 `position`、`top`、桌面最大高度或纵向 overflow；
+- `production-surface.css` 必须在 `facility-group-card-grid.css` 之后加载，使场景专用几何成为最终结果，但正确性不得依赖前置文件保留一套相反的 sticky 声明。
 
 ## 6. 胶囊与开关防回退
 
@@ -105,4 +105,5 @@ align-self: start;
 - 建设卡和详情外壳共享 `position: sticky`、`top: 0` 与 `align-self: start`；
 - 建设卡继续使用统一顶部偏移计算最大高度；
 - 详情外壳与详情卡保持自然高度和可见溢出；
-- 本文的场景优先级、页面唯一纵向滚动视口和响应式规则仍存在。
+- `facility-group-card-grid.css` 不得重新声明桌面建设卡或详情外壳的 sticky、顶部偏移、最大高度或纵向 overflow；
+- 本文的唯一样式职责、页面唯一纵向滚动视口和响应式规则仍存在。

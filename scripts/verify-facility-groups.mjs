@@ -24,6 +24,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/styles/facility-production-formula.css',
   'src/styles/facility-group-card-grid.css',
   'src/styles/facility-detail-sheet.css',
+  'src/styles/production-surface.css',
   'src/styles/unified-market-admin.css',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
@@ -160,15 +161,24 @@ for (const text of [
   'align-self: start;',
   'grid-auto-rows: auto;',
   'grid-template-rows: auto;',
-  'position: sticky;',
-  'top: var(--desktop-page-top-offset);',
 ]) requireText('src/styles/facility-group-card-grid.css', text);
 for (const forbidden of [
   '--facility-card-height',
   'grid-auto-rows: 1fr;',
   'align-self: stretch;',
   '.facility-card-spacer',
+  'top: var(--desktop-page-top-offset);',
 ]) forbidText('src/styles/facility-group-card-grid.css', forbidden);
+
+for (const text of [
+  'Desktop production sticky alignment',
+  '.production-workspace > .production-build-card,',
+  '.production-workspace > .facility-cluster-detail-shell {',
+  'position: sticky;',
+  'top: 0;',
+  'max-height: calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter));',
+  'overflow-y: auto;',
+]) requireText('src/styles/production-surface.css', text);
 
 const facilityGroupBlocks = read('src/styles/facility-group-card-grid.css')
   .split('.facility-group-card {')
