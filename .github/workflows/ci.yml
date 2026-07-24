@@ -27,7 +27,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat scripts/apply-contract-layout.part-* | base64 --decode | gzip --decompress > /tmp/apply-contract-layout.mjs
+          cat \
+            scripts/apply-contract-layout.part-00 \
+            scripts/apply-contract-layout.part-01 \
+            scripts/apply-contract-layout.part-02 \
+            scripts/apply-contract-layout.part-03a \
+            scripts/apply-contract-layout.part-03b \
+            | base64 --decode | gzip --decompress > /tmp/apply-contract-layout.mjs
           node /tmp/apply-contract-layout.mjs
           rm -f scripts/apply-contract-layout.part-*
           git config user.name "github-actions[bot]"
