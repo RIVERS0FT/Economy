@@ -75,9 +75,16 @@ for (const text of [
   'FACILITY_SHEET_AXIS_DOMINANCE',
   'setPointerCapture',
   'const requestClose = useCallback',
+  'const backdropPointerIdRef = useRef<number | undefined>(undefined)',
   'const isClosingRef = useRef(false)',
+  'const handleBackdropPointerDown = useCallback',
+  'const handleBackdropPointerUp = useCallback',
+  'const handleBackdropPointerCancel = useCallback',
+  'onPointerDown={handleBackdropPointerDown}',
+  'onPointerUp={handleBackdropPointerUp}',
+  'onPointerCancel={handleBackdropPointerCancel}',
+  'isClosingRef.current = false;',
   "sheet.classList.add('is-settling', 'is-closing')",
-  'if (event.target === event.currentTarget) requestClose();',
   'requestClose(onOpenMarket)',
   'className="facility-detail-sheet-drag-handle"',
   'className="facility-detail-sheet-header"',
@@ -125,8 +132,19 @@ for (const forbidden of [
   'isSelected: boolean',
   'facility-current-selection-bar',
   '查看详情',
+  'if (event.target === event.currentTarget) requestClose();',
 ])
   assert.equal(page.includes(forbidden), false, `生产页不应包含: ${forbidden}`);
+
+const facilitySheetBrowserTest = read('tests/browser/facility-detail-sheet.spec.ts');
+for (const text of [
+  'view=production&scenario=activity',
+  'hasTouch: true',
+  'for (let iteration = 0; iteration < 3; iteration += 1)',
+  'page.touchscreen.tap',
+  'await expect(trigger).toBeFocused()',
+])
+  assert.equal(facilitySheetBrowserTest.includes(text), true, `移动工厂详情浏览器回归缺少: ${text}`);
 
 const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
 for (const text of [
@@ -303,6 +321,8 @@ for (const text of [
   '打开后焦点进入可程序化聚焦的对话框容器',
   '不包含顶部关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
+  '关闭互斥状态只覆盖当前一次收起流程',
+  '不得只依赖移动浏览器合成的 `click`',
   '悬浮框最大高度为 `min(88dvh, 760px)`',
   '关闭后焦点返回触发卡',
   '固定头部／唯一 `ScrollArea` 正文／固定底部操作区',
