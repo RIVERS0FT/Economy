@@ -2,7 +2,7 @@
 
 > 状态：游戏与管理员桌面工作栏、移动状态栏、移动底部导航及登录后共享外壳几何基线  
 > 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-22
+> 更新时间：2026-07-24
 
 本文件定义应用外壳唯一液态玻璃实现、游戏端和管理员端登录后桌面应用外壳几何、移动工作区 Overlay、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
@@ -33,19 +33,22 @@
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口 |
 | `game-shell-layout.css` | 登录后桌面双列轨道、唯一布局沟槽、工作栏外距、页面避让、内容边缘和桌面页面滚动条贴边几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
-| `viewport.css` | 游戏与管理员固定视口、移动工作区 gutter、两层 Overlay、安全区和移动背景采样层级 |
+| `viewport.css` | 游戏与管理员固定视口、登录态根视口纵向 overscroll 终止、移动工作区 gutter、两层 Overlay、安全区和移动背景采样层级 |
 | `scrollbars.css` | 通用覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘，不负责移动底栏 |
+| `mobileFacilityPullRefresh.ts` | 仅对已打开的移动工厂详情识别顶部向下关闭手势，并在该手势激活后局部取消浏览器默认纵向过度滚动 |
 | `admin-navigation.css` | 管理员桌面工作栏内容布局与运营业务编排，不得定义第二套根外壳 |
 | `mobile-status-navigation.css` | 移动导航唯一原生横向滚动视口、原生轨道隐藏、按钮几何和内部焦点环 |
 | `verify-liquid-glass-chrome.mjs` | 依赖、平台分离预设、单实例切换、单壳装饰、兼容入口、背景采样链、移动导航结构和防回退检查 |
 | `verify-game-shell-layout.mjs` | 游戏与管理员共享桌面沟槽、双列、导航行高、页面滚动条贴边、移动 Overlay、滚动条和滚动链检查 |
 | `verify-overlay-scrollbars.mjs` | 覆盖式滚动条、移动底栏原生滚动视口和滚动能力检查 |
+| `verify-mobile-facility-pull-refresh.mjs` | 登录态根 overscroll、工厂详情局部非被动触摸监听、设计记录和浏览器回归的防回退检查 |
 | `verify-desktop-primary-surfaces.mjs` | 桌面一级卡片与独立桌面状态栏圆角、单结构边框和零第三方装饰层检查 |
 | `liquid-glass-layout.spec.ts` | 真实浏览器平台预设、单状态栏实例、装饰层显隐、背景采样链、圆角、共线和页面避让验证 |
 | `game-shell-layout.spec.ts` | 玩家普通、窄宽和矮高桌面的统一沟槽、卡片间距、工作栏／侧栏外距、页面边缘和贴边滚动条几何回归 |
 | `admin-runtime.spec.ts` | 管理员共享沟槽、桌面玻璃工作栏、满宽页面框、贴边滚动条、业务双栏与移动 Overlay 回归 |
 | `mobile-workspace-overlay.spec.ts` | 移动安全边缘轨道和内容宽度验证 |
 | `mobile-navigation-scrollbar.spec.ts` | 移动底栏单一原生滚动视口、隐藏轨道、完整按钮边界和末项可达性验证 |
+| `mobile-facility-pull-refresh.spec.ts` | 移动工厂详情从内容顶部下滑时取消浏览器默认 overscroll、关闭详情且不发生顶层导航 |
 
 生产几何样式顺序固定为 `viewport.css` → `scrollbars.css` → `game-shell-layout.css`。浏览器兼容入口在 harness 已加载 `viewport.css` 后，固定转发 `performance.css` → `scrollbars.css` → `game-shell-layout.css` → `liquid-glass-surfaces.css`。
 
@@ -132,6 +135,13 @@
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`；底栏相对 Chrome Overlay 使用 `position: absolute`；
 - 管理员移动端只显示统一底栏，不显示 `.admin-command-bar`；不得给 `.asset-bar` 设置 `height: 100%`。
 
+### 6.1 登录态根视口的下拉刷新边界
+
+- `html[data-app-surface="game"|"admin"]` 是固定应用纵向滚动链的最终边界，必须由 `viewport.css` 设置 `overscroll-behavior-y: none`，阻止浏览器原生下拉刷新；登录、注册和封禁页面继续使用普通文档滚动，不得套用该根规则。
+- 页面 `.page-scroll`、详情内容、虚拟列表和其他内部滚动区继续保持 `overscroll-behavior-y: auto`，到达边界时仍按 UI 设计系统释放滚动链；不得为了阻止刷新把内部滚动区改成 `contain`。
+- `mobileFacilityPullRefresh.ts` 只为动态挂载的 `.facility-detail-sheet` 注册局部非被动 `touchmove`。它必须先排除按钮、链接、输入、选择器和滚动条，只在标题区或内容顶部识别到超过阈值且纵向占优的向下手势后调用 `preventDefault()`。
+- 该保护只取消浏览器默认过度滚动；工厂详情的位移、速度、关闭阈值、焦点返回和页面滚动锁定继续由 `ProductionPage.tsx` 负责。不得在 `window`、`document` 或 `body` 上建立全局非被动 `touchmove`。
+
 移动页面纵向覆盖式轨道固定到视口安全边缘：
 
 ```css
@@ -184,7 +194,7 @@
 - 禁止滚动事件更新玻璃参数、噪点动画和每项独立滤镜；
 - 页面初始内容避让工作栏和底栏，滚动时允许进入玻璃后方；
 - 装饰 SVG 和覆盖层不得阻止内部按钮事件；
-- 页面和内部列表到达纵向边界后必须保留滚动链；
+- 页面和内部列表到达纵向边界后必须保留滚动链；登录态根 `html` 只在链最终到达浏览器视口时终止原生过度滚动；
 - 通用滑块保留 `role="scrollbar"`、方向、范围、拖动、轨道翻页和键盘语义；移动底栏使用原生 `<nav>` 滚动视口。
 
 ## 10. 验收标准
@@ -204,8 +214,10 @@
 11. 管理员移动页面层与 Chrome 层位于同一工作区，顺序为 `1` 和 `2`，桌面工作栏隐藏且底栏保持可点击。
 12. 移动页面轨道固定到视口安全边缘，显隐前后内容宽度不变。
 13. 移动底栏不包含 `ScrollArea` 或项目自绘水平轨道，唯一 `<nav>` 可滚动到最后一项。
-14. 浏览器运行时 harness 实际加载正式几何与材质样式。
-15. `npm run build` 与全部 Chromium 浏览器测试通过。
+14. 登录态游戏与管理员根 `html` 的计算 `overscroll-behavior-y` 为 `none`；认证页面不受影响。
+15. 工厂详情内容位于顶部时向下关闭，局部 `touchmove` 已被取消，详情关闭、URL 不变且不发生顶层导航。
+16. 浏览器运行时 harness 实际加载正式几何与材质样式。
+17. `npm run build` 与全部 Chromium 浏览器测试通过。
 
 ## 11. 不可回退规则
 
@@ -232,7 +244,9 @@
 - 重新引入移动导航 `ScrollArea`、额外 frame、项目自绘轨道、伪元素留白或多层垂直裁切；
 - 在 `.mobile-bottom-navigation` 恢复垂直 padding 或外扩焦点 outline；
 - 把移动页面轨道限制在卡片边缘、越过安全区或改变卡片宽度；
-- 在 `.page-scroll` 上使用 `overscroll-behavior: contain` 阻断纵向滚动链；
+- 在 `.page-scroll` 或工厂详情内容上使用 `overscroll-behavior: contain` 阻断纵向滚动链；
+- 删除登录态根 `html` 的 `overscroll-behavior-y: none`，让浏览器原生下拉刷新重新接管固定应用视口；
+- 把工厂详情保护改为 `window`、`document` 或 `body` 级全局非被动 `touchmove`，或在向上滚动、横向手势、内容未到顶部和交互控件上取消默认行为；
 - 给 `.asset-bar` 设置 `height: 100%`；
 - 删除浏览器 harness 所需的真实滚动条或外壳几何导入；
 - 绕过架构检查或浏览器几何测试合并视觉回退。
