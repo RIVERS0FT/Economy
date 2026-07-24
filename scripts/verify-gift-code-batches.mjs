@@ -14,7 +14,7 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
   'server/test/gift-code-batch.test.js',
   'server/test/admin-pagination.test.js',
   'src/api/admin.ts',
-  'src/app/AdminApp.tsx',
+  'src/components/AdminGiftCodesSection.tsx',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
 ].forEach(requireFile);
 
@@ -63,7 +63,7 @@ for (const text of [
   '使用同一幂等键安全重试本批次',
   '加载更多礼品码',
   '加载更多兑换记录',
-]) requireText('src/app/AdminApp.tsx', text);
+]) requireText('src/components/AdminGiftCodesSection.tsx', text);
 
 for (const text of [
   '一次批量生成 1～50,000 个随机礼品码',
