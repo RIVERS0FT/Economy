@@ -57,6 +57,9 @@ jobs:
         if: steps.focused_tests.outcome == 'failure'
         run: exit 1
 
+      - name: Remove temporary patch scripts before authoritative build
+        run: rm -rf .agent
+
       - name: Build and run authoritative checks
         id: full_build
         continue-on-error: true
