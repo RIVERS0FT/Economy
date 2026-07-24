@@ -26,7 +26,7 @@
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家端一级卡片外层内边距令牌、共享组件语义、加载顺序、页面 CSS 边界和贴边内容例外 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、紧凑图表、短列表滚动、市场空值和浏览器几何回归 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
-| `LIQUID_GLASS_CHROME_DESIGN.md` | 游戏与管理员共享桌面外壳、统一布局沟槽、侧栏与悬浮工作栏几何、桌面贴边页面滚动条、移动工作区与 Overlay、移动操作结果通知、移动底栏和液态玻璃材质 |
+| `LIQUID_GLASS_CHROME_DESIGN.md` | 游戏与管理员共享桌面外壳、统一布局沟槽、侧栏与悬浮工作栏几何、桌面贴边页面滚动条、移动工作区与 Overlay、登录态根视口下拉刷新边界、移动操作结果通知、移动底栏和液态玻璃材质 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、长期合同事务与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、SQLite、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器本地快照、资产事件和匿名逐笔成交记录 |
 | `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、商品／工厂单项与捆绑资产包拍卖、世界 15 删除迁移、封禁复核、管理员权限、四分区后台范围与运营控制台编排 |
@@ -78,3 +78,4 @@
 43. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；统一读取 `serverNow` 校准的共享单调服务器时钟，状态转换到期后由权威刷新继续确认。每个返回分区内部都是完整快照，必须整块替换同名分区。该规则由 `AUTHORITATIVE_COUNTDOWN_DESIGN.md` 与 `scripts/verify-authoritative-countdowns.mjs` 防回退。
 44. 管理员玩家运营统计、成功经济写操作活跃口径、精确日活动覆盖起点、D1／D7／D30 留存、成长漏斗、经营参与、真实成交估值财富分布、关注群体、独立 SQLite 分析表和聚合隐私边界属于管理员与服务器共同规则；不得把统计结果用于扩张人口需求预算，必须同步更新 `GIFT_CODE_AND_ADMIN_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、服务器测试和 `scripts/verify-admin-player-statistics.mjs`。
 45. 输入方式、共享交互表面、混合输入运行时切换、React 根入口 bootstrap、触摸无粘滞 hover、程序化焦点与键盘焦点视觉属于 `UI_DESIGN_SYSTEM.md`；必须通过 `scripts/verify-interaction-modality.mjs` 和混合输入浏览器测试防回退，业务 CSS 不得增加未受约束的 hover。
+46. 登录态根视口的纵向 overscroll 终止、浏览器下拉刷新阻止与移动工厂详情局部触摸保护唯一归属 `LIQUID_GLASS_CHROME_DESIGN.md`；内部滚动区继续按 `UI_DESIGN_SYSTEM.md` 在边界释放滚动链。实现必须同步 `viewport.css`、`interactionBootstrap.ts`、`mobileFacilityPullRefresh.ts`、`scripts/verify-mobile-facility-pull-refresh.mjs` 与 `tests/browser/mobile-facility-pull-refresh.spec.ts`，不得改成内部 `contain` 或文档级全局 `touchmove` 拦截。
