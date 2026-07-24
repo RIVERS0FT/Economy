@@ -61,13 +61,7 @@ jobs:
 
           path = Path('src/styles/design-system.css')
           content = path.read_text()
-          block = """button:hover:not(:disabled),
-.ui-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.04);
-}
-
-"""
+          block = "button:hover:not(:disabled),\n.ui-button:hover:not(:disabled) {\n  transform: translateY(-1px);\n  filter: brightness(1.04);\n}\n\n"
           while block in content:
               content = content.replace(block, '')
           path.write_text(content)
