@@ -1,31 +1,23 @@
-name: Economy CI
+name: Economy Contract Document Sync
 
 on:
-  pull_request:
-  workflow_dispatch:
   push:
     branches:
       - agent/production-contracts
-
-concurrency:
-  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: write
 
 jobs:
-  patch-contract-docs:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/agent/production-contracts'
+  patch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: agent/production-contracts
           fetch-depth: 0
 
-      - name: Patch authoritative documents
+      - name: Synchronize authoritative contract rules
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -103,27 +95,22 @@ jobs:
 合同交付不改变工厂生产统计中的周期产出，不改变订单簿行情或商品估值。页面可以根据正式配方和当前参与数量提供每批数量建议，但该建议不进入合同权威条款，未来工厂数量或配方变化也不自动改写已签订合同。''',
           )
 
-          warehouse = 'docs/WAREHOUSE_EXPANSION_DESIGN.md'
           append_once(
-              warehouse,
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
               '## 长期合同仓库预占',
               '''## 长期合同仓库预占
 
 供应方为当前合同批次准备的商品从可用库存移动到冻结库存，继续计入共享仓库实际占用。采购方每份进行中合同至少按下一批完整商品数量参与仓库预占；承接合同和到期交付都必须验证预占后的剩余容量。采购方仓库不足时合同不得部分交付，并按合同规则进入宽限期。''',
           )
-
-          orderbook = 'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md'
           append_once(
-              orderbook,
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
               '## 长期合同与订单簿隔离',
               '''## 长期合同与订单簿隔离
 
 长期生产合作合同不是统一订单簿订单。合同交付不得更新商品最近真实成交价、价格历史、订单簿成交量、估值价格或交易排行榜，也不得与公开买卖单撮合。合同卖方服务费继续复用单份合同累计成交额 1% 的累计差额算法和市场服务就业分配，防止合同成为绕过公开市场手续费的通道。''',
           )
-
-          product = 'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md'
           append_once(
-              product,
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
               '## 长期生产合作合同经济定位',
               '''## 长期生产合作合同经济定位
 
@@ -143,117 +130,14 @@ jobs:
               "'单批货款 20% 的履约保证金',",
               required=True,
           )
-
-          original_ci = '''name: Economy CI
-
-on:
-  pull_request:
-  workflow_dispatch:
-
-concurrency:
-  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Test browser runtime
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
-'''
-          write('.github/workflows/ci.yml', original_ci)
+          Path('scripts/.contract-doc-patch-trigger').unlink(missing_ok=True)
           PY
 
-      - name: Commit synchronized documents
+      - name: Restore CI and commit
         run: |
+          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
           git config user.name "OpenAI Agent"
           git config user.email "openai-agent@users.noreply.github.com"
           git add -A
           git commit -m "document production contract architecture"
           git push origin HEAD:agent/production-contracts
-
-  build:
-    if: github.event_name != 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Test browser runtime
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
