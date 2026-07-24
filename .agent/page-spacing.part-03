@@ -98,7 +98,3 @@ index 4c21f65..0000000 100644
      "verify:order-matching-core": "node scripts/verify-order-matching-core.mjs",
      "verify:game-tutorial": "node scripts/verify-game-tutorial.mjs",
      "verify:recipe-profit-analysis": "node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs",
-@@ -26,4 +27,4 @@
-     "verify:admin-player-statistics": "node scripts/verify-admin-player-statistics.mjs",
-     "verify:state-version": "node scripts/verify-client-state-version.mjs",
-     "verify:runtime-efficiency": "node scripts/verify-runtime-efficiency.mjs",
