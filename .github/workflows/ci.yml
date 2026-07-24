@@ -19,9 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
-      - name: Print contract state transitions
+      - name: Capture contract state transitions
         run: |
-          node --input-type=module <<'JS'
+          node --input-type=module <<'JS' > contract-diagnostic.json
           import { createWorld, ensurePlayer } from './server/src/domain.js';
           import { applyProductionContractAction, createProductionContractClientState } from './server/src/contracts.js';
 
@@ -64,3 +64,9 @@ jobs:
             clientContracts: client.productionContracts.map((item) => ({ id: item.id, status: item.status, isBuyer: item.isBuyer, isSupplier: item.isSupplier })),
           }, null, 2));
           JS
+      - name: Upload diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-state-diagnostic
+          path: contract-diagnostic.json
+          retention-days: 1
