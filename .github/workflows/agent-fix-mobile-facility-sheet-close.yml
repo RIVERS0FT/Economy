@@ -1,0 +1,179 @@
+name: Apply mobile facility sheet close fix
+
+on:
+  push:
+    branches:
+      - agent/fix-mobile-facility-sheet-close
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply source, design, and regression changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path}: expected one match, found {count}: {old[:80]!r}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          page_path = 'src/pages/ProductionPage.tsx'
+          replace_once(
+              page_path,
+              """  const closeCompletionRef = useRef<(() => void) | undefined>(undefined);\n  const isClosingRef = useRef(false);\n  const pendingOffsetRef = useRef(0);""",
+              """  const closeCompletionRef = useRef<(() => void) | undefined>(undefined);\n  const backdropPointerIdRef = useRef<number | undefined>(undefined);\n  const isClosingRef = useRef(false);\n  const pendingOffsetRef = useRef(0);""",
+          )
+          replace_once(
+              page_path,
+              """  const resetDragStyles = useCallback(() => {\n    const sheet = sheetRef.current;\n    const backdrop = backdropRef.current;\n    if (!sheet || !backdrop) return;\n    sheet.classList.remove('is-dragging', 'is-settling', 'is-closing');\n    sheet.style.removeProperty('--facility-sheet-drag-offset');\n    backdrop.style.removeProperty('--facility-sheet-backdrop-progress');\n    delete sheet.dataset.dragSource;\n    pendingOffsetRef.current = 0;\n    isClosingRef.current = false;\n  }, []);""",
+              """  const resetDragStyles = useCallback(() => {\n    pendingOffsetRef.current = 0;\n    isClosingRef.current = false;\n    backdropPointerIdRef.current = undefined;\n\n    const sheet = sheetRef.current;\n    const backdrop = backdropRef.current;\n    if (!sheet || !backdrop) return;\n    sheet.classList.remove('is-dragging', 'is-settling', 'is-closing');\n    sheet.style.removeProperty('--facility-sheet-drag-offset');\n    backdrop.style.removeProperty('--facility-sheet-backdrop-progress');\n    delete sheet.dataset.dragSource;\n  }, []);""",
+          )
+          replace_once(
+              page_path,
+              """  const completeClose = useCallback(() => {\n    const completion = closeCompletionRef.current;\n    closeCompletionRef.current = undefined;\n    onClose();\n    completion?.();\n  }, [onClose]);""",
+              """  const completeClose = useCallback(() => {\n    settleTimerRef.current = undefined;\n    const completion = closeCompletionRef.current;\n    closeCompletionRef.current = undefined;\n    dragSessionRef.current = null;\n    backdropPointerIdRef.current = undefined;\n    pendingOffsetRef.current = 0;\n    isClosingRef.current = false;\n    onClose();\n    completion?.();\n  }, [onClose]);""",
+          )
+          replace_once(
+              page_path,
+              """  const handleTouchEnd = useCallback(\n    (event: ReactTouchEvent<HTMLDivElement>) => {\n      const touch = event.changedTouches[0];\n      finishDrag(touch?.clientY);\n    },\n    [finishDrag],\n  );\n\n  useEffect(() => {""",
+              """  const handleTouchEnd = useCallback(\n    (event: ReactTouchEvent<HTMLDivElement>) => {\n      const touch = event.changedTouches[0];\n      finishDrag(touch?.clientY);\n    },\n    [finishDrag],\n  );\n\n  const handleBackdropPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {\n    if (!event.isPrimary) return;\n    const isPrimaryMouseButton = event.pointerType !== 'mouse' || event.button === 0;\n    backdropPointerIdRef.current =\n      event.target === event.currentTarget && isPrimaryMouseButton ? event.pointerId : undefined;\n  }, []);\n\n  const handleBackdropPointerUp = useCallback(\n    (event: ReactPointerEvent<HTMLDivElement>) => {\n      const startedOnBackdrop = backdropPointerIdRef.current === event.pointerId;\n      backdropPointerIdRef.current = undefined;\n      if (!startedOnBackdrop || event.target !== event.currentTarget) return;\n      requestClose();\n    },\n    [requestClose],\n  );\n\n  const handleBackdropPointerCancel = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {\n    if (backdropPointerIdRef.current === event.pointerId) backdropPointerIdRef.current = undefined;\n  }, []);\n\n  useEffect(() => {""",
+          )
+          replace_once(
+              page_path,
+              """  useEffect(() => {\n    if (!isOpen) return undefined;\n\n    const pageScroll = document.querySelector<HTMLElement>('.page-scroll');""",
+              """  useEffect(() => {\n    if (!isOpen) return undefined;\n\n    clearSettleTimer();\n    resetDragStyles();\n    closeCompletionRef.current = undefined;\n    dragSessionRef.current = null;\n\n    const pageScroll = document.querySelector<HTMLElement>('.page-scroll');""",
+          )
+          replace_once(
+              page_path,
+              """  }, [isOpen, requestClose, returnFocusRef]);""",
+              """  }, [clearSettleTimer, isOpen, requestClose, resetDragStyles, returnFocusRef]);""",
+          )
+          replace_once(
+              page_path,
+              """      ref={backdropRef}\n      className=\"facility-detail-sheet-backdrop\"\n      onClick={(event) => {\n        if (event.target === event.currentTarget) requestClose();\n      }}""",
+              """      ref={backdropRef}\n      className=\"facility-detail-sheet-backdrop\"\n      onPointerDown={handleBackdropPointerDown}\n      onPointerUp={handleBackdropPointerUp}\n      onPointerCancel={handleBackdropPointerCancel}""",
+          )
+
+          doc_path = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
+          replace_once(doc_path, '> 更新时间：2026-07-23', '> 更新时间：2026-07-24')
+          replace_once(
+              doc_path,
+              """- 点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程：先向下移动悬浮框并同步淡出遮罩，动画结束后再卸载；动画期间忽略重复关闭请求。`prefers-reduced-motion: reduce` 时允许立即关闭。""",
+              """- 点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程：先向下移动悬浮框并同步淡出遮罩，动画结束后再卸载；动画期间忽略重复关闭请求。`prefers-reduced-motion: reduce` 时允许立即关闭。\n- 关闭互斥状态只覆盖当前一次收起流程；动画完成、降级为立即关闭或下一次打开前必须释放。遮罩关闭必须由同一主指针在遮罩空白区域按下并抬起确认，不得只依赖移动浏览器合成的 `click`，也不得把从悬浮框内容开始的手势误判为遮罩关闭。""",
+          )
+
+          verifier_path = 'scripts/verify-unified-factory-recipes-grid.mjs'
+          replace_once(
+              verifier_path,
+              """  'const requestClose = useCallback',\n  'const isClosingRef = useRef(false)',""",
+              """  'const requestClose = useCallback',\n  'const backdropPointerIdRef = useRef<number | undefined>(undefined)',\n  'const isClosingRef = useRef(false)',\n  'const handleBackdropPointerDown = useCallback',\n  'const handleBackdropPointerUp = useCallback',\n  'const handleBackdropPointerCancel = useCallback',\n  'onPointerDown={handleBackdropPointerDown}',\n  'onPointerUp={handleBackdropPointerUp}',\n  'onPointerCancel={handleBackdropPointerCancel}',\n  'isClosingRef.current = false;',""",
+          )
+          replace_once(
+              verifier_path,
+              """  'if (event.target === event.currentTarget) requestClose();',\n  'requestClose(onOpenMarket)',""",
+              """  'requestClose(onOpenMarket)',""",
+          )
+          replace_once(
+              verifier_path,
+              """  '查看详情',\n])""",
+              """  '查看详情',\n  'if (event.target === event.currentTarget) requestClose();',\n])""",
+          )
+          replace_once(
+              verifier_path,
+              """  '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',\n  '悬浮框最大高度为 `min(88dvh, 760px)`',""",
+              """  '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',\n  '关闭互斥状态只覆盖当前一次收起流程',\n  '不得只依赖移动浏览器合成的 `click`',\n  '悬浮框最大高度为 `min(88dvh, 760px)`',""",
+          )
+
+          harness_path = 'tests/browser/runtime-harness.tsx'
+          replace_once(
+              harness_path,
+              """import { OverviewPage } from '../../src/pages/OverviewPage';\nimport { SettingsPage } from '../../src/pages/SettingsPage';""",
+              """import { OverviewPage } from '../../src/pages/OverviewPage';\nimport { ProductionPage } from '../../src/pages/ProductionPage';\nimport { SettingsPage } from '../../src/pages/SettingsPage';""",
+          )
+          replace_once(
+              harness_path,
+              """import '../../src/styles/icon-system.css';\nimport '../../src/styles/contracts.css';""",
+              """import '../../src/styles/icon-system.css';\nimport '../../src/styles/industry-system.css';\nimport '../../src/styles/facility-production-formula.css';\nimport '../../src/styles/facility-group-card-grid.css';\nimport '../../src/styles/facility-detail-sheet.css';\nimport '../../src/styles/warehouse-expansion.css';\nimport '../../src/styles/production-surface.css';\nimport '../../src/styles/contracts.css';""",
+          )
+          replace_once(
+              harness_path,
+              """document.documentElement.dataset.appSurface = ['overview', 'contracts', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';""",
+              """document.documentElement.dataset.appSurface = ['overview', 'production', 'contracts', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';""",
+          )
+          replace_once(
+              harness_path,
+              """function GemShopHarness() {""",
+              """function ProductionHarness() {\n  const [tab, setTab] = useState<TabId>('production');\n  const model = useMemo(() => {\n    const next = buildOverviewModel(tab, setTab);\n    next.game.credits = 10_000;\n    next.game.inventories = {\n      ...next.game.inventories,\n      steel: { available: 200, frozen: 0 },\n    };\n    next.game.products = [\n      { id: 'steel', name: '钢材', category: 'industrial', basePrice: 29 },\n      ...next.game.products,\n    ];\n    Object.assign(next, {\n      buildFacility: async () => ({ ok: true, message: '测试建设完成' }),\n      startFacility: async () => ({ ok: true, message: '测试启动完成' }),\n      stopFacility: async () => ({ ok: true, message: '测试停止完成' }),\n      setFacilityRecipe: async () => ({ ok: true, message: '测试配方完成' }),\n      upgradeWarehouse: async () => ({ ok: true, message: '测试扩容完成' }),\n    });\n    return next;\n  }, [tab]);\n  const statusItems: StatusBarItem[] = [\n    { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },\n    { id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('assets') },\n    { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },\n    { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },\n    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },\n  ];\n\n  return (\n    <GameShell model={model} statusItems={statusItems}>\n      <ProductionPage model={model} />\n    </GameShell>\n  );\n}\n\nfunction GemShopHarness() {""",
+          )
+          replace_once(
+              harness_path,
+              """  view === 'overview'\n    ? <OverviewHarness />\n    : view === 'contracts'""",
+              """  view === 'overview'\n    ? <OverviewHarness />\n    : view === 'production'\n      ? <ProductionHarness />\n      : view === 'contracts'""",
+          )
+
+          browser_test = Path('tests/browser/facility-detail-sheet.spec.ts')
+          if browser_test.exists():
+              raise RuntimeError(f'{browser_test} already exists')
+          browser_test.write_text("""import { expect, test } from '@playwright/test';\n\ntest.describe('mobile facility detail sheet close lifecycle', () => {\n  test.use({\n    viewport: { width: 390, height: 844 },\n    hasTouch: true,\n  });\n\n  test('backdrop touch closes after every reopen and restores focus and page scrolling', async ({ page }) => {\n    await page.goto('runtime-test.html?view=production&scenario=activity');\n\n    const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });\n    const dialog = page.getByRole('dialog', { name: /机械工厂/ });\n    const pageScroll = page.locator('.page-scroll');\n\n    await expect(trigger).toBeVisible();\n\n    for (let iteration = 0; iteration < 3; iteration += 1) {\n      await trigger.tap();\n      await expect(dialog).toBeVisible();\n      await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');\n\n      const sheetBox = await dialog.boundingBox();\n      expect(sheetBox).not.toBeNull();\n      expect(sheetBox!.y).toBeGreaterThan(8);\n      await page.touchscreen.tap(sheetBox!.x + sheetBox!.width / 2, Math.max(8, sheetBox!.y / 2));\n\n      await expect(dialog).toBeHidden();\n      await expect(pageScroll).toHaveCSS('overflow-y', 'auto');\n      await expect(trigger).toBeFocused();\n    }\n  });\n});\n""", encoding='utf-8')
+
+          verifier = Path(verifier_path)
+          verifier_text = verifier.read_text(encoding='utf-8')
+          anchor = """const formula = read('src/components/facilities/FacilityProductionFormula.tsx');"""
+          browser_assertions = """const facilitySheetBrowserTest = read('tests/browser/facility-detail-sheet.spec.ts');\nfor (const text of [\n  'view=production&scenario=activity',\n  'hasTouch: true',\n  'for (let iteration = 0; iteration < 3; iteration += 1)',\n  'page.touchscreen.tap',\n  'await expect(trigger).toBeFocused()',\n])\n  assert.equal(facilitySheetBrowserTest.includes(text), true, `移动工厂详情浏览器回归缺少: ${text}`);\n\nconst formula = read('src/components/facilities/FacilityProductionFormula.tsx');"""
+          if verifier_text.count(anchor) != 1:
+              raise RuntimeError('browser test assertion anchor mismatch')
+          verifier.write_text(verifier_text.replace(anchor, browser_assertions, 1), encoding='utf-8')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify architecture and types
+        run: |
+          set -euo pipefail
+          node scripts/verify-unified-factory-recipes-grid.mjs
+          npm run typecheck
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify repeated mobile backdrop close
+        run: npx playwright test tests/browser/facility-detail-sheet.spec.ts --project=chromium
+
+      - name: Commit verified changes and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/agent-fix-mobile-facility-sheet-close.yml
+          git add \
+            src/pages/ProductionPage.tsx \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            scripts/verify-unified-factory-recipes-grid.mjs \
+            tests/browser/runtime-harness.tsx \
+            tests/browser/facility-detail-sheet.spec.ts
+          git commit -m '修复移动端工厂详情重复关闭'
+          git push origin HEAD
