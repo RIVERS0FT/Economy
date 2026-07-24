@@ -22,7 +22,7 @@ function forbidText(path, fragments) {
 }
 
 requireText('README.md', [
-  '游戏状态使用全局世界修订号排序，并按目录、玩家、市场、拍卖、排行榜五个分区增量同步',
+  '游戏状态使用全局世界修订号排序，并按目录、玩家、市场、拍卖、合同、排行榜六个分区增量同步',
   '每个 `GET state` 响应都在分区 envelope 顶层携带响应生成时的 `serverNow`',
   '权威动作响应固定只返回 `{ result: { ok, message }, revision }`',
   '动作已经提交但补拉失败时不得改写为操作失败',
@@ -35,7 +35,7 @@ requireText('README.md', [
 
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '?revision=N&catalog=',
-  '`catalog`、`player`、`market`、`auction`、`leaderboard`',
+  '`catalog`、`player`、`market`、`auction`、`contract`、`leaderboard`',
   '{ revision, unchanged: true, serverNow }',
   '`serverNow` 是状态交付 envelope 的顶层响应元数据',
   '不属于 `EconomyState`、世界 JSON 或任何状态分区',
@@ -64,7 +64,7 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
 
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '默认每 5 秒按服务器全局修订号轮询',
-  '目录、玩家、市场、拍卖和排行榜五个状态分区',
+  '目录、玩家、市场、拍卖、合同和排行榜六个状态分区',
   '可选 3／5／10 秒',
   '不得恢复每 1 秒完整状态刷新',
   '按钮必须在同一交互周期立即显示“处理中”',
