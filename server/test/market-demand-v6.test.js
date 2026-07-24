@@ -60,7 +60,7 @@ function createTestWorld(now) {
   };
 }
 
-test('market model 8 settles fills that happen after demand orders are created', () => {
+test('market model 10 settles fills that happen after demand orders are created', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
@@ -126,7 +126,135 @@ test('direct demand quote anchor accumulates fractional no-fill increases and re
   assert.equal(world.marketDemand.groups.food.lastCycleSettlement.products.wheat.directFillRatio, 1);
 });
 
-test('market model 8 uses funded population wallets when no player is active', () => {
+
+function demandOrdersFor(world, groupId, productId, cycleId, demandTier = 'direct') {
+  return world.orders.filter((order) => order.demandGroupId === groupId
+    && order.demandTier === demandTier
+    && order.productId === productId
+    && Number(order.demandCycleId) === cycleId);
+}
+
+function fillDemandQuantity(orders, requestedFill, delayMs = 0) {
+  let remainingFill = requestedFill;
+  for (const order of orders) {
+    const quantity = Math.max(0, Number(order.quantity || 0));
+    const filled = Math.min(quantity, remainingFill);
+    order.remaining = quantity - filled;
+    order.status = order.remaining <= 0 ? 'filled' : filled > 0 ? 'partial' : 'open';
+    if (filled > 0) order.lastFilledAt = Number(order.createdAt || 0) + delayMs;
+    remainingFill -= filled;
+  }
+  assert.equal(remainingFill, 0);
+}
+
+test('sustained fast full service lowers all direct demand tiers below reference price', () => {
+  const now = 1_700_000_000_000;
+  const runtime = createRuntime();
+  const world = createTestWorld(now);
+  runtime.initializeWorld(world, now);
+  world.marketDemand.groups.food.nextDemandAt = now;
+  runtime.processGroup(world, 'food', now);
+
+  for (let cycle = 0; cycle < 3; cycle += 1) {
+    const cycleAt = now + cycle * constants.demandCycleMs;
+    const cycleId = Math.floor(cycleAt / constants.demandCycleMs);
+    const orders = demandOrdersFor(world, 'food', 'food', cycleId);
+    assert.ok(orders.length > 0);
+    fillDemandQuantity(orders, orders.reduce((sum, order) => sum + Number(order.quantity || 0), 0));
+    runtime.processGroup(world, 'food', cycleAt + constants.demandCycleMs);
+  }
+
+  const state = world.marketDemand.groups.food;
+  const reference = world.marketDemand.priceTransmission.products.food.referencePrice;
+  assert.equal(state.directOversupplyCycles.food, 3);
+  assert.ok(state.directQuoteAnchors.food < reference);
+  const currentCycleId = Math.floor((now + 3 * constants.demandCycleMs) / constants.demandCycleMs);
+  const prices = [...new Set(demandOrdersFor(world, 'food', 'food', currentCycleId).map((order) => order.price))]
+    .sort((left, right) => right - left);
+  assert.ok(prices.length > 0);
+  assert.ok(prices.every((price) => price >= 1 && price < reference));
+});
+
+test('direct demand quote anchor stops at absolute price one', () => {
+  const now = 1_700_000_000_000;
+  const runtime = createRuntime();
+  const world = createTestWorld(now);
+  runtime.initializeWorld(world, now);
+  world.marketDemand.groups.food.nextDemandAt = now;
+  runtime.processGroup(world, 'food', now);
+  const cycleId = Math.floor(now / constants.demandCycleMs);
+  const orders = demandOrdersFor(world, 'food', 'food', cycleId);
+  assert.ok(orders.length > 0);
+  world.marketDemand.groups.food.directQuoteAnchors.food = 1.01;
+  world.marketDemand.groups.food.directOversupplyCycles.food = 1;
+  fillDemandQuantity(orders, orders.reduce((sum, order) => sum + Number(order.quantity || 0), 0));
+
+  runtime.processGroup(world, 'food', now + constants.demandCycleMs);
+
+  assert.equal(world.marketDemand.groups.food.directQuoteAnchors.food, 1);
+  const nextCycleId = Math.floor((now + constants.demandCycleMs) / constants.demandCycleMs);
+  const prices = demandOrdersFor(world, 'food', 'food', nextCycleId).map((order) => order.price);
+  assert.ok(prices.length > 0);
+  assert.ok(prices.every((price) => price === 1));
+});
+
+test('zero fill below reference accelerates recovery while partial service recovers gently', () => {
+  const now = 1_700_000_000_000;
+  const zeroRuntime = createRuntime();
+  const zeroWorld = createTestWorld(now);
+  zeroRuntime.initializeWorld(zeroWorld, now);
+  zeroWorld.marketDemand.groups.food.nextDemandAt = now;
+  zeroRuntime.processGroup(zeroWorld, 'food', now);
+  zeroWorld.marketDemand.priceTransmission.products.food.referencePrice = 10;
+  zeroWorld.marketDemand.groups.food.directQuoteAnchors.food = 6;
+  const historyBefore = zeroWorld.markets.food.priceHistory.length;
+  const tradePriceBefore = zeroWorld.markets.food.lastTradePrice;
+  zeroRuntime.processGroup(zeroWorld, 'food', now + constants.demandCycleMs);
+  assert.equal(zeroWorld.marketDemand.groups.food.directQuoteAnchors.food, 7);
+  assert.equal(zeroWorld.markets.food.priceHistory.length, historyBefore);
+  assert.equal(zeroWorld.markets.food.lastTradePrice, tradePriceBefore);
+
+  const partialRuntime = createRuntime();
+  const partialWorld = createTestWorld(now);
+  partialRuntime.initializeWorld(partialWorld, now);
+  partialWorld.marketDemand.groups.food.nextDemandAt = now;
+  partialRuntime.processGroup(partialWorld, 'food', now);
+  partialWorld.marketDemand.priceTransmission.products.food.referencePrice = 10;
+  partialWorld.marketDemand.groups.food.directQuoteAnchors.food = 6;
+  const cycleId = Math.floor(now / constants.demandCycleMs);
+  const orders = demandOrdersFor(partialWorld, 'food', 'food', cycleId);
+  const total = orders.reduce((sum, order) => sum + Number(order.quantity || 0), 0);
+  assert.ok(total >= 2);
+  fillDemandQuantity(orders, Math.floor(total / 2));
+  partialRuntime.processGroup(partialWorld, 'food', now + constants.demandCycleMs);
+  assert.equal(partialWorld.marketDemand.groups.food.directQuoteAnchors.food, 6.4);
+  assert.equal(partialWorld.marketDemand.groups.food.directOversupplyCycles.food, 0);
+});
+
+test('no direct demand converges toward reference and derived liquidity ignores a low direct anchor', () => {
+  const now = 1_700_000_000_000;
+  const runtime = createRuntime();
+  const world = createTestWorld(now);
+  runtime.initializeWorld(world, now);
+  world.marketDemand.priceTransmission.products.food.referencePrice = 10;
+  world.marketDemand.groups.food.directQuoteAnchors.food = 6;
+  world.marketDemand.priceTransmission.products.wheat.referencePrice = 2;
+  world.marketDemand.groups.food.directQuoteAnchors.wheat = 1;
+  world.marketDemand.groups.food.nextDemandAt = now;
+
+  runtime.processGroup(world, 'food', now);
+
+  assert.equal(world.marketDemand.groups.food.directQuoteAnchors.food, 7.2);
+  const cycleId = Math.floor(now / constants.demandCycleMs);
+  const directPrices = demandOrdersFor(world, 'food', 'wheat', cycleId, 'direct').map((order) => order.price);
+  const derivedPrices = demandOrdersFor(world, 'food', 'wheat', cycleId, 'derived-liquidity').map((order) => order.price);
+  assert.ok(directPrices.length > 0);
+  assert.ok(derivedPrices.length > 0);
+  assert.equal(Math.max(...directPrices), 1);
+  assert.equal(Math.max(...derivedPrices), 2);
+});
+
+test('market model 10 uses funded population wallets when no player is active', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);

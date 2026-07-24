@@ -11,7 +11,7 @@ import {
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 31);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 9);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 10);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.name), ['食品市场', '社会消费市场']);
@@ -52,7 +52,7 @@ const runtime = [
   'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 9',
+  'MARKET_DEMAND_MODEL_VERSION = 10',
   'DIRECT_BUDGET_SHARE = 0.70',
   "POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional'])",
   "POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence'])",
@@ -101,8 +101,17 @@ for (const text of [
   'SYSTEM_ORDER_RETENTION_RATE',
   'DEMAND_CURVE',
   'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.03',
+  'DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE = 0.25',
+  'DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE = 0.10',
   'DIRECT_DEMAND_PRICE_RECOVERY_RATE = 0.30',
+  'DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP = 0.98',
+  'DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES = 2',
+  'DIRECT_DEMAND_OVERSUPPLY_FILL_RATIO = 0.95',
+  'DIRECT_DEMAND_OVERSUPPLY_DELAY_SCORE = 0.85',
+  'DIRECT_DEMAND_MIN_PRICE = 1',
   'directQuoteAnchors',
+  'directOversupplyCycles',
+  'directDelayScore',
   'PRODUCT_ORDER_VALUE_CYCLES',
   'PRODUCT_PRESSURE_SMOOTHING',
   'DERIVED_UNMET_WEIGHT',
@@ -140,7 +149,13 @@ assert.deepEqual(facilities.get('appliance-factory').recipes[0].inputs, [
 ]);
 
 const marketDemandTests = read('server/test/market-demand-v6.test.js');
-assert.ok(marketDemandTests.includes('direct demand quote anchor accumulates fractional no-fill increases and recovers after service'), '市场需求测试缺少未成交报价阶梯回归');
+for (const text of [
+  'direct demand quote anchor accumulates fractional no-fill increases and recovers after service',
+  'sustained fast full service lowers all direct demand tiers below reference price',
+  'direct demand quote anchor stops at absolute price one',
+  'zero fill below reference accelerates recovery while partial service recovers gently',
+  'no direct demand converges toward reference and derived liquidity ignores a low direct anchor',
+]) assert.ok(marketDemandTests.includes(text), '市场需求测试缺少模型 10 双向报价回归: ' + text);
 
 const populationTests = read('server/test/population-economy.test.js');
 for (const text of [
@@ -166,10 +181,10 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`9`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '未满足需求报价锚点']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：9', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '未满足需求报价锚点']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：9', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '未满足需求报价锚点']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 4', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 9', '人口消费不得发行普通货币']],
+  ['README.md', ['市场需求模型版本：`10`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '双向报价锚点']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：10', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：10', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 4', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 10', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/components/AdminPopulationHealth.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
   ['src/components/AdminOverview.tsx', ['AdminPopulationControl']],
@@ -179,7 +194,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 9 使用真实人口钱包覆盖全部 31 种商品，并保持既有总预算、派生流动性和市场储备约束。');
+console.log('市场需求验证通过：模型 10 使用真实人口钱包覆盖全部 31 种商品，并保持双向直接需求报价、既有总预算、派生流动性和市场储备约束。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');

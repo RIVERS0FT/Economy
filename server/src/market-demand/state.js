@@ -1,4 +1,4 @@
-import { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, PRICE_MAX_MULTIPLIER } from './catalog.js';
+import { DIRECT_DEMAND_MIN_PRICE, MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, PRICE_MAX_MULTIPLIER } from './catalog.js';
 import { clamp } from './math.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from '../population-economy.js';
 
@@ -9,6 +9,10 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
     return Object.fromEntries([...new Set(group.classes.flatMap((demandClass) => (
       demandClass.products.map((option) => option.productId)
     )))].map((productId) => [productId, Number(productMap.get(productId)?.basePrice || 1)]));
+  }
+
+  function defaultDirectOversupplyCycles(group) {
+    return Object.fromEntries(Object.keys(defaultDirectQuoteAnchors(group)).map((productId) => [productId, 0]));
   }
 
   function normalizePlayerActivity(world, now) {
@@ -63,6 +67,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       lastAllocation: {},
       lastProductShares: {},
       directQuoteAnchors: defaultDirectQuoteAnchors(group),
+      directOversupplyCycles: defaultDirectOversupplyCycles(group),
       previousDemandQuantities: structuredClone(group.seedDemandQuantities),
       recipeShares: {},
       lastInventoryBoost: 0,
@@ -154,8 +159,15 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         const product = productMap.get(productId);
         const value = Number(previousAnchors[productId]);
         const normalized = Number.isFinite(value) && value > 0 ? value : fallbackPrice;
-        return [productId, clamp(0.01, Number(product?.basePrice || fallbackPrice) * PRICE_MAX_MULTIPLIER, normalized)];
+        return [productId, clamp(DIRECT_DEMAND_MIN_PRICE, Number(product?.basePrice || fallbackPrice) * PRICE_MAX_MULTIPLIER, normalized)];
       }));
+      const previousOversupplyCycles = state.directOversupplyCycles && typeof state.directOversupplyCycles === 'object'
+        ? state.directOversupplyCycles
+        : {};
+      state.directOversupplyCycles = Object.fromEntries(Object.keys(defaultAnchors).map((productId) => [
+        productId,
+        Math.max(0, Math.floor(Number(previousOversupplyCycles[productId] || 0))),
+      ]));
       state.previousDemandQuantities = state.previousDemandQuantities && typeof state.previousDemandQuantities === 'object'
         ? state.previousDemandQuantities
         : structuredClone(group.seedDemandQuantities);
@@ -180,6 +192,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         state.lastClassAllocation = {};
         state.lastProductShares = {};
         state.directQuoteAnchors = defaultDirectQuoteAnchors(group);
+        state.directOversupplyCycles = defaultDirectOversupplyCycles(group);
         state.previousDemandQuantities = structuredClone(group.seedDemandQuantities);
         state.recipeShares = {};
       }
@@ -222,6 +235,22 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       });
     }
     world.marketDemand.priceTransmission = transmission;
+    if (isUpgrade) {
+      for (const group of MARKET_DEMAND_GROUP_CATALOG) {
+        const groupState = world.marketDemand.groups[group.id];
+        const defaults = defaultDirectQuoteAnchors(group);
+        groupState.directQuoteAnchors = Object.fromEntries(Object.keys(defaults).map((productId) => {
+          const product = productMap.get(productId);
+          const referencePrice = Number(transmission.products[productId]?.referencePrice || product?.basePrice || defaults[productId]);
+          return [productId, clamp(
+            DIRECT_DEMAND_MIN_PRICE,
+            Number(product?.basePrice || defaults[productId]) * PRICE_MAX_MULTIPLIER,
+            referencePrice,
+          )];
+        }));
+        groupState.directOversupplyCycles = defaultDirectOversupplyCycles(group);
+      }
+    }
     world.demandGroups = world.marketDemand.groups;
     world.priceTransmission = world.marketDemand.priceTransmission;
 
