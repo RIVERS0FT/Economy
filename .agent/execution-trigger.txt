@@ -1,0 +1,1 @@
+execute global interaction modality
