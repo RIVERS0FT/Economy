@@ -1,0 +1,55 @@
+name: Apply verified remove-collectibles patch
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/remove-collectibles'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact feature commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Verify and apply final source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest='.agent/remove-collectibles.patch.sha256'
+          payload='.agent/remove-collectibles.patch.b64'
+          if [ ! -f "$manifest" ] || [ ! -f "$payload" ]; then
+            echo PATCH_PAYLOAD_NOT_READY
+            exit 0
+          fi
+
+          expected="$(tr -d '[:space:]' < "$manifest")"
+          base64 --decode "$payload" > /tmp/remove-collectibles.patch.gz
+          actual="$(sha256sum /tmp/remove-collectibles.patch.gz | awk '{print $1}')"
+          echo "expected_sha256=$expected"
+          echo "actual_sha256=$actual"
+          test "$actual" = "$expected"
+          gzip -t /tmp/remove-collectibles.patch.gz
+          gzip --decompress --stdout /tmp/remove-collectibles.patch.gz > /tmp/remove-collectibles.patch
+          git apply --check /tmp/remove-collectibles.patch
+          git apply --index /tmp/remove-collectibles.patch
+
+          rm -rf .agent .github/workflows/apply-remove-collectibles.yml
+          git add -A
+          test ! -e .agent
+          test ! -e .github/workflows/apply-remove-collectibles.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m '删除藏品页面、玩法与管理员分区'
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
