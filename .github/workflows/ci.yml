@@ -150,7 +150,25 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Verify interaction browsers
-        run: npx playwright test tests/browser/facility-detail-sheet.spec.ts tests/browser/input-modality.spec.ts --project=chromium
+        shell: bash
+        run: |
+          set -o pipefail
+          npx playwright test tests/browser/facility-detail-sheet.spec.ts tests/browser/input-modality.spec.ts --project=chromium 2>&1 | tee /tmp/interaction-browser.log
+
+      - name: Persist browser failure
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .agent
+          cp /tmp/interaction-browser.log .agent/interaction-browser.log
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .agent/interaction-browser.log
+          if ! git diff --cached --quiet; then
+            git commit -m '记录交互协议浏览器验证失败'
+            git push origin HEAD:agent/global-interaction-modality
+          fi
 
       - name: Restore CI and commit real changes
         shell: bash
