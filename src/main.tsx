@@ -2,8 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AppErrorBoundary } from './app/AppErrorBoundary';
+import './app/interactionBootstrap';
 import { configureRuntimePerformance } from './utils/runtimePerformance';
-import { configureInputModality } from './utils/inputModality';
 import './styles/globals.css';
 import './styles/desktop-sidebar.css';
 import './styles/performance.css';
@@ -43,11 +43,11 @@ import './styles/market-page-polish.css';
 import './styles/leaderboards.css';
 import './styles/product-artwork.css';
 import './styles/design-system.css';
+import './styles/interaction-states.css';
 import './styles/primary-surfaces.css';
 import './styles/form-controls.css';
 
 configureRuntimePerformance();
-configureInputModality();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

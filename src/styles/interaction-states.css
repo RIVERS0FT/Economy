@@ -1,0 +1,33 @@
+/* Shared input-modality interaction protocol.
+ * Runtime modality is authoritative for hover and focus visuals; capability
+ * media queries remain a second guard against sticky touch hover behavior. */
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse']
+    :where(button:hover:not(:disabled), .ui-button:hover:not(:disabled)) {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+  }
+
+  html[data-input-modality='mouse'] [data-ui-interactive='surface']:hover:not(:disabled) {
+    border-color: var(--ui-interactive-hover-border-color, var(--color-border-strong));
+    background: var(--ui-interactive-hover-background, var(--color-surface-hover));
+    transform: var(--ui-interactive-hover-transform, none);
+    filter: var(--ui-interactive-hover-filter, none);
+  }
+}
+
+[data-ui-interactive='surface']:active:not(:disabled) {
+  transform: var(--ui-interactive-active-transform, scale(0.98));
+}
+
+html:not([data-input-modality='keyboard']) [data-ui-interactive='surface']:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+html[data-input-modality='keyboard'] [data-ui-interactive='surface']:focus-visible {
+  outline: 2px solid var(--ui-interactive-focus-color, var(--color-focus-ring, var(--color-success)));
+  outline-offset: var(--ui-interactive-focus-offset, 2px);
+  box-shadow: var(--ui-interactive-focus-shadow, var(--shadow-focus));
+}

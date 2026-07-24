@@ -138,12 +138,6 @@ button,
     border-color var(--motion-fast) ease;
 }
 
-button:hover:not(:disabled),
-.ui-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  filter: brightness(1.04);
-}
-
 button:disabled,
 .ui-button:disabled {
   cursor: not-allowed;

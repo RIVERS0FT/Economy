@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import '../../src/app/interactionBootstrap';
 import type { LoadedGameViewModel } from '../../src/app/gameViewModel';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../../src/components/icons/GameIcons';
 import { GemIcon } from '../../src/components/icons/GemIcon';
@@ -23,6 +24,7 @@ import '../../src/styles/market-account-table.css';
 import '../../src/styles/unified-market-admin.css';
 import '../../src/styles/virtual-list.css';
 import '../../src/styles/design-system.css';
+import '../../src/styles/interaction-states.css';
 import '../../src/styles/market-page-polish.css';
 import '../../src/styles/product-artwork.css';
 

@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import '../../src/app/interactionBootstrap';
 import type { LoadedGameViewModel } from '../../src/app/gameViewModel';
 import { AssetsPage } from '../../src/pages/AssetsPage';
 import '../../src/styles/globals.css';
@@ -8,6 +9,7 @@ import '../../src/styles/market-funds.css';
 import '../../src/styles/assets.css';
 import '../../src/styles/virtual-list.css';
 import '../../src/styles/design-system.css';
+import '../../src/styles/interaction-states.css';
 
 const fixedNow = new Date(2026, 6, 19, 18, 0, 0).getTime();
 document.documentElement.dataset.appSurface = 'game';

@@ -182,6 +182,7 @@ function FacilityClusterSelectorCard({
     <button
       type="button"
       className="facility-cluster-selector-card"
+      data-ui-interactive="surface"
       data-status={group.status}
       aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}
       onClick={(event) => onSelect(event.currentTarget)}

@@ -1,0 +1,29 @@
+{
+  "description": "Existing unguarded hover selectors. New entries are forbidden; migrate existing entries to the shared interaction protocol when touched.",
+  "unguardedHoverRules": [
+    "src/styles/admin-navigation.css::.admin-ban-incidents .virtual-list__item > button:hover:not(:disabled)",
+    "src/styles/auth.css::.login-form input:autofill, .login-form input:autofill:hover, .login-form input:autofill:focus, .login-form input:autofill:active, .login-form input:-webkit-autofill, .login-form input:-webkit-autofill:hover, .login-form input:-webkit-autofill:focus, .login-form input:-webkit-autofill:active",
+    "src/styles/design-system.css::.text-button:hover:not(:disabled), .ui-button--text:hover:not(:disabled)",
+    "src/styles/design-system.css::.ui-link:hover",
+    "src/styles/desktop-sidebar.css::.desktop-sidebar button:hover:not(:disabled), .desktop-sidebar button:focus-visible, .desktop-sidebar button:active, .desktop-sidebar .sidebar-footer-action:hover, .desktop-sidebar .sidebar-footer-action:focus-visible, .desktop-sidebar .sidebar-footer-action:active",
+    "src/styles/desktop-sidebar.css::.desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:hover .sidebar-logo-expand-icon, .desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:focus-visible .sidebar-logo-expand-icon",
+    "src/styles/desktop-sidebar.css::.desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:hover img, .desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:focus-visible img",
+    "src/styles/desktop-sidebar.css::.desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:hover, .desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:focus-visible",
+    "src/styles/desktop-sidebar.css::.sidebar-collapse-button:hover, .sidebar-collapse-button:focus-visible",
+    "src/styles/facility-detail-sheet.css::.facility-detail-sheet .facility-detail-sheet-footer .facility-market-link:hover",
+    "src/styles/form-controls.css::.ui-control:hover:not(:disabled):not([readonly]), input:not([type=\"checkbox\"]):not([type=\"radio\"]):hover:not(:disabled):not([readonly]), select:hover:not(:disabled), textarea:hover:not(:disabled):not([readonly])",
+    "src/styles/industry-system.css::.overview-product-strip button:hover",
+    "src/styles/industry-system.css::.product-asset-grid .product-asset-card:hover",
+    "src/styles/industry-system.css::.product-tabs .product-tab:hover",
+    "src/styles/liquid-glass-surfaces.css::.asset-bar-item--interactive:hover, .asset-bar-item--interactive:focus-visible",
+    "src/styles/market-account-table.css::.own-open-orders-table tbody tr:hover .order-action-cell",
+    "src/styles/market-page-polish.css::.market-page-surface .unified-asset-tab:hover:not(:disabled)",
+    "src/styles/mobile-status-navigation.css::.mobile-bottom-navigation .sidebar-nav-button:hover:not(:disabled)",
+    "src/styles/performance.css::button:hover:not(:disabled)",
+    "src/styles/scrollbars.css::*:not(.ui-scroll-area__viewport)::-webkit-scrollbar-thumb:hover",
+    "src/styles/scrollbars.css::.ui-scroll-area[data-scrollbar-visibility=\"always\"][data-scrollable-x=\"true\"] > .ui-scrollbar--horizontal, .ui-scroll-area[data-scrollbar-visibility=\"always\"][data-scrollable-y=\"true\"] > .ui-scrollbar--vertical, html[data-input-modality=\"mouse\"] .ui-scroll-area[data-scrollbar-visibility=\"adaptive\"][data-scrollable-x=\"true\"]:hover > .ui-scrollbar--horizontal, html[data-input-modality=\"mouse\"] .ui-scroll-area[data-scrollbar-visibility=\"adaptive\"][data-scrollable-y=\"true\"]:hover > .ui-scrollbar--vertical, html[data-input-modality=\"keyboard\"] .ui-scroll-area[data-scrollbar-visibility=\"adaptive\"][data-scrollable-x=\"true\"]:focus-within > .ui-scrollbar--horizontal, html[data-input-modality=\"keyboard\"] .ui-scroll-area[data-scrollbar-visibility=\"adaptive\"][data-scrollable-y=\"true\"]:focus-within > .ui-scrollbar--vertical, .ui-scroll-area[data-scrollbar-active-x=\"true\"] > .ui-scrollbar--horizontal, .ui-scroll-area[data-scrollbar-dragging-x=\"true\"] > .ui-scrollbar--horizontal, .ui-scroll-area[data-scrollbar-track-pressing-x=\"true\"] > .ui-scrollbar--horizontal, .ui-scroll-area[data-scrollbar-active-y=\"true\"] > .ui-scrollbar--vertical, .ui-scroll-area[data-scrollbar-dragging-y=\"true\"] > .ui-scrollbar--vertical, .ui-scroll-area[data-scrollbar-track-pressing-y=\"true\"] > .ui-scrollbar--vertical",
+    "src/styles/scrollbars.css::.ui-scrollbar__thumb:hover",
+    "src/styles/unified-market-admin.css::.admin-ban-incidents > button:hover:not(:disabled)",
+    "src/styles/warehouse-expansion.css::.warehouse-product-card:hover:not(:disabled), .warehouse-product-card:focus-visible"
+  ]
+}

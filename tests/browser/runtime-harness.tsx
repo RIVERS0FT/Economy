@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import '../../src/app/interactionBootstrap';
 import type { GameTutorialController, TutorialAwareGameViewModel } from '../../src/game-guide/useGameTutorial';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../../src/components/icons/GameIcons';
 import { GemIcon } from '../../src/components/icons/GemIcon';
@@ -33,6 +34,7 @@ import '../../src/styles/contracts.css';
 import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
 import '../../src/styles/design-system.css';
+import '../../src/styles/interaction-states.css';
 import '../../src/styles/primary-surfaces.css';
 import '../../src/styles/form-controls.css';
 import '../../src/styles/overview-polish.css';
