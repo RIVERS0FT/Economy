@@ -23,49 +23,52 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Verify part 00
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-00 | awk '{print $1}')" = 8f34d4a9827bc7e15b28c0a2a2e53eff3ccda4166bb9e48b22e6b71cd108e9ef
-      - name: Verify part 01
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-01 | awk '{print $1}')" = e9d538d678250188e77cee863861d2b9447dad813bc2d2f69609c8f309e45fe8
-      - name: Verify part 02
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-02 | awk '{print $1}')" = 813d90b5e94ef9316a5846c15977e246f970c091146bf5959ad2d584659c1146
-      - name: Verify part 03
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-03 | awk '{print $1}')" = 9946c4e9a8917998f9765fd13defa44d3676adfa6d71d6b1123469ead5ad9513
-      - name: Verify part 04
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-04 | awk '{print $1}')" = 5c3e75ab80fd954a2055cf68ee3f19f28a6039ca0017feb441e7a5d68d7704dd
-      - name: Verify part 05
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-05 | awk '{print $1}')" = 54f5de9145ae6a2bf49046e5a43825abdf1e5c18a1c62e1944a476a791e96bef
-      - name: Verify part 06
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-06 | awk '{print $1}')" = 7bb438f5e884240b0b739ece385d110eb641e777662d8c031698832b991eeb04
-      - name: Verify part 07
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-07 | awk '{print $1}')" = bf59fb0e25d8e06db52ec2d727e89224e8525b14cb4fa261734779959b6a5357
-      - name: Verify part 08
-        continue-on-error: true
-        run: test "$(sha256sum .agent/remove-collectibles.patch.b64.part-08 | awk '{print $1}')" = 9632a107c3a3bc6f375cfcc84dec86825f2a4a23bccb9dd0816324e8b82cac23
-
-      - name: Verify payload hash and gzip
+      - name: Verify payload SHA-256 and gzip
         shell: bash
         run: |
           set -euo pipefail
-          manifest='.agent/remove-collectibles.patch.sha256'
-          mapfile -t parts < <(find .agent -maxdepth 1 -type f -name 'remove-collectibles.patch.b64.part-*' -print | sort)
-          expected="$(tr -d '[:space:]' < "$manifest")"
-          cat "${parts[@]}" | base64 --decode > /tmp/remove-collectibles.patch.gz
-          actual="$(sha256sum /tmp/remove-collectibles.patch.gz | awk '{print $1}')"
-          echo "patch_parts=${#parts[@]}"
-          echo "expected_sha256=$expected"
-          echo "actual_sha256=$actual"
-          test "$actual" = "$expected"
-          gzip -t /tmp/remove-collectibles.patch.gz
-          gzip --decompress --stdout /tmp/remove-collectibles.patch.gz > /tmp/remove-collectibles.patch
+          python - <<'PY'
+          from base64 import b64decode
+          from gzip import decompress
+          from hashlib import sha256
+          from pathlib import Path
+
+          part_hashes = {
+              '00': '8f34d4a9827bc7e15b28c0a2a2e53eff3ccda4166bb9e48b22e6b71cd108e9ef',
+              '01': 'e9d538d678250188e77cee863861d2b9447dad813bc2d2f69609c8f309e45fe8',
+              '02': '813d90b5e94ef9316a5846c15977e246f970c091146bf5959ad2d584659c1146',
+              '03': '9946c4e9a8917998f9765fd13defa44d3676adfa6d71d6b1123469ead5ad9513',
+              '04': '5c3e75ab80fd954a2055cf68ee3f19f28a6039ca0017feb441e7a5d68d7704dd',
+              '05': '54f5de9145ae6a2bf49046e5a43825abdf1e5c18a1c62e1944a476a791e96bef',
+              '06': '7bb438f5e884240b0b739ece385d110eb641e777662d8c031698832b991eeb04',
+              '07': 'bf59fb0e25d8e06db52ec2d727e89224e8525b14cb4fa261734779959b6a5357',
+              '08': '9632a107c3a3bc6f375cfcc84dec86825f2a4a23bccb9dd0816324e8b82cac23',
+          }
+          encoded_parts = []
+          for suffix, expected in part_hashes.items():
+              path = Path(f'.agent/remove-collectibles.patch.b64.part-{suffix}')
+              data = path.read_bytes()
+              actual = sha256(data).hexdigest()
+              print(f'{path}: bytes={len(data)} sha256={actual}')
+              if actual != expected:
+                  raise SystemExit(f'part hash mismatch: {path}')
+              encoded_parts.append(data)
+
+          encoded = b''.join(encoded_parts)
+          compressed = b64decode(encoded, validate=True)
+          actual_payload = sha256(compressed).hexdigest()
+          expected_payload = Path('.agent/remove-collectibles.patch.sha256').read_text(encoding='utf-8').strip()
+          print(f'payload_bytes={len(compressed)}')
+          print(f'expected_sha256={expected_payload}')
+          print(f'actual_sha256={actual_payload}')
+          if actual_payload != expected_payload:
+              raise SystemExit('payload hash mismatch')
+
+          patch = decompress(compressed)
+          Path('/tmp/remove-collectibles.patch.gz').write_bytes(compressed)
+          Path('/tmp/remove-collectibles.patch').write_bytes(patch)
+          print(f'patch_bytes={len(patch)}')
+          PY
 
       - name: Preflight source patch
         run: git apply --check --verbose /tmp/remove-collectibles.patch
@@ -79,6 +82,7 @@ jobs:
           set -euo pipefail
           rm -rf .agent .github/workflows/apply-remove-collectibles.yml
           git add -A
+          git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m '删除藏品页面、玩法与管理员分区'
