@@ -71,7 +71,7 @@ export class EconomyStore extends PersistentEconomyStore {
   }
 
   saveWorld(revision, world, now) {
-    return this.saveWorldIfChanged(revision, world, now);
+    return PersistentEconomyStore.prototype.saveWorldIfChanged.call(this, revision, world, now);
   }
 
   processWorldIfDue(world, now, currentUserId, options = {}) {
