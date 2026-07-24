@@ -1,96 +1,57 @@
-name: Economy Contract Test Fix
+name: Economy CI
 
 on:
   pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+
+concurrency:
+  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
-    if: github.head_ref == 'agent/production-contracts'
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/production-contracts
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
+          cache: npm
 
-      - name: Update contract and partition tests
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
 
-          contracts = Path('server/test/contracts.test.js')
-          text = contracts.read_text(encoding='utf-8')
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
 
-          marker = "}\n\ntest('长期合同按批次冻结商品和货款并原子结算，不改变市场价格', () => {"
-          helper = "}\n\nfunction contractById(world, contractId) {\n  const contract = world.productionContracts.find((item) => item.id === contractId);\n  assert.ok(contract);\n  return contract;\n}\n\ntest('长期合同按批次冻结商品和货款并原子结算，不改变市场价格', () => {"
-          if marker not in text:
-              raise SystemExit('missing contract test helper anchor')
-          text = text.replace(marker, helper, 1)
-          text = text.replace('  const contract = world.productionContracts[0];', '  let contract = world.productionContracts[0];')
-
-          accept_old = "  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', {\n    contractId: contract.id,\n  }, now + 1).ok, true);"
-          accept_new = "  const accepted = applyProductionContractAction(world, supplierUser, 'acceptProductionContract', {\n    contractId: contract.id,\n  }, now + 1);\n  assert.equal(accepted.ok, true);\n  contract = contractById(world, contract.id);"
-          if text.count(accept_old) != 2:
-              raise SystemExit(f'unexpected accept assertion count: {text.count(accept_old)}')
-          text = text.replace(accept_old, accept_new)
-
-          replacements = [
-              ("  processProductionContracts(world, now + 10 * 60 * 1000 + 1);\n  assert.equal(contract.completedDeliveries, 1);", "  processProductionContracts(world, now + 10 * 60 * 1000 + 1);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.completedDeliveries, 1);"),
-              ("  processProductionContracts(world, now + 20 * 60 * 1000 + 2);\n  assert.equal(contract.completedDeliveries, 2);", "  processProductionContracts(world, now + 20 * 60 * 1000 + 2);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.completedDeliveries, 2);"),
-              ("  processProductionContracts(world, now + 2);\n  assert.equal(contract.roundStatus, 'grace');", "  processProductionContracts(world, now + 2);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.roundStatus, 'grace');"),
-              ("  processProductionContracts(world, contract.graceEndsAt + 1);\n  assert.equal(contract.status, 'terminated');", "  processProductionContracts(world, contract.graceEndsAt + 1);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.status, 'terminated');"),
-          ]
-          for old_text, new_text in replacements:
-              if old_text not in text:
-                  raise SystemExit(f'missing process assertion anchor: {old_text}')
-              text = text.replace(old_text, new_text, 1)
-
-          setup_old = "  const { world, buyerUser, supplierUser, now } = setup();"
-          setup_new = "  const { world, buyerUser, supplierUser, buyer, supplier, now } = setup();\n  buyer.inventories.wheat.available = 100;\n  supplier.inventories.wheat.available = 0;"
-          if setup_old not in text:
-              raise SystemExit('missing client summary setup anchor')
-          text = text.replace(setup_old, setup_new, 1)
-
-          third_accept_old = "  applyProductionContractAction(world, supplierUser, 'acceptProductionContract', { contractId: contract.id }, now + 1);"
-          third_accept_new = "  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', { contractId: contract.id }, now + 1).ok, true);\n  contract = contractById(world, contract.id);"
-          if third_accept_old not in text:
-              raise SystemExit('missing client summary accept anchor')
-          text = text.replace(third_accept_old, third_accept_new, 1)
-          contracts.write_text(text, encoding='utf-8')
-
-          partitions = Path('server/test/state-partitions.test.js')
-          text = partitions.read_text(encoding='utf-8')
-          text = text.replace("test('initial delivery returns all five state partitions without a full state field'", "test('initial delivery returns all six state partitions without a full state field'", 1)
-          old_partitions = "    'auction', 'catalog', 'leaderboard', 'market', 'player',"
-          new_partitions = "    'auction', 'catalog', 'contract', 'leaderboard', 'market', 'player',"
-          if old_partitions not in text:
-              raise SystemExit('missing state partition expectation')
-          text = text.replace(old_partitions, new_partitions, 1)
-          partitions.write_text(text, encoding='utf-8')
-
-          http = Path('server/test/http.test.js')
-          text = http.read_text(encoding='utf-8')
-          if old_partitions not in text:
-              raise SystemExit('missing HTTP partition expectation')
-          text = text.replace(old_partitions, new_partitions, 1)
-          http.write_text(text, encoding='utf-8')
-          PY
-
-      - name: Run affected server tests
-        run: node --test server/test/contracts.test.js server/test/state-partitions.test.js server/test/http.test.js
-
-      - name: Commit test corrections
+      - name: Test browser runtime
+        shell: bash
         run: |
-          git config user.name "OpenAI Agent"
-          git config user.email "openai-agent@users.noreply.github.com"
-          git add server/test/contracts.test.js server/test/state-partitions.test.js server/test/http.test.js
-          git commit -m "fix contract and six partition tests"
-          git push origin HEAD:agent/production-contracts
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-test-artifacts
+          path: |
+            build-test.log
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
