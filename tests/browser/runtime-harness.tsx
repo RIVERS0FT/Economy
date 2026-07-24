@@ -10,6 +10,7 @@ import { ScrollArea } from '../../src/components/ui/ScrollArea';
 import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
+import { ProductionPage } from '../../src/pages/ProductionPage';
 import { SettingsPage } from '../../src/pages/SettingsPage';
 import type { TabId } from '../../src/config/navigation';
 import { formatCurrency, formatNumber, formatRank } from '../../src/utils/formatters';
@@ -22,6 +23,12 @@ import '../../src/styles/liquid-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
+import '../../src/styles/industry-system.css';
+import '../../src/styles/facility-production-formula.css';
+import '../../src/styles/facility-group-card-grid.css';
+import '../../src/styles/facility-detail-sheet.css';
+import '../../src/styles/warehouse-expansion.css';
+import '../../src/styles/production-surface.css';
 import '../../src/styles/contracts.css';
 import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
@@ -59,7 +66,7 @@ const completedTutorial: GameTutorialController = {
   recordSellOrderSubmit: () => {},
 };
 
-document.documentElement.dataset.appSurface = ['overview', 'contracts', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'production', 'contracts', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -365,6 +372,43 @@ function OverviewHarness() {
   );
 }
 
+function ProductionHarness() {
+  const [tab, setTab] = useState<TabId>('production');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    next.game.credits = 10_000;
+    next.game.inventories = {
+      ...next.game.inventories,
+      steel: { available: 200, frozen: 0 },
+    };
+    next.game.products = [
+      { id: 'steel', name: '钢材', category: 'industrial', basePrice: 29 },
+      ...next.game.products,
+    ];
+    Object.assign(next, {
+      buildFacility: async () => ({ ok: true, message: '测试建设完成' }),
+      startFacility: async () => ({ ok: true, message: '测试启动完成' }),
+      stopFacility: async () => ({ ok: true, message: '测试停止完成' }),
+      setFacilityRecipe: async () => ({ ok: true, message: '测试配方完成' }),
+      upgradeWarehouse: async () => ({ ok: true, message: '测试扩容完成' }),
+    });
+    return next;
+  }, [tab]);
+  const statusItems: StatusBarItem[] = [
+    { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
+    { id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('assets') },
+    { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
+    { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+  ];
+
+  return (
+    <GameShell model={model} statusItems={statusItems}>
+      <ProductionPage model={model} />
+    </GameShell>
+  );
+}
+
 function GemShopHarness() {
   const [tab, setTab] = useState<TabId>('gem-shop');
   const model = useMemo(() => {
@@ -566,7 +610,9 @@ function ScrollOwnershipHarness() {
 createRoot(document.getElementById('root') as HTMLElement).render(
   view === 'overview'
     ? <OverviewHarness />
-    : view === 'contracts'
+    : view === 'production'
+      ? <ProductionHarness />
+      : view === 'contracts'
       ? <ContractHarness />
       : view === 'gem-shop'
         ? <GemShopHarness />

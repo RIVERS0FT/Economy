@@ -348,6 +348,7 @@ function MobileFacilityDetailSheet({
   const dragFrameRef = useRef<number | undefined>(undefined);
   const settleTimerRef = useRef<number | undefined>(undefined);
   const closeCompletionRef = useRef<(() => void) | undefined>(undefined);
+  const backdropPointerIdRef = useRef<number | undefined>(undefined);
   const isClosingRef = useRef(false);
   const pendingOffsetRef = useRef(0);
 
@@ -381,6 +382,10 @@ function MobileFacilityDetailSheet({
   );
 
   const resetDragStyles = useCallback(() => {
+    pendingOffsetRef.current = 0;
+    isClosingRef.current = false;
+    backdropPointerIdRef.current = undefined;
+
     const sheet = sheetRef.current;
     const backdrop = backdropRef.current;
     if (!sheet || !backdrop) return;
@@ -388,13 +393,16 @@ function MobileFacilityDetailSheet({
     sheet.style.removeProperty('--facility-sheet-drag-offset');
     backdrop.style.removeProperty('--facility-sheet-backdrop-progress');
     delete sheet.dataset.dragSource;
-    pendingOffsetRef.current = 0;
-    isClosingRef.current = false;
   }, []);
 
   const completeClose = useCallback(() => {
+    settleTimerRef.current = undefined;
     const completion = closeCompletionRef.current;
     closeCompletionRef.current = undefined;
+    dragSessionRef.current = null;
+    backdropPointerIdRef.current = undefined;
+    pendingOffsetRef.current = 0;
+    isClosingRef.current = false;
     onClose();
     completion?.();
   }, [onClose]);
@@ -602,8 +610,34 @@ function MobileFacilityDetailSheet({
     [finishDrag],
   );
 
+  const handleBackdropPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary) return;
+    const isPrimaryMouseButton = event.pointerType !== 'mouse' || event.button === 0;
+    backdropPointerIdRef.current =
+      event.target === event.currentTarget && isPrimaryMouseButton ? event.pointerId : undefined;
+  }, []);
+
+  const handleBackdropPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const startedOnBackdrop = backdropPointerIdRef.current === event.pointerId;
+      backdropPointerIdRef.current = undefined;
+      if (!startedOnBackdrop || event.target !== event.currentTarget) return;
+      requestClose();
+    },
+    [requestClose],
+  );
+
+  const handleBackdropPointerCancel = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (backdropPointerIdRef.current === event.pointerId) backdropPointerIdRef.current = undefined;
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return undefined;
+
+    clearSettleTimer();
+    resetDragStyles();
+    closeCompletionRef.current = undefined;
+    dragSessionRef.current = null;
 
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const pageScrollArea = pageScroll?.closest<HTMLElement>('.page-scroll-area');
@@ -660,7 +694,7 @@ function MobileFacilityDetailSheet({
       }
       requestAnimationFrame(() => returnFocusRef.current?.focus());
     };
-  }, [isOpen, requestClose, returnFocusRef]);
+  }, [clearSettleTimer, isOpen, requestClose, resetDragStyles, returnFocusRef]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -690,9 +724,9 @@ function MobileFacilityDetailSheet({
     <div
       ref={backdropRef}
       className="facility-detail-sheet-backdrop"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) requestClose();
-      }}
+      onPointerDown={handleBackdropPointerDown}
+      onPointerUp={handleBackdropPointerUp}
+      onPointerCancel={handleBackdropPointerCancel}
     >
       <div
         ref={sheetRef}
