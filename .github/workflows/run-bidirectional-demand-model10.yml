@@ -32,9 +32,28 @@ jobs:
         run: npm ci
 
       - name: Run focused market tests
+        id: focused_tests
+        continue-on-error: true
+        shell: bash
         run: |
-          node --test server/test/market-demand-v6.test.js server/test/all-products-demand.test.js server/test/market-liquidity.test.js
-          node scripts/verify-staple-crops-demand.mjs
+          set -o pipefail
+          {
+            node --test server/test/market-demand-v6.test.js server/test/all-products-demand.test.js server/test/market-liquidity.test.js
+            node scripts/verify-staple-crops-demand.mjs
+          } 2>&1 | tee /tmp/model10-focused-tests.log
+
+      - name: Upload focused failure log
+        if: steps.focused_tests.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: model10-focused-failure-${{ github.run_id }}
+          path: /tmp/model10-focused-tests.log
+          retention-days: 3
+          compression-level: 9
+
+      - name: Stop after focused test failure
+        if: steps.focused_tests.outcome == 'failure'
+        run: exit 1
 
       - name: Build and run authoritative checks
         run: npm run build
