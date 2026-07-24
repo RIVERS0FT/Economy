@@ -19,6 +19,7 @@ const stylePath = 'src/styles/contracts.css';
 const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
 const browserTestPath = 'tests/browser/contract-layout.spec.ts';
 const harnessPath = 'tests/browser/runtime-harness.tsx';
+const formVerifierPath = 'scripts/verify-form-controls.mjs';
 const packagePath = 'package.json';
 
 [
@@ -27,6 +28,7 @@ const packagePath = 'package.json';
   designPath,
   browserTestPath,
   harnessPath,
+  formVerifierPath,
   packagePath,
 ].forEach(requireFile);
 
@@ -93,6 +95,8 @@ for (const text of [
   "view === 'contracts'",
   '<ContractPage model={model} />',
 ]) requireText(harnessPath, text);
+
+requireText(formVerifierPath, "'src/pages/ContractPage.tsx'");
 
 for (const text of [
   '"verify:contract-layout": "node scripts/verify-contract-layout.mjs"',
