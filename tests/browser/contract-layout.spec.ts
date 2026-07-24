@@ -13,6 +13,33 @@ async function gridTrackCount(locator: Locator) {
     .length);
 }
 
+async function expectUniformPageSectionGaps(page: Page) {
+  const result = await page.locator('.ui-page-stack').evaluate((element) => {
+    const stack = element as HTMLElement;
+    const expected = Number.parseFloat(getComputedStyle(stack).rowGap);
+    const children = Array.from(stack.children).filter((child) => {
+      const style = getComputedStyle(child);
+      const rect = child.getBoundingClientRect();
+      return style.display !== 'none'
+        && style.position !== 'absolute'
+        && style.position !== 'fixed'
+        && rect.width > 0
+        && rect.height > 0;
+    });
+    const actual = children.slice(1).map((child, index) => {
+      const previous = children[index];
+      return child.getBoundingClientRect().top - previous.getBoundingClientRect().bottom;
+    });
+    return { expected, actual };
+  });
+
+  expect(result.expected).toBeGreaterThan(0);
+  expect(result.actual.length).toBeGreaterThan(0);
+  for (const gap of result.actual) {
+    expect(Math.abs(gap - result.expected)).toBeLessThanOrEqual(1);
+  }
+}
+
 async function openContracts(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
   await page.goto('runtime-test.html?view=contracts');
@@ -27,11 +54,13 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   expect(await gridTrackCount(page.locator('.contract-detail-layout').first())).toBe(2);
   await expect(page.getByRole('checkbox', { name: '自动补充货款' })).toBeVisible();
   await expect(page.locator('.contract-card h2 .product-icon')).toHaveCount(1);
+  await expectUniformPageSectionGaps(page);
 
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(2);
   await expect(page.locator('.contract-direction-switch')).toBeVisible();
   await expect(page.getByRole('button', { name: '我长期采购', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expectUniformPageSectionGaps(page);
 
   const quantity = page.getByLabel('每批数量');
   const submit = page.locator('.contract-publish-preview').getByRole('button', { name: '发布合同', exact: true });
@@ -57,6 +86,7 @@ test('tablet contract publish form keeps two-column fields', async ({ page }) =>
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
   expect(await gridTrackCount(page.locator('.contract-publish-grid'))).toBe(2);
+  await expectUniformPageSectionGaps(page);
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
@@ -71,10 +101,12 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
   });
   expect(tabLayout.gridAutoFlow).toBe('column');
   expect(tabLayout.overflowX).toBe('auto');
+  await expectUniformPageSectionGaps(page);
 
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
   expect(await gridTrackCount(page.locator('.contract-publish-grid'))).toBe(1);
+  await expectUniformPageSectionGaps(page);
 
   const quantity = page.getByLabel('每批数量');
   const quantityBox = await requireBox(quantity);

@@ -72,6 +72,7 @@ for (const text of [
   '.contract-tabs button {',
   '.contract-publish-grid input',
   '.contract-publish-grid select',
+  '.contract-tabs {\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n  margin-bottom: 0;',
 ]) forbidText(stylePath, text);
 
 for (const text of [
@@ -82,6 +83,7 @@ for (const text of [
   '合同广场在宽度不小于 `1220px` 时使用双列',
   '合同历史使用单张一级 `PagePanel`',
   '不得恢复合同页原生数字输入',
+  '作为 `PageLayout` 自动生成的 `.ui-page-stack` 直接子元素',
 ]) requireText(designPath, text);
 
 for (const text of [
@@ -91,6 +93,7 @@ for (const text of [
   'mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs',
   "toHaveValue('')",
   "toHaveValue('100')",
+  'expectUniformPageSectionGaps',
 ]) requireText(browserTestPath, text);
 
 for (const text of [
