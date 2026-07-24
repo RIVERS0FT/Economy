@@ -1,0 +1,2 @@
+全局输入方式与共享交互状态验证失败：
+- src/styles/design-system.css 不应包含: button:hover:not(:disabled)
