@@ -1,50 +1,57 @@
-name: Economy Ten Page Browser Fix
+name: Economy CI
 
 on:
   pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+
+concurrency:
+  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
-    if: github.head_ref == 'agent/production-contracts'
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/production-contracts
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
           cache: npm
-      - run: npm ci
 
-      - name: Update desktop navigation count
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('tests/browser/game-shell-layout.spec.ts')
-          text = path.read_text(encoding='utf-8')
-          old = '    await expect(buttons).toHaveCount(9);'
-          new = '    await expect(buttons).toHaveCount(10);'
-          if text.count(old) != 1:
-              raise SystemExit(f'unexpected desktop navigation count anchors: {text.count(old)}')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
-          PY
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Run affected browser test
+      - name: Build and test
+        shell: bash
         run: |
-          npx playwright install --with-deps chromium
-          npx playwright test tests/browser/game-shell-layout.spec.ts --project=chromium --grep "desktop navigation rows keep intrinsic height"
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
 
-      - name: Commit browser correction
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test browser runtime
+        shell: bash
         run: |
-          git config user.name "OpenAI Agent"
-          git config user.email "openai-agent@users.noreply.github.com"
-          git add tests/browser/game-shell-layout.spec.ts
-          git commit -m "update browser navigation count for contracts"
-          git push origin HEAD:agent/production-contracts
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-test-artifacts
+          path: |
+            build-test.log
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
