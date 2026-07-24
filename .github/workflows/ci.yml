@@ -1,4 +1,4 @@
-name: Current main dependency snapshot
+name: Playwright browser snapshot
 
 on:
   pull_request:
@@ -25,17 +25,13 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Prepare portable validation environment
-        run: |
-          mkdir -p validation-runtime/bin
-          cp "$(command -v node)" validation-runtime/bin/node
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
 
-      - name: Upload dependencies and Node runtime
+      - name: Upload Playwright browser
         uses: actions/upload-artifact@v4
         with:
-          name: economy-validation-environment
-          path: |
-            node_modules/
-            validation-runtime/
+          name: economy-playwright-browser
+          path: ~/.cache/ms-playwright/
           include-hidden-files: true
           retention-days: 1
