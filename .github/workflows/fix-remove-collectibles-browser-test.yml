@@ -1,0 +1,64 @@
+name: Fix remove-collectibles browser regression
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'agent/remove-collectibles'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Update navigation count regression
+        id: update_test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/browser/game-shell-layout.spec.ts')
+          source = path.read_text(encoding='utf-8')
+          old = "await expect(buttons).toHaveCount(10);"
+          new = "await expect(buttons).toHaveCount(9);"
+          if old in source:
+              if source.count(old) != 1:
+                  raise SystemExit('unexpected navigation count assertion multiplicity')
+              path.write_text(source.replace(old, new), encoding='utf-8')
+              print('updated=true')
+          elif new in source:
+              print('updated=false')
+          else:
+              raise SystemExit('navigation count assertion not found')
+          PY
+          if git diff --quiet -- tests/browser/game-shell-layout.spec.ts; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push test fix
+        if: steps.update_test.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add tests/browser/game-shell-layout.spec.ts
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m '同步九项导航浏览器回归'
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
