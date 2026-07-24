@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 
 const root = process.cwd();
 const failures = [];
+const formalPageSuffix = 'Page.tsx';
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const requireFile = (path) => {
   if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
@@ -50,11 +51,11 @@ if (failures.length === 0) {
 
   const pageDirectory = resolve(root, 'src/pages');
   const formalPages = readdirSync(pageDirectory)
-    .filter((name) => name.endsWith('Page.tsx'))
+    .filter((name) => name.endsWith(formalPageSuffix))
     .sort()
     .map((name) => `src/pages/${name}`);
 
-  if (formalPages.length < 9) failures.push(`正式页面数量异常，当前仅发现 ${formalPages.length} 个 *Page.tsx`);
+  if (formalPages.length < 9) failures.push(`正式页面数量异常，当前仅发现 ${formalPages.length} 个 *${formalPageSuffix}`);
 
   for (const path of [...formalPages, paths.admin]) {
     requireText(path, '<PageLayout');
