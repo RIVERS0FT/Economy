@@ -113,11 +113,30 @@ jobs:
           fi
 
       - name: Verify focused architecture
+        shell: bash
         run: |
-          node scripts/verify-interaction-modality.mjs
-          node scripts/verify-mobile-touch-feedback.mjs
-          node scripts/verify-unified-factory-recipes-grid.mjs
-          npm run typecheck
+          set -o pipefail
+          {
+            node scripts/verify-interaction-modality.mjs
+            node scripts/verify-mobile-touch-feedback.mjs
+            node scripts/verify-unified-factory-recipes-grid.mjs
+            npm run typecheck
+          } 2>&1 | tee /tmp/interaction-architecture.log
+
+      - name: Persist architecture failure
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .agent
+          cp /tmp/interaction-architecture.log .agent/interaction-architecture.log
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .agent/interaction-architecture.log
+          if ! git diff --cached --quiet; then
+            git commit -m '记录交互协议集中验证失败'
+            git push origin HEAD:agent/global-interaction-modality
+          fi
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
