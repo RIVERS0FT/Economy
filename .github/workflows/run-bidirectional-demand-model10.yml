@@ -1,0 +1,68 @@
+name: Run bidirectional demand pricing model 10 patch
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/bidirectional-demand-pricing-model10'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/bidirectional-demand-pricing-model10
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Execute embedded authoritative patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          workflow = Path('.github/workflows/apply-bidirectional-demand-model10.yml').read_text()
+          marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n\n      - name: Install dependencies"
+          if marker not in workflow or end_marker not in workflow:
+              raise RuntimeError('embedded patch markers missing')
+          script = workflow.split(marker, 1)[1].split(end_marker, 1)[0]
+          lines = script.splitlines()
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
+          exec(compile(script, 'apply-bidirectional-demand-model10', 'exec'))
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused market tests
+        run: |
+          node --test server/test/market-demand-v6.test.js server/test/all-products-demand.test.js server/test/market-liquidity.test.js
+          node scripts/verify-staple-crops-demand.mjs
+
+      - name: Build and run authoritative checks
+        run: npm run build
+
+      - name: Commit final source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-bidirectional-demand-model10.yml
+          rm -f .github/workflows/run-bidirectional-demand-model10.yml
+          rm -f .agent/model10-trigger
+          rmdir .agent 2>/dev/null || true
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "实现双向人口需求报价模型 10"
+          git push origin HEAD:agent/bidirectional-demand-pricing-model10
