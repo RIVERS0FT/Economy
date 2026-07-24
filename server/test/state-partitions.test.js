@@ -30,7 +30,7 @@ function sampleState(overrides = {}) {
   };
 }
 
-test('initial delivery returns all five state partitions without a full state field', () => {
+test('initial delivery returns all six state partitions without a full state field', () => {
   const delivery = createPartitionedStateDelivery({
     revision: 7,
     unchanged: false,
@@ -42,7 +42,7 @@ test('initial delivery returns all five state partitions without a full state fi
   assert.equal(delivery.serverNow, 1_700_000_000_000);
   assert.equal('state' in delivery, false);
   assert.deepEqual(Object.keys(delivery.patches).sort(), [
-    'auction', 'catalog', 'leaderboard', 'market', 'player',
+    'auction', 'catalog', 'contract', 'leaderboard', 'market', 'player',
   ]);
   assert.equal(delivery.patches.catalog.products[0].id, 'wheat');
   assert.equal(delivery.patches.player.credits, 100);
