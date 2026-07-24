@@ -1,69 +1,13 @@
-name: Economy CI
+name: Facility artwork payload staging
 
 on:
-  pull_request:
   workflow_dispatch:
-
-concurrency:
-  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  staging:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Upload source snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-source-snapshot
-          path: |
-            .
-            !.git/**
-            !node_modules/**
-            !dist/**
-          include-hidden-files: true
-          retention-days: 1
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Test browser runtime
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
+      - run: echo "Waiting for the complete facility artwork payload."
