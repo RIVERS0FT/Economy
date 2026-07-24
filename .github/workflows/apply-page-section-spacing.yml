@@ -4,20 +4,9 @@ on:
   push:
     branches:
       - agent/unify-page-section-spacing
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
 
 permissions:
   contents: write
-
-concurrency:
-  group: apply-page-section-spacing
-  cancel-in-progress: true
 
 jobs:
   apply:
