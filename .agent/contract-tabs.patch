@@ -1,0 +1,43 @@
+diff --git a/src/styles/contracts.css b/src/styles/contracts.css
+--- a/src/styles/contracts.css
++++ b/src/styles/contracts.css
+@@ -422,15 +422,25 @@
+     gap: var(--space-2);
+   }
+ 
+-  .contract-tabs {
+-    grid-template-columns: none;
+-    grid-auto-flow: column;
+-    grid-auto-columns: max-content;
+-    justify-content: start;
++  .ui-segmented.contract-tabs {
++    display: flex;
++    align-items: stretch;
++    justify-content: flex-start;
++    gap: var(--space-1);
++    overflow-x: auto;
++    overflow-y: hidden;
++    touch-action: pan-x pan-y;
+   }
+ 
+   .contract-tabs .ui-segmented__button {
++    flex: 0 0 auto;
++    width: auto;
+     min-width: max-content;
++    max-width: none;
++  }
++
++  .contract-tabs .contract-tab-count {
++    flex: 0 0 auto;
+   }
+ 
+   .contract-card,
+diff --git a/docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md b/docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+--- a/docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
++++ b/docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+@@ -209,3 +209,5 @@
+ 标签栏必须复用 `Button` 与 `.ui-segmented`，桌面四项等宽，移动端保持完整中文名称并横向滚动；必须提供 `tablist`、`tab`、`tabpanel`、`aria-selected`、`aria-controls` 和 `aria-labelledby` 语义，不得重新实现页面专属基础按钮视觉。
+ 
++移动端标签栏必须使用单行固有宽度 Flex 横向滚动；每个标签按钮覆盖共享分段按钮的 `width: 100%` 为 `width: auto`，并使用 `flex: 0 0 auto` 保持独立命中区域。选中背景、文字和数量徽标不得越出自身按钮或覆盖相邻标签，`320px` 与 `390px` 宽度下必须逐项可达且页面本身不得横向溢出。
++
+ 发布合同面板必须使用 `PagePanel`。
