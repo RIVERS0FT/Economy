@@ -1,13 +1,29 @@
-name: Facility artwork payload staging
+name: Current main source snapshot
 
 on:
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  staging:
+  snapshot:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Waiting for the complete facility artwork payload."
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Upload current main source
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-current-main-source
+          path: |
+            .
+            !.git/**
+            !node_modules/**
+            !dist/**
+          include-hidden-files: true
+          retention-days: 1
