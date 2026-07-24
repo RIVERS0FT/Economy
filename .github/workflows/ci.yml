@@ -56,6 +56,22 @@ jobs:
           Path('/tmp/apply-interaction-modality.py').write_text(script)
           PYTHON
             python3 /tmp/apply-interaction-modality.py
+            python3 - <<'PYTHON'
+          from pathlib import Path
+
+          path = Path('src/styles/design-system.css')
+          content = path.read_text()
+          block = """button:hover:not(:disabled),
+.ui-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+"""
+          while block in content:
+              content = content.replace(block, '')
+          path.write_text(content)
+          PYTHON
           } 2>&1 | tee /tmp/apply-interaction-modality.log
 
       - name: Persist apply failure
