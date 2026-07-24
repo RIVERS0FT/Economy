@@ -1,0 +1,65 @@
+
+> economy@0.4.0 build
+> npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build
+
+
+> economy@0.4.0 verify:architecture
+> node scripts/verify-document-authority.mjs && node scripts/verify-client-state-version.mjs && node scripts/verify-order-matching-core.mjs && node scripts/verify-market-action-latency.mjs && node --experimental-strip-types scripts/verify-runtime-architecture.mjs && node scripts/verify-state-delivery-capacity.mjs && node scripts/verify-authentication-cache.mjs && node scripts/verify-email-registration.mjs && node scripts/verify-stress-test-accounts.mjs && node scripts/verify-scroll-ownership.mjs && node scripts/verify-gems-invitations-and-bans.mjs && node scripts/verify-gem-shop.mjs && node scripts/verify-page-content.mjs && node scripts/verify-game-tutorial.mjs && node scripts/verify-assets-page.mjs && node scripts/verify-settings-layout.mjs && node scripts/verify-reset-disabled.mjs && node --experimental-strip-types scripts/verify-display-format.mjs && node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-page-section-spacing.mjs && npm run verify:product-artwork && node scripts/verify-form-controls.mjs && node scripts/verify-contract-layout.mjs && node scripts/verify-currency-svg.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-virtual-list-scroll-chaining.mjs && node scripts/verify-overlay-scrollbars.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && node scripts/verify-production-desktop-layout.mjs && node scripts/verify-staple-crops-demand.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs && node scripts/verify-market-page-layout.mjs && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node scripts/verify-leaderboards.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-desktop-primary-surfaces.mjs && node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs && node scripts/verify-game-shell-layout.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs && node scripts/verify-asset-auctions.mjs && node scripts/verify-gift-code-batches.mjs && node scripts/verify-admin-navigation.mjs && node scripts/verify-admin-player-statistics.mjs && node scripts/verify-runtime-efficiency.mjs && node scripts/verify-runtime-reliability.mjs
+
+文档权威性验证通过：登记文档清单、版本 17/15、市场需求模型 9、长期生产合同、商品／工厂资产拍卖、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航职责均满足当前基线。
+客户端状态版本契约验证通过：当前 17，最低兼容 17
+共享撮合内核验证通过：商品与工厂复用价格时间优先、maker price、部分成交、fill 和手续费状态机。
+市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、POST 后异步补拉、重复提交锁和请求超时均已锁定。
+运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、资产比例和本地日志缓存均已锁定。
+状态交付容量验证通过：世界缓存、单一全局调度、六分区增量交付与完整快照替换、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。
+认证缓存验证通过：状态 10 秒、写操作 2 秒、管理员零缓存、请求合并和 5000 条 LRU 已锁定。
+邮箱验证码注册验证通过：发送前查重、验证码安全、分享链接归因、统一同 IP 封禁、双模式页面与 Nginx 路由均已锁定。
+Fixed reusable stress-test account registry and secret boundary verification passed.
+Nested custom/native scroll ownership, shared signed-in page scroll, boundary release and control location verification passed.
+宝石、邀请与封禁验证通过：服务器权威宝石、直接货币兑换发行、双邀请入口、立即奖励、同 IP 全组封禁、管理员解禁、版本与防回退规则均已锁定。
+商店验证通过：独立页面、服务器固定汇率、原子兑换、幂等、记录规则和共享一级卡片内边距均已锁定。
+页面内容、九页导航、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。
+Game tutorial verification passed.
+资产页统一总览、构成拆分、移动布局与防回退验证通过。
+设置页独立主列／侧列、四项统计、账号分组、禁用重置与设计文档验证通过。
+经济状态重置已从网页、小程序、客户端动作和服务器领域写入中移除；教程重开仅清除本地教程轮次，旧重置接口仅返回 410。
+时间与排名格式验证通过：持续时间统一使用 s/m/h，排名统一由状态栏和排行榜使用 #N。
+共享 UI、唯一开关、导航完全不透明状态色、独立工厂 SVG 与统一商品图标验证通过。
+页面一级区块统一间距验证通过：PageLayout 自动内容栈、外壳沟槽映射、直接子元素外边距清理、新页面扫描、设计权威与真实几何回归均已锁定。
+
+> economy@0.4.0 verify:product-artwork
+> npm run generate:product-artwork && node scripts/verify-product-artwork.mjs
+
+
+> economy@0.4.0 generate:product-artwork
+> node scripts/generate-product-artwork-thumbnails.mjs
+
+商品运行时缩略图生成完成：31 种 128×128 RGBA PNG，总计 691.6 KiB，更新 31 个文件。
+商品图片视觉验证通过：31 种 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，紧凑语义位置继续使用 SVG。
+统一表单、数字草稿、整数输入滚轮归属、侧栏市场角标与移动端尺寸验证通过。
+合同页统一表单、工作台层级、平板与移动响应式布局、历史列表和浏览器回归验证通过。
+货币 SVG 验证通过：59 处可见金额统一使用 CreditsIcon，通知边界兼容旧字符串，玩家端源码无字符货币符号。
+移动触摸反馈验证通过：原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。
+Shared virtual windowing, single two-axis record viewport and boundary scroll chaining verification passed.
+统一尺寸、共享登录后页面滚动、鼠标与触控策略、隐藏触控横向轨道、无级资产目录和单一双轴虚拟成交表验证通过。
+概览验证通过：共享外壳折叠、教程提醒容量、紧凑图表几何、市场空值、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。
+产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6/6/8/10/12 参考分钟利润梯度。
+工厂集群三列状态卡、无持久选中态、主从布局、状态标题层级、无顶部关闭按钮、统一收起动画、单厂平均利润布局、紧凑标题、共享活动滚动条、目录顺序默认详情、焦点与滚动控制、通用配方和集群公式验证通过。
+桌面生产页建设卡与详情卡 sticky 对齐、唯一职责、自然高度详情和统一滚动验证通过。
+市场需求验证通过：模型 9 使用真实人口钱包覆盖全部 31 种商品，并保持既有总预算、派生流动性和市场储备约束。
+统一资产市场、非交叉撮合、价格档位聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。
+市场页布局、资产目录轨道、商品卡双层结构、价格档位、数据口径、禁用反馈与共享移动层级浏览器回归基线验证通过。
+普通玩家订单 API、本地存储和市场成交展示均已匿名化，人口模型及资金池字段不会公开。
+玩家商品与工厂卖出手续费、累计部分成交、匿名公开字段、前端展示和拍卖隔离验证通过。
+Leaderboard verification passed.
+Market chart verification passed: overview and market share 24h buckets with net active flow colors, weighted reserve signals and windowed trade counts.
+liquid-glass-react 共享登录后外壳、桌面独立预设、管理员玻璃工作栏、移动 Chrome、固定五列状态栏、开放背景采样链与安全边缘滚动条验证通过。
+桌面一级卡片与共享工作栏 24px 圆角、桌面独立玻璃预设、顶层连续结构描边、零第三方装饰层和无外部阴影验证通过。
+权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，轮询不得重置工作冷却；权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认，状态分区使用完整快照替换。
+一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、旧类兼容、样式与设计文档权威、加载顺序和页面覆盖清理均已锁定。
+游戏与管理员共享外壳验证通过：统一桌面沟槽、共享滚动视口、管理员玻璃工作栏、移动 Overlay 与贴边滚动条均已锁定。
+仓库无限扩容、容量线性定价、商品插画主视觉布局、移动端四列、目录顺序工厂卡、建设卡精简和集群公式验证通过。
+工厂持续生产、紧凑标题状态、统一收起动画、通用配方周期边界切换、三态自动恢复、多输入输出公式和自然高度主从卡片验证通过。
+市场目录真实成交价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。
+商品／工厂资产拍卖验证失败:
+- 永久删除的文件不得恢复: .agent
