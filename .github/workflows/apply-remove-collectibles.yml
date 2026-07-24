@@ -138,14 +138,57 @@ jobs:
       - name: Apply source patch
         run: git apply --index --verbose /tmp/remove-collectibles.patch
 
-      - name: Remove bootstrap files and publish source
+      - name: Remove bootstrap files and stage source
+        id: stage_source
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          exec > >(tee /tmp/publish-stage.txt) 2>&1
           rm -rf .agent .github/workflows/apply-remove-collectibles.yml
           git add -A
+          echo '=== status ==='
+          git status --short
+          echo '=== staged diff stat ==='
+          git diff --cached --stat
+          echo '=== staged diff check ==='
           git diff --cached --check
+
+      - name: Commit source
+        id: commit_source
+        if: steps.stage_source.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          exec > >(tee /tmp/publish-commit.txt) 2>&1
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m '删除藏品页面、玩法与管理员分区'
+          git rev-parse HEAD
+
+      - name: Push source
+        id: push_source
+        if: steps.commit_source.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          exec > >(tee /tmp/publish-push.txt) 2>&1
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+
+      - name: Upload publish diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remove-collectibles-publish-diagnostics
+          path: |
+            /tmp/publish-stage.txt
+            /tmp/publish-commit.txt
+            /tmp/publish-push.txt
+          if-no-files-found: warn
+          retention-days: 1
+
+      - name: Stop after failed source publication
+        if: steps.stage_source.outcome != 'success' || steps.commit_source.outcome != 'success' || steps.push_source.outcome != 'success'
+        run: exit 1
