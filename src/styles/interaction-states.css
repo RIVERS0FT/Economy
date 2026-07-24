@@ -3,8 +3,8 @@
  * media queries remain a second guard against sticky touch hover behavior. */
 
 @media (hover: hover) and (pointer: fine) {
-  html[data-input-modality='mouse'] button:hover:not(:disabled),
-  html[data-input-modality='mouse'] .ui-button:hover:not(:disabled) {
+  html[data-input-modality='mouse']
+    :where(button:hover:not(:disabled), .ui-button:hover:not(:disabled)) {
     transform: translateY(-1px);
     filter: brightness(1.04);
   }
