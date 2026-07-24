@@ -4,7 +4,5 @@ Checking patch docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md...
 error: while searching for:
 标签栏必须复用 `Button` 与 `.ui-segmented`，桌面四项等宽，移动端保持完整中文名称并横向滚动；必须提供 `tablist`、`tab`、`tabpanel`、`aria-selected`、`aria-controls` 和 `aria-labelledby` 语义，不得重新实现页面专属基础按钮视觉。
 
-发布合同面板必须使用 `PagePanel`。
-
 error: patch failed: docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md:209
 error: docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md: patch does not apply
