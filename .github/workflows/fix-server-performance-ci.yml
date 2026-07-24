@@ -1,0 +1,166 @@
+name: Fix server performance CI
+
+on:
+  push:
+    branches:
+      - agent/server-performance-hotspots
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-server-performance-ci
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/server-performance-hotspots
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Correct changed-only persistence integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path_name}: expected one target, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'server/src/runtime-store.js',
+              """  saveWorld(revision, world, now) {
+              return this.saveWorldIfChanged(revision, world, now);
+            }
+
+          """,
+              '',
+          )
+
+          replace_once(
+              'server/src/runtime-store.js',
+              """      const { revision, world } = this.loadWorld(now);
+              const player = ensurePlayer(world, user, now);
+              ensureWarehouse(player);
+              ensureGemState(player);
+              this.processWorldIfDue(world, now, Number(user.id), { force: true });
+
+              const gameResult = applyProductionContractAction(world, user, action, payload, now);
+          """,
+              """      const { revision, stateJson, world } = this.loadWorld(now);
+              const player = ensurePlayer(world, user, now);
+              ensureWarehouse(player);
+              ensureGemState(player);
+              this.processWorldIfDue(world, now, Number(user.id), { force: true });
+
+              const gameResult = applyProductionContractAction(world, user, action, payload, now);
+          """,
+          )
+
+          replace_once(
+              'server/src/runtime-store.js',
+              """      const nextRevision = this.saveWorld(revision, world, now);
+              const response = createActionAcknowledgement(gameResult, nextRevision);
+          """,
+              """      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
+              const response = createActionAcknowledgement(gameResult, nextRevision);
+          """,
+          )
+
+          replace_once(
+              'server/src/storage.js',
+              """      const { revision, world } = this.loadWorld(now);
+              const player = ensurePlayer(world, user, now);
+              ensureWarehouse(player);
+              ensureGemState(player);
+              this.processWorldIfDue(world, now, Number(user.id), { force: true });
+              let gameResult;
+          """,
+              """      const { revision, stateJson, world } = this.loadWorld(now);
+              const player = ensurePlayer(world, user, now);
+              ensureWarehouse(player);
+              ensureGemState(player);
+              this.processWorldIfDue(world, now, Number(user.id), { force: true });
+              let gameResult;
+          """,
+          )
+
+          replace_once(
+              'server/src/storage.js',
+              """      const nextRevision = this.saveWorld(revision, world, now);
+              const response = createActionAcknowledgement(gameResult, nextRevision);
+          """,
+              """      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
+              const response = createActionAcknowledgement(gameResult, nextRevision);
+          """,
+          )
+
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              """requireText('server/src/runtime-store.js', [
+            'contractProjectionForState',
+            'cached.revision === snapshot.revision',
+            'saveWorld(revision, world, now)',
+            'return this.saveWorldIfChanged(revision, world, now);',
+          ]);
+          """,
+              """requireText('server/src/storage.js', [
+            'const { revision, stateJson, world } = this.loadWorld(now);',
+            'const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);',
+          ]);
+          requireText('server/src/runtime-store.js', [
+            'contractProjectionForState',
+            'cached.revision === snapshot.revision',
+            'const { revision, stateJson, world } = this.loadWorld(now);',
+            'const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);',
+          ]);
+          assert.doesNotMatch(
+            read('server/src/runtime-store.js'),
+            /\n  saveWorld\(revision, world, now\)/,
+            '运行时存储不得通过 saveWorld 覆写间接进入 saveWorldIfChanged，避免统计钩子重复执行',
+          );
+          """,
+          )
+
+          workflow = Path('.github/workflows/fix-server-performance-ci.yml')
+          workflow.unlink()
+          PY
+
+      - name: Run focused verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server/src/storage.js
+          node --check server/src/runtime-store.js
+          node --test \
+            server/test/state-polling.test.js \
+            server/test/request-metrics.test.js \
+            server/test/player-admin-statistics.test.js
+          node scripts/verify-runtime-efficiency.mjs
+
+      - name: Commit corrected implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '修正无变化保存与统计钩子集成'
+          git push origin HEAD:agent/server-performance-hotspots
