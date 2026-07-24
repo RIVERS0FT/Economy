@@ -63,7 +63,7 @@ requireText('server/src/runtime-store.js', [
   'contractProjectionForState',
   'cached.revision === snapshot.revision',
   'saveWorld(revision, world, now)',
-  'return this.saveWorldIfChanged(revision, world, now);',
+  'PersistentEconomyStore.prototype.saveWorldIfChanged.call(this, revision, world, now)',
 ]);
 requireText('server/test/request-metrics.test.js', [
   'request metrics normalize route identifiers',
