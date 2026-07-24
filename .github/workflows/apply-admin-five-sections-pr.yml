@@ -27,7 +27,20 @@ jobs:
           source_workflow=.github/workflows/apply-admin-five-sections.yml
           sed -n "/python3 - <<'PY'/,/^          PY$/p" "$source_workflow" \
             | sed '1d;$d;s/^          //' > /tmp/apply-admin-five-sections.py
-          python3 /tmp/apply-admin-five-sections.py
+          set +e
+          python3 /tmp/apply-admin-five-sections.py > /tmp/apply-admin-five-sections.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/apply-admin-five-sections.log .agent-admin-five-sections-error.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .agent-admin-five-sections-error.log
+            git commit -m "记录管理员重构应用错误"
+            git push origin "HEAD:${HEAD_REF}"
+            exit "$status"
+          fi
+          rm -f .agent-admin-five-sections-error.log
           rm -f .github/workflows/apply-admin-five-sections.yml .github/workflows/apply-admin-five-sections-pr.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
