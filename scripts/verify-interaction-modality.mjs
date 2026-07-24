@@ -88,6 +88,7 @@ if (failures.length === 0) {
   for (const text of [
     "@media (hover: hover) and (pointer: fine)",
     "html[data-input-modality='mouse']",
+    ":where(button:hover:not(:disabled), .ui-button:hover:not(:disabled))",
     "[data-ui-interactive='surface']:hover:not(:disabled)",
     "html:not([data-input-modality='keyboard']) [data-ui-interactive='surface']:focus-visible",
     "html[data-input-modality='keyboard'] [data-ui-interactive='surface']:focus-visible",
@@ -111,6 +112,7 @@ if (failures.length === 0) {
     '.facility-cluster-selector-card:focus-visible',
   ]) forbidText('src/styles/facility-group-card-grid.css', forbidden);
   forbidText('src/styles/design-system.css', 'button:hover:not(:disabled),\n.ui-button:hover:not(:disabled) {');
+  forbidText('src/styles/interaction-states.css', "html[data-input-modality='mouse'] button:hover:not(:disabled)");
 
   const rootFiles = [
     ...walkFiles(resolve(root, 'src')),
@@ -145,15 +147,15 @@ if (failures.length === 0) {
   requireText('README.md', '全局输入方式由最近一次有效输入动态决定');
 
   for (const text of [
-    "Input.dispatchTouchEvent",
-    "data-input-modality",
-    "outlineStyle",
-    "await expect(trigger).toBeFocused()",
+    'Input.dispatchTouchEvent',
+    'data-input-modality',
+    'outlineStyle',
+    'await expect(trigger).toBeFocused()',
   ]) requireText('tests/browser/facility-detail-sheet.spec.ts', text);
   for (const text of [
     'mixed input switches shared surface hover and focus without reload',
-    "dataset.inputModality",
-    "trigger.hover()",
+    'dataset.inputModality',
+    'trigger.hover()',
     "pointerType: 'touch'",
   ]) requireText('tests/browser/input-modality.spec.ts', text);
 
