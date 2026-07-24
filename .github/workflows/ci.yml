@@ -1,143 +1,57 @@
-name: Economy Contract Document Sync
+name: Economy CI
 
 on:
-  push:
-    branches:
-      - agent/production-contracts
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          ref: agent/production-contracts
-          fetch-depth: 0
+          node-version: 24.4.0
+          cache: npm
 
-      - name: Synchronize authoritative contract rules
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
 
-          def read(path):
-              return Path(path).read_text(encoding='utf-8')
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
 
-          def write(path, text):
-              Path(path).write_text(text, encoding='utf-8')
-
-          def replace_all(path, old, new, required=False):
-              text = read(path)
-              if old not in text:
-                  if required:
-                      raise SystemExit(f'{path}: missing anchor {old!r}')
-                  return
-              write(path, text.replace(old, new))
-
-          def append_once(path, marker, section):
-              text = read(path)
-              if marker in text:
-                  return
-              write(path, text.rstrip() + '\n\n' + section.strip() + '\n')
-
-          server = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'
-          replace_all(server, '> 更新时间：2026-07-22', '> 更新时间：2026-07-24')
-          replace_all(
-              server,
-              '`catalog`、`player`、`market`、`auction`、`leaderboard`',
-              '`catalog`、`player`、`market`、`auction`、`contract`、`leaderboard`',
-              required=True,
-          )
-          replace_all(server, '五个固定分区', '六个固定分区')
-          replace_all(server, '五个分区', '六个分区')
-          replace_all(server, '浏览器五分区合并', '浏览器六分区合并')
-          replace_all(
-              server,
-              '- 藏品、归属历史与公开竞价拍卖；',
-              '- 藏品、归属历史与公开竞价拍卖；\n- 长期生产合作合同、商品与货款托管、保证金、宽限期与周期交付；',
-          )
-          replace_all(
-              server,
-              '- `collectibles.js`：藏品导入、归属与竞价拍卖；',
-              '- `collectibles.js`：藏品导入、归属与竞价拍卖；\n- `contracts.js`：长期商品供货合同、托管、周期结算、宽限期与违约；',
-          )
-          append_once(
-              server,
-              '## 长期生产合作合同运行规则',
-              '''## 长期生产合作合同运行规则
-
-`server/src/contracts.js` 是长期生产合作合同的唯一服务端领域模块。合同只允许服务器正式商品和普通货币，不接受藏品、工厂所有权、工厂出租、指定工厂实例、自由文本或对方配方控制。合同动作继续进入现有幂等 SQLite 写事务，普通玩家权威动作响应固定为 `{ result: { ok, message }, revision }`，不得在动作响应中附带完整合同分区。
-
-正式状态交付使用 `catalog`、`player`、`market`、`auction`、`contract`、`leaderboard` 六个固定分区。`contract` 分区只包含 `productionContracts` 与 `productionContractSummary`；首次加载必须返回六个完整分区，后续通过内容哈希只返回变化分区。该扩展保持客户端状态版本 16、世界版本 14，不为仅增加合同分区执行无关世界迁移。
-
-发布者可以发布长期采购或长期供应合同。条款只包含商品、每批数量、单位价格、交付周期、总批次和首次交付延迟。承接时采购方冻结首批完整货款和单批货款 20% 的保证金，供应方冻结同额保证金；供应方商品和采购方货款按当前批次分别托管。自动准备只能冻结当前可用库存，自动补款只能冻结当前可用资金，不得透支未来产量或未来收入。
-
-正式服务的一秒全局调度器先处理工厂生产，再执行合同自动托管、到期结算和宽限期终止。普通轮询不得承担时间推进。每批结算必须在一个事务中同时检查供应方冻结商品、采购方冻结货款和采购方仓库空间，然后原子转移整批商品、扣除整批货款、支付扣费后收入并推进批次；任一条件不足不得部分交付。宽限期结束后由责任方保证金赔付对方。
-
-合同交付不得写入统一订单簿、最近真实成交价、市场价格历史、商品或工厂估值以及交易排行榜。卖方合同货款按单份合同累计成交额精确收取 1% 市场服务费，并沿既有市场服务就业规则进入人口钱包。合同状态、交付时间、宽限期与违约只能由服务器权威时间判定。''',
-          )
-
-          industry = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
-          replace_all(industry, '> 更新时间：2026-07-23', '> 更新时间：2026-07-24')
-          append_once(
-              industry,
-              '## 长期生产合作合同边界',
-              '''## 长期生产合作合同边界
-
-长期合同约束周期性交付结果，不出租工厂、不绑定单座工厂，也不允许合同对方控制工厂集群、运行意图或配方。同类型工厂继续只有一个集群并共享当前配方、参与数量和周期进度；合同不得修改 `activeRecipeId`、`pendingRecipeId`、`participatingCount`、`pendingJoinCount` 或 `cycleStartedAt`。
-
-服务器世界处理顺序固定为先结算已经到期的生产周期，再执行合同自动准备和到期交付。因此交付时点刚完成的产出可以用于本批合同。供应方自动准备只能把共享仓库中的当前可用商品移动到冻结库存，不能透支未来产量；采购方自动补款只能冻结当前可用资金。
-
-每批合同结算延续生产周期的原子规则：供应方冻结商品、采购方冻结货款和采购方仓库空间必须同时满足，随后一次性转移整批商品与货款。任一条件不足不得部分扣料、部分付款或部分交付。合同商品冻结继续占用供应方共享仓库，采购方下一批承诺数量参与仓库预占，避免到期时无法接收。
-
-合同交付不改变工厂生产统计中的周期产出，不改变订单簿行情或商品估值。页面可以根据正式配方和当前参与数量提供每批数量建议，但该建议不进入合同权威条款，未来工厂数量或配方变化也不自动改写已签订合同。''',
-          )
-
-          append_once(
-              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
-              '## 长期合同仓库预占',
-              '''## 长期合同仓库预占
-
-供应方为当前合同批次准备的商品从可用库存移动到冻结库存，继续计入共享仓库实际占用。采购方每份进行中合同至少按下一批完整商品数量参与仓库预占；承接合同和到期交付都必须验证预占后的剩余容量。采购方仓库不足时合同不得部分交付，并按合同规则进入宽限期。''',
-          )
-          append_once(
-              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
-              '## 长期合同与订单簿隔离',
-              '''## 长期合同与订单簿隔离
-
-长期生产合作合同不是统一订单簿订单。合同交付不得更新商品最近真实成交价、价格历史、订单簿成交量、估值价格或交易排行榜，也不得与公开买卖单撮合。合同卖方服务费继续复用单份合同累计成交额 1% 的累计差额算法和市场服务就业分配，防止合同成为绕过公开市场手续费的通道。''',
-          )
-          append_once(
-              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
-              '## 长期生产合作合同经济定位',
-              '''## 长期生产合作合同经济定位
-
-长期合同用于玩家产业链上下游的稳定周期供货，只交易商品与普通货币。合同不提供藏品交换、工厂租赁、工厂所有权转移或生产控制。合同交付不形成公开市场价格证据，不计入交易排行榜；供应方收到每批扣除累计 1% 市场服务费后的货款，违约保证金只在合同责任判定后由服务器转移。''',
-          )
-
-          verify = 'scripts/verify-page-content.mjs'
-          replace_all(
-              verify,
-              "for (const text of ['collectibleId', 'facilityTypeId', '出租工厂']) forbidText('src/pages/ContractPage.tsx', text);",
-              "for (const text of ['collectibleId', 'facilityTypeId']) forbidText('src/pages/ContractPage.tsx', text);",
-              required=True,
-          )
-          replace_all(
-              verify,
-              "'双方冻结单批货款 20% 的履约保证金',",
-              "'单批货款 20% 的履约保证金',",
-              required=True,
-          )
-          Path('scripts/.contract-doc-patch-trigger').unlink(missing_ok=True)
-          PY
-
-      - name: Restore CI and commit
+      - name: Test browser runtime
+        shell: bash
         run: |
-          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
-          git config user.name "OpenAI Agent"
-          git config user.email "openai-agent@users.noreply.github.com"
-          git add -A
-          git commit -m "document production contract architecture"
-          git push origin HEAD:agent/production-contracts
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-test-artifacts
+          path: |
+            build-test.log
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
