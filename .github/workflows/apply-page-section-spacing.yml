@@ -1,9 +1,13 @@
 name: Apply page section spacing
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/unify-page-section-spacing
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
