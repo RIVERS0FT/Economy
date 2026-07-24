@@ -65,14 +65,14 @@ function reserveTotals(world, groupId) {
   };
 }
 
-test('market model 9 creates inventory-backed buy and sell orders without system self-trades', () => {
+test('market model 10 creates inventory-backed buy and sell orders without system self-trades', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 9);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 10);
   const systemOrders = world.orders.filter((order) => order.ownerType === 'population');
   assert.ok(systemOrders.some((order) => order.demandTier === 'direct'));
   assert.ok(systemOrders.some((order) => order.demandTier === 'derived-liquidity'));
@@ -215,7 +215,7 @@ test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   )));
 });
 
-test('model 3 migrates directly to model 9 with one-time reserve seeding', () => {
+test('model 3 migrates directly to model 10 with one-time reserve seeding', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
@@ -231,7 +231,7 @@ test('model 3 migrates directly to model 9 with one-time reserve seeding', () =>
 
   migrateWorld(world, now + 1);
 
-  assert.equal(world.marketDemand.modelVersion, 9);
+  assert.equal(world.marketDemand.modelVersion, 10);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => order.id === 'model-3-market-order'), false);
@@ -239,7 +239,7 @@ test('model 3 migrates directly to model 9 with one-time reserve seeding', () =>
   assert.ok(world.marketDemand.liquidity.groups.food.reserves.wheat.inventory > 0);
 });
 
-test('model 5 migrates to model 9 and releases obsolete liquidity reservations', () => {
+test('model 5 migrates to model 10 and releases obsolete liquidity reservations', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
@@ -254,7 +254,7 @@ test('model 5 migrates to model 9 and releases obsolete liquidity reservations',
 
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 9);
+  assert.equal(world.marketDemand.modelVersion, 10);
   assert.equal(world.players[String(alice.id)].credits, 777);
   assert.equal(world.players[String(alice.id)].inventories.wheat.available, 9);
   assert.equal(world.orders.some((order) => oldSystemOrderIds.has(order.id)), false);

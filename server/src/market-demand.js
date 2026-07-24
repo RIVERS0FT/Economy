@@ -3,8 +3,16 @@ import { createMarketLiquidityRuntime } from './market-liquidity.js';
 import {
   DEMAND_CURVE,
   DEMAND_CURVE_SHORTAGE_MULTIPLIER,
+  DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE,
+  DIRECT_DEMAND_MIN_PRICE,
+  DIRECT_DEMAND_OVERSUPPLY_DELAY_SCORE,
+  DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES,
+  DIRECT_DEMAND_OVERSUPPLY_FILL_RATIO,
+  DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP,
   DIRECT_DEMAND_PRICE_RECOVERY_RATE,
   DIRECT_DEMAND_UNFILLED_PRICE_STEP,
+  DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE,
+  DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE,
   DERIVED_BACKLOG_WEIGHT,
   DERIVED_UNMET_WEIGHT,
   MARKET_DEMAND_GROUP_CATALOG,
@@ -184,6 +192,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         delayScoreTotal: 0,
         directRequested: 0,
         directFilled: 0,
+        directDelayWeight: 0,
+        directDelayScoreTotal: 0,
       };
       stats.requested += quantity;
       stats.filled += filled;
@@ -200,6 +210,12 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       if (order.demandTier === 'direct') {
         stats.directRequested += quantity;
         stats.directFilled += filled;
+        if (filled > 0) {
+          const directDelay = Math.max(0, Number(order.lastFilledAt || order.createdAt || now) - Number(order.createdAt || now));
+          const directDelayScore = Math.exp(-directDelay / Math.max(1, group.cycleMs));
+          stats.directDelayWeight += filled;
+          stats.directDelayScoreTotal += filled * directDelayScore;
+        }
         const utility = Math.max(1, Number(utilities.get(productId) || 1));
         directRequestedUtility += quantity * utility;
         directFilledUtility += filled * utility;
@@ -226,6 +242,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         delayScoreTotal: 0,
         directRequested: 0,
         directFilled: 0,
+        directDelayWeight: 0,
+        directDelayScoreTotal: 0,
       };
       stats.backlog += Math.max(0, Number(order.remaining || 0));
       productStats[productId] = stats;
@@ -250,6 +268,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       Object.assign(stats, {
         fillRatio: round4(productFillRatio),
         directFillRatio: stats.directRequested <= 0 ? null : round4(stats.directFilled / stats.directRequested),
+        directDelayScore: stats.directDelayWeight <= 0 ? 0 : round4(stats.directDelayScoreTotal / stats.directDelayWeight),
         delayScore: round4(productDelayScore),
         service: round4(service),
       });
@@ -284,33 +303,66 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
 
   function updateDirectQuoteAnchors(world, group, state, settlement) {
     state.directQuoteAnchors ||= {};
+    state.directOversupplyCycles ||= {};
     const productIds = new Set(group.classes.flatMap((demandClass) => (
       demandClass.products.map((option) => option.productId)
     )));
     for (const productId of productIds) {
       const product = productFor(productId);
-      const referencePrice = Math.max(0.01, Number(
+      const referencePrice = Math.max(DIRECT_DEMAND_MIN_PRICE, Number(
         world.marketDemand.priceTransmission.products[productId]?.referencePrice || product.basePrice,
       ));
+      const maximum = Math.max(DIRECT_DEMAND_MIN_PRICE, product.basePrice * PRICE_MAX_MULTIPLIER);
       const stored = Number(state.directQuoteAnchors[productId]);
-      const previous = Math.max(referencePrice, Number.isFinite(stored) && stored > 0 ? stored : referencePrice);
+      const previous = clamp(
+        DIRECT_DEMAND_MIN_PRICE,
+        maximum,
+        Number.isFinite(stored) && stored > 0 ? stored : referencePrice,
+      );
       const stats = settlement.products?.[productId];
       const requested = Math.max(0, Number(stats?.directRequested || 0));
       const filled = Math.max(0, Number(stats?.directFilled || 0));
       const fillRatio = requested <= 0 ? null : clamp(0, 1, filled / requested);
+      const directDelayScore = Math.max(0, Number(stats?.directDelayScore || 0));
+      let oversupplyCycles = Math.max(0, Math.floor(Number(state.directOversupplyCycles[productId] || 0)));
       let next = previous;
+
       if (requested > 0 && filled <= 0) {
-        next = previous * DIRECT_DEMAND_UNFILLED_PRICE_STEP;
+        const referenceGap = Math.max(0, referencePrice - previous);
+        const increase = Math.max(
+          previous * (DIRECT_DEMAND_UNFILLED_PRICE_STEP - 1),
+          Math.min(
+            referenceGap * DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE,
+            referencePrice * DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE,
+          ),
+        );
+        next = previous + increase;
+        oversupplyCycles = 0;
       } else if (requested > 0 && fillRatio < group.targetSatisfaction) {
-        next = previous;
+        next = previous < referencePrice
+          ? previous + (referencePrice - previous) * DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE
+          : previous;
+        oversupplyCycles = 0;
+      } else if (
+        requested > 0
+        && fillRatio >= DIRECT_DEMAND_OVERSUPPLY_FILL_RATIO
+        && directDelayScore >= DIRECT_DEMAND_OVERSUPPLY_DELAY_SCORE
+      ) {
+        oversupplyCycles += 1;
+        next = oversupplyCycles >= DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES
+          ? previous * DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP
+          : previous + (referencePrice - previous) * DIRECT_DEMAND_PRICE_RECOVERY_RATE;
       } else {
-        next = referencePrice + Math.max(0, previous - referencePrice) * (1 - DIRECT_DEMAND_PRICE_RECOVERY_RATE);
+        next = previous + (referencePrice - previous) * DIRECT_DEMAND_PRICE_RECOVERY_RATE;
+        oversupplyCycles = 0;
       }
+
       state.directQuoteAnchors[productId] = round4(clamp(
-        referencePrice,
-        product.basePrice * PRICE_MAX_MULTIPLIER,
+        DIRECT_DEMAND_MIN_PRICE,
+        maximum,
         next,
       ));
+      state.directOversupplyCycles[productId] = oversupplyCycles;
     }
   }
 
@@ -405,15 +457,19 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     return { filled: quantity - order.remaining, order, committed };
   }
 
-  function priceCurveFor(product, referencePrice, pressure, directQuoteAnchor = referencePrice) {
-    const cap = Math.max(1, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
+  function priceCurveFor(product, referencePrice, pressure, role, directQuoteAnchor = referencePrice) {
+    const cap = Math.max(DIRECT_DEMAND_MIN_PRICE, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
     const shortageMultiplier = pressure >= 1.15 ? DEMAND_CURVE_SHORTAGE_MULTIPLIER : 1;
+    const directBase = role === 'direct'
+      ? (pressure >= 1.15 ? Math.max(directQuoteAnchor, referencePrice * shortageMultiplier) : directQuoteAnchor)
+      : referencePrice;
     return DEMAND_CURVE.map((tier, index) => {
-      const curvePrice = referencePrice * tier.multiplier * (index === 0 ? shortageMultiplier : 1);
-      const targetPrice = index === 0 ? Math.max(curvePrice, directQuoteAnchor) : curvePrice;
+      const targetPrice = role === 'direct'
+        ? directBase * tier.multiplier
+        : referencePrice * tier.multiplier * (index === 0 ? shortageMultiplier : 1);
       return {
         weight: tier.weight,
-        price: Math.min(cap, Math.max(1, Math.round(targetPrice))),
+        price: Math.min(cap, Math.max(DIRECT_DEMAND_MIN_PRICE, Math.round(targetPrice))),
       };
     });
   }
@@ -426,9 +482,9 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       const referencePrice = Math.max(1, Math.round(Number(detail.price.referencePrice || product.basePrice)));
       const pressure = Number(world.marketDemand.productPressure[productId] || 1);
       const directQuoteAnchor = role === 'direct'
-        ? Math.max(referencePrice, Number(world.marketDemand.groups[group.id]?.directQuoteAnchors?.[productId] || referencePrice))
+        ? Number(world.marketDemand.groups[group.id]?.directQuoteAnchors?.[productId] || referencePrice)
         : referencePrice;
-      const curve = priceCurveFor(product, referencePrice, pressure, directQuoteAnchor);
+      const curve = priceCurveFor(product, referencePrice, pressure, role, directQuoteAnchor);
       const budgetByPrice = new Map();
       let assignedBudget = 0;
       curve.forEach((tier, index) => {
