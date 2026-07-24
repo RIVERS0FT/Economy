@@ -19,7 +19,7 @@ function requestKey() {
   return `contract-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function post(path: string, body: Record<string, unknown> = {}): Promise<GameActionResponse> {
+async function post(path: string, body: unknown = {}): Promise<GameActionResponse> {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), WRITE_TIMEOUT_MS);
   try {
