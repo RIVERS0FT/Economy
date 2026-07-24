@@ -40,6 +40,59 @@ async function expectUniformPageSectionGaps(page: Page) {
   }
 }
 
+async function expectContractTabsDoNotOverlap(page: Page) {
+  const container = page.locator('.contract-tabs');
+  const tabs = page.getByRole('tab');
+  const layout = await container.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      display: style.display,
+      overflowX: style.overflowX,
+      overflowY: style.overflowY,
+      touchAction: style.touchAction,
+      scrollWidth: element.scrollWidth,
+      clientWidth: element.clientWidth,
+    };
+  });
+
+  expect(layout.display).toBe('flex');
+  expect(layout.overflowX).toBe('auto');
+  expect(layout.overflowY).toBe('hidden');
+  expect(layout.touchAction).toContain('pan-x');
+  expect(layout.touchAction).toContain('pan-y');
+  expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth);
+  await expect(tabs).toHaveCount(4);
+
+  for (let index = 0; index < 4; index += 1) {
+    const tab = tabs.nth(index);
+    await tab.click();
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+
+    const geometry = await container.evaluate((element) => {
+      const containerRect = element.getBoundingClientRect();
+      const tabElements = Array.from(element.querySelectorAll<HTMLElement>('[role="tab"]'));
+      const rects = tabElements.map((item) => {
+        const rect = item.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width };
+      });
+      const activeIndex = tabElements.findIndex((item) => item.getAttribute('aria-selected') === 'true');
+      return {
+        container: { left: containerRect.left, right: containerRect.right },
+        rects,
+        active: activeIndex >= 0 ? rects[activeIndex] : null,
+      };
+    });
+
+    expect(geometry.active).not.toBeNull();
+    for (let itemIndex = 1; itemIndex < geometry.rects.length; itemIndex += 1) {
+      expect(geometry.rects[itemIndex].left).toBeGreaterThanOrEqual(geometry.rects[itemIndex - 1].right - 1);
+    }
+    for (const rect of geometry.rects) expect(rect.width).toBeGreaterThan(0);
+    expect(geometry.active!.left).toBeGreaterThanOrEqual(geometry.container.left - 1);
+    expect(geometry.active!.right).toBeLessThanOrEqual(geometry.container.right + 1);
+  }
+}
+
 async function openContracts(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
   await page.goto('runtime-test.html?view=contracts');
@@ -95,12 +148,7 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
 
   expect(await gridTrackCount(page.locator('.contract-summary-grid'))).toBe(2);
   expect(await gridTrackCount(page.locator('.contract-card-heading').first())).toBe(1);
-  const tabLayout = await page.locator('.contract-tabs').evaluate((element) => {
-    const style = getComputedStyle(element);
-    return { gridAutoFlow: style.gridAutoFlow, overflowX: style.overflowX };
-  });
-  expect(tabLayout.gridAutoFlow).toBe('column');
-  expect(tabLayout.overflowX).toBe('auto');
+  await expectContractTabsDoNotOverlap(page);
   await expectUniformPageSectionGaps(page);
 
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
@@ -113,5 +161,12 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
   expect(quantityBox.height).toBeGreaterThanOrEqual(48);
   const quantityFontSize = await quantity.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
   expect(quantityFontSize).toBeGreaterThanOrEqual(16);
+  expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+test('narrow mobile contract tabs keep separate hit areas', async ({ page }) => {
+  await openContracts(page, 320, 844);
+  await expectContractTabsDoNotOverlap(page);
+  await expectUniformPageSectionGaps(page);
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
