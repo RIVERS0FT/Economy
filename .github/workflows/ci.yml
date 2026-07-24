@@ -1,9 +1,6 @@
 name: Apply Global Interaction Modality
 
 on:
-  push:
-    branches:
-      - agent/global-interaction-modality
   pull_request:
     branches:
       - main
