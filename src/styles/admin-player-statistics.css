@@ -1,0 +1,452 @@
+/* ADMIN_PLAYER_STATISTICS_SCHEME: operations-diagnostics */
+
+.admin-overview-console,
+.admin-player-statistics {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.admin-player-statistics-panel {
+  min-width: 0;
+}
+
+.admin-player-statistics[data-loading="true"] {
+  opacity: .72;
+  pointer-events: none;
+}
+
+.admin-player-statistics__range {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.admin-player-statistics__range .ui-button {
+  min-width: 56px;
+}
+
+.admin-player-statistics__range .ui-button.is-active {
+  color: var(--color-text-primary);
+  border-color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 14%, transparent);
+}
+
+.admin-player-statistics__coverage {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-inset);
+}
+
+.admin-player-statistics__coverage > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-player-statistics__coverage small,
+.admin-player-statistics__card header small,
+.admin-player-statistics__note {
+  color: var(--color-text-muted);
+}
+
+.admin-player-statistics__metrics,
+.admin-player-statistics__wealth-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.admin-player-statistics__metric {
+  min-width: 0;
+  display: grid;
+  align-content: space-between;
+  gap: 7px;
+  min-height: 84px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-inset);
+}
+
+.admin-player-statistics__metric > span,
+.admin-player-statistics__metric > small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.admin-player-statistics__metric > strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 1.08rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+}
+
+.admin-player-statistics__two-column {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  align-items: stretch;
+}
+
+.admin-player-statistics__card {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-inset);
+}
+
+.admin-player-statistics__card > header {
+  min-width: 0;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.admin-player-statistics__card > header > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.admin-player-statistics__card h3,
+.admin-player-statistics__card h4 {
+  margin: 0;
+}
+
+.admin-player-statistics__card > header > span {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-player-statistics__trend {
+  min-width: 0;
+  height: 184px;
+  display: flex;
+  align-items: end;
+  gap: clamp(1px, .22vw, 4px);
+  padding: 12px 8px 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+.admin-player-statistics__trend-day {
+  min-width: 0;
+  flex: 1 1 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 16px;
+  gap: 4px;
+}
+
+.admin-player-statistics__trend-bars {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 1px;
+}
+
+.admin-player-statistics__trend-bars > i {
+  width: min(44%, 8px);
+  display: block;
+  border-radius: 999px 999px 2px 2px;
+}
+
+.admin-player-statistics__trend-bars > .active {
+  background: var(--color-info);
+}
+
+.admin-player-statistics__trend-bars > .new {
+  border: 1px solid var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+}
+
+.admin-player-statistics__trend-bars > .uncovered {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 4px,
+    color-mix(in srgb, var(--color-text-muted) 15%, transparent) 4px,
+    color-mix(in srgb, var(--color-text-muted) 15%, transparent) 6px
+  );
+}
+
+.admin-player-statistics__trend-day > small {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: .64rem;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.admin-player-statistics__trend-day:not(:first-child):not(:last-child) > small {
+  visibility: hidden;
+}
+
+.admin-player-statistics__retention,
+.admin-player-statistics__funnel,
+.admin-player-statistics__participation,
+.admin-player-statistics__composition,
+.admin-player-statistics__attention {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-player-statistics__retention > div,
+.admin-player-statistics__funnel > div,
+.admin-player-statistics__participation > div,
+.admin-player-statistics__composition > div,
+.admin-player-statistics__attention > div {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.admin-player-statistics__retention > div {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.admin-player-statistics__retention > div > span,
+.admin-player-statistics__funnel > div > span,
+.admin-player-statistics__participation > div > span,
+.admin-player-statistics__composition > div > span,
+.admin-player-statistics__attention > div > span {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.admin-player-statistics__retention small,
+.admin-player-statistics__funnel small,
+.admin-player-statistics__participation small,
+.admin-player-statistics__composition small,
+.admin-player-statistics__attention small {
+  color: var(--color-text-muted);
+  font-size: .76rem;
+}
+
+.admin-player-statistics__retention .admin-player-statistics__bar {
+  grid-column: 1 / -1;
+}
+
+.admin-player-statistics__bar {
+  width: 100%;
+  height: 6px;
+  display: block;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text-muted) 14%, transparent);
+}
+
+.admin-player-statistics__bar > span {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--color-info);
+}
+
+.admin-player-statistics__acquisition {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.admin-player-statistics__acquisition dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.admin-player-statistics__acquisition dl > div,
+.admin-player-statistics__wealth-brackets > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+.admin-player-statistics__acquisition dt,
+.admin-player-statistics__wealth-brackets span {
+  color: var(--color-text-muted);
+  font-size: .75rem;
+}
+
+.admin-player-statistics__acquisition dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-player-statistics__funnel > div {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+.admin-player-statistics__funnel > div > span {
+  display: grid;
+  justify-content: start;
+}
+
+.admin-player-statistics__funnel > div > .admin-player-statistics__bar,
+.admin-player-statistics__funnel > div > small {
+  grid-column: 1 / -1;
+}
+
+.admin-player-statistics__participation > div {
+  grid-template-columns: minmax(150px, .8fr) minmax(100px, 1fr) 52px;
+  align-items: center;
+}
+
+.admin-player-statistics__participation > div > b {
+  text-align: right;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-player-statistics__wealth-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-player-statistics__wealth-summary .admin-player-statistics__metric {
+  min-height: 76px;
+}
+
+.admin-player-statistics__wealth-brackets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.admin-player-statistics__wealth-brackets strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-player-statistics__note {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+}
+
+.admin-player-statistics__attention > div {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+}
+
+.admin-player-statistics__attention > div > span {
+  justify-content: start;
+}
+
+@media (max-width: 1179px) {
+  .admin-player-statistics__two-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-player-statistics__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-player-statistics__acquisition dl,
+  .admin-player-statistics__wealth-brackets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-player-statistics__coverage,
+  .admin-player-statistics__card > header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-player-statistics__range {
+    width: 100%;
+  }
+
+  .admin-player-statistics__range .ui-button {
+    flex: 1 1 0;
+  }
+
+  .admin-player-statistics__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-player-statistics__metric {
+    min-height: 78px;
+    padding: 9px 10px;
+  }
+
+  .admin-player-statistics__trend {
+    height: 154px;
+    gap: 1px;
+    padding-inline: 4px;
+  }
+
+  .admin-player-statistics__trend-day > small {
+    display: none;
+  }
+
+  .admin-player-statistics__trend-day {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .admin-player-statistics__participation > div {
+    grid-template-columns: minmax(0, 1fr) 48px;
+  }
+
+  .admin-player-statistics__participation > div > .admin-player-statistics__bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .admin-player-statistics__wealth-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-player-statistics__attention > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

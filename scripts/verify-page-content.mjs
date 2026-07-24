@@ -38,6 +38,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/config/navigation.ts',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
+  'src/components/AdminOverview.tsx',
   'tests/browser/admin-runtime.spec.ts',
   'src/app/LoginPage.tsx',
   'src/config/brand.ts',
@@ -269,7 +270,8 @@ for (const text of ['getCommunityLink(controller.signal)', 'DEFAULT_QQ_GROUP_URL
   requireText('src/components/shell/GameShell.tsx', text);
 }
 for (const text of ['collectibles.map(', 'giftCodes.map(', 'ownership.map(', 'redemptions.map(']) forbidText('src/app/AdminApp.tsx', text);
-for (const text of ['MetricCard', 'PageLayout', 'Panel', 'StatusTag', 'Button']) requireText('src/app/AdminApp.tsx', text);
+for (const text of ['PageLayout', 'Panel', 'StatusTag', 'Button']) requireText('src/app/AdminApp.tsx', text);
+requireText('src/components/AdminOverview.tsx', 'MetricCard');
 for (const text of ['grid-template-columns: repeat(4, minmax(0, 1fr));', 'max-width: none;']) {
   requireText('src/styles/unified-market-admin.css', text);
 }

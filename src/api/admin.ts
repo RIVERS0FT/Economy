@@ -98,6 +98,125 @@ export type ExtendedAdminSummary = AdminSummary & {
   populationEconomy: PopulationEconomyAdminSummary;
 };
 
+export type AdminPlayerStatisticsRange = '7d' | '30d' | '90d';
+
+export interface AdminPlayerStatisticsRetentionRow {
+  eligible: number;
+  retained: number;
+  rateBps: number;
+}
+
+export interface AdminPlayerStatisticsFunnelStage {
+  id: string;
+  label: string;
+  count: number;
+  medianHours: number | null;
+  conversionBps: number;
+}
+
+export interface AdminPlayerStatisticsParticipationRow {
+  id: string;
+  label: string;
+  count: number;
+  shareBps: number;
+}
+
+export interface AdminPlayerStatisticsAttention {
+  id: string;
+  label: string;
+  count: number;
+  tone: 'neutral' | 'warning' | 'danger';
+}
+
+export interface AdminPlayerStatisticsSeriesPoint {
+  day: string;
+  startsAt: number;
+  covered: boolean;
+  partialCoverage: boolean;
+  newPlayers: number;
+  activePlayers: number | null;
+  firstActivities: number | null;
+  productionParticipants: number | null;
+  tradeParticipants: number | null;
+}
+
+export interface AdminPlayerStatistics {
+  generatedAt: number;
+  coverageStartsAt: number;
+  revision: number;
+  range: {
+    key: AdminPlayerStatisticsRange;
+    days: number;
+    startsAt: number;
+    endsAt: number;
+    timeZone: 'Asia/Shanghai';
+    completeHistory: boolean;
+  };
+  snapshot: {
+    totalPlayers: number;
+    newToday: number;
+    active24h: number;
+    active7d: number;
+    active30d: number;
+    activeRate7dBps: number;
+    registeredInRange: number;
+    activatedInRange: number;
+    activationRateBps: number;
+    dormant30d: number;
+  };
+  acquisition: {
+    total: number;
+    direct: number;
+    shareLink: number;
+    manualCode: number;
+    blocked: number;
+  };
+  activity: {
+    activePlayersInRange: number;
+    averageDailyActive: number;
+    peakDailyActive: number;
+    peakDay: string | null;
+    productionParticipantsInRange: number;
+    tradeParticipantsInRange: number;
+  };
+  retention: {
+    d1: AdminPlayerStatisticsRetentionRow;
+    d7: AdminPlayerStatisticsRetentionRow;
+    d30: AdminPlayerStatisticsRetentionRow;
+  };
+  funnel: {
+    stages: AdminPlayerStatisticsFunnelStage[];
+    retained7d: AdminPlayerStatisticsRetentionRow;
+  };
+  participation: {
+    active7d: number;
+    rows: AdminPlayerStatisticsParticipationRow[];
+  };
+  wealth: {
+    total: number;
+    average: number;
+    median: number;
+    p25: number;
+    p75: number;
+    p90: number;
+    p99: number;
+    top1ShareBps: number;
+    top10ShareBps: number;
+    frozenShareBps: number;
+    unpricedAssetPlayers: number;
+    composition: {
+      cash: number;
+      commodities: number;
+      facilities: number;
+      frozen: number;
+      total: number;
+    };
+    brackets: Array<{ id: string; label: string; count: number }>;
+  };
+  attention: AdminPlayerStatisticsAttention[];
+  series: AdminPlayerStatisticsSeriesPoint[];
+}
+
 export interface PopulationPolicyPayload {
   stabilizationShareBps: number;
   targetWalletCycles: number;
@@ -207,6 +326,12 @@ function pagePath(path: string, cursor?: string | null) {
 
 export const adminApi = {
   summary: async () => (await request<{ summary: ExtendedAdminSummary }>('/summary', { method: 'GET' })).summary,
+  playerStatistics: async (range: AdminPlayerStatisticsRange) => (
+    await request<{ playerStatistics: AdminPlayerStatistics }>(
+      `/player-statistics?range=${encodeURIComponent(range)}`,
+      { method: 'GET' },
+    )
+  ).playerStatistics,
   populationEconomy: async () => (
     await request<{ summary: ExtendedAdminSummary }>('/population-economy', { method: 'GET' })
   ).summary,

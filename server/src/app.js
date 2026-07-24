@@ -196,6 +196,12 @@ const server = createServer(async (request, response) => {
         sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
         return;
       }
+      if (method === 'GET' && path === '/api/game/admin/player-statistics') {
+        sendJson(response, 200, {
+          playerStatistics: store.getPlayerStatistics(user, url.searchParams.get('range')),
+        });
+        return;
+      }
       if (method === 'PUT' && path === '/api/game/admin/population-economy/policy') {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
