@@ -7,6 +7,7 @@ import { GameShell } from '../../src/components/shell/GameShell';
 import type { StatusBarItem } from '../../src/components/shell/StatusBar';
 import { CurrencyAmount } from '../../src/components/ui/CurrencyAmount';
 import { ScrollArea } from '../../src/components/ui/ScrollArea';
+import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
 import { SettingsPage } from '../../src/pages/SettingsPage';
@@ -21,9 +22,12 @@ import '../../src/styles/liquid-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
+import '../../src/styles/contracts.css';
 import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
 import '../../src/styles/design-system.css';
+import '../../src/styles/primary-surfaces.css';
+import '../../src/styles/form-controls.css';
 import '../../src/styles/overview-polish.css';
 import '../../src/styles/game-guide.css';
 
@@ -55,7 +59,7 @@ const completedTutorial: GameTutorialController = {
   recordSellOrderSubmit: () => {},
 };
 
-document.documentElement.dataset.appSurface = ['overview', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'contracts', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -384,6 +388,139 @@ function GemShopHarness() {
   );
 }
 
+function ContractHarness() {
+  const [tab, setTab] = useState<TabId>('contracts');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    Object.assign(next.game, {
+      productionContracts: [
+        {
+          id: 'contract-active',
+          publisherId: 456,
+          publisherName: '机械供应商',
+          publisherRole: 'supplier',
+          buyerId: 123,
+          buyerName: 'MEVIUS',
+          supplierId: 456,
+          supplierName: '机械供应商',
+          productId: 'machinery',
+          quantityPerDelivery: 100,
+          unitPrice: 47,
+          batchGross: 4_700,
+          deliveryIntervalMs: 60 * 60_000,
+          totalDeliveries: 12,
+          completedDeliveries: 4,
+          firstDeliveryDelayMs: 60 * 60_000,
+          createdAt: fixedNow - 4 * 86_400_000,
+          offerExpiresAt: fixedNow + 3 * 86_400_000,
+          acceptedAt: fixedNow - 3 * 86_400_000,
+          nextDueAt: fixedNow + 45 * 60_000,
+          status: 'active',
+          roundStatus: 'preparing',
+          buyerEscrowCredits: 2_000,
+          supplierReservedQuantity: 100,
+          buyerBondCredits: 940,
+          supplierBondCredits: 940,
+          buyerAutoFund: false,
+          supplierAutoReserve: true,
+          issue: '采购方货款不足，请补充本批货款。',
+          isPublisher: false,
+          isBuyer: true,
+          isSupplier: false,
+        },
+        {
+          id: 'contract-open',
+          publisherId: 789,
+          publisherName: '长期采购商',
+          publisherRole: 'buyer',
+          buyerId: 789,
+          buyerName: '长期采购商',
+          supplierId: null,
+          supplierName: null,
+          productId: 'machinery',
+          quantityPerDelivery: 80,
+          unitPrice: 49,
+          batchGross: 3_920,
+          deliveryIntervalMs: 3 * 60 * 60_000,
+          totalDeliveries: 10,
+          completedDeliveries: 0,
+          firstDeliveryDelayMs: 60 * 60_000,
+          createdAt: fixedNow - 30 * 60_000,
+          offerExpiresAt: fixedNow + 3 * 86_400_000,
+          nextDueAt: null,
+          status: 'open',
+          roundStatus: 'preparing',
+          buyerEscrowCredits: 0,
+          supplierReservedQuantity: 0,
+          buyerBondCredits: 0,
+          supplierBondCredits: 0,
+          buyerAutoFund: false,
+          supplierAutoReserve: false,
+          issue: null,
+          isPublisher: false,
+          isBuyer: false,
+          isSupplier: false,
+        },
+        {
+          id: 'contract-history',
+          publisherId: 123,
+          publisherName: 'MEVIUS',
+          publisherRole: 'buyer',
+          buyerId: 123,
+          buyerName: 'MEVIUS',
+          supplierId: 456,
+          supplierName: '历史供应商',
+          productId: 'machinery',
+          quantityPerDelivery: 60,
+          unitPrice: 45,
+          batchGross: 2_700,
+          deliveryIntervalMs: 6 * 60 * 60_000,
+          totalDeliveries: 8,
+          completedDeliveries: 8,
+          firstDeliveryDelayMs: 60 * 60_000,
+          createdAt: fixedNow - 20 * 86_400_000,
+          offerExpiresAt: fixedNow - 17 * 86_400_000,
+          acceptedAt: fixedNow - 19 * 86_400_000,
+          nextDueAt: null,
+          status: 'completed',
+          roundStatus: 'ready',
+          buyerEscrowCredits: 0,
+          supplierReservedQuantity: 0,
+          buyerBondCredits: 0,
+          supplierBondCredits: 0,
+          buyerAutoFund: true,
+          supplierAutoReserve: true,
+          completedAt: fixedNow - 86_400_000,
+          issue: null,
+          isPublisher: true,
+          isBuyer: true,
+          isSupplier: false,
+        },
+      ],
+      productionContractSummary: {
+        active: 1,
+        open: 0,
+        needsAttention: 1,
+        upcomingWithin24Hours: 1,
+      },
+    });
+    return next;
+  }, [tab]);
+  const statusItems: StatusBarItem[] = [
+    { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
+    { id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('assets') },
+    { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
+    { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
+    { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
+  ];
+
+  return (
+    <GameShell model={model} statusItems={statusItems}>
+      <ContractPage model={model} />
+    </GameShell>
+  );
+}
+
 function ScrollOwnershipHarness() {
   return (
     <main style={{ minHeight: '100dvh', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 24, padding: 24 }}>
@@ -429,9 +566,11 @@ function ScrollOwnershipHarness() {
 createRoot(document.getElementById('root') as HTMLElement).render(
   view === 'overview'
     ? <OverviewHarness />
-    : view === 'gem-shop'
-      ? <GemShopHarness />
-      : view === 'scroll-ownership'
-        ? <ScrollOwnershipHarness />
-        : <SettingsHarness />,
+    : view === 'contracts'
+      ? <ContractHarness />
+      : view === 'gem-shop'
+        ? <GemShopHarness />
+        : view === 'scroll-ownership'
+          ? <ScrollOwnershipHarness />
+          : <SettingsHarness />,
 );

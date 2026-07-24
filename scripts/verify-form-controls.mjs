@@ -38,6 +38,7 @@ const sidebarBadgeTestPath = 'tests/browser/sidebar-badge.spec.ts';
   'src/app/AdminApp.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
+  'src/pages/ContractPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
   'src/pages/ProductionPage.tsx',
@@ -115,6 +116,7 @@ for (const path of [
   'src/app/AdminApp.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
+  'src/pages/ContractPage.tsx',
   'src/pages/GemShopPage.tsx',
 ]) {
   requireText(path, 'parseIntegerDraft');
@@ -125,6 +127,7 @@ for (const path of [
   'src/app/AdminApp.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
+  'src/pages/ContractPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
   'src/pages/ProductionPage.tsx',
