@@ -87,11 +87,17 @@ requireText('src/app/stateDelivery.js', [
   'isCompatibleClientStateVersion(state.version)',
   '客户端状态版本不兼容',
   'missingPartitions',
+  "'contract'",
+]);
+requireText('server/src/state-partitions.js', [
+  "'contract'",
+  "'productionContracts'",
+  "'productionContractSummary'",
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`server/shared/economy-state-version.js`',
-  '上一客户端状态版本',
-  '`scripts/verify-client-state-version.mjs`',
+  `当前客户端接受版本 ${MIN_COMPATIBLE_CLIENT_STATE_VERSION} 与 ${CURRENT_CLIENT_STATE_VERSION}`,
+  '不得维护独立常量',
 ]);
 requireText('docs/README.md', [
   '`server/shared/economy-state-version.js`',
@@ -104,6 +110,7 @@ function completePatches(version) {
     player: { userId: 1, credits: 100 },
     market: { orders: [] },
     auction: { collectibles: [] },
+    contract: { productionContracts: [], productionContractSummary: {} },
     leaderboard: { leaderboard: [] },
   };
 }
@@ -134,12 +141,12 @@ for (const version of [MIN_COMPATIBLE_CLIENT_STATE_VERSION - 1, CURRENT_CLIENT_S
 
 try {
   const patches = completePatches(CURRENT_CLIENT_STATE_VERSION);
-  delete patches.auction;
+  delete patches.contract;
   mergeStatePatches({}, patches);
-  fail('客户端错误接受缺少初始分区的状态');
+  fail('客户端错误接受缺少初始合同分区的状态');
 } catch (error) {
-  if (!(error instanceof Error) || !error.message.includes('缺少 auction 分区')) {
-    fail('缺少初始分区时未返回明确错误');
+  if (!(error instanceof Error) || !error.message.includes('缺少 contract 分区')) {
+    fail('缺少合同分区时未返回明确错误');
   }
 }
 

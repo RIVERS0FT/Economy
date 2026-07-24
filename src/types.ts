@@ -304,6 +304,12 @@ export interface EconomyStats {
   warehousePayroll: number;
   marketServiceFees: number;
   invitationGemsIssued: number;
+  contractDeliveriesCompleted?: number;
+  contractGoodsSupplied?: number;
+  contractGoodsPurchased?: number;
+  contractCreditsPaid?: number;
+  contractCreditsReceived?: number;
+  contractDefaults?: number;
 }
 
 export interface AssetSummary {

@@ -17,6 +17,26 @@ export function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/auctions') return { action: 'createAuction', category: 'orders' };
+  if (method === 'POST' && path === '/api/game/contracts') return { action: 'createProductionContract', category: 'orders' };
+
+  const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|cancel|prepare|fund|auto-reserve|auto-fund|request-termination|terminate-now)$/);
+  if (method === 'POST' && contractAction) {
+    const actionMap = {
+      accept: 'acceptProductionContract',
+      cancel: 'cancelProductionContract',
+      prepare: 'prepareProductionContract',
+      fund: 'fundProductionContract',
+      'auto-reserve': 'setProductionContractAutoReserve',
+      'auto-fund': 'setProductionContractAutoFund',
+      'request-termination': 'requestProductionContractTermination',
+      'terminate-now': 'terminateProductionContractNow',
+    };
+    return {
+      action: actionMap[contractAction[2]],
+      category: 'orders',
+      routePayload: { contractId: decodeRouteParameter(contractAction[1]) },
+    };
+  }
 
   const auctionBid = path.match(/^\/api\/game\/auctions\/([^/]+)\/bids$/);
   if (method === 'POST' && auctionBid) {

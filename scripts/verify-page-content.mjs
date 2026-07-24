@@ -15,9 +15,12 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/AssetsPage.tsx',
   'src/pages/CollectionsPage.tsx',
   'src/pages/AuctionPage.tsx',
+  'src/pages/ContractPage.tsx',
   'src/pages/LeaderboardPage.tsx',
   'src/pages/GemShopPage.tsx',
   'src/pages/SettingsPage.tsx',
+  'src/contracts/api.ts',
+  'src/contracts/types.ts',
   'src/components/InvitationSettings.tsx',
   'src/components/facilities/FacilityProductionFormula.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
@@ -42,6 +45,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/styles/auth.css',
   'src/styles/registration-auth.css',
   'src/styles/virtual-list.css',
+  'src/styles/contracts.css',
   'src/utils/formatters.ts',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
@@ -302,6 +306,7 @@ for (const text of [
   "{ id: 'assets', label: '资产' }",
   "{ id: 'collections', label: '藏品' }",
   "{ id: 'auction', label: '拍卖' }",
+  "{ id: 'contracts', label: '合同' }",
   "{ id: 'gem-shop', label: '商店' }",
 ]) requireText('src/config/navigation.ts', text);
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
@@ -312,6 +317,28 @@ for (const text of ['title="藏品"', 'getCollectibleState', 'collectible-galler
 for (const text of ['title="拍卖"', '发起资产拍卖', 'createAuction', 'placeAuctionBid', 'cancelAuction', '藏品', '商品', '工厂', '最高出价资金都会冻结', '等待服务器结算']) {
   requireText('src/pages/AuctionPage.tsx', text);
 }
+for (const text of [
+  'title="合同"',
+  '进行中的合同',
+  '合同广场',
+  '待处理',
+  '合同历史',
+  '发布合同',
+  'productionContractActions',
+  '准备本批商品',
+  '补充本批货款',
+  '立即违约终止',
+  "useState<ContractTab>('active')",
+]) requireText('src/pages/ContractPage.tsx', text);
+for (const text of ['collectibleId', 'facilityTypeId']) forbidText('src/pages/ContractPage.tsx', text);
+for (const text of [
+  "'/contracts'",
+  "'accept'",
+  "'prepare'",
+  "'fund'",
+  "'auto-reserve'",
+  "'auto-fund'",
+]) requireText('src/contracts/api.ts', text);
 
 for (const text of [
   'const stockedProducts = useMemo',
@@ -387,9 +414,10 @@ for (const [path, text] of [
 ]) requireText(path, text);
 
 for (const text of [
-  '概览｜市场｜生产｜资产｜藏品｜拍卖｜排行｜商店｜设置',
+  '概览｜市场｜生产｜资产｜藏品｜拍卖｜合同｜排行｜商店｜设置',
   '| 藏品 | `collections` | `CollectionsPage` | 当前玩家持有的唯一艺术藏品 |',
   '| 拍卖 | `auction` | `AuctionPage` | 藏品、商品与工厂竞价拍卖与结算结果 |',
+  '| 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 宝石单向兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、邀请、礼品和退出 |',
   '页面主标题固定为“生产”',
@@ -405,6 +433,10 @@ for (const text of [
   '移动详情不显示顶部关闭按钮',
   '点击遮罩、按 `Escape` 和有效下拉共用收起动画',
   '最高出价资金、商品仓库预占、卖方资产冻结、退款、拍卖状态和归属转移全部由服务器判定',
+  '默认进入“进行中的合同”',
+  '合同只允许服务器正式商品和普通货币',
+  '单批货款 20% 的履约保证金',
+  '合同交付不写入统一订单簿最近成交价、价格曲线、商品估值或交易榜',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
   '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',
   'Logo 在展开与折叠状态统一为 `40×40px`',
@@ -450,4 +482,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、九页导航、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、藏品拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、十页导航、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、藏品拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');

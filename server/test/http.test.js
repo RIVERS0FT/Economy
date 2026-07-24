@@ -85,7 +85,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
     assert.equal('serverNow' in initialState, false);
     assert.equal('state' in statePayload, false);
     assert.deepEqual(Object.keys(statePayload.partitionRevisions).sort(), [
-      'auction', 'catalog', 'leaderboard', 'market', 'player',
+      'auction', 'catalog', 'contract', 'leaderboard', 'market', 'player',
     ]);
     assert.equal(Number.isInteger(statePayload.revision), true);
 

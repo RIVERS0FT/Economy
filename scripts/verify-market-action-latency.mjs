@@ -44,7 +44,8 @@ for (const text of [
 ]) requireText(api, text);
 
 for (const text of [
-  '商品玩家订单必须在保留兼容核心参数校验与冻结后转交共享撮合内核，不得绕回旧撮合路径',
+  '`order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排',
+  '绕过统一商品撮合层处理玩家订单',
   '权威动作响应固定为 `{ result: { ok, message }, revision }`',
 ]) requireText(serverDesign, text);
 for (const text of [

@@ -5,6 +5,7 @@ export const STATE_PARTITION_NAMES = Object.freeze([
   'player',
   'market',
   'auction',
+  'contract',
   'leaderboard',
 ]);
 
@@ -20,6 +21,7 @@ const MARKET_KEYS = new Set([
   'demand',
 ]);
 const AUCTION_KEYS = new Set(['collectibles', 'assetAuctions', 'collectibleAuctions']);
+const CONTRACT_KEYS = new Set(['productionContracts', 'productionContractSummary']);
 const LEADERBOARD_KEYS = new Set(['leaderboard']);
 const REVISION_TOKEN = /^[A-Za-z0-9_-]{8,64}$/;
 
@@ -27,6 +29,7 @@ function partitionNameForKey(key) {
   if (CATALOG_KEYS.has(key)) return 'catalog';
   if (MARKET_KEYS.has(key)) return 'market';
   if (AUCTION_KEYS.has(key)) return 'auction';
+  if (CONTRACT_KEYS.has(key)) return 'contract';
   if (LEADERBOARD_KEYS.has(key)) return 'leaderboard';
   return 'player';
 }

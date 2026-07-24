@@ -1,6 +1,6 @@
 import type { EconomyState } from '../types';
 
-export type StatePartitionName = 'catalog' | 'player' | 'market' | 'auction' | 'leaderboard';
+export type StatePartitionName = 'catalog' | 'player' | 'market' | 'auction' | 'contract' | 'leaderboard';
 export type StatePartitionRevisions = Partial<Record<StatePartitionName, string>>;
 export type StatePartitionSnapshots = Partial<Record<StatePartitionName, Partial<EconomyState>>>;
 export type StatePartitionPatches = StatePartitionSnapshots;
