@@ -51,6 +51,15 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
+test('tablet contract publish form keeps two-column fields', async ({ page }) => {
+  await openContracts(page, 1100, 900);
+
+  await page.getByRole('button', { name: '发布合同', exact: true }).click();
+  expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
+  expect(await gridTrackCount(page.locator('.contract-publish-grid'))).toBe(2);
+  expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
 test('mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs', async ({ page }) => {
   await openContracts(page, 390, 844);
 
