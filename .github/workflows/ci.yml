@@ -89,49 +89,18 @@ jobs:
 
           test_path = Path('tests/browser/input-modality.spec.ts')
           test_source = test_path.read_text()
-          old_use = """  test.use({
-    viewport: { width: 390, height: 844 },
-    hasTouch: true,
-  });
-"""
-          new_use = """  test.use({
-    viewport: { width: 390, height: 844 },
-  });
-"""
+          old_use = "  test.use({\n    viewport: { width: 390, height: 844 },\n    hasTouch: true,\n  });\n"
+          new_use = "  test.use({\n    viewport: { width: 390, height: 844 },\n  });\n"
           if old_use not in test_source:
               raise RuntimeError('混合输入测试缺少旧触控上下文')
           test_source = test_source.replace(old_use, new_use, 1)
-          old_mouse_assert = """    const mouseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
-    expect(mouseBackground).not.toBe(baseBackground);
-
-    await trigger.tap();
-"""
-          new_mouse_assert = """    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))
-      .not.toBe(baseBackground);
-
-    await trigger.evaluate((element) => {
-      element.dispatchEvent(new PointerEvent('pointerdown', {
-        bubbles: true,
-        isPrimary: true,
-        pointerType: 'touch',
-      }));
-      element.dispatchEvent(new PointerEvent('pointerup', {
-        bubbles: true,
-        isPrimary: true,
-        pointerType: 'touch',
-      }));
-      (element as HTMLButtonElement).click();
-    });
-"""
+          old_mouse_assert = "    const mouseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);\n    expect(mouseBackground).not.toBe(baseBackground);\n\n    await trigger.tap();\n"
+          new_mouse_assert = "    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))\n      .not.toBe(baseBackground);\n\n    await trigger.evaluate((element) => {\n      element.dispatchEvent(new PointerEvent('pointerdown', {\n        bubbles: true,\n        isPrimary: true,\n        pointerType: 'touch',\n      }));\n      element.dispatchEvent(new PointerEvent('pointerup', {\n        bubbles: true,\n        isPrimary: true,\n        pointerType: 'touch',\n      }));\n      (element as HTMLButtonElement).click();\n    });\n"
           if old_mouse_assert not in test_source:
               raise RuntimeError('混合输入测试缺少旧 hover/tap 断言')
           test_source = test_source.replace(old_mouse_assert, new_mouse_assert, 1)
-          old_touch_assert = """    const touchBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
-    expect(touchBackground).toBe(baseBackground);
-"""
-          new_touch_assert = """    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))
-      .toBe(baseBackground);
-"""
+          old_touch_assert = "    const touchBackground = await trigger.evaluate((element) => getComputedStyle(element).background);\n    expect(touchBackground).toBe(baseBackground);\n"
+          new_touch_assert = "    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))\n      .toBe(baseBackground);\n"
           if old_touch_assert not in test_source:
               raise RuntimeError('混合输入测试缺少旧触控背景断言')
           test_path.write_text(test_source.replace(old_touch_assert, new_touch_assert, 1))
