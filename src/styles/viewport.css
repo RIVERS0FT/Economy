@@ -35,6 +35,11 @@ html[data-app-surface="admin"] #root {
   overflow: hidden;
 }
 
+html[data-app-surface="game"],
+html[data-app-surface="admin"] {
+  overscroll-behavior-y: none;
+}
+
 html[data-app-surface="game"] body,
 html[data-app-surface="admin"] body {
   overscroll-behavior: none;
