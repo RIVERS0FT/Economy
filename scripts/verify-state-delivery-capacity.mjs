@@ -104,6 +104,7 @@ requireText('server/src/state-partitions.js', [
   "'player'",
   "'market'",
   "'auction'",
+  "'contract'",
   "'leaderboard'",
   "createHash('sha256')",
   'createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now())',
@@ -131,10 +132,12 @@ requireText('server/src/index.js', ["import './app.js'"]);
 requireText('src/app/stateDelivery.d.ts', [
   'serverNow: number;',
   'StateDeliveryEnvelope',
+  "'contract'",
 ]);
 
 requireText('src/app/stateDelivery.js', [
   'STATE_PARTITION_NAMES',
+  "'contract'",
   'validPartitionSnapshot',
   'mergeStatePatches',
   'partitions[name] = { ...patch }',
@@ -227,6 +230,7 @@ const initialDelivery = deliveryCache.accept({
     player: 'player-00001',
     market: 'market-00001',
     auction: 'auction-0001',
+    contract: 'contract-0001',
     leaderboard: 'leader-00001',
   },
   patches: {
@@ -239,6 +243,7 @@ const initialDelivery = deliveryCache.accept({
     },
     market: { orders: [] },
     auction: { collectibles: [{ id: 'collectible-1' }] },
+    contract: { productionContracts: [], productionContractSummary: { active: 0 } },
     leaderboard: { leaderboard: [] },
   },
 });
@@ -251,6 +256,7 @@ const incrementalDelivery = deliveryCache.accept({
     player: 'player-00002',
     market: 'market-00001',
     auction: 'auction-0001',
+    contract: 'contract-0001',
     leaderboard: 'leader-00001',
   },
   patches: {
@@ -261,8 +267,24 @@ const incrementalDelivery = deliveryCache.accept({
     },
   },
 });
-const emptyPartitionDelivery = deliveryCache.accept({
+const contractDelivery = deliveryCache.accept({
   revision: 9,
+  unchanged: false,
+  serverNow: 11_500,
+  partitionRevisions: {
+    catalog: 'catalog-0001',
+    player: 'player-00002',
+    market: 'market-00001',
+    auction: 'auction-0001',
+    contract: 'contract-0002',
+    leaderboard: 'leader-00001',
+  },
+  patches: {
+    contract: { productionContracts: [{ id: 'contract-1' }], productionContractSummary: { active: 1 } },
+  },
+});
+const emptyPartitionDelivery = deliveryCache.accept({
+  revision: 10,
   unchanged: false,
   serverNow: 12_000,
   partitionRevisions: {
@@ -270,6 +292,7 @@ const emptyPartitionDelivery = deliveryCache.accept({
     player: 'player-00002',
     market: 'market-00001',
     auction: 'auction-0002',
+    contract: 'contract-0002',
     leaderboard: 'leader-00001',
   },
   patches: { auction: {} },
@@ -294,13 +317,17 @@ if (initialDelivery.state?.credits !== 100
   || incrementalDelivery.state?.credits !== 101
   || incrementalDelivery.state?.facilityGroups?.[0]?.count !== 12
   || incrementalDelivery.state?.facilityConstruction !== undefined
+  || contractDelivery.state?.productionContracts?.[0]?.id !== 'contract-1'
+  || contractDelivery.state?.productionContractSummary?.active !== 1
   || emptyPartitionDelivery.state?.collectibles !== undefined
+  || emptyPartitionDelivery.state?.productionContracts?.[0]?.id !== 'contract-1'
   || emptyPartitionDelivery.state?.orders?.length !== 0
   || staleDelivery.state?.credits !== 101
   || staleDelivery.state?.facilityGroups?.[0]?.count !== 12
   || staleDelivery.state?.facilityConstruction !== undefined
   || deliveryCache.getPartitionRevisions().player !== 'player-00002'
-  || deliveryCache.getPartitionRevisions().auction !== 'auction-0002') {
+  || deliveryCache.getPartitionRevisions().auction !== 'auction-0002'
+  || deliveryCache.getPartitionRevisions().contract !== 'contract-0002') {
   failures.push('客户端必须整块替换变化分区、删除服务器已省略字段、保留未变化分区，并拒绝旧全局修订号覆盖当前状态');
 }
 
@@ -347,4 +374,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('状态交付容量验证通过：世界缓存、单一全局调度、五分区增量交付与完整快照替换、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
+console.log('状态交付容量验证通过：世界缓存、单一全局调度、六分区增量交付与完整快照替换、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。');
