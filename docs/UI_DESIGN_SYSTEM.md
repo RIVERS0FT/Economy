@@ -24,6 +24,7 @@
 | 文件 | 唯一职责 |
 |---|---|
 | `src/styles/design-system.css` | 设计令牌、页面一级内容栈、按钮、面板、状态、表格、开关和通用焦点视觉 |
+| `src/styles/interaction-states.css` | 最近输入方式驱动的共享 hover、active、程序化焦点与键盘焦点视觉 |
 | `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |
 | `src/styles/form-controls.css` | 输入、选择器、文本域、文件控件、自动填充、错误／只读／禁用状态和移动尺寸的最终视觉权威 |
 | `src/styles/globals.css` | 通用业务布局 |
@@ -46,7 +47,7 @@
 | `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
 | `src/styles/mobile-*.css` | 移动导航、安全区和页面布局 |
 
-业务页面样式先加载，`design-system.css` 在页面样式之后收束页面一级区块间距和共享基础视觉，`primary-surfaces.css` 随后收束玩家端一级卡片外层几何，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现页面一级区块间距、按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标或焦点的基础外观。
+业务页面样式先加载，`design-system.css` 在页面样式之后收束页面一级区块间距和共享基础视觉，`interaction-states.css` 随后根据最近输入方式收束共享交互状态，`primary-surfaces.css` 再收束玩家端一级卡片外层几何，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现页面一级区块间距、按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标、hover、active 或焦点的基础外观。
 
 ## 3. 共享 React 组件
 
@@ -99,6 +100,24 @@
 - `PagePanel` 的 `--primary-surface-inset` 只负责一级卡片边缘到内部内容的留白；页面一级区块间距、一级卡片内边距和组件内部 `--space-*` 间距是三个独立层级，不得互相替代。
 - 复杂页面允许把若干紧密关联模块放进一个页面专属网格或组合容器，再把该容器作为 `.ui-page-stack` 的一个直接子元素；不得为特殊页面增加 `disableSpacing`、零间距开关或平行页面外壳。
 - `scripts/verify-page-section-spacing.mjs` 必须扫描全部 `src/pages/*Page.tsx`、管理员入口、共享组件、最终 CSS、权威设计和浏览器回归；新增正式页面未使用 `PageLayout`、业务样式重定义 `.ui-page-stack` 或真实一级几何间距不一致时必须阻止构建。
+
+### 3.2 输入方式与共享交互状态
+
+输入方式是跨页面 UI 能力，不属于滚动条私有实现。所有 React 根入口必须导入 `src/app/interactionBootstrap.ts`，由其唯一安装 `src/utils/inputModality.ts`；最近一次有效鼠标／触控板、手指／笔或键盘输入分别把根元素 `data-input-modality` 更新为 `mouse`、`touch` 或 `keyboard`，混合输入设备必须在不刷新页面的情况下即时切换。
+
+| 能力 | 运行时权威 | 样式／组件入口 | 防回退 | 浏览器测试 |
+|---|---|---|---|---|
+| 输入方式 | `src/utils/inputModality.ts` + `src/app/interactionBootstrap.ts` | 根元素 `data-input-modality` | `scripts/verify-interaction-modality.mjs` | `tests/browser/input-modality.spec.ts` |
+| 共享交互表面 | 根输入方式 | `src/styles/interaction-states.css` + `data-ui-interactive="surface"` | `scripts/verify-interaction-modality.mjs` | 工厂详情与混合输入测试 |
+| 覆盖式滚动条 | `src/hooks/useOverlayScrollbar.ts` | `ScrollArea` + `src/styles/scrollbars.css` | `scripts/verify-overlay-scrollbars.mjs` | `scroll-input-modality.spec.ts` |
+
+共享交互规则：
+
+- 需要自定义悬停／按压／焦点视觉的卡片按钮必须声明 `data-ui-interactive="surface"`，业务 CSS 只提供 `--ui-interactive-*` 变量，不得再次直接声明同一元素的裸 `:hover`、`:active` 或 `:focus-visible`。
+- hover 必须同时满足最近输入方式为 `mouse`、`(hover: hover)` 和 `(pointer: fine)`；触摸产生的浏览器粘滞 `:hover` 不得改变可见样式。
+- 触摸关闭 Overlay 后可以把语义焦点返回触发元素，但共享交互表面不得显示类似选中态的焦点环；输入方式为 `keyboard` 时必须显示明确的 `:focus-visible` 焦点。
+- `scripts/interaction-hover-legacy.json` 只记录迁移前已经存在的未约束 hover。`scripts/verify-interaction-modality.mjs` 禁止增加新条目；修改既有交互区域时应迁移到共享协议，而不是扩大遗留基线。
+- 新增 React 根入口时必须自动纳入静态扫描并安装交互 bootstrap；不得依赖修改者记住手动调用 `configureInputModality()`。
 
 ## 4. 开关焦点环与点击区域
 

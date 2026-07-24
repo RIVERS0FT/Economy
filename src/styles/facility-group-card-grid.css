@@ -68,6 +68,19 @@
     var(--color-text-muted) 8%,
     var(--color-surface-inset)
   );
+  --ui-interactive-hover-border-color: color-mix(
+    in srgb,
+    var(--facility-cluster-status-color) 78%,
+    var(--color-border-strong)
+  );
+  --ui-interactive-hover-background: color-mix(
+    in srgb,
+    var(--facility-cluster-status-color) 16%,
+    var(--color-surface-inset)
+  );
+  --ui-interactive-hover-transform: none;
+  --ui-interactive-hover-filter: none;
+  --ui-interactive-active-transform: scale(0.98);
 
   position: relative;
   width: 100%;
@@ -100,20 +113,6 @@
 
 .facility-cluster-selector-card[data-status='stopped'] {
   --facility-cluster-status-color: var(--color-text-muted);
-}
-
-.facility-cluster-selector-card:hover {
-  border-color: color-mix(in srgb, var(--facility-cluster-status-color) 78%, var(--color-border-strong));
-  background: color-mix(in srgb, var(--facility-cluster-status-color) 16%, var(--color-surface-inset));
-}
-
-.facility-cluster-selector-card:active {
-  transform: scale(0.98);
-}
-
-.facility-cluster-selector-card:focus-visible {
-  outline: 2px solid var(--color-focus-ring, var(--color-info));
-  outline-offset: 2px;
 }
 
 .facility-cluster-name {

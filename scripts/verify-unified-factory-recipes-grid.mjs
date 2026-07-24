@@ -49,6 +49,7 @@ for (const text of [
   'group && group.count > 0',
   '?? orderedFacilityGroups[0]',
   'className="facility-cluster-selector-card"',
+  'data-ui-interactive="surface"',
   'data-status={group.status}',
   'aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}',
   'className="facility-cluster-name"',
@@ -142,6 +143,9 @@ for (const text of [
   'hasTouch: true',
   'for (let iteration = 0; iteration < 3; iteration += 1)',
   'page.touchscreen.tap',
+  'Input.dispatchTouchEvent',
+  'data-input-modality',
+  'outlineStyle',
   'await expect(trigger).toBeFocused()',
 ])
   assert.equal(facilitySheetBrowserTest.includes(text), true, `移动工厂详情浏览器回归缺少: ${text}`);
@@ -208,6 +212,9 @@ for (const text of [
 ])
   assert.equal(css.includes(text), true, `生产主从与悬浮框基础样式缺少: ${text}`);
 for (const forbidden of [
+  '.facility-cluster-selector-card:hover',
+  '.facility-cluster-selector-card:active',
+  '.facility-cluster-selector-card:focus-visible',
   '.facility-group-card-shell',
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
   '--facility-card-height',

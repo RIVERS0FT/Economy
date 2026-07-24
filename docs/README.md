@@ -77,3 +77,4 @@
 42. 长期生产合作合同的页面职责归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，工厂集群边界和生产先于合同交付归 `INDUSTRY_AND_PRODUCTION_DESIGN.md`，接口、事务、调度和 `contract` 分区归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`。合同只允许商品与普通货币，不允许其他资产类型、工厂转移、工厂出租、自由文本或对方配方控制；必须通过 `server/test/contracts.test.js` 和页面／状态容量验证防回退。
 43. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；统一读取 `serverNow` 校准的共享单调服务器时钟，状态转换到期后由权威刷新继续确认。每个返回分区内部都是完整快照，必须整块替换同名分区。该规则由 `AUTHORITATIVE_COUNTDOWN_DESIGN.md` 与 `scripts/verify-authoritative-countdowns.mjs` 防回退。
 44. 管理员玩家运营统计、成功经济写操作活跃口径、精确日活动覆盖起点、D1／D7／D30 留存、成长漏斗、经营参与、真实成交估值财富分布、关注群体、独立 SQLite 分析表和聚合隐私边界属于管理员与服务器共同规则；不得把统计结果用于扩张人口需求预算，必须同步更新 `GIFT_CODE_AND_ADMIN_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、服务器测试和 `scripts/verify-admin-player-statistics.mjs`。
+45. 输入方式、共享交互表面、混合输入运行时切换、React 根入口 bootstrap、触摸无粘滞 hover、程序化焦点与键盘焦点视觉属于 `UI_DESIGN_SYSTEM.md`；必须通过 `scripts/verify-interaction-modality.mjs` 和混合输入浏览器测试防回退，业务 CSS 不得增加未受约束的 hover。
