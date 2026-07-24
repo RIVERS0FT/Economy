@@ -1,0 +1,60 @@
+name: Verify admin player statistics deployment
+
+on:
+  push:
+    branches:
+      - agent/verify-admin-player-statistics-deploy
+    paths:
+      - .verify-admin-player-statistics-deploy
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verification branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/verify-admin-player-statistics-deploy
+          fetch-depth: 0
+          show-progress: false
+
+      - name: Probe production deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          health_json="$(curl --fail --silent --show-error --retry 6 --retry-delay 5 --retry-all-errors https://game.riversoft.top/economy-api/health)"
+          index_html="$(curl --fail --silent --show-error --retry 6 --retry-delay 5 --retry-all-errors https://game.riversoft.top/economy/)"
+          admin_status="$(curl --silent --show-error --output /tmp/admin.html --write-out '%{http_code}' --retry 6 --retry-delay 5 --retry-all-errors https://game.riversoft.top/economy/admin)"
+          test "$admin_status" = "200"
+
+          asset_path="$(printf '%s' "$index_html" | grep -oE '/economy/assets/index-[^" ]+\.js' | head -n 1)"
+          test -n "$asset_path"
+          curl --fail --silent --show-error --retry 6 --retry-delay 5 --retry-all-errors "https://game.riversoft.top${asset_path}" --output /tmp/economy-app.js
+          grep -q '玩家运营分析' /tmp/economy-app.js
+          grep -q 'player-statistics' /tmp/economy-app.js
+          grep -q '24 小时经济活跃' /tmp/economy-app.js
+
+          {
+            printf 'merge_commit=%s\n' '698431ce0b3c02a9b8bb38411d2e37135170ac4c'
+            printf 'verified_at=%s\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            printf 'health=%s\n' "$health_json"
+            printf 'admin_http_status=%s\n' "$admin_status"
+            printf 'bundle=%s\n' "$asset_path"
+            printf 'contains_player_statistics=true\n'
+            printf 'contains_activity_copy=true\n'
+          } > deployment-verification.log
+
+          rm -f .verify-admin-player-statistics-deploy
+          rm -f .github/workflows/verify-admin-player-statistics-deploy.yml
+
+      - name: Commit verification evidence
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "记录管理员玩家统计生产部署验证"
+          git push origin HEAD:agent/verify-admin-player-statistics-deploy
