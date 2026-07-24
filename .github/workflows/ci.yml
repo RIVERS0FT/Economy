@@ -42,17 +42,20 @@ jobs:
           {
             python3 - <<'PYTHON'
           from pathlib import Path
-          import textwrap
 
           workflow = Path('.github/workflows/apply-interaction-modality.yml').read_text()
           marker = "python3 - <<'PYTHON'\n"
           if marker not in workflow:
               raise RuntimeError('未找到补丁脚本起点')
-          script = workflow.split(marker, 1)[1]
+          raw_script = workflow.split(marker, 1)[1]
           end_marker = '\n          PYTHON\n'
-          if end_marker not in script:
+          if end_marker not in raw_script:
               raise RuntimeError('未找到补丁脚本终点')
-          script = textwrap.dedent(script.split(end_marker, 1)[0])
+          raw_script = raw_script.split(end_marker, 1)[0]
+          script = '\n'.join(
+              line[10:] if line.startswith('          ') else line
+              for line in raw_script.splitlines()
+          ) + '\n'
           Path('/tmp/apply-interaction-modality.py').write_text(script)
           PYTHON
             python3 /tmp/apply-interaction-modality.py
@@ -68,8 +71,10 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add .agent/apply-interaction-modality.log
-          git commit -m '记录交互协议应用失败'
-          git push origin HEAD:agent/global-interaction-modality
+          if ! git diff --cached --quiet; then
+            git commit -m '记录交互协议应用失败'
+            git push origin HEAD:agent/global-interaction-modality
+          fi
 
       - name: Generate hover baseline
         run: node scripts/verify-interaction-modality.mjs --write-baseline
