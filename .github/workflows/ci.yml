@@ -1,44 +1,57 @@
-name: Economy Deployment Documentation Fix
+name: Economy CI
 
 on:
   pull_request:
-    branches:
-      - main
+  workflow_dispatch:
+
+concurrency:
+  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
-    if: github.head_ref == 'agent/production-contracts'
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Checkout contract branch
+      - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          ref: agent/production-contracts
-          fetch-depth: 0
+          node-version: 24.4.0
+          cache: npm
 
-      - name: Restore systemd service constant
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
 
-          path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
-          text = path.read_text(encoding='utf-8')
-          marker = '- systemd 首选可执行文件：`/var/www/game/economy-api/runtime/bin/node`。'
-          addition = marker + '\n- systemd 服务单元固定为 `riversoft-economy-api.service`。'
-          if 'riversoft-economy-api.service' not in text:
-              if marker not in text:
-                  raise SystemExit('missing systemd executable anchor')
-              text = text.replace(marker, addition, 1)
-              path.write_text(text, encoding='utf-8')
-          PY
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Commit documentation fix
+      - name: Test browser runtime
+        shell: bash
         run: |
-          git config user.name "OpenAI Agent"
-          git config user.email "openai-agent@users.noreply.github.com"
-          git add docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
-          git commit -m "restore deployment service constant"
-          git push origin HEAD:agent/production-contracts
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-test-artifacts
+          path: |
+            build-test.log
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
