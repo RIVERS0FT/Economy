@@ -53,14 +53,25 @@ jobs:
           writeFileSync(path, original.replace(marker, replacement));
           NODE
           rm .agent/page-spacing.part-*
-          rm -f .agent/page-spacing-apply-error.log
+          rm -f .agent/page-spacing-apply-error.log .agent/page-spacing-build-error.log
           rm .github/workflows/apply-page-section-spacing.yml
 
       - name: Install dependencies
         run: npm ci
 
       - name: Run full build validation
-        run: npm run build
+        run: |
+          if ! npm run build > /tmp/page-spacing-build.log 2>&1; then
+            cp /tmp/page-spacing-build.log .agent/page-spacing-build-error.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .agent/page-spacing-build-error.log
+            git commit -m "记录页面间距构建错误"
+            git push origin HEAD:agent/unify-page-section-spacing
+            tail -n 200 /tmp/page-spacing-build.log
+            exit 1
+          fi
+          cat /tmp/page-spacing-build.log
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
