@@ -27,15 +27,16 @@ jobs:
         run: |
           set -euo pipefail
           manifest='.agent/remove-collectibles.patch.sha256'
-          payload='.agent/remove-collectibles.patch.b64'
-          if [ ! -f "$manifest" ] || [ ! -f "$payload" ]; then
+          mapfile -t parts < <(find .agent -maxdepth 1 -type f -name 'remove-collectibles.patch.b64.part-*' -print 2>/dev/null | sort)
+          if [ ! -f "$manifest" ] || [ "${#parts[@]}" -eq 0 ]; then
             echo PATCH_PAYLOAD_NOT_READY
             exit 0
           fi
 
           expected="$(tr -d '[:space:]' < "$manifest")"
-          base64 --decode "$payload" > /tmp/remove-collectibles.patch.gz
+          cat "${parts[@]}" | base64 --decode > /tmp/remove-collectibles.patch.gz
           actual="$(sha256sum /tmp/remove-collectibles.patch.gz | awk '{print $1}')"
+          echo "patch_parts=${#parts[@]}"
           echo "expected_sha256=$expected"
           echo "actual_sha256=$actual"
           test "$actual" = "$expected"
