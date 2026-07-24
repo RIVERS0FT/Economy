@@ -64,6 +64,61 @@ async function configureAdminRoutes(page: Page) {
       } });
       return;
     }
+    if (path === '/player-statistics') {
+      const generatedAt = Date.UTC(2026, 6, 19, 10);
+      await json(route, { playerStatistics: {
+        generatedAt,
+        coverageStartsAt: Date.UTC(2026, 6, 18, 4),
+        revision: 120,
+        range: { key: '30d', days: 30, startsAt: Date.UTC(2026, 5, 20, 16), endsAt: generatedAt, timeZone: 'Asia/Shanghai', completeHistory: false },
+        snapshot: { totalPlayers: 10, newToday: 2, active24h: 4, active7d: 7, active30d: 9, activeRate7dBps: 7_000, registeredInRange: 6, activatedInRange: 5, activationRateBps: 8_333, dormant30d: 1 },
+        acquisition: { total: 6, direct: 3, shareLink: 2, manualCode: 1, blocked: 0 },
+        activity: { activePlayersInRange: 9, averageDailyActive: 5, peakDailyActive: 8, peakDay: '2026-07-18', productionParticipantsInRange: 6, tradeParticipantsInRange: 4 },
+        retention: {
+          d1: { eligible: 5, retained: 4, rateBps: 8_000 },
+          d7: { eligible: 3, retained: 2, rateBps: 6_667 },
+          d30: { eligible: 0, retained: 0, rateBps: 0 },
+        },
+        funnel: {
+          stages: [
+            { id: 'registered', label: '完成建档', count: 10, medianHours: 0, conversionBps: 10_000 },
+            { id: 'activated', label: '首次经济操作', count: 8, medianHours: 0.4, conversionBps: 8_000 },
+            { id: 'facility', label: '第一座工厂', count: 6, medianHours: 3.2, conversionBps: 7_500 },
+            { id: 'production', label: '首次生产', count: 5, medianHours: 4.1, conversionBps: 8_333 },
+            { id: 'trade', label: '首次订单簿成交', count: 4, medianHours: 8.5, conversionBps: 8_000 },
+          ],
+          retained7d: { eligible: 3, retained: 2, rateBps: 6_667 },
+        },
+        participation: {
+          active7d: 7,
+          rows: [
+            { id: 'has-facility', label: '持有工厂', count: 6, shareBps: 6_000 },
+            { id: 'current-trade', label: '本周有订单簿成交', count: 4, shareBps: 4_000 },
+          ],
+        },
+        wealth: {
+          total: 80_000, average: 8_000, median: 5_000, p25: 2_000, p75: 9_000, p90: 18_000, p99: 28_000,
+          top1ShareBps: 3_500, top10ShareBps: 3_500, frozenShareBps: 1_200, unpricedAssetPlayers: 1,
+          composition: { cash: 40_000, commodities: 25_000, facilities: 15_000, frozen: 9_600, total: 80_000 },
+          brackets: [
+            { id: '0-499', label: '0～499', count: 1 },
+            { id: '500-1999', label: '500～1,999', count: 2 },
+            { id: '2000-9999', label: '2,000～9,999', count: 4 },
+            { id: '10000-49999', label: '10,000～49,999', count: 3 },
+            { id: '50000+', label: '50,000 以上', count: 0 },
+          ],
+        },
+        attention: [
+          { id: 'unactivated-new', label: '注册超过 24 小时仍未激活', count: 1, tone: 'warning' },
+          { id: 'production-blocked', label: '全部开启工厂均受阻', count: 0, tone: 'danger' },
+        ],
+        series: [
+          { day: '2026-07-18', startsAt: Date.UTC(2026, 6, 17, 16), covered: true, partialCoverage: false, newPlayers: 1, activePlayers: 8, firstActivities: 1, productionParticipants: 5, tradeParticipants: 3 },
+          { day: '2026-07-19', startsAt: Date.UTC(2026, 6, 18, 16), covered: true, partialCoverage: true, newPlayers: 2, activePlayers: 4, firstActivities: 2, productionParticipants: 2, tradeParticipants: 1 },
+        ],
+      } });
+      return;
+    }
     if (path === '/community-link') {
       await json(route, { communityLink: { qqGroupUrl: 'https://qm.qq.com/q/admin-test', updatedAt: Date.now() } });
       return;
@@ -131,7 +186,14 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await expect(page.getByRole('heading', { name: '世界概况', exact: true })).toBeVisible();
   await expect(page.locator('.admin-command-bar')).toBeVisible();
   await expect(page.locator('.admin-command-bar .liquid-glass-surface--desktopStatusBar')).toHaveCount(1);
-  await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(8);
+  await expect(page.locator('.admin-summary-grid .ui-metric-card')).toHaveCount(6);
+  await expect(page.getByRole('heading', { name: '玩家运营分析', exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: '玩家统计时间范围' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '30 日', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('24 小时经济活跃', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '新增与经济活跃趋势', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '财富分布', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '需要关注的玩家群体', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '人口经济', exact: true })).toBeVisible();
   await expect(page.getByRole('table', { name: '人口需求比较矩阵' })).toBeVisible();
   await expect(page.getByText('当前钱包总缺口', { exact: true })).toBeVisible();

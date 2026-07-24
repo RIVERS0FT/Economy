@@ -13,6 +13,7 @@ import {
   processProductionContracts,
 } from './contracts.js';
 import { ensureGemState } from './invitations.js';
+import { configurePlayerAdminStatistics } from './player-admin-statistics.js';
 import { ensureWarehouse } from './warehouse.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -45,6 +46,11 @@ function createActionAcknowledgement(result, revision) {
 // Runtime policy mutations intentionally bypass the legacy population-policy audit table.
 // The table remains readable only for backward-compatible retention of historical rows.
 export class EconomyStore extends PersistentEconomyStore {
+  constructor(...args) {
+    super(...args);
+    configurePlayerAdminStatistics(this);
+  }
+
   prepareWorldForStorage(world, now) {
     const prepared = super.prepareWorldForStorage(world, now);
     migrateProductionContractWorld(prepared);
