@@ -32,7 +32,9 @@ export function PageLayout({
         </div>
         {actions ? <div className="page-heading-actions">{actions}</div> : null}
       </div>
-      {children}
+      <div className="ui-page-stack">
+        {children}
+      </div>
     </section>
   );
 }

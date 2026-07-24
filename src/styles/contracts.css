@@ -6,7 +6,6 @@
 
 .contract-tabs {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin-bottom: 0;
   overflow-x: auto;
   scrollbar-width: none;
 }

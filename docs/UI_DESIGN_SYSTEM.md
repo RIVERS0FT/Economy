@@ -3,7 +3,7 @@
 > 状态：当前视觉、共享组件、响应式与可访问性实现基线
 > 适用项目：`RIVERS0FT/Economy`
 > 当前平台：网页端
-> 更新时间：2026-07-22
+> 更新时间：2026-07-24
 
 产品和页面职责分别以 `PRODUCT_AND_GAMEPLAY_DESIGN.md`、`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准；应用外壳几何和玻璃材质以 `LIQUID_GLASS_CHROME_DESIGN.md` 为准。
 
@@ -23,7 +23,7 @@
 
 | 文件 | 唯一职责 |
 |---|---|
-| `src/styles/design-system.css` | 设计令牌、按钮、面板、状态、表格、开关和通用焦点视觉 |
+| `src/styles/design-system.css` | 设计令牌、页面一级内容栈、按钮、面板、状态、表格、开关和通用焦点视觉 |
 | `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |
 | `src/styles/form-controls.css` | 输入、选择器、文本域、文件控件、自动填充、错误／只读／禁用状态和移动尺寸的最终视觉权威 |
 | `src/styles/globals.css` | 通用业务布局 |
@@ -46,7 +46,7 @@
 | `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
 | `src/styles/mobile-*.css` | 移动导航、安全区和页面布局 |
 
-业务页面样式先加载，`design-system.css` 在页面样式之后收束共享基础视觉，`primary-surfaces.css` 随后收束玩家端一级卡片外层几何，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标或焦点的基础外观。
+业务页面样式先加载，`design-system.css` 在页面样式之后收束页面一级区块间距和共享基础视觉，`primary-surfaces.css` 随后收束玩家端一级卡片外层几何，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现页面一级区块间距、按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标或焦点的基础外观。
 
 ## 3. 共享 React 组件
 
@@ -90,6 +90,15 @@
 `CurrencyAmount` 是玩家端和管理员端可见货币金额的唯一组合组件，固定复用 `GameIcons.tsx` 的 `CreditsIcon`。`CurrencyText` 只用于把服务器或旧数据返回字符串中的遗留货币字符转换为同一 SVG，不得用运行时 DOM 扫描替代组件渲染。
 
 页面标题从 `h1` 开始，卡片标题从 `h2` 开始。`PageLayout` 和 `WidgetHeading` 不提供 `eyebrow` 参数。
+
+### 3.1 `PageLayout` 与页面一级区块间距
+
+- 玩家九个正式页面和管理员分区必须使用共享 `PageLayout`；`PageLayout` 必须在标题之后自动生成唯一 `.ui-page-stack`，业务页面不得直接创建 `.page-content`、复制页面外壳或手动插入第二个 `.ui-page-stack`。
+- `.ui-page-stack` 是页面标题下一级内容的唯一纵向容器，在自身上下文把 `--page-section-gap` 映射为当前 `var(--layout-gutter)`。因此普通桌面、紧凑桌面和移动工作区继续分别跟随外壳沟槽，不维护页面专属固定像素。
+- 页面摘要、一级面板、标签栏、主要列表或主要工作区必须作为 `.ui-page-stack` 的直接子元素；相邻可见一级区块只由 `gap: var(--page-section-gap)` 分隔。共享最终样式必须清除直接子元素的 `margin-block`，业务 CSS 不得用 `margin-top`、`margin-bottom`、相邻选择器或更高优先级规则重新制造一级外部间距。
+- `PagePanel` 的 `--primary-surface-inset` 只负责一级卡片边缘到内部内容的留白；页面一级区块间距、一级卡片内边距和组件内部 `--space-*` 间距是三个独立层级，不得互相替代。
+- 复杂页面允许把若干紧密关联模块放进一个页面专属网格或组合容器，再把该容器作为 `.ui-page-stack` 的一个直接子元素；不得为特殊页面增加 `disableSpacing`、零间距开关或平行页面外壳。
+- `scripts/verify-page-section-spacing.mjs` 必须扫描全部 `src/pages/*Page.tsx`、管理员入口、共享组件、最终 CSS、权威设计和浏览器回归；新增正式页面未使用 `PageLayout`、业务样式重定义 `.ui-page-stack` 或真实一级几何间距不一致时必须阻止构建。
 
 ## 4. 开关焦点环与点击区域
 

@@ -295,6 +295,20 @@ label {
   font-size: var(--font-size-page);
 }
 
+.ui-page-stack {
+  --page-section-gap: var(--layout-gutter);
+
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--page-section-gap);
+}
+
+.page-content > .ui-page-stack > * {
+  min-width: 0;
+  margin-block: 0 !important;
+}
+
 .widget h2,
 .widget-heading h2 {
   font-size: var(--font-size-xl);
