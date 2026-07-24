@@ -16,6 +16,7 @@ for (const path of [
   'tests/browser/runtime-harness.tsx',
   'tests/browser/runtime.spec.ts',
   'src/app/AppErrorBoundary.tsx',
+  'src/components/AdminGiftCodesSection.tsx',
   'server/src/admin-summary.js',
   'server/src/verification-retention.js',
   'server/test/admin-pagination.test.js',
@@ -48,7 +49,7 @@ for (const text of ['function readStorageItem', 'window.localStorage.getItem', '
 for (const text of ['MAX_BUCKETS = 10_000', 'sweepExpiredBuckets', 'rateLimitBucketCount']) requireText('server/src/rateLimit.js', text);
 for (const text of ['getStableAdminSummary', 'cleanupEmailVerificationRecords', 'listGiftCodePage', 'listGiftRedemptionPage']) requireText('server/src/app.js', text);
 for (const text of ['DEFAULT_ADMIN_PAGE_SIZE = 100', 'MAX_ADMIN_PAGE_SIZE = 200', 'nextCursor']) requireText('server/src/gift-code-batch.js', text);
-for (const text of ['加载更多礼品码', '加载更多兑换记录', 'giftCodeTotal', 'redemptionTotal']) requireText('src/app/AdminApp.tsx', text);
+for (const text of ['加载更多礼品码', '加载更多兑换记录', 'giftCodeTotal', 'redemptionTotal']) requireText('src/components/AdminGiftCodesSection.tsx', text);
 for (const text of ['noticeTimerRef', 'window.clearTimeout']) requireText('src/app/gameViewModel.ts', text);
 requireText('src/app/GameApp.tsx', 'setCompactNumbersEnabled(compactNumbers);');
 requireText('src/main.tsx', '<AppErrorBoundary>');
