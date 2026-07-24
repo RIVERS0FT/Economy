@@ -22,53 +22,84 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          show-progress: false
 
       - name: Verify payload SHA-256 and gzip
+        id: verify_payload
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           python - <<'PY'
           from base64 import b64decode
           from gzip import decompress
           from hashlib import sha256
           from pathlib import Path
+          import traceback
 
-          part_hashes = {
-              '00': '8f34d4a9827bc7e15b28c0a2a2e53eff3ccda4166bb9e48b22e6b71cd108e9ef',
-              '01': 'e9d538d678250188e77cee863861d2b9447dad813bc2d2f69609c8f309e45fe8',
-              '02': '813d90b5e94ef9316a5846c15977e246f970c091146bf5959ad2d584659c1146',
-              '03': '9946c4e9a8917998f9765fd13defa44d3676adfa6d71d6b1123469ead5ad9513',
-              '04': '5c3e75ab80fd954a2055cf68ee3f19f28a6039ca0017feb441e7a5d68d7704dd',
-              '05': '54f5de9145ae6a2bf49046e5a43825abdf1e5c18a1c62e1944a476a791e96bef',
-              '06': '7bb438f5e884240b0b739ece385d110eb641e777662d8c031698832b991eeb04',
-              '07': 'bf59fb0e25d8e06db52ec2d727e89224e8525b14cb4fa261734779959b6a5357',
-              '08': '9632a107c3a3bc6f375cfcc84dec86825f2a4a23bccb9dd0816324e8b82cac23',
-          }
-          encoded_parts = []
-          for suffix, expected in part_hashes.items():
-              path = Path(f'.agent/remove-collectibles.patch.b64.part-{suffix}')
-              data = path.read_bytes()
-              actual = sha256(data).hexdigest()
-              print(f'{path}: bytes={len(data)} sha256={actual}')
-              if actual != expected:
-                  raise SystemExit(f'part hash mismatch: {path}')
-              encoded_parts.append(data)
+          diagnostic = Path('/tmp/remove-collectibles-diagnostics.txt')
+          lines = []
+          def record(message):
+              text = str(message)
+              lines.append(text)
+              print(text)
 
-          encoded = b''.join(encoded_parts)
-          compressed = b64decode(encoded, validate=True)
-          actual_payload = sha256(compressed).hexdigest()
-          expected_payload = Path('.agent/remove-collectibles.patch.sha256').read_text(encoding='utf-8').strip()
-          print(f'payload_bytes={len(compressed)}')
-          print(f'expected_sha256={expected_payload}')
-          print(f'actual_sha256={actual_payload}')
-          if actual_payload != expected_payload:
-              raise SystemExit('payload hash mismatch')
+          try:
+              part_hashes = {
+                  '00': '8f34d4a9827bc7e15b28c0a2a2e53eff3ccda4166bb9e48b22e6b71cd108e9ef',
+                  '01': 'e9d538d678250188e77cee863861d2b9447dad813bc2d2f69609c8f309e45fe8',
+                  '02': '813d90b5e94ef9316a5846c15977e246f970c091146bf5959ad2d584659c1146',
+                  '03': '9946c4e9a8917998f9765fd13defa44d3676adfa6d71d6b1123469ead5ad9513',
+                  '04': '5c3e75ab80fd954a2055cf68ee3f19f28a6039ca0017feb441e7a5d68d7704dd',
+                  '05': '54f5de9145ae6a2bf49046e5a43825abdf1e5c18a1c62e1944a476a791e96bef',
+                  '06': '7bb438f5e884240b0b739ece385d110eb641e777662d8c031698832b991eeb04',
+                  '07': 'bf59fb0e25d8e06db52ec2d727e89224e8525b14cb4fa261734779959b6a5357',
+                  '08': '9632a107c3a3bc6f375cfcc84dec86825f2a4a23bccb9dd0816324e8b82cac23',
+              }
+              encoded_parts = []
+              for suffix, expected in part_hashes.items():
+                  path = Path(f'.agent/remove-collectibles.patch.b64.part-{suffix}')
+                  data = path.read_bytes()
+                  actual = sha256(data).hexdigest()
+                  record(f'{path}: bytes={len(data)} expected={expected} actual={actual} tail={data[-16:]!r}')
+                  if actual != expected:
+                      raise RuntimeError(f'part hash mismatch: {path}')
+                  encoded_parts.append(data)
 
-          patch = decompress(compressed)
-          Path('/tmp/remove-collectibles.patch.gz').write_bytes(compressed)
-          Path('/tmp/remove-collectibles.patch').write_bytes(patch)
-          print(f'patch_bytes={len(patch)}')
+              encoded = b''.join(encoded_parts)
+              record(f'encoded_bytes={len(encoded)} whitespace={sum(chr(byte).isspace() for byte in encoded)}')
+              compressed = b64decode(encoded, validate=False)
+              actual_payload = sha256(compressed).hexdigest()
+              expected_payload = Path('.agent/remove-collectibles.patch.sha256').read_text(encoding='utf-8').strip()
+              record(f'payload_bytes={len(compressed)}')
+              record(f'expected_sha256={expected_payload}')
+              record(f'actual_sha256={actual_payload}')
+              if actual_payload != expected_payload:
+                  raise RuntimeError('payload hash mismatch')
+
+              patch = decompress(compressed)
+              Path('/tmp/remove-collectibles.patch.gz').write_bytes(compressed)
+              Path('/tmp/remove-collectibles.patch').write_bytes(patch)
+              record(f'patch_bytes={len(patch)} patch_sha256={sha256(patch).hexdigest()}')
+          except Exception:
+              lines.append(traceback.format_exc())
+              diagnostic.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+              raise
+          else:
+              diagnostic.write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
+
+      - name: Upload payload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remove-collectibles-diagnostics
+          path: /tmp/remove-collectibles-diagnostics.txt
+          retention-days: 1
+
+      - name: Stop after failed payload verification
+        if: steps.verify_payload.outcome != 'success'
+        run: exit 1
 
       - name: Preflight source patch
         run: git apply --check --verbose /tmp/remove-collectibles.patch
