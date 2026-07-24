@@ -304,6 +304,12 @@ export interface EconomyStats {
   warehousePayroll: number;
   marketServiceFees: number;
   invitationGemsIssued: number;
+  contractDeliveriesCompleted?: number;
+  contractGoodsSupplied?: number;
+  contractGoodsPurchased?: number;
+  contractCreditsPaid?: number;
+  contractCreditsReceived?: number;
+  contractDefaults?: number;
 }
 
 export interface AssetSummary {
@@ -333,7 +339,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 16;
+  version: 17;
   userId: number;
   playerName: string;
   registeredAt: number;
