@@ -1,4 +1,4 @@
-import { getCollectibleState } from '../collectibles/types';
+import { getAuctionState } from '../auctions/types';
 import { leaderboardsFromGame } from '../leaderboardTypes';
 import type { EconomyState } from '../types';
 
@@ -22,7 +22,7 @@ export function authoritativeCountdownDeadlines(game: EconomyState): number[] {
     addDeadline(deadlines, Number(group.cycleStartedAt) + recipe.cycleMs);
   }
 
-  for (const auction of getCollectibleState(game).assetAuctions) {
+  for (const auction of getAuctionState(game).assetAuctions) {
     if (auction.status === 'open') addDeadline(deadlines, auction.endsAt);
   }
 

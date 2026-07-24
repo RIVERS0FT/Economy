@@ -22,9 +22,7 @@ function sampleState(overrides = {}) {
     orders: [],
     facilityListings: [],
     valuationPrices: {},
-    collectibles: [],
     assetAuctions: [],
-    collectibleAuctions: [],
     leaderboard: [{ rank: 1, playerName: 'Alice' }],
     ...overrides,
   };

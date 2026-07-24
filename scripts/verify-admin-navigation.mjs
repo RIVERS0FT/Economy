@@ -42,6 +42,17 @@ requireText('src/components/shell/AdminSidebar.tsx', [
   'surfaceId="admin-mobile-navigation"',
   'navLabel="管理员移动导航"',
 ]);
+requireText('src/components/shell/AdminSidebar.tsx', [
+  "export type AdminSectionId = 'overview' | 'community' | 'gift-codes' | 'bans';",
+  "{ id: 'overview', label: '概况'",
+  "{ id: 'community', label: '社区'",
+  "{ id: 'gift-codes', label: '礼品码'",
+  "{ id: 'bans', label: '账号封禁'",
+]);
+forbidText('src/components/shell/AdminSidebar.tsx', [
+  'collectibles',
+  '藏品',
+]);
 forbidText('src/components/shell/AdminSidebar.tsx', [
   "import { createPortal } from 'react-dom'",
   'document.body',
@@ -118,7 +129,6 @@ requireText('src/styles/admin-navigation.css', [
   '.admin-page-frame .page-heading {',
   'display: none;',
   '@media (min-width: 1180px)',
-  '.admin-section-stack:has(.admin-collectible-upload)',
   '.admin-section-stack:has(.admin-gift-create)',
   'grid-template-columns: minmax(320px, .72fr) minmax(0, 1.68fr);',
   'top: var(--desktop-page-top-offset);',
@@ -185,8 +195,8 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '移动端复用统一 `MobileBottomNavigationFrame`',
   '不得恢复管理员独立页面滚动视口',
   '运营控制台布局方案',
-  '编辑与创建工作台位于左侧',
-  '结果列表与详情位于右侧',
+  '礼品码工作台位于左侧',
+  '记录列表与详情位于右侧',
   '`ADMIN_CONSOLE_SCHEME: command-center`',
   '封禁事件继续使用窗口化结构',
   '人口政策区域始终显示服务器当前执行的完整参数',

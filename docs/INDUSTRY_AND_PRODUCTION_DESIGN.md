@@ -3,8 +3,8 @@
 > 状态：当前商品目录、整数经济数值与生产设计基线
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-07-23
-> 客户端状态版本：16
-> 世界状态版本：14
+> 客户端状态版本：17
+> 世界状态版本：15
 > 市场需求模型版本：9
 
 市场交易以 `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` 为准；共享仓库以 `WAREHOUSE_EXPANSION_DESIGN.md` 为准；页面归属以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。

@@ -22,14 +22,7 @@ const CONTRACT_ACTIONS = new Set([
   'requestProductionContractTermination',
   'terminateProductionContractNow',
 ]);
-const AUCTION_ACTIONS = new Set([
-  'createAuction',
-  'placeAuctionBid',
-  'cancelAuction',
-  'createCollectibleAuction',
-  'placeCollectibleBid',
-  'cancelCollectibleAuction',
-]);
+const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const FACILITY_ACTIONS = new Set([
   'buildFacility',
   'startFacility',
@@ -84,16 +77,16 @@ function isOpenOrder(order) {
 }
 
 function auctionItems(auction) {
-  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
-  const assetKind = auction?.assetKind || (auction?.collectibleId ? 'collectible' : undefined);
+  if (Array.isArray(auction?.items) && auction.items.length > 0) {
+    return auction.items.filter((item) => item?.assetKind === 'commodity' || item?.assetKind === 'facility');
+  }
+  const assetKind = auction?.assetKind;
   const assetId = String(
     auction?.assetId
-    || auction?.productId
-    || auction?.facilityTypeId
-    || auction?.collectibleId
+    || (assetKind === 'commodity' ? auction?.productId : auction?.facilityTypeId)
     || '',
   );
-  return assetKind && assetId
+  return (assetKind === 'commodity' || assetKind === 'facility') && assetId
     ? [{ assetKind, assetId, quantity: Math.max(1, safeNonNegativeInteger(auction?.quantity || 1)) }]
     : [];
 }
@@ -151,7 +144,7 @@ function frozenFacilityQuantity(world, userId, facilityTypeId) {
       ? sum + safeNonNegativeInteger(order?.remaining)
       : sum
   ), 0);
-  const auctioned = (world?.collectibleAuctions || []).reduce((sum, auction) => {
+  const auctioned = (world?.assetAuctions || []).reduce((sum, auction) => {
     if (
       Number(auction?.sellerId) !== Number(userId)
       || auction?.status !== 'open'
@@ -456,7 +449,7 @@ function currentParticipation(world, players, active7dUsers) {
     if (Number.isSafeInteger(Number(contract?.supplierId))) activeContractUsers.add(Number(contract.supplierId));
   }
   const auctionUsers = new Set();
-  for (const auction of world?.collectibleAuctions || []) {
+  for (const auction of world?.assetAuctions || []) {
     if (auction?.status !== 'open') continue;
     if (Number.isSafeInteger(Number(auction?.sellerId))) auctionUsers.add(Number(auction.sellerId));
     if (Number.isSafeInteger(Number(auction?.highestBidderId))) auctionUsers.add(Number(auction.highestBidderId));

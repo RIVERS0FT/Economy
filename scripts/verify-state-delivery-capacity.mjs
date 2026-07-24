@@ -242,7 +242,7 @@ const initialDelivery = deliveryCache.accept({
       facilityConstruction: { facilityTypeId: 'farm', startedAt: 0, completesAt: 1_000 },
     },
     market: { orders: [] },
-    auction: { collectibles: [{ id: 'collectible-1' }] },
+    auction: { assetAuctions: [{ id: 'auction-1' }] },
     contract: { productionContracts: [], productionContractSummary: { active: 0 } },
     leaderboard: { leaderboard: [] },
   },
@@ -319,7 +319,7 @@ if (initialDelivery.state?.credits !== 100
   || incrementalDelivery.state?.facilityConstruction !== undefined
   || contractDelivery.state?.productionContracts?.[0]?.id !== 'contract-1'
   || contractDelivery.state?.productionContractSummary?.active !== 1
-  || emptyPartitionDelivery.state?.collectibles !== undefined
+  || emptyPartitionDelivery.state?.assetAuctions !== undefined
   || emptyPartitionDelivery.state?.productionContracts?.[0]?.id !== 'contract-1'
   || emptyPartitionDelivery.state?.orders?.length !== 0
   || staleDelivery.state?.credits !== 101

@@ -9,13 +9,11 @@ import {
 } from './facility-groups.js';
 import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 
-const AIC_API_BASE = 'https://api.artic.edu/api/v1/artworks';
-const AIC_IIIF_BASE = 'https://www.artic.edu/iiif/2';
 const MAX_BID = 1_000_000_000;
 const MAX_AUCTION_HOURS = 168;
 const MAX_AUCTION_QUANTITY = 1_000_000;
 const MAX_AUCTION_ITEMS = 20;
-const MAX_HISTORY = 5_000;
+const MAX_AUCTIONS = 2_000;
 const PRODUCTS = new Map(PRODUCT_CATALOG.map((item) => [item.id, item]));
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((item) => [item.id, item]));
 
@@ -30,23 +28,37 @@ function text(value, max, fallback = '') {
 }
 function player(world, id) { return world.players?.[String(id)] || null; }
 function playerName(world, id, fallback = '未分配') { return player(world, id)?.playerName || fallback; }
-function imageUrl(imageId, width) { return `${AIC_IIIF_BASE}/${encodeURIComponent(imageId)}/full/${width},/0/default.jpg`; }
 function inventoryFor(account, productId) {
   account.inventories ||= {};
   account.inventories[productId] ||= { available: 0, frozen: 0 };
   return account.inventories[productId];
 }
-function normalizeAuctionItem(raw) {
-  const kind = raw?.assetKind === 'commodity' || raw?.assetKind === 'facility'
-    ? raw.assetKind
-    : 'collectible';
-  const assetId = kind === 'commodity'
+
+function explicitAssetKind(raw) {
+  if (raw?.assetKind === 'commodity' || raw?.assetKind === 'facility' || raw?.assetKind === 'collectible') {
+    return raw.assetKind;
+  }
+  if (raw?.productId) return 'commodity';
+  if (raw?.facilityTypeId) return 'facility';
+  if (raw?.collectibleId) return 'collectible';
+  return null;
+}
+
+function migrationAuctionItem(raw) {
+  const assetKind = explicitAssetKind(raw);
+  if (!assetKind) return null;
+  const assetId = assetKind === 'commodity'
     ? String(raw?.assetId || raw?.productId || '')
-    : kind === 'facility'
+    : assetKind === 'facility'
       ? String(raw?.assetId || raw?.facilityTypeId || '')
       : String(raw?.assetId || raw?.collectibleId || '');
-  const quantity = kind === 'collectible' ? 1 : integer(raw?.quantity, MAX_AUCTION_QUANTITY);
-  return assetId && quantity ? { assetKind: kind, assetId, quantity } : null;
+  const quantity = assetKind === 'collectible' ? 1 : integer(raw?.quantity, MAX_AUCTION_QUANTITY);
+  return assetId && quantity ? { assetKind, assetId, quantity } : null;
+}
+
+function normalizeAuctionItem(raw) {
+  const item = migrationAuctionItem(raw);
+  return item && item.assetKind !== 'collectible' ? item : null;
 }
 
 function normalizeAuctionItems(source) {
@@ -57,7 +69,6 @@ function normalizeAuctionItems(source) {
     const item = normalizeAuctionItem(raw);
     if (!item) return null;
     const key = `${item.assetKind}:${item.assetId}`;
-    if (item.assetKind === 'collectible' && byKey.has(key)) return null;
     const existing = byKey.get(key);
     if (existing) {
       const quantity = existing.quantity + item.quantity;
@@ -71,6 +82,11 @@ function normalizeAuctionItems(source) {
   return normalized.length <= MAX_AUCTION_ITEMS ? normalized : null;
 }
 
+function migrationAuctionItems(auction) {
+  const source = Array.isArray(auction?.items) && auction.items.length > 0 ? auction.items : [auction];
+  return source.map(migrationAuctionItem).filter(Boolean);
+}
+
 function auctionItems(auction) {
   if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
   const legacy = normalizeAuctionItem(auction);
@@ -82,28 +98,22 @@ function applyAuctionAliases(auction) {
   auction.assetKind = first.assetKind;
   auction.assetId = first.assetId;
   auction.quantity = first.quantity;
-  if (first.assetKind === 'collectible') auction.collectibleId = first.assetId;
-  else delete auction.collectibleId;
   if (first.assetKind === 'commodity') auction.productId = first.assetId;
   else delete auction.productId;
   if (first.assetKind === 'facility') auction.facilityTypeId = first.assetId;
   else delete auction.facilityTypeId;
+  delete auction.collectibleId;
   return auction;
 }
 
-function openCollectibleAuction(world, collectibleId) {
-  return world.collectibleAuctions.find((auction) => (
-    auctionItems(auction).some((item) => item.assetKind === 'collectible' && item.assetId === collectibleId)
-    && auction.status === 'open'
-  ));
-}
-
-function normalizeAuction(auction, now) {
-  const legacy = normalizeAuctionItem(auction);
-  auction.items = normalizeAuctionItems(Array.isArray(auction.items) ? auction.items : legacy ? [legacy] : [])
-    || (legacy ? [legacy] : []);
-  if (auction.items.length === 0) auction.items = [{ assetKind: 'collectible', assetId: '', quantity: 1 }];
+function normalizeAuction(rawAuction, now, items = undefined) {
+  const auction = { ...rawAuction };
+  const normalizedItems = normalizeAuctionItems(items || (Array.isArray(auction.items) ? auction.items : [auction]));
+  if (!normalizedItems) return null;
+  auction.items = normalizedItems;
   applyAuctionAliases(auction);
+  auction.id = String(auction.id || '');
+  if (!auction.id) return null;
   auction.sellerId = integer(auction.sellerId) || 0;
   auction.sellerName = text(auction.sellerName, 64, `玩家 ${auction.sellerId}`);
   auction.startingBid = integer(auction.startingBid, MAX_BID) || 1;
@@ -113,72 +123,99 @@ function normalizeAuction(auction, now) {
   auction.createdAt = Number(auction.createdAt || now);
   auction.endsAt = Number(auction.endsAt || now);
   auction.bids = Array.isArray(auction.bids) ? auction.bids.slice(-100) : [];
+  auction.status = ['open', 'sold', 'ended', 'cancelled'].includes(auction.status) ? auction.status : 'cancelled';
   auction.escrowStatus = ['held', 'released', 'transferred'].includes(auction.escrowStatus)
     ? auction.escrowStatus
     : auction.status === 'open' ? 'held' : auction.status === 'sold' ? 'transferred' : 'released';
   return auction;
 }
 
-export function migrateCollectibleWorld(world, now = Date.now()) {
-  world.collectibles = Array.isArray(world.collectibles) ? world.collectibles : [];
-  world.collectibleAuctions = Array.isArray(world.collectibleAuctions) ? world.collectibleAuctions : [];
-  world.collectibleOwnershipHistory = Array.isArray(world.collectibleOwnershipHistory)
-    ? world.collectibleOwnershipHistory
-    : [];
-  for (const item of world.collectibles) {
-    item.source = 'art-institute-of-chicago';
-    item.currentOwnerId = item.currentOwnerId === null || item.currentOwnerId === undefined
-      ? null
-      : integer(item.currentOwnerId);
-    item.createdAt = Number(item.createdAt || now);
-    item.createdBy = integer(item.createdBy) || 0;
-    item.isPublicDomain = item.isPublicDomain === true;
-  }
-  world.collectibleAuctions = world.collectibleAuctions.map((auction) => normalizeAuction(auction, now)).slice(-2_000);
-  world.collectibleOwnershipHistory = world.collectibleOwnershipHistory.slice(-MAX_HISTORY);
-  return world;
-}
-
-function appendOwnership(world, collectible, fromOwnerId, toOwnerId, reason, now, details = {}) {
-  world.collectibleOwnershipHistory.push({
-    id: `collectible-owner-${randomUUID()}`,
-    collectibleId: collectible.id,
-    fromOwnerId,
-    fromOwnerName: fromOwnerId ? playerName(world, fromOwnerId, `玩家 ${fromOwnerId}`) : '',
-    toOwnerId,
-    toOwnerName: toOwnerId ? playerName(world, toOwnerId, `玩家 ${toOwnerId}`) : '',
-    reason,
-    auctionId: details.auctionId,
-    price: details.price,
-    auctionTotalPrice: details.auctionTotalPrice,
-    bundleItemCount: details.bundleItemCount,
-    createdAt: now,
-  });
-  world.collectibleOwnershipHistory = world.collectibleOwnershipHistory.slice(-MAX_HISTORY);
-}
-
 function releaseBid(world, auction) {
   if (!auction.highestBidderId || !auction.highestBid) return;
   const bidder = player(world, auction.highestBidderId);
   if (!bidder) return;
-  const amount = Math.min(Number(bidder.frozenCredits || 0), auction.highestBid);
-  bidder.frozenCredits -= amount;
-  bidder.credits += amount;
+  const amount = Math.min(Number(bidder.frozenCredits || 0), Number(auction.highestBid || 0));
+  bidder.frozenCredits = Math.max(0, Number(bidder.frozenCredits || 0) - amount);
+  bidder.credits = Number(bidder.credits || 0) + amount;
+}
+
+function releaseItems(world, sellerId, items) {
+  const seller = player(world, sellerId);
+  for (const item of items) {
+    if (item.assetKind === 'commodity' && seller) {
+      const inventory = inventoryFor(seller, item.assetId);
+      const quantity = Math.min(Number(inventory.frozen || 0), item.quantity);
+      inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - quantity);
+      inventory.available = Number(inventory.available || 0) + quantity;
+    } else if (item.assetKind === 'facility') {
+      releaseFacilityAuctionQuantity(world, sellerId, item.assetId, item.quantity);
+    }
+  }
+}
+
+function isCurrentAssetAuctionWorld(world) {
+  return Number(world?.version || 0) >= 15
+    && Array.isArray(world?.assetAuctions)
+    && !Object.hasOwn(world, 'collectibleAuctions')
+    && !Object.hasOwn(world, 'collectibles')
+    && !Object.hasOwn(world, 'collectibleOwnershipHistory')
+    && world.assetAuctions.every((auction) => {
+      if (!auction || !String(auction.id || '') || !Array.isArray(auction.items)) return false;
+      if (auction.items.length < 1 || auction.items.length > MAX_AUCTION_ITEMS) return false;
+      return auction.items.every((item) => {
+        const quantity = integer(item?.quantity, MAX_AUCTION_QUANTITY);
+        if (!quantity) return false;
+        if (item.assetKind === 'commodity') return PRODUCTS.has(String(item.assetId || ''));
+        if (item.assetKind === 'facility') return FACILITY_TYPES.has(String(item.assetId || ''));
+        return false;
+      });
+    });
+}
+
+function cancelLegacyCollectibleAuction(world, auction, items, now) {
+  if (auction.status !== 'open') return;
+  releaseBid(world, auction);
+  if (auction.escrowStatus !== 'released' && auction.escrowStatus !== 'transferred') {
+    releaseItems(world, auction.sellerId, items.filter((item) => item.assetKind !== 'collectible'));
+  }
+  auction.status = 'cancelled';
+  auction.escrowStatus = 'released';
+  auction.settledAt = now;
+}
+
+export function migrateAssetAuctionWorld(world, now = Date.now()) {
+  if (isCurrentAssetAuctionWorld(world)) return world;
+  const legacyAuctions = Array.isArray(world.collectibleAuctions) ? world.collectibleAuctions : [];
+  const currentAuctions = Array.isArray(world.assetAuctions) ? world.assetAuctions : [];
+  const byId = new Map();
+  for (const auction of [...legacyAuctions, ...currentAuctions]) {
+    const id = String(auction?.id || '');
+    if (id) byId.set(id, auction);
+  }
+
+  const migrated = [];
+  for (const rawAuction of byId.values()) {
+    const items = migrationAuctionItems(rawAuction);
+    if (items.length < 1 || items.length > MAX_AUCTION_ITEMS) continue;
+    if (items.some((item) => item.assetKind === 'collectible')) {
+      cancelLegacyCollectibleAuction(world, rawAuction, items, now);
+      continue;
+    }
+    const auction = normalizeAuction(rawAuction, now, items);
+    if (auction) migrated.push(auction);
+  }
+
+  world.assetAuctions = migrated.slice(-MAX_AUCTIONS);
+  delete world.collectibleAuctions;
+  delete world.collectibles;
+  delete world.collectibleOwnershipHistory;
+  world.version = 15;
+  return world;
 }
 
 function releaseAuctionAsset(world, auction) {
   if (auction.escrowStatus !== 'held') return;
-  const seller = player(world, auction.sellerId);
-  for (const item of auctionItems(auction)) {
-    if (item.assetKind === 'commodity' && seller) {
-      const inventory = inventoryFor(seller, item.assetId);
-      const quantity = Math.min(inventory.frozen, item.quantity);
-      inventory.frozen -= quantity;
-      inventory.available += quantity;
-    } else if (item.assetKind === 'facility') {
-      releaseFacilityAuctionQuantity(world, auction.sellerId, item.assetId, item.quantity);
-    }
-  }
+  releaseItems(world, auction.sellerId, auctionItems(auction));
   auction.escrowStatus = 'released';
 }
 
@@ -186,10 +223,7 @@ function validateAuctionTransfer(world, auction, bidder) {
   const seller = player(world, auction.sellerId);
   if (!seller) return result(false, '卖家不存在');
   for (const item of auctionItems(auction)) {
-    if (item.assetKind === 'collectible') {
-      const collectible = world.collectibles.find((entry) => entry.id === item.assetId);
-      if (!collectible || collectible.currentOwnerId !== auction.sellerId) return result(false, '藏品归属异常');
-    } else if (item.assetKind === 'commodity') {
+    if (item.assetKind === 'commodity') {
       if (inventoryFor(seller, item.assetId).frozen < item.quantity) return result(false, '拍卖商品冻结数量不足');
     } else {
       const validation = validateFacilityAuctionTransferQuantity(world, auction.sellerId, item.assetId, item.quantity);
@@ -203,16 +237,12 @@ function validateAuctionTransfer(world, auction, bidder) {
   return result(true, '拍卖资产可以转移');
 }
 
-function transferAuctionAsset(world, auction, bidder, now) {
+function transferAuctionAsset(world, auction, bidder) {
   const seller = player(world, auction.sellerId);
   const validation = validateAuctionTransfer(world, auction, bidder);
   if (!seller || !validation.ok) return validation;
   const sellerSnapshot = structuredClone(seller);
   const bidderSnapshot = structuredClone(bidder);
-  const collectibleOwners = new Map(auctionItems(auction)
-    .filter((item) => item.assetKind === 'collectible')
-    .map((item) => [item.assetId, world.collectibles.find((entry) => entry.id === item.assetId)?.currentOwnerId]));
-  const ownershipLength = world.collectibleOwnershipHistory.length;
   try {
     for (const item of auctionItems(auction).filter((entry) => entry.assetKind === 'facility')) {
       const transferred = transferFacilityAuctionQuantity(
@@ -225,17 +255,7 @@ function transferAuctionAsset(world, auction, bidder, now) {
       if (!transferred.ok) throw new Error(transferred.message);
     }
     for (const item of auctionItems(auction)) {
-      if (item.assetKind === 'collectible') {
-        const collectible = world.collectibles.find((entry) => entry.id === item.assetId);
-        const previousOwnerId = collectible.currentOwnerId;
-        collectible.currentOwnerId = auction.highestBidderId;
-        appendOwnership(world, collectible, previousOwnerId, auction.highestBidderId, 'auction', now, {
-          auctionId: auction.id,
-          price: auction.items.length === 1 ? auction.highestBid : undefined,
-          auctionTotalPrice: auction.items.length > 1 ? auction.highestBid : undefined,
-          bundleItemCount: auction.items.length > 1 ? auction.items.length : undefined,
-        });
-      } else if (item.assetKind === 'commodity') {
+      if (item.assetKind === 'commodity') {
         const sellerInventory = inventoryFor(seller, item.assetId);
         sellerInventory.frozen -= item.quantity;
         inventoryFor(bidder, item.assetId).available += item.quantity;
@@ -257,11 +277,6 @@ function transferAuctionAsset(world, auction, bidder, now) {
   } catch (error) {
     world.players[String(auction.sellerId)] = sellerSnapshot;
     world.players[String(auction.highestBidderId)] = bidderSnapshot;
-    for (const [collectibleId, ownerId] of collectibleOwners) {
-      const collectible = world.collectibles.find((entry) => entry.id === collectibleId);
-      if (collectible) collectible.currentOwnerId = ownerId;
-    }
-    world.collectibleOwnershipHistory.length = ownershipLength;
     return result(false, error instanceof Error ? error.message : '拍卖资产转移失败');
   }
   auction.escrowStatus = 'transferred';
@@ -293,7 +308,7 @@ function settleAuction(world, auction, now) {
     cancelBrokenAuction(world, auction, now);
     return;
   }
-  const transferred = transferAuctionAsset(world, auction, bidder, now);
+  const transferred = transferAuctionAsset(world, auction, bidder);
   if (!transferred.ok) {
     cancelBrokenAuction(world, auction, now);
     return;
@@ -304,9 +319,9 @@ function settleAuction(world, auction, now) {
   auction.settledAt = now;
 }
 
-export function processCollectibleAuctions(world, now = Date.now()) {
-  migrateCollectibleWorld(world, now);
-  for (const auction of world.collectibleAuctions) {
+export function processAssetAuctions(world, now = Date.now()) {
+  migrateAssetAuctionWorld(world, now);
+  for (const auction of world.assetAuctions) {
     if (auction.status === 'open' && Number(auction.endsAt) <= now) settleAuction(world, auction, now);
   }
   return world;
@@ -319,12 +334,7 @@ function normalizeRequestedItems(payload) {
 
 function validateAuctionItems(world, seller, userId, items) {
   for (const item of items) {
-    if (item.assetKind === 'collectible') {
-      const collectible = world.collectibles.find((entry) => entry.id === item.assetId);
-      if (!collectible) return result(false, '藏品不存在');
-      if (collectible.currentOwnerId !== userId) return result(false, '只有当前持有人可以发起拍卖');
-      if (openCollectibleAuction(world, collectible.id)) return result(false, '该藏品已经在拍卖中');
-    } else if (item.assetKind === 'commodity') {
+    if (item.assetKind === 'commodity') {
       if (!PRODUCTS.has(item.assetId)) return result(false, '商品不存在');
       if (inventoryFor(seller, item.assetId).available < item.quantity) return result(false, '可拍卖商品数量不足');
     } else {
@@ -344,7 +354,7 @@ function holdAuctionItems(world, seller, userId, items) {
       const inventory = inventoryFor(seller, item.assetId);
       inventory.available -= item.quantity;
       inventory.frozen += item.quantity;
-    } else if (item.assetKind === 'facility') {
+    } else {
       const reserved = reserveFacilityAuctionQuantity(world, userId, item.assetId, item.quantity);
       if (!reserved.ok) {
         seller.inventories = inventoriesBefore;
@@ -383,16 +393,14 @@ function createAuction(world, userId, payload, now) {
     endsAt: now + durationHours * 60 * 60 * 1_000,
     bids: [],
   });
-  world.collectibleAuctions.push(auction);
-  world.collectibleAuctions = world.collectibleAuctions.slice(-2_000);
-  const label = items.length > 1
-    ? '资产包'
-    : items[0].assetKind === 'collectible' ? '藏品' : items[0].assetKind === 'commodity' ? '商品' : '工厂';
+  world.assetAuctions.push(auction);
+  world.assetAuctions = world.assetAuctions.slice(-MAX_AUCTIONS);
+  const label = items.length > 1 ? '资产包' : items[0].assetKind === 'commodity' ? '商品' : '工厂';
   return result(true, `${label}拍卖已发布，资产已冻结且继续计入总资产`);
 }
 
 function placeBid(world, userId, payload, now) {
-  const auction = world.collectibleAuctions.find((item) => item.id === String(payload.auctionId || ''));
+  const auction = world.assetAuctions.find((item) => item.id === String(payload.auctionId || ''));
   if (!auction || auction.status !== 'open') return result(false, '拍卖不存在或已经结束');
   if (auction.endsAt <= now) {
     settleAuction(world, auction, now);
@@ -440,7 +448,7 @@ function placeBid(world, userId, payload, now) {
 }
 
 function cancelAuction(world, userId, payload, now) {
-  const auction = world.collectibleAuctions.find((item) => item.id === String(payload.auctionId || ''));
+  const auction = world.assetAuctions.find((item) => item.id === String(payload.auctionId || ''));
   if (!auction || auction.status !== 'open') return result(false, '拍卖不存在或已经结束');
   if (auction.sellerId !== userId) return result(false, '只能取消自己发起的拍卖');
   if (auction.highestBidderId) return result(false, '已有出价的拍卖不能取消');
@@ -450,43 +458,16 @@ function cancelAuction(world, userId, payload, now) {
   return result(true, '拍卖已取消，资产已解冻');
 }
 
-export function applyCollectibleAction(world, user, action, payload = {}, now = Date.now()) {
-  processCollectibleAuctions(world, now);
+export function applyAssetAuctionAction(world, user, action, payload = {}, now = Date.now()) {
+  processAssetAuctions(world, now);
   const userId = Number(user.id);
-  if (action === 'createAuction' || action === 'createCollectibleAuction') return createAuction(world, userId, payload, now);
-  if (action === 'placeAuctionBid' || action === 'placeCollectibleBid') return placeBid(world, userId, payload, now);
-  if (action === 'cancelAuction' || action === 'cancelCollectibleAuction') return cancelAuction(world, userId, payload, now);
+  if (action === 'createAuction') return createAuction(world, userId, payload, now);
+  if (action === 'placeAuctionBid') return placeBid(world, userId, payload, now);
+  if (action === 'cancelAuction') return cancelAuction(world, userId, payload, now);
   return result(false, '拍卖操作不存在');
 }
 
-function clientCollectible(world, item) {
-  return {
-    ...item,
-    currentOwnerName: item.currentOwnerId ? playerName(world, item.currentOwnerId, `玩家 ${item.currentOwnerId}`) : '未分配',
-    imageUrl: imageUrl(item.imageId, 843),
-    thumbnailUrl: imageUrl(item.imageId, 400),
-    sourceUrl: `https://www.artic.edu/artworks/${item.sourceArtworkId}`,
-    apiUrl: `${AIC_API_BASE}/${item.sourceArtworkId}`,
-    auctionId: openCollectibleAuction(world, item.id)?.id,
-  };
-}
-
-function clientAuctionItem(world, item) {
-  if (item.assetKind === 'collectible') {
-    const collectible = world.collectibles.find((entry) => entry.id === item.assetId);
-    if (!collectible) return null;
-    const client = clientCollectible(world, collectible);
-    return {
-      kind: 'collectible',
-      id: collectible.id,
-      name: collectible.title,
-      subtitle: `${collectible.artist}${collectible.dateDisplay ? ` · ${collectible.dateDisplay}` : ''}`,
-      thumbnailUrl: client.thumbnailUrl,
-      sourceUrl: client.sourceUrl,
-      collectible: client,
-      quantity: 1,
-    };
-  }
+function clientAuctionItem(item) {
   if (item.assetKind === 'commodity') {
     const product = PRODUCTS.get(item.assetId);
     return product ? {
@@ -499,8 +480,8 @@ function clientAuctionItem(world, item) {
   } : null;
 }
 
-function clientAuction(world, auction, userId) {
-  const itemSummaries = auctionItems(auction).map((item) => clientAuctionItem(world, item));
+function clientAuction(auction, userId) {
+  const itemSummaries = auctionItems(auction).map((item) => clientAuctionItem(item));
   if (itemSummaries.some((item) => !item)) return null;
   const asset = itemSummaries[0];
   return {
@@ -510,100 +491,20 @@ function clientAuction(world, auction, userId) {
     itemCount: itemSummaries.length,
     isBundle: itemSummaries.length > 1,
     asset,
-    collectible: itemSummaries.length === 1 ? asset.collectible : undefined,
     isSeller: auction.sellerId === userId,
     isHighestBidder: auction.highestBidderId === userId,
     minimumBid: auction.highestBid ? auction.highestBid + 1 : auction.startingBid,
   };
 }
 
-export function createCollectibleClientState(world, userId, now = Date.now()) {
-  processCollectibleAuctions(world, now);
-  const assetAuctions = world.collectibleAuctions
-    .slice()
-    .sort((left, right) => (left.status === 'open' ? 0 : 1) - (right.status === 'open' ? 0 : 1) || left.endsAt - right.endsAt)
-    .slice(0, 200)
-    .map((auction) => clientAuction(world, auction, userId))
-    .filter(Boolean);
+export function createAssetAuctionClientState(world, userId, now = Date.now()) {
+  processAssetAuctions(world, now);
   return {
-    collectibles: world.collectibles.map((item) => clientCollectible(world, item)),
-    assetAuctions,
-    collectibleAuctions: assetAuctions.filter((auction) => auction.itemCount === 1 && auction.assetKind === 'collectible'),
+    assetAuctions: world.assetAuctions
+      .slice()
+      .sort((left, right) => (left.status === 'open' ? 0 : 1) - (right.status === 'open' ? 0 : 1) || left.endsAt - right.endsAt)
+      .slice(0, 200)
+      .map((auction) => clientAuction(auction, userId))
+      .filter(Boolean),
   };
-}
-
-function importRecord(record, userId, now) {
-  const sourceArtworkId = integer(record.sourceArtworkId ?? record.id);
-  const imageId = text(record.imageId ?? record.image_id, 128);
-  const title = text(record.title, 180);
-  if (!sourceArtworkId || !imageId || !title) {
-    throw Object.assign(new Error('藏品记录缺少 sourceArtworkId、imageId 或 title'), { statusCode: 400 });
-  }
-  if (!(record.isPublicDomain === true || record.is_public_domain === true)) {
-    throw Object.assign(new Error(`藏品 ${sourceArtworkId} 必须明确标记 isPublicDomain=true`), { statusCode: 400 });
-  }
-  if (!/^[A-Za-z0-9-]{8,128}$/.test(imageId)) {
-    throw Object.assign(new Error(`藏品 ${sourceArtworkId} 的 imageId 格式无效`), { statusCode: 400 });
-  }
-  const initialOwnerId = record.initialOwnerId === null || record.initialOwnerId === undefined || record.initialOwnerId === ''
-    ? null
-    : integer(record.initialOwnerId);
-  return {
-    id: `collectible-${sourceArtworkId}-${randomUUID()}`,
-    source: 'art-institute-of-chicago',
-    sourceArtworkId,
-    title,
-    artist: text(record.artist ?? record.artist_title ?? record.artistTitle, 180, '佚名'),
-    dateDisplay: text(record.dateDisplay ?? record.date_display, 120),
-    mediumDisplay: text(record.mediumDisplay ?? record.medium_display, 240),
-    dimensions: text(record.dimensions, 240),
-    description: text(record.description, 1_000),
-    imageId,
-    isPublicDomain: true,
-    currentOwnerId: initialOwnerId,
-    createdAt: now,
-    createdBy: userId,
-  };
-}
-
-export function importCollectibles(world, user, payload, now = Date.now()) {
-  migrateCollectibleWorld(world, now);
-  const records = Array.isArray(payload) ? payload : Array.isArray(payload?.items) ? payload.items : [];
-  if (records.length < 1 || records.length > 100) {
-    throw Object.assign(new Error('每次必须上传 1～100 条藏品记录'), { statusCode: 400 });
-  }
-  const imported = records.map((record) => importRecord(record, Number(user.id), now));
-  const seen = new Set();
-  for (const item of imported) {
-    if (seen.has(item.sourceArtworkId) || world.collectibles.some((existing) => existing.sourceArtworkId === item.sourceArtworkId)) {
-      throw Object.assign(new Error(`芝加哥艺术博物馆藏品 ${item.sourceArtworkId} 已存在`), { statusCode: 409 });
-    }
-    seen.add(item.sourceArtworkId);
-    if (item.currentOwnerId && !player(world, item.currentOwnerId)) {
-      throw Object.assign(new Error(`初始持有人 ${item.currentOwnerId} 不存在`), { statusCode: 400 });
-    }
-  }
-  for (const item of imported) {
-    world.collectibles.push(item);
-    appendOwnership(world, item, null, item.currentOwnerId, item.currentOwnerId ? 'assigned' : 'created', now);
-  }
-  return { importedCount: imported.length, collectibles: imported.map((item) => clientCollectible(world, item)) };
-}
-
-export function listCollectiblesForAdmin(world, now = Date.now()) {
-  processCollectibleAuctions(world, now);
-  return world.collectibles.map((item) => ({
-    ...clientCollectible(world, item),
-    ownershipCount: world.collectibleOwnershipHistory.filter((entry) => entry.collectibleId === item.id).length,
-  })).sort((left, right) => right.createdAt - left.createdAt);
-}
-
-export function collectibleOwnershipHistory(world, collectibleId, now = Date.now()) {
-  migrateCollectibleWorld(world, now);
-  if (!world.collectibles.some((item) => item.id === collectibleId)) {
-    throw Object.assign(new Error('藏品不存在'), { statusCode: 404 });
-  }
-  return world.collectibleOwnershipHistory
-    .filter((entry) => entry.collectibleId === collectibleId)
-    .sort((left, right) => right.createdAt - left.createdAt);
 }

@@ -48,19 +48,6 @@ export function resolveAction(method, path) {
     return { action: 'cancelAuction', category: 'orders', routePayload: { auctionId: decodeRouteParameter(auctionCancel[1]) } };
   }
 
-  if (method === 'POST' && path === '/api/game/collectible-auctions') {
-    return { action: 'createCollectibleAuction', category: 'orders' };
-  }
-
-  const collectibleBid = path.match(/^\/api\/game\/collectible-auctions\/([^/]+)\/bids$/);
-  if (method === 'POST' && collectibleBid) {
-    return { action: 'placeCollectibleBid', category: 'orders', routePayload: { auctionId: decodeRouteParameter(collectibleBid[1]) } };
-  }
-
-  const collectibleCancel = path.match(/^\/api\/game\/collectible-auctions\/([^/]+)\/cancel$/);
-  if (method === 'POST' && collectibleCancel) {
-    return { action: 'cancelCollectibleAuction', category: 'orders', routePayload: { auctionId: decodeRouteParameter(collectibleCancel[1]) } };
-  }
 
   const facilityAction = path.match(/^\/api\/game\/facilities\/([^/]+)\/(start|pause|stop|list|recipe)$/);
   if (method === 'POST' && facilityAction) {

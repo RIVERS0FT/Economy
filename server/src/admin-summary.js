@@ -14,8 +14,10 @@ export function getStableAdminSummary(store, user, now = Date.now()) {
       openOrderCount: openOrders.length,
       commodityOrderCount: openOrders.filter((order) => order.assetKind !== 'facility').length,
       facilityOrderCount: openOrders.filter((order) => order.assetKind === 'facility').length,
-      collectibleCount: world.collectibles.length,
-      openAuctionCount: world.collectibleAuctions.filter((auction) => auction.status === 'open').length,
+      openAuctionCount: world.assetAuctions.filter((auction) => auction.status === 'open').length,
+      openContractCount: (world.productionContracts || []).filter((contract) => (
+        contract.status === 'open' || contract.status === 'active'
+      )).length,
       worldVersion: Number(world.version || 0),
       revision: nextRevision,
       lastProcessedAt: Number(world.lastProcessedAt || now),

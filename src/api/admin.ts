@@ -1,8 +1,3 @@
-import type {
-  CollectibleAdminRecord,
-  CollectibleImportRecord,
-  CollectibleOwnershipRecord,
-} from '../collectibles/types';
 import type { AdminSummary, GiftCodeAdminRecord } from '../types';
 import { GameApiError, type CommunityLinkConfig } from './game';
 
@@ -93,8 +88,8 @@ export interface PopulationEconomyAdminSummary {
 }
 
 export type ExtendedAdminSummary = AdminSummary & {
-  collectibleCount: number;
   openAuctionCount: number;
+  openContractCount: number;
   populationEconomy: PopulationEconomyAdminSummary;
 };
 
@@ -389,16 +384,6 @@ export const adminApi = {
     );
     return { items: payload.redemptions, total: payload.total, nextCursor: payload.nextCursor };
   },
-  collectibles: async () => (await request<{ collectibles: CollectibleAdminRecord[] }>('/collectibles', { method: 'GET' })).collectibles,
-  importCollectibles: async (items: CollectibleImportRecord[]) => (
-    await request<{ result: { importedCount: number; collectibles: CollectibleAdminRecord[] } }>('/collectibles/import', {
-      method: 'POST',
-      body: JSON.stringify({ items }),
-    })
-  ).result,
-  collectibleOwnership: async (id: string) => (
-    await request<{ ownership: CollectibleOwnershipRecord[] }>(`/collectibles/${encodeURIComponent(id)}/ownership`, { method: 'GET' })
-  ).ownership,
   banIncidents: async () => (
     await request<{ incidents: BanIncidentSummary[] }>('/bans', { method: 'GET' })
   ).incidents,

@@ -33,8 +33,8 @@ export function AdminOverview({
         <MetricCard label="未完成订单" value={summary?.openOrderCount ?? '--'} />
         <MetricCard label="商品订单" value={summary?.commodityOrderCount ?? '--'} />
         <MetricCard label="工厂订单" value={summary?.facilityOrderCount ?? '--'} />
-        <MetricCard label="藏品数量" value={summary?.collectibleCount ?? '--'} />
         <MetricCard label="进行中拍卖" value={summary?.openAuctionCount ?? '--'} />
+        <MetricCard label="开放／履约合同" value={summary?.openContractCount ?? '--'} />
       </section>
 
       <Panel className="admin-panel admin-player-statistics-panel">

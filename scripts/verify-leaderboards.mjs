@@ -32,7 +32,7 @@ check(server.includes("description: '本周订单簿实际卖出成交额'"), 't
 check(server.includes("unit: 'currency'"), 'trading board must display a currency amount');
 check(server.includes('tradingRuleVersion: TRADING_RULE_VERSION'), 'trading rule migration must be versioned');
 check(server.includes('delete state.pairDayScores'), 'legacy pair caps must be removed during migration');
-check(server.includes('processCollectibleAuctions'), 'weekly growth must settle auctions at the boundary');
+check(server.includes('processAssetAuctions'), 'weekly growth must settle auctions at the boundary');
 check(page.includes("const BOARD_ORDER: LeaderboardBoardId[] = ['wealth', 'growth', 'production', 'trading']"), 'four boards must keep the approved order');
 check(page.includes("timeZone: 'Asia/Shanghai'"), 'leaderboard page must format periods in Beijing time');
 check(styles.includes('grid-template-columns: repeat(4, minmax(280px, 1fr))'), 'desktop leaderboard must remain a four-column grid');

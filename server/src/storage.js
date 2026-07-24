@@ -17,13 +17,10 @@ import {
 } from './facility-groups.js';
 import { createWarehouseSummary, ensureWarehouse, upgradeWarehouse } from './warehouse.js';
 import {
-  applyCollectibleAction,
-  collectibleOwnershipHistory,
-  createCollectibleClientState,
-  importCollectibles,
-  listCollectiblesForAdmin,
-  migrateCollectibleWorld,
-} from './collectibles.js';
+  applyAssetAuctionAction,
+  createAssetAuctionClientState,
+  migrateAssetAuctionWorld,
+} from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
 import { createGemShopSummary, exchangeGems } from './gem-shop.js';
 import { DEFAULT_QQ_GROUP_URL, normalizeQqGroupUrl } from './community-link.js';
@@ -38,20 +35,12 @@ import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
-const COLLECTIBLE_ACTIONS = new Set([
-  'createAuction',
-  'placeAuctionBid',
-  'cancelAuction',
-  'createCollectibleAuction',
-  'placeCollectibleBid',
-  'cancelCollectibleAuction',
-]);
+const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
-  'createCollectibleAuction', 'placeCollectibleBid', 'cancelCollectibleAuction',
 ]);
 
 function normalizeJson(value) {
@@ -100,7 +89,7 @@ function createVersionedClientState(world, userId, now) {
     },
     gems: player.gems,
     ...createWarehouseSummary(world, player),
-    ...createCollectibleClientState(world, userId, now),
+    ...createAssetAuctionClientState(world, userId, now),
     version: CURRENT_CLIENT_STATE_VERSION,
   };
 }
@@ -313,11 +302,11 @@ export class EconomyStore {
       ensureWarehouse(player);
       ensureGemState(player);
     }
+    migrateAssetAuctionWorld(world, now);
     migrateFacilityGroupWorld(world, now);
-    migrateCollectibleWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
-    world.version = 14;
+    world.version = 15;
     return world;
   }
 
@@ -515,8 +504,8 @@ export class EconomyStore {
             now,
           );
         }
-      } else if (COLLECTIBLE_ACTIONS.has(action)) {
-        gameResult = applyCollectibleAction(world, user, action, payload, now);
+      } else if (AUCTION_ACTIONS.has(action)) {
+        gameResult = applyAssetAuctionAction(world, user, action, payload, now);
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
       }
@@ -727,8 +716,7 @@ export class EconomyStore {
         openOrderCount: openOrders.length,
         commodityOrderCount: openOrders.filter((order) => order.assetKind !== 'facility').length,
         facilityOrderCount: openOrders.filter((order) => order.assetKind === 'facility').length,
-        collectibleCount: world.collectibles.length,
-        openAuctionCount: world.collectibleAuctions.filter((auction) => auction.status === 'open').length,
+        openAuctionCount: world.assetAuctions.filter((auction) => auction.status === 'open').length,
         worldVersion: Number(world.version || 0),
         revision: nextRevision,
         lastProcessedAt: Number(world.lastProcessedAt || now),
@@ -807,36 +795,4 @@ export class EconomyStore {
     return this.listGiftRedemptionsStatement.all(id);
   }
 
-  listCollectibles(user, now = Date.now()) {
-    this.requireAdmin(user);
-    return this.transaction(() => {
-      const { revision, stateJson, world } = this.loadWorld(now);
-      this.processWorldIfDue(world, now, undefined, { force: true });
-      const collectibles = listCollectiblesForAdmin(world, now);
-      this.saveWorldIfChanged(revision, world, now, stateJson);
-      return normalizeJson(collectibles);
-    });
-  }
-
-  importCollectibles(user, payload, requestMeta, now = Date.now()) {
-    return this.adminMutation(user, requestMeta, () => {
-      const { revision, world } = this.loadWorld(now);
-      ensurePlayer(world, user, now);
-      this.processWorldIfDue(world, now, Number(user.id), { force: true });
-      const imported = importCollectibles(world, user, payload, now);
-      this.saveWorld(revision, world, now);
-      return imported;
-    }, now);
-  }
-
-  listCollectibleOwnership(user, collectibleId, now = Date.now()) {
-    this.requireAdmin(user);
-    return this.transaction(() => {
-      const { revision, stateJson, world } = this.loadWorld(now);
-      this.processWorldIfDue(world, now, undefined, { force: true });
-      const history = collectibleOwnershipHistory(world, String(collectibleId || ''), now);
-      this.saveWorldIfChanged(revision, world, now, stateJson);
-      return normalizeJson(history);
-    });
-  }
 }

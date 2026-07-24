@@ -10,6 +10,7 @@ import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -148,13 +149,13 @@ function listedQuantity(world, ownerId, typeId) {
 
 function auctionItems(auction) {
   if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
-  const kind = auction?.assetKind || (auction?.collectibleId ? 'collectible' : undefined);
-  const assetId = String(auction?.assetId || auction?.facilityTypeId || auction?.productId || auction?.collectibleId || '');
+  const kind = auction?.assetKind;
+  const assetId = String(auction?.assetId || auction?.facilityTypeId || auction?.productId || '');
   return kind && assetId ? [{ assetKind: kind, assetId, quantity: Math.max(1, Number(auction.quantity || 1)) }] : [];
 }
 
 function auctionedQuantity(world, ownerId, typeId) {
-  return (world.collectibleAuctions || []).reduce((sum, auction) => {
+  return (world.assetAuctions || []).reduce((sum, auction) => {
     if (
       Number(auction?.sellerId) !== Number(ownerId)
       || auction?.status !== 'open'
@@ -418,14 +419,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 14;
+  world.version = 15;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 14;
+  world.version = 15;
   return world;
 }
 
@@ -1110,7 +1111,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const normalizedOrders = (world.orders || []).map((order) => publicOrderView(order, userId));
   return {
     ...withoutFacilities,
-    version: 16,
+    version: CURRENT_CLIENT_STATE_VERSION,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
     facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),

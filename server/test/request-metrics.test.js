@@ -12,8 +12,8 @@ test('request metrics normalize route identifiers', () => {
     '/api/game/auctions/:id/bids',
   );
   assert.equal(
-    normalizeMetricRoute('/api/game/admin/collectibles/chicago-art-123/ownership'),
-    '/api/game/admin/collectibles/:id/ownership',
+    normalizeMetricRoute('/api/game/admin/gift-codes/code-123/redemptions'),
+    '/api/game/admin/gift-codes/:id/redemptions',
   );
   assert.equal(normalizeMetricRoute('/api/game/state?revision=4'), '/api/game/state');
 });

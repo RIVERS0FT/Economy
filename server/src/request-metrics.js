@@ -6,9 +6,8 @@ const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_SLOW_REQUEST_MS = 1_000;
 const DEFAULT_LARGE_RESPONSE_BYTES = 200 * 1024;
 const DYNAMIC_ROUTE_PATTERNS = [
-  [/^(\/api\/game\/(?:orders|auctions|collectible-auctions|facility-listings))\/[^/]+(\/(?:bids|cancel|buy))$/, '$1/:id$2'],
+  [/^(\/api\/game\/(?:orders|auctions|facility-listings))\/[^/]+(\/(?:bids|cancel|buy))$/, '$1/:id$2'],
   [/^(\/api\/game\/admin\/gift-codes)\/[^/]+(\/(?:disable|redemptions))$/, '$1/:id$2'],
-  [/^(\/api\/game\/admin\/collectibles)\/[^/]+(\/ownership)$/, '$1/:id$2'],
   [/^(\/api\/game\/admin\/bans\/users)\/[^/]+(\/(?:unban|reban))$/, '$1/:id$2'],
   [/^(\/api\/game\/admin\/bans)\/[^/]+(\/unban-all)?$/, '$1/:id$2'],
 ];

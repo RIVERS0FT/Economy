@@ -4,7 +4,6 @@ import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 
 const AssetsPage = lazy(() => import('./AssetsPage').then((module) => ({ default: module.AssetsPage })));
 const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ default: module.AuctionPage })));
-const CollectionsPage = lazy(() => import('./CollectionsPage').then((module) => ({ default: module.CollectionsPage })));
 const ContractPage = lazy(() => import('./ContractPage').then((module) => ({ default: module.ContractPage })));
 const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => ({ default: module.LeaderboardPage })));
 const MarketPage = lazy(() => import('./MarketPage').then((module) => ({ default: module.MarketPage })));
@@ -35,9 +34,6 @@ export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
       break;
     case 'assets':
       page = <AssetsPage model={model} />;
-      break;
-    case 'collections':
-      page = <CollectionsPage model={model} />;
       break;
     case 'auction':
       page = <AuctionPage model={model} />;

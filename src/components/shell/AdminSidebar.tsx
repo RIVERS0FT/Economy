@@ -1,8 +1,8 @@
-import { CollectionIcon, GiftIcon, HomeIcon, QqIcon, ShieldIcon } from '../icons/GameIcons';
+import { GiftIcon, HomeIcon, QqIcon, ShieldIcon } from '../icons/GameIcons';
 import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 import { SidebarFrame } from './SidebarFrame';
 
-export type AdminSectionId = 'overview' | 'community' | 'collectibles' | 'gift-codes' | 'bans';
+export type AdminSectionId = 'overview' | 'community' | 'gift-codes' | 'bans';
 
 export const adminNavigationItems: Array<{
   id: AdminSectionId;
@@ -11,7 +11,6 @@ export const adminNavigationItems: Array<{
 }> = [
   { id: 'overview', label: '概况', icon: HomeIcon },
   { id: 'community', label: '社区', icon: QqIcon },
-  { id: 'collectibles', label: '藏品', icon: CollectionIcon },
   { id: 'gift-codes', label: '礼品码', icon: GiftIcon },
   { id: 'bans', label: '账号封禁', icon: ShieldIcon },
 ];

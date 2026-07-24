@@ -1,6 +1,6 @@
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
 import { processFacilityGroupWorld } from './facility-groups.js';
-import { processCollectibleAuctions } from './collectibles.js';
+import { processAssetAuctions } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
 
 export const LEADERBOARD_TIME_ZONE = 'Asia/Shanghai';
@@ -411,7 +411,7 @@ function advancePeriod(world, state) {
 
 function processWorldAt(world, now, priorOrderReferences = []) {
   processFacilityGroupWorld(world, now);
-  processCollectibleAuctions(world, now);
+  processAssetAuctions(world, now);
   const state = world.leaderboardState;
   if (validLeaderboardState(state)) {
     captureProduction(world, state);
@@ -425,7 +425,7 @@ export function processLeaderboardWorld(world, now = Date.now()) {
 
   if (!validLeaderboardState(world.leaderboardState)) {
     processFacilityGroupWorld(world, now);
-    processCollectibleAuctions(world, now);
+    processAssetAuctions(world, now);
     const state = initializeLeaderboardState(world, now, true);
     captureTradingFills(world, state, world.orders || []);
     return world;

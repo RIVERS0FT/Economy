@@ -279,23 +279,8 @@ const server = createServer(async (request, response) => {
         });
         return;
       }
-      if (method === 'GET' && path === '/api/game/admin/collectibles') {
-        sendJson(response, 200, { collectibles: store.listCollectibles(user) });
-        return;
-      }
-      if (method === 'POST' && path === '/api/game/admin/collectibles/import') {
-        const requestKey = requireIdempotencyKey(request);
-        const body = await readJson(request, 262_144);
-        sendJson(response, 200, {
-          result: store.importCollectibles(user, body, { requestKey, method, path }),
-        });
-        return;
-      }
-      const collectibleHistory = path.match(/^\/api\/game\/admin\/collectibles\/([^/]+)\/ownership$/);
-      if (method === 'GET' && collectibleHistory) {
-        sendJson(response, 200, {
-          ownership: store.listCollectibleOwnership(user, decodeRouteParameter(collectibleHistory[1])),
-        });
+      if (path.startsWith('/api/game/admin/collectibles')) {
+        sendError(response, 410, '藏品管理接口已永久移除');
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/bans') {
@@ -413,6 +398,11 @@ const server = createServer(async (request, response) => {
         store.getStateSnapshot(user, knownRevision),
         knownPartitions,
       ));
+      return;
+    }
+
+    if (path === '/api/game/collectible-auctions' || path.startsWith('/api/game/collectible-auctions/')) {
+      sendError(response, 410, '藏品拍卖接口已永久移除，请使用通用资产拍卖接口');
       return;
     }
 

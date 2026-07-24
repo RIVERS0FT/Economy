@@ -3,12 +3,12 @@ import { useNow } from '../hooks/useNow';
 import { gameActions } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
-  getCollectibleState,
+  getAuctionState,
   type AssetAuction,
   type AuctionAssetKind,
   type AuctionItem,
   type AuctionItemSummary,
-} from '../collectibles/types';
+} from '../auctions/types';
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -28,7 +28,6 @@ const statusNames = {
 } as const;
 
 const assetKindNames: Record<AuctionAssetKind, string> = {
-  collectible: '藏品',
   commodity: '商品',
   facility: '工厂',
 };
@@ -75,19 +74,7 @@ function auctionCardTitle(auction: AssetAuction) {
   return items.length === 1 ? items[0].name : auctionTitle(auction);
 }
 
-function AuctionItemIcon({ item, compact = false }: { item: AuctionItemSummary; compact?: boolean }) {
-  if (item.kind === 'collectible' && item.thumbnailUrl) {
-    return (
-      <img
-        src={item.thumbnailUrl}
-        alt={compact ? '' : item.name}
-        aria-hidden={compact || undefined}
-        loading="lazy"
-        decoding="async"
-        referrerPolicy="no-referrer"
-      />
-    );
-  }
+function AuctionItemIcon({ item }: { item: AuctionItemSummary; compact?: boolean }) {
   return item.kind === 'commodity' ? <ProductIcon productId={item.id} /> : <FactoryIcon />;
 }
 
@@ -148,10 +135,10 @@ function AuctionAssetSummary({ auction }: { auction: AssetAuction }) {
 
 export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const now = useNow(model.game.lastProcessedAt);
-  const { collectibles, assetAuctions } = getCollectibleState(model.game);
+  const { assetAuctions } = getAuctionState(model.game);
   const openAuctions = assetAuctions.filter((auction) => auction.status === 'open');
   const closedAuctions = assetAuctions.filter((auction) => auction.status !== 'open').slice(0, 12);
-  const [assetKind, setAssetKind] = useState<AuctionAssetKind>('collectible');
+  const [assetKind, setAssetKind] = useState<AuctionAssetKind>('commodity');
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const [quantityInput, setQuantityInput] = useState('1');
   const [bundleItems, setBundleItems] = useState<AuctionItem[]>([]);
@@ -168,12 +155,6 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   );
 
   const availableOptions = useMemo<AuctionOption[]>(() => {
-    if (assetKind === 'collectible') {
-      return collectibles
-        .filter((item) => item.currentOwnerId === model.game.userId && !item.auctionId)
-        .filter((item) => !bundleItems.some((entry) => entry.assetKind === 'collectible' && entry.assetId === item.id))
-        .map((item) => ({ id: item.id, label: `${item.title} · ${item.artist}`, available: 1 }));
-    }
     if (assetKind === 'commodity') {
       return model.game.products.flatMap((product) => {
         const available = Math.max(0, Number(model.game.inventories[product.id]?.available || 0) - bundledQuantity('commodity', product.id));
@@ -187,14 +168,12 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
         ? [{ id: type.id, label: `${type.name} · 剩余可加入 ${formatNumber(available)}`, available }]
         : [];
     });
-  }, [assetKind, bundleItems, collectibles, model.game.facilityGroups, model.game.facilityTypes, model.game.inventories, model.game.products, model.game.userId]);
+  }, [assetKind, bundleItems, model.game.facilityGroups, model.game.facilityTypes, model.game.inventories, model.game.products]);
 
   const selectedOption = useMemo(() => (
     availableOptions.find((item) => item.id === selectedAssetId) ?? availableOptions[0]
   ), [availableOptions, selectedAssetId]);
-  const selectedQuantity = assetKind === 'collectible'
-    ? 1
-    : parseAuctionQuantity(quantityInput, selectedOption?.available);
+  const selectedQuantity = parseAuctionQuantity(quantityInput, selectedOption?.available);
   const parsedStartingBid = parseIntegerDraft(startingBidInput, { min: 1, max: 1_000_000_000 });
   const parsedDurationHours = parseIntegerDraft(durationHoursInput, { min: 1, max: 168 });
   const canAdd = Boolean(selectedOption)
@@ -212,13 +191,11 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     && parsedDurationHours !== null;
 
   function labelForItem(item: AuctionItem) {
-    if (item.assetKind === 'collectible') return collectibles.find((entry) => entry.id === item.assetId)?.title ?? item.assetId;
     if (item.assetKind === 'commodity') return model.game.products.find((entry) => entry.id === item.assetId)?.name ?? item.assetId;
     return model.game.facilityTypes.find((entry) => entry.id === item.assetId)?.name ?? item.assetId;
   }
 
   function availableForItem(item: AuctionItem) {
-    if (item.assetKind === 'collectible') return 1;
     if (item.assetKind === 'commodity') return Number(model.game.inventories[item.assetId]?.available || 0);
     return model.game.facilityGroups.find((entry) => entry.facilityTypeId === item.assetId)?.availableCount ?? 0;
   }
@@ -249,7 +226,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     const key = `${assetKind}:${selectedOption.id}`;
     setBundleItems((current) => {
       const existing = current.find((item) => item.assetKind === assetKind && item.assetId === selectedOption.id);
-      if (existing && assetKind !== 'collectible') {
+      if (existing) {
         return current.map((item) => item === existing ? { ...item, quantity: item.quantity + selectedQuantity } : item);
       }
       return [...current, { assetKind, assetId: selectedOption.id, quantity: selectedQuantity }];
@@ -318,15 +295,15 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="拍卖"
-      description="发起资产拍卖：将藏品、商品和工厂组合为不可拆分的资产包公开竞价。卖方资产与最高出价资金都会冻结；冻结只限制使用，成交前仍计入各自总资产。"
+      description="发起资产拍卖：将商品和工厂组合为不可拆分的资产包公开竞价。卖方资产与最高出价资金都会冻结；冻结只限制使用，成交前仍计入各自总资产。"
     >
-      <Panel className="widget collectible-auction-create">
+      <Panel className="widget asset-auction-create">
         <WidgetHeading title="发布资产包拍卖" action={<StatusTag>{formatNumber(bundleItems.length)}/{MAX_AUCTION_ITEMS} 项 · 最长 168h</StatusTag>} />
         <div className="asset-auction-builder">
           <section className="asset-auction-add" aria-labelledby="auction-add-heading">
             <h3 id="auction-add-heading">添加资产</h3>
             <div className="ui-segmented asset-auction-kind-switch" role="group" aria-label="选择要加入资产包的类型">
-              {(['collectible', 'commodity', 'facility'] as const).map((kind) => (
+              {(['commodity', 'facility'] as const).map((kind) => (
                 <Button
                   key={kind}
                   variant="text"
@@ -353,8 +330,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                 >
                   {availableOptions.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
                 </SelectInput>
-                {assetKind === 'collectible' ? null : (
-                  <IntegerInput
+                <IntegerInput
                     label="数量"
                     value={quantityInput}
                     fallbackValue={selectedQuantity ?? 1}
@@ -362,8 +338,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                     max={selectedOption?.available || 1}
                     error={selectedQuantity === null ? `请输入 1～${formatNumber(selectedOption?.available || 1)} 的整数。` : undefined}
                     onValueChange={setQuantityInput}
-                  />
-                )}
+                />
                 <Button variant="secondary" disabled={!canAdd} onClick={addSelectedItem}>加入资产包</Button>
               </div>
             )}
@@ -374,18 +349,16 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
             {bundleItems.length === 0 ? <EmptyState>尚未加入资产。单项拍卖也是只包含一项资产的资产包。</EmptyState> : (
               <div className="asset-auction-package-list">
                 {bundleItems.map((item) => {
-                  const collectible = item.assetKind === 'collectible' ? collectibles.find((entry) => entry.id === item.assetId) : null;
                   const key = auctionItemKey(item);
                   const quantityDraft = bundleQuantityDrafts[key] ?? String(item.quantity);
                   const parsedQuantity = parseAuctionQuantity(quantityDraft, availableForItem(item));
                   return (
                     <div className="asset-auction-package-row" key={key}>
                       <div className="asset-auction-package-icon" aria-hidden="true">
-                        {collectible?.thumbnailUrl ? <img src={collectible.thumbnailUrl} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" /> : item.assetKind === 'commodity' ? <ProductIcon productId={item.assetId} /> : <FactoryIcon />}
+                        {item.assetKind === 'commodity' ? <ProductIcon productId={item.assetId} /> : <FactoryIcon />}
                       </div>
                       <span><strong>{labelForItem(item)}</strong><small>{assetKindNames[item.assetKind]}</small></span>
-                      {item.assetKind === 'collectible' ? <strong>× 1</strong> : (
-                        <input
+                      <input
                           className="ui-control ui-control--integer ui-control--compact"
                           aria-label={`${labelForItem(item)}数量`}
                           type="text"
@@ -402,8 +375,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                               resetBundleQuantityDraft(item);
                             }
                           }}
-                        />
-                      )}
+                      />
                       <Button variant="danger" className="asset-auction-remove" onClick={() => removeBundleItem(item)}>移除</Button>
                     </div>
                   );
@@ -445,33 +417,33 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
         <p className="ui-helper-text">资产包中的全部资产会同时冻结，并作为整体成交、流拍或取消；已有有效出价后不能取消。冻结资产仍归卖方所有并计入总资产。</p>
       </Panel>
 
-      <section className="collectible-auction-section" aria-labelledby="open-auctions-heading">
+      <section className="asset-auction-section" aria-labelledby="open-auctions-heading">
         <div className="section-heading"><h2 id="open-auctions-heading">进行中的拍卖</h2><span>{formatNumber(openAuctions.length)} 场</span></div>
         {openAuctions.length === 0 ? <EmptyState>暂无进行中的资产拍卖。</EmptyState> : (
-          <div className="collectible-auction-grid">
+          <div className="asset-auction-grid">
             {openAuctions.map((auction) => {
               const bidInput = bidAmounts[auction.id] ?? String(auction.minimumBid);
               const amount = parseIntegerDraft(bidInput, { min: auction.minimumBid, max: 1_000_000_000 });
               return (
-                <Panel className={`collectible-auction-card asset-auction-card ${auction.isBundle ? 'asset-auction-bundle' : `asset-auction-${auction.assetKind}`}`} key={auction.id}>
+                <Panel className={`asset-auction-card ${auction.isBundle ? 'asset-auction-bundle' : `asset-auction-${auction.assetKind}`}`} key={auction.id}>
                   <AuctionAssetVisual auction={auction} />
-                  <div className="collectible-auction-body">
+                  <div className="asset-auction-body">
                     <div className="asset-auction-card-heading">
                       <h2 title={auctionCardTitle(auction)}>{auctionCardTitle(auction)}</h2>
                       <StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>
                     </div>
                     <AuctionAssetSummary auction={auction} />
-                    <dl className="collectible-auction-metrics asset-auction-primary-metrics asset-auction-data-layer">
+                    <dl className="asset-auction-metrics asset-auction-primary-metrics asset-auction-data-layer">
                       <div><dt>当前总价</dt><dd><CurrencyAmount>{formatCurrency(auction.highestBid ?? auction.startingBid)}</CurrencyAmount></dd></div>
                       <div><dt>最高出价者</dt><dd>{auction.highestBidderName || '暂无'}</dd></div>
                     </dl>
                     {auction.isSeller ? (
-                      <div className="collectible-auction-actions">
+                      <div className="asset-auction-actions">
                         <StatusTag tone="info">你是卖家</StatusTag>
                         {!auction.highestBidderId ? <Button variant="danger" disabled={submitting} onClick={() => void run(() => gameActions.cancelAuction(auction.id))}>取消拍卖</Button> : <small>已有出价，不能取消</small>}
                       </div>
                     ) : (
-                      <div className="collectible-bid-form">
+                      <div className="asset-bid-form">
                         <IntegerInput
                           label={<span>整包出价（最低 <CurrencyAmount>{formatCurrency(auction.minimumBid)}</CurrencyAmount>）</span>}
                           value={bidInput}
@@ -497,10 +469,10 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
         )}
       </section>
 
-      <Panel className="widget collectible-auction-history">
+      <Panel className="widget asset-auction-history">
         <WidgetHeading title="最近结束" />
         {closedAuctions.length === 0 ? <EmptyState>暂无最近结束的拍卖。</EmptyState> : (
-          <div className="collectible-auction-history-list">
+          <div className="asset-auction-history-list">
             {closedAuctions.map((auction) => (
               <div key={auction.id}>
                 <AuctionAssetVisual auction={auction} compact />

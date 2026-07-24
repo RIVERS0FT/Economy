@@ -225,12 +225,13 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 14,
+    version: 15,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
     markets: createMarkets(now),
     demandGroups: createDemandGroups(now),
+    assetAuctions: [],
     lastProcessedAt: now,
   };
 }
@@ -404,7 +405,7 @@ export function migrateWorld(world, now = Date.now()) {
   for (const group of DEMAND_GROUP_CATALOG) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
-  world.version = 14;
+  world.version = 15;
   return world;
 }
 
@@ -442,15 +443,21 @@ function pendingBuyQuantity(world, userId) {
   const orderQuantity = world.orders
     .filter((order) => order.ownerId === userId && order.side === 'buy' && order.assetKind !== 'facility' && isOpenOrder(order))
     .reduce((sum, order) => sum + order.remaining, 0);
-  const auctionQuantity = (world.collectibleAuctions || []).reduce((sum, auction) => {
+  const auctionQuantity = (world.assetAuctions || []).reduce((sum, auction) => {
     if (
-      auction?.assetKind !== 'commodity'
-      || Number(auction?.highestBidderId) !== Number(userId)
+      Number(auction?.highestBidderId) !== Number(userId)
       || auction?.status !== 'open'
       || auction?.escrowStatus === 'released'
       || auction?.escrowStatus === 'transferred'
     ) return sum;
-    return sum + Math.max(0, Number(auction.quantity || 0));
+    const items = Array.isArray(auction?.items) && auction.items.length > 0
+      ? auction.items
+      : [auction];
+    return sum + items.reduce((itemSum, item) => (
+      item?.assetKind === 'commodity'
+        ? itemSum + Math.max(0, Number(item.quantity || 0))
+        : itemSum
+    ), 0);
   }, 0);
   return orderQuantity + auctionQuantity;
 }
