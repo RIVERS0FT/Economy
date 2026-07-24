@@ -1,0 +1,58 @@
+name: Apply page section spacing
+
+on:
+  push:
+    branches:
+      - agent/unify-page-section-spacing
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-page-section-spacing
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unify-page-section-spacing
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply deterministic patch
+        run: |
+          cat .agent/page-spacing.part-* > /tmp/page-section-spacing.patch
+          git apply --check /tmp/page-section-spacing.patch
+          git apply /tmp/page-section-spacing.patch
+          rm .agent/page-spacing.part-*
+          rm .github/workflows/apply-page-section-spacing.yml
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full build validation
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run contract geometry regression
+        run: npx playwright test tests/browser/contract-layout.spec.ts --project=chromium
+
+      - name: Commit final source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "统一页面一级区块间距"
+          git push origin HEAD:agent/unify-page-section-spacing
