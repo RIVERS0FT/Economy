@@ -27,15 +27,53 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          declare -A expected=(
+            [scripts/apply-contract-layout.part-00]=68023bdd8002646d3e443f895567361defee5d99
+            [scripts/apply-contract-layout.part-01]=448c7c90925242296cbf41fdaf2c02a806533548
+            [scripts/apply-contract-layout.part-02]=c49d2b7ad051b2fd566fe37344551392990fbd03
+            [scripts/apply-contract-layout.tail-00]=d146efb8d01e372210caf94e89557c0612bef3bc
+            [scripts/apply-contract-layout.tail-01]=bb1f29a669b598a451ef6d807c74c12bc847b24d
+            [scripts/apply-contract-layout.tail-02]=ac6f1cec3ab318e74fe5a23bae3455c61635964b
+            [scripts/apply-contract-layout.tail-03]=077c444b358db29d22514a132ad2c65b8ae22d58
+            [scripts/apply-contract-layout.tail-04]=f084e251abba03c19219e13876a9dcad19e709a8
+            [scripts/apply-contract-layout.tail-05]=90c3f8fec9cf287601d5dcf9411d699da3ae0c9c
+            [scripts/apply-contract-layout.tail-06]=00bf4b24e00ed6132c44016eb29c9fd52f9e1b1f
+            [scripts/apply-contract-layout.tail-07]=1c3fddf0f2d41c4449a494d14a2bea54cf3b5fd1
+            [scripts/apply-contract-layout.tail-08]=dcacd8af1e3d625dabf51a6b6b522252452608c1
+            [scripts/apply-contract-layout.tail-09]=cf6b3eee60c99b10e73bb02e9193204e0dc73e76
+            [scripts/apply-contract-layout.tail-10]=d2d99fbd34fe64f9d917be64bf3b2c686fa8c7c7
+            [scripts/apply-contract-layout.tail-11]=8114987add056a10655f6a630abfea99339dca5c
+            [scripts/apply-contract-layout.tail-12]=e003b8a8291505a98787123207503a77d305d716
+            [scripts/apply-contract-layout.tail-13]=59211bee883d440f328994cb309677f5eacda89f
+          )
+          for file in "${!expected[@]}"; do
+            actual="$(git hash-object "$file")"
+            test "$actual" = "${expected[$file]}" || {
+              echo "Payload hash mismatch: $file expected ${expected[$file]} got $actual" >&2
+              exit 1
+            }
+          done
           cat \
             scripts/apply-contract-layout.part-00 \
             scripts/apply-contract-layout.part-01 \
             scripts/apply-contract-layout.part-02 \
-            scripts/apply-contract-layout.part-03a \
-            scripts/apply-contract-layout.part-03b \
+            scripts/apply-contract-layout.tail-00 \
+            scripts/apply-contract-layout.tail-01 \
+            scripts/apply-contract-layout.tail-02 \
+            scripts/apply-contract-layout.tail-03 \
+            scripts/apply-contract-layout.tail-04 \
+            scripts/apply-contract-layout.tail-05 \
+            scripts/apply-contract-layout.tail-06 \
+            scripts/apply-contract-layout.tail-07 \
+            scripts/apply-contract-layout.tail-08 \
+            scripts/apply-contract-layout.tail-09 \
+            scripts/apply-contract-layout.tail-10 \
+            scripts/apply-contract-layout.tail-11 \
+            scripts/apply-contract-layout.tail-12 \
+            scripts/apply-contract-layout.tail-13 \
             | base64 --decode | gzip --decompress > /tmp/apply-contract-layout.mjs
           node /tmp/apply-contract-layout.mjs
-          rm -f scripts/apply-contract-layout.part-*
+          rm -f scripts/apply-contract-layout.part-* scripts/apply-contract-layout.tail-*
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
