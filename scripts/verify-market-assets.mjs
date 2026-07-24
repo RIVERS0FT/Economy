@@ -8,7 +8,7 @@ const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.p
 const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(path + ' 缺少: ' + text); };
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(path + ' 不应包含: ' + text); };
 [
-  'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx',
+  'src/pages/MarketPage.tsx','src/pages/ProductionPage.tsx','src/pages/SettingsPage.tsx','src/app/AdminApp.tsx','src/components/AdminGiftCodesSection.tsx',
   'src/app/gameViewModel.ts','src/utils/defaultOrderPrice.ts','src/utils/orderIdentity.ts','src/utils/orderBookLevels.ts',
   'src/api/admin.ts','src/styles/unified-market-admin.css','src/styles/virtual-list.css','server/src/domain.js','server/src/domain-core.js','server/src/facility-groups.js','server/src/storage.js',
   'server/src/market-demand.js','server/src/market-liquidity.js','server/src/balanced-market.js','server/src/order-book-integrity.js','server/src/market-demand/price-transmission.js',
@@ -48,8 +48,9 @@ for (const text of ['order.quantity +', 'order.quantity *', 'createdAt', 'ownerI
 for (const text of [
   'items={giftCodes}','items={redemptions}',
   'admin-gifts-virtual-table','admin-redemptions-virtual-table',
-]) requireText('src/app/AdminApp.tsx', text);
-for (const text of ['giftCodes.map(','redemptions.map(','collectibles','ownership']) forbidText('src/app/AdminApp.tsx', text);
+]) requireText('src/components/AdminGiftCodesSection.tsx', text);
+for (const text of ['giftCodes.map(','redemptions.map(']) forbidText('src/components/AdminGiftCodesSection.tsx', text);
+for (const text of ['collectibles','ownership']) forbidText('src/app/AdminApp.tsx', text);
 
 for (const text of ['ResizeObserver','overscan','measuredSizesRef','requestAnimationFrame','findVisibleRange']) requireText('src/hooks/useVirtualWindow.ts', text);
 for (const text of ['useVirtualWindow','aria-setsize','virtual-list__canvas']) requireText('src/components/ui/VirtualList.tsx', text);

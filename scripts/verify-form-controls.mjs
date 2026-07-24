@@ -23,6 +23,7 @@ const mainPath = 'src/main.tsx';
 const designDocPath = 'docs/UI_DESIGN_SYSTEM.md';
 const integerWheelTestPath = 'tests/browser/gem-shop-layout.spec.ts';
 const sidebarBadgeTestPath = 'tests/browser/sidebar-badge.spec.ts';
+const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
 
 [
   componentPath,
@@ -36,6 +37,7 @@ const sidebarBadgeTestPath = 'tests/browser/sidebar-badge.spec.ts';
   sidebarBadgeTestPath,
   'src/app/LoginPage.tsx',
   'src/app/AdminApp.tsx',
+  adminGiftCodesPath,
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/ContractPage.tsx',
@@ -113,7 +115,7 @@ if (designSystemIndex < 0 || formControlsIndex < 0 || formControlsIndex < design
 }
 
 for (const path of [
-  'src/app/AdminApp.tsx',
+  adminGiftCodesPath,
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/ContractPage.tsx',
@@ -124,7 +126,7 @@ for (const path of [
 }
 
 for (const path of [
-  'src/app/AdminApp.tsx',
+  adminGiftCodesPath,
   'src/pages/MarketPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/ContractPage.tsx',

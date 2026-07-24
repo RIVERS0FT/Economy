@@ -38,6 +38,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
   'src/components/AdminOverview.tsx',
+  'src/components/AdminCommunityLinkPanel.tsx',
+  'src/components/AdminPlayerSection.tsx',
+  'src/components/AdminPopulationSection.tsx',
+  'src/components/AdminGiftCodesSection.tsx',
   'tests/browser/admin-runtime.spec.ts',
   'src/app/LoginPage.tsx',
   'src/config/brand.ts',
@@ -206,12 +210,18 @@ for (const text of [
   'items={redemptions}',
   'admin-gifts-virtual-table',
   'admin-redemptions-virtual-table',
-]) requireText('src/app/AdminApp.tsx', text);
+  'StatusTag',
+]) requireText('src/components/AdminGiftCodesSection.tsx', text);
 for (const text of [
   '玩家社区入口',
   'adminApi.updateCommunityLink',
   'QQ群跳转链接',
-  "activeSection === 'bans'",
+]) requireText('src/components/AdminCommunityLinkPanel.tsx', text);
+for (const text of [
+  "visitedSections.has('players')",
+  "visitedSections.has('population')",
+  "visitedSections.has('gift-codes')",
+  "visitedSections.has('bans')",
   '<AdminBanPanel',
   '<AdminSidebar',
   '<SignedInShell',
@@ -232,7 +242,7 @@ for (const text of [
   'sidebar-brand-copy',
 ]) requireText('src/components/shell/SidebarFrame.tsx', text);
 for (const text of [
-  "export type AdminSectionId = 'overview' | 'community' | 'gift-codes' | 'bans'",
+  "export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans'",
   '管理员导航',
   'admin-mobile-navigation',
 ]) requireText('src/components/shell/AdminSidebar.tsx', text);
@@ -265,8 +275,10 @@ forbidText('src/pages/SettingsPage.tsx', '/economy/admin/bans');
 for (const text of ['getCommunityLink(controller.signal)', 'DEFAULT_QQ_GROUP_URL']) {
   requireText('src/components/shell/GameShell.tsx', text);
 }
-for (const text of ['giftCodes.map(', 'redemptions.map(', 'collectibles', 'ownership']) forbidText('src/app/AdminApp.tsx', text);
-for (const text of ['PageLayout', 'Panel', 'StatusTag', 'Button']) requireText('src/app/AdminApp.tsx', text);
+for (const text of ['giftCodes.map(', 'redemptions.map(']) forbidText('src/components/AdminGiftCodesSection.tsx', text);
+for (const text of ['collectibles', 'ownership']) forbidText('src/app/AdminApp.tsx', text);
+for (const text of ['PageLayout', 'Button']) requireText('src/app/AdminApp.tsx', text);
+for (const text of ['Panel', 'StatusTag', 'Button']) requireText('src/components/AdminGiftCodesSection.tsx', text);
 requireText('src/components/AdminOverview.tsx', 'MetricCard');
 for (const text of ['grid-template-columns: repeat(4, minmax(0, 1fr));', 'max-width: none;']) {
   requireText('src/styles/unified-market-admin.css', text);

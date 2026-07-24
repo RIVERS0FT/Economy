@@ -97,6 +97,27 @@ export function QqIcon(props: GameIconProps) {
   );
 }
 
+export function PlayersIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 19c.4-4 2.3-6 5.5-6s5.1 2 5.5 6" />
+      <path d="M15 6.5a2.5 2.5 0 0 1 0 5M15.5 13c2.7.4 4.4 2.4 4.7 5" />
+    </GameIcon>
+  );
+}
+
+export function PopulationIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <circle cx="12" cy="7" r="2.8" />
+      <circle cx="5.5" cy="9" r="2.2" />
+      <circle cx="18.5" cy="9" r="2.2" />
+      <path d="M7 20c.3-4.5 2-7 5-7s4.7 2.5 5 7M2.5 20c.2-3.3 1.3-5.3 3.5-6M21.5 20c-.2-3.3-1.3-5.3-3.5-6" />
+    </GameIcon>
+  );
+}
+
 export function LogoutIcon(props: GameIconProps) {
   return (
     <GameIcon {...props}>

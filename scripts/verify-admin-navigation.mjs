@@ -41,19 +41,18 @@ requireText('src/components/shell/AdminSidebar.tsx', [
   'className="admin-mobile-bottom-navigation"',
   'surfaceId="admin-mobile-navigation"',
   'navLabel="管理员移动导航"',
-]);
-requireText('src/components/shell/AdminSidebar.tsx', [
-  "export type AdminSectionId = 'overview' | 'community' | 'gift-codes' | 'bans';",
-  "{ id: 'overview', label: '概况'",
-  "{ id: 'community', label: '社区'",
-  "{ id: 'gift-codes', label: '礼品码'",
-  "{ id: 'bans', label: '账号封禁'",
+  "export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans';",
+  "{ id: 'overview', label: '概览'",
+  "{ id: 'players', label: '玩家'",
+  "{ id: 'population', label: '人口'",
+  "{ id: 'gift-codes', label: '礼品'",
+  "{ id: 'bans', label: '封禁'",
 ]);
 forbidText('src/components/shell/AdminSidebar.tsx', [
+  "'community'",
+  'QqIcon',
   'collectibles',
   '藏品',
-]);
-forbidText('src/components/shell/AdminSidebar.tsx', [
   "import { createPortal } from 'react-dom'",
   'document.body',
   'className="mobile-chrome-overlay admin-mobile-chrome-layer"',
@@ -72,6 +71,9 @@ requireText('src/components/shell/AdminDesktopBar.tsx', [
 requireText('src/app/AdminApp.tsx', [
   "import { SignedInShell } from '../components/shell/SignedInShell'",
   "import { AdminDesktopBar } from '../components/shell/AdminDesktopBar'",
+  "import { AdminPlayerSection } from '../components/AdminPlayerSection'",
+  "import { AdminPopulationSection } from '../components/AdminPopulationSection'",
+  "import { AdminGiftCodesSection } from '../components/AdminGiftCodesSection'",
   '<SignedInShell',
   'rootClassName="admin-shell"',
   'workspaceClassName="admin-workspace"',
@@ -80,6 +82,34 @@ requireText('src/app/AdminApp.tsx', [
   'chromeOverlayClassName="admin-mobile-chrome-layer"',
   '<AdminDesktopBar',
   '<AdminMobileNavigation',
+  "visitedSections.has('overview')",
+  "visitedSections.has('players')",
+  "visitedSections.has('population')",
+  "visitedSections.has('gift-codes')",
+  "visitedSections.has('bans')",
+]);
+requireText('src/components/AdminOverview.tsx', [
+  '<AdminCommunityLinkPanel',
+  'aria-label="世界概览"',
+]);
+requireText('src/components/AdminCommunityLinkPanel.tsx', [
+  '玩家社区入口',
+  'adminApi.communityLink()',
+  'adminApi.updateCommunityLink',
+]);
+requireText('src/components/AdminPlayerSection.tsx', [
+  '玩家运营分析',
+  'adminApi.playerStatistics(nextRange)',
+]);
+requireText('src/components/AdminPopulationSection.tsx', [
+  '人口经济总览',
+  'adminApi.populationEconomy()',
+  '<AdminPopulationControl',
+]);
+requireText('src/components/AdminGiftCodesSection.tsx', [
+  '创建礼品码',
+  '<VirtualList',
+  'downloadGiftCodes',
 ]);
 requireText('src/components/AdminPopulationHealth.tsx', [
   'ADMIN_OVERVIEW_SCHEME: population-health-matrix',
@@ -112,6 +142,7 @@ requireText('src/styles/admin-overview-density.css', [
 forbidText('src/app/AdminApp.tsx', [
   '<section className="admin-workspace">',
   '<div className="admin-page-scroll">',
+  "activeSection === 'community'",
 ]);
 requireText('src/components/AdminBanPanel.tsx', [
   "import { VirtualList } from './ui/VirtualList'",
@@ -177,6 +208,7 @@ requireText('src/main.tsx', [
   "import './styles/admin-navigation.css';",
 ]);
 requireText('tests/browser/admin-runtime.spec.ts', [
+  "toEqual(['概览', '玩家', '人口', '礼品', '封禁'])",
   '.admin-mobile-bottom-navigation',
   '.admin-mobile-chrome-layer',
   '.admin-command-bar',
@@ -195,6 +227,10 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '移动端复用统一 `MobileBottomNavigationFrame`',
   '不得恢复管理员独立页面滚动视口',
   '运营控制台布局方案',
+  '“概览／玩家／人口／礼品／封禁”五分区导航',
+  '社区入口配置并入“概览”',
+  '玩家运营统计固定归属“玩家”分区',
+  '人口经济固定归属“人口”分区',
   '礼品码工作台位于左侧',
   '记录列表与详情位于右侧',
   '`ADMIN_CONSOLE_SCHEME: command-center`',
@@ -208,4 +244,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('管理员导航与运营控制台验证通过：桌面共享外壳与玻璃工作栏、人口政策当前参数、正数最小可见比例条、双栏工作台、封禁事件窗口化及移动统一 Chrome 层均已锁定。');
+console.log('管理员导航与运营控制台验证通过：概览、玩家、人口、礼品、封禁五分区，社区并入概览，桌面共享外壳、人口政策、虚拟列表及移动统一 Chrome 层均已锁定。');

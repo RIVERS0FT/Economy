@@ -47,11 +47,12 @@ requireText('src/api/admin.ts', [
   'playerStatistics: async (range: AdminPlayerStatisticsRange)',
 ]);
 requireText('src/app/AdminApp.tsx', [
-  "import { AdminOverview } from '../components/AdminOverview'",
-  'playerStatisticsRangeRef',
-  '<AdminOverview',
+  "import { AdminPlayerSection } from '../components/AdminPlayerSection'",
+  "visitedSections.has('players')",
+  '<AdminPlayerSection',
 ]);
 forbidText('src/app/AdminApp.tsx', [
+  'playerStatisticsRangeRef',
   'admin-population-summary-grid',
   'admin-population-model-grid',
   'admin-population-detail-grid',
@@ -65,8 +66,18 @@ requireText('src/components/AdminPlayerStatistics.tsx', [
   '需要关注的玩家群体',
   '只统计成功经济写操作',
 ]);
-requireText('src/components/AdminOverview.tsx', [
+requireText('src/components/AdminPlayerSection.tsx', [
   "const RANGES: AdminPlayerStatisticsRange[] = ['7d', '30d', '90d']",
+  '玩家运营分析',
+  'adminApi.playerStatistics(nextRange)',
+]);
+requireText('src/components/AdminOverview.tsx', [
+  'AdminCommunityLinkPanel',
+  'admin-summary-grid',
+]);
+forbidText('src/components/AdminOverview.tsx', [
+  'AdminPlayerStatistics',
+  'AdminPopulationControl',
   '玩家运营分析',
   '人口经济',
 ]);
@@ -81,7 +92,7 @@ requireText('server/test/player-admin-statistics.test.js', [
   'assert.equal(second.revision, statistics.revision)',
 ]);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
-  '玩家运营统计',
+  '玩家运营统计固定归属“玩家”分区',
   '成功经济写操作',
   '精确日活动覆盖起点',
   '不得把统计结果用于扩张人口需求预算',
@@ -93,7 +104,7 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`lastPlayerScaleBudget` 与 `lastInventoryBoost`',
 ]);
 requireText('docs/README.md', ['管理员玩家运营统计']);
-requireText('README.md', ['玩家运营统计']);
+requireText('README.md', ['管理员“玩家”分区提供 7／30／90 日成功经济写操作']);
 requireText('package.json', ['verify:admin-player-statistics']);
 
 if (failures.length) {
@@ -101,4 +112,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('管理员玩家运营统计验证通过：成功经济写操作、精确覆盖、真实成交估值、隐私边界、单一概况编排和移动响应式均已锁定。');
+console.log('管理员玩家运营统计验证通过：成功经济写操作、精确覆盖、真实成交估值、隐私边界、独立玩家分区和移动响应式均已锁定。');
