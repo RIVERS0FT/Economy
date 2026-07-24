@@ -1,4 +1,4 @@
-name: Apply Global Interaction Modality
+name: Squash Global Interaction Modality
 
 on:
   pull_request:
@@ -9,19 +9,53 @@ permissions:
   contents: write
 
 concurrency:
-  group: apply-global-interaction-modality
+  group: squash-global-interaction-modality
   cancel-in-progress: true
 
 jobs:
-  apply:
+  squash:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout branch
+      - name: Checkout modification branch
         uses: actions/checkout@v4
         with:
           ref: agent/global-interaction-modality
           fetch-depth: 0
+
+      - name: Reapply formal diff onto latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          files=(
+            README.md
+            docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
+            docs/README.md
+            docs/UI_DESIGN_SYSTEM.md
+            package.json
+            scripts/interaction-hover-legacy.json
+            scripts/verify-interaction-modality.mjs
+            scripts/verify-unified-factory-recipes-grid.mjs
+            src/app/interactionBootstrap.ts
+            src/main.tsx
+            src/pages/ProductionPage.tsx
+            src/styles/design-system.css
+            src/styles/facility-group-card-grid.css
+            src/styles/interaction-states.css
+            tests/browser/assets-runtime-harness.tsx
+            tests/browser/facility-detail-sheet.spec.ts
+            tests/browser/input-modality.spec.ts
+            tests/browser/market-runtime-harness.tsx
+            tests/browser/runtime-harness.tsx
+          )
+          merge_base="$(git merge-base origin/main HEAD)"
+          git diff --binary "$merge_base" HEAD -- "${files[@]}" > /tmp/global-interaction-modality.patch
+          test -s /tmp/global-interaction-modality.patch
+          git reset --hard origin/main
+          git apply --3way --index /tmp/global-interaction-modality.patch
+          git diff --cached --check
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -32,178 +66,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Extract and apply prepared patch
-        shell: bash
-        run: |
-          set -euo pipefail
-          {
-            python3 - <<'PYTHON'
-          from pathlib import Path
-
-          workflow = Path('.github/workflows/apply-interaction-modality.yml').read_text()
-          marker = "python3 - <<'PYTHON'\n"
-          if marker not in workflow:
-              raise RuntimeError('未找到补丁脚本起点')
-          raw_script = workflow.split(marker, 1)[1]
-          end_marker = '\n          PYTHON\n'
-          if end_marker not in raw_script:
-              raise RuntimeError('未找到补丁脚本终点')
-          raw_script = raw_script.split(end_marker, 1)[0]
-          script = '\n'.join(
-              line[10:] if line.startswith('          ') else line
-              for line in raw_script.splitlines()
-          ) + '\n'
-          Path('/tmp/apply-interaction-modality.py').write_text(script)
-          PYTHON
-            python3 /tmp/apply-interaction-modality.py
-            python3 - <<'PYTHON'
-          from pathlib import Path
-
-          style_path = Path('src/styles/design-system.css')
-          style = style_path.read_text()
-          generic_hover = "button:hover:not(:disabled),\n.ui-button:hover:not(:disabled) {\n  transform: translateY(-1px);\n  filter: brightness(1.04);\n}\n\n"
-          while generic_hover in style:
-              style = style.replace(generic_hover, '')
-          style_path.write_text(style)
-
-          verifier_path = Path('scripts/verify-interaction-modality.mjs')
-          verifier = verifier_path.read_text()
-          old_verifier = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled)');"
-          new_verifier = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled),\\n.ui-button:hover:not(:disabled) {');"
-          if old_verifier not in verifier:
-              raise RuntimeError('交互验证器缺少通用按钮 hover 子串检查')
-          verifier = verifier.replace(old_verifier, new_verifier, 1)
-          old_test_requirement = "    \"trigger.tap()\","
-          new_test_requirement = "    \"pointerType: 'touch'\","
-          if old_test_requirement not in verifier:
-              raise RuntimeError('交互验证器缺少旧触摸测试要求')
-          verifier_path.write_text(verifier.replace(old_test_requirement, new_test_requirement, 1))
-
-          industry_path = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
-          industry = industry_path.read_text()
-          old_focus = '关闭后语义焦点返回触发卡。触摸关闭后必须恢复为仅由工厂运行状态决定的基础视觉'
-          new_focus = '关闭后焦点返回触发卡；该焦点只恢复语义导航位置。触摸关闭后必须恢复为仅由工厂运行状态决定的基础视觉'
-          if old_focus not in industry:
-              raise RuntimeError('产业设计缺少待规范的焦点返回表述')
-          industry_path.write_text(industry.replace(old_focus, new_focus, 1))
-
-          test_path = Path('tests/browser/input-modality.spec.ts')
-          test_source = test_path.read_text()
-          old_use = "  test.use({\n    viewport: { width: 390, height: 844 },\n    hasTouch: true,\n  });\n"
-          new_use = "  test.use({\n    viewport: { width: 390, height: 844 },\n  });\n"
-          if old_use not in test_source:
-              raise RuntimeError('混合输入测试缺少旧触控上下文')
-          test_source = test_source.replace(old_use, new_use, 1)
-          old_mouse_assert = "    const mouseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);\n    expect(mouseBackground).not.toBe(baseBackground);\n\n    await trigger.tap();\n"
-          new_mouse_assert = "    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))\n      .not.toBe(baseBackground);\n\n    await trigger.evaluate((element) => {\n      element.dispatchEvent(new PointerEvent('pointerdown', {\n        bubbles: true,\n        isPrimary: true,\n        pointerType: 'touch',\n      }));\n      element.dispatchEvent(new PointerEvent('pointerup', {\n        bubbles: true,\n        isPrimary: true,\n        pointerType: 'touch',\n      }));\n      (element as HTMLButtonElement).click();\n    });\n"
-          if old_mouse_assert not in test_source:
-              raise RuntimeError('混合输入测试缺少旧 hover/tap 断言')
-          test_source = test_source.replace(old_mouse_assert, new_mouse_assert, 1)
-          old_touch_assert = "    const touchBackground = await trigger.evaluate((element) => getComputedStyle(element).background);\n    expect(touchBackground).toBe(baseBackground);\n"
-          new_touch_assert = "    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))\n      .toBe(baseBackground);\n"
-          if old_touch_assert not in test_source:
-              raise RuntimeError('混合输入测试缺少旧触控背景断言')
-          test_path.write_text(test_source.replace(old_touch_assert, new_touch_assert, 1))
-          PYTHON
-          } 2>&1 | tee /tmp/apply-interaction-modality.log
-
-      - name: Persist apply failure
-        if: failure()
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .agent
-          cp /tmp/apply-interaction-modality.log .agent/apply-interaction-modality.log
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .agent/apply-interaction-modality.log
-          if ! git diff --cached --quiet; then
-            git commit -m '记录交互协议应用失败'
-            git push origin HEAD:agent/global-interaction-modality
-          fi
-
-      - name: Generate hover baseline
-        shell: bash
-        run: |
-          set -o pipefail
-          node scripts/verify-interaction-modality.mjs --write-baseline 2>&1 | tee /tmp/interaction-baseline.log
-
-      - name: Persist baseline failure
-        if: failure()
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .agent
-          cp /tmp/interaction-baseline.log .agent/interaction-baseline.log
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .agent/interaction-baseline.log
-          if ! git diff --cached --quiet; then
-            git commit -m '记录交互基线验证失败'
-            git push origin HEAD:agent/global-interaction-modality
-          fi
-
       - name: Verify focused architecture
-        shell: bash
         run: |
-          set -o pipefail
-          {
-            node scripts/verify-interaction-modality.mjs
-            node scripts/verify-mobile-touch-feedback.mjs
-            node scripts/verify-unified-factory-recipes-grid.mjs
-            npm run typecheck
-          } 2>&1 | tee /tmp/interaction-architecture.log
-
-      - name: Persist architecture failure
-        if: failure()
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p .agent
-          cp /tmp/interaction-architecture.log .agent/interaction-architecture.log
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .agent/interaction-architecture.log
-          if ! git diff --cached --quiet; then
-            git commit -m '记录交互协议集中验证失败'
-            git push origin HEAD:agent/global-interaction-modality
-          fi
+          node scripts/verify-interaction-modality.mjs
+          node scripts/verify-mobile-touch-feedback.mjs
+          node scripts/verify-unified-factory-recipes-grid.mjs
+          npm run typecheck
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Verify interaction browsers
-        shell: bash
-        run: |
-          set -o pipefail
-          npx playwright test tests/browser/facility-detail-sheet.spec.ts tests/browser/input-modality.spec.ts --project=chromium 2>&1 | tee /tmp/interaction-browser.log
+        run: npx playwright test tests/browser/facility-detail-sheet.spec.ts tests/browser/input-modality.spec.ts --project=chromium
 
-      - name: Persist browser failure
-        if: failure()
+      - name: Force-push clean commit
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p .agent
-          cp /tmp/interaction-browser.log .agent/interaction-browser.log
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add .agent/interaction-browser.log
-          if ! git diff --cached --quiet; then
-            git commit -m '记录交互协议浏览器验证失败'
-            git push origin HEAD:agent/global-interaction-modality
-          fi
-
-      - name: Restore CI and commit real changes
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-          rm .github/workflows/apply-interaction-modality.yml
-          rm -rf .agent
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git diff --cached --check
           git commit -m '统一全局输入方式交互协议'
-          git push origin HEAD:agent/global-interaction-modality
+          git push --force origin HEAD:agent/global-interaction-modality
