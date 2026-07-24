@@ -15,4 +15,6 @@ path.write_text(content)
 verify_path = Path('scripts/verify-staple-crops-demand.mjs')
 verify = verify_path.read_text()
 verify = verify.replace("'未满足需求报价锚点'", "'双向报价锚点'")
+verify = verify.replace('市场需求验证通过：模型 9 使用真实人口钱包覆盖全部 31 种商品，并保持既有总预算、派生流动性和市场储备约束。',
+                        '市场需求验证通过：模型 10 使用真实人口钱包覆盖全部 31 种商品，并保持双向直接需求报价、既有总预算、派生流动性和市场储备约束。')
 verify_path.write_text(verify)
