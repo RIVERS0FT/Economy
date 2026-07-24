@@ -1,4 +1,4 @@
-name: Current main source snapshot
+name: Current main dependency snapshot
 
 on:
   pull_request:
@@ -16,14 +16,26 @@ jobs:
         with:
           ref: main
 
-      - name: Upload current main source
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Prepare portable validation environment
+        run: |
+          mkdir -p validation-runtime/bin
+          cp "$(command -v node)" validation-runtime/bin/node
+
+      - name: Upload dependencies and Node runtime
         uses: actions/upload-artifact@v4
         with:
-          name: economy-current-main-source
+          name: economy-validation-environment
           path: |
-            .
-            !.git/**
-            !node_modules/**
-            !dist/**
+            node_modules/
+            validation-runtime/
           include-hidden-files: true
           retention-days: 1
