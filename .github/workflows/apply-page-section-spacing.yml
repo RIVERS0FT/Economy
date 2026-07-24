@@ -39,7 +39,17 @@ jobs:
             exit 1
           fi
           git apply /tmp/page-section-spacing.patch
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const path = 'package.json';
+          const original = readFileSync(path, 'utf8');
+          const marker = 'node scripts/verify-ui-architecture-runner.mjs && npm run verify:product-artwork';
+          const replacement = 'node scripts/verify-ui-architecture-runner.mjs && node scripts/verify-page-section-spacing.mjs && npm run verify:product-artwork';
+          if (!original.includes(marker)) throw new Error('无法定位 verify:architecture 插入点');
+          writeFileSync(path, original.replace(marker, replacement));
+          NODE
           rm .agent/page-spacing.part-*
+          rm -f .agent/page-spacing-apply-error.log
           rm .github/workflows/apply-page-section-spacing.yml
 
       - name: Install dependencies
