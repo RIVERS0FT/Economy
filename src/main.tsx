@@ -29,6 +29,7 @@ import './styles/market-account-table.css';
 import './styles/assets.css';
 import './styles/warehouse-expansion.css';
 import './styles/collectibles-auctions.css';
+import './styles/contracts.css';
 import './styles/gem-shop.css';
 import './styles/unified-market-admin.css';
 import './styles/admin-navigation.css';
