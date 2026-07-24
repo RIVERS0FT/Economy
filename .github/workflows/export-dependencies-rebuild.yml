@@ -4,16 +4,22 @@ on:
   push:
     branches:
       - agent/remove-collectibles-rebuild
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   export:
+    if: github.head_ref == 'agent/remove-collectibles-rebuild' || github.ref_name == 'agent/remove-collectibles-rebuild'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
