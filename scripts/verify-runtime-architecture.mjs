@@ -47,7 +47,7 @@ for (const target of ['./AdminApp', './GameApp']) {
 
 const routerImports = importTargets('src/pages/PageRouter.tsx');
 for (const target of [
-  './AssetsPage', './AuctionPage', './CollectionsPage', './LeaderboardPage', './MarketPage',
+  './AssetsPage', './AuctionPage', './ContractPage', './LeaderboardPage', './MarketPage',
   './OverviewPage', './ProductionPage', './GemShopPage', './SettingsPage',
 ]) {
   if (!routerImports.dynamic.includes(target)) fail(`PageRouter.tsx 必须动态导入 ${target}`);

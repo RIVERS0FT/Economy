@@ -51,7 +51,7 @@ test('trading board sums actual seller gross volume, counts completed fills on c
     { id: 'sell-facility', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm', side: 'sell', ownerType: 'player', ownerId: 1, status: 'filled', remaining: 0, fills: [facilityFill] },
     { id: 'buy-facility', assetKind: 'facility', assetId: 'farm', facilityTypeId: 'farm', side: 'buy', ownerType: 'player', ownerId: 3, status: 'filled', remaining: 0, fills: [facilityFill] },
   );
-  world.collectibleAuctions = [{ id: 'auction-ignored', sellerId: 1, currentBid: 999_999, status: 'settled' }];
+  world.assetAuctions = [{ id: 'auction-ignored', sellerId: 1, highestBid: 999_999, status: 'sold', items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 1 }] }];
 
   captureTradingFills(world, state, world.orders);
 

@@ -46,10 +46,10 @@ for (const text of ['order.quantity +', 'order.quantity *', 'createdAt', 'ownerI
 }
 
 for (const text of [
-  'items={collectibles}','items={giftCodes}','items={ownership}','items={redemptions}',
-  'admin-collectibles-virtual-table','admin-gifts-virtual-table','admin-redemptions-virtual-table',
+  'items={giftCodes}','items={redemptions}',
+  'admin-gifts-virtual-table','admin-redemptions-virtual-table',
 ]) requireText('src/app/AdminApp.tsx', text);
-for (const text of ['collectibles.map(','giftCodes.map(','ownership.map(','redemptions.map(']) forbidText('src/app/AdminApp.tsx', text);
+for (const text of ['giftCodes.map(','redemptions.map(','collectibles','ownership']) forbidText('src/app/AdminApp.tsx', text);
 
 for (const text of ['ResizeObserver','overscan','measuredSizesRef','requestAnimationFrame','findVisibleRange']) requireText('src/hooks/useVirtualWindow.ts', text);
 for (const text of ['useVirtualWindow','aria-setsize','virtual-list__canvas']) requireText('src/components/ui/VirtualList.tsx', text);
@@ -115,7 +115,7 @@ for (const text of ['点击工作次数','生产商品总数','买入商品总�
 for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
-for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 14','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','SELF_CROSS_MESSAGE']) requireText('server/src/facility-groups.js', text);
+for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 15','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','SELF_CROSS_MESSAGE']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
 for (const text of ['SELF_CROSS_MESSAGE','findSelfCrossingOrder','pricesCross','bestSystemPrice','systemBookIsCrossed']) requireText('server/src/order-book-integrity.js', text);
 const domainSource = [
@@ -170,8 +170,8 @@ for (const text of [
   '不得用分页、截断、`slice` 或只显示最近记录替代窗口化',
 ]) requireText('docs/LOCAL_ACTIVITY_LOG_DESIGN.md', text);
 for (const text of [
-  '藏品列表、礼品码列表、归属历史和兑换记录可能持续增长，必须复用共享 `VirtualList`',
-  '对管理员藏品、礼品码、归属或兑换记录恢复全量 `.map()` DOM 渲染',
+  '礼品码列表和兑换记录可能持续增长，必须同时使用服务端游标分页和共享 `VirtualList`',
+  '让礼品码或兑换记录接口恢复无边界全表返回',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 
 if (!failures.length) {

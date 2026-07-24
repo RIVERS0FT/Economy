@@ -30,7 +30,7 @@ test('ordinary player order state removes counterparties, demand sources, and li
   ];
 
   const state = createFacilityGroupClientState(world, alice.id, now);
-  assert.equal(state.version, 16);
+  assert.equal(state.version, 17);
   const own = state.orders.find((order) => order.id === 'alice-sell');
   const external = state.orders.find((order) => order.id === 'population-secret');
 

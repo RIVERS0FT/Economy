@@ -30,8 +30,8 @@ function storedQuantity(player) {
 
 function auctionItems(auction) {
   if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
-  const kind = auction?.assetKind || (auction?.collectibleId ? 'collectible' : undefined);
-  const assetId = String(auction?.assetId || auction?.productId || auction?.facilityTypeId || auction?.collectibleId || '');
+  const kind = auction?.assetKind;
+  const assetId = String(auction?.assetId || auction?.productId || auction?.facilityTypeId || '');
   return kind && assetId ? [{ assetKind: kind, assetId, quantity: Math.max(1, Number(auction.quantity || 1)) }] : [];
 }
 
@@ -51,7 +51,7 @@ function reservedBuyQuantity(world, userId) {
     ) return sum;
     return sum + Math.max(0, Number(order.remaining || 0));
   }, 0);
-  const auctionReserved = (world?.collectibleAuctions || []).reduce((sum, auction) => {
+  const auctionReserved = (world?.assetAuctions || []).reduce((sum, auction) => {
     if (
       Number(auction?.highestBidderId) !== Number(userId)
       || auction?.status !== 'open'

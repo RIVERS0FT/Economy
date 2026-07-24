@@ -12,7 +12,7 @@ const required = [
   'server/src/storage.js',
   'server/src/domain-core.js',
   'server/src/facility-groups.js',
-  'server/src/collectibles.js',
+  'server/src/asset-auctions.js',
   'miniprogram/pages/index/index.js',
   'miniprogram/pages/index/index.ttml',
   'scripts/verify-page-content.mjs',
@@ -35,7 +35,7 @@ if (failures.length === 0) {
     read('server/src/storage.js'),
     read('server/src/domain-core.js'),
     read('server/src/facility-groups.js'),
-    read('server/src/collectibles.js'),
+    read('server/src/asset-auctions.js'),
   ].join('\n');
   const miniProgram = [
     read('miniprogram/pages/index/index.js'),
@@ -53,7 +53,7 @@ if (failures.length === 0) {
     ['SettingsPage', settings, ['重置经济状态', 'settings-danger-zone', '危险区域', 'reset()']],
     ['客户端 API', clientApi, ["postAction('/reset')", 'reset: () =>']],
     ['客户端 ViewModel', viewModel, ['resetPlayer', 'reset: () => Promise<ActionResult>']],
-    ['服务器领域代码', serverSources, ['resetPlayer', 'canResetCollectibles', 'resetFacilityGroups', '服务器经济状态已重置']],
+    ['服务器领域代码', serverSources, ['resetPlayer', 'resetAssetAuctions', 'resetFacilityGroups', '服务器经济状态已重置']],
     ['小程序', miniProgram, ['resetGame', '重置存档', 'bindtap="resetGame"']],
   ]) {
     for (const text of forbidden) {

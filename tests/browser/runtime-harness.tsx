@@ -104,7 +104,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const inventoryCapacity = 6650;
 
   const game = {
-    version: 16,
+    version: 17,
     lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',

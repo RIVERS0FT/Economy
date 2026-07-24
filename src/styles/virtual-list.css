@@ -123,11 +123,6 @@
   white-space: nowrap;
 }
 
-.admin-collectibles-virtual-table {
-  --virtual-table-columns: 70px minmax(180px, 1.5fr) minmax(130px, 1fr) minmax(160px, 1.2fr) 90px 90px minmax(150px, 1fr);
-  --virtual-table-min-width: 960px;
-  --virtual-row-height: 72px;
-}
 
 .admin-gifts-virtual-table {
   --virtual-table-columns: 70px 100px 100px 80px 120px minmax(160px, 1.4fr) minmax(150px, 1fr);

@@ -96,7 +96,9 @@ requireText('server/src/state-partitions.js', [
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`server/shared/economy-state-version.js`',
-  `当前客户端接受版本 ${MIN_COMPATIBLE_CLIENT_STATE_VERSION} 与 ${CURRENT_CLIENT_STATE_VERSION}`,
+  MIN_COMPATIBLE_CLIENT_STATE_VERSION === CURRENT_CLIENT_STATE_VERSION
+    ? `当前客户端只接受版本 ${CURRENT_CLIENT_STATE_VERSION}`
+    : `当前客户端接受版本 ${MIN_COMPATIBLE_CLIENT_STATE_VERSION} 与 ${CURRENT_CLIENT_STATE_VERSION}`,
   '不得维护独立常量',
 ]);
 requireText('docs/README.md', [
@@ -109,7 +111,7 @@ function completePatches(version) {
     catalog: { version, products: [], facilityTypes: [] },
     player: { userId: 1, credits: 100 },
     market: { orders: [] },
-    auction: { collectibles: [] },
+    auction: { assetAuctions: [] },
     contract: { productionContracts: [], productionContractSummary: {} },
     leaderboard: { leaderboard: [] },
   };

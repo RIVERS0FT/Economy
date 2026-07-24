@@ -116,13 +116,6 @@
     overflow: hidden;
   }
 
-  .admin-collectible-format {
-    max-height: 320px;
-    overflow: auto;
-    overscroll-behavior-x: contain;
-    overscroll-behavior-y: auto;
-  }
-
   .admin-ban-panel {
     min-height: min(760px, calc(100dvh - var(--desktop-page-top-offset) - var(--desktop-layout-gutter)));
   }
@@ -186,19 +179,16 @@
 }
 
 @media (min-width: 1180px) {
-  .admin-section-stack:has(.admin-collectible-upload),
   .admin-section-stack:has(.admin-gift-create) {
     grid-template-columns: minmax(320px, .72fr) minmax(0, 1.68fr);
     align-items: start;
   }
 
-  .admin-section-stack:has(.admin-collectible-upload) > :first-child,
   .admin-section-stack:has(.admin-gift-create) > :first-child {
     position: sticky;
     top: var(--desktop-page-top-offset);
   }
 
-  .admin-section-stack:has(.admin-collectible-upload) > :nth-child(n + 2),
   .admin-section-stack:has(.admin-gift-create) > :nth-child(n + 2) {
     grid-column: 2;
   }
@@ -267,12 +257,6 @@
     color: var(--color-text-primary);
     background: var(--color-surface-inset);
     text-align: left;
-  }
-
-  .admin-collectible-format {
-    max-height: 260px;
-    overflow: auto;
-    font-size: .75rem;
   }
 
   .admin-mobile-chrome-layer .admin-mobile-bottom-navigation {

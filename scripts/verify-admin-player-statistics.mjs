@@ -25,6 +25,13 @@ requireText('server/src/player-admin-statistics.js', [
   'lastEconomicActivityAt',
   'configurePlayerAdminStatistics',
   'coverage_started_at',
+  'world?.assetAuctions',
+]);
+forbidText('server/src/player-admin-statistics.js', [
+  'collectibleAuctions',
+  'createCollectibleAuction',
+  'placeCollectibleBid',
+  'cancelCollectibleAuction',
 ]);
 requireText('server/src/runtime-store.js', [
   "import { configurePlayerAdminStatistics } from './player-admin-statistics.js'",

@@ -8,11 +8,6 @@ import {
   type GiftRedemptionRecord,
 } from '../api/admin';
 import { GameApiError } from '../api/game';
-import type {
-  CollectibleAdminRecord,
-  CollectibleImportRecord,
-  CollectibleOwnershipRecord,
-} from '../collectibles/types';
 import { AdminBanPanel } from '../components/AdminBanPanel';
 import { AdminOverview } from '../components/AdminOverview';
 import {
@@ -23,7 +18,7 @@ import {
 import { AdminDesktopBar } from '../components/shell/AdminDesktopBar';
 import { SignedInShell } from '../components/shell/SignedInShell';
 import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
-import { FileInput, IntegerInput, TextArea, TextInput } from '../components/ui/FormControls';
+import { IntegerInput, TextArea, TextInput } from '../components/ui/FormControls';
 import {
   Button,
   EmptyState,
@@ -37,47 +32,17 @@ import type { AuthUser, GiftCodeAdminRecord } from '../types';
 import { formatCurrency, formatDate, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 
-function collectibleKey(item: CollectibleAdminRecord) { return item.id; }
-function ownershipKey(record: CollectibleOwnershipRecord) { return record.id; }
 function giftCodeKey(gift: GiftCodeAdminRecord) { return gift.id; }
 function redemptionKey(record: GiftRedemptionRecord) { return `${record.user_id}-${record.redeemed_at}`; }
 
-const collectibleFormatExample = `[
-  {
-    "sourceArtworkId": 28560,
-    "title": "The Bedroom",
-    "artist": "Vincent van Gogh",
-    "dateDisplay": "1889",
-    "mediumDisplay": "Oil on canvas",
-    "dimensions": "73.6 × 92.3 cm",
-    "imageId": "芝加哥艺术博物馆 image_id",
-    "isPublicDomain": true,
-    "initialOwnerId": 123
-  }
-]`;
 
 const ADMIN_SECTION_COPY: Record<AdminSectionId, { title: string; description: string }> = {
   overview: { title: '世界概况', description: '查看 Economy 世界状态与核心运营指标。' },
   community: { title: '玩家社区', description: '配置客户端侧边栏使用的官方社区入口。' },
-  collectibles: { title: '藏品管理', description: '导入公版藏品并复核当前归属与流转历史。' },
   'gift-codes': { title: '礼品码', description: '创建、停用礼品码并审阅玩家兑换记录。' },
   bans: { title: '账号封禁', description: '复核同 IP 多账号事件并调整账号封禁状态。' },
 };
 
-function parseImportItems(value: unknown): CollectibleImportRecord[] {
-  const records = Array.isArray(value)
-    ? value
-    : value && typeof value === 'object' && Array.isArray((value as { items?: unknown }).items)
-      ? (value as { items: unknown[] }).items
-      : [];
-  return records as CollectibleImportRecord[];
-}
-
-function ownershipReason(record: CollectibleOwnershipRecord) {
-  if (record.reason === 'auction') return '拍卖成交';
-  if (record.reason === 'assigned') return '管理员初始分配';
-  return '创建藏品';
-}
 
 function downloadGiftCodes(codes: string[]) {
   if (codes.length === 0) return;
@@ -106,7 +71,6 @@ export function AdminApp({ user }: { user: AuthUser }) {
   const [giftCodeTotal, setGiftCodeTotal] = useState(0);
   const [giftCodeCursor, setGiftCodeCursor] = useState<string | null>(null);
   const [loadingMoreGiftCodes, setLoadingMoreGiftCodes] = useState(false);
-  const [collectibles, setCollectibles] = useState<CollectibleAdminRecord[]>([]);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [code, setCode] = useState('');
@@ -126,11 +90,6 @@ export function AdminApp({ user }: { user: AuthUser }) {
   const [redemptionCursor, setRedemptionCursor] = useState<string | null>(null);
   const [loadingMoreRedemptions, setLoadingMoreRedemptions] = useState(false);
   const [selectedGiftId, setSelectedGiftId] = useState<number | null>(null);
-  const [importItems, setImportItems] = useState<CollectibleImportRecord[]>([]);
-  const [importFileName, setImportFileName] = useState('');
-  const [ownership, setOwnership] = useState<CollectibleOwnershipRecord[]>([]);
-  const [selectedCollectible, setSelectedCollectible] = useState<CollectibleAdminRecord | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [qqGroupUrl, setQqGroupUrl] = useState('');
   const [savingCommunityLink, setSavingCommunityLink] = useState(false);
 
@@ -161,9 +120,6 @@ export function AdminApp({ user }: { user: AuthUser }) {
     setGiftCodeCursor(nextCodesPage.nextCursor);
   }, []);
 
-  const loadCollectibles = useCallback(async () => {
-    setCollectibles(await adminApi.collectibles());
-  }, []);
 
   const loadCommunityLink = useCallback(async () => {
     const nextCommunityLink = await adminApi.communityLink();
@@ -176,13 +132,12 @@ export function AdminApp({ user }: { user: AuthUser }) {
         await Promise.all([loadOverview(), loadPlayerStatistics(playerStatisticsRangeRef.current)]);
       }
       if (section === 'community') await loadCommunityLink();
-      if (section === 'collectibles') await loadCollectibles();
       if (section === 'gift-codes') await loadGiftCodes();
       setError('');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '无法加载当前管理员分区');
     }
-  }, [loadCollectibles, loadCommunityLink, loadGiftCodes, loadOverview, loadPlayerStatistics]);
+  }, [loadCommunityLink, loadGiftCodes, loadOverview, loadPlayerStatistics]);
 
   useEffect(() => { void loadSection(activeSection); }, [activeSection, loadSection]);
 
@@ -306,49 +261,6 @@ export function AdminApp({ user }: { user: AuthUser }) {
     }
   }
 
-  async function readCollectibleFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    try {
-      const parsed = JSON.parse(await file.text()) as unknown;
-      const records = parseImportItems(parsed);
-      if (records.length === 0) throw new Error('JSON 必须是藏品数组或包含 items 数组');
-      setImportItems(records);
-      setImportFileName(file.name);
-      setNotice(`已读取 ${records.length} 条藏品记录，请确认后上传。`);
-    } catch (reason) {
-      setImportItems([]);
-      setImportFileName('');
-      setNotice(reason instanceof Error ? reason.message : '无法读取藏品 JSON');
-    }
-  }
-
-  async function uploadCollectibles() {
-    if (uploading || importItems.length === 0) return;
-    setUploading(true);
-    try {
-      const result = await adminApi.importCollectibles(importItems);
-      setNotice(`成功导入 ${result.importedCount} 件藏品。`);
-      setImportItems([]);
-      setImportFileName('');
-      await loadSection('collectibles');
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : '导入藏品失败');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function showOwnership(item: CollectibleAdminRecord) {
-    try {
-      setSelectedCollectible(item);
-      setOwnership(await adminApi.collectibleOwnership(item.id));
-    } catch (reason) {
-      setNotice(reason instanceof Error ? reason.message : '读取藏品归属记录失败');
-    }
-  }
-
   async function saveCommunityLink() {
     if (savingCommunityLink) return;
     setSavingCommunityLink(true);
@@ -452,55 +364,6 @@ export function AdminApp({ user }: { user: AuthUser }) {
           </Panel>
         ) : null}
 
-        {activeSection === 'collectibles' ? (
-          <div className="admin-section-stack">
-            <Panel className="admin-panel admin-collectible-upload">
-              <WidgetHeading title="上传藏品" />
-              <p>仅接受芝加哥艺术博物馆公版藏品。图片地址由服务器根据 IIIF image_id 生成，不允许上传任意图片 URL。</p>
-              <FileInput
-                label="藏品 JSON 文件"
-                accept="application/json,.json"
-                onChange={(event) => void readCollectibleFile(event)}
-              />
-              <pre className="admin-collectible-format">{collectibleFormatExample}</pre>
-              <div className="admin-collectible-preview">
-                <span>{importFileName ? `${importFileName} · ${importItems.length} 条` : '尚未选择文件'}</span>
-                <Button disabled={uploading || importItems.length === 0} onClick={() => void uploadCollectibles()}>{uploading ? '正在导入…' : '导入藏品'}</Button>
-              </div>
-            </Panel>
-
-            <Panel className="admin-panel admin-gift-list">
-              <WidgetHeading title="藏品管理与当前归属" />
-              {collectibles.length === 0 ? <EmptyState>暂无藏品。</EmptyState> : (
-                <div className="virtual-record-table admin-collectibles-virtual-table" role="table" aria-label="藏品管理与当前归属">
-                  <div className="virtual-record-header" role="row">
-                    <span role="columnheader">图片</span><span role="columnheader">藏品</span><span role="columnheader">艺术家</span><span role="columnheader">当前归属</span><span role="columnheader">状态</span><span role="columnheader">归属记录</span><span role="columnheader">操作</span>
-                  </div>
-                  <VirtualList items={collectibles} getKey={collectibleKey} estimateSize={72} viewportHeight={560} minViewportHeight={96} overscan={5} gap={0} className="virtual-record-viewport" role="rowgroup" itemRole="presentation" ariaLabel="藏品管理行" renderItem={(item) => (
-                    <div className="virtual-record-row" role="row">
-                      <span role="cell"><img className="admin-collectible-thumb" src={item.thumbnailUrl} alt="" aria-hidden="true" loading="lazy" decoding="async" referrerPolicy="no-referrer" /></span>
-                      <span role="cell"><strong>{item.title}</strong><small> AIC #{item.sourceArtworkId}</small></span>
-                      <span role="cell">{item.artist || '佚名'}</span>
-                      <span role="cell">{item.currentOwnerId ? `${item.currentOwnerName} (#${item.currentOwnerId})` : '未分配'}</span>
-                      <span role="cell"><StatusTag tone={item.auctionId ? 'warning' : 'neutral'}>{item.auctionId ? '拍卖中' : '未拍卖'}</StatusTag></span>
-                      <span role="cell">{item.ownershipCount}</span>
-                      <span role="cell"><span className="admin-row-actions"><a className="ui-link" href={item.sourceUrl} target="_blank" rel="noreferrer">馆藏页</a><Button variant="compact" onClick={() => void showOwnership(item)}>归属历史</Button></span></span>
-                    </div>
-                  )} />
-                </div>
-              )}
-            </Panel>
-
-            {selectedCollectible ? (
-              <Panel className="admin-panel">
-                <WidgetHeading title={`《${selectedCollectible.title}》归属历史`} />
-                <VirtualList key={selectedCollectible.id} items={ownership} getKey={ownershipKey} estimateSize={72} viewportHeight={420} minViewportHeight={80} overscan={5} gap={8} className="admin-ownership-list admin-ownership-virtual-list" ariaLabel={`${selectedCollectible.title}归属历史`} empty={<EmptyState>暂无归属记录。</EmptyState>} renderItem={(record) => (
-                  <div><span>{record.fromOwnerId ? `${record.fromOwnerName} (#${record.fromOwnerId})` : '系统'}</span><strong>→</strong><span>{record.toOwnerId ? `${record.toOwnerName} (#${record.toOwnerId})` : '未分配'}</span><small>{ownershipReason(record)}{record.price ? <> · <CurrencyAmount>{formatCurrency(record.price)}</CurrencyAmount></> : null} · {formatTime(record.createdAt)}</small></div>
-                )} />
-              </Panel>
-            ) : null}
-          </div>
-        ) : null}
 
         {activeSection === 'gift-codes' ? (
           <div className="admin-section-stack">

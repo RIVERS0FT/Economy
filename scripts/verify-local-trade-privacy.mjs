@@ -33,10 +33,10 @@ for (const text of [
   'delete normalized.fundingPool',
   'normalized.fills.map(publicOrderFill)',
   'else delete normalized.fills',
-  'version: 16',
+  'version: CURRENT_CLIENT_STATE_VERSION',
 ]) requireText('server/src/facility-groups.js', text);
 
-for (const text of ['isOwn?: boolean', 'version: 16;', 'export interface OrderFill']) requireText('src/types.ts', text);
+for (const text of ['isOwn?: boolean', 'version: 17;', 'export interface OrderFill']) requireText('src/types.ts', text);
 for (const text of ['counterparty: string', 'makerOrderId', 'takerOrderId', "liquidity: 'maker' | 'taker'", 'populationModelId?:', 'fundingPool?:']) forbidText('src/types.ts', text);
 
 for (const text of [

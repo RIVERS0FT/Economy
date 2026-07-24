@@ -20,7 +20,7 @@ const MARKET_KEYS = new Set([
   'marketPriceHistory',
   'demand',
 ]);
-const AUCTION_KEYS = new Set(['collectibles', 'assetAuctions', 'collectibleAuctions']);
+const AUCTION_KEYS = new Set(['assetAuctions']);
 const CONTRACT_KEYS = new Set(['productionContracts', 'productionContractSummary']);
 const LEADERBOARD_KEYS = new Set(['leaderboard']);
 const REVISION_TOKEN = /^[A-Za-z0-9_-]{8,64}$/;

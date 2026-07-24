@@ -1,5 +1,5 @@
 import type { AssetKind, EconomyState, OrderSide } from '../types';
-import type { AuctionItem } from '../collectibles/types';
+import type { AuctionItem } from '../auctions/types';
 import {
   createStateDeliveryCache,
   type StateDeliveryEnvelope,
@@ -214,15 +214,6 @@ export const gameActions = {
   ),
   cancelAuction: (auctionId: string) => (
     postAction(`/auctions/${encodeURIComponent(auctionId)}/cancel`)
-  ),
-  createCollectibleAuction: (collectibleId: string, startingBid: number, durationHours: number) => (
-    postAction('/collectible-auctions', { collectibleId, startingBid, durationHours })
-  ),
-  placeCollectibleBid: (auctionId: string, amount: number) => (
-    postAction(`/collectible-auctions/${encodeURIComponent(auctionId)}/bids`, { amount })
-  ),
-  cancelCollectibleAuction: (auctionId: string) => (
-    postAction(`/collectible-auctions/${encodeURIComponent(auctionId)}/cancel`)
   ),
   renamePlayer: (playerName: string) => request<GameActionResponse>('/profile', {
     method: 'PATCH',

@@ -84,6 +84,61 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
 
+      - name: Back up production database before world 15 migration
+        id: backup_database
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+        run: |
+          exec > >(tee /tmp/economy-database-backup.log) 2>&1
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
+            'if [ "$(id -u)" -eq 0 ]; then exec python3 -; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 -; else echo ECONOMY_DEPLOY_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' <<'PYTHON'
+          import datetime
+          import json
+          import os
+          import sqlite3
+          from pathlib import Path
+
+          database = Path('/var/lib/riversoft-economy/economy.sqlite')
+          target_world_version = 15
+          if not database.exists():
+              print('ECONOMY_WORLD_15_BACKUP_SKIPPED_NO_DATABASE')
+              raise SystemExit(0)
+
+          with sqlite3.connect(database) as source:
+              current_version = 0
+              try:
+                  row = source.execute(
+                      "SELECT state_json FROM economy_world WHERE id = 1"
+                  ).fetchone()
+              except sqlite3.OperationalError as error:
+                  if 'no such table' not in str(error).lower():
+                      raise
+                  row = None
+              if row:
+                  current_version = int(json.loads(row[0]).get('version') or 0)
+              if current_version >= target_world_version:
+                  print(f'ECONOMY_WORLD_15_BACKUP_SKIPPED_CURRENT_VERSION={current_version}')
+                  raise SystemExit(0)
+
+              backup_dir = database.parent / 'backups'
+              backup_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+              timestamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+              backup_path = backup_dir / f'economy-pre-world-v{target_world_version}-{timestamp}.sqlite'
+              with sqlite3.connect(backup_path) as destination:
+                  source.backup(destination)
+                  quick_check = destination.execute('PRAGMA quick_check').fetchone()[0]
+                  if quick_check != 'ok':
+                      raise RuntimeError(f'backup quick check failed: {quick_check}')
+              os.chmod(backup_path, 0o600)
+              backups = sorted(backup_dir.glob('economy-pre-world-v15-*.sqlite'), reverse=True)
+              for stale in backups[10:]:
+                  stale.unlink()
+              print(f'ECONOMY_WORLD_15_BACKUP_CREATED={backup_path}')
+          PYTHON
+
       - name: Prepare remote directories
         id: prepare_remote
         env:
@@ -281,6 +336,7 @@ jobs:
           BROWSER_TEST_OUTCOME: ${{ steps.browser_test.outcome }}
           ENSURE_RSYNC_OUTCOME: ${{ steps.ensure_rsync.outcome }}
           CONFIGURE_SSH_OUTCOME: ${{ steps.configure_ssh.outcome }}
+          BACKUP_DATABASE_OUTCOME: ${{ steps.backup_database.outcome }}
           PREPARE_REMOTE_OUTCOME: ${{ steps.prepare_remote.outcome }}
           PREPARE_RUNTIME_OUTCOME: ${{ steps.prepare_runtime.outcome }}
           UPLOAD_ASSETS_OUTCOME: ${{ steps.upload_assets.outcome }}
@@ -313,6 +369,7 @@ jobs:
           collect_failed_log "$BROWSER_TEST_OUTCOME" /tmp/economy-browser-test.log browser-test.log
           collect_failed_log "$ENSURE_RSYNC_OUTCOME" /tmp/economy-rsync.log rsync.log
           collect_failed_log "$CONFIGURE_SSH_OUTCOME" /tmp/economy-ssh.log configure-ssh.log
+          collect_failed_log "$BACKUP_DATABASE_OUTCOME" /tmp/economy-database-backup.log database-backup.log
           collect_failed_log "$PREPARE_REMOTE_OUTCOME" /tmp/economy-deploy.log prepare-remote.log
           collect_failed_log "$PREPARE_RUNTIME_OUTCOME" /tmp/economy-runtime.log prepare-runtime.log
           collect_failed_log "$UPLOAD_ASSETS_OUTCOME" /tmp/economy-upload.log upload-assets.log
@@ -354,6 +411,7 @@ jobs:
               cat /tmp/economy-browser-test.log 2>/dev/null || true
               cat /tmp/economy-rsync.log 2>/dev/null || true
               cat /tmp/economy-ssh.log 2>/dev/null || true
+              cat /tmp/economy-database-backup.log 2>/dev/null || true
               cat /tmp/economy-deploy.log 2>/dev/null || true
               cat /tmp/economy-runtime.log 2>/dev/null || true
               cat /tmp/economy-upload.log 2>/dev/null || true

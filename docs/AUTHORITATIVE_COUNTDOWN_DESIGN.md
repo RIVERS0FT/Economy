@@ -44,7 +44,7 @@
 
 ## 3. 服务器时间来源
 
-每个 `GET /api/game/state` 响应必须在五分区 envelope 顶层返回响应生成时的 `serverNow`。即使全局修订号未变化、响应只有轻量确认，也必须返回新的 `serverNow`。该字段不属于 `EconomyState`，不得进入 `catalog`、`player`、`market`、`auction` 或 `leaderboard` 分区，也不得改变分区内容哈希。
+每个 `GET /api/game/state` 响应必须在六分区 envelope 顶层返回响应生成时的 `serverNow`。即使全局修订号未变化、响应只有轻量确认，也必须返回新的 `serverNow`。该字段不属于 `EconomyState`，不得进入 `catalog`、`player`、`market`、`auction`、`contract` 或 `leaderboard` 分区，也不得改变分区内容哈希。
 
 客户端收到 `serverNow` 时记录浏览器单调时钟接收点，并建立共享单调服务器时钟：`serverNow + 接收后的单调经过时间`。新响应只能向前校准；当迟到响应或旧快照携带的时间低于当前估算值时，必须保留当前估算值，倒计时不得增加、回退或重新开始。页面共享 `useNow` 和全局到期协调器必须读取同一时钟。
 
@@ -89,7 +89,7 @@
 
 - 根游戏模型不得维护每秒变化的 React 时间状态。
 - 页面可继续通过共享 `useNow` 局部更新可见倒计时，但必须读取共享单调服务器时钟。
-- `serverNow` 只属于状态交付 envelope；不得写入世界 JSON、`EconomyState` 或五分区缓存。
+- `serverNow` 只属于状态交付 envelope；不得写入世界 JSON、`EconomyState` 或六分区缓存。
 - 接收新 `serverNow` 可以通知当前可见倒计时和全局协调器重新校准，但不得触发全部静态页面每秒重渲染。
 - 全局协调器只为最近一个权威截止时间维护一个 `setTimeout`；到期后最多维护一个串行确认请求和一个下一次重试 `setTimeout`。
 - 默认状态轮询继续存在；统一到期确认只补足截止时点的即时同步，不替代普通轮询。

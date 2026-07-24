@@ -23,9 +23,9 @@ async function configureAdminRoutes(page: Page) {
         openOrderCount: 29,
         commodityOrderCount: 29,
         facilityOrderCount: 0,
-        collectibleCount: 4,
         openAuctionCount: 2,
-        worldVersion: 14,
+        openContractCount: 3,
+        worldVersion: 15,
         revision: 120,
         lastProcessedAt: Date.UTC(2026, 6, 19, 10),
         apiStatus: 'ok',
@@ -123,10 +123,6 @@ async function configureAdminRoutes(page: Page) {
       await json(route, { communityLink: { qqGroupUrl: 'https://qm.qq.com/q/admin-test', updatedAt: Date.now() } });
       return;
     }
-    if (path === '/collectibles') {
-      await json(route, { collectibles: [] });
-      return;
-    }
     if (path === '/gift-codes') {
       await json(route, { giftCodes: [], total: 0, nextCursor: null });
       return;
@@ -222,6 +218,9 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await expect(page.getByText('管理备注', { exact: true })).toHaveCount(0);
   await expect(page.locator('.admin-page-frame .page-heading')).toHaveCSS('display', 'none');
 
+  const desktopNavigationLabels = await page.locator('.admin-sidebar .sidebar-nav-button strong').allTextContents();
+  expect(desktopNavigationLabels).toEqual(['概况', '社区', '礼品码', '账号封禁']);
+
   const visiblePositiveBarWidth = await page.locator('.admin-population-distribution-list > div').filter({ hasText: '市场服务' }).locator('.admin-population-bar > span').evaluate((element) => element.getBoundingClientRect().width);
   const zeroBarWidth = await page.locator('.admin-population-distribution-list > div').filter({ hasText: '仓库扩容' }).locator('.admin-population-bar > span').evaluate((element) => element.getBoundingClientRect().width);
   expect(visiblePositiveBarWidth).toBeGreaterThanOrEqual(3.5);
@@ -274,12 +273,6 @@ test('admin desktop shares the game shell gutter, command bar and edge scrollbar
   await expect(page.getByRole('heading', { name: '玩家社区', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '玩家社区入口', exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: '藏品', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '上传藏品', exact: true })).toBeVisible();
-  await expect(page.getByText('暂无藏品。', { exact: true })).toBeVisible();
-  const collectibleColumns = await page.locator('.admin-section-stack').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
-  expect(collectibleColumns).toBe(2);
-
   await page.getByRole('button', { name: '礼品码', exact: true }).click();
   await expect(page.getByRole('heading', { name: '创建礼品码', exact: true })).toBeVisible();
   await expect(page.getByText('暂无礼品码。', { exact: true })).toBeVisible();
@@ -319,6 +312,9 @@ test('admin navigation uses the shared mobile overlay and stays above page cards
   await expect(page.locator('.admin-mobile-chrome-layer')).toHaveCount(1);
   await expect(mobileBottomNavigation.locator('.liquid-glass-surface')).toHaveCount(1);
   await expect(mobileBottomNavigation.locator('.mobile-bottom-navigation__viewport')).toHaveCount(1);
+
+  const mobileNavigationLabels = await mobileBottomNavigation.locator('.sidebar-nav-button strong').allTextContents();
+  expect(mobileNavigationLabels).toEqual(['概况', '社区', '礼品码', '账号封禁']);
 
   const geometry = await page.evaluate(() => {
     const nav = document.querySelector<HTMLElement>('.admin-mobile-bottom-navigation');

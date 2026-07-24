@@ -92,7 +92,7 @@ for (const text of [
   'gems: number;',
   'invitationGemsIssued: number;',
   'gemExchangeCredits: number;',
-  'version: 16;',
+  'version: 17;',
 ]) requireText('src/types.ts', text);
 
 for (const text of [

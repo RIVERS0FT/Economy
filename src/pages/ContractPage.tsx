@@ -383,7 +383,7 @@ function PublishContractPanel({
   return (
     <PagePanel className="contract-publish-panel">
       <WidgetHeading title="发布长期供货合同" action={<Button variant="text" onClick={close}>关闭</Button>} />
-      <p className="contract-section-description">只约定商品、价格、周期和批次，不出租工厂，不涉及藏品。</p>
+      <p className="contract-section-description">只约定商品、价格、周期和批次，不出租工厂，不涉及其他资产类型。</p>
       <div className="contract-publish-layout">
         <div className="contract-publish-form">
           <fieldset className="contract-direction-field">
@@ -531,7 +531,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   return (
     <PageLayout
       title="合同"
-      description="与其他玩家签订长期周期供货协议，稳定上下游生产合作。合同不绑定工厂、不控制配方，也不涉及藏品。"
+      description="与其他玩家签订长期周期供货协议，稳定上下游生产合作。合同不绑定工厂、不控制配方，也不涉及其他资产类型。"
       actions={<Button onClick={() => setShowPublish((current) => !current)}>{showPublish ? '收起发布表单' : '发布合同'}</Button>}
     >
       <div className="contract-summary-grid">

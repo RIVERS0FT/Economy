@@ -51,6 +51,25 @@ test('player statistics record successful economic actions once and keep reads r
     store.transaction(() => {
       const { revision, world } = store.loadWorld(now + 2);
       world.players[String(player.id)].stats.commodityVolume += 4;
+      world.assetAuctions.push({
+        id: 'player-statistics-asset-auction',
+        items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 1 }],
+        assetKind: 'commodity',
+        assetId: 'wheat',
+        productId: 'wheat',
+        quantity: 1,
+        sellerId: player.id,
+        sellerName: player.name,
+        startingBid: 1,
+        highestBid: null,
+        highestBidderId: null,
+        highestBidderName: null,
+        status: 'open',
+        escrowStatus: 'held',
+        createdAt: now + 2,
+        endsAt: now + 60_000,
+        bids: [],
+      });
       store.saveWorld(revision, world, now + 2);
     });
 
@@ -66,6 +85,7 @@ test('player statistics record successful economic actions once and keep reads r
     assert.equal(statistics.snapshot.active24h, 1);
     assert.equal(statistics.snapshot.registeredInRange, 1);
     assert.equal(statistics.activity.tradeParticipantsInRange, 1);
+    assert.equal(statistics.participation.rows.find((row) => row.id === 'open-auction')?.count, 1);
     assert.equal(statistics.range.key, '30d');
     assert.equal(statistics.range.timeZone, 'Asia/Shanghai');
     assert.equal(JSON.stringify(statistics).includes(player.email), false);

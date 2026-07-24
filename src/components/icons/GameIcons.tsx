@@ -2,7 +2,7 @@ import type { PropsWithChildren, SVGProps } from 'react';
 import { GemIcon } from './GemIcon';
 
 type GameIconProps = SVGProps<SVGSVGElement>;
-export type NavigationIconName = 'home' | 'market' | 'production' | 'assets' | 'collections' | 'auction' | 'contracts' | 'leaderboard' | 'gem-shop' | 'settings';
+export type NavigationIconName = 'home' | 'market' | 'production' | 'assets' | 'auction' | 'contracts' | 'leaderboard' | 'gem-shop' | 'settings';
 
 function GameIcon({ children, className, ...props }: PropsWithChildren<GameIconProps>) {
   return (
@@ -65,9 +65,6 @@ export function FundsIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6.5Z" /><path d="M4 8h16M15 14h3" /></GameIcon>;
 }
 
-export function CollectionIcon(props: GameIconProps) {
-  return <GameIcon {...props}><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M7 7h10v9H7z" /><path d="m7 14 3-3 2.2 2.2 1.8-1.8 3 3" /><circle cx="14.5" cy="9.5" r="1" /></GameIcon>;
-}
 
 export function AuctionIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="m13.5 5.5 5 5M11.5 7.5l5 5M8 11l7-7M13 16l7-7" /><path d="m10.2 9.8 4 4M3 20h11M5 16h7v4H5z" /></GameIcon>;
@@ -133,7 +130,6 @@ export function NavigationIcon({ name, ...props }: { name: NavigationIconName } 
     case 'market': return <MarketIcon {...props} />;
     case 'production': return <ProductionIcon {...props} />;
     case 'assets': return <FundsIcon {...props} />;
-    case 'collections': return <CollectionIcon {...props} />;
     case 'auction': return <AuctionIcon {...props} />;
     case 'contracts': return <ContractIcon {...props} />;
     case 'leaderboard': return <LeaderboardIcon {...props} />;
