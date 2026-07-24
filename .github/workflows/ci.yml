@@ -72,7 +72,12 @@ jobs:
           new_verifier = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled),\\n.ui-button:hover:not(:disabled) {');"
           if old_verifier not in verifier:
               raise RuntimeError('交互验证器缺少通用按钮 hover 子串检查')
-          verifier_path.write_text(verifier.replace(old_verifier, new_verifier, 1))
+          verifier = verifier.replace(old_verifier, new_verifier, 1)
+          old_test_requirement = "    \"trigger.tap()\","
+          new_test_requirement = "    \"pointerType: 'touch'\","
+          if old_test_requirement not in verifier:
+              raise RuntimeError('交互验证器缺少旧触摸测试要求')
+          verifier_path.write_text(verifier.replace(old_test_requirement, new_test_requirement, 1))
 
           industry_path = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
           industry = industry_path.read_text()
@@ -81,6 +86,55 @@ jobs:
           if old_focus not in industry:
               raise RuntimeError('产业设计缺少待规范的焦点返回表述')
           industry_path.write_text(industry.replace(old_focus, new_focus, 1))
+
+          test_path = Path('tests/browser/input-modality.spec.ts')
+          test_source = test_path.read_text()
+          old_use = """  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  });
+"""
+          new_use = """  test.use({
+    viewport: { width: 390, height: 844 },
+  });
+"""
+          if old_use not in test_source:
+              raise RuntimeError('混合输入测试缺少旧触控上下文')
+          test_source = test_source.replace(old_use, new_use, 1)
+          old_mouse_assert = """    const mouseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
+    expect(mouseBackground).not.toBe(baseBackground);
+
+    await trigger.tap();
+"""
+          new_mouse_assert = """    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))
+      .not.toBe(baseBackground);
+
+    await trigger.evaluate((element) => {
+      element.dispatchEvent(new PointerEvent('pointerdown', {
+        bubbles: true,
+        isPrimary: true,
+        pointerType: 'touch',
+      }));
+      element.dispatchEvent(new PointerEvent('pointerup', {
+        bubbles: true,
+        isPrimary: true,
+        pointerType: 'touch',
+      }));
+      (element as HTMLButtonElement).click();
+    });
+"""
+          if old_mouse_assert not in test_source:
+              raise RuntimeError('混合输入测试缺少旧 hover/tap 断言')
+          test_source = test_source.replace(old_mouse_assert, new_mouse_assert, 1)
+          old_touch_assert = """    const touchBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
+    expect(touchBackground).toBe(baseBackground);
+"""
+          new_touch_assert = """    await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).background))
+      .toBe(baseBackground);
+"""
+          if old_touch_assert not in test_source:
+              raise RuntimeError('混合输入测试缺少旧触控背景断言')
+          test_path.write_text(test_source.replace(old_touch_assert, new_touch_assert, 1))
           PYTHON
           } 2>&1 | tee /tmp/apply-interaction-modality.log
 
