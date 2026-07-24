@@ -68,11 +68,19 @@ jobs:
 
           verifier_path = Path('scripts/verify-interaction-modality.mjs')
           verifier = verifier_path.read_text()
-          old = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled)');"
-          new = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled),\\n.ui-button:hover:not(:disabled) {');"
-          if old not in verifier:
+          old_verifier = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled)');"
+          new_verifier = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled),\\n.ui-button:hover:not(:disabled) {');"
+          if old_verifier not in verifier:
               raise RuntimeError('交互验证器缺少通用按钮 hover 子串检查')
-          verifier_path.write_text(verifier.replace(old, new, 1))
+          verifier_path.write_text(verifier.replace(old_verifier, new_verifier, 1))
+
+          industry_path = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
+          industry = industry_path.read_text()
+          old_focus = '关闭后语义焦点返回触发卡。触摸关闭后必须恢复为仅由工厂运行状态决定的基础视觉'
+          new_focus = '关闭后焦点返回触发卡；该焦点只恢复语义导航位置。触摸关闭后必须恢复为仅由工厂运行状态决定的基础视觉'
+          if old_focus not in industry:
+              raise RuntimeError('产业设计缺少待规范的焦点返回表述')
+          industry_path.write_text(industry.replace(old_focus, new_focus, 1))
           PYTHON
           } 2>&1 | tee /tmp/apply-interaction-modality.log
 
