@@ -55,10 +55,24 @@ requireText('server/src/request-metrics.js', [
   'Economy request outlier',
   'Economy request metrics',
   "response.getHeader('Content-Length')",
+  'DEFAULT_MAX_ROUTE_KEYS = 256',
+  "OVERFLOW_ROUTE = '/api/other'",
+  'overflowedRequestCount',
+]);
+requireText('server/src/runtime-store.js', [
+  'contractProjectionForState',
+  'cached.revision === snapshot.revision',
+  'saveWorld(revision, world, now)',
+  'PersistentEconomyStore.prototype.saveWorldIfChanged.call(this, revision, world, now)',
 ]);
 requireText('server/test/request-metrics.test.js', [
   'request metrics normalize route identifiers',
   'request metrics aggregate duration and application response bytes',
+  'request metrics cap route cardinality and aggregate overflow',
+]);
+requireText('server/test/state-polling.test.js', [
+  'runtime failed actions keep the world row unchanged',
+  'runtime state delivery reuses the current revision cache',
 ]);
 requireText('docs/README.md', [
   '状态刷新设置继续只保存和显示 `3s`／`5s`／`10s`',
@@ -68,6 +82,10 @@ requireText('docs/README.md', [
   '每 60 秒输出一次按方法与归一化路由聚合的请求指标',
   '平均／最大处理时长和应用层 JSON 响应字节数',
   '超过 1 秒、超过 200 KB 或返回 5xx',
+  '单个窗口最多保留 256 个方法／路由键',
+  '`OTHER /api/other`',
+  '合同分区必须复用当前修订缓存',
+  '失败或无变化动作仍保存幂等确认但不得触发全服补拉',
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
   '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
 ]);
@@ -77,4 +95,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时效率验证通过：自适应轮询、可见性恢复、SQLite 锁等待和接口指标聚合均已锁定。');
+console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、合同状态投影复用和有界请求指标均已锁定。');

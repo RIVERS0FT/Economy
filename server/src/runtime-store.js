@@ -43,6 +43,18 @@ function createActionAcknowledgement(result, revision) {
   });
 }
 
+function contractProjectionForState(world) {
+  const projection = {
+    ...world,
+    players: structuredClone(world.players || {}),
+    productionContracts: structuredClone(world.productionContracts || []),
+  };
+  if (world.populationEconomy !== undefined) {
+    projection.populationEconomy = structuredClone(world.populationEconomy);
+  }
+  return projection;
+}
+
 // Runtime policy mutations intentionally bypass the legacy population-policy audit table.
 // The table remains readable only for backward-compatible retention of historical rows.
 export class EconomyStore extends PersistentEconomyStore {
@@ -58,6 +70,10 @@ export class EconomyStore extends PersistentEconomyStore {
     return prepared;
   }
 
+  saveWorld(revision, world, now) {
+    return PersistentEconomyStore.prototype.saveWorldIfChanged.call(this, revision, world, now);
+  }
+
   processWorldIfDue(world, now, currentUserId, options = {}) {
     const processed = super.processWorldIfDue(world, now, currentUserId, options);
     if (processed) processProductionContracts(world, now);
@@ -68,16 +84,25 @@ export class EconomyStore extends PersistentEconomyStore {
     const snapshot = super.getStateSnapshot(user, knownRevision, now);
     if (snapshot.unchanged || !snapshot.state) return snapshot;
 
-    return this.transaction(() => {
-      const { world } = this.loadWorld(now);
-      return {
-        ...snapshot,
-        state: normalizeJson({
-          ...snapshot.state,
-          ...createProductionContractClientState(world, Number(user.id), now),
-        }),
-      };
-    }, { immediate: false });
+    const cached = this.worldCache;
+    const contractState = cached && cached.revision === snapshot.revision
+      ? createProductionContractClientState(
+        contractProjectionForState(cached.world),
+        Number(user.id),
+        now,
+      )
+      : this.transaction(() => {
+        const { world } = this.loadWorld(now);
+        return createProductionContractClientState(world, Number(user.id), now);
+      }, { immediate: false });
+
+    return {
+      ...snapshot,
+      state: {
+        ...snapshot.state,
+        ...normalizeJson(contractState),
+      },
+    };
   }
 
   apply(user, requestMeta, now = Date.now()) {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EconomyStore } from '../src/storage.js';
+import { EconomyStore as RuntimeEconomyStore } from '../src/runtime-store.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
 
@@ -135,6 +136,58 @@ test('rolled back transactions restore the in-memory world cache', () => {
     assert.deepEqual(persistedWorld(store), before);
     assert.equal(store.worldCache.revision, initial.revision);
     assert.equal(store.worldCache.world.rollbackProbe, undefined);
+  } finally {
+    store.close();
+  }
+});
+
+test('runtime failed actions keep the world row unchanged and reuse the current revision', () => {
+  const store = new RuntimeEconomyStore(':memory:');
+  try {
+    const now = 1_700_000_000_000;
+    const initial = store.getStateSnapshot(alice, undefined, now);
+    const before = persistedWorld(store);
+
+    const ordinaryFailure = store.apply(alice, {
+      action: 'placeOrder',
+      payload: { assetKind: 'commodity', productId: 'wheat', side: 'buy', quantity: 0, price: 1 },
+      requestKey: 'runtime-failed-order-1',
+      method: 'POST',
+      path: '/api/game/orders',
+    }, now + 100);
+    const contractFailure = store.apply(alice, {
+      action: 'acceptProductionContract',
+      payload: { contractId: 'missing-contract' },
+      requestKey: 'runtime-failed-contract-1',
+      method: 'POST',
+      path: '/api/game/contracts/missing-contract/accept',
+    }, now + 200);
+
+    assert.equal(ordinaryFailure.result.ok, false);
+    assert.equal(contractFailure.result.ok, false);
+    assert.equal(ordinaryFailure.revision, initial.revision);
+    assert.equal(contractFailure.revision, initial.revision);
+    assert.deepEqual(persistedWorld(store), before);
+  } finally {
+    store.close();
+  }
+});
+
+test('runtime state delivery reuses the current revision cache for the contract projection', () => {
+  const store = new RuntimeEconomyStore(':memory:');
+  try {
+    let transactionCount = 0;
+    const originalTransaction = store.transaction.bind(store);
+    store.transaction = (callback, options) => {
+      transactionCount += 1;
+      return originalTransaction(callback, options);
+    };
+
+    const snapshot = store.getStateSnapshot(alice, undefined, 1_700_000_000_000);
+    assert.equal(transactionCount, 1);
+    assert.equal(snapshot.unchanged, false);
+    assert.ok(Array.isArray(snapshot.state.productionContracts));
+    assert.ok(snapshot.state.productionContractSummary);
   } finally {
     store.close();
   }
