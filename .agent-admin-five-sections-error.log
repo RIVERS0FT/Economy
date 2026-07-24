@@ -1,4 +1,0 @@
-  File "/tmp/apply-admin-five-sections.py", line 196
-    ''').replace('\n          ', '\n').lstrip())
-                                               ^
-SyntaxError: unmatched ')'

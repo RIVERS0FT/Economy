@@ -1,18 +1,19 @@
-import { GiftIcon, HomeIcon, QqIcon, ShieldIcon } from '../icons/GameIcons';
+import { GiftIcon, HomeIcon, PlayersIcon, PopulationIcon, ShieldIcon } from '../icons/GameIcons';
 import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 import { SidebarFrame } from './SidebarFrame';
 
-export type AdminSectionId = 'overview' | 'community' | 'gift-codes' | 'bans';
+export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans';
 
 export const adminNavigationItems: Array<{
   id: AdminSectionId;
   label: string;
   icon: typeof HomeIcon;
 }> = [
-  { id: 'overview', label: '概况', icon: HomeIcon },
-  { id: 'community', label: '社区', icon: QqIcon },
-  { id: 'gift-codes', label: '礼品码', icon: GiftIcon },
-  { id: 'bans', label: '账号封禁', icon: ShieldIcon },
+  { id: 'overview', label: '概览', icon: HomeIcon },
+  { id: 'players', label: '玩家', icon: PlayersIcon },
+  { id: 'population', label: '人口', icon: PopulationIcon },
+  { id: 'gift-codes', label: '礼品', icon: GiftIcon },
+  { id: 'bans', label: '封禁', icon: ShieldIcon },
 ];
 
 function AdminNavigationItems({
@@ -60,8 +61,8 @@ export function AdminSidebar({
       onToggleCollapsed={onToggleCollapsed}
       footer={(
         <a className="ui-button ui-button--secondary sidebar-footer-action" href="/economy/" aria-label="返回游戏">
-          <HomeIcon className="sidebar-footer-icon" />
-          <strong>返回游戏</strong>
+<HomeIcon className="sidebar-footer-icon" />
+<strong>返回游戏</strong>
         </a>
       )}
     >

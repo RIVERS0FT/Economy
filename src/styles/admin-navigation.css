@@ -95,7 +95,7 @@
   }
 
   .admin-community-link-panel {
-    max-width: 1040px;
+    max-width: none;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: end;
   }
