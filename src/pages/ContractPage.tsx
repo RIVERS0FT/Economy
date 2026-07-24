@@ -1,13 +1,19 @@
 import { useMemo, useState } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
+import { IntegerInput, SelectInput } from '../components/ui/FormControls';
 import {
   Button,
+  DataList,
+  DataRow,
   EmptyState,
   MetricCard,
   PageLayout,
-  Panel,
+  PagePanel,
   StatusTag,
+  ToggleField,
+  WidgetHeading,
 } from '../components/ui/layout';
 import {
   productionContractActions,
@@ -20,6 +26,7 @@ import {
   type ProductionContractStatus,
 } from '../contracts/types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
+import { parseIntegerDraft } from '../utils/integerDraft';
 
 const INTERVAL_OPTIONS = [
   [10 * 60 * 1000, '每 10 分钟'],
@@ -91,11 +98,42 @@ function RoleTag({ contract }: { contract: ProductionContract }) {
 }
 
 function ContractProgress({ contract }: { contract: ProductionContract }) {
-  const percentage = Math.min(100, Math.round(contract.completedDeliveries / contract.totalDeliveries * 100));
+  const percentage = Math.min(
+    100,
+    Math.round(contract.completedDeliveries / Math.max(1, contract.totalDeliveries) * 100),
+  );
   return (
     <div className="contract-progress" aria-label={`已完成 ${contract.completedDeliveries} / ${contract.totalDeliveries} 批`}>
       <div className="contract-progress-track"><span style={{ width: `${percentage}%` }} /></div>
       <strong>{formatNumber(contract.completedDeliveries)} / {formatNumber(contract.totalDeliveries)} 批</strong>
+    </div>
+  );
+}
+
+function ReadinessMeter({
+  label,
+  current,
+  target,
+  currency = false,
+}: {
+  label: string;
+  current: number;
+  target: number;
+  currency?: boolean;
+}) {
+  const ready = current >= target;
+  const percentage = Math.min(100, Math.round(current / Math.max(1, target) * 100));
+  return (
+    <div className="contract-readiness-meter" data-ready={ready ? 'true' : 'false'}>
+      <div>
+        <span>{label}</span>
+        <strong>
+          {currency ? (
+            <><CurrencyAmount>{formatCurrency(current)}</CurrencyAmount> / <CurrencyAmount>{formatCurrency(target)}</CurrencyAmount></>
+          ) : `${formatNumber(current)} / ${formatNumber(target)}`}
+        </strong>
+      </div>
+      <div className="contract-readiness-track" aria-hidden="true"><span style={{ width: `${percentage}%` }} /></div>
     </div>
   );
 }
@@ -111,56 +149,80 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
   const canPrepare = contract.isSupplier && contract.supplierReservedQuantity < contract.quantityPerDelivery;
   const canFund = contract.isBuyer && contract.buyerEscrowCredits < contract.batchGross;
   const counterparty = contract.isBuyer ? contract.supplierName : contract.buyerName;
+  const statusLabel = contract.graceEndsAt ? '宽限期' : STATUS_LABELS[contract.status];
 
   return (
-    <Panel className={`contract-card contract-card--${contract.graceEndsAt ? 'danger' : contract.issue ? 'attention' : 'normal'}`}>
+    <PagePanel className={`contract-card contract-card--${contract.graceEndsAt ? 'danger' : contract.issue ? 'attention' : 'normal'}`}>
       <header className="contract-card-heading">
-        <div>
-          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{contract.graceEndsAt ? '宽限期' : STATUS_LABELS[contract.status]}</StatusTag></div>
-          <h2>{contractTitle(contract, productName)}</h2>
+        <div className="contract-card-title">
+          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{statusLabel}</StatusTag></div>
+          <h2><ProductIconLabel productId={contract.productId}>{contractTitle(contract, productName)}</ProductIconLabel></h2>
           <p>合作方：{counterparty || '等待服务器同步'}</p>
         </div>
         <ContractProgress contract={contract} />
       </header>
 
-      <div className="contract-terms-grid">
-        <div><span>每批商品</span><strong>{productName} × {formatNumber(contract.quantityPerDelivery)}</strong></div>
-        <div><span>合同单价</span><strong><CurrencyAmount>{formatCurrency(contract.unitPrice)}</CurrencyAmount></strong></div>
-        <div><span>每批货款</span><strong><CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount></strong></div>
-        <div><span>交付周期</span><strong>{durationLabel(contract.deliveryIntervalMs)}</strong></div>
+      <div className="contract-detail-layout">
+        <section className="contract-detail-panel contract-current-batch" aria-label="当前批次状态">
+          <h3>当前批次</h3>
+          <ReadinessMeter
+            label="供应方商品"
+            current={contract.supplierReservedQuantity}
+            target={contract.quantityPerDelivery}
+          />
+          <ReadinessMeter
+            label="采购方货款"
+            current={contract.buyerEscrowCredits}
+            target={contract.batchGross}
+            currency
+          />
+          <DataList className="compact contract-schedule-list">
+            <DataRow label="下次交付" value={dateTimeLabel(contract.nextDueAt)} />
+            {contract.graceEndsAt ? <DataRow label="宽限期结束" value={dateTimeLabel(contract.graceEndsAt)} tone="danger" /> : null}
+          </DataList>
+          {contract.issue ? <p className="contract-issue" role="status">{contract.issue}</p> : <p className="contract-ok">本批履约条件正常</p>}
+        </section>
+
+        <section className="contract-detail-panel" aria-label="合同条款">
+          <h3>合同条款</h3>
+          <DataList className="compact contract-terms-list">
+            <DataRow label="每批商品" value={`${productName} × ${formatNumber(contract.quantityPerDelivery)}`} />
+            <DataRow label="合同单价" value={<CurrencyAmount>{formatCurrency(contract.unitPrice)}</CurrencyAmount>} />
+            <DataRow label="每批货款" value={<CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount>} />
+            <DataRow label="交付周期" value={durationLabel(contract.deliveryIntervalMs)} />
+          </DataList>
+        </section>
       </div>
 
-      <div className="contract-readiness-grid">
-        <div>
-          <span>供应方商品</span>
-          <strong>{formatNumber(contract.supplierReservedQuantity)} / {formatNumber(contract.quantityPerDelivery)}</strong>
+      <div className="contract-fulfillment-controls">
+        <div className="contract-primary-actions">
+          {canPrepare ? <Button disabled={busy} onClick={() => void run(`${contract.id}:prepare`, () => productionContractActions.prepare(contract.id))}>准备本批商品</Button> : null}
+          {canFund ? <Button disabled={busy} onClick={() => void run(`${contract.id}:fund`, () => productionContractActions.fund(contract.id))}>补充本批货款</Button> : null}
+          {!canPrepare && !canFund ? <StatusTag tone={contract.issue ? 'warning' : 'success'}>{contract.issue ? '请先处理上方异常' : '当前无需手动处理'}</StatusTag> : null}
         </div>
-        <div>
-          <span>采购方货款</span>
-          <strong><CurrencyAmount>{formatCurrency(contract.buyerEscrowCredits)}</CurrencyAmount> / <CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount></strong>
+        <div className="contract-automation">
+          {contract.isSupplier ? (
+            <ToggleField
+              label="自动准备商品"
+              description="每批自动冻结当前可用库存，不透支未来产量。"
+              checked={contract.supplierAutoReserve}
+              disabled={busy}
+              onChange={() => void run(`${contract.id}:auto-reserve`, () => productionContractActions.setAutoReserve(contract.id, !contract.supplierAutoReserve))}
+            />
+          ) : null}
+          {contract.isBuyer ? (
+            <ToggleField
+              label="自动补充货款"
+              description="每批自动冻结当前可用资金，不透支未来收入。"
+              checked={contract.buyerAutoFund}
+              disabled={busy}
+              onChange={() => void run(`${contract.id}:auto-fund`, () => productionContractActions.setAutoFund(contract.id, !contract.buyerAutoFund))}
+            />
+          ) : null}
         </div>
       </div>
 
-      <div className="contract-schedule-row">
-        <div><span>下次交付</span><strong>{dateTimeLabel(contract.nextDueAt)}</strong></div>
-        {contract.graceEndsAt ? <div><span>宽限期结束</span><strong>{dateTimeLabel(contract.graceEndsAt)}</strong></div> : null}
-      </div>
-
-      {contract.issue ? <p className="contract-issue" role="status">{contract.issue}</p> : <p className="contract-ok">本批履约条件正常</p>}
-
-      <footer className="contract-card-actions">
-        {canPrepare ? <Button disabled={busy} onClick={() => run(`${contract.id}:prepare`, () => productionContractActions.prepare(contract.id))}>准备本批商品</Button> : null}
-        {canFund ? <Button disabled={busy} onClick={() => run(`${contract.id}:fund`, () => productionContractActions.fund(contract.id))}>补充本批货款</Button> : null}
-        {contract.isSupplier ? (
-          <Button variant="secondary" disabled={busy} onClick={() => run(`${contract.id}:auto-reserve`, () => productionContractActions.setAutoReserve(contract.id, !contract.supplierAutoReserve))}>
-            {contract.supplierAutoReserve ? '关闭自动准备' : '开启自动准备'}
-          </Button>
-        ) : null}
-        {contract.isBuyer ? (
-          <Button variant="secondary" disabled={busy} onClick={() => run(`${contract.id}:auto-fund`, () => productionContractActions.setAutoFund(contract.id, !contract.buyerAutoFund))}>
-            {contract.buyerAutoFund ? '关闭自动补款' : '开启自动补款'}
-          </Button>
-        ) : null}
+      <footer className="contract-management-actions">
         {!contract.terminationRequestedBy ? (
           <Button
             variant="text"
@@ -170,7 +232,7 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
                 void run(`${contract.id}:notice`, () => productionContractActions.requestTermination(contract.id));
               }
             }}
-          >申请结束</Button>
+          >申请批次后结束</Button>
         ) : <StatusTag tone="warning">已申请批次后结束</StatusTag>}
         <Button
           variant="danger"
@@ -182,31 +244,39 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
           }}
         >立即违约终止</Button>
       </footer>
-    </Panel>
+    </PagePanel>
   );
 }
 
 function OpenContractCard({ contract, productName, busy, run }: ContractCardProps) {
   return (
-    <Panel className="contract-card contract-offer-card">
+    <PagePanel className="contract-card contract-offer-card">
       <header className="contract-card-heading">
-        <div>
+        <div className="contract-card-title">
           <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag>{STATUS_LABELS[contract.status]}</StatusTag></div>
-          <h2>{contract.publisherRole === 'buyer' ? `采购 ${productName}` : `供应 ${productName}`}</h2>
+          <h2>
+            <ProductIconLabel productId={contract.productId}>
+              {contract.publisherRole === 'buyer' ? `采购 ${productName}` : `供应 ${productName}`}
+            </ProductIconLabel>
+          </h2>
           <p>发布者：{contract.publisherName}</p>
         </div>
         <strong className="contract-offer-price"><CurrencyAmount>{formatCurrency(contract.unitPrice)}</CurrencyAmount><small>/ 个</small></strong>
       </header>
-      <div className="contract-terms-grid">
-        <div><span>每批数量</span><strong>{formatNumber(contract.quantityPerDelivery)}</strong></div>
-        <div><span>每批货款</span><strong><CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount></strong></div>
-        <div><span>交付周期</span><strong>{durationLabel(contract.deliveryIntervalMs)}</strong></div>
-        <div><span>总批次</span><strong>{formatNumber(contract.totalDeliveries)} 批</strong></div>
+      <div className="contract-offer-terms">
+        <DataList className="compact">
+          <DataRow label="每批数量" value={formatNumber(contract.quantityPerDelivery)} />
+          <DataRow label="每批货款" value={<CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount>} />
+        </DataList>
+        <DataList className="compact">
+          <DataRow label="交付周期" value={durationLabel(contract.deliveryIntervalMs)} />
+          <DataRow label="总批次" value={`${formatNumber(contract.totalDeliveries)} 批`} />
+        </DataList>
       </div>
       <p className="contract-offer-note">合同不会控制你的工厂或配方；你需要自行保证每批商品、资金和仓库条件。</p>
       <footer className="contract-card-actions">
         {contract.isPublisher ? (
-          <Button variant="danger" disabled={busy} onClick={() => run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消发布</Button>
+          <Button variant="danger" disabled={busy} onClick={() => void run(`${contract.id}:cancel`, () => productionContractActions.cancel(contract.id))}>取消发布</Button>
         ) : (
           <Button
             disabled={busy}
@@ -219,23 +289,23 @@ function OpenContractCard({ contract, productName, busy, run }: ContractCardProp
           >承接并签订</Button>
         )}
       </footer>
-    </Panel>
+    </PagePanel>
   );
 }
 
-function HistoryContractCard({ contract, productName }: { contract: ProductionContract; productName: string }) {
+function HistoryContractRow({ contract, productName }: { contract: ProductionContract; productName: string }) {
   return (
-    <Panel className="contract-history-card">
-      <div>
+    <div className="contract-history-row">
+      <div className="contract-history-copy">
         <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{STATUS_LABELS[contract.status]}</StatusTag></div>
-        <h2>{contractTitle(contract, productName)}</h2>
+        <h2><ProductIconLabel productId={contract.productId}>{contractTitle(contract, productName)}</ProductIconLabel></h2>
         <p>{formatNumber(contract.completedDeliveries)} / {formatNumber(contract.totalDeliveries)} 批 · {durationLabel(contract.deliveryIntervalMs)}</p>
       </div>
       <div className="contract-history-meta">
         <strong><CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount> / 批</strong>
         <span>{dateTimeLabel(contract.endedAt || contract.completedAt)}</span>
       </div>
-    </Panel>
+    </div>
   );
 }
 
@@ -250,51 +320,159 @@ function PublishContractPanel({
   close: () => void;
   run: (key: string, operation: () => Promise<{ result: { ok: boolean; message: string } }>) => Promise<void>;
 }) {
+  const initialProduct = model.game.products[0];
+  const initialUnitPrice = initialProduct?.basePrice ?? 1;
   const [publisherRole, setPublisherRole] = useState<ProductionContractRole>('buyer');
-  const [productId, setProductId] = useState(model.game.products[0]?.id ?? 'wheat');
+  const [productId, setProductId] = useState(initialProduct?.id ?? '');
   const [quantity, setQuantity] = useState(100);
-  const [unitPrice, setUnitPrice] = useState(model.game.products[0]?.basePrice ?? 1);
+  const [quantityInput, setQuantityInput] = useState('100');
+  const [unitPrice, setUnitPrice] = useState(initialUnitPrice);
+  const [unitPriceInput, setUnitPriceInput] = useState(String(initialUnitPrice));
   const [interval, setIntervalValue] = useState<number>(60 * 60 * 1000);
   const [deliveries, setDeliveries] = useState(12);
+  const [deliveriesInput, setDeliveriesInput] = useState('12');
   const [firstDelay, setFirstDelay] = useState<number>(60 * 60 * 1000);
-  const batchGross = Math.max(0, quantity * unitPrice);
+
+  const parsedQuantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
+  const parsedUnitPrice = parseIntegerDraft(unitPriceInput, { min: 1, max: 1_000_000 });
+  const parsedDeliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
+  const batchGross = parsedQuantity !== null && parsedUnitPrice !== null
+    ? parsedQuantity * parsedUnitPrice
+    : null;
+  const totalGross = batchGross !== null && parsedDeliveries !== null
+    ? batchGross * parsedDeliveries
+    : null;
+  const bond = batchGross !== null ? Math.ceil(batchGross * 0.2) : null;
+  const canSubmit = Boolean(productId)
+    && parsedQuantity !== null
+    && parsedUnitPrice !== null
+    && parsedDeliveries !== null;
+
+  function updateQuantity(value: string) {
+    setQuantityInput(value);
+    const parsed = parseIntegerDraft(value, { min: 1, max: 1_000_000 });
+    if (parsed !== null) setQuantity(parsed);
+  }
+
+  function updateUnitPrice(value: string) {
+    setUnitPriceInput(value);
+    const parsed = parseIntegerDraft(value, { min: 1, max: 1_000_000 });
+    if (parsed !== null) setUnitPrice(parsed);
+  }
+
+  function updateDeliveries(value: string) {
+    setDeliveriesInput(value);
+    const parsed = parseIntegerDraft(value, { min: 2, max: 100 });
+    if (parsed !== null) setDeliveries(parsed);
+  }
 
   const submit = async () => {
+    if (parsedQuantity === null || parsedUnitPrice === null || parsedDeliveries === null) return;
     const input: CreateProductionContractInput = {
       publisherRole,
       productId,
-      quantityPerDelivery: Math.floor(quantity),
-      unitPrice: Math.floor(unitPrice),
+      quantityPerDelivery: parsedQuantity,
+      unitPrice: parsedUnitPrice,
       deliveryIntervalMs: interval,
-      totalDeliveries: Math.floor(deliveries),
+      totalDeliveries: parsedDeliveries,
       firstDeliveryDelayMs: firstDelay,
     };
     await run('publish', () => productionContractActions.create(input));
   };
 
   return (
-    <Panel className="contract-publish-panel">
-      <header className="contract-publish-heading">
-        <div><h2>发布长期供货合同</h2><p>只约定商品、价格、周期和批次，不出租工厂，不涉及藏品。</p></div>
-        <Button variant="text" onClick={close}>关闭</Button>
-      </header>
-      <div className="contract-publish-grid">
-        <label><span>发布方向</span><select value={publisherRole} onChange={(event) => setPublisherRole(event.target.value as ProductionContractRole)}><option value="buyer">我长期采购</option><option value="supplier">我长期供应</option></select></label>
-        <label><span>合同商品</span><select value={productId} onChange={(event) => { const next = event.target.value; setProductId(next); setUnitPrice(model.game.products.find((item) => item.id === next)?.basePrice ?? 1); }}>{model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
-        <label><span>每批数量</span><input type="number" min="1" max="1000000" step="1" value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} /></label>
-        <label><span>单位价格</span><input type="number" min="1" max="1000000" step="1" value={unitPrice} onChange={(event) => setUnitPrice(Number(event.target.value))} /></label>
-        <label><span>交付周期</span><select value={interval} onChange={(event) => setIntervalValue(Number(event.target.value))}>{INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label><span>总交付批次</span><input type="number" min="2" max="100" step="1" value={deliveries} onChange={(event) => setDeliveries(Number(event.target.value))} /></label>
-        <label><span>首次交付</span><select value={firstDelay} onChange={(event) => setFirstDelay(Number(event.target.value))}>{FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+    <PagePanel className="contract-publish-panel">
+      <WidgetHeading title="发布长期供货合同" action={<Button variant="text" onClick={close}>关闭</Button>} />
+      <p className="contract-section-description">只约定商品、价格、周期和批次，不出租工厂，不涉及藏品。</p>
+      <div className="contract-publish-layout">
+        <div className="contract-publish-form">
+          <fieldset className="contract-direction-field">
+            <legend>发布方向</legend>
+            <div className="ui-segmented contract-direction-switch" role="group" aria-label="发布方向">
+              <Button
+                variant="text"
+                className={publisherRole === 'buyer' ? 'ui-segmented__button active' : 'ui-segmented__button'}
+                aria-pressed={publisherRole === 'buyer'}
+                onClick={() => setPublisherRole('buyer')}
+              >我长期采购</Button>
+              <Button
+                variant="text"
+                className={publisherRole === 'supplier' ? 'ui-segmented__button active' : 'ui-segmented__button'}
+                aria-pressed={publisherRole === 'supplier'}
+                onClick={() => setPublisherRole('supplier')}
+              >我长期供应</Button>
+            </div>
+          </fieldset>
+          <div className="contract-publish-grid">
+            <SelectInput
+              label="合同商品"
+              value={productId}
+              onChange={(event) => {
+                const next = event.target.value;
+                const nextPrice = model.game.products.find((item) => item.id === next)?.basePrice ?? 1;
+                setProductId(next);
+                setUnitPrice(nextPrice);
+                setUnitPriceInput(String(nextPrice));
+              }}
+            >
+              {model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+            </SelectInput>
+            <IntegerInput
+              label="每批数量"
+              value={quantityInput}
+              fallbackValue={quantity}
+              min={1}
+              max={1_000_000}
+              error={parsedQuantity === null ? '请输入 1～1000000 的整数。' : undefined}
+              onValueChange={updateQuantity}
+            />
+            <IntegerInput
+              label="单位价格"
+              value={unitPriceInput}
+              fallbackValue={unitPrice}
+              min={1}
+              max={1_000_000}
+              error={parsedUnitPrice === null ? '请输入 1～1000000 的整数。' : undefined}
+              onValueChange={updateUnitPrice}
+            />
+            <SelectInput
+              label="交付周期"
+              value={interval}
+              onChange={(event) => setIntervalValue(Number.parseInt(event.target.value, 10))}
+            >
+              {INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </SelectInput>
+            <IntegerInput
+              label="总交付批次"
+              value={deliveriesInput}
+              fallbackValue={deliveries}
+              min={2}
+              max={100}
+              error={parsedDeliveries === null ? '请输入 2～100 的整数。' : undefined}
+              onValueChange={updateDeliveries}
+            />
+            <SelectInput
+              label="首次交付"
+              value={firstDelay}
+              onChange={(event) => setFirstDelay(Number.parseInt(event.target.value, 10))}
+            >
+              {FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </SelectInput>
+          </div>
+        </div>
+
+        <aside className="contract-publish-preview" aria-label="合同预览">
+          <h3>合同预览</h3>
+          <DataList>
+            <DataRow label="每批货款" value={<CurrencyAmount>{batchGross === null ? '—' : formatCurrency(batchGross)}</CurrencyAmount>} />
+            <DataRow label="理论合同总额" value={<CurrencyAmount>{totalGross === null ? '—' : formatCurrency(totalGross)}</CurrencyAmount>} />
+            <DataRow label="履约保证金 / 方" value={<CurrencyAmount>{bond === null ? '—' : formatCurrency(bond)}</CurrencyAmount>} />
+          </DataList>
+          <p className="contract-offer-note">签订时采购方冻结首批货款和 20% 保证金，供应方冻结 20% 保证金。每批成功交付按卖方累计货款收取 1% 市场服务费。</p>
+          <Button block disabled={busy || !canSubmit} onClick={() => void submit()}>{busy ? '发布中' : '发布合同'}</Button>
+        </aside>
       </div>
-      <div className="contract-publish-summary">
-        <div><span>每批货款</span><strong><CurrencyAmount>{formatCurrency(batchGross)}</CurrencyAmount></strong></div>
-        <div><span>理论合同总额</span><strong><CurrencyAmount>{formatCurrency(batchGross * deliveries)}</CurrencyAmount></strong></div>
-        <div><span>履约保证金</span><strong><CurrencyAmount>{formatCurrency(Math.ceil(batchGross * 0.2))}</CurrencyAmount> / 方</strong></div>
-      </div>
-      <p className="contract-offer-note">签订时采购方冻结首批货款和 20% 保证金，供应方冻结 20% 保证金。每批成功交付按卖方累计货款收取 1% 市场服务费。</p>
-      <Button disabled={busy || !productId || quantity < 1 || unitPrice < 1 || deliveries < 2} onClick={() => void submit()}>发布合同</Button>
-    </Panel>
+    </PagePanel>
   );
 }
 
@@ -334,7 +512,21 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
     }
   };
 
-  const list = tab === 'active' ? activeContracts : tab === 'market' ? openContracts : tab === 'pending' ? pendingContracts : historyContracts;
+  const visibleCount = tab === 'active'
+    ? activeContracts.length
+    : tab === 'market'
+      ? openContracts.length
+      : tab === 'pending'
+        ? pendingContracts.length
+        : historyContracts.length;
+
+  const emptyMessage = tab === 'active'
+    ? '当前没有进行中的长期合作合同。'
+    : tab === 'market'
+      ? '当前没有可承接的公开合同。'
+      : tab === 'pending'
+        ? '当前没有需要处理的合同事项。'
+        : '当前没有已结束的合同。';
 
   return (
     <PageLayout
@@ -351,28 +543,38 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
 
       {showPublish ? <PublishContractPanel model={model} busy={Boolean(busyKey)} close={() => setShowPublish(false)} run={run} /> : null}
 
-      <nav className="contract-tabs" aria-label="合同页面分类">
-        <button className={tab === 'active' ? 'active' : ''} onClick={() => setTab('active')}>进行中的合同 <span>{activeContracts.length}</span></button>
-        <button className={tab === 'market' ? 'active' : ''} onClick={() => setTab('market')}>合同广场 <span>{openContracts.length}</span></button>
-        <button className={tab === 'pending' ? 'active' : ''} onClick={() => setTab('pending')}>待处理 <span>{pendingContracts.length}</span></button>
-        <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>合同历史 <span>{historyContracts.length}</span></button>
+      <nav className="ui-segmented contract-tabs" role="tablist" aria-label="合同页面分类">
+        <Button id="contract-tab-active" variant="text" role="tab" aria-selected={tab === 'active'} aria-controls="contract-tabpanel" className={tab === 'active' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('active')}>进行中的合同 <span className="contract-tab-count">{activeContracts.length}</span></Button>
+        <Button id="contract-tab-market" variant="text" role="tab" aria-selected={tab === 'market'} aria-controls="contract-tabpanel" className={tab === 'market' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('market')}>合同广场 <span className="contract-tab-count">{openContracts.length}</span></Button>
+        <Button id="contract-tab-pending" variant="text" role="tab" aria-selected={tab === 'pending'} aria-controls="contract-tabpanel" className={tab === 'pending' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('pending')}>待处理 <span className="contract-tab-count">{pendingContracts.length}</span></Button>
+        <Button id="contract-tab-history" variant="text" role="tab" aria-selected={tab === 'history'} aria-controls="contract-tabpanel" className={tab === 'history' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('history')}>合同历史 <span className="contract-tab-count">{historyContracts.length}</span></Button>
       </nav>
 
-      <section className="contract-list" aria-live="polite">
-        {list.length === 0 ? (
-          <EmptyState>
-            {tab === 'active' ? '当前没有进行中的长期合作合同。' : tab === 'market' ? '当前没有可承接的公开合同。' : tab === 'pending' ? '当前没有需要处理的合同事项。' : '当前没有已结束的合同。'}
-          </EmptyState>
-        ) : null}
-        {tab === 'active' || tab === 'pending' ? activeContracts.filter((contract) => tab === 'active' || pendingContracts.includes(contract)).map((contract) => (
+      <section
+        id="contract-tabpanel"
+        className={`contract-list${tab === 'market' ? ' contract-offer-grid' : ''}`}
+        role="tabpanel"
+        aria-labelledby={`contract-tab-${tab}`}
+        tabIndex={0}
+        aria-live="polite"
+      >
+        {visibleCount === 0 ? <EmptyState>{emptyMessage}</EmptyState> : null}
+        {tab === 'active' ? activeContracts.map((contract) => (
+          <ActiveContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
+        )) : null}
+        {tab === 'pending' ? pendingContracts.map((contract) => (
           <ActiveContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
         )) : null}
         {tab === 'market' ? openContracts.map((contract) => (
           <OpenContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
         )) : null}
-        {tab === 'history' ? historyContracts.map((contract) => (
-          <HistoryContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} />
-        )) : null}
+        {tab === 'history' && historyContracts.length > 0 ? (
+          <PagePanel className="contract-history-panel">
+            {historyContracts.map((contract) => (
+              <HistoryContractRow key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} />
+            ))}
+          </PagePanel>
+        ) : null}
       </section>
     </PageLayout>
   );
