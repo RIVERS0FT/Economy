@@ -77,7 +77,25 @@ jobs:
           fi
 
       - name: Generate hover baseline
-        run: node scripts/verify-interaction-modality.mjs --write-baseline
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/verify-interaction-modality.mjs --write-baseline 2>&1 | tee /tmp/interaction-baseline.log
+
+      - name: Persist baseline failure
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .agent
+          cp /tmp/interaction-baseline.log .agent/interaction-baseline.log
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .agent/interaction-baseline.log
+          if ! git diff --cached --quiet; then
+            git commit -m '记录交互基线验证失败'
+            git push origin HEAD:agent/global-interaction-modality
+          fi
 
       - name: Verify focused architecture
         run: |
