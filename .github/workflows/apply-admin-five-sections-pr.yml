@@ -27,6 +27,7 @@ jobs:
           source_workflow=.github/workflows/apply-admin-five-sections.yml
           sed -n "/python3 - <<'PY'/,/^          PY$/p" "$source_workflow" \
             | sed '1d;$d;s/^          //' > /tmp/apply-admin-five-sections.py
+          sed -i "s/''')\\.replace/'''.replace/g" /tmp/apply-admin-five-sections.py
           set +e
           python3 /tmp/apply-admin-five-sections.py > /tmp/apply-admin-five-sections.log 2>&1
           status=$?
