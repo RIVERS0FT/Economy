@@ -339,7 +339,7 @@ export interface LeaderboardEntry {
 }
 
 export interface EconomyState {
-  version: 17;
+  version: 16;
   userId: number;
   playerName: string;
   registeredAt: number;
