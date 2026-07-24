@@ -19,10 +19,14 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       await trigger.tap();
       await expect(dialog).toBeVisible();
       await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
+      await expect.poll(() => dialog.evaluate((element) => (
+        element.getAnimations().every((animation) => animation.playState === 'finished')
+      ))).toBe(true);
 
       const sheetBox = await dialog.boundingBox();
       expect(sheetBox).not.toBeNull();
       expect(sheetBox!.y).toBeGreaterThan(8);
+      expect(sheetBox!.y).toBeLessThan(844);
       await page.touchscreen.tap(sheetBox!.x + sheetBox!.width / 2, Math.max(8, sheetBox!.y / 2));
 
       await expect(dialog).toBeHidden();
