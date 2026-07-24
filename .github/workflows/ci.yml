@@ -36,32 +36,22 @@ jobs:
           text = text.replace(marker, helper, 1)
           text = text.replace('  const contract = world.productionContracts[0];', '  let contract = world.productionContracts[0];')
 
-          accept_old = """  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', {
-    contractId: contract.id,
-  }, now + 1).ok, true);"""
-          accept_new = """  const accepted = applyProductionContractAction(world, supplierUser, 'acceptProductionContract', {
-    contractId: contract.id,
-  }, now + 1);
-  assert.equal(accepted.ok, true);
-  contract = contractById(world, contract.id);"""
+          accept_old = "  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', {\n    contractId: contract.id,\n  }, now + 1).ok, true);"
+          accept_new = "  const accepted = applyProductionContractAction(world, supplierUser, 'acceptProductionContract', {\n    contractId: contract.id,\n  }, now + 1);\n  assert.equal(accepted.ok, true);\n  contract = contractById(world, contract.id);"
           if text.count(accept_old) != 2:
               raise SystemExit(f'unexpected accept assertion count: {text.count(accept_old)}')
           text = text.replace(accept_old, accept_new)
 
-          process_replacements = {
-              "  processProductionContracts(world, now + 10 * 60 * 1000 + 1);\n  assert.equal(contract.completedDeliveries, 1);":
-              "  processProductionContracts(world, now + 10 * 60 * 1000 + 1);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.completedDeliveries, 1);",
-              "  processProductionContracts(world, now + 20 * 60 * 1000 + 2);\n  assert.equal(contract.completedDeliveries, 2);":
-              "  processProductionContracts(world, now + 20 * 60 * 1000 + 2);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.completedDeliveries, 2);",
-              "  processProductionContracts(world, now + 2);\n  assert.equal(contract.roundStatus, 'grace');":
-              "  processProductionContracts(world, now + 2);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.roundStatus, 'grace');",
-              "  processProductionContracts(world, contract.graceEndsAt + 1);\n  assert.equal(contract.status, 'terminated');":
-              "  processProductionContracts(world, contract.graceEndsAt + 1);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.status, 'terminated');",
-          }
-          for old, new in process_replacements.items():
-              if old not in text:
-                  raise SystemExit(f'missing process assertion anchor: {old}')
-              text = text.replace(old, new, 1)
+          replacements = [
+              ("  processProductionContracts(world, now + 10 * 60 * 1000 + 1);\n  assert.equal(contract.completedDeliveries, 1);", "  processProductionContracts(world, now + 10 * 60 * 1000 + 1);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.completedDeliveries, 1);"),
+              ("  processProductionContracts(world, now + 20 * 60 * 1000 + 2);\n  assert.equal(contract.completedDeliveries, 2);", "  processProductionContracts(world, now + 20 * 60 * 1000 + 2);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.completedDeliveries, 2);"),
+              ("  processProductionContracts(world, now + 2);\n  assert.equal(contract.roundStatus, 'grace');", "  processProductionContracts(world, now + 2);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.roundStatus, 'grace');"),
+              ("  processProductionContracts(world, contract.graceEndsAt + 1);\n  assert.equal(contract.status, 'terminated');", "  processProductionContracts(world, contract.graceEndsAt + 1);\n  contract = contractById(world, contract.id);\n  assert.equal(contract.status, 'terminated');"),
+          ]
+          for old_text, new_text in replacements:
+              if old_text not in text:
+                  raise SystemExit(f'missing process assertion anchor: {old_text}')
+              text = text.replace(old_text, new_text, 1)
 
           setup_old = "  const { world, buyerUser, supplierUser, now } = setup();"
           setup_new = "  const { world, buyerUser, supplierUser, buyer, supplier, now } = setup();\n  buyer.inventories.wheat.available = 100;\n  supplier.inventories.wheat.available = 0;"
@@ -79,18 +69,18 @@ jobs:
           partitions = Path('server/test/state-partitions.test.js')
           text = partitions.read_text(encoding='utf-8')
           text = text.replace("test('initial delivery returns all five state partitions without a full state field'", "test('initial delivery returns all six state partitions without a full state field'", 1)
-          old = "    'auction', 'catalog', 'leaderboard', 'market', 'player',"
-          new = "    'auction', 'catalog', 'contract', 'leaderboard', 'market', 'player',"
-          if old not in text:
+          old_partitions = "    'auction', 'catalog', 'leaderboard', 'market', 'player',"
+          new_partitions = "    'auction', 'catalog', 'contract', 'leaderboard', 'market', 'player',"
+          if old_partitions not in text:
               raise SystemExit('missing state partition expectation')
-          text = text.replace(old, new, 1)
+          text = text.replace(old_partitions, new_partitions, 1)
           partitions.write_text(text, encoding='utf-8')
 
           http = Path('server/test/http.test.js')
           text = http.read_text(encoding='utf-8')
-          if old not in text:
+          if old_partitions not in text:
               raise SystemExit('missing HTTP partition expectation')
-          text = text.replace(old, new, 1)
+          text = text.replace(old_partitions, new_partitions, 1)
           http.write_text(text, encoding='utf-8')
           PY
 
