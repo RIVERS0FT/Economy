@@ -19,6 +19,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-source-snapshot
+          path: |
+            .
+            !.git/**
+            !node_modules/**
+            !dist/**
+          include-hidden-files: true
+          retention-days: 1
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
