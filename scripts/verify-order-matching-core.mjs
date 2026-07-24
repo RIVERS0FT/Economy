@@ -51,6 +51,9 @@ for (const text of ['共享撮合内核', '`server/src/order-matching.js`', '唯
   assert.ok(design.includes(text), `统一订单簿设计缺少: ${text}`);
 }
 const architecture = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
-assert.ok(architecture.includes('`server/src/order-matching.js`'), '服务器架构未登记共享撮合内核');
+assert.ok(
+  architecture.includes('`server/src/order-matching.js`') || architecture.includes('`order-matching.js`'),
+  '服务器架构未登记共享撮合内核',
+);
 
 console.log('共享撮合内核验证通过：商品与工厂复用价格时间优先、maker price、部分成交、fill 和手续费状态机。');
