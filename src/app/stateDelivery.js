@@ -9,6 +9,7 @@ export const STATE_PARTITION_NAMES = Object.freeze([
   'player',
   'market',
   'auction',
+  'contract',
   'leaderboard',
 ]);
 
