@@ -1,0 +1,27 @@
+name: Export remove-collectibles rebuild source
+
+on:
+  push:
+    branches:
+      - agent/remove-collectibles-rebuild
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Pack source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude=.git -czf /tmp/economy-source.tar.gz .
+      - name: Upload source archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-source-rebuild
+          path: /tmp/economy-source.tar.gz
+          retention-days: 1
