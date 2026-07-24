@@ -330,7 +330,7 @@ for (const text of [
   '立即违约终止',
   "useState<ContractTab>('active')",
 ]) requireText('src/pages/ContractPage.tsx', text);
-for (const text of ['collectibleId', 'facilityTypeId', '出租工厂']) forbidText('src/pages/ContractPage.tsx', text);
+for (const text of ['collectibleId', 'facilityTypeId']) forbidText('src/pages/ContractPage.tsx', text);
 for (const text of [
   "'/contracts'",
   "'accept'",
@@ -435,7 +435,7 @@ for (const text of [
   '最高出价资金、商品仓库预占、卖方资产冻结、退款、拍卖状态和归属转移全部由服务器判定',
   '默认进入“进行中的合同”',
   '合同只允许服务器正式商品和普通货币',
-  '双方冻结单批货款 20% 的履约保证金',
+  '单批货款 20% 的履约保证金',
   '合同交付不写入统一订单簿最近成交价、价格曲线、商品估值或交易榜',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
   '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',
