@@ -1,0 +1,649 @@
+name: Apply global interaction modality protocol
+
+on:
+  push:
+    branches:
+      - agent/global-interaction-modality
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/global-interaction-modality
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply interaction protocol
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import json
+
+          def read(path):
+              return Path(path).read_text()
+
+          def write(path, content):
+              target = Path(path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(content)
+
+          def replace_once(path, old, new):
+              content = read(path)
+              if old not in content:
+                  raise RuntimeError(f'{path} 缺少待替换内容: {old[:120]!r}')
+              write(path, content.replace(old, new, 1))
+
+          write('src/app/interactionBootstrap.ts', """import { configureInputModality } from '../utils/inputModality';
+
+configureInputModality();
+""")
+
+          write('src/styles/interaction-states.css', """/* Shared input-modality interaction protocol.
+ * Runtime modality is authoritative for hover and focus visuals; capability
+ * media queries remain a second guard against sticky touch hover behavior. */
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse'] button:hover:not(:disabled),
+  html[data-input-modality='mouse'] .ui-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+  }
+
+  html[data-input-modality='mouse'] [data-ui-interactive='surface']:hover:not(:disabled) {
+    border-color: var(--ui-interactive-hover-border-color, var(--color-border-strong));
+    background: var(--ui-interactive-hover-background, var(--color-surface-hover));
+    transform: var(--ui-interactive-hover-transform, none);
+    filter: var(--ui-interactive-hover-filter, none);
+  }
+}
+
+[data-ui-interactive='surface']:active:not(:disabled) {
+  transform: var(--ui-interactive-active-transform, scale(0.98));
+}
+
+html:not([data-input-modality='keyboard']) [data-ui-interactive='surface']:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+html[data-input-modality='keyboard'] [data-ui-interactive='surface']:focus-visible {
+  outline: 2px solid var(--ui-interactive-focus-color, var(--color-focus-ring, var(--color-success)));
+  outline-offset: var(--ui-interactive-focus-offset, 2px);
+  box-shadow: var(--ui-interactive-focus-shadow, var(--shadow-focus));
+}
+""")
+
+          write('scripts/verify-interaction-modality.mjs', r"""import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { relative, resolve } from 'node:path';
+import postcss from 'postcss';
+
+const root = process.cwd();
+const baselinePath = resolve(root, 'scripts/interaction-hover-legacy.json');
+const writeBaseline = process.argv.includes('--write-baseline');
+const failures = [];
+const read = (path) => readFileSync(resolve(root, path), 'utf8');
+const requireFile = (path) => {
+  if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
+};
+const requireText = (path, text) => {
+  if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`);
+};
+const forbidText = (path, text) => {
+  if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`);
+};
+
+function walkFiles(directory) {
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory).flatMap((name) => {
+    const path = resolve(directory, name);
+    return statSync(path).isDirectory() ? walkFiles(path) : [path];
+  });
+}
+
+function normalize(value) {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function hasFineMouseGuard(rule) {
+  const selectorHasMouseModality = /html\[data-input-modality=(?:"mouse"|'mouse')\]/.test(rule.selector);
+  let hasHoverCapability = false;
+  let hasFinePointerCapability = false;
+  for (let parent = rule.parent; parent; parent = parent.parent) {
+    if (parent.type !== 'atrule' || parent.name !== 'media') continue;
+    hasHoverCapability ||= /\(\s*hover\s*:\s*hover\s*\)/.test(parent.params);
+    hasFinePointerCapability ||= /\(\s*pointer\s*:\s*fine\s*\)/.test(parent.params);
+  }
+  return selectorHasMouseModality && hasHoverCapability && hasFinePointerCapability;
+}
+
+function collectUnguardedHoverRules() {
+  const styleRoot = resolve(root, 'src/styles');
+  const entries = [];
+  for (const absolutePath of walkFiles(styleRoot).filter((path) => path.endsWith('.css'))) {
+    const file = relative(root, absolutePath).replaceAll('\\', '/');
+    const css = readFileSync(absolutePath, 'utf8');
+    const parsed = postcss.parse(css, { from: file });
+    parsed.walkRules((rule) => {
+      if (!rule.selector.includes(':hover') || hasFineMouseGuard(rule)) return;
+      entries.push(`${file}::${normalize(rule.selector)}`);
+    });
+  }
+  return Array.from(new Set(entries)).sort();
+}
+
+const requiredFiles = [
+  'src/utils/inputModality.ts',
+  'src/app/interactionBootstrap.ts',
+  'src/styles/interaction-states.css',
+  'src/pages/ProductionPage.tsx',
+  'src/styles/facility-group-card-grid.css',
+  'tests/browser/facility-detail-sheet.spec.ts',
+  'tests/browser/input-modality.spec.ts',
+  'docs/UI_DESIGN_SYSTEM.md',
+  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+  'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
+  'docs/README.md',
+  'README.md',
+  'package.json',
+];
+requiredFiles.forEach(requireFile);
+
+if (failures.length === 0) {
+  for (const text of [
+    'configureInputModality();',
+    "from '../utils/inputModality'",
+  ]) requireText('src/app/interactionBootstrap.ts', text);
+
+  for (const text of [
+    "@media (hover: hover) and (pointer: fine)",
+    "html[data-input-modality='mouse']",
+    "[data-ui-interactive='surface']:hover:not(:disabled)",
+    "html:not([data-input-modality='keyboard']) [data-ui-interactive='surface']:focus-visible",
+    "html[data-input-modality='keyboard'] [data-ui-interactive='surface']:focus-visible",
+    '--ui-interactive-active-transform',
+  ]) requireText('src/styles/interaction-states.css', text);
+
+  for (const text of [
+    'data-ui-interactive="surface"',
+    'detailTriggerRef.current = trigger;',
+    'returnFocusRef.current?.focus()',
+  ]) requireText('src/pages/ProductionPage.tsx', text);
+
+  for (const text of [
+    '--ui-interactive-hover-border-color',
+    '--ui-interactive-hover-background',
+    '--ui-interactive-active-transform',
+  ]) requireText('src/styles/facility-group-card-grid.css', text);
+  for (const forbidden of [
+    '.facility-cluster-selector-card:hover',
+    '.facility-cluster-selector-card:active',
+    '.facility-cluster-selector-card:focus-visible',
+  ]) forbidText('src/styles/facility-group-card-grid.css', forbidden);
+  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled)');
+
+  const rootFiles = [
+    ...walkFiles(resolve(root, 'src')),
+    ...walkFiles(resolve(root, 'tests/browser')),
+  ].filter((path) => path.endsWith('.tsx') && readFileSync(path, 'utf8').includes('createRoot('));
+  for (const absolutePath of rootFiles) {
+    const file = relative(root, absolutePath).replaceAll('\\', '/');
+    const content = readFileSync(absolutePath, 'utf8');
+    if (!content.includes('interactionBootstrap')) {
+      failures.push(`${file} 是 React 根入口但未安装 interactionBootstrap`);
+    }
+    if (content.includes('styles/design-system.css')) {
+      const designIndex = content.indexOf('styles/design-system.css');
+      const interactionIndex = content.indexOf('styles/interaction-states.css');
+      if (interactionIndex < designIndex) {
+        failures.push(`${file} 必须在 design-system.css 之后加载 interaction-states.css`);
+      }
+    }
+  }
+
+  for (const text of [
+    '输入方式与共享交互状态',
+    '`src/app/interactionBootstrap.ts`',
+    '`src/styles/interaction-states.css`',
+    '`data-ui-interactive="surface"`',
+    '`scripts/verify-interaction-modality.mjs`',
+    '`tests/browser/input-modality.spec.ts`',
+  ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
+  requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '触摸关闭后必须恢复为仅由工厂运行状态决定的基础视觉');
+  requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', '触摸关闭悬浮框后不得残留悬停、按压或焦点选中视觉');
+  requireText('docs/README.md', '输入方式、共享交互表面');
+  requireText('README.md', '全局输入方式由最近一次有效输入动态决定');
+
+  for (const text of [
+    "Input.dispatchTouchEvent",
+    "data-input-modality",
+    "outlineStyle",
+    "await expect(trigger).toBeFocused()",
+  ]) requireText('tests/browser/facility-detail-sheet.spec.ts', text);
+  for (const text of [
+    'mixed input switches shared surface hover and focus without reload',
+    "dataset.inputModality",
+    "trigger.hover()",
+    "trigger.tap()",
+  ]) requireText('tests/browser/input-modality.spec.ts', text);
+
+  requireText('package.json', 'node scripts/verify-interaction-modality.mjs');
+}
+
+const currentUnguardedHoverRules = collectUnguardedHoverRules();
+if (writeBaseline) {
+  writeFileSync(baselinePath, `${JSON.stringify({
+    description: 'Existing unguarded hover selectors. New entries are forbidden; migrate existing entries to the shared interaction protocol when touched.',
+    unguardedHoverRules: currentUnguardedHoverRules,
+  }, null, 2)}\n`);
+} else if (!existsSync(baselinePath)) {
+  failures.push('缺少 scripts/interaction-hover-legacy.json；先由维护流程生成现有遗留 hover 基线');
+} else {
+  const baseline = JSON.parse(readFileSync(baselinePath, 'utf8'));
+  const allowed = new Set(baseline.unguardedHoverRules ?? []);
+  const unexpected = currentUnguardedHoverRules.filter((entry) => !allowed.has(entry));
+  if (unexpected.length > 0) {
+    failures.push(
+      `发现新增的未受输入方式约束 hover：\n${unexpected.map((entry) => `  - ${entry}`).join('\n')}\n` +
+      '请使用 data-ui-interactive="surface" 与 interaction-states.css，或在鼠标输入方式和 hover/pointer 能力查询下显式约束。',
+    );
+  }
+}
+
+if (failures.length > 0) {
+  console.error('全局输入方式与共享交互状态验证失败：');
+  failures.forEach((failure) => console.error(`- ${failure}`));
+  process.exit(1);
+}
+
+console.log(`全局输入方式验证通过；当前遗留未约束 hover ${currentUnguardedHoverRules.length} 条，新增条目为 0。`);
+""")
+
+          write('tests/browser/facility-detail-sheet.spec.ts', """import { expect, test, type Locator, type Page } from '@playwright/test';
+
+async function waitForSheetAnimations(dialog: Locator) {
+  await expect.poll(() => dialog.evaluate((element) => (
+    element.getAnimations().every((animation) => animation.playState === 'finished')
+  ))).toBe(true);
+}
+
+async function swipeDown(page: Page, handle: Locator, distance = 180) {
+  const box = await handle.boundingBox();
+  expect(box).not.toBeNull();
+  const x = box!.x + box!.width / 2;
+  const startY = box!.y + box!.height / 2;
+  const client = await page.context().newCDPSession(page);
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x, y: startY }],
+  });
+  for (const offset of [24, 64, 112, distance]) {
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y: startY + offset }],
+    });
+  }
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: [],
+  });
+}
+
+test.describe('mobile facility detail sheet close lifecycle', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  });
+
+  test('backdrop touch closes after every reopen and restores focus and page scrolling', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=activity');
+
+    const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+    const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+    const pageScroll = page.locator('.page-scroll');
+
+    await expect(trigger).toBeVisible();
+
+    for (let iteration = 0; iteration < 3; iteration += 1) {
+      await trigger.tap();
+      await expect(dialog).toBeVisible();
+      await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
+      await waitForSheetAnimations(dialog);
+
+      const sheetBox = await dialog.boundingBox();
+      expect(sheetBox).not.toBeNull();
+      expect(sheetBox!.y).toBeGreaterThan(8);
+      expect(sheetBox!.y).toBeLessThan(844);
+      await page.touchscreen.tap(sheetBox!.x + sheetBox!.width / 2, Math.max(8, sheetBox!.y / 2));
+
+      await expect(dialog).toBeHidden();
+      await expect(pageScroll).toHaveCSS('overflow-y', 'auto');
+      await expect(trigger).toBeFocused();
+    }
+  });
+
+  test('swipe close restores the touch surface visual while preserving semantic focus', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=activity');
+
+    const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+    const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+    const handle = page.locator('.facility-detail-sheet-drag-handle');
+    const pageScroll = page.locator('.page-scroll');
+    await page.mouse.move(1, 1);
+
+    const baseVisual = await trigger.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        background: style.background,
+        borderColor: style.borderColor,
+      };
+    });
+
+    for (let iteration = 0; iteration < 3; iteration += 1) {
+      await trigger.tap();
+      await expect(dialog).toBeVisible();
+      await waitForSheetAnimations(dialog);
+      await swipeDown(page, handle);
+
+      await expect(dialog).toBeHidden();
+      await expect(pageScroll).toHaveCSS('overflow-y', 'auto');
+      await expect(trigger).toBeFocused();
+      await expect(page.locator('html')).toHaveAttribute('data-input-modality', 'touch');
+
+      const closedVisual = await trigger.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          background: style.background,
+          borderColor: style.borderColor,
+          transform: style.transform,
+          outlineStyle: style.outlineStyle,
+          boxShadow: style.boxShadow,
+        };
+      });
+      expect(closedVisual.background).toBe(baseVisual.background);
+      expect(closedVisual.borderColor).toBe(baseVisual.borderColor);
+      expect(closedVisual.transform).toBe('none');
+      expect(closedVisual.outlineStyle).toBe('none');
+      expect(closedVisual.boxShadow).toBe('none');
+    }
+  });
+
+  test('keyboard escape keeps the returned trigger focus visibly accessible', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=activity');
+
+    const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+    const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeVisible();
+    await waitForSheetAnimations(dialog);
+    await page.keyboard.press('Escape');
+
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await expect(page.locator('html')).toHaveAttribute('data-input-modality', 'keyboard');
+    const focusVisual = await trigger.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        outlineStyle: style.outlineStyle,
+        outlineWidth: style.outlineWidth,
+        boxShadow: style.boxShadow,
+      };
+    });
+    expect(focusVisual.outlineStyle).toBe('solid');
+    expect(focusVisual.outlineWidth).toBe('2px');
+    expect(focusVisual.boxShadow).not.toBe('none');
+  });
+});
+""")
+
+          write('tests/browser/input-modality.spec.ts', """import { expect, test } from '@playwright/test';
+
+test.describe('shared input modality interaction protocol', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  });
+
+  test('mixed input switches shared surface hover and focus without reload', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=activity');
+
+    const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+    const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+    await page.mouse.move(1, 1);
+    const baseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
+
+    await page.mouse.click(2, 2);
+    await trigger.hover();
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('mouse');
+    const mouseBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
+    expect(mouseBackground).not.toBe(baseBackground);
+
+    await trigger.tap();
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('touch');
+    const touchBackground = await trigger.evaluate((element) => getComputedStyle(element).background);
+    expect(touchBackground).toBe(baseBackground);
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.inputModality)).toBe('keyboard');
+    await expect(trigger).toBeFocused();
+  });
+});
+""")
+
+          replace_once(
+              'src/main.tsx',
+              "import { AppErrorBoundary } from './app/AppErrorBoundary';\nimport { configureRuntimePerformance } from './utils/runtimePerformance';\nimport { configureInputModality } from './utils/inputModality';\n",
+              "import { AppErrorBoundary } from './app/AppErrorBoundary';\nimport './app/interactionBootstrap';\nimport { configureRuntimePerformance } from './utils/runtimePerformance';\n",
+          )
+          replace_once('src/main.tsx', "import './styles/design-system.css';\n", "import './styles/design-system.css';\nimport './styles/interaction-states.css';\n")
+          replace_once('src/main.tsx', "configureRuntimePerformance();\nconfigureInputModality();\n", "configureRuntimePerformance();\n")
+
+          for harness in [
+              'tests/browser/runtime-harness.tsx',
+              'tests/browser/assets-runtime-harness.tsx',
+              'tests/browser/market-runtime-harness.tsx',
+          ]:
+              replace_once(
+                  harness,
+                  "import { createRoot } from 'react-dom/client';\n",
+                  "import { createRoot } from 'react-dom/client';\nimport '../../src/app/interactionBootstrap';\n",
+              )
+              replace_once(
+                  harness,
+                  "import '../../src/styles/design-system.css';\n",
+                  "import '../../src/styles/design-system.css';\nimport '../../src/styles/interaction-states.css';\n",
+              )
+
+          replace_once(
+              'src/styles/design-system.css',
+              "button:hover:not(:disabled),\n.ui-button:hover:not(:disabled) {\n  transform: translateY(-1px);\n  filter: brightness(1.04);\n}\n\n",
+              '',
+          )
+
+          replace_once(
+              'src/pages/ProductionPage.tsx',
+              '      className="facility-cluster-selector-card"\n      data-status={group.status}\n',
+              '      className="facility-cluster-selector-card"\n      data-ui-interactive="surface"\n      data-status={group.status}\n',
+          )
+
+          replace_once(
+              'src/styles/facility-group-card-grid.css',
+              "  --facility-cluster-status-soft: color-mix(\n    in srgb,\n    var(--color-text-muted) 8%,\n    var(--color-surface-inset)\n  );\n\n",
+              "  --facility-cluster-status-soft: color-mix(\n    in srgb,\n    var(--color-text-muted) 8%,\n    var(--color-surface-inset)\n  );\n  --ui-interactive-hover-border-color: color-mix(\n    in srgb,\n    var(--facility-cluster-status-color) 78%,\n    var(--color-border-strong)\n  );\n  --ui-interactive-hover-background: color-mix(\n    in srgb,\n    var(--facility-cluster-status-color) 16%,\n    var(--color-surface-inset)\n  );\n  --ui-interactive-hover-transform: none;\n  --ui-interactive-hover-filter: none;\n  --ui-interactive-active-transform: scale(0.98);\n\n",
+          )
+          replace_once(
+              'src/styles/facility-group-card-grid.css',
+              ".facility-cluster-selector-card:hover {\n  border-color: color-mix(in srgb, var(--facility-cluster-status-color) 78%, var(--color-border-strong));\n  background: color-mix(in srgb, var(--facility-cluster-status-color) 16%, var(--color-surface-inset));\n}\n\n.facility-cluster-selector-card:active {\n  transform: scale(0.98);\n}\n\n.facility-cluster-selector-card:focus-visible {\n  outline: 2px solid var(--color-focus-ring, var(--color-info));\n  outline-offset: 2px;\n}\n\n",
+              '',
+          )
+
+          ui_path = 'docs/UI_DESIGN_SYSTEM.md'
+          replace_once(
+              ui_path,
+              '| `src/styles/design-system.css` | 设计令牌、按钮、面板、状态、表格、开关和通用焦点视觉 |\n',
+              '| `src/styles/design-system.css` | 设计令牌、按钮、面板、状态、表格、开关和通用焦点视觉 |\n| `src/styles/interaction-states.css` | 最近输入方式驱动的共享 hover、active、程序化焦点与键盘焦点视觉 |\n',
+          )
+          replace_once(
+              ui_path,
+              '业务页面样式先加载，`design-system.css` 在页面样式之后收束共享基础视觉，`primary-surfaces.css` 随后收束玩家端一级卡片外层几何，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标或焦点的基础外观。\n',
+              '业务页面样式先加载，`design-system.css` 在页面样式之后收束共享基础视觉，`interaction-states.css` 随后根据最近输入方式收束共享交互状态，`primary-surfaces.css` 再收束玩家端一级卡片外层几何，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标或焦点的基础外观。\n',
+          )
+          interaction_section = """### 3.1 输入方式与共享交互状态
+
+输入方式是跨页面 UI 能力，不属于滚动条私有实现。所有 React 根入口必须导入 `src/app/interactionBootstrap.ts`，由其唯一安装 `src/utils/inputModality.ts`；最近一次有效鼠标／触控板、手指／笔或键盘输入分别把根元素 `data-input-modality` 更新为 `mouse`、`touch` 或 `keyboard`，混合输入设备必须在不刷新页面的情况下即时切换。
+
+| 能力 | 运行时权威 | 样式／组件入口 | 防回退 | 浏览器测试 |
+|---|---|---|---|---|
+| 输入方式 | `src/utils/inputModality.ts` + `src/app/interactionBootstrap.ts` | 根元素 `data-input-modality` | `scripts/verify-interaction-modality.mjs` | `tests/browser/input-modality.spec.ts` |
+| 共享交互表面 | 根输入方式 | `src/styles/interaction-states.css` + `data-ui-interactive="surface"` | `scripts/verify-interaction-modality.mjs` | 工厂详情与混合输入测试 |
+| 覆盖式滚动条 | `src/hooks/useOverlayScrollbar.ts` | `ScrollArea` + `src/styles/scrollbars.css` | `scripts/verify-overlay-scrollbars.mjs` | `scroll-input-modality.spec.ts` |
+
+共享交互规则：
+
+- 需要自定义悬停／按压／焦点视觉的卡片按钮必须声明 `data-ui-interactive="surface"`，业务 CSS 只提供 `--ui-interactive-*` 变量，不得再次直接声明同一元素的裸 `:hover`、`:active` 或 `:focus-visible`。
+- hover 必须同时满足最近输入方式为 `mouse`、`(hover: hover)` 和 `(pointer: fine)`；触摸产生的浏览器粘滞 `:hover` 不得改变可见样式。
+- 触摸关闭 Overlay 后可以把语义焦点返回触发元素，但共享交互表面不得显示类似选中态的焦点环；输入方式为 `keyboard` 时必须显示明确的 `:focus-visible` 焦点。
+- `scripts/interaction-hover-legacy.json` 只记录迁移前已经存在的未约束 hover。`scripts/verify-interaction-modality.mjs` 禁止增加新条目；修改既有交互区域时应迁移到共享协议，而不是扩大遗留基线。
+- 新增 React 根入口时必须自动纳入静态扫描并安装交互 bootstrap；不得依赖修改者记住手动调用 `configureInputModality()`。
+
+"""
+          replace_once(ui_path, '## 4. 开关焦点环与点击区域\n', interaction_section + '## 4. 开关焦点环与点击区域\n')
+
+          industry_path = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
+          replace_once(
+              industry_path,
+              '- 选择卡可见内容只包含工厂名称、统一 `FactoryIcon` 和总数量纯数字：名称固定左上角、图标居中、数量固定右下角，不显示 `×`、单位、状态文字或“运行／待加入／冻结”摘要。整卡是单一真实 `button`；点击只切换内部详情目标或打开移动详情，不使用 `aria-pressed`、选中描边或持久选中背景。\n',
+              '- 选择卡可见内容只包含工厂名称、统一 `FactoryIcon` 和总数量纯数字：名称固定左上角、图标居中、数量固定右下角，不显示 `×`、单位、状态文字或“运行／待加入／冻结”摘要。整卡是单一真实 `button`；点击只切换内部详情目标或打开移动详情，不使用 `aria-pressed`、选中描边或持久选中背景。选择卡必须接入 UI 设计系统的 `data-ui-interactive="surface"`，不得在生产业务 CSS 中另写裸 hover／active／focus 状态。\n',
+          )
+          replace_once(
+              industry_path,
+              '- 悬浮框使用 `role="dialog"`、`aria-modal="true"` 和标题关联；打开后焦点进入可程序化聚焦的对话框容器，第一次 `Tab` 再进入开关、配方选择器或市场按钮，焦点始终限制在悬浮框内。`Escape`、点击遮罩或有效向下拖动可以关闭，关闭后焦点返回触发卡。\n',
+              '- 悬浮框使用 `role="dialog"`、`aria-modal="true"` 和标题关联；打开后焦点进入可程序化聚焦的对话框容器，第一次 `Tab` 再进入开关、配方选择器或市场按钮，焦点始终限制在悬浮框内。`Escape`、点击遮罩或有效向下拖动可以关闭，关闭后语义焦点返回触发卡。触摸关闭后必须恢复为仅由工厂运行状态决定的基础视觉，不得残留悬停、按压或焦点选中外观；键盘关闭后仍必须显示可见焦点。\n',
+          )
+          replace_once(
+              industry_path,
+              '- 移动端悬浮框关闭后丢失焦点返回、背景滚动锁、背景轨道抑制或 `Escape` 关闭能力；\n',
+              '- 移动端悬浮框关闭后丢失焦点返回、背景滚动锁、背景轨道抑制或 `Escape` 关闭能力；\n- 把内部详情目标映射为选择卡可见选中态，或让触摸关闭后残留 hover、active、focus 选中视觉；\n',
+          )
+
+          catalog_path = 'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md'
+          replace_once(
+              catalog_path,
+              '工厂类型下拉框与已拥有工厂卡片必须保持完全相同的目录顺序。建设下拉框、已拥有工厂选择卡和详情默认选择必须使用同一目录顺序。详情目标状态与建设下拉框状态必须独立，不能因为查看工厂详情而改变待建设工厂类型。选择卡不绘制持久选中态；内部详情目标仅用于决定桌面详情内容或移动端弹出的工厂。\n',
+              '工厂类型下拉框与已拥有工厂卡片必须保持完全相同的目录顺序。建设下拉框、已拥有工厂选择卡和详情默认选择必须使用同一目录顺序。详情目标状态与建设下拉框状态必须独立，不能因为查看工厂详情而改变待建设工厂类型。选择卡不绘制持久选中态；内部详情目标仅用于决定桌面详情内容或移动端弹出的工厂。选择卡统一接入 UI 设计系统共享交互表面；触摸关闭悬浮框后不得残留悬停、按压或焦点选中视觉，键盘焦点仍保持可见。\n',
+          )
+          replace_once(
+              catalog_path,
+              '- 五秒状态轮询只替换权威工厂数据，不重置仍然有效的 `selectedFacilityGroupId`，也不关闭已打开的移动详情悬浮框；该内部 ID 不得重新映射为选择卡可见选中态。\n',
+              '- 五秒状态轮询只替换权威工厂数据，不重置仍然有效的 `selectedFacilityGroupId`，也不关闭已打开的移动详情悬浮框；该内部 ID 不得重新映射为选择卡可见选中态。程序化焦点返回只恢复无障碍导航位置，不得在触摸输入方式下制造选中视觉。\n',
+          )
+          replace_once(
+              catalog_path,
+              '4. 侧栏展开、折叠、轮询刷新和移动悬浮框开关后顺序及有效详情目标不变，选择卡始终没有持久选中视觉；\n',
+              '4. 侧栏展开、折叠、轮询刷新和移动悬浮框开关后顺序及有效详情目标不变，选择卡始终没有持久选中视觉；触摸关闭后基础背景、边框和变换恢复，键盘关闭后焦点可见；\n',
+          )
+          replace_once(
+              catalog_path,
+              '- 为内部 `selectedFacilityGroupId` 恢复 `aria-pressed`、选中类名、选中描边或选中背景。\n',
+              '- 为内部 `selectedFacilityGroupId` 恢复 `aria-pressed`、选中类名、选中描边或选中背景；\n- 绕过共享交互表面，在工厂选择卡业务样式中重新声明裸 hover／active／focus，或让触摸焦点返回显示为选中态。\n',
+          )
+
+          docs_index = 'docs/README.md'
+          content = read(docs_index)
+          if not content.endswith('\n'):
+              content += '\n'
+          content += '45. 输入方式、共享交互表面、混合输入运行时切换、React 根入口 bootstrap、触摸无粘滞 hover、程序化焦点与键盘焦点视觉属于 `UI_DESIGN_SYSTEM.md`；必须通过 `scripts/verify-interaction-modality.mjs` 和混合输入浏览器测试防回退，业务 CSS 不得增加未受约束的 hover。\n'
+          write(docs_index, content)
+
+          readme_path = 'README.md'
+          replace_once(
+              readme_path,
+              '- 工厂详情选择与建设类型选择使用独立客户端状态；状态轮询只刷新详情数据，不重置当前工厂或关闭已打开的移动悬浮框。当前工厂不再拥有时回退到正式目录中的第一种已拥有工厂，无工厂时关闭悬浮框。\n',
+              '- 工厂详情选择与建设类型选择使用独立客户端状态；状态轮询只刷新详情数据，不重置当前工厂或关闭已打开的移动悬浮框。当前工厂不再拥有时回退到正式目录中的第一种已拥有工厂，无工厂时关闭悬浮框。\n- 全局输入方式由最近一次有效输入动态决定，并由所有 React 根入口统一安装；自定义交互卡使用共享 `data-ui-interactive="surface"` 协议，鼠标 hover、触摸按压、程序化焦点返回和键盘焦点不得各页面重复实现。新增未受输入方式约束的 hover 由架构验证拒绝。\n',
+          )
+
+          verify_path = 'scripts/verify-unified-factory-recipes-grid.mjs'
+          replace_once(
+              verify_path,
+              "  'className=\"facility-cluster-selector-card\"',\n  'data-status={group.status}',\n",
+              "  'className=\"facility-cluster-selector-card\"',\n  'data-ui-interactive=\"surface\"',\n  'data-status={group.status}',\n",
+          )
+          replace_once(
+              verify_path,
+              "  'page.touchscreen.tap',\n  'await expect(trigger).toBeFocused()',\n",
+              "  'page.touchscreen.tap',\n  'Input.dispatchTouchEvent',\n  'data-input-modality',\n  'outlineStyle',\n  'await expect(trigger).toBeFocused()',\n",
+          )
+          replace_once(
+              verify_path,
+              "for (const forbidden of [\n  '.facility-group-card-shell',\n",
+              "for (const forbidden of [\n  '.facility-cluster-selector-card:hover',\n  '.facility-cluster-selector-card:active',\n  '.facility-cluster-selector-card:focus-visible',\n  '.facility-group-card-shell',\n",
+          )
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          package['scripts']['verify:interaction-modality'] = 'node scripts/verify-interaction-modality.mjs'
+          architecture = package['scripts']['verify:architecture']
+          marker = 'node scripts/verify-mobile-touch-feedback.mjs && '
+          if marker not in architecture:
+              raise RuntimeError('package.json verify:architecture 缺少移动触摸验证入口')
+          architecture = architecture.replace(
+              marker,
+              marker + 'node scripts/verify-interaction-modality.mjs && ',
+              1,
+          )
+          package['scripts']['verify:architecture'] = architecture
+          package_path.write_text(json.dumps(package, ensure_ascii=False, indent=2) + '\n')
+          PYTHON
+
+      - name: Generate legacy hover baseline
+        run: node scripts/verify-interaction-modality.mjs --write-baseline
+
+      - name: Run focused architecture checks
+        run: |
+          node scripts/verify-interaction-modality.mjs
+          node scripts/verify-mobile-touch-feedback.mjs
+          node scripts/verify-unified-factory-recipes-grid.mjs
+          npm run typecheck
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run focused browser tests
+        run: npx playwright test tests/browser/facility-detail-sheet.spec.ts tests/browser/input-modality.spec.ts --project=chromium
+
+      - name: Commit real changes and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-interaction-modality.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add README.md docs src scripts tests package.json .github/workflows/apply-interaction-modality.yml
+          git diff --cached --check
+          git commit -m '统一全局输入方式交互协议'
+          git push origin HEAD:agent/global-interaction-modality
