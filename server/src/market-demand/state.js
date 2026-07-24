@@ -1,8 +1,16 @@
-import { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION } from './catalog.js';
+import { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, PRICE_MAX_MULTIPLIER } from './catalog.js';
 import { clamp } from './math.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from '../population-economy.js';
 
 export function createMarketDemandStateRuntime({ products, constants, marketFor, isOpenOrder }) {
+  const productMap = new Map(products.map((product) => [product.id, product]));
+
+  function defaultDirectQuoteAnchors(group) {
+    return Object.fromEntries([...new Set(group.classes.flatMap((demandClass) => (
+      demandClass.products.map((option) => option.productId)
+    )))].map((productId) => [productId, Number(productMap.get(productId)?.basePrice || 1)]));
+  }
+
   function normalizePlayerActivity(world, now) {
     world.players ||= {};
     const latestOrderAt = new Map();
@@ -54,6 +62,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       lastClassAllocation: {},
       lastAllocation: {},
       lastProductShares: {},
+      directQuoteAnchors: defaultDirectQuoteAnchors(group),
       previousDemandQuantities: structuredClone(group.seedDemandQuantities),
       recipeShares: {},
       lastInventoryBoost: 0,
@@ -139,6 +148,14 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       state.lastClassAllocation = state.lastClassAllocation && typeof state.lastClassAllocation === 'object' ? state.lastClassAllocation : {};
       state.lastAllocation = state.lastAllocation && typeof state.lastAllocation === 'object' ? state.lastAllocation : {};
       state.lastProductShares = state.lastProductShares && typeof state.lastProductShares === 'object' ? state.lastProductShares : {};
+      const defaultAnchors = defaultDirectQuoteAnchors(group);
+      const previousAnchors = state.directQuoteAnchors && typeof state.directQuoteAnchors === 'object' ? state.directQuoteAnchors : {};
+      state.directQuoteAnchors = Object.fromEntries(Object.entries(defaultAnchors).map(([productId, fallbackPrice]) => {
+        const product = productMap.get(productId);
+        const value = Number(previousAnchors[productId]);
+        const normalized = Number.isFinite(value) && value > 0 ? value : fallbackPrice;
+        return [productId, clamp(0.01, Number(product?.basePrice || fallbackPrice) * PRICE_MAX_MULTIPLIER, normalized)];
+      }));
       state.previousDemandQuantities = state.previousDemandQuantities && typeof state.previousDemandQuantities === 'object'
         ? state.previousDemandQuantities
         : structuredClone(group.seedDemandQuantities);
@@ -162,6 +179,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         state.lastAllocation = {};
         state.lastClassAllocation = {};
         state.lastProductShares = {};
+        state.directQuoteAnchors = defaultDirectQuoteAnchors(group);
         state.previousDemandQuantities = structuredClone(group.seedDemandQuantities);
         state.recipeShares = {};
       }

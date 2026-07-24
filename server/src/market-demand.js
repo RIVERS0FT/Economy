@@ -3,6 +3,8 @@ import { createMarketLiquidityRuntime } from './market-liquidity.js';
 import {
   DEMAND_CURVE,
   DEMAND_CURVE_SHORTAGE_MULTIPLIER,
+  DIRECT_DEMAND_PRICE_RECOVERY_RATE,
+  DIRECT_DEMAND_UNFILLED_PRICE_STEP,
   DERIVED_BACKLOG_WEIGHT,
   DERIVED_UNMET_WEIGHT,
   MARKET_DEMAND_GROUP_CATALOG,
@@ -180,6 +182,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         fillValue: 0,
         delayWeight: 0,
         delayScoreTotal: 0,
+        directRequested: 0,
+        directFilled: 0,
       };
       stats.requested += quantity;
       stats.filled += filled;
@@ -194,6 +198,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       }
       productStats[productId] = stats;
       if (order.demandTier === 'direct') {
+        stats.directRequested += quantity;
+        stats.directFilled += filled;
         const utility = Math.max(1, Number(utilities.get(productId) || 1));
         directRequestedUtility += quantity * utility;
         directFilledUtility += filled * utility;
@@ -218,6 +224,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         fillValue: 0,
         delayWeight: 0,
         delayScoreTotal: 0,
+        directRequested: 0,
+        directFilled: 0,
       };
       stats.backlog += Math.max(0, Number(order.remaining || 0));
       productStats[productId] = stats;
@@ -241,6 +249,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       );
       Object.assign(stats, {
         fillRatio: round4(productFillRatio),
+        directFillRatio: stats.directRequested <= 0 ? null : round4(stats.directFilled / stats.directRequested),
         delayScore: round4(productDelayScore),
         service: round4(service),
       });
@@ -271,6 +280,38 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       classService,
       effectiveDemandQuantities,
     };
+  }
+
+  function updateDirectQuoteAnchors(world, group, state, settlement) {
+    state.directQuoteAnchors ||= {};
+    const productIds = new Set(group.classes.flatMap((demandClass) => (
+      demandClass.products.map((option) => option.productId)
+    )));
+    for (const productId of productIds) {
+      const product = productFor(productId);
+      const referencePrice = Math.max(0.01, Number(
+        world.marketDemand.priceTransmission.products[productId]?.referencePrice || product.basePrice,
+      ));
+      const stored = Number(state.directQuoteAnchors[productId]);
+      const previous = Math.max(referencePrice, Number.isFinite(stored) && stored > 0 ? stored : referencePrice);
+      const stats = settlement.products?.[productId];
+      const requested = Math.max(0, Number(stats?.directRequested || 0));
+      const filled = Math.max(0, Number(stats?.directFilled || 0));
+      const fillRatio = requested <= 0 ? null : clamp(0, 1, filled / requested);
+      let next = previous;
+      if (requested > 0 && filled <= 0) {
+        next = previous * DIRECT_DEMAND_UNFILLED_PRICE_STEP;
+      } else if (requested > 0 && fillRatio < group.targetSatisfaction) {
+        next = previous;
+      } else {
+        next = referencePrice + Math.max(0, previous - referencePrice) * (1 - DIRECT_DEMAND_PRICE_RECOVERY_RATE);
+      }
+      state.directQuoteAnchors[productId] = round4(clamp(
+        referencePrice,
+        product.basePrice * PRICE_MAX_MULTIPLIER,
+        next,
+      ));
+    }
   }
 
   function prepareGroupOrders(world, group, state, cycleId) {
@@ -364,13 +405,17 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     return { filled: quantity - order.remaining, order, committed };
   }
 
-  function priceCurveFor(product, referencePrice, pressure) {
+  function priceCurveFor(product, referencePrice, pressure, directQuoteAnchor = referencePrice) {
     const cap = Math.max(1, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
     const shortageMultiplier = pressure >= 1.15 ? DEMAND_CURVE_SHORTAGE_MULTIPLIER : 1;
-    return DEMAND_CURVE.map((tier, index) => ({
-      weight: tier.weight,
-      price: Math.min(cap, Math.max(1, Math.round(referencePrice * tier.multiplier * (index === 0 ? shortageMultiplier : 1)))),
-    }));
+    return DEMAND_CURVE.map((tier, index) => {
+      const curvePrice = referencePrice * tier.multiplier * (index === 0 ? shortageMultiplier : 1);
+      const targetPrice = index === 0 ? Math.max(curvePrice, directQuoteAnchor) : curvePrice;
+      return {
+        weight: tier.weight,
+        price: Math.min(cap, Math.max(1, Math.round(targetPrice))),
+      };
+    });
   }
 
   function applyChoices(world, group, role, cycleId, now, budgets, details, totals, allocations, populationModelId) {
@@ -380,7 +425,10 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       const product = detail.product;
       const referencePrice = Math.max(1, Math.round(Number(detail.price.referencePrice || product.basePrice)));
       const pressure = Number(world.marketDemand.productPressure[productId] || 1);
-      const curve = priceCurveFor(product, referencePrice, pressure);
+      const directQuoteAnchor = role === 'direct'
+        ? Math.max(referencePrice, Number(world.marketDemand.groups[group.id]?.directQuoteAnchors?.[productId] || referencePrice))
+        : referencePrice;
+      const curve = priceCurveFor(product, referencePrice, pressure, directQuoteAnchor);
       const budgetByPrice = new Map();
       let assignedBudget = 0;
       curve.forEach((tier, index) => {
@@ -510,6 +558,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       state.previousDemandQuantities = settlement.effectiveDemandQuantities;
     }
 
+    updateDirectQuoteAnchors(world, group, state, settlement);
     prepareGroupOrders(world, group, state, cycleId);
     const populationCycle = preparePopulationDemandCycle(world, cycleId, now, { totalBaseBudget: totalPopulationBaseBudget });
     const allocations = {};

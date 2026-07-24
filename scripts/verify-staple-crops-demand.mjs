@@ -100,6 +100,9 @@ for (const text of [
   'settleLiquiditySell',
   'SYSTEM_ORDER_RETENTION_RATE',
   'DEMAND_CURVE',
+  'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.03',
+  'DIRECT_DEMAND_PRICE_RECOVERY_RATE = 0.30',
+  'directQuoteAnchors',
   'PRODUCT_ORDER_VALUE_CYCLES',
   'PRODUCT_PRESSURE_SMOOTHING',
   'DERIVED_UNMET_WEIGHT',
@@ -136,6 +139,9 @@ assert.deepEqual(facilities.get('appliance-factory').recipes[0].inputs, [
   { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
 ]);
 
+const marketDemandTests = read('server/test/market-demand-v6.test.js');
+assert.ok(marketDemandTests.includes('direct demand quote anchor accumulates fractional no-fill increases and recovers after service'), '市场需求测试缺少未成交报价阶梯回归');
+
 const populationTests = read('server/test/population-economy.test.js');
 for (const text of [
   'production employment uses factory complexity and preserves every integer credit',
@@ -160,9 +166,9 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`9`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：9', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：9', '`populationModelId`', '`fundingPool`', '真实人口冻结资金']],
+  ['README.md', ['市场需求模型版本：`9`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '未满足需求报价锚点']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：9', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '未满足需求报价锚点']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：9', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '未满足需求报价锚点']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 4', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 9', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/components/AdminPopulationHealth.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
