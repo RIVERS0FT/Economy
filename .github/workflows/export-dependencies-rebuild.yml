@@ -1,0 +1,32 @@
+name: Export rebuild dependencies
+
+on:
+  push:
+    branches:
+      - agent/remove-collectibles-rebuild
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Pack dependencies
+        run: tar -czf /tmp/economy-node-modules.tar.gz node_modules
+      - name: Upload dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-node-modules-rebuild
+          path: /tmp/economy-node-modules.tar.gz
+          retention-days: 1
+          compression-level: 0
