@@ -30,7 +30,7 @@ test('desktop contract workspace uses shared controls and dense two-column layou
 
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(2);
-  await expect(page.getByRole('group', { name: '发布方向' })).toBeVisible();
+  await expect(page.locator('.contract-direction-switch')).toBeVisible();
   await expect(page.getByRole('button', { name: '我长期采购', exact: true })).toHaveAttribute('aria-pressed', 'true');
 
   const quantity = page.getByLabel('每批数量');
@@ -65,8 +65,12 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
 
   expect(await gridTrackCount(page.locator('.contract-summary-grid'))).toBe(2);
   expect(await gridTrackCount(page.locator('.contract-card-heading').first())).toBe(1);
-  const tabsOverflow = await page.locator('.contract-tabs').evaluate((element) => element.scrollWidth > element.clientWidth);
-  expect(tabsOverflow).toBe(true);
+  const tabLayout = await page.locator('.contract-tabs').evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { gridAutoFlow: style.gridAutoFlow, overflowX: style.overflowX };
+  });
+  expect(tabLayout.gridAutoFlow).toBe('column');
+  expect(tabLayout.overflowX).toBe('auto');
 
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
