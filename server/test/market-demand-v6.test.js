@@ -82,6 +82,50 @@ test('market model 8 settles fills that happen after demand orders are created',
   assert.ok(state.satisfaction > 0);
 });
 
+test('direct demand quote anchor accumulates fractional no-fill increases and recovers after service', () => {
+  const now = 1_700_000_000_000;
+  const runtime = createRuntime();
+  const world = createTestWorld(now);
+  runtime.initializeWorld(world, now);
+  world.marketDemand.groups.food.nextDemandAt = now;
+
+  const topWheatPriceFor = (cycleId) => Math.max(...world.orders
+    .filter((order) => order.demandGroupId === 'food'
+      && order.demandTier === 'direct'
+      && order.productId === 'wheat'
+      && Number(order.demandCycleId) === cycleId)
+    .map((order) => Number(order.price || 0)));
+
+  runtime.processGroup(world, 'food', now);
+  assert.equal(topWheatPriceFor(Math.floor(now / constants.demandCycleMs)), 2);
+
+  for (let cycle = 1; cycle <= 8; cycle += 1) {
+    runtime.processGroup(world, 'food', now + cycle * constants.demandCycleMs);
+  }
+
+  const raisedAt = now + 8 * constants.demandCycleMs;
+  const raisedCycleId = Math.floor(raisedAt / constants.demandCycleMs);
+  const raisedAnchor = world.marketDemand.groups.food.directQuoteAnchors.wheat;
+  assert.ok(raisedAnchor >= 2.53);
+  assert.equal(topWheatPriceFor(raisedCycleId), 3);
+
+  const filledAt = raisedAt + 240_000;
+  for (const order of world.orders.filter((item) => item.demandGroupId === 'food'
+    && item.demandTier === 'direct'
+    && item.productId === 'wheat'
+    && Number(item.demandCycleId) === raisedCycleId)) {
+    order.remaining = 0;
+    order.status = 'filled';
+    order.lastFilledAt = filledAt;
+  }
+
+  runtime.processGroup(world, 'food', raisedAt + constants.demandCycleMs);
+  const recoveredAnchor = world.marketDemand.groups.food.directQuoteAnchors.wheat;
+  assert.ok(recoveredAnchor < raisedAnchor);
+  assert.ok(recoveredAnchor > 2);
+  assert.equal(world.marketDemand.groups.food.lastCycleSettlement.products.wheat.directFillRatio, 1);
+});
+
 test('market model 8 uses funded population wallets when no player is active', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();

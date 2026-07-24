@@ -25,6 +25,8 @@ export const DEMAND_CURVE = Object.freeze([
   Object.freeze({ weight: 0.20, multiplier: 0.93 }),
 ]);
 export const DEMAND_CURVE_SHORTAGE_MULTIPLIER = 1.03;
+export const DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.03;
+export const DIRECT_DEMAND_PRICE_RECOVERY_RATE = 0.30;
 export const PRODUCT_PRESSURE_SMOOTHING = 0.30;
 export const PRODUCT_PRESSURE_MIN = 0.75;
 export const PRODUCT_PRESSURE_MAX = 1.35;
