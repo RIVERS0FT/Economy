@@ -26,36 +26,67 @@ jobs:
       - name: Reapply formal diff onto latest main
         shell: bash
         run: |
+          set -o pipefail
+          {
+            set -euo pipefail
+            git fetch origin main
+            files=(
+              README.md
+              docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md
+              docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
+              docs/README.md
+              docs/UI_DESIGN_SYSTEM.md
+              package.json
+              scripts/interaction-hover-legacy.json
+              scripts/verify-interaction-modality.mjs
+              scripts/verify-unified-factory-recipes-grid.mjs
+              src/app/interactionBootstrap.ts
+              src/main.tsx
+              src/pages/ProductionPage.tsx
+              src/styles/design-system.css
+              src/styles/facility-group-card-grid.css
+              src/styles/interaction-states.css
+              tests/browser/assets-runtime-harness.tsx
+              tests/browser/facility-detail-sheet.spec.ts
+              tests/browser/input-modality.spec.ts
+              tests/browser/market-runtime-harness.tsx
+              tests/browser/runtime-harness.tsx
+            )
+            merge_base="$(git merge-base origin/main HEAD)"
+            git diff --binary "$merge_base" HEAD -- "${files[@]}" > /tmp/global-interaction-modality.patch
+            test -s /tmp/global-interaction-modality.patch
+            git reset --hard origin/main
+            git apply --3way --index /tmp/global-interaction-modality.patch
+            git diff --cached --check
+          } 2>&1 | tee /tmp/global-interaction-squash.log
+          status="${PIPESTATUS[0]}"
+          if [ "$status" -ne 0 ]; then
+            {
+              echo
+              echo '--- git status --short ---'
+              git status --short || true
+              echo
+              echo '--- unresolved files ---'
+              git diff --name-only --diff-filter=U || true
+            } | tee -a /tmp/global-interaction-squash.log
+          fi
+          exit "$status"
+
+      - name: Persist squash conflict
+        if: failure()
+        shell: bash
+        run: |
           set -euo pipefail
-          git fetch origin main
-          files=(
-            README.md
-            docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md
-            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
-            docs/README.md
-            docs/UI_DESIGN_SYSTEM.md
-            package.json
-            scripts/interaction-hover-legacy.json
-            scripts/verify-interaction-modality.mjs
-            scripts/verify-unified-factory-recipes-grid.mjs
-            src/app/interactionBootstrap.ts
-            src/main.tsx
-            src/pages/ProductionPage.tsx
-            src/styles/design-system.css
-            src/styles/facility-group-card-grid.css
-            src/styles/interaction-states.css
-            tests/browser/assets-runtime-harness.tsx
-            tests/browser/facility-detail-sheet.spec.ts
-            tests/browser/input-modality.spec.ts
-            tests/browser/market-runtime-harness.tsx
-            tests/browser/runtime-harness.tsx
-          )
-          merge_base="$(git merge-base origin/main HEAD)"
-          git diff --binary "$merge_base" HEAD -- "${files[@]}" > /tmp/global-interaction-modality.patch
-          test -s /tmp/global-interaction-modality.patch
-          git reset --hard origin/main
-          git apply --3way --index /tmp/global-interaction-modality.patch
-          git diff --cached --check
+          git reset --hard origin/agent/global-interaction-modality
+          mkdir -p .agent
+          cp /tmp/global-interaction-squash.log .agent/global-interaction-squash.log
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .agent/global-interaction-squash.log
+          if ! git diff --cached --quiet; then
+            git commit -m '记录全局交互协议主线重放冲突'
+            git push origin HEAD:agent/global-interaction-modality
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -83,6 +114,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf .agent
+          git add -A
+          git diff --cached --check
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git commit -m '统一全局输入方式交互协议'
