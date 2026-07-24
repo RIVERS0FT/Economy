@@ -59,8 +59,7 @@ jobs:
           set -euo pipefail
           rm -f .github/workflows/apply-bidirectional-demand-model10.yml
           rm -f .github/workflows/run-bidirectional-demand-model10.yml
-          rm -f .agent/model10-trigger
-          rmdir .agent 2>/dev/null || true
+          rm -rf .agent
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
