@@ -82,3 +82,39 @@ test('request metrics aggregate duration and application response bytes', () => 
   assert.deepEqual(collector.flush().routes, []);
   assert.equal(logs.length, 1);
 });
+
+test('request metrics cap route cardinality and aggregate overflow', () => {
+  const collector = createRequestMetricsCollector({
+    now: () => 1_000,
+    log: () => {},
+    warn: () => {},
+    maxRouteKeys: 3,
+  });
+
+  for (let index = 0; index < 10; index += 1) {
+    collector.record({
+      method: 'GET',
+      url: `/api/game/unknown-route-${index}`,
+      statusCode: 404,
+      durationMs: 1,
+      responseBytes: 20,
+    });
+  }
+
+  const summary = collector.flush();
+  assert.equal(summary.routes.length, 3);
+  assert.equal(summary.overflowedRequestCount, 8);
+  assert.deepEqual(
+    summary.routes.find((route) => route.method === 'OTHER'),
+    {
+      method: 'OTHER',
+      route: '/api/other',
+      count: 8,
+      errorCount: 0,
+      averageDurationMs: 1,
+      maxDurationMs: 1,
+      averageResponseBytes: 20,
+      maxResponseBytes: 20,
+    },
+  );
+});

@@ -5,6 +5,9 @@ const INSTALLATION_KEY = Symbol.for('riversoft.economy.requestMetrics');
 const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_SLOW_REQUEST_MS = 1_000;
 const DEFAULT_LARGE_RESPONSE_BYTES = 200 * 1024;
+const DEFAULT_MAX_ROUTE_KEYS = 256;
+const OVERFLOW_METHOD = 'OTHER';
+const OVERFLOW_ROUTE = '/api/other';
 const DYNAMIC_ROUTE_PATTERNS = [
   [/^(\/api\/game\/(?:orders|auctions|facility-listings))\/[^/]+(\/(?:bids|cancel|buy))$/, '$1/:id$2'],
   [/^(\/api\/game\/admin\/gift-codes)\/[^/]+(\/(?:disable|redemptions))$/, '$1/:id$2'],
@@ -38,19 +41,29 @@ export function createRequestMetricsCollector({
   warn = console.warn,
   slowRequestMs = DEFAULT_SLOW_REQUEST_MS,
   largeResponseBytes = DEFAULT_LARGE_RESPONSE_BYTES,
+  maxRouteKeys = DEFAULT_MAX_ROUTE_KEYS,
 } = {}) {
   let windowStartedAt = now();
   const routes = new Map();
+  const routeKeyLimit = Math.max(1, Math.floor(Number(maxRouteKeys) || DEFAULT_MAX_ROUTE_KEYS));
+  let overflowedRequestCount = 0;
 
   function record({ method, url, statusCode, durationMs, responseBytes }) {
-    const route = normalizeMetricRoute(url);
+    let route = normalizeMetricRoute(url);
     if (route !== '/health' && !route.startsWith('/api/')) return;
-    const key = `${String(method || 'GET').toUpperCase()} ${route}`;
+    let metricMethod = String(method || 'GET').toUpperCase();
+    let key = `${metricMethod} ${route}`;
+    if (!routes.has(key) && routes.size >= Math.max(0, routeKeyLimit - 1)) {
+      metricMethod = OVERFLOW_METHOD;
+      route = OVERFLOW_ROUTE;
+      key = `${metricMethod} ${route}`;
+      overflowedRequestCount += 1;
+    }
     const duration = finiteNonNegative(durationMs);
     const bytes = finiteNonNegative(responseBytes);
     const status = Number(statusCode) || 0;
     const current = routes.get(key) || {
-      method: String(method || 'GET').toUpperCase(),
+      method: metricMethod,
       route,
       count: 0,
       errorCount: 0,
@@ -96,9 +109,11 @@ export function createRequestMetricsCollector({
       windowStartedAt,
       windowEndedAt: endedAt,
       windowMs: Math.max(0, endedAt - windowStartedAt),
+      overflowedRequestCount,
       routes: summaries,
     };
     routes.clear();
+    overflowedRequestCount = 0;
     windowStartedAt = endedAt;
     if (summaries.length > 0) log('Economy request metrics', JSON.stringify(summary));
     return summary;
