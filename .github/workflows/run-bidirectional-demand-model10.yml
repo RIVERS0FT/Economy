@@ -58,7 +58,25 @@ jobs:
         run: exit 1
 
       - name: Build and run authoritative checks
-        run: npm run build
+        id: full_build
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/model10-build.log
+
+      - name: Upload build failure log
+        if: steps.full_build.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: model10-build-failure-${{ github.run_id }}
+          path: /tmp/model10-build.log
+          retention-days: 3
+          compression-level: 9
+
+      - name: Stop after build failure
+        if: steps.full_build.outcome == 'failure'
+        run: exit 1
 
       - name: Commit final source changes
         shell: bash
