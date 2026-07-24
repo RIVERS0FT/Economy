@@ -44,6 +44,27 @@ jobs:
               lines.append(text)
               print(text)
 
+          def recover_one_missing_base64_byte(data, expected):
+              alphabet = b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+              prefix_hash = sha256()
+              match = None
+              for position in range(len(data) + 1):
+                  suffix = data[position:]
+                  for byte in alphabet:
+                      candidate_hash = prefix_hash.copy()
+                      candidate_hash.update(bytes((byte,)))
+                      candidate_hash.update(suffix)
+                      if candidate_hash.hexdigest() == expected:
+                          candidate = data[:position] + bytes((byte,)) + suffix
+                          if match is not None:
+                              raise RuntimeError('multiple one-byte recovery candidates')
+                          match = (position, byte, candidate)
+                  if position < len(data):
+                      prefix_hash.update(data[position:position + 1])
+              if match is None:
+                  raise RuntimeError('no one-byte recovery candidate')
+              return match
+
           try:
               part_hashes = {
                   '00': '8f34d4a9827bc7e15b28c0a2a2e53eff3ccda4166bb9e48b22e6b71cd108e9ef',
@@ -64,6 +85,11 @@ jobs:
                   if actual != expected and len(data) > 0 and sha256(data[:-1]).hexdigest() == expected:
                       record(f'{path}: removing one stray trailing byte {data[-1:]!r}')
                       data = data[:-1]
+                      path.write_bytes(data)
+                      actual = sha256(data).hexdigest()
+                  if actual != expected and suffix == '07' and len(data) == 15999:
+                      position, byte, data = recover_one_missing_base64_byte(data, expected)
+                      record(f'{path}: restored missing byte {bytes((byte,))!r} at offset {position}')
                       path.write_bytes(data)
                       actual = sha256(data).hexdigest()
                   record(f'{path}: bytes={len(data)} expected={expected} actual={actual} tail={data[-16:]!r}')
