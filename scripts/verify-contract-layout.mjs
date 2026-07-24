@@ -64,7 +64,14 @@ for (const text of [
   '.contract-history-panel',
   '@media (max-width: 1219px)',
   '  .contract-publish-grid {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n  }',
-  'grid-auto-flow: column;',
+  '.ui-segmented.contract-tabs {',
+  'display: flex;',
+  'overflow-y: hidden;',
+  'touch-action: pan-x pan-y;',
+  'flex: 0 0 auto;',
+  'width: auto;',
+  'max-width: none;',
+  '.contract-tabs .contract-tab-count {',
   '@media (max-width: 720px)',
 ]) requireText(stylePath, text);
 
@@ -73,11 +80,16 @@ for (const text of [
   '.contract-publish-grid input',
   '.contract-publish-grid select',
   '.contract-tabs {\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n  margin-bottom: 0;',
+  'grid-auto-flow: column;',
+  'grid-auto-columns: max-content;',
 ]) forbidText(stylePath, text);
 
 for (const text of [
   '合同页的四项摘要在宽布局四列同排',
   '标签栏必须复用 `Button` 与 `.ui-segmented`',
+  '单行固有宽度 Flex 横向滚动',
+  '`width: 100%` 为 `width: auto`',
+  '`320px` 与 `390px`',
   '发布合同面板必须使用 `PagePanel`',
   '进行中合同卡先展示当前批次履约状态',
   '合同广场在宽度不小于 `1220px` 时使用双列',
@@ -91,9 +103,15 @@ for (const text of [
   'desktop contract workspace uses shared controls and dense two-column layouts',
   'tablet contract publish form keeps two-column fields',
   'mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs',
+  'narrow mobile contract tabs keep separate hit areas',
+  "openContracts(page, 320, 844)",
+  "openContracts(page, 390, 844)",
   "toHaveValue('')",
   "toHaveValue('100')",
   'expectUniformPageSectionGaps',
+  'expectContractTabsDoNotOverlap',
+  "expect(layout.display).toBe('flex')",
+  'geometry.rects[itemIndex].left',
 ]) requireText(browserTestPath, text);
 
 for (const text of [
@@ -114,4 +132,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('合同页统一表单、工作台层级、平板与移动响应式布局、历史列表和浏览器回归验证通过。');
+console.log('合同页统一表单、工作台层级、移动标签独立命中区域、平板与移动响应式布局、历史列表和浏览器回归验证通过。');
