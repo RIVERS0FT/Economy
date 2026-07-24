@@ -1,0 +1,37 @@
+name: Apply admin five-section refactor on PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Extract and apply refactor
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_workflow=.github/workflows/apply-admin-five-sections.yml
+          sed -n "/python3 - <<'PY'/,/^          PY$/p" "$source_workflow" \
+            | sed '1d;$d;s/^          //' > /tmp/apply-admin-five-sections.py
+          python3 /tmp/apply-admin-five-sections.py
+          rm -f .github/workflows/apply-admin-five-sections.yml .github/workflows/apply-admin-five-sections-pr.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "重构管理员五分区导航"
+          git push origin "HEAD:${HEAD_REF}"
