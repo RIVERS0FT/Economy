@@ -61,6 +61,11 @@ jobs:
                   path = Path(f'.agent/remove-collectibles.patch.b64.part-{suffix}')
                   data = path.read_bytes()
                   actual = sha256(data).hexdigest()
+                  if actual != expected and len(data) > 0 and sha256(data[:-1]).hexdigest() == expected:
+                      record(f'{path}: removing one stray trailing byte {data[-1:]!r}')
+                      data = data[:-1]
+                      path.write_bytes(data)
+                      actual = sha256(data).hexdigest()
                   record(f'{path}: bytes={len(data)} expected={expected} actual={actual} tail={data[-16:]!r}')
                   if actual != expected:
                       raise RuntimeError(f'part hash mismatch: {path}')
