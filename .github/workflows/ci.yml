@@ -59,12 +59,20 @@ jobs:
             python3 - <<'PYTHON'
           from pathlib import Path
 
-          path = Path('src/styles/design-system.css')
-          content = path.read_text()
-          block = "button:hover:not(:disabled),\n.ui-button:hover:not(:disabled) {\n  transform: translateY(-1px);\n  filter: brightness(1.04);\n}\n\n"
-          while block in content:
-              content = content.replace(block, '')
-          path.write_text(content)
+          style_path = Path('src/styles/design-system.css')
+          style = style_path.read_text()
+          generic_hover = "button:hover:not(:disabled),\n.ui-button:hover:not(:disabled) {\n  transform: translateY(-1px);\n  filter: brightness(1.04);\n}\n\n"
+          while generic_hover in style:
+              style = style.replace(generic_hover, '')
+          style_path.write_text(style)
+
+          verifier_path = Path('scripts/verify-interaction-modality.mjs')
+          verifier = verifier_path.read_text()
+          old = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled)');"
+          new = "  forbidText('src/styles/design-system.css', 'button:hover:not(:disabled),\\n.ui-button:hover:not(:disabled) {');"
+          if old not in verifier:
+              raise RuntimeError('交互验证器缺少通用按钮 hover 子串检查')
+          verifier_path.write_text(verifier.replace(old, new, 1))
           PYTHON
           } 2>&1 | tee /tmp/apply-interaction-modality.log
 
