@@ -52,15 +52,28 @@ check(pageDesign.includes('邀请获取宝石与宝石单向兑换普通货币')
 check(serverDesign.includes('economy_daily_check_ins'), 'server design must record check-in persistence');
 
 const staleVersion = String(17);
-const staleFragments = [
+const staleScriptFragments = [
   `version: ${staleVersion};`,
   `客户端状态版本：\`${staleVersion}\``,
   `客户端状态版本：${staleVersion}`,
 ];
 for (const fileName of fs.readdirSync(path.join(root, 'scripts')).filter((name) => name.endsWith('.mjs'))) {
   const source = read(`scripts/${fileName}`);
-  for (const fragment of staleFragments) {
+  for (const fragment of staleScriptFragments) {
     check(!source.includes(fragment), `${fileName} must not hard-code stale current client version ${staleVersion}`);
+  }
+}
+
+const staleTestFragments = [
+  `client state version ${staleVersion}`,
+  `client state uses version ${staleVersion}`,
+  `client version ${staleVersion}`,
+  `.version, ${staleVersion})`,
+];
+for (const fileName of fs.readdirSync(path.join(root, 'server/test')).filter((name) => name.endsWith('.js'))) {
+  const source = read(`server/test/${fileName}`);
+  for (const fragment of staleTestFragments) {
+    check(!source.includes(fragment), `${fileName} must use the shared current client version instead of ${staleVersion}`);
   }
 }
 
