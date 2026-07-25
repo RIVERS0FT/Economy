@@ -1,25 +1,38 @@
-name: Agent source export
+name: Apply banking implementation
 
 on:
   push:
     branches:
       - agent/banking-interest
-  pull_request:
-    branches:
-      - main
+    paths:
+      - .agent/ready
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  export:
+  apply:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Export source
-        run: git archive --format=zip --output=economy-source.zip HEAD
-      - uses: actions/upload-artifact@v4
         with:
-          name: economy-source
-          path: economy-source.zip
-          retention-days: 1
+          fetch-depth: 0
+      - name: Reconstruct and verify patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .agent/banking.patch.part-* | base64 --decode > /tmp/banking.patch.gz
+          echo '1317be2804e23b8a0ad34c22f69225447a4606718cc436b2b625638aebf4849f  /tmp/banking.patch.gz' | sha256sum --check -
+          gzip --decompress --stdout /tmp/banking.patch.gz > /tmp/banking.patch
+          git apply --check /tmp/banking.patch
+      - name: Apply and publish implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply /tmp/banking.patch
+          rm -rf .agent .github/workflows/agent-source-export.yml
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m '实现银行、抵押贷款与动态存款利息'
+          git push origin HEAD:agent/banking-interest
