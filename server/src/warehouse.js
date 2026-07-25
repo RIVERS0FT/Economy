@@ -101,6 +101,9 @@ export function createWarehouseUsage(world, player, {
     player.userId,
     exceptContractId,
   );
+  // The compatibility total remains available as
+  // nonContractWarehouseReservation(world, player.userId), while this summary reads the
+  // same single-pass source breakdown instead of scanning orders and auctions twice.
   const {
     orderReserved,
     auctionReserved,
