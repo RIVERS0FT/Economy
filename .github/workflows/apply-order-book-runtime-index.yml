@@ -1,0 +1,976 @@
+name: Apply order book runtime index
+
+on:
+  push:
+    branches:
+      - agent/order-book-runtime-index
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-order-book-runtime-index
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/order-book-runtime-index
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Implement runtime order book index
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > server/src/order-book-runtime.js <<'EOF'
+          import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+
+          const runtimeByWorld = new WeakMap();
+          const diagnosticsByWorld = new WeakMap();
+          const EMPTY_ORDERS = Object.freeze([]);
+
+          function diagnosticsFor(world) {
+            const current = diagnosticsByWorld.get(world) || {
+              builds: 0,
+              tailAppends: 0,
+              sideQueries: 0,
+              ordersVisited: 0,
+            };
+            diagnosticsByWorld.set(world, current);
+            return current;
+          }
+
+          function assetKey(assetKind, assetId) {
+            const kind = assetKind === 'facility' ? 'facility' : 'commodity';
+            return `${kind}:${String(assetId || (kind === 'commodity' ? 'wheat' : ''))}`;
+          }
+
+          function sideRecord() {
+            return { orders: [] };
+          }
+
+          function bookRecord() {
+            return { buy: sideRecord(), sell: sideRecord() };
+          }
+
+          function sequenceFor(state, order) {
+            return Number(state.sequenceByOrder.get(order) ?? Number.MAX_SAFE_INTEGER);
+          }
+
+          function compareForSide(state, side, left, right) {
+            const leftPrice = Number(left.price || 0);
+            const rightPrice = Number(right.price || 0);
+            if (leftPrice !== rightPrice) return side === 'buy' ? rightPrice - leftPrice : leftPrice - rightPrice;
+            const leftCreatedAt = Number(left.createdAt || 0);
+            const rightCreatedAt = Number(right.createdAt || 0);
+            if (leftCreatedAt !== rightCreatedAt) return leftCreatedAt - rightCreatedAt;
+            return sequenceFor(state, left) - sequenceFor(state, right);
+          }
+
+          function insertSorted(state, record, side, order) {
+            let low = 0;
+            let high = record.orders.length;
+            while (low < high) {
+              const middle = Math.floor((low + high) / 2);
+              if (compareForSide(state, side, record.orders[middle], order) <= 0) low = middle + 1;
+              else high = middle;
+            }
+            record.orders.splice(low, 0, order);
+          }
+
+          function compactClosedPrefix(record) {
+            let closed = 0;
+            while (closed < record.orders.length && !isOpenOrder(record.orders[closed])) closed += 1;
+            if (closed > 0) record.orders.splice(0, closed);
+            return record.orders;
+          }
+
+          function ownerBookFor(state, ownerId, key) {
+            const normalizedOwnerId = Number(ownerId);
+            let assets = state.ownerBooks.get(normalizedOwnerId);
+            if (!assets) {
+              assets = new Map();
+              state.ownerBooks.set(normalizedOwnerId, assets);
+            }
+            let book = assets.get(key);
+            if (!book) {
+              book = bookRecord();
+              assets.set(key, book);
+            }
+            return book;
+          }
+
+          function addOrder(state, order, sequence) {
+            state.sequenceByOrder.set(order, sequence);
+            const id = String(order?.id || '');
+            if (id) state.byId.set(id, order);
+            const kind = orderKind(order);
+            const idValue = orderAssetId(order);
+            const side = order?.side === 'sell' ? 'sell' : order?.side === 'buy' ? 'buy' : null;
+            if (!idValue || !side) return;
+            const key = assetKey(kind, idValue);
+            let book = state.books.get(key);
+            if (!book) {
+              book = bookRecord();
+              state.books.set(key, book);
+            }
+            insertSorted(state, book[side], side, order);
+
+            if (order.ownerType === 'player' && Number.isFinite(Number(order.ownerId))) {
+              const ownerId = Number(order.ownerId);
+              const ownerOrders = state.ownerOrders.get(ownerId) || new Set();
+              ownerOrders.add(order);
+              state.ownerOrders.set(ownerId, ownerOrders);
+              insertSorted(state, ownerBookFor(state, ownerId, key)[side], side, order);
+            }
+
+            if (order.demandGroupId) {
+              const groupId = String(order.demandGroupId);
+              const groupOrders = state.demandGroupOrders.get(groupId) || new Set();
+              groupOrders.add(order);
+              state.demandGroupOrders.set(groupId, groupOrders);
+            }
+          }
+
+          function buildRuntime(world) {
+            const orders = world.orders || (world.orders = []);
+            const state = {
+              ordersRef: orders,
+              indexedLength: 0,
+              lastIndexedOrder: null,
+              sequenceByOrder: new WeakMap(),
+              byId: new Map(),
+              books: new Map(),
+              ownerBooks: new Map(),
+              ownerOrders: new Map(),
+              demandGroupOrders: new Map(),
+            };
+            for (let index = 0; index < orders.length; index += 1) addOrder(state, orders[index], index);
+            state.indexedLength = orders.length;
+            state.lastIndexedOrder = orders.length > 0 ? orders[orders.length - 1] : null;
+            runtimeByWorld.set(world, state);
+            diagnosticsFor(world).builds += 1;
+            return state;
+          }
+
+          function runtimeFor(world) {
+            const orders = world.orders || (world.orders = []);
+            let state = runtimeByWorld.get(world);
+            const prefixChanged = state
+              && state.ordersRef === orders
+              && state.indexedLength > 0
+              && state.lastIndexedOrder !== orders[state.indexedLength - 1];
+            if (
+              !state
+              || state.ordersRef !== orders
+              || state.indexedLength > orders.length
+              || prefixChanged
+            ) return buildRuntime(world);
+
+            if (state.indexedLength < orders.length) {
+              const start = state.indexedLength;
+              for (let index = start; index < orders.length; index += 1) addOrder(state, orders[index], index);
+              state.indexedLength = orders.length;
+              state.lastIndexedOrder = orders[orders.length - 1];
+              diagnosticsFor(world).tailAppends += orders.length - start;
+            }
+            return state;
+          }
+
+          function recordFor(world, assetKind, assetId, side, ownerId = null) {
+            const state = runtimeFor(world);
+            const key = assetKey(assetKind, assetId);
+            diagnosticsFor(world).sideQueries += 1;
+            const book = ownerId === null
+              ? state.books.get(key)
+              : state.ownerBooks.get(Number(ownerId))?.get(key);
+            if (!book || (side !== 'buy' && side !== 'sell')) return null;
+            return book[side];
+          }
+
+          export function invalidateOrderBookRuntime(world) {
+            runtimeByWorld.delete(world);
+          }
+
+          export function resetOrderBookRuntimeDiagnostics(world, { invalidate = true } = {}) {
+            diagnosticsByWorld.set(world, { builds: 0, tailAppends: 0, sideQueries: 0, ordersVisited: 0 });
+            if (invalidate) invalidateOrderBookRuntime(world);
+          }
+
+          export function getOrderBookRuntimeDiagnostics(world) {
+            return { ...diagnosticsFor(world) };
+          }
+
+          export function recordOrderBookVisit(world, count = 1) {
+            diagnosticsFor(world).ordersVisited += Math.max(0, Number(count) || 0);
+          }
+
+          export function getOrderBookSide(world, { assetKind = 'commodity', assetId, side }) {
+            const record = recordFor(world, assetKind, assetId, side);
+            return record ? compactClosedPrefix(record) : EMPTY_ORDERS;
+          }
+
+          export function getOwnerOrderBookSide(world, ownerId, { assetKind = 'commodity', assetId, side }) {
+            const record = recordFor(world, assetKind, assetId, side, ownerId);
+            return record ? compactClosedPrefix(record) : EMPTY_ORDERS;
+          }
+
+          export function orderById(world, orderId) {
+            return runtimeFor(world).byId.get(String(orderId || '')) || null;
+          }
+
+          export function ordersForDemandGroup(world, groupId) {
+            return [...(runtimeFor(world).demandGroupOrders.get(String(groupId || '')) || [])];
+          }
+
+          export function countOpenOrdersForOwner(world, ownerId) {
+            const state = runtimeFor(world);
+            const orders = state.ownerOrders.get(Number(ownerId));
+            if (!orders) return 0;
+            let count = 0;
+            for (const order of orders) {
+              if (isOpenOrder(order)) count += 1;
+            }
+            return count;
+          }
+
+          export function pendingCommodityBuyQuantityForOwner(world, ownerId) {
+            const state = runtimeFor(world);
+            const orders = state.ownerOrders.get(Number(ownerId));
+            if (!orders) return 0;
+            let quantity = 0;
+            for (const order of orders) {
+              if (orderKind(order) !== 'commodity' || order.side !== 'buy' || !isOpenOrder(order)) continue;
+              quantity += Math.max(0, Number(order.remaining || 0));
+            }
+            return quantity;
+          }
+
+          export function facilitySellQuantityForOwner(world, ownerId, facilityTypeId) {
+            return getOwnerOrderBookSide(world, ownerId, {
+              assetKind: 'facility',
+              assetId: facilityTypeId,
+              side: 'sell',
+            }).reduce((sum, order) => (
+              isOpenOrder(order) ? sum + Math.max(0, Number(order.remaining || 0)) : sum
+            ), 0);
+          }
+
+          export function bestSystemOrder(world, assetKind, assetId, side) {
+            const orders = getOrderBookSide(world, { assetKind, assetId, side });
+            let visited = 0;
+            for (const order of orders) {
+              visited += 1;
+              if (isOpenOrder(order) && order.ownerType === 'population') {
+                recordOrderBookVisit(world, visited);
+                return order;
+              }
+            }
+            recordOrderBookVisit(world, visited);
+            return null;
+          }
+          EOF
+
+          cat > server/src/order-book-integrity.js <<'EOF'
+          import { isOpenOrder } from './order-identity.js';
+          import {
+            bestSystemOrder,
+            getOwnerOrderBookSide,
+            recordOrderBookVisit,
+          } from './order-book-runtime.js';
+
+          export const SELF_CROSS_MESSAGE = '该价格会与自己的反向订单交叉，请先撤销原订单';
+
+          export function pricesCross(side, price, oppositePrice) {
+            const incoming = Number(price);
+            const resting = Number(oppositePrice);
+            if (!Number.isFinite(incoming) || !Number.isFinite(resting)) return false;
+            return side === 'buy' ? incoming >= resting : side === 'sell' ? incoming <= resting : false;
+          }
+
+          export function findSelfCrossingOrder(world, {
+            ownerId,
+            assetKind,
+            assetId,
+            side,
+            price,
+          }) {
+            const normalizedOwnerId = Number(ownerId);
+            const normalizedKind = assetKind === 'facility' ? 'facility' : 'commodity';
+            const normalizedAssetId = String(assetId || '');
+            if (!Number.isFinite(normalizedOwnerId) || !normalizedAssetId || (side !== 'buy' && side !== 'sell')) return null;
+
+            const oppositeSide = side === 'buy' ? 'sell' : 'buy';
+            const orders = getOwnerOrderBookSide(world, normalizedOwnerId, {
+              assetKind: normalizedKind,
+              assetId: normalizedAssetId,
+              side: oppositeSide,
+            });
+            let visited = 0;
+            for (const order of orders) {
+              visited += 1;
+              if (!isOpenOrder(order)) continue;
+              if (!pricesCross(side, price, order.price)) break;
+              recordOrderBookVisit(world, visited);
+              return order;
+            }
+            recordOrderBookVisit(world, visited);
+            return null;
+          }
+
+          export function findSelfCrossingOrderForPayload(world, ownerId, payload = {}) {
+            const assetKind = payload.assetKind === 'facility' ? 'facility' : 'commodity';
+            const assetId = assetKind === 'facility'
+              ? String(payload.assetId || payload.facilityTypeId || '')
+              : String(payload.assetId || payload.productId || 'wheat');
+            return findSelfCrossingOrder(world, {
+              ownerId,
+              assetKind,
+              assetId,
+              side: payload.side,
+              price: payload.price ?? payload.unitPrice,
+            });
+          }
+
+          export function bestSystemPrice(world, productId, side) {
+            const order = bestSystemOrder(world, 'commodity', productId, side);
+            const price = Number(order?.price);
+            return Number.isFinite(price) && price > 0 ? price : null;
+          }
+
+          export function systemBookIsCrossed(world, productId) {
+            const bid = bestSystemPrice(world, productId, 'buy');
+            const ask = bestSystemPrice(world, productId, 'sell');
+            return bid !== null && ask !== null && bid >= ask;
+          }
+          EOF
+
+          cat > server/src/market-demand/signals.js <<'EOF'
+          import { getOrderBookSide, recordOrderBookVisit } from '../order-book-runtime.js';
+          import { PRICE_WINDOW_MS } from './catalog.js';
+          import { clamp } from './math.js';
+
+          export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
+            function realTradeStats(world, productId, now, windowMs = PRICE_WINDOW_MS) {
+              const points = (marketFor(world, productId, now).priceHistory || []).filter((point) => (
+                Number(point.createdAt || 0) >= now - windowMs
+                && (point.takerSide === 'buy' || point.takerSide === 'sell')
+                && Number(point.quantity || 0) > 0
+                && Number(point.price || 0) > 0
+              ));
+              const weightedQuantity = (point) => Number(point.quantity) * clamp(0, 1, Number(point.signalWeight ?? 1));
+              const summarize = (selected) => {
+                const quantity = selected.reduce((sum, point) => sum + weightedQuantity(point), 0);
+                const value = selected.reduce((sum, point) => sum + weightedQuantity(point) * Number(point.price), 0);
+                const netActive = selected.reduce((sum, point) => (
+                  sum + weightedQuantity(point) * (point.takerSide === 'buy' ? 1 : -1)
+                ), 0);
+                return { quantity, value, netActive, vwap: quantity > 0 ? value / quantity : null };
+              };
+              const all = summarize(points);
+              const player = summarize(points.filter((point) => point.marketRole === 'player'));
+              const consumption = summarize(points.filter((point) => point.marketRole === 'consumption'));
+              const liquidity = summarize(points.filter((point) => point.marketRole === 'liquidity'));
+              return {
+                ...all,
+                playerQuantity: player.quantity,
+                playerValue: player.value,
+                playerNetActive: player.netActive,
+                consumptionQuantity: consumption.quantity,
+                consumptionValue: consumption.value,
+                liquidityQuantity: liquidity.quantity,
+                liquidityValue: liquidity.value,
+              };
+            }
+
+            function orderBookQuote(world, product, depth, referencePrice) {
+              const asks = getOrderBookSide(world, {
+                assetKind: 'commodity',
+                assetId: product.id,
+                side: 'sell',
+              });
+              const targetDepth = Math.max(1, Math.ceil(depth));
+              let remaining = targetDepth;
+              let available = 0;
+              let cost = 0;
+              let fallbackPrice = referencePrice;
+              let visited = 0;
+              for (const ask of asks) {
+                visited += 1;
+                if (remaining <= 0) break;
+                if (ask.ownerType !== 'player' || !isOpenOrder(ask)) continue;
+                const quantity = Math.min(remaining, Math.max(0, Number(ask.remaining || 0)));
+                if (quantity <= 0) continue;
+                fallbackPrice = Math.max(fallbackPrice, Number(ask.price || referencePrice));
+                cost += quantity * Number(ask.price || referencePrice);
+                available += quantity;
+                remaining -= quantity;
+              }
+              recordOrderBookVisit(world, visited);
+              if (available === 0) return { quote: referencePrice, available: 0, coverage: 0 };
+              if (remaining > 0) cost += remaining * fallbackPrice;
+              return {
+                quote: Math.max(1, cost / targetDepth),
+                available,
+                coverage: clamp(0, 1, available / targetDepth),
+              };
+            }
+
+            function effectivePrice(world, product, depth, priceState, now) {
+              const referencePrice = Math.max(0.01, Number(priceState?.referencePrice || product.basePrice));
+              const quote = orderBookQuote(world, product, depth, referencePrice);
+              const trades = realTradeStats(world, product.id, now);
+              const vwap = trades.vwap === null ? referencePrice : trades.vwap;
+              return {
+                ...quote,
+                vwap,
+                effective: 0.50 * quote.quote + 0.30 * referencePrice + 0.20 * vwap,
+                referencePrice,
+              };
+            }
+
+            return { realTradeStats, orderBookQuote, effectivePrice };
+          }
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path_name}: expected one replacement target, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def replace_section(path_name: str, start: str, end: str, replacement: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              start_index = text.index(start)
+              end_index = text.index(end, start_index)
+              path.write_text(text[:start_index] + replacement + text[end_index:], encoding='utf-8')
+
+          replace_once(
+              'server/src/order-matching.js',
+              "import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';\n",
+              "import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';\nimport { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js';\n",
+          )
+          replace_once(
+              'server/src/order-matching.js',
+              """  const candidates = (world.orders || [])
+            .filter((resting) => (
+              resting.id !== incoming.id
+              && orderKind(resting) === incomingKind
+              && orderAssetId(resting) === incomingAssetId
+              && resting.side === oppositeSide
+              && isOpenOrder(resting)
+              && !samePlayer(incoming, resting)
+              && orderPricesCross(incoming.side, incoming.price, resting.price)
+              && canMatch({ world, incoming, resting })
+            ))
+            .sort((left, right) => compareRestingOrders(incoming.side, left, right));
+
+            let fillCount = 0;
+            let filledQuantity = 0;
+            for (const resting of candidates) {
+              if (!isOpenOrder(incoming)) break;
+              if (!isOpenOrder(resting)) continue;
+          """,
+              """  const candidates = getOrderBookSide(world, {
+              assetKind: incomingKind,
+              assetId: incomingAssetId,
+              side: oppositeSide,
+            });
+
+            let fillCount = 0;
+            let filledQuantity = 0;
+            let visited = 0;
+            for (const resting of candidates) {
+              if (!isOpenOrder(incoming)) break;
+              visited += 1;
+              if (resting.id === incoming.id || !isOpenOrder(resting)) continue;
+              if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;
+              if (samePlayer(incoming, resting) || !canMatch({ world, incoming, resting })) continue;
+          """,
+          )
+          replace_once(
+              'server/src/order-matching.js',
+              """  return { fillCount, filledQuantity };
+          }
+          """,
+              """  recordOrderBookVisit(world, visited);
+            return { fillCount, filledQuantity };
+          }
+          """,
+          )
+
+          replace_once(
+              'server/src/domain.js',
+              "import { orderAssetId, orderKind } from './order-identity.js';\n",
+              "import { orderAssetId, orderKind } from './order-identity.js';\nimport { countOpenOrdersForOwner, pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';\n",
+          )
+          replace_section(
+              'server/src/domain.js',
+              'function pendingPlayerBuyQuantity',
+              'function applyCommodityOrder',
+              '''function pendingPlayerBuyQuantity(world, userId) {
+            return pendingCommodityBuyQuantityForOwner(world, userId);
+          }
+
+          ''',
+          )
+          replace_once(
+              'server/src/domain.js',
+              """  world.orders ||= [];
+            const openOrders = world.orders.filter((order) => (
+              Number(order.ownerId) === userId && balancedMarket.isOpenOrder(order)
+            ));
+            if (openOrders.length >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
+          """,
+              """  world.orders ||= [];
+            if (countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
+          """,
+          )
+
+          replace_once(
+              'server/src/warehouse.js',
+              "import { isOpenOrder, orderKind } from './order-identity.js';\n",
+              "import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';\n",
+          )
+          replace_once(
+              'server/src/warehouse.js',
+              """  const orderReserved = (world?.orders || []).reduce((sum, order) => {
+              if (
+                Number(order?.ownerId) !== Number(userId)
+                || orderKind(order) === 'facility'
+                || order?.side !== 'buy'
+                || !isOpenOrder(order)
+              ) return sum;
+              return sum + Math.max(0, Number(order.remaining || 0));
+            }, 0);
+          """,
+              """  const orderReserved = pendingCommodityBuyQuantityForOwner(world, userId);
+          """,
+          )
+
+          replace_once(
+              'server/src/facility-groups.js',
+              "import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';\n",
+              "import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';\nimport { countOpenOrdersForOwner, facilitySellQuantityForOwner } from './order-book-runtime.js';\n",
+          )
+          replace_section(
+              'server/src/facility-groups.js',
+              'function facilityOrders',
+              'function auctionItems',
+              '''function listedQuantity(world, ownerId, typeId) {
+            return facilitySellQuantityForOwner(world, ownerId, typeId);
+          }
+
+          ''',
+          )
+          replace_once(
+              'server/src/facility-groups.js',
+              """  const openOrders = (world.orders || []).filter((order) => Number(order.ownerId) === userId && isOpenOrder(order));
+            if (openOrders.length >= MAX_OPEN_ORDERS) return result(false, '未完成订单数量已达上限');
+          """,
+              """  if (countOpenOrdersForOwner(world, userId) >= MAX_OPEN_ORDERS) return result(false, '未完成订单数量已达上限');
+          """,
+          )
+
+          replace_once(
+              'server/src/market-liquidity.js',
+              "import { bestSystemPrice, systemBookIsCrossed } from './order-book-integrity.js';\n",
+              "import { bestSystemPrice, systemBookIsCrossed } from './order-book-integrity.js';\nimport { bestSystemOrder as indexedBestSystemOrder, ordersForDemandGroup } from './order-book-runtime.js';\n",
+          )
+          replace_section(
+              'server/src/market-liquidity.js',
+              '  function cancelGroupOrders',
+              '  function bestSystemOrder',
+              '''  function cancelGroupOrders(world, groupId) {
+              for (const order of ordersForDemandGroup(world, groupId)) {
+                if (
+                  order.ownerType === 'population'
+                  && (order.demandTier === LIQUIDITY_BUY || order.demandTier === LIQUIDITY_SELL)
+                ) releaseOpenOrder(world, order);
+              }
+            }
+
+          ''',
+          )
+          replace_section(
+              'server/src/market-liquidity.js',
+              '  function bestSystemOrder',
+              '  function repairCrossedSystemBook',
+              '''  function bestSystemOrder(world, productId, side) {
+              return indexedBestSystemOrder(world, 'commodity', productId, side);
+            }
+
+          ''',
+          )
+
+          replace_once(
+              'server/src/market-demand.js',
+              "import { createMarketLiquidityRuntime } from './market-liquidity.js';\n",
+              "import { createMarketLiquidityRuntime } from './market-liquidity.js';\nimport { ordersForDemandGroup } from './order-book-runtime.js';\n",
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              """    const previousCycleId = Number(state.lastCycleId);
+              const cycleOrders = (world.orders || []).filter((order) => (
+                isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+              ));
+          """,
+              """    const previousCycleId = Number(state.lastCycleId);
+              const groupOrders = ordersForDemandGroup(world, group.id);
+              const cycleOrders = groupOrders.filter((order) => (
+                isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+              ));
+          """,
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              """    for (const order of world.orders || []) {
+              if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;
+          """,
+              """    for (const order of groupOrders) {
+              if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;
+          """,
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              """  function prepareGroupOrders(world, group, state, cycleId) {
+              const groupOrders = (world.orders || []).filter((order) => isConsumptionOrder(order, group.id));
+          """,
+              """  function prepareGroupOrders(world, group, state, cycleId) {
+              const groupOrders = ordersForDemandGroup(world, group.id)
+                .filter((order) => isConsumptionOrder(order, group.id));
+          """,
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              """  function groupOpenOrderValue(world, groupId, predicate = () => true) {
+              return (world.orders || []).filter((order) => (
+                isConsumptionOrder(order, groupId)
+                && isOpenOrder(order)
+                && predicate(order)
+              )).reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
+            }
+          """,
+              """  function groupOpenOrderValue(world, groupId, predicate = () => true) {
+              return ordersForDemandGroup(world, groupId).reduce((sum, order) => (
+                isConsumptionOrder(order, groupId) && isOpenOrder(order) && predicate(order)
+                  ? sum + Number(order.price || 0) * Number(order.remaining || 0)
+                  : sum
+              ), 0);
+            }
+          """,
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              """  function enforceOrderValueCaps(world, group, cycleBudget, allocations) {
+              for (const [productId, allocation] of Object.entries(allocations)) {
+                const productCap = Math.max(0, Math.floor(
+                  (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
+                ));
+                trimOrdersToValue(world, (world.orders || []).filter((order) => (
+                  isConsumptionOrder(order, group.id) && order.productId === productId && isOpenOrder(order)
+                )), productCap);
+              }
+              const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+              const orders = (world.orders || []).filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
+              return trimOrdersToValue(world, orders, cap);
+            }
+          """,
+              """  function enforceOrderValueCaps(world, group, cycleBudget, allocations) {
+              const groupOrders = ordersForDemandGroup(world, group.id)
+                .filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
+              for (const [productId, allocation] of Object.entries(allocations)) {
+                const productCap = Math.max(0, Math.floor(
+                  (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
+                ));
+                trimOrdersToValue(world, groupOrders.filter((order) => order.productId === productId), productCap);
+              }
+              const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+              return trimOrdersToValue(world, groupOrders, cap);
+            }
+          """,
+          )
+
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '- `order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排；\n',
+              '- `order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排；\n- `order-book-runtime.js`：按资产、方向、价格、时间和原数组顺序建立的事务内订单簿派生索引，以及玩家订单计数、仓库买单预占、工厂卖单冻结和需求组订单查询；\n',
+          )
+          replace_once(
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '商品订单和工厂订单不得互相撮合；不同商品或不同工厂类型也不得互相撮合。不同主体之间可成交的交叉订单必须在新订单进入订单簿时立即按 maker price 撮合，直到新订单完成、对手盘耗尽或最高买价严格低于最低卖价；不得先公开展示可成交交叉盘口再等待下一次轮询处理。\n',
+              '商品订单和工厂订单不得互相撮合；不同商品或不同工厂类型也不得互相撮合。不同主体之间可成交的交叉订单必须在新订单进入订单簿时立即按 maker price 撮合，直到新订单完成、对手盘耗尽或最高买价严格低于最低卖价；不得先公开展示可成交交叉盘口再等待下一次轮询处理。`world.orders` 继续是唯一持久化权威订单集合；`order-book-runtime.js` 只为当前工作世界按资产和方向建立价格时间优先索引，同价且时间相同时必须保持原数组顺序。索引识别尾部追加并对数组整体替换自动重建，订单成交、撤销和部分成交直接读取同一订单对象的当前状态；索引不得进入世界 JSON、客户端分区、分区哈希、估值或 SQLite。撮合、自交叉、系统最优价、玩家未完成订单数量、商品买单预占、工厂卖单冻结和人口卖盘深度不得各自重新对完整 `world.orders` 过滤排序。\n',
+          )
+
+          docs_readme = Path('docs/README.md')
+          readme = docs_readme.read_text(encoding='utf-8').rstrip()
+          rule = '47. 统一订单簿运行时索引只属于服务器事务内派生状态；`world.orders` 仍是唯一持久化权威来源。撮合、自交叉、系统最优价、商品买单仓库预占、工厂卖单冻结、人口卖盘深度和需求组订单必须复用 `order-book-runtime.js`，不得各自重新对完整订单数组过滤排序；同价同时间必须保持原数组顺序，并通过 `server/test/order-book-runtime.test.js`、`server/test/order-matching.test.js` 与 `scripts/verify-order-matching-core.mjs` 防回退。'
+          if rule not in readme:
+              docs_readme.write_text(readme + '\n' + rule + '\n', encoding='utf-8')
+
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "  'server/src/order-matching.js',\n",
+              "  'server/src/order-matching.js',\n  'server/src/order-book-runtime.js',\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "  'server/test/order-matching.test.js',\n",
+              "  'server/test/order-matching.test.js',\n  'server/test/order-book-runtime.test.js',\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "  \"import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js'\",\n",
+              "  \"import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js'\",\n  \"import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js'\",\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "  '!samePlayer(incoming, resting)',\n",
+              "  'samePlayer(incoming, resting)',\n  'if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;',\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "for (const forbidden of ['PRODUCT_CATALOG', 'FACILITY_TYPE_CATALOG', 'inventoryFor(', 'groupFor(']) {\n",
+              "for (const forbidden of ['PRODUCT_CATALOG', 'FACILITY_TYPE_CATALOG', 'inventoryFor(', 'groupFor(', '(world.orders || []).filter', '.sort(']) {\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "const tests = read('server/test/order-matching.test.js');\n",
+              "const runtime = read('server/src/order-book-runtime.js');\nfor (const text of ['getOrderBookSide', 'getOwnerOrderBookSide', 'tailAppends', 'pendingCommodityBuyQuantityForOwner', 'facilitySellQuantityForOwner']) {\n  assert.ok(runtime.includes(text), `订单簿运行时索引缺少: ${text}`);\n}\nconst tests = read('server/test/order-matching.test.js');\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "for (const text of ['price-time priority', 'maker price', 'partial fills', 'same-player', 'system orders']) {\n",
+              "for (const text of ['price-time priority', 'maker price', 'partial fills', 'same-player', 'system orders']) {\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "const design = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');\n",
+              "const runtimeTests = read('server/test/order-book-runtime.test.js');\nfor (const text of ['4000 orders', 'tail appends', 'repeated matching reuses one runtime index']) {\n  assert.ok(runtimeTests.includes(text), `订单簿索引测试缺少: ${text}`);\n}\nconst design = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "for (const text of ['共享撮合内核', '`server/src/order-matching.js`', '唯一撮合状态机', '不得各自重新实现']) {\n",
+              "for (const text of ['共享撮合内核', '`server/src/order-matching.js`', '唯一撮合状态机', '不得各自重新实现', '`order-book-runtime.js`', '不得各自重新对完整 `world.orders` 过滤排序']) {\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "console.log('共享撮合内核验证通过：商品与工厂复用价格时间优先、maker price、部分成交、fill 和手续费状态机。');\n",
+              "console.log('共享撮合内核验证通过：商品与工厂复用有界订单簿索引、价格时间优先、maker price、部分成交、fill 和手续费状态机。');\n",
+          )
+
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "requireText('server/src/contract-runtime-index.js', [\n",
+              "requireText('server/src/order-book-runtime.js', [\n  'getOrderBookSide',\n  'getOwnerOrderBookSide',\n  'pendingCommodityBuyQuantityForOwner',\n  'facilitySellQuantityForOwner',\n  'tailAppends',\n]);\nrequireText('server/src/contract-runtime-index.js', [\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "requireText('server/test/contract-runtime-index.test.js', [\n",
+              "requireText('server/test/order-book-runtime.test.js', [\n  'runtime order book preserves price-time-array priority for 4000 orders',\n  'runtime order book tracks tail appends and rebuilds after array replacement',\n  'repeated matching reuses one runtime index',\n]);\nrequireText('server/test/contract-runtime-index.test.js', [\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "  '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',\n",
+              "  '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',\n  '统一订单簿运行时索引只属于服务器事务内派生状态',\n",
+          )
+          PY
+
+          cat > server/test/order-book-runtime.test.js <<'EOF'
+          import assert from 'node:assert/strict';
+          import test from 'node:test';
+          import { compareRestingOrders, matchIncomingOrder } from '../src/order-matching.js';
+          import {
+            countOpenOrdersForOwner,
+            facilitySellQuantityForOwner,
+            getOrderBookRuntimeDiagnostics,
+            getOrderBookSide,
+            pendingCommodityBuyQuantityForOwner,
+            resetOrderBookRuntimeDiagnostics,
+          } from '../src/order-book-runtime.js';
+
+          function order({
+            id,
+            assetKind = 'commodity',
+            assetId = 'wheat',
+            side,
+            ownerId = 1,
+            ownerType = 'player',
+            price,
+            quantity = 1,
+            createdAt,
+            status = 'open',
+          }) {
+            return {
+              id,
+              assetKind,
+              assetId,
+              ...(assetKind === 'facility' ? { facilityTypeId: assetId } : { productId: assetId }),
+              side,
+              ownerType,
+              ownerId,
+              ownerName: ownerType === 'population' ? '市场系统' : `玩家 ${ownerId}`,
+              price,
+              quantity,
+              remaining: status === 'filled' ? 0 : quantity,
+              status,
+              createdAt,
+              fills: [],
+            };
+          }
+
+          test('runtime order book preserves price-time-array priority for 4000 orders', () => {
+            const orders = [];
+            for (let index = 0; index < 4_000; index += 1) {
+              orders.push(order({
+                id: `order-${index}`,
+                assetId: index % 3 === 0 ? 'rice' : 'wheat',
+                side: index % 2 === 0 ? 'sell' : 'buy',
+                ownerId: index % 25 + 1,
+                price: 5 + index % 17,
+                createdAt: 100 + index % 7,
+                status: index % 19 === 0 ? 'filled' : 'open',
+              }));
+            }
+            const world = { orders };
+            resetOrderBookRuntimeDiagnostics(world);
+            const actual = getOrderBookSide(world, {
+              assetKind: 'commodity', assetId: 'wheat', side: 'sell',
+            }).map((entry) => entry.id);
+            const sequence = new Map(orders.map((entry, index) => [entry.id, index]));
+            const expected = orders
+              .filter((entry) => entry.assetId === 'wheat' && entry.side === 'sell' && entry.status !== 'filled')
+              .sort((left, right) => compareRestingOrders('buy', left, right)
+                || sequence.get(left.id) - sequence.get(right.id))
+              .map((entry) => entry.id);
+            assert.deepEqual(actual, expected);
+            assert.equal(getOrderBookRuntimeDiagnostics(world).builds, 1);
+          });
+
+          test('runtime order book tracks tail appends and rebuilds after array replacement', () => {
+            const world = {
+              orders: [
+                order({ id: 'sell-10', side: 'sell', price: 10, createdAt: 1 }),
+                order({ id: 'buy-8', side: 'buy', price: 8, createdAt: 2 }),
+              ],
+            };
+            resetOrderBookRuntimeDiagnostics(world);
+            getOrderBookSide(world, { assetKind: 'commodity', assetId: 'wheat', side: 'sell' });
+            world.orders.push(order({ id: 'sell-9', side: 'sell', price: 9, createdAt: 3 }));
+            const afterAppend = getOrderBookSide(world, {
+              assetKind: 'commodity', assetId: 'wheat', side: 'sell',
+            });
+            assert.deepEqual(afterAppend.map((entry) => entry.id), ['sell-9', 'sell-10']);
+            assert.deepEqual(getOrderBookRuntimeDiagnostics(world), {
+              builds: 1,
+              tailAppends: 1,
+              sideQueries: 2,
+              ordersVisited: 0,
+            });
+
+            world.orders = [...world.orders];
+            getOrderBookSide(world, { assetKind: 'commodity', assetId: 'wheat', side: 'sell' });
+            assert.equal(getOrderBookRuntimeDiagnostics(world).builds, 2);
+          });
+
+          test('runtime owner summaries share the indexed orders', () => {
+            const world = {
+              orders: [
+                order({ id: 'commodity-buy', side: 'buy', ownerId: 7, price: 10, quantity: 8, createdAt: 1 }),
+                order({ id: 'commodity-sell', side: 'sell', ownerId: 7, price: 11, quantity: 2, createdAt: 2 }),
+                order({ id: 'facility-sell', assetKind: 'facility', assetId: 'farm', side: 'sell', ownerId: 7, price: 100, quantity: 3, createdAt: 3 }),
+                order({ id: 'closed', side: 'buy', ownerId: 7, price: 5, quantity: 9, createdAt: 4, status: 'filled' }),
+              ],
+            };
+            assert.equal(countOpenOrdersForOwner(world, 7), 3);
+            assert.equal(pendingCommodityBuyQuantityForOwner(world, 7), 8);
+            assert.equal(facilitySellQuantityForOwner(world, 7, 'farm'), 3);
+          });
+
+          test('repeated matching reuses one runtime index', () => {
+            const world = { orders: [] };
+            for (let index = 0; index < 500; index += 1) {
+              world.orders.push(order({
+                id: `sell-${index}`,
+                side: 'sell',
+                ownerId: index + 1,
+                price: 10,
+                createdAt: index,
+              }));
+            }
+            for (let index = 0; index < 3_500; index += 1) {
+              world.orders.push(order({
+                id: `unrelated-${index}`,
+                assetId: 'rice',
+                side: index % 2 ? 'buy' : 'sell',
+                ownerId: 10_000 + index,
+                price: 20,
+                createdAt: index,
+              }));
+            }
+            resetOrderBookRuntimeDiagnostics(world);
+            for (let index = 0; index < 50; index += 1) {
+              const incoming = order({
+                id: `buy-${index}`,
+                side: 'buy',
+                ownerId: 20_000 + index,
+                price: 10,
+                createdAt: 10_000 + index,
+              });
+              world.orders.push(incoming);
+              matchIncomingOrder({ world, incoming, createdAt: 20_000 + index, settleTrade: () => {} });
+              assert.equal(incoming.status, 'filled');
+            }
+            const diagnostics = getOrderBookRuntimeDiagnostics(world);
+            assert.equal(diagnostics.builds, 1);
+            assert.equal(diagnostics.tailAppends, 49);
+            assert.ok(diagnostics.ordersVisited <= 100, `访问订单数过高: ${diagnostics.ordersVisited}`);
+          });
+          EOF
+
+          rm .github/workflows/apply-order-book-runtime-index.yml
+
+      - name: Run focused verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server/src/order-book-runtime.js
+          node --check server/src/order-matching.js
+          node --check server/src/order-book-integrity.js
+          node --check server/src/market-demand/signals.js
+          node --test \
+            server/test/order-book-runtime.test.js \
+            server/test/order-matching.test.js \
+            server/test/order-book-integrity.test.js \
+            server/test/warehouse.test.js \
+            server/test/market-liquidity.test.js
+          node scripts/verify-order-matching-core.mjs
+          node scripts/verify-runtime-efficiency.mjs
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '优化订单簿运行时索引'
+          git push origin HEAD:agent/order-book-runtime-index
