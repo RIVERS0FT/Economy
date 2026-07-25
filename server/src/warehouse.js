@@ -1,6 +1,6 @@
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import { creditPopulationEmploymentForPlayer } from './population-economy.js';
-import { nonContractWarehouseReservation } from './warehouse-reservations.js';
+import { nonContractWarehouseReservations } from './warehouse-reservations.js';
 
 export const WAREHOUSE_BASE_CAPACITY = 500;
 export const WAREHOUSE_CAPACITY_STEP = 250;
@@ -101,10 +101,18 @@ export function createWarehouseUsage(world, player, {
     player.userId,
     exceptContractId,
   );
-  const reserved = nonContractWarehouseReservation(world, player.userId) + contractReserved;
+  const {
+    orderReserved,
+    auctionReserved,
+    totalReserved: nonContractReserved,
+  } = nonContractWarehouseReservations(world, player.userId);
+  const reserved = nonContractReserved + contractReserved;
   const used = stored + reserved;
   return {
     warehouseStoredQuantity: stored,
+    warehouseOrderReservedQuantity: orderReserved,
+    warehouseContractReservedQuantity: contractReserved,
+    warehouseAuctionReservedQuantity: auctionReserved,
     warehouseReservedQuantity: reserved,
     warehouseUsedCapacity: used,
     warehouseAvailableCapacity: Math.max(0, player.inventoryCapacity - used),
