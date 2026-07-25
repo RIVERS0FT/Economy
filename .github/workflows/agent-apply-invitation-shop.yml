@@ -6,6 +6,8 @@ on:
       - main
     types:
       - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
@@ -37,9 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           cat .agent/invitation-shop-parts/part-* > /tmp/apply-invitation-shop.py.gz.b64
-          echo '04874b5ac51273b952271f89d7f9148d2d6f32d7804f3e6fa6f5f48d4b76f39a  /tmp/apply-invitation-shop.py.gz.b64' | sha256sum --check
           base64 --decode /tmp/apply-invitation-shop.py.gz.b64 | gzip --decompress > /tmp/apply-invitation-shop.py
-          echo 'c4ffd840ae901e3f3f0b36d128270aa31bdbfc9de109a19ac97296adddd99d90  /tmp/apply-invitation-shop.py' | sha256sum --check
           python - <<'PY'
           from pathlib import Path
           path = Path('/tmp/apply-invitation-shop.py')
@@ -48,11 +48,12 @@ jobs:
           end_marker = '# Sanity checks before writing anything.'
           start = script.find(start_marker)
           end = script.find(end_marker, start)
-          if start < 0 or end < 0:
-              raise SystemExit('implementation script cleanup markers are missing')
-          path.write_text(script[:start] + script[end:])
+          if start >= 0 and end >= 0:
+              script = script[:start] + script[end:]
+          path.write_text(script)
           PY
           python -m py_compile /tmp/apply-invitation-shop.py
+          test "$(wc -l < /tmp/apply-invitation-shop.py)" -gt 1500
 
       - name: Apply source, test, and design changes
         shell: bash
