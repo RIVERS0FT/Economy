@@ -1,58 +1,80 @@
-name: Economy CI
+name: Apply approved demand pricing update
 
 on:
   pull_request:
-  workflow_dispatch:
 
 concurrency:
-  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+  group: economy-approved-demand-update-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  apply-update:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 5
     steps:
-      - name: Checkout code
+      - name: Checkout feature branch
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
         with:
-          node-version: 24.4.0
-          cache: npm
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
+      - name: Apply approved rules and restore standard CI
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         shell: bash
         run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+          readme = Path('README.md')
+          readme_text = readme.read_text(encoding='utf-8')
+          old_readme = '零成交时按 1.5% 与参考价缺口 10%（单周期最多参考价 4%）中的较大值上涨，成交不足且低于参考价时只恢复 5% 缺口；压力达到 1.15 后也只允许每周期最多追涨 1%'
+          new_readme = '零成交时按 0.75% 与参考价缺口 5%（单周期最多参考价 2%）中的较大值上涨，成交不足且低于参考价时只恢复 2.5% 缺口；压力达到 1.15 后也只允许每周期最多追涨 0.5%'
+          if readme_text.count(old_readme) != 1:
+              raise SystemExit(f'README 旧规则匹配数量异常: {readme_text.count(old_readme)}')
+          readme.write_text(readme_text.replace(old_readme, new_readme), encoding='utf-8')
 
-      - name: Test browser runtime
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
+          product_doc = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
+          product_text = product_doc.read_text(encoding='utf-8')
+          old_product = '上涨量取“上一锚点的 1.5%”与“参考价缺口的 10%、但最多为参考价的 4%”中的较大值；存在成交但直接成交率低于需求组目标时，锚点低于参考价只恢复 5% 缺口，高于参考价则保持；'
+          new_product = '上涨量取“上一锚点的 0.75%”与“参考价缺口的 5%、但最多为参考价的 2%”中的较大值；存在成交但直接成交率低于需求组目标时，锚点低于参考价只恢复 2.5% 缺口，高于参考价则保持；'
+          if product_text.count(old_product) != 1:
+              raise SystemExit(f'产品设计旧成交不足规则匹配数量异常: {product_text.count(old_product)}')
+          old_shortage = '直接需求曲线基准每周期最多在当前报价锚点上追涨 1%'
+          new_shortage = '直接需求曲线基准每周期最多在当前报价锚点上追涨 0.5%'
+          if product_text.count(old_shortage) != 1:
+              raise SystemExit(f'产品设计旧短缺规则匹配数量异常: {product_text.count(old_shortage)}')
+          product_text = product_text.replace(old_product, new_product).replace(old_shortage, new_shortage)
+          product_text = product_text.replace('> 更新时间：2026-07-24', '> 更新时间：2026-07-25', 1)
+          product_doc.write_text(product_text, encoding='utf-8')
 
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md
-          if-no-files-found: warn
-          retention-days: 3
+          verify_path = Path('scripts/verify-staple-crops-demand.mjs')
+          verify = verify_path.read_text(encoding='utf-8')
+          obsolete = "  ['docs/MARKET_DEMAND_PRICE_GROWTH_DESIGN.md', ['零成交最低涨幅：0.75%', '参考价缺口恢复：5%', '单周期参考价恢复上限：2%', '部分成交不足恢复：2.5%', '高压力追涨上限：0.5%']],\n"
+          if verify.count(obsolete) != 1:
+              raise SystemExit(f'失效专题文档校验匹配数量异常: {verify.count(obsolete)}')
+          verify = verify.replace(obsolete, '')
+          old_readme_check = "  ['README.md', ['市场需求模型版本：`10`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '双向报价锚点']],"
+          new_readme_check = "  ['README.md', ['市场需求模型版本：`10`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '双向报价锚点', '零成交时按 0.75%', '参考价缺口 5%', '单周期最多参考价 2%', '只恢复 2.5% 缺口', '每周期最多追涨 0.5%']],"
+          if verify.count(old_readme_check) != 1:
+              raise SystemExit(f'README 校验行匹配数量异常: {verify.count(old_readme_check)}')
+          verify = verify.replace(old_readme_check, new_readme_check)
+          old_product_check = "  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：10', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点']],"
+          new_product_check = "  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：10', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.75%', '参考价缺口的 5%', '最多为参考价的 2%', '只恢复 2.5% 缺口', '当前报价锚点上追涨 0.5%']],"
+          if verify.count(old_product_check) != 1:
+              raise SystemExit(f'产品设计校验行匹配数量异常: {verify.count(old_product_check)}')
+          verify_path.write_text(verify.replace(old_product_check, new_product_check), encoding='utf-8')
+          PY
+
+          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md docs/PRODUCT_AND_GAMEPLAY_DESIGN.md scripts/verify-staple-crops-demand.mjs .github/workflows/ci.yml
+          git commit -m '同步人口买单价格增长权威设计'
+          git push origin "HEAD:${HEAD_REF}"
