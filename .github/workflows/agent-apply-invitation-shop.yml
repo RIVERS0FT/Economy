@@ -46,7 +46,7 @@ jobs:
           path = Path('/tmp/apply-invitation-shop.py')
           script = path.read_text()
           start_marker = '# The generic page verifier should know the new unique ownership too.'
-          end_marker = '# Sanity checks before writing anything.'
+          end_marker = '# Sanity checks before the workflow runs the full build.'
           start = script.find(start_marker)
           end = script.find(end_marker, start)
           if start >= 0 and end >= 0:
@@ -65,37 +65,73 @@ jobs:
           from pathlib import Path
 
           replacements = {
-              'docs/README.md': (
-                  '18. 商店邀请卡唯一归属、固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`。',
-                  '18. 商店固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复到设置页。',
-              ),
-              'docs/REGISTRATION_INVITE_FLOW_DESIGN.md': (
-                  '- Economy 注册完成的唯一判定是该统一账号的玩家档案首次创建事务提交成功。事务提交后永久不允许新增、补填、更换或替换邀请关系。',
-                  '- Economy 注册完成的唯一判定是该统一账号的玩家档案首次创建事务提交成功。注册完成后不能补填、更换或替换邀请关系。',
-              ),
-              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': (
-                  '玩家档案首次创建事务提交后，账号无论是否已有邀请关系，都永久不能新增、补填、更换或重新绑定邀请人。已有主页统一账号但尚无 Economy 玩家档案时仍属于首次建档；已有 Economy 玩家档案时访问分享链接只能忽略邀请码并清除 URL 参数。旧补填接口固定返回 `410 Gone`，不得读取或写入邀请业务状态。',
-                  '玩家档案首次创建事务提交后，账号无论是否已有邀请关系，都永久不能新增、补填、更换或重新绑定邀请人。注册完成后不能补填或更换邀请码。已有主页统一账号但尚无 Economy 玩家档案时仍属于首次建档；已有 Economy 玩家档案时访问分享链接只能忽略邀请码并清除 URL 参数。旧补填接口固定返回 `410 Gone`，不得读取或写入邀请业务状态。',
-              ),
-              'src/components/InvitationSettings.tsx': (
-                  '              label="我的邀请码"\n              value={summary.inviteCode}\n              readOnly\n              aria-label="我的邀请码"',
-                  '              label="永久邀请码"\n              value={summary.inviteCode}\n              readOnly\n              aria-label="永久邀请码"',
-              ),
-              'scripts/verify-email-registration.mjs': (
-                  "for (const text of ['邀请好友', '分享链接', '我的邀请码', '注册完成后不能补填或更换']) {",
-                  "for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册完成后不能补填或更换']) {",
-              ),
-              'scripts/verify-gems-invitations-and-bans.mjs': (
-                  "  '我的邀请码',\n  '注册填写',",
-                  "  '永久邀请码',\n  '注册填写',",
-              ),
+              'docs/README.md': [
+                  (
+                      '18. 商店邀请卡唯一归属、固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`。',
+                      '18. 商店固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复到设置页。',
+                  ),
+              ],
+              'docs/REGISTRATION_INVITE_FLOW_DESIGN.md': [
+                  (
+                      '- Economy 注册完成的唯一判定是该统一账号的玩家档案首次创建事务提交成功。事务提交后永久不允许新增、补填、更换或替换邀请关系。',
+                      '- Economy 注册完成的唯一判定是该统一账号的玩家档案首次创建事务提交成功。注册完成后不能补填、更换或替换邀请关系。',
+                  ),
+              ],
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': [
+                  (
+                      '玩家档案首次创建事务提交后，账号无论是否已有邀请关系，都永久不能新增、补填、更换或重新绑定邀请人。已有主页统一账号但尚无 Economy 玩家档案时仍属于首次建档；已有 Economy 玩家档案时访问分享链接只能忽略邀请码并清除 URL 参数。旧补填接口固定返回 `410 Gone`，不得读取或写入邀请业务状态。',
+                      '玩家档案首次创建事务提交后，账号无论是否已有邀请关系，都永久不能新增、补填、更换或重新绑定邀请人。注册完成后不能补填或更换邀请码。已有主页统一账号但尚无 Economy 玩家档案时仍属于首次建档；已有 Economy 玩家档案时访问分享链接只能忽略邀请码并清除 URL 参数。旧补填接口固定返回 `410 Gone`，不得读取或写入邀请业务状态。',
+                  ),
+              ],
+              'src/components/InvitationSettings.tsx': [
+                  (
+                      '              label="我的邀请码"\n              value={summary.inviteCode}\n              readOnly\n              aria-label="我的邀请码"',
+                      '              label="永久邀请码"\n              value={summary.inviteCode}\n              readOnly\n              aria-label="永久邀请码"',
+                  ),
+              ],
+              'scripts/verify-email-registration.mjs': [
+                  (
+                      "for (const text of ['邀请好友', '分享链接', '我的邀请码', '注册完成后不能补填或更换']) {",
+                      "for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册完成后不能补填或更换']) {",
+                  ),
+              ],
+              'scripts/verify-gems-invitations-and-bans.mjs': [
+                  (
+                      "  '我的邀请码',\n  '注册填写',",
+                      "  '永久邀请码',\n  '注册填写',",
+                  ),
+              ],
+              'scripts/verify-page-content.mjs': [
+                  (
+                      "  'InvitationSettings',\n  '礼品兑换',",
+                      "  '礼品兑换',",
+                  ),
+                  (
+                      "for (const text of ['邀请好友', '分享链接', '我的邀请码', '填写好友邀请码', '累计宝石']) {\n  requireText('src/components/InvitationSettings.tsx', text);\n}",
+                      "for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册填写', '注册完成后不能补填或更换', '累计宝石']) {\n  requireText('src/components/InvitationSettings.tsx', text);\n}\nfor (const text of ['填写好友邀请码', '确认填写', 'claimInvitation']) {\n  forbidText('src/components/InvitationSettings.tsx', text);\n}\nforbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');\nfor (const text of [\"import { InvitationSettings }\", '<InvitationSettings />']) {\n  requireText('src/pages/GemShopPage.tsx', text);\n}",
+                  ),
+                  (
+                      "  '| 商店 | `gem-shop` | `GemShopPage` | 宝石单向兑换普通货币 |',",
+                      "  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与宝石单向兑换普通货币 |',",
+                  ),
+                  (
+                      "  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、邀请、礼品和退出 |',",
+                      "  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、礼品和退出 |',",
+                  ),
+                  (
+                      "  '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',",
+                      "  '邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',",
+                  ),
+              ],
           }
-          for file_name, (old, new) in replacements.items():
+          for file_name, file_replacements in replacements.items():
               path = Path(file_name)
               content = path.read_text()
-              if content.count(old) != 1:
-                  raise SystemExit(f'{file_name} 权威规则、组件或验证锚点不唯一')
-              path.write_text(content.replace(old, new))
+              for old, new in file_replacements:
+                  if content.count(old) != 1:
+                      raise SystemExit(f'{file_name} 修改锚点不唯一: {old[:80]}')
+                  content = content.replace(old, new)
+              path.write_text(content)
           PY
           rm -rf .agent
           rm -f .github/workflows/agent-apply-invitation-shop.yml
