@@ -1,3 +1,6 @@
+import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
+
+const runtimeByWorld = new WeakMap();
 const diagnosticsByWorld = new WeakMap();
 
 function numericId(value) {
@@ -50,6 +53,38 @@ function deadlineFor(snapshot) {
   return Number.isFinite(snapshot.nextDueAt) ? snapshot.nextDueAt : null;
 }
 
+function auctionItems(auction) {
+  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
+  const kind = auction?.assetKind;
+  const assetId = String(auction?.assetId || auction?.productId || auction?.facilityTypeId || '');
+  return kind && assetId
+    ? [{ assetKind: kind, assetId, quantity: Math.max(1, Number(auction.quantity || 1)) }]
+    : [];
+}
+
+function auctionCommodityQuantity(auction) {
+  return auctionItems(auction).reduce((sum, item) => (
+    item.assetKind === 'commodity'
+      ? sum + Math.max(0, Number(item.quantity || 0))
+      : sum
+  ), 0);
+}
+
+function nonContractIncomingForBuyer(world, userId) {
+  const normalizedUserId = Number(userId);
+  const orderReserved = pendingCommodityBuyQuantityForOwner(world, normalizedUserId);
+  const auctionReserved = (world?.assetAuctions || []).reduce((sum, auction) => {
+    if (
+      Number(auction?.highestBidderId) !== normalizedUserId
+      || auction?.status !== 'open'
+      || auction?.escrowStatus === 'released'
+      || auction?.escrowStatus === 'transferred'
+    ) return sum;
+    return sum + auctionCommodityQuantity(auction);
+  }, 0);
+  return orderReserved + auctionReserved;
+}
+
 function recordBuild(world) {
   const current = diagnosticsByWorld.get(world) || { builds: 0 };
   current.builds += 1;
@@ -58,13 +93,18 @@ function recordBuild(world) {
 
 export function resetContractRuntimeIndexDiagnostics(world) {
   diagnosticsByWorld.set(world, { builds: 0 });
+  runtimeByWorld.delete(world);
 }
 
 export function getContractRuntimeIndexDiagnostics(world) {
   return { ...(diagnosticsByWorld.get(world) || { builds: 0 }) };
 }
 
-export function createContractRuntimeIndex(world) {
+export function invalidateContractRuntimeIndex(world) {
+  runtimeByWorld.delete(world);
+}
+
+function buildContractRuntimeIndex(world) {
   recordBuild(world);
   const byId = new Map();
   const snapshots = new Map();
@@ -152,6 +192,11 @@ export function createContractRuntimeIndex(world) {
       snapshots.set(next.id, next);
       addCounters(next);
       addOwnership(next, contract);
+      if (previous.status !== next.status) {
+        if (next.status === 'open') openContracts.push(contract);
+        else if (next.status === 'active') activeContracts.push(contract);
+        else endedContracts.push(contract);
+      }
     }
     return value;
   }
@@ -168,6 +213,16 @@ export function createContractRuntimeIndex(world) {
   }
 
   for (const contract of world.productionContracts || []) addContract(contract);
+
+  function reservedContractIncomingForBuyer(userId, exceptContractId = null) {
+    const normalizedUserId = Number(userId);
+    let reserved = Number(reservedIncomingByBuyer.get(normalizedUserId) || 0);
+    if (exceptContractId) {
+      const except = snapshots.get(String(exceptContractId));
+      if (except?.buyerId === normalizedUserId) reserved -= reservationQuantity(except);
+    }
+    return Math.max(0, reserved);
+  }
 
   return {
     byId,
@@ -186,14 +241,10 @@ export function createContractRuntimeIndex(world) {
     activeCountForParticipant(userId) {
       return Number(activeCountByParticipant.get(Number(userId)) || 0);
     },
+    reservedContractIncomingForBuyer,
     reservedIncomingForBuyer(userId, exceptContractId = null) {
-      const normalizedUserId = Number(userId);
-      let reserved = Number(reservedIncomingByBuyer.get(normalizedUserId) || 0);
-      if (exceptContractId) {
-        const except = snapshots.get(String(exceptContractId));
-        if (except?.buyerId === normalizedUserId) reserved -= reservationQuantity(except);
-      }
-      return Math.max(0, reserved);
+      return reservedContractIncomingForBuyer(userId, exceptContractId)
+        + nonContractIncomingForBuyer(world, userId);
     },
     ownContractsFor(userId) {
       return [...(ownedByPlayer.get(Number(userId)) || [])]
@@ -219,4 +270,26 @@ export function createContractRuntimeIndex(world) {
       return next;
     },
   };
+}
+
+export function createContractRuntimeIndex(world) {
+  world.productionContracts ||= [];
+  const contracts = world.productionContracts;
+  const cached = runtimeByWorld.get(world);
+  const lastContract = contracts.length > 0 ? contracts[contracts.length - 1] : null;
+  if (
+    cached
+    && cached.contractsRef === contracts
+    && cached.indexedLength === contracts.length
+    && cached.lastContract === lastContract
+  ) return cached.index;
+
+  const index = buildContractRuntimeIndex(world);
+  runtimeByWorld.set(world, {
+    contractsRef: contracts,
+    indexedLength: contracts.length,
+    lastContract,
+    index,
+  });
+  return index;
 }
