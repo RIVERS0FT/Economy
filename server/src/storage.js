@@ -95,7 +95,7 @@ function migrateGemLedgerSchema(database) {
         invitation_id INTEGER,
         description TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        source_key TEXT UNIQUE,
+        source_key TEXT UNIQUE
       ) STRICT;
       INSERT INTO economy_gem_ledger_v2 (
         id, user_id, amount, balance_after, category, invitation_id, description, created_at, source_key
@@ -216,7 +216,7 @@ export class EconomyStore {
         invitation_id INTEGER,
         description TEXT NOT NULL,
         created_at INTEGER NOT NULL,
-        source_key TEXT UNIQUE,
+        source_key TEXT UNIQUE
       ) STRICT;
       CREATE TABLE IF NOT EXISTS economy_gem_shop_exchanges (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
