@@ -32,6 +32,12 @@ jobs:
       - name: Apply production cluster summary changes
         run: node .agent/apply-production-cluster-summary.mjs
 
+      - name: Remove temporary application files before verification
+        run: |
+          rm -f .agent/apply-production-cluster-summary.mjs
+          rm -f .github/workflows/apply-production-cluster-summary.yml
+          rmdir .agent 2>/dev/null || true
+
       - name: Build and run full static and server checks
         shell: bash
         run: |
@@ -61,9 +67,6 @@ jobs:
       - name: Commit verified source changes
         run: |
           set -euo pipefail
-          rm -f .agent/apply-production-cluster-summary.mjs
-          rm -f .github/workflows/apply-production-cluster-summary.yml
-          rmdir .agent 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
