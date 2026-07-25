@@ -1,4 +1,4 @@
-name: Diagnose navigation badge CI
+name: Fix navigation badge page verification
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  diagnose:
+  fix:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'agent/unified-navigation-badges'
@@ -26,8 +26,34 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Capture build failure
+      - name: Update verification and validate build
         run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-page-content.mjs')
+          text = path.read_text()
+          old = """for (const [path, text] of [
+            ['src/pages/OverviewPage.tsx', 'formatNumber(derived.runningFacilities)'],
+            ['src/pages/LeaderboardPage.tsx', 'formatNumber(entry.facilityCount)'],
+            ['src/components/shell/NavigationItems.tsx', 'formatNumber(openOrderCount)'],
+          ]) requireText(path, text);
+          """
+          new = """for (const [path, text] of [
+            ['src/pages/OverviewPage.tsx', 'formatNumber(derived.runningFacilities)'],
+            ['src/pages/LeaderboardPage.tsx', 'formatNumber(entry.facilityCount)'],
+            ['src/components/shell/NavigationItems.tsx', 'badges: NavigationBadgeMap'],
+            ['src/components/shell/NavigationItems.tsx', 'formatNavigationBadgeCount(navigationBadge.count)'],
+          ]) requireText(path, text);
+          for (const text of ['openOrderCount', \"id === 'market'\", 'sidebar-nav-count']) {
+            forbidText('src/components/shell/NavigationItems.tsx', text);
+          }
+          """
+          if text.count(old) != 1:
+              raise SystemExit('page-content navigation badge verification context changed')
+          path.write_text(text.replace(old, new))
+          PY
+
           set +e
           npm ci > /tmp/navigation-badge-ci.log 2>&1
           status=$?
@@ -42,5 +68,12 @@ jobs:
             git add -f .agent/navigation-badges-ci-error.txt
             git commit -m "记录导航角标完整构建错误"
             git push origin HEAD:agent/unified-navigation-badges
+            exit 0
           fi
-          exit 0
+
+          rm -f .agent/navigation-badges-ci-error.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/verify-page-content.mjs
+          git commit -m "更新导航角标页面职责防回退"
+          git push origin HEAD:agent/unified-navigation-badges
