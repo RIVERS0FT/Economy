@@ -1,0 +1,118 @@
+name: Verify production deployment 305
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  verify:
+    if: github.head_ref == 'agent/verify-deploy-305'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Verify deployment run and production
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: af3346406f0df14058e357cf645eb5b90d9c0c60
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          run_json=''
+          for attempt in $(seq 1 120); do
+            runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?event=push&branch=main&head_sha=${TARGET_SHA}&per_page=20")"
+            run_json="$(printf '%s' "$runs" | jq -c '[.workflow_runs[] | select(.name == "Deploy Economy Website")][0] // empty')"
+            if [ -n "$run_json" ]; then
+              status="$(printf '%s' "$run_json" | jq -r '.status')"
+              if [ "$status" = 'completed' ]; then
+                break
+              fi
+            fi
+            sleep 10
+          done
+
+          if [ -z "$run_json" ]; then
+            printf '### 生产部署验证失败\n\n未找到主分支提交 `%s` 的部署运行。\n' "$TARGET_SHA" > /tmp/report.md
+            gh pr comment "$PR_NUMBER" --body-file /tmp/report.md
+            exit 1
+          fi
+
+          run_id="$(printf '%s' "$run_json" | jq -r '.id')"
+          run_url="$(printf '%s' "$run_json" | jq -r '.html_url')"
+          run_status="$(printf '%s' "$run_json" | jq -r '.status')"
+          conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // ""')"
+
+          if [ "$run_status" != 'completed' ] || [ "$conclusion" != 'success' ]; then
+            {
+              echo '### 生产部署验证失败'
+              echo
+              echo "- 部署运行：${run_url}"
+              echo "- 状态：${run_status}"
+              echo "- 结论：${conclusion:-未完成}"
+            } > /tmp/report.md
+            gh pr comment "$PR_NUMBER" --body-file /tmp/report.md
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --location \
+            --retry 3 --retry-delay 2 \
+            https://game.riversoft.top/economy/ > /tmp/economy-index.html
+
+          mapfile -t scripts < <(grep -oE 'src="[^"]+\.js"' /tmp/economy-index.html | sed -E 's/^src="//; s/"$//' | sort -u)
+          if [ "${#scripts[@]}" -eq 0 ]; then
+            echo '生产页面未找到 JavaScript 入口' >&2
+            exit 1
+          fi
+
+          found_marker=0
+          for script in "${scripts[@]}"; do
+            if [[ "$script" == http* ]]; then
+              script_url="$script"
+            elif [[ "$script" == /* ]]; then
+              script_url="https://game.riversoft.top${script}"
+            else
+              script_url="https://game.riversoft.top/economy/${script}"
+            fi
+            curl --fail --silent --show-error --location "$script_url" >> /tmp/economy-bundles.js
+            printf '\n' >> /tmp/economy-bundles.js
+          done
+          if grep -Fq '注册完成后不能补填或更换' /tmp/economy-bundles.js; then
+            found_marker=1
+          fi
+          if [ "$found_marker" -ne 1 ]; then
+            echo '生产前端尚未包含新的注册后禁止补填文案' >&2
+            exit 1
+          fi
+
+          auth_status="$(curl --silent --show-error --output /tmp/auth.json --write-out '%{http_code}' https://game.riversoft.top/economy-api/me || true)"
+          game_status="$(curl --silent --show-error --output /tmp/game.json --write-out '%{http_code}' https://game.riversoft.top/economy-api/game/state || true)"
+          login_status="$(curl --silent --show-error --output /tmp/login.json --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --data '{}' https://game.riversoft.top/economy-api/login || true)"
+          registration_status="$(curl --silent --show-error --output /tmp/registration.json --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: verify-deploy-305' --data '{}' https://game.riversoft.top/economy-api/registration/email-code || true)"
+
+          if [ "$auth_status" != '200' ] && [ "$auth_status" != '401' ]; then exit 1; fi
+          if [ "$game_status" != '401' ]; then exit 1; fi
+          if [ "$login_status" != '400' ]; then exit 1; fi
+          if [ "$registration_status" != '400' ]; then exit 1; fi
+
+          {
+            echo '### 生产部署验证通过'
+            echo
+            echo "- 部署运行：${run_url}"
+            echo "- 部署结论：${conclusion}"
+            echo '- 生产页面：200，已包含“注册完成后不能补填或更换”前端标记'
+            echo "- 认证代理：${auth_status}"
+            echo "- 游戏状态未登录响应：${game_status}"
+            echo "- 登录空请求响应：${login_status}"
+            echo "- 注册空请求响应：${registration_status}"
+          } > /tmp/report.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/report.md
