@@ -17,6 +17,7 @@ function auctionCommodityQuantity(auction) {
   ), 0);
 }
 
+// 订单与拍卖预占只有这一份派生实现；仓库摘要和合同容量检查必须共同复用。
 export function nonContractWarehouseReservation(world, userId) {
   const normalizedUserId = Number(userId);
   const orderReserved = pendingCommodityBuyQuantityForOwner(world, normalizedUserId);
