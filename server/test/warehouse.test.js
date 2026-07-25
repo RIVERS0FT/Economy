@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
 import {
@@ -55,11 +56,11 @@ function buyOrder(overrides = {}) {
   };
 }
 
-test('warehouse state defaults to level 1 and client version 17', () => {
+test('warehouse state defaults to level 1 and current client version', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 17);
+    assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
     assert.equal(state.warehouseLevel, 1);
     assert.equal(state.inventoryCapacity, 500);
     assert.equal(Object.hasOwn(state, 'warehouseMaxLevel'), false);
