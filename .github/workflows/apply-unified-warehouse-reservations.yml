@@ -1,0 +1,506 @@
+name: Apply unified warehouse reservations
+
+on:
+  push:
+    branches:
+      - agent/indexed-runtime-scheduler
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-unified-warehouse-reservations
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout implementation branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/indexed-runtime-scheduler
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply unified reservation changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path_name}: expected one replacement target, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def append_once(path_name: str, marker: str, addition: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              if marker in text:
+                  raise RuntimeError(f'{path_name}: marker already exists: {marker}')
+              path.write_text(text.rstrip() + '\n\n' + addition.strip() + '\n', encoding='utf-8')
+
+          replace_once(
+              'server/src/contract-runtime-index.js',
+              "const diagnosticsByWorld = new WeakMap();\n",
+              "const runtimeByWorld = new WeakMap();\nconst diagnosticsByWorld = new WeakMap();\n",
+          )
+          replace_once(
+              'server/src/contract-runtime-index.js',
+              """export function resetContractRuntimeIndexDiagnostics(world) {
+            diagnosticsByWorld.set(world, { builds: 0 });
+          }
+          """,
+              """export function resetContractRuntimeIndexDiagnostics(world) {
+            diagnosticsByWorld.set(world, { builds: 0 });
+            runtimeByWorld.delete(world);
+          }
+          """,
+          )
+          replace_once(
+              'server/src/contract-runtime-index.js',
+              'export function createContractRuntimeIndex(world) {\n',
+              'function buildContractRuntimeIndex(world) {\n',
+          )
+          append_once(
+              'server/src/contract-runtime-index.js',
+              'export function invalidateContractRuntimeIndex',
+              """export function invalidateContractRuntimeIndex(world) {
+            runtimeByWorld.delete(world);
+          }
+
+          export function createContractRuntimeIndex(world) {
+            world.productionContracts ||= [];
+            const contracts = world.productionContracts;
+            const cached = runtimeByWorld.get(world);
+            const lastContract = contracts.length > 0 ? contracts[contracts.length - 1] : null;
+            if (
+              cached
+              && cached.contractsRef === contracts
+              && cached.indexedLength === contracts.length
+              && cached.lastContract === lastContract
+            ) return cached.index;
+
+            const index = buildContractRuntimeIndex(world);
+            runtimeByWorld.set(world, {
+              contractsRef: contracts,
+              indexedLength: contracts.length,
+              lastContract,
+              index,
+            });
+            return index;
+          }""",
+          )
+
+          replace_once(
+              'server/src/warehouse.js',
+              """import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
+          import { creditPopulationEmploymentForPlayer } from './population-economy.js';
+          """,
+              """import { createContractRuntimeIndex } from './contract-runtime-index.js';
+          import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
+          import { creditPopulationEmploymentForPlayer } from './population-economy.js';
+          """,
+          )
+          replace_once(
+              'server/src/warehouse.js',
+              """function reservedBuyQuantity(world, userId) {
+            const orderReserved = pendingCommodityBuyQuantityForOwner(world, userId);
+            const auctionReserved = (world?.assetAuctions || []).reduce((sum, auction) => {
+              if (
+                Number(auction?.highestBidderId) !== Number(userId)
+                || auction?.status !== 'open'
+                || auction?.escrowStatus === 'released'
+                || auction?.escrowStatus === 'transferred'
+              ) return sum;
+              return sum + auctionCommodityQuantity(auction);
+            }, 0);
+            return orderReserved + auctionReserved;
+          }
+          """,
+              """function reservedNonContractQuantity(world, userId) {
+            const orderReserved = pendingCommodityBuyQuantityForOwner(world, userId);
+            const auctionReserved = (world?.assetAuctions || []).reduce((sum, auction) => {
+              if (
+                Number(auction?.highestBidderId) !== Number(userId)
+                || auction?.status !== 'open'
+                || auction?.escrowStatus === 'released'
+                || auction?.escrowStatus === 'transferred'
+              ) return sum;
+              return sum + auctionCommodityQuantity(auction);
+            }, 0);
+            return orderReserved + auctionReserved;
+          }
+          """,
+          )
+          replace_once(
+              'server/src/warehouse.js',
+              """export function createWarehouseUsage(world, player) {
+            ensureWarehouse(player);
+            const stored = storedQuantity(player);
+            const reserved = reservedBuyQuantity(world, player.userId);
+            const used = stored + reserved;
+            return {
+              warehouseStoredQuantity: stored,
+              warehouseReservedQuantity: reserved,
+              warehouseUsedCapacity: used,
+              warehouseAvailableCapacity: Math.max(0, player.inventoryCapacity - used),
+            };
+          }
+
+          export function createWarehouseSummary(world, player) {
+          """,
+              """export function createWarehouseUsage(world, player, {
+            contractRuntimeIndex = null,
+            exceptContractId = null,
+          } = {}) {
+            ensureWarehouse(player);
+            const stored = storedQuantity(player);
+            const runtimeIndex = contractRuntimeIndex || createContractRuntimeIndex(world);
+            const contractReserved = runtimeIndex.reservedIncomingForBuyer(player.userId, exceptContractId);
+            const reserved = reservedNonContractQuantity(world, player.userId) + contractReserved;
+            const used = stored + reserved;
+            return {
+              warehouseStoredQuantity: stored,
+              warehouseReservedQuantity: reserved,
+              warehouseUsedCapacity: used,
+              warehouseAvailableCapacity: Math.max(0, player.inventoryCapacity - used),
+            };
+          }
+
+          export function createWarehouseSummary(world, player, options = {}) {
+          """,
+          )
+          replace_once(
+              'server/src/warehouse.js',
+              '    ...createWarehouseUsage(world, player),\n',
+              '    ...createWarehouseUsage(world, player, options),\n',
+          )
+
+          replace_once(
+              'server/src/contracts.js',
+              "import { ensureWarehouse } from './warehouse.js';\n",
+              "import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';\n",
+          )
+          replace_once(
+              'server/src/contracts.js',
+              """function storedQuantity(player) {
+            return Object.values(player.inventories || {}).reduce((sum, inventory) => (
+              sum + Math.max(0, Number(inventory?.available || 0)) + Math.max(0, Number(inventory?.frozen || 0))
+            ), 0);
+          }
+
+          function hasWarehouseCapacity(world, buyer, quantity, exceptContractId, runtimeIndex) {
+            ensureWarehouse(buyer);
+            const used = storedQuantity(buyer)
+              + runtimeIndex.reservedIncomingForBuyer(buyer.userId, exceptContractId);
+            return buyer.inventoryCapacity - used >= quantity;
+          }
+          """,
+              """function hasWarehouseCapacity(world, buyer, quantity, exceptContractId, runtimeIndex) {
+            const usage = createWarehouseUsage(world, buyer, {
+              contractRuntimeIndex: runtimeIndex,
+              exceptContractId,
+            });
+            return usage.warehouseAvailableCapacity >= quantity;
+          }
+          """,
+          )
+
+          replace_once(
+              'server/test/warehouse.test.js',
+              """import { EconomyStore } from '../src/storage.js';
+          import {
+          """,
+              """import { EconomyStore } from '../src/storage.js';
+          import { createContractRuntimeIndex } from '../src/contract-runtime-index.js';
+          import {
+          """,
+          )
+          append_once(
+              'server/test/warehouse.test.js',
+              'warehouse usage unifies order auction and active contract reservations',
+              """test('warehouse usage unifies order auction and active contract reservations', () => {
+            const world = createWorld(now);
+            const player = ensurePlayer(world, alice, now);
+            player.inventoryCapacity = 500;
+            player.inventories.wheat.available = 10;
+            world.orders.push(buyOrder({ remaining: 40 }));
+            world.assetAuctions = [{
+              id: 'warehouse-auction',
+              status: 'open',
+              escrowStatus: 'held',
+              highestBidderId: alice.id,
+              items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 30 }],
+            }];
+            world.productionContracts = [
+              {
+                id: 'warehouse-contract-a', publisherId: alice.id, buyerId: alice.id, supplierId: 2,
+                status: 'active', quantityPerDelivery: 50, completedDeliveries: 0, totalDeliveries: 2,
+                nextDueAt: now + 60_000,
+              },
+              {
+                id: 'warehouse-contract-b', publisherId: alice.id, buyerId: alice.id, supplierId: 3,
+                status: 'active', quantityPerDelivery: 20, completedDeliveries: 0, totalDeliveries: 2,
+                nextDueAt: now + 120_000,
+              },
+            ];
+
+            const usage = createWarehouseUsage(world, player);
+            assert.equal(usage.warehouseStoredQuantity, 10);
+            assert.equal(usage.warehouseReservedQuantity, 140);
+            assert.equal(usage.warehouseUsedCapacity, 150);
+            assert.equal(usage.warehouseAvailableCapacity, 350);
+
+            const runtimeIndex = createContractRuntimeIndex(world);
+            const excludingCurrent = createWarehouseUsage(world, player, {
+              contractRuntimeIndex: runtimeIndex,
+              exceptContractId: 'warehouse-contract-a',
+            });
+            assert.equal(excludingCurrent.warehouseReservedQuantity, 90);
+            assert.equal(excludingCurrent.warehouseAvailableCapacity, 400);
+          });""",
+          )
+
+          append_once(
+              'server/test/contracts.test.js',
+              '合同承接同时计入商品买单与拍卖仓库预占',
+              """test('合同承接同时计入商品买单与拍卖仓库预占', () => {
+            const { world, buyerUser, supplierUser, buyer, now } = setup();
+            buyer.inventoryCapacity = 500;
+            buyer.inventories.wheat.available = 400;
+            world.orders.push({
+              id: 'contract-capacity-order', assetKind: 'commodity', assetId: 'wheat', productId: 'wheat',
+              side: 'buy', ownerType: 'player', ownerId: buyerUser.id, ownerName: buyer.playerName,
+              price: 1, quantity: 50, remaining: 50, status: 'open', createdAt: now,
+            });
+            world.assetAuctions = [{
+              id: 'contract-capacity-auction', status: 'open', escrowStatus: 'held',
+              highestBidderId: buyerUser.id,
+              items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 30 }],
+            }];
+
+            assert.equal(applyProductionContractAction(world, buyerUser, 'createProductionContract', {
+              publisherRole: 'buyer', productId: 'wheat', quantityPerDelivery: 25, unitPrice: 2,
+              deliveryIntervalMs: 10 * 60 * 1000, totalDeliveries: 2, firstDeliveryDelayMs: 0,
+            }, now).ok, true);
+            const contract = world.productionContracts[0];
+            const accepted = applyProductionContractAction(world, supplierUser, 'acceptProductionContract', {
+              contractId: contract.id,
+            }, now + 1);
+            assert.equal(accepted.ok, false);
+            assert.equal(accepted.message, '采购方仓库无法容纳下一批商品');
+            assert.equal(contract.status, 'open');
+          });""",
+          )
+
+          replace_once(
+              'server/test/contract-runtime-index.test.js',
+              """  const runtimeIndex = createContractRuntimeIndex(world);
+
+            assert.equal(runtimeIndex.reservedIncomingForBuyer(1), 25);
+          """,
+              """  const runtimeIndex = createContractRuntimeIndex(world);
+            assert.equal(createContractRuntimeIndex(world), runtimeIndex);
+            assert.equal(getContractRuntimeIndexDiagnostics(world).builds, 1);
+
+            assert.equal(runtimeIndex.reservedIncomingForBuyer(1), 25);
+          """,
+          )
+
+          replace_once(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '- 商品买单与商品拍卖最高出价预占容量；捆绑拍卖按资产包中全部商品数量之和预占，工厂买单和工厂拍卖不预占仓库。\n',
+              '- 商品买单、商品拍卖最高出价和进行中采购合同的下一批商品预占容量；捆绑拍卖按资产包中全部商品数量之和预占，工厂买单和工厂拍卖不预占仓库。\n',
+          )
+          replace_once(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              """实物库存 = Σ(各商品可用数量 + 冻结数量)
+          订单预占 = Σ(当前玩家 open/partial 商品买单剩余数量)
+          拍卖预占 = Σ(当前玩家作为最高出价者的进行中单项或捆绑拍卖中全部商品数量之和)
+          已用容量 = 实物库存 + 订单预占 + 拍卖预占
+          剩余容量 = max(0, 当前容量 - 已用容量)
+          """,
+              """实物库存 = Σ(各商品可用数量 + 冻结数量)
+          订单预占 = Σ(当前玩家 open/partial 商品买单剩余数量)
+          拍卖预占 = Σ(当前玩家作为最高出价者的进行中单项或捆绑拍卖中全部商品数量之和)
+          合同预占 = Σ(当前玩家作为采购方的进行中合同下一批商品数量)
+          已用容量 = 实物库存 + 订单预占 + 拍卖预占 + 合同预占
+          剩余容量 = max(0, 当前容量 - 已用容量)
+          """,
+          )
+          replace_once(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '- 其他玩家订单。\n',
+              '- 其他玩家订单；\n- 尚未承接、已完成、已取消、已终止或已过期的合同，以及当前批次已经转为实物库存的合同商品。\n',
+          )
+          replace_once(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '提交商品买单或成为包含商品的拍卖最高出价者前，服务器必须确认剩余容量可以覆盖新增数量。单项商品拍卖按该商品数量预占；捆绑拍卖按资产包中全部商品数量之和预占。被超价、取消或流拍后立即释放，成交后等量转换为实物库存。\n',
+              '提交商品买单、成为包含商品的拍卖最高出价者或承接采购合同前，服务器必须确认统一剩余容量可以覆盖新增数量。单项商品拍卖按该商品数量预占；捆绑拍卖按资产包中全部商品数量之和预占；进行中合同只预占采购方下一批商品。订单撤销、拍卖被超价／取消／流拍或合同结束后立即释放，成交或合同交付后等量转换为实物库存。\n',
+          )
+          replace_once(
+              'docs/WAREHOUSE_EXPANSION_DESIGN.md',
+              '- 实物库存、买单预占、剩余容量；\n',
+              '- 实物库存、订单／拍卖／合同统一预占、剩余容量；\n',
+          )
+
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '正式世界处理先结算到期生产周期，再执行合同自动准备、到期结算和宽限期终止。每批结算在一个事务中同时检查供应方冻结商品、采购方冻结货款和采购方仓库空间，然后原子转移整批商品、扣除整批货款、支付扣费后收入并推进批次。任一条件不足不得部分交付，并进入宽限期；宽限结束后由责任方保证金赔付对方。\n',
+              '正式世界处理先结算到期生产周期，再执行合同自动准备、到期结算和宽限期终止。每批结算在一个事务中同时检查供应方冻结商品、采购方冻结货款和采购方统一仓库空间；仓库空间必须同时计入实物库存、未完成商品买单、最高出价拍卖和其他进行中采购合同的下一批预占，并在检查当前合同时排除该合同自身旧预占后加入本批数量。随后原子转移整批商品、扣除整批货款、支付扣费后收入并推进批次。任一条件不足不得部分交付，并进入宽限期；宽限结束后由责任方保证金赔付对方。\n',
+          )
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '合同进入或离开 `active` 状态、完成批次、过期、取消或终止时必须同步刷新索引计数；索引不进入世界 JSON、客户端分区、分区哈希或 SQLite，事务回滚后直接丢弃。\n',
+              '合同进入或离开 `active` 状态、完成批次、过期、取消或终止时必须同步刷新索引计数；同一工作世界的合同数组引用、长度和末项未变化时必须复用同一索引，避免仓库、合同与调度查询重复线性构建。索引不进入世界 JSON、客户端分区、分区哈希或 SQLite，事务回滚后直接丢弃。\n',
+          )
+
+          append_once(
+              'docs/README.md',
+              '49. 共享仓库统一预占',
+              """49. 共享仓库统一预占必须同时包含未完成商品买单、当前最高出价拍卖和进行中采购合同的下一批商品；订单、拍卖、合同、生产空间检查和客户端仓库摘要必须调用 `warehouse.js` 的同一口径。合同容量检查必须复用 `contract-runtime-index.js` 并排除当前合同自身旧预占，禁止重新遍历全部合同或遗漏订单／拍卖预占；必须同步 `WAREHOUSE_EXPANSION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、仓库／合同测试和 `scripts/verify-warehouse-expansion.mjs`。""",
+          )
+          replace_once(
+              'README.md',
+              '- 长期生产合作合同只涉及商品与普通货币，不涉及工厂转移、工厂出租、指定工厂实例或对方配方控制。合同按周期冻结供应方商品和采购方货款，到期在服务器事务中原子交付；承接时双方冻结单批货款 20% 的保证金，条件不足进入宽限期，责任方违约后保证金赔付对方。合同交付不写入统一订单簿行情、商品估值或交易榜，但按卖方累计合同货款精确收取 1% 市场服务费。\n',
+              '- 长期生产合作合同只涉及商品与普通货币，不涉及工厂转移、工厂出租、指定工厂实例或对方配方控制。合同按周期冻结供应方商品和采购方货款，采购方下一批商品与未完成商品买单、最高出价拍卖共同使用统一仓库预占，到期在服务器事务中原子交付；承接时双方冻结单批货款 20% 的保证金，条件不足进入宽限期，责任方违约后保证金赔付对方。合同交付不写入统一订单簿行情、商品估值或交易榜，但按卖方累计合同货款精确收取 1% 市场服务费。\n',
+          )
+
+          replace_once(
+              'scripts/verify-warehouse-expansion.mjs',
+              """  'server/src/warehouse.js',
+            'server/src/facility-groups.js',
+            'server/test/warehouse.test.js',
+          """,
+              """  'server/src/warehouse.js',
+            'server/src/contract-runtime-index.js',
+            'server/src/contracts.js',
+            'server/src/facility-groups.js',
+            'server/test/warehouse.test.js',
+            'server/test/contracts.test.js',
+          """,
+          )
+          replace_once(
+              'scripts/verify-warehouse-expansion.mjs',
+              """  'export function createWarehouseUsage',
+            'warehouseReservedQuantity: reserved',
+          """,
+              """  'export function createWarehouseUsage',
+            'createContractRuntimeIndex',
+            'contractRuntimeIndex = null',
+            'runtimeIndex.reservedIncomingForBuyer',
+            'warehouseReservedQuantity: reserved',
+          """,
+          )
+          replace_once(
+              'scripts/verify-warehouse-expansion.mjs',
+              """for (const forbidden of ['warehouseUpgradeCostForLevel']) forbidText('server/test/warehouse.test.js', forbidden);
+          """,
+              """for (const forbidden of ['warehouseUpgradeCostForLevel']) forbidText('server/test/warehouse.test.js', forbidden);
+          requireText('server/test/warehouse.test.js', 'warehouse usage unifies order auction and active contract reservations');
+          requireText('server/test/contracts.test.js', '合同承接同时计入商品买单与拍卖仓库预占');
+          requireText('server/src/contracts.js', 'createWarehouseUsage(world, buyer');
+          """,
+          )
+          replace_once(
+              'scripts/verify-warehouse-expansion.mjs',
+              """  '仓库没有玩家可见的最高等级',
+            '容器查询',
+          """,
+              """  '仓库没有玩家可见的最高等级',
+            '合同预占 = Σ(当前玩家作为采购方的进行中合同下一批商品数量)',
+            '已用容量 = 实物库存 + 订单预占 + 拍卖预占 + 合同预占',
+            '容器查询',
+          """,
+          )
+          replace_once(
+              'scripts/verify-warehouse-expansion.mjs',
+              """requireText('docs/README.md', '移动和窄容器固定每行四张卡');
+          requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 0.6)`');
+          """,
+              """requireText('docs/README.md', '移动和窄容器固定每行四张卡');
+          requireText('docs/README.md', '共享仓库统一预占必须同时包含未完成商品买单');
+          requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 0.6)`');
+          requireText('README.md', '采购方下一批商品与未完成商品买单、最高出价拍卖共同使用统一仓库预占');
+          """,
+          )
+
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              """requireText('server/src/contract-runtime-index.js', [
+            'createContractRuntimeIndex',
+          """,
+              """requireText('server/src/contract-runtime-index.js', [
+            'runtimeByWorld',
+            'createContractRuntimeIndex',
+          """,
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              """  'nextDeadlineAt',
+          ]);
+          requireText('server/src/contracts.js', [
+          """,
+              """  'nextDeadlineAt',
+          ]);
+          requireText('server/src/warehouse.js', [
+            'createContractRuntimeIndex',
+            'runtimeIndex.reservedIncomingForBuyer',
+          ]);
+          requireText('server/src/contracts.js', [
+          """,
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              """  '统一订单簿运行时索引只属于服务器事务内派生状态',
+            '正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`',
+          """,
+              """  '统一订单簿运行时索引只属于服务器事务内派生状态',
+            '正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`',
+            '共享仓库统一预占必须同时包含未完成商品买单',
+          """,
+          )
+
+          Path('.github/workflows/apply-unified-warehouse-reservations.yml').unlink()
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server/src/contract-runtime-index.js
+          node --check server/src/warehouse.js
+          node --check server/src/contracts.js
+          node --test \
+            server/test/contract-runtime-index.test.js \
+            server/test/contracts.test.js \
+            server/test/warehouse.test.js \
+            server/test/world-deadline-planner.test.js
+          node scripts/verify-warehouse-expansion.mjs
+          node scripts/verify-runtime-efficiency.mjs
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '统一订单拍卖与合同仓库预占'
+          git push origin HEAD:agent/indexed-runtime-scheduler
