@@ -1,0 +1,961 @@
+name: Apply contract runtime index
+
+on:
+  push:
+    branches:
+      - agent/contract-runtime-index
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-contract-runtime-index
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/contract-runtime-index
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Implement contract runtime index
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > server/src/contract-runtime-index.js <<'EOF'
+          const diagnosticsByWorld = new WeakMap();
+
+          function numericId(value) {
+            const normalized = Number(value);
+            return Number.isFinite(normalized) ? normalized : null;
+          }
+
+          function increment(map, key, delta) {
+            if (key === null || !Number.isFinite(Number(delta)) || delta === 0) return;
+            const next = Number(map.get(key) || 0) + Number(delta);
+            if (next <= 0) map.delete(key);
+            else map.set(key, next);
+          }
+
+          function uniqueIds(...values) {
+            return [...new Set(values.map(numericId).filter((value) => value !== null))];
+          }
+
+          function contractSnapshot(contract) {
+            return {
+              id: String(contract?.id || ''),
+              status: String(contract?.status || ''),
+              publisherId: numericId(contract?.publisherId),
+              buyerId: numericId(contract?.buyerId),
+              supplierId: numericId(contract?.supplierId),
+              quantityPerDelivery: Math.max(0, Math.floor(Number(contract?.quantityPerDelivery || 0))),
+              completedDeliveries: Math.max(0, Math.floor(Number(contract?.completedDeliveries || 0))),
+              totalDeliveries: Math.max(0, Math.floor(Number(contract?.totalDeliveries || 0))),
+              offerExpiresAt: Number(contract?.offerExpiresAt),
+              nextDueAt: Number(contract?.nextDueAt),
+              graceEndsAt: Number(contract?.graceEndsAt),
+            };
+          }
+
+          function reservationQuantity(snapshot) {
+            if (
+              snapshot.status !== 'active'
+              || snapshot.buyerId === null
+              || snapshot.completedDeliveries >= snapshot.totalDeliveries
+            ) return 0;
+            return snapshot.quantityPerDelivery;
+          }
+
+          function deadlineFor(snapshot) {
+            if (snapshot.status === 'open' && Number.isFinite(snapshot.offerExpiresAt)) {
+              return snapshot.offerExpiresAt;
+            }
+            if (snapshot.status !== 'active') return null;
+            if (Number.isFinite(snapshot.graceEndsAt)) return snapshot.graceEndsAt;
+            return Number.isFinite(snapshot.nextDueAt) ? snapshot.nextDueAt : null;
+          }
+
+          function recordBuild(world) {
+            const current = diagnosticsByWorld.get(world) || { builds: 0 };
+            current.builds += 1;
+            diagnosticsByWorld.set(world, current);
+          }
+
+          export function resetContractRuntimeIndexDiagnostics(world) {
+            diagnosticsByWorld.set(world, { builds: 0 });
+          }
+
+          export function getContractRuntimeIndexDiagnostics(world) {
+            return { ...(diagnosticsByWorld.get(world) || { builds: 0 }) };
+          }
+
+          export function createContractRuntimeIndex(world) {
+            recordBuild(world);
+            const byId = new Map();
+            const snapshots = new Map();
+            const openCountByPublisher = new Map();
+            const activeCountByParticipant = new Map();
+            const reservedIncomingByBuyer = new Map();
+            const ownedByPlayer = new Map();
+            const openContracts = [];
+            const activeContracts = [];
+            const endedContracts = [];
+
+            function addOwnership(snapshot, contract) {
+              for (const userId of uniqueIds(snapshot.publisherId, snapshot.buyerId, snapshot.supplierId)) {
+                const owned = ownedByPlayer.get(userId) || new Set();
+                owned.add(contract);
+                ownedByPlayer.set(userId, owned);
+              }
+            }
+
+            function removeOwnership(snapshot, contract) {
+              for (const userId of uniqueIds(snapshot.publisherId, snapshot.buyerId, snapshot.supplierId)) {
+                const owned = ownedByPlayer.get(userId);
+                if (!owned) continue;
+                owned.delete(contract);
+                if (owned.size === 0) ownedByPlayer.delete(userId);
+              }
+            }
+
+            function addCounters(snapshot) {
+              if (snapshot.status === 'open') {
+                increment(openCountByPublisher, snapshot.publisherId, 1);
+              }
+              if (snapshot.status === 'active') {
+                for (const userId of uniqueIds(snapshot.buyerId, snapshot.supplierId)) {
+                  increment(activeCountByParticipant, userId, 1);
+                }
+                increment(
+                  reservedIncomingByBuyer,
+                  snapshot.buyerId,
+                  reservationQuantity(snapshot),
+                );
+              }
+            }
+
+            function removeCounters(snapshot) {
+              if (snapshot.status === 'open') {
+                increment(openCountByPublisher, snapshot.publisherId, -1);
+              }
+              if (snapshot.status === 'active') {
+                for (const userId of uniqueIds(snapshot.buyerId, snapshot.supplierId)) {
+                  increment(activeCountByParticipant, userId, -1);
+                }
+                increment(
+                  reservedIncomingByBuyer,
+                  snapshot.buyerId,
+                  -reservationQuantity(snapshot),
+                );
+              }
+            }
+
+            function addContract(contract) {
+              const snapshot = contractSnapshot(contract);
+              if (!snapshot.id) return contract;
+              byId.set(snapshot.id, contract);
+              snapshots.set(snapshot.id, snapshot);
+              addCounters(snapshot);
+              addOwnership(snapshot, contract);
+              if (snapshot.status === 'open') openContracts.push(contract);
+              else if (snapshot.status === 'active') activeContracts.push(contract);
+              else endedContracts.push(contract);
+              return contract;
+            }
+
+            function transition(contract, mutate) {
+              const id = String(contract?.id || '');
+              const previous = snapshots.get(id) || contractSnapshot(contract);
+              removeCounters(previous);
+              removeOwnership(previous, contract);
+              let value;
+              try {
+                value = mutate();
+              } finally {
+                const next = contractSnapshot(contract);
+                byId.set(next.id, contract);
+                snapshots.set(next.id, next);
+                addCounters(next);
+                addOwnership(next, contract);
+              }
+              return value;
+            }
+
+            function removeContract(contract) {
+              const id = String(contract?.id || '');
+              const previous = snapshots.get(id);
+              if (!previous) return false;
+              removeCounters(previous);
+              removeOwnership(previous, contract);
+              snapshots.delete(id);
+              byId.delete(id);
+              return true;
+            }
+
+            for (const contract of world.productionContracts || []) addContract(contract);
+
+            return {
+              byId,
+              openContracts,
+              activeContracts,
+              endedContracts,
+              addContract,
+              transition,
+              removeContract,
+              contractById(contractId) {
+                return byId.get(String(contractId || '')) || null;
+              },
+              openCountForPublisher(userId) {
+                return Number(openCountByPublisher.get(Number(userId)) || 0);
+              },
+              activeCountForParticipant(userId) {
+                return Number(activeCountByParticipant.get(Number(userId)) || 0);
+              },
+              reservedIncomingForBuyer(userId, exceptContractId = null) {
+                const normalizedUserId = Number(userId);
+                let reserved = Number(reservedIncomingByBuyer.get(normalizedUserId) || 0);
+                if (exceptContractId) {
+                  const except = snapshots.get(String(exceptContractId));
+                  if (except?.buyerId === normalizedUserId) reserved -= reservationQuantity(except);
+                }
+                return Math.max(0, reserved);
+              },
+              ownContractsFor(userId) {
+                return [...(ownedByPlayer.get(Number(userId)) || [])]
+                  .filter((contract) => byId.get(String(contract.id)) === contract);
+              },
+              currentOpenContracts() {
+                return openContracts.filter((contract) => (
+                  byId.get(String(contract.id)) === contract && contract.status === 'open'
+                ));
+              },
+              currentActiveContracts() {
+                return activeContracts.filter((contract) => (
+                  byId.get(String(contract.id)) === contract && contract.status === 'active'
+                ));
+              },
+              nextDeadlineAt() {
+                let next = null;
+                for (const snapshot of snapshots.values()) {
+                  const deadline = deadlineFor(snapshot);
+                  if (deadline === null) continue;
+                  if (next === null || deadline < next) next = deadline;
+                }
+                return next;
+              },
+            };
+          }
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path_name}: expected one replacement target, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def replace_section(path_name: str, start: str, end: str, replacement: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              start_index = text.index(start)
+              end_index = text.index(end, start_index)
+              path.write_text(text[:start_index] + replacement + text[end_index:], encoding='utf-8')
+
+          contracts = Path('server/src/contracts.js')
+          text = contracts.read_text(encoding='utf-8')
+          text = text.replace(
+              "import { ensureWarehouse } from './warehouse.js';\n",
+              "import { ensureWarehouse } from './warehouse.js';\nimport { createContractRuntimeIndex } from './contract-runtime-index.js';\n",
+              1,
+          )
+          contracts.write_text(text, encoding='utf-8')
+
+          replace_section(
+              'server/src/contracts.js',
+              'function openContractsFor',
+              'function batchGross',
+              '''function storedQuantity(player) {
+            return Object.values(player.inventories || {}).reduce((sum, inventory) => (
+              sum + Math.max(0, Number(inventory?.available || 0)) + Math.max(0, Number(inventory?.frozen || 0))
+            ), 0);
+          }
+
+          function hasWarehouseCapacity(world, buyer, quantity, exceptContractId, runtimeIndex) {
+            ensureWarehouse(buyer);
+            const used = storedQuantity(buyer)
+              + runtimeIndex.reservedIncomingForBuyer(buyer.userId, exceptContractId);
+            return buyer.inventoryCapacity - used >= quantity;
+          }
+
+          ''',
+          )
+
+          replace_section(
+              'server/src/contracts.js',
+              'function settleBatch',
+              'function createContract',
+              '''function settleBatch(world, contract, buyer, supplier, now, runtimeIndex) {
+            const gross = batchGross(contract);
+            if (!gross || contract.buyerEscrowCredits < gross || contract.supplierReservedQuantity < contract.quantityPerDelivery) return false;
+            if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, contract.id, runtimeIndex)) return false;
+
+            const supplierInventory = inventoryFor(supplier, contract.productId);
+            const buyerInventory = inventoryFor(buyer, contract.productId);
+            if (supplierInventory.frozen < contract.quantityPerDelivery || buyer.frozenCredits < gross) return false;
+
+            return runtimeIndex.transition(contract, () => {
+              supplierInventory.frozen -= contract.quantityPerDelivery;
+              contract.supplierReservedQuantity -= contract.quantityPerDelivery;
+              buyerInventory.available += contract.quantityPerDelivery;
+
+              consumeFrozenCredits(buyer, gross);
+              contract.buyerEscrowCredits -= gross;
+
+              const previousGross = contract.marketSellFeeGross;
+              const previousFee = contract.marketSellFeeCharged;
+              const nextGross = previousGross + gross;
+              const nextFee = calculateCumulativeMarketSellFee(nextGross);
+              const fee = Math.max(0, nextFee - previousFee);
+              const net = gross - fee;
+              contract.marketSellFeeGross = nextGross;
+              contract.marketSellFeeCharged = nextFee;
+
+              supplier.credits += net;
+              if (fee > 0) creditPopulationEmployment(world, fee, 'marketService');
+
+              const buyerStats = normalizeStats(buyer);
+              const supplierStats = normalizeStats(supplier);
+              buyerStats.contractDeliveriesCompleted += 1;
+              buyerStats.contractGoodsPurchased += contract.quantityPerDelivery;
+              buyerStats.contractCreditsPaid += gross;
+              buyerStats.boughtGoods += contract.quantityPerDelivery;
+              buyerStats.commodityVolume += contract.quantityPerDelivery;
+              supplierStats.contractDeliveriesCompleted += 1;
+              supplierStats.contractGoodsSupplied += contract.quantityPerDelivery;
+              supplierStats.contractCreditsReceived += net;
+              supplierStats.soldGoods += contract.quantityPerDelivery;
+              supplierStats.commodityVolume += contract.quantityPerDelivery;
+              supplierStats.marketServiceFees += fee;
+              supplierStats.employmentPayments += fee;
+
+              contract.completedDeliveries += 1;
+              contract.lastDeliveryAt = now;
+              contract.lastDeliveryGross = gross;
+              contract.lastDeliveryFee = fee;
+              contract.roundStatus = 'preparing';
+              delete contract.graceEndsAt;
+
+              if (contract.completedDeliveries >= contract.totalDeliveries) {
+                completeContract(contract, buyer, supplier, now);
+                return true;
+              }
+
+              if (contract.terminationRequestedBy) {
+                releaseAllEscrow(contract, buyer, supplier);
+                contract.status = 'terminated';
+                contract.endedAt = now;
+                contract.terminationReason = 'notice_completed';
+                contract.nextDueAt = null;
+                return true;
+              }
+
+              contract.nextDueAt = Math.max(
+                Number(contract.nextDueAt || now) + contract.deliveryIntervalMs,
+                now + contract.deliveryIntervalMs,
+              );
+              if (contract.buyerAutoFund) reserveBuyerBatch(contract, buyer);
+              if (contract.supplierAutoReserve) reserveSupplierBatch(contract, supplier);
+              contract.roundStatus = contract.buyerEscrowCredits >= gross && contract.supplierReservedQuantity >= contract.quantityPerDelivery
+                ? 'ready'
+                : 'preparing';
+              return true;
+            });
+          }
+
+          function processActiveContract(world, contract, now, runtimeIndex) {
+            const buyer = playerFor(world, contract.buyerId);
+            const supplier = playerFor(world, contract.supplierId);
+            if (!buyer || !supplier) {
+              runtimeIndex.transition(contract, () => {
+                contract.status = 'terminated';
+                contract.endedAt = now;
+                contract.terminationReason = 'participant_missing';
+              });
+              return;
+            }
+
+            ensureWarehouse(buyer);
+            ensureWarehouse(supplier);
+            normalizeStats(buyer);
+            normalizeStats(supplier);
+            if (contract.buyerAutoFund) reserveBuyerBatch(contract, buyer);
+            if (contract.supplierAutoReserve) reserveSupplierBatch(contract, supplier);
+
+            const gross = batchGross(contract);
+            const fundsReady = Boolean(gross && contract.buyerEscrowCredits >= gross);
+            const goodsReady = contract.supplierReservedQuantity >= contract.quantityPerDelivery;
+            const capacityReady = hasWarehouseCapacity(
+              world,
+              buyer,
+              contract.quantityPerDelivery,
+              contract.id,
+              runtimeIndex,
+            );
+            contract.roundStatus = fundsReady && goodsReady && capacityReady ? 'ready' : contract.graceEndsAt ? 'grace' : 'preparing';
+
+            if (now < Number(contract.nextDueAt || Number.POSITIVE_INFINITY)) return;
+            if (fundsReady && goodsReady && capacityReady) {
+              settleBatch(world, contract, buyer, supplier, now, runtimeIndex);
+              return;
+            }
+
+            if (!contract.graceEndsAt) {
+              contract.graceEndsAt = now + gracePeriodFor(contract);
+              contract.roundStatus = 'grace';
+              return;
+            }
+            if (now < contract.graceEndsAt) return;
+
+            const buyerReady = fundsReady && capacityReady;
+            const defaultParty = goodsReady && !buyerReady
+              ? 'buyer'
+              : !goodsReady && buyerReady
+                ? 'supplier'
+                : 'both';
+            runtimeIndex.transition(contract, () => terminateForDefault(world, contract, defaultParty, now));
+          }
+
+          function trimContractHistory(world, runtimeIndex) {
+            const activeOrOpen = [];
+            const ended = [];
+            for (const contract of world.productionContracts) {
+              if (contract.status === 'open' || contract.status === 'active') activeOrOpen.push(contract);
+              else ended.push(contract);
+            }
+            ended.sort((left, right) => Number(right.endedAt || right.createdAt) - Number(left.endedAt || left.createdAt));
+            const nextContracts = [...activeOrOpen, ...ended.slice(0, Math.max(0, MAX_CONTRACTS - activeOrOpen.length))]
+              .slice(0, MAX_CONTRACTS);
+            if (nextContracts.length < world.productionContracts.length) {
+              const retained = new Set(nextContracts);
+              for (const contract of world.productionContracts) {
+                if (!retained.has(contract)) runtimeIndex.removeContract(contract);
+              }
+            }
+            world.productionContracts = nextContracts;
+          }
+
+          function processProductionContractsWithIndex(world, now = Date.now()) {
+            migrateProductionContractWorld(world);
+            const runtimeIndex = createContractRuntimeIndex(world);
+            for (const contract of runtimeIndex.openContracts) {
+              if (contract.status === 'open' && now >= contract.offerExpiresAt) {
+                runtimeIndex.transition(contract, () => {
+                  contract.status = 'expired';
+                  contract.endedAt = now;
+                });
+              }
+            }
+            for (const contract of runtimeIndex.activeContracts) {
+              if (contract.status === 'active') processActiveContract(world, contract, now, runtimeIndex);
+            }
+            trimContractHistory(world, runtimeIndex);
+            return runtimeIndex;
+          }
+
+          export function processProductionContracts(world, now = Date.now()) {
+            processProductionContractsWithIndex(world, now);
+            return world;
+          }
+
+          ''',
+          )
+
+          replace_section(
+              'server/src/contracts.js',
+              'function createContract',
+              'function issueForContract',
+              '''function createContract(world, user, payload, now, runtimeIndex) {
+            const publisherRole = payload.publisherRole === 'supplier' ? 'supplier' : payload.publisherRole === 'buyer' ? 'buyer' : null;
+            const productId = PRODUCT_IDS.has(String(payload.productId || '')) ? String(payload.productId) : null;
+            const quantityPerDelivery = positiveInteger(payload.quantityPerDelivery, MAX_QUANTITY);
+            const unitPrice = positiveInteger(payload.unitPrice, MAX_UNIT_PRICE);
+            const deliveryIntervalMs = exactAllowedInteger(payload.deliveryIntervalMs, PRODUCTION_CONTRACT_INTERVALS);
+            const totalDeliveries = positiveInteger(payload.totalDeliveries, MAX_DELIVERIES);
+            const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);
+            if (!publisherRole || !productId || !quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) {
+              return result(false, '合同参数无效');
+            }
+            if (totalDeliveries < MIN_DELIVERIES) return result(false, `合同至少需要 ${MIN_DELIVERIES} 批交付`);
+            const gross = quantityPerDelivery * unitPrice;
+            if (!Number.isSafeInteger(gross)) return result(false, '单批货款超出安全范围');
+            if (runtimeIndex.openCountForPublisher(user.id) >= MAX_OPEN_CONTRACTS_PER_PLAYER) return result(false, '公开合同数量已达上限');
+
+            const publisher = playerFor(world, user.id);
+            if (!publisher) return result(false, '玩家不存在');
+            const contract = normalizeContract({
+              id: `production-contract-${randomUUID()}`,
+              publisherId: Number(user.id),
+              publisherName: publisher.playerName,
+              publisherRole,
+              buyerId: publisherRole === 'buyer' ? Number(user.id) : null,
+              buyerName: publisherRole === 'buyer' ? publisher.playerName : null,
+              supplierId: publisherRole === 'supplier' ? Number(user.id) : null,
+              supplierName: publisherRole === 'supplier' ? publisher.playerName : null,
+              productId,
+              quantityPerDelivery,
+              unitPrice,
+              deliveryIntervalMs,
+              totalDeliveries,
+              completedDeliveries: 0,
+              firstDeliveryDelayMs,
+              createdAt: now,
+              offerExpiresAt: now + OFFER_TTL_MS,
+              status: 'open',
+            });
+            world.productionContracts.push(contract);
+            runtimeIndex.addContract(contract);
+            return result(true, '长期供货合同已发布');
+          }
+
+          function acceptContract(world, user, payload, now, runtimeIndex) {
+            const contract = runtimeIndex.contractById(payload.contractId);
+            if (!contract || contract.status !== 'open') return result(false, '合同不存在或已被承接');
+            if (contract.publisherId === Number(user.id)) return result(false, '不能承接自己发布的合同');
+            if (runtimeIndex.activeCountForParticipant(user.id) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '进行中的合同数量已达上限');
+            if (runtimeIndex.activeCountForParticipant(contract.publisherId) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '发布者进行中的合同数量已达上限');
+
+            const accepter = playerFor(world, user.id);
+            const publisher = playerFor(world, contract.publisherId);
+            if (!accepter || !publisher) return result(false, '合同参与者不存在');
+            const buyer = contract.publisherRole === 'buyer' ? publisher : accepter;
+            const supplier = contract.publisherRole === 'supplier' ? publisher : accepter;
+            const gross = batchGross(contract);
+            const bond = gross ? bondFor(gross) : null;
+            if (!gross || !bond) return result(false, '合同金额超出安全范围');
+            if (buyer.credits < gross + bond) return result(false, `采购方需要至少 ¤${gross + bond} 用于首批货款和保证金`);
+            if (supplier.credits < bond) return result(false, `供应方需要至少 ¤${bond} 履约保证金`);
+            if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, null, runtimeIndex)) {
+              return result(false, '采购方仓库无法容纳下一批商品');
+            }
+
+            runtimeIndex.transition(contract, () => {
+              buyer.credits -= gross + bond;
+              buyer.frozenCredits = Math.max(0, Number(buyer.frozenCredits || 0)) + gross + bond;
+              supplier.credits -= bond;
+              supplier.frozenCredits = Math.max(0, Number(supplier.frozenCredits || 0)) + bond;
+
+              contract.buyerId = Number(buyer.userId);
+              contract.buyerName = buyer.playerName;
+              contract.supplierId = Number(supplier.userId);
+              contract.supplierName = supplier.playerName;
+              contract.buyerEscrowCredits = gross;
+              contract.buyerBondCredits = bond;
+              contract.supplierBondCredits = bond;
+              contract.buyerAutoFund = true;
+              contract.supplierAutoReserve = true;
+              contract.acceptedAt = now;
+              contract.nextDueAt = now + contract.firstDeliveryDelayMs;
+              contract.status = 'active';
+              contract.roundStatus = 'preparing';
+              reserveSupplierBatch(contract, supplier);
+              if (contract.supplierReservedQuantity >= contract.quantityPerDelivery) contract.roundStatus = 'ready';
+            });
+            return result(true, '合同已签订并进入履约');
+          }
+
+          function ownActiveContract(runtimeIndex, userId, contractId) {
+            const contract = runtimeIndex.contractById(contractId);
+            if (!contract || contract.status !== 'active') return null;
+            return contract.buyerId === Number(userId) || contract.supplierId === Number(userId) ? contract : null;
+          }
+
+          function cancelOpenContract(world, user, payload, now, runtimeIndex) {
+            const contract = runtimeIndex.contractById(payload.contractId);
+            if (!contract || contract.status !== 'open' || contract.publisherId !== Number(user.id)) return result(false, '可取消的公开合同不存在');
+            runtimeIndex.transition(contract, () => {
+              contract.status = 'cancelled';
+              contract.endedAt = now;
+            });
+            return result(true, '公开合同已取消');
+          }
+
+          function prepareContract(world, user, payload, runtimeIndex) {
+            const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+            if (!contract || contract.supplierId !== Number(user.id)) return result(false, '只有供应方可以准备商品');
+            const supplier = playerFor(world, user.id);
+            if (!reserveSupplierBatch(contract, supplier)) return result(false, '可用商品库存不足');
+            contract.roundStatus = contract.buyerEscrowCredits >= batchGross(contract) ? 'ready' : contract.roundStatus;
+            return result(true, '本批商品已进入合同托管');
+          }
+
+          function fundContract(world, user, payload, runtimeIndex) {
+            const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+            if (!contract || contract.buyerId !== Number(user.id)) return result(false, '只有采购方可以补充货款');
+            const buyer = playerFor(world, user.id);
+            if (!reserveBuyerBatch(contract, buyer)) return result(false, '可用资金不足');
+            contract.roundStatus = contract.supplierReservedQuantity >= contract.quantityPerDelivery ? 'ready' : contract.roundStatus;
+            return result(true, '本批货款已进入合同托管');
+          }
+
+          function setAutoMode(world, user, payload, field, role, runtimeIndex) {
+            const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+            if (!contract || contract[`${role}Id`] !== Number(user.id)) return result(false, '无权修改该合同的自动设置');
+            contract[field] = payload.enabled === true;
+            if (field === 'buyerAutoFund' && contract[field]) reserveBuyerBatch(contract, playerFor(world, user.id));
+            if (field === 'supplierAutoReserve' && contract[field]) reserveSupplierBatch(contract, playerFor(world, user.id));
+            return result(true, contract[field] ? '自动履约已开启' : '自动履约已关闭');
+          }
+
+          function requestTermination(world, user, payload, runtimeIndex) {
+            const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+            if (!contract) return result(false, '进行中的合同不存在');
+            contract.terminationRequestedBy = Number(user.id);
+            contract.terminationRequestedAt = Date.now();
+            return result(true, '合同将在当前批次完成后结束');
+          }
+
+          function terminateNow(world, user, payload, now, runtimeIndex) {
+            const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+            if (!contract) return result(false, '进行中的合同不存在');
+            const buyer = playerFor(world, contract.buyerId);
+            const supplier = playerFor(world, contract.supplierId);
+            if (!buyer || !supplier) return result(false, '合同参与者不存在');
+
+            runtimeIndex.transition(contract, () => {
+              if (contract.buyerId === Number(user.id)) {
+                releaseFrozenCredits(buyer, contract.buyerEscrowCredits);
+                transferFrozenCredits(buyer, supplier, contract.buyerBondCredits);
+                releaseFrozenCredits(supplier, contract.supplierBondCredits);
+                releaseSupplierGoods(contract, supplier);
+              } else {
+                releaseFrozenCredits(buyer, contract.buyerEscrowCredits);
+                releaseFrozenCredits(buyer, contract.buyerBondCredits);
+                transferFrozenCredits(supplier, buyer, contract.supplierBondCredits);
+                releaseSupplierGoods(contract, supplier);
+              }
+              contract.buyerEscrowCredits = 0;
+              contract.buyerBondCredits = 0;
+              contract.supplierBondCredits = 0;
+              contract.status = 'terminated';
+              contract.endedAt = now;
+              contract.terminationReason = 'immediate_by_participant';
+              normalizeStats(playerFor(world, user.id)).contractDefaults += 1;
+            });
+            return result(true, '合同已立即终止，违约保证金已支付给对方');
+          }
+
+          export function applyProductionContractAction(world, user, action, payload = {}, now = Date.now()) {
+            const runtimeIndex = processProductionContractsWithIndex(world, now);
+            if (action === 'createProductionContract') return createContract(world, user, payload, now, runtimeIndex);
+            if (action === 'acceptProductionContract') return acceptContract(world, user, payload, now, runtimeIndex);
+            if (action === 'cancelProductionContract') return cancelOpenContract(world, user, payload, now, runtimeIndex);
+            if (action === 'prepareProductionContract') return prepareContract(world, user, payload, runtimeIndex);
+            if (action === 'fundProductionContract') return fundContract(world, user, payload, runtimeIndex);
+            if (action === 'setProductionContractAutoReserve') return setAutoMode(world, user, payload, 'supplierAutoReserve', 'supplier', runtimeIndex);
+            if (action === 'setProductionContractAutoFund') return setAutoMode(world, user, payload, 'buyerAutoFund', 'buyer', runtimeIndex);
+            if (action === 'requestProductionContractTermination') return requestTermination(world, user, payload, runtimeIndex);
+            if (action === 'terminateProductionContractNow') return terminateNow(world, user, payload, now, runtimeIndex);
+            return result(false, '合同操作不存在');
+          }
+
+          ''',
+          )
+
+          contracts = Path('server/src/contracts.js')
+          text = contracts.read_text(encoding='utf-8')
+          start = text.index('function issueForContract')
+          text = text[:start] + '''function issueForContract(world, contract, runtimeIndex) {
+            if (contract.status !== 'active') return null;
+            const buyer = playerFor(world, contract.buyerId);
+            const supplier = playerFor(world, contract.supplierId);
+            const gross = batchGross(contract) || 0;
+            if (!buyer || !supplier) return '合同参与者异常';
+            if (contract.graceEndsAt) {
+              if (contract.supplierReservedQuantity < contract.quantityPerDelivery) return '供应方商品不足，正在宽限期';
+              if (contract.buyerEscrowCredits < gross) return '采购方货款不足，正在宽限期';
+              if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, contract.id, runtimeIndex)) return '采购方仓库空间不足，正在宽限期';
+              return '宽限期内等待结算';
+            }
+            if (contract.supplierReservedQuantity < contract.quantityPerDelivery) return '等待供应方准备商品';
+            if (contract.buyerEscrowCredits < gross) return '等待采购方补充货款';
+            if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, contract.id, runtimeIndex)) return '采购方仓库空间不足';
+            return null;
+          }
+
+          function publicContract(world, contract, userId, runtimeIndex) {
+            const gross = batchGross(contract) || 0;
+            return {
+              id: contract.id,
+              publisherId: contract.publisherId,
+              publisherName: contract.publisherName,
+              publisherRole: contract.publisherRole,
+              buyerId: contract.buyerId,
+              buyerName: contract.buyerName,
+              supplierId: contract.supplierId,
+              supplierName: contract.supplierName,
+              productId: contract.productId,
+              quantityPerDelivery: contract.quantityPerDelivery,
+              unitPrice: contract.unitPrice,
+              batchGross: gross,
+              deliveryIntervalMs: contract.deliveryIntervalMs,
+              totalDeliveries: contract.totalDeliveries,
+              completedDeliveries: contract.completedDeliveries,
+              firstDeliveryDelayMs: contract.firstDeliveryDelayMs,
+              createdAt: contract.createdAt,
+              offerExpiresAt: contract.offerExpiresAt,
+              acceptedAt: contract.acceptedAt,
+              nextDueAt: contract.nextDueAt,
+              graceEndsAt: contract.graceEndsAt,
+              status: contract.status,
+              roundStatus: contract.roundStatus,
+              buyerEscrowCredits: contract.buyerEscrowCredits,
+              supplierReservedQuantity: contract.supplierReservedQuantity,
+              buyerBondCredits: contract.buyerBondCredits,
+              supplierBondCredits: contract.supplierBondCredits,
+              buyerAutoFund: contract.buyerAutoFund,
+              supplierAutoReserve: contract.supplierAutoReserve,
+              terminationRequestedBy: contract.terminationRequestedBy,
+              terminationReason: contract.terminationReason,
+              endedAt: contract.endedAt,
+              completedAt: contract.completedAt,
+              issue: issueForContract(world, contract, runtimeIndex),
+              isPublisher: contract.publisherId === Number(userId),
+              isBuyer: contract.buyerId === Number(userId),
+              isSupplier: contract.supplierId === Number(userId),
+            };
+          }
+
+          export function createProductionContractClientState(world, userId, now = Date.now()) {
+            const runtimeIndex = processProductionContractsWithIndex(world, now);
+            const visibleOpen = runtimeIndex.currentOpenContracts()
+              .sort((left, right) => right.createdAt - left.createdAt)
+              .slice(0, MAX_VISIBLE_OPEN_CONTRACTS);
+            const own = runtimeIndex.ownContractsFor(userId);
+            const active = own.filter((contract) => contract.status === 'active');
+            const recent = own
+              .filter((contract) => !['open', 'active'].includes(contract.status))
+              .sort((left, right) => Number(right.endedAt || right.createdAt) - Number(left.endedAt || left.createdAt))
+              .slice(0, MAX_VISIBLE_RECENT_CONTRACTS);
+            const ownOpen = own.filter((contract) => contract.status === 'open');
+            const byId = new Map([...visibleOpen, ...active, ...recent, ...ownOpen].map((contract) => [contract.id, contract]));
+            const productionContracts = [...byId.values()]
+              .map((contract) => publicContract(world, contract, userId, runtimeIndex));
+            return {
+              productionContracts,
+              productionContractSummary: {
+                active: active.length,
+                open: ownOpen.length,
+                needsAttention: active.filter((contract) => Boolean(issueForContract(world, contract, runtimeIndex))).length,
+                upcomingWithin24Hours: active.filter((contract) => Number(contract.nextDueAt || 0) <= now + 24 * 60 * 60 * 1000).length,
+              },
+            };
+          }
+          '''
+          contracts.write_text(text, encoding='utf-8')
+
+          replace_once(
+              'server/test/contracts.test.js',
+              "import { resolveAction } from '../src/game-routes.js';\n",
+              "import { resolveAction } from '../src/game-routes.js';\nimport {\n  getContractRuntimeIndexDiagnostics,\n  resetContractRuntimeIndexDiagnostics,\n} from '../src/contract-runtime-index.js';\n",
+          )
+          replace_once(
+              'server/test/contracts.test.js',
+              "  const client = createProductionContractClientState(world, buyerUser.id, now + 2);\n",
+              "  resetContractRuntimeIndexDiagnostics(world);\n  const client = createProductionContractClientState(world, buyerUser.id, now + 2);\n  assert.equal(getContractRuntimeIndexDiagnostics(world).builds, 1);\n",
+          )
+
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '- `contracts.js`：长期商品供货合同、托管、周期结算、宽限期与违约；\n',
+              '- `contracts.js`：长期商品供货合同、托管、周期结算、宽限期与违约；\n- `contract-runtime-index.js`：合同 ID、公开／进行中数量、参与者集合、采购方下一批仓库预占和最近到期时间的事务内派生索引；\n',
+          )
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '合同状态、交付时间、宽限期与违约只能由服务器权威时间判定。\n',
+              '合同状态、交付时间、宽限期与违约只能由服务器权威时间判定。每次合同处理、合同动作或合同客户端序列化只能对 `productionContracts` 建立一次 `contract-runtime-index.js` 派生索引；采购方下一批仓库预占、公开合同数量、参与者进行中合同数量和合同 ID 查询必须读取该索引，不得在每份合同容量检查中再次遍历全部合同。合同进入或离开 `active` 状态、完成批次、过期、取消或终止时必须同步刷新索引计数；索引不进入世界 JSON、客户端分区、分区哈希或 SQLite，事务回滚后直接丢弃。\n',
+          )
+          replace_once(
+              'docs/README.md',
+              '合同只允许商品与普通货币，不允许其他资产类型、工厂转移、工厂出租、自由文本或对方配方控制；必须通过 `server/test/contracts.test.js` 和页面／状态容量验证防回退。',
+              '合同只允许商品与普通货币，不允许其他资产类型、工厂转移、工厂出租、自由文本或对方配方控制；每次合同处理、动作和状态序列化只能建立一次事务内合同索引，采购方下一批仓库预占不得在每份合同检查中再次遍历全部合同；必须通过 `server/test/contracts.test.js`、`server/test/contract-runtime-index.test.js` 和页面／状态容量验证防回退。',
+          )
+
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "requireText('server/src/runtime-store.js', [\n",
+              "requireText('server/src/contract-runtime-index.js', [\n  'createContractRuntimeIndex',\n  'reservedIncomingForBuyer',\n  'activeCountForParticipant',\n  'openCountForPublisher',\n  'nextDeadlineAt',\n]);\nrequireText('server/src/contracts.js', [\n  'processProductionContractsWithIndex',\n  'runtimeIndex.reservedIncomingForBuyer',\n  'runtimeIndex.activeCountForParticipant',\n  'runtimeIndex.openCountForPublisher',\n]);\nrequireText('server/src/runtime-store.js', [\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "requireText('server/test/state-polling.test.js', [\n",
+              "requireText('server/test/contract-runtime-index.test.js', [\n  'contract runtime index matches the reference reservation scan for 2000 contracts',\n  'contract runtime transitions release and acquire counts without rebuilding',\n]);\nrequireText('server/test/state-polling.test.js', [\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "  '失败或无变化动作仍保存幂等确认但不得触发全服补拉',\n",
+              "  '失败或无变化动作仍保存幂等确认但不得触发全服补拉',\n  '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、合同状态投影复用和有界请求指标均已锁定。');\n",
+              "console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、合同线性索引、合同状态投影复用和有界请求指标均已锁定。');\n",
+          )
+          PY
+
+          cat > server/test/contract-runtime-index.test.js <<'EOF'
+          import assert from 'node:assert/strict';
+          import test from 'node:test';
+          import {
+            createContractRuntimeIndex,
+            getContractRuntimeIndexDiagnostics,
+            resetContractRuntimeIndexDiagnostics,
+          } from '../src/contract-runtime-index.js';
+
+          function activeContract(id, buyerId, supplierId, quantityPerDelivery, overrides = {}) {
+            return {
+              id,
+              publisherId: buyerId,
+              buyerId,
+              supplierId,
+              status: 'active',
+              quantityPerDelivery,
+              completedDeliveries: 0,
+              totalDeliveries: 4,
+              nextDueAt: 2_000_000 + Number(id.replace(/\D/g, '') || 0),
+              ...overrides,
+            };
+          }
+
+          function referenceReserved(contracts, buyerId, exceptContractId = null) {
+            return contracts.reduce((sum, contract) => {
+              if (
+                contract.status !== 'active'
+                || Number(contract.buyerId) !== Number(buyerId)
+                || contract.id === exceptContractId
+                || contract.completedDeliveries >= contract.totalDeliveries
+              ) return sum;
+              return sum + contract.quantityPerDelivery;
+            }, 0);
+          }
+
+          test('contract runtime index matches the reference reservation scan for 2000 contracts', () => {
+            const world = { productionContracts: [] };
+            for (let index = 0; index < 2_000; index += 1) {
+              const buyerId = index % 40 + 1;
+              const supplierId = index % 60 + 101;
+              const status = index % 11 === 0 ? 'open' : index % 13 === 0 ? 'completed' : 'active';
+              world.productionContracts.push(activeContract(
+                `contract-${index}`,
+                buyerId,
+                supplierId,
+                index % 9 + 1,
+                {
+                  status,
+                  offerExpiresAt: status === 'open' ? 3_000_000 + index : undefined,
+                  nextDueAt: status === 'active' ? 2_000_000 + index : null,
+                },
+              ));
+            }
+
+            resetContractRuntimeIndexDiagnostics(world);
+            const runtimeIndex = createContractRuntimeIndex(world);
+            assert.equal(getContractRuntimeIndexDiagnostics(world).builds, 1);
+
+            for (let buyerId = 1; buyerId <= 40; buyerId += 1) {
+              assert.equal(
+                runtimeIndex.reservedIncomingForBuyer(buyerId),
+                referenceReserved(world.productionContracts, buyerId),
+              );
+              const except = world.productionContracts.find((contract) => (
+                contract.status === 'active' && contract.buyerId === buyerId
+              ));
+              if (except) {
+                assert.equal(
+                  runtimeIndex.reservedIncomingForBuyer(buyerId, except.id),
+                  referenceReserved(world.productionContracts, buyerId, except.id),
+                );
+              }
+            }
+          });
+
+          test('contract runtime transitions release and acquire counts without rebuilding', () => {
+            const active = activeContract('active-1', 1, 2, 25);
+            const open = {
+              id: 'open-1',
+              publisherId: 3,
+              buyerId: 3,
+              supplierId: null,
+              status: 'open',
+              quantityPerDelivery: 40,
+              completedDeliveries: 0,
+              totalDeliveries: 2,
+              offerExpiresAt: 5_000,
+            };
+            const world = { productionContracts: [active, open] };
+            resetContractRuntimeIndexDiagnostics(world);
+            const runtimeIndex = createContractRuntimeIndex(world);
+
+            assert.equal(runtimeIndex.reservedIncomingForBuyer(1), 25);
+            assert.equal(runtimeIndex.activeCountForParticipant(1), 1);
+            assert.equal(runtimeIndex.activeCountForParticipant(2), 1);
+            assert.equal(runtimeIndex.openCountForPublisher(3), 1);
+
+            runtimeIndex.transition(active, () => {
+              active.status = 'completed';
+              active.completedDeliveries = active.totalDeliveries;
+            });
+            assert.equal(runtimeIndex.reservedIncomingForBuyer(1), 0);
+            assert.equal(runtimeIndex.activeCountForParticipant(1), 0);
+            assert.equal(runtimeIndex.activeCountForParticipant(2), 0);
+
+            runtimeIndex.transition(open, () => {
+              open.status = 'active';
+              open.buyerId = 3;
+              open.supplierId = 4;
+              open.nextDueAt = 4_000;
+            });
+            assert.equal(runtimeIndex.openCountForPublisher(3), 0);
+            assert.equal(runtimeIndex.activeCountForParticipant(3), 1);
+            assert.equal(runtimeIndex.activeCountForParticipant(4), 1);
+            assert.equal(runtimeIndex.reservedIncomingForBuyer(3), 40);
+            assert.equal(runtimeIndex.nextDeadlineAt(), 4_000);
+            assert.equal(getContractRuntimeIndexDiagnostics(world).builds, 1);
+          });
+          EOF
+
+          rm .github/workflows/apply-contract-runtime-index.yml
+
+      - name: Run focused verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server/src/contract-runtime-index.js
+          node --check server/src/contracts.js
+          node --test server/test/contract-runtime-index.test.js server/test/contracts.test.js
+          node scripts/verify-runtime-efficiency.mjs
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '优化合同运行时索引'
+          git push origin HEAD:agent/contract-runtime-index
