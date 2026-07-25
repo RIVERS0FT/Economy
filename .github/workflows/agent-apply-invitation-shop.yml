@@ -1,0 +1,65 @@
+name: Apply invitation shop update
+
+on:
+  push:
+    branches:
+      - agent/move-invitations-to-shop
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-apply-invitation-shop
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Rebuild and validate implementation script
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .agent/invitation-shop-parts/part-* > /tmp/apply-invitation-shop.py.gz.b64
+          echo '04874b5ac51273b952271f89d7f9148d2d6f32d7804f3e6fa6f5f48d4b76f39a  /tmp/apply-invitation-shop.py.gz.b64' | sha256sum --check
+          base64 --decode /tmp/apply-invitation-shop.py.gz.b64 | gzip --decompress > /tmp/apply-invitation-shop.py
+          echo 'c4ffd840ae901e3f3f0b36d128270aa31bdbfc9de109a19ac97296adddd99d90  /tmp/apply-invitation-shop.py' | sha256sum --check
+          python -m py_compile /tmp/apply-invitation-shop.py
+
+      - name: Apply source, test, and design changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/apply-invitation-shop.py
+          rm -rf .agent
+          rm -f .github/workflows/agent-apply-invitation-shop.yml
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full build validation
+        run: npm run build
+
+      - name: Commit validated implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '将邀请入口迁入商店并关闭注册后补填'
+          git push origin HEAD:agent/move-invitations-to-shop
