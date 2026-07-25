@@ -15,7 +15,31 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: agent/banking-interest
-          fetch-depth: 0
+          fetch-depth: 1
+          show-progress: false
+      - name: Verify patch parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while read -r expected path; do
+            actual="$(git hash-object "$path")"
+            echo "$path $actual"
+            test "$actual" = "$expected"
+          done <<'EOF'
+          a08b979947f57b8da7119fd18cc8548c10c6de98 .agent/banking.patch.part-aa
+          7d560dec63ac8a11dd0a6924f33f0ce8f6a8a0a3 .agent/banking.patch.part-ab
+          222180daba402d472be8a847cf86c0d91d7c9b7e .agent/banking.patch.part-ac
+          1923a6fff411a1ac75aa2fbb7241abcea4e0a331 .agent/banking.patch.part-ad
+          78054dcf53e2d8ed60ebc6a58f3c3a8251d6a30d .agent/banking.patch.part-ae
+          18fa40c0cd3e49682c3ba79f837db0af03b73f96 .agent/banking.patch.part-af
+          43da2532a26a3960be927c0cc76ed9905c73d13d .agent/banking.patch.part-ag
+          15af408e2c16e9129967097b427de605909b50f1 .agent/banking.patch.part-ah
+          f9a379668ed2349e3ecda83e039a44eb5d3fa2db .agent/banking.patch.part-ai
+          2a8a23834305b28b2e8e051557b3889bdf681d38 .agent/banking.patch.part-aj
+          3d190d44c0694f1757917ed1dbcf56c27acc0372 .agent/banking.patch.part-ak
+          5de4984eb4b7f191cc7374d10c1cdcecf3b89491 .agent/banking.patch.part-al
+          c63e06103e8785427199f3ab6ef32f5f050d3923 .agent/banking.patch.part-am
+          EOF
       - name: Reconstruct and verify patch
         shell: bash
         run: |
