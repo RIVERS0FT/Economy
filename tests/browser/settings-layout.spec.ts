@@ -15,31 +15,23 @@ async function gridTrackCount(locator: Locator) {
 
 async function openSettings(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
-  await page.route('**/economy-api/game/invitations', async (route) => {
-    await route.fulfill({
-      status: 503,
-      contentType: 'application/json',
-      body: JSON.stringify({ message: '测试环境未连接邀请服务' }),
-    });
-  });
   await page.goto('runtime-test.html');
   await page.addStyleTag({ url: '/economy/src/styles/unified-market-admin.css' });
-  await page.addStyleTag({ url: '/economy/src/styles/invitations.css' });
   await page.addStyleTag({ url: '/economy/src/styles/settings.css' });
   await expect(page.getByRole('heading', { name: '设置', exact: true })).toBeVisible();
 }
 
-test('desktop settings columns stack independently without shared-row gaps', async ({ page }) => {
+test('desktop settings columns stack independently without invitation content', async ({ page }) => {
   await openSettings(page, 1440, 1000);
 
   const layout = page.locator('.settings-layout');
   const profile = page.locator('.profile-settings-card');
   const preferences = page.locator('.game-preferences-card');
-  const invitation = page.locator('.invite-card');
   const gift = page.locator('.gift-redemption-card');
   const account = page.locator('.account-management-card');
 
   await expect(layout).toBeVisible();
+  await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toHaveCount(0);
   await expect(account.getByRole('button', { name: '重置经济状态', exact: true })).toHaveCount(0);
   await expect(account.getByRole('heading', { name: '危险区域', exact: true })).toHaveCount(0);
   expect(await gridTrackCount(layout)).toBe(2);
@@ -47,16 +39,13 @@ test('desktop settings columns stack independently without shared-row gaps', asy
 
   const profileBox = await requireBox(profile);
   const preferencesBox = await requireBox(preferences);
-  const invitationBox = await requireBox(invitation);
   const giftBox = await requireBox(gift);
   const accountBox = await requireBox(account);
 
   expect(Math.abs(profileBox.y - preferencesBox.y)).toBeLessThan(3);
-  expect(invitationBox.y).toBeGreaterThan(profileBox.y + profileBox.height);
   expect(giftBox.y).toBeGreaterThan(preferencesBox.y + preferencesBox.height);
   expect(giftBox.y - (preferencesBox.y + preferencesBox.height)).toBeLessThan(40);
   expect(accountBox.y).toBeGreaterThan(giftBox.y + giftBox.height);
-  expect(giftBox.y).toBeLessThan(profileBox.y + profileBox.height);
 
   const saveButton = page.getByRole('button', { name: '保存昵称', exact: true });
   const saveButtonBox = await requireBox(saveButton);
@@ -70,11 +59,11 @@ test('mobile settings order, statistics and nickname action remain compact', asy
   const layout = page.locator('.settings-layout');
   expect(await gridTrackCount(layout)).toBe(1);
   expect(await gridTrackCount(page.locator('.profile-settings-card .player-stat-grid'))).toBe(2);
+  await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toHaveCount(0);
 
   const cards = [
     page.locator('.profile-settings-card'),
     page.locator('.game-preferences-card'),
-    page.locator('.invite-card'),
     page.locator('.gift-redemption-card'),
     page.locator('.account-management-card'),
   ];

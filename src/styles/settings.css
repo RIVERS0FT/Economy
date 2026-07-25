@@ -26,8 +26,7 @@
 }
 
 .settings-layout .widget > label:not(.ui-toggle-field),
-.nickname-editor label,
-.invite-card label {
+.nickname-editor label {
   min-width: 0;
   display: grid;
   gap: var(--space-2);
@@ -82,9 +81,8 @@
 
   .profile-settings-card { order: 1; }
   .game-preferences-card { order: 2; }
-  .invite-card { order: 3; }
-  .gift-redemption-card { order: 4; }
-  .account-management-card { order: 5; }
+  .gift-redemption-card { order: 3; }
+  .account-management-card { order: 4; }
 }
 
 @media (max-width: 760px) {

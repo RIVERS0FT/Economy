@@ -106,6 +106,7 @@ test('share link registration immediately rewards only the inviter with gems', (
       ipFingerprint: 'ip-two',
       source: 'homepage_session',
       inviteCode,
+      invitationSource: 'share_link',
       invitationRequestKey: 'share-registration-0001',
       now: now + 1,
     }));
@@ -125,43 +126,59 @@ test('share link registration immediately rewards only the inviter with gems', (
   }
 });
 
-test('manual code claim rewards inviter once and remains mutually exclusive with link attribution', () => {
+test('registration form invite code rewards inviter once inside first-profile transaction', () => {
   const context = setup();
   try {
     const now = 1_700_000_000_000;
     context.registrationStore.ensureLoggedInPlayer({ user: user(1), ipFingerprint: 'ip-one', now });
-    context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'ip-two', now: now + 1 });
     const inviteCode = context.registrationStore.invitations.ensureInviteCode(1, now).code;
 
-    const result = context.registrationStore.claimManualInvitation({
-      user: user(2), inviteCode, requestKey: 'manual-claim-0001', now: now + 2,
-    });
-    assert.match(result.message, /邀请人已获得 10 宝石/);
-    assert.equal(result.relation.source, 'manual_code');
-    assert.equal(context.store.loadWorld(now + 3).world.players['1'].gems, 10);
+    const result = context.store.transaction(() => context.registrationStore.ensurePlayerRegistrationInTransaction({
+      user: user(2),
+      ipFingerprint: 'ip-two',
+      source: 'email_verification',
+      inviteCode,
+      invitationSource: 'manual_code',
+      invitationRequestKey: 'manual-registration-0001',
+      now: now + 1,
+    }));
 
-    assert.throws(() => context.registrationStore.claimManualInvitation({
-      user: user(2), inviteCode, requestKey: 'manual-claim-0002', now: now + 3,
-    }), /已经绑定邀请关系/);
+    assert.equal(result.relation.status, 'rewarded');
+    assert.equal(result.relation.source, 'manual_code');
+    assert.equal(context.store.loadWorld(now + 2).world.players['1'].gems, INVITATION_REWARD_GEMS);
     assert.equal(context.store.database.prepare('SELECT COUNT(*) AS count FROM economy_gem_ledger').get().count, 1);
   } finally {
     context.store.close();
   }
 });
 
-test('manual invitation claim expires after twenty four hours', () => {
+test('existing Economy profile ignores invite parameters and can never be backfilled', () => {
   const context = setup();
   try {
     const now = 1_700_000_000_000;
     context.registrationStore.ensureLoggedInPlayer({ user: user(1), ipFingerprint: 'ip-one', now });
-    context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'ip-two', now });
+    context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'ip-two', now: now + 1 });
     const inviteCode = context.registrationStore.invitations.ensureInviteCode(1, now).code;
-    assert.throws(() => context.registrationStore.claimManualInvitation({
+    const before = context.store.loadWorld(now + 2);
+
+    const result = context.registrationStore.initializeSession({
       user: user(2),
+      ipFingerprint: 'ip-two',
       inviteCode,
-      requestKey: 'manual-expired-0001',
-      now: now + 24 * 60 * 60 * 1000 + 1,
-    }), /填写期限已结束/);
+      requestKey: 'existing-session-invite-0001',
+      now: now + 3,
+    });
+
+    assert.equal(result.playerCreated, false);
+    assert.equal(result.invitationBound, false);
+    assert.equal(result.invalidInvite, true);
+    assert.equal(context.registrationStore.invitations.invitationByInvitee(2), undefined);
+    const after = context.store.loadWorld(now + 4);
+    assert.equal(after.revision, before.revision);
+    assert.equal(after.world.players['1'].gems, 0);
+    const summary = context.registrationStore.getInvitationSummary(2, now + 5);
+    assert.equal('claimExpiresAt' in summary, false);
+    assert.equal('claimedInvitation' in summary, false);
   } finally {
     context.store.close();
   }
@@ -178,6 +195,7 @@ test('a second registration on the same IP bans the whole account group before i
       ipFingerprint: 'shared-ip',
       source: 'homepage_session',
       inviteCode,
+      invitationSource: 'share_link',
       invitationRequestKey: 'same-ip-share-0001',
       now: now + 1,
     }));
@@ -255,26 +273,27 @@ test('manual unban survives restart reconciliation until a new same-IP registrat
   }
 });
 
-test('manual same-IP code is consumed without a gem reward after administrator review', () => {
+test('same-IP registration form code is recorded without a gem reward', () => {
   const context = setup();
   try {
     const now = 1_700_000_000_000;
     context.registrationStore.ensureLoggedInPlayer({ user: user(1), ipFingerprint: 'shared-ip', now });
-    context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'shared-ip', now: now + 1 });
-    const incidentId = context.registrationStore.listBanIncidents()[0].id;
-    context.registrationStore.unbanIncident({
-      incidentId, adminUserId: 99, note: '允许继续使用', requestKey: 'same-ip-manual-unban-1', now: now + 2,
-    });
     const inviteCode = context.registrationStore.invitations.ensureInviteCode(1, now).code;
-    const result = context.registrationStore.claimManualInvitation({
-      user: user(2), inviteCode, requestKey: 'same-ip-manual-claim-1', now: now + 3,
-    });
-    assert.match(result.message, /不发放邀请宝石/);
+
+    const result = context.store.transaction(() => context.registrationStore.ensurePlayerRegistrationInTransaction({
+      user: user(2),
+      ipFingerprint: 'shared-ip',
+      source: 'email_verification',
+      inviteCode,
+      invitationSource: 'manual_code',
+      invitationRequestKey: 'same-ip-manual-registration-1',
+      now: now + 1,
+    }));
+
+    assert.equal(result.relation.source, 'manual_code');
     assert.equal(result.relation.status, 'blocked_same_ip');
-    assert.equal(context.store.loadWorld(now + 4).world.players['1'].gems, 0);
-    assert.throws(() => context.registrationStore.claimManualInvitation({
-      user: user(2), inviteCode, requestKey: 'same-ip-manual-claim-2', now: now + 4,
-    }), /已经绑定邀请关系/);
+    assert.equal(context.store.loadWorld(now + 2).world.players['1'].gems, 0);
+    assert.equal(context.store.database.prepare('SELECT COUNT(*) AS count FROM economy_gem_ledger').get().count, 0);
   } finally {
     context.store.close();
   }

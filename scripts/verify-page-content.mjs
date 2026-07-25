@@ -286,6 +286,13 @@ for (const text of [
 ]) requireText('src/styles/desktop-sidebar.css', text);
 for (const text of ['AdminBanApp', "path === '/economy/admin/bans'"]) forbidText('src/app/App.tsx', text);
 forbidText('src/pages/SettingsPage.tsx', '/economy/admin/bans');
+forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');
+for (const text of ["import { InvitationSettings }", '<InvitationSettings />']) {
+  requireText('src/pages/GemShopPage.tsx', text);
+}
+for (const text of ['填写好友邀请码', '确认填写', 'claimInvitation']) {
+  forbidText('src/components/InvitationSettings.tsx', text);
+}
 for (const text of ['getCommunityLink(controller.signal)', 'DEFAULT_QQ_GROUP_URL']) {
   requireText('src/components/shell/GameShell.tsx', text);
 }
@@ -398,14 +405,20 @@ for (const text of [
   '生产商品总数',
   '买入商品总数',
   '卖出商品总数',
-  'InvitationSettings',
   '礼品兑换',
   '退出登录',
   '全局使用 K/M/B/T 缩写大额金额、库存、数量与容量',
   'formatNumber(game.stats.workClicks)',
 ]) requireText('src/pages/SettingsPage.tsx', text);
-for (const text of ['邀请好友', '分享链接', '我的邀请码', '填写好友邀请码', '累计宝石']) {
+for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册填写', '注册完成后不能补填或更换', '累计宝石']) {
   requireText('src/components/InvitationSettings.tsx', text);
+}
+for (const text of ['填写好友邀请码', '确认填写', 'claimInvitation']) {
+  forbidText('src/components/InvitationSettings.tsx', text);
+}
+forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');
+for (const text of ["import { InvitationSettings }", '<InvitationSettings />']) {
+  requireText('src/pages/GemShopPage.tsx', text);
 }
 for (const text of ['登录会话', '重置经济状态', '重置服务器经济状态', '使用万和百万单位缩写大额资产', '全局使用 K/M/B/T 缩写大额金额与状态栏容量']) {
   forbidText('src/pages/SettingsPage.tsx', text);
@@ -444,8 +457,8 @@ for (const text of [
   '概览｜市场｜生产｜资产｜拍卖｜合同｜排行｜商店｜设置',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包竞价及结算结果 |',
   '| 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |',
-  '| 商店 | `gem-shop` | `GemShopPage` | 宝石单向兑换普通货币 |',
-  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、邀请、礼品和退出 |',
+  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与宝石单向兑换普通货币 |',
+  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、礼品和退出 |',
   '页面主标题固定为“生产”',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
@@ -464,7 +477,7 @@ for (const text of [
   '单批货款 20% 的履约保证金',
   '合同交付不写入统一订单簿最近成交价、价格曲线、商品估值或交易榜',
   '登录模式只调用现有统一账号登录，不得在 401 后自动注册',
-  '邀请卡必须展示服务器返回的宝石余额、专属分享链接、永久邀请码',
+  '邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',
   'Logo 在展开与折叠状态统一为 `40×40px`',
   '两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG',
   '管理员后台左侧导航复用同一侧栏骨架与动画',

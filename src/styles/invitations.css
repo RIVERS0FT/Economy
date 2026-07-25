@@ -23,19 +23,12 @@
   margin-top: 16px;
 }
 
-.manual-invite-claim,
-.invitation-bound-state,
 .recent-invitations {
   display: grid;
   gap: 10px;
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.25));
-}
-
-.invitation-bound-state span,
-.invitation-bound-state small {
-  display: block;
 }
 
 .recent-invitations > div {

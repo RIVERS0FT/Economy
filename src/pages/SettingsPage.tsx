@@ -1,6 +1,5 @@
 import { type ChangeEvent, useState } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
-import { InvitationSettings } from '../components/InvitationSettings';
 import { SelectInput, TextInput } from '../components/ui/FormControls';
 import {
   Button,
@@ -48,7 +47,7 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
   }
 
   return (
-    <PageLayout title="设置" description="管理玩家资料、客户端偏好、基础教程、邀请和礼品兑换。">
+    <PageLayout title="设置" description="管理玩家资料、客户端偏好、基础教程和礼品兑换。">
       <div className="settings-layout">
         <div className="settings-primary-column">
           <Panel className="widget profile-settings-card">
@@ -75,8 +74,6 @@ export function SettingsPage({ model }: { model: TutorialAwareGameViewModel }) {
               <div><span>卖出商品总数</span><strong>{formatNumber(game.stats.soldGoods)}</strong></div>
             </div>
           </Panel>
-
-          <InvitationSettings />
         </div>
 
         <div className="settings-side-column">
