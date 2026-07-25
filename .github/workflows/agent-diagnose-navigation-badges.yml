@@ -1,4 +1,4 @@
-name: Apply navigation badge form verification
+name: Update navigation badge form verification
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  apply:
+  update:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'agent/unified-navigation-badges'
@@ -25,28 +25,39 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-      - name: Apply verification update and run build
+      - name: Update and validate form verification
         run: |
-          git apply --check .agent/navigation-badge-form-verification.patch
-          git apply .agent/navigation-badge-form-verification.patch
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-form-controls.mjs')
+          text = path.read_text()
+          replacements = {
+              "  'const MAX_SIDEBAR_BADGE_COUNT = 999;',": "  'badges: NavigationBadgeMap',",
+              "  'className=\"sidebar-nav-count\"',": "  'className=\"navigation-badge\"',",
+              "  'title={`${formatNumber(openOrderCount)} 笔未完成订单`}',": "  'formatNavigationBadgeCount(navigationBadge.count)',",
+              "  '.desktop-sidebar .sidebar-nav-count {',": "  '.desktop-sidebar .navigation-badge {',",
+              "  '.desktop-sidebar[data-collapsed=\"true\"] .sidebar-nav-button .sidebar-nav-count {',": "  '.desktop-sidebar[data-collapsed=\"true\"] .sidebar-nav-button .navigation-badge {',",
+              "  '.desktop-sidebar .sidebar-nav-button .sidebar-nav-count {',": "  '.desktop-sidebar .sidebar-nav-button .navigation-badge {',",
+              "  '.desktop-sidebar .sidebar-nav-button small {',\n  'left: 32px;',": "  '.desktop-sidebar .sidebar-nav-button small {',\n  'sidebar-nav-count',\n  'left: 32px;',",
+              "  '展开态固定在第三网格列的右侧',": "  '展开态固定在第三网格列右侧',",
+              "  '折叠态与 `721px–960px` 自动紧凑侧栏固定在按钮内部右上角',": "  '折叠态、`721px–960px` 自动紧凑侧栏和移动底栏固定在按钮内部右上角',\n  '只显示 `1`～`99` 或 `99+`',",
+              "  'market order badge stays inside expanded, collapsed and compact sidebar buttons',": "  'navigation badge stays inside expanded, collapsed and compact sidebar buttons',",
+              "统一表单与侧栏角标验证失败": "统一表单与统一导航角标验证失败",
+              "统一表单、数字草稿、整数输入滚轮归属、侧栏市场角标与移动端尺寸验证通过。": "统一表单、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。",
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'form verification context changed ({count}): {old}')
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
           rm -f .agent/navigation-badge-form-verification.patch
           rm -f .agent/navigation-badges-ci-error.txt
-
-          set +e
-          npm ci > /tmp/navigation-badge-ci.log 2>&1
-          status=$?
-          if [ "$status" -eq 0 ]; then
-            npm run build >> /tmp/navigation-badge-ci.log 2>&1
-            status=$?
-          fi
-          if [ "$status" -ne 0 ]; then
-            tail -n 400 /tmp/navigation-badge-ci.log > .agent/navigation-badges-ci-error.txt
-          fi
-
+          node scripts/verify-form-controls.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "更新统一导航角标表单防回退"
           git push origin HEAD:agent/unified-navigation-badges
-          exit 0
