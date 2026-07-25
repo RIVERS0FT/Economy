@@ -49,6 +49,19 @@ check(pageDesign.includes('签到日历'), 'page design must record the check-in
 check(pageDesign.includes('邀请获取宝石与宝石单向兑换普通货币'), 'shop invitation responsibility must remain documented');
 check(serverDesign.includes('economy_daily_check_ins'), 'server design must record check-in persistence');
 
+const staleVersion = String(17);
+const staleFragments = [
+  `version: ${staleVersion};`,
+  `客户端状态版本：\`${staleVersion}\``,
+  `客户端状态版本：${staleVersion}`,
+];
+for (const fileName of fs.readdirSync(path.join(root, 'scripts')).filter((name) => name.endsWith('.mjs'))) {
+  const source = read(`scripts/${fileName}`);
+  for (const fragment of staleFragments) {
+    check(!source.includes(fragment), `${fileName} must not hard-code stale current client version ${staleVersion}`);
+  }
+}
+
 if (failures.length > 0) {
   console.error('Daily check-in verification failed:');
   for (const failure of failures) console.error(`- ${failure}`);
