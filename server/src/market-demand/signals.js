@@ -1,3 +1,4 @@
+import { getOrderBookSide, recordOrderBookVisit } from '../order-book-runtime.js';
 import { PRICE_WINDOW_MS } from './catalog.js';
 import { clamp } from './math.js';
 
@@ -35,20 +36,21 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
   }
 
   function orderBookQuote(world, product, depth, referencePrice) {
-    const asks = (world.orders || [])
-      .filter((order) => order.ownerType === 'player'
-        && order.productId === product.id
-        && order.side === 'sell'
-        && isOpenOrder(order))
-      .sort((left, right) => Number(left.price) - Number(right.price) || Number(left.createdAt) - Number(right.createdAt));
+    const asks = getOrderBookSide(world, {
+      assetKind: 'commodity',
+      assetId: product.id,
+      side: 'sell',
+    });
     const targetDepth = Math.max(1, Math.ceil(depth));
-    if (asks.length === 0) return { quote: referencePrice, available: 0, coverage: 0 };
     let remaining = targetDepth;
     let available = 0;
     let cost = 0;
     let fallbackPrice = referencePrice;
+    let visited = 0;
     for (const ask of asks) {
+      visited += 1;
       if (remaining <= 0) break;
+      if (ask.ownerType !== 'player' || !isOpenOrder(ask)) continue;
       const quantity = Math.min(remaining, Math.max(0, Number(ask.remaining || 0)));
       if (quantity <= 0) continue;
       fallbackPrice = Math.max(fallbackPrice, Number(ask.price || referencePrice));
@@ -56,6 +58,8 @@ export function createMarketSignalRuntime({ marketFor, isOpenOrder }) {
       available += quantity;
       remaining -= quantity;
     }
+    recordOrderBookVisit(world, visited);
+    if (available === 0) return { quote: referencePrice, available: 0, coverage: 0 };
     if (remaining > 0) cost += remaining * fallbackPrice;
     return {
       quote: Math.max(1, cost / targetDepth),

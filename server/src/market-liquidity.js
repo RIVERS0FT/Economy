@@ -16,6 +16,7 @@ import {
 } from './market-demand/catalog.js';
 import { allocateIntegerBudget, clamp, round4 } from './market-demand/math.js';
 import { bestSystemPrice, systemBookIsCrossed } from './order-book-integrity.js';
+import { bestSystemOrder as indexedBestSystemOrder, ordersForDemandGroup } from './order-book-runtime.js';
 
 const LIQUIDITY_BUY = 'liquidity-buy';
 const LIQUIDITY_SELL = 'liquidity-sell';
@@ -148,27 +149,17 @@ export function createMarketLiquidityRuntime({
   }
 
   function cancelGroupOrders(world, groupId) {
-    for (const order of world.orders || []) {
-      if (
-        order.ownerType === 'population'
-        && order.demandGroupId === groupId
-        && (order.demandTier === LIQUIDITY_BUY || order.demandTier === LIQUIDITY_SELL)
-      ) releaseOpenOrder(world, order);
-    }
+  for (const order of ordersForDemandGroup(world, groupId)) {
+    if (
+      order.ownerType === 'population'
+      && (order.demandTier === LIQUIDITY_BUY || order.demandTier === LIQUIDITY_SELL)
+    ) releaseOpenOrder(world, order);
   }
+}
 
   function bestSystemOrder(world, productId, side) {
-    const orders = (world.orders || []).filter((order) => (
-      order.ownerType === 'population'
-      && order.productId === productId
-      && order.side === side
-      && isOpenOrder(order)
-    ));
-    orders.sort(side === 'buy'
-      ? (left, right) => Number(right.price) - Number(left.price) || Number(left.createdAt) - Number(right.createdAt)
-      : (left, right) => Number(left.price) - Number(right.price) || Number(left.createdAt) - Number(right.createdAt));
-    return orders[0] || null;
-  }
+  return indexedBestSystemOrder(world, 'commodity', productId, side);
+}
 
   function repairCrossedSystemBook(world, groupId, productId) {
     let repaired = 0;

@@ -9,6 +9,7 @@ import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
+import { countOpenOrdersForOwner, facilitySellQuantityForOwner } from './order-book-runtime.js';
 import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
@@ -134,17 +135,8 @@ function publicOrderView(order, userId) {
   return normalized;
 }
 
-function facilityOrders(world, typeId) {
-  return (world.orders || []).filter((order) => (
-    orderKind(order) === 'facility' && orderAssetId(order) === typeId
-  ));
-}
-
 function listedQuantity(world, ownerId, typeId) {
-  return facilityOrders(world, typeId).reduce((sum, order) => {
-    if (Number(order.ownerId) !== Number(ownerId) || order.side !== 'sell' || !isOpenOrder(order)) return sum;
-    return sum + Math.max(0, Number(order.remaining || 0));
-  }, 0);
+  return facilitySellQuantityForOwner(world, ownerId, typeId);
 }
 
 function auctionItems(auction) {
@@ -822,8 +814,7 @@ function placeFacilityOrder(world, userId, payload, now) {
   const quantity = normalizePositiveInteger(payload.quantity, MAX_FACILITY_ORDER_QUANTITY);
   const price = normalizePositiveInteger(payload.price ?? payload.unitPrice, MAX_ORDER_PRICE);
   if (!side || !type || !quantity || !price) return result(false, '工厂订单参数无效');
-  const openOrders = (world.orders || []).filter((order) => Number(order.ownerId) === userId && isOpenOrder(order));
-  if (openOrders.length >= MAX_OPEN_ORDERS) return result(false, '未完成订单数量已达上限');
+  if (countOpenOrdersForOwner(world, userId) >= MAX_OPEN_ORDERS) return result(false, '未完成订单数量已达上限');
   if (price < Math.ceil(type.systemValue * 0.5) || price > type.systemValue * 2) {
     return result(false, '工厂订单价格必须在系统参考价的 50%～200% 之间');
   }

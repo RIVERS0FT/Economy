@@ -1,4 +1,4 @@
-import { isOpenOrder, orderKind } from './order-identity.js';
+import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
 import { creditPopulationEmploymentForPlayer } from './population-economy.js';
 
 export const WAREHOUSE_BASE_CAPACITY = 500;
@@ -42,15 +42,7 @@ function auctionCommodityQuantity(auction) {
 }
 
 function reservedBuyQuantity(world, userId) {
-  const orderReserved = (world?.orders || []).reduce((sum, order) => {
-    if (
-      Number(order?.ownerId) !== Number(userId)
-      || orderKind(order) === 'facility'
-      || order?.side !== 'buy'
-      || !isOpenOrder(order)
-    ) return sum;
-    return sum + Math.max(0, Number(order.remaining || 0));
-  }, 0);
+  const orderReserved = pendingCommodityBuyQuantityForOwner(world, userId);
   const auctionReserved = (world?.assetAuctions || []).reduce((sum, auction) => {
     if (
       Number(auction?.highestBidderId) !== Number(userId)

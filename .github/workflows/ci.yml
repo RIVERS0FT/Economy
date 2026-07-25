@@ -9,151 +9,49 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout PR branch
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
+          cache: npm
 
-      - name: Extract generators and integration patch
-        shell: bash
-        run: |
-          set -euo pipefail
-          git show c160ef417143e1f32d4dba62f33528d243a5f7d6:.github/workflows/apply-order-book-runtime-index.yml > /tmp/original-workflow.yml
-          git show d4c0456e180dddd6c10ecdf30ca1c9964aaffd51:.github/workflows/ci.yml > /tmp/integration-workflow.yml
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Install dependencies
+        run: npm ci
 
-          original = Path('/tmp/original-workflow.yml').read_text(encoding='utf-8').splitlines()
-          start = next(index for index, line in enumerate(original) if line == '      - name: Implement runtime order book index')
-          run_line = next(index for index in range(start, len(original)) if original[index] == '        run: |')
-          shell_lines = []
-          for line in original[run_line + 1:]:
-              if line.startswith('      - name: '):
-                  break
-              shell_lines.append(line[10:] if line else '')
-          shell_script = '\n'.join(shell_lines) + '\n'
-          patch_start = shell_script.index("python3 - <<'PY'\n")
-          patch_end = shell_script.index('\nPY\n', patch_start) + len('\nPY\n')
-          shell_script = shell_script[:patch_start] + shell_script[patch_end:]
-          Path('/tmp/generate-order-book-runtime.sh').write_text(shell_script, encoding='utf-8')
-
-          integration = Path('/tmp/integration-workflow.yml').read_text(encoding='utf-8').splitlines()
-          step = next(index for index, line in enumerate(integration) if line == '      - name: Patch integration points')
-          python_line = next(index for index in range(step, len(integration)) if integration[index] == "          python3 - <<'PY'")
-          patch_lines = []
-          for line in integration[python_line + 1:]:
-              if line == '          PY':
-                  break
-              patch_lines.append(line[10:] if line else '')
-          patch_text = '\n'.join(patch_lines) + '\n'
-          demand_start = patch_text.index("replace_once(\n    'server/src/market-demand.js',\n    '''    const previousCycleId")
-          demand_end = patch_text.index("replace_section(\n    'server/src/market-demand.js',\n    '  function groupOpenOrderValue'", demand_start)
-          corrected_demand_patch = '''replace_section(
-              'server/src/market-demand.js',
-              '    const previousCycleId = Number(state.lastCycleId);',
-              '    if (cycleOrders.length === 0) {',
-              ''' + "'''" + '''    const previousCycleId = Number(state.lastCycleId);
-            const groupOrders = ordersForDemandGroup(world, group.id);
-            const cycleOrders = groupOrders.filter((order) => (
-              isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
-            ));
-          ''' + "'''" + ''',
-          )
-          replace_once(
-              'server/src/market-demand.js',
-              "    for (const order of world.orders || []) {\\n      if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;\\n",
-              "    for (const order of groupOrders) {\\n      if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;\\n",
-          )
-          replace_section(
-              'server/src/market-demand.js',
-              '  function prepareGroupOrders(world, group, state, cycleId) {',
-              '    const cycleStartedAt',
-              ''' + "'''" + '''  function prepareGroupOrders(world, group, state, cycleId) {
-            const groupOrders = ordersForDemandGroup(world, group.id)
-              .filter((order) => isConsumptionOrder(order, group.id));
-          ''' + "'''" + ''',
-          )
-
-          '''
-          patch_text = patch_text[:demand_start] + corrected_demand_patch + patch_text[demand_end:]
-          old_literal = '"    }).map((entry) => entry.id);\\n"'
-          new_literal = '"  }).map((entry) => entry.id);\\n"'
-          old_filtered_literal = '"    }).filter(isOpenOrder).map((entry) => entry.id);\\n"'
-          new_filtered_literal = '"  }).filter(isOpenOrder).map((entry) => entry.id);\\n"'
-          if patch_text.count(old_literal) != 1 or patch_text.count(old_filtered_literal) != 1:
-              raise RuntimeError('Unable to find generated test mapping literals')
-          patch_text = patch_text.replace(old_literal, new_literal, 1)
-          patch_text = patch_text.replace(old_filtered_literal, new_filtered_literal, 1)
-          Path('/tmp/patch-order-book-integration.py').write_text(patch_text, encoding='utf-8')
-          PY
-          bash /tmp/generate-order-book-runtime.sh
-
-      - name: Run integration patch
-        id: patch
-        continue-on-error: true
+      - name: Build and test
         shell: bash
         run: |
           set -o pipefail
-          python3 /tmp/patch-order-book-integration.py 2>&1 | tee patch-order-book.log
+          npm run build 2>&1 | tee build-test.log
 
-      - name: Upload integration failure log
-        if: steps.patch.outcome == 'failure'
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test browser runtime
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload test artifacts
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: order-book-integration-log-${{ github.run_id }}
-          path: patch-order-book.log
-          if-no-files-found: error
+          name: economy-test-artifacts
+          path: |
+            build-test.log
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
           retention-days: 3
-
-      - name: Stop after integration failure
-        if: steps.patch.outcome == 'failure'
-        run: exit 1
-
-      - name: Restore standard CI
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-
-      - name: Run focused verification
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check server/src/order-book-runtime.js
-          node --check server/src/order-matching.js
-          node --check server/src/order-book-integrity.js
-          node --check server/src/market-demand/signals.js
-          node --test \
-            server/test/order-book-runtime.test.js \
-            server/test/order-matching.test.js \
-            server/test/order-book-integrity.test.js \
-            server/test/warehouse.test.js \
-            server/test/market-liquidity.test.js
-          node scripts/verify-order-matching-core.mjs
-          node scripts/verify-runtime-efficiency.mjs
-
-      - name: Commit implementation
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m '优化订单簿运行时索引'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
+import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js';
 
 const MAX_PLAYER_FILLS = 120;
 
@@ -61,24 +62,21 @@ export function matchIncomingOrder({
   const oppositeSide = incoming.side === 'buy' ? 'sell' : incoming.side === 'sell' ? 'buy' : null;
   if (!oppositeSide || !incomingAssetId) return { fillCount: 0, filledQuantity: 0 };
 
-  const candidates = (world.orders || [])
-    .filter((resting) => (
-      resting.id !== incoming.id
-      && orderKind(resting) === incomingKind
-      && orderAssetId(resting) === incomingAssetId
-      && resting.side === oppositeSide
-      && isOpenOrder(resting)
-      && !samePlayer(incoming, resting)
-      && orderPricesCross(incoming.side, incoming.price, resting.price)
-      && canMatch({ world, incoming, resting })
-    ))
-    .sort((left, right) => compareRestingOrders(incoming.side, left, right));
+  const candidates = getOrderBookSide(world, {
+  assetKind: incomingKind,
+  assetId: incomingAssetId,
+  side: oppositeSide,
+});
 
-  let fillCount = 0;
-  let filledQuantity = 0;
-  for (const resting of candidates) {
-    if (!isOpenOrder(incoming)) break;
-    if (!isOpenOrder(resting)) continue;
+let fillCount = 0;
+let filledQuantity = 0;
+let visited = 0;
+for (const resting of candidates) {
+  if (!isOpenOrder(incoming)) break;
+  visited += 1;
+  if (resting.id === incoming.id || !isOpenOrder(resting)) continue;
+  if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;
+  if (samePlayer(incoming, resting) || !canMatch({ world, incoming, resting })) continue;
 
     const quantity = Math.min(Number(incoming.remaining), Number(resting.remaining));
     if (!Number.isFinite(quantity) || quantity <= 0) continue;
@@ -142,5 +140,6 @@ export function matchIncomingOrder({
     filledQuantity += quantity;
   }
 
+  recordOrderBookVisit(world, visited);
   return { fillCount, filledQuantity };
 }
