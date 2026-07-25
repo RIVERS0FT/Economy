@@ -33,13 +33,30 @@ jobs:
         run: node .agent/apply-production-cluster-summary.mjs
 
       - name: Build and run full static and server checks
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee production-cluster-build.log
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Verify production status summary in browser
-        run: npm run test:browser -- tests/browser/production-status-summary.spec.ts
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:browser -- tests/browser/production-status-summary.spec.ts 2>&1 | tee production-cluster-browser.log
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-cluster-summary-diagnostics
+          path: |
+            production-cluster-build.log
+            production-cluster-browser.log
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Commit verified source changes
         run: |
