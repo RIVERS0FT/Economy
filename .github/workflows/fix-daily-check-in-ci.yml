@@ -79,6 +79,11 @@ jobs:
 
           browser_spec = Path('tests/browser/runtime.spec.ts')
           text = browser_spec.read_text()
+          text = text.replace(
+              "  await expect(days.nth(0)).toHaveAttribute('aria-label', /周一 07-13 已签/);\n  await expect(days.nth(4)).toHaveAttribute('aria-label', /周五 07-17 今日/);",
+              "  await expect(days.nth(0)).toHaveAttribute('aria-label', /周一 07-13 已签/);\n  await expect(days.nth(2)).toHaveAttribute('aria-label', /周三 07-15 漏签/);\n  await expect(days.nth(4)).toHaveAttribute('aria-label', /周五 07-17 今日/);",
+              1,
+          )
           insertion = """
 
 test('overview check-in calendar preserves seven columns on mobile', async ({ page }) => {
@@ -129,6 +134,16 @@ test('overview check-in calendar preserves seven columns on mobile', async ({ pa
           text = text.replace(
               "      todayKey: '2026-07-17',",
               "      todayKey: scenario === 'check-in-complete' ? '2026-07-19' : '2026-07-17',",
+              1,
+          )
+          text = text.replace(
+              "        : ['2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16'],",
+              "        : ['2026-07-13', '2026-07-14', '2026-07-16'],",
+              1,
+          )
+          text = text.replace(
+              "      weeklyClaimCount: scenario === 'check-in-complete' ? 7 : 4,",
+              "      weeklyClaimCount: scenario === 'check-in-complete' ? 7 : 3,",
               1,
           )
           harness.write_text(text)
