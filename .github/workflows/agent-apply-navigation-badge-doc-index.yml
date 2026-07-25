@@ -1,0 +1,38 @@
+name: Apply navigation badge document index
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/agent-apply-navigation-badge-doc-index.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/unified-navigation-badges'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/unified-navigation-badges
+          fetch-depth: 0
+          show-progress: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Apply and validate document index
+        run: |
+          git apply --check .agent/navigation-badge-doc-index.patch
+          git apply .agent/navigation-badge-doc-index.patch
+          rm -f .agent/navigation-badge-doc-index.patch
+          node scripts/verify-asset-auctions.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "调整导航角标设计索引职责顺序"
+          git push origin HEAD:agent/unified-navigation-badges
