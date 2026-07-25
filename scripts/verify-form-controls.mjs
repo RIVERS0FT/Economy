@@ -18,6 +18,8 @@ const componentPath = 'src/components/ui/FormControls.tsx';
 const draftPath = 'src/utils/integerDraft.ts';
 const stylePath = 'src/styles/form-controls.css';
 const navigationPath = 'src/components/shell/NavigationItems.tsx';
+const badgeComponentPath = 'src/components/ui/NavigationBadge.tsx';
+const badgeModelPath = 'src/navigation/navigationBadges.ts';
 const sidebarStylePath = 'src/styles/desktop-sidebar.css';
 const mainPath = 'src/main.tsx';
 const designDocPath = 'docs/UI_DESIGN_SYSTEM.md';
@@ -30,6 +32,8 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   draftPath,
   stylePath,
   navigationPath,
+  badgeComponentPath,
+  badgeModelPath,
   sidebarStylePath,
   mainPath,
   designDocPath,
@@ -84,18 +88,32 @@ for (const text of [
 ]) requireText(stylePath, text);
 
 for (const text of [
-  'const MAX_SIDEBAR_BADGE_COUNT = 999;',
-  'className="sidebar-nav-count"',
+  'badges: NavigationBadgeMap;',
+  'const badge = badges[id];',
   'aria-label={accessibleLabel}',
-  'title={`${formatNumber(openOrderCount)} 笔未完成订单`}',
+  '<NavigationBadge badge={badge} />',
 ]) requireText(navigationPath, text);
+for (const forbidden of [
+  'openOrderCount',
+  "id === 'market'",
+  'sidebar-nav-count',
+]) forbidText(navigationPath, forbidden);
+
+for (const text of [
+  'export const MAX_NAVIGATION_BADGE_COUNT = 99;',
+  'formatNavigationBadgeCount',
+]) requireText(badgeModelPath, text);
+for (const text of [
+  'className="navigation-badge"',
+  'formatNavigationBadgeCount(badge.count)',
+]) requireText(badgeComponentPath, text);
 
 for (const text of [
   'grid-template-columns: var(--desktop-sidebar-rail) minmax(0, 1fr) auto;',
-  '.desktop-sidebar .sidebar-nav-count {',
+  '.desktop-sidebar .navigation-badge {',
   'position: static;',
-  '.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .sidebar-nav-count {',
-  '.desktop-sidebar .sidebar-nav-button .sidebar-nav-count {',
+  '.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .navigation-badge {',
+  '.desktop-sidebar .sidebar-nav-button .navigation-badge {',
   'top: 2px;',
   'right: 2px;',
   'left: auto;',
@@ -104,6 +122,7 @@ for (const text of [
 ]) requireText(sidebarStylePath, text);
 for (const forbidden of [
   '.desktop-sidebar .sidebar-nav-button small {',
+  '.sidebar-nav-count',
   'left: 32px;',
 ]) forbidText(sidebarStylePath, forbidden);
 
@@ -156,8 +175,10 @@ for (const text of [
   '移动端输入字号不得低于 `16px`',
   '整数输入始终拥有发生在自身命中区域内的滚轮事件',
   '非被动原生 `wheel` 监听器',
-  '展开态固定在第三网格列的右侧',
-  '折叠态与 `721px–960px` 自动紧凑侧栏固定在按钮内部右上角',
+  '一个页面最多显示一个绿色数字角标',
+  '超过显示 `99+`',
+  '展开态固定在第三网格列右侧',
+  '自动紧凑侧栏和移动底栏固定在按钮内部右上角',
 ]) requireText(designDocPath, text);
 
 for (const text of [
@@ -167,14 +188,16 @@ for (const text of [
 ]) requireText(integerWheelTestPath, text);
 for (const text of [
   'market order badge stays inside expanded, collapsed and compact sidebar buttons',
+  'navigation badge caps visible counts at 99+',
+  'auction and contract badges merge unique objects and keep persistent attention after visiting',
   'expectBadgeInside(expanded)',
   'expectBadgeInside(collapsed)',
   'expectBadgeInside(compact)',
 ]) requireText(sidebarBadgeTestPath, text);
 
 if (failures.length) {
-  console.error(`统一表单与侧栏角标验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`统一表单与导航角标验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('统一表单、数字草稿、整数输入滚轮归属、侧栏市场角标与移动端尺寸验证通过。');
+console.log('统一表单、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');
