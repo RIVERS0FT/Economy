@@ -100,11 +100,11 @@ for (const text of [
   'settleLiquiditySell',
   'SYSTEM_ORDER_RETENTION_RATE',
   'DEMAND_CURVE',
-  'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.015',
-  'DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE = 0.10',
-  'DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE = 0.05',
-  'DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE = 0.04',
-  'DIRECT_DEMAND_SHORTAGE_PRICE_STEP = 1.01',
+  'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.0075',
+  'DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE = 0.05',
+  'DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE = 0.025',
+  'DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE = 0.02',
+  'DIRECT_DEMAND_SHORTAGE_PRICE_STEP = 1.005',
   'DIRECT_DEMAND_PRICE_RECOVERY_RATE = 0.30',
   'DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP = 0.98',
   'DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES = 2',
@@ -155,9 +155,9 @@ for (const text of [
   'direct demand quote anchor accumulates fractional no-fill increases and recovers after service',
   'sustained fast full service lowers all direct demand tiers below reference price',
   'direct demand quote anchor stops at absolute price one',
-  'zero fill below reference accelerates recovery while partial service recovers gently',
+  'zero fill below reference recovers slowly while partial service recovers more gently',
   'no direct demand converges toward reference and derived liquidity ignores a low direct anchor',
-  'shortage pressure approaches the reference premium by at most one percent per cycle',
+  'shortage pressure approaches the reference premium by at most half a percent per cycle',
 ]) assert.ok(marketDemandTests.includes(text), '市场需求测试缺少模型 10 双向报价回归: ' + text);
 
 const populationTests = read('server/test/population-economy.test.js');
@@ -184,8 +184,8 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`10`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '双向报价锚点']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：10', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点']],
+  ['README.md', ['市场需求模型版本：`10`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '双向报价锚点', '零成交时按 0.75%', '参考价缺口 5%', '单周期最多参考价 2%', '只恢复 2.5% 缺口', '每周期最多追涨 0.5%']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：10', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.75%', '参考价缺口的 5%', '最多为参考价的 2%', '只恢复 2.5% 缺口', '当前报价锚点上追涨 0.5%']],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：10', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 4', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 10', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
