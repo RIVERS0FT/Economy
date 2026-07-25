@@ -45,6 +45,16 @@ class FakeClock {
   }
 }
 
+function createScheduledStore(clock, options = {}) {
+  return new EconomyStore(':memory:', {
+    scheduledProcessing: true,
+    nowProvider: () => clock.now,
+    setTimeoutFn: clock.setTimeout,
+    clearTimeoutFn: clock.clearTimeout,
+    ...options,
+  });
+}
+
 test('construction employment deadline is the next integer release boundary', () => {
   assert.equal(nextConstructionEmploymentAt({
     startedAt: 1_000,
@@ -90,12 +100,7 @@ test('world deadline planner selects the earliest authoritative event', () => {
 
 test('deadline scheduler performs zero world transactions during a 60 second idle window', () => {
   const clock = new FakeClock(1_800_000_000_000);
-  const store = new EconomyStore(':memory:', {
-    scheduledProcessing: true,
-    nowProvider: () => clock.now,
-    setTimeoutFn: clock.setTimeout,
-    clearTimeoutFn: clock.clearTimeout,
-  });
+  const store = createScheduledStore(clock);
   try {
     clock.advance(0);
     store.resetSchedulerDiagnostics();
@@ -112,12 +117,7 @@ test('deadline scheduler performs zero world transactions during a 60 second idl
 
 test('deadline scheduler wakes at the planned event and processes one world transaction', () => {
   const clock = new FakeClock(1_800_000_000_000);
-  const store = new EconomyStore(':memory:', {
-    scheduledProcessing: true,
-    nowProvider: () => clock.now,
-    setTimeoutFn: clock.setTimeout,
-    clearTimeoutFn: clock.clearTimeout,
-  });
+  const store = createScheduledStore(clock);
   try {
     clock.advance(0);
     store.resetSchedulerDiagnostics();
@@ -129,6 +129,66 @@ test('deadline scheduler wakes at the planned event and processes one world tran
     assert.equal(diagnostics.processedWakeups, 1);
     assert.ok(diagnostics.lastLagMs >= 0);
   } finally {
+    store.close();
+  }
+});
+
+test('long deadline timer segments early wakeups without opening a world transaction', () => {
+  const clock = new FakeClock(1_800_000_000_000);
+  const store = createScheduledStore(clock, { schedulerMaxDelayMs: 10_000 });
+  try {
+    clock.advance(0);
+    store.resetSchedulerDiagnostics();
+    const dueAt = store.getSchedulerDiagnostics().nextDueAt;
+    assert.ok(dueAt - clock.now > 10_000);
+
+    clock.advance(10_000);
+    const diagnostics = store.getSchedulerDiagnostics();
+    assert.equal(diagnostics.transactions, 0);
+    assert.equal(diagnostics.processedWakeups, 0);
+    assert.equal(diagnostics.staleWakeups, 1);
+    assert.equal(diagnostics.nextDueAt, dueAt);
+  } finally {
+    store.close();
+  }
+});
+
+test('scheduler transaction failure preserves authority and retries after the one second floor', () => {
+  const clock = new FakeClock(1_800_000_000_000);
+  const store = createScheduledStore(clock);
+  const originalProcessWorldIfDue = store.processWorldIfDue.bind(store);
+  const originalConsoleError = console.error;
+  try {
+    clock.advance(0);
+    store.resetSchedulerDiagnostics();
+    const dueAt = store.getSchedulerDiagnostics().nextDueAt;
+    const revisionBefore = store.worldCache.revision;
+    const stateJsonBefore = store.worldCache.stateJson;
+    let failOnce = true;
+    store.processWorldIfDue = (...args) => {
+      if (failOnce) {
+        failOnce = false;
+        throw new Error('forced scheduler failure');
+      }
+      return originalProcessWorldIfDue(...args);
+    };
+    console.error = () => {};
+
+    clock.advance(dueAt - clock.now);
+    let diagnostics = store.getSchedulerDiagnostics();
+    assert.equal(diagnostics.transactions, 1);
+    assert.equal(store.worldCache.revision, revisionBefore);
+    assert.equal(store.worldCache.stateJson, stateJsonBefore);
+    assert.equal(diagnostics.nextDueAt, dueAt + 1_000);
+
+    store.processWorldIfDue = originalProcessWorldIfDue;
+    clock.advance(1_000);
+    diagnostics = store.getSchedulerDiagnostics();
+    assert.equal(diagnostics.transactions, 2);
+    assert.equal(diagnostics.processedWakeups, 2);
+    assert.ok(store.worldCache.revision >= revisionBefore);
+  } finally {
+    console.error = originalConsoleError;
     store.close();
   }
 });
