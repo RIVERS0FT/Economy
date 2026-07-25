@@ -95,7 +95,7 @@ requireText('server/src/asset-auctions.js', [
   'export function migrateAssetAuctionWorld(world, now = Date.now())',
   'const legacyAuctions = Array.isArray(world.collectibleAuctions)',
   'const currentAuctions = Array.isArray(world.assetAuctions)',
-  "if (items.some((item) => item.assetKind === 'collectible'))",
+  'if (items.some((item) => item.assetKind === \'collectible\'))',
   'releaseBid(world, auction);',
   "items.filter((item) => item.assetKind !== 'collectible')",
   'delete world.collectibles;',
@@ -268,24 +268,32 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
 for (const [path, fragments] of [
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['冻结只改变可用性，不改变所有权', '托管记录不得作为第二份资产余额重复累加']],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖与订单簿隔离', '拍卖成交不属于订单簿成交']],
-  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['商品拍卖最高出价', '捆绑拍卖按资产包中全部商品数量之和预占']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['商品／工厂单项或捆绑资产包拍卖', '冻结数量退出生产']],
-  ['docs/UI_DESIGN_SYSTEM.md', ['商品／工厂资产拍卖', '统一商品 SVG 与工厂图标']],
+  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包', '全部商品数量']],
+  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['工厂订单与拍卖冻结', '整包任一项目异常时不得部分转移工厂']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['拍卖页只允许商品和工厂', '商品必须使用 `ProductIcon`', '工厂必须使用 `FactoryIcon`']],
 ]) requireText(path, fragments);
 
-forbidText('README.md', ['艺术藏品', '藏品所有权']);
-forbidText('docs/README.md', ['COLLECTIBLES_AND_AUCTIONS_DESIGN.md']);
-forbidText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['艺术藏品管理']);
-forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['藏品页', 'collections']);
-forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['藏品管理分区']);
-
 for (const path of filesUnder('src')) {
-  if (!/\.(?:ts|tsx|css)$/.test(path)) continue;
-  if (read(path).includes('/collections')) failures.push(`${relative(root, absolute(path))} 不得恢复藏品路由`);
+  const source = read(path);
+  for (const forbidden of ['collectible', 'Collectible', '藏品', 'artic.edu']) {
+    if (source.includes(forbidden)) failures.push(`${relative(root, absolute(path))} 不得保留已删除艺术资产客户端实现: ${forbidden}`);
+  }
+}
+
+const activeServerFiles = filesUnder('server/src').filter((path) => ![
+  'server/src/asset-auctions.js',
+  'server/src/app.js',
+].includes(path));
+for (const path of activeServerFiles) {
+  const source = read(path);
+  for (const forbidden of ['collectibleAuctions', 'collectibleOwnershipHistory', 'world.collectibles']) {
+    if (source.includes(forbidden)) failures.push(`${path} 不得在活动服务器模块恢复旧艺术资产状态: ${forbidden}`);
+  }
 }
 
 if (failures.length) {
   console.error(`商品／工厂资产拍卖验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('商品／工厂资产拍卖验证通过：20 项资产包、原子托管、最高出价仓库预占、工厂生产冻结、世界 15 删除迁移、数据库备份和旧接口 410 均已锁定。');
+
+console.log('商品／工厂单项与捆绑资产拍卖、世界 15 整包取消迁移、数据库快照、410 墓碑、九页导航、数量草稿、冻结与仓库预占、原子结算及订单簿行情隔离验证通过。');
