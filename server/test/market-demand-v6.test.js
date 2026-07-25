@@ -258,18 +258,26 @@ test('shortage pressure approaches the reference premium by at most half a perce
   const runtime = createRuntime();
   const world = createTestWorld(now);
   runtime.initializeWorld(world, now);
-  world.marketDemand.priceTransmission.products.food.referencePrice = 30;
-  world.marketDemand.groups.food.directQuoteAnchors.food = 10;
-  world.marketDemand.productPressure.food = 1.20;
-  world.marketDemand.groups.food.nextDemandAt = now;
+  for (const model of Object.values(world.populationEconomy.models)) {
+    model.credits = 1_000_000;
+    model.incomeEma = 100_000;
+    model.recentPeakIncome = 100_000;
+    model.lastBudget = 100_000;
+    model.pendingIncome[Object.keys(model.pendingIncome)[0]] = 100_000;
+  }
+  world.marketDemand.priceTransmission.products.appliance.referencePrice = 250;
+  world.marketDemand.groups.household.directQuoteAnchors.appliance = 150;
+  world.marketDemand.productPressure.appliance = 1.20;
+  world.marketDemand.groups.household.nextDemandAt = now;
 
-  runtime.processGroup(world, 'food', now);
+  runtime.processGroup(world, 'household', now);
 
+  assert.equal(world.marketDemand.groups.household.directQuoteAnchors.appliance, 180);
   const cycleId = Math.floor(now / constants.demandCycleMs);
-  const prices = demandOrdersFor(world, 'food', 'food', cycleId).map((order) => Number(order.price || 0));
+  const prices = demandOrdersFor(world, 'household', 'appliance', cycleId).map((order) => Number(order.price || 0));
   assert.ok(prices.length > 0);
-  assert.equal(Math.max(...prices), 16);
-  assert.ok(Math.max(...prices) < Math.round(30 * 1.03));
+  assert.equal(Math.max(...prices), 181);
+  assert.ok(Math.max(...prices) < Math.round(250 * 1.03));
 });
 
 test('market model 10 uses funded population wallets when no player is active', () => {
