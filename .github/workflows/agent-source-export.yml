@@ -1,0 +1,22 @@
+name: Agent source export
+
+on:
+  push:
+    branches:
+      - agent/banking-interest
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export source
+        run: git archive --format=zip --output=economy-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-source
+          path: economy-source.zip
+          retention-days: 1
