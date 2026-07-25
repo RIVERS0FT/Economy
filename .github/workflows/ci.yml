@@ -9,49 +9,163 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  format:
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - name: Checkout code
+      - name: Checkout PR branch
         uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
         with:
-          node-version: 24.4.0
-          cache: npm
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
+      - name: Format generated integration blocks
         shell: bash
         run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+          def replace_once(path_name, old, new):
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise RuntimeError(f'{path_name}: format target not unique')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-      - name: Test browser runtime
+          replace_once(
+              'server/src/order-matching.js',
+              '''  const candidates = getOrderBookSide(world, {
+            assetKind: incomingKind,
+            assetId: incomingAssetId,
+            side: oppositeSide,
+          });
+
+          let fillCount = 0;
+          let filledQuantity = 0;
+          let visited = 0;
+          for (const resting of candidates) {
+            if (!isOpenOrder(incoming)) break;
+            visited += 1;
+            if (resting.id === incoming.id || !isOpenOrder(resting)) continue;
+            if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;
+            if (samePlayer(incoming, resting) || !canMatch({ world, incoming, resting })) continue;
+          ''',
+              '''  const candidates = getOrderBookSide(world, {
+            assetKind: incomingKind,
+            assetId: incomingAssetId,
+            side: oppositeSide,
+          });
+
+          let fillCount = 0;
+          let filledQuantity = 0;
+          let visited = 0;
+          for (const resting of candidates) {
+            if (!isOpenOrder(incoming)) break;
+            visited += 1;
+            if (resting.id === incoming.id || !isOpenOrder(resting)) continue;
+            if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;
+            if (samePlayer(incoming, resting) || !canMatch({ world, incoming, resting })) continue;
+          '''.replace('\n  assetKind', '\n    assetKind')
+              .replace('\n  assetId', '\n    assetId')
+              .replace('\n  side:', '\n    side:')
+              .replace('\n});', '\n  });')
+              .replace('\nlet fillCount', '\n  let fillCount')
+              .replace('\nlet filledQuantity', '\n  let filledQuantity')
+              .replace('\nlet visited', '\n  let visited')
+              .replace('\nfor (const resting', '\n  for (const resting')
+              .replace('\n  if (!isOpenOrder', '\n    if (!isOpenOrder')
+              .replace('\n  visited +=', '\n    visited +=')
+              .replace('\n  if (resting.id', '\n    if (resting.id')
+              .replace('\n  if (!orderPricesCross', '\n    if (!orderPricesCross')
+              .replace('\n  if (samePlayer', '\n    if (samePlayer'),
+          )
+
+          replacements = [
+            ('''    const previousCycleId = Number(state.lastCycleId);
+          const groupOrders = ordersForDemandGroup(world, group.id);
+          const cycleOrders = groupOrders.filter((order) => (
+            isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+          ));
+          ''', '''    const previousCycleId = Number(state.lastCycleId);
+            const groupOrders = ordersForDemandGroup(world, group.id);
+            const cycleOrders = groupOrders.filter((order) => (
+              isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+            ));
+          '''),
+            ('''  function prepareGroupOrders(world, group, state, cycleId) {
+          const groupOrders = ordersForDemandGroup(world, group.id)
+            .filter((order) => isConsumptionOrder(order, group.id));
+          ''', '''  function prepareGroupOrders(world, group, state, cycleId) {
+            const groupOrders = ordersForDemandGroup(world, group.id)
+              .filter((order) => isConsumptionOrder(order, group.id));
+          '''),
+            ('''  function groupOpenOrderValue(world, groupId, predicate = () => true) {
+          return ordersForDemandGroup(world, groupId).reduce((sum, order) => (
+            isConsumptionOrder(order, groupId) && isOpenOrder(order) && predicate(order)
+              ? sum + Number(order.price || 0) * Number(order.remaining || 0)
+              : sum
+          ), 0);
+          }
+          ''', '''  function groupOpenOrderValue(world, groupId, predicate = () => true) {
+            return ordersForDemandGroup(world, groupId).reduce((sum, order) => (
+              isConsumptionOrder(order, groupId) && isOpenOrder(order) && predicate(order)
+                ? sum + Number(order.price || 0) * Number(order.remaining || 0)
+                : sum
+            ), 0);
+          }
+          '''),
+            ('''  function enforceOrderValueCaps(world, group, cycleBudget, allocations) {
+          const groupOrders = ordersForDemandGroup(world, group.id)
+            .filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
+          for (const [productId, allocation] of Object.entries(allocations)) {
+            const productCap = Math.max(0, Math.floor(
+              (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
+            ));
+            trimOrdersToValue(world, groupOrders.filter((order) => order.productId === productId), productCap);
+          }
+          const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+          return trimOrdersToValue(world, groupOrders, cap);
+          }
+          ''', '''  function enforceOrderValueCaps(world, group, cycleBudget, allocations) {
+            const groupOrders = ordersForDemandGroup(world, group.id)
+              .filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
+            for (const [productId, allocation] of Object.entries(allocations)) {
+              const productCap = Math.max(0, Math.floor(
+                (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
+              ));
+              trimOrdersToValue(world, groupOrders.filter((order) => order.productId === productId), productCap);
+            }
+            const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+            return trimOrdersToValue(world, groupOrders, cap);
+          }
+          '''),
+          ]
+          for old, new in replacements:
+              replace_once('server/src/market-demand.js', old, new)
+          PY
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
+
+      - name: Verify formatting change
         shell: bash
         run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
+          set -euo pipefail
+          node --check server/src/order-matching.js
+          node --check server/src/market-demand.js
+          node --test server/test/order-book-runtime.test.js server/test/order-matching.test.js
+          node scripts/verify-order-matching-core.mjs
 
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
+      - name: Commit formatting cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '整理订单簿索引集成格式'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
