@@ -9,19 +9,15 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  update-verifier:
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
-      - name: Checkout PR branch
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -29,66 +25,33 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Update state delivery capacity verifier
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('scripts/verify-state-delivery-capacity.mjs')
-          text = path.read_text(encoding='utf-8')
-          old = """  'this.scheduledProcessing = Boolean(scheduledProcessing)',
-            'setInterval(() =>',
-            'processScheduledWorld(now = Date.now())',
-            'structuredClone(this.worldCache.world)',
-          """
-          new = """  'this.scheduledProcessing = Boolean(scheduledProcessing)',
-            'scheduleWorldProcessing()',
-            'handleScheduledWorldWake(generation)',
-            'this.setTimeoutFn(() => this.handleScheduledWorldWake(generation), delay)',
-            'processScheduledWorld(now = this.nowProvider())',
-            'structuredClone(this.worldCache.world)',
-          """
-          if text.count(old) != 1:
-              raise RuntimeError('state capacity scheduler requirement block was not unique')
-          text = text.replace(old, new, 1)
-          old_forbid = """forbidText('server/src/storage.js', [
-            'JSON.parse(stateJson)',
-          """
-          new_forbid = """forbidText('server/src/storage.js', [
-            'setInterval(',
-            'JSON.parse(stateJson)',
-          """
-          if text.count(old_forbid) != 1:
-              raise RuntimeError('state capacity forbidden block was not unique')
-          path.write_text(text.replace(old_forbid, new_forbid, 1), encoding='utf-8')
-          PY
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-
       - name: Install dependencies
         run: npm ci
 
       - name: Build and test
         shell: bash
         run: |
-          set -euo pipefail
-          npm run build
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Test browser runtime
-        run: npm run test:browser
-
-      - name: Commit verifier update
         shell: bash
         run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m '更新到期调度容量校验'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-test-artifacts
+          path: |
+            build-test.log
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3

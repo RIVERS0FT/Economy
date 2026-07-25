@@ -75,8 +75,10 @@ requireText('server/src/storage.js', [
   "immediate ? 'BEGIN IMMEDIATE' : 'BEGIN'",
   'this.worldCache = null',
   'this.scheduledProcessing = Boolean(scheduledProcessing)',
-  'setInterval(() =>',
-  'processScheduledWorld(now = Date.now())',
+  'scheduleWorldProcessing()',
+  'handleScheduledWorldWake(generation)',
+  'this.setTimeoutFn(() => this.handleScheduledWorldWake(generation), delay)',
+  'processScheduledWorld(now = this.nowProvider())',
   'structuredClone(this.worldCache.world)',
   'isDeepStrictEqual(world, cached.world)',
   'processWorldIfDue(world, now',
@@ -89,6 +91,7 @@ requireText('server/src/storage.js', [
 ]);
 
 forbidText('server/src/storage.js', [
+  'setInterval(',
   'JSON.parse(stateJson)',
   'candidate === previousStateJson',
   'const state = createVersionedClientState(world, Number(user.id), now);\n      const response',
