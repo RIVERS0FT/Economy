@@ -113,6 +113,7 @@ export interface LoadedGameViewModel {
   refreshRate: string;
   setRefreshRate: Dispatch<SetStateAction<string>>;
   isWorking: boolean;
+  isCheckingIn: boolean;
   inventoryUsed: number;
   cashShare: number;
   commodityShare: number;
@@ -125,6 +126,7 @@ export interface LoadedGameViewModel {
   clearLocalActivity: () => void;
   signOut: () => Promise<void>;
   work: () => Promise<ActionResult>;
+  checkIn: () => Promise<ActionResult>;
   upgradeWarehouse: () => Promise<ActionResult>;
   buildFacility: (facilityTypeId?: string) => Promise<ActionResult>;
   startFacility: (facilityTypeId: string) => Promise<ActionResult>;
@@ -188,10 +190,12 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   ));
   const [refreshRate, setRefreshRate] = useState('5');
   const [isWorking, setIsWorking] = useState(false);
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
   const revisionRef = useRef<number | null>(null);
   const refreshTaskRef = useRef<RefreshTask | null>(null);
   const actionsInFlightRef = useRef(0);
   const workPendingRef = useRef(false);
+  const checkInPendingRef = useRef(false);
   const orderPendingRef = useRef(false);
   const noticeTimerRef = useRef<number | null>(null);
 
@@ -306,11 +310,18 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     if (action === 'work' && workPendingRef.current) {
       return { ok: false, message: '工作正在处理中' };
     }
+    if (action === 'checkIn' && checkInPendingRef.current) {
+      return { ok: false, message: '签到正在处理中' };
+    }
     actionsInFlightRef.current += 1;
     refreshTaskRef.current?.controller.abort();
     if (action === 'work') {
       workPendingRef.current = true;
       setIsWorking(true);
+    }
+    if (action === 'checkIn') {
+      checkInPendingRef.current = true;
+      setIsCheckingIn(true);
     }
     try {
       const response = await operation();
@@ -324,6 +335,10 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       if (action === 'work') {
         workPendingRef.current = false;
         setIsWorking(false);
+      }
+      if (action === 'checkIn') {
+        checkInPendingRef.current = false;
+        setIsCheckingIn(false);
       }
     }
   }, [handleUnauthorized, syncConfirmedAction]);
@@ -414,12 +429,13 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     marketAssetKind, marketAssetId, selectMarketAsset,
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
     playerName, setPlayerName, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
-    isWorking, inventoryUsed: derived.inventoryUsed,
+    isWorking, isCheckingIn, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, allocationStyle, avatarText,
     showResult, notify, refresh,
     clearLocalActivity: () => { setLocalActivity(clearLocalActivityStore(user.id, loadedGame)); notify('本地活动记录已清除'); },
     signOut,
     work: () => runAction('work', gameActions.work),
+    checkIn: () => runAction('checkIn', gameActions.checkIn),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
     buildFacility: (facilityTypeId = selectedFacilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
     startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),

@@ -1,12 +1,12 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { useNow } from '../hooks/useNow';
 import {
   facilityStatusReasonNames,
   orderStatusNames,
 } from '../app/gameViewModel';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
-import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon } from '../components/icons/GameIcons';
+import { GemIcon } from '../components/icons/GemIcon';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { GameGuideStrip } from '../components/GameGuideStrip';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -21,7 +21,6 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
-import { buildMarketHistoryBuckets, summarizeMarketFlow } from '../utils/marketHistory';
 import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
 function greetingForHour(hour: number) {
@@ -32,11 +31,7 @@ function greetingForHour(hour: number) {
   return '晚上好';
 }
 
-type OverviewPageProps = {
-  model: TutorialAwareGameViewModel;
-  overviewProductId: string;
-  onOverviewProductChange: (productId: string) => void;
-};
+type OverviewPageProps = { model: TutorialAwareGameViewModel };
 
 type OverviewAlert = {
   id: string;
@@ -47,36 +42,17 @@ type OverviewAlert = {
   onAction: () => void;
 };
 
-function OverviewMetric({
-  label,
-  value,
-  detail,
-  tone = 'neutral',
-}: {
-  label: string;
-  value: ReactNode;
-  detail?: ReactNode;
-  tone?: 'neutral' | 'success' | 'danger';
-}) {
-  return (
-    <div className={`overview-metric overview-metric--${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      {detail ? <small>{detail}</small> : null}
-    </div>
-  );
-}
-
-export function OverviewPage({ model, overviewProductId, onOverviewProductChange }: OverviewPageProps) {
+export function OverviewPage({ model }: OverviewPageProps) {
   const {
     game,
     derived,
     localAssetEvents,
     isWorking,
+    isCheckingIn,
     work,
+    checkIn,
     showResult,
     setTab,
-    selectMarketAsset,
   } = model;
   const now = useNow(game.lastProcessedAt);
   const workRemaining = Math.max(0, game.work.cooldownUntil - now);
@@ -97,36 +73,6 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
     return sum + Math.floor((86_400_000 / recipe.cycleMs) * recipe.output.quantity * group.participatingCount);
   }, 0), [game.facilityGroups, game.facilityTypes]);
 
-  const overviewMarket = useMemo(() => {
-    const product = game.products.find((item) => item.id === overviewProductId) ?? game.products[0];
-    if (!product) return null;
-
-    const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
-    const market = game.markets[product.id];
-    const lastPrice = market?.lastPrice ?? product.basePrice;
-    const history = market?.priceHistory ?? [];
-    const buckets = buildMarketHistoryBuckets(history, lastPrice, now);
-    let bestBid = 0;
-    let bestAsk = 0;
-
-    for (const order of game.orders) {
-      if (!['open', 'partial'].includes(order.status)) continue;
-      if (orderKind(order) !== 'commodity' || orderAssetId(order) !== product.id) continue;
-      if (order.side === 'buy') bestBid = Math.max(bestBid, order.price);
-      else if (!bestAsk || order.price < bestAsk) bestAsk = order.price;
-    }
-
-    return {
-      product,
-      inventory,
-      lastPrice,
-      buckets,
-      flow: summarizeMarketFlow(buckets),
-      bestBid,
-      bestAsk,
-      hasMarketActivity: history.length > 0 || bestBid > 0 || bestAsk > 0,
-    };
-  }, [game, now, overviewProductId]);
 
   const businessAlerts = useMemo(() => {
     const alerts: OverviewAlert[] = [];
@@ -213,15 +159,10 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
     .sort((left, right) => right.createdAt - left.createdAt)
     .slice(0, 3), [localAssetEvents, now]);
 
-  const marketOrderState = overviewMarket
-    ? overviewMarket.bestBid > 0 && overviewMarket.bestAsk > 0
-      ? `当前买卖价差：${formatCurrency(Math.max(0, overviewMarket.bestAsk - overviewMarket.bestBid))}`
-      : overviewMarket.bestBid > 0
-        ? '当前只有买单，暂无可供买入的卖单'
-        : overviewMarket.bestAsk > 0
-          ? '当前只有卖单，暂无可立即成交的买单'
-          : '当前没有有效买卖挂单'
-    : '';
+  const claimedCheckInDates = new Set(game.checkIn.claimedDateKeys);
+  const claimCompletesWeek = game.checkIn.weeklyBonusEligible
+    && !game.checkIn.weeklyBonusEarned
+    && game.checkIn.weeklyClaimCount === 6;
   const openOrdersListClassName = ownOpenOrders.length > 3
     ? 'overview-open-orders-list overview-open-orders-list--scrollable'
     : 'overview-open-orders-list';
@@ -285,73 +226,70 @@ export function OverviewPage({ model, overviewProductId, onOverviewProductChange
             </div>
           </Panel>
 
-          <Panel className="widget market-summary">
-            <WidgetHeading
-              title={overviewMarket
-                ? <ProductIconLabel productId={overviewMarket.product.id}>{overviewMarket.product.name}市场</ProductIconLabel>
-                : '商品市场'}
-              action={(
-                <label className="overview-market-select">
-                  <span>选择商品</span>
-                  <select
-                    aria-label="选择概览商品市场"
-                    value={overviewMarket?.product.id ?? ''}
-                    disabled={game.products.length === 0}
-                    onChange={(event) => onOverviewProductChange(event.target.value)}
-                  >
-                    {game.products.length > 0
-                      ? game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)
-                      : <option value="">暂无商品</option>}
-                  </select>
-                </label>
-              )}
-            />
-            {overviewMarket ? (
-              <>
-                <div className="overview-market-metrics">
-                  <OverviewMetric label="最近成交" value={<CurrencyAmount>{formatCurrency(overviewMarket.lastPrice)}</CurrencyAmount>} />
-                  <OverviewMetric
-                    tone={overviewMarket.bestBid ? 'success' : 'neutral'}
-                    label="最高买价"
-                    value={overviewMarket.bestBid ? <CurrencyAmount>{formatCurrency(overviewMarket.bestBid)}</CurrencyAmount> : '暂无'}
-                  />
-                  <OverviewMetric
-                    tone={overviewMarket.bestAsk ? 'danger' : 'neutral'}
-                    label="最低卖价"
-                    value={overviewMarket.bestAsk ? <CurrencyAmount>{formatCurrency(overviewMarket.bestAsk)}</CurrencyAmount> : '暂无'}
-                  />
-                  <OverviewMetric
-                    label="当前持仓"
-                    value={formatNumber(overviewMarket.inventory.available)}
-                    detail={`冻结 ${formatNumber(overviewMarket.inventory.frozen)}`}
-                  />
-                </div>
-                {overviewMarket.hasMarketActivity ? (
-                  <>
-                    <p className="overview-market-order-state" data-testid="overview-market-order-state">{marketOrderState}</p>
-                    <PriceSparkline buckets={overviewMarket.buckets} variant="compact" />
-                    <div className="overview-market-footer">
-                      <small>{overviewMarket.flow.netVolume > 0
-                        ? `↑ 24h 净主动买入 ${formatNumber(overviewMarket.flow.netVolume)}`
-                        : overviewMarket.flow.netVolume < 0
-                          ? `↓ 24h 净主动卖出 ${formatNumber(Math.abs(overviewMarket.flow.netVolume))}`
-                          : '→ 24h 主动买卖均衡／方向未知'}</small>
-                      <Button variant="text" onClick={() => selectMarketAsset('commodity', overviewMarket.product.id)}>打开该商品市场 →</Button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="overview-market-empty" data-testid="overview-market-empty">
-                    <div>
-                      <strong>暂无有效挂单或近期成交</strong>
-                      <span>当前参考价：<CurrencyAmount>{formatCurrency(overviewMarket.lastPrice)}</CurrencyAmount></span>
-                      <small>建立第一笔买单或卖单后，这里将展示近 24h 价格与成交量趋势。</small>
-                    </div>
-                    <Button variant="secondary" onClick={() => selectMarketAsset('commodity', overviewMarket.product.id)}>前往该商品市场</Button>
-                  </div>
-                )}
-              </>
-            ) : <EmptyState>服务器当前没有可展示的商品。</EmptyState>}
-          </Panel>
+          <Panel className="widget overview-check-in-panel">
+  <WidgetHeading
+    title="本周签到"
+    action={(
+      <StatusTag tone={game.checkIn.weeklyBonusEarned ? 'success' : 'info'}>
+        {formatNumber(game.checkIn.weeklyClaimCount)} / 7 天
+      </StatusTag>
+    )}
+  />
+  <div className="overview-check-in-rewards">
+    <div>
+      <span>每日签到</span>
+      <strong><GemIcon /> +{formatNumber(game.checkIn.dailyRewardGems)} 宝石</strong>
+    </div>
+    <div>
+      <span>本周全勤</span>
+      <strong><GemIcon /> +{formatNumber(game.checkIn.weeklyBonusGems)} 宝石</strong>
+    </div>
+  </div>
+  <div className="overview-check-in-calendar" role="list" aria-label="本周签到日历">
+    {game.checkIn.dateKeys.map((dateKey, index) => {
+      const claimed = claimedCheckInDates.has(dateKey);
+      const isToday = dateKey === game.checkIn.todayKey;
+      const missed = dateKey < game.checkIn.todayKey && !claimed;
+      const future = dateKey > game.checkIn.todayKey;
+      const status = claimed ? '已签' : isToday ? '今日' : missed ? '漏签' : '未到';
+      const weekday = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][index];
+      return (
+        <div
+          className={`overview-check-in-day${claimed ? ' is-claimed' : ''}${isToday ? ' is-today' : ''}${missed ? ' is-missed' : ''}${future ? ' is-future' : ''}`}
+          key={dateKey}
+          role="listitem"
+          aria-label={`${weekday} ${dateKey.slice(5)} ${status}`}
+        >
+          <span>{weekday}</span>
+          <strong>{dateKey.slice(5)}</strong>
+          <small>{status}</small>
+        </div>
+      );
+    })}
+  </div>
+  <div className="overview-check-in-footer">
+    <div>
+      <strong>{game.checkIn.weeklyBonusEarned
+        ? '本周全勤奖励已领取'
+        : game.checkIn.weeklyBonusEligible
+          ? '连续签到 7 天可额外获得 5 宝石'
+          : '注册所在周可领取每日奖励，下周起参与全勤'}</strong>
+      <small>签到日期由服务器按北京时间判定，不支持补签。</small>
+    </div>
+    <Button
+      disabled={isCheckingIn || game.checkIn.claimedToday}
+      onClick={() => void showResult(checkIn())}
+    >
+      {isCheckingIn
+        ? '处理中…'
+        : game.checkIn.claimedToday
+          ? '今日已签到'
+          : claimCompletesWeek
+            ? '签到领取 1 + 5 宝石'
+            : '签到领取 1 宝石'}
+    </Button>
+  </div>
+</Panel>
         </div>
 
         <div className="overview-summary-row">

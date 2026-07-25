@@ -3,7 +3,7 @@
 > 状态：当前服务器、API、持久化和部署基线
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-07-24
-> 客户端状态版本：17
+> 客户端状态版本：18
 > 世界状态版本：15
 > 市场需求模型版本：10
 
@@ -21,7 +21,7 @@
 - 玩家卖出手续费累计、市场服务就业收入、人口生产工资系数和施工托管；
 - 商品／工厂资产拍卖、卖方资产托管、最高出价冻结与仓库预占；
 - 长期生产合作合同、商品与货款托管、保证金、宽限期与周期交付；
-- 礼品码、宝石流水和商店兑换；
+- 礼品码、每日签到、每周全勤、宝石流水和商店兑换；
 - 邀请关系、Economy 注册记录、同 IP 封禁事件和审计；
 - 排行榜、市场需求和系统统计。
 
@@ -39,7 +39,8 @@
 - `asset-auctions.js`：商品／工厂单项与捆绑资产拍卖、世界 15 删除迁移、托管、竞价与原子结算；
 - `contracts.js`：长期商品供货合同、托管、周期结算、宽限期与违约；
 - `contract-runtime-index.js`：合同 ID、公开／进行中数量、参与者集合、采购方下一批仓库预占和最近到期时间的事务内派生索引；
-- `invitations.js`：邀请码、邀请关系、宝石流水和同 IP 邀请阻断；
+- `invitations.js`：邀请码、邀请关系和同 IP 邀请阻断；
+- `daily-check-in.js`：北京时间自然日／自然周、每日签到、全勤资格和状态摘要；
 - `gem-shop.js`：服务器固定汇率和宝石兑换摘要；
 - `market-sell-fee.js`：单张玩家卖单和单份合同累计成交额 1% 手续费的唯一纯函数；
 - `population-economy.js`：三类人口真实钱包、生产复杂度岗位、固定建造业岗位、施工托管、市场服务就业、收入 EMA、五档消费状态和整数资金分配；
@@ -110,7 +111,7 @@ JSON.parse
 → 浏览器六分区合并
 ```
 
-客户端状态版本固定使用 `server/shared/economy-state-version.js` 的 `CURRENT_CLIENT_STATE_VERSION`；浏览器兼容窗口使用同文件的 `MIN_COMPATIBLE_CLIENT_STATE_VERSION`。服务器响应、`src/types.ts`、浏览器合并器、README、权威设计和验证脚本不得维护独立常量。世界 15 永久删除艺术资产字段和客户端分区，因此客户端状态版本 17 是破坏性边界，当前客户端只接受版本 17；版本低于下限或高于当前值时必须明确返回“客户端状态版本不兼容”，不得伪装成初始分区缺失。
+客户端状态版本固定使用 `server/shared/economy-state-version.js` 的 `CURRENT_CLIENT_STATE_VERSION`；浏览器兼容窗口使用同文件的 `MIN_COMPATIBLE_CLIENT_STATE_VERSION`。服务器响应、`src/types.ts`、浏览器合并器、README、权威设计和验证脚本不得维护独立常量。世界 15 永久删除艺术资产字段和客户端分区，因此客户端状态版本 18 增加服务器权威签到摘要并成为新的破坏性边界，当前客户端只接受版本 18；版本低于下限或高于当前值时必须明确返回“客户端状态版本不兼容”，不得伪装成初始分区缺失。
 
 世界 15 的资产拍卖迁移由 `asset-auctions.js` 在工厂集群规范化之前执行，并与世界写回处于同一 SQLite 事务。迁移同时读取旧 `collectibleAuctions` 和新 `assetAuctions`，按稳定 ID 去重；纯商品／工厂拍卖保留截止时间、出价、冻结资金、仓库预占和托管状态。任何含已删除艺术资产项目的开放资产包必须整包取消，完整退回最高出价并释放同包商品／工厂，随后删除 `collectibles`、`collectibleOwnershipHistory` 与 `collectibleAuctions`。重复加载不得重复退款、重复解冻或复制拍卖。
 
@@ -170,7 +171,7 @@ JSON.parse
 - 401 只缓存 1 秒；超时、无效响应、502 和 503 不缓存，也不得使用过期结果执行资产写操作。
 - 缓存键只保存完整 Cookie header 的 SHA-256 摘要，使用最多 5,000 条的 LRU。
 - 同一摘要的并发未命中共享一个上游验证 Promise，并在 `finally` 中移除。
-- 所有资产、邀请与管理员写操作要求 8～128 字符的 `Idempotency-Key`。
+- 所有资产、签到、邀请与管理员写操作要求 8～128 字符的 `Idempotency-Key`。
 - 服务器重新校验价格、数量、资金、库存、仓库、工厂、订单归属、拍卖资产归属与冻结、合同参与者与托管、邀请码、封禁和管理员角色。
 - 禁止玩家自成交；任何两个系统商品订单也必须禁止互相成交。储备买单必须验证并冻结真实储备资金，储备卖单必须验证并冻结真实储备库存。卖家不得竞拍自己的商品或工厂，玩家不得填写自己的邀请码，也不得承接自己发布的合同。
 - 每名玩家最多 10 笔未完成商品／工厂订单、10 份公开合同和 20 份进行中合同。
@@ -193,7 +194,7 @@ JSON.parse
 
 - `economy_email_verifications` 保存请求幂等键、邮箱、验证码 HMAC、IP 指纹、有效期、错误次数、投递状态、使用状态和完成账号；不得保存验证码明文。
 - `economy_registrations` 以统一账号 ID 为主键，保存首次玩家档案创建时的邮箱、注册 IP 指纹、完成时间和来源。
-- `economy_invite_codes`、`economy_invitation_relations`、`economy_gem_ledger`、`economy_gem_shop_exchanges`、`economy_ip_ban_incidents`、`economy_ip_ban_members`、`economy_account_bans` 与 `economy_ban_audit` 是邀请、宝石兑换和封禁的权威业务表。
+- `economy_invite_codes`、`economy_invitation_relations`、`economy_daily_check_ins`、`economy_gem_ledger`、`economy_gem_shop_exchanges`、`economy_ip_ban_incidents`、`economy_ip_ban_members`、`economy_account_bans` 与 `economy_ban_audit` 是邀请、宝石兑换和封禁的权威业务表。
 - 生成验证码记录和调用 Resend 前，Economy 必须通过主页账号服务仅限同机回环的 `POST /api/internal/account-email-exists` 查询邮箱是否已经注册。已注册邮箱返回 `409` 和“该邮箱已注册，请直接登录”，不得创建 `economy_email_verifications` 记录，也不得发送邮件；查询失败时返回统一账号服务不可用，不得绕过查重继续投递。
 - 验证码固定为 6 位数字，有效期 10 分钟；同一邮箱或同一 IP 指纹 60 秒内禁止再次发送。
 - 验证码错误 5 次后状态变为不可用；过期、已使用或作废验证码不能重复使用。
@@ -452,3 +453,10 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - `issued` 只用于工作、兑换、礼品、管理员和迁移发行；就业与人口消费使用 `income`／`transferred` 统计。
 
 管理员 `/api/game/admin/summary` 在同一世界事务返回只读人口经济摘要，并返回消费状态、状态原因、持续周期、收入健康度、基础收入覆盖和状态判定钱包覆盖；玩家市场状态不得包含管理员人口指标。
+
+
+### 每日签到持久化与调度
+
+`economy_daily_check_ins` 以 `(user_id, date_key)` 唯一约束保证每天最多签到一次，并以 `(user_id, week_key)` 的部分唯一索引保证每周最多发放一次全勤奖励。`economy_gem_ledger.source_key` 为每日签到、全勤和排行榜奖励提供不可重复来源键。签到、宝石余额、签到记录、宝石流水、幂等确认与世界修订共享同一 `BEGIN IMMEDIATE` 事务。
+
+单一世界到期调度器把下一个北京时间 00:00 纳入候选截止时间，并更新世界 `checkInDateKey` 以产生一次全局修订；所有客户端因此能在跨日后通过现有玩家分区补丁获得新的 `todayKey`，不得增加独立轮询或客户端日期判断。

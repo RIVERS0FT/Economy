@@ -42,12 +42,9 @@ const paths = {
 Object.values(paths).forEach(requireFile);
 
 requireAll(paths.router, [
-  "import { lazy, Suspense, useEffect, useState } from 'react'",
+  "import { lazy, Suspense } from 'react'",
   "const OverviewPage = lazy(() => import('./OverviewPage')",
-  "const [overviewProductId, setOverviewProductId] = useState(() => model.game.products[0]?.id ?? '')",
-  'model.game.products.some((product) => product.id === overviewProductId)',
-  'overviewProductId={overviewProductId}',
-  'onOverviewProductChange={setOverviewProductId}',
+  'page = <OverviewPage model={model} />',
 ]);
 forbidAll(paths.router, ['localStorage', 'sessionStorage', 'marketAssetId']);
 
@@ -62,16 +59,11 @@ requireAll(paths.overview, [
   "id: `facility-error-${group.facilityTypeId}`",
   "id: 'open-orders'",
   'const primaryAction = ownOpenOrders.length > 0',
-  'hasMarketActivity: history.length > 0 || bestBid > 0 || bestAsk > 0',
-  'data-testid="overview-market-empty"',
-  '暂无有效挂单或近期成交',
-  '<PriceSparkline buckets={overviewMarket.buckets} variant="compact" />',
-  "tone={overviewMarket.bestBid ? 'success' : 'neutral'}",
-  "tone={overviewMarket.bestAsk ? 'danger' : 'neutral'}",
-  '当前只有买单，暂无可供买入的卖单',
-  '当前只有卖单，暂无可立即成交的买单',
-  '当前买卖价差',
-  'data-testid="overview-market-order-state"',
+  'title="本周签到"',
+  'role="list" aria-label="本周签到日历"',
+  'weeklyBonusEligible',
+  '签到领取 1 宝石',
+  '本周全勤奖励已领取',
   'event.cashDelta !== 0',
   'const recentCashEvents',
   '当前设备现金记录',
@@ -92,6 +84,9 @@ forbidAll(paths.overview, [
   '<MetricCard',
   '当前浏览器最近成交',
   'overview-product-strip',
+  'market-summary',
+  'overviewMarket',
+  'PriceSparkline',
   '资产状态更新',
   '当前浏览器记录',
 ]);
@@ -133,15 +128,9 @@ forbidAll(paths.overviewStyle, ['384px', 'overscroll-behavior: contain']);
 requireAll(paths.polishStyle, [
   '--overview-primary-card-height: 370px;',
   '--overview-summary-card-height: 330px;',
-  '.market-summary .price-chart.compact {',
-  'height: auto;',
-  'aspect-ratio: 80 / 19;',
-  '.overview-market-order-state {',
-  '.overview-alert-list,',
-  '.overview-asset-events,',
   '.overview-open-orders-list--scrollable {',
   'overflow-y: auto;',
-  'font-size: max(var(--font-size-xs), 0.75rem);',
+  '.overview-check-in-day small {',
 ]);
 forbidAll(paths.polishStyle, ['clamp(168px, 20vw, 210px)', '.overview-asset-events {\n  overflow-y: auto;']);
 requireAll(paths.guideStyle, ['.game-guide-strip {', '.game-guide-progress {', '@media (max-width: 720px)']);
@@ -207,10 +196,10 @@ requireAll(paths.harness, [
 ]);
 
 requireAll(paths.browserSpec, [
-  'overview prioritizes business decisions and uses a compact market empty state',
+  'overview prioritizes business decisions and shows the weekly check-in calendar',
   'overview spans the available desktop width without compressing cards into strips',
-  'compact overview chart fills the market card without label collisions',
-  'overview market empty values stay neutral and explain one-sided order books',
+  'overview check-in calendar distinguishes claimed, today, missed, and future days',
+  'overview shows completed and partial-week attendance states',
   'overview cash changes exclude synchronization events and short lists do not scroll',
   'overview only scrolls the order list after the visible capacity is exceeded',
   'overview keeps the decision rows visible and adapts to a narrower desktop',
@@ -221,18 +210,16 @@ requireAll(paths.browserSpec, [
   'async function expectElementsInside',
   "page.setViewportSize({ width: 1684, height: 931 })",
   "page.locator('.overview-asset-events')",
-  "page.getByTestId('overview-market-order-state')",
+  "page.getByRole('list', { name: '本周签到日历' })",
   'scrollWidth > element.clientWidth + 1',
 ]);
 
-requireAll(paths.pageDesign, ['概览是经营决策首页', '宽度比例为 `5:7`', '既无近期成交也无有效挂单时必须显示', '`1920×1080`', '`1440×900`', '基础教程显示时']);
-requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '桌面按 `5:7` 分栏', '不得渲染大面积空坐标系']);
+requireAll(paths.pageDesign, ['概览是经营决策首页', '宽度比例为 `5:7`', '签到日历', '`1920×1080`', '`1440×900`', '基础教程显示时']);
+requireAll(paths.uiDesign, ['## 10. 概览布局', '经营决策优先', '桌面按 `5:7` 分栏', '签到日历']);
 requireAll(paths.integrityDesign, [
   '外层轨道唯一性',
   '实际内容宽度响应式',
-  '`960×228`',
-  '最多显示 6 个',
-  '缺少买价或卖价时',
+  '签到日历',
   '`cashDelta !== 0`',
   '当前设备现金记录',
   '不得同时显示下降箭头和负号',
@@ -251,4 +238,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：共享外壳折叠、教程提醒容量、紧凑图表几何、市场空值、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：共享外壳折叠、教程提醒容量、签到日历、服务器日期语义、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。');

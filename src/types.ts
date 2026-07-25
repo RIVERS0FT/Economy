@@ -304,6 +304,8 @@ export interface EconomyStats {
   warehousePayroll: number;
   marketServiceFees: number;
   invitationGemsIssued: number;
+  dailyCheckInGemsIssued?: number;
+  weeklyFullAttendanceGemsIssued?: number;
   contractDeliveriesCompleted?: number;
   contractGoodsSupplied?: number;
   contractGoodsPurchased?: number;
@@ -338,14 +340,32 @@ export interface LeaderboardEntry {
   isCurrentPlayer?: boolean;
 }
 
+export interface DailyCheckInState {
+  timeZone: 'Asia/Shanghai';
+  todayKey: string;
+  weekKey: string;
+  weekStartsAt: number;
+  weekEndsAt: number;
+  nextResetAt: number;
+  dateKeys: string[];
+  claimedToday: boolean;
+  claimedDateKeys: string[];
+  weeklyClaimCount: number;
+  weeklyBonusEarned: boolean;
+  weeklyBonusEligible: boolean;
+  dailyRewardGems: number;
+  weeklyBonusGems: number;
+}
+
 export interface EconomyState {
-  version: 17;
+  version: 18;
   userId: number;
   playerName: string;
   registeredAt: number;
   credits: number;
   frozenCredits: number;
   gems: number;
+  checkIn: DailyCheckInState;
   inventories: Record<string, ProductInventory>;
   inventoryCapacity: number;
   warehouseLevel: number;

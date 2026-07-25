@@ -113,14 +113,32 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const inventoryCapacity = 6650;
 
   const game = {
-    version: 17,
+    version: 18,
     lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',
     registeredAt: fixedNow - 60 * 86_400_000,
     credits: 2,
     frozenCredits: orders.length > 0 ? 368 : 0,
-    gems: 0,
+    gems: scenario === 'check-in-complete' ? 12 : 4,
+    checkIn: {
+      timeZone: 'Asia/Shanghai',
+      todayKey: '2026-07-17',
+      weekKey: '2026-07-13',
+      weekStartsAt: Date.UTC(2026, 6, 12, 16, 0, 0),
+      weekEndsAt: Date.UTC(2026, 6, 19, 16, 0, 0),
+      nextResetAt: Date.UTC(2026, 6, 17, 16, 0, 0),
+      dateKeys: ['2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16', '2026-07-17', '2026-07-18', '2026-07-19'],
+      claimedToday: scenario === 'check-in-complete',
+      claimedDateKeys: scenario === 'check-in-complete'
+        ? ['2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16', '2026-07-17', '2026-07-18', '2026-07-19']
+        : ['2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16'],
+      weeklyClaimCount: scenario === 'check-in-complete' ? 7 : 4,
+      weeklyBonusEarned: scenario === 'check-in-complete',
+      weeklyBonusEligible: scenario !== 'check-in-partial',
+      dailyRewardGems: 1,
+      weeklyBonusGems: 5,
+    },
     inventories: { machinery: { available: 580, frozen: 0 } },
     inventoryCapacity,
     warehouseLevel: 12,
@@ -302,6 +320,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     refreshRate: '5',
     setRefreshRate: () => {},
     isWorking: false,
+    isCheckingIn: false,
     inventoryUsed: game.warehouseStoredQuantity,
     cashShare: 0,
     commodityShare: 28,
@@ -314,6 +333,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     clearLocalActivity: () => {},
     signOut: async () => {},
     work: async () => ({ ok: true, message: '工作完成' }),
+    checkIn: async () => ({ ok: true, message: '签到成功，获得 1 宝石' }),
     exchangeGems: async () => ({ ok: true, message: '兑换成功' }),
     tutorial: completedTutorial,
   } as unknown as TutorialAwareGameViewModel;
@@ -355,7 +375,6 @@ function SettingsHarness() {
 
 function OverviewHarness() {
   const [tab, setTab] = useState<TabId>('home');
-  const [overviewProductId, setOverviewProductId] = useState('machinery');
   const model = useMemo(() => buildOverviewModel(tab, setTab), [tab]);
   const weeklyChange = model.derived.currentRank?.weeklyChange ?? 0;
   const weeklyMagnitude = Math.abs(weeklyChange);
@@ -369,7 +388,7 @@ function OverviewHarness() {
 
   return (
     <GameShell model={model} statusItems={statusItems}>
-      <OverviewPage model={model} overviewProductId={overviewProductId} onOverviewProductChange={setOverviewProductId} />
+      <OverviewPage model={model} />
     </GameShell>
   );
 }

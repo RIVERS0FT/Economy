@@ -3,29 +3,6 @@
   --overview-summary-card-height: 330px;
 }
 
-.market-summary .price-chart.compact {
-  width: 100%;
-  height: auto;
-  min-height: 0;
-  max-height: none;
-  flex: 0 0 auto;
-  aspect-ratio: 80 / 19;
-  display: block;
-  box-sizing: border-box;
-  padding-inline: 3px;
-}
-
-.overview-market-order-state {
-  margin: var(--space-2) 0 0;
-  color: var(--color-text-muted);
-  font-size: max(var(--font-size-xs), 0.75rem);
-  line-height: 1.4;
-}
-
-.overview-market-footer {
-  margin-top: 0;
-}
-
 .overview-alert-list,
 .overview-asset-events,
 .overview-open-orders-list {
@@ -61,57 +38,12 @@
 .overview-alert-heading span,
 .overview-subsection-heading span,
 .overview-production-footnote,
-.overview-market-footer,
-.overview-market-footer small,
 .overview-asset-events small,
 .overview-open-order-identity small,
-.overview-open-order-values small {
+.overview-open-order-values small,
+.overview-check-in-footer small,
+.overview-check-in-day span,
+.overview-check-in-day small {
   font-size: max(var(--font-size-xs), 0.75rem);
   line-height: 1.4;
-}
-
-.market-summary .chart-x-tick-label,
-.market-summary .chart-price-tick-label,
-.market-summary .chart-volume-tick-label,
-.market-summary .chart-axis-title,
-.market-summary .chart-legend-item {
-  text-rendering: geometricPrecision;
-}
-
-@container overview (max-width: 1050px) {
-  .market-summary .price-chart.compact {
-    width: min(100%, 960px);
-    justify-self: center;
-  }
-}
-
-@media (max-width: 760px) {
-  .overview-market-metrics {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .overview-market-metrics .overview-metric {
-    min-height: 72px;
-    padding-inline: clamp(4px, 1.8vw, 8px);
-  }
-
-  .overview-market-metrics .overview-metric:nth-child(2) {
-    border-right: 1px solid var(--color-divider);
-  }
-
-  .overview-market-metrics .overview-metric:nth-child(-n + 2) {
-    border-bottom: 0;
-  }
-
-  .overview-market-metrics .overview-metric > span,
-  .overview-market-metrics .overview-metric > small {
-    overflow: hidden;
-    font-size: clamp(0.65rem, 2.7vw, 0.75rem);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .overview-market-metrics .overview-metric > strong {
-    font-size: clamp(0.95rem, 4.2vw, 1.15rem);
-  }
 }

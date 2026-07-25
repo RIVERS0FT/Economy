@@ -4,6 +4,7 @@ import { createWorld, ensurePlayer } from '../src/domain.js';
 import {
   captureTradingFills,
   createLeaderboardSnapshot,
+  LEADERBOARD_REWARDS,
   LEADERBOARD_TIME_ZONE,
   leaderboardPeriodFor,
   processLeaderboardWorld,
@@ -96,7 +97,7 @@ test('legacy capped trading state is rebuilt once from current-period actual fil
   assert.equal(seller.stats.marketSellScore, 2_000);
 });
 
-test('three weekly boards grant 30, 20, and 10 gems and allow repeat winners', () => {
+test('three weekly boards grant 50, 30, and 20 gems and allow repeat winners', () => {
   const now = MONDAY_BEIJING + 60_000;
   const world = createWorld(now);
   const players = [1, 2, 3, 4].map((id) => addPlayer(world, id, now));
@@ -114,16 +115,21 @@ test('three weekly boards grant 30, 20, and 10 gems and allow repeat winners', (
   state.trading['2'] = { score: 200, tradeCount: 2, buyers: { 3: true } };
   state.trading['3'] = { score: 100, tradeCount: 1, buyers: { 4: true } };
 
-  processLeaderboardWorld(world, state.endsAt);
+  const ledgerEvents = [];
+  processLeaderboardWorld(world, state.endsAt, { onGemReward: (reward) => ledgerEvents.push(reward) });
 
-  assert.equal(world.players['1'].gems, 90);
-  assert.equal(world.players['2'].gems, 60);
-  assert.equal(world.players['3'].gems, 30);
+  assert.deepEqual(LEADERBOARD_REWARDS, [50, 30, 20]);
+  assert.equal(world.players['1'].gems, 150);
+  assert.equal(world.players['2'].gems, 90);
+  assert.equal(world.players['3'].gems, 60);
   assert.equal(world.leaderboardHistory.length, 1);
-  assert.equal(world.leaderboardHistory[0].boards.growth[0].gems, 30);
+  assert.equal(world.leaderboardHistory[0].boards.growth[0].gems, 50);
+  assert.equal(ledgerEvents.length, 9);
+  assert.equal(new Set(ledgerEvents.map((event) => event.sourceKey)).size, 9);
 
-  processLeaderboardWorld(world, state.endsAt);
-  assert.equal(world.players['1'].gems, 90);
+  processLeaderboardWorld(world, state.endsAt, { onGemReward: (reward) => ledgerEvents.push(reward) });
+  assert.equal(world.players['1'].gems, 150);
+  assert.equal(ledgerEvents.length, 9);
 });
 
 test('the first partial week records results without granting gems', () => {

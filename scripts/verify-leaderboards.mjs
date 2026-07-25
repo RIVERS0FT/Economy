@@ -22,7 +22,7 @@ for (const board of ['wealth', 'growth', 'production', 'trading']) {
 }
 check(!server.includes("'industry'"), 'industry leaderboard must not return');
 check(server.includes("LEADERBOARD_TIME_ZONE = 'Asia/Shanghai'"), 'weekly period must use Beijing time');
-check(server.includes('Object.freeze([30, 20, 10])'), 'weekly gem rewards must be 30 / 20 / 10');
+check(server.includes('Object.freeze([50, 30, 20])'), 'weekly gem rewards must be 50 / 30 / 20');
 check(server.includes("REWARDED_BOARD_IDS = Object.freeze(['growth', 'production', 'trading'])"), 'wealth board must not grant gems');
 check(server.includes("order?.ownerType !== 'player' || order?.side !== 'sell'"), 'trading board must count seller fills only');
 check(server.includes('function tradeGrossFor(fill)'), 'trading board must calculate gross volume from fills');
@@ -37,7 +37,7 @@ check(page.includes("const BOARD_ORDER: LeaderboardBoardId[] = ['wealth', 'growt
 check(page.includes("timeZone: 'Asia/Shanghai'"), 'leaderboard page must format periods in Beijing time');
 check(styles.includes('grid-template-columns: repeat(4, minmax(280px, 1fr))'), 'desktop leaderboard must remain a four-column grid');
 check(styles.includes('overflow-x: auto'), 'narrow viewports must preserve four columns with horizontal scrolling');
-check(productDesign.includes('30 / 20 / 10'), 'product design must record gem rewards');
+check(productDesign.includes('50 / 30 / 20'), 'product design must record gem rewards');
 check(productDesign.includes('撤单的未成交剩余数量不计入'), 'product design must exclude cancelled remainder');
 check(productDesign.includes('Asia/Shanghai'), 'product design must record Beijing leaderboard time');
 check(productDesign.includes('实际卖出成交额'), 'product design must record gross sell volume');

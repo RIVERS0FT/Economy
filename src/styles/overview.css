@@ -14,7 +14,7 @@
 }
 
 .overview-today-panel,
-.market-summary {
+.overview-check-in-panel {
   height: var(--overview-primary-card-height);
   min-height: 0;
   display: flex;
@@ -179,7 +179,7 @@
 .overview-metric--success > strong { color: var(--color-success); }
 .overview-metric--danger > strong { color: var(--color-danger); }
 
-.market-summary .price-chart.compact {
+.overview-check-in-panel .price-chart.compact {
   min-height: 120px;
   flex: 0 1 auto;
 }
@@ -230,6 +230,128 @@
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   line-height: 1.5;
+}
+
+
+.overview-check-in-rewards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.overview-check-in-rewards > div {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+}
+
+.overview-check-in-rewards > div:first-child {
+  border-right: 1px solid var(--color-divider);
+}
+
+.overview-check-in-rewards span,
+.overview-check-in-footer small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.overview-check-in-rewards strong {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-lg);
+}
+
+.overview-check-in-rewards svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.overview-check-in-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.overview-check-in-day {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-1);
+  background: var(--color-surface-inset);
+  text-align: center;
+}
+
+.overview-check-in-day span,
+.overview-check-in-day small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.overview-check-in-day strong {
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.overview-check-in-day.is-claimed {
+  border-color: color-mix(in srgb, var(--color-success) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface-inset));
+}
+
+.overview-check-in-day.is-claimed small,
+.overview-check-in-day.is-claimed strong {
+  color: var(--color-success);
+}
+
+.overview-check-in-day.is-today {
+  outline: 2px solid color-mix(in srgb, var(--color-info) 65%, transparent);
+  outline-offset: 1px;
+}
+
+.overview-check-in-day.is-missed {
+  border-style: dashed;
+}
+
+.overview-check-in-day.is-missed small {
+  color: var(--color-danger);
+}
+
+.overview-check-in-day.is-future {
+  opacity: 0.66;
+}
+
+.overview-check-in-footer {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: auto;
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-4);
+}
+
+.overview-check-in-footer > div {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+@media (max-width: 760px) {
+  .overview-check-in-calendar { gap: 4px; }
+  .overview-check-in-day { padding-inline: 2px; }
+  .overview-check-in-day span,
+  .overview-check-in-day small { font-size: clamp(0.62rem, 2.6vw, 0.72rem); }
+  .overview-check-in-day strong { font-size: clamp(0.72rem, 3vw, 0.85rem); }
+  .overview-check-in-footer { grid-template-columns: 1fr; }
+  .overview-check-in-footer .button { width: 100%; }
 }
 
 .overview-summary-row {
@@ -383,7 +505,7 @@
   }
 
   .overview-today-panel,
-  .market-summary,
+  .overview-check-in-panel,
   .overview-summary-card {
     height: auto;
   }
@@ -469,7 +591,7 @@
   }
 
   .overview-today-panel,
-  .market-summary,
+  .overview-check-in-panel,
   .overview-summary-card {
     height: auto;
   }
@@ -518,7 +640,7 @@
   .overview-market-footer,
   .overview-alert-heading,
   .overview-subsection-heading,
-  .market-summary .widget-heading {
+  .overview-check-in-panel .widget-heading {
     align-items: flex-start;
     flex-direction: column;
   }

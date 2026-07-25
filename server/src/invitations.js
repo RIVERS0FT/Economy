@@ -69,10 +69,11 @@ export class EconomyInvitationStore {
         user_id INTEGER NOT NULL,
         amount INTEGER NOT NULL,
         balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
-        category TEXT NOT NULL CHECK (category IN ('share_link_reward', 'invite_code_reward', 'admin_adjustment')),
+        category TEXT NOT NULL CHECK (category IN ('share_link_reward', 'invite_code_reward', 'daily_check_in', 'weekly_full_attendance', 'leaderboard_reward', 'admin_adjustment')),
         invitation_id INTEGER,
         description TEXT NOT NULL,
         created_at INTEGER NOT NULL,
+        source_key TEXT UNIQUE,
         FOREIGN KEY (invitation_id) REFERENCES economy_invitation_relations(id)
       ) STRICT;
       CREATE INDEX IF NOT EXISTS idx_economy_gem_ledger_user
