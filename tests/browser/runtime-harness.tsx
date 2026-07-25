@@ -387,6 +387,60 @@ function ProductionHarness() {
       { id: 'steel', name: '钢材', category: 'industrial', basePrice: 29 },
       ...next.game.products,
     ];
+    if (scenario === 'cluster-summary') {
+      const baseType = next.game.facilityTypes[0];
+      const baseGroup = next.game.facilityGroups[0];
+      next.game.facilityTypes = [
+        baseType,
+        { ...baseType, id: 'sawmill', name: '锯木厂' },
+        { ...baseType, id: 'flour-mill', name: '磨坊' },
+        { ...baseType, id: 'electronics-factory', name: '电子工厂' },
+      ];
+      next.game.facilityGroups = [
+        baseGroup,
+        {
+          ...baseGroup,
+          facilityTypeId: 'sawmill',
+          count: 7,
+          participatingCount: 5,
+          pendingJoinCount: 2,
+          availableCount: 7,
+          nextCycleCount: 7,
+          status: 'running',
+          statusReason: undefined,
+        },
+        {
+          ...baseGroup,
+          facilityTypeId: 'flour-mill',
+          count: 4,
+          participatingCount: 0,
+          pendingJoinCount: 0,
+          availableCount: 4,
+          nextCycleCount: 4,
+          enabled: false,
+          status: 'stopped',
+          statusReason: 'manual',
+        },
+        {
+          ...baseGroup,
+          facilityTypeId: 'electronics-factory',
+          count: 3,
+          participatingCount: 0,
+          pendingJoinCount: 0,
+          availableCount: 3,
+          nextCycleCount: 3,
+          status: 'error',
+          statusReason: 'insufficient_input',
+        },
+      ];
+      next.game.facilityConstruction = {
+        facilityTypeId: 'machinery-plant',
+        startedAt: fixedNow - 10_000,
+        completesAt: fixedNow + 50_000,
+        buildCost: 500,
+      };
+      next.derived.constructingFacilities = 1;
+    }
     Object.assign(next, {
       buildFacility: async () => ({ ok: true, message: '测试建设完成' }),
       startFacility: async () => ({ ok: true, message: '测试启动完成' }),
