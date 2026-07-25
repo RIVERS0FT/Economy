@@ -28,6 +28,8 @@ check(storage.includes('economy_daily_check_ins'), 'daily check-in table is miss
 check(storage.includes("'daily_check_in'"), 'daily gem ledger category is missing');
 check(storage.includes("'weekly_full_attendance'"), 'weekly gem ledger category is missing');
 check(storage.includes("'leaderboard_reward'"), 'leaderboard gem ledger category is missing');
+check(!storage.includes('source_key TEXT UNIQUE,\n      ) STRICT;'), 'gem ledger schema must not leave a trailing column comma');
+check((storage.match(/source_key TEXT UNIQUE\n      \) STRICT;/g) || []).length === 2, 'both gem ledger schemas must close after source_key without a trailing comma');
 check(storage.includes('saveWorldIfChanged(revision, world, now, stateJson)'), 'failed or repeated check-in must not force a world revision');
 const economicActions = storage.match(/const ECONOMIC_ACTIVITY_ACTIONS = new Set\(\[([\s\S]*?)\]\);/)?.[1] ?? '';
 check(!economicActions.includes("'checkIn'"), 'check-in must not refresh economic activity');
