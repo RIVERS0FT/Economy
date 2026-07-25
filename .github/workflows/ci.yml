@@ -69,6 +69,15 @@ jobs:
             exit "$status"
           fi
 
+      - name: Upload apply failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: order-book-apply-log-${{ github.run_id }}
+          path: apply-order-book.log
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Run focused verification
         shell: bash
         run: |
