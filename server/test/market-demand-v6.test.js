@@ -106,8 +106,8 @@ test('direct demand quote anchor accumulates fractional no-fill increases and re
   const raisedAt = now + 15 * constants.demandCycleMs;
   const raisedCycleId = Math.floor(raisedAt / constants.demandCycleMs);
   const raisedAnchor = world.marketDemand.groups.food.directQuoteAnchors.wheat;
-  assert.ok(raisedAnchor >= 2.50);
-  assert.equal(topWheatPriceFor(raisedCycleId), 3);
+  assert.ok(raisedAnchor >= 2.23 && raisedAnchor <= 2.24);
+  assert.equal(topWheatPriceFor(raisedCycleId), 2);
 
   const filledAt = raisedAt + 240_000;
   for (const order of world.orders.filter((item) => item.demandGroupId === 'food'
@@ -125,7 +125,6 @@ test('direct demand quote anchor accumulates fractional no-fill increases and re
   assert.ok(recoveredAnchor > 2);
   assert.equal(world.marketDemand.groups.food.lastCycleSettlement.products.wheat.directFillRatio, 1);
 });
-
 
 function demandOrdersFor(world, groupId, productId, cycleId, demandTier = 'direct') {
   return world.orders.filter((order) => order.demandGroupId === groupId
@@ -198,7 +197,7 @@ test('direct demand quote anchor stops at absolute price one', () => {
   assert.ok(prices.every((price) => price === 1));
 });
 
-test('zero fill below reference accelerates recovery while partial service recovers gently', () => {
+test('zero fill below reference recovers slowly while partial service recovers more gently', () => {
   const now = 1_700_000_000_000;
   const zeroRuntime = createRuntime();
   const zeroWorld = createTestWorld(now);
@@ -210,7 +209,7 @@ test('zero fill below reference accelerates recovery while partial service recov
   const historyBefore = zeroWorld.markets.food.priceHistory.length;
   const tradePriceBefore = zeroWorld.markets.food.lastTradePrice;
   zeroRuntime.processGroup(zeroWorld, 'food', now + constants.demandCycleMs);
-  assert.equal(zeroWorld.marketDemand.groups.food.directQuoteAnchors.food, 6.4);
+  assert.equal(zeroWorld.marketDemand.groups.food.directQuoteAnchors.food, 6.2);
   assert.equal(zeroWorld.markets.food.priceHistory.length, historyBefore);
   assert.equal(zeroWorld.markets.food.lastTradePrice, tradePriceBefore);
 
@@ -227,7 +226,7 @@ test('zero fill below reference accelerates recovery while partial service recov
   assert.ok(total >= 2);
   fillDemandQuantity(orders, Math.floor(total / 2));
   partialRuntime.processGroup(partialWorld, 'food', now + constants.demandCycleMs);
-  assert.equal(partialWorld.marketDemand.groups.food.directQuoteAnchors.food, 6.2);
+  assert.equal(partialWorld.marketDemand.groups.food.directQuoteAnchors.food, 6.1);
   assert.equal(partialWorld.marketDemand.groups.food.directOversupplyCycles.food, 0);
 });
 
@@ -254,7 +253,7 @@ test('no direct demand converges toward reference and derived liquidity ignores 
   assert.equal(Math.max(...derivedPrices), 2);
 });
 
-test('shortage pressure approaches the reference premium by at most one percent per cycle', () => {
+test('shortage pressure approaches the reference premium by at most half a percent per cycle', () => {
   const now = 1_700_000_000_000;
   const runtime = createRuntime();
   const world = createTestWorld(now);
