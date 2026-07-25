@@ -100,9 +100,11 @@ for (const text of [
   'settleLiquiditySell',
   'SYSTEM_ORDER_RETENTION_RATE',
   'DEMAND_CURVE',
-  'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.03',
-  'DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE = 0.25',
-  'DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE = 0.10',
+  'DIRECT_DEMAND_UNFILLED_PRICE_STEP = 1.015',
+  'DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE = 0.10',
+  'DIRECT_DEMAND_BELOW_REFERENCE_RECOVERY_RATE = 0.05',
+  'DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE = 0.04',
+  'DIRECT_DEMAND_SHORTAGE_PRICE_STEP = 1.01',
   'DIRECT_DEMAND_PRICE_RECOVERY_RATE = 0.30',
   'DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP = 0.98',
   'DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES = 2',
@@ -155,6 +157,7 @@ for (const text of [
   'direct demand quote anchor stops at absolute price one',
   'zero fill below reference accelerates recovery while partial service recovers gently',
   'no direct demand converges toward reference and derived liquidity ignores a low direct anchor',
+  'shortage pressure approaches the reference premium by at most one percent per cycle',
 ]) assert.ok(marketDemandTests.includes(text), '市场需求测试缺少模型 10 双向报价回归: ' + text);
 
 const populationTests = read('server/test/population-economy.test.js');
