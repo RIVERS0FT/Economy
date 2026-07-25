@@ -23,7 +23,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .agent/banking.patch.part-* | base64 --decode > /tmp/banking.patch.gz
+          {
+            cat .agent/fix-aa-0 .agent/fix-aa-1 .agent/fix-aa-2
+            cat .agent/fix-ab-0 .agent/fix-ab-1 .agent/fix-ab-2
+            cat .agent/banking.patch.part-ac
+            cat .agent/fix-ad-0 .agent/fix-ad-1 .agent/fix-ad-2
+            cat .agent/banking.patch.part-ae .agent/banking.patch.part-af .agent/banking.patch.part-ag
+            cat .agent/banking.patch.part-ah .agent/banking.patch.part-ai .agent/banking.patch.part-aj
+            cat .agent/banking.patch.part-ak .agent/banking.patch.part-al .agent/banking.patch.part-am
+          } | base64 --decode > /tmp/banking.patch.gz
           echo '1317be2804e23b8a0ad34c22f69225447a4606718cc436b2b625638aebf4849f  /tmp/banking.patch.gz' | sha256sum --check -
           gzip --decompress --stdout /tmp/banking.patch.gz > /tmp/banking.patch
           git apply --check /tmp/banking.patch
