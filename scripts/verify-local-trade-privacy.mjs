@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -36,7 +37,7 @@ for (const text of [
   'version: CURRENT_CLIENT_STATE_VERSION',
 ]) requireText('server/src/facility-groups.js', text);
 
-for (const text of ['isOwn?: boolean', 'version: 17;', 'export interface OrderFill']) requireText('src/types.ts', text);
+for (const text of ['isOwn?: boolean', `version: ${CURRENT_CLIENT_STATE_VERSION};`, 'export interface OrderFill']) requireText('src/types.ts', text);
 for (const text of ['counterparty: string', 'makerOrderId', 'takerOrderId', "liquidity: 'maker' | 'taker'", 'populationModelId?:', 'fundingPool?:']) forbidText('src/types.ts', text);
 
 for (const text of [
