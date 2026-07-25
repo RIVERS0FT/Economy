@@ -7,6 +7,10 @@ import {
   processProductionContracts,
 } from '../src/contracts.js';
 import { resolveAction } from '../src/game-routes.js';
+import {
+  getContractRuntimeIndexDiagnostics,
+  resetContractRuntimeIndexDiagnostics,
+} from '../src/contract-runtime-index.js';
 
 function setup(now = 1_800_000_000_000) {
   const world = createWorld(now);
@@ -135,7 +139,9 @@ test('客户端状态包含进行中合同摘要，路由解析所有合同动�
   assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', { contractId: contract.id }, now + 1).ok, true);
   contract = contractById(world, contract.id);
 
+  resetContractRuntimeIndexDiagnostics(world);
   const client = createProductionContractClientState(world, buyerUser.id, now + 2);
+  assert.equal(getContractRuntimeIndexDiagnostics(world).builds, 1);
   assert.equal(client.productionContractSummary.active, 1);
   assert.equal(client.productionContracts[0].status, 'active');
   assert.equal(client.productionContracts[0].isSupplier, true);
