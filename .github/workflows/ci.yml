@@ -53,5 +53,6 @@ jobs:
             browser-test.log
             playwright-report
             test-results
+            docs/PRODUCT_AND_GAMEPLAY_DESIGN.md
           if-no-files-found: warn
           retention-days: 3
