@@ -820,6 +820,15 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       return group && group.count > 0 ? [{ type, group }] : [];
     });
   }, [game.facilityGroups, game.facilityTypes]);
+  const facilityClusterStatusCounts = useMemo(() => {
+    const summary: Record<FacilityGroup['status'], number> = {
+      running: 0,
+      stopped: 0,
+      error: 0,
+    };
+    for (const { group } of orderedFacilityGroups) summary[group.status] += 1;
+    return summary;
+  }, [orderedFacilityGroups]);
   const selectedFacilityEntry =
     orderedFacilityGroups.find(({ type }) => type.id === selectedFacilityGroupId) ?? orderedFacilityGroups[0];
   const effectiveSelectedFacilityGroupId = selectedFacilityEntry?.type.id ?? '';
@@ -882,14 +891,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       description="同类未冻结工厂共享生产周期和服务器正式配方；公式展示本周期或恢复后的集群输入、输出与成本。"
       actions={
         <>
-          <StatusTag tone="success">运行 {formatNumber(model.derived.runningFacilities)}</StatusTag>
-          <StatusTag tone="neutral">停止 {formatNumber(model.derived.stoppedFacilities)}</StatusTag>
-          <StatusTag tone={model.derived.blockedFacilities > 0 ? 'danger' : 'neutral'}>
-            异常 {formatNumber(model.derived.blockedFacilities)}
+          <StatusTag tone="success">运行 {formatNumber(facilityClusterStatusCounts.running)}</StatusTag>
+          <StatusTag tone="neutral">停止 {formatNumber(facilityClusterStatusCounts.stopped)}</StatusTag>
+          <StatusTag tone={facilityClusterStatusCounts.error > 0 ? 'danger' : 'neutral'}>
+            异常 {formatNumber(facilityClusterStatusCounts.error)}
           </StatusTag>
-          {model.derived.constructingFacilities > 0 ? (
-            <StatusTag tone="warning">施工 {formatNumber(model.derived.constructingFacilities)}</StatusTag>
-          ) : null}
         </>
       }
     >

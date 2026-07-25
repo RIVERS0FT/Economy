@@ -12,6 +12,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/OverviewPage.tsx',
   'src/pages/MarketPage.tsx',
   'src/pages/ProductionPage.tsx',
+  'tests/browser/production-status-summary.spec.ts',
   'src/pages/AssetsPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/ContractPage.tsx',
@@ -138,9 +139,12 @@ for (const text of [
   'title="生产"',
   'SwitchControl',
   'checked={group.enabled}',
-  '运行 {formatNumber(model.derived.runningFacilities)}',
-  '停止 {formatNumber(model.derived.stoppedFacilities)}',
-  '异常 {formatNumber(model.derived.blockedFacilities)}',
+  'const facilityClusterStatusCounts = useMemo(() => {',
+  "const summary: Record<FacilityGroup['status'], number> = {",
+  'summary[group.status] += 1;',
+  '运行 {formatNumber(facilityClusterStatusCounts.running)}',
+  '停止 {formatNumber(facilityClusterStatusCounts.stopped)}',
+  '异常 {formatNumber(facilityClusterStatusCounts.error)}',
   'facility-status-header',
   'facility-card-title-row',
   'facility-card-title-block',
@@ -160,6 +164,16 @@ for (const text of [
   '前往市场交易该工厂 →',
   'formatNumber(group.count)',
 ]) requireText('src/pages/ProductionPage.tsx', text);
+for (const text of [
+  '运行 {formatNumber(model.derived.runningFacilities)}',
+  '停止 {formatNumber(model.derived.stoppedFacilities)}',
+  '异常 {formatNumber(model.derived.blockedFacilities)}',
+  '施工 {formatNumber(model.derived.constructingFacilities)}',
+]) forbidText('src/pages/ProductionPage.tsx', text);
+requireText(
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  '标题区状态汇总固定只显示“运行 N／停止 N／异常 N”',
+);
 for (const text of [
   'facility-formula-input-group',
   'facility-formula-center',
