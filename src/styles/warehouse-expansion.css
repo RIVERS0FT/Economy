@@ -1,4 +1,9 @@
 .warehouse-upgrade-card {
+  --warehouse-stored-color: var(--color-success);
+  --warehouse-order-color: var(--color-info);
+  --warehouse-contract-color: var(--color-warning);
+  --warehouse-auction-color: var(--color-accent-violet);
+
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4);
@@ -68,7 +73,38 @@
 }
 
 .warehouse-capacity-progress .progress-track {
+  display: flex;
   margin: 0;
+}
+
+.warehouse-capacity-track.is-over-capacity {
+  box-shadow: inset 0 0 0 1px var(--color-danger);
+}
+
+.warehouse-capacity-track .warehouse-capacity-segment {
+  min-width: 0;
+  flex: 0 0 auto;
+  border-radius: 0;
+}
+
+.warehouse-capacity-track .warehouse-capacity-segment--stored,
+.warehouse-summary-item--stored .warehouse-summary-swatch {
+  background: var(--warehouse-stored-color);
+}
+
+.warehouse-capacity-track .warehouse-capacity-segment--order,
+.warehouse-summary-item--order .warehouse-summary-swatch {
+  background: var(--warehouse-order-color);
+}
+
+.warehouse-capacity-track .warehouse-capacity-segment--contract,
+.warehouse-summary-item--contract .warehouse-summary-swatch {
+  background: var(--warehouse-contract-color);
+}
+
+.warehouse-capacity-track .warehouse-capacity-segment--auction,
+.warehouse-summary-item--auction .warehouse-summary-swatch {
+  background: var(--warehouse-auction-color);
 }
 
 .warehouse-summary-list {
@@ -89,6 +125,9 @@
 }
 
 .warehouse-summary-list dt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
@@ -96,6 +135,17 @@
 .warehouse-summary-list dd {
   margin: 0;
   font-weight: 850;
+}
+
+.warehouse-summary-swatch {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+}
+
+.warehouse-summary-item--available {
+  grid-column: 1 / -1;
 }
 
 .warehouse-upgrade-summary {
