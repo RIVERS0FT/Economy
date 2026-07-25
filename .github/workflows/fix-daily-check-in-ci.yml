@@ -54,6 +54,16 @@ jobs:
           )
           path.write_text(text)
 
+          gem_verifier = Path('scripts/verify-gems-invitations-and-bans.mjs')
+          text = gem_verifier.read_text()
+          text = text.replace(
+              "import { resolve } from 'node:path';\n",
+              "import { resolve } from 'node:path';\nimport { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';\n",
+              1,
+          )
+          text = text.replace("  'version: 17;',", "  `version: ${CURRENT_CLIENT_STATE_VERSION};`,", 1)
+          gem_verifier.write_text(text)
+
           for document_path in [
               'docs/README.md',
               'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
