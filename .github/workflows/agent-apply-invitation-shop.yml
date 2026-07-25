@@ -63,13 +63,27 @@ jobs:
           python /tmp/apply-invitation-shop.py
           python - <<'PY'
           from pathlib import Path
-          path = Path('docs/README.md')
-          content = path.read_text()
-          old = '18. 商店邀请卡唯一归属、固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`。'
-          new = '18. 商店固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复到设置页。'
-          if content.count(old) != 1:
-              raise SystemExit('docs/README.md 商店职责规则锚点不唯一')
-          path.write_text(content.replace(old, new))
+
+          replacements = {
+              'docs/README.md': (
+                  '18. 商店邀请卡唯一归属、固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`。',
+                  '18. 商店固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复到设置页。',
+              ),
+              'docs/REGISTRATION_INVITE_FLOW_DESIGN.md': (
+                  '- Economy 注册完成的唯一判定是该统一账号的玩家档案首次创建事务提交成功。事务提交后永久不允许新增、补填、更换或替换邀请关系。',
+                  '- Economy 注册完成的唯一判定是该统一账号的玩家档案首次创建事务提交成功。注册完成后不能补填、更换或替换邀请关系。',
+              ),
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': (
+                  '玩家档案首次创建事务提交后，账号无论是否已有邀请关系，都永久不能新增、补填、更换或重新绑定邀请人。已有主页统一账号但尚无 Economy 玩家档案时仍属于首次建档；已有 Economy 玩家档案时访问分享链接只能忽略邀请码并清除 URL 参数。旧补填接口固定返回 `410 Gone`，不得读取或写入邀请业务状态。',
+                  '玩家档案首次创建事务提交后，账号无论是否已有邀请关系，都永久不能新增、补填、更换或重新绑定邀请人。注册完成后不能补填或更换邀请码。已有主页统一账号但尚无 Economy 玩家档案时仍属于首次建档；已有 Economy 玩家档案时访问分享链接只能忽略邀请码并清除 URL 参数。旧补填接口固定返回 `410 Gone`，不得读取或写入邀请业务状态。',
+              ),
+          }
+          for file_name, (old, new) in replacements.items():
+              path = Path(file_name)
+              content = path.read_text()
+              if content.count(old) != 1:
+                  raise SystemExit(f'{file_name} 权威规则锚点不唯一')
+              path.write_text(content.replace(old, new))
           PY
           rm -rf .agent
           rm -f .github/workflows/agent-apply-invitation-shop.yml
