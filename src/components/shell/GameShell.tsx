@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
+import { useNavigationBadges } from '../../hooks/useNavigationBadges';
 import { CurrencyText } from '../ui/CurrencyAmount';
 import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
@@ -14,6 +15,7 @@ export function GameShell({ model, statusItems, children }: {
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [qqGroupUrl, setQqGroupUrl] = useState(DEFAULT_QQ_GROUP_URL);
+  const badges = useNavigationBadges(model);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -31,7 +33,7 @@ export function GameShell({ model, statusItems, children }: {
         <DesktopSidebar
           playerName={model.game.playerName}
           activeTab={model.tab}
-          openOrderCount={model.derived.ownOpenOrders.length}
+          badges={badges}
           collapsed={sidebarCollapsed}
           qqGroupUrl={qqGroupUrl}
           onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
@@ -51,7 +53,7 @@ export function GameShell({ model, statusItems, children }: {
           ) : null}
           <MobileBottomNavigation
             activeTab={model.tab}
-            openOrderCount={model.derived.ownOpenOrders.length}
+            badges={badges}
             onSelect={model.setTab}
           />
         </>
