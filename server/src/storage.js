@@ -22,6 +22,12 @@ import {
   migrateAssetAuctionWorld,
 } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
+import {
+  createDailyCheckInSummary,
+  dailyCheckInPeriodFor,
+  dailyCheckInRewardFor,
+  processDailyCheckInWorld,
+} from './daily-check-in.js';
 import { createGemShopSummary, exchangeGems } from './gem-shop.js';
 import { DEFAULT_QQ_GROUP_URL, normalizeQqGroupUrl } from './community-link.js';
 import {
@@ -71,7 +77,44 @@ function generateGiftCode() {
   return `RIVER-${token.slice(0, 4)}-${token.slice(4, 8)}-${token.slice(8, 12)}`;
 }
 
-function createVersionedClientState(world, userId, now) {
+function migrateGemLedgerSchema(database) {
+  const row = database.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'economy_gem_ledger'").get();
+  const sql = String(row?.sql || '');
+  if (!sql || (sql.includes('source_key') && sql.includes('weekly_full_attendance'))) return;
+  database.exec('PRAGMA foreign_keys = OFF');
+  try {
+    database.exec(`
+      BEGIN IMMEDIATE;
+      DROP TABLE IF EXISTS economy_gem_ledger_v2;
+      CREATE TABLE economy_gem_ledger_v2 (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
+        category TEXT NOT NULL CHECK (category IN ('share_link_reward', 'invite_code_reward', 'daily_check_in', 'weekly_full_attendance', 'leaderboard_reward', 'admin_adjustment')),
+        invitation_id INTEGER,
+        description TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        source_key TEXT UNIQUE
+      ) STRICT;
+      INSERT INTO economy_gem_ledger_v2 (
+        id, user_id, amount, balance_after, category, invitation_id, description, created_at, source_key
+      )
+      SELECT id, user_id, amount, balance_after, category, invitation_id, description, created_at, NULL
+      FROM economy_gem_ledger;
+      DROP TABLE economy_gem_ledger;
+      ALTER TABLE economy_gem_ledger_v2 RENAME TO economy_gem_ledger;
+      COMMIT;
+    `);
+  } catch (error) {
+    try { database.exec('ROLLBACK'); } catch { /* no active transaction */ }
+    throw error;
+  } finally {
+    database.exec('PRAGMA foreign_keys = ON');
+  }
+}
+
+function createVersionedClientState(world, userId, now, checkIn) {
   const player = world.players[String(userId)];
   ensureWarehouse(player);
   ensureGemState(player);
@@ -89,6 +132,7 @@ function createVersionedClientState(world, userId, now) {
       leaderboards: { ...createLeaderboardSnapshot(world, userId, now), generatedAt: now },
     },
     gems: player.gems,
+    checkIn,
     ...createWarehouseSummary(world, player),
     ...createAssetAuctionClientState(world, userId, now),
     version: CURRENT_CLIENT_STATE_VERSION,
@@ -148,6 +192,32 @@ export class EconomyStore {
       ) STRICT;
       CREATE INDEX IF NOT EXISTS idx_economy_gift_redemptions_user
         ON economy_gift_redemptions(user_id, redeemed_at DESC);
+      CREATE TABLE IF NOT EXISTS economy_daily_check_ins (
+        user_id INTEGER NOT NULL,
+        date_key TEXT NOT NULL,
+        week_key TEXT NOT NULL,
+        daily_reward_gems INTEGER NOT NULL CHECK (daily_reward_gems = 1),
+        weekly_bonus_gems INTEGER NOT NULL DEFAULT 0 CHECK (weekly_bonus_gems IN (0, 5)),
+        claimed_at INTEGER NOT NULL,
+        request_key TEXT NOT NULL UNIQUE,
+        balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
+        PRIMARY KEY (user_id, date_key)
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS idx_economy_daily_check_ins_week
+        ON economy_daily_check_ins(user_id, week_key, date_key);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_economy_daily_check_ins_bonus
+        ON economy_daily_check_ins(user_id, week_key) WHERE weekly_bonus_gems > 0;
+      CREATE TABLE IF NOT EXISTS economy_gem_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        balance_after INTEGER NOT NULL CHECK (balance_after >= 0),
+        category TEXT NOT NULL CHECK (category IN ('share_link_reward', 'invite_code_reward', 'daily_check_in', 'weekly_full_attendance', 'leaderboard_reward', 'admin_adjustment')),
+        invitation_id INTEGER,
+        description TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        source_key TEXT UNIQUE
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS economy_gem_shop_exchanges (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -181,6 +251,11 @@ export class EconomyStore {
         updated_at INTEGER NOT NULL,
         updated_by INTEGER NOT NULL
       ) STRICT;
+    `);
+    migrateGemLedgerSchema(this.database);
+    this.database.exec(`
+      CREATE INDEX IF NOT EXISTS idx_economy_gem_ledger_user
+        ON economy_gem_ledger(user_id, created_at DESC);
     `);
     this.selectWorld = this.database.prepare('SELECT revision, state_json FROM economy_world WHERE id = 1');
     this.insertWorld = this.database.prepare(
@@ -233,6 +308,24 @@ export class EconomyStore {
       SELECT user_id, reward_credits, redeemed_at
       FROM economy_gift_redemptions WHERE gift_code_id = ?
       ORDER BY redeemed_at DESC LIMIT 500
+    `);
+    this.selectDailyCheckInByDate = this.database.prepare(`
+      SELECT * FROM economy_daily_check_ins WHERE user_id = ? AND date_key = ?
+    `);
+    this.selectDailyCheckInsForWeek = this.database.prepare(`
+      SELECT * FROM economy_daily_check_ins
+      WHERE user_id = ? AND week_key = ? ORDER BY date_key
+    `);
+    this.insertDailyCheckIn = this.database.prepare(`
+      INSERT INTO economy_daily_check_ins (
+        user_id, date_key, week_key, daily_reward_gems, weekly_bonus_gems,
+        claimed_at, request_key, balance_after
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    this.insertGemLedgerEvent = this.database.prepare(`
+      INSERT INTO economy_gem_ledger (
+        user_id, amount, balance_after, category, invitation_id, description, created_at, source_key
+      ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?)
     `);
     this.insertGemShopExchange = this.database.prepare(`
       INSERT INTO economy_gem_shop_exchanges (
@@ -386,6 +479,7 @@ export class EconomyStore {
 }
 
   prepareWorldForStorage(world, now) {
+    processDailyCheckInWorld(world, now);
     for (const player of Object.values(world.players || {})) {
       ensureWarehouse(player);
       ensureGemState(player);
@@ -465,7 +559,9 @@ export class EconomyStore {
 
   processWorldIfDue(world, now, _currentUserId, { force = false } = {}) {
   if (!force && now < this.nextWorldProcessingAt) return false;
-  processLeaderboardWorld(world, now);
+  processLeaderboardWorld(world, now, {
+    onGemReward: (reward) => this.recordGemLedgerEvent(reward),
+  });
   if (this.scheduledProcessing) {
     this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
   } else {
@@ -513,13 +609,94 @@ export class EconomyStore {
       return {
         revision: nextRevision,
         unchanged: false,
-        state: normalizeJson(createVersionedClientState(world, Number(user.id), now)),
+        state: normalizeJson(createVersionedClientState(
+          world,
+          Number(user.id),
+          now,
+          this.dailyCheckInSummaryFor(world.players[playerId], now),
+        )),
       };
     }, { immediate: false });
   }
 
   getState(user, now = Date.now()) {
     return this.getStateSnapshot(user, undefined, now).state;
+  }
+
+  dailyCheckInSummaryFor(player, now = Date.now()) {
+    const period = dailyCheckInPeriodFor(now);
+    return createDailyCheckInSummary(
+      player,
+      this.selectDailyCheckInsForWeek.all(Number(player.userId), period.weekKey),
+      now,
+    );
+  }
+
+  recordGemLedgerEvent({ userId, amount, balanceAfter, category, description, sourceKey, createdAt }) {
+    this.insertGemLedgerEvent.run(
+      Number(userId),
+      Number(amount),
+      Number(balanceAfter),
+      String(category),
+      String(description),
+      Number(createdAt),
+      String(sourceKey),
+    );
+  }
+
+  checkInInTransaction(player, requestKey, now = Date.now()) {
+    const period = dailyCheckInPeriodFor(now);
+    if (this.selectDailyCheckInByDate.get(Number(player.userId), period.todayKey)) {
+      return { ok: false, message: '今日已签到，请明天再来' };
+    }
+    const rows = this.selectDailyCheckInsForWeek.all(Number(player.userId), period.weekKey);
+    const reward = dailyCheckInRewardFor(player, rows, now);
+    if (reward.alreadyClaimed) return { ok: false, message: '今日已签到，请明天再来' };
+
+    const balanceBefore = Number(player.gems || 0);
+    const dailyBalance = balanceBefore + reward.dailyGems;
+    const balanceAfter = balanceBefore + reward.totalGems;
+    player.gems = balanceAfter;
+    player.stats ||= {};
+    player.stats.dailyCheckInGemsIssued = Number(player.stats.dailyCheckInGemsIssued || 0) + reward.dailyGems;
+    player.stats.weeklyFullAttendanceGemsIssued = Number(player.stats.weeklyFullAttendanceGemsIssued || 0) + reward.weeklyBonusGems;
+
+    this.insertDailyCheckIn.run(
+      Number(player.userId),
+      period.todayKey,
+      period.weekKey,
+      reward.dailyGems,
+      reward.weeklyBonusGems,
+      now,
+      requestKey,
+      balanceAfter,
+    );
+    this.recordGemLedgerEvent({
+      userId: player.userId,
+      amount: reward.dailyGems,
+      balanceAfter: dailyBalance,
+      category: 'daily_check_in',
+      description: `每日签到获得 ${reward.dailyGems} 宝石`,
+      sourceKey: `check-in:${player.userId}:${period.todayKey}`,
+      createdAt: now,
+    });
+    if (reward.weeklyBonusGems > 0) {
+      this.recordGemLedgerEvent({
+        userId: player.userId,
+        amount: reward.weeklyBonusGems,
+        balanceAfter,
+        category: 'weekly_full_attendance',
+        description: `本周全勤额外获得 ${reward.weeklyBonusGems} 宝石`,
+        sourceKey: `full-attendance:${player.userId}:${period.weekKey}`,
+        createdAt: now,
+      });
+    }
+    return {
+      ok: true,
+      message: reward.weeklyBonusGems > 0
+        ? `签到成功，获得 ${reward.dailyGems} 宝石；本周全勤额外获得 ${reward.weeklyBonusGems} 宝石`
+        : `签到成功，获得 ${reward.dailyGems} 宝石`,
+    };
   }
 
   redeemGiftInTransaction(world, user, payload, now) {
@@ -576,13 +753,15 @@ export class EconomyStore {
         return createActionAcknowledgement(cachedResponse.result, cachedResponse.revision);
       }
 
-      const { revision, world } = this.loadWorld(now);
+      const { revision, stateJson, world } = this.loadWorld(now);
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
       ensureGemState(player);
       this.processWorldIfDue(world, now, Number(user.id), { force: true });
       let gameResult;
-      if (action === 'upgradeWarehouse') {
+      if (action === 'checkIn') {
+        gameResult = this.checkInInTransaction(player, requestKey, now);
+      } else if (action === 'upgradeWarehouse') {
         gameResult = upgradeWarehouse(world.players[String(user.id)]);
       } else if (action === 'redeemGift') {
         gameResult = this.redeemGiftInTransaction(world, user, payload, now);
@@ -609,7 +788,7 @@ export class EconomyStore {
       this.processWorldIfDue(world, now, Number(user.id), { force: true });
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
-      const nextRevision = this.saveWorld(revision, world, now);
+      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
       const response = createActionAcknowledgement(gameResult, nextRevision);
       this.insertIdempotency.run(
         Number(user.id),

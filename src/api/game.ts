@@ -183,6 +183,7 @@ export async function getCommunityLink(signal?: AbortSignal): Promise<CommunityL
 
 export const gameActions = {
   work: () => postAction('/work'),
+  checkIn: () => postAction('/check-in'),
   upgradeWarehouse: () => postAction('/warehouse/upgrade'),
   buildFacility: (facilityTypeId: string) => postAction('/facilities', { facilityTypeId }),
   startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),

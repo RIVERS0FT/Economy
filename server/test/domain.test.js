@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import {
   applyAction,
   createWorld,
@@ -148,11 +149,11 @@ test('idempotency returns the original response without applying an action twice
   }
 });
 
-test('client state uses version 17 and exposes no factory instances', () => {
+test('client state uses the current version and exposes no factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, now);
-    assert.equal(state.version, 17);
+    assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
     assert.equal(state.products.length, 31);

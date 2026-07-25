@@ -70,7 +70,6 @@ assert.equal(ticks[1].timestamp - ticks[0].timestamp, 2 * 60 * 60 * 1000, '每�
 assert.match(ticks[0].label, /^\d{2}:\d{2}$/, '时间刻度必须使用 HH:mm');
 
 const chart = read('src/components/charts/PriceSparkline.tsx');
-const overviewPage = read('src/pages/OverviewPage.tsx');
 const marketPage = read('src/pages/MarketPage.tsx');
 const types = read('src/types.ts');
 const matchingCore = read('server/src/order-matching.js');
@@ -98,16 +97,6 @@ for (const text of ['CompactPriceSparkline', 'values: number[]']) {
 }
 
 for (const text of [
-  'buildMarketHistoryBuckets',
-  'summarizeMarketFlow',
-  '<PriceSparkline buckets={overviewMarket.buckets} variant="compact" />',
-  '24h 净主动买入',
-]) assert.ok(overviewPage.includes(text), `OverviewPage 缺少: ${text}`);
-for (const text of ['slice(-24)', '<PriceSparkline values=']) {
-  assert.ok(!overviewPage.includes(text), `OverviewPage 不应保留: ${text}`);
-}
-
-for (const text of [
   'buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now)',
   'countMarketHistoryPointsInWindow(marketHistory, now)',
   '<PriceSparkline buckets={marketBuckets} variant="full" />',
@@ -122,7 +111,8 @@ assert.ok(commodityMarket.includes('LIQUIDITY_SIGNAL_WEIGHT'), '储备成交必�
 assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt);'), '工厂成交必须记录吃单方方向');
 
 for (const text of [
-  '概览页与市场页的商品行情统一统计当前资产最近 24h',
+  '市场页的商品行情统一统计当前资产最近 24h',
+  '概览页不再承载市场行情图',
   '柱高始终表示总成交量',
   '净主动买入使用成功色',
   '旧历史方向未知使用中性色',
@@ -134,4 +124,4 @@ for (const text of [
   '禁止伪造迁移方向',
 ]) assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 
-console.log('Market chart verification passed: overview and market share 24h buckets with net active flow colors, weighted reserve signals and windowed trade counts.');
+console.log('Market chart verification passed: the market page owns 24h buckets, net active flow colors, weighted reserve signals and windowed trade counts.');

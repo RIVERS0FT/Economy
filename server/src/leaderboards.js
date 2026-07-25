@@ -4,7 +4,7 @@ import { processAssetAuctions } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
 
 export const LEADERBOARD_TIME_ZONE = 'Asia/Shanghai';
-export const LEADERBOARD_REWARDS = Object.freeze([30, 20, 10]);
+export const LEADERBOARD_REWARDS = Object.freeze([50, 30, 20]);
 export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_HISTORY_LIMIT = 52;
 
@@ -364,7 +364,7 @@ export function createLeaderboardSnapshot(world, currentUserId, now = Date.now()
   };
 }
 
-function awardPeriod(world, state, settledAt) {
+function awardPeriod(world, state, settledAt, onGemReward) {
   world.leaderboardHistory = Array.isArray(world.leaderboardHistory) ? world.leaderboardHistory : [];
   if (world.leaderboardHistory.some((period) => period.periodKey === state.periodKey)) return;
   const historyBoards = {};
@@ -377,6 +377,15 @@ function awardPeriod(world, state, settledAt) {
         ensureGemState(player);
         player.gems += gems;
         playerStats(player).leaderboardGemsIssued += gems;
+        onGemReward?.({
+          userId: Number(entry.userId),
+          amount: gems,
+          balanceAfter: player.gems,
+          category: 'leaderboard_reward',
+          description: `${boardDefinition(boardId).title}第 ${index + 1} 名奖励 ${gems} 宝石`,
+          sourceKey: `leaderboard:${state.periodKey}:${boardId}:${entry.userId}`,
+          createdAt: settledAt,
+        });
       }
       return {
         rank: index + 1,
@@ -419,7 +428,7 @@ function processWorldAt(world, now, priorOrderReferences = []) {
   }
 }
 
-export function processLeaderboardWorld(world, now = Date.now()) {
+export function processLeaderboardWorld(world, now = Date.now(), options = {}) {
   world.players ||= {};
   for (const player of Object.values(world.players)) playerStats(player);
 
@@ -436,7 +445,7 @@ export function processLeaderboardWorld(world, now = Date.now()) {
   while (now >= state.endsAt) {
     const priorOrders = [...(world.orders || [])];
     processWorldAt(world, state.endsAt - 1, priorOrders);
-    awardPeriod(world, state, state.endsAt);
+    awardPeriod(world, state, state.endsAt, options.onGemReward);
     state = advancePeriod(world, state);
     captureTradingFills(world, state, unionOrders(priorOrders, world.orders || []));
   }

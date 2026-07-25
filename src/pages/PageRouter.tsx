@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 
@@ -13,13 +13,6 @@ const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ defau
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
 export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
-  const [overviewProductId, setOverviewProductId] = useState(() => model.game.products[0]?.id ?? '');
-
-  useEffect(() => {
-    if (model.game.products.some((product) => product.id === overviewProductId)) return;
-    setOverviewProductId(model.game.products[0]?.id ?? '');
-  }, [model.game.products, overviewProductId]);
-
   let page;
   switch (model.tab) {
     case 'market':
@@ -52,13 +45,7 @@ export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
       break;
     case 'home':
     default:
-      page = (
-        <OverviewPage
-          model={model}
-          overviewProductId={overviewProductId}
-          onOverviewProductChange={setOverviewProductId}
-        />
-      );
+      page = <OverviewPage model={model} />;
   }
 
   return <Suspense fallback={<div className="page-loading" role="status">正在加载页面…</div>}>{page}</Suspense>;

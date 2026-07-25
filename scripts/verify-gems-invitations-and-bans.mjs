@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
 
 const root = process.cwd();
 const failures = [];
@@ -113,7 +114,7 @@ for (const text of [
   'gems: number;',
   'invitationGemsIssued: number;',
   'gemExchangeCredits: number;',
-  'version: 17;',
+  `version: ${CURRENT_CLIENT_STATE_VERSION};`,
 ]) requireText('src/types.ts', text);
 
 for (const text of [

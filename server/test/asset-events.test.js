@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { EconomyStore } from '../src/storage.js';
 
@@ -26,11 +27,11 @@ function assertPlayerLogsAbsent(player) {
   assert.equal(Object.hasOwn(player, 'assetEvents'), false);
 }
 
-test('client state version 17 excludes all player log arrays and factory instances', () => {
+test('current client state version excludes all player log arrays and factory instances', () => {
   const store = new EconomyStore(':memory:');
   try {
     const state = store.getState(alice, 1_700_000_000_000);
-    assert.equal(state.version, 17);
+    assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
     assert.equal(Object.hasOwn(state, 'trades'), false);
     assert.equal(Object.hasOwn(state, 'ledger'), false);
     assert.equal(Object.hasOwn(state, 'assetEvents'), false);

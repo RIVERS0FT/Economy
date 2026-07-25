@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import assert from 'node:assert/strict';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import { createFacilityGroupClientState } from '../src/facility-groups.js';
@@ -30,7 +31,7 @@ test('ordinary player order state removes counterparties, demand sources, and li
   ];
 
   const state = createFacilityGroupClientState(world, alice.id, now);
-  assert.equal(state.version, 17);
+  assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
   const own = state.orders.find((order) => order.id === 'alice-sell');
   const external = state.orders.find((order) => order.id === 'population-secret');
 

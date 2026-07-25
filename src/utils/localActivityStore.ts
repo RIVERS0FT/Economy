@@ -28,6 +28,7 @@ let flushListenerInstalled = false;
 export type LocalActivityAction =
   | 'refresh'
   | 'work'
+  | 'checkIn'
   | 'upgradeWarehouse'
   | 'placeOrder'
   | 'cancelOrder'
@@ -76,6 +77,7 @@ interface SyncContext {
 const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   refresh: 'system',
   work: 'work',
+  checkIn: 'system',
   upgradeWarehouse: 'warehouse',
   placeOrder: 'order',
   cancelOrder: 'order',
