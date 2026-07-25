@@ -35,14 +35,16 @@ jobs:
           echo '1317be2804e23b8a0ad34c22f69225447a4606718cc436b2b625638aebf4849f  /tmp/banking.patch.gz' | sha256sum --check -
           gzip --decompress --stdout /tmp/banking.patch.gz > /tmp/banking.patch
           git apply --check /tmp/banking.patch
-      - name: Apply and publish implementation
-        shell: bash
+      - name: Apply implementation
         run: |
-          set -euo pipefail
           git apply /tmp/banking.patch
-          rm -rf .agent .github/workflows/agent-source-export.yml
+          git diff --check
+      - name: Commit implementation
+        run: |
+          rm -rf .agent
           git add -A
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m '实现银行、抵押贷款与动态存款利息'
-          git push origin HEAD:agent/banking-interest
+      - name: Push implementation
+        run: git push origin HEAD:refs/heads/agent/banking-interest
