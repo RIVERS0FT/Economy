@@ -250,6 +250,7 @@ test('overview check-in calendar distinguishes claimed, today, missed, and futur
   const days = page.getByRole('list', { name: '本周签到日历' }).getByRole('listitem');
   await expect(days).toHaveCount(7);
   await expect(days.nth(0)).toHaveAttribute('aria-label', /周一 07-13 已签/);
+  await expect(days.nth(2)).toHaveAttribute('aria-label', /周三 07-15 漏签/);
   await expect(days.nth(4)).toHaveAttribute('aria-label', /周五 07-17 今日/);
   await expect(days.nth(5)).toHaveAttribute('aria-label', /周六 07-18 未到/);
   await expect(page.getByText('连续签到 7 天可额外获得 5 宝石', { exact: true })).toBeVisible();
@@ -265,6 +266,19 @@ test('overview shows completed and partial-week attendance states', async ({ pag
 
   await page.goto('runtime-test.html?view=overview&scenario=check-in-partial');
   await expect(page.getByText('注册所在周可领取每日奖励，下周起参与全勤', { exact: true })).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
+
+test('overview check-in calendar preserves seven columns on mobile', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+  const calendar = page.getByRole('list', { name: '本周签到日历' });
+  await expect(calendar.getByRole('listitem')).toHaveCount(7);
+  expect(await gridTrackCount(calendar)).toBe(7);
+  expect(await page.locator('.overview-check-in-panel').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   expect(pageErrors).toEqual([]);
 });
 

@@ -44,12 +44,15 @@ test('daily check-in grants one gem once per server day', () => {
     store.getState(account, MONDAY_SHANGHAI - CHECK_IN_DAY_MS);
     const now = MONDAY_SHANGHAI + 12 * 60 * 60 * 1000;
     const first = claim(store, account, now, 'check-in-once-0001');
-    const duplicate = claim(store, account, now + 1, 'check-in-once-0002');
+    const replay = claim(store, account, now + 1, 'check-in-once-0001');
+    const duplicate = claim(store, account, now + 2, 'check-in-once-0002');
     assert.equal(first.result.ok, true);
     assert.match(first.result.message, /获得 1 宝石/);
+    assert.deepEqual(replay, first);
     assert.equal(duplicate.result.ok, false);
     assert.match(duplicate.result.message, /今日已签到/);
-    const state = store.getState(account, now + 2);
+    assert.equal(duplicate.revision, first.revision);
+    const state = store.getState(account, now + 3);
     assert.equal(state.gems, DAILY_CHECK_IN_REWARD_GEMS);
     assert.equal(state.checkIn.claimedToday, true);
     assert.equal(state.checkIn.weeklyClaimCount, 1);

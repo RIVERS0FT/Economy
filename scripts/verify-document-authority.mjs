@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { CURRENT_CLIENT_STATE_VERSION } from '../server/shared/economy-state-version.js';
 
 const root = process.cwd();
 const pathFor = (path) => resolve(root, path);
@@ -75,7 +76,7 @@ if (existsSync(pathFor('docs'))) {
 if (existsSync(pathFor('README.md'))) {
   const rootReadme = read('README.md');
   for (const text of [
-    '客户端状态版本：`17`',
+    `客户端状态版本：\`${CURRENT_CLIENT_STATE_VERSION}\``,
     '世界状态版本：`15`',
     '市场需求模型版本：`10`',
     '概览｜市场｜生产｜资产｜拍卖｜合同｜排行｜商店｜设置',
@@ -109,7 +110,7 @@ if (existsSync(pathFor('README.md'))) {
 for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
-  if (!content.includes('客户端状态版本：17')) failures.push(`${path} 客户端状态版本必须为 17`);
+  if (!content.includes(`客户端状态版本：${CURRENT_CLIENT_STATE_VERSION}`)) failures.push(`${path} 客户端状态版本必须为 ${CURRENT_CLIENT_STATE_VERSION}`);
   if (!content.includes('世界状态版本：15')) failures.push(`${path} 世界状态版本必须为 15`);
 }
 
@@ -150,4 +151,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('文档权威性验证通过：登记文档清单、版本 17/15、市场需求模型 10、长期生产合同、商品／工厂资产拍卖、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航职责均满足当前基线。');
+console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/15、市场需求模型 10、长期生产合同、商品／工厂资产拍卖、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航职责均满足当前基线。`);

@@ -170,7 +170,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
   return (
     <PageLayout
       title={<>{greeting}，{game.playerName}</>}
-      description="优先处理生产、仓库与订单提醒，再根据市场快照调整经营决策。"
+      description="优先处理生产、仓库与订单提醒，并领取服务器每日签到奖励。"
       actions={(
         <>
           <StatusTag tone={businessAlerts.length > 0 ? 'warning' : 'success'}>

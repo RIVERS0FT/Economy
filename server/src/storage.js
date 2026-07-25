@@ -96,7 +96,6 @@ function migrateGemLedgerSchema(database) {
         description TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         source_key TEXT UNIQUE,
-        FOREIGN KEY (invitation_id) REFERENCES economy_invitation_relations(id)
       ) STRICT;
       INSERT INTO economy_gem_ledger_v2 (
         id, user_id, amount, balance_after, category, invitation_id, description, created_at, source_key
@@ -218,7 +217,6 @@ export class EconomyStore {
         description TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         source_key TEXT UNIQUE,
-        FOREIGN KEY (invitation_id) REFERENCES economy_invitation_relations(id)
       ) STRICT;
       CREATE TABLE IF NOT EXISTS economy_gem_shop_exchanges (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -755,7 +753,7 @@ export class EconomyStore {
         return createActionAcknowledgement(cachedResponse.result, cachedResponse.revision);
       }
 
-      const { revision, world } = this.loadWorld(now);
+      const { revision, stateJson, world } = this.loadWorld(now);
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
       ensureGemState(player);
@@ -790,7 +788,7 @@ export class EconomyStore {
       this.processWorldIfDue(world, now, Number(user.id), { force: true });
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
-      const nextRevision = this.saveWorld(revision, world, now);
+      const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
       const response = createActionAcknowledgement(gameResult, nextRevision);
       this.insertIdempotency.run(
         Number(user.id),

@@ -123,7 +123,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     gems: scenario === 'check-in-complete' ? 12 : 4,
     checkIn: {
       timeZone: 'Asia/Shanghai',
-      todayKey: '2026-07-17',
+      todayKey: scenario === 'check-in-complete' ? '2026-07-19' : '2026-07-17',
       weekKey: '2026-07-13',
       weekStartsAt: Date.UTC(2026, 6, 12, 16, 0, 0),
       weekEndsAt: Date.UTC(2026, 6, 19, 16, 0, 0),
@@ -132,8 +132,8 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       claimedToday: scenario === 'check-in-complete',
       claimedDateKeys: scenario === 'check-in-complete'
         ? ['2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16', '2026-07-17', '2026-07-18', '2026-07-19']
-        : ['2026-07-13', '2026-07-14', '2026-07-15', '2026-07-16'],
-      weeklyClaimCount: scenario === 'check-in-complete' ? 7 : 4,
+        : ['2026-07-13', '2026-07-14', '2026-07-16'],
+      weeklyClaimCount: scenario === 'check-in-complete' ? 7 : 3,
       weeklyBonusEarned: scenario === 'check-in-complete',
       weeklyBonusEligible: scenario !== 'check-in-partial',
       dailyRewardGems: 1,
