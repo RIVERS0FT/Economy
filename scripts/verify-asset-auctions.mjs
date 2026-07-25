@@ -52,6 +52,7 @@ const filesUnder = (directory) => {
   'server/src/asset-auctions.js',
   'server/src/facility-groups.js',
   'server/src/warehouse.js',
+  'server/src/warehouse-reservations.js',
   'server/src/storage.js',
   'server/src/app.js',
   'server/src/game-routes.js',
@@ -133,7 +134,16 @@ requireText('server/src/game-routes.js', [
 requireText('server/src/state-partitions.js', [
   "const AUCTION_KEYS = new Set(['assetAuctions']);",
 ]);
-requireText('server/src/warehouse.js', ['world?.assetAuctions']);
+requireText('server/src/warehouse.js', [
+  "from './warehouse-reservations.js'",
+  'nonContractWarehouseReservation(world, player.userId)',
+]);
+requireText('server/src/warehouse-reservations.js', [
+  'world?.assetAuctions',
+  "auction?.status !== 'open'",
+  "item.assetKind === 'commodity'",
+  'pendingCommodityBuyQuantityForOwner',
+]);
 requireText('server/src/facility-groups.js', ['world.assetAuctions']);
 requireText('server/src/app.js', [
   "path.startsWith('/api/game/admin/collectibles')",

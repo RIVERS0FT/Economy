@@ -1,5 +1,6 @@
-import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
+import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import { creditPopulationEmploymentForPlayer } from './population-economy.js';
+import { nonContractWarehouseReservation } from './warehouse-reservations.js';
 
 export const WAREHOUSE_BASE_CAPACITY = 500;
 export const WAREHOUSE_CAPACITY_STEP = 250;
@@ -26,33 +27,6 @@ function storedQuantity(player) {
     ),
     0,
   );
-}
-
-function auctionItems(auction) {
-  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
-  const kind = auction?.assetKind;
-  const assetId = String(auction?.assetId || auction?.productId || auction?.facilityTypeId || '');
-  return kind && assetId ? [{ assetKind: kind, assetId, quantity: Math.max(1, Number(auction.quantity || 1)) }] : [];
-}
-
-function auctionCommodityQuantity(auction) {
-  return auctionItems(auction).reduce((sum, item) => (
-    item.assetKind === 'commodity' ? sum + Math.max(0, Number(item.quantity || 0)) : sum
-  ), 0);
-}
-
-function reservedBuyQuantity(world, userId) {
-  const orderReserved = pendingCommodityBuyQuantityForOwner(world, userId);
-  const auctionReserved = (world?.assetAuctions || []).reduce((sum, auction) => {
-    if (
-      Number(auction?.highestBidderId) !== Number(userId)
-      || auction?.status !== 'open'
-      || auction?.escrowStatus === 'released'
-      || auction?.escrowStatus === 'transferred'
-    ) return sum;
-    return sum + auctionCommodityQuantity(auction);
-  }, 0);
-  return orderReserved + auctionReserved;
 }
 
 export function warehouseCapacityIncreaseForLevel(level) {
@@ -116,10 +90,18 @@ export function ensureWarehouse(player) {
   return player;
 }
 
-export function createWarehouseUsage(world, player) {
+export function createWarehouseUsage(world, player, {
+  contractRuntimeIndex = null,
+  exceptContractId = null,
+} = {}) {
   ensureWarehouse(player);
   const stored = storedQuantity(player);
-  const reserved = reservedBuyQuantity(world, player.userId);
+  const runtimeIndex = contractRuntimeIndex || createContractRuntimeIndex(world);
+  const contractReserved = runtimeIndex.reservedContractIncomingForBuyer(
+    player.userId,
+    exceptContractId,
+  );
+  const reserved = nonContractWarehouseReservation(world, player.userId) + contractReserved;
   const used = stored + reserved;
   return {
     warehouseStoredQuantity: stored,
@@ -129,7 +111,7 @@ export function createWarehouseUsage(world, player) {
   };
 }
 
-export function createWarehouseSummary(world, player) {
+export function createWarehouseSummary(world, player, options = {}) {
   ensureWarehouse(player);
   const level = player.warehouseLevel;
   const capacityIncrease = warehouseCapacityIncreaseForLevel(level);
@@ -143,7 +125,7 @@ export function createWarehouseSummary(world, player) {
       : warehouseUpgradeCostForCapacity(player.inventoryCapacity),
     warehouseNextCapacity: nextCapacity ?? player.inventoryCapacity,
     warehouseNextCapacityIncrease: nextCapacity === null ? 0 : capacityIncrease,
-    ...createWarehouseUsage(world, player),
+    ...createWarehouseUsage(world, player, options),
   };
 }
 

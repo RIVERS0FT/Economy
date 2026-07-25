@@ -80,11 +80,16 @@ requireText('server/src/order-book-runtime.js', [
   'tailAppends',
 ]);
 requireText('server/src/contract-runtime-index.js', [
+  'runtimeByWorld',
   'createContractRuntimeIndex',
   'reservedIncomingForBuyer',
   'activeCountForParticipant',
   'openCountForPublisher',
   'nextDeadlineAt',
+]);
+requireText('server/src/warehouse.js', [
+  'createContractRuntimeIndex',
+  'runtimeIndex.reservedContractIncomingForBuyer',
 ]);
 requireText('server/src/contracts.js', [
   'processProductionContractsWithIndex',
@@ -138,6 +143,7 @@ requireText('docs/README.md', [
   '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',
   '统一订单簿运行时索引只属于服务器事务内派生状态',
   '正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`',
+  '共享仓库统一预占必须同时包含未完成商品买单',
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
   '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
 ]);
