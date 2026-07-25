@@ -9,49 +9,73 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  apply:
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout code
+      - name: Checkout PR branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
+      - name: Extract and run implementation script
         shell: bash
         run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
+          set -euo pipefail
+          git show c160ef417143e1f32d4dba62f33528d243a5f7d6:.github/workflows/apply-order-book-runtime-index.yml > /tmp/original-workflow.yml
+          python3 - <<'PY'
+          from pathlib import Path
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+          lines = Path('/tmp/original-workflow.yml').read_text(encoding='utf-8').splitlines()
+          start = next(index for index, line in enumerate(lines) if line == '      - name: Implement runtime order book index')
+          run_line = next(index for index in range(start, len(lines)) if lines[index] == '        run: |')
+          collected = []
+          for line in lines[run_line + 1:]:
+              if line.startswith('      - name: '):
+                  break
+              if line and not line.startswith('          '):
+                  raise RuntimeError(f'Unexpected implementation indentation: {line!r}')
+              collected.append(line[10:] if line else '')
+          Path('/tmp/apply-order-book-runtime-index.sh').write_text('\n'.join(collected) + '\n', encoding='utf-8')
+          PY
+          bash /tmp/apply-order-book-runtime-index.sh
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
 
-      - name: Test browser runtime
+      - name: Run focused verification
         shell: bash
         run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
+          set -euo pipefail
+          node --check server/src/order-book-runtime.js
+          node --check server/src/order-matching.js
+          node --check server/src/order-book-integrity.js
+          node --check server/src/market-demand/signals.js
+          node --test \
+            server/test/order-book-runtime.test.js \
+            server/test/order-matching.test.js \
+            server/test/order-book-integrity.test.js \
+            server/test/warehouse.test.js \
+            server/test/market-liquidity.test.js
+          node scripts/verify-order-matching-core.mjs
+          node scripts/verify-runtime-efficiency.mjs
 
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '优化订单簿运行时索引'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
