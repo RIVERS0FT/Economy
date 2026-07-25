@@ -1,22 +1,23 @@
 name: Apply Production Cluster Summary
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/production-cluster-summary
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply-and-verify:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout branch
+      - name: Checkout head branch
         uses: actions/checkout@v4
         with:
-          ref: agent/production-cluster-summary
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Setup Node
@@ -50,4 +51,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "按集群统计生产状态"
-          git push origin HEAD:agent/production-cluster-summary
+          git push origin HEAD:${{ github.head_ref }}
