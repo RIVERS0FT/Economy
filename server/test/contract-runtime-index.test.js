@@ -123,6 +123,19 @@ test('contract runtime transitions release and acquire counts without rebuilding
   assert.equal(getContractRuntimeIndexDiagnostics(world).builds, 1);
 });
 
+test('contract runtime deadline reads a live grace deadline without rebuilding', () => {
+  const contract = activeContract('active-1', 1, 2, 25, { nextDueAt: 1_000 });
+  const world = { productionContracts: [contract] };
+  resetContractRuntimeIndexDiagnostics(world);
+  const runtimeIndex = createContractRuntimeIndex(world);
+
+  assert.equal(runtimeIndex.nextDeadlineAt(), 1_000);
+  contract.graceEndsAt = 5_000;
+  assert.equal(createContractRuntimeIndex(world), runtimeIndex);
+  assert.equal(runtimeIndex.nextDeadlineAt(), 5_000);
+  assert.equal(getContractRuntimeIndexDiagnostics(world).builds, 1);
+});
+
 test('unified incoming reservation adds commodity orders and highest auction bids', () => {
   const world = {
     productionContracts: [activeContract('active-1', 1, 2, 25)],
