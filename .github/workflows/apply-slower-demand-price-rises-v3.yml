@@ -1,0 +1,57 @@
+name: Apply slower demand price rises v3
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/slow-demand-price-rises'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/slow-demand-price-rises
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply patch
+        run: python3 .agent/apply-slower-demand-price-rises.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Run focused tests
+        run: |
+          node --test server/test/market-demand-v6.test.js
+          node scripts/verify-staple-crops-demand.mjs
+      - name: Remove temporary patch files
+        run: rm -rf .agent
+      - name: Build and test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/slow-demand-build.log
+      - name: Upload build failure log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: slow-demand-build-failure-${{ github.run_id }}
+          path: /tmp/slow-demand-build.log
+          retention-days: 3
+      - name: Commit final changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-slower-demand-price-rises-v3.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "降低人口需求涨价速度"
+          git push origin HEAD:agent/slow-demand-price-rises
