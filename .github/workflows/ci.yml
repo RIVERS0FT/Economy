@@ -31,9 +31,13 @@ jobs:
       - name: Extract and run implementation script
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          exec > >(tee apply-order-book.log) 2>&1
+          set +e
           git show c160ef417143e1f32d4dba62f33528d243a5f7d6:.github/workflows/apply-order-book-runtime-index.yml > /tmp/original-workflow.yml
-          python3 - <<'PY'
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            python3 - <<'PY'
           from pathlib import Path
 
           lines = Path('/tmp/original-workflow.yml').read_text(encoding='utf-8').splitlines()
@@ -48,9 +52,22 @@ jobs:
               collected.append(line[10:] if line else '')
           Path('/tmp/apply-order-book-runtime-index.sh').write_text('\n'.join(collected) + '\n', encoding='utf-8')
           PY
-          bash /tmp/apply-order-book-runtime-index.sh
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
+            bash /tmp/apply-order-book-runtime-index.sh
+            status=$?
+          fi
+          if [ "$status" -eq 0 ]; then
+            git fetch origin main
+            git checkout origin/main -- .github/workflows/ci.yml
+            status=$?
+          fi
+          if [ "$status" -ne 0 ]; then
+            echo '=== ORDER BOOK APPLY FAILURE TAIL ==='
+            tail -n 120 apply-order-book.log
+            exit "$status"
+          fi
 
       - name: Run focused verification
         shell: bash
