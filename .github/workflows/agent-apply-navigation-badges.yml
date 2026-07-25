@@ -31,7 +31,7 @@ jobs:
       - name: Apply patch
         run: |
           cat .agent/navigation-badges.patch.part-* > /tmp/navigation-badges.patch
-          if ! git apply --check /tmp/navigation-badges.patch 2> .agent/navigation-badges-apply-error.txt; then
+          if ! git apply /tmp/navigation-badges.patch 2> .agent/navigation-badges-apply-error.txt; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add .agent/navigation-badges-apply-error.txt
@@ -39,7 +39,6 @@ jobs:
             git push origin HEAD:agent/unified-navigation-badges
             exit 0
           fi
-          git apply /tmp/navigation-badges.patch
           rm -f .agent/navigation-badges.patch.part-*
           rm -f .agent/navigation-badges-apply-error.txt
       - name: Validate focused changes
