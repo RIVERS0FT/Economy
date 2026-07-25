@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createMarketLiquidityRuntime } from './market-liquidity.js';
+import { ordersForDemandGroup } from './order-book-runtime.js';
 import {
   DEMAND_CURVE,
   DEMAND_CURVE_SHORTAGE_MULTIPLIER,
@@ -157,9 +158,10 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
 
   function settlePreviousCycle(world, group, state, now) {
     const previousCycleId = Number(state.lastCycleId);
-    const cycleOrders = (world.orders || []).filter((order) => (
-      isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
-    ));
+  const groupOrders = ordersForDemandGroup(world, group.id);
+  const cycleOrders = groupOrders.filter((order) => (
+    isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+  ));
     if (cycleOrders.length === 0) {
       return {
         hasOrders: false,
@@ -228,7 +230,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       }
     }
 
-    for (const order of world.orders || []) {
+    for (const order of groupOrders) {
       if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;
       if (Number(order.demandCycleId) >= previousCycleId) continue;
       const productId = String(order.productId || '');
@@ -368,7 +370,8 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   }
 
   function prepareGroupOrders(world, group, state, cycleId) {
-    const groupOrders = (world.orders || []).filter((order) => isConsumptionOrder(order, group.id));
+  const groupOrders = ordersForDemandGroup(world, group.id)
+    .filter((order) => isConsumptionOrder(order, group.id));
     const cycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || 0));
     const soldProducts = new Set(groupOrders
       .filter((order) => Number(order.lastFilledAt || 0) > 0 && Number(order.lastFilledAt) >= cycleStartedAt)
@@ -387,12 +390,12 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   }
 
   function groupOpenOrderValue(world, groupId, predicate = () => true) {
-    return (world.orders || []).filter((order) => (
-      isConsumptionOrder(order, groupId)
-      && isOpenOrder(order)
-      && predicate(order)
-    )).reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
-  }
+  return ordersForDemandGroup(world, groupId).reduce((sum, order) => (
+    isConsumptionOrder(order, groupId) && isOpenOrder(order) && predicate(order)
+      ? sum + Number(order.price || 0) * Number(order.remaining || 0)
+      : sum
+  ), 0);
+}
 
   function trimOrdersToValue(world, orders, cap) {
     let total = orders.reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
@@ -415,18 +418,17 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   }
 
   function enforceOrderValueCaps(world, group, cycleBudget, allocations) {
-    for (const [productId, allocation] of Object.entries(allocations)) {
-      const productCap = Math.max(0, Math.floor(
-        (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
-      ));
-      trimOrdersToValue(world, (world.orders || []).filter((order) => (
-        isConsumptionOrder(order, group.id) && order.productId === productId && isOpenOrder(order)
-      )), productCap);
-    }
-    const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
-    const orders = (world.orders || []).filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
-    return trimOrdersToValue(world, orders, cap);
+  const groupOrders = ordersForDemandGroup(world, group.id)
+    .filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
+  for (const [productId, allocation] of Object.entries(allocations)) {
+    const productCap = Math.max(0, Math.floor(
+      (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
+    ));
+    trimOrdersToValue(world, groupOrders.filter((order) => order.productId === productId), productCap);
   }
+  const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+  return trimOrdersToValue(world, groupOrders, cap);
+}
 
   function createOrder(world, group, role, product, price, quantity, cycleId, now, populationModelId) {
     if (quantity < 1) return { filled: 0, order: null, committed: 0 };

@@ -9,6 +9,7 @@ import {
 } from './market-demand.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { orderAssetId, orderKind } from './order-identity.js';
+import { countOpenOrdersForOwner, pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from './population-economy.js';
 
 export * from './domain-core.js';
@@ -255,15 +256,7 @@ function playerInventoryUsed(player) {
 }
 
 function pendingPlayerBuyQuantity(world, userId) {
-  return (world.orders || []).reduce((sum, order) => (
-    Number(order.ownerId) === userId
-      && order.ownerType === 'player'
-      && orderKind(order) === 'commodity'
-      && order.side === 'buy'
-      && balancedMarket.isOpenOrder(order)
-      ? sum + Math.max(0, Number(order.remaining || 0))
-      : sum
-  ), 0);
+  return pendingCommodityBuyQuantityForOwner(world, userId);
 }
 
 function applyCommodityOrder(world, user, payload, now) {
@@ -284,12 +277,9 @@ function applyCommodityOrder(world, user, payload, now) {
   })) return { ok: false, message: SELF_CROSS_MESSAGE };
 
   world.orders ||= [];
-  const openOrders = world.orders.filter((order) => (
-    Number(order.ownerId) === userId && balancedMarket.isOpenOrder(order)
-  ));
-  if (openOrders.length >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
-    return { ok: false, message: '未完成订单数量已达上限' };
-  }
+if (countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
+  return { ok: false, message: '未完成订单数量已达上限' };
+}
 
   const player = core.ensurePlayer(world, user, now);
   if (side === 'buy') {

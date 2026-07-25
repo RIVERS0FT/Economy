@@ -59,6 +59,13 @@ requireText('server/src/request-metrics.js', [
   "OVERFLOW_ROUTE = '/api/other'",
   'overflowedRequestCount',
 ]);
+requireText('server/src/order-book-runtime.js', [
+  'getOrderBookSide',
+  'getOwnerOrderBookSide',
+  'pendingCommodityBuyQuantityForOwner',
+  'facilitySellQuantityForOwner',
+  'tailAppends',
+]);
 requireText('server/src/contract-runtime-index.js', [
   'createContractRuntimeIndex',
   'reservedIncomingForBuyer',
@@ -83,6 +90,11 @@ requireText('server/test/request-metrics.test.js', [
   'request metrics aggregate duration and application response bytes',
   'request metrics cap route cardinality and aggregate overflow',
 ]);
+requireText('server/test/order-book-runtime.test.js', [
+  'runtime order book preserves price-time-array priority for 4000 orders',
+  'runtime order book tracks tail appends and rebuilds after array replacement',
+  'repeated matching reuses one runtime index',
+]);
 requireText('server/test/contract-runtime-index.test.js', [
   'contract runtime index matches the reference reservation scan for 2000 contracts',
   'contract runtime transitions release and acquire counts without rebuilding',
@@ -104,6 +116,7 @@ requireText('docs/README.md', [
   '合同分区必须复用当前修订缓存',
   '失败或无变化动作仍保存幂等确认但不得触发全服补拉',
   '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',
+  '统一订单簿运行时索引只属于服务器事务内派生状态',
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
   '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
 ]);
@@ -113,4 +126,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、合同线性索引、合同状态投影复用和有界请求指标均已锁定。');
+console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');
