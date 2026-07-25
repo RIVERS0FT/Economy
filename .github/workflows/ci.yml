@@ -96,20 +96,18 @@ jobs:
               "  await expect(days.nth(0)).toHaveAttribute('aria-label', /周一 07-13 已签/);\n  await expect(days.nth(2)).toHaveAttribute('aria-label', /周三 07-15 漏签/);\n  await expect(days.nth(4)).toHaveAttribute('aria-label', /周五 07-17 今日/);",
               1,
           )
-          insertion = """
-
-test('overview check-in calendar preserves seven columns on mobile', async ({ page }) => {
-  const pageErrors = await capturePageErrors(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('runtime-test.html?view=overview&scenario=empty');
-
-  const calendar = page.getByRole('list', { name: '本周签到日历' });
-  await expect(calendar.getByRole('listitem')).toHaveCount(7);
-  expect(await gridTrackCount(calendar)).toBe(7);
-  expect(await page.locator('.overview-check-in-panel').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
-  expect(pageErrors).toEqual([]);
-});
-"""
+          insertion = (
+              "\n\ntest('overview check-in calendar preserves seven columns on mobile', async ({ page }) => {\n"
+              "  const pageErrors = await capturePageErrors(page);\n"
+              "  await page.setViewportSize({ width: 390, height: 844 });\n"
+              "  await page.goto('runtime-test.html?view=overview&scenario=empty');\n\n"
+              "  const calendar = page.getByRole('list', { name: '本周签到日历' });\n"
+              "  await expect(calendar.getByRole('listitem')).toHaveCount(7);\n"
+              "  expect(await gridTrackCount(calendar)).toBe(7);\n"
+              "  expect(await page.locator('.overview-check-in-panel').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);\n"
+              "  expect(pageErrors).toEqual([]);\n"
+              "});\n"
+          )
           marker = "\ntest('overview cash changes exclude synchronization events and short lists do not scroll'"
           if insertion.strip() not in text:
               if marker not in text:
@@ -178,68 +176,10 @@ test('overview check-in calendar preserves seven columns on mobile', async ({ pa
               1,
           )
           path.write_text(text)
-
-          original_ci = """name: Economy CI
-
-on:
-  pull_request:
-  workflow_dispatch:
-
-concurrency:
-  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24.4.0
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Test browser runtime
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
-"""
-          Path('.github/workflows/ci.yml').write_text(original_ci)
           PY
 
+          git fetch origin main
+          git show origin/main:.github/workflows/ci.yml > .github/workflows/ci.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
