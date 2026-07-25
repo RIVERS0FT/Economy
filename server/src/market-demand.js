@@ -10,6 +10,7 @@ import {
   DIRECT_DEMAND_OVERSUPPLY_FILL_RATIO,
   DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP,
   DIRECT_DEMAND_PRICE_RECOVERY_RATE,
+  DIRECT_DEMAND_SHORTAGE_PRICE_STEP,
   DIRECT_DEMAND_UNFILLED_PRICE_STEP,
   DIRECT_DEMAND_UNFILLED_REFERENCE_GAP_RATE,
   DIRECT_DEMAND_UNFILLED_REFERENCE_MAX_RATE,
@@ -460,8 +461,11 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   function priceCurveFor(product, referencePrice, pressure, role, directQuoteAnchor = referencePrice) {
     const cap = Math.max(DIRECT_DEMAND_MIN_PRICE, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
     const shortageMultiplier = pressure >= 1.15 ? DEMAND_CURVE_SHORTAGE_MULTIPLIER : 1;
+    const shortageTarget = referencePrice * shortageMultiplier;
     const directBase = role === 'direct'
-      ? (pressure >= 1.15 ? Math.max(directQuoteAnchor, referencePrice * shortageMultiplier) : directQuoteAnchor)
+      ? (pressure >= 1.15
+        ? Math.min(Math.max(directQuoteAnchor, shortageTarget), directQuoteAnchor * DIRECT_DEMAND_SHORTAGE_PRICE_STEP)
+        : directQuoteAnchor)
       : referencePrice;
     return DEMAND_CURVE.map((tier, index) => {
       const targetPrice = role === 'direct'

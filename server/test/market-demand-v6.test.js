@@ -99,14 +99,14 @@ test('direct demand quote anchor accumulates fractional no-fill increases and re
   runtime.processGroup(world, 'food', now);
   assert.equal(topWheatPriceFor(Math.floor(now / constants.demandCycleMs)), 2);
 
-  for (let cycle = 1; cycle <= 8; cycle += 1) {
+  for (let cycle = 1; cycle <= 15; cycle += 1) {
     runtime.processGroup(world, 'food', now + cycle * constants.demandCycleMs);
   }
 
-  const raisedAt = now + 8 * constants.demandCycleMs;
+  const raisedAt = now + 15 * constants.demandCycleMs;
   const raisedCycleId = Math.floor(raisedAt / constants.demandCycleMs);
   const raisedAnchor = world.marketDemand.groups.food.directQuoteAnchors.wheat;
-  assert.ok(raisedAnchor >= 2.53);
+  assert.ok(raisedAnchor >= 2.50);
   assert.equal(topWheatPriceFor(raisedCycleId), 3);
 
   const filledAt = raisedAt + 240_000;
@@ -210,7 +210,7 @@ test('zero fill below reference accelerates recovery while partial service recov
   const historyBefore = zeroWorld.markets.food.priceHistory.length;
   const tradePriceBefore = zeroWorld.markets.food.lastTradePrice;
   zeroRuntime.processGroup(zeroWorld, 'food', now + constants.demandCycleMs);
-  assert.equal(zeroWorld.marketDemand.groups.food.directQuoteAnchors.food, 7);
+  assert.equal(zeroWorld.marketDemand.groups.food.directQuoteAnchors.food, 6.4);
   assert.equal(zeroWorld.markets.food.priceHistory.length, historyBefore);
   assert.equal(zeroWorld.markets.food.lastTradePrice, tradePriceBefore);
 
@@ -227,7 +227,7 @@ test('zero fill below reference accelerates recovery while partial service recov
   assert.ok(total >= 2);
   fillDemandQuantity(orders, Math.floor(total / 2));
   partialRuntime.processGroup(partialWorld, 'food', now + constants.demandCycleMs);
-  assert.equal(partialWorld.marketDemand.groups.food.directQuoteAnchors.food, 6.4);
+  assert.equal(partialWorld.marketDemand.groups.food.directQuoteAnchors.food, 6.2);
   assert.equal(partialWorld.marketDemand.groups.food.directOversupplyCycles.food, 0);
 });
 
@@ -252,6 +252,25 @@ test('no direct demand converges toward reference and derived liquidity ignores 
   assert.ok(derivedPrices.length > 0);
   assert.equal(Math.max(...directPrices), 1);
   assert.equal(Math.max(...derivedPrices), 2);
+});
+
+test('shortage pressure approaches the reference premium by at most one percent per cycle', () => {
+  const now = 1_700_000_000_000;
+  const runtime = createRuntime();
+  const world = createTestWorld(now);
+  runtime.initializeWorld(world, now);
+  world.marketDemand.priceTransmission.products.food.referencePrice = 30;
+  world.marketDemand.groups.food.directQuoteAnchors.food = 10;
+  world.marketDemand.productPressure.food = 1.20;
+  world.marketDemand.groups.food.nextDemandAt = now;
+
+  runtime.processGroup(world, 'food', now);
+
+  const cycleId = Math.floor(now / constants.demandCycleMs);
+  const prices = demandOrdersFor(world, 'food', 'food', cycleId).map((order) => Number(order.price || 0));
+  assert.ok(prices.length > 0);
+  assert.equal(Math.max(...prices), 16);
+  assert.ok(Math.max(...prices) < Math.round(30 * 1.03));
 });
 
 test('market model 10 uses funded population wallets when no player is active', () => {
