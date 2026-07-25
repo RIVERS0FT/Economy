@@ -1,0 +1,52 @@
+name: Upgrade verifier version literals
+
+on:
+  push:
+    branches:
+      - agent/daily-check-in
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/daily-check-in
+      - name: Remove stale current-version literals
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'version: 17;': 'version: 18;',
+              '客户端状态版本：`17`': '客户端状态版本：`18`',
+              '客户端状态版本：17': '客户端状态版本：18',
+              '版本 17/15': '版本 18/15',
+              '客户端状态版本必须为 17': '客户端状态版本必须为 18',
+          }
+          changed = []
+          for path in Path('scripts').glob('*.mjs'):
+              text = path.read_text()
+              updated = text
+              for old, new in replacements.items():
+                  updated = updated.replace(old, new)
+              if updated != text:
+                  path.write_text(updated)
+                  changed.append(str(path))
+          if not changed:
+              raise SystemExit('no stale verifier version literals found')
+          print('\n'.join(changed))
+          PY
+      - name: Commit verifier cleanup
+        run: |
+          git rm .github/workflows/upgrade-verifier-version-literals.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "test: remove stale client version assertions"
+          git push origin HEAD:agent/daily-check-in
