@@ -68,7 +68,16 @@ jobs:
         run: npm ci
 
       - name: Run full build validation
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          if npm run build > /tmp/economy-build.log 2>&1; then
+            echo '完整构建验证通过'
+          else
+            echo '完整构建验证失败，末尾日志如下：'
+            tail -n 160 /tmp/economy-build.log
+            exit 1
+          fi
 
       - name: Commit validated implementation
         shell: bash
