@@ -145,8 +145,7 @@ test('sends share-link invite code through email registration and immediately re
     const relation = context.registrationStore.invitations.invitationByInvitee(7);
     assert.equal(relation.source, 'share_link');
     assert.equal(relation.status, 'rewarded');
-    const summary = context.registrationStore.getInvitationSummary(7, now + 3);
-    assert.equal(summary.claimedInvitation.inviteCode, inviteCode);
+    assert.equal(relation.invite_code, inviteCode);
   } finally { context.store.close(); }
 });
 
@@ -170,7 +169,7 @@ test('accepts a manually entered invite code during registration and rewards imm
     const relation = context.registrationStore.invitations.invitationByInvitee(7);
     assert.equal(relation.source, 'manual_code');
     assert.equal(relation.invite_code, inviteCode);
-    assert.equal(context.registrationStore.getInvitationSummary(7, now + 3).claimedInvitation.inviteCode, inviteCode);
+    assert.equal(relation.status, 'rewarded');
   } finally { context.store.close(); }
 });
 

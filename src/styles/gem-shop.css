@@ -1,6 +1,6 @@
 .gem-shop-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(18rem, 0.92fr);
   gap: var(--space-3);
   align-items: start;
 }
@@ -11,8 +11,20 @@
   grid-column: 1 / -1;
 }
 
+.gem-shop-main-column,
+.gem-shop-side-column {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.gem-shop-main-column { grid-column: 1; }
+.gem-shop-side-column { grid-column: 2; }
+
 .gem-shop-exchange-card,
-.gem-shop-history-card {
+.gem-shop-history-card,
+.invite-card {
   min-width: 0;
 }
 
@@ -65,8 +77,10 @@
 .gem-shop-total-row { justify-content: space-between; margin-top: var(--space-2); }
 
 @media (max-width: 960px) {
-  .gem-shop-grid { grid-template-columns: 1fr; }
-  .gem-shop-balance-card { grid-column: auto; }
+  .gem-shop-grid { grid-template-columns: minmax(0, 1fr); }
+  .gem-shop-balance-card { grid-column: 1; order: 1; }
+  .gem-shop-side-column { grid-column: 1; order: 2; }
+  .gem-shop-main-column { grid-column: 1; order: 3; }
 }
 
 @media (max-width: 720px) {
