@@ -1,3 +1,4 @@
+import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
 import { creditPopulationEmploymentForPlayer } from './population-economy.js';
 
@@ -41,7 +42,7 @@ function auctionCommodityQuantity(auction) {
   ), 0);
 }
 
-function reservedBuyQuantity(world, userId) {
+function reservedNonContractQuantity(world, userId) {
   const orderReserved = pendingCommodityBuyQuantityForOwner(world, userId);
   const auctionReserved = (world?.assetAuctions || []).reduce((sum, auction) => {
     if (
@@ -116,10 +117,18 @@ export function ensureWarehouse(player) {
   return player;
 }
 
-export function createWarehouseUsage(world, player) {
+export function createWarehouseUsage(world, player, {
+  contractRuntimeIndex = null,
+  exceptContractId = null,
+} = {}) {
   ensureWarehouse(player);
   const stored = storedQuantity(player);
-  const reserved = reservedBuyQuantity(world, player.userId);
+  const runtimeIndex = contractRuntimeIndex || createContractRuntimeIndex(world);
+  const contractReserved = runtimeIndex.reservedContractIncomingForBuyer(
+    player.userId,
+    exceptContractId,
+  );
+  const reserved = reservedNonContractQuantity(world, player.userId) + contractReserved;
   const used = stored + reserved;
   return {
     warehouseStoredQuantity: stored,
@@ -129,7 +138,7 @@ export function createWarehouseUsage(world, player) {
   };
 }
 
-export function createWarehouseSummary(world, player) {
+export function createWarehouseSummary(world, player, options = {}) {
   ensureWarehouse(player);
   const level = player.warehouseLevel;
   const capacityIncrease = warehouseCapacityIncreaseForLevel(level);
@@ -143,7 +152,7 @@ export function createWarehouseSummary(world, player) {
       : warehouseUpgradeCostForCapacity(player.inventoryCapacity),
     warehouseNextCapacity: nextCapacity ?? player.inventoryCapacity,
     warehouseNextCapacityIncrease: nextCapacity === null ? 0 : capacityIncrease,
-    ...createWarehouseUsage(world, player),
+    ...createWarehouseUsage(world, player, options),
   };
 }
 
