@@ -23,11 +23,14 @@ export function WarehouseUpgradeCard({
     ? Math.min(100, Math.round((game.warehouseUsedCapacity / game.inventoryCapacity) * 100))
     : 0;
   const capacityScale = Math.max(1, game.inventoryCapacity);
+  const orderReserved = game.warehouseOrderReservedQuantity ?? 0;
+  const contractReserved = game.warehouseContractReservedQuantity ?? 0;
+  const auctionReserved = game.warehouseAuctionReservedQuantity ?? 0;
   const capacitySegments = [
     { id: 'stored', label: '实物库存', value: game.warehouseStoredQuantity },
-    { id: 'order', label: '市场订单预占', value: game.warehouseOrderReservedQuantity },
-    { id: 'contract', label: '合同预占', value: game.warehouseContractReservedQuantity },
-    { id: 'auction', label: '拍卖预占', value: game.warehouseAuctionReservedQuantity },
+    { id: 'order', label: '市场订单预占', value: orderReserved },
+    { id: 'contract', label: '合同预占', value: contractReserved },
+    { id: 'auction', label: '拍卖预占', value: auctionReserved },
   ];
   const stockedProducts = useMemo(
     () => game.products.filter((product) => {
@@ -63,7 +66,7 @@ export function WarehouseUpgradeCard({
         <section className="warehouse-management" aria-label="仓库容量与升级">
           <div
             className="warehouse-capacity-progress"
-            aria-label={`仓库已使用 ${formatNumber(game.warehouseUsedCapacity)}/${formatNumber(game.inventoryCapacity)}，实物库存 ${formatNumber(game.warehouseStoredQuantity)}，市场订单预占 ${formatNumber(game.warehouseOrderReservedQuantity)}，合同预占 ${formatNumber(game.warehouseContractReservedQuantity)}，拍卖预占 ${formatNumber(game.warehouseAuctionReservedQuantity)}`}
+            aria-label={`仓库已使用 ${formatNumber(game.warehouseUsedCapacity)}/${formatNumber(game.inventoryCapacity)}，实物库存 ${formatNumber(game.warehouseStoredQuantity)}，市场订单预占 ${formatNumber(orderReserved)}，合同预占 ${formatNumber(contractReserved)}，拍卖预占 ${formatNumber(auctionReserved)}`}
           >
             <div>
               <span>已使用</span>
