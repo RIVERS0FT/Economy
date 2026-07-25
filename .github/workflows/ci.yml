@@ -59,7 +59,38 @@ jobs:
               if line == '          PY':
                   break
               patch_lines.append(line[10:] if line else '')
-          Path('/tmp/patch-order-book-integration.py').write_text('\n'.join(patch_lines) + '\n', encoding='utf-8')
+          patch_text = '\n'.join(patch_lines) + '\n'
+          demand_start = patch_text.index("replace_once(\n    'server/src/market-demand.js',\n    '''    const previousCycleId")
+          demand_end = patch_text.index("replace_section(\n    'server/src/market-demand.js',\n    '  function groupOpenOrderValue'", demand_start)
+          corrected_demand_patch = '''replace_section(
+              'server/src/market-demand.js',
+              '    const previousCycleId = Number(state.lastCycleId);',
+              '    if (cycleOrders.length === 0) {',
+              ''' + "'''" + '''    const previousCycleId = Number(state.lastCycleId);
+            const groupOrders = ordersForDemandGroup(world, group.id);
+            const cycleOrders = groupOrders.filter((order) => (
+              isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+            ));
+          ''' + "'''" + ''',
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              "    for (const order of world.orders || []) {\\n      if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;\\n",
+              "    for (const order of groupOrders) {\\n      if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;\\n",
+          )
+          replace_section(
+              'server/src/market-demand.js',
+              '  function prepareGroupOrders(world, group, state, cycleId) {',
+              '    const cycleStartedAt',
+              ''' + "'''" + '''  function prepareGroupOrders(world, group, state, cycleId) {
+            const groupOrders = ordersForDemandGroup(world, group.id)
+              .filter((order) => isConsumptionOrder(order, group.id));
+          ''' + "'''" + ''',
+          )
+
+          '''
+          patch_text = patch_text[:demand_start] + corrected_demand_patch + patch_text[demand_end:]
+          Path('/tmp/patch-order-book-integration.py').write_text(patch_text, encoding='utf-8')
           PY
           bash /tmp/generate-order-book-runtime.sh
 
