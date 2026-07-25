@@ -1,0 +1,47 @@
+name: Apply unified navigation badges
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".agent/navigation-badges.patch.part-*"
+      - ".github/workflows/agent-apply-navigation-badges.yml"
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'agent/unified-navigation-badges'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/unified-navigation-badges
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Apply patch
+        run: |
+          cat .agent/navigation-badges.patch.part-* > /tmp/navigation-badges.patch
+          git apply --check /tmp/navigation-badges.patch
+          git apply /tmp/navigation-badges.patch
+          rm -f .agent/navigation-badges.patch.part-*
+      - name: Validate focused changes
+        run: |
+          npm ci
+          npm run verify:navigation-badges
+          npm run typecheck
+      - name: Commit generated change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "统一导航角标系统"
+          git push origin HEAD:agent/unified-navigation-badges
