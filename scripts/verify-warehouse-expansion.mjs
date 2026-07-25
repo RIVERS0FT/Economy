@@ -11,8 +11,11 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 [
   'README.md',
   'server/src/warehouse.js',
+  'server/src/contract-runtime-index.js',
+  'server/src/contracts.js',
   'server/src/facility-groups.js',
   'server/test/warehouse.test.js',
+  'server/test/unified-warehouse-reservations.test.js',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/components/facilities/FacilityProductionFormula.tsx',
   'src/pages/ProductionPage.tsx',
@@ -40,6 +43,9 @@ for (const text of [
   'warehouseUpgradeCostForCapacity(player.inventoryCapacity)',
   'warehouseNextCapacityIncrease',
   'export function createWarehouseUsage',
+  'createContractRuntimeIndex',
+  'contractRuntimeIndex = null',
+  'runtimeIndex.reservedContractIncomingForBuyer',
   'warehouseReservedQuantity: reserved',
   'warehouseAvailableCapacity: Math.max(0, player.inventoryCapacity - used)',
   'player.credits -= cost',
@@ -58,6 +64,9 @@ for (const text of [
   'warehouse summary price matches the amount deducted for the same actual capacity',
 ]) requireText('server/test/warehouse.test.js', text);
 for (const forbidden of ['warehouseUpgradeCostForLevel']) forbidText('server/test/warehouse.test.js', forbidden);
+requireText('server/test/unified-warehouse-reservations.test.js', 'warehouse usage combines inventory, buy orders, highest bids, and active contract next batches');
+requireText('server/test/unified-warehouse-reservations.test.js', 'contract acceptance rejects capacity already reserved by buy orders and highest bids');
+requireText('server/src/contract-runtime-index.js', 'reservedIncomingForBuyer(userId, exceptContractId = null)');
 
 for (const text of [
   'title="生产"',
@@ -199,6 +208,8 @@ for (const text of [
   '扩容费用必须由当前实际总容量线性计算',
   '仓库等级只能决定容量增量，不能直接决定扩容费用',
   '仓库没有玩家可见的最高等级',
+  '合同预占 = Σ(当前玩家作为采购方的进行中合同下一批商品数量)',
+  '已用容量 = 实物库存 + 订单预占 + 拍卖预占 + 合同预占',
   '容器查询',
   '4／5／6 列',
   '`< 560px` | 4 列 | `104px` | `46px`',
@@ -225,7 +236,9 @@ for (const forbidden of [
 
 requireText('docs/README.md', '仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`');
 requireText('docs/README.md', '移动和窄容器固定每行四张卡');
+requireText('docs/README.md', '共享仓库统一预占必须同时包含未完成商品买单');
 requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 0.6)`');
+requireText('README.md', '采购方下一批商品与未完成商品买单、最高出价拍卖共同使用统一仓库预占');
 for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式只展示集群参数']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 }
