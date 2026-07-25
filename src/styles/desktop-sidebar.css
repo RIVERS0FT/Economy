@@ -199,7 +199,7 @@
     visibility 0s linear 0s;
 }
 
-.desktop-sidebar .sidebar-nav-count {
+.desktop-sidebar .navigation-badge {
   position: static;
   justify-self: end;
   min-width: 18px;
@@ -266,7 +266,7 @@
   gap: 0;
 }
 
-.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .sidebar-nav-count {
+.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .navigation-badge {
   position: absolute;
   top: 2px;
   right: 2px;
@@ -318,7 +318,7 @@
     gap: 0;
   }
 
-  .desktop-sidebar .sidebar-nav-button .sidebar-nav-count {
+  .desktop-sidebar .sidebar-nav-button .navigation-badge {
     position: absolute;
     top: 2px;
     right: 2px;

@@ -208,7 +208,7 @@ p {
   font-size: var(--font-size-md);
 }
 
-.sidebar-nav-button small {
+.navigation-badge {
   min-width: 22px;
   border-radius: var(--radius-pill);
   padding: 0.12rem 0.35rem;

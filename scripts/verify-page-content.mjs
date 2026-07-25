@@ -419,8 +419,12 @@ for (const text of [
 for (const [path, text] of [
   ['src/pages/OverviewPage.tsx', 'formatNumber(derived.runningFacilities)'],
   ['src/pages/LeaderboardPage.tsx', 'formatNumber(entry.facilityCount)'],
-  ['src/components/shell/NavigationItems.tsx', 'formatNumber(openOrderCount)'],
+  ['src/components/shell/NavigationItems.tsx', 'badges: NavigationBadgeMap'],
+  ['src/components/shell/NavigationItems.tsx', 'formatNavigationBadgeCount(navigationBadge.count)'],
 ]) requireText(path, text);
+for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
+  forbidText('src/components/shell/NavigationItems.tsx', text);
+}
 
 for (const text of [
   '概览｜市场｜生产｜资产｜拍卖｜合同｜排行｜商店｜设置',

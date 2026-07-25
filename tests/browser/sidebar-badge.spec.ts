@@ -9,9 +9,9 @@ type BadgeGeometry = {
 
 async function readBadgeGeometry(button: Locator): Promise<BadgeGeometry> {
   return button.evaluate((element) => {
-    const badge = element.querySelector<HTMLElement>('.sidebar-nav-count');
+    const badge = element.querySelector<HTMLElement>('.navigation-badge');
     const sidebar = element.closest<HTMLElement>('.desktop-sidebar');
-    if (!badge || !sidebar) throw new Error('sidebar market badge fixture is incomplete');
+    if (!badge || !sidebar) throw new Error('navigation badge fixture is incomplete');
     const rect = (target: Element) => {
       const box = target.getBoundingClientRect();
       return { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
@@ -41,16 +41,16 @@ function expectBadgeInside(geometry: BadgeGeometry) {
   expect(geometry.badge.right).toBeLessThanOrEqual(geometry.sidebar.right + 1);
 }
 
-test('market order badge stays inside expanded, collapsed and compact sidebar buttons', async ({ page }) => {
+test('navigation badge stays inside expanded, collapsed and compact sidebar buttons', async ({ page }) => {
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('runtime-test.html?view=overview&scenario=many-orders');
 
   const marketButton = page.locator('.desktop-sidebar .sidebar-nav-button', {
-    has: page.locator('.sidebar-nav-count'),
+    has: page.locator('.navigation-badge'),
   });
   await expect(marketButton).toHaveCount(1);
   await expect(marketButton).toHaveAttribute('aria-label', '市场，6 笔未完成订单');
-  await expect(marketButton.locator('.sidebar-nav-count')).toHaveText('6');
+  await expect(marketButton.locator('.navigation-badge')).toHaveText('6');
 
   const expanded = await readBadgeGeometry(marketButton);
   expect(expanded.position).toBe('static');
@@ -70,7 +70,7 @@ test('market order badge stays inside expanded, collapsed and compact sidebar bu
   await page.setViewportSize({ width: 900, height: 900 });
   await page.goto('runtime-test.html?view=overview&scenario=many-orders');
   const compactButton = page.locator('.desktop-sidebar .sidebar-nav-button', {
-    has: page.locator('.sidebar-nav-count'),
+    has: page.locator('.navigation-badge'),
   });
   await expect(compactButton).toHaveCount(1);
 

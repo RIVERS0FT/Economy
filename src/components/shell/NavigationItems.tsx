@@ -1,27 +1,22 @@
 import { NavigationIcon } from '../icons/GameIcons';
 import { navigationItems, type TabId } from '../../config/navigation';
-import { formatNumber } from '../../utils/formatters';
-
-const MAX_SIDEBAR_BADGE_COUNT = 999;
+import { formatNavigationBadgeCount, type NavigationBadgeMap } from '../../navigation/navigationBadges';
 
 export function NavigationItems({
   activeTab,
   onSelect,
-  openOrderCount,
+  badges,
 }: {
   activeTab: TabId;
   onSelect: (tab: TabId) => void;
-  openOrderCount: number;
+  badges: NavigationBadgeMap;
 }) {
   return (
     <>
       {navigationItems.map(({ id, label }) => {
-        const hasOpenOrders = id === 'market' && openOrderCount > 0;
-        const badgeText = openOrderCount > MAX_SIDEBAR_BADGE_COUNT
-          ? `${MAX_SIDEBAR_BADGE_COUNT}+`
-          : formatNumber(openOrderCount);
-        const accessibleLabel = hasOpenOrders
-          ? `${label}，${formatNumber(openOrderCount)} 笔未完成订单`
+        const navigationBadge = badges[id];
+        const accessibleLabel = navigationBadge
+          ? `${label}，${navigationBadge.accessibleLabel}`
           : label;
 
         return (
@@ -35,9 +30,9 @@ export function NavigationItems({
           >
             <span aria-hidden="true"><NavigationIcon name={id} /></span>
             <strong>{label}</strong>
-            {hasOpenOrders ? (
-              <small className="sidebar-nav-count" title={`${formatNumber(openOrderCount)} 笔未完成订单`}>
-                {badgeText}
+            {navigationBadge ? (
+              <small className="navigation-badge" title={navigationBadge.title}>
+                {formatNavigationBadgeCount(navigationBadge.count)}
               </small>
             ) : null}
           </button>

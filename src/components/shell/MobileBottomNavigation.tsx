@@ -1,4 +1,5 @@
 import type { TabId } from '../../config/navigation';
+import type { NavigationBadgeMap } from '../../navigation/navigationBadges';
 import { NavigationItems } from './NavigationItems';
 import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 
@@ -9,11 +10,11 @@ import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
  */
 export function MobileBottomNavigation({
   activeTab,
-  openOrderCount,
+  badges,
   onSelect,
 }: {
   activeTab: TabId;
-  openOrderCount: number;
+  badges: NavigationBadgeMap;
   onSelect: (tab: TabId) => void;
 }) {
   return (
@@ -22,7 +23,7 @@ export function MobileBottomNavigation({
       navLabel="游戏主导航"
       surfaceId="game-mobile-navigation"
     >
-      <NavigationItems activeTab={activeTab} onSelect={onSelect} openOrderCount={openOrderCount} />
+      <NavigationItems activeTab={activeTab} onSelect={onSelect} badges={badges} />
     </MobileBottomNavigationFrame>
   );
 }

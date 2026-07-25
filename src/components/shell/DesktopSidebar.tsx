@@ -1,6 +1,7 @@
 import { Button } from '../ui/layout';
 import { BRAND_NAME } from '../../config/brand';
 import type { TabId } from '../../config/navigation';
+import type { NavigationBadgeMap } from '../../navigation/navigationBadges';
 import { LogoutIcon, QqIcon } from '../icons/GameIcons';
 import { NavigationItems } from './NavigationItems';
 import { SidebarFrame } from './SidebarFrame';
@@ -8,7 +9,7 @@ import { SidebarFrame } from './SidebarFrame';
 export function DesktopSidebar({
   playerName,
   activeTab,
-  openOrderCount,
+  badges,
   collapsed,
   qqGroupUrl,
   onToggleCollapsed,
@@ -17,7 +18,7 @@ export function DesktopSidebar({
 }: {
   playerName: string;
   activeTab: TabId;
-  openOrderCount: number;
+  badges: NavigationBadgeMap;
   collapsed: boolean;
   qqGroupUrl: string;
   onToggleCollapsed: () => void;
@@ -52,7 +53,7 @@ export function DesktopSidebar({
         </>
       )}
     >
-      <NavigationItems activeTab={activeTab} onSelect={onSelect} openOrderCount={openOrderCount} />
+      <NavigationItems activeTab={activeTab} onSelect={onSelect} badges={badges} />
     </SidebarFrame>
   );
 }
