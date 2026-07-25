@@ -77,12 +77,16 @@ jobs:
                   '玩家档案首次创建事务提交后，账号无论是否已有邀请关系，都永久不能新增、补填、更换或重新绑定邀请人。已有主页统一账号但尚无 Economy 玩家档案时仍属于首次建档；已有 Economy 玩家档案时访问分享链接只能忽略邀请码并清除 URL 参数。旧补填接口固定返回 `410 Gone`，不得读取或写入邀请业务状态。',
                   '玩家档案首次创建事务提交后，账号无论是否已有邀请关系，都永久不能新增、补填、更换或重新绑定邀请人。注册完成后不能补填或更换邀请码。已有主页统一账号但尚无 Economy 玩家档案时仍属于首次建档；已有 Economy 玩家档案时访问分享链接只能忽略邀请码并清除 URL 参数。旧补填接口固定返回 `410 Gone`，不得读取或写入邀请业务状态。',
               ),
+              'src/components/InvitationSettings.tsx': (
+                  '              label="我的邀请码"\n              value={summary.inviteCode}\n              readOnly\n              aria-label="我的邀请码"',
+                  '              label="永久邀请码"\n              value={summary.inviteCode}\n              readOnly\n              aria-label="永久邀请码"',
+              ),
           }
           for file_name, (old, new) in replacements.items():
               path = Path(file_name)
               content = path.read_text()
               if content.count(old) != 1:
-                  raise SystemExit(f'{file_name} 权威规则锚点不唯一')
+                  raise SystemExit(f'{file_name} 权威规则或组件锚点不唯一')
               path.write_text(content.replace(old, new))
           PY
           rm -rf .agent
