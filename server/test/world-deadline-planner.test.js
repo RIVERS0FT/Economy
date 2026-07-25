@@ -147,6 +147,7 @@ test('long deadline timer segments early wakeups without opening a world transac
     assert.equal(diagnostics.transactions, 0);
     assert.equal(diagnostics.processedWakeups, 0);
     assert.equal(diagnostics.staleWakeups, 1);
+    assert.equal(diagnostics.schedules, 1);
     assert.equal(diagnostics.nextDueAt, dueAt);
   } finally {
     store.close();
