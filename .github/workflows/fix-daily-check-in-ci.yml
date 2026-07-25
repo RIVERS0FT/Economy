@@ -148,10 +148,6 @@ test('overview check-in calendar preserves seven columns on mobile', async ({ pa
           )
           harness.write_text(text)
           PY
-      - name: Validate
-        run: |
-          npm ci
-          npm run build
       - name: Commit fixes
         run: |
           git rm .github/workflows/fix-daily-check-in-ci.yml
@@ -160,3 +156,7 @@ test('overview check-in calendar preserves seven columns on mobile', async ({ pa
           git add -A
           git commit -m "fix: align check-in persistence and version validation"
           git push origin HEAD:agent/daily-check-in
+      - name: Validate
+        run: |
+          npm ci
+          npm run build
