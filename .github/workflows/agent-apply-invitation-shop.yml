@@ -61,6 +61,16 @@ jobs:
         run: |
           set -euo pipefail
           python /tmp/apply-invitation-shop.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('docs/README.md')
+          content = path.read_text()
+          old = '18. 商店邀请卡唯一归属、固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`。'
+          new = '18. 商店固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复到设置页。'
+          if content.count(old) != 1:
+              raise SystemExit('docs/README.md 商店职责规则锚点不唯一')
+          path.write_text(content.replace(old, new))
+          PY
           rm -rf .agent
           rm -f .github/workflows/agent-apply-invitation-shop.yml
           git diff --check
