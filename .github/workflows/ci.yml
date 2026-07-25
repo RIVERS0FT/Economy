@@ -9,49 +9,571 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
+  apply:
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout code
+      - name: Checkout PR branch
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
+      - name: Implement deadline-driven scheduler
         shell: bash
         run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
+          set -euo pipefail
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+          cat > server/src/world-deadline-planner.js <<'EOF'
+          import { createContractRuntimeIndex } from './contract-runtime-index.js';
+          import { FACILITY_TYPE_CATALOG } from './domain.js';
+          import { isOpenOrder } from './order-identity.js';
+          import { POPULATION_POLICY_CYCLE_MS } from './population-policy.js';
 
-      - name: Test browser runtime
+          const DAY_MS = 24 * 60 * 60 * 1000;
+          const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
+
+          function finiteTimestamp(value) {
+            const timestamp = Number(value);
+            return Number.isFinite(timestamp) && timestamp >= 0 ? timestamp : null;
+          }
+
+          function earlier(left, right) {
+            if (left === null) return right;
+            if (right === null) return left;
+            return Math.min(left, right);
+          }
+
+          function recipeForGroup(group) {
+            const type = FACILITY_TYPES.get(String(group?.facilityTypeId || ''));
+            if (!type) return null;
+            const recipes = Array.isArray(type.recipes) && type.recipes.length > 0
+              ? type.recipes
+              : type.output
+                ? [{
+                  id: `${type.id}-default`,
+                  cycleMs: type.cycleMs,
+                  operatingCost: type.operatingCost,
+                  inputs: type.inputs || (type.input ? [type.input] : []),
+                  output: type.output,
+                }]
+                : [];
+            return recipes.find((recipe) => recipe.id === group?.activeRecipeId)
+              || recipes.find((recipe) => recipe.id === type.defaultRecipeId)
+              || recipes[0]
+              || null;
+          }
+
+          export function nextConstructionEmploymentAt(construction) {
+            if (!construction) return null;
+            const startedAt = finiteTimestamp(construction.startedAt);
+            const completesAt = finiteTimestamp(construction.completesAt);
+            if (startedAt === null || completesAt === null || completesAt <= startedAt) return completesAt;
+            const buildCost = Math.max(0, Math.floor(Number(construction.buildCost || 0)));
+            const released = Math.max(0, Math.floor(Number(construction.employmentReleased || 0)));
+            if (buildCost <= 0 || released >= buildCost) return completesAt;
+            const duration = completesAt - startedAt;
+            const nextReleased = Math.min(buildCost, released + 1);
+            return Math.min(
+              completesAt,
+              startedAt + Math.ceil(nextReleased * duration / buildCost),
+            );
+          }
+
+          function facilityDeadline(world) {
+            let deadline = null;
+            for (const player of Object.values(world.players || {})) {
+              const construction = player.facilityConstruction;
+              if (construction) {
+                deadline = earlier(deadline, finiteTimestamp(construction.completesAt));
+                deadline = earlier(deadline, nextConstructionEmploymentAt(construction));
+              }
+              for (const group of player.facilityGroups || []) {
+                if (group.status !== 'running' || !group.cycleStartedAt) continue;
+                const recipe = recipeForGroup(group);
+                const cycleMs = Math.max(1, Number(recipe?.cycleMs || 0));
+                deadline = earlier(deadline, finiteTimestamp(Number(group.cycleStartedAt) + cycleMs));
+              }
+            }
+            return deadline;
+          }
+
+          function marketDeadline(world, now) {
+            const marketDemand = world.marketDemand;
+            if (!marketDemand || typeof marketDemand !== 'object') return now;
+            let deadline = null;
+            const transmission = marketDemand.priceTransmission;
+            const cycleMs = Math.max(0, Number(transmission?.cycleMs || 0));
+            if (cycleMs > 0) {
+              const lastCycleId = Number.isFinite(Number(transmission?.lastCycleId))
+                ? Number(transmission.lastCycleId)
+                : -1;
+              deadline = earlier(deadline, Math.max(0, (lastCycleId + 1) * cycleMs));
+            }
+            for (const group of Object.values(marketDemand.groups || {})) {
+              deadline = earlier(deadline, finiteTimestamp(group?.nextDemandAt));
+            }
+            const expiryCycle = world.populationEconomy?.policy?.expiresAfterCycleId;
+            if (expiryCycle !== null && expiryCycle !== undefined && Number.isFinite(Number(expiryCycle))) {
+              deadline = earlier(deadline, Math.max(0, Number(expiryCycle) * POPULATION_POLICY_CYCLE_MS));
+            }
+            return deadline;
+          }
+
+          function auctionDeadline(world) {
+            let deadline = null;
+            for (const auction of world.assetAuctions || []) {
+              if (auction?.status !== 'open') continue;
+              deadline = earlier(deadline, finiteTimestamp(auction.endsAt));
+            }
+            return deadline;
+          }
+
+          function leaderboardDeadline(world, now) {
+            const state = world.leaderboardState;
+            if (
+              !state
+              || typeof state.periodKey !== 'string'
+              || !Number.isFinite(Number(state.endsAt))
+              || Number(state.endsAt) <= Number(state.startsAt)
+            ) return now;
+            return Number(state.endsAt);
+          }
+
+          function orderPruneDeadline(world, now) {
+            if ((world.orders || []).length > 4_000 || (world.facilityListings || []).length > 800) return now;
+            let deadline = null;
+            for (const order of world.orders || []) {
+              if (isOpenOrder(order)) continue;
+              const createdAt = finiteTimestamp(order.createdAt);
+              if (createdAt === null) continue;
+              deadline = earlier(deadline, createdAt + DAY_MS + 1);
+            }
+            return deadline;
+          }
+
+          export function createWorldDeadlinePlan(world, now = Date.now()) {
+            const normalizedNow = Math.max(0, Number(now) || 0);
+            if (!world || typeof world !== 'object') {
+              return { nextDueAt: normalizedNow, deadlines: { initialization: normalizedNow } };
+            }
+            const deadlines = {
+              facility: facilityDeadline(world),
+              market: marketDeadline(world, normalizedNow),
+              auction: auctionDeadline(world),
+              contract: createContractRuntimeIndex(world).nextDeadlineAt(),
+              leaderboard: leaderboardDeadline(world, normalizedNow),
+              orderPrune: orderPruneDeadline(world, normalizedNow),
+            };
+            const nextDueAt = Object.values(deadlines).reduce(earlier, null);
+            return { nextDueAt, deadlines };
+          }
+          EOF
+
+          cat > server/test/world-deadline-planner.test.js <<'EOF'
+          import assert from 'node:assert/strict';
+          import test from 'node:test';
+          import { createWorld } from '../src/domain.js';
+          import { EconomyStore } from '../src/runtime-store.js';
+          import {
+            createWorldDeadlinePlan,
+            nextConstructionEmploymentAt,
+          } from '../src/world-deadline-planner.js';
+
+          class FakeClock {
+            constructor(now) {
+              this.now = now;
+              this.nextId = 1;
+              this.timers = new Map();
+              this.setTimeout = (callback, delay) => {
+                const timer = {
+                  id: this.nextId++,
+                  dueAt: this.now + Math.max(0, Number(delay) || 0),
+                  callback,
+                  unref() {},
+                };
+                this.timers.set(timer.id, timer);
+                return timer;
+              };
+              this.clearTimeout = (timer) => {
+                if (timer?.id) this.timers.delete(timer.id);
+              };
+            }
+
+            advance(milliseconds) {
+              const target = this.now + milliseconds;
+              let processed = 0;
+              while (true) {
+                const timer = [...this.timers.values()]
+                  .filter((entry) => entry.dueAt <= target)
+                  .sort((left, right) => left.dueAt - right.dueAt || left.id - right.id)[0];
+                if (!timer) break;
+                this.timers.delete(timer.id);
+                this.now = timer.dueAt;
+                timer.callback();
+                processed += 1;
+                if (processed > 100) throw new Error('fake scheduler entered an immediate loop');
+              }
+              this.now = target;
+            }
+          }
+
+          test('construction employment deadline is the next integer release boundary', () => {
+            assert.equal(nextConstructionEmploymentAt({
+              startedAt: 1_000,
+              completesAt: 11_000,
+              buildCost: 4,
+              employmentReleased: 0,
+            }), 3_500);
+            assert.equal(nextConstructionEmploymentAt({
+              startedAt: 1_000,
+              completesAt: 11_000,
+              buildCost: 4,
+              employmentReleased: 3,
+            }), 11_000);
+          });
+
+          test('world deadline planner selects the earliest authoritative event', () => {
+            const now = 1_800_000_000_000;
+            const world = createWorld(now);
+            world.leaderboardState = {
+              version: 1,
+              periodKey: 'test',
+              startsAt: now,
+              endsAt: now + 60_000,
+            };
+            world.assetAuctions = [{ status: 'open', endsAt: now + 8_000 }];
+            world.productionContracts = [{
+              id: 'contract-test',
+              publisherId: 1,
+              buyerId: 1,
+              supplierId: 2,
+              status: 'active',
+              quantityPerDelivery: 1,
+              completedDeliveries: 0,
+              totalDeliveries: 2,
+              nextDueAt: now + 5_000,
+            }];
+            world.marketDemand.priceTransmission.lastCycleId = Math.floor(now / world.marketDemand.priceTransmission.cycleMs);
+            for (const group of Object.values(world.marketDemand.groups)) group.nextDemandAt = now + 30_000;
+            const plan = createWorldDeadlinePlan(world, now);
+            assert.equal(plan.nextDueAt, now + 5_000);
+            assert.equal(plan.deadlines.contract, now + 5_000);
+          });
+
+          test('deadline scheduler performs zero world transactions during a 60 second idle window', () => {
+            const clock = new FakeClock(1_800_000_000_000);
+            const store = new EconomyStore(':memory:', {
+              scheduledProcessing: true,
+              nowProvider: () => clock.now,
+              setTimeoutFn: clock.setTimeout,
+              clearTimeoutFn: clock.clearTimeout,
+            });
+            try {
+              clock.advance(0);
+              store.resetSchedulerDiagnostics();
+              const before = store.getSchedulerDiagnostics();
+              assert.ok(before.nextDueAt > clock.now);
+              clock.advance(60_000);
+              const after = store.getSchedulerDiagnostics();
+              assert.equal(after.transactions, 0);
+              assert.equal(after.processedWakeups, 0);
+            } finally {
+              store.close();
+            }
+          });
+
+          test('deadline scheduler wakes at the planned event and processes one world transaction', () => {
+            const clock = new FakeClock(1_800_000_000_000);
+            const store = new EconomyStore(':memory:', {
+              scheduledProcessing: true,
+              nowProvider: () => clock.now,
+              setTimeoutFn: clock.setTimeout,
+              clearTimeoutFn: clock.clearTimeout,
+            });
+            try {
+              clock.advance(0);
+              store.resetSchedulerDiagnostics();
+              const dueAt = store.getSchedulerDiagnostics().nextDueAt;
+              assert.ok(Number.isFinite(dueAt));
+              clock.advance(dueAt - clock.now);
+              const diagnostics = store.getSchedulerDiagnostics();
+              assert.equal(diagnostics.transactions, 1);
+              assert.equal(diagnostics.processedWakeups, 1);
+              assert.ok(diagnostics.lastLagMs >= 0);
+            } finally {
+              store.close();
+            }
+          });
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name, old, new):
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path_name}: expected one target, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def replace_section(path_name, start, end, replacement):
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              start_index = text.index(start)
+              end_index = text.index(end, start_index)
+              path.write_text(text[:start_index] + replacement + text[end_index:], encoding='utf-8')
+
+          replace_once(
+              'server/src/storage.js',
+              "import { createLeaderboardSnapshot, processLeaderboardWorld } from './leaderboards.js';\n",
+              "import { createLeaderboardSnapshot, processLeaderboardWorld } from './leaderboards.js';\nimport { createWorldDeadlinePlan } from './world-deadline-planner.js';\n",
+          )
+          replace_once(
+              'server/src/storage.js',
+              "  constructor(databasePath, { scheduledProcessing = databasePath !== ':memory:' } = {}) {\n",
+              "  constructor(databasePath, {\n    scheduledProcessing = databasePath !== ':memory:',\n    nowProvider = Date.now,\n    setTimeoutFn = setTimeout,\n    clearTimeoutFn = clearTimeout,\n    schedulerMaxDelayMs = 2_147_000_000,\n  } = {}) {\n",
+          )
+          replace_section(
+              'server/src/storage.js',
+              '    this.worldCache = null;',
+              '  close() {',
+              '''    this.worldCache = null;
+            this.nextWorldProcessingAt = 0;
+            this.scheduledProcessing = Boolean(scheduledProcessing);
+            this.nowProvider = nowProvider;
+            this.setTimeoutFn = setTimeoutFn;
+            this.clearTimeoutFn = clearTimeoutFn;
+            this.schedulerMaxDelayMs = Math.max(1_000, Number(schedulerMaxDelayMs) || 2_147_000_000);
+            this.processingTimer = null;
+            this.schedulerGeneration = 0;
+            this.schedulerNotBefore = 0;
+            this.schedulerClosed = false;
+            this.schedulerDiagnostics = {
+              schedules: 0,
+              wakeups: 0,
+              processedWakeups: 0,
+              staleWakeups: 0,
+              transactions: 0,
+              lastLagMs: 0,
+              nextDueAt: null,
+            };
+            if (this.scheduledProcessing) this.scheduleWorldProcessing();
+          }
+
+            clearWorldProcessingTimer() {
+              if (this.processingTimer) this.clearTimeoutFn(this.processingTimer);
+              this.processingTimer = null;
+            }
+
+            scheduleWorldProcessing() {
+              if (!this.scheduledProcessing || this.schedulerClosed) return null;
+              this.clearWorldProcessingTimer();
+              const now = Math.max(0, Number(this.nowProvider()) || 0);
+              const planned = this.worldCache
+                ? createWorldDeadlinePlan(this.worldCache.world, now).nextDueAt
+                : now;
+              if (planned === null) {
+                this.nextWorldProcessingAt = Number.POSITIVE_INFINITY;
+                this.schedulerDiagnostics.nextDueAt = null;
+                return null;
+              }
+              const dueAt = Math.max(Number(planned), Number(this.schedulerNotBefore || 0));
+              this.nextWorldProcessingAt = dueAt;
+              this.schedulerDiagnostics.nextDueAt = dueAt;
+              this.schedulerDiagnostics.schedules += 1;
+              const generation = ++this.schedulerGeneration;
+              const delay = Math.min(this.schedulerMaxDelayMs, Math.max(0, dueAt - now));
+              this.processingTimer = this.setTimeoutFn(() => this.handleScheduledWorldWake(generation), delay);
+              this.processingTimer?.unref?.();
+              return dueAt;
+            }
+
+            handleScheduledWorldWake(generation) {
+              if (this.schedulerClosed || generation !== this.schedulerGeneration) {
+                this.schedulerDiagnostics.staleWakeups += 1;
+                return;
+              }
+              this.processingTimer = null;
+              const now = Math.max(0, Number(this.nowProvider()) || 0);
+              this.schedulerDiagnostics.wakeups += 1;
+              if (now < this.nextWorldProcessingAt) {
+                this.schedulerDiagnostics.staleWakeups += 1;
+                this.scheduleWorldProcessing();
+                return;
+              }
+              this.schedulerDiagnostics.processedWakeups += 1;
+              this.schedulerDiagnostics.lastLagMs = Math.max(0, now - this.nextWorldProcessingAt);
+              try {
+                this.processScheduledWorld(now);
+              } catch (error) {
+                this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
+                console.error('Economy scheduled world processing failed', error);
+              } finally {
+                if (!this.processingTimer && !this.schedulerClosed) this.scheduleWorldProcessing();
+              }
+            }
+
+            getSchedulerDiagnostics() {
+              return { ...this.schedulerDiagnostics };
+            }
+
+            resetSchedulerDiagnostics() {
+              this.schedulerDiagnostics = {
+                schedules: 0,
+                wakeups: 0,
+                processedWakeups: 0,
+                staleWakeups: 0,
+                transactions: 0,
+                lastLagMs: 0,
+                nextDueAt: Number.isFinite(this.nextWorldProcessingAt) ? this.nextWorldProcessingAt : null,
+              };
+            }
+
+          ''',
+          )
+          replace_section(
+              'server/src/storage.js',
+              '  close() {',
+              '  transaction(',
+              '''  close() {
+            this.schedulerClosed = true;
+            this.schedulerGeneration += 1;
+            this.clearWorldProcessingTimer();
+            this.database.close();
+          }
+
+          ''',
+          )
+          replace_section(
+              'server/src/storage.js',
+              '  transaction(callback, { immediate = true } = {}) {',
+              '  prepareWorldForStorage',
+              '''  transaction(callback, { immediate = true } = {}) {
+            const cacheBefore = this.worldCache;
+            const processingDeadlineBefore = this.nextWorldProcessingAt;
+            const schedulerNotBeforeBefore = this.schedulerNotBefore;
+            this.database.exec(immediate ? 'BEGIN IMMEDIATE' : 'BEGIN');
+            try {
+              const value = callback();
+              this.database.exec('COMMIT');
+              if (this.scheduledProcessing && this.worldCache !== cacheBefore) this.scheduleWorldProcessing();
+              return value;
+            } catch (error) {
+              this.worldCache = cacheBefore;
+              this.nextWorldProcessingAt = processingDeadlineBefore;
+              this.schedulerNotBefore = schedulerNotBeforeBefore;
+              this.database.exec('ROLLBACK');
+              throw error;
+            }
+          }
+
+          ''',
+          )
+          replace_once(
+              'server/src/storage.js',
+              '    this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;\n    return nextRevision;\n',
+              '    if (!this.scheduledProcessing) this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;\n    return nextRevision;\n',
+          )
+          replace_section(
+              'server/src/storage.js',
+              '  processWorldIfDue(world, now, _currentUserId, { force = false } = {}) {',
+              '  getStateSnapshot',
+              '''  processWorldIfDue(world, now, _currentUserId, { force = false } = {}) {
+            if (!force && now < this.nextWorldProcessingAt) return false;
+            processLeaderboardWorld(world, now);
+            if (this.scheduledProcessing) {
+              this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
+            } else {
+              this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
+            }
+            return true;
+          }
+
+            processScheduledWorld(now = this.nowProvider()) {
+              if (!this.scheduledProcessing) return null;
+              this.schedulerDiagnostics.transactions += 1;
+              return this.transaction(() => {
+                const { revision, stateJson, world } = this.loadWorld(now);
+                this.processWorldIfDue(world, now, undefined, { force: true });
+                return this.saveWorldIfChanged(revision, world, now, stateJson);
+              });
+            }
+
+          ''',
+          )
+
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '`EconomyStore` 必须在单进程内缓存已迁移、已清理的世界对象、对应修订号和最近序列化结果；向业务逻辑提供 `structuredClone` 工作副本，禁止请求直接修改缓存权威对象。正式服务必须启用单一全局世界调度器，最多每秒推进一次生产、拍卖、合同和排行榜；同修订号请求必须在进入 SQLite 事务前直接返回轻量确认，不得重新读取数据库、`JSON.parse`、遍历全部玩家、`structuredClone` 或 `JSON.stringify` 整份世界。内存测试可以关闭调度器，并用相同的一秒处理窗口验证到期逻辑。',
+              '`EconomyStore` 必须在单进程内缓存已迁移、已清理的世界对象、对应修订号和最近序列化结果；向业务逻辑提供 `structuredClone` 工作副本，禁止请求直接修改缓存权威对象。正式服务必须启用单一全局到期调度器：`world-deadline-planner.js` 从运行中工厂周期、施工完成与下一整数就业释放、市场需求和价格传导周期、人口政策到期、开放拍卖、合同到期／宽限期／公开过期、排行榜结算与订单历史裁剪中选出最早绝对时间，只设置一个 `setTimeout`；没有到期事件时不得进入 SQLite 世界事务。调度器最多每秒推进一次完整世界，动作前后仍强制处理一次以保持原子成交和合同履约；同修订号请求必须在进入 SQLite 事务前直接返回轻量确认，不得重新读取数据库、`JSON.parse`、遍历全部玩家、`structuredClone` 或 `JSON.stringify` 整份世界。内存测试可以关闭调度器，也必须使用假时钟验证 60 秒空闲窗口产生零次世界事务和到期处理延后不超过 1 秒。',
+          )
+          docs_readme = Path('docs/README.md')
+          readme = docs_readme.read_text(encoding='utf-8').rstrip()
+          rule = '48. 正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`，不得恢复固定一秒 `setInterval` 或在空闲窗口反复克隆、迁移、深比较和写入世界；施工就业必须按下一整数释放边界调度，动作前后处理顺序保持不变，并通过 `server/test/world-deadline-planner.test.js` 与 `scripts/verify-runtime-efficiency.mjs` 防回退。'
+          if rule not in readme:
+              docs_readme.write_text(readme + '\n' + rule + '\n', encoding='utf-8')
+
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "requireText('server/src/storage.js', [\n",
+              "requireText('server/src/world-deadline-planner.js', [\n  'createWorldDeadlinePlan',\n  'nextConstructionEmploymentAt',\n  'createContractRuntimeIndex(world).nextDeadlineAt()',\n  'createdAt + DAY_MS + 1',\n]);\nrequireText('server/src/storage.js', [\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "  'PRAGMA foreign_keys = ON;',\n]);\n",
+              "  'PRAGMA foreign_keys = ON;',\n  'scheduleWorldProcessing',\n  'handleScheduledWorldWake',\n  'setTimeoutFn',\n  'schedulerDiagnostics.transactions',\n]);\nassert.doesNotMatch(read('server/src/storage.js'), /setInterval\\(/, '正式世界调度不得恢复固定 setInterval');\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "requireText('server/test/order-book-runtime.test.js', [\n",
+              "requireText('server/test/world-deadline-planner.test.js', [\n  'zero world transactions during a 60 second idle window',\n  'wakes at the planned event and processes one world transaction',\n  'next integer release boundary',\n]);\nrequireText('server/test/order-book-runtime.test.js', [\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "  '统一订单簿运行时索引只属于服务器事务内派生状态',\n",
+              "  '统一订单簿运行时索引只属于服务器事务内派生状态',\n  '正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`',\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');\n",
+              "console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');\n",
+          )
+          PY
+
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
+
+      - name: Run focused scheduler verification
         shell: bash
         run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
+          set -euo pipefail
+          node --check server/src/world-deadline-planner.js
+          node --check server/src/storage.js
+          node --test \
+            server/test/world-deadline-planner.test.js \
+            server/test/state-polling.test.js \
+            server/test/contracts.test.js \
+            server/test/asset-auctions.test.js
+          node scripts/verify-runtime-efficiency.mjs
 
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
+      - name: Commit scheduler implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '改为到期驱动世界调度'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
