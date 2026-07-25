@@ -47,6 +47,16 @@ const params = new URLSearchParams(window.location.search);
 const view = params.get('view') ?? 'settings';
 const scenario = params.get('scenario') ?? 'empty';
 const fixedNow = new Date(2026, 6, 17, 22, 30, 0).getTime();
+const navigationBadgeStorageKey = 'economy:navigation-badges:v1:123';
+if (scenario === 'badge-merged') {
+  window.localStorage.setItem(navigationBadgeStorageKey, JSON.stringify({
+    seenAuctionIds: ['auction-outbid'],
+    seenContractIds: ['contract-attention'],
+    seenLeaderboardPeriodKey: '2026-07-06',
+  }));
+} else {
+  window.localStorage.removeItem(navigationBadgeStorageKey);
+}
 
 const completedTutorial: GameTutorialController = {
   ready: true,
@@ -74,7 +84,9 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
   const hasAlerts = scenario === 'alerts';
   const hasTwoSidedOrders = scenario === 'two-sided';
-  const hasManyOrders = scenario === 'many-orders';
+  const hasManyOrders = ['many-orders', 'badge-cap'].includes(scenario);
+  const hasBadgeCap = scenario === 'badge-cap';
+  const hasMergedBadges = scenario === 'badge-merged';
   const hasThreeCashEvents = scenario === 'cash-three';
   const hasCashMovement = scenario !== 'cash-empty';
   const baseOrder = {
@@ -87,7 +99,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     status: 'partial',
   };
   const orders = hasManyOrders
-    ? Array.from({ length: 6 }, (_, index) => ({
+    ? Array.from({ length: hasBadgeCap ? 120 : 6 }, (_, index) => ({
         ...baseOrder,
         id: `order-${index + 1}`,
         side: index % 2 === 0 ? 'buy' : 'sell',
@@ -221,6 +233,89 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     },
     work: { cooldownUntil: 0, lastWorkedAt: fixedNow - 20_000, streak: 0, totalClicks: 12 },
   };
+
+  if (hasMergedBadges) {
+    Object.assign(game, {
+      assetAuctions: [
+        {
+          id: 'auction-new', items: [], itemSummaries: [], itemCount: 1, isBundle: false,
+          assetKind: 'commodity', assetId: 'machinery', quantity: 1,
+          asset: { kind: 'commodity', id: 'machinery', name: '机械', subtitle: '商品资产' },
+          sellerId: 456, sellerName: '新卖家', startingBid: 40, highestBid: null,
+          highestBidderId: null, highestBidderName: null, status: 'open', escrowStatus: 'held',
+          createdAt: fixedNow - 5 * 60_000, endsAt: fixedNow + 60 * 60_000, bids: [],
+          isSeller: false, isHighestBidder: false, minimumBid: 40,
+        },
+        {
+          id: 'auction-outbid', items: [], itemSummaries: [], itemCount: 1, isBundle: false,
+          assetKind: 'commodity', assetId: 'machinery', quantity: 1,
+          asset: { kind: 'commodity', id: 'machinery', name: '机械', subtitle: '商品资产' },
+          sellerId: 457, sellerName: '竞拍卖家', startingBid: 40, highestBid: 55,
+          highestBidderId: 999, highestBidderName: '其他玩家', status: 'open', escrowStatus: 'held',
+          createdAt: fixedNow - 30 * 60_000, endsAt: fixedNow + 60 * 60_000,
+          bids: [{ bidderId: 123, bidderName: 'MEVIUS', amount: 50, createdAt: fixedNow - 20 * 60_000 }],
+          isSeller: false, isHighestBidder: false, minimumBid: 56,
+        },
+        {
+          id: 'auction-overlap', items: [], itemSummaries: [], itemCount: 1, isBundle: false,
+          assetKind: 'commodity', assetId: 'machinery', quantity: 1,
+          asset: { kind: 'commodity', id: 'machinery', name: '机械', subtitle: '商品资产' },
+          sellerId: 458, sellerName: '重合卖家', startingBid: 40, highestBid: 62,
+          highestBidderId: 998, highestBidderName: '另一玩家', status: 'open', escrowStatus: 'held',
+          createdAt: fixedNow - 2 * 60_000, endsAt: fixedNow + 60 * 60_000,
+          bids: [{ bidderId: 123, bidderName: 'MEVIUS', amount: 60, createdAt: fixedNow - 3 * 60_000 }],
+          isSeller: false, isHighestBidder: false, minimumBid: 63,
+        },
+      ],
+      productionContracts: [
+        {
+          id: 'contract-new', publisherId: 456, publisherName: '新合同发布者', publisherRole: 'buyer',
+          buyerId: 456, buyerName: '新合同发布者', supplierId: null, supplierName: null,
+          productId: 'machinery', quantityPerDelivery: 10, unitPrice: 50, batchGross: 500,
+          deliveryIntervalMs: 60 * 60_000, totalDeliveries: 4, completedDeliveries: 0,
+          firstDeliveryDelayMs: 60 * 60_000, createdAt: fixedNow - 5 * 60_000,
+          offerExpiresAt: fixedNow + 86_400_000, nextDueAt: null, status: 'open', roundStatus: 'preparing',
+          buyerEscrowCredits: 0, supplierReservedQuantity: 0, buyerBondCredits: 0, supplierBondCredits: 0,
+          buyerAutoFund: false, supplierAutoReserve: false, issue: null,
+          isPublisher: false, isBuyer: false, isSupplier: false,
+        },
+        {
+          id: 'contract-attention', publisherId: 457, publisherName: '已读合同方', publisherRole: 'supplier',
+          buyerId: 123, buyerName: 'MEVIUS', supplierId: 457, supplierName: '已读合同方',
+          productId: 'machinery', quantityPerDelivery: 10, unitPrice: 50, batchGross: 500,
+          deliveryIntervalMs: 60 * 60_000, totalDeliveries: 4, completedDeliveries: 1,
+          firstDeliveryDelayMs: 60 * 60_000, createdAt: fixedNow - 86_400_000,
+          offerExpiresAt: fixedNow + 86_400_000, acceptedAt: fixedNow - 80_000,
+          nextDueAt: fixedNow + 30 * 60_000, status: 'active', roundStatus: 'preparing',
+          buyerEscrowCredits: 100, supplierReservedQuantity: 10, buyerBondCredits: 100, supplierBondCredits: 100,
+          buyerAutoFund: false, supplierAutoReserve: true, issue: '采购方货款不足',
+          isPublisher: false, isBuyer: true, isSupplier: false,
+        },
+        {
+          id: 'contract-overlap', publisherId: 458, publisherName: '新履约方', publisherRole: 'supplier',
+          buyerId: 123, buyerName: 'MEVIUS', supplierId: 458, supplierName: '新履约方',
+          productId: 'machinery', quantityPerDelivery: 10, unitPrice: 50, batchGross: 500,
+          deliveryIntervalMs: 60 * 60_000, totalDeliveries: 4, completedDeliveries: 0,
+          firstDeliveryDelayMs: 60 * 60_000, createdAt: fixedNow - 10 * 60_000,
+          offerExpiresAt: fixedNow + 86_400_000, acceptedAt: fixedNow - 2 * 60_000,
+          nextDueAt: fixedNow + 30 * 60_000, status: 'active', roundStatus: 'preparing',
+          buyerEscrowCredits: 100, supplierReservedQuantity: 10, buyerBondCredits: 100, supplierBondCredits: 100,
+          buyerAutoFund: false, supplierAutoReserve: true, issue: '采购方货款不足',
+          isPublisher: false, isBuyer: true, isSupplier: false,
+        },
+      ],
+      productionContractSummary: { active: 2, open: 0, needsAttention: 2, upcomingWithin24Hours: 2 },
+    });
+    Object.assign(game.stats, {
+      leaderboards: {
+        period: {
+          key: '2026-07-13', startsAt: fixedNow - 4 * 86_400_000, endsAt: fixedNow + 3 * 86_400_000,
+          partial: false, rewardEnabled: true, rewards: [30, 20, 10], timeZone: 'Asia/Shanghai',
+        },
+        boards: {},
+      },
+    });
+  }
 
   const derived = {
     ownOpenOrders: orders,

@@ -191,7 +191,7 @@
     letter-spacing: .01em;
   }
 
-  .mobile-bottom-navigation .sidebar-nav-button small {
+  .mobile-bottom-navigation .navigation-badge {
     position: absolute;
     top: .08rem;
     right: .1rem;
