@@ -12,6 +12,8 @@ const daily = read('server/src/daily-check-in.js');
 const storage = read('server/src/storage.js');
 const routes = read('server/src/game-routes.js');
 const overview = read('src/pages/OverviewPage.tsx');
+const gemShop = read('src/pages/GemShopPage.tsx');
+const settings = read('src/pages/SettingsPage.tsx');
 const types = read('src/types.ts');
 const tests = read('server/test/daily-check-in.test.js');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
@@ -38,9 +40,13 @@ check(overview.includes('role="list" aria-label="本周签到日历"'), 'check-i
 check(overview.includes('签到领取 1 宝石'), 'daily claim button copy is missing');
 check(!overview.includes('market-summary'), 'overview market card must be removed');
 check(!overview.includes('PriceSparkline'), 'overview must not render the market chart');
+check(gemShop.includes('InvitationSettings'), 'latest invitation entry must remain in the shop');
+check(!settings.includes('InvitationSettings'), 'invitation entry must not return to settings');
 check(productDesign.includes('每日签到'), 'product design must record daily check-in');
 check(productDesign.includes('每周全勤'), 'product design must record weekly attendance');
+check(productDesign.includes('注册完成后不能补填'), 'latest invitation binding rule must remain documented');
 check(pageDesign.includes('签到日历'), 'page design must record the check-in calendar');
+check(pageDesign.includes('邀请获取宝石与宝石单向兑换普通货币'), 'shop invitation responsibility must remain documented');
 check(serverDesign.includes('economy_daily_check_ins'), 'server design must record check-in persistence');
 
 if (failures.length > 0) {
