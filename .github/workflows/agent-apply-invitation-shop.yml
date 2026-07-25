@@ -81,12 +81,16 @@ jobs:
                   '              label="我的邀请码"\n              value={summary.inviteCode}\n              readOnly\n              aria-label="我的邀请码"',
                   '              label="永久邀请码"\n              value={summary.inviteCode}\n              readOnly\n              aria-label="永久邀请码"',
               ),
+              'scripts/verify-email-registration.mjs': (
+                  "for (const text of ['邀请好友', '分享链接', '我的邀请码', '注册完成后不能补填或更换']) {",
+                  "for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册完成后不能补填或更换']) {",
+              ),
           }
           for file_name, (old, new) in replacements.items():
               path = Path(file_name)
               content = path.read_text()
               if content.count(old) != 1:
-                  raise SystemExit(f'{file_name} 权威规则或组件锚点不唯一')
+                  raise SystemExit(f'{file_name} 权威规则、组件或验证锚点不唯一')
               path.write_text(content.replace(old, new))
           PY
           rm -rf .agent
