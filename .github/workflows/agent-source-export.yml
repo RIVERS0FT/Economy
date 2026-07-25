@@ -1,11 +1,9 @@
 name: Apply banking implementation
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/banking-interest
-    paths:
-      - .agent/ready
+      - main
 
 permissions:
   contents: write
@@ -16,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: agent/banking-interest
           fetch-depth: 0
       - name: Reconstruct and verify patch
         shell: bash
