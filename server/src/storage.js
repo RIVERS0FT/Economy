@@ -31,6 +31,7 @@ import {
   topUpPopulationByPolicy,
 } from './population-admin-control.js';
 import { createLeaderboardSnapshot, processLeaderboardWorld } from './leaderboards.js';
+import { createWorldDeadlinePlan } from './world-deadline-planner.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -95,7 +96,13 @@ function createVersionedClientState(world, userId, now) {
 }
 
 export class EconomyStore {
-  constructor(databasePath, { scheduledProcessing = databasePath !== ':memory:' } = {}) {
+  constructor(databasePath, {
+    scheduledProcessing = databasePath !== ':memory:',
+    nowProvider = Date.now,
+    setTimeoutFn = setTimeout,
+    clearTimeoutFn = clearTimeout,
+    schedulerMaxDelayMs = 2_147_000_000,
+  } = {}) {
     if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
     this.database = new DatabaseSync(databasePath, { timeout: 5_000 });
     this.database.exec(`
@@ -261,41 +268,122 @@ export class EconomyStore {
         updated_by = excluded.updated_by
     `);
     this.worldCache = null;
-    this.nextWorldProcessingAt = 0;
-    this.scheduledProcessing = Boolean(scheduledProcessing);
-    this.processingTimer = this.scheduledProcessing
-      ? setInterval(() => {
-        try {
-          this.processScheduledWorld();
-        } catch (error) {
-          console.error('Economy scheduled world processing failed', error);
-        }
-      }, WORLD_PROCESS_INTERVAL_MS)
-      : null;
-    this.processingTimer?.unref();
+  this.nextWorldProcessingAt = 0;
+  this.scheduledProcessing = Boolean(scheduledProcessing);
+  this.nowProvider = nowProvider;
+  this.setTimeoutFn = setTimeoutFn;
+  this.clearTimeoutFn = clearTimeoutFn;
+  this.schedulerMaxDelayMs = Math.max(1_000, Number(schedulerMaxDelayMs) || 2_147_000_000);
+  this.processingTimer = null;
+  this.schedulerGeneration = 0;
+  this.schedulerNotBefore = 0;
+  this.schedulerClosed = false;
+  this.schedulerDiagnostics = {
+    schedules: 0,
+    wakeups: 0,
+    processedWakeups: 0,
+    staleWakeups: 0,
+    transactions: 0,
+    lastLagMs: 0,
+    nextDueAt: null,
+  };
+  if (this.scheduledProcessing) this.scheduleWorldProcessing();
+}
+
+  clearWorldProcessingTimer() {
+    if (this.processingTimer) this.clearTimeoutFn(this.processingTimer);
+    this.processingTimer = null;
+  }
+
+  scheduleWorldProcessing() {
+    if (!this.scheduledProcessing || this.schedulerClosed) return null;
+    this.clearWorldProcessingTimer();
+    const now = Math.max(0, Number(this.nowProvider()) || 0);
+    const planned = this.worldCache
+      ? createWorldDeadlinePlan(this.worldCache.world, now).nextDueAt
+      : now;
+    if (planned === null) {
+      this.nextWorldProcessingAt = Number.POSITIVE_INFINITY;
+      this.schedulerDiagnostics.nextDueAt = null;
+      return null;
+    }
+    const dueAt = Math.max(Number(planned), Number(this.schedulerNotBefore || 0));
+    this.nextWorldProcessingAt = dueAt;
+    this.schedulerDiagnostics.nextDueAt = dueAt;
+    this.schedulerDiagnostics.schedules += 1;
+    const generation = ++this.schedulerGeneration;
+    const delay = Math.min(this.schedulerMaxDelayMs, Math.max(0, dueAt - now));
+    this.processingTimer = this.setTimeoutFn(() => this.handleScheduledWorldWake(generation), delay);
+    this.processingTimer?.unref?.();
+    return dueAt;
+  }
+
+  handleScheduledWorldWake(generation) {
+    if (this.schedulerClosed || generation !== this.schedulerGeneration) {
+      this.schedulerDiagnostics.staleWakeups += 1;
+      return;
+    }
+    this.processingTimer = null;
+    const now = Math.max(0, Number(this.nowProvider()) || 0);
+    this.schedulerDiagnostics.wakeups += 1;
+    if (now < this.nextWorldProcessingAt) {
+      this.schedulerDiagnostics.staleWakeups += 1;
+      this.scheduleWorldProcessing();
+      return;
+    }
+    this.schedulerDiagnostics.processedWakeups += 1;
+    this.schedulerDiagnostics.lastLagMs = Math.max(0, now - this.nextWorldProcessingAt);
+    try {
+      this.processScheduledWorld(now);
+    } catch (error) {
+      this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
+      console.error('Economy scheduled world processing failed', error);
+    } finally {
+      if (!this.processingTimer && !this.schedulerClosed) this.scheduleWorldProcessing();
+    }
+  }
+
+  getSchedulerDiagnostics() {
+    return { ...this.schedulerDiagnostics };
+  }
+
+  resetSchedulerDiagnostics() {
+    this.schedulerDiagnostics = {
+      schedules: 0,
+      wakeups: 0,
+      processedWakeups: 0,
+      staleWakeups: 0,
+      transactions: 0,
+      lastLagMs: 0,
+      nextDueAt: Number.isFinite(this.nextWorldProcessingAt) ? this.nextWorldProcessingAt : null,
+    };
   }
 
   close() {
-    if (this.processingTimer) clearInterval(this.processingTimer);
-    this.processingTimer = null;
-    this.database.close();
-  }
+  this.schedulerClosed = true;
+  this.schedulerGeneration += 1;
+  this.clearWorldProcessingTimer();
+  this.database.close();
+}
 
   transaction(callback, { immediate = true } = {}) {
-    const cacheBefore = this.worldCache;
-    const processingDeadlineBefore = this.nextWorldProcessingAt;
-    this.database.exec(immediate ? 'BEGIN IMMEDIATE' : 'BEGIN');
-    try {
-      const value = callback();
-      this.database.exec('COMMIT');
-      return value;
-    } catch (error) {
-      this.worldCache = cacheBefore;
-      this.nextWorldProcessingAt = processingDeadlineBefore;
-      this.database.exec('ROLLBACK');
-      throw error;
-    }
+  const cacheBefore = this.worldCache;
+  const processingDeadlineBefore = this.nextWorldProcessingAt;
+  const schedulerNotBeforeBefore = this.schedulerNotBefore;
+  this.database.exec(immediate ? 'BEGIN IMMEDIATE' : 'BEGIN');
+  try {
+    const value = callback();
+    this.database.exec('COMMIT');
+    if (this.scheduledProcessing && this.worldCache !== cacheBefore) this.scheduleWorldProcessing();
+    return value;
+  } catch (error) {
+    this.worldCache = cacheBefore;
+    this.nextWorldProcessingAt = processingDeadlineBefore;
+    this.schedulerNotBefore = schedulerNotBeforeBefore;
+    this.database.exec('ROLLBACK');
+    throw error;
   }
+}
 
   prepareWorldForStorage(world, now) {
     for (const player of Object.values(world.players || {})) {
@@ -354,7 +442,7 @@ export class EconomyStore {
     const nextRevision = revision + 1;
     this.updateWorld.run(nextRevision, stateJson, now);
     this.cacheWorld(nextRevision, stateJson, world);
-    this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
+    if (!this.scheduledProcessing) this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
     return nextRevision;
   }
 
@@ -376,14 +464,19 @@ export class EconomyStore {
   }
 
   processWorldIfDue(world, now, _currentUserId, { force = false } = {}) {
-    if (!force && now < this.nextWorldProcessingAt) return false;
-    processLeaderboardWorld(world, now);
+  if (!force && now < this.nextWorldProcessingAt) return false;
+  processLeaderboardWorld(world, now);
+  if (this.scheduledProcessing) {
+    this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
+  } else {
     this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
-    return true;
   }
+  return true;
+}
 
-  processScheduledWorld(now = Date.now()) {
+  processScheduledWorld(now = this.nowProvider()) {
     if (!this.scheduledProcessing) return null;
+    this.schedulerDiagnostics.transactions += 1;
     return this.transaction(() => {
       const { revision, stateJson, world } = this.loadWorld(now);
       this.processWorldIfDue(world, now, undefined, { force: true });

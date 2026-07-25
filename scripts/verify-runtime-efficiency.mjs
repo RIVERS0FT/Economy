@@ -38,12 +38,23 @@ requireText('src/app/useAdaptivePolling.ts', [
   'void refresh();',
   'POLLING_IDLE_AFTER_MS',
 ]);
+requireText('server/src/world-deadline-planner.js', [
+  'createWorldDeadlinePlan',
+  'nextConstructionEmploymentAt',
+  'createContractRuntimeIndex(world).nextDeadlineAt()',
+  'createdAt + DAY_MS + 1',
+]);
 requireText('server/src/storage.js', [
   'new DatabaseSync(databasePath, { timeout: 5_000 })',
   'PRAGMA journal_mode = WAL;',
   'PRAGMA synchronous = NORMAL;',
   'PRAGMA foreign_keys = ON;',
+  'scheduleWorldProcessing',
+  'handleScheduledWorldWake',
+  'setTimeoutFn',
+  'schedulerDiagnostics.transactions',
 ]);
+assert.doesNotMatch(read('server/src/storage.js'), /setInterval\(/, '正式世界调度不得恢复固定 setInterval');
 requireText('server/src/index.js', [
   "import './request-metrics-bootstrap.js';",
   "import './app.js';",
@@ -90,6 +101,11 @@ requireText('server/test/request-metrics.test.js', [
   'request metrics aggregate duration and application response bytes',
   'request metrics cap route cardinality and aggregate overflow',
 ]);
+requireText('server/test/world-deadline-planner.test.js', [
+  'zero world transactions during a 60 second idle window',
+  'wakes at the planned event and processes one world transaction',
+  'next integer release boundary',
+]);
 requireText('server/test/order-book-runtime.test.js', [
   'runtime order book preserves price-time-array priority for 4000 orders',
   'runtime order book tracks tail appends and rebuilds after array replacement',
@@ -117,6 +133,7 @@ requireText('docs/README.md', [
   '失败或无变化动作仍保存幂等确认但不得触发全服补拉',
   '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',
   '统一订单簿运行时索引只属于服务器事务内派生状态',
+  '正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`',
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
   '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
 ]);
@@ -126,4 +143,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');
+console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');
