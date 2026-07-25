@@ -22,6 +22,16 @@ export function WarehouseUpgradeCard({
   const usagePercent = game.inventoryCapacity > 0
     ? Math.min(100, Math.round((game.warehouseUsedCapacity / game.inventoryCapacity) * 100))
     : 0;
+  const capacityScale = Math.max(1, game.inventoryCapacity);
+  const orderReserved = game.warehouseOrderReservedQuantity ?? 0;
+  const contractReserved = game.warehouseContractReservedQuantity ?? 0;
+  const auctionReserved = game.warehouseAuctionReservedQuantity ?? 0;
+  const capacitySegments = [
+    { id: 'stored', label: '实物库存', value: game.warehouseStoredQuantity },
+    { id: 'order', label: '市场订单预占', value: orderReserved },
+    { id: 'contract', label: '合同预占', value: contractReserved },
+    { id: 'auction', label: '拍卖预占', value: auctionReserved },
+  ];
   const stockedProducts = useMemo(
     () => game.products.filter((product) => {
       const inventory = game.inventories[product.id] ?? { available: 0, frozen: 0 };
@@ -56,23 +66,35 @@ export function WarehouseUpgradeCard({
         <section className="warehouse-management" aria-label="仓库容量与升级">
           <div
             className="warehouse-capacity-progress"
-            aria-label={`仓库已使用 ${formatNumber(game.warehouseUsedCapacity)}/${formatNumber(game.inventoryCapacity)}`}
+            aria-label={`仓库已使用 ${formatNumber(game.warehouseUsedCapacity)}/${formatNumber(game.inventoryCapacity)}，实物库存 ${formatNumber(game.warehouseStoredQuantity)}，市场订单预占 ${formatNumber(orderReserved)}，合同预占 ${formatNumber(contractReserved)}，拍卖预占 ${formatNumber(auctionReserved)}`}
           >
             <div>
               <span>已使用</span>
               <strong>{formatNumber(game.warehouseUsedCapacity)}/{formatNumber(game.inventoryCapacity)}</strong>
             </div>
-            <div className="progress-track" aria-hidden="true">
-              <span style={{ width: `${usagePercent}%` }} />
+            <div className={`progress-track warehouse-capacity-track ${overCapacity ? 'is-over-capacity' : ''}`} aria-hidden="true">
+              {capacitySegments.map((segment) => (
+                <span
+                  className={`warehouse-capacity-segment warehouse-capacity-segment--${segment.id}`}
+                  key={segment.id}
+                  style={{ width: `${(Math.max(0, segment.value) / capacityScale) * 100}%` }}
+                />
+              ))}
             </div>
             <small>{usagePercent}% 已使用 · 所有商品共用容量</small>
           </div>
 
           <dl className="warehouse-summary-list">
-            <div><dt>当前容量</dt><dd>{formatNumber(game.inventoryCapacity)}</dd></div>
-            <div><dt>实物库存</dt><dd>{formatNumber(game.warehouseStoredQuantity)}</dd></div>
-            <div><dt>买单预占</dt><dd>{formatNumber(game.warehouseReservedQuantity)}</dd></div>
-            <div><dt>剩余容量</dt><dd className={game.warehouseAvailableCapacity > 0 ? 'positive' : 'negative'}>{formatNumber(game.warehouseAvailableCapacity)}</dd></div>
+            {capacitySegments.map((segment) => (
+              <div className={`warehouse-summary-item warehouse-summary-item--${segment.id}`} key={segment.id}>
+                <dt><span className="warehouse-summary-swatch" aria-hidden="true" />{segment.label}</dt>
+                <dd>{formatNumber(segment.value)}</dd>
+              </div>
+            ))}
+            <div className="warehouse-summary-item warehouse-summary-item--available">
+              <dt>剩余容量</dt>
+              <dd className={game.warehouseAvailableCapacity > 0 ? 'positive' : 'negative'}>{formatNumber(game.warehouseAvailableCapacity)}</dd>
+            </div>
           </dl>
 
           <div className="warehouse-upgrade-summary">
@@ -88,7 +110,7 @@ export function WarehouseUpgradeCard({
             </div>
           </div>
 
-          {overCapacity ? <p className="warehouse-capacity-warning">当前占用超过容量，释放库存或扩容前不能继续增加库存或新建买单。</p> : null}
+          {overCapacity ? <p className="warehouse-capacity-warning">当前占用超过容量，释放库存或扩容前不能继续增加库存或新增预占。</p> : null}
 
           <Button
             block

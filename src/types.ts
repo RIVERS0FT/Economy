@@ -353,6 +353,9 @@ export interface EconomyState {
   warehouseNextCapacity: number;
   warehouseNextCapacityIncrease: number;
   warehouseStoredQuantity: number;
+  warehouseOrderReservedQuantity: number;
+  warehouseContractReservedQuantity: number;
+  warehouseAuctionReservedQuantity: number;
   warehouseReservedQuantity: number;
   warehouseUsedCapacity: number;
   warehouseAvailableCapacity: number;

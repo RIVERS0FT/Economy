@@ -33,7 +33,10 @@ function highestBidAuction(userId, quantity) {
     status: 'open',
     escrowStatus: 'held',
     highestBidderId: userId,
-    items: [{ assetKind: 'commodity', assetId: 'wheat', quantity }],
+    items: [
+      { assetKind: 'commodity', assetId: 'wheat', quantity },
+      { assetKind: 'facility', assetId: 'farm', quantity: 99 },
+    ],
   };
 }
 
@@ -65,6 +68,9 @@ test('warehouse usage combines inventory, buy orders, highest bids, and active c
 
   const usage = createWarehouseUsage(world, buyer);
   assert.equal(usage.warehouseStoredQuantity, 10);
+  assert.equal(usage.warehouseOrderReservedQuantity, 40);
+  assert.equal(usage.warehouseContractReservedQuantity, 70);
+  assert.equal(usage.warehouseAuctionReservedQuantity, 30);
   assert.equal(usage.warehouseReservedQuantity, 140);
   assert.equal(usage.warehouseUsedCapacity, 150);
   assert.equal(usage.warehouseAvailableCapacity, 350);
@@ -74,6 +80,9 @@ test('warehouse usage combines inventory, buy orders, highest bids, and active c
     contractRuntimeIndex: runtimeIndex,
     exceptContractId: 'unified-contract-a',
   });
+  assert.equal(excludingCurrent.warehouseOrderReservedQuantity, 40);
+  assert.equal(excludingCurrent.warehouseContractReservedQuantity, 20);
+  assert.equal(excludingCurrent.warehouseAuctionReservedQuantity, 30);
   assert.equal(excludingCurrent.warehouseReservedQuantity, 90);
   assert.equal(excludingCurrent.warehouseAvailableCapacity, 400);
 });

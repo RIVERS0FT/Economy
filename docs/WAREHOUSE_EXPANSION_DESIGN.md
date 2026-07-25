@@ -110,10 +110,24 @@ warehouseUpgradeCost: number | null;
 warehouseNextCapacity: number;
 warehouseNextCapacityIncrease: number;
 warehouseStoredQuantity: number;
+warehouseOrderReservedQuantity: number;
+warehouseContractReservedQuantity: number;
+warehouseAuctionReservedQuantity: number;
 warehouseReservedQuantity: number;
 warehouseUsedCapacity: number;
 warehouseAvailableCapacity: number;
 ```
+
+拆分字段必须满足：
+
+```text
+warehouseReservedQuantity
+= warehouseOrderReservedQuantity
++ warehouseContractReservedQuantity
++ warehouseAuctionReservedQuantity
+```
+
+订单与拍卖必须在同一次权威派生扫描中同时得到拆分值与合计值；不得为了展示来源分别重复扫描订单簿或拍卖列表。合同预占继续读取同一工作世界复用的 `contract-runtime-index.js`。拆分字段和汇总字段均为客户端状态摘要，不进入世界 JSON，不形成第二份库存或预占余额。
 
 客户端不得重新计算正式仓库占用或扩容费用。
 
@@ -166,10 +180,20 @@ grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
 
 - 等级和容量状态；
 - 已用容量、总容量和进度；
-- 实物库存、订单／拍卖／合同统一预占、剩余容量；
+- 实物库存、市场订单预占、合同预占、拍卖预占和剩余容量；
 - 下一等级容量、容量增量、费用和扩容按钮。
 
 不得新增费用公式、线性定价说明或其他弱提示文案；正式费用由服务器字段直接展示。
+
+容量进度条必须是连续分段条，固定顺序为：
+
+```text
+实物库存 → 市场订单预占 → 合同预占 → 拍卖预占 → 剩余容量底色
+```
+
+颜色必须复用设计系统语义变量：实物库存使用 `--color-success`，市场订单预占使用 `--color-info`，合同预占使用 `--color-warning`，拍卖预占使用 `--color-accent-violet`；剩余容量继续使用进度轨道底色。正常预占不得使用危险红色，红色只用于容量超限状态。
+
+进度条下方必须分别显示“实物库存”“市场订单预占”“合同预占”“拍卖预占”和“剩余容量”的服务器数字。四类占用即使为 `0` 也不得隐藏，避免结构跳动；每个占用标签必须同时提供文字、数字和对应色点，不得只靠颜色传递含义。进度段宽度按对应数量占总容量的比例计算，容量超限时轨道最多显示到 100%，并继续显示明确的容量超限状态。
 
 右侧从服务器商品目录中过滤并展示有库存商品：
 
@@ -193,8 +217,8 @@ grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
 
 仓库商品网格使用 `.warehouse-content` 的容器查询，而不是只按浏览器视口判断。正式断点为：
 
-| 仓库内容区宽度 | 每行商品卡 | 卡片最小高度 | 插画尺寸 |
-|---:|---:|---:|---:|
+| 仓库内容区宽度 | 列数 | 商品卡最小高度 | 商品插画尺寸 |
+|---|---:|---:|---:|
 | `< 560px` | 4 列 | `104px` | `46px` |
 | `560px–759px` | 4 列 | `116px` | `56px` |
 | `760px–959px` | 5 列 | `124px` | `64px` |
@@ -214,7 +238,7 @@ grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
 ## 8. 页面职责
 
 - `WarehouseUpgradeCard` 只能由 `ProductionPage` 渲染。
-- 状态栏可以显示只读仓库剩余。
+- 状态栏可以显示只读仓库剩余，并且汇总预占存在时只能写作“预占”，不得把订单、合同和拍卖的合计错误标记为“买单预占”。
 - 市场页可以显示仓库剩余和买单预占，但不得扩容。
 - 资产页负责资产汇总和本地资产变化，不得重复显示逐商品库存与估值卡。
 - 设置页不得显示仓库经营摘要。
@@ -247,4 +271,7 @@ grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
 - 让 `product-artwork.css` 重新定义仓库卡片高度、网格行、内边距或插画尺寸；
 - 让共享仓库在同一生产页断点使用不同于建设卡和工厂集群的一级外层内边距；
 - 没有商品 SVG 回退或商品 PNG 插画的纯文字仓库卡；
-- 在资产页恢复逐商品库存与估值卡。
+- 在资产页恢复逐商品库存与估值卡；
+- 把订单、合同和拍卖预占重新合并为一个客户端来源字段，或把汇总预占标记为“买单预占”；
+- 为展示来源分别重复扫描订单簿、拍卖列表或全部合同；
+- 隐藏数值为零的预占来源、只显示颜色不显示文字和数字，或使用独立硬编码颜色绕过设计系统语义变量。

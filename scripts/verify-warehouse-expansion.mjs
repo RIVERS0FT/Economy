@@ -11,11 +11,14 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 [
   'README.md',
   'server/src/warehouse.js',
+  'server/src/warehouse-reservations.js',
   'server/src/contract-runtime-index.js',
   'server/src/contracts.js',
   'server/src/facility-groups.js',
   'server/test/warehouse.test.js',
   'server/test/unified-warehouse-reservations.test.js',
+  'src/types.ts',
+  'src/app/GameApp.tsx',
   'src/components/warehouse/WarehouseUpgradeCard.tsx',
   'src/components/facilities/FacilityProductionFormula.tsx',
   'src/pages/ProductionPage.tsx',
@@ -46,6 +49,10 @@ for (const text of [
   'createContractRuntimeIndex',
   'contractRuntimeIndex = null',
   'runtimeIndex.reservedContractIncomingForBuyer',
+  'nonContractWarehouseReservations',
+  'warehouseOrderReservedQuantity: orderReserved',
+  'warehouseContractReservedQuantity: contractReserved',
+  'warehouseAuctionReservedQuantity: auctionReserved',
   'warehouseReservedQuantity: reserved',
   'warehouseAvailableCapacity: Math.max(0, player.inventoryCapacity - used)',
   'player.credits -= cost',
@@ -59,14 +66,35 @@ for (const forbidden of [
 ]) forbidText('server/src/warehouse.js', forbidden);
 
 for (const text of [
+  'export function nonContractWarehouseReservations',
+  'const orderReserved = pendingCommodityBuyQuantityForOwner',
+  'const auctionReserved = (world?.assetAuctions || []).reduce',
+  'totalReserved: orderReserved + auctionReserved',
+  'export function nonContractWarehouseReservation',
+  'nonContractWarehouseReservations(world, userId).totalReserved',
+]) requireText('server/src/warehouse-reservations.js', text);
+
+for (const text of [
   'warehouseUpgradeCostForCapacity',
   '[150, 300, 480, 690, 930, 1_200]',
   'warehouse summary price matches the amount deducted for the same actual capacity',
 ]) requireText('server/test/warehouse.test.js', text);
 for (const forbidden of ['warehouseUpgradeCostForLevel']) forbidText('server/test/warehouse.test.js', forbidden);
-requireText('server/test/unified-warehouse-reservations.test.js', 'warehouse usage combines inventory, buy orders, highest bids, and active contract next batches');
-requireText('server/test/unified-warehouse-reservations.test.js', 'contract acceptance rejects capacity already reserved by buy orders and highest bids');
+for (const text of [
+  'warehouse usage combines inventory, buy orders, highest bids, and active contract next batches',
+  'contract acceptance rejects capacity already reserved by buy orders and highest bids',
+  'usage.warehouseOrderReservedQuantity, 40',
+  'usage.warehouseContractReservedQuantity, 70',
+  'usage.warehouseAuctionReservedQuantity, 30',
+  'excludingCurrent.warehouseContractReservedQuantity, 20',
+]) requireText('server/test/unified-warehouse-reservations.test.js', text);
 requireText('server/src/contract-runtime-index.js', 'reservedIncomingForBuyer(userId, exceptContractId = null)');
+
+for (const text of [
+  'warehouseOrderReservedQuantity: number;',
+  'warehouseContractReservedQuantity: number;',
+  'warehouseAuctionReservedQuantity: number;',
+]) requireText('src/types.ts', text);
 
 for (const text of [
   'title="生产"',
@@ -109,16 +137,40 @@ for (const text of [
   '冻结 {formatNumber(inventory.frozen)}',
   "selectMarketAsset('commodity', product.id)",
   '等级 {formatNumber(game.warehouseLevel)}',
+  'const orderReserved = game.warehouseOrderReservedQuantity ?? 0',
+  'const contractReserved = game.warehouseContractReservedQuantity ?? 0',
+  'const auctionReserved = game.warehouseAuctionReservedQuantity ?? 0',
+  "{ id: 'stored', label: '实物库存'",
+  "{ id: 'order', label: '市场订单预占'",
+  "{ id: 'contract', label: '合同预占'",
+  "{ id: 'auction', label: '拍卖预占'",
+  'warehouse-capacity-segment--${segment.id}',
+  'warehouse-summary-swatch',
+  'warehouse-summary-item--available',
 ]) requireText('src/components/warehouse/WarehouseUpgradeCard.tsx', text);
-for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>', 'ProductIconLabel']) {
+for (const forbidden of ['warehouseMaxLevel', '已达最高等级', '种商品有库存', '<strong>库存 {total}</strong>', 'ProductIconLabel', '<dt>买单预占</dt>']) {
   forbidText('src/components/warehouse/WarehouseUpgradeCard.tsx', forbidden);
 }
+requireText('src/app/GameApp.tsx', ' · 预占 ${formatNumber(game.warehouseReservedQuantity)}');
+forbidText('src/app/GameApp.tsx', ' · 买单预占 ');
 
 const css = 'src/styles/warehouse-expansion.css';
 const cssContent = read(css);
 for (const text of [
   'grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);',
   'container-type: inline-size;',
+  '--warehouse-stored-color: var(--color-success);',
+  '--warehouse-order-color: var(--color-info);',
+  '--warehouse-contract-color: var(--color-warning);',
+  '--warehouse-auction-color: var(--color-accent-violet);',
+  '.warehouse-capacity-track .warehouse-capacity-segment',
+  '.warehouse-capacity-segment--stored',
+  '.warehouse-capacity-segment--order',
+  '.warehouse-capacity-segment--contract',
+  '.warehouse-capacity-segment--auction',
+  '.warehouse-summary-swatch',
+  '.warehouse-summary-item--available',
+  'grid-column: 1 / -1;',
   '.warehouse-product-grid',
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
   'min-height: 116px;',
@@ -210,6 +262,17 @@ for (const text of [
   '仓库没有玩家可见的最高等级',
   '合同预占 = Σ(当前玩家作为采购方的进行中合同下一批商品数量)',
   '已用容量 = 实物库存 + 订单预占 + 拍卖预占 + 合同预占',
+  'warehouseOrderReservedQuantity: number;',
+  'warehouseContractReservedQuantity: number;',
+  'warehouseAuctionReservedQuantity: number;',
+  '订单与拍卖必须在同一次权威派生扫描中同时得到拆分值与合计值',
+  '实物库存 → 市场订单预占 → 合同预占 → 拍卖预占 → 剩余容量底色',
+  '实物库存使用 `--color-success`',
+  '市场订单预占使用 `--color-info`',
+  '合同预占使用 `--color-warning`',
+  '拍卖预占使用 `--color-accent-violet`',
+  '四类占用即使为 `0` 也不得隐藏',
+  '不得把订单、合同和拍卖的合计错误标记为“买单预占”',
   '容器查询',
   '4／5／6 列',
   '`< 560px` | 4 列 | `104px` | `46px`',
@@ -263,4 +326,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、容量线性定价、商品插画主视觉布局、移动端四列、目录顺序工厂卡、建设卡精简和集群公式验证通过。');
+console.log('仓库无限扩容、预占来源分段、容量线性定价、商品插画主视觉布局、移动端四列、目录顺序工厂卡、建设卡精简和集群公式验证通过。');
