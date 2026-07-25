@@ -52,6 +52,8 @@ requireText('server/src/storage.js', [
   'scheduleWorldProcessing',
   'handleScheduledWorldWake',
   'setTimeoutFn',
+  'schedulerMaxDelayMs',
+  'schedulerNotBefore',
   'schedulerDiagnostics.transactions',
 ]);
 assert.doesNotMatch(read('server/src/storage.js'), /setInterval\(/, '正式世界调度不得恢复固定 setInterval');
@@ -105,6 +107,8 @@ requireText('server/test/world-deadline-planner.test.js', [
   'zero world transactions during a 60 second idle window',
   'wakes at the planned event and processes one world transaction',
   'next integer release boundary',
+  'long deadline timer segments early wakeups without opening a world transaction',
+  'scheduler transaction failure preserves authority and retries after the one second floor',
 ]);
 requireText('server/test/order-book-runtime.test.js', [
   'runtime order book preserves price-time-array priority for 4000 orders',
