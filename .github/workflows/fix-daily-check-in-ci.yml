@@ -67,6 +67,39 @@ jobs:
               document = Path(document_path)
               document.write_text(document.read_text().replace('客户端状态版本：17', '客户端状态版本：18'))
 
+          verifier = Path('scripts/verify-overview-content.mjs')
+          text = verifier.read_text()
+          text = text.replace("  'async function expectNoPairOverlap',\n  'async function expectElementsInside',\n", '', 1)
+          text = text.replace(
+              "  'overview shows completed and partial-week attendance states',\n",
+              "  'overview shows completed and partial-week attendance states',\n  'overview check-in calendar preserves seven columns on mobile',\n",
+              1,
+          )
+          verifier.write_text(text)
+
+          browser_spec = Path('tests/browser/runtime.spec.ts')
+          text = browser_spec.read_text()
+          insertion = """
+
+test('overview check-in calendar preserves seven columns on mobile', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('runtime-test.html?view=overview&scenario=empty');
+
+  const calendar = page.getByRole('list', { name: '本周签到日历' });
+  await expect(calendar.getByRole('listitem')).toHaveCount(7);
+  expect(await gridTrackCount(calendar)).toBe(7);
+  expect(await page.locator('.overview-check-in-panel').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+"""
+          marker = "\ntest('overview cash changes exclude synchronization events and short lists do not scroll'"
+          if insertion.strip() not in text:
+              if marker not in text:
+                  raise SystemExit('runtime.spec.ts: mobile insertion marker missing')
+              text = text.replace(marker, insertion + marker, 1)
+          browser_spec.write_text(text)
+
           storage = Path('server/src/storage.js')
           text = storage.read_text()
           foreign_key = "        FOREIGN KEY (invitation_id) REFERENCES economy_invitation_relations(id)\n"
