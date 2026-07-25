@@ -28,16 +28,12 @@ jobs:
         with:
           node-version: 24.4.0
 
-      - name: Extract and run implementation script
+      - name: Generate runtime modules and tests
         shell: bash
         run: |
-          set -uo pipefail
-          exec > >(tee apply-order-book.log) 2>&1
-          set +e
+          set -euo pipefail
           git show c160ef417143e1f32d4dba62f33528d243a5f7d6:.github/workflows/apply-order-book-runtime-index.yml > /tmp/original-workflow.yml
-          status=$?
-          if [ "$status" -eq 0 ]; then
-            python3 - <<'PY'
+          python3 - <<'PY'
           from pathlib import Path
 
           lines = Path('/tmp/original-workflow.yml').read_text(encoding='utf-8').splitlines()
@@ -50,33 +46,320 @@ jobs:
               if line and not line.startswith('          '):
                   raise RuntimeError(f'Unexpected implementation indentation: {line!r}')
               collected.append(line[10:] if line else '')
-          Path('/tmp/apply-order-book-runtime-index.sh').write_text('\n'.join(collected) + '\n', encoding='utf-8')
+          script = '\n'.join(collected) + '\n'
+          patch_start = script.index("python3 - <<'PY'\n")
+          patch_end = script.index('\nPY\n', patch_start) + len('\nPY\n')
+          script = script[:patch_start] + script[patch_end:]
+          Path('/tmp/generate-order-book-runtime.sh').write_text(script, encoding='utf-8')
           PY
-            status=$?
-          fi
-          if [ "$status" -eq 0 ]; then
-            bash /tmp/apply-order-book-runtime-index.sh
-            status=$?
-          fi
-          if [ "$status" -eq 0 ]; then
-            git fetch origin main
-            git checkout origin/main -- .github/workflows/ci.yml
-            status=$?
-          fi
-          if [ "$status" -ne 0 ]; then
-            echo '=== ORDER BOOK APPLY FAILURE TAIL ==='
-            tail -n 120 apply-order-book.log
-            exit "$status"
-          fi
+          bash /tmp/generate-order-book-runtime.sh
 
-      - name: Upload apply failure log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: order-book-apply-log-${{ github.run_id }}
-          path: apply-order-book.log
-          if-no-files-found: error
-          retention-days: 3
+      - name: Patch integration points
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise RuntimeError(f'{path_name}: expected one target for {old[:80]!r}, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def replace_section(path_name: str, start: str, end: str, replacement: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              start_index = text.index(start)
+              end_index = text.index(end, start_index)
+              path.write_text(text[:start_index] + replacement + text[end_index:], encoding='utf-8')
+
+          replace_once(
+              'server/src/order-matching.js',
+              "import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';\n",
+              "import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';\nimport { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js';\n",
+          )
+          replace_section(
+              'server/src/order-matching.js',
+              '  const candidates = (world.orders || [])',
+              '    const quantity = Math.min',
+              '''  const candidates = getOrderBookSide(world, {
+            assetKind: incomingKind,
+            assetId: incomingAssetId,
+            side: oppositeSide,
+          });
+
+          let fillCount = 0;
+          let filledQuantity = 0;
+          let visited = 0;
+          for (const resting of candidates) {
+            if (!isOpenOrder(incoming)) break;
+            visited += 1;
+            if (resting.id === incoming.id || !isOpenOrder(resting)) continue;
+            if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;
+            if (samePlayer(incoming, resting) || !canMatch({ world, incoming, resting })) continue;
+
+          ''',
+          )
+          replace_once(
+              'server/src/order-matching.js',
+              '  return { fillCount, filledQuantity };\n}\n',
+              '  recordOrderBookVisit(world, visited);\n  return { fillCount, filledQuantity };\n}\n',
+          )
+
+          replace_once(
+              'server/src/domain.js',
+              "import { orderAssetId, orderKind } from './order-identity.js';\n",
+              "import { orderAssetId, orderKind } from './order-identity.js';\nimport { countOpenOrdersForOwner, pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';\n",
+          )
+          replace_section(
+              'server/src/domain.js',
+              'function pendingPlayerBuyQuantity',
+              'function applyCommodityOrder',
+              '''function pendingPlayerBuyQuantity(world, userId) {
+            return pendingCommodityBuyQuantityForOwner(world, userId);
+          }
+
+          ''',
+          )
+          replace_section(
+              'server/src/domain.js',
+              '  world.orders ||= [];\n  const openOrders = world.orders.filter',
+              '  const player = core.ensurePlayer',
+              '''  world.orders ||= [];
+          if (countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
+            return { ok: false, message: '未完成订单数量已达上限' };
+          }
+
+          ''',
+          )
+
+          replace_once(
+              'server/src/warehouse.js',
+              "import { isOpenOrder, orderKind } from './order-identity.js';\n",
+              "import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';\n",
+          )
+          replace_section(
+              'server/src/warehouse.js',
+              '  const orderReserved = (world?.orders || []).reduce',
+              '  const auctionReserved =',
+              '  const orderReserved = pendingCommodityBuyQuantityForOwner(world, userId);\n',
+          )
+
+          replace_once(
+              'server/src/facility-groups.js',
+              "import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';\n",
+              "import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';\nimport { countOpenOrdersForOwner, facilitySellQuantityForOwner } from './order-book-runtime.js';\n",
+          )
+          replace_section(
+              'server/src/facility-groups.js',
+              'function facilityOrders',
+              'function auctionItems',
+              '''function listedQuantity(world, ownerId, typeId) {
+            return facilitySellQuantityForOwner(world, ownerId, typeId);
+          }
+
+          ''',
+          )
+          replace_section(
+              'server/src/facility-groups.js',
+              '  const openOrders = (world.orders || []).filter',
+              '  if (price <',
+              "  if (countOpenOrdersForOwner(world, userId) >= MAX_OPEN_ORDERS) return result(false, '未完成订单数量已达上限');\n",
+          )
+
+          replace_once(
+              'server/src/market-liquidity.js',
+              "import { bestSystemPrice, systemBookIsCrossed } from './order-book-integrity.js';\n",
+              "import { bestSystemPrice, systemBookIsCrossed } from './order-book-integrity.js';\nimport { bestSystemOrder as indexedBestSystemOrder, ordersForDemandGroup } from './order-book-runtime.js';\n",
+          )
+          replace_section(
+              'server/src/market-liquidity.js',
+              '  function cancelGroupOrders',
+              '  function bestSystemOrder',
+              '''  function cancelGroupOrders(world, groupId) {
+            for (const order of ordersForDemandGroup(world, groupId)) {
+              if (
+                order.ownerType === 'population'
+                && (order.demandTier === LIQUIDITY_BUY || order.demandTier === LIQUIDITY_SELL)
+              ) releaseOpenOrder(world, order);
+            }
+          }
+
+          ''',
+          )
+          replace_section(
+              'server/src/market-liquidity.js',
+              '  function bestSystemOrder',
+              '  function repairCrossedSystemBook',
+              '''  function bestSystemOrder(world, productId, side) {
+            return indexedBestSystemOrder(world, 'commodity', productId, side);
+          }
+
+          ''',
+          )
+
+          replace_once(
+              'server/src/market-demand.js',
+              "import { createMarketLiquidityRuntime } from './market-liquidity.js';\n",
+              "import { createMarketLiquidityRuntime } from './market-liquidity.js';\nimport { ordersForDemandGroup } from './order-book-runtime.js';\n",
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              '''    const previousCycleId = Number(state.lastCycleId);
+            const cycleOrders = (world.orders || []).filter((order) => (
+              isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+            ));
+          ''',
+              '''    const previousCycleId = Number(state.lastCycleId);
+            const groupOrders = ordersForDemandGroup(world, group.id);
+            const cycleOrders = groupOrders.filter((order) => (
+              isConsumptionOrder(order, group.id) && Number(order.demandCycleId) === previousCycleId
+            ));
+          ''',
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              '    for (const order of world.orders || []) {\n      if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;\n',
+              '    for (const order of groupOrders) {\n      if (!isConsumptionOrder(order, group.id) || !isOpenOrder(order)) continue;\n',
+          )
+          replace_once(
+              'server/src/market-demand.js',
+              '  function prepareGroupOrders(world, group, state, cycleId) {\n    const groupOrders = (world.orders || []).filter((order) => isConsumptionOrder(order, group.id));\n',
+              "  function prepareGroupOrders(world, group, state, cycleId) {\n    const groupOrders = ordersForDemandGroup(world, group.id)\n      .filter((order) => isConsumptionOrder(order, group.id));\n",
+          )
+          replace_section(
+              'server/src/market-demand.js',
+              '  function groupOpenOrderValue',
+              '  function trimOrdersToValue',
+              '''  function groupOpenOrderValue(world, groupId, predicate = () => true) {
+            return ordersForDemandGroup(world, groupId).reduce((sum, order) => (
+              isConsumptionOrder(order, groupId) && isOpenOrder(order) && predicate(order)
+                ? sum + Number(order.price || 0) * Number(order.remaining || 0)
+                : sum
+            ), 0);
+          }
+
+          ''',
+          )
+          replace_section(
+              'server/src/market-demand.js',
+              '  function enforceOrderValueCaps',
+              '  function createOrder',
+              '''  function enforceOrderValueCaps(world, group, cycleBudget, allocations) {
+            const groupOrders = ordersForDemandGroup(world, group.id)
+              .filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
+            for (const [productId, allocation] of Object.entries(allocations)) {
+              const productCap = Math.max(0, Math.floor(
+                (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
+              ));
+              trimOrdersToValue(world, groupOrders.filter((order) => order.productId === productId), productCap);
+            }
+            const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+            return trimOrdersToValue(world, groupOrders, cap);
+          }
+
+          ''',
+          )
+
+          replace_once(
+              'server/test/order-book-runtime.test.js',
+              "import { compareRestingOrders, matchIncomingOrder } from '../src/order-matching.js';\n",
+              "import { compareRestingOrders, matchIncomingOrder } from '../src/order-matching.js';\nimport { isOpenOrder } from '../src/order-identity.js';\n",
+          )
+          replace_once(
+              'server/test/order-book-runtime.test.js',
+              "    }).map((entry) => entry.id);\n",
+              "    }).filter(isOpenOrder).map((entry) => entry.id);\n",
+          )
+
+          replace_once(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '- `order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排；\n',
+              '- `order-matching.js`：商品与工厂共用的价格优先、同价时间优先、maker price、部分成交、订单状态推进、逐笔 fill 与手续费结算编排；\n- `order-book-runtime.js`：按资产、方向、价格、时间和原数组顺序建立的事务内订单簿派生索引，以及玩家订单计数、仓库买单预占、工厂卖单冻结和需求组订单查询；\n',
+          )
+          replace_once(
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '商品订单和工厂订单不得互相撮合；不同商品或不同工厂类型也不得互相撮合。不同主体之间可成交的交叉订单必须在新订单进入订单簿时立即按 maker price 撮合，直到新订单完成、对手盘耗尽或最高买价严格低于最低卖价；不得先公开展示可成交交叉盘口再等待下一次轮询处理。\n',
+              '商品订单和工厂订单不得互相撮合；不同商品或不同工厂类型也不得互相撮合。不同主体之间可成交的交叉订单必须在新订单进入订单簿时立即按 maker price 撮合，直到新订单完成、对手盘耗尽或最高买价严格低于最低卖价；不得先公开展示可成交交叉盘口再等待下一次轮询处理。`world.orders` 继续是唯一持久化权威订单集合；`order-book-runtime.js` 只为当前工作世界按资产和方向建立价格时间优先索引，同价且时间相同时必须保持原数组顺序。索引识别尾部追加并对数组整体替换自动重建，订单成交、撤销和部分成交直接读取同一订单对象的当前状态；索引不得进入世界 JSON、客户端分区、分区哈希、估值或 SQLite。撮合、自交叉、系统最优价、玩家未完成订单数量、商品买单预占、工厂卖单冻结和人口卖盘深度不得各自重新对完整 `world.orders` 过滤排序。\n',
+          )
+          docs_readme = Path('docs/README.md')
+          readme = docs_readme.read_text(encoding='utf-8').rstrip()
+          rule = '47. 统一订单簿运行时索引只属于服务器事务内派生状态；`world.orders` 仍是唯一持久化权威来源。撮合、自交叉、系统最优价、商品买单仓库预占、工厂卖单冻结、人口卖盘深度和需求组订单必须复用 `order-book-runtime.js`，不得各自重新对完整订单数组过滤排序；同价同时间必须保持原数组顺序，并通过 `server/test/order-book-runtime.test.js`、`server/test/order-matching.test.js` 与 `scripts/verify-order-matching-core.mjs` 防回退。'
+          if rule not in readme:
+              docs_readme.write_text(readme + '\n' + rule + '\n', encoding='utf-8')
+
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "  'server/src/order-matching.js',\n",
+              "  'server/src/order-matching.js',\n  'server/src/order-book-runtime.js',\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "  'server/test/order-matching.test.js',\n",
+              "  'server/test/order-matching.test.js',\n  'server/test/order-book-runtime.test.js',\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "  \"import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js'\",\n",
+              "  \"import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js'\",\n  \"import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js'\",\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "  '!samePlayer(incoming, resting)',\n",
+              "  'samePlayer(incoming, resting)',\n  'if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;',\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "for (const forbidden of ['PRODUCT_CATALOG', 'FACILITY_TYPE_CATALOG', 'inventoryFor(', 'groupFor(']) {\n",
+              "for (const forbidden of ['PRODUCT_CATALOG', 'FACILITY_TYPE_CATALOG', 'inventoryFor(', 'groupFor(', '(world.orders || []).filter', '.sort(']) {\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "const tests = read('server/test/order-matching.test.js');\n",
+              "const runtime = read('server/src/order-book-runtime.js');\nfor (const text of ['getOrderBookSide', 'getOwnerOrderBookSide', 'tailAppends', 'pendingCommodityBuyQuantityForOwner', 'facilitySellQuantityForOwner']) {\n  assert.ok(runtime.includes(text), `订单簿运行时索引缺少: ${text}`);\n}\nconst tests = read('server/test/order-matching.test.js');\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "const design = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');\n",
+              "const runtimeTests = read('server/test/order-book-runtime.test.js');\nfor (const text of ['4000 orders', 'tail appends', 'repeated matching reuses one runtime index']) {\n  assert.ok(runtimeTests.includes(text), `订单簿索引测试缺少: ${text}`);\n}\nconst design = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "for (const text of ['共享撮合内核', '`server/src/order-matching.js`', '唯一撮合状态机', '不得各自重新实现']) {\n",
+              "for (const text of ['共享撮合内核', '`server/src/order-matching.js`', '唯一撮合状态机', '不得各自重新实现', '`order-book-runtime.js`', '不得各自重新对完整 `world.orders` 过滤排序']) {\n",
+          )
+          replace_once(
+              'scripts/verify-order-matching-core.mjs',
+              "console.log('共享撮合内核验证通过：商品与工厂复用价格时间优先、maker price、部分成交、fill 和手续费状态机。');\n",
+              "console.log('共享撮合内核验证通过：商品与工厂复用有界订单簿索引、价格时间优先、maker price、部分成交、fill 和手续费状态机。');\n",
+          )
+
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "requireText('server/src/contract-runtime-index.js', [\n",
+              "requireText('server/src/order-book-runtime.js', [\n  'getOrderBookSide',\n  'getOwnerOrderBookSide',\n  'pendingCommodityBuyQuantityForOwner',\n  'facilitySellQuantityForOwner',\n  'tailAppends',\n]);\nrequireText('server/src/contract-runtime-index.js', [\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "requireText('server/test/contract-runtime-index.test.js', [\n",
+              "requireText('server/test/order-book-runtime.test.js', [\n  'runtime order book preserves price-time-array priority for 4000 orders',\n  'runtime order book tracks tail appends and rebuilds after array replacement',\n  'repeated matching reuses one runtime index',\n]);\nrequireText('server/test/contract-runtime-index.test.js', [\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "  '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',\n",
+              "  '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',\n  '统一订单簿运行时索引只属于服务器事务内派生状态',\n",
+          )
+          replace_once(
+              'scripts/verify-runtime-efficiency.mjs',
+              "console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、合同线性索引、合同状态投影复用和有界请求指标均已锁定。');\n",
+              "console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');\n",
+          )
+          PY
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
 
       - name: Run focused verification
         shell: bash
