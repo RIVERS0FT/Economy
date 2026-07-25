@@ -356,10 +356,6 @@ export class EconomyRegistrationStore {
     return this.invitations.getInvitationSummary(userId, now, this.publicOrigin);
   }
 
-  claimManualInvitation(input) {
-    return this.invitations.claimManualInvitation(input);
-  }
-
   listBanIncidents() {
     return this.invitations.listBanIncidents();
   }

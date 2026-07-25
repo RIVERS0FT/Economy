@@ -1,7 +1,6 @@
 import { createHmac } from 'node:crypto';
 
 export const INVITATION_REWARD_GEMS = 10;
-export const INVITATION_CLAIM_WINDOW_MS = 24 * 60 * 60 * 1000;
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function httpError(message, statusCode, extra = {}) {
@@ -466,58 +465,10 @@ export class EconomyInvitationStore {
     };
   }
 
-  claimManualInvitation({ user, inviteCode, requestKey, now = Date.now() }) {
-    return this.store.transaction(() => {
-      this.assertActive(user.id);
-      const registration = this.selectRegistrationByUser.get(Number(user.id));
-      if (!registration) throw httpError('当前账号尚未创建 Economy 玩家档案', 409);
-      if (now > Number(registration.registered_at) + INVITATION_CLAIM_WINDOW_MS) {
-        throw httpError('邀请码填写期限已结束', 409);
-      }
-      const existing = this.selectInvitationByInvitee.get(Number(user.id));
-      if (existing) {
-        if (existing.request_key === requestKey) return { repeated: true, relation: existing };
-        throw httpError('当前账号已经绑定邀请关系', 409);
-      }
-      const codeRow = this.resolveInviteCode(inviteCode);
-      if (!codeRow) throw httpError('邀请码不存在或已停用', 404);
-      if (Number(codeRow.user_id) === Number(user.id)) throw httpError('不能填写自己的邀请码', 409);
-      this.assertActive(codeRow.user_id);
-      const inviterRegistration = this.selectRegistrationByUser.get(Number(codeRow.user_id));
-      const sameIp = inviterRegistration
-        && inviterRegistration.registration_ip_fingerprint === registration.registration_ip_fingerprint;
-      const { revision, world } = this.store.loadWorld(now);
-      const invitation = this.createInvitationInTransaction({
-        world,
-        user,
-        inviteCode: codeRow.code,
-        source: 'manual_code',
-        requestKey,
-        now,
-        blockedReason: sameIp ? 'blocked_same_ip' : null,
-      });
-      if (invitation.worldChanged) this.store.saveWorld(revision, world, now);
-      if (invitation.relation?.status === 'blocked_same_ip') {
-        return {
-          repeated: invitation.repeated,
-          relation: invitation.relation,
-          message: '邀请关系已记录，但双方注册网络相同，不发放邀请宝石',
-        };
-      }
-      return {
-        repeated: invitation.repeated,
-        relation: invitation.relation,
-        message: `邀请码绑定成功，邀请人已获得 ${INVITATION_REWARD_GEMS} 宝石`,
-      };
-    });
-  }
-
   getInvitationSummary(userId, now = Date.now(), publicOrigin = 'https://game.riversoft.top') {
     return this.store.transaction(() => {
       const normalizedUserId = Number(userId);
       const codeRow = this.ensureInviteCodeInTransaction(normalizedUserId, now);
-      const registration = this.selectRegistrationByUser.get(normalizedUserId);
-      const relation = this.selectInvitationByInvitee.get(normalizedUserId);
       const counts = this.selectInvitationCounts.get(normalizedUserId);
       const { world } = this.store.loadWorld(now);
       const player = world.players?.[String(normalizedUserId)];
@@ -539,16 +490,6 @@ export class EconomyInvitationStore {
         shareLinkInvitations: Number(counts?.share_count || 0),
         manualCodeInvitations: Number(counts?.manual_count || 0),
         invitationGemsEarned: Number(counts?.gems_earned || 0),
-        claimExpiresAt: relation || !registration
-          ? undefined
-          : Number(registration.registered_at) + INVITATION_CLAIM_WINDOW_MS,
-        claimedInvitation: relation ? {
-          inviteCode: String(relation.invite_code),
-          inviterName: world.players?.[String(relation.inviter_user_id)]?.playerName || `玩家 ${relation.inviter_user_id}`,
-          source: relation.source,
-          status: relation.status,
-          claimedAt: Number(relation.claimed_at),
-        } : undefined,
         recentInvitations,
       };
     }, { immediate: false });

@@ -24,6 +24,7 @@ const files = [
   'src/app/LoginPage.tsx',
   'src/app/App.tsx',
   'src/pages/SettingsPage.tsx',
+  'src/pages/GemShopPage.tsx',
   'src/components/InvitationSettings.tsx',
   'scripts/configure-economy-registration-nginx.py',
   'scripts/test_configure_economy_registration_nginx.py',
@@ -32,6 +33,7 @@ const files = [
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
+  'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
 ];
 files.forEach(requireFile);
 
@@ -50,10 +52,9 @@ for (const text of [
   'assertPlayerActive',
   'processNewRegistrationInTransaction',
 ]) requireText('server/src/registration-store.js', text);
-for (const text of ['code TEXT', 'verification_code TEXT', 'plain_code']) {
-  forbidText('server/src/registration-store.js', text);
-}
+for (const text of ['code TEXT', 'verification_code TEXT', 'plain_code']) forbidText('server/src/registration-store.js', text);
 forbidText('server/src/registration-store.js', "source !== 'homepage_session'");
+forbidText('server/src/registration-store.js', 'claimManualInvitation');
 
 for (const text of [
   "const RESEND_ENDPOINT = 'https://api.resend.com/emails'",
@@ -73,10 +74,12 @@ for (const text of [
   "path === '/api/registration/email-code'",
   "path === '/api/registration/complete'",
   "path === '/api/game/session'",
+  "path === '/api/game/invitations/claim'",
   'registrationStore.ensureLoggedInPlayer',
   'registrationStore.assertPlayerActive',
   "'Set-Cookie': account.setCookie",
   'inviteCode: body.inviteCode',
+  "sendError(response, 410, '邀请码只能在首次创建 Economy 玩家档案时填写，注册完成后不能补填')",
 ]) requireText('server/src/app.js', text);
 
 for (const text of [
@@ -104,9 +107,7 @@ for (const text of [
   "'/registration/complete'",
   "'/game/session'",
 ]) requireText('src/api/auth.ts', text);
-for (const text of ['HOMEPAGE_ACCOUNT_API_BASE', 'registerAtHomepage', "'/register'"]) {
-  forbidText('src/api/auth.ts', text);
-}
+for (const text of ['HOMEPAGE_ACCOUNT_API_BASE', 'registerAtHomepage', "'/register'"]) forbidText('src/api/auth.ts', text);
 
 for (const text of [
   "type AuthMode = 'login' | 'register'",
@@ -116,17 +117,16 @@ for (const text of [
   "mode === 'login'",
   '完成注册',
   '已识别好友分享链接',
+  '邀请码（可选）',
 ]) requireText('src/app/LoginPage.tsx', text);
 forbidText('src/app/LoginPage.tsx', '登录或注册');
 
-for (const text of [
-  '邀请好友',
-  '分享链接',
-  '我的邀请码',
-  '填写好友邀请码',
-  'claimInvitation',
-]) requireText('src/components/InvitationSettings.tsx', text);
-forbidText('src/pages/SettingsPage.tsx', '第一阶段不生成邀请码、邀请奖励或归因记录');
+for (const text of ['邀请好友', '分享链接', '永久邀请码', '注册完成后不能补填或更换']) {
+  requireText('src/components/InvitationSettings.tsx', text);
+}
+for (const text of ['填写好友邀请码', 'claimInvitation']) forbidText('src/components/InvitationSettings.tsx', text);
+requireText('src/pages/GemShopPage.tsx', '<InvitationSettings />');
+forbidText('src/pages/SettingsPage.tsx', 'InvitationSettings');
 
 for (const text of [
   'location ^~ /economy-api/registration/',
@@ -156,12 +156,14 @@ for (const text of [
   '`POST /api/internal/account-email-exists`',
   '不得创建 `economy_email_verifications` 记录',
   '不得发送邮件',
+  '注册事务提交后',
+  '`410 Gone`',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 forbidText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'RESEND_FROM_EMAIL');
 
 for (const text of [
-  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、邀请、礼品和退出 |',
-  '设置页只允许玩家资料与四项统计、已经实现的客户端偏好、基础教程控制、邀请入口、礼品兑换、管理员入口和退出登录',
+  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与宝石单向兑换普通货币 |',
+  '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、礼品和退出 |',
   '已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '资料、偏好、邀请、礼品、退出和重置');
@@ -169,6 +171,7 @@ forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '资料、偏好、邀�
 for (const text of [
   '发送验证码前必须先通过主页账号服务仅限回环的邮箱存在性接口查重',
   '不创建验证码记录，也不调用 Resend',
+  '注册完成后不能补填',
 ]) requireText('README.md', text);
 
 for (const text of [
@@ -179,10 +182,9 @@ for (const text of [
   'EnvironmentFile=-{ENVIRONMENT_FILE}',
   'registration-secret',
 ]) requireText('scripts/install-economy-api.py', text);
-for (const text of [
-  'configure-economy-registration-nginx.py',
-  'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE',
-]) requireText('.github/workflows/deploy.yml', text);
+for (const text of ['configure-economy-registration-nginx.py', 'ECONOMY_REGISTRATION_PROXY_UNAVAILABLE']) {
+  requireText('.github/workflows/deploy.yml', text);
+}
 for (const text of [
   'Validate running Resend configuration',
   "['systemctl', 'show', service_name, '--property=MainPID', '--value']",
@@ -206,9 +208,13 @@ for (const text of [
   'sends share-link invite code through email registration and immediately rewards inviter',
   'registration IP prefers trusted reverse-proxy real IP over a client-supplied forwarded chain',
 ]) requireText('server/test/registration.test.js', text);
+for (const text of [
+  'registration form invite code rewards inviter once inside first-profile transaction',
+  'existing Economy profile ignores invite parameters and can never be backfilled',
+]) requireText('server/test/invitations.test.js', text);
 
 if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：发送前查重、验证码安全、分享链接归因、统一同 IP 封禁、双模式页面与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：发送前查重、验证码安全、首次建档邀请码归因、注册后禁止补填、统一同 IP 封禁、双模式页面与 Nginx 路由均已锁定。');

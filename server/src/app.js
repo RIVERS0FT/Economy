@@ -186,6 +186,11 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (method === 'POST' && path === '/api/game/invitations/claim') {
+      sendError(response, 410, '邀请码只能在首次创建 Economy 玩家档案时填写，注册完成后不能补填');
+      return;
+    }
+
     if (path.startsWith('/api/game/admin/')) {
       requireAdmin(user);
       if (method === 'GET' && path === '/api/game/admin/summary') {
@@ -367,17 +372,6 @@ const server = createServer(async (request, response) => {
       sendJson(response, 200, { invitation: registrationStore.getInvitationSummary(user.id) });
       return;
     }
-    if (method === 'POST' && path === '/api/game/invitations/claim') {
-      const requestKey = requireIdempotencyKey(request);
-      const body = await readJson(request);
-      sendJson(response, 200, registrationStore.claimManualInvitation({
-        user,
-        inviteCode: body.inviteCode,
-        requestKey,
-      }));
-      return;
-    }
-
     if (method === 'GET' && path === '/api/game/gem-shop') {
       sendJson(response, 200, { gemShop: store.getGemShopSummary(user) });
       return;

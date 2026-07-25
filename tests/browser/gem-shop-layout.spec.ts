@@ -45,18 +45,53 @@ async function openGemShop(page: Page, width: number, height: number, recentExch
       }),
     });
   });
+  await page.route('**/economy-api/game/invitations', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        invitation: {
+          gems: 40,
+          inviteCode: 'ABCDEFGH',
+          shareUrl: 'https://game.riversoft.top/economy/?invite=ABCDEFGH',
+          rewardGems: 10,
+          successfulInvitations: 3,
+          shareLinkInvitations: 2,
+          manualCodeInvitations: 1,
+          invitationGemsEarned: 30,
+          recentInvitations: [
+            {
+              playerName: '测试玩家',
+              source: 'manual_code',
+              status: 'rewarded',
+              rewardGems: 10,
+              claimedAt: Date.UTC(2026, 6, 18, 12, 0, 0),
+              rewardedAt: Date.UTC(2026, 6, 18, 12, 0, 0),
+            },
+          ],
+        },
+      }),
+    });
+  });
   await page.goto('runtime-test.html?view=gem-shop');
   await expect(page.getByRole('heading', { name: '商店', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '兑换货币', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '兑换记录', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toBeVisible();
   await expect(page.getByText('1 宝石 = 10 货币', { exact: true })).toBeVisible();
+  await expect(page.getByText('注册完成后不能补填或更换。', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('填写好友邀请码')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '确认填写', exact: true })).toHaveCount(0);
 }
 
-test('desktop shop keeps compact icons and places the primary exchange action in the first viewport', async ({ page }) => {
+test('desktop shop keeps invitation and exchange in independent top-aligned stacks', async ({ page }) => {
   await openGemShop(page, 1440, 900);
 
   const grid = page.locator('.gem-shop-grid');
   const balance = page.locator('.gem-shop-balance-card');
+  const mainColumn = page.locator('.gem-shop-main-column');
+  const sideColumn = page.locator('.gem-shop-side-column');
+  const invitation = page.locator('.invite-card');
   const exchange = page.locator('.gem-shop-exchange-card');
   const history = page.locator('.gem-shop-history-card');
   const icon = page.locator('.gem-shop-balance-row svg').first();
@@ -66,6 +101,9 @@ test('desktop shop keeps compact icons and places the primary exchange action in
   expect(await gridTrackCount(grid)).toBe(2);
   const gridBox = await requireBox(grid);
   const balanceBox = await requireBox(balance);
+  const mainBox = await requireBox(mainColumn);
+  const sideBox = await requireBox(sideColumn);
+  const invitationBox = await requireBox(invitation);
   const exchangeBox = await requireBox(exchange);
   const historyBox = await requireBox(history);
   const iconBox = await requireBox(icon);
@@ -73,10 +111,10 @@ test('desktop shop keeps compact icons and places the primary exchange action in
 
   expect(Math.abs(balanceBox.x - gridBox.x)).toBeLessThan(2);
   expect(Math.abs(balanceBox.width - gridBox.width)).toBeLessThan(2);
-  expect(Math.abs(exchangeBox.y - historyBox.y)).toBeLessThan(2);
-  expect(exchangeBox.width).toBeGreaterThan(gridBox.width * 0.4);
-  expect(historyBox.width).toBeGreaterThan(gridBox.width * 0.4);
-  expect(historyBox.x).toBeGreaterThan(exchangeBox.x + exchangeBox.width);
+  expect(Math.abs(mainBox.y - sideBox.y)).toBeLessThan(2);
+  expect(Math.abs(invitationBox.y - exchangeBox.y)).toBeLessThan(2);
+  expect(historyBox.y).toBeGreaterThan(invitationBox.y + invitationBox.height);
+  expect(sideBox.x).toBeGreaterThan(mainBox.x + mainBox.width);
   expect(iconBox.width).toBeLessThanOrEqual(24);
   expect(iconBox.height).toBeLessThanOrEqual(24);
   expect(confirmBox.y + confirmBox.height).toBeLessThanOrEqual(900);
@@ -103,22 +141,20 @@ test('integer amount input always owns the wheel without moving the page', async
   expect(await pageScroll.evaluate((element) => element.scrollTop)).toBe(beforeBoundary);
 });
 
-test('desktop empty shop keeps the balance summary and action area dense', async ({ page }) => {
+test('desktop empty shop keeps balance and primary exchange action dense', async ({ page }) => {
   await openGemShop(page, 1680, 930, []);
 
   const balance = await requireBox(page.locator('.gem-shop-balance-card'));
   const exchange = await requireBox(page.locator('.gem-shop-exchange-card'));
-  const history = await requireBox(page.locator('.gem-shop-history-card'));
   const confirm = await requireBox(page.getByRole('button', { name: '确认兑换', exact: true }));
 
   expect(await gridTrackCount(page.locator('.gem-shop-balance-row'))).toBe(3);
   expect(balance.height).toBeLessThan(130);
   expect(exchange.height).toBeLessThan(340);
-  expect(history.height).toBeLessThan(170);
   expect(confirm.y + confirm.height).toBeLessThan(720);
 });
 
-test('compact shop stacks all cards without icon or horizontal overflow', async ({ page }) => {
+test('compact shop orders exchange before invitation without horizontal overflow', async ({ page }) => {
   await openGemShop(page, 390, 844);
 
   const grid = page.locator('.gem-shop-grid');
@@ -126,6 +162,7 @@ test('compact shop stacks all cards without icon or horizontal overflow', async 
   const cards = [
     page.locator('.gem-shop-balance-card'),
     page.locator('.gem-shop-exchange-card'),
+    page.locator('.invite-card'),
     page.locator('.gem-shop-history-card'),
   ];
   const boxes = await Promise.all(cards.map(requireBox));

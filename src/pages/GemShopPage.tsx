@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { getGemShopSummary, type GemShopSummary } from '../api/game';
+import { InvitationSettings } from '../components/InvitationSettings';
 import { CreditsIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -77,7 +78,7 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   return (
-    <PageLayout title="商店" description="使用宝石单向兑换普通货币。所有兑换由服务器即时结算且不可撤销。">
+    <PageLayout title="商店" description="邀请好友获得宝石，并使用宝石单向兑换普通货币。所有兑换由服务器即时结算且不可撤销。">
       <div className="gem-shop-grid">
         <Panel className="widget gem-shop-balance-card">
           <WidgetHeading title="当前余额" action={<StatusTag tone="info">固定汇率</StatusTag>} />
@@ -91,58 +92,64 @@ export function GemShopPage({ model }: { model: LoadedGameViewModel }) {
           </div>
         </Panel>
 
-        <Panel className="widget gem-shop-exchange-card">
-          <WidgetHeading title="兑换货币" />
-          {summary ? (
-            <>
-              <IntegerInput
-                label="消耗宝石数量"
-                value={amountDraft}
-                fallbackValue={amount}
-                min={summary.minExchangeGems}
-                max={Math.min(summary.maxExchangeGems, Math.max(summary.maxExchangeableGems, 1))}
-                error={amountError}
-                onValueChange={updateAmountDraft}
-                onKeyDown={(event) => { if (event.key === 'Enter') void exchange(); }}
-              />
-              <div className="gem-shop-quick-row" aria-label="快捷兑换数量">
-                {QUICK_AMOUNTS.map((value) => (
-                  <Button key={value} variant="compact" disabled={value > model.game.gems} onClick={() => setAmountValue(value)}>{value}</Button>
-                ))}
-                <Button variant="compact" disabled={summary.maxExchangeableGems < 1} onClick={() => setAmountValue(summary.maxExchangeableGems)}>最大</Button>
-              </div>
-              <div className="gem-shop-preview">
-                <span>预计获得</span>
-                <strong><CurrencyAmount>{formatCurrency(creditsPreview)}</CurrencyAmount></strong>
-              </div>
-              <Button block disabled={!validAmount || exchanging} onClick={() => void exchange()}>
-                {exchanging ? '兑换处理中…' : '确认兑换'}
-              </Button>
-              <small>单次可兑换 {formatNumber(summary.minExchangeGems)}～{formatNumber(summary.maxExchangeGems)} 宝石；宝石不能用货币买回。</small>
-            </>
-          ) : <p>{loading ? '正在加载商店…' : error || '商店暂时不可用'}</p>}
-        </Panel>
+        <div className="gem-shop-main-column">
+          <InvitationSettings />
 
-        <Panel className="widget gem-shop-history-card">
-          <WidgetHeading title="兑换记录" action={summary ? <StatusTag tone="neutral">最近 20 笔</StatusTag> : undefined} />
-          {summary?.recentExchanges.length ? (
-            <div className="gem-shop-history-list">
-              {summary.recentExchanges.map((record) => (
-                <div key={`${record.createdAt}-${record.gemsSpent}`}>
-                  <span>消耗 {formatNumber(record.gemsSpent)} 宝石</span>
-                  <strong><CurrencyAmount sign="+">{formatCurrency(record.creditsReceived)}</CurrencyAmount></strong>
-                  <small>{formatDate(record.createdAt)}</small>
+          <Panel className="widget gem-shop-history-card">
+            <WidgetHeading title="兑换记录" action={summary ? <StatusTag tone="neutral">最近 20 笔</StatusTag> : undefined} />
+            {summary?.recentExchanges.length ? (
+              <div className="gem-shop-history-list">
+                {summary.recentExchanges.map((record) => (
+                  <div key={`${record.createdAt}-${record.gemsSpent}`}>
+                    <span>消耗 {formatNumber(record.gemsSpent)} 宝石</span>
+                    <strong><CurrencyAmount sign="+">{formatCurrency(record.creditsReceived)}</CurrencyAmount></strong>
+                    <small>{formatDate(record.createdAt)}</small>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="gem-shop-empty-copy">{loading ? '正在读取兑换记录…' : '尚无兑换记录'}</p>}
+            {summary ? (
+              <div className="gem-shop-total-row">
+                <span>累计消耗 {formatNumber(summary.totalGemsSpent)} 宝石</span>
+                <strong>累计获得 <CurrencyAmount>{formatCurrency(summary.totalCreditsReceived)}</CurrencyAmount></strong>
+              </div>
+            ) : null}
+          </Panel>
+        </div>
+
+        <div className="gem-shop-side-column">
+          <Panel className="widget gem-shop-exchange-card">
+            <WidgetHeading title="兑换货币" />
+            {summary ? (
+              <>
+                <IntegerInput
+                  label="消耗宝石数量"
+                  value={amountDraft}
+                  fallbackValue={amount}
+                  min={summary.minExchangeGems}
+                  max={Math.min(summary.maxExchangeGems, Math.max(summary.maxExchangeableGems, 1))}
+                  error={amountError}
+                  onValueChange={updateAmountDraft}
+                  onKeyDown={(event) => { if (event.key === 'Enter') void exchange(); }}
+                />
+                <div className="gem-shop-quick-row" aria-label="快捷兑换数量">
+                  {QUICK_AMOUNTS.map((value) => (
+                    <Button key={value} variant="compact" disabled={value > model.game.gems} onClick={() => setAmountValue(value)}>{value}</Button>
+                  ))}
+                  <Button variant="compact" disabled={summary.maxExchangeableGems < 1} onClick={() => setAmountValue(summary.maxExchangeableGems)}>最大</Button>
                 </div>
-              ))}
-            </div>
-          ) : <p className="gem-shop-empty-copy">{loading ? '正在读取兑换记录…' : '尚无兑换记录'}</p>}
-          {summary ? (
-            <div className="gem-shop-total-row">
-              <span>累计消耗 {formatNumber(summary.totalGemsSpent)} 宝石</span>
-              <strong>累计获得 <CurrencyAmount>{formatCurrency(summary.totalCreditsReceived)}</CurrencyAmount></strong>
-            </div>
-          ) : null}
-        </Panel>
+                <div className="gem-shop-preview">
+                  <span>预计获得</span>
+                  <strong><CurrencyAmount>{formatCurrency(creditsPreview)}</CurrencyAmount></strong>
+                </div>
+                <Button block disabled={!validAmount || exchanging} onClick={() => void exchange()}>
+                  {exchanging ? '兑换处理中…' : '确认兑换'}
+                </Button>
+                <small>单次可兑换 {formatNumber(summary.minExchangeGems)}～{formatNumber(summary.maxExchangeGems)} 宝石；宝石不能用货币买回。</small>
+              </>
+            ) : <p>{loading ? '正在加载商店…' : error || '商店暂时不可用'}</p>}
+          </Panel>
+        </div>
       </div>
     </PageLayout>
   );

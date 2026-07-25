@@ -188,7 +188,7 @@ JSON.parse
 
 每名玩家拥有一个服务器生成的永久 8 位邀请码。分享链接使用 `https://game.riversoft.top/economy/?invite=邀请码`。分享链接只在首次创建 Economy 玩家档案时自动归因；有效且未被封禁的邀请关系在注册事务中立即向邀请人发放 10 宝石，被邀请人不获得宝石。已有 Economy 档案的账号访问分享链接不得补绑或重复奖励。
 
-未通过分享链接绑定的玩家可在首次建档后 24 小时内通过设置页手动填写一次邀请码。分享链接和手动邀请码共用 `invitee_user_id` 唯一约束，一个账号只能绑定一个邀请人。相同注册 IP 的邀请关系可以记录为 `blocked_same_ip`，但不得发放宝石，也不得改绑其他邀请人。重置经济状态不得清除宝石、邀请码、邀请关系、宝石流水、封禁或解禁历史。
+邀请码只能在首次创建 Economy 玩家档案的注册事务中提交。分享链接和注册表单邀请码共用 `invitee_user_id` 唯一约束，一个账号只能绑定一个邀请人；注册事务提交后，无论该账号是否已经绑定，都不得新增、补填、更换或重新绑定。相同注册 IP 的邀请关系可以记录为 `blocked_same_ip`，但不得发放宝石，也不得改绑其他邀请人。旧 `POST /api/game/invitations/claim` 必须在普通玩家自动建档之前固定返回 `410 Gone`，不得读取请求正文、创建注册记录、加载或保存世界、检查邀请码有效性或写入邀请关系。重置经济状态不得清除宝石、邀请码、邀请关系、宝石流水、封禁或解禁历史。
 
 ### 5.2 邮箱验证码
 
@@ -222,7 +222,7 @@ JSON.parse
 | POST | `/api/game/session` | 已登录账号首次建档、分享链接归因与封禁状态初始化 |
 | GET | `/api/game/state` | 获取六分区初始状态、增量补丁或带 `serverNow` 的修订号轻量确认 |
 | GET | `/api/game/invitations` | 获取宝石余额、邀请码、分享链接和邀请统计 |
-| POST | `/api/game/invitations/claim` | 注册后 24 小时内手动填写邀请码 |
+| POST | `/api/game/invitations/claim` | 已永久移除；固定返回 `410 Gone`，不得读取或写入邀请业务状态 |
 | GET | `/api/game/gem-shop` | 获取服务器汇率、兑换边界、累计与最近记录 |
 | POST | `/api/game/gem-shop/exchange` | 原子扣除宝石并增加普通货币 |
 | GET | `/api/game/community-link` | 获取侧边栏社区跳转链接 |
