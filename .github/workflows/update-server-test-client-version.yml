@@ -1,0 +1,62 @@
+name: Update server test client version
+
+on:
+  push:
+    branches:
+      - agent/daily-check-in
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/daily-check-in
+      - name: Use shared client version in server tests
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          targets = [
+              Path('server/test/asset-events.test.js'),
+              Path('server/test/domain.test.js'),
+              Path('server/test/order-privacy.test.js'),
+              Path('server/test/warehouse.test.js'),
+          ]
+          for path in targets:
+              text = path.read_text()
+              if 'CURRENT_CLIENT_STATE_VERSION' not in text:
+                  marker = "import test from 'node:test';\n"
+                  if marker not in text:
+                      raise SystemExit(f'{path}: test import marker missing')
+                  text = text.replace(
+                      marker,
+                      marker + "import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';\n",
+                      1,
+                  )
+              text = text.replace('client state version 17', 'current client state version')
+              text = text.replace('client state uses version 17', 'client state uses the current version')
+              text = text.replace('client version 17', 'current client version')
+              text, count = re.subn(
+                  r'assert\.equal\(([^,\n]+\.version),\s*17\);',
+                  r'assert.equal(\1, CURRENT_CLIENT_STATE_VERSION);',
+                  text,
+              )
+              if count < 1:
+                  raise SystemExit(f'{path}: no stale version assertion replaced')
+              path.write_text(text)
+          PY
+      - name: Commit server test updates
+        run: |
+          git rm .github/workflows/update-server-test-client-version.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "test: use shared client version in server tests"
+          git push origin HEAD:agent/daily-check-in
