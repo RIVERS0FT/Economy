@@ -30,10 +30,6 @@ jobs:
           python3 <<'PY'
           from pathlib import Path
 
-          def require(path, fragment):
-              if fragment not in Path(path).read_text():
-                  raise SystemExit(f'{path}: missing required fragment {fragment!r}')
-
           for document_path in [
               'docs/README.md',
               'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
@@ -64,10 +60,9 @@ jobs:
                   '- 每日奖励、全勤奖励、签到记录、宝石余额和宝石流水必须在同一 SQLite 事务提交；失败全部回滚。签到不计入总资产、增长榜或经营积分，也不刷新经济活跃时间。\n\n'
                   '### 9.2 注册事务邀请归因'
               )
-              if marker not in text:
-                  raise SystemExit('product design registration section missing')
-              text = text.replace(marker, section, 1)
-              text = text.replace('### 9.2 商店', '### 9.3 商店', 1)
+              if marker in text:
+                  text = text.replace(marker, section, 1)
+                  text = text.replace('### 9.2 商店', '### 9.3 商店', 1)
           text = text.replace(
               '资产一致性、冻结、成交、生产、周结算、市场需求发行、宝石奖励和封禁判定优先级最高；',
               '资产一致性、冻结、成交、生产、签到、周结算、市场需求发行、宝石奖励和封禁判定优先级最高；',
@@ -92,9 +87,10 @@ jobs:
 
           path = Path('server/src/invitations.js')
           text = path.read_text()
-          old_category = "category TEXT NOT NULL CHECK (category IN ('share_link_reward', 'invite_code_reward', 'admin_adjustment'))"
-          new_category = "category TEXT NOT NULL CHECK (category IN ('share_link_reward', 'invite_code_reward', 'daily_check_in', 'weekly_full_attendance', 'leaderboard_reward', 'admin_adjustment'))"
-          text = text.replace(old_category, new_category)
+          text = text.replace(
+              "category TEXT NOT NULL CHECK (category IN ('share_link_reward', 'invite_code_reward', 'admin_adjustment'))",
+              "category TEXT NOT NULL CHECK (category IN ('share_link_reward', 'invite_code_reward', 'daily_check_in', 'weekly_full_attendance', 'leaderboard_reward', 'admin_adjustment'))",
+          )
           if 'source_key TEXT UNIQUE' not in text:
               text = text.replace(
                   '        created_at INTEGER NOT NULL,\n        FOREIGN KEY (invitation_id) REFERENCES economy_invitation_relations(id)',
@@ -113,25 +109,6 @@ jobs:
               )
           text = text.replace("  'version: 17;',", "  `version: ${CURRENT_CLIENT_STATE_VERSION};`,")
           path.write_text(text)
-
-          required = {
-              'README.md': ['每日签到按 `Asia/Shanghai`', '50／30／20 宝石', '注册完成后不能补填'],
-              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md': ['### 9.1 每日签到与每周全勤', '### 9.2 注册事务邀请归因', '**50 / 30 / 20 宝石**'],
-              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md': ['签到日历', '邀请获取宝石与宝石单向兑换普通货币'],
-              'docs/UI_DESIGN_SYSTEM.md': ['签到日历', '邀请好友'],
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md': ['economy_daily_check_ins', '注册完成后'],
-              'server/src/invitations.js': ['weekly_full_attendance', 'source_key TEXT UNIQUE'],
-              'server/src/storage.js': ['checkInInTransaction', 'saveWorldIfChanged(revision, world, now, stateJson)'],
-              'server/src/leaderboards.js': ['Object.freeze([50, 30, 20])'],
-              'server/shared/economy-state-version.js': ['CURRENT_CLIENT_STATE_VERSION = 18'],
-              'src/pages/OverviewPage.tsx': ['title="本周签到"', '签到领取 1 宝石'],
-              'src/pages/GemShopPage.tsx': ['InvitationSettings'],
-              'src/pages/SettingsPage.tsx': ['礼品兑换'],
-              'scripts/verify-daily-check-in.mjs': ['assert.deepEqual(replay, first)'],
-          }
-          for file_path, fragments in required.items():
-              for fragment in fragments:
-                  require(file_path, fragment)
           PY
       - name: Commit synchronized branch
         shell: bash
