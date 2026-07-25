@@ -59,6 +59,19 @@ requireText('server/src/request-metrics.js', [
   "OVERFLOW_ROUTE = '/api/other'",
   'overflowedRequestCount',
 ]);
+requireText('server/src/contract-runtime-index.js', [
+  'createContractRuntimeIndex',
+  'reservedIncomingForBuyer',
+  'activeCountForParticipant',
+  'openCountForPublisher',
+  'nextDeadlineAt',
+]);
+requireText('server/src/contracts.js', [
+  'processProductionContractsWithIndex',
+  'runtimeIndex.reservedIncomingForBuyer',
+  'runtimeIndex.activeCountForParticipant',
+  'runtimeIndex.openCountForPublisher',
+]);
 requireText('server/src/runtime-store.js', [
   'contractProjectionForState',
   'cached.revision === snapshot.revision',
@@ -69,6 +82,10 @@ requireText('server/test/request-metrics.test.js', [
   'request metrics normalize route identifiers',
   'request metrics aggregate duration and application response bytes',
   'request metrics cap route cardinality and aggregate overflow',
+]);
+requireText('server/test/contract-runtime-index.test.js', [
+  'contract runtime index matches the reference reservation scan for 2000 contracts',
+  'contract runtime transitions release and acquire counts without rebuilding',
 ]);
 requireText('server/test/state-polling.test.js', [
   'runtime failed actions keep the world row unchanged',
@@ -86,6 +103,7 @@ requireText('docs/README.md', [
   '`OTHER /api/other`',
   '合同分区必须复用当前修订缓存',
   '失败或无变化动作仍保存幂等确认但不得触发全服补拉',
+  '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
   '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
 ]);
@@ -95,4 +113,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、合同状态投影复用和有界请求指标均已锁定。');
+console.log('运行时效率验证通过：自适应轮询、无变化动作不写世界、合同线性索引、合同状态投影复用和有界请求指标均已锁定。');
