@@ -11,7 +11,8 @@ on:
 
 permissions:
   contents: write
-  pull-requests: read
+  pull-requests: write
+  issues: write
 
 concurrency:
   group: agent-apply-invitation-shop
@@ -78,6 +79,27 @@ jobs:
             tail -n 160 /tmp/economy-build.log
             exit 1
           fi
+
+      - name: Report validation failure
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          {
+            echo '### 一次性实施工作流失败日志'
+            echo
+            echo '```text'
+            if [ -f /tmp/economy-build.log ]; then
+              tail -n 80 /tmp/economy-build.log
+            else
+              echo '失败发生在完整构建之前，请检查实施工作流步骤。'
+            fi
+            echo '```'
+          } > /tmp/invitation-shop-failure-comment.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/invitation-shop-failure-comment.md
 
       - name: Commit validated implementation
         shell: bash
