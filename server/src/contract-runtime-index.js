@@ -1,4 +1,4 @@
-import { pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
+import { nonContractWarehouseReservation } from './warehouse-reservations.js';
 
 const runtimeByWorld = new WeakMap();
 const diagnosticsByWorld = new WeakMap();
@@ -51,38 +51,6 @@ function deadlineFor(snapshot) {
   if (snapshot.status !== 'active') return null;
   if (Number.isFinite(snapshot.graceEndsAt)) return snapshot.graceEndsAt;
   return Number.isFinite(snapshot.nextDueAt) ? snapshot.nextDueAt : null;
-}
-
-function auctionItems(auction) {
-  if (Array.isArray(auction?.items) && auction.items.length > 0) return auction.items;
-  const kind = auction?.assetKind;
-  const assetId = String(auction?.assetId || auction?.productId || auction?.facilityTypeId || '');
-  return kind && assetId
-    ? [{ assetKind: kind, assetId, quantity: Math.max(1, Number(auction.quantity || 1)) }]
-    : [];
-}
-
-function auctionCommodityQuantity(auction) {
-  return auctionItems(auction).reduce((sum, item) => (
-    item.assetKind === 'commodity'
-      ? sum + Math.max(0, Number(item.quantity || 0))
-      : sum
-  ), 0);
-}
-
-function nonContractIncomingForBuyer(world, userId) {
-  const normalizedUserId = Number(userId);
-  const orderReserved = pendingCommodityBuyQuantityForOwner(world, normalizedUserId);
-  const auctionReserved = (world?.assetAuctions || []).reduce((sum, auction) => {
-    if (
-      Number(auction?.highestBidderId) !== normalizedUserId
-      || auction?.status !== 'open'
-      || auction?.escrowStatus === 'released'
-      || auction?.escrowStatus === 'transferred'
-    ) return sum;
-    return sum + auctionCommodityQuantity(auction);
-  }, 0);
-  return orderReserved + auctionReserved;
 }
 
 function recordBuild(world) {
@@ -244,7 +212,7 @@ function buildContractRuntimeIndex(world) {
     reservedContractIncomingForBuyer,
     reservedIncomingForBuyer(userId, exceptContractId = null) {
       return reservedContractIncomingForBuyer(userId, exceptContractId)
-        + nonContractIncomingForBuyer(world, userId);
+        + nonContractWarehouseReservation(world, userId);
     },
     ownContractsFor(userId) {
       return [...(ownedByPlayer.get(Number(userId)) || [])]
