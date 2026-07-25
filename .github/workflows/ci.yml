@@ -90,10 +90,14 @@ jobs:
 
           '''
           patch_text = patch_text[:demand_start] + corrected_demand_patch + patch_text[demand_end:]
-          patch_text = patch_text.replace(
-              '"    }).map((entry) => entry.id);\\n",\n              "    }).filter(isOpenOrder).map((entry) => entry.id);\\n",',
-              '"  }).map((entry) => entry.id);\\n",\n              "  }).filter(isOpenOrder).map((entry) => entry.id);\\n",',
-          )
+          old_literal = '"    }).map((entry) => entry.id);\\n"'
+          new_literal = '"  }).map((entry) => entry.id);\\n"'
+          old_filtered_literal = '"    }).filter(isOpenOrder).map((entry) => entry.id);\\n"'
+          new_filtered_literal = '"  }).filter(isOpenOrder).map((entry) => entry.id);\\n"'
+          if patch_text.count(old_literal) != 1 or patch_text.count(old_filtered_literal) != 1:
+              raise RuntimeError('Unable to find generated test mapping literals')
+          patch_text = patch_text.replace(old_literal, new_literal, 1)
+          patch_text = patch_text.replace(old_filtered_literal, new_filtered_literal, 1)
           Path('/tmp/patch-order-book-integration.py').write_text(patch_text, encoding='utf-8')
           PY
           bash /tmp/generate-order-book-runtime.sh
