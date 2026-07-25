@@ -123,6 +123,16 @@ jobs:
                       "  '邀请卡唯一归属商店，只展示玩家自己的专属分享链接、永久邀请码',",
                   ),
               ],
+              'server/test/registration.test.js': [
+                  (
+                      "    const summary = context.registrationStore.getInvitationSummary(7, now + 3);\n    assert.equal(summary.claimedInvitation.inviteCode, inviteCode);",
+                      "    assert.equal(relation.invite_code, inviteCode);",
+                  ),
+                  (
+                      "    assert.equal(context.registrationStore.getInvitationSummary(7, now + 3).claimedInvitation.inviteCode, inviteCode);",
+                      "    assert.equal(relation.status, 'rewarded');",
+                  ),
+              ],
           }
           for file_name, file_replacements in replacements.items():
               path = Path(file_name)
