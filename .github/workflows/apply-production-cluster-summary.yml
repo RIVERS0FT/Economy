@@ -1,0 +1,53 @@
+name: Apply Production Cluster Summary
+
+on:
+  push:
+    branches:
+      - agent/production-cluster-summary
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/production-cluster-summary
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply production cluster summary changes
+        run: node .agent/apply-production-cluster-summary.mjs
+
+      - name: Build and run full static and server checks
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify production status summary in browser
+        run: npm run test:browser -- tests/browser/production-status-summary.spec.ts
+
+      - name: Commit verified source changes
+        run: |
+          set -euo pipefail
+          rm -f .agent/apply-production-cluster-summary.mjs
+          rm -f .github/workflows/apply-production-cluster-summary.yml
+          rmdir .agent 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "按集群统计生产状态"
+          git push origin HEAD:agent/production-cluster-summary
