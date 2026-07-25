@@ -230,8 +230,8 @@ function buildContractRuntimeIndex(world) {
     },
     nextDeadlineAt() {
       let next = null;
-      for (const snapshot of snapshots.values()) {
-        const deadline = deadlineFor(snapshot);
+      for (const contract of byId.values()) {
+        const deadline = deadlineFor(contractSnapshot(contract));
         if (deadline === null) continue;
         if (next === null || deadline < next) next = deadline;
       }
