@@ -1,0 +1,160 @@
++      : baseline.seenLeaderboardPeriodKey,
++  };
++}
++
++export function navigationBadgeStorageKey(userId: number) {
++  return `economy:navigation-badges:v${NAVIGATION_BADGE_STORAGE_VERSION}:${userId}`;
++}
++
++export function markNavigationBadgeTabRead(
++  current: NavigationBadgeReadState,
++  tab: TabId,
++  game: EconomyState,
++) {
++  if (tab === 'auction') {
++    const seenAuctionIds = unreadAuctionCandidateIds(game);
++    return sameIds(current.seenAuctionIds, seenAuctionIds)
++      ? current
++      : { ...current, seenAuctionIds };
++  }
++  if (tab === 'contracts') {
++    const seenContractIds = unreadContractCandidateIds(game);
++    return sameIds(current.seenContractIds, seenContractIds)
++      ? current
++      : { ...current, seenContractIds };
++  }
++  if (tab === 'leaderboard') {
++    const seenLeaderboardPeriodKey = leaderboardPeriodKey(game);
++    return current.seenLeaderboardPeriodKey === seenLeaderboardPeriodKey
++      ? current
++      : { ...current, seenLeaderboardPeriodKey };
++  }
++  return current;
++}
++
++export function buildNavigationBadges(
++  game: EconomyState,
++  readState: NavigationBadgeReadState,
++): NavigationBadgeMap {
++  const result: NavigationBadgeMap = {};
++
++  const marketCount = game.orders.filter((order) => (
++    order.isOwn && (order.status === 'open' || order.status === 'partial')
++  )).length;
++  result.market = badge(marketCount, `${marketCount} 笔未完成订单`);
++
++  const productionIssueIds = game.facilityGroups
++    .filter((group) => group.status === 'error')
++    .map((group) => `facility:${group.facilityTypeId}`);
++  const lowCapacityThreshold = Math.max(25, Math.ceil(game.inventoryCapacity * 0.1));
++  if (game.warehouseAvailableCapacity <= lowCapacityThreshold) {
++    productionIssueIds.push('warehouse-capacity');
++  }
++  const productionCount = new Set(productionIssueIds).size;
++  result.production = badge(productionCount, `${productionCount} 项生产问题需要处理`);
++
++  const seenAuctions = new Set(readState.seenAuctionIds);
++  const unreadAuctionIds = unreadAuctionCandidateIds(game)
++    .filter((id) => !seenAuctions.has(id));
++  const outbidIds = outbidAuctionIds(game);
++  const auctionAttentionIds = unionIds(unreadAuctionIds, outbidIds);
++  const auctionCount = auctionAttentionIds.length;
++  const auctionSources = sourceSummary([
++    [unreadAuctionIds.length, '新拍卖'],
++    [outbidIds.length, '被超价拍卖'],
++  ]);
++  result.auction = badge(
++    auctionCount,
++    `${auctionCount} 个需要关注的拍卖`,
++    `${auctionCount} 个需要关注的拍卖${auctionSources ? `：${auctionSources}` : ''}`,
++  );
++
++  const seenContracts = new Set(readState.seenContractIds);
++  const unreadContractIds = unreadContractCandidateIds(game)
++    .filter((id) => !seenContracts.has(id));
++  const contractAttentionIds = attentionContractIds(game);
++  const combinedContractIds = unionIds(unreadContractIds, contractAttentionIds);
++  const contractCount = combinedContractIds.length;
++  const contractSources = sourceSummary([
++    [unreadContractIds.length, '新合同'],
++    [contractAttentionIds.length, '需要处理的合同'],
++  ]);
++  result.contracts = badge(
++    contractCount,
++    `${contractCount} 个需要关注的合同`,
++    `${contractCount} 个需要关注的合同${contractSources ? `：${contractSources}` : ''}`,
++  );
++
++  const currentPeriodKey = leaderboardPeriodKey(game);
++  const hasUnseenSettlement = Boolean(
++    currentPeriodKey
++      && readState.seenLeaderboardPeriodKey
++      && currentPeriodKey !== readState.seenLeaderboardPeriodKey,
++  );
++  result.leaderboard = hasUnseenSettlement
++    ? { count: 1, accessibleLabel: '本期排名已经结算', title: '本期排名已经结算' }
++    : undefined;
++
++  return result;
++}
+--- /dev/null
++++ b/src/hooks/useNavigationBadges.ts
+@@ -0,0 +1,47 @@
++import { useEffect, useMemo, useState } from 'react';
++import type { LoadedGameViewModel } from '../app/gameViewModel';
++import {
++  buildNavigationBadges,
++  createNavigationBadgeBaseline,
++  markNavigationBadgeTabRead,
++  navigationBadgeStorageKey,
++  normalizeNavigationBadgeReadState,
++  type NavigationBadgeReadState,
++} from '../navigation/navigationBadges';
++
++function loadReadState(model: LoadedGameViewModel): NavigationBadgeReadState {
++  const baseline = createNavigationBadgeBaseline(model.game);
++  if (typeof window === 'undefined') return baseline;
++  try {
++    const raw = window.localStorage.getItem(navigationBadgeStorageKey(model.user.id));
++    return raw ? normalizeNavigationBadgeReadState(JSON.parse(raw), model.game) : baseline;
++  } catch {
++    return baseline;
++  }
++}
++
++export function useNavigationBadges(model: LoadedGameViewModel) {
++  const storageKey = navigationBadgeStorageKey(model.user.id);
++  const [readState, setReadState] = useState<NavigationBadgeReadState>(() => loadReadState(model));
++
++  const effectiveReadState = useMemo(() => (
++    markNavigationBadgeTabRead(readState, model.tab, model.game)
++  ), [model.game, model.tab, readState]);
++
++  useEffect(() => {
++    if (effectiveReadState !== readState) setReadState(effectiveReadState);
++  }, [effectiveReadState, readState]);
++
++  useEffect(() => {
++    if (typeof window === 'undefined') return;
++    try {
++      window.localStorage.setItem(storageKey, JSON.stringify(readState));
++    } catch {
++      // Navigation read state is optional; storage failures must not block gameplay.
++    }
++  }, [readState, storageKey]);
++
++  return useMemo(() => (
++    buildNavigationBadges(model.game, effectiveReadState)
++  ), [effectiveReadState, model.game]);
++}
+--- /dev/null
++++ b/scripts/verify-navigation-badges.mjs
+@@ -0,0 +1,181 @@
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import {
++  buildNavigationBadges,
++  createNavigationBadgeBaseline,
++  formatNavigationBadgeCount,
++  markNavigationBadgeTabRead,
++} from '../src/navigation/navigationBadges.ts';
