@@ -90,6 +90,10 @@ jobs:
 
           '''
           patch_text = patch_text[:demand_start] + corrected_demand_patch + patch_text[demand_end:]
+          patch_text = patch_text.replace(
+              '"    }).map((entry) => entry.id);\\n",\n              "    }).filter(isOpenOrder).map((entry) => entry.id);\\n",',
+              '"  }).map((entry) => entry.id);\\n",\n              "  }).filter(isOpenOrder).map((entry) => entry.id);\\n",',
+          )
           Path('/tmp/patch-order-book-integration.py').write_text(patch_text, encoding='utf-8')
           PY
           bash /tmp/generate-order-book-runtime.sh
