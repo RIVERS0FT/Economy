@@ -1,0 +1,10 @@
+name: Trigger slower demand final CI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo final-ci-trigger
