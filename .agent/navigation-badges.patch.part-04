@@ -1,0 +1,160 @@
+             activeTab={model.tab}
+-            openOrderCount={model.derived.ownOpenOrders.length}
++            badges={badges}
+             onSelect={model.setTab}
+           />
+         </>
+--- a/src/styles/desktop-sidebar.css
++++ b/src/styles/desktop-sidebar.css
+@@ -199,7 +199,7 @@
+     visibility 0s linear 0s;
+ }
+ 
+-.desktop-sidebar .sidebar-nav-count {
++.desktop-sidebar .navigation-badge {
+   position: static;
+   justify-self: end;
+   min-width: 18px;
+@@ -266,7 +266,7 @@
+   gap: 0;
+ }
+ 
+-.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .sidebar-nav-count {
++.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button .navigation-badge {
+   position: absolute;
+   top: 2px;
+   right: 2px;
+@@ -318,7 +318,7 @@
+     gap: 0;
+   }
+ 
+-  .desktop-sidebar .sidebar-nav-button .sidebar-nav-count {
++  .desktop-sidebar .sidebar-nav-button .navigation-badge {
+     position: absolute;
+     top: 2px;
+     right: 2px;
+--- a/src/styles/mobile-status-navigation.css
++++ b/src/styles/mobile-status-navigation.css
+@@ -193,7 +193,7 @@
+     line-height: 1;
+   }
+ 
+-  .mobile-bottom-navigation .sidebar-nav-button small {
++  .mobile-bottom-navigation .sidebar-nav-button .navigation-badge {
+     position: absolute;
+     top: .08rem;
+     right: .1rem;
+--- a/src/styles/globals.css
++++ b/src/styles/globals.css
+@@ -210,7 +210,7 @@
+   font-size: var(--font-size-md);
+ }
+ 
+-.sidebar-nav-button small {
++.navigation-badge {
+   min-width: 22px;
+   border-radius: var(--radius-pill);
+   padding: 0.12rem 0.35rem;
+--- a/docs/UI_DESIGN_SYSTEM.md
++++ b/docs/UI_DESIGN_SYSTEM.md
+@@ -38,7 +38,7 @@
+ | `src/styles/production-surface.css` | 生产页共享仓库、建设卡和工厂详情的标题锚点、名称下状态与紧凑开关；不得定义一级卡片外层内边距 |
+ | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
+ | `src/styles/card-system.css` | 卡片圆角映射 |
+-| `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、市场角标与可访问状态 |
++| `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、统一导航角标与可访问状态 |
+ | `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面视口安全边缘轨道 |
+ | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
+ | `src/styles/liquid-glass-surfaces.css` | 正式状态栏与移动底栏玻璃宿主、材质适配和结构描边 |
+@@ -383,6 +383,6 @@
+ - hover、focus、active 不得降低图标或文字透明度。
+ - 宽屏桌面侧栏必须提供键盘可操作的显式折叠按钮；游戏与管理员后台复用同一侧栏框架，在 `224px`／`78px` 间以约 `200ms` 过渡。Logo 在折叠前后固定为 `40×40px`，导航与底部操作固定使用 `48px` 图标轨道；文字只允许通过裁切、透明度与可见性分阶段切换，按钮 hover、focus、active 不得发生几何位移。折叠后 Logo 区域通过 hover 与 focus 显示展开箭头并承担展开操作，不得在侧栏边缘另放悬浮按钮。折叠后导航、QQ群和退出按钮仍保留稳定可访问名称，底部两个按钮固定为 `48×48px`；`721px–960px` 继续使用自动紧凑侧栏，减少动态效果时关闭过渡。
+ - 桌面侧栏导航网格必须从顶部开始排列，使用固有内容行高；`.sidebar-nav` 固定为 `align-content: start` 与 `grid-auto-rows: max-content`。共享纵向 `ScrollArea` 可以占满剩余高度，但不得把九个导航按钮平均拉伸到整列高度。
+-- 市场未完成订单角标必须使用 `.sidebar-nav-count`：展开态固定在第三网格列的右侧；折叠态与 `721px–960px` 自动紧凑侧栏固定在按钮内部右上角，使用非负 `top`／`right` 内边距，不得伸出按钮或依赖父容器裁剪。可见数字最多显示 `999+`，完整数量必须保留在按钮 `aria-label` 与角标 `title` 中。
++- 统一导航角标必须使用 `.navigation-badge`，颜色固定沿用当前市场角标的 `var(--color-success)` 背景和 `var(--color-on-primary)` 文字。每个页面最多渲染一个合并后的数字角标，只显示 `1`～`99` 或 `99+`，不得恢复双项、多项、标签或分隔符；完整数量和来源说明必须保留在按钮 `aria-label` 与角标 `title` 中。展开态固定在第三网格列右侧；折叠态、`721px–960px` 自动紧凑侧栏和移动底栏固定在按钮内部右上角，使用非负 `top`／`right` 内边距，不得伸出按钮或依赖父容器裁剪。市场显示未完成订单，生产显示唯一问题项数量；拍卖按新拍卖与被超价拍卖 ID 并集计数，合同按新合同与需要处理合同 ID 并集计数，排行榜结算显示 `1`。概览、资产、商店和设置暂不显示但必须保留统一映射能力。
+ 
+ ## 13. 设置页布局
+@@ -461,7 +461,7 @@
+ - 让移动状态栏或底栏忽略安全区；
+ - 给导航活动态添加位移或缩放；
+ - 删除桌面侧栏折叠按钮、折叠状态的导航可访问名称或键盘操作能力；
+-- 把市场角标恢复为固定 `left` 坐标、让展开态角标离开第三网格列，或让折叠态角标伸出按钮并依赖侧栏裁剪；
++- 为单个页面恢复专用角标组件或颜色、恢复双项／多项角标、把上限改回 `999+`、把统一角标恢复为固定 `left` 坐标、让展开态角标离开第三网格列，或让折叠态角标伸出按钮并依赖侧栏裁剪；
+ - 让桌面侧栏导航网格拉伸自动行、使用 `align-content: stretch`，或把九个导航按钮平均分散到整个侧栏高度；
+ - 对高增长记录恢复全量 `.map()` DOM 渲染，或用分页、截断替代 `VirtualList`；
+ - 恢复会阻断纵向滚动链的 `overscroll-behavior: contain` 或其他双轴越界隔离；
+--- a/docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
++++ b/docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+@@ -35,5 +35,7 @@
+ ## 2. 应用外壳
+ 
+ `GameShell` 提供桌面侧栏、移动底部导航、全局状态栏、操作结果提示和唯一页面纵向滚动区域。状态栏固定按“可用资金／总资产／宝石／排行榜／仓库剩余”排序；总资产项可以作为只读导航入口打开资产页，其余状态项只读，任何状态项都不得直接执行扩容、下单、撤单、建厂、改种、拍卖、合同履约或设置写操作。总资产周变化使用方向箭头和颜色表达方向，数值使用绝对值且不得重复显示正负号；宝石不计入总资产或排行榜。
++
++统一导航角标由 `GameShell` 根据完整 `EconomyState` 和按玩家隔离的浏览器已读基线一次性派生，每个页面最多一个数字，颜色统一沿用市场角标，最大显示 `99+`。市场角标等于玩家 `open`／`partial` 订单数；生产角标等于异常工厂组与仓库容量问题的唯一问题项数量；拍卖角标等于未读的新拍卖 ID 与玩家曾出价但当前不是最高出价者的进行中拍卖 ID 的并集数量；合同角标等于未读的新公开／新参与合同 ID 与当前有 `issue` 的参与合同 ID 的并集数量；排行榜结算在服务器完成旧周期结算并返回新的周期 `key` 后显示 `1`，打开排行页后清除。打开拍卖或合同页只清除对应“新”状态，不得清除被超价或履约问题；概览、资产、商店和设置暂不显示角标但保留统一 `TabId` 映射能力。首次启用、存储损坏或新账号不得把既有拍卖、合同或当前排行榜周期误报为新事件；不得增加角标专用接口、额外轮询或根级每秒时钟。
+ 
+ 桌面侧栏在宽屏提供显式折叠按钮，并在 `224px` 与 `78px` 间使用约 `200ms` 的宽度过渡。Logo 在展开与折叠状态统一为 `40×40px`，导航与底部操作使用固定 `48px` 图标轨道；品牌、导航文字和折叠控件必须保留在稳定 DOM 中，通过裁切、透明度和可见性分阶段切换，不得使用条件渲染或 `display:none` 造成图标和按钮重排。侧栏按钮的 hover、focus、active 不得使用位移 transform。折叠后不得在侧栏右边缘保留半露出的独立按钮；Logo 区域改为“展开侧栏”按钮，鼠标悬浮或键盘聚焦时在原位由 Logo 切换为展开箭头，点击或键盘激活后才展开。底部固定提供“加入 QQ 群”和退出入口；社区按钮使用服务器返回的 HTTPS 地址并在新窗口打开，两个入口必须复用 `GameIcons.tsx` 的 QQ 与退出 SVG，折叠后均为 `48×48px` 且只显示图标。所有操作继续使用稳定 `aria-label`，折叠控件必须通过 `aria-expanded` 表达状态。管理员后台左侧导航复用同一侧栏骨架与动画。`721px–960px` 继续使用自动紧凑侧栏，不显示手动折叠按钮；`prefers-reduced-motion` 下立即切换。移动底部导航允许横向滚动，九个页面不得通过隐藏导航项、缩写中文名称或创建二级菜单规避空间限制。
+--- a/docs/README.md
++++ b/docs/README.md
+@@ -21,6 +21,6 @@
+ | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
+ | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
+ | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单与合同采购预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
+-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、商品／工厂资产拍卖、进行中的合同默认视图、登录注册入口、独立商店、分享链接、邀请码、封禁提示、资产导航、模块唯一归属和页面防回退规则 |
++| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、统一导航角标语义与已读规则、商品／工厂资产拍卖、进行中的合同默认视图、登录注册入口、独立商店、分享链接、邀请码、封禁提示、资产导航、模块唯一归属和页面防回退规则 |
+ | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、24 小时补填和锁定展示交互 |
+-| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、商品插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
++| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
+--- a/tests/browser/sidebar-badge.spec.ts
++++ b/tests/browser/sidebar-badge.spec.ts
+@@ -9,9 +9,9 @@
+ 
+ async function readBadgeGeometry(button: Locator): Promise<BadgeGeometry> {
+   return button.evaluate((element) => {
+-    const badge = element.querySelector<HTMLElement>('.sidebar-nav-count');
++    const badge = element.querySelector<HTMLElement>('.navigation-badge');
+     const sidebar = element.closest<HTMLElement>('.desktop-sidebar');
+-    if (!badge || !sidebar) throw new Error('sidebar market badge fixture is incomplete');
++    if (!badge || !sidebar) throw new Error('navigation badge fixture is incomplete');
+     const rect = (target: Element) => {
+       const box = target.getBoundingClientRect();
+       return { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+@@ -41,16 +41,16 @@
+   expect(geometry.badge.right).toBeLessThanOrEqual(geometry.sidebar.right + 1);
+ }
+ 
+-test('market order badge stays inside expanded, collapsed and compact sidebar buttons', async ({ page }) => {
++test('navigation badge stays inside expanded, collapsed and compact sidebar buttons', async ({ page }) => {
+   await page.setViewportSize({ width: 1684, height: 931 });
+   await page.goto('runtime-test.html?view=overview&scenario=many-orders');
+ 
+   const marketButton = page.locator('.desktop-sidebar .sidebar-nav-button', {
+-    has: page.locator('.sidebar-nav-count'),
++    has: page.locator('.navigation-badge'),
+   });
+   await expect(marketButton).toHaveCount(1);
+   await expect(marketButton).toHaveAttribute('aria-label', '市场，6 笔未完成订单');
+-  await expect(marketButton.locator('.sidebar-nav-count')).toHaveText('6');
++  await expect(marketButton.locator('.navigation-badge')).toHaveText('6');
+ 
+   const expanded = await readBadgeGeometry(marketButton);
+   expect(expanded.position).toBe('static');
+@@ -70,7 +70,7 @@
+   await page.setViewportSize({ width: 900, height: 900 });
+   await page.goto('runtime-test.html?view=overview&scenario=many-orders');
+   const compactButton = page.locator('.desktop-sidebar .sidebar-nav-button', {
+-    has: page.locator('.sidebar-nav-count'),
++    has: page.locator('.navigation-badge'),
+   });
+   await expect(compactButton).toHaveCount(1);
+ 
+--- a/package.json
++++ b/package.json
+@@ -9,6 +9,7 @@
+   "scripts": {
+     "dev": "npm run generate:product-artwork && vite",
+     "generate:product-artwork": "node scripts/generate-product-artwork-thumbnails.mjs",
++    "verify:navigation-badges": "node --experimental-strip-types scripts/verify-navigation-badges.mjs",
+     "verify:leaderboards": "node scripts/verify-leaderboards.mjs",
+     "verify:authoritative-countdowns": "node scripts/verify-authoritative-countdowns.mjs",
+     "verify:market-action-latency": "node scripts/verify-market-action-latency.mjs",
+@@ -26,7 +27,7 @@
