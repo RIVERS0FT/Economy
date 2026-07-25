@@ -232,6 +232,9 @@ function FacilityClusterDetailHeader({
         <span>
           冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>
         </span>
+        <span>
+          抵押中 <strong>{formatNumber(group.mortgagedCount)}</strong>
+        </span>
       </div>
     </div>
   );

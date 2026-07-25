@@ -77,6 +77,7 @@ export const POPULATION_GROUP_SHARES_BY_STATE = Object.freeze({
 const CONSTRUCTION_PROFILE = Object.freeze({ basic: 0.60, skilled: 0.30, professional: 0.10 });
 const WAREHOUSE_PROFILE = Object.freeze({ basic: 0.50, skilled: 0.40, professional: 0.10 });
 const MARKET_SERVICE_PROFILE = Object.freeze({ basic: 0.20, skilled: 0.60, professional: 0.20 });
+const BANKING_PROFILE = Object.freeze({ basic: 0.10, skilled: 0.60, professional: 0.30 });
 const PRODUCTION_PROFILES = Object.freeze({
   C1: Object.freeze({ basic: 0.90, skilled: 0.09, professional: 0.01 }),
   C2: Object.freeze({ basic: 0.78, skilled: 0.20, professional: 0.02 }),
@@ -179,7 +180,7 @@ function nonNegativeInteger(value) {
 }
 
 function emptyIncomeSources() {
-  return { production: 0, construction: 0, warehouse: 0, marketService: 0 };
+  return { production: 0, construction: 0, warehouse: 0, marketService: 0, banking: 0 };
 }
 
 function defaultModel(modelId) {
@@ -226,6 +227,7 @@ function defaultState() {
       constructionIncome: 0,
       warehouseIncome: 0,
       marketServiceIncome: 0,
+      bankingIncome: 0,
       productionWageSubsidyIssued: 0,
       productionWageWithheld: 0,
       totalConsumption: 0,
@@ -336,6 +338,7 @@ function sourceKey(source) {
   if (source === 'construction') return 'construction';
   if (source === 'warehouse') return 'warehouse';
   if (source === 'marketService') return 'marketService';
+  if (source === 'banking') return 'banking';
   throw new Error(`Unsupported population employment source: ${source}`);
 }
 
@@ -344,6 +347,7 @@ function profileFor(source, complexity) {
   if (source === 'construction') return CONSTRUCTION_PROFILE;
   if (source === 'warehouse') return WAREHOUSE_PROFILE;
   if (source === 'marketService') return MARKET_SERVICE_PROFILE;
+  if (source === 'banking') return BANKING_PROFILE;
   throw new Error(`Unsupported population employment source: ${source}`);
 }
 
@@ -708,6 +712,7 @@ export function createPopulationEconomySummary(world, now = Date.now(), { totalB
       construction: nonNegativeInteger(state.stats.constructionIncome),
       warehouse: nonNegativeInteger(state.stats.warehouseIncome),
       marketService: nonNegativeInteger(state.stats.marketServiceIncome),
+      banking: nonNegativeInteger(state.stats.bankingIncome),
     },
     productionByComplexity: { ...state.stats.productionByComplexity },
     totalEmploymentIncome: nonNegativeInteger(state.stats.totalEmploymentIncome),

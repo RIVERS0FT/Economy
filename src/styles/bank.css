@@ -1,0 +1,178 @@
+.bank-metric-grid,
+.bank-loan-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.bank-account-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+  gap: var(--layout-gutter);
+  align-items: start;
+}
+
+.bank-transfer-forms,
+.bank-assessment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.bank-form-block,
+.bank-loan-request-form,
+.bank-active-loan {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.bank-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.bank-panel-note,
+.bank-settlement-countdown,
+.bank-loan-request-form > small,
+.bank-collateral-summary > small {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.bank-settlement-countdown {
+  margin: var(--space-4) 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.bank-collateral-table-wrap {
+  overflow-x: auto;
+  margin-block: var(--space-4);
+}
+
+.bank-collateral-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+
+.bank-collateral-table th,
+.bank-collateral-table td {
+  padding: .7rem .75rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+  vertical-align: middle;
+}
+
+.bank-collateral-table th:first-child,
+.bank-collateral-table td:first-child {
+  text-align: left;
+}
+
+.bank-factory-name,
+.bank-collateral-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+}
+
+.bank-factory-name .game-icon,
+.bank-collateral-chips .game-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.bank-collateral-input {
+  width: 6.5rem;
+  min-width: 6.5rem;
+  text-align: right;
+}
+
+.bank-collateral-summary {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-soft);
+}
+
+.bank-collateral-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.bank-collateral-chips span {
+  padding: .45rem .65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-subtle);
+}
+
+.bank-repayment-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.bank-history-list {
+  display: grid;
+}
+
+.bank-history-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bank-history-row:last-child {
+  border-bottom: 0;
+}
+
+.bank-history-row > div {
+  display: grid;
+  gap: .2rem;
+}
+
+.bank-history-row small {
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 1200px) {
+  .bank-metric-grid,
+  .bank-loan-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .bank-account-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .bank-metric-grid,
+  .bank-loan-summary-grid,
+  .bank-transfer-forms,
+  .bank-assessment-grid,
+  .bank-repayment-row {
+    grid-template-columns: 1fr;
+  }
+
+  .bank-form-actions {
+    justify-content: stretch;
+  }
+
+  .bank-form-actions .ui-button {
+    flex: 1 1 auto;
+  }
+
+  .bank-history-row {
+    align-items: flex-start;
+  }
+}

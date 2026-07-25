@@ -27,7 +27,7 @@ for (const text of [
   'asset-composition-row cash',
   'asset-composition-row commodity',
   'asset-composition-row facility',
-  '冻结资产仍归当前玩家所有并计入总资产；冻结只限制交易、生产或使用。',
+  '冻结资产和抵押工厂仍归当前玩家所有并计入资产毛值；贷款负债从资产毛值中扣除形成净资产。',
   'title="本地资产变动"',
   'items={filteredEvents}',
   'asset-event-virtual-list',
@@ -55,11 +55,11 @@ for (const text of [
 
 requireText(main, "import './styles/assets.css';", '主入口必须加载资产页专用样式。');
 requireText(design, '资产页固定只有“资产总览”和“本地资产变动”两个一级 `Panel`', '页面职责设计必须记录资产页两个一级区域。');
-requireText(design, '当前总资产、可支配资产和冻结资产合计在资产总览中各只显示一次', '页面职责设计必须禁止重复资产主指标。');
+requireText(design, '净资产、资产毛值、贷款负债、可支配资产和冻结资产合计在资产总览中各只显示一次', '页面职责设计必须禁止重复资产主指标。');
 requireText(design, '恢复资产页顶部五张资金／总资产摘要卡', '页面职责设计必须记录资产页防回退规则。');
 requireText(runtimeHtml, '/tests/browser/assets-runtime-harness.tsx', '必须提供资产页浏览器测试入口。');
 requireText(runtimeHarness, '<AssetsPage model={model} />', '资产页浏览器夹具必须渲染真实页面组件。');
-requireText(runtimeSpec, "getByText('当前总资产', { exact: true })).toHaveCount(1)", 'Playwright 必须验证总资产可见文案只出现一次。');
+requireText(runtimeSpec, "getByText('当前净资产', { exact: true })).toHaveCount(1)", 'Playwright 必须验证净资产可见文案只出现一次。');
 requireText(runtimeSpec, "getByText('冻结资产', { exact: true })).toHaveCount(1)", 'Playwright 必须验证冻结资产可见文案只出现一次。');
 requireText(runtimeSpec, 'compositionColumns).toBe(2)', 'Playwright 必须验证移动资产构成使用两列重排。');
 requireText(runtimeSpec, 'scrollWidth <= element.clientWidth + 1', 'Playwright 必须验证资产页无水平溢出。');

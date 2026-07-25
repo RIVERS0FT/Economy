@@ -1,0 +1,41 @@
+import { expect, test, type Page } from '@playwright/test';
+
+async function capturePageErrors(page: Page) {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  return pageErrors;
+}
+
+test('bank page exposes deposits, real interest funding, and transparent collateral assessment', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('bank-runtime-test.html');
+
+  await expect(page.getByRole('heading', { name: '银行', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '存款账户', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '存款利息', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '工厂抵押贷款', exact: true })).toBeVisible();
+  await expect(page.getByText('收益只来自借款人已经实际支付的贷款利息，不保证固定收益，也不会凭空发行普通货币。', { exact: true })).toBeVisible();
+  await expect(page.getByText('抵押物审慎估值', { exact: true })).toBeVisible();
+
+  await page.getByLabel('农场抵押数量').fill('2');
+  await expect(page.getByText('最高可贷额度', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '申请贷款' })).toBeDisabled();
+  await page.getByLabel('申请金额').fill('50');
+  await expect(page.getByRole('button', { name: '申请贷款' })).toBeEnabled();
+  expect(await page.locator('.page-content').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
+test('bank page stacks safely on mobile while collateral details remain locally scrollable', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('bank-runtime-test.html');
+
+  const accountColumns = await page.locator('.bank-account-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
+  expect(accountColumns).toBe(1);
+  await expect(page.getByRole('button', { name: '全部存入' })).toBeVisible();
+  await expect(page.getByLabel('农场抵押数量')).toBeVisible();
+  expect(await page.locator('.page-content').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  expect(pageErrors).toEqual([]);
+});

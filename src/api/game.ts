@@ -184,6 +184,17 @@ export async function getCommunityLink(signal?: AbortSignal): Promise<CommunityL
 export const gameActions = {
   work: () => postAction('/work'),
   checkIn: () => postAction('/check-in'),
+  bankDeposit: (amount: number) => postAction('/bank/deposits', { amount }),
+  bankWithdraw: (amount: number) => postAction('/bank/withdrawals', { amount }),
+  bankBorrow: (amount: number, collateral: Array<{ facilityTypeId: string; quantity: number }>, autoRepay = true) => (
+    postAction('/bank/loans', { amount, collateral, autoRepay })
+  ),
+  bankRepay: (loanId: string, amount: number | 'all') => (
+    postAction(`/bank/loans/${encodeURIComponent(loanId)}/repay`, { amount })
+  ),
+  bankSetAutoRepay: (loanId: string, enabled: boolean) => (
+    postAction(`/bank/loans/${encodeURIComponent(loanId)}/auto-repay`, { enabled })
+  ),
   upgradeWarehouse: () => postAction('/warehouse/upgrade'),
   buildFacility: (facilityTypeId: string) => postAction('/facilities', { facilityTypeId }),
   startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),

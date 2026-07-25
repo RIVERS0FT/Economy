@@ -16,9 +16,21 @@ export function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/warehouse/upgrade') return { action: 'upgradeWarehouse', category: 'general' };
   if (method === 'POST' && path === '/api/game/gifts/redeem') return { action: 'redeemGift', category: 'general' };
   if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
+  if (method === 'POST' && path === '/api/game/bank/deposits') return { action: 'bankDeposit', category: 'general' };
+  if (method === 'POST' && path === '/api/game/bank/withdrawals') return { action: 'bankWithdraw', category: 'general' };
+  if (method === 'POST' && path === '/api/game/bank/loans') return { action: 'bankBorrow', category: 'general' };
   if (method === 'PATCH' && path === '/api/game/profile') return { action: 'renamePlayer', category: 'general' };
   if (method === 'POST' && path === '/api/game/auctions') return { action: 'createAuction', category: 'orders' };
   if (method === 'POST' && path === '/api/game/contracts') return { action: 'createProductionContract', category: 'orders' };
+
+  const bankLoanAction = path.match(/^\/api\/game\/bank\/loans\/([^/]+)\/(repay|auto-repay)$/);
+  if (method === 'POST' && bankLoanAction) {
+    return {
+      action: bankLoanAction[2] === 'repay' ? 'bankRepay' : 'bankSetAutoRepay',
+      category: 'general',
+      routePayload: { loanId: decodeRouteParameter(bankLoanAction[1]) },
+    };
+  }
 
   const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|cancel|prepare|fund|auto-reserve|auto-fund|request-termination|terminate-now)$/);
   if (method === 'POST' && contractAction) {

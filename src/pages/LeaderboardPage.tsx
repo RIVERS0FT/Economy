@@ -64,7 +64,7 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
       wealth: {
         id: 'wealth',
         title: '财富榜',
-        description: '按最近一次订单簿真实成交价计算的实时总资产',
+        description: '按最近一次订单簿真实成交价计算资产毛值并扣除贷款负债后的实时净资产',
         unit: 'currency',
         rewarded: false,
         entries: wealthEntries,
@@ -159,7 +159,7 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="排行榜"
-      description="四榜并列展示；财富榜实时更新，增长榜、生产榜和交易榜按北京时间每周一 00:00 结算。"
+      description="四榜并列展示；财富榜按净资产实时更新，增长榜、生产榜和交易榜按北京时间每周一 00:00 结算。"
       actions={<StatusTag tone={period.partial ? 'neutral' : 'success'}>{period.partial ? '首个不完整周不发奖' : periodLabel}</StatusTag>}
     >
       <div className="leaderboard-grid-scroll" role="region" aria-label="四个排行榜" tabIndex={0}>

@@ -244,7 +244,7 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   align-items: baseline;
   gap: var(--space-1);
   color: var(--color-text-muted);
@@ -259,7 +259,8 @@
   white-space: nowrap;
 }
 
-.facility-count-summary span:nth-child(2) {
+.facility-count-summary span:nth-child(2),
+.facility-count-summary span:nth-child(3) {
   justify-content: center;
 }
 

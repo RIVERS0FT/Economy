@@ -12,6 +12,7 @@ import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrit
 import { countOpenOrdersForOwner, facilitySellQuantityForOwner } from './order-book-runtime.js';
 import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
+import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -328,6 +329,12 @@ function migrateLegacyPlayer(player, now) {
   player.stats.constructionPayroll = Number(player.stats.constructionPayroll || 0);
   player.stats.warehousePayroll = Number(player.stats.warehousePayroll || 0);
   player.stats.marketServiceFees = Number(player.stats.marketServiceFees || 0);
+  player.stats.bankCreditIssued = Number(player.stats.bankCreditIssued || 0);
+  player.stats.bankPrincipalRepaid = Number(player.stats.bankPrincipalRepaid || 0);
+  player.stats.bankInterestPaid = Number(player.stats.bankInterestPaid || 0);
+  player.stats.bankDepositInterestEarned = Number(player.stats.bankDepositInterestEarned || 0);
+  player.stats.bankDefaults = Number(player.stats.bankDefaults || 0);
+  player.stats.bankFacilitiesSeized = Number(player.stats.bankFacilitiesSeized || 0);
 
   if (player.facilityConstruction) {
     const constructionType = typeFor(player.facilityConstruction.facilityTypeId);
@@ -411,14 +418,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 15;
+  world.version = 16;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 15;
+  world.version = 16;
   return world;
 }
 
@@ -526,6 +533,10 @@ function applyPendingRecipe(group) {
 
 function availableGroupCount(world, player, group) {
   return Math.max(0, group.count - frozenFacilityQuantity(world, player.userId, group.facilityTypeId));
+}
+
+function transferableGroupCount(world, player, group) {
+  return Math.max(0, availableGroupCount(world, player, group) - mortgagedFacilityQuantity(player, group.facilityTypeId));
 }
 
 function reconcileFacilityGroup(world, player, group, now) {
@@ -833,7 +844,7 @@ function placeFacilityOrder(world, userId, payload, now) {
     player.frozenCredits += total;
   } else {
     const group = groupFor(player, type.id);
-    const available = group ? Math.max(0, group.count - frozenFacilityQuantity(world, userId, type.id)) : 0;
+    const available = group ? transferableGroupCount(world, player, group) : 0;
     if (!group || quantity > available) return result(false, '可出售工厂数量不足');
     reduceRunningGroupForSellOrder(group, type, quantity);
   }
@@ -877,7 +888,7 @@ export function validateFacilityAuctionQuantity(world, userId, typeId, quantity)
   const type = typeFor(typeId);
   const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
   const group = account && type ? groupFor(account, type.id) : null;
-  const available = group ? availableGroupCount(world, account, group) : 0;
+  const available = group ? transferableGroupCount(world, account, group) : 0;
   if (!account || !type || !group || !normalizedQuantity || normalizedQuantity > available) {
     return result(false, '可拍卖工厂数量不足');
   }
@@ -1007,34 +1018,50 @@ function assetSummaryFor(world, player) {
   const facility = (player.facilityGroups || []).reduce((summary, group) => {
     const price = recentTradePriceFor(world, 'facility', group.facilityTypeId);
     const frozenCount = Math.min(group.count, frozenFacilityQuantity(world, player.userId, group.facilityTypeId));
-    summary.available += Math.max(0, group.count - frozenCount) * price;
+    const mortgagedCount = Math.min(
+      Math.max(0, group.count - frozenCount),
+      mortgagedFacilityQuantity(player, group.facilityTypeId),
+    );
+    summary.transferable += Math.max(0, group.count - frozenCount - mortgagedCount) * price;
+    summary.mortgaged += mortgagedCount * price;
     summary.frozen += frozenCount * price;
     return summary;
-  }, { available: 0, frozen: 0 });
+  }, { transferable: 0, mortgaged: 0, frozen: 0 });
+  const bankAccount = ensurePlayerBankAccount(player);
   const availableCashValue = Number(player.credits || 0);
   const frozenCashValue = Number(player.frozenCredits || 0);
+  const bankDepositValue = Number(bankAccount.depositCredits || 0);
   const availableCommodityValue = commodity.available;
   const frozenCommodityValue = commodity.frozen;
-  const availableFacilityValue = facility.available;
+  const availableFacilityValue = facility.transferable;
+  const mortgagedFacilityValue = facility.mortgaged;
   const frozenFacilityValue = facility.frozen;
-  const cashValue = availableCashValue + frozenCashValue;
+  const cashValue = availableCashValue + frozenCashValue + bankDepositValue;
   const commodityValue = availableCommodityValue + frozenCommodityValue;
-  const facilityValue = availableFacilityValue + frozenFacilityValue;
-  const availableAssetValue = availableCashValue + availableCommodityValue + availableFacilityValue;
-  const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue;
+  const facilityValue = availableFacilityValue + mortgagedFacilityValue + frozenFacilityValue;
+  const grossAssetValue = cashValue + commodityValue + facilityValue;
+  const liabilityValue = activeLoanLiability(player);
+  const netAssetValue = grossAssetValue - liabilityValue;
+  const availableAssetValue = availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue - liabilityValue;
+  const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue + mortgagedFacilityValue;
   return {
     cashValue,
     commodityValue,
     facilityValue,
+    bankDepositValue,
+    grossAssetValue,
+    liabilityValue,
+    netAssetValue,
     availableCashValue,
     frozenCashValue,
     availableCommodityValue,
     frozenCommodityValue,
     availableFacilityValue,
+    mortgagedFacilityValue,
     frozenFacilityValue,
     availableAssetValue,
     frozenAssetValue,
-    totalAssets: availableAssetValue + frozenAssetValue,
+    totalAssets: netAssetValue,
   };
 }
 
@@ -1080,17 +1107,20 @@ function clientGroup(world, player, group) {
   const listedCount = listedQuantity(world, player.userId, group.facilityTypeId);
   const auctionedCount = auctionedQuantity(world, player.userId, group.facilityTypeId);
   const frozenCount = listedCount + auctionedCount;
-  const availableCount = Math.max(0, group.count - frozenCount);
+  const mortgagedCount = mortgagedFacilityQuantity(player, group.facilityTypeId);
+  const productionAvailableCount = Math.max(0, group.count - frozenCount);
+  const availableCount = Math.max(0, productionAvailableCount - mortgagedCount);
   const { cycleWageMultiplierBps: _cycleWageMultiplierBps, ...publicGroup } = clone(group);
   return {
     ...publicGroup,
     listedCount,
     auctionedCount,
     frozenCount,
+    mortgagedCount,
     availableCount,
     nextCycleCount: group.status === 'running'
       ? group.participatingCount + group.pendingJoinCount
-      : availableCount,
+      : productionAvailableCount,
   };
 }
 

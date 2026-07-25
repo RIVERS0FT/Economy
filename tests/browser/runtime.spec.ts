@@ -178,7 +178,7 @@ test('overview prioritizes business decisions and shows the weekly check-in cale
   await expect(page.getByText('当前总资产', { exact: true })).toHaveCount(0);
   await expect(page.locator('.overview-assets-card').getByText('#1', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '开始工作' })).toBeVisible();
-  await expect(page.getByLabel('本周资产下降 116,543')).toBeVisible();
+  await expect(page.getByLabel('本周净资产下降 116,543')).toBeVisible();
   await expect(page.getByText(/↓ 本周 -/)).toHaveCount(0);
 
   const workButtonWidth = await page.getByRole('button', { name: '开始工作' }).evaluate((element) => element.getBoundingClientRect().width);

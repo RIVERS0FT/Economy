@@ -75,6 +75,7 @@ export interface FacilityGroup {
   listedCount: number;
   auctionedCount?: number;
   frozenCount?: number;
+  mortgagedCount: number;
   availableCount: number;
   nextCycleCount: number;
   enabled: boolean;
@@ -303,6 +304,12 @@ export interface EconomyStats {
   constructionPayroll: number;
   warehousePayroll: number;
   marketServiceFees: number;
+  bankCreditIssued?: number;
+  bankPrincipalRepaid?: number;
+  bankInterestPaid?: number;
+  bankDepositInterestEarned?: number;
+  bankDefaults?: number;
+  bankFacilitiesSeized?: number;
   invitationGemsIssued: number;
   dailyCheckInGemsIssued?: number;
   weeklyFullAttendanceGemsIssued?: number;
@@ -318,12 +325,17 @@ export interface AssetSummary {
   cashValue: number;
   commodityValue: number;
   facilityValue: number;
+  bankDepositValue: number;
+  grossAssetValue: number;
+  liabilityValue: number;
+  netAssetValue: number;
   totalAssets: number;
   availableCashValue?: number;
   frozenCashValue?: number;
   availableCommodityValue?: number;
   frozenCommodityValue?: number;
   availableFacilityValue?: number;
+  mortgagedFacilityValue?: number;
   frozenFacilityValue?: number;
   availableAssetValue?: number;
   frozenAssetValue?: number;
@@ -357,8 +369,83 @@ export interface DailyCheckInState {
   weeklyBonusGems: number;
 }
 
+export type BankLoanStatus = 'active' | 'grace';
+
+export interface BankLoanCollateral {
+  facilityTypeId: string;
+  quantity: number;
+  prudentUnitValue: number;
+}
+
+export interface BankLoan {
+  id: string;
+  status: BankLoanStatus;
+  borrowedAt: number;
+  dueAt: number;
+  graceEndsAt: number;
+  principalOriginal: number;
+  principalOutstanding: number;
+  interestOriginal: number;
+  interestOutstanding: number;
+  interestRateBps: number;
+  collateral: BankLoanCollateral[];
+  collateralValueAtOrigination: number;
+  ltvBps: number;
+  autoRepay: boolean;
+}
+
+export interface BankCollateralAvailability {
+  facilityTypeId: string;
+  totalQuantity: number;
+  mortgagedQuantity: number;
+  availableQuantity: number;
+  prudentUnitValue: number;
+}
+
+export interface BankTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  createdAt: number;
+  description: string;
+  loanId?: string;
+  principalPaid?: number;
+  interestPaid?: number;
+  source?: 'cash' | 'deposit';
+}
+
+export interface BankAccountState {
+  depositCredits: number;
+  eligibleDepositCredits: number;
+  depositInterestCarryMicros: number;
+  totalDepositInterestEarned: number;
+  lastDepositInterestEarned: number;
+  repaidLoanCount: number;
+  recentDefaultAt: number | null;
+  activeLoan: BankLoan | null;
+  recentTransactions: BankTransaction[];
+  availableCollateral: BankCollateralAvailability[];
+}
+
+export interface BankSummaryState {
+  nextInterestSettlementAt: number;
+  lastDailyInterestCredits: number;
+  lastDailyRatePpm: number;
+  sevenDayAverageRatePpm: number;
+  dailyInterestCapBps: number;
+  interestPoolCredits: number;
+  loanTermMs: number;
+  loanGraceMs: number;
+  baseLoanToValueBps: number;
+  depositBufferBonusBps: number;
+  repaymentHistoryBonusBps: number;
+  recentDefaultPenaltyBps: number;
+  minimumLoanToValueBps: number;
+  maximumLoanToValueBps: number;
+}
+
 export interface EconomyState {
-  version: 18;
+  version: 19;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -366,6 +453,8 @@ export interface EconomyState {
   frozenCredits: number;
   gems: number;
   checkIn: DailyCheckInState;
+  bankAccount: BankAccountState;
+  bankSummary: BankSummaryState;
   inventories: Record<string, ProductInventory>;
   inventoryCapacity: number;
   warehouseLevel: number;

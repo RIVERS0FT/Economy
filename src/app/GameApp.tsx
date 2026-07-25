@@ -55,17 +55,17 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
   const rankLabel = derived.currentRank ? `排名第 ${derived.currentRank.rank} 名` : '暂无排名';
   const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→';
   const weeklyChangeLabel = weeklyChange > 0
-    ? `本周资产上升 ${formatCurrency(weeklyMagnitude)}`
+    ? `本周净资产上升 ${formatCurrency(weeklyMagnitude)}`
     : weeklyChange < 0
-      ? `本周资产下降 ${formatCurrency(weeklyMagnitude)}`
-      : '本周资产无变化';
+      ? `本周净资产下降 ${formatCurrency(weeklyMagnitude)}`
+      : '本周净资产无变化';
   const statusItems: StatusBarItem[] = [
     {
       id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount>,
       compactValue: formatCompactNumber(game.credits), detail: <>冻结 <CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount></>,
     },
     {
-      id: 'assets', icon: <AssetsIcon />, label: '总资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
+      id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(derived.totalAssets)}</CurrencyAmount>,
       compactValue: formatCompactNumber(derived.totalAssets),
       detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',

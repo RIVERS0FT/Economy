@@ -1,5 +1,6 @@
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
 import { nextDailyCheckInResetAt } from './daily-check-in.js';
+import { nextBankDeadlineAt } from './banking.js';
 import { FACILITY_TYPE_CATALOG } from './domain.js';
 import { isOpenOrder } from './order-identity.js';
 import { POPULATION_POLICY_CYCLE_MS } from './population-policy.js';
@@ -138,6 +139,7 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     contract: createContractRuntimeIndex(world).nextDeadlineAt(),
     leaderboard: leaderboardDeadline(world, normalizedNow),
     checkIn: nextDailyCheckInResetAt(normalizedNow),
+    bank: nextBankDeadlineAt(world, normalizedNow),
     orderPrune: orderPruneDeadline(world, normalizedNow),
   };
   const nextDueAt = Object.values(deadlines).reduce(earlier, null);

@@ -18,6 +18,7 @@ const model = {
   game: {
     credits: 1_200,
     frozenCredits: 300,
+    bankAccount: { depositCredits: 400 },
     inventories: {
       wheat: { available: 5, frozen: 2 },
     },
@@ -25,17 +26,23 @@ const model = {
       facilityTypeId: 'farm',
       count: 4,
       frozenCount: 1,
+      mortgagedCount: 1,
     }],
     assetSummary: {
       cashValue: 1_500,
       commodityValue: 2_500,
       facilityValue: 3_200,
+      bankDepositValue: 400,
+      grossAssetValue: 7_600,
+      liabilityValue: 400,
+      netAssetValue: 7_200,
       totalAssets: 7_200,
       availableAssetValue: 6_200,
       frozenAssetValue: 1_000,
       availableCommodityValue: 2_000,
       frozenCommodityValue: 500,
-      availableFacilityValue: 3_000,
+      availableFacilityValue: 2_200,
+      mortgagedFacilityValue: 800,
       frozenFacilityValue: 200,
     },
     products: [{

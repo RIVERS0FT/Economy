@@ -66,7 +66,7 @@ export class EconomyStore extends PersistentEconomyStore {
   prepareWorldForStorage(world, now) {
     const prepared = super.prepareWorldForStorage(world, now);
     migrateProductionContractWorld(prepared);
-    prepared.version = 15;
+    prepared.version = 16;
     return prepared;
   }
 

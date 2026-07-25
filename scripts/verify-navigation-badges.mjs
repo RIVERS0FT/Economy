@@ -9,7 +9,7 @@ import {
 
 function gameFixture() {
   return {
-    version: 17,
+    version: 19,
     userId: 7,
     playerName: '测试玩家',
     registeredAt: 0,
