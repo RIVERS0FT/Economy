@@ -90,7 +90,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
     {
       id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(game.warehouseAvailableCapacity),
       compactValue: formatCompactNumber(game.warehouseAvailableCapacity),
-      detail: <>已用 {formatNumber(game.warehouseUsedCapacity)}/{formatNumber(game.inventoryCapacity)}{game.warehouseReservedQuantity > 0 ? ` · 买单预占 ${formatNumber(game.warehouseReservedQuantity)}` : ''}</>,
+      detail: <>已用 {formatNumber(game.warehouseUsedCapacity)}/{formatNumber(game.inventoryCapacity)}{game.warehouseReservedQuantity > 0 ? ` · 预占 ${formatNumber(game.warehouseReservedQuantity)}` : ''}</>,
     },
   ];
 
