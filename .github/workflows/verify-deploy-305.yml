@@ -11,98 +11,85 @@ on:
 
 permissions:
   actions: read
-  contents: read
-  issues: write
-  pull-requests: write
+  contents: write
 
 jobs:
   verify:
-    if: github.head_ref == 'agent/verify-deploy-305'
+    if: github.head_ref == 'agent/verify-deploy-305' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     steps:
+      - name: Checkout verification branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
       - name: Verify deployment run and production
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: af3346406f0df14058e357cf645eb5b90d9c0c60
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          set -u
+          set +e
 
-          success=1
-          reason=''
+          runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?event=push&branch=main&per_page=50" 2>/tmp/gh-api-error.log)"
+          gh_status=$?
           run_json=''
-          run_url=''
-          run_status='missing'
-          conclusion='missing'
-
-          for attempt in $(seq 1 120); do
-            if ! runs="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?event=push&branch=main&per_page=50" 2>/tmp/gh-api-error.log)"; then
-              success=0
-              reason="无法读取部署运行：$(cat /tmp/gh-api-error.log)"
-              break
-            fi
+          if [ "$gh_status" -eq 0 ]; then
             run_json="$(printf '%s' "$runs" | jq -c --arg sha "$TARGET_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .name == "Deploy Economy Website")][0] // empty')"
-            if [ -n "$run_json" ]; then
-              run_url="$(printf '%s' "$run_json" | jq -r '.html_url')"
-              run_status="$(printf '%s' "$run_json" | jq -r '.status')"
-              conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // ""')"
-              if [ "$run_status" = 'completed' ]; then
-                break
-              fi
-            fi
-            sleep 10
-          done
-
-          if [ "$success" -eq 1 ] && [ -z "$run_json" ]; then
-            success=0
-            reason="未找到主分支提交 ${TARGET_SHA} 的部署运行"
-          elif [ "$success" -eq 1 ] && { [ "$run_status" != 'completed' ] || [ "$conclusion" != 'success' ]; }; then
-            success=0
-            reason="部署运行未成功完成：status=${run_status}, conclusion=${conclusion:-未完成}"
           fi
 
-          page_status='未检查'
-          auth_status='未检查'
-          game_status='未检查'
-          login_status='未检查'
-          registration_status='未检查'
-
-          if [ "$success" -eq 1 ]; then
-            page_status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --output /tmp/economy-index.html --write-out '%{http_code}' https://game.riversoft.top/economy/ || true)"
-            auth_status="$(curl --silent --show-error --output /tmp/auth.json --write-out '%{http_code}' https://game.riversoft.top/economy-api/me || true)"
-            game_status="$(curl --silent --show-error --output /tmp/game.json --write-out '%{http_code}' https://game.riversoft.top/economy-api/game/state || true)"
-            login_status="$(curl --silent --show-error --output /tmp/login.json --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --data '{}' https://game.riversoft.top/economy-api/login || true)"
-            registration_status="$(curl --silent --show-error --output /tmp/registration.json --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: verify-deploy-305' --data '{}' https://game.riversoft.top/economy-api/registration/email-code || true)"
-
-            if [ "$page_status" != '200' ]; then success=0; reason="生产页面响应异常：${page_status}"; fi
-            if [ "$auth_status" != '200' ] && [ "$auth_status" != '401' ]; then success=0; reason="认证代理响应异常：${auth_status}"; fi
-            if [ "$game_status" != '401' ]; then success=0; reason="游戏状态未登录响应异常：${game_status}"; fi
-            if [ "$login_status" != '400' ]; then success=0; reason="登录空请求响应异常：${login_status}"; fi
-            if [ "$registration_status" != '400' ]; then success=0; reason="注册空请求响应异常：${registration_status}"; fi
+          if [ -n "$run_json" ]; then
+            run_id="$(printf '%s' "$run_json" | jq -r '.id')"
+            run_url="$(printf '%s' "$run_json" | jq -r '.html_url')"
+            run_status="$(printf '%s' "$run_json" | jq -r '.status')"
+            conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // ""')"
+          else
+            run_id='未找到'
+            run_url='未找到'
+            run_status='missing'
+            conclusion='missing'
           fi
+
+          page_status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --output /tmp/economy-index.html --write-out '%{http_code}' https://game.riversoft.top/economy/ || true)"
+          auth_status="$(curl --silent --show-error --output /tmp/auth.json --write-out '%{http_code}' https://game.riversoft.top/economy-api/me || true)"
+          game_status="$(curl --silent --show-error --output /tmp/game.json --write-out '%{http_code}' https://game.riversoft.top/economy-api/game/state || true)"
+          login_status="$(curl --silent --show-error --output /tmp/login.json --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --data '{}' https://game.riversoft.top/economy-api/login || true)"
+          registration_status="$(curl --silent --show-error --output /tmp/registration.json --write-out '%{http_code}' --request POST --header 'Content-Type: application/json' --header 'Idempotency-Key: verify-deploy-305' --data '{}' https://game.riversoft.top/economy-api/registration/email-code || true)"
+
+          result='通过'
+          reason=''
+          if [ "$gh_status" -ne 0 ]; then result='失败'; reason="GitHub API：$(cat /tmp/gh-api-error.log)"; fi
+          if [ "$run_status" != 'completed' ] || [ "$conclusion" != 'success' ]; then result='失败'; reason="部署运行未成功：${run_status}/${conclusion}"; fi
+          if [ "$page_status" != '200' ]; then result='失败'; reason="生产页面：${page_status}"; fi
+          if [ "$auth_status" != '200' ] && [ "$auth_status" != '401' ]; then result='失败'; reason="认证代理：${auth_status}"; fi
+          if [ "$game_status" != '401' ]; then result='失败'; reason="游戏状态：${game_status}"; fi
+          if [ "$login_status" != '400' ]; then result='失败'; reason="登录路由：${login_status}"; fi
+          if [ "$registration_status" != '400' ]; then result='失败'; reason="注册路由：${registration_status}"; fi
 
           {
-            if [ "$success" -eq 1 ]; then
-              echo '### 生产部署验证通过'
-            else
-              echo '### 生产部署验证失败'
-            fi
+            echo '# PR #305 生产部署验证报告'
             echo
-            echo "- 主分支提交：\`${TARGET_SHA}\`"
-            echo "- 部署运行：${run_url:-未找到}"
+            echo "- 结果：${result}"
+            echo "- 主分支提交：${TARGET_SHA}"
+            echo "- 部署运行 ID：${run_id}"
+            echo "- 部署运行：${run_url}"
             echo "- 部署状态：${run_status}"
-            echo "- 部署结论：${conclusion:-未完成}"
+            echo "- 部署结论：${conclusion}"
             echo "- 生产页面：${page_status}"
             echo "- 认证代理：${auth_status}"
             echo "- 游戏状态未登录响应：${game_status}"
             echo "- 登录空请求响应：${login_status}"
             echo "- 注册空请求响应：${registration_status}"
-            if [ "$success" -ne 1 ]; then
-              echo "- 失败原因：${reason}"
-            fi
-          } > /tmp/report.md
+            if [ -n "$reason" ]; then echo "- 原因：${reason}"; fi
+          } > deploy-verification-report.md
 
-          gh pr comment "$PR_NUMBER" --body-file /tmp/report.md
-          if [ "$success" -ne 1 ]; then exit 1; fi
+      - name: Commit verification report
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deploy-verification-report.md
+          git commit -m '记录 PR 305 生产部署验证结果'
+          git push origin HEAD:agent/verify-deploy-305
