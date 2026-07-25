@@ -1,4 +1,4 @@
-name: Apply navigation badge page verification
+name: Apply navigation badge form verification
 
 on:
   pull_request:
@@ -26,14 +26,27 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - name: Apply and validate page verification
+      - name: Apply verification update and run build
         run: |
-          git apply --check .agent/navigation-badge-page-verification.patch
-          git apply .agent/navigation-badge-page-verification.patch
-          rm -f .agent/navigation-badge-page-verification.patch
-          node scripts/verify-page-content.mjs
+          git apply --check .agent/navigation-badge-form-verification.patch
+          git apply .agent/navigation-badge-form-verification.patch
+          rm -f .agent/navigation-badge-form-verification.patch
+          rm -f .agent/navigation-badges-ci-error.txt
+
+          set +e
+          npm ci > /tmp/navigation-badge-ci.log 2>&1
+          status=$?
+          if [ "$status" -eq 0 ]; then
+            npm run build >> /tmp/navigation-badge-ci.log 2>&1
+            status=$?
+          fi
+          if [ "$status" -ne 0 ]; then
+            tail -n 400 /tmp/navigation-badge-ci.log > .agent/navigation-badges-ci-error.txt
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "更新导航角标页面职责防回退"
+          git commit -m "更新统一导航角标表单防回退"
           git push origin HEAD:agent/unified-navigation-badges
+          exit 0
