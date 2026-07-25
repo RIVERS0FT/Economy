@@ -1,12 +1,15 @@
 name: Apply invitation shop update
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/move-invitations-to-shop
+      - main
+    types:
+      - opened
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: agent-apply-invitation-shop
@@ -14,12 +17,13 @@ concurrency:
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/move-invitations-to-shop'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
+      - name: Checkout source branch
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Set up Node
