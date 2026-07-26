@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
+import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel';
 import { BankIcon, FactoryIcon } from '../components/icons/GameIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput } from '../components/ui/FormControls';
@@ -104,8 +105,6 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   const loanDeadline = activeLoan?.status === 'grace' ? activeLoan.graceEndsAt : activeLoan?.dueAt;
   const loanRemaining = loanDeadline ? Math.max(0, loanDeadline - now) : 0;
   const settlementRemaining = Math.max(0, bankSummary.nextInterestSettlementAt - now);
-  const grossAssets = model.game.assetSummary.grossAssetValue;
-  const liability = model.game.assetSummary.liabilityValue;
 
   async function submit(action: Exclude<PendingAction, null>, operation: () => Promise<{ ok: boolean; message: string }>, clear?: () => void) {
     if (pending) return;
@@ -124,19 +123,18 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="银行"
-      description="管理银行存款、动态存款利息和以工厂数量为抵押的经营贷款。"
+      description="统一查看资产构成，并管理银行存款、动态存款利息和工厂抵押贷款。"
     >
-      <div className="bank-metric-grid">
-        <MetricCard label="可用资金" value={<CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>} />
-        <MetricCard label="银行存款" value={<CurrencyAmount>{formatCurrency(bankAccount.depositCredits)}</CurrencyAmount>} tone="success" />
-        <MetricCard label="今日计息余额" value={<CurrencyAmount>{formatCurrency(bankAccount.eligibleDepositCredits)}</CurrencyAmount>} detail="新增存款从下一自然日开始计息" />
-        <MetricCard label="贷款负债" value={<CurrencyAmount>{formatCurrency(liability)}</CurrencyAmount>} tone={liability > 0 ? 'warning' : 'neutral'} />
-        <MetricCard label="净资产" value={<CurrencyAmount>{formatCurrency(model.game.assetSummary.netAssetValue)}</CurrencyAmount>} detail={<>资产毛值 <CurrencyAmount>{formatCurrency(grossAssets)}</CurrencyAmount></>} tone="info" />
-      </div>
+      <AssetOverviewPanel model={model} />
 
       <div className="bank-account-grid">
         <PagePanel className="bank-transfer-panel">
           <WidgetHeading title="存款账户" action={<BankIcon />} />
+          <div className="bank-account-balance-strip" aria-label="存款账户余额">
+            <span><small>可用资金</small><strong><CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount></strong></span>
+            <span><small>银行存款</small><strong><CurrencyAmount>{formatCurrency(bankAccount.depositCredits)}</CurrencyAmount></strong></span>
+            <span><small>今日计息余额</small><strong><CurrencyAmount>{formatCurrency(bankAccount.eligibleDepositCredits)}</CurrencyAmount></strong></span>
+          </div>
           <p className="bank-panel-note">存取款只在可用资金与银行存款间转移，不改变净资产。贷款处于宽限期时暂停取款。</p>
           <div className="bank-transfer-forms">
             <div className="bank-form-block">

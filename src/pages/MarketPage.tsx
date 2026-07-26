@@ -53,6 +53,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     setOrderPrice,
     placeAssetOrder,
     cancelOrder,
+    clearLocalTrades,
     showResult,
   } = model;
   const now = game.lastProcessedAt;
@@ -495,7 +496,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               </section>
 
               <section className="local-trades-section">
-                <h3>本地成交记录</h3>
+                <div className="local-trades-heading">
+                  <h3>本地成交记录</h3>
+                  <Button variant="compact" onClick={clearLocalTrades} disabled={localTrades.length === 0}>清除本地成交</Button>
+                </div>
                 {localTrades.length === 0 ? <p className="muted">当前浏览器暂无成交记录。</p> : (
                   <VirtualRecordTable
                     items={localTrades}

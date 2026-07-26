@@ -46,7 +46,6 @@ export function OverviewPage({ model }: OverviewPageProps) {
   const {
     game,
     derived,
-    localAssetEvents,
     isWorking,
     isCheckingIn,
     work,
@@ -153,11 +152,6 @@ export function OverviewPage({ model }: OverviewPageProps) {
     : businessAlerts.some((alert) => alert.id !== 'open-orders')
       ? { label: '查看经营提醒', onClick: () => setTab('production') }
       : { label: '进入市场', onClick: () => setTab('market') };
-
-  const recentCashEvents = useMemo(() => localAssetEvents
-    .filter((event) => event.createdAt >= now - 7 * 86_400_000 && event.cashDelta !== 0)
-    .sort((left, right) => right.createdAt - left.createdAt)
-    .slice(0, 3), [localAssetEvents, now]);
 
   const claimedCheckInDates = new Set(game.checkIn.claimedDateKeys);
   const claimCompletesWeek = game.checkIn.weeklyBonusEligible
@@ -310,7 +304,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
           </Panel>
 
           <Panel className="widget overview-summary-card overview-assets-card">
-            <WidgetHeading title="资产构成" action={<Button variant="text" onClick={() => setTab('assets')}>查看资产</Button>} />
+            <WidgetHeading title="资产与银行" action={<Button variant="text" onClick={() => setTab('bank')}>查看详情</Button>} />
             <DataList className="compact overview-core-data">
               <DataRow label="现金资产" value={<CurrencyAmount>{formatCurrency(derived.cashValue)}</CurrencyAmount>} />
               <DataRow label="商品估值" value={<CurrencyAmount>{formatCurrency(derived.commodityValue)}</CurrencyAmount>} />
@@ -318,20 +312,14 @@ export function OverviewPage({ model }: OverviewPageProps) {
               <DataRow label="冻结资金" value={<CurrencyAmount>{formatCurrency(game.frozenCredits)}</CurrencyAmount>} tone={game.frozenCredits > 0 ? 'warning' : 'neutral'} />
             </DataList>
             <div className="overview-subsection-heading">
-              <strong>本周资金变化</strong>
-              <span>当前设备现金记录</span>
+              <strong>资产状态</strong>
+              <span>服务器权威结果</span>
             </div>
-            <div className="overview-asset-events">
-              {recentCashEvents.map((event) => (
-                <div key={event.id}>
-                  <span><strong>{event.description}</strong><small>{formatTime(event.createdAt)}</small></span>
-                  <CurrencyAmount className={event.cashDelta > 0 ? 'positive' : 'negative'} sign={event.cashDelta > 0 ? '+' : undefined}>
-                    {formatCurrency(event.cashDelta)}
-                  </CurrencyAmount>
-                </div>
-              ))}
-              {recentCashEvents.length === 0 ? <EmptyState className="overview-compact-empty">本周暂无现金收入或支出记录。</EmptyState> : null}
-            </div>
+            <DataList className="compact overview-core-data overview-asset-status">
+              <DataRow label="可支配资产" value={<CurrencyAmount>{formatCurrency(game.assetSummary.availableAssetValue ?? (derived.totalAssets - (game.assetSummary.frozenAssetValue ?? 0)))}</CurrencyAmount>} />
+              <DataRow label="冻结资产" value={<CurrencyAmount>{formatCurrency(game.assetSummary.frozenAssetValue ?? 0)}</CurrencyAmount>} tone={(game.assetSummary.frozenAssetValue ?? 0) > 0 ? 'warning' : 'neutral'} />
+              <DataRow label="贷款负债" value={<CurrencyAmount>{formatCurrency(game.assetSummary.liabilityValue ?? 0)}</CurrencyAmount>} tone={(game.assetSummary.liabilityValue ?? 0) > 0 ? 'warning' : 'neutral'} />
+            </DataList>
           </Panel>
 
           <Panel className="widget overview-summary-card overview-open-orders-card">

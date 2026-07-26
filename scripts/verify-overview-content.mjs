@@ -64,13 +64,15 @@ requireAll(paths.overview, [
   'weeklyBonusEligible',
   '签到领取 1 宝石',
   '本周全勤奖励已领取',
-  'event.cashDelta !== 0',
-  'const recentCashEvents',
-  '当前设备现金记录',
-  '本周暂无现金收入或支出记录。',
   'overview-open-orders-list--scrollable',
   'title="生产摘要"',
-  'title="资产构成"',
+  'title="资产与银行"',
+  "title=\"资产与银行\" action={<Button variant=\"text\" onClick={() => setTab('bank')}>查看详情</Button>}",
+  '<strong>资产状态</strong>',
+  '<span>服务器权威结果</span>',
+  'label="可支配资产"',
+  'label="冻结资产"',
+  'label="贷款负债"',
   'title="当前挂单"',
   'theoreticalDailyOutput',
   'home-grid',
@@ -195,10 +197,6 @@ requireAll(paths.harness, [
   '<SettingsHarness />',
   "['activity', 'two-sided', 'many-orders'].includes(scenario)",
   "scenario === 'alerts'",
-  "scenario !== 'cash-empty'",
-  "scenario === 'cash-three'",
-  '服务器资产状态已同步',
-  'cashDelta: 0',
   "import '../../src/styles/overview-polish.css';",
 ]);
 
@@ -208,14 +206,13 @@ requireAll(paths.browserSpec, [
   'overview check-in calendar distinguishes claimed, today, missed, and future days',
   'overview shows completed and partial-week attendance states',
   'overview check-in calendar preserves seven columns on mobile',
-  'overview cash changes exclude synchronization events and short lists do not scroll',
+  'overview shows authoritative asset status and opens the bank page',
   'overview only scrolls the order list after the visible capacity is exceeded',
   'overview keeps the decision rows visible and adapts to a narrower desktop',
   'desktop sidebar collapse recomputes overview columns from the real content width',
   'midpointAnchors',
   'expandButtonAfterHover',
   "page.setViewportSize({ width: 1684, height: 931 })",
-  "page.locator('.overview-asset-events')",
   "page.getByRole('list', { name: '本周签到日历' })",
   'scrollWidth > element.clientWidth + 1',
 ]);
@@ -226,12 +223,11 @@ requireAll(paths.integrityDesign, [
   '外层轨道唯一性',
   '实际内容宽度响应式',
   '签到日历',
-  '`cashDelta !== 0`',
-  '当前设备现金记录',
+  '资产与银行',
+  '服务器权威的可支配资产、冻结资产和贷款负债',
   '不得同时显示下降箭头和负号',
   '`1684×931`',
   'getBoundingClientRect()',
-  '超过三条时',
 ]);
 for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
 
@@ -244,4 +240,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('概览验证通过：共享外壳折叠、教程提醒容量、签到日历、服务器日期语义、现金事件、短列表滚动、状态栏趋势与浏览器碰撞回归满足设计基线。');
+console.log('概览验证通过：共享外壳折叠、教程提醒容量、签到日历、服务器日期语义、权威资产状态、状态栏趋势与浏览器碰撞回归满足设计基线。');

@@ -39,7 +39,7 @@ requireText(tutorialStore, 'game_tutorial_completion_migration_version', '老玩
 forbidText(tutorialStore, 'workClicks', '服务器教程完成记录不得保存步骤统计');
 forbidText(tutorialStore, 'producedGoods', '服务器教程完成记录不得读取生产累计统计');
 forbidText(tutorialStore, 'soldGoods', '服务器教程完成记录不得读取出售累计统计');
-requireText(pageDesign, '### 12.1 客户端本轮教程', '页面权威设计必须记录客户端本轮教程规则');
+requireText(pageDesign, '### 11.1 客户端本轮教程', '页面权威设计必须记录客户端本轮教程规则');
 requireText(pageDesign, 'economy_tutorial_completions', '页面权威设计必须记录教程完成表和服务器负担边界');
 requireText(pageDesign, '重新开始教程', '页面权威设计必须记录设置页重开入口');
 

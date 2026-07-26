@@ -13,7 +13,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/MarketPage.tsx',
   'src/pages/ProductionPage.tsx',
   'tests/browser/production-status-summary.spec.ts',
-  'src/pages/AssetsPage.tsx',
+  'src/components/assets/AssetOverviewPanel.tsx',
   'src/pages/BankPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/ContractPage.tsx',
@@ -206,27 +206,24 @@ for (const text of [
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [
-  'title="资产"',
-  '查看净资产、资产毛值、贷款负债以及当前浏览器中的资产变化记录。',
-  'title="本地资产变动"',
-  'className="widget span-3 asset-event-panel"',
-  'items={filteredEvents}',
-  'asset-event-virtual-list',
-  'ProductIconLabel',
-  'formatNumber(change.availableAfter)',
-  'formatNumber(change.output.quantity)',
-]) requireText('src/pages/AssetsPage.tsx', text);
-for (const text of ['filteredEvents.map(', '商品库存与估值', 'product-asset-grid', 'product-asset-card', 'setSelectedProductId']) {
-  forbidText('src/pages/AssetsPage.tsx', text);
-}
-
+  'export function AssetOverviewPanel',
+  'title="资产总览"',
+  'asset-total-summary',
+  'asset-allocation-summary',
+  'asset-composition-table',
+  'aria-label="资产构成明细"',
+]) requireText('src/components/assets/AssetOverviewPanel.tsx', text);
 for (const text of [
   'title="银行"',
+  '<AssetOverviewPanel model={model} />',
+  'bank-account-balance-strip',
   '存款账户',
   '存款利息',
   '工厂抵押贷款',
   '银行记录',
 ]) requireText('src/pages/BankPage.tsx', text);
+for (const text of ['bank-metric-grid', '本地资产变动', 'localAssetEvents']) forbidText('src/pages/BankPage.tsx', text);
+if (existsSync(resolve(root, 'src/pages/AssetsPage.tsx'))) failures.push('独立 AssetsPage 不得恢复');
 
 for (const text of [
   'items={giftCodes}',
@@ -338,16 +335,17 @@ for (const text of ['ResizeObserver', 'measuredSizesRef', 'overscan', 'requestAn
 }
 for (const text of ['useVirtualWindow', 'aria-setsize', 'virtual-list__canvas']) requireText('src/components/ui/VirtualList.tsx', text);
 for (const text of ['useVirtualWindow', 'axis="both"', 'virtual-record-canvas']) requireText('src/components/ui/VirtualRecordTable.tsx', text);
-for (const text of ['.virtual-list', '.virtual-record-table', '.virtual-record-row', '.asset-event-virtual-list']) {
+for (const text of ['.virtual-list', '.virtual-record-table', '.virtual-record-row']) {
   requireText('src/styles/virtual-list.css', text);
 }
 
 for (const text of [
-  "{ id: 'assets', label: '资产' }",
+  "{ id: 'bank', label: '银行' }",
   "{ id: 'auction', label: '拍卖' }",
   "{ id: 'contracts', label: '合同' }",
   "{ id: 'gem-shop', label: '商店' }",
 ]) requireText('src/config/navigation.ts', text);
+forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资产' }");
 forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 forbidText('src/config/navigation.ts', "{ id: 'collections'");
 
@@ -463,16 +461,17 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 }
 
 for (const text of [
-  '概览｜市场｜生产｜资产｜拍卖｜合同｜银行｜排行｜商店｜设置',
+  '概览｜市场｜生产｜拍卖｜合同｜银行｜排行｜商店｜设置',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包竞价及结算结果 |',
   '| 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |',
-  '| 银行 | `bank` | `BankPage` | 存取款、动态存款利息、工厂抵押贷款、额度评估与还款 |',
+  '| 银行 | `bank` | `BankPage` | 资产总览、存取款、动态存款利息、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与宝石单向兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、礼品和退出 |',
   '页面主标题固定为“生产”',
   '不显示独立库存总量行',
   '平板、手机和极窄屏保持双列',
-  '资产页不得再显示逐商品“商品库存与估值”卡片',
+  '独立资产页面已经永久删除，资产总览唯一归属银行页',
+  '银行资产总览不得再显示逐商品“商品库存与估值”卡片',
   '仓库不再提供“有库存／全部商品”筛选',
   '建设新工厂卡独占左侧列并在桌面滚动时常驻',
   '生产页只显示按正式目录排序的紧凑选择卡和单张当前工厂完整详情',
@@ -514,8 +513,11 @@ for (const text of [
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 for (const text of [
-  '资产页资产事件和市场页本地成交属于高增长记录，必须共用 `useVirtualWindow` 窗口化内核',
-  '对资产事件或本地成交直接使用全量 `.map()` 创建全部 DOM',
+  '本地文档版本：v6',
+  'economy.local-activity.v6.<userId>',
+  '市场页是本地匿名成交的唯一完整展示位置',
+  '永久丢弃全部 `assetEvents[]`',
+  '对本地成交直接使用全量 `.map()` 创建全部 DOM',
 ]) requireText('docs/LOCAL_ACTIVITY_LOG_DESIGN.md', text);
 for (const text of [
   '礼品码列表和兑换记录可能持续增长，必须同时使用服务端游标分页和共享 `VirtualList`',
@@ -531,4 +533,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、十页导航、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、九页导航与银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');

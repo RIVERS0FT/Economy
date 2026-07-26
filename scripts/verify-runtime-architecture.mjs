@@ -47,7 +47,7 @@ for (const target of ['./AdminApp', './GameApp']) {
 
 const routerImports = importTargets('src/pages/PageRouter.tsx');
 for (const target of [
-  './AssetsPage', './AuctionPage', './BankPage', './ContractPage', './LeaderboardPage', './MarketPage',
+  './AuctionPage', './BankPage', './ContractPage', './LeaderboardPage', './MarketPage',
   './OverviewPage', './ProductionPage', './GemShopPage', './SettingsPage',
 ]) {
   if (!routerImports.dynamic.includes(target)) fail(`PageRouter.tsx 必须动态导入 ${target}`);
@@ -106,17 +106,15 @@ const localActivity = read('src/utils/localActivityStore.ts');
 for (const structure of [
   /documentCache\s*=\s*new Map/,
   /requestIdleCallback/,
-  /addEventListener\(['"]pagehide['"]/,
-  /function orderChanged\(/,
-  /function listingChanged\(/,
+  /(?:window\.)?addEventListener\(['"]pagehide['"],/,
+  /const STORAGE_VERSION = 6/,
+  /function deriveAssetTrades\(/,
+  /orders: state\.orders\.filter\(\(order\) => order\.isOwn\)/,
 ]) {
-  if (!structure.test(localActivity)) fail(`本地活动日志缺少结构: ${structure}`);
+  if (!structure.test(localActivity)) fail(`本地匿名成交缺少结构: ${structure}`);
 }
-for (const functionName of ['orderChanged', 'listingChanged']) {
-  const start = localActivity.indexOf(`function ${functionName}(`);
-  const next = localActivity.indexOf('\nfunction ', start + 1);
-  const body = localActivity.slice(start, next < 0 ? undefined : next);
-  if (body.includes('JSON.stringify')) fail(`${functionName} 不得通过 JSON.stringify 比较整组数据`);
+for (const forbidden of ['AssetEvent', 'assetEvents', 'diffInventories', 'diffFacilityGroups']) {
+  if (localActivity.includes(forbidden)) fail(`本地匿名成交不得恢复资产事件结构: ${forbidden}`);
 }
 
 if (failures.length) {
@@ -124,4 +122,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、资产比例和本地日志缓存均已锁定。');
+console.log('运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、资产比例和本地匿名成交缓存均已锁定。');

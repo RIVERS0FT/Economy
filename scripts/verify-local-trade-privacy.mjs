@@ -41,14 +41,16 @@ for (const text of ['isOwn?: boolean', `version: ${CURRENT_CLIENT_STATE_VERSION}
 for (const text of ['counterparty: string', 'makerOrderId', 'takerOrderId', "liquidity: 'maker' | 'taker'", 'populationModelId?:', 'fundingPool?:']) forbidText('src/types.ts', text);
 
 for (const text of [
-  'STORAGE_VERSION = 5',
+  'STORAGE_VERSION = 6',
   'normalizeTrades',
-  'legacyVersion of [4, 3, 2, 1]',
-  "event.category !== 'trade' && event.sourceType !== 'trade'",
+  'legacyVersion of [5, 4, 3, 2, 1]',
   'window.localStorage.removeItem(storageKey(userId, legacyVersion))',
   'orders: state.orders.filter((order) => order.isOwn)',
-  'if (!order.isOwn) continue',
+  'products: state.products.map(({ id, name }) => ({ id, name }))',
+  'facilityTypes: state.facilityTypes.map(({ id, name }) => ({ id, name }))',
+  'export function clearLocalTrades',
 ]) requireText('src/utils/localActivityStore.ts', text);
+for (const text of ['AssetEvent', 'assetEvents', 'diffInventories']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['fill.counterparty', 'trade.counterparty', 'counterparty:', 'populationModelId', 'fundingPool']) forbidText('src/utils/localActivityStore.ts', text);
 
 requireText('src/app/gameViewModel.ts', 'order.isOwn &&');
@@ -56,7 +58,7 @@ requireText('src/pages/MarketPage.tsx', 'order.isOwn');
 for (const text of ['trade.counterparty', 'role="columnheader">来源', '人口经济']) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const [path, text] of [
-  ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '普通玩家只能感知自己的订单完成情况'],
+  ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '只保存当前玩家订单新增的匿名逐笔成交'],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '隐藏页面列但继续在 API 或 localStorage 中保留来源信息'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '集中式公开订单序列化'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '`populationModelId`'],

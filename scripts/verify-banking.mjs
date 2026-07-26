@@ -81,6 +81,8 @@ for (const text of [
 requireText('src/pages/PageRouter.tsx', "import('./BankPage')");
 for (const text of [
   'title="银行"',
+  '<AssetOverviewPanel model={model} />',
+  'bank-account-balance-strip',
   '今日计息余额',
   '动态存款利息',
   '工厂抵押贷款',
@@ -105,7 +107,7 @@ for (const text of [
   '净资产',
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 for (const text of ['抵押数量必须继续计入当前或下一周期生产能力', '可转让数量', 'mortgagedCount']) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
-for (const text of ['| 银行 | `bank` | `BankPage`', '玩家导航固定为十项', '存款账户', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of ['| 银行 | `bank` | `BankPage`', '玩家导航固定为九项', '资产总览', '存款账户', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of ['`banking.js`', '世界版本 16', '客户端状态版本 19', '/api/game/bank/deposits', '银行截止时间']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 requireText('docs/UI_DESIGN_SYSTEM.md', '`src/styles/bank.css`');
 

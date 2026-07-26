@@ -74,3 +74,21 @@
     min-width: 680px;
   }
 }
+
+.local-trades-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.local-trades-heading h3 {
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .local-trades-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

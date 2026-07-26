@@ -31,7 +31,7 @@ const usagePaths = [
   'src/components/shell/GameShell.tsx',
   'src/pages/OverviewPage.tsx',
   'src/pages/MarketPage.tsx',
-  'src/pages/AssetsPage.tsx',
+  'src/components/assets/AssetOverviewPanel.tsx',
   'src/pages/LeaderboardPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/ProductionPage.tsx',
