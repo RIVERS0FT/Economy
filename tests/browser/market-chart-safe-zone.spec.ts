@@ -26,7 +26,7 @@ async function inspectBottomSafeZones(chart: Locator) {
         - Math.max(...xTickRects.map((rect) => rect.bottom)),
       legendTitleGap: titleRect.top - Math.max(...legendRects.map((rect) => rect.bottom)),
       bottomGap: svgRect.bottom - titleRect.bottom,
-      legendCenterDelta: Math.abs((legendLeft + legendRight) / 2 - (svgRect.left + svgRect.width / 2)),
+      legendCenterDelta: Math.abs((legendLeft + legendRight) / 2 - (titleRect.left + titleRect.right) / 2),
       chartWidth: svgRect.width,
     };
   });
@@ -40,7 +40,7 @@ async function expectBottomSafeZones(chart: Locator, context: string) {
   const bounds = await inspectBottomSafeZones(chart);
   expect(bounds.legendTitleGap, `${context}图例与时间轴标题之间必须保留安全区`).toBeGreaterThanOrEqual(9);
   expect(bounds.bottomGap, `${context}时间轴标题不得贴住 SVG 底边`).toBeGreaterThanOrEqual(5);
-  expect(bounds.legendCenterDelta, `${context}两项图例必须作为整体居中`).toBeLessThanOrEqual(Math.max(2, bounds.chartWidth * 0.01));
+  expect(bounds.legendCenterDelta, `${context}两项图例必须围绕绘图区中心整体居中`).toBeLessThanOrEqual(Math.max(2, bounds.chartWidth * 0.01));
 }
 
 test('market chart reserves separate bottom safe zones for time labels, legend and axis title', async ({ page }) => {
