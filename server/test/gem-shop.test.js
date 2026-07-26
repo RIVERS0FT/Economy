@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EconomyStore } from '../src/storage.js';
 import {
+  calculateNextGemShopRate,
   GEM_SHOP_CREDITS_PER_GEM,
   GEM_SHOP_MAX_EXCHANGE_GEMS,
 } from '../src/gem-shop.js';
@@ -40,6 +41,7 @@ test('gem shop exchanges gems for credits atomically and records history', () =>
     assert.equal(summary.totalCreditsReceived, 5 * GEM_SHOP_CREDITS_PER_GEM);
     assert.equal(summary.recentExchanges.length, 1);
     assert.equal(summary.recentExchanges[0].gemsSpent, 5);
+    assert.equal(summary.quoteDecision, 'accepted');
   } finally {
     store.close();
   }
@@ -123,4 +125,71 @@ test('gem shop rejects invalid quantities and insufficient balance without mutat
   } finally {
     store.close();
   }
+});
+
+test('terminal quote can be accepted only once per Shanghai day', () => {
+  const { store, now } = setup();
+  try {
+    const loaded = store.loadWorld(now + 1);
+    loaded.world.players['1'].gems = 10;
+    store.saveWorld(loaded.revision, loaded.world, now + 1);
+    const first = store.apply(user, {
+      action: 'exchangeGems', payload: { gems: 2 }, requestKey: 'daily-quote-accept-0001',
+      method: 'POST', path: '/api/game/gem-shop/exchange',
+    }, now + 2);
+    assert.equal(first.result.ok, true);
+    const second = store.apply(user, {
+      action: 'exchangeGems', payload: { gems: 1 }, requestKey: 'daily-quote-accept-0002',
+      method: 'POST', path: '/api/game/gem-shop/exchange',
+    }, now + 3);
+    assert.equal(second.result.ok, false);
+    assert.match(second.result.message, /今日终端报价已经使用/);
+  } finally {
+    store.close();
+  }
+});
+
+test('rejecting terminal quote locks the day without changing assets', () => {
+  const { store, now } = setup();
+  try {
+    const before = store.getState(user, now + 1);
+    const rejected = store.apply(user, {
+      action: 'rejectGemShopQuote', payload: {}, requestKey: 'daily-quote-reject-0001',
+      method: 'POST', path: '/api/game/gem-shop/quote/reject',
+    }, now + 2);
+    assert.equal(rejected.result.ok, true);
+    const exchange = store.apply(user, {
+      action: 'exchangeGems', payload: { gems: 1 }, requestKey: 'daily-quote-reject-0002',
+      method: 'POST', path: '/api/game/gem-shop/exchange',
+    }, now + 3);
+    assert.equal(exchange.result.ok, false);
+    const after = store.getState(user, now + 4);
+    assert.equal(after.gems, before.gems);
+    assert.equal(after.credits, before.credits);
+    assert.equal(store.getGemShopSummary(user, now + 5).quoteDecision, 'rejected');
+  } finally {
+    store.close();
+  }
+});
+
+test('dynamic terminal rate falls with high demand and rises with low demand', () => {
+  const high = calculateNextGemShopRate({
+    previousRate: 10,
+    yesterdayEffectiveGems: 200,
+    recentEffectiveGems: [20, 30, 40, 50, 60, 70, 200],
+    acceptedCount: 20,
+    rejectedCount: 0,
+  });
+  assert.equal(high.creditsPerGem, 9);
+  assert.equal(high.demandTone, 'high');
+
+  const low = calculateNextGemShopRate({
+    previousRate: 10,
+    yesterdayEffectiveGems: 5,
+    recentEffectiveGems: [80, 90, 100, 110, 120, 130, 5],
+    acceptedCount: 0,
+    rejectedCount: 20,
+  });
+  assert.equal(low.creditsPerGem, 11);
+  assert.equal(low.demandTone, 'low');
 });
