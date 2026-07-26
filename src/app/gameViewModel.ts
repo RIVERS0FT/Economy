@@ -127,6 +127,11 @@ export interface LoadedGameViewModel {
   signOut: () => Promise<void>;
   work: () => Promise<ActionResult>;
   checkIn: () => Promise<ActionResult>;
+  bankDeposit: (amount: number) => Promise<ActionResult>;
+  bankWithdraw: (amount: number) => Promise<ActionResult>;
+  bankBorrow: (amount: number, collateral: Array<{ facilityTypeId: string; quantity: number }>, autoRepay?: boolean) => Promise<ActionResult>;
+  bankRepay: (loanId: string, amount: number | 'all') => Promise<ActionResult>;
+  bankSetAutoRepay: (loanId: string, enabled: boolean) => Promise<ActionResult>;
   upgradeWarehouse: () => Promise<ActionResult>;
   buildFacility: (facilityTypeId?: string) => Promise<ActionResult>;
   startFacility: (facilityTypeId: string) => Promise<ActionResult>;
@@ -436,6 +441,11 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     signOut,
     work: () => runAction('work', gameActions.work),
     checkIn: () => runAction('checkIn', gameActions.checkIn),
+    bankDeposit: (amount) => runAction('bankDeposit', () => gameActions.bankDeposit(amount)),
+    bankWithdraw: (amount) => runAction('bankWithdraw', () => gameActions.bankWithdraw(amount)),
+    bankBorrow: (amount, collateral, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay)),
+    bankRepay: (loanId, amount) => runAction('bankRepay', () => gameActions.bankRepay(loanId, amount)),
+    bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
     buildFacility: (facilityTypeId = selectedFacilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
     startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),

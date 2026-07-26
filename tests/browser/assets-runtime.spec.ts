@@ -13,8 +13,8 @@ test('assets page keeps one consolidated overview without repeated headline metr
 
   await expect(page.getByRole('heading', { name: '资产', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '资产总览', exact: true })).toBeVisible();
-  await expect(page.getByText('当前总资产', { exact: true })).toHaveCount(1);
-  await expect(page.getByText('可支配资产', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('当前净资产', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('可支配净资产', { exact: true })).toHaveCount(1);
   await expect(page.getByText('冻结资产', { exact: true })).toHaveCount(1);
   await expect(page.getByRole('heading', { name: '资产配置', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: '资产估值明细', exact: true })).toHaveCount(0);

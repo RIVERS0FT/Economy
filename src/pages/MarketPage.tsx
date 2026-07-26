@@ -386,7 +386,9 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               ) : (
                 <>
                   <span>持有 {formatNumber(selectedGroup?.count ?? 0)} 座</span>
-                  <span>卖单冻结 {formatNumber(selectedGroup?.listedCount ?? 0)} 座</span>
+                  <span>可出售 {formatNumber(selectedGroup?.availableCount ?? 0)} 座</span>
+                  <span>卖单／拍卖冻结 {formatNumber(selectedGroup?.frozenCount ?? selectedGroup?.listedCount ?? 0)} 座</span>
+                  <span>抵押中 {formatNumber(selectedGroup?.mortgagedCount ?? 0)} 座</span>
                   <span>当前参与 {formatNumber(selectedGroup?.participatingCount ?? 0)} 座</span>
                 </>
               )}

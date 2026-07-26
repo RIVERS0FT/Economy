@@ -41,7 +41,12 @@ export type LocalActivityAction =
   | 'buyFacility'
   | 'renamePlayer'
   | 'redeemGift'
-  | 'exchangeGems';
+  | 'exchangeGems'
+  | 'bankDeposit'
+  | 'bankWithdraw'
+  | 'bankBorrow'
+  | 'bankRepay'
+  | 'bankSetAutoRepay';
 
 export interface LocalActivityView {
   assetEvents: AssetEvent[];
@@ -91,6 +96,11 @@ const ACTION_CATEGORY_MAP: Record<LocalActivityAction, AssetEventCategory> = {
   renamePlayer: 'system',
   redeemGift: 'system',
   exchangeGems: 'system',
+  bankDeposit: 'system',
+  bankWithdraw: 'system',
+  bankBorrow: 'system',
+  bankRepay: 'system',
+  bankSetAutoRepay: 'system',
 };
 
 function storageKey(userId: number, version = STORAGE_VERSION) {

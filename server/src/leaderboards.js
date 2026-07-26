@@ -2,6 +2,7 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './domain.js';
 import { processFacilityGroupWorld } from './facility-groups.js';
 import { processAssetAuctions } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
+import { activeLoanLiability, ensurePlayerBankAccount } from './banking.js';
 
 export const LEADERBOARD_TIME_ZONE = 'Asia/Shanghai';
 export const LEADERBOARD_REWARDS = Object.freeze([50, 30, 20]);
@@ -69,7 +70,9 @@ function inventoryQuantity(player, productId) {
 }
 
 export function operatingAssetsFor(player) {
-  const cash = safeNonNegativeInteger(player.credits) + safeNonNegativeInteger(player.frozenCredits);
+  const cash = safeNonNegativeInteger(player.credits)
+    + safeNonNegativeInteger(player.frozenCredits)
+    + safeNonNegativeInteger(ensurePlayerBankAccount(player).depositCredits);
   const commodity = PRODUCT_CATALOG.reduce((sum, product) => (
     sum + inventoryQuantity(player, product.id) * product.basePrice
   ), 0);
@@ -77,7 +80,7 @@ export function operatingAssetsFor(player) {
     const facility = FACILITY_BY_ID.get(String(group.facilityTypeId || ''));
     return sum + (facility ? safeNonNegativeInteger(group.count) * facility.systemValue : 0);
   }, 0);
-  return cash + commodity + facilities;
+  return cash + commodity + facilities - activeLoanLiability(player);
 }
 
 function recentTradePriceFor(world, kind, assetId) {
@@ -86,7 +89,9 @@ function recentTradePriceFor(world, kind, assetId) {
 }
 
 export function wealthAssetsFor(world, player) {
-  const cash = safeNonNegativeInteger(player.credits) + safeNonNegativeInteger(player.frozenCredits);
+  const cash = safeNonNegativeInteger(player.credits)
+    + safeNonNegativeInteger(player.frozenCredits)
+    + safeNonNegativeInteger(ensurePlayerBankAccount(player).depositCredits);
   const commodity = PRODUCT_CATALOG.reduce((sum, product) => (
     sum + inventoryQuantity(player, product.id) * recentTradePriceFor(world, 'commodity', product.id)
   ), 0);
@@ -94,7 +99,7 @@ export function wealthAssetsFor(world, player) {
     sum + safeNonNegativeInteger(group.count)
       * recentTradePriceFor(world, 'facility', String(group.facilityTypeId || ''))
   ), 0);
-  return cash + commodity + facility;
+  return cash + commodity + facility - activeLoanLiability(player);
 }
 
 function recipeOutputProductId(group) {
@@ -294,7 +299,7 @@ function internalRowsFor(world, state, boardId) {
     if (boardId === 'growth') {
       const currentAssets = operatingAssetsFor(player);
       const externalDelta = externalCreditsFor(player) - safeNonNegativeInteger(state.openingExternalCredits[userId]);
-      const score = currentAssets - safeNonNegativeInteger(state.openingAssets[userId]) - externalDelta;
+      const score = currentAssets - (Number(state.openingAssets[userId]) || 0) - externalDelta;
       return { userId: player.userId, playerName: player.playerName, registeredAt: player.registeredAt, score, secondary: currentAssets, tertiary: 0 };
     }
     if (boardId === 'production') {

@@ -170,7 +170,7 @@ requireAll(paths.gameApp, [
   "id: 'credits'", "id: 'assets'", "id: 'gems'", "id: 'rank'", "id: 'warehouse'",
   "const weeklyTrend = weeklyChange > 0 ? '↑' : weeklyChange < 0 ? '↓' : '→'",
   'const weeklyMagnitude = Math.abs(weeklyChange);',
-  '本周资产下降',
+  '本周净资产下降',
   'aria-label={weeklyChangeLabel}',
 ]);
 const gameApp = read(paths.gameApp);

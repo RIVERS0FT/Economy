@@ -101,7 +101,7 @@ requireText('server/src/asset-auctions.js', [
   'delete world.collectibles;',
   'delete world.collectibleOwnershipHistory;',
   'delete world.collectibleAuctions;',
-  'world.version = 15;',
+  'world.version = 16;',
   'createWarehouseUsage(world, bidder).warehouseAvailableCapacity < requiredCommodityCapacity',
   "if (action === 'createAuction')",
   "if (action === 'placeAuctionBid')",
@@ -219,25 +219,25 @@ requireText('src/styles/auction-card-layers.css', [
 forbidText('src/styles/auction-card-layers.css', ['overflow-x: auto;', '.asset-auction-summary-more']);
 
 requireText('.github/workflows/deploy.yml', [
-  'Back up production database before world 15 migration',
+  'Back up production database before world 16 migration',
   'sqlite3.connect(database)',
   'source.backup(destination)',
   "destination.execute('PRAGMA quick_check')",
   "economy-pre-world-v{target_world_version}-{timestamp}.sqlite",
-  "backup_dir.glob('economy-pre-world-v15-*.sqlite')",
+  "backup_dir.glob(f'economy-pre-world-v{target_world_version}-*.sqlite')",
   'for stale in backups[10:]:',
   'database-backup.log',
 ]);
 
 requireText('README.md', [
-  '客户端状态版本：`18`',
-  '世界状态版本：`15`',
+  '客户端状态版本：`19`',
+  '世界状态版本：`16`',
   '通过不可拆分资产包拍卖交易商品和工厂',
   '商品和工厂可单独或混合组成最多 20 项的不可拆分资产包公开竞价',
   '世界 15 迁移前备份',
 ]);
 requireText('docs/README.md', [
-  '九个正式页面、商品／工厂资产拍卖',
+  '十个正式页面、银行存贷款、商品／工厂资产拍卖',
   '商品与工厂单项或捆绑资产包竞价',
   '世界 15 必须保留纯商品／工厂拍卖并整包取消含已删除资产的旧拍卖',
   '`scripts/verify-asset-auctions.mjs`',
@@ -251,7 +251,7 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '旧 `/api/game/collectible-auctions*` 与 `/api/game/admin/collectibles*` 路径只返回 `410 Gone`',
 ]);
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
-  '玩家导航固定为九项',
+  '玩家导航固定为十项',
   '玩家可以在商品／工厂分段选择器间切换并连续加入资产',
   '商品和工厂类型选择器必须固定为二等分单行布局',
   '资产包添加数量和资产包行数量必须把输入中的原始字符串作为编辑草稿',
@@ -266,7 +266,7 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`410 Gone`',
 ]);
 for (const [path, fragments] of [
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['冻结只改变可用性，不改变所有权', '托管记录不得作为第二份资产余额重复累加']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['冻结与抵押只改变可用性，不改变所有权', '托管记录不得作为第二份资产余额重复累加']],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖与订单簿隔离', '拍卖成交不属于订单簿成交']],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包', '全部商品数量']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['工厂订单与拍卖冻结', '整包任一项目异常时不得部分转移工厂']],
@@ -296,4 +296,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('商品／工厂单项与捆绑资产拍卖、世界 15 整包取消迁移、数据库快照、410 墓碑、九页导航、数量草稿、冻结与仓库预占、原子结算及订单簿行情隔离验证通过。');
+console.log('商品／工厂单项与捆绑资产拍卖、世界 15 整包取消迁移、数据库快照、410 墓碑、十页导航、数量草稿、冻结与仓库预占、原子结算及订单簿行情隔离验证通过。');

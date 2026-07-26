@@ -77,9 +77,9 @@ if (existsSync(pathFor('README.md'))) {
   const rootReadme = read('README.md');
   for (const text of [
     `客户端状态版本：\`${CURRENT_CLIENT_STATE_VERSION}\``,
-    '世界状态版本：`15`',
+    '世界状态版本：`16`',
     '市场需求模型版本：`10`',
-    '概览｜市场｜生产｜资产｜拍卖｜合同｜排行｜商店｜设置',
+    '概览｜市场｜生产｜资产｜拍卖｜合同｜银行｜排行｜商店｜设置',
     '共享仓库允许无限扩容',
     '所有工厂集群统一使用服务器正式配方',
     '长期生产合作合同只涉及商品与普通货币',
@@ -111,7 +111,7 @@ for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
   if (!content.includes(`客户端状态版本：${CURRENT_CLIENT_STATE_VERSION}`)) failures.push(`${path} 客户端状态版本必须为 ${CURRENT_CLIENT_STATE_VERSION}`);
-  if (!content.includes('世界状态版本：15')) failures.push(`${path} 世界状态版本必须为 15`);
+  if (!content.includes('世界状态版本：16')) failures.push(`${path} 世界状态版本必须为 16`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -151,4 +151,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/15、市场需求模型 10、长期生产合同、商品／工厂资产拍卖、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航职责均满足当前基线。`);
+console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/16、市场需求模型 10、长期生产合同、商品／工厂资产拍卖、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航职责均满足当前基线。`);

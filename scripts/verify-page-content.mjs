@@ -14,6 +14,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/pages/ProductionPage.tsx',
   'tests/browser/production-status-summary.spec.ts',
   'src/pages/AssetsPage.tsx',
+  'src/pages/BankPage.tsx',
   'src/pages/AuctionPage.tsx',
   'src/pages/ContractPage.tsx',
   'src/pages/LeaderboardPage.tsx',
@@ -206,7 +207,7 @@ for (const text of [
 
 for (const text of [
   'title="资产"',
-  '查看现金、商品、工厂资产与当前浏览器中的资产变化记录。',
+  '查看净资产、资产毛值、贷款负债以及当前浏览器中的资产变化记录。',
   'title="本地资产变动"',
   'className="widget span-3 asset-event-panel"',
   'items={filteredEvents}',
@@ -218,6 +219,14 @@ for (const text of [
 for (const text of ['filteredEvents.map(', '商品库存与估值', 'product-asset-grid', 'product-asset-card', 'setSelectedProductId']) {
   forbidText('src/pages/AssetsPage.tsx', text);
 }
+
+for (const text of [
+  'title="银行"',
+  '存款账户',
+  '存款利息',
+  '工厂抵押贷款',
+  '银行记录',
+]) requireText('src/pages/BankPage.tsx', text);
 
 for (const text of [
   'items={giftCodes}',
@@ -454,9 +463,10 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 }
 
 for (const text of [
-  '概览｜市场｜生产｜资产｜拍卖｜合同｜排行｜商店｜设置',
+  '概览｜市场｜生产｜资产｜拍卖｜合同｜银行｜排行｜商店｜设置',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包竞价及结算结果 |',
   '| 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |',
+  '| 银行 | `bank` | `BankPage` | 存取款、动态存款利息、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与宝石单向兑换普通货币 |',
   '| 设置 | `settings` | `SettingsPage` | 资料、偏好、基础教程控制、礼品和退出 |',
   '页面主标题固定为“生产”',
@@ -521,4 +531,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、九页导航、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、十页导航、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');

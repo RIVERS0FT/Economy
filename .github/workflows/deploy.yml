@@ -84,7 +84,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
 
-      - name: Back up production database before world 15 migration
+      - name: Back up production database before world 16 migration
         id: backup_database
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -102,9 +102,9 @@ jobs:
           from pathlib import Path
 
           database = Path('/var/lib/riversoft-economy/economy.sqlite')
-          target_world_version = 15
+          target_world_version = 16
           if not database.exists():
-              print('ECONOMY_WORLD_15_BACKUP_SKIPPED_NO_DATABASE')
+              print(f'ECONOMY_WORLD_{target_world_version}_BACKUP_SKIPPED_NO_DATABASE')
               raise SystemExit(0)
 
           with sqlite3.connect(database) as source:
@@ -120,7 +120,7 @@ jobs:
               if row:
                   current_version = int(json.loads(row[0]).get('version') or 0)
               if current_version >= target_world_version:
-                  print(f'ECONOMY_WORLD_15_BACKUP_SKIPPED_CURRENT_VERSION={current_version}')
+                  print(f'ECONOMY_WORLD_{target_world_version}_BACKUP_SKIPPED_CURRENT_VERSION={current_version}')
                   raise SystemExit(0)
 
               backup_dir = database.parent / 'backups'
@@ -133,10 +133,10 @@ jobs:
                   if quick_check != 'ok':
                       raise RuntimeError(f'backup quick check failed: {quick_check}')
               os.chmod(backup_path, 0o600)
-              backups = sorted(backup_dir.glob('economy-pre-world-v15-*.sqlite'), reverse=True)
+              backups = sorted(backup_dir.glob(f'economy-pre-world-v{target_world_version}-*.sqlite'), reverse=True)
               for stale in backups[10:]:
                   stale.unlink()
-              print(f'ECONOMY_WORLD_15_BACKUP_CREATED={backup_path}')
+              print(f'ECONOMY_WORLD_{target_world_version}_BACKUP_CREATED={backup_path}')
           PYTHON
 
       - name: Prepare remote directories

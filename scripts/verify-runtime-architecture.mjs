@@ -47,7 +47,7 @@ for (const target of ['./AdminApp', './GameApp']) {
 
 const routerImports = importTargets('src/pages/PageRouter.tsx');
 for (const target of [
-  './AssetsPage', './AuctionPage', './ContractPage', './LeaderboardPage', './MarketPage',
+  './AssetsPage', './AuctionPage', './BankPage', './ContractPage', './LeaderboardPage', './MarketPage',
   './OverviewPage', './ProductionPage', './GemShopPage', './SettingsPage',
 ]) {
   if (!routerImports.dynamic.includes(target)) fail(`PageRouter.tsx 必须动态导入 ${target}`);
@@ -64,6 +64,7 @@ for (const [path, pattern] of [
   ['src/pages/OverviewPage.tsx', /useNow\(game\.lastProcessedAt\)/],
   ['src/pages/ProductionPage.tsx', /useNow\(game\.lastProcessedAt\)/],
   ['src/pages/AuctionPage.tsx', /useNow\(model\.game\.lastProcessedAt\)/],
+  ['src/pages/BankPage.tsx', /useNow\(model\.game\.lastProcessedAt\)/],
   ['src/pages/MarketPage.tsx', /const now = game\.lastProcessedAt/],
 ]) {
   if (!pattern.test(read(path))) fail(`${path} 必须以权威 lastProcessedAt 作为局部时间基准`);

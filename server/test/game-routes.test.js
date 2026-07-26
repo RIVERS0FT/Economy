@@ -13,6 +13,20 @@ test('game routes decode identifiers and reject unsupported methods', () => {
     category: 'orders',
     routePayload: { orderId: 'order:123' },
   });
+  assert.deepEqual(resolveAction('POST', '/api/game/bank/deposits'), {
+    action: 'bankDeposit',
+    category: 'general',
+  });
+  assert.deepEqual(resolveAction('POST', '/api/game/bank/loans/loan%3A123/repay'), {
+    action: 'bankRepay',
+    category: 'general',
+    routePayload: { loanId: 'loan:123' },
+  });
+  assert.deepEqual(resolveAction('POST', '/api/game/bank/loans/loan%3A123/auto-repay'), {
+    action: 'bankSetAutoRepay',
+    category: 'general',
+    routePayload: { loanId: 'loan:123' },
+  });
   assert.equal(resolveAction('GET', '/api/game/orders'), null);
 });
 

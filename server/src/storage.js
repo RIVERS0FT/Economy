@@ -37,17 +37,27 @@ import {
   topUpPopulationByPolicy,
 } from './population-admin-control.js';
 import { createLeaderboardSnapshot, processLeaderboardWorld } from './leaderboards.js';
+import {
+  applyBankAction,
+  createBankClientState,
+  ensureBankWorld,
+  ensurePlayerBankAccount,
+  migrateBankWorld,
+  processBankWorld,
+} from './banking.js';
 import { createWorldDeadlinePlan } from './world-deadline-planner.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
+const BANK_ACTIONS = new Set(['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay']);
 const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
   'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
+  'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay',
 ]);
 
 function normalizeJson(value) {
@@ -135,6 +145,7 @@ function createVersionedClientState(world, userId, now, checkIn) {
     checkIn,
     ...createWarehouseSummary(world, player),
     ...createAssetAuctionClientState(world, userId, now),
+    ...createBankClientState(world, player, now),
     version: CURRENT_CLIENT_STATE_VERSION,
   };
 }
@@ -480,15 +491,17 @@ export class EconomyStore {
 
   prepareWorldForStorage(world, now) {
     processDailyCheckInWorld(world, now);
+    migrateBankWorld(world, now);
     for (const player of Object.values(world.players || {})) {
       ensureWarehouse(player);
       ensureGemState(player);
+      ensurePlayerBankAccount(player, now);
     }
     migrateAssetAuctionWorld(world, now);
     migrateFacilityGroupWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
-    world.version = 15;
+    world.version = 16;
     return world;
   }
 
@@ -562,6 +575,7 @@ export class EconomyStore {
   processLeaderboardWorld(world, now, {
     onGemReward: (reward) => this.recordGemLedgerEvent(reward),
   });
+  processBankWorld(world, now);
   if (this.scheduledProcessing) {
     this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
   } else {
@@ -598,11 +612,14 @@ export class EconomyStore {
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
       ensureGemState(player);
+      ensureBankWorld(world, now);
+      ensurePlayerBankAccount(player, now);
       if (!this.scheduledProcessing || !playerWasPresent) {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });
       }
       ensureWarehouse(world.players[playerId]);
       ensureGemState(world.players[playerId]);
+      ensurePlayerBankAccount(world.players[playerId], now);
       const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
       const unchanged = normalizedKnownRevision !== undefined && normalizedKnownRevision === nextRevision;
       if (unchanged) return { revision: nextRevision, unchanged: true };
@@ -728,6 +745,8 @@ export class EconomyStore {
       const playerWasPresent = Boolean(world.players?.[playerId]);
       const player = ensurePlayer(world, user, now);
       ensureGemState(player);
+      ensureBankWorld(world, now);
+      ensurePlayerBankAccount(player, now);
       if (!this.scheduledProcessing || !playerWasPresent) {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });
       }
@@ -778,6 +797,8 @@ export class EconomyStore {
         }
       } else if (AUCTION_ACTIONS.has(action)) {
         gameResult = applyAssetAuctionAction(world, user, action, payload, now);
+      } else if (BANK_ACTIONS.has(action)) {
+        gameResult = applyBankAction(world, user, action, payload, now);
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
       }
@@ -788,6 +809,7 @@ export class EconomyStore {
       this.processWorldIfDue(world, now, Number(user.id), { force: true });
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
+      ensurePlayerBankAccount(world.players[String(user.id)], now);
       const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
       const response = createActionAcknowledgement(gameResult, nextRevision);
       this.insertIdempotency.run(
