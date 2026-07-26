@@ -1,0 +1,120 @@
+name: Update gem rate parameters
+
+on:
+  push:
+    branches:
+      - agent/gem-construction-and-dynamic-rate
+    paths:
+      - .github/workflows/agent-update-gem-rate-parameters.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/gem-construction-and-dynamic-rate
+          fetch-depth: 0
+      - name: Update rate authority and regressions
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path_name, old, new, label):
+              path = Path(path_name)
+              text = path.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing {label} in {path_name}')
+              path.write_text(text.replace(old, new, 1))
+
+          replace(
+              'README.md',
+              '- 商店按北京时间每日锁定的全服终端报价直接发行普通货币；基准 10、范围 6～14、每日最多变化 1，每名玩家每天只能接受兑换一次或明确放弃一次。礼品码和管理员发放继续按各自规则记录发行。系统不设置人口侧货币回收、余额衰减或发行总量上限。',
+              '- 商店按北京时间每日锁定的全服终端报价直接发行普通货币；初始报价 100、范围 1～10000、每日绝对变化上限为最大值 10000 的 10%（即 1000），每名玩家每天只能接受兑换一次或明确放弃一次。礼品码和管理员发放继续按各自规则记录发行。系统不设置人口侧货币回收、余额衰减或发行总量上限。',
+              'README rate parameters',
+          )
+
+          replace(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '商店每天按 `Asia/Shanghai` 提供一份全服一致的终端报价。中性基准为 **1 宝石 = 10 普通货币**，范围 6～14，每日最多变化 1。每名玩家每天只能接受并兑换 1～100 个整数宝石一次，或明确放弃一次；接受或放弃后当天不可恢复或追加。兑换只允许宝石单向兑换普通货币，完成后不可撤销；不允许普通货币购买宝石，也不允许客户端决定汇率。',
+              '商店每天按 `Asia/Shanghai` 提供一份全服一致的终端报价。初始报价为 **1 宝石 = 100 普通货币**，范围 1～10000；每日绝对变化上限为最大值 10000 的 10%，即 1000。每名玩家每天只能接受并兑换 1～100 个整数宝石一次，或明确放弃一次；接受或放弃后当天不可恢复或追加。兑换只允许宝石单向兑换普通货币，完成后不可撤销；不允许普通货币购买宝石，也不允许客户端决定汇率。',
+              'product rate parameters',
+          )
+          replace(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '次日汇率由前一完整自然日的有效兑换量与报价接受率共同决定。每个账号每天最多 20 个兑换宝石进入价格统计，需求压力高时次日汇率降低 1，需求压力低时提高 1；无人决策时向基准 10 回归。完整公式、表结构和防回退规则见 `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md`。',
+              '次日汇率由前一完整自然日的有效兑换量与报价接受率共同决定。每个账号每天最多 20 个兑换宝石进入价格统计，需求压力高时次日汇率最多降低 1000，需求压力低时最多提高 1000；无人决策时向初始报价 100 回归。完整公式、表结构和防回退规则见 `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md`。',
+              'product price response',
+          )
+
+          replace(
+              'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md',
+              '- 中性基准为 1 宝石兑换 10 普通货币；最低 6，最高 14，每日最多变化 1。',
+              '- 初始报价为 1 宝石兑换 100 普通货币；最低 1，最高 10000。每日绝对变化上限为最高报价 10000 的 10%，即 1000。',
+              'authority rate parameters',
+          )
+          replace(
+              'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md',
+              '- 需求压力大于 1.15：次日每颗宝石少兑换 1 货币；\n- 需求压力小于 0.85：次日每颗宝石多兑换 1 货币；\n- 其余保持不变；\n- 前一日无人接受或拒绝时，报价向基准 10 回归 1 点。',
+              '- 需求压力大于 1.15：次日每颗宝石最多少兑换 1000 货币，并受最低值 1 限制；\n- 需求压力小于 0.85：次日每颗宝石最多多兑换 1000 货币，并受最高值 10000 限制；\n- 其余保持不变；\n- 前一日无人接受或拒绝时，报价向初始值 100 回归 1 点。',
+              'authority price response',
+          )
+
+          replace(
+              'scripts/verify-gem-shop.mjs',
+              "  'GEM_SHOP_CREDITS_PER_GEM = 10',\n  'GEM_SHOP_MIN_CREDITS_PER_GEM = 6',\n  'GEM_SHOP_MAX_CREDITS_PER_GEM = 14',\n  'calculateNextGemShopRate',",
+              "  'GEM_SHOP_CREDITS_PER_GEM = 100',\n  'GEM_SHOP_LEGACY_CREDITS_PER_GEM = 10',\n  'GEM_SHOP_MIN_CREDITS_PER_GEM = 1',\n  'GEM_SHOP_MAX_CREDITS_PER_GEM = 10_000',\n  'GEM_SHOP_MAX_DAILY_RATE_CHANGE = Math.floor(GEM_SHOP_MAX_CREDITS_PER_GEM * 0.1)',\n  'calculateNextGemShopRate',",
+              'gem guard constants',
+          )
+          replace(
+              'scripts/verify-gem-shop.mjs',
+              "for (const text of ['全服一致的终端报价', '需求压力', '不可撤销', '注册事务邀请归因']) {",
+              "for (const text of ['初始报价为 **1 宝石 = 100 普通货币**', '范围 1～10000', '最大值 10000 的 10%', '不可撤销', '注册事务邀请归因']) {",
+              'gem guard product parameters',
+          )
+          replace(
+              'scripts/verify-gem-shop.mjs',
+              "for (const text of ['每次固定消耗 1 宝石，减少当前施工 30 分钟', '不得增加宝石兑换工厂产量']) {",
+              "for (const text of ['每次固定消耗 1 宝石，减少当前施工 30 分钟', '初始报价为 1 宝石兑换 100 普通货币', '每日绝对变化上限为最高报价 10000 的 10%', '不得增加宝石兑换工厂产量']) {",
+              'gem guard authority parameters',
+          )
+
+          replace(
+              'tests/browser/gem-shop-layout.spec.ts',
+              "  { gemsSpent: 10, creditsReceived: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },\n  { gemsSpent: 5, creditsReceived: 50, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },",
+              "  { gemsSpent: 10, creditsReceived: 1_000, creditsPerGem: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },\n  { gemsSpent: 5, creditsReceived: 500, creditsPerGem: 100, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },",
+              'browser exchange history',
+          )
+          replace(
+              'tests/browser/gem-shop-layout.spec.ts',
+              '          creditsPerGem: 10,',
+              '          creditsPerGem: 100,',
+              'browser quote',
+          )
+          replace(
+              'tests/browser/gem-shop-layout.spec.ts',
+              '          totalCreditsReceived: 150,',
+              '          totalCreditsReceived: 1_500,',
+              'browser exchange total',
+          )
+          replace(
+              'tests/browser/gem-shop-layout.spec.ts',
+              "  await expect(page.getByText('1 宝石 = 10 货币', { exact: true })).toBeVisible();",
+              "  await expect(page.getByText('1 宝石 = 100 货币', { exact: true })).toBeVisible();",
+              'browser displayed quote',
+          )
+          PY
+      - name: Commit parameter updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/agent-update-gem-rate-parameters.yml
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git add -A
+          git commit -m "更新动态宝石汇率参数"
+          git push origin HEAD:agent/gem-construction-and-dynamic-rate
