@@ -30,8 +30,16 @@ jobs:
           echo '316ebe365f65ba2f58276571f367afd74269a7c3ae5585a363746e4201aa5a36  /tmp/merge-assets-into-bank.patch' | sha256sum --check
           git apply --check /tmp/merge-assets-into-bank.patch
           git apply /tmp/merge-assets-into-bank.patch
+
+          base64 --decode .agent/patch.fix-01.gz.b64 > /tmp/asset-bank-fix-01.patch.gz
+          echo 'a8f9726f62df92f64560b38cf0d6449d5b01030371211af450413c25edaf0a70  /tmp/asset-bank-fix-01.patch.gz' | sha256sum --check
+          gzip --decompress --stdout /tmp/asset-bank-fix-01.patch.gz > /tmp/asset-bank-fix-01.patch
+          echo 'f4b38e2279b0deb3f9378bb324c9b8343c0d53a0d35e39ac522b48f1bb3c89fa  /tmp/asset-bank-fix-01.patch' | sha256sum --check
+          git apply --check /tmp/asset-bank-fix-01.patch
+          git apply /tmp/asset-bank-fix-01.patch
+
           rm -f .agent/merge-assets-into-bank.patch.gz.b64
-          rm -f .agent/patch.part-*.b64
+          rm -f .agent/patch.part-*.b64 .agent/patch.fix-*.gz.b64
           rm -f .agent-note .agent-placeholder .agent-pr-trigger
           rmdir .agent 2>/dev/null || true
           git diff --check
