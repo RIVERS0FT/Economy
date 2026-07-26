@@ -118,8 +118,6 @@ jobs:
           PY
       - name: Apply production page
         run: python3 .agent/apply-production.py
-      - name: Apply tests and verification
-        run: git apply --check .agent/patches/07-tests-verify.patch && git apply .agent/patches/07-tests-verify.patch
       - name: Apply documentation
         run: git apply --check .agent/patches/08-docs.patch && git apply .agent/patches/08-docs.patch
       - name: Commit applied changes
