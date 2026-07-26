@@ -72,16 +72,18 @@
     display: block;
   }
 
-  .asset-bar-item-value {
+  .asset-bar .asset-bar-item-value {
     min-width: 0;
+    max-width: 100%;
+    flex: 0 1 auto;
     overflow: hidden;
-    font-size: clamp(.7rem, 3.45vw, .95rem);
+    font-size: var(--mobile-status-value-font-size, clamp(.7rem, 3.45vw, .95rem));
     font-variant-numeric: tabular-nums;
     text-overflow: clip;
     white-space: nowrap;
   }
 
-  .asset-bar-item-value > span {
+  .asset-bar .asset-bar-item-value > span {
     color: inherit;
     font-size: inherit;
   }
