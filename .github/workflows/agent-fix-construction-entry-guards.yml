@@ -1,0 +1,86 @@
+name: Fix construction entry guards
+
+on:
+  push:
+    branches:
+      - agent/gem-construction-and-dynamic-rate
+    paths:
+      - .github/workflows/agent-fix-construction-entry-guards.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/gem-construction-and-dynamic-rate
+          fetch-depth: 0
+      - name: Align construction entry verification and style
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          verify = Path('scripts/verify-unified-factory-recipes-grid.mjs')
+          text = verify.read_text()
+          replacements = [
+            (
+              "  'game.facilityTypes.flatMap((type) =>',",
+              "  'game.facilityTypes.flatMap((type): FacilityClusterEntry[] =>',\n  'constructionOnly: true',\n  'if (!construction) return [];',",
+              'typed facility catalog traversal',
+            ),
+            (
+              "  'data-status={group.status}',",
+              "  \"data-status={constructionOnly ? 'constructing' : group.status}\",",
+              'construction selector status',
+            ),
+            (
+              "  'aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}',",
+              "  'aria-label={constructionOnly ? `${type.name}，施工中` : `${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}',",
+              'construction selector label',
+            ),
+            (
+              "  \".facility-cluster-selector-card[data-status='stopped']\",",
+              "  \".facility-cluster-selector-card[data-status='stopped']\",\n  \".facility-cluster-selector-card[data-status='constructing']\",",
+              'construction selector CSS guard',
+            ),
+          ]
+          for old, new, label in replacements:
+              if old not in text:
+                  raise SystemExit(f'missing verifier marker: {label}')
+              text = text.replace(old, new, 1)
+          verify.write_text(text)
+
+          css = Path('src/styles/facility-group-card-grid.css')
+          css_text = css.read_text()
+          marker = """.facility-cluster-selector-card[data-status='stopped'] {
+            --facility-cluster-status-color: var(--color-text-muted);
+          }
+          """
+          addition = """.facility-cluster-selector-card[data-status='stopped'] {
+            --facility-cluster-status-color: var(--color-text-muted);
+          }
+
+          .facility-cluster-selector-card[data-status='constructing'] {
+            --facility-cluster-status-color: var(--color-warning);
+            --facility-cluster-status-soft: var(--color-warning-soft);
+          }
+          """
+          if "data-status='constructing'" not in css_text:
+              if marker not in css_text:
+                  raise SystemExit('missing stopped selector style')
+              css.write_text(css_text.replace(marker, addition, 1))
+          PY
+      - name: Commit guard and style updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/agent-fix-construction-entry-guards.yml
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git add -A
+          git commit -m "同步施工中工厂入口校验与样式"
+          git push origin HEAD:agent/gem-construction-and-dynamic-rate
