@@ -6,7 +6,7 @@ export const WAREHOUSE_BASE_CAPACITY = 500;
 export const WAREHOUSE_CAPACITY_STEP = 250;
 export const WAREHOUSE_CAPACITY_STEP_GROWTH = 50;
 export const WAREHOUSE_BASE_UPGRADE_COST = 150;
-export const WAREHOUSE_COST_SLOPE_NUMERATOR = 3;
+export const WAREHOUSE_COST_SLOPE_NUMERATOR = 6;
 export const WAREHOUSE_COST_SLOPE_DENOMINATOR = 5;
 
 function normalizeLevel(value) {

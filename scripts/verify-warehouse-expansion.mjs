@@ -39,7 +39,7 @@ for (const text of [
   'WAREHOUSE_CAPACITY_STEP = 250',
   'WAREHOUSE_CAPACITY_STEP_GROWTH = 50',
   'WAREHOUSE_BASE_UPGRADE_COST = 150',
-  'WAREHOUSE_COST_SLOPE_NUMERATOR = 3',
+  'WAREHOUSE_COST_SLOPE_NUMERATOR = 6',
   'WAREHOUSE_COST_SLOPE_DENOMINATOR = 5',
   'warehouseCapacityIncreaseForLevel',
   'warehouseUpgradeCostForCapacity',
@@ -63,7 +63,14 @@ for (const forbidden of [
   '仓库已达到最高等级',
   'warehouseUpgradeCostForLevel',
   'WAREHOUSE_BASE_UPGRADE_COST * normalized * normalized',
+  'WAREHOUSE_COST_SLOPE_NUMERATOR = 3',
 ]) forbidText('server/src/warehouse.js', forbidden);
+
+for (const [path, forbidden] of [
+  ['README.md', '× 0.6'],
+  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '× 0.6'],
+  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '3 / 5'],
+]) forbidText(path, forbidden);
 
 for (const text of [
   'export function nonContractWarehouseReservations',
@@ -76,8 +83,10 @@ for (const text of [
 
 for (const text of [
   'warehouseUpgradeCostForCapacity',
-  '[150, 300, 480, 690, 930, 1_200]',
+  '[150, 450, 810, 1_230, 1_710, 2_250]',
   'warehouse summary price matches the amount deducted for the same actual capacity',
+  'warehouseUpgradeCostForCapacity(501), 152',
+  'warehouseUpgradeCostForCapacity(502), 153',
 ]) requireText('server/test/warehouse.test.js', text);
 for (const forbidden of ['warehouseUpgradeCostForLevel']) forbidText('server/test/warehouse.test.js', forbidden);
 for (const text of [
@@ -259,6 +268,7 @@ for (const text of [
   '无限等级、容量与费用',
   '扩容费用必须由当前实际总容量线性计算',
   '仓库等级只能决定容量增量，不能直接决定扩容费用',
+  '当前扩容斜率固定为 1.2（整数比例 `6 / 5`）',
   '仓库没有玩家可见的最高等级',
   '合同预占 = Σ(当前玩家作为采购方的进行中合同下一批商品数量)',
   '已用容量 = 实物库存 + 订单预占 + 拍卖预占 + 合同预占',
@@ -300,7 +310,7 @@ for (const forbidden of [
 requireText('docs/README.md', '仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`');
 requireText('docs/README.md', '移动和窄容器固定每行四张卡');
 requireText('docs/README.md', '共享仓库统一预占必须同时包含未完成商品买单');
-requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 0.6)`');
+requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 1.2)`');
 requireText('README.md', '采购方下一批商品与未完成商品买单、最高出价拍卖共同使用统一仓库预占');
 for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式只展示集群参数']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
