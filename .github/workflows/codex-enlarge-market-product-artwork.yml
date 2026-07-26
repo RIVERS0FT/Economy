@@ -1,0 +1,285 @@
+name: Apply Market Product Artwork Update
+
+on:
+  push:
+    branches:
+      - codex/enlarge-market-product-artwork
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply approved market artwork changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PYTHON'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str, count: int = 1) -> None:
+              file_path = Path(path)
+              text = file_path.read_text(encoding='utf-8')
+              actual = text.count(old)
+              if actual != count:
+                  raise SystemExit(f'{path}: expected {count} occurrence(s), found {actual}: {old[:120]!r}')
+              file_path.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_exact(
+              'src/styles/product-artwork.css',
+              ".market-asset-card__icon-layer > .product-icon {\n  width: 64px;\n  height: 64px;\n}",
+              ".market-asset-card__icon-layer > .product-icon {\n  width: 72px;\n  height: 72px;\n}",
+          )
+          replace_exact(
+              'src/styles/product-artwork.css',
+              "  .market-asset-card__icon-layer > .product-icon {\n    width: 48px;\n    height: 48px;\n  }",
+              "  .market-asset-card__icon-layer > .product-icon {\n    width: 56px;\n    height: 56px;\n  }",
+          )
+
+          replace_exact(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '中央商品插画分别固定为 `64 × 64px` 和 `48 × 48px`，不得通过放大卡片获得更大的主视觉。',
+              '中央商品插画分别固定为 `72 × 72px` 和 `56 × 56px`，不得通过放大卡片获得更大的主视觉。此次放大只改变中央商品插画的 `width`／`height`；图标层 `inset`、数据层 `padding` 与 `gap`、四角槽位、名称前 SVG、价格、“当前”胶囊和库存位置均保持不变，不得通过压缩四角留白容纳插画。',
+          )
+          replace_exact(
+              'docs/UI_DESIGN_SYSTEM.md',
+              '桌面中央插画固定 `64 × 64px`，不大于 `720px` 时固定 `48 × 48px`，卡片仍分别保持 `138 × 92px` 与 `132 × 88px`。名称前固定渲染',
+              '桌面中央插画固定 `72 × 72px`，不大于 `720px` 时固定 `56 × 56px`，卡片仍分别保持 `138 × 92px` 与 `132 × 88px`。此次放大只改变中央插画的 `width`／`height`；图标层 `inset`、数据层 `padding` 与 `gap`、四角槽位、名称前 SVG、价格、“当前”胶囊和库存位置均保持不变，不得通过压缩四角留白容纳插画。名称前固定渲染',
+          )
+          replace_exact(
+              'docs/README.md',
+              '中央插画固定为 `64 × 64px`／`48 × 48px`，名称前固定增加',
+              '中央插画固定为 `72 × 72px`／`56 × 56px`，且只允许改变插画 `width`／`height`；图标层 `inset`、数据层 `padding` 与 `gap`、四角槽位、名称前 SVG、价格、“当前”胶囊和库存位置均保持不变，不得通过压缩四角留白容纳插画。名称前固定增加',
+          )
+
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(productArtworkStyles, 'width: 64px;\\n  height: 64px;', '桌面市场商品中央插画必须固定为 64px。');",
+              "requireText(productArtworkStyles, 'width: 72px;\\n  height: 72px;', '桌面市场商品中央插画必须固定为 72px。');",
+          )
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(productArtworkStyles, 'width: 48px;\\n    height: 48px;', '移动市场商品中央插画必须固定为 48px。');",
+              "requireText(productArtworkStyles, 'width: 56px;\\n    height: 56px;', '移动市场商品中央插画必须固定为 56px。');",
+          )
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(marketStyles, 'z-index: 1;\\n  inset: 14px 0;', '市场商品图标层必须位于下层并保持 64px 主视觉居中安全区。');",
+              "requireText(marketStyles, 'z-index: 1;\\n  inset: 14px 0;', '市场商品图标层必须位于下层并保持既有桌面居中锚点。');",
+          )
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(marketStyles, 'inset: 14px 0;', '桌面市场中央插画层必须为 64px 主视觉保留居中区域。');",
+              "requireText(marketStyles, 'inset: 14px 0;', '桌面市场中央插画层必须保持既有居中锚点，不得压缩四角留白。');\nrequireText(marketStyles, 'inset: 18px 0;', '移动市场中央插画层必须保持既有居中锚点，不得压缩四角留白。');",
+          )
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(marketStyles, 'padding: 7px 9px 6px;', '桌面市场数据层必须使用紧凑四角内边距。');",
+              "requireText(marketStyles, 'padding: 7px 9px 6px;', '桌面市场数据层必须保持既有四角内边距。');\nrequireText(marketStyles, 'gap: 2px 5px;\\n    padding: 6px 8px;', '移动市场数据层必须保持既有四角间距与内边距。');",
+          )
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(runtimeSpec, 'market product artwork uses 64px desktop and 48px mobile without resizing cards', 'Playwright 必须覆盖市场中央插画尺寸、卡片尺寸、圆角和间距。');",
+              "requireText(runtimeSpec, 'market product artwork uses 72px desktop and 56px mobile while preserving cards and corner spacing', 'Playwright 必须覆盖放大后的插画尺寸以及未变化的卡片与四角留白。');",
+          )
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(pageDesign, '商品目录卡固定按 DOM 顺序先渲染图标层、再渲染数据层', '页面职责设计必须记录市场商品卡双层结构。');",
+              "requireText(pageDesign, '商品目录卡固定按 DOM 顺序先渲染图标层、再渲染数据层', '页面职责设计必须记录市场商品卡双层结构。');\nrequireText(pageDesign, '中央商品插画分别固定为 `72 × 72px` 和 `56 × 56px`', '页面职责设计必须记录放大后的市场商品插画尺寸。');\nrequireText(pageDesign, '不得通过压缩四角留白容纳插画', '页面职责设计必须禁止通过压缩四角留白容纳插画。');",
+          )
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(uiDesign, '图标层 `z-index` 必须低于数据层', 'UI 设计系统必须记录市场商品卡覆盖层级。');",
+              "requireText(uiDesign, '图标层 `z-index` 必须低于数据层', 'UI 设计系统必须记录市场商品卡覆盖层级。');\nrequireText(uiDesign, '桌面中央插画固定 `72 × 72px`，不大于 `720px` 时固定 `56 × 56px`', 'UI 设计系统必须记录放大后的市场商品插画尺寸。');\nrequireText(uiDesign, '不得通过压缩四角留白容纳插画', 'UI 设计系统必须禁止压缩市场商品卡四角留白。');",
+          )
+          replace_exact(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(designIndex, '标签与首张资产卡之间只保留 `var(--space-3)` 间距', '设计索引必须禁止市场目录左侧恢复额外空白。');",
+              "requireText(designIndex, '标签与首张资产卡之间只保留 `var(--space-3)` 间距', '设计索引必须禁止市场目录左侧恢复额外空白。');\nrequireText(designIndex, '中央插画固定为 `72 × 72px`／`56 × 56px`', '设计索引必须记录放大后的市场商品插画尺寸。');\nrequireText(designIndex, '不得通过压缩四角留白容纳插画', '设计索引必须禁止压缩市场商品卡四角留白。');",
+          )
+
+          old_test = """test('market product artwork uses 64px desktop and 48px mobile without resizing cards', async ({ page }) => {
+            const pageErrors = await capturePageErrors(page);
+            await page.setViewportSize({ width: 1400, height: 900 });
+            await page.goto('market-runtime-test.html?scenario=active');
+
+            const wheatTab = page.getByRole('tab', { name: /^小麦/ });
+            const desktopMetrics = await wheatTab.evaluate((element) => {
+              const card = element as HTMLElement;
+              const artwork = card.querySelector<HTMLElement>('.market-asset-card__icon-layer > .product-icon');
+              const nameIcon = card.querySelector<HTMLElement>('.market-asset-card__name-icon');
+              const directory = card.closest<HTMLElement>('.unified-asset-tabs');
+              if (!artwork || !nameIcon || !directory) throw new Error('market product card visual fixture is incomplete');
+              const cardRect = card.getBoundingClientRect();
+              const artworkRect = artwork.getBoundingClientRect();
+              const nameIconRect = nameIcon.getBoundingClientRect();
+              const cardStyle = getComputedStyle(card);
+              return {
+                cardWidth: cardRect.width,
+                cardHeight: cardRect.height,
+                artworkWidth: artworkRect.width,
+                artworkHeight: artworkRect.height,
+                nameIconWidth: nameIconRect.width,
+                nameIconHeight: nameIconRect.height,
+                borderRadius: Number.parseFloat(cardStyle.borderTopLeftRadius),
+                directoryGap: Number.parseFloat(getComputedStyle(directory).columnGap),
+                transform: cardStyle.transform,
+              };
+            });
+            expect(desktopMetrics.cardWidth).toBeCloseTo(138, 0);
+            expect(desktopMetrics.cardHeight).toBeCloseTo(92, 0);
+            expect(desktopMetrics.artworkWidth).toBeCloseTo(64, 0);
+            expect(desktopMetrics.artworkHeight).toBeCloseTo(64, 0);
+            expect(desktopMetrics.nameIconWidth).toBeCloseTo(14, 0);
+            expect(desktopMetrics.nameIconHeight).toBeCloseTo(14, 0);
+            expect(desktopMetrics.borderRadius).toBeCloseTo(12, 0);
+            expect(desktopMetrics.directoryGap).toBeCloseTo(12, 0);
+            expect(desktopMetrics.transform).toBe('none');
+
+            await page.setViewportSize({ width: 390, height: 844 });
+            await expect.poll(() => wheatTab.evaluate((element) => {
+              const card = element as HTMLElement;
+              const artwork = card.querySelector<HTMLElement>('.market-asset-card__icon-layer > .product-icon');
+              if (!artwork) throw new Error('mobile market product artwork is missing');
+              const cardRect = card.getBoundingClientRect();
+              const artworkRect = artwork.getBoundingClientRect();
+              return {
+                cardWidth: Math.round(cardRect.width),
+                cardHeight: Math.round(cardRect.height),
+                artworkWidth: Math.round(artworkRect.width),
+                artworkHeight: Math.round(artworkRect.height),
+              };
+            })).toEqual({
+              cardWidth: 132,
+              cardHeight: 88,
+              artworkWidth: 48,
+              artworkHeight: 48,
+            });
+            expect(pageErrors).toEqual([]);
+          });"""
+
+          new_test = """test('market product artwork uses 72px desktop and 56px mobile while preserving cards and corner spacing', async ({ page }) => {
+            const pageErrors = await capturePageErrors(page);
+            await page.setViewportSize({ width: 1400, height: 900 });
+            await page.goto('market-runtime-test.html?scenario=active');
+
+            const wheatTab = page.getByRole('tab', { name: /^小麦/ });
+            const desktopMetrics = await wheatTab.evaluate((element) => {
+              const card = element as HTMLElement;
+              const iconLayer = card.querySelector<HTMLElement>('.market-asset-card__icon-layer');
+              const dataLayer = card.querySelector<HTMLElement>('.market-asset-card__data-layer');
+              const artwork = iconLayer?.querySelector<HTMLElement>(':scope > .product-icon');
+              const nameIcon = card.querySelector<HTMLElement>('.market-asset-card__name-icon');
+              const directory = card.closest<HTMLElement>('.unified-asset-tabs');
+              if (!iconLayer || !dataLayer || !artwork || !nameIcon || !directory) {
+                throw new Error('market product card visual fixture is incomplete');
+              }
+              const cardRect = card.getBoundingClientRect();
+              const artworkRect = artwork.getBoundingClientRect();
+              const nameIconRect = nameIcon.getBoundingClientRect();
+              const cardStyle = getComputedStyle(card);
+              const iconLayerStyle = getComputedStyle(iconLayer);
+              const dataLayerStyle = getComputedStyle(dataLayer);
+              return {
+                cardWidth: cardRect.width,
+                cardHeight: cardRect.height,
+                artworkWidth: artworkRect.width,
+                artworkHeight: artworkRect.height,
+                nameIconWidth: nameIconRect.width,
+                nameIconHeight: nameIconRect.height,
+                borderRadius: Number.parseFloat(cardStyle.borderTopLeftRadius),
+                directoryGap: Number.parseFloat(getComputedStyle(directory).columnGap),
+                transform: cardStyle.transform,
+                iconInsetTop: Number.parseFloat(iconLayerStyle.top),
+                iconInsetBottom: Number.parseFloat(iconLayerStyle.bottom),
+                dataPaddingTop: Number.parseFloat(dataLayerStyle.paddingTop),
+                dataPaddingRight: Number.parseFloat(dataLayerStyle.paddingRight),
+                dataPaddingBottom: Number.parseFloat(dataLayerStyle.paddingBottom),
+                dataPaddingLeft: Number.parseFloat(dataLayerStyle.paddingLeft),
+                dataRowGap: Number.parseFloat(dataLayerStyle.rowGap),
+                dataColumnGap: Number.parseFloat(dataLayerStyle.columnGap),
+              };
+            });
+            expect(desktopMetrics.cardWidth).toBeCloseTo(138, 0);
+            expect(desktopMetrics.cardHeight).toBeCloseTo(92, 0);
+            expect(desktopMetrics.artworkWidth).toBeCloseTo(72, 0);
+            expect(desktopMetrics.artworkHeight).toBeCloseTo(72, 0);
+            expect(desktopMetrics.nameIconWidth).toBeCloseTo(14, 0);
+            expect(desktopMetrics.nameIconHeight).toBeCloseTo(14, 0);
+            expect(desktopMetrics.borderRadius).toBeCloseTo(12, 0);
+            expect(desktopMetrics.directoryGap).toBeCloseTo(12, 0);
+            expect(desktopMetrics.transform).toBe('none');
+            expect(desktopMetrics.iconInsetTop).toBeCloseTo(14, 0);
+            expect(desktopMetrics.iconInsetBottom).toBeCloseTo(14, 0);
+            expect(desktopMetrics.dataPaddingTop).toBeCloseTo(7, 0);
+            expect(desktopMetrics.dataPaddingRight).toBeCloseTo(9, 0);
+            expect(desktopMetrics.dataPaddingBottom).toBeCloseTo(6, 0);
+            expect(desktopMetrics.dataPaddingLeft).toBeCloseTo(9, 0);
+            expect(desktopMetrics.dataRowGap).toBeCloseTo(2, 0);
+            expect(desktopMetrics.dataColumnGap).toBeCloseTo(6, 0);
+
+            await page.setViewportSize({ width: 390, height: 844 });
+            await expect.poll(() => wheatTab.evaluate((element) => {
+              const card = element as HTMLElement;
+              const iconLayer = card.querySelector<HTMLElement>('.market-asset-card__icon-layer');
+              const dataLayer = card.querySelector<HTMLElement>('.market-asset-card__data-layer');
+              const artwork = iconLayer?.querySelector<HTMLElement>(':scope > .product-icon');
+              if (!iconLayer || !dataLayer || !artwork) throw new Error('mobile market product artwork is missing');
+              const cardRect = card.getBoundingClientRect();
+              const artworkRect = artwork.getBoundingClientRect();
+              const iconLayerStyle = getComputedStyle(iconLayer);
+              const dataLayerStyle = getComputedStyle(dataLayer);
+              return {
+                cardWidth: Math.round(cardRect.width),
+                cardHeight: Math.round(cardRect.height),
+                artworkWidth: Math.round(artworkRect.width),
+                artworkHeight: Math.round(artworkRect.height),
+                iconInsetTop: Math.round(Number.parseFloat(iconLayerStyle.top)),
+                iconInsetBottom: Math.round(Number.parseFloat(iconLayerStyle.bottom)),
+                dataPaddingTop: Math.round(Number.parseFloat(dataLayerStyle.paddingTop)),
+                dataPaddingRight: Math.round(Number.parseFloat(dataLayerStyle.paddingRight)),
+                dataPaddingBottom: Math.round(Number.parseFloat(dataLayerStyle.paddingBottom)),
+                dataPaddingLeft: Math.round(Number.parseFloat(dataLayerStyle.paddingLeft)),
+                dataRowGap: Math.round(Number.parseFloat(dataLayerStyle.rowGap)),
+                dataColumnGap: Math.round(Number.parseFloat(dataLayerStyle.columnGap)),
+              };
+            })).toEqual({
+              cardWidth: 132,
+              cardHeight: 88,
+              artworkWidth: 56,
+              artworkHeight: 56,
+              iconInsetTop: 18,
+              iconInsetBottom: 18,
+              dataPaddingTop: 6,
+              dataPaddingRight: 8,
+              dataPaddingBottom: 6,
+              dataPaddingLeft: 8,
+              dataRowGap: 2,
+              dataColumnGap: 5,
+            });
+            expect(pageErrors).toEqual([]);
+          });"""
+          replace_exact('tests/browser/market-runtime.spec.ts', old_test, new_test)
+          PYTHON
+
+          node scripts/verify-market-page-layout.mjs
+          git diff --check
+
+      - name: Commit approved changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md docs/UI_DESIGN_SYSTEM.md docs/README.md src/styles/product-artwork.css scripts/verify-market-page-layout.mjs tests/browser/market-runtime.spec.ts
+          git diff --cached --quiet && { echo 'No changes to commit'; exit 1; }
+          git commit -m 'Enlarge market product artwork without reducing corner spacing'
+          git push origin HEAD:codex/enlarge-market-product-artwork
