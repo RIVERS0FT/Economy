@@ -1,8 +1,15 @@
 Checking patch server/src/facility-groups.js...
-Hunk #1 succeeded at 13 (offset -2 lines).
 error: while searching for:
+import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
+import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
+import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
+
+const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
+const MAX_CYCLES_PER_GROUP = 50_000;
+const MAX_FACILITY_ORDER_QUANTITY = 1_000_000;
+const MAX_ORDER_PRICE = 1_000_000;
 const MAX_OPEN_ORDERS = 10;
 const MAX_PRICE_POINTS = 288;
 
-error: patch failed: server/src/facility-groups.js:23
+error: patch failed: server/src/facility-groups.js:15
 error: server/src/facility-groups.js: patch does not apply
