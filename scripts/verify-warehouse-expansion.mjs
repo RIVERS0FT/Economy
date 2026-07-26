@@ -85,6 +85,8 @@ for (const text of [
   'warehouseUpgradeCostForCapacity',
   '[150, 450, 810, 1_230, 1_710, 2_250]',
   'warehouse summary price matches the amount deducted for the same actual capacity',
+  'warehouseUpgradeCostForCapacity(501), 152',
+  'warehouseUpgradeCostForCapacity(502), 153',
 ]) requireText('server/test/warehouse.test.js', text);
 for (const forbidden of ['warehouseUpgradeCostForLevel']) forbidText('server/test/warehouse.test.js', forbidden);
 for (const text of [
