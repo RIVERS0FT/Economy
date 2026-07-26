@@ -22,7 +22,7 @@
 - 商品／工厂资产拍卖、卖方资产托管、最高出价冻结与仓库预占；
 - 长期生产合作合同、商品与货款托管、保证金、宽限期与周期交付；
 - 银行利息池、风险准备金、工厂储备、贷款期限／宽限、每日最低存款余额、微单位利息余数与银行流水；
-- 礼品码、每日签到、每周全勤、宝石流水和商店兑换；
+- 礼品码、每日签到、每周全勤、宝石流水、每日终端报价、报价决策、商店兑换和施工宝石加速审计；
 - 邀请关系、Economy 注册记录、同 IP 封禁事件和审计；
 - 排行榜、市场需求和系统统计。
 
@@ -43,7 +43,8 @@
 - `banking.js`：银行账户、存取款、工厂抵押、贷款评估、放款与还款、已实现贷款利息分配、每日最低余额结息、宽限和违约处置；
 - `invitations.js`：邀请码、邀请关系和同 IP 邀请阻断；
 - `daily-check-in.js`：北京时间自然日／自然周、每日签到、全勤资格和状态摘要；
-- `gem-shop.js`：服务器固定汇率和宝石兑换摘要；
+- `gem-shop.js`：每日动态终端报价纯函数、汇率边界和宝石兑换摘要；
+- `gem-economy-store.js`：每日汇率、玩家接受／拒绝、实际兑换与施工宝石加速审计；
 - `market-sell-fee.js`：单张玩家卖单和单份合同累计成交额 1% 手续费的唯一纯函数；
 - `population-economy.js`：三类人口真实钱包、生产复杂度岗位、固定建造业岗位、施工托管、市场服务与银行服务就业、收入 EMA、五档消费状态和整数资金分配；
 - `balanced-market.js`：模型 10 的人口消费、派生流动性、稳定需求补充、市场储备双边订单和价格压力；
@@ -203,7 +204,7 @@ JSON.parse
 
 - `economy_email_verifications` 保存请求幂等键、邮箱、验证码 HMAC、IP 指纹、有效期、错误次数、投递状态、使用状态和完成账号；不得保存验证码明文。
 - `economy_registrations` 以统一账号 ID 为主键，保存首次玩家档案创建时的邮箱、注册 IP 指纹、完成时间和来源。
-- `economy_invite_codes`、`economy_invitation_relations`、`economy_daily_check_ins`、`economy_gem_ledger`、`economy_gem_shop_exchanges`、`economy_ip_ban_incidents`、`economy_ip_ban_members`、`economy_account_bans` 与 `economy_ban_audit` 是邀请、宝石兑换和封禁的权威业务表。
+- `economy_invite_codes`、`economy_invitation_relations`、`economy_daily_check_ins`、`economy_gem_ledger`、`economy_gem_shop_daily_rates`、`economy_gem_shop_quote_decisions`、`economy_gem_shop_exchanges`、`economy_facility_gem_actions`、`economy_ip_ban_incidents`、`economy_ip_ban_members`、`economy_account_bans` 与 `economy_ban_audit` 是邀请、宝石兑换和封禁的权威业务表。
 - 生成验证码记录和调用 Resend 前，Economy 必须通过主页账号服务仅限同机回环的 `POST /api/internal/account-email-exists` 查询邮箱是否已经注册。已注册邮箱返回 `409` 和“该邮箱已注册，请直接登录”，不得创建 `economy_email_verifications` 记录，也不得发送邮件；查询失败时返回统一账号服务不可用，不得绕过查重继续投递。
 - 验证码固定为 6 位数字，有效期 10 分钟；同一邮箱或同一 IP 指纹 60 秒内禁止再次发送。
 - 验证码错误 5 次后状态变为不可用；过期、已使用或作废验证码不能重复使用。
@@ -232,11 +233,13 @@ JSON.parse
 | GET | `/api/game/state` | 获取六分区初始状态、增量补丁或带 `serverNow` 的修订号轻量确认 |
 | GET | `/api/game/invitations` | 获取宝石余额、邀请码、分享链接和邀请统计 |
 | POST | `/api/game/invitations/claim` | 已永久移除；固定返回 `410 Gone`，不得读取或写入邀请业务状态 |
-| GET | `/api/game/gem-shop` | 获取服务器汇率、兑换边界、累计与最近记录 |
-| POST | `/api/game/gem-shop/exchange` | 原子扣除宝石并增加普通货币 |
+| GET | `/api/game/gem-shop` | 获取今日终端报价、接受／放弃状态、兑换边界、累计与最近记录 |
+| POST | `/api/game/gem-shop/exchange` | 接受今日报价并原子扣除宝石、增加普通货币；每天一次 |
+| POST | `/api/game/gem-shop/quote/reject` | 明确放弃今日报价；当天不可恢复 |
 | GET | `/api/game/community-link` | 获取侧边栏社区跳转链接 |
 | POST | `/api/game/work` | 工作 |
 | POST | `/api/game/facilities` | 建设工厂 |
+| POST | `/api/game/facilities/construction/accelerate` | 消耗 1 宝石减少当前施工 30 分钟 |
 | POST | `/api/game/facilities/:facilityTypeId/start` | 开启工厂集群 |
 | POST | `/api/game/facilities/:facilityTypeId/pause` | 停止工厂集群 |
 | POST | `/api/game/facilities/:facilityTypeId/recipe` | 设置当前或下一周期配方 |

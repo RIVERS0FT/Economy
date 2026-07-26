@@ -93,6 +93,8 @@ export interface FacilityConstruction {
   completesAt: number;
   buildCost?: number;
   employmentReleased?: number;
+  gemAccelerationMs?: number;
+  gemAccelerationCost?: number;
 }
 
 export type OrderSide = 'buy' | 'sell';

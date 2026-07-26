@@ -13,6 +13,7 @@ import { countOpenOrdersForOwner, facilitySellQuantityForOwner } from './order-b
 import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
+import { ensureGemState } from './invitations.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -20,6 +21,8 @@ const MAX_FACILITY_ORDER_QUANTITY = 1_000_000;
 const MAX_ORDER_PRICE = 1_000_000;
 const MAX_OPEN_ORDERS = 10;
 const MAX_PRICE_POINTS = 288;
+export const GEM_CONSTRUCTION_ACCELERATION_MS = 30 * 60 * 1000;
+export const GEM_CONSTRUCTION_ACCELERATION_COST = 1;
 
 function result(ok, message) {
   return { ok, message };
@@ -742,6 +745,48 @@ function buildFacilityGroup(world, userId, payload, now) {
   return result(true, `${type.name}开始施工，建成后将在下一生产周期加入同类工厂集群`);
 }
 
+function accelerateFacilityConstruction(world, userId, now) {
+  const player = getPlayer(world, userId);
+  ensureGemState(player);
+  const construction = player.facilityConstruction;
+  if (!construction) return result(false, '当前没有正在施工的工厂');
+  const type = typeFor(construction.facilityTypeId);
+  if (!type) return result(false, '施工中的工厂类型不存在');
+  const remainingMsBefore = Math.max(0, Number(construction.completesAt || 0) - now);
+  if (remainingMsBefore <= 0) return result(false, '施工已经完成，正在等待服务器确认');
+  if (player.gems < GEM_CONSTRUCTION_ACCELERATION_COST) return result(false, '宝石余额不足');
+
+  releaseConstructionEmployment(world, construction, now);
+  player.gems -= GEM_CONSTRUCTION_ACCELERATION_COST;
+  const shortenedCompletesAt = Number(construction.completesAt) - GEM_CONSTRUCTION_ACCELERATION_MS;
+  const completedImmediately = shortenedCompletesAt <= now;
+  if (completedImmediately) {
+    const settlementNow = Math.max(now, Number(construction.startedAt || now) + 1);
+    construction.completesAt = settlementNow;
+    releaseConstructionEmployment(world, construction, settlementNow);
+    finishConstruction(world, player, settlementNow);
+  } else {
+    construction.completesAt = shortenedCompletesAt;
+    releaseConstructionEmployment(world, construction, now);
+  }
+  const remainingMsAfter = completedImmediately
+    ? 0
+    : Math.max(0, Number(player.facilityConstruction?.completesAt || 0) - now);
+  return {
+    ok: true,
+    message: completedImmediately
+      ? `消耗 ${GEM_CONSTRUCTION_ACCELERATION_COST} 宝石，${type.name}已立即完工`
+      : `消耗 ${GEM_CONSTRUCTION_ACCELERATION_COST} 宝石，${type.name}施工减少 30m`,
+    gemsSpent: GEM_CONSTRUCTION_ACCELERATION_COST,
+    balanceAfter: player.gems,
+    facilityTypeId: type.id,
+    reducedMs: Math.min(GEM_CONSTRUCTION_ACCELERATION_MS, remainingMsBefore),
+    remainingMsBefore,
+    remainingMsAfter,
+    completedImmediately,
+  };
+}
+
 function startFacilityGroup(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const type = typeFor(payload.facilityTypeId);
@@ -960,6 +1005,7 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
   let actionResult;
 
   if (action === 'buildFacility') actionResult = buildFacilityGroup(world, userId, payload, now);
+  else if (action === 'accelerateFacilityConstruction') actionResult = accelerateFacilityConstruction(world, userId, now);
   else if (action === 'startFacility') actionResult = startFacilityGroup(world, userId, payload, now);
   else if (action === 'pauseFacility') actionResult = pauseFacilityGroup(world, userId, payload);
   else if (action === 'setFacilityRecipe') actionResult = setGroupRecipe(world, userId, payload, now);
@@ -1134,7 +1180,11 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
     ...withoutFacilities,
     version: CURRENT_CLIENT_STATE_VERSION,
     facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
-    facilityConstruction: player.facilityConstruction ? clone(player.facilityConstruction) : undefined,
+    facilityConstruction: player.facilityConstruction ? {
+      ...clone(player.facilityConstruction),
+      gemAccelerationMs: GEM_CONSTRUCTION_ACCELERATION_MS,
+      gemAccelerationCost: GEM_CONSTRUCTION_ACCELERATION_COST,
+    } : undefined,
     facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),
     orders: normalizedOrders,
     facilityListings: [],

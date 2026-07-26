@@ -2,42 +2,174 @@ import { randomUUID } from 'node:crypto';
 import { ECONOMY_CONSTANTS } from './domain.js';
 import { ensureGemState } from './invitations.js';
 
+// Compatibility name retained as the neutral baseline, not a fixed transaction rate.
 export const GEM_SHOP_CREDITS_PER_GEM = 10;
+export const GEM_SHOP_MIN_CREDITS_PER_GEM = 6;
+export const GEM_SHOP_MAX_CREDITS_PER_GEM = 14;
+export const GEM_SHOP_MAX_DAILY_RATE_CHANGE = 1;
 export const GEM_SHOP_MIN_EXCHANGE_GEMS = 1;
 export const GEM_SHOP_MAX_EXCHANGE_GEMS = 100;
+export const GEM_SHOP_EFFECTIVE_DEMAND_GEMS_PER_PLAYER = 20;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
+
+function clamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function dateKeyFor(timestamp) {
+  return new Date(Number(timestamp) + SHANGHAI_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function startAtForDateKey(dateKey) {
+  return Date.parse(`${dateKey}T00:00:00.000Z`) - SHANGHAI_OFFSET_MS;
+}
+
+export function gemShopPeriodFor(now = Date.now()) {
+  const dateKey = dateKeyFor(now);
+  const startsAt = startAtForDateKey(dateKey);
+  return {
+    dateKey,
+    previousDateKey: dateKeyFor(startsAt - 1),
+    startsAt,
+    nextRateAt: startsAt + DAY_MS,
+  };
+}
+
+export function calculateNextGemShopRate({
+  previousRate = GEM_SHOP_CREDITS_PER_GEM,
+  yesterdayEffectiveGems = 0,
+  recentEffectiveGems = [],
+  acceptedCount = 0,
+  rejectedCount = 0,
+} = {}) {
+  const normalizedPrevious = clamp(
+    Math.floor(Number(previousRate) || GEM_SHOP_CREDITS_PER_GEM),
+    GEM_SHOP_MIN_CREDITS_PER_GEM,
+    GEM_SHOP_MAX_CREDITS_PER_GEM,
+  );
+  const decisions = Math.max(0, Number(acceptedCount || 0)) + Math.max(0, Number(rejectedCount || 0));
+  if (decisions <= 0) {
+    const nextRate = normalizedPrevious === GEM_SHOP_CREDITS_PER_GEM
+      ? normalizedPrevious
+      : normalizedPrevious + Math.sign(GEM_SHOP_CREDITS_PER_GEM - normalizedPrevious);
+    return {
+      creditsPerGem: clamp(nextRate, GEM_SHOP_MIN_CREDITS_PER_GEM, GEM_SHOP_MAX_CREDITS_PER_GEM),
+      demandPressurePpm: 1_000_000,
+      demandTone: normalizedPrevious === GEM_SHOP_CREDITS_PER_GEM ? 'neutral' : 'returning',
+    };
+  }
+
+  const recent = recentEffectiveGems
+    .map((value) => Math.max(0, Number(value || 0)))
+    .filter(Number.isFinite);
+  const averageEffectiveGems = recent.length > 0
+    ? recent.reduce((sum, value) => sum + value, 0) / recent.length
+    : Math.max(0, Number(yesterdayEffectiveGems || 0));
+  const volumeIndex = averageEffectiveGems > 0
+    ? clamp(Math.max(0, Number(yesterdayEffectiveGems || 0)) / averageEffectiveGems, 0.5, 1.5)
+    : 1;
+  const smoothedAcceptanceRate = (Math.max(0, Number(acceptedCount || 0)) + 3) / (decisions + 6);
+  const acceptanceIndex = clamp(smoothedAcceptanceRate / 0.5, 0.5, 1.5);
+  const pressure = volumeIndex * 0.6 + acceptanceIndex * 0.4;
+  let nextRate = normalizedPrevious;
+  let demandTone = 'neutral';
+  if (pressure > 1.15) {
+    nextRate -= GEM_SHOP_MAX_DAILY_RATE_CHANGE;
+    demandTone = 'high';
+  } else if (pressure < 0.85) {
+    nextRate += GEM_SHOP_MAX_DAILY_RATE_CHANGE;
+    demandTone = 'low';
+  }
+  return {
+    creditsPerGem: clamp(nextRate, GEM_SHOP_MIN_CREDITS_PER_GEM, GEM_SHOP_MAX_CREDITS_PER_GEM),
+    demandPressurePpm: Math.max(0, Math.round(pressure * 1_000_000)),
+    demandTone,
+  };
+}
 
 function normalizeExchangeAmount(value) {
   const amount = Number(value);
   return Number.isSafeInteger(amount) ? amount : null;
 }
 
-export function createGemShopSummary(player, totals = {}, recentExchanges = []) {
+export function createGemShopSummary(player, {
+  rate = {},
+  decision = null,
+  totals = {},
+  recentExchanges = [],
+  rateHistory = [],
+} = {}) {
   ensureGemState(player);
+  const quoteDecision = decision?.decision === 'accepted'
+    ? 'accepted'
+    : decision?.decision === 'rejected'
+      ? 'rejected'
+      : 'pending';
+  const creditsPerGem = clamp(
+    Number(rate.creditsPerGem || GEM_SHOP_CREDITS_PER_GEM),
+    GEM_SHOP_MIN_CREDITS_PER_GEM,
+    GEM_SHOP_MAX_CREDITS_PER_GEM,
+  );
+  const previousCreditsPerGem = clamp(
+    Number(rate.previousRate || creditsPerGem),
+    GEM_SHOP_MIN_CREDITS_PER_GEM,
+    GEM_SHOP_MAX_CREDITS_PER_GEM,
+  );
   return {
     gems: player.gems,
     credits: Number(player.credits || 0),
-    creditsPerGem: GEM_SHOP_CREDITS_PER_GEM,
+    quoteDateKey: String(rate.dateKey || ''),
+    creditsPerGem,
+    previousCreditsPerGem,
+    rateDelta: creditsPerGem - previousCreditsPerGem,
+    nextRateAt: Number(rate.nextRateAt || 0),
+    demandTone: String(rate.demandTone || 'neutral'),
+    demandPressurePpm: Math.max(0, Number(rate.demandPressurePpm || 1_000_000)),
+    quoteDecision,
+    quoteDecisionAt: decision ? Number(decision.decided_at || decision.decidedAt || 0) : null,
     minExchangeGems: GEM_SHOP_MIN_EXCHANGE_GEMS,
     maxExchangeGems: GEM_SHOP_MAX_EXCHANGE_GEMS,
-    maxExchangeableGems: Math.min(player.gems, GEM_SHOP_MAX_EXCHANGE_GEMS),
+    maxExchangeableGems: quoteDecision === 'pending'
+      ? Math.min(player.gems, GEM_SHOP_MAX_EXCHANGE_GEMS)
+      : 0,
     totalGemsSpent: Number(totals.total_gems_spent || 0),
     totalCreditsReceived: Number(totals.total_credits_received || 0),
     recentExchanges: recentExchanges.map((row) => ({
       gemsSpent: Number(row.gems_spent),
       creditsReceived: Number(row.credits_received),
+      creditsPerGem: Number(row.credits_per_gem || GEM_SHOP_CREDITS_PER_GEM),
+      dateKey: String(row.date_key || ''),
       createdAt: Number(row.created_at),
+    })),
+    recentRates: rateHistory.map((row) => ({
+      dateKey: String(row.date_key || ''),
+      creditsPerGem: Number(row.credits_per_gem || GEM_SHOP_CREDITS_PER_GEM),
+      demandTone: String(row.demand_tone || 'neutral'),
     })),
   };
 }
 
-export function exchangeGems(player, rawAmount, now = Date.now()) {
+export function exchangeGems(
+  player,
+  rawAmount,
+  creditsPerGem = GEM_SHOP_CREDITS_PER_GEM,
+  now = Date.now(),
+) {
   ensureGemState(player);
   const gems = normalizeExchangeAmount(rawAmount);
   if (gems === null || gems < GEM_SHOP_MIN_EXCHANGE_GEMS || gems > GEM_SHOP_MAX_EXCHANGE_GEMS) {
     return { ok: false, message: `每次兑换宝石数量必须为 ${GEM_SHOP_MIN_EXCHANGE_GEMS}～${GEM_SHOP_MAX_EXCHANGE_GEMS} 的整数` };
   }
   if (player.gems < gems) return { ok: false, message: '宝石余额不足' };
-  const creditsReceived = gems * GEM_SHOP_CREDITS_PER_GEM;
+  const normalizedRate = Math.floor(Number(creditsPerGem));
+  if (!Number.isSafeInteger(normalizedRate)
+    || normalizedRate < GEM_SHOP_MIN_CREDITS_PER_GEM
+    || normalizedRate > GEM_SHOP_MAX_CREDITS_PER_GEM) {
+    return { ok: false, message: '今日宝石报价无效' };
+  }
+  const creditsReceived = gems * normalizedRate;
   if (!Number.isSafeInteger(creditsReceived) || !Number.isSafeInteger(Number(player.credits || 0) + creditsReceived)) {
     return { ok: false, message: '兑换金额超出安全范围' };
   }
@@ -53,14 +185,16 @@ export function exchangeGems(player, rawAmount, now = Date.now()) {
     amount: creditsReceived,
     balanceAfter: player.credits,
     createdAt: now,
-    description: `商店兑换：消耗 ${gems} 宝石，获得 ${creditsReceived} 货币`,
+    description: `商店终端报价兑换：消耗 ${gems} 宝石，按 1:${normalizedRate} 获得 ${creditsReceived} 货币`,
   });
   player.ledger = player.ledger.slice(0, ECONOMY_CONSTANTS.maxLedgerPerPlayer);
 
   return {
     ok: true,
-    message: `兑换成功：消耗 ${gems} 宝石，获得 ¤${creditsReceived}`,
+    message: `接受今日报价：消耗 ${gems} 宝石，获得 ¤${creditsReceived}`,
     gemsSpent: gems,
     creditsReceived,
+    creditsPerGem: normalizedRate,
+    balanceAfter: player.gems,
   };
 }
