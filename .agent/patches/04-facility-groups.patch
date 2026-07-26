@@ -2,14 +2,16 @@ diff --git a/server/src/facility-groups.js b/server/src/facility-groups.js
 index 8e8b736..0000000 100644
 --- a/server/src/facility-groups.js
 +++ b/server/src/facility-groups.js
-@@ -15,5 +15,6 @@ import { countOpenOrdersForOwner, facilitySellQuantityForOwner } from './order-book-runtime.js';
+@@ -15,10 +15,13 @@ import { countOpenOrdersForOwner, facilitySellQuantityForOwner } from './order-book-runtime.js';
  import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
  import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
  import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
 +import { ensureGemState } from './invitations.js';
  
  const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
-@@ -23,2 +24,4 @@ const MAX_ORDER_PRICE = 1_000_000;
+ const MAX_CYCLES_PER_GROUP = 50_000;
+ const MAX_FACILITY_ORDER_QUANTITY = 1_000_000;
+ const MAX_ORDER_PRICE = 1_000_000;
  const MAX_OPEN_ORDERS = 10;
  const MAX_PRICE_POINTS = 288;
 +export const GEM_CONSTRUCTION_ACCELERATION_MS = 30 * 60 * 1000;
