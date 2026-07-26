@@ -116,8 +116,6 @@ jobs:
           )
           path.write_text(text)
           PY
-      - name: Apply gem shop page
-        run: git apply --check .agent/patches/05-gem-shop-page.patch && git apply .agent/patches/05-gem-shop-page.patch
       - name: Apply production page
         run: git apply --check .agent/patches/06-production-page.patch && git apply .agent/patches/06-production-page.patch
       - name: Apply tests and verification
