@@ -45,7 +45,7 @@ requireText(marketStyles, '.market-page-surface .market-asset-card__name', '市�
 requireText(marketStyles, '.market-page-surface .market-asset-card__price', '市场商品卡数据层必须提供右上最近成交价槽位。');
 requireText(marketStyles, '.market-page-surface .market-asset-card__current', '市场商品卡数据层必须提供左下当前胶囊。');
 requireText(marketStyles, '.market-page-surface .market-asset-card__inventory', '市场商品卡数据层必须提供右下库存槽位。');
-requireText(marketStyles, 'z-index: 1;\n  inset: 14px 0;', '市场商品图标层必须位于下层并保持 64px 主视觉居中安全区。');
+requireText(marketStyles, 'z-index: 1;\n  inset: 14px 0;', '市场商品图标层必须位于下层并保持既有桌面居中锚点。');
 requireText(marketStyles, 'z-index: 2;\n  inset: 0;', '市场商品数据层必须完整覆盖并位于图标层上方。');
 requireText(marketStyles, 'grid-template-areas:\n    "name price"\n    ". ."\n    "current inventory";', '市场商品数据层必须固定四角信息槽位。');
 requireText(marketStyles, 'pointer-events: none;', '市场商品覆盖层不得截获按钮指针事件。');
@@ -53,16 +53,18 @@ requireText(marketStyles, '.unified-asset-tab.facility.active::after', '工厂�
 forbidText(marketStyles, '.unified-asset-tab:not(.facility).active::after', '商品卡不得使用伪元素生成当前胶囊。');
 forbidText(productArtworkStyles, '.unified-asset-tab:not(.facility) .asset-kind-icon', '商品插画映射不得重新依赖旧资产图标槽位。');
 requireText(productArtworkStyles, '.market-asset-card__icon-layer', '商品插画映射必须识别市场商品图标层。');
-requireText(productArtworkStyles, 'width: 64px;\n  height: 64px;', '桌面市场商品中央插画必须固定为 64px。');
-requireText(productArtworkStyles, 'width: 48px;\n    height: 48px;', '移动市场商品中央插画必须固定为 48px。');
+requireText(productArtworkStyles, 'width: 72px;\n  height: 72px;', '桌面市场商品中央插画必须固定为 72px。');
+requireText(productArtworkStyles, 'width: 56px;\n    height: 56px;', '移动市场商品中央插画必须固定为 56px。');
 requireText(marketStyles, 'gap: var(--space-3);\n  overflow-x: auto;', '市场资产卡间距必须使用 12px 设计令牌。');
 requireText(marketStyles, 'border-radius: var(--radius-control);', '市场资产卡必须使用统一圆角令牌。');
-requireText(marketStyles, 'inset: 14px 0;', '桌面市场中央插画层必须为 64px 主视觉保留居中区域。');
-requireText(marketStyles, 'padding: 7px 9px 6px;', '桌面市场数据层必须使用紧凑四角内边距。');
+requireText(marketStyles, 'inset: 14px 0;', '桌面市场中央插画层必须保持既有居中锚点，不得压缩四角留白。');
+requireText(marketStyles, 'inset: 18px 0;', '移动市场中央插画层必须保持既有居中锚点，不得压缩四角留白。');
+requireText(marketStyles, 'padding: 7px 9px 6px;', '桌面市场数据层必须保持既有四角内边距。');
+requireText(marketStyles, 'gap: 2px 5px;\n    padding: 6px 8px;', '移动市场数据层必须保持既有四角间距与内边距。');
 requireText(marketStyles, '.market-page-surface .market-asset-card__name-icon', '市场商品名称必须提供独立 SVG 图标样式。');
 requireText(marketStyles, 'transform: none;', '市场资产卡悬停不得位移。');
 requireText(marketPage, 'className="market-asset-card__name-icon"', '市场商品名称前必须渲染对应商品 SVG。');
-requireText(runtimeSpec, 'market product artwork uses 64px desktop and 48px mobile without resizing cards', 'Playwright 必须覆盖市场中央插画尺寸、卡片尺寸、圆角和间距。');
+requireText(runtimeSpec, 'market product artwork uses 72px desktop and 56px mobile while preserving cards and corner spacing', 'Playwright 必须覆盖放大后的插画尺寸以及未变化的卡片与四角留白。');
 requireText(marketPage, 'FactoryIcon, WarehouseIcon', '市场商品库存必须复用统一 WarehouseIcon。');
 requireText(marketPage, 'className="market-asset-card__icon-layer"', '市场商品卡必须先渲染图标层。');
 requireText(marketPage, 'className="market-asset-card__data-layer"', '市场商品卡必须后渲染数据层。');
@@ -123,6 +125,8 @@ requireText(pageDesign, '### 4.1 市场页桌面布局与反馈', '页面职责�
 requireText(pageDesign, '订单簿按价格档位聚合展示', '页面职责设计必须记录价格档位职责。');
 requireText(pageDesign, '同一价格或数量输入错误只允许在对应字段下显示一次', '页面职责设计必须记录市场字段错误唯一显示规则。');
 requireText(pageDesign, '商品目录卡固定按 DOM 顺序先渲染图标层、再渲染数据层', '页面职责设计必须记录市场商品卡双层结构。');
+requireText(pageDesign, '中央商品插画分别固定为 `72 × 72px` 和 `56 × 56px`', '页面职责设计必须记录放大后的市场商品插画尺寸。');
+requireText(pageDesign, '不得通过压缩四角留白容纳插画', '页面职责设计必须禁止通过压缩四角留白容纳插画。');
 requireText(pageDesign, '数据层位于上方且不得用伪元素生成“当前”胶囊', '页面职责设计必须禁止商品卡伪元素当前状态。');
 requireText(pageDesign, '买入快捷数量以可用资金除以当前价格所得数量为基准', '页面职责设计必须记录买入快捷数量资金语义。');
 requireText(pageDesign, '价格轴刻度只能是整数', '页面职责设计必须记录整数价格轴。');
@@ -130,6 +134,8 @@ requireText(pageDesign, '不得显示行情图下方统计栏', '页面职责设
 requireText(uiDesign, '## 市场页布局完整性', 'UI 设计系统必须记录市场页布局完整性。');
 requireText(uiDesign, '先渲染只包含 `ProductIcon` 的图标层，再渲染包含名称', 'UI 设计系统必须记录市场商品卡图标层与数据层顺序。');
 requireText(uiDesign, '图标层 `z-index` 必须低于数据层', 'UI 设计系统必须记录市场商品卡覆盖层级。');
+requireText(uiDesign, '桌面中央插画固定 `72 × 72px`，不大于 `720px` 时固定 `56 × 56px`', 'UI 设计系统必须记录放大后的市场商品插画尺寸。');
+requireText(uiDesign, '不得通过压缩四角留白容纳插画', 'UI 设计系统必须禁止压缩市场商品卡四角留白。');
 requireText(uiDesign, '同价档位聚合及水平溢出', 'UI 设计系统必须要求浏览器验证同价档位聚合。');
 requireText(chromeDesign, '页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须由页面局部堆叠上下文收口', '液态玻璃外壳设计必须记录移动页面 sticky 层级收口规则。');
 requireText(designIndex, '先渲染只包含居中 `ProductIcon` 的图标层', '设计索引必须记录市场商品卡图标层优先渲染。');
@@ -138,6 +144,8 @@ requireText(designIndex, '商品卡不得用 `::after` 生成“当前”胶囊'
 requireText(designIndex, '不得回退到商品基础价或工厂系统价值', '设计索引必须禁止目录价格伪装真实成交价。');
 requireText(designIndex, '分组标签只占自身 `46px` 轨道', '设计索引必须记录市场分组标签独立轨道宽度。');
 requireText(designIndex, '标签与首张资产卡之间只保留 `var(--space-3)` 间距', '设计索引必须禁止市场目录左侧恢复额外空白。');
+requireText(designIndex, '中央插画固定为 `72 × 72px`／`56 × 56px`', '设计索引必须记录放大后的市场商品插画尺寸。');
+requireText(designIndex, '不得通过压缩四角留白容纳插画', '设计索引必须禁止压缩市场商品卡四角留白。');
 
 if (failures.length > 0) {
   console.error('市场页布局与运行时验证失败：');
