@@ -16,6 +16,7 @@ const canonicalDocs = [
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
   'docs/WAREHOUSE_EXPANSION_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/MARKET_CHART_LAYOUT_DESIGN.md',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
   'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md',
@@ -134,6 +135,8 @@ if (existsSync(pathFor('docs/README.md'))) {
     '`REGISTRATION_INVITE_FLOW_DESIGN.md`',
     '`AUTHORITATIVE_COUNTDOWN_DESIGN.md`',
     '`PRIMARY_SURFACE_INSET_DESIGN.md`',
+    '`MARKET_CHART_LAYOUT_DESIGN.md`',
+    '市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比',
     '商品插画主视觉',
     '`product-artwork.css`',
     '`src/assets/product-icons/generated/128/`',
@@ -151,4 +154,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/16、市场需求模型 10、长期生产合同、商品／工厂资产拍卖、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航职责均满足当前基线。`);
+console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/16、市场需求模型 10、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航职责均满足当前基线。`);
