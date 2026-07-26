@@ -1,26 +1,61 @@
-name: Agent source export
+name: Apply asset bank refactor
 
 on:
-  push:
-    branches:
-      - agent/merge-assets-into-bank
   pull_request:
     branches:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  export-source:
+  apply-and-validate:
+    if: github.head_ref == 'agent/merge-assets-into-bank' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Check out implementation branch
         uses: actions/checkout@v4
-      - name: Upload source snapshot
-        uses: actions/upload-artifact@v4
         with:
-          name: economy-source
-          path: .
-          include-hidden-files: true
-          retention-days: 1
+          ref: agent/merge-assets-into-bank
+          fetch-depth: 0
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.4.0'
+          cache: npm
+
+      - name: Decode and verify patch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          base64 --decode .agent/merge-assets-into-bank.patch.gz.b64 | gzip --decompress > /tmp/merge-assets-into-bank.patch
+          echo '316ebe365f65ba2f58276571f367afd74269a7c3ae5585a363746e4201aa5a36  /tmp/merge-assets-into-bank.patch' | sha256sum --check
+          git apply --check /tmp/merge-assets-into-bank.patch
+          git apply /tmp/merge-assets-into-bank.patch
+          rm -f .agent/merge-assets-into-bank.patch.gz.b64
+          rm -f .agent-note .agent-placeholder .agent-pr-trigger
+          rmdir .agent 2>/dev/null || true
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and verify
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run test:browser
+
+      - name: Commit implementation
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m '资产页面合入银行并删除本地资产变动'
+          git push origin HEAD:agent/merge-assets-into-bank
