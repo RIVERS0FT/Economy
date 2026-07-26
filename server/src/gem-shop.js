@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ECONOMY_CONSTANTS } from './domain.js';
 import { ensureGemState } from './invitations.js';
 
-// Compatibility name retained as the neutral baseline, not a fixed transaction rate.
+// Neutral initial quote; daily movement is capped at 10% of the configured maximum.
 export const GEM_SHOP_CREDITS_PER_GEM = 100;
 export const GEM_SHOP_LEGACY_CREDITS_PER_GEM = 10;
 export const GEM_SHOP_MIN_CREDITS_PER_GEM = 1;
