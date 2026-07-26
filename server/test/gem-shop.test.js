@@ -4,7 +4,11 @@ import { EconomyStore } from '../src/storage.js';
 import {
   calculateNextGemShopRate,
   GEM_SHOP_CREDITS_PER_GEM,
+  GEM_SHOP_LEGACY_CREDITS_PER_GEM,
+  GEM_SHOP_MAX_CREDITS_PER_GEM,
+  GEM_SHOP_MAX_DAILY_RATE_CHANGE,
   GEM_SHOP_MAX_EXCHANGE_GEMS,
+  GEM_SHOP_MIN_CREDITS_PER_GEM,
 } from '../src/gem-shop.js';
 
 const user = { id: 1, email: 'shop@example.com', name: '宝石玩家', role: 'user' };
@@ -172,24 +176,40 @@ test('rejecting terminal quote locks the day without changing assets', () => {
   }
 });
 
-test('dynamic terminal rate falls with high demand and rises with low demand', () => {
+test('dynamic terminal quote uses the 100 baseline, 1-10000 bounds, and a 10% maximum daily change', () => {
+  assert.equal(GEM_SHOP_CREDITS_PER_GEM, 100);
+  assert.equal(GEM_SHOP_LEGACY_CREDITS_PER_GEM, 10);
+  assert.equal(GEM_SHOP_MIN_CREDITS_PER_GEM, 1);
+  assert.equal(GEM_SHOP_MAX_CREDITS_PER_GEM, 10_000);
+  assert.equal(GEM_SHOP_MAX_DAILY_RATE_CHANGE, 1_000);
+
   const high = calculateNextGemShopRate({
-    previousRate: 10,
+    previousRate: 100,
     yesterdayEffectiveGems: 200,
-    recentEffectiveGems: [20, 30, 40, 50, 60, 70, 200],
+    recentEffectiveGems: [20, 30, 40, 50, 60, 70, 80],
     acceptedCount: 20,
     rejectedCount: 0,
   });
-  assert.equal(high.creditsPerGem, 9);
+  assert.equal(high.creditsPerGem, 1);
   assert.equal(high.demandTone, 'high');
 
   const low = calculateNextGemShopRate({
-    previousRate: 10,
+    previousRate: 100,
     yesterdayEffectiveGems: 5,
-    recentEffectiveGems: [80, 90, 100, 110, 120, 130, 5],
+    recentEffectiveGems: [80, 90, 100, 110, 120, 130, 140],
     acceptedCount: 0,
     rejectedCount: 20,
   });
-  assert.equal(low.creditsPerGem, 11);
+  assert.equal(low.creditsPerGem, 1_100);
   assert.equal(low.demandTone, 'low');
+
+  const upperBound = calculateNextGemShopRate({
+    previousRate: 9_500,
+    yesterdayEffectiveGems: 1,
+    recentEffectiveGems: [100, 100, 100],
+    acceptedCount: 0,
+    rejectedCount: 20,
+  });
+  assert.equal(upperBound.creditsPerGem, 10_000);
+  assert.ok(upperBound.creditsPerGem - 9_500 <= GEM_SHOP_MAX_DAILY_RATE_CHANGE);
 });
