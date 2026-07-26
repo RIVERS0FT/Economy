@@ -124,7 +124,7 @@ for (const text of [
   'balance.height).toBeLessThan(130)',
   'exchange.height).toBeLessThan(340)',
 ]) requireText('tests/browser/gem-shop-layout.spec.ts', text);
-for (const text of ['每日终端报价', '动态汇率', '不可撤销', '注册事务邀请归因']) {
+for (const text of ['全服一致的终端报价', '需求压力', '不可撤销', '注册事务邀请归因']) {
   requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 }
 for (const text of [
@@ -146,7 +146,7 @@ for (const text of [
   '/api/game/facilities/construction/accelerate',
   'economy_gem_shop_exchanges',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
-for (const text of ['1 宝石减少当前施工 30 分钟', '不得增加宝石兑换工厂产量']) {
+for (const text of ['每次固定消耗 1 宝石，减少当前施工 30 分钟', '不得增加宝石兑换工厂产量']) {
   requireText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', text);
 }
 for (const text of ['商店 `.gem-shop-grid > .widget` 的固定 padding', '新增一级卡片必须使用 `PagePanel`']) {
