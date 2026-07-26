@@ -119,7 +119,7 @@ jobs:
       - name: Apply production page
         run: python3 .agent/apply-production.py
       - name: Apply documentation
-        run: git apply --check .agent/patches/08-docs.patch && git apply .agent/patches/08-docs.patch
+        run: python3 .agent/apply-docs.py
       - name: Commit applied changes
         shell: bash
         run: |
