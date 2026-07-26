@@ -1,0 +1,51 @@
+name: Apply Market Chart Safe Zone Design
+
+on:
+  push:
+    branches:
+      - agent/market-chart-bottom-safe-zone
+
+permissions:
+  contents: write
+
+jobs:
+  apply-design-rule:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/market-chart-bottom-safe-zone
+          fetch-depth: 0
+
+      - name: Update authoritative design and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          design_path = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          text = design_path.read_text(encoding='utf-8')
+          old_rule = '横轴固定划分为 12 个 2h 分段，刻度标签使用浏览器系统时区的 `HH:mm`；纵轴分别标明“价格”和“成交量”，必须显示刻度、网格、两项方向图例和可访问名称。价格轴刻度只能是整数，必须使用 `1／2／5 × 10^n` 的整数步长生成并覆盖全部真实成交价，不得通过线性插值产生小数价格。价格轴显示精确整数，只有数值能够被 K／M／B／T 单位整除时才允许无损缩写；成交量轴固定使用 K／M／B／T 紧凑格式。两个纵轴格式都不受设置页“紧凑数字”开关影响。图表必须测量最宽纵轴刻度标签，并为纵轴标题、标签间距和安全边距动态预留左侧空间；任何断点下纵轴文字都不得被 SVG 边界裁剪。横纵坐标刻度、轴标题和图例的屏幕渲染字号固定使用市场图表专用 `--font-size-xs` 语义，不得依赖已删除的图表下方统计栏；横轴标题固定为“时间”。'
+          new_rule = old_rule + ' 行情图底部必须为旋转时间刻度、方向图例和“时间”轴标题分别保留独立安全区；安全区根据实际屏幕字号、时间刻度旋转后的真实占用和图例文字宽度动态计算，三者不得互相覆盖或越出 SVG 底边。两项方向图例必须按实际总宽度作为一个整体水平居中；窄屏优先压缩成交量绘图区，不得隐藏图例、时间刻度或横轴标题，也不得通过负外边距制造视觉重叠。'
+          if old_rule not in text:
+              raise SystemExit('authoritative market chart rule anchor not found')
+          text = text.replace(old_rule, new_rule, 1)
+
+          old_guard = '- 让价格轴产生小数刻度、让纵轴格式受“紧凑数字”设置影响、裁剪纵轴文字、缩小坐标字号至低于 `--font-size-xs`，或恢复“均衡／方向未知”可见图例与行情图下方统计栏；'
+          new_guard = '- 让价格轴产生小数刻度、让纵轴格式受“紧凑数字”设置影响、裁剪纵轴文字、缩小坐标字号至低于 `--font-size-xs`，让旋转时间刻度、方向图例或“时间”轴标题互相覆盖／越出 SVG 底边／偏离整体居中，或恢复“均衡／方向未知”可见图例与行情图下方统计栏；'
+          if old_guard not in text:
+              raise SystemExit('market chart regression guard anchor not found')
+          text = text.replace(old_guard, new_guard, 1)
+          design_path.write_text(text, encoding='utf-8')
+
+          workflow_path = Path('.github/workflows/apply-market-chart-safe-zone-doc.yml')
+          workflow_path.unlink()
+          PYTHON
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md .github/workflows/apply-market-chart-safe-zone-doc.yml
+          git commit -m '记录行情图底部安全区设计规则'
+          git push origin HEAD:agent/market-chart-bottom-safe-zone
