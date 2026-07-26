@@ -1,0 +1,230 @@
+diff --git a/server/test/gem-shop.test.js b/server/test/gem-shop.test.js
+index 7341ba2..0000000 100644
+--- a/server/test/gem-shop.test.js
++++ b/server/test/gem-shop.test.js
+@@ -5,4 +5,5 @@ import { EconomyStore } from '../src/storage.js';
+ import {
++  calculateNextGemShopRate,
+   GEM_SHOP_CREDITS_PER_GEM,
+   GEM_SHOP_MAX_EXCHANGE_GEMS,
+ } from '../src/gem-shop.js';
+@@ -46,2 +49,3 @@ test('gem shop exchanges gems for credits atomically and records history', () => {
+     assert.equal(summary.recentExchanges.length, 1);
+     assert.equal(summary.recentExchanges[0].gemsSpent, 5);
++    assert.equal(summary.quoteDecision, 'accepted');
+@@ -128,2 +132,69 @@ test('gem shop rejects invalid quantities and insufficient balance without mutation', () => {
+   }
+ });
++
++test('terminal quote can be accepted or rejected only once per Shanghai day', () => {
++  const { store, now } = setup();
++  try {
++    const loaded = store.loadWorld(now + 1);
++    loaded.world.players['1'].gems = 10;
++    store.saveWorld(loaded.revision, loaded.world, now + 1);
++    const first = store.apply(user, {
++      action: 'exchangeGems', payload: { gems: 2 }, requestKey: 'daily-quote-accept-0001',
++      method: 'POST', path: '/api/game/gem-shop/exchange',
++    }, now + 2);
++    assert.equal(first.result.ok, true);
++    const second = store.apply(user, {
++      action: 'exchangeGems', payload: { gems: 1 }, requestKey: 'daily-quote-accept-0002',
++      method: 'POST', path: '/api/game/gem-shop/exchange',
++    }, now + 3);
++    assert.equal(second.result.ok, false);
++    assert.match(second.result.message, /今日终端报价已经使用/);
++  } finally {
++    store.close();
++  }
++});
++
++test('rejecting terminal quote locks the day without changing assets', () => {
++  const { store, now } = setup();
++  try {
++    const before = store.getState(user, now + 1);
++    const rejected = store.apply(user, {
++      action: 'rejectGemShopQuote', payload: {}, requestKey: 'daily-quote-reject-0001',
++      method: 'POST', path: '/api/game/gem-shop/quote/reject',
++    }, now + 2);
++    assert.equal(rejected.result.ok, true);
++    const exchange = store.apply(user, {
++      action: 'exchangeGems', payload: { gems: 1 }, requestKey: 'daily-quote-reject-0002',
++      method: 'POST', path: '/api/game/gem-shop/exchange',
++    }, now + 3);
++    assert.equal(exchange.result.ok, false);
++    const after = store.getState(user, now + 4);
++    assert.equal(after.gems, before.gems);
++    assert.equal(after.credits, before.credits);
++    assert.equal(store.getGemShopSummary(user, now + 5).quoteDecision, 'rejected');
++  } finally {
++    store.close();
++  }
++});
++
++test('dynamic terminal rate falls with high demand and rises with low demand', () => {
++  const high = calculateNextGemShopRate({
++    previousRate: 10,
++    yesterdayEffectiveGems: 200,
++    recentEffectiveGems: [20, 30, 40, 50, 60, 70, 200],
++    acceptedCount: 20,
++    rejectedCount: 0,
++  });
++  assert.equal(high.creditsPerGem, 9);
++  assert.equal(high.demandTone, 'high');
++
++  const low = calculateNextGemShopRate({
++    previousRate: 10,
++    yesterdayEffectiveGems: 5,
++    recentEffectiveGems: [80, 90, 100, 110, 120, 130, 5],
++    acceptedCount: 0,
++    rejectedCount: 20,
++  });
++  assert.equal(low.creditsPerGem, 11);
++  assert.equal(low.demandTone, 'low');
++});
+diff --git a/server/test/gem-construction-acceleration.test.js b/server/test/gem-construction-acceleration.test.js
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/server/test/gem-construction-acceleration.test.js
+@@ -0,0 +1,64 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { EconomyStore } from '../src/storage.js';
++
++const user = { id: 91, email: 'builder@example.com', name: '施工玩家', role: 'user' };
++
++test('one gem removes thirty minutes and immediately completes shorter construction', () => {
++  const store = new EconomyStore(':memory:');
++  const now = 1_700_000_000_000;
++  try {
++    store.getState(user, now);
++    const loaded = store.loadWorld(now + 1);
++    loaded.world.players[String(user.id)].gems = 2;
++    store.saveWorld(loaded.revision, loaded.world, now + 1);
++
++    const build = store.apply(user, {
++      action: 'buildFacility', payload: { facilityTypeId: 'farm' }, requestKey: 'gem-build-0001',
++      method: 'POST', path: '/api/game/facilities',
++    }, now + 2);
++    assert.equal(build.result.ok, true);
++
++    const acceleration = {
++      action: 'accelerateFacilityConstruction', payload: {}, requestKey: 'gem-accelerate-0001',
++      method: 'POST', path: '/api/game/facilities/construction/accelerate',
++    };
++    const first = store.apply(user, acceleration, now + 3);
++    const repeated = store.apply(user, acceleration, now + 4);
++    assert.deepEqual(repeated, first);
++    assert.equal(first.result.ok, true);
++
++    const state = store.getState(user, now + 5);
++    assert.equal(state.gems, 1);
++    assert.equal(state.facilityConstruction, undefined);
++    assert.equal(state.facilityGroups.find((group) => group.facilityTypeId === 'farm')?.count, 1);
++    const actions = store.database.prepare('SELECT * FROM economy_facility_gem_actions').all();
++    assert.equal(actions.length, 1);
++    assert.equal(Number(actions[0].completed_immediately), 1);
++  } finally {
++    store.close();
++  }
++});
++
++test('construction acceleration rejects missing gems without changing deadline', () => {
++  const store = new EconomyStore(':memory:');
++  const now = 1_700_100_000_000;
++  try {
++    store.getState(user, now);
++    const build = store.apply(user, {
++      action: 'buildFacility', payload: { facilityTypeId: 'orchard' }, requestKey: 'gem-build-0002',
++      method: 'POST', path: '/api/game/facilities',
++    }, now + 1);
++    assert.equal(build.result.ok, true);
++    const before = store.getState(user, now + 2).facilityConstruction?.completesAt;
++    const result = store.apply(user, {
++      action: 'accelerateFacilityConstruction', payload: {}, requestKey: 'gem-accelerate-0002',
++      method: 'POST', path: '/api/game/facilities/construction/accelerate',
++    }, now + 3);
++    assert.equal(result.result.ok, false);
++    assert.match(result.result.message, /宝石余额不足/);
++    assert.equal(store.getState(user, now + 4).facilityConstruction?.completesAt, before);
++  } finally {
++    store.close();
++  }
++});
+diff --git a/scripts/verify-gem-shop.mjs b/scripts/verify-gem-shop.mjs
+index 06bbccd..0000000 100644
+--- a/scripts/verify-gem-shop.mjs
++++ b/scripts/verify-gem-shop.mjs
+@@ -12,3 +12,4 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不得包含: ${text}`); };
+ [
+   'server/src/gem-shop.js',
++  'server/src/gem-economy-store.js',
+   'server/src/storage.js',
+@@ -19,2 +20,5 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不得包含: ${text}`); };
+   'server/test/gem-shop.test.js',
++  'server/test/gem-construction-acceleration.test.js',
++  'server/src/facility-groups.js',
+   'src/pages/GemShopPage.tsx',
++  'src/pages/ProductionPage.tsx',
+@@ -32,6 +35,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不得包含: ${text}`); };
+   'docs/PRIMARY_SURFACE_INSET_DESIGN.md',
++  'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md',
+ ].forEach(requireFile);
+ 
+ for (const text of [
+   'GEM_SHOP_CREDITS_PER_GEM = 10',
++  'GEM_SHOP_MIN_CREDITS_PER_GEM = 6',
++  'GEM_SHOP_MAX_CREDITS_PER_GEM = 14',
++  'calculateNextGemShopRate',
+   'GEM_SHOP_MIN_EXCHANGE_GEMS = 1',
+@@ -42,10 +57,22 @@ for (const text of [
+ ]) requireText('server/src/gem-shop.js', text);
++for (const text of [
++  'economy_gem_shop_daily_rates',
++  'economy_gem_shop_quote_decisions',
++  'economy_facility_gem_actions',
++  'recordConstructionAcceleration',
++]) requireText('server/src/gem-economy-store.js', text);
+ for (const text of [
+   'CREATE TABLE IF NOT EXISTS economy_gem_shop_exchanges',
+   'request_key TEXT NOT NULL UNIQUE',
+   "action === 'exchangeGems'",
+-  'this.insertGemShopExchange.run',
++  "action === 'rejectGemShopQuote'",
++  "action === 'accelerateFacilityConstruction'",
+   'getGemShopSummary',
+ ]) requireText('server/src/storage.js', text);
++for (const text of ['GEM_CONSTRUCTION_ACCELERATION_MS', 'player.gems -= GEM_CONSTRUCTION_ACCELERATION_COST', 'gemAccelerationMs']) {
++  requireText('server/src/facility-groups.js', text);
++}
+ requireText('server/src/app.js', "path === '/api/game/gem-shop'");
+ requireText('server/src/game-routes.js', "path === '/api/game/gem-shop/exchange'");
++requireText('server/src/game-routes.js', "path === '/api/game/gem-shop/quote/reject'");
++requireText('server/src/game-routes.js', "path === '/api/game/facilities/construction/accelerate'");
+@@ -58,5 +86,7 @@ for (const text of [
+   '<InvitationSettings />',
+   'gem-shop-main-column',
+   'gem-shop-side-column',
++  '今日终端报价',
+   '1 宝石 =',
+   '确认兑换',
++  '放弃今日报价',
+@@ -66 +96,4 @@ for (const text of [
+ ]) requireText('src/pages/GemShopPage.tsx', text);
++for (const text of ['宝石加速', '加速处理中', 'accelerateFacilityConstruction']) {
++  requireText('src/pages/ProductionPage.tsx', text);
++}
+@@ -100,2 +133,2 @@ for (const text of [
+ ]) requireText('tests/browser/gem-shop-layout.spec.ts', text);
+-for (const text of ['固定汇率', '单向兑换', '不可撤销', '注册事务邀请归因']) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
++for (const text of ['每日终端报价', '动态汇率', '不可撤销', '注册事务邀请归因']) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
+@@ -114,3 +147,4 @@ requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '排名统一通过 `formatRank` 显示为 `#N`');
+-for (const text of ['/api/game/gem-shop', '/api/game/gem-shop/exchange', 'economy_gem_shop_exchanges']) {
++for (const text of ['/api/game/gem-shop', '/api/game/gem-shop/exchange', '/api/game/gem-shop/quote/reject', '/api/game/facilities/construction/accelerate', 'economy_gem_shop_exchanges']) {
+   requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
+ }
++for (const text of ['1 宝石减少当前施工 30 分钟', '不得增加宝石兑换工厂产量']) requireText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', text);
+@@ -126 +160 @@
+-console.log('商店验证通过：邀请卡唯一归属、独立双栈、移动顺序、服务器固定汇率、原子兑换与共享一级卡片规则均已锁定。');
++console.log('商店验证通过：每日终端报价、动态汇率、施工宝石加速、原子兑换与共享一级卡片规则均已锁定。');
