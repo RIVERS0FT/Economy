@@ -117,7 +117,7 @@ export class GemEconomyStore {
         COALESCE(SUM(CASE WHEN decision = 'accepted'
           THEN MIN(gems_spent, ${GEM_SHOP_EFFECTIVE_DEMAND_GEMS_PER_PLAYER}) ELSE 0 END), 0) AS effective_gems
       FROM economy_gem_shop_quote_decisions
-      WHERE date_key <= ?
+      WHERE date_key < ?
       GROUP BY date_key
       ORDER BY date_key DESC
       LIMIT 7
