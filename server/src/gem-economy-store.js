@@ -112,7 +112,7 @@ export class GemEconomyStore {
         COALESCE(SUM(CASE WHEN decision = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected_count
       FROM economy_gem_shop_quote_decisions WHERE date_key = ?
     `);
-    // The reference window excludes yesterday so the measured day cannot dilute its own demand signal.
+    // Compare yesterday with earlier complete days; including it would dilute its own demand signal.
     this.listRecentEffectiveDemand = database.prepare(`
       SELECT date_key,
         COALESCE(SUM(CASE WHEN decision = 'accepted'
