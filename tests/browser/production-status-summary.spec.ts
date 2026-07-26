@@ -12,6 +12,12 @@ test.describe('production cluster status summary', () => {
     await expect(summary).toContainText('异常 1');
     await expect(summary).not.toContainText('施工');
 
-    await expect(page.locator('.construction-status')).toContainText('施工中');
+    const buildConstruction = page.locator('.production-build-card .construction-status');
+    await expect(buildConstruction).toHaveCount(1);
+    await expect(buildConstruction).toContainText('施工中');
+
+    const detailAcceleration = page.locator('.facility-cluster-detail-card .construction-status');
+    await expect(detailAcceleration).toHaveCount(1);
+    await expect(detailAcceleration).toContainText('宝石加速');
   });
 });
