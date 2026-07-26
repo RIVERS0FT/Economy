@@ -29,7 +29,10 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          base64 --decode .agent/merge-assets-into-bank.patch.gz.b64 | gzip --decompress > /tmp/merge-assets-into-bank.patch
+          tr -d '[:space:]' < .agent/merge-assets-into-bank.patch.gz.b64 > /tmp/merge-assets-into-bank.patch.gz.b64
+          wc -c /tmp/merge-assets-into-bank.patch.gz.b64
+          base64 --decode /tmp/merge-assets-into-bank.patch.gz.b64 | gzip --decompress > /tmp/merge-assets-into-bank.patch
+          sha256sum /tmp/merge-assets-into-bank.patch
           echo '316ebe365f65ba2f58276571f367afd74269a7c3ae5585a363746e4201aa5a36  /tmp/merge-assets-into-bank.patch' | sha256sum --check
           git apply --check /tmp/merge-assets-into-bank.patch
           git apply /tmp/merge-assets-into-bank.patch
