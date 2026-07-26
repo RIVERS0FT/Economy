@@ -74,7 +74,7 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '所有排名数值统一通过 `formatRank` 显示为 `#N`',
   '恢复中文“秒／分钟／小时”的玩家时长展示',
   '恢复“第 N 名”或裸数字排名展示',
-  '不得重复状态栏已经显示的总资产和排名',
+  '不得重复状态栏已经显示的净资产和排名',
 ]);
 
 forbidText('src/pages/LeaderboardPage.tsx', [

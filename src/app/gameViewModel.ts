@@ -11,7 +11,6 @@ import { gameActions, GameApiError, getGameState, type GameActionResponse, type 
 import { logout } from '../api/auth';
 import { type TabId } from '../config/navigation';
 import type {
-  AssetEvent,
   AssetKind,
   AssetOrder,
   AuthUser,
@@ -27,7 +26,7 @@ import { canAcceptRevision } from './revisionGate.js';
 import { buildAssetAllocation } from '../utils/assetAllocation';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
 import {
-  clearLocalActivity as clearLocalActivityStore,
+  clearLocalTrades as clearLocalTradesStore,
   loadLocalActivity,
   syncLocalActivity,
   type LocalActivityAction,
@@ -90,7 +89,6 @@ export interface LoadedGameViewModel {
   user: AuthUser;
   game: EconomyState;
   derived: DerivedGameData;
-  localAssetEvents: AssetEvent[];
   localTrades: TradeRecord[];
   tab: TabId;
   setTab: (tab: TabId) => void;
@@ -123,7 +121,7 @@ export interface LoadedGameViewModel {
   showResult: (result: ActionResult | Promise<ActionResult>) => Promise<void>;
   notify: (message: string) => void;
   refresh: (options?: RefreshOptions) => Promise<void>;
-  clearLocalActivity: () => void;
+  clearLocalTrades: () => void;
   signOut: () => Promise<void>;
   work: () => Promise<ActionResult>;
   checkIn: () => Promise<ActionResult>;
@@ -428,7 +426,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
 
   const model: LoadedGameViewModel = {
     user, game: loadedGame, derived,
-    localAssetEvents: localActivity.assetEvents,
     localTrades: localActivity.trades,
     tab, setTab, notice,
     selectedFacilityTypeId, setSelectedFacilityTypeId,
@@ -438,7 +435,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     isWorking, isCheckingIn, inventoryUsed: derived.inventoryUsed,
     cashShare, commodityShare, facilityShare, allocationStyle, avatarText,
     showResult, notify, refresh,
-    clearLocalActivity: () => { setLocalActivity(clearLocalActivityStore(user.id, loadedGame)); notify('本地活动记录已清除'); },
+    clearLocalTrades: () => { setLocalActivity(clearLocalTradesStore(user.id, loadedGame)); notify('本地成交记录已清除'); },
     signOut,
     work: () => runAction('work', gameActions.work),
     checkIn: () => runAction('checkIn', gameActions.checkIn),

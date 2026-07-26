@@ -26,7 +26,7 @@ import './styles/facility-group-card-grid.css';
 import './styles/facility-detail-sheet.css';
 import './styles/market-funds.css';
 import './styles/market-account-table.css';
-import './styles/assets.css';
+import './styles/asset-overview.css';
 import './styles/warehouse-expansion.css';
 import './styles/asset-auctions.css';
 import './styles/contracts.css';

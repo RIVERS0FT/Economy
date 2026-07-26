@@ -55,7 +55,7 @@ for (const text of ['collectibles','ownership']) forbidText('src/app/AdminApp.ts
 for (const text of ['ResizeObserver','overscan','measuredSizesRef','requestAnimationFrame','findVisibleRange']) requireText('src/hooks/useVirtualWindow.ts', text);
 for (const text of ['useVirtualWindow','aria-setsize','virtual-list__canvas']) requireText('src/components/ui/VirtualList.tsx', text);
 for (const text of ['useVirtualWindow','axis="both"','virtual-record-canvas']) requireText('src/components/ui/VirtualRecordTable.tsx', text);
-for (const text of ['virtual-record-table','virtual-record-row','asset-event-virtual-list']) requireText('src/styles/virtual-list.css', text);
+for (const text of ['virtual-record-table','virtual-record-row']) requireText('src/styles/virtual-list.css', text);
 
 for (const text of [
   "import type { AssetKind, AssetOrder, OrderSide } from '../types'",
@@ -136,7 +136,7 @@ for (const text of ['market.lastPrice - 2','market.lastPrice + 2']) {
 }
 for (const text of ['economy_gift_codes','economy_gift_redemptions','requireAdmin','getAdminSummary']) requireText('server/src/storage.js', text);
 for (const text of ['export interface OrderFill','fills?: OrderFill[]','isOwn?: boolean',"FacilityStatus = 'running' | 'stopped' | 'error'"]) requireText('src/types.ts', text);
-for (const text of ['STORAGE_VERSION = 5','previousFillIds','fill.price','fill.total','normalizeTrades']) requireText('src/utils/localActivityStore.ts', text);
+for (const text of ['STORAGE_VERSION = 6','previousFillIds','fill.price','fill.total','normalizeTrades']) requireText('src/utils/localActivityStore.ts', text);
 for (const text of ['makerOrderId','takerOrderId','counterparty: string']) forbidText('src/types.ts', text);
 for (const text of ['fill.counterparty','trade.counterparty']) forbidText('src/utils/localActivityStore.ts', text);
 for (const text of ['after.markets[assetId]?.lastPrice','after.facilityMarkets[assetId]?.lastPrice','executedQuantity * price']) forbidText('src/utils/localActivityStore.ts', text);
@@ -166,9 +166,9 @@ for (const text of [
   '我的未完成订单继续逐单展示并可单独撤销',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of [
-  '必须共用 `useVirtualWindow` 窗口化内核',
-  'DOM 只创建当前滚动视口及少量 `overscan` 范围内的记录',
-  '不得用分页、截断、`slice` 或只显示最近记录替代窗口化',
+  '本地成交表使用 `VirtualRecordTable` 与 `useVirtualWindow`',
+  'DOM 只创建当前滚动视口及少量 `overscan` 条目',
+  '不得用分页、截断、`slice` 或全量 `.map()` 替代窗口化',
 ]) requireText('docs/LOCAL_ACTIVITY_LOG_DESIGN.md', text);
 for (const text of [
   '礼品码列表和兑换记录可能持续增长，必须同时使用服务端游标分页和共享 `VirtualList`',
