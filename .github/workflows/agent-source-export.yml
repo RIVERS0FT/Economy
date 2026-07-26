@@ -38,6 +38,13 @@ jobs:
           git apply --check /tmp/asset-bank-fix-01.patch
           git apply /tmp/asset-bank-fix-01.patch
 
+          base64 --decode .agent/patch.fix-02.gz.b64 > /tmp/asset-bank-fix-02.patch.gz
+          echo '3bdb94a9a1413a5ad5f48647dee094bbba0916c806ea216576f5fc720515f84a  /tmp/asset-bank-fix-02.patch.gz' | sha256sum --check
+          gzip --decompress --stdout /tmp/asset-bank-fix-02.patch.gz > /tmp/asset-bank-fix-02.patch
+          echo '2d09ae01a31069f87f63ff261d38446fdcd4054216b3cafb6925bfad4775a23f  /tmp/asset-bank-fix-02.patch' | sha256sum --check
+          git apply --check /tmp/asset-bank-fix-02.patch
+          git apply /tmp/asset-bank-fix-02.patch
+
           rm -f .agent/merge-assets-into-bank.patch.gz.b64
           rm -f .agent/patch.part-*.b64 .agent/patch.fix-*.gz.b64
           rm -f .agent-note .agent-placeholder .agent-pr-trigger
