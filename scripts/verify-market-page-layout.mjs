@@ -36,7 +36,8 @@ requireText(marketStyles, 'scroll-snap-type: none', '市场资产目录必须关
 forbidText(marketStyles, 'scroll-behavior: smooth', '市场资产目录不得用容器级平滑滚动干扰拖动。');
 forbidText(sharedMarketStyles, 'scroll-snap-align: start', '市场资产卡不得恢复吸附锚点。');
 requireText(marketStyles, '.single-order-book', '订单簿必须拥有自然高度覆盖。');
-requireText(marketStyles, 'grid-template-columns: repeat(2, minmax(0, 1fr))', '图表底部统计必须支持两列重排。');
+forbidText(marketStyles, '.chart-footer', '行情图下方统计栏及其两列布局必须删除。');
+requireText(marketStyles, 'font-variant-numeric: tabular-nums;', '行情坐标轴必须使用稳定数字宽度。');
 requireText(marketStyles, '.asset-directory-shell {\n    position: relative;\n    z-index: 0;', '移动市场资产目录必须建立局部堆叠上下文，防止 sticky 分组遮挡状态栏。');
 requireText(marketStyles, '.market-page-surface .market-asset-card__icon-layer', '市场商品卡必须提供独立图标层。');
 requireText(marketStyles, '.market-page-surface .market-asset-card__data-layer', '市场商品卡必须提供独立数据层。');
@@ -62,7 +63,7 @@ requireText(marketStyles, '.market-page-surface .market-asset-card__name-icon', 
 requireText(marketStyles, 'transform: none;', '市场资产卡悬停不得位移。');
 requireText(marketPage, 'className="market-asset-card__name-icon"', '市场商品名称前必须渲染对应商品 SVG。');
 requireText(runtimeSpec, 'market product artwork uses 64px desktop and 48px mobile without resizing cards', 'Playwright 必须覆盖市场中央插画尺寸、卡片尺寸、圆角和间距。');
-requireText(marketPage, "FactoryIcon, WarehouseIcon", '市场商品库存必须复用统一 WarehouseIcon。');
+requireText(marketPage, 'FactoryIcon, WarehouseIcon', '市场商品库存必须复用统一 WarehouseIcon。');
 requireText(marketPage, 'className="market-asset-card__icon-layer"', '市场商品卡必须先渲染图标层。');
 requireText(marketPage, 'className="market-asset-card__data-layer"', '市场商品卡必须后渲染数据层。');
 requireText(marketPage, 'className="market-asset-card__name"', '市场商品卡名称必须位于数据层。');
@@ -87,13 +88,13 @@ requireText(marketPage, '{availabilityReason ? <p id="order-disabled-reason"', '
 forbidText(marketPage, "aria-describedby={orderDisabledReason ? 'order-disabled-reason' : undefined}", '数量字段不得重复关联提交区的同一错误。');
 requireText(marketPage, '<VirtualRecordTable', '本地成交必须使用单一双轴虚拟表格。');
 forbidText(marketPage, 'virtual-record-viewport', '本地成交不得恢复内层纵向视口。');
-requireText(marketPage, 'countMarketHistoryPointsInWindow', '市场页成交笔数必须使用最近 24h 窗口函数。');
+forbidText(marketPage, 'countMarketHistoryPointsInWindow', '删除行情底部成交笔数后，市场页面不得继续计算未显示的 24h 计数。');
 requireText(marketPage, "marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral'", '零涨跌必须使用中性状态。');
 requireText(marketPage, '<div className="order-book-side-label bid-label"', '买盘标题必须位于买入档位之前。');
 requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'sell').reverse()", '卖盘必须先聚合最优档位，再反向显示使最低卖价靠近中线。');
 requireText(marketPage, "buildOrderBookLevels(selectedOrders, 'buy')", '买盘必须使用共享价格档位聚合。');
 requireText(marketHistory, 'export function getMarketWindowBounds', '市场窗口边界必须由共享函数生成。');
-requireText(marketHistory, 'export function countMarketHistoryPointsInWindow', '必须提供最近 24h 成交计数函数。');
+requireText(marketHistory, 'export function countMarketHistoryPointsInWindow', '共享市场历史仍必须提供最近 24h 成交计数函数供其他统计使用。');
 requireText(runtimeHarness, "scenario === 'funds-empty'", '浏览器运行时必须覆盖资金不足。');
 requireText(runtimeHarness, "scenario === 'warehouse-full'", '浏览器运行时必须覆盖仓库不足。');
 requireText(runtimeHarness, "scenario === 'sell-empty'", '浏览器运行时必须覆盖无可卖库存。');
@@ -101,7 +102,9 @@ requireText(runtimeHarness, '...Array.from({ length: 5 }', '浏览器运行时�
 requireText(runtimeHarness, 'remaining: 1', '同价档位测试必须使用当前剩余数量。');
 requireText(runtimeHarness, "lastTradePrice: product.id === 'wheat' ? 2 : null", '浏览器夹具必须显式提供真实成交价。');
 requireText(runtimeSpec, 'market desktop layout gives the full chart the dominant column', 'Playwright 必须覆盖宽屏行情主列。');
-requireText(runtimeSpec, '最近 24h 3 笔', 'Playwright 必须验证 24h 成交计数。');
+requireText(runtimeSpec, "chartCard.locator('.chart-footer')", 'Playwright 必须验证行情底部统计栏已删除。');
+requireText(runtimeSpec, 'expect(axis.priceLabels).toHaveLength(5)', 'Playwright 必须验证价格轴使用固定数量的整数刻度。');
+requireText(runtimeSpec, '不得越出图表左侧', 'Playwright 必须验证纵轴标签不会被裁剪。');
 requireText(runtimeSpec, 'status-neutral', 'Playwright 必须验证零涨跌中性状态。');
 requireText(runtimeSpec, 'market quick quantities use funds, inventory and holdings without duplicate quantity errors', 'Playwright 必须覆盖快捷数量语义与错误去重。');
 requireText(runtimeSpec, '向后浏览资产', 'Playwright 必须验证资产目录滚动控制。');
@@ -122,6 +125,8 @@ requireText(pageDesign, '同一价格或数量输入错误只允许在对应字�
 requireText(pageDesign, '商品目录卡固定按 DOM 顺序先渲染图标层、再渲染数据层', '页面职责设计必须记录市场商品卡双层结构。');
 requireText(pageDesign, '数据层位于上方且不得用伪元素生成“当前”胶囊', '页面职责设计必须禁止商品卡伪元素当前状态。');
 requireText(pageDesign, '买入快捷数量以可用资金除以当前价格所得数量为基准', '页面职责设计必须记录买入快捷数量资金语义。');
+requireText(pageDesign, '价格轴刻度只能是整数', '页面职责设计必须记录整数价格轴。');
+requireText(pageDesign, '不得显示行情图下方统计栏', '页面职责设计必须记录行情底部统计删除规则。');
 requireText(uiDesign, '## 市场页布局完整性', 'UI 设计系统必须记录市场页布局完整性。');
 requireText(uiDesign, '先渲染只包含 `ProductIcon` 的图标层，再渲染包含名称', 'UI 设计系统必须记录市场商品卡图标层与数据层顺序。');
 requireText(uiDesign, '图标层 `z-index` 必须低于数据层', 'UI 设计系统必须记录市场商品卡覆盖层级。');
@@ -140,4 +145,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场页布局、资产目录轨道、商品卡双层结构、价格档位、数据口径、禁用反馈与共享移动层级浏览器回归基线验证通过。');
+console.log('市场页布局、资产目录轨道、商品卡双层结构、价格档位、整数行情坐标、禁用反馈与共享移动层级浏览器回归基线验证通过。');
