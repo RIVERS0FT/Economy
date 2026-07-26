@@ -131,7 +131,7 @@ export interface LoadedGameViewModel {
   bankRepay: (loanId: string, amount: number | 'all') => Promise<ActionResult>;
   bankSetAutoRepay: (loanId: string, enabled: boolean) => Promise<ActionResult>;
   upgradeWarehouse: () => Promise<ActionResult>;
-  buildFacility: (facilityTypeId?: string) => Promise<ActionResult>;
+  buildFacility: (facilityTypeId: string) => Promise<ActionResult>;
   startFacility: (facilityTypeId: string) => Promise<ActionResult>;
   stopFacility: (facilityTypeId: string) => Promise<ActionResult>;
   pauseFacility: (facilityTypeId: string) => Promise<ActionResult>;
@@ -289,8 +289,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     const type = game.facilityTypes.find((item) => item.id === marketAssetId) ?? game.facilityTypes[0];
     if (!type) return;
     if (type.id !== marketAssetId) setMarketAssetId(type.id);
-    if (type.id !== selectedFacilityTypeId) setSelectedFacilityTypeId(type.id);
-  }, [game, marketAssetId, marketAssetKind, selectedFacilityTypeId]);
+  }, [game, marketAssetId, marketAssetKind]);
 
   const syncConfirmedAction = useCallback(async (
     response: GameActionResponse,
@@ -409,7 +408,6 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     const changed = kind !== marketAssetKind || assetId !== marketAssetId;
     setMarketAssetKind(kind);
     setMarketAssetId(assetId);
-    if (kind === 'facility') setSelectedFacilityTypeId(assetId);
     if (changed || tab !== 'market') {
       setOrderPrice(defaultOrderPrice(loadedGame.orders, kind, assetId, orderSide));
       setOrderQuantity(1);
@@ -444,7 +442,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     bankRepay: (loanId, amount) => runAction('bankRepay', () => gameActions.bankRepay(loanId, amount)),
     bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
-    buildFacility: (facilityTypeId = selectedFacilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
+    buildFacility: (facilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
     startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),
     stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),
     pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
