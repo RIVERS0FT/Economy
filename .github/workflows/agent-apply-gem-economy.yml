@@ -1,0 +1,36 @@
+name: Apply gem economy change
+
+on:
+  push:
+    branches:
+      - agent/gem-construction-and-dynamic-rate
+    paths:
+      - .github/workflows/agent-apply-gem-economy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/gem-construction-and-dynamic-rate
+          fetch-depth: 0
+      - name: Apply staged patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          for patch in .agent/patches/*.patch; do
+            echo "Checking ${patch}"
+            git apply --check "${patch}"
+            git apply "${patch}"
+          done
+          rm -rf .agent
+          rm -f .github/workflows/agent-apply-gem-economy.yml
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git add -A
+          git commit -m "实现宝石施工加速与动态终端报价"
+          git push origin HEAD:agent/gem-construction-and-dynamic-rate
