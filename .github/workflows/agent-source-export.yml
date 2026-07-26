@@ -18,7 +18,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euxo pipefail
+          set -euo pipefail
           git clone --quiet --depth 1 --branch agent/merge-assets-into-bank "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
           cd repo
           : > /tmp/merge-assets-into-bank.patch.gz
@@ -45,25 +45,45 @@ jobs:
 
       - name: Install dependencies
         working-directory: repo
-        run: npm ci
+        run: npm ci --silent
 
       - name: Build and verify
         working-directory: repo
-        run: npm run build
+        shell: bash
+        run: |
+          set +e
+          npm run build > /tmp/economy-build.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo '----- build failure tail -----'
+            tail -n 160 /tmp/economy-build.log
+            exit "$status"
+          fi
+          tail -n 40 /tmp/economy-build.log
 
       - name: Install Chromium
         working-directory: repo
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium >/dev/null
 
       - name: Run browser tests
         working-directory: repo
-        run: npm run test:browser
+        shell: bash
+        run: |
+          set +e
+          npm run test:browser > /tmp/economy-browser.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo '----- browser failure tail -----'
+            tail -n 160 /tmp/economy-browser.log
+            exit "$status"
+          fi
+          tail -n 40 /tmp/economy-browser.log
 
       - name: Commit implementation
         working-directory: repo
         shell: bash
         run: |
-          set -euxo pipefail
+          set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
