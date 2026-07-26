@@ -28,8 +28,21 @@ jobs:
         run: git apply --check .agent/patches/01-gem-shop.patch && git apply .agent/patches/01-gem-shop.patch
       - name: Apply server and API wiring
         run: git apply --check .agent/patches/02-core.patch && git apply .agent/patches/02-core.patch
-      - name: Apply facility construction acceleration
-        run: git apply --check .agent/patches/04-facility-groups.patch && git apply .agent/patches/04-facility-groups.patch
+      - name: Diagnose facility construction patch
+        shell: bash
+        run: |
+          set +e
+          git apply --check --verbose .agent/patches/04-facility-groups.patch > .agent/facility-error.txt 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            git config user.name "OpenAI Codex"
+            git config user.email "codex@openai.com"
+            git add .agent/facility-error.txt
+            git commit -m "chore: capture facility patch error [skip ci]"
+            git push origin HEAD:agent/gem-construction-and-dynamic-rate
+            exit "$status"
+          fi
+          git apply .agent/patches/04-facility-groups.patch
       - name: Apply gem shop page
         run: git apply --check .agent/patches/05-gem-shop-page.patch && git apply .agent/patches/05-gem-shop-page.patch
       - name: Apply production page
