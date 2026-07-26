@@ -69,7 +69,7 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
       compactValue: formatCompactNumber(derived.totalAssets),
       detail: <span className={weeklyChange > 0 ? 'positive' : weeklyChange < 0 ? 'negative' : 'neutral'} aria-label={weeklyChangeLabel}>{weeklyTrend} 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>,
       emphasis: 'primary',
-      onClick: () => tutorialModel.setTab('assets'),
+      onClick: () => tutorialModel.setTab('bank'),
     },
     {
       id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(game.gems),

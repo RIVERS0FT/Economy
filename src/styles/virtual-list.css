@@ -36,9 +36,6 @@
   will-change: transform;
 }
 
-.asset-event-virtual-list {
-  padding-right: var(--space-1);
-}
 
 .virtual-record-table {
   position: relative;
@@ -160,9 +157,6 @@
 }
 
 @media (max-width: 720px) {
-  .asset-event-virtual-list {
-    padding-right: 0;
-  }
 
   .admin-ownership-virtual-list .virtual-list__item > div {
     grid-template-columns: 1fr;

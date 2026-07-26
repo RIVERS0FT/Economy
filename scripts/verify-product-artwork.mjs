@@ -48,7 +48,7 @@ const mainPath = 'src/main.tsx';
 const productIconsPath = 'src/components/icons/ProductIcons.tsx';
 const formulaPath = 'src/components/facilities/FacilityProductionFormula.tsx';
 const denseProductPages = [
-  'src/pages/AssetsPage.tsx',
+  'src/components/assets/AssetOverviewPanel.tsx',
   'src/pages/MarketPage.tsx',
   formulaPath,
 ];

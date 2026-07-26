@@ -256,7 +256,6 @@ function MarketHarness() {
       user: { id: 123, email: 'runtime@example.com', role: 'user' },
       game,
       derived,
-      localAssetEvents: [],
       localTrades: Array.from({ length: 80 }, (_, index) => {
         const side = index % 2 === 0 ? 'buy' as const : 'sell' as const;
         const quantity = (index % 5) + 1;
@@ -310,7 +309,7 @@ function MarketHarness() {
       showResult: async () => {},
       notify: () => {},
       refresh: async () => {},
-      clearLocalActivity: () => {},
+      clearLocalTrades: () => {},
       signOut: async () => {},
       work: async () => ({ ok: true, message: '工作完成' }),
       placeAssetOrder: async () => ({ ok: true, message: '测试订单已提交' }),

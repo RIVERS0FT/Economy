@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 
-const AssetsPage = lazy(() => import('./AssetsPage').then((module) => ({ default: module.AssetsPage })));
 const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ default: module.AuctionPage })));
 const BankPage = lazy(() => import('./BankPage').then((module) => ({ default: module.BankPage })));
 const ContractPage = lazy(() => import('./ContractPage').then((module) => ({ default: module.ContractPage })));
@@ -25,9 +24,6 @@ export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
           <ProductionPage model={model} />
         </FacilityRecipeProfitMarketsProvider>
       );
-      break;
-    case 'assets':
-      page = <AssetsPage model={model} />;
       break;
     case 'auction':
       page = <AuctionPage model={model} />;

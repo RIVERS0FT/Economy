@@ -75,8 +75,6 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasAlerts = scenario === 'alerts';
   const hasTwoSidedOrders = scenario === 'two-sided';
   const hasManyOrders = scenario === 'many-orders';
-  const hasThreeCashEvents = scenario === 'cash-three';
-  const hasCashMovement = scenario !== 'cash-empty';
   const baseOrder = {
     assetKind: 'commodity',
     assetId: 'machinery',
@@ -255,43 +253,12 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     inventoryUsed: game.warehouseStoredQuantity,
   };
 
-  const syncEvent = {
-    id: 'asset-event-sync',
-    category: 'system',
-    createdAt: fixedNow - 60 * 60_000,
-    description: '服务器资产状态已同步',
-    cashDelta: 0,
-    availableCashAfter: 2,
-    frozenCashDelta: 0,
-    inventoryChanges: [],
-    facilityChanges: [],
-    productionChanges: [],
-    sourceType: 'sync',
-    localOnly: true,
-  };
-  const cashEvents = hasCashMovement
-    ? Array.from({ length: hasThreeCashEvents ? 3 : 1 }, (_, index) => ({
-        id: `asset-event-${index + 1}`,
-        category: 'facility',
-        createdAt: fixedNow - (index + 2) * 60 * 60_000,
-        description: index === 0 ? '购置机械工厂' : `经营现金变动 ${index + 1}`,
-        cashDelta: index === 1 ? 8_420 : -(80_000 + index * 1_000),
-        availableCashAfter: 2,
-        frozenCashDelta: 0,
-        inventoryChanges: [],
-        facilityChanges: [],
-        productionChanges: [],
-        sourceType: 'facility',
-        localOnly: true,
-      }))
-    : [];
-  const localAssetEvents = [syncEvent, ...cashEvents];
+
 
   return {
     user: { id: 123, email: 'runtime@example.com', role: 'user' },
     game,
     derived,
-    localAssetEvents,
     localTrades: [],
     tab,
     setTab: (nextTab: TabId) => {
@@ -330,7 +297,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     showResult: async () => {},
     notify: () => {},
     refresh: async () => {},
-    clearLocalActivity: () => {},
+    clearLocalTrades: () => {},
     signOut: async () => {},
     work: async () => ({ ok: true, message: '工作完成' }),
     checkIn: async () => ({ ok: true, message: '签到成功，获得 1 宝石' }),
@@ -380,7 +347,7 @@ function OverviewHarness() {
   const weeklyMagnitude = Math.abs(weeklyChange);
   const statusItems: StatusBarItem[] = [
     { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
-    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: <span className="negative" aria-label={`本周净资产下降 ${formatCurrency(weeklyMagnitude)}`}>↓ 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>, emphasis: 'primary', onClick: () => model.setTab('assets') },
+    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: <span className="negative" aria-label={`本周净资产下降 ${formatCurrency(weeklyMagnitude)}`}>↓ 本周 <CurrencyAmount>{formatCurrency(weeklyMagnitude)}</CurrencyAmount></span>, emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
     { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
@@ -471,7 +438,7 @@ function ProductionHarness() {
   }, [tab]);
   const statusItems: StatusBarItem[] = [
     { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
-    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('assets') },
+    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
     { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
@@ -494,7 +461,7 @@ function GemShopHarness() {
   }, [tab]);
   const statusItems: StatusBarItem[] = [
     { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
-    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('assets') },
+    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
     { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },
@@ -627,7 +594,7 @@ function ContractHarness() {
   }, [tab]);
   const statusItems: StatusBarItem[] = [
     { id: 'credits', icon: <CreditsIcon />, label: '可用资金', value: <CurrencyAmount>{formatCurrency(model.game.credits)}</CurrencyAmount>, detail: <>冻结 <CurrencyAmount>{formatCurrency(model.game.frozenCredits)}</CurrencyAmount></> },
-    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('assets') },
+    { id: 'assets', icon: <AssetsIcon />, label: '净资产', value: <CurrencyAmount>{formatCurrency(model.derived.totalAssets)}</CurrencyAmount>, detail: '服务器实时估值', emphasis: 'primary', onClick: () => model.setTab('bank') },
     { id: 'gems', icon: <GemIcon />, label: '宝石', value: formatNumber(model.game.gems), detail: '邀请好友可获得宝石' },
     { id: 'rank', icon: <RankIcon />, label: '排行榜', value: formatRank(model.derived.currentRank?.rank), detail: '当前位于榜首' },
     { id: 'warehouse', icon: <WarehouseIcon />, label: '仓库剩余', value: formatNumber(model.game.warehouseAvailableCapacity), detail: `已用 ${formatNumber(model.game.warehouseUsedCapacity)}/${formatNumber(model.game.inventoryCapacity)}` },

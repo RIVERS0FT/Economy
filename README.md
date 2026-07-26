@@ -112,16 +112,15 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 ## 当前正式导航
 
 ```text
-概览｜市场｜生产｜资产｜拍卖｜合同｜银行｜排行｜商店｜设置
+概览｜市场｜生产｜拍卖｜合同｜银行｜排行｜商店｜设置
 ```
 
 - 概览：工作、行情、生产与财富摘要。
 - 市场：商品和工厂连续双行资产目录、明确禁用原因、自然高度 5+5 单列价格档位订单簿、宽行情主列、逐单撤单与本地成交。
 - 生产：共享仓库、建设卡、工厂集群选择器、当前集群详情，以及移动端底部悬浮详情框。
-- 资产：净资产、资产毛值、贷款负债、现金／商品／工厂构成，以及当前浏览器中的资产变化记录。
 - 拍卖：使用资产包编辑器组合商品和工厂，整包竞价、取消无出价拍卖并查看自动结算结果。
 - 合同：发布、承接和管理商品与普通货币之间的长期周期供货合同；默认展示进行中的合同。
-- 银行：存取款、动态存款利息、工厂抵押贷款、额度评估、还款和权威银行记录。
+- 银行：统一展示净资产、资产毛值、贷款负债、现金／商品／工厂构成，并提供存取款、动态存款利息、工厂抵押贷款、额度评估、还款和权威银行记录。
 - 排行：服务器净资产排行榜。
 - 商店：分享专属链接与永久邀请码、查看邀请统计，并按服务器固定汇率将宝石单向兑换为普通货币。
 - 设置：玩家资料、偏好、基础教程、礼品兑换和退出。客户端偏好只显示已实现的“紧凑数字”和 3s／5s／10s 状态刷新频率。
@@ -138,12 +137,12 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 | 商品目录、整数经济数值、工厂集群、生产与长期合同生产边界 | `docs/INDUSTRY_AND_PRODUCTION_DESIGN.md` |
 | 商品与工厂统一订单簿 | `docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` |
 | 共享仓库和扩容 | `docs/WAREHOUSE_EXPANSION_DESIGN.md` |
-| 页面内容、十页导航、银行页面与合同默认视图 | `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
+| 页面内容、九页导航、银行资产总览与合同默认视图 | `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | UI 组件、SVG 图标与响应式系统 | `docs/UI_DESIGN_SYSTEM.md` |
 | 权威倒计时、`serverNow` 与共享单调服务器时钟 | `docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md` |
 | 状态栏与移动底栏玻璃外壳 | `docs/LIQUID_GLASS_CHROME_DESIGN.md` |
 | 服务器、API、合同事务、注册、邀请、封禁、容量与部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |
-| 浏览器本地活动日志 | `docs/LOCAL_ACTIVITY_LOG_DESIGN.md` |
+| 浏览器本地匿名成交记录 | `docs/LOCAL_ACTIVITY_LOG_DESIGN.md` |
 | 礼品码、商品／工厂资产拍卖、封禁复核与管理员后台 | `docs/GIFT_CODE_AND_ADMIN_DESIGN.md` |
 
 ## 数据与部署

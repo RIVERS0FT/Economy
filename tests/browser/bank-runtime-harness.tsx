@@ -5,6 +5,7 @@ import { BankPage } from '../../src/pages/BankPage';
 import '../../src/styles/globals.css';
 import '../../src/styles/card-system.css';
 import '../../src/styles/icon-system.css';
+import '../../src/styles/asset-overview.css';
 import '../../src/styles/bank.css';
 import '../../src/styles/design-system.css';
 import '../../src/styles/interaction-states.css';
@@ -20,6 +21,8 @@ const model = {
     lastProcessedAt: fixedNow,
     credits: 1_500,
     frozenCredits: 200,
+    inventories: { wheat: { available: 5, frozen: 2 } },
+    products: [{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 2 }],
     facilityGroups: [{
       facilityTypeId: 'farm', count: 6, participatingCount: 6, pendingJoinCount: 0,
       listedCount: 1, auctionedCount: 0, frozenCount: 1, mortgagedCount: 0,
@@ -70,8 +73,20 @@ const model = {
       liabilityValue: 0,
       netAssetValue: 3_560,
       totalAssets: 3_560,
+      availableAssetValue: 3_100,
+      frozenAssetValue: 460,
+      availableCommodityValue: 700,
+      frozenCommodityValue: 300,
+      availableFacilityValue: 300,
+      mortgagedFacilityValue: 0,
+      frozenFacilityValue: 60,
     },
   },
+  derived: { cashValue: 2_200, commodityValue: 1_000, facilityValue: 360, totalAssets: 3_560 },
+  cashShare: 62,
+  commodityShare: 28,
+  facilityShare: 10,
+  allocationStyle: { background: 'conic-gradient(var(--color-success) 0 62%, var(--color-warning) 62% 90%, var(--color-info) 90% 100%)' },
   notify: (message: string) => { document.body.dataset.notice = message; },
   bankDeposit: async () => ({ ok: true, message: '存款成功' }),
   bankWithdraw: async () => ({ ok: true, message: '取款成功' }),

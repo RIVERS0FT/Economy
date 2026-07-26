@@ -53,10 +53,46 @@ test('storage denial does not block the settings runtime', async ({ page }) => {
   await expect(page.getByText('画面性能', { exact: true })).toHaveCount(0);
 
   const localActivity = await page.evaluate(() => (
-    window as typeof window & { __localActivityResult: { assetEvents: unknown[]; trades: unknown[] } }
+    window as typeof window & { __localActivityResult: { trades: unknown[] } }
   ).__localActivityResult);
-  expect(localActivity).toEqual({ assetEvents: [], trades: [] });
+  expect(localActivity).toEqual({ trades: [] });
   expect(pageErrors).toEqual([]);
+});
+
+
+test('local activity v5 migrates only anonymous trades into v6', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('economy.local-activity.v5.123', JSON.stringify({
+      version: 5,
+      assetEvents: [{ id: 'legacy-asset-event', description: '不应保留' }],
+      trades: [{
+        id: 'legacy-trade',
+        type: 'commodity',
+        productId: 'wheat',
+        side: 'sell',
+        quantity: 2,
+        price: 5,
+        total: 10,
+        fee: 0,
+        netTotal: 10,
+        createdAt: 1,
+        description: '卖出 小麦',
+      }],
+      snapshot: { credits: 999, inventories: { wheat: { available: 9, frozen: 0 } } },
+    }));
+  });
+
+  await page.goto('runtime-test.html');
+  const result = await page.evaluate(() => ({
+    view: (window as typeof window & { __localActivityResult: { trades: unknown[] } }).__localActivityResult,
+    current: JSON.parse(window.localStorage.getItem('economy.local-activity.v6.123') || '{}'),
+    legacy: window.localStorage.getItem('economy.local-activity.v5.123'),
+  }));
+  expect(result.view.trades).toHaveLength(1);
+  expect(result.current.trades).toHaveLength(1);
+  expect(result.current.assetEvents).toBeUndefined();
+  expect(result.current.snapshot).toBeUndefined();
+  expect(result.legacy).toBeNull();
 });
 
 test('desktop sidebar uses the server-configured QQ group link', async ({ page }) => {
@@ -170,7 +206,7 @@ test('overview prioritizes business decisions and shows the weekly check-in cale
   await expect(page.getByRole('heading', { name: '今日经营', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '本周签到', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '生产摘要', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '资产构成', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '资产与银行', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '当前挂单', exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: '本周签到日历' })).toBeVisible();
   await expect(page.getByRole('listitem')).toHaveCount(7);
@@ -282,24 +318,20 @@ test('overview check-in calendar preserves seven columns on mobile', async ({ pa
   expect(pageErrors).toEqual([]);
 });
 
-test('overview cash changes exclude synchronization events and short lists do not scroll', async ({ page }) => {
+test('overview shows authoritative asset status and opens the bank page', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('runtime-test.html?view=overview&scenario=empty');
 
-  await expect(page.getByText('购置机械工厂', { exact: true })).toBeVisible();
-  await expect(page.getByText('服务器资产状态已同步', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('当前设备现金记录', { exact: true })).toBeVisible();
-  expect(await page.locator('.overview-asset-events').evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
-
-  await page.goto('runtime-test.html?view=overview&scenario=cash-empty');
-  await expect(page.getByText('服务器资产状态已同步', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('本周暂无现金收入或支出记录。', { exact: true })).toBeVisible();
-  expect(await page.locator('.overview-asset-events').evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
-
-  await page.goto('runtime-test.html?view=overview&scenario=cash-three');
-  await expect(page.locator('.overview-asset-events > div:not(.empty-state)')).toHaveCount(3);
-  expect(await page.locator('.overview-asset-events').evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+  await expect(page.getByRole('heading', { name: '资产与银行', exact: true })).toBeVisible();
+  await expect(page.getByText('资产状态', { exact: true })).toBeVisible();
+  await expect(page.getByText('服务器权威结果', { exact: true })).toBeVisible();
+  await expect(page.getByText('可支配资产', { exact: true })).toBeVisible();
+  await expect(page.getByText('冻结资产', { exact: true })).toBeVisible();
+  await expect(page.getByText('贷款负债', { exact: true })).toBeVisible();
+  await expect(page.getByText('当前设备现金记录', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '查看详情' }).click();
+  expect(await page.evaluate(() => (window as Window & { __lastSelectedTab?: string }).__lastSelectedTab)).toBe('bank');
   expect(pageErrors).toEqual([]);
 });
 
@@ -338,9 +370,9 @@ test('overview keeps the decision rows visible and adapts to a narrower desktop'
   expect(await gridTrackCount(page.locator('.overview-primary-grid'))).toBe(1);
   expect(await gridTrackCount(page.locator('.overview-summary-row'))).toBe(2);
 
-  const nestedOverflowModes = await page.locator('.overview-alert-list, .overview-open-orders-list, .overview-asset-events')
+  const nestedOverflowModes = await page.locator('.overview-alert-list, .overview-open-orders-list')
     .evaluateAll((elements) => elements.map((element) => getComputedStyle(element).overflowY));
-  expect(nestedOverflowModes).toEqual(['visible', 'visible', 'visible']);
+  expect(nestedOverflowModes).toEqual(['visible', 'visible']);
   expect(pageErrors).toEqual([]);
 });
 

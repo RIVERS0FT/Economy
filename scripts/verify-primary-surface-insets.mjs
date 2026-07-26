@@ -19,7 +19,7 @@ const paths = {
   layout: 'src/components/ui/layout.tsx',
   primaryStyles: 'src/styles/primary-surfaces.css',
   productionStyles: 'src/styles/production-surface.css',
-  assetStyles: 'src/styles/assets.css',
+  assetStyles: 'src/styles/asset-overview.css',
   shopStyles: 'src/styles/gem-shop.css',
   leaderboardStyles: 'src/styles/leaderboards.css',
   design: 'docs/PRIMARY_SURFACE_INSET_DESIGN.md',

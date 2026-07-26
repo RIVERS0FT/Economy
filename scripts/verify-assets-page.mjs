@@ -1,73 +1,116 @@
-import fs from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
-const assetsPage = fs.readFileSync('src/pages/AssetsPage.tsx', 'utf8');
-const assetsStyles = fs.readFileSync('src/styles/assets.css', 'utf8');
-const main = fs.readFileSync('src/main.tsx', 'utf8');
-const design = fs.readFileSync('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', 'utf8');
-const runtimeHarness = fs.readFileSync('tests/browser/assets-runtime-harness.tsx', 'utf8');
-const runtimeSpec = fs.readFileSync('tests/browser/assets-runtime.spec.ts', 'utf8');
-const runtimeHtml = fs.readFileSync('assets-runtime-test.html', 'utf8');
-
+const read = (path) => readFileSync(path, 'utf8');
+const componentPath = 'src/components/assets/AssetOverviewPanel.tsx';
+const bankPath = 'src/pages/BankPage.tsx';
+const stylesPath = 'src/styles/asset-overview.css';
+const navigationPath = 'src/config/navigation.ts';
+const localStorePath = 'src/utils/localActivityStore.ts';
+const typesPath = 'src/types.ts';
+const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
+const localDesignPath = 'docs/LOCAL_ACTIVITY_LOG_DESIGN.md';
+const runtimeHarnessPath = 'tests/browser/bank-runtime-harness.tsx';
+const runtimeSpecPath = 'tests/browser/bank-runtime.spec.ts';
 const failures = [];
-function requireText(source, text, message) {
-  if (!source.includes(text)) failures.push(message);
+
+function requireFile(path) {
+  if (!existsSync(path)) failures.push(`缺少文件：${path}`);
 }
-function forbidText(source, text, message) {
-  if (source.includes(text)) failures.push(message);
+function requireText(path, text, message) {
+  if (!read(path).includes(text)) failures.push(message ?? `${path} 缺少：${text}`);
+}
+function forbidText(path, text, message) {
+  if (read(path).includes(text)) failures.push(message ?? `${path} 不得包含：${text}`);
+}
+
+for (const path of [
+  componentPath,
+  bankPath,
+  stylesPath,
+  navigationPath,
+  localStorePath,
+  typesPath,
+  designPath,
+  localDesignPath,
+  runtimeHarnessPath,
+  runtimeSpecPath,
+  'bank-runtime-test.html',
+]) requireFile(path);
+
+for (const removedPath of [
+  'src/pages/AssetsPage.tsx',
+  'tests/browser/assets-runtime-harness.tsx',
+  'tests/browser/assets-runtime.spec.ts',
+  'assets-runtime-test.html',
+]) {
+  if (existsSync(removedPath)) failures.push(`独立资产页文件不得恢复：${removedPath}`);
 }
 
 for (const text of [
+  'export function AssetOverviewPanel',
   'title="资产总览"',
   'asset-total-summary',
   'asset-total-splits',
   'asset-allocation-summary',
   'asset-composition-table',
-  'role="table"',
   'aria-label="资产构成明细"',
   'asset-composition-row cash',
   'asset-composition-row commodity',
   'asset-composition-row facility',
   '冻结资产和抵押工厂仍归当前玩家所有并计入资产毛值；贷款负债从资产毛值中扣除形成净资产。',
-  'title="本地资产变动"',
-  'items={filteredEvents}',
-  'asset-event-virtual-list',
-]) requireText(assetsPage, text, `资产页缺少去重总览或本地变化结构：${text}`);
+]) requireText(componentPath, text);
 
 for (const text of [
-  'funds-summary-grid',
-  'title="资产配置"',
-  'title="资产估值明细"',
-  '<MetricCard',
-  '商品库存与估值',
-  'product-asset-grid',
-  'product-asset-card',
-]) forbidText(assetsPage, text, `资产页不得恢复重复摘要或逐商品资产卡：${text}`);
+  "import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel'",
+  '<AssetOverviewPanel model={model} />',
+  'className="bank-account-balance-strip"',
+  'title="存款账户"',
+  'title="存款利息"',
+  'title="工厂抵押贷款"',
+  'title="银行记录"',
+]) requireText(bankPath, text);
+for (const text of ['bank-metric-grid', 'title="本地资产变动"', 'localAssetEvents']) forbidText(bankPath, text);
 
 for (const text of [
-  '.assets-page-grid',
+  '.asset-overview-body',
   'grid-template-columns: minmax(240px, 0.8fr) minmax(190px, 0.6fr) minmax(440px, 1.6fr)',
   '.asset-composition-header',
   '.asset-composition-row',
   '@media (max-width: 720px)',
-  'grid-template-columns: 1fr;',
   'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);',
-]) requireText(assetsStyles, text, `资产页专用样式缺少响应式规则：${text}`);
+]) requireText(stylesPath, text);
 
-requireText(main, "import './styles/assets.css';", '主入口必须加载资产页专用样式。');
-requireText(design, '资产页固定只有“资产总览”和“本地资产变动”两个一级 `Panel`', '页面职责设计必须记录资产页两个一级区域。');
-requireText(design, '净资产、资产毛值、贷款负债、可支配资产和冻结资产合计在资产总览中各只显示一次', '页面职责设计必须禁止重复资产主指标。');
-requireText(design, '恢复资产页顶部五张资金／总资产摘要卡', '页面职责设计必须记录资产页防回退规则。');
-requireText(runtimeHtml, '/tests/browser/assets-runtime-harness.tsx', '必须提供资产页浏览器测试入口。');
-requireText(runtimeHarness, '<AssetsPage model={model} />', '资产页浏览器夹具必须渲染真实页面组件。');
-requireText(runtimeSpec, "getByText('当前净资产', { exact: true })).toHaveCount(1)", 'Playwright 必须验证净资产可见文案只出现一次。');
-requireText(runtimeSpec, "getByText('冻结资产', { exact: true })).toHaveCount(1)", 'Playwright 必须验证冻结资产可见文案只出现一次。');
-requireText(runtimeSpec, 'compositionColumns).toBe(2)', 'Playwright 必须验证移动资产构成使用两列重排。');
-requireText(runtimeSpec, 'scrollWidth <= element.clientWidth + 1', 'Playwright 必须验证资产页无水平溢出。');
+forbidText(navigationPath, "{ id: 'assets', label: '资产' }");
+requireText(navigationPath, "{ id: 'bank', label: '银行' }");
+for (const text of [
+  '独立资产页面已经永久删除，资产总览唯一归属银行页',
+  '页面顺序固定为“资产总览／存款账户与存款利息／工厂抵押贷款／银行记录”',
+  '不得恢复独立资产页',
+]) requireText(designPath, text);
 
-if (failures.length > 0) {
-  console.error('资产页结构与去重验证失败：');
-  for (const failure of failures) console.error(`- ${failure}`);
+for (const text of [
+  '本地文档版本：v6',
+  'economy.local-activity.v6.<userId>',
+  '`snapshot.orders[]` 只保存当前玩家自己的公开订单与匿名 fills',
+  '永久丢弃全部 `assetEvents[]`',
+]) requireText(localDesignPath, text);
+for (const text of ['assetEvents', 'AssetEvent']) forbidText(localStorePath, text);
+forbidText(typesPath, 'export interface AssetEvent');
+requireText(localStorePath, 'export function clearLocalTrades');
+requireText(localStorePath, 'const STORAGE_VERSION = 6');
+
+requireText(runtimeHarnessPath, '<BankPage model={model} />');
+for (const text of [
+  "getByRole('heading', { name: '资产总览', exact: true })",
+  "getByText('当前净资产', { exact: true })).toHaveCount(1)",
+  "getByText('冻结资产', { exact: true })).toHaveCount(1)",
+  'compositionColumns).toBe(2)',
+  'scrollWidth <= element.clientWidth + 1',
+]) requireText(runtimeSpecPath, text);
+
+if (failures.length) {
+  console.error(`银行资产总览与本地资产变动删除验证失败：\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('资产页统一总览、构成拆分、移动布局与防回退验证通过。');
+console.log('银行资产总览、九页导航、本地成交 v6、移动资产构成与独立资产页删除验证通过。');
