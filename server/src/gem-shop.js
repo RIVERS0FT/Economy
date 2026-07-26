@@ -3,10 +3,11 @@ import { ECONOMY_CONSTANTS } from './domain.js';
 import { ensureGemState } from './invitations.js';
 
 // Compatibility name retained as the neutral baseline, not a fixed transaction rate.
-export const GEM_SHOP_CREDITS_PER_GEM = 10;
-export const GEM_SHOP_MIN_CREDITS_PER_GEM = 6;
-export const GEM_SHOP_MAX_CREDITS_PER_GEM = 14;
-export const GEM_SHOP_MAX_DAILY_RATE_CHANGE = 1;
+export const GEM_SHOP_CREDITS_PER_GEM = 100;
+export const GEM_SHOP_LEGACY_CREDITS_PER_GEM = 10;
+export const GEM_SHOP_MIN_CREDITS_PER_GEM = 1;
+export const GEM_SHOP_MAX_CREDITS_PER_GEM = 10_000;
+export const GEM_SHOP_MAX_DAILY_RATE_CHANGE = Math.floor(GEM_SHOP_MAX_CREDITS_PER_GEM * 0.1);
 export const GEM_SHOP_MIN_EXCHANGE_GEMS = 1;
 export const GEM_SHOP_MAX_EXCHANGE_GEMS = 100;
 export const GEM_SHOP_EFFECTIVE_DEMAND_GEMS_PER_PLAYER = 20;
@@ -139,7 +140,7 @@ export function createGemShopSummary(player, {
     recentExchanges: recentExchanges.map((row) => ({
       gemsSpent: Number(row.gems_spent),
       creditsReceived: Number(row.credits_received),
-      creditsPerGem: Number(row.credits_per_gem || GEM_SHOP_CREDITS_PER_GEM),
+      creditsPerGem: Number(row.credits_per_gem || GEM_SHOP_LEGACY_CREDITS_PER_GEM),
       dateKey: String(row.date_key || ''),
       createdAt: Number(row.created_at),
     })),
