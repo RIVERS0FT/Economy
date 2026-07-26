@@ -68,6 +68,7 @@ const matchingCore = read('server/src/order-matching.js');
 const commodityMarket = read('server/src/balanced-market.js');
 const facilityMarket = read('server/src/facility-groups.js');
 const design = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
 const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 
 for (const text of [
@@ -126,8 +127,15 @@ for (const text of [
   '价格轴刻度只能是整数', '图例只显示净主动买入和净主动卖出', '不得显示行情图下方统计栏',
   '最宽纵轴刻度标签', '不受设置页“紧凑数字”开关影响',
   '旋转时间刻度、方向图例和“时间”轴标题分别保留独立安全区',
-  '成交量绘图区必须保持最低可读屏幕高度', '不得低于数据绘图区的 `22%`', '必须增加自身高度',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
+for (const text of [
+  '市场行情图几何与可读性唯一专项基线', '窄屏优先压缩成交量绘图区',
+  '成交量绘图区必须保持最低可读屏幕高度', '不得低于 `48px`',
+  '不得低于价格区、两图区间隔与成交量区合计数据绘图区的 `22%`',
+  '完整行情图必须增加自身 `viewBox` 高度和实际显示高度',
+  '不得由业务 CSS 再用固定比例覆盖组件计算结果',
+  '390 × 844` 且根字号放大到 `125%',
+]) assert.ok(chartDesign.includes(text), `市场行情图专项设计缺少: ${text}`);
 for (const text of ['保存吃单方（taker／incoming order）的买卖方向', '净主动量为主动买入量减主动卖出量', '禁止伪造迁移方向']) {
   assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 }
