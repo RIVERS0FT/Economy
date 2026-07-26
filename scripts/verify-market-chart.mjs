@@ -77,7 +77,6 @@ const matchingCore = read('server/src/order-matching.js');
 const commodityMarket = read('server/src/balanced-market.js');
 const facilityMarket = read('server/src/facility-groups.js');
 const design = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
-const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 
 for (const text of [
@@ -141,12 +140,8 @@ for (const text of [
   '图例只显示净主动买入和净主动卖出',
   '不得显示行情图下方统计栏',
   '最宽纵轴刻度标签',
+  '不受设置页“紧凑数字”开关影响',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
-for (const text of [
-  '市场行情坐标轴是“紧凑数字”偏好的固定例外',
-  '价格轴使用精确整数',
-  '成交量轴固定使用 K/M/B/T 紧凑格式',
-]) assert.ok(uiDesign.includes(text), `UI 设计文档缺少: ${text}`);
 for (const text of [
   '保存吃单方（taker／incoming order）的买卖方向',
   '净主动量为主动买入量减主动卖出量',
