@@ -4,6 +4,9 @@ import {
   exchangeGems,
   GEM_SHOP_CREDITS_PER_GEM,
   GEM_SHOP_EFFECTIVE_DEMAND_GEMS_PER_PLAYER,
+  GEM_SHOP_LEGACY_CREDITS_PER_GEM,
+  GEM_SHOP_MAX_CREDITS_PER_GEM,
+  GEM_SHOP_MIN_CREDITS_PER_GEM,
   gemShopPeriodFor,
 } from './gem-shop.js';
 
@@ -18,7 +21,7 @@ function migrateGemShopExchangeSchema(database) {
   }
   if (!columns.has('credits_per_gem')) {
     database.exec(`ALTER TABLE economy_gem_shop_exchanges
-      ADD COLUMN credits_per_gem INTEGER NOT NULL DEFAULT ${GEM_SHOP_CREDITS_PER_GEM}`);
+      ADD COLUMN credits_per_gem INTEGER NOT NULL DEFAULT ${GEM_SHOP_LEGACY_CREDITS_PER_GEM}`);
   }
   database.exec(`
     UPDATE economy_gem_shop_exchanges
@@ -45,8 +48,12 @@ export class GemEconomyStore {
     database.exec(`
       CREATE TABLE IF NOT EXISTS economy_gem_shop_daily_rates (
         date_key TEXT PRIMARY KEY,
-        credits_per_gem INTEGER NOT NULL CHECK (credits_per_gem BETWEEN 6 AND 14),
-        previous_rate INTEGER NOT NULL CHECK (previous_rate BETWEEN 6 AND 14),
+        credits_per_gem INTEGER NOT NULL CHECK (
+          credits_per_gem BETWEEN ${GEM_SHOP_MIN_CREDITS_PER_GEM} AND ${GEM_SHOP_MAX_CREDITS_PER_GEM}
+        ),
+        previous_rate INTEGER NOT NULL CHECK (
+          previous_rate BETWEEN ${GEM_SHOP_MIN_CREDITS_PER_GEM} AND ${GEM_SHOP_MAX_CREDITS_PER_GEM}
+        ),
         demand_pressure_ppm INTEGER NOT NULL CHECK (demand_pressure_ppm >= 0),
         demand_tone TEXT NOT NULL CHECK (demand_tone IN ('high', 'neutral', 'low', 'returning')),
         created_at INTEGER NOT NULL
@@ -55,7 +62,9 @@ export class GemEconomyStore {
         user_id INTEGER NOT NULL,
         date_key TEXT NOT NULL,
         decision TEXT NOT NULL CHECK (decision IN ('accepted', 'rejected')),
-        quote_rate INTEGER NOT NULL CHECK (quote_rate BETWEEN 6 AND 14),
+        quote_rate INTEGER NOT NULL CHECK (
+          quote_rate BETWEEN ${GEM_SHOP_MIN_CREDITS_PER_GEM} AND ${GEM_SHOP_MAX_CREDITS_PER_GEM}
+        ),
         gems_spent INTEGER NOT NULL DEFAULT 0 CHECK (gems_spent >= 0),
         credits_received INTEGER NOT NULL DEFAULT 0 CHECK (credits_received >= 0),
         request_key TEXT NOT NULL UNIQUE,
