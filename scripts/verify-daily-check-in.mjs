@@ -48,7 +48,7 @@ check(productDesign.includes('每日签到'), 'product design must record daily 
 check(productDesign.includes('每周全勤'), 'product design must record weekly attendance');
 check(productDesign.includes('注册完成后不能补填'), 'latest invitation binding rule must remain documented');
 check(pageDesign.includes('签到日历'), 'page design must record the check-in calendar');
-check(pageDesign.includes('邀请获取宝石与宝石单向兑换普通货币'), 'shop invitation responsibility must remain documented');
+check(pageDesign.includes('邀请获取宝石与每日终端动态报价兑换普通货币'), 'shop invitation and dynamic quote responsibility must remain documented');
 check(serverDesign.includes('economy_daily_check_ins'), 'server design must record check-in persistence');
 
 const staleVersion = String(17);
