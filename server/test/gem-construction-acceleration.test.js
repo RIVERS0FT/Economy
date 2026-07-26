@@ -32,6 +32,8 @@ test('one gem removes thirty minutes and immediately completes shorter construct
     assert.equal(state.gems, 1);
     assert.equal(state.facilityConstruction, undefined);
     assert.equal(state.facilityGroups.find((group) => group.facilityTypeId === 'farm')?.count, 1);
+    assert.equal(state.stats.producedGoods, 0, '施工加速不得兑换或生成工厂产量');
+    assert.equal(state.inventories.wheat.available, 0, '施工加速不得直接生成商品');
     const actions = store.database.prepare('SELECT * FROM economy_facility_gem_actions').all();
     assert.equal(actions.length, 1);
     assert.equal(Number(actions[0].completed_immediately), 1);
