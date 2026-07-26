@@ -36,9 +36,11 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 ].forEach(requireFile);
 
 for (const text of [
-  'GEM_SHOP_CREDITS_PER_GEM = 10',
-  'GEM_SHOP_MIN_CREDITS_PER_GEM = 6',
-  'GEM_SHOP_MAX_CREDITS_PER_GEM = 14',
+  'GEM_SHOP_CREDITS_PER_GEM = 100',
+  'GEM_SHOP_LEGACY_CREDITS_PER_GEM = 10',
+  'GEM_SHOP_MIN_CREDITS_PER_GEM = 1',
+  'GEM_SHOP_MAX_CREDITS_PER_GEM = 10_000',
+  'GEM_SHOP_MAX_DAILY_RATE_CHANGE = Math.floor(GEM_SHOP_MAX_CREDITS_PER_GEM * 0.1)',
   'calculateNextGemShopRate',
   'GEM_SHOP_MIN_EXCHANGE_GEMS = 1',
   'GEM_SHOP_MAX_EXCHANGE_GEMS = 100',
@@ -124,7 +126,7 @@ for (const text of [
   'balance.height).toBeLessThan(130)',
   'exchange.height).toBeLessThan(340)',
 ]) requireText('tests/browser/gem-shop-layout.spec.ts', text);
-for (const text of ['全服一致的终端报价', '需求压力', '不可撤销', '注册事务邀请归因']) {
+for (const text of ['初始报价为 **1 宝石 = 100 普通货币**', '范围 1～10000', '最大值 10000 的 10%', '不可撤销', '注册事务邀请归因']) {
   requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 }
 for (const text of [
@@ -146,7 +148,7 @@ for (const text of [
   '/api/game/facilities/construction/accelerate',
   'economy_gem_shop_exchanges',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
-for (const text of ['每次固定消耗 1 宝石，减少当前施工 30 分钟', '不得增加宝石兑换工厂产量']) {
+for (const text of ['每次固定消耗 1 宝石，减少当前施工 30 分钟', '初始报价为 1 宝石兑换 100 普通货币', '每日绝对变化上限为最高报价 10000 的 10%', '不得增加宝石兑换工厂产量']) {
   requireText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', text);
 }
 for (const text of ['商店 `.gem-shop-grid > .widget` 的固定 padding', '新增一级卡片必须使用 `PagePanel`']) {
