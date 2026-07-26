@@ -1,0 +1,48 @@
+name: Finalize gem economy change
+
+on:
+  push:
+    branches:
+      - agent/gem-construction-and-dynamic-rate
+    paths:
+      - .github/workflows/agent-finalize-gem-economy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/gem-construction-and-dynamic-rate
+          fetch-depth: 0
+      - name: Apply server core changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check .agent/patches/01-gem-shop.patch
+          git apply .agent/patches/01-gem-shop.patch
+          git apply --check .agent/patches/02-core.patch
+          git apply .agent/patches/02-core.patch
+          python3 .agent/apply-facility.py
+      - name: Apply client and design changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .agent/apply-production.py
+          python3 .agent/fix-docs-script.py
+          python3 .agent/apply-docs.py
+      - name: Commit final source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .agent
+          rm -f .github/workflows/agent-apply-gem-economy.yml
+          rm -f .github/workflows/agent-finalize-gem-economy.yml
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git add -A
+          git commit -m "实现宝石施工加速与动态终端报价"
+          git push origin HEAD:agent/gem-construction-and-dynamic-rate
