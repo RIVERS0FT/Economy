@@ -117,7 +117,7 @@ jobs:
           path.write_text(text)
           PY
       - name: Apply production page
-        run: git apply --check .agent/patches/06-production-page.patch && git apply .agent/patches/06-production-page.patch
+        run: python3 .agent/apply-production.py
       - name: Apply tests and verification
         run: git apply --check .agent/patches/07-tests-verify.patch && git apply .agent/patches/07-tests-verify.patch
       - name: Apply documentation
