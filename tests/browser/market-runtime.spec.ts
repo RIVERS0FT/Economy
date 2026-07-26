@@ -409,7 +409,7 @@ test('market order book aggregates same-price orders into one price level', asyn
   expect(pageErrors).toEqual([]);
 });
 
-test('market product artwork uses 64px desktop and 48px mobile without resizing cards', async ({ page }) => {
+test('market product artwork uses 72px desktop and 56px mobile while preserving cards and corner spacing', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active');
@@ -417,14 +417,20 @@ test('market product artwork uses 64px desktop and 48px mobile without resizing 
   const wheatTab = page.getByRole('tab', { name: /^小麦/ });
   const desktopMetrics = await wheatTab.evaluate((element) => {
     const card = element as HTMLElement;
-    const artwork = card.querySelector<HTMLElement>('.market-asset-card__icon-layer > .product-icon');
+    const iconLayer = card.querySelector<HTMLElement>('.market-asset-card__icon-layer');
+    const dataLayer = card.querySelector<HTMLElement>('.market-asset-card__data-layer');
+    const artwork = iconLayer?.querySelector<HTMLElement>(':scope > .product-icon');
     const nameIcon = card.querySelector<HTMLElement>('.market-asset-card__name-icon');
     const directory = card.closest<HTMLElement>('.unified-asset-tabs');
-    if (!artwork || !nameIcon || !directory) throw new Error('market product card visual fixture is incomplete');
+    if (!iconLayer || !dataLayer || !artwork || !nameIcon || !directory) {
+      throw new Error('market product card visual fixture is incomplete');
+    }
     const cardRect = card.getBoundingClientRect();
     const artworkRect = artwork.getBoundingClientRect();
     const nameIconRect = nameIcon.getBoundingClientRect();
     const cardStyle = getComputedStyle(card);
+    const iconLayerStyle = getComputedStyle(iconLayer);
+    const dataLayerStyle = getComputedStyle(dataLayer);
     return {
       cardWidth: cardRect.width,
       cardHeight: cardRect.height,
@@ -435,36 +441,72 @@ test('market product artwork uses 64px desktop and 48px mobile without resizing 
       borderRadius: Number.parseFloat(cardStyle.borderTopLeftRadius),
       directoryGap: Number.parseFloat(getComputedStyle(directory).columnGap),
       transform: cardStyle.transform,
+      iconInsetTop: Number.parseFloat(iconLayerStyle.top),
+      iconInsetBottom: Number.parseFloat(iconLayerStyle.bottom),
+      dataPaddingTop: Number.parseFloat(dataLayerStyle.paddingTop),
+      dataPaddingRight: Number.parseFloat(dataLayerStyle.paddingRight),
+      dataPaddingBottom: Number.parseFloat(dataLayerStyle.paddingBottom),
+      dataPaddingLeft: Number.parseFloat(dataLayerStyle.paddingLeft),
+      dataRowGap: Number.parseFloat(dataLayerStyle.rowGap),
+      dataColumnGap: Number.parseFloat(dataLayerStyle.columnGap),
     };
   });
   expect(desktopMetrics.cardWidth).toBeCloseTo(138, 0);
   expect(desktopMetrics.cardHeight).toBeCloseTo(92, 0);
-  expect(desktopMetrics.artworkWidth).toBeCloseTo(64, 0);
-  expect(desktopMetrics.artworkHeight).toBeCloseTo(64, 0);
+  expect(desktopMetrics.artworkWidth).toBeCloseTo(72, 0);
+  expect(desktopMetrics.artworkHeight).toBeCloseTo(72, 0);
   expect(desktopMetrics.nameIconWidth).toBeCloseTo(14, 0);
   expect(desktopMetrics.nameIconHeight).toBeCloseTo(14, 0);
   expect(desktopMetrics.borderRadius).toBeCloseTo(12, 0);
   expect(desktopMetrics.directoryGap).toBeCloseTo(12, 0);
   expect(desktopMetrics.transform).toBe('none');
+  expect(desktopMetrics.iconInsetTop).toBeCloseTo(14, 0);
+  expect(desktopMetrics.iconInsetBottom).toBeCloseTo(14, 0);
+  expect(desktopMetrics.dataPaddingTop).toBeCloseTo(7, 0);
+  expect(desktopMetrics.dataPaddingRight).toBeCloseTo(9, 0);
+  expect(desktopMetrics.dataPaddingBottom).toBeCloseTo(6, 0);
+  expect(desktopMetrics.dataPaddingLeft).toBeCloseTo(9, 0);
+  expect(desktopMetrics.dataRowGap).toBeCloseTo(2, 0);
+  expect(desktopMetrics.dataColumnGap).toBeCloseTo(6, 0);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(() => wheatTab.evaluate((element) => {
     const card = element as HTMLElement;
-    const artwork = card.querySelector<HTMLElement>('.market-asset-card__icon-layer > .product-icon');
-    if (!artwork) throw new Error('mobile market product artwork is missing');
+    const iconLayer = card.querySelector<HTMLElement>('.market-asset-card__icon-layer');
+    const dataLayer = card.querySelector<HTMLElement>('.market-asset-card__data-layer');
+    const artwork = iconLayer?.querySelector<HTMLElement>(':scope > .product-icon');
+    if (!iconLayer || !dataLayer || !artwork) throw new Error('mobile market product artwork is missing');
     const cardRect = card.getBoundingClientRect();
     const artworkRect = artwork.getBoundingClientRect();
+    const iconLayerStyle = getComputedStyle(iconLayer);
+    const dataLayerStyle = getComputedStyle(dataLayer);
     return {
       cardWidth: Math.round(cardRect.width),
       cardHeight: Math.round(cardRect.height),
       artworkWidth: Math.round(artworkRect.width),
       artworkHeight: Math.round(artworkRect.height),
+      iconInsetTop: Math.round(Number.parseFloat(iconLayerStyle.top)),
+      iconInsetBottom: Math.round(Number.parseFloat(iconLayerStyle.bottom)),
+      dataPaddingTop: Math.round(Number.parseFloat(dataLayerStyle.paddingTop)),
+      dataPaddingRight: Math.round(Number.parseFloat(dataLayerStyle.paddingRight)),
+      dataPaddingBottom: Math.round(Number.parseFloat(dataLayerStyle.paddingBottom)),
+      dataPaddingLeft: Math.round(Number.parseFloat(dataLayerStyle.paddingLeft)),
+      dataRowGap: Math.round(Number.parseFloat(dataLayerStyle.rowGap)),
+      dataColumnGap: Math.round(Number.parseFloat(dataLayerStyle.columnGap)),
     };
   })).toEqual({
     cardWidth: 132,
     cardHeight: 88,
-    artworkWidth: 48,
-    artworkHeight: 48,
+    artworkWidth: 56,
+    artworkHeight: 56,
+    iconInsetTop: 18,
+    iconInsetBottom: 18,
+    dataPaddingTop: 6,
+    dataPaddingRight: 8,
+    dataPaddingBottom: 6,
+    dataPaddingLeft: 8,
+    dataRowGap: 2,
+    dataColumnGap: 5,
   });
   expect(pageErrors).toEqual([]);
 });
