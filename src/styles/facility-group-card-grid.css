@@ -115,6 +115,11 @@
   --facility-cluster-status-color: var(--color-text-muted);
 }
 
+.facility-cluster-selector-card[data-status='constructing'] {
+  --facility-cluster-status-color: var(--color-warning);
+  --facility-cluster-status-soft: var(--color-warning-soft);
+}
+
 .facility-cluster-name {
   position: absolute;
   top: var(--space-2);
