@@ -16,6 +16,12 @@ type ChartGeometry = {
   xAxisTitleY: number;
 };
 
+type IntegerAxisScale = {
+  min: number;
+  max: number;
+  ticks: number[];
+};
+
 const compactGeometry: ChartGeometry = {
   width: 960,
   height: 228,
@@ -40,47 +46,150 @@ const fullGeometry: ChartGeometry = {
   xAxisTitleY: 526,
 };
 
-function formatAxisValue(value: number) {
-  return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: value < 10 ? 2 : 1,
-    notation: Math.abs(value) >= 10_000 ? 'compact' : 'standard',
-  }).format(value);
+const fullIntegerFormatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 });
+const compactVolumeFormatters = new Map<number, Intl.NumberFormat>();
+const compactUnits = [
+  { threshold: 1_000_000_000_000, suffix: 'T' },
+  { threshold: 1_000_000_000, suffix: 'B' },
+  { threshold: 1_000_000, suffix: 'M' },
+  { threshold: 1_000, suffix: 'K' },
+];
+
+function niceIntegerStep(roughStep: number) {
+  if (!(roughStep > 1)) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+  if (normalized <= 1) return magnitude;
+  if (normalized <= 2) return 2 * magnitude;
+  if (normalized <= 5) return 5 * magnitude;
+  return 10 * magnitude;
 }
 
-function useChartFooterAxisFontSize(viewBoxWidth: number, viewBoxHeight: number, initialFontSize: number) {
+function nextNiceIntegerStep(step: number) {
+  const magnitude = 10 ** Math.floor(Math.log10(Math.max(1, step)));
+  const normalized = step / magnitude;
+  if (normalized < 2) return 2 * magnitude;
+  if (normalized < 5) return 5 * magnitude;
+  return 10 * magnitude;
+}
+
+function buildIntegerPriceScale(rawMin: number, rawMax: number, tickCount: number): IntegerAxisScale {
+  const safeTickCount = Math.max(2, Math.floor(tickCount));
+  const intervals = safeTickCount - 1;
+  const minValue = Math.max(0, Math.floor(Math.min(rawMin, rawMax)));
+  const maxValue = Math.max(minValue, Math.ceil(Math.max(rawMin, rawMax)));
+
+  if (minValue === maxValue) {
+    const step = niceIntegerStep(Math.max(1, minValue) / Math.max(2, intervals));
+    const lowerIntervals = Math.floor(intervals / 2);
+    const min = Math.max(0, minValue - step * lowerIntervals);
+    const max = min + step * intervals;
+    return {
+      min,
+      max,
+      ticks: Array.from({ length: safeTickCount }, (_, index) => max - index * step),
+    };
+  }
+
+  let step = niceIntegerStep((maxValue - minValue) / Math.max(1, safeTickCount - 2));
+  let min = Math.floor(minValue / step) * step;
+  let max = min + step * intervals;
+  while (max < maxValue) {
+    step = nextNiceIntegerStep(step);
+    min = Math.floor(minValue / step) * step;
+    max = min + step * intervals;
+  }
+
+  return {
+    min,
+    max,
+    ticks: Array.from({ length: safeTickCount }, (_, index) => max - index * step),
+  };
+}
+
+function buildIntegerVolumeScale(rawMax: number, tickCount: number): IntegerAxisScale {
+  const safeTickCount = Math.max(2, Math.floor(tickCount));
+  const intervals = safeTickCount - 1;
+  const maxValue = Math.max(1, Math.ceil(rawMax));
+  let step = niceIntegerStep(maxValue / intervals);
+  while (step * intervals < maxValue) step = nextNiceIntegerStep(step);
+  const max = step * intervals;
+  return {
+    min: 0,
+    max,
+    ticks: Array.from({ length: safeTickCount }, (_, index) => max - index * step),
+  };
+}
+
+function formatIntegerPriceTick(value: number) {
+  const integer = Math.max(0, Math.round(value));
+  const unit = compactUnits.find(({ threshold }) => integer >= threshold && integer % threshold === 0);
+  return unit ? `${integer / unit.threshold}${unit.suffix}` : fullIntegerFormatter.format(integer);
+}
+
+function formatCompactVolumeTick(value: number) {
+  const integer = Math.max(0, Math.round(value));
+  const unit = compactUnits.find(({ threshold }) => integer >= threshold);
+  if (!unit) return fullIntegerFormatter.format(integer);
+  const scaled = integer / unit.threshold;
+  const maximumFractionDigits = Math.abs(scaled) >= 100 ? 0 : 1;
+  let formatter = compactVolumeFormatters.get(maximumFractionDigits);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits });
+    compactVolumeFormatters.set(maximumFractionDigits, formatter);
+  }
+  return `${formatter.format(scaled)}${unit.suffix}`;
+}
+
+function useChartAxisMetrics(
+  viewBoxWidth: number,
+  viewBoxHeight: number,
+  labels: string[],
+  initialFontSize: number,
+) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [axisFontSize, setAxisFontSize] = useState(initialFontSize);
+  const [axisLabelWidth, setAxisLabelWidth] = useState(initialFontSize * 4);
+  const labelKey = labels.join('\u0000');
 
   useLayoutEffect(() => {
     const svg = svgRef.current;
     if (!svg) return undefined;
 
-    const container = svg.closest('.market-chart-card, .market-summary');
-    const footer = container?.querySelector<HTMLElement>('.chart-footer, .overview-market-footer');
-    const updateFontSize = () => {
+    const measuredLabels = labelKey.split('\u0000');
+    let cancelled = false;
+    const updateMetrics = () => {
       const bounds = svg.getBoundingClientRect();
       const scale = Math.min(bounds.width / viewBoxWidth, bounds.height / viewBoxHeight);
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
-      const footerFontSize = footer
-        ? Number.parseFloat(getComputedStyle(footer).fontSize)
-        : rootFontSize * 0.75;
-      if (!(scale > 0) || !Number.isFinite(footerFontSize)) return;
-      const nextFontSize = footerFontSize / scale;
+      if (!(scale > 0) || !Number.isFinite(rootFontSize)) return;
+
+      const nextFontSize = (rootFontSize * 0.75) / scale;
+      const computedStyle = getComputedStyle(svg);
+      const context = document.createElement('canvas').getContext('2d');
+      let nextLabelWidth = nextFontSize * 4;
+      if (context) {
+        context.font = `${computedStyle.fontWeight} ${nextFontSize}px ${computedStyle.fontFamily}`;
+        nextLabelWidth = Math.max(nextFontSize, ...measuredLabels.map((label) => context.measureText(label).width));
+      }
+      if (cancelled) return;
       setAxisFontSize((current) => (Math.abs(current - nextFontSize) < 0.1 ? current : nextFontSize));
+      setAxisLabelWidth((current) => (Math.abs(current - nextLabelWidth) < 0.5 ? current : nextLabelWidth));
     };
 
-    updateFontSize();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateFontSize);
+    updateMetrics();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateMetrics);
     observer?.observe(svg);
-    if (footer) observer?.observe(footer);
-    window.addEventListener('resize', updateFontSize);
+    window.addEventListener('resize', updateMetrics);
+    void document.fonts?.ready.then(updateMetrics);
     return () => {
+      cancelled = true;
       observer?.disconnect();
-      window.removeEventListener('resize', updateFontSize);
+      window.removeEventListener('resize', updateMetrics);
     };
-  }, [viewBoxHeight, viewBoxWidth]);
+  }, [labelKey, viewBoxHeight, viewBoxWidth]);
 
-  return { svgRef, axisFontSize };
+  return { svgRef, axisFontSize, axisLabelWidth };
 }
 
 function volumeColor(bucket: MarketHistoryBucket) {
@@ -110,12 +219,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     legendY,
     xAxisTitleY,
   } = geometry;
-  const { svgRef, axisFontSize } = useChartFooterAxisFontSize(width, height, variant === 'compact' ? 14 : 18);
-  const left = Math.max(variant === 'compact' ? 68 : 82, axisFontSize * (variant === 'compact' ? 3.1 : 3.5));
   const right = variant === 'compact' ? 18 : 24;
-  const axisTitleX = Math.max(12, axisFontSize * 0.55);
-  const tickBaselineOffset = axisFontSize * 0.32;
-  const plotWidth = width - left - right;
   const safeBuckets: MarketHistoryBucket[] = buckets.length > 0
     ? buckets
     : [{
@@ -124,12 +228,28 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       }];
   const rawMinPrice = Math.min(...safeBuckets.map((bucket) => bucket.price));
   const rawMaxPrice = Math.max(...safeBuckets.map((bucket) => bucket.price));
-  const rawPriceRange = rawMaxPrice - rawMinPrice;
-  const pricePadding = Math.max(1, rawPriceRange * 0.08);
-  const minPrice = Math.max(0, rawMinPrice - pricePadding);
-  const maxPrice = rawMaxPrice + pricePadding;
-  const priceRange = Math.max(1, maxPrice - minPrice);
-  const maxVolume = Math.max(1, ...safeBuckets.map((bucket) => bucket.volume));
+  const priceScale = buildIntegerPriceScale(rawMinPrice, rawMaxPrice, variant === 'compact' ? 3 : 5);
+  const volumeScale = buildIntegerVolumeScale(
+    Math.max(1, ...safeBuckets.map((bucket) => bucket.volume)),
+    variant === 'compact' ? 2 : 3,
+  );
+  const priceLabels = priceScale.ticks.map(formatIntegerPriceTick);
+  const volumeLabels = volumeScale.ticks.map(formatCompactVolumeTick);
+  const { svgRef, axisFontSize, axisLabelWidth } = useChartAxisMetrics(
+    width,
+    height,
+    [...priceLabels, ...volumeLabels],
+    variant === 'compact' ? 14 : 18,
+  );
+  const axisTitleX = Math.max(12, axisFontSize * 1.15);
+  const tickLabelGap = Math.max(8, axisFontSize * 0.45);
+  const left = Math.max(
+    variant === 'compact' ? 68 : 82,
+    axisTitleX + axisFontSize * 0.7 + tickLabelGap + axisLabelWidth,
+  );
+  const tickBaselineOffset = axisFontSize * 0.32;
+  const plotWidth = Math.max(1, width - left - right);
+  const priceRange = Math.max(1, priceScale.max - priceScale.min);
   const priceHeight = priceBottom - top;
   const volumeHeight = volumeBottom - volumeTop;
   const barSlotWidth = plotWidth / safeBuckets.length;
@@ -137,14 +257,9 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const allAxisTicks = buildMarketAxisTicks(safeBuckets);
   const labelIndexes = variant === 'compact' ? compactAxisLabelIndexes(allAxisTicks.length) : null;
   const axisLabelTicks = allAxisTicks.filter((_, index) => labelIndexes === null || labelIndexes.has(index));
-  const priceTickCount = variant === 'compact' ? 3 : 5;
-  const priceTicks = Array.from({ length: priceTickCount }, (_, index) => (
-    maxPrice - (index / (priceTickCount - 1)) * priceRange
-  ));
-  const volumeTicks = variant === 'compact' ? [maxVolume, 0] : [maxVolume, maxVolume / 2, 0];
   const pricePoints = safeBuckets.map((bucket, index) => {
     const x = left + ((index + 0.5) / safeBuckets.length) * plotWidth;
-    const y = priceBottom - ((bucket.price - minPrice) / priceRange) * priceHeight;
+    const y = priceBottom - ((bucket.price - priceScale.min) / priceRange) * priceHeight;
     return `${x},${y}`;
   }).join(' ');
   const tickX = (timestamp: number) => {
@@ -154,9 +269,9 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const legendItems = [
     { label: variant === 'compact' ? '主动买入' : '净主动买入', color: 'var(--color-success)' },
     { label: variant === 'compact' ? '主动卖出' : '净主动卖出', color: 'var(--color-danger)' },
-    { label: variant === 'compact' ? '均衡' : '均衡／方向未知', color: 'var(--color-text-muted)' },
   ];
   const legendSlotWidth = plotWidth / legendItems.length;
+  const gradientId = `marketPriceFill-${variant}`;
 
   return (
     <svg
@@ -167,12 +282,13 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       role="img"
       aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
       data-chart-variant={variant}
+      data-axis-left={left.toFixed(2)}
       style={variant === 'full' ? { height: 'clamp(320px, 42vw, 410px)' } : undefined}
     >
       <title>近 24 小时价格、成交量与主动买卖方向趋势</title>
-      <desc>每 6 分钟一个数据分段，共 240 个分段。价格折线位于上方，成交量柱状图位于下方；绿色表示净主动买入，红色表示净主动卖出，灰色表示主动买卖均衡或旧历史方向未知。</desc>
+      <desc>每 6 分钟一个数据分段，共 240 个分段。价格折线位于上方，成交量柱状图位于下方；绿色表示净主动买入，红色表示净主动卖出，灰色表示未归类成交量。</desc>
       <defs>
-        <linearGradient id="marketPriceFill" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="currentColor" stopOpacity="0.24" />
           <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
@@ -201,25 +317,25 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         );
       })}
 
-      {priceTicks.map((tick, index) => {
-        const y = top + (index / (priceTicks.length - 1)) * priceHeight;
+      {priceScale.ticks.map((tick, index) => {
+        const y = priceBottom - ((tick - priceScale.min) / priceRange) * priceHeight;
         return (
-          <g key={`price-${index}`}>
+          <g key={`price-${tick}-${index}`}>
             <line x1={left} x2={width - right} y1={y} y2={y} className="chart-gridline" />
-            <text className="chart-price-tick-label" x={left - 8} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
-              {formatAxisValue(tick)}
+            <text className="chart-price-tick-label" x={left - tickLabelGap} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
+              {priceLabels[index]}
             </text>
           </g>
         );
       })}
 
-      {volumeTicks.map((tick, index) => {
-        const y = volumeTop + (index / (volumeTicks.length - 1)) * volumeHeight;
+      {volumeScale.ticks.map((tick, index) => {
+        const y = volumeBottom - ((tick - volumeScale.min) / Math.max(1, volumeScale.max - volumeScale.min)) * volumeHeight;
         return (
-          <g key={`volume-${index}`}>
+          <g key={`volume-${tick}-${index}`}>
             <line x1={left} x2={width - right} y1={y} y2={y} className="chart-gridline" />
-            <text className="chart-volume-tick-label" x={left - 8} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
-              {formatAxisValue(tick)}
+            <text className="chart-volume-tick-label" x={left - tickLabelGap} y={y + tickBaselineOffset} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="end">
+              {volumeLabels[index]}
             </text>
           </g>
         );
@@ -227,12 +343,12 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
 
       <polygon
         points={`${left},${priceBottom} ${pricePoints} ${width - right},${priceBottom}`}
-        fill="url(#marketPriceFill)"
+        fill={`url(#${gradientId})`}
       />
       <polyline points={pricePoints} fill="none" className="chart-line" />
 
       {safeBuckets.map((bucket, index) => {
-        const barHeight = (bucket.volume / maxVolume) * volumeHeight;
+        const barHeight = (bucket.volume / volumeScale.max) * volumeHeight;
         const x = left + index * barSlotWidth + (barSlotWidth - barWidth) / 2;
         return (
           <rect

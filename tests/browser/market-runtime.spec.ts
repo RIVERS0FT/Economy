@@ -50,6 +50,28 @@ async function inspectMarketLayoutBounds(locator: Locator) {
   });
 }
 
+async function inspectChartAxis(chart: Locator) {
+  return chart.evaluate((element) => {
+    const svg = element as SVGSVGElement;
+    const svgRect = svg.getBoundingClientRect();
+    const readTexts = (selector: string) => Array.from(svg.querySelectorAll<SVGTextElement>(selector)).map((text) => {
+      const rect = text.getBoundingClientRect();
+      return {
+        text: text.textContent?.trim() ?? '',
+        left: rect.left - svgRect.left,
+        right: rect.right - svgRect.left,
+      };
+    });
+    return {
+      width: svgRect.width,
+      priceLabels: readTexts('.chart-price-tick-label'),
+      volumeLabels: readTexts('.chart-volume-tick-label'),
+      axisTitles: readTexts('.chart-axis-title'),
+      legendLabels: Array.from(svg.querySelectorAll<SVGTextElement>('.chart-legend-item text')).map((text) => text.textContent?.trim() ?? ''),
+    };
+  });
+}
+
 test('market desktop layout gives the full chart the dominant column and intrinsic ratio', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
@@ -72,12 +94,18 @@ test('market desktop layout gives the full chart the dominant column and intrins
   expect(chartBox.width / chartBox.height).toBeGreaterThan(1.72);
   expect(chartBox.width / chartBox.height).toBeLessThan(1.82);
   expect(bookBox.height).toBeLessThan(chartCardBox.height * 0.8);
-  await expect(chartCard.getByText('最近 24h 3 笔 · 6m × 240', { exact: true })).toBeVisible();
+  await expect(chartCard.locator('.chart-footer')).toHaveCount(0);
+  await expect(chartCard.getByText('均衡／方向未知', { exact: true })).toHaveCount(0);
 
-  const footerColumns = await chartCard.locator('.chart-footer').evaluate((element) => (
-    getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
-  ));
-  expect(footerColumns).toBe(2);
+  const axis = await inspectChartAxis(chart);
+  expect(axis.legendLabels).toEqual(['净主动买入', '净主动卖出']);
+  expect(axis.priceLabels).toHaveLength(5);
+  expect(axis.priceLabels.every(({ text }) => /^\d+(?:,\d{3})*(?:[KMBT])?$/.test(text) && !text.includes('.'))).toBe(true);
+  for (const label of [...axis.priceLabels, ...axis.volumeLabels, ...axis.axisTitles]) {
+    expect(label.left, `${label.text} 不得越出图表左侧`).toBeGreaterThanOrEqual(-1);
+    expect(label.right, `${label.text} 不得越出图表右侧`).toBeLessThanOrEqual(axis.width + 1);
+  }
+
   const layout = await inspectMarketLayoutBounds(page.locator('.market-page-surface'));
   expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
   expect(layout.directChildren.every((child) => child.left >= -1 && child.right <= layout.surfaceWidth + 1)).toBe(true);
@@ -120,10 +148,17 @@ test('market medium and narrow layouts follow the real content width without hor
     expect(section.scrollAreaRight).toBeLessThanOrEqual(section.sectionWidth + 1);
     expect(section.scrollAreaWidth).toBeLessThanOrEqual(section.sectionWidth + 1);
   }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileAxis = await inspectChartAxis(page.locator('.market-history-chart.full'));
+  for (const label of [...mobileAxis.priceLabels, ...mobileAxis.volumeLabels, ...mobileAxis.axisTitles]) {
+    expect(label.left, `移动端 ${label.text} 不得越出图表左侧`).toBeGreaterThanOrEqual(-1);
+    expect(label.right, `移动端 ${label.text} 不得越出图表右侧`).toBeLessThanOrEqual(mobileAxis.width + 1);
+  }
   expect(pageErrors).toEqual([]);
 });
 
-test('market trend uses neutral semantics for zero and counts only the current 24 hour window', async ({ page }) => {
+test('market trend uses neutral semantics for zero', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=zero-trend');
@@ -132,7 +167,7 @@ test('market trend uses neutral semantics for zero and counts only the current 2
   await expect(trend).toHaveClass(/status-neutral/);
   await expect(trend).toContainText('0');
   expect((await trend.textContent())?.includes('+')).toBe(false);
-  await expect(page.getByText('最近 24h 3 笔 · 6m × 240', { exact: true })).toBeVisible();
+  await expect(page.locator('.market-chart-card .chart-footer')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
 });
 

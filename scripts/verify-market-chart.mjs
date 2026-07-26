@@ -71,6 +71,7 @@ assert.match(ticks[0].label, /^\d{2}:\d{2}$/, '时间刻度必须使用 HH:mm');
 
 const chart = read('src/components/charts/PriceSparkline.tsx');
 const marketPage = read('src/pages/MarketPage.tsx');
+const marketCss = read('src/styles/market-page-polish.css');
 const types = read('src/types.ts');
 const matchingCore = read('server/src/order-matching.js');
 const commodityMarket = read('server/src/balanced-market.js');
@@ -86,23 +87,41 @@ for (const text of [
   'data-direction={bucket.direction}',
   '净主动买入',
   '净主动卖出',
-  '均衡／方向未知',
+  '灰色表示未归类成交量',
   'buildMarketAxisTicks',
-  'useChartFooterAxisFontSize',
+  'niceIntegerStep',
+  'buildIntegerPriceScale',
+  'buildIntegerVolumeScale',
+  'formatIntegerPriceTick',
+  'formatCompactVolumeTick',
+  'useChartAxisMetrics',
+  'context.measureText(label).width',
+  'data-axis-left={left.toFixed(2)}',
   'fontSize={axisFontSize}',
   '        时间\n      </text>',
 ]) assert.ok(chart.includes(text), `PriceSparkline 缺少: ${text}`);
-for (const text of ['CompactPriceSparkline', 'values: number[]']) {
-  assert.ok(!chart.includes(text), `PriceSparkline 不应保留独立概览价格路径: ${text}`);
-}
+for (const text of [
+  'CompactPriceSparkline',
+  'values: number[]',
+  '均衡／方向未知',
+  'useChartFooterAxisFontSize',
+  "maximumFractionDigits: value < 10 ? 2 : 1",
+]) assert.ok(!chart.includes(text), `PriceSparkline 不应保留: ${text}`);
 
 for (const text of [
   'buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now)',
-  'countMarketHistoryPointsInWindow(marketHistory, now)',
   '<PriceSparkline buckets={marketBuckets} variant="full" />',
-  '净主动买入',
-  '最近 24h {formatNumber(marketHistoryCount)} 笔 · 6m × 240',
 ]) assert.ok(marketPage.includes(text), `MarketPage 缺少: ${text}`);
+for (const text of [
+  'countMarketHistoryPointsInWindow',
+  'summarizeMarketFlow',
+  'className="chart-footer"',
+  '最近成交估值',
+  '我的当前订单',
+  '主动买卖均衡／方向未知',
+]) assert.ok(!marketPage.includes(text), `MarketPage 不应保留行情底部说明: ${text}`);
+assert.ok(!marketCss.includes('.chart-footer'), '市场样式不得恢复已删除的行情底部统计栏');
+assert.ok(marketCss.includes('font-variant-numeric: tabular-nums;'), '行情坐标数字必须使用稳定数字宽度');
 
 assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
 assert.ok(matchingCore.includes('takerSide: incoming.side'), '共享撮合内核必须把吃单方方向传给行情适配器');
@@ -117,6 +136,11 @@ for (const text of [
   '净主动买入使用成功色',
   '旧历史方向未知使用中性色',
   '不得恢复“最近 24 笔成交”',
+  '价格轴刻度只能是整数',
+  '图例只显示净主动买入和净主动卖出',
+  '不得显示行情图下方统计栏',
+  '最宽纵轴刻度标签',
+  '不受设置页“紧凑数字”开关影响',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
 for (const text of [
   '保存吃单方（taker／incoming order）的买卖方向',
@@ -124,4 +148,4 @@ for (const text of [
   '禁止伪造迁移方向',
 ]) assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 
-console.log('Market chart verification passed: the market page owns 24h buckets, net active flow colors, weighted reserve signals and windowed trade counts.');
+console.log('Market chart verification passed: the market page owns integer price ticks, fixed compact volume labels, measured axis insets, two visible flow legends and no footer statistics.');

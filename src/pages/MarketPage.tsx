@@ -20,11 +20,7 @@ import { economyConstants } from '../config/economy';
 import type { AssetOrder } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
-import {
-  buildMarketHistoryBuckets,
-  countMarketHistoryPointsInWindow,
-  summarizeMarketFlow,
-} from '../utils/marketHistory';
+import { buildMarketHistoryBuckets } from '../utils/marketHistory';
 import { buildOrderBookLevels } from '../utils/orderBookLevels';
 import { orderAssetId, orderKind } from '../utils/orderIdentity';
 
@@ -98,8 +94,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
     ?? selectedFacility?.systemValue
     ?? 1;
   const marketBuckets = buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now);
-  const marketHistoryCount = countMarketHistoryPointsInWindow(marketHistory, now);
-  const marketFlow = summarizeMarketFlow(marketBuckets);
   const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
   const parsedOrderPrice = parseIntegerDraft(priceDraft, { min: 1 });
@@ -462,16 +456,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
               )}
             />
             <PriceSparkline buckets={marketBuckets} variant="full" />
-            <div className="chart-footer">
-              <span>最近 24h {formatNumber(marketHistoryCount)} 笔 · 6m × 240</span>
-              <span>最近成交估值 <CurrencyAmount>{formatCurrency(game.valuationPrices[`${marketAssetKind}:${assetId}`] ?? 0)}</CurrencyAmount></span>
-              <span>{marketFlow.netVolume > 0
-                ? `净主动买入 ${formatNumber(marketFlow.netVolume)}`
-                : marketFlow.netVolume < 0
-                  ? `净主动卖出 ${formatNumber(Math.abs(marketFlow.netVolume))}`
-                  : '主动买卖均衡／方向未知'}</span>
-              <span>我的当前订单 {formatNumber(ownSelectedOrders.length)} 笔</span>
-            </div>
           </Panel>
 
           <Panel className="widget span-3 market-account-panel">

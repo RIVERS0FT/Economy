@@ -269,19 +269,7 @@
   min-height: 0;
   max-height: none;
   margin: 0;
-}
-
-.market-chart-card .chart-footer {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-  gap: var(--space-2) var(--space-4);
-  font-size: var(--font-size-xs);
-  line-height: 1.45;
-}
-
-.market-chart-card .chart-footer > span:nth-child(even) {
-  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .market-trend-tag.status-neutral {
@@ -320,16 +308,6 @@
 
   .market-page-surface .unified-market-grid > .market-account-panel {
     grid-column: 1 / -1;
-  }
-}
-
-@container market-chart (max-width: 520px) {
-  .market-chart-card .chart-footer {
-    grid-template-columns: 1fr;
-  }
-
-  .market-chart-card .chart-footer > span {
-    text-align: left;
   }
 }
 
