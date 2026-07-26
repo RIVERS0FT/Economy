@@ -24,15 +24,24 @@ jobs:
         with:
           ref: agent/gem-construction-and-dynamic-rate
           fetch-depth: 0
-      - name: Apply staged patches
+      - name: Apply gem shop core
+        run: git apply --check .agent/patches/01-gem-shop.patch && git apply .agent/patches/01-gem-shop.patch
+      - name: Apply server and API wiring
+        run: git apply --check .agent/patches/02-core.patch && git apply .agent/patches/02-core.patch
+      - name: Apply facility construction acceleration
+        run: git apply --check .agent/patches/04-facility-groups.patch && git apply .agent/patches/04-facility-groups.patch
+      - name: Apply gem shop page
+        run: git apply --check .agent/patches/05-gem-shop-page.patch && git apply .agent/patches/05-gem-shop-page.patch
+      - name: Apply production page
+        run: git apply --check .agent/patches/06-production-page.patch && git apply .agent/patches/06-production-page.patch
+      - name: Apply tests and verification
+        run: git apply --check .agent/patches/07-tests-verify.patch && git apply .agent/patches/07-tests-verify.patch
+      - name: Apply documentation
+        run: git apply --check .agent/patches/08-docs.patch && git apply .agent/patches/08-docs.patch
+      - name: Commit applied changes
         shell: bash
         run: |
           set -euo pipefail
-          for patch in .agent/patches/*.patch; do
-            echo "Checking ${patch}"
-            git apply --check "${patch}"
-            git apply "${patch}"
-          done
           rm -rf .agent
           rm -f .github/workflows/agent-apply-gem-economy.yml
           git config user.name "OpenAI Codex"
