@@ -1,0 +1,32 @@
+name: Sync main into PR 314
+
+on:
+  push:
+    branches:
+      - agent/gem-construction-and-dynamic-rate
+    paths:
+      - .github/workflows/agent-sync-main-314.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/gem-construction-and-dynamic-rate
+          fetch-depth: 0
+      - name: Merge latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+          rm -f .github/workflows/agent-sync-main-314.yml
+          git add -A
+          git commit --amend --no-edit
+          git push origin HEAD:agent/gem-construction-and-dynamic-rate
