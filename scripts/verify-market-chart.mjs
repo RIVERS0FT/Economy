@@ -72,6 +72,7 @@ assert.match(ticks[0].label, /^\d{2}:\d{2}$/, '时间刻度必须使用 HH:mm');
 const chart = read('src/components/charts/PriceSparkline.tsx');
 const marketPage = read('src/pages/MarketPage.tsx');
 const marketCss = read('src/styles/market-page-polish.css');
+const safeZoneSpec = read('tests/browser/market-chart-safe-zone.spec.ts');
 const types = read('src/types.ts');
 const matchingCore = read('server/src/order-matching.js');
 const commodityMarket = read('server/src/balanced-market.js');
@@ -96,7 +97,18 @@ for (const text of [
   'formatCompactVolumeTick',
   'useChartAxisMetrics',
   'context.measureText(label).width',
+  'timeLabelBottomOffset',
+  'bottomSafeInset',
+  'timeLegendGap',
+  'legendTitleGap',
+  'legendStartX',
+  'className="chart-legend"',
+  'className="chart-axis-title chart-x-axis-title"',
   'data-axis-left={left.toFixed(2)}',
+  'data-volume-bottom={volumeBottom.toFixed(2)}',
+  'data-x-label-y={xLabelY.toFixed(2)}',
+  'data-legend-y={legendY.toFixed(2)}',
+  'data-x-axis-title-y={xAxisTitleY.toFixed(2)}',
   'fontSize={axisFontSize}',
   '        时间\n      </text>',
 ]) assert.ok(chart.includes(text), `PriceSparkline 缺少: ${text}`);
@@ -106,6 +118,9 @@ for (const text of [
   '均衡／方向未知',
   'useChartFooterAxisFontSize',
   "maximumFractionDigits: value < 10 ? 2 : 1",
+  'xLabelY: 408',
+  'legendY: 452',
+  'xAxisTitleY: 526',
 ]) assert.ok(!chart.includes(text), `PriceSparkline 不应保留: ${text}`);
 
 for (const text of [
@@ -122,6 +137,17 @@ for (const text of [
 ]) assert.ok(!marketPage.includes(text), `MarketPage 不应保留行情底部说明: ${text}`);
 assert.ok(!marketCss.includes('.chart-footer'), '市场样式不得恢复已删除的行情底部统计栏');
 assert.ok(marketCss.includes('font-variant-numeric: tabular-nums;'), '行情坐标数字必须使用稳定数字宽度');
+
+for (const text of [
+  'market chart reserves separate bottom safe zones for time labels, legend and axis title',
+  "{ width: 1684, height: 931, label: '桌面端' }",
+  "{ width: 390, height: 844, label: '移动端' }",
+  "{ width: 320, height: 700, label: '极窄移动端' }",
+  'timeLegendGap',
+  'legendTitleGap',
+  'bottomGap',
+  'legendCenterDelta',
+]) assert.ok(safeZoneSpec.includes(text), `行情底部安全区浏览器回归缺少: ${text}`);
 
 assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
 assert.ok(matchingCore.includes('takerSide: incoming.side'), '共享撮合内核必须把吃单方方向传给行情适配器');
@@ -141,6 +167,8 @@ for (const text of [
   '不得显示行情图下方统计栏',
   '最宽纵轴刻度标签',
   '不受设置页“紧凑数字”开关影响',
+  '旋转时间刻度、方向图例和“时间”轴标题分别保留独立安全区',
+  '不得互相覆盖或越出 SVG 底边',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
 for (const text of [
   '保存吃单方（taker／incoming order）的买卖方向',
@@ -148,4 +176,4 @@ for (const text of [
   '禁止伪造迁移方向',
 ]) assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 
-console.log('Market chart verification passed: the market page owns integer price ticks, fixed compact volume labels, measured axis insets, two visible flow legends and no footer statistics.');
+console.log('Market chart verification passed: integer axes, measured side insets, separate bottom safe zones, centered two-item legend and footer-free market statistics satisfy the design baseline.');
