@@ -36,18 +36,34 @@ export interface TutorialCompletionResponse {
 export interface GemShopExchangeRecord {
   gemsSpent: number;
   creditsReceived: number;
+  creditsPerGem?: number;
+  dateKey?: string;
   createdAt: number;
+}
+export interface GemShopRateRecord {
+  dateKey: string;
+  creditsPerGem: number;
+  demandTone: 'high' | 'neutral' | 'low' | 'returning';
 }
 export interface GemShopSummary {
   gems: number;
   credits: number;
+  quoteDateKey?: string;
   creditsPerGem: number;
+  previousCreditsPerGem?: number;
+  rateDelta?: number;
+  nextRateAt?: number;
+  demandTone?: 'high' | 'neutral' | 'low' | 'returning';
+  demandPressurePpm?: number;
+  quoteDecision?: 'pending' | 'accepted' | 'rejected';
+  quoteDecisionAt?: number | null;
   minExchangeGems: number;
   maxExchangeGems: number;
   maxExchangeableGems: number;
   totalGemsSpent: number;
   totalCreditsReceived: number;
   recentExchanges: GemShopExchangeRecord[];
+  recentRates?: GemShopRateRecord[];
 }
 export interface CommunityLinkConfig {
   qqGroupUrl: string;
@@ -197,6 +213,7 @@ export const gameActions = {
   ),
   upgradeWarehouse: () => postAction('/warehouse/upgrade'),
   buildFacility: (facilityTypeId: string) => postAction('/facilities', { facilityTypeId }),
+  accelerateFacilityConstruction: () => postAction('/facilities/construction/accelerate'),
   startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),
   stopFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/stop`),
   pauseFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/pause`),
@@ -233,4 +250,5 @@ export const gameActions = {
   }),
   redeemGift: (code: string) => postAction('/gifts/redeem', { code }),
   exchangeGems: (gems: number) => postAction('/gem-shop/exchange', { gems }),
+  rejectGemShopQuote: () => postAction('/gem-shop/quote/reject'),
 };

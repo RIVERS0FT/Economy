@@ -30,6 +30,7 @@ import {
   WidgetHeading,
 } from '../components/ui/layout';
 import type {
+  FacilityConstruction,
   FacilityGroup,
   FacilityRecipeDefinition,
   FacilityTypeDefinition,
@@ -41,6 +42,8 @@ import { formatCurrency, formatDuration, formatNumber } from '../utils/formatter
 interface FacilityClusterEntry {
   group: FacilityGroup;
   type: FacilityTypeDefinition;
+  construction?: FacilityConstruction;
+  constructionOnly?: boolean;
 }
 
 interface FacilityClusterDetailSharedProps {
@@ -48,8 +51,11 @@ interface FacilityClusterDetailSharedProps {
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
   now: number;
+  gems: number;
+  acceleratingConstruction: boolean;
   onToggle: (enabled: boolean) => void;
   onRecipeChange: (recipeId: string) => void;
+  onAccelerateConstruction: () => void;
   onOpenMarket: () => void;
 }
 
@@ -176,20 +182,20 @@ function FacilityClusterSelectorCard({
   entry: FacilityClusterEntry;
   onSelect: (trigger: HTMLButtonElement) => void;
 }) {
-  const { group, type } = entry;
+  const { group, type, constructionOnly } = entry;
 
   return (
     <button
       type="button"
       className="facility-cluster-selector-card"
       data-ui-interactive="surface"
-      data-status={group.status}
-      aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}
+      data-status={constructionOnly ? 'constructing' : group.status}
+      aria-label={constructionOnly ? `${type.name}，施工中` : `${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}
       onClick={(event) => onSelect(event.currentTarget)}
     >
       <strong className="facility-cluster-name">{type.name}</strong>
       <FactoryIcon className="facility-cluster-icon" />
-      <span className="facility-cluster-count">{formatNumber(group.count)}</span>
+      <span className="facility-cluster-count">{constructionOnly ? '施工中' : formatNumber(group.count)}</span>
     </button>
   );
 }
@@ -204,6 +210,20 @@ function FacilityClusterDetailHeader({
   titleId: string;
 }) {
   const { group, type } = entry;
+
+  if (entry.constructionOnly) {
+    return (
+      <div className="facility-card-head facility-status-header">
+        <div className="facility-card-title-row">
+          <div className="facility-card-title-block facility-cluster-selector-heading">
+            <h2 id={titleId}>{type.name}</h2>
+            <StatusTag tone="warning">施工中</StatusTag>
+          </div>
+        </div>
+        <div className="facility-count-summary"><span>完工后新增 <strong>1</strong> 座</span></div>
+      </div>
+    );
+  }
 
   return (
     <div className="facility-card-head facility-status-header">
@@ -240,14 +260,57 @@ function FacilityClusterDetailHeader({
   );
 }
 
+function FacilityConstructionAcceleration({
+  entry,
+  gems,
+  now,
+  acceleratingConstruction,
+  onAccelerateConstruction,
+}: Pick<FacilityClusterDetailSharedProps, 'entry' | 'gems' | 'now' | 'acceleratingConstruction' | 'onAccelerateConstruction'>) {
+  const construction = entry.construction;
+  if (!construction) return null;
+  const accelerationMs = construction.gemAccelerationMs ?? 30 * 60 * 1000;
+  const accelerationCost = construction.gemAccelerationCost ?? 1;
+  const remaining = Math.max(0, construction.completesAt - now);
+  const after = Math.max(0, remaining - accelerationMs);
+  return (
+    <div className="construction-status" aria-live="polite">
+      <strong>宝石加速</strong>
+      <span>当前剩余 {formatDuration(remaining)}；使用后{after > 0 ? `剩余 ${formatDuration(after)}` : '立即完工'}。</span>
+      <Button
+        block
+        disabled={remaining <= 0 || gems < accelerationCost || acceleratingConstruction}
+        onClick={onAccelerateConstruction}
+      >
+        {acceleratingConstruction ? '加速处理中…' : `${formatNumber(accelerationCost)} 宝石 · 加速 ${formatDuration(accelerationMs)}`}
+      </Button>
+      <small>每次固定减少 30m；剩余不足 30m 时直接完工，不退还部分宝石。</small>
+    </div>
+  );
+}
+
 function FacilityClusterDetailBody({
   entry,
   products,
   inventories,
   now,
+  gems,
+  acceleratingConstruction,
   onRecipeChange,
+  onAccelerateConstruction,
 }: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
   const { group, type } = entry;
+  if (entry.constructionOnly) {
+    return (
+      <FacilityConstructionAcceleration
+        entry={entry}
+        gems={gems}
+        now={now}
+        acceleratingConstruction={acceleratingConstruction}
+        onAccelerateConstruction={onAccelerateConstruction}
+      />
+    );
+  }
   const recipeState = resolveFacilityDetailRecipeState(entry);
 
   return (
@@ -287,6 +350,13 @@ function FacilityClusterDetailBody({
         inventories={inventories}
         now={now}
       />
+      <FacilityConstructionAcceleration
+        entry={entry}
+        gems={gems}
+        now={now}
+        acceleratingConstruction={acceleratingConstruction}
+        onAccelerateConstruction={onAccelerateConstruction}
+      />
     </>
   );
 }
@@ -306,8 +376,11 @@ function FacilityClusterDetailContent({
   products,
   inventories,
   now,
+  gems,
+  acceleratingConstruction,
   onToggle,
   onRecipeChange,
+  onAccelerateConstruction,
   onOpenMarket,
   titleId,
 }: FacilityClusterDetailSharedProps & {
@@ -321,9 +394,12 @@ function FacilityClusterDetailContent({
         products={products}
         inventories={inventories}
         now={now}
+        gems={gems}
+        acceleratingConstruction={acceleratingConstruction}
         onRecipeChange={onRecipeChange}
+        onAccelerateConstruction={onAccelerateConstruction}
       />
-      <FacilityMarketAction onOpenMarket={onOpenMarket} />
+      {entry.constructionOnly ? null : <FacilityMarketAction onOpenMarket={onOpenMarket} />}
     </>
   );
 }
@@ -333,11 +409,14 @@ function MobileFacilityDetailSheet({
   products,
   inventories,
   now,
+  gems,
+  acceleratingConstruction,
   isOpen,
   returnFocusRef,
   onClose,
   onToggle,
   onRecipeChange,
+  onAccelerateConstruction,
   onOpenMarket,
 }: Omit<FacilityClusterDetailSharedProps, 'entry'> & {
   entry: FacilityClusterEntry | undefined;
@@ -777,12 +856,15 @@ function MobileFacilityDetailSheet({
             products={products}
             inventories={inventories}
             now={now}
+            gems={gems}
+            acceleratingConstruction={acceleratingConstruction}
             onRecipeChange={onRecipeChange}
+            onAccelerateConstruction={onAccelerateConstruction}
           />
         </ScrollArea>
 
         <div className="facility-detail-sheet-footer">
-          <FacilityMarketAction onOpenMarket={() => requestClose(onOpenMarket)} />
+          {entry.constructionOnly ? null : <FacilityMarketAction onOpenMarket={() => requestClose(onOpenMarket)} />}
         </div>
       </div>
     </div>,
@@ -796,6 +878,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     selectedFacilityTypeId,
     setSelectedFacilityTypeId,
     buildFacility,
+    accelerateFacilityConstruction,
     startFacility,
     stopFacility,
     setFacilityRecipe,
@@ -806,6 +889,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const now = useNow(game.lastProcessedAt);
   const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('');
   const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false);
+  const [acceleratingConstruction, setAcceleratingConstruction] = useState(false);
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
   const closeFacilityDetail = useCallback(() => setFacilityDetailOpen(false), []);
 
@@ -818,18 +902,45 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       game.facilityGroups.map((group) => [group.facilityTypeId, group]),
     );
 
-    return game.facilityTypes.flatMap((type) => {
+    return game.facilityTypes.flatMap((type): FacilityClusterEntry[] => {
       const group = groupsByTypeId.get(type.id);
-      return group && group.count > 0 ? [{ type, group }] : [];
+      const construction = game.facilityConstruction?.facilityTypeId === type.id
+        ? game.facilityConstruction
+        : undefined;
+      if (group && group.count > 0) return [{ type, group, construction }];
+      if (!construction) return [];
+      return [{
+        type,
+        construction,
+        constructionOnly: true,
+        group: {
+          facilityTypeId: type.id,
+          count: 0,
+          participatingCount: 0,
+          pendingJoinCount: 0,
+          listedCount: 0,
+          frozenCount: 0,
+          mortgagedCount: 0,
+          availableCount: 0,
+          nextCycleCount: 0,
+          enabled: false,
+          status: 'stopped',
+          statusReason: 'manual',
+          lifetimeOutput: 0,
+          activeRecipeId: type.defaultRecipeId,
+        },
+      }];
     });
-  }, [game.facilityGroups, game.facilityTypes]);
+  }, [game.facilityConstruction, game.facilityGroups, game.facilityTypes]);
   const facilityClusterStatusCounts = useMemo(() => {
     const summary: Record<FacilityGroup['status'], number> = {
       running: 0,
       stopped: 0,
       error: 0,
     };
-    for (const { group } of orderedFacilityGroups) summary[group.status] += 1;
+    for (const entry of orderedFacilityGroups) {
+      if (!entry.constructionOnly) summary[entry.group.status] += 1;
+    }
     return summary;
   }, [orderedFacilityGroups]);
   const selectedFacilityEntry =
@@ -884,8 +995,17 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     void showResult(setFacilityRecipe(selectedFacilityEntry.group.facilityTypeId, recipeId));
   };
   const openSelectedFacilityMarket = () => {
-    if (!selectedFacilityEntry) return;
+    if (!selectedFacilityEntry || selectedFacilityEntry.constructionOnly) return;
     selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId);
+  };
+  const accelerateSelectedConstruction = async () => {
+    if (!selectedFacilityEntry?.construction || acceleratingConstruction) return;
+    setAcceleratingConstruction(true);
+    try {
+      await showResult(accelerateFacilityConstruction());
+    } finally {
+      setAcceleratingConstruction(false);
+    }
   };
 
   return (
@@ -994,8 +1114,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 products={game.products}
                 inventories={game.inventories}
                 now={now}
+                gems={game.gems}
+                acceleratingConstruction={acceleratingConstruction}
                 onToggle={toggleSelectedFacility}
                 onRecipeChange={changeSelectedFacilityRecipe}
+                onAccelerateConstruction={() => void accelerateSelectedConstruction()}
                 onOpenMarket={openSelectedFacilityMarket}
                 titleId="desktop-facility-detail-title"
               />
@@ -1013,11 +1136,14 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
         products={game.products}
         inventories={game.inventories}
         now={now}
+        gems={game.gems}
+        acceleratingConstruction={acceleratingConstruction}
         isOpen={isFacilityDetailOpen}
         returnFocusRef={detailTriggerRef}
         onClose={closeFacilityDetail}
         onToggle={toggleSelectedFacility}
         onRecipeChange={changeSelectedFacilityRecipe}
+        onAccelerateConstruction={() => void accelerateSelectedConstruction()}
         onOpenMarket={openSelectedFacilityMarket}
       />
     </PageLayout>

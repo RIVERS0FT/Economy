@@ -16,6 +16,8 @@ export function resolveAction(method, path) {
   if (method === 'POST' && path === '/api/game/warehouse/upgrade') return { action: 'upgradeWarehouse', category: 'general' };
   if (method === 'POST' && path === '/api/game/gifts/redeem') return { action: 'redeemGift', category: 'general' };
   if (method === 'POST' && path === '/api/game/gem-shop/exchange') return { action: 'exchangeGems', category: 'general' };
+  if (method === 'POST' && path === '/api/game/gem-shop/quote/reject') return { action: 'rejectGemShopQuote', category: 'general' };
+  if (method === 'POST' && path === '/api/game/facilities/construction/accelerate') return { action: 'accelerateFacilityConstruction', category: 'general' };
   if (method === 'POST' && path === '/api/game/bank/deposits') return { action: 'bankDeposit', category: 'general' };
   if (method === 'POST' && path === '/api/game/bank/withdrawals') return { action: 'bankWithdraw', category: 'general' };
   if (method === 'POST' && path === '/api/game/bank/loans') return { action: 'bankBorrow', category: 'general' };

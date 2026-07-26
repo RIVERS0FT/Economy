@@ -28,7 +28,7 @@ import {
   dailyCheckInRewardFor,
   processDailyCheckInWorld,
 } from './daily-check-in.js';
-import { createGemShopSummary, exchangeGems } from './gem-shop.js';
+import { GemEconomyStore } from './gem-economy-store.js';
 import { DEFAULT_QQ_GROUP_URL, normalizeQqGroupUrl } from './community-link.js';
 import {
   applyPopulationPolicy,
@@ -56,7 +56,7 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'work', 'buildFacility', 'startFacility', 'pauseFacility', 'setFacilityRecipe',
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
-  'exchangeGems', 'createAuction', 'placeAuctionBid', 'cancelAuction',
+  'exchangeGems', 'accelerateFacilityConstruction', 'createAuction', 'placeAuctionBid', 'cancelAuction',
   'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay',
 ]);
 
@@ -264,6 +264,7 @@ export class EconomyStore {
       ) STRICT;
     `);
     migrateGemLedgerSchema(this.database);
+    this.gemEconomy = new GemEconomyStore(this.database);
     this.database.exec(`
       CREATE INDEX IF NOT EXISTS idx_economy_gem_ledger_user
         ON economy_gem_ledger(user_id, created_at DESC);
@@ -751,12 +752,8 @@ export class EconomyStore {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });
       }
       this.saveWorldIfChanged(revision, world, now, stateJson);
-      return createGemShopSummary(
-        player,
-        this.sumGemShopExchanges.get(Number(user.id)),
-        this.listGemShopExchanges.all(Number(user.id)),
-      );
-    }, { immediate: false });
+      return this.gemEconomy.createShopSummary(player, now);
+    });
   }
 
   apply(user, { action, payload, requestKey, method, path }, now = Date.now()) {
@@ -785,22 +782,18 @@ export class EconomyStore {
       } else if (action === 'redeemGift') {
         gameResult = this.redeemGiftInTransaction(world, user, payload, now);
       } else if (action === 'exchangeGems') {
-        gameResult = exchangeGems(player, payload.gems, now);
-        if (gameResult.ok) {
-          this.insertGemShopExchange.run(
-            Number(user.id),
-            requestKey,
-            gameResult.gemsSpent,
-            gameResult.creditsReceived,
-            now,
-          );
-        }
+        gameResult = this.gemEconomy.exchange(player, payload.gems, requestKey, now);
+      } else if (action === 'rejectGemShopQuote') {
+        gameResult = this.gemEconomy.rejectQuote(player, requestKey, now);
       } else if (AUCTION_ACTIONS.has(action)) {
         gameResult = applyAssetAuctionAction(world, user, action, payload, now);
       } else if (BANK_ACTIONS.has(action)) {
         gameResult = applyBankAction(world, user, action, payload, now);
       } else {
         gameResult = applyFacilityGroupAction(world, user, action, payload, now);
+      }
+      if (action === 'accelerateFacilityConstruction' && gameResult?.ok) {
+        this.gemEconomy.recordConstructionAcceleration(user.id, requestKey, gameResult, now);
       }
       if (gameResult?.ok && ECONOMIC_ACTIVITY_ACTIONS.has(action)) {
         const activePlayer = world.players[String(user.id)];

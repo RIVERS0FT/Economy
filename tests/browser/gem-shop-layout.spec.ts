@@ -20,8 +20,8 @@ async function gridTrackCount(locator: Locator) {
 }
 
 const populatedExchanges = [
-  { gemsSpent: 10, creditsReceived: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },
-  { gemsSpent: 5, creditsReceived: 50, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },
+  { gemsSpent: 10, creditsReceived: 1_000, creditsPerGem: 100, createdAt: Date.UTC(2026, 6, 17, 12, 0, 0) },
+  { gemsSpent: 5, creditsReceived: 500, creditsPerGem: 100, createdAt: Date.UTC(2026, 6, 16, 12, 0, 0) },
 ];
 
 async function openGemShop(page: Page, width: number, height: number, recentExchanges = populatedExchanges) {
@@ -34,12 +34,12 @@ async function openGemShop(page: Page, width: number, height: number, recentExch
         gemShop: {
           gems: 40,
           credits: 23_594,
-          creditsPerGem: 10,
+          creditsPerGem: 100,
           minExchangeGems: 1,
           maxExchangeGems: 100,
           maxExchangeableGems: 40,
           totalGemsSpent: 15,
-          totalCreditsReceived: 150,
+          totalCreditsReceived: 1_500,
           recentExchanges,
         },
       }),
@@ -78,7 +78,7 @@ async function openGemShop(page: Page, width: number, height: number, recentExch
   await expect(page.getByRole('heading', { name: '兑换货币', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '兑换记录', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '邀请好友', exact: true })).toBeVisible();
-  await expect(page.getByText('1 宝石 = 10 货币', { exact: true })).toBeVisible();
+  await expect(page.getByText('1 宝石 = 100 货币', { exact: true })).toBeVisible();
   await expect(page.getByText('注册完成后不能补填或更换。', { exact: false })).toBeVisible();
   await expect(page.getByLabel('填写好友邀请码')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '确认填写', exact: true })).toHaveCount(0);
