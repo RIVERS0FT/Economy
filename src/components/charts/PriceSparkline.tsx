@@ -156,6 +156,7 @@ function useChartAxisMetrics(
     const svg = svgRef.current;
     if (!svg) return undefined;
 
+    const measuredLabels = labelKey.split('\u0000');
     let cancelled = false;
     const updateMetrics = () => {
       const bounds = svg.getBoundingClientRect();
@@ -169,7 +170,7 @@ function useChartAxisMetrics(
       let nextLabelWidth = nextFontSize * 4;
       if (context) {
         context.font = `${computedStyle.fontWeight} ${nextFontSize}px ${computedStyle.fontFamily}`;
-        nextLabelWidth = Math.max(nextFontSize, ...labels.map((label) => context.measureText(label).width));
+        nextLabelWidth = Math.max(nextFontSize, ...measuredLabels.map((label) => context.measureText(label).width));
       }
       if (cancelled) return;
       setAxisFontSize((current) => (Math.abs(current - nextFontSize) < 0.1 ? current : nextFontSize));
@@ -240,7 +241,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     [...priceLabels, ...volumeLabels],
     variant === 'compact' ? 14 : 18,
   );
-  const axisTitleX = Math.max(10, axisFontSize * 0.7);
+  const axisTitleX = Math.max(12, axisFontSize * 1.15);
   const tickLabelGap = Math.max(8, axisFontSize * 0.45);
   const left = Math.max(
     variant === 'compact' ? 68 : 82,
