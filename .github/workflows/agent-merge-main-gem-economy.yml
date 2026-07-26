@@ -1,0 +1,228 @@
+name: Merge main into gem economy
+
+on:
+  push:
+    branches:
+      - agent/gem-construction-and-dynamic-rate
+    paths:
+      - .github/workflows/agent-merge-main-gem-economy.yml
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/gem-construction-and-dynamic-rate
+          fetch-depth: 0
+      - name: Merge latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          git fetch origin main
+          git merge --no-ff -X theirs origin/main -m "合并最新主分支资产与导航改造"
+      - name: Reapply gem authority on latest main
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def ensure(path_name, marker, old, new, label):
+              path = Path(path_name)
+              text = path.read_text()
+              if marker in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f'missing {label} in {path_name}')
+              path.write_text(text.replace(old, new, 1))
+
+          ensure(
+              'README.md',
+              '→ 在商店接受或放弃每日终端报价',
+              '→ 在商店按固定汇率兑换普通货币\n',
+              '→ 在商店接受或放弃每日终端报价，并按全服动态汇率单向兑换普通货币\n→ 在工厂详情使用 1 宝石减少当前施工 30 分钟\n',
+              'README core loop',
+          )
+          ensure(
+              'README.md',
+              '商店按北京时间每日锁定的全服终端报价直接发行普通货币',
+              '- 商店兑换继续按固定汇率直接发行普通货币；礼品码和管理员发放也按各自规则记录发行。系统不设置人口侧货币回收、余额衰减或发行总量上限；稳定需求补充只按人口钱包缺口发行，并受当前目标钱包参数与同周期补充比例约束。',
+              '- 商店按北京时间每日锁定的全服终端报价直接发行普通货币；基准 10、范围 6～14、每日最多变化 1，每名玩家每天只能接受兑换一次或明确放弃一次。礼品码和管理员发放继续按各自规则记录发行。系统不设置人口侧货币回收、余额衰减或发行总量上限。',
+              'README monetary rule',
+          )
+          ensure(
+              'README.md',
+              '不得增加宝石兑换工厂产量或商品的功能',
+              '- 宝石是独立于普通货币的整数资产，不参与市场、生产、总资产或排行榜。每名玩家拥有永久 8 位邀请码和专属分享链接；邀请码只能在统一账号首次创建 Economy 玩家档案的注册事务中通过分享链接或注册表单提交，注册完成后不能补填、更换或重新绑定。有效邀请立即向邀请人发放 10 宝石，被邀请人不获得宝石。商店同时承载邀请入口，并按服务器固定汇率 1 宝石兑换 10 普通货币，单次 1～100 宝石，只允许单向兑换且不可撤销。',
+              '- 宝石是独立于普通货币的整数资产，不参与市场、生产、总资产或排行榜。每名玩家拥有永久 8 位邀请码和专属分享链接；邀请码只能在首次创建 Economy 玩家档案时归因，注册完成后不能补填、更换或重新绑定。有效邀请立即向邀请人发放 10 宝石。商店按每日终端报价单向兑换普通货币；工厂详情允许 1 宝石减少当前施工 30 分钟。不得增加宝石兑换工厂产量或商品的功能。',
+              'README gem rule',
+          )
+          ensure(
+              'README.md',
+              '每日全服终端报价接受兑换或明确放弃',
+              '- 商店：分享专属链接与永久邀请码、查看邀请统计，并按服务器固定汇率将宝石单向兑换为普通货币。',
+              '- 商店：分享专属链接与永久邀请码、查看邀请统计，并按每日全服终端报价接受兑换或明确放弃。',
+              'README navigation shop',
+          )
+          ensure(
+              'README.md',
+              '| 宝石施工加速、每日终端动态报价、决策与审计 |',
+              '| 产品定位、工作、普通货币、银行、净资产、宝石、邀请、市场需求与价格传导 | `docs/PRODUCT_AND_GAMEPLAY_DESIGN.md` |',
+              '| 产品定位、工作、普通货币、银行、净资产、宝石、邀请、市场需求与价格传导 | `docs/PRODUCT_AND_GAMEPLAY_DESIGN.md` |\n| 宝石施工加速、每日终端动态报价、决策与审计 | `docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` |',
+              'README authority row',
+          )
+
+          ensure(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '兑换率改为北京时间每日锁定的全服动态终端报价',
+              '工作每次有效点击继续直接发行新普通货币，只受服务器 3 秒冷却、幂等键和正常接口校验约束；不得根据玩家资产、价格指数、全服货币量或通胀状态降低奖励。商店兑换普通货币继续直接发行新货币，不使用有限准备金、每日发行额度或动态汇率。',
+              '工作每次有效点击继续直接发行新普通货币，只受服务器 3 秒冷却、幂等键和正常接口校验约束。商店兑换普通货币继续直接发行新货币，但兑换率改为北京时间每日锁定的全服动态终端报价；不使用有限准备金或玩家个人随机报价。',
+              'product issuance',
+          )
+          ensure(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '### 9.4 工厂施工加速',
+              '商店固定汇率为 **1 宝石 = 10 普通货币**，每次兑换 1～100 个整数宝石。兑换只允许宝石单向兑换普通货币，完成后不可撤销；不允许普通货币购买宝石，也不允许客户端决定汇率。\n\n兑换必须在一个 SQLite 事务中扣除宝石、增加普通货币、写入普通货币账本和兑换记录，并使用幂等键防止重复扣除或重复发行。兑换获得的普通货币不计入增长榜经营增长。',
+              '商店每天按 `Asia/Shanghai` 提供一份全服一致的终端报价。中性基准为 **1 宝石 = 10 普通货币**，范围 6～14，每日最多变化 1。每名玩家每天只能接受并兑换 1～100 个整数宝石一次，或明确放弃一次；接受或放弃后当天不可恢复或追加。兑换只允许宝石单向兑换普通货币，完成后不可撤销；不允许普通货币购买宝石，也不允许客户端决定汇率。\n\n兑换必须在一个 SQLite 事务中扣除宝石、增加普通货币、写入普通货币账本和兑换记录，并使用幂等键防止重复扣除或重复发行。兑换获得的普通货币不计入增长榜经营增长。\n\n次日汇率由前一完整自然日的有效兑换量与报价接受率共同决定。每个账号每天最多 20 个兑换宝石进入价格统计，需求压力高时次日汇率降低 1，需求压力低时提高 1；无人决策时向基准 10 回归。完整公式、表结构和防回退规则见 `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md`。\n\n### 9.4 工厂施工加速\n\n工厂详情允许消耗 **1 宝石减少当前施工 30 分钟**。剩余不足 30 分钟时直接完工，不退还部分宝石。扣除宝石、缩短完成时间、释放施工就业收入、完成建造和审计必须在同一幂等事务中完成。\n\n宝石施工加速不得改变同一时间只能施工一座工厂、同类工厂集群保存、下一周期加入和人口建造业就业收入规则。不得增加宝石兑换工厂产量、商品或生产周期的功能。',
+              'product gem sections',
+          )
+          ensure(
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              '注册完成后补填或更换邀请码、宝石兑换工厂产量、拍卖成交写入订单簿行情',
+              '注册完成后补填或更换邀请码、拍卖成交写入订单簿行情',
+              '注册完成后补填或更换邀请码、宝石兑换工厂产量、拍卖成交写入订单簿行情',
+              'product anti rollback',
+          )
+
+          ensure(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',
+              '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与宝石单向兑换普通货币 |',
+              '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',
+              'page shop row',
+          )
+          ensure(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '当前施工属于对应工厂类型详情',
+              '生产公式是集群运行能力展示，公式只展示集群输入、输出、周期和成本。当前周期只使用 `participatingCount`；停止或异常使用 `nextCycleCount` 表示启动后或恢复后的集群能力。周期时长不乘工厂数量，`pendingJoinCount` 不得提前进入当前周期，`group.count` 不得作为公式乘数。开关只改变服务器运行意图；异常时仍保持开启视觉，并等待资金、原料或仓库恢复后自动从完整新周期继续。',
+              '生产公式是集群运行能力展示，公式只展示集群输入、输出、周期和成本。当前周期只使用 `participatingCount`；停止或异常使用 `nextCycleCount` 表示启动后或恢复后的集群能力。周期时长不乘工厂数量，`pendingJoinCount` 不得提前进入当前周期，`group.count` 不得作为公式乘数。开关只改变服务器运行意图；异常时仍保持开启视觉，并等待资金、原料或仓库恢复后自动从完整新周期继续。\n\n当前施工属于对应工厂类型详情；详情显示剩余时间、1 宝石减少 30 分钟的服务器报价和权威按钮。尚无同类工厂时提供临时“施工中”详情入口，但不计入运行／停止／异常集群统计。',
+              'page construction detail',
+          )
+          ensure(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '每日终端报价、较昨日变化、更新倒计时、接受／放弃状态',
+              '页面主标题固定为“商店”，作为独立一级页面使用路由 ID `gem-shop`。页面统一承载宝石获取与使用：必须展示专属分享链接、永久邀请码、每次奖励、邀请统计、最近邀请，以及当前宝石、可用资金、服务器固定汇率、整数兑换数量、快捷数量、预计获得货币、确认按钮、累计兑换和最近 20 笔兑换记录。',
+              '页面主标题固定为“商店”，作为独立一级页面使用路由 ID `gem-shop`。页面统一承载宝石获取与使用：必须展示专属分享链接、永久邀请码、每次奖励、邀请统计、最近邀请，以及当前宝石、可用资金、每日终端报价、较昨日变化、更新倒计时、接受／放弃状态、整数兑换数量、快捷数量、预计获得货币、累计兑换和最近 20 笔兑换记录。',
+              'page shop content',
+          )
+          ensure(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '每名玩家每天只能接受兑换一次或明确放弃一次',
+              '汇率固定显示为 1 宝石兑换 10 普通货币；单次输入范围 1～100，不能超过当前宝石余额。客户端只计算展示预览，实际扣除、发行、幂等与记录全部等待服务器响应。页面必须明确说明兑换单向且不可撤销，不得提供普通货币购买宝石或将商店塞回设置页。',
+              '汇率显示当天服务器锁定的全服终端报价；每名玩家每天只能接受兑换一次或明确放弃一次。输入范围 1～100，不能超过当前宝石余额。客户端只计算展示预览，实际汇率、扣除、发行、决策、幂等与记录全部等待服务器响应。页面必须明确说明兑换单向且不可撤销，不得提供普通货币购买宝石或将商店塞回设置页。',
+              'page shop rate',
+          )
+          ensure(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '恢复永久固定汇率、允许同日重复兑换',
+              '- 把商店合并进设置页、允许普通货币购买宝石、由客户端决定实际汇率或允许撤销兑换；',
+              '- 把商店合并进设置页、恢复永久固定汇率、允许同日重复兑换、允许普通货币购买宝石、由客户端决定实际汇率、提供随机个人报价或允许撤销兑换；',
+              'page anti rollback',
+          )
+
+          ensure(
+              'docs/README.md',
+              '`GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md`',
+              '| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、每日签到、普通货币与宝石、直接货币发行、人口就业收入、三类人口真实钱包、消费需求与排行榜目标 |',
+              '| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、每日签到、普通货币与宝石、直接货币发行、人口就业收入、三类人口真实钱包、消费需求与排行榜目标 |\n| `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` | 1 宝石减少施工 30 分钟、每日终端动态报价、接受／拒绝决策、历史汇率、SQLite 审计与禁止宝石兑换工厂产量 |',
+              'docs index row',
+          )
+          ensure(
+              'docs/README.md',
+              '商店每日终端动态报价、全服同价',
+              '18. 商店固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复到设置页。',
+              '18. 商店每日终端动态报价、全服同价、接受／拒绝决策、单向兑换、直接货币发行、施工宝石加速、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新 `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md`、对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复固定永久汇率、同日重复兑换或宝石兑换工厂产量。',
+              'docs rule 18',
+          )
+
+          ensure(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '每日终端报价、报价决策、商店兑换和施工宝石加速审计',
+              '- 礼品码、每日签到、每周全勤、宝石流水和商店兑换；',
+              '- 礼品码、每日签到、每周全勤、宝石流水、每日终端报价、报价决策、商店兑换和施工宝石加速审计；',
+              'server authority list',
+          )
+          ensure(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '`gem-economy-store.js`',
+              '- `gem-shop.js`：服务器固定汇率和宝石兑换摘要；',
+              '- `gem-shop.js`：每日动态终端报价纯函数、汇率边界和宝石兑换摘要；\n- `gem-economy-store.js`：每日汇率、玩家接受／拒绝、实际兑换与施工宝石加速审计；',
+              'server modules',
+          )
+          ensure(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '`economy_gem_shop_daily_rates`',
+              '`economy_gem_ledger`、`economy_gem_shop_exchanges`、`economy_ip_ban_incidents`',
+              '`economy_gem_ledger`、`economy_gem_shop_daily_rates`、`economy_gem_shop_quote_decisions`、`economy_gem_shop_exchanges`、`economy_facility_gem_actions`、`economy_ip_ban_incidents`',
+              'server tables',
+          )
+          ensure(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '/api/game/gem-shop/quote/reject',
+              '| GET | `/api/game/gem-shop` | 获取服务器汇率、兑换边界、累计与最近记录 |\n| POST | `/api/game/gem-shop/exchange` | 原子扣除宝石并增加普通货币 |',
+              '| GET | `/api/game/gem-shop` | 获取今日终端报价、接受／放弃状态、兑换边界、累计与最近记录 |\n| POST | `/api/game/gem-shop/exchange` | 接受今日报价并原子扣除宝石、增加普通货币；每天一次 |\n| POST | `/api/game/gem-shop/quote/reject` | 明确放弃今日报价；当天不可恢复 |',
+              'server gem routes',
+          )
+          ensure(
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              '/api/game/facilities/construction/accelerate',
+              '| POST | `/api/game/facilities` | 建设工厂 |',
+              '| POST | `/api/game/facilities` | 建设工厂 |\n| POST | `/api/game/facilities/construction/accelerate` | 消耗 1 宝石减少当前施工 30 分钟 |',
+              'server construction route',
+          )
+
+          # Update only stale guard phrases; latest-main asset/navigation checks remain untouched.
+          guard_updates = {
+              'scripts/verify-document-authority.mjs': [
+                  ("  'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',\n", "  'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',\n  'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md',\n", "'docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md'"),
+                  ("    '商店兑换继续按固定汇率直接发行普通货币',", "    '商店按北京时间每日锁定的全服终端报价直接发行普通货币',", '商店按北京时间每日锁定的全服终端报价直接发行普通货币'),
+                  ("    '商店固定汇率、单向兑换、直接货币发行、兑换幂等与独立页面',", "    '商店每日终端动态报价、全服同价、接受／拒绝决策、单向兑换、直接货币发行、施工宝石加速',", '商店每日终端动态报价、全服同价'),
+              ],
+              'scripts/verify-email-registration.mjs': [
+                  ("  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与宝石单向兑换普通货币 |',", "  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',", '每日终端动态报价兑换普通货币'),
+              ],
+              'scripts/verify-daily-check-in.mjs': [
+                  ("check(pageDesign.includes('邀请获取宝石与宝石单向兑换普通货币'), 'shop invitation responsibility must remain documented');", "check(pageDesign.includes('邀请获取宝石与每日终端动态报价兑换普通货币'), 'shop invitation and dynamic quote responsibility must remain documented');", 'shop invitation and dynamic quote responsibility'),
+              ],
+              'scripts/verify-page-content.mjs': [
+                  ("  'summary[group.status] += 1;',", "  'if (!entry.constructionOnly)',\n  'summary[entry.group.status] += 1;',", 'summary[entry.group.status] += 1;'),
+                  ("  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与宝石单向兑换普通货币 |',", "  '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',", '每日终端动态报价兑换普通货币'),
+              ],
+          }
+          for path_name, items in guard_updates.items():
+              path = Path(path_name)
+              text = path.read_text()
+              changed = False
+              for old, new, marker in items:
+                  if marker in text:
+                      continue
+                  if old not in text:
+                      raise SystemExit(f'missing guard update in {path_name}: {marker}')
+                  text = text.replace(old, new, 1)
+                  changed = True
+              if changed:
+                  path.write_text(text)
+          PY
+      - name: Commit merged branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/agent-merge-main-gem-economy.yml
+          git add -A
+          git commit --amend --no-edit
+          git push --force-with-lease origin HEAD:agent/gem-construction-and-dynamic-rate
