@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/merge-assets-into-bank
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
