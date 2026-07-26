@@ -85,9 +85,11 @@ test('warehouse capacity increase grows by level while upgrade cost grows linear
   );
   assert.deepEqual(
     [500, 750, 1_050, 1_400, 1_800, 2_250].map((capacity) => warehouseUpgradeCostForCapacity(capacity)),
-    [150, 300, 480, 690, 930, 1_200],
+    [150, 450, 810, 1_230, 1_710, 2_250],
   );
-  assert.equal(warehouseUpgradeCostForCapacity(900), 390);
+  assert.equal(warehouseUpgradeCostForCapacity(900), 630);
+  assert.equal(warehouseUpgradeCostForCapacity(501), 152);
+  assert.equal(warehouseUpgradeCostForCapacity(502), 153);
 });
 
 test('warehouse usage counts stored goods and remaining open commodity buy orders only', () => {
@@ -147,7 +149,7 @@ test('warehouse upgrade deducts server funds and increases shared capacity', () 
     assert.equal(state.stats.systemSinks, 0);
     assert.equal(state.stats.warehousePayroll, 150);
     assert.equal(state.stats.employmentPayments, 150);
-    assert.equal(state.warehouseUpgradeCost, 300);
+    assert.equal(state.warehouseUpgradeCost, 450);
     assert.equal(state.warehouseNextCapacity, 1_050);
     assert.equal(state.warehouseNextCapacityIncrease, 300);
     assert.equal(state.warehouseAvailableCapacity, 750);
@@ -158,17 +160,17 @@ test('warehouse summary price matches the amount deducted for the same actual ca
   const store = seedStore({ warehouseLevel: 3, inventoryCapacity: 1_050 });
   try {
     const before = store.getState(alice, now + 1);
-    assert.equal(before.warehouseUpgradeCost, 480);
+    assert.equal(before.warehouseUpgradeCost, 810);
 
     const { response, state } = applyAndReadState(store, request('warehouse-linear-cost-12345678'), now + 2);
     assert.equal(response.result.ok, true);
     assert.equal(state.warehouseLevel, 4);
     assert.equal(state.inventoryCapacity, 1_400);
-    assert.equal(state.credits, 9_520);
+    assert.equal(state.credits, 9_190);
     assert.equal(state.stats.systemSinks, 0);
-    assert.equal(state.stats.warehousePayroll, 480);
-    assert.equal(state.stats.employmentPayments, 480);
-    assert.equal(state.warehouseUpgradeCost, 690);
+    assert.equal(state.stats.warehousePayroll, 810);
+    assert.equal(state.stats.employmentPayments, 810);
+    assert.equal(state.warehouseUpgradeCost, 1_230);
   } finally { store.close(); }
 });
 
@@ -201,7 +203,7 @@ test('legacy custom capacity infers a non-decreasing warehouse level', () => {
     const state = store.getState(alice, now + 1);
     assert.equal(state.warehouseLevel, 3);
     assert.equal(state.inventoryCapacity, 1_050);
-    assert.equal(state.warehouseUpgradeCost, 480);
+    assert.equal(state.warehouseUpgradeCost, 810);
     assert.ok(state.inventoryCapacity >= 900);
   } finally { store.close(); }
 });
@@ -212,7 +214,7 @@ test('legacy stored level behind capacity is advanced and can still expand', () 
     const state = store.getState(alice, now + 1);
     assert.equal(state.warehouseLevel, 6);
     assert.equal(state.inventoryCapacity, 2_250);
-    assert.equal(state.warehouseUpgradeCost, 1_200);
+    assert.equal(state.warehouseUpgradeCost, 2_250);
     assert.equal(state.warehouseNextCapacityIncrease, 500);
     assert.equal(state.warehouseNextCapacity, 2_750);
 
@@ -220,7 +222,7 @@ test('legacy stored level behind capacity is advanced and can still expand', () 
     assert.equal(response.result.ok, true);
     assert.equal(upgradedState.warehouseLevel, 7);
     assert.equal(upgradedState.inventoryCapacity, 2_750);
-    assert.equal(upgradedState.warehouseUpgradeCost, 1_500);
+    assert.equal(upgradedState.warehouseUpgradeCost, 2_850);
   } finally { store.close(); }
 });
 
