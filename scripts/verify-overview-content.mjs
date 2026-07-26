@@ -101,18 +101,24 @@ requireAll(paths.chart, [
   'const compactGeometry',
   'height: 228,',
   'function compactAxisLabelIndexes',
-  "const priceScale = buildIntegerPriceScale(rawMinPrice, rawMaxPrice, variant === 'compact' ? 3 : 5);",
+  "const priceTickCount = variant === 'compact' ? 3 : 5;",
+  'const priceScale = buildIntegerPriceScale(rawMinPrice, rawMaxPrice, priceTickCount);',
   'const volumeScale = buildIntegerVolumeScale(',
   "variant === 'compact' ? 2 : 3,",
+  'const chartHeight = Math.max(baseHeight, requiredHeight);',
+  'aspectRatio: `${width} / ${chartHeight}`',
   'className="chart-x-tick-label"',
   'className="chart-price-tick-label"',
   'className="chart-volume-tick-label"',
   'className="chart-legend-item"',
-  "style={variant === 'full' ? { height: 'clamp(320px, 42vw, 410px)' } : undefined}",
   "textAnchor={variant === 'compact' ? 'middle' : 'end'}",
   "transform={variant === 'compact' ? undefined : `rotate(-45 ${x} ${xLabelY})`}",
 ]);
-forbidAll(paths.chart, ["variant === 'compact' ? 'clamp(168px, 20vw, 210px)'", 'const height = 540;']);
+forbidAll(paths.chart, [
+  "variant === 'compact' ? 'clamp(168px, 20vw, 210px)'",
+  'const height = 540;',
+  "style={variant === 'full' ? { height: 'clamp(320px, 42vw, 410px)' } : undefined}",
+]);
 
 requireAll(paths.overviewStyle, [
   '--overview-primary-card-height: 330px;',

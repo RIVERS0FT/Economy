@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { buildMarketAxisTicks } from '../../utils/marketHistory';
 
@@ -10,6 +10,7 @@ type ChartGeometry = {
   top: number;
   priceBottom: number;
   preferredVolumeTop: number;
+  preferredVolumeHeight: number;
 };
 
 type IntegerAxisScale = {
@@ -24,6 +25,7 @@ const compactGeometry: ChartGeometry = {
   top: 12,
   priceBottom: 90,
   preferredVolumeTop: 110,
+  preferredVolumeHeight: 33,
 };
 
 const fullGeometry: ChartGeometry = {
@@ -32,6 +34,7 @@ const fullGeometry: ChartGeometry = {
   top: 22,
   priceBottom: 230,
   preferredVolumeTop: 276,
+  preferredVolumeHeight: 106,
 };
 
 const fullIntegerFormatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 });
@@ -131,7 +134,6 @@ function formatCompactVolumeTick(value: number) {
 
 function useChartAxisMetrics(
   viewBoxWidth: number,
-  viewBoxHeight: number,
   axisLabels: string[],
   timeLabels: string[],
   legendLabels: string[],
@@ -159,7 +161,7 @@ function useChartAxisMetrics(
     let cancelled = false;
     const updateMetrics = () => {
       const bounds = svg.getBoundingClientRect();
-      const scale = Math.min(bounds.width / viewBoxWidth, bounds.height / viewBoxHeight);
+      const scale = bounds.width / viewBoxWidth;
       const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize);
       if (!(scale > 0) || !Number.isFinite(rootFontSize)) return;
 
@@ -200,7 +202,7 @@ function useChartAxisMetrics(
       observer?.disconnect();
       window.removeEventListener('resize', updateMetrics);
     };
-  }, [axisLabelKey, initialFontSize, legendLabelKey, timeLabelKey, viewBoxHeight, viewBoxWidth]);
+  }, [axisLabelKey, initialFontSize, legendLabelKey, timeLabelKey, viewBoxWidth]);
 
   return { svgRef, axisFontSize, axisLabelWidth, timeLabelWidth, legendLabelWidths };
 }
@@ -223,10 +225,11 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const geometry = variant === 'compact' ? compactGeometry : fullGeometry;
   const {
     width,
-    height,
+    height: baseHeight,
     top,
     priceBottom,
     preferredVolumeTop,
+    preferredVolumeHeight,
   } = geometry;
   const right = variant === 'compact' ? 18 : 24;
   const safeBuckets: MarketHistoryBucket[] = buckets.length > 0
@@ -237,7 +240,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       }];
   const rawMinPrice = Math.min(...safeBuckets.map((bucket) => bucket.price));
   const rawMaxPrice = Math.max(...safeBuckets.map((bucket) => bucket.price));
-  const priceScale = buildIntegerPriceScale(rawMinPrice, rawMaxPrice, variant === 'compact' ? 3 : 5);
+  const priceTickCount = variant === 'compact' ? 3 : 5;
+  const priceScale = buildIntegerPriceScale(rawMinPrice, rawMaxPrice, priceTickCount);
   const volumeScale = buildIntegerVolumeScale(
     Math.max(1, ...safeBuckets.map((bucket) => bucket.volume)),
     variant === 'compact' ? 2 : 3,
@@ -253,12 +257,12 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   ];
   const { svgRef, axisFontSize, axisLabelWidth, timeLabelWidth, legendLabelWidths } = useChartAxisMetrics(
     width,
-    height,
     [...priceLabels, ...volumeLabels],
     axisLabelTicks.map((tick) => tick.label),
     legendItems.map((item) => item.label),
     variant === 'compact' ? 14 : 18,
   );
+
   const axisTitleX = Math.max(12, axisFontSize * 1.15);
   const tickLabelGap = Math.max(8, axisFontSize * 0.45);
   const left = Math.max(
@@ -277,28 +281,49 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const legendItemGap = axisFontSize * 1.5;
   const legendTopOffset = Math.min(-legendCircleRadius, tickBaselineOffset - textAscent);
   const legendBottomOffset = Math.max(legendCircleRadius, tickBaselineOffset + textDescent);
-  const xAxisTitleY = height - bottomSafeInset - textDescent;
-  const xAxisTitleTop = xAxisTitleY - textAscent;
-  const legendY = xAxisTitleTop - legendTitleGap - legendBottomOffset;
-  const legendTop = legendY + legendTopOffset;
+  const timeLabelTopOffset = variant === 'compact'
+    ? textAscent
+    : Math.SQRT1_2 * textAscent + axisFontSize * 0.12;
   const timeLabelBottomOffset = variant === 'compact'
     ? textDescent
     : Math.SQRT1_2 * (timeLabelWidth + textDescent) + axisFontSize * 0.12;
-  const xLabelY = legendTop - timeLegendGap - timeLabelBottomOffset;
-  const volumeBottom = Math.max(priceBottom + 1, xLabelY - axisLineLabelGap);
-  const minimumVolumeHeight = axisFontSize * (variant === 'compact' ? 1.15 : 1.35);
-  const priceVolumeGap = axisFontSize * (variant === 'compact' ? 0.65 : 0.85);
-  const volumeTop = Math.min(
-    volumeBottom - 1,
-    Math.max(
-      priceBottom + priceVolumeGap,
-      Math.min(preferredVolumeTop, volumeBottom - minimumVolumeHeight),
-    ),
+
+  const priceHeight = priceBottom - top;
+  const priceVolumeGap = Math.max(1, preferredVolumeTop - priceBottom);
+  const minimumVolumeHeight = axisFontSize * (variant === 'compact' ? 1.5 : 4.5);
+  const minimumVolumeShare = variant === 'compact' ? 0.16 : 0.22;
+  const ratioProtectedVolumeHeight = (
+    minimumVolumeShare / (1 - minimumVolumeShare)
+  ) * (priceHeight + priceVolumeGap);
+  const volumeTop = preferredVolumeTop;
+  const volumeHeight = Math.max(
+    preferredVolumeHeight,
+    minimumVolumeHeight,
+    ratioProtectedVolumeHeight,
   );
+  const volumeBottom = volumeTop + volumeHeight;
+
+  const legendHeight = legendBottomOffset - legendTopOffset;
+  const timeLabelHeight = timeLabelTopOffset + timeLabelBottomOffset;
+  const requiredHeight = volumeBottom
+    + axisLineLabelGap
+    + timeLabelHeight
+    + timeLegendGap
+    + legendHeight
+    + legendTitleGap
+    + textAscent
+    + textDescent
+    + bottomSafeInset;
+  const chartHeight = Math.max(baseHeight, requiredHeight);
+  const extraBottomSpace = chartHeight - requiredHeight;
+  const xLabelY = volumeBottom + axisLineLabelGap + timeLabelTopOffset + extraBottomSpace;
+  const legendTop = xLabelY + timeLabelBottomOffset + timeLegendGap;
+  const legendY = legendTop - legendTopOffset;
+  const legendBottom = legendY + legendBottomOffset;
+  const xAxisTitleY = legendBottom + legendTitleGap + textAscent;
+
   const plotWidth = Math.max(1, width - left - right);
   const priceRange = Math.max(1, priceScale.max - priceScale.min);
-  const priceHeight = priceBottom - top;
-  const volumeHeight = Math.max(1, volumeBottom - volumeTop);
   const barSlotWidth = plotWidth / safeBuckets.length;
   const barWidth = Math.max(1, barSlotWidth * 0.74);
   const pricePoints = safeBuckets.map((bucket, index) => {
@@ -323,26 +348,37 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   const legendStartX = legendTotalWidth >= plotWidth
     ? left
     : left + plotWidth / 2 - legendTotalWidth / 2;
+  const plotCenterX = left + plotWidth / 2;
+  const dataAreaHeight = priceHeight + priceVolumeGap + volumeHeight;
+  const volumeShare = volumeHeight / Math.max(1, dataAreaHeight);
   const gradientId = `marketPriceFill-${variant}`;
+  const chartStyle = variant === 'full'
+    ? ({ aspectRatio: `${width} / ${chartHeight}` } as CSSProperties)
+    : undefined;
 
   return (
     <svg
       ref={svgRef}
       className={`price-chart market-history-chart ${variant}`}
-      viewBox={`0 0 ${width} ${height}`}
+      viewBox={`0 0 ${width} ${chartHeight}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
       data-chart-variant={variant}
       data-axis-left={left.toFixed(2)}
+      data-price-bottom={priceBottom.toFixed(2)}
+      data-volume-top={volumeTop.toFixed(2)}
       data-volume-bottom={volumeBottom.toFixed(2)}
+      data-volume-share={volumeShare.toFixed(4)}
+      data-chart-height={chartHeight.toFixed(2)}
+      data-plot-center-x={plotCenterX.toFixed(2)}
       data-x-label-y={xLabelY.toFixed(2)}
       data-legend-y={legendY.toFixed(2)}
       data-x-axis-title-y={xAxisTitleY.toFixed(2)}
-      style={variant === 'full' ? { height: 'clamp(320px, 42vw, 410px)' } : undefined}
+      style={chartStyle}
     >
       <title>近 24 小时价格、成交量与主动买卖方向趋势</title>
-      <desc>每 6 分钟一个数据分段，共 240 个分段。价格折线位于上方，成交量柱状图位于下方；绿色表示净主动买入，红色表示净主动卖出，灰色表示未归类成交量。旋转时间刻度、方向图例和时间轴标题之间保留独立安全区。</desc>
+      <desc>每 6 分钟一个数据分段，共 240 个分段。价格折线位于上方，成交量柱状图位于下方；绿色表示净主动买入，红色表示净主动卖出，灰色表示未归类成交量。成交量绘图区保持最低可读高度，旋转时间刻度、方向图例和时间轴标题之间保留独立安全区。</desc>
       <defs>
         <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="currentColor" stopOpacity="0.24" />
@@ -431,12 +467,12 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         成交量
       </text>
 
-      <g className="chart-legend" transform={`translate(${legendStartX}, ${legendY})`}>
+      <g className="chart-legend">
         {legendItems.map((item, index) => (
           <g
             className="chart-legend-item"
             key={item.label}
-            transform={`translate(${legendOffsets[index]}, 0)`}
+            transform={`translate(${legendStartX + legendOffsets[index]}, ${legendY})`}
             fontSize={axisFontSize}
             fill="var(--color-text-muted)"
           >
@@ -446,7 +482,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         ))}
       </g>
 
-      <text className="chart-axis-title chart-x-axis-title" x={left + plotWidth / 2} y={xAxisTitleY} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle">
+      <text className="chart-axis-title chart-x-axis-title" x={plotCenterX} y={xAxisTitleY} fill="var(--color-text-muted)" fontSize={axisFontSize} textAnchor="middle">
         时间
       </text>
     </svg>

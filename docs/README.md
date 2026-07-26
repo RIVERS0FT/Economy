@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-07-24
+> 更新时间：2026-07-26
 > 客户端状态版本：19
 > 世界状态版本：16
 
@@ -20,6 +20,7 @@
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单与合同采购预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 十个正式页面、银行存贷款、商品／工厂资产拍卖、统一导航角标语义与已读规则、进行中的合同默认视图、登录注册入口、独立商店、分享链接、邀请码、封禁提示、资产导航、模块唯一归属和页面防回退规则 |
+| `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填与旧接口退役 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` | 服务器绝对截止时间、状态响应 `serverNow`、共享单调服务器时钟、本地资格倒计时、权威状态转换倒计时、到期立即刷新、每秒确认与统一注册表 |
@@ -82,5 +83,5 @@
 47. 统一订单簿运行时索引只属于服务器事务内派生状态；`world.orders` 仍是唯一持久化权威来源。撮合、自交叉、系统最优价、商品买单仓库预占、工厂卖单冻结、人口卖盘深度和需求组订单必须复用 `order-book-runtime.js`，不得各自重新对完整订单数组过滤排序；同价同时间必须保持原数组顺序，并通过 `server/test/order-book-runtime.test.js`、`server/test/order-matching.test.js` 与 `scripts/verify-order-matching-core.mjs` 防回退。
 48. 正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`，不得恢复固定一秒 `setInterval` 或在空闲窗口反复克隆、迁移、深比较和写入世界；施工就业必须按下一整数释放边界调度，动作前后处理顺序保持不变，并通过 `server/test/world-deadline-planner.test.js` 与 `scripts/verify-runtime-efficiency.mjs` 防回退。
 49. 共享仓库统一预占必须同时包含未完成商品买单、当前最高出价拍卖和进行中采购合同的下一批商品；订单、拍卖、合同、生产空间检查和客户端仓库摘要必须调用 `warehouse.js` 的同一口径。合同容量检查必须复用 `contract-runtime-index.js` 并排除当前合同自身旧预占，禁止重新遍历全部合同或遗漏订单／拍卖预占；必须同步 `WAREHOUSE_EXPANSION_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、统一仓库预占测试和 `scripts/verify-warehouse-expansion.mjs`。
-
 50. 银行存取款、唯一进行中工厂抵押贷款、透明额度评估、72 小时期限与 12 小时宽限、抵押继续生产但禁止转让、贷款本金与负债同步、净资产口径、已实现贷款利息 70%／20%／10% 分配、北京时间每日最低余额结息、0.25% 日上限、微单位余数、七日利息池上限、风险准备金、违约处置和世界 16 数据快照属于产品、产业、订单簿、页面、UI、服务器、排行榜和部署共同规则；必须同步更新对应权威文档、服务器与浏览器测试、`scripts/verify-banking.mjs`、版本验证和部署工作流，禁止无资金来源的固定存款利息或把贷款本金计入净资产增长。
+51. 市场行情图的整数坐标、成交量绘图区最低 `48px` 实际高度、最低 `22%` 数据区占比、动态 `viewBox`／纵横比、底部安全区与图例居中唯一归属 `MARKET_CHART_LAYOUT_DESIGN.md`；页面职责和通用 UI 文档只保留模块边界与引用。实现必须同步 `PriceSparkline.tsx`、`scripts/verify-market-chart.mjs` 和真实浏览器几何回归，不得恢复窄屏压缩成交量区或强制固定 `16:9`。
