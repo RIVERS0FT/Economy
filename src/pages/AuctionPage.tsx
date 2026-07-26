@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNow } from '../hooks/useNow';
 import { gameActions } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
@@ -173,6 +173,14 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const selectedOption = useMemo(() => (
     availableOptions.find((item) => item.id === selectedAssetId) ?? availableOptions[0]
   ), [availableOptions, selectedAssetId]);
+
+  useEffect(() => {
+    setSelectedAssetId((current) => (
+      availableOptions.some((item) => item.id === current)
+        ? current
+        : availableOptions[0]?.id ?? ''
+    ));
+  }, [availableOptions]);
   const selectedQuantity = parseAuctionQuantity(quantityInput, selectedOption?.available);
   const parsedStartingBid = parseIntegerDraft(startingBidInput, { min: 1, max: 1_000_000_000 });
   const parsedDurationHours = parseIntegerDraft(durationHoursInput, { min: 1, max: 168 });
@@ -325,7 +333,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
               <div className="asset-auction-add-form">
                 <SelectInput
                   label="资产"
-                  value={selectedOption?.id || ''}
+                  value={selectedAssetId}
                   onChange={(event) => setSelectedAssetId(event.target.value)}
                 >
                   {availableOptions.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
