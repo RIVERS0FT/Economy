@@ -202,7 +202,7 @@ test.describe('full-width signed-in game shell', () => {
     const navigation = page.locator('.desktop-sidebar .sidebar-nav');
     const buttons = navigation.locator('.sidebar-nav-button');
     await expect(navigation).toBeVisible();
-    await expect(buttons).toHaveCount(9);
+    await expect(buttons).toHaveCount(10);
 
     const geometry = await navigation.evaluate((element) => {
       const navRect = element.getBoundingClientRect();
