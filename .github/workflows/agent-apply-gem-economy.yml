@@ -118,8 +118,20 @@ jobs:
           PY
       - name: Apply production page
         run: python3 .agent/apply-production.py
-      - name: Apply documentation
-        run: python3 .agent/apply-docs.py
+      - name: Diagnose documentation transformation
+        shell: bash
+        run: |
+          set +e
+          python3 .agent/apply-docs.py > .agent/docs-error.txt 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            git config user.name "OpenAI Codex"
+            git config user.email "codex@openai.com"
+            git add .agent/docs-error.txt
+            git commit -m "chore: capture docs transform error [skip ci]"
+            git push origin HEAD:agent/gem-construction-and-dynamic-rate
+            exit "$status"
+          fi
       - name: Commit applied changes
         shell: bash
         run: |
