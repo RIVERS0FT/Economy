@@ -192,10 +192,10 @@ async function mockContractAudit(page: Page) {
   ];
 
   await page.route('**/economy-api/game/contracts/history**', async (route) => {
-    await route.fulfill({ json: { items: [contract], nextCursor: null } });
+    await route.fulfill({ json: { history: { items: [contract], nextCursor: null } } });
   });
   await page.route('**/economy-api/game/contracts/contract-history/audit**', async (route) => {
-    await route.fulfill({ json: { contract, events, nextCursor: null } });
+    await route.fulfill({ json: { audit: { contract, events, nextCursor: null } } });
   });
 }
 
