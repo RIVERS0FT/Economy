@@ -69,8 +69,8 @@ assert.ok(!statePartitions.includes('contractHistory'), 'audit history must not 
 
 includesAll(contractApi, [
   'productionContractAudit',
-  "getJson<ContractAuditHistoryPage>('/contracts/history'",
-  "getJson<ContractAuditDetail>(`/contracts/${encodeURIComponent(contractId)}/audit",
+  "getJson<{ history: ContractAuditHistoryPage }>('/contracts/history'",
+  'getJson<{ audit: ContractAuditDetail }>(',
 ], 'contract audit client API');
 includesAll(contractTypes, [
   'ContractAuditCompleteness',
