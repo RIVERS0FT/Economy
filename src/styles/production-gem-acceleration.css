@@ -11,8 +11,3 @@
 .build-card-gem-acceleration small {
   color: var(--color-text-muted);
 }
-
-.facility-cluster-detail-card .construction-status[hidden],
-.facility-detail-sheet .construction-status[hidden] {
-  display: none !important;
-}
