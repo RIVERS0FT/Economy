@@ -27,6 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           cat .agent/apply-part-* | base64 -d | gzip -d > /tmp/apply.py
+          python3 .agent/fix.py
           python3 -m py_compile /tmp/apply.py
           set +e
           python3 /tmp/apply.py > /tmp/apply.log 2>&1
