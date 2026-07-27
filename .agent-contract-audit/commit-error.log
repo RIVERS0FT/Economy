@@ -1,0 +1,20 @@
+[agent/contract-audit-history f10d3e9] 实现可审计合同历史
+ 29 files changed, 2300 insertions(+), 80 deletions(-)
+ delete mode 100644 .agent-contract-audit/error.log
+ delete mode 100644 .agent-contract-audit/part-00
+ delete mode 100644 .agent-contract-audit/part-01
+ delete mode 100644 .agent-contract-audit/part-02
+ delete mode 100644 .agent-contract-audit/part-03
+ delete mode 100644 .agent-contract-audit/part-04
+ delete mode 100644 .agent-contract-audit/part-05
+ delete mode 100644 .agent-contract-audit/part-06
+ delete mode 100644 .agent-contract-audit/part-07
+ delete mode 100644 .agent-contract-audit/part-08
+ delete mode 100644 .agent-contract-audit/part-09
+ create mode 100644 scripts/verify-contract-audit.mjs
+ create mode 100644 server/src/contract-audit-store.js
+ create mode 100644 server/test/contract-audit.test.js
+ create mode 100644 src/styles/contract-audit.css
+To https://github.com/RIVERS0FT/Economy
+ ! [remote rejected] HEAD -> agent/contract-audit-history (refusing to allow a GitHub App to create or update workflow `.github/workflows/deploy.yml` without `workflows` permission)
+error: failed to push some refs to 'https://github.com/RIVERS0FT/Economy'
