@@ -30,8 +30,9 @@ import '../styles/production-gem-acceleration.css';
 /*
  * Split-module ownership manifest for static page-contract verification. Runtime implementations live in
  * production/ProductionFacilityDetail.tsx and production/MobileFacilityDetailSheet.tsx:
- * SwitchControl; checked={group.enabled}; facility-status-header; facility-card-title-row;
- * facility-card-title-block; 异常：资金不足; 异常：仓库已满; 异常：原料不足;
+ * SwitchControl; checked={group.enabled}; facilityStatusLabel; facility-status-header;
+ * facility-card-title-row; facility-card-title-block; facility-count-summary;
+ * 异常：资金不足; 异常：仓库已满; 异常：原料不足;
  * 运行中 <strong>{formatNumber(group.participatingCount)}</strong>;
  * 下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>;
  * 冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>;
