@@ -17,6 +17,7 @@ import { configureContractAuditStore } from './contract-audit-store.js';
 import { ensureGemState } from './invitations.js';
 import { configurePlayerAdminStatistics } from './player-admin-statistics.js';
 import { ensureWarehouse } from './warehouse.js';
+import { createEconomicCalendarClientState } from './economic-events.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const CONTRACT_ACTIONS = new Set([
@@ -27,6 +28,10 @@ const CONTRACT_ACTIONS = new Set([
   'fundProductionContract',
   'setProductionContractAutoReserve',
   'setProductionContractAutoFund',
+  'proposeProductionContractRenewal',
+  'acceptProductionContractRenewal',
+  'rejectProductionContractRenewal',
+  'revokeProductionContractRenewal',
   'requestProductionContractTermination',
   'terminateProductionContractNow',
 ]);
@@ -140,6 +145,7 @@ export class EconomyStore extends PersistentEconomyStore {
       state: {
         ...snapshot.state,
         ...normalizeJson(contractState),
+        economicCalendar: normalizeJson(createEconomicCalendarClientState(now)),
       },
     };
   }

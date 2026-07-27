@@ -369,6 +369,27 @@ export interface BankSummaryState {
   maximumLoanToValueBps: number;
 }
 
+
+export interface EconomicCalendarEvent {
+  id: string;
+  templateId: string;
+  title: string;
+  description: string;
+  announcedAt: number;
+  startsAt: number;
+  endsAt: number;
+  rampMs: number;
+  classLabels: string[];
+  productIds: string[];
+}
+
+export interface EconomicCalendarState {
+  version: 1;
+  timeZone: 'Asia/Shanghai';
+  visibleUntil: number;
+  events: EconomicCalendarEvent[];
+}
+
 export interface EconomyState {
   version: 19;
   userId: number;
@@ -406,6 +427,7 @@ export interface EconomyState {
   work: WorkState;
   stats: EconomyStats;
   leaderboard: LeaderboardEntry[];
+  economicCalendar?: EconomicCalendarState;
   lastProcessedAt: number;
 
   inventory: number;

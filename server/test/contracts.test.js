@@ -153,3 +153,66 @@ test('客户端状态包含进行中合同摘要，路由解析所有合同动�
   );
   assert.equal(resolveAction('POST', `/api/game/contracts/${contract.id}/terminate-now`).action, 'terminateProductionContractNow');
 });
+
+test('合同最后三批可提出续签，双方确认后预留资产并在原合同完成时激活关联合同', () => {
+  const { world, buyerUser, supplierUser, buyer, supplier, now } = setup();
+  applyProductionContractAction(world, buyerUser, 'createProductionContract', {
+    publisherRole: 'buyer',
+    productId: 'wheat',
+    quantityPerDelivery: 20,
+    unitPrice: 3,
+    deliveryIntervalMs: 10 * 60 * 1000,
+    totalDeliveries: 4,
+    firstDeliveryDelayMs: 10 * 60 * 1000,
+  }, now);
+  let contract = world.productionContracts[0];
+  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContract', { contractId: contract.id }, now + 1).ok, true);
+  processProductionContracts(world, now + 10 * 60 * 1000 + 2);
+  contract = contractById(world, contract.id);
+  assert.equal(contract.completedDeliveries, 1);
+
+  assert.equal(applyProductionContractAction(world, buyerUser, 'proposeProductionContractRenewal', {
+    contractId: contract.id,
+    quantityPerDelivery: 30,
+    unitPrice: 4,
+    deliveryIntervalMs: 30 * 60 * 1000,
+    totalDeliveries: 3,
+    firstDeliveryDelayMs: 10 * 60 * 1000,
+  }, now + 10 * 60 * 1000 + 3).ok, true);
+  contract = contractById(world, contract.id);
+  assert.equal(contract.renewalProposal.status, 'proposed');
+  assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContractRenewal', {
+    contractId: contract.id,
+  }, now + 10 * 60 * 1000 + 4).ok, true);
+  contract = contractById(world, contract.id);
+  assert.equal(contract.renewalProposal.status, 'accepted');
+  assert.equal(contract.renewalProposal.buyerEscrowCredits, 120);
+  assert.equal(contract.renewalProposal.buyerBondCredits, 24);
+  assert.equal(contract.renewalProposal.supplierBondCredits, 24);
+  assert.equal(contract.renewalProposal.supplierReservedQuantity, 30);
+
+  processProductionContracts(world, now + 20 * 60 * 1000 + 5);
+  processProductionContracts(world, now + 30 * 60 * 1000 + 6);
+  processProductionContracts(world, now + 40 * 60 * 1000 + 7);
+  contract = contractById(world, contract.id);
+  assert.equal(contract.status, 'completed');
+  assert.ok(contract.renewedToContractId);
+  const renewed = contractById(world, contract.renewedToContractId);
+  assert.equal(renewed.status, 'active');
+  assert.equal(renewed.renewedFromContractId, contract.id);
+  assert.equal(renewed.quantityPerDelivery, 30);
+  assert.equal(renewed.unitPrice, 4);
+  assert.equal(renewed.buyerEscrowCredits, 120);
+  assert.equal(renewed.supplierReservedQuantity, 30);
+  assert.ok(buyer.frozenCredits > 0);
+  assert.ok(supplier.inventories.wheat.frozen >= 30);
+
+  assert.equal(
+    resolveAction('POST', `/api/game/contracts/${contract.id}/renewal/propose`).action,
+    'proposeProductionContractRenewal',
+  );
+  assert.equal(
+    resolveAction('POST', `/api/game/contracts/${contract.id}/renewal/accept`).action,
+    'acceptProductionContractRenewal',
+  );
+});

@@ -6,6 +6,7 @@ export function createDemandAllocationRuntime({
   effectivePrice,
   orderBookQuote,
   realTradeStats,
+  productWeightMultiplier = () => 1,
 }) {
   function allocateClassBudgets(group, state, directBudget, classDetails, classShareOverride) {
     if (classShareOverride && typeof classShareOverride === 'object') {
@@ -86,7 +87,10 @@ export function createDemandAllocationRuntime({
         const price = effectivePrice(world, product, group.quoteUtilityDepth / Math.max(1, option.utilityPerUnit), priceState, now);
         const priceIndex = price.effective / Math.max(0.01, price.referencePrice);
         const availabilityFactor = clamp(0.35, 1.15, 0.35 + 0.80 * price.coverage);
-        scores[product.id] = option.baseWeight * priceIndex ** -demandClass.elasticity * availabilityFactor;
+        scores[product.id] = option.baseWeight
+          * Math.max(0, Number(productWeightMultiplier(world, product.id, now) || 1))
+          * priceIndex ** -demandClass.elasticity
+          * availabilityFactor;
         minima[product.id] = option.minShare || 0;
         details[product.id] = { option, product, price };
         weightedPriceIndex += option.baseWeight * priceIndex;

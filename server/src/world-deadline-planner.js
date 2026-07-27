@@ -4,6 +4,7 @@ import { nextBankDeadlineAt } from './banking.js';
 import { FACILITY_TYPE_CATALOG } from './domain.js';
 import { isOpenOrder } from './order-identity.js';
 import { POPULATION_POLICY_CYCLE_MS } from './population-policy.js';
+import { nextEconomicEventDeadline } from './economic-events.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
@@ -76,7 +77,7 @@ function facilityDeadline(world) {
 function marketDeadline(world, now) {
   const marketDemand = world.marketDemand;
   if (!marketDemand || typeof marketDemand !== 'object') return now;
-  let deadline = null;
+  let deadline = nextEconomicEventDeadline(now);
   const transmission = marketDemand.priceTransmission;
   const cycleMs = Math.max(0, Number(transmission?.cycleMs || 0));
   if (cycleMs > 0) {

@@ -34,7 +34,23 @@ export function resolveAction(method, path) {
     };
   }
 
-  const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|cancel|prepare|fund|auto-reserve|auto-fund|request-termination|terminate-now)$/);
+
+const contractRenewalAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/renewal\/(propose|accept|reject|revoke)$/);
+if (method === 'POST' && contractRenewalAction) {
+  const actionMap = {
+    propose: 'proposeProductionContractRenewal',
+    accept: 'acceptProductionContractRenewal',
+    reject: 'rejectProductionContractRenewal',
+    revoke: 'revokeProductionContractRenewal',
+  };
+  return {
+    action: actionMap[contractRenewalAction[2]],
+    category: 'orders',
+    routePayload: { contractId: decodeRouteParameter(contractRenewalAction[1]) },
+  };
+}
+
+const contractAction = path.match(/^\/api\/game\/contracts\/([^/]+)\/(accept|cancel|prepare|fund|auto-reserve|auto-fund|request-termination|terminate-now)$/);
   if (method === 'POST' && contractAction) {
     const actionMap = {
       accept: 'acceptProductionContract',

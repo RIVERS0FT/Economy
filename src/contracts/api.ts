@@ -20,6 +20,8 @@ export interface CreateProductionContractInput {
   firstDeliveryDelayMs: number;
 }
 
+export type RenewProductionContractInput = Omit<CreateProductionContractInput, 'publisherRole' | 'productId'>;
+
 export interface ContractHistoryQuery {
   cursor?: string | null;
   limit?: number;
@@ -107,6 +109,10 @@ export const productionContractActions = {
   setAutoFund: (contractId: string, enabled: boolean) => post(contractPath(contractId, 'auto-fund'), { enabled }),
   requestTermination: (contractId: string) => post(contractPath(contractId, 'request-termination')),
   terminateNow: (contractId: string) => post(contractPath(contractId, 'terminate-now')),
+  proposeRenewal: (contractId: string, input: RenewProductionContractInput) => post(`${contractPath(contractId, 'renewal')}/propose`, input),
+  acceptRenewal: (contractId: string) => post(`${contractPath(contractId, 'renewal')}/accept`),
+  rejectRenewal: (contractId: string) => post(`${contractPath(contractId, 'renewal')}/reject`),
+  revokeRenewal: (contractId: string) => post(`${contractPath(contractId, 'renewal')}/revoke`),
 };
 
 export const productionContractAudit = {

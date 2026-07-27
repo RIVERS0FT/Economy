@@ -20,6 +20,7 @@ import {
   productionContractAudit,
   type ContractHistoryQuery,
   type CreateProductionContractInput,
+  type RenewProductionContractInput,
 } from '../contracts/api';
 import {
   productionContractStateFromGame,
@@ -90,6 +91,13 @@ const AUDIT_EVENT_LABELS: Record<string, string> = {
   contract_terminated_participant_missing: '参与者异常终止',
   contract_terminated: '合同终止',
   contract_removed_unexpectedly: '合同异常移除',
+  renewal_proposed: '提出续签',
+  renewal_accepted: '确认续签',
+  renewal_rejected: '拒绝续签',
+  renewal_revoked: '撤回续签',
+  renewal_expired: '续签提议过期',
+  renewal_activated: '续签合同生效',
+  renewal_cancelled_parent_ended: '父合同结束并取消续签',
 };
 
 const REASON_LABELS: Record<string, string> = {
@@ -124,6 +132,11 @@ const TRANSFER_PURPOSE_LABELS: Record<string, string> = {
   unused_escrow_release: '退回未使用货款',
   unused_goods_release: '退回未交付商品',
   bond_compensation: '违约保证金赔付',
+  renewal_first_batch_funding: '续签首批货款托管',
+  renewal_buyer_bond: '续签采购方保证金托管',
+  renewal_supplier_bond: '续签供应方保证金托管',
+  renewal_first_batch_goods: '续签首批商品托管',
+  renewal_escrow_release: '退回续签托管资产',
 };
 
 function durationLabel(milliseconds: number) {
@@ -215,6 +228,109 @@ interface ContractCardProps {
   run: (key: string, operation: () => Promise<{ result: { ok: boolean; message: string } }>) => Promise<void>;
 }
 
+
+function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
+  const proposal = contract.renewalProposal;
+  const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);
+  const eligible = !proposal
+    && remaining >= 1
+    && remaining <= 3
+    && !contract.graceEndsAt
+    && !contract.terminationRequestedBy;
+  const [editing, setEditing] = useState(false);
+  const [quantityInput, setQuantityInput] = useState(String(contract.quantityPerDelivery));
+  const [unitPriceInput, setUnitPriceInput] = useState(String(contract.unitPrice));
+  const [deliveriesInput, setDeliveriesInput] = useState(String(contract.totalDeliveries));
+  const [interval, setInterval] = useState(contract.deliveryIntervalMs);
+  const [firstDelay, setFirstDelay] = useState(contract.firstDeliveryDelayMs);
+  const quantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
+  const unitPrice = parseIntegerDraft(unitPriceInput, { min: 1, max: 1_000_000 });
+  const deliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
+
+  if (proposal) {
+    const terms = proposal.terms;
+    return (
+      <section className="contract-renewal-panel" aria-label="合同续签">
+        <div className="contract-renewal-heading">
+          <div>
+            <strong>合同续签</strong>
+            <span>{proposal.status === 'proposed' ? '等待双方确认' : proposal.status === 'accepted' ? '已锁定，当前合同完成后生效' : '后续合同已经生效'}</span>
+          </div>
+          <StatusTag tone={proposal.status === 'accepted' || proposal.status === 'activated' ? 'success' : 'info'}>
+            {proposal.status === 'proposed' ? '待确认' : proposal.status === 'accepted' ? '已确认' : '已生效'}
+          </StatusTag>
+        </div>
+        <DataList className="compact contract-renewal-summary">
+          <DataRow label="每批数量" value={formatNumber(terms.quantityPerDelivery)} />
+          <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(terms.unitPrice)}</CurrencyAmount>} />
+          <DataRow label="交付周期" value={durationLabel(terms.deliveryIntervalMs)} />
+          <DataRow label="总批次" value={`${formatNumber(terms.totalDeliveries)} 批`} />
+        </DataList>
+        {proposal.status === 'proposed' ? (
+          <div className="contract-renewal-actions">
+            {proposal.isProposer ? (
+              <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-revoke`, () => productionContractActions.revokeRenewal(contract.id))}>撤回续签</Button>
+            ) : (
+              <>
+                <Button disabled={busy} onClick={() => void run(`${contract.id}:renewal-accept`, () => productionContractActions.acceptRenewal(contract.id))}>接受续签</Button>
+                <Button variant="text" disabled={busy} onClick={() => void run(`${contract.id}:renewal-reject`, () => productionContractActions.rejectRenewal(contract.id))}>拒绝续签</Button>
+              </>
+            )}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
+  if (!eligible) return null;
+  if (!editing) {
+    return (
+      <section className="contract-renewal-panel contract-renewal-panel--available" aria-label="合同续签">
+        <div>
+          <strong>继续长期合作</strong>
+          <span>合同剩余 {formatNumber(remaining)} 批，可提前协商下一期条款。</span>
+        </div>
+        <Button variant="secondary" disabled={busy} onClick={() => setEditing(true)}>提出续签</Button>
+      </section>
+    );
+  }
+
+  const canSubmit = quantity !== null && unitPrice !== null && deliveries !== null;
+  const submit = () => {
+    if (!canSubmit || quantity === null || unitPrice === null || deliveries === null) return;
+    const input: RenewProductionContractInput = {
+      quantityPerDelivery: quantity,
+      unitPrice,
+      deliveryIntervalMs: interval,
+      totalDeliveries: deliveries,
+      firstDeliveryDelayMs: firstDelay,
+    };
+    void run(`${contract.id}:renewal-propose`, () => productionContractActions.proposeRenewal(contract.id, input));
+  };
+  return (
+    <section className="contract-renewal-panel" aria-label="续签条款">
+      <div className="contract-renewal-heading">
+        <div><strong>提出续签</strong><span>商品与合作方保持不变，续签将创建关联的新合同。</span></div>
+        <Button variant="text" onClick={() => setEditing(false)}>取消</Button>
+      </div>
+      <div className="contract-renewal-form">
+        <IntegerInput label="每批数量" value={quantityInput} fallbackValue={contract.quantityPerDelivery} min={1} max={1_000_000} error={quantity === null ? '请输入有效整数。' : undefined} onValueChange={setQuantityInput} />
+        <IntegerInput label="单位价格" value={unitPriceInput} fallbackValue={contract.unitPrice} min={1} max={1_000_000} error={unitPrice === null ? '请输入有效整数。' : undefined} onValueChange={setUnitPriceInput} />
+        <SelectInput label="交付周期" value={interval} onChange={(event) => setInterval(Number.parseInt(event.target.value, 10))}>
+          {INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </SelectInput>
+        <IntegerInput label="总交付批次" value={deliveriesInput} fallbackValue={contract.totalDeliveries} min={2} max={100} error={deliveries === null ? '请输入 2～100 的整数。' : undefined} onValueChange={setDeliveriesInput} />
+        <SelectInput label="首次交付" value={firstDelay} onChange={(event) => setFirstDelay(Number.parseInt(event.target.value, 10))}>
+          {FIRST_DELAY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </SelectInput>
+      </div>
+      <div className="contract-renewal-actions">
+        <Button disabled={busy || !canSubmit} onClick={submit}>发送续签提议</Button>
+      </div>
+    </section>
+  );
+}
+
 function ActiveContractCard({ contract, productName, busy, run }: ContractCardProps) {
   const canPrepare = contract.isSupplier && contract.supplierReservedQuantity < contract.quantityPerDelivery;
   const canFund = contract.isBuyer && contract.buyerEscrowCredits < contract.batchGross;
@@ -291,6 +407,8 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
           ) : null}
         </div>
       </div>
+
+      <ContractRenewalSection contract={contract} productName={productName} busy={busy} run={run} />
 
       <footer className="contract-management-actions">
         {!contract.terminationRequestedBy ? (

@@ -19,6 +19,7 @@ const MARKET_KEYS = new Set([
   'marketPrice',
   'marketPriceHistory',
   'demand',
+  'economicCalendar',
 ]);
 const AUCTION_KEYS = new Set(['assetAuctions']);
 const CONTRACT_KEYS = new Set(['productionContracts', 'productionContractSummary']);
