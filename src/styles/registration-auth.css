@@ -42,6 +42,10 @@
   line-height: 1.45;
 }
 
+.invite-recognized {
+  margin-bottom: var(--space-4);
+}
+
 .invite-card input[readonly] {
   width: 100%;
   overflow: hidden;

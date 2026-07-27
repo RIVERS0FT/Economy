@@ -13,20 +13,15 @@
   border-radius: var(--radius-card);
 }
 
-.login-card.panel,
 .auth-service-warning {
   border-radius: var(--radius-card);
 }
 
 @media (max-width: 720px) {
-  .login-shell,
   .sidebar.panel {
     border-radius: var(--radius-card-mobile);
   }
 
   /* Controls and status chips intentionally keep their smaller control radii;
    * only surfaces that function as cards use the shared card token. */
-  .login-card.panel {
-    border-radius: 0;
-  }
 }
