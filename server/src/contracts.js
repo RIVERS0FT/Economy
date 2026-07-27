@@ -5,7 +5,7 @@ import { creditPopulationEmployment } from './population-economy.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
 
-export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 1;
+export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 2;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
   10 * 60 * 1000,
   30 * 60 * 1000,
@@ -36,6 +36,8 @@ const MAX_UNIT_PRICE = 1_000_000;
 const MIN_DELIVERIES = 2;
 const MAX_DELIVERIES = 100;
 const OFFER_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const RENEWAL_TTL_MS = 24 * 60 * 60 * 1000;
+const RENEWAL_WINDOW_DELIVERIES = 3;
 const BOND_RATE_BPS = 2_000;
 const BASIS_POINTS = 10_000;
 const PRODUCT_IDS = new Set(PRODUCT_CATALOG.map((product) => product.id));
@@ -84,6 +86,35 @@ function normalizeStats(player) {
   return player.stats;
 }
 
+
+function normalizeRenewalProposal(contract, proposal) {
+  if (!proposal || typeof proposal !== 'object') return null;
+  const status = ['proposed', 'accepted', 'activated'].includes(proposal.status) ? proposal.status : 'proposed';
+  const terms = proposal.terms && typeof proposal.terms === 'object' ? proposal.terms : {};
+  return {
+    id: String(proposal.id || `contract-renewal-${randomUUID()}`),
+    status,
+    proposedBy: Number(proposal.proposedBy),
+    proposedAt: Math.max(0, Number(proposal.proposedAt || contract?.createdAt || Date.now())),
+    expiresAt: Math.max(0, Number(proposal.expiresAt || 0)),
+    acceptedBy: proposal.acceptedBy === undefined ? undefined : Number(proposal.acceptedBy),
+    acceptedAt: proposal.acceptedAt === undefined ? undefined : Math.max(0, Number(proposal.acceptedAt)),
+    activatedAt: proposal.activatedAt === undefined ? undefined : Math.max(0, Number(proposal.activatedAt)),
+    activatedContractId: proposal.activatedContractId ? String(proposal.activatedContractId) : undefined,
+    terms: {
+      quantityPerDelivery: Math.max(1, Math.floor(Number(terms.quantityPerDelivery || contract?.quantityPerDelivery || 1))),
+      unitPrice: Math.max(1, Math.floor(Number(terms.unitPrice || contract?.unitPrice || 1))),
+      deliveryIntervalMs: Number(terms.deliveryIntervalMs || contract?.deliveryIntervalMs || PRODUCTION_CONTRACT_INTERVALS[2]),
+      totalDeliveries: Math.max(MIN_DELIVERIES, Math.floor(Number(terms.totalDeliveries || contract?.totalDeliveries || MIN_DELIVERIES))),
+      firstDeliveryDelayMs: Math.max(0, Math.floor(Number(terms.firstDeliveryDelayMs || 0))),
+    },
+    buyerEscrowCredits: Math.max(0, Math.floor(Number(proposal.buyerEscrowCredits || 0))),
+    buyerBondCredits: Math.max(0, Math.floor(Number(proposal.buyerBondCredits || 0))),
+    supplierBondCredits: Math.max(0, Math.floor(Number(proposal.supplierBondCredits || 0))),
+    supplierReservedQuantity: Math.max(0, Math.floor(Number(proposal.supplierReservedQuantity || 0))),
+  };
+}
+
 function normalizeContract(contract) {
   const normalized = {
     ...contract,
@@ -113,6 +144,10 @@ function normalizeContract(contract) {
     supplierBondCredits: Math.max(0, Math.floor(Number(contract?.supplierBondCredits || 0))),
     buyerAutoFund: contract?.buyerAutoFund !== false,
     supplierAutoReserve: contract?.supplierAutoReserve !== false,
+    renewalProposal: normalizeRenewalProposal(contract, contract?.renewalProposal),
+    renewedFromContractId: contract?.renewedFromContractId ? String(contract.renewedFromContractId) : undefined,
+    renewedToContractId: contract?.renewedToContractId ? String(contract.renewedToContractId) : undefined,
+    renewalCancellationReason: contract?.renewalCancellationReason ? String(contract.renewalCancellationReason) : undefined,
     marketSellFeeGross: Math.max(0, Math.floor(Number(contract?.marketSellFeeGross || 0))),
     marketSellFeeCharged: Math.max(0, Math.floor(Number(contract?.marketSellFeeCharged || 0))),
     status: ['open', 'active', 'completed', 'cancelled', 'terminated', 'expired'].includes(contract?.status)
@@ -161,6 +196,24 @@ function bondFor(gross) {
   return Number.isSafeInteger(bond) && bond > 0 ? bond : null;
 }
 
+function renewalGross(proposal) {
+  const gross = Number(proposal?.terms?.quantityPerDelivery || 0) * Number(proposal?.terms?.unitPrice || 0);
+  return Number.isSafeInteger(gross) && gross > 0 ? gross : null;
+}
+
+function renewalTerms(payload) {
+  const quantityPerDelivery = positiveInteger(payload.quantityPerDelivery, MAX_QUANTITY);
+  const unitPrice = positiveInteger(payload.unitPrice, MAX_UNIT_PRICE);
+  const deliveryIntervalMs = exactAllowedInteger(payload.deliveryIntervalMs, PRODUCTION_CONTRACT_INTERVALS);
+  const totalDeliveries = positiveInteger(payload.totalDeliveries, MAX_DELIVERIES);
+  const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);
+  if (!quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) return null;
+  if (totalDeliveries < MIN_DELIVERIES) return null;
+  const gross = quantityPerDelivery * unitPrice;
+  if (!Number.isSafeInteger(gross) || gross <= 0) return null;
+  return { quantityPerDelivery, unitPrice, deliveryIntervalMs, totalDeliveries, firstDeliveryDelayMs };
+}
+
 function consumeFrozenCredits(player, amount) {
   const normalized = Math.max(0, Math.floor(Number(amount || 0)));
   const consumed = Math.min(normalized, Math.max(0, Math.floor(Number(player.frozenCredits || 0))));
@@ -187,6 +240,91 @@ function releaseSupplierGoods(contract, supplier) {
   inventory.available = Math.max(0, Number(inventory.available || 0)) + quantity;
   contract.supplierReservedQuantity = Math.max(0, contract.supplierReservedQuantity - quantity);
   return quantity;
+}
+
+function releaseRenewalEscrow(contract, buyer, supplier, reason = null) {
+  const proposal = contract.renewalProposal;
+  if (!proposal) return false;
+  if (proposal.status === 'accepted') {
+    if (buyer) {
+      releaseFrozenCredits(buyer, proposal.buyerEscrowCredits);
+      releaseFrozenCredits(buyer, proposal.buyerBondCredits);
+    }
+    if (supplier) {
+      releaseFrozenCredits(supplier, proposal.supplierBondCredits);
+      const inventory = inventoryFor(supplier, contract.productId);
+      const quantity = Math.min(proposal.supplierReservedQuantity, Math.max(0, Number(inventory.frozen || 0)));
+      inventory.frozen -= quantity;
+      inventory.available += quantity;
+    }
+  }
+  if (reason) contract.renewalCancellationReason = reason;
+  contract.renewalProposal = null;
+  return true;
+}
+
+function reserveRenewalSupplierGoods(contract, supplier) {
+  const proposal = contract.renewalProposal;
+  if (!proposal || proposal.status !== 'accepted') return false;
+  const required = proposal.terms.quantityPerDelivery - proposal.supplierReservedQuantity;
+  if (required <= 0) return true;
+  const inventory = inventoryFor(supplier, contract.productId);
+  if (inventory.available < required) return false;
+  inventory.available -= required;
+  inventory.frozen += required;
+  proposal.supplierReservedQuantity += required;
+  return true;
+}
+
+function activateRenewal(world, contract, buyer, supplier, now, runtimeIndex) {
+  const proposal = contract.renewalProposal;
+  if (!proposal || proposal.status !== 'accepted') return null;
+  const proposerIsBuyer = Number(proposal.proposedBy) === Number(contract.buyerId);
+  const nextContract = normalizeContract({
+    id: `production-contract-${randomUUID()}`,
+    publisherId: Number(proposal.proposedBy),
+    publisherName: proposerIsBuyer ? buyer.playerName : supplier.playerName,
+    publisherRole: proposerIsBuyer ? 'buyer' : 'supplier',
+    buyerId: Number(contract.buyerId),
+    buyerName: buyer.playerName,
+    supplierId: Number(contract.supplierId),
+    supplierName: supplier.playerName,
+    productId: contract.productId,
+    ...proposal.terms,
+    completedDeliveries: 0,
+    createdAt: now,
+    offerExpiresAt: now,
+    acceptedAt: proposal.acceptedAt || now,
+    nextDueAt: now + proposal.terms.firstDeliveryDelayMs,
+    buyerEscrowCredits: proposal.buyerEscrowCredits,
+    buyerBondCredits: proposal.buyerBondCredits,
+    supplierBondCredits: proposal.supplierBondCredits,
+    supplierReservedQuantity: proposal.supplierReservedQuantity,
+    buyerAutoFund: contract.buyerAutoFund,
+    supplierAutoReserve: contract.supplierAutoReserve,
+    status: 'active',
+    roundStatus: 'preparing',
+    renewedFromContractId: contract.id,
+  });
+  if (nextContract.supplierAutoReserve && nextContract.supplierReservedQuantity < nextContract.quantityPerDelivery) {
+    reserveSupplierBatch(nextContract, supplier);
+  }
+  nextContract.roundStatus = nextContract.buyerEscrowCredits >= batchGross(nextContract)
+    && nextContract.supplierReservedQuantity >= nextContract.quantityPerDelivery
+    && hasWarehouseCapacity(world, buyer, nextContract.quantityPerDelivery, contract.id, runtimeIndex)
+    ? 'ready'
+    : 'preparing';
+  contract.renewedToContractId = nextContract.id;
+  proposal.status = 'activated';
+  proposal.activatedAt = now;
+  proposal.activatedContractId = nextContract.id;
+  proposal.buyerEscrowCredits = 0;
+  proposal.buyerBondCredits = 0;
+  proposal.supplierBondCredits = 0;
+  proposal.supplierReservedQuantity = 0;
+  world.productionContracts.push(nextContract);
+  runtimeIndex.addContract(nextContract);
+  return nextContract;
 }
 
 function reserveBuyerBatch(contract, buyer) {
@@ -229,6 +367,7 @@ function releaseAllEscrow(contract, buyer, supplier) {
 function terminateForDefault(world, contract, defaultParty, now) {
   const buyer = playerFor(world, contract.buyerId);
   const supplier = playerFor(world, contract.supplierId);
+  releaseRenewalEscrow(contract, buyer, supplier, `${defaultParty}_default`);
   if (!buyer || !supplier) {
     contract.status = 'terminated';
     contract.endedAt = now;
@@ -329,10 +468,12 @@ function settleBatch(world, contract, buyer, supplier, now, runtimeIndex) {
 
     if (contract.completedDeliveries >= contract.totalDeliveries) {
       completeContract(contract, buyer, supplier, now);
+      activateRenewal(world, contract, buyer, supplier, now, runtimeIndex);
       return true;
     }
 
     if (contract.terminationRequestedBy) {
+      releaseRenewalEscrow(contract, buyer, supplier, 'notice_completed');
       releaseAllEscrow(contract, buyer, supplier);
       contract.status = 'terminated';
       contract.endedAt = now;
@@ -359,6 +500,7 @@ function processActiveContract(world, contract, now, runtimeIndex) {
   const supplier = playerFor(world, contract.supplierId);
   if (!buyer || !supplier) {
     runtimeIndex.transition(contract, () => {
+      releaseRenewalEscrow(contract, buyer, supplier, 'participant_missing');
       contract.status = 'terminated';
       contract.endedAt = now;
       contract.terminationReason = 'participant_missing';
@@ -438,7 +580,16 @@ function processProductionContractsWithIndex(world, now = Date.now()) {
     }
   }
   for (const contract of runtimeIndex.activeContracts) {
-    if (contract.status === 'active') processActiveContract(world, contract, now, runtimeIndex);
+    if (contract.status !== 'active') continue;
+    if (contract.renewalProposal?.status === 'proposed' && now >= Number(contract.renewalProposal.expiresAt || 0)) {
+      runtimeIndex.transition(contract, () => releaseRenewalEscrow(
+        contract,
+        playerFor(world, contract.buyerId),
+        playerFor(world, contract.supplierId),
+        'expired',
+      ));
+    }
+    processActiveContract(world, contract, now, runtimeIndex);
   }
   trimContractHistory(world, runtimeIndex);
   return runtimeIndex;
@@ -581,11 +732,105 @@ function setAutoMode(world, user, payload, field, role, runtimeIndex) {
   return result(true, contract[field] ? '自动履约已开启' : '自动履约已关闭');
 }
 
+function proposeRenewal(world, user, payload, now, runtimeIndex) {
+  const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+  if (!contract) return result(false, '进行中的合同不存在');
+  const remaining = Math.max(0, contract.totalDeliveries - contract.completedDeliveries);
+  if (remaining < 1 || remaining > RENEWAL_WINDOW_DELIVERIES) return result(false, '仅可在合同剩余三批以内提出续签');
+  if (contract.graceEndsAt) return result(false, '宽限期内不能提出续签');
+  if (contract.terminationRequestedBy) return result(false, '已申请结束的合同不能续签');
+  if (contract.renewalProposal) return result(false, '当前合同已有续签安排');
+  const terms = renewalTerms(payload);
+  if (!terms) return result(false, '续签条款无效');
+  runtimeIndex.transition(contract, () => {
+    contract.renewalCancellationReason = undefined;
+    contract.renewalProposal = normalizeRenewalProposal(contract, {
+      id: `contract-renewal-${randomUUID()}`,
+      status: 'proposed',
+      proposedBy: Number(user.id),
+      proposedAt: now,
+      expiresAt: now + RENEWAL_TTL_MS,
+      terms,
+    });
+  });
+  return result(true, '续签提议已发送，等待合作方确认');
+}
+
+function acceptRenewal(world, user, payload, now, runtimeIndex) {
+  const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+  const proposal = contract?.renewalProposal;
+  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可接受的续签提议不存在');
+  if (Number(proposal.proposedBy) === Number(user.id)) return result(false, '不能接受自己提出的续签');
+  if (now >= Number(proposal.expiresAt || 0)) return result(false, '续签提议已过期');
+  if (contract.graceEndsAt || contract.terminationRequestedBy) return result(false, '当前合同状态不允许续签');
+  const buyer = playerFor(world, contract.buyerId);
+  const supplier = playerFor(world, contract.supplierId);
+  if (!buyer || !supplier) return result(false, '合同参与者不存在');
+  const gross = renewalGross(proposal);
+  const bond = gross ? bondFor(gross) : null;
+  if (!gross || !bond) return result(false, '续签金额超出安全范围');
+  if (buyer.credits < gross + bond) return result(false, `采购方需要至少 ¤${gross + bond} 用于续签首批货款和保证金`);
+  if (supplier.credits < bond) return result(false, `供应方需要至少 ¤${bond} 续签履约保证金`);
+  if (!hasWarehouseCapacity(world, buyer, proposal.terms.quantityPerDelivery, null, runtimeIndex)) {
+    return result(false, '采购方仓库无法为续签首批商品预留空间');
+  }
+  runtimeIndex.transition(contract, () => {
+    buyer.credits -= gross + bond;
+    buyer.frozenCredits += gross + bond;
+    supplier.credits -= bond;
+    supplier.frozenCredits += bond;
+    proposal.status = 'accepted';
+    proposal.acceptedBy = Number(user.id);
+    proposal.acceptedAt = now;
+    proposal.buyerEscrowCredits = gross;
+    proposal.buyerBondCredits = bond;
+    proposal.supplierBondCredits = bond;
+    if (contract.supplierAutoReserve) reserveRenewalSupplierGoods(contract, supplier);
+  });
+  return result(true, '续签已确认，将在当前合同正常完成后自动生效');
+}
+
+function rejectRenewal(world, user, payload, runtimeIndex) {
+  const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+  const proposal = contract?.renewalProposal;
+  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可拒绝的续签提议不存在');
+  if (Number(proposal.proposedBy) === Number(user.id)) return result(false, '提议人应撤回而不是拒绝续签');
+  runtimeIndex.transition(contract, () => releaseRenewalEscrow(
+    contract,
+    playerFor(world, contract.buyerId),
+    playerFor(world, contract.supplierId),
+    'rejected',
+  ));
+  return result(true, '续签提议已拒绝');
+}
+
+function revokeRenewal(world, user, payload, runtimeIndex) {
+  const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
+  const proposal = contract?.renewalProposal;
+  if (!contract || !proposal || proposal.status !== 'proposed') return result(false, '可撤回的续签提议不存在');
+  if (Number(proposal.proposedBy) !== Number(user.id)) return result(false, '只有提议人可以撤回续签');
+  runtimeIndex.transition(contract, () => releaseRenewalEscrow(
+    contract,
+    playerFor(world, contract.buyerId),
+    playerFor(world, contract.supplierId),
+    'revoked',
+  ));
+  return result(true, '续签提议已撤回');
+}
+
 function requestTermination(world, user, payload, now, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   if (!contract) return result(false, '进行中的合同不存在');
-  contract.terminationRequestedBy = Number(user.id);
-  contract.terminationRequestedAt = now;
+  runtimeIndex.transition(contract, () => {
+    releaseRenewalEscrow(
+      contract,
+      playerFor(world, contract.buyerId),
+      playerFor(world, contract.supplierId),
+      'termination_requested',
+    );
+    contract.terminationRequestedBy = Number(user.id);
+    contract.terminationRequestedAt = now;
+  });
   return result(true, '合同将在当前批次完成后结束');
 }
 
@@ -597,6 +842,7 @@ function terminateNow(world, user, payload, now, runtimeIndex) {
   if (!buyer || !supplier) return result(false, '合同参与者不存在');
 
   runtimeIndex.transition(contract, () => {
+    releaseRenewalEscrow(contract, buyer, supplier, 'immediate_by_participant');
     if (contract.buyerId === Number(user.id)) {
       releaseFrozenCredits(buyer, contract.buyerEscrowCredits);
       transferFrozenCredits(buyer, supplier, contract.buyerBondCredits);
@@ -628,12 +874,16 @@ export function applyProductionContractAction(world, user, action, payload = {},
   if (action === 'fundProductionContract') return fundContract(world, user, payload, runtimeIndex);
   if (action === 'setProductionContractAutoReserve') return setAutoMode(world, user, payload, 'supplierAutoReserve', 'supplier', runtimeIndex);
   if (action === 'setProductionContractAutoFund') return setAutoMode(world, user, payload, 'buyerAutoFund', 'buyer', runtimeIndex);
+  if (action === 'proposeProductionContractRenewal') return proposeRenewal(world, user, payload, now, runtimeIndex);
+  if (action === 'acceptProductionContractRenewal') return acceptRenewal(world, user, payload, now, runtimeIndex);
+  if (action === 'rejectProductionContractRenewal') return rejectRenewal(world, user, payload, runtimeIndex);
+  if (action === 'revokeProductionContractRenewal') return revokeRenewal(world, user, payload, runtimeIndex);
   if (action === 'requestProductionContractTermination') return requestTermination(world, user, payload, now, runtimeIndex);
   if (action === 'terminateProductionContractNow') return terminateNow(world, user, payload, now, runtimeIndex);
   return result(false, '合同操作不存在');
 }
 
-function issueForContract(world, contract, runtimeIndex) {
+function issueForContract(world, contract, runtimeIndex, userId = null) {
   if (contract.status !== 'active') return null;
   const buyer = playerFor(world, contract.buyerId);
   const supplier = playerFor(world, contract.supplierId);
@@ -648,6 +898,9 @@ function issueForContract(world, contract, runtimeIndex) {
   if (contract.supplierReservedQuantity < contract.quantityPerDelivery) return '等待供应方准备商品';
   if (contract.buyerEscrowCredits < gross) return '等待采购方补充货款';
   if (!hasWarehouseCapacity(world, buyer, contract.quantityPerDelivery, contract.id, runtimeIndex)) return '采购方仓库空间不足';
+  if (contract.renewalProposal?.status === 'proposed'
+    && userId !== null
+    && Number(contract.renewalProposal.proposedBy) !== Number(userId)) return '等待你确认续签提议';
   return null;
 }
 
@@ -683,11 +936,18 @@ function publicContract(world, contract, userId, runtimeIndex) {
     supplierBondCredits: contract.supplierBondCredits,
     buyerAutoFund: contract.buyerAutoFund,
     supplierAutoReserve: contract.supplierAutoReserve,
+    renewalProposal: contract.renewalProposal ? {
+      ...clone(contract.renewalProposal),
+      isProposer: Number(contract.renewalProposal.proposedBy) === Number(userId),
+    } : null,
+    renewedFromContractId: contract.renewedFromContractId,
+    renewedToContractId: contract.renewedToContractId,
+    renewalCancellationReason: contract.renewalCancellationReason,
     terminationRequestedBy: contract.terminationRequestedBy,
     terminationReason: contract.terminationReason,
     endedAt: contract.endedAt,
     completedAt: contract.completedAt,
-    issue: issueForContract(world, contract, runtimeIndex),
+    issue: issueForContract(world, contract, runtimeIndex, userId),
     isPublisher: contract.publisherId === Number(userId),
     isBuyer: contract.buyerId === Number(userId),
     isSupplier: contract.supplierId === Number(userId),
@@ -714,7 +974,7 @@ export function createProductionContractClientState(world, userId, now = Date.no
     productionContractSummary: {
       active: active.length,
       open: ownOpen.length,
-      needsAttention: active.filter((contract) => Boolean(issueForContract(world, contract, runtimeIndex))).length,
+      needsAttention: active.filter((contract) => Boolean(issueForContract(world, contract, runtimeIndex, userId))).length,
       upcomingWithin24Hours: active.filter((contract) => Number(contract.nextDueAt || 0) <= now + 24 * 60 * 60 * 1000).length,
     },
   };

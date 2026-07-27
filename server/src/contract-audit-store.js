@@ -72,6 +72,10 @@ function contractSnapshot(contract) {
     terminationRequestedBy: nullableInteger(contract.terminationRequestedBy),
     terminationRequestedAt: nullableInteger(contract.terminationRequestedAt),
     terminationReason: contract.terminationReason ? String(contract.terminationReason) : null,
+    renewalProposal: contract.renewalProposal ? clone(contract.renewalProposal) : null,
+    renewedFromContractId: contract.renewedFromContractId ? String(contract.renewedFromContractId) : null,
+    renewedToContractId: contract.renewedToContractId ? String(contract.renewedToContractId) : null,
+    renewalCancellationReason: contract.renewalCancellationReason ? String(contract.renewalCancellationReason) : null,
   };
 }
 
@@ -86,7 +90,10 @@ function reservedIncomingByBuyer(world) {
   for (const contract of world.productionContracts || []) {
     if (contract?.status !== 'active' || contract.buyerId === null || contract.buyerId === undefined) continue;
     const buyerId = Number(contract.buyerId);
-    reserved.set(buyerId, (reserved.get(buyerId) || 0) + Math.max(0, safeInteger(contract.quantityPerDelivery, 0)));
+    const renewalQuantity = contract.renewalProposal?.status === 'accepted'
+      ? Math.max(0, safeInteger(contract.renewalProposal?.terms?.quantityPerDelivery, 0))
+      : 0;
+    reserved.set(buyerId, (reserved.get(buyerId) || 0) + Math.max(0, safeInteger(contract.quantityPerDelivery, 0)) + renewalQuantity);
   }
   return reserved;
 }
@@ -229,6 +236,25 @@ function acceptedTransfers(contract) {
     transfer({ assetType: 'credits', quantity: contract.buyerBondCredits, fromType: 'player', fromId: contract.buyerId, fromAccount: 'available', toType: 'player', toId: contract.buyerId, toAccount: 'contract_bond', purpose: 'buyer_bond' }),
     transfer({ assetType: 'credits', quantity: contract.supplierBondCredits, fromType: 'player', fromId: contract.supplierId, fromAccount: 'available', toType: 'player', toId: contract.supplierId, toAccount: 'contract_bond', purpose: 'supplier_bond' }),
     transfer({ assetType: 'commodity', productId: contract.productId, quantity: contract.supplierReservedQuantity, fromType: 'player', fromId: contract.supplierId, fromAccount: 'inventory_available', toType: 'player', toId: contract.supplierId, toAccount: 'contract_goods_escrow', purpose: 'first_batch_goods' }),
+  ]);
+}
+
+function renewalAcceptedTransfers(contract) {
+  const proposal = contract.renewalProposal;
+  return compactTransfers([
+    transfer({ assetType: 'credits', quantity: proposal?.buyerEscrowCredits, fromType: 'player', fromId: contract.buyerId, fromAccount: 'available', toType: 'player', toId: contract.buyerId, toAccount: 'renewal_escrow', purpose: 'renewal_first_batch_funding' }),
+    transfer({ assetType: 'credits', quantity: proposal?.buyerBondCredits, fromType: 'player', fromId: contract.buyerId, fromAccount: 'available', toType: 'player', toId: contract.buyerId, toAccount: 'renewal_bond', purpose: 'renewal_buyer_bond' }),
+    transfer({ assetType: 'credits', quantity: proposal?.supplierBondCredits, fromType: 'player', fromId: contract.supplierId, fromAccount: 'available', toType: 'player', toId: contract.supplierId, toAccount: 'renewal_bond', purpose: 'renewal_supplier_bond' }),
+    transfer({ assetType: 'commodity', productId: contract.productId, quantity: proposal?.supplierReservedQuantity, fromType: 'player', fromId: contract.supplierId, fromAccount: 'inventory_available', toType: 'player', toId: contract.supplierId, toAccount: 'renewal_goods_escrow', purpose: 'renewal_first_batch_goods' }),
+  ]);
+}
+
+function renewalReleaseTransfers(contract, proposal) {
+  return compactTransfers([
+    transfer({ assetType: 'credits', quantity: proposal?.buyerEscrowCredits, fromType: 'player', fromId: contract.buyerId, fromAccount: 'renewal_escrow', toType: 'player', toId: contract.buyerId, toAccount: 'available', purpose: 'renewal_escrow_release' }),
+    transfer({ assetType: 'credits', quantity: proposal?.buyerBondCredits, fromType: 'player', fromId: contract.buyerId, fromAccount: 'renewal_bond', toType: 'player', toId: contract.buyerId, toAccount: 'available', purpose: 'renewal_escrow_release' }),
+    transfer({ assetType: 'credits', quantity: proposal?.supplierBondCredits, fromType: 'player', fromId: contract.supplierId, fromAccount: 'renewal_bond', toType: 'player', toId: contract.supplierId, toAccount: 'available', purpose: 'renewal_escrow_release' }),
+    transfer({ assetType: 'commodity', productId: contract.productId, quantity: proposal?.supplierReservedQuantity, fromType: 'player', fromId: contract.supplierId, fromAccount: 'renewal_goods_escrow', toType: 'player', toId: contract.supplierId, toAccount: 'inventory_available', purpose: 'renewal_escrow_release' }),
   ]);
 }
 
@@ -579,8 +605,50 @@ export function configureContractAuditStore(store) {
         continue;
       }
 
-      const completedDelta = Math.max(0, after.completedDeliveries - before.completedDeliveries);
-      const accepted = before.status === 'open' && after.status === 'active';
+
+const beforeRenewal = before.renewalProposal;
+const afterRenewal = after.renewalProposal;
+if (!beforeRenewal && afterRenewal?.status === 'proposed') {
+  queueTransitionEvent(world, normalizedContext, after, 'renewal_proposed', {
+    before,
+    after,
+    metadata: { proposal: clone(afterRenewal) },
+  });
+}
+if (beforeRenewal?.status === 'proposed' && afterRenewal?.status === 'accepted') {
+  queueTransitionEvent(world, normalizedContext, after, 'renewal_accepted', {
+    before,
+    after,
+    transfers: renewalAcceptedTransfers(after),
+    metadata: { proposal: clone(afterRenewal) },
+  });
+}
+if (beforeRenewal?.status === 'proposed' && !afterRenewal) {
+  const eventType = normalizedContext.action === 'rejectProductionContractRenewal'
+    ? 'renewal_rejected'
+    : normalizedContext.action === 'revokeProductionContractRenewal'
+      ? 'renewal_revoked'
+      : 'renewal_expired';
+  queueTransitionEvent(world, normalizedContext, after, eventType, { before, after });
+}
+if (beforeRenewal?.status === 'accepted' && afterRenewal?.status === 'activated') {
+  queueTransitionEvent(world, normalizedContext, after, 'renewal_activated', {
+    before,
+    after,
+    metadata: { activatedContractId: afterRenewal.activatedContractId },
+  });
+}
+if (beforeRenewal?.status === 'accepted' && !afterRenewal) {
+  queueTransitionEvent(world, normalizedContext, after, 'renewal_cancelled_parent_ended', {
+    before,
+    after,
+    transfers: renewalReleaseTransfers(before, beforeRenewal),
+    reasonCode: after.renewalCancellationReason,
+  });
+}
+
+const completedDelta = Math.max(0, after.completedDeliveries - before.completedDeliveries);
+const accepted = before.status === 'open' && after.status === 'active';
       const terminated = before.status === 'active' && after.status === 'terminated';
       const completed = before.status === 'active' && after.status === 'completed';
 

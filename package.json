@@ -36,7 +36,7 @@
     "server:check": "node --check server/src/*.js",
     "server:test": "node --test server/test/*.test.js",
     "test:browser": "playwright test",
-    "build": "npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build",
+    "build": "node scripts/verify-contract-renewal-economic-events.mjs && npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "tauri": "tauri",

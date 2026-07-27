@@ -659,3 +659,65 @@
     justify-self: start;
   }
 }
+
+.overview-economic-calendar-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.overview-economic-calendar-note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+}
+
+.overview-economic-event-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.overview-economic-event {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+  background: var(--color-surface-inset);
+}
+
+.overview-economic-event.is-active {
+  border-color: color-mix(in srgb, var(--color-success) 55%, var(--color-border));
+  box-shadow: inset 3px 0 0 var(--color-success);
+}
+
+.overview-economic-event header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.overview-economic-event time,
+.overview-economic-event small,
+.overview-economic-event > span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.overview-economic-event p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+@container overview (max-width: 1050px) {
+  .overview-economic-event-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container overview (max-width: 580px) {
+  .overview-economic-event-list { grid-template-columns: minmax(0, 1fr); }
+}

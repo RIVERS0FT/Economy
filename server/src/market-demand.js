@@ -45,6 +45,7 @@ import {
   releasePopulationOrderFunds,
   reservePopulationOrder,
 } from './population-economy.js';
+import { economicEventClassShares, economicEventProductWeight } from './economic-events.js';
 
 export { MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, MARKET_DEMAND_PRODUCT_IDS } from './market-demand/catalog.js';
 
@@ -100,6 +101,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     effectivePrice: signals.effectivePrice,
     orderBookQuote: signals.orderBookQuote,
     realTradeStats: signals.realTradeStats,
+    productWeightMultiplier: (_world, productId, signalNow) => economicEventProductWeight(productId, signalNow),
   });
   const liquidityRuntime = createMarketLiquidityRuntime({
     products,
@@ -645,7 +647,12 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       const derivedBudget = modelBudget - directBudget;
       const modelState = allocationStateForModel(state, modelId);
       const direct = allocationRuntime.directDemandChoices(world, group, modelState, directBudget, now, {
-        classShares: populationClassShares(world, modelId, group.id),
+        classShares: economicEventClassShares(
+          modelId,
+          group.id,
+          populationClassShares(world, modelId, group.id),
+          now,
+        ),
       });
       persistAllocationState(state, modelId, modelState);
       const derived = allocationRuntime.derivedDemandChoices(world, state, derivedBudget, now);

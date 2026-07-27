@@ -5,6 +5,31 @@ export type ProductionContractStatus = 'open' | 'active' | 'completed' | 'cancel
 export type ProductionContractRoundStatus = 'preparing' | 'ready' | 'grace';
 export type ContractAuditCompleteness = 'full' | 'legacy_partial';
 
+
+export interface ProductionContractRenewalProposal {
+  id: string;
+  status: 'proposed' | 'accepted' | 'activated';
+  proposedBy: number;
+  proposedAt: number;
+  expiresAt: number;
+  acceptedBy?: number;
+  acceptedAt?: number;
+  activatedAt?: number;
+  activatedContractId?: string;
+  isProposer?: boolean;
+  terms: {
+    quantityPerDelivery: number;
+    unitPrice: number;
+    deliveryIntervalMs: number;
+    totalDeliveries: number;
+    firstDeliveryDelayMs: number;
+  };
+  buyerEscrowCredits: number;
+  buyerBondCredits: number;
+  supplierBondCredits: number;
+  supplierReservedQuantity: number;
+}
+
 export interface ProductionContract {
   id: string;
   publisherId: number;
@@ -35,6 +60,10 @@ export interface ProductionContract {
   supplierBondCredits: number;
   buyerAutoFund: boolean;
   supplierAutoReserve: boolean;
+  renewalProposal?: ProductionContractRenewalProposal | null;
+  renewedFromContractId?: string;
+  renewedToContractId?: string;
+  renewalCancellationReason?: string;
   terminationRequestedBy?: number;
   terminationReason?: string;
   endedAt?: number;

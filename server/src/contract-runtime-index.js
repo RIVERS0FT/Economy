@@ -32,10 +32,14 @@ function contractSnapshot(contract) {
     offerExpiresAt: Number(contract?.offerExpiresAt),
     nextDueAt: Number(contract?.nextDueAt),
     graceEndsAt: Number(contract?.graceEndsAt),
+    renewalStatus: String(contract?.renewalProposal?.status || ''),
+    renewalExpiresAt: Number(contract?.renewalProposal?.expiresAt),
+    renewalBuyerId: numericId(contract?.buyerId),
+    renewalQuantity: Math.max(0, Math.floor(Number(contract?.renewalProposal?.terms?.quantityPerDelivery || 0))),
   };
 }
 
-function reservationQuantity(snapshot) {
+function currentReservationQuantity(snapshot) {
   if (
     snapshot.status !== 'active'
     || snapshot.buyerId === null
@@ -44,11 +48,26 @@ function reservationQuantity(snapshot) {
   return snapshot.quantityPerDelivery;
 }
 
+function renewalReservationQuantity(snapshot) {
+  return snapshot.status === 'active' && snapshot.renewalStatus === 'accepted'
+    ? snapshot.renewalQuantity
+    : 0;
+}
+
+function reservationQuantity(snapshot) {
+  return currentReservationQuantity(snapshot) + renewalReservationQuantity(snapshot);
+}
+
 function deadlineFor(snapshot) {
   if (snapshot.status === 'open' && Number.isFinite(snapshot.offerExpiresAt)) {
     return snapshot.offerExpiresAt;
   }
   if (snapshot.status !== 'active') return null;
+  if (snapshot.renewalStatus === 'proposed' && Number.isFinite(snapshot.renewalExpiresAt)) return Math.min(
+    Number.isFinite(snapshot.graceEndsAt) ? snapshot.graceEndsAt : Number.POSITIVE_INFINITY,
+    Number.isFinite(snapshot.nextDueAt) ? snapshot.nextDueAt : Number.POSITIVE_INFINITY,
+    snapshot.renewalExpiresAt,
+  );
   if (Number.isFinite(snapshot.graceEndsAt)) return snapshot.graceEndsAt;
   return Number.isFinite(snapshot.nextDueAt) ? snapshot.nextDueAt : null;
 }
@@ -187,7 +206,7 @@ function buildContractRuntimeIndex(world) {
     let reserved = Number(reservedIncomingByBuyer.get(normalizedUserId) || 0);
     if (exceptContractId) {
       const except = snapshots.get(String(exceptContractId));
-      if (except?.buyerId === normalizedUserId) reserved -= reservationQuantity(except);
+      if (except?.buyerId === normalizedUserId) reserved -= currentReservationQuantity(except);
     }
     return Math.max(0, reserved);
   }
