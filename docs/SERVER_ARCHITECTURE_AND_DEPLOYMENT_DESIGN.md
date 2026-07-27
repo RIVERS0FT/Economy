@@ -132,7 +132,7 @@ JSON.parse
 
 部署世界 16 前必须使用相同在线备份机制创建 `economy-pre-world-v16-<UTC 时间>.sqlite`，执行 `PRAGMA quick_check` 成功后才可上传代码；世界 16 快照独立保留最近 10 份。回滚银行版本必须同时恢复世界 16 部署前数据库快照与匹配代码，禁止只删除银行字段、只回滚客户端或在生产数据库中手工修改贷款、抵押和利息池。
 
-首次部署合同审计表前，部署工作流必须在上传新服务前检测 `economy_contract_audit_events` 是否存在；不存在时使用同一在线备份机制创建 `economy-pre-contract-audit-<UTC 时间>.sqlite`，执行 `PRAGMA quick_check` 并保留最近 10 份。合同审计只新增 SQLite 表，客户端状态版本保持 19、世界状态版本保持 16；回滚时必须同时恢复匹配代码与部署前快照，禁止只删除审计表或保留会把同一旧合同再次导入的半迁移数据库。
+首次部署合同审计表前，`scripts/install-economy-api.py` 必须在重启服务和新进程创建审计表之前检测 `economy_contract_audit_events` 是否存在；不存在时使用 SQLite 在线备份创建 `economy-pre-contract-audit-<UTC 时间>.sqlite`，执行 `PRAGMA quick_check`、设置服务用户 `0600` 权限并保留最近 10 份。合同审计只新增 SQLite 表，客户端状态版本保持 19、世界状态版本保持 16；回滚时必须同时恢复匹配代码与安装前快照，禁止只删除审计表或保留会把同一旧合同再次导入的半迁移数据库。
 
 游戏状态使用全局世界修订号排序，并拆成 `catalog`、`player`、`market`、`auction`、`contract`、`leaderboard` 六个固定分区。客户端请求可以使用 `?revision=N&catalog=...&player=...`，也可以用管理员或诊断场景的 `X-Economy-State-Revisions` 头提交分区内容哈希；响应格式固定为：
 

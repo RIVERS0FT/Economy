@@ -154,6 +154,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 主页账号服务：`127.0.0.1:3001`
 - 数据库：`/var/lib/riversoft-economy/economy.sqlite`
 - 世界 15 迁移前备份：`/var/lib/riversoft-economy/backups/economy-pre-world-v15-<UTC 时间>.sqlite`（部署保留最近 10 份）
+- 合同审计首次建表前备份：`/var/lib/riversoft-economy/backups/economy-pre-contract-audit-<UTC 时间>.sqlite`（安装器在线校验并保留最近 10 份）
 - 注册秘密：`/var/lib/riversoft-economy/registration-secret`
 - 共享邮件环境：`/etc/riversoft-email.env`
 - Economy 专用邮件环境：`/etc/riversoft-economy-api.env`
