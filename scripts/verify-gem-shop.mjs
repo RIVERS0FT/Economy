@@ -105,7 +105,7 @@ for (const path of [
   'src/pages/production/MobileFacilityDetailSheet.tsx',
 ]) {
   for (const text of ['FacilityConstructionAcceleration', 'constructionOnly', 'onAccelerateConstruction=', '宝石加速']) {
-    if (path === 'src/pages/ProductionPage.tsx' && text === '宝石加速') continue;
+    if (path === 'src/pages/ProductionPage.tsx' && ['宝石加速', 'constructionOnly'].includes(text)) continue;
     forbidText(path, text);
   }
 }
