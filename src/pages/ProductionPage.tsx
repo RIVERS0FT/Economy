@@ -1,21 +1,8 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-  type RefObject,
-  type TouchEvent as ReactTouchEvent,
-} from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNow } from '../hooks/useNow';
 import { type LoadedGameViewModel } from '../app/gameViewModel';
-import { FacilityProductionFormula } from '../components/facilities/FacilityProductionFormula';
-import { FactoryIcon } from '../components/icons/GameIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { SelectInput } from '../components/ui/FormControls';
-import { ScrollArea } from '../components/ui/ScrollArea';
 import { WarehouseUpgradeCard } from '../components/warehouse/WarehouseUpgradeCard';
 import {
   Button,
@@ -25,852 +12,20 @@ import {
   PagePanel,
   Panel,
   StatusTag,
-  SwitchControl,
-  type StatusTone,
   WidgetHeading,
 } from '../components/ui/layout';
-import type {
-  FacilityConstruction,
-  FacilityGroup,
-  FacilityRecipeDefinition,
-  FacilityTypeDefinition,
-  ProductDefinition,
-  ProductInventory,
-} from '../types';
+import type { FacilityGroup } from '../types';
 import { formatCurrency, formatDuration, formatNumber } from '../utils/formatters';
-
-interface FacilityClusterEntry {
-  group: FacilityGroup;
-  type: FacilityTypeDefinition;
-  construction?: FacilityConstruction;
-  constructionOnly?: boolean;
-}
-
-interface FacilityClusterDetailSharedProps {
-  entry: FacilityClusterEntry;
-  products: ProductDefinition[];
-  inventories: Record<string, ProductInventory>;
-  now: number;
-  gems: number;
-  acceleratingConstruction: boolean;
-  onToggle: (enabled: boolean) => void;
-  onRecipeChange: (recipeId: string) => void;
-  onAccelerateConstruction: () => void;
-  onOpenMarket: () => void;
-}
-
-interface FacilityDetailRecipeState {
-  recipes: FacilityRecipeDefinition[];
-  activeRecipe: FacilityRecipeDefinition;
-  pendingRecipe: FacilityRecipeDefinition | undefined;
-  formulaType: FacilityTypeDefinition;
-  nextFormulaType: FacilityTypeDefinition;
-  showNextCyclePreview: boolean;
-  selectedRecipeId: string;
-}
-
-interface FacilitySheetDragSession {
-  pointerId?: number;
-  startX: number;
-  startY: number;
-  lastY: number;
-  lastTime: number;
-  velocity: number;
-  offset: number;
-  source: 'header' | 'content';
-  active: boolean;
-}
-
-const FACILITY_SHEET_AXIS_THRESHOLD = 8;
-const FACILITY_SHEET_AXIS_DOMINANCE = 1.2;
-const FACILITY_SHEET_MIN_FLING_DISTANCE = 40;
-const FACILITY_SHEET_CLOSE_VELOCITY = 0.75;
-const FACILITY_SHEET_SETTLE_DURATION = 200;
-
-function facilityTone(status: string): StatusTone {
-  if (status === 'running') return 'success';
-  if (status === 'error') return 'danger';
-  return 'neutral';
-}
-
-function facilityStatusLabel(group: FacilityGroup) {
-  if (group.status === 'running') return '运行中';
-  if (group.status === 'stopped') return '已停止';
-  switch (group.statusReason) {
-    case 'warehouse_full':
-      return '异常：仓库已满';
-    case 'insufficient_funds':
-      return '异常：资金不足';
-    case 'insufficient_input':
-      return '异常：原料不足';
-    case 'no_available_facility':
-      return '异常：无可运行工厂';
-    case 'maintenance':
-      return '异常：维护中';
-    default:
-      return '异常：生产条件不足';
-  }
-}
-
-function recipesForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
-  if (Array.isArray(type.recipes) && type.recipes.length > 0) return type.recipes;
-  return [
-    {
-      id: type.defaultRecipeId || `${type.id}-default`,
-      name: type.name,
-      cycleMs: type.cycleMs,
-      operatingCost: type.operatingCost,
-      inputs: Array.isArray(type.inputs) ? type.inputs : type.input ? [type.input] : [],
-      output: type.output,
-    },
-  ];
-}
-
-function typeForRecipe(type: FacilityTypeDefinition, recipe: FacilityRecipeDefinition): FacilityTypeDefinition {
-  return {
-    ...type,
-    cycleMs: recipe.cycleMs,
-    operatingCost: recipe.operatingCost,
-    inputs: Array.isArray(recipe.inputs) ? recipe.inputs : recipe.input ? [recipe.input] : [],
-    input: recipe.input,
-    output: recipe.output,
-  };
-}
-
-function resolveFacilityDetailRecipeState(entry: FacilityClusterEntry): FacilityDetailRecipeState {
-  const { group, type } = entry;
-  const recipes = recipesForType(type);
-  const activeRecipe =
-    recipes.find((recipe) => recipe.id === group.activeRecipeId) ??
-    recipes.find((recipe) => recipe.id === type.defaultRecipeId) ??
-    recipes[0];
-  const pendingRecipe = recipes.find((recipe) => recipe.id === group.pendingRecipeId);
-  const nextRecipe = pendingRecipe ?? activeRecipe;
-
-  return {
-    recipes,
-    activeRecipe,
-    pendingRecipe,
-    formulaType: typeForRecipe(type, activeRecipe),
-    nextFormulaType: typeForRecipe(type, nextRecipe),
-    showNextCyclePreview: Boolean(pendingRecipe),
-    selectedRecipeId: pendingRecipe?.id ?? activeRecipe.id,
-  };
-}
-
-function isMobileFacilityLayout() {
-  return typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches;
-}
-
-function isReducedMotionPreferred() {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-function isFacilitySheetInteractiveTarget(target: EventTarget | null) {
-  if (!(target instanceof Element)) return false;
-  return Boolean(
-    target.closest(
-      'button, a, input, select, textarea, [role="scrollbar"], .ui-scrollbar, [data-facility-sheet-no-drag]',
-    ),
-  );
-}
-
-function FacilityClusterSelectorCard({
-  entry,
-  onSelect,
-}: {
-  entry: FacilityClusterEntry;
-  onSelect: (trigger: HTMLButtonElement) => void;
-}) {
-  const { group, type, constructionOnly } = entry;
-
-  return (
-    <button
-      type="button"
-      className="facility-cluster-selector-card"
-      data-ui-interactive="surface"
-      data-status={constructionOnly ? 'constructing' : group.status}
-      aria-label={constructionOnly ? `${type.name}，施工中` : `${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}
-      onClick={(event) => onSelect(event.currentTarget)}
-    >
-      <strong className="facility-cluster-name">{type.name}</strong>
-      <FactoryIcon className="facility-cluster-icon" />
-      <span className="facility-cluster-count">{constructionOnly ? '施工中' : formatNumber(group.count)}</span>
-    </button>
-  );
-}
-
-function FacilityClusterDetailHeader({
-  entry,
-  onToggle,
-  titleId,
-}: {
-  entry: FacilityClusterEntry;
-  onToggle: (enabled: boolean) => void;
-  titleId: string;
-}) {
-  const { group, type } = entry;
-
-  if (entry.constructionOnly) {
-    return (
-      <div className="facility-card-head facility-status-header">
-        <div className="facility-card-title-row">
-          <div className="facility-card-title-block facility-cluster-selector-heading">
-            <h2 id={titleId}>{type.name}</h2>
-            <StatusTag tone="warning">施工中</StatusTag>
-          </div>
-        </div>
-        <div className="facility-count-summary"><span>完工后新增 <strong>1</strong> 座</span></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="facility-card-head facility-status-header">
-      <div className="facility-card-title-row">
-        <div className="facility-card-title-block facility-cluster-selector-heading">
-          <h2 id={titleId}>
-            {type.name} × {formatNumber(group.count)}
-          </h2>
-          <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
-        </div>
-        <SwitchControl
-          checked={group.enabled}
-          aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
-          title={group.enabled ? '停止生产' : '开启自动运行'}
-          disabled={group.count < 1}
-          onChange={(event) => onToggle(event.target.checked)}
-        />
-      </div>
-      <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
-        <span>
-          运行中 <strong>{formatNumber(group.participatingCount)}</strong>
-        </span>
-        <span>
-          下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>
-        </span>
-        <span>
-          冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>
-        </span>
-        <span>
-          抵押中 <strong>{formatNumber(group.mortgagedCount)}</strong>
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function FacilityConstructionAcceleration({
-  entry,
-  gems,
-  now,
-  acceleratingConstruction,
-  onAccelerateConstruction,
-}: Pick<FacilityClusterDetailSharedProps, 'entry' | 'gems' | 'now' | 'acceleratingConstruction' | 'onAccelerateConstruction'>) {
-  const construction = entry.construction;
-  if (!construction) return null;
-  const accelerationMs = construction.gemAccelerationMs ?? 30 * 60 * 1000;
-  const accelerationCost = construction.gemAccelerationCost ?? 1;
-  const remaining = Math.max(0, construction.completesAt - now);
-  const after = Math.max(0, remaining - accelerationMs);
-  return (
-    <div className="construction-status" aria-live="polite">
-      <strong>宝石加速</strong>
-      <span>当前剩余 {formatDuration(remaining)}；使用后{after > 0 ? `剩余 ${formatDuration(after)}` : '立即完工'}。</span>
-      <Button
-        block
-        disabled={remaining <= 0 || gems < accelerationCost || acceleratingConstruction}
-        onClick={onAccelerateConstruction}
-      >
-        {acceleratingConstruction ? '加速处理中…' : `${formatNumber(accelerationCost)} 宝石 · 加速 ${formatDuration(accelerationMs)}`}
-      </Button>
-      <small>每次固定减少 30m；剩余不足 30m 时直接完工，不退还部分宝石。</small>
-    </div>
-  );
-}
-
-function FacilityClusterDetailBody({
-  entry,
-  products,
-  inventories,
-  now,
-  gems,
-  acceleratingConstruction,
-  onRecipeChange,
-  onAccelerateConstruction,
-}: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
-  const { group, type } = entry;
-  if (entry.constructionOnly) {
-    return (
-      <FacilityConstructionAcceleration
-        entry={entry}
-        gems={gems}
-        now={now}
-        acceleratingConstruction={acceleratingConstruction}
-        onAccelerateConstruction={onAccelerateConstruction}
-      />
-    );
-  }
-  const recipeState = resolveFacilityDetailRecipeState(entry);
-
-  return (
-    <>
-      <div className="facility-recipe-section">
-        <div className="facility-recipe-heading">
-          <strong>生产配方</strong>
-          {recipeState.pendingRecipe ? (
-            <small className="facility-recipe-status" aria-live="polite">
-              下一周期切换为：{recipeState.pendingRecipe.name}
-            </small>
-          ) : null}
-        </div>
-        <SelectInput
-          label={<span className="sr-only">{type.name}生产配方</span>}
-          aria-label={`${type.name}生产配方`}
-          value={recipeState.selectedRecipeId}
-          disabled={group.count < 1 || recipeState.recipes.length === 0}
-          onChange={(event) => {
-            if (event.target.value !== recipeState.selectedRecipeId) onRecipeChange(event.target.value);
-          }}
-        >
-          {recipeState.recipes.map((recipe) => (
-            <option key={recipe.id} value={recipe.id}>
-              {recipe.name}
-            </option>
-          ))}
-        </SelectInput>
-      </div>
-
-      <FacilityProductionFormula
-        group={group}
-        type={recipeState.formulaType}
-        nextType={recipeState.nextFormulaType}
-        showNextCyclePreview={recipeState.showNextCyclePreview}
-        products={products}
-        inventories={inventories}
-        now={now}
-      />
-      <FacilityConstructionAcceleration
-        entry={entry}
-        gems={gems}
-        now={now}
-        acceleratingConstruction={acceleratingConstruction}
-        onAccelerateConstruction={onAccelerateConstruction}
-      />
-    </>
-  );
-}
-
-function FacilityMarketAction({ onOpenMarket }: { onOpenMarket: () => void }) {
-  return (
-    <div className="facility-market-link-row">
-      <Button variant="text" className="facility-market-link" onClick={onOpenMarket}>
-        前往市场交易该工厂 →
-      </Button>
-    </div>
-  );
-}
-
-function FacilityClusterDetailContent({
-  entry,
-  products,
-  inventories,
-  now,
-  gems,
-  acceleratingConstruction,
-  onToggle,
-  onRecipeChange,
-  onAccelerateConstruction,
-  onOpenMarket,
-  titleId,
-}: FacilityClusterDetailSharedProps & {
-  titleId: string;
-}) {
-  return (
-    <>
-      <FacilityClusterDetailHeader entry={entry} onToggle={onToggle} titleId={titleId} />
-      <FacilityClusterDetailBody
-        entry={entry}
-        products={products}
-        inventories={inventories}
-        now={now}
-        gems={gems}
-        acceleratingConstruction={acceleratingConstruction}
-        onRecipeChange={onRecipeChange}
-        onAccelerateConstruction={onAccelerateConstruction}
-      />
-      {entry.constructionOnly ? null : <FacilityMarketAction onOpenMarket={onOpenMarket} />}
-    </>
-  );
-}
-
-function MobileFacilityDetailSheet({
-  entry,
-  products,
-  inventories,
-  now,
-  gems,
-  acceleratingConstruction,
-  isOpen,
-  returnFocusRef,
-  onClose,
-  onToggle,
-  onRecipeChange,
-  onAccelerateConstruction,
-  onOpenMarket,
-}: Omit<FacilityClusterDetailSharedProps, 'entry'> & {
-  entry: FacilityClusterEntry | undefined;
-  isOpen: boolean;
-  returnFocusRef: RefObject<HTMLButtonElement | null>;
-  onClose: () => void;
-}) {
-  const backdropRef = useRef<HTMLDivElement | null>(null);
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
-  const dragSessionRef = useRef<FacilitySheetDragSession | null>(null);
-  const dragFrameRef = useRef<number | undefined>(undefined);
-  const settleTimerRef = useRef<number | undefined>(undefined);
-  const closeCompletionRef = useRef<(() => void) | undefined>(undefined);
-  const backdropPointerIdRef = useRef<number | undefined>(undefined);
-  const isClosingRef = useRef(false);
-  const pendingOffsetRef = useRef(0);
-
-  const clearSettleTimer = useCallback(() => {
-    if (settleTimerRef.current !== undefined) {
-      window.clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = undefined;
-    }
-  }, []);
-
-  const commitDragOffset = useCallback(() => {
-    dragFrameRef.current = undefined;
-    const sheet = sheetRef.current;
-    const backdrop = backdropRef.current;
-    if (!sheet || !backdrop) return;
-    const height = Math.max(1, sheet.getBoundingClientRect().height);
-    const offset = Math.max(0, Math.min(pendingOffsetRef.current, height));
-    const backdropProgress = Math.max(0.3, 1 - (offset / height) * 0.7);
-    sheet.style.setProperty('--facility-sheet-drag-offset', `${offset}px`);
-    backdrop.style.setProperty('--facility-sheet-backdrop-progress', String(backdropProgress));
-  }, []);
-
-  const applyDragOffset = useCallback(
-    (offset: number) => {
-      pendingOffsetRef.current = offset;
-      if (dragFrameRef.current === undefined) {
-        dragFrameRef.current = window.requestAnimationFrame(commitDragOffset);
-      }
-    },
-    [commitDragOffset],
-  );
-
-  const resetDragStyles = useCallback(() => {
-    pendingOffsetRef.current = 0;
-    isClosingRef.current = false;
-    backdropPointerIdRef.current = undefined;
-
-    const sheet = sheetRef.current;
-    const backdrop = backdropRef.current;
-    if (!sheet || !backdrop) return;
-    sheet.classList.remove('is-dragging', 'is-settling', 'is-closing');
-    sheet.style.removeProperty('--facility-sheet-drag-offset');
-    backdrop.style.removeProperty('--facility-sheet-backdrop-progress');
-    delete sheet.dataset.dragSource;
-  }, []);
-
-  const completeClose = useCallback(() => {
-    settleTimerRef.current = undefined;
-    const completion = closeCompletionRef.current;
-    closeCompletionRef.current = undefined;
-    dragSessionRef.current = null;
-    backdropPointerIdRef.current = undefined;
-    pendingOffsetRef.current = 0;
-    isClosingRef.current = false;
-    onClose();
-    completion?.();
-  }, [onClose]);
-
-  const requestClose = useCallback(
-    (completion?: () => void) => {
-      if (isClosingRef.current) return;
-      isClosingRef.current = true;
-      closeCompletionRef.current = completion;
-      dragSessionRef.current = null;
-      clearSettleTimer();
-
-      const sheet = sheetRef.current;
-      const backdrop = backdropRef.current;
-      if (!sheet || !backdrop || isReducedMotionPreferred()) {
-        completeClose();
-        return;
-      }
-
-      sheet.classList.remove('is-dragging');
-      sheet.classList.add('is-settling', 'is-closing');
-      applyDragOffset(sheet.getBoundingClientRect().height);
-      backdrop.style.setProperty('--facility-sheet-backdrop-progress', '0');
-      settleTimerRef.current = window.setTimeout(completeClose, FACILITY_SHEET_SETTLE_DURATION);
-    },
-    [applyDragOffset, clearSettleTimer, completeClose],
-  );
-
-  const settleDrag = useCallback(
-    (close: boolean) => {
-      const sheet = sheetRef.current;
-      const backdrop = backdropRef.current;
-      if (!sheet || !backdrop) {
-        if (close) requestClose();
-        return;
-      }
-
-      if (close) {
-        requestClose();
-        return;
-      }
-
-      clearSettleTimer();
-      sheet.classList.remove('is-dragging');
-      sheet.classList.add('is-settling');
-      if (isReducedMotionPreferred()) {
-        resetDragStyles();
-        return;
-      }
-      applyDragOffset(0);
-      backdrop.style.setProperty('--facility-sheet-backdrop-progress', '1');
-      settleTimerRef.current = window.setTimeout(resetDragStyles, FACILITY_SHEET_SETTLE_DURATION);
-    },
-    [applyDragOffset, clearSettleTimer, requestClose, resetDragStyles],
-  );
-
-  const beginDrag = useCallback(
-    (clientX: number, clientY: number, target: EventTarget | null, pointerId?: number) => {
-      if (isClosingRef.current || isFacilitySheetInteractiveTarget(target)) return false;
-      const targetElement = target instanceof Element ? target : null;
-      const source = targetElement?.closest('.facility-detail-sheet-header, .facility-detail-sheet-drag-handle')
-        ? 'header'
-        : targetElement?.closest('.facility-detail-sheet-scroll')
-          ? 'content'
-          : null;
-      if (!source) return false;
-      if (source === 'content' && (scrollViewportRef.current?.scrollTop ?? 0) > 0) return false;
-
-      clearSettleTimer();
-      resetDragStyles();
-      dragSessionRef.current = {
-        pointerId,
-        startX: clientX,
-        startY: clientY,
-        lastY: clientY,
-        lastTime: performance.now(),
-        velocity: 0,
-        offset: 0,
-        source,
-        active: false,
-      };
-      return true;
-    },
-    [clearSettleTimer, resetDragStyles],
-  );
-
-  const updateDrag = useCallback(
-    (clientX: number, clientY: number, preventDefault: () => void) => {
-      const session = dragSessionRef.current;
-      const sheet = sheetRef.current;
-      if (!session || !sheet) return;
-      if (session.source === 'content' && !session.active && (scrollViewportRef.current?.scrollTop ?? 0) > 0) {
-        dragSessionRef.current = null;
-        return;
-      }
-
-      const deltaX = clientX - session.startX;
-      const deltaY = clientY - session.startY;
-      if (!session.active) {
-        if (Math.hypot(deltaX, deltaY) < FACILITY_SHEET_AXIS_THRESHOLD) return;
-        if (deltaY <= 0 || deltaY < Math.abs(deltaX) * FACILITY_SHEET_AXIS_DOMINANCE) {
-          dragSessionRef.current = null;
-          return;
-        }
-        session.active = true;
-        sheet.classList.add('is-dragging');
-        sheet.dataset.dragSource = session.source;
-      }
-
-      preventDefault();
-      const currentTime = performance.now();
-      const elapsed = Math.max(1, currentTime - session.lastTime);
-      session.velocity = Math.max(0, (clientY - session.lastY) / elapsed);
-      session.lastY = clientY;
-      session.lastTime = currentTime;
-      session.offset = Math.max(0, deltaY);
-      applyDragOffset(session.offset);
-    },
-    [applyDragOffset],
-  );
-
-  const finishDrag = useCallback(
-    (clientY?: number) => {
-      const session = dragSessionRef.current;
-      dragSessionRef.current = null;
-      if (!session?.active) {
-        resetDragStyles();
-        return;
-      }
-
-      const finalY = clientY ?? session.lastY;
-      const releaseElapsed = Math.max(1, performance.now() - session.lastTime);
-      const releaseVelocity = Math.max(0, (finalY - session.lastY) / releaseElapsed);
-      const velocity = Math.max(session.velocity, releaseVelocity);
-      const sheetHeight = Math.max(1, sheetRef.current?.getBoundingClientRect().height ?? 1);
-      const closeDistance = Math.max(96, Math.min(sheetHeight * 0.25, 160));
-      const shouldClose =
-        session.offset >= closeDistance ||
-        (session.offset >= FACILITY_SHEET_MIN_FLING_DISTANCE && velocity >= FACILITY_SHEET_CLOSE_VELOCITY);
-      settleDrag(shouldClose);
-    },
-    [resetDragStyles, settleDrag],
-  );
-
-  const handlePointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (event.pointerType === 'touch' || !event.isPrimary) return;
-      if (!beginDrag(event.clientX, event.clientY, event.target, event.pointerId)) return;
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {
-        /* Ignore synthetic capture failures. */
-      }
-    },
-    [beginDrag],
-  );
-
-  const handlePointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const session = dragSessionRef.current;
-      if (!session || session.pointerId !== event.pointerId) return;
-      updateDrag(event.clientX, event.clientY, () => event.preventDefault());
-    },
-    [updateDrag],
-  );
-
-  const handlePointerEnd = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const session = dragSessionRef.current;
-      if (!session || session.pointerId !== event.pointerId) return;
-      try {
-        if (event.currentTarget.hasPointerCapture(event.pointerId))
-          event.currentTarget.releasePointerCapture(event.pointerId);
-      } catch {
-        /* Ignore capture cleanup failures. */
-      }
-      finishDrag(event.clientY);
-    },
-    [finishDrag],
-  );
-
-  const handleTouchStart = useCallback(
-    (event: ReactTouchEvent<HTMLDivElement>) => {
-      if (event.touches.length !== 1) return;
-      const touch = event.touches[0];
-      beginDrag(touch.clientX, touch.clientY, event.target);
-    },
-    [beginDrag],
-  );
-
-  const handleTouchMove = useCallback(
-    (event: ReactTouchEvent<HTMLDivElement>) => {
-      if (event.touches.length !== 1 || !dragSessionRef.current) return;
-      const touch = event.touches[0];
-      updateDrag(touch.clientX, touch.clientY, () => event.preventDefault());
-    },
-    [updateDrag],
-  );
-
-  const handleTouchEnd = useCallback(
-    (event: ReactTouchEvent<HTMLDivElement>) => {
-      const touch = event.changedTouches[0];
-      finishDrag(touch?.clientY);
-    },
-    [finishDrag],
-  );
-
-  const handleBackdropPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!event.isPrimary) return;
-    const isPrimaryMouseButton = event.pointerType !== 'mouse' || event.button === 0;
-    backdropPointerIdRef.current =
-      event.target === event.currentTarget && isPrimaryMouseButton ? event.pointerId : undefined;
-  }, []);
-
-  const handleBackdropPointerUp = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const startedOnBackdrop = backdropPointerIdRef.current === event.pointerId;
-      backdropPointerIdRef.current = undefined;
-      if (!startedOnBackdrop || event.target !== event.currentTarget) return;
-      requestClose();
-    },
-    [requestClose],
-  );
-
-  const handleBackdropPointerCancel = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (backdropPointerIdRef.current === event.pointerId) backdropPointerIdRef.current = undefined;
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-
-    clearSettleTimer();
-    resetDragStyles();
-    closeCompletionRef.current = undefined;
-    dragSessionRef.current = null;
-
-    const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
-    const pageScrollArea = pageScroll?.closest<HTMLElement>('.page-scroll-area');
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousPageOverflow = pageScroll?.style.overflowY ?? '';
-    const previousPageScrollbarSuppressed = pageScrollArea?.dataset.modalScrollbarSuppressed;
-    document.body.style.overflow = 'hidden';
-    if (pageScroll) pageScroll.style.overflowY = 'hidden';
-    if (pageScrollArea) pageScrollArea.dataset.modalScrollbarSuppressed = 'true';
-
-    const focusFrame = window.requestAnimationFrame(() => sheetRef.current?.focus());
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        requestClose();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-
-      const focusable = Array.from(
-        sheetRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
-      if (focusable.length === 0) {
-        event.preventDefault();
-        sheetRef.current?.focus();
-        return;
-      }
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (document.activeElement === sheetRef.current) {
-        event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      } else if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.cancelAnimationFrame(focusFrame);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousBodyOverflow;
-      if (pageScroll) pageScroll.style.overflowY = previousPageOverflow;
-      if (pageScrollArea) {
-        if (previousPageScrollbarSuppressed === undefined) delete pageScrollArea.dataset.modalScrollbarSuppressed;
-        else pageScrollArea.dataset.modalScrollbarSuppressed = previousPageScrollbarSuppressed;
-      }
-      requestAnimationFrame(() => returnFocusRef.current?.focus());
-    };
-  }, [clearSettleTimer, isOpen, requestClose, resetDragStyles, returnFocusRef]);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const mediaQuery = window.matchMedia('(max-width: 720px)');
-    const closeOnDesktop = (event: MediaQueryListEvent) => {
-      if (!event.matches) onClose();
-    };
-    mediaQuery.addEventListener('change', closeOnDesktop);
-    return () => mediaQuery.removeEventListener('change', closeOnDesktop);
-  }, [isOpen, onClose]);
-
-  useEffect(
-    () => () => {
-      clearSettleTimer();
-      if (dragFrameRef.current !== undefined) window.cancelAnimationFrame(dragFrameRef.current);
-      dragFrameRef.current = undefined;
-      dragSessionRef.current = null;
-      closeCompletionRef.current = undefined;
-      resetDragStyles();
-    },
-    [clearSettleTimer, resetDragStyles],
-  );
-
-  if (!isOpen || !entry) return null;
-
-  return createPortal(
-    <div
-      ref={backdropRef}
-      className="facility-detail-sheet-backdrop"
-      onPointerDown={handleBackdropPointerDown}
-      onPointerUp={handleBackdropPointerUp}
-      onPointerCancel={handleBackdropPointerCancel}
-    >
-      <div
-        ref={sheetRef}
-        className="facility-detail-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="mobile-facility-detail-title"
-        tabIndex={-1}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={() => {
-          dragSessionRef.current = null;
-          settleDrag(false);
-        }}
-      >
-        <div className="facility-detail-sheet-header">
-          <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
-            <span className="facility-detail-sheet-handle" />
-          </div>
-          <FacilityClusterDetailHeader
-            entry={entry}
-            onToggle={onToggle}
-            titleId="mobile-facility-detail-title"
-          />
-        </div>
-
-        <ScrollArea
-          axis="y"
-          className="facility-detail-sheet-scroll-area"
-          viewportClassName="facility-detail-sheet-scroll"
-          viewportRef={scrollViewportRef}
-          viewportRole="region"
-          viewportAriaLabel={`${entry.type.name}工厂详情内容`}
-          viewportTabIndex={0}
-          scrollbarVisibility="adaptive"
-        >
-          <FacilityClusterDetailBody
-            entry={entry}
-            products={products}
-            inventories={inventories}
-            now={now}
-            gems={gems}
-            acceleratingConstruction={acceleratingConstruction}
-            onRecipeChange={onRecipeChange}
-            onAccelerateConstruction={onAccelerateConstruction}
-          />
-        </ScrollArea>
-
-        <div className="facility-detail-sheet-footer">
-          {entry.constructionOnly ? null : <FacilityMarketAction onOpenMarket={() => requestClose(onOpenMarket)} />}
-        </div>
-      </div>
-    </div>,
-    document.body,
-  );
-}
+import {
+  FacilityClusterDetailContent,
+  FacilityClusterSelectorCard,
+  isMobileFacilityLayout,
+  recipesForType,
+  resolveFacilityDetailRecipeState,
+  type FacilityClusterEntry,
+} from './production/ProductionFacilityDetail';
+import { MobileFacilityDetailSheet } from './production/MobileFacilityDetailSheet';
+import '../styles/production-gem-acceleration.css';
 
 export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const {
@@ -904,34 +59,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
 
     return game.facilityTypes.flatMap((type): FacilityClusterEntry[] => {
       const group = groupsByTypeId.get(type.id);
-      const construction = game.facilityConstruction?.facilityTypeId === type.id
-        ? game.facilityConstruction
-        : undefined;
-      if (group && group.count > 0) return [{ type, group, construction }];
-      if (!construction) return [];
-      return [{
-        type,
-        construction,
-        constructionOnly: true,
-        group: {
-          facilityTypeId: type.id,
-          count: 0,
-          participatingCount: 0,
-          pendingJoinCount: 0,
-          listedCount: 0,
-          frozenCount: 0,
-          mortgagedCount: 0,
-          availableCount: 0,
-          nextCycleCount: 0,
-          enabled: false,
-          status: 'stopped',
-          statusReason: 'manual',
-          lifetimeOutput: 0,
-          activeRecipeId: type.defaultRecipeId,
-        },
-      }];
+      return group && group.count > 0 ? [{ type, group }] : [];
     });
-  }, [game.facilityConstruction, game.facilityGroups, game.facilityTypes]);
+  }, [game.facilityGroups, game.facilityTypes]);
   const facilityClusterStatusCounts = useMemo(() => {
     const summary: Record<FacilityGroup['status'], number> = {
       running: 0,
@@ -939,7 +69,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
       error: 0,
     };
     for (const entry of orderedFacilityGroups) {
-      if (!entry.constructionOnly) summary[entry.group.status] += 1;
+      summary[entry.group.status] += 1;
     }
     return summary;
   }, [orderedFacilityGroups]);
@@ -973,6 +103,9 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     ? Math.max(0, game.facilityConstruction.completesAt - now)
     : 0;
   const constructionAwaitingConfirmation = Boolean(game.facilityConstruction && constructionRemaining === 0);
+  const constructionAccelerationMs = game.facilityConstruction?.gemAccelerationMs ?? 30 * 60 * 1000;
+  const constructionAccelerationCost = game.facilityConstruction?.gemAccelerationCost ?? 1;
+  const constructionRemainingAfterAcceleration = Math.max(0, constructionRemaining - constructionAccelerationMs);
 
   const selectFacilityEntry = (facilityTypeId: string, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -995,11 +128,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
     void showResult(setFacilityRecipe(selectedFacilityEntry.group.facilityTypeId, recipeId));
   };
   const openSelectedFacilityMarket = () => {
-    if (!selectedFacilityEntry || selectedFacilityEntry.constructionOnly) return;
+    if (!selectedFacilityEntry) return;
     selectMarketAsset('facility', selectedFacilityEntry.group.facilityTypeId);
   };
   const accelerateSelectedConstruction = async () => {
-    if (!selectedFacilityEntry?.construction || acceleratingConstruction) return;
+    if (!game.facilityConstruction || acceleratingConstruction) return;
     setAcceleratingConstruction(true);
     try {
       await showResult(accelerateFacilityConstruction());
@@ -1065,6 +198,30 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                   ? '正在同步服务器结算结果'
                   : `剩余 ${formatDuration(constructionRemaining)}`}
               </span>
+              <div className="build-card-gem-acceleration">
+                <strong>宝石加速</strong>
+                <span>
+                  {constructionAwaitingConfirmation
+                    ? '等待服务器确认完工'
+                    : constructionRemainingAfterAcceleration > 0
+                      ? `使用后剩余 ${formatDuration(constructionRemainingAfterAcceleration)}`
+                      : '使用后立即完工'}
+                </span>
+                <Button
+                  block
+                  disabled={
+                    constructionAwaitingConfirmation ||
+                    game.gems < constructionAccelerationCost ||
+                    acceleratingConstruction
+                  }
+                  onClick={() => void accelerateSelectedConstruction()}
+                >
+                  {acceleratingConstruction
+                    ? '加速处理中…'
+                    : `${formatNumber(constructionAccelerationCost)} 宝石 · 加速 ${formatDuration(constructionAccelerationMs)}`}
+                </Button>
+                <small>每次固定减少 30m；剩余不足 30m 时直接完工，不退还部分宝石。</small>
+              </div>
               <small>建成后不会重置当前集群进度，将在下一生产周期加入。</small>
             </div>
           ) : null}
@@ -1114,11 +271,8 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 products={game.products}
                 inventories={game.inventories}
                 now={now}
-                gems={game.gems}
-                acceleratingConstruction={acceleratingConstruction}
                 onToggle={toggleSelectedFacility}
                 onRecipeChange={changeSelectedFacilityRecipe}
-                onAccelerateConstruction={() => void accelerateSelectedConstruction()}
                 onOpenMarket={openSelectedFacilityMarket}
                 titleId="desktop-facility-detail-title"
               />
@@ -1136,14 +290,11 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
         products={game.products}
         inventories={game.inventories}
         now={now}
-        gems={game.gems}
-        acceleratingConstruction={acceleratingConstruction}
         isOpen={isFacilityDetailOpen}
         returnFocusRef={detailTriggerRef}
         onClose={closeFacilityDetail}
         onToggle={toggleSelectedFacility}
         onRecipeChange={changeSelectedFacilityRecipe}
-        onAccelerateConstruction={() => void accelerateSelectedConstruction()}
         onOpenMarket={openSelectedFacilityMarket}
       />
     </PageLayout>
