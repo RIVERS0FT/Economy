@@ -19,7 +19,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/test/gem-construction-acceleration.test.js',
   'src/pages/GemShopPage.tsx',
   'src/pages/ProductionPage.tsx',
-  'src/pages/ProductionPageRoute.tsx',
+  'src/pages/ProductionGemAcceleration.tsx',
   'src/components/InvitationSettings.tsx',
   'src/api/invitations.ts',
   'src/components/icons/GemIcon.tsx',
@@ -94,15 +94,19 @@ for (const text of [
   'function BuildCardGemAcceleration',
   "'.production-build-card .construction-status'",
   "'.facility-cluster-detail-card .construction-status, .facility-detail-sheet .construction-status'",
-  "element.hidden = true",
+  'element.hidden = true',
   "element.setAttribute('aria-hidden', 'true')",
   'createPortal(',
   'build-card-gem-acceleration',
   '宝石施工加速',
   '加速处理中',
   'accelerateFacilityConstruction()',
-]) requireText('src/pages/ProductionPageRoute.tsx', text);
-requireText('src/pages/PageRouter.tsx', "import('./ProductionPageRoute')");
+]) requireText('src/pages/ProductionGemAcceleration.tsx', text);
+for (const text of [
+  "import { BuildCardGemAcceleration } from './ProductionGemAcceleration';",
+  "import('./ProductionPage')",
+  '<BuildCardGemAcceleration model={model} />',
+]) requireText('src/pages/PageRouter.tsx', text);
 for (const text of [
   '.build-card-gem-acceleration',
   '.facility-cluster-detail-card .construction-status[hidden]',
@@ -115,10 +119,10 @@ for (const text of [
   "toHaveAttribute('aria-hidden', 'true')",
   "toHaveAttribute('data-gem-acceleration-relocated', 'true')",
 ]) requireText('tests/browser/production-status-summary.spec.ts', text);
-for (const text of ['填写好友邀请码', '确认填写', 'claimInvitation']) forbidText('src/components/InvitationSettings.tsx', text);
 for (const text of ['邀请好友', '专属分享链接', '永久邀请码', '注册完成后不能补填或更换', '注册填写']) {
   requireText('src/components/InvitationSettings.tsx', text);
 }
+for (const text of ['填写好友邀请码', '确认填写', 'claimInvitation']) forbidText('src/components/InvitationSettings.tsx', text);
 
 for (const text of [
   "className ? `game-icon ${className}` : 'game-icon'",
