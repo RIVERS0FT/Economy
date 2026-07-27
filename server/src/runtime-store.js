@@ -77,11 +77,7 @@ export class EconomyStore extends PersistentEconomyStore {
     return prepared;
   }
 
-  saveWorld(revision, world, now) {
-    return this.saveWorldIfChanged(revision, world, now);
-  }
-
-  saveWorldIfChanged(revision, world, now, _previousStateJson) {
+  _persistWorldWithContractAudit(revision, world, now) {
     this.prepareWorldForStorage(world, now);
     const cached = this.worldCache;
     const unchanged = cached
@@ -100,6 +96,14 @@ export class EconomyStore extends PersistentEconomyStore {
     this.flushContractAuditEvents(world, revision, nextRevision);
     this.cacheWorld(nextRevision, stateJson, world);
     return nextRevision;
+  }
+
+  saveWorld(revision, world, now) {
+    return this._persistWorldWithContractAudit(revision, world, now);
+  }
+
+  saveWorldIfChanged(revision, world, now, _previousStateJson) {
+    return this._persistWorldWithContractAudit(revision, world, now);
   }
 
   processWorldIfDue(world, now, currentUserId, options = {}) {
