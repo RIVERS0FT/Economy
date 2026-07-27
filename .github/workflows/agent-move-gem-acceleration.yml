@@ -42,3 +42,4 @@ jobs:
           git add -A
           git commit --amend --no-edit
           git push --force-with-lease origin HEAD:agent/move-gem-acceleration-to-build-card
+# Trigger after PR creation so the branch workflow is recognized.
