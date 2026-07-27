@@ -28,7 +28,7 @@
 
 认证卡片允许使用局部半透明玻璃材质和模糊，但必须维持输入框与提示文字的稳定对比度。移动端只有认证卡片拥有实体边框、圆角与玻璃背景；不得把整个移动登录页恢复为单张外层面板，也不得为注册表单创建内部滚动区。注册内容较高时由文档视口纵向滚动，两层背景保持固定，页面不得产生横向溢出。
 
-登录外壳、三层背景、品牌区与认证卡片几何唯一由 `src/styles/auth.css` 管理。`src/styles/card-system.css` 不得包含 `.login-shell` 或 `.login-card.panel` 映射，`src/styles/globals.css` 只允许保留由 `auth.css` 明确覆盖的历史基础布局，不得新增登录三层选择器或更高优先级覆盖。
+登录外壳、三层背景、品牌区与认证卡片几何最终由 `src/styles/auth.css` 收束。`src/main.tsx` 的最终样式顺序固定为 `design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`：认证样式必须位于通用面板与响应式规则之后，统一表单控件仍必须最后加载。`src/styles/card-system.css` 不得包含 `.login-shell` 或 `.login-card.panel` 映射，`src/styles/globals.css` 只允许保留由 `auth.css` 明确覆盖的历史基础布局，不得新增登录三层选择器或更高优先级覆盖。
 
 摄影背景当前通过 Wikimedia Commons 的原图与 960px 响应式版本加载；资源地址只能位于 `LoginPage.tsx` 的认证背景常量中，不得散落在 CSS 或其他页面。替换摄影作品时必须保留交易大厅主题、权利来源记录、响应式版本、空替代文本和三层结构。
 
@@ -36,4 +36,4 @@
 
 不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在设置页、商店或其他已登录页面恢复邀请码输入、补填、更换或重新绑定入口，也不得根据玩家档案创建时间重新开放 24 小时或其他临时补填窗口。
 
-`scripts/verify-auth-three-layer.mjs` 必须校验三层 DOM、层级样式、图片来源常量、权威设计和浏览器回归入口；`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面和 `390 × 844` 移动注册模式的层级、排列、外层无面板和无横向溢出。不得把登录专属层级移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录／注册业务流程来适配视觉布局。
+`scripts/verify-auth-three-layer.mjs` 必须校验三层 DOM、层级样式、图片来源常量、最终 CSS 加载顺序、权威设计和浏览器回归入口；`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面和 `390 × 844` 移动注册模式的层级、排列、外层无面板和无横向溢出。不得把登录专属层级移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录／注册业务流程来适配视觉布局。
