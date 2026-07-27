@@ -33,7 +33,8 @@ assert.ok(overview.includes('未来 7 天'), 'overview must limit the visible ca
 assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件日历'), 'market page must not own the economic calendar');
 assert.ok(contractPage.includes('提出续签'), 'contract page must expose renewal controls');
 assert.ok(pageDesign.includes('未来七天'), 'page design must define the seven-day overview calendar');
-assert.ok(productDesign.includes('总预算不变'), 'product design must preserve total demand budget');
+assert.ok(productDesign.includes('每类人口的周期总预算'), 'product design must preserve each population model budget');
+assert.ok(productDesign.includes('直接／派生预算'), 'product design must preserve direct and derived budgets');
 
 const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
 const calendar = createEconomicCalendarClientState(now);
