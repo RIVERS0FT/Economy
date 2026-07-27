@@ -1,0 +1,36 @@
+name: Apply contract renewal and economic calendar
+
+on:
+  push:
+    branches:
+      - agent/contract-renewal-economic-calendar
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/contract-renewal-economic-calendar
+          fetch-depth: 0
+
+      - name: Apply source and design changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .agent/apply-part-* | base64 -d | gzip -d > /tmp/apply.py
+          python3 -m py_compile /tmp/apply.py
+          python3 /tmp/apply.py
+          rm -rf .agent
+          rm -f .github/workflows/apply-contract-renewal-economic-calendar.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '增加合同续签与公开经济事件日历 [applied]'
+          git push origin HEAD:agent/contract-renewal-economic-calendar
