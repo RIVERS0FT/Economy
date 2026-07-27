@@ -240,7 +240,7 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await page.locator('.contract-history-row').click();
   await expect(page.getByText('该合同从发布开始具有完整服务器审计记录。')).toBeVisible();
   await expect(page.locator('.contract-audit-event')).toHaveCount(4);
-  await expect(page.getByText(/商品交付.*历史供应商 → MEVIUS.*机械 × 60/)).toBeVisible();
+  await expect(page.getByText(/交付商品.*历史供应商 → MEVIUS.*机械 × 60/)).toBeVisible();
   await expect(page.getByText(/市场服务费.*MEVIUS → 系统/)).toBeVisible();
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
