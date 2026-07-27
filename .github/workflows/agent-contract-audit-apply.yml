@@ -21,7 +21,16 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
+      - name: Detect staging payload
+        id: payload
+        run: |
+          if [ -f .agent-contract-audit/part-00 ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Reconstruct approved patch
+        if: steps.payload.outputs.available == 'true'
         run: |
           rm -f .agent-contract-audit/error.log
           python3 - <<'PY'
@@ -42,13 +51,20 @@ jobs:
               '| 服务器权威状态、SQLite、API、Nginx、systemd 和部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |',
               '| 服务器、API、合同事务、注册、邀请、封禁、容量与部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |',
           )
+          patcher = patcher.replace(
+              "(ROOT / '.github/workflows/agent-contract-audit-apply.yml').unlink(missing_ok=True)",
+              "# The running workflow is removed after this commit by the repository connector.",
+          )
           Path('apply-contract-audit-patch.py').write_text(patcher)
           PY
       - name: Apply approved contract audit patch
+        if: steps.payload.outputs.available == 'true'
         run: python3 apply-contract-audit-patch.py
       - name: Remove staging payload
+        if: steps.payload.outputs.available == 'true'
         run: rm -rf .agent-contract-audit
       - name: Commit patched authoritative files
+        if: steps.payload.outputs.available == 'true'
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
