@@ -1,10 +1,10 @@
-name: Apply gameplay changes
+name: Diagnose gameplay apply
 
 on:
   pull_request:
 
 concurrency:
-  group: apply-gameplay-${{ github.event.pull_request.number }}
+  group: diagnose-gameplay-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
@@ -22,13 +22,28 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
-      - name: Apply source and design changes
+      - name: Apply and preserve diagnostics
         shell: bash
         run: |
           set -euo pipefail
           cat .agent/apply-part-* | base64 -d | gzip -d > /tmp/apply.py
           python3 -m py_compile /tmp/apply.py
-          python3 /tmp/apply.py
+          set +e
+          python3 /tmp/apply.py > /tmp/apply.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/apply.log .agent/apply-failure.log
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add .agent/apply-failure.log
+            if ! git diff --cached --quiet; then
+              git commit -m '记录功能应用失败原因 [diagnostic]'
+              git push origin HEAD:${{ github.head_ref }}
+            fi
+            cat /tmp/apply.log
+            exit "$status"
+          fi
           rm -rf .agent
           rm -f .github/workflows/apply-contract-renewal-economic-calendar.yml
           git fetch origin main
