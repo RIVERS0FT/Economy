@@ -21,7 +21,16 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
+      - name: Stop after captured failure
+        id: captured
+        run: |
+          if [ -f .agent-contract-audit/error.log ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Reconstruct approved patch
+        if: steps.captured.outputs.skip != 'true'
         run: |
           python3 - <<'PY'
           import base64
@@ -37,10 +46,26 @@ jobs:
           )
           PY
       - name: Apply approved contract audit patch
-        run: python3 apply-contract-audit-patch.py
+        if: steps.captured.outputs.skip != 'true'
+        run: |
+          set +e
+          python3 apply-contract-audit-patch.py > /tmp/contract-audit-apply.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/contract-audit-apply.log .agent-contract-audit/error.log
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add .agent-contract-audit/error.log
+            git commit -m "记录合同审计补丁错误"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+            exit "$status"
+          fi
       - name: Remove staging payload
+        if: steps.captured.outputs.skip != 'true'
         run: rm -rf .agent-contract-audit
       - name: Commit patched authoritative files
+        if: steps.captured.outputs.skip != 'true'
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
