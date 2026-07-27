@@ -1,1 +1,1 @@
-missing replacement anchor in server/src/contracts.js: '\nif (contract.completedDeliveries >= contract.totalDeliveries) {\n  completeContract(contract, buyer, supplier, now);\n  r'
+missing replacement anchor in docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md: '进行中合同卡先展示当前批次履约状态，再展示长期合同条款。供应方托管商品、采购方托管货款、下次交付、宽限期和异常文字集中在“当前批次”区域；每批商品、单位价格、每批货款和交付周期集中在“合同条款”区域。手动准备或补款是当前批次主要操作，自动准'
