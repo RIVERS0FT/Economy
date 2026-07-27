@@ -62,11 +62,15 @@ function collectUnguardedHoverRules() {
   return Array.from(new Set(entries)).sort();
 }
 
+const productionDetailPath = 'src/pages/production/ProductionFacilityDetail.tsx';
+const mobileDetailPath = 'src/pages/production/MobileFacilityDetailSheet.tsx';
 const requiredFiles = [
   'src/utils/inputModality.ts',
   'src/app/interactionBootstrap.ts',
   'src/styles/interaction-states.css',
   'src/pages/ProductionPage.tsx',
+  productionDetailPath,
+  mobileDetailPath,
   'src/styles/facility-group-card-grid.css',
   'tests/browser/facility-detail-sheet.spec.ts',
   'tests/browser/input-modality.spec.ts',
@@ -95,11 +99,9 @@ if (failures.length === 0) {
     '--ui-interactive-active-transform',
   ]) requireText('src/styles/interaction-states.css', text);
 
-  for (const text of [
-    'data-ui-interactive="surface"',
-    'detailTriggerRef.current = trigger;',
-    'returnFocusRef.current?.focus()',
-  ]) requireText('src/pages/ProductionPage.tsx', text);
+  requireText(productionDetailPath, 'data-ui-interactive="surface"');
+  requireText('src/pages/ProductionPage.tsx', 'detailTriggerRef.current = trigger;');
+  requireText(mobileDetailPath, 'returnFocusRef.current?.focus()');
 
   for (const text of [
     '--ui-interactive-hover-border-color',

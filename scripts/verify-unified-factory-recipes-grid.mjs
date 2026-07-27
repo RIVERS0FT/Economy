@@ -29,6 +29,11 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 }
 
 const page = read('src/pages/ProductionPage.tsx');
+const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
+const mobile = read('src/pages/production/MobileFacilityDetailSheet.tsx');
+const productionSource = `${page}
+${detail}
+${mobile}`;
 for (const text of [
   'interface FacilityClusterEntry',
   'interface FacilitySheetDragSession',
@@ -39,21 +44,19 @@ for (const text of [
   'function FacilityClusterDetailContent',
   'function MobileFacilityDetailSheet',
   "import { createPortal } from 'react-dom';",
-  "import { ScrollArea } from '../components/ui/ScrollArea';",
-  "import { FactoryIcon } from '../components/icons/GameIcons';",
+  "import { ScrollArea } from '../../components/ui/ScrollArea';",
+  "import { FactoryIcon } from '../../components/icons/GameIcons';",
   'return createPortal(',
   "const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('')",
   'const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false)',
   "window.matchMedia('(max-width: 720px)')",
   'game.facilityTypes.flatMap((type): FacilityClusterEntry[] =>',
-  'constructionOnly: true',
-  'if (!construction) return [];',
-  'group && group.count > 0',
+  'return group && group.count > 0 ? [{ type, group }] : [];',
   '?? orderedFacilityGroups[0]',
   'className="facility-cluster-selector-card"',
   'data-ui-interactive="surface"',
-  "data-status={constructionOnly ? 'constructing' : group.status}",
-  'aria-label={constructionOnly ? `${type.name}，施工中` : `${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}',
+  'data-status={group.status}',
+  'aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}',
   'className="facility-cluster-name"',
   'className="facility-cluster-icon"',
   'className="facility-cluster-count"',
@@ -100,17 +103,17 @@ for (const text of [
   'className="production-surface facility-cluster-navigation"',
   'className="production-surface facility-card facility-group-card facility-cluster-detail-card"',
 ])
-  assert.equal(page.includes(text), true, `生产页缺少: ${text}`);
+  assert.equal(productionSource.includes(text), true, `生产页组合源码缺少: ${text}`);
 
 assert.equal(
-  (page.match(/aria-labelledby="mobile-facility-detail-title"/g) ?? []).length,
+  (mobile.match(/aria-labelledby="mobile-facility-detail-title"/g) ?? []).length,
   1,
   '移动详情框只能声明一次 aria-labelledby',
 );
 
-const selectorCardSource = page.slice(
-  page.indexOf('function FacilityClusterSelectorCard'),
-  page.indexOf('function FacilityClusterDetailHeader'),
+const selectorCardSource = detail.slice(
+  detail.indexOf('function FacilityClusterSelectorCard'),
+  detail.indexOf('function FacilityClusterDetailHeader'),
 );
 assert.equal(selectorCardSource.includes('×'), false, '工厂选择卡数量不得显示乘号');
 assert.equal(selectorCardSource.includes(' x '), false, '工厂选择卡数量不得显示字母 x');
@@ -136,8 +139,16 @@ for (const forbidden of [
   'facility-current-selection-bar',
   '查看详情',
   'if (event.target === event.currentTarget) requestClose();',
+  'constructionOnly',
+  'FacilityConstructionAcceleration',
+  'onAccelerateConstruction',
+  '宝石加速',
 ])
-  assert.equal(page.includes(forbidden), false, `生产页不应包含: ${forbidden}`);
+  assert.equal(
+    detail.includes(forbidden) || mobile.includes(forbidden),
+    false,
+    `工厂详情源码不应包含: ${forbidden}`,
+  );
 
 const facilitySheetBrowserTest = read('tests/browser/facility-detail-sheet.spec.ts');
 for (const text of [
