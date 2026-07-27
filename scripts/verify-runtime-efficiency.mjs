@@ -101,8 +101,21 @@ requireText('server/src/runtime-store.js', [
   'contractProjectionForState',
   'cached.revision === snapshot.revision',
   'saveWorld(revision, world, now)',
-  'PersistentEconomyStore.prototype.saveWorldIfChanged.call(this, revision, world, now)',
+  'saveWorldIfChanged(revision, world, now',
+  'isDeepStrictEqual(world, cached.world)',
+  'this.flushContractAuditEvents(world, revision, revision)',
+  'this.updateWorld.run(nextRevision, stateJson, now)',
+  'this.flushContractAuditEvents(world, revision, nextRevision)',
+  'this.cacheWorld(nextRevision, stateJson, world)',
 ]);
+const runtimeStore = read('server/src/runtime-store.js');
+assert.ok(
+  runtimeStore.indexOf('this.updateWorld.run(nextRevision, stateJson, now)')
+    < runtimeStore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
+    && runtimeStore.indexOf('this.flushContractAuditEvents(world, revision, nextRevision)')
+      < runtimeStore.indexOf('this.cacheWorld(nextRevision, stateJson, world)'),
+  '合同审计必须在世界写入后、运行时缓存推进前完成',
+);
 requireText('server/test/request-metrics.test.js', [
   'request metrics normalize route identifiers',
   'request metrics aggregate duration and application response bytes',
@@ -153,4 +166,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');
+console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');

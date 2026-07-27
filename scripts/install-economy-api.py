@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import datetime
 import grp
 import os
 import pwd
 import secrets
 import shutil
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -14,6 +16,8 @@ SERVICE_NAME = "riversoft-economy-api.service"
 SERVICE_PATH = Path("/etc/systemd/system") / SERVICE_NAME
 STATE_DIRECTORY = Path("/var/lib/riversoft-economy")
 REGISTRATION_SECRET_PATH = STATE_DIRECTORY / "registration-secret"
+DATABASE_PATH = STATE_DIRECTORY / "economy.sqlite"
+BACKUP_DIRECTORY = STATE_DIRECTORY / "backups"
 SHARED_EMAIL_ENVIRONMENT_FILE = Path("/etc/riversoft-email.env")
 ENVIRONMENT_FILE = Path("/etc/riversoft-economy-api.env")
 MINIMUM_NODE = (22, 16, 0)
@@ -22,6 +26,39 @@ MINIMUM_NODE = (22, 16, 0)
 def run(command: list[str], *, capture: bool = False) -> str:
     completed = subprocess.run(command, check=True, text=True, capture_output=capture)
     return completed.stdout.strip() if capture else ""
+
+
+def backup_before_contract_audit(owner_uid: int, owner_gid: int) -> None:
+    if not DATABASE_PATH.exists():
+        print("ECONOMY_CONTRACT_AUDIT_BACKUP_SKIPPED_NO_DATABASE")
+        return
+
+    with sqlite3.connect(DATABASE_PATH) as source:
+        audit_table = source.execute(
+            "SELECT 1 FROM sqlite_master "
+            "WHERE type = 'table' AND name = 'economy_contract_audit_events'"
+        ).fetchone()
+        if audit_table:
+            print("ECONOMY_CONTRACT_AUDIT_BACKUP_SKIPPED_TABLE_EXISTS")
+            return
+
+        BACKUP_DIRECTORY.mkdir(mode=0o700, parents=True, exist_ok=True)
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        backup_path = BACKUP_DIRECTORY / f"economy-pre-contract-audit-{timestamp}.sqlite"
+        with sqlite3.connect(backup_path) as destination:
+            source.backup(destination)
+            quick_check = destination.execute("PRAGMA quick_check").fetchone()[0]
+            if quick_check != "ok":
+                raise RuntimeError(f"contract audit backup quick check failed: {quick_check}")
+
+    os.chown(BACKUP_DIRECTORY, owner_uid, owner_gid)
+    os.chmod(BACKUP_DIRECTORY, 0o700)
+    os.chown(backup_path, owner_uid, owner_gid)
+    os.chmod(backup_path, 0o600)
+    backups = sorted(BACKUP_DIRECTORY.glob("economy-pre-contract-audit-*.sqlite"), reverse=True)
+    for stale in backups[10:]:
+        stale.unlink()
+    print(f"ECONOMY_CONTRACT_AUDIT_BACKUP_CREATED={backup_path}")
 
 
 def find_node(release_dir: Path) -> Path:
@@ -77,6 +114,7 @@ def main() -> int:
     STATE_DIRECTORY.mkdir(parents=True, exist_ok=True)
     os.chown(STATE_DIRECTORY, account.pw_uid, account.pw_gid)
     os.chmod(STATE_DIRECTORY, 0o750)
+    backup_before_contract_audit(account.pw_uid, account.pw_gid)
     if not REGISTRATION_SECRET_PATH.exists():
         REGISTRATION_SECRET_PATH.write_text(secrets.token_urlsafe(48), encoding="utf-8")
     os.chown(REGISTRATION_SECRET_PATH, account.pw_uid, account.pw_gid)

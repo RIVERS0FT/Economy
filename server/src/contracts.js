@@ -581,11 +581,11 @@ function setAutoMode(world, user, payload, field, role, runtimeIndex) {
   return result(true, contract[field] ? '自动履约已开启' : '自动履约已关闭');
 }
 
-function requestTermination(world, user, payload, runtimeIndex) {
+function requestTermination(world, user, payload, now, runtimeIndex) {
   const contract = ownActiveContract(runtimeIndex, user.id, payload.contractId);
   if (!contract) return result(false, '进行中的合同不存在');
   contract.terminationRequestedBy = Number(user.id);
-  contract.terminationRequestedAt = Date.now();
+  contract.terminationRequestedAt = now;
   return result(true, '合同将在当前批次完成后结束');
 }
 
@@ -628,7 +628,7 @@ export function applyProductionContractAction(world, user, action, payload = {},
   if (action === 'fundProductionContract') return fundContract(world, user, payload, runtimeIndex);
   if (action === 'setProductionContractAutoReserve') return setAutoMode(world, user, payload, 'supplierAutoReserve', 'supplier', runtimeIndex);
   if (action === 'setProductionContractAutoFund') return setAutoMode(world, user, payload, 'buyerAutoFund', 'buyer', runtimeIndex);
-  if (action === 'requestProductionContractTermination') return requestTermination(world, user, payload, runtimeIndex);
+  if (action === 'requestProductionContractTermination') return requestTermination(world, user, payload, now, runtimeIndex);
   if (action === 'terminateProductionContractNow') return terminateNow(world, user, payload, now, runtimeIndex);
   return result(false, '合同操作不存在');
 }

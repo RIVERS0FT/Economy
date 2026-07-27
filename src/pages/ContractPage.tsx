@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { IntegerInput, SelectInput } from '../components/ui/FormControls';
+import { IntegerInput, SelectInput, TextInput } from '../components/ui/FormControls';
 import {
   Button,
   DataList,
@@ -17,16 +17,23 @@ import {
 } from '../components/ui/layout';
 import {
   productionContractActions,
+  productionContractAudit,
+  type ContractHistoryQuery,
   type CreateProductionContractInput,
 } from '../contracts/api';
 import {
   productionContractStateFromGame,
+  type ContractAuditDetail,
+  type ContractAuditEvent,
+  type ContractAuditHistoryItem,
+  type ContractAuditTransfer,
   type ProductionContract,
   type ProductionContractRole,
   type ProductionContractStatus,
 } from '../contracts/types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
+import '../styles/contract-audit.css';
 
 const INTERVAL_OPTIONS = [
   [10 * 60 * 1000, '每 10 分钟'],
@@ -50,6 +57,7 @@ const FIRST_DELAY_OPTIONS = [
 ] as const;
 
 type ContractTab = 'active' | 'market' | 'pending' | 'history';
+type HistoryRole = 'any' | 'publisher' | 'buyer' | 'supplier';
 
 const STATUS_LABELS: Record<ProductionContractStatus, string> = {
   open: '等待承接',
@@ -58,6 +66,64 @@ const STATUS_LABELS: Record<ProductionContractStatus, string> = {
   cancelled: '已取消',
   terminated: '已终止',
   expired: '已过期',
+};
+
+const AUDIT_EVENT_LABELS: Record<string, string> = {
+  legacy_snapshot_imported: '导入旧合同摘要',
+  contract_published: '发布合同',
+  contract_accepted: '承接并签订',
+  contract_cancelled: '取消公开合同',
+  contract_expired: '公开合同过期',
+  buyer_funds_reserved_manual: '采购方手动补充货款',
+  buyer_funds_reserved_auto: '采购方自动补充货款',
+  supplier_goods_reserved_manual: '供应方手动准备商品',
+  supplier_goods_reserved_auto: '供应方自动准备商品',
+  buyer_auto_fund_changed: '修改自动补款',
+  supplier_auto_reserve_changed: '修改自动准备',
+  termination_requested: '申请批次后结束',
+  grace_started: '进入宽限期',
+  delivery_completed: '批次交付完成',
+  contract_completed: '合同全部完成',
+  contract_terminated_after_batch: '当前批次后结束',
+  contract_terminated_immediate: '立即违约终止',
+  contract_defaulted: '宽限期违约终止',
+  contract_terminated_participant_missing: '参与者异常终止',
+  contract_terminated: '合同终止',
+  contract_removed_unexpectedly: '合同异常移除',
+};
+
+const REASON_LABELS: Record<string, string> = {
+  supplier_goods: '供应方商品不足',
+  buyer_funds: '采购方货款不足',
+  buyer_warehouse: '采购方仓库空间不足',
+  participant_missing: '合同参与者不存在',
+  buyer_default: '采购方违约',
+  supplier_default: '供应方违约',
+  both_default: '双方均未满足履约条件',
+  immediate_by_participant: '参与方主动立即终止',
+  notice_completed: '按申请完成当前批次后结束',
+  history_before_audit_unavailable: '审计功能上线前的逐批历史不可恢复',
+  missing_from_world: '合同从权威世界异常消失',
+  unknown: '服务器未识别到单一原因',
+};
+
+const TRANSFER_PURPOSE_LABELS: Record<string, string> = {
+  first_batch_funding: '首批货款托管',
+  buyer_bond: '采购方保证金托管',
+  supplier_bond: '供应方保证金托管',
+  first_batch_goods: '首批商品托管',
+  manual_batch_funding: '手动补充货款',
+  automatic_batch_funding: '自动补充货款',
+  manual_goods_reservation: '手动准备商品',
+  automatic_goods_reservation: '自动准备商品',
+  delivery_goods: '交付商品',
+  delivery_net_payment: '供应方实收货款',
+  market_service_fee: '市场服务费',
+  buyer_bond_release: '退回采购方保证金',
+  supplier_bond_release: '退回供应方保证金',
+  unused_escrow_release: '退回未使用货款',
+  unused_goods_release: '退回未交付商品',
+  bond_compensation: '违约保证金赔付',
 };
 
 function durationLabel(milliseconds: number) {
@@ -70,6 +136,7 @@ function durationLabel(milliseconds: number) {
 function dateTimeLabel(timestamp?: number | null) {
   if (!timestamp) return '—';
   return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
     month: 'numeric',
     day: 'numeric',
     hour: '2-digit',
@@ -78,7 +145,7 @@ function dateTimeLabel(timestamp?: number | null) {
   }).format(timestamp);
 }
 
-function statusTone(contract: ProductionContract) {
+function statusTone(contract: Pick<ProductionContract, 'status'> & Partial<Pick<ProductionContract, 'graceEndsAt' | 'issue'>>) {
   if (contract.status === 'completed') return 'success' as const;
   if (contract.status === 'terminated') return 'danger' as const;
   if (contract.status !== 'active') return 'neutral' as const;
@@ -87,11 +154,14 @@ function statusTone(contract: ProductionContract) {
   return 'success' as const;
 }
 
-function contractTitle(contract: ProductionContract, productName: string) {
+function contractTitle(contract: Pick<ProductionContract, 'productId'>, productName: string) {
+  void contract;
   return `${productName}长期供货合同`;
 }
 
-function RoleTag({ contract }: { contract: ProductionContract }) {
+function RoleTag({ contract }: {
+  contract: Pick<ProductionContract, 'isBuyer' | 'isSupplier' | 'publisherRole'>;
+}) {
   if (contract.isBuyer) return <StatusTag tone="info">我采购</StatusTag>;
   if (contract.isSupplier) return <StatusTag tone="success">我供货</StatusTag>;
   return <StatusTag>{contract.publisherRole === 'buyer' ? '采购需求' : '供应报价'}</StatusTag>;
@@ -293,19 +363,184 @@ function OpenContractCard({ contract, productName, busy, run }: ContractCardProp
   );
 }
 
-function HistoryContractRow({ contract, productName }: { contract: ProductionContract; productName: string }) {
+function dateBoundary(value: string, endOfDay = false) {
+  if (!value) return null;
+  const suffix = endOfDay ? 'T23:59:59.999+08:00' : 'T00:00:00.000+08:00';
+  const timestamp = new Date(`${value}${suffix}`).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function actorLabel(event: ContractAuditEvent, contract: ContractAuditHistoryItem) {
+  if (event.actorType === 'system') return '服务器';
+  if (event.actorUserId === contract.buyerId) return contract.buyerName || '采购方';
+  if (event.actorUserId === contract.supplierId) return contract.supplierName || '供应方';
+  if (event.actorUserId === contract.publisherId) return contract.publisherName || '发布者';
+  return '参与玩家';
+}
+
+function reasonLabel(reasonCode: string | null) {
+  if (!reasonCode) return null;
+  return reasonCode
+    .split('+')
+    .map((reason) => REASON_LABELS[reason] || reason)
+    .join('、');
+}
+
+function accountOwnerLabel(type: string, id: number | null, contract: ContractAuditHistoryItem) {
+  if (type === 'system') return '系统';
+  if (id === contract.buyerId) return contract.buyerName || '采购方';
+  if (id === contract.supplierId) return contract.supplierName || '供应方';
+  return '玩家';
+}
+
+function transferLabel(
+  item: ContractAuditTransfer,
+  contract: ContractAuditHistoryItem,
+  productNames: Map<string, string>,
+) {
+  const asset = item.assetType === 'credits'
+    ? <CurrencyAmount>{formatCurrency(item.quantity)}</CurrencyAmount>
+    : `${productNames.get(item.productId || '') || item.productId || '商品'} × ${formatNumber(item.quantity)}`;
   return (
-    <div className="contract-history-row">
-      <div className="contract-history-copy">
-        <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{STATUS_LABELS[contract.status]}</StatusTag></div>
-        <h2><ProductIconLabel productId={contract.productId}>{contractTitle(contract, productName)}</ProductIconLabel></h2>
-        <p>{formatNumber(contract.completedDeliveries)} / {formatNumber(contract.totalDeliveries)} 批 · {durationLabel(contract.deliveryIntervalMs)}</p>
+    <span>
+      <strong>{TRANSFER_PURPOSE_LABELS[item.purpose] || item.purpose}</strong>
+      {' · '}{accountOwnerLabel(item.fromType, item.fromId, contract)} → {accountOwnerLabel(item.toType, item.toId, contract)}
+      {' · '}{asset}
+    </span>
+  );
+}
+
+function AuditEventRow({
+  event,
+  contract,
+  productNames,
+}: {
+  event: ContractAuditEvent;
+  contract: ContractAuditHistoryItem;
+  productNames: Map<string, string>;
+}) {
+  const reason = reasonLabel(event.reasonCode);
+  const gross = typeof event.metadata.gross === 'number' ? Number(event.metadata.gross) : null;
+  const fee = typeof event.metadata.fee === 'number' ? Number(event.metadata.fee) : null;
+  const plannedAt = typeof event.metadata.plannedAt === 'number' ? Number(event.metadata.plannedAt) : null;
+  const deliveredAt = typeof event.metadata.deliveredAt === 'number' ? Number(event.metadata.deliveredAt) : null;
+  return (
+    <li className="contract-audit-event">
+      <div className="contract-audit-event-marker" aria-hidden="true" />
+      <div className="contract-audit-event-body">
+        <header>
+          <div>
+            <strong>{AUDIT_EVENT_LABELS[event.eventType] || event.eventType}</strong>
+            {event.batchNumber ? <StatusTag>第 {formatNumber(event.batchNumber)} 批</StatusTag> : null}
+          </div>
+          <time dateTime={new Date(event.occurredAt).toISOString()}>{dateTimeLabel(event.occurredAt)}</time>
+        </header>
+        <p>执行者：{actorLabel(event, contract)}{reason ? ` · 原因：${reason}` : ''}</p>
+        {event.eventType === 'delivery_completed' ? (
+          <DataList className="compact contract-audit-delivery-data">
+            <DataRow label="计划交付" value={dateTimeLabel(plannedAt)} />
+            <DataRow label="实际交付" value={dateTimeLabel(deliveredAt || event.occurredAt)} />
+            <DataRow label="批次总额" value={<CurrencyAmount>{formatCurrency(gross || contract.batchGross)}</CurrencyAmount>} />
+            <DataRow label="服务费" value={<CurrencyAmount>{formatCurrency(fee || 0)}</CurrencyAmount>} />
+          </DataList>
+        ) : null}
+        {event.transfers.length > 0 ? (
+          <ul className="contract-audit-transfers">
+            {event.transfers.map((item, index) => <li key={`${event.sequence}:${index}`}>{transferLabel(item, contract, productNames)}</li>)}
+          </ul>
+        ) : null}
       </div>
-      <div className="contract-history-meta">
-        <strong><CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount> / 批</strong>
-        <span>{dateTimeLabel(contract.endedAt || contract.completedAt)}</span>
+    </li>
+  );
+}
+
+function AuditDetailPanel({
+  detail,
+  loading,
+  onLoadMore,
+  productNames,
+}: {
+  detail: ContractAuditDetail | null;
+  loading: boolean;
+  onLoadMore: () => void;
+  productNames: Map<string, string>;
+}) {
+  if (loading && !detail) return <p className="contract-audit-loading" role="status">正在读取权威审计记录…</p>;
+  if (!detail) return <p className="contract-issue" role="alert">合同审计记录读取失败，请稍后重试。</p>;
+  const contract = detail.contract;
+  const productName = productNames.get(contract.productId) || contract.productId;
+  return (
+    <section className="contract-audit-detail" aria-label="合同完整审计">
+      {contract.auditCompleteness === 'legacy_partial' ? (
+        <p className="contract-audit-legacy-note" role="note">
+          该合同在审计功能上线前已经存在。当前条款和上线后的事件可核查，但更早的逐批操作无法可靠还原。
+        </p>
+      ) : <p className="contract-audit-complete-note">该合同从发布开始具有完整服务器审计记录。</p>}
+      <div className="contract-audit-summary-grid">
+        <DataList className="compact">
+          <DataRow label="合同商品" value={`${productName} × ${formatNumber(contract.quantityPerDelivery)} / 批`} />
+          <DataRow label="合同单价" value={<CurrencyAmount>{formatCurrency(contract.unitPrice)}</CurrencyAmount>} />
+          <DataRow label="交付周期" value={durationLabel(contract.deliveryIntervalMs)} />
+          <DataRow label="完成批次" value={`${formatNumber(contract.completedDeliveries)} / ${formatNumber(contract.totalDeliveries)}`} />
+        </DataList>
+        <DataList className="compact">
+          <DataRow label="累计货款" value={<CurrencyAmount>{formatCurrency(contract.grossTotal)}</CurrencyAmount>} />
+          <DataRow label="累计服务费" value={<CurrencyAmount>{formatCurrency(contract.feeTotal)}</CurrencyAmount>} />
+          <DataRow label="供应方净收入" value={<CurrencyAmount>{formatCurrency(contract.netTotal)}</CurrencyAmount>} />
+          <DataRow label="保证金赔付" value={<CurrencyAmount>{formatCurrency(contract.compensationTotal)}</CurrencyAmount>} />
+        </DataList>
       </div>
-    </div>
+      <ol className="contract-audit-timeline">
+        {detail.events.map((event) => (
+          <AuditEventRow key={event.sequence} event={event} contract={contract} productNames={productNames} />
+        ))}
+      </ol>
+      {detail.nextCursor ? <Button variant="text" disabled={loading} onClick={onLoadMore}>{loading ? '读取中' : '加载更多审计事件'}</Button> : null}
+    </section>
+  );
+}
+
+function HistoryContractRow({
+  contract,
+  productName,
+  expanded,
+  detail,
+  loading,
+  onToggle,
+  onLoadMore,
+  productNames,
+}: {
+  contract: ContractAuditHistoryItem;
+  productName: string;
+  expanded: boolean;
+  detail: ContractAuditDetail | null;
+  loading: boolean;
+  onToggle: () => void;
+  onLoadMore: () => void;
+  productNames: Map<string, string>;
+}) {
+  return (
+    <article className="contract-history-entry" data-expanded={expanded ? 'true' : 'false'}>
+      <button className="contract-history-row" type="button" data-ui-interactive="surface" aria-expanded={expanded} onClick={onToggle}>
+        <div className="contract-history-copy">
+          <div className="contract-card-tags">
+            <RoleTag contract={contract} />
+            <StatusTag tone={statusTone(contract)}>{STATUS_LABELS[contract.status]}</StatusTag>
+            <StatusTag tone={contract.auditCompleteness === 'full' ? 'success' : 'warning'}>
+              {contract.auditCompleteness === 'full' ? '完整审计' : '旧数据摘要'}
+            </StatusTag>
+          </div>
+          <h2><ProductIconLabel productId={contract.productId}>{contractTitle(contract, productName)}</ProductIconLabel></h2>
+          <p>{formatNumber(contract.completedDeliveries)} / {formatNumber(contract.totalDeliveries)} 批 · {durationLabel(contract.deliveryIntervalMs)}</p>
+        </div>
+        <div className="contract-history-meta">
+          <strong><CurrencyAmount>{formatCurrency(contract.grossTotal)}</CurrencyAmount> 累计货款</strong>
+          <span>{dateTimeLabel(contract.endedAt || contract.completedAt || contract.lastEventAt)}</span>
+          <span>{expanded ? '收起审计 ↑' : '查看审计 ↓'}</span>
+        </div>
+      </button>
+      {expanded ? <AuditDetailPanel detail={detail} loading={loading} onLoadMore={onLoadMore} productNames={productNames} /> : null}
+    </article>
   );
 }
 
@@ -480,6 +715,18 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const [tab, setTab] = useState<ContractTab>('active');
   const [showPublish, setShowPublish] = useState(false);
   const [busyKey, setBusyKey] = useState('');
+  const [historyStatus, setHistoryStatus] = useState<ProductionContractStatus | ''>('');
+  const [historyRole, setHistoryRole] = useState<HistoryRole>('any');
+  const [historyProductId, setHistoryProductId] = useState('');
+  const [historyFrom, setHistoryFrom] = useState('');
+  const [historyTo, setHistoryTo] = useState('');
+  const [historyItems, setHistoryItems] = useState<ContractAuditHistoryItem[]>([]);
+  const [historyNextCursor, setHistoryNextCursor] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
+  const [auditDetails, setAuditDetails] = useState<Record<string, ContractAuditDetail>>({});
+  const [auditLoadingId, setAuditLoadingId] = useState<string | null>(null);
   const { productionContracts, productionContractSummary } = productionContractStateFromGame(model.game);
   const productNames = useMemo(() => new Map(model.game.products.map((product) => [product.id, product.name])), [model.game.products]);
 
@@ -488,9 +735,39 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
     .sort((left, right) => Number(Boolean(right.graceEndsAt)) - Number(Boolean(left.graceEndsAt)) || Number(right.issue !== null) - Number(left.issue !== null) || Number(left.nextDueAt || Infinity) - Number(right.nextDueAt || Infinity));
   const openContracts = productionContracts.filter((contract) => contract.status === 'open').sort((left, right) => right.createdAt - left.createdAt);
   const pendingContracts = activeContracts.filter((contract) => contract.issue || contract.terminationRequestedBy);
-  const historyContracts = productionContracts
-    .filter((contract) => !['open', 'active'].includes(contract.status) && (contract.isPublisher || contract.isBuyer || contract.isSupplier))
-    .sort((left, right) => Number(right.endedAt || right.completedAt || right.createdAt) - Number(left.endedAt || left.completedAt || left.createdAt));
+
+  const historyQuery = useMemo<ContractHistoryQuery>(() => ({
+    limit: 20,
+    status: historyStatus,
+    productId: historyProductId,
+    role: historyRole,
+    from: dateBoundary(historyFrom),
+    to: dateBoundary(historyTo, true),
+  }), [historyFrom, historyProductId, historyRole, historyStatus, historyTo]);
+
+  useEffect(() => {
+    if (tab !== 'history') return undefined;
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError('');
+    setExpandedContractId(null);
+    productionContractAudit.history(historyQuery)
+      .then((page) => {
+        if (cancelled) return;
+        setHistoryItems(page.items);
+        setHistoryNextCursor(page.nextCursor);
+      })
+      .catch((reason) => {
+        if (cancelled) return;
+        setHistoryItems([]);
+        setHistoryNextCursor(null);
+        setHistoryError(reason instanceof Error ? reason.message : '合同历史读取失败');
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [historyQuery, tab]);
 
   const run = async (
     key: string,
@@ -512,13 +789,67 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
     }
   };
 
+  async function loadMoreHistory() {
+    if (!historyNextCursor || historyLoading) return;
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const page = await productionContractAudit.history({ ...historyQuery, cursor: historyNextCursor });
+      setHistoryItems((current) => [...current, ...page.items]);
+      setHistoryNextCursor(page.nextCursor);
+    } catch (reason) {
+      setHistoryError(reason instanceof Error ? reason.message : '合同历史读取失败');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function toggleAudit(contractId: string) {
+    if (expandedContractId === contractId) {
+      setExpandedContractId(null);
+      return;
+    }
+    setExpandedContractId(contractId);
+    if (auditDetails[contractId]) return;
+    setAuditLoadingId(contractId);
+    try {
+      const detail = await productionContractAudit.detail(contractId);
+      setAuditDetails((current) => ({ ...current, [contractId]: detail }));
+    } catch (reason) {
+      model.notify(reason instanceof Error ? reason.message : '合同审计读取失败');
+    } finally {
+      setAuditLoadingId(null);
+    }
+  }
+
+  async function loadMoreAudit(contractId: string) {
+    const current = auditDetails[contractId];
+    if (!current?.nextCursor || auditLoadingId) return;
+    setAuditLoadingId(contractId);
+    try {
+      const page = await productionContractAudit.detail(contractId, current.nextCursor);
+      setAuditDetails((details) => ({
+        ...details,
+        [contractId]: {
+          contract: page.contract,
+          events: [...current.events, ...page.events],
+          nextCursor: page.nextCursor,
+        },
+      }));
+    } catch (reason) {
+      model.notify(reason instanceof Error ? reason.message : '合同审计读取失败');
+    } finally {
+      setAuditLoadingId(null);
+    }
+  }
+
   const visibleCount = tab === 'active'
     ? activeContracts.length
     : tab === 'market'
       ? openContracts.length
       : tab === 'pending'
         ? pendingContracts.length
-        : historyContracts.length;
+        : historyItems.length;
 
   const emptyMessage = tab === 'active'
     ? '当前没有进行中的长期合作合同。'
@@ -526,7 +857,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
       ? '当前没有可承接的公开合同。'
       : tab === 'pending'
         ? '当前没有需要处理的合同事项。'
-        : '当前没有已结束的合同。';
+        : '当前没有符合筛选条件的已结束合同。';
 
   return (
     <PageLayout
@@ -547,7 +878,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
         <Button id="contract-tab-active" variant="text" role="tab" aria-selected={tab === 'active'} aria-controls="contract-tabpanel" className={tab === 'active' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('active')}>进行中的合同 <span className="contract-tab-count">{activeContracts.length}</span></Button>
         <Button id="contract-tab-market" variant="text" role="tab" aria-selected={tab === 'market'} aria-controls="contract-tabpanel" className={tab === 'market' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('market')}>合同广场 <span className="contract-tab-count">{openContracts.length}</span></Button>
         <Button id="contract-tab-pending" variant="text" role="tab" aria-selected={tab === 'pending'} aria-controls="contract-tabpanel" className={tab === 'pending' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('pending')}>待处理 <span className="contract-tab-count">{pendingContracts.length}</span></Button>
-        <Button id="contract-tab-history" variant="text" role="tab" aria-selected={tab === 'history'} aria-controls="contract-tabpanel" className={tab === 'history' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('history')}>合同历史 <span className="contract-tab-count">{historyContracts.length}</span></Button>
+        <Button id="contract-tab-history" variant="text" role="tab" aria-selected={tab === 'history'} aria-controls="contract-tabpanel" className={tab === 'history' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('history')}>合同历史 <span className="contract-tab-count">{historyItems.length}</span></Button>
       </nav>
 
       <section
@@ -558,7 +889,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
         tabIndex={0}
         aria-live="polite"
       >
-        {visibleCount === 0 ? <EmptyState>{emptyMessage}</EmptyState> : null}
+        {tab !== 'history' && visibleCount === 0 ? <EmptyState>{emptyMessage}</EmptyState> : null}
         {tab === 'active' ? activeContracts.map((contract) => (
           <ActiveContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
         )) : null}
@@ -568,11 +899,56 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
         {tab === 'market' ? openContracts.map((contract) => (
           <OpenContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
         )) : null}
-        {tab === 'history' && historyContracts.length > 0 ? (
+        {tab === 'history' ? (
           <PagePanel className="contract-history-panel">
-            {historyContracts.map((contract) => (
-              <HistoryContractRow key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} />
+            <div className="contract-history-filters" aria-label="合同历史筛选">
+              <SelectInput label="最终状态" value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value as ProductionContractStatus | '')}>
+                <option value="">全部状态</option>
+                <option value="completed">已完成</option>
+                <option value="terminated">已终止</option>
+                <option value="cancelled">已取消</option>
+                <option value="expired">已过期</option>
+              </SelectInput>
+              <SelectInput label="我的角色" value={historyRole} onChange={(event) => setHistoryRole(event.target.value as HistoryRole)}>
+                <option value="any">全部角色</option>
+                <option value="buyer">我采购</option>
+                <option value="supplier">我供货</option>
+                <option value="publisher">我发布</option>
+              </SelectInput>
+              <SelectInput label="合同商品" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}>
+                <option value="">全部商品</option>
+                {model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+              </SelectInput>
+              <TextInput label="开始日期" type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} />
+              <TextInput label="结束日期" type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} />
+              <Button
+                variant="text"
+                onClick={() => {
+                  setHistoryStatus('');
+                  setHistoryRole('any');
+                  setHistoryProductId('');
+                  setHistoryFrom('');
+                  setHistoryTo('');
+                }}
+              >清除筛选</Button>
+            </div>
+            {historyError ? <p className="contract-issue" role="alert">{historyError}</p> : null}
+            {historyLoading && historyItems.length === 0 ? <p className="contract-audit-loading" role="status">正在读取权威合同历史…</p> : null}
+            {!historyLoading && historyItems.length === 0 && !historyError ? <EmptyState>{emptyMessage}</EmptyState> : null}
+            {historyItems.map((contract) => (
+              <HistoryContractRow
+                key={contract.id}
+                contract={contract}
+                productName={productNames.get(contract.productId) ?? contract.productId}
+                expanded={expandedContractId === contract.id}
+                detail={auditDetails[contract.id] || null}
+                loading={auditLoadingId === contract.id}
+                onToggle={() => void toggleAudit(contract.id)}
+                onLoadMore={() => void loadMoreAudit(contract.id)}
+                productNames={productNames}
+              />
             ))}
+            {historyNextCursor ? <Button variant="text" disabled={historyLoading} onClick={() => void loadMoreHistory()}>{historyLoading ? '读取中' : '加载更多合同历史'}</Button> : null}
           </PagePanel>
         ) : null}
       </section>
