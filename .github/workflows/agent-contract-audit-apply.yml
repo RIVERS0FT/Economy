@@ -1,21 +1,25 @@
 name: Apply contract audit integration patch
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/contract-audit-history
-    paths:
-      - .github/workflows/agent-contract-audit-apply.yml
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.event.pull_request.head.ref == 'agent/contract-audit-history'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
       - name: Reconstruct approved patch
         run: |
@@ -44,4 +48,4 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m "实现可审计合同历史"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
