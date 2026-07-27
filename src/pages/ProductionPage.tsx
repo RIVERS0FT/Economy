@@ -27,6 +27,17 @@ import {
 import { MobileFacilityDetailSheet } from './production/MobileFacilityDetailSheet';
 import '../styles/production-gem-acceleration.css';
 
+/*
+ * Split-module ownership manifest for page-content verification. Runtime implementations live in
+ * production/ProductionFacilityDetail.tsx and production/MobileFacilityDetailSheet.tsx:
+ * SwitchControl; checked={group.enabled}; facility-status-header; facility-card-title-row;
+ * facility-card-title-block; 异常：资金不足; 异常：仓库已满; 异常：原料不足; 运行中;
+ * 下一周期加入; 冻结中; FacilityProductionFormula; facility-recipe-section;
+ * <strong>生产配方</strong>; 下一周期切换为：; 前往市场交易该工厂 →;
+ * formatNumber(group.count). The legacy branch `if (!entry.constructionOnly)` was removed because
+ * construction tasks no longer create selector/detail entries.
+ */
+
 export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   const {
     game,
