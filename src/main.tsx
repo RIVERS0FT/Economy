@@ -10,8 +10,6 @@ import './styles/performance.css';
 import './styles/viewport.css';
 import './styles/scrollbars.css';
 import './styles/game-shell-layout.css';
-import './styles/auth.css';
-import './styles/registration-auth.css';
 import './styles/card-system.css';
 import './styles/liquid-glass-surfaces.css';
 import './styles/mobile-status-navigation.css';
@@ -46,6 +44,8 @@ import './styles/product-artwork.css';
 import './styles/design-system.css';
 import './styles/interaction-states.css';
 import './styles/primary-surfaces.css';
+import './styles/auth.css';
+import './styles/registration-auth.css';
 import './styles/form-controls.css';
 
 configureRuntimePerformance();
