@@ -15,6 +15,7 @@ const forbidText = (path, text) => {
 };
 
 for (const path of [
+  'src/main.tsx',
   'src/app/LoginPage.tsx',
   'src/styles/auth.css',
   'src/styles/globals.css',
@@ -75,6 +76,29 @@ for (const text of [
   '.login-card.panel',
 ]) forbidText('src/styles/card-system.css', text);
 
+const finalStyleOrder = [
+  "import './styles/design-system.css';",
+  "import './styles/interaction-states.css';",
+  "import './styles/primary-surfaces.css';",
+  "import './styles/auth.css';",
+  "import './styles/registration-auth.css';",
+  "import './styles/form-controls.css';",
+];
+const mainSource = read('src/main.tsx');
+for (let index = 0; index < finalStyleOrder.length; index += 1) {
+  const current = mainSource.indexOf(finalStyleOrder[index]);
+  if (current < 0) {
+    failures.push(`src/main.tsx 缺少最终样式入口: ${finalStyleOrder[index]}`);
+    continue;
+  }
+  if (index > 0) {
+    const previous = mainSource.indexOf(finalStyleOrder[index - 1]);
+    if (previous >= current) {
+      failures.push(`src/main.tsx 样式顺序错误: ${finalStyleOrder[index - 1]} 必须早于 ${finalStyleOrder[index]}`);
+    }
+  }
+}
+
 for (const text of [
   '未登录入口固定拆分为图片背景、当前深色氛围背景、标语与认证卡片三个层级',
   '`login-image-layer`',
@@ -82,7 +106,8 @@ for (const text of [
   '`login-content-layer`',
   'Carol M. Highsmith',
   '不得把整个移动登录页恢复为单张外层面板',
-  '登录外壳、三层背景、品牌区与认证卡片几何唯一由 `src/styles/auth.css` 管理',
+  '登录外壳、三层背景、品牌区与认证卡片几何最终由 `src/styles/auth.css` 收束',
+  '`design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`',
   '`src/styles/card-system.css` 不得包含 `.login-shell` 或 `.login-card.panel` 映射',
   '不得改变登录／注册业务流程来适配视觉布局',
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
