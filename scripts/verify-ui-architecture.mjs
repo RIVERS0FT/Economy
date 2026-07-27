@@ -15,10 +15,12 @@ const navigationConfigPath = 'src/config/navigation.ts';
 const iconStylePath = 'src/styles/icon-system.css';
 const mobileNavigationStylePath = 'src/styles/mobile-status-navigation.css';
 const marketPagePath = 'src/pages/MarketPage.tsx';
+const productionDetailPath = 'src/pages/production/ProductionFacilityDetail.tsx';
 
 [
   'src/components/ui/layout.tsx',
   'src/pages/ProductionPage.tsx',
+  productionDetailPath,
   'src/pages/SettingsPage.tsx',
   marketPagePath,
   'src/styles/design-system.css',
@@ -40,6 +42,7 @@ if (existsSync(resolve(root, 'src/components/icons/StatusIcons.tsx'))) {
 
 const sharedLayout = read('src/components/ui/layout.tsx');
 const productionPage = read('src/pages/ProductionPage.tsx');
+const productionDetail = read(productionDetailPath);
 const settingsPage = read('src/pages/SettingsPage.tsx');
 const designSystem = read('src/styles/design-system.css');
 const businessStyles = read('src/styles/unified-market-admin.css');
@@ -61,7 +64,7 @@ for (const text of [
   '<SwitchControl aria-label={label}',
 ]) requireText('src/components/ui/layout.tsx', text);
 
-requireText('src/pages/ProductionPage.tsx', '<SwitchControl');
+requireText(productionDetailPath, '<SwitchControl');
 requireText('src/pages/SettingsPage.tsx', '<ToggleField');
 
 for (const forbidden of [
@@ -71,7 +74,7 @@ for (const forbidden of [
   'production-toggle',
   'toggle-input',
 ]) {
-  if ((productionPage + settingsPage + businessStyles).includes(forbidden)) {
+  if ((productionPage + productionDetail + settingsPage + businessStyles).includes(forbidden)) {
     failures.push(`业务页面或业务样式不应包含专属开关实现: ${forbidden}`);
   }
 }
