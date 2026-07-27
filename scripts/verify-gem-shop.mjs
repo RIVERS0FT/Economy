@@ -19,12 +19,15 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/test/gem-construction-acceleration.test.js',
   'src/pages/GemShopPage.tsx',
   'src/pages/ProductionPage.tsx',
+  'src/pages/ProductionPageRoute.tsx',
   'src/components/InvitationSettings.tsx',
   'src/api/invitations.ts',
   'src/components/icons/GemIcon.tsx',
   'src/styles/gem-shop.css',
+  'src/styles/production-gem-acceleration.css',
   'src/styles/primary-surfaces.css',
   'tests/browser/gem-shop-layout.spec.ts',
+  'tests/browser/production-status-summary.spec.ts',
   'src/config/navigation.ts',
   'src/pages/PageRouter.tsx',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
@@ -87,13 +90,35 @@ for (const text of [
   '宝石不能用货币买回',
   '兑换记录',
 ]) requireText('src/pages/GemShopPage.tsx', text);
-for (const text of ['宝石加速', '加速处理中', 'accelerateFacilityConstruction']) {
-  requireText('src/pages/ProductionPage.tsx', text);
-}
+for (const text of [
+  'function BuildCardGemAcceleration',
+  "'.production-build-card .construction-status'",
+  "'.facility-cluster-detail-card .construction-status, .facility-detail-sheet .construction-status'",
+  "element.hidden = true",
+  "element.setAttribute('aria-hidden', 'true')",
+  'createPortal(',
+  'build-card-gem-acceleration',
+  '宝石施工加速',
+  '加速处理中',
+  'accelerateFacilityConstruction()',
+]) requireText('src/pages/ProductionPageRoute.tsx', text);
+requireText('src/pages/PageRouter.tsx', "import('./ProductionPageRoute')");
+for (const text of [
+  '.build-card-gem-acceleration',
+  '.facility-cluster-detail-card .construction-status[hidden]',
+  '.facility-detail-sheet .construction-status[hidden]',
+  'display: none !important;',
+]) requireText('src/styles/production-gem-acceleration.css', text);
+for (const text of [
+  'keeps gem acceleration only in the build card',
+  "getByRole('button', { name: '1 宝石 · 加速 30m' })",
+  "toHaveAttribute('aria-hidden', 'true')",
+  "toHaveAttribute('data-gem-acceleration-relocated', 'true')",
+]) requireText('tests/browser/production-status-summary.spec.ts', text);
+for (const text of ['填写好友邀请码', '确认填写', 'claimInvitation']) forbidText('src/components/InvitationSettings.tsx', text);
 for (const text of ['邀请好友', '专属分享链接', '永久邀请码', '注册完成后不能补填或更换', '注册填写']) {
   requireText('src/components/InvitationSettings.tsx', text);
 }
-for (const text of ['填写好友邀请码', '确认填写', 'claimInvitation']) forbidText('src/components/InvitationSettings.tsx', text);
 
 for (const text of [
   "className ? `game-icon ${className}` : 'game-icon'",
@@ -148,9 +173,14 @@ for (const text of [
   '/api/game/facilities/construction/accelerate',
   'economy_gem_shop_exchanges',
 ]) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
-for (const text of ['每次固定消耗 1 宝石，减少当前施工 30 分钟', '初始报价为 1 宝石兑换 100 普通货币', '每日绝对变化上限为最高报价 10000 的 10%', '不得增加宝石兑换工厂产量']) {
-  requireText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', text);
-}
+for (const text of [
+  '每次固定消耗 1 宝石，减少当前施工 30 分钟',
+  '初始报价为 1 宝石兑换 100 普通货币',
+  '每日绝对变化上限为最高报价 10000 的 10%',
+  '不得增加宝石兑换工厂产量',
+  '“建设新工厂”卡',
+  '把宝石加速入口移回工厂详情',
+]) requireText('docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md', text);
 for (const text of ['商店 `.gem-shop-grid > .widget` 的固定 padding', '新增一级卡片必须使用 `PagePanel`']) {
   requireText('docs/PRIMARY_SURFACE_INSET_DESIGN.md', text);
 }
@@ -159,4 +189,4 @@ if (failures.length) {
   console.error(`商店与邀请布局验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('商店验证通过：每日终端报价、动态汇率、施工宝石加速、原子兑换与共享一级卡片规则均已锁定。');
+console.log('商店验证通过：每日终端报价、动态汇率、建设卡施工宝石加速、原子兑换与共享一级卡片规则均已锁定。');
