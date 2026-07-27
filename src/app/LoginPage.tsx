@@ -5,6 +5,9 @@ import { Button } from '../components/ui/layout';
 import { BRAND_LOGO_URL, BRAND_NAME, BRAND_SLOGAN } from '../config/brand';
 import type { AuthUser } from '../types';
 
+const AUTH_BACKGROUND_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/6/68/No_Known_Restrictions_Trading_Floor%2C_New_York_Stock_Exchange_%28Highsmith_LOC%29_%286718386525%29.jpg';
+const AUTH_BACKGROUND_IMAGE_960_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/No_Known_Restrictions_Trading_Floor%2C_New_York_Stock_Exchange_%28Highsmith_LOC%29_%286718386525%29.jpg/960px-No_Known_Restrictions_Trading_Floor%2C_New_York_Stock_Exchange_%28Highsmith_LOC%29_%286718386525%29.jpg';
+
 type AuthMode = 'login' | 'register';
 
 export function LoginPage({
@@ -96,88 +99,104 @@ export function LoginPage({
 
   return (
     <main className="login-shell">
-      <section className="login-brand">
-        <div className="brand-lockup" aria-label={BRAND_NAME}>
-          <img src={BRAND_LOGO_URL} alt="" aria-hidden="true" />
-          <span>{BRAND_NAME}</span>
-        </div>
-        <h1>{BRAND_SLOGAN}</h1>
-      </section>
+      <div className="login-image-layer" aria-hidden="true">
+        <picture>
+          <source media="(max-width: 720px)" srcSet={AUTH_BACKGROUND_IMAGE_960_URL} />
+          <img
+            src={AUTH_BACKGROUND_IMAGE_URL}
+            alt=""
+            decoding="async"
+            fetchPriority="high"
+          />
+        </picture>
+      </div>
 
-      <section className="login-card panel">
-        {inviteCode ? (
-          <p className="form-notice invite-recognized" role="status">
-            已识别好友分享链接，邀请码已自动填写。完成注册后，分享者将立即获得宝石奖励。
-          </p>
-        ) : null}
-        <div className="auth-mode-switch" role="tablist" aria-label="账号操作">
-          <button type="button" role="tab" aria-selected={mode === 'login'} onClick={() => switchMode('login')}>登录</button>
-          <button type="button" role="tab" aria-selected={mode === 'register'} onClick={() => switchMode('register')}>注册</button>
-        </div>
-        <form ref={formRef} onSubmit={submit} className="login-form" aria-busy={submitting || sendingCode}>
-          <TextInput
-            label="账号邮箱"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            name="email"
-            type="email"
-            placeholder="请输入账号邮箱"
-            required
-          />
-          <TextInput
-            label="密码"
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            name="password"
-            type="password"
-            placeholder="至少 8 位"
-            minLength={8}
-            required
-          />
-          {mode === 'register' ? (
-            <>
-              <TextInput
-                label="邀请码（可选）"
-                autoComplete="off"
-                autoCapitalize="characters"
-                spellCheck={false}
-                name="inviteCode"
-                maxLength={8}
-                defaultValue={inviteCode ?? ''}
-                placeholder="8 位邀请码"
-                onInput={(event) => {
-                  event.currentTarget.value = event.currentTarget.value.toUpperCase();
-                }}
-              />
-              <InputGroup className="email-code-field">
-                <TextInput
-                  label="邮箱验证码"
-                  autoComplete="one-time-code"
-                  inputMode="numeric"
-                  name="code"
-                  pattern="[0-9]{6}"
-                  maxLength={6}
-                  placeholder="6 位验证码"
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={sendingCode || submitting || resendSeconds > 0}
-                  onClick={() => void sendCode()}
-                >
-                  {sendingCode ? '发送中…' : resendSeconds > 0 ? `${resendSeconds}s` : '发送验证码'}
-                </Button>
-              </InputGroup>
-            </>
+      <div className="login-atmosphere-layer" aria-hidden="true" />
+
+      <div className="login-content-layer">
+        <section className="login-brand">
+          <div className="brand-lockup" aria-label={BRAND_NAME}>
+            <img src={BRAND_LOGO_URL} alt="" aria-hidden="true" />
+            <span>{BRAND_NAME}</span>
+          </div>
+          <h1>{BRAND_SLOGAN}</h1>
+        </section>
+
+        <section className="login-card panel">
+          {inviteCode ? (
+            <p className="form-notice invite-recognized" role="status">
+              已识别好友分享链接，邀请码已自动填写。完成注册后，分享者将立即获得宝石奖励。
+            </p>
           ) : null}
-          {notice ? <p className="form-notice" role="status">{notice}</p> : null}
-          {error ? <p className="form-error" role="alert">{error}</p> : null}
-          <Button block type="submit" disabled={submitting || sendingCode}>
-            {submitting ? '正在连接账号服务…' : mode === 'login' ? '登录' : '完成注册'}
-          </Button>
-        </form>
-      </section>
+          <div className="auth-mode-switch" role="tablist" aria-label="账号操作">
+            <button type="button" role="tab" aria-selected={mode === 'login'} onClick={() => switchMode('login')}>登录</button>
+            <button type="button" role="tab" aria-selected={mode === 'register'} onClick={() => switchMode('register')}>注册</button>
+          </div>
+          <form ref={formRef} onSubmit={submit} className="login-form" aria-busy={submitting || sendingCode}>
+            <TextInput
+              label="账号邮箱"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              name="email"
+              type="email"
+              placeholder="请输入账号邮箱"
+              required
+            />
+            <TextInput
+              label="密码"
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              name="password"
+              type="password"
+              placeholder="至少 8 位"
+              minLength={8}
+              required
+            />
+            {mode === 'register' ? (
+              <>
+                <TextInput
+                  label="邀请码（可选）"
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  name="inviteCode"
+                  maxLength={8}
+                  defaultValue={inviteCode ?? ''}
+                  placeholder="8 位邀请码"
+                  onInput={(event) => {
+                    event.currentTarget.value = event.currentTarget.value.toUpperCase();
+                  }}
+                />
+                <InputGroup className="email-code-field">
+                  <TextInput
+                    label="邮箱验证码"
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    name="code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    placeholder="6 位验证码"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={sendingCode || submitting || resendSeconds > 0}
+                    onClick={() => void sendCode()}
+                  >
+                    {sendingCode ? '发送中…' : resendSeconds > 0 ? `${resendSeconds}s` : '发送验证码'}
+                  </Button>
+                </InputGroup>
+              </>
+            ) : null}
+            {notice ? <p className="form-notice" role="status">{notice}</p> : null}
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
+            <Button block type="submit" disabled={submitting || sendingCode}>
+              {submitting ? '正在连接账号服务…' : mode === 'login' ? '登录' : '完成注册'}
+            </Button>
+          </form>
+        </section>
+      </div>
     </main>
   );
 }
