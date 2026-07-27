@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+import { BuildCardGemAcceleration } from './ProductionGemAcceleration';
 
 const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ default: module.AuctionPage })));
 const BankPage = lazy(() => import('./BankPage').then((module) => ({ default: module.BankPage })));
@@ -8,7 +9,7 @@ const ContractPage = lazy(() => import('./ContractPage').then((module) => ({ def
 const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => ({ default: module.LeaderboardPage })));
 const MarketPage = lazy(() => import('./MarketPage').then((module) => ({ default: module.MarketPage })));
 const OverviewPage = lazy(() => import('./OverviewPage').then((module) => ({ default: module.OverviewPage })));
-const ProductionPage = lazy(() => import('./ProductionPageRoute').then((module) => ({ default: module.ProductionPageRoute })));
+const ProductionPage = lazy(() => import('./ProductionPage').then((module) => ({ default: module.ProductionPage })));
 const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
@@ -22,6 +23,7 @@ export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
       page = (
         <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
           <ProductionPage model={model} />
+          <BuildCardGemAcceleration model={model} />
         </FacilityRecipeProfitMarketsProvider>
       );
       break;
