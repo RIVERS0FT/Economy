@@ -179,10 +179,12 @@ test('合同最后三批可提出续签，双方确认后预留资产并在原�
     totalDeliveries: 3,
     firstDeliveryDelayMs: 10 * 60 * 1000,
   }, now + 10 * 60 * 1000 + 3).ok, true);
+  contract = contractById(world, contract.id);
   assert.equal(contract.renewalProposal.status, 'proposed');
   assert.equal(applyProductionContractAction(world, supplierUser, 'acceptProductionContractRenewal', {
     contractId: contract.id,
   }, now + 10 * 60 * 1000 + 4).ok, true);
+  contract = contractById(world, contract.id);
   assert.equal(contract.renewalProposal.status, 'accepted');
   assert.equal(contract.renewalProposal.buyerEscrowCredits, 120);
   assert.equal(contract.renewalProposal.buyerBondCredits, 24);
