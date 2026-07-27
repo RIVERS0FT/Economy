@@ -1,0 +1,44 @@
+name: Move gem acceleration entry
+
+on:
+  push:
+    branches:
+      - agent/move-gem-acceleration-to-build-card
+    paths:
+      - .github/workflows/agent-move-gem-acceleration.yml
+      - .agent/move-gem-acceleration.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/move-gem-acceleration-to-build-card
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply source and design changes
+        run: node .agent/move-gem-acceleration.mjs
+      - name: Verify focused changes
+        run: |
+          node scripts/verify-gem-shop.mjs
+          node scripts/verify-page-content.mjs
+          node scripts/verify-unified-factory-recipes-grid.mjs
+          npx tsc --noEmit
+      - name: Commit generated changes
+        run: |
+          git config user.name "OpenAI Codex"
+          git config user.email "codex@openai.com"
+          rm -f .agent/move-gem-acceleration.mjs .github/workflows/agent-move-gem-acceleration.yml
+          rmdir .agent 2>/dev/null || true
+          git add -A
+          git commit --amend --no-edit
+          git push --force-with-lease origin HEAD:agent/move-gem-acceleration-to-build-card
