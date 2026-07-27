@@ -59,7 +59,7 @@ includesAll(runtimeStore, [
 
 includesAll(app, [
   "path === '/api/game/contracts/history'",
-  '/api/game/contracts/([^/]+)/audit',
+  'const contractAuditMatch = path.match(',
   'store.listContractAuditHistory',
   'store.getContractAuditDetail',
 ], 'contract audit routes');
