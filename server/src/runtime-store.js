@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import {
   applyPopulationPolicy,
   createPopulationAdminSummary,
@@ -12,6 +13,7 @@ import {
   migrateProductionContractWorld,
   processProductionContracts,
 } from './contracts.js';
+import { configureContractAuditStore } from './contract-audit-store.js';
 import { ensureGemState } from './invitations.js';
 import { configurePlayerAdminStatistics } from './player-admin-statistics.js';
 import { ensureWarehouse } from './warehouse.js';
@@ -55,11 +57,16 @@ function contractProjectionForState(world) {
   return projection;
 }
 
+function contractSnapshot(world) {
+  return structuredClone(world.productionContracts || []);
+}
+
 // Runtime policy mutations intentionally bypass the legacy population-policy audit table.
 // The table remains readable only for backward-compatible retention of historical rows.
 export class EconomyStore extends PersistentEconomyStore {
   constructor(...args) {
     super(...args);
+    configureContractAuditStore(this);
     configurePlayerAdminStatistics(this);
   }
 
@@ -71,12 +78,40 @@ export class EconomyStore extends PersistentEconomyStore {
   }
 
   saveWorld(revision, world, now) {
-    return PersistentEconomyStore.prototype.saveWorldIfChanged.call(this, revision, world, now);
+    return this.saveWorldIfChanged(revision, world, now);
+  }
+
+  saveWorldIfChanged(revision, world, now, _previousStateJson) {
+    this.prepareWorldForStorage(world, now);
+    const cached = this.worldCache;
+    const unchanged = cached
+      && cached.revision === revision
+      && !cached.needsPersistence
+      && isDeepStrictEqual(world, cached.world);
+    if (unchanged) {
+      this.flushContractAuditEvents(world, revision, revision);
+      return revision;
+    }
+
+    world.lastProcessedAt = now;
+    const stateJson = JSON.stringify(world);
+    const nextRevision = revision + 1;
+    this.updateWorld.run(nextRevision, stateJson, now);
+    this.flushContractAuditEvents(world, revision, nextRevision);
+    this.cacheWorld(nextRevision, stateJson, world);
+    return nextRevision;
   }
 
   processWorldIfDue(world, now, currentUserId, options = {}) {
+    const beforeContracts = contractSnapshot(world);
     const processed = super.processWorldIfDue(world, now, currentUserId, options);
-    if (processed) processProductionContracts(world, now);
+    if (processed) {
+      processProductionContracts(world, now);
+      this.captureContractAuditTransition(beforeContracts, world, {
+        triggerType: options.auditTrigger || (currentUserId === undefined ? 'scheduler' : 'request_world_process'),
+        now,
+      });
+    }
     return processed;
   }
 
@@ -132,12 +167,22 @@ export class EconomyStore extends PersistentEconomyStore {
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
       ensureGemState(player);
-      this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      this.processWorldIfDue(world, now, Number(user.id), { force: true, auditTrigger: 'action_preprocess' });
 
+      const beforeActionContracts = contractSnapshot(world);
       const gameResult = applyProductionContractAction(world, user, action, payload, now);
-      if (gameResult?.ok) player.lastEconomicActivityAt = now;
+      if (gameResult?.ok) {
+        player.lastEconomicActivityAt = now;
+        this.captureContractAuditTransition(beforeActionContracts, world, {
+          actorUserId: Number(user.id),
+          triggerType: 'player_action',
+          action,
+          requestKey,
+          now,
+        });
+      }
 
-      this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      this.processWorldIfDue(world, now, Number(user.id), { force: true, auditTrigger: 'action_postprocess' });
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
       const nextRevision = this.saveWorld(revision, world, now);

@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-07-26
+> 更新时间：2026-07-27
 > 客户端状态版本：19
 > 世界状态版本：16
 
@@ -16,11 +16,11 @@
 |---|---|
 | `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、每日签到、普通货币与宝石、直接货币发行、人口就业收入、三类人口真实钱包、消费需求与排行榜目标 |
 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` | 1 宝石减少施工 30 分钟、每日终端动态报价、接受／拒绝决策、历史汇率、SQLite 审计与禁止宝石兑换工厂产量 |
-| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 31 种商品、21 种工厂、整数经济数值、参考利润、周期成本工资、生产复杂度岗位结构、固定建造业岗位结构、持续生产、三态、自动恢复、工厂抵押生产资格，以及长期供货合同与工厂集群的边界 |
+| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 31 种商品、21 种工厂、整数经济数值、参考利润、周期成本工资、生产复杂度岗位结构、固定建造业岗位结构、持续生产、三态、自动恢复、工厂抵押生产资格，以及长期供货合同与生产／资产守恒审计边界 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单与合同采购预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、银行资产总览与存贷款、商品／工厂资产拍卖、统一导航角标语义与已读规则、进行中的合同默认视图、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
+| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、银行资产总览与存贷款、商品／工厂资产拍卖、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填与旧接口退役 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
@@ -29,7 +29,7 @@
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、签到日历、短列表滚动和浏览器几何回归 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 游戏与管理员共享桌面外壳、统一布局沟槽、侧栏与悬浮工作栏几何、桌面贴边页面滚动条、移动工作区与 Overlay、登录态根视口下拉刷新边界、移动操作结果通知、移动底栏和液态玻璃材质 |
-| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、银行事务与结息调度、每日签到、长期合同事务与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、SQLite、容量限制、Nginx、systemd 和部署 |
+| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、银行事务与结息调度、每日签到、长期合同事务、追加式 SQLite 合同审计与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器仅保留匿名逐笔成交所需的最小订单快照、v6 迁移、清除语义与银行权威流水边界 |
 | `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、商品／工厂单项与捆绑资产包拍卖、世界 15 删除迁移、封禁复核、管理员权限、四分区后台范围与运营控制台编排 |
 
@@ -76,7 +76,7 @@
 39. 商品物资插画主视觉归属 `UI_DESIGN_SYSTEM.md` 的商品图标体系：`src/assets/product-icons/` 只保存 `1024 × 1024` RGBA PNG 正式源图，开发与构建统一由 `scripts/generate-product-artwork-thumbnails.mjs` 生成 `src/assets/product-icons/generated/128/` 下的 `128 × 128` RGBA PNG 运行时缩略图；`product-artwork.css` 只能通过 `ProductIcon` 的 `data-product-icon` 映射缩略图，禁止直接加载源图。仓库商品卡、市场商品目录、概览商品行情和拍卖商品主视觉使用缩略图，生产公式、订单表格、资产变动和未知商品继续使用 SVG，并通过 `scripts/verify-product-artwork.mjs` 校验 31 种源图、缩略图、映射、生成入口、降级和使用边界。
 40. 人口政策参数、当前参数与持续时间展示、无管理备注、无调控记录、无业务上限及安全整数边界统一归属 `GIFT_CODE_AND_ADMIN_DESIGN.md`；就业来源与复杂度工资中的正数比例条必须保留最小可见填充，真实零值保持空轨道，并通过人口经济服务器测试、管理员浏览器测试和 `scripts/verify-staple-crops-demand.mjs` 防回退。
 41. 市场商品目录卡内部信息布局归属页面职责与市场专用样式：卡片必须先渲染只包含居中 `ProductIcon` 的图标层，再渲染包含左上名称、右上 `CurrencyAmount` 最近真实成交价、左下真实 DOM“当前”胶囊和右下 `WarehouseIcon` 可用库存的数据层。桌面／移动卡片继续固定为 `138 × 92px`／`132 × 88px`，中央插画固定为 `72 × 72px`／`56 × 56px`，且只允许改变插画 `width`／`height`；图标层 `inset`、数据层 `padding` 与 `gap`、四角槽位、名称前 SVG、价格、“当前”胶囊和库存位置均保持不变，不得通过压缩四角留白容纳插画。名称前固定增加 `14 × 14px` 对应商品 SVG；卡片使用 `var(--radius-control)` 圆角、`var(--space-3)` 间距、强边框和轻量阴影区分相邻项目，悬停不得位移。资产目录的隐式列必须按子项自身宽度生成：商品与工厂分组标签只占自身 `46px` 轨道，资产卡分别保持桌面 `138px`、移动 `132px` 固定宽度，标签与首张资产卡之间只保留 `var(--space-3)` 间距，不得让分组标签继承资产卡列宽形成额外空白。图标层必须位于数据层下方且不参与数据网格，两层均覆盖卡片并禁用指针事件；商品卡不得用 `::after` 生成“当前”胶囊。没有真实成交时商品和工厂目录价格统一显示 `—`，不得回退到商品基础价或工厂系统价值；实现必须同步 `MarketPage.tsx`、`market-page-polish.css`、`product-artwork.css`、`scripts/verify-market-page-layout.mjs` 与市场浏览器测试。
-42. 长期生产合作合同的页面职责归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，工厂集群边界和生产先于合同交付归 `INDUSTRY_AND_PRODUCTION_DESIGN.md`，接口、事务、调度和 `contract` 分区归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`。合同只允许商品与普通货币，不允许其他资产类型、工厂转移、工厂出租、自由文本或对方配方控制；每次合同处理、动作和状态序列化只能建立一次事务内合同索引，采购方下一批仓库预占不得在每份合同检查中再次遍历全部合同；必须通过 `server/test/contracts.test.js`、`server/test/contract-runtime-index.test.js` 和页面／状态容量验证防回退。
+42. 长期生产合作合同的页面职责归 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`，工厂集群边界和生产先于合同交付归 `INDUSTRY_AND_PRODUCTION_DESIGN.md`，接口、事务、调度、追加式合同审计和 `contract` 分区归 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`。合同只允许商品与普通货币，不允许其他资产类型、工厂转移、工厂出租、自由文本或对方配方控制；每次合同处理、动作和状态序列化只能建立一次事务内合同索引，采购方下一批仓库预占不得在每份合同检查中再次遍历全部合同；必须通过 `server/test/contracts.test.js`、`server/test/contract-runtime-index.test.js`、`server/test/contract-audit.test.js` 和页面／状态容量验证防回退。
 43. 所有可见倒计时必须先区分本地资格到期与服务器权威状态转换；统一读取 `serverNow` 校准的共享单调服务器时钟，状态转换到期后由权威刷新继续确认。每个返回分区内部都是完整快照，必须整块替换同名分区。该规则由 `AUTHORITATIVE_COUNTDOWN_DESIGN.md` 与 `scripts/verify-authoritative-countdowns.mjs` 防回退。
 44. 管理员玩家运营统计、成功经济写操作活跃口径、精确日活动覆盖起点、D1／D7／D30 留存、成长漏斗、经营参与、真实成交估值财富分布、关注群体、独立 SQLite 分析表和聚合隐私边界属于管理员与服务器共同规则；不得把统计结果用于扩张人口需求预算，必须同步更新 `GIFT_CODE_AND_ADMIN_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、服务器测试和 `scripts/verify-admin-player-statistics.mjs`。
 45. 输入方式、共享交互表面、混合输入运行时切换、React 根入口 bootstrap、触摸无粘滞 hover、程序化焦点与键盘焦点视觉属于 `UI_DESIGN_SYSTEM.md`；必须通过 `scripts/verify-interaction-modality.mjs` 和混合输入浏览器测试防回退，业务 CSS 不得增加未受约束的 hover。
@@ -87,3 +87,4 @@
 50. 银行存取款、唯一进行中工厂抵押贷款、透明额度评估、72 小时期限与 12 小时宽限、抵押继续生产但禁止转让、贷款本金与负债同步、净资产口径、已实现贷款利息 70%／20%／10% 分配、北京时间每日最低余额结息、0.25% 日上限、微单位余数、七日利息池上限、风险准备金、违约处置和世界 16 数据快照属于产品、产业、订单簿、页面、UI、服务器、排行榜和部署共同规则；必须同步更新对应权威文档、服务器与浏览器测试、`scripts/verify-banking.mjs`、版本验证和部署工作流，禁止无资金来源的固定存款利息或把贷款本金计入净资产增长。
 51. 市场行情图的整数坐标、成交量绘图区最低 `48px` 实际高度、最低 `22%` 数据区占比、动态 `viewBox`／纵横比、底部安全区与图例居中唯一归属 `MARKET_CHART_LAYOUT_DESIGN.md`；页面职责和通用 UI 文档只保留模块边界与引用。实现必须同步 `PriceSparkline.tsx`、`scripts/verify-market-chart.mjs` 和真实浏览器几何回归，不得恢复窄屏压缩成交量区或强制固定 `16:9`。
 52. 独立 `assets` 导航、`AssetsPage` 和浏览器本地资产变动已永久删除；资产总览唯一归属银行页，状态栏与概览资产入口统一打开银行。浏览器本地存储 v6 只保留匿名逐笔成交和识别新增成交所需的最小自有订单快照，必须同步更新页面、本地日志、概览、银行、浏览器测试及 `scripts/verify-assets-page.mjs`，不得恢复资产事件差异扫描、资产页空壳或兼容路由。
+53. 合同历史必须由 `economy_contract_audit_contracts`、`economy_contract_audit_events` 与 `economy_contract_audit_transfers` 组成的 SQLite 追加式审计账本提供；玩家动作、服务器调度、逐批商品／货款／手续费／保证金流转、宽限和违约必须与世界状态在同一事务提交，并以确定性来源键防止幂等重试或重复截止时间写入重复事件。旧世界合同只能导入 `legacy_partial` 当前快照，不得伪造上线前逐批事件。历史和详情通过独立只读 API 按需分页，只允许参与者读取，不进入世界 JSON、六分区、分区哈希或常规轮询；必须同步页面、产业、服务器设计、迁移备份、服务器／浏览器测试和 `scripts/verify-contract-audit.mjs` 防回退。

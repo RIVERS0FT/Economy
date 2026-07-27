@@ -377,6 +377,36 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (method === 'GET' && path === '/api/game/contracts/history') {
+      sendJson(response, 200, {
+        history: store.listContractAuditHistory(user, {
+          cursor: url.searchParams.get('cursor'),
+          limit: url.searchParams.get('limit'),
+          status: url.searchParams.get('status'),
+          productId: url.searchParams.get('productId'),
+          role: url.searchParams.get('role'),
+          from: url.searchParams.get('from'),
+          to: url.searchParams.get('to'),
+        }),
+      });
+      return;
+    }
+
+    const contractAuditMatch = path.match(/^\/api\/game\/contracts\/([^/]+)\/audit$/);
+    if (method === 'GET' && contractAuditMatch) {
+      sendJson(response, 200, {
+        audit: store.getContractAuditDetail(
+          user,
+          decodeRouteParameter(contractAuditMatch[1]),
+          {
+            cursor: url.searchParams.get('cursor'),
+            limit: url.searchParams.get('limit'),
+          },
+        ),
+      });
+      return;
+    }
+
     if (method === 'GET' && path === '/api/game/community-link') {
       sendJson(response, 200, { communityLink: store.getCommunityLink() });
       return;

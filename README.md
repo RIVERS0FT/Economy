@@ -89,6 +89,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 顶部状态栏直接由固定玻璃胶囊承载五列状态内容，不包含 `ScrollArea`、内部滚动视口或自绘滚动条；窄桌面和移动端使用紧凑数值与自适应字号，状态栏最上层 `::after` 内描边必须在卡片后方滚动时保持连续。
 - 滚动条使用全局统一尺寸并按最近输入方式工作：鼠标／触控板模式提供可操作的横纵轨道，触控模式完全隐藏横向轨道并保留原生横滑，只在实际纵向滚动后显示可触摸操作且会自动隐藏的纵向轨道；市场资产目录禁止吸附并支持无级滑动，本地成交使用单一双轴虚拟视口。
 - 状态栏、导航、商品和工厂资产使用统一内联 SVG；工厂厂房图标与机械商品齿轮图标保持独立。
+- 合同历史由服务器 SQLite 追加式合同审计提供，记录发布、承接、逐批履约、宽限、终止及商品／货款／手续费／保证金流向；旧合同明确标记为旧数据摘要，审计不进入世界 JSON 或状态轮询。
 - 服务器只保存权威经济状态；玩家活动和成交展示日志保存在当前浏览器。
 - 游戏状态使用全局世界修订号排序，并按目录、玩家、市场、拍卖、合同、排行榜六个分区增量同步。首次进入返回六个完整分区；后续请求同时提交全局修订号与各分区内容哈希，只返回哈希变化的分区。全局修订变化但当前玩家视图未变化时只返回新的全局修订号和空补丁；同全局修订号轮询继续在进入 SQLite 事务前返回轻量确认。每个 `GET state` 响应都在分区 envelope 顶层携带响应生成时的 `serverNow`，该字段不进入世界 JSON、`EconomyState` 或分区哈希。
 - 客户端状态版本和兼容下限统一定义在 `server/shared/economy-state-version.js`；银行状态与净资产破坏性升级后当前客户端只接受版本 19，服务器序列化、浏览器分区合并、类型声明、README 与权威设计由 `scripts/verify-client-state-version.mjs` 强制保持一致。
@@ -120,7 +121,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 市场：商品和工厂连续双行资产目录、明确禁用原因、自然高度 5+5 单列价格档位订单簿、宽行情主列、逐单撤单与本地成交。
 - 生产：共享仓库、建设卡、工厂集群选择器、当前集群详情，以及移动端底部悬浮详情框。
 - 拍卖：使用资产包编辑器组合商品和工厂，整包竞价、取消无出价拍卖并查看自动结算结果。
-- 合同：发布、承接和管理商品与普通货币之间的长期周期供货合同；默认展示进行中的合同。
+- 合同：发布、承接和管理商品与普通货币之间的长期周期供货合同；默认展示进行中的合同，并提供参与者可筛选、分页和展开核查的权威合同审计历史。
 - 银行：统一展示净资产、资产毛值、贷款负债、现金／商品／工厂构成，并提供存取款、动态存款利息、工厂抵押贷款、额度评估、还款和权威银行记录。
 - 排行：服务器净资产排行榜。
 - 商店：分享专属链接与永久邀请码、查看邀请统计，并按每日全服终端报价接受兑换或明确放弃。
@@ -136,14 +137,14 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 |---|---|
 | 产品定位、工作、普通货币、银行、净资产、宝石、邀请、市场需求与价格传导 | `docs/PRODUCT_AND_GAMEPLAY_DESIGN.md` |
 | 宝石施工加速、每日终端动态报价、决策与审计 | `docs/GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` |
-| 商品目录、整数经济数值、工厂集群、生产与长期合同生产边界 | `docs/INDUSTRY_AND_PRODUCTION_DESIGN.md` |
+| 商品目录、整数经济数值、工厂集群、生产与长期合同生产／审计边界 | `docs/INDUSTRY_AND_PRODUCTION_DESIGN.md` |
 | 商品与工厂统一订单簿 | `docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` |
 | 共享仓库和扩容 | `docs/WAREHOUSE_EXPANSION_DESIGN.md` |
-| 页面内容、九页导航、银行资产总览与合同默认视图 | `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
+| 正式页面、模块归属、导航与可审计合同历史 | `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |
 | UI 组件、SVG 图标与响应式系统 | `docs/UI_DESIGN_SYSTEM.md` |
 | 权威倒计时、`serverNow` 与共享单调服务器时钟 | `docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md` |
 | 状态栏与移动底栏玻璃外壳 | `docs/LIQUID_GLASS_CHROME_DESIGN.md` |
-| 服务器、API、合同事务、注册、邀请、封禁、容量与部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |
+| 服务器权威状态、SQLite 合同审计、API、Nginx、systemd 和部署 | `docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` |
 | 浏览器本地匿名成交记录 | `docs/LOCAL_ACTIVITY_LOG_DESIGN.md` |
 | 礼品码、商品／工厂资产拍卖、封禁复核与管理员后台 | `docs/GIFT_CODE_AND_ADMIN_DESIGN.md` |
 

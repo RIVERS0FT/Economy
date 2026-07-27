@@ -3,6 +3,7 @@ import type { EconomyState } from '../types';
 export type ProductionContractRole = 'buyer' | 'supplier';
 export type ProductionContractStatus = 'open' | 'active' | 'completed' | 'cancelled' | 'terminated' | 'expired';
 export type ProductionContractRoundStatus = 'preparing' | 'ready' | 'grace';
+export type ContractAuditCompleteness = 'full' | 'legacy_partial';
 
 export interface ProductionContract {
   id: string;
@@ -42,6 +43,56 @@ export interface ProductionContract {
   isPublisher: boolean;
   isBuyer: boolean;
   isSupplier: boolean;
+}
+
+export interface ContractAuditHistoryItem extends Omit<ProductionContract, 'issue'> {
+  issue?: string | null;
+  auditCompleteness: ContractAuditCompleteness;
+  lastEventSequence: number;
+  lastEventAt: number;
+  grossTotal: number;
+  feeTotal: number;
+  netTotal: number;
+  transferredGoods: number;
+  compensationTotal: number;
+}
+
+export interface ContractAuditTransfer {
+  assetType: 'credits' | 'commodity';
+  productId: string | null;
+  quantity: number;
+  fromType: string;
+  fromId: number | null;
+  fromAccount: string;
+  toType: string;
+  toId: number | null;
+  toAccount: string;
+  purpose: string;
+}
+
+export interface ContractAuditEvent {
+  sequence: number;
+  eventType: string;
+  actorType: 'player' | 'system';
+  actorUserId: number | null;
+  triggerType: string;
+  action: string | null;
+  batchNumber: number | null;
+  reasonCode: string | null;
+  occurredAt: number;
+  metadata: Record<string, unknown>;
+  transfers: ContractAuditTransfer[];
+}
+
+export interface ContractAuditHistoryPage {
+  items: ContractAuditHistoryItem[];
+  nextCursor: string | null;
+}
+
+export interface ContractAuditDetail {
+  contract: ContractAuditHistoryItem;
+  events: ContractAuditEvent[];
+  nextCursor: string | null;
 }
 
 export interface ProductionContractSummary {

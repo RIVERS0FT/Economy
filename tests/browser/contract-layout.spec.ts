@@ -93,6 +93,112 @@ async function expectContractTabsDoNotOverlap(page: Page) {
   }
 }
 
+async function mockContractAudit(page: Page) {
+  const contract = {
+    id: 'contract-history',
+    publisherId: 123,
+    publisherName: 'MEVIUS',
+    publisherRole: 'buyer',
+    buyerId: 123,
+    buyerName: 'MEVIUS',
+    supplierId: 456,
+    supplierName: '历史供应商',
+    productId: 'machinery',
+    quantityPerDelivery: 60,
+    unitPrice: 45,
+    batchGross: 2_700,
+    deliveryIntervalMs: 6 * 60 * 60_000,
+    totalDeliveries: 8,
+    completedDeliveries: 8,
+    firstDeliveryDelayMs: 60 * 60_000,
+    createdAt: 1_768_000_000_000,
+    acceptedAt: 1_768_003_600_000,
+    status: 'completed',
+    endedAt: 1_768_176_400_000,
+    completedAt: 1_768_176_400_000,
+    terminationReason: null,
+    defaultParty: null,
+    grossTotal: 21_600,
+    feeTotal: 216,
+    netTotal: 21_384,
+    compensationTotal: 0,
+    auditCompleteness: 'full',
+    lastEventAt: 1_768_176_400_000,
+    isPublisher: true,
+    isBuyer: true,
+    isSupplier: false,
+  };
+  const events = [
+    {
+      sequence: 1,
+      eventType: 'contract_published',
+      actorType: 'player',
+      actorUserId: 123,
+      triggerType: 'player_action',
+      occurredAt: 1_768_000_000_000,
+      batchNumber: null,
+      reasonCode: null,
+      beforeSnapshot: null,
+      afterSnapshot: {},
+      metadata: {},
+      transfers: [],
+    },
+    {
+      sequence: 2,
+      eventType: 'contract_accepted',
+      actorType: 'player',
+      actorUserId: 456,
+      triggerType: 'player_action',
+      occurredAt: 1_768_003_600_000,
+      batchNumber: 1,
+      reasonCode: null,
+      beforeSnapshot: {},
+      afterSnapshot: {},
+      metadata: {},
+      transfers: [],
+    },
+    {
+      sequence: 3,
+      eventType: 'delivery_completed',
+      actorType: 'system',
+      actorUserId: null,
+      triggerType: 'scheduled_processing',
+      occurredAt: 1_768_090_000_000,
+      batchNumber: 1,
+      reasonCode: null,
+      beforeSnapshot: {},
+      afterSnapshot: {},
+      metadata: { gross: 2_700, fee: 27, plannedAt: 1_768_090_000_000, deliveredAt: 1_768_090_000_000 },
+      transfers: [
+        { assetType: 'commodity', productId: 'machinery', quantity: 60, fromType: 'player', fromId: 456, fromAccount: 'inventory_frozen', toType: 'player', toId: 123, toAccount: 'inventory_available', purpose: 'delivery_goods' },
+        { assetType: 'credits', productId: null, quantity: 2_673, fromType: 'player', fromId: 123, fromAccount: 'credits_frozen', toType: 'player', toId: 456, toAccount: 'credits_available', purpose: 'delivery_net_payment' },
+        { assetType: 'credits', productId: null, quantity: 27, fromType: 'player', fromId: 123, fromAccount: 'credits_frozen', toType: 'system', toId: null, toAccount: 'population_employment', purpose: 'market_service_fee' },
+      ],
+    },
+    {
+      sequence: 4,
+      eventType: 'contract_completed',
+      actorType: 'system',
+      actorUserId: null,
+      triggerType: 'scheduled_processing',
+      occurredAt: 1_768_176_400_000,
+      batchNumber: 8,
+      reasonCode: null,
+      beforeSnapshot: {},
+      afterSnapshot: {},
+      metadata: {},
+      transfers: [],
+    },
+  ];
+
+  await page.route('**/economy-api/game/contracts/history**', async (route) => {
+    await route.fulfill({ json: { items: [contract], nextCursor: null } });
+  });
+  await page.route('**/economy-api/game/contracts/contract-history/audit**', async (route) => {
+    await route.fulfill({ json: { contract, events, nextCursor: null } });
+  });
+}
+
 async function openContracts(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height });
   await page.goto('runtime-test.html?view=contracts');
@@ -101,6 +207,7 @@ async function openContracts(page: Page, width: number, height: number) {
 }
 
 test('desktop contract workspace uses shared controls and dense two-column layouts', async ({ page }) => {
+  await mockContractAudit(page);
   await openContracts(page, 1440, 900);
 
   expect(await gridTrackCount(page.locator('.contract-summary-grid'))).toBe(4);
@@ -130,10 +237,16 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await page.getByRole('tab', { name: /合同历史/ }).click();
   await expect(page.locator('.contract-history-panel')).toHaveCount(1);
   await expect(page.locator('.contract-history-row')).toHaveCount(1);
+  await page.locator('.contract-history-row').click();
+  await expect(page.getByText('该合同从发布开始具有完整服务器审计记录。')).toBeVisible();
+  await expect(page.locator('.contract-audit-event')).toHaveCount(4);
+  await expect(page.getByText(/商品交付.*历史供应商 → MEVIUS.*机械 × 60/)).toBeVisible();
+  await expect(page.getByText(/市场服务费.*MEVIUS → 系统/)).toBeVisible();
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
 test('tablet contract publish form keeps two-column fields', async ({ page }) => {
+  await mockContractAudit(page);
   await openContracts(page, 1100, 900);
 
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
@@ -144,6 +257,7 @@ test('tablet contract publish form keeps two-column fields', async ({ page }) =>
 });
 
 test('mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs', async ({ page }) => {
+  await mockContractAudit(page);
   await openContracts(page, 390, 844);
 
   expect(await gridTrackCount(page.locator('.contract-summary-grid'))).toBe(2);
@@ -161,10 +275,17 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
   expect(quantityBox.height).toBeGreaterThanOrEqual(48);
   const quantityFontSize = await quantity.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
   expect(quantityFontSize).toBeGreaterThanOrEqual(16);
+
+  await page.getByRole('tab', { name: /合同历史/ }).click();
+  await expect(page.locator('.contract-history-row')).toHaveCount(1);
+  await page.locator('.contract-history-row').click();
+  await expect(page.locator('.contract-audit-summary-grid')).toBeVisible();
+  await expect(page.locator('.contract-audit-timeline')).toBeVisible();
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
 test('narrow mobile contract tabs keep separate hit areas', async ({ page }) => {
+  await mockContractAudit(page);
   await openContracts(page, 320, 844);
   await expectContractTabsDoNotOverlap(page);
   await expectUniformPageSectionGaps(page);

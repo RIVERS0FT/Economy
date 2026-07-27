@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/home/runner/work/Economy/Economy/apply-contract-audit-patch.py", line 169, in <module>
-    replace_once(
-  File "/home/runner/work/Economy/Economy/apply-contract-audit-patch.py", line 35, in replace_once
-    raise RuntimeError(f'{path}: expected text not found: {old[:120]!r}')
-RuntimeError: README.md: expected text not found: '| 正式页面、模块归属和导航 | `docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` |'
