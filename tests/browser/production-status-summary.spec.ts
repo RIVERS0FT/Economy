@@ -19,7 +19,7 @@ test.describe('production cluster status summary', () => {
     await expect(buildConstruction.getByRole('button', { name: '1 宝石 · 加速 30m' })).toBeVisible();
 
     await expect(page.locator('.facility-cluster-detail-card')).not.toContainText('宝石加速');
-    await expect(page.locator('.facility-detail-sheet')).not.toContainText('宝石加速');
+    await expect(page.locator('.facility-detail-sheet')).toHaveCount(0);
     await expect(page.locator('.facility-cluster-selector-card[data-status="constructing"]')).toHaveCount(0);
   });
 });
