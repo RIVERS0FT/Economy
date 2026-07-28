@@ -1,5 +1,5 @@
 export const economyConstants = {
-  // 技术安全边界，不是固定业务数量上限。
+  // 商品与工厂订单共用的技术安全边界，不是固定业务数量上限。
   maxOrderQuantity: Number.MAX_SAFE_INTEGER,
 } as const;
 
