@@ -2,11 +2,9 @@ import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { completeRegistration, login, sendRegistrationEmailCode } from '../api/auth';
 import { InputGroup, TextInput } from '../components/ui/FormControls';
 import { Button } from '../components/ui/layout';
+import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';
 import { BRAND_LOGO_URL, BRAND_NAME, BRAND_SLOGAN } from '../config/brand';
 import type { AuthUser } from '../types';
-
-const AUTH_BACKGROUND_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/6/68/No_Known_Restrictions_Trading_Floor%2C_New_York_Stock_Exchange_%28Highsmith_LOC%29_%286718386525%29.jpg';
-const AUTH_BACKGROUND_IMAGE_960_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/No_Known_Restrictions_Trading_Floor%2C_New_York_Stock_Exchange_%28Highsmith_LOC%29_%286718386525%29.jpg/960px-No_Known_Restrictions_Trading_Floor%2C_New_York_Stock_Exchange_%28Highsmith_LOC%29_%286718386525%29.jpg';
 
 type AuthMode = 'login' | 'register';
 
@@ -99,19 +97,7 @@ export function LoginPage({
 
   return (
     <main className="login-shell">
-      <div className="login-image-layer" aria-hidden="true">
-        <picture>
-          <source media="(max-width: 720px)" srcSet={AUTH_BACKGROUND_IMAGE_960_URL} />
-          <img
-            src={AUTH_BACKGROUND_IMAGE_URL}
-            alt=""
-            decoding="async"
-            fetchPriority="high"
-          />
-        </picture>
-      </div>
-
-      <div className="login-atmosphere-layer" aria-hidden="true" />
+      <FinancialBackdrop variant="auth" priority />
 
       <div className="login-content-layer">
         <section className="login-brand">
