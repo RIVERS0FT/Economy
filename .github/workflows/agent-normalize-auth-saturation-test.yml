@@ -1,0 +1,34 @@
+name: Normalize authentication saturation browser assertion
+
+on:
+  push:
+    branches:
+      - agent/official-auth-liquid-glass
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Normalize CSSOM assertion
+        run: |
+          set -euo pipefail
+          python3 .agent/normalize-auth-saturation-test.py
+          rm -f .agent/normalize-auth-saturation-test.py
+          rm -f .github/workflows/agent-normalize-auth-saturation-test.yml
+          rmdir .agent 2>/dev/null || true
+          git diff --check
+      - name: Commit normalized assertion
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "兼容认证饱和度 CSSOM 表示"
+          git push origin HEAD:agent/official-auth-liquid-glass
