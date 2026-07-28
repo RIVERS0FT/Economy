@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { completeRegistration, login, sendRegistrationEmailCode } from '../api/auth';
+import { AuthCardSurface } from '../components/auth/AuthCardSurface';
 import { InputGroup, TextInput } from '../components/ui/FormControls';
 import { Button } from '../components/ui/layout';
 import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';
@@ -108,7 +109,7 @@ export function LoginPage({
           <h1>{BRAND_SLOGAN}</h1>
         </section>
 
-        <section className="login-card panel">
+        <AuthCardSurface>
           {inviteCode ? (
             <p className="form-notice invite-recognized" role="status">
               已识别好友分享链接，邀请码已自动填写。完成注册后，分享者将立即获得宝石奖励。
@@ -181,7 +182,7 @@ export function LoginPage({
               {submitting ? '正在连接账号服务…' : mode === 'login' ? '登录' : '完成注册'}
             </Button>
           </form>
-        </section>
+        </AuthCardSurface>
       </div>
     </main>
   );
