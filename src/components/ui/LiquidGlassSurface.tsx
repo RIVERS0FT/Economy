@@ -1,5 +1,5 @@
 import LiquidGlass from 'liquid-glass-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 
 export type LiquidGlassSurfaceVariant =
   | 'desktopStatusBar'
@@ -66,17 +66,16 @@ const PRESETS = {
 
 function GlassEffect({
   variant,
-  revision,
   content,
+  contentRef,
 }: {
   variant: LiquidGlassSurfaceVariant;
-  revision: number;
   content: ReactNode;
+  contentRef?: RefObject<HTMLDivElement | null>;
 }) {
   const preset = PRESETS[variant];
   return (
     <LiquidGlass
-      key={`${variant}-${revision}`}
       className="liquid-glass-surface__effect"
       style={{
         position: 'absolute',
@@ -96,7 +95,7 @@ function GlassEffect({
       globalMousePos={STATIC_MOUSE_POSITION}
       mouseOffset={STATIC_MOUSE_OFFSET}
     >
-      {content}
+      <div ref={contentRef} className="liquid-glass-surface__content">{content}</div>
     </LiquidGlass>
   );
 }
@@ -109,57 +108,76 @@ export function LiquidGlassSurface({
 }: LiquidGlassSurfaceProps) {
   const preset = PRESETS[variant];
   const contentRef = useRef<HTMLDivElement>(null);
-  const [surfaceRevision, setSurfaceRevision] = useState(0);
+  const [contentHeight, setContentHeight] = useState<number | null>(null);
   const classes = ['liquid-glass-surface', `liquid-glass-surface--${variant}`, className]
     .filter(Boolean)
     .join(' ');
 
-  useEffect(() => {
-    if (layout !== 'content' || !contentRef.current || typeof ResizeObserver === 'undefined') return undefined;
-    let previousWidth = -1;
+  useLayoutEffect(() => {
+    if (layout !== 'content' || !contentRef.current) return undefined;
+    const contentElement = contentRef.current;
+    let measurementFrame = 0;
+    let glassResizeFrame = 0;
     let previousHeight = -1;
-    const observer = new ResizeObserver(([entry]) => {
-      if (!entry) return;
-      const width = Math.round(entry.contentRect.width * 10) / 10;
-      const height = Math.round(entry.contentRect.height * 10) / 10;
-      if (width === previousWidth && height === previousHeight) return;
-      previousWidth = width;
-      previousHeight = height;
-      setSurfaceRevision((current) => current + 1);
-    });
-    observer.observe(contentRef.current);
-    return () => observer.disconnect();
-  }, [layout]);
 
-  if (layout === 'content') {
-    return (
-      <div
-        className={classes}
-        data-liquid-glass-variant={variant}
-        data-liquid-glass-mode={preset.mode}
-        data-liquid-glass-layout="content"
-      >
-        <GlassEffect
-          variant={variant}
-          revision={surfaceRevision}
-          content={<div className="liquid-glass-surface__material-fill" aria-hidden="true" />}
-        />
-        <div ref={contentRef} className="liquid-glass-surface__content">{children}</div>
-      </div>
-    );
-  }
+    const notifyGlassResize = () => {
+      if (glassResizeFrame) cancelAnimationFrame(glassResizeFrame);
+      glassResizeFrame = requestAnimationFrame(() => {
+        glassResizeFrame = 0;
+        window.dispatchEvent(new Event('resize'));
+      });
+    };
+
+    const measure = () => {
+      measurementFrame = 0;
+      const nextHeight = Math.ceil(Math.max(
+        contentElement.scrollHeight,
+        contentElement.getBoundingClientRect().height,
+      ));
+      if (nextHeight <= 0 || nextHeight === previousHeight) return;
+      previousHeight = nextHeight;
+      setContentHeight(nextHeight);
+      notifyGlassResize();
+    };
+
+    const scheduleMeasure = () => {
+      if (measurementFrame) cancelAnimationFrame(measurementFrame);
+      measurementFrame = requestAnimationFrame(measure);
+    };
+
+    measure();
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleMeasure);
+    resizeObserver?.observe(contentElement);
+    const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(scheduleMeasure);
+    mutationObserver?.observe(contentElement, {
+      attributes: true,
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+    window.addEventListener('resize', scheduleMeasure);
+
+    return () => {
+      if (measurementFrame) cancelAnimationFrame(measurementFrame);
+      if (glassResizeFrame) cancelAnimationFrame(glassResizeFrame);
+      resizeObserver?.disconnect();
+      mutationObserver?.disconnect();
+      window.removeEventListener('resize', scheduleMeasure);
+    };
+  }, [layout, variant]);
 
   return (
     <div
       className={classes}
       data-liquid-glass-variant={variant}
       data-liquid-glass-mode={preset.mode}
-      data-liquid-glass-layout="fixed"
+      data-liquid-glass-layout={layout}
+      style={layout === 'content' ? { height: `${contentHeight ?? 1}px` } : undefined}
     >
       <GlassEffect
         variant={variant}
-        revision={0}
-        content={<div className="liquid-glass-surface__content">{children}</div>}
+        content={children}
+        contentRef={layout === 'content' ? contentRef : undefined}
       />
     </div>
   );

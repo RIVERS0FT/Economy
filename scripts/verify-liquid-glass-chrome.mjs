@@ -108,12 +108,18 @@ if (failures.length === 0) {
     'elasticity={0}',
     'globalMousePos={STATIC_MOUSE_POSITION}',
     'mouseOffset={STATIC_MOUSE_OFFSET}',
-    'data-liquid-glass-layout="content"',
+    'data-liquid-glass-layout={layout}',
+    'useLayoutEffect(() => {',
     'new ResizeObserver',
-    'setSurfaceRevision((current) => current + 1)',
-    'liquid-glass-surface__material-fill',
+    'new MutationObserver',
+    'setContentHeight(nextHeight)',
+    "window.dispatchEvent(new Event('resize'))",
+    '<div ref={contentRef} className="liquid-glass-surface__content">{content}</div>',
+    "contentRef={layout === 'content' ? contentRef : undefined}",
   ]) requireText(files.surface, text);
   for (const text of [
+    'setSurfaceRevision',
+    'liquid-glass-surface__material-fill',
     'const IOS_CLEAR_THICK_GLASS = {',
     'statusBar: IOS_CLEAR_THICK_GLASS',
     "mode: 'prominent'",
@@ -129,7 +135,7 @@ if (failures.length === 0) {
 
   for (const text of [
     "const MOBILE_AUTH_MEDIA_QUERY = '(max-width: 720px)'",
-    "type AuthCardSurfaceVariant = Extract<",
+    'type AuthCardSurfaceVariant = Extract<',
     "'desktopAuthCard' | 'mobileAuthCard'",
     '<LiquidGlassSurface variant={surfaceVariant} layout="content">',
     'className="login-card"',
@@ -179,12 +185,13 @@ if (failures.length === 0) {
 
   for (const text of [
     '--liquid-glass-contrast: rgba(194, 231, 214, 0.06);',
-    '--liquid-glass-auth-contrast:',
     '--liquid-glass-auth-fallback:',
     '--liquid-glass-structure-border: rgba(232, 255, 244, 0.3);',
     '.liquid-glass-surface {',
     'overflow: hidden;',
     '.liquid-glass-surface[data-liquid-glass-layout="content"] {',
+    '.liquid-glass-surface[data-liquid-glass-layout="content"] .liquid-glass-surface__content {',
+    'height: auto !important;',
     'pointer-events: auto;',
     '.liquid-glass-surface--desktopStatusBar .glass__warp {',
     '-webkit-backdrop-filter: blur(6px) saturate(120%);',
@@ -194,6 +201,8 @@ if (failures.length === 0) {
     '-webkit-backdrop-filter: blur(7.84px) saturate(118%);',
     '.liquid-glass-surface--mobileAuthCard .glass__warp {',
     '-webkit-backdrop-filter: blur(7.2px) saturate(115%);',
+    '.liquid-glass-surface--desktopStatusBar,\n.liquid-glass-surface--mobileStatusBar,\n.liquid-glass-surface--mobileNavigation,\n.liquid-glass-surface--desktopAuthCard,\n.liquid-glass-surface--mobileAuthCard {',
+    'background: var(--liquid-glass-contrast);',
     '.liquid-glass-surface--desktopAuthCard::after,',
     '.liquid-glass-surface--mobileAuthCard::after {',
     'background: var(--liquid-glass-auth-fallback);',
@@ -208,6 +217,9 @@ if (failures.length === 0) {
     'padding: 8px 0;',
   ]) requireText(files.styles, text);
   for (const text of [
+    '--liquid-glass-auth-contrast:',
+    '--liquid-glass-auth-mobile-contrast:',
+    'liquid-glass-surface__material-fill',
     '.liquid-glass-surface--statusBar',
     'border-radius: 999px !important;',
     '.workspace::before',
@@ -324,6 +336,9 @@ if (failures.length === 0) {
     '`layout="content"`',
     '单个 `ResizeObserver`',
     '认证卡片任一时刻只能存在一个',
+    '真实认证内容与状态栏内容使用相同的 `.glass` 内部位置',
+    '统一使用 `--liquid-glass-contrast`',
+    '不得创建 `.liquid-glass-surface__material-fill`',
     '`blur(6px) saturate(120%)`',
     '`blur(7.2px) saturate(125%)`',
     '`blur(7.84px) saturate(118%)`',
@@ -349,6 +364,8 @@ if (failures.length === 0) {
   ]) requireText(files.design, text);
   for (const text of [
     '认证卡片必须使用 `src/components/auth/AuthCardSurface.tsx`',
+    '位于第三方 `.glass` 内的 `.liquid-glass-surface__content`',
+    '统一使用 `--liquid-glass-contrast`',
     '不得在 `auth.css` 手写另一套 `backdrop-filter`',
     '注册内容较高时由文档视口纵向滚动',
   ]) requireText(files.authDesign, text);
@@ -365,12 +382,14 @@ if (failures.length === 0) {
     "toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard')",
     "toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard')",
     "toHaveAttribute('data-liquid-glass-layout', 'content')",
-    'keeps one authentication glass instance while switching breakpoints',
+    'keeps one authentication glass instance and form values while switching breakpoints',
+    'expect(glass.contentInsideGlass).toBe(true)',
+    'expect(glass.materialFillCount).toBe(0)',
   ]) requireText(files.authBrowser, text);
   for (const text of [
     'admin desktop shares the game shell gutter, command bar and edge scrollbar',
     '.liquid-glass-surface--desktopStatusBar',
-    "expect(geometry.commandHeight).toBeCloseTo(76, 0)",
+    'expect(geometry.commandHeight).toBeCloseTo(76, 0)',
   ]) requireText(files.adminBrowser, text);
   for (const text of ['mobile page scrollbar reaches the safe right edge without changing content width', 'viewportRight - geometry.thumbRight']) {
     requireText(files.mobileBrowser, text);
@@ -388,4 +407,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 登录后外壳、认证卡片、平台预设、内容自适应、开放背景采样链与安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 登录后外壳、认证卡片、同源内容与染色、平台预设、内容自适应、开放背景采样链与安全边缘滚动条验证通过。');

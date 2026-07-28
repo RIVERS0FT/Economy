@@ -24,10 +24,9 @@ async function readAuthGlass(page: Page) {
   return page.evaluate(() => {
     const card = document.querySelector<HTMLElement>('.login-card');
     const surface = card?.querySelector<HTMLElement>('.liquid-glass-surface');
-    const content = surface?.querySelector<HTMLElement>(':scope > .liquid-glass-surface__content');
+    const content = surface?.querySelector<HTMLElement>('.liquid-glass-surface__content');
     const warp = surface?.querySelector<HTMLElement>('.glass__warp');
-    const materialFill = surface?.querySelector<HTMLElement>('.liquid-glass-surface__material-fill');
-    if (!card || !surface || !content || !warp || !materialFill) {
+    if (!card || !surface || !content || !warp) {
       throw new Error('authentication glass fixture is incomplete');
     }
     const cardStyle = getComputedStyle(card);
@@ -35,7 +34,6 @@ async function readAuthGlass(page: Page) {
     const contentStyle = getComputedStyle(content);
     const outlineStyle = getComputedStyle(surface, '::after');
     const warpStyle = getComputedStyle(warp);
-    const materialFillStyle = getComputedStyle(materialFill);
     return {
       cardBorder: cardStyle.borderTopWidth,
       cardOverflowY: cardStyle.overflowY,
@@ -43,13 +41,16 @@ async function readAuthGlass(page: Page) {
       surfaceHeight: surface.getBoundingClientRect().height,
       surfaceOverflowY: surfaceStyle.overflowY,
       surfaceBackground: surfaceStyle.backgroundColor,
+      sharedContrast: getComputedStyle(document.documentElement)
+        .getPropertyValue('--liquid-glass-contrast')
+        .trim(),
       surfaceContain: surfaceStyle.contain,
       surfaceIsolation: surfaceStyle.isolation,
       contentHeight: content.getBoundingClientRect().height,
       contentOverflowY: contentStyle.overflowY,
       contentPaddingTop: contentStyle.paddingTop,
-      materialFillBackground: materialFillStyle.backgroundColor,
-      materialFillInsideGlass: Boolean(materialFill.closest('.glass')),
+      contentInsideGlass: Boolean(content.closest('.glass')),
+      materialFillCount: surface.querySelectorAll('.liquid-glass-surface__material-fill').length,
       outlineBorder: outlineStyle.borderTopWidth,
       outlineZIndex: outlineStyle.zIndex,
       webkitBackdropFilter:
@@ -132,38 +133,46 @@ test.describe('auth three-layer layout', () => {
       expect(glass.outlineBorder).toBe('1px');
       expect(glass.outlineZIndex).toBe('2');
       expect(glass.webkitBackdropFilter).toContain('blur(7.84px)');
-      expect(glass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
-      expect(glass.materialFillBackground).toBe('rgba(9, 25, 18, 0.46)');
-      expect(glass.materialFillInsideGlass).toBe(true);
+      expect(glass.surfaceBackground).toBe(glass.sharedContrast);
+      expect(glass.contentInsideGlass).toBe(true);
+      expect(glass.materialFillCount).toBe(0);
       expect(glass.surfaceContain).toBe('none');
       expect(glass.surfaceIsolation).toBe('auto');
-      expect(glass.surfaceHeight).toBeCloseTo(glass.contentHeight, 0);
+      expect(Math.abs(glass.surfaceHeight - glass.contentHeight)).toBeLessThanOrEqual(1);
 
       await page.getByLabel('账号邮箱').click();
       await expect(page.getByLabel('账号邮箱')).toBeFocused();
     });
 
-    test('keeps one authentication glass instance while switching breakpoints', async ({ page }) => {
+    test('keeps one authentication glass instance and form values while switching breakpoints', async ({ page }) => {
       await page.setViewportSize({ width: 721, height: 900 });
       await openLoginPage(page);
       const surfaces = page.locator('.login-card .liquid-glass-surface');
+      const email = page.getByLabel('账号邮箱');
+      const password = page.getByLabel('密码');
+      await email.fill('kept@example.com');
+      await password.fill('password123');
       await expect(surfaces).toHaveCount(1);
       await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard');
 
       await page.setViewportSize({ width: 720, height: 900 });
       await expect(surfaces).toHaveCount(1);
       await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
+      await expect(email).toHaveValue('kept@example.com');
+      await expect(password).toHaveValue('password123');
 
       await page.setViewportSize({ width: 721, height: 900 });
       await expect(surfaces).toHaveCount(1);
       await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard');
+      await expect(email).toHaveValue('kept@example.com');
+      await expect(password).toHaveValue('password123');
     });
   });
 
   test.describe('mobile', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
-    test('registration content grows the same glass surface without an internal scrollport', async ({ page }) => {
+    test('registration content grows inside the same glass surface without an internal scrollport', async ({ page }) => {
       await openLoginPage(page);
 
       const shell = page.locator('.login-shell');
@@ -171,10 +180,12 @@ test.describe('auth three-layer layout', () => {
       const card = page.locator('.login-card');
       const content = page.locator('.login-content-layer');
       const surface = card.locator('.liquid-glass-surface');
+      const email = page.getByLabel('账号邮箱');
 
       await expect(surface).toHaveCount(1);
       await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
       await expect(surface).toHaveAttribute('data-liquid-glass-layout', 'content');
+      await email.fill('mobile@example.com');
       const loginGlass = await readAuthGlass(page);
       const atmosphere = await readMobileAtmosphere(page);
 
@@ -183,14 +194,15 @@ test.describe('auth three-layer layout', () => {
       expect(atmosphere.backgroundImage).toContain('rgba(2, 8, 5, 0.82)');
       expect(atmosphere.gridOpacity).toBe('0.12');
       expect(atmosphere.noiseOpacity).toBe('0.05');
-      expect(loginGlass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
-      expect(loginGlass.materialFillBackground).toBe('rgba(8, 23, 16, 0.3)');
-      expect(loginGlass.materialFillInsideGlass).toBe(true);
+      expect(loginGlass.surfaceBackground).toBe(loginGlass.sharedContrast);
+      expect(loginGlass.contentInsideGlass).toBe(true);
+      expect(loginGlass.materialFillCount).toBe(0);
       expect(loginGlass.webkitBackdropFilter).toContain('blur(7.2px)');
 
       await page.getByRole('tab', { name: '注册' }).click();
       await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
       await expect(page.getByLabel('邮箱验证码')).toBeVisible();
+      await expect(email).toHaveValue('mobile@example.com');
       await expect(surface).toHaveCount(1);
       await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
 
@@ -225,10 +237,11 @@ test.describe('auth three-layer layout', () => {
       expect(registrationGlass.contentPaddingTop).toBe('20px');
       expect(registrationGlass.outlineBorder).toBe('1px');
       expect(registrationGlass.webkitBackdropFilter).toContain('blur(7.2px)');
-      expect(registrationGlass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
-      expect(registrationGlass.materialFillBackground).toBe('rgba(8, 23, 16, 0.3)');
+      expect(registrationGlass.surfaceBackground).toBe(registrationGlass.sharedContrast);
+      expect(registrationGlass.contentInsideGlass).toBe(true);
+      expect(registrationGlass.materialFillCount).toBe(0);
       expect(registrationGlass.surfaceHeight).toBeGreaterThan(loginGlass.surfaceHeight);
-      expect(registrationGlass.surfaceHeight).toBeCloseTo(registrationGlass.contentHeight, 0);
+      expect(Math.abs(registrationGlass.surfaceHeight - registrationGlass.contentHeight)).toBeLessThanOrEqual(1);
       expect(registrationGlass.cardOverflowY).not.toMatch(/auto|scroll/);
       expect(registrationGlass.surfaceOverflowY).not.toMatch(/auto|scroll/);
       expect(registrationGlass.contentOverflowY).not.toMatch(/auto|scroll/);

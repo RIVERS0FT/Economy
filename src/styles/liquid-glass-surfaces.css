@@ -7,8 +7,6 @@
   --desktop-asset-bar-height: 76px;
   --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
   --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
-  --liquid-glass-auth-contrast: rgba(9, 25, 18, 0.46);
-  --liquid-glass-auth-mobile-contrast: rgba(8, 23, 16, 0.3);
   --liquid-glass-auth-fallback: rgba(7, 20, 14, 0.94);
   --liquid-glass-structure-border: rgba(232, 255, 244, 0.3);
 }
@@ -43,9 +41,7 @@
 
 .liquid-glass-surface__effect,
 .liquid-glass-surface__effect > .glass,
-.liquid-glass-surface__effect > .glass > div,
-.liquid-glass-surface__content,
-.liquid-glass-surface__material-fill {
+.liquid-glass-surface__effect > .glass > div {
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -57,8 +53,7 @@
 }
 
 .liquid-glass-surface__effect > svg,
-.liquid-glass-surface > span,
-.liquid-glass-surface > div:not(.liquid-glass-surface__effect) {
+.liquid-glass-surface > span {
   pointer-events: none;
 }
 
@@ -79,13 +74,19 @@
 .liquid-glass-surface__content {
   position: relative;
   z-index: 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   color: var(--color-text-primary);
 }
 
+.liquid-glass-surface[data-liquid-glass-layout="fixed"] .liquid-glass-surface__content {
+  height: 100%;
+}
+
 .liquid-glass-surface[data-liquid-glass-layout="content"] {
-  height: auto;
-  min-height: 0;
+  min-height: 1px;
 }
 
 .liquid-glass-surface[data-liquid-glass-layout="content"] > .liquid-glass-surface__effect {
@@ -94,9 +95,10 @@
   pointer-events: none;
 }
 
-.liquid-glass-surface[data-liquid-glass-layout="content"] > .liquid-glass-surface__content {
-  height: auto;
+.liquid-glass-surface[data-liquid-glass-layout="content"] .liquid-glass-surface__content {
+  height: auto !important;
   min-height: 0;
+  align-self: flex-start;
   pointer-events: auto;
 }
 
@@ -140,29 +142,16 @@
 
 .liquid-glass-surface--desktopStatusBar,
 .liquid-glass-surface--mobileStatusBar,
-.liquid-glass-surface--mobileNavigation {
+.liquid-glass-surface--mobileNavigation,
+.liquid-glass-surface--desktopAuthCard,
+.liquid-glass-surface--mobileAuthCard {
   box-sizing: border-box;
   background: var(--liquid-glass-contrast);
 }
 
 .liquid-glass-surface--desktopAuthCard,
 .liquid-glass-surface--mobileAuthCard {
-  box-sizing: border-box;
   border: 0;
-  background: transparent;
-}
-
-.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__material-fill,
-.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__material-fill {
-  border-radius: inherit;
-}
-
-.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__material-fill {
-  background: var(--liquid-glass-auth-contrast);
-}
-
-.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__material-fill {
-  background: var(--liquid-glass-auth-mobile-contrast);
 }
 
 .liquid-glass-surface--desktopAuthCard {
@@ -333,11 +322,6 @@
   .liquid-glass-surface--desktopAuthCard,
   .liquid-glass-surface--mobileAuthCard {
     background: var(--liquid-glass-auth-fallback);
-  }
-
-  .liquid-glass-surface--desktopAuthCard .liquid-glass-surface__material-fill,
-  .liquid-glass-surface--mobileAuthCard .liquid-glass-surface__material-fill {
-    background: transparent;
   }
 }
 
