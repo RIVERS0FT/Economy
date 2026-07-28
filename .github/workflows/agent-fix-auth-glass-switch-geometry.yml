@@ -19,6 +19,7 @@ jobs:
       - name: Apply verified source changes
         run: |
           set -euo pipefail
+          # The second user-authored push intentionally triggers this already-indexed workflow.
           python3 .agent/apply-auth-glass-switch-geometry.py
           rm -f .agent/apply-auth-glass-switch-geometry.py
           rm -f .github/workflows/agent-fix-auth-glass-switch-geometry.yml
