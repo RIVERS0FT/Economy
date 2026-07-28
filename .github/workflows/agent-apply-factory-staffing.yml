@@ -92,7 +92,19 @@ jobs:
         run: npm ci
 
       - name: Build and test
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee factory-staffing-build.log
+
+      - name: Upload build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-staffing-build-log
+          path: factory-staffing-build.log
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Commit verified source and remove temporary migration
         shell: bash
@@ -100,7 +112,7 @@ jobs:
           set -euo pipefail
           rm -rf .agent/factory-staffing
           rm -f .github/workflows/agent-apply-factory-staffing.yml
-          rm -f migration.log
+          rm -f migration.log factory-staffing-build.log
           git config user.name 'OpenAI Agent'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
