@@ -44,6 +44,9 @@ jobs:
           path.write_text(updated, encoding='utf-8')
           PY
             python3 .agent/apply-static-transfer.py
+            git diff --check
+            python3 scripts/test_configure_economy_nginx.py
+            node scripts/verify-state-delivery-capacity.mjs
           } > /tmp/static-transfer-apply.log 2>&1
           status=$?
           set -e
@@ -55,7 +58,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add .agent/static-transfer-failure.log
-            git commit -m "记录静态压缩应用失败位置"
+            git commit -m "记录静态压缩完整验证失败"
             git push origin HEAD:agent/optimize-static-transfer
             cat /tmp/static-transfer-apply.log
             exit "$status"
@@ -65,9 +68,6 @@ jobs:
           rm -f .agent/static-transfer-failure.log
           rm -f .github/workflows/agent-apply-static-transfer.yml
           rmdir .agent 2>/dev/null || true
-          git diff --check
-          python3 scripts/test_configure_economy_nginx.py
-          node scripts/verify-state-delivery-capacity.mjs
       - name: Commit compression rules
         run: |
           set -euo pipefail
