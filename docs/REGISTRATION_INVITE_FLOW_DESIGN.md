@@ -1,7 +1,7 @@
-# Economy 注册邀请码与登录入口设计
+# Economy 注册邀请码与共享金融背景设计
 
 > 状态：当前权威设计  
-> 更新时间：2026-07-27
+> 更新时间：2026-07-28
 
 ## 1. 注册邀请码流程
 
@@ -18,22 +18,26 @@
 - 已登录页面只允许展示玩家自己的永久邀请码、专属分享链接、邀请统计和最近邀请；不得展示邀请码填写、补填或更换控件。
 - 旧 `POST /api/game/invitations/claim` 固定返回 `410 Gone`，不得读取邀请码、建立关系、发放宝石、创建玩家档案或推进世界修订号。
 
-## 2. 登录与注册入口三层视觉
+## 2. 登录、注册与玩家游戏共享三层视觉
 
-未登录入口固定拆分为图片背景、当前深色氛围背景、标语与认证卡片三个层级，三层必须位于同一个 `.login-shell` 独立堆叠上下文中：
+登录／注册入口和玩家游戏页面固定复用 `src/components/visual/FinancialBackdrop.tsx`，并由 `src/config/visualAssets.ts` 统一保存摄影资源地址。摄影作品仍为 Carol M. Highsmith 拍摄的纽约证券交易所交易大厅，来源于美国国会图书馆 Highsmith 档案，权利说明为无已知发表限制。图片只表达环境，使用空替代文本并从无障碍树隐藏；图片请求失败时必须隐藏破图元素，由深色氛围层继续提供完整可读背景。
 
-1. `login-image-layer` 是最底层全视口摄影背景，固定使用 `z-index: 0`、`object-fit: cover` 和响应式图片。当前作品为 Carol M. Highsmith 拍摄的纽约证券交易所交易大厅，来源于美国国会图书馆 Highsmith 档案，权利说明为无已知发表限制。图片只表达环境，使用空替代文本并从无障碍树隐藏，首屏加载使用高优先级。
-2. `login-atmosphere-layer` 是中间层，固定使用 `z-index: 1` 承载既有深色渐变、绿色光晕、细网格、噪点和暗角。该层负责金融氛围与文字对比度，不得模糊整张摄影图片；登录态必须关闭全局 `body::before` 网格，避免形成第四个视觉层。
-3. `login-content-layer` 是最上层，固定使用 `z-index: 2`。桌面端按左侧品牌标语、右侧认证卡片双列排列；移动端按品牌在上、认证卡片在下单列排列。登录、注册、验证码、邀请码、错误与状态提示继续使用现有认证逻辑、原生未受控表单和共享表单控件。
+共享背景严格分为三个视觉层级：
+
+1. 图片层是全视口固定摄影背景，统一使用响应式 `<picture>`、`object-fit: cover` 和装饰性空替代文本。登录入口保留 `login-image-layer`，玩家游戏保留 `game-image-layer`；登录首屏使用高优先级加载，游戏页使用普通优先级并复用浏览器已下载资源。
+2. 氛围层承载深色渐变、绿色光晕、细网格、噪点和暗角。登录入口保留 `login-atmosphere-layer`，玩家游戏保留 `game-atmosphere-layer`。玩家游戏变体必须比登录变体更暗，确保状态数值、订单簿、表格、表单和卡片保持稳定对比度。`html[data-app-surface="auth"|"game"] body::before` 必须关闭，网格只能存在于氛围层，避免形成第四个全局背景层。
+3. 内容层由现有认证内容或登录后游戏外壳承担。登录入口继续使用 `login-content-layer` 的桌面双列和移动单列；玩家游戏继续由 `SignedInShell` 承载桌面侧栏、唯一页面 `ScrollArea`、状态栏和移动导航，不得为三层背景重建页面外壳或增加第二个主滚动容器。
 
 认证卡片允许使用局部半透明玻璃材质和模糊，但必须维持输入框与提示文字的稳定对比度。移动端只有认证卡片拥有实体边框、圆角与玻璃背景；不得把整个移动登录页恢复为单张外层面板，也不得为注册表单创建内部滚动区。注册内容较高时由文档视口纵向滚动，两层背景保持固定，页面不得产生横向溢出。
 
-登录外壳、三层背景、品牌区与认证卡片几何最终由 `src/styles/auth.css` 收束。`src/main.tsx` 的最终样式顺序固定为 `design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`：认证样式必须位于通用面板与响应式规则之后，统一表单控件仍必须最后加载。`src/styles/card-system.css` 不得包含 `.login-shell` 或 `.login-card.panel` 映射，`src/styles/globals.css` 只允许保留由 `auth.css` 明确覆盖的历史基础布局，不得新增登录三层选择器或更高优先级覆盖。
+玩家游戏背景通过 `SignedInShell` 的可选 `backdrop` 插槽在侧栏之前渲染。管理员页面不得传入玩家摄影背景。移动端 `.mobile-page-overlay` 必须继续先于 `.mobile-chrome-overlay` 绘制，二者及 `.workspace` 不得因为背景改造增加正 `z-index` 或新的隔离层；状态栏和底栏到页面背景之间必须继续保持开放的 `backdrop-filter` 采样链。玩家加载、连接错误和重试状态也必须使用相同游戏背景，避免登录切换或刷新时闪现纯色页面。
 
-摄影背景当前通过 Wikimedia Commons 的原图与 960px 响应式版本加载；资源地址只能位于 `LoginPage.tsx` 的认证背景常量中，不得散落在 CSS 或其他页面。替换摄影作品时必须保留交易大厅主题、权利来源记录、响应式版本、空替代文本和三层结构。
+背景图片和氛围层唯一归属 `src/styles/financial-backdrop.css`；认证内容层、品牌区和认证卡片几何仍由 `src/styles/auth.css` 收束；登录后侧栏、工作区、滚动区、状态栏和移动导航几何继续归 `viewport.css`、`game-shell-layout.css` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。生产样式入口必须在 `game-shell-layout.css` 后、`liquid-glass-surfaces.css` 前加载 `financial-backdrop.css`；认证最终样式顺序继续固定为 `design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`。
+
+摄影资源地址只能存在于 `src/config/visualAssets.ts`，不得重新散落到 `LoginPage.tsx`、`GameShell.tsx`、CSS 或业务页面。替换摄影作品时必须保留交易大厅主题、权利来源记录、响应式版本、空替代文本、失败回退和共享三层结构。
 
 ## 3. 防回退
 
 不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在设置页、商店或其他已登录页面恢复邀请码输入、补填、更换或重新绑定入口，也不得根据玩家档案创建时间重新开放 24 小时或其他临时补填窗口。
 
-`scripts/verify-auth-three-layer.mjs` 必须校验三层 DOM、层级样式、图片来源常量、最终 CSS 加载顺序、权威设计和浏览器回归入口；`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面和 `390 × 844` 移动注册模式的层级、排列、外层无面板和无横向溢出。不得把登录专属层级移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录／注册业务流程来适配视觉布局。
+`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、共享背景组件、图片来源配置、认证层级样式、最终 CSS 加载顺序和浏览器回归入口；`scripts/verify-game-three-layer.mjs` 必须校验玩家背景插槽、图片与氛围层、加载／错误状态、管理员隔离、全局网格关闭、移动 Overlay 顺序和游戏浏览器回归入口。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面和 `390 × 844` 移动注册模式；`tests/browser/game-three-layer.spec.ts` 必须覆盖桌面、移动和图片加载失败回退。不得把背景选择器移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录、注册或游戏业务流程来适配视觉布局。
