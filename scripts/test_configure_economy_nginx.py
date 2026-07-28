@@ -129,6 +129,15 @@ class ReplaceOrInsertTests(unittest.TestCase):
             nginx.find_static_asset_paths(html),
             ("/economy/assets/index-abc.js", "/economy/assets/index-def.css"),
         )
+        relative_html = (
+            '<script type="module" src="./assets/index-relative.js"></script>'
+            '<link rel="stylesheet" href="assets/index-relative.css">'
+        )
+        self.assertEqual(
+            nginx.find_static_asset_paths(relative_html),
+            ("/economy/assets/index-relative.js", "/economy/assets/index-relative.css"),
+        )
+        self.assertEqual(nginx.LOCAL_ORIGIN, "https://game.riversoft.top")
         source = (b"const economy = true;" * 200)
         payload = gzip.compress(source, compresslevel=6)
         self.assertEqual(
