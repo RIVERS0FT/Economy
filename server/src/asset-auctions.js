@@ -213,7 +213,7 @@ export function migrateAssetAuctionWorld(world, now = Date.now()) {
   delete world.collectibleAuctions;
   delete world.collectibles;
   delete world.collectibleOwnershipHistory;
-  world.version = 17;
+  world.version = 18;
   return world;
 }
 
@@ -241,7 +241,7 @@ function validateAuctionTransfer(world, auction, bidder) {
   return result(true, '拍卖资产可以转移');
 }
 
-function transferAuctionAsset(world, auction, bidder) {
+function transferAuctionAsset(world, auction, bidder, now) {
   const seller = player(world, auction.sellerId);
   const validation = validateAuctionTransfer(world, auction, bidder);
   if (!seller || !validation.ok) return validation;
@@ -255,6 +255,7 @@ function transferAuctionAsset(world, auction, bidder) {
         auction.highestBidderId,
         item.assetId,
         item.quantity,
+        now,
       );
       if (!transferred.ok) throw new Error(transferred.message);
     }
@@ -312,7 +313,7 @@ function settleAuction(world, auction, now) {
     cancelBrokenAuction(world, auction, now);
     return;
   }
-  const transferred = transferAuctionAsset(world, auction, bidder);
+  const transferred = transferAuctionAsset(world, auction, bidder, now);
   if (!transferred.ok) {
     cancelBrokenAuction(world, auction, now);
     return;
@@ -350,7 +351,7 @@ function validateAuctionItems(world, seller, userId, items) {
   return result(true, '资产包可以冻结');
 }
 
-function holdAuctionItems(world, seller, userId, items) {
+function holdAuctionItems(world, seller, userId, items, now) {
   const inventoriesBefore = structuredClone(seller.inventories || {});
   const facilityGroupsBefore = structuredClone(seller.facilityGroups || []);
   for (const item of items) {
@@ -359,7 +360,7 @@ function holdAuctionItems(world, seller, userId, items) {
       inventory.available -= item.quantity;
       inventory.frozen += item.quantity;
     } else {
-      const reserved = reserveFacilityAuctionQuantity(world, userId, item.assetId, item.quantity);
+      const reserved = reserveFacilityAuctionQuantity(world, userId, item.assetId, item.quantity, now);
       if (!reserved.ok) {
         seller.inventories = inventoriesBefore;
         seller.facilityGroups = facilityGroupsBefore;
@@ -379,7 +380,7 @@ function createAuction(world, userId, payload, now) {
   if (!seller) return result(false, '玩家不存在');
   const validation = validateAuctionItems(world, seller, userId, items);
   if (!validation.ok) return validation;
-  const held = holdAuctionItems(world, seller, userId, items);
+  const held = holdAuctionItems(world, seller, userId, items, now);
   if (!held.ok) return held;
 
   const auction = applyAuctionAliases({

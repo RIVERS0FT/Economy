@@ -279,6 +279,61 @@
   font-size: var(--font-size-sm);
 }
 
+.facility-staffing-summary {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--facility-card-inner-gap);
+  background: var(--color-surface-inset);
+}
+
+.facility-staffing-heading {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.facility-staffing-heading strong {
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.facility-staffing-heading span,
+.facility-staffing-meta {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}
+
+.facility-staffing-heading span {
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facility-staffing-track {
+  width: 100%;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--color-border-strong) 38%, transparent);
+}
+
+.facility-staffing-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-success);
+  transition: width 180ms ease;
+}
+
 .facility-recipe-section {
   min-width: 0;
   display: grid;
@@ -595,7 +650,8 @@
 @media (prefers-reduced-motion: reduce) {
   .facility-cluster-selector-card,
   .facility-detail-sheet-backdrop,
-  .facility-detail-sheet {
+  .facility-detail-sheet,
+  .facility-staffing-fill {
     animation: none;
     transition: none;
   }

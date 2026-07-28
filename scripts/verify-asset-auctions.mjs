@@ -101,7 +101,7 @@ requireText('server/src/asset-auctions.js', [
   'delete world.collectibles;',
   'delete world.collectibleOwnershipHistory;',
   'delete world.collectibleAuctions;',
-  'world.version = 17;',
+  'world.version = 18;',
   'createWarehouseUsage(world, bidder).warehouseAvailableCapacity < requiredCommodityCapacity',
   "if (action === 'createAuction')",
   "if (action === 'placeAuctionBid')",
@@ -219,7 +219,7 @@ requireText('src/styles/auction-card-layers.css', [
 forbidText('src/styles/auction-card-layers.css', ['overflow-x: auto;', '.asset-auction-summary-more']);
 
 requireText('.github/workflows/deploy.yml', [
-  'Back up production database before world 17 migration',
+  'Back up production database before world 18 migration',
   'sqlite3.connect(database)',
   'source.backup(destination)',
   "destination.execute('PRAGMA quick_check')",
@@ -230,8 +230,8 @@ requireText('.github/workflows/deploy.yml', [
 ]);
 
 requireText('README.md', [
-  '客户端状态版本：`20`',
-  '世界状态版本：`17`',
+  '客户端状态版本：`21`',
+  '世界状态版本：`18`',
   '通过不可拆分资产包拍卖交易商品和工厂',
   '商品和工厂可单独或混合组成最多 20 项的不可拆分资产包公开竞价',
   '世界 15 迁移前备份',
