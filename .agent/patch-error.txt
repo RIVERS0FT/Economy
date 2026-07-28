@@ -1,0 +1,1 @@
+error: corrupt patch at .agent/remove-auth-card-white-outline.patch:78
