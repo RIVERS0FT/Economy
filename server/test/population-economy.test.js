@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createWorld } from '../src/domain.js';
+import { roundInternalMoney } from '../src/money.js';
 import {
   creditPopulationEmployment,
   ensurePopulationEconomy,
@@ -280,11 +281,11 @@ test('consumption state changes allocation but not the spendable budget formula'
   assert.equal(lavish.foodBudget + lavish.householdBudget, lavish.lastBudget);
   const normalBase = Math.min(normal.lastBudget, normal.stabilizationBudget);
   const lavishBase = Math.min(lavish.lastBudget, lavish.stabilizationBudget);
-  assert.equal(normal.foodBudget, Math.floor(normalBase * 0.78) + Math.floor((normal.lastBudget - normalBase) * 0.78));
-  assert.equal(lavish.foodBudget, Math.floor(lavishBase * 0.65) + Math.floor((lavish.lastBudget - lavishBase) * 0.65));
+  assert.equal(normal.foodBudget, roundInternalMoney(normal.lastBudget * 0.78));
+  assert.equal(lavish.foodBudget, roundInternalMoney(lavish.lastBudget * 0.65));
 });
 
-test('version 3 cautious state migrates to strained without reissuing bootstrap funds', () => {
+test('version 3 cautious state migrates to version 5 strained without reissuing bootstrap funds', () => {
   const world = createWorld(now);
   const state = ensurePopulationEconomy(world, now);
   const beforeCredits = Object.values(state.models).reduce((sum, model) => sum + model.credits, 0);
@@ -294,7 +295,7 @@ test('version 3 cautious state migrates to strained without reissuing bootstrap 
   delete state.models.skilled.incomeHealthBps;
 
   ensurePopulationEconomy(world, now);
-  assert.equal(state.modelVersion, 4);
+  assert.equal(state.modelVersion, 5);
   assert.equal(state.models.skilled.consumptionState, 'strained');
   assert.equal(state.models.skilled.stateCycles, 1);
   assert.equal(Object.values(state.models).reduce((sum, model) => sum + model.credits, 0), beforeCredits);

@@ -421,14 +421,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 16;
+  world.version = 17;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 16;
+  world.version = 17;
   return world;
 }
 

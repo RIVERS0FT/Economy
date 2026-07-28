@@ -47,6 +47,7 @@ import {
 } from './banking.js';
 import { createWorldDeadlinePlan } from './world-deadline-planner.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
+import { normalizePlayerMoneyPayload, normalizeWorldMoneyPrecision } from './money.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
@@ -502,7 +503,8 @@ export class EconomyStore {
     migrateFacilityGroupWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
-    world.version = 16;
+    normalizeWorldMoneyPrecision(world);
+    world.version = 17;
     return world;
   }
 
@@ -757,6 +759,7 @@ export class EconomyStore {
   }
 
   apply(user, { action, payload, requestKey, method, path }, now = Date.now()) {
+    payload = normalizePlayerMoneyPayload(action, payload);
     return this.transaction(() => {
       const cached = this.selectIdempotency.get(Number(user.id), requestKey);
       if (cached) {
@@ -799,7 +802,9 @@ export class EconomyStore {
         const activePlayer = world.players[String(user.id)];
         if (activePlayer) activePlayer.lastEconomicActivityAt = now;
       }
+      normalizeWorldMoneyPrecision(world);
       this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      normalizeWorldMoneyPrecision(world);
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
       ensurePlayerBankAccount(world.players[String(user.id)], now);
