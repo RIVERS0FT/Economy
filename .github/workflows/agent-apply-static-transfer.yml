@@ -24,35 +24,27 @@ jobs:
       - name: Apply compression rules
         run: |
           set -uo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('.agent/apply-static-transfer.py')
-          text = path.read_text(encoding='utf-8')
-          old = '''    ''' + "'''" + '''        self.assertIn("gzip_types application/json;", updated)
-                  self.assertEqual(nginx.replace_or_insert(updated), updated)
-          ''' + "'''" + ''',
-              ''' + "'''" + '''        self.assertIn("gzip_types application/json;", updated)
-                  self.assertIn(nginx.STATIC_COMPRESSION_BEGIN, updated)
-                  self.assertIn("text/css text/plain text/javascript application/javascript application/json", updated)
-                  self.assertEqual(nginx.replace_or_insert(updated), updated)
-          ''' + "'''" + ''','''
-          new = '''    ''' + "'''" + '''        self.assertIn("location ^~ /economy-api/game/", updated)
-                  self.assertIn("gzip_types application/json;", updated)
-                  self.assertEqual(nginx.replace_or_insert(updated), updated)
-          ''' + "'''" + ''',
-              ''' + "'''" + '''        self.assertIn("location ^~ /economy-api/game/", updated)
-                  self.assertIn("gzip_types application/json;", updated)
-                  self.assertIn(nginx.STATIC_COMPRESSION_BEGIN, updated)
-                  self.assertIn("text/css text/plain text/javascript application/javascript application/json", updated)
-                  self.assertEqual(nginx.replace_or_insert(updated), updated)
-          ''' + "'''" + ''','''
-          if text.count(old) != 1:
-              raise SystemExit(f'apply script anchor count: {text.count(old)}')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
-          PY
           rm -f .agent/static-transfer-failure.log
           set +e
-          python3 .agent/apply-static-transfer.py > /tmp/static-transfer-apply.log 2>&1
+          {
+            python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('.agent/apply-static-transfer.py')
+          text = path.read_text(encoding='utf-8')
+          pattern = r'(?m)^    \'\'\'        self\.assertIn\("gzip_types application/json;", updated\)$'
+          replacement = (
+              '    \'\'\'        self.assertIn("location ^~ /economy-api/game/", updated)\n'
+              '        self.assertIn("gzip_types application/json;", updated)'
+          )
+          updated, count = re.subn(pattern, replacement, text, count=2)
+          if count != 2:
+              raise SystemExit(f'apply script gzip assertion anchors: {count}')
+          path.write_text(updated, encoding='utf-8')
+          PY
+            python3 .agent/apply-static-transfer.py
+          } > /tmp/static-transfer-apply.log 2>&1
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
