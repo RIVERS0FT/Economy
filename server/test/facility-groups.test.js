@@ -131,6 +131,7 @@ test('electronics factory deducts no material when either input is missing', () 
   player.inventories.copper.available = 0;
   player.facilityGroups = [group('electronics-factory', 1, {
     enabled: true, status: 'running', participatingCount: 1, cycleStartedAt: now,
+    staffingBatchCarryBps: 9_999,
   })];
   migrateFacilityGroupWorld(world, now);
 
@@ -261,7 +262,9 @@ test('warehouse errors recover without backfilling missed cycles', () => {
   player.warehouseLevel = 1;
   player.inventoryCapacity = 500;
   player.inventories.wheat.available = 499;
-  player.facilityGroups = [group('farm', 1, { enabled: true, status: 'error', statusReason: 'warehouse_full' })];
+  player.facilityGroups = [group('farm', 1, {
+    enabled: true, status: 'error', statusReason: 'warehouse_full', staffingBatchCarryBps: 9_999,
+  })];
   migrateFacilityGroupWorld(world, now);
   processFacilityGroupWorld(world, now + 120_000);
   assert.equal(player.facilityGroups[0].status, 'error');

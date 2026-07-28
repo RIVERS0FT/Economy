@@ -680,7 +680,7 @@ function reconcileFacilityGroup(world, player, group, now) {
     group,
     type,
     available,
-    Math.max(1, capacity.effectiveCount),
+    capacity.effectiveCount,
   );
   if (!blocked) {
     startGroupRuntime(world, group, available, now);
