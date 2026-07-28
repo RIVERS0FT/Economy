@@ -40,6 +40,37 @@ function normalizeJson(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function stableLegacyLeaderboard(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.map((entry) => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+    const { updatedAt: _updatedAt, ...stableEntry } = entry;
+    return stableEntry;
+  });
+}
+
+function stableRankedLeaderboards(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const { generatedAt: _generatedAt, ...stableValue } = value;
+  return stableValue;
+}
+
+function createStablePartitionClientState(state) {
+  const stableState = {
+    ...state,
+    leaderboard: stableLegacyLeaderboard(state?.leaderboard),
+  };
+  const stats = state?.stats && typeof state.stats === 'object' && !Array.isArray(state.stats)
+    ? { ...state.stats }
+    : state?.stats;
+  const leaderboards = stableRankedLeaderboards(state?.leaderboards ?? stats?.leaderboards);
+  if (stats && typeof stats === 'object' && !Array.isArray(stats)) delete stats.leaderboards;
+  stableState.stats = stats;
+  delete stableState.leaderboards;
+  if (leaderboards) stableState.leaderboards = leaderboards;
+  return stableState;
+}
+
 function createActionAcknowledgement(result, revision) {
   return normalizeJson({
     result: {
@@ -143,7 +174,7 @@ export class EconomyStore extends PersistentEconomyStore {
     return {
       ...snapshot,
       state: {
-        ...snapshot.state,
+        ...createStablePartitionClientState(snapshot.state),
         ...normalizeJson(contractState),
         economicCalendar: normalizeJson(createEconomicCalendarClientState(now)),
       },
