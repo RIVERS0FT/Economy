@@ -23,7 +23,7 @@ jobs:
       - name: Apply and verify remaining compression files
         run: |
           set -uo pipefail
-          rm -f .agent/static-transfer-guards-failure.log
+          rm -f static-transfer-guards-failure.log
           set +e
           {
             python3 .agent/apply-static-transfer-guards.py
@@ -48,10 +48,10 @@ jobs:
             {
               printf 'run_id=%s\n' "$GITHUB_RUN_ID"
               cat /tmp/static-transfer-guards.log
-            } > .agent/static-transfer-guards-failure.log
+            } > static-transfer-guards-failure.log
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add .agent/static-transfer-guards-failure.log
+            git add static-transfer-guards-failure.log
             git commit -m "记录静态压缩验收失败详情"
             git push origin HEAD:agent/optimize-static-transfer
             cat /tmp/static-transfer-guards.log
@@ -59,8 +59,8 @@ jobs:
           fi
           cat /tmp/static-transfer-guards.log
           rm -f .agent/apply-static-transfer-guards.py
-          rm -f .agent/static-transfer-guards-failure.log
           rm -f .github/workflows/agent-apply-static-transfer-guards.yml
+          rm -f static-transfer-guards-failure.log
           rmdir .agent 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
