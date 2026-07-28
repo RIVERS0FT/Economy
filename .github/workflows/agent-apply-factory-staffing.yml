@@ -123,7 +123,7 @@ jobs:
           replace_once(
               'docs/UI_DESIGN_SYSTEM.md',
               '- 让生产公式恢复单座输入、输出或成本，或让运行中的公式不按 `participatingCount` 变化；\n- 停止或异常时不使用 `nextCycleCount`，使用 `group.count` 作为公式乘数，或把 `pendingJoinCount` 提前计入当前周期；',
-              '- 让生产公式恢复单座输入、输出或成本，或让运行中的公式不同时显示 `participatingCount`、锁定满员率和 `cycleEffectiveCount`；\n- 停止或异常时不使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount`，使用 `group.count` 作为公式乘数，或把 `pendingJoinCount` 提前计入当前周期；',
+              '- 让生产公式恢复单座输入、输出或成本，或让运行中的公式不同时显示 `participatingCount`、锁定满员率和 `cycleEffectiveCount`；\n- 停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount`；不得使用 `group.count` 作为公式乘数，也不得把 `pendingJoinCount` 提前计入当前周期；',
           )
           verifier = Path('scripts/verify-unified-factory-recipes-grid.mjs')
           text = verifier.read_text()
