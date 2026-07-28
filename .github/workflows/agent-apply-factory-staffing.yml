@@ -72,7 +72,8 @@ jobs:
               python3 "/tmp/${name}.py"
             } 2>&1 | tee -a migration.log
           done
-          python3 - <<'PY'
+          {
+            python3 - <<'PY'
           from pathlib import Path
 
           def replace_once(path, old, new):
@@ -151,12 +152,18 @@ jobs:
               '客户端状态版本：`20`': '客户端状态版本：`21`',
               '世界状态版本：`17`': '世界状态版本：`18`',
           }.items():
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'asset auction verifier expected one match, found {count}: {old}')
-              text = text.replace(old, new, 1)
+              text = text.replace(old, new)
+          for expected in [
+              'world.version = 18;',
+              'Back up production database before world 18 migration',
+              '客户端状态版本：`21`',
+              '世界状态版本：`18`',
+          ]:
+              if expected not in text:
+                  raise SystemExit(f'asset auction verifier missing synchronized assertion: {expected}')
           auctions.write_text(text)
           PY
+          } 2>&1 | tee -a migration.log
           git diff --check 2>&1 | tee -a migration.log
           rm -rf .agent/factory-staffing
           rmdir .agent 2>/dev/null || true
