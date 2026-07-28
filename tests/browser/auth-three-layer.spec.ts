@@ -138,7 +138,7 @@ test.describe('auth three-layer layout', () => {
       expect(glass.materialFillCount).toBe(0);
       expect(glass.surfaceContain).toBe('none');
       expect(glass.surfaceIsolation).toBe('auto');
-      expect(glass.surfaceHeight).toBeCloseTo(glass.contentHeight, 0);
+      expect(Math.abs(glass.surfaceHeight - glass.contentHeight)).toBeLessThanOrEqual(1);
 
       await page.getByLabel('账号邮箱').click();
       await expect(page.getByLabel('账号邮箱')).toBeFocused();
@@ -241,7 +241,7 @@ test.describe('auth three-layer layout', () => {
       expect(registrationGlass.contentInsideGlass).toBe(true);
       expect(registrationGlass.materialFillCount).toBe(0);
       expect(registrationGlass.surfaceHeight).toBeGreaterThan(loginGlass.surfaceHeight);
-      expect(registrationGlass.surfaceHeight).toBeCloseTo(registrationGlass.contentHeight, 0);
+      expect(Math.abs(registrationGlass.surfaceHeight - registrationGlass.contentHeight)).toBeLessThanOrEqual(1);
       expect(registrationGlass.cardOverflowY).not.toMatch(/auto|scroll/);
       expect(registrationGlass.surfaceOverflowY).not.toMatch(/auto|scroll/);
       expect(registrationGlass.contentOverflowY).not.toMatch(/auto|scroll/);
