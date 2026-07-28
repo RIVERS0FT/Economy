@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 DOMAIN = "game.riversoft.top"
-LOCAL_ORIGIN = "http://127.0.0.1"
+LOCAL_ORIGIN = f"https://{DOMAIN}"
 STATIC_WEB_ROOT = Path("/var/www/game/economy")
 ACCOUNT_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-account.conf"
 GAME_API_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-game-api.conf"
@@ -452,14 +452,29 @@ def parse_http_headers(text: str) -> dict[str, str]:
     return headers
 
 
+def normalize_static_asset_path(path: str) -> str:
+    normalized = str(path or "").strip()
+    if normalized.startswith("/economy/assets/"):
+        return normalized
+    if normalized.startswith("./assets/"):
+        return "/economy/" + normalized[2:]
+    if normalized.startswith("assets/"):
+        return "/economy/" + normalized
+    raise RuntimeError(f"ECONOMY_STATIC_PATH_INVALID path={normalized}")
+
+
 def find_static_asset_paths(html: str) -> tuple[str, str]:
-    javascript = re.search(r'src="(?P<path>/economy/assets/[^" ]+\.js)"', html)
-    stylesheet = re.search(r'href="(?P<path>/economy/assets/[^" ]+\.css)"', html)
+    asset_prefix = r"(?:/economy/|\./)?assets/"
+    javascript = re.search(rf'src="(?P<path>{asset_prefix}[^" ]+\.js)"', html)
+    stylesheet = re.search(rf'href="(?P<path>{asset_prefix}[^" ]+\.css)"', html)
     if not javascript:
         raise RuntimeError("ECONOMY_STATIC_JAVASCRIPT_NOT_FOUND")
     if not stylesheet:
         raise RuntimeError("ECONOMY_STATIC_CSS_NOT_FOUND")
-    return javascript.group("path"), stylesheet.group("path")
+    return (
+        normalize_static_asset_path(javascript.group("path")),
+        normalize_static_asset_path(stylesheet.group("path")),
+    )
 
 
 def validate_gzip_payload(
@@ -497,8 +512,9 @@ def fetch_local_response(path: str, *, accept_gzip: bool) -> tuple[dict[str, str
             "--silent",
             "--show-error",
             "--http1.1",
-            "--header",
-            f"Host: {DOMAIN}",
+            "--insecure",
+            "--resolve",
+            f"{DOMAIN}:443:127.0.0.1",
             "--dump-header",
             str(headers_path),
             "--output",
