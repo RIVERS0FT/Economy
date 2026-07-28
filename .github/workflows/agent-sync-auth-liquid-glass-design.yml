@@ -1,0 +1,34 @@
+name: Sync authentication liquid glass design
+
+on:
+  push:
+    branches:
+      - agent/official-auth-liquid-glass
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Synchronize authoritative design
+        run: |
+          set -euo pipefail
+          python3 .agent/sync-auth-liquid-glass-design.py
+          rm -f .agent/sync-auth-liquid-glass-design.py
+          rm -f .github/workflows/agent-sync-auth-liquid-glass-design.yml
+          rmdir .agent 2>/dev/null || true
+          git diff --check
+      - name: Commit synchronized design
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "同步认证液态玻璃权威设计"
+          git push origin HEAD:agent/official-auth-liquid-glass
