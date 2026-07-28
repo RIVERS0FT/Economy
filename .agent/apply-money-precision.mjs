@@ -45,6 +45,7 @@ const metadataCleanup = [
   "replaceAll('scripts/verify-banking.mjs', '世界版本 16', '世界版本 17');",
   "replaceAll('scripts/verify-banking.mjs', '客户端状态版本 19', '客户端状态版本 20');",
   "replaceAll('scripts/verify-banking.mjs', 'version: 19', 'version: 20');",
+  "replaceAll('scripts/verify-daily-check-in.mjs', 'const staleVersion = String(17);', 'const staleVersion = String(19);');",
   "replaceAll('scripts/verify-staple-crops-demand.mjs', 'MARKET_DEMAND_MODEL_VERSION, 10', 'MARKET_DEMAND_MODEL_VERSION, 11');",
   "replaceAll('scripts/verify-staple-crops-demand.mjs', 'MARKET_DEMAND_MODEL_VERSION = 10', 'MARKET_DEMAND_MODEL_VERSION = 11');",
   "replaceAll('scripts/verify-staple-crops-demand.mjs', 'POPULATION_ECONOMY_VERSION = 4', 'POPULATION_ECONOMY_VERSION = 5');",
