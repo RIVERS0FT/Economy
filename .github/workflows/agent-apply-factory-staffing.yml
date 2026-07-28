@@ -1,0 +1,62 @@
+name: Apply factory staffing implementation
+
+on:
+  push:
+    branches:
+      - agent/factory-staffing-rate
+    paths:
+      - '.agent/factory-staffing/**'
+      - '.github/workflows/agent-apply-factory-staffing.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-factory-staffing-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/factory-staffing-rate
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Decode and apply exact migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in server client docs-tests; do
+            base64 --decode ".agent/factory-staffing/${name}.py.gz.b64" | gzip --decompress > "/tmp/${name}.py"
+            python3 "/tmp/${name}.py"
+          done
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        run: npm run build
+
+      - name: Commit verified source and remove temporary migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .agent/factory-staffing
+          rm -f .github/workflows/agent-apply-factory-staffing.yml
+          git config user.name 'OpenAI Agent'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m '增加工厂满员率与等效产能'
+          git push origin HEAD:agent/factory-staffing-rate
