@@ -1,9 +1,13 @@
 name: Apply authentication card outline removal
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/remove-auth-card-white-outline
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
@@ -15,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
       - name: Apply source patch
         run: |
@@ -29,4 +34,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "移除认证卡片外层白边"
-          git push origin HEAD:agent/remove-auth-card-white-outline
+          git push origin HEAD:${{ github.head_ref }}
