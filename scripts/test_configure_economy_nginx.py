@@ -141,17 +141,14 @@ class ReplaceOrInsertTests(unittest.TestCase):
             html = root / "html.conf"
             unrelated = root / "unrelated.conf"
             assets.write_text(
-                'location ^~ /economy/assets/ { add_header Cache-Control immutable; try_files $uri =404; }
-',
+                'location ^~ /economy/assets/ { add_header Cache-Control immutable; try_files $uri =404; }\n',
                 encoding="utf-8",
             )
             html.write_text(
-                'location ^~ /economy/ { try_files $uri /economy/index.html; }
-',
+                'location ^~ /economy/ { try_files $uri /economy/index.html; }\n',
                 encoding="utf-8",
             )
-            unrelated.write_text('location /other/ { return 404; }
-', encoding="utf-8")
+            unrelated.write_text('location /other/ { return 404; }\n', encoding="utf-8")
 
             changes = nginx.collect_static_vary_changes(
                 config_paths=(assets, html, unrelated),
