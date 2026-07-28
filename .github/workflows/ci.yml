@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -18,65 +18,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: agent/factory-staffing-rate
-          fetch-depth: 0
-
-      - name: Apply zero effective capacity fix
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          server = Path('server/src/facility-groups.js')
-          text = server.read_text()
-          old = '    Math.max(1, capacity.effectiveCount),\n'
-          new = '    capacity.effectiveCount,\n'
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif new not in text:
-              raise SystemExit('zero effective capacity check site not found')
-          server.write_text(text)
-
-          tests = Path('server/test/facility-groups.test.js')
-          text = tests.read_text().rstrip()
-          test_name = "test('zero effective capacity can run without funds until a payable batch is due'"
-          if test_name not in text:
-              text += r'''
-
-test('zero effective capacity can run without funds until a payable batch is due', () => {
-  const world = createWorld(now);
-  const player = ensurePlayer(world, alice, now);
-  player.credits = 0;
-  player.facilityGroups = [group('farm', 1, {
-    enabled: true,
-    status: 'error',
-    statusReason: 'insufficient_funds',
-    staffingRateBps: 0,
-    staffingUpdatedAt: now,
-    staffingBatchCarryBps: 0,
-  })];
-  migrateFacilityGroupWorld(world, now);
-
-  processFacilityGroupWorld(world, now + 1);
-  assert.equal(player.facilityGroups[0].status, 'running');
-  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 0);
-
-  processFacilityGroupWorld(world, now + 120_001);
-  assert.equal(player.facilityGroups[0].status, 'running');
-  assert.equal(player.credits, 0);
-  assert.equal(player.inventories.wheat.available, 0);
-
-  processFacilityGroupWorld(world, now + 600_001);
-  assert.equal(player.facilityGroups[0].status, 'error');
-  assert.equal(player.facilityGroups[0].statusReason, 'insufficient_funds');
-  assert.equal(player.credits, 0);
-  assert.equal(player.inventories.wheat.available, 0);
-});
-'''
-          tests.write_text(text)
-          PY
-          git diff --check
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -101,20 +42,6 @@ test('zero effective capacity can run without funds until a payable batch is due
         run: |
           set -o pipefail
           npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Commit verified source fix
-        shell: bash
-        run: |
-          git config user.name 'OpenAI Agent'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server/src/facility-groups.js server/test/facility-groups.test.js
-          git diff --cached --check
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m '允许零等效产能周期正常运行'
-          git pull --rebase origin agent/factory-staffing-rate
-          git push origin HEAD:agent/factory-staffing-rate
 
       - name: Upload test artifacts
         if: failure()
