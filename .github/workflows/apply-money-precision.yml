@@ -43,9 +43,23 @@ jobs:
           cat /tmp/money-patch.log
           exit 1
       - name: Remove temporary application files
+        id: cleanup
+        continue-on-error: true
         run: |
           rm -rf .agent .github/workflows/apply-money-precision.yml
-          git diff --check
+          git diff --check > /tmp/money-cleanup.log 2>&1
+      - name: Upload cleanup diagnostics
+        if: steps.cleanup.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: money-cleanup-diagnostics
+          path: /tmp/money-cleanup.log
+          retention-days: 1
+      - name: Stop after cleanup failure
+        if: steps.cleanup.outcome == 'failure'
+        run: |
+          cat /tmp/money-cleanup.log
+          exit 1
       - name: Verify money precision
         run: npm run verify:money-precision
       - name: Full build and tests
