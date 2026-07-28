@@ -250,13 +250,17 @@ html[data-app-surface="auth"] body::before {
 
   .login-atmosphere-layer {
     background:
-      radial-gradient(circle at 20% 14%, rgba(86, 224, 137, 0.13), transparent 30%),
-      linear-gradient(180deg, rgba(1, 7, 4, 0.78) 0%, rgba(2, 10, 6, 0.76) 36%, rgba(2, 8, 5, 0.93) 100%);
+      radial-gradient(circle at 20% 14%, rgba(86, 224, 137, 0.15), transparent 30%),
+      linear-gradient(180deg, rgba(1, 7, 4, 0.62) 0%, rgba(2, 10, 6, 0.6) 36%, rgba(2, 8, 5, 0.82) 100%);
   }
 
   .login-atmosphere-layer::before {
-    opacity: 0.18;
+    opacity: 0.12;
     background-size: 42px 42px;
+  }
+
+  .login-atmosphere-layer::after {
+    opacity: 0.05;
   }
 
   .login-content-layer {
