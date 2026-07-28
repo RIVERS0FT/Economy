@@ -191,6 +191,7 @@ test.describe('auth three-layer layout', () => {
       expect(glass.surfaceContain).toBe('none');
       expect(glass.surfaceIsolation).toBe('auto');
       expect(glass.directDecorationSpanCount).toBe(2);
+      expect(glass.visibleDirectDecorationSpanCount).toBe(2);
       expect(glass.directAuxiliaryDivCount).toBeGreaterThanOrEqual(2);
       expect(glass.displacementScales).toHaveLength(3);
       expect(Math.abs(glass.displacementScales[0])).toBe(70);
