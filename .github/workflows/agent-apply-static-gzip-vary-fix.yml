@@ -1,0 +1,38 @@
+name: Apply static gzip Vary fix
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-static-gzip-vary-header
+          fetch-depth: 0
+      - name: Apply and verify static Vary fix
+        run: |
+          set -euo pipefail
+          python3 .agent/apply-static-gzip-vary-fix.py
+          git diff --check
+          python3 scripts/test_configure_economy_nginx.py
+          node scripts/verify-state-delivery-capacity.mjs
+          rm -f .agent/apply-static-gzip-vary-fix.py
+          rm -f .github/workflows/agent-apply-static-gzip-vary-fix.yml
+          rmdir .agent 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修复静态 gzip Vary 响应头"
+          git push origin HEAD:agent/fix-static-gzip-vary-header
