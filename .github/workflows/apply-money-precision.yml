@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/player-money-two-decimals
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -16,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
