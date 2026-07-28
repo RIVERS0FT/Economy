@@ -62,6 +62,7 @@ for (const text of [
 for (const text of [
   'html[data-app-surface="game"] body::before',
   'display: none;',
+  '.financial-backdrop-image img[hidden] {',
   '.game-shell,',
   '.game-state-shell {',
   'isolation: isolate;',
