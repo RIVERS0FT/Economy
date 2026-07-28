@@ -23,7 +23,7 @@ for (const token of [
   'renewedToContractId',
   'renewalProposal',
 ]) assert.ok(contracts.includes(token), `contracts.js missing ${token}`);
-for (const token of ['/renewal\/(propose|accept|reject|revoke)', 'proposeProductionContractRenewal']) {
+for (const token of [String.raw`/renewal\/(propose|accept|reject|revoke)`, 'proposeProductionContractRenewal']) {
   assert.ok(routes.includes(token), `game-routes.js missing ${token}`);
 }
 assert.ok(runtimeStore.includes('createEconomicCalendarClientState(now)'), 'state snapshot must include economic calendar');
