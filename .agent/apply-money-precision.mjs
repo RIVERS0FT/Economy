@@ -55,6 +55,7 @@ const metadataCleanup = [
   "replaceAll('scripts/verify-market-assets.mjs', 'world.version = 16', 'world.version = 17');",
   "replaceAll('scripts/verify-market-assets.mjs', 'Number.isFinite(price) && Number.isInteger(price) && price >= 1', 'Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8');",
   "replaceAll('scripts/verify-market-sell-fee.mjs', 'Math.floor(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS)', 'MARKET_SELL_FEE_VERSION = 3');",
+  "replaceAll('scripts/verify-facility-groups.mjs', 'world.version = 16', 'world.version = 17');",
   "replaceAll('server/test/market-sell-fee.test.js', 'assert.equal(calculateCumulativeMarketSellFee(1), 0);', 'assert.equal(calculateCumulativeMarketSellFee(1), 0.01);');",
   "replaceAll('server/test/market-sell-fee.test.js', 'assert.equal(calculateCumulativeMarketSellFee(101), 1);', 'assert.equal(calculateCumulativeMarketSellFee(101), 1.01);');",
   "replaceAll('server/test/market-sell-fee.test.js', 'assert.deepEqual(next, { fee: 0, netTotal: 1 });', 'assert.deepEqual(next, { fee: 0.01, netTotal: 0.99 });');",
