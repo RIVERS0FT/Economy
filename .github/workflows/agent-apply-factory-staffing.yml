@@ -72,6 +72,11 @@ jobs:
               python3 "/tmp/${name}.py"
             } 2>&1 | tee -a migration.log
           done
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('server/test/facility-groups.test.js')
+          path.write_text(path.read_text().rstrip() + '\n')
+          PY
           git diff --check 2>&1 | tee -a migration.log
 
       - name: Upload migration diagnostics
