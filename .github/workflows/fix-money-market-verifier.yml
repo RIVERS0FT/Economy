@@ -1,0 +1,38 @@
+name: Fix money market verifier
+
+on:
+  push:
+    branches:
+      - agent/player-money-two-decimals
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/player-money-two-decimals
+      - name: Update market verifier fixed-decimal text
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          path = Path('scripts/verify-market-page-layout.mjs')
+          source = path.read_text()
+          old = '买盘，价格 2，合计剩余 5，包含 5 笔订单'
+          new = '买盘，价格 2.00，合计剩余 5，包含 5 笔订单'
+          if old in source:
+              path.write_text(source.replace(old, new))
+          PYTHON
+          git diff --check
+          if git diff --quiet -- scripts/verify-market-page-layout.mjs; then
+            echo 'Verifier already current'
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/verify-market-page-layout.mjs
+          git commit -m "更新货币两位小数市场验证"
+          git push origin HEAD:agent/player-money-two-decimals
