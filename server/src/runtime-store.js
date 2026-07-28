@@ -179,10 +179,16 @@ export class EconomyStore extends PersistentEconomyStore {
       ensureGemState(player);
       this.processWorldIfDue(world, now, Number(user.id), { force: true, auditTrigger: 'action_preprocess' });
 
+      const beforeActionPlayer = structuredClone(world.players[String(user.id)]);
       const beforeActionContracts = contractSnapshot(world);
       const gameResult = applyProductionContractAction(world, user, action, payload, now);
-      if (gameResult?.ok) {
-        player.lastEconomicActivityAt = now;
+      const activePlayer = world.players[String(user.id)];
+      const actionChanged = activePlayer && (
+        !isDeepStrictEqual(activePlayer, beforeActionPlayer)
+        || !isDeepStrictEqual(world.productionContracts || [], beforeActionContracts)
+      );
+      if (gameResult?.ok && actionChanged) {
+        activePlayer.lastEconomicActivityAt = now;
         this.captureContractAuditTransition(beforeActionContracts, world, {
           actorUserId: Number(user.id),
           triggerType: 'player_action',

@@ -242,6 +242,7 @@ function createPlayer(user, now) {
     userId: Number(user.id),
     playerName: String(user.name || user.email?.split('@')[0] || '新玩家').trim().slice(0, 32) || '新玩家',
     registeredAt: now,
+    lastEconomicActivityAt: now,
     credits: 100,
     frozenCredits: 0,
     inventories: createInventories(),
@@ -360,6 +361,12 @@ export function migrateWorld(world, now = Date.now()) {
 
   world.players ||= {};
   for (const player of Object.values(world.players)) {
+    const registeredAt = Number(player.registeredAt);
+    player.registeredAt = Number.isFinite(registeredAt) && registeredAt > 0 ? registeredAt : now;
+    const activityAt = Number(player.lastEconomicActivityAt);
+    player.lastEconomicActivityAt = Number.isFinite(activityAt) && activityAt > 0
+      ? activityAt
+      : player.registeredAt;
     if (!player.inventories) {
       player.inventories = createInventories();
       player.inventories.wheat.available = Number(player.inventory || 0);
