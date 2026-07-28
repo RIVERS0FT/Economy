@@ -32,7 +32,9 @@ const walk = (path) => readdirSync(resolve(root, path)).flatMap((entry) => {
 
 const files = {
   surface: 'src/components/ui/LiquidGlassSurface.tsx',
+  authCard: 'src/components/auth/AuthCardSurface.tsx',
   styles: 'src/styles/liquid-glass-surfaces.css',
+  authStyles: 'src/styles/auth.css',
   compatibility: 'src/styles/liquid-glass-chrome.css',
   sharedShell: 'src/components/shell/SignedInShell.tsx',
   gameShell: 'src/components/shell/GameShell.tsx',
@@ -47,7 +49,9 @@ const files = {
   mobileStatus: 'src/styles/mobile-status-layout.css',
   adminNavigation: 'src/styles/admin-navigation.css',
   design: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
+  authDesign: 'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
   browser: 'tests/browser/liquid-glass-layout.spec.ts',
+  authBrowser: 'tests/browser/auth-three-layer.spec.ts',
   adminBrowser: 'tests/browser/admin-runtime.spec.ts',
   mobileBrowser: 'tests/browser/mobile-workspace-overlay.spec.ts',
   navigationBrowser: 'tests/browser/mobile-navigation-scrollbar.spec.ts',
@@ -71,26 +75,43 @@ if (failures.length === 0) {
   }
 
   for (const text of [
-    "export type LiquidGlassSurfaceVariant = 'desktopStatusBar' | 'mobileStatusBar' | 'mobileNavigation'",
+    "| 'desktopStatusBar'",
+    "| 'mobileStatusBar'",
+    "| 'mobileNavigation'",
+    "| 'desktopAuthCard'",
+    "| 'mobileAuthCard'",
+    "export type LiquidGlassSurfaceLayout = 'fixed' | 'content'",
     'const DESKTOP_STATUS_GLASS = {',
     'displacementScale: 20',
     'blurAmount: 0.0625',
     'saturation: 120',
     'aberrationIntensity: 0.15',
-    'cornerRadius: 24',
     'const MOBILE_CHROME_GLASS = {',
     'displacementScale: 32',
     'blurAmount: 0.1',
     'saturation: 125',
     'aberrationIntensity: 0.3',
-    'cornerRadius: 40',
-    "mode: 'standard'",
+    'const DESKTOP_AUTH_CARD_GLASS = {',
+    'displacementScale: 16',
+    'blurAmount: 0.12',
+    'saturation: 118',
+    'aberrationIntensity: 0.1',
+    'const MOBILE_AUTH_CARD_GLASS = {',
+    'displacementScale: 12',
+    'saturation: 115',
+    'aberrationIntensity: 0.08',
     'desktopStatusBar: DESKTOP_STATUS_GLASS',
     'mobileStatusBar: MOBILE_CHROME_GLASS',
     'mobileNavigation: MOBILE_CHROME_GLASS',
+    'desktopAuthCard: DESKTOP_AUTH_CARD_GLASS',
+    'mobileAuthCard: MOBILE_AUTH_CARD_GLASS',
     'elasticity={0}',
     'globalMousePos={STATIC_MOUSE_POSITION}',
     'mouseOffset={STATIC_MOUSE_OFFSET}',
+    'data-liquid-glass-layout="content"',
+    'new ResizeObserver',
+    'setSurfaceRevision((current) => current + 1)',
+    'liquid-glass-surface__material-fill',
   ]) requireText(files.surface, text);
   for (const text of [
     'const IOS_CLEAR_THICK_GLASS = {',
@@ -99,12 +120,20 @@ if (failures.length === 0) {
     'mode="shader"',
     'cornerRadius: 20',
   ]) forbidText(files.surface, text);
-  if ((read(files.surface).match(/cornerRadius:\s*24/g) ?? []).length !== 1) {
-    failures.push('桌面状态栏必须只定义一个 24px cornerRadius 预设');
+  if ((read(files.surface).match(/cornerRadius:\s*24/g) ?? []).length !== 2) {
+    failures.push('桌面状态栏与桌面认证卡必须各定义一个 24px cornerRadius 预设');
   }
-  if ((read(files.surface).match(/cornerRadius:\s*40/g) ?? []).length !== 1) {
-    failures.push('移动状态栏和移动底栏必须共享唯一 40px cornerRadius 预设');
+  if ((read(files.surface).match(/cornerRadius:\s*40/g) ?? []).length !== 2) {
+    failures.push('移动 Chrome 与移动认证卡必须各定义一个 40px cornerRadius 预设');
   }
+
+  for (const text of [
+    "const MOBILE_AUTH_MEDIA_QUERY = '(max-width: 720px)'",
+    "type AuthCardSurfaceVariant = Extract<",
+    "'desktopAuthCard' | 'mobileAuthCard'",
+    '<LiquidGlassSurface variant={surfaceVariant} layout="content">',
+    'className="login-card"',
+  ]) requireText(files.authCard, text);
 
   for (const text of [
     "type StatusBarSurfaceVariant = Extract<LiquidGlassSurfaceVariant, 'desktopStatusBar' | 'mobileStatusBar'>",
@@ -138,7 +167,6 @@ if (failures.length === 0) {
     'className="asset-bar admin-command-bar"',
     'variant="desktopStatusBar"',
   ]) requireText(files.adminBar, text);
-
   for (const text of [
     'className="sidebar mobile-bottom-navigation"',
     '<LiquidGlassSurface variant="mobileNavigation">',
@@ -151,18 +179,26 @@ if (failures.length === 0) {
 
   for (const text of [
     '--liquid-glass-contrast: rgba(194, 231, 214, 0.06);',
+    '--liquid-glass-auth-contrast:',
+    '--liquid-glass-auth-fallback:',
     '--liquid-glass-structure-border: rgba(232, 255, 244, 0.3);',
     '.liquid-glass-surface {',
     'overflow: hidden;',
+    '.liquid-glass-surface[data-liquid-glass-layout="content"] {',
+    'pointer-events: auto;',
     '.liquid-glass-surface--desktopStatusBar .glass__warp {',
     '-webkit-backdrop-filter: blur(6px) saturate(120%);',
     '.liquid-glass-surface--mobileStatusBar .glass__warp,',
-    '.liquid-glass-surface--mobileNavigation .glass__warp {',
     '-webkit-backdrop-filter: blur(7.2px) saturate(125%);',
+    '.liquid-glass-surface--desktopAuthCard .glass__warp {',
+    '-webkit-backdrop-filter: blur(7.84px) saturate(118%);',
+    '.liquid-glass-surface--mobileAuthCard .glass__warp {',
+    '-webkit-backdrop-filter: blur(7.2px) saturate(115%);',
+    '.liquid-glass-surface--desktopAuthCard::after,',
+    '.liquid-glass-surface--mobileAuthCard::after {',
+    'background: var(--liquid-glass-auth-fallback);',
     'border-radius: 24px !important;',
     'border-radius: 40px !important;',
-    '.liquid-glass-surface--desktopStatusBar::after,',
-    '.liquid-glass-surface--mobileStatusBar::after {',
     'z-index: 2;',
     'pointer-events: none;',
     '.liquid-glass-surface--mobileNavigation > span:first-of-type {',
@@ -170,7 +206,6 @@ if (failures.length === 0) {
     'grid-template-columns: repeat(5, minmax(0, 1fr));',
     '.mobile-bottom-navigation .liquid-glass-surface__content {',
     'padding: 8px 0;',
-    'only vertical padding owner',
   ]) requireText(files.styles, text);
   for (const text of [
     '.liquid-glass-surface--statusBar',
@@ -183,16 +218,22 @@ if (failures.length === 0) {
   if (/^\s*backdrop-filter\s*:/m.test(read(files.styles))) {
     failures.push('项目 CSS 不得重写 liquid-glass-react 的非前缀 backdrop-filter');
   }
+  for (const text of ['.login-card.panel', 'backdrop-filter: blur(22px)', 'backdrop-filter: blur(18px)']) {
+    forbidText(files.authStyles, text);
+  }
 
   requireOrder(files.main, [
     "import './styles/viewport.css'",
     "import './styles/scrollbars.css'",
     "import './styles/game-shell-layout.css'",
+    "import './styles/financial-backdrop.css'",
+    "import './styles/liquid-glass-surfaces.css'",
   ]);
   requireOrder(files.compatibility, [
     "@import './performance.css';",
     "@import './scrollbars.css';",
     "@import './game-shell-layout.css';",
+    "@import './financial-backdrop.css';",
     "@import './liquid-glass-surfaces.css';",
   ]);
 
@@ -206,9 +247,7 @@ if (failures.length === 0) {
     '.mobile-page-overlay,',
     '.mobile-chrome-overlay {',
     'z-index: auto;',
-    '.mobile-page-overlay {',
     'order: 1;',
-    '.mobile-chrome-overlay {',
     'order: 2;',
     'pointer-events: none;',
   ]) requireText(files.viewport, text);
@@ -259,7 +298,6 @@ if (failures.length === 0) {
     'min-height: var(--mobile-asset-bar-height);',
     'max-height: var(--mobile-asset-bar-height);',
   ]) requireText(files.mobileStatus, text);
-
   for (const text of [
     '.page-scroll-area {',
     'overflow: visible;',
@@ -276,24 +314,22 @@ if (failures.length === 0) {
     '`liquid-glass-react@1.1.1` 是唯一液态玻璃渲染实现',
     '`DESKTOP_STATUS_GLASS`',
     '`MOBILE_CHROME_GLASS`',
+    '`DESKTOP_AUTH_CARD_GLASS`',
+    '`MOBILE_AUTH_CARD_GLASS`',
     '`desktopStatusBar`',
     '`mobileStatusBar`',
     '`mobileNavigation`',
-    '`displacementScale: 20`',
-    '`blurAmount: 0.0625`',
-    '`saturation: 120`',
-    '`aberrationIntensity: 0.15`',
-    '`cornerRadius: 24`',
-    '`displacementScale: 32`',
-    '`blurAmount: 0.1`',
-    '`saturation: 125`',
-    '`aberrationIntensity: 0.3`',
-    '`cornerRadius: 40`',
+    '`desktopAuthCard`',
+    '`mobileAuthCard`',
+    '`layout="content"`',
+    '单个 `ResizeObserver`',
+    '认证卡片任一时刻只能存在一个',
     '`blur(6px) saturate(120%)`',
     '`blur(7.2px) saturate(125%)`',
+    '`blur(7.84px) saturate(118%)`',
+    '`blur(7.2px) saturate(115%)`',
     '桌面与移动不得再次合并为同一个参数常量',
     '任一时刻只能渲染一个状态栏玻璃实例',
-    '状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线',
     '顶部状态栏不得包含 `ScrollArea`',
     '固定五列布局',
     '最上层连续结构描边',
@@ -311,6 +347,11 @@ if (failures.length === 0) {
     '`SignedInShell`',
     '管理员桌面玻璃工作栏',
   ]) requireText(files.design, text);
+  for (const text of [
+    '认证卡片必须使用 `src/components/auth/AuthCardSurface.tsx`',
+    '不得在 `auth.css` 手写另一套 `backdrop-filter`',
+    '注册内容较高时由文档视口纵向滚动',
+  ]) requireText(files.authDesign, text);
 
   for (const text of [
     'desktop status bar uses its dedicated single-shell glass preset and shell inset',
@@ -320,6 +361,12 @@ if (failures.length === 0) {
     "toHaveAttribute('data-liquid-glass-variant', 'mobileStatusBar')",
     "toHaveAttribute('data-liquid-glass-variant', 'mobileNavigation')",
   ]) requireText(files.browser, text);
+  for (const text of [
+    "toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard')",
+    "toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard')",
+    "toHaveAttribute('data-liquid-glass-layout', 'content')",
+    'keeps one authentication glass instance while switching breakpoints',
+  ]) requireText(files.authBrowser, text);
   for (const text of [
     'admin desktop shares the game shell gutter, command bar and edge scrollbar',
     '.liquid-glass-surface--desktopStatusBar',
@@ -336,9 +383,9 @@ if (failures.length === 0) {
 }
 
 if (failures.length > 0) {
-  console.error('liquid-glass-react 外壳架构验证失败：');
+  console.error('liquid-glass-react 统一外壳与认证卡片架构验证失败：');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('liquid-glass-react 共享登录后外壳、桌面独立预设、管理员玻璃工作栏、移动 Chrome、固定五列状态栏、开放背景采样链与安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 登录后外壳、认证卡片、平台预设、内容自适应、开放背景采样链与安全边缘滚动条验证通过。');
