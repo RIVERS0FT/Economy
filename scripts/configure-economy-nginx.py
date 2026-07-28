@@ -41,6 +41,8 @@ STATIC_COMPRESSION = (
     ),
 )
 STATIC_COMPRESSION_NAMES = frozenset(name for name, _value in STATIC_COMPRESSION)
+STATIC_LOCATION_PATHS = ("/economy/assets/", "/economy/")
+STATIC_VARY_HEADER = 'add_header Vary "Accept-Encoding" always;'
 
 ACCOUNT_BLOCK = """
     location = /economy-api/login {
@@ -194,6 +196,51 @@ def ensure_static_compression(block: str) -> tuple[str, bool]:
     normalized = cleaned[:closing].rstrip()
     updated = normalized + "\n\n" + static_compression_block() + "\n" + cleaned[closing:]
     return updated, updated != block
+
+
+
+def ensure_static_vary_headers(block: str) -> tuple[str, bool]:
+    changed = False
+    canonical_pattern = re.compile(
+        r'(?im)^\s*add_header\s+Vary\s+"?Accept-Encoding"?\s+always\s*;\s*$',
+    )
+    vary_pattern = re.compile(
+        r'(?im)^[ \t]*add_header\s+Vary\s+"?Accept-Encoding"?(?:\s+always)?\s*;[ \t]*(?:\n|$)',
+    )
+
+    for location_path in STATIC_LOCATION_PATHS:
+        view = masked(block)
+        location = re.search(
+            rf"\blocation\s+(?:(?:\^~|=)\s+)?{re.escape(location_path)}\s*\{{",
+            view,
+            re.IGNORECASE,
+        )
+        if not location:
+            continue
+
+        opening = view.find("{", location.start())
+        closing = matching_brace(block, opening)
+        body = block[opening + 1 : closing]
+        if canonical_pattern.search(masked(body)):
+            continue
+
+        body, _removed = vary_pattern.subn("", body)
+        closing_line = block.rfind("\n", 0, closing) + 1
+        closing_indent_match = re.match(r"[ \t]*", block[closing_line:closing])
+        closing_indent = closing_indent_match.group(0) if closing_indent_match else ""
+        directive_indent = closing_indent + "    "
+        updated_body = (
+            body.rstrip()
+            + "\n"
+            + directive_indent
+            + STATIC_VARY_HEADER
+            + "\n"
+            + closing_indent
+        )
+        block = block[: opening + 1] + updated_body + block[closing:]
+        changed = True
+
+    return block, changed
 
 
 def masked(text: str) -> str:
@@ -372,13 +419,14 @@ def replace_or_insert(block: str) -> str:
     cleaned, removed_legacy = remove_legacy_economy_api_location(cleaned)
     cleaned, added_compression = ensure_game_api_compression(cleaned)
     cleaned, added_static_compression = ensure_static_compression(cleaned)
+    cleaned, added_static_vary = ensure_static_vary_headers(cleaned)
 
     include_account = not has_account_proxy(cleaned)
     include_game_api = not has_game_api_proxy(cleaned)
     desired = managed_block(account=include_account, game_api=include_game_api)
 
     if not desired:
-        if not had_managed and not removed_legacy and not added_compression and not added_static_compression:
+        if not had_managed and not removed_legacy and not added_compression and not added_static_compression and not added_static_vary:
             return block
         return re.sub(r"\n{3,}", "\n\n", cleaned)
 

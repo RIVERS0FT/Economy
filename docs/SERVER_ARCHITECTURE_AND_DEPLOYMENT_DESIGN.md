@@ -193,7 +193,7 @@ JSON.parse
 - 禁止玩家自成交；任何两个系统商品订单也必须禁止互相成交。储备买单必须验证并冻结真实储备资金，储备卖单必须验证并冻结真实储备库存。卖家不得竞拍自己的商品或工厂，玩家不得填写自己的邀请码，也不得承接自己发布的合同。
 - 每名玩家最多 10 笔未完成商品／工厂订单、10 份公开合同和 20 份进行中合同。
 - Nginx 游戏 API 请求体上限为 256 KB；普通 JSON 仍由应用限制为 16 KB。
-- 生产 HTTPS `server` 必须由 `scripts/configure-economy-nginx.py` 统一维护动态 gzip：`gzip_vary on`、`gzip_proxied any`、最小长度 `1024`、静态资源压缩级别 `6`。超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM 必须压缩；游戏 API `location` 继续使用面向 JSON 的压缩级别 `5`。PNG、JPEG、WebP、AVIF 与 WOFF2 等已经压缩的媒体和字体不得加入 `gzip_types` 重复压缩。脚本必须清除目标 `server` 中冲突的顶层 gzip 指令、写入唯一托管块并保持重复执行幂等；`scripts/configure-economy-nginx.py` 重载 Nginx 后必须通过 `--resolve game.riversoft.top:443:127.0.0.1` 命中本机正式 HTTPS 与 TLS SNI 入口，禁止使用可能返回 301 跳转页的 80 端口；必须以 `Accept-Encoding: gzip` 实测 HTML、实际构建 JS 与 CSS，要求 `Content-Encoding: gzip`、`Vary: Accept-Encoding`、压缩流可解码且正文与磁盘源文件一致，线上压缩响应体必须小于构建产物原始字节数；任一检查失败必须恢复旧配置并重新加载 Nginx。
+- 生产 HTTPS `server` 必须由 `scripts/configure-economy-nginx.py` 统一维护动态 gzip：`gzip_vary on`、`gzip_proxied any`、最小长度 `1024`、静态资源压缩级别 `6`。超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM 必须压缩；游戏 API `location` 继续使用面向 JSON 的压缩级别 `5`。PNG、JPEG、WebP、AVIF 与 WOFF2 等已经压缩的媒体和字体不得加入 `gzip_types` 重复压缩。`/economy/assets/` 与 `/economy/` 两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`，不得只依赖服务器级继承；资产位置原有 `Cache-Control` 必须保留。脚本必须清除目标 `server` 中冲突的顶层 gzip 指令、写入唯一托管块并保持重复执行幂等；`scripts/configure-economy-nginx.py` 重载 Nginx 后必须通过 `--resolve game.riversoft.top:443:127.0.0.1` 命中本机正式 HTTPS 与 TLS SNI 入口，禁止使用可能返回 301 跳转页的 80 端口；必须以 `Accept-Encoding: gzip` 实测 HTML、实际构建 JS 与 CSS，要求 `Content-Encoding: gzip`、`Vary: Accept-Encoding`、压缩流可解码且正文与磁盘源文件一致，线上压缩响应体必须小于构建产物原始字节数；任一检查失败必须恢复旧配置并重新加载 Nginx。
 - 单进程操作限流缓存每分钟清理已过期桶，并限制最多 10,000 个用户／类别桶；不得让历史用户键永久累积。
 
 ### 5.1 Economy 注册、邀请归因与同 IP 封禁
