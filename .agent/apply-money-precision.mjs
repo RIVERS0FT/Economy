@@ -14,6 +14,14 @@ const auctionReplacement = `replaceRegex('src/pages/AuctionPage.tsx',
   "min={0.01}\\n$1max={1_000_000_000}\\n$1error={parsedStartingBid === null ? '请输入不低于 0.01 的金额；超过两位小数会向下截断。' : undefined}");`;
 if (!source.includes(auctionAnchor)) throw new Error('Auction patch anchor missing from generated source');
 source = source.replace(auctionAnchor, auctionReplacement);
+const cleanupAnchor = '// Remove temporary workflow and patch source from the resulting commit.';
+const metadataCleanup = `for (const relative of walk('docs', (name) => name.endsWith('.md'))) {
+  replaceRegex(relative, /^(> (?:客户端状态版本|世界状态版本|市场需求模型版本)：(?:20|17|11))[ \\t]+$/gm, '$1', { required: false });
+}
+
+`;
+if (!source.includes(cleanupAnchor)) throw new Error('Cleanup anchor missing from generated source');
+source = source.replace(cleanupAnchor, metadataCleanup + cleanupAnchor);
 const generated = '.agent/generated-money-patch.mjs';
 writeFileSync(generated, source);
 await import(pathToFileURL(generated).href);
