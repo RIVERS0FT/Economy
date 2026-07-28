@@ -126,6 +126,9 @@ export function LiquidGlassSurface({
     if (layout !== 'content' || !contentRef.current || !surfaceRef.current) return undefined;
     const contentElement = contentRef.current;
     const surfaceElement = surfaceRef.current;
+    const effectElement = surfaceElement.querySelector<HTMLElement>(
+      ':scope > .liquid-glass-surface__effect',
+    );
     let measurementFrame = 0;
     let glassResizeFrame = 0;
     let previousHeight = -1;
@@ -134,14 +137,25 @@ export function LiquidGlassSurface({
 
     const notifyGlassResize = () => {
       glassResizeFrame = 0;
-      const surfaceRect = surfaceElement.getBoundingClientRect();
-      const nextWidth = Math.ceil(surfaceRect.width);
-      const nextHeight = Math.ceil(surfaceRect.height);
+      const nextWidth = surfaceElement.clientWidth;
+      const nextHeight = surfaceElement.clientHeight;
       if (nextWidth <= 0 || nextHeight <= 0) return;
       if (nextWidth === previousSurfaceWidth && nextHeight === previousSurfaceHeight) return;
       previousSurfaceWidth = nextWidth;
       previousSurfaceHeight = nextHeight;
-      window.dispatchEvent(new Event('resize'));
+
+      if (!effectElement) {
+        window.dispatchEvent(new Event('resize'));
+        return;
+      }
+
+      effectElement.setAttribute('data-liquid-glass-measuring', 'true');
+      void effectElement.offsetHeight;
+      try {
+        window.dispatchEvent(new Event('resize'));
+      } finally {
+        effectElement.removeAttribute('data-liquid-glass-measuring');
+      }
     };
 
     const scheduleGlassResize = () => {
@@ -153,7 +167,7 @@ export function LiquidGlassSurface({
       measurementFrame = 0;
       const nextHeight = Math.ceil(Math.max(
         contentElement.scrollHeight,
-        contentElement.getBoundingClientRect().height,
+        contentElement.offsetHeight,
       ));
       if (nextHeight <= 0 || nextHeight === previousHeight) return;
       previousHeight = nextHeight;
@@ -191,6 +205,7 @@ export function LiquidGlassSurface({
     return () => {
       if (measurementFrame) cancelAnimationFrame(measurementFrame);
       if (glassResizeFrame) cancelAnimationFrame(glassResizeFrame);
+      effectElement?.removeAttribute('data-liquid-glass-measuring');
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
       window.removeEventListener('resize', scheduleMeasure);
