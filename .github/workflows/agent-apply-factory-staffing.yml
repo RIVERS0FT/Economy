@@ -7,12 +7,16 @@ on:
     paths:
       - '.agent/factory-staffing/**'
       - '.github/workflows/agent-apply-factory-staffing.yml'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: apply-factory-staffing-${{ github.ref }}
+  group: apply-factory-staffing-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -60,5 +64,3 @@ jobs:
           git diff --cached --check
           git commit -m '增加工厂满员率与等效产能'
           git push origin HEAD:agent/factory-staffing-rate
-
-# Triggered after the workflow file exists on the branch.
