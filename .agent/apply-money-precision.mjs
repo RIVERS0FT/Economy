@@ -24,6 +24,7 @@ const metadataCleanup = [
   "replaceAll('README.md', '客户端状态版本：`19`', '客户端状态版本：`20`');",
   "replaceAll('README.md', '世界状态版本：`16`', '世界状态版本：`17`');",
   "replaceAll('README.md', '市场需求模型版本：`10`', '市场需求模型版本：`11`');",
+  "replaceAll('src/utils/formatters.ts', 'return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;', 'return seconds > 0 ? `${minutes}m ${seconds.toString().padStart(2, \'0\')}s` : `${minutes}m`;');",
   "replaceAll('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '当前客户端只接受版本 19', '当前客户端只接受版本 20');",
   "replaceAll('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '世界版本 16', '世界版本 17');",
   "replaceAll('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '客户端状态版本 19', '客户端状态版本 20');",
