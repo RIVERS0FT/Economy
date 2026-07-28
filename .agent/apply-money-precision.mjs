@@ -70,6 +70,7 @@ const metadataCleanup = [
   "replaceAll('server/test/market-sell-fee.test.js', 'assert.equal(internal.fills[0].netTotal, 159);', 'assert.equal(internal.fills[0].netTotal, 158.4);');",
   "replaceAll('server/test/market-sell-fee.test.js', 'assert.equal(publicOrder.fills[0].fee, 1);', 'assert.equal(publicOrder.fills[0].fee, 1.6);');",
   "replaceAll('server/test/market-sell-fee.test.js', 'assert.equal(publicOrder.fills[0].netTotal, 159);', 'assert.equal(publicOrder.fills[0].netTotal, 158.4);');",
+  "replaceAll('server/test/market-sell-fee.test.js', 'assert.equal(seller.credits, 158.4);\\n  assert.equal(seller.stats.systemSinks, 0);\\n  assert.equal(seller.stats.marketServiceFees, 1.01);', 'assert.equal(seller.credits, 158.4);\\n  assert.equal(seller.stats.systemSinks, 0);\\n  assert.equal(seller.stats.marketServiceFees, 1.6);');",
   "replaceAll('scripts/verify-document-authority.mjs', \"'世界状态版本：`16`'\", \"'世界状态版本：`17`'\");",
   "replaceAll('scripts/verify-document-authority.mjs', \"'市场需求模型版本：`10`'\", \"'市场需求模型版本：`11`'\");",
   "replaceAll('scripts/verify-document-authority.mjs', \"content.includes('世界状态版本：16')\", \"content.includes('世界状态版本：17')\");",
