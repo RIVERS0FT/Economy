@@ -17,7 +17,10 @@ const forbidText = (path, text) => {
 for (const path of [
   'src/main.tsx',
   'src/app/LoginPage.tsx',
+  'src/components/visual/FinancialBackdrop.tsx',
+  'src/config/visualAssets.ts',
   'src/styles/auth.css',
+  'src/styles/financial-backdrop.css',
   'src/styles/globals.css',
   'src/styles/card-system.css',
   'src/styles/invitations.css',
@@ -27,16 +30,28 @@ for (const path of [
 ]) requireFile(path);
 
 for (const text of [
-  'AUTH_BACKGROUND_IMAGE_URL',
-  'AUTH_BACKGROUND_IMAGE_960_URL',
-  'upload.wikimedia.org/wikipedia/commons/',
-  'login-image-layer',
-  'login-atmosphere-layer',
+  "import { FinancialBackdrop } from '../components/visual/FinancialBackdrop'",
+  '<FinancialBackdrop variant="auth" priority />',
   'login-content-layer',
-  '<picture>',
-  'fetchPriority="high"',
-  'aria-hidden="true"',
 ]) requireText('src/app/LoginPage.tsx', text);
+
+for (const text of [
+  'FINANCIAL_BACKGROUND_IMAGE_URL',
+  'FINANCIAL_BACKGROUND_IMAGE_960_URL',
+  'upload.wikimedia.org/wikipedia/commons/',
+  'Carol M. Highsmith',
+]) requireText('src/config/visualAssets.ts', text);
+
+for (const text of [
+  "type FinancialBackdropVariant = 'auth' | 'game'",
+  "variant === 'auth' ? 'login' : 'game'",
+  'financial-backdrop-image',
+  'financial-backdrop-atmosphere',
+  '<picture>',
+  "fetchPriority={priority ? 'high' : 'auto'}",
+  'aria-hidden="true"',
+  'event.currentTarget.hidden = true;',
+]) requireText('src/components/visual/FinancialBackdrop.tsx', text);
 
 for (const text of [
   '.login-shell {',
@@ -69,12 +84,30 @@ for (const text of [
   '.login-image-layer',
   '.login-atmosphere-layer',
   '.login-content-layer',
+  '.game-image-layer',
+  '.game-atmosphere-layer',
 ]) forbidText('src/styles/globals.css', text);
 
 for (const text of [
   '.login-shell',
   '.login-card.panel',
 ]) forbidText('src/styles/card-system.css', text);
+
+for (const text of [
+  'AUTH_BACKGROUND_IMAGE_URL',
+  'AUTH_BACKGROUND_IMAGE_960_URL',
+  'upload.wikimedia.org',
+]) forbidText('src/app/LoginPage.tsx', text);
+
+const backdropImport = "import './styles/financial-backdrop.css';";
+const mainSource = read('src/main.tsx');
+requireText('src/main.tsx', backdropImport);
+const gameLayoutIndex = mainSource.indexOf("import './styles/game-shell-layout.css';");
+const backdropIndex = mainSource.indexOf(backdropImport);
+const glassIndex = mainSource.indexOf("import './styles/liquid-glass-surfaces.css';");
+if (!(gameLayoutIndex >= 0 && backdropIndex > gameLayoutIndex && glassIndex > backdropIndex)) {
+  failures.push('src/main.tsx 必须按 game-shell-layout.css → financial-backdrop.css → liquid-glass-surfaces.css 加载');
+}
 
 const finalStyleOrder = [
   "import './styles/design-system.css';",
@@ -84,7 +117,6 @@ const finalStyleOrder = [
   "import './styles/registration-auth.css';",
   "import './styles/form-controls.css';",
 ];
-const mainSource = read('src/main.tsx');
 for (let index = 0; index < finalStyleOrder.length; index += 1) {
   const current = mainSource.indexOf(finalStyleOrder[index]);
   if (current < 0) {
@@ -93,23 +125,21 @@ for (let index = 0; index < finalStyleOrder.length; index += 1) {
   }
   if (index > 0) {
     const previous = mainSource.indexOf(finalStyleOrder[index - 1]);
-    if (previous >= current) {
-      failures.push(`src/main.tsx 样式顺序错误: ${finalStyleOrder[index - 1]} 必须早于 ${finalStyleOrder[index]}`);
-    }
+    if (previous >= current) failures.push(`src/main.tsx 样式顺序错误: ${finalStyleOrder[index - 1]} 必须早于 ${finalStyleOrder[index]}`);
   }
 }
 
 for (const text of [
-  '未登录入口固定拆分为图片背景、当前深色氛围背景、标语与认证卡片三个层级',
+  '登录、注册与玩家游戏共享三层视觉',
+  '`src/components/visual/FinancialBackdrop.tsx`',
   '`login-image-layer`',
   '`login-atmosphere-layer`',
   '`login-content-layer`',
   'Carol M. Highsmith',
   '不得把整个移动登录页恢复为单张外层面板',
-  '登录外壳、三层背景、品牌区与认证卡片几何最终由 `src/styles/auth.css` 收束',
+  '背景图片和氛围层唯一归属 `src/styles/financial-backdrop.css`',
   '`design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`',
-  '`src/styles/card-system.css` 不得包含 `.login-shell` 或 `.login-card.panel` 映射',
-  '不得改变登录／注册业务流程来适配视觉布局',
+  '不得改变登录、注册或游戏业务流程来适配视觉布局',
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
 
 for (const text of [
