@@ -348,6 +348,8 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 - GitHub Actions 固定使用 Node 24.4.0 构建和测试；根依赖必须使用精确版本并提交 `package-lock.json`，CI 和 Deploy 均启用 `setup-node` 的 npm 下载缓存但仍固定使用 `npm ci`，不得恢复 `latest`、范围依赖或无锁安装。
 - Pull Request 只由 `.github/workflows/ci.yml` 执行完整 `npm run build` 与 Chromium 浏览器测试，不保留第二个重复的 PR Web Build 工作流；同一 PR 的旧 CI 在新提交到达后必须自动取消。
 - `main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行 `npm ci`、`npm run build`、固定 Chromium 安装和 `npm run test:browser`；构建与浏览器回归都成功后才允许上传、安装并执行线上验证。
+- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：每个迁移族只保留最新一份完整 SQLite 快照，最多保留最近 5 个迁移族。部署必须先执行全局备份清理，再判断是否需要创建当前迁移备份；版本已经满足目标时也不得跳过清理。不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态。
+- 创建新迁移备份前，可用空间必须至少覆盖当前数据库完整大小再加 512 MiB 余量；上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。网站、API 和便携 Node 运行时三次同步统一使用 `rsync --delete-before`，先删除将被新发布完整替换的旧文件，降低发布峰值空间。
 - 浏览器运行时测试使用固定 Playwright 版本与 Chromium，至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。
 - 部署中的每个 shell 命令步骤必须把标准输出和标准错误保存到独立临时日志；任一步失败时只把该失败步骤的完整命令输出复制到 `economy-deploy-failure-<run>-<attempt>` Artifact，成功步骤日志不得上传。Artifact 保留 3 天并使用文本高压缩；完整失败输出不得依赖可能被截断的 job log，也不得再为单次构建失败创建临时诊断工作流。
 - 部署工作流只在运行器缺少 `rsync` 时执行 APT 安装，不得每次无条件更新软件包索引。
