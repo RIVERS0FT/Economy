@@ -1,0 +1,57 @@
+name: Apply leaderboard production and activity patch
+
+on:
+  push:
+    branches:
+      - agent/leaderboard-production-activity
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-leaderboard-production-activity
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[leaderboard-patch-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply source and design changes
+        run: |
+          base64 -d .agent/apply_leaderboard_changes.py.gz.b64 | gzip -d > /tmp/apply_leaderboard_changes.py
+          python3 /tmp/apply_leaderboard_changes.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify leaderboard contract
+        run: npm run verify:leaderboards
+
+      - name: Run server tests
+        run: npm run server:test
+
+      - name: Run type checking
+        run: npm run typecheck
+
+      - name: Commit validated source changes
+        run: |
+          rm .agent/apply_leaderboard_changes.py.gz.b64
+          rmdir .agent
+          rm .github/workflows/apply-agent-leaderboard-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "统一生产榜与排行榜同分规则 [leaderboard-patch-applied]"
+          git push origin HEAD
