@@ -1,8 +1,8 @@
 /* liquid-glass-react is the only liquid-glass renderer. This stylesheet owns
- * geometry, sizing, content layout, clipping, minimum contrast and one
- * top-layer structural outline. It must not recreate blur, refraction or
- * chromatic aberration in CSS. Status bars and authentication cards suppress
- * upstream decorative shells. */
+ * geometry, sizing, content layout, clipping, minimum contrast and the
+ * project status-bar outline. It must not recreate blur, refraction or
+ * chromatic aberration in CSS. Status bars suppress upstream decoration;
+ * authentication cards retain the official edge highlights. */
 :root {
   --desktop-asset-bar-height: 76px;
   --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
@@ -111,12 +111,9 @@
   -webkit-backdrop-filter: blur(7.2px) saturate(125%);
 }
 
-.liquid-glass-surface--desktopAuthCard .glass__warp {
-  -webkit-backdrop-filter: blur(7.84px) saturate(118%);
-}
-
+.liquid-glass-surface--desktopAuthCard .glass__warp,
 .liquid-glass-surface--mobileAuthCard .glass__warp {
-  -webkit-backdrop-filter: blur(7.2px) saturate(115%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
 }
 
 .asset-bar > .liquid-glass-surface--desktopStatusBar,
@@ -201,7 +198,11 @@
 }
 
 .liquid-glass-surface--desktopAuthCard > span,
-.liquid-glass-surface--mobileAuthCard > span,
+.liquid-glass-surface--mobileAuthCard > span {
+  display: block !important;
+  visibility: visible !important;
+}
+
 .liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),
 .liquid-glass-surface--mobileAuthCard > div:not(.liquid-glass-surface__effect) {
   display: none !important;
