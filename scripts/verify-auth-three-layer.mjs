@@ -281,7 +281,7 @@ for (const text of [
   "expect(glass.outlineContent).toBe('none')",
   'expect(glass.visibleDirectDecorationSpanCount).toBe(2)',
   'expect(Math.abs(glass.displacementScales[0])).toBe(70)',
-  "toContain('saturate(140%)')",
+  'toMatch(/saturate\\((?:140%|1\\.4)\\)/)',
   'page.mouse.move',
   '.not.toBe(initialEffectTransform)',
   "await expect(email).toHaveValue('kept@example.com')",

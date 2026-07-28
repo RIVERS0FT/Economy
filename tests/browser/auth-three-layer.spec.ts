@@ -184,7 +184,7 @@ test.describe('auth three-layer layout', () => {
       expect(glass.outlineContent).toBe('none');
       expect(glass.outlineZIndex).toBe('auto');
       expect(glass.webkitBackdropFilter).toContain('blur(6px)');
-      expect(glass.webkitBackdropFilter).toContain('saturate(140%)');
+      expect(glass.webkitBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
       expect(glass.surfaceBackground).toBe(glass.sharedContrast);
       expect(glass.contentInsideGlass).toBe(true);
       expect(glass.materialFillCount).toBe(0);
@@ -267,7 +267,7 @@ test.describe('auth three-layer layout', () => {
       expect(loginGlass.contentInsideGlass).toBe(true);
       expect(loginGlass.materialFillCount).toBe(0);
       expect(loginGlass.webkitBackdropFilter).toContain('blur(6px)');
-      expect(loginGlass.webkitBackdropFilter).toContain('saturate(140%)');
+      expect(loginGlass.webkitBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
       expect(loginGlass.directDecorationSpanCount).toBe(2);
       expect(loginGlass.visibleDirectDecorationSpanCount).toBe(2);
       expect(loginGlass.directAuxiliaryDivCount).toBeGreaterThanOrEqual(2);
@@ -313,7 +313,7 @@ test.describe('auth three-layer layout', () => {
       expect(registrationGlass.outlineBorder).toBe('0px');
       expect(registrationGlass.outlineContent).toBe('none');
       expect(registrationGlass.webkitBackdropFilter).toContain('blur(6px)');
-      expect(registrationGlass.webkitBackdropFilter).toContain('saturate(140%)');
+      expect(registrationGlass.webkitBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
       expect(registrationGlass.surfaceBackground).toBe(registrationGlass.sharedContrast);
       expect(registrationGlass.contentInsideGlass).toBe(true);
       expect(registrationGlass.materialFillCount).toBe(0);
