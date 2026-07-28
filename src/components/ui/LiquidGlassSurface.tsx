@@ -107,6 +107,7 @@ export function LiquidGlassSurface({
   layout = 'fixed',
 }: LiquidGlassSurfaceProps) {
   const preset = PRESETS[variant];
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
   const classes = ['liquid-glass-surface', `liquid-glass-surface--${variant}`, className]
@@ -114,18 +115,30 @@ export function LiquidGlassSurface({
     .join(' ');
 
   useLayoutEffect(() => {
-    if (layout !== 'content' || !contentRef.current) return undefined;
+    if (layout !== 'content' || !contentRef.current || !surfaceRef.current) return undefined;
     const contentElement = contentRef.current;
+    const surfaceElement = surfaceRef.current;
     let measurementFrame = 0;
     let glassResizeFrame = 0;
     let previousHeight = -1;
+    let previousSurfaceWidth = -1;
+    let previousSurfaceHeight = -1;
 
     const notifyGlassResize = () => {
+      glassResizeFrame = 0;
+      const surfaceRect = surfaceElement.getBoundingClientRect();
+      const nextWidth = Math.ceil(surfaceRect.width);
+      const nextHeight = Math.ceil(surfaceRect.height);
+      if (nextWidth <= 0 || nextHeight <= 0) return;
+      if (nextWidth === previousSurfaceWidth && nextHeight === previousSurfaceHeight) return;
+      previousSurfaceWidth = nextWidth;
+      previousSurfaceHeight = nextHeight;
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    const scheduleGlassResize = () => {
       if (glassResizeFrame) cancelAnimationFrame(glassResizeFrame);
-      glassResizeFrame = requestAnimationFrame(() => {
-        glassResizeFrame = 0;
-        window.dispatchEvent(new Event('resize'));
-      });
+      glassResizeFrame = requestAnimationFrame(notifyGlassResize);
     };
 
     const measure = () => {
@@ -137,7 +150,6 @@ export function LiquidGlassSurface({
       if (nextHeight <= 0 || nextHeight === previousHeight) return;
       previousHeight = nextHeight;
       setContentHeight(nextHeight);
-      notifyGlassResize();
     };
 
     const scheduleMeasure = () => {
@@ -145,9 +157,19 @@ export function LiquidGlassSurface({
       measurementFrame = requestAnimationFrame(measure);
     };
 
-    measure();
-    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleMeasure);
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver((entries) => {
+      let contentChanged = false;
+      let surfaceChanged = false;
+      for (const entry of entries) {
+        if (entry.target === contentElement) contentChanged = true;
+        if (entry.target === surfaceElement) surfaceChanged = true;
+      }
+      if (contentChanged) scheduleMeasure();
+      if (surfaceChanged) scheduleGlassResize();
+    });
     resizeObserver?.observe(contentElement);
+    resizeObserver?.observe(surfaceElement);
+
     const mutationObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(scheduleMeasure);
     mutationObserver?.observe(contentElement, {
       attributes: true,
@@ -156,6 +178,7 @@ export function LiquidGlassSurface({
       subtree: true,
     });
     window.addEventListener('resize', scheduleMeasure);
+    measure();
 
     return () => {
       if (measurementFrame) cancelAnimationFrame(measurementFrame);
@@ -168,6 +191,7 @@ export function LiquidGlassSurface({
 
   return (
     <div
+      ref={surfaceRef}
       className={classes}
       data-liquid-glass-variant={variant}
       data-liquid-glass-mode={preset.mode}
