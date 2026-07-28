@@ -1,9 +1,13 @@
 name: Diagnose live gzip responses
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/gzip-live-diagnostic
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 permissions:
   contents: write
@@ -15,6 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: agent/gzip-live-diagnostic
           fetch-depth: 0
       - name: Configure SSH
         env:
