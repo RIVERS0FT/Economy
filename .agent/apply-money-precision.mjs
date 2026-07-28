@@ -6,6 +6,11 @@ const encoded = [0, 1, 2, 3]
   .map((index) => readFileSync(`.agent/chunk-${String(index).padStart(2, '0')}.txt`, 'utf8').trim())
   .join('');
 let source = gunzipSync(Buffer.from(encoded, 'base64')).toString('utf8');
+source = source.replace("import { parseMoneyDraft } from './moneyDraft';\n\n", '');
+source = source.replace(
+  '  const normalized = parseMoneyDraft(String(value)) ?? 0;',
+  "  const scaled = value * 100;\n  const tolerance = Number.EPSILON * Math.max(1, Math.abs(scaled)) * 8;\n  const normalized = Number.isFinite(value) ? Math.floor(scaled + tolerance) / 100 : 0;",
+);
 const auctionAnchor = `replace('src/pages/AuctionPage.tsx',
   "min={1}\\n             max={1_000_000_000}\\n             error={parsedStartingBid === null ? '请输入 1～1000000000 的整数。' : undefined}",
   "min={0.01}\\n             max={1_000_000_000}\\n             error={parsedStartingBid === null ? '请输入不低于 0.01 的金额；超过两位小数会向下截断。' : undefined}");`;
