@@ -12,10 +12,11 @@ import {
 import { FactoryIcon } from '../components/icons/GameIcons';
 import { ProductIcon } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { IntegerInput, SelectInput } from '../components/ui/FormControls';
+import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
+import { parseMoneyDraft } from '../utils/moneyDraft';
 import '../styles/auction-card-layers.css';
 
 const MAX_AUCTION_ITEMS = 20;
@@ -182,7 +183,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     ));
   }, [availableOptions]);
   const selectedQuantity = parseAuctionQuantity(quantityInput, selectedOption?.available);
-  const parsedStartingBid = parseIntegerDraft(startingBidInput, { min: 1, max: 1_000_000_000 });
+  const parsedStartingBid = parseMoneyDraft(startingBidInput, { min: 0.01, max: 1_000_000_000 });
   const parsedDurationHours = parseIntegerDraft(durationHoursInput, { min: 1, max: 168 });
   const canAdd = Boolean(selectedOption)
     && selectedQuantity !== null
@@ -219,7 +220,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
 
   function updateStartingBid(value: string) {
     setStartingBidInput(value);
-    const parsed = parseIntegerDraft(value, { min: 1, max: 1_000_000_000 });
+    const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000_000 });
     if (parsed !== null) setStartingBid(parsed);
   }
 
@@ -394,13 +395,13 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
         </div>
 
         <div className="asset-auction-parameters">
-          <IntegerInput
+          <MoneyInput
             label="整包起拍价"
             value={startingBidInput}
             fallbackValue={startingBid}
-            min={1}
+            min={0.01}
             max={1_000_000_000}
-            error={parsedStartingBid === null ? '请输入 1～1000000000 的整数。' : undefined}
+            error={parsedStartingBid === null ? '请输入不低于 0.01 的金额；超过两位小数会向下截断。' : undefined}
             onValueChange={updateStartingBid}
           />
           <IntegerInput
@@ -431,7 +432,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
           <div className="asset-auction-grid">
             {openAuctions.map((auction) => {
               const bidInput = bidAmounts[auction.id] ?? String(auction.minimumBid);
-              const amount = parseIntegerDraft(bidInput, { min: auction.minimumBid, max: 1_000_000_000 });
+              const amount = parseMoneyDraft(bidInput, { min: auction.minimumBid, max: 1_000_000_000 });
               return (
                 <Panel className={`asset-auction-card ${auction.isBundle ? 'asset-auction-bundle' : `asset-auction-${auction.assetKind}`}`} key={auction.id}>
                   <AuctionAssetVisual auction={auction} />
@@ -452,13 +453,13 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                       </div>
                     ) : (
                       <div className="asset-bid-form">
-                        <IntegerInput
+                        <MoneyInput
                           label={<span>整包出价（最低 <CurrencyAmount>{formatCurrency(auction.minimumBid)}</CurrencyAmount>）</span>}
                           value={bidInput}
                           fallbackValue={amount ?? auction.minimumBid}
                           min={auction.minimumBid}
                           max={1_000_000_000}
-                          error={amount === null ? `请输入不低于 ${formatCurrency(auction.minimumBid)} 的整数。` : undefined}
+                          error={amount === null ? `请输入不低于 ${formatCurrency(auction.minimumBid)} 的金额；超过两位小数会向下截断。` : undefined}
                           onValueChange={(value) => setBidAmounts((current) => ({ ...current, [auction.id]: value }))}
                         />
                         <Button disabled={submitting || amount === null} onClick={() => {

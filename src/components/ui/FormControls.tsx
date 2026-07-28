@@ -10,6 +10,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 import { normalizeIntegerDraft, parseIntegerDraft } from '../../utils/integerDraft';
+import { formatMoneyDraft, normalizeMoneyDraft } from '../../utils/moneyDraft';
 
 function classNames(...values: Array<string | number | bigint | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -273,6 +274,71 @@ export function IntegerInput({
           if (event.key === 'Escape') {
             event.preventDefault();
             onValueChange(String(fallbackValue));
+            event.currentTarget.blur();
+          }
+          onKeyDown?.(event);
+        }}
+      />
+    </FormField>
+  );
+}
+
+type MoneyInputProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'value' | 'defaultValue' | 'onChange' | 'min' | 'max'
+> & SharedFieldProps & {
+  value: string;
+  fallbackValue: number;
+  min?: number;
+  max?: number;
+  onValueChange: (value: string) => void;
+};
+
+export function MoneyInput({
+  label,
+  description,
+  error,
+  fieldClassName,
+  className,
+  id,
+  value,
+  fallbackValue,
+  min,
+  max,
+  required,
+  onValueChange,
+  onBlur,
+  onKeyDown,
+  'aria-describedby': ariaDescribedBy,
+  ...props
+}: MoneyInputProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  return (
+    <FormField label={label} htmlFor={inputId} description={description} error={error} required={required} className={fieldClassName}>
+      <input
+        {...props}
+        id={inputId}
+        type="text"
+        inputMode="decimal"
+        required={required}
+        value={value}
+        className={classNames('ui-control', 'ui-control--money', className)}
+        aria-invalid={error ? true : props['aria-invalid']}
+        aria-describedby={mergeDescribedBy(
+          ariaDescribedBy,
+          description ? `${inputId}-description` : undefined,
+          error ? `${inputId}-error` : undefined,
+        )}
+        onChange={(event) => onValueChange(event.target.value)}
+        onBlur={(event) => {
+          onValueChange(normalizeMoneyDraft(event.currentTarget.value, fallbackValue, { min, max }));
+          onBlur?.(event);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            onValueChange(formatMoneyDraft(fallbackValue));
             event.currentTarget.blur();
           }
           onKeyDown?.(event);

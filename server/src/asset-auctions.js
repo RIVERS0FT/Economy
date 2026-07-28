@@ -8,6 +8,7 @@ import {
   validateFacilityAuctionTransferQuantity,
 } from './facility-groups.js';
 import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
+import { floorPlayerMoney, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
 const MAX_BID = 1_000_000_000;
 const MAX_AUCTION_HOURS = 168;
@@ -21,6 +22,9 @@ function result(ok, message) { return { ok, message }; }
 function integer(value, max = Number.MAX_SAFE_INTEGER) {
   const number = Math.floor(Number(value));
   return Number.isFinite(number) && number >= 1 && number <= max ? number : null;
+}
+function money(value, max = MAX_BID) {
+  return normalizePlayerMoneyInput(value, { min: 0.01, max });
 }
 function text(value, max, fallback = '') {
   const normalized = String(value ?? '').trim().replace(/\s+/g, ' ');
@@ -116,8 +120,8 @@ function normalizeAuction(rawAuction, now, items = undefined) {
   if (!auction.id) return null;
   auction.sellerId = integer(auction.sellerId) || 0;
   auction.sellerName = text(auction.sellerName, 64, `玩家 ${auction.sellerId}`);
-  auction.startingBid = integer(auction.startingBid, MAX_BID) || 1;
-  auction.highestBid = auction.highestBid ? integer(auction.highestBid, MAX_BID) : null;
+  auction.startingBid = money(auction.startingBid, MAX_BID) || 0.01;
+  auction.highestBid = auction.highestBid ? money(auction.highestBid, MAX_BID) : null;
   auction.highestBidderId = auction.highestBidderId ? integer(auction.highestBidderId) : null;
   auction.highestBidderName = auction.highestBidderName ? text(auction.highestBidderName, 64) : null;
   auction.createdAt = Number(auction.createdAt || now);
@@ -209,7 +213,7 @@ export function migrateAssetAuctionWorld(world, now = Date.now()) {
   delete world.collectibleAuctions;
   delete world.collectibles;
   delete world.collectibleOwnershipHistory;
-  world.version = 16;
+  world.version = 17;
   return world;
 }
 
@@ -367,7 +371,7 @@ function holdAuctionItems(world, seller, userId, items) {
 }
 
 function createAuction(world, userId, payload, now) {
-  const startingBid = integer(payload.startingBid, MAX_BID);
+  const startingBid = money(payload.startingBid, MAX_BID);
   const durationHours = integer(payload.durationHours, MAX_AUCTION_HOURS);
   const items = normalizeRequestedItems(payload);
   if (!startingBid || !durationHours || !items) return result(false, '拍卖资产包、起拍价或时长无效');
@@ -407,8 +411,8 @@ function placeBid(world, userId, payload, now) {
     return result(false, '拍卖已经结束');
   }
   if (auction.sellerId === userId) return result(false, '卖家不能竞拍自己的资产');
-  const amount = integer(payload.amount, MAX_BID);
-  const minimum = auction.highestBid ? auction.highestBid + 1 : auction.startingBid;
+  const amount = money(payload.amount, MAX_BID);
+  const minimum = auction.highestBid ? (roundInternalMoney(auction.highestBid + 0.01) || auction.highestBid) : auction.startingBid;
   if (!amount || amount < minimum) return result(false, `出价不得低于 ¤${minimum}`);
   const bidder = player(world, userId);
   if (!bidder) return result(false, '玩家不存在');
@@ -493,7 +497,7 @@ function clientAuction(auction, userId) {
     asset,
     isSeller: auction.sellerId === userId,
     isHighestBidder: auction.highestBidderId === userId,
-    minimumBid: auction.highestBid ? auction.highestBid + 1 : auction.startingBid,
+    minimumBid: auction.highestBid ? (roundInternalMoney(auction.highestBid + 0.01) || auction.highestBid) : auction.startingBid,
   };
 }
 

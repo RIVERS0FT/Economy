@@ -14,7 +14,6 @@ function formatAbbreviatedNumber(value: number) {
   ];
   const unit = units.find(({ threshold }) => absolute >= threshold);
   if (!unit) return formatFullNumber(value);
-
   const scaled = value / unit.threshold;
   const maximumFractionDigits = Math.abs(scaled) >= 100 ? 0 : 1;
   return `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits }).format(scaled)}${unit.suffix}`;
@@ -29,7 +28,14 @@ export function formatNumber(value: number) {
 }
 
 export function formatCurrency(value: number) {
-  return formatNumber(value);
+  const scaled = value * 100;
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(scaled)) * 8;
+  const normalized = Number.isFinite(value) ? Math.floor(scaled + tolerance) / 100 : 0;
+  return new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: true,
+  }).format(normalized);
 }
 
 export function formatCompactNumber(value: number) {
@@ -42,19 +48,13 @@ export function formatRank(value: number | null | undefined) {
 
 export function formatTime(value: number) {
   return new Intl.DateTimeFormat('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
   }).format(value);
 }
 
 export function formatDate(value: number) {
   return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(value);
 }
 
@@ -64,14 +64,11 @@ export function formatDuration(ms: number) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-
   if (hours > 0) {
     if (minutes > 0) return `${hours}h ${minutes}m`;
     if (seconds > 0) return `${hours}h ${seconds.toString().padStart(2, '0')}s`;
     return `${hours}h`;
   }
-  if (minutes > 0) {
-    return seconds > 0 ? `${minutes}m ${seconds.toString().padStart(2, '0')}s` : `${minutes}m`;
-  }
+  if (minutes > 0) return seconds > 0 ? `${minutes}m ${seconds.toString().padStart(2, '0')}s` : `${minutes}m`;
   return `${seconds}s`;
 }

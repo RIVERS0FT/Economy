@@ -2,7 +2,7 @@ import type { AssetKind, AssetOrder, OrderSide } from '../types';
 import { orderAssetId, orderKind } from './orderIdentity';
 
 function validOrderPrice(price: number) {
-  return Number.isFinite(price) && Number.isInteger(price) && price >= 1;
+  return Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8;
 }
 
 export function defaultOrderPrice(

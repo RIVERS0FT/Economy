@@ -50,7 +50,7 @@ for (const text of [
   "reason: 'warehouse_full'",
   "reason: 'insufficient_funds'",
   "reason: 'insufficient_input'",
-  'world.version = 16',
+  'world.version = 17',
 ]) requireText('server/src/facility-groups.js', text);
 
 for (const text of [

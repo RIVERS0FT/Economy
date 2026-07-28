@@ -1,3 +1,4 @@
+import { normalizePlayerMoneyInput } from './money.js';
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
@@ -225,7 +226,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 16,
+    version: 17,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
@@ -417,7 +418,7 @@ export function migrateWorld(world, now = Date.now()) {
   for (const group of DEMAND_GROUP_CATALOG) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
-  world.version = 16;
+  world.version = 17;
   return world;
 }
 
@@ -939,7 +940,7 @@ function collectFacility(world, userId, payload, now) {
 function listFacility(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const facility = findOwnedFacility(player, payload.facilityId);
-  const price = normalizePositiveInteger(payload.price);
+  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
   if (!facility) return result(false, '生产设施不存在');
   if (!price) return result(false, '挂牌价格无效');
   if (!['ready', 'paused', 'full', 'insufficient_funds', 'insufficient_input'].includes(facility.status)) {
@@ -1042,7 +1043,7 @@ function placeOrder(world, userId, payload, now) {
   const side = payload.side === 'buy' ? 'buy' : payload.side === 'sell' ? 'sell' : null;
   const productId = PRODUCTS.has(String(payload.productId || 'wheat')) ? String(payload.productId || 'wheat') : null;
   const quantity = normalizePositiveInteger(payload.quantity, ECONOMY_CONSTANTS.maxOrderQuantity);
-  const price = normalizePositiveInteger(payload.price, 1_000_000);
+  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01, max: 1_000_000 });
   if (!side || !productId || !quantity || !price) return result(false, '订单参数无效');
   const openOrders = world.orders.filter((order) => order.ownerId === userId && isOpenOrder(order));
   if (openOrders.length >= ECONOMY_CONSTANTS.maxOpenOrders) return result(false, '未完成订单数量已达上限');

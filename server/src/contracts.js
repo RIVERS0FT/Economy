@@ -4,8 +4,9 @@ import { calculateCumulativeMarketSellFee } from './market-sell-fee.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
+import { ceilPlayerMoney, floorPlayerMoney, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
-export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 2;
+export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 3;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
   10 * 60 * 1000,
   30 * 60 * 1000,
@@ -55,6 +56,10 @@ function positiveInteger(value, max) {
   return Number.isSafeInteger(normalized) && normalized >= 1 && normalized <= max ? normalized : null;
 }
 
+function positiveMoney(value, max) {
+  return normalizePlayerMoneyInput(value, { min: 0.01, max });
+}
+
 function exactAllowedInteger(value, allowed) {
   const normalized = Math.floor(Number(value));
   return Number.isSafeInteger(normalized) && allowed.includes(normalized) ? normalized : null;
@@ -75,14 +80,14 @@ function normalizeStats(player) {
   player.stats.contractDeliveriesCompleted = Math.max(0, Math.floor(Number(player.stats.contractDeliveriesCompleted || 0)));
   player.stats.contractGoodsSupplied = Math.max(0, Math.floor(Number(player.stats.contractGoodsSupplied || 0)));
   player.stats.contractGoodsPurchased = Math.max(0, Math.floor(Number(player.stats.contractGoodsPurchased || 0)));
-  player.stats.contractCreditsPaid = Math.max(0, Math.floor(Number(player.stats.contractCreditsPaid || 0)));
-  player.stats.contractCreditsReceived = Math.max(0, Math.floor(Number(player.stats.contractCreditsReceived || 0)));
+  player.stats.contractCreditsPaid = Math.max(0, floorPlayerMoney(player.stats.contractCreditsPaid || 0) || 0);
+  player.stats.contractCreditsReceived = Math.max(0, floorPlayerMoney(player.stats.contractCreditsReceived || 0) || 0);
   player.stats.contractDefaults = Math.max(0, Math.floor(Number(player.stats.contractDefaults || 0)));
   player.stats.boughtGoods = Math.max(0, Math.floor(Number(player.stats.boughtGoods || 0)));
   player.stats.soldGoods = Math.max(0, Math.floor(Number(player.stats.soldGoods || 0)));
   player.stats.commodityVolume = Math.max(0, Math.floor(Number(player.stats.commodityVolume || 0)));
-  player.stats.marketServiceFees = Math.max(0, Math.floor(Number(player.stats.marketServiceFees || 0)));
-  player.stats.employmentPayments = Math.max(0, Math.floor(Number(player.stats.employmentPayments || 0)));
+  player.stats.marketServiceFees = Math.max(0, floorPlayerMoney(player.stats.marketServiceFees || 0) || 0);
+  player.stats.employmentPayments = Math.max(0, floorPlayerMoney(player.stats.employmentPayments || 0) || 0);
   return player.stats;
 }
 
@@ -103,14 +108,14 @@ function normalizeRenewalProposal(contract, proposal) {
     activatedContractId: proposal.activatedContractId ? String(proposal.activatedContractId) : undefined,
     terms: {
       quantityPerDelivery: Math.max(1, Math.floor(Number(terms.quantityPerDelivery || contract?.quantityPerDelivery || 1))),
-      unitPrice: Math.max(1, Math.floor(Number(terms.unitPrice || contract?.unitPrice || 1))),
+      unitPrice: positiveMoney(terms.unitPrice ?? contract?.unitPrice ?? 1, MAX_UNIT_PRICE) || 0.01,
       deliveryIntervalMs: Number(terms.deliveryIntervalMs || contract?.deliveryIntervalMs || PRODUCTION_CONTRACT_INTERVALS[2]),
       totalDeliveries: Math.max(MIN_DELIVERIES, Math.floor(Number(terms.totalDeliveries || contract?.totalDeliveries || MIN_DELIVERIES))),
       firstDeliveryDelayMs: Math.max(0, Math.floor(Number(terms.firstDeliveryDelayMs || 0))),
     },
-    buyerEscrowCredits: Math.max(0, Math.floor(Number(proposal.buyerEscrowCredits || 0))),
-    buyerBondCredits: Math.max(0, Math.floor(Number(proposal.buyerBondCredits || 0))),
-    supplierBondCredits: Math.max(0, Math.floor(Number(proposal.supplierBondCredits || 0))),
+    buyerEscrowCredits: Math.max(0, floorPlayerMoney(proposal.buyerEscrowCredits || 0) || 0),
+    buyerBondCredits: Math.max(0, floorPlayerMoney(proposal.buyerBondCredits || 0) || 0),
+    supplierBondCredits: Math.max(0, floorPlayerMoney(proposal.supplierBondCredits || 0) || 0),
     supplierReservedQuantity: Math.max(0, Math.floor(Number(proposal.supplierReservedQuantity || 0))),
   };
 }
@@ -128,7 +133,7 @@ function normalizeContract(contract) {
     supplierName: contract?.supplierName ? String(contract.supplierName) : null,
     productId: String(contract?.productId || ''),
     quantityPerDelivery: Math.max(1, Math.floor(Number(contract?.quantityPerDelivery || 1))),
-    unitPrice: Math.max(1, Math.floor(Number(contract?.unitPrice || 1))),
+    unitPrice: positiveMoney(contract?.unitPrice ?? 1, MAX_UNIT_PRICE) || 0.01,
     deliveryIntervalMs: Number(contract?.deliveryIntervalMs || PRODUCTION_CONTRACT_INTERVALS[2]),
     totalDeliveries: Math.max(MIN_DELIVERIES, Math.floor(Number(contract?.totalDeliveries || MIN_DELIVERIES))),
     completedDeliveries: Math.max(0, Math.floor(Number(contract?.completedDeliveries || 0))),
@@ -138,18 +143,18 @@ function normalizeContract(contract) {
     acceptedAt: contract?.acceptedAt === undefined ? undefined : Math.max(0, Number(contract.acceptedAt)),
     nextDueAt: contract?.nextDueAt === null || contract?.nextDueAt === undefined ? null : Math.max(0, Number(contract.nextDueAt)),
     graceEndsAt: contract?.graceEndsAt === undefined ? undefined : Math.max(0, Number(contract.graceEndsAt)),
-    buyerEscrowCredits: Math.max(0, Math.floor(Number(contract?.buyerEscrowCredits || 0))),
+    buyerEscrowCredits: Math.max(0, floorPlayerMoney(contract?.buyerEscrowCredits || 0) || 0),
     supplierReservedQuantity: Math.max(0, Math.floor(Number(contract?.supplierReservedQuantity || 0))),
-    buyerBondCredits: Math.max(0, Math.floor(Number(contract?.buyerBondCredits || 0))),
-    supplierBondCredits: Math.max(0, Math.floor(Number(contract?.supplierBondCredits || 0))),
+    buyerBondCredits: Math.max(0, floorPlayerMoney(contract?.buyerBondCredits || 0) || 0),
+    supplierBondCredits: Math.max(0, floorPlayerMoney(contract?.supplierBondCredits || 0) || 0),
     buyerAutoFund: contract?.buyerAutoFund !== false,
     supplierAutoReserve: contract?.supplierAutoReserve !== false,
     renewalProposal: normalizeRenewalProposal(contract, contract?.renewalProposal),
     renewedFromContractId: contract?.renewedFromContractId ? String(contract.renewedFromContractId) : undefined,
     renewedToContractId: contract?.renewedToContractId ? String(contract.renewedToContractId) : undefined,
     renewalCancellationReason: contract?.renewalCancellationReason ? String(contract.renewalCancellationReason) : undefined,
-    marketSellFeeGross: Math.max(0, Math.floor(Number(contract?.marketSellFeeGross || 0))),
-    marketSellFeeCharged: Math.max(0, Math.floor(Number(contract?.marketSellFeeCharged || 0))),
+    marketSellFeeGross: Math.max(0, roundInternalMoney(contract?.marketSellFeeGross || 0) || 0),
+    marketSellFeeCharged: Math.max(0, roundInternalMoney(contract?.marketSellFeeCharged || 0) || 0),
     status: ['open', 'active', 'completed', 'cancelled', 'terminated', 'expired'].includes(contract?.status)
       ? contract.status
       : 'open',
@@ -187,36 +192,36 @@ function hasWarehouseCapacity(world, buyer, quantity, exceptContractId, runtimeI
 }
 
 function batchGross(contract) {
-  const gross = contract.quantityPerDelivery * contract.unitPrice;
-  return Number.isSafeInteger(gross) && gross > 0 ? gross : null;
+  const gross = roundInternalMoney(contract.quantityPerDelivery * contract.unitPrice);
+  return gross !== null && gross > 0 ? gross : null;
 }
 
 function bondFor(gross) {
-  const bond = Math.ceil(gross * BOND_RATE_BPS / BASIS_POINTS);
-  return Number.isSafeInteger(bond) && bond > 0 ? bond : null;
+  const bond = ceilPlayerMoney(gross * BOND_RATE_BPS / BASIS_POINTS);
+  return bond !== null && bond > 0 ? bond : null;
 }
 
 function renewalGross(proposal) {
-  const gross = Number(proposal?.terms?.quantityPerDelivery || 0) * Number(proposal?.terms?.unitPrice || 0);
-  return Number.isSafeInteger(gross) && gross > 0 ? gross : null;
+  const gross = roundInternalMoney(Number(proposal?.terms?.quantityPerDelivery || 0) * Number(proposal?.terms?.unitPrice || 0));
+  return gross !== null && gross > 0 ? gross : null;
 }
 
 function renewalTerms(payload) {
   const quantityPerDelivery = positiveInteger(payload.quantityPerDelivery, MAX_QUANTITY);
-  const unitPrice = positiveInteger(payload.unitPrice, MAX_UNIT_PRICE);
+  const unitPrice = positiveMoney(payload.unitPrice, MAX_UNIT_PRICE);
   const deliveryIntervalMs = exactAllowedInteger(payload.deliveryIntervalMs, PRODUCTION_CONTRACT_INTERVALS);
   const totalDeliveries = positiveInteger(payload.totalDeliveries, MAX_DELIVERIES);
   const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);
   if (!quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) return null;
   if (totalDeliveries < MIN_DELIVERIES) return null;
   const gross = quantityPerDelivery * unitPrice;
-  if (!Number.isSafeInteger(gross) || gross <= 0) return null;
+  if (!Number.isFinite(gross) || gross <= 0) return null;
   return { quantityPerDelivery, unitPrice, deliveryIntervalMs, totalDeliveries, firstDeliveryDelayMs };
 }
 
 function consumeFrozenCredits(player, amount) {
-  const normalized = Math.max(0, Math.floor(Number(amount || 0)));
-  const consumed = Math.min(normalized, Math.max(0, Math.floor(Number(player.frozenCredits || 0))));
+  const normalized = Math.max(0, floorPlayerMoney(amount || 0) || 0);
+  const consumed = Math.min(normalized, Math.max(0, floorPlayerMoney(player.frozenCredits || 0) || 0));
   player.frozenCredits = Math.max(0, Number(player.frozenCredits || 0) - consumed);
   return consumed;
 }
@@ -434,14 +439,14 @@ function settleBatch(world, contract, buyer, supplier, now, runtimeIndex) {
 
     const previousGross = contract.marketSellFeeGross;
     const previousFee = contract.marketSellFeeCharged;
-    const nextGross = previousGross + gross;
+    const nextGross = roundInternalMoney(previousGross + gross) || 0;
     const nextFee = calculateCumulativeMarketSellFee(nextGross);
-    const fee = Math.max(0, nextFee - previousFee);
-    const net = gross - fee;
+    const fee = Math.max(0, roundInternalMoney(nextFee - previousFee) || 0);
+    const net = Math.max(0, roundInternalMoney(gross - fee) || 0);
     contract.marketSellFeeGross = nextGross;
     contract.marketSellFeeCharged = nextFee;
 
-    supplier.credits += net;
+    supplier.credits = roundInternalMoney(supplier.credits + net) || 0;
     if (fee > 0) creditPopulationEmployment(world, fee, 'marketService');
 
     const buyerStats = normalizeStats(buyer);
@@ -604,7 +609,7 @@ function createContract(world, user, payload, now, runtimeIndex) {
   const publisherRole = payload.publisherRole === 'supplier' ? 'supplier' : payload.publisherRole === 'buyer' ? 'buyer' : null;
   const productId = PRODUCT_IDS.has(String(payload.productId || '')) ? String(payload.productId) : null;
   const quantityPerDelivery = positiveInteger(payload.quantityPerDelivery, MAX_QUANTITY);
-  const unitPrice = positiveInteger(payload.unitPrice, MAX_UNIT_PRICE);
+  const unitPrice = positiveMoney(payload.unitPrice, MAX_UNIT_PRICE);
   const deliveryIntervalMs = exactAllowedInteger(payload.deliveryIntervalMs, PRODUCTION_CONTRACT_INTERVALS);
   const totalDeliveries = positiveInteger(payload.totalDeliveries, MAX_DELIVERIES);
   const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);
@@ -612,8 +617,8 @@ function createContract(world, user, payload, now, runtimeIndex) {
     return result(false, '合同参数无效');
   }
   if (totalDeliveries < MIN_DELIVERIES) return result(false, `合同至少需要 ${MIN_DELIVERIES} 批交付`);
-  const gross = quantityPerDelivery * unitPrice;
-  if (!Number.isSafeInteger(gross)) return result(false, '单批货款超出安全范围');
+  const gross = roundInternalMoney(quantityPerDelivery * unitPrice);
+  if (!Number.isFinite(gross)) return result(false, '单批货款超出安全范围');
   if (runtimeIndex.openCountForPublisher(user.id) >= MAX_OPEN_CONTRACTS_PER_PLAYER) return result(false, '公开合同数量已达上限');
 
   const publisher = playerFor(world, user.id);

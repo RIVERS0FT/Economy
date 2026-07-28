@@ -65,5 +65,5 @@ test('世界保存前清算玩家尾差且宝石保持整数', () => {
   assert.equal(world.players[1].gems, 4);
   assert.equal(world.players[1].bankAccount.depositInterestCarryMicros, 0);
   assert.equal(world.bank.interestPoolMicros, 17);
-  assert.equal(world.moneyPrecision.roundingReserveMicros, 25000);
+  assert.equal(world.moneyPrecision.roundingReserveMicros, 24000);
 });
