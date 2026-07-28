@@ -1,0 +1,1 @@
+scripts/test_configure_economy_nginx.py: expected one match, found 2: '        self.assertIn("gzip_types application/json;", updated)\n        self.assertEqual(nginx.replace_or_insert(updated), updated)\n'
