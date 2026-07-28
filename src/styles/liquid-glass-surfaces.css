@@ -200,10 +200,10 @@
   opacity: 0 !important;
 }
 
-.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__effect > span,
-.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__effect > span,
-.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__effect > div:not(.glass),
-.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__effect > div:not(.glass) {
+.liquid-glass-surface--desktopAuthCard > span,
+.liquid-glass-surface--mobileAuthCard > span,
+.liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),
+.liquid-glass-surface--mobileAuthCard > div:not(.liquid-glass-surface__effect) {
   display: none !important;
   opacity: 0 !important;
 }
