@@ -176,7 +176,7 @@ test('market order form explains why an order cannot be submitted', async ({ pag
   await page.setViewportSize({ width: 1400, height: 900 });
 
   await page.goto('market-runtime-test.html?scenario=funds-empty');
-  await expect(page.getByRole('status')).toHaveText('可用资金不足，当前价格至少需要 2。');
+  await expect(page.getByRole('status')).toHaveText('可用资金不足，当前价格至少需要 2.00。');
   await expect(page.getByRole('spinbutton', { name: '数量' })).toBeDisabled();
   await expect(page.getByRole('button', { name: '提交小麦买单' })).toBeDisabled();
 
@@ -404,8 +404,8 @@ test('market order book aggregates same-price orders into one price level', asyn
   await expect(bidLevels).toHaveCount(1);
   await expect(askLevels).toHaveAttribute('data-order-count', '2');
   await expect(bidLevels).toHaveAttribute('data-order-count', '5');
-  await expect(askLevels).toHaveAttribute('aria-label', '卖盘，价格 13，合计剩余 4，包含 2 笔订单');
-  await expect(bidLevels).toHaveAttribute('aria-label', '买盘，价格 2，合计剩余 5，包含 5 笔订单');
+  await expect(askLevels).toHaveAttribute('aria-label', '卖盘，价格 13.00，合计剩余 4，包含 2 笔订单');
+  await expect(bidLevels).toHaveAttribute('aria-label', '买盘，价格 2.00，合计剩余 5，包含 5 笔订单');
   expect(pageErrors).toEqual([]);
 });
 
