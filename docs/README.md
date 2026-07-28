@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-07-27
+> 更新时间：2026-07-28
 > 客户端状态版本：20
 > 世界状态版本：17
 
@@ -22,13 +22,13 @@
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单与合同采购预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、银行资产总览与存贷款、商品／工厂资产拍卖、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
-| `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉与旧接口退役 |
+| `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉、认证卡片几何与旧接口退役 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` | 服务器绝对截止时间、状态响应 `serverNow`、共享单调服务器时钟、本地资格倒计时、权威状态转换倒计时、到期立即刷新、每秒确认与统一注册表 |
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家端一级卡片外层内边距令牌、共享组件语义、加载顺序、页面 CSS 边界和贴边内容例外 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、签到日历、短列表滚动和浏览器几何回归 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
-| `LIQUID_GLASS_CHROME_DESIGN.md` | 游戏与管理员共享桌面外壳、统一布局沟槽、侧栏与悬浮工作栏几何、桌面贴边页面滚动条、移动工作区与 Overlay、登录态根视口下拉刷新边界、移动操作结果通知、移动底栏和液态玻璃材质 |
+| `LIQUID_GLASS_CHROME_DESIGN.md` | 认证卡片、游戏与管理员共享桌面外壳、统一布局沟槽、侧栏与悬浮工作栏几何、桌面贴边页面滚动条、移动工作区与 Overlay、登录态根视口下拉刷新边界、移动操作结果通知、移动底栏和唯一液态玻璃材质 |
 | `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、银行事务与结息调度、每日签到、长期合同事务、追加式 SQLite 合同审计与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器仅保留匿名逐笔成交所需的最小订单快照、v6 迁移、清除语义与银行权威流水边界 |
 | `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、商品／工厂单项与捆绑资产包拍卖、世界 15 删除迁移、封禁复核、管理员权限、四分区后台范围与运营控制台编排 |
@@ -91,3 +91,4 @@
 54. 未登录入口的图片背景、深色氛围背景、标语与认证卡片三层结构唯一归属 `REGISTRATION_INVITE_FLOW_DESIGN.md`；通用表单与颜色令牌继续归 `UI_DESIGN_SYSTEM.md`，认证行为继续归页面与服务器文档。实现必须同步 `LoginPage.tsx`、`auth.css`、`card-system.css`、`scripts/verify-auth-three-layer.mjs` 与 `tests/browser/auth-three-layer.spec.ts`，不得恢复移动端整页外层面板、共享卡片层登录几何映射、第四个全局背景层或改变登录／注册业务流程。
 
 45. 普通货币精度与玩家结算属于跨模块强制规则：玩家输入和玩家账本最多两位小数、服务器计算最多六位小数、负数按数轴向下截断、尾差进入精度准备金、宝石保持整数。必须同步更新产品、订单簿、产业、服务器、页面、UI、商店、管理员、本地活动、根 README、测试和 `scripts/verify-money-precision.mjs`。
+55. 认证卡片必须使用 `AuthCardSurface` 与 `LiquidGlassSurface` 的 `desktopAuthCard`／`mobileAuthCard` 预设，任一时刻只允许一个内容自适应玻璃实例；卡片几何归 `REGISTRATION_INVITE_FLOW_DESIGN.md`，材质参数归 `LIQUID_GLASS_CHROME_DESIGN.md`。不得在 `auth.css` 恢复手写 `backdrop-filter`、玻璃渐变、材质描边、`.panel`、固定高度或内部滚动区；必须同步两份权威文档、`scripts/verify-auth-three-layer.mjs`、`scripts/verify-liquid-glass-chrome.mjs` 与认证浏览器回归。
