@@ -23,9 +23,24 @@ jobs:
           fetch-depth: 0
       - name: Apply compression rules
         run: |
-          set -euo pipefail
-          python3 .agent/apply-static-transfer.py
+          set -uo pipefail
+          set +e
+          python3 .agent/apply-static-transfer.py > /tmp/static-transfer-apply.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/static-transfer-apply.log .agent/static-transfer-failure.log
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .agent/static-transfer-failure.log
+            git commit -m "记录静态压缩应用失败位置"
+            git push origin HEAD:agent/optimize-static-transfer
+            cat /tmp/static-transfer-apply.log
+            exit "$status"
+          fi
+          cat /tmp/static-transfer-apply.log
           rm -f .agent/apply-static-transfer.py
+          rm -f .agent/static-transfer-failure.log
           rm -f .github/workflows/agent-apply-static-transfer.yml
           rmdir .agent 2>/dev/null || true
           git diff --check
