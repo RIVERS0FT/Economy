@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EconomyStore } from '../src/storage.js';
 import { EconomyStore as RuntimeEconomyStore } from '../src/runtime-store.js';
+import { ECONOMIC_EVENT_EPOCH_MS } from '../src/economic-events.js';
+import { createPartitionedStateDelivery } from '../src/state-partitions.js';
 
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
+const bob = { id: 2, email: 'bob@example.com', name: 'Bob', role: 'user' };
 
 function persistedWorld(store) {
   return store.database.prepare(
@@ -114,6 +117,71 @@ test('scheduled production polling always uses the revision fast path until the 
     const changed = store.getStateSnapshot(alice, initial.revision, now + 6 * 60 * 1_000 + 1);
     assert.equal(changed.unchanged, false);
     assert.equal(changed.revision, scheduledRevision);
+  } finally {
+    store.close();
+  }
+});
+
+test('same economic event window keeps the market revision stable while serverNow advances', () => {
+  const store = new RuntimeEconomyStore(':memory:');
+  try {
+    const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
+    const first = createPartitionedStateDelivery(
+      store.getStateSnapshot(alice, undefined, now),
+      {},
+      now,
+    );
+    const second = createPartitionedStateDelivery(
+      store.getStateSnapshot(alice, undefined, now + 1),
+      first.partitionRevisions,
+      now + 1,
+    );
+
+    assert.equal(first.serverNow, now);
+    assert.equal(second.serverNow, now + 1);
+    assert.equal(second.partitionRevisions.market, first.partitionRevisions.market);
+    assert.equal(second.patches.market, undefined);
+    assert.equal('visibleUntil' in first.patches.market.economicCalendar, false);
+  } finally {
+    store.close();
+  }
+});
+
+test('another player work action does not send an unrelated viewer a full market partition', () => {
+  const store = new RuntimeEconomyStore(':memory:');
+  try {
+    const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
+    store.getStateSnapshot(alice, undefined, now);
+    store.getStateSnapshot(bob, undefined, now + 1);
+    const baseline = createPartitionedStateDelivery(
+      store.getStateSnapshot(alice, undefined, now + 2),
+      {},
+      now + 2,
+    );
+
+    assert.ok(baseline.patches.leaderboard.leaderboards);
+    assert.equal(baseline.patches.player.stats.leaderboards, undefined);
+    assert.equal(baseline.patches.leaderboard.leaderboards.generatedAt, undefined);
+    assert.ok(baseline.patches.leaderboard.leaderboard.every((entry) => entry.updatedAt === undefined));
+
+    const action = store.apply(bob, {
+      action: 'work',
+      payload: {},
+      requestKey: 'state-poll-bob-work-1',
+      method: 'POST',
+      path: '/api/game/work',
+    }, now + 100);
+    const changed = createPartitionedStateDelivery(
+      store.getStateSnapshot(alice, baseline.revision, now + 101),
+      baseline.partitionRevisions,
+      now + 101,
+    );
+
+    assert.equal(changed.revision, action.revision);
+    assert.equal(changed.partitionRevisions.market, baseline.partitionRevisions.market);
+    assert.equal(changed.patches.market, undefined);
+    assert.ok(changed.patches.leaderboard?.leaderboards);
+    assert.equal(changed.patches.leaderboard.leaderboards.generatedAt, undefined);
   } finally {
     store.close();
   }

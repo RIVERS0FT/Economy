@@ -123,9 +123,8 @@ export function createEconomicCalendarClientState(now = Date.now()) {
       productIds: [...event.template.productIds],
     }));
   return {
-    version: 1,
+    version: 2,
     timeZone: 'Asia/Shanghai',
-    visibleUntil,
     events,
   };
 }
@@ -160,7 +159,7 @@ export function nextEconomicEventDeadline(now = Date.now()) {
   const normalizedNow = Math.max(0, Number(now) || 0);
   let next = null;
   for (const event of nearbyEvents(normalizedNow, 4, 6)) {
-    for (const candidate of [event.startsAt - VISIBLE_WINDOW_MS, event.startsAt, event.endsAt]) {
+    for (const candidate of [event.startsAt, event.endsAt]) {
       if (candidate <= normalizedNow) continue;
       if (next === null || candidate < next) next = candidate;
     }

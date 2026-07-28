@@ -23,7 +23,7 @@ const MARKET_KEYS = new Set([
 ]);
 const AUCTION_KEYS = new Set(['assetAuctions']);
 const CONTRACT_KEYS = new Set(['productionContracts', 'productionContractSummary']);
-const LEADERBOARD_KEYS = new Set(['leaderboard']);
+const LEADERBOARD_KEYS = new Set(['leaderboard', 'leaderboards']);
 const REVISION_TOKEN = /^[A-Za-z0-9_-]{8,64}$/;
 
 function partitionNameForKey(key) {

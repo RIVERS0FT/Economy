@@ -26,6 +26,9 @@ const paths = {
   production: 'src/pages/ProductionPage.tsx',
   overview: 'src/pages/OverviewPage.tsx',
   auction: 'src/pages/AuctionPage.tsx',
+  economicEvents: 'server/src/economic-events.js',
+  runtimeStore: 'server/src/runtime-store.js',
+  statePartitions: 'server/src/state-partitions.js',
   design: 'docs/AUTHORITATIVE_COUNTDOWN_DESIGN.md',
   docsIndex: 'docs/README.md',
   package: 'package.json',
@@ -113,6 +116,24 @@ if (failures.length === 0) {
   ]) requireText(paths.auction, text);
 
   for (const text of [
+    'version: 2',
+    'const visibleUntil = normalizedNow + VISIBLE_WINDOW_MS',
+    'for (const candidate of [event.startsAt, event.endsAt])',
+  ]) requireText(paths.economicEvents, text);
+  forbidText(paths.economicEvents, 'visibleUntil,\n    events');
+  forbidText(paths.economicEvents, 'event.startsAt - VISIBLE_WINDOW_MS');
+
+  for (const text of [
+    'function stableLegacyLeaderboard(entries)',
+    'const { updatedAt: _updatedAt, ...stableEntry } = entry;',
+    'function stableRankedLeaderboards(value)',
+    'const { generatedAt: _generatedAt, ...stableValue } = value;',
+    'delete stats.leaderboards;',
+    'stableState.leaderboards = leaderboards;',
+  ]) requireText(paths.runtimeStore, text);
+  requireText(paths.statePartitions, "const LEADERBOARD_KEYS = new Set(['leaderboard', 'leaderboards'])");
+
+  for (const text of [
     '本地资格倒计时',
     '权威状态转换倒计时',
     '`serverNow`',
@@ -126,6 +147,9 @@ if (failures.length === 0) {
     '从 11 增加到 12',
     '施工卡固定在归零后显示“确认完工中…”',
     '普通状态读取超时为 8 秒',
+    '同一事件可见窗口内连续请求必须产生相同的 `market` 分区哈希',
+    '按请求时刻生成的榜单 `generatedAt` 和逐行 `updatedAt` 不得进入状态分区',
+    '四榜不得继续嵌入玩家 `stats`',
     '`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`',
   ]) requireText(paths.design, text);
 
@@ -134,6 +158,7 @@ if (failures.length === 0) {
     '所有可见倒计时必须先区分本地资格到期与服务器权威状态转换',
     '共享单调服务器时钟',
     '每个返回分区内部都是完整快照',
+    '状态版本 22 固定稳定分区时间字段',
     '`scripts/verify-authoritative-countdowns.mjs`',
   ]) requireText(paths.docsIndex, text);
 
@@ -160,4 +185,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，轮询不得重置工作冷却；权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认，状态分区使用完整快照替换。');
+console.log('权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，market 与排行榜分区不携带请求时刻字段；权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认，状态分区使用完整快照替换。');

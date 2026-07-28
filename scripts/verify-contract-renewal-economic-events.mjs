@@ -23,11 +23,13 @@ for (const token of [
   'renewedToContractId',
   'renewalProposal',
 ]) assert.ok(contracts.includes(token), `contracts.js missing ${token}`);
-for (const token of ['/renewal\\/(propose|accept|reject|revoke)', 'proposeProductionContractRenewal']) {
+for (const token of [String.raw`/renewal\/(propose|accept|reject|revoke)`, 'proposeProductionContractRenewal']) {
   assert.ok(routes.includes(token), `game-routes.js missing ${token}`);
 }
 assert.ok(runtimeStore.includes('createEconomicCalendarClientState(now)'), 'state snapshot must include economic calendar');
+assert.ok(runtimeStore.includes('createStablePartitionClientState(snapshot.state)'), 'state snapshot must stabilize partition projections');
 assert.ok(statePartitions.includes("'economicCalendar'"), 'economic calendar must stay in the existing market delivery partition');
+assert.ok(statePartitions.includes("['leaderboard', 'leaderboards']"), 'ranked leaderboards must stay in the leaderboard delivery partition');
 assert.ok(overview.includes('公开经济事件日历'), 'overview must own the public economic calendar');
 assert.ok(overview.includes('未来 7 天'), 'overview must limit the visible calendar to seven days');
 assert.ok(!read('src/pages/MarketPage.tsx').includes('公开经济事件日历'), 'market page must not own the economic calendar');
@@ -38,7 +40,10 @@ assert.ok(productDesign.includes('直接／派生预算'), 'product design must 
 
 const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
 const calendar = createEconomicCalendarClientState(now);
-assert.equal(calendar.visibleUntil - now, 7 * 24 * 60 * 60 * 1000);
+assert.deepEqual(calendar, createEconomicCalendarClientState(now + 1));
+assert.equal(calendar.version, 2);
+assert.equal('visibleUntil' in calendar, false);
+assert.ok(calendar.events.every((event) => event.endsAt > now && event.startsAt <= now + 7 * 24 * 60 * 60 * 1000));
 const shares = economicEventClassShares('basic', 'food', {
   staples: 0.5,
   protein: 0.25,

@@ -25,7 +25,6 @@ export interface RankedLeaderboardBoard {
 }
 
 export interface RankedLeaderboardsState {
-  generatedAt?: number;
   period: {
     key: string;
     startsAt: number;
@@ -48,5 +47,5 @@ type EconomyStatsWithLeaderboards = EconomyStats & {
 };
 
 export function leaderboardsFromGame(game: EconomyState) {
-  return (game.stats as EconomyStatsWithLeaderboards).leaderboards;
+  return game.leaderboards ?? (game.stats as EconomyStatsWithLeaderboards).leaderboards;
 }
