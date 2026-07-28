@@ -4,12 +4,12 @@ path = Path('scripts/configure-economy-nginx.py')
 text = path.read_text(encoding='utf-8')
 replacements = [
     (
-        r'rf"\\blocation\\s+(?:(?:\\^~|=)\\s+)?{re.escape(location_path)}\\s*\\{{",',
-        r'rf"\blocation\s+(?:(?:\^~|=)\s+)?{re.escape(location_path)}\s*\{{",',
+        r'rf"\\blocation\\s+(?:(?:\\^~|=)\\s+)?{re.escape(location_path)}\\s*\\{{",'.replace('\\"', '"'),
+        r'rf"\blocation\s+(?:(?:\^~|=)\s+)?{re.escape(location_path)}\s*\{{",'.replace('\\"', '"'),
     ),
     (
-        r"r'(?im)^\\s*add_header\\s+Vary\\s+\"?Accept-Encoding\"?\\s+always\\s*;\\s*$'",
-        r"r'(?im)^\s*add_header\s+Vary\s+\"?Accept-Encoding\"?\s+always\s*;\s*$'",
+        r'''r'(?im)^\\s*add_header\\s+Vary\\s+"?Accept-Encoding"?\\s+always\\s*;\\s*$' ''`.strip().replace('`', ''),
+        r'''r'(?im)^\s*add_header\s+Vary\s+"?Accept-Encoding"?\s+always\s*;\s*$' ''`.strip().replace('`', ''),
     ),
     (r'block.rfind("\\n", 0, closing)', r'block.rfind("\n", 0, closing)'),
     (r're.match(r"[ \\t]*",', r're.match(r"[ \t]*",'),
