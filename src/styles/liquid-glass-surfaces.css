@@ -172,9 +172,7 @@
 }
 
 .liquid-glass-surface--desktopStatusBar::after,
-.liquid-glass-surface--mobileStatusBar::after,
-.liquid-glass-surface--desktopAuthCard::after,
-.liquid-glass-surface--mobileAuthCard::after {
+.liquid-glass-surface--mobileStatusBar::after {
   content: "";
   position: absolute;
   z-index: 2;
@@ -183,6 +181,11 @@
   border: 1px solid var(--liquid-glass-structure-border);
   border-radius: inherit;
   pointer-events: none;
+}
+
+.liquid-glass-surface--desktopAuthCard::after,
+.liquid-glass-surface--mobileAuthCard::after {
+  content: none;
 }
 
 .liquid-glass-surface--desktopStatusBar > div:not(.liquid-glass-surface__effect),

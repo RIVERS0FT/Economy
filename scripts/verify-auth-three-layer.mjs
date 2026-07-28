@@ -149,8 +149,9 @@ for (const text of [
   '-webkit-backdrop-filter: blur(7.2px) saturate(115%);',
   '.liquid-glass-surface--desktopStatusBar,\n.liquid-glass-surface--mobileStatusBar,\n.liquid-glass-surface--mobileNavigation,\n.liquid-glass-surface--desktopAuthCard,\n.liquid-glass-surface--mobileAuthCard {',
   'background: var(--liquid-glass-contrast);',
-  '.liquid-glass-surface--desktopAuthCard::after,',
-  '.liquid-glass-surface--mobileAuthCard::after {',
+  '.liquid-glass-surface--desktopStatusBar::after,\n.liquid-glass-surface--mobileStatusBar::after {',
+  '.liquid-glass-surface--desktopAuthCard::after,\n.liquid-glass-surface--mobileAuthCard::after {',
+  'content: none;',
   'background: var(--liquid-glass-auth-fallback);',
 ]) requireText('src/styles/liquid-glass-surfaces.css', text);
 for (const text of [
@@ -218,6 +219,7 @@ for (const text of [
   '不得通过 revision 或 React `key` 重建认证内容',
   '统一使用 `--liquid-glass-contrast`',
   '不得再创建 `.liquid-glass-surface__material-fill`',
+  '认证卡片不得绘制项目结构描边',
   '不得在 `auth.css` 手写另一套 `backdrop-filter`',
   '注册内容较高时由文档视口纵向滚动',
   'Carol M. Highsmith',
@@ -259,6 +261,7 @@ for (const text of [
   'expect(glass.surfaceBackground).toBe(glass.sharedContrast)',
   'expect(glass.contentInsideGlass).toBe(true)',
   'expect(glass.materialFillCount).toBe(0)',
+  "expect(glass.outlineContent).toBe('none')",
   "await expect(email).toHaveValue('kept@example.com')",
 ]) requireText('tests/browser/auth-three-layer.spec.ts', text);
 
@@ -267,5 +270,5 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log('登录三层结构、认证内容层、状态栏同源染色与表单状态保持验证通过。');
+  console.log('登录三层结构、认证内容层、状态栏同源染色、无认证外框与表单状态保持验证通过。');
 }

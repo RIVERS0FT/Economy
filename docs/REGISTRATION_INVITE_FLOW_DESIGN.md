@@ -30,9 +30,11 @@
 
 认证卡片必须使用 `src/components/auth/AuthCardSurface.tsx` 包装，并通过统一 `LiquidGlassSurface` 的 `desktopAuthCard`／`mobileAuthCard` 预设渲染。认证卡片任一时刻只能存在一个玻璃实例，`720px` 断点只允许在原位置切换预设，不得同时挂载桌面和移动卡片后用 CSS 隐藏。认证卡片继续使用 `layout="content"` 的自然内容高度，但真实登录／注册内容必须与状态栏相同，位于第三方 `.glass` 内的 `.liquid-glass-surface__content`，不得再作为玻璃效果外部的兄弟层。统一适配层使用一个 `ResizeObserver` 测量该真实内容并同步宿主高度，尺寸变化后通过窗口 resize 通知上游玻璃更新几何；不得通过 revision 或 React `key` 重建认证内容。登录、注册、邀请码、验证码、错误与状态提示变化以及 `720px` 断点切换都不得清空原生未受控表单值。
 
-认证卡片的外层宽度、桌面／移动对齐、`24px`／`40px` 圆角和内部 `32px`／`20px` 留白继续由 `src/styles/auth.css` 负责；液态玻璃参数、回退底色、单层结构描边、上游装饰隐藏和阴影只归 `src/styles/liquid-glass-surfaces.css`。认证卡片与桌面／移动状态栏统一把低密度透明染色放在 `.liquid-glass-surface` 宿主，并统一使用 `--liquid-glass-contrast`；不得再创建 `.liquid-glass-surface__material-fill` 或认证专用支持环境染色变量。不支持 `backdrop-filter` 时认证宿主改用 `--liquid-glass-auth-fallback`。不得在 `auth.css` 手写另一套 `backdrop-filter`、玻璃渐变、材质描边或 `.login-card.panel` 映射。输入框继续使用不透明深色控件与自动填充覆盖，确保密码、验证码、错误和提示文字保持稳定对比度。
+认证卡片的外层宽度、桌面／移动对齐、`24px`／`40px` 圆角和内部 `32px`／`20px` 留白继续由 `src/styles/auth.css` 负责；液态玻璃参数、回退底色、状态栏单层结构描边、认证卡片无项目结构描边、上游装饰隐藏和阴影只归 `src/styles/liquid-glass-surfaces.css`。认证卡片与桌面／移动状态栏统一把低密度透明染色放在 `.liquid-glass-surface` 宿主，并统一使用 `--liquid-glass-contrast`；不得再创建 `.liquid-glass-surface__material-fill` 或认证专用支持环境染色变量。不支持 `backdrop-filter` 时认证宿主改用 `--liquid-glass-auth-fallback`。不得在 `auth.css` 手写另一套 `backdrop-filter`、玻璃渐变、材质描边或 `.login-card.panel` 映射。输入框继续使用不透明深色控件与自动填充覆盖，确保密码、验证码、错误和提示文字保持稳定对比度。
 
-移动端只有认证卡片拥有实体轮廓、圆角与玻璃背景；不得把整个移动登录页恢复为单张外层面板，也不得为注册表单创建内部滚动区。注册内容较高时由文档视口纵向滚动，两层背景保持固定，页面不得产生横向溢出。
+认证卡片不得绘制项目结构描边或额外大圆角白色外框，只保留 `liquid-glass-react` 自身的折射边缘、圆角裁切和宿主阴影；桌面与移动状态栏继续保留一条位于内容之上的连续结构描边。
+
+移动端只有认证卡片保留圆角玻璃背景；不得把整个移动登录页恢复为单张外层面板，也不得为注册表单创建内部滚动区。注册内容较高时由文档视口纵向滚动，两层背景保持固定，页面不得产生横向溢出。
 
 玩家游戏背景通过 `SignedInShell` 的可选 `backdrop` 插槽在侧栏之前渲染。管理员页面不得传入玩家摄影背景。移动端 `.mobile-page-overlay` 必须继续先于 `.mobile-chrome-overlay` 绘制，二者及 `.workspace` 不得因为背景改造增加正 `z-index` 或新的隔离层；状态栏和底栏到页面背景之间必须继续保持开放的 `backdrop-filter` 采样链。玩家加载、连接错误和重试状态也必须使用相同游戏背景，避免登录切换或刷新时闪现纯色页面。
 
@@ -44,4 +46,4 @@
 
 不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在设置页、商店或其他已登录页面恢复邀请码输入、补填、更换或重新绑定入口，也不得根据玩家档案创建时间重新开放 24 小时或其他临时补填窗口。
 
-`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、共享背景组件、`AuthCardSurface`、认证玻璃预设、内容位于 `.glass` 内、状态栏同源宿主染色、内容自适应、移动氛围透明度、图片来源配置、认证层级样式、最终 CSS 加载顺序和浏览器回归入口；`scripts/verify-liquid-glass-chrome.mjs` 必须同时校验登录后 Chrome 与认证卡片的唯一依赖入口、平台预设、内容自适应、单层描边、同源宿主染色和回退材质；`scripts/verify-game-three-layer.mjs` 必须校验玩家背景插槽、图片与氛围层、加载／错误状态、管理员隔离、全局网格关闭、移动 Overlay 顺序和游戏浏览器回归入口。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面、`390 × 844` 移动注册模式、移动氛围渐变／网格／噪点计算值、认证内容位于 `.glass` 内、认证宿主与状态栏同源染色、无 `material-fill`、表单值保持，以及 `721px`／`720px` 断点切换；`tests/browser/game-three-layer.spec.ts` 必须覆盖桌面、移动和图片加载失败回退。不得把背景选择器移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录、注册或游戏业务流程来适配视觉布局。
+`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、共享背景组件、`AuthCardSurface`、认证玻璃预设、内容位于 `.glass` 内、状态栏同源宿主染色、认证卡片无项目结构描边、内容自适应、移动氛围透明度、图片来源配置、认证层级样式、最终 CSS 加载顺序和浏览器回归入口；`scripts/verify-liquid-glass-chrome.mjs` 必须同时校验登录后 Chrome 与认证卡片的唯一依赖入口、平台预设、内容自适应、状态栏单层描边、认证卡片无外框、同源宿主染色和回退材质；`scripts/verify-game-three-layer.mjs` 必须校验玩家背景插槽、图片与氛围层、加载／错误状态、管理员隔离、全局网格关闭、移动 Overlay 顺序和游戏浏览器回归入口。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面、`390 × 844` 移动注册模式、移动氛围渐变／网格／噪点计算值、认证内容位于 `.glass` 内、认证宿主与状态栏同源染色、认证伪元素不生成外框、无 `material-fill`、表单值保持，以及 `721px`／`720px` 断点切换；`tests/browser/game-three-layer.spec.ts` 必须覆盖桌面、移动和图片加载失败回退。不得把背景选择器移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录、注册或游戏业务流程来适配视觉布局。

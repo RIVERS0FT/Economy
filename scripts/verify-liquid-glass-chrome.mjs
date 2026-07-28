@@ -203,8 +203,9 @@ if (failures.length === 0) {
     '-webkit-backdrop-filter: blur(7.2px) saturate(115%);',
     '.liquid-glass-surface--desktopStatusBar,\n.liquid-glass-surface--mobileStatusBar,\n.liquid-glass-surface--mobileNavigation,\n.liquid-glass-surface--desktopAuthCard,\n.liquid-glass-surface--mobileAuthCard {',
     'background: var(--liquid-glass-contrast);',
-    '.liquid-glass-surface--desktopAuthCard::after,',
-    '.liquid-glass-surface--mobileAuthCard::after {',
+    '.liquid-glass-surface--desktopStatusBar::after,\n.liquid-glass-surface--mobileStatusBar::after {',
+    '.liquid-glass-surface--desktopAuthCard::after,\n.liquid-glass-surface--mobileAuthCard::after {',
+    'content: none;',
     'background: var(--liquid-glass-auth-fallback);',
     'border-radius: 24px !important;',
     'border-radius: 40px !important;',
@@ -339,6 +340,7 @@ if (failures.length === 0) {
     '真实认证内容与状态栏内容使用相同的 `.glass` 内部位置',
     '统一使用 `--liquid-glass-contrast`',
     '不得创建 `.liquid-glass-surface__material-fill`',
+    '认证卡片不得绘制项目结构描边',
     '`blur(6px) saturate(120%)`',
     '`blur(7.2px) saturate(125%)`',
     '`blur(7.84px) saturate(118%)`',
@@ -366,6 +368,7 @@ if (failures.length === 0) {
     '认证卡片必须使用 `src/components/auth/AuthCardSurface.tsx`',
     '位于第三方 `.glass` 内的 `.liquid-glass-surface__content`',
     '统一使用 `--liquid-glass-contrast`',
+    '认证卡片不得绘制项目结构描边',
     '不得在 `auth.css` 手写另一套 `backdrop-filter`',
     '注册内容较高时由文档视口纵向滚动',
   ]) requireText(files.authDesign, text);
@@ -385,6 +388,7 @@ if (failures.length === 0) {
     'keeps one authentication glass instance and form values while switching breakpoints',
     'expect(glass.contentInsideGlass).toBe(true)',
     'expect(glass.materialFillCount).toBe(0)',
+    "expect(glass.outlineContent).toBe('none')",
   ]) requireText(files.authBrowser, text);
   for (const text of [
     'admin desktop shares the game shell gutter, command bar and edge scrollbar',
@@ -407,4 +411,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 登录后外壳、认证卡片、同源内容与染色、平台预设、内容自适应、开放背景采样链与安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 登录后外壳、无项目外框认证卡片、同源内容与染色、平台预设、内容自适应、开放背景采样链与安全边缘滚动条验证通过。');

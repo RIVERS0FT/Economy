@@ -1,4 +1,0 @@
-error: patch failed: docs/REGISTRATION_INVITE_FLOW_DESIGN.md:32
-error: docs/REGISTRATION_INVITE_FLOW_DESIGN.md: patch does not apply
-error: patch failed: docs/LIQUID_GLASS_CHROME_DESIGN.md:19
-error: docs/LIQUID_GLASS_CHROME_DESIGN.md: patch does not apply
