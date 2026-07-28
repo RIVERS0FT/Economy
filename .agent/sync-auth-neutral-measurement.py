@@ -56,22 +56,27 @@ replace_once(
     '17. Chromium 中把指针从认证卡片一侧移动到另一侧后，第三方 `.glass` 或直属高光的视觉 `transform` 必须发生变化；登录→注册→登录和 `721px`／`720px` 双向切换后，宿主、效果层、`.glass`、SVG 滤镜与高光的未变换布局尺寸（`clientHeight`／`offsetHeight`）仍保持同步，视觉包围盒允许随官方弹性变换而改变。人工尺寸通知期间必须短暂出现且同步清除 `data-liquid-glass-measuring="true"` 中性测量态，不得把变换后的视觉矩形持久化为玻璃尺寸。',
 )
 
-for script in ['scripts/verify-auth-three-layer.mjs', 'scripts/verify-liquid-glass-chrome.mjs']:
+
+def update_guard(script: str, indent: str) -> None:
     replace_once(
         script,
-        "  'setContentHeight(nextHeight)',\n  \"window.dispatchEvent(new Event('resize'))\",",
-        "  'setContentHeight(nextHeight)',\n  'contentElement.offsetHeight',\n  'surfaceElement.clientWidth',\n  'surfaceElement.clientHeight',\n  \"':scope > .liquid-glass-surface__effect'\",\n  \"effectElement.setAttribute('data-liquid-glass-measuring', 'true')\",\n  \"effectElement.removeAttribute('data-liquid-glass-measuring')\",\n  'void effectElement.offsetHeight',\n  \"window.dispatchEvent(new Event('resize'))\",",
+        f"{indent}'setContentHeight(nextHeight)',\n{indent}\"window.dispatchEvent(new Event('resize'))\",",
+        f"{indent}'setContentHeight(nextHeight)',\n{indent}'contentElement.offsetHeight',\n{indent}'surfaceElement.clientWidth',\n{indent}'surfaceElement.clientHeight',\n{indent}\"':scope > .liquid-glass-surface__effect'\",\n{indent}\"effectElement.setAttribute('data-liquid-glass-measuring', 'true')\",\n{indent}\"effectElement.removeAttribute('data-liquid-glass-measuring')\",\n{indent}'void effectElement.offsetHeight',\n{indent}\"window.dispatchEvent(new Event('resize'))\",",
     )
     replace_once(
         script,
-        "  'liquid-glass-surface__material-fill',",
-        "  'liquid-glass-surface__material-fill',\n  'contentElement.getBoundingClientRect().height',",
+        f"{indent}'liquid-glass-surface__material-fill',",
+        f"{indent}'liquid-glass-surface__material-fill',\n{indent}'contentElement.getBoundingClientRect().height',",
     )
     replace_once(
         script,
-        "  'height: auto !important;',",
-        "  'height: auto !important;',\n  '.liquid-glass-surface__effect[data-liquid-glass-measuring=\\\"true\\\"] {',\n  'transform: translate(-50%, -50%) scale(1) !important;',\n  'transition: none !important;',",
+        f"{indent}'height: auto !important;',",
+        f"{indent}'height: auto !important;',\n{indent}'.liquid-glass-surface__effect[data-liquid-glass-measuring=\\\"true\\\"] {{',\n{indent}'transform: translate(-50%, -50%) scale(1) !important;',\n{indent}'transition: none !important;',",
     )
+
+
+update_guard('scripts/verify-auth-three-layer.mjs', '  ')
+update_guard('scripts/verify-liquid-glass-chrome.mjs', '    ')
 
 replace_once(
     'scripts/verify-auth-three-layer.mjs',
