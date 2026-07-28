@@ -94,16 +94,25 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-      - name: Commit verified source and remove temporary migration
+      - name: Commit verified source
         shell: bash
         run: |
-          set -euo pipefail
-          rm -rf .agent
-          rm -f .github/workflows/agent-apply-factory-staffing.yml
-          rm -f migration.log factory-staffing-build.log
-          git config user.name 'OpenAI Agent'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git diff --cached --check
-          git commit -m '增加工厂满员率与等效产能'
-          git push origin HEAD:agent/factory-staffing-rate
+          set -o pipefail
+          {
+            rm -f migration.log factory-staffing-build.log
+            git config user.name 'OpenAI Agent'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -A
+            git diff --cached --check
+            git commit -m '增加工厂满员率与等效产能'
+            git push origin HEAD:agent/factory-staffing-rate
+          } 2>&1 | tee factory-staffing-commit.log
+
+      - name: Upload commit diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-staffing-commit-log
+          path: factory-staffing-commit.log
+          if-no-files-found: error
+          retention-days: 1
