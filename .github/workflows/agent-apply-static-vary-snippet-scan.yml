@@ -23,11 +23,20 @@ jobs:
           fetch-depth: 0
       - name: Apply and verify snippet scanning
         run: |
-          set -euo pipefail
-          python3 .agent/apply-static-vary-snippet-scan.py
-          git diff --check
-          python3 scripts/test_configure_economy_nginx.py
-          node scripts/verify-state-delivery-capacity.mjs
+          set -uo pipefail
+          set +e
+          {
+            python3 .agent/apply-static-vary-snippet-scan.py
+            git diff --check
+            python3 scripts/test_configure_economy_nginx.py
+            node scripts/verify-state-delivery-capacity.mjs
+          } > "$RUNNER_TEMP/static-vary-snippet-scan.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/static-vary-snippet-scan.log"
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
           rm -f .agent/apply-static-vary-snippet-scan.py
           rm -f .github/workflows/agent-apply-static-vary-snippet-scan.yml
           rmdir .agent 2>/dev/null || true
@@ -36,3 +45,12 @@ jobs:
           git add -A
           git commit -m "扫描并修补静态 Nginx snippet"
           git push origin HEAD:agent/fix-static-vary-included-snippets
+      - name: Upload snippet scan failure log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: static-vary-snippet-scan-failure-${{ github.run_id }}
+          path: ${{ runner.temp }}/static-vary-snippet-scan.log
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 9
