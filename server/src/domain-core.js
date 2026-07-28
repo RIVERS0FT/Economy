@@ -1,4 +1,4 @@
-import { normalizePlayerMoneyInput } from './money.js';
+import { multiplyMoneyByInteger, normalizePlayerMoneyInput } from './money.js';
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
@@ -6,8 +6,8 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 
 export const ECONOMY_CONSTANTS = Object.freeze({
-  maxOpenOrders: 10,
-  maxOrderQuantity: 10_000,
+  maxOpenOrders: PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length,
+  maxOrderQuantity: Number.MAX_SAFE_INTEGER,
   workCooldownMs: 3_000,
   demandCycleMs: 5 * 60 * 1000,
   maxPricePoints: 288,
@@ -1045,11 +1045,12 @@ function placeOrder(world, userId, payload, now) {
   const quantity = normalizePositiveInteger(payload.quantity, ECONOMY_CONSTANTS.maxOrderQuantity);
   const price = normalizePlayerMoneyInput(payload.price, { min: 0.01, max: 1_000_000 });
   if (!side || !productId || !quantity || !price) return result(false, '订单参数无效');
+  const total = multiplyMoneyByInteger(price, quantity);
+  if (total === null) return result(false, '订单总额超出系统可表示范围');
   const openOrders = world.orders.filter((order) => order.ownerId === userId && isOpenOrder(order));
   if (openOrders.length >= ECONOMY_CONSTANTS.maxOpenOrders) return result(false, '未完成订单数量已达上限');
 
   if (side === 'buy') {
-    const total = quantity * price;
     if (player.credits < total) return result(false, '可用资金不足');
     const capacity = player.inventoryCapacity - inventoryUsed(player) - pendingBuyQuantity(world, userId);
     if (capacity < quantity) return result(false, '仓库容量不足');

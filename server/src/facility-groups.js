@@ -1,6 +1,7 @@
 import {
   applyAction,
   createClientState,
+  ECONOMY_CONSTANTS,
   FACILITY_TYPE_CATALOG,
   PRODUCT_CATALOG,
   processWorld,
@@ -14,12 +15,12 @@ import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructio
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
 import { ensureGemState } from './invitations.js';
+import { multiplyMoneyByInteger } from './money.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
-const MAX_FACILITY_ORDER_QUANTITY = 1_000_000;
+const MAX_FACILITY_AUCTION_QUANTITY = 1_000_000;
 const MAX_ORDER_PRICE = 1_000_000;
-const MAX_OPEN_ORDERS = 10;
 const MAX_PRICE_POINTS = 288;
 export const FACILITY_STAFFING_FULL_BPS = 10_000;
 export const FACILITY_STAFFING_RECOVERY_MS = 10 * 60 * 1000;
@@ -1001,10 +1002,12 @@ function placeFacilityOrder(world, userId, payload, now) {
   const side = payload.side === 'buy' ? 'buy' : payload.side === 'sell' ? 'sell' : null;
   const typeId = String(payload.assetId || payload.facilityTypeId || '');
   const type = typeFor(typeId);
-  const quantity = normalizePositiveInteger(payload.quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const quantity = normalizePositiveInteger(payload.quantity, ECONOMY_CONSTANTS.maxOrderQuantity);
   const price = normalizePositiveInteger(payload.price ?? payload.unitPrice, MAX_ORDER_PRICE);
   if (!side || !type || !quantity || !price) return result(false, '工厂订单参数无效');
-  if (countOpenOrdersForOwner(world, userId) >= MAX_OPEN_ORDERS) return result(false, '未完成订单数量已达上限');
+  const total = multiplyMoneyByInteger(price, quantity);
+  if (total === null) return result(false, '工厂订单总额超出系统可表示范围');
+  if (countOpenOrdersForOwner(world, userId) >= ECONOMY_CONSTANTS.maxOpenOrders) return result(false, '未完成订单数量已达上限');
   if (price < Math.ceil(type.systemValue * 0.5) || price > type.systemValue * 2) {
     return result(false, '工厂订单价格必须在系统参考价的 50%～200% 之间');
   }
@@ -1017,7 +1020,6 @@ function placeFacilityOrder(world, userId, payload, now) {
   })) return result(false, SELF_CROSS_MESSAGE);
 
   if (side === 'buy') {
-    const total = quantity * price;
     if (player.credits < total) return result(false, '可用资金不足');
     player.credits -= total;
     player.frozenCredits += total;
@@ -1065,7 +1067,7 @@ function cancelFacilityOrder(world, userId, order) {
 export function validateFacilityAuctionQuantity(world, userId, typeId, quantity) {
   const account = world.players?.[String(userId)];
   const type = typeFor(typeId);
-  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_AUCTION_QUANTITY);
   const group = account && type ? groupFor(account, type.id) : null;
   const available = group ? transferableGroupCount(world, account, group) : 0;
   if (!account || !type || !group || !normalizedQuantity || normalizedQuantity > available) {
@@ -1077,7 +1079,7 @@ export function validateFacilityAuctionQuantity(world, userId, typeId, quantity)
 export function validateFacilityAuctionTransferQuantity(world, userId, typeId, quantity) {
   const account = world.players?.[String(userId)];
   const type = typeFor(typeId);
-  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_AUCTION_QUANTITY);
   const group = account && type ? groupFor(account, type.id) : null;
   if (
     !account
@@ -1097,7 +1099,7 @@ export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity, 
   if (!validation.ok) return validation;
   const account = world.players[String(userId)];
   const type = typeFor(typeId);
-  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_AUCTION_QUANTITY);
   const group = groupFor(account, type.id);
   reduceRunningGroupForSellOrder(group, type, normalizedQuantity, now);
   return result(true, '工厂已为拍卖冻结');
@@ -1106,7 +1108,7 @@ export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity, 
 export function releaseFacilityAuctionQuantity(world, userId, typeId, quantity) {
   const account = world.players?.[String(userId)];
   const group = account ? groupFor(account, typeId) : null;
-  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_AUCTION_QUANTITY);
   if (!group || !normalizedQuantity) return result(false, '拍卖工厂不存在');
   if (group.status === 'running') group.pendingJoinCount += normalizedQuantity;
   return result(true, '工厂拍卖已解冻');
@@ -1116,7 +1118,7 @@ export function transferFacilityAuctionQuantity(world, sellerId, buyerId, typeId
   const seller = world.players?.[String(sellerId)];
   const buyer = world.players?.[String(buyerId)];
   const type = typeFor(typeId);
-  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
+  const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_AUCTION_QUANTITY);
   const sellerGroup = seller && type ? groupFor(seller, type.id) : null;
   if (!seller || !buyer || !type || !sellerGroup || !normalizedQuantity) return result(false, '拍卖工厂归属异常');
   if (sellerGroup.count < normalizedQuantity || auctionedQuantity(world, sellerId, type.id) < normalizedQuantity) {

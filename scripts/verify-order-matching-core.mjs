@@ -22,13 +22,15 @@ for (const text of [
   "import { applyMarketSellFee } from './market-sell-fee.js'",
   "import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js'",
   "import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js'",
+  'multiplyMoneyByInteger',
+  "throw new RangeError('成交总额超出系统可表示范围')",
   'makerOrderId: resting.id',
   'takerOrderId: incoming.id',
   "order.status = order.remaining === 0 ? 'filled' : 'partial'",
   'samePlayer(incoming, resting)',
   'if (!orderPricesCross(incoming.side, incoming.price, resting.price)) break;',
 ]) assert.ok(core.includes(text), `共享撮合内核缺少: ${text}`);
-for (const forbidden of ['PRODUCT_CATALOG', 'FACILITY_TYPE_CATALOG', 'inventoryFor(', 'groupFor(', '(world.orders || []).filter', '.sort(']) {
+for (const forbidden of ['PRODUCT_CATALOG', 'FACILITY_TYPE_CATALOG', 'inventoryFor(', 'groupFor(', '(world.orders || []).filter', '.sort(', 'roundInternalMoney(quantity * price)']) {
   assert.equal(core.includes(forbidden), false, `共享撮合内核不得绑定资产业务: ${forbidden}`);
 }
 

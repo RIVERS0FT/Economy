@@ -175,6 +175,38 @@ for (const text of [
   '让礼品码或兑换记录接口恢复无边界全表返回',
 ]) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 
+for (const text of [
+  'maxOrderQuantity: Number.MAX_SAFE_INTEGER',
+  'openOrderLimitForCatalog',
+]) requireText('src/config/economy.ts', text);
+for (const text of [
+  'openOrderLimitForCatalog(game.products.length, game.facilityTypes.length)',
+  'economyConstants.maxOrderQuantity',
+  '未完成订单数量已达上限（${formatNumber(maxOpenOrders)} 笔）。',
+  'formatNumber(maxOpenOrders)',
+]) requireText('src/pages/MarketPage.tsx', text);
+for (const text of [
+  'maxOpenOrders: PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length',
+  'maxOrderQuantity: Number.MAX_SAFE_INTEGER',
+]) requireText('server/src/domain-core.js', text);
+for (const text of [
+  'ECONOMY_CONSTANTS.maxOrderQuantity',
+  'ECONOMY_CONSTANTS.maxOpenOrders',
+  'multiplyMoneyByInteger',
+  '工厂订单总额超出系统可表示范围',
+]) requireText('server/src/facility-groups.js', text);
+forbidText('server/src/facility-groups.js', 'MAX_FACILITY_ORDER_QUANTITY');
+forbidText('server/src/facility-groups.js', 'MAX_OPEN_ORDERS');
+for (const text of [
+  '只表示技术安全边界，不构成固定业务数量上限',
+  'PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length',
+  '当前上限为 52 笔',
+]) requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', text);
+for (const text of [
+  '商品和工厂合计未完成订单达到当前商品类型数与工厂类型数之和',
+  '说明动态上限并禁用提交',
+]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+
 if (!failures.length) {
   const { buildOrderBookLevels } = await import('../src/utils/orderBookLevels.ts');
   const order = (id, side, price, quantity, remaining, status = 'open') => ({
