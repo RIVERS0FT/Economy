@@ -37,6 +37,11 @@ for (const text of [
   'activeRecipeId: string',
   'pendingRecipeId?: string',
   'lifetimeOutput: number',
+  'staffingRateBps?: number',
+  'cycleStaffingRateBps?: number',
+  'cycleEffectiveCount?: number',
+  'nextCycleStaffingRateBps?: number',
+  'nextCycleEffectiveCount?: number',
 ]) requireText('src/types.ts', text);
 
 for (const text of [
@@ -50,7 +55,11 @@ for (const text of [
   "reason: 'warehouse_full'",
   "reason: 'insufficient_funds'",
   "reason: 'insufficient_input'",
-  'world.version = 17',
+  'world.version = 18',
+  'FACILITY_STAFFING_RECOVERY_MS',
+  'FACILITY_STAFFING_DECAY_MS',
+  'projectStaffingRate',
+  'cycleEffectiveCount',
 ]) requireText('server/src/facility-groups.js', text);
 
 for (const text of [
@@ -64,6 +73,7 @@ for (const text of [
   'facility-card-title-row',
   'facility-card-title-block',
   'facility-count-summary',
+  'facility-staffing-summary',
   'FacilityProductionFormula',
   'products={game.products}',
   'inventories={game.inventories}',
@@ -225,6 +235,9 @@ for (const text of [
   'running farm crop changes apply at the next cycle boundary',
   'warehouse errors recover without backfilling missed cycles',
   'manual stop disables automatic recovery',
+  'stopped factory staffing decays linearly from its stored timestamp',
+  'running factory staffing locks each cycle and carries fractional capacity',
+  'error staffing decays and auto recovery starts from the reduced rate',
   'legacy completed target plans migrate to a manual stop',
   'legacy running target plans become continuous production',
 ]) requireText('server/test/facility-groups.test.js', text);
@@ -246,6 +259,9 @@ for (const text of [
   '不包含顶部关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '自然内容流是桌面详情高度的唯一来源',
+  '工厂满员率与等效产能',
+  'staffingBatchCarryBps',
+  '不得新增每秒或更高频率扫描全世界工厂的调度器',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 for (const text of [

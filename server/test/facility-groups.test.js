@@ -368,3 +368,75 @@ test('empty factory order books stay empty after world processing', () => {
   processFacilityGroupWorld(world, now + 1);
   assert.equal(world.orders.some((order) => order.assetKind === 'facility' || order.facilityTypeId), false);
 });
+
+test('stopped factory staffing decays linearly from its stored timestamp', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.facilityGroups = [group('farm', 2, {
+    staffingRateBps: 10_000,
+    staffingUpdatedAt: now,
+  })];
+  migrateFacilityGroupWorld(world, now);
+
+  const state = createFacilityGroupClientState(world, alice.id, now + 15 * 60_000);
+  const farm = state.facilityGroups[0];
+  assert.equal(farm.staffingRateBps, 5_000);
+  assert.equal(farm.nextCycleStaffingRateBps, 5_000);
+  assert.equal(farm.nextCycleEffectiveCount, 1);
+  assert.equal(player.facilityGroups[0].staffingRateBps, 10_000, 'read-only projection must not create a high-frequency write loop');
+});
+
+test('running factory staffing locks each cycle and carries fractional capacity', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 100;
+  player.facilityGroups = [group('farm', 1, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 1,
+    cycleStartedAt: now,
+    staffingRateBps: 2_500,
+    staffingUpdatedAt: now,
+    staffingBatchCarryBps: 0,
+    cycleStaffingRateBps: 2_500,
+  })];
+  migrateFacilityGroupWorld(world, now);
+
+  const midway = createFacilityGroupClientState(world, alice.id, now + 60_000).facilityGroups[0];
+  assert.equal(midway.staffingRateBps, 3_500);
+  assert.equal(midway.cycleStaffingRateBps, 2_500);
+  assert.equal(midway.cycleEffectiveCount, 0);
+
+  processFacilityGroupWorld(world, now + 360_000);
+  assert.equal(player.inventories.wheat.available, 4);
+  assert.equal(player.credits, 94);
+  assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 3_500);
+  assert.equal(player.facilityGroups[0].staffingRateBps, 8_500);
+  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 8_500);
+});
+
+test('error staffing decays and auto recovery starts from the reduced rate', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 0;
+  player.facilityGroups = [group('farm', 2, {
+    enabled: true,
+    status: 'error',
+    statusReason: 'insufficient_funds',
+    staffingRateBps: 10_000,
+    staffingUpdatedAt: now,
+  })];
+  migrateFacilityGroupWorld(world, now);
+
+  processFacilityGroupWorld(world, now + 15 * 60_000);
+  const waiting = createFacilityGroupClientState(world, alice.id, now + 15 * 60_000).facilityGroups[0];
+  assert.equal(waiting.status, 'error');
+  assert.equal(waiting.staffingRateBps, 5_000);
+
+  player.credits = 100;
+  processFacilityGroupWorld(world, now + 15 * 60_000 + 1);
+  const recovered = player.facilityGroups[0];
+  assert.equal(recovered.status, 'running');
+  assert.equal(recovered.cycleStaffingRateBps, 5_000);
+  assert.equal(recovered.cycleStartedAt, now + 15 * 60_000 + 1);
+});

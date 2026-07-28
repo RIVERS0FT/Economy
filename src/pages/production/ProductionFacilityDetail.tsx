@@ -84,6 +84,58 @@ export function facilityStatusLabel(group: FacilityGroup) {
   }
 }
 
+function staffingPercent(rateBps: number | undefined) {
+  const normalized = Math.max(0, Math.min(10_000, Math.floor(Number(rateBps ?? 10_000))));
+  return Math.round(normalized / 100);
+}
+
+export function FacilityStaffingSummary({
+  entry,
+}: {
+  entry: FacilityClusterEntry;
+}) {
+  const { group, type } = entry;
+  const currentPercent = staffingPercent(group.staffingRateBps);
+  const settlementPercent = staffingPercent(
+    group.status === 'running' ? group.cycleStaffingRateBps : group.nextCycleStaffingRateBps,
+  );
+  const physicalCount = group.status === 'running' ? group.participatingCount : group.nextCycleCount;
+  const effectiveCount = group.status === 'running'
+    ? group.cycleEffectiveCount ?? group.participatingCount
+    : group.nextCycleEffectiveCount ?? group.nextCycleCount;
+  const scopeLabel = group.status === 'running'
+    ? '本周期'
+    : group.status === 'error'
+      ? '恢复后'
+      : '启动后';
+  const directionLabel = group.status === 'running'
+    ? currentPercent >= 100 ? '已满员' : '运行中，正在恢复'
+    : currentPercent <= 0 ? '已降至最低' : `${facilityStatusLabel(group)}，正在下降`;
+  const description = `${type.name}当前满员率 ${currentPercent}%，${directionLabel}。${scopeLabel} ${physicalCount} 座工厂按 ${settlementPercent}% 满员率形成 ${effectiveCount} 座等效产能。`;
+
+  return (
+    <section className="facility-staffing-summary" aria-label={description}>
+      <div className="facility-staffing-heading">
+        <strong>满员率 {formatNumber(currentPercent)}%</strong>
+        <span>{directionLabel}</span>
+      </div>
+      <div
+        className="facility-staffing-track"
+        role="progressbar"
+        aria-label={`${type.name}满员率`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={currentPercent}
+      >
+        <span className="facility-staffing-fill" style={{ width: `${currentPercent}%` }} />
+      </div>
+      <small className="facility-staffing-meta">
+        {scopeLabel} {formatNumber(physicalCount)} 座 · 锁定 {formatNumber(settlementPercent)}% · 等效 {formatNumber(effectiveCount)} 座
+      </small>
+    </section>
+  );
+}
+
 export function recipesForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
   if (Array.isArray(type.recipes) && type.recipes.length > 0) return type.recipes;
   return [
@@ -294,6 +346,7 @@ export function FacilityClusterDetailContent({
   return (
     <>
       <FacilityClusterDetailHeader entry={entry} onToggle={onToggle} titleId={titleId} />
+      <FacilityStaffingSummary entry={entry} />
       <FacilityClusterDetailBody
         entry={entry}
         products={products}

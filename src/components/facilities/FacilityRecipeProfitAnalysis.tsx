@@ -25,12 +25,14 @@ export function FacilityRecipeProfitAnalysis({
   type,
   scopeCount,
   scopeLabel,
+  staffingRateBps,
   products,
   inventories: _inventories,
 }: {
   type: FacilityTypeDefinition;
   scopeCount: number;
   scopeLabel: string;
+  staffingRateBps: number;
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
 }) {
@@ -42,7 +44,11 @@ export function FacilityRecipeProfitAnalysis({
     markets,
     buildCost: 0,
   });
-  const profitPerMinute = analysis.profitPerMinute;
+  const normalizedStaffingRateBps = Math.max(0, Math.min(10_000, Math.floor(Number(staffingRateBps))));
+  const staffingPercent = Math.round(normalizedStaffingRateBps / 100);
+  const profitPerMinute = analysis.profitPerMinute === null
+    ? null
+    : analysis.profitPerMinute * normalizedStaffingRateBps / 10_000;
   const description = scopeDescription(scopeLabel);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
   const missingPriceNames = analysis.missingPriceProductIds.map((productId) => (
@@ -60,7 +66,7 @@ export function FacilityRecipeProfitAnalysis({
       ? missingPriceNames.length > 0
         ? `${description}；缺少${missingPriceLabel}的最近真实成交价，无法估算`
         : `${description}；缺少最近真实成交价，无法估算`
-      : `${description}；按最近真实成交价估算，已扣除单座原料成本与周期运营成本，不计玩家库存、挂单深度和交易手续费`;
+      : `${description}；按最近真实成交价和 ${staffingPercent}% 满员率线性估算，已扣除对应有效产能的单座原料成本与周期运营成本，不计玩家库存、挂单深度和交易手续费`;
   const sign = profitPerMinute === null
     ? undefined
     : profitPerMinute > 0
@@ -77,7 +83,7 @@ export function FacilityRecipeProfitAnalysis({
     >
       <div className="facility-average-profit__copy">
         <strong>单厂平均利润／分钟</strong>
-        <small>{description} · 最近真实成交价</small>
+        <small>{description} · 最近真实成交价 · 满员率 {staffingPercent}%</small>
       </div>
       <div className="facility-average-profit__value">
         {profitPerMinute === null ? (

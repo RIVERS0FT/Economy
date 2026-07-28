@@ -31,7 +31,7 @@ import '../styles/production-gem-acceleration.css';
  * Split-module ownership manifest for static page-contract verification. Runtime implementations live in
  * production/ProductionFacilityDetail.tsx and production/MobileFacilityDetailSheet.tsx:
  * SwitchControl; checked={group.enabled}; facilityStatusLabel; facility-status-header;
- * facility-card-title-row; facility-card-title-block; facility-count-summary;
+ * facility-card-title-row; facility-card-title-block; facility-count-summary; facility-staffing-summary;
  * 异常：资金不足; 异常：仓库已满; 异常：原料不足;
  * 运行中 <strong>{formatNumber(group.participatingCount)}</strong>;
  * 下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>;
@@ -159,7 +159,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="生产"
-      description="同类未冻结工厂共享生产周期和服务器正式配方；公式展示本周期或恢复后的集群输入、输出与成本。"
+      description="同类未冻结工厂共享生产周期、配方与满员率；公式按本周期或恢复后的等效产能展示输入、输出与成本。"
       actions={
         <>
           <StatusTag tone="success">运行 {formatNumber(facilityClusterStatusCounts.running)}</StatusTag>

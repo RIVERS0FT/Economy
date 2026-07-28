@@ -20,7 +20,10 @@ type MultiRecipeFacilityType = FacilityTypeDefinition & {
 type ProductNameMap = Map<string, string>;
 
 type FormulaScope = {
+  name: string;
   count: number;
+  physicalCount: number;
+  staffingRateBps: number;
   label: string;
   description: string;
 };
@@ -37,39 +40,72 @@ function recipeOutputs(type: FacilityTypeDefinition) {
   return [extendedType.output];
 }
 
-function currentFormulaScope(group: FacilityGroup): FormulaScope {
-  if (group.status === 'running') {
-    const count = Math.max(0, group.participatingCount);
-    return {
-      count,
-      label: `本周期 × ${formatNumber(count)}`,
-      description: `本周期 ${formatNumber(count)} 座工厂`,
-    };
-  }
+function normalizedStaffingRate(rateBps: number | undefined) {
+  return Math.max(0, Math.min(10_000, Math.floor(Number(rateBps ?? 10_000))));
+}
 
-  const count = Math.max(0, group.nextCycleCount);
-  if (group.status === 'error') {
-    return {
-      count,
-      label: `恢复后 × ${formatNumber(count)}`,
-      description: `条件恢复后 ${formatNumber(count)} 座工厂`,
-    };
-  }
+function staffingRateLabel(rateBps: number) {
+  return `${Math.round(rateBps / 100)}%`;
+}
 
+function formulaScope(
+  name: string,
+  physicalCount: number,
+  effectiveCount: number,
+  staffingRateBps: number,
+  descriptionPrefix: string,
+): FormulaScope {
+  const normalizedPhysicalCount = Math.max(0, physicalCount);
+  const normalizedEffectiveCount = Math.max(0, effectiveCount);
+  const normalizedRate = normalizedStaffingRate(staffingRateBps);
   return {
-    count,
-    label: `启动后 × ${formatNumber(count)}`,
-    description: `启动后 ${formatNumber(count)} 座工厂`,
+    name,
+    count: normalizedEffectiveCount,
+    physicalCount: normalizedPhysicalCount,
+    staffingRateBps: normalizedRate,
+    label: `${name} ${formatNumber(normalizedPhysicalCount)} 座 · 满员率 ${staffingRateLabel(normalizedRate)} · 等效 × ${formatNumber(normalizedEffectiveCount)}`,
+    description: `${descriptionPrefix}${formatNumber(normalizedPhysicalCount)} 座工厂按 ${staffingRateLabel(normalizedRate)} 满员率形成 ${formatNumber(normalizedEffectiveCount)} 座等效产能`,
   };
 }
 
+function currentFormulaScope(group: FacilityGroup): FormulaScope {
+  if (group.status === 'running') {
+    return formulaScope(
+      '本周期',
+      group.participatingCount,
+      group.cycleEffectiveCount ?? group.participatingCount,
+      group.cycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+      '本周期 ',
+    );
+  }
+
+  if (group.status === 'error') {
+    return formulaScope(
+      '恢复后',
+      group.nextCycleCount,
+      group.nextCycleEffectiveCount ?? group.nextCycleCount,
+      group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+      '条件恢复后 ',
+    );
+  }
+
+  return formulaScope(
+    '启动后',
+    group.nextCycleCount,
+    group.nextCycleEffectiveCount ?? group.nextCycleCount,
+    group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+    '启动后 ',
+  );
+}
+
 function nextFormulaScope(group: FacilityGroup): FormulaScope {
-  const count = Math.max(0, group.nextCycleCount);
-  return {
-    count,
-    label: `下一周期 × ${formatNumber(count)}`,
-    description: `下一周期 ${formatNumber(count)} 座工厂`,
-  };
+  return formulaScope(
+    '下一周期',
+    group.nextCycleCount,
+    group.nextCycleEffectiveCount ?? group.nextCycleCount,
+    group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+    '下一周期 ',
+  );
 }
 
 function recipeText(items: FacilityRecipeItem[], productNames: ProductNameMap, multiplier: number) {
@@ -177,7 +213,7 @@ export function FacilityProductionFormula({
     .join('。');
   const profitScope = showNextCyclePreview ? nextScope : scope;
   const profitType = showNextCyclePreview ? nextType : type;
-  const profitScopeLabel = profitScope.label.split(' × ')[0];
+  const profitScopeLabel = profitScope.name;
 
   return (
     <>
@@ -233,6 +269,7 @@ export function FacilityProductionFormula({
         type={profitType}
         scopeCount={profitScope.count}
         scopeLabel={profitScopeLabel}
+        staffingRateBps={profitScope.staffingRateBps}
         products={products}
         inventories={inventories}
       />

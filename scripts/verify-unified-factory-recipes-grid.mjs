@@ -386,7 +386,7 @@ for (const [path, required] of [
     [
       '建设卡只显示建造费用和施工时间',
       '生产公式只展示集群参数',
-      '运行中按 `participatingCount`',
+      '运行中显示 `participatingCount`、本周期锁定满员率与 `cycleEffectiveCount`',
       '生产管理区采用工厂集群主从布局',
       '移动端不展开全部详情',
       '移动端不显示独立“当前工厂”栏',
@@ -400,7 +400,7 @@ for (const [path, required] of [
     [
       '建设卡不显示生产周期、单座产量和单座成本',
       '公式只展示集群输入、输出、周期和成本',
-      '当前周期只使用 `participatingCount`',
+      '当前周期显示 `participatingCount`、`cycleStaffingRateBps` 和 `cycleEffectiveCount`',
       '移动端选择网格固定三列',
       '左上名称、居中 `FactoryIcon` 和右下纯数字数量',
     ],
@@ -409,7 +409,7 @@ for (const [path, required] of [
     'docs/UI_DESIGN_SYSTEM.md',
     [
       '生产公式是集群运行能力展示',
-      '停止或异常使用 `nextCycleCount`',
+      '停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount`',
       '不得使用 `group.count` 作为公式乘数',
       '工厂集群选择卡使用统一 `FactoryIcon`',
       '卡片点击不保留选中态',

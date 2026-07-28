@@ -467,8 +467,8 @@
 - 在生产公式中使用箭头、Emoji 周期或成本图标、可见“周期”标签或可见“运行成本”标签；
 - 删除 `CycleIcon`、`CreditsIcon`、`WarehouseIcon` 或用平行 SVG 文件替代统一图标组件；
 - 破坏输入／中央信息／输出三列语义、`+` 分隔或逐输入库存能力；
-- 让生产公式恢复单座输入、输出或成本，或让运行中的公式不按 `participatingCount` 变化；
-- 停止或异常时不使用 `nextCycleCount`，使用 `group.count` 作为公式乘数，或把 `pendingJoinCount` 提前计入当前周期；
+- 让生产公式恢复单座输入、输出或成本，或让运行中的公式不同时显示 `participatingCount`、锁定满员率和 `cycleEffectiveCount`；
+- 停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount`；不得使用 `group.count` 作为公式乘数，也不得把 `pendingJoinCount` 提前计入当前周期；
 - 在生产进度条下方恢复当前周期、恢复运行、产出、成本或其他可见说明文字；
 - 恢复静态计划模式文本、手动“保存计划”按钮、目标产量输入、农场专属配方区域或其他计划视觉；
 - 把生产页主标题恢复为“工厂”；

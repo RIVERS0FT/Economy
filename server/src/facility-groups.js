@@ -21,6 +21,9 @@ const MAX_FACILITY_ORDER_QUANTITY = 1_000_000;
 const MAX_ORDER_PRICE = 1_000_000;
 const MAX_OPEN_ORDERS = 10;
 const MAX_PRICE_POINTS = 288;
+export const FACILITY_STAFFING_FULL_BPS = 10_000;
+export const FACILITY_STAFFING_RECOVERY_MS = 10 * 60 * 1000;
+export const FACILITY_STAFFING_DECAY_MS = 30 * 60 * 1000;
 export const GEM_CONSTRUCTION_ACCELERATION_MS = 30 * 60 * 1000;
 export const GEM_CONSTRUCTION_ACCELERATION_COST = 1;
 
@@ -44,6 +47,71 @@ function normalizeProductionWageMultiplier(value) {
   return Number.isSafeInteger(normalized) && normalized >= 5_000
     ? normalized
     : null;
+}
+
+function normalizeStaffingRate(value) {
+  const normalized = Math.floor(Number(value));
+  return Number.isSafeInteger(normalized)
+    && normalized >= 0
+    && normalized <= FACILITY_STAFFING_FULL_BPS
+    ? normalized
+    : null;
+}
+
+function normalizeStaffingCarry(value) {
+  const normalized = Math.floor(Number(value));
+  return Number.isSafeInteger(normalized) && normalized >= 0
+    ? normalized % FACILITY_STAFFING_FULL_BPS
+    : 0;
+}
+
+function staffingDeltaBps(elapsedMs, durationMs) {
+  const elapsed = Math.max(0, Math.floor(Number(elapsedMs) || 0));
+  if (elapsed <= 0) return 0;
+  const delta = BigInt(elapsed) * BigInt(FACILITY_STAFFING_FULL_BPS) / BigInt(durationMs);
+  return Number(delta > BigInt(FACILITY_STAFFING_FULL_BPS)
+    ? BigInt(FACILITY_STAFFING_FULL_BPS)
+    : delta);
+}
+
+function projectStaffingRate(group, now) {
+  const baseRate = normalizeStaffingRate(group?.staffingRateBps) ?? FACILITY_STAFFING_FULL_BPS;
+  const updatedAt = Number.isFinite(Number(group?.staffingUpdatedAt))
+    ? Math.max(0, Number(group.staffingUpdatedAt))
+    : Math.max(0, Number(now) || 0);
+  const elapsed = Math.max(0, Number(now) - updatedAt);
+  if (elapsed <= 0) return baseRate;
+  if (group?.status === 'running' && group?.enabled) {
+    return Math.min(
+      FACILITY_STAFFING_FULL_BPS,
+      baseRate + staffingDeltaBps(elapsed, FACILITY_STAFFING_RECOVERY_MS),
+    );
+  }
+  return Math.max(0, baseRate - staffingDeltaBps(elapsed, FACILITY_STAFFING_DECAY_MS));
+}
+
+function commitStaffingRate(group, now) {
+  const normalizedNow = Math.max(0, Number(now) || 0);
+  group.staffingRateBps = projectStaffingRate(group, normalizedNow);
+  group.staffingUpdatedAt = normalizedNow;
+  return group.staffingRateBps;
+}
+
+function cycleCapacity(
+  group,
+  count,
+  rateBps = group?.cycleStaffingRateBps,
+  carryBps = group?.staffingBatchCarryBps,
+) {
+  const physicalCount = Math.max(0, Math.floor(Number(count) || 0));
+  const staffingRateBps = normalizeStaffingRate(rateBps)
+    ?? normalizeStaffingRate(group?.staffingRateBps)
+    ?? FACILITY_STAFFING_FULL_BPS;
+  const numerator = physicalCount * staffingRateBps + normalizeStaffingCarry(carryBps);
+  return {
+    effectiveCount: Math.floor(numerator / FACILITY_STAFFING_FULL_BPS),
+    carryBps: numerator % FACILITY_STAFFING_FULL_BPS,
+  };
 }
 
 function calculateProductionWage(cost, multiplierBps) {
@@ -182,7 +250,7 @@ function normalizeStatusReason(value, enabled) {
   return mapped;
 }
 
-function createGroup(typeId, overrides = {}) {
+function createGroup(typeId, overrides = {}, now = Date.now()) {
   const type = typeFor(typeId);
   const legacyStatus = String(overrides.status || 'stopped');
   const legacyPlanComplete = legacyStatus === 'plan_complete' || overrides.statusReason === 'plan_complete';
@@ -197,6 +265,14 @@ function createGroup(typeId, overrides = {}) {
     : enabled
       ? 'error'
       : 'stopped';
+  const staffingRateBps = normalizeStaffingRate(overrides.staffingRateBps)
+    ?? FACILITY_STAFFING_FULL_BPS;
+  const staffingUpdatedAt = Number.isFinite(Number(overrides.staffingUpdatedAt))
+    ? Math.min(Math.max(0, Number(overrides.staffingUpdatedAt)), Math.max(0, Number(now) || 0))
+    : Math.max(0, Number(now) || 0);
+  const cycleStaffingRateBps = status === 'running'
+    ? normalizeStaffingRate(overrides.cycleStaffingRateBps) ?? staffingRateBps
+    : undefined;
   return {
     facilityTypeId: typeId,
     count: Math.max(0, Number(overrides.count || 0)),
@@ -207,6 +283,10 @@ function createGroup(typeId, overrides = {}) {
     statusReason: normalizeStatusReason(overrides.statusReason || overrides.stopReason, enabled),
     cycleStartedAt: overrides.cycleStartedAt,
     cycleWageMultiplierBps: normalizeProductionWageMultiplier(overrides.cycleWageMultiplierBps) || undefined,
+    staffingRateBps,
+    staffingUpdatedAt,
+    staffingBatchCarryBps: normalizeStaffingCarry(overrides.staffingBatchCarryBps),
+    cycleStaffingRateBps,
     lifetimeOutput: Math.max(0, Number(overrides.lifetimeOutput ?? overrides.completedQuantity ?? 0)),
     activeRecipeId: recipeFor(type, overrides.activeRecipeId)?.id,
     pendingRecipeId: recipesFor(type).some((recipe) => recipe.id === overrides.pendingRecipeId)
@@ -215,10 +295,10 @@ function createGroup(typeId, overrides = {}) {
   };
 }
 
-function normalizeGroup(group) {
+function normalizeGroup(group, now = Date.now()) {
   const type = typeFor(group.facilityTypeId);
   if (!type) return null;
-  const normalized = createGroup(type.id, group);
+  const normalized = createGroup(type.id, group, now);
   normalized.count = Math.max(0, Math.floor(normalized.count));
   normalized.participatingCount = Math.min(normalized.count, Math.floor(normalized.participatingCount));
   normalized.pendingJoinCount = Math.min(
@@ -230,17 +310,18 @@ function normalizeGroup(group) {
     normalized.pendingJoinCount = 0;
     delete normalized.cycleStartedAt;
     delete normalized.cycleWageMultiplierBps;
+    delete normalized.cycleStaffingRateBps;
     normalized.status = normalized.enabled ? 'error' : 'stopped';
   }
   delete normalized.stopReason;
   return normalized;
 }
 
-function groupFor(player, typeId, create = false) {
+function groupFor(player, typeId, create = false, now = Date.now()) {
   player.facilityGroups ||= [];
   let group = player.facilityGroups.find((item) => item.facilityTypeId === typeId);
   if (!group && create) {
-    group = createGroup(typeId);
+    group = createGroup(typeId, {}, now);
     player.facilityGroups.push(group);
   }
   return group;
@@ -371,7 +452,7 @@ function migrateLegacyPlayer(player, now) {
       byType.set(type.id, bucket);
     }
     for (const [typeId, facilities] of byType) {
-      const existing = groupFor(player, typeId, true);
+      const existing = groupFor(player, typeId, true, now);
       if (existing.count > 0) continue;
       const allRunning = facilities.every((facility) => facility.status === 'running');
       existing.count = facilities.length;
@@ -385,7 +466,9 @@ function migrateLegacyPlayer(player, now) {
     }
   }
 
-  player.facilityGroups = player.facilityGroups.map(normalizeGroup).filter(Boolean);
+  player.facilityGroups = player.facilityGroups
+    .map((group) => normalizeGroup(group, now))
+    .filter(Boolean);
   delete player.facilities;
 }
 
@@ -405,7 +488,9 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
   for (const player of Object.values(world.players)) migrateLegacyPlayer(player, now);
 
   for (const player of Object.values(world.players)) {
-    player.facilityGroups = (player.facilityGroups || []).map(normalizeGroup).filter(Boolean);
+    player.facilityGroups = (player.facilityGroups || [])
+      .map((group) => normalizeGroup(group, now))
+      .filter(Boolean);
     for (const group of player.facilityGroups) {
       const frozen = frozenFacilityQuantity(world, player.userId, group.facilityTypeId);
       const available = Math.max(0, group.count - frozen);
@@ -415,20 +500,20 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
           group.pendingJoinCount,
           Math.max(0, available - group.participatingCount),
         );
-        if (group.participatingCount < 1) setGroupError(group, 'no_available_facility');
+        if (group.participatingCount < 1) setGroupError(group, 'no_available_facility', now);
       }
       reconcileFacilityGroup(world, player, group, now);
     }
   }
 
-  world.version = 17;
+  world.version = 18;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 17;
+  world.version = 18;
   return world;
 }
 
@@ -456,16 +541,19 @@ function clearGroupRuntime(group) {
   group.pendingJoinCount = 0;
   delete group.cycleStartedAt;
   delete group.cycleWageMultiplierBps;
+  delete group.cycleStaffingRateBps;
 }
 
-function setGroupStopped(group, reason = 'manual') {
+function setGroupStopped(group, reason = 'manual', now = Date.now()) {
+  if (group.status !== 'stopped' || group.enabled) commitStaffingRate(group, now);
   group.enabled = false;
   group.status = 'stopped';
   group.statusReason = reason;
   clearGroupRuntime(group);
 }
 
-function setGroupError(group, reason) {
+function setGroupError(group, reason, now = Date.now()) {
+  if (group.status !== 'error') commitStaffingRate(group, now);
   group.enabled = true;
   group.status = 'error';
   group.statusReason = reason;
@@ -473,6 +561,7 @@ function setGroupError(group, reason) {
 }
 
 function startGroupRuntime(world, group, count, now) {
+  const staffingRateBps = commitStaffingRate(group, now);
   group.enabled = true;
   group.status = 'running';
   delete group.statusReason;
@@ -480,6 +569,7 @@ function startGroupRuntime(world, group, count, now) {
   group.pendingJoinCount = 0;
   group.cycleStartedAt = now;
   group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
+  group.cycleStaffingRateBps = staffingRateBps;
 }
 
 function recipeInputs(recipe) {
@@ -511,10 +601,10 @@ function groupRequirements(recipe, count) {
   };
 }
 
-function blockReason(world, player, group, type, count) {
+function blockReason(world, player, group, type, physicalCount, effectiveCount = physicalCount) {
   const recipe = activeRecipeFor(type, group);
-  const requirements = groupRequirements(recipe, count);
-  if (count <= 0) return { reason: 'no_available_facility', message: '没有可参与生产的工厂' };
+  if (physicalCount <= 0) return { reason: 'no_available_facility', message: '没有可参与生产的工厂' };
+  const requirements = groupRequirements(recipe, effectiveCount);
   if (requirements.netStorage > createWarehouseUsage(world, player).warehouseAvailableCapacity) {
     return { reason: 'warehouse_full', message: '共享仓库空间不足' };
   }
@@ -547,7 +637,7 @@ function reconcileFacilityGroup(world, player, group, now) {
   if (!type) return;
 
   if (!group.enabled) {
-    setGroupStopped(group, 'manual');
+    setGroupStopped(group, 'manual', now);
     return;
   }
 
@@ -555,6 +645,8 @@ function reconcileFacilityGroup(world, player, group, now) {
 
   const available = availableGroupCount(world, player, group);
   if (group.status === 'running') {
+    group.cycleStaffingRateBps = normalizeStaffingRate(group.cycleStaffingRateBps)
+      ?? projectStaffingRate(group, group.cycleStartedAt ?? now);
     group.cycleWageMultiplierBps = normalizeProductionWageMultiplier(group.cycleWageMultiplierBps)
       || currentProductionWageMultiplier(world, now);
     group.participatingCount = Math.min(group.participatingCount, available);
@@ -563,40 +655,64 @@ function reconcileFacilityGroup(world, player, group, now) {
       Math.max(0, available - group.participatingCount),
     );
     if (group.participatingCount < 1) {
-      setGroupError(group, 'no_available_facility');
+      setGroupError(group, 'no_available_facility', now);
       return;
     }
-    const blocked = blockReason(world, player, group, type, group.participatingCount);
+    const capacity = cycleCapacity(group, group.participatingCount);
+    const blocked = blockReason(
+      world,
+      player,
+      group,
+      type,
+      group.participatingCount,
+      capacity.effectiveCount,
+    );
     if (!blocked) return;
-    setGroupError(group, blocked.reason);
+    setGroupError(group, blocked.reason, now);
     return;
   }
 
-  const blocked = blockReason(world, player, group, type, available);
+  const staffingRateBps = projectStaffingRate(group, now);
+  const capacity = cycleCapacity(group, available, staffingRateBps);
+  const blocked = blockReason(
+    world,
+    player,
+    group,
+    type,
+    available,
+    Math.max(1, capacity.effectiveCount),
+  );
   if (!blocked) {
     startGroupRuntime(world, group, available, now);
     return;
   }
-  setGroupError(group, blocked.reason);
+  if (group.status !== 'error' || group.statusReason !== blocked.reason) {
+    setGroupError(group, blocked.reason, now);
+  }
 }
 
 function executeCycle(world, player, group, type, count, now) {
   const recipe = activeRecipeFor(type, group);
-  const requirements = groupRequirements(recipe, count);
+  const capacity = cycleCapacity(group, count);
+  const requirements = groupRequirements(recipe, capacity.effectiveCount);
   const wageMultiplierBps = normalizeProductionWageMultiplier(group.cycleWageMultiplierBps) || 10_000;
   const populationWage = calculateProductionWage(requirements.cost, wageMultiplierBps);
   player.credits -= requirements.cost;
-  creditPopulationEmployment(world, populationWage, 'production', {
-    complexity: type.complexity,
-    payerAmount: requirements.cost,
-  });
+  if (requirements.cost > 0 || populationWage > 0) {
+    creditPopulationEmployment(world, populationWage, 'production', {
+      complexity: type.complexity,
+      payerAmount: requirements.cost,
+    });
+  }
   player.stats.productionPayroll = Number(player.stats.productionPayroll || 0) + requirements.cost;
   player.stats.employmentPayments = Number(player.stats.employmentPayments || 0) + requirements.cost;
   player.stats.producedGoods = Number(player.stats.producedGoods || 0) + requirements.output;
   for (const item of requirements.inputs) inventoryFor(player, item.productId).available -= item.quantity;
   inventoryFor(player, recipe.output.productId).available += requirements.output;
   group.lifetimeOutput += requirements.output;
+  group.staffingBatchCarryBps = capacity.carryBps;
   group.cycleStartedAt += recipe.cycleMs;
+  commitStaffingRate(group, group.cycleStartedAt);
   group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
 }
 
@@ -605,7 +721,7 @@ function finishConstruction(world, player, now) {
   if (!construction) return;
   releaseConstructionEmployment(world, construction, now);
   if (now < construction.completesAt) return;
-  const group = groupFor(player, construction.facilityTypeId, true);
+  const group = groupFor(player, construction.facilityTypeId, true, now);
   group.count += 1;
   if (group.status === 'running') group.pendingJoinCount += 1;
   delete player.facilityConstruction;
@@ -620,9 +736,18 @@ function processGroup(world, player, group, now) {
   while (processed < MAX_CYCLES_PER_GROUP && group.status === 'running') {
     const recipe = activeRecipeFor(type, group);
     if (now - group.cycleStartedAt < recipe.cycleMs) break;
-    const blocked = blockReason(world, player, group, type, group.participatingCount);
+    const cycleDueAt = group.cycleStartedAt + recipe.cycleMs;
+    const capacity = cycleCapacity(group, group.participatingCount);
+    const blocked = blockReason(
+      world,
+      player,
+      group,
+      type,
+      group.participatingCount,
+      capacity.effectiveCount,
+    );
     if (blocked) {
-      setGroupError(group, blocked.reason);
+      setGroupError(group, blocked.reason, cycleDueAt);
       break;
     }
 
@@ -636,9 +761,18 @@ function processGroup(world, player, group, now) {
 
     applyPendingRecipe(group);
 
-    const nextBlocked = blockReason(world, player, group, type, group.participatingCount);
+    group.cycleStaffingRateBps = group.staffingRateBps;
+    const nextCapacity = cycleCapacity(group, group.participatingCount);
+    const nextBlocked = blockReason(
+      world,
+      player,
+      group,
+      type,
+      group.participatingCount,
+      nextCapacity.effectiveCount,
+    );
     if (nextBlocked) {
-      setGroupError(group, nextBlocked.reason);
+      setGroupError(group, nextBlocked.reason, group.cycleStartedAt);
       break;
     }
   }
@@ -655,8 +789,8 @@ function describeCounterparty(order) {
   return order.ownerName || (order.ownerType === 'market' ? '系统资产市场' : '玩家');
 }
 
-function addPurchasedGroup(player, typeId, quantity) {
-  const group = groupFor(player, typeId, true);
+function addPurchasedGroup(player, typeId, quantity, now = Date.now()) {
+  const group = groupFor(player, typeId, true, now);
   group.count += quantity;
   if (group.status === 'running') group.pendingJoinCount += quantity;
   return group;
@@ -679,7 +813,7 @@ function matchFacilityOrder(world, incoming, createdAt) {
         buyer.frozenCredits -= reserved;
         buyer.credits += reserved - actual;
         buyer.stats.facilityVolume = Number(buyer.stats.facilityVolume || 0) + actual;
-        addPurchasedGroup(buyer, typeId, quantity);
+        addPurchasedGroup(buyer, typeId, quantity, createdAt);
       }
 
       if (sell.ownerType === 'player') {
@@ -801,13 +935,13 @@ function startFacilityGroup(world, userId, payload, now) {
   return result(true, `${type.name}已开启自动运行，当前${reason?.message || '等待条件恢复'}，条件满足后将自动恢复生产`);
 }
 
-function pauseFacilityGroup(world, userId, payload) {
+function pauseFacilityGroup(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const type = typeFor(payload.facilityTypeId);
   const group = type ? groupFor(player, type.id) : null;
   if (!group) return result(false, '工厂集群不存在');
   applyPendingRecipe(group);
-  setGroupStopped(group, 'manual');
+  setGroupStopped(group, 'manual', now);
   return result(true, `${type.name}已停止生产并关闭自动恢复`);
 }
 
@@ -846,7 +980,7 @@ function setGroupRecipe(world, userId, payload, now) {
     : `${type.name}已改为${recipe.name}`);
 }
 
-function reduceRunningGroupForSellOrder(group, type, quantity) {
+function reduceRunningGroupForSellOrder(group, type, quantity, now = Date.now()) {
   if (group.status !== 'running') return;
   let remaining = quantity;
   const activeReduction = Math.min(group.participatingCount, remaining);
@@ -857,7 +991,7 @@ function reduceRunningGroupForSellOrder(group, type, quantity) {
     group.pendingJoinCount -= pendingReduction;
   }
   if (group.participatingCount < 1) {
-    setGroupError(group, 'no_available_facility');
+    setGroupError(group, 'no_available_facility', now);
     return;
   }
 }
@@ -891,7 +1025,7 @@ function placeFacilityOrder(world, userId, payload, now) {
     const group = groupFor(player, type.id);
     const available = group ? transferableGroupCount(world, player, group) : 0;
     if (!group || quantity > available) return result(false, '可出售工厂数量不足');
-    reduceRunningGroupForSellOrder(group, type, quantity);
+    reduceRunningGroupForSellOrder(group, type, quantity, now);
   }
 
   const order = {
@@ -958,14 +1092,14 @@ export function validateFacilityAuctionTransferQuantity(world, userId, typeId, q
   return result(true, '拍卖工厂冻结数量有效');
 }
 
-export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity) {
+export function reserveFacilityAuctionQuantity(world, userId, typeId, quantity, now = Date.now()) {
   const validation = validateFacilityAuctionQuantity(world, userId, typeId, quantity);
   if (!validation.ok) return validation;
   const account = world.players[String(userId)];
   const type = typeFor(typeId);
   const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_ORDER_QUANTITY);
   const group = groupFor(account, type.id);
-  reduceRunningGroupForSellOrder(group, type, normalizedQuantity);
+  reduceRunningGroupForSellOrder(group, type, normalizedQuantity, now);
   return result(true, '工厂已为拍卖冻结');
 }
 
@@ -978,7 +1112,7 @@ export function releaseFacilityAuctionQuantity(world, userId, typeId, quantity) 
   return result(true, '工厂拍卖已解冻');
 }
 
-export function transferFacilityAuctionQuantity(world, sellerId, buyerId, typeId, quantity) {
+export function transferFacilityAuctionQuantity(world, sellerId, buyerId, typeId, quantity, now = Date.now()) {
   const seller = world.players?.[String(sellerId)];
   const buyer = world.players?.[String(buyerId)];
   const type = typeFor(typeId);
@@ -990,7 +1124,7 @@ export function transferFacilityAuctionQuantity(world, sellerId, buyerId, typeId
   }
   sellerGroup.count -= normalizedQuantity;
   if (sellerGroup.count === 0) seller.facilityGroups = seller.facilityGroups.filter((item) => item !== sellerGroup);
-  addPurchasedGroup(buyer, type.id, normalizedQuantity);
+  addPurchasedGroup(buyer, type.id, normalizedQuantity, now);
   return result(true, '拍卖工厂已转移');
 }
 
@@ -1007,7 +1141,7 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
   if (action === 'buildFacility') actionResult = buildFacilityGroup(world, userId, payload, now);
   else if (action === 'accelerateFacilityConstruction') actionResult = accelerateFacilityConstruction(world, userId, now);
   else if (action === 'startFacility') actionResult = startFacilityGroup(world, userId, payload, now);
-  else if (action === 'pauseFacility') actionResult = pauseFacilityGroup(world, userId, payload);
+  else if (action === 'pauseFacility') actionResult = pauseFacilityGroup(world, userId, payload, now);
   else if (action === 'setFacilityRecipe') actionResult = setGroupRecipe(world, userId, payload, now);
   else if (action === 'placeOrder' && payload.assetKind === 'facility') actionResult = placeFacilityOrder(world, userId, payload, now);
   else if (action === 'listFacility') actionResult = placeFacilityOrder(world, userId, {
@@ -1149,24 +1283,54 @@ function createLeaderboard(world, currentUserId, now) {
     .map((entry, index) => ({ rank: index + 1, ...entry }));
 }
 
-function clientGroup(world, player, group) {
+function clientGroup(world, player, group, now) {
   const listedCount = listedQuantity(world, player.userId, group.facilityTypeId);
   const auctionedCount = auctionedQuantity(world, player.userId, group.facilityTypeId);
   const frozenCount = listedCount + auctionedCount;
   const mortgagedCount = mortgagedFacilityQuantity(player, group.facilityTypeId);
   const productionAvailableCount = Math.max(0, group.count - frozenCount);
   const availableCount = Math.max(0, productionAvailableCount - mortgagedCount);
-  const { cycleWageMultiplierBps: _cycleWageMultiplierBps, ...publicGroup } = clone(group);
+  const type = typeFor(group.facilityTypeId);
+  const recipe = activeRecipeFor(type, group);
+  const staffingRateBps = projectStaffingRate(group, now);
+  const nextCycleCount = group.status === 'running'
+    ? group.participatingCount + group.pendingJoinCount
+    : productionAvailableCount;
+  const cycleStaffingRateBps = group.status === 'running'
+    ? normalizeStaffingRate(group.cycleStaffingRateBps) ?? staffingRateBps
+    : undefined;
+  const cycleResult = group.status === 'running'
+    ? cycleCapacity(group, group.participatingCount, cycleStaffingRateBps)
+    : { effectiveCount: 0, carryBps: normalizeStaffingCarry(group.staffingBatchCarryBps) };
+  const nextCycleAt = group.status === 'running' && group.cycleStartedAt && recipe
+    ? group.cycleStartedAt + recipe.cycleMs
+    : now;
+  const nextCycleStaffingRateBps = projectStaffingRate(group, nextCycleAt);
+  const nextCycleResult = cycleCapacity(
+    group,
+    nextCycleCount,
+    nextCycleStaffingRateBps,
+    cycleResult.carryBps,
+  );
+  const {
+    cycleWageMultiplierBps: _cycleWageMultiplierBps,
+    staffingUpdatedAt: _staffingUpdatedAt,
+    staffingBatchCarryBps: _staffingBatchCarryBps,
+    ...publicGroup
+  } = clone(group);
   return {
     ...publicGroup,
+    staffingRateBps,
+    cycleStaffingRateBps,
+    cycleEffectiveCount: cycleResult.effectiveCount,
+    nextCycleStaffingRateBps,
+    nextCycleEffectiveCount: nextCycleResult.effectiveCount,
     listedCount,
     auctionedCount,
     frozenCount,
     mortgagedCount,
     availableCount,
-    nextCycleCount: group.status === 'running'
-      ? group.participatingCount + group.pendingJoinCount
-      : productionAvailableCount,
+    nextCycleCount,
   };
 }
 
@@ -1179,7 +1343,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   return {
     ...withoutFacilities,
     version: CURRENT_CLIENT_STATE_VERSION,
-    facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group)),
+    facilityGroups: (player.facilityGroups || []).map((group) => clientGroup(world, player, group, now)),
     facilityConstruction: player.facilityConstruction ? {
       ...clone(player.facilityConstruction),
       gemAccelerationMs: GEM_CONSTRUCTION_ACCELERATION_MS,
