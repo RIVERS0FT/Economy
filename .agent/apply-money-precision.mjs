@@ -37,6 +37,7 @@ const metadataCleanup = [
   "replaceAll('scripts/verify-staple-crops-demand.mjs', 'MARKET_DEMAND_MODEL_VERSION, 10', 'MARKET_DEMAND_MODEL_VERSION, 11');",
   "replaceAll('scripts/verify-staple-crops-demand.mjs', 'MARKET_DEMAND_MODEL_VERSION = 10', 'MARKET_DEMAND_MODEL_VERSION = 11');",
   "replaceAll('scripts/verify-staple-crops-demand.mjs', 'POPULATION_ECONOMY_VERSION = 4', 'POPULATION_ECONOMY_VERSION = 5');",
+  "replaceAll('scripts/verify-staple-crops-demand.mjs', 'world.version = 16', 'world.version = 17');",
   "replaceAll('scripts/verify-document-authority.mjs', \"'世界状态版本：`16`'\", \"'世界状态版本：`17`'\");",
   "replaceAll('scripts/verify-document-authority.mjs', \"'市场需求模型版本：`10`'\", \"'市场需求模型版本：`11`'\");",
   "replaceAll('scripts/verify-document-authority.mjs', \"content.includes('世界状态版本：16')\", \"content.includes('世界状态版本：17')\");",
