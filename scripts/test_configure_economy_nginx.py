@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import gzip
 import importlib.util
 import unittest
 from pathlib import Path
@@ -118,6 +119,40 @@ class ReplaceOrInsertTests(unittest.TestCase):
         block = nginx.static_compression_block()
         for media_type in ("image/png", "image/jpeg", "image/webp", "image/avif", "font/woff2"):
             self.assertNotIn(media_type, block)
+
+    def test_static_asset_paths_and_gzip_payload_validation(self) -> None:
+        html = (
+            '<script type="module" src="/economy/assets/index-abc.js"></script>'
+            '<link rel="stylesheet" href="/economy/assets/index-def.css">'
+        )
+        self.assertEqual(
+            nginx.find_static_asset_paths(html),
+            ("/economy/assets/index-abc.js", "/economy/assets/index-def.css"),
+        )
+        source = (b"const economy = true;" * 200)
+        payload = gzip.compress(source, compresslevel=6)
+        self.assertEqual(
+            nginx.validate_gzip_payload(
+                "javascript",
+                {"content-encoding": "gzip", "vary": "Accept-Encoding"},
+                payload,
+                source,
+            ),
+            (len(source), len(payload)),
+        )
+
+    def test_gzip_payload_validation_rejects_missing_headers(self) -> None:
+        source = b"body" * 400
+        payload = gzip.compress(source, compresslevel=6)
+        with self.assertRaisesRegex(RuntimeError, "ECONOMY_STATIC_GZIP_MISSING"):
+            nginx.validate_gzip_payload("css", {}, payload, source)
+        with self.assertRaisesRegex(RuntimeError, "ECONOMY_STATIC_GZIP_VARY_MISSING"):
+            nginx.validate_gzip_payload(
+                "css",
+                {"content-encoding": "gzip"},
+                payload,
+                source,
+            )
 
     def test_legacy_broad_route_is_replaced(self) -> None:
         original = server(

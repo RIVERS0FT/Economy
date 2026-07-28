@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import gzip
 import os
 import re
 import shutil
@@ -10,6 +11,8 @@ import tempfile
 from pathlib import Path
 
 DOMAIN = "game.riversoft.top"
+LOCAL_ORIGIN = "http://127.0.0.1"
+STATIC_WEB_ROOT = Path("/var/www/game/economy")
 ACCOUNT_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-account.conf"
 GAME_API_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-game-api.conf"
 BEGIN = "# BEGIN MANAGED ECONOMY API PROXY"
@@ -434,6 +437,119 @@ def write_atomic(path: Path, content: str) -> None:
             os.unlink(temp_name)
 
 
+def parse_http_headers(text: str) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    for line in text.replace("\r", "").splitlines():
+        if ":" not in line:
+            continue
+        name, value = line.split(":", 1)
+        key = name.strip().lower()
+        normalized = value.strip()
+        if key in headers:
+            headers[key] = headers[key] + ", " + normalized
+        else:
+            headers[key] = normalized
+    return headers
+
+
+def find_static_asset_paths(html: str) -> tuple[str, str]:
+    javascript = re.search(r'src="(?P<path>/economy/assets/[^" ]+\.js)"', html)
+    stylesheet = re.search(r'href="(?P<path>/economy/assets/[^" ]+\.css)"', html)
+    if not javascript:
+        raise RuntimeError("ECONOMY_STATIC_JAVASCRIPT_NOT_FOUND")
+    if not stylesheet:
+        raise RuntimeError("ECONOMY_STATIC_CSS_NOT_FOUND")
+    return javascript.group("path"), stylesheet.group("path")
+
+
+def validate_gzip_payload(
+    label: str,
+    headers: dict[str, str],
+    payload: bytes,
+    source: bytes,
+) -> tuple[int, int]:
+    if headers.get("content-encoding", "").lower() != "gzip":
+        raise RuntimeError(f"ECONOMY_STATIC_GZIP_MISSING label={label}")
+    if "accept-encoding" not in headers.get("vary", "").lower():
+        raise RuntimeError(f"ECONOMY_STATIC_GZIP_VARY_MISSING label={label}")
+    try:
+        decoded = gzip.decompress(payload)
+    except (OSError, EOFError) as error:
+        raise RuntimeError(f"ECONOMY_STATIC_GZIP_INVALID label={label}: {error}") from error
+    if decoded != source:
+        raise RuntimeError(f"ECONOMY_STATIC_GZIP_CONTENT_MISMATCH label={label}")
+    if len(payload) >= len(source):
+        raise RuntimeError(
+            f"ECONOMY_STATIC_GZIP_NOT_SMALLER label={label} "
+            f"source_bytes={len(source)} wire_bytes={len(payload)}"
+        )
+    return len(source), len(payload)
+
+
+def fetch_local_response(path: str, *, accept_gzip: bool) -> tuple[dict[str, str], bytes]:
+    with tempfile.TemporaryDirectory(prefix="economy-gzip-check-") as directory:
+        root = Path(directory)
+        headers_path = root / "headers.txt"
+        body_path = root / "body.bin"
+        command = [
+            "curl",
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--http1.1",
+            "--header",
+            f"Host: {DOMAIN}",
+            "--dump-header",
+            str(headers_path),
+            "--output",
+            str(body_path),
+        ]
+        if accept_gzip:
+            command.extend(["--header", "Accept-Encoding: gzip"])
+        command.append(f"{LOCAL_ORIGIN}{path}")
+        run(command)
+        return (
+            parse_http_headers(headers_path.read_text(encoding="utf-8", errors="replace")),
+            body_path.read_bytes(),
+        )
+
+
+def static_source_path(public_path: str) -> Path:
+    prefix = "/economy/"
+    if not public_path.startswith(prefix):
+        raise RuntimeError(f"ECONOMY_STATIC_PATH_INVALID path={public_path}")
+    relative = public_path[len(prefix):]
+    candidate = (STATIC_WEB_ROOT / relative).resolve()
+    root = STATIC_WEB_ROOT.resolve()
+    if candidate != root and root not in candidate.parents:
+        raise RuntimeError(f"ECONOMY_STATIC_PATH_ESCAPE path={public_path}")
+    return candidate
+
+
+def verify_static_compression() -> None:
+    _plain_headers, plain_html = fetch_local_response("/economy/", accept_gzip=False)
+    javascript_path, stylesheet_path = find_static_asset_paths(plain_html.decode("utf-8"))
+    targets = (
+        ("html", "/economy/", STATIC_WEB_ROOT / "index.html"),
+        ("javascript", javascript_path, static_source_path(javascript_path)),
+        ("css", stylesheet_path, static_source_path(stylesheet_path)),
+    )
+    for label, public_path, source_path in targets:
+        if not source_path.is_file():
+            raise RuntimeError(f"ECONOMY_STATIC_SOURCE_MISSING label={label} path={source_path}")
+        headers, payload = fetch_local_response(public_path, accept_gzip=True)
+        source_bytes, wire_bytes = validate_gzip_payload(
+            label,
+            headers,
+            payload,
+            source_path.read_bytes(),
+        )
+        print(
+            f"ECONOMY_STATIC_GZIP_VERIFIED label={label} "
+            f"source_bytes={source_bytes} wire_bytes={wire_bytes}"
+        )
+
+
 def main() -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
@@ -461,16 +577,18 @@ def main() -> int:
             write_atomic(changed_path, changed_content)
         run(["nginx", "-t"])
         run(["systemctl", "reload", "nginx"])
+        verify_static_compression()
     except Exception:
         for changed_path, backup in reversed(backups):
             shutil.copy2(backup, changed_path)
         subprocess.run(["nginx", "-t"], check=False)
+        subprocess.run(["systemctl", "reload", "nginx"], check=False)
         raise
 
     if changes:
-        print("Configured Economy API proxy and JSON compression in " + ", ".join(str(item[0]) for item in changes))
+        print("Configured Economy API proxy and static compression in " + ", ".join(str(item[0]) for item in changes))
     else:
-        print(f"Economy API proxy and JSON compression already configured in {path}")
+        print(f"Economy API proxy and static compression already configured in {path}")
     return 0
 
 

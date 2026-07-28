@@ -81,6 +81,14 @@ requireText('scripts/configure-economy-nginx.py', [
   'application/atom+xml image/svg+xml application/wasm',
   'remove_top_level_directives',
   'ensure_static_compression',
+  'find_static_asset_paths',
+  'validate_gzip_payload',
+  'verify_static_compression',
+  'ECONOMY_STATIC_GZIP_MISSING',
+  'ECONOMY_STATIC_GZIP_VARY_MISSING',
+  'ECONOMY_STATIC_GZIP_CONTENT_MISMATCH',
+  'ECONOMY_STATIC_GZIP_NOT_SMALLER',
+  'ECONOMY_STATIC_GZIP_VERIFIED',
 ]);
 forbidText('scripts/configure-economy-nginx.py', [
   'image/png',
@@ -89,16 +97,6 @@ forbidText('scripts/configure-economy-nginx.py', [
   'image/avif',
   'font/woff2',
 ]);
-requireText('.github/workflows/deploy.yml', [
-  'verify_gzip_response()',
-  "--header 'Accept-Encoding: gzip'",
-  'ECONOMY_STATIC_GZIP_MISSING',
-  'ECONOMY_STATIC_GZIP_VARY_MISSING',
-  'ECONOMY_STATIC_GZIP_NOT_SMALLER',
-  'verify_gzip_response javascript',
-  'verify_gzip_response css',
-]);
-
 requireText('server/src/storage.js', [
   "immediate ? 'BEGIN IMMEDIATE' : 'BEGIN'",
   'this.worldCache = null',
