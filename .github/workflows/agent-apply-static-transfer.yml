@@ -41,7 +41,13 @@ jobs:
           updated, count = re.subn(pattern, replacement, text, count=2)
           if count != 2:
               raise SystemExit(f'apply script gzip assertion anchors: {count}')
-          path.write_text(updated, encoding='utf-8')
+
+          lines = updated.splitlines()
+          header_lines = [index for index, line in enumerate(lines) if "Accept-Encoding: gzip" in line]
+          if len(header_lines) != 1:
+              raise SystemExit(f'apply script Accept-Encoding lines: {len(header_lines)}')
+          lines[header_lines[0]] = '    "  \\"--header \\'Accept-Encoding: gzip\\'\\",\\n"'
+          path.write_text("\n".join(lines) + "\n", encoding='utf-8')
           PY
             python3 .agent/apply-static-transfer.py
             git diff --check
