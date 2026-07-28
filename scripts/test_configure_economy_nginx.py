@@ -6,6 +6,7 @@ import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 MODULE_PATH = Path(__file__).with_name("configure-economy-nginx.py")
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -132,6 +133,7 @@ class ReplaceOrInsertTests(unittest.TestCase):
 
         self.assertEqual(updated.count(nginx.STATIC_VARY_HEADER), 2)
         self.assertIn("add_header Cache-Control immutable;", updated)
+        self.assertEqual(nginx.ensure_static_vary_headers(updated), (updated, False))
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
     def test_collects_static_vary_changes_from_separate_snippets(self) -> None:
@@ -157,6 +159,50 @@ class ReplaceOrInsertTests(unittest.TestCase):
             for _path, original, updated in changes:
                 self.assertNotEqual(original, updated)
                 self.assertIn(nginx.STATIC_VARY_HEADER, updated)
+
+    def test_collect_static_vary_changes_ignores_canonical_content(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "economy-static.conf"
+            canonical = (
+                "location ^~ /economy/ {\n"
+                f"    {nginx.STATIC_VARY_HEADER}\n"
+                "    try_files $uri /economy/index.html;\n"
+                "}\n"
+            )
+            path.write_text(canonical, encoding="utf-8")
+
+            self.assertEqual(
+                nginx.collect_static_vary_changes(config_paths=(path,)),
+                [],
+            )
+
+    def test_collect_static_vary_changes_requires_a_content_difference(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "economy-static.conf"
+            original = "location ^~ /economy/ { try_files $uri /economy/index.html; }\n"
+            path.write_text(original, encoding="utf-8")
+
+            with mock.patch.object(
+                nginx,
+                "ensure_static_vary_headers",
+                return_value=(original, True),
+            ):
+                self.assertEqual(
+                    nginx.collect_static_vary_changes(config_paths=(path,)),
+                    [],
+                )
+
+    def test_nginx_config_files_ignore_backups(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            active = root / "economy.conf"
+            proxy_backup = root / "economy.conf.economy-proxy.bak"
+            dated_backup = root / "economy.backup-20260728"
+            for path in (active, proxy_backup, dated_backup):
+                path.write_text("server {}\n", encoding="utf-8")
+
+            with mock.patch.object(nginx, "NGINX_CONFIG_ROOTS", (root,)):
+                self.assertEqual(list(nginx.nginx_config_files()), [active.resolve()])
 
     def test_static_asset_paths_and_gzip_payload_validation(self) -> None:
         html = (
@@ -200,6 +246,78 @@ class ReplaceOrInsertTests(unittest.TestCase):
                 payload,
                 source,
             )
+
+    def test_static_compression_verification_retries_reload_race(self) -> None:
+        calls = []
+        delays = []
+
+        def verifier() -> None:
+            calls.append("verify")
+            if len(calls) < 3:
+                raise RuntimeError(
+                    "ECONOMY_STATIC_GZIP_VARY_MISSING label=html"
+                )
+
+        nginx.verify_static_compression_after_reload(
+            attempts=3,
+            delay_seconds=0.25,
+            verifier=verifier,
+            sleeper=delays.append,
+        )
+
+        self.assertEqual(calls, ["verify", "verify", "verify"])
+        self.assertEqual(delays, [0.25, 0.25])
+
+    def test_static_compression_verification_does_not_retry_deterministic_error(self) -> None:
+        calls = []
+        delays = []
+
+        def verifier() -> None:
+            calls.append("verify")
+            raise RuntimeError(
+                "ECONOMY_STATIC_SOURCE_MISSING label=html path=/missing"
+            )
+
+        with self.assertRaisesRegex(RuntimeError, "ECONOMY_STATIC_SOURCE_MISSING"):
+            nginx.verify_static_compression_after_reload(
+                attempts=3,
+                delay_seconds=0.25,
+                verifier=verifier,
+                sleeper=delays.append,
+            )
+
+        self.assertEqual(calls, ["verify"])
+        self.assertEqual(delays, [])
+
+    def test_static_compression_verification_exhausts_retry_budget(self) -> None:
+        calls = []
+        delays = []
+        error = RuntimeError("ECONOMY_STATIC_GZIP_MISSING label=html")
+
+        def verifier() -> None:
+            calls.append("verify")
+            raise error
+
+        with self.assertRaises(RuntimeError) as raised:
+            nginx.verify_static_compression_after_reload(
+                attempts=2,
+                timeout_seconds=5,
+                delay_seconds=0.25,
+                verifier=verifier,
+                sleeper=delays.append,
+                clock=lambda: 0,
+            )
+
+        self.assertIs(raised.exception, error)
+        self.assertEqual(calls, ["verify", "verify"])
+        self.assertEqual(delays, [0.25])
+
+    def test_only_curl_process_failures_are_retryable(self) -> None:
+        curl_error = nginx.subprocess.CalledProcessError(1, ["curl", "--fail"])
+        nginx_error = nginx.subprocess.CalledProcessError(1, ["nginx", "-t"])
+
+        self.assertTrue(nginx.is_retryable_static_verification_error(curl_error))
+        self.assertFalse(nginx.is_retryable_static_verification_error(nginx_error))
 
     def test_legacy_broad_route_is_replaced(self) -> None:
         original = server(
@@ -247,6 +365,8 @@ class DeploymentDesignContractTests(unittest.TestCase):
             "线上压缩响应体必须小于构建产物原始字节数",
             "两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`",
             "扫描 `sites-enabled`、`conf.d`、`sites-available` 与 `snippets`",
+            "扫描时必须跳过 `.bak`、`.backup-*` 与 `.economy-proxy.bak`",
+            "Nginx reload 后必须在 5 秒窗口内",
         )
 
         for rule in required_rules:

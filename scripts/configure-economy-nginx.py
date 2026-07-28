@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 DOMAIN = "game.riversoft.top"
@@ -43,11 +44,20 @@ STATIC_COMPRESSION = (
 STATIC_COMPRESSION_NAMES = frozenset(name for name, _value in STATIC_COMPRESSION)
 STATIC_LOCATION_PATHS = ("/economy/assets/", "/economy/")
 STATIC_VARY_HEADER = 'add_header Vary "Accept-Encoding" always;'
+STATIC_VERIFY_ATTEMPTS = 20
+STATIC_VERIFY_TIMEOUT_SECONDS = 5.0
+STATIC_VERIFY_RETRY_DELAY_SECONDS = 0.25
+LOCAL_CURL_CONNECT_TIMEOUT_SECONDS = 1
+LOCAL_CURL_MAX_TIME_SECONDS = 3
 NGINX_CONFIG_ROOTS = (
     Path("/etc/nginx/sites-enabled"),
     Path("/etc/nginx/conf.d"),
     Path("/etc/nginx/sites-available"),
     Path("/etc/nginx/snippets"),
+)
+NGINX_BACKUP_NAME_PATTERN = re.compile(
+    r"(?:^|[._-])(?:bak|backup)(?:$|[._-])",
+    re.IGNORECASE,
 )
 
 ACCOUNT_BLOCK = """
@@ -227,7 +237,7 @@ def ensure_static_vary_headers(block: str) -> tuple[str, bool]:
         opening = view.find("{", location.start())
         closing = matching_brace(block, opening)
         body = block[opening + 1 : closing]
-        if canonical_pattern.search(masked(body)):
+        if canonical_pattern.search(body):
             continue
 
         body, _removed = vary_pattern.subn("", body)
@@ -443,15 +453,26 @@ def replace_or_insert(block: str) -> str:
     return normalized + "\n\n" + desired + "\n" + cleaned[closing:]
 
 
+def is_nginx_backup_path(path: Path) -> bool:
+    return bool(NGINX_BACKUP_NAME_PATTERN.search(path.name))
+
+
 def nginx_config_files():
     seen: set[Path] = set()
     for root in NGINX_CONFIG_ROOTS:
         if not root.exists():
             continue
         for candidate in sorted(root.glob("*")):
-            if not candidate.is_file() and not candidate.is_symlink():
+            if is_nginx_backup_path(candidate):
                 continue
-            resolved = candidate.resolve()
+            try:
+                if not candidate.is_file() and not candidate.is_symlink():
+                    continue
+                resolved = candidate.resolve()
+            except (OSError, RuntimeError):
+                continue
+            if is_nginx_backup_path(resolved):
+                continue
             if resolved in seen:
                 continue
             seen.add(resolved)
@@ -466,7 +487,15 @@ def collect_static_vary_changes(
     paths = nginx_config_files() if config_paths is None else config_paths
     changes: list[tuple[Path, str, str]] = []
     for candidate in paths:
-        resolved = Path(candidate).resolve()
+        candidate_path = Path(candidate)
+        if is_nginx_backup_path(candidate_path):
+            continue
+        try:
+            resolved = candidate_path.resolve()
+        except (OSError, RuntimeError):
+            continue
+        if is_nginx_backup_path(resolved):
+            continue
         if resolved in excluded:
             continue
         try:
@@ -474,7 +503,7 @@ def collect_static_vary_changes(
         except (OSError, UnicodeDecodeError):
             continue
         updated, changed = ensure_static_vary_headers(text)
-        if changed:
+        if changed and updated != text:
             changes.append((resolved, text, updated))
     return changes
 
@@ -584,6 +613,10 @@ def fetch_local_response(path: str, *, accept_gzip: bool) -> tuple[dict[str, str
             "--show-error",
             "--http1.1",
             "--insecure",
+            "--connect-timeout",
+            str(LOCAL_CURL_CONNECT_TIMEOUT_SECONDS),
+            "--max-time",
+            str(LOCAL_CURL_MAX_TIME_SECONDS),
             "--resolve",
             f"{DOMAIN}:443:127.0.0.1",
             "--dump-header",
@@ -637,6 +670,73 @@ def verify_static_compression() -> None:
         )
 
 
+def is_retryable_static_verification_error(error: Exception) -> bool:
+    if isinstance(error, subprocess.CalledProcessError):
+        command = error.cmd
+        return bool(
+            isinstance(command, (list, tuple))
+            and command
+            and Path(str(command[0])).name.lower() in {"curl", "curl.exe"}
+        )
+    if not isinstance(error, RuntimeError):
+        return False
+    return str(error).startswith(
+        (
+            "ECONOMY_STATIC_GZIP_MISSING",
+            "ECONOMY_STATIC_GZIP_VARY_MISSING",
+        )
+    )
+
+
+def verify_static_compression_after_reload(
+    *,
+    attempts: int = STATIC_VERIFY_ATTEMPTS,
+    timeout_seconds: float = STATIC_VERIFY_TIMEOUT_SECONDS,
+    delay_seconds: float = STATIC_VERIFY_RETRY_DELAY_SECONDS,
+    verifier=verify_static_compression,
+    sleeper=time.sleep,
+    clock=time.monotonic,
+) -> None:
+    if attempts < 1:
+        raise ValueError("attempts must be at least 1")
+    if timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be positive")
+    if delay_seconds < 0:
+        raise ValueError("delay_seconds must not be negative")
+
+    started_at = clock()
+    deadline = started_at + timeout_seconds
+    for attempt in range(1, attempts + 1):
+        try:
+            verifier()
+            if attempt > 1:
+                print(
+                    f"ECONOMY_STATIC_GZIP_RECOVERED attempt={attempt} "
+                    f"elapsed_seconds={clock() - started_at:.3f}",
+                    file=sys.stderr,
+                )
+            return
+        except (RuntimeError, subprocess.CalledProcessError) as error:
+            if not is_retryable_static_verification_error(error):
+                raise
+            remaining_seconds = deadline - clock()
+            if attempt >= attempts or remaining_seconds <= 0:
+                print(
+                    f"ECONOMY_STATIC_GZIP_RETRY_EXHAUSTED attempt={attempt} "
+                    f"elapsed_seconds={clock() - started_at:.3f} error={error}",
+                    file=sys.stderr,
+                )
+                raise
+            sleep_seconds = min(delay_seconds, remaining_seconds)
+            print(
+                f"ECONOMY_STATIC_GZIP_RETRY attempt={attempt} "
+                f"max_attempts={attempts} sleep_seconds={sleep_seconds:.3f} "
+                f"error={error}",
+                file=sys.stderr,
+            )
+            sleeper(sleep_seconds)
+
+
 def main() -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
@@ -669,7 +769,7 @@ def main() -> int:
             write_atomic(changed_path, changed_content)
         run(["nginx", "-t"])
         run(["systemctl", "reload", "nginx"])
-        verify_static_compression()
+        verify_static_compression_after_reload()
     except Exception:
         for changed_path, backup in reversed(backups):
             shutil.copy2(backup, changed_path)
