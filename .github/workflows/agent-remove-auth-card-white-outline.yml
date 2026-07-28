@@ -1,0 +1,32 @@
+name: Apply authentication card outline removal
+
+on:
+  push:
+    branches:
+      - agent/remove-auth-card-white-outline
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply source patch
+        run: |
+          git apply --check .agent/remove-auth-card-white-outline.patch
+          git apply .agent/remove-auth-card-white-outline.patch
+          rm -f .agent/remove-auth-card-white-outline.patch
+          rm -f .github/workflows/agent-remove-auth-card-white-outline.yml
+          rmdir .agent 2>/dev/null || true
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "移除认证卡片外层白边"
+          git push origin HEAD:agent/remove-auth-card-white-outline
