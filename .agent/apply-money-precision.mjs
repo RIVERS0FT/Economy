@@ -55,6 +55,7 @@ const metadataCleanup = [
   "replaceAll('scripts/verify-staple-crops-demand.mjs', '人口经济内部版本固定为 4', '人口经济内部版本固定为 5');",
   "replaceAll('scripts/verify-staple-crops-demand.mjs', '市场需求模型 10', '市场需求模型 11');",
   "replaceAll('scripts/verify-staple-crops-demand.mjs', '模型 10 使用真实人口钱包', '模型 11 使用真实人口钱包');",
+  "replaceAll('scripts/verify-staple-crops-demand.mjs', 'version 3 cautious state migrates to strained without reissuing bootstrap funds', 'version 3 cautious state migrates to version 5 strained without reissuing bootstrap funds');",
   "replaceAll('scripts/verify-market-assets.mjs', 'world.version = 16', 'world.version = 17');",
   "replaceAll('scripts/verify-market-assets.mjs', 'Number.isFinite(price) && Number.isInteger(price) && price >= 1', 'Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8');",
   "replaceAll('scripts/verify-market-sell-fee.mjs', 'Math.floor(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS)', 'MARKET_SELL_FEE_VERSION = 3');",
