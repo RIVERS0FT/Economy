@@ -19,6 +19,7 @@ jobs:
       - name: Record authoritative rules
         run: |
           set -euo pipefail
+          # Apply every design and guard update as one atomic operation.
           python3 .agent/record-auth-neutral-measurement.py
           rm -f .agent/record-auth-neutral-measurement.py
           rm -f .github/workflows/agent-record-auth-neutral-measurement.yml
