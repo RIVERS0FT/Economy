@@ -1,0 +1,87 @@
+name: Diagnose live gzip responses
+
+on:
+  push:
+    branches:
+      - agent/gzip-live-diagnostic
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
+      - name: Collect live compression report
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" 'bash -s' > gzip-live-report.txt <<'REMOTE'
+          set -euo pipefail
+
+          print_headers() {
+            local label="$1"
+            local path="$2"
+            local body_file
+            body_file="$(mktemp)"
+            echo "=== $label ==="
+            curl --silent --show-error --http1.1 \
+              --header 'Host: game.riversoft.top' \
+              --header 'Accept-Encoding: gzip' \
+              --dump-header - \
+              --output "$body_file" \
+              "http://127.0.0.1${path}" \
+              | tr -d '\r' \
+              | awk 'BEGIN{IGNORECASE=1} /^HTTP\// || /^content-type:/ || /^content-length:/ || /^content-encoding:/ || /^transfer-encoding:/ || /^vary:/ || /^cache-control:/ || /^etag:/ {print}'
+            printf 'wire_bytes\t%s\n' "$(wc -c < "$body_file")"
+            rm -f "$body_file"
+          }
+
+          html="$(curl --silent --show-error --http1.1 --header 'Host: game.riversoft.top' http://127.0.0.1/economy/)"
+          js_path="$(printf '%s' "$html" | grep -oE 'src="/economy/assets/[^" ]+\.js"' | head -n 1 | cut -d'"' -f2 || true)"
+          css_path="$(printf '%s' "$html" | grep -oE 'href="/economy/assets/[^" ]+\.css"' | head -n 1 | cut -d'"' -f2 || true)"
+
+          print_headers HTML /economy/
+          if [ -n "$js_path" ]; then print_headers JAVASCRIPT "$js_path"; else echo '=== JAVASCRIPT ==='; echo 'asset_not_found'; fi
+          if [ -n "$css_path" ]; then print_headers CSS "$css_path"; else echo '=== CSS ==='; echo 'asset_not_found'; fi
+          print_headers API_UNAUTHENTICATED /economy-api/game/state
+
+          echo '=== EFFECTIVE_GZIP_DIRECTIVES ==='
+          if [ "$(id -u)" -eq 0 ]; then
+            nginx -T 2>/dev/null
+          elif command -v sudo >/dev/null 2>&1 && sudo -n true; then
+            sudo -n nginx -T 2>/dev/null
+          else
+            echo 'nginx_config_unavailable'
+            exit 0
+          fi | grep -E '^[[:space:]]*gzip(_[a-z_]+)?[[:space:]]' | sed 's/^[[:space:]]*//' | sort -u
+          REMOTE
+      - name: Commit report and remove temporary files
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/agent-gzip-live-diagnostic.yml
+          rm -f .agent/gzip-live-trigger.txt
+          rmdir .agent 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "记录线上 gzip 响应诊断"
+          git push origin HEAD:agent/gzip-live-diagnostic
