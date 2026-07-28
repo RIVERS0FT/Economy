@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import gzip
 import os
 import re
 import shutil
@@ -10,10 +11,14 @@ import tempfile
 from pathlib import Path
 
 DOMAIN = "game.riversoft.top"
+LOCAL_ORIGIN = "http://127.0.0.1"
+STATIC_WEB_ROOT = Path("/var/www/game/economy")
 ACCOUNT_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-account.conf"
 GAME_API_SNIPPET = "/etc/nginx/snippets/game-riversoft-economy-game-api.conf"
 BEGIN = "# BEGIN MANAGED ECONOMY API PROXY"
 END = "# END MANAGED ECONOMY API PROXY"
+STATIC_COMPRESSION_BEGIN = "# BEGIN MANAGED ECONOMY STATIC COMPRESSION"
+STATIC_COMPRESSION_END = "# END MANAGED ECONOMY STATIC COMPRESSION"
 GAME_API_COMPRESSION = (
     ("gzip", "on"),
     ("gzip_vary", "on"),
@@ -22,6 +27,20 @@ GAME_API_COMPRESSION = (
     ("gzip_comp_level", "5"),
     ("gzip_types", "application/json"),
 )
+STATIC_COMPRESSION = (
+    ("gzip", "on"),
+    ("gzip_vary", "on"),
+    ("gzip_proxied", "any"),
+    ("gzip_min_length", "1024"),
+    ("gzip_comp_level", "6"),
+    (
+        "gzip_types",
+        "text/css text/plain text/javascript application/javascript application/json "
+        "application/manifest+json application/xml application/xhtml+xml application/rss+xml "
+        "application/atom+xml image/svg+xml application/wasm",
+    ),
+)
+STATIC_COMPRESSION_NAMES = frozenset(name for name, _value in STATIC_COMPRESSION)
 
 ACCOUNT_BLOCK = """
     location = /economy-api/login {
@@ -99,6 +118,82 @@ def managed_pattern() -> re.Pattern[str]:
         rf"^[ \t]*{re.escape(BEGIN)}.*?^[ \t]*{re.escape(END)}[ \t]*(?:\n|$)",
         re.MULTILINE | re.DOTALL,
     )
+
+
+def static_compression_block() -> str:
+    directives = "\n".join(
+        f"    {name} {value};"
+        for name, value in STATIC_COMPRESSION
+    )
+    return (
+        f"    {STATIC_COMPRESSION_BEGIN}\n"
+        f"{directives}\n"
+        f"    {STATIC_COMPRESSION_END}"
+    )
+
+
+def static_compression_pattern() -> re.Pattern[str]:
+    return re.compile(
+        rf"^[ \t]*{re.escape(STATIC_COMPRESSION_BEGIN)}.*?"
+        rf"^[ \t]*{re.escape(STATIC_COMPRESSION_END)}[ \t]*(?:\n|$)",
+        re.MULTILINE | re.DOTALL,
+    )
+
+
+def remove_top_level_directives(text: str, names: frozenset[str]) -> str:
+    view = masked(text)
+    removals: list[tuple[int, int]] = []
+    depth = 0
+    line_start = 0
+    index = 0
+
+    while index < len(view):
+        if index == line_start and depth == 1:
+            line_end = view.find("\n", index)
+            if line_end < 0:
+                line_end = len(view)
+            match = re.match(r"[ \t]*([A-Za-z0-9_]+)\b", view[index:line_end])
+            if match and match.group(1) in names:
+                semicolon = view.find(";", index)
+                if semicolon < 0:
+                    raise RuntimeError(f"Missing semicolon for {match.group(1)}")
+                nested_opening = view.find("{", index, semicolon)
+                nested_closing = view.find("}", index, semicolon)
+                if nested_opening >= 0 or nested_closing >= 0:
+                    raise RuntimeError(f"Unexpected block in {match.group(1)} directive")
+                end = semicolon + 1
+                while end < len(text) and text[end] in " \t":
+                    end += 1
+                if end < len(text) and text[end] == "\n":
+                    end += 1
+                removals.append((index, end))
+                index = end
+                line_start = end
+                continue
+
+        char = view[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+        elif char == "\n":
+            line_start = index + 1
+        index += 1
+
+    for start, end in reversed(removals):
+        text = text[:start] + text[end:]
+    return text
+
+
+def ensure_static_compression(block: str) -> tuple[str, bool]:
+    cleaned = static_compression_pattern().sub("", block, count=1)
+    cleaned = remove_top_level_directives(cleaned, STATIC_COMPRESSION_NAMES)
+    closing = cleaned.rfind("}")
+    if closing < 0:
+        raise RuntimeError("Target server block has no closing brace")
+    normalized = cleaned[:closing].rstrip()
+    updated = normalized + "\n\n" + static_compression_block() + "\n" + cleaned[closing:]
+    return updated, updated != block
 
 
 def masked(text: str) -> str:
@@ -276,13 +371,14 @@ def replace_or_insert(block: str) -> str:
     cleaned = pattern.sub("", block, count=1)
     cleaned, removed_legacy = remove_legacy_economy_api_location(cleaned)
     cleaned, added_compression = ensure_game_api_compression(cleaned)
+    cleaned, added_static_compression = ensure_static_compression(cleaned)
 
     include_account = not has_account_proxy(cleaned)
     include_game_api = not has_game_api_proxy(cleaned)
     desired = managed_block(account=include_account, game_api=include_game_api)
 
     if not desired:
-        if not had_managed and not removed_legacy and not added_compression:
+        if not had_managed and not removed_legacy and not added_compression and not added_static_compression:
             return block
         return re.sub(r"\n{3,}", "\n\n", cleaned)
 
@@ -341,6 +437,119 @@ def write_atomic(path: Path, content: str) -> None:
             os.unlink(temp_name)
 
 
+def parse_http_headers(text: str) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    for line in text.replace("\r", "").splitlines():
+        if ":" not in line:
+            continue
+        name, value = line.split(":", 1)
+        key = name.strip().lower()
+        normalized = value.strip()
+        if key in headers:
+            headers[key] = headers[key] + ", " + normalized
+        else:
+            headers[key] = normalized
+    return headers
+
+
+def find_static_asset_paths(html: str) -> tuple[str, str]:
+    javascript = re.search(r'src="(?P<path>/economy/assets/[^" ]+\.js)"', html)
+    stylesheet = re.search(r'href="(?P<path>/economy/assets/[^" ]+\.css)"', html)
+    if not javascript:
+        raise RuntimeError("ECONOMY_STATIC_JAVASCRIPT_NOT_FOUND")
+    if not stylesheet:
+        raise RuntimeError("ECONOMY_STATIC_CSS_NOT_FOUND")
+    return javascript.group("path"), stylesheet.group("path")
+
+
+def validate_gzip_payload(
+    label: str,
+    headers: dict[str, str],
+    payload: bytes,
+    source: bytes,
+) -> tuple[int, int]:
+    if headers.get("content-encoding", "").lower() != "gzip":
+        raise RuntimeError(f"ECONOMY_STATIC_GZIP_MISSING label={label}")
+    if "accept-encoding" not in headers.get("vary", "").lower():
+        raise RuntimeError(f"ECONOMY_STATIC_GZIP_VARY_MISSING label={label}")
+    try:
+        decoded = gzip.decompress(payload)
+    except (OSError, EOFError) as error:
+        raise RuntimeError(f"ECONOMY_STATIC_GZIP_INVALID label={label}: {error}") from error
+    if decoded != source:
+        raise RuntimeError(f"ECONOMY_STATIC_GZIP_CONTENT_MISMATCH label={label}")
+    if len(payload) >= len(source):
+        raise RuntimeError(
+            f"ECONOMY_STATIC_GZIP_NOT_SMALLER label={label} "
+            f"source_bytes={len(source)} wire_bytes={len(payload)}"
+        )
+    return len(source), len(payload)
+
+
+def fetch_local_response(path: str, *, accept_gzip: bool) -> tuple[dict[str, str], bytes]:
+    with tempfile.TemporaryDirectory(prefix="economy-gzip-check-") as directory:
+        root = Path(directory)
+        headers_path = root / "headers.txt"
+        body_path = root / "body.bin"
+        command = [
+            "curl",
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--http1.1",
+            "--header",
+            f"Host: {DOMAIN}",
+            "--dump-header",
+            str(headers_path),
+            "--output",
+            str(body_path),
+        ]
+        if accept_gzip:
+            command.extend(["--header", "Accept-Encoding: gzip"])
+        command.append(f"{LOCAL_ORIGIN}{path}")
+        run(command)
+        return (
+            parse_http_headers(headers_path.read_text(encoding="utf-8", errors="replace")),
+            body_path.read_bytes(),
+        )
+
+
+def static_source_path(public_path: str) -> Path:
+    prefix = "/economy/"
+    if not public_path.startswith(prefix):
+        raise RuntimeError(f"ECONOMY_STATIC_PATH_INVALID path={public_path}")
+    relative = public_path[len(prefix):]
+    candidate = (STATIC_WEB_ROOT / relative).resolve()
+    root = STATIC_WEB_ROOT.resolve()
+    if candidate != root and root not in candidate.parents:
+        raise RuntimeError(f"ECONOMY_STATIC_PATH_ESCAPE path={public_path}")
+    return candidate
+
+
+def verify_static_compression() -> None:
+    _plain_headers, plain_html = fetch_local_response("/economy/", accept_gzip=False)
+    javascript_path, stylesheet_path = find_static_asset_paths(plain_html.decode("utf-8"))
+    targets = (
+        ("html", "/economy/", STATIC_WEB_ROOT / "index.html"),
+        ("javascript", javascript_path, static_source_path(javascript_path)),
+        ("css", stylesheet_path, static_source_path(stylesheet_path)),
+    )
+    for label, public_path, source_path in targets:
+        if not source_path.is_file():
+            raise RuntimeError(f"ECONOMY_STATIC_SOURCE_MISSING label={label} path={source_path}")
+        headers, payload = fetch_local_response(public_path, accept_gzip=True)
+        source_bytes, wire_bytes = validate_gzip_payload(
+            label,
+            headers,
+            payload,
+            source_path.read_bytes(),
+        )
+        print(
+            f"ECONOMY_STATIC_GZIP_VERIFIED label={label} "
+            f"source_bytes={source_bytes} wire_bytes={wire_bytes}"
+        )
+
+
 def main() -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This script must run as root")
@@ -368,16 +577,18 @@ def main() -> int:
             write_atomic(changed_path, changed_content)
         run(["nginx", "-t"])
         run(["systemctl", "reload", "nginx"])
+        verify_static_compression()
     except Exception:
         for changed_path, backup in reversed(backups):
             shutil.copy2(backup, changed_path)
         subprocess.run(["nginx", "-t"], check=False)
+        subprocess.run(["systemctl", "reload", "nginx"], check=False)
         raise
 
     if changes:
-        print("Configured Economy API proxy and JSON compression in " + ", ".join(str(item[0]) for item in changes))
+        print("Configured Economy API proxy and static compression in " + ", ".join(str(item[0]) for item in changes))
     else:
-        print(f"Economy API proxy and JSON compression already configured in {path}")
+        print(f"Economy API proxy and static compression already configured in {path}")
     return 0
 
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import gzip
 import importlib.util
 import unittest
 from pathlib import Path
@@ -36,6 +37,8 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertIn("location = /economy-api/logout", updated)
         self.assertIn("location ^~ /economy-api/game/", updated)
         self.assertIn("gzip_types application/json;", updated)
+        self.assertIn(nginx.STATIC_COMPRESSION_BEGIN, updated)
+        self.assertIn("text/css text/plain text/javascript application/javascript application/json", updated)
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
     def test_account_snippet_adds_only_game_api_route(self) -> None:
@@ -49,13 +52,17 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertIn("location ^~ /economy-api/game/", updated)
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
-    def test_existing_account_and_game_snippets_are_unchanged(self) -> None:
+    def test_existing_account_and_game_snippets_gain_static_compression_once(self) -> None:
         original = server(
             f"include {nginx.ACCOUNT_SNIPPET};",
             f"include {nginx.GAME_API_SNIPPET};",
         )
+        updated = nginx.replace_or_insert(original)
 
-        self.assertEqual(nginx.replace_or_insert(original), original)
+        self.assertIn(f"include {nginx.ACCOUNT_SNIPPET};", updated)
+        self.assertIn(f"include {nginx.GAME_API_SNIPPET};", updated)
+        self.assertEqual(updated.count(nginx.STATIC_COMPRESSION_BEGIN), 1)
+        self.assertEqual(nginx.replace_or_insert(updated), updated)
 
     def test_legacy_managed_block_is_reduced_to_game_route(self) -> None:
         original = server(
@@ -90,6 +97,62 @@ class ReplaceOrInsertTests(unittest.TestCase):
         for name, value in nginx.GAME_API_COMPRESSION:
             self.assertIn(f"{name} {value};", updated)
         self.assertEqual(nginx.ensure_game_api_compression(updated), (updated, False))
+
+    def test_static_compression_repairs_conflicting_top_level_values(self) -> None:
+        original = server(
+            "gzip off;",
+            "gzip_comp_level 1;",
+            "gzip_types application/json;",
+            f"include {nginx.ACCOUNT_SNIPPET};",
+            f"include {nginx.GAME_API_SNIPPET};",
+        )
+        updated = nginx.replace_or_insert(original)
+
+        self.assertNotIn("gzip off;", updated)
+        self.assertNotIn("gzip_comp_level 1;", updated)
+        self.assertEqual(updated.count("gzip_comp_level 6;"), 1)
+        self.assertIn("image/svg+xml application/wasm;", updated)
+        self.assertEqual(updated.count(nginx.STATIC_COMPRESSION_BEGIN), 1)
+        self.assertEqual(nginx.replace_or_insert(updated), updated)
+
+    def test_static_compression_does_not_include_already_compressed_media(self) -> None:
+        block = nginx.static_compression_block()
+        for media_type in ("image/png", "image/jpeg", "image/webp", "image/avif", "font/woff2"):
+            self.assertNotIn(media_type, block)
+
+    def test_static_asset_paths_and_gzip_payload_validation(self) -> None:
+        html = (
+            '<script type="module" src="/economy/assets/index-abc.js"></script>'
+            '<link rel="stylesheet" href="/economy/assets/index-def.css">'
+        )
+        self.assertEqual(
+            nginx.find_static_asset_paths(html),
+            ("/economy/assets/index-abc.js", "/economy/assets/index-def.css"),
+        )
+        source = (b"const economy = true;" * 200)
+        payload = gzip.compress(source, compresslevel=6)
+        self.assertEqual(
+            nginx.validate_gzip_payload(
+                "javascript",
+                {"content-encoding": "gzip", "vary": "Accept-Encoding"},
+                payload,
+                source,
+            ),
+            (len(source), len(payload)),
+        )
+
+    def test_gzip_payload_validation_rejects_missing_headers(self) -> None:
+        source = b"body" * 400
+        payload = gzip.compress(source, compresslevel=6)
+        with self.assertRaisesRegex(RuntimeError, "ECONOMY_STATIC_GZIP_MISSING"):
+            nginx.validate_gzip_payload("css", {}, payload, source)
+        with self.assertRaisesRegex(RuntimeError, "ECONOMY_STATIC_GZIP_VARY_MISSING"):
+            nginx.validate_gzip_payload(
+                "css",
+                {"content-encoding": "gzip"},
+                payload,
+                source,
+            )
 
     def test_legacy_broad_route_is_replaced(self) -> None:
         original = server(
@@ -132,6 +195,9 @@ class DeploymentDesignContractTests(unittest.TestCase):
             "不得在游戏 API snippet 或手动游戏路由已存在时再次生成 `/economy-api/game/`",
             "连续执行两次，第二次不得产生配置变化",
             "未更新设计文档的架构回退不应合并",
+            "超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM",
+            "PNG、JPEG、WebP、AVIF 与 WOFF2",
+            "线上压缩响应体必须小于构建产物原始字节数",
         )
 
         for rule in required_rules:
