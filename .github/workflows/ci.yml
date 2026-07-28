@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: economy-ci-fix-${{ github.run_id }}
-  cancel-in-progress: false
+  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -75,7 +75,7 @@ jobs:
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m '允许零等效产能周期正常运行'
+          git commit -m '允许零等效产能周期正常运行 [skip ci]'
           git push origin HEAD:agent/factory-staffing-rate
 
       - name: Upload test artifacts
