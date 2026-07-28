@@ -1,0 +1,46 @@
+name: Fix money browser expectations
+
+on:
+  push:
+    branches:
+      - agent/player-money-two-decimals
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/player-money-two-decimals
+      - name: Update fixed two-decimal assertions
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          path = Path('tests/browser/market-runtime.spec.ts')
+          source = path.read_text()
+          replacements = {
+              '可用资金不足，当前价格至少需要 2。': '可用资金不足，当前价格至少需要 2.00。',
+              '卖盘，价格 13，合计剩余 4，包含 2 笔订单': '卖盘，价格 13.00，合计剩余 4，包含 2 笔订单',
+              '买盘，价格 2，合计剩余 5，包含 5 笔订单': '买盘，价格 2.00，合计剩余 5，包含 5 笔订单',
+          }
+          changed = False
+          for old, new in replacements.items():
+              if old in source:
+                  source = source.replace(old, new)
+                  changed = True
+          if changed:
+              path.write_text(source)
+          PYTHON
+          git diff --check
+          if git diff --quiet -- tests/browser/market-runtime.spec.ts; then
+            echo 'Assertions already current'
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add tests/browser/market-runtime.spec.ts
+          git commit -m "更新货币两位小数浏览器断言"
+          git push origin HEAD:agent/player-money-two-decimals
