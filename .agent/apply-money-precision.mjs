@@ -15,21 +15,22 @@ const auctionReplacement = `replaceRegex('src/pages/AuctionPage.tsx',
 if (!source.includes(auctionAnchor)) throw new Error('Auction patch anchor missing from generated source');
 source = source.replace(auctionAnchor, auctionReplacement);
 const cleanupAnchor = '// Remove temporary workflow and patch source from the resulting commit.';
-const metadataCleanup = `replaceAll('README.md', '客户端状态版本：\\`19\\`', '客户端状态版本：\\`20\\`');
-replaceAll('README.md', '世界状态版本：\\`16\\`', '世界状态版本：\\`17\\`');
-replaceAll('README.md', '市场需求模型版本：\\`10\\`', '市场需求模型版本：\\`11\\`');
-replaceAll('scripts/verify-document-authority.mjs', "'世界状态版本：\\`16\\`'", "'世界状态版本：\\`17\\`'");
-replaceAll('scripts/verify-document-authority.mjs', "'市场需求模型版本：\\`10\\`'", "'市场需求模型版本：\\`11\\`'");
-replaceAll('scripts/verify-document-authority.mjs', "content.includes('世界状态版本：16')", "content.includes('世界状态版本：17')");
-replaceAll('scripts/verify-document-authority.mjs', '世界状态版本必须为 16', '世界状态版本必须为 17');
-replaceAll('scripts/verify-document-authority.mjs', '/16、市场需求模型 10', '/17、市场需求模型 11');
-for (const relative of walk('docs', (name) => name.endsWith('.md'))) {
-  replaceRegex(relative, /^(> (?:客户端状态版本|世界状态版本|市场需求模型版本)：(?:20|17|11))[ \\t]+$/gm, '$1', { required: false });
-}
-
-`;
+const metadataCleanup = [
+  "replaceAll('README.md', '客户端状态版本：`19`', '客户端状态版本：`20`');",
+  "replaceAll('README.md', '世界状态版本：`16`', '世界状态版本：`17`');",
+  "replaceAll('README.md', '市场需求模型版本：`10`', '市场需求模型版本：`11`');",
+  "replaceAll('scripts/verify-document-authority.mjs', \"'世界状态版本：`16`'\", \"'世界状态版本：`17`'\");",
+  "replaceAll('scripts/verify-document-authority.mjs', \"'市场需求模型版本：`10`'\", \"'市场需求模型版本：`11`'\");",
+  "replaceAll('scripts/verify-document-authority.mjs', \"content.includes('世界状态版本：16')\", \"content.includes('世界状态版本：17')\");",
+  "replaceAll('scripts/verify-document-authority.mjs', '世界状态版本必须为 16', '世界状态版本必须为 17');",
+  "replaceAll('scripts/verify-document-authority.mjs', '/16、市场需求模型 10', '/17、市场需求模型 11');",
+  "for (const relative of walk('docs', (name) => name.endsWith('.md'))) {",
+  "  replaceRegex(relative, /^(> (?:客户端状态版本|世界状态版本|市场需求模型版本)：(?:20|17|11))[ \\t]+$/gm, '$1', { required: false });",
+  "}",
+  "",
+].join('\n');
 if (!source.includes(cleanupAnchor)) throw new Error('Cleanup anchor missing from generated source');
-source = source.replace(cleanupAnchor, metadataCleanup + cleanupAnchor);
+source = source.replace(cleanupAnchor, `${metadataCleanup}\n${cleanupAnchor}`);
 const generated = '.agent/generated-money-patch.mjs';
 writeFileSync(generated, source);
 await import(pathToFileURL(generated).href);
