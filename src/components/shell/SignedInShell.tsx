@@ -13,6 +13,7 @@ export function SignedInShell({
   chromeOverlayClassName = '',
   adminChromeLayer = false,
   sidebarCollapsed,
+  backdrop,
   sidebar,
   chrome,
   children,
@@ -24,6 +25,7 @@ export function SignedInShell({
   chromeOverlayClassName?: string;
   adminChromeLayer?: boolean;
   sidebarCollapsed: boolean;
+  backdrop?: ReactNode;
   sidebar: ReactNode;
   chrome: ReactNode;
   children: ReactNode;
@@ -37,6 +39,7 @@ export function SignedInShell({
         sidebarCollapsed && 'sidebar-collapsed',
       )}
     >
+      {backdrop}
       {sidebar}
       <section className={classNames('workspace', workspaceClassName)}>
         <div className="mobile-page-overlay">
