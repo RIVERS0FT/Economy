@@ -11,8 +11,9 @@ export const LEADERBOARD_HISTORY_LIMIT = 52;
 
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const PRODUCTION_RULE_VERSION = 2;
 const TRADING_RULE_VERSION = 2;
-const PRODUCT_BY_ID = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
+const LEADERBOARD_SORT_RULE_VERSION = 2;
 const FACILITY_BY_ID = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
 const BOARD_IDS = Object.freeze(['wealth', 'growth', 'production', 'trading']);
 const REWARDED_BOARD_IDS = Object.freeze(['growth', 'production', 'trading']);
@@ -24,6 +25,15 @@ function clone(value) {
 function safeNonNegativeInteger(value) {
   const normalized = Math.floor(Number(value) || 0);
   return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : 0;
+}
+
+function safeTimestamp(value) {
+  const normalized = Number(value);
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : 0;
+}
+
+function leaderboardActivityAt(player) {
+  return safeTimestamp(player?.lastEconomicActivityAt) || safeTimestamp(player?.registeredAt);
 }
 
 function playerStats(player) {
@@ -102,19 +112,12 @@ export function wealthAssetsFor(world, player) {
   return cash + commodity + facility - activeLoanLiability(player);
 }
 
-function recipeOutputProductId(group) {
-  const facility = FACILITY_BY_ID.get(String(group?.facilityTypeId || ''));
-  if (!facility) return null;
-  const recipe = (facility.recipes || []).find((candidate) => candidate.id === group.activeRecipeId)
-    || (facility.recipes || []).find((candidate) => candidate.id === facility.defaultRecipeId)
-    || facility.recipes?.[0];
-  return recipe?.output?.productId || facility.output?.productId || null;
-}
-
 function createEmptyPeriodState(period, partial) {
   return {
     version: 1,
+    productionRuleVersion: PRODUCTION_RULE_VERSION,
     tradingRuleVersion: TRADING_RULE_VERSION,
+    sortRuleVersion: LEADERBOARD_SORT_RULE_VERSION,
     periodKey: period.key,
     startsAt: period.startsAt,
     endsAt: period.endsAt,
@@ -193,11 +196,8 @@ function captureProduction(world, state) {
       }
       const delta = currentOutput - safeNonNegativeInteger(previous.lifetimeOutput);
       if (delta > 0) {
-        const product = PRODUCT_BY_ID.get(recipeOutputProductId(group));
-        const score = delta * safeNonNegativeInteger(product?.basePrice);
         state.production[userId].quantity += delta;
-        state.production[userId].score += score;
-        playerStats(player).productionScore += score;
+        state.production[userId].score = state.production[userId].quantity;
       }
       checkpoints[facilityTypeId] = {
         lifetimeOutput: currentOutput,
@@ -269,6 +269,16 @@ export function captureTradingFills(world, state, observedOrders = world.orders 
   }
 }
 
+function migrateProductionRule(world, state) {
+  if (Number(state.productionRuleVersion) === PRODUCTION_RULE_VERSION) return;
+  ensureAllPlayers(world, state);
+  for (const [userId, production] of Object.entries(state.production || {})) {
+    const quantity = safeNonNegativeInteger(production?.quantity);
+    state.production[userId] = { score: quantity, quantity };
+  }
+  state.productionRuleVersion = PRODUCTION_RULE_VERSION;
+}
+
 function migrateTradingRule(world, state) {
   if (Number(state.tradingRuleVersion) === TRADING_RULE_VERSION) return;
 
@@ -288,33 +298,43 @@ function migrateTradingRule(world, state) {
   captureTradingFills(world, state, world.orders || []);
 }
 
+function migrateSortRule(state) {
+  state.sortRuleVersion = LEADERBOARD_SORT_RULE_VERSION;
+}
+
+function compareLeaderboardRows(left, right) {
+  return right.score - left.score
+    || right.activityAt - left.activityAt
+    || Number(left.userId) - Number(right.userId);
+}
+
 function internalRowsFor(world, state, boardId) {
   return Object.values(world.players || {}).map((player) => {
     const userId = String(player.userId);
+    const common = {
+      userId: player.userId,
+      playerName: player.playerName,
+      activityAt: leaderboardActivityAt(player),
+    };
     ensurePlayerPeriodState(world, state, player);
     if (boardId === 'wealth') {
       const score = wealthAssetsFor(world, player);
-      return { userId: player.userId, playerName: player.playerName, registeredAt: player.registeredAt, score, secondary: safeNonNegativeInteger(player.credits) + safeNonNegativeInteger(player.frozenCredits), tertiary: 0 };
+      return { ...common, score, secondary: safeNonNegativeInteger(player.credits) + safeNonNegativeInteger(player.frozenCredits), tertiary: 0 };
     }
     if (boardId === 'growth') {
       const currentAssets = operatingAssetsFor(player);
       const externalDelta = externalCreditsFor(player) - safeNonNegativeInteger(state.openingExternalCredits[userId]);
       const score = currentAssets - (Number(state.openingAssets[userId]) || 0) - externalDelta;
-      return { userId: player.userId, playerName: player.playerName, registeredAt: player.registeredAt, score, secondary: currentAssets, tertiary: 0 };
+      return { ...common, score, secondary: currentAssets, tertiary: 0 };
     }
     if (boardId === 'production') {
       const production = state.production[userId] || { score: 0, quantity: 0 };
-      return { userId: player.userId, playerName: player.playerName, registeredAt: player.registeredAt, score: safeNonNegativeInteger(production.score), secondary: safeNonNegativeInteger(production.quantity), tertiary: 0 };
+      const quantity = safeNonNegativeInteger(production.quantity);
+      return { ...common, score: quantity, secondary: 0, tertiary: 0 };
     }
     const trading = state.trading[userId] || { score: 0, tradeCount: 0, buyers: {} };
-    return { userId: player.userId, playerName: player.playerName, registeredAt: player.registeredAt, score: safeNonNegativeInteger(trading.score), secondary: safeNonNegativeInteger(trading.tradeCount), tertiary: Object.keys(trading.buyers || {}).length };
-  }).sort((left, right) => (
-    right.score - left.score
-    || right.secondary - left.secondary
-    || right.tertiary - left.tertiary
-    || safeNonNegativeInteger(left.registeredAt) - safeNonNegativeInteger(right.registeredAt)
-    || Number(left.userId) - Number(right.userId)
-  )).map((entry, index) => ({ ...entry, rank: index + 1 }));
+    return { ...common, score: safeNonNegativeInteger(trading.score), secondary: safeNonNegativeInteger(trading.tradeCount), tertiary: Object.keys(trading.buyers || {}).length };
+  }).sort(compareLeaderboardRows).map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
 function publicEntry(entry, currentUserId, rewardEnabled) {
@@ -331,7 +351,7 @@ function publicEntry(entry, currentUserId, rewardEnabled) {
 function boardDefinition(boardId) {
   if (boardId === 'wealth') return { title: '财富榜', description: '按最近订单簿成交价计算的实时总资产', unit: 'currency', rewarded: false };
   if (boardId === 'growth') return { title: '增长榜', description: '本周经营资产净增长', unit: 'currency', rewarded: true };
-  if (boardId === 'production') return { title: '生产榜', description: '本周产出数量 × 商品基础价', unit: 'points', rewarded: true };
+  if (boardId === 'production') return { title: '生产榜', description: '本周服务器确认完成的商品产出总数量', unit: 'quantity', rewarded: true };
   return { title: '交易榜', description: '本周订单簿实际卖出成交额', unit: 'currency', rewarded: true };
 }
 
@@ -339,7 +359,9 @@ export function createLeaderboardSnapshot(world, currentUserId, now = Date.now()
   const state = validLeaderboardState(world.leaderboardState)
     ? world.leaderboardState
     : initializeLeaderboardState(world, now, true);
+  migrateProductionRule(world, state);
   migrateTradingRule(world, state);
+  migrateSortRule(state);
   ensureAllPlayers(world, state);
   const boards = {};
   for (const boardId of BOARD_IDS) {
@@ -397,6 +419,7 @@ function awardPeriod(world, state, settledAt, onGemReward) {
         userId: Number(entry.userId),
         playerName: entry.playerName,
         score: entry.score,
+        tieBreakActivityAt: entry.activityAt,
         gems,
       };
     });
@@ -446,7 +469,9 @@ export function processLeaderboardWorld(world, now = Date.now(), options = {}) {
   }
 
   let state = world.leaderboardState;
+  migrateProductionRule(world, state);
   migrateTradingRule(world, state);
+  migrateSortRule(state);
   while (now >= state.endsAt) {
     const priorOrders = [...(world.orders || [])];
     processWorldAt(world, state.endsAt - 1, priorOrders);

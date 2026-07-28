@@ -43,8 +43,8 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
   const emptyBoard = (id: LeaderboardBoardId): RankedLeaderboardBoard => ({
     id,
     title: FALLBACK_TITLES[id],
-    description: '周榜数据正在由服务器初始化',
-    unit: id === 'growth' || id === 'trading' ? 'currency' : 'points',
+    description: id === 'production' ? '本周服务器确认完成的商品产出总数量' : '周榜数据正在由服务器初始化',
+    unit: id === 'growth' || id === 'trading' ? 'currency' : id === 'production' ? 'quantity' : 'points',
     rewarded: id !== 'wealth',
     entries: [],
     currentPlayer: null,
@@ -57,7 +57,7 @@ function fallbackLeaderboards(model: LoadedGameViewModel): RankedLeaderboardsSta
       endsAt: game.lastProcessedAt,
       partial: true,
       rewardEnabled: false,
-      rewards: [30, 20, 10],
+      rewards: [50, 30, 20],
       timeZone: 'Asia/Shanghai',
     },
     boards: {
@@ -89,6 +89,7 @@ function scoreValue(board: RankedLeaderboardBoard, score: number): ReactNode {
   if (board.unit === 'currency') {
     return <CurrencyAmount sign={board.id === 'growth' && score > 0 ? '+' : undefined}>{formatCurrency(score)}</CurrencyAmount>;
   }
+  if (board.unit === 'quantity') return `${formatNumber(score)} 个`;
   return `${formatNumber(score)} 分`;
 }
 
@@ -159,7 +160,7 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="排行榜"
-      description="四榜并列展示；财富榜按净资产实时更新，增长榜、生产榜和交易榜按北京时间每周一 00:00 结算。"
+      description="四榜并列展示；财富榜按净资产实时更新，增长榜、生产榜和交易榜按北京时间每周一 00:00 结算；成绩相同时，最后有效经济活动时间越近者排名越高。"
       actions={<StatusTag tone={period.partial ? 'neutral' : 'success'}>{period.partial ? '首个不完整周不发奖' : periodLabel}</StatusTag>}
     >
       <div className="leaderboard-grid-scroll" role="region" aria-label="四个排行榜" tabIndex={0}>
@@ -171,8 +172,8 @@ export function LeaderboardPage({ model }: { model: LoadedGameViewModel }) {
       </div>
       <p className="leaderboard-period-note">
         {period.partial
-          ? '当前为首次上线测试周期，仅记录排名；下一个完整周开始按 30 / 20 / 10 宝石发放前三名奖励。'
-          : `本期 ${periodLabel}；同一玩家可以在多个周榜分别获奖。`}
+          ? '当前为首次上线测试周期，仅记录排名；下一个完整周开始按 50 / 30 / 20 宝石发放前三名奖励。成绩相同时，最后有效经济活动时间越近者排名越高。'
+          : `本期 ${periodLabel}；同一玩家可以在多个周榜分别获奖。成绩相同时，最后有效经济活动时间越近者排名越高。`}
       </p>
     </PageLayout>
   );

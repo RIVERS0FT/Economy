@@ -1,7 +1,7 @@
 import type { EconomyState, EconomyStats } from './types';
 
 export type LeaderboardBoardId = 'wealth' | 'growth' | 'production' | 'trading';
-export type LeaderboardUnit = 'currency' | 'points';
+export type LeaderboardUnit = 'currency' | 'points' | 'quantity';
 
 export interface RankedLeaderboardEntry {
   rank: number;

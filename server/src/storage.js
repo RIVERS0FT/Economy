@@ -777,6 +777,7 @@ export class EconomyStore {
       ensureWarehouse(player);
       ensureGemState(player);
       this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      const playerBeforeAction = structuredClone(world.players[String(user.id)]);
       let gameResult;
       if (action === 'checkIn') {
         gameResult = this.checkInInTransaction(player, requestKey, now);
@@ -800,7 +801,9 @@ export class EconomyStore {
       }
       if (gameResult?.ok && ECONOMIC_ACTIVITY_ACTIONS.has(action)) {
         const activePlayer = world.players[String(user.id)];
-        if (activePlayer) activePlayer.lastEconomicActivityAt = now;
+        if (activePlayer && !isDeepStrictEqual(activePlayer, playerBeforeAction)) {
+          activePlayer.lastEconomicActivityAt = now;
+        }
       }
       normalizeWorldMoneyPrecision(world);
       this.processWorldIfDue(world, now, Number(user.id), { force: true });

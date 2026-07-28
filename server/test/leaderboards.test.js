@@ -28,6 +28,63 @@ test('leaderboard week starts Monday 00:00 in Beijing time', () => {
   assert.equal(LEADERBOARD_TIME_ZONE, 'Asia/Shanghai');
 });
 
+test('production board ranks weekly output quantity without price weighting', () => {
+  const now = MONDAY_BEIJING + 60_000;
+  const world = createWorld(now);
+  addPlayer(world, 1, now);
+  addPlayer(world, 2, now);
+  processLeaderboardWorld(world, now);
+  const state = world.leaderboardState;
+
+  state.production['1'] = { score: 1_000_000, quantity: 10 };
+  state.production['2'] = { score: 1, quantity: 20 };
+
+  const snapshot = createLeaderboardSnapshot(world, 1, now + 1);
+  assert.equal(state.productionRuleVersion, 2);
+  assert.equal(state.sortRuleVersion, 2);
+  assert.equal(snapshot.boards.production.unit, 'quantity');
+  assert.equal(snapshot.boards.production.entries[0].playerName, '玩家2');
+  assert.equal(snapshot.boards.production.entries[0].score, 20);
+  assert.equal(snapshot.boards.production.entries[1].score, 10);
+});
+
+test('all boards break score ties by latest economic activity before user id', () => {
+  const now = MONDAY_BEIJING + 60_000;
+  const world = createWorld(now);
+  const older = addPlayer(world, 1, now);
+  const newer = addPlayer(world, 2, now);
+  processLeaderboardWorld(world, now);
+  const state = world.leaderboardState;
+
+  older.lastEconomicActivityAt = now + 1_000;
+  newer.lastEconomicActivityAt = now + 2_000;
+  state.production['1'] = { score: 999, quantity: 10 };
+  state.production['2'] = { score: 1, quantity: 10 };
+  state.trading['1'] = { score: 100, tradeCount: 20, buyers: { 2: true, 3: true } };
+  state.trading['2'] = { score: 100, tradeCount: 1, buyers: {} };
+
+  const snapshot = createLeaderboardSnapshot(world, 1, now + 2_000);
+  for (const boardId of ['wealth', 'growth', 'production', 'trading']) {
+    assert.equal(snapshot.boards[boardId].entries[0].playerName, '玩家2');
+    assert.equal(Object.hasOwn(snapshot.boards[boardId].entries[0], 'activityAt'), false);
+  }
+
+  older.lastEconomicActivityAt = now + 3_000;
+  newer.lastEconomicActivityAt = now + 3_000;
+  const stableSnapshot = createLeaderboardSnapshot(world, 1, now + 3_000);
+  assert.equal(stableSnapshot.boards.wealth.entries[0].playerName, '玩家1');
+});
+
+test('legacy players without activity timestamps fall back to registration time', () => {
+  const now = MONDAY_BEIJING + 60_000;
+  const world = createWorld(now);
+  const player = addPlayer(world, 1, now);
+  delete player.lastEconomicActivityAt;
+
+  const migrated = ensurePlayer(world, { id: 1, name: '玩家1', email: 'player1@example.com' }, now + 1);
+  assert.equal(migrated.lastEconomicActivityAt, migrated.registeredAt);
+});
+
 test('trading board sums actual seller gross volume, counts completed fills on cancelled orders, and ignores unfilled remainder and auctions', () => {
   const now = MONDAY_BEIJING + 60_000;
   const world = createWorld(now);
@@ -124,6 +181,7 @@ test('three weekly boards grant 50, 30, and 20 gems and allow repeat winners', (
   assert.equal(world.players['3'].gems, 60);
   assert.equal(world.leaderboardHistory.length, 1);
   assert.equal(world.leaderboardHistory[0].boards.growth[0].gems, 50);
+  assert.equal(world.leaderboardHistory[0].boards.production[0].tieBreakActivityAt, players[0].lastEconomicActivityAt);
   assert.equal(ledgerEvents.length, 9);
   assert.equal(new Set(ledgerEvents.map((event) => event.sourceKey)).size, 9);
 
