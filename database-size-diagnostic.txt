@@ -1,0 +1,150 @@
+
+=== FILES ===
+economy.sqlite	2129686528
+economy.sqlite-wal	8198832
+economy.sqlite-shm	32768
+
+=== PAGES ===
+page_size	4096
+page_count	519943
+freelist_count	518232
+allocated_bytes	2129686528
+freelist_bytes	2122678272
+live_page_bytes	7008256
+journal_mode	wal
+auto_vacuum	0
+
+=== DBSTAT ===
+economy_world	bytes=3919872	pages=957	payload=3915004	unused=1025
+economy_idempotency	bytes=1421312	pages=347	payload=1315993	unused=39054
+economy_contract_audit_events	bytes=569344	pages=139	payload=327244	unused=239258
+sqlite_autoindex_economy_idempotency_1	bytes=475136	pages=116	payload=374490	unused=73362
+idx_economy_idempotency_created_at	bytes=155648	pages=38	payload=103584	unused=25716
+economy_contract_audit_transfers	bytes=28672	pages=7	payload=20216	unused=7396
+economy_email_verifications	bytes=28672	pages=7	payload=20126	unused=8156
+sqlite_schema	bytes=28672	pages=7	payload=22908	unused=5186
+economy_contract_audit_contracts	bytes=24576	pages=6	payload=16068	unused=8358
+sqlite_autoindex_economy_contract_audit_events_1	bytes=20480	pages=5	payload=13085	unused=6901
+idx_contract_audit_events_contract	bytes=16384	pages=4	payload=9056	unused=6846
+sqlite_autoindex_economy_contract_audit_events_2	bytes=16384	pages=4	payload=9056	unused=6846
+economy_gem_ledger	bytes=12288	pages=3	payload=4901	unused=7132
+economy_registrations	bytes=12288	pages=3	payload=4404	unused=7693
+idx_economy_email_verifications_ip_created	bytes=12288	pages=3	payload=4483	unused=7596
+economy_account_bans	bytes=4096	pages=1	payload=94	unused=3986
+economy_ban_audit	bytes=4096	pages=1	payload=140	unused=3940
+economy_daily_check_ins	bytes=4096	pages=1	payload=1448	unused=2560
+economy_facility_gem_actions	bytes=4096	pages=1	payload=1249	unused=2791
+economy_gem_shop_daily_rates	bytes=4096	pages=1	payload=70	unused=4010
+economy_gem_shop_exchanges	bytes=4096	pages=1	payload=0	unused=4088
+economy_gem_shop_quote_decisions	bytes=4096	pages=1	payload=140	unused=3940
+economy_gift_codes	bytes=4096	pages=1	payload=368	unused=3704
+economy_gift_redemptions	bytes=4096	pages=1	payload=327	unused=3673
+economy_invitation_relations	bytes=4096	pages=1	payload=3611	unused=343
+economy_invite_codes	bytes=4096	pages=1	payload=858	unused=3074
+economy_ip_ban_incidents	bytes=4096	pages=1	payload=137	unused=3946
+economy_ip_ban_members	bytes=4096	pages=1	payload=60	unused=4020
+economy_player_activity_daily	bytes=4096	pages=1	payload=1711	unused=2217
+economy_player_milestones	bytes=4096	pages=1	payload=474	unused=3542
+economy_player_statistics_meta	bytes=4096	pages=1	payload=28	unused=4056
+economy_population_policy_audit	bytes=4096	pages=1	payload=3763	unused=310
+economy_settings	bytes=4096	pages=1	payload=54	unused=4030
+economy_tutorial_completions	bytes=4096	pages=1	payload=310	unused=3654
+idx_contract_audit_buyer	bytes=4096	pages=1	payload=955	unused=3091
+idx_contract_audit_events_time	bytes=4096	pages=1	payload=1788	unused=1862
+idx_contract_audit_publisher	bytes=4096	pages=1	payload=959	unused=3087
+idx_contract_audit_status_product	bytes=4096	pages=1	payload=368	unused=3678
+idx_contract_audit_supplier	bytes=4096	pages=1	payload=959	unused=3087
+idx_contract_audit_transfers_event	bytes=4096	pages=1	payload=1476	unused=1958
+idx_economy_account_bans_status	bytes=4096	pages=1	payload=34	unused=4048
+idx_economy_daily_check_ins_bonus	bytes=4096	pages=1	payload=0	unused=4088
+idx_economy_daily_check_ins_week	bytes=4096	pages=1	payload=536	unused=3492
+idx_economy_email_verifications_email_created	bytes=4096	pages=1	payload=1700	unused=2211
+idx_economy_facility_gem_actions_user	bytes=4096	pages=1	payload=136	unused=3916
+idx_economy_gem_ledger_user	bytes=4096	pages=1	payload=627	unused=3296
+idx_economy_gem_shop_exchanges_user	bytes=4096	pages=1	payload=0	unused=4088
+idx_economy_gem_shop_quote_date	bytes=4096	pages=1	payload=45	unused=4037
+idx_economy_gift_redemptions_user	bytes=4096	pages=1	payload=261	unused=3761
+idx_economy_invitation_relations_inviter	bytes=4096	pages=1	payload=297	unused=3710
+idx_economy_ip_ban_incidents_fingerprint	bytes=4096	pages=1	payload=82	unused=4003
+idx_economy_player_activity_last	bytes=4096	pages=1	payload=369	unused=3599
+idx_economy_player_activity_user_day	bytes=4096	pages=1	payload=634	unused=3334
+idx_economy_population_policy_audit_created	bytes=4096	pages=1	payload=13	unused=4066
+idx_economy_registrations_ip	bytes=4096	pages=1	payload=2963	unused=1008
+sqlite_autoindex_economy_ban_audit_1	bytes=4096	pages=1	payload=7	unused=4075
+sqlite_autoindex_economy_contract_audit_contracts_1	bytes=4096	pages=1	payload=839	unused=3207
+sqlite_autoindex_economy_contract_audit_transfers_1	bytes=4096	pages=1	payload=1476	unused=1958
+sqlite_autoindex_economy_daily_check_ins_1	bytes=4096	pages=1	payload=799	unused=3229
+sqlite_autoindex_economy_daily_check_ins_2	bytes=4096	pages=1	payload=316	unused=3712
+sqlite_autoindex_economy_email_verifications_1	bytes=4096	pages=1	payload=2359	unused=1552
+sqlite_autoindex_economy_email_verifications_2	bytes=4096	pages=1	payload=3315	unused=596
+sqlite_autoindex_economy_facility_gem_actions_1	bytes=4096	pages=1	payload=479	unused=3573
+sqlite_autoindex_economy_gem_ledger_1	bytes=4096	pages=1	payload=950	unused=2973
+sqlite_autoindex_economy_gem_shop_daily_rates_1	bytes=4096	pages=1	payload=27	unused=4055
+sqlite_autoindex_economy_gem_shop_exchanges_1	bytes=4096	pages=1	payload=0	unused=4088
+sqlite_autoindex_economy_gem_shop_quote_decisions_1	bytes=4096	pages=1	payload=79	unused=4003
+sqlite_autoindex_economy_gem_shop_quote_decisions_2	bytes=4096	pages=1	payload=29	unused=4053
+sqlite_autoindex_economy_gift_codes_1	bytes=4096	pages=1	payload=275	unused=3801
+sqlite_autoindex_economy_gift_redemptions_1	bytes=4096	pages=1	payload=150	unused=3872
+sqlite_autoindex_economy_invitation_relations_1	bytes=4096	pages=1	payload=134	unused=3873
+sqlite_autoindex_economy_invitation_relations_2	bytes=4096	pages=1	payload=2338	unused=1669
+sqlite_autoindex_economy_invite_codes_1	bytes=4096	pages=1	payload=467	unused=3504
+sqlite_autoindex_economy_ip_ban_members_1	bytes=4096	pages=1	payload=11	unused=4071
+sqlite_autoindex_economy_player_activity_daily_1	bytes=4096	pages=1	payload=634	unused=3334
+sqlite_autoindex_economy_player_statistics_meta_1	bytes=4096	pages=1	payload=22	unused=4063
+sqlite_autoindex_economy_population_policy_audit_1	bytes=4096	pages=1	payload=119	unused=3960
+sqlite_autoindex_economy_settings_1	bytes=4096	pages=1	payload=45	unused=4040
+sqlite_sequence	bytes=4096	pages=1	payload=262	unused=3790
+
+=== ROWS ===
+economy_account_bans	2
+economy_ban_audit	2
+economy_contract_audit_contracts	14
+economy_contract_audit_events	146
+economy_contract_audit_transfers	218
+economy_daily_check_ins	20
+economy_email_verifications	59
+economy_facility_gem_actions	12
+economy_gem_ledger	55
+economy_gem_shop_daily_rates	2
+economy_gem_shop_exchanges	0
+economy_gem_shop_quote_decisions	2
+economy_gift_codes	4
+economy_gift_redemptions	22
+economy_idempotency	8632
+economy_invitation_relations	27
+economy_invite_codes	39
+economy_ip_ban_incidents	1
+economy_ip_ban_members	2
+economy_player_activity_daily	40
+economy_player_milestones	18
+economy_player_statistics_meta	1
+economy_population_policy_audit	3
+economy_registrations	39
+economy_settings	1
+economy_tutorial_completions	31
+economy_world	1
+
+=== WORLD ===
+revision	332791
+state_json_bytes	3887450
+updated_at	1785240570593
+
+=== IDEMPOTENCY ===
+rows=8632	response_bytes=556462	max_response=104	first=1785154157302	last=1785240556282
+
+=== CONTRACT_AUDIT ===
+events=146	before_bytes=137778	after_bytes=151493	metadata_bytes=5856	first=1785138326220	last=1785237910906
+event_type	delivery_completed	40
+event_type	supplier_goods_reserved_auto	40
+event_type	buyer_funds_reserved_auto	38
+event_type	legacy_snapshot_imported	12
+event_type	buyer_auto_fund_changed	5
+event_type	contract_accepted	3
+event_type	contract_published	2
+event_type	grace_started	2
+event_type	contract_cancelled	1
+event_type	contract_completed	1
+event_type	contract_defaulted	1
+event_type	contract_terminated_immediate	1
+transfers	218
+contracts=14	contract_json_bytes=13971	max_contract_json=1109
