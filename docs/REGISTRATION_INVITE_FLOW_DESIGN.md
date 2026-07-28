@@ -28,11 +28,15 @@
 2. 氛围层承载深色渐变、绿色光晕、细网格、噪点和暗角。登录入口保留 `login-atmosphere-layer`，玩家游戏保留 `game-atmosphere-layer`。玩家游戏变体必须比登录变体更暗，确保状态数值、订单簿、表格、表单和卡片保持稳定对比度。`html[data-app-surface="auth"|"game"] body::before` 必须关闭，网格只能存在于氛围层，避免形成第四个全局背景层。
 3. 内容层由现有认证内容或登录后游戏外壳承担。登录入口继续使用 `login-content-layer` 的桌面双列和移动单列；玩家游戏继续由 `SignedInShell` 承载桌面侧栏、唯一页面 `ScrollArea`、状态栏和移动导航，不得为三层背景重建页面外壳或增加第二个主滚动容器。
 
-认证卡片允许使用局部半透明玻璃材质和模糊，但必须维持输入框与提示文字的稳定对比度。移动端只有认证卡片拥有实体边框、圆角与玻璃背景；不得把整个移动登录页恢复为单张外层面板，也不得为注册表单创建内部滚动区。注册内容较高时由文档视口纵向滚动，两层背景保持固定，页面不得产生横向溢出。
+认证卡片必须使用 `src/components/auth/AuthCardSurface.tsx` 包装，并通过统一 `LiquidGlassSurface` 的 `desktopAuthCard`／`mobileAuthCard` 预设渲染。认证卡片任一时刻只能存在一个玻璃实例，`720px` 断点只允许在原位置切换预设，不得同时挂载桌面和移动卡片后用 CSS 隐藏。认证卡片必须使用 `layout="content"` 的自然内容高度；登录、注册、邀请码、验证码、错误与状态提示变化时，由统一适配层的单个 `ResizeObserver` 只重建装饰玻璃，不得重建或清空表单状态。
+
+认证卡片的外层宽度、桌面／移动对齐、`24px`／`40px` 圆角和内部 `32px`／`20px` 留白继续由 `src/styles/auth.css` 负责；液态玻璃参数、回退底色、单层结构描边、上游装饰隐藏和阴影只归 `src/styles/liquid-glass-surfaces.css`。不得在 `auth.css` 手写另一套 `backdrop-filter`、玻璃渐变、材质描边或 `.login-card.panel` 映射。输入框继续使用不透明深色控件与自动填充覆盖，确保密码、验证码、错误和提示文字保持稳定对比度。
+
+移动端只有认证卡片拥有实体轮廓、圆角与玻璃背景；不得把整个移动登录页恢复为单张外层面板，也不得为注册表单创建内部滚动区。注册内容较高时由文档视口纵向滚动，两层背景保持固定，页面不得产生横向溢出。
 
 玩家游戏背景通过 `SignedInShell` 的可选 `backdrop` 插槽在侧栏之前渲染。管理员页面不得传入玩家摄影背景。移动端 `.mobile-page-overlay` 必须继续先于 `.mobile-chrome-overlay` 绘制，二者及 `.workspace` 不得因为背景改造增加正 `z-index` 或新的隔离层；状态栏和底栏到页面背景之间必须继续保持开放的 `backdrop-filter` 采样链。玩家加载、连接错误和重试状态也必须使用相同游戏背景，避免登录切换或刷新时闪现纯色页面。
 
-背景图片和氛围层唯一归属 `src/styles/financial-backdrop.css`；认证内容层、品牌区和认证卡片几何仍由 `src/styles/auth.css` 收束；登录后侧栏、工作区、滚动区、状态栏和移动导航几何继续归 `viewport.css`、`game-shell-layout.css` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。生产样式入口必须在 `game-shell-layout.css` 后、`liquid-glass-surfaces.css` 前加载 `financial-backdrop.css`；认证最终样式顺序继续固定为 `design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`。
+背景图片和氛围层唯一归属 `src/styles/financial-backdrop.css`；认证内容层、品牌区和认证卡片几何仍由 `src/styles/auth.css` 收束；统一认证卡片材质归 `src/styles/liquid-glass-surfaces.css`；登录后侧栏、工作区、滚动区、状态栏和移动导航几何继续归 `viewport.css`、`game-shell-layout.css` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。生产样式入口必须在 `game-shell-layout.css` 后、`liquid-glass-surfaces.css` 前加载 `financial-backdrop.css`；认证最终样式顺序继续固定为 `design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`。
 
 摄影资源地址只能存在于 `src/config/visualAssets.ts`，不得重新散落到 `LoginPage.tsx`、`GameShell.tsx`、CSS 或业务页面。替换摄影作品时必须保留交易大厅主题、权利来源记录、响应式版本、空替代文本、失败回退和共享三层结构。
 
@@ -40,4 +44,4 @@
 
 不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在设置页、商店或其他已登录页面恢复邀请码输入、补填、更换或重新绑定入口，也不得根据玩家档案创建时间重新开放 24 小时或其他临时补填窗口。
 
-`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、共享背景组件、图片来源配置、认证层级样式、最终 CSS 加载顺序和浏览器回归入口；`scripts/verify-game-three-layer.mjs` 必须校验玩家背景插槽、图片与氛围层、加载／错误状态、管理员隔离、全局网格关闭、移动 Overlay 顺序和游戏浏览器回归入口。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面和 `390 × 844` 移动注册模式；`tests/browser/game-three-layer.spec.ts` 必须覆盖桌面、移动和图片加载失败回退。不得把背景选择器移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录、注册或游戏业务流程来适配视觉布局。
+`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、共享背景组件、`AuthCardSurface`、认证玻璃预设、内容自适应、图片来源配置、认证层级样式、最终 CSS 加载顺序和浏览器回归入口；`scripts/verify-liquid-glass-chrome.mjs` 必须同时校验登录后 Chrome 与认证卡片的唯一依赖入口、平台预设、内容自适应、单层描边和回退材质；`scripts/verify-game-three-layer.mjs` 必须校验玩家背景插槽、图片与氛围层、加载／错误状态、管理员隔离、全局网格关闭、移动 Overlay 顺序和游戏浏览器回归入口。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面、`390 × 844` 移动注册模式和 `721px`／`720px` 断点切换；`tests/browser/game-three-layer.spec.ts` 必须覆盖桌面、移动和图片加载失败回退。不得把背景选择器移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录、注册或游戏业务流程来适配视觉布局。
