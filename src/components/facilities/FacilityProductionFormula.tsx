@@ -267,7 +267,7 @@ export function FacilityProductionFormula({
 
       <FacilityRecipeProfitAnalysis
         type={profitType}
-        scopeCount={profitScope.count}
+        scopeCount={profitScope.physicalCount}
         scopeLabel={profitScopeLabel}
         staffingRateBps={profitScope.staffingRateBps}
         products={products}

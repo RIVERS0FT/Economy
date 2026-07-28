@@ -108,6 +108,7 @@ export function FacilityStaffingSummary({
     : group.status === 'error'
       ? '恢复后'
       : '启动后';
+  const settlementVerb = group.status === 'running' ? '锁定' : '预计';
   const directionLabel = group.status === 'running'
     ? currentPercent >= 100 ? '已满员' : '运行中，正在恢复'
     : currentPercent <= 0 ? '已降至最低' : `${facilityStatusLabel(group)}，正在下降`;
@@ -130,7 +131,7 @@ export function FacilityStaffingSummary({
         <span className="facility-staffing-fill" style={{ width: `${currentPercent}%` }} />
       </div>
       <small className="facility-staffing-meta">
-        {scopeLabel} {formatNumber(physicalCount)} 座 · 锁定 {formatNumber(settlementPercent)}% · 等效 {formatNumber(effectiveCount)} 座
+        {scopeLabel} {formatNumber(physicalCount)} 座 · {settlementVerb} {formatNumber(settlementPercent)}% · 等效 {formatNumber(effectiveCount)} 座
       </small>
     </section>
   );
