@@ -222,7 +222,7 @@ test.describe('auth three-layer layout', () => {
   test.describe('mobile', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
-    test('keeps glass geometry aligned through login register and login switching', async ({ page }) => {
+    test('registration content grows inside the same glass surface without an internal scrollport and keeps geometry aligned through login register and login switching', async ({ page }) => {
       await openLoginPage(page);
 
       const shell = page.locator('.login-shell');
