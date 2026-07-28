@@ -63,7 +63,21 @@ jobs:
       - name: Verify money precision
         run: npm run verify:money-precision
       - name: Full build and tests
-        run: npm run build
+        id: build
+        continue-on-error: true
+        run: npm run build > /tmp/money-build.log 2>&1
+      - name: Upload build diagnostics
+        if: steps.build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: money-build-diagnostics
+          path: /tmp/money-build.log
+          retention-days: 1
+      - name: Stop after build failure
+        if: steps.build.outcome == 'failure'
+        run: |
+          tail -n 300 /tmp/money-build.log
+          exit 1
       - name: Commit generated source changes
         run: |
           git config user.name github-actions[bot]
