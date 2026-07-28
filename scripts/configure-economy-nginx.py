@@ -43,6 +43,12 @@ STATIC_COMPRESSION = (
 STATIC_COMPRESSION_NAMES = frozenset(name for name, _value in STATIC_COMPRESSION)
 STATIC_LOCATION_PATHS = ("/economy/assets/", "/economy/")
 STATIC_VARY_HEADER = 'add_header Vary "Accept-Encoding" always;'
+NGINX_CONFIG_ROOTS = (
+    Path("/etc/nginx/sites-enabled"),
+    Path("/etc/nginx/conf.d"),
+    Path("/etc/nginx/sites-available"),
+    Path("/etc/nginx/snippets"),
+)
 
 ACCOUNT_BLOCK = """
     location = /economy-api/login {
@@ -437,18 +443,11 @@ def replace_or_insert(block: str) -> str:
     return normalized + "\n\n" + desired + "\n" + cleaned[closing:]
 
 
-def find_target() -> tuple[Path, str, tuple[int, int]]:
-    roots = [
-        Path("/etc/nginx/sites-enabled"),
-        Path("/etc/nginx/conf.d"),
-        Path("/etc/nginx/sites-available"),
-    ]
+def nginx_config_files():
     seen: set[Path] = set()
-
-    for root in roots:
+    for root in NGINX_CONFIG_ROOTS:
         if not root.exists():
             continue
-
         for candidate in sorted(root.glob("*")):
             if not candidate.is_file() and not candidate.is_symlink():
                 continue
@@ -456,15 +455,39 @@ def find_target() -> tuple[Path, str, tuple[int, int]]:
             if resolved in seen:
                 continue
             seen.add(resolved)
+            yield resolved
 
-            try:
-                text = resolved.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
-                continue
 
-            for start, end in server_blocks(text):
-                if is_target_server(text[start:end]):
-                    return resolved, text, (start, end)
+def collect_static_vary_changes(
+    config_paths=None,
+    excluded_paths=(),
+) -> list[tuple[Path, str, str]]:
+    excluded = {Path(path).resolve() for path in excluded_paths}
+    paths = nginx_config_files() if config_paths is None else config_paths
+    changes: list[tuple[Path, str, str]] = []
+    for candidate in paths:
+        resolved = Path(candidate).resolve()
+        if resolved in excluded:
+            continue
+        try:
+            text = resolved.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        updated, changed = ensure_static_vary_headers(text)
+        if changed:
+            changes.append((resolved, text, updated))
+    return changes
+
+
+def find_target() -> tuple[Path, str, tuple[int, int]]:
+    for resolved in nginx_config_files():
+        try:
+            text = resolved.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for start, end in server_blocks(text):
+            if is_target_server(text[start:end]):
+                return resolved, text, (start, end)
 
     raise RuntimeError(f"No HTTPS Nginx server block found for {DOMAIN}")
 
@@ -631,6 +654,11 @@ def main() -> int:
         snippet_updated, snippet_changed = ensure_game_api_compression(snippet_text)
         if snippet_changed:
             changes.append((snippet_path, snippet_text, snippet_updated))
+
+    excluded_static_paths = {path.resolve()}
+    if snippet_path.exists():
+        excluded_static_paths.add(snippet_path.resolve())
+    changes.extend(collect_static_vary_changes(excluded_paths=excluded_static_paths))
 
     backups = []
     try:

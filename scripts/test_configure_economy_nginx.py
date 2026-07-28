@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import gzip
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -133,6 +134,30 @@ class ReplaceOrInsertTests(unittest.TestCase):
         self.assertIn("add_header Cache-Control immutable;", updated)
         self.assertEqual(nginx.replace_or_insert(updated), updated)
 
+    def test_collects_static_vary_changes_from_separate_snippets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            assets = root / "assets.conf"
+            html = root / "html.conf"
+            unrelated = root / "unrelated.conf"
+            assets.write_text(
+                'location ^~ /economy/assets/ { add_header Cache-Control immutable; try_files $uri =404; }\n',
+                encoding="utf-8",
+            )
+            html.write_text(
+                'location ^~ /economy/ { try_files $uri /economy/index.html; }\n',
+                encoding="utf-8",
+            )
+            unrelated.write_text('location /other/ { return 404; }\n', encoding="utf-8")
+
+            changes = nginx.collect_static_vary_changes(
+                config_paths=(assets, html, unrelated),
+            )
+            self.assertEqual({item[0] for item in changes}, {assets.resolve(), html.resolve()})
+            for _path, original, updated in changes:
+                self.assertNotEqual(original, updated)
+                self.assertIn(nginx.STATIC_VARY_HEADER, updated)
+
     def test_static_asset_paths_and_gzip_payload_validation(self) -> None:
         html = (
             '<script type="module" src="/economy/assets/index-abc.js"></script>'
@@ -221,6 +246,7 @@ class DeploymentDesignContractTests(unittest.TestCase):
             "PNG、JPEG、WebP、AVIF 与 WOFF2",
             "线上压缩响应体必须小于构建产物原始字节数",
             "两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`",
+            "扫描 `sites-enabled`、`conf.d`、`sites-available` 与 `snippets`",
         )
 
         for rule in required_rules:
