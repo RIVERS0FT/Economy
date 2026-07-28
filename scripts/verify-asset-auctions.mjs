@@ -219,13 +219,15 @@ requireText('src/styles/auction-card-layers.css', [
 forbidText('src/styles/auction-card-layers.css', ['overflow-x: auto;', '.asset-auction-summary-more']);
 
 requireText('.github/workflows/deploy.yml', [
-  'Back up production database before world 18 migration',
+  'Prune backups and back up production database before world 18 migration',
   'sqlite3.connect(database)',
   'source.backup(destination)',
   "destination.execute('PRAGMA quick_check')",
   "economy-pre-world-v{target_world_version}-{timestamp}.sqlite",
-  "backup_dir.glob(f'economy-pre-world-v{target_world_version}-*.sqlite')",
-  'for stale in backups[10:]:',
+  "backup_dir.glob('economy-pre-*.sqlite')",
+  'MAX_BACKUP_FAMILIES = 5',
+  'def prune_backups():',
+  'prune_backups()',
   'database-backup.log',
 ]);
 
