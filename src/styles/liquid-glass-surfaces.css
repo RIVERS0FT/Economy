@@ -1,11 +1,14 @@
 /* liquid-glass-react is the only liquid-glass renderer. This stylesheet owns
  * geometry, sizing, content layout, clipping, minimum contrast and one
  * top-layer structural outline. It must not recreate blur, refraction or
- * chromatic aberration in CSS. Status bars suppress upstream decorative shells. */
+ * chromatic aberration in CSS. Status bars and authentication cards suppress
+ * upstream decorative shells. */
 :root {
   --desktop-asset-bar-height: 76px;
   --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
   --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
+  --liquid-glass-auth-contrast: rgba(9, 25, 18, 0.68);
+  --liquid-glass-auth-fallback: rgba(7, 20, 14, 0.94);
   --liquid-glass-structure-border: rgba(232, 255, 244, 0.3);
 }
 
@@ -17,16 +20,11 @@
   padding: 0;
 }
 
-/* globals.css historically made the outer status-bar host a five-column grid.
- * The five columns now belong exclusively to .asset-bar-content. */
 .asset-bar {
   display: block;
   grid-template-columns: none;
 }
 
-/* The upstream .glass__warp must be able to sample the page behind this host.
- * Do not add paint containment, isolation or overflow: clip here: older Android
- * Chromium/WebView builds treat those boundaries as an opaque backdrop root. */
 .liquid-glass-surface {
   position: relative;
   width: 100%;
@@ -45,7 +43,8 @@
 .liquid-glass-surface__effect,
 .liquid-glass-surface__effect > .glass,
 .liquid-glass-surface__effect > .glass > div,
-.liquid-glass-surface__content {
+.liquid-glass-surface__content,
+.liquid-glass-surface__material-fill {
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -83,9 +82,23 @@
   color: var(--color-text-primary);
 }
 
-/* liquid-glass-react emits the authoritative unprefixed backdrop-filter inline.
- * These WebKit aliases exactly mirror each platform preset and are not a second
- * material implementation. */
+.liquid-glass-surface[data-liquid-glass-layout="content"] {
+  height: auto;
+  min-height: 0;
+}
+
+.liquid-glass-surface[data-liquid-glass-layout="content"] > .liquid-glass-surface__effect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.liquid-glass-surface[data-liquid-glass-layout="content"] > .liquid-glass-surface__content {
+  height: auto;
+  min-height: 0;
+  pointer-events: auto;
+}
+
 .liquid-glass-surface--desktopStatusBar .glass__warp {
   -webkit-backdrop-filter: blur(6px) saturate(120%);
 }
@@ -95,9 +108,20 @@
   -webkit-backdrop-filter: blur(7.2px) saturate(125%);
 }
 
+.liquid-glass-surface--desktopAuthCard .glass__warp {
+  -webkit-backdrop-filter: blur(7.84px) saturate(118%);
+}
+
+.liquid-glass-surface--mobileAuthCard .glass__warp {
+  -webkit-backdrop-filter: blur(7.2px) saturate(115%);
+}
+
 .asset-bar > .liquid-glass-surface--desktopStatusBar,
 .asset-bar > .liquid-glass-surface--desktopStatusBar > *,
-.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass {
+.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,
+.login-card > .liquid-glass-surface--desktopAuthCard,
+.login-card > .liquid-glass-surface--desktopAuthCard > *,
+.login-card > .liquid-glass-surface--desktopAuthCard .liquid-glass-surface__effect > .glass {
   border-radius: 24px !important;
 }
 
@@ -106,18 +130,33 @@
 .asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass,
 .mobile-bottom-navigation .liquid-glass-surface,
 .mobile-bottom-navigation .liquid-glass-surface > *,
-.mobile-bottom-navigation .liquid-glass-surface__effect > .glass {
+.mobile-bottom-navigation .liquid-glass-surface__effect > .glass,
+.login-card > .liquid-glass-surface--mobileAuthCard,
+.login-card > .liquid-glass-surface--mobileAuthCard > *,
+.login-card > .liquid-glass-surface--mobileAuthCard .liquid-glass-surface__effect > .glass {
   border-radius: 40px !important;
 }
 
-/* Chrome hosts keep one deterministic structural outline. Status bars draw
- * that outline above the glass effect so sampled page edges cannot erase it;
- * mobile navigation keeps its existing host border and low-intensity highlight. */
 .liquid-glass-surface--desktopStatusBar,
 .liquid-glass-surface--mobileStatusBar,
 .liquid-glass-surface--mobileNavigation {
   box-sizing: border-box;
   background: var(--liquid-glass-contrast);
+}
+
+.liquid-glass-surface--desktopAuthCard,
+.liquid-glass-surface--mobileAuthCard {
+  box-sizing: border-box;
+  border: 0;
+  background: var(--liquid-glass-auth-contrast);
+}
+
+.liquid-glass-surface--desktopAuthCard {
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
+}
+
+.liquid-glass-surface--mobileAuthCard {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.44);
 }
 
 .liquid-glass-surface--desktopStatusBar,
@@ -130,7 +169,9 @@
 }
 
 .liquid-glass-surface--desktopStatusBar::after,
-.liquid-glass-surface--mobileStatusBar::after {
+.liquid-glass-surface--mobileStatusBar::after,
+.liquid-glass-surface--desktopAuthCard::after,
+.liquid-glass-surface--mobileAuthCard::after {
   content: "";
   position: absolute;
   z-index: 2;
@@ -153,13 +194,21 @@
   opacity: 0 !important;
 }
 
+.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__effect > span,
+.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__effect > span,
+.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__effect > div:not(.glass),
+.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__effect > div:not(.glass) {
+  display: none !important;
+  opacity: 0 !important;
+}
+
 .asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,
-.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {
+.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass,
+.login-card > .liquid-glass-surface--desktopAuthCard .liquid-glass-surface__effect > .glass,
+.login-card > .liquid-glass-surface--mobileAuthCard .liquid-glass-surface__effect > .glass {
   box-shadow: none !important;
 }
 
-/* The mobile navigation remains the only chrome surface that keeps one
- * low-intensity upstream screen highlight for depth. */
 .liquid-glass-surface--mobileNavigation > span {
   opacity: 0 !important;
 }
@@ -266,6 +315,11 @@
   .liquid-glass-surface--mobileNavigation {
     background: var(--liquid-glass-contrast-strong);
   }
+
+  .liquid-glass-surface--desktopAuthCard,
+  .liquid-glass-surface--mobileAuthCard {
+    background: var(--liquid-glass-auth-fallback);
+  }
 }
 
 @media (max-width: 960px) and (min-width: 721px) {
@@ -292,7 +346,6 @@
     min-width: 0;
   }
 
-  /* This is the only vertical padding owner for the 68px mobile capsule. */
   .mobile-bottom-navigation .liquid-glass-surface__content {
     padding: 8px 0;
   }
