@@ -116,7 +116,7 @@ requireText(scrollInputSpec, 'touch input hides horizontal rails while local tra
 requireText(runtimeSpec, 'askLabel.y', 'Playwright 必须验证订单簿标题顺序。');
 requireText(runtimeSpec, 'aggregates same-price orders into one price level', 'Playwright 必须验证同价订单聚合为单一价格档位。');
 requireText(runtimeSpec, "toHaveAttribute('data-order-count', '5')", 'Playwright 必须验证档位内独立订单笔数。');
-requireText(runtimeSpec, '买盘，价格 2，合计剩余 5，包含 5 笔订单', 'Playwright 必须验证价格档位无障碍名称。');
+requireText(runtimeSpec, '买盘，价格 2.00，合计剩余 5，包含 5 笔订单', 'Playwright 必须验证价格档位无障碍名称。');
 requireText(runtimeSpec, 'mobile market sticky asset divider stays below the status bar chrome', 'Playwright 必须覆盖移动市场 sticky 分组与状态栏的层级。');
 requireText(runtimeSpec, 'document.elementFromPoint', '移动市场层级回归必须使用真实命中测试验证状态栏位于最上层。');
 requireText(marketDesign, '## 市场页面布局与可用性', '订单簿设计必须记录市场布局与可用性规则。');
