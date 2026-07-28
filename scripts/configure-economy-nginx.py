@@ -216,7 +216,7 @@ def ensure_static_vary_headers(block: str) -> tuple[str, bool]:
             re.IGNORECASE,
         )
         if not location:
-            raise RuntimeError(f"ECONOMY_STATIC_LOCATION_MISSING path={location_path}")
+            continue
 
         opening = view.find("{", location.start())
         closing = matching_brace(block, opening)
