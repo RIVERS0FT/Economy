@@ -10,6 +10,7 @@ import './styles/performance.css';
 import './styles/viewport.css';
 import './styles/scrollbars.css';
 import './styles/game-shell-layout.css';
+import './styles/financial-backdrop.css';
 import './styles/card-system.css';
 import './styles/liquid-glass-surfaces.css';
 import './styles/mobile-status-navigation.css';

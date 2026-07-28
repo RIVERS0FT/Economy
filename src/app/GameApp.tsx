@@ -1,17 +1,27 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
-import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
 import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
 import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';
+import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
+import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';
 import { PageRouter } from '../pages/PageRouter';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
+import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
 import { useAdaptivePolling } from './useAdaptivePolling';
-import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import '../styles/game-guide.css';
+
+function GameStateShell({ children }: { children: ReactNode }) {
+  return (
+    <main className="game-state-shell">
+      <FinancialBackdrop variant="game" />
+      <div className="loading-screen">{children}</div>
+    </main>
+  );
+}
 
 function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
   const pollingPreference = useAdaptivePolling(model);
@@ -107,12 +117,14 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
 export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: () => void }) {
   const viewModel = useGameViewModel(user, onSignedOut);
 
-  if (viewModel.status === 'loading') return <main className="loading-screen">正在连接权威游戏服务器…</main>;
+  if (viewModel.status === 'loading') {
+    return <GameStateShell>正在连接权威游戏服务器…</GameStateShell>;
+  }
   if (viewModel.status === 'error') {
     return (
-      <main className="loading-screen">
+      <GameStateShell>
         <div><strong>无法加载游戏状态</strong><p><CurrencyText>{viewModel.message}</CurrencyText></p><button type="button" onClick={viewModel.retry}>重新连接</button></div>
-      </main>
+      </GameStateShell>
     );
   }
 

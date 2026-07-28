@@ -3,6 +3,7 @@ import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
 import { useNavigationBadges } from '../../hooks/useNavigationBadges';
 import { CurrencyText } from '../ui/CurrencyAmount';
+import { FinancialBackdrop } from '../visual/FinancialBackdrop';
 import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
 import { SignedInShell } from './SignedInShell';
@@ -29,6 +30,7 @@ export function GameShell({ model, statusItems, children }: {
     <SignedInShell
       rootClassName="game-shell"
       sidebarCollapsed={sidebarCollapsed}
+      backdrop={<FinancialBackdrop variant="game" />}
       sidebar={(
         <DesktopSidebar
           playerName={model.game.playerName}

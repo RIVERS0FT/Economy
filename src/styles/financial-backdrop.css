@@ -1,0 +1,131 @@
+/* Shared fixed photography and financial-atmosphere layers for authentication
+ * and the signed-in player surface. Authentication geometry remains in auth.css;
+ * this file owns the game variant and shared image failure behavior. */
+
+html[data-app-surface="game"] {
+  color-scheme: dark;
+  background: #020604;
+}
+
+html[data-app-surface="game"] body {
+  background: #020604;
+}
+
+html[data-app-surface="game"] body::before {
+  display: none;
+}
+
+.financial-backdrop-image img[hidden] {
+  display: none;
+}
+
+.game-shell,
+.game-state-shell {
+  isolation: isolate;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
+.game-image-layer,
+.game-atmosphere-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-image-layer {
+  z-index: -2;
+  overflow: hidden;
+  background: #07100b;
+}
+
+.game-image-layer picture,
+.game-image-layer img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.game-image-layer img {
+  object-fit: cover;
+  object-position: 50% 48%;
+  filter: saturate(0.58) contrast(1.12) brightness(0.5);
+  transform: scale(1.012);
+}
+
+.game-atmosphere-layer {
+  z-index: -1;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 70% 16%, rgba(67, 202, 119, 0.13), transparent 34%),
+    radial-gradient(circle at 18% 76%, rgba(31, 135, 77, 0.1), transparent 38%),
+    linear-gradient(90deg, rgba(1, 7, 4, 0.96) 0%, rgba(2, 9, 6, 0.88) 27%, rgba(3, 11, 7, 0.8) 60%, rgba(2, 8, 5, 0.9) 100%),
+    linear-gradient(180deg, rgba(2, 8, 5, 0.68), rgba(1, 6, 4, 0.88));
+}
+
+.game-atmosphere-layer::before,
+.game-atmosphere-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.game-atmosphere-layer::before {
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(210, 244, 222, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210, 244, 222, 0.065) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), transparent 94%);
+}
+
+.game-atmosphere-layer::after {
+  opacity: 0.065;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.38'/%3E%3C/svg%3E");
+}
+
+.game-state-shell {
+  position: fixed;
+  inset: 0;
+  min-width: 320px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.game-state-shell > .loading-screen {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  min-height: 100%;
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.game-state-shell > .loading-screen > div {
+  max-width: 36rem;
+}
+
+@media (max-width: 720px) {
+  .game-image-layer img {
+    object-position: 52% 48%;
+    filter: saturate(0.54) contrast(1.12) brightness(0.43);
+  }
+
+  .game-atmosphere-layer {
+    background:
+      radial-gradient(circle at 50% 12%, rgba(67, 202, 119, 0.11), transparent 32%),
+      linear-gradient(180deg, rgba(1, 7, 4, 0.86) 0%, rgba(2, 9, 6, 0.84) 36%, rgba(1, 6, 4, 0.94) 100%);
+  }
+
+  .game-atmosphere-layer::before {
+    opacity: 0.16;
+    background-size: 42px 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-image-layer img {
+    transform: none;
+  }
+}
