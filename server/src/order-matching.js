@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
-import { floorPlayerMoney, roundInternalMoney } from './money.js';
+import { floorPlayerMoney, multiplyMoneyByInteger } from './money.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js';
 
@@ -82,13 +82,15 @@ for (const resting of candidates) {
     const quantity = Math.min(Number(incoming.remaining), Number(resting.remaining));
     if (!Number.isFinite(quantity) || quantity <= 0) continue;
     const price = floorPlayerMoney(resting.price) ?? 0;
+    const total = multiplyMoneyByInteger(price, quantity);
+    if (total === null) throw new RangeError('成交总额超出系统可表示范围');
     const buy = incoming.side === 'buy' ? incoming : resting;
     const sell = incoming.side === 'sell' ? incoming : resting;
     const fillBase = {
       id: createFillId(),
       quantity,
       price,
-      total: roundInternalMoney(quantity * price) ?? 0,
+      total,
       createdAt,
       makerOrderId: resting.id,
       takerOrderId: incoming.id,

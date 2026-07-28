@@ -86,7 +86,8 @@ requireText(marketPage, "['1/4 资金', '1/2 资金'", '买入快捷数量必须
 requireText(marketPage, "['1/4 库存', '1/2 库存', '全部库存']", '商品卖出快捷数量必须使用库存语义。');
 requireText(marketPage, "['1/4 持有', '1/2 持有', '全部持有']", '工厂卖出快捷数量必须使用持有语义。');
 requireText(marketPage, 'warehouseLimitsBuy', '商品买入必须识别仓库先于资金形成的数量上限。');
-requireText(marketPage, '{availabilityReason ? <p id="order-disabled-reason"', '提交区只允许显示字段外阻断原因。');
+requireText(marketPage, '{visibleDisabledReason ? <p id="order-disabled-reason"', '提交区只允许显示字段外阻断原因。');
+requireText(marketPage, 'const orderLimitReason = ownOpenOrders.length >= maxOpenOrders', '提交区必须覆盖商品与工厂合计未完成订单的动态上限。');
 forbidText(marketPage, "aria-describedby={orderDisabledReason ? 'order-disabled-reason' : undefined}", '数量字段不得重复关联提交区的同一错误。');
 requireText(marketPage, '<VirtualRecordTable', '本地成交必须使用单一双轴虚拟表格。');
 forbidText(marketPage, 'virtual-record-viewport', '本地成交不得恢复内层纵向视口。');

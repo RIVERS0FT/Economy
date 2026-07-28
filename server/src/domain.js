@@ -1,4 +1,4 @@
-import { normalizePlayerMoneyInput } from './money.js';
+import { multiplyMoneyByInteger, normalizePlayerMoneyInput } from './money.js';
 import { randomUUID } from 'node:crypto';
 import * as core from './domain-core.js';
 import { createBalancedMarketRuntime } from './balanced-market.js';
@@ -269,6 +269,8 @@ function applyCommodityOrder(world, user, payload, now) {
   const quantity = normalizePositiveInteger(payload.quantity, core.ECONOMY_CONSTANTS.maxOrderQuantity);
   const price = normalizePlayerMoneyInput(payload.price, { min: 0.01, max: 1_000_000 });
   if (!side || !productId || !quantity || !price) return { ok: false, message: '订单参数无效' };
+  const total = multiplyMoneyByInteger(price, quantity);
+  if (total === null) return { ok: false, message: '订单总额超出系统可表示范围' };
   if (findSelfCrossingOrder(world, {
     ownerId: userId,
     assetKind: 'commodity',
@@ -278,13 +280,12 @@ function applyCommodityOrder(world, user, payload, now) {
   })) return { ok: false, message: SELF_CROSS_MESSAGE };
 
   world.orders ||= [];
-if (countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
-  return { ok: false, message: '未完成订单数量已达上限' };
-}
+  if (countOpenOrdersForOwner(world, userId) >= core.ECONOMY_CONSTANTS.maxOpenOrders) {
+    return { ok: false, message: '未完成订单数量已达上限' };
+  }
 
   const player = core.ensurePlayer(world, user, now);
   if (side === 'buy') {
-    const total = quantity * price;
     if (Number(player.credits || 0) < total) return { ok: false, message: '可用资金不足' };
     const capacity = Math.max(0, Number(player.inventoryCapacity || 0))
       - playerInventoryUsed(player)

@@ -16,7 +16,7 @@ import {
 } from '../components/ui/layout';
 import { ScrollArea } from '../components/ui/ScrollArea';
 import { VirtualRecordTable } from '../components/ui/VirtualRecordTable';
-import { economyConstants } from '../config/economy';
+import { economyConstants, openOrderLimitForCatalog } from '../config/economy';
 import type { AssetOrder } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
@@ -88,6 +88,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const ownOpenOrders = game.orders.filter((order) => (
     order.isOwn && ['open', 'partial'].includes(order.status)
   ));
+  const maxOpenOrders = openOrderLimitForCatalog(game.products.length, game.facilityTypes.length);
   const bestAsks = buildOrderBookLevels(selectedOrders, 'sell').reverse();
   const bestBids = buildOrderBookLevels(selectedOrders, 'buy');
   const marketHistory = selectedMarket?.priceHistory ?? [];
@@ -109,7 +110,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const maxSellQuantity = marketAssetKind === 'commodity'
     ? selectedInventory.available
     : selectedGroup?.availableCount ?? 0;
-  const maxTradeQuantity = orderSide === 'buy' ? maxBuyQuantity : maxSellQuantity;
+  const maxTradeQuantity = Math.min(
+    orderSide === 'buy' ? maxBuyQuantity : maxSellQuantity,
+    economyConstants.maxOrderQuantity,
+  );
   const parsedOrderQuantity = parseIntegerDraft(quantityDraft, { min: 1 });
   const orderTotal = Math.max(0, (parsedOrderQuantity ?? 0) * effectiveOrderPrice);
   const estimatedSellFee = orderSide === 'sell' && orderTotal > 0
@@ -144,7 +148,11 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           : `当前最多可卖 ${formatNumber(maxTradeQuantity)}。`
         : undefined
     : undefined;
-  const orderDisabledReason = priceReason ?? availabilityReason ?? quantityReason;
+  const orderLimitReason = ownOpenOrders.length >= maxOpenOrders
+    ? `未完成订单数量已达上限（${formatNumber(maxOpenOrders)} 笔）。`
+    : undefined;
+  const visibleDisabledReason = orderLimitReason ?? availabilityReason;
+  const orderDisabledReason = orderLimitReason ?? priceReason ?? availabilityReason ?? quantityReason;
   const warehouseLimitsBuy = orderSide === 'buy'
     && marketAssetKind === 'commodity'
     && maxBuyByFunds > game.warehouseAvailableCapacity;
@@ -390,11 +398,11 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 </>
               )}
             </div>
-            {availabilityReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{availabilityReason}</p> : null}
+            {visibleDisabledReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{visibleDisabledReason}</p> : null}
             <Button
               block
               disabled={Boolean(orderDisabledReason)}
-              aria-describedby={availabilityReason ? 'order-disabled-reason' : undefined}
+              aria-describedby={visibleDisabledReason ? 'order-disabled-reason' : undefined}
               onClick={submitOrder}
             >
               提交{assetName}{orderSide === 'buy' ? '买单' : '卖单'}
@@ -462,7 +470,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           </Panel>
 
           <Panel className="widget span-3 market-account-panel">
-            <WidgetHeading title="我的订单与成交" action={<StatusTag>{formatNumber(ownOpenOrders.length)}/{formatNumber(economyConstants.maxOpenOrders)} 笔未完成</StatusTag>} />
+            <WidgetHeading title="我的订单与成交" action={<StatusTag>{formatNumber(ownOpenOrders.length)}/{formatNumber(maxOpenOrders)} 笔未完成</StatusTag>} />
             <div className="market-account-grid">
               <section>
                 <h3>未完成订单</h3>
