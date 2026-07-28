@@ -71,7 +71,7 @@ function GlassEffect({
 }: {
   variant: LiquidGlassSurfaceVariant;
   content: ReactNode;
-  contentRef?: RefObject<HTMLDivElement>;
+  contentRef?: RefObject<HTMLDivElement | null>;
 }) {
   const preset = PRESETS[variant];
   return (
