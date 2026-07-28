@@ -61,7 +61,7 @@ for (const text of [
   "import type { AssetKind, AssetOrder, OrderSide } from '../types'",
   "!['open', 'partial'].includes(order.status) || order.remaining <= 0",
   'orderKind(order) !== assetKind || orderAssetId(order) !== assetId',
-  'Number.isFinite(price) && Number.isInteger(price) && price >= 1',
+  'Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8',
   'Math.max(bestBid, order.price)',
   'Math.min(bestAsk, order.price)',
   '? bestAsk ?? bestBid ?? 1',
@@ -116,7 +116,7 @@ for (const text of ['点击工作次数','生产商品总数','买入商品总�
 for (const text of ['登录会话','重置经济状态','重置服务器经济状态']) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('src/app/GameApp.tsx', text);
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
-for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 16','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','SELF_CROSS_MESSAGE']) requireText('server/src/facility-groups.js', text);
+for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 17','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','SELF_CROSS_MESSAGE']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
 for (const text of ['SELF_CROSS_MESSAGE','findSelfCrossingOrder','pricesCross','bestSystemPrice','systemBookIsCrossed']) requireText('server/src/order-book-integrity.js', text);
 const domainSource = [

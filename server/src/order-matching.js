@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
+import { floorPlayerMoney, roundInternalMoney } from './money.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js';
 
@@ -12,15 +13,15 @@ function samePlayer(left, right) {
 }
 
 export function orderPricesCross(incomingSide, incomingPrice, restingPrice) {
-  const incoming = Number(incomingPrice);
-  const resting = Number(restingPrice);
+  const incoming = floorPlayerMoney(incomingPrice);
+  const resting = floorPlayerMoney(restingPrice);
   if (!Number.isFinite(incoming) || !Number.isFinite(resting)) return false;
   return incomingSide === 'buy' ? incoming >= resting : incomingSide === 'sell' ? incoming <= resting : false;
 }
 
 export function compareRestingOrders(incomingSide, left, right) {
-  const leftPrice = Number(left.price);
-  const rightPrice = Number(right.price);
+  const leftPrice = floorPlayerMoney(left.price) ?? 0;
+  const rightPrice = floorPlayerMoney(right.price) ?? 0;
   if (leftPrice !== rightPrice) return incomingSide === 'buy' ? leftPrice - rightPrice : rightPrice - leftPrice;
   return Number(left.createdAt || 0) - Number(right.createdAt || 0);
 }
@@ -80,14 +81,14 @@ for (const resting of candidates) {
 
     const quantity = Math.min(Number(incoming.remaining), Number(resting.remaining));
     if (!Number.isFinite(quantity) || quantity <= 0) continue;
-    const price = Number(resting.price);
+    const price = floorPlayerMoney(resting.price) ?? 0;
     const buy = incoming.side === 'buy' ? incoming : resting;
     const sell = incoming.side === 'sell' ? incoming : resting;
     const fillBase = {
       id: createFillId(),
       quantity,
       price,
-      total: quantity * price,
+      total: roundInternalMoney(quantity * price) ?? 0,
       createdAt,
       makerOrderId: resting.id,
       takerOrderId: incoming.id,

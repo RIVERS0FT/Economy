@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { IntegerInput, SelectInput, TextInput } from '../components/ui/FormControls';
+import { IntegerInput, MoneyInput, SelectInput, TextInput } from '../components/ui/FormControls';
 import {
   Button,
   DataList,
@@ -34,6 +34,7 @@ import {
 } from '../contracts/types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
+import { parseMoneyDraft } from '../utils/moneyDraft';
 import '../styles/contract-audit.css';
 
 const INTERVAL_OPTIONS = [
@@ -244,7 +245,7 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
   const [interval, setInterval] = useState(contract.deliveryIntervalMs);
   const [firstDelay, setFirstDelay] = useState(contract.firstDeliveryDelayMs);
   const quantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
-  const unitPrice = parseIntegerDraft(unitPriceInput, { min: 1, max: 1_000_000 });
+  const unitPrice = parseMoneyDraft(unitPriceInput, { min: 0.01, max: 1_000_000 });
   const deliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
 
   if (proposal) {
@@ -315,7 +316,7 @@ function ContractRenewalSection({ contract, busy, run }: ContractCardProps) {
       </div>
       <div className="contract-renewal-form">
         <IntegerInput label="每批数量" value={quantityInput} fallbackValue={contract.quantityPerDelivery} min={1} max={1_000_000} error={quantity === null ? '请输入有效整数。' : undefined} onValueChange={setQuantityInput} />
-        <IntegerInput label="单位价格" value={unitPriceInput} fallbackValue={contract.unitPrice} min={1} max={1_000_000} error={unitPrice === null ? '请输入有效整数。' : undefined} onValueChange={setUnitPriceInput} />
+        <MoneyInput label="单位价格" value={unitPriceInput} fallbackValue={contract.unitPrice} min={0.01} max={1_000_000} error={unitPrice === null ? '请输入有效金额；超过两位小数会向下截断。' : undefined} onValueChange={setUnitPriceInput} />
         <SelectInput label="交付周期" value={interval} onChange={(event) => setInterval(Number.parseInt(event.target.value, 10))}>
           {INTERVAL_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </SelectInput>
@@ -687,7 +688,7 @@ function PublishContractPanel({
   const [firstDelay, setFirstDelay] = useState<number>(60 * 60 * 1000);
 
   const parsedQuantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
-  const parsedUnitPrice = parseIntegerDraft(unitPriceInput, { min: 1, max: 1_000_000 });
+  const parsedUnitPrice = parseMoneyDraft(unitPriceInput, { min: 0.01, max: 1_000_000 });
   const parsedDeliveries = parseIntegerDraft(deliveriesInput, { min: 2, max: 100 });
   const batchGross = parsedQuantity !== null && parsedUnitPrice !== null
     ? parsedQuantity * parsedUnitPrice
@@ -695,7 +696,7 @@ function PublishContractPanel({
   const totalGross = batchGross !== null && parsedDeliveries !== null
     ? batchGross * parsedDeliveries
     : null;
-  const bond = batchGross !== null ? Math.ceil(batchGross * 0.2) : null;
+  const bond = batchGross !== null ? Math.ceil(batchGross * 20) / 100 : null;
   const canSubmit = Boolean(productId)
     && parsedQuantity !== null
     && parsedUnitPrice !== null
@@ -709,7 +710,7 @@ function PublishContractPanel({
 
   function updateUnitPrice(value: string) {
     setUnitPriceInput(value);
-    const parsed = parseIntegerDraft(value, { min: 1, max: 1_000_000 });
+    const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000 });
     if (parsed !== null) setUnitPrice(parsed);
   }
 
@@ -779,13 +780,13 @@ function PublishContractPanel({
               error={parsedQuantity === null ? '请输入 1～1000000 的整数。' : undefined}
               onValueChange={updateQuantity}
             />
-            <IntegerInput
+            <MoneyInput
               label="单位价格"
               value={unitPriceInput}
               fallbackValue={unitPrice}
               min={1}
               max={1_000_000}
-              error={parsedUnitPrice === null ? '请输入 1～1000000 的整数。' : undefined}
+              error={parsedUnitPrice === null ? '请输入 0.01～1000000 的金额；超过两位小数会向下截断。' : undefined}
               onValueChange={updateUnitPrice}
             />
             <SelectInput

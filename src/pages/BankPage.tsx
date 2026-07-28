@@ -3,7 +3,7 @@ import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel';
 import { BankIcon, FactoryIcon } from '../components/icons/GameIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { IntegerInput } from '../components/ui/FormControls';
+import { IntegerInput, MoneyInput } from '../components/ui/FormControls';
 import {
   Button,
   DataList,
@@ -19,6 +19,7 @@ import {
 import { useNow } from '../hooks/useNow';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
+import { parseMoneyDraft } from '../utils/moneyDraft';
 
 const RECENT_DEFAULT_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -55,8 +56,8 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   const [collateralDrafts, setCollateralDrafts] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<PendingAction>(null);
 
-  const depositAmount = parseIntegerDraft(depositDraft, { min: 1, max: Math.max(1, model.game.credits) });
-  const withdrawAmount = parseIntegerDraft(withdrawDraft, { min: 1, max: Math.max(1, bankAccount.depositCredits) });
+  const depositAmount = parseMoneyDraft(depositDraft, { min: 0.01, max: Math.max(0.01, model.game.credits) });
+  const withdrawAmount = parseMoneyDraft(withdrawDraft, { min: 0.01, max: Math.max(0.01, bankAccount.depositCredits) });
   const collateralDraftState = useMemo(() => bankAccount.availableCollateral.map((item) => {
     const draft = collateralDrafts[item.facilityTypeId] || '';
     const parsed = parseIntegerDraft(draft, {
@@ -86,21 +87,21 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
         - (recentDefault ? bankSummary.recentDefaultPenaltyBps : 0),
     ),
   );
-  const maximumLoan = Math.floor(collateralValue * loanToValueBps / 10_000);
-  const requestedLoan = parseIntegerDraft(loanDraft, { min: 1, max: Math.max(1, maximumLoan) });
+  const maximumLoan = Math.floor(collateralValue * loanToValueBps / 100) / 100;
+  const requestedLoan = parseMoneyDraft(loanDraft, { min: 0.01, max: Math.max(0.01, maximumLoan) });
   const actualLtvBps = requestedLoan && collateralValue > 0
     ? Math.ceil(requestedLoan * 10_000 / collateralValue)
     : 0;
   const requestedInterestRateBps = loanRateBps(actualLtvBps);
   const requestedInterest = requestedLoan
-    ? Math.ceil(requestedLoan * requestedInterestRateBps / 10_000)
+    ? Math.ceil(requestedLoan * requestedInterestRateBps / 100) / 100
     : 0;
   const activeLoan = bankAccount.activeLoan;
   const activeLiability = activeLoan
     ? activeLoan.principalOutstanding + activeLoan.interestOutstanding
     : 0;
   const repayAmount = activeLoan
-    ? parseIntegerDraft(repayDraft, { min: 1, max: Math.max(1, activeLiability) })
+    ? parseMoneyDraft(repayDraft, { min: 0.01, max: Math.max(0.01, activeLiability) })
     : null;
   const loanDeadline = activeLoan?.status === 'grace' ? activeLoan.graceEndsAt : activeLoan?.dueAt;
   const loanRemaining = loanDeadline ? Math.max(0, loanDeadline - now) : 0;
@@ -138,36 +139,36 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
           <p className="bank-panel-note">存取款只在可用资金与银行存款间转移，不改变净资产。贷款处于宽限期时暂停取款。</p>
           <div className="bank-transfer-forms">
             <div className="bank-form-block">
-              <IntegerInput
+              <MoneyInput
                 label="存入金额"
                 value={depositDraft}
-                fallbackValue={1}
-                min={1}
-                max={Math.max(1, model.game.credits)}
+                fallbackValue={0.01}
+                min={0.01}
+                max={Math.max(0.01, model.game.credits)}
                 onValueChange={setDepositDraft}
-                disabled={model.game.credits < 1}
-                error={depositDraft && depositAmount === null ? '请输入不超过可用资金的正整数。' : undefined}
+                disabled={model.game.credits < 0.01}
+                error={depositDraft && depositAmount === null ? '请输入不超过可用资金的正数金额；超过两位小数会向下截断。' : undefined}
               />
               <div className="bank-form-actions">
-                <Button variant="secondary" disabled={model.game.credits < 1 || Boolean(pending)} onClick={() => setDepositDraft(String(model.game.credits))}>全部存入</Button>
+                <Button variant="secondary" disabled={model.game.credits < 0.01 || Boolean(pending)} onClick={() => setDepositDraft(String(model.game.credits))}>全部存入</Button>
                 <Button disabled={!depositAmount || Boolean(pending)} onClick={() => submit('deposit', () => model.bankDeposit(depositAmount || 0), () => setDepositDraft(''))}>
                   {pending === 'deposit' ? '处理中…' : '存入'}
                 </Button>
               </div>
             </div>
             <div className="bank-form-block">
-              <IntegerInput
+              <MoneyInput
                 label="取出金额"
                 value={withdrawDraft}
-                fallbackValue={1}
-                min={1}
-                max={Math.max(1, bankAccount.depositCredits)}
+                fallbackValue={0.01}
+                min={0.01}
+                max={Math.max(0.01, bankAccount.depositCredits)}
                 onValueChange={setWithdrawDraft}
                 disabled={activeLoan?.status === 'grace'}
-                error={withdrawDraft && withdrawAmount === null ? '请输入不超过银行存款的正整数。' : undefined}
+                error={withdrawDraft && withdrawAmount === null ? '请输入不超过银行存款的正数金额；超过两位小数会向下截断。' : undefined}
               />
               <div className="bank-form-actions">
-                <Button variant="secondary" disabled={bankAccount.depositCredits < 1 || activeLoan?.status === 'grace' || Boolean(pending)} onClick={() => setWithdrawDraft(String(bankAccount.depositCredits))}>全部取出</Button>
+                <Button variant="secondary" disabled={bankAccount.depositCredits < 0.01 || activeLoan?.status === 'grace' || Boolean(pending)} onClick={() => setWithdrawDraft(String(bankAccount.depositCredits))}>全部取出</Button>
                 <Button disabled={!withdrawAmount || activeLoan?.status === 'grace' || Boolean(pending)} onClick={() => submit('withdraw', () => model.bankWithdraw(withdrawAmount || 0), () => setWithdrawDraft(''))}>
                   {pending === 'withdraw' ? '处理中…' : '取出'}
                 </Button>
@@ -222,14 +223,14 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
               onChange={(event) => { const enabled = event.currentTarget.checked; void submit('auto-repay', () => model.bankSetAutoRepay(activeLoan.id, enabled)); }}
             />
             <div className="bank-repayment-row">
-              <IntegerInput
+              <MoneyInput
                 label="还款金额"
                 value={repayDraft}
-                fallbackValue={1}
-                min={1}
-                max={Math.max(1, activeLiability)}
+                fallbackValue={0.01}
+                min={0.01}
+                max={Math.max(0.01, activeLiability)}
                 onValueChange={setRepayDraft}
-                error={repayDraft && repayAmount === null ? '请输入不超过当前应还总额的正整数。' : undefined}
+                error={repayDraft && repayAmount === null ? '请输入不超过当前应还总额的正数金额；超过两位小数会向下截断。' : undefined}
               />
               <div className="bank-form-actions">
                 <Button variant="secondary" disabled={model.game.credits < activeLiability || Boolean(pending)} onClick={() => setRepayDraft(String(activeLiability))}>全部金额</Button>
@@ -299,16 +300,16 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                 <DataRow label="最高可贷额度" value={<CurrencyAmount>{formatCurrency(maximumLoan)}</CurrencyAmount>} tone="success" />
               </DataList>
               <div className="bank-loan-request-form">
-                <IntegerInput
+                <MoneyInput
                   label="申请金额"
                   description="贷款期限固定为 72h，贷款总利息随实际贷款价值比锁定。"
                   value={loanDraft}
                   fallbackValue={1}
                   min={1}
-                  max={Math.max(1, maximumLoan)}
+                  max={Math.max(0.01, maximumLoan)}
                   onValueChange={setLoanDraft}
                   disabled={maximumLoan < 1}
-                  error={loanDraft && requestedLoan === null ? '申请金额必须是不超过当前最高额度的正整数。' : undefined}
+                  error={loanDraft && requestedLoan === null ? '申请金额必须为不超过当前最高额度的正数；超过两位小数会向下截断。' : undefined}
                 />
                 <DataList>
                   <DataRow label="实际贷款价值比" value={formatRateBps(actualLtvBps)} />

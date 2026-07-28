@@ -4,7 +4,7 @@ import { PriceSparkline } from '../components/charts/PriceSparkline';
 import { FactoryIcon, WarehouseIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
-import { IntegerInput } from '../components/ui/FormControls';
+import { IntegerInput, MoneyInput } from '../components/ui/FormControls';
 import {
   Button,
   PageLayout,
@@ -20,6 +20,7 @@ import { economyConstants } from '../config/economy';
 import type { AssetOrder } from '../types';
 import { formatCurrency, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
+import { parseMoneyDraft } from '../utils/moneyDraft';
 import { buildMarketHistoryBuckets } from '../utils/marketHistory';
 import { buildOrderBookLevels } from '../utils/orderBookLevels';
 import { orderAssetId, orderKind } from '../utils/orderIdentity';
@@ -97,7 +98,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const marketBuckets = buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now);
   const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
-  const parsedOrderPrice = parseIntegerDraft(priceDraft, { min: 1 });
+  const parsedOrderPrice = parseMoneyDraft(priceDraft, { min: 0.01, max: 1_000_000 });
   const effectiveOrderPrice = parsedOrderPrice ?? 0;
   const maxBuyByFunds = effectiveOrderPrice > 0
     ? Math.max(0, Math.floor(game.credits / effectiveOrderPrice))
@@ -112,12 +113,12 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const parsedOrderQuantity = parseIntegerDraft(quantityDraft, { min: 1 });
   const orderTotal = Math.max(0, (parsedOrderQuantity ?? 0) * effectiveOrderPrice);
   const estimatedSellFee = orderSide === 'sell' && orderTotal > 0
-    ? Math.floor(orderTotal / 100)
+    ? Math.floor(orderTotal * 10_000) / 1_000_000
     : 0;
   const estimatedNetTotal = Math.max(0, orderTotal - estimatedSellFee);
 
   const priceReason = parsedOrderPrice === null
-    ? '请输入不低于 1 的整数价格。'
+    ? '请输入不低于 0.01 的金额；超过两位小数会自动向下截断。'
     : undefined;
   const availabilityReason = parsedOrderPrice === null
     ? undefined
@@ -175,7 +176,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
   function updatePriceDraft(value: string) {
     setPriceDraft(value);
-    const parsed = parseIntegerDraft(value, { min: 1 });
+    const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000 });
     if (parsed !== null) setOrderPrice(parsed);
   }
 
@@ -337,11 +338,12 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 onClick={() => selectOrderSide('sell')}
               >卖出</Button>
             </div>
-            <IntegerInput
+            <MoneyInput
               label="价格"
               value={priceDraft}
               fallbackValue={orderPrice}
-              min={1}
+              min={0.01}
+              max={1_000_000}
               error={priceReason}
               onValueChange={updatePriceDraft}
               onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}

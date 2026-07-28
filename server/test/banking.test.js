@@ -116,18 +116,18 @@ test('deposit interest is paid only from realized borrower interest and new depo
     amount: 'all',
   }, now + 3).ok, true);
   assert.equal(world.bank.totals.borrowerInterestReceived, 3);
-  assert.equal(world.bank.interestPoolMicros, 2_000_000);
-  assert.equal(world.populationEconomy.stats.bankingIncome, 1);
+  assert.equal(world.bank.interestPoolMicros, 2_100_000);
+  assert.equal(world.populationEconomy.stats.bankingIncome, 0.6);
 
   const firstMidnight = bankPeriodFor(now).nextSettlementAt;
   processBankWorld(world, firstMidnight);
   assert.equal(depositor.bankAccount.depositCredits, 400, 'same-day deposit is not eligible');
-  assert.equal(world.bank.interestPoolMicros, 2_000_000);
+  assert.equal(world.bank.interestPoolMicros, 2_100_000);
 
   processBankWorld(world, firstMidnight + 24 * 60 * 60 * 1000);
   assert.equal(depositor.bankAccount.depositCredits, 401);
   assert.equal(depositor.bankAccount.totalDepositInterestEarned, 1);
-  assert.equal(world.bank.interestPoolMicros, 1_000_000);
+  assert.equal(world.bank.interestPoolMicros, 1_100_000);
 });
 
 test('loan assessment exposes transparent collateral and rate inputs', () => {
@@ -161,7 +161,7 @@ test('withdrawal lowers the daily minimum and re-deposit cannot restore same-day
   assert.equal(createBankClientState(world, player, now + 2).bankAccount.eligibleDepositCredits, 200);
 });
 
-test('deposit interest carry preserves fractional entitlement until it becomes a whole credit', () => {
+test('deposit interest pays cent-level fractional credits without hidden player carry', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   const account = ensurePlayerBankAccount(player, now);
@@ -173,8 +173,8 @@ test('deposit interest carry preserves fractional entitlement until it becomes a
 
   const firstMidnight = bankPeriodFor(now).nextSettlementAt;
   processBankWorld(world, firstMidnight);
-  assert.equal(account.depositCredits, 200);
-  assert.equal(account.depositInterestCarryMicros, 500_000);
+  assert.equal(account.depositCredits, 200.5);
+  assert.equal(account.depositInterestCarryMicros, 0);
   bank.interestPoolMicros += 500_000;
   processBankWorld(world, firstMidnight + 24 * 60 * 60 * 1000);
   assert.equal(account.depositCredits, 201);

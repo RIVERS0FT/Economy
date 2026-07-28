@@ -8,8 +8,9 @@ import {
   populationPolicyRefillCap,
   populationPolicySnapshot,
 } from './population-policy.js';
+import { roundInternalMoney } from './money.js';
 
-export const POPULATION_ECONOMY_VERSION = 4;
+export const POPULATION_ECONOMY_VERSION = 5;
 export const POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional']);
 export const POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence']);
 export const POPULATION_STABILIZATION_BUDGET_SHARE = 0.12;
@@ -179,6 +180,10 @@ function nonNegativeInteger(value) {
   return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : 0;
 }
 
+function nonNegativeMoney(value) {
+  return Math.max(0, roundInternalMoney(value || 0) || 0);
+}
+
 function emptyIncomeSources() {
   return { production: 0, construction: 0, warehouse: 0, marketService: 0, banking: 0 };
 }
@@ -239,19 +244,19 @@ function defaultState() {
   };
 }
 
-function allocateInteger(amount, profile) {
-  const total = nonNegativeInteger(amount);
+function allocateMoney(amount, profile) {
+  const totalMicros = Math.max(0, Math.round(nonNegativeMoney(amount) * 1_000_000));
   const rows = POPULATION_MODEL_IDS.map((id, index) => {
-    const exact = total * Number(profile[id] || 0);
-    return { id, index, exact, value: Math.floor(exact), remainder: exact - Math.floor(exact) };
+    const exact = totalMicros * Number(profile[id] || 0);
+    return { id, index, value: Math.floor(exact), remainder: exact - Math.floor(exact) };
   });
   let assigned = rows.reduce((sum, row) => sum + row.value, 0);
   rows.sort((left, right) => right.remainder - left.remainder || left.index - right.index);
-  for (let cursor = 0; assigned < total; cursor = (cursor + 1) % rows.length) {
+  for (let cursor = 0; assigned < totalMicros; cursor = (cursor + 1) % rows.length) {
     rows[cursor].value += 1;
     assigned += 1;
   }
-  return Object.fromEntries(rows.map((row) => [row.id, row.value]));
+  return Object.fromEntries(rows.map((row) => [row.id, row.value / 1_000_000]));
 }
 
 function normalizeModel(modelId, previous = {}) {
@@ -259,13 +264,12 @@ function normalizeModel(modelId, previous = {}) {
   const hadStateCycles = Object.prototype.hasOwnProperty.call(previous, 'stateCycles');
   const migratedCautious = previous.consumptionState === 'cautious';
   const model = { ...fallback, ...previous, id: modelId, name: MODEL_CONFIG[modelId].name };
-  model.credits = nonNegativeInteger(model.credits);
-  model.frozenCredits = nonNegativeInteger(model.frozenCredits);
+  model.credits = nonNegativeMoney(model.credits);
+  model.frozenCredits = nonNegativeMoney(model.frozenCredits);
   model.pendingIncome = { ...emptyIncomeSources(), ...(previous.pendingIncome || {}) };
-  for (const key of Object.keys(model.pendingIncome)) model.pendingIncome[key] = nonNegativeInteger(model.pendingIncome[key]);
-  for (const key of ['lastIncome', 'incomeEma', 'recentPeakIncome', 'noIncomeCycles', 'stateCycles', 'prosperityCycles', 'lavishCycles', 'downgradeCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'lastBudget', 'foodBudget', 'householdBudget', 'stabilizationBudget', 'lastStabilizationIssued', 'lastAdminPopulationIssued', 'totalIncome', 'totalSpent']) {
-    model[key] = nonNegativeInteger(model[key]);
-  }
+  for (const key of Object.keys(model.pendingIncome)) model.pendingIncome[key] = nonNegativeMoney(model.pendingIncome[key]);
+  for (const key of ['lastIncome', 'incomeEma', 'recentPeakIncome', 'lastBudget', 'foodBudget', 'householdBudget', 'stabilizationBudget', 'lastStabilizationIssued', 'lastAdminPopulationIssued', 'totalIncome', 'totalSpent']) model[key] = nonNegativeMoney(model[key]);
+  for (const key of ['noIncomeCycles', 'stateCycles', 'prosperityCycles', 'lavishCycles', 'downgradeCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps']) model[key] = nonNegativeInteger(model[key]);
   if (model.consumptionState === 'cautious') model.consumptionState = 'strained';
   if (!POPULATION_CONSUMPTION_STATES.includes(model.consumptionState)) model.consumptionState = 'normal';
   if (migratedCautious) model.stateReason = 'income-strained';
@@ -316,7 +320,7 @@ export function ensurePopulationEconomy(world, now = undefined) {
 
   if (needsBootstrap) {
     const seed = bootstrapAmount(world);
-    const allocation = allocateInteger(seed, CONSTRUCTION_PROFILE);
+    const allocation = allocateMoney(seed, CONSTRUCTION_PROFILE);
     for (const modelId of POPULATION_MODEL_IDS) {
       const amount = allocation[modelId];
       state.models[modelId].credits += amount;
@@ -352,26 +356,26 @@ function profileFor(source, complexity) {
 }
 
 export function creditPopulationEmployment(world, amount, source, { complexity, payerAmount = amount } = {}) {
-  const total = nonNegativeInteger(amount);
+  const total = nonNegativeMoney(amount);
   if (total <= 0) return Object.fromEntries(POPULATION_MODEL_IDS.map((id) => [id, 0]));
   const state = ensurePopulationEconomy(world);
   const key = sourceKey(source);
-  const allocation = allocateInteger(total, profileFor(source, complexity));
+  const allocation = allocateMoney(total, profileFor(source, complexity));
   for (const modelId of POPULATION_MODEL_IDS) {
     state.models[modelId].pendingIncome[key] += allocation[modelId];
   }
   state.stats.totalEmploymentIncome += total;
-  state.stats[`${key}Income`] = nonNegativeInteger(state.stats[`${key}Income`]) + total;
+  state.stats[`${key}Income`] = roundInternalMoney(nonNegativeMoney(state.stats[`${key}Income`]) + total) || 0;
   if (key === 'production') {
     const normalizedComplexity = PRODUCTION_PROFILES[String(complexity)] ? String(complexity) : 'C1';
     state.stats.productionByComplexity[normalizedComplexity] = nonNegativeInteger(
       state.stats.productionByComplexity[normalizedComplexity],
     ) + total;
-    const playerFunded = nonNegativeInteger(payerAmount);
+    const playerFunded = nonNegativeMoney(payerAmount);
     if (total > playerFunded) {
-      state.stats.productionWageSubsidyIssued = nonNegativeInteger(state.stats.productionWageSubsidyIssued) + total - playerFunded;
+      state.stats.productionWageSubsidyIssued = roundInternalMoney(nonNegativeMoney(state.stats.productionWageSubsidyIssued) + total - playerFunded) || 0;
     } else if (playerFunded > total) {
-      state.stats.productionWageWithheld = nonNegativeInteger(state.stats.productionWageWithheld) + playerFunded - total;
+      state.stats.productionWageWithheld = roundInternalMoney(nonNegativeMoney(state.stats.productionWageWithheld) + playerFunded - total) || 0;
     }
   }
   return allocation;
@@ -424,13 +428,13 @@ function setConsumptionState(model, nextState, reason) {
 }
 
 function updateModelIncome(model) {
-  const income = Object.values(model.pendingIncome).reduce((sum, value) => sum + nonNegativeInteger(value), 0);
+  const income = Object.values(model.pendingIncome).reduce((sum, value) => roundInternalMoney(sum + nonNegativeMoney(value)) || 0, 0);
   model.lastIncome = income;
-  model.credits += income;
-  model.totalIncome += income;
+  model.credits = roundInternalMoney(model.credits + income) || 0;
+  model.totalIncome = roundInternalMoney(model.totalIncome + income) || 0;
   model.pendingIncome = emptyIncomeSources();
-  model.incomeEma = Math.max(0, Math.round(model.incomeEma * INCOME_EMA_PREVIOUS_WEIGHT + income * (1 - INCOME_EMA_PREVIOUS_WEIGHT)));
-  model.recentPeakIncome = Math.max(model.incomeEma, Math.round(model.recentPeakIncome * 0.92));
+  model.incomeEma = Math.max(0, roundInternalMoney(model.incomeEma * INCOME_EMA_PREVIOUS_WEIGHT + income * (1 - INCOME_EMA_PREVIOUS_WEIGHT)) || 0);
+  model.recentPeakIncome = Math.max(model.incomeEma, roundInternalMoney(model.recentPeakIncome * 0.92) || 0);
   model.noIncomeCycles = income > 0 ? 0 : incrementCounter(model.noIncomeCycles);
 }
 
@@ -532,13 +536,13 @@ function updateModelConsumptionState(model, stabilizationBudget, targetWallet, w
 
 function modelSpendableBudget(modelId, model, stabilizationBudget = 0) {
   const config = MODEL_CONFIG[modelId];
-  const targetReserve = Math.floor(model.incomeEma * config.reserveCycles);
-  const baseBudget = Math.floor(model.incomeEma * config.marginalPropensityToConsume);
+  const targetReserve = nonNegativeMoney(model.incomeEma * config.reserveCycles);
+  const baseBudget = nonNegativeMoney(model.incomeEma * config.marginalPropensityToConsume);
   const excessSavings = Math.max(0, model.credits - targetReserve);
-  const target = Math.min(model.credits, Math.max(stabilizationBudget, baseBudget + Math.floor(excessSavings * config.excessReleaseRate)));
+  const target = Math.min(model.credits, Math.max(stabilizationBudget, baseBudget + nonNegativeMoney(excessSavings * config.excessReleaseRate)));
   if (model.lastBudget <= 0) return target;
   const minimum = Math.max(0, Math.ceil(model.lastBudget * (1 - BUDGET_MAX_FALL)));
-  const maximum = Math.max(minimum, stabilizationBudget, Math.floor(model.lastBudget * 1.15));
+  const maximum = Math.max(minimum, stabilizationBudget, nonNegativeMoney(model.lastBudget * 1.15));
   return Math.min(model.credits, Math.max(minimum, Math.min(maximum, target)));
 }
 
@@ -572,9 +576,9 @@ export function preparePopulationDemandCycle(world, cycleId, now = Date.now(), {
     const baseSpendable = Math.min(spendable, stabilizationBudget);
     const earnedSpendable = spendable - baseSpendable;
     const shares = groupSharesFor(modelId, model.consumptionState);
-    const foodBaseBudget = Math.floor(baseSpendable * shares.food);
+    const foodBaseBudget = nonNegativeMoney(baseSpendable * shares.food);
     const householdBaseBudget = baseSpendable - foodBaseBudget;
-    const foodEarnedBudget = Math.floor(earnedSpendable * shares.food);
+    const foodEarnedBudget = nonNegativeMoney(earnedSpendable * shares.food);
     const householdEarnedBudget = earnedSpendable - foodEarnedBudget;
     const foodBudget = foodBaseBudget + foodEarnedBudget;
     const householdBudget = householdBaseBudget + householdEarnedBudget;
@@ -612,7 +616,7 @@ export function populationModelState(world, modelId) {
 
 export function reservePopulationOrder(world, modelId, amount) {
   const model = populationModelState(world, modelId);
-  const total = nonNegativeInteger(amount);
+  const total = nonNegativeMoney(amount);
   if (!model || total <= 0 || model.credits < total) return false;
   model.credits -= total;
   model.frozenCredits += total;
@@ -621,7 +625,7 @@ export function reservePopulationOrder(world, modelId, amount) {
 
 export function releasePopulationOrderFunds(world, order, quantity = order?.remaining) {
   const model = populationModelState(world, order?.populationModelId);
-  const release = nonNegativeInteger(quantity) * nonNegativeInteger(order?.price);
+  const release = nonNegativeInteger(quantity) * nonNegativeMoney(order?.price);
   if (!model || release <= 0) return 0;
   const actual = Math.min(model.frozenCredits, release);
   model.frozenCredits -= actual;
@@ -633,8 +637,8 @@ export function settlePopulationPurchase(world, order, quantity, tradePrice) {
   const state = ensurePopulationEconomy(world);
   const model = state.models[String(order?.populationModelId || '')];
   if (!model) throw new Error(`Missing population funding model ${order?.populationModelId}`);
-  const reserved = nonNegativeInteger(quantity) * nonNegativeInteger(order?.price);
-  const actual = nonNegativeInteger(quantity) * nonNegativeInteger(tradePrice);
+  const reserved = nonNegativeInteger(quantity) * nonNegativeMoney(order?.price);
+  const actual = nonNegativeInteger(quantity) * nonNegativeMoney(tradePrice);
   if (model.frozenCredits < reserved) throw new Error('Population frozen credits are insufficient');
   model.frozenCredits -= reserved;
   model.credits += Math.max(0, reserved - actual);
@@ -644,7 +648,7 @@ export function settlePopulationPurchase(world, order, quantity, tradePrice) {
 
 export function recordPopulationSellerIncome(player, amount) {
   player.stats ||= {};
-  player.stats.populationIncome = nonNegativeInteger(player.stats.populationIncome) + nonNegativeInteger(amount);
+  player.stats.populationIncome = roundInternalMoney(nonNegativeMoney(player.stats.populationIncome) + nonNegativeMoney(amount)) || 0;
 }
 
 export function createPopulationEconomySummary(world, now = Date.now(), { totalBaseBudget = 5_700 } = {}) {

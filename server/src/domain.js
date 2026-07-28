@@ -1,3 +1,4 @@
+import { normalizePlayerMoneyInput } from './money.js';
 import { randomUUID } from 'node:crypto';
 import * as core from './domain-core.js';
 import { createBalancedMarketRuntime } from './balanced-market.js';
@@ -170,7 +171,7 @@ export function createWorld(now = Date.now()) {
   marketDemand.initializeWorld(world, now);
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
-  world.version = 16;
+  world.version = 17;
   return world;
 }
 
@@ -266,7 +267,7 @@ function applyCommodityOrder(world, user, payload, now) {
     ? String(payload.productId || payload.assetId || 'wheat')
     : null;
   const quantity = normalizePositiveInteger(payload.quantity, core.ECONOMY_CONSTANTS.maxOrderQuantity);
-  const price = normalizePositiveInteger(payload.price, 1_000_000);
+  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01, max: 1_000_000 });
   if (!side || !productId || !quantity || !price) return { ok: false, message: '订单参数无效' };
   if (findSelfCrossingOrder(world, {
     ownerId: userId,

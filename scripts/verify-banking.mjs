@@ -108,7 +108,7 @@ for (const text of [
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 for (const text of ['抵押数量必须继续计入当前或下一周期生产能力', '可转让数量', 'mortgagedCount']) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 for (const text of ['| 银行 | `bank` | `BankPage`', '玩家导航固定为九项', '资产总览', '存款账户', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
-for (const text of ['`banking.js`', '世界版本 16', '客户端状态版本 19', '/api/game/bank/deposits', '银行截止时间']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
+for (const text of ['`banking.js`', '世界版本 17', '客户端状态版本 20', '/api/game/bank/deposits', '银行截止时间']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 requireText('docs/UI_DESIGN_SYSTEM.md', '`src/styles/bank.css`');
 
 for (const text of [
@@ -119,7 +119,7 @@ for (const text of [
   'loan assessment exposes transparent collateral and rate inputs',
 ]) requireText('server/test/banking.test.js', text);
 
-for (const text of ['<BankPage model={model} />', 'version: 19']) requireText('tests/browser/bank-runtime-harness.tsx', text);
+for (const text of ['<BankPage model={model} />', 'version: 20']) requireText('tests/browser/bank-runtime-harness.tsx', text);
 for (const text of ['transparent collateral assessment', 'stacks safely on mobile', 'scrollWidth <= element.clientWidth + 1']) requireText('tests/browser/bank-runtime.spec.ts', text);
 requireText('bank-runtime-test.html', '/tests/browser/bank-runtime-harness.tsx');
 
