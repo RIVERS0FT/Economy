@@ -25,6 +25,7 @@ const DESKTOP_STATUS_GLASS = {
   blurAmount: 0.0625,
   saturation: 120,
   aberrationIntensity: 0.15,
+  elasticity: 0,
   cornerRadius: 24,
   mode: 'standard',
 } as const;
@@ -34,24 +35,27 @@ const MOBILE_CHROME_GLASS = {
   blurAmount: 0.1,
   saturation: 125,
   aberrationIntensity: 0.3,
+  elasticity: 0,
   cornerRadius: 40,
   mode: 'standard',
 } as const;
 
 const DESKTOP_AUTH_CARD_GLASS = {
-  displacementScale: 16,
-  blurAmount: 0.12,
-  saturation: 118,
-  aberrationIntensity: 0.1,
+  displacementScale: 70,
+  blurAmount: 0.0625,
+  saturation: 140,
+  aberrationIntensity: 2,
+  elasticity: 0.15,
   cornerRadius: 24,
   mode: 'standard',
 } as const;
 
 const MOBILE_AUTH_CARD_GLASS = {
-  displacementScale: 12,
-  blurAmount: 0.1,
-  saturation: 115,
-  aberrationIntensity: 0.08,
+  displacementScale: 70,
+  blurAmount: 0.0625,
+  saturation: 140,
+  aberrationIntensity: 2,
+  elasticity: 0.15,
   cornerRadius: 40,
   mode: 'standard',
 } as const;
@@ -68,12 +72,15 @@ function GlassEffect({
   variant,
   content,
   contentRef,
+  mouseContainerRef,
 }: {
   variant: LiquidGlassSurfaceVariant;
   content: ReactNode;
   contentRef?: RefObject<HTMLDivElement | null>;
+  mouseContainerRef: RefObject<HTMLElement | null>;
 }) {
   const preset = PRESETS[variant];
+  const hasLiquidMotion = preset.elasticity > 0;
   return (
     <LiquidGlass
       className="liquid-glass-surface__effect"
@@ -88,12 +95,13 @@ function GlassEffect({
       blurAmount={preset.blurAmount}
       saturation={preset.saturation}
       aberrationIntensity={preset.aberrationIntensity}
-      elasticity={0}
+      elasticity={preset.elasticity}
       cornerRadius={preset.cornerRadius}
       padding="0"
       mode={preset.mode}
-      globalMousePos={STATIC_MOUSE_POSITION}
-      mouseOffset={STATIC_MOUSE_OFFSET}
+      mouseContainer={hasLiquidMotion ? mouseContainerRef : null}
+      globalMousePos={hasLiquidMotion ? undefined : STATIC_MOUSE_POSITION}
+      mouseOffset={hasLiquidMotion ? undefined : STATIC_MOUSE_OFFSET}
     >
       <div ref={contentRef} className="liquid-glass-surface__content">{content}</div>
     </LiquidGlass>
@@ -118,6 +126,9 @@ export function LiquidGlassSurface({
     if (layout !== 'content' || !contentRef.current || !surfaceRef.current) return undefined;
     const contentElement = contentRef.current;
     const surfaceElement = surfaceRef.current;
+    const effectElement = surfaceElement.querySelector<HTMLElement>(
+      ':scope > .liquid-glass-surface__effect',
+    );
     let measurementFrame = 0;
     let glassResizeFrame = 0;
     let previousHeight = -1;
@@ -126,14 +137,25 @@ export function LiquidGlassSurface({
 
     const notifyGlassResize = () => {
       glassResizeFrame = 0;
-      const surfaceRect = surfaceElement.getBoundingClientRect();
-      const nextWidth = Math.ceil(surfaceRect.width);
-      const nextHeight = Math.ceil(surfaceRect.height);
+      const nextWidth = surfaceElement.clientWidth;
+      const nextHeight = surfaceElement.clientHeight;
       if (nextWidth <= 0 || nextHeight <= 0) return;
       if (nextWidth === previousSurfaceWidth && nextHeight === previousSurfaceHeight) return;
       previousSurfaceWidth = nextWidth;
       previousSurfaceHeight = nextHeight;
-      window.dispatchEvent(new Event('resize'));
+
+      if (!effectElement) {
+        window.dispatchEvent(new Event('resize'));
+        return;
+      }
+
+      effectElement.setAttribute('data-liquid-glass-measuring', 'true');
+      void effectElement.offsetHeight;
+      try {
+        window.dispatchEvent(new Event('resize'));
+      } finally {
+        effectElement.removeAttribute('data-liquid-glass-measuring');
+      }
     };
 
     const scheduleGlassResize = () => {
@@ -145,7 +167,7 @@ export function LiquidGlassSurface({
       measurementFrame = 0;
       const nextHeight = Math.ceil(Math.max(
         contentElement.scrollHeight,
-        contentElement.getBoundingClientRect().height,
+        contentElement.offsetHeight,
       ));
       if (nextHeight <= 0 || nextHeight === previousHeight) return;
       previousHeight = nextHeight;
@@ -183,6 +205,7 @@ export function LiquidGlassSurface({
     return () => {
       if (measurementFrame) cancelAnimationFrame(measurementFrame);
       if (glassResizeFrame) cancelAnimationFrame(glassResizeFrame);
+      effectElement?.removeAttribute('data-liquid-glass-measuring');
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
       window.removeEventListener('resize', scheduleMeasure);
@@ -202,6 +225,7 @@ export function LiquidGlassSurface({
         variant={variant}
         content={children}
         contentRef={layout === 'content' ? contentRef : undefined}
+        mouseContainerRef={surfaceRef}
       />
     </div>
   );

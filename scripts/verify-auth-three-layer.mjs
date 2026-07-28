@@ -58,11 +58,28 @@ for (const text of [
   "export type LiquidGlassSurfaceLayout = 'fixed' | 'content'",
   'const DESKTOP_AUTH_CARD_GLASS = {',
   'const MOBILE_AUTH_CARD_GLASS = {',
+  'displacementScale: 70',
+  'blurAmount: 0.0625',
+  'saturation: 140',
+  'aberrationIntensity: 2',
+  'elasticity: 0.15',
+  'const hasLiquidMotion = preset.elasticity > 0;',
+  'mouseContainer={hasLiquidMotion ? mouseContainerRef : null}',
+  'globalMousePos={hasLiquidMotion ? undefined : STATIC_MOUSE_POSITION}',
+  'mouseOffset={hasLiquidMotion ? undefined : STATIC_MOUSE_OFFSET}',
+  'mouseContainerRef={surfaceRef}',
   'data-liquid-glass-layout={layout}',
   'useLayoutEffect(() => {',
   'new ResizeObserver',
   'new MutationObserver',
   'setContentHeight(nextHeight)',
+  'contentElement.offsetHeight',
+  'surfaceElement.clientWidth',
+  'surfaceElement.clientHeight',
+  "':scope > .liquid-glass-surface__effect'",
+  "effectElement.setAttribute('data-liquid-glass-measuring', 'true')",
+  "effectElement.removeAttribute('data-liquid-glass-measuring')",
+  'void effectElement.offsetHeight',
   "window.dispatchEvent(new Event('resize'))",
   '<div ref={contentRef} className="liquid-glass-surface__content">{content}</div>',
   "contentRef={layout === 'content' ? contentRef : undefined}",
@@ -70,6 +87,7 @@ for (const text of [
 for (const text of [
   'setSurfaceRevision',
   'liquid-glass-surface__material-fill',
+  'contentElement.getBoundingClientRect().height',
   'key={`${variant}-${revision}`}',
 ]) forbidText('src/components/ui/LiquidGlassSurface.tsx', text);
 
@@ -143,15 +161,19 @@ for (const text of [
   '.liquid-glass-surface[data-liquid-glass-layout="content"]',
   '.liquid-glass-surface[data-liquid-glass-layout="content"] .liquid-glass-surface__content {',
   'height: auto !important;',
-  '.liquid-glass-surface--desktopAuthCard .glass__warp {',
-  '-webkit-backdrop-filter: blur(7.84px) saturate(118%);',
-  '.liquid-glass-surface--mobileAuthCard .glass__warp {',
-  '-webkit-backdrop-filter: blur(7.2px) saturate(115%);',
+  '.liquid-glass-surface__effect[data-liquid-glass-measuring=\"true\"] {',
+  'transform: translate(-50%, -50%) scale(1) !important;',
+  'transition: none !important;',
+  '.liquid-glass-surface--desktopAuthCard .glass__warp,\n.liquid-glass-surface--mobileAuthCard .glass__warp {',
+  '-webkit-backdrop-filter: blur(6px) saturate(140%);',
   '.liquid-glass-surface--desktopStatusBar,\n.liquid-glass-surface--mobileStatusBar,\n.liquid-glass-surface--mobileNavigation,\n.liquid-glass-surface--desktopAuthCard,\n.liquid-glass-surface--mobileAuthCard {',
   'background: var(--liquid-glass-contrast);',
   '.liquid-glass-surface--desktopStatusBar::after,\n.liquid-glass-surface--mobileStatusBar::after {',
   '.liquid-glass-surface--desktopAuthCard::after,\n.liquid-glass-surface--mobileAuthCard::after {',
   'content: none;',
+  '.liquid-glass-surface--desktopAuthCard > span,\n.liquid-glass-surface--mobileAuthCard > span {',
+  'display: block !important;',
+  '.liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),',
   'background: var(--liquid-glass-auth-fallback);',
 ]) requireText('src/styles/liquid-glass-surfaces.css', text);
 for (const text of [
@@ -219,7 +241,14 @@ for (const text of [
   '不得通过 revision 或 React `key` 重建认证内容',
   '统一使用 `--liquid-glass-contrast`',
   '不得再创建 `.liquid-glass-surface__material-fill`',
-  '认证卡片不得绘制项目结构描边',
+  '官方默认值',
+  '`displacementScale=70`',
+  '`elasticity=0.15`',
+  '官方 `mouseContainer` 接口',
+  '两个边缘高光 `span` 必须可见',
+  '中性测量态',
+  '`scrollHeight`／`offsetHeight`',
+  '不得绘制项目 `::after` 结构描边',
   '不得在 `auth.css` 手写另一套 `backdrop-filter`',
   '注册内容较高时由文档视口纵向滚动',
   'Carol M. Highsmith',
@@ -255,6 +284,7 @@ for (const text of [
   "toHaveAttribute('data-liquid-glass-layout', 'content')",
   'keeps one authentication glass instance and form values while switching breakpoints',
   'registration content grows inside the same glass surface without an internal scrollport',
+  'official liquid motion and highlights',
   'readMobileAtmosphere',
   "expect(atmosphere.gridOpacity).toBe('0.12')",
   "expect(atmosphere.noiseOpacity).toBe('0.05')",
@@ -262,13 +292,18 @@ for (const text of [
   'expect(glass.contentInsideGlass).toBe(true)',
   'expect(glass.materialFillCount).toBe(0)',
   "expect(glass.outlineContent).toBe('none')",
+  'expect(glass.visibleDirectDecorationSpanCount).toBe(2)',
+  'expect(Math.abs(glass.displacementScales[0])).toBe(70)',
+  'toMatch(/saturate\\((?:140%|1\\.4)\\)/)',
+  'page.mouse.move',
+  '.not.toBe(initialEffectTransform)',
   "await expect(email).toHaveValue('kept@example.com')",
 ]) requireText('tests/browser/auth-three-layer.spec.ts', text);
 
 if (failures.length > 0) {
-  console.error('登录三层结构、认证内容层与状态栏同源染色验证失败：');
+  console.error('登录三层结构与官方认证液态玻璃验证失败：');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log('登录三层结构、认证内容层、状态栏同源染色、无认证外框与表单状态保持验证通过。');
+  console.log('登录三层结构、官方认证液态参数、鼠标运动、双层高光、几何同步与表单状态保持验证通过。');
 }

@@ -84,7 +84,8 @@ if (failures.length === 0) {
     '实际玻璃圆角为 `24px`',
     '`DESKTOP_STATUS_GLASS`',
     '`blur(6px) saturate(120%)`',
-    '桌面与移动状态栏及认证卡片必须隐藏 `liquid-glass-react` 的重复边框／高光和 over-light 辅助层',
+    '桌面与移动状态栏必须隐藏 `liquid-glass-react` 的直属边框／高光和 over-light 辅助层',
+    '认证卡片必须保留官方两个直属边缘高光 `span`',
     '清除第三方 `.glass` 外部阴影',
     '`--desktop-shell-outer-inset` 是侧栏与工作栏唯一桌面外距令牌',
     '顶部／右侧间距都来自统一桌面外距',
@@ -113,4 +114,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('桌面一级卡片与共享工作栏 24px 圆角、桌面独立玻璃预设、顶层连续结构描边、零第三方装饰层和无外部阴影验证通过。');
+console.log('桌面一级卡片与共享工作栏 24px 圆角、桌面独立玻璃预设、顶层连续结构描边、状态栏零第三方装饰层、认证官方高光和无外部阴影验证通过。');

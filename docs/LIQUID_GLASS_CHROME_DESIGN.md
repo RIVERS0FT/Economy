@@ -4,7 +4,7 @@
 > 适用项目：`RIVERS0FT/Economy`  
 > 更新时间：2026-07-28
 
-本文件定义应用唯一液态玻璃实现、认证卡片、玩家游戏三层背景与背景采样、游戏端和管理员端登录后桌面应用外壳几何、移动工作区 Overlay、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。认证三层背景的资源语义与登录布局继续以 `REGISTRATION_INVITE_FLOW_DESIGN.md` 为准；通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
+本文件定义应用唯一液态玻璃实现、认证卡片、玩家游戏三层背景与背景采样、游戏端和管理员端登录后桌面应用外壳几何、移动工作区 Overlay、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。认证三层背景、认证卡片光学与运动参数、边缘高光和登录布局以 `REGISTRATION_INVITE_FLOW_DESIGN.md` 为认证专项权威；通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
 ## 1. 唯一材质来源
 
@@ -18,7 +18,7 @@
 - 支持背景滤镜时，桌面／移动状态栏、移动底栏和认证卡片统一把低密度透明染色放在 `.liquid-glass-surface` 宿主并统一使用 `--liquid-glass-contrast`；不得创建 `.liquid-glass-surface__material-fill` 或认证专用支持环境染色变量。
 - `AdminDesktopBar.tsx` 只在桌面显示一个 `desktopStatusBar` 玻璃实例；管理员移动端不得渲染顶部玻璃栏，只保留页面标题和移动底栏。
 - `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、低密度透明染色、认证回退底色、状态栏单层结构描边、认证卡片无项目结构描边、第三方装饰层显隐和与各预设完全一致的 WebKit 属性别名；不得用 CSS 创建第二套模糊、折射或色差材质。
-- 桌面与移动状态栏及认证卡片必须隐藏 `liquid-glass-react` 的重复边框／高光和 over-light 辅助层，并清除第三方 `.glass` 外部阴影，只保留 `.glass__warp` 材质。状态栏只保留宿主的一条最上层连续结构描边；认证卡片不得绘制项目结构描边或额外大圆角白色外框，只保留第三方折射边缘、圆角裁切和宿主阴影。移动底栏允许保留第一层低强度 screen 高光。
+- 桌面与移动状态栏必须隐藏 `liquid-glass-react` 的直属边框／高光和 over-light 辅助层；认证卡片必须保留官方两个直属边缘高光 `span`，只隐藏 over-light 辅助 `div`，并清除第三方 `.glass` 外部阴影。状态栏只保留宿主的一条最上层连续结构描边；认证卡片不得绘制项目结构描边或额外 `::after` 白色外框，由官方双层高光、折射边缘、圆角裁切和宿主阴影共同表达材质。移动底栏允许保留第一层低强度 screen 高光。
 - `src/styles/liquid-glass-chrome.css` 是浏览器测试兼容入口，不是第二套材质。它只允许按固定顺序转发 `performance.css`、`scrollbars.css`、`game-shell-layout.css`、`financial-backdrop.css` 和 `liquid-glass-surfaces.css`；生产入口 `src/main.tsx` 继续直接导入正式样式。
 - 浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式，并同时加载玩家背景与液态玻璃样式；不得让 `FinancialBackdrop` 失去固定定位后作为桌面 Grid 普通子项参与布局，也不得只加载历史全局样式后用错误计算结果验证布局。
 
@@ -26,7 +26,7 @@
 
 | 文件 | 唯一职责 |
 |---|---|
-| `LiquidGlassSurface.tsx` | 第三方库适配、五种平台预设、固定／内容自适应布局、认证内容内部定位与尺寸同步、静态鼠标输入和统一 DOM |
+| `LiquidGlassSurface.tsx` | 第三方库适配、五种平台预设、固定／内容自适应布局、认证内容内部定位与尺寸同步、状态栏静态输入、认证 `mouseContainer` 运动和统一 DOM |
 | `AuthCardSurface.tsx` | 认证卡片语义宿主、`720px` 响应式预设切换和单一认证玻璃实例 |
 | `FinancialBackdrop.tsx` | 登录与玩家游戏共享的图片层、氛围层、响应式图片、优先级和加载失败隐藏 |
 | `SignedInShell.tsx` | 游戏与管理员共享根外壳、可选背景插槽、侧栏／工作区轨道、唯一页面 `ScrollArea`、页面 Overlay 与 Chrome Overlay DOM 顺序 |
@@ -36,7 +36,7 @@
 | `StatusBar.tsx` | 保持单一玩家状态栏实例，按 `720px` 断点选择预设，直接承载固定五列状态内容，并使用单一 `ResizeObserver` 与合并后的 `requestAnimationFrame` 对移动端真实溢出的主数值逐项缩小字号；不得引入 `ScrollArea` |
 | `financial-backdrop.css` | 玩家图片层、深色氛围、网格、噪点、失败回退、游戏加载态和全局 `body` 网格关闭 |
 | `auth.css` | 认证内容层、品牌区、卡片外层宽度／对齐／圆角、认证内容内边距、输入与自动填充兼容；不得实现玻璃材质 |
-| `liquid-glass-surfaces.css` | 所有玻璃宿主、第三方 DOM 尺寸、内容自适应层、开放背景采样链、平台圆角、统一宿主染色、认证回退、状态栏单层结构描边、认证卡片无项目结构描边、装饰层显隐和移动底栏唯一垂直留白 |
+| `liquid-glass-surfaces.css` | 所有玻璃宿主、第三方 DOM 尺寸、内容自适应层、开放背景采样链、平台圆角、统一宿主染色、认证回退、状态栏单层结构描边、认证官方双层高光显隐、认证卡片无项目结构描边和移动底栏唯一垂直留白 |
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口，必须包含玩家背景样式 |
 | `game-shell-layout.css` | 登录后桌面双列轨道、唯一布局沟槽、工作栏外距、页面避让、内容边缘和桌面页面滚动条贴边几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
@@ -54,7 +54,7 @@
 | `verify-mobile-facility-pull-refresh.mjs` | 登录态根 overscroll、工厂详情局部非被动触摸监听、设计记录和浏览器回归检查 |
 | `verify-desktop-primary-surfaces.mjs` | 桌面一级卡片与独立桌面状态栏圆角、单结构边框和零第三方装饰层检查 |
 | `liquid-glass-layout.spec.ts` | 真实浏览器平台预设、单状态栏实例、装饰层显隐、背景采样链、圆角、共线和页面避让验证 |
-| `auth-three-layer.spec.ts` | 登录三层结构、认证桌面／移动预设、认证内容内部定位、同源宿主染色、无项目外框、单实例、自然高度、表单值保持、断点切换和无内部滚动回归 |
+| `auth-three-layer.spec.ts` | 登录三层结构、认证桌面／移动预设、官方默认折射参数、`mouseContainer` 液体运动、双层边缘高光、认证内容内部定位、同源宿主染色、无项目外框、单实例、自然高度、表单值保持、断点切换和无内部滚动回归 |
 | `game-three-layer.spec.ts` | 玩家桌面与移动三层背景、DOM 顺序、全局网格关闭和摄影加载失败回退 |
 | `mobile-status-value-fit.spec.ts` | 在 `430px` 至 `320px` 真实浏览器宽度验证长数字逐项缩小、短数字保持默认字号、数值更新后恢复和零省略号 |
 | `game-shell-layout.spec.ts` | 玩家普通、窄宽和矮高桌面的统一沟槽、卡片间距、工作栏／侧栏外距、页面边缘和贴边滚动条几何回归 |
@@ -67,7 +67,7 @@
 
 ## 3. 平台分离参数预设
 
-禁止 `shader` 模式，所有外壳和认证卡片继续使用 `elasticity={0}` 和固定 `globalMousePos`／`mouseOffset` 保持几何稳定。
+禁止 `shader` 模式。桌面／移动状态栏和移动底栏继续使用 `elasticity: 0` 与固定 `globalMousePos`／`mouseOffset` 保持信息 Chrome 稳定；桌面／移动认证卡片使用 `liquid-glass-react@1.1.1` 官方默认光学与运动参数，并通过认证宿主 `mouseContainer` 开启内部指针追踪。
 
 ### 3.1 桌面状态栏与管理员桌面工作栏
 
@@ -99,29 +99,29 @@
 
 ### 3.3 桌面与移动认证卡片
 
-`DESKTOP_AUTH_CARD_GLASS` 只供 `desktopAuthCard` 使用，参数固定为：
+`DESKTOP_AUTH_CARD_GLASS` 只供 `desktopAuthCard` 使用，光学与运动参数使用 `liquid-glass-react@1.1.1` 官方默认值：
 
 - `mode="standard"`；
-- `displacementScale: 16`；
-- `blurAmount: 0.12`，对应 `blur(7.84px)`；
-- `saturation: 118`；
-- `aberrationIntensity: 0.1`；
-- `elasticity={0}`；
+- `displacementScale: 70`；
+- `blurAmount: 0.0625`，对应 `blur(6px)`；
+- `saturation: 140`；
+- `aberrationIntensity: 2`；
+- `elasticity: 0.15`；
 - `cornerRadius: 24`。
 
-`MOBILE_AUTH_CARD_GLASS` 只供 `mobileAuthCard` 使用，参数固定为：
+`MOBILE_AUTH_CARD_GLASS` 只供 `mobileAuthCard` 使用，光学与运动参数同样使用官方默认值：
 
 - `mode="standard"`；
-- `displacementScale: 12`；
-- `blurAmount: 0.1`，对应 `blur(7.2px)`；
-- `saturation: 115`；
-- `aberrationIntensity: 0.08`；
-- `elasticity={0}`；
+- `displacementScale: 70`；
+- `blurAmount: 0.0625`，对应 `blur(6px)`；
+- `saturation: 140`；
+- `aberrationIntensity: 2`；
+- `elasticity: 0.15`；
 - `cornerRadius: 40`。
 
-认证卡片使用比移动导航更弱的位移和色差，以保护输入框、验证码和错误文字边缘。桌面与移动分别沿用当前 `24px`／`40px` 几何，不得使用 `999px` 胶囊。认证卡片任一时刻只能存在一个玻璃实例，断点变化时只切换同一宿主的 variant。
+官方默认值只适用于光学与运动参数；项目继续保留桌面 `24px`、移动 `40px` 圆角以及认证内容的 `32px`／`20px` 内边距，不采用官方 `999px` 胶囊几何或默认 padding。认证卡片通过官方 `mouseContainer` 接口绑定当前 `.liquid-glass-surface` 宿主，鼠标／指针进入宿主后驱动位移、弹性和两个直属边缘高光；状态栏与底栏不得因此开启液体运动。认证卡片任一时刻只能存在一个玻璃实例，断点变化时只切换同一宿主的 variant。
 
-认证卡片必须使用 `layout="content"`，但其业务内容位置与状态栏统一，实际位于第三方 `.glass` 内部的 `.liquid-glass-surface__content`。宿主由真实内容高度驱动，不得为注册表单设置固定高度或内部滚动区。统一适配层必须使用单个 `ResizeObserver` 观察认证内容，并可用同一内容节点上的 `MutationObserver` 捕获条件 DOM 变化；高度改变后更新宿主高度并通过 `window` resize 通知上游玻璃重新读取几何。不得用 revision、React `key`、定时轮询或每帧测量重建认证内容，登录／注册切换、邀请码、验证码、错误和状态提示变化以及 `720px` 断点切换不得清空原生未受控表单值。
+认证卡片必须使用 `layout="content"`，但其业务内容位置与状态栏统一，实际位于第三方 `.glass` 内部的 `.liquid-glass-surface__content`。宿主由真实内容高度驱动，不得为注册表单设置固定高度或内部滚动区。统一适配层必须使用单个 `ResizeObserver` 同时观察认证内容与认证宿主，并可用同一内容节点上的 `MutationObserver` 捕获条件 DOM 变化；内容高度只读取 `scrollHeight`／`offsetHeight`，内容变化先更新宿主高度，宿主真实尺寸提交后再通过 `window` resize 通知上游玻璃重新读取几何。派发 resize 前必须在同一同步任务内把直属效果层置为 `data-liquid-glass-measuring="true"` 中性测量态，以 `translate(-50%, -50%) scale(1)` 暂时移除弹性 transform，派发后立即清除，避免上游把视觉变换后的 `getBoundingClientRect()` 写入 SVG 与高光尺寸。不得用 revision、React `key`、定时轮询或每帧测量重建认证内容，登录／注册切换、邀请码、验证码、错误和状态提示变化以及 `720px` 断点切换不得清空原生未受控表单值。官方两个边缘高光 `span` 必须随同一宿主同步宽高并保持可见，over-light 辅助 `div` 继续隐藏。
 
 ## 4. 平台能力边界
 
@@ -129,7 +129,7 @@
 
 - Chromium、Android Chromium WebView 和 Windows WebView2 显示完整折射、模糊和边缘色差；
 - Safari、iOS WebKit 和 Firefox 在折射能力受限时仍保留同一组件、轻度模糊、状态栏结构描边、认证卡片圆角裁切和内容结构；
-- `liquid-glass-react` 内联的非前缀 `backdrop-filter` 始终是参数权威；桌面状态栏的 `-webkit-backdrop-filter` 必须严格为 `blur(6px) saturate(120%)`，移动状态栏与底栏必须严格为 `blur(7.2px) saturate(125%)`，桌面／移动认证卡片必须分别为 `blur(7.84px) saturate(118%)` 与 `blur(7.2px) saturate(115%)`；
+- `liquid-glass-react` 内联的非前缀 `backdrop-filter` 始终是参数权威；桌面状态栏的 `-webkit-backdrop-filter` 必须严格为 `blur(6px) saturate(120%)`，移动状态栏与底栏必须严格为 `blur(7.2px) saturate(125%)`，桌面／移动认证卡片统一为官方默认 `blur(6px) saturate(140%)`；
 - 不支持 `backdrop-filter` 时状态栏与导航使用既有高对比回退，认证卡片使用 `--liquid-glass-auth-fallback`，不切换到另一套玻璃组件；
 - 平台能力差异不得改变工作栏高度、安全区、导航尺寸、认证内容高度、背景层级或内容顺序。
 
@@ -209,7 +209,7 @@
 - `.glass__warp` 到页面内容之间必须保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切。
 - 桌面、移动和认证预设的 WebKit 兼容别名必须分别匹配上游参数，不得使用一个通用数值覆盖不同平台。
 - 状态栏只保留一条低强度 `1px` 最上层连续结构描边；认证卡片不得绘制项目结构描边，`.liquid-glass-surface--desktopAuthCard::after` 与 `.liquid-glass-surface--mobileAuthCard::after` 必须使用 `content: none`；移动底栏继续使用宿主边框。
-- 桌面与移动状态栏以及认证效果层的重复 `span`／辅助 `div` 必须隐藏，第三方 `.glass` 计算后的 `box-shadow` 必须为 `none`；认证宿主可以保留由项目定义的一层悬浮阴影。
+- 桌面与移动状态栏的直属 `span`／辅助 `div` 必须隐藏；认证卡片的两个直属边缘高光 `span` 必须可见，over-light 辅助 `div` 必须隐藏。第三方 `.glass` 计算后的 `box-shadow` 必须为 `none`；认证宿主可以保留由项目定义的一层悬浮阴影。
 - 移动底栏的两个直属 `span` 中只允许第一层 `opacity: 0.22` 的 screen 高光可见。
 - React `cornerRadius`、CSS 裁切和第三方折射层必须分别与所属平台预设一致。
 
@@ -240,11 +240,11 @@
 ## 9. 性能与可访问性
 
 - 认证页面同时只可见一个认证玻璃实例；玩家桌面同时可见一个玻璃实例；管理员桌面同时可见一个工作栏玻璃实例；玩家移动同时可见状态栏和底栏两个，管理员移动只可见底栏一个。
-- 禁止滚动事件更新玻璃参数、噪点动画和每项独立滤镜。
+- 禁止滚动事件更新玻璃参数、噪点动画和每项独立滤镜。认证液体运动只允许由 `liquid-glass-react` 在认证 `mouseContainer` 内部处理指针事件，不得增加页面级或滚动级监听。
 - 认证内容自适应只使用单个 `ResizeObserver` 和同一真实内容节点上的条件 DOM 观察，只在内容宽高变化时更新宿主高度并通知玻璃读取几何；表单内容和原生输入节点不得进入重建 key，不得加入定时轮询或每帧测量。
 - 移动状态栏字号适配只在数值、容器几何、方向或字体就绪时运行，必须使用单一观察器与帧合并，不得加入定时轮询或每帧持续测量。
 - 页面初始内容避让工作栏和底栏，滚动时允许进入玻璃后方；认证页面继续使用文档滚动。
-- 装饰 SVG、摄影背景、氛围覆盖层和认证玻璃宿主不得阻止内部按钮或输入事件。
+- 装饰 SVG、官方边缘高光、摄影背景、氛围覆盖层和认证玻璃宿主不得阻止内部按钮或输入事件；两个认证高光保持 `pointer-events: none`。
 - 页面和内部列表到达纵向边界后必须保留滚动链；登录态根 `html` 只在链最终到达浏览器视口时终止原生过度滚动。
 - 通用滑块保留 `role="scrollbar"`、方向、范围、拖动、轨道翻页和键盘语义；移动底栏使用原生 `<nav>` 滚动视口；认证卡片使用语义化 `<section aria-label="账号认证">`。
 
@@ -254,17 +254,18 @@
 
 1. 玩家顶部状态栏不包含内部滚动区，固定五列完整；桌面使用 `desktopStatusBar`，移动使用 `mobileStatusBar`，移动底栏使用 `mobileNavigation`。
 2. 断点切换时玩家状态栏始终只有一个 `.liquid-glass-surface`，variant 原地切换。
-3. 认证卡片桌面使用 `desktopAuthCard`、移动使用 `mobileAuthCard`，断点切换全程只有一个 `.liquid-glass-surface`，保持 `data-liquid-glass-layout="content"`，真实表单内容位于 `.glass` 内且表单值不丢失；认证伪元素不生成项目结构描边或大圆角白色外框。
+3. 认证卡片桌面使用 `desktopAuthCard`、移动使用 `mobileAuthCard`，断点切换全程只有一个 `.liquid-glass-surface`，保持 `data-liquid-glass-layout="content"`，真实表单内容位于 `.glass` 内且表单值不丢失；认证伪元素不生成项目结构描边或大圆角白色外框，官方两个直属边缘高光保持可见。
 4. 五种预设计算后的 `data-liquid-glass-mode` 都为 `standard`，WebKit 与非前缀背景滤镜一致。
 5. 游戏和管理员桌面外壳覆盖整个视口；普通桌面统一沟槽为 `12px`，窄宽或矮高桌面为 `8px`；页面主滚动条轨道和滑块右边缘均为 `0px`。
 6. 管理员桌面工作栏使用一个 `desktopStatusBar` 玻璃实例，页面标题不重复显示，内容右边缘与工作栏共线，页面框不居中限宽。
 7. 桌面导航按钮从顶部按固有高度排列；桌面工作栏、桌面认证卡和桌面一级卡片均为 `24px`。
 8. 移动状态栏、一级卡片和底栏实际玻璃左右共线；移动状态栏固定 `48px`，底栏固定 `68px`；移动 Chrome 与移动认证卡圆角均为 `40px`。
-9. 桌面状态栏使用 `blur(6px) saturate(120%)`，移动 Chrome 使用 `blur(7.2px) saturate(125%)`，桌面／移动认证卡片分别使用 `blur(7.84px) saturate(118%)` 和 `blur(7.2px) saturate(115%)`。
+9. 桌面状态栏使用 `blur(6px) saturate(120%)`，移动 Chrome 使用 `blur(7.2px) saturate(125%)`，桌面／移动认证卡片统一使用官方默认 `blur(6px) saturate(140%)`，位移尺度为 `70`、色差为 `2`、弹性为 `0.15`。
 10. 玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
 11. 移动背景采样链中的工作区、两层 Overlay、页面滚动区和底栏宿主计算 `z-index` 均为 `auto`。
 12. 管理员移动页面层与 Chrome 层位于同一工作区，顺序为 `1` 和 `2`，桌面工作栏隐藏且底栏保持可点击。
 13. 玩家桌面和移动端均存在摄影、氛围、现有游戏内容三层；浏览器 harness 加载背景样式后侧栏、状态栏、页面边缘与滚动条几何不得变化。
 14. 摄影请求失败时图片元素隐藏，氛围背景、页面内容、状态栏与导航仍然可见并可交互。
 15. 登录切换为注册后，同一个认证玻璃随内容自然增高；认证内容保持在 `.glass` 内，卡片、玻璃宿主和内容均不得创建内部纵向滚动区，输入框、验证码、错误提示和按钮保持可操作。
-16. 支持环境中的认证卡片与状态栏统一使用 `--liquid-glass-contrast` 宿主染色且不存在 `.liquid-glass-surface__material-fill`；认证卡片 `::after` 不生成外框，`auth.css` 不包含认证卡片的模糊、玻璃渐变或材质描边，登录卡片不包含 `.panel`；不支持背景滤镜时认证卡片使用统一深色回退。
+16. 支持环境中的认证卡片与状态栏统一使用 `--liquid-glass-contrast` 宿主染色且不存在 `.liquid-glass-surface__material-fill`；认证卡片 `::after` 不生成外框，两个官方高光 `span` 可见且辅助 `div` 隐藏，`auth.css` 不包含认证卡片的模糊、玻璃渐变或材质描边，登录卡片不包含 `.panel`；不支持背景滤镜时认证卡片使用统一深色回退。
+17. Chromium 中把指针从认证卡片一侧移动到另一侧后，第三方 `.glass` 或直属高光的视觉 `transform` 必须发生变化；登录→注册→登录和 `721px`／`720px` 双向切换后，宿主、效果层、`.glass`、SVG 滤镜与高光的未变换布局尺寸（`clientHeight`／`offsetHeight`）仍保持同步，视觉包围盒允许随官方弹性变换而改变。人工尺寸通知期间必须短暂出现且同步清除 `data-liquid-glass-measuring="true"` 中性测量态，不得把变换后的视觉矩形持久化为玻璃尺寸。
