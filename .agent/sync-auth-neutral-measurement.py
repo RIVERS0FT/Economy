@@ -1,5 +1,7 @@
 from pathlib import Path
 
+# Exact one-shot replacements keep the design and guards atomic.
+
 
 def replace_once(path: str, old: str, new: str) -> None:
     file = Path(path)
