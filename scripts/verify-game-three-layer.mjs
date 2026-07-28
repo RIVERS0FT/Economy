@@ -21,6 +21,7 @@ for (const path of [
   'src/components/shell/GameShell.tsx',
   'src/app/GameApp.tsx',
   'src/styles/financial-backdrop.css',
+  'src/styles/liquid-glass-chrome.css',
   'src/styles/viewport.css',
   'src/main.tsx',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
@@ -102,6 +103,14 @@ if (!(gameLayoutIndex >= 0 && backdropStyleIndex > gameLayoutIndex && glassIndex
   failures.push('共享背景样式必须在游戏外壳几何之后、液态玻璃材质之前加载');
 }
 
+const compatibilitySource = read('src/styles/liquid-glass-chrome.css');
+const compatibilityLayoutIndex = compatibilitySource.indexOf("@import './game-shell-layout.css';");
+const compatibilityBackdropIndex = compatibilitySource.indexOf("@import './financial-backdrop.css';");
+const compatibilityGlassIndex = compatibilitySource.indexOf("@import './liquid-glass-surfaces.css';");
+if (!(compatibilityLayoutIndex >= 0 && compatibilityBackdropIndex > compatibilityLayoutIndex && compatibilityGlassIndex > compatibilityBackdropIndex)) {
+  failures.push('浏览器 harness 兼容入口必须按 game-shell-layout.css → financial-backdrop.css → liquid-glass-surfaces.css 转发');
+}
+
 for (const text of [
   '登录、注册与玩家游戏共享三层视觉',
   '玩家游戏背景通过 `SignedInShell` 的可选 `backdrop` 插槽在侧栏之前渲染',
@@ -127,4 +136,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('玩家游戏三层背景验证通过：共享摄影、氛围层、现有游戏外壳、加载回退和移动 Overlay 边界均已锁定。');
+console.log('玩家游戏三层背景验证通过：共享摄影、氛围层、现有游戏外壳、浏览器 harness、加载回退和移动 Overlay 边界均已锁定。');
