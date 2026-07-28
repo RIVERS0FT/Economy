@@ -35,6 +35,7 @@ async function readAuthGlass(page: Page) {
     const cardStyle = getComputedStyle(card);
     const surfaceStyle = getComputedStyle(surface);
     const contentStyle = getComputedStyle(content);
+    const effectStyle = getComputedStyle(effect);
     const outlineStyle = getComputedStyle(surface, '::after');
     const warpStyle = getComputedStyle(warp);
     const directDecorationSpans = Array.from(surface.children)
@@ -57,6 +58,7 @@ async function readAuthGlass(page: Page) {
       effectHeight: effect.getBoundingClientRect().height,
       glassHeight: glassElement.getBoundingClientRect().height,
       filterHeight: filterSvg.getBoundingClientRect().height,
+      effectTransform: effectStyle.transform,
       surfaceOverflowY: surfaceStyle.overflowY,
       surfaceBackground: surfaceStyle.backgroundColor,
       sharedContrast: getComputedStyle(document.documentElement)
@@ -71,8 +73,12 @@ async function readAuthGlass(page: Page) {
       materialFillCount: surface.querySelectorAll('.liquid-glass-surface__material-fill').length,
       directDecorationSpanCount: directDecorationSpans.length,
       visibleDirectDecorationSpanCount: directDecorationSpans.filter(isVisible).length,
+      directDecorationTransforms: directDecorationSpans.map((element) => getComputedStyle(element).transform),
+      directDecorationBackgrounds: directDecorationSpans.map((element) => getComputedStyle(element).backgroundImage),
       directAuxiliaryDivCount: directAuxiliaryDivs.length,
       visibleDirectAuxiliaryDivCount: directAuxiliaryDivs.filter(isVisible).length,
+      displacementScales: Array.from(filterSvg.querySelectorAll('feDisplacementMap'))
+        .map((element) => Number.parseFloat(element.getAttribute('scale') ?? '0')),
       outlineBorder: outlineStyle.borderTopWidth,
       outlineContent: outlineStyle.content,
       outlineZIndex: outlineStyle.zIndex,
@@ -100,7 +106,7 @@ async function expectAuthGlassGeometryAligned(page: Page) {
     effectAligned: true,
     glassAligned: true,
     filterAligned: true,
-    visibleDirectDecorationSpanCount: 0,
+    visibleDirectDecorationSpanCount: 2,
     visibleDirectAuxiliaryDivCount: 0,
   });
 }
@@ -121,7 +127,7 @@ test.describe('auth three-layer layout', () => {
   test.describe('desktop', () => {
     test.use({ viewport: { width: 1440, height: 900 } });
 
-    test('keeps image, atmosphere and content in distinct stacking layers', async ({ page }) => {
+    test('keeps image, atmosphere and content in distinct stacking layers with official liquid motion and highlights', async ({ page }) => {
       await openLoginPage(page);
 
       const imageLayer = page.locator('.login-image-layer');
@@ -177,15 +183,26 @@ test.describe('auth three-layer layout', () => {
       expect(glass.outlineBorder).toBe('0px');
       expect(glass.outlineContent).toBe('none');
       expect(glass.outlineZIndex).toBe('auto');
-      expect(glass.webkitBackdropFilter).toContain('blur(7.84px)');
+      expect(glass.webkitBackdropFilter).toContain('blur(6px)');
+      expect(glass.webkitBackdropFilter).toContain('saturate(140%)');
       expect(glass.surfaceBackground).toBe(glass.sharedContrast);
       expect(glass.contentInsideGlass).toBe(true);
       expect(glass.materialFillCount).toBe(0);
       expect(glass.surfaceContain).toBe('none');
       expect(glass.surfaceIsolation).toBe('auto');
-      expect(glass.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
+      expect(glass.directDecorationSpanCount).toBe(2);
       expect(glass.directAuxiliaryDivCount).toBeGreaterThanOrEqual(2);
+      expect(glass.displacementScales).toHaveLength(3);
+      expect(Math.abs(glass.displacementScales[0])).toBe(70);
       await expectAuthGlassGeometryAligned(page);
+
+      const initialEffectTransform = glass.effectTransform;
+      const initialHighlightBackgrounds = glass.directDecorationBackgrounds;
+      await page.mouse.move(cardBox!.x + cardBox!.width / 2, cardBox!.y + cardBox!.height / 2);
+      await page.mouse.move(cardBox!.x + cardBox!.width - 12, cardBox!.y + 12);
+      await expect.poll(async () => (await readAuthGlass(page)).effectTransform).not.toBe(initialEffectTransform);
+      await expect.poll(async () => (await readAuthGlass(page)).directDecorationBackgrounds)
+        .not.toEqual(initialHighlightBackgrounds);
 
       await page.getByLabel('账号邮箱').click();
       await expect(page.getByLabel('账号邮箱')).toBeFocused();
@@ -248,9 +265,12 @@ test.describe('auth three-layer layout', () => {
       expect(loginGlass.surfaceBackground).toBe(loginGlass.sharedContrast);
       expect(loginGlass.contentInsideGlass).toBe(true);
       expect(loginGlass.materialFillCount).toBe(0);
-      expect(loginGlass.webkitBackdropFilter).toContain('blur(7.2px)');
-      expect(loginGlass.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
+      expect(loginGlass.webkitBackdropFilter).toContain('blur(6px)');
+      expect(loginGlass.webkitBackdropFilter).toContain('saturate(140%)');
+      expect(loginGlass.directDecorationSpanCount).toBe(2);
+      expect(loginGlass.visibleDirectDecorationSpanCount).toBe(2);
       expect(loginGlass.directAuxiliaryDivCount).toBeGreaterThanOrEqual(2);
+      expect(Math.abs(loginGlass.displacementScales[0])).toBe(70);
 
       await page.getByRole('tab', { name: '注册' }).click();
       await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
@@ -291,10 +311,12 @@ test.describe('auth three-layer layout', () => {
       expect(registrationGlass.contentPaddingTop).toBe('20px');
       expect(registrationGlass.outlineBorder).toBe('0px');
       expect(registrationGlass.outlineContent).toBe('none');
-      expect(registrationGlass.webkitBackdropFilter).toContain('blur(7.2px)');
+      expect(registrationGlass.webkitBackdropFilter).toContain('blur(6px)');
+      expect(registrationGlass.webkitBackdropFilter).toContain('saturate(140%)');
       expect(registrationGlass.surfaceBackground).toBe(registrationGlass.sharedContrast);
       expect(registrationGlass.contentInsideGlass).toBe(true);
       expect(registrationGlass.materialFillCount).toBe(0);
+      expect(registrationGlass.visibleDirectDecorationSpanCount).toBe(2);
       expect(registrationGlass.surfaceHeight).toBeGreaterThan(loginGlass.surfaceHeight);
       expect(registrationGlass.cardOverflowY).not.toMatch(/auto|scroll/);
       expect(registrationGlass.surfaceOverflowY).not.toMatch(/auto|scroll/);
