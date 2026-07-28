@@ -27,8 +27,9 @@ if (failures.length === 0) {
     "backup_dir.glob('economy-pre-*.sqlite')",
     'def prune_backups():',
     'prune_backups()',
+    'MIN_BACKUP_HEADROOM_BYTES = 512 * 1024 * 1024',
     'shutil.disk_usage(database.parent).free',
-    'database.stat().st_size + 512 * 1024 * 1024',
+    'required_bytes = database.stat().st_size + MIN_BACKUP_HEADROOM_BYTES',
     'minimum_free_kb=$((1024 * 1024))',
     'ECONOMY_DEPLOY_INSUFFICIENT_DISK',
     'ECONOMY_DEPLOY_AVAILABLE_KB=',
@@ -50,7 +51,7 @@ if (failures.length === 0) {
     '最多保留最近 5 个迁移族',
     '先执行全局备份清理，再判断是否需要创建当前迁移备份',
     '不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态',
-    '上传前可用空间不得低于 1 GiB',
+    '上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB',
     '`rsync --delete-before`',
   ]) requireText(files.design, text);
 }
