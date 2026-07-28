@@ -8,15 +8,16 @@ import {
   nextEconomicEventDeadline,
 } from '../src/economic-events.js';
 
-test('公开经济事件日历只返回当前与未来七天事件，并保持确定性', () => {
+test('公开经济事件日历只返回当前与未来七天事件，并在同一事件窗口内保持确定性', () => {
   const now = ECONOMIC_EVENT_EPOCH_MS + 6 * 60 * 60 * 1000;
   const first = createEconomicCalendarClientState(now);
-  const second = createEconomicCalendarClientState(now);
+  const second = createEconomicCalendarClientState(now + 1);
   assert.deepEqual(first, second);
+  assert.equal(first.version, 2);
   assert.equal(first.timeZone, 'Asia/Shanghai');
+  assert.equal('visibleUntil' in first, false);
   assert.ok(first.events.length >= 2);
-  assert.ok(first.events.every((event) => event.endsAt > now && event.startsAt <= first.visibleUntil));
-  assert.equal(first.visibleUntil - now, 7 * 24 * 60 * 60 * 1000);
+  assert.ok(first.events.every((event) => event.endsAt > now && event.startsAt <= now + 7 * 24 * 60 * 60 * 1000));
   assert.ok(nextEconomicEventDeadline(now) > now);
 });
 
