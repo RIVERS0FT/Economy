@@ -84,7 +84,7 @@ if (failures.length === 0) {
     '实际玻璃圆角为 `24px`',
     '`DESKTOP_STATUS_GLASS`',
     '`blur(6px) saturate(120%)`',
-    '隐藏 `liquid-glass-react` 直属的两层边框／高光 `span`',
+    '桌面与移动状态栏及认证卡片必须隐藏 `liquid-glass-react` 的重复边框／高光和 over-light 辅助层',
     '清除第三方 `.glass` 外部阴影',
     '`--desktop-shell-outer-inset` 是侧栏与工作栏唯一桌面外距令牌',
     '顶部／右侧间距都来自统一桌面外距',
