@@ -1,0 +1,33 @@
+=== HTML ===
+curl_exit	0
+HTTP/1.1 200 OK
+Content-Type: text/html
+Transfer-Encoding: chunked
+ETag: W/"6a68906d-689"
+Content-Encoding: gzip
+wire_bytes	709
+=== JAVASCRIPT ===
+curl_exit	0
+HTTP/1.1 200 OK
+Content-Type: application/javascript
+Content-Length: 281619
+ETag: "6a68906d-44c13"
+Cache-Control: max-age=604800
+Cache-Control: public, max-age=604800, immutable
+wire_bytes	281619
+=== CSS ===
+curl_exit	0
+HTTP/1.1 200 OK
+Content-Type: text/css
+Content-Length: 243730
+ETag: "6a68906d-3b812"
+Cache-Control: max-age=604800
+Cache-Control: public, max-age=604800, immutable
+wire_bytes	243730
+=== API_UNAUTHENTICATED ===
+curl_exit	0
+HTTP/1.1 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+Content-Length: 26
+Cache-Control: no-store
+wire_bytes	26
