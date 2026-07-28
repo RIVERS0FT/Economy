@@ -20,7 +20,7 @@
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单与合同采购预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、银行资产总览与存贷款、商品／工厂资产拍卖、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
+| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、排行榜生产数量纯数字显示、银行资产总览与存贷款、商品／工厂资产拍卖、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉、认证卡片几何与旧接口退役 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
@@ -92,3 +92,4 @@
 
 45. 普通货币精度与玩家结算属于跨模块强制规则：玩家输入和玩家账本最多两位小数、服务器计算最多六位小数、负数按数轴向下截断、尾差进入精度准备金、宝石保持整数。必须同步更新产品、订单簿、产业、服务器、页面、UI、商店、管理员、本地活动、根 README、测试和 `scripts/verify-money-precision.mjs`。
 55. 认证卡片必须使用 `AuthCardSurface` 与 `LiquidGlassSurface` 的 `desktopAuthCard`／`mobileAuthCard` 预设，任一时刻只允许一个内容自适应玻璃实例；卡片几何归 `REGISTRATION_INVITE_FLOW_DESIGN.md`，材质参数归 `LIQUID_GLASS_CHROME_DESIGN.md`。不得在 `auth.css` 恢复手写 `backdrop-filter`、玻璃渐变、材质描边、`.panel`、固定高度或内部滚动区；必须同步两份权威文档、`scripts/verify-auth-three-layer.mjs`、`scripts/verify-liquid-glass-chrome.mjs` 与认证浏览器回归。
+56. 排行榜生产数量的显示规则唯一归属 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`：前十名和“我的成绩”必须共用 `scoreValue`，只显示经过 `formatNumber` 千分位格式化的纯数字，不附加“个”“件”“单位”或恢复“分”；显示调整不得改变服务器数量、排序、同分规则、奖励、迁移或历史结算，并通过 `scripts/verify-leaderboards.mjs` 防回退。
