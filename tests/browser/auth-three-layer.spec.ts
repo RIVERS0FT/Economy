@@ -26,27 +26,48 @@ async function readAuthGlass(page: Page) {
     const surface = card?.querySelector<HTMLElement>('.liquid-glass-surface');
     const content = surface?.querySelector<HTMLElement>(':scope > .liquid-glass-surface__content');
     const warp = surface?.querySelector<HTMLElement>('.glass__warp');
-    if (!card || !surface || !content || !warp) throw new Error('authentication glass fixture is incomplete');
+    const materialFill = surface?.querySelector<HTMLElement>('.liquid-glass-surface__material-fill');
+    if (!card || !surface || !content || !warp || !materialFill) {
+      throw new Error('authentication glass fixture is incomplete');
+    }
     const cardStyle = getComputedStyle(card);
     const surfaceStyle = getComputedStyle(surface);
     const contentStyle = getComputedStyle(content);
     const outlineStyle = getComputedStyle(surface, '::after');
     const warpStyle = getComputedStyle(warp);
+    const materialFillStyle = getComputedStyle(materialFill);
     return {
       cardBorder: cardStyle.borderTopWidth,
       cardOverflowY: cardStyle.overflowY,
       surfaceRadius: surfaceStyle.borderTopLeftRadius,
       surfaceHeight: surface.getBoundingClientRect().height,
       surfaceOverflowY: surfaceStyle.overflowY,
+      surfaceBackground: surfaceStyle.backgroundColor,
+      surfaceContain: surfaceStyle.contain,
+      surfaceIsolation: surfaceStyle.isolation,
       contentHeight: content.getBoundingClientRect().height,
       contentOverflowY: contentStyle.overflowY,
       contentPaddingTop: contentStyle.paddingTop,
+      materialFillBackground: materialFillStyle.backgroundColor,
+      materialFillInsideGlass: Boolean(materialFill.closest('.glass')),
       outlineBorder: outlineStyle.borderTopWidth,
       outlineZIndex: outlineStyle.zIndex,
       webkitBackdropFilter:
         warpStyle.getPropertyValue('-webkit-backdrop-filter')
         || warpStyle.getPropertyValue('backdrop-filter')
         || warpStyle.backdropFilter,
+    };
+  });
+}
+
+async function readMobileAtmosphere(page: Page) {
+  return page.evaluate(() => {
+    const atmosphere = document.querySelector<HTMLElement>('.login-atmosphere-layer');
+    if (!atmosphere) throw new Error('mobile atmosphere layer is missing');
+    return {
+      backgroundImage: getComputedStyle(atmosphere).backgroundImage,
+      gridOpacity: getComputedStyle(atmosphere, '::before').opacity,
+      noiseOpacity: getComputedStyle(atmosphere, '::after').opacity,
     };
   });
 }
@@ -111,6 +132,11 @@ test.describe('auth three-layer layout', () => {
       expect(glass.outlineBorder).toBe('1px');
       expect(glass.outlineZIndex).toBe('2');
       expect(glass.webkitBackdropFilter).toContain('blur(7.84px)');
+      expect(glass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
+      expect(glass.materialFillBackground).toBe('rgba(9, 25, 18, 0.46)');
+      expect(glass.materialFillInsideGlass).toBe(true);
+      expect(glass.surfaceContain).toBe('none');
+      expect(glass.surfaceIsolation).toBe('auto');
       expect(glass.surfaceHeight).toBeCloseTo(glass.contentHeight, 0);
 
       await page.getByLabel('账号邮箱').click();
@@ -150,6 +176,17 @@ test.describe('auth three-layer layout', () => {
       await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
       await expect(surface).toHaveAttribute('data-liquid-glass-layout', 'content');
       const loginGlass = await readAuthGlass(page);
+      const atmosphere = await readMobileAtmosphere(page);
+
+      expect(atmosphere.backgroundImage).toContain('rgba(1, 7, 4, 0.62)');
+      expect(atmosphere.backgroundImage).toContain('rgba(2, 10, 6, 0.6)');
+      expect(atmosphere.backgroundImage).toContain('rgba(2, 8, 5, 0.82)');
+      expect(atmosphere.gridOpacity).toBe('0.12');
+      expect(atmosphere.noiseOpacity).toBe('0.05');
+      expect(loginGlass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
+      expect(loginGlass.materialFillBackground).toBe('rgba(8, 23, 16, 0.3)');
+      expect(loginGlass.materialFillInsideGlass).toBe(true);
+      expect(loginGlass.webkitBackdropFilter).toContain('blur(7.2px)');
 
       await page.getByRole('tab', { name: '注册' }).click();
       await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
@@ -188,6 +225,8 @@ test.describe('auth three-layer layout', () => {
       expect(registrationGlass.contentPaddingTop).toBe('20px');
       expect(registrationGlass.outlineBorder).toBe('1px');
       expect(registrationGlass.webkitBackdropFilter).toContain('blur(7.2px)');
+      expect(registrationGlass.surfaceBackground).toBe('rgba(0, 0, 0, 0)');
+      expect(registrationGlass.materialFillBackground).toBe('rgba(8, 23, 16, 0.3)');
       expect(registrationGlass.surfaceHeight).toBeGreaterThan(loginGlass.surfaceHeight);
       expect(registrationGlass.surfaceHeight).toBeCloseTo(registrationGlass.contentHeight, 0);
       expect(registrationGlass.cardOverflowY).not.toMatch(/auto|scroll/);
