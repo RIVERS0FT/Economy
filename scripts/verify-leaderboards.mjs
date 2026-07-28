@@ -18,7 +18,7 @@ const page = read('src/pages/LeaderboardPage.tsx');
 const styles = read('src/styles/leaderboards.css');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const navigationDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
-const scoreDisplayDesign = read('docs/LEADERBOARD_SCORE_DISPLAY_DESIGN.md');
+const docsIndex = read('docs/README.md');
 const publicEntrySource = server.slice(
   server.indexOf('function publicEntry'),
   server.indexOf('function boardDefinition'),
@@ -74,8 +74,9 @@ check(productDesign.includes('撤单的未成交剩余数量不计入'), 'produc
 check(productDesign.includes('Asia/Shanghai'), 'product design must record Beijing leaderboard time');
 check(productDesign.includes('实际卖出成交额'), 'product design must record gross sell volume');
 check(navigationDesign.includes('四列'), 'navigation design must record the four-column leaderboard page');
-check(scoreDisplayDesign.includes('只显示经过 `formatNumber` 千分位格式化后的纯数字'), 'score display design must record number-only production output');
-check(scoreDisplayDesign.includes('不得在数字后附加“个”“件”“单位”'), 'score display design must forbid production quantity suffixes');
+check(docsIndex.includes('排行榜生产数量纯数字显示'), 'design index must assign number-only production display to the page design');
+check(docsIndex.includes('只显示经过 `formatNumber` 千分位格式化的纯数字'), 'design index must record number-only production output');
+check(docsIndex.includes('不附加“个”“件”“单位”或恢复“分”'), 'design index must forbid production quantity suffixes');
 
 if (failures.length > 0) {
   console.error('Leaderboard verification failed:');
