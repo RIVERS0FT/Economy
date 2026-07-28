@@ -52,6 +52,7 @@ async function readAuthGlass(page: Page) {
       contentInsideGlass: Boolean(content.closest('.glass')),
       materialFillCount: surface.querySelectorAll('.liquid-glass-surface__material-fill').length,
       outlineBorder: outlineStyle.borderTopWidth,
+      outlineContent: outlineStyle.content,
       outlineZIndex: outlineStyle.zIndex,
       webkitBackdropFilter:
         warpStyle.getPropertyValue('-webkit-backdrop-filter')
@@ -130,8 +131,9 @@ test.describe('auth three-layer layout', () => {
       expect(glass.cardBorder).toBe('0px');
       expect(glass.surfaceRadius).toBe('24px');
       expect(glass.contentPaddingTop).toBe('32px');
-      expect(glass.outlineBorder).toBe('1px');
-      expect(glass.outlineZIndex).toBe('2');
+      expect(glass.outlineBorder).toBe('0px');
+      expect(glass.outlineContent).toBe('none');
+      expect(glass.outlineZIndex).toBe('auto');
       expect(glass.webkitBackdropFilter).toContain('blur(7.84px)');
       expect(glass.surfaceBackground).toBe(glass.sharedContrast);
       expect(glass.contentInsideGlass).toBe(true);
@@ -235,7 +237,8 @@ test.describe('auth three-layer layout', () => {
       expect(registrationGlass.cardBorder).toBe('0px');
       expect(registrationGlass.surfaceRadius).toBe('40px');
       expect(registrationGlass.contentPaddingTop).toBe('20px');
-      expect(registrationGlass.outlineBorder).toBe('1px');
+      expect(registrationGlass.outlineBorder).toBe('0px');
+      expect(registrationGlass.outlineContent).toBe('none');
       expect(registrationGlass.webkitBackdropFilter).toContain('blur(7.2px)');
       expect(registrationGlass.surfaceBackground).toBe(registrationGlass.sharedContrast);
       expect(registrationGlass.contentInsideGlass).toBe(true);
