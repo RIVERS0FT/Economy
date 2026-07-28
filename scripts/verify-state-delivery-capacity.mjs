@@ -81,6 +81,8 @@ requireText('scripts/configure-economy-nginx.py', [
   'application/atom+xml image/svg+xml application/wasm',
   'remove_top_level_directives',
   'ensure_static_compression',
+  'ensure_static_vary_headers',
+  'STATIC_VARY_HEADER',
   'normalize_static_asset_path',
   'find_static_asset_paths',
   'validate_gzip_payload',
@@ -92,6 +94,12 @@ requireText('scripts/configure-economy-nginx.py', [
   'ECONOMY_STATIC_GZIP_CONTENT_MISMATCH',
   'ECONOMY_STATIC_GZIP_NOT_SMALLER',
   'ECONOMY_STATIC_GZIP_VERIFIED',
+]);
+requireText('deploy/nginx/game.riversoft.top.economy-location.conf', [
+  'location ^~ /economy/assets/',
+  'location ^~ /economy/',
+  'add_header Vary "Accept-Encoding" always;',
+  'add_header Cache-Control "public, max-age=604800, immutable";',
 ]);
 forbidText('scripts/configure-economy-nginx.py', [
   'image/png',

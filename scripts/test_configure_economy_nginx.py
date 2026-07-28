@@ -120,6 +120,19 @@ class ReplaceOrInsertTests(unittest.TestCase):
         for media_type in ("image/png", "image/jpeg", "image/webp", "image/avif", "font/woff2"):
             self.assertNotIn(media_type, block)
 
+    def test_static_locations_emit_vary_header_without_removing_cache_control(self) -> None:
+        original = server(
+            "location ^~ /economy/assets/ { add_header Cache-Control immutable; try_files $uri =404; }",
+            "location ^~ /economy/ { try_files $uri /economy/index.html; }",
+            f"include {nginx.ACCOUNT_SNIPPET};",
+            f"include {nginx.GAME_API_SNIPPET};",
+        )
+        updated = nginx.replace_or_insert(original)
+
+        self.assertEqual(updated.count(nginx.STATIC_VARY_HEADER), 2)
+        self.assertIn("add_header Cache-Control immutable;", updated)
+        self.assertEqual(nginx.replace_or_insert(updated), updated)
+
     def test_static_asset_paths_and_gzip_payload_validation(self) -> None:
         html = (
             '<script type="module" src="/economy/assets/index-abc.js"></script>'
@@ -207,6 +220,7 @@ class DeploymentDesignContractTests(unittest.TestCase):
             "超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM",
             "PNG、JPEG、WebP、AVIF 与 WOFF2",
             "线上压缩响应体必须小于构建产物原始字节数",
+            "两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`",
         )
 
         for rule in required_rules:
