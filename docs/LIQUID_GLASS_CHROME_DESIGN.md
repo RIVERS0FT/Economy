@@ -17,7 +17,7 @@
 - `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、低密度透明染色、可读性回退、单层结构描边、第三方装饰层显隐和与各预设完全一致的 WebKit 属性别名；不得用 CSS 创建第二套模糊、折射或色差材质。
 - 桌面与移动状态栏必须隐藏 `liquid-glass-react` 直属的两层边框／高光 `span`、两个 over-light 辅助 `div`，并清除第三方 `.glass` 外部阴影，只保留 `.glass__warp` 材质和宿主的一条最上层连续结构描边。移动底栏允许保留第一层低强度 screen 高光。
 - `src/styles/liquid-glass-chrome.css` 是浏览器测试兼容入口，不是第二套材质。它只允许按固定顺序转发 `performance.css`、`scrollbars.css`、`game-shell-layout.css`、`financial-backdrop.css` 和 `liquid-glass-surfaces.css`；生产入口 `src/main.tsx` 继续直接导入正式样式。
-- 浏览器运行时 harness 必须加载真实的滚动条、外壳几何、玩家背景与液态玻璃样式，不得让 `FinancialBackdrop` 失去固定定位后作为桌面 Grid 普通子项参与布局，也不得只加载历史全局样式后用错误计算结果验证布局。
+- 浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式，并同时加载玩家背景与液态玻璃样式；不得让 `FinancialBackdrop` 失去固定定位后作为桌面 Grid 普通子项参与布局，也不得只加载历史全局样式后用错误计算结果验证布局。
 
 ## 2. 文件职责与加载顺序
 
