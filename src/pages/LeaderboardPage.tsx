@@ -89,7 +89,7 @@ function scoreValue(board: RankedLeaderboardBoard, score: number): ReactNode {
   if (board.unit === 'currency') {
     return <CurrencyAmount sign={board.id === 'growth' && score > 0 ? '+' : undefined}>{formatCurrency(score)}</CurrencyAmount>;
   }
-  if (board.unit === 'quantity') return `${formatNumber(score)} 个`;
+  if (board.unit === 'quantity') return formatNumber(score);
   return `${formatNumber(score)} 分`;
 }
 
