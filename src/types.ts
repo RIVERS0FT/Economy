@@ -283,7 +283,8 @@ export interface LeaderboardEntry {
   cashAssets: number;
   facilityCount: number;
   weeklyChange: number;
-  updatedAt: number;
+  /** @deprecated Request-generation timestamps are no longer delivered in version 22. */
+  updatedAt?: number;
   isCurrentPlayer?: boolean;
 }
 
@@ -394,14 +395,13 @@ export interface EconomicCalendarEvent {
 }
 
 export interface EconomicCalendarState {
-  version: 1;
+  version: 2;
   timeZone: 'Asia/Shanghai';
-  visibleUntil: number;
   events: EconomicCalendarEvent[];
 }
 
 export interface EconomyState {
-  version: 21;
+  version: 22;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -437,6 +437,7 @@ export interface EconomyState {
   work: WorkState;
   stats: EconomyStats;
   leaderboard: LeaderboardEntry[];
+  leaderboards?: import('./leaderboardTypes').RankedLeaderboardsState;
   economicCalendar?: EconomicCalendarState;
   lastProcessedAt: number;
 
