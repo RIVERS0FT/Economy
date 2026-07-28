@@ -84,7 +84,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
 
-      - name: Back up production database before world 17 migration
+      - name: Back up production database before world 18 migration
         id: backup_database
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -102,7 +102,7 @@ jobs:
           from pathlib import Path
 
           database = Path('/var/lib/riversoft-economy/economy.sqlite')
-          target_world_version = 17
+          target_world_version = 18
           if not database.exists():
               print(f'ECONOMY_WORLD_{target_world_version}_BACKUP_SKIPPED_NO_DATABASE')
               raise SystemExit(0)
