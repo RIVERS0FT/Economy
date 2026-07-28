@@ -46,11 +46,6 @@ def update_guard(path: str, indent: str) -> None:
     )
     replace_once(
         path,
-        f"{indent}'liquid-glass-surface__material-fill',",
-        f"{indent}'liquid-glass-surface__material-fill',\n{indent}'contentElement.getBoundingClientRect().height',",
-    )
-    replace_once(
-        path,
         f"{indent}'height: auto !important;',",
         f"{indent}'height: auto !important;',\n{indent}'.liquid-glass-surface__effect[data-liquid-glass-measuring=\\\"true\\\"] {{',\n{indent}'transform: translate(-50%, -50%) scale(1) !important;',\n{indent}'transition: none !important;',",
     )
@@ -58,6 +53,17 @@ def update_guard(path: str, indent: str) -> None:
 
 update_guard('scripts/verify-auth-three-layer.mjs', '  ')
 update_guard('scripts/verify-liquid-glass-chrome.mjs', '    ')
+
+replace_once(
+    'scripts/verify-auth-three-layer.mjs',
+    "  'setSurfaceRevision',\n  'liquid-glass-surface__material-fill',\n  'key={`${variant}-${revision}`}',",
+    "  'setSurfaceRevision',\n  'liquid-glass-surface__material-fill',\n  'contentElement.getBoundingClientRect().height',\n  'key={`${variant}-${revision}`}',",
+)
+replace_once(
+    'scripts/verify-liquid-glass-chrome.mjs',
+    "    'setSurfaceRevision',\n    'liquid-glass-surface__material-fill',\n    'const IOS_CLEAR_THICK_GLASS = {',",
+    "    'setSurfaceRevision',\n    'liquid-glass-surface__material-fill',\n    'contentElement.getBoundingClientRect().height',\n    'const IOS_CLEAR_THICK_GLASS = {',",
+)
 replace_once(
     'scripts/verify-auth-three-layer.mjs',
     "  '两个边缘高光 `span` 必须可见',",
