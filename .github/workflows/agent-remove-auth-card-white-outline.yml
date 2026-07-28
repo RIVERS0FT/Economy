@@ -27,7 +27,7 @@ jobs:
             echo "已有补丁错误记录，等待修正。"
             exit 1
           fi
-          if ! git apply --check .agent/remove-auth-card-white-outline.patch 2> .agent/patch-error.txt; then
+          if ! git apply --recount --check .agent/remove-auth-card-white-outline.patch 2> .agent/patch-error.txt; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add .agent/patch-error.txt
@@ -36,7 +36,7 @@ jobs:
             exit 1
           fi
           rm -f .agent/patch-error.txt
-          git apply .agent/remove-auth-card-white-outline.patch
+          git apply --recount .agent/remove-auth-card-white-outline.patch
           rm -f .agent/remove-auth-card-white-outline.patch
           rm -f .github/workflows/agent-remove-auth-card-white-outline.yml
           rmdir .agent 2>/dev/null || true
