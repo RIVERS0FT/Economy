@@ -46,8 +46,8 @@ assert.doesNotMatch(read('src/pages/MarketPage.tsx'), /parseIntegerDraft\(priceD
 assert.doesNotMatch(read('src/pages/AuctionPage.tsx'), /parseIntegerDraft\(startingBidInput/);
 assert.doesNotMatch(read('src/pages/ContractPage.tsx'), /parseIntegerDraft\(unitPriceInput/);
 
-assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 21/);
-assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 21/);
+assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 22/);
+assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22/);
 assert.match(read('server/src/market-demand/catalog.js'), /MARKET_DEMAND_MODEL_VERSION = 11/);
 assert.match(read('server/src/storage.js'), /normalizeWorldMoneyPrecision/);
 assert.match(read('server/src/storage.js'), /world\.version = 18/);
