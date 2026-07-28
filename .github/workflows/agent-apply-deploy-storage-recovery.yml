@@ -19,6 +19,7 @@ jobs:
       - name: Apply verified deployment recovery
         run: |
           set -euo pipefail
+          # Apply backup retention, free-space checks and low-peak uploads atomically.
           python3 .agent/apply-deploy-storage-recovery.py
           rm -f .agent/apply-deploy-storage-recovery.py
           rm -f .github/workflows/agent-apply-deploy-storage-recovery.yml
