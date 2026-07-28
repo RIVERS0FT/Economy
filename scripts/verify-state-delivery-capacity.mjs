@@ -30,7 +30,8 @@ requireText('README.md', [
   '共享单调服务器时钟',
   '`lastProcessedAt` 不得在每次轮询时被重新解释为当前服务器时间',
   '客户端只接受不低于当前值的状态修订号',
-  '大型 JSON 响应必须使用 gzip 压缩',
+  '大型 JSON 响应以及超过 1 KB 的 HTML、JavaScript、CSS、SVG、Web Manifest、XML 与 WASM 必须使用 gzip 压缩',
+  'PNG、JPEG、WebP、AVIF 与 WOFF2 等已压缩资源不得重复压缩',
 ]);
 
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
@@ -60,6 +61,8 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '工作动作必须在请求发出时同步进入本地“处理中”状态',
   'gzip_types application/json',
   '部署脚本必须修补既有游戏 API snippet 或手工 `location`',
+  '超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM',
+  '线上压缩响应体必须小于构建产物原始字节数',
 ]);
 
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
@@ -69,6 +72,31 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
   '不得恢复每 1 秒完整状态刷新',
   '按钮必须在同一交互周期立即显示“处理中”',
   '任何低于当前修订号的迟到响应不得覆盖工作响应',
+]);
+
+requireText('scripts/configure-economy-nginx.py', [
+  'STATIC_COMPRESSION_BEGIN',
+  '(\"gzip_comp_level\", \"6\")',
+  'text/css text/plain text/javascript application/javascript application/json',
+  'application/atom+xml image/svg+xml application/wasm',
+  'remove_top_level_directives',
+  'ensure_static_compression',
+]);
+forbidText('scripts/configure-economy-nginx.py', [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/avif',
+  'font/woff2',
+]);
+requireText('.github/workflows/deploy.yml', [
+  'verify_gzip_response()',
+  "--header 'Accept-Encoding: gzip'",
+  'ECONOMY_STATIC_GZIP_MISSING',
+  'ECONOMY_STATIC_GZIP_VARY_MISSING',
+  'ECONOMY_STATIC_GZIP_NOT_SMALLER',
+  'verify_gzip_response javascript',
+  'verify_gzip_response css',
 ]);
 
 requireText('server/src/storage.js', [
