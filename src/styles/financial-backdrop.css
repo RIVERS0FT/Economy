@@ -15,6 +15,10 @@ html[data-app-surface="game"] body::before {
   display: none;
 }
 
+.financial-backdrop-image img[hidden] {
+  display: none;
+}
+
 .game-shell,
 .game-state-shell {
   isolation: isolate;
