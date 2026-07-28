@@ -1,0 +1,55 @@
+name: Apply market order-limit verifier fix
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/apply-agent-market-limit-fix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/unbounded-market-orders'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout change branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unbounded-market-orders
+          fetch-depth: 0
+
+      - name: Align market verifier and page design
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, before, after):
+              file = Path(path)
+              source = file.read_text()
+              if source.count(before) != 1:
+                  raise RuntimeError(f'{path}: expected one occurrence, found {source.count(before)}')
+              file.write_text(source.replace(before, after, 1))
+
+          replace_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '提交区域只显示资金不足、仓库空间不足或没有可售资产等字段外阻断原因；数量字段在可交易时显示当前方向上限，发生越界时由唯一字段错误替代该说明。',
+              '提交区域只显示资金不足、仓库空间不足、没有可售资产或商品与工厂合计未完成订单达到动态上限等字段外阻断原因；数量字段在可交易时显示当前方向上限，发生越界时由唯一字段错误替代该说明。',
+          )
+          replace_once(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(marketPage, '{availabilityReason ? <p id=\"order-disabled-reason\"', '提交区只允许显示字段外阻断原因。');",
+              "requireText(marketPage, '{visibleDisabledReason ? <p id=\"order-disabled-reason\"', '提交区只允许显示字段外阻断原因。');\nrequireText(marketPage, 'const orderLimitReason = ownOpenOrders.length >= maxOpenOrders', '提交区必须覆盖商品与工厂合计未完成订单的动态上限。');",
+          )
+          PY
+          rm .github/workflows/apply-agent-market-limit-fix.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "对齐市场订单上限设计与验证"
+          git push origin HEAD:agent/unbounded-market-orders
