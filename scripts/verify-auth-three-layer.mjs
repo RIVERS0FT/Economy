@@ -17,23 +17,52 @@ const forbidText = (path, text) => {
 for (const path of [
   'src/main.tsx',
   'src/app/LoginPage.tsx',
+  'src/components/auth/AuthCardSurface.tsx',
+  'src/components/ui/LiquidGlassSurface.tsx',
   'src/components/visual/FinancialBackdrop.tsx',
   'src/config/visualAssets.ts',
   'src/styles/auth.css',
   'src/styles/financial-backdrop.css',
+  'src/styles/liquid-glass-surfaces.css',
   'src/styles/globals.css',
   'src/styles/card-system.css',
   'src/styles/invitations.css',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
+  'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   'docs/README.md',
   'tests/browser/auth-three-layer.spec.ts',
 ]) requireFile(path);
 
 for (const text of [
+  "import { AuthCardSurface } from '../components/auth/AuthCardSurface'",
   "import { FinancialBackdrop } from '../components/visual/FinancialBackdrop'",
   '<FinancialBackdrop variant="auth" priority />',
+  '<AuthCardSurface>',
+  '</AuthCardSurface>',
   'login-content-layer',
 ]) requireText('src/app/LoginPage.tsx', text);
+for (const text of ['className="login-card panel"', '.login-card panel']) forbidText('src/app/LoginPage.tsx', text);
+
+for (const text of [
+  "const MOBILE_AUTH_MEDIA_QUERY = '(max-width: 720px)'",
+  "'desktopAuthCard' | 'mobileAuthCard'",
+  "mediaQuery.matches ? 'mobileAuthCard' : 'desktopAuthCard'",
+  'className="login-card"',
+  'aria-label="账号认证"',
+  'layout="content"',
+]) requireText('src/components/auth/AuthCardSurface.tsx', text);
+
+for (const text of [
+  "| 'desktopAuthCard'",
+  "| 'mobileAuthCard'",
+  "export type LiquidGlassSurfaceLayout = 'fixed' | 'content'",
+  'const DESKTOP_AUTH_CARD_GLASS = {',
+  'const MOBILE_AUTH_CARD_GLASS = {',
+  'data-liquid-glass-layout="content"',
+  'new ResizeObserver',
+  'setSurfaceRevision((current) => current + 1)',
+  'liquid-glass-surface__material-fill',
+]) requireText('src/components/ui/LiquidGlassSurface.tsx', text);
 
 for (const text of [
   'FINANCIAL_BACKGROUND_IMAGE_URL',
@@ -74,8 +103,35 @@ for (const text of [
   'html[data-app-surface="auth"] body::before',
   'display: none;',
   'min-height: calc(100dvh - var(--space-8));',
-  'backdrop-filter: blur(22px)',
+  '.login-card {',
+  'border-radius: var(--radius-card);',
+  '.login-card .liquid-glass-surface__content {',
+  'padding: var(--space-8);',
+  'border-radius: var(--radius-card-mobile);',
+  'padding: var(--space-5);',
 ]) requireText('src/styles/auth.css', text);
+for (const text of [
+  '.login-card.panel',
+  'backdrop-filter: blur(22px)',
+  '-webkit-backdrop-filter: blur(22px)',
+  'backdrop-filter: blur(18px)',
+  '-webkit-backdrop-filter: blur(18px)',
+  'linear-gradient(145deg, rgba(15, 31, 22',
+  'linear-gradient(155deg, rgba(12, 28, 19',
+]) forbidText('src/styles/auth.css', text);
+
+for (const text of [
+  '--liquid-glass-auth-contrast:',
+  '--liquid-glass-auth-fallback:',
+  '.liquid-glass-surface[data-liquid-glass-layout="content"]',
+  '.liquid-glass-surface--desktopAuthCard .glass__warp {',
+  '-webkit-backdrop-filter: blur(7.84px) saturate(118%);',
+  '.liquid-glass-surface--mobileAuthCard .glass__warp {',
+  '-webkit-backdrop-filter: blur(7.2px) saturate(115%);',
+  '.liquid-glass-surface--desktopAuthCard::after,',
+  '.liquid-glass-surface--mobileAuthCard::after {',
+  'background: var(--liquid-glass-auth-fallback);',
+]) requireText('src/styles/liquid-glass-surfaces.css', text);
 
 requireText('src/styles/invitations.css', '.banned-account-shell {');
 requireText('src/styles/invitations.css', 'place-items: center;');
@@ -87,17 +143,10 @@ for (const text of [
   '.game-image-layer',
   '.game-atmosphere-layer',
 ]) forbidText('src/styles/globals.css', text);
-
-for (const text of [
-  '.login-shell',
-  '.login-card.panel',
-]) forbidText('src/styles/card-system.css', text);
-
-for (const text of [
-  'AUTH_BACKGROUND_IMAGE_URL',
-  'AUTH_BACKGROUND_IMAGE_960_URL',
-  'upload.wikimedia.org',
-]) forbidText('src/app/LoginPage.tsx', text);
+for (const text of ['.login-shell', '.login-card.panel']) forbidText('src/styles/card-system.css', text);
+for (const text of ['AUTH_BACKGROUND_IMAGE_URL', 'AUTH_BACKGROUND_IMAGE_960_URL', 'upload.wikimedia.org']) {
+  forbidText('src/app/LoginPage.tsx', text);
+}
 
 const backdropImport = "import './styles/financial-backdrop.css';";
 const mainSource = read('src/main.tsx');
@@ -132,9 +181,11 @@ for (let index = 0; index < finalStyleOrder.length; index += 1) {
 for (const text of [
   '登录、注册与玩家游戏共享三层视觉',
   '`src/components/visual/FinancialBackdrop.tsx`',
-  '`login-image-layer`',
-  '`login-atmosphere-layer`',
-  '`login-content-layer`',
+  '`AuthCardSurface`',
+  '`desktopAuthCard`',
+  '`mobileAuthCard`',
+  '不得在 `auth.css` 手写另一套 `backdrop-filter`',
+  '注册内容较高时由文档视口纵向滚动',
   'Carol M. Highsmith',
   '不得把整个移动登录页恢复为单张外层面板',
   '背景图片和氛围层唯一归属 `src/styles/financial-backdrop.css`',
@@ -143,8 +194,17 @@ for (const text of [
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
 
 for (const text of [
+  '`DESKTOP_AUTH_CARD_GLASS`',
+  '`MOBILE_AUTH_CARD_GLASS`',
+  '`layout="content"`',
+  '单个 `ResizeObserver`',
+  '认证卡片任一时刻只能存在一个',
+]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
+
+for (const text of [
   '登录／注册入口三层视觉',
   '未登录入口的图片背景、深色氛围背景、标语与认证卡片三层结构唯一归属 `REGISTRATION_INVITE_FLOW_DESIGN.md`',
+  '认证卡片必须使用 `AuthCardSurface`',
 ]) requireText('docs/README.md', text);
 
 for (const text of [
@@ -154,12 +214,17 @@ for (const text of [
   "page.locator('.login-image-layer')",
   "page.locator('.login-atmosphere-layer')",
   "page.locator('.login-content-layer')",
+  "toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard')",
+  "toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard')",
+  "toHaveAttribute('data-liquid-glass-layout', 'content')",
+  'keeps one authentication glass instance while switching breakpoints',
+  'registration content grows the same glass surface without an internal scrollport',
 ]) requireText('tests/browser/auth-three-layer.spec.ts', text);
 
 if (failures.length > 0) {
-  console.error('登录三层结构验证失败：');
+  console.error('登录三层结构与认证液态玻璃验证失败：');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log('登录三层结构验证通过。');
+  console.log('登录三层结构与认证液态玻璃验证通过。');
 }
