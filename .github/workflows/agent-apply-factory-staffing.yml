@@ -142,8 +142,24 @@ jobs:
                   raise SystemExit(f'unified factory verifier expected one match, found {count}: {old}')
               text = text.replace(old, new, 1)
           verifier.write_text(text)
+
+          auctions = Path('scripts/verify-asset-auctions.mjs')
+          text = auctions.read_text()
+          for old, new in {
+              'world.version = 17;': 'world.version = 18;',
+              'Back up production database before world 17 migration': 'Back up production database before world 18 migration',
+              '客户端状态版本：`20`': '客户端状态版本：`21`',
+              '世界状态版本：`17`': '世界状态版本：`18`',
+          }.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'asset auction verifier expected one match, found {count}: {old}')
+              text = text.replace(old, new, 1)
+          auctions.write_text(text)
           PY
           git diff --check 2>&1 | tee -a migration.log
+          rm -rf .agent/factory-staffing
+          rmdir .agent 2>/dev/null || true
 
       - name: Upload migration diagnostics
         if: failure()
@@ -176,7 +192,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .agent/factory-staffing
+          rm -rf .agent
           rm -f .github/workflows/agent-apply-factory-staffing.yml
           rm -f migration.log factory-staffing-build.log
           git config user.name 'OpenAI Agent'
