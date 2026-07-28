@@ -11,10 +11,17 @@ const check = (condition, message) => {
 };
 
 const server = read('server/src/leaderboards.js');
+const domain = read('server/src/domain-core.js');
+const storage = read('server/src/storage.js');
+const runtimeStore = read('server/src/runtime-store.js');
 const page = read('src/pages/LeaderboardPage.tsx');
 const styles = read('src/styles/leaderboards.css');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const navigationDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const publicEntrySource = server.slice(
+  server.indexOf('function publicEntry'),
+  server.indexOf('function boardDefinition'),
+);
 
 for (const board of ['wealth', 'growth', 'production', 'trading']) {
   check(server.includes(`'${board}'`), `server leaderboard engine must include ${board}`);
@@ -33,6 +40,12 @@ check(!server.includes('right.tertiary - left.tertiary'), 'tertiary metrics must
 check(!server.includes('delta * safeNonNegativeInteger(product?.basePrice)'), 'production board must not price-weight output');
 check(server.includes("description: '本周服务器确认完成的商品产出总数量'"), 'production board copy must describe weekly quantity');
 check(server.includes("unit: 'quantity'"), 'production board must expose a quantity unit');
+check(server.includes('tieBreakActivityAt: entry.activityAt'), 'weekly history must audit the tie-break timestamp');
+check(!publicEntrySource.includes('activityAt'), 'public leaderboard entries must not expose activity timestamps');
+check(domain.includes('lastEconomicActivityAt: now'), 'new players must receive an activity baseline');
+check(domain.includes(': player.registeredAt;'), 'legacy players must fall back to registration time');
+check(storage.includes('!isDeepStrictEqual(activePlayer, playerBeforeAction)'), 'no-op ordinary actions must not refresh activity');
+check(runtimeStore.includes('const actionChanged = activePlayer'), 'contract actions must verify a real state change before refreshing activity');
 check(server.includes("REWARDED_BOARD_IDS = Object.freeze(['growth', 'production', 'trading'])"), 'wealth board must not grant gems');
 check(server.includes("order?.ownerType !== 'player' || order?.side !== 'sell'"), 'trading board must count seller fills only');
 check(server.includes('function tradeGrossFor(fill)'), 'trading board must calculate gross volume from fills');
