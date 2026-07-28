@@ -84,7 +84,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
 
-      - name: Back up production database before world 16 migration
+      - name: Back up production database before world 17 migration
         id: backup_database
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -102,7 +102,7 @@ jobs:
           from pathlib import Path
 
           database = Path('/var/lib/riversoft-economy/economy.sqlite')
-          target_world_version = 16
+          target_world_version = 17
           if not database.exists():
               print(f'ECONOMY_WORLD_{target_world_version}_BACKUP_SKIPPED_NO_DATABASE')
               raise SystemExit(0)
@@ -184,20 +184,17 @@ jobs:
         run: |
           exec > >(tee /tmp/economy-runtime.log) 2>&1
           set -euo pipefail
-
           remote_machine="$(ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" uname -m)"
           case "$remote_machine" in
             x86_64|amd64) node_arch="x64" ;;
             aarch64|arm64) node_arch="arm64" ;;
             *) echo "ECONOMY_UNSUPPORTED_SERVER_ARCHITECTURE: $remote_machine" >&2; exit 1 ;;
           esac
-
           node_version="$(node -p 'process.versions.node')"
           archive="node-v${node_version}-linux-${node_arch}.tar.xz"
           runtime_dir="/tmp/economy-node-runtime"
           rm -rf "$runtime_dir"
           mkdir -p "$runtime_dir"
-
           curl --fail --silent --show-error --location \
             "https://nodejs.org/dist/v${node_version}/${archive}" \
             --output "/tmp/${archive}" || { echo ECONOMY_NODE_RUNTIME_DOWNLOAD_FAILED >&2; exit 1; }
@@ -213,14 +210,11 @@ jobs:
         run: |
           exec > >(tee /tmp/economy-upload.log) 2>&1
           set -euo pipefail
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             server/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy-api/"
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             /tmp/economy-node-runtime/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy-api/runtime/"
 
       - name: Install authoritative game service
@@ -260,7 +254,6 @@ jobs:
         run: |
           exec > >(tee /tmp/economy-verify.log) 2>&1
           set -euo pipefail
-
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" 'bash -s' <<'REMOTE'
           set -euo pipefail
           test -x /var/www/game/economy-api/runtime/bin/node
@@ -275,50 +268,34 @@ jobs:
             --retry 3 --retry-delay 2 \
             https://game.riversoft.top/economy/ >/dev/null
 
-          AUTH_STATUS="$(curl --silent --show-error \
-            --output /tmp/economy-auth-response.json \
-            --write-out '%{http_code}' \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" \
-            https://game.riversoft.top/economy-api/me || true)"
+          AUTH_STATUS="$(curl --silent --show-error --output /tmp/economy-auth-response.json --write-out '%{http_code}' \
+            --resolve "game.riversoft.top:443:$SERVER_HOST" https://game.riversoft.top/economy-api/me || true)"
           if [ "$AUTH_STATUS" != "200" ] && [ "$AUTH_STATUS" != "401" ]; then
             cat /tmp/economy-auth-response.json 2>/dev/null || true
             echo AUTH_PROXY_UNAVAILABLE
             exit 1
           fi
 
-          GAME_STATUS="$(curl --silent --show-error \
-            --output /tmp/economy-game-response.json \
-            --write-out '%{http_code}' \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" \
-            https://game.riversoft.top/economy-api/game/state || true)"
+          GAME_STATUS="$(curl --silent --show-error --output /tmp/economy-game-response.json --write-out '%{http_code}' \
+            --resolve "game.riversoft.top:443:$SERVER_HOST" https://game.riversoft.top/economy-api/game/state || true)"
           if [ "$GAME_STATUS" != "401" ]; then
             cat /tmp/economy-game-response.json 2>/dev/null || true
             echo ECONOMY_GAME_API_PROXY_UNAVAILABLE
             exit 1
           fi
 
-          LOGIN_STATUS="$(curl --silent --show-error \
-            --output /tmp/economy-login-response.json \
-            --write-out '%{http_code}' \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" \
-            --request POST \
-            --header 'Content-Type: application/json' \
-            --data '{}' \
-            https://game.riversoft.top/economy-api/login || true)"
+          LOGIN_STATUS="$(curl --silent --show-error --output /tmp/economy-login-response.json --write-out '%{http_code}' \
+            --resolve "game.riversoft.top:443:$SERVER_HOST" --request POST --header 'Content-Type: application/json' \
+            --data '{}' https://game.riversoft.top/economy-api/login || true)"
           if [ "$LOGIN_STATUS" != "400" ]; then
             cat /tmp/economy-login-response.json 2>/dev/null || true
             echo ECONOMY_LOGIN_PROXY_UNAVAILABLE
             exit 1
           fi
 
-          REGISTRATION_STATUS="$(curl --silent --show-error \
-            --output /tmp/economy-registration-response.json \
-            --write-out '%{http_code}' \
-            --resolve "game.riversoft.top:443:$SERVER_HOST" \
-            --request POST \
-            --header 'Content-Type: application/json' \
-            --header 'Idempotency-Key: deploy-registration-route-check' \
-            --data '{}' \
+          REGISTRATION_STATUS="$(curl --silent --show-error --output /tmp/economy-registration-response.json --write-out '%{http_code}' \
+            --resolve "game.riversoft.top:443:$SERVER_HOST" --request POST --header 'Content-Type: application/json' \
+            --header 'Idempotency-Key: deploy-registration-route-check' --data '{}' \
             https://game.riversoft.top/economy-api/registration/email-code || true)"
           if [ "$REGISTRATION_STATUS" != "400" ]; then
             cat /tmp/economy-registration-response.json 2>/dev/null || true
