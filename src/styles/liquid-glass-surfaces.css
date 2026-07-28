@@ -52,6 +52,11 @@
   z-index: 0;
 }
 
+.liquid-glass-surface__effect[data-liquid-glass-measuring="true"] {
+  transform: translate(-50%, -50%) scale(1) !important;
+  transition: none !important;
+}
+
 .liquid-glass-surface__effect > svg,
 .liquid-glass-surface > span {
   pointer-events: none;
