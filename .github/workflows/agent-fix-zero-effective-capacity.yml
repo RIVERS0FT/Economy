@@ -92,3 +92,5 @@ test('zero effective capacity can run without funds until a payable batch is due
           git commit -m '允许零等效产能周期正常运行'
           git pull --rebase origin agent/factory-staffing-rate
           git push origin HEAD:agent/factory-staffing-rate
+
+# Trigger after workflow creation.
