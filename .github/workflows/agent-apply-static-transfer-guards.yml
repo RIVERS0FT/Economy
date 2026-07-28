@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   apply:
@@ -21,9 +22,11 @@ jobs:
           ref: agent/optimize-static-transfer
           fetch-depth: 0
       - name: Apply and verify remaining compression files
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -uo pipefail
-          rm -f static-transfer-guards-failure.txt
           set +e
           {
             python3 .agent/apply-static-transfer-guards.py
@@ -45,22 +48,28 @@ jobs:
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
-            {
-              printf 'run_id=%s\n' "$GITHUB_RUN_ID"
-              cat /tmp/static-transfer-guards.log
-            } > static-transfer-guards-failure.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add static-transfer-guards-failure.txt
-            git commit -m "记录静态压缩验收失败详情"
-            git push origin HEAD:agent/optimize-static-transfer
+            python3 - "$GITHUB_RUN_ID" /tmp/static-transfer-guards.log > /tmp/static-transfer-comment.json <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          run_id = sys.argv[1]
+          log = Path(sys.argv[2]).read_text(encoding='utf-8', errors='replace')
+          body = f"静态传输压缩验收失败（run {run_id}）：\n\n```text\n{log[-12000:]}\n```"
+          print(json.dumps({'body': body}, ensure_ascii=False))
+          PY
+            curl --fail --silent --show-error \
+              --request POST \
+              --header "Authorization: Bearer $GITHUB_TOKEN" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              --data-binary @/tmp/static-transfer-comment.json \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" >/dev/null
             cat /tmp/static-transfer-guards.log
             exit "$status"
           fi
           cat /tmp/static-transfer-guards.log
           rm -f .agent/apply-static-transfer-guards.py
           rm -f .github/workflows/agent-apply-static-transfer-guards.yml
-          rm -f static-transfer-guards-failure.txt
           rmdir .agent 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
