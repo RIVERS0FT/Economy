@@ -109,6 +109,11 @@ for (const text of [
   'padding: var(--space-8);',
   'border-radius: var(--radius-card-mobile);',
   'padding: var(--space-5);',
+  'rgba(1, 7, 4, 0.62) 0%',
+  'rgba(2, 10, 6, 0.6) 36%',
+  'rgba(2, 8, 5, 0.82) 100%',
+  '.login-atmosphere-layer::before {\n    opacity: 0.12;',
+  '.login-atmosphere-layer::after {\n    opacity: 0.05;',
 ]) requireText('src/styles/auth.css', text);
 for (const text of [
   '.login-card.panel',
@@ -118,16 +123,26 @@ for (const text of [
   '-webkit-backdrop-filter: blur(18px)',
   'linear-gradient(145deg, rgba(15, 31, 22',
   'linear-gradient(155deg, rgba(12, 28, 19',
+  'rgba(1, 7, 4, 0.78) 0%',
+  'rgba(2, 10, 6, 0.76) 36%',
+  'rgba(2, 8, 5, 0.93) 100%',
 ]) forbidText('src/styles/auth.css', text);
 
 for (const text of [
-  '--liquid-glass-auth-contrast:',
+  '--liquid-glass-auth-contrast: rgba(9, 25, 18, 0.46);',
+  '--liquid-glass-auth-mobile-contrast: rgba(8, 23, 16, 0.3);',
   '--liquid-glass-auth-fallback:',
   '.liquid-glass-surface[data-liquid-glass-layout="content"]',
   '.liquid-glass-surface--desktopAuthCard .glass__warp {',
   '-webkit-backdrop-filter: blur(7.84px) saturate(118%);',
   '.liquid-glass-surface--mobileAuthCard .glass__warp {',
   '-webkit-backdrop-filter: blur(7.2px) saturate(115%);',
+  '.liquid-glass-surface--desktopAuthCard,\n.liquid-glass-surface--mobileAuthCard {',
+  'background: transparent;',
+  '.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__material-fill {',
+  'background: var(--liquid-glass-auth-contrast);',
+  '.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__material-fill {',
+  'background: var(--liquid-glass-auth-mobile-contrast);',
   '.liquid-glass-surface--desktopAuthCard::after,',
   '.liquid-glass-surface--mobileAuthCard::after {',
   'background: var(--liquid-glass-auth-fallback);',
@@ -184,6 +199,12 @@ for (const text of [
   '`AuthCardSurface`',
   '`desktopAuthCard`',
   '`mobileAuthCard`',
+  '移动登录氛围层必须比原基线更透明',
+  '`rgba(1, 7, 4, 0.62)`',
+  '`rgba(2, 10, 6, 0.6)`',
+  '`rgba(2, 8, 5, 0.82)`',
+  '认证玻璃宿主必须保持透明',
+  '染色必须位于 `.liquid-glass-surface__material-fill`',
   '不得在 `auth.css` 手写另一套 `backdrop-filter`',
   '注册内容较高时由文档视口纵向滚动',
   'Carol M. Highsmith',
@@ -219,12 +240,18 @@ for (const text of [
   "toHaveAttribute('data-liquid-glass-layout', 'content')",
   'keeps one authentication glass instance while switching breakpoints',
   'registration content grows the same glass surface without an internal scrollport',
+  'readMobileAtmosphere',
+  "expect(atmosphere.gridOpacity).toBe('0.12')",
+  "expect(atmosphere.noiseOpacity).toBe('0.05')",
+  "expect(loginGlass.surfaceBackground).toBe('rgba(0, 0, 0, 0)')",
+  "expect(loginGlass.materialFillBackground).toBe('rgba(8, 23, 16, 0.3)')",
+  'expect(loginGlass.materialFillInsideGlass).toBe(true)',
 ]) requireText('tests/browser/auth-three-layer.spec.ts', text);
 
 if (failures.length > 0) {
-  console.error('登录三层结构与认证液态玻璃验证失败：');
+  console.error('登录三层结构、移动氛围与认证液态玻璃验证失败：');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log('登录三层结构与认证液态玻璃验证通过。');
+  console.log('登录三层结构、移动透明氛围与认证液态玻璃背景采样验证通过。');
 }
