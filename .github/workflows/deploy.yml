@@ -84,7 +84,7 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
 
-      - name: Back up production database before world 18 migration
+      - name: Prune backups and back up production database before world 18 migration
         id: backup_database
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
@@ -98,14 +98,62 @@ jobs:
           import datetime
           import json
           import os
+          import re
+          import shutil
           import sqlite3
           from pathlib import Path
 
           database = Path('/var/lib/riversoft-economy/economy.sqlite')
           target_world_version = 18
+          MAX_BACKUP_FAMILIES = 5
+          MIN_BACKUP_HEADROOM_BYTES = 512 * 1024 * 1024
+          timestamp_pattern = re.compile(
+              r'^(?P<family>economy-pre-.+)-\d{8}T\d{6}Z\.sqlite$'
+          )
+
+          def snapshot_key(path):
+              stat = path.stat()
+              return (stat.st_mtime_ns, path.name)
+
+          def backup_family(path):
+              match = timestamp_pattern.match(path.name)
+              return match.group('family') if match else path.stem
+
+          def prune_backups():
+              backup_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+              snapshots = sorted(
+                  backup_dir.glob('economy-pre-*.sqlite'),
+                  key=snapshot_key,
+                  reverse=True,
+              )
+              latest_by_family = {}
+              for snapshot in snapshots:
+                  latest_by_family.setdefault(backup_family(snapshot), snapshot)
+              representatives = sorted(
+                  latest_by_family.values(),
+                  key=snapshot_key,
+                  reverse=True,
+              )
+              keep = set(representatives[:MAX_BACKUP_FAMILIES])
+              removed_count = 0
+              removed_bytes = 0
+              for snapshot in snapshots:
+                  if snapshot in keep:
+                      continue
+                  removed_bytes += snapshot.stat().st_size
+                  snapshot.unlink()
+                  removed_count += 1
+              print(
+                  'ECONOMY_BACKUP_RETENTION='
+                  f'families={len(keep)} removed={removed_count} removed_bytes={removed_bytes}'
+              )
+
           if not database.exists():
               print(f'ECONOMY_WORLD_{target_world_version}_BACKUP_SKIPPED_NO_DATABASE')
               raise SystemExit(0)
+
+          backup_dir = database.parent / 'backups'
+          prune_backups()
 
           with sqlite3.connect(database) as source:
               current_version = 0
@@ -123,8 +171,14 @@ jobs:
                   print(f'ECONOMY_WORLD_{target_world_version}_BACKUP_SKIPPED_CURRENT_VERSION={current_version}')
                   raise SystemExit(0)
 
-              backup_dir = database.parent / 'backups'
-              backup_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+              available_bytes = shutil.disk_usage(database.parent).free
+              required_bytes = database.stat().st_size + MIN_BACKUP_HEADROOM_BYTES
+              if available_bytes < required_bytes:
+                  raise RuntimeError(
+                      'ECONOMY_BACKUP_INSUFFICIENT_DISK '
+                      f'available_bytes={available_bytes} required_bytes={required_bytes}'
+                  )
+
               timestamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
               backup_path = backup_dir / f'economy-pre-world-v{target_world_version}-{timestamp}.sqlite'
               with sqlite3.connect(backup_path) as destination:
@@ -133,10 +187,9 @@ jobs:
                   if quick_check != 'ok':
                       raise RuntimeError(f'backup quick check failed: {quick_check}')
               os.chmod(backup_path, 0o600)
-              backups = sorted(backup_dir.glob(f'economy-pre-world-v{target_world_version}-*.sqlite'), reverse=True)
-              for stale in backups[10:]:
-                  stale.unlink()
               print(f'ECONOMY_WORLD_{target_world_version}_BACKUP_CREATED={backup_path}')
+
+          prune_backups()
           PYTHON
 
       - name: Prepare remote directories
@@ -173,6 +226,17 @@ jobs:
           test -w /var/www/game/economy-api || { echo ECONOMY_API_DIRECTORY_NOT_WRITABLE >&2; exit 1; }
           command -v python3 >/dev/null || { echo ECONOMY_REMOTE_PYTHON_MISSING >&2; exit 1; }
           command -v curl >/dev/null || { echo ECONOMY_REMOTE_CURL_MISSING >&2; exit 1; }
+
+          minimum_free_kb=$((1024 * 1024))
+          available_kb="$(df -Pk /var/www/game | awk 'NR == 2 { print $4 }')"
+          case "$available_kb" in
+            ''|*[!0-9]*) echo ECONOMY_DEPLOY_DISK_CHECK_INVALID >&2; exit 1 ;;
+          esac
+          if [ "$available_kb" -lt "$minimum_free_kb" ]; then
+            echo "ECONOMY_DEPLOY_INSUFFICIENT_DISK available_kb=$available_kb required_kb=$minimum_free_kb" >&2
+            exit 1
+          fi
+          echo "ECONOMY_DEPLOY_AVAILABLE_KB=$available_kb"
           REMOTE
 
       - name: Prepare portable Node runtime
@@ -210,11 +274,11 @@ jobs:
         run: |
           exec > >(tee /tmp/economy-upload.log) 2>&1
           set -euo pipefail
-          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             dist/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy/"
-          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             server/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy-api/"
-          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
+          rsync -az --delete-before -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT" \
             /tmp/economy-node-runtime/ "$SERVER_USER@$SERVER_HOST:/var/www/game/economy-api/runtime/"
 
       - name: Install authoritative game service
