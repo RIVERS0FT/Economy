@@ -18,6 +18,7 @@ const page = read('src/pages/LeaderboardPage.tsx');
 const styles = read('src/styles/leaderboards.css');
 const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
 const navigationDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const scoreDisplayDesign = read('docs/LEADERBOARD_SCORE_DISPLAY_DESIGN.md');
 const publicEntrySource = server.slice(
   server.indexOf('function publicEntry'),
   server.indexOf('function boardDefinition'),
@@ -59,6 +60,8 @@ check(server.includes('processAssetAuctions'), 'weekly growth must settle auctio
 check(page.includes("const BOARD_ORDER: LeaderboardBoardId[] = ['wealth', 'growth', 'production', 'trading']"), 'four boards must keep the approved order');
 check(page.includes("timeZone: 'Asia/Shanghai'"), 'leaderboard page must format periods in Beijing time');
 check(page.includes("board.unit === 'quantity'"), 'leaderboard page must format production as a quantity');
+check(page.includes("if (board.unit === 'quantity') return formatNumber(score);"), 'production quantity must render as a plain formatted number');
+check(!page.includes('`${formatNumber(score)} 个`'), 'production quantity must not append the 个 unit');
 check(page.includes('50 / 30 / 20 宝石'), 'leaderboard page must show the authoritative rewards');
 check(page.includes('最后有效经济活动时间越近者排名越高'), 'leaderboard page must explain the tie-break rule');
 check(styles.includes('grid-template-columns: repeat(4, minmax(280px, 1fr))'), 'desktop leaderboard must remain a four-column grid');
@@ -71,6 +74,8 @@ check(productDesign.includes('撤单的未成交剩余数量不计入'), 'produc
 check(productDesign.includes('Asia/Shanghai'), 'product design must record Beijing leaderboard time');
 check(productDesign.includes('实际卖出成交额'), 'product design must record gross sell volume');
 check(navigationDesign.includes('四列'), 'navigation design must record the four-column leaderboard page');
+check(scoreDisplayDesign.includes('只显示经过 `formatNumber` 千分位格式化后的纯数字'), 'score display design must record number-only production output');
+check(scoreDisplayDesign.includes('不得在数字后附加“个”“件”“单位”'), 'score display design must forbid production quantity suffixes');
 
 if (failures.length > 0) {
   console.error('Leaderboard verification failed:');
