@@ -28,15 +28,31 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('server/src/facility-groups.js')
-          text = path.read_text()
+
+          server = Path('server/src/facility-groups.js')
+          text = server.read_text()
           old = '    Math.max(1, capacity.effectiveCount),\n'
           new = '    capacity.effectiveCount,\n'
           count = text.count(old)
           if count == 1:
-              path.write_text(text.replace(old, new, 1))
+              server.write_text(text.replace(old, new, 1))
           elif text.count(new) < 3:
               raise SystemExit(f'zero-capacity fix site invalid: old={count}, new={text.count(new)}')
+
+          tests = Path('server/test/facility-groups.test.js')
+          text = tests.read_text()
+          replacements = {
+              "    enabled: true, status: 'running', participatingCount: 1, cycleStartedAt: now,\n  })];\n  migrateFacilityGroupWorld(world, now);\n\n  processFacilityGroupWorld(world, now + 60_000);\n\n  assert.equal(player.facilityGroups[0].status, 'error');":
+              "    enabled: true, status: 'running', participatingCount: 1, cycleStartedAt: now,\n    staffingBatchCarryBps: 9_999,\n  })];\n  migrateFacilityGroupWorld(world, now);\n\n  processFacilityGroupWorld(world, now + 60_000);\n\n  assert.equal(player.facilityGroups[0].status, 'error');",
+              "  player.facilityGroups = [group('farm', 1, { enabled: true, status: 'error', statusReason: 'warehouse_full' })];":
+              "  player.facilityGroups = [group('farm', 1, {\n    enabled: true, status: 'error', statusReason: 'warehouse_full', staffingBatchCarryBps: 9_999,\n  })];",
+          }
+          for old_text, new_text in replacements.items():
+              if old_text in text:
+                  text = text.replace(old_text, new_text, 1)
+              elif new_text not in text:
+                  raise SystemExit(f'test expectation patch not found: {old_text[:80]!r}')
+          tests.write_text(text)
           PY
           git diff --check
 
@@ -70,7 +86,7 @@ jobs:
           set -euo pipefail
           git config user.name 'OpenAI Agent'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server/src/facility-groups.js
+          git add server/src/facility-groups.js server/test/facility-groups.test.js
           git diff --cached --check
           if git diff --cached --quiet; then
             exit 0
