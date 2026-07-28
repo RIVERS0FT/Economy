@@ -8,6 +8,13 @@ import {
 } from '../src/state-partitions.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 
+function rankedLeaderboards(score = 100) {
+  return {
+    period: { key: '2026-07-27', startsAt: 1, endsAt: 2 },
+    boards: { wealth: { score } },
+  };
+}
+
 function sampleState(overrides = {}) {
   return {
     version: CURRENT_CLIENT_STATE_VERSION,
@@ -24,6 +31,7 @@ function sampleState(overrides = {}) {
     valuationPrices: {},
     assetAuctions: [],
     leaderboard: [{ rank: 1, playerName: 'Alice' }],
+    leaderboards: rankedLeaderboards(),
     ...overrides,
   };
 }
@@ -45,6 +53,8 @@ test('initial delivery returns all six state partitions without a full state fie
   assert.equal(delivery.patches.catalog.products[0].id, 'wheat');
   assert.equal(delivery.patches.player.credits, 100);
   assert.equal(delivery.patches.market.markets.wheat.lastPrice, 2);
+  assert.equal(delivery.patches.leaderboard.leaderboards.period.key, '2026-07-27');
+  assert.equal('leaderboards' in delivery.patches.player, false);
 });
 
 test('known partition revisions suppress unchanged partitions', () => {
@@ -64,6 +74,24 @@ test('known partition revisions suppress unchanged partitions', () => {
   assert.equal(changed.patches.player.credits, 101);
   assert.equal(changed.partitionRevisions.catalog, initial.partitionRevisions.catalog);
   assert.notEqual(changed.partitionRevisions.player, initial.partitionRevisions.player);
+});
+
+test('ranked leaderboard changes stay inside the leaderboard partition', () => {
+  const initial = createPartitionedStateDelivery({
+    revision: 20,
+    unchanged: false,
+    state: sampleState(),
+  });
+  const changed = createPartitionedStateDelivery({
+    revision: 21,
+    unchanged: false,
+    state: sampleState({ leaderboards: rankedLeaderboards(101) }),
+  }, initial.partitionRevisions);
+
+  assert.deepEqual(Object.keys(changed.patches), ['leaderboard']);
+  assert.equal(changed.patches.leaderboard.leaderboards.boards.wealth.score, 101);
+  assert.equal(changed.partitionRevisions.player, initial.partitionRevisions.player);
+  assert.notEqual(changed.partitionRevisions.leaderboard, initial.partitionRevisions.leaderboard);
 });
 
 test('a global revision change unrelated to the viewer can return no patches', () => {
