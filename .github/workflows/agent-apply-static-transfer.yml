@@ -48,7 +48,10 @@ jobs:
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
-            cp /tmp/static-transfer-apply.log .agent/static-transfer-failure.log
+            {
+              printf 'run_id=%s\n' "$GITHUB_RUN_ID"
+              cat /tmp/static-transfer-apply.log
+            } > .agent/static-transfer-failure.log
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add .agent/static-transfer-failure.log
