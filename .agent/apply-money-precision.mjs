@@ -19,6 +19,7 @@ const metadataCleanup = [
   "replaceAll('README.md', '客户端状态版本：`19`', '客户端状态版本：`20`');",
   "replaceAll('README.md', '世界状态版本：`16`', '世界状态版本：`17`');",
   "replaceAll('README.md', '市场需求模型版本：`10`', '市场需求模型版本：`11`');",
+  "replaceAll('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '当前客户端只接受版本 19', '当前客户端只接受版本 20');",
   "replaceAll('scripts/verify-document-authority.mjs', \"'世界状态版本：`16`'\", \"'世界状态版本：`17`'\");",
   "replaceAll('scripts/verify-document-authority.mjs', \"'市场需求模型版本：`10`'\", \"'市场需求模型版本：`11`'\");",
   "replaceAll('scripts/verify-document-authority.mjs', \"content.includes('世界状态版本：16')\", \"content.includes('世界状态版本：17')\");",
