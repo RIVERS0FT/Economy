@@ -23,24 +23,13 @@ jobs:
       - name: Apply remaining compression files
         run: |
           set -uo pipefail
-          set +e
-          python3 .agent/apply-static-transfer-guards.py > /tmp/static-transfer-guards.log 2>&1
+          python3 .agent/apply-static-transfer-guards.py > "$RUNNER_TEMP/static-transfer-guards.log" 2>&1
           status=$?
-          set -e
           if [ "$status" -ne 0 ]; then
-            {
-              printf 'run_id=%s\n' "$GITHUB_RUN_ID"
-              cat /tmp/static-transfer-guards.log
-            } > static-transfer-guards-failure.txt
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add static-transfer-guards-failure.txt
-            git commit -m "记录静态压缩应用错误"
-            git push origin HEAD:agent/optimize-static-transfer
-            cat /tmp/static-transfer-guards.log
+            cat "$RUNNER_TEMP/static-transfer-guards.log"
             exit "$status"
           fi
-          cat /tmp/static-transfer-guards.log
+          cat "$RUNNER_TEMP/static-transfer-guards.log"
           git diff --check
           rm -f .agent/apply-static-transfer-guards.py
           rm -f .github/workflows/agent-apply-static-transfer-guards.yml
@@ -51,3 +40,12 @@ jobs:
           git add -A
           git commit -m "补齐静态资源压缩验收规则"
           git push origin HEAD:agent/optimize-static-transfer
+      - name: Upload compression failure log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: static-transfer-guards-failure-${{ github.run_id }}
+          path: ${{ runner.temp }}/static-transfer-guards.log
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 9
