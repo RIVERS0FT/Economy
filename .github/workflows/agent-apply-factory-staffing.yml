@@ -42,8 +42,11 @@ jobs:
           set -euo pipefail
           : > migration.log
           for name in server client docs-tests; do
-            base64 --decode ".agent/factory-staffing/${name}.py.gz.b64" | gzip --decompress > "/tmp/${name}.py"
-            python3 "/tmp/${name}.py" 2>&1 | tee -a migration.log
+            {
+              echo "=== ${name} ==="
+              base64 --decode ".agent/factory-staffing/${name}.py.gz.b64" | gzip --decompress > "/tmp/${name}.py"
+              python3 "/tmp/${name}.py"
+            } 2>&1 | tee -a migration.log
           done
           git diff --check 2>&1 | tee -a migration.log
 
