@@ -21,65 +21,81 @@ jobs:
         with:
           ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
+      - name: Detect application payload
+        id: payload
+        run: |
+          if test -f .agent/apply-money-precision.mjs; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.payload.outputs.available == 'true'
         with:
           node-version: '24'
           cache: npm
       - run: npm ci
+        if: steps.payload.outputs.available == 'true'
       - name: Apply source and design changes
         id: apply
+        if: steps.payload.outputs.available == 'true'
         continue-on-error: true
         run: node .agent/apply-money-precision.mjs > /tmp/money-patch.log 2>&1
       - name: Upload patch diagnostics
-        if: steps.apply.outcome == 'failure'
+        if: steps.payload.outputs.available == 'true' && steps.apply.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: money-patch-diagnostics
           path: /tmp/money-patch.log
           retention-days: 1
       - name: Stop after patch failure
-        if: steps.apply.outcome == 'failure'
+        if: steps.payload.outputs.available == 'true' && steps.apply.outcome == 'failure'
         run: |
           cat /tmp/money-patch.log
           exit 1
       - name: Remove temporary application files
         id: cleanup
+        if: steps.payload.outputs.available == 'true'
         continue-on-error: true
         run: |
           rm -rf .agent .github/workflows/apply-money-precision.yml
           git diff --check > /tmp/money-cleanup.log 2>&1
       - name: Upload cleanup diagnostics
-        if: steps.cleanup.outcome == 'failure'
+        if: steps.payload.outputs.available == 'true' && steps.cleanup.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: money-cleanup-diagnostics
           path: /tmp/money-cleanup.log
           retention-days: 1
       - name: Stop after cleanup failure
-        if: steps.cleanup.outcome == 'failure'
+        if: steps.payload.outputs.available == 'true' && steps.cleanup.outcome == 'failure'
         run: |
           cat /tmp/money-cleanup.log
           exit 1
       - name: Verify money precision
+        if: steps.payload.outputs.available == 'true'
         run: npm run verify:money-precision
       - name: Full build and tests
         id: build
+        if: steps.payload.outputs.available == 'true'
         continue-on-error: true
         run: npm run build > /tmp/money-build.log 2>&1
       - name: Upload build diagnostics
-        if: steps.build.outcome == 'failure'
+        if: steps.payload.outputs.available == 'true' && steps.build.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: money-build-diagnostics
           path: /tmp/money-build.log
           retention-days: 1
       - name: Stop after build failure
-        if: steps.build.outcome == 'failure'
+        if: steps.payload.outputs.available == 'true' && steps.build.outcome == 'failure'
         run: |
           tail -n 300 /tmp/money-build.log
           exit 1
       - name: Commit generated source changes
+        if: steps.payload.outputs.available == 'true'
         run: |
+          git checkout HEAD -- .github/workflows/apply-money-precision.yml .github/workflows/deploy.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
