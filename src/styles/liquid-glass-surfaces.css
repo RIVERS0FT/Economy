@@ -7,7 +7,8 @@
   --desktop-asset-bar-height: 76px;
   --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
   --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
-  --liquid-glass-auth-contrast: rgba(9, 25, 18, 0.68);
+  --liquid-glass-auth-contrast: rgba(9, 25, 18, 0.46);
+  --liquid-glass-auth-mobile-contrast: rgba(8, 23, 16, 0.3);
   --liquid-glass-auth-fallback: rgba(7, 20, 14, 0.94);
   --liquid-glass-structure-border: rgba(232, 255, 244, 0.3);
 }
@@ -148,7 +149,20 @@
 .liquid-glass-surface--mobileAuthCard {
   box-sizing: border-box;
   border: 0;
+  background: transparent;
+}
+
+.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__material-fill,
+.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__material-fill {
+  border-radius: inherit;
+}
+
+.liquid-glass-surface--desktopAuthCard .liquid-glass-surface__material-fill {
   background: var(--liquid-glass-auth-contrast);
+}
+
+.liquid-glass-surface--mobileAuthCard .liquid-glass-surface__material-fill {
+  background: var(--liquid-glass-auth-mobile-contrast);
 }
 
 .liquid-glass-surface--desktopAuthCard {
@@ -319,6 +333,11 @@
   .liquid-glass-surface--desktopAuthCard,
   .liquid-glass-surface--mobileAuthCard {
     background: var(--liquid-glass-auth-fallback);
+  }
+
+  .liquid-glass-surface--desktopAuthCard .liquid-glass-surface__material-fill,
+  .liquid-glass-surface--mobileAuthCard .liquid-glass-surface__material-fill {
+    background: transparent;
   }
 }
 
