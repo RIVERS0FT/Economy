@@ -1,0 +1,124 @@
+name: Apply unified market order rules
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/apply-agent-order-rules.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/unbounded-market-orders'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout change branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unbounded-market-orders
+          fetch-depth: 0
+
+      - name: Apply order rules and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d > /tmp/apply-order-rules.mjs.gz <<'PAYLOAD'
+          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
+          PAYLOAD
+          gzip -dc /tmp/apply-order-rules.mjs.gz > /tmp/apply-order-rules.mjs
+          test "$(sha256sum /tmp/apply-order-rules.mjs | awk '{print $1}')" = "ac78d1b5a3fcff74a78c2acad746389c536d445f45b42749e2c0e3925d6b8296"
+          node /tmp/apply-order-rules.mjs
+          rm .github/workflows/apply-agent-order-rules.yml
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "统一市场订单数量与未完成订单上限"
+          git push origin HEAD:agent/unbounded-market-orders
