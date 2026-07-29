@@ -23,6 +23,12 @@ replacement = '''认证卡片继续使用 `layout="content"`。认证内容高�
 
 可见高光几何直接绑定认证宿主：官方两个高光 `span`、两个 over-light 辅助 `div`、认证效果层与 `.glass` 都必须使用认证宿主 `100%` 尺寸并取消几何过渡；登录→注册→登录时，它们的底部必须在首个绘制帧内同步。上游 resize 通知只负责随后补齐 SVG 滤镜内部坐标。'''
 liquid = replace_required(liquid, anchor, replacement, 'liquid measurement and geometry rules')
+liquid = replace_required(
+    liquid,
+    '认证卡片同时保留官方两个直属边缘高光 `span`，并清除第三方 `.glass` 外部阴影。',
+    '认证卡片必须保留官方两个直属边缘高光 `span`，并清除第三方 `.glass` 外部阴影。',
+    'mandatory auth highlight wording',
+)
 write(liquid_path, liquid)
 
 auth_path = 'docs/REGISTRATION_INVITE_FLOW_DESIGN.md'
