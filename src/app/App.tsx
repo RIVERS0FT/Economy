@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { getCurrentUser, initializeEconomySession, type EconomySessionResponse } from '../api/auth';
+import type { FinancialBackdropVariant } from '../components/visual/FinancialBackdrop';
+import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';
 import type { AuthUser } from '../types';
 import { LoginPage } from './LoginPage';
 const AdminApp = lazy(() => import('./AdminApp').then((module) => ({ default: module.AdminApp })));
@@ -12,6 +14,10 @@ function adminSurface() {
   const path = window.location.pathname.replace(/\/+$/, '');
   if (path === '/economy/admin') return 'main';
   return null;
+}
+
+function stateVariantForPath(adminPath: ReturnType<typeof adminSurface>): FinancialBackdropVariant {
+  return adminPath ? 'admin' : 'auth';
 }
 
 function invitationCodeFromLocation() {
@@ -27,14 +33,22 @@ function clearInvitationCodeFromLocation() {
 
 function BannedAccount({ incidentId }: { incidentId?: number }) {
   return (
-    <main className="login-shell banned-account-shell">
-      <section className="login-card panel banned-account-card">
+    <PhotographicStateShell variant="game" tone="critical" className="banned-account-shell" role="alert">
+      <section className="photographic-state-card banned-account-card">
         <h1>账号已封禁</h1>
         <p>该账号已被管理员封禁，普通游戏访问已暂停。</p>
         {incidentId ? <p>事件编号：#{incidentId}</p> : null}
         <p>如需申诉，请联系管理员并提供事件编号。</p>
       </section>
-    </main>
+    </PhotographicStateShell>
+  );
+}
+
+function LoadingState({ variant, children }: { variant: FinancialBackdropVariant; children: string }) {
+  return (
+    <PhotographicStateShell variant={variant} priority role="status">
+      <div className="photographic-state-card photographic-state-card--loading">{children}</div>
+    </PhotographicStateShell>
   );
 }
 
@@ -48,10 +62,10 @@ export default function App() {
   const surface: AppSurface = checking
     ? 'loading'
     : user
-      ? adminPath && user.role === 'admin'
-        ? 'admin'
-        : banned
-          ? 'banned'
+      ? banned
+        ? 'banned'
+        : adminPath
+          ? 'admin'
           : 'game'
       : 'auth';
   const inviteCode = invitationCodeFromLocation();
@@ -96,7 +110,13 @@ export default function App() {
     }
   }
 
-  if (checking) return <main className="loading-screen">正在连接统一账号服务…</main>;
+  if (checking) {
+    return (
+      <LoadingState variant={stateVariantForPath(adminPath)}>
+        正在连接统一账号服务…
+      </LoadingState>
+    );
+  }
   if (!user) {
     return (
       <>
@@ -107,7 +127,13 @@ export default function App() {
   }
   if (banned) return <BannedAccount incidentId={session?.incidentId} />;
   return (
-    <Suspense fallback={<main className="loading-screen">正在加载金融帝国…</main>}>
+    <Suspense
+      fallback={(
+        <LoadingState variant={adminPath ? 'admin' : 'game'}>
+          正在加载金融帝国…
+        </LoadingState>
+      )}
+    >
       {adminPath === 'main'
         ? <AdminApp user={user} />
         : <GameApp user={user} onSignedOut={() => { setUser(null); setSession(null); }} />}

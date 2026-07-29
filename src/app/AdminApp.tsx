@@ -14,6 +14,8 @@ import { AdminDesktopBar } from '../components/shell/AdminDesktopBar';
 import { SignedInShell } from '../components/shell/SignedInShell';
 import { CurrencyText } from '../components/ui/CurrencyAmount';
 import { Button, PageLayout } from '../components/ui/layout';
+import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';
+import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';
 import type { AuthUser } from '../types';
 
 const ADMIN_SECTION_COPY: Record<AdminSectionId, { title: string; description: string }> = {
@@ -64,7 +66,15 @@ export function AdminApp({ user }: { user: AuthUser }) {
   }, [activeSection, loadOverview]);
 
   if (user.role !== 'admin') {
-    return <main className="admin-shell admin-denied"><section><h1>无权访问</h1><p>当前账号不是 Economy 管理员。</p><a href="/economy/">返回游戏</a></section></main>;
+    return (
+      <PhotographicStateShell variant="admin" tone="critical" className="admin-denied" role="alert">
+        <section className="photographic-state-card">
+          <h1>无权访问</h1>
+          <p>当前账号不是 Economy 管理员。</p>
+          <a href="/economy/">返回游戏</a>
+        </section>
+      </PhotographicStateShell>
+    );
   }
 
   function refreshActiveSection() {
@@ -86,26 +96,27 @@ export function AdminApp({ user }: { user: AuthUser }) {
       chromeOverlayClassName="admin-mobile-chrome-layer"
       adminChromeLayer
       sidebarCollapsed={sidebarCollapsed}
+      backdrop={<FinancialBackdrop variant="admin" />}
       sidebar={(
         <AdminSidebar
-email={user.email}
-activeSection={activeSection}
-collapsed={sidebarCollapsed}
-onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-onSelect={setActiveSection}
+          email={user.email}
+          activeSection={activeSection}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+          onSelect={setActiveSection}
         />
       )}
       chrome={(
         <>
-<AdminDesktopBar
-  title={ADMIN_SECTION_COPY[activeSection].title}
-  description={ADMIN_SECTION_COPY[activeSection].description}
-  email={user.email}
-  worldVersion={summary?.worldVersion}
-  apiStatus={summary?.apiStatus}
-  onRefresh={refreshActiveSection}
-/>
-<AdminMobileNavigation activeSection={activeSection} onSelect={setActiveSection} />
+          <AdminDesktopBar
+            title={ADMIN_SECTION_COPY[activeSection].title}
+            description={ADMIN_SECTION_COPY[activeSection].description}
+            email={user.email}
+            worldVersion={summary?.worldVersion}
+            apiStatus={summary?.apiStatus}
+            onRefresh={refreshActiveSection}
+          />
+          <AdminMobileNavigation activeSection={activeSection} onSelect={setActiveSection} />
         </>
       )}
     >
@@ -118,53 +129,53 @@ onSelect={setActiveSection}
         {notice ? <div className="admin-alert" role="status"><CurrencyText>{notice}</CurrencyText></div> : null}
 
         {visitedSections.has('overview') ? (
-<div className="admin-section-view" hidden={activeSection !== 'overview'}>
-  <AdminOverview
-    active={activeSection === 'overview'}
-    summary={summary}
-    refreshToken={refreshTokens.overview}
-    onNotice={setNotice}
-    onError={setError}
-  />
-</div>
+          <div className="admin-section-view" hidden={activeSection !== 'overview'}>
+            <AdminOverview
+              active={activeSection === 'overview'}
+              summary={summary}
+              refreshToken={refreshTokens.overview}
+              onNotice={setNotice}
+              onError={setError}
+            />
+          </div>
         ) : null}
 
         {visitedSections.has('players') ? (
-<div className="admin-section-view" hidden={activeSection !== 'players'}>
-  <AdminPlayerSection
-    active={activeSection === 'players'}
-    refreshToken={refreshTokens.players}
-    onError={setError}
-  />
-</div>
+          <div className="admin-section-view" hidden={activeSection !== 'players'}>
+            <AdminPlayerSection
+              active={activeSection === 'players'}
+              refreshToken={refreshTokens.players}
+              onError={setError}
+            />
+          </div>
         ) : null}
 
         {visitedSections.has('population') ? (
-<div className="admin-section-view" hidden={activeSection !== 'population'}>
-  <AdminPopulationSection
-    active={activeSection === 'population'}
-    refreshToken={refreshTokens.population}
-    onNotice={setNotice}
-    onError={setError}
-  />
-</div>
+          <div className="admin-section-view" hidden={activeSection !== 'population'}>
+            <AdminPopulationSection
+              active={activeSection === 'population'}
+              refreshToken={refreshTokens.population}
+              onNotice={setNotice}
+              onError={setError}
+            />
+          </div>
         ) : null}
 
         {visitedSections.has('gift-codes') ? (
-<div className="admin-section-view" hidden={activeSection !== 'gift-codes'}>
-  <AdminGiftCodesSection
-    active={activeSection === 'gift-codes'}
-    refreshToken={refreshTokens['gift-codes']}
-    onNotice={setNotice}
-    onError={setError}
-  />
-</div>
+          <div className="admin-section-view" hidden={activeSection !== 'gift-codes'}>
+            <AdminGiftCodesSection
+              active={activeSection === 'gift-codes'}
+              refreshToken={refreshTokens['gift-codes']}
+              onNotice={setNotice}
+              onError={setError}
+            />
+          </div>
         ) : null}
 
         {visitedSections.has('bans') ? (
-<div className="admin-section-view" hidden={activeSection !== 'bans'}>
-  <AdminBanPanel onNotice={setNotice} refreshToken={refreshTokens.bans} />
-</div>
+          <div className="admin-section-view" hidden={activeSection !== 'bans'}>
+            <AdminBanPanel onNotice={setNotice} refreshToken={refreshTokens.bans} />
+          </div>
         ) : null}
       </PageLayout>
     </SignedInShell>
