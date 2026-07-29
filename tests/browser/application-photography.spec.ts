@@ -66,7 +66,8 @@ test.describe('all-interface photography', () => {
     await expect(page.getByText('正在连接统一账号服务…', { exact: true })).toBeVisible();
 
     await image.evaluate((element) => {
-      element.dataset.persistenceProbe = 'account-check';
+      const data = element.dataset;
+      data.persistenceProbe = 'account-check';
     });
 
     releaseAccountCheck();
