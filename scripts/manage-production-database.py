@@ -62,7 +62,7 @@ def _wait_for_health(url: str, timeout_seconds: int = 45) -> None:
             with urllib.request.urlopen(url, timeout=3) as response:
                 if response.status == 200:
                     return
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - surface the last concrete health failure
             last_error = error
         time.sleep(0.5)
     raise RuntimeError(f'ECONOMY_DATABASE_HEALTH_CHECK_FAILED: {last_error}')
@@ -374,6 +374,14 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
             _preserve_stat(backup_path, original_stat)
             _fsync_directory(database_path.parent)
 
+            with _connect(database_path, readonly=True) as current:
+                checks_prestart = _check_database(current)
+                prestart_metrics = _database_metrics(current, database_path)
+                prestart_fingerprint = _database_fingerprint(current)
+            if prestart_metrics['autoVacuum'] != INCREMENTAL_MODE:
+                raise RuntimeError('ECONOMY_DATABASE_PRODUCTION_AUTO_VACUUM_NOT_INCREMENTAL')
+            _validate_fingerprint(before_fingerprint, prestart_fingerprint)
+
             if not args.offline:
                 _set_service(args.service_name, 'start')
                 service_stopped = False
@@ -385,7 +393,13 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
                 after_fingerprint = _database_fingerprint(current)
             if after_metrics['autoVacuum'] != INCREMENTAL_MODE:
                 raise RuntimeError('ECONOMY_DATABASE_PRODUCTION_AUTO_VACUUM_NOT_INCREMENTAL')
-            _validate_fingerprint(before_fingerprint, after_fingerprint)
+            baseline_revision = int(before_fingerprint.get('world', {}).get('revision') or 0)
+            current_revision = int(after_fingerprint.get('world', {}).get('revision') or 0)
+            if current_revision < baseline_revision:
+                raise RuntimeError(
+                    'ECONOMY_DATABASE_WORLD_REVISION_REGRESSED '
+                    f'before={baseline_revision} after={current_revision}'
+                )
 
             return {
                 'schemaVersion': REPORT_SCHEMA_VERSION,
@@ -398,8 +412,10 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
                 'disk': disk,
                 'checksBefore': checks_before,
                 'checksStage': checks_stage,
+                'checksPrestart': checks_prestart,
                 'checksAfter': checks_after,
                 'before': before_metrics,
+                'prestart': prestart_metrics,
                 'after': after_metrics,
                 'world': after_fingerprint.get('world', {}),
             }
@@ -596,6 +612,6 @@ def main() -> int:
 if __name__ == '__main__':
     try:
         raise SystemExit(main())
-    except Exception as error:
+    except Exception as error:  # noqa: BLE001 - workflow needs a single explicit failure marker
         print(f'ECONOMY_DATABASE_MAINTENANCE_FAILED: {error}', file=sys.stderr)
         raise SystemExit(1)
