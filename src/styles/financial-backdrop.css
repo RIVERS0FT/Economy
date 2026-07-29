@@ -1,17 +1,27 @@
-/* Shared fixed photography and financial-atmosphere layers for authentication
- * and the signed-in player surface. Authentication geometry remains in auth.css;
- * this file owns the game variant and shared image failure behavior. */
+/* Shared fixed photography and financial-atmosphere layers for authentication,
+ * signed-in player and administrator surfaces, plus root application states.
+ * Authentication geometry remains in auth.css; this file owns game/admin variants,
+ * state-shell geometry and shared image failure behavior. */
 
-html[data-app-surface="game"] {
+html[data-app-surface="game"],
+html[data-app-surface="admin"],
+html[data-app-surface="loading"],
+html[data-app-surface="banned"] {
   color-scheme: dark;
   background: #020604;
 }
 
-html[data-app-surface="game"] body {
+html[data-app-surface="game"] body,
+html[data-app-surface="admin"] body,
+html[data-app-surface="loading"] body,
+html[data-app-surface="banned"] body {
   background: #020604;
 }
 
-html[data-app-surface="game"] body::before {
+html[data-app-surface="game"] body::before,
+html[data-app-surface="admin"] body::before,
+html[data-app-surface="loading"] body::before,
+html[data-app-surface="banned"] body::before {
   display: none;
 }
 
@@ -20,42 +30,65 @@ html[data-app-surface="game"] body::before {
 }
 
 .game-shell,
-.game-state-shell {
+.game-state-shell,
+.admin-shell,
+.photographic-state-shell {
   isolation: isolate;
   color: var(--color-text-primary);
   background: transparent;
 }
 
+.signed-in-shell.admin-shell {
+  background: transparent;
+}
+
 .game-image-layer,
-.game-atmosphere-layer {
+.game-atmosphere-layer,
+.admin-image-layer,
+.admin-atmosphere-layer {
   position: fixed;
   inset: 0;
   pointer-events: none;
 }
 
-.game-image-layer {
+.game-image-layer,
+.admin-image-layer {
   z-index: -2;
   overflow: hidden;
   background: #07100b;
 }
 
 .game-image-layer picture,
-.game-image-layer img {
+.game-image-layer img,
+.admin-image-layer picture,
+.admin-image-layer img {
   width: 100%;
   height: 100%;
   display: block;
 }
 
-.game-image-layer img {
+.game-image-layer img,
+.admin-image-layer img {
   object-fit: cover;
   object-position: 50% 48%;
-  filter: saturate(0.58) contrast(1.12) brightness(0.5);
   transform: scale(1.012);
 }
 
-.game-atmosphere-layer {
+.game-image-layer img {
+  filter: saturate(0.58) contrast(1.12) brightness(0.5);
+}
+
+.admin-image-layer img {
+  filter: saturate(0.38) contrast(1.14) brightness(0.42);
+}
+
+.game-atmosphere-layer,
+.admin-atmosphere-layer {
   z-index: -1;
   overflow: hidden;
+}
+
+.game-atmosphere-layer {
   background:
     radial-gradient(circle at 70% 16%, rgba(67, 202, 119, 0.13), transparent 34%),
     radial-gradient(circle at 18% 76%, rgba(31, 135, 77, 0.1), transparent 38%),
@@ -63,15 +96,25 @@ html[data-app-surface="game"] body::before {
     linear-gradient(180deg, rgba(2, 8, 5, 0.68), rgba(1, 6, 4, 0.88));
 }
 
+.admin-atmosphere-layer {
+  background:
+    radial-gradient(circle at 76% 14%, rgba(76, 150, 132, 0.1), transparent 32%),
+    radial-gradient(circle at 16% 82%, rgba(39, 93, 78, 0.09), transparent 40%),
+    linear-gradient(90deg, rgba(2, 7, 7, 0.97) 0%, rgba(3, 10, 10, 0.93) 32%, rgba(4, 12, 11, 0.88) 68%, rgba(2, 8, 8, 0.95) 100%),
+    linear-gradient(180deg, rgba(2, 8, 7, 0.78), rgba(1, 6, 6, 0.92));
+}
+
 .game-atmosphere-layer::before,
-.game-atmosphere-layer::after {
+.game-atmosphere-layer::after,
+.admin-atmosphere-layer::before,
+.admin-atmosphere-layer::after {
   content: "";
   position: absolute;
   inset: 0;
 }
 
-.game-atmosphere-layer::before {
-  opacity: 0.2;
+.game-atmosphere-layer::before,
+.admin-atmosphere-layer::before {
   background-image:
     linear-gradient(rgba(210, 244, 222, 0.065) 1px, transparent 1px),
     linear-gradient(90deg, rgba(210, 244, 222, 0.065) 1px, transparent 1px);
@@ -79,13 +122,34 @@ html[data-app-surface="game"] body::before {
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), transparent 94%);
 }
 
-.game-atmosphere-layer::after {
-  opacity: 0.065;
+.game-atmosphere-layer::before {
+  opacity: 0.2;
+}
+
+.admin-atmosphere-layer::before {
+  opacity: 0.12;
+}
+
+.game-atmosphere-layer::after,
+.admin-atmosphere-layer::after {
   mix-blend-mode: soft-light;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.38'/%3E%3C/svg%3E");
 }
 
-.game-state-shell {
+.game-atmosphere-layer::after {
+  opacity: 0.065;
+}
+
+.admin-atmosphere-layer::after {
+  opacity: 0.045;
+}
+
+.financial-backdrop-atmosphere--critical {
+  box-shadow: inset 0 0 18rem rgba(112, 22, 16, 0.38);
+}
+
+.game-state-shell,
+.photographic-state-shell {
   position: fixed;
   inset: 0;
   min-width: 320px;
@@ -106,10 +170,81 @@ html[data-app-surface="game"] body::before {
   max-width: 36rem;
 }
 
+.photographic-state-shell {
+  display: grid;
+  place-items: center;
+  padding:
+    max(var(--space-6), env(safe-area-inset-top))
+    max(var(--space-6), env(safe-area-inset-right))
+    max(var(--space-6), env(safe-area-inset-bottom))
+    max(var(--space-6), env(safe-area-inset-left));
+}
+
+.photographic-state-shell__content {
+  position: relative;
+  z-index: 2;
+  width: min(36rem, 100%);
+  max-height: 100%;
+  overflow: auto;
+}
+
+.photographic-state-card {
+  width: 100%;
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid rgba(185, 229, 201, 0.2);
+  border-radius: var(--radius-card);
+  padding: var(--space-6);
+  color: var(--color-text-primary);
+  background: rgba(3, 14, 9, 0.94);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+  text-align: center;
+}
+
+.photographic-state-card > :first-child,
+.photographic-state-card > :last-child {
+  margin-block: 0;
+}
+
+.photographic-state-card h1,
+.photographic-state-card p {
+  margin: 0;
+}
+
+.photographic-state-card strong {
+  font-size: var(--font-size-lg);
+}
+
+.photographic-state-card a {
+  justify-self: center;
+  color: var(--color-success);
+}
+
+.photographic-state-card button {
+  justify-self: center;
+}
+
+.photographic-state-card--loading {
+  font-weight: 800;
+}
+
+.photographic-state-shell--critical .photographic-state-card {
+  border-color: rgba(255, 143, 131, 0.3);
+  background: rgba(26, 7, 6, 0.94);
+}
+
 @media (max-width: 720px) {
-  .game-image-layer img {
+  .game-image-layer img,
+  .admin-image-layer img {
     object-position: 52% 48%;
+  }
+
+  .game-image-layer img {
     filter: saturate(0.54) contrast(1.12) brightness(0.43);
+  }
+
+  .admin-image-layer img {
+    filter: saturate(0.34) contrast(1.14) brightness(0.36);
   }
 
   .game-atmosphere-layer {
@@ -118,14 +253,38 @@ html[data-app-surface="game"] body::before {
       linear-gradient(180deg, rgba(1, 7, 4, 0.86) 0%, rgba(2, 9, 6, 0.84) 36%, rgba(1, 6, 4, 0.94) 100%);
   }
 
+  .admin-atmosphere-layer {
+    background:
+      radial-gradient(circle at 50% 10%, rgba(76, 150, 132, 0.08), transparent 30%),
+      linear-gradient(180deg, rgba(2, 7, 7, 0.91) 0%, rgba(3, 10, 10, 0.9) 38%, rgba(1, 6, 6, 0.97) 100%);
+  }
+
   .game-atmosphere-layer::before {
     opacity: 0.16;
     background-size: 42px 42px;
   }
+
+  .admin-atmosphere-layer::before {
+    opacity: 0.09;
+    background-size: 42px 42px;
+  }
+
+  .photographic-state-shell {
+    padding:
+      max(var(--space-4), env(safe-area-inset-top))
+      max(var(--space-4), env(safe-area-inset-right))
+      max(var(--space-4), env(safe-area-inset-bottom))
+      max(var(--space-4), env(safe-area-inset-left));
+  }
+
+  .photographic-state-card {
+    padding: var(--space-5);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .game-image-layer img {
+  .game-image-layer img,
+  .admin-image-layer img {
     transform: none;
   }
 }
