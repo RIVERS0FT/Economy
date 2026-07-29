@@ -62,13 +62,12 @@ for (const text of [
   'blurAmount: 0.0625',
   'saturation: 140',
   'aberrationIntensity: 2',
-  'elasticity: 0.15',
-  'const hasLiquidMotion = preset.elasticity > 0;',
-  'mouseContainer={hasLiquidMotion ? mouseContainerRef : null}',
-  'globalMousePos={hasLiquidMotion ? undefined : STATIC_MOUSE_POSITION}',
-  'mouseOffset={hasLiquidMotion ? undefined : STATIC_MOUSE_OFFSET}',
-  'mouseContainerRef={surfaceRef}',
+  'elasticity: 0',
+  'mouseContainer={null}',
+  'globalMousePos={STATIC_MOUSE_POSITION}',
+  'mouseOffset={STATIC_MOUSE_OFFSET}',
   'data-liquid-glass-layout={layout}',
+  'data-liquid-glass-elasticity={preset.elasticity}',
   'useLayoutEffect(() => {',
   'new ResizeObserver',
   'new MutationObserver',
@@ -89,7 +88,13 @@ for (const text of [
   'liquid-glass-surface__material-fill',
   'contentElement.getBoundingClientRect().height',
   'key={`${variant}-${revision}`}',
+  'elasticity: 0.15',
+  'const hasLiquidMotion = preset.elasticity > 0;',
+  'mouseContainerRef',
 ]) forbidText('src/components/ui/LiquidGlassSurface.tsx', text);
+if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/elasticity:\s*0,/g) ?? []).length !== 4) {
+  failures.push('五种玻璃变体对应的四个参数预设必须全部固定 elasticity: 0');
+}
 
 for (const text of [
   'FINANCIAL_BACKGROUND_IMAGE_URL',
@@ -161,7 +166,7 @@ for (const text of [
   '.liquid-glass-surface[data-liquid-glass-layout="content"]',
   '.liquid-glass-surface[data-liquid-glass-layout="content"] .liquid-glass-surface__content {',
   'height: auto !important;',
-  '.liquid-glass-surface__effect[data-liquid-glass-measuring=\"true\"] {',
+  '.liquid-glass-surface__effect[data-liquid-glass-measuring="true"] {',
   'transform: translate(-50%, -50%) scale(1) !important;',
   'transition: none !important;',
   '.liquid-glass-surface--desktopAuthCard .glass__warp,\n.liquid-glass-surface--mobileAuthCard .glass__warp {',
@@ -241,10 +246,11 @@ for (const text of [
   '不得通过 revision 或 React `key` 重建认证内容',
   '统一使用 `--liquid-glass-contrast`',
   '不得再创建 `.liquid-glass-surface__material-fill`',
-  '官方默认值',
+  '官方默认基线',
   '`displacementScale=70`',
-  '`elasticity=0.15`',
-  '官方 `mouseContainer` 接口',
+  '`elasticity=0`',
+  '`mouseContainer={null}`',
+  '不得开启鼠标、触控板、触笔或触摸跟踪',
   '两个边缘高光 `span` 必须可见',
   '中性测量态',
   '`scrollHeight`／`offsetHeight`',
@@ -264,6 +270,8 @@ for (const text of [
   '`layout="content"`',
   '单个 `ResizeObserver`',
   '认证卡片任一时刻只能存在一个',
+  '`elasticity: 0`',
+  '`mouseContainer={null}`',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 for (const text of [
@@ -282,13 +290,15 @@ for (const text of [
   "toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard')",
   "toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard')",
   "toHaveAttribute('data-liquid-glass-layout', 'content')",
+  "toHaveAttribute('data-liquid-glass-elasticity', '0')",
   'keeps one authentication glass instance and form values while switching breakpoints',
   'registration content grows inside the same glass surface without an internal scrollport',
-  'official liquid motion and highlights',
+  'static optical glass and highlights',
   'readMobileAtmosphere',
   "expect(atmosphere.gridOpacity).toBe('0.12')",
   "expect(atmosphere.noiseOpacity).toBe('0.05')",
   'expect(glass.surfaceBackground).toBe(glass.sharedContrast)',
+  "expect(glass.surfaceElasticity).toBe('0')",
   'expect(glass.contentInsideGlass).toBe(true)',
   'expect(glass.materialFillCount).toBe(0)',
   "expect(glass.outlineContent).toBe('none')",
@@ -296,14 +306,15 @@ for (const text of [
   'expect(Math.abs(glass.displacementScales[0])).toBe(70)',
   'toMatch(/saturate\\((?:140%|1\\.4)\\)/)',
   'page.mouse.move',
-  '.not.toBe(initialEffectTransform)',
+  '.toBe(initialEffectTransform)',
+  '.toEqual(initialHighlightBackgrounds)',
   "await expect(email).toHaveValue('kept@example.com')",
 ]) requireText('tests/browser/auth-three-layer.spec.ts', text);
 
 if (failures.length > 0) {
-  console.error('登录三层结构与官方认证液态玻璃验证失败：');
+  console.error('登录三层结构与静态认证液态玻璃验证失败：');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log('登录三层结构、官方认证液态参数、鼠标运动、双层高光、几何同步与表单状态保持验证通过。');
+  console.log('登录三层结构、认证光学参数、零弹性、静态鼠标输入、双层高光、几何同步与表单状态保持验证通过。');
 }
