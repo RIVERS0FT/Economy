@@ -227,17 +227,26 @@ test('used code cannot be reused but the same completion request is idempotent',
   } finally { context.store.close(); }
 });
 
-test('homepage and direct Economy registrations both participate in duplicate-IP group bans', () => {
+test('homepage and direct Economy registrations both create duplicate-IP anomaly reports without automatic bans', () => {
   const context = setup();
   try {
-    context.registrationStore.ensureLoggedInPlayer({
+    const first = context.registrationStore.ensureLoggedInPlayer({
       user: { id: 1, email: 'one@example.com' }, ipFingerprint: 'shared-ip', now: 100,
     });
-    context.registrationStore.ensureLoggedInPlayer({
+    const second = context.registrationStore.ensureLoggedInPlayer({
       user: { id: 2, email: 'two@example.com' }, ipFingerprint: 'shared-ip', now: 102,
     });
     assert.equal(context.registrationStore.getRegistration(2).source, 'homepage_session');
-    assert.throws(() => context.registrationStore.assertPlayerActive(1), { statusCode: 423 });
-    assert.throws(() => context.registrationStore.assertPlayerActive(2), { statusCode: 423 });
+    assert.equal(first.ban, null);
+    assert.equal(second.ban, null);
+    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(1));
+    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(2));
+
+    const incidents = context.registrationStore.listBanIncidents();
+    assert.equal(incidents.length, 1);
+    assert.equal(incidents[0].detected_user_count, 2);
+    assert.equal(incidents[0].active_ban_count, 0);
+    const details = context.registrationStore.getBanIncident(incidents[0].id);
+    assert.deepEqual(details.members.map((member) => Number(member.user_id)), [1, 2]);
   } finally { context.store.close(); }
 });
