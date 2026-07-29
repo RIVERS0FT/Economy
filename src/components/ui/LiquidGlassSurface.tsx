@@ -69,7 +69,8 @@ const PRESETS = {
 } as const;
 
 function readContentHeight(element: HTMLElement) {
-  return Math.ceil(Math.max(element.scrollHeight, element.offsetHeight));
+  const contentElement = element;
+  return Math.ceil(Math.max(contentElement.scrollHeight, contentElement.offsetHeight));
 }
 
 function GlassEffect({
