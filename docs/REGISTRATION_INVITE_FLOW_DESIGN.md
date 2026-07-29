@@ -20,6 +20,8 @@
 
 ## 2. 登录、注册、玩家游戏、管理员后台与根级状态共享三层视觉
 
+原有“登录、注册与玩家游戏共享三层视觉”规则继续成立，并扩展到管理员后台与根级状态。
+
 登录／注册入口、九个玩家页面、管理员五个分区及根级加载／封禁／无权限／致命错误状态固定复用 `src/components/visual/FinancialBackdrop.tsx`；根级状态统一由 `src/components/visual/PhotographicStateShell.tsx` 承载，并由 `src/config/visualAssets.ts` 统一保存摄影资源地址。摄影作品仍为 Carol M. Highsmith 拍摄的纽约证券交易所交易大厅，来源于美国国会图书馆 Highsmith 档案，权利说明为无已知发表限制。图片只表达环境，使用空替代文本并从无障碍树隐藏；图片请求失败时必须隐藏破图元素，由深色氛围层继续提供完整可读背景。
 
 共享背景严格分为三个视觉层级：
@@ -42,7 +44,7 @@
 
 玩家和管理员背景均通过 `SignedInShell` 的可选 `backdrop` 插槽在侧栏之前渲染，分别使用 `game` 与 `admin` 变体；管理员不得复用更明亮的登录氛围或更活跃的玩家氛围。移动端 `.mobile-page-overlay` 必须继续先于 `.mobile-chrome-overlay` 绘制，二者及 `.workspace` 不得因为背景改造增加正 `z-index` 或新的隔离层；状态栏、管理员工作栏和底栏到页面背景之间必须继续保持开放的 `backdrop-filter` 采样链。统一账号检查、代码包加载、玩家连接／错误／重试、账号封禁、管理员无权限和客户端致命错误必须使用对应 `auth`／`game`／`admin` 摄影变体，避免进入、刷新、异常或权限切换时闪现纯色页面。
 
-背景图片、玩家／管理员氛围层、critical 暗角和根级状态外壳几何唯一归属 `src/styles/financial-backdrop.css`；认证内容层、品牌区和认证卡片几何仍由 `src/styles/auth.css` 收束；统一认证卡片材质归 `src/styles/liquid-glass-surfaces.css`；登录后侧栏、工作区、滚动区、状态栏和移动导航几何继续归 `viewport.css`、`game-shell-layout.css` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。生产样式入口必须在 `game-shell-layout.css` 后、`liquid-glass-surfaces.css` 前加载 `financial-backdrop.css`；更晚加载的管理员业务样式不得用低特异性纯色根背景遮盖摄影层。认证最终样式顺序继续固定为 `design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`。
+背景图片和氛围层唯一归属 `src/styles/financial-backdrop.css`；该文件同时负责玩家／管理员氛围、critical 暗角和根级状态外壳几何；认证内容层、品牌区和认证卡片几何仍由 `src/styles/auth.css` 收束；统一认证卡片材质归 `src/styles/liquid-glass-surfaces.css`；登录后侧栏、工作区、滚动区、状态栏和移动导航几何继续归 `viewport.css`、`game-shell-layout.css` 与 `LIQUID_GLASS_CHROME_DESIGN.md`。生产样式入口必须在 `game-shell-layout.css` 后、`liquid-glass-surfaces.css` 前加载 `financial-backdrop.css`；更晚加载的管理员业务样式不得用低特异性纯色根背景遮盖摄影层。认证最终样式顺序继续固定为 `design-system.css → interaction-states.css → primary-surfaces.css → auth.css → registration-auth.css → form-controls.css`。
 
 摄影资源地址只能存在于 `src/config/visualAssets.ts`，不得重新散落到 `LoginPage.tsx`、`GameShell.tsx`、`AdminApp.tsx`、状态外壳、CSS 或业务页面。替换摄影作品时必须保留交易大厅主题、权利来源记录、响应式版本、空替代文本、失败回退和共享三层结构。
 
@@ -50,4 +52,4 @@
 
 不得移除注册邀请码输入框，不得让分享链接只在后台隐式归因而不预填输入框，不得在设置页、商店或其他已登录页面恢复邀请码输入、补填、更换或重新绑定入口，也不得根据玩家档案创建时间重新开放 24 小时或其他临时补填窗口。
 
-`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、共享背景组件、`AuthCardSurface`、认证玻璃光学参数、全预设 `elasticity=0`、静态鼠标输入、官方双层高光、中性测量态、不受 transform 污染的内容高度、内容位于 `.glass` 内、状态栏同源宿主染色、认证卡片无项目结构描边、内容自适应、移动氛围透明度、图片来源配置、认证层级样式、最终 CSS 加载顺序和浏览器回归入口；`scripts/verify-liquid-glass-chrome.mjs` 必须同时校验登录后 Chrome 与认证卡片的唯一依赖入口、平台预设、零弹性、无指针跟踪、官方高光、内容自适应、状态栏单层描边、同源宿主染色和回退材质；`scripts/verify-game-three-layer.mjs` 必须校验登录、玩家、管理员和根级状态共享摄影组件，三种氛围变体、玩家与管理员背景插槽、加载／封禁／无权限／错误状态、全局网格关闭、移动 Overlay 顺序、图片失败回退和浏览器回归入口。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面、`390 × 844` 移动注册模式、移动氛围渐变／网格／噪点计算值、认证内容位于 `.glass` 内、官方位移尺度 70、`blur(6px) saturate(140%)`、`data-liquid-glass-elasticity="0"`、鼠标移动后效果层变换与高光方向保持不变、两层高光可见、认证伪元素不生成项目外框、无 `material-fill`、表单值保持，以及登录→注册→登录和 `721px`／`720px` 双向切换；`tests/browser/game-three-layer.spec.ts` 必须覆盖玩家桌面、移动和图片加载失败回退；全应用摄影浏览器测试必须覆盖管理员桌面／移动、根级连接、封禁、无权限与摄影失败回退。不得把背景选择器移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录、注册、玩家或管理员业务流程来适配视觉布局。
+`scripts/verify-auth-three-layer.mjs` 必须校验认证三层 DOM、共享背景组件、`AuthCardSurface`、认证玻璃光学参数、全预设 `elasticity=0`、静态鼠标输入、官方双层高光、中性测量态、不受 transform 污染的内容高度、内容位于 `.glass` 内、状态栏同源宿主染色、认证卡片无项目结构描边、内容自适应、移动氛围透明度、图片来源配置、认证层级样式、最终 CSS 加载顺序和浏览器回归入口；`scripts/verify-liquid-glass-chrome.mjs` 必须同时校验登录后 Chrome 与认证卡片的唯一依赖入口、平台预设、零弹性、无指针跟踪、官方高光、内容自适应、状态栏单层描边、同源宿主染色和回退材质；`scripts/verify-game-three-layer.mjs` 必须校验登录、玩家、管理员和根级状态共享摄影组件，三种氛围变体、玩家与管理员背景插槽、加载／封禁／无权限／错误状态、全局网格关闭、移动 Overlay 顺序、图片失败回退和浏览器回归入口。`tests/browser/auth-three-layer.spec.ts` 必须覆盖 `1440 × 900` 桌面、`390 × 844` 移动注册模式、移动氛围渐变／网格／噪点计算值、认证内容位于 `.glass` 内、官方位移尺度 70、`blur(6px) saturate(140%)`、`data-liquid-glass-elasticity="0"`、鼠标移动后效果层变换与高光方向保持不变、两层高光可见、认证伪元素不生成项目外框、无 `material-fill`、表单值保持，以及登录→注册→登录和 `721px`／`720px` 双向切换；`tests/browser/game-three-layer.spec.ts` 必须覆盖玩家桌面、移动和图片加载失败回退；全应用摄影浏览器测试必须覆盖管理员桌面／移动、根级连接、封禁、无权限与摄影失败回退。不得把背景选择器移入 `globals.css`，不得通过 `card-system.css` 恢复登录外壳或认证卡片几何映射，不得改变登录、注册或游戏业务流程来适配视觉布局；管理员业务流程同样不得为摄影背景调整。
