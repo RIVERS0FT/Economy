@@ -1,6 +1,5 @@
 name: Bootstrap official over-light tint
 
-# This revision intentionally triggers the already-installed guarded workflow.
 on:
   push:
     branches:
@@ -32,6 +31,10 @@ jobs:
           check_status=0
 
           if [ "$apply_status" -eq 0 ]; then
+            python3 scripts/fix-official-overlight-verifier-quotes.py >> "$log_file" 2>&1 || apply_status=$?
+          fi
+
+          if [ "$apply_status" -eq 0 ]; then
             node scripts/verify-auth-three-layer.mjs >> "$log_file" 2>&1 || check_status=$?
             node scripts/verify-liquid-glass-chrome.mjs >> "$log_file" 2>&1 || check_status=$?
             node scripts/verify-desktop-primary-surfaces.mjs >> "$log_file" 2>&1 || check_status=$?
@@ -44,6 +47,7 @@ jobs:
             target_branch="agent/official-overlight-applied"
             git checkout -B "$target_branch"
             rm scripts/apply-official-overlight.py
+            rm scripts/fix-official-overlight-verifier-quotes.py
             rm .github/workflows/apply-official-overlight-bootstrap.yml
             git add -A
             git commit -m "Use official over-light tint globally"
