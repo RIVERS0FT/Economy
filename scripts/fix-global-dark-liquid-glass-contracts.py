@@ -31,7 +31,7 @@ write(liquid_design_path, liquid_design)
 auth_design_path = 'docs/REGISTRATION_INVITE_FLOW_DESIGN.md'
 auth_design = read(auth_design_path)
 auth_anchor = '认证卡片与桌面／移动状态栏统一在 `.liquid-glass-surface` 宿主启用 dark tint `--liquid-glass-tint-dark: rgba(3, 12, 8, 0.42)`，并由 `--liquid-glass-contrast` 单向引用；'
-auth_replacement = '认证卡片、桌面／移动状态栏、管理员工作栏和移动底栏统一使用 `--liquid-glass-contrast`；该变量必须单向引用 dark tint `--liquid-glass-tint-dark: rgba(3, 12, 8, 0.42)`；'
+auth_replacement = '认证卡片、桌面／移动状态栏、管理员工作栏和移动底栏统一使用 `--liquid-glass-contrast`；dark tint 变量名固定为 `--liquid-glass-tint-dark`，其值固定为 `rgba(3, 12, 8, 0.42)`，并由前者单向引用；'
 auth_design = replace_required(auth_design, auth_anchor, auth_replacement, 'auth tint authority sentence')
 write(auth_design_path, auth_design)
 
