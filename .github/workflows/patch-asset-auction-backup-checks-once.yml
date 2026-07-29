@@ -37,18 +37,8 @@ jobs:
               "  '.github/workflows/deploy.yml',\n  'scripts/manage-production-backups.py',\n  'README.md',",
               1,
           )
-          old_deploy = """requireText('.github/workflows/deploy.yml', [
-  'Prune backups and back up production database before world 18 migration',
-  'sqlite3.connect(database)',
-  'source.backup(destination)',
-  "destination.execute('PRAGMA quick_check')",
-  "economy-pre-world-v{target_world_version}-{timestamp}.sqlite",
-  "backup_dir.glob('economy-pre-*.sqlite')",
-  'MAX_BACKUP_FAMILIES = 5',
-  'def prune_backups():',
-  'prune_backups()',
-  'database-backup.log',
-]);"""
+          start = source.index("requireText('.github/workflows/deploy.yml', [")
+          end = source.index("\n\nrequireText('README.md', [", start)
           new_deploy = """requireText('.github/workflows/deploy.yml', [
   'Prune backups and create compact compressed database backup before world 18 migration',
   'scripts/manage-production-backups.py',
@@ -70,10 +60,7 @@ forbidText('.github/workflows/deploy.yml', [
   'source.backup(destination)',
   "backup_dir.glob('economy-pre-*.sqlite')",
 ]);"""
-          if old_deploy in source:
-              source = source.replace(old_deploy, new_deploy, 1)
-          elif new_deploy not in source:
-              raise SystemExit('asset auction deploy verifier anchor missing')
+          source = source[:start] + new_deploy + source[end:]
           source = source.replace(
               "  '使用 Python `sqlite3.Connection.backup()`',\n  '通过 `PRAGMA quick_check` 后才允许上传新服务',",
               "  '使用 `VACUUM INTO` 创建无 freelist 的紧凑 SQLite 副本',\n  'gzip 级别 6',\n  '`PRAGMA quick_check`、外键与 `auto_vacuum` 校验',",
