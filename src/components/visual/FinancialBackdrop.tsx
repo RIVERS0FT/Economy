@@ -3,16 +3,19 @@ import {
   FINANCIAL_BACKGROUND_IMAGE_URL,
 } from '../../config/visualAssets';
 
-type FinancialBackdropVariant = 'auth' | 'game';
+export type FinancialBackdropVariant = 'auth' | 'game' | 'admin';
+export type FinancialBackdropTone = 'normal' | 'critical';
 
 export function FinancialBackdrop({
   variant,
   priority = false,
+  tone = 'normal',
 }: {
   variant: FinancialBackdropVariant;
   priority?: boolean;
+  tone?: FinancialBackdropTone;
 }) {
-  const prefix = variant === 'auth' ? 'login' : 'game';
+  const prefix = variant === 'auth' ? 'login' : variant;
 
   return (
     <>
@@ -36,7 +39,7 @@ export function FinancialBackdrop({
       </div>
 
       <div
-        className={`${prefix}-atmosphere-layer financial-backdrop-atmosphere financial-backdrop-atmosphere--${variant}`}
+        className={`${prefix}-atmosphere-layer financial-backdrop-atmosphere financial-backdrop-atmosphere--${variant}${tone === 'critical' ? ' financial-backdrop-atmosphere--critical' : ''}`}
         aria-hidden="true"
       />
     </>
