@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { getCurrentUser, initializeEconomySession, type EconomySessionResponse } from '../api/auth';
-import type { FinancialBackdropVariant } from '../components/visual/FinancialBackdrop';
+import type {
+  FinancialBackdropTone,
+  FinancialBackdropVariant,
+} from '../components/visual/FinancialBackdrop';
 import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';
 import type { AuthUser } from '../types';
 import { LoginPage } from './LoginPage';
@@ -46,7 +49,7 @@ function BannedAccount({ incidentId }: { incidentId?: number }) {
 
 function LoadingState({ variant, children }: { variant: FinancialBackdropVariant; children: string }) {
   return (
-    <PhotographicStateShell variant={variant} priority role="status">
+    <PhotographicStateShell variant={variant} role="status">
       <div className="photographic-state-card photographic-state-card--loading">{children}</div>
     </PhotographicStateShell>
   );
@@ -68,12 +71,25 @@ export default function App() {
           ? 'admin'
           : 'game'
       : 'auth';
+  const backdrop: FinancialBackdropVariant = checking
+    ? stateVariantForPath(adminPath)
+    : !user
+      ? 'auth'
+      : banned
+        ? 'game'
+        : adminPath
+          ? 'admin'
+          : 'game';
+  const tone: FinancialBackdropTone = banned || Boolean(user && adminPath && user.role !== 'admin')
+    ? 'critical'
+    : 'normal';
   const inviteCode = invitationCodeFromLocation();
 
   useLayoutEffect(() => {
     document.documentElement.dataset.appSurface = surface;
-    return () => { delete document.documentElement.dataset.appSurface; };
-  }, [surface]);
+    document.documentElement.dataset.appBackdrop = backdrop;
+    document.documentElement.dataset.appTone = tone;
+  }, [backdrop, surface, tone]);
 
   useEffect(() => {
     let cancelled = false;
