@@ -1,32 +1,179 @@
-/* Shared fixed photography and financial-atmosphere layers for authentication,
- * signed-in player and administrator surfaces, plus root application states.
- * Authentication geometry remains in auth.css; this file owns game/admin variants,
- * state-shell geometry and shared image failure behavior. */
+/* One persistent photography node is mounted by main.tsx for the whole application.
+ * Surface changes only update root data attributes and the atmosphere treatment; the
+ * picture element must never be recreated by authentication, player, administrator,
+ * loading or error shells. */
 
+html[data-app-surface="auth"],
 html[data-app-surface="game"],
 html[data-app-surface="admin"],
 html[data-app-surface="loading"],
-html[data-app-surface="banned"] {
+html[data-app-surface="banned"],
+html[data-app-surface="error"] {
   color-scheme: dark;
   background: #020604;
 }
 
+html[data-app-surface="auth"] body,
 html[data-app-surface="game"] body,
 html[data-app-surface="admin"] body,
 html[data-app-surface="loading"] body,
-html[data-app-surface="banned"] body {
+html[data-app-surface="banned"] body,
+html[data-app-surface="error"] body {
   background: #020604;
 }
 
+html[data-app-surface="auth"] body::before,
 html[data-app-surface="game"] body::before,
 html[data-app-surface="admin"] body::before,
 html[data-app-surface="loading"] body::before,
-html[data-app-surface="banned"] body::before {
+html[data-app-surface="banned"] body::before,
+html[data-app-surface="error"] body::before {
   display: none;
+}
+
+#root {
+  position: relative;
+  isolation: isolate;
+}
+
+.application-content-root {
+  position: relative;
+  z-index: 2;
+  min-width: 320px;
+  min-height: 100%;
+}
+
+html[data-app-surface="game"] .application-content-root,
+html[data-app-surface="admin"] .application-content-root {
+  height: 100%;
+  min-height: 0;
 }
 
 .financial-backdrop-image img[hidden] {
   display: none;
+}
+
+.application-image-layer,
+.application-atmosphere-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.application-image-layer {
+  z-index: 0;
+  overflow: hidden;
+  background: #07100b;
+}
+
+.application-image-layer picture,
+.application-image-layer img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.application-image-layer img {
+  object-fit: cover;
+  object-position: 50% 48%;
+  transform: scale(1.012);
+  will-change: filter;
+}
+
+html[data-app-backdrop="auth"] .application-image-layer img {
+  filter: saturate(0.72) contrast(1.08) brightness(0.72);
+}
+
+html[data-app-backdrop="game"] .application-image-layer img {
+  filter: saturate(0.58) contrast(1.12) brightness(0.5);
+}
+
+html[data-app-backdrop="admin"] .application-image-layer img {
+  filter: saturate(0.38) contrast(1.14) brightness(0.42);
+}
+
+.application-atmosphere-layer {
+  z-index: 1;
+  overflow: hidden;
+}
+
+html[data-app-backdrop="auth"] .application-atmosphere-layer {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(86, 224, 137, 0.16), transparent 30%),
+    radial-gradient(circle at 84% 78%, rgba(44, 176, 102, 0.11), transparent 34%),
+    linear-gradient(90deg, rgba(1, 7, 4, 0.94) 0%, rgba(2, 10, 6, 0.82) 38%, rgba(3, 12, 8, 0.69) 67%, rgba(2, 9, 6, 0.82) 100%);
+}
+
+html[data-app-backdrop="game"] .application-atmosphere-layer {
+  background:
+    radial-gradient(circle at 70% 16%, rgba(67, 202, 119, 0.13), transparent 34%),
+    radial-gradient(circle at 18% 76%, rgba(31, 135, 77, 0.1), transparent 38%),
+    linear-gradient(90deg, rgba(1, 7, 4, 0.96) 0%, rgba(2, 9, 6, 0.88) 27%, rgba(3, 11, 7, 0.8) 60%, rgba(2, 8, 5, 0.9) 100%),
+    linear-gradient(180deg, rgba(2, 8, 5, 0.68), rgba(1, 6, 4, 0.88));
+}
+
+html[data-app-backdrop="admin"] .application-atmosphere-layer {
+  background:
+    radial-gradient(circle at 76% 14%, rgba(76, 150, 132, 0.1), transparent 32%),
+    radial-gradient(circle at 16% 82%, rgba(39, 93, 78, 0.09), transparent 40%),
+    linear-gradient(90deg, rgba(2, 7, 7, 0.97) 0%, rgba(3, 10, 10, 0.93) 32%, rgba(4, 12, 11, 0.88) 68%, rgba(2, 8, 8, 0.95) 100%),
+    linear-gradient(180deg, rgba(2, 8, 7, 0.78), rgba(1, 6, 6, 0.92));
+}
+
+.application-atmosphere-layer::before,
+.application-atmosphere-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.application-atmosphere-layer::before {
+  background-image:
+    linear-gradient(rgba(210, 244, 222, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210, 244, 222, 0.065) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), transparent 94%);
+}
+
+html[data-app-backdrop="auth"] .application-atmosphere-layer::before {
+  opacity: 0.24;
+  background-image:
+    linear-gradient(rgba(210, 244, 222, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(210, 244, 222, 0.07) 1px, transparent 1px);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent 92%);
+}
+
+html[data-app-backdrop="game"] .application-atmosphere-layer::before {
+  opacity: 0.2;
+}
+
+html[data-app-backdrop="admin"] .application-atmosphere-layer::before {
+  opacity: 0.12;
+}
+
+.application-atmosphere-layer::after {
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.38'/%3E%3C/svg%3E");
+}
+
+html[data-app-backdrop="auth"] .application-atmosphere-layer::after {
+  opacity: 0.075;
+}
+
+html[data-app-backdrop="game"] .application-atmosphere-layer::after {
+  opacity: 0.065;
+}
+
+html[data-app-backdrop="admin"] .application-atmosphere-layer::after {
+  opacity: 0.045;
+}
+
+html[data-app-tone="critical"] .application-atmosphere-layer {
+  box-shadow: inset 0 0 18rem rgba(112, 22, 16, 0.38);
+}
+
+.application-content-root .login-shell {
+  background: transparent !important;
 }
 
 .game-shell,
@@ -40,112 +187,6 @@ html[data-app-surface="banned"] body::before {
 
 .signed-in-shell.admin-shell {
   background: transparent;
-}
-
-.game-image-layer,
-.game-atmosphere-layer,
-.admin-image-layer,
-.admin-atmosphere-layer {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-
-.game-image-layer,
-.admin-image-layer {
-  z-index: -2;
-  overflow: hidden;
-  background: #07100b;
-}
-
-.game-image-layer picture,
-.game-image-layer img,
-.admin-image-layer picture,
-.admin-image-layer img {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.game-image-layer img,
-.admin-image-layer img {
-  object-fit: cover;
-  object-position: 50% 48%;
-  transform: scale(1.012);
-}
-
-.game-image-layer img {
-  filter: saturate(0.58) contrast(1.12) brightness(0.5);
-}
-
-.admin-image-layer img {
-  filter: saturate(0.38) contrast(1.14) brightness(0.42);
-}
-
-.game-atmosphere-layer,
-.admin-atmosphere-layer {
-  z-index: -1;
-  overflow: hidden;
-}
-
-.game-atmosphere-layer {
-  background:
-    radial-gradient(circle at 70% 16%, rgba(67, 202, 119, 0.13), transparent 34%),
-    radial-gradient(circle at 18% 76%, rgba(31, 135, 77, 0.1), transparent 38%),
-    linear-gradient(90deg, rgba(1, 7, 4, 0.96) 0%, rgba(2, 9, 6, 0.88) 27%, rgba(3, 11, 7, 0.8) 60%, rgba(2, 8, 5, 0.9) 100%),
-    linear-gradient(180deg, rgba(2, 8, 5, 0.68), rgba(1, 6, 4, 0.88));
-}
-
-.admin-atmosphere-layer {
-  background:
-    radial-gradient(circle at 76% 14%, rgba(76, 150, 132, 0.1), transparent 32%),
-    radial-gradient(circle at 16% 82%, rgba(39, 93, 78, 0.09), transparent 40%),
-    linear-gradient(90deg, rgba(2, 7, 7, 0.97) 0%, rgba(3, 10, 10, 0.93) 32%, rgba(4, 12, 11, 0.88) 68%, rgba(2, 8, 8, 0.95) 100%),
-    linear-gradient(180deg, rgba(2, 8, 7, 0.78), rgba(1, 6, 6, 0.92));
-}
-
-.game-atmosphere-layer::before,
-.game-atmosphere-layer::after,
-.admin-atmosphere-layer::before,
-.admin-atmosphere-layer::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-}
-
-.game-atmosphere-layer::before,
-.admin-atmosphere-layer::before {
-  background-image:
-    linear-gradient(rgba(210, 244, 222, 0.065) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(210, 244, 222, 0.065) 1px, transparent 1px);
-  background-size: 46px 46px;
-  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.82), transparent 94%);
-}
-
-.game-atmosphere-layer::before {
-  opacity: 0.2;
-}
-
-.admin-atmosphere-layer::before {
-  opacity: 0.12;
-}
-
-.game-atmosphere-layer::after,
-.admin-atmosphere-layer::after {
-  mix-blend-mode: soft-light;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.78' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.38'/%3E%3C/svg%3E");
-}
-
-.game-atmosphere-layer::after {
-  opacity: 0.065;
-}
-
-.admin-atmosphere-layer::after {
-  opacity: 0.045;
-}
-
-.financial-backdrop-atmosphere--critical {
-  box-shadow: inset 0 0 18rem rgba(112, 22, 16, 0.38);
 }
 
 .game-state-shell,
@@ -234,37 +275,55 @@ html[data-app-surface="banned"] body::before {
 }
 
 @media (max-width: 720px) {
-  .game-image-layer img,
-  .admin-image-layer img {
+  .application-image-layer img {
     object-position: 52% 48%;
   }
 
-  .game-image-layer img {
+  html[data-app-backdrop="auth"] .application-image-layer img {
+    filter: saturate(0.68) contrast(1.08) brightness(0.62);
+  }
+
+  html[data-app-backdrop="game"] .application-image-layer img {
     filter: saturate(0.54) contrast(1.12) brightness(0.43);
   }
 
-  .admin-image-layer img {
+  html[data-app-backdrop="admin"] .application-image-layer img {
     filter: saturate(0.34) contrast(1.14) brightness(0.36);
   }
 
-  .game-atmosphere-layer {
+  html[data-app-backdrop="auth"] .application-atmosphere-layer {
+    background:
+      radial-gradient(circle at 20% 14%, rgba(86, 224, 137, 0.15), transparent 30%),
+      linear-gradient(180deg, rgba(1, 7, 4, 0.62) 0%, rgba(2, 10, 6, 0.6) 36%, rgba(2, 8, 5, 0.82) 100%);
+  }
+
+  html[data-app-backdrop="game"] .application-atmosphere-layer {
     background:
       radial-gradient(circle at 50% 12%, rgba(67, 202, 119, 0.11), transparent 32%),
       linear-gradient(180deg, rgba(1, 7, 4, 0.86) 0%, rgba(2, 9, 6, 0.84) 36%, rgba(1, 6, 4, 0.94) 100%);
   }
 
-  .admin-atmosphere-layer {
+  html[data-app-backdrop="admin"] .application-atmosphere-layer {
     background:
       radial-gradient(circle at 50% 10%, rgba(76, 150, 132, 0.08), transparent 30%),
       linear-gradient(180deg, rgba(2, 7, 7, 0.91) 0%, rgba(3, 10, 10, 0.9) 38%, rgba(1, 6, 6, 0.97) 100%);
   }
 
-  .game-atmosphere-layer::before {
+  html[data-app-backdrop="auth"] .application-atmosphere-layer::before {
+    opacity: 0.12;
+    background-size: 42px 42px;
+  }
+
+  html[data-app-backdrop="auth"] .application-atmosphere-layer::after {
+    opacity: 0.05;
+  }
+
+  html[data-app-backdrop="game"] .application-atmosphere-layer::before {
     opacity: 0.16;
     background-size: 42px 42px;
   }
 
-  .admin-atmosphere-layer::before {
+  html[data-app-backdrop="admin"] .application-atmosphere-layer::before {
     opacity: 0.09;
     background-size: 42px 42px;
   }
@@ -283,8 +342,7 @@ html[data-app-surface="banned"] body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .game-image-layer img,
-  .admin-image-layer img {
+  .application-image-layer img {
     transform: none;
   }
 }
