@@ -11,6 +11,8 @@ interface State {
 }
 
 function currentFallbackVariant(): FinancialBackdropVariant {
+  const backdrop = document.documentElement.dataset.appBackdrop;
+  if (backdrop === 'auth' || backdrop === 'game' || backdrop === 'admin') return backdrop;
   const surface = document.documentElement.dataset.appSurface;
   if (surface === 'admin' || window.location.pathname.replace(/\/+$/, '') === '/economy/admin') return 'admin';
   if (surface === 'game' || surface === 'banned') return 'game';
@@ -25,6 +27,8 @@ export class AppErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    document.documentElement.dataset.appSurface = 'error';
+    document.documentElement.dataset.appTone = 'critical';
     console.error('Economy client render failed', error, info.componentStack);
   }
 
