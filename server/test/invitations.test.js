@@ -328,3 +328,64 @@ test('same-IP registration form code is recorded without a gem reward', () => {
     context.store.close();
   }
 });
+
+
+test('legacy automatic-ban migration remains idempotent after an audit-only partial attempt', () => {
+  const context = setup();
+  try {
+    const now = 1_700_000_000_000;
+    context.registrationStore.ensureLoggedInPlayer({ user: user(1), ipFingerprint: 'shared-ip', now });
+    context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'shared-ip', now: now + 1 });
+    const incidentId = context.registrationStore.listBanIncidents()[0].id;
+    context.store.database.prepare(`
+      INSERT INTO economy_account_bans (
+        user_id, status, reason, incident_id, banned_at, banned_by,
+        unbanned_at, unbanned_by, admin_note
+      ) VALUES (?, 'active', 'duplicate_registration_ip', ?, ?, NULL, NULL, NULL, '')
+    `).run(1, incidentId, now + 2);
+    context.store.database.prepare(`
+      INSERT INTO economy_ban_audit (
+        user_id, incident_id, action, actor_user_id, note, request_key, created_at
+      ) VALUES (?, ?, 'unban', NULL, ?, ?, ?)
+    `).run(
+      1,
+      incidentId,
+      '规则迁移：自动封禁改为异常上报',
+      'migration:auto-ban-report-only:1',
+      now + 3,
+    );
+    context.registrationStore.banUser({
+      userId: 2,
+      incidentId,
+      adminUserId: 99,
+      note: '管理员确认违规',
+      requestKey: 'preserve-admin-ban-0001',
+      now: now + 4,
+    });
+
+    const restarted = new EconomyRegistrationStore(context.store, {
+      secret: 'invite-test-secret'.repeat(4), ensurePlayer, publicOrigin: 'https://game.riversoft.top',
+    });
+    assert.doesNotThrow(() => restarted.assertPlayerActive(1));
+    assert.throws(() => restarted.assertPlayerActive(2), { statusCode: 423 });
+    const migrated = context.store.database.prepare(
+      'SELECT status, admin_note FROM economy_account_bans WHERE user_id = 1',
+    ).get();
+    assert.equal(migrated.status, 'lifted');
+    assert.equal(migrated.admin_note, '规则迁移：自动封禁改为异常上报');
+
+    const restartedAgain = new EconomyRegistrationStore(context.store, {
+      secret: 'invite-test-secret'.repeat(4), ensurePlayer, publicOrigin: 'https://game.riversoft.top',
+    });
+    assert.doesNotThrow(() => restartedAgain.assertPlayerActive(1));
+    assert.throws(() => restartedAgain.assertPlayerActive(2), { statusCode: 423 });
+    assert.equal(
+      context.store.database.prepare(
+        "SELECT COUNT(*) AS count FROM economy_ban_audit WHERE request_key = 'migration:auto-ban-report-only:1'",
+      ).get().count,
+      1,
+    );
+  } finally {
+    context.store.close();
+  }
+});

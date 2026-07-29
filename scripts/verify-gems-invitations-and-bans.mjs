@@ -141,6 +141,7 @@ for (const text of [
   'administrator manually controls single-account and whole-incident bans',
   'review survives restart and a new same-IP account only reopens the report',
   'same-IP registration form code is recorded without a gem reward',
+  'legacy automatic-ban migration remains idempotent after an audit-only partial attempt',
   "assert.equal('claimExpiresAt' in summary, false)",
 ]) requireText('server/test/invitations.test.js', text);
 

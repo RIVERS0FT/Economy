@@ -161,7 +161,7 @@ export class EconomyInvitationStore {
         ON economy_ip_incident_audit(incident_id, created_at DESC, id DESC);
     `);
     const migrationNow = Date.now();
-    const migratedAutoBans = this.database.prepare(`
+    this.database.prepare(`
       INSERT OR IGNORE INTO economy_ban_audit (
         user_id, incident_id, action, actor_user_id, note, request_key, created_at
       )
@@ -178,29 +178,27 @@ export class EconomyInvitationStore {
         AND reason = 'duplicate_registration_ip'
         AND banned_by IS NULL
     `).run(migrationNow);
-    if (Number(migratedAutoBans.changes || 0) > 0) {
-      this.database.prepare(`
-        UPDATE economy_account_bans
-        SET status = 'lifted',
-            unbanned_at = ?,
-            unbanned_by = NULL,
-            admin_note = '规则迁移：自动封禁改为异常上报'
-        WHERE status = 'active'
-          AND reason = 'duplicate_registration_ip'
-          AND banned_by IS NULL
-      `).run(migrationNow);
-      this.database.prepare(`
-        UPDATE economy_ip_ban_incidents
-        SET status = 'active', updated_at = ?
-        WHERE id IN (
-          SELECT DISTINCT incident_id
-          FROM economy_account_bans
-          WHERE reason = 'duplicate_registration_ip'
-            AND admin_note = '规则迁移：自动封禁改为异常上报'
-            AND incident_id IS NOT NULL
-        )
-      `).run(migrationNow);
-    }
+    this.database.prepare(`
+      UPDATE economy_account_bans
+      SET status = 'lifted',
+          unbanned_at = COALESCE(unbanned_at, ?),
+          unbanned_by = NULL,
+          admin_note = '规则迁移：自动封禁改为异常上报'
+      WHERE status = 'active'
+        AND reason = 'duplicate_registration_ip'
+        AND banned_by IS NULL
+    `).run(migrationNow);
+    this.database.prepare(`
+      UPDATE economy_ip_ban_incidents
+      SET status = 'active', updated_at = MAX(updated_at, ?)
+      WHERE id IN (
+        SELECT DISTINCT incident_id
+        FROM economy_account_bans
+        WHERE reason = 'duplicate_registration_ip'
+          AND admin_note = '规则迁移：自动封禁改为异常上报'
+          AND incident_id IS NOT NULL
+      )
+    `).run(migrationNow);
 
     this.selectInviteCodeByUser = this.database.prepare(`
       SELECT * FROM economy_invite_codes WHERE user_id = ?
@@ -314,6 +312,11 @@ export class EconomyInvitationStore {
     this.selectIncidentMembers = this.database.prepare(`
       SELECT user_id FROM economy_ip_ban_members WHERE incident_id = ? ORDER BY user_id
     `);
+    this.selectIncidentMember = this.database.prepare(`
+      SELECT 1 AS present
+      FROM economy_ip_ban_members
+      WHERE incident_id = ? AND user_id = ?
+    `);
     this.selectInvitationCounts = this.database.prepare(`
       SELECT
         COUNT(*) AS total_count,
@@ -383,9 +386,10 @@ export class EconomyInvitationStore {
   assertActive(userId) {
     const ban = this.activeBan(userId);
     if (!ban) return;
+    const incidentId = ban.incident_id === null ? undefined : Number(ban.incident_id);
     throw httpError('该账号已被管理员封禁，请联系管理员复核', 423, {
       code: 'ECONOMY_ACCOUNT_BANNED',
-      incidentId: Number(ban.incident_id),
+      ...(incidentId === undefined ? {} : { incidentId }),
     });
   }
 
@@ -638,7 +642,7 @@ export class EconomyInvitationStore {
 
   getBanIncident(incidentId) {
     const incident = this.selectBanIncidentStatement.get(Number(incidentId));
-    if (!incident) throw httpError('封禁事件不存在', 404);
+    if (!incident) throw httpError('异常事件不存在', 404);
     const { ip_fingerprint: ipFingerprint, ...publicIncident } = incident;
     return {
       incident: {
@@ -663,6 +667,14 @@ export class EconomyInvitationStore {
       const normalizedIncidentId = incidentId === null || incidentId === undefined
         ? existing?.incident_id ?? null
         : Number(incidentId);
+      if (normalizedIncidentId !== null) {
+        if (!this.selectBanIncidentStatement.get(normalizedIncidentId)) {
+          throw httpError('异常事件不存在', 404);
+        }
+        if (!this.selectIncidentMember.get(normalizedIncidentId, normalizedUserId)) {
+          throw httpError('账号不属于该异常事件', 409);
+        }
+      }
       this.upsertManualBan.run(
         normalizedUserId,
         normalizedIncidentId,
