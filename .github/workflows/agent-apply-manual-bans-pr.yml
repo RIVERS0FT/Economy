@@ -24,12 +24,26 @@ jobs:
       - name: Apply approved patch
         run: |
           python3 - <<'PY'
-          import base64, pathlib, re, zlib
-          workflow = pathlib.Path('.github/workflows/agent-apply-manual-bans.yml').read_text(encoding='utf-8')
-          match = re.search(r'PATCH_B64: "([A-Za-z0-9+/=]+)"', workflow)
+          import base64, pathlib, re, subprocess, zlib
+          source = subprocess.check_output([
+              'git', 'show',
+              '1847669d7210e5caf098b13bfdab27351c6f7eea:.github/workflows/agent-apply-manual-bans.yml',
+          ], text=True)
+          match = re.search(r'PATCH_B64: "([A-Za-z0-9+/=]+)"', source)
           if not match:
-              raise SystemExit('PATCH_B64 payload not found')
-          pathlib.Path('/tmp/apply_manual_bans.py').write_bytes(zlib.decompress(base64.b64decode(match.group(1))))
+              raise SystemExit('original PATCH_B64 payload not found')
+          script = zlib.decompress(base64.b64decode(match.group(1))).decode('utf-8')
+          bad = '''replace_once(path, """    return this.store.transaction(() => {
+      const repeated = this.selectBanAuditByRequestKey.get(requestKey);
+""", """    const adminNote = normalizeAdminNote(note);
+    return this.store.transaction(() => {
+      const repeated = this.selectBanAuditByRequestKey.get(requestKey);
+""",)
+# The preceding replacement targets the first occurrence after unbanUser? It may have matched banUser. Fix structurally below.
+'''
+          if script.count(bad) != 1:
+              raise SystemExit(f'ambiguous patch correction: {script.count(bad)} matches')
+          pathlib.Path('/tmp/apply_manual_bans.py').write_text(script.replace(bad, '', 1), encoding='utf-8')
           PY
           python3 /tmp/apply_manual_bans.py
       - name: Install dependencies
@@ -47,6 +61,7 @@ jobs:
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          rm -f .github/workflows/agent-apply-manual-bans.yml .github/workflows/agent-apply-manual-bans-pr.yml
           git add -A
           git commit -m "Make account bans administrator-only"
           git push origin HEAD:agent/manual-admin-bans
