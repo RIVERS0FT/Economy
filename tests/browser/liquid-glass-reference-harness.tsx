@@ -1,5 +1,6 @@
 import LiquidGlass from 'liquid-glass-react';
 import { createRoot } from 'react-dom/client';
+import '../../src/app/interactionBootstrap';
 import { LiquidGlassSurface } from '../../src/components/ui/LiquidGlassSurface';
 import { FinancialBackdrop } from '../../src/components/visual/FinancialBackdrop';
 import '../../src/styles/globals.css';
