@@ -208,6 +208,32 @@
   visibility: visible !important;
 }
 
+.login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect,
+.login-card > .liquid-glass-surface--mobileAuthCard > .liquid-glass-surface__effect,
+.login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect > .glass,
+.login-card > .liquid-glass-surface--mobileAuthCard > .liquid-glass-surface__effect > .glass {
+  transition: none !important;
+}
+
+.login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect > .glass,
+.login-card > .liquid-glass-surface--mobileAuthCard > .liquid-glass-surface__effect > .glass,
+.login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect > .glass > div,
+.login-card > .liquid-glass-surface--mobileAuthCard > .liquid-glass-surface__effect > .glass > div {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.login-card > .liquid-glass-surface--desktopAuthCard > span,
+.login-card > .liquid-glass-surface--mobileAuthCard > span {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  transition: none !important;
+}
+
 .liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),
 .liquid-glass-surface--mobileAuthCard > div:not(.liquid-glass-surface__effect) {
   display: none !important;

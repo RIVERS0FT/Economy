@@ -36,10 +36,15 @@ async function readAuthGlass(page: Page) {
     const surfaceStyle = getComputedStyle(surface);
     const contentStyle = getComputedStyle(content);
     const effectStyle = getComputedStyle(effect);
+    const glassStyle = getComputedStyle(glassElement);
     const outlineStyle = getComputedStyle(surface, '::after');
     const warpStyle = getComputedStyle(warp);
+    const surfaceRect = surface.getBoundingClientRect();
+    const glassRect = glassElement.getBoundingClientRect();
     const directDecorationSpans = Array.from(surface.children)
       .filter((element): element is HTMLElement => element instanceof HTMLElement && element.tagName === 'SPAN');
+    const directDecorationStyles = directDecorationSpans.map((element) => getComputedStyle(element));
+    const directDecorationRects = directDecorationSpans.map((element) => element.getBoundingClientRect());
     const directAuxiliaryDivs = Array.from(surface.children)
       .filter((element): element is HTMLElement => (
         element instanceof HTMLElement
@@ -55,9 +60,12 @@ async function readAuthGlass(page: Page) {
       cardOverflowY: cardStyle.overflowY,
       surfaceRadius: surfaceStyle.borderTopLeftRadius,
       surfaceHeight: surface.clientHeight,
+      surfaceBottom: surfaceRect.bottom,
       surfaceElasticity: surface.dataset.liquidGlassElasticity,
       effectHeight: effect.offsetHeight,
       glassHeight: glassElement.offsetHeight,
+      glassBottom: glassRect.bottom,
+      glassTransitionProperty: glassStyle.transitionProperty,
       filterHeight: filterSvg.clientHeight,
       effectTransform: effectStyle.transform,
       surfaceOverflowY: surfaceStyle.overflowY,
@@ -75,8 +83,10 @@ async function readAuthGlass(page: Page) {
       directDecorationSpanCount: directDecorationSpans.length,
       visibleDirectDecorationSpanCount: directDecorationSpans.filter(isVisible).length,
       directDecorationHeights: directDecorationSpans.map((element) => element.offsetHeight),
-      directDecorationTransforms: directDecorationSpans.map((element) => getComputedStyle(element).transform),
-      directDecorationBackgrounds: directDecorationSpans.map((element) => getComputedStyle(element).backgroundImage),
+      directDecorationBottoms: directDecorationRects.map((rect) => rect.bottom),
+      directDecorationTransforms: directDecorationStyles.map((style) => style.transform),
+      directDecorationTransitionProperties: directDecorationStyles.map((style) => style.transitionProperty),
+      directDecorationBackgrounds: directDecorationStyles.map((style) => style.backgroundImage),
       directAuxiliaryDivCount: directAuxiliaryDivs.length,
       visibleDirectAuxiliaryDivCount: directAuxiliaryDivs.filter(isVisible).length,
       displacementScales: Array.from(filterSvg.querySelectorAll('feDisplacementMap'))
@@ -114,6 +124,20 @@ async function expectAuthGlassGeometryAligned(page: Page) {
     visibleDirectDecorationSpanCount: 2,
     visibleDirectAuxiliaryDivCount: 0,
   });
+}
+
+async function expectAuthVisibleGeometryAlignedNextFrame(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  }));
+  const glass = await readAuthGlass(page);
+  expect(Math.abs(glass.surfaceHeight - glass.contentHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(glass.surfaceHeight - glass.glassHeight)).toBeLessThanOrEqual(1);
+  expect(Math.abs(glass.surfaceBottom - glass.glassBottom)).toBeLessThanOrEqual(1);
+  expect(glass.directDecorationBottoms).toHaveLength(2);
+  expect(glass.directDecorationBottoms.every((bottom) => Math.abs(glass.surfaceBottom - bottom) <= 1)).toBe(true);
+  expect(glass.glassTransitionProperty).toBe('none');
+  expect(glass.directDecorationTransitionProperties).toEqual(['none', 'none']);
 }
 
 async function readMobileAtmosphere(page: Page) {
@@ -199,6 +223,8 @@ test.describe('auth three-layer layout', () => {
       expect(glass.surfaceIsolation).toBe('auto');
       expect(glass.directDecorationSpanCount).toBe(2);
       expect(glass.visibleDirectDecorationSpanCount).toBe(2);
+      expect(glass.directDecorationTransitionProperties).toEqual(['none', 'none']);
+      expect(glass.glassTransitionProperty).toBe('none');
       expect(glass.directAuxiliaryDivCount).toBeGreaterThanOrEqual(2);
       expect(glass.displacementScales).toHaveLength(3);
       expect(Math.abs(glass.displacementScales[0])).toBe(70);
@@ -214,6 +240,31 @@ test.describe('auth three-layer layout', () => {
 
       await page.getByLabel('账号邮箱').click();
       await expect(page.getByLabel('账号邮箱')).toBeFocused();
+    });
+
+    test('keeps the official auth highlights aligned with the card bottom on the first frame of mode changes', async ({ page }) => {
+      await openLoginPage(page);
+      const email = page.getByLabel('账号邮箱');
+      await email.fill('desktop@example.com');
+      await expectAuthGlassGeometryAligned(page);
+      const loginGlass = await readAuthGlass(page);
+
+      await page.getByRole('tab', { name: '注册' }).click();
+      await expectAuthVisibleGeometryAlignedNextFrame(page);
+      await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
+      await expect(page.getByLabel('邮箱验证码')).toBeVisible();
+      await expectAuthGlassGeometryAligned(page);
+      const registrationGlass = await readAuthGlass(page);
+      expect(registrationGlass.surfaceHeight).toBeGreaterThan(loginGlass.surfaceHeight);
+
+      await page.getByRole('tab', { name: '登录' }).click();
+      await expectAuthVisibleGeometryAlignedNextFrame(page);
+      await expect(page.getByLabel('邀请码（可选）')).toHaveCount(0);
+      await expect(page.getByLabel('邮箱验证码')).toHaveCount(0);
+      await expect(email).toHaveValue('desktop@example.com');
+      await expectAuthGlassGeometryAligned(page);
+      const returnedLoginGlass = await readAuthGlass(page);
+      expect(returnedLoginGlass.surfaceHeight).toBeLessThan(registrationGlass.surfaceHeight);
     });
 
     test('keeps one authentication glass instance and form values while switching breakpoints', async ({ page }) => {
@@ -282,10 +333,13 @@ test.describe('auth three-layer layout', () => {
       expect(loginGlass.webkitBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
       expect(loginGlass.directDecorationSpanCount).toBe(2);
       expect(loginGlass.visibleDirectDecorationSpanCount).toBe(2);
+      expect(loginGlass.directDecorationTransitionProperties).toEqual(['none', 'none']);
+      expect(loginGlass.glassTransitionProperty).toBe('none');
       expect(loginGlass.directAuxiliaryDivCount).toBeGreaterThanOrEqual(2);
       expect(Math.abs(loginGlass.displacementScales[0])).toBe(70);
 
       await page.getByRole('tab', { name: '注册' }).click();
+      await expectAuthVisibleGeometryAlignedNextFrame(page);
       await expect(page.getByLabel('邀请码（可选）')).toBeVisible();
       await expect(page.getByLabel('邮箱验证码')).toBeVisible();
       await expect(email).toHaveValue('mobile@example.com');
@@ -332,6 +386,7 @@ test.describe('auth three-layer layout', () => {
       expect(registrationGlass.contentInsideGlass).toBe(true);
       expect(registrationGlass.materialFillCount).toBe(0);
       expect(registrationGlass.visibleDirectDecorationSpanCount).toBe(2);
+      expect(registrationGlass.directDecorationTransitionProperties).toEqual(['none', 'none']);
       expect(registrationGlass.surfaceHeight).toBeGreaterThan(loginGlass.surfaceHeight);
       expect(registrationGlass.cardOverflowY).not.toMatch(/auto|scroll/);
       expect(registrationGlass.surfaceOverflowY).not.toMatch(/auto|scroll/);
@@ -339,6 +394,7 @@ test.describe('auth three-layer layout', () => {
       const registrationHeight = registrationGlass.surfaceHeight;
 
       await page.getByRole('tab', { name: '登录' }).click();
+      await expectAuthVisibleGeometryAlignedNextFrame(page);
       await expect(page.getByLabel('邀请码（可选）')).toHaveCount(0);
       await expect(page.getByLabel('邮箱验证码')).toHaveCount(0);
       await expect(email).toHaveValue('mobile@example.com');

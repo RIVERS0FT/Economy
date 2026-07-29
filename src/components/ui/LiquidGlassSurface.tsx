@@ -68,6 +68,10 @@ const PRESETS = {
   mobileAuthCard: MOBILE_AUTH_CARD_GLASS,
 } as const;
 
+function readContentHeight(element: HTMLElement) {
+  return Math.ceil(Math.max(element.scrollHeight, element.offsetHeight));
+}
+
 function GlassEffect({
   variant,
   content,
@@ -114,10 +118,19 @@ export function LiquidGlassSurface({
   const preset = PRESETS[variant];
   const surfaceRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const measuredContentHeightRef = useRef<number | null>(null);
   const [contentHeight, setContentHeight] = useState<number | null>(null);
   const classes = ['liquid-glass-surface', `liquid-glass-surface--${variant}`, className]
     .filter(Boolean)
     .join(' ');
+
+  useLayoutEffect(() => {
+    if (layout !== 'content' || !contentRef.current) return;
+    const nextHeight = readContentHeight(contentRef.current);
+    if (nextHeight <= 0 || nextHeight === measuredContentHeightRef.current) return;
+    measuredContentHeightRef.current = nextHeight;
+    setContentHeight(nextHeight);
+  });
 
   useLayoutEffect(() => {
     if (layout !== 'content' || !contentRef.current || !surfaceRef.current) return undefined;
@@ -128,7 +141,6 @@ export function LiquidGlassSurface({
     );
     let measurementFrame = 0;
     let glassResizeFrame = 0;
-    let previousHeight = -1;
     let previousSurfaceWidth = -1;
     let previousSurfaceHeight = -1;
 
@@ -162,12 +174,9 @@ export function LiquidGlassSurface({
 
     const measure = () => {
       measurementFrame = 0;
-      const nextHeight = Math.ceil(Math.max(
-        contentElement.scrollHeight,
-        contentElement.offsetHeight,
-      ));
-      if (nextHeight <= 0 || nextHeight === previousHeight) return;
-      previousHeight = nextHeight;
+      const nextHeight = readContentHeight(contentElement);
+      if (nextHeight <= 0 || nextHeight === measuredContentHeightRef.current) return;
+      measuredContentHeightRef.current = nextHeight;
       setContentHeight(nextHeight);
     };
 

@@ -66,6 +66,10 @@ for (const text of [
   'mouseContainer={null}',
   'globalMousePos={STATIC_MOUSE_POSITION}',
   'mouseOffset={STATIC_MOUSE_OFFSET}',
+  'function readContentHeight(element: HTMLElement)',
+  'const measuredContentHeightRef = useRef<number | null>(null);',
+  'const nextHeight = readContentHeight(contentRef.current);',
+  'measuredContentHeightRef.current = nextHeight;',
   'data-liquid-glass-layout={layout}',
   'data-liquid-glass-elasticity={preset.elasticity}',
   'useLayoutEffect(() => {',
@@ -178,6 +182,15 @@ for (const text of [
   'content: none;',
   '.liquid-glass-surface--desktopAuthCard > span,\n.liquid-glass-surface--mobileAuthCard > span {',
   'display: block !important;',
+  '.login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect,',
+  '.login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect > .glass,',
+  '.login-card > .liquid-glass-surface--desktopAuthCard > span,',
+  'position: absolute !important;',
+  'inset: 0 !important;',
+  'width: 100% !important;',
+  'height: 100% !important;',
+  'box-sizing: border-box !important;',
+  'transform: none !important;',
   '.liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),',
   'background: var(--liquid-glass-auth-fallback);',
 ]) requireText('src/styles/liquid-glass-surfaces.css', text);
@@ -251,7 +264,9 @@ for (const text of [
   '`elasticity=0`',
   '`mouseContainer={null}`',
   '不得开启鼠标、触控板、触笔或触摸跟踪',
-  '两个边缘高光 `span` 必须可见',
+  '首次绘制前同步提交宿主高度',
+  '两个边缘高光 `span` 必须直接使用宿主的 `100%` 宽高',
+  '不得保留第三方尺寸过渡',
   '中性测量态',
   '`scrollHeight`／`offsetHeight`',
   '不得绘制项目 `::after` 结构描边',
@@ -272,6 +287,8 @@ for (const text of [
   '认证卡片任一时刻只能存在一个',
   '`elasticity: 0`',
   '`mouseContainer={null}`',
+  '首次绘制前同步提交',
+  '可见高光几何直接绑定认证宿主',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 for (const text of [
@@ -293,6 +310,14 @@ for (const text of [
   "toHaveAttribute('data-liquid-glass-elasticity', '0')",
   'keeps one authentication glass instance and form values while switching breakpoints',
   'registration content grows inside the same glass surface without an internal scrollport',
+  'keeps the official auth highlights aligned with the card bottom on the first frame of mode changes',
+  'expectAuthVisibleGeometryAlignedNextFrame',
+  'requestAnimationFrame(() => resolve())',
+  'directDecorationBottoms',
+  'directDecorationTransitionProperties',
+  'glassTransitionProperty',
+  "expect(glass.glassTransitionProperty).toBe('none')",
+  "expect(glass.directDecorationTransitionProperties).toEqual(['none', 'none'])",
   'static optical glass and highlights',
   'readMobileAtmosphere',
   "expect(atmosphere.gridOpacity).toBe('0.12')",
@@ -316,5 +341,5 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log('登录三层结构、认证光学参数、零弹性、静态鼠标输入、双层高光、几何同步与表单状态保持验证通过。');
+  console.log('登录三层结构、认证首帧高度同步、宿主绑定双层高光、零尺寸过渡、静态输入、几何同步与表单状态保持验证通过。');
 }
