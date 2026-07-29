@@ -2,7 +2,8 @@
  * geometry, sizing, content layout, clipping, minimum contrast and the
  * project status-bar outline. It must not recreate blur, refraction or
  * chromatic aberration in CSS. Status bars suppress upstream border highlights;
- * all surfaces retain the official over-light tint layers. */
+ * authentication surfaces retain the official full-area over-light tint and
+ * upstream glass shadow. */
 :root {
   --desktop-asset-bar-height: 76px;
   --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
@@ -108,17 +109,17 @@
 }
 
 .liquid-glass-surface--desktopStatusBar .glass__warp {
-  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
 }
 
 .liquid-glass-surface--mobileStatusBar .glass__warp,
 .liquid-glass-surface--mobileNavigation .glass__warp {
-  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
 }
 
 .liquid-glass-surface--desktopAuthCard .glass__warp,
 .liquid-glass-surface--mobileAuthCard .glass__warp {
-  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(4px) saturate(140%);
 }
 
 .asset-bar > .liquid-glass-surface--desktopStatusBar,
@@ -154,14 +155,8 @@
 .liquid-glass-surface--desktopAuthCard,
 .liquid-glass-surface--mobileAuthCard {
   border: 0;
-}
-
-.liquid-glass-surface--desktopAuthCard {
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
-}
-
-.liquid-glass-surface--mobileAuthCard {
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.44);
+  background: transparent;
+  box-shadow: none;
 }
 
 .liquid-glass-surface--desktopStatusBar,
@@ -195,8 +190,11 @@
   visibility: visible !important;
   pointer-events: none !important;
   box-sizing: border-box !important;
-  padding: 1.5px !important;
   background: #000 !important;
+}
+
+.liquid-glass-surface[data-liquid-glass-over-light="true"]:not(.liquid-glass-surface--desktopAuthCard):not(.liquid-glass-surface--mobileAuthCard) > div:not(.liquid-glass-surface__effect) {
+  padding: 1.5px !important;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -254,21 +252,24 @@
   transition: none !important;
 }
 
-.login-card > .liquid-glass-surface--desktopAuthCard[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect),
-.login-card > .liquid-glass-surface--mobileAuthCard[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect) {
+.login-card > .liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),
+.login-card > .liquid-glass-surface--mobileAuthCard > div:not(.liquid-glass-surface__effect) {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
   border-radius: inherit !important;
+  padding: 0 !important;
   transform: none !important;
   transition: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
+  -webkit-mask-composite: source-over !important;
+  mask-composite: add !important;
 }
 
 .asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,
-.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass,
-.login-card > .liquid-glass-surface--desktopAuthCard .liquid-glass-surface__effect > .glass,
-.login-card > .liquid-glass-surface--mobileAuthCard .liquid-glass-surface__effect > .glass {
+.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {
   box-shadow: none !important;
 }
 

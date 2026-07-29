@@ -15,6 +15,9 @@ interface LiquidGlassSurfaceProps {
   children: ReactNode;
   className?: string;
   layout?: LiquidGlassSurfaceLayout;
+  overLight?: boolean;
+  blurAmount?: number;
+  saturation?: number;
 }
 
 const STATIC_MOUSE_POSITION = { x: 0, y: 0 };
@@ -22,9 +25,9 @@ const STATIC_MOUSE_OFFSET = { x: 0, y: 0 };
 const GLOBAL_OVER_LIGHT = true;
 
 const DESKTOP_STATUS_GLASS = {
-  displacementScale: 120,
+  displacementScale: 70,
   blurAmount: 0,
-  saturation: 120,
+  saturation: 140,
   aberrationIntensity: 2,
   elasticity: 0,
   cornerRadius: 24,
@@ -32,9 +35,9 @@ const DESKTOP_STATUS_GLASS = {
 } as const;
 
 const MOBILE_CHROME_GLASS = {
-  displacementScale: 120,
+  displacementScale: 70,
   blurAmount: 0,
-  saturation: 120,
+  saturation: 140,
   aberrationIntensity: 2,
   elasticity: 0,
   cornerRadius: 40,
@@ -42,9 +45,9 @@ const MOBILE_CHROME_GLASS = {
 } as const;
 
 const DESKTOP_AUTH_CARD_GLASS = {
-  displacementScale: 120,
+  displacementScale: 70,
   blurAmount: 0,
-  saturation: 120,
+  saturation: 140,
   aberrationIntensity: 2,
   elasticity: 0,
   cornerRadius: 24,
@@ -52,9 +55,9 @@ const DESKTOP_AUTH_CARD_GLASS = {
 } as const;
 
 const MOBILE_AUTH_CARD_GLASS = {
-  displacementScale: 120,
+  displacementScale: 70,
   blurAmount: 0,
-  saturation: 120,
+  saturation: 140,
   aberrationIntensity: 2,
   elasticity: 0,
   cornerRadius: 40,
@@ -78,10 +81,16 @@ function GlassEffect({
   variant,
   content,
   contentRef,
+  overLight,
+  blurAmount,
+  saturation,
 }: {
   variant: LiquidGlassSurfaceVariant;
   content: ReactNode;
   contentRef?: RefObject<HTMLDivElement | null>;
+  overLight: boolean;
+  blurAmount: number;
+  saturation: number;
 }) {
   const preset = PRESETS[variant];
   return (
@@ -95,14 +104,14 @@ function GlassEffect({
         height: '100%',
       }}
       displacementScale={preset.displacementScale}
-      blurAmount={preset.blurAmount}
-      saturation={preset.saturation}
+      blurAmount={blurAmount}
+      saturation={saturation}
       aberrationIntensity={preset.aberrationIntensity}
       elasticity={preset.elasticity}
       cornerRadius={preset.cornerRadius}
       padding="0"
       mode={preset.mode}
-      overLight={GLOBAL_OVER_LIGHT}
+      overLight={overLight}
       mouseContainer={null}
       globalMousePos={STATIC_MOUSE_POSITION}
       mouseOffset={STATIC_MOUSE_OFFSET}
@@ -117,8 +126,13 @@ export function LiquidGlassSurface({
   children,
   className = '',
   layout = 'fixed',
+  overLight = GLOBAL_OVER_LIGHT,
+  blurAmount: blurAmountOverride,
+  saturation: saturationOverride,
 }: LiquidGlassSurfaceProps) {
   const preset = PRESETS[variant];
+  const blurAmount = blurAmountOverride ?? preset.blurAmount;
+  const saturation = saturationOverride ?? preset.saturation;
   const surfaceRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const measuredContentHeightRef = useRef<number | null>(null);
@@ -229,10 +243,10 @@ export function LiquidGlassSurface({
       data-liquid-glass-mode={preset.mode}
       data-liquid-glass-layout={layout}
       data-liquid-glass-elasticity={preset.elasticity}
-      data-liquid-glass-over-light={GLOBAL_OVER_LIGHT ? 'true' : 'false'}
+      data-liquid-glass-over-light={overLight ? 'true' : 'false'}
       data-liquid-glass-displacement-scale={preset.displacementScale}
-      data-liquid-glass-blur-amount={preset.blurAmount}
-      data-liquid-glass-saturation={preset.saturation}
+      data-liquid-glass-blur-amount={blurAmount}
+      data-liquid-glass-saturation={saturation}
       data-liquid-glass-aberration-intensity={preset.aberrationIntensity}
       style={layout === 'content' ? { height: `${contentHeight ?? 1}px` } : undefined}
     >
@@ -240,6 +254,9 @@ export function LiquidGlassSurface({
         variant={variant}
         content={children}
         contentRef={layout === 'content' ? contentRef : undefined}
+        overLight={overLight}
+        blurAmount={blurAmount}
+        saturation={saturation}
       />
     </div>
   );

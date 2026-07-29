@@ -26,7 +26,13 @@ export function AuthCardSurface({ children }: { children: ReactNode }) {
 
   return (
     <section className="login-card" aria-label="账号认证">
-      <LiquidGlassSurface variant={surfaceVariant} layout="content">
+      <LiquidGlassSurface
+        variant={surfaceVariant}
+        layout="content"
+        overLight={false}
+        blurAmount={0}
+        saturation={140}
+      >
         {children}
       </LiquidGlassSurface>
     </section>

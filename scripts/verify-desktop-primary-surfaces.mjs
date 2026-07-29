@@ -33,9 +33,9 @@ if (failures.length === 0) {
   requireText(paths.designSystem, 'border-radius: var(--radius-card);');
   for (const text of [
     'const DESKTOP_STATUS_GLASS = {',
-    'displacementScale: 120',
+    'displacementScale: 70',
     'blurAmount: 0',
-    'saturation: 120',
+    'saturation: 140',
     'aberrationIntensity: 2',
     'elasticity: 0',
     'cornerRadius: 24,',
@@ -43,7 +43,7 @@ if (failures.length === 0) {
     'const MOBILE_CHROME_GLASS = {',
     'mobileStatusBar: MOBILE_CHROME_GLASS',
     'mobileNavigation: MOBILE_CHROME_GLASS',
-    "data-liquid-glass-over-light={GLOBAL_OVER_LIGHT ? 'true' : 'false'}",
+    "data-liquid-glass-over-light={overLight ? 'true' : 'false'}",
   ]) requireText(paths.surfaceComponent, text);
   forbidText(paths.surfaceComponent, 'const IOS_CLEAR_THICK_GLASS = {');
   forbidText(paths.surfaceComponent, 'statusBar: IOS_CLEAR_THICK_GLASS');
@@ -63,7 +63,7 @@ if (failures.length === 0) {
         '.asset-bar > .liquid-glass-surface--desktopStatusBar,',
     'border-radius: 24px !important;',
     '.liquid-glass-surface--desktopStatusBar .glass__warp {',
-    '-webkit-backdrop-filter: blur(12px) saturate(120%);',
+    '-webkit-backdrop-filter: blur(12px) saturate(140%);',
     '.liquid-glass-surface--desktopStatusBar::after,',
     'z-index: 2;',
     'border: 1px solid var(--liquid-glass-structure-border);',
@@ -89,14 +89,15 @@ if (failures.length === 0) {
     '桌面工作栏高度保持 `76px`',
     '实际玻璃圆角为 `24px`',
     '`DESKTOP_STATUS_GLASS`',
-    '`blur(12px) saturate(120%)`',
-    '`displacementScale: 120`',
+    '`blur(12px) saturate(140%)`',
+    '`displacementScale: 70`',
     '`aberrationIntensity: 2`',
     '`overLight=true`',
-    '桌面与移动状态栏必须隐藏 `liquid-glass-react` 的直属边框／高光，但所有五种 variant 必须保留并显示 `overLight=true` 产生的两个官方黑色辅助层',
-    '认证卡片必须保留官方两个直属边缘高光 `span`',
-    '禁止以未遮罩的整面黑色覆盖卡片中心',
-    '清除第三方 `.glass` 外部阴影',
+    '桌面与移动状态栏继续使用 `overLight=true`',
+    '两个直属边缘高光 `span`',
+    '状态栏与导航允许用 `1.5px` 排除式 mask 将两个黑色辅助层限制为周边补偿环',
+    '认证卡片使用 `overLight=false`',
+    '第三方 `.glass` 默认外部阴影',
     '`--desktop-shell-outer-inset` 是侧栏与工作栏唯一桌面外距令牌',
     '顶部／右侧间距都来自统一桌面外距',
   ]) requireText(paths.liquidDesign, text);
@@ -127,4 +128,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('桌面一级卡片与共享工作栏 24px 圆角、全局官方 over-light 玻璃参数、顶层连续结构描边、状态栏零第三方装饰层、认证官方高光和无外部阴影验证通过。');
+console.log('桌面一级卡片与共享工作栏 24px 圆角、状态栏 over-light 参数、顶层连续结构描边、状态栏零第三方装饰层、认证高光和默认阴影验证通过。');

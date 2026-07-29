@@ -122,7 +122,7 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.glassVariant).toBe('desktopStatusBar');
     expect(layout.glassBoxShadow).toBe('none');
     expect(layout.warpBackdropFilter).toContain('blur(12px)');
-    expect(layout.warpBackdropFilter).toMatch(/saturate\((?:120%|1\.2)\)/);
+    expect(layout.warpBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
     expect(layout.warpFilter).toContain('url(');
     expect(layout.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
     expect(layout.visibleDecorationSpanCount).toBe(0);
@@ -346,7 +346,7 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.navigationBackdropFilter).not.toBe('none');
     expect(geometry.statusBackdropFilter).toBe(geometry.navigationBackdropFilter);
     expect(geometry.statusBackdropFilter).toContain('blur(12px)');
-    expect(geometry.statusBackdropFilter).toMatch(/saturate\((?:120%|1\.2)\)/);
+    expect(geometry.statusBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
     expect(geometry.statusFilterTargetExists).toBe(true);
     expect(geometry.navigationFilterTargetExists).toBe(true);
     expect(geometry.statusVisibleDecorationSpanCount).toBe(0);

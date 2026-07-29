@@ -26,7 +26,10 @@ html[data-app-surface="auth"] body::before {
 
 .login-shell {
   position: relative;
-  isolation: isolate;
+  z-index: auto;
+  isolation: auto;
+  filter: none;
+  transform: none;
   width: 100%;
   min-height: 100vh;
   min-height: 100svh;
@@ -37,7 +40,7 @@ html[data-app-surface="auth"] body::before {
   padding: 0;
   overflow: visible;
   color: var(--color-text-primary);
-  background: #020604;
+  background: transparent;
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -103,7 +106,10 @@ html[data-app-surface="auth"] body::before {
 
 .login-content-layer {
   position: relative;
-  z-index: 2;
+  z-index: auto;
+  isolation: auto;
+  filter: none;
+  transform: none;
   width: min(1180px, calc(100vw - var(--space-8)));
   min-height: 100vh;
   min-height: 100svh;
@@ -157,6 +163,10 @@ html[data-app-surface="auth"] body::before {
 }
 
 .login-card {
+  z-index: auto;
+  isolation: auto;
+  filter: none;
+  transform: none;
   width: 100%;
   min-width: 0;
   align-self: center;
