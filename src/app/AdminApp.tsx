@@ -14,7 +14,6 @@ import { AdminDesktopBar } from '../components/shell/AdminDesktopBar';
 import { SignedInShell } from '../components/shell/SignedInShell';
 import { CurrencyText } from '../components/ui/CurrencyAmount';
 import { Button, PageLayout } from '../components/ui/layout';
-import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';
 import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';
 import type { AuthUser } from '../types';
 
@@ -96,7 +95,6 @@ export function AdminApp({ user }: { user: AuthUser }) {
       chromeOverlayClassName="admin-mobile-chrome-layer"
       adminChromeLayer
       sidebarCollapsed={sidebarCollapsed}
-      backdrop={<FinancialBackdrop variant="admin" />}
       sidebar={(
         <AdminSidebar
           email={user.email}

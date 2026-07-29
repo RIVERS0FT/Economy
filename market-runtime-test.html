@@ -4,9 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Economy market runtime test</title>
+    <script>
+      document.documentElement.dataset.appSurface = 'game';
+      document.documentElement.dataset.appBackdrop = 'game';
+      document.documentElement.dataset.appTone = 'normal';
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div style="position: relative; isolation: isolate; min-height: 100%;">
+      <div id="backdrop-root"></div>
+      <div id="root" class="application-content-root" style="isolation: auto;"></div>
+    </div>
+    <script type="module" src="/tests/browser/persistent-backdrop-harness.tsx"></script>
     <script type="module" src="/tests/browser/market-runtime-harness.tsx"></script>
   </body>
 </html>

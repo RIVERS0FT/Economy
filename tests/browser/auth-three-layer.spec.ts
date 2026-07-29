@@ -17,6 +17,7 @@ async function openLoginPage(page: Page) {
   });
   await page.goto('');
   await expect(page.locator('html')).toHaveAttribute('data-app-surface', 'auth');
+  await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'auth');
   await expect(page.locator('.login-shell')).toBeVisible();
 }
 
@@ -154,7 +155,7 @@ async function expectAuthVisibleGeometryAlignedNextFrame(page: Page) {
 
 async function readMobileAtmosphere(page: Page) {
   return page.evaluate(() => {
-    const atmosphere = document.querySelector<HTMLElement>('.login-atmosphere-layer');
+    const atmosphere = document.querySelector<HTMLElement>('.application-atmosphere-layer');
     if (!atmosphere) throw new Error('mobile atmosphere layer is missing');
     return {
       backgroundImage: getComputedStyle(atmosphere).backgroundImage,
@@ -171,14 +172,16 @@ test.describe('auth three-layer layout', () => {
     test('keeps image, atmosphere and content in distinct stacking layers with static optical glass and highlights', async ({ page }) => {
       await openLoginPage(page);
 
-      const imageLayer = page.locator('.login-image-layer');
-      const atmosphereLayer = page.locator('.login-atmosphere-layer');
+      const imageLayer = page.locator('.application-image-layer');
+      const atmosphereLayer = page.locator('.application-atmosphere-layer');
       const contentLayer = page.locator('.login-content-layer');
       const brand = page.locator('.login-brand');
       const card = page.locator('.login-card');
       const surface = card.locator('.liquid-glass-surface');
 
+      await expect(imageLayer).toHaveCount(1);
       await expect(imageLayer).toBeVisible();
+      await expect(atmosphereLayer).toHaveCount(1);
       await expect(atmosphereLayer).toBeVisible();
       await expect(contentLayer).toBeVisible();
       await expect(card).toBeVisible();
@@ -188,6 +191,7 @@ test.describe('auth three-layer layout', () => {
       await expect(surface).toHaveAttribute('data-liquid-glass-layout', 'content');
       await expect(surface).toHaveAttribute('data-liquid-glass-elasticity', '0');
       await expect(surface).toHaveAttribute('data-liquid-glass-over-light', 'true');
+      await expect(page.locator('.login-shell .financial-backdrop-image')).toHaveCount(0);
 
       const stacking = await page.evaluate(() => {
         const read = (selector: string) => {
@@ -195,9 +199,9 @@ test.describe('auth three-layer layout', () => {
           return { position: style.position, zIndex: style.zIndex };
         };
         return {
-          image: read('.login-image-layer'),
-          atmosphere: read('.login-atmosphere-layer'),
-          content: read('.login-content-layer'),
+          image: read('.application-image-layer'),
+          atmosphere: read('.application-atmosphere-layer'),
+          content: read('.application-content-root'),
         };
       });
 
@@ -214,7 +218,7 @@ test.describe('auth three-layer layout', () => {
       const geometry = await page.evaluate(() => ({
         viewportWidth: window.innerWidth,
         documentWidth: document.documentElement.scrollWidth,
-        imageFit: getComputedStyle(document.querySelector('.login-image-layer img') as HTMLElement).objectFit,
+        imageFit: getComputedStyle(document.querySelector('.application-image-layer img') as HTMLElement).objectFit,
       }));
       expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth);
       expect(geometry.imageFit).toBe('cover');

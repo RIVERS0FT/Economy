@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react';
-import {
-  FinancialBackdrop,
-  type FinancialBackdropTone,
-  type FinancialBackdropVariant,
-} from './FinancialBackdrop';
+
+type PhotographicStateVariant = 'auth' | 'game' | 'admin';
+type PhotographicStateTone = 'normal' | 'critical';
 
 function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -12,15 +10,13 @@ function classNames(...values: Array<string | false | null | undefined>) {
 export function PhotographicStateShell({
   variant,
   tone = 'normal',
-  priority = false,
   className = '',
   contentClassName = '',
   role,
   children,
 }: {
-  variant: FinancialBackdropVariant;
-  tone?: FinancialBackdropTone;
-  priority?: boolean;
+  variant: PhotographicStateVariant;
+  tone?: PhotographicStateTone;
   className?: string;
   contentClassName?: string;
   role?: 'alert' | 'status';
@@ -36,7 +32,6 @@ export function PhotographicStateShell({
       )}
       data-photographic-state-variant={variant}
     >
-      <FinancialBackdrop variant={variant} tone={tone} priority={priority} />
       <div
         className={classNames('photographic-state-shell__content', contentClassName)}
         role={role}

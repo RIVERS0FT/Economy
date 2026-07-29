@@ -40,7 +40,7 @@ async function configureSession(page: Page, {
 }
 
 test.describe('all-interface photography', () => {
-  test('shows photography while checking the account session', async ({ page }) => {
+  test('keeps the same photography node from account checking into authentication', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await routePhotography(page);
 
@@ -56,20 +56,38 @@ test.describe('all-interface photography', () => {
     await page.goto('/economy/', { waitUntil: 'domcontentloaded' });
 
     const shell = page.locator('.photographic-state-shell');
+    const imageLayer = page.locator('.application-image-layer');
+    const image = imageLayer.locator('img');
     await expect(shell).toBeVisible();
     await expect(shell).toHaveAttribute('data-photographic-state-variant', 'auth');
-    await expect(page.locator('.login-image-layer')).toBeVisible();
-    await expect(page.locator('.login-atmosphere-layer')).toBeVisible();
+    await expect(imageLayer).toHaveCount(1);
+    await expect(imageLayer).toBeVisible();
+    await expect(page.locator('.application-atmosphere-layer')).toBeVisible();
     await expect(page.getByText('正在连接统一账号服务…', { exact: true })).toBeVisible();
+
+    await image.evaluate((element) => {
+      const data = element.dataset;
+      data.persistenceProbe = 'account-check';
+    });
+
+    releaseAccountCheck();
+    await expect(page.locator('.login-shell')).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-app-surface', 'auth');
+    await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'auth');
+    await expect(imageLayer).toHaveCount(1);
+    await expect(image).toHaveAttribute('data-persistence-probe', 'account-check');
+    await expect(page.locator('.login-shell .financial-backdrop-image')).toHaveCount(0);
 
     const visual = await page.evaluate(() => ({
       bodyGridDisplay: getComputedStyle(document.body, '::before').display,
       documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      imageLoading: document.querySelector<HTMLImageElement>('.application-image-layer img')?.loading,
+      imageFetchPriority: document.querySelector<HTMLImageElement>('.application-image-layer img')?.fetchPriority,
     }));
     expect(visual.bodyGridDisplay).toBe('none');
     expect(visual.documentOverflow).toBeLessThanOrEqual(1);
-
-    releaseAccountCheck();
+    expect(visual.imageLoading).toBe('eager');
+    expect(visual.imageFetchPriority).toBe('high');
   });
 
   test('uses the game critical atmosphere for banned accounts', async ({ page }) => {
@@ -83,13 +101,15 @@ test.describe('all-interface photography', () => {
     await expect(shell).toBeVisible();
     await expect(shell).toHaveAttribute('data-photographic-state-variant', 'game');
     await expect(shell).toHaveClass(/photographic-state-shell--critical/);
-    await expect(page.locator('.game-image-layer')).toBeVisible();
-    await expect(page.locator('.game-atmosphere-layer.financial-backdrop-atmosphere--critical')).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'game');
+    await expect(page.locator('html')).toHaveAttribute('data-app-tone', 'critical');
+    await expect(page.locator('.application-image-layer')).toBeVisible();
+    await expect(page.locator('.application-atmosphere-layer')).toBeVisible();
     await expect(page.getByRole('heading', { name: '账号已封禁', exact: true })).toBeVisible();
     await expect(page.getByText('事件编号：#17', { exact: true })).toBeVisible();
   });
 
-  test('uses the admin atmosphere for denied access', async ({ page }) => {
+  test('uses the admin critical atmosphere for denied access', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await routePhotography(page);
     await configureSession(page, { role: 'user' });
@@ -100,8 +120,10 @@ test.describe('all-interface photography', () => {
     await expect(shell).toBeVisible();
     await expect(shell).toHaveAttribute('data-photographic-state-variant', 'admin');
     await expect(shell).toHaveClass(/photographic-state-shell--critical/);
-    await expect(page.locator('.admin-image-layer')).toBeVisible();
-    await expect(page.locator('.admin-atmosphere-layer')).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'admin');
+    await expect(page.locator('html')).toHaveAttribute('data-app-tone', 'critical');
+    await expect(page.locator('.application-image-layer')).toBeVisible();
+    await expect(page.locator('.application-atmosphere-layer')).toBeVisible();
     await expect(page.getByRole('heading', { name: '无权访问', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: '返回游戏', exact: true })).toBeVisible();
 
@@ -118,26 +140,29 @@ test.describe('all-interface photography', () => {
     await page.goto('/economy/admin');
 
     await expect(page.locator('.admin-shell')).toBeVisible();
-    await expect(page.locator('.admin-image-layer img')).toBeHidden();
-    await expect(page.locator('.admin-atmosphere-layer')).toBeVisible();
+    await expect(page.locator('.application-image-layer img')).toBeHidden();
+    await expect(page.locator('.application-atmosphere-layer')).toBeVisible();
     await expect(page.locator('.admin-command-bar')).toBeVisible();
     await expect(page.locator('.admin-sidebar')).toBeVisible();
+    await expect(page.locator('.admin-shell .financial-backdrop-image')).toHaveCount(0);
 
     const visual = await page.evaluate(() => {
       const shell = document.querySelector<HTMLElement>('.admin-shell');
-      const image = document.querySelector<HTMLElement>('.admin-image-layer');
-      const atmosphere = document.querySelector<HTMLElement>('.admin-atmosphere-layer');
-      if (!shell || !image || !atmosphere) throw new Error('administrator photography fixture is incomplete');
-      const children = [...shell.children];
+      const image = document.querySelector<HTMLElement>('.application-image-layer');
+      const atmosphere = document.querySelector<HTMLElement>('.application-atmosphere-layer');
+      const contentRoot = document.querySelector<HTMLElement>('.application-content-root');
+      if (!shell || !image || !atmosphere || !contentRoot) {
+        throw new Error('administrator photography fixture is incomplete');
+      }
       return {
         shellBackground: getComputedStyle(shell).backgroundColor,
         shellIsolation: getComputedStyle(shell).isolation,
         imagePosition: getComputedStyle(image).position,
         atmospherePosition: getComputedStyle(atmosphere).position,
-        imageIndex: children.indexOf(image),
-        atmosphereIndex: children.indexOf(atmosphere),
-        sidebarIndex: children.findIndex((element) => element.classList.contains('admin-sidebar')),
-        workspaceIndex: children.findIndex((element) => element.classList.contains('admin-workspace')),
+        imageZIndex: getComputedStyle(image).zIndex,
+        atmosphereZIndex: getComputedStyle(atmosphere).zIndex,
+        contentZIndex: getComputedStyle(contentRoot).zIndex,
+        imageInsideShell: shell.contains(image),
       };
     });
 
@@ -145,9 +170,9 @@ test.describe('all-interface photography', () => {
     expect(visual.shellIsolation).toBe('isolate');
     expect(visual.imagePosition).toBe('fixed');
     expect(visual.atmospherePosition).toBe('fixed');
-    expect(visual.imageIndex).toBe(0);
-    expect(visual.atmosphereIndex).toBe(1);
-    expect(visual.sidebarIndex).toBeGreaterThan(visual.atmosphereIndex);
-    expect(visual.workspaceIndex).toBeGreaterThan(visual.sidebarIndex);
+    expect(visual.imageZIndex).toBe('0');
+    expect(visual.atmosphereZIndex).toBe('1');
+    expect(visual.contentZIndex).toBe('2');
+    expect(visual.imageInsideShell).toBe(false);
   });
 });

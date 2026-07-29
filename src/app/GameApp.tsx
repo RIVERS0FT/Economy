@@ -6,7 +6,6 @@ import { GameShell } from '../components/shell/GameShell';
 import type { StatusBarItem } from '../components/shell/StatusBar';
 import { AuthoritativeCountdownRefresh } from '../components/system/AuthoritativeCountdownRefresh';
 import { CurrencyAmount, CurrencyText } from '../components/ui/CurrencyAmount';
-import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';
 import { PageRouter } from '../pages/PageRouter';
 import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompactNumbersEnabled } from '../utils/formatters';
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
@@ -17,7 +16,6 @@ import '../styles/game-guide.css';
 function GameStateShell({ children }: { children: ReactNode }) {
   return (
     <main className="game-state-shell">
-      <FinancialBackdrop variant="game" />
       <div className="loading-screen">{children}</div>
     </main>
   );

@@ -20,6 +20,7 @@ for (const path of [
   'src/components/visual/PhotographicStateShell.tsx',
   'src/components/shell/SignedInShell.tsx',
   'src/components/shell/GameShell.tsx',
+  'src/app/LoginPage.tsx',
   'src/app/GameApp.tsx',
   'src/app/AdminApp.tsx',
   'src/app/App.tsx',
@@ -28,6 +29,9 @@ for (const path of [
   'src/styles/liquid-glass-chrome.css',
   'src/styles/viewport.css',
   'src/main.tsx',
+  'runtime-test.html',
+  'market-runtime-test.html',
+  'tests/browser/persistent-backdrop-harness.tsx',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
   'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   'tests/browser/game-three-layer.spec.ts',
@@ -35,65 +39,74 @@ for (const path of [
 ]) requireFile(path);
 
 for (const text of [
-  'backdrop?: ReactNode;',
-  '{backdrop}',
   '{sidebar}',
   'className="mobile-page-overlay"',
   "'mobile-chrome-overlay'",
+  '{chrome}',
 ]) requireText('src/components/shell/SignedInShell.tsx', text);
+for (const text of ['backdrop?: ReactNode;', '{backdrop}']) forbidText('src/components/shell/SignedInShell.tsx', text);
 
 const sharedShell = read('src/components/shell/SignedInShell.tsx');
-const backdropIndex = sharedShell.indexOf('{backdrop}');
 const sidebarIndex = sharedShell.indexOf('{sidebar}');
 const pageOverlayIndex = sharedShell.indexOf('className="mobile-page-overlay"');
 const chromeOverlayIndex = sharedShell.indexOf("'mobile-chrome-overlay'");
-if (!(backdropIndex >= 0 && sidebarIndex > backdropIndex && pageOverlayIndex > sidebarIndex && chromeOverlayIndex > pageOverlayIndex)) {
-  failures.push('SignedInShell 必须按背景、侧栏、页面 Overlay、Chrome Overlay 顺序渲染');
+if (!(sidebarIndex >= 0 && pageOverlayIndex > sidebarIndex && chromeOverlayIndex > pageOverlayIndex)) {
+  failures.push('SignedInShell 必须按侧栏、页面 Overlay、Chrome Overlay 顺序渲染');
 }
 
 for (const text of [
   "export type FinancialBackdropVariant = 'auth' | 'game' | 'admin';",
   "export type FinancialBackdropTone = 'normal' | 'critical';",
-  "const prefix = variant === 'auth' ? 'login' : variant;",
-  'financial-backdrop-atmosphere--critical',
+  'export function FinancialBackdrop()',
+  'application-image-layer financial-backdrop-image',
+  'data-persistent-financial-photography="true"',
+  'application-atmosphere-layer financial-backdrop-atmosphere',
   'FINANCIAL_BACKGROUND_IMAGE_URL',
   'FINANCIAL_BACKGROUND_IMAGE_960_URL',
+  'loading="eager"',
+  'fetchPriority="high"',
 ]) requireText('src/components/visual/FinancialBackdrop.tsx', text);
 
 for (const text of [
   'export function PhotographicStateShell',
-  '<FinancialBackdrop variant={variant} tone={tone} priority={priority} />',
   "'photographic-state-shell'",
   'data-photographic-state-variant={variant}',
   "role?: 'alert' | 'status';",
 ]) requireText('src/components/visual/PhotographicStateShell.tsx', text);
+forbidText('src/components/visual/PhotographicStateShell.tsx', '<FinancialBackdrop');
 
 for (const text of [
-  "import { FinancialBackdrop } from '../visual/FinancialBackdrop'",
-  'backdrop={<FinancialBackdrop variant="game" />}',
   'rootClassName="game-shell"',
+  '<DesktopSidebar',
+  '<StatusBar items={statusItems} />',
 ]) requireText('src/components/shell/GameShell.tsx', text);
+forbidText('src/components/shell/GameShell.tsx', 'FinancialBackdrop');
+forbidText('src/components/shell/GameShell.tsx', 'backdrop=');
 
 for (const text of [
   'function GameStateShell',
   '<main className="game-state-shell">',
-  '<FinancialBackdrop variant="game" />',
   '正在连接权威游戏服务器',
   '无法加载游戏状态',
 ]) requireText('src/app/GameApp.tsx', text);
+forbidText('src/app/GameApp.tsx', 'FinancialBackdrop');
 
 for (const text of [
-  "import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';",
   "import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';",
-  'backdrop={<FinancialBackdrop variant="admin" />}',
   '<PhotographicStateShell variant="admin" tone="critical" className="admin-denied" role="alert">',
+  'rootClassName="admin-shell"',
 ]) requireText('src/app/AdminApp.tsx', text);
+forbidText('src/app/AdminApp.tsx', 'FinancialBackdrop');
+forbidText('src/app/AdminApp.tsx', 'backdrop=');
 
 for (const text of [
-  "import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';",
+  "import type {\n  FinancialBackdropTone,\n  FinancialBackdropVariant,",
   'function BannedAccount',
   '<PhotographicStateShell variant="game" tone="critical" className="banned-account-shell" role="alert">',
   'function LoadingState',
+  'document.documentElement.dataset.appSurface = surface;',
+  'document.documentElement.dataset.appBackdrop = backdrop;',
+  'document.documentElement.dataset.appTone = tone;',
   '<LoadingState variant={stateVariantForPath(adminPath)}>',
   "<LoadingState variant={adminPath ? 'admin' : 'game'}>",
   '正在连接统一账号服务',
@@ -101,35 +114,74 @@ for (const text of [
 ]) requireText('src/app/App.tsx', text);
 
 for (const text of [
-  "import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';",
   'function currentFallbackVariant()',
+  "document.documentElement.dataset.appSurface = 'error';",
+  "document.documentElement.dataset.appTone = 'critical';",
   'tone="critical"',
   '页面运行出现异常',
 ]) requireText('src/app/AppErrorBoundary.tsx', text);
 
+for (const path of [
+  'src/app/LoginPage.tsx',
+  'src/app/AdminApp.tsx',
+  'src/app/GameApp.tsx',
+  'src/components/shell/GameShell.tsx',
+  'src/components/visual/PhotographicStateShell.tsx',
+]) forbidText(path, 'FinancialBackdrop');
+
+const mainSource = read('src/main.tsx');
 for (const text of [
-  'html[data-app-surface="admin"] body::before',
-  'html[data-app-surface="loading"] body::before',
-  'html[data-app-surface="banned"] body::before',
-  '.financial-backdrop-image img[hidden] {',
-  '.game-shell,',
-  '.admin-shell,',
-  '.photographic-state-shell {',
-  '.signed-in-shell.admin-shell {',
-  'background: transparent;',
-  '.admin-image-layer,',
-  '.admin-atmosphere-layer {',
+  "import { FinancialBackdrop } from './components/visual/FinancialBackdrop';",
+  "document.documentElement.dataset.appSurface = 'loading';",
+  'document.documentElement.dataset.appBackdrop =',
+  "document.documentElement.dataset.appTone = 'normal';",
+  '<FinancialBackdrop />',
+  '<div className="application-content-root">',
+]) requireText('src/main.tsx', text);
+const backdropNodeIndex = mainSource.indexOf('<FinancialBackdrop />');
+const strictModeIndex = mainSource.indexOf('<React.StrictMode>');
+const boundaryIndex = mainSource.indexOf('<AppErrorBoundary>');
+if (!(backdropNodeIndex >= 0 && strictModeIndex > backdropNodeIndex && boundaryIndex > backdropNodeIndex)) {
+  failures.push('摄影节点必须在 StrictMode 与 AppErrorBoundary 之外持久挂载');
+}
+if ((mainSource.match(/<FinancialBackdrop \/>/g) ?? []).length !== 1) {
+  failures.push('生产根入口必须且只能渲染一个 FinancialBackdrop');
+}
+
+for (const text of [
+  'html[data-app-surface="error"] body::before',
+  '#root {',
+  'isolation: isolate;',
+  '.application-content-root {',
+  'z-index: 2;',
+  '.application-image-layer,',
+  '.application-atmosphere-layer {',
   'position: fixed;',
-  'z-index: -2;',
-  'z-index: -1;',
-  'object-fit: cover;',
-  '.financial-backdrop-atmosphere--critical {',
+  '.application-image-layer {',
+  'z-index: 0;',
+  '.application-atmosphere-layer {',
+  'z-index: 1;',
+  'html[data-app-backdrop="auth"] .application-image-layer img',
+  'html[data-app-backdrop="game"] .application-image-layer img',
+  'html[data-app-backdrop="admin"] .application-image-layer img',
+  'html[data-app-backdrop="auth"] .application-atmosphere-layer',
+  'html[data-app-backdrop="game"] .application-atmosphere-layer',
+  'html[data-app-backdrop="admin"] .application-atmosphere-layer',
+  'html[data-app-tone="critical"] .application-atmosphere-layer',
+  '.financial-backdrop-image img[hidden] {',
   '.photographic-state-shell__content {',
   '.photographic-state-card {',
   '@media (max-width: 720px)',
 ]) requireText('src/styles/financial-backdrop.css', text);
 
 for (const text of [
+  '.game-image-layer',
+  '.game-atmosphere-layer',
+  '.admin-image-layer',
+  '.admin-atmosphere-layer',
+  '.financial-backdrop-atmosphere--critical',
+  'z-index: -2;',
+  'z-index: -1;',
   '.workspace {\n  z-index:',
   '.mobile-page-overlay {\n  z-index:',
   '.mobile-chrome-overlay {\n  z-index:',
@@ -147,7 +199,6 @@ for (const path of [
   'src/styles/financial-backdrop.css',
 ]) forbidText(path, 'upload.wikimedia.org');
 
-const mainSource = read('src/main.tsx');
 const gameLayoutIndex = mainSource.indexOf("import './styles/game-shell-layout.css';");
 const backdropStyleIndex = mainSource.indexOf("import './styles/financial-backdrop.css';");
 const glassIndex = mainSource.indexOf("import './styles/liquid-glass-surfaces.css';");
@@ -164,44 +215,63 @@ if (!(compatibilityLayoutIndex >= 0 && compatibilityBackdropIndex > compatibilit
 }
 
 for (const text of [
+  'id="backdrop-root"',
+  'class="application-content-root"',
+  '/tests/browser/persistent-backdrop-harness.tsx',
+]) requireText('runtime-test.html', text);
+for (const text of [
+  'id="backdrop-root"',
+  'class="application-content-root"',
+  '/tests/browser/persistent-backdrop-harness.tsx',
+]) requireText('market-runtime-test.html', text);
+for (const text of [
+  "import { FinancialBackdrop } from '../../src/components/visual/FinancialBackdrop';",
+  "document.getElementById('backdrop-root')",
+  '<FinancialBackdrop />',
+]) requireText('tests/browser/persistent-backdrop-harness.tsx', text);
+
+for (const text of [
   '登录、注册、玩家游戏、管理员后台与根级状态共享三层视觉',
-  '根级状态统一由 `src/components/visual/PhotographicStateShell.tsx` 承载',
-  '玩家和管理员背景均通过 `SignedInShell` 的可选 `backdrop` 插槽',
-  '统一账号检查、代码包加载、玩家连接／错误／重试、账号封禁、管理员无权限和客户端致命错误必须使用对应',
+  '整个应用生命周期只允许一个摄影 `<picture>` 节点',
+  '摄影节点固定在 `main.tsx`',
+  '`data-app-backdrop`',
+  '`data-app-tone`',
+  '不得在 `LoginPage`、`GameStateShell`、`GameShell`、`AdminApp` 或 `PhotographicStateShell` 中重新挂载',
   '`tests/browser/application-photography.spec.ts`',
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
-forbidText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', '管理员页面不得传入玩家摄影背景');
 
 for (const text of [
   '全应用三层摄影背景',
-  '`PhotographicStateShell.tsx`',
+  '摄影 `<picture>` 固定挂载在 `main.tsx`',
+  '页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`',
+  '不得重新提供 `SignedInShell.backdrop`',
   '`application-photography.spec.ts`',
-  '管理员只使用低干扰 `admin` 变体',
   '不得出现纯色过渡页',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
-forbidText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '管理员根外壳不渲染玩家背景');
-forbidText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '管理员界面不得渲染这两层');
 
 for (const text of [
   "test.describe('signed-in game three-layer background'",
-  "page.locator('.game-image-layer')",
-  "page.locator('.game-atmosphere-layer')",
+  "page.locator('.application-image-layer')",
+  "page.locator('.application-atmosphere-layer')",
+  'one persistent photography node',
   'falls back to the atmosphere layer when photography fails',
 ]) requireText('tests/browser/game-three-layer.spec.ts', text);
 
 for (const text of [
   "test.describe('all-interface photography'",
-  'shows photography while checking the account session',
+  'keeps the same photography node from account checking into authentication',
+  "data.persistenceProbe = 'account-check'",
+  "toHaveAttribute('data-persistence-probe', 'account-check')",
   'uses the game critical atmosphere for banned accounts',
-  'uses the admin atmosphere for denied access',
+  'uses the admin critical atmosphere for denied access',
   'keeps the administrator interface readable when photography fails',
-  "page.locator('.admin-image-layer')",
+  "page.locator('.application-image-layer')",
   "page.locator('.photographic-state-shell')",
 ]) requireText('tests/browser/application-photography.spec.ts', text);
 
 if (failures.length) {
-  console.error(`全应用摄影背景验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`持久全应用摄影背景验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('全应用摄影背景验证通过：认证、玩家、管理员、根级状态、共享资源、失败回退、移动 Overlay 和背景采样边界均已锁定。');
+console.log('持久全应用摄影背景验证通过：唯一图片节点、根级氛围切换、认证、玩家、管理员、状态页、失败回退、移动 Overlay 和浏览器 harness 均已锁定。');
