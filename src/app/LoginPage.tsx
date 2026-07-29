@@ -3,7 +3,6 @@ import { completeRegistration, login, sendRegistrationEmailCode } from '../api/a
 import { AuthCardSurface } from '../components/auth/AuthCardSurface';
 import { InputGroup, TextInput } from '../components/ui/FormControls';
 import { Button } from '../components/ui/layout';
-import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';
 import { BRAND_LOGO_URL, BRAND_NAME, BRAND_SLOGAN } from '../config/brand';
 import type { AuthUser } from '../types';
 
@@ -98,8 +97,6 @@ export function LoginPage({
 
   return (
     <main className="login-shell">
-      <FinancialBackdrop variant="auth" priority />
-
       <div className="login-content-layer">
         <section className="login-brand">
           <div className="brand-lockup" aria-label={BRAND_NAME}>
