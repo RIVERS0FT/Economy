@@ -1,5 +1,6 @@
 name: Bootstrap over-light perimeter fix
 
+# This revision intentionally triggers the already-installed guarded workflow.
 on:
   push:
     branches:
