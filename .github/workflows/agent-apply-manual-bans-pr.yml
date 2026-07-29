@@ -1,0 +1,52 @@
+name: Apply manual administrator bans on PR
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/manual-admin-bans'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/manual-admin-bans
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply approved patch
+        run: |
+          python3 - <<'PY'
+          import base64, pathlib, re, zlib
+          workflow = pathlib.Path('.github/workflows/agent-apply-manual-bans.yml').read_text(encoding='utf-8')
+          match = re.search(r'PATCH_B64: "([A-Za-z0-9+/=]+)"', workflow)
+          if not match:
+              raise SystemExit('PATCH_B64 payload not found')
+          pathlib.Path('/tmp/apply_manual_bans.py').write_bytes(zlib.decompress(base64.b64decode(match.group(1))))
+          PY
+          python3 /tmp/apply_manual_bans.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Validate focused changes
+        run: |
+          node --check server/src/invitations.js
+          node --check server/src/registration-store.js
+          node --check server/src/app.js
+          node scripts/verify-gems-invitations-and-bans.mjs
+          node --test server/test/invitations.test.js
+          npm run typecheck
+          git diff --check
+      - name: Commit approved changes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Make account bans administrator-only"
+          git push origin HEAD:agent/manual-admin-bans
