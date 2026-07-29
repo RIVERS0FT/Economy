@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import datetime
+import gzip
 import grp
+import hashlib
 import os
 import pwd
 import secrets
@@ -21,6 +23,7 @@ BACKUP_DIRECTORY = STATE_DIRECTORY / "backups"
 SHARED_EMAIL_ENVIRONMENT_FILE = Path("/etc/riversoft-email.env")
 ENVIRONMENT_FILE = Path("/etc/riversoft-economy-api.env")
 MINIMUM_NODE = (22, 16, 0)
+COPY_CHUNK_BYTES = 1024 * 1024
 
 
 def run(command: list[str], *, capture: bool = False) -> str:
@@ -28,34 +31,109 @@ def run(command: list[str], *, capture: bool = False) -> str:
     return completed.stdout.strip() if capture else ""
 
 
+def quote_sql_string(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def sha256_file(path: Path) -> tuple[str, int]:
+    digest = hashlib.sha256()
+    size = 0
+    with path.open("rb") as source:
+        while chunk := source.read(COPY_CHUNK_BYTES):
+            digest.update(chunk)
+            size += len(chunk)
+    return digest.hexdigest(), size
+
+
+def compress_gzip(source_path: Path, target_path: Path) -> None:
+    with source_path.open("rb") as source, target_path.open("wb") as raw_target:
+        with gzip.GzipFile(
+            filename=source_path.name,
+            mode="wb",
+            compresslevel=6,
+            fileobj=raw_target,
+            mtime=0,
+        ) as compressed:
+            shutil.copyfileobj(source, compressed, length=COPY_CHUNK_BYTES)
+        raw_target.flush()
+        os.fsync(raw_target.fileno())
+
+
+def verify_gzip(path: Path, expected_sha256: str, expected_size: int) -> None:
+    digest = hashlib.sha256()
+    size = 0
+    with gzip.open(path, "rb") as source:
+        while chunk := source.read(COPY_CHUNK_BYTES):
+            digest.update(chunk)
+            size += len(chunk)
+    if size != expected_size or digest.hexdigest() != expected_sha256:
+        raise RuntimeError(
+            "contract audit gzip verification failed "
+            f"expected_size={expected_size} actual_size={size}"
+        )
+
+
 def backup_before_contract_audit(owner_uid: int, owner_gid: int) -> None:
     if not DATABASE_PATH.exists():
         print("ECONOMY_CONTRACT_AUDIT_BACKUP_SKIPPED_NO_DATABASE")
         return
 
-    with sqlite3.connect(DATABASE_PATH) as source:
-        audit_table = source.execute(
-            "SELECT 1 FROM sqlite_master "
-            "WHERE type = 'table' AND name = 'economy_contract_audit_events'"
-        ).fetchone()
-        if audit_table:
-            print("ECONOMY_CONTRACT_AUDIT_BACKUP_SKIPPED_TABLE_EXISTS")
-            return
+    BACKUP_DIRECTORY.mkdir(mode=0o700, parents=True, exist_ok=True)
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    compact_path = BACKUP_DIRECTORY / f".economy-pre-contract-audit-{timestamp}.sqlite.tmp"
+    compressed_path = BACKUP_DIRECTORY / f".economy-pre-contract-audit-{timestamp}.sqlite.gz.tmp"
+    backup_path = BACKUP_DIRECTORY / f"economy-pre-contract-audit-{timestamp}.sqlite.gz"
 
-        BACKUP_DIRECTORY.mkdir(mode=0o700, parents=True, exist_ok=True)
-        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        backup_path = BACKUP_DIRECTORY / f"economy-pre-contract-audit-{timestamp}.sqlite"
-        with sqlite3.connect(backup_path) as destination:
-            source.backup(destination)
-            quick_check = destination.execute("PRAGMA quick_check").fetchone()[0]
-            if quick_check != "ok":
-                raise RuntimeError(f"contract audit backup quick check failed: {quick_check}")
+    try:
+        with sqlite3.connect(DATABASE_PATH, isolation_level=None, timeout=60) as source:
+            audit_table = source.execute(
+                "SELECT 1 FROM sqlite_master "
+                "WHERE type = 'table' AND name = 'economy_contract_audit_events'"
+            ).fetchone()
+            if audit_table:
+                print("ECONOMY_CONTRACT_AUDIT_BACKUP_SKIPPED_TABLE_EXISTS")
+                return
+            source_auto_vacuum = int(source.execute("PRAGMA auto_vacuum").fetchone()[0])
+            source.execute(f"VACUUM INTO {quote_sql_string(str(compact_path))}")
+
+        compact_uri = f"file:{compact_path.as_posix()}?mode=ro"
+        with sqlite3.connect(compact_uri, uri=True, timeout=60) as compact:
+            compact.execute("PRAGMA query_only = ON")
+            quick_check = str(compact.execute("PRAGMA quick_check(1)").fetchone()[0])
+            foreign_key_violations = len(compact.execute("PRAGMA foreign_key_check").fetchall())
+            backup_auto_vacuum = int(compact.execute("PRAGMA auto_vacuum").fetchone()[0])
+        if quick_check != "ok":
+            raise RuntimeError(f"contract audit backup quick check failed: {quick_check}")
+        if foreign_key_violations:
+            raise RuntimeError(
+                f"contract audit backup foreign key check failed: {foreign_key_violations}"
+            )
+        if backup_auto_vacuum != source_auto_vacuum:
+            raise RuntimeError(
+                "contract audit backup auto_vacuum mismatch "
+                f"source={source_auto_vacuum} backup={backup_auto_vacuum}"
+            )
+
+        compact_sha256, compact_size = sha256_file(compact_path)
+        compress_gzip(compact_path, compressed_path)
+        verify_gzip(compressed_path, compact_sha256, compact_size)
+        os.chown(compressed_path, owner_uid, owner_gid)
+        os.chmod(compressed_path, 0o600)
+        os.replace(compressed_path, backup_path)
+    finally:
+        compact_path.unlink(missing_ok=True)
+        compressed_path.unlink(missing_ok=True)
 
     os.chown(BACKUP_DIRECTORY, owner_uid, owner_gid)
     os.chmod(BACKUP_DIRECTORY, 0o700)
-    os.chown(backup_path, owner_uid, owner_gid)
-    os.chmod(backup_path, 0o600)
-    backups = sorted(BACKUP_DIRECTORY.glob("economy-pre-contract-audit-*.sqlite"), reverse=True)
+    backups = sorted(
+        [
+            *BACKUP_DIRECTORY.glob("economy-pre-contract-audit-*.sqlite"),
+            *BACKUP_DIRECTORY.glob("economy-pre-contract-audit-*.sqlite.gz"),
+        ],
+        key=lambda path: (path.stat().st_mtime_ns, path.name),
+        reverse=True,
+    )
     for stale in backups[10:]:
         stale.unlink()
     print(f"ECONOMY_CONTRACT_AUDIT_BACKUP_CREATED={backup_path}")
