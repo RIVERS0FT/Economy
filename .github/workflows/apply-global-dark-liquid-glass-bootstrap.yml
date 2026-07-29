@@ -1,5 +1,6 @@
 name: Bootstrap global dark liquid glass
 
+# The workflow is already present on main; this revision deliberately triggers it.
 on:
   push:
     branches:
