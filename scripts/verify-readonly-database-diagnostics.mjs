@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 const root = process.cwd();
 const workflowPath = '.github/workflows/diagnose-production-database.yml';
 const diagnosticPath = 'scripts/diagnose-production-database.py';
-const designPath = 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md';
+const designPath = 'docs/README.md';
 const packagePath = 'package.json';
 const failures = [];
 
