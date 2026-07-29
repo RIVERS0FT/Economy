@@ -51,12 +51,53 @@ jobs:
           set -uo pipefail
           test -n "$SERVER_USER"
           report=/tmp/economy-incremental-migration.json
+          remote_script="/tmp/economy-database-maintenance-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.py"
           rm -f "$report"
+
+          scp -q -i ~/.ssh/deploy_key -P "$SERVER_PORT" \
+            scripts/manage-production-database.py \
+            "$SERVER_USER@$SERVER_HOST:$remote_script"
 
           set +e
           timeout 25m ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" "$SERVER_USER@$SERVER_HOST" \
-            'if [ "$(id -u)" -eq 0 ]; then exec python3 - migrate-incremental; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n python3 - migrate-incremental; else echo ECONOMY_DATABASE_MAINTENANCE_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi' \
-            < scripts/manage-production-database.py | tee "$report"
+            "if [ \$(id -u) -eq 0 ]; then exec bash -s -- '$remote_script'; elif command -v sudo >/dev/null 2>&1 && sudo -n true; then exec sudo -n bash -s -- '$remote_script'; else echo ECONOMY_DATABASE_MAINTENANCE_PRIVILEGES_UNAVAILABLE >&2; exit 1; fi" \
+            <<'REMOTE' | tee "$report"
+          set -euo pipefail
+          script_path="$1"
+          service_name='riversoft-economy-api.service'
+          health_url='http://127.0.0.1:3002/health'
+          service_started=0
+
+          cleanup() {
+            status=$?
+            if [ "$service_started" -eq 0 ]; then
+              systemctl start "$service_name" || true
+            fi
+            rm -f "$script_path"
+            exit "$status"
+          }
+          trap cleanup EXIT
+
+          systemctl is-active --quiet "$service_name"
+          systemctl stop "$service_name"
+          python3 "$script_path" migrate-incremental --offline
+          systemctl start "$service_name"
+          service_started=1
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error "$health_url" >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 60 ]; then
+              echo ECONOMY_DATABASE_HEALTH_CHECK_FAILED >&2
+              exit 1
+            fi
+            sleep 0.5
+          done
+
+          rm -f "$script_path"
+          trap - EXIT
+          REMOTE
           migration_status=${PIPESTATUS[0]}
           set -e
 
