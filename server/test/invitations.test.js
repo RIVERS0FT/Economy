@@ -184,7 +184,7 @@ test('existing Economy profile ignores invite parameters and can never be backfi
   }
 });
 
-test('a second registration on the same IP bans the whole account group before invitation reward', () => {
+test('a second registration on the same IP creates an anomaly report without banning accounts', () => {
   const context = setup();
   try {
     const now = 1_700_000_000_000;
@@ -200,11 +200,12 @@ test('a second registration on the same IP bans the whole account group before i
       now: now + 1,
     }));
 
-    assert.equal(result.ban.incident_id > 0, true);
-    assert.throws(() => context.registrationStore.assertPlayerActive(1), (error) => (
-      error.statusCode === 423 && error.code === 'ECONOMY_ACCOUNT_BANNED'
-    ));
-    assert.throws(() => context.registrationStore.assertPlayerActive(2), { statusCode: 423 });
+    assert.equal(result.anomalyIncidentId > 0, true);
+    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(1));
+    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(2));
+    const incidents = context.registrationStore.listBanIncidents();
+    assert.equal(incidents.length, 1);
+    assert.equal(incidents[0].active_ban_count, 0);
     const world = context.store.loadWorld(now + 2).world;
     assert.equal(world.players['1'].gems, 0);
     assert.equal(context.store.database.prepare('SELECT COUNT(*) AS count FROM economy_gem_ledger').get().count, 0);
@@ -215,59 +216,88 @@ test('a second registration on the same IP bans the whole account group before i
   }
 });
 
-test('administrator can unban one account or an entire duplicate-IP incident', () => {
-  const context = setup();
-  try {
-    const now = 1_700_000_000_000;
-    context.registrationStore.ensureLoggedInPlayer({ user: user(1), ipFingerprint: 'shared-ip', now });
-    context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'shared-ip', now: now + 1 });
-    const incidents = context.registrationStore.listBanIncidents();
-    assert.equal(incidents.length, 1);
-    const incidentId = incidents[0].id;
-
-    const one = context.registrationStore.unbanUser({
-      userId: 1, adminUserId: 99, note: '人工核验', requestKey: 'admin-unban-one-0001', now: now + 2,
-    });
-    assert.equal(one.ok, true);
-    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(1));
-    assert.throws(() => context.registrationStore.assertPlayerActive(2), { statusCode: 423 });
-
-    const all = context.registrationStore.unbanIncident({
-      incidentId, adminUserId: 99, note: '家庭共享网络', requestKey: 'admin-unban-all-0001', now: now + 3,
-    });
-    assert.equal(all.changedCount, 1);
-    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(2));
-
-    context.registrationStore.rebanUser({
-      userId: 1, adminUserId: 99, note: '重新封禁', requestKey: 'admin-reban-one-0001', now: now + 4,
-    });
-    assert.throws(() => context.registrationStore.assertPlayerActive(1), { statusCode: 423 });
-  } finally {
-    context.store.close();
-  }
-});
-
-test('manual unban survives restart reconciliation until a new same-IP registration appears', () => {
+test('administrator manually controls single-account and whole-incident bans', () => {
   const context = setup();
   try {
     const now = 1_700_000_000_000;
     context.registrationStore.ensureLoggedInPlayer({ user: user(1), ipFingerprint: 'shared-ip', now });
     context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'shared-ip', now: now + 1 });
     const incidentId = context.registrationStore.listBanIncidents()[0].id;
-    context.registrationStore.unbanIncident({
-      incidentId, adminUserId: 99, note: '共享家庭网络', requestKey: 'restart-unban-all-0001', now: now + 2,
+
+    const one = context.registrationStore.banUser({
+      userId: 1,
+      incidentId,
+      adminUserId: 99,
+      note: '人工确认违规',
+      requestKey: 'admin-ban-one-0001',
+      now: now + 2,
+    });
+    assert.equal(one.ok, true);
+    assert.throws(() => context.registrationStore.assertPlayerActive(1), { statusCode: 423 });
+    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(2));
+
+    context.registrationStore.unbanUser({
+      userId: 1,
+      adminUserId: 99,
+      note: '复核后解禁',
+      requestKey: 'admin-unban-one-0001',
+      now: now + 3,
+    });
+    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(1));
+
+    const all = context.registrationStore.banIncident({
+      incidentId,
+      adminUserId: 99,
+      note: '人工确认整个事件违规',
+      requestKey: 'admin-ban-all-0001',
+      now: now + 4,
+    });
+    assert.equal(all.changedCount, 2);
+    assert.throws(() => context.registrationStore.assertPlayerActive(1), { statusCode: 423 });
+    assert.throws(() => context.registrationStore.assertPlayerActive(2), { statusCode: 423 });
+
+    const lifted = context.registrationStore.unbanIncident({
+      incidentId,
+      adminUserId: 99,
+      note: '批量解禁',
+      requestKey: 'admin-unban-all-0001',
+      now: now + 5,
+    });
+    assert.equal(lifted.changedCount, 2);
+    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(1));
+    assert.doesNotThrow(() => context.registrationStore.assertPlayerActive(2));
+  } finally {
+    context.store.close();
+  }
+});
+
+test('review survives restart and a new same-IP account only reopens the report', () => {
+  const context = setup();
+  try {
+    const now = 1_700_000_000_000;
+    context.registrationStore.ensureLoggedInPlayer({ user: user(1), ipFingerprint: 'shared-ip', now });
+    context.registrationStore.ensureLoggedInPlayer({ user: user(2), ipFingerprint: 'shared-ip', now: now + 1 });
+    const incidentId = context.registrationStore.listBanIncidents()[0].id;
+    context.registrationStore.reviewIncident({
+      incidentId,
+      adminUserId: 99,
+      note: '家庭共享网络',
+      requestKey: 'review-shared-network-0001',
+      now: now + 2,
     });
 
     const restarted = new EconomyRegistrationStore(context.store, {
       secret: 'invite-test-secret'.repeat(4), ensurePlayer, publicOrigin: 'https://game.riversoft.top',
     });
+    assert.equal(restarted.listBanIncidents()[0].status, 'reviewed');
     assert.doesNotThrow(() => restarted.assertPlayerActive(1));
     assert.doesNotThrow(() => restarted.assertPlayerActive(2));
 
     restarted.ensureLoggedInPlayer({ user: user(3), ipFingerprint: 'shared-ip', now: now + 3 });
-    assert.throws(() => restarted.assertPlayerActive(1), { statusCode: 423 });
-    assert.throws(() => restarted.assertPlayerActive(2), { statusCode: 423 });
-    assert.throws(() => restarted.assertPlayerActive(3), { statusCode: 423 });
+    assert.equal(restarted.listBanIncidents()[0].status, 'active');
+    assert.doesNotThrow(() => restarted.assertPlayerActive(1));
+    assert.doesNotThrow(() => restarted.assertPlayerActive(2));
+    assert.doesNotThrow(() => restarted.assertPlayerActive(3));
   } finally {
     context.store.close();
   }

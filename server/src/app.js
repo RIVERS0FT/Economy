@@ -297,6 +297,19 @@ const server = createServer(async (request, response) => {
         sendJson(response, 200, registrationStore.getBanIncident(Number(banIncident[1])));
         return;
       }
+      const banUser = path.match(/^\/api\/game\/admin\/bans\/users\/(\d+)\/ban$/);
+      if (method === 'POST' && banUser) {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, registrationStore.banUser({
+          userId: Number(banUser[1]),
+          adminUserId: Number(user.id),
+          note: body.note,
+          incidentId: body.incidentId,
+          requestKey,
+        }));
+        return;
+      }
       const unbanUser = path.match(/^\/api\/game\/admin\/bans\/users\/(\d+)\/unban$/);
       if (method === 'POST' && unbanUser) {
         const requestKey = requireIdempotencyKey(request);
@@ -315,6 +328,42 @@ const server = createServer(async (request, response) => {
         const body = await readJson(request);
         sendJson(response, 200, registrationStore.rebanUser({
           userId: Number(rebanUser[1]),
+          adminUserId: Number(user.id),
+          note: body.note,
+          requestKey,
+        }));
+        return;
+      }
+      const banAllIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)\/ban-all$/);
+      if (method === 'POST' && banAllIncident) {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, registrationStore.banIncident({
+          incidentId: Number(banAllIncident[1]),
+          adminUserId: Number(user.id),
+          note: body.note,
+          requestKey,
+        }));
+        return;
+      }
+      const reviewIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)\/review$/);
+      if (method === 'POST' && reviewIncident) {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, registrationStore.reviewIncident({
+          incidentId: Number(reviewIncident[1]),
+          adminUserId: Number(user.id),
+          note: body.note,
+          requestKey,
+        }));
+        return;
+      }
+      const closeIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)\/close$/);
+      if (method === 'POST' && closeIncident) {
+        const requestKey = requireIdempotencyKey(request);
+        const body = await readJson(request);
+        sendJson(response, 200, registrationStore.closeIncident({
+          incidentId: Number(closeIncident[1]),
           adminUserId: Number(user.id),
           note: body.note,
           requestKey,

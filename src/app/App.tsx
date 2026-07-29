@@ -30,9 +30,9 @@ function BannedAccount({ incidentId }: { incidentId?: number }) {
     <main className="login-shell banned-account-shell">
       <section className="login-card panel banned-account-card">
         <h1>账号已封禁</h1>
-        <p>系统检测到同一个注册网络创建了多个 Economy 账号，相关账号已全部暂停使用。</p>
+        <p>该账号已被管理员封禁，普通游戏访问已暂停。</p>
         {incidentId ? <p>事件编号：#{incidentId}</p> : null}
-        <p>如属于家庭、学校、公司或公共网络，请联系管理员复核。</p>
+        <p>如需申诉，请联系管理员并提供事件编号。</p>
       </section>
     </main>
   );

@@ -279,6 +279,7 @@ export class EconomyRegistrationStore {
       incidentId: ban ? Number(ban.incident_id) : undefined,
       invitationBound: Boolean(result.relation),
       invalidInvite: Boolean(result.invalidInvite),
+      anomalyIncidentId: result.anomalyIncidentId,
     };
   }
 
@@ -345,6 +346,7 @@ export class EconomyRegistrationStore {
       relation: invitationResult.relation,
       invalidInvite: invitationResult.invalidInvite,
       ban: invitationResult.ban || this.invitations.activeBan(userId) || null,
+      anomalyIncidentId: invitationResult.anomalyIncidentId,
     };
   }
 
@@ -362,6 +364,22 @@ export class EconomyRegistrationStore {
 
   getBanIncident(incidentId) {
     return this.invitations.getBanIncident(incidentId);
+  }
+
+  banUser(input) {
+    return this.invitations.banUser(input);
+  }
+
+  banIncident(input) {
+    return this.invitations.banIncident(input);
+  }
+
+  reviewIncident(input) {
+    return this.invitations.reviewIncident(input);
+  }
+
+  closeIncident(input) {
+    return this.invitations.closeIncident(input);
   }
 
   unbanUser(input) {

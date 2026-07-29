@@ -2,9 +2,9 @@
 
 > 状态：礼品码、商品／工厂资产拍卖、宝石邀请封禁与管理员后台的当前权威设计
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-07-24
-> 客户端状态版本：20
-> 世界状态版本：17
+> 更新时间：2026-07-29
+> 客户端状态版本：22
+> 世界状态版本：18
 
 ## 1. 礼品兑换
 
@@ -66,7 +66,7 @@
 - “玩家”提供 7／30／90 日运营统计、留存、成长漏斗、经营参与、财富分布和关注群体；
 - “人口”提供人口经济指标、完整当前人口政策参数与持续时间，以及受控人口政策调控；
 - “礼品”提供单个礼品码创建、一次批量生成最多 50,000 个礼品码、TXT 下载、停用与兑换记录；
-- “封禁”查看同注册 IP 封禁事件、事件成员、注册来源、注册时间和当前封禁状态，并填写管理员备注后解禁单个账号、解禁整个事件或重新封禁账号。
+- “封禁”查看同注册 IP 异常事件、事件成员、注册来源、注册时间和当前管理员封禁状态；系统只上报异常，管理员填写备注后可复核、关闭、封禁单个账号、封禁整个事件或解禁账号。
 
 批量礼品码页面不得把最多 50,000 条明文逐项渲染到 DOM；只显示本次生成数量和单个码预览，并通过 Blob 下载一行一个兑换码的 TXT。创建按钮在请求期间必须禁用，避免管理员重复提交。明文只保留在当前页面状态和通用幂等缓存的既有 TTL 内，礼品码历史列表继续只展示不可逆元数据。
 
@@ -127,20 +127,27 @@
 
 玩家运营统计完全只读，不得把统计结果用于扩张人口需求预算、调整稳定需求、价格传导、市场储备、排行榜或任何玩家资产。`lastPlayerScaleBudget` 与 `lastInventoryBoost` 仅为旧世界兼容字段，必须保持停用和零值；活跃玩家数、库存价值、财富分位数和留存都只是管理员诊断。桌面宽屏允许业务卡片两列，721px～1179px 和移动端回到单列；移动端不得新增页面级横向滚动、第二纵向滚动视口或独立管理员 Chrome。
 
-## 5. 宝石邀请与账号封禁管理
+## 5. 宝石邀请、异常上报与管理员封禁
 
 宝石是与普通货币分离的整数资产。每名玩家宝石初始为 0；分享链接注册或手动填写邀请码成功时，只向邀请人立即发放 10 宝石。宝石不参与商品、工厂、仓库、人口需求、总资产或排行榜。
 
-邀请和封禁权威表包括：
+邀请、异常上报和封禁权威表包括：
 
 - `economy_invite_codes`：每名玩家唯一且永久的 8 位邀请码；
 - `economy_invitation_relations`：每名被邀请人最多一条邀请关系，记录分享链接或手动邀请码来源；
 - `economy_gem_ledger`：邀请宝石与管理员宝石调整流水；
-- `economy_ip_ban_incidents` 与 `economy_ip_ban_members`：同 IP 事件和成员；
-- `economy_account_bans`：账号当前封禁或解禁状态；
-- `economy_ban_audit`：系统封禁、管理员解禁和重新封禁审计。
+- `economy_ip_ban_incidents` 与 `economy_ip_ban_members`：同注册 IP 异常事件和成员，事件本身不代表账号被封禁；
+- `economy_ip_incident_audit`：系统检测、成员增加、重新进入待复核、管理员复核、关闭和事件级操作审计；
+- `economy_account_bans`：只有管理员手动执行的账号当前封禁或解禁状态；
+- `economy_ban_audit`：管理员封禁、解禁和重新封禁审计，并保留规则迁移前的历史系统记录。
 
-管理员手动解禁后账号恢复普通游戏访问，但被 `blocked_same_ip` 或 `blocked_banned_account` 拦截的邀请关系不自动改成已奖励。服务启动扫描只为没有人工复核的新冲突建立封禁；人工解禁不得因重启自动失效。相同注册 IP 后续出现新的账号时，系统重新激活事件并再次封禁该指纹下全部账号。
+同一注册 IP 指纹出现两个或更多不同账号时，系统只创建或更新异常事件并补充成员，不得写入、恢复或扩大 `economy_account_bans`。服务启动扫描同样只补齐异常上报。事件固定使用待复核、已复核和已关闭三态；已复核或已关闭事件出现新成员时重新进入待复核，但所有账号继续正常访问。
+
+管理员手动封禁是唯一可以暂停普通游戏访问的途径。只有管理员接口可以封禁单个账号或事件全部账号。封禁、解禁、复核和关闭都要求 1～240 字管理备注与 `Idempotency-Key`，并在同一 SQLite 事务写入状态和审计。事件级批量操作必须原子完成，已处于目标状态的成员不得重复写审计。
+
+普通游戏接口只根据活动中的管理员封禁返回 `423 Locked` 与 `ECONOMY_ACCOUNT_BANNED`；异常事件本身不得触发 423。历史 `reason = duplicate_registration_ip`、`banned_by IS NULL` 的活动自动封禁在部署迁移时一次性解除并重新进入待复核，管理员已有手动封禁保持不变。
+
+相同注册 IP 的邀请关系继续记录为 `blocked_same_ip` 且不发放宝石，这是邀请资产防刷规则，不代表账号封禁。管理员解禁或关闭事件不得自动补发此前被阻止的邀请奖励。
 
 ## 6. API
 
@@ -167,15 +174,19 @@
 - `GET /api/game/admin/gift-codes/:giftCodeId/redemptions`
 - `GET /api/game/admin/bans`
 - `GET /api/game/admin/bans/:incidentId`
+- `POST /api/game/admin/bans/users/:userId/ban`
 - `POST /api/game/admin/bans/users/:userId/unban`
-- `POST /api/game/admin/bans/:incidentId/unban-all`
 - `POST /api/game/admin/bans/users/:userId/reban`
+- `POST /api/game/admin/bans/:incidentId/ban-all`
+- `POST /api/game/admin/bans/:incidentId/unban-all`
+- `POST /api/game/admin/bans/:incidentId/review`
+- `POST /api/game/admin/bans/:incidentId/close`
 
 旧 `/api/game/collectible-auctions*` 与 `/api/game/admin/collectibles*` 路径只返回 `410 Gone`，不得执行读取或写入业务。它们是明确的永久移除墓碑，不是兼容入口；后续可以在另一次明确的 API 版本变更中删除墓碑。
 
 批量礼品码接口请求体包含 `count`、`rewardCredits`、`maxRedemptions`、可选 `startsAt`、可选 `expiresAt` 和可选 `note`。`count` 必须为 1～50,000 的整数；响应包含 `createdCount` 与 `codes` 明文数组，仅供本次 TXT 导出和幂等重试。
 
-封禁写接口请求体只接受可选管理备注 `note`，并要求 `Idempotency-Key`。查询响应可以显示指纹前 12 位作为事件区分，但不得返回完整指纹或注册 IP 明文。
+封禁、解禁、复核和关闭写接口请求体必须包含 1～240 字管理备注 `note`，并要求 `Idempotency-Key`。查询响应可以显示指纹前 12 位作为事件区分，但不得返回完整指纹或注册 IP 明文。
 
 社区入口默认使用 `https://qm.qq.com/q/eN8hya0Yn0`。管理员后台必须允许保存侧边栏“加入 QQ 群”按钮地址；服务端只接受长度不超过 2048、无账号信息的 HTTPS URL，写入 `economy_settings` 并要求 `Idempotency-Key`。普通玩家只通过 `GET /api/game/community-link` 读取有效配置，不得由浏览器本地存储覆盖服务器配置。
 

@@ -5,7 +5,7 @@ Economy 是一款网页端多人在线经济模拟、产业经营、统一资产
 - 项目：`RIVERS0FT/Economy`
 - 生产网页：`https://game.riversoft.top/economy/`
 - 管理员页面：`https://game.riversoft.top/economy/admin`
-- 封禁管理：合入 `https://game.riversoft.top/economy/admin` 的“账号封禁”分区
+- 异常上报与封禁管理：合入 `https://game.riversoft.top/economy/admin` 的“封禁”分区；系统只上报异常，账号封禁由管理员手动执行
 - 客户端状态版本：`22`
 - 世界状态版本：`18`
 - 市场需求模型版本：`11`
