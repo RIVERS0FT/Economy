@@ -128,11 +128,11 @@ JSON.parse
 
 世界 15 的资产拍卖迁移由 `asset-auctions.js` 在工厂集群规范化之前执行，并与世界写回处于同一 SQLite 事务。迁移同时读取旧 `collectibleAuctions` 和新 `assetAuctions`，按稳定 ID 去重；纯商品／工厂拍卖保留截止时间、出价、冻结资金、仓库预占和托管状态。任何含已删除艺术资产项目的开放资产包必须整包取消，完整退回最高出价并释放同包商品／工厂，随后删除 `collectibles`、`collectibleOwnershipHistory` 与 `collectibleAuctions`。重复加载不得重复退款、重复解冻或复制拍卖。
 
-部署世界 15 前，`.github/workflows/deploy.yml` 必须在上传新服务前使用 Python `sqlite3.Connection.backup()` 为 `/var/lib/riversoft-economy/economy.sqlite` 创建 `economy-pre-world-v15-<UTC 时间>.sqlite` 在线快照，并对快照执行 `PRAGMA quick_check`；校验失败立即中止部署。迁移快照保留最近 10 份。回滚世界 15 必须同时恢复匹配的代码与数据库快照，禁止只回滚代码。
+世界 15 资产拍卖迁移和世界 16 银行迁移的回滚仍必须同时恢复匹配代码与对应迁移前数据库快照，禁止只回滚代码、只删除字段或手工修改贷款与抵押。所有新建和后续保留的迁移快照统一遵守第 8 节紧凑 gzip SQLite 备份、全局最多 5 个迁移族和完整恢复校验规则，不再使用 `sqlite3.Connection.backup()` 复制源库高水位页布局。
 
-部署世界 16 前必须使用相同在线备份机制创建 `economy-pre-world-v16-<UTC 时间>.sqlite`，执行 `PRAGMA quick_check` 成功后才可上传代码；世界 16 快照独立保留最近 10 份。回滚银行版本必须同时恢复世界 16 部署前数据库快照与匹配代码，禁止只删除银行字段、只回滚客户端或在生产数据库中手工修改贷款、抵押和利息池。
+历史世界 15／16 未压缩快照只作为既有回滚资料，不作为新备份格式示例；验证新的紧凑压缩快照可恢复后，保留和清理由统一迁移族策略处理。
 
-首次部署合同审计表前，`scripts/install-economy-api.py` 必须在重启服务和新进程创建审计表之前检测 `economy_contract_audit_events` 是否存在；不存在时使用 SQLite 在线备份创建 `economy-pre-contract-audit-<UTC 时间>.sqlite.gz`，执行 `PRAGMA quick_check`、设置服务用户 `0600` 权限并保留最近 10 份。合同审计只新增 SQLite 表，客户端状态版本保持 19、世界状态版本保持 16；回滚时必须同时恢复匹配代码与安装前快照，禁止只删除审计表或保留会把同一旧合同再次导入的半迁移数据库。
+首次部署合同审计表前，`scripts/install-economy-api.py` 必须在重启服务和新进程创建审计表之前检测 `economy_contract_audit_events` 是否存在；不存在时使用 `VACUUM INTO` 创建无 freelist 的紧凑副本，执行 `PRAGMA quick_check`、外键与 `auto_vacuum` 校验，再生成 `economy-pre-contract-audit-<UTC 时间>.sqlite.gz` 并验证解压哈希；文件权限固定为服务用户 `0600`，保留最近 10 份。合同审计只新增 SQLite 表，客户端状态版本保持 19、世界状态版本保持 16；回滚时必须同时恢复匹配代码与安装前快照，禁止只删除审计表或保留会把同一旧合同再次导入的半迁移数据库。
 
 游戏状态使用全局世界修订号排序，并拆成 `catalog`、`player`、`market`、`auction`、`contract`、`leaderboard` 六个固定分区。客户端请求可以使用 `?revision=N&catalog=...&player=...`，也可以用管理员或诊断场景的 `X-Economy-State-Revisions` 头提交分区内容哈希；响应格式固定为：
 
