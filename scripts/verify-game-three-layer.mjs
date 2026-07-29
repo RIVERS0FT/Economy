@@ -17,15 +17,21 @@ const forbidText = (path, text) => {
 for (const path of [
   'src/config/visualAssets.ts',
   'src/components/visual/FinancialBackdrop.tsx',
+  'src/components/visual/PhotographicStateShell.tsx',
   'src/components/shell/SignedInShell.tsx',
   'src/components/shell/GameShell.tsx',
   'src/app/GameApp.tsx',
+  'src/app/AdminApp.tsx',
+  'src/app/App.tsx',
+  'src/app/AppErrorBoundary.tsx',
   'src/styles/financial-backdrop.css',
   'src/styles/liquid-glass-chrome.css',
   'src/styles/viewport.css',
   'src/main.tsx',
   'docs/REGISTRATION_INVITE_FLOW_DESIGN.md',
+  'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   'tests/browser/game-three-layer.spec.ts',
+  'tests/browser/application-photography.spec.ts',
 ]) requireFile(path);
 
 for (const text of [
@@ -46,6 +52,23 @@ if (!(backdropIndex >= 0 && sidebarIndex > backdropIndex && pageOverlayIndex > s
 }
 
 for (const text of [
+  "export type FinancialBackdropVariant = 'auth' | 'game' | 'admin';",
+  "export type FinancialBackdropTone = 'normal' | 'critical';",
+  "const prefix = variant === 'auth' ? 'login' : variant;",
+  'financial-backdrop-atmosphere--critical',
+  'FINANCIAL_BACKGROUND_IMAGE_URL',
+  'FINANCIAL_BACKGROUND_IMAGE_960_URL',
+]) requireText('src/components/visual/FinancialBackdrop.tsx', text);
+
+for (const text of [
+  'export function PhotographicStateShell',
+  '<FinancialBackdrop variant={variant} tone={tone} priority={priority} />',
+  "'photographic-state-shell'",
+  'data-photographic-state-variant={variant}',
+  "role?: 'alert' | 'status';",
+]) requireText('src/components/visual/PhotographicStateShell.tsx', text);
+
+for (const text of [
   "import { FinancialBackdrop } from '../visual/FinancialBackdrop'",
   'backdrop={<FinancialBackdrop variant="game" />}',
   'rootClassName="game-shell"',
@@ -60,20 +83,49 @@ for (const text of [
 ]) requireText('src/app/GameApp.tsx', text);
 
 for (const text of [
-  'html[data-app-surface="game"] body::before',
-  'display: none;',
+  "import { FinancialBackdrop } from '../components/visual/FinancialBackdrop';",
+  "import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';",
+  'backdrop={<FinancialBackdrop variant="admin" />}',
+  '<PhotographicStateShell variant="admin" tone="critical" className="admin-denied" role="alert">',
+]) requireText('src/app/AdminApp.tsx', text);
+
+for (const text of [
+  "import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';",
+  'function BannedAccount',
+  '<PhotographicStateShell variant="game" tone="critical" className="banned-account-shell" role="alert">',
+  'function LoadingState',
+  '<LoadingState variant={stateVariantForPath(adminPath)}>',
+  "<LoadingState variant={adminPath ? 'admin' : 'game'}>",
+  '正在连接统一账号服务',
+  '正在加载金融帝国',
+]) requireText('src/app/App.tsx', text);
+
+for (const text of [
+  "import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';",
+  'function currentFallbackVariant()',
+  'tone="critical"',
+  '页面运行出现异常',
+]) requireText('src/app/AppErrorBoundary.tsx', text);
+
+for (const text of [
+  'html[data-app-surface="admin"] body::before',
+  'html[data-app-surface="loading"] body::before',
+  'html[data-app-surface="banned"] body::before',
   '.financial-backdrop-image img[hidden] {',
   '.game-shell,',
-  '.game-state-shell {',
-  'isolation: isolate;',
-  '.game-image-layer,',
-  '.game-atmosphere-layer {',
+  '.admin-shell,',
+  '.photographic-state-shell {',
+  '.signed-in-shell.admin-shell {',
+  'background: transparent;',
+  '.admin-image-layer,',
+  '.admin-atmosphere-layer {',
   'position: fixed;',
   'z-index: -2;',
   'z-index: -1;',
   'object-fit: cover;',
-  '.game-atmosphere-layer::before',
-  '.game-atmosphere-layer::after',
+  '.financial-backdrop-atmosphere--critical {',
+  '.photographic-state-shell__content {',
+  '.photographic-state-card {',
   '@media (max-width: 720px)',
 ]) requireText('src/styles/financial-backdrop.css', text);
 
@@ -85,14 +137,13 @@ for (const text of [
   'overflow: clip',
 ]) forbidText('src/styles/financial-backdrop.css', text);
 
-for (const text of [
-  'FINANCIAL_BACKGROUND_IMAGE_URL',
-  'FINANCIAL_BACKGROUND_IMAGE_960_URL',
-]) requireText('src/config/visualAssets.ts', text);
-
 for (const path of [
   'src/app/LoginPage.tsx',
+  'src/app/AdminApp.tsx',
+  'src/app/App.tsx',
+  'src/app/AppErrorBoundary.tsx',
   'src/components/shell/GameShell.tsx',
+  'src/components/visual/PhotographicStateShell.tsx',
   'src/styles/financial-backdrop.css',
 ]) forbidText(path, 'upload.wikimedia.org');
 
@@ -113,28 +164,44 @@ if (!(compatibilityLayoutIndex >= 0 && compatibilityBackdropIndex > compatibilit
 }
 
 for (const text of [
-  '登录、注册与玩家游戏共享三层视觉',
-  '玩家游戏背景通过 `SignedInShell` 的可选 `backdrop` 插槽在侧栏之前渲染',
-  '管理员页面不得传入玩家摄影背景',
-  '二者及 `.workspace` 不得因为背景改造增加正 `z-index` 或新的隔离层',
-  '玩家加载、连接错误和重试状态也必须使用相同游戏背景',
-  '`scripts/verify-game-three-layer.mjs`',
-  '`tests/browser/game-three-layer.spec.ts`',
+  '登录、注册、玩家游戏、管理员后台与根级状态共享三层视觉',
+  '根级状态统一由 `src/components/visual/PhotographicStateShell.tsx` 承载',
+  '玩家和管理员背景均通过 `SignedInShell` 的可选 `backdrop` 插槽',
+  '统一账号检查、代码包加载、玩家连接／错误／重试、账号封禁、管理员无权限和客户端致命错误必须使用对应',
+  '`tests/browser/application-photography.spec.ts`',
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
+forbidText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', '管理员页面不得传入玩家摄影背景');
+
+for (const text of [
+  '全应用三层摄影背景',
+  '`PhotographicStateShell.tsx`',
+  '`application-photography.spec.ts`',
+  '管理员只使用低干扰 `admin` 变体',
+  '不得出现纯色过渡页',
+]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
+forbidText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '管理员根外壳不渲染玩家背景');
+forbidText('docs/LIQUID_GLASS_CHROME_DESIGN.md', '管理员界面不得渲染这两层');
 
 for (const text of [
   "test.describe('signed-in game three-layer background'",
   "page.locator('.game-image-layer')",
   "page.locator('.game-atmosphere-layer')",
-  "page.locator('.game-shell')",
-  'width: 1440, height: 900',
-  'width: 390, height: 844',
   'falls back to the atmosphere layer when photography fails',
 ]) requireText('tests/browser/game-three-layer.spec.ts', text);
 
+for (const text of [
+  "test.describe('all-interface photography'",
+  'shows photography while checking the account session',
+  'uses the game critical atmosphere for banned accounts',
+  'uses the admin atmosphere for denied access',
+  'keeps the administrator interface readable when photography fails',
+  "page.locator('.admin-image-layer')",
+  "page.locator('.photographic-state-shell')",
+]) requireText('tests/browser/application-photography.spec.ts', text);
+
 if (failures.length) {
-  console.error(`玩家游戏三层背景验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`全应用摄影背景验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('玩家游戏三层背景验证通过：共享摄影、氛围层、现有游戏外壳、浏览器 harness、加载回退和移动 Overlay 边界均已锁定。');
+console.log('全应用摄影背景验证通过：认证、玩家、管理员、根级状态、共享资源、失败回退、移动 Overlay 和背景采样边界均已锁定。');
