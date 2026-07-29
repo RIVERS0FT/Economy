@@ -45,7 +45,7 @@ const DESKTOP_AUTH_CARD_GLASS = {
   blurAmount: 0.0625,
   saturation: 140,
   aberrationIntensity: 2,
-  elasticity: 0.15,
+  elasticity: 0,
   cornerRadius: 24,
   mode: 'standard',
 } as const;
@@ -55,7 +55,7 @@ const MOBILE_AUTH_CARD_GLASS = {
   blurAmount: 0.0625,
   saturation: 140,
   aberrationIntensity: 2,
-  elasticity: 0.15,
+  elasticity: 0,
   cornerRadius: 40,
   mode: 'standard',
 } as const;
@@ -72,15 +72,12 @@ function GlassEffect({
   variant,
   content,
   contentRef,
-  mouseContainerRef,
 }: {
   variant: LiquidGlassSurfaceVariant;
   content: ReactNode;
   contentRef?: RefObject<HTMLDivElement | null>;
-  mouseContainerRef: RefObject<HTMLElement | null>;
 }) {
   const preset = PRESETS[variant];
-  const hasLiquidMotion = preset.elasticity > 0;
   return (
     <LiquidGlass
       className="liquid-glass-surface__effect"
@@ -99,9 +96,9 @@ function GlassEffect({
       cornerRadius={preset.cornerRadius}
       padding="0"
       mode={preset.mode}
-      mouseContainer={hasLiquidMotion ? mouseContainerRef : null}
-      globalMousePos={hasLiquidMotion ? undefined : STATIC_MOUSE_POSITION}
-      mouseOffset={hasLiquidMotion ? undefined : STATIC_MOUSE_OFFSET}
+      mouseContainer={null}
+      globalMousePos={STATIC_MOUSE_POSITION}
+      mouseOffset={STATIC_MOUSE_OFFSET}
     >
       <div ref={contentRef} className="liquid-glass-surface__content">{content}</div>
     </LiquidGlass>
@@ -219,13 +216,13 @@ export function LiquidGlassSurface({
       data-liquid-glass-variant={variant}
       data-liquid-glass-mode={preset.mode}
       data-liquid-glass-layout={layout}
+      data-liquid-glass-elasticity={preset.elasticity}
       style={layout === 'content' ? { height: `${contentHeight ?? 1}px` } : undefined}
     >
       <GlassEffect
         variant={variant}
         content={children}
         contentRef={layout === 'content' ? contentRef : undefined}
-        mouseContainerRef={surfaceRef}
       />
     </div>
   );
