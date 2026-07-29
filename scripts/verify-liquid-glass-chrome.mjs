@@ -97,19 +97,17 @@ if (failures.length === 0) {
     'displacementScale: 70',
     'saturation: 140',
     'aberrationIntensity: 2',
-    'elasticity: 0.15',
     'desktopStatusBar: DESKTOP_STATUS_GLASS',
     'mobileStatusBar: MOBILE_CHROME_GLASS',
     'mobileNavigation: MOBILE_CHROME_GLASS',
     'desktopAuthCard: DESKTOP_AUTH_CARD_GLASS',
     'mobileAuthCard: MOBILE_AUTH_CARD_GLASS',
-    'const hasLiquidMotion = preset.elasticity > 0;',
     'elasticity={preset.elasticity}',
-    'mouseContainer={hasLiquidMotion ? mouseContainerRef : null}',
-    'globalMousePos={hasLiquidMotion ? undefined : STATIC_MOUSE_POSITION}',
-    'mouseOffset={hasLiquidMotion ? undefined : STATIC_MOUSE_OFFSET}',
-    'mouseContainerRef={surfaceRef}',
+    'mouseContainer={null}',
+    'globalMousePos={STATIC_MOUSE_POSITION}',
+    'mouseOffset={STATIC_MOUSE_OFFSET}',
     'data-liquid-glass-layout={layout}',
+    'data-liquid-glass-elasticity={preset.elasticity}',
     'useLayoutEffect(() => {',
     'new ResizeObserver',
     'new MutationObserver',
@@ -134,7 +132,13 @@ if (failures.length === 0) {
     "mode: 'prominent'",
     'mode="shader"',
     'cornerRadius: 20',
+    'elasticity: 0.15',
+    'const hasLiquidMotion = preset.elasticity > 0;',
+    'mouseContainerRef',
   ]) forbidText(files.surface, text);
+  if ((read(files.surface).match(/elasticity:\s*0,/g) ?? []).length !== 4) {
+    failures.push('桌面状态栏、移动 Chrome、桌面认证卡和移动认证卡必须全部固定 elasticity: 0');
+  }
   if ((read(files.surface).match(/cornerRadius:\s*24/g) ?? []).length !== 2) {
     failures.push('桌面状态栏与桌面认证卡必须各定义一个 24px cornerRadius 预设');
   }
@@ -201,7 +205,7 @@ if (failures.length === 0) {
     '.liquid-glass-surface[data-liquid-glass-layout="content"] {',
     '.liquid-glass-surface[data-liquid-glass-layout="content"] .liquid-glass-surface__content {',
     'height: auto !important;',
-    '.liquid-glass-surface__effect[data-liquid-glass-measuring=\"true\"] {',
+    '.liquid-glass-surface__effect[data-liquid-glass-measuring="true"] {',
     'transform: translate(-50%, -50%) scale(1) !important;',
     'transition: none !important;',
     'pointer-events: auto;',
@@ -376,15 +380,19 @@ if (failures.length === 0) {
     '移动底栏垂直留白只允许由 `.liquid-glass-surface__content` 提供',
     '`SignedInShell`',
     '管理员桌面玻璃工作栏',
+    '所有四个参数预设都必须固定 `elasticity: 0`',
+    '`mouseContainer={null}`',
+    '不得开启鼠标、触控板、触笔或触摸跟踪',
   ]) requireText(files.design, text);
   for (const text of [
     '认证卡片必须使用 `src/components/auth/AuthCardSurface.tsx`',
     '位于第三方 `.glass` 内的 `.liquid-glass-surface__content`',
     '统一使用 `--liquid-glass-contrast`',
-    '官方默认值',
+    '官方默认基线',
     '`displacementScale=70`',
-    '`elasticity=0.15`',
-    '官方 `mouseContainer` 接口',
+    '`elasticity=0`',
+    '`mouseContainer={null}`',
+    '不得开启鼠标、触控板、触笔或触摸跟踪',
     '两个边缘高光 `span` 必须可见',
     '不得绘制项目 `::after` 结构描边',
     '不得在 `auth.css` 手写另一套 `backdrop-filter`',
@@ -403,14 +411,18 @@ if (failures.length === 0) {
     "toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard')",
     "toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard')",
     "toHaveAttribute('data-liquid-glass-layout', 'content')",
+    "toHaveAttribute('data-liquid-glass-elasticity', '0')",
     'keeps one authentication glass instance and form values while switching breakpoints',
-    'official liquid motion and highlights',
+    'static optical glass and highlights',
     'expect(glass.contentInsideGlass).toBe(true)',
     'expect(glass.materialFillCount).toBe(0)',
     "expect(glass.outlineContent).toBe('none')",
+    "expect(glass.surfaceElasticity).toBe('0')",
     'expect(glass.visibleDirectDecorationSpanCount).toBe(2)',
     'expect(Math.abs(glass.displacementScales[0])).toBe(70)',
     'page.mouse.move',
+    '.toBe(initialEffectTransform)',
+    '.toEqual(initialHighlightBackgrounds)',
   ]) requireText(files.authBrowser, text);
   for (const text of [
     'admin desktop shares the game shell gutter, command bar and edge scrollbar',
@@ -433,4 +445,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('liquid-glass-react 登录后外壳、官方认证液态参数与运动、双层高光、同源内容与染色、平台预设、内容自适应、开放背景采样链与安全边缘滚动条验证通过。');
+console.log('liquid-glass-react 登录后外壳、认证光学参数、全预设零弹性、静态鼠标输入、双层高光、同源内容与染色、平台预设、内容自适应、开放背景采样链与安全边缘滚动条验证通过。');
