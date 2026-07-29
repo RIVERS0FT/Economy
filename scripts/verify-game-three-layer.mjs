@@ -174,14 +174,24 @@ for (const text of [
   '@media (max-width: 720px)',
 ]) requireText('src/styles/financial-backdrop.css', text);
 
+const authImageNegativeLayer = 'html[data-app-surface="auth"] .application-image-layer {\n  z-index: -2;\n}';
+const authAtmosphereNegativeLayer = 'html[data-app-surface="auth"] .application-atmosphere-layer {\n  z-index: -1;\n}';
+for (const text of [authImageNegativeLayer, authAtmosphereNegativeLayer]) {
+  requireText('src/styles/financial-backdrop.css', text);
+}
+const unexpectedNegativeLayerSource = read('src/styles/financial-backdrop.css')
+  .replace(authImageNegativeLayer, '')
+  .replace(authAtmosphereNegativeLayer, '');
+if (/z-index:\s*-\d+\s*;/.test(unexpectedNegativeLayerSource)) {
+  failures.push('src/styles/financial-backdrop.css 只有认证图片层和认证氛围层允许使用 -2 / -1 负层级');
+}
+
 for (const text of [
   '.game-image-layer',
   '.game-atmosphere-layer',
   '.admin-image-layer',
   '.admin-atmosphere-layer',
   '.financial-backdrop-atmosphere--critical',
-  'z-index: -2;',
-  'z-index: -1;',
   '.workspace {\n  z-index:',
   '.mobile-page-overlay {\n  z-index:',
   '.mobile-chrome-overlay {\n  z-index:',
@@ -247,6 +257,7 @@ for (const text of [
   '不得重新提供 `SignedInShell.backdrop`',
   '`application-photography.spec.ts`',
   '不得出现纯色过渡页',
+  '图片与氛围使用 `-2 / -1` 负层级',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 for (const text of [
