@@ -35,13 +35,16 @@ for (const path of [
 
 for (const text of [
   "import { AuthCardSurface } from '../components/auth/AuthCardSurface'",
-  "import { FinancialBackdrop } from '../components/visual/FinancialBackdrop'",
-  '<FinancialBackdrop variant="auth" priority />',
   '<AuthCardSurface>',
   '</AuthCardSurface>',
   'login-content-layer',
 ]) requireText('src/app/LoginPage.tsx', text);
-for (const text of ['className="login-card panel"', '.login-card panel']) forbidText('src/app/LoginPage.tsx', text);
+for (const text of [
+  "import { FinancialBackdrop } from '../components/visual/FinancialBackdrop'",
+  '<FinancialBackdrop',
+  'className="login-card panel"',
+  '.login-card panel',
+]) forbidText('src/app/LoginPage.tsx', text);
 
 for (const text of [
   "const MOBILE_AUTH_MEDIA_QUERY = '(max-width: 720px)'",
@@ -79,7 +82,6 @@ for (const text of [
   'measuredContentHeightRef.current = nextHeight;',
   'data-liquid-glass-layout={layout}',
   'data-liquid-glass-elasticity={preset.elasticity}',
-  "data-liquid-glass-over-light={GLOBAL_OVER_LIGHT ? 'true' : 'false'}",
   'useLayoutEffect(() => {',
   'new ResizeObserver',
   'new MutationObserver',
@@ -107,18 +109,18 @@ for (const text of [
   'mouseContainerRef',
 ]) forbidText('src/components/ui/LiquidGlassSurface.tsx', text);
 if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/displacementScale:\s*120,/g) ?? []).length !== 4) {
-    failures.push('四个玻璃预设必须全部固定 displacementScale: 120');
-  }
-  if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/blurAmount:\s*0,/g) ?? []).length !== 4) {
-    failures.push('四个玻璃预设必须全部固定 blurAmount: 0');
-  }
-  if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/saturation:\s*120,/g) ?? []).length !== 4) {
-    failures.push('四个玻璃预设必须全部固定 saturation: 120');
-  }
-  if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/aberrationIntensity:\s*2,/g) ?? []).length !== 4) {
-    failures.push('四个玻璃预设必须全部固定 aberrationIntensity: 2');
-  }
-  if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/elasticity:\s*0,/g) ?? []).length !== 4) {
+  failures.push('四个玻璃预设必须全部固定 displacementScale: 120');
+}
+if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/blurAmount:\s*0,/g) ?? []).length !== 4) {
+  failures.push('四个玻璃预设必须全部固定 blurAmount: 0');
+}
+if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/saturation:\s*120,/g) ?? []).length !== 4) {
+  failures.push('四个玻璃预设必须全部固定 saturation: 120');
+}
+if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/aberrationIntensity:\s*2,/g) ?? []).length !== 4) {
+  failures.push('四个玻璃预设必须全部固定 aberrationIntensity: 2');
+}
+if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/elasticity:\s*0,/g) ?? []).length !== 4) {
   failures.push('五种玻璃变体对应的四个参数预设必须全部固定 elasticity: 0');
 }
 
@@ -130,12 +132,15 @@ for (const text of [
 ]) requireText('src/config/visualAssets.ts', text);
 
 for (const text of [
-  "type FinancialBackdropVariant = 'auth' | 'game'",
-  "variant === 'auth' ? 'login' : 'game'",
-  'financial-backdrop-image',
-  'financial-backdrop-atmosphere',
+  "export type FinancialBackdropVariant = 'auth' | 'game' | 'admin';",
+  "export type FinancialBackdropTone = 'normal' | 'critical';",
+  'export function FinancialBackdrop()',
+  'application-image-layer financial-backdrop-image',
+  'data-persistent-financial-photography="true"',
+  'application-atmosphere-layer financial-backdrop-atmosphere',
   '<picture>',
-  "fetchPriority={priority ? 'high' : 'auto'}",
+  'loading="eager"',
+  'fetchPriority="high"',
   'aria-hidden="true"',
   'event.currentTarget.hidden = true;',
 ]) requireText('src/components/visual/FinancialBackdrop.tsx', text);
@@ -150,16 +155,7 @@ for (const text of [
   'overflow: visible;',
   'box-shadow: none;',
   'backdrop-filter: none;',
-  '.login-image-layer,',
-  '.login-atmosphere-layer {',
   '.login-content-layer {',
-  'position: fixed;',
-  'z-index: 0;',
-  'z-index: 1;',
-  'z-index: 2;',
-  'object-fit: cover;',
-  'html[data-app-surface="auth"] body::before',
-  'display: none;',
   'min-height: calc(100dvh - var(--space-8));',
   '.login-card {',
   'border-radius: var(--radius-card);',
@@ -167,11 +163,6 @@ for (const text of [
   'padding: var(--space-8);',
   'border-radius: var(--radius-card-mobile);',
   'padding: var(--space-5);',
-  'rgba(1, 7, 4, 0.62) 0%',
-  'rgba(2, 10, 6, 0.6) 36%',
-  'rgba(2, 8, 5, 0.82) 100%',
-  '.login-atmosphere-layer::before {\n    opacity: 0.12;',
-  '.login-atmosphere-layer::after {\n    opacity: 0.05;',
 ]) requireText('src/styles/auth.css', text);
 for (const text of [
   '.login-card.panel',
@@ -187,8 +178,24 @@ for (const text of [
 ]) forbidText('src/styles/auth.css', text);
 
 for (const text of [
+  '.application-image-layer,',
+  '.application-atmosphere-layer {',
+  'html[data-app-backdrop="auth"] .application-image-layer img',
+  'html[data-app-backdrop="auth"] .application-atmosphere-layer',
+  'rgba(1, 7, 4, 0.62) 0%',
+  'rgba(2, 10, 6, 0.6) 36%',
+  'rgba(2, 8, 5, 0.82) 100%',
+  'html[data-app-backdrop="auth"] .application-atmosphere-layer::before',
+  'opacity: 0.12;',
+  'html[data-app-backdrop="auth"] .application-atmosphere-layer::after',
+  'opacity: 0.05;',
+  '.application-content-root .login-shell',
+  'background: transparent !important;',
+]) requireText('src/styles/financial-backdrop.css', text);
+
+for (const text of [
   '--liquid-glass-contrast: rgba(194, 231, 214, 0.06);',
-    '--liquid-glass-auth-fallback:',
+  '--liquid-glass-auth-fallback:',
   '.liquid-glass-surface[data-liquid-glass-layout="content"]',
   '.liquid-glass-surface[data-liquid-glass-layout="content"] .liquid-glass-surface__content {',
   'height: auto !important;',
@@ -197,9 +204,6 @@ for (const text of [
   'transition: none !important;',
   '.liquid-glass-surface--desktopAuthCard .glass__warp,\n.liquid-glass-surface--mobileAuthCard .glass__warp {',
   '-webkit-backdrop-filter: blur(12px) saturate(120%);',
-  '.liquid-glass-surface--desktopStatusBar,\n.liquid-glass-surface--mobileStatusBar,\n.liquid-glass-surface--mobileNavigation,\n.liquid-glass-surface--desktopAuthCard,\n.liquid-glass-surface--mobileAuthCard {',
-  'background: var(--liquid-glass-contrast);',
-  '.liquid-glass-surface--desktopStatusBar::after,\n.liquid-glass-surface--mobileStatusBar::after {',
   '.liquid-glass-surface--desktopAuthCard::after,\n.liquid-glass-surface--mobileAuthCard::after {',
   'content: none;',
   '.liquid-glass-surface--desktopAuthCard > span,\n.liquid-glass-surface--mobileAuthCard > span {',
@@ -207,16 +211,12 @@ for (const text of [
   '.liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect)',
   'background: #000 !important;',
   'mix-blend-mode: overlay !important;',
-  '.login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect,',
-  '.login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect > .glass,',
-  '.login-card > .liquid-glass-surface--desktopAuthCard > span,',
   'position: absolute !important;',
   'inset: 0 !important;',
   'width: 100% !important;',
   'height: 100% !important;',
   'box-sizing: border-box !important;',
   'transform: none !important;',
-  '.login-card > .liquid-glass-surface--desktopAuthCard[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect),',
   'background: var(--liquid-glass-auth-fallback);',
 ]) requireText('src/styles/liquid-glass-surfaces.css', text);
 for (const text of [
@@ -229,24 +229,33 @@ requireText('src/styles/invitations.css', '.banned-account-shell {');
 requireText('src/styles/invitations.css', 'place-items: center;');
 
 for (const text of [
-  '.login-image-layer',
-  '.login-atmosphere-layer',
+  '.application-image-layer',
+  '.application-atmosphere-layer',
   '.login-content-layer',
-  '.game-image-layer',
-  '.game-atmosphere-layer',
 ]) forbidText('src/styles/globals.css', text);
 for (const text of ['.login-shell', '.login-card.panel']) forbidText('src/styles/card-system.css', text);
 for (const text of ['AUTH_BACKGROUND_IMAGE_URL', 'AUTH_BACKGROUND_IMAGE_960_URL', 'upload.wikimedia.org']) {
   forbidText('src/app/LoginPage.tsx', text);
 }
 
-const backdropImport = "import './styles/financial-backdrop.css';";
 const mainSource = read('src/main.tsx');
-requireText('src/main.tsx', backdropImport);
+for (const text of [
+  "import { FinancialBackdrop } from './components/visual/FinancialBackdrop';",
+  "document.documentElement.dataset.appSurface = 'loading';",
+  'document.documentElement.dataset.appBackdrop =',
+  "document.documentElement.dataset.appTone = 'normal';",
+  '<FinancialBackdrop />',
+  '<div className="application-content-root">',
+]) requireText('src/main.tsx', text);
+const backdropNodeIndex = mainSource.indexOf('<FinancialBackdrop />');
+const strictModeIndex = mainSource.indexOf('<React.StrictMode>');
+if (!(backdropNodeIndex >= 0 && strictModeIndex > backdropNodeIndex)) {
+  failures.push('持久摄影节点必须在 StrictMode 与错误边界之外先渲染');
+}
 const gameLayoutIndex = mainSource.indexOf("import './styles/game-shell-layout.css';");
-const backdropIndex = mainSource.indexOf(backdropImport);
+const backdropStyleIndex = mainSource.indexOf("import './styles/financial-backdrop.css';");
 const glassIndex = mainSource.indexOf("import './styles/liquid-glass-surfaces.css';");
-if (!(gameLayoutIndex >= 0 && backdropIndex > gameLayoutIndex && glassIndex > backdropIndex)) {
+if (!(gameLayoutIndex >= 0 && backdropStyleIndex > gameLayoutIndex && glassIndex > backdropStyleIndex)) {
   failures.push('src/main.tsx 必须按 game-shell-layout.css → financial-backdrop.css → liquid-glass-surfaces.css 加载');
 }
 
@@ -273,6 +282,7 @@ for (let index = 0; index < finalStyleOrder.length; index += 1) {
 for (const text of [
   '登录、注册与玩家游戏共享三层视觉',
   '`src/components/visual/FinancialBackdrop.tsx`',
+  '整个应用生命周期只允许一个摄影 `<picture>` 节点',
   '`AuthCardSurface`',
   '`desktopAuthCard`',
   '`mobileAuthCard`',
@@ -283,7 +293,7 @@ for (const text of [
   '位于第三方 `.glass` 内的 `.liquid-glass-surface__content`',
   '不得通过 revision 或 React `key` 重建认证内容',
   '统一使用 `--liquid-glass-contrast`',
-    '不得再创建 `.liquid-glass-surface__material-fill`',
+  '不得再创建 `.liquid-glass-surface__material-fill`',
   '全局光学基线',
   '`displacementScale=120`',
   '`elasticity=0`',
@@ -314,6 +324,7 @@ for (const text of [
   '`mouseContainer={null}`',
   '首次绘制前同步提交',
   '可见高光几何直接绑定认证宿主',
+  '摄影 `<picture>` 固定挂载在 `main.tsx`',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 for (const text of [
@@ -326,8 +337,8 @@ for (const text of [
   "test.describe('auth three-layer layout'",
   'viewport: { width: 1440, height: 900 }',
   'viewport: { width: 390, height: 844 }',
-  "page.locator('.login-image-layer')",
-  "page.locator('.login-atmosphere-layer')",
+  "page.locator('.application-image-layer')",
+  "page.locator('.application-atmosphere-layer')",
   "page.locator('.login-content-layer')",
   "toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard')",
   "toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard')",
@@ -364,9 +375,9 @@ for (const text of [
 ]) requireText('tests/browser/auth-three-layer.spec.ts', text);
 
 if (failures.length > 0) {
-  console.error('登录三层结构与静态认证液态玻璃验证失败：');
+  console.error('登录三层结构与持久摄影背景验证失败：');
   for (const failure of failures) console.error(`- ${failure}`);
   process.exitCode = 1;
 } else {
-  console.log('登录三层结构、认证首帧高度同步、宿主绑定双层高光、零尺寸过渡、静态输入、几何同步与表单状态保持验证通过。');
+  console.log('登录三层结构、根级持久摄影、认证首帧高度同步、宿主绑定双层高光、静态输入、几何同步与表单状态保持验证通过。');
 }
