@@ -1,0 +1,52 @@
+name: Patch Compact Backup Design Once
+
+on:
+  push:
+    branches:
+      - agent/compact-migration-backups
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/compact-migration-backups
+      - name: Patch authoritative storage rules
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          text = path.read_text(encoding='utf-8')
+          old_backup = '- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：每个迁移族只保留最新一份完整 SQLite 快照，最多保留最近 5 个迁移族。部署必须先执行全局备份清理，再判断是否需要创建当前迁移备份；版本已经满足目标时也不得跳过清理。不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态。'
+          new_backup = '- 正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`。从 `NONE` 迁移只能由受控维护执行停服、WAL 收口、`VACUUM INTO`、逻辑哈希校验、原子替换与失败回滚；普通玩家事务不得执行 `incremental_vacuum`。每周一北京时间 02:30 的维护只在可回收空间不少于 64 MiB 且 freelist 比例不少于 25% 时运行，每批固定 1,024 页、单次最多四批。\n- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：每个迁移族只保留最新一份紧凑 gzip SQLite 快照，最多保留最近 5 个迁移族。备份统一以 `VACUUM INTO` 消除 freelist，完成 `quick_check`、外键和模式校验后使用 gzip 级别 6 流式压缩并校验解压哈希；解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`。部署必须先执行全局备份清理，再判断是否需要创建当前迁移备份；版本已经满足目标时也不得跳过清理。不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态。'
+          old_space = '- 创建新迁移备份前，可用空间必须至少覆盖当前数据库完整大小再加 512 MiB 余量；上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。网站、API 和便携 Node 运行时三次同步统一使用 `rsync --delete-before`，先删除将被新发布完整替换的旧文件，降低发布峰值空间。'
+          new_space = '- 创建新迁移备份前，可用空间必须至少为预计有效数据两倍再加 512 MiB 余量；不得按包含 freelist 的历史高水位主文件大小要求第二份同等空间。上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。网站、API 和便携 Node 运行时三次同步统一使用 `rsync --delete-before`，先删除将被新发布完整替换的旧文件，降低发布峰值空间。'
+          if old_backup in text:
+              text = text.replace(old_backup, new_backup, 1)
+          elif new_backup not in text:
+              raise SystemExit('authoritative backup rule anchor missing')
+          if old_space in text:
+              text = text.replace(old_space, new_space, 1)
+          elif new_space not in text:
+              raise SystemExit('backup space rule anchor missing')
+          text = text.replace(
+              '`economy-pre-contract-audit-<UTC 时间>.sqlite`',
+              '`economy-pre-contract-audit-<UTC 时间>.sqlite.gz`',
+              1,
+          )
+          path.write_text(text, encoding='utf-8')
+          PYTHON
+
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+          git commit -m "记录 INCREMENTAL 与紧凑压缩备份规则"
+          git push origin HEAD:agent/compact-migration-backups
