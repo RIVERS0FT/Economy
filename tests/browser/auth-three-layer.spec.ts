@@ -55,6 +55,7 @@ async function readAuthGlass(page: Page) {
       cardOverflowY: cardStyle.overflowY,
       surfaceRadius: surfaceStyle.borderTopLeftRadius,
       surfaceHeight: surface.clientHeight,
+      surfaceElasticity: surface.dataset.liquidGlassElasticity,
       effectHeight: effect.offsetHeight,
       glassHeight: glassElement.offsetHeight,
       filterHeight: filterSvg.clientHeight,
@@ -131,7 +132,7 @@ test.describe('auth three-layer layout', () => {
   test.describe('desktop', () => {
     test.use({ viewport: { width: 1440, height: 900 } });
 
-    test('keeps image, atmosphere and content in distinct stacking layers with official liquid motion and highlights', async ({ page }) => {
+    test('keeps image, atmosphere and content in distinct stacking layers with static optical glass and highlights', async ({ page }) => {
       await openLoginPage(page);
 
       const imageLayer = page.locator('.login-image-layer');
@@ -149,6 +150,7 @@ test.describe('auth three-layer layout', () => {
       await expect(surface).toHaveCount(1);
       await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard');
       await expect(surface).toHaveAttribute('data-liquid-glass-layout', 'content');
+      await expect(surface).toHaveAttribute('data-liquid-glass-elasticity', '0');
 
       const stacking = await page.evaluate(() => {
         const read = (selector: string) => {
@@ -183,6 +185,7 @@ test.describe('auth three-layer layout', () => {
       const glass = await readAuthGlass(page);
       expect(glass.cardBorder).toBe('0px');
       expect(glass.surfaceRadius).toBe('24px');
+      expect(glass.surfaceElasticity).toBe('0');
       expect(glass.contentPaddingTop).toBe('32px');
       expect(glass.outlineBorder).toBe('0px');
       expect(glass.outlineContent).toBe('none');
@@ -205,9 +208,9 @@ test.describe('auth three-layer layout', () => {
       const initialHighlightBackgrounds = glass.directDecorationBackgrounds;
       await page.mouse.move(cardBox!.x + cardBox!.width / 2, cardBox!.y + cardBox!.height / 2);
       await page.mouse.move(cardBox!.x + cardBox!.width - 12, cardBox!.y + 12);
-      await expect.poll(async () => (await readAuthGlass(page)).effectTransform).not.toBe(initialEffectTransform);
+      await expect.poll(async () => (await readAuthGlass(page)).effectTransform).toBe(initialEffectTransform);
       await expect.poll(async () => (await readAuthGlass(page)).directDecorationBackgrounds)
-        .not.toEqual(initialHighlightBackgrounds);
+        .toEqual(initialHighlightBackgrounds);
 
       await page.getByLabel('账号邮箱').click();
       await expect(page.getByLabel('账号邮箱')).toBeFocused();
@@ -223,11 +226,13 @@ test.describe('auth three-layer layout', () => {
       await password.fill('password123');
       await expect(surfaces).toHaveCount(1);
       await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard');
+      await expect(surfaces).toHaveAttribute('data-liquid-glass-elasticity', '0');
       await expectAuthGlassGeometryAligned(page);
 
       await page.setViewportSize({ width: 720, height: 900 });
       await expect(surfaces).toHaveCount(1);
       await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
+      await expect(surfaces).toHaveAttribute('data-liquid-glass-elasticity', '0');
       await expect(email).toHaveValue('kept@example.com');
       await expect(password).toHaveValue('password123');
       await expectAuthGlassGeometryAligned(page);
@@ -235,6 +240,7 @@ test.describe('auth three-layer layout', () => {
       await page.setViewportSize({ width: 721, height: 900 });
       await expect(surfaces).toHaveCount(1);
       await expect(surfaces).toHaveAttribute('data-liquid-glass-variant', 'desktopAuthCard');
+      await expect(surfaces).toHaveAttribute('data-liquid-glass-elasticity', '0');
       await expect(email).toHaveValue('kept@example.com');
       await expect(password).toHaveValue('password123');
       await expectAuthGlassGeometryAligned(page);
@@ -257,6 +263,7 @@ test.describe('auth three-layer layout', () => {
       await expect(surface).toHaveCount(1);
       await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
       await expect(surface).toHaveAttribute('data-liquid-glass-layout', 'content');
+      await expect(surface).toHaveAttribute('data-liquid-glass-elasticity', '0');
       await email.fill('mobile@example.com');
       await expectAuthGlassGeometryAligned(page);
       const loginGlass = await readAuthGlass(page);
@@ -268,6 +275,7 @@ test.describe('auth three-layer layout', () => {
       expect(atmosphere.gridOpacity).toBe('0.12');
       expect(atmosphere.noiseOpacity).toBe('0.05');
       expect(loginGlass.surfaceBackground).toBe(loginGlass.sharedContrast);
+      expect(loginGlass.surfaceElasticity).toBe('0');
       expect(loginGlass.contentInsideGlass).toBe(true);
       expect(loginGlass.materialFillCount).toBe(0);
       expect(loginGlass.webkitBackdropFilter).toContain('blur(6px)');
@@ -283,6 +291,7 @@ test.describe('auth three-layer layout', () => {
       await expect(email).toHaveValue('mobile@example.com');
       await expect(surface).toHaveCount(1);
       await expect(surface).toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard');
+      await expect(surface).toHaveAttribute('data-liquid-glass-elasticity', '0');
       await expectAuthGlassGeometryAligned(page);
 
       const brandBox = await brand.boundingBox();
@@ -313,6 +322,7 @@ test.describe('auth three-layer layout', () => {
       expect(visual.documentHeight).toBeGreaterThanOrEqual(visual.viewportHeight);
       expect(registrationGlass.cardBorder).toBe('0px');
       expect(registrationGlass.surfaceRadius).toBe('40px');
+      expect(registrationGlass.surfaceElasticity).toBe('0');
       expect(registrationGlass.contentPaddingTop).toBe('20px');
       expect(registrationGlass.outlineBorder).toBe('0px');
       expect(registrationGlass.outlineContent).toBe('none');
