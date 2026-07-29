@@ -16,6 +16,7 @@ export interface EconomySessionResponse {
   playerCreated: boolean;
   banned: boolean;
   incidentId?: number;
+  anomalyIncidentId?: number;
   invitationBound: boolean;
   invalidInvite: boolean;
 }

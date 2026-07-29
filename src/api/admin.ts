@@ -270,6 +270,10 @@ export interface BanIncidentSummary {
   detected_user_count: number;
   fingerprint_preview: string;
   active_ban_count: number;
+  new_member_count: number;
+  reviewed_at: number | null;
+  reviewed_by: number | null;
+  review_note: string;
 }
 
 export interface BanIncidentMember {
@@ -280,6 +284,9 @@ export interface BanIncidentMember {
   ban_status: 'active' | 'lifted' | null;
   banned_at: number | null;
   unbanned_at: number | null;
+  ban_reason: 'duplicate_registration_ip' | 'admin' | null;
+  banned_by: number | null;
+  unbanned_by: number | null;
   admin_note: string | null;
 }
 
@@ -388,6 +395,22 @@ export const adminApi = {
     await request<{ incidents: BanIncidentSummary[] }>('/bans', { method: 'GET' })
   ).incidents,
   banIncident: (id: number) => request<BanIncidentDetails>(`/bans/${id}`, { method: 'GET' }),
+  banUser: (userId: number, note: string, incidentId?: number) => request<{ ok: boolean; message: string }>(
+    `/bans/users/${userId}/ban`,
+    { method: 'POST', body: JSON.stringify({ note, incidentId }) },
+  ),
+  banIncidentMembers: (incidentId: number, note: string) => request<{ ok: boolean; message: string; changedCount: number }>(
+    `/bans/${incidentId}/ban-all`,
+    { method: 'POST', body: JSON.stringify({ note }) },
+  ),
+  reviewIncident: (incidentId: number, note: string) => request<{ ok: boolean; message: string }>(
+    `/bans/${incidentId}/review`,
+    { method: 'POST', body: JSON.stringify({ note }) },
+  ),
+  closeIncident: (incidentId: number, note: string) => request<{ ok: boolean; message: string }>(
+    `/bans/${incidentId}/close`,
+    { method: 'POST', body: JSON.stringify({ note }) },
+  ),
   unbanUser: (userId: number, note: string) => request<{ ok: boolean; message: string }>(
     `/bans/users/${userId}/unban`,
     { method: 'POST', body: JSON.stringify({ note }) },

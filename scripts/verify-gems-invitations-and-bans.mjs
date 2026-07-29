@@ -16,6 +16,7 @@ const files = [
   'server/src/app.js',
   'server/src/storage.js',
   'server/test/invitations.test.js',
+  'server/test/registration.test.js',
   'src/api/invitations.ts',
   'src/components/InvitationSettings.tsx',
   'src/components/AdminBanPanel.tsx',
@@ -47,7 +48,7 @@ for (const text of [
   'CREATE TABLE IF NOT EXISTS economy_ip_ban_incidents',
   'CREATE TABLE IF NOT EXISTS economy_account_bans',
   'ECONOMY_ACCOUNT_BANNED',
-  'activateDuplicateIpBanInTransaction',
+  'reportDuplicateRegistrationIpInTransaction',
   'processNewRegistrationInTransaction',
   'inviter.gems += INVITATION_REWARD_GEMS',
 ]) requireText('server/src/invitations.js', text);
@@ -100,10 +101,13 @@ for (const text of ['注册表单固定提供', '注册完成后不能补填', '
 }
 
 for (const text of [
-  '同 IP 账号封禁',
+  '异常上报与封禁',
+  'banIncidentMembers',
+  'banUser',
+  'reviewIncident',
+  'closeIncident',
   'unbanIncident',
   'unbanUser',
-  'rebanUser',
 ]) requireText('src/components/AdminBanPanel.tsx', text);
 for (const text of ["activeSection === 'bans'", '<AdminBanPanel']) requireText('src/app/AdminApp.tsx', text);
 forbidText('src/app/App.tsx', "path === '/economy/admin/bans'");
@@ -129,17 +133,28 @@ for (const text of ['专属分享链接', '永久邀请码', '邀请卡唯一归
 for (const text of ['同一注册 IP', '423 Locked', 'ECONOMY_ACCOUNT_BANNED', '固定返回 `410 Gone`']) {
   requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 }
-for (const text of ['账号封禁', '手动解禁', '解禁不得自动补发']) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
+for (const text of ['异常上报', '管理员手动封禁', '解禁不得自动补发']) requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', text);
 
 for (const text of [
   'registration form invite code rewards inviter once inside first-profile transaction',
   'existing Economy profile ignores invite parameters and can never be backfilled',
+  'a second registration on the same IP creates an anomaly report without banning accounts',
+  'administrator manually controls single-account and whole-incident bans',
+  'review survives restart and a new same-IP account only reopens the report',
   'same-IP registration form code is recorded without a gem reward',
+  'legacy automatic-ban migration remains idempotent after an audit-only partial attempt',
   "assert.equal('claimExpiresAt' in summary, false)",
 ]) requireText('server/test/invitations.test.js', text);
+requireText(
+  'server/test/registration.test.js',
+  'homepage and direct Economy registrations both create duplicate-IP anomaly reports without automatic bans',
+);
 
 if (failures.length) {
   console.error(`宝石、注册期邀请与封禁验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('宝石、邀请与封禁验证通过：邀请只在首次建档事务中归因，商店承载邀请卡，旧补填接口 410，同 IP 封禁与管理员解禁规则均已锁定。');
+for (const text of ['upsertActiveBan', '相关账号已被封禁']) {
+  forbidText('server/src/invitations.js', text);
+}
+console.log('宝石、邀请与封禁验证通过：同 IP 仅上报异常，账号封禁只由管理员执行，邀请防刷与审计边界保持。');

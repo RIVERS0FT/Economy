@@ -7,6 +7,14 @@ function httpError(message, statusCode, extra = {}) {
   return Object.assign(new Error(message), { statusCode, ...extra });
 }
 
+function normalizeAdminNote(value) {
+  const note = String(value || '').trim();
+  if (note.length < 1 || note.length > 240) {
+    throw httpError('请填写 1～240 字管理员备注', 400);
+  }
+  return note;
+}
+
 export function normalizeInviteCode(value) {
   return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
 }
@@ -84,7 +92,10 @@ export class EconomyInvitationStore {
         detected_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         detected_user_count INTEGER NOT NULL CHECK (detected_user_count >= 2),
-        created_reason TEXT NOT NULL
+        created_reason TEXT NOT NULL,
+        reviewed_at INTEGER,
+        reviewed_by INTEGER,
+        review_note TEXT NOT NULL DEFAULT ''
       ) STRICT;
       CREATE INDEX IF NOT EXISTS idx_economy_ip_ban_incidents_fingerprint
         ON economy_ip_ban_incidents(ip_fingerprint, status, updated_at DESC);
@@ -119,6 +130,75 @@ export class EconomyInvitationStore {
         created_at INTEGER NOT NULL
       ) STRICT;
     `);
+
+    const incidentColumns = new Set(
+      this.database.prepare('PRAGMA table_info(economy_ip_ban_incidents)').all()
+        .map((column) => String(column.name)),
+    );
+    if (!incidentColumns.has('reviewed_at')) {
+      this.database.exec('ALTER TABLE economy_ip_ban_incidents ADD COLUMN reviewed_at INTEGER');
+    }
+    if (!incidentColumns.has('reviewed_by')) {
+      this.database.exec('ALTER TABLE economy_ip_ban_incidents ADD COLUMN reviewed_by INTEGER');
+    }
+    if (!incidentColumns.has('review_note')) {
+      this.database.exec("ALTER TABLE economy_ip_ban_incidents ADD COLUMN review_note TEXT NOT NULL DEFAULT ''");
+    }
+    this.database.exec(`
+      CREATE TABLE IF NOT EXISTS economy_ip_incident_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        incident_id INTEGER NOT NULL REFERENCES economy_ip_ban_incidents(id),
+        action TEXT NOT NULL CHECK (action IN (
+          'detected', 'member_added', 'reopened', 'reviewed', 'closed', 'ban_all', 'unban_all'
+        )),
+        actor_user_id INTEGER,
+        user_id INTEGER,
+        note TEXT NOT NULL DEFAULT '',
+        source_key TEXT UNIQUE,
+        created_at INTEGER NOT NULL
+      ) STRICT;
+      CREATE INDEX IF NOT EXISTS idx_economy_ip_incident_audit_incident
+        ON economy_ip_incident_audit(incident_id, created_at DESC, id DESC);
+    `);
+    const migrationNow = Date.now();
+    this.database.prepare(`
+      INSERT OR IGNORE INTO economy_ban_audit (
+        user_id, incident_id, action, actor_user_id, note, request_key, created_at
+      )
+      SELECT
+        user_id,
+        incident_id,
+        'unban',
+        NULL,
+        '规则迁移：自动封禁改为异常上报',
+        'migration:auto-ban-report-only:' || user_id,
+        ?
+      FROM economy_account_bans
+      WHERE status = 'active'
+        AND reason = 'duplicate_registration_ip'
+        AND banned_by IS NULL
+    `).run(migrationNow);
+    this.database.prepare(`
+      UPDATE economy_account_bans
+      SET status = 'lifted',
+          unbanned_at = COALESCE(unbanned_at, ?),
+          unbanned_by = NULL,
+          admin_note = '规则迁移：自动封禁改为异常上报'
+      WHERE status = 'active'
+        AND reason = 'duplicate_registration_ip'
+        AND banned_by IS NULL
+    `).run(migrationNow);
+    this.database.prepare(`
+      UPDATE economy_ip_ban_incidents
+      SET status = 'active', updated_at = MAX(updated_at, ?)
+      WHERE id IN (
+        SELECT DISTINCT incident_id
+        FROM economy_account_bans
+        WHERE reason = 'duplicate_registration_ip'
+          AND admin_note = '规则迁移：自动封禁改为异常上报'
+          AND incident_id IS NOT NULL
+      )
+    `).run(migrationNow);
 
     this.selectInviteCodeByUser = this.database.prepare(`
       SELECT * FROM economy_invite_codes WHERE user_id = ?
@@ -181,20 +261,20 @@ export class EconomyInvitationStore {
         incident_id, user_id, registered_at, registration_source
       ) VALUES (?, ?, ?, ?)
     `);
-    this.upsertActiveBan = this.database.prepare(`
+    this.upsertManualBan = this.database.prepare(`
       INSERT INTO economy_account_bans (
         user_id, status, reason, incident_id, banned_at, banned_by,
         unbanned_at, unbanned_by, admin_note
-      ) VALUES (?, 'active', 'duplicate_registration_ip', ?, ?, NULL, NULL, NULL, '')
+      ) VALUES (?, 'active', 'admin', ?, ?, ?, NULL, NULL, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         status = 'active',
-        reason = 'duplicate_registration_ip',
+        reason = 'admin',
         incident_id = excluded.incident_id,
         banned_at = excluded.banned_at,
-        banned_by = NULL,
+        banned_by = excluded.banned_by,
         unbanned_at = NULL,
         unbanned_by = NULL,
-        admin_note = ''
+        admin_note = excluded.admin_note
     `);
     this.selectActiveBan = this.database.prepare(`
       SELECT * FROM economy_account_bans WHERE user_id = ? AND status = 'active'
@@ -210,6 +290,14 @@ export class EconomyInvitationStore {
     this.selectBanAuditByRequestKey = this.database.prepare(`
       SELECT * FROM economy_ban_audit WHERE request_key = ?
     `);
+    this.selectIncidentAuditBySourceKey = this.database.prepare(`
+      SELECT * FROM economy_ip_incident_audit WHERE source_key = ?
+    `);
+    this.insertIncidentAudit = this.database.prepare(`
+      INSERT OR IGNORE INTO economy_ip_incident_audit (
+        incident_id, action, actor_user_id, user_id, note, source_key, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
     this.updateBanLifted = this.database.prepare(`
       UPDATE economy_account_bans
       SET status = 'lifted', unbanned_at = ?, unbanned_by = ?, admin_note = ?
@@ -223,6 +311,11 @@ export class EconomyInvitationStore {
     `);
     this.selectIncidentMembers = this.database.prepare(`
       SELECT user_id FROM economy_ip_ban_members WHERE incident_id = ? ORDER BY user_id
+    `);
+    this.selectIncidentMember = this.database.prepare(`
+      SELECT 1 AS present
+      FROM economy_ip_ban_members
+      WHERE incident_id = ? AND user_id = ?
     `);
     this.selectInvitationCounts = this.database.prepare(`
       SELECT
@@ -240,20 +333,25 @@ export class EconomyInvitationStore {
     `);
     this.listBanIncidentsStatement = this.database.prepare(`
       SELECT i.id, i.status, i.detected_at, i.updated_at, i.detected_user_count,
+             i.reviewed_at, i.reviewed_by, i.review_note,
              substr(i.ip_fingerprint, 1, 12) AS fingerprint_preview,
-             SUM(CASE WHEN b.status = 'active' THEN 1 ELSE 0 END) AS active_ban_count
+             SUM(CASE WHEN b.status = 'active' AND b.reason = 'admin' THEN 1 ELSE 0 END) AS active_ban_count,
+             SUM(CASE WHEN i.reviewed_at IS NULL OR m.registered_at > i.reviewed_at THEN 1 ELSE 0 END) AS new_member_count
       FROM economy_ip_ban_incidents i
       LEFT JOIN economy_ip_ban_members m ON m.incident_id = i.id
       LEFT JOIN economy_account_bans b ON b.user_id = m.user_id
       GROUP BY i.id
-      ORDER BY i.updated_at DESC LIMIT 200
+      ORDER BY CASE i.status WHEN 'active' THEN 0 WHEN 'reviewed' THEN 1 ELSE 2 END,
+               i.updated_at DESC
+      LIMIT 200
     `);
     this.selectBanIncidentStatement = this.database.prepare(`
       SELECT * FROM economy_ip_ban_incidents WHERE id = ?
     `);
     this.selectBanIncidentMembersStatement = this.database.prepare(`
       SELECT m.user_id, m.registered_at, m.registration_source,
-             r.email, b.status AS ban_status, b.banned_at, b.unbanned_at, b.admin_note
+             r.email, b.status AS ban_status, b.reason AS ban_reason,
+             b.banned_at, b.banned_by, b.unbanned_at, b.unbanned_by, b.admin_note
       FROM economy_ip_ban_members m
       LEFT JOIN economy_registrations r ON r.user_id = m.user_id
       LEFT JOIN economy_account_bans b ON b.user_id = m.user_id
@@ -261,7 +359,7 @@ export class EconomyInvitationStore {
       ORDER BY m.registered_at, m.user_id
     `);
 
-    this.reconcileDuplicateRegistrationIps();
+    this.reconcileDuplicateRegistrationReports();
   }
 
   ensureInviteCodeInTransaction(userId, now = Date.now()) {
@@ -288,26 +386,41 @@ export class EconomyInvitationStore {
   assertActive(userId) {
     const ban = this.activeBan(userId);
     if (!ban) return;
-    throw httpError('检测到同一注册网络存在多个 Economy 账号，相关账号已被封禁', 423, {
+    const incidentId = ban.incident_id === null ? undefined : Number(ban.incident_id);
+    throw httpError('该账号已被管理员封禁，请联系管理员复核', 423, {
       code: 'ECONOMY_ACCOUNT_BANNED',
-      incidentId: Number(ban.incident_id),
+      ...(incidentId === undefined ? {} : { incidentId }),
     });
   }
 
-  activateDuplicateIpBanInTransaction(ipFingerprint, now = Date.now(), { force = false } = {}) {
+  reportDuplicateRegistrationIpInTransaction(ipFingerprint, now = Date.now()) {
     const registrations = this.selectRegistrationsByIp.all(ipFingerprint);
     if (registrations.length < 2) return null;
     const incident = this.selectLatestIncidentByIp.get(ipFingerprint);
     const knownMembers = incident ? this.selectIncidentMembers.all(Number(incident.id)) : [];
     const knownUserIds = new Set(knownMembers.map((member) => Number(member.user_id)));
-    const hasNewRegistration = registrations.some((registration) => !knownUserIds.has(Number(registration.user_id)));
-    if (incident && !force && !hasNewRegistration) {
-      return { incidentId: Number(incident.id), registrations, enforced: false };
+    const newRegistrations = registrations.filter(
+      (registration) => !knownUserIds.has(Number(registration.user_id)),
+    );
+    if (incident && newRegistrations.length === 0) {
+      return { incidentId: Number(incident.id), registrations, reported: false };
     }
+
     let incidentId;
     if (incident) {
       incidentId = Number(incident.id);
       this.updateIncident.run(now, registrations.length, incidentId);
+      if (incident.status !== 'active') {
+        this.insertIncidentAudit.run(
+          incidentId,
+          'reopened',
+          null,
+          null,
+          '检测到新的同注册网络账号，事件重新进入待复核',
+          `incident:${incidentId}:reopened:${registrations.length}`,
+          now,
+        );
+      }
     } else {
       const inserted = this.insertIncident.run(
         ipFingerprint,
@@ -317,37 +430,49 @@ export class EconomyInvitationStore {
         '同一注册网络存在多个 Economy 账号',
       );
       incidentId = Number(inserted.lastInsertRowid);
+      this.insertIncidentAudit.run(
+        incidentId,
+        'detected',
+        null,
+        null,
+        '系统检测到同一注册网络存在多个账号，仅创建异常上报',
+        `incident:${incidentId}:detected`,
+        now,
+      );
     }
+
     for (const registration of registrations) {
       const userId = Number(registration.user_id);
+      const isNewMember = !knownUserIds.has(userId);
       this.insertIncidentMember.run(
         incidentId,
         userId,
         Number(registration.registered_at),
         String(registration.source),
       );
-      const previousBan = this.selectBanByUser.get(userId);
-      this.upsertActiveBan.run(userId, incidentId, now);
-      if (!previousBan || previousBan.status !== 'active' || Number(previousBan.incident_id) !== incidentId) {
-        this.insertBanAudit.run(
-          userId,
+      if (isNewMember) {
+        this.insertIncidentAudit.run(
           incidentId,
-          'ban',
+          'member_added',
           null,
-          '系统检测到同一注册网络存在多个账号',
-          null,
+          userId,
+          '异常事件新增成员',
+          `incident:${incidentId}:member:${userId}`,
           now,
         );
       }
     }
-    return { incidentId, registrations, enforced: true };
+    return { incidentId, registrations, reported: true };
   }
 
-  reconcileDuplicateRegistrationIps(now = Date.now()) {
+  reconcileDuplicateRegistrationReports(now = Date.now()) {
     return this.store.transaction(() => {
       const incidents = [];
       for (const row of this.selectDuplicateRegistrationIps.all()) {
-        const incident = this.activateDuplicateIpBanInTransaction(row.registration_ip_fingerprint, now);
+        const incident = this.reportDuplicateRegistrationIpInTransaction(
+          row.registration_ip_fingerprint,
+          now,
+        );
         if (incident) incidents.push(incident);
       }
       return incidents;
@@ -436,16 +561,21 @@ export class EconomyInvitationStore {
   processNewRegistrationInTransaction({ world, user, ipFingerprint, inviteCode, invitationSource, requestKey, now }) {
     ensureGemState(this.ensurePlayer(world, user, now));
     this.ensureInviteCodeInTransaction(user.id, now);
-    const duplicate = this.activateDuplicateIpBanInTransaction(ipFingerprint, now, { force: true });
-    if (!inviteCode) return { worldChanged: false, ban: this.activeBan(user.id) || null };
+    const duplicate = this.reportDuplicateRegistrationIpInTransaction(ipFingerprint, now);
+    if (!inviteCode) {
+      return {
+        worldChanged: false,
+        ban: this.activeBan(user.id) || null,
+        anomalyIncidentId: duplicate ? Number(duplicate.incidentId) : undefined,
+      };
+    }
     const codeRow = this.resolveInviteCode(inviteCode);
     const inviterRegistration = codeRow
       ? this.selectRegistrationByUser.get(Number(codeRow.user_id))
       : null;
     const blockedReason = duplicate
-      ? inviterRegistration?.registration_ip_fingerprint === ipFingerprint
-        ? 'blocked_same_ip'
-        : 'blocked_banned_account'
+      && inviterRegistration?.registration_ip_fingerprint === ipFingerprint
+      ? 'blocked_same_ip'
       : null;
     const source = invitationSource === 'manual_code' ? 'manual_code' : 'share_link';
     const invitation = this.createInvitationInTransaction({
@@ -462,6 +592,7 @@ export class EconomyInvitationStore {
       relation: invitation.relation,
       invalidInvite: invitation.invalid,
       ban: this.activeBan(user.id) || null,
+      anomalyIncidentId: duplicate ? Number(duplicate.incidentId) : undefined,
     };
   }
 
@@ -503,12 +634,15 @@ export class EconomyInvitationStore {
       updated_at: Number(row.updated_at),
       detected_user_count: Number(row.detected_user_count),
       active_ban_count: Number(row.active_ban_count || 0),
+      new_member_count: Number(row.new_member_count || 0),
+      reviewed_at: row.reviewed_at === null ? null : Number(row.reviewed_at),
+      reviewed_by: row.reviewed_by === null ? null : Number(row.reviewed_by),
     }));
   }
 
   getBanIncident(incidentId) {
     const incident = this.selectBanIncidentStatement.get(Number(incidentId));
-    if (!incident) throw httpError('封禁事件不存在', 404);
+    if (!incident) throw httpError('异常事件不存在', 404);
     const { ip_fingerprint: ipFingerprint, ...publicIncident } = incident;
     return {
       incident: {
@@ -519,62 +653,216 @@ export class EconomyInvitationStore {
     };
   }
 
+  banUser({ userId, adminUserId, note, requestKey, incidentId = null, now = Date.now() }) {
+    const adminNote = normalizeAdminNote(note);
+    return this.store.transaction(() => {
+      const repeated = this.selectBanAuditByRequestKey.get(requestKey);
+      if (repeated) return { ok: true, repeated: true, message: '账号已经按该请求处理' };
+      const normalizedUserId = Number(userId);
+      if (!this.selectRegistrationByUser.get(normalizedUserId)) {
+        throw httpError('账号没有 Economy 注册记录', 404);
+      }
+      const existing = this.selectBanByUser.get(normalizedUserId);
+      if (existing?.status === 'active') throw httpError('账号当前已经被封禁', 409);
+      const normalizedIncidentId = incidentId === null || incidentId === undefined
+        ? existing?.incident_id ?? null
+        : Number(incidentId);
+      if (normalizedIncidentId !== null) {
+        if (!this.selectBanIncidentStatement.get(normalizedIncidentId)) {
+          throw httpError('异常事件不存在', 404);
+        }
+        if (!this.selectIncidentMember.get(normalizedIncidentId, normalizedUserId)) {
+          throw httpError('账号不属于该异常事件', 409);
+        }
+      }
+      this.upsertManualBan.run(
+        normalizedUserId,
+        normalizedIncidentId,
+        now,
+        Number(adminUserId),
+        adminNote,
+      );
+      this.insertBanAudit.run(
+        normalizedUserId,
+        normalizedIncidentId,
+        'ban',
+        Number(adminUserId),
+        adminNote,
+        requestKey,
+        now,
+      );
+      return { ok: true, repeated: false, message: '账号已由管理员封禁' };
+    });
+  }
+
+  banIncident({ incidentId, adminUserId, note, requestKey, now = Date.now() }) {
+    const adminNote = normalizeAdminNote(note);
+    return this.store.transaction(() => {
+      const repeated = this.selectIncidentAuditBySourceKey.get(requestKey);
+      if (repeated) return { ok: true, repeated: true, changedCount: 0, message: '异常事件已经按该请求处理' };
+      const incident = this.selectBanIncidentStatement.get(Number(incidentId));
+      if (!incident) throw httpError('异常事件不存在', 404);
+      const members = this.selectIncidentMembers.all(Number(incidentId));
+      let changedCount = 0;
+      for (const member of members) {
+        const userId = Number(member.user_id);
+        const existing = this.selectBanByUser.get(userId);
+        if (existing?.status === 'active') continue;
+        this.upsertManualBan.run(userId, Number(incidentId), now, Number(adminUserId), adminNote);
+        this.insertBanAudit.run(
+          userId,
+          Number(incidentId),
+          existing ? 'reban' : 'ban',
+          Number(adminUserId),
+          adminNote,
+          null,
+          now,
+        );
+        changedCount += 1;
+      }
+      this.database.prepare(`
+        UPDATE economy_ip_ban_incidents
+        SET status = 'reviewed', reviewed_at = ?, reviewed_by = ?, review_note = ?, updated_at = ?
+        WHERE id = ?
+      `).run(now, Number(adminUserId), adminNote, now, Number(incidentId));
+      this.insertIncidentAudit.run(
+        Number(incidentId),
+        'ban_all',
+        Number(adminUserId),
+        null,
+        adminNote,
+        requestKey,
+        now,
+      );
+      return {
+        ok: true,
+        repeated: false,
+        changedCount,
+        message: `已由管理员封禁 ${changedCount} 个账号`,
+      };
+    });
+  }
+
+  reviewIncident({ incidentId, adminUserId, note, requestKey, now = Date.now() }) {
+    const adminNote = normalizeAdminNote(note);
+    return this.store.transaction(() => {
+      const repeated = this.selectIncidentAuditBySourceKey.get(requestKey);
+      if (repeated) return { ok: true, repeated: true, message: '异常事件已经按该请求处理' };
+      const changed = this.database.prepare(`
+        UPDATE economy_ip_ban_incidents
+        SET status = 'reviewed', reviewed_at = ?, reviewed_by = ?, review_note = ?, updated_at = ?
+        WHERE id = ?
+      `).run(now, Number(adminUserId), adminNote, now, Number(incidentId));
+      if (Number(changed.changes || 0) !== 1) throw httpError('异常事件不存在', 404);
+      this.insertIncidentAudit.run(
+        Number(incidentId), 'reviewed', Number(adminUserId), null, adminNote, requestKey, now,
+      );
+      return { ok: true, repeated: false, message: '异常事件已标记为人工复核' };
+    });
+  }
+
+  closeIncident({ incidentId, adminUserId, note, requestKey, now = Date.now() }) {
+    const adminNote = normalizeAdminNote(note);
+    return this.store.transaction(() => {
+      const repeated = this.selectIncidentAuditBySourceKey.get(requestKey);
+      if (repeated) return { ok: true, repeated: true, message: '异常事件已经按该请求处理' };
+      const changed = this.database.prepare(`
+        UPDATE economy_ip_ban_incidents
+        SET status = 'closed', reviewed_at = ?, reviewed_by = ?, review_note = ?, updated_at = ?
+        WHERE id = ?
+      `).run(now, Number(adminUserId), adminNote, now, Number(incidentId));
+      if (Number(changed.changes || 0) !== 1) throw httpError('异常事件不存在', 404);
+      this.insertIncidentAudit.run(
+        Number(incidentId), 'closed', Number(adminUserId), null, adminNote, requestKey, now,
+      );
+      return { ok: true, repeated: false, message: '异常事件已关闭' };
+    });
+  }
+
   unbanUser({ userId, adminUserId, note, requestKey, now = Date.now() }) {
+    const adminNote = normalizeAdminNote(note);
     return this.store.transaction(() => {
       const repeated = this.selectBanAuditByRequestKey.get(requestKey);
       if (repeated) return { ok: true, repeated: true, message: '账号已经按该请求处理' };
       const ban = this.selectBanByUser.get(Number(userId));
       if (!ban || ban.status !== 'active') throw httpError('账号当前未被封禁', 409);
-      const changed = this.updateBanLifted.run(now, Number(adminUserId), String(note || ''), Number(userId));
+      const changed = this.updateBanLifted.run(now, Number(adminUserId), adminNote, Number(userId));
       if (Number(changed.changes || 0) !== 1) throw httpError('账号解禁状态已经变化', 409);
       this.insertBanAudit.run(
-        Number(userId), Number(ban.incident_id), 'unban', Number(adminUserId), String(note || ''), requestKey, now,
+        Number(userId), ban.incident_id === null ? null : Number(ban.incident_id), 'unban', Number(adminUserId), adminNote, requestKey, now,
       );
       return { ok: true, repeated: false, message: '账号已解禁' };
     });
   }
 
   unbanIncident({ incidentId, adminUserId, note, requestKey, now = Date.now() }) {
+    const adminNote = normalizeAdminNote(note);
     return this.store.transaction(() => {
-      const repeated = this.selectBanAuditByRequestKey.get(requestKey);
-      if (repeated) return { ok: true, repeated: true, message: '封禁事件已经按该请求处理' };
+      const repeated = this.selectIncidentAuditBySourceKey.get(requestKey);
+      if (repeated) return { ok: true, repeated: true, changedCount: 0, message: '异常事件已经按该请求处理' };
       const members = this.selectIncidentMembers.all(Number(incidentId));
-      if (members.length === 0) throw httpError('封禁事件不存在或没有成员', 404);
+      if (members.length === 0) throw httpError('异常事件不存在或没有成员', 404);
       let changedCount = 0;
       for (const member of members) {
         const userId = Number(member.user_id);
-        const changed = this.updateBanLifted.run(now, Number(adminUserId), String(note || ''), userId);
+        const ban = this.selectBanByUser.get(userId);
+        const changed = this.updateBanLifted.run(now, Number(adminUserId), adminNote, userId);
         if (Number(changed.changes || 0) === 1) {
           changedCount += 1;
           this.insertBanAudit.run(
             userId,
-            Number(incidentId),
+            ban?.incident_id === null || ban?.incident_id === undefined ? null : Number(ban.incident_id),
             'unban',
             Number(adminUserId),
-            String(note || ''),
-            changedCount === 1 ? requestKey : null,
+            adminNote,
+            null,
             now,
           );
         }
       }
       this.database.prepare(`
-        UPDATE economy_ip_ban_incidents SET status = 'reviewed', updated_at = ? WHERE id = ?
-      `).run(now, Number(incidentId));
+        UPDATE economy_ip_ban_incidents
+        SET status = 'reviewed', reviewed_at = ?, reviewed_by = ?, review_note = ?, updated_at = ?
+        WHERE id = ?
+      `).run(now, Number(adminUserId), adminNote, now, Number(incidentId));
+      this.insertIncidentAudit.run(
+        Number(incidentId),
+        'unban_all',
+        Number(adminUserId),
+        null,
+        adminNote,
+        requestKey,
+        now,
+      );
       return { ok: true, repeated: false, changedCount, message: `已解禁 ${changedCount} 个账号` };
     });
   }
 
   rebanUser({ userId, adminUserId, note, requestKey, now = Date.now() }) {
+    const adminNote = normalizeAdminNote(note);
     return this.store.transaction(() => {
       const repeated = this.selectBanAuditByRequestKey.get(requestKey);
       if (repeated) return { ok: true, repeated: true, message: '账号已经按该请求处理' };
       const ban = this.selectBanByUser.get(Number(userId));
       if (!ban) throw httpError('账号没有封禁记录', 404);
-      this.updateBanActive.run(now, Number(adminUserId), String(note || ''), Number(userId));
-      this.insertBanAudit.run(
-        Number(userId), Number(ban.incident_id), 'reban', Number(adminUserId), String(note || ''), requestKey, now,
+      if (ban.status === 'active') throw httpError('账号当前已经被封禁', 409);
+      this.upsertManualBan.run(
+        Number(userId),
+        ban.incident_id === null ? null : Number(ban.incident_id),
+        now,
+        Number(adminUserId),
+        adminNote,
       );
-      return { ok: true, repeated: false, message: '账号已重新封禁' };
+      this.insertBanAudit.run(
+        Number(userId),
+        ban.incident_id === null ? null : Number(ban.incident_id),
+        'reban',
+        Number(adminUserId),
+        adminNote,
+        requestKey,
+        now,
+      );
+      return { ok: true, repeated: false, message: '账号已由管理员重新封禁' };
     });
   }
 }

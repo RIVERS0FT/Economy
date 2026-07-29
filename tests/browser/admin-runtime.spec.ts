@@ -136,6 +136,10 @@ async function configureAdminRoutes(page: Page) {
         detected_user_count: 2,
         fingerprint_preview: 'family-network',
         active_ban_count: 1,
+        new_member_count: 0,
+        reviewed_at: null,
+        reviewed_by: null,
+        review_note: '',
       }] });
       return;
     }
@@ -149,13 +153,33 @@ async function configureAdminRoutes(page: Page) {
           detected_user_count: 2,
           fingerprint_preview: 'family-network',
           active_ban_count: 1,
+        new_member_count: 0,
+        reviewed_at: null,
+        reviewed_by: null,
+        review_note: '',
           created_reason: 'duplicate_ip',
         },
         members: [
-          { user_id: 11, registered_at: Date.UTC(2026, 6, 17), registration_source: 'email_verification', email: 'one@example.com', ban_status: 'active', banned_at: Date.UTC(2026, 6, 18), unbanned_at: null, admin_note: null },
-          { user_id: 12, registered_at: Date.UTC(2026, 6, 17), registration_source: 'email_verification', email: 'two@example.com', ban_status: 'lifted', banned_at: Date.UTC(2026, 6, 18), unbanned_at: Date.UTC(2026, 6, 19), admin_note: '已核验' },
+          { user_id: 11, registered_at: Date.UTC(2026, 6, 17), registration_source: 'email_verification', email: 'one@example.com', ban_status: 'active', ban_reason: 'admin', banned_at: Date.UTC(2026, 6, 18), banned_by: 1, unbanned_at: null, unbanned_by: null, admin_note: null },
+          { user_id: 12, registered_at: Date.UTC(2026, 6, 17), registration_source: 'email_verification', email: 'two@example.com', ban_status: 'lifted', ban_reason: 'admin', banned_at: Date.UTC(2026, 6, 18), banned_by: 1, unbanned_at: Date.UTC(2026, 6, 19), unbanned_by: 1, admin_note: '已核验' },
         ],
       });
+      return;
+    }
+    if (path === '/bans/users/12/ban') {
+      await json(route, { ok: true, message: '账号已由管理员封禁' });
+      return;
+    }
+    if (path === '/bans/7/ban-all') {
+      await json(route, { ok: true, message: '已由管理员封禁 1 个账号', changedCount: 1 });
+      return;
+    }
+    if (path === '/bans/7/review') {
+      await json(route, { ok: true, message: '异常事件已标记为人工复核' });
+      return;
+    }
+    if (path === '/bans/7/close') {
+      await json(route, { ok: true, message: '异常事件已关闭' });
       return;
     }
     if (path === '/bans/users/11/unban') {
@@ -291,14 +315,16 @@ const giftColumns = await page.locator('.admin-gift-console').evaluate((element)
 expect(giftColumns).toBe(2);
 
 await page.getByRole('button', { name: '封禁', exact: true }).click();
-await expect(page.getByRole('heading', { name: '同 IP 账号封禁', exact: true })).toBeVisible();
+await expect(page.getByRole('heading', { name: '异常上报与封禁', exact: true })).toBeVisible();
 const incident = page.locator('.admin-ban-incidents .virtual-list__item > button');
 await expect(page.locator('.admin-ban-incidents .virtual-list__canvas')).toHaveCount(1);
 await expect(incident).toHaveCount(1);
 await incident.click();
 await expect(page.getByText('one@example.com', { exact: false })).toBeVisible();
 await expect(page.getByRole('button', { name: '解禁', exact: true })).toBeVisible();
-await expect(page.getByRole('button', { name: '重新封禁', exact: true })).toBeVisible();
+await expect(page.getByText('系统只上报同一注册网络的异常', { exact: false })).toBeVisible();
+await expect(page.getByRole('button', { name: '封禁账号', exact: true })).toBeVisible();
+await page.getByLabel('管理员备注', { exact: true }).fill('人工复核');
 await page.getByRole('button', { name: '解禁', exact: true }).click();
 await expect(page.getByText('账号已解禁', { exact: true })).toBeVisible();
 
@@ -370,6 +396,6 @@ test('admin navigation uses the shared mobile overlay and stays above page cards
   expect(geometry.layerZIndex).toBe('auto');
 
   await page.getByRole('button', { name: '封禁', exact: true }).click();
-  await expect(page.getByRole('heading', { name: '同 IP 账号封禁', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '异常上报与封禁', exact: true })).toBeVisible();
   await expect(page.locator('.admin-ban-incidents .virtual-list__canvas')).toHaveCount(1);
 });

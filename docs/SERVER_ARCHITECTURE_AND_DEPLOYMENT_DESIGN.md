@@ -23,7 +23,7 @@
 - 长期生产合作合同、商品与货款托管、保证金、宽限期、周期交付与追加式合同审计；
 - 银行利息池、风险准备金、工厂储备、贷款期限／宽限、每日最低存款余额、微单位利息余数与银行流水；
 - 礼品码、每日签到、每周全勤、宝石流水、每日终端报价、报价决策、商店兑换和施工宝石加速审计；
-- 邀请关系、Economy 注册记录、同 IP 封禁事件和审计；
+- 邀请关系、Economy 注册记录、同 IP 异常事件、管理员手动封禁和审计；
 - 排行榜、市场需求和系统统计。
 
 浏览器只持有展示缓存、本地匿名成交记录、偏好和按教程版本／玩家 ID 隔离的客户端本轮教程状态。浏览器不得决定资产、存贷款、利息、抵押、违约处置、邀请奖励、封禁、拍卖、合同交付、成交、扩容、配方、生产结果或排行榜。
@@ -42,7 +42,7 @@
 - `contract-runtime-index.js`：合同 ID、公开／进行中数量、参与者集合、采购方下一批仓库预占和最近到期时间的事务内派生索引；
 - `contract-audit-store.js`：合同摘要、追加式事件、资产转移、旧合同部分完整导入、参与者分页查询和同事务审计写入；
 - `banking.js`：银行账户、存取款、工厂抵押、贷款评估、放款与还款、已实现贷款利息分配、每日最低余额结息、宽限和违约处置；
-- `invitations.js`：邀请码、邀请关系和同 IP 邀请阻断；
+- `invitations.js`：邀请码、邀请关系、同 IP 异常上报、邀请阻断与管理员封禁；
 - `daily-check-in.js`：北京时间自然日／自然周、每日签到、全勤资格和状态摘要；
 - `gem-shop.js`：每日动态终端报价纯函数、汇率边界和宝石兑换摘要；
 - `gem-economy-store.js`：每日汇率、玩家接受／拒绝、实际兑换与施工宝石加速审计；
@@ -51,7 +51,7 @@
 - `balanced-market.js`：模型 10 的人口消费、派生流动性、稳定需求补充、市场储备双边订单和价格压力；
 - `registration.js`：邮箱验证码注册、统一账号、首次 Economy 建档和邀请归因；
 - `account-registration.js`：主页已登录账号首次进入 Economy 时的共用建档入口；
-- `ip-bans.js`：注册 IP 指纹、同 IP 全组封禁与管理员解禁；
+- `ip-bans.js`：注册 IP 指纹、同 IP 异常上报与管理员手动封禁边界；
 - `storage.js`：SQLite、事务、修订号、幂等响应、礼品码、商店流水与管理员查询；
 - `runtime-store.js`：运行时存储扩展、合同动作、人口政策与管理员运行时能力；
 - `state-partitions.js`：目录、玩家、市场、拍卖、合同和排行榜六个状态分区、分区哈希与精简动作确认；
@@ -200,17 +200,19 @@ JSON.parse
 - 生产 HTTPS `server` 必须由 `scripts/configure-economy-nginx.py` 统一维护动态 gzip：`gzip_vary on`、`gzip_proxied any`、最小长度 `1024`、静态资源压缩级别 `6`。超过 1 KB 的 HTML、JavaScript、CSS、JSON、SVG、Web Manifest、XML 与 WASM 必须压缩；游戏 API `location` 继续使用面向 JSON 的压缩级别 `5`。PNG、JPEG、WebP、AVIF 与 WOFF2 等已经压缩的媒体和字体不得加入 `gzip_types` 重复压缩。`/economy/assets/` 与 `/economy/` 两个静态 `location` 必须直接输出 `Vary: Accept-Encoding`，不得只依赖服务器级继承；资产位置原有 `Cache-Control` 必须保留。配置脚本必须扫描 `sites-enabled`、`conf.d`、`sites-available` 与 `snippets` 四个 Nginx 配置根目录，按解析后的真实路径去重，并修补位于主 `server` 文件或任意被 include 的独立 snippet 中的 Economy 静态位置；扫描时必须跳过 `.bak`、`.backup-*` 与 `.economy-proxy.bak` 等备份文件，已规范的 `Vary` 指令必须保持幂等。脚本必须清除目标 `server` 中冲突的顶层 gzip 指令、写入唯一托管块并保持重复执行幂等；`scripts/configure-economy-nginx.py` 重载 Nginx 后必须通过 `--resolve game.riversoft.top:443:127.0.0.1` 命中本机正式 HTTPS 与 TLS SNI 入口，禁止使用可能返回 301 跳转页的 80 端口；Nginx reload 后必须在 5 秒窗口内对旧 worker 导致的缺 gzip、缺 `Vary` 或本机 curl 暂态失败进行有限重试，确定性内容错误必须立即失败；必须以 `Accept-Encoding: gzip` 实测 HTML、实际构建 JS 与 CSS，要求 `Content-Encoding: gzip`、`Vary: Accept-Encoding`、压缩流可解码且正文与磁盘源文件一致，线上压缩响应体必须小于构建产物原始字节数；任一检查最终失败必须恢复旧配置并重新加载 Nginx。
 - 单进程操作限流缓存每分钟清理已过期桶，并限制最多 10,000 个用户／类别桶；不得让历史用户键永久累积。
 
-### 5.1 Economy 注册、邀请归因与同 IP 封禁
+### 5.1 Economy 注册、邀请归因、异常上报与管理员封禁
 
 “Economy 注册完成”的准确时点是：某个统一账号第一次创建 Economy 玩家档案。任何已登录主页账号首次进入 Economy 时仍允许自动创建玩家档案，并在同一事务记录 Economy 注册 IP 指纹、邮箱、完成时间和来源；不得要求该账号再次走验证码注册。邮箱验证码注册完成接口是另一条首次建档入口，两条入口必须共用同一首次建档、邀请归因、IP 检测和记录逻辑。
 
-主页已经完成账号信任与邮箱验证，但邮箱验证码注册和来源为 `homepage_session` 的首次建档仍统一执行注册 IP 规则。Nginx 必须覆盖并传入可信 `X-Real-IP`；应用优先使用该值，避免客户端伪造 `X-Forwarded-For` 绕过规则。只保存由服务器秘密 HMAC 生成的注册 IP 指纹，不保存或展示明文 IP。同一注册 IP 指纹出现两个或更多不同统一账号时，必须先创建或更新封禁事件，再将该指纹下全部 Economy 账号标记为封禁；封禁优先于邀请奖励。普通登录时网络变化不触发封禁，判定只读取首次建档保存的注册 IP 指纹。
+主页已经完成账号信任与邮箱验证，但邮箱验证码注册和来源为 `homepage_session` 的首次建档仍统一执行注册 IP 规则。Nginx 必须覆盖并传入可信 `X-Real-IP`；应用优先使用该值，避免客户端伪造 `X-Forwarded-For`。只保存由服务器秘密 HMAC 生成的注册 IP 指纹，不保存或展示明文 IP。
 
-封禁账号访问普通 `/api/game/` 接口返回 `423 Locked`、`ECONOMY_ACCOUNT_BANNED` 和事件编号。管理员接口仍必须在重新验证管理员角色后可访问，以便被同 IP 规则命中的管理员完成复核和解禁。管理员可以解禁单个账号或整个事件，也可以重新封禁；操作必须保留事件和审计历史。手动解禁后，服务重启不得无条件重新封禁；只有该 IP 指纹出现新的注册账号时才重新封禁整个账号组。
+同一注册 IP 指纹出现两个或更多不同统一账号时，服务器只创建或更新异常事件、补充事件成员并写事件审计，不得自动写入、恢复或扩大账号封禁。服务启动扫描只补齐异常上报。已复核或已关闭事件出现新成员时重新进入待复核，但成员普通游戏访问不受影响。
 
-每名玩家拥有一个服务器生成的永久 8 位邀请码。分享链接使用 `https://game.riversoft.top/economy/?invite=邀请码`。分享链接只在首次创建 Economy 玩家档案时自动归因；有效且未被封禁的邀请关系在注册事务中立即向邀请人发放 10 宝石，被邀请人不获得宝石。已有 Economy 档案的账号访问分享链接不得补绑或重复奖励。
+只有管理员可以手动封禁单个账号或事件全部成员。封禁、解禁、复核和关闭均要求 1～240 字管理备注与 `Idempotency-Key`，并在同一 SQLite 事务写入状态和审计。封禁账号访问普通 `/api/game/` 接口返回 `423 Locked`、`ECONOMY_ACCOUNT_BANNED` 和关联事件编号；异常事件本身不得触发 423。管理员接口每次重新验证管理员角色，管理员账号被手动封禁时仍可访问管理员接口完成复核。
 
-邀请码只能在首次创建 Economy 玩家档案的注册事务中提交。分享链接和注册表单邀请码共用 `invitee_user_id` 唯一约束，一个账号只能绑定一个邀请人；注册事务提交后，无论该账号是否已经绑定，都不得新增、补填、更换或重新绑定。相同注册 IP 的邀请关系可以记录为 `blocked_same_ip`，但不得发放宝石，也不得改绑其他邀请人。旧 `POST /api/game/invitations/claim` 必须在普通玩家自动建档之前固定返回 `410 Gone`，不得读取请求正文、创建注册记录、加载或保存世界、检查邀请码有效性或写入邀请关系。重置经济状态不得清除宝石、邀请码、邀请关系、宝石流水、封禁或解禁历史。
+历史由系统产生且仍活动的 `duplicate_registration_ip` 封禁在迁移时一次性解除并恢复为待复核事件；管理员已有手动封禁保持不变。服务重启或新账号加入异常事件都不得改变管理员封禁决定。
+
+每名玩家拥有一个服务器生成的永久 8 位邀请码。分享链接和注册表单邀请码只在首次创建 Economy 玩家档案时归因。相同注册 IP 的邀请关系记录为 `blocked_same_ip` 且不发放宝石，但双方账号不会因此被封禁；管理员后续处理不得自动补发奖励。注册事务提交后，已有 Economy 档案不得补绑、重复奖励或更换邀请人。
 
 ### 5.2 邮箱验证码
 
@@ -284,11 +286,15 @@ JSON.parse
 | POST | `/api/game/reset` | 已永久移除；兼容旧客户端固定返回 `410 Gone`，不得执行任何状态写入 |
 | GET | `/api/game/admin/community-link` | 管理员读取社区跳转链接 |
 | PUT | `/api/game/admin/community-link` | 管理员幂等更新社区跳转链接 |
-| GET | `/api/game/admin/bans` | 管理员查看同 IP 封禁事件 |
+| GET | `/api/game/admin/bans` | 管理员查看同 IP 异常事件 |
 | GET | `/api/game/admin/bans/:incidentId` | 管理员查看事件成员 |
+| POST | `/api/game/admin/bans/users/:userId/ban` | 管理员封禁单个账号 |
 | POST | `/api/game/admin/bans/users/:userId/unban` | 管理员解禁单个账号 |
-| POST | `/api/game/admin/bans/:incidentId/unban-all` | 管理员解禁事件全部账号 |
 | POST | `/api/game/admin/bans/users/:userId/reban` | 管理员重新封禁账号 |
+| POST | `/api/game/admin/bans/:incidentId/ban-all` | 管理员封禁事件全部账号 |
+| POST | `/api/game/admin/bans/:incidentId/unban-all` | 管理员解禁事件全部账号 |
+| POST | `/api/game/admin/bans/:incidentId/review` | 管理员标记事件已复核 |
+| POST | `/api/game/admin/bans/:incidentId/close` | 管理员关闭事件 |
 
 旧工厂固定挂牌路由只作迁移兼容。旧 `/api/game/facilities/:facilityTypeId/plan` 返回 `410 Gone`，不得恢复生产模式或目标产量。
 
@@ -416,7 +422,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 修改 Nginx 前保留回滚配置；修改后执行 `nginx -t`，成功才 reload，失败立即恢复。
 
-`npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。CI 和主部署都必须安装固定 Chromium 并执行 `npm run test:browser`；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。主部署后验证 API 健康、静态网页、账号代理、注册代理、未登录 401、systemd 用户／端口／数据库、注册秘密和无重复路由；邀请专项验收必须覆盖分享链接即时奖励、手动邀请码唯一绑定、同 IP 全组封禁、423 响应和管理员解禁。邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。
+`npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。CI 和主部署都必须安装固定 Chromium 并执行 `npm run test:browser`；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。主部署后验证 API 健康、静态网页、账号代理、注册代理、未登录 401、systemd 用户／端口／数据库、注册秘密和无重复路由；邀请与封禁专项验收必须覆盖分享链接即时奖励、手动邀请码唯一绑定、同 IP 异常上报不封禁、管理员手动封禁、423 响应、历史自动封禁幂等迁移和管理员解禁。邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。
 
 ## 9.1 验证策略
 
@@ -467,10 +473,10 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 在登录 401 后自动调用主页注册接口；
 - 保存验证码、注册 IP 明文或邀请人隐私信息，跳过 10 分钟有效期／60 秒重发／错误 5 次作废、允许验证码复用或允许发送与提交 IP 不一致；
 - 让邮箱验证码入口和主页已登录自动建档维护两套首次建档、邀请归因或 IP 检测逻辑；
-- 恢复主页账号共享注册 IP 的例外，或只封禁新账号而保留同 IP 旧账号可用；
-- 在同 IP 封禁检查之前发放邀请宝石；
+- 让系统因同 IP 异常自动封禁、恢复封禁或扩大封禁范围；
+- 让相同注册 IP 的邀请关系发放邀请宝石，或把邀请防刷结果等同于账号封禁；
 - 允许一个被邀请账号绑定多个邀请人、重置后重新领取、客户端决定奖励或把宝石计入总资产；
-- 管理解禁删除事件与审计历史、服务重启立即推翻人工解禁，或解禁后自动补发被拦截的邀请奖励；
+- 管理员操作删除事件与审计历史、服务重启改变管理员封禁决定，或解禁后自动补发被拦截的邀请奖励；
 - 删除 `/economy-api/registration/` Nginx 路由或打印验证码、Resend API Key 与注册秘密；
 - 把邮件密钥复制到 GitHub Actions，或让部署工作流覆盖服务器已有邮件配置；
 - 删除 `/etc/riversoft-email.env` 的共享加载，颠倒共享文件与 Economy 专用文件的覆盖顺序，或让邮件配置工作流读取并打印环境文件内容；
