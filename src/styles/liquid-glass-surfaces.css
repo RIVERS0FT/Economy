@@ -365,4 +365,26 @@
     grid-template-columns: repeat(5, minmax(0, 1fr));
     padding: .25rem;
   }
+
+  .asset-bar-item {
+    padding-inline: .35rem;
+  }
+
+  .asset-bar-item-label,
+  .asset-bar-item > small {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .asset-bar > .liquid-glass-surface,
+  .asset-bar > .liquid-glass-surface > *,
+  .asset-bar > .liquid-glass-surface .liquid-glass-surface__effect > .glass {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mobile-bottom-navigation .liquid-glass-surface__content {
+    padding: 8px 0;
+  }
 }
