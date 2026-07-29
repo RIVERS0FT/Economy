@@ -16,6 +16,7 @@ const files = [
   'server/src/app.js',
   'server/src/storage.js',
   'server/test/invitations.test.js',
+  'server/test/registration.test.js',
   'src/api/invitations.ts',
   'src/components/InvitationSettings.tsx',
   'src/components/AdminBanPanel.tsx',
@@ -144,6 +145,10 @@ for (const text of [
   'legacy automatic-ban migration remains idempotent after an audit-only partial attempt',
   "assert.equal('claimExpiresAt' in summary, false)",
 ]) requireText('server/test/invitations.test.js', text);
+requireText(
+  'server/test/registration.test.js',
+  'homepage and direct Economy registrations both create duplicate-IP anomaly reports without automatic bans',
+);
 
 if (failures.length) {
   console.error(`宝石、注册期邀请与封禁验证失败:\n- ${failures.join('\n- ')}`);
