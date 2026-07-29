@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import type { FinancialBackdropTone, FinancialBackdropVariant } from './FinancialBackdrop';
+
+type PhotographicStateVariant = 'auth' | 'game' | 'admin';
+type PhotographicStateTone = 'normal' | 'critical';
 
 function classNames(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -13,8 +15,8 @@ export function PhotographicStateShell({
   role,
   children,
 }: {
-  variant: FinancialBackdropVariant;
-  tone?: FinancialBackdropTone;
+  variant: PhotographicStateVariant;
+  tone?: PhotographicStateTone;
   className?: string;
   contentClassName?: string;
   role?: 'alert' | 'status';
