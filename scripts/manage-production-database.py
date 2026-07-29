@@ -426,6 +426,11 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
                     _set_service(args.service_name, 'stop')
                 if database_path.exists():
                     os.replace(database_path, failed_path)
+                for suffix in ('-wal', '-shm'):
+                    current_sidecar = Path(f'{database_path}{suffix}')
+                    failed_sidecar = Path(f'{failed_path}{suffix}')
+                    if current_sidecar.exists():
+                        os.replace(current_sidecar, failed_sidecar)
                 if backup_path.exists():
                     os.replace(backup_path, database_path)
                     _preserve_stat(database_path, original_stat)
