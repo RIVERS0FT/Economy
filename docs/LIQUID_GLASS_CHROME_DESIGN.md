@@ -18,7 +18,7 @@
 - 支持背景滤镜时，桌面／移动状态栏、移动底栏和认证卡片统一把低密度透明染色放在 `.liquid-glass-surface` 宿主并统一使用 `--liquid-glass-contrast`；不得创建 `.liquid-glass-surface__material-fill` 或认证专用支持环境染色变量。
 - `AdminDesktopBar.tsx` 只在桌面显示一个 `desktopStatusBar` 玻璃实例；管理员移动端不得渲染顶部玻璃栏，只保留页面标题和移动底栏。
 - `src/styles/liquid-glass-surfaces.css` 只负责尺寸、层级、内容布局、圆角裁切、低密度透明染色、认证回退底色、状态栏单层结构描边、认证卡片无项目结构描边、第三方装饰层显隐和与各预设完全一致的 WebKit 属性别名；不得用 CSS 创建第二套模糊、折射或色差材质。
-- 桌面与移动状态栏必须隐藏 `liquid-glass-react` 的直属边框／高光和 over-light 辅助层；认证卡片必须保留官方两个直属边缘高光 `span`，只隐藏 over-light 辅助 `div`，并清除第三方 `.glass` 外部阴影。状态栏只保留宿主的一条最上层连续结构描边；认证卡片不得绘制项目结构描边或额外 `::after` 白色外框，由官方双层高光、折射边缘、圆角裁切和宿主阴影共同表达材质。移动底栏允许保留第一层低强度 screen 高光。
+- 桌面与移动状态栏必须隐藏 `liquid-glass-react` 的直属边框／高光，但所有五种 variant 必须保留并显示 `overLight=true` 产生的两个官方黑色辅助层；认证卡片必须保留官方两个直属边缘高光 `span`，并清除第三方 `.glass` 外部阴影。状态栏只保留宿主的一条最上层连续结构描边；认证卡片不得绘制项目结构描边或额外 `::after` 白色外框，由官方双层高光、折射边缘、圆角裁切和宿主阴影共同表达材质。移动底栏允许保留第一层低强度 screen 高光。
 - `src/styles/liquid-glass-chrome.css` 是浏览器测试兼容入口，不是第二套材质。它只允许按固定顺序转发 `performance.css`、`scrollbars.css`、`game-shell-layout.css`、`financial-backdrop.css` 和 `liquid-glass-surfaces.css`；生产入口 `src/main.tsx` 继续直接导入正式样式。
 - 浏览器运行时 harness 必须加载真实的滚动条与外壳几何样式，并同时加载共享摄影背景与液态玻璃样式；不得让 `FinancialBackdrop` 失去固定定位后作为桌面 Grid 普通子项参与布局，也不得只加载历史全局样式后用错误计算结果验证布局。
 
@@ -69,33 +69,34 @@
 
 ## 3. 全局液态玻璃参数与平台几何
 
-禁止 `shader` 模式。桌面状态栏、管理员桌面工作栏、移动状态栏、移动底栏、桌面认证卡片和移动认证卡片全局统一使用以下光学与静态输入参数：
+禁止 `shader` 模式。桌面状态栏、管理员桌面工作栏、移动状态栏、移动底栏、桌面认证卡片和移动认证卡片全局统一传入以下官方参数：
 
 - `mode="standard"`；
 - `displacementScale: 120`；
-- `blurAmount: 0`，对应 `blur(0px)`；
+- `blurAmount: 0`；
 - `saturation: 120`；
 - `aberrationIntensity: 2`；
 - `elasticity: 0`；
+- `overLight: true`；
 - `mouseContainer={null}`；
 - 固定 `globalMousePos` 与 `mouseOffset`。
 
-所有平台光学参数必须保持完全一致，不得为状态栏、移动 Chrome 或认证卡片恢复较弱位移、非零模糊、不同饱和度或不同色差。四个预设继续保留独立圆角常量：`DESKTOP_STATUS_GLASS` 与 `DESKTOP_AUTH_CARD_GLASS` 使用 `24px`，`MOBILE_CHROME_GLASS` 与 `MOBILE_AUTH_CARD_GLASS` 使用 `40px`。移动状态栏与移动底栏继续共享 `MOBILE_CHROME_GLASS`，桌面与移动认证卡片仍保持独立 variant 和内容高度规则。
+`overLight=true` 就是本项目所称的 “Tint liquid glass dark”，不得再用项目自定义深色背景变量替代。`liquid-glass-react@1.1.1` 的官方实现会在 `overLight=true` 时显示两个直属黑色辅助 `div`，将基础 backdrop blur 设为 `12px`，并把传入的 `displacementScale` 乘以 `0.5` 后交给 SVG 滤镜。因此配置权威仍是 `120 / 0 / 120 / 2`，浏览器计算值必须是 `blur(12px) saturate(120%)`，首个 `feDisplacementMap` 的绝对 scale 必须是 `60`。这些是官方 `overLight` 语义，不得通过把配置改成 `240` 或负 blur 抵消。
 
-全部五种 variant 必须启用 dark tint：`:root` 定义 `--liquid-glass-tint-dark: rgba(3, 12, 8, 0.42)`，`--liquid-glass-contrast` 只能指向该变量，所有 `.liquid-glass-surface` 宿主统一使用该半透明深色染色。`liquid-glass-react@1.1.1` 没有 tint 或 color-scheme prop，因此不得伪造第三方参数或引入第二套玻璃组件；dark tint 只能由统一宿主染色实现。每个宿主必须暴露 `data-liquid-glass-tint="dark"` 供浏览器回归验证。
+所有平台参数必须保持完全一致。四个预设继续保留独立圆角常量：`DESKTOP_STATUS_GLASS` 与 `DESKTOP_AUTH_CARD_GLASS` 使用 `24px`，`MOBILE_CHROME_GLASS` 与 `MOBILE_AUTH_CARD_GLASS` 使用 `40px`。移动状态栏与移动底栏继续共享 `MOBILE_CHROME_GLASS`，桌面与移动认证卡片仍保持独立 variant 和内容高度规则。每个宿主必须暴露 `data-liquid-glass-over-light="true"` 以及配置参数 data attribute，供浏览器区分“传入配置值”和“官方 overLight 处理后的计算值”。
 
-所有四个参数预设都必须固定 `elasticity: 0`，并继续使用 `mouseContainer={null}`、固定 `globalMousePos` 与固定 `mouseOffset`。桌面状态栏、管理员工作栏、移动状态栏、移动底栏和认证卡片均不得开启鼠标、触控板、触笔或触摸跟踪；指针移动不得改变效果层 transform 或高光方向。
+所有四个参数预设都必须固定 `elasticity: 0`，并继续使用静态鼠标输入。桌面状态栏、管理员工作栏、移动状态栏、移动底栏和认证卡片均不得开启鼠标、触控板、触笔或触摸跟踪。
 
-认证卡片继续使用 `layout="content"`。真实认证内容与状态栏内容使用相同的 `.glass` 内部位置，内容高度只允许读取 `scrollHeight`／`offsetHeight`；React 内容变化在 `useLayoutEffect` 中于首次绘制前同步提交，单个 `ResizeObserver` 与条件 `MutationObserver` 仅负责字体、异步提示和宽度变化等补充测量。认证卡片任一时刻只能存在一个玻璃实例，不得通过 React `key` 或 revision 重建内容。
+认证卡片继续使用 `layout="content"`。认证内容高度只允许读取 `scrollHeight`／`offsetHeight`，React 内容变化仍在 `useLayoutEffect` 中于首次绘制前同步提交，单个 `ResizeObserver` 与条件 `MutationObserver` 仅负责补充测量。
 
-可见高光几何直接绑定认证宿主：官方两个直属高光 `span`、认证效果层与 `.glass` 必须使用宿主 `100%` 宽高并取消尺寸过渡。登录→注册→登录时，宿主、`.glass` 与两个高光的底部必须在首个绘制帧内同步；上游 resize 通知只负责随后补齐 SVG 滤镜内部坐标。
+可见高光几何直接绑定认证宿主：官方两个高光 `span`、两个 over-light 辅助 `div`、认证效果层与 `.glass` 都必须使用认证宿主 `100%` 尺寸并取消几何过渡；登录→注册→登录时，它们的底部必须在首个绘制帧内同步。上游 resize 通知只负责随后补齐 SVG 滤镜内部坐标。
 ## 4. 平台能力边界
 
 所有平台都渲染同一个 `LiquidGlassSurface` 适配组件：
 
 - Chromium、Android Chromium WebView 和 Windows WebView2 显示完整折射、模糊和边缘色差；
 - Safari、iOS WebKit 和 Firefox 在折射能力受限时仍保留同一组件、轻度模糊、状态栏结构描边、认证卡片圆角裁切和内容结构；
-- `liquid-glass-react` 内联的非前缀 `backdrop-filter` 始终是参数权威；所有状态栏、管理员工作栏、移动底栏和认证卡片的 `-webkit-backdrop-filter` 必须严格统一为 `blur(0px) saturate(120%)`；
+- `liquid-glass-react` 内联的非前缀 `backdrop-filter` 始终是参数权威；所有状态栏、管理员工作栏、移动底栏和认证卡片的 `-webkit-backdrop-filter` 必须严格匹配官方 `overLight=true` 计算值 `blur(12px) saturate(120%)`；
 - 不支持 `backdrop-filter` 时状态栏与导航使用既有高对比回退，认证卡片使用 `--liquid-glass-auth-fallback`，不切换到另一套玻璃组件；
 - 平台能力差异不得改变工作栏高度、安全区、导航尺寸、认证内容高度、背景层级或内容顺序。
 
@@ -171,7 +172,7 @@
 - 管理员氛围必须低于玩家氛围的饱和度并使用更均匀遮罩；封禁、无权限和致命错误只增加 `critical` 红色暗角，不得更换图片资源。
 - `.asset-bar` 和 `.mobile-bottom-navigation` 不得包含 `.panel`；认证卡片不得包含 `.panel` 或 `.login-card.panel`。
 - 每个可见顶部工作栏只允许一个玻璃实例；整个移动底栏也只允许一个玻璃实例；认证页面只允许一个认证玻璃实例。
-- 支持环境中的桌面状态栏、管理员桌面工作栏、移动状态栏、底栏和认证卡片统一使用 dark tint `rgba(3, 12, 8, 0.42)`，并通过 `--liquid-glass-tint-dark` → `--liquid-glass-contrast` 单向引用，第三方 `.glass__warp` 继续采样页面内容和氛围背景；认证输入框自身继续保持不透明深色控件以保护表单可读性。
+- 支持环境中的桌面状态栏、管理员桌面工作栏、移动状态栏、底栏和认证卡片统一显示官方 `overLight=true` 的两个黑色辅助层；`--liquid-glass-contrast: rgba(194, 231, 214, 0.06)` 只提供低密度支持染色，不是 dark tint 实现，第三方 `.glass__warp` 继续采样页面内容和氛围背景；认证输入框自身继续保持不透明深色控件以保护表单可读性。
 - 认证卡片不得创建 `.liquid-glass-surface__material-fill`，也不得恢复 `--liquid-glass-auth-contrast` 或 `--liquid-glass-auth-mobile-contrast`；只有不支持背景滤镜时可使用 `--liquid-glass-auth-fallback`。
 - `.glass__warp` 到页面内容之间必须保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切。
 - 桌面、移动和认证预设的 WebKit 兼容别名必须分别匹配上游参数，不得使用一个通用数值覆盖不同平台。
@@ -227,7 +228,7 @@
 6. 管理员桌面工作栏使用一个 `desktopStatusBar` 玻璃实例，页面标题不重复显示，内容右边缘与工作栏共线，页面框不居中限宽。
 7. 桌面导航按钮从顶部按固有高度排列；桌面工作栏、桌面认证卡和桌面一级卡片均为 `24px`。
 8. 移动状态栏、一级卡片和底栏实际玻璃左右共线；移动状态栏固定 `48px`，底栏固定 `68px`；移动 Chrome 与移动认证卡圆角均为 `40px`。
-9. 所有液态玻璃变体统一使用 `blur(0px) saturate(120%)`、位移尺度 `120`、色差 `2`、弹性 `0` 和 dark tint `rgba(3, 12, 8, 0.42)`。
+9. 所有液态玻璃变体统一传入 `120 / 0 / 120 / 2`、弹性 `0` 与 `overLight=true`；浏览器必须计算为 `blur(12px) saturate(120%)`，首个位移 scale 绝对值为 `60`，两个官方 over-light 辅助层可见。
 10. 玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
 11. 移动背景采样链中的工作区、两层 Overlay、页面滚动区和底栏宿主计算 `z-index` 均为 `auto`。
 12. 管理员移动页面层与 Chrome 层位于同一工作区，顺序为 `1` 和 `2`，桌面工作栏隐藏且底栏保持可点击。
