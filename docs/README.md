@@ -29,7 +29,7 @@
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、签到日历、短列表滚动和浏览器几何回归 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 认证卡片、游戏与管理员共享桌面外壳、统一布局沟槽、侧栏与悬浮工作栏几何、桌面贴边页面滚动条、移动工作区与 Overlay、登录态根视口下拉刷新边界、移动操作结果通知、移动底栏和唯一液态玻璃材质 |
-| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、银行事务与结息调度、每日签到、长期合同事务、追加式 SQLite 合同审计与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、API、容量限制、Nginx、systemd 和部署 |
+| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、银行事务与结息调度、每日签到、长期合同事务、追加式 SQLite 合同审计与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、生产 SQLite 只读诊断、API、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器仅保留匿名逐笔成交所需的最小订单快照、v6 迁移、清除语义与银行权威流水边界 |
 | `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、商品／工厂单项与捆绑资产包拍卖、世界 15 删除迁移、封禁复核、管理员权限、四分区后台范围与运营控制台编排 |
 
@@ -94,3 +94,4 @@
 55. 认证卡片必须使用 `AuthCardSurface` 与 `LiquidGlassSurface` 的 `desktopAuthCard`／`mobileAuthCard` 预设，任一时刻只允许一个内容自适应玻璃实例；卡片几何归 `REGISTRATION_INVITE_FLOW_DESIGN.md`，材质参数归 `LIQUID_GLASS_CHROME_DESIGN.md`。不得在 `auth.css` 恢复手写 `backdrop-filter`、玻璃渐变、材质描边、`.panel`、固定高度或内部滚动区；必须同步两份权威文档、`scripts/verify-auth-three-layer.mjs`、`scripts/verify-liquid-glass-chrome.mjs` 与认证浏览器回归。
 56. 排行榜生产数量的显示规则唯一归属 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`：前十名和“我的成绩”必须共用 `scoreValue`，只显示经过 `formatNumber` 千分位格式化的纯数字，不附加“个”“件”“单位”或恢复“分”；显示调整不得改变服务器数量、排序、同分规则、奖励、迁移或历史结算，并通过 `scripts/verify-leaderboards.mjs` 防回退。
 57. 状态版本 22 固定稳定分区时间字段：`economicCalendar` 不再返回按请求毫秒变化的 `visibleUntil`，未来七天展示使用 envelope `serverNow` 校准的共享时钟；排行榜不得返回请求生成 `generatedAt` 或逐行 `updatedAt`，四榜必须位于顶层 `leaderboards` 并归入 `leaderboard` 分区，不得嵌入玩家 `stats`。同一事件窗口连续请求必须保持相同 `market` revision，其他玩家不改变市场的操作不得让无关用户收到完整 `market`，并通过状态轮询服务器测试、`scripts/verify-contract-renewal-economic-events.mjs`、`scripts/verify-leaderboards.mjs` 与权威倒计时验证防回退。
+58. 生产数据库只读诊断工作流固定为 `.github/workflows/diagnose-production-database.yml`，只能手动触发并使用现有 `SERVER_HOST`、`SERVER_PORT`、`SERVER_USER` 与 `SERVER_SSH_KEY` 以服务用户连接；不得使用 `sudo`、停止或重启服务。诊断脚本必须以 SQLite URI `mode=ro`、`PRAGMA query_only = ON` 和 authorizer 三重只读约束打开 `/var/lib/riversoft-economy/economy.sqlite`，不得执行 `VACUUM`、`wal_checkpoint`、`PRAGMA optimize`、备份、附加数据库、DDL 或 DML。输出只允许包含数据库／WAL／SHM 字节数、页数、空闲页、预计有效页、世界修订号与 `state_json` 长度、`PRAGMA quick_check(1)`、Schema 数量和 `dbstat` 对象占用，不得输出玩家、邮箱、IP、邀请、Cookie、密钥或业务行内容；诊断不得上传数据库、WAL、SHM、备份或包含玩家明细的 Artifact。上述规则必须通过 `scripts/verify-readonly-database-diagnostics.mjs` 对临时数据库执行前后文件哈希、大小和修改时间完全一致的行为验证。

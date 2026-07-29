@@ -1,0 +1,60 @@
+name: Diagnose Economy Production Database
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: diagnose-economy-production-database
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SERVER_HOST"
+          test -n "$SERVER_PORT"
+          test -n "$SERVER_SSH_KEY"
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SERVER_PORT" "$SERVER_HOST" >> ~/.ssh/known_hosts
+
+      - name: Run read-only SQLite diagnostics
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+        run: |
+          set -uo pipefail
+          test -n "$SERVER_USER"
+          report=/tmp/economy-production-database-diagnostics.json
+          rm -f "$report"
+
+          set +e
+          timeout 15m ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" \
+            "$SERVER_USER@$SERVER_HOST" \
+            python3 - diagnose /var/lib/riversoft-economy/economy.sqlite --top-objects 20 \
+            < scripts/diagnose-production-database.py \
+            | tee "$report"
+          diagnostic_status=${PIPESTATUS[0]}
+          set -e
+
+          test -s "$report"
+          python3 scripts/diagnose-production-database.py \
+            render-summary "$report" "$GITHUB_STEP_SUMMARY"
+          exit "$diagnostic_status"
