@@ -1,0 +1,57 @@
+name: Bootstrap official over-light tint
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ contains(github.event.head_commit.message, '[official-overlight-bootstrap]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply, validate, and publish result
+        shell: bash
+        run: |
+          set -u
+          log_file="$RUNNER_TEMP/official-overlight-bootstrap.log"
+          : > "$log_file"
+
+          python3 scripts/apply-official-overlight.py >> "$log_file" 2>&1
+          apply_status=$?
+          check_status=0
+
+          if [ "$apply_status" -eq 0 ]; then
+            node scripts/verify-auth-three-layer.mjs >> "$log_file" 2>&1 || check_status=$?
+            node scripts/verify-liquid-glass-chrome.mjs >> "$log_file" 2>&1 || check_status=$?
+            node scripts/verify-desktop-primary-surfaces.mjs >> "$log_file" 2>&1 || check_status=$?
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$apply_status" -eq 0 ] && [ "$check_status" -eq 0 ]; then
+            target_branch="agent/official-overlight-applied"
+            git checkout -B "$target_branch"
+            rm scripts/apply-official-overlight.py
+            rm .github/workflows/apply-official-overlight-bootstrap.yml
+            git add -A
+            git commit -m "Use official over-light tint globally"
+          else
+            target_branch="agent/official-overlight-diagnostic"
+            git checkout -B "$target_branch"
+            cp "$log_file" official-overlight-bootstrap.log
+            git add -A
+            git commit -m "Capture official over-light bootstrap failure"
+          fi
+
+          git push --force origin "HEAD:$target_branch"
