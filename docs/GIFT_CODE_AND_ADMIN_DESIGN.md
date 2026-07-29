@@ -40,7 +40,7 @@
 2. 只包含商品和工厂的旧拍卖规范化后迁移到 `assetAuctions`，保留卖方托管、最高出价资金、仓库预占、状态、截止时间和出价记录。
 3. 任何包含旧 `collectible` 项目的开放资产包必须整包取消；先完整退回最高出价资金，再释放包内全部商品与工厂冻结，禁止只删除旧项目后继续拍卖。
 4. 删除活动世界中的 `collectibles`、`collectibleOwnershipHistory` 与 `collectibleAuctions` 字段，写回世界版本 15。
-5. 迁移前部署流程必须使用 Python `sqlite3.Connection.backup()` 将 `/var/lib/riversoft-economy/economy.sqlite` 在线备份到 `/var/lib/riversoft-economy/backups/economy-pre-world-v15-<UTC 时间>.sqlite`，通过 `PRAGMA quick_check` 后才允许上传新服务；部署保留最近 10 份该迁移快照。回滚必须同时恢复代码和对应数据库快照，不能只回滚代码。
+5. 迁移前部署流程必须按服务器权威设计使用 `VACUUM INTO` 创建无 freelist 的紧凑 SQLite 副本，通过 `PRAGMA quick_check`、外键与 `auto_vacuum` 校验后，以 gzip 级别 6 压缩为 `/var/lib/riversoft-economy/backups/economy-pre-world-v15-<UTC 时间>.sqlite.gz` 并验证解压哈希；迁移族统一按全局最多 5 个保留。回滚必须同时恢复代码和对应数据库快照，不能只回滚代码。
 
 迁移必须幂等。反复加载世界不得重复退款、重复解冻或复制拍卖。旧玩家藏品与归属历史只存在于迁移前数据库快照，不得以活动世界字段、隐藏客户端字段或管理员只读页面继续保留。
 
