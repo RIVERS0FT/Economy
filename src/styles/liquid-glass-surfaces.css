@@ -1,12 +1,11 @@
 /* liquid-glass-react is the only liquid-glass renderer. This stylesheet owns
  * geometry, sizing, content layout, clipping, minimum contrast and the
  * project status-bar outline. It must not recreate blur, refraction or
- * chromatic aberration in CSS. Status bars suppress upstream decoration;
- * authentication cards retain the official edge highlights. */
+ * chromatic aberration in CSS. Status bars suppress upstream border highlights;
+ * all surfaces retain the official over-light tint layers. */
 :root {
   --desktop-asset-bar-height: 76px;
-  --liquid-glass-tint-dark: rgba(3, 12, 8, 0.42);
-  --liquid-glass-contrast: var(--liquid-glass-tint-dark);
+  --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
   --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
   --liquid-glass-auth-fallback: rgba(7, 20, 14, 0.94);
   --liquid-glass-structure-border: rgba(232, 255, 244, 0.3);
@@ -109,17 +108,17 @@
 }
 
 .liquid-glass-surface--desktopStatusBar .glass__warp {
-  -webkit-backdrop-filter: blur(0px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
 .liquid-glass-surface--mobileStatusBar .glass__warp,
 .liquid-glass-surface--mobileNavigation .glass__warp {
-  -webkit-backdrop-filter: blur(0px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
 .liquid-glass-surface--desktopAuthCard .glass__warp,
 .liquid-glass-surface--mobileAuthCard .glass__warp {
-  -webkit-backdrop-filter: blur(0px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
 .asset-bar > .liquid-glass-surface--desktopStatusBar,
@@ -191,10 +190,20 @@
   content: none;
 }
 
-.liquid-glass-surface--desktopStatusBar > div:not(.liquid-glass-surface__effect),
-.liquid-glass-surface--mobileStatusBar > div:not(.liquid-glass-surface__effect),
-.liquid-glass-surface--mobileNavigation > div:not(.liquid-glass-surface__effect) {
-  display: none !important;
+.liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect) {
+  display: block !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+  background: #000 !important;
+}
+
+.liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect):first-of-type {
+  opacity: 0.2 !important;
+}
+
+.liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect):nth-of-type(2) {
+  opacity: 1 !important;
+  mix-blend-mode: overlay !important;
 }
 
 .liquid-glass-surface--desktopStatusBar > span,
@@ -235,10 +244,15 @@
   transition: none !important;
 }
 
-.liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),
-.liquid-glass-surface--mobileAuthCard > div:not(.liquid-glass-surface__effect) {
-  display: none !important;
-  opacity: 0 !important;
+.login-card > .liquid-glass-surface--desktopAuthCard[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect),
+.login-card > .liquid-glass-surface--mobileAuthCard[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect) {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  transform: none !important;
+  transition: none !important;
 }
 
 .asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,

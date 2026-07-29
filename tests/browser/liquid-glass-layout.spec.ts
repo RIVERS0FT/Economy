@@ -10,7 +10,7 @@ test.describe('liquid glass shell geometry', () => {
     await expect(glassSurface).toBeVisible();
     await expect(glassSurface).toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar');
     await expect(glassSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
-    await expect(glassSurface).toHaveAttribute('data-liquid-glass-tint', 'dark');
+    await expect(glassSurface).toHaveAttribute('data-liquid-glass-over-light', 'true');
     await expect(page.locator('.overview-today-panel')).toBeVisible();
 
     const layout = await page.evaluate(() => {
@@ -109,17 +109,17 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.outlinePointerEvents).toBe('none');
     expect(layout.statusScrollAreaCount).toBe(0);
     expect(layout.contentHasHorizontalOverflow).toBe(false);
-    expect(layout.surfaceBackgroundColor).toBe('rgba(3, 12, 8, 0.42)');
+    expect(layout.surfaceBackgroundColor).toBe('rgba(194, 231, 214, 0.06)');
     expect(layout.glassMode).toBe('standard');
     expect(layout.glassVariant).toBe('desktopStatusBar');
     expect(layout.glassBoxShadow).toBe('none');
-    expect(layout.warpBackdropFilter).toContain('blur(0px)');
+    expect(layout.warpBackdropFilter).toContain('blur(12px)');
     expect(layout.warpBackdropFilter).toMatch(/saturate\((?:120%|1\.2)\)/);
     expect(layout.warpFilter).toContain('url(');
     expect(layout.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
     expect(layout.visibleDecorationSpanCount).toBe(0);
     expect(layout.directAuxiliaryDivCount).toBeGreaterThanOrEqual(1);
-    expect(layout.visibleAuxiliaryDivCount).toBe(0);
+    expect(layout.visibleAuxiliaryDivCount).toBe(2);
     expect(layout.hasPanelClass).toBe(false);
     expect(layout.glassSurfaceCount).toBe(1);
     expect(layout.headingTop).toBeGreaterThanOrEqual(layout.assetBarBottom);
@@ -201,12 +201,12 @@ test.describe('mobile liquid glass host geometry', () => {
     await expect(statusSurface).toBeVisible();
     await expect(statusSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileStatusBar');
     await expect(statusSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
-    await expect(statusSurface).toHaveAttribute('data-liquid-glass-tint', 'dark');
+    await expect(statusSurface).toHaveAttribute('data-liquid-glass-over-light', 'true');
     await expect(navigationHost).toBeVisible();
     await expect(navigationSurface).toBeVisible();
     await expect(navigationSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileNavigation');
     await expect(navigationSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
-    await expect(navigationSurface).toHaveAttribute('data-liquid-glass-tint', 'dark');
+    await expect(navigationSurface).toHaveAttribute('data-liquid-glass-over-light', 'true');
     await expect(primaryPanel).toBeVisible();
     await expect(statusHost).toHaveCSS('height', '48px');
     await expect(statusSurface).toHaveCSS('height', '48px');
@@ -255,6 +255,16 @@ test.describe('mobile liquid glass host geometry', () => {
           const style = getComputedStyle(element);
           return style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity) > 0;
         }).length;
+      const visibleDirectAuxiliaryDivCount = (surface: HTMLElement) => Array.from(surface.children)
+        .filter((element): element is HTMLElement => (
+          element instanceof HTMLElement
+          && element.tagName === 'DIV'
+          && !element.classList.contains('liquid-glass-surface__effect')
+        ))
+        .filter((element) => {
+          const style = getComputedStyle(element);
+          return style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity) > 0;
+        }).length;
       const statusSurfaceStyle = getComputedStyle(statusSurfaceElement);
       const statusOutlineStyle = getComputedStyle(statusSurfaceElement, '::after');
       const statusContentElement = statusSurfaceElement.querySelector<HTMLElement>('.asset-bar-content');
@@ -284,6 +294,8 @@ test.describe('mobile liquid glass host geometry', () => {
         navigationFilterTargetExists: hasSvgFilterTarget(navigationWarpElement),
         statusVisibleDecorationSpanCount: visibleDirectSpanCount(statusSurfaceElement),
         navigationVisibleDecorationSpanCount: visibleDirectSpanCount(navigationSurfaceElement),
+        statusVisibleAuxiliaryDivCount: visibleDirectAuxiliaryDivCount(statusSurfaceElement),
+        navigationVisibleAuxiliaryDivCount: visibleDirectAuxiliaryDivCount(navigationSurfaceElement),
         statusGlassBoxShadow: getComputedStyle(statusGlassElement).boxShadow,
         statusGlassSurfaceCount: statusHostElement.querySelectorAll('.liquid-glass-surface').length,
         statusScrollAreaCount: statusHostElement.querySelectorAll('.ui-scroll-area').length,
@@ -312,7 +324,7 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusVariant).toBe('mobileStatusBar');
     expect(geometry.navigationVariant).toBe('mobileNavigation');
     expect(geometry.statusBackground).toBe(geometry.navigationBackground);
-    expect(geometry.statusBackground).toBe('rgba(3, 12, 8, 0.42)');
+    expect(geometry.statusBackground).toBe('rgba(194, 231, 214, 0.06)');
     expect(geometry.statusContain).toBe('none');
     expect(geometry.navigationContain).toBe('none');
     expect(geometry.statusIsolation).toBe('auto');
@@ -322,12 +334,14 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusBackdropFilter).not.toBe('none');
     expect(geometry.navigationBackdropFilter).not.toBe('none');
     expect(geometry.statusBackdropFilter).toBe(geometry.navigationBackdropFilter);
-    expect(geometry.statusBackdropFilter).toContain('blur(0px)');
+    expect(geometry.statusBackdropFilter).toContain('blur(12px)');
     expect(geometry.statusBackdropFilter).toMatch(/saturate\((?:120%|1\.2)\)/);
     expect(geometry.statusFilterTargetExists).toBe(true);
     expect(geometry.navigationFilterTargetExists).toBe(true);
     expect(geometry.statusVisibleDecorationSpanCount).toBe(0);
     expect(geometry.navigationVisibleDecorationSpanCount).toBe(1);
+    expect(geometry.statusVisibleAuxiliaryDivCount).toBe(2);
+    expect(geometry.navigationVisibleAuxiliaryDivCount).toBe(2);
     expect(geometry.statusGlassBoxShadow).toBe('none');
     expect(geometry.statusGlassSurfaceCount).toBe(1);
     expect(geometry.statusScrollAreaCount).toBe(0);

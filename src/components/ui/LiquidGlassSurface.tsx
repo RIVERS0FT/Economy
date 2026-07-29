@@ -19,6 +19,7 @@ interface LiquidGlassSurfaceProps {
 
 const STATIC_MOUSE_POSITION = { x: 0, y: 0 };
 const STATIC_MOUSE_OFFSET = { x: 0, y: 0 };
+const GLOBAL_OVER_LIGHT = true;
 
 const DESKTOP_STATUS_GLASS = {
   displacementScale: 120,
@@ -101,6 +102,7 @@ function GlassEffect({
       cornerRadius={preset.cornerRadius}
       padding="0"
       mode={preset.mode}
+      overLight={GLOBAL_OVER_LIGHT}
       mouseContainer={null}
       globalMousePos={STATIC_MOUSE_POSITION}
       mouseOffset={STATIC_MOUSE_OFFSET}
@@ -227,7 +229,11 @@ export function LiquidGlassSurface({
       data-liquid-glass-mode={preset.mode}
       data-liquid-glass-layout={layout}
       data-liquid-glass-elasticity={preset.elasticity}
-      data-liquid-glass-tint="dark"
+      data-liquid-glass-over-light={GLOBAL_OVER_LIGHT ? 'true' : 'false'}
+      data-liquid-glass-displacement-scale={preset.displacementScale}
+      data-liquid-glass-blur-amount={preset.blurAmount}
+      data-liquid-glass-saturation={preset.saturation}
+      data-liquid-glass-aberration-intensity={preset.aberrationIntensity}
       style={layout === 'content' ? { height: `${contentHeight ?? 1}px` } : undefined}
     >
       <GlassEffect
