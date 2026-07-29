@@ -99,6 +99,13 @@ async function readAuthGlass(page: Page) {
       visibleDirectAuxiliaryDivCount: directAuxiliaryDivs.filter(isVisible).length,
       directAuxiliaryBottoms: directAuxiliaryRects.map((rect) => rect.bottom),
       directAuxiliaryTransitionProperties: directAuxiliaryStyles.map((style) => style.transitionProperty),
+      directAuxiliaryPaddings: directAuxiliaryStyles.map((style) => style.paddingTop),
+      directAuxiliaryMaskImages: directAuxiliaryStyles.map((style) => (
+        style.getPropertyValue('-webkit-mask-image') || style.getPropertyValue('mask-image')
+      )),
+      directAuxiliaryMaskComposites: directAuxiliaryStyles.map((style) => (
+        style.getPropertyValue('-webkit-mask-composite') || style.getPropertyValue('mask-composite')
+      )),
       displacementScales: Array.from(filterSvg.querySelectorAll('feDisplacementMap'))
         .map((element) => Number.parseFloat(element.getAttribute('scale') ?? '0')),
       outlineBorder: outlineStyle.borderTopWidth,
@@ -249,6 +256,9 @@ test.describe('auth three-layer layout', () => {
       expect(glass.glassTransitionProperty).toBe('none');
       expect(glass.directAuxiliaryDivCount).toBe(2);
       expect(glass.visibleDirectAuxiliaryDivCount).toBe(2);
+      expect(glass.directAuxiliaryPaddings).toEqual(['1.5px', '1.5px']);
+      expect(glass.directAuxiliaryMaskImages.every((value) => value !== 'none' && value.length > 0)).toBe(true);
+      expect(glass.directAuxiliaryMaskComposites.every((value) => /xor|exclude/.test(value))).toBe(true);
       expect(glass.displacementScales).toHaveLength(3);
       expect(Math.abs(glass.displacementScales[0])).toBe(60);
       await expectAuthGlassGeometryAligned(page);
@@ -369,6 +379,9 @@ test.describe('auth three-layer layout', () => {
       expect(loginGlass.glassTransitionProperty).toBe('none');
       expect(loginGlass.directAuxiliaryDivCount).toBe(2);
       expect(loginGlass.visibleDirectAuxiliaryDivCount).toBe(2);
+      expect(loginGlass.directAuxiliaryPaddings).toEqual(['1.5px', '1.5px']);
+      expect(loginGlass.directAuxiliaryMaskImages.every((value) => value !== 'none' && value.length > 0)).toBe(true);
+      expect(loginGlass.directAuxiliaryMaskComposites.every((value) => /xor|exclude/.test(value))).toBe(true);
       expect(Math.abs(loginGlass.displacementScales[0])).toBe(60);
 
       await page.getByRole('tab', { name: '注册' }).click();

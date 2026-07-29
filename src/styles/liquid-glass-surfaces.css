@@ -194,7 +194,17 @@
   display: block !important;
   visibility: visible !important;
   pointer-events: none !important;
+  box-sizing: border-box !important;
+  padding: 1.5px !important;
   background: #000 !important;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
 }
 
 .liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect):first-of-type {

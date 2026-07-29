@@ -70,6 +70,9 @@ if (failures.length === 0) {
     'background: var(--liquid-glass-contrast);',
     '.liquid-glass-surface--desktopStatusBar > span,',
     'display: none !important;',
+    'padding: 1.5px !important;',
+    '-webkit-mask-composite: xor;',
+    'mask-composite: exclude;',
     '.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,',
     'box-shadow: none !important;',
   ]) requireText(paths.surfaceStyles, text);
@@ -92,6 +95,7 @@ if (failures.length === 0) {
     '`overLight=true`',
     '桌面与移动状态栏必须隐藏 `liquid-glass-react` 的直属边框／高光，但所有五种 variant 必须保留并显示 `overLight=true` 产生的两个官方黑色辅助层',
     '认证卡片必须保留官方两个直属边缘高光 `span`',
+    '禁止以未遮罩的整面黑色覆盖卡片中心',
     '清除第三方 `.glass` 外部阴影',
     '`--desktop-shell-outer-inset` 是侧栏与工作栏唯一桌面外距令牌',
     '顶部／右侧间距都来自统一桌面外距',
