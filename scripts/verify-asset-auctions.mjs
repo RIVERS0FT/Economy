@@ -64,6 +64,7 @@ const filesUnder = (directory) => {
   'src/styles/asset-auctions.css',
   'src/styles/auction-card-layers.css',
   '.github/workflows/deploy.yml',
+  'scripts/manage-production-backups.py',
   'README.md',
   'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
@@ -95,7 +96,7 @@ requireText('server/src/asset-auctions.js', [
   'export function migrateAssetAuctionWorld(world, now = Date.now())',
   'const legacyAuctions = Array.isArray(world.collectibleAuctions)',
   'const currentAuctions = Array.isArray(world.assetAuctions)',
-  'if (items.some((item) => item.assetKind === \'collectible\'))',
+  "if (items.some((item) => item.assetKind === 'collectible'))",
   'releaseBid(world, auction);',
   "items.filter((item) => item.assetKind !== 'collectible')",
   'delete world.collectibles;',
@@ -219,16 +220,25 @@ requireText('src/styles/auction-card-layers.css', [
 forbidText('src/styles/auction-card-layers.css', ['overflow-x: auto;', '.asset-auction-summary-more']);
 
 requireText('.github/workflows/deploy.yml', [
-  'Prune backups and back up production database before world 18 migration',
-  'sqlite3.connect(database)',
-  'source.backup(destination)',
-  "destination.execute('PRAGMA quick_check')",
-  "economy-pre-world-v{target_world_version}-{timestamp}.sqlite",
-  "backup_dir.glob('economy-pre-*.sqlite')",
-  'MAX_BACKUP_FAMILIES = 5',
-  'def prune_backups():',
-  'prune_backups()',
+  'Prune backups and create compact compressed database backup before world 18 migration',
+  'scripts/manage-production-backups.py',
+  'backup-world --target-world-version 18',
+  'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
   'database-backup.log',
+]);
+requireText('scripts/manage-production-backups.py', [
+  'VACUUM INTO',
+  'gzip.GzipFile(',
+  'PRAGMA quick_check(1)',
+  'PRAGMA foreign_key_check',
+  "economy-pre-world-v{args.target_world_version}",
+  "backup_directory.glob('economy-pre-*')",
+  'MAX_BACKUP_FAMILIES = 5',
+  'def prune_backups(',
+]);
+forbidText('.github/workflows/deploy.yml', [
+  'source.backup(destination)',
+  "backup_dir.glob('economy-pre-*.sqlite')",
 ]);
 
 requireText('README.md', [
@@ -248,8 +258,9 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '商品和工厂使用同一公开竞价、最高出价冻结和服务器自动结算模型',
   '`assetKind` 只允许 `commodity` 或 `facility`',
   '任何包含旧 `collectible` 项目的开放资产包必须整包取消',
-  '使用 Python `sqlite3.Connection.backup()`',
-  '通过 `PRAGMA quick_check` 后才允许上传新服务',
+  '使用 `VACUUM INTO` 创建无 freelist 的紧凑 SQLite 副本',
+  'gzip 级别 6',
+  '`PRAGMA quick_check`、外键与 `auto_vacuum` 校验',
   '旧 `/api/game/collectible-auctions*` 与 `/api/game/admin/collectibles*` 路径只返回 `410 Gone`',
 ]);
 requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
@@ -263,8 +274,9 @@ requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`asset-auctions.js`：商品／工厂单项与捆绑资产拍卖',
   '世界 15 的资产拍卖迁移由 `asset-auctions.js` 在工厂集群规范化之前执行',
-  '部署世界 15 前，`.github/workflows/deploy.yml` 必须在上传新服务前使用 Python `sqlite3.Connection.backup()`',
-  '`economy-pre-world-v15-<UTC 时间>.sqlite`',
+  '世界 15 资产拍卖迁移和世界 16 银行迁移的回滚仍必须同时恢复匹配代码',
+  '紧凑 gzip SQLite 快照',
+  '`VACUUM INTO` 消除 freelist',
   '`410 Gone`',
 ]);
 for (const [path, fragments] of [
@@ -298,4 +310,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('商品／工厂单项与捆绑资产拍卖、世界 15 整包取消迁移、数据库快照、410 墓碑、九页导航、数量草稿、冻结与仓库预占、原子结算及订单簿行情隔离验证通过。');
+console.log('商品／工厂单项与捆绑资产拍卖、世界 15 整包取消迁移、紧凑压缩数据库快照、410 墓碑、九页导航、数量草稿、冻结与仓库预占、原子结算及订单簿行情隔离验证通过。');
