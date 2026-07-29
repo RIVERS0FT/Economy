@@ -16,12 +16,13 @@ export function FinancialBackdrop({
   tone?: FinancialBackdropTone;
 }) {
   const signedInPrefix = variant === 'auth' ? 'login' : 'game';
-  const prefix = variant === 'admin' ? 'admin' : signedInPrefix;
+  const prefix = variant === 'auth' ? 'login' : variant;
+  const resolvedPrefix = prefix === 'admin' ? 'admin' : signedInPrefix;
 
   return (
     <>
       <div
-        className={`${prefix}-image-layer financial-backdrop-image financial-backdrop-image--${variant}`}
+        className={`${resolvedPrefix}-image-layer financial-backdrop-image financial-backdrop-image--${variant}`}
         aria-hidden="true"
       >
         <picture>
@@ -40,7 +41,7 @@ export function FinancialBackdrop({
       </div>
 
       <div
-        className={`${prefix}-atmosphere-layer financial-backdrop-atmosphere financial-backdrop-atmosphere--${variant}${tone === 'critical' ? ' financial-backdrop-atmosphere--critical' : ''}`}
+        className={`${resolvedPrefix}-atmosphere-layer financial-backdrop-atmosphere financial-backdrop-atmosphere--${variant}${tone === 'critical' ? ' financial-backdrop-atmosphere--critical' : ''}`}
         aria-hidden="true"
       />
     </>
