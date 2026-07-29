@@ -31,6 +31,10 @@ jobs:
           check_status=0
 
           if [ "$apply_status" -eq 0 ]; then
+            python3 scripts/fix-global-dark-liquid-glass-contracts.py >> "$log_file" 2>&1 || apply_status=$?
+          fi
+
+          if [ "$apply_status" -eq 0 ]; then
             node scripts/verify-auth-three-layer.mjs >> "$log_file" 2>&1 || check_status=$?
             node scripts/verify-liquid-glass-chrome.mjs >> "$log_file" 2>&1 || check_status=$?
           fi
@@ -42,6 +46,7 @@ jobs:
             target_branch="agent/global-dark-liquid-glass-applied"
             git checkout -B "$target_branch"
             rm scripts/apply-global-dark-liquid-glass.py
+            rm scripts/fix-global-dark-liquid-glass-contracts.py
             rm .github/workflows/apply-global-dark-liquid-glass-bootstrap.yml
             git add -A
             git commit -m "Apply global dark liquid glass"
