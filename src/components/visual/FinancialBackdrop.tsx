@@ -15,7 +15,8 @@ export function FinancialBackdrop({
   priority?: boolean;
   tone?: FinancialBackdropTone;
 }) {
-  const prefix = variant === 'auth' ? 'login' : variant;
+  const signedInPrefix = variant === 'auth' ? 'login' : 'game';
+  const prefix = variant === 'admin' ? 'admin' : signedInPrefix;
 
   return (
     <>
