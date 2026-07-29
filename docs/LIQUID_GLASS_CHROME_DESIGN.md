@@ -26,7 +26,7 @@
 
 | 文件 | 唯一职责 |
 |---|---|
-| `LiquidGlassSurface.tsx` | 第三方库适配、五种平台预设、统一零弹性与静态鼠标输入、固定／内容自适应布局、认证内容内部定位与尺寸同步和统一 DOM |
+| `LiquidGlassSurface.tsx` | 第三方库适配、五种平台预设、统一零弹性与静态鼠标输入、固定／内容自适应布局、认证内容首次绘制前同步测高、提交后观察器补充测量、上游滤镜尺寸通知和统一 DOM |
 | `AuthCardSurface.tsx` | 认证卡片语义宿主、`720px` 响应式预设切换和单一认证玻璃实例 |
 | `FinancialBackdrop.tsx` | 登录与玩家游戏共享的图片层、氛围层、响应式图片、优先级和加载失败隐藏 |
 | `SignedInShell.tsx` | 游戏与管理员共享根外壳、可选背景插槽、侧栏／工作区轨道、唯一页面 `ScrollArea`、页面 Overlay 与 Chrome Overlay DOM 顺序 |
@@ -36,7 +36,7 @@
 | `StatusBar.tsx` | 保持单一玩家状态栏实例，按 `720px` 断点选择预设，直接承载固定五列状态内容，并使用单一 `ResizeObserver` 与合并后的 `requestAnimationFrame` 对移动端真实溢出的主数值逐项缩小字号；不得引入 `ScrollArea` |
 | `financial-backdrop.css` | 玩家图片层、深色氛围、网格、噪点、失败回退、游戏加载态和全局 `body` 网格关闭 |
 | `auth.css` | 认证内容层、品牌区、卡片外层宽度／对齐／圆角、认证内容内边距、输入与自动填充兼容；不得实现玻璃材质 |
-| `liquid-glass-surfaces.css` | 所有玻璃宿主、第三方 DOM 尺寸、内容自适应层、开放背景采样链、平台圆角、统一宿主染色、认证回退、状态栏单层结构描边、认证官方双层高光显隐、认证卡片无项目结构描边和移动底栏唯一垂直留白 |
+| `liquid-glass-surfaces.css` | 所有玻璃宿主、第三方 DOM 尺寸、内容自适应层、开放背景采样链、平台圆角、统一宿主染色、认证回退、状态栏单层结构描边、认证官方双层高光显隐、认证高光宿主几何绑定、零尺寸过渡、认证卡片无项目结构描边和移动底栏唯一垂直留白 |
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口，必须包含玩家背景样式 |
 | `game-shell-layout.css` | 登录后桌面双列轨道、唯一布局沟槽、工作栏外距、页面避让、内容边缘和桌面页面滚动条贴边几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
@@ -54,7 +54,7 @@
 | `verify-mobile-facility-pull-refresh.mjs` | 登录态根 overscroll、工厂详情局部非被动触摸监听、设计记录和浏览器回归检查 |
 | `verify-desktop-primary-surfaces.mjs` | 桌面一级卡片与独立桌面状态栏圆角、单结构边框和零第三方装饰层检查 |
 | `liquid-glass-layout.spec.ts` | 真实浏览器平台预设、单状态栏实例、装饰层显隐、背景采样链、圆角、共线和页面避让验证 |
-| `auth-three-layer.spec.ts` | 登录三层结构、认证桌面／移动预设、官方折射光学参数、零弹性、静态鼠标输入、双层边缘高光、认证内容内部定位、同源宿主染色、无项目外框、单实例、自然高度、表单值保持、断点切换和无内部滚动回归 |
+| `auth-three-layer.spec.ts` | 登录三层结构、认证桌面／移动预设、官方折射光学参数、零弹性、静态鼠标输入、双层边缘高光、首帧宿主与高光底部同步、认证内容内部定位、同源宿主染色、无项目外框、单实例、自然高度、表单值保持、断点切换和无内部滚动回归 |
 | `game-three-layer.spec.ts` | 玩家桌面与移动三层背景、DOM 顺序、全局网格关闭和摄影加载失败回退 |
 | `mobile-status-value-fit.spec.ts` | 在 `430px` 至 `320px` 真实浏览器宽度验证长数字逐项缩小、短数字保持默认字号、数值更新后恢复和零省略号 |
 | `game-shell-layout.spec.ts` | 玩家普通、窄宽和矮高桌面的统一沟槽、卡片间距、工作栏／侧栏外距、页面边缘和贴边滚动条几何回归 |
@@ -121,7 +121,9 @@
 
 官方默认基线只适用于认证卡片的光学参数；项目继续保留桌面 `24px`、移动 `40px` 圆角以及认证内容的 `32px`／`20px` 内边距，不采用官方 `999px` 胶囊几何、默认 padding 或非零弹性。认证卡片必须使用 `mouseContainer={null}` 和固定鼠标坐标输入，禁止恢复宿主指针跟踪。认证卡片任一时刻只能存在一个玻璃实例，断点变化时只切换同一宿主的 variant。
 
-认证卡片必须使用 `layout="content"`，但其业务内容位置与状态栏统一，实际位于第三方 `.glass` 内部的 `.liquid-glass-surface__content`。宿主由真实内容高度驱动，不得为注册表单设置固定高度或内部滚动区。统一适配层必须使用单个 `ResizeObserver` 同时观察认证内容与认证宿主，并可用同一内容节点上的 `MutationObserver` 捕获条件 DOM 变化；内容高度只读取 `scrollHeight`／`offsetHeight`，内容变化先更新宿主高度，宿主真实尺寸提交后再通过 `window` resize 通知上游玻璃重新读取几何。派发 resize 前必须在同一同步任务内把直属效果层置为 `data-liquid-glass-measuring="true"` 中性测量态，以 `translate(-50%, -50%) scale(1)` 排除第三方视觉 transform 对几何读取的影响，派发后立即清除，避免上游把视觉变换后的 `getBoundingClientRect()` 写入 SVG 与高光尺寸。不得用 revision、React `key`、定时轮询或每帧测量重建认证内容，登录／注册切换、邀请码、验证码、错误和状态提示变化以及 `720px` 断点切换不得清空原生未受控表单值。官方两个边缘高光 `span` 必须随同一宿主同步宽高并保持可见，over-light 辅助 `div` 继续隐藏。
+认证卡片必须使用 `layout="content"`，但其业务内容位置与状态栏统一，实际位于第三方 `.glass` 内部的 `.liquid-glass-surface__content`。宿主由真实内容高度驱动，不得为注册表单设置固定高度或内部滚动区。React 直接引起的登录／注册内容变化必须在每次提交后的 `useLayoutEffect` 中读取 `scrollHeight`／`offsetHeight`，并在首次绘制前同步提交宿主高度；同一内容节点和宿主上的单个 `ResizeObserver` 以及条件 `MutationObserver` 只负责字体、异步提示和宽度变化等补充测量。宿主高度提交后仍通过合并后的 `requestAnimationFrame` 与窗口 resize 通知上游玻璃重新读取 SVG 滤镜几何。派发 resize 前必须在同一同步任务内把直属效果层置为 `data-liquid-glass-measuring="true"` 中性测量态，以 `translate(-50%, -50%) scale(1)` 排除第三方视觉 transform 对几何读取的影响，派发后立即清除。不得用 revision、React `key`、定时轮询或每帧持续测量重建认证内容，登录／注册切换、邀请码、验证码、错误和状态提示变化以及 `720px` 断点切换不得清空原生未受控表单值。
+
+可见高光几何直接绑定认证宿主：官方两个直属 `span` 必须使用 `position: absolute`、`inset: 0`、`width: 100%`、`height: 100%`、`transform: none` 和 `transition: none`；认证效果层及 `.glass` 的可见尺寸也必须直接填满宿主并取消第三方尺寸过渡。上游 `glassSize` 与 resize 通知只允许随后补齐 SVG 滤镜内部坐标，不得继续控制认证卡片可见边框或底部位置。登录→注册→登录时，宿主、`.glass` 与两个官方高光的底部必须在首个绘制帧内同步。
 
 ## 4. 平台能力边界
 
@@ -209,7 +211,7 @@
 - `.glass__warp` 到页面内容之间必须保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切。
 - 桌面、移动和认证预设的 WebKit 兼容别名必须分别匹配上游参数，不得使用一个通用数值覆盖不同平台。
 - 状态栏只保留一条低强度 `1px` 最上层连续结构描边；认证卡片不得绘制项目结构描边，`.liquid-glass-surface--desktopAuthCard::after` 与 `.liquid-glass-surface--mobileAuthCard::after` 必须使用 `content: none`；移动底栏继续使用宿主边框。
-- 桌面与移动状态栏的直属 `span`／辅助 `div` 必须隐藏；认证卡片的两个直属边缘高光 `span` 必须可见，over-light 辅助 `div` 必须隐藏。第三方 `.glass` 计算后的 `box-shadow` 必须为 `none`；认证宿主可以保留由项目定义的一层悬浮阴影。
+- 桌面与移动状态栏的直属 `span`／辅助 `div` 必须隐藏；认证卡片的两个直属边缘高光 `span` 必须可见、直接绑定认证宿主 `100%` 几何并取消第三方尺寸过渡，over-light 辅助 `div` 必须隐藏。第三方 `.glass` 计算后的 `box-shadow` 必须为 `none`；认证宿主可以保留由项目定义的一层悬浮阴影。
 - 移动底栏的两个直属 `span` 中只允许第一层 `opacity: 0.22` 的 screen 高光可见。
 - React `cornerRadius`、CSS 裁切和第三方折射层必须分别与所属平台预设一致。
 
@@ -241,7 +243,7 @@
 
 - 认证页面同时只可见一个认证玻璃实例；玩家桌面同时可见一个玻璃实例；管理员桌面同时可见一个工作栏玻璃实例；玩家移动同时可见状态栏和底栏两个，管理员移动只可见底栏一个。
 - 禁止滚动事件更新玻璃参数、噪点动画和每项独立滤镜。所有玻璃预设使用零弹性和静态鼠标输入，不得在玻璃宿主、页面或滚动容器注册指针跟踪来驱动折射、位移、缩放或边缘高光。
-- 认证内容自适应只使用单个 `ResizeObserver` 和同一真实内容节点上的条件 DOM 观察，只在内容宽高变化时更新宿主高度并通知玻璃读取几何；表单内容和原生输入节点不得进入重建 key，不得加入定时轮询或每帧测量。
+- 认证 React 内容提交后只允许一次无依赖 `useLayoutEffect` 同步测量，并仅在高度值改变时更新状态；该测量用于首次绘制前同步提交，不属于持续每帧测量。单个 `ResizeObserver`、条件 `MutationObserver` 和合并后的 `requestAnimationFrame` 只处理提交后的异步几何变化和上游 SVG 滤镜通知。
 - 移动状态栏字号适配只在数值、容器几何、方向或字体就绪时运行，必须使用单一观察器与帧合并，不得加入定时轮询或每帧持续测量。
 - 页面初始内容避让工作栏和底栏，滚动时允许进入玻璃后方；认证页面继续使用文档滚动。
 - 装饰 SVG、官方边缘高光、摄影背景、氛围覆盖层和认证玻璃宿主不得阻止内部按钮或输入事件；两个认证高光保持 `pointer-events: none`。
@@ -268,4 +270,4 @@
 14. 摄影请求失败时图片元素隐藏，氛围背景、页面内容、状态栏与导航仍然可见并可交互。
 15. 登录切换为注册后，同一个认证玻璃随内容自然增高；认证内容保持在 `.glass` 内，卡片、玻璃宿主和内容均不得创建内部纵向滚动区，输入框、验证码、错误提示和按钮保持可操作。
 16. 支持环境中的认证卡片与状态栏统一使用 `--liquid-glass-contrast` 宿主染色且不存在 `.liquid-glass-surface__material-fill`；认证卡片 `::after` 不生成外框，两个官方高光 `span` 可见且辅助 `div` 隐藏，`auth.css` 不包含认证卡片的模糊、玻璃渐变或材质描边，登录卡片不包含 `.panel`；不支持背景滤镜时认证卡片使用统一深色回退。
-17. Chromium 中把指针从认证卡片一侧移动到另一侧后，第三方效果层的视觉 `transform` 和直属高光背景方向必须保持不变；登录→注册→登录和 `721px`／`720px` 双向切换后，宿主、效果层、`.glass`、SVG 滤镜与高光的未变换布局尺寸（`clientHeight`／`offsetHeight`）保持同步。人工尺寸通知期间必须短暂出现且同步清除 `data-liquid-glass-measuring="true"` 中性测量态，不得把视觉矩形持久化为玻璃尺寸。
+17. Chromium 中把指针从认证卡片一侧移动到另一侧后，第三方效果层的视觉 `transform` 和直属高光背景方向必须保持不变；登录→注册→登录时，在点击后首个 `requestAnimationFrame` 内宿主、`.glass` 与两个官方高光的实际底部误差不得超过 `1px`，`.glass` 与两个高光的 `transition-property` 必须为 `none`；随后宿主、效果层、`.glass`、SVG 滤镜与高光的未变换布局尺寸保持同步。人工尺寸通知期间必须短暂出现且同步清除 `data-liquid-glass-measuring="true"` 中性测量态，不得把视觉矩形持久化为玻璃尺寸。
