@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client';
+import '../../src/app/interactionBootstrap';
 import { FinancialBackdrop } from '../../src/components/visual/FinancialBackdrop';
 import '../../src/styles/financial-backdrop.css';
 
