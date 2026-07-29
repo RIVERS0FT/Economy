@@ -10,6 +10,7 @@ test.describe('liquid glass shell geometry', () => {
     await expect(glassSurface).toBeVisible();
     await expect(glassSurface).toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar');
     await expect(glassSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
+    await expect(glassSurface).toHaveAttribute('data-liquid-glass-tint', 'dark');
     await expect(page.locator('.overview-today-panel')).toBeVisible();
 
     const layout = await page.evaluate(() => {
@@ -108,11 +109,11 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.outlinePointerEvents).toBe('none');
     expect(layout.statusScrollAreaCount).toBe(0);
     expect(layout.contentHasHorizontalOverflow).toBe(false);
-    expect(layout.surfaceBackgroundColor).toBe('rgba(194, 231, 214, 0.06)');
+    expect(layout.surfaceBackgroundColor).toBe('rgba(3, 12, 8, 0.42)');
     expect(layout.glassMode).toBe('standard');
     expect(layout.glassVariant).toBe('desktopStatusBar');
     expect(layout.glassBoxShadow).toBe('none');
-    expect(layout.warpBackdropFilter).toContain('blur(6px)');
+    expect(layout.warpBackdropFilter).toContain('blur(0px)');
     expect(layout.warpBackdropFilter).toMatch(/saturate\((?:120%|1\.2)\)/);
     expect(layout.warpFilter).toContain('url(');
     expect(layout.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
@@ -200,10 +201,12 @@ test.describe('mobile liquid glass host geometry', () => {
     await expect(statusSurface).toBeVisible();
     await expect(statusSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileStatusBar');
     await expect(statusSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
+    await expect(statusSurface).toHaveAttribute('data-liquid-glass-tint', 'dark');
     await expect(navigationHost).toBeVisible();
     await expect(navigationSurface).toBeVisible();
     await expect(navigationSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileNavigation');
     await expect(navigationSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
+    await expect(navigationSurface).toHaveAttribute('data-liquid-glass-tint', 'dark');
     await expect(primaryPanel).toBeVisible();
     await expect(statusHost).toHaveCSS('height', '48px');
     await expect(statusSurface).toHaveCSS('height', '48px');
@@ -309,7 +312,7 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusVariant).toBe('mobileStatusBar');
     expect(geometry.navigationVariant).toBe('mobileNavigation');
     expect(geometry.statusBackground).toBe(geometry.navigationBackground);
-    expect(geometry.statusBackground).toBe('rgba(194, 231, 214, 0.06)');
+    expect(geometry.statusBackground).toBe('rgba(3, 12, 8, 0.42)');
     expect(geometry.statusContain).toBe('none');
     expect(geometry.navigationContain).toBe('none');
     expect(geometry.statusIsolation).toBe('auto');
@@ -319,8 +322,8 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusBackdropFilter).not.toBe('none');
     expect(geometry.navigationBackdropFilter).not.toBe('none');
     expect(geometry.statusBackdropFilter).toBe(geometry.navigationBackdropFilter);
-    expect(geometry.statusBackdropFilter).toContain('blur(7.2px)');
-    expect(geometry.statusBackdropFilter).toMatch(/saturate\((?:125%|1\.25)\)/);
+    expect(geometry.statusBackdropFilter).toContain('blur(0px)');
+    expect(geometry.statusBackdropFilter).toMatch(/saturate\((?:120%|1\.2)\)/);
     expect(geometry.statusFilterTargetExists).toBe(true);
     expect(geometry.navigationFilterTargetExists).toBe(true);
     expect(geometry.statusVisibleDecorationSpanCount).toBe(0);
