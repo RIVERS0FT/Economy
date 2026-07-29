@@ -210,6 +210,9 @@ for (const text of [
   'display: block !important;',
   '.liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect)',
   'background: #000 !important;',
+  'padding: 1.5px !important;',
+  '-webkit-mask-composite: xor;',
+  'mask-composite: exclude;',
   'mix-blend-mode: overlay !important;',
   'position: absolute !important;',
   'inset: 0 !important;',
@@ -324,6 +327,7 @@ for (const text of [
   '`mouseContainer={null}`',
   '首次绘制前同步提交',
   '可见高光几何直接绑定认证宿主',
+  '中心必须被排除式 mask 完全挖空',
   '摄影 `<picture>` 固定挂载在 `main.tsx`',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
@@ -366,6 +370,9 @@ for (const text of [
   "expect(glass.outlineContent).toBe('none')",
   'expect(glass.visibleDirectDecorationSpanCount).toBe(2)',
   'expect(glass.visibleDirectAuxiliaryDivCount).toBe(2)',
+  "expect(glass.directAuxiliaryPaddings).toEqual(['1.5px', '1.5px'])",
+  'directAuxiliaryMaskImages.every',
+  'directAuxiliaryMaskComposites.every',
   'expect(Math.abs(glass.displacementScales[0])).toBe(60)',
   'toMatch(/saturate\\((?:120%|1\\.2)\\)/)',
   'page.mouse.move',

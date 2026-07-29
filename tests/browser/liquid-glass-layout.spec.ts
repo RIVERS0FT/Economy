@@ -42,6 +42,7 @@ test.describe('liquid glass shell geometry', () => {
         .filter((element) => element.tagName === 'SPAN') as HTMLElement[];
       const directAuxiliaryDivs = Array.from(surface.children)
         .filter((element) => element.tagName === 'DIV' && !element.classList.contains('liquid-glass-surface__effect')) as HTMLElement[];
+      const directAuxiliaryStyles = directAuxiliaryDivs.map((element) => getComputedStyle(element));
       const isVisible = (element: HTMLElement) => {
         const style = getComputedStyle(element);
         return style.display !== 'none' && style.visibility !== 'hidden' && Number.parseFloat(style.opacity) > 0;
@@ -85,6 +86,13 @@ test.describe('liquid glass shell geometry', () => {
         visibleDecorationSpanCount: directDecorationSpans.filter(isVisible).length,
         directAuxiliaryDivCount: directAuxiliaryDivs.length,
         visibleAuxiliaryDivCount: directAuxiliaryDivs.filter(isVisible).length,
+        auxiliaryPaddings: directAuxiliaryStyles.map((style) => style.paddingTop),
+        auxiliaryMaskImages: directAuxiliaryStyles.map((style) => (
+          style.getPropertyValue('-webkit-mask-image') || style.getPropertyValue('mask-image')
+        )),
+        auxiliaryMaskComposites: directAuxiliaryStyles.map((style) => (
+          style.getPropertyValue('-webkit-mask-composite') || style.getPropertyValue('mask-composite')
+        )),
         hasPanelClass: assetBar.classList.contains('panel'),
         glassSurfaceCount: assetBar.querySelectorAll('.liquid-glass-surface').length,
       };
@@ -118,8 +126,11 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.warpFilter).toContain('url(');
     expect(layout.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
     expect(layout.visibleDecorationSpanCount).toBe(0);
-    expect(layout.directAuxiliaryDivCount).toBeGreaterThanOrEqual(1);
+    expect(layout.directAuxiliaryDivCount).toBe(2);
     expect(layout.visibleAuxiliaryDivCount).toBe(2);
+    expect(layout.auxiliaryPaddings).toEqual(['1.5px', '1.5px']);
+    expect(layout.auxiliaryMaskImages.every((value) => value !== 'none' && value.length > 0)).toBe(true);
+    expect(layout.auxiliaryMaskComposites.every((value) => /xor|exclude/.test(value))).toBe(true);
     expect(layout.hasPanelClass).toBe(false);
     expect(layout.glassSurfaceCount).toBe(1);
     expect(layout.headingTop).toBeGreaterThanOrEqual(layout.assetBarBottom);
