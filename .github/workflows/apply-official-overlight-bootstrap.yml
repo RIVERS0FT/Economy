@@ -1,5 +1,6 @@
 name: Bootstrap official over-light tint
 
+# This revision intentionally triggers the already-installed guarded workflow.
 on:
   push:
     branches:
