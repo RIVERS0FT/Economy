@@ -58,9 +58,9 @@ for (const text of [
   "export type LiquidGlassSurfaceLayout = 'fixed' | 'content'",
   'const DESKTOP_AUTH_CARD_GLASS = {',
   'const MOBILE_AUTH_CARD_GLASS = {',
-  'displacementScale: 70',
-  'blurAmount: 0.0625',
-  'saturation: 140',
+  'displacementScale: 120',
+  'blurAmount: 0',
+  'saturation: 120',
   'aberrationIntensity: 2',
   'elasticity: 0',
   'mouseContainer={null}',
@@ -72,6 +72,7 @@ for (const text of [
   'measuredContentHeightRef.current = nextHeight;',
   'data-liquid-glass-layout={layout}',
   'data-liquid-glass-elasticity={preset.elasticity}',
+  'data-liquid-glass-tint="dark"',
   'useLayoutEffect(() => {',
   'new ResizeObserver',
   'new MutationObserver',
@@ -96,7 +97,19 @@ for (const text of [
   'const hasLiquidMotion = preset.elasticity > 0;',
   'mouseContainerRef',
 ]) forbidText('src/components/ui/LiquidGlassSurface.tsx', text);
-if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/elasticity:\s*0,/g) ?? []).length !== 4) {
+if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/displacementScale:\s*120,/g) ?? []).length !== 4) {
+    failures.push('四个玻璃预设必须全部固定 displacementScale: 120');
+  }
+  if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/blurAmount:\s*0,/g) ?? []).length !== 4) {
+    failures.push('四个玻璃预设必须全部固定 blurAmount: 0');
+  }
+  if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/saturation:\s*120,/g) ?? []).length !== 4) {
+    failures.push('四个玻璃预设必须全部固定 saturation: 120');
+  }
+  if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/aberrationIntensity:\s*2,/g) ?? []).length !== 4) {
+    failures.push('四个玻璃预设必须全部固定 aberrationIntensity: 2');
+  }
+  if ((read('src/components/ui/LiquidGlassSurface.tsx').match(/elasticity:\s*0,/g) ?? []).length !== 4) {
   failures.push('五种玻璃变体对应的四个参数预设必须全部固定 elasticity: 0');
 }
 
@@ -165,7 +178,8 @@ for (const text of [
 ]) forbidText('src/styles/auth.css', text);
 
 for (const text of [
-  '--liquid-glass-contrast: rgba(194, 231, 214, 0.06);',
+  '--liquid-glass-tint-dark: rgba(3, 12, 8, 0.42);',
+  '--liquid-glass-contrast: var(--liquid-glass-tint-dark);',
   '--liquid-glass-auth-fallback:',
   '.liquid-glass-surface[data-liquid-glass-layout="content"]',
   '.liquid-glass-surface[data-liquid-glass-layout="content"] .liquid-glass-surface__content {',
@@ -174,7 +188,7 @@ for (const text of [
   'transform: translate(-50%, -50%) scale(1) !important;',
   'transition: none !important;',
   '.liquid-glass-surface--desktopAuthCard .glass__warp,\n.liquid-glass-surface--mobileAuthCard .glass__warp {',
-  '-webkit-backdrop-filter: blur(6px) saturate(140%);',
+  '-webkit-backdrop-filter: blur(0px) saturate(120%);',
   '.liquid-glass-surface--desktopStatusBar,\n.liquid-glass-surface--mobileStatusBar,\n.liquid-glass-surface--mobileNavigation,\n.liquid-glass-surface--desktopAuthCard,\n.liquid-glass-surface--mobileAuthCard {',
   'background: var(--liquid-glass-contrast);',
   '.liquid-glass-surface--desktopStatusBar::after,\n.liquid-glass-surface--mobileStatusBar::after {',
@@ -258,9 +272,10 @@ for (const text of [
   '位于第三方 `.glass` 内的 `.liquid-glass-surface__content`',
   '不得通过 revision 或 React `key` 重建认证内容',
   '统一使用 `--liquid-glass-contrast`',
+  '`--liquid-glass-tint-dark`',
   '不得再创建 `.liquid-glass-surface__material-fill`',
-  '官方默认基线',
-  '`displacementScale=70`',
+  '全局光学基线',
+  '`displacementScale=120`',
   '`elasticity=0`',
   '`mouseContainer={null}`',
   '不得开启鼠标、触控板、触笔或触摸跟踪',
@@ -308,6 +323,7 @@ for (const text of [
   "toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard')",
   "toHaveAttribute('data-liquid-glass-layout', 'content')",
   "toHaveAttribute('data-liquid-glass-elasticity', '0')",
+  "toHaveAttribute('data-liquid-glass-tint', 'dark')",
   'keeps one authentication glass instance and form values while switching breakpoints',
   'registration content grows inside the same glass surface without an internal scrollport',
   'keeps the official auth highlights aligned with the card bottom on the first frame of mode changes',
@@ -328,8 +344,8 @@ for (const text of [
   'expect(glass.materialFillCount).toBe(0)',
   "expect(glass.outlineContent).toBe('none')",
   'expect(glass.visibleDirectDecorationSpanCount).toBe(2)',
-  'expect(Math.abs(glass.displacementScales[0])).toBe(70)',
-  'toMatch(/saturate\\((?:140%|1\\.4)\\)/)',
+  'expect(Math.abs(glass.displacementScales[0])).toBe(120)',
+  'toMatch(/saturate\\((?:120%|1\\.2)\\)/)',
   'page.mouse.move',
   '.toBe(initialEffectTransform)',
   '.toEqual(initialHighlightBackgrounds)',

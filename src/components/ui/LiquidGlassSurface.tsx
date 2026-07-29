@@ -21,29 +21,29 @@ const STATIC_MOUSE_POSITION = { x: 0, y: 0 };
 const STATIC_MOUSE_OFFSET = { x: 0, y: 0 };
 
 const DESKTOP_STATUS_GLASS = {
-  displacementScale: 20,
-  blurAmount: 0.0625,
+  displacementScale: 120,
+  blurAmount: 0,
   saturation: 120,
-  aberrationIntensity: 0.15,
+  aberrationIntensity: 2,
   elasticity: 0,
   cornerRadius: 24,
   mode: 'standard',
 } as const;
 
 const MOBILE_CHROME_GLASS = {
-  displacementScale: 32,
-  blurAmount: 0.1,
-  saturation: 125,
-  aberrationIntensity: 0.3,
+  displacementScale: 120,
+  blurAmount: 0,
+  saturation: 120,
+  aberrationIntensity: 2,
   elasticity: 0,
   cornerRadius: 40,
   mode: 'standard',
 } as const;
 
 const DESKTOP_AUTH_CARD_GLASS = {
-  displacementScale: 70,
-  blurAmount: 0.0625,
-  saturation: 140,
+  displacementScale: 120,
+  blurAmount: 0,
+  saturation: 120,
   aberrationIntensity: 2,
   elasticity: 0,
   cornerRadius: 24,
@@ -51,9 +51,9 @@ const DESKTOP_AUTH_CARD_GLASS = {
 } as const;
 
 const MOBILE_AUTH_CARD_GLASS = {
-  displacementScale: 70,
-  blurAmount: 0.0625,
-  saturation: 140,
+  displacementScale: 120,
+  blurAmount: 0,
+  saturation: 120,
   aberrationIntensity: 2,
   elasticity: 0,
   cornerRadius: 40,
@@ -227,6 +227,7 @@ export function LiquidGlassSurface({
       data-liquid-glass-mode={preset.mode}
       data-liquid-glass-layout={layout}
       data-liquid-glass-elasticity={preset.elasticity}
+      data-liquid-glass-tint="dark"
       style={layout === 'content' ? { height: `${contentHeight ?? 1}px` } : undefined}
     >
       <GlassEffect

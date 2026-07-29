@@ -82,20 +82,20 @@ if (failures.length === 0) {
     "| 'mobileAuthCard'",
     "export type LiquidGlassSurfaceLayout = 'fixed' | 'content'",
     'const DESKTOP_STATUS_GLASS = {',
-    'displacementScale: 20',
-    'blurAmount: 0.0625',
+    'displacementScale: 120',
+    'blurAmount: 0',
     'saturation: 120',
-    'aberrationIntensity: 0.15',
+    'aberrationIntensity: 2',
     'elasticity: 0',
     'const MOBILE_CHROME_GLASS = {',
-    'displacementScale: 32',
-    'blurAmount: 0.1',
-    'saturation: 125',
-    'aberrationIntensity: 0.3',
+    'displacementScale: 120',
+    'blurAmount: 0',
+    'saturation: 120',
+    'aberrationIntensity: 2',
     'const DESKTOP_AUTH_CARD_GLASS = {',
     'const MOBILE_AUTH_CARD_GLASS = {',
-    'displacementScale: 70',
-    'saturation: 140',
+    'displacementScale: 120',
+    'saturation: 120',
     'aberrationIntensity: 2',
     'desktopStatusBar: DESKTOP_STATUS_GLASS',
     'mobileStatusBar: MOBILE_CHROME_GLASS',
@@ -108,6 +108,7 @@ if (failures.length === 0) {
     'mouseOffset={STATIC_MOUSE_OFFSET}',
     'data-liquid-glass-layout={layout}',
     'data-liquid-glass-elasticity={preset.elasticity}',
+    'data-liquid-glass-tint="dark"',
     'useLayoutEffect(() => {',
     'new ResizeObserver',
     'new MutationObserver',
@@ -136,6 +137,18 @@ if (failures.length === 0) {
     'const hasLiquidMotion = preset.elasticity > 0;',
     'mouseContainerRef',
   ]) forbidText(files.surface, text);
+  if ((read(files.surface).match(/displacementScale:\s*120,/g) ?? []).length !== 4) {
+    failures.push('四个玻璃预设必须全部固定 displacementScale: 120');
+  }
+  if ((read(files.surface).match(/blurAmount:\s*0,/g) ?? []).length !== 4) {
+    failures.push('四个玻璃预设必须全部固定 blurAmount: 0');
+  }
+  if ((read(files.surface).match(/saturation:\s*120,/g) ?? []).length !== 4) {
+    failures.push('四个玻璃预设必须全部固定 saturation: 120');
+  }
+  if ((read(files.surface).match(/aberrationIntensity:\s*2,/g) ?? []).length !== 4) {
+    failures.push('四个玻璃预设必须全部固定 aberrationIntensity: 2');
+  }
   if ((read(files.surface).match(/elasticity:\s*0,/g) ?? []).length !== 4) {
     failures.push('桌面状态栏、移动 Chrome、桌面认证卡和移动认证卡必须全部固定 elasticity: 0');
   }
@@ -197,7 +210,8 @@ if (failures.length === 0) {
   }
 
   for (const text of [
-    '--liquid-glass-contrast: rgba(194, 231, 214, 0.06);',
+    '--liquid-glass-tint-dark: rgba(3, 12, 8, 0.42);',
+    '--liquid-glass-contrast: var(--liquid-glass-tint-dark);',
     '--liquid-glass-auth-fallback:',
     '--liquid-glass-structure-border: rgba(232, 255, 244, 0.3);',
     '.liquid-glass-surface {',
@@ -210,11 +224,11 @@ if (failures.length === 0) {
     'transition: none !important;',
     'pointer-events: auto;',
     '.liquid-glass-surface--desktopStatusBar .glass__warp {',
-    '-webkit-backdrop-filter: blur(6px) saturate(120%);',
+    '-webkit-backdrop-filter: blur(0px) saturate(120%);',
     '.liquid-glass-surface--mobileStatusBar .glass__warp,',
-    '-webkit-backdrop-filter: blur(7.2px) saturate(125%);',
+    '-webkit-backdrop-filter: blur(0px) saturate(120%);',
     '.liquid-glass-surface--desktopAuthCard .glass__warp,\n.liquid-glass-surface--mobileAuthCard .glass__warp {',
-    '-webkit-backdrop-filter: blur(6px) saturate(140%);',
+    '-webkit-backdrop-filter: blur(0px) saturate(120%);',
     '.liquid-glass-surface--desktopStatusBar,\n.liquid-glass-surface--mobileStatusBar,\n.liquid-glass-surface--mobileNavigation,\n.liquid-glass-surface--desktopAuthCard,\n.liquid-glass-surface--mobileAuthCard {',
     'background: var(--liquid-glass-contrast);',
     '.liquid-glass-surface--desktopStatusBar::after,\n.liquid-glass-surface--mobileStatusBar::after {',
@@ -359,10 +373,11 @@ if (failures.length === 0) {
     '`scrollHeight`／`offsetHeight`',
     '真实认证内容与状态栏内容使用相同的 `.glass` 内部位置',
     '统一使用 `--liquid-glass-contrast`',
+    '`--liquid-glass-tint-dark`',
     '不得创建 `.liquid-glass-surface__material-fill`',
-    '`blur(6px) saturate(120%)`',
-    '`blur(7.2px) saturate(125%)`',
-    '桌面与移动不得再次合并为同一个参数常量',
+    '`blur(0px) saturate(120%)`',
+    '`blur(0px) saturate(120%)`',
+    '所有平台光学参数必须保持完全一致',
     '任一时刻只能渲染一个状态栏玻璃实例',
     '顶部状态栏不得包含 `ScrollArea`',
     '固定五列布局',
@@ -388,8 +403,9 @@ if (failures.length === 0) {
     '认证卡片必须使用 `src/components/auth/AuthCardSurface.tsx`',
     '位于第三方 `.glass` 内的 `.liquid-glass-surface__content`',
     '统一使用 `--liquid-glass-contrast`',
-    '官方默认基线',
-    '`displacementScale=70`',
+    '`--liquid-glass-tint-dark`',
+    '全局光学基线',
+    '`displacementScale=120`',
     '`elasticity=0`',
     '`mouseContainer={null}`',
     '不得开启鼠标、触控板、触笔或触摸跟踪',
@@ -412,6 +428,7 @@ if (failures.length === 0) {
     "toHaveAttribute('data-liquid-glass-variant', 'mobileAuthCard')",
     "toHaveAttribute('data-liquid-glass-layout', 'content')",
     "toHaveAttribute('data-liquid-glass-elasticity', '0')",
+    "toHaveAttribute('data-liquid-glass-tint', 'dark')",
     'keeps one authentication glass instance and form values while switching breakpoints',
     'static optical glass and highlights',
     'expect(glass.contentInsideGlass).toBe(true)',
@@ -419,7 +436,7 @@ if (failures.length === 0) {
     "expect(glass.outlineContent).toBe('none')",
     "expect(glass.surfaceElasticity).toBe('0')",
     'expect(glass.visibleDirectDecorationSpanCount).toBe(2)',
-    'expect(Math.abs(glass.displacementScales[0])).toBe(70)',
+    'expect(Math.abs(glass.displacementScales[0])).toBe(120)',
     'page.mouse.move',
     '.toBe(initialEffectTransform)',
     '.toEqual(initialHighlightBackgrounds)',
