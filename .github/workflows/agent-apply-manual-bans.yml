@@ -21,28 +21,12 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - name: Apply approved patch
+        env:
+          PATCH_B64: "eNrFVNFu0zAUfe9XmPKQRGvddevaraigDoFASGiC8cI6VY5z01gkdrCvabOJf+c6yapJiGfy0vg299zj43OsqtpYZKlwMJ8NVLeqBRalSp+WFp7enE9rayQ4d6w0x9eH0DJwxlsJbPXsWy4LkD+2xmPtMb4bMHqincJoxCJXmH006krTy9liPr/KFmfTU7iQIj+9ukyn52meifRscX4xlfN8ASCWnJoLn072xv7IS7N3E7EDjWNR12UzroT2ohynQjveVCWh348YwgFXt9ZDMqgEyoIIWuAOhJVFbKOb9e3bD9vr+WzJhvHdevxdjB9Ox1cnk9X9STIkot22koHKmTbIWoxlS9sK5YB9bRxC9e6gMI6MVTulRcmOqKRoUxqRtb258TqLkoGTVtVIRIJwPANpqtqSXHF3GDydz0Ixg7idxnfW+DqeJknC+3rkMR9fElRK0CsWWahLIWFrtIQ4HOKIDYfDliSgt5phoRx3aGjraEkfIVEZHccJW71mjxvN2kca7cKp1yAQAnDXBiVIvBZ67TOF180X+OnB4Sdo+A4wtsdl8mqjaexxdgcnskrpzwaDNbSxlSjVA6yfijEJA6Hxf5FNNvoluy2A0RFIyJTesV7NipzFUFjqcwQOLFeWJhopvbVASjORI1jmNTnumwP7hn0MBmlYIX5B5xQi1v/J2Xt1YA6tl7RJUZYNS4EszDc6CubqTMEleQTJCFnCXqzY9B9OyyNRpWrnjXchs+RqaYhTq9OSPf6F9btn48gy/ZetZH3e+Q39xtEEq3rSRmnbRWkborQ9NvC6ed7P91YhbEPA4n5ir1yYSRGn9EyTESOpTNB1dXTtsxvCeh3f0V3C4QDSo0hLGAWV4uOYhELc3iN9iv8AX7KcSA=="
         run: |
           python3 - <<'PY'
-          import base64, pathlib, re, subprocess, zlib
-          source = subprocess.check_output([
-              'git', 'show',
-              '1847669d7210e5caf098b13bfdab27351c6f7eea:.github/workflows/agent-apply-manual-bans.yml',
-          ], text=True)
-          match = re.search(r'PATCH_B64: "([A-Za-z0-9+/=]+)"', source)
-          if not match:
-              raise SystemExit('original PATCH_B64 payload not found')
-          script = zlib.decompress(base64.b64decode(match.group(1))).decode('utf-8')
-          bad = '''replace_once(path, """    return this.store.transaction(() => {
-      const repeated = this.selectBanAuditByRequestKey.get(requestKey);
-""", """    const adminNote = normalizeAdminNote(note);
-    return this.store.transaction(() => {
-      const repeated = this.selectBanAuditByRequestKey.get(requestKey);
-""",)
-# The preceding replacement targets the first occurrence after unbanUser? It may have matched banUser. Fix structurally below.
-'''
-          if script.count(bad) != 1:
-              raise SystemExit(f'ambiguous patch correction: {script.count(bad)} matches')
-          pathlib.Path('/tmp/apply_manual_bans.py').write_text(script.replace(bad, '', 1), encoding='utf-8')
+          import base64, os, zlib
+          open('/tmp/apply_manual_bans.py', 'wb').write(zlib.decompress(base64.b64decode(os.environ['PATCH_B64'])))
           PY
           python3 /tmp/apply_manual_bans.py
       - name: Install dependencies
