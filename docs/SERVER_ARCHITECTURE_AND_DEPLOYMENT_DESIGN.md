@@ -132,7 +132,7 @@ JSON.parse
 
 部署世界 16 前必须使用相同在线备份机制创建 `economy-pre-world-v16-<UTC 时间>.sqlite`，执行 `PRAGMA quick_check` 成功后才可上传代码；世界 16 快照独立保留最近 10 份。回滚银行版本必须同时恢复世界 16 部署前数据库快照与匹配代码，禁止只删除银行字段、只回滚客户端或在生产数据库中手工修改贷款、抵押和利息池。
 
-首次部署合同审计表前，`scripts/install-economy-api.py` 必须在重启服务和新进程创建审计表之前检测 `economy_contract_audit_events` 是否存在；不存在时使用 SQLite 在线备份创建 `economy-pre-contract-audit-<UTC 时间>.sqlite`，执行 `PRAGMA quick_check`、设置服务用户 `0600` 权限并保留最近 10 份。合同审计只新增 SQLite 表，客户端状态版本保持 19、世界状态版本保持 16；回滚时必须同时恢复匹配代码与安装前快照，禁止只删除审计表或保留会把同一旧合同再次导入的半迁移数据库。
+首次部署合同审计表前，`scripts/install-economy-api.py` 必须在重启服务和新进程创建审计表之前检测 `economy_contract_audit_events` 是否存在；不存在时使用 SQLite 在线备份创建 `economy-pre-contract-audit-<UTC 时间>.sqlite.gz`，执行 `PRAGMA quick_check`、设置服务用户 `0600` 权限并保留最近 10 份。合同审计只新增 SQLite 表，客户端状态版本保持 19、世界状态版本保持 16；回滚时必须同时恢复匹配代码与安装前快照，禁止只删除审计表或保留会把同一旧合同再次导入的半迁移数据库。
 
 游戏状态使用全局世界修订号排序，并拆成 `catalog`、`player`、`market`、`auction`、`contract`、`leaderboard` 六个固定分区。客户端请求可以使用 `?revision=N&catalog=...&player=...`，也可以用管理员或诊断场景的 `X-Economy-State-Revisions` 头提交分区内容哈希；响应格式固定为：
 
@@ -355,8 +355,9 @@ QQ群入口与经济世界快照分离，保存在 `economy_settings`，修改�
 - GitHub Actions 固定使用 Node 24.4.0 构建和测试；根依赖必须使用精确版本并提交 `package-lock.json`，CI 和 Deploy 均启用 `setup-node` 的 npm 下载缓存但仍固定使用 `npm ci`，不得恢复 `latest`、范围依赖或无锁安装。
 - Pull Request 只由 `.github/workflows/ci.yml` 执行完整 `npm run build` 与 Chromium 浏览器测试，不保留第二个重复的 PR Web Build 工作流；同一 PR 的旧 CI 在新提交到达后必须自动取消。
 - `main` 分支由 `.github/workflows/deploy.yml` 对实际待部署提交重新执行 `npm ci`、`npm run build`、固定 Chromium 安装和 `npm run test:browser`；构建与浏览器回归都成功后才允许上传、安装并执行线上验证。
-- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：每个迁移族只保留最新一份完整 SQLite 快照，最多保留最近 5 个迁移族。部署必须先执行全局备份清理，再判断是否需要创建当前迁移备份；版本已经满足目标时也不得跳过清理。不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态。
-- 创建新迁移备份前，可用空间必须至少覆盖当前数据库完整大小再加 512 MiB 余量；上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。网站、API 和便携 Node 运行时三次同步统一使用 `rsync --delete-before`，先删除将被新发布完整替换的旧文件，降低发布峰值空间。
+- 正式 SQLite 必须保持 `auto_vacuum=INCREMENTAL`。从 `NONE` 迁移只能由受控维护执行停服、WAL 收口、`VACUUM INTO`、逻辑哈希校验、原子替换与失败回滚；普通玩家事务不得执行 `incremental_vacuum`。每周一北京时间 02:30 的维护只在可回收空间不少于 64 MiB 且 freelist 比例不少于 25% 时运行，每批固定 1,024 页、单次最多四批。
+- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：每个迁移族只保留最新一份紧凑 gzip SQLite 快照，最多保留最近 5 个迁移族。备份统一以 `VACUUM INTO` 消除 freelist，完成 `quick_check`、外键和模式校验后使用 gzip 级别 6 流式压缩并校验解压哈希；解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`。部署必须先执行全局备份清理，再判断是否需要创建当前迁移备份；版本已经满足目标时也不得跳过清理。不得删除正式数据库、注册 HMAC 秘密或运行中的权威状态。
+- 创建新迁移备份前，可用空间必须至少为预计有效数据两倍再加 512 MiB 余量；不得按包含 freelist 的历史高水位主文件大小要求第二份同等空间。上传前 `/var/www/game` 所在文件系统可用空间不得低于 1 GiB。空间不足必须在写入发布文件前明确失败。网站、API 和便携 Node 运行时三次同步统一使用 `rsync --delete-before`，先删除将被新发布完整替换的旧文件，降低发布峰值空间。
 - 浏览器运行时测试使用固定 Playwright 版本与 Chromium，至少覆盖 localStorage 拒绝访问仍能渲染、正式设置控件存在以及无效设置控件不存在；测试 artifact 只在失败时上传并保留 3 天，完整标准输出继续保存在 Actions job log。
 - 部署中的每个 shell 命令步骤必须把标准输出和标准错误保存到独立临时日志；任一步失败时只把该失败步骤的完整命令输出复制到 `economy-deploy-failure-<run>-<attempt>` Artifact，成功步骤日志不得上传。Artifact 保留 3 天并使用文本高压缩；完整失败输出不得依赖可能被截断的 job log，也不得再为单次构建失败创建临时诊断工作流。
 - 部署工作流只在运行器缺少 `rsync` 时执行 APT 安装，不得每次无条件更新软件包索引。
