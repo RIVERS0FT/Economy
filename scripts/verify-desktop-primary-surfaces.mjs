@@ -33,15 +33,17 @@ if (failures.length === 0) {
   requireText(paths.designSystem, 'border-radius: var(--radius-card);');
   for (const text of [
     'const DESKTOP_STATUS_GLASS = {',
-    'displacementScale: 20',
-    'blurAmount: 0.0625',
+    'displacementScale: 120',
+    'blurAmount: 0',
     'saturation: 120',
-    'aberrationIntensity: 0.15',
+    'aberrationIntensity: 2',
+    'elasticity: 0',
     'cornerRadius: 24,',
     'desktopStatusBar: DESKTOP_STATUS_GLASS',
     'const MOBILE_CHROME_GLASS = {',
     'mobileStatusBar: MOBILE_CHROME_GLASS',
     'mobileNavigation: MOBILE_CHROME_GLASS',
+    'data-liquid-glass-tint="dark"',
   ]) requireText(paths.surfaceComponent, text);
   forbidText(paths.surfaceComponent, 'const IOS_CLEAR_THICK_GLASS = {');
   forbidText(paths.surfaceComponent, 'statusBar: IOS_CLEAR_THICK_GLASS');
@@ -57,10 +59,12 @@ if (failures.length === 0) {
   ]) requireText(paths.adminBar, text);
 
   for (const text of [
+    '--liquid-glass-tint-dark: rgba(3, 12, 8, 0.42);',
+    '--liquid-glass-contrast: var(--liquid-glass-tint-dark);',
     '.asset-bar > .liquid-glass-surface--desktopStatusBar,',
     'border-radius: 24px !important;',
     '.liquid-glass-surface--desktopStatusBar .glass__warp {',
-    '-webkit-backdrop-filter: blur(6px) saturate(120%);',
+    '-webkit-backdrop-filter: blur(0px) saturate(120%);',
     '.liquid-glass-surface--desktopStatusBar::after,',
     'z-index: 2;',
     'border: 1px solid var(--liquid-glass-structure-border);',
@@ -83,7 +87,10 @@ if (failures.length === 0) {
     '桌面工作栏高度保持 `76px`',
     '实际玻璃圆角为 `24px`',
     '`DESKTOP_STATUS_GLASS`',
-    '`blur(6px) saturate(120%)`',
+    '`blur(0px) saturate(120%)`',
+    '`displacementScale: 120`',
+    '`aberrationIntensity: 2`',
+    '`--liquid-glass-tint-dark: rgba(3, 12, 8, 0.42)`',
     '桌面与移动状态栏必须隐藏 `liquid-glass-react` 的直属边框／高光和 over-light 辅助层',
     '认证卡片必须保留官方两个直属边缘高光 `span`',
     '清除第三方 `.glass` 外部阴影',
@@ -94,6 +101,7 @@ if (failures.length === 0) {
   for (const text of [
     'desktop status bar uses its dedicated single-shell glass preset and shell inset',
     "toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar')",
+    "toHaveAttribute('data-liquid-glass-tint', 'dark')",
     "expect(layout.surfaceRadius).toEqual(['24px', '24px', '24px', '24px'])",
     "expect(layout.panelRadius).toBe('24px')",
     "expect(layout.surfaceBorderWidth).toBe('0px')",
@@ -101,6 +109,8 @@ if (failures.length === 0) {
     "expect(layout.outlineZIndex).toBe('2')",
     'expect(layout.visibleDecorationSpanCount).toBe(0)',
     "expect(layout.glassBoxShadow).toBe('none')",
+    "expect(layout.surfaceBackgroundColor).toBe('rgba(3, 12, 8, 0.42)')",
+    "expect(layout.warpBackdropFilter).toContain('blur(0px)')",
   ]) requireText(paths.browser, text);
   for (const text of [
     'admin desktop shares the game shell gutter, command bar and edge scrollbar',
@@ -114,4 +124,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('桌面一级卡片与共享工作栏 24px 圆角、桌面独立玻璃预设、顶层连续结构描边、状态栏零第三方装饰层、认证官方高光和无外部阴影验证通过。');
+console.log('桌面一级卡片与共享工作栏 24px 圆角、全局深色玻璃参数、顶层连续结构描边、状态栏零第三方装饰层、认证官方高光和无外部阴影验证通过。');
