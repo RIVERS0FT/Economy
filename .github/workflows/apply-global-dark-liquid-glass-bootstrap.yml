@@ -1,6 +1,5 @@
 name: Bootstrap global dark liquid glass
 
-# The workflow is already present on main; this revision deliberately triggers it.
 on:
   push:
     branches:
@@ -20,24 +19,38 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Apply global liquid glass rules
-        run: python3 scripts/apply-global-dark-liquid-glass.py
-
-      - name: Run focused architecture checks
-        run: |
-          set -euo pipefail
-          node scripts/verify-auth-three-layer.mjs
-          node scripts/verify-liquid-glass-chrome.mjs
-
-      - name: Publish formal change branch
+      - name: Apply, validate, and publish result
         shell: bash
         run: |
-          set -euo pipefail
-          git checkout -B agent/global-dark-liquid-glass-applied
-          rm scripts/apply-global-dark-liquid-glass.py
-          rm .github/workflows/apply-global-dark-liquid-glass-bootstrap.yml
+          set -u
+          log_file="$RUNNER_TEMP/global-dark-liquid-glass-bootstrap.log"
+          : > "$log_file"
+
+          python3 scripts/apply-global-dark-liquid-glass.py >> "$log_file" 2>&1
+          apply_status=$?
+          check_status=0
+
+          if [ "$apply_status" -eq 0 ]; then
+            node scripts/verify-auth-three-layer.mjs >> "$log_file" 2>&1 || check_status=$?
+            node scripts/verify-liquid-glass-chrome.mjs >> "$log_file" 2>&1 || check_status=$?
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "Apply global dark liquid glass"
-          git push --force origin HEAD:agent/global-dark-liquid-glass-applied
+
+          if [ "$apply_status" -eq 0 ] && [ "$check_status" -eq 0 ]; then
+            target_branch="agent/global-dark-liquid-glass-applied"
+            git checkout -B "$target_branch"
+            rm scripts/apply-global-dark-liquid-glass.py
+            rm .github/workflows/apply-global-dark-liquid-glass-bootstrap.yml
+            git add -A
+            git commit -m "Apply global dark liquid glass"
+          else
+            target_branch="agent/global-dark-liquid-glass-diagnostic"
+            git checkout -B "$target_branch"
+            cp "$log_file" global-dark-liquid-glass-bootstrap.log
+            git add -A
+            git commit -m "Capture global dark liquid glass bootstrap failure"
+          fi
+
+          git push --force origin "HEAD:$target_branch"
