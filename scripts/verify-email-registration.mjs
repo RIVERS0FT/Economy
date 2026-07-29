@@ -204,7 +204,7 @@ for (const text of [
 
 for (const text of [
   'rejects an existing unified account before creating or sending a verification',
-  'homepage and direct Economy registrations both participate in duplicate-IP group bans',
+  'homepage and direct Economy registrations both create duplicate-IP anomaly reports without automatic bans',
   'sends share-link invite code through email registration and immediately rewards inviter',
   'registration IP prefers trusted reverse-proxy real IP over a client-supplied forwarded chain',
 ]) requireText('server/test/registration.test.js', text);
@@ -217,4 +217,4 @@ if (failures.length) {
   console.error(`邮箱验证码注册验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('邮箱验证码注册验证通过：发送前查重、验证码安全、首次建档邀请码归因、注册后禁止补填、统一同 IP 封禁、双模式页面与 Nginx 路由均已锁定。');
+console.log('邮箱验证码注册验证通过：发送前查重、验证码安全、首次建档邀请码归因、注册后禁止补填、统一同 IP 异常上报与管理员封禁、双模式页面与 Nginx 路由均已锁定。');
