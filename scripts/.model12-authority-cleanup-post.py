@@ -10,6 +10,25 @@ if old not in text:
 text = text.replace(old, new, 1)
 path.write_text(text)
 
+readme = Path('README.md')
+readme_text = readme.read_text()
+readme_text = readme_text.replace(
+    '三类人口使用六位小数真实余额和冻结资金；就业收入预算继续保持 70% 用于最终消费的直接需求、30% 用于沿正式配方反向推导的派生流动性。',
+    '三类人口使用真实余额和冻结资金，二者统一保留六位小数；就业收入预算继续保持 70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性。',
+)
+readme_text = readme_text.replace(
+    '> 普通货币精度规则：玩家、人口、市场储备、银行、合同与拍卖的账户余额、冻结资金、预算、手续费、退款和流水金额统一保留六位小数；订单、拍卖与合同中的可输入单价保留两位小数并使用 `0.01` 最小价格步长。',
+    '> 普通货币精度规则：账户资金保留六位小数，订单价格保留两位小数并使用 `0.01` 最小价格步长；玩家、人口、市场储备、银行、合同与拍卖的账户余额、冻结资金、预算、手续费、退款和流水金额统一保留六位小数；订单、拍卖与合同中的可输入单价保留两位小数。',
+)
+readme.write_text(readme_text)
+
+index = Path('docs/README.md')
+index_text = index.read_text().replace(
+    '无业务总量上限且保持真实资产守恒的双边市场储备',
+    '无业务总量上限、库存与资金守恒的双边市场储备',
+)
+index.write_text(index_text)
+
 verify = Path('scripts/verify-money-precision.mjs')
 verify_text = verify.read_text()
 verify_text = verify_text.replace(
