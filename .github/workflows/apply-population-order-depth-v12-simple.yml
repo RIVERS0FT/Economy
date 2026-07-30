@@ -49,6 +49,37 @@ jobs:
           python3 /tmp/model12.py
           python3 scripts/.population-order-depth-v12-post.py
       - run: npm ci
+      - name: Diagnose revision mutation
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { EconomyStore } from './server/src/storage.js';
+          const user = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
+          const now = 1_700_000_000_000;
+          const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+          const initial = store.getStateSnapshot(user, undefined, now);
+          const before = structuredClone(store.worldCache.world);
+          const polled = store.getStateSnapshot(user, initial.revision, now + 1_000);
+          const after = structuredClone(store.worldCache.world);
+          const diffs = [];
+          function walk(left, right, path = '') {
+            if (Object.is(left, right)) return;
+            if (!left || !right || typeof left !== 'object' || typeof right !== 'object') {
+              diffs.push({ path, left, right });
+              return;
+            }
+            const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+            for (const key of keys) walk(left[key], right[key], path ? `${path}.${key}` : key);
+          }
+          walk(before, after);
+          console.log('REVISION_DIAGNOSTIC', JSON.stringify({
+            initialRevision: initial.revision,
+            polledRevision: polled.revision,
+            polledUnchanged: polled.unchanged,
+            diffs: diffs.slice(0, 80),
+          }, null, 2));
+          store.close();
+          NODE
       - name: Run complete verification
         run: npm run build
       - name: Commit formal implementation
