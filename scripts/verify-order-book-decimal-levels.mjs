@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import { isValidOrderPrice } from '../src/utils/defaultOrderPrice.ts';
+import { buildOrderBookLevels } from '../src/utils/orderBookLevels.ts';
+
+const order = (id, side, price, remaining, status = 'open') => ({
+  id,
+  side,
+  price,
+  remaining,
+  quantity: remaining,
+  status,
+});
+
+assert.equal(isValidOrderPrice(0.01), true);
+assert.equal(isValidOrderPrice(1.23), true);
+assert.equal(isValidOrderPrice(2), true);
+assert.equal(isValidOrderPrice(0), false);
+assert.equal(isValidOrderPrice(1.234), false);
+assert.equal(isValidOrderPrice(Number.POSITIVE_INFINITY), false);
+
+const buyLevels = buildOrderBookLevels([
+  order('buy-integer', 'buy', 2, 1),
+  order('buy-decimal-a', 'buy', 1.23, 2),
+  order('buy-decimal-b', 'buy', 1.23, 3, 'partial'),
+  order('buy-minimum', 'buy', 0.01, 4),
+  order('buy-invalid-precision', 'buy', 1.234, 100),
+  order('buy-invalid-zero', 'buy', 0, 100),
+  order('buy-closed', 'buy', 9.99, 100, 'filled'),
+  order('buy-empty', 'buy', 8.88, 0),
+], 'buy');
+
+assert.deepEqual(
+  buyLevels.map(({ price, remaining, orderCount }) => ({ price, remaining, orderCount })),
+  [
+    { price: 2, remaining: 1, orderCount: 1 },
+    { price: 1.23, remaining: 5, orderCount: 2 },
+    { price: 0.01, remaining: 4, orderCount: 1 },
+  ],
+);
+
+const sellLevels = buildOrderBookLevels([
+  order('sell-decimal-a', 'sell', 1.1, 2),
+  order('sell-minimum', 'sell', 0.01, 1),
+  order('sell-decimal-b', 'sell', 1.1, 4, 'partial'),
+  order('sell-integer', 'sell', 2, 3),
+], 'sell');
+
+assert.deepEqual(
+  sellLevels.map(({ price, remaining, orderCount }) => ({ price, remaining, orderCount })),
+  [
+    { price: 0.01, remaining: 1, orderCount: 1 },
+    { price: 1.1, remaining: 6, orderCount: 2 },
+    { price: 2, remaining: 3, orderCount: 1 },
+  ],
+);
+
+console.log('Decimal order-book level verification passed.');
