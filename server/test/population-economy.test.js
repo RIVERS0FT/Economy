@@ -295,8 +295,30 @@ test('version 3 cautious state migrates to version 5 strained without reissuing 
   delete state.models.skilled.incomeHealthBps;
 
   ensurePopulationEconomy(world, now);
-  assert.equal(state.modelVersion, 5);
+  assert.equal(state.modelVersion, 6);
   assert.equal(state.models.skilled.consumptionState, 'strained');
   assert.equal(state.models.skilled.stateCycles, 1);
   assert.equal(Object.values(state.models).reduce((sum, model) => sum + model.credits, 0), beforeCredits);
+});
+
+test('population funding slices preserve six-decimal escrow across fills and cancellation', async () => {
+  const { reservePopulationOrderFunding } = await import('../src/population-economy.js');
+  const world = createWorld(now);
+  resetPopulation(world);
+  const basic = populationModelState(world, 'basic');
+  const skilled = populationModelState(world, 'skilled');
+  basic.credits = 0.666667;
+  skilled.credits = 0.666667;
+  const fundingSlices = reservePopulationOrderFunding(world, [
+    { populationModelId: 'basic', reservedAmount: 0.666667 },
+    { populationModelId: 'skilled', reservedAmount: 0.333333 },
+  ]);
+  assert.ok(fundingSlices);
+  const order = { price: 0.50, remaining: 2, fundingSlices };
+  settlePopulationPurchase(world, order, 1, 0.40);
+  assert.equal(roundInternalMoney(basic.credits + basic.frozenCredits + basic.totalSpent), 0.666667);
+  assert.equal(roundInternalMoney(skilled.credits + skilled.frozenCredits + skilled.totalSpent), 0.666667);
+  assert.equal(releasePopulationOrderFunds(world, order, 1), 0.5);
+  assert.equal(roundInternalMoney(basic.credits + basic.totalSpent), 0.666667);
+  assert.equal(roundInternalMoney(skilled.credits + skilled.totalSpent), 0.666667);
 });

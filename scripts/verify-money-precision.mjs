@@ -25,9 +25,10 @@ const world = {
   orders: [], markets: {}, facilityMarkets: {}, assetAuctions: [], productionContracts: [], bank: {},
 };
 normalizeWorldMoneyPrecision(world);
-assert.equal(world.players[1].credits, 9.99);
+assert.equal(world.players[1].credits, 9.996);
 assert.equal(world.players[1].gems, 3);
-assert.equal(world.moneyPrecision.roundingReserveMicros, 6000);
+assert.equal(world.moneyPrecision.version, 2);
+assert.equal(world.moneyPrecision.roundingReserveMicros, 0);
 
 const formatter = read('src/utils/formatters.ts');
 assert.match(formatter, /minimumFractionDigits:\s*2/);
@@ -48,19 +49,24 @@ assert.doesNotMatch(read('src/pages/ContractPage.tsx'), /parseIntegerDraft\(unit
 
 assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 22/);
 assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22/);
-assert.match(read('server/src/market-demand/catalog.js'), /MARKET_DEMAND_MODEL_VERSION = 11/);
+assert.match(read('server/src/market-demand/catalog.js'), /MARKET_DEMAND_MODEL_VERSION = 12/);
 assert.match(read('server/src/storage.js'), /normalizeWorldMoneyPrecision/);
-assert.match(read('server/src/storage.js'), /world\.version = 18/);
+assert.match(read('server/src/storage.js'), /world\.version = 19/);
 assert.match(read('server/src/banking.js'), /BANKING_VERSION = 2/);
 assert.match(read('server/src/contracts.js'), /PRODUCTION_CONTRACT_SCHEMA_VERSION = 3/);
-assert.match(read('server/src/population-economy.js'), /POPULATION_ECONOMY_VERSION = 5/);
+assert.match(read('server/src/population-economy.js'), /POPULATION_ECONOMY_VERSION = 6/);
 assert.match(read('server/src/market-sell-fee.js'), /MARKET_SELL_FEE_VERSION = 3/);
 
 const storage = read('server/src/storage.js');
 assert.match(storage, /amount INTEGER NOT NULL/);
 assert.match(storage, /gems_spent INTEGER NOT NULL/);
-assert.match(read('README.md'), /9\.996 → 9\.99/);
-assert.match(read('README.md'), /-9\.996 → -10\.00/);
+assert.match(read('README.md'), /账户余额、冻结资金、预算、手续费、退款和流水金额统一保留六位小数/);
+assert.match(read('README.md'), /订单、拍卖与合同中的可输入单价保留两位小数/);
 assert.match(read('docs/README.md'), /普通货币精度与玩家结算属于跨模块强制规则/);
+assert.match(read('docs/README.md'), /账户余额、冻结资金、预算、总额、手续费、退款和流水保留六位小数/);
+assert.match(read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md'), /目标库存不设业务总量上限/);
+assert.match(read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md'), /最小价格步长为 0\.01/);
+assert.doesNotMatch(read('README.md'), /玩家可用、冻结、银行、贷款、订单、拍卖、合同和流水只保留两位小数/);
+assert.doesNotMatch(read('docs/README.md'), /玩家账本最多两位小数|尾差进入精度准备金/);
 
 console.log('Money precision verification passed.');

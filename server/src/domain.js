@@ -1,4 +1,4 @@
-import { multiplyMoneyByInteger, normalizePlayerMoneyInput } from './money.js';
+import { multiplyMoneyByInteger, normalizePlayerMoneyInput, normalizeWorldMoneyPrecision } from './money.js';
 import { randomUUID } from 'node:crypto';
 import * as core from './domain-core.js';
 import { createBalancedMarketRuntime } from './balanced-market.js';
@@ -171,7 +171,8 @@ export function createWorld(now = Date.now()) {
   marketDemand.initializeWorld(world, now);
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
-  world.version = 18;
+  world.version = 19;
+  normalizeWorldMoneyPrecision(world);
   return world;
 }
 
@@ -216,7 +217,8 @@ export function migrateWorld(world, now = Date.now()) {
   if (needsOrderBookRepair) reconcileCommodityOrderBook(migrated, now);
   ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
-  migrated.version = 18;
+  migrated.version = 19;
+  normalizeWorldMoneyPrecision(migrated);
   return migrated;
 }
 

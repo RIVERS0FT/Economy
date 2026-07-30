@@ -1,5 +1,5 @@
 import { DIRECT_DEMAND_MIN_PRICE, MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, PRICE_MAX_MULTIPLIER } from './catalog.js';
-import { clamp } from './math.js';
+import { clamp, roundMoney } from './math.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from '../population-economy.js';
 
 export function createMarketDemandStateRuntime({ products, constants, marketFor, isOpenOrder }) {
@@ -68,6 +68,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       lastProductShares: {},
       directQuoteAnchors: defaultDirectQuoteAnchors(group),
       directOversupplyCycles: defaultDirectOversupplyCycles(group),
+      productBudgetDeficits: { direct: {}, 'derived-liquidity': {} },
       previousDemandQuantities: structuredClone(group.seedDemandQuantities),
       recipeShares: {},
       lastInventoryBoost: 0,
@@ -136,14 +137,14 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
       const state = { ...defaultGroupState(group, now), ...previous, marketDemandGroupId: group.id, demandGroupId: group.id };
       state.cycleMs = group.cycleMs;
       state.lastCycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || now));
-      state.lastBudget = Math.max(0, Math.floor(Number(state.lastBudget ?? group.baseBudget)));
-      state.lastTargetBudget = Math.max(0, Math.floor(Number(state.lastTargetBudget || 0)));
-      state.lastPlayerScaleBudget = Math.max(0, Math.floor(Number(state.lastPlayerScaleBudget ?? group.baseBudget)));
+      state.lastBudget = roundMoney(Math.max(0, Number(state.lastBudget ?? group.baseBudget)));
+      state.lastTargetBudget = roundMoney(Math.max(0, Number(state.lastTargetBudget || 0)));
+      state.lastPlayerScaleBudget = roundMoney(Math.max(0, Number(state.lastPlayerScaleBudget ?? group.baseBudget)));
       state.lastActivePlayerCount = Math.max(0, Math.floor(Number(state.lastActivePlayerCount || 0)));
       state.lastTradeActivityFactor = Number.isFinite(Number(state.lastTradeActivityFactor)) ? Number(state.lastTradeActivityFactor) : 1;
       state.lastNeedPressure = Number.isFinite(Number(state.lastNeedPressure)) ? Number(state.lastNeedPressure) : 1;
-      state.lastRetainedOrderValue = Math.max(0, Math.floor(Number(state.lastRetainedOrderValue || 0)));
-      state.lastOpenOrderValue = Math.max(0, Math.floor(Number(state.lastOpenOrderValue || 0)));
+      state.lastRetainedOrderValue = roundMoney(Math.max(0, Number(state.lastRetainedOrderValue || 0)));
+      state.lastOpenOrderValue = roundMoney(Math.max(0, Number(state.lastOpenOrderValue || 0)));
       state.satisfaction = clamp(0, 1, Number(state.satisfaction ?? group.targetSatisfaction));
       state.satisfactionEma = clamp(0, 1, Number(state.satisfactionEma ?? state.satisfaction));
       state.lastCycleSettlement = state.lastCycleSettlement && typeof state.lastCycleSettlement === 'object' ? state.lastCycleSettlement : {};
@@ -168,6 +169,12 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         productId,
         Math.max(0, Math.floor(Number(previousOversupplyCycles[productId] || 0))),
       ]));
+      state.productBudgetDeficits = state.productBudgetDeficits && typeof state.productBudgetDeficits === 'object'
+        ? {
+          direct: state.productBudgetDeficits.direct && typeof state.productBudgetDeficits.direct === 'object' ? state.productBudgetDeficits.direct : {},
+          'derived-liquidity': state.productBudgetDeficits['derived-liquidity'] && typeof state.productBudgetDeficits['derived-liquidity'] === 'object' ? state.productBudgetDeficits['derived-liquidity'] : {},
+        }
+        : { direct: {}, 'derived-liquidity': {} };
       state.previousDemandQuantities = state.previousDemandQuantities && typeof state.previousDemandQuantities === 'object'
         ? state.previousDemandQuantities
         : structuredClone(group.seedDemandQuantities);
@@ -193,6 +200,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         state.lastProductShares = {};
         state.directQuoteAnchors = defaultDirectQuoteAnchors(group);
         state.directOversupplyCycles = defaultDirectOversupplyCycles(group);
+        state.productBudgetDeficits = { direct: {}, 'derived-liquidity': {} };
         state.previousDemandQuantities = structuredClone(group.seedDemandQuantities);
         state.recipeShares = {};
       }

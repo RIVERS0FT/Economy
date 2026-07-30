@@ -80,8 +80,8 @@ if (existsSync(pathFor('README.md'))) {
   const rootReadme = read('README.md');
   for (const text of [
     `客户端状态版本：\`${CURRENT_CLIENT_STATE_VERSION}\``,
-    '世界状态版本：`18`',
-    '市场需求模型版本：`11`',
+    '世界状态版本：`19`',
+    '市场需求模型版本：`12`',
     '概览｜市场｜生产｜拍卖｜合同｜银行｜排行｜商店｜设置',
     '共享仓库允许无限扩容',
     '所有工厂集群统一使用服务器正式配方',
@@ -97,6 +97,9 @@ if (existsSync(pathFor('README.md'))) {
     '管理员“人口”分区提供只读人口经济区域',
     '70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性',
     '市场储备每 5 分钟撤销并重挂双边商品订单',
+    '账户资金保留六位小数',
+    '订单价格保留两位小数',
+    '市场储备不设置目标库存、挂单量或资金比例业务上限',
     '可成交订单必须立即按 maker price 撮合',
     '最高系统买价严格低于最低系统卖价',
     '商品和工厂可单独或混合组成最多 20 项的不可拆分资产包公开竞价',
@@ -114,7 +117,7 @@ for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
   if (!content.includes(`客户端状态版本：${CURRENT_CLIENT_STATE_VERSION}`)) failures.push(`${path} 客户端状态版本必须为 ${CURRENT_CLIENT_STATE_VERSION}`);
-  if (!content.includes('世界状态版本：18')) failures.push(`${path} 世界状态版本必须为 17`);
+  if (!content.includes('世界状态版本：19')) failures.push(`${path} 世界状态版本必须为 17`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -157,4 +160,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/18、市场需求模型 11、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。`);
+console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/19、市场需求模型 12、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。`);

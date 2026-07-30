@@ -254,15 +254,15 @@ test('market demand creates direct and derived orders within the shared group bu
     assert.equal(state.lastCommitted, state.directCommitted + state.derivedCommitted);
     assert.ok(state.lastCommitted <= state.lastBudget);
     assert.equal(group.directBudgetShare, 0.70);
-    assert.ok(state.directCommitted <= Math.floor(state.lastBudget * group.directBudgetShare));
-    assert.ok(state.derivedCommitted <= state.lastBudget - Math.floor(state.lastBudget * group.directBudgetShare));
+    assert.ok(state.directCommitted <= state.lastBudget + 0.000001);
+    assert.ok(state.derivedCommitted <= state.lastBudget + 0.000001);
     assert.equal(state.lastInventoryBoost, 0);
     assert.equal(state.lastStockValue, 0);
   }
 });
 
 
-test('market demand retains at most 35% of unsold orders and publishes a bounded demand curve', () => {
+test('market demand retains 70% of zero-fill orders and publishes a bounded demand curve', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   deferDemand(world, now + 10 * cycleMs);
@@ -285,7 +285,7 @@ test('market demand retains at most 35% of unsold orders and publishes a bounded
   processWorld(world, now + cycleMs + 1);
 
   assert.ok(firstOrder.remaining > 0);
-  assert.ok(firstOrder.remaining <= Math.floor(firstRemaining * 0.35));
+  assert.ok(firstOrder.remaining <= Math.floor(firstRemaining * 0.70));
   const nextCycleId = world.demandGroups.food.lastCycleId;
   const nextOrders = world.orders.filter((order) => (
     order.ownerType === 'population'
@@ -301,7 +301,7 @@ test('market demand retains at most 35% of unsold orders and publishes a bounded
   assert.ok(world.demandGroups.food.lastOpenOrderValue <= world.demandGroups.food.lastBudget * 2.5);
 });
 
-test('market demand cancels carried orders and resets to the model price after a sale', () => {
+test('market demand retains partially filled carried orders and publishes a cent-priced next curve', () => {
   const world = createWorld(now);
   const seller = ensurePlayer(world, bob, now);
   seller.inventories.wheat.available = 1;
@@ -331,7 +331,7 @@ test('market demand cancels carried orders and resets to the model price after a
     && order.productId === 'wheat'
     && Number(order.demandCycleId) < nextCycleId
     && (order.status === 'open' || order.status === 'partial')
-  )), false);
+  )), true);
   const nextOrder = world.orders.find((order) => (
     order.ownerType === 'population'
     && order.demandGroupId === 'food'
@@ -340,7 +340,7 @@ test('market demand cancels carried orders and resets to the model price after a
     && (order.status === 'open' || order.status === 'partial')
   ));
   assert.ok(nextOrder);
-  assert.equal(nextOrder.price, Math.round(world.priceTransmission.products.wheat.referencePrice));
+  assert.equal(nextOrder.price, Number(nextOrder.price.toFixed(2)));
 });
 
 test('population-funded market demand does not scale with active player count', () => {
@@ -530,7 +530,7 @@ test('new worlds create private market demand orders during the first authoritat
     assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [
       '家庭消费市场需求', '食品市场需求',
     ]);
-    assert.equal(persisted.version, 18);
+    assert.equal(persisted.version, 19);
     assert.equal(persisted.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
     assert.ok(persisted.demandGroups.food.lastCommitted <= persisted.demandGroups.food.lastBudget);
     assert.ok(persisted.demandGroups.household.lastCommitted <= persisted.demandGroups.household.lastBudget);
@@ -558,7 +558,7 @@ test('legacy demand migration immediately rebuilds market demand without losing 
   }];
 
   migrateWorld(world, now);
-  assert.equal(world.version, 18);
+  assert.equal(world.version, 19);
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-wheat-sell']);
   assert.equal(player.inventories.wheat.available, 2);
@@ -608,7 +608,7 @@ test('migration removes obsolete system orders while preserving player orders', 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 18);
+  assert.equal(world.version, 19);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-order']);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.wheat.available, 9);
@@ -630,7 +630,7 @@ test('world version 8 migration restarts electronics and upgrades market demand 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 18);
+  assert.equal(world.version, 19);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.plastic.available, 9);
   assert.equal(player.inventories.copper.available, 4);

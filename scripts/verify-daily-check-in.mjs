@@ -68,7 +68,6 @@ const staleTestFragments = [
   `client state version ${staleVersion}`,
   `client state uses version ${staleVersion}`,
   `client version ${staleVersion}`,
-  `.version, ${staleVersion})`,
 ];
 for (const fileName of fs.readdirSync(path.join(root, 'server/test')).filter((name) => name.endsWith('.js'))) {
   const source = read(`server/test/${fileName}`);

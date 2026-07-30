@@ -4,7 +4,7 @@
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-07-29
 > 客户端状态版本：22
-> 世界状态版本：18
+> 世界状态版本：19
 
 本目录只保留当前设计。旧规则不归档在 `docs/`，也不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在。未列入下方权威文档表的 Markdown 文件不得存在。
 
@@ -50,7 +50,7 @@
 13. 主页账号认证缓存的分级 TTL、Cookie 摘要、并发合并、错误策略和 LRU 上限属于安全与容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-authentication-cache.mjs` 防回退。
 14. 小麦／水稻目录、农场改种、持续生产和主食替代预算属于产业与需求权威规则；必须同步更新产业、产品、服务器文档，并通过产业、工厂与主食需求验证脚本防回退。
 15. Economy 注册完成时点、主页账号自动建档、邮箱验证码、IP 指纹、多账号封禁、Resend、注册路由和登录注册双模式属于服务器与页面权威规则；必须同步更新服务器、页面、根 README、`scripts/verify-email-registration.mjs` 与服务器测试。
-16. 消费需求订单、三类人口真实钱包、五档消费状态与预算份额、就业收入、受控稳定需求补充、真实冻结资金、周期末成交结算、三档需求曲线、证据置信度供需压力、最低储备买盘、库存与资金守恒的双边市场储备、生产链双向滞后价格传导和迁移清理属于产品、产业、订单簿与服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-staple-crops-demand.mjs`。
+16. 消费需求订单、三类人口六位小数真实钱包、私有 `fundingSlices`、五档消费状态与预算份额、聚合落单、虚拟商品预算赤字、两位小数三档需求曲线、跨周期成交率保留、证据置信度供需压力、无业务总量上限、库存与资金守恒的双边市场储备、生产链双向滞后价格传导和迁移清理属于产品、产业、订单簿与服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-staple-crops-demand.mjs`。
 17. 宝石、永久邀请码、首次建档时的分享链接／注册表单邀请码归因、注册完成后禁止补填、同 IP 异常上报、管理员手动封禁、423 响应、管理员解禁与审计属于产品、页面、服务器和管理员权威规则；必须同步更新对应文档、测试和 `scripts/verify-gems-invitations-and-bans.mjs`。
 18. 商店每日终端动态报价、全服同价、接受／拒绝决策、单向兑换、直接货币发行、施工宝石加速、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新 `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md`、对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复固定永久汇率、同日重复兑换或宝石兑换工厂产量。
 19. 普通玩家成交记录不得暴露来源、去向或对手订单；API、本地存储和市场页面必须同时匿名化，并通过 `scripts/verify-local-trade-privacy.mjs` 防回退。
@@ -90,9 +90,9 @@
 53. 合同历史必须由 `economy_contract_audit_contracts`、`economy_contract_audit_events` 与 `economy_contract_audit_transfers` 组成的 SQLite 追加式审计账本提供；玩家动作、服务器调度、逐批商品／货款／手续费／保证金流转、宽限和违约必须与世界状态在同一事务提交，并以确定性来源键防止幂等重试或重复截止时间写入重复事件。旧世界合同只能导入 `legacy_partial` 当前快照，不得伪造上线前逐批事件。历史和详情通过独立只读 API 按需分页，只允许参与者读取，不进入世界 JSON、六分区、分区哈希或常规轮询；必须同步页面、产业、服务器设计、迁移备份、服务器／浏览器测试和 `scripts/verify-contract-audit.mjs` 防回退。
 54. 未登录入口的图片背景、深色氛围背景、标语与认证卡片三层结构唯一归属 `REGISTRATION_INVITE_FLOW_DESIGN.md`；通用表单与颜色令牌继续归 `UI_DESIGN_SYSTEM.md`，认证行为继续归页面与服务器文档。实现必须同步 `LoginPage.tsx`、`auth.css`、`card-system.css`、`scripts/verify-auth-three-layer.mjs` 与 `tests/browser/auth-three-layer.spec.ts`，不得恢复移动端整页外层面板、共享卡片层登录几何映射、第四个全局背景层或改变登录／注册业务流程。
 
-45. 普通货币精度与玩家结算属于跨模块强制规则：玩家输入和玩家账本最多两位小数、服务器计算最多六位小数、负数按数轴向下截断、尾差进入精度准备金、宝石保持整数。必须同步更新产品、订单簿、产业、服务器、页面、UI、商店、管理员、本地活动、根 README、测试和 `scripts/verify-money-precision.mjs`。
 55. 认证卡片必须使用 `AuthCardSurface` 与 `LiquidGlassSurface` 的 `desktopAuthCard`／`mobileAuthCard` 预设，任一时刻只允许一个内容自适应玻璃实例；卡片几何归 `REGISTRATION_INVITE_FLOW_DESIGN.md`，材质参数归 `LIQUID_GLASS_CHROME_DESIGN.md`。不得在 `auth.css` 恢复手写 `backdrop-filter`、玻璃渐变、材质描边、`.panel`、固定高度或内部滚动区；必须同步两份权威文档、`scripts/verify-auth-three-layer.mjs`、`scripts/verify-liquid-glass-chrome.mjs` 与认证浏览器回归。
 56. 排行榜生产数量的显示规则唯一归属 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`：前十名和“我的成绩”必须共用 `scoreValue`，只显示经过 `formatNumber` 千分位格式化的纯数字，不附加“个”“件”“单位”或恢复“分”；显示调整不得改变服务器数量、排序、同分规则、奖励、迁移或历史结算，并通过 `scripts/verify-leaderboards.mjs` 防回退。
 57. 状态版本 22 固定稳定分区时间字段：`economicCalendar` 不再返回按请求毫秒变化的 `visibleUntil`，未来七天展示使用 envelope `serverNow` 校准的共享时钟；排行榜不得返回请求生成 `generatedAt` 或逐行 `updatedAt`，四榜必须位于顶层 `leaderboards` 并归入 `leaderboard` 分区，不得嵌入玩家 `stats`。同一事件窗口连续请求必须保持相同 `market` revision，其他玩家不改变市场的操作不得让无关用户收到完整 `market`，并通过状态轮询服务器测试、`scripts/verify-contract-renewal-economic-events.mjs`、`scripts/verify-leaderboards.mjs` 与权威倒计时验证防回退。
 58. 生产数据库只读诊断工作流固定为 `.github/workflows/diagnose-production-database.yml`，只能手动触发并使用现有 `SERVER_HOST`、`SERVER_PORT`、`SERVER_USER` 与 `SERVER_SSH_KEY` 以服务用户连接；不得使用 `sudo`、停止或重启服务。诊断脚本必须以 SQLite URI `mode=ro`、`PRAGMA query_only = ON` 和 authorizer 三重只读约束打开 `/var/lib/riversoft-economy/economy.sqlite`，不得执行 `VACUUM`、`wal_checkpoint`、`PRAGMA optimize`、备份、附加数据库、DDL 或 DML。输出只允许包含数据库／WAL／SHM 字节数、页数、空闲页、预计有效页、世界修订号与 `state_json` 长度、`PRAGMA quick_check(1)`、Schema 数量和 `dbstat` 对象占用，不得输出玩家、邮箱、IP、邀请、Cookie、密钥或业务行内容；诊断不得上传数据库、WAL、SHM、备份或包含玩家明细的 Artifact。上述规则必须通过 `scripts/verify-readonly-database-diagnostics.mjs` 对临时数据库执行前后文件哈希、大小和修改时间完全一致的行为验证。
 59. 生产 SQLite `INCREMENTAL` 自动压缩属于服务器存储维护规则：现有 `auto_vacuum=NONE` 正式库只能通过停服、WAL `TRUNCATE` checkpoint、`VACUUM INTO` 紧凑副本、在副本执行 `PRAGMA auto_vacuum=INCREMENTAL; VACUUM;`、Schema／逐表内容／世界 JSON 哈希校验、同文件系统原子替换、健康检查和失败自动回滚迁移；迁移脚本固定为 `scripts/manage-production-database.py`，人工工作流固定为 `.github/workflows/migrate-production-database-incremental.yml` 并要求确认词。空间维护固定由 `.github/workflows/maintain-production-database-space.yml` 在每周一北京时间 02:30 和人工触发时检查，只有可回收空间不少于 64 MiB 且 freelist 比例不少于 25% 才停服执行，每批 `PRAGMA incremental_vacuum(1024)`、单次最多四批，前后都执行 WAL checkpoint、`quick_check` 和健康检查；不得省略正数页数清空整个 freelist，不得把 `incremental_vacuum` 放入玩家请求事务，也不得使用 `auto_vacuum=FULL`。上述迁移、批量上限、逻辑不变和回滚行为必须由 `scripts/verify-production-database-maintenance.mjs` 防回退。
+60. 普通货币精度与玩家结算属于跨模块强制规则：账户余额、冻结资金、预算、总额、手续费、退款和流水保留六位小数；可输入单价与订单价格保留两位小数并以 0.01 为最小步长；成交和费率使用整数微单位计算；界面显示两位但不得截断账户余额或把尾差写入精度准备金；宝石、商品和工厂数量保持整数。必须同步更新产品、订单簿、产业、服务器、页面、UI、商店、管理员、本地活动、根 README、测试和 `scripts/verify-money-precision.mjs`。

@@ -44,7 +44,7 @@ test('市场卖方手续费累计到六位小数', () => {
   assert.deepEqual(applyMarketSellFee(order, 9.99), { fee: 0.0999, netTotal: 9.8901 });
 });
 
-test('世界保存前清算玩家尾差且宝石保持整数', () => {
+test('世界保存前保留六位账户金额且宝石保持整数', () => {
   const world = {
     players: {
       1: {
@@ -59,11 +59,11 @@ test('世界保存前清算玩家尾差且宝石保持整数', () => {
     orders: [], markets: {}, facilityMarkets: {}, assetAuctions: [], productionContracts: [],
   };
   normalizeWorldMoneyPrecision(world);
-  assert.equal(world.players[1].credits, 9.99);
-  assert.equal(world.players[1].frozenCredits, 1.23);
-  assert.equal(world.players[1].bankAccount.depositCredits, 2.99);
+  assert.equal(world.players[1].credits, 9.996);
+  assert.equal(world.players[1].frozenCredits, 1.239);
+  assert.equal(world.players[1].bankAccount.depositCredits, 2.999);
   assert.equal(world.players[1].gems, 4);
   assert.equal(world.players[1].bankAccount.depositInterestCarryMicros, 0);
   assert.equal(world.bank.interestPoolMicros, 17);
-  assert.equal(world.moneyPrecision.roundingReserveMicros, 24000);
+  assert.equal(world.moneyPrecision.roundingReserveMicros, 0);
 });

@@ -22,7 +22,7 @@ test('population economy version 5 migration does not repeat bootstrap issuance'
   const beforeMigration = state.stats.migrationIssued;
   state.modelVersion = 1;
   ensurePopulationEconomy(world, now);
-  assert.equal(state.modelVersion, 5);
+  assert.equal(state.modelVersion, 6);
   assert.equal(Object.values(state.models).reduce((sum, model) => sum + model.credits, 0), beforeCredits);
   assert.equal(state.stats.migrationIssued, beforeMigration);
 });

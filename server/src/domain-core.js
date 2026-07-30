@@ -226,7 +226,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 18,
+    version: 19,
     players: {},
     orders: seedOrders(now),
     facilityListings: seedFacilityListings(now),
@@ -425,7 +425,7 @@ export function migrateWorld(world, now = Date.now()) {
   for (const group of DEMAND_GROUP_CATALOG) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
-  world.version = 18;
+  world.version = 19;
   return world;
 }
 

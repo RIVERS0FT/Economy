@@ -1,4 +1,4 @@
-import { allocateIntegerBudget, clamp, normalizeShares, round4, smoothShares } from './math.js';
+import { allocateMoneyBudget, clamp, floorMoney, normalizeShares, round4, roundMoney, smoothShares } from './math.js';
 
 export function createDemandAllocationRuntime({
   productFor,
@@ -16,7 +16,7 @@ export function createDemandAllocationRuntime({
         maxBudget: directBudget,
       }));
       const hasWeight = entries.some((entry) => entry.weight > 0);
-      const budgets = allocateIntegerBudget(
+      const budgets = allocateMoneyBudget(
         hasWeight ? entries : group.classes.map((demandClass) => ({
           id: demandClass.id,
           weight: Math.max(0, Number(demandClass.budgetShare || 0)),
@@ -34,11 +34,11 @@ export function createDemandAllocationRuntime({
     const minima = new Map();
     let minimumTotal = 0;
     for (const demandClass of group.classes) {
-      const minimum = Math.floor(directBudget * demandClass.minBudgetShare);
+      const minimum = floorMoney(directBudget * demandClass.minBudgetShare);
       minima.set(demandClass.id, minimum);
       minimumTotal += minimum;
     }
-    const remaining = Math.max(0, directBudget - minimumTotal);
+    const remaining = roundMoney(directBudget - minimumTotal);
     const rawScores = {};
     const minimumShares = {};
     for (const demandClass of group.classes) {
@@ -50,20 +50,20 @@ export function createDemandAllocationRuntime({
     }
     const targetShares = normalizeShares(rawScores, minimumShares);
     const shares = smoothShares(targetShares, state.lastClassShares, minimumShares);
-    const extras = allocateIntegerBudget(group.classes.map((demandClass) => ({
+    const extras = allocateMoneyBudget(group.classes.map((demandClass) => ({
       id: demandClass.id,
       weight: shares[demandClass.id],
-      maxBudget: Math.max(0, Math.floor(directBudget * demandClass.maxBudgetShare) - (minima.get(demandClass.id) || 0)),
+      maxBudget: Math.max(0, floorMoney(directBudget * demandClass.maxBudgetShare) - (minima.get(demandClass.id) || 0)),
     })), remaining);
     const budgets = new Map();
     for (const demandClass of group.classes) {
-      budgets.set(demandClass.id, (minima.get(demandClass.id) || 0) + (extras.get(demandClass.id) || 0));
+      budgets.set(demandClass.id, roundMoney((minima.get(demandClass.id) || 0) + (extras.get(demandClass.id) || 0)));
     }
     const assigned = [...budgets.values()].reduce((sum, value) => sum + value, 0);
     if (assigned < directBudget) {
       const winner = [...group.classes]
         .sort((left, right) => rawScores[right.id] - rawScores[left.id] || left.id.localeCompare(right.id))[0];
-      budgets.set(winner.id, (budgets.get(winner.id) || 0) + directBudget - assigned);
+      budgets.set(winner.id, roundMoney((budgets.get(winner.id) || 0) + directBudget - assigned));
     }
     state.lastClassShares = Object.fromEntries([...budgets].map(([id, budget]) => [id, directBudget <= 0 ? 0 : budget / directBudget]));
     return budgets;
@@ -111,13 +111,13 @@ export function createDemandAllocationRuntime({
       const targetShares = normalizeShares(detail.scores, detail.minima);
       const shares = smoothShares(targetShares, state.lastProductShares[demandClass.id], detail.minima);
       state.lastProductShares[demandClass.id] = shares;
-      const budgets = allocateIntegerBudget(Object.entries(shares).map(([id, share]) => ({ id, weight: share, maxBudget: classBudget })), classBudget);
+      const budgets = allocateMoneyBudget(Object.entries(shares).map(([id, share]) => ({ id, weight: share, maxBudget: classBudget })), classBudget);
       classAllocation[demandClass.id] = {
         budget: classBudget,
         shares: Object.fromEntries(Object.entries(shares).map(([id, value]) => [id, round4(value)])),
       };
       for (const [productId, budget] of budgets) {
-        productBudgets.set(productId, (productBudgets.get(productId) || 0) + budget);
+        productBudgets.set(productId, roundMoney((productBudgets.get(productId) || 0) + budget));
         if (!productDetails.has(productId)) productDetails.set(productId, detail.details[productId]);
       }
     }
@@ -217,7 +217,7 @@ export function createDemandAllocationRuntime({
       details.set(productId, { product, price, requiredQuantity });
     }
     return {
-      productBudgets: allocateIntegerBudget(entries, derivedBudget),
+      productBudgets: allocateMoneyBudget(entries, derivedBudget),
       productDetails: details,
       relationDetails,
     };

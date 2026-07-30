@@ -4,17 +4,16 @@ import {
   LIQUIDITY_BASE_SPREAD,
   LIQUIDITY_INVENTORY_SKEW,
   LIQUIDITY_MAX_SPREAD,
-  LIQUIDITY_MAX_TARGET,
   LIQUIDITY_MIN_SPREAD,
-  LIQUIDITY_MIN_QUOTE_BUDGET_SHARE,
   LIQUIDITY_MIN_TARGET,
-  LIQUIDITY_QUOTE_BUDGET_SHARE,
-  LIQUIDITY_TRADE_SHARE,
+  LIQUIDITY_TARGET_MAX_FALL,
+  LIQUIDITY_TARGET_MAX_RISE,
   PRICE_MAX_MULTIPLIER,
   PRICE_MIN_MULTIPLIER,
   PRICE_WINDOW_MS,
 } from './market-demand/catalog.js';
-import { allocateIntegerBudget, clamp, round4 } from './market-demand/math.js';
+import { allocateMoneyBudget, clamp, round4, roundMoney } from './market-demand/math.js';
+import { ceilPlayerMoney, floorPlayerMoney, multiplyMoneyByInteger, ORDER_PRICE_TICK, roundInternalMoney } from './money.js';
 import { bestSystemPrice, systemBookIsCrossed } from './order-book-integrity.js';
 import { bestSystemOrder as indexedBestSystemOrder, ordersForDemandGroup } from './order-book-runtime.js';
 
@@ -36,7 +35,7 @@ export function createMarketLiquidityRuntime({
 
   function seedTarget(group, product) {
     const seed = Number(group.seedDemandQuantities?.[product.id] || 0);
-    return clamp(LIQUIDITY_MIN_TARGET, LIQUIDITY_MAX_TARGET, Math.ceil(Math.max(1, seed) * 0.5));
+    return Math.max(LIQUIDITY_MIN_TARGET, Math.ceil(Math.max(1, seed) * 0.5));
   }
 
   function defaultReserve(group, product, seeded) {
@@ -63,15 +62,14 @@ export function createMarketLiquidityRuntime({
       ...(previous || {}),
       inventory: Math.max(0, Math.floor(Number(previous?.inventory ?? fallback.inventory))),
       frozenInventory: Math.max(0, Math.floor(Number(previous?.frozenInventory || 0))),
-      targetInventory: clamp(
+      targetInventory: Math.max(
         LIQUIDITY_MIN_TARGET,
-        LIQUIDITY_MAX_TARGET,
-        Math.max(1, Math.ceil(Number(previous?.targetInventory || fallback.targetInventory))),
+        Math.ceil(Number(previous?.targetInventory || fallback.targetInventory)),
       ),
       totalBought: Math.max(0, Math.floor(Number(previous?.totalBought || 0))),
       totalSold: Math.max(0, Math.floor(Number(previous?.totalSold || 0))),
-      totalBuyValue: Math.max(0, Math.floor(Number(previous?.totalBuyValue || 0))),
-      totalSellValue: Math.max(0, Math.floor(Number(previous?.totalSellValue || 0))),
+      totalBuyValue: roundMoney(Number(previous?.totalBuyValue || 0)),
+      totalSellValue: roundMoney(Number(previous?.totalSellValue || 0)),
     };
   }
 
@@ -86,15 +84,15 @@ export function createMarketLiquidityRuntime({
       const wasSeeded = previousGroup.seeded === true;
       const seedNow = seed && !wasSeeded;
       const rebuildSeededState = seed && wasSeeded;
-      const previousFrozenCredits = Math.max(0, Math.floor(Number(previousGroup.frozenCredits || 0)));
+      const previousFrozenCredits = roundMoney(Number(previousGroup.frozenCredits || 0));
       const groupState = {
         seeded: wasSeeded || seedNow,
-        initialCredits: Math.max(0, Math.floor(Number(
+        initialCredits: roundMoney(Number(
           previousGroup.initialCredits ?? (seedNow ? group.baseBudget : 0),
-        ))),
-        credits: Math.max(0, Math.floor(Number(
+        )),
+        credits: roundMoney(Number(
           previousGroup.credits ?? (seedNow ? group.baseBudget : 0),
-        ))) + (rebuildSeededState ? previousFrozenCredits : 0),
+        ) + (rebuildSeededState ? previousFrozenCredits : 0)),
         frozenCredits: rebuildSeededState ? 0 : previousFrozenCredits,
         lastCycleId: Number.isFinite(Number(previousGroup.lastCycleId)) ? Number(previousGroup.lastCycleId) : -1,
         reserves: {},
@@ -137,9 +135,9 @@ export function createMarketLiquidityRuntime({
     }
     const remaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
     if (order.demandTier === LIQUIDITY_BUY) {
-      const release = remaining * Math.max(1, Math.floor(Number(order.price || 1)));
-      groupState.frozenCredits = Math.max(0, groupState.frozenCredits - release);
-      groupState.credits += release;
+      const release = multiplyMoneyByInteger(order.price, remaining) || 0;
+      groupState.frozenCredits = roundMoney(groupState.frozenCredits - release);
+      groupState.credits = roundMoney(groupState.credits + release);
     } else if (order.demandTier === LIQUIDITY_SELL) {
       reserve.frozenInventory = Math.max(0, reserve.frozenInventory - remaining);
       reserve.inventory += remaining;
@@ -201,20 +199,20 @@ export function createMarketLiquidityRuntime({
     return weight <= 0 ? 0 : Math.sqrt(variance / weight);
   }
 
-  function targetInventoryFor(world, state, product, now) {
+  function targetInventoryFor(world, state, product, reserve, now) {
     const demandQuantity = Math.max(0, Number(state.previousDemandQuantities?.[product.id] || 0));
     const stats = realTradeStats(world, product.id, now, ACTIVITY_WINDOW_MS);
     const tradeQuantity = Math.max(0, Number(stats.playerQuantity || 0) + Number(stats.consumptionQuantity || 0));
-    return clamp(
-      LIQUIDITY_MIN_TARGET,
-      LIQUIDITY_MAX_TARGET,
-      Math.ceil(demandQuantity * 0.5 + tradeQuantity * 0.05),
-    );
+    const rawTarget = Math.max(LIQUIDITY_MIN_TARGET, Math.ceil(demandQuantity * 0.5 + tradeQuantity * 0.05));
+    const previous = Math.max(LIQUIDITY_MIN_TARGET, Math.ceil(Number(reserve.targetInventory || LIQUIDITY_MIN_TARGET)));
+    const minimum = Math.max(LIQUIDITY_MIN_TARGET, Math.floor(previous * (1 - LIQUIDITY_TARGET_MAX_FALL)));
+    const maximum = Math.max(minimum, Math.ceil(previous * (1 + LIQUIDITY_TARGET_MAX_RISE)));
+    return clamp(minimum, maximum, rawTarget);
   }
 
   function quoteFor(world, state, product, reserve, now) {
-    reserve.targetInventory = targetInventoryFor(world, state, product, now);
-    const referencePrice = Math.max(1, Number(
+    reserve.targetInventory = targetInventoryFor(world, state, product, reserve, now);
+    const referencePrice = Math.max(ORDER_PRICE_TICK, Number(
       world.marketDemand.priceTransmission.products[product.id]?.referencePrice || product.basePrice,
     ));
     const totalInventory = reserve.inventory + reserve.frozenInventory;
@@ -227,22 +225,26 @@ export function createMarketLiquidityRuntime({
       LIQUIDITY_MAX_SPREAD,
       LIQUIDITY_BASE_SPREAD + volatility * 1.5,
     );
-    const minimum = Math.max(1, Math.ceil(product.basePrice * PRICE_MIN_MULTIPLIER));
-    const maximum = Math.max(minimum + 1, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
-    const rawBid = clamp(minimum, maximum - 1, Math.floor(midpoint * (1 - spread / 2)));
-    const rawAsk = clamp(rawBid + 1, maximum, Math.ceil(midpoint * (1 + spread / 2)));
+    const minimum = Math.max(ORDER_PRICE_TICK, ceilPlayerMoney(product.basePrice * PRICE_MIN_MULTIPLIER) || ORDER_PRICE_TICK);
+    const maximum = Math.max(minimum + ORDER_PRICE_TICK, floorPlayerMoney(product.basePrice * PRICE_MAX_MULTIPLIER) || minimum + ORDER_PRICE_TICK);
+    const rawBid = clamp(minimum, maximum - ORDER_PRICE_TICK, floorPlayerMoney(midpoint * (1 - spread / 2)) || minimum);
+    const rawAsk = clamp(rawBid + ORDER_PRICE_TICK, maximum, ceilPlayerMoney(midpoint * (1 + spread / 2)) || rawBid + ORDER_PRICE_TICK);
     const lowestSystemAsk = bestSystemPrice(world, product.id, 'sell');
     const highestSystemBid = bestSystemPrice(world, product.id, 'buy');
-    const bidCeiling = lowestSystemAsk === null ? maximum - 1 : Math.min(maximum - 1, lowestSystemAsk - 1);
+    const bidCeiling = lowestSystemAsk === null
+      ? maximum - ORDER_PRICE_TICK
+      : Math.min(maximum - ORDER_PRICE_TICK, floorPlayerMoney(lowestSystemAsk - ORDER_PRICE_TICK) || 0);
     const bid = bidCeiling >= minimum ? Math.min(rawBid, bidCeiling) : null;
-    const askFloor = highestSystemBid === null ? minimum + 1 : highestSystemBid + 1;
-    const askCandidate = Math.max(rawAsk, askFloor, (bid ?? rawBid) + 1);
-    const ask = askCandidate <= maximum ? askCandidate : null;
+    const askFloor = highestSystemBid === null
+      ? minimum + ORDER_PRICE_TICK
+      : ceilPlayerMoney(highestSystemBid + ORDER_PRICE_TICK);
+    const askCandidate = Math.max(rawAsk, askFloor || rawAsk, (bid ?? rawBid) + ORDER_PRICE_TICK);
+    const ask = askCandidate <= maximum ? ceilPlayerMoney(askCandidate) : null;
     return { bid, ask, midpoint: round4(midpoint), spread: round4(spread) };
   }
 
   function createOrder(world, group, product, side, price, quantity, cycleId, now) {
-    if (quantity < 1 || !Number.isInteger(price) || price < 1) return null;
+    if (quantity < 1 || !Number.isFinite(price) || price < ORDER_PRICE_TICK || floorPlayerMoney(price) !== price) return null;
     const order = {
       id: `market-liquidity-order-${randomUUID()}`,
       assetKind: 'commodity',
@@ -273,60 +275,49 @@ export function createMarketLiquidityRuntime({
     const groupProducts = productsByGroup.get(group.id) || [];
     const quotes = new Map();
     const entries = [];
+    const signals = new Map();
     for (const product of groupProducts) {
       const reserve = reserveFor(world, group.id, product.id);
       const quote = quoteFor(world, state, product, reserve, now);
       quotes.set(product.id, quote);
       const totalInventory = reserve.inventory + reserve.frozenInventory;
-      const deficit = clamp(0, 1, (reserve.targetInventory - totalInventory) / Math.max(1, reserve.targetInventory));
+      const deficitQuantity = Math.max(0, reserve.targetInventory - totalInventory);
       const stats = realTradeStats(world, product.id, now, ACTIVITY_WINDOW_MS);
-      const sellerFlow = stats.playerQuantity <= 0 ? 0 : clamp(0, 1, -stats.playerNetActive / stats.playerQuantity);
-      const weight = deficit + sellerFlow * 0.25;
-      if (weight > 0) entries.push({ id: product.id, weight, maxBudget: Math.max(0, Number(state.lastBudget || 0)) });
+      const sellerQuantity = Math.max(0, -Number(stats.playerNetActive || 0));
+      const unmetValue = Math.max(0, Number(state.lastCycleSettlement?.products?.[product.id]?.openValue || 0));
+      const weight = quote.bid === null ? 0 : deficitQuantity * quote.bid + sellerQuantity * quote.bid * 0.25 + unmetValue;
+      signals.set(product.id, { deficitQuantity, sellerQuantity });
+      if (weight > 0) entries.push({ id: product.id, weight, maxBudget: groupState.credits });
     }
 
-    const quoteBudget = Math.min(
-      groupState.credits,
-      Math.max(
-        Math.max(0, Math.floor(Number(state.lastBudget ?? group.baseBudget) * LIQUIDITY_QUOTE_BUDGET_SHARE)),
-        Math.max(0, Math.floor(Number(group.baseBudget || 0) * LIQUIDITY_MIN_QUOTE_BUDGET_SHARE)),
-      ),
-    );
-    const budgets = allocateIntegerBudget(entries, quoteBudget);
-    let remainingQuoteBudget = quoteBudget;
+    const quoteBudget = roundMoney(groupState.credits);
+    const budgets = allocateMoneyBudget(entries, quoteBudget);
 
     for (const product of [...groupProducts].sort((left, right) => left.basePrice - right.basePrice || left.id.localeCompare(right.id))) {
       const reserve = reserveFor(world, group.id, product.id);
       const quote = quotes.get(product.id);
-      const tradeCap = Math.max(1, Math.floor(reserve.targetInventory * LIQUIDITY_TRADE_SHARE));
-      const totalInventory = reserve.inventory + reserve.frozenInventory;
-      const inventoryRoom = Math.max(0, Math.ceil(reserve.targetInventory * 1.25) - totalInventory);
+      const signal = signals.get(product.id) || { deficitQuantity: 0, sellerQuantity: 0 };
       let buyQuantity = 0;
       if (quote.bid !== null) {
-        let budget = Math.min(remainingQuoteBudget, budgets.get(product.id) || 0);
-        if (budget < quote.bid && remainingQuoteBudget >= quote.bid && (budgets.get(product.id) || 0) > 0) budget = quote.bid;
+        const plannedQuantity = signal.deficitQuantity + Math.ceil(signal.sellerQuantity * 0.25);
+        const budget = Math.min(groupState.credits, budgets.get(product.id) || 0);
         buyQuantity = Math.min(
-          tradeCap,
-          inventoryRoom,
+          plannedQuantity,
           Math.floor(groupState.credits / quote.bid),
           Math.floor(budget / quote.bid),
         );
         if (buyQuantity > 0) {
-          const reservedCredits = buyQuantity * quote.bid;
-          groupState.credits -= reservedCredits;
-          groupState.frozenCredits += reservedCredits;
-          remainingQuoteBudget -= reservedCredits;
+          const reservedCredits = multiplyMoneyByInteger(quote.bid, buyQuantity) || 0;
+          groupState.credits = roundMoney(groupState.credits - reservedCredits);
+          groupState.frozenCredits = roundMoney(groupState.frozenCredits + reservedCredits);
           createOrder(world, group, product, 'buy', quote.bid, buyQuantity, cycleId, now);
         }
       }
 
       let sellQuantity = 0;
       if (quote.ask !== null) {
-        const safetyStock = Math.floor(reserve.targetInventory * 0.20);
-        sellQuantity = Math.min(
-          tradeCap,
-          Math.max(0, reserve.inventory - safetyStock),
-        );
+        const safetyStock = Math.max(LIQUIDITY_MIN_TARGET, Math.floor(reserve.targetInventory * 0.20));
+        sellQuantity = Math.max(0, reserve.inventory - safetyStock);
         if (sellQuantity > 0) {
           reserve.inventory -= sellQuantity;
           reserve.frozenInventory += sellQuantity;

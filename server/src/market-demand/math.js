@@ -1,8 +1,10 @@
-import { SHARE_MAX_CHANGE, SHARE_SMOOTHING } from './catalog.js';
+import { floorInternalMoney, internalMoneyToMicros, microsToInternalMoney, roundInternalMoney } from '../money.js';
 
 export const clamp = (minimum, maximum, value) => Math.max(minimum, Math.min(maximum, value));
 export const clone = (value) => structuredClone(value);
 export const round4 = (value) => Number(Number(value || 0).toFixed(4));
+export const floorMoney = (value) => Math.max(0, floorInternalMoney(value) || 0);
+export const roundMoney = (value) => Math.max(0, roundInternalMoney(value) || 0);
 
 export function geometricWeightedMean(signals) {
   const active = signals.filter((signal) => Number.isFinite(signal.value) && signal.value > 0 && signal.weight > 0);
@@ -31,37 +33,61 @@ export function smoothShares(targetShares, previousShares, minimumShares = {}) {
   for (const id of Object.keys(targetShares)) {
     const target = Number(targetShares[id] || 0);
     const previous = Number.isFinite(Number(previousShares?.[id])) ? Number(previousShares[id]) : target;
-    const blended = previous * (1 - SHARE_SMOOTHING) + target * SHARE_SMOOTHING;
-    smoothed[id] = clamp(previous - SHARE_MAX_CHANGE, previous + SHARE_MAX_CHANGE, blended);
+    const blended = previous * (1 - 0.30) + target * 0.30;
+    smoothed[id] = clamp(previous - 0.15, previous + 0.15, blended);
   }
   return normalizeShares(smoothed, minimumShares);
 }
 
-export function allocateIntegerBudget(entries, totalBudget) {
-  const result = new Map(entries.map((entry) => [entry.id, 0]));
-  const active = entries.filter((entry) => Number(entry.weight || 0) > 0 && Number(entry.maxBudget ?? totalBudget) > 0);
-  if (active.length === 0 || totalBudget <= 0) return result;
-  let remaining = Math.max(0, Math.floor(totalBudget));
-  let candidates = active;
-  while (remaining > 0 && candidates.length > 0) {
-    const totalWeight = candidates.reduce((sum, entry) => sum + Number(entry.weight), 0);
-    let distributed = 0;
+function weightUnits(value) {
+  const normalized = Math.max(0, Number(value || 0));
+  if (!Number.isFinite(normalized) || normalized <= 0) return 0n;
+  return BigInt(Math.max(1, Math.round(normalized * 1_000_000_000)));
+}
+
+export function allocateMoneyBudget(entries, totalBudget) {
+  const resultMicros = new Map(entries.map((entry) => [entry.id, 0n]));
+  const totalMicros = internalMoneyToMicros(Math.max(0, totalBudget));
+  if (totalMicros === null || totalMicros <= 0n) return new Map(entries.map((entry) => [entry.id, 0]));
+  let candidates = entries.map((entry, index) => ({
+    ...entry,
+    index,
+    weightUnits: weightUnits(entry.weight),
+    maxMicros: internalMoneyToMicros(Math.max(0, Number(entry.maxBudget ?? totalBudget))) || 0n,
+  })).filter((entry) => entry.weightUnits > 0n && entry.maxMicros > 0n);
+  let remaining = totalMicros;
+  while (remaining > 0n && candidates.length > 0) {
+    const totalWeight = candidates.reduce((sum, entry) => sum + entry.weightUnits, 0n);
+    let distributed = 0n;
+    const ranked = [];
     for (const entry of candidates) {
-      const current = result.get(entry.id) || 0;
-      const available = Math.max(0, Math.floor(Number(entry.maxBudget ?? totalBudget)) - current);
-      if (available <= 0) continue;
-      const grant = Math.min(available, Math.floor(remaining * Number(entry.weight) / totalWeight));
-      if (grant <= 0) continue;
-      result.set(entry.id, current + grant);
-      distributed += grant;
+      const current = resultMicros.get(entry.id) || 0n;
+      const available = entry.maxMicros - current;
+      if (available <= 0n) continue;
+      const numerator = remaining * entry.weightUnits;
+      const rawGrant = numerator / totalWeight;
+      const grant = rawGrant > available ? available : rawGrant;
+      if (grant > 0n) {
+        resultMicros.set(entry.id, current + grant);
+        distributed += grant;
+      }
+      ranked.push({ entry, remainder: numerator % totalWeight });
     }
-    if (distributed <= 0) {
-      const winner = [...candidates].sort((left, right) => Number(right.weight) - Number(left.weight) || left.id.localeCompare(right.id))[0];
-      result.set(winner.id, (result.get(winner.id) || 0) + 1);
-      distributed = 1;
+    if (distributed <= 0n) {
+      ranked.sort((left, right) => {
+        if (left.remainder !== right.remainder) return left.remainder > right.remainder ? -1 : 1;
+        if (left.entry.weightUnits !== right.entry.weightUnits) return left.entry.weightUnits > right.entry.weightUnits ? -1 : 1;
+        return left.entry.index - right.entry.index;
+      });
+      const winner = ranked.find(({ entry }) => (resultMicros.get(entry.id) || 0n) < entry.maxMicros)?.entry;
+      if (!winner) break;
+      resultMicros.set(winner.id, (resultMicros.get(winner.id) || 0n) + 1n);
+      distributed = 1n;
     }
     remaining -= distributed;
-    candidates = candidates.filter((entry) => (result.get(entry.id) || 0) < Math.floor(Number(entry.maxBudget ?? totalBudget)));
+    candidates = candidates.filter((entry) => (resultMicros.get(entry.id) || 0n) < entry.maxMicros);
   }
-  return result;
+  return new Map(entries.map((entry) => [entry.id, microsToInternalMoney(resultMicros.get(entry.id) || 0n) || 0]));
 }
+
+export const allocateIntegerBudget = allocateMoneyBudget;
