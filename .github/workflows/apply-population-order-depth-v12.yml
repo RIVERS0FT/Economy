@@ -72,6 +72,10 @@ jobs:
                       updated = updated.replace(old, new)
                   if updated != text:
                       file.write_text(updated)
+          daily_check = Path('scripts/verify-daily-check-in.mjs')
+          text = daily_check.read_text()
+          text = text.replace('`.version, ${staleVersion})`,', '`state.version, ${staleVersion})`,')
+          daily_check.write_text(text)
           PY
 
       - name: Install dependencies
