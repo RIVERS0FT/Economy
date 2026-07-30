@@ -61,6 +61,7 @@ jobs:
               'MARKET_DEMAND_MODEL_VERSION, 11': 'MARKET_DEMAND_MODEL_VERSION, 12',
               'world.marketDemand.modelVersion, 11': 'world.marketDemand.modelVersion, 12',
               'POPULATION_ECONOMY_VERSION = 5': 'POPULATION_ECONOMY_VERSION = 6',
+              'groupState.frozenCredits += reservedCredits': 'groupState.frozenCredits = roundMoney(groupState.frozenCredits + reservedCredits)',
           }
           for root in (Path('scripts'), Path('server/test')):
               for file in root.rglob('*'):
