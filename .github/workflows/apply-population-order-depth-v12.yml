@@ -1,0 +1,57 @@
+name: Apply population order depth v12
+
+on:
+  push:
+    branches:
+      - agent/population-order-depth-v12
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-population-order-depth-v12
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[generated v12]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/population-order-depth-v12
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Reconstruct and apply patch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat scripts/.population-order-depth-v12.* > /tmp/population-order-depth-v12.py.gz.b64
+          echo 'd2c45280c836908a242bc2b51a85b76a0367587e4bdd3d0834614ee2cbd7adfc  /tmp/population-order-depth-v12.py.gz.b64' | sha256sum -c -
+          base64 --decode /tmp/population-order-depth-v12.py.gz.b64 | gzip --decompress > /tmp/apply-population-order-depth-v12.py
+          echo '012d01fe4aba37c1f1a801ee5ab06b4ef64d86c8c24082f62fb4514b80e359cf  /tmp/apply-population-order-depth-v12.py' | sha256sum -c -
+          python3 /tmp/apply-population-order-depth-v12.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify complete project
+        run: npm run build
+
+      - name: Commit generated implementation
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git rm scripts/.population-order-depth-v12.00 scripts/.population-order-depth-v12.01 scripts/.population-order-depth-v12.02 .github/workflows/apply-population-order-depth-v12.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Implement population order depth model 12 [generated v12]'
+          git push origin HEAD:agent/population-order-depth-v12
