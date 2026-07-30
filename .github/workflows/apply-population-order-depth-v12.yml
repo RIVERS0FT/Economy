@@ -62,6 +62,9 @@ jobs:
               'world.marketDemand.modelVersion, 11': 'world.marketDemand.modelVersion, 12',
               'POPULATION_ECONOMY_VERSION = 5': 'POPULATION_ECONOMY_VERSION = 6',
               'groupState.frozenCredits += reservedCredits': 'groupState.frozenCredits = roundMoney(groupState.frozenCredits + reservedCredits)',
+              'world 18 migration': 'world 19 migration',
+              '--target-world-version 18': '--target-world-version 19',
+              '世界状态版本：`18`': '世界状态版本：`19`',
           }
           for root in (Path('scripts'), Path('server/test')):
               for file in root.rglob('*'):
