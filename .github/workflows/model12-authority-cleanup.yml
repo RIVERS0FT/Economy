@@ -30,7 +30,16 @@ jobs:
           node-version: 24.4.0
           cache: npm
       - name: Apply authority cleanup
-        run: python3 scripts/.model12-authority-cleanup.py
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/.model12-authority-cleanup.py')
+          text = path.read_text().replace("        '价格为正整数的订单',\n", '')
+          path.write_text(text)
+          PY
+          python3 scripts/.model12-authority-cleanup.py
+          python3 scripts/.model12-authority-cleanup-post.py
       - run: npm ci
       - name: Verify complete project
         run: npm run build
@@ -39,7 +48,7 @@ jobs:
         run: |
           set -euxo pipefail
           git restore --source=HEAD --staged --worktree .github/workflows
-          git rm scripts/.model12-authority-cleanup.py
+          git rm scripts/.model12-authority-cleanup.py scripts/.model12-authority-cleanup-post.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
