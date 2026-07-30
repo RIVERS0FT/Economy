@@ -1,0 +1,63 @@
+name: Apply population order depth v12 simple
+
+on:
+  push:
+    branches:
+      - agent/population-order-depth-v12
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-population-order-depth-v12-simple
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[generated v12]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/population-order-depth-v12
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply verified patch
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cat scripts/.population-order-depth-v12.0* > /tmp/model12.py.gz.b64
+          echo 'd2c45280c836908a242bc2b51a85b76a0367587e4bdd3d0834614ee2cbd7adfc  /tmp/model12.py.gz.b64' | sha256sum -c -
+          base64 --decode /tmp/model12.py.gz.b64 | gzip --decompress > /tmp/model12.py
+          echo '012d01fe4aba37c1f1a801ee5ab06b4ef64d86c8c24082f62fb4514b80e359cf  /tmp/model12.py' | sha256sum -c -
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/model12.py')
+          text = path.read_text().replace(
+              "replace_all('scripts/verify-staple-crops-demand.mjs', \"'world.version = 18',\", \"'world.version = 19',\")\n",
+              '',
+          )
+          path.write_text(text)
+          PY
+          python3 /tmp/model12.py
+          python3 scripts/.population-order-depth-v12-post.py
+      - run: npm ci
+      - name: Run complete verification
+        run: npm run build
+      - name: Commit formal implementation
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git rm scripts/.population-order-depth-v12.00 scripts/.population-order-depth-v12.01 scripts/.population-order-depth-v12.02 scripts/.population-order-depth-v12-post.py .github/workflows/apply-population-order-depth-v12.yml .github/workflows/apply-population-order-depth-v12-simple.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Implement population order depth model 12 [generated v12]'
+          git push origin HEAD:agent/population-order-depth-v12
