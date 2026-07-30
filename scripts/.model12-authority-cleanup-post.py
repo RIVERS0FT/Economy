@@ -10,6 +10,18 @@ if old not in text:
 text = text.replace(old, new, 1)
 path.write_text(text)
 
+verify = Path('scripts/verify-money-precision.mjs')
+verify_text = verify.read_text()
+verify_text = verify_text.replace(
+    "assert.match(read('README.md'), /账户资金保留六位小数/);",
+    "assert.match(read('README.md'), /账户余额、冻结资金、预算、手续费、退款和流水金额统一保留六位小数/);",
+)
+verify_text = verify_text.replace(
+    "assert.match(read('README.md'), /订单价格保留两位小数/);",
+    "assert.match(read('README.md'), /可输入单价保留两位小数并使用 `0\\.01` 最小价格步长/);",
+)
+verify.write_text(verify_text)
+
 stale = [
     '价格为正整数的订单',
     '旧买单 50% 保留与 3% 阶梯提价',
