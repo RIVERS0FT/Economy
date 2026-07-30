@@ -57,6 +57,8 @@ jobs:
           replacements = {
               r'world\.version = 18': r'world\.version = 19',
               'world.version, 18': 'world.version, 19',
+              '.version, 18)': '.version, 19)',
+              '.modelVersion, 5)': '.modelVersion, 6)',
               'MARKET_DEMAND_MODEL_VERSION = 11': 'MARKET_DEMAND_MODEL_VERSION = 12',
               'MARKET_DEMAND_MODEL_VERSION, 11': 'MARKET_DEMAND_MODEL_VERSION, 12',
               'world.marketDemand.modelVersion, 11': 'world.marketDemand.modelVersion, 12',
@@ -76,6 +78,26 @@ jobs:
                       updated = updated.replace(old, new)
                   if updated != text:
                       file.write_text(updated)
+
+          liquidity = Path('server/src/market-liquidity.js')
+          text = liquidity.read_text()
+          if "import { randomUUID } from 'node:crypto';" not in text:
+              text = "import { randomUUID } from 'node:crypto';\n" + text
+          liquidity.write_text(text)
+
+          domain = Path('server/src/domain.js')
+          text = domain.read_text().replace('migrated.version = 18', 'migrated.version = 19')
+          domain.write_text(text)
+
+          money_test = Path('server/test/money-precision.test.js')
+          text = money_test.read_text()
+          text = text.replace("test('世界保存前清算玩家尾差且宝石保持整数'", "test('世界保存前保留六位账户金额且宝石保持整数'")
+          text = text.replace('assert.equal(world.players[1].credits, 9.99);', 'assert.equal(world.players[1].credits, 9.996);')
+          text = text.replace('assert.equal(world.players[1].frozenCredits, 1.23);', 'assert.equal(world.players[1].frozenCredits, 1.239);')
+          text = text.replace('assert.equal(world.players[1].bankAccount.depositCredits, 2.99);', 'assert.equal(world.players[1].bankAccount.depositCredits, 2.999);')
+          text = text.replace('assert.equal(world.moneyPrecision.roundingReserveMicros, 24000);', 'assert.equal(world.moneyPrecision.roundingReserveMicros, 0);')
+          money_test.write_text(text)
+
           daily_check = Path('scripts/verify-daily-check-in.mjs')
           text = daily_check.read_text()
           text = text.replace('`.version, ${staleVersion})`,', '`state.version, ${staleVersion})`,')
