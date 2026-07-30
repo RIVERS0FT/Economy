@@ -49,6 +49,34 @@ text = text.replace(
 )
 domain.write_text(text)
 
+state_runtime = Path('server/src/market-demand/state.js')
+text = state_runtime.read_text()
+text = text.replace(
+    "import { clamp } from './math.js';",
+    "import { clamp, roundMoney } from './math.js';",
+)
+text = text.replace(
+    'state.lastBudget = Math.max(0, Math.floor(Number(state.lastBudget ?? group.baseBudget)));',
+    'state.lastBudget = roundMoney(Math.max(0, Number(state.lastBudget ?? group.baseBudget)));',
+)
+text = text.replace(
+    'state.lastTargetBudget = Math.max(0, Math.floor(Number(state.lastTargetBudget || 0)));',
+    'state.lastTargetBudget = roundMoney(Math.max(0, Number(state.lastTargetBudget || 0)));',
+)
+text = text.replace(
+    'state.lastPlayerScaleBudget = Math.max(0, Math.floor(Number(state.lastPlayerScaleBudget ?? group.baseBudget)));',
+    'state.lastPlayerScaleBudget = roundMoney(Math.max(0, Number(state.lastPlayerScaleBudget ?? group.baseBudget)));',
+)
+text = text.replace(
+    'state.lastRetainedOrderValue = Math.max(0, Math.floor(Number(state.lastRetainedOrderValue || 0)));',
+    'state.lastRetainedOrderValue = roundMoney(Math.max(0, Number(state.lastRetainedOrderValue || 0)));',
+)
+text = text.replace(
+    'state.lastOpenOrderValue = Math.max(0, Math.floor(Number(state.lastOpenOrderValue || 0)));',
+    'state.lastOpenOrderValue = roundMoney(Math.max(0, Number(state.lastOpenOrderValue || 0)));',
+)
+state_runtime.write_text(text)
+
 population = Path('server/src/population-economy.js')
 text = population.read_text()
 release_pattern = re.compile(
