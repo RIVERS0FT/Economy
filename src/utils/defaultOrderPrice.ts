@@ -1,7 +1,7 @@
 import type { AssetKind, AssetOrder, OrderSide } from '../types';
 import { orderAssetId, orderKind } from './orderIdentity';
 
-function validOrderPrice(price: number) {
+export function isValidOrderPrice(price: number) {
   return Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8;
 }
 
@@ -17,7 +17,7 @@ export function defaultOrderPrice(
   for (const order of orders) {
     if (!['open', 'partial'].includes(order.status) || order.remaining <= 0) continue;
     if (orderKind(order) !== assetKind || orderAssetId(order) !== assetId) continue;
-    if (!validOrderPrice(order.price)) continue;
+    if (!isValidOrderPrice(order.price)) continue;
 
     if (order.side === 'buy') {
       bestBid = bestBid === undefined ? order.price : Math.max(bestBid, order.price);
