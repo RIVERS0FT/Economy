@@ -52,6 +52,27 @@ jobs:
           path.write_text(text)
           PY
           python3 /tmp/apply-population-order-depth-v12.py
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements = {
+              r'world\.version = 18': r'world\.version = 19',
+              'world.version, 18': 'world.version, 19',
+              'MARKET_DEMAND_MODEL_VERSION = 11': 'MARKET_DEMAND_MODEL_VERSION = 12',
+              'MARKET_DEMAND_MODEL_VERSION, 11': 'MARKET_DEMAND_MODEL_VERSION, 12',
+              'world.marketDemand.modelVersion, 11': 'world.marketDemand.modelVersion, 12',
+              'POPULATION_ECONOMY_VERSION = 5': 'POPULATION_ECONOMY_VERSION = 6',
+          }
+          for root in (Path('scripts'), Path('server/test')):
+              for file in root.rglob('*'):
+                  if not file.is_file() or file.suffix not in {'.js', '.mjs', '.ts'}:
+                      continue
+                  text = file.read_text()
+                  updated = text
+                  for old, new in replacements.items():
+                      updated = updated.replace(old, new)
+                  if updated != text:
+                      file.write_text(updated)
+          PY
 
       - name: Install dependencies
         run: npm ci
