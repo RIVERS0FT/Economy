@@ -200,6 +200,7 @@ function publicOrderView(order, userId) {
   delete normalized.demandCycleId;
   delete normalized.populationModelId;
   delete normalized.fundingPool;
+  delete normalized.fundingSlices;
   delete normalized.marketSellFeeVersion;
   delete normalized.marketSellFeeGross;
   delete normalized.marketSellFeeCharged;
@@ -507,14 +508,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 18;
+  world.version = 19;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 18;
+  world.version = 19;
   return world;
 }
 

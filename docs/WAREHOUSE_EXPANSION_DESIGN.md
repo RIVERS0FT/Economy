@@ -4,7 +4,7 @@
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-07-27
 > 客户端状态版本：22
-> 世界状态版本：18
+> 世界状态版本：19
 
 生产与工厂集群以 `INDUSTRY_AND_PRODUCTION_DESIGN.md` 为准；页面归属以 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 为准。仓库商品卡密度、移动端四列、容器断点和商品插画主视觉尺寸只以本文第 7.1 节为准；其他文档中的重复旧密度或旧图标尺寸描述不得继续作为权威规则。
 

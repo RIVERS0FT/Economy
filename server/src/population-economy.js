@@ -8,9 +8,9 @@ import {
   populationPolicyRefillCap,
   populationPolicySnapshot,
 } from './population-policy.js';
-import { roundInternalMoney } from './money.js';
+import { internalMoneyToMicros, microsToInternalMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 
-export const POPULATION_ECONOMY_VERSION = 5;
+export const POPULATION_ECONOMY_VERSION = 6;
 export const POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional']);
 export const POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence']);
 export const POPULATION_STABILIZATION_BUDGET_SHARE = 0.12;
@@ -541,7 +541,7 @@ function modelSpendableBudget(modelId, model, stabilizationBudget = 0) {
   const excessSavings = Math.max(0, model.credits - targetReserve);
   const target = Math.min(model.credits, Math.max(stabilizationBudget, baseBudget + nonNegativeMoney(excessSavings * config.excessReleaseRate)));
   if (model.lastBudget <= 0) return target;
-  const minimum = Math.max(0, Math.ceil(model.lastBudget * (1 - BUDGET_MAX_FALL)));
+  const minimum = nonNegativeMoney(model.lastBudget * (1 - BUDGET_MAX_FALL));
   const maximum = Math.max(minimum, stabilizationBudget, nonNegativeMoney(model.lastBudget * 1.15));
   return Math.min(model.credits, Math.max(minimum, Math.min(maximum, target)));
 }
@@ -615,35 +615,120 @@ export function populationModelState(world, modelId) {
 }
 
 export function reservePopulationOrder(world, modelId, amount) {
-  const model = populationModelState(world, modelId);
-  const total = nonNegativeMoney(amount);
-  if (!model || total <= 0 || model.credits < total) return false;
-  model.credits -= total;
-  model.frozenCredits += total;
-  return true;
+  const slices = reservePopulationOrderFunding(world, [{ populationModelId: modelId, reservedAmount: amount }]);
+  return Array.isArray(slices);
+}
+
+export function reservePopulationOrderFunding(world, requestedSlices = []) {
+  const aggregated = new Map();
+  for (const item of requestedSlices) {
+    const modelId = String(item?.populationModelId || '');
+    if (!POPULATION_MODEL_IDS.includes(modelId)) return null;
+    const amount = nonNegativeMoney(item?.reservedAmount);
+    if (amount <= 0) continue;
+    aggregated.set(modelId, nonNegativeMoney((aggregated.get(modelId) || 0) + amount));
+  }
+  const slices = [...aggregated].map(([populationModelId, reservedAmount]) => ({ populationModelId, reservedAmount }));
+  if (slices.length === 0) return null;
+  for (const slice of slices) {
+    const model = populationModelState(world, slice.populationModelId);
+    if (!model || internalMoneyToMicros(model.credits) < internalMoneyToMicros(slice.reservedAmount)) return null;
+  }
+  for (const slice of slices) {
+    const model = populationModelState(world, slice.populationModelId);
+    model.credits = nonNegativeMoney(model.credits - slice.reservedAmount);
+    model.frozenCredits = nonNegativeMoney(model.frozenCredits + slice.reservedAmount);
+  }
+  return slices;
+}
+
+function orderFundingSlices(order) {
+  if (Array.isArray(order?.fundingSlices) && order.fundingSlices.length > 0) return order.fundingSlices;
+  if (POPULATION_MODEL_IDS.includes(order?.populationModelId)) {
+    return [{ populationModelId: order.populationModelId, reservedAmount: multiplyMoneyByInteger(order.price, order.remaining) || 0 }];
+  }
+  return [];
+}
+
+function consumePopulationFunding(world, order, reservedAmount, actualAmount) {
+  const reservedMicros = internalMoneyToMicros(nonNegativeMoney(reservedAmount));
+  const actualMicros = internalMoneyToMicros(nonNegativeMoney(actualAmount));
+  if (reservedMicros === null || actualMicros === null || reservedMicros <= 0n || actualMicros > reservedMicros) return 0;
+  const slices = orderFundingSlices(order);
+  const segments = [];
+  let remaining = reservedMicros;
+  for (const slice of slices) {
+    if (remaining <= 0n) break;
+    const available = internalMoneyToMicros(nonNegativeMoney(slice.reservedAmount)) || 0n;
+    const take = available < remaining ? available : remaining;
+    if (take <= 0n) continue;
+    segments.push({ slice, take, actual: 0n, remainder: 0n });
+    remaining -= take;
+  }
+  if (remaining > 0n) throw new Error('Population funding slices are insufficient');
+  let assignedActual = 0n;
+  for (const segment of segments) {
+    const numerator = actualMicros * segment.take;
+    segment.actual = numerator / reservedMicros;
+    segment.remainder = numerator % reservedMicros;
+    assignedActual += segment.actual;
+  }
+  let actualRemainder = actualMicros - assignedActual;
+  segments.sort((left, right) => left.remainder === right.remainder ? 0 : left.remainder > right.remainder ? -1 : 1);
+  for (let index = 0; actualRemainder > 0n; index = (index + 1) % segments.length) {
+    segments[index].actual += 1n;
+    actualRemainder -= 1n;
+  }
+  for (const segment of segments) {
+    const model = populationModelState(world, segment.slice.populationModelId);
+    if (!model) throw new Error(`Missing population funding model ${segment.slice.populationModelId}`);
+    const frozenMicros = internalMoneyToMicros(model.frozenCredits) || 0n;
+    if (frozenMicros < segment.take) throw new Error('Population frozen credits are insufficient');
+    const refund = segment.take - segment.actual;
+    model.frozenCredits = microsToInternalMoney(frozenMicros - segment.take) || 0;
+    model.credits = nonNegativeMoney(model.credits + (microsToInternalMoney(refund) || 0));
+    model.totalSpent = nonNegativeMoney(model.totalSpent + (microsToInternalMoney(segment.actual) || 0));
+    if (Array.isArray(order.fundingSlices)) {
+      segment.slice.reservedAmount = microsToInternalMoney((internalMoneyToMicros(segment.slice.reservedAmount) || 0n) - segment.take) || 0;
+    }
+  }
+  return microsToInternalMoney(actualMicros) || 0;
 }
 
 export function releasePopulationOrderFunds(world, order, quantity = order?.remaining) {
-  const model = populationModelState(world, order?.populationModelId);
-  const release = nonNegativeInteger(quantity) * nonNegativeMoney(order?.price);
-  if (!model || release <= 0) return 0;
-  const actual = Math.min(model.frozenCredits, release);
-  model.frozenCredits -= actual;
-  model.credits += actual;
-  return actual;
+  const requested = multiplyMoneyByInteger(order?.price, nonNegativeInteger(quantity));
+  const requestedMicros = internalMoneyToMicros(nonNegativeMoney(requested));
+  if (requestedMicros === null || requestedMicros <= 0n) return 0;
+  const slices = orderFundingSlices(order);
+  let remaining = requestedMicros;
+  let released = 0n;
+  for (const slice of slices) {
+    if (remaining <= 0n) break;
+    const model = populationModelState(world, slice.populationModelId);
+    if (!model) continue;
+    const sliceMicros = internalMoneyToMicros(nonNegativeMoney(slice.reservedAmount)) || 0n;
+    const frozenMicros = internalMoneyToMicros(nonNegativeMoney(model.frozenCredits)) || 0n;
+    const available = sliceMicros < frozenMicros ? sliceMicros : frozenMicros;
+    const take = available < remaining ? available : remaining;
+    if (take <= 0n) continue;
+    model.frozenCredits = microsToInternalMoney(frozenMicros - take) || 0;
+    model.credits = nonNegativeMoney(model.credits + (microsToInternalMoney(take) || 0));
+    if (Array.isArray(order.fundingSlices)) {
+      slice.reservedAmount = microsToInternalMoney(sliceMicros - take) || 0;
+    }
+    remaining -= take;
+    released += take;
+  }
+  return microsToInternalMoney(released) || 0;
 }
 
 export function settlePopulationPurchase(world, order, quantity, tradePrice) {
   const state = ensurePopulationEconomy(world);
-  const model = state.models[String(order?.populationModelId || '')];
-  if (!model) throw new Error(`Missing population funding model ${order?.populationModelId}`);
-  const reserved = nonNegativeInteger(quantity) * nonNegativeMoney(order?.price);
-  const actual = nonNegativeInteger(quantity) * nonNegativeMoney(tradePrice);
-  if (model.frozenCredits < reserved) throw new Error('Population frozen credits are insufficient');
-  model.frozenCredits -= reserved;
-  model.credits += Math.max(0, reserved - actual);
-  model.totalSpent += actual;
-  state.stats.totalConsumption += actual;
+  const reserved = multiplyMoneyByInteger(order?.price, nonNegativeInteger(quantity));
+  const actual = multiplyMoneyByInteger(tradePrice, nonNegativeInteger(quantity));
+  if (reserved === null || actual === null) throw new Error('Population purchase amount is outside the supported range');
+  const spent = consumePopulationFunding(world, order, reserved, actual);
+  state.stats.totalConsumption = nonNegativeMoney(state.stats.totalConsumption + spent);
 }
 
 export function recordPopulationSellerIncome(player, amount) {

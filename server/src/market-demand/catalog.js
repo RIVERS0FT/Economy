@@ -4,7 +4,7 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 11;
+export const MARKET_DEMAND_MODEL_VERSION = 12;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -18,7 +18,7 @@ export const DIRECT_BUDGET_SHARE = 0.70;
 export const SYSTEM_ORDER_RETENTION_RATE = 0.35;
 export const SYSTEM_ORDER_VALUE_CYCLES = 2.5;
 export const PRODUCT_ORDER_VALUE_CYCLES = 1.5;
-export const SYSTEM_ORDER_MAX_AGE_CYCLES = 2;
+export const SYSTEM_ORDER_MAX_AGE_CYCLES = 3;
 export const DEMAND_CURVE = Object.freeze([
   Object.freeze({ weight: 0.50, multiplier: 1.00 }),
   Object.freeze({ weight: 0.30, multiplier: 0.97 }),
@@ -35,7 +35,7 @@ export const DIRECT_DEMAND_OVERSUPPLY_PRICE_STEP = 0.98;
 export const DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES = 2;
 export const DIRECT_DEMAND_OVERSUPPLY_FILL_RATIO = 0.95;
 export const DIRECT_DEMAND_OVERSUPPLY_DELAY_SCORE = 0.85;
-export const DIRECT_DEMAND_MIN_PRICE = 1;
+export const DIRECT_DEMAND_MIN_PRICE = 0.01;
 export const PRODUCT_PRESSURE_SMOOTHING = 0.30;
 export const PRODUCT_PRESSURE_MIN = 0.75;
 export const PRODUCT_PRESSURE_MAX = 1.35;
@@ -54,11 +54,9 @@ export const LIQUIDITY_BASE_SPREAD = 0.08;
 export const LIQUIDITY_MIN_SPREAD = 0.04;
 export const LIQUIDITY_MAX_SPREAD = 0.24;
 export const LIQUIDITY_INVENTORY_SKEW = 0.10;
-export const LIQUIDITY_QUOTE_BUDGET_SHARE = 0.25;
-export const LIQUIDITY_MIN_QUOTE_BUDGET_SHARE = 0.05;
-export const LIQUIDITY_TRADE_SHARE = 0.25;
+export const LIQUIDITY_TARGET_MAX_RISE = 0.50;
+export const LIQUIDITY_TARGET_MAX_FALL = 0.25;
 export const LIQUIDITY_MIN_TARGET = 2;
-export const LIQUIDITY_MAX_TARGET = 30;
 export const LIQUIDITY_SIGNAL_WEIGHT = 0.50;
 
 export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([

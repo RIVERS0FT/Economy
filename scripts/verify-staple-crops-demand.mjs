@@ -11,7 +11,7 @@ import {
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 31);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 11);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 12);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.name), ['食品市场', '社会消费市场']);
@@ -52,11 +52,11 @@ const runtime = [
   'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 11',
+  'MARKET_DEMAND_MODEL_VERSION = 12',
   'DIRECT_BUDGET_SHARE = 0.70',
   "POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional'])",
   "POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence'])",
-  'POPULATION_ECONOMY_VERSION = 5',
+  'POPULATION_ECONOMY_VERSION = 6',
   'POPULATION_GROUP_SHARES_BY_STATE',
   'PROSPEROUS_ENTRY_CYCLES = 2',
   'LAVISH_ENTRY_CYCLES = 3',
@@ -71,6 +71,8 @@ for (const text of [
   'settlePopulationPurchase',
   'populationModelId',
   'fundingPool',
+  'fundingSlices',
+  'productBudgetDeficits',
   "direct: 'direct'",
   "'derived-liquidity': 'derived'",
   'marginalPropensityToConsume: 0.95',
@@ -79,8 +81,8 @@ for (const text of [
   'LIQUIDITY_BASE_SPREAD = 0.08',
   'LIQUIDITY_MIN_SPREAD = 0.04',
   'LIQUIDITY_MAX_SPREAD = 0.24',
-  'LIQUIDITY_QUOTE_BUDGET_SHARE = 0.25',
-  'LIQUIDITY_MIN_QUOTE_BUDGET_SHARE = 0.05',
+  'LIQUIDITY_TARGET_MAX_RISE = 0.50',
+  'LIQUIDITY_TARGET_MAX_FALL = 0.25',
   'POPULATION_STABILIZATION_BUDGET_SHARE = 0.12',
   'POPULATION_STABILIZATION_TARGET_CYCLES = 3',
   'POPULATION_STABILIZATION_DIRECT_SHARE = 0.85',
@@ -93,7 +95,7 @@ for (const text of [
   "LIQUIDITY_BUY = 'liquidity-buy'",
   "LIQUIDITY_SELL = 'liquidity-sell'",
   'seeded: wasSeeded || seedNow',
-  'groupState.frozenCredits += reservedCredits',
+  'groupState.frozenCredits = roundMoney(groupState.frozenCredits + reservedCredits)',
   'reserve.frozenInventory += sellQuantity',
   "resting.ownerType === 'population' && incoming.ownerType === 'population'",
   'settleLiquidityBuy',
@@ -110,7 +112,7 @@ for (const text of [
   'DIRECT_DEMAND_OVERSUPPLY_ENTRY_CYCLES = 2',
   'DIRECT_DEMAND_OVERSUPPLY_FILL_RATIO = 0.95',
   'DIRECT_DEMAND_OVERSUPPLY_DELAY_SCORE = 0.85',
-  'DIRECT_DEMAND_MIN_PRICE = 1',
+  'DIRECT_DEMAND_MIN_PRICE = 0.01',
   'directQuoteAnchors',
   'directOversupplyCycles',
   'directDelayScore',
@@ -138,7 +140,7 @@ for (const text of [
   'balancedMarket.matchOrder(world, incoming, now)',
   'reconcileCommodityOrderBook',
   'ensurePopulationEconomy',
-  'world.version = 18',
+  'world.version = 19',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
@@ -154,7 +156,7 @@ const marketDemandTests = read('server/test/market-demand-v6.test.js');
 for (const text of [
   'direct demand quote anchor accumulates fractional no-fill increases and recovers after service',
   'sustained fast full service lowers all direct demand tiers below reference price',
-  'direct demand quote anchor stops at absolute price one',
+  'direct demand quote anchor stops at one cent',
   'zero fill below reference recovers slowly while partial service recovers more gently',
   'no direct demand converges toward reference and derived liquidity ignores a low direct anchor',
   'shortage pressure approaches the reference premium by at most half a percent per cycle',
@@ -184,10 +186,10 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`11`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '双向报价锚点', '零成交时按 0.75%', '参考价缺口 5%', '单周期最多参考价 2%', '只恢复 2.5% 缺口', '每周期最多追涨 0.5%']],
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：11', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.75%', '参考价缺口的 5%', '最多为参考价的 2%', '只恢复 2.5% 缺口', '当前报价锚点上追涨 0.5%']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：11', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 5', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 11', '人口消费不得发行普通货币']],
+  ['README.md', ['市场需求模型版本：`12`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '双向报价锚点', '零成交时按 0.75%', '参考价缺口 5%', '单周期最多参考价 2%', '只恢复 2.5% 缺口', '每周期最多追涨 0.5%']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：12', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.75%', '参考价缺口的 5%', '最多为参考价的 2%', '只恢复 2.5% 缺口', '当前报价锚点上追涨 0.5%']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：12', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 6', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 12', '人口消费不得发行普通货币']],
   ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
   ['src/components/AdminPopulationHealth.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
   ['src/components/AdminPopulationSection.tsx', ['AdminPopulationControl']],
@@ -197,7 +199,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 11 使用真实人口钱包覆盖全部 31 种商品，并保持双向直接需求报价、既有总预算、派生流动性和市场储备约束。');
+console.log('市场需求验证通过：模型 12 使用真实人口钱包覆盖全部 31 种商品，并保持双向直接需求报价、既有总预算、派生流动性和市场储备约束。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');

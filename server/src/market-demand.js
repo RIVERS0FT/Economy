@@ -33,7 +33,8 @@ import {
   SYSTEM_ORDER_VALUE_CYCLES,
 } from './market-demand/catalog.js';
 import { createDemandAllocationRuntime } from './market-demand/allocation.js';
-import { clamp, round4 } from './market-demand/math.js';
+import { allocateMoneyBudget, clamp, round4, roundMoney } from './market-demand/math.js';
+import { floorPlayerMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import { createPriceTransmissionRuntime } from './market-demand/price-transmission.js';
 import { createMarketSignalRuntime } from './market-demand/signals.js';
 import { createMarketDemandStateRuntime } from './market-demand/state.js';
@@ -43,7 +44,7 @@ import {
   populationClassShares,
   preparePopulationDemandCycle,
   releasePopulationOrderFunds,
-  reservePopulationOrder,
+  reservePopulationOrderFunding,
 } from './population-economy.js';
 import { economicEventClassShares, economicEventProductWeight } from './economic-events.js';
 
@@ -372,35 +373,37 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
   }
 
   function prepareGroupOrders(world, group, state, cycleId) {
-  const groupOrders = ordersForDemandGroup(world, group.id)
-    .filter((order) => isConsumptionOrder(order, group.id));
-    const cycleStartedAt = Math.max(0, Number(state.lastCycleStartedAt || 0));
-    const soldProducts = new Set(groupOrders
-      .filter((order) => Number(order.lastFilledAt || 0) > 0 && Number(order.lastFilledAt) >= cycleStartedAt)
-      .map((order) => order.productId));
-
+    const groupOrders = ordersForDemandGroup(world, group.id)
+      .filter((order) => isConsumptionOrder(order, group.id));
     for (const order of groupOrders) {
       if (!isOpenOrder(order)) continue;
       const age = cycleId - Number(order.demandCycleId || cycleId);
-      if (age >= SYSTEM_ORDER_MAX_AGE_CYCLES || soldProducts.has(order.productId)) {
+      if (age >= SYSTEM_ORDER_MAX_AGE_CYCLES) {
         trimOrderRemaining(world, order, 0);
         continue;
       }
-      trimOrderRemaining(world, order, Math.floor(Number(order.remaining || 0) * SYSTEM_ORDER_RETENTION_RATE));
+      const quantity = Math.max(1, Math.floor(Number(order.quantity || 0)));
+      const filled = Math.max(0, quantity - Math.max(0, Math.floor(Number(order.remaining || 0))));
+      const fillRatio = filled / quantity;
+      const retention = fillRatio > 0.80 ? 0 : fillRatio >= 0.25 ? 0.35 : 0.70;
+      trimOrderRemaining(world, order, Math.floor(Number(order.remaining || 0) * retention));
     }
-    return { soldProducts };
+  }
+
+  function orderValue(order, quantity = order?.remaining) {
+    return multiplyMoneyByInteger(order?.price, Math.max(0, Math.floor(Number(quantity || 0)))) || 0;
   }
 
   function groupOpenOrderValue(world, groupId, predicate = () => true) {
-  return ordersForDemandGroup(world, groupId).reduce((sum, order) => (
+  return roundMoney(ordersForDemandGroup(world, groupId).reduce((sum, order) => (
     isConsumptionOrder(order, groupId) && isOpenOrder(order) && predicate(order)
-      ? sum + Number(order.price || 0) * Number(order.remaining || 0)
+      ? sum + orderValue(order)
       : sum
-  ), 0);
+  ), 0));
 }
 
   function trimOrdersToValue(world, orders, cap) {
-    let total = orders.reduce((sum, order) => sum + Number(order.price || 0) * Number(order.remaining || 0), 0);
+    let total = roundMoney(orders.reduce((sum, order) => sum + orderValue(order), 0));
     if (total <= cap) return total;
     orders.sort((left, right) => (
       Number(left.price || 0) - Number(right.price || 0)
@@ -408,36 +411,36 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     ));
     for (const order of orders) {
       if (total <= cap) break;
-      const price = Math.max(1, Number(order.price || 1));
+      const price = Math.max(0.01, Number(order.price || 0.01));
       const removeQuantity = Math.min(
         Number(order.remaining || 0),
         Math.ceil((total - cap) / price),
       );
       trimOrderRemaining(world, order, Number(order.remaining || 0) - removeQuantity);
-      total -= removeQuantity * price;
+      total = roundMoney(total - (multiplyMoneyByInteger(price, removeQuantity) || 0));
     }
-    return Math.max(0, total);
+    return roundMoney(total);
   }
 
   function enforceOrderValueCaps(world, group, cycleBudget, allocations) {
   const groupOrders = ordersForDemandGroup(world, group.id)
     .filter((order) => isConsumptionOrder(order, group.id) && isOpenOrder(order));
   for (const [productId, allocation] of Object.entries(allocations)) {
-    const productCap = Math.max(0, Math.floor(
+    const productCap = roundMoney(
       (Number(allocation.directBudget || 0) + Number(allocation.derivedBudget || 0)) * PRODUCT_ORDER_VALUE_CYCLES,
-    ));
+    );
     trimOrdersToValue(world, groupOrders.filter((order) => order.productId === productId), productCap);
   }
-  const cap = Math.max(0, Math.floor(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES));
+  const cap = roundMoney(cycleBudget * SYSTEM_ORDER_VALUE_CYCLES);
   return trimOrdersToValue(world, groupOrders, cap);
 }
 
-  function createOrder(world, group, role, product, price, quantity, cycleId, now, populationModelId) {
+  function createOrder(world, group, role, product, price, quantity, cycleId, now, requestedSlices) {
     if (quantity < 1) return { filled: 0, order: null, committed: 0 };
-    const committed = price * quantity;
-    if (!reservePopulationOrder(world, populationModelId, committed)) {
-      return { filled: 0, order: null, committed: 0 };
-    }
+    const committed = multiplyMoneyByInteger(price, quantity);
+    if (committed === null || committed <= 0) return { filled: 0, order: null, committed: 0 };
+    const fundingSlices = reservePopulationOrderFunding(world, requestedSlices);
+    if (!fundingSlices) return { filled: 0, order: null, committed: 0 };
     const order = {
       id: `market-demand-order-${randomUUID()}`,
       assetKind: 'commodity',
@@ -449,21 +452,22 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       demandGroupId: group.id,
       demandTier: role,
       demandCycleId: cycleId,
-      populationModelId,
       fundingPool: FUNDING_POOL_BY_ROLE[role],
+      fundingSlices: fundingSlices.map((slice) => ({ ...slice, fundingPool: FUNDING_POOL_BY_ROLE[role] })),
       price,
       quantity,
       remaining: quantity,
       status: 'open',
       createdAt: now,
     };
+    if (fundingSlices.length === 1) order.populationModelId = fundingSlices[0].populationModelId;
     world.orders.push(order);
     matchOrder(world, order, now);
     return { filled: quantity - order.remaining, order, committed };
   }
 
   function priceCurveFor(product, referencePrice, pressure, role, directQuoteAnchor = referencePrice) {
-    const cap = Math.max(DIRECT_DEMAND_MIN_PRICE, Math.floor(product.basePrice * PRICE_MAX_MULTIPLIER));
+    const cap = Math.max(DIRECT_DEMAND_MIN_PRICE, floorPlayerMoney(product.basePrice * PRICE_MAX_MULTIPLIER) || DIRECT_DEMAND_MIN_PRICE);
     const shortageMultiplier = pressure >= 1.15 ? DEMAND_CURVE_SHORTAGE_MULTIPLIER : 1;
     const shortageTarget = referencePrice * shortageMultiplier;
     const directBase = role === 'direct'
@@ -477,67 +481,185 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
         : referencePrice * tier.multiplier * (index === 0 ? shortageMultiplier : 1);
       return {
         weight: tier.weight,
-        price: Math.min(cap, Math.max(DIRECT_DEMAND_MIN_PRICE, Math.round(targetPrice))),
+        price: Math.min(cap, Math.max(DIRECT_DEMAND_MIN_PRICE, floorPlayerMoney(targetPrice) || DIRECT_DEMAND_MIN_PRICE)),
       };
     });
   }
 
-  function applyChoices(world, group, role, cycleId, now, budgets, details, totals, allocations, populationModelId) {
-    for (const [productId, budget] of budgets) {
+  function collectChoices(plans, role, budgets, details, populationModelId) {
+    for (const [productId, budgetRaw] of budgets) {
       const detail = details.get(productId);
+      const budget = roundMoney(budgetRaw);
       if (!detail || budget <= 0) continue;
-      const product = detail.product;
-      const referencePrice = Math.max(1, Math.round(Number(detail.price.referencePrice || product.basePrice)));
-      const pressure = Number(world.marketDemand.productPressure[productId] || 1);
-      const directQuoteAnchor = role === 'direct'
-        ? Number(world.marketDemand.groups[group.id]?.directQuoteAnchors?.[productId] || referencePrice)
-        : referencePrice;
-      const curve = priceCurveFor(product, referencePrice, pressure, role, directQuoteAnchor);
-      const budgetByPrice = new Map();
-      let assignedBudget = 0;
-      curve.forEach((tier, index) => {
-        const tierBudget = index === curve.length - 1
-          ? Math.max(0, Math.floor(budget) - assignedBudget)
-          : Math.max(0, Math.floor(budget * tier.weight));
-        assignedBudget += tierBudget;
-        budgetByPrice.set(tier.price, (budgetByPrice.get(tier.price) || 0) + tierBudget);
-      });
-
-      let totalQuantity = 0;
-      let committed = 0;
-      let filled = 0;
-      let topPrice = 0;
-      for (const [price, tierBudget] of [...budgetByPrice.entries()].sort((left, right) => right[0] - left[0])) {
-        const quantity = Math.max(0, Math.floor(tierBudget / price));
-        if (quantity <= 0) continue;
-        const result = createOrder(world, group, role, product, price, quantity, cycleId, now, populationModelId);
-        if (!result.order) continue;
-        totalQuantity += quantity;
-        committed += result.committed;
-        filled += result.filled;
-        topPrice = Math.max(topPrice, price);
-      }
-      totals.currentDemandQuantities[productId] = (totals.currentDemandQuantities[productId] || 0) + totalQuantity;
-      if (role === 'direct') totals.directCommitted += committed;
-      else totals.derivedCommitted += committed;
-      const existing = allocations[productId] || {
-        directBudget: 0, derivedBudget: 0, directQuantity: 0, derivedQuantity: 0, filled: 0,
+      const key = `${role}:${productId}`;
+      const plan = plans.get(key) || {
+        role,
+        productId,
+        product: detail.product,
+        detail,
+        targetBudget: 0,
+        contributions: new Map(),
       };
-      existing[role === 'direct' ? 'directBudget' : 'derivedBudget'] += committed;
-      existing[role === 'direct' ? 'directQuantity' : 'derivedQuantity'] += totalQuantity;
-      existing.filled += filled;
-      existing.referencePrice = round4(detail.price.referencePrice);
-      existing.orderPrice = topPrice || referencePrice;
-      existing.effectivePrice = round4(detail.price.effective);
-      existing.quote = round4(detail.price.quote);
-      existing.coverage = round4(detail.price.coverage);
-      if (detail.requiredQuantity !== undefined) existing.requiredQuantity = round4(detail.requiredQuantity);
-      allocations[productId] = existing;
-      const market = marketFor(world, productId, now);
-      market.demand.lastPrice = topPrice || referencePrice;
-      market.demand.lastQuantity = totalQuantity;
-      market.demand.lastBudget = committed;
-      market.demand.nextDemandAt = (cycleId + 1) * group.cycleMs;
+      plan.targetBudget = roundMoney(plan.targetBudget + budget);
+      plan.contributions.set(populationModelId, roundMoney((plan.contributions.get(populationModelId) || 0) + budget));
+      plans.set(key, plan);
+    }
+  }
+
+  function allocateTierQuantities(curve, totalQuantity) {
+    const base = curve.map((tier, index) => {
+      const exact = totalQuantity * tier.weight;
+      return { index, quantity: Math.floor(exact), remainder: exact - Math.floor(exact) };
+    });
+    let assigned = base.reduce((sum, item) => sum + item.quantity, 0);
+    base.sort((left, right) => right.remainder - left.remainder || left.index - right.index);
+    for (let cursor = 0; assigned < totalQuantity; cursor = (cursor + 1) % base.length) {
+      base[cursor].quantity += 1;
+      assigned += 1;
+    }
+    return base.sort((left, right) => left.index - right.index).map((item) => item.quantity);
+  }
+
+  function tierPlanForBudget(curve, budget) {
+    const minimumPrice = Math.min(...curve.map((tier) => tier.price));
+    let low = 0;
+    let high = Math.max(0, Math.floor(budget / Math.max(DIRECT_DEMAND_MIN_PRICE, minimumPrice)));
+    let best = { quantities: curve.map(() => 0), committed: 0 };
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2);
+      const quantities = allocateTierQuantities(curve, middle);
+      const committed = roundMoney(quantities.reduce((sum, quantity, index) => (
+        sum + (multiplyMoneyByInteger(curve[index].price, quantity) || 0)
+      ), 0));
+      if (committed <= budget + 0.0000001) {
+        best = { quantities, committed };
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+    return best;
+  }
+
+  function takeFundingSlices(fundingByModel, amount) {
+    let remaining = roundMoney(amount);
+    const slices = [];
+    for (const modelId of POPULATION_MODEL_IDS) {
+      if (remaining <= 0) break;
+      const available = roundMoney(fundingByModel.get(modelId) || 0);
+      const take = Math.min(available, remaining);
+      if (take <= 0) continue;
+      slices.push({ populationModelId: modelId, reservedAmount: take });
+      fundingByModel.set(modelId, roundMoney(available - take));
+      remaining = roundMoney(remaining - take);
+    }
+    return remaining <= 0.0000001 ? slices : null;
+  }
+
+  function returnFundingSlices(fundingByModel, slices = []) {
+    for (const slice of slices) {
+      fundingByModel.set(slice.populationModelId, roundMoney(
+        (fundingByModel.get(slice.populationModelId) || 0) + slice.reservedAmount,
+      ));
+    }
+  }
+
+  function materializeChoices(world, group, state, cycleId, now, plans, totals, allocations) {
+    state.productBudgetDeficits ||= { direct: {}, 'derived-liquidity': {} };
+    for (const role of ['direct', 'derived-liquidity']) {
+      const rolePlans = [...plans.values()].filter((plan) => plan.role === role);
+      if (rolePlans.length === 0) continue;
+      const fundingByModel = new Map(POPULATION_MODEL_IDS.map((modelId) => [modelId, 0]));
+      let roleBudget = 0;
+      for (const plan of rolePlans) {
+        for (const [modelId, amount] of plan.contributions) {
+          fundingByModel.set(modelId, roundMoney((fundingByModel.get(modelId) || 0) + amount));
+          roleBudget = roundMoney(roleBudget + amount);
+        }
+        const previousDeficit = Number(state.productBudgetDeficits[role]?.[plan.productId] || 0);
+        state.productBudgetDeficits[role][plan.productId] = roundMoney(previousDeficit + plan.targetBudget);
+        const referencePrice = Math.max(DIRECT_DEMAND_MIN_PRICE, Number(plan.detail.price.referencePrice || plan.product.basePrice));
+        const pressure = Number(world.marketDemand.productPressure[plan.productId] || 1);
+        const directQuoteAnchor = role === 'direct'
+          ? Number(world.marketDemand.groups[group.id]?.directQuoteAnchors?.[plan.productId] || referencePrice)
+          : referencePrice;
+        plan.curve = priceCurveFor(plan.product, referencePrice, pressure, role, directQuoteAnchor);
+        plan.topPrice = Math.max(...plan.curve.map((tier) => tier.price));
+      }
+      const assigned = new Map(rolePlans.map((plan) => [plan.productId, 0]));
+      let remainingBudget = roleBudget;
+      const eligible = [...rolePlans].sort((left, right) => {
+        const leftDeficit = Number(state.productBudgetDeficits[role][left.productId] || 0);
+        const rightDeficit = Number(state.productBudgetDeficits[role][right.productId] || 0);
+        return rightDeficit / right.topPrice - leftDeficit / left.topPrice || left.productId.localeCompare(right.productId);
+      });
+      for (const plan of eligible) {
+        const deficit = Number(state.productBudgetDeficits[role][plan.productId] || 0);
+        if (deficit + 0.0000001 < plan.topPrice || remainingBudget + 0.0000001 < plan.topPrice) continue;
+        assigned.set(plan.productId, plan.topPrice);
+        remainingBudget = roundMoney(remainingBudget - plan.topPrice);
+      }
+      const extras = allocateMoneyBudget(rolePlans.map((plan) => {
+        const deficit = Number(state.productBudgetDeficits[role][plan.productId] || 0);
+        const provisional = assigned.get(plan.productId) || 0;
+        const remainingDeficit = roundMoney(deficit - provisional);
+        return { id: plan.productId, weight: remainingDeficit, maxBudget: remainingDeficit };
+      }), remainingBudget);
+      for (const plan of rolePlans) assigned.set(plan.productId, roundMoney((assigned.get(plan.productId) || 0) + (extras.get(plan.productId) || 0)));
+
+      for (const plan of rolePlans.sort((left, right) => left.product.basePrice - right.product.basePrice || left.productId.localeCompare(right.productId))) {
+        const budget = assigned.get(plan.productId) || 0;
+        const tierPlan = tierPlanForBudget(plan.curve, budget);
+        let totalQuantity = 0;
+        let committed = 0;
+        let filled = 0;
+        let topPrice = 0;
+        for (let index = 0; index < plan.curve.length; index += 1) {
+          const quantity = tierPlan.quantities[index];
+          if (quantity <= 0) continue;
+          const price = plan.curve[index].price;
+          const orderCommitted = multiplyMoneyByInteger(price, quantity) || 0;
+          const slices = takeFundingSlices(fundingByModel, orderCommitted);
+          if (!slices) continue;
+          const result = createOrder(world, group, role, plan.product, price, quantity, cycleId, now, slices);
+          if (!result.order) {
+            returnFundingSlices(fundingByModel, slices);
+            continue;
+          }
+          totalQuantity += quantity;
+          committed = roundMoney(committed + result.committed);
+          filled += result.filled;
+          topPrice = Math.max(topPrice, price);
+        }
+        state.productBudgetDeficits[role][plan.productId] = roundMoney(
+          Number(state.productBudgetDeficits[role][plan.productId] || 0) - committed,
+        );
+        totals.currentDemandQuantities[plan.productId] = (totals.currentDemandQuantities[plan.productId] || 0) + totalQuantity;
+        if (role === 'direct') totals.directCommitted = roundMoney(totals.directCommitted + committed);
+        else totals.derivedCommitted = roundMoney(totals.derivedCommitted + committed);
+        const existing = allocations[plan.productId] || {
+          directBudget: 0, derivedBudget: 0, directQuantity: 0, derivedQuantity: 0, filled: 0,
+        };
+        existing[role === 'direct' ? 'directBudget' : 'derivedBudget'] = roundMoney(
+          existing[role === 'direct' ? 'directBudget' : 'derivedBudget'] + committed,
+        );
+        existing[role === 'direct' ? 'directQuantity' : 'derivedQuantity'] += totalQuantity;
+        existing.filled += filled;
+        existing.targetBudget = roundMoney((existing.targetBudget || 0) + plan.targetBudget);
+        existing.budgetDeficit = state.productBudgetDeficits[role][plan.productId];
+        existing.referencePrice = round4(plan.detail.price.referencePrice);
+        existing.orderPrice = topPrice || Math.max(DIRECT_DEMAND_MIN_PRICE, floorPlayerMoney(plan.detail.price.referencePrice) || DIRECT_DEMAND_MIN_PRICE);
+        existing.effectivePrice = round4(plan.detail.price.effective);
+        existing.quote = round4(plan.detail.price.quote);
+        existing.coverage = round4(plan.detail.price.coverage);
+        if (plan.detail.requiredQuantity !== undefined) existing.requiredQuantity = round4(plan.detail.requiredQuantity);
+        allocations[plan.productId] = existing;
+        const market = marketFor(world, plan.productId, now);
+        market.demand.lastPrice = existing.orderPrice;
+        market.demand.lastQuantity = totalQuantity;
+        market.demand.lastBudget = committed;
+        market.demand.nextDemandAt = (cycleId + 1) * group.cycleMs;
+      }
     }
   }
 
@@ -626,6 +748,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     prepareGroupOrders(world, group, state, cycleId);
     const populationCycle = preparePopulationDemandCycle(world, cycleId, now, { totalBaseBudget: totalPopulationBaseBudget });
     const allocations = {};
+    const demandPlans = new Map();
     const totals = {
       currentDemandQuantities: {},
       directCommitted: 0,
@@ -636,15 +759,16 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     let cycleBudget = 0;
 
     for (const modelId of POPULATION_MODEL_IDS) {
-      const modelBudget = Math.max(0, Math.floor(Number(populationCycle.groups?.[group.id]?.[modelId] || 0)));
+      const modelBudget = roundMoney(Number(populationCycle.groups?.[group.id]?.[modelId] || 0));
       if (modelBudget <= 0) continue;
-      cycleBudget += modelBudget;
-      const stabilizationBudget = Math.max(0, Math.floor(Number(populationCycle.baseGroups?.[group.id]?.[modelId] || 0)));
-      const employmentBudget = Math.max(0, modelBudget - stabilizationBudget);
-      const directBudget = Math.min(modelBudget,
-        Math.floor(stabilizationBudget * POPULATION_STABILIZATION_DIRECT_SHARE)
-          + Math.floor(employmentBudget * group.directBudgetShare));
-      const derivedBudget = modelBudget - directBudget;
+      cycleBudget = roundMoney(cycleBudget + modelBudget);
+      const stabilizationBudget = roundMoney(Number(populationCycle.baseGroups?.[group.id]?.[modelId] || 0));
+      const employmentBudget = roundMoney(modelBudget - stabilizationBudget);
+      const directBudget = Math.min(modelBudget, roundMoney(
+        stabilizationBudget * POPULATION_STABILIZATION_DIRECT_SHARE
+          + employmentBudget * group.directBudgetShare,
+      ));
+      const derivedBudget = roundMoney(modelBudget - directBudget);
       const modelState = allocationStateForModel(state, modelId);
       const direct = allocationRuntime.directDemandChoices(world, group, modelState, directBudget, now, {
         classShares: economicEventClassShares(
@@ -658,32 +782,11 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       const derived = allocationRuntime.derivedDemandChoices(world, state, derivedBudget, now);
       classAllocationByModel[modelId] = direct.classAllocation;
       derivedRelations.push(...derived.relationDetails.map((relation) => ({ ...relation, populationModelId: modelId })));
-      applyChoices(
-        world,
-        group,
-        'direct',
-        cycleId,
-        now,
-        direct.productBudgets,
-        direct.productDetails,
-        totals,
-        allocations,
-        modelId,
-      );
-      applyChoices(
-        world,
-        group,
-        'derived-liquidity',
-        cycleId,
-        now,
-        derived.productBudgets,
-        derived.productDetails,
-        totals,
-        allocations,
-        modelId,
-      );
+      collectChoices(demandPlans, 'direct', direct.productBudgets, direct.productDetails, modelId);
+      collectChoices(demandPlans, 'derived-liquidity', derived.productBudgets, derived.productDetails, modelId);
     }
 
+    materializeChoices(world, group, state, cycleId, now, demandPlans, totals, allocations);
     const openOrderValue = enforceOrderValueCaps(world, group, cycleBudget, allocations);
     updateProductPressure(world, group, settlement, allocations, now);
 
@@ -733,8 +836,12 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
       const expectedPool = FUNDING_POOL_BY_ROLE[order.demandTier];
       return order.side === 'buy'
         && order.ownerName === group.ownerName
-        && POPULATION_MODEL_IDS.includes(order.populationModelId)
-        && order.fundingPool === expectedPool;
+        && order.fundingPool === expectedPool
+        && (
+          (Array.isArray(order.fundingSlices) && order.fundingSlices.length > 0
+            && order.fundingSlices.every((slice) => POPULATION_MODEL_IDS.includes(slice.populationModelId)))
+          || POPULATION_MODEL_IDS.includes(order.populationModelId)
+        );
     }
     if (LIQUIDITY_TIERS.has(order.demandTier)) {
       const expectedSide = order.demandTier === 'liquidity-buy' ? 'buy' : 'sell';

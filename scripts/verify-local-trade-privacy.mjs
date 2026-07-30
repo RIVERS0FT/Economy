@@ -32,6 +32,7 @@ for (const text of [
   'delete normalized.demandCycleId',
   'delete normalized.populationModelId',
   'delete normalized.fundingPool',
+  'delete normalized.fundingSlices',
   'normalized.fills.map(publicOrderFill)',
   'else delete normalized.fills',
   'version: CURRENT_CLIENT_STATE_VERSION',
@@ -55,7 +56,7 @@ for (const text of ['fill.counterparty', 'trade.counterparty', 'counterparty:', 
 
 requireText('src/app/gameViewModel.ts', 'order.isOwn &&');
 requireText('src/pages/MarketPage.tsx', 'order.isOwn');
-for (const text of ['trade.counterparty', 'role="columnheader">来源', '人口经济']) forbidText('src/pages/MarketPage.tsx', text);
+for (const text of ['trade.counterparty', 'role="columnheader">来源', '人口经济', 'fundingSlices']) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const [path, text] of [
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '只保存当前玩家订单新增的匿名逐笔成交'],

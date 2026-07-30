@@ -1,4 +1,5 @@
 import { isOpenOrder } from './order-identity.js';
+import { playerMoneyToCents } from './money.js';
 import {
   bestSystemOrder,
   getOwnerOrderBookSide,
@@ -8,9 +9,9 @@ import {
 export const SELF_CROSS_MESSAGE = '该价格会与自己的反向订单交叉，请先撤销原订单';
 
 export function pricesCross(side, price, oppositePrice) {
-  const incoming = Number(price);
-  const resting = Number(oppositePrice);
-  if (!Number.isFinite(incoming) || !Number.isFinite(resting)) return false;
+  const incoming = playerMoneyToCents(price);
+  const resting = playerMoneyToCents(oppositePrice);
+  if (incoming === null || resting === null) return false;
   return side === 'buy' ? incoming >= resting : side === 'sell' ? incoming <= resting : false;
 }
 

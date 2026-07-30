@@ -16,7 +16,7 @@ const cycleMs = 5 * 60 * 1000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 
 test('market demand model 11 gives every product direct terminal demand', () => {
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 11);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 12);
   assert.equal(MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + group.baseBudget, 0), 5_700);
   assert.equal(MARKET_DEMAND_GROUP_CATALOG.find((group) => group.id === 'household')?.name, '社会消费市场');
 
@@ -73,7 +73,7 @@ test('model 9 migration refunds population escrow before model 11 rebuild', () =
   world.marketDemand.modelVersion = 9;
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 11);
+  assert.equal(world.marketDemand.modelVersion, 12);
   assert.equal(world.marketDemand.groups.food.directQuoteAnchors.wheat, wheatReference);
   assert.equal(world.marketDemand.groups.food.directOversupplyCycles.wheat, 0);
   assert.equal(world.orders.some((order) => oldOrderIds.has(order.id)), false);

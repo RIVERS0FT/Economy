@@ -1,8 +1,11 @@
-export const PLAYER_MONEY_DECIMALS = 2;
-export const INTERNAL_MONEY_DECIMALS = 6;
+export const ORDER_PRICE_DECIMALS = 2;
+export const ACCOUNT_MONEY_DECIMALS = 6;
+export const PLAYER_MONEY_DECIMALS = ORDER_PRICE_DECIMALS;
+export const INTERNAL_MONEY_DECIMALS = ACCOUNT_MONEY_DECIMALS;
 export const PLAYER_MONEY_SCALE = 100;
 export const INTERNAL_MONEY_SCALE = 1_000_000;
-export const MONEY_PRECISION_VERSION = 1;
+export const ORDER_PRICE_TICK = 0.01;
+export const MONEY_PRECISION_VERSION = 2;
 
 const PLAYER_SCALE_BIGINT = 100n;
 const INTERNAL_SCALE_BIGINT = 1_000_000n;
@@ -80,6 +83,20 @@ export function floorInternalMoney(value) {
   return scaledToNumber(scaledInteger(value, INTERNAL_MONEY_DECIMALS, 'floor'), INTERNAL_SCALE_BIGINT);
 }
 
+export function ceilInternalMoney(value) {
+  return scaledToNumber(scaledInteger(value, INTERNAL_MONEY_DECIMALS, 'ceil'), INTERNAL_SCALE_BIGINT);
+}
+
+export function normalizeAccountMoney(value, { allowNegative = false } = {}) {
+  const normalized = roundInternalMoney(value);
+  if (normalized === null || !Number.isFinite(normalized)) return null;
+  return allowNegative ? normalized : Math.max(0, normalized);
+}
+
+export function normalizeOrderPrice(value, options = {}) {
+  return normalizePlayerMoneyInput(value, options);
+}
+
 export function playerMoneyToCents(value, { liability = false } = {}) {
   return scaledInteger(value, PLAYER_MONEY_DECIMALS, liability ? 'ceil' : 'floor');
 }
@@ -118,12 +135,12 @@ export function normalizePlayerMoneyInput(value, {
 }
 
 export function settlePlayerCredit(value) {
-  const normalized = floorPlayerMoney(value);
+  const normalized = roundInternalMoney(value);
   return normalized === null ? 0 : Math.max(0, normalized);
 }
 
 export function settlePlayerDebit(value) {
-  const normalized = ceilPlayerMoney(value);
+  const normalized = ceilInternalMoney(value);
   return normalized === null ? 0 : Math.max(0, normalized);
 }
 
@@ -203,8 +220,14 @@ function quantizePlayerField(world, object, key, { liability = false, reserve = 
 
 function quantizeSignedDisplayField(object, key) {
   if (!object || object[key] === undefined || object[key] === null) return;
-  const after = floorPlayerMoney(object[key]);
+  const after = roundInternalMoney(object[key]);
   object[key] = after === null ? 0 : after;
+}
+
+function quantizeAccountField(object, key, { liability = false } = {}) {
+  if (!object || object[key] === undefined || object[key] === null) return;
+  const after = liability ? ceilInternalMoney(object[key]) : roundInternalMoney(object[key]);
+  object[key] = after === null ? 0 : Math.max(0, after);
 }
 
 function quantizeInternalTree(node, seen = new WeakSet()) {
@@ -226,21 +249,22 @@ function quantizeInternalTree(node, seen = new WeakSet()) {
 }
 
 function normalizePlayer(world, player) {
-  quantizePlayerField(world, player, 'credits');
-  quantizePlayerField(world, player, 'frozenCredits');
+  quantizeAccountField(player, 'credits');
+  quantizeAccountField(player, 'frozenCredits');
   player.gems = Math.max(0, Math.floor(Number(player.gems || 0)));
   player.stats ||= {};
-  for (const key of PLAYER_STAT_MONEY_KEYS) quantizePlayerField(world, player.stats, key, { reserve: false });
+  for (const key of PLAYER_STAT_MONEY_KEYS) quantizeAccountField(player.stats, key);
   for (const entry of player.ledger || []) {
     quantizeSignedDisplayField(entry, 'amount');
-    quantizePlayerField(world, entry, 'balanceAfter', { reserve: false });
+    quantizeAccountField(entry, 'balanceAfter');
   }
   for (const trade of player.trades || []) {
-    for (const key of ['price', 'total', 'fee', 'netTotal']) quantizeSignedDisplayField(trade, key);
+    quantizePlayerField(world, trade, 'price', { reserve: false });
+    for (const key of ['total', 'fee', 'netTotal']) quantizeSignedDisplayField(trade, key);
   }
   const account = player.bankAccount;
   if (account && typeof account === 'object') {
-    for (const key of PLAYER_BANK_MONEY_KEYS) quantizePlayerField(world, account, key);
+    for (const key of PLAYER_BANK_MONEY_KEYS) quantizeAccountField(account, key);
     for (const transaction of account.recentTransactions || []) {
       for (const key of ['amount', 'principalPaid', 'interestPaid', 'proceeds', 'surplus', 'writtenOff']) {
         quantizeSignedDisplayField(transaction, key);
@@ -248,9 +272,9 @@ function normalizePlayer(world, player) {
     }
     const loan = account.activeLoan;
     if (loan && typeof loan === 'object') {
-      for (const key of LIABILITY_KEYS) quantizePlayerField(world, loan, key, { liability: true });
-      for (const key of ['collateralValueAtOrigination']) quantizePlayerField(world, loan, key, { reserve: false });
-      for (const item of loan.collateral || []) quantizePlayerField(world, item, 'prudentUnitValue', { reserve: false });
+      for (const key of LIABILITY_KEYS) quantizeAccountField(loan, key, { liability: true });
+      for (const key of ['collateralValueAtOrigination']) quantizeAccountField(loan, key);
+      for (const item of loan.collateral || []) quantizeAccountField(item, 'prudentUnitValue');
     }
   }
 }
@@ -259,8 +283,10 @@ function normalizeOrders(world) {
   for (const order of world.orders || []) {
     quantizePlayerField(world, order, 'price', { reserve: false });
     for (const fill of order.fills || []) {
-      for (const key of ['price', 'total', 'fee', 'netTotal']) quantizeSignedDisplayField(fill, key);
+      quantizePlayerField(world, fill, 'price', { reserve: false });
+      for (const key of ['total', 'fee', 'netTotal']) quantizeSignedDisplayField(fill, key);
     }
+    for (const slice of order.fundingSlices || []) quantizeAccountField(slice, 'reservedAmount');
     for (const key of ['marketSellFeeGross', 'marketSellFeeCharged']) {
       if (order[key] !== undefined) order[key] = Math.max(0, roundInternalMoney(order[key]) || 0);
     }
@@ -275,9 +301,10 @@ function normalizeMarkets(world) {
     for (const point of market?.priceHistory || []) quantizePlayerField(world, point, 'price', { reserve: false });
     const demand = market?.demand;
     if (demand) {
-      for (const key of ['lastBudget', 'lastPrice', 'referencePrice', 'observedPrice', 'costAnchor', 'downstreamValueAnchor', 'targetPrice']) {
+      for (const key of ['lastBudget', 'referencePrice', 'observedPrice', 'costAnchor', 'downstreamValueAnchor', 'targetPrice']) {
         if (demand[key] !== null && demand[key] !== undefined) demand[key] = roundInternalMoney(demand[key]) ?? demand[key];
       }
+      if (demand.lastPrice !== null && demand.lastPrice !== undefined) quantizePlayerField(world, demand, 'lastPrice', { reserve: false });
     }
   }
   for (const market of Object.values(world.facilityMarkets || {})) {
@@ -299,8 +326,9 @@ function normalizeAuctions(world) {
 
 function normalizeContracts(world) {
   for (const contract of world.productionContracts || []) {
-    for (const key of ['unitPrice', 'buyerEscrowCredits', 'buyerBondCredits', 'supplierBondCredits', 'lastDeliveryGross']) {
-      quantizePlayerField(world, contract, key, { reserve: false });
+    quantizePlayerField(world, contract, 'unitPrice', { reserve: false });
+    for (const key of ['buyerEscrowCredits', 'buyerBondCredits', 'supplierBondCredits', 'lastDeliveryGross']) {
+      quantizeAccountField(contract, key);
     }
     for (const key of ['lastDeliveryFee', 'marketSellFeeGross', 'marketSellFeeCharged']) {
       if (contract[key] !== undefined) contract[key] = Math.max(0, roundInternalMoney(contract[key]) || 0);
@@ -308,9 +336,7 @@ function normalizeContracts(world) {
     const proposal = contract.renewalProposal;
     if (proposal) {
       quantizePlayerField(world, proposal.terms || {}, 'unitPrice', { reserve: false });
-      for (const key of ['buyerEscrowCredits', 'buyerBondCredits', 'supplierBondCredits']) {
-        quantizePlayerField(world, proposal, key, { reserve: false });
-      }
+      for (const key of ['buyerEscrowCredits', 'buyerBondCredits', 'supplierBondCredits']) quantizeAccountField(proposal, key);
     }
   }
 }
@@ -369,6 +395,8 @@ export function assertPlayerMoney(value) {
   const numeric = finiteMoney(value);
   return numeric !== null && floorPlayerMoney(numeric) === numeric;
 }
+
+export const assertOrderPrice = assertPlayerMoney;
 
 export function assertInternalMoney(value) {
   const numeric = finiteMoney(value);

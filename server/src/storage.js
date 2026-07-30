@@ -504,7 +504,7 @@ export class EconomyStore {
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
     normalizeWorldMoneyPrecision(world);
-    world.version = 18;
+    world.version = 19;
     return world;
   }
 

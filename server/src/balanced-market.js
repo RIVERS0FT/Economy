@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { isOpenOrder } from './order-identity.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { LIQUIDITY_SIGNAL_WEIGHT } from './market-demand/catalog.js';
-import { roundInternalMoney } from './money.js';
+import { multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 import {
   creditPopulationEmployment,
   recordPopulationSellerIncome,
@@ -107,10 +107,10 @@ export function createBalancedMarketRuntime({ products, constants }) {
   function settlePlayerBuy(world, order, quantity, tradePrice, sellerName, createdAt) {
     const player = world.players?.[String(order.ownerId)];
     if (!player) throw new Error(`Missing buyer ${order.ownerId}`);
-    const reserved = roundInternalMoney(quantity * Number(order.price)) || 0;
-    const actual = roundInternalMoney(quantity * tradePrice) || 0;
-    player.frozenCredits -= reserved;
-    player.credits += reserved - actual;
+    const reserved = multiplyMoneyByInteger(order.price, quantity) || 0;
+    const actual = multiplyMoneyByInteger(tradePrice, quantity) || 0;
+    player.frozenCredits = roundInternalMoney(player.frozenCredits - reserved) || 0;
+    player.credits = roundInternalMoney(player.credits + reserved - actual) || 0;
     inventoryFor(player, order.productId).available += quantity;
     player.stats ||= {};
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
@@ -127,9 +127,9 @@ export function createBalancedMarketRuntime({ products, constants }) {
     const player = world.players?.[String(order.ownerId)];
     if (!player) throw new Error(`Missing seller ${order.ownerId}`);
     const inventory = inventoryFor(player, order.productId);
-    const total = roundInternalMoney(quantity * tradePrice) || 0;
+    const total = multiplyMoneyByInteger(tradePrice, quantity) || 0;
     inventory.frozen -= quantity;
-    player.credits += settlement.netTotal;
+    player.credits = roundInternalMoney(player.credits + settlement.netTotal) || 0;
     player.stats ||= {};
     player.stats.commodityVolume = Number(player.stats.commodityVolume || 0) + quantity;
     player.stats.soldGoods = Number(player.stats.soldGoods || 0) + quantity;
@@ -163,10 +163,10 @@ export function createBalancedMarketRuntime({ products, constants }) {
     const group = liquidityGroupFor(world, order);
     const reserve = liquidityReserveFor(world, order);
     if (!group || !reserve) throw new Error(`Missing liquidity reserve for ${order.productId}`);
-    const reserved = roundInternalMoney(quantity * Number(order.price)) || 0;
-    const actual = roundInternalMoney(quantity * tradePrice) || 0;
-    group.frozenCredits -= reserved;
-    group.credits += reserved - actual;
+    const reserved = multiplyMoneyByInteger(order.price, quantity) || 0;
+    const actual = multiplyMoneyByInteger(tradePrice, quantity) || 0;
+    group.frozenCredits = roundInternalMoney(group.frozenCredits - reserved) || 0;
+    group.credits = roundInternalMoney(group.credits + reserved - actual) || 0;
     reserve.inventory += quantity;
     reserve.totalBought = Number(reserve.totalBought || 0) + quantity;
     reserve.totalBuyValue = Number(reserve.totalBuyValue || 0) + actual;
@@ -177,9 +177,9 @@ export function createBalancedMarketRuntime({ products, constants }) {
     const reserve = liquidityReserveFor(world, order);
     if (!group || !reserve) throw new Error(`Missing liquidity reserve for ${order.productId}`);
     reserve.frozenInventory -= quantity;
-    group.credits = roundInternalMoney(group.credits + quantity * tradePrice) || 0;
+    group.credits = roundInternalMoney(group.credits + (multiplyMoneyByInteger(tradePrice, quantity) || 0)) || 0;
     reserve.totalSold = Number(reserve.totalSold || 0) + quantity;
-    reserve.totalSellValue = roundInternalMoney(Number(reserve.totalSellValue || 0) + quantity * tradePrice) || 0;
+    reserve.totalSellValue = roundInternalMoney(Number(reserve.totalSellValue || 0) + (multiplyMoneyByInteger(tradePrice, quantity) || 0)) || 0;
   }
 
   function matchOrder(world, incoming, createdAt) {

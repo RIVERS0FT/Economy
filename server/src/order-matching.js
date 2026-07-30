@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
-import { floorPlayerMoney, multiplyMoneyByInteger } from './money.js';
+import { centsToPlayerMoney, multiplyMoneyByInteger, playerMoneyToCents } from './money.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js';
 
@@ -13,16 +13,19 @@ function samePlayer(left, right) {
 }
 
 export function orderPricesCross(incomingSide, incomingPrice, restingPrice) {
-  const incoming = floorPlayerMoney(incomingPrice);
-  const resting = floorPlayerMoney(restingPrice);
-  if (!Number.isFinite(incoming) || !Number.isFinite(resting)) return false;
+  const incoming = playerMoneyToCents(incomingPrice);
+  const resting = playerMoneyToCents(restingPrice);
+  if (incoming === null || resting === null) return false;
   return incomingSide === 'buy' ? incoming >= resting : incomingSide === 'sell' ? incoming <= resting : false;
 }
 
 export function compareRestingOrders(incomingSide, left, right) {
-  const leftPrice = floorPlayerMoney(left.price) ?? 0;
-  const rightPrice = floorPlayerMoney(right.price) ?? 0;
-  if (leftPrice !== rightPrice) return incomingSide === 'buy' ? leftPrice - rightPrice : rightPrice - leftPrice;
+  const leftPrice = playerMoneyToCents(left.price) || 0n;
+  const rightPrice = playerMoneyToCents(right.price) || 0n;
+  if (leftPrice !== rightPrice) {
+    if (incomingSide === 'buy') return leftPrice < rightPrice ? -1 : 1;
+    return leftPrice > rightPrice ? -1 : 1;
+  }
   return Number(left.createdAt || 0) - Number(right.createdAt || 0);
 }
 
@@ -81,7 +84,7 @@ for (const resting of candidates) {
 
     const quantity = Math.min(Number(incoming.remaining), Number(resting.remaining));
     if (!Number.isFinite(quantity) || quantity <= 0) continue;
-    const price = floorPlayerMoney(resting.price) ?? 0;
+    const price = centsToPlayerMoney(playerMoneyToCents(resting.price)) ?? 0;
     const total = multiplyMoneyByInteger(price, quantity);
     if (total === null) throw new RangeError('成交总额超出系统可表示范围');
     const buy = incoming.side === 'buy' ? incoming : resting;
