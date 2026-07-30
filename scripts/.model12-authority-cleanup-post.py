@@ -26,6 +26,13 @@ readme_text = readme_text.replace(
 )
 readme.write_text(readme_text)
 
+product_design = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
+product_text = product_design.read_text().replace(
+    '每项直接需求商品保存六位小数报价锚点与连续过剩周期',
+    '每项直接需求商品保存双向报价锚点（六位小数）与连续过剩周期',
+)
+product_design.write_text(product_text)
+
 index = Path('docs/README.md')
 index_text = index.read_text().replace(
     '无业务总量上限且保持真实资产守恒的双边市场储备',
