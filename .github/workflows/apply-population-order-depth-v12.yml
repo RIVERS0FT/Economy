@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - agent/population-order-depth-v12
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
@@ -14,7 +21,7 @@ concurrency:
 
 jobs:
   apply-and-verify:
-    if: ${{ !contains(github.event.head_commit.message, '[generated v12]') }}
+    if: ${{ github.event_name == 'pull_request' || !contains(github.event.head_commit.message, '[generated v12]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact branch
