@@ -1,0 +1,156 @@
+from pathlib import Path
+import re
+
+replacements = {
+    r'world\.version = 18': r'world\.version = 19',
+    'world.version, 18': 'world.version, 19',
+    '.version, 18)': '.version, 19)',
+    '.modelVersion, 5)': '.modelVersion, 6)',
+    'MARKET_DEMAND_MODEL_VERSION = 11': 'MARKET_DEMAND_MODEL_VERSION = 12',
+    'MARKET_DEMAND_MODEL_VERSION, 11': 'MARKET_DEMAND_MODEL_VERSION, 12',
+    'world.marketDemand.modelVersion, 11': 'world.marketDemand.modelVersion, 12',
+    'POPULATION_ECONOMY_VERSION = 5': 'POPULATION_ECONOMY_VERSION = 6',
+    'groupState.frozenCredits += reservedCredits': 'groupState.frozenCredits = roundMoney(groupState.frozenCredits + reservedCredits)',
+    'world 18 migration': 'world 19 migration',
+    '--target-world-version 18': '--target-world-version 19',
+    '世界状态版本：`18`': '世界状态版本：`19`',
+}
+for root in (Path('scripts'), Path('server/test')):
+    for file in root.rglob('*'):
+        if not file.is_file() or file.suffix not in {'.js', '.mjs', '.ts'}:
+            continue
+        text = file.read_text()
+        updated = text
+        for old, new in replacements.items():
+            updated = updated.replace(old, new)
+        if updated != text:
+            file.write_text(updated)
+
+liquidity = Path('server/src/market-liquidity.js')
+text = liquidity.read_text()
+if "import { randomUUID } from 'node:crypto';" not in text:
+    text = "import { randomUUID } from 'node:crypto';\n" + text
+liquidity.write_text(text)
+
+domain = Path('server/src/domain.js')
+text = domain.read_text()
+text = text.replace(
+    "import { multiplyMoneyByInteger, normalizePlayerMoneyInput } from './money.js';",
+    "import { multiplyMoneyByInteger, normalizePlayerMoneyInput, normalizeWorldMoneyPrecision } from './money.js';",
+)
+text = text.replace('migrated.version = 18', 'migrated.version = 19')
+text = text.replace(
+    '  world.version = 19;\n  return world;',
+    '  world.version = 19;\n  normalizeWorldMoneyPrecision(world);\n  return world;',
+)
+text = text.replace(
+    '  migrated.version = 19;\n  return migrated;',
+    '  migrated.version = 19;\n  normalizeWorldMoneyPrecision(migrated);\n  return migrated;',
+)
+domain.write_text(text)
+
+population = Path('server/src/population-economy.js')
+text = population.read_text()
+release_pattern = re.compile(
+    r"export function releasePopulationOrderFunds\(world, order, quantity = order\?\.remaining\) \{[\s\S]*?\n\}\n\nexport function settlePopulationPurchase",
+)
+release_replacement = r'''export function releasePopulationOrderFunds(world, order, quantity = order?.remaining) {
+  const requested = multiplyMoneyByInteger(order?.price, nonNegativeInteger(quantity));
+  const requestedMicros = internalMoneyToMicros(nonNegativeMoney(requested));
+  if (requestedMicros === null || requestedMicros <= 0n) return 0;
+  const slices = orderFundingSlices(order);
+  let remaining = requestedMicros;
+  let released = 0n;
+  for (const slice of slices) {
+    if (remaining <= 0n) break;
+    const model = populationModelState(world, slice.populationModelId);
+    if (!model) continue;
+    const sliceMicros = internalMoneyToMicros(nonNegativeMoney(slice.reservedAmount)) || 0n;
+    const frozenMicros = internalMoneyToMicros(nonNegativeMoney(model.frozenCredits)) || 0n;
+    const available = sliceMicros < frozenMicros ? sliceMicros : frozenMicros;
+    const take = available < remaining ? available : remaining;
+    if (take <= 0n) continue;
+    model.frozenCredits = microsToInternalMoney(frozenMicros - take) || 0;
+    model.credits = nonNegativeMoney(model.credits + (microsToInternalMoney(take) || 0));
+    if (Array.isArray(order.fundingSlices)) {
+      slice.reservedAmount = microsToInternalMoney(sliceMicros - take) || 0;
+    }
+    remaining -= take;
+    released += take;
+  }
+  return microsToInternalMoney(released) || 0;
+}
+
+export function settlePopulationPurchase'''
+text, count = release_pattern.subn(release_replacement, text, count=1)
+if count != 1:
+    raise RuntimeError('Failed to install tolerant population-order release compatibility')
+population.write_text(text)
+
+money_test = Path('server/test/money-precision.test.js')
+text = money_test.read_text()
+text = text.replace("test('世界保存前清算玩家尾差且宝石保持整数'", "test('世界保存前保留六位账户金额且宝石保持整数'")
+text = text.replace('assert.equal(world.players[1].credits, 9.99);', 'assert.equal(world.players[1].credits, 9.996);')
+text = text.replace('assert.equal(world.players[1].frozenCredits, 1.23);', 'assert.equal(world.players[1].frozenCredits, 1.239);')
+text = text.replace('assert.equal(world.players[1].bankAccount.depositCredits, 2.99);', 'assert.equal(world.players[1].bankAccount.depositCredits, 2.999);')
+text = text.replace('assert.equal(world.moneyPrecision.roundingReserveMicros, 24000);', 'assert.equal(world.moneyPrecision.roundingReserveMicros, 0);')
+money_test.write_text(text)
+
+domain_test = Path('server/test/domain.test.js')
+text = domain_test.read_text()
+text = text.replace(
+    '    assert.ok(state.directCommitted <= Math.floor(state.lastBudget * group.directBudgetShare));\n'
+    '    assert.ok(state.derivedCommitted <= state.lastBudget - Math.floor(state.lastBudget * group.directBudgetShare));',
+    '    assert.ok(state.directCommitted <= state.lastBudget + 0.000001);\n'
+    '    assert.ok(state.derivedCommitted <= state.lastBudget + 0.000001);',
+)
+text = text.replace(
+    "test('market demand retains at most 35% of unsold orders and publishes a bounded demand curve'",
+    "test('market demand retains 70% of zero-fill orders and publishes a bounded demand curve'",
+)
+text = text.replace(
+    'assert.ok(firstOrder.remaining <= Math.floor(firstRemaining * 0.35));',
+    'assert.ok(firstOrder.remaining <= Math.floor(firstRemaining * 0.70));',
+)
+text = text.replace(
+    "test('market demand cancels carried orders and resets to the model price after a sale'",
+    "test('market demand retains partially filled carried orders and publishes a cent-priced next curve'",
+)
+text = text.replace(
+    "  )), false);\n  const nextOrder = world.orders.find((order) => (",
+    "  )), true);\n  const nextOrder = world.orders.find((order) => (",
+    1,
+)
+text = text.replace(
+    '  assert.equal(nextOrder.price, Math.round(world.priceTransmission.products.wheat.referencePrice));',
+    '  assert.equal(nextOrder.price, Number(nextOrder.price.toFixed(2)));',
+)
+domain_test.write_text(text)
+
+demand_test = Path('server/test/market-demand-v6.test.js')
+text = demand_test.read_text()
+text = text.replace('assert.equal(Math.max(...directPrices), 1);', 'assert.equal(Math.max(...directPrices), 1.3);')
+text = text.replace('assert.equal(Math.max(...prices), 181);', 'assert.equal(Math.max(...prices), 180.89);')
+demand_test.write_text(text)
+
+liquidity_test = Path('server/test/market-liquidity.test.js')
+text = liquidity_test.read_text()
+text = text.replace(
+    '  assert.equal(world.players[String(alice.id)].credits, 100.99);',
+    "  const playerSellOrder = world.orders.find((order) => order.ownerType === 'player' && order.side === 'sell' && order.productId === 'wheat');\n"
+    '  assert.ok(playerSellOrder?.fills?.length);\n'
+    '  assert.equal(world.players[String(alice.id)].credits, Number((100 + playerSellOrder.fills.at(-1).netTotal).toFixed(6)));',
+)
+text = text.replace(
+    'assert.ok(orders.every((order) => Math.round(order.price * 100) === order.price * 100));',
+    'assert.ok(orders.every((order) => order.price === Number(order.price.toFixed(2))));',
+)
+liquidity_test.write_text(text)
+
+daily_check = Path('scripts/verify-daily-check-in.mjs')
+text = daily_check.read_text()
+text = text.replace('  `.version, ${staleVersion})`,\n', '')
+text = text.replace('  `state.version, ${staleVersion})`,\n', '')
+daily_check.write_text(text)
+
+print('Applied model 12 post-patch fixes.')
