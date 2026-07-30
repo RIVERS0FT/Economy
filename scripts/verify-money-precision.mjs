@@ -60,8 +60,8 @@ assert.match(read('server/src/market-sell-fee.js'), /MARKET_SELL_FEE_VERSION = 3
 const storage = read('server/src/storage.js');
 assert.match(storage, /amount INTEGER NOT NULL/);
 assert.match(storage, /gems_spent INTEGER NOT NULL/);
-assert.match(read('README.md'), /账户资金保留六位小数/);
-assert.match(read('README.md'), /订单价格保留两位小数/);
+assert.match(read('README.md'), /账户余额、冻结资金、预算、手续费、退款和流水金额统一保留六位小数/);
+assert.match(read('README.md'), /订单、拍卖与合同中的可输入单价保留两位小数/);
 assert.match(read('docs/README.md'), /普通货币精度与玩家结算属于跨模块强制规则/);
 
 console.log('Money precision verification passed.');
