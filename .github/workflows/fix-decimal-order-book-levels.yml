@@ -1,0 +1,151 @@
+name: Fix decimal order book levels
+
+on:
+  push:
+    branches:
+      - fix/decimal-order-book-levels
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-decimal-order-book-levels
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[decimal order book fixed]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/decimal-order-book-levels
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply decimal order-book fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise RuntimeError(f'Missing expected text in {path}: {old[:120]!r}')
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'src/utils/defaultOrderPrice.ts',
+              'function validOrderPrice(price: number) {\n  return Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8;\n}',
+              'export function isValidOrderPrice(price: number) {\n  return Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8;\n}',
+          )
+          replace_once(
+              'src/utils/defaultOrderPrice.ts',
+              '    if (!validOrderPrice(order.price)) continue;',
+              '    if (!isValidOrderPrice(order.price)) continue;',
+          )
+
+          replace_once(
+              'src/utils/orderBookLevels.ts',
+              "import type { AssetOrder, OrderSide } from '../types';\n",
+              "import type { AssetOrder, OrderSide } from '../types';\nimport { isValidOrderPrice } from './defaultOrderPrice';\n",
+          )
+          replace_once(
+              'src/utils/orderBookLevels.ts',
+              '      || !Number.isInteger(order.price)\n      || order.price < 1',
+              '      || !isValidOrderPrice(order.price)',
+          )
+
+          Path('scripts/verify-order-book-decimal-levels.mjs').write_text(r'''import assert from 'node:assert/strict';
+import { isValidOrderPrice } from '../src/utils/defaultOrderPrice.ts';
+import { buildOrderBookLevels } from '../src/utils/orderBookLevels.ts';
+
+const order = (id, side, price, remaining, status = 'open') => ({
+  id,
+  side,
+  price,
+  remaining,
+  quantity: remaining,
+  status,
+});
+
+assert.equal(isValidOrderPrice(0.01), true);
+assert.equal(isValidOrderPrice(1.23), true);
+assert.equal(isValidOrderPrice(2), true);
+assert.equal(isValidOrderPrice(0), false);
+assert.equal(isValidOrderPrice(1.234), false);
+assert.equal(isValidOrderPrice(Number.POSITIVE_INFINITY), false);
+
+const buyLevels = buildOrderBookLevels([
+  order('buy-integer', 'buy', 2, 1),
+  order('buy-decimal-a', 'buy', 1.23, 2),
+  order('buy-decimal-b', 'buy', 1.23, 3, 'partial'),
+  order('buy-minimum', 'buy', 0.01, 4),
+  order('buy-invalid-precision', 'buy', 1.234, 100),
+  order('buy-invalid-zero', 'buy', 0, 100),
+  order('buy-closed', 'buy', 9.99, 100, 'filled'),
+  order('buy-empty', 'buy', 8.88, 0),
+], 'buy');
+
+assert.deepEqual(
+  buyLevels.map(({ price, remaining, orderCount }) => ({ price, remaining, orderCount })),
+  [
+    { price: 2, remaining: 1, orderCount: 1 },
+    { price: 1.23, remaining: 5, orderCount: 2 },
+    { price: 0.01, remaining: 4, orderCount: 1 },
+  ],
+);
+
+const sellLevels = buildOrderBookLevels([
+  order('sell-decimal-a', 'sell', 1.1, 2),
+  order('sell-minimum', 'sell', 0.01, 1),
+  order('sell-decimal-b', 'sell', 1.1, 4, 'partial'),
+  order('sell-integer', 'sell', 2, 3),
+], 'sell');
+
+assert.deepEqual(
+  sellLevels.map(({ price, remaining, orderCount }) => ({ price, remaining, orderCount })),
+  [
+    { price: 0.01, remaining: 1, orderCount: 1 },
+    { price: 1.1, remaining: 6, orderCount: 2 },
+    { price: 2, remaining: 3, orderCount: 1 },
+  ],
+);
+
+console.log('Decimal order-book level verification passed.');
+''')
+
+          replace_once(
+              'package.json',
+              '    "verify:money-precision": "node --experimental-strip-types scripts/verify-money-precision.mjs",\n',
+              '    "verify:money-precision": "node --experimental-strip-types scripts/verify-money-precision.mjs",\n    "verify:order-book-decimal-levels": "node --experimental-strip-types scripts/verify-order-book-decimal-levels.mjs",\n',
+          )
+          replace_once(
+              'package.json',
+              '"verify:architecture": "node --experimental-strip-types scripts/verify-money-precision.mjs && node scripts/verify-document-authority.mjs',
+              '"verify:architecture": "node --experimental-strip-types scripts/verify-money-precision.mjs && node --experimental-strip-types scripts/verify-order-book-decimal-levels.mjs && node scripts/verify-document-authority.mjs',
+          )
+
+          replace_once(
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              '- 有效订单只包括 `open` 或 `partial`、`remaining > 0` 且价格为不低于 0.01 的两位小数订单；已成交、已取消和零剩余订单不得进入档位。',
+              '- 有效订单只包括 `open` 或 `partial`、`remaining > 0` 且价格为不低于 0.01 的两位小数订单；已成交、已取消和零剩余订单不得进入档位。客户端价格档聚合必须复用下单价格校验，不得使用 `Number.isInteger(price)` 或 `price >= 1` 过滤玩家、人口或市场储备订单。',
+          )
+          PY
+      - run: npm ci
+      - name: Verify complete project
+        run: npm run build
+      - name: Commit formal fix
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git restore --source=HEAD --staged --worktree .github/workflows
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/utils/defaultOrderPrice.ts src/utils/orderBookLevels.ts scripts/verify-order-book-decimal-levels.mjs package.json docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+          git commit -m 'Fix decimal order-book level display [decimal order book fixed]'
+          git push origin HEAD:fix/decimal-order-book-levels
