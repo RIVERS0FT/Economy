@@ -44,6 +44,13 @@ jobs:
           echo 'd2c45280c836908a242bc2b51a85b76a0367587e4bdd3d0834614ee2cbd7adfc  /tmp/population-order-depth-v12.py.gz.b64' | sha256sum -c -
           base64 --decode /tmp/population-order-depth-v12.py.gz.b64 | gzip --decompress > /tmp/apply-population-order-depth-v12.py
           echo '012d01fe4aba37c1f1a801ee5ab06b4ef64d86c8c24082f62fb4514b80e359cf  /tmp/apply-population-order-depth-v12.py' | sha256sum -c -
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/apply-population-order-depth-v12.py')
+          text = path.read_text()
+          text = text.replace("replace_all('scripts/verify-staple-crops-demand.mjs', \"'world.version = 18',\", \"'world.version = 19',\")\n", '')
+          path.write_text(text)
+          PY
           python3 /tmp/apply-population-order-depth-v12.py
 
       - name: Install dependencies
