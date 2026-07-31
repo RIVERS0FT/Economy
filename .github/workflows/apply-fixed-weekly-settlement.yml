@@ -53,8 +53,9 @@ jobs:
           node /tmp/apply-fixed-weekly-settlement.mjs
           python3 - <<'PYTHON'
           from pathlib import Path
-          path = Path('scripts/verify-money-precision.mjs')
-          content = path.read_text()
+
+          verifier = Path('scripts/verify-money-precision.mjs')
+          content = verifier.read_text()
           replacements = {
               'CURRENT_CLIENT_STATE_VERSION = 22': 'CURRENT_CLIENT_STATE_VERSION = 23',
               'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22': 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23',
@@ -63,7 +64,23 @@ jobs:
           }
           for before, after in replacements.items():
               content = content.replace(before, after)
-          path.write_text(content)
+          verifier.write_text(content)
+
+          design = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
+          content = design.read_text()
+          content = content.replace(
+              '银行按 `Asia/Shanghai` 每日 00:00 自动结息：',
+              '固定存款日利率为每日 1%，银行按 `Asia/Shanghai` 每日 00:00 自动结息：',
+          )
+          content = content.replace(
+              '借款人实际支付利息仍按 70%／20%／10% 分入存款利息池、银行服务就业收入和风险准备金。',
+              '借款人实际支付利息仍按 70%／20%／10% 分配，其中 70% 进入存款利息池、20% 进入银行服务就业收入、10% 进入风险准备金。',
+          )
+          content = content.replace(
+              '每个完整活跃周结束时，服务器在周一 00:00',
+              '每周 10% 的资金扣除只适用于完整活跃周。每个完整活跃周结束时，服务器在周一 00:00',
+          )
+          design.write_text(content)
           PYTHON
           node --check server/src/weekly-cash-settlement.js
           node --check server/test/weekly-cash-settlement.test.js
