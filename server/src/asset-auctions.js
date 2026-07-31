@@ -309,9 +309,20 @@ function distributeListingFee(world, auction, now, reason) {
 function refundListingFee(world, auction, now, reason) {
   if (auction.listingFeeStatus !== 'held' || auction.listingFee <= 0) return 0;
   const seller = player(world, auction.sellerId);
+  if (!seller) {
+    queueAuctionAuditEvent(world, {
+      auctionId: auction.id,
+      eventType: 'listing_fee_refund_deferred',
+      actorUserId: auction.sellerId,
+      amount: auction.listingFee,
+      metadata: { reason, missingSeller: true },
+      createdAt: now,
+    });
+    return 0;
+  }
   const fee = Math.min(Number(world.auctionFeeEscrowCredits || 0), Number(auction.listingFee || 0));
   world.auctionFeeEscrowCredits = subtractMoney(world.auctionFeeEscrowCredits, fee);
-  if (seller) seller.credits = addMoney(seller.credits, fee);
+  seller.credits = addMoney(seller.credits, fee);
   auction.listingFeeStatus = 'refunded';
   queueAuctionAuditEvent(world, {
     auctionId: auction.id,
@@ -381,9 +392,7 @@ export function migrateAssetAuctionWorld(world, now = Date.now()) {
 
   world.assetAuctions = migrated.slice(-MAX_AUCTIONS);
   world.auctionFeeEscrowCredits = migrated.reduce((sum, auction) => (
-    auction.status === 'open' && auction.listingFeeStatus === 'held'
-      ? addMoney(sum, auction.listingFee)
-      : sum
+    auction.listingFeeStatus === 'held' ? addMoney(sum, auction.listingFee) : sum
   ), 0);
   delete world.collectibleAuctions;
   delete world.collectibles;

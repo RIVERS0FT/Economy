@@ -77,7 +77,7 @@ economy_world(
 )
 ```
 
-拍卖审计独立于世界 JSON 使用 `economy_asset_auction_events` 追加式事件表，保存稳定来源键、拍卖 ID、事件类型、真实内部参与者 ID、金额微单位、截止时间变化、规则快照摘要和发生时间。普通玩家只能通过独立只读接口获得固定最近 10 条匿名有效出价；审计真实参与者 ID、发布费托管、收费与退款明细不得进入六分区或主状态。拍卖动作和世界调度必须在保存世界后的同一个 `BEGIN IMMEDIATE` 事务内刷新审计；审计写入失败必须回滚世界、修订号、幂等确认、费用与资产变化。
+拍卖审计独立于世界 JSON 使用 `economy_asset_auction_events` 追加式事件表，保存稳定来源键、拍卖 ID、事件类型、真实内部参与者 ID、金额微单位、截止时间变化、规则快照摘要和发生时间。普通玩家只能通过独立只读接口获得固定最近 10 条匿名有效出价；审计真实参与者 ID、发布费托管、收费与退款明细不得进入六分区或主状态。拍卖动作和世界调度必须在保存世界后的同一个 `BEGIN IMMEDIATE` 事务内刷新审计；审计写入失败必须回滚世界、修订号、幂等确认、费用与资产变化。 异常结算需要退还发布费但卖方账户缺失时，服务器必须保持拍卖 `listingFeeStatus = held` 和世界级托管余额不变，追加 `listing_fee_refund_deferred` 事件；后续世界迁移必须继续汇总这类终态未释放托管，不得把无法送达的退款转为就业收入或无接收方扣款。
 
 合同审计独立于世界 JSON 使用三张 SQLite 表：`economy_contract_audit_contracts` 保存可重建的查询摘要，`economy_contract_audit_events` 保存按 `contract_id + sequence` 排序的追加式事件，`economy_contract_audit_transfers` 保存每个事件的商品、货款、服务费和保证金流向。事件与转移表必须通过 SQLite Trigger 拒绝 `UPDATE` 和 `DELETE`，并以唯一 `source_key` 阻止幂等重试、重复调度和服务重启写入重复事件。摘要表可以由事件重建，不代替事件权威。
 

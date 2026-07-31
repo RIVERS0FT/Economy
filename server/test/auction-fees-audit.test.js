@@ -133,3 +133,40 @@ test('拍卖审计事件禁止更新和删除', () => {
     store.close();
   }
 });
+
+test('卖方缺失的异常结算记录延迟退款审计且不减少发布费托管', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  try {
+    prepare(store);
+    const created = apply(store, seller, 'createAuction', {
+      items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 1 }],
+      startingBid: 20,
+      durationHours: 1,
+    }, 'create-auction-deferred-refund-001', 2_000);
+    assert.equal(created.result.ok, true);
+    const auction = store.getState(seller, 2_100).assetAuctions[0];
+
+    store.transaction(() => {
+      const { revision, world } = store.loadWorld(2_200);
+      delete world.players[String(seller.id)];
+      store.saveWorld(revision, world, 2_200);
+    });
+
+    store.getState(bidderA, auction.endsAt + 1);
+    const { world } = store.loadWorld(auction.endsAt + 2);
+    const persistedAuction = world.assetAuctions.find((item) => item.id === auction.id);
+    assert.equal(persistedAuction.status, 'cancelled');
+    assert.equal(persistedAuction.listingFeeStatus, 'held');
+    assert.equal(world.auctionFeeEscrowCredits, 0.5);
+    assert.equal(Number(store.database.prepare(`
+      SELECT COUNT(*) AS count FROM economy_asset_auction_events
+      WHERE auction_id = ? AND event_type = 'listing_fee_refund_deferred'
+    `).get(auction.id).count), 1);
+    assert.equal(Number(store.database.prepare(`
+      SELECT COUNT(*) AS count FROM economy_asset_auction_events
+      WHERE auction_id = ? AND event_type = 'listing_fee_refunded'
+    `).get(auction.id).count), 0);
+  } finally {
+    store.close();
+  }
+});

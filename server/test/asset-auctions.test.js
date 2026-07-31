@@ -418,3 +418,28 @@ test('世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧�
   migrateAssetAuctionWorld(state, 6_000);
   assert.deepEqual(state, once, '世界 21 拍卖迁移必须幂等');
 });
+
+test('卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失', () => {
+  const state = world();
+  state.players['1'].inventories.wheat.available = 1;
+  createAuction(state, seller, {
+    items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 1 }],
+    startingBid: 20,
+    durationHours: 1,
+  }, 1_000);
+  const auction = state.assetAuctions.at(-1);
+  assert.equal(state.auctionFeeEscrowCredits, 0.5);
+  delete state.players['1'];
+
+  processAssetAuctions(state, auction.endsAt + 1);
+
+  assert.equal(auction.status, 'cancelled');
+  assert.equal(auction.settlementReason, 'settlement_failed');
+  assert.equal(auction.listingFeeStatus, 'held');
+  assert.equal(state.auctionFeeEscrowCredits, 0.5);
+
+  state.version = 20;
+  migrateAssetAuctionWorld(state, auction.endsAt + 2);
+  assert.equal(state.auctionFeeEscrowCredits, 0.5);
+  assert.equal(state.assetAuctions[0].listingFeeStatus, 'held');
+});
