@@ -53,13 +53,6 @@ function insertSorted(state, record, side, order) {
   record.orders.splice(low, 0, order);
 }
 
-function compactClosedPrefix(record) {
-  let closed = 0;
-  while (closed < record.orders.length && !isOpenOrder(record.orders[closed])) closed += 1;
-  if (closed > 0) record.orders.splice(0, closed);
-  return record.orders;
-}
-
 function ownerBookFor(state, ownerId, key) {
   const normalizedOwnerId = Number(ownerId);
   let assets = state.ownerBooks.get(normalizedOwnerId);
@@ -75,35 +68,132 @@ function ownerBookFor(state, ownerId, key) {
   return book;
 }
 
-function addOrder(state, order, sequence) {
-  state.sequenceByOrder.set(order, sequence);
-  const id = String(order?.id || '');
-  if (id) state.byId.set(id, order);
+function adjustMapValue(map, key, delta) {
+  const next = Math.max(0, Number(map.get(key) || 0) + Number(delta || 0));
+  if (next > 0) map.set(key, next);
+  else map.delete(key);
+  return next;
+}
+
+function facilityQuantityMapFor(state, ownerId) {
+  const normalizedOwnerId = Number(ownerId);
+  let quantities = state.ownerFacilitySellQuantities.get(normalizedOwnerId);
+  if (!quantities) {
+    quantities = new Map();
+    state.ownerFacilitySellQuantities.set(normalizedOwnerId, quantities);
+  }
+  return quantities;
+}
+
+function adjustOwnerQuantityAggregates(state, order, delta) {
+  if (order.ownerType !== 'player' || !Number.isFinite(Number(order.ownerId))) return;
+  const ownerId = Number(order.ownerId);
+  if (orderKind(order) === 'commodity' && order.side === 'buy') {
+    adjustMapValue(state.ownerPendingCommodityBuyQuantities, ownerId, delta);
+  }
+  if (orderKind(order) === 'facility' && order.side === 'sell') {
+    const quantities = facilityQuantityMapFor(state, ownerId);
+    adjustMapValue(quantities, String(orderAssetId(order) || ''), delta);
+    if (quantities.size === 0) state.ownerFacilitySellQuantities.delete(ownerId);
+  }
+}
+
+function addOpenOrder(state, order, { sorted }) {
+  if (!isOpenOrder(order)) return;
   const kind = orderKind(order);
   const idValue = orderAssetId(order);
   const side = order?.side === 'sell' ? 'sell' : order?.side === 'buy' ? 'buy' : null;
   if (!idValue || !side) return;
+
+  state.openOrders.add(order);
   const key = assetKey(kind, idValue);
   let book = state.books.get(key);
   if (!book) {
     book = bookRecord();
     state.books.set(key, book);
   }
-  insertSorted(state, book[side], side, order);
+  if (sorted) insertSorted(state, book[side], side, order);
+  else book[side].orders.push(order);
 
   if (order.ownerType === 'player' && Number.isFinite(Number(order.ownerId))) {
     const ownerId = Number(order.ownerId);
     const ownerOrders = state.ownerOrders.get(ownerId) || new Set();
     ownerOrders.add(order);
     state.ownerOrders.set(ownerId, ownerOrders);
-    insertSorted(state, ownerBookFor(state, ownerId, key)[side], side, order);
+    adjustMapValue(state.ownerOpenOrderCounts, ownerId, 1);
+    adjustOwnerQuantityAggregates(state, order, Math.max(0, Number(order.remaining || 0)));
+    const ownerRecord = ownerBookFor(state, ownerId, key)[side];
+    if (sorted) insertSorted(state, ownerRecord, side, order);
+    else ownerRecord.orders.push(order);
   }
 
+}
+
+function addOrder(state, order, sequence, { sorted }) {
+  state.sequenceByOrder.set(order, sequence);
+  const id = String(order?.id || '');
+  if (id) state.byId.set(id, order);
   if (order.demandGroupId) {
     const groupId = String(order.demandGroupId);
     const groupOrders = state.demandGroupOrders.get(groupId) || new Set();
     groupOrders.add(order);
     state.demandGroupOrders.set(groupId, groupOrders);
+  }
+  addOpenOrder(state, order, { sorted });
+}
+
+function sortBook(state, book) {
+  book.buy.orders.sort((left, right) => compareForSide(state, 'buy', left, right));
+  book.sell.orders.sort((left, right) => compareForSide(state, 'sell', left, right));
+}
+
+function finalizeRuntimeBooks(state) {
+  for (const book of state.books.values()) sortBook(state, book);
+  for (const assets of state.ownerBooks.values()) {
+    for (const book of assets.values()) sortBook(state, book);
+  }
+}
+
+function retireOpenOrder(state, order, { quantityAlreadyAdjusted = false } = {}) {
+  if (!state.openOrders.has(order)) return false;
+  state.openOrders.delete(order);
+
+  if (order.ownerType === 'player' && Number.isFinite(Number(order.ownerId))) {
+    const ownerId = Number(order.ownerId);
+    adjustMapValue(state.ownerOpenOrderCounts, ownerId, -1);
+    if (!quantityAlreadyAdjusted) {
+      adjustOwnerQuantityAggregates(state, order, -Math.max(0, Number(order.remaining || 0)));
+    }
+    const ownerOrders = state.ownerOrders.get(ownerId);
+    ownerOrders?.delete(order);
+    if (ownerOrders?.size === 0) state.ownerOrders.delete(ownerId);
+  }
+
+  return true;
+}
+
+function compactClosedOrders(state, record) {
+  if (!record || record.orders.length === 0) return record?.orders || EMPTY_ORDERS;
+  let writeIndex = 0;
+  for (let readIndex = 0; readIndex < record.orders.length; readIndex += 1) {
+    const order = record.orders[readIndex];
+    if (!isOpenOrder(order)) {
+      retireOpenOrder(state, order);
+      continue;
+    }
+    record.orders[writeIndex] = order;
+    writeIndex += 1;
+  }
+  if (writeIndex !== record.orders.length) record.orders.length = writeIndex;
+  return record.orders;
+}
+
+function compactOwnerOrders(state, ownerId) {
+  const normalizedOwnerId = Number(ownerId);
+  const orders = state.ownerOrders.get(normalizedOwnerId);
+  if (!orders) return;
+  for (const order of orders) {
+    if (!isOpenOrder(order)) retireOpenOrder(state, order);
   }
 }
 
@@ -115,12 +205,19 @@ function buildRuntime(world) {
     lastIndexedOrder: null,
     sequenceByOrder: new WeakMap(),
     byId: new Map(),
+    openOrders: new WeakSet(),
     books: new Map(),
     ownerBooks: new Map(),
     ownerOrders: new Map(),
+    ownerOpenOrderCounts: new Map(),
+    ownerPendingCommodityBuyQuantities: new Map(),
+    ownerFacilitySellQuantities: new Map(),
     demandGroupOrders: new Map(),
   };
-  for (let index = 0; index < orders.length; index += 1) addOrder(state, orders[index], index);
+  for (let index = 0; index < orders.length; index += 1) {
+    addOrder(state, orders[index], index, { sorted: false });
+  }
+  finalizeRuntimeBooks(state);
   state.indexedLength = orders.length;
   state.lastIndexedOrder = orders.length > 0 ? orders[orders.length - 1] : null;
   runtimeByWorld.set(world, state);
@@ -144,7 +241,9 @@ function runtimeFor(world) {
 
   if (state.indexedLength < orders.length) {
     const start = state.indexedLength;
-    for (let index = start; index < orders.length; index += 1) addOrder(state, orders[index], index);
+    for (let index = start; index < orders.length; index += 1) {
+      addOrder(state, orders[index], index, { sorted: true });
+    }
     state.indexedLength = orders.length;
     state.lastIndexedOrder = orders[orders.length - 1];
     diagnosticsFor(world).tailAppends += orders.length - start;
@@ -159,8 +258,8 @@ function recordFor(world, assetKind, assetId, side, ownerId = null) {
   const book = ownerId === null
     ? state.books.get(key)
     : state.ownerBooks.get(Number(ownerId))?.get(key);
-  if (!book || (side !== 'buy' && side !== 'sell')) return null;
-  return book[side];
+  if (!book || (side !== 'buy' && side !== 'sell')) return { state, record: null };
+  return { state, record: book[side] };
 }
 
 export function invalidateOrderBookRuntime(world) {
@@ -180,14 +279,26 @@ export function recordOrderBookVisit(world, count = 1) {
   diagnosticsFor(world).ordersVisited += Math.max(0, Number(count) || 0);
 }
 
+export function recordOrderBookReduction(world, order, quantity) {
+  const state = runtimeFor(world);
+  if (!state.openOrders.has(order)) return;
+  const reduction = Math.max(0, Number(quantity) || 0);
+  if (reduction > 0) adjustOwnerQuantityAggregates(state, order, -reduction);
+  if (!isOpenOrder(order)) retireOpenOrder(state, order, { quantityAlreadyAdjusted: true });
+}
+
+export function closeOrderInOrderBook(world, order) {
+  retireOpenOrder(runtimeFor(world), order);
+}
+
 export function getOrderBookSide(world, { assetKind = 'commodity', assetId, side }) {
-  const record = recordFor(world, assetKind, assetId, side);
-  return record ? compactClosedPrefix(record) : EMPTY_ORDERS;
+  const { state, record } = recordFor(world, assetKind, assetId, side);
+  return record ? compactClosedOrders(state, record) : EMPTY_ORDERS;
 }
 
 export function getOwnerOrderBookSide(world, ownerId, { assetKind = 'commodity', assetId, side }) {
-  const record = recordFor(world, assetKind, assetId, side, ownerId);
-  return record ? compactClosedPrefix(record) : EMPTY_ORDERS;
+  const { state, record } = recordFor(world, assetKind, assetId, side, ownerId);
+  return record ? compactClosedOrders(state, record) : EMPTY_ORDERS;
 }
 
 export function orderById(world, orderId) {
@@ -200,35 +311,22 @@ export function ordersForDemandGroup(world, groupId) {
 
 export function countOpenOrdersForOwner(world, ownerId) {
   const state = runtimeFor(world);
-  const orders = state.ownerOrders.get(Number(ownerId));
-  if (!orders) return 0;
-  let count = 0;
-  for (const order of orders) {
-    if (isOpenOrder(order)) count += 1;
-  }
-  return count;
+  compactOwnerOrders(state, ownerId);
+  return Number(state.ownerOpenOrderCounts.get(Number(ownerId)) || 0);
 }
 
 export function pendingCommodityBuyQuantityForOwner(world, ownerId) {
   const state = runtimeFor(world);
-  const orders = state.ownerOrders.get(Number(ownerId));
-  if (!orders) return 0;
-  let quantity = 0;
-  for (const order of orders) {
-    if (orderKind(order) !== 'commodity' || order.side !== 'buy' || !isOpenOrder(order)) continue;
-    quantity += Math.max(0, Number(order.remaining || 0));
-  }
-  return quantity;
+  compactOwnerOrders(state, ownerId);
+  return Number(state.ownerPendingCommodityBuyQuantities.get(Number(ownerId)) || 0);
 }
 
 export function facilitySellQuantityForOwner(world, ownerId, facilityTypeId) {
-  return getOwnerOrderBookSide(world, ownerId, {
-    assetKind: 'facility',
-    assetId: facilityTypeId,
-    side: 'sell',
-  }).reduce((sum, order) => (
-    isOpenOrder(order) ? sum + Math.max(0, Number(order.remaining || 0)) : sum
-  ), 0);
+  const state = runtimeFor(world);
+  compactOwnerOrders(state, ownerId);
+  return Number(
+    state.ownerFacilitySellQuantities.get(Number(ownerId))?.get(String(facilityTypeId || '')) || 0,
+  );
 }
 
 export function bestSystemOrder(world, assetKind, assetId, side) {
@@ -236,7 +334,7 @@ export function bestSystemOrder(world, assetKind, assetId, side) {
   let visited = 0;
   for (const order of orders) {
     visited += 1;
-    if (isOpenOrder(order) && order.ownerType === 'population') {
+    if (order.ownerType === 'population') {
       recordOrderBookVisit(world, visited);
       return order;
     }

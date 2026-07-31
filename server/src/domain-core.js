@@ -2,6 +2,7 @@ import { multiplyMoneyByInteger, normalizePlayerMoneyInput } from './money.js';
 import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
+import { closeOrderInOrderBook, orderById } from './order-book-runtime.js';
 
 export { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from './industry-catalog.js';
 
@@ -706,10 +707,20 @@ function processFacilities(player, now) {
 
 function pruneWorld(world, now) {
   const cutoff = now - 24 * 60 * 60 * 1000;
-  const openOrders = world.orders.filter(isOpenOrder);
-  const recentClosed = world.orders.filter((order) => !isOpenOrder(order) && order.createdAt >= cutoff).slice(-800);
-  world.orders = [...recentClosed, ...openOrders].slice(-4_000);
-  world.facilityListings = world.facilityListings.slice(-800);
+  const orders = world.orders || (world.orders = []);
+  const recentClosed = [];
+  let expiredClosed = false;
+  for (const order of orders) {
+    if (isOpenOrder(order)) continue;
+    if (Number(order.createdAt || 0) >= cutoff) recentClosed.push(order);
+    else expiredClosed = true;
+  }
+
+  if (expiredClosed || recentClosed.length > 800) {
+    const retainedClosed = new Set(recentClosed.slice(-800));
+    world.orders = orders.filter((order) => isOpenOrder(order) || retainedClosed.has(order));
+  }
+  if (world.facilityListings.length > 800) world.facilityListings = world.facilityListings.slice(-800);
 }
 
 export function processWorld(world, now = Date.now()) {
@@ -1089,8 +1100,10 @@ function placeOrder(world, userId, payload, now) {
 }
 
 function cancelOrder(world, userId, payload) {
-  const order = world.orders.find((item) => item.id === payload.orderId && item.ownerId === userId && isOpenOrder(item));
-  if (!order) return result(false, '未找到可撤销订单');
+  const order = orderById(world, payload.orderId);
+  if (!order || Number(order.ownerId) !== Number(userId) || !isOpenOrder(order)) {
+    return result(false, '未找到可撤销订单');
+  }
   const player = getPlayer(world, userId);
   if (order.side === 'buy') {
     const release = order.remaining * order.price;
@@ -1102,6 +1115,7 @@ function cancelOrder(world, userId, payload) {
     inventory.available += order.remaining;
   }
   order.status = 'cancelled';
+  closeOrderInOrderBook(world, order);
   return result(true, '订单已撤销，冻结资产已释放');
 }
 

@@ -10,7 +10,7 @@ import { createWarehouseUsage, ensureWarehouse } from './warehouse.js';
 import { matchIncomingOrder } from './order-matching.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
-import { countOpenOrdersForOwner, facilitySellQuantityForOwner } from './order-book-runtime.js';
+import { closeOrderInOrderBook, countOpenOrdersForOwner, facilitySellQuantityForOwner, orderById } from './order-book-runtime.js';
 import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
@@ -393,7 +393,12 @@ function migrateLegacyListings(world) {
 }
 
 export function removeSystemFacilityOrders(world) {
-  world.orders = (world.orders || []).filter((order) => !(
+  const orders = world.orders || (world.orders = []);
+  const hasSystemFacilityOrder = orders.some((order) => (
+    orderKind(order) === 'facility' && order.ownerType === 'market'
+  ));
+  if (!hasSystemFacilityOrder) return world;
+  world.orders = orders.filter((order) => !(
     orderKind(order) === 'facility' && order.ownerType === 'market'
   ));
   return world;
@@ -1062,6 +1067,7 @@ function cancelFacilityOrder(world, userId, order) {
     if (group?.status === 'running') group.pendingJoinCount += order.remaining;
   }
   order.status = 'cancelled';
+  closeOrderInOrderBook(world, order);
   return result(true, '订单已撤销，冻结资产已释放');
 }
 
@@ -1155,18 +1161,18 @@ export function applyFacilityGroupAction(world, user, action, payload = {}, now 
     price: payload.unitPrice ?? payload.price,
   }, now);
   else if (action === 'cancelOrder') {
-    const order = (world.orders || []).find((item) => item.id === payload.orderId && item.ownerId === userId && isOpenOrder(item));
-    actionResult = order && orderKind(order) === 'facility'
+    const order = orderById(world, payload.orderId);
+    actionResult = order && Number(order.ownerId) === userId && isOpenOrder(order) && orderKind(order) === 'facility'
       ? cancelFacilityOrder(world, userId, order)
       : withLegacyFacilitiesSuppressed(world, () => applyAction(world, user, action, payload, now));
   } else if (action === 'cancelFacilityListing') {
-    const order = (world.orders || []).find((item) => item.id === payload.listingId && item.ownerId === userId && isOpenOrder(item));
-    actionResult = order && orderKind(order) === 'facility'
+    const order = orderById(world, payload.listingId);
+    actionResult = order && Number(order.ownerId) === userId && isOpenOrder(order) && orderKind(order) === 'facility'
       ? cancelFacilityOrder(world, userId, order)
       : result(false, '工厂卖单不存在');
   } else if (action === 'buyFacility') {
-    const listing = (world.orders || []).find((item) => item.id === payload.listingId && isOpenOrder(item) && orderKind(item) === 'facility' && item.side === 'sell');
-    actionResult = listing
+    const listing = orderById(world, payload.listingId);
+    actionResult = listing && isOpenOrder(listing) && orderKind(listing) === 'facility' && listing.side === 'sell'
       ? placeFacilityOrder(world, userId, {
         assetKind: 'facility', assetId: orderAssetId(listing), side: 'buy',
         quantity: payload.quantity || 1, price: listing.price,

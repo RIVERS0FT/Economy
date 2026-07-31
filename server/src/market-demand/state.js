@@ -1,6 +1,7 @@
 import { DIRECT_DEMAND_MIN_PRICE, MARKET_DEMAND_GROUP_CATALOG, MARKET_DEMAND_MODEL_VERSION, PRICE_MAX_MULTIPLIER } from './catalog.js';
 import { clamp, roundMoney } from './math.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from '../population-economy.js';
+import { closeOrderInOrderBook } from '../order-book-runtime.js';
 
 export function createMarketDemandStateRuntime({ products, constants, marketFor, isOpenOrder }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
@@ -17,14 +18,20 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
 
   function normalizePlayerActivity(world, now) {
     world.players ||= {};
+    const missingPlayers = Object.entries(world.players).filter(([, player]) => !(
+      Number.isFinite(Number(player.lastEconomicActivityAt)) && Number(player.lastEconomicActivityAt) > 0
+    ));
+    if (missingPlayers.length === 0) return;
+
+    const missingPlayerIds = new Set(missingPlayers.map(([playerId]) => playerId));
     const latestOrderAt = new Map();
     for (const order of world.orders || []) {
       if (order.ownerType !== 'player' || !Number.isFinite(Number(order.ownerId))) continue;
       const ownerId = String(order.ownerId);
+      if (!missingPlayerIds.has(ownerId)) continue;
       latestOrderAt.set(ownerId, Math.max(latestOrderAt.get(ownerId) || 0, Number(order.createdAt || 0)));
     }
-    for (const [playerId, player] of Object.entries(world.players)) {
-      if (Number.isFinite(Number(player.lastEconomicActivityAt)) && Number(player.lastEconomicActivityAt) > 0) continue;
+    for (const [playerId, player] of missingPlayers) {
       const tradeAt = (player.trades || []).reduce((latest, item) => Math.max(latest, Number(item.createdAt || 0)), 0);
       const ledgerAt = (player.ledger || []).reduce((latest, item) => Math.max(latest, Number(item.createdAt || 0)), 0);
       const inferred = Math.max(
@@ -267,6 +274,7 @@ export function createMarketDemandStateRuntime({ products, constants, marketFor,
         if (order.ownerType !== 'population' || !isOpenOrder(order)) continue;
         releasePopulationOrderFunds(world, order);
         order.status = 'cancelled';
+        closeOrderInOrderBook(world, order);
       }
     }
     return world;

@@ -10,7 +10,7 @@ import {
 } from './market-demand.js';
 import { findSelfCrossingOrder, SELF_CROSS_MESSAGE } from './order-book-integrity.js';
 import { orderAssetId, orderKind } from './order-identity.js';
-import { countOpenOrdersForOwner, pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
+import { closeOrderInOrderBook, countOpenOrdersForOwner, pendingCommodityBuyQuantityForOwner } from './order-book-runtime.js';
 import { ensurePopulationEconomy, releasePopulationOrderFunds } from './population-economy.js';
 
 export * from './domain-core.js';
@@ -137,6 +137,7 @@ function cancelLegacyCommodityOrder(world, order) {
     inventory.available = Math.max(0, Number(inventory.available || 0)) + release;
   }
   order.status = 'cancelled';
+  closeOrderInOrderBook(world, order);
   return true;
 }
 
@@ -200,11 +201,13 @@ export function migrateWorld(world, now = Date.now()) {
       releasePopulationOrderFunds(migrated, order);
     }
   }
-  migrated.orders = (migrated.orders || []).filter((order) => {
+  const migratedOrders = migrated.orders || (migrated.orders = []);
+  const retainedOrders = migratedOrders.filter((order) => {
     if (order.ownerType === 'player') return true;
     if (order.ownerType !== 'population') return false;
     return hadCurrentMarketDemandModel && marketDemand.isValidMarketOrder(order);
   });
+  if (retainedOrders.length !== migratedOrders.length) migrated.orders = retainedOrders;
   if (previousVersion < 9) {
     for (const player of Object.values(migrated.players || {})) {
       const group = (player.facilityGroups || []).find((item) => item.facilityTypeId === 'electronics-factory');
