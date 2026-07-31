@@ -37,19 +37,20 @@
 | `App.tsx` | 计算 `data-app-surface`、`data-app-backdrop` 与 `data-app-tone`，驱动根级摄影表现；不得重建摄影节点 |
 | `main.tsx` | 在 `StrictMode` 与 `AppErrorBoundary` 外部永久挂载唯一 `FinancialBackdrop`，并承载 `.application-content-root` |
 | `StatusBar.tsx` | 保持单一玩家状态栏实例，按 `720px` 断点选择预设，直接承载固定五列状态内容，并使用单一 `ResizeObserver` 与合并后的 `requestAnimationFrame` 对移动端真实溢出的主数值逐项缩小字号；不得引入 `ScrollArea` |
-| `financial-backdrop.css` | 根级图片层、认证／玩家／管理员三种滤镜与氛围、网格、噪点、critical 暗角、失败回退、根级状态外壳和全局 `body` 网格关闭 |
+| `financial-backdrop.css` | 根级唯一隔离、图片层、认证／玩家／管理员三种滤镜与氛围、网格、噪点、critical 暗角、失败回退、登录后开放采样链和根级状态外壳 |
 | `auth.css` | 认证内容层、品牌区、卡片外层宽度／对齐／圆角、认证内容内边距、输入与自动填充兼容；不得实现摄影层或玻璃材质 |
 | `liquid-glass-surfaces.css` | 所有玻璃宿主、第三方 DOM 尺寸、内容自适应层、开放背景采样链、平台圆角、统一透明宿主与回退、全部表面的官方双层高光及宿主几何绑定、透明辅助层、零尺寸过渡、无项目结构描边和移动底栏唯一垂直留白 |
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口，必须包含全应用摄影背景样式 |
 | `game-shell-layout.css` | 登录后桌面双列轨道、唯一布局沟槽、工作栏外距、页面避让、内容边缘和桌面页面滚动条贴边几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
-| `viewport.css` | 游戏与管理员固定视口、登录态根视口纵向 overscroll 终止、移动工作区 gutter、两层 Overlay、安全区和移动背景采样层级 |
+| `viewport.css` | 游戏与管理员固定视口、桌面／移动开放背景采样链、登录态根视口纵向 overscroll 终止、移动工作区 gutter、两层 Overlay 与安全区层级 |
 | `scrollbars.css` | 通用覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘，不负责移动底栏 |
 | `mobileFacilityPullRefresh.ts` | 仅对已打开的移动工厂详情识别顶部向下关闭手势，并在该手势激活后局部取消浏览器默认纵向过度滚动 |
 | `admin-navigation.css` | 管理员桌面工作栏内容布局与运营业务编排，不得定义第二套根外壳 |
 | `mobile-status-navigation.css` | 移动导航唯一原生横向滚动视口、原生轨道隐藏、按钮几何和内部焦点环 |
 | `mobile-status-layout.css` | 移动状态栏固定五列、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略和移动通知定位 |
 | `verify-liquid-glass-chrome.mjs` | 唯一依赖入口、五种预设、全预设零弹性、静态鼠标输入、固定／内容自适应布局、认证内容内部定位、单实例、单壳装饰、兼容入口、背景采样链、移动导航和认证卡片防回退 |
+| `verify-open-glass-sampling.mjs` | 唯一根隔离、桌面／移动玩家与管理员开放采样链、禁止登录后祖先恢复隔离／滤镜／变换以及浏览器回归入口 |
 | `verify-game-three-layer.mjs` | 根级唯一摄影节点、三种氛围、数据属性切换、根级状态外壳、兼容入口、浏览器 harness 和移动 Overlay 防回退 |
 | `verify-mobile-status-value-fit.mjs` | 移动状态栏数值测量、单观察器、逐项字号适配、禁止省略号、设计记录和浏览器回归检查 |
 | `verify-game-shell-layout.mjs` | 游戏与管理员共享桌面沟槽、双列、导航行高、页面滚动条贴边、移动 Overlay、滚动条和滚动链检查 |
@@ -57,6 +58,7 @@
 | `verify-mobile-facility-pull-refresh.mjs` | 登录态根 overscroll、工厂详情局部非被动触摸监听、设计记录和浏览器回归检查 |
 | `verify-desktop-primary-surfaces.mjs` | 桌面一级卡片、玩家状态栏与管理员工作栏的 24px 圆角、透明宿主、官方双层高光、默认阴影和无项目结构描边检查 |
 | `liquid-glass-layout.spec.ts` | 真实浏览器平台预设、单状态栏实例、装饰层显隐、背景采样链、圆角、共线和页面避让验证 |
+| `open-glass-sampling.spec.ts` | 桌面玩家、桌面管理员、移动玩家和移动管理员的唯一根隔离、开放祖先采样链和真实玻璃计算值验证 |
 | `auth-three-layer.spec.ts` | 根级认证三层结构、认证桌面／移动预设、`0 / 140 / overLight=false` 对照参数、零弹性、静态鼠标输入、双层边缘高光、透明辅助层、透明认证宿主、官方默认 `.glass` 阴影、首帧宿主与高光底部同步、认证内容内部定位、无项目外框、单实例、自然高度、表单值保持、断点切换和无内部滚动回归 |
 | `liquid-glass-reference.spec.ts` | 在项目生产 `FinancialBackdrop` 图片与原有氛围层上，以 `440 × 352px` 卡片、相同内容、`displacementScale=70`、`blurAmount=0`、`saturation=140`、`overLight=false` 和固定 `{0,0}` 鼠标输入，对照官方组件与项目认证表面的辅助层、阴影、滤镜和几何 |
 | `liquid-glass-reference-harness.tsx` | 只供浏览器回归使用的官方／项目双列受控材质对照；生产图片层、项目氛围层与两组玻璃共同进入同一个 Backdrop Root，不进入生产业务入口 |
@@ -126,7 +128,7 @@
 - 管理员 `.admin-page-frame` 必须 `width: 100%`、`max-width: none`，不得恢复全局 `1440px`／`1600px` 居中限制；桌面 `PageLayout` 标题隐藏，由 `AdminDesktopBar` 承载上下文，业务内容仍保留主从双栏；
 - 不得给 `.signed-in-shell`、`.workspace`、`.page-scroll-area` 或 `.page-scroll` 添加外边距／水平 padding 模拟内容留白，不得为管理员创建第二个原生主滚动容器。
 
-摄影图片和氛围节点位于 `.application-content-root` 之外。生产认证态下，图片层、氛围层和 `.application-content-root` 是同一个 `#root` 隔离根的直接子节点；图片与氛围使用 `-2 / -1` 负层级，认证内容链保持 `z-index:auto`、`isolation:auto`、`filter:none` 与 `transform:none`，让登录玻璃直接采样同根背景。登录后玩家与管理员根外壳只承载内容；`.game-shell` 与 `.admin-shell` 可以保留现有隔离以收口业务定位元素，但不得遮盖根级背景。页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`，不得重新提供 `SignedInShell.backdrop`。
+摄影图片和氛围节点位于 `.application-content-root` 之外。`#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根。图片、氛围和 `.application-content-root` 必须位于该根内；生产认证态继续使用 `-2 / -1` 负层级，登录后玩家与管理员继续使用 `0 / 1 / 2` 根级层级。`.application-content-root`、`.signed-in-shell`、`.game-shell`、`.admin-shell`、`.workspace`、`.mobile-page-overlay`、`.mobile-chrome-overlay`、`.page-scroll-area` 与 `.page-scroll` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，让状态栏、管理员工作栏和移动底栏直接采样同根摄影与氛围。页面内部表格、详情抽屉、弹窗和 sticky 业务区可以在不包围 Chrome 的局部子树建立隔离；不得在登录后外壳祖先上建立第二个隔离根，也不得用用途专用染色掩盖采样链故障。页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`，不得重新提供 `SignedInShell.backdrop`。
 
 ## 6. 移动工作区、Overlay 与滚动条
 
@@ -180,7 +182,9 @@
 - 每个可见顶部工作栏只允许一个玻璃实例；整个移动底栏也只允许一个玻璃实例；认证页面只允许一个认证玻璃实例。
 - 支持环境中的桌面状态栏、管理员桌面工作栏、移动状态栏、移动底栏和认证卡片全部使用 `overLight=false`；两个辅助节点保持完整几何但不得产生可见黑色绘制。所有宿主保持透明，第三方 `.glass__warp` 继续采样页面内容和根级氛围背景；认证输入框自身继续保持不透明深色控件以保护表单可读性。
 - 五种表面都不得创建 `.liquid-glass-surface__material-fill`，也不得恢复 `--liquid-glass-contrast`、`--liquid-glass-structure-border`、`--liquid-glass-auth-contrast` 或 `--liquid-glass-auth-mobile-contrast`；只有不支持背景滤镜时可统一使用 `--liquid-glass-auth-fallback`。
-- `.glass__warp` 到根级摄影和氛围之间必须保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切。
+- `#root` 是唯一全应用隔离根；登录后玩家与管理员外壳、工作区、两层移动 Overlay、页面主滚动区和玻璃宿主不得建立第二个 `isolation:isolate`、非 `none` `filter` 或非 `none` `transform`。
+- `.glass__warp` 到根级摄影和氛围之间必须在桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切。
+- 只允许不包围状态栏、管理员工作栏或移动底栏的页面局部业务子树建立隔离；不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败。
 - 桌面、移动和认证预设的 WebKit 兼容别名必须统一匹配共享上游参数；只有圆角和固定／内容高度模型允许因平台与用途不同。
 - 所有五种表面都不得绘制项目结构描边或宿主边框；`desktopStatusBar`、`mobileStatusBar`、`mobileNavigation`、`desktopAuthCard` 与 `mobileAuthCard` 的 `::after` 必须统一使用 `content: none`。
 - 所有表面的两个直属边缘高光 `span` 必须可见、直接绑定所属宿主 `100%` 几何并取消第三方尺寸过渡；两个 `overLight=false` 辅助 `div` 必须保持完整宿主几何但不可见。宿主背景与 `box-shadow` 必须为透明／`none`；第三方 `.glass` 必须保留官方默认阴影，不得由项目 CSS 覆盖。
@@ -236,7 +240,7 @@
 7. 桌面导航按钮从顶部按固有高度排列；桌面工作栏、桌面认证卡和桌面一级卡片均为 `24px`。
 8. 移动状态栏、一级卡片和底栏实际玻璃左右共线；移动状态栏固定 `48px`，底栏固定 `68px`；移动 Chrome 与移动认证卡圆角均为 `40px`。
 9. 状态栏、管理员工作栏、移动底栏和认证卡片统一传入 `70 / 0 / 140 / 2`、弹性 `0` 与 `overLight=false`，浏览器统一计算为 `blur(4px) saturate(140%)`、首个位移 scale 为 `70`；两个辅助黑色层不可见，两个官方直属高光可见，第三方 `.glass` 默认阴影存在。
-10. 玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
+10. 根级采样容器计算 `isolation` 为 `isolate`；桌面玩家、桌面管理员、移动玩家和移动管理员的 `.application-content-root`、登录后外壳、`.workspace`、两层 Overlay、`.page-scroll-area` 与 `.page-scroll` 均为 `isolation:auto`、`filter:none`、`transform:none`。玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
 11. 移动背景采样链中的工作区、两层 Overlay、页面滚动区和底栏宿主计算 `z-index` 均为 `auto`。
 12. 管理员移动页面层与 Chrome 层位于同一工作区，顺序为 `1` 和 `2`，桌面工作栏隐藏且底栏保持可点击。
 13. 页面首次加载后全应用始终只有一个摄影 `<picture>` 和一个 `<img>`；账号检查切换到认证时自定义 DOM 标记必须保留，证明节点未被替换。认证、玩家、管理员和状态页只改变 `data-app-backdrop` 与 `data-app-tone`。
