@@ -70,12 +70,21 @@ jobs:
           content = page_verifier.read_text().replace('动态存款利息', '活跃周固定存款利息、周资金结算')
           page_verifier.write_text(content)
 
+          assets_verifier = Path('scripts/verify-assets-page.mjs')
+          content = assets_verifier.read_text()
+          content = content.replace('title="存款利息"', 'title="存款利息与周结算"')
+          content = content.replace(
+              '页面顺序固定为“资产总览／存款账户与存款利息／工厂抵押贷款／银行记录”',
+              '页面顺序固定为“资产总览／存款账户与存款利息、周资金结算／工厂抵押贷款／银行记录”',
+          )
+          assets_verifier.write_text(content)
+
           settlement = Path('server/src/weekly-cash-settlement.js')
           content = settlement.read_text().replace('safeMoney(player?.frozenCredits)', 'safeMoney(player.frozenCredits)')
           settlement.write_text(content)
 
-          design = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
-          content = design.read_text()
+          product_design = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
+          content = product_design.read_text()
           content = content.replace(
               '银行按 `Asia/Shanghai` 每日 00:00 自动结息：',
               '固定存款日利率为每日 1%，银行按 `Asia/Shanghai` 每日 00:00 自动结息：',
@@ -88,7 +97,14 @@ jobs:
               '每个完整活跃周结束时，服务器在周一 00:00',
               '每周 10% 的资金扣除只适用于完整活跃周。每个完整活跃周结束时，服务器在周一 00:00',
           )
-          design.write_text(content)
+          product_design.write_text(content)
+
+          page_design = Path('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md')
+          content = page_design.read_text().replace(
+              '页面顺序固定为“资产总览／存款账户与存款利息／工厂抵押贷款／银行记录”',
+              '页面顺序固定为“资产总览／存款账户与存款利息、周资金结算／工厂抵押贷款／银行记录”',
+          )
+          page_design.write_text(content)
           PYTHON
           node --check server/src/weekly-cash-settlement.js
           node --check server/test/weekly-cash-settlement.test.js
@@ -108,6 +124,8 @@ jobs:
 
       - name: Commit implementation
         run: |
+          rm -f .github/workflows/apply-fixed-weekly-settlement.yml
+          rm -f .github/scripts/fixed-weekly-settlement.part*
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
