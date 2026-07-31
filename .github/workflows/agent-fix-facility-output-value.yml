@@ -32,10 +32,13 @@ jobs:
       - name: Apply scoped fix
         run: |
           set -o pipefail
-          node .github/fix-facility-output-value.mjs 2>&1 | tee facility-value-fix.log
+          {
+            node .github/fix-facility-output-value.mjs
+            node .github/fix-facility-output-value-verifier.mjs
+          } 2>&1 | tee facility-value-fix.log
 
       - name: Remove temporary files
-        run: rm -f .github/fix-facility-output-value.mjs .github/workflows/agent-fix-facility-output-value.yml
+        run: rm -f .github/fix-facility-output-value.mjs .github/fix-facility-output-value-verifier.mjs .github/workflows/agent-fix-facility-output-value.yml
 
       - name: Install dependencies
         run: |
@@ -45,7 +48,7 @@ jobs:
       - name: Verify focused calculation
         run: |
           set -o pipefail
-          node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs 2>&1 | tee -a facility-value-fix.log
+          node scripts/verify-recipe-profit-analysis.mjs 2>&1 | tee -a facility-value-fix.log
 
       - name: Run full build
         run: |
