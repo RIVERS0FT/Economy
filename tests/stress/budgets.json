@@ -1,5 +1,12 @@
 {
   "version": 1,
+  "baselines": {
+    "mixedGithubNode24": {
+      "environment": "github-hosted ubuntu-24.04, Node 24.4.0, 24 users, 30 seconds, 250ms polling",
+      "runIds": [30647212055, 30647348669, 30647358093],
+      "workP95Ms": [1017.71, 995.04, 959.63]
+    }
+  },
   "profiles": {
     "smoke": {
       "maxTimeouts": 0,
@@ -47,7 +54,7 @@
       "maxLocalWalBytes": 16777216,
       "routes": {
         "GET /api/game/state": { "maxP95Ms": 1000, "maxP99Ms": 3000 },
-        "POST /api/game/work": { "maxP95Ms": 1000, "maxP99Ms": 3000 }
+        "POST /api/game/work": { "maxP95Ms": 1100, "maxP99Ms": 3000 }
       }
     },
     "soak": {

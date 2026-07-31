@@ -456,7 +456,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 正式场景为 `smoke`、`poll`、`burst`、`mixed` 和 `soak`：`smoke` 验证登录与完整／增量状态，`poll` 模拟正常轮询，`burst` 验证隔离环境冷状态尖峰，`mixed` 在隔离环境混合状态读取、工作动作、动作补拉和幂等重放，`soak` 长时间验证延迟、SQLite／WAL 与错误是否持续增长。未专门声明限流场景时，超时、5xx、非预期 4xx 和 429 必须为零。
 
-`.github/workflows/stress.yml` 是唯一完整压力测试工作流。每周运行一次五分钟隔离 `poll`，人工运行可选择目标、场景、1～24 个槽位、最长一小时和轮询间隔；同一目标不得并行压测。成功或失败都把脱敏 JSON 与 Markdown 报告写入 Job Summary 并作为 14 天 Artifact 保存，报告只记录槽位范围，不得记录邮箱、密码、Cookie、Token、Session 或请求正文。完整压力测试不得绑定到每个 PR 或主部署；性能预算调整必须依据至少三次同环境基线并作为独立审查修改。
+`.github/workflows/stress.yml` 是唯一完整压力测试工作流。每周运行一次五分钟隔离 `poll`，人工运行可选择目标、场景、1～24 个槽位、最长一小时和轮询间隔；同一目标不得并行压测。成功或失败都把脱敏 JSON 与 Markdown 报告写入 Job Summary 并作为 14 天 Artifact 保存，报告只记录槽位范围，不得记录邮箱、密码、Cookie、Token、Session 或请求正文。完整压力测试不得绑定到每个 PR 或主部署；性能预算调整必须依据至少三次同环境基线并作为独立审查修改，所用 GitHub Actions run ID、环境和观测值必须随 `budgets.json` 保存。
 
 ## 10. 防回退
 
