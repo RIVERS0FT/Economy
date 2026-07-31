@@ -146,28 +146,6 @@
   font-size: .75rem;
 }
 
-.admin-population-bar,
-.admin-population-budget-split {
-  width: 100%;
-  height: 6px;
-  display: flex;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, .075);
-}
-
-.admin-population-bar > span {
-  min-width: 0;
-  border-radius: inherit;
-  background: var(--color-info);
-}
-
-.admin-population-bar--success > span { background: var(--color-success); }
-.admin-population-bar--warning > span { background: var(--color-warning); }
-.admin-population-bar--danger > span { background: var(--color-danger); }
-.admin-population-budget-split > .food { background: var(--color-warning); }
-.admin-population-budget-split > .household { background: var(--color-info); }
-
 .admin-population-state-cell,
 .admin-population-state-metrics {
   min-width: 0;
@@ -198,7 +176,7 @@
 
 .admin-population-analysis-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
 }
 
@@ -217,45 +195,6 @@
 .admin-population-ledger header small,
 .admin-population-policy-current header small {
   color: var(--color-text-muted);
-}
-
-.admin-population-distribution-list { display: grid; gap: 10px; }
-.admin-population-distribution-list > div { display: grid; gap: 6px; }
-
-.admin-population-distribution-list > div > span {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.admin-population-distribution-list small {
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.admin-population-complexity-bars {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.admin-population-complexity-bars > div {
-  min-width: 0;
-  display: grid;
-  gap: 7px;
-  padding: 9px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  text-align: center;
-}
-
-.admin-population-complexity-bars span,
-.admin-population-complexity-bars strong {
-  overflow: hidden;
-  font-size: .78rem;
-  text-overflow: ellipsis;
 }
 
 .admin-population-ledger dl {

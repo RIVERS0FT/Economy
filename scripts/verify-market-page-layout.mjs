@@ -3,6 +3,8 @@ import fs from 'node:fs';
 const marketPage = fs.readFileSync('src/pages/MarketPage.tsx', 'utf8');
 const marketHistory = fs.readFileSync('src/utils/marketHistory.ts', 'utf8');
 const marketStyles = fs.readFileSync('src/styles/market-page-polish.css', 'utf8');
+const chartSource = fs.readFileSync('src/components/charts/PriceSparkline.tsx', 'utf8');
+const chartStyles = fs.readFileSync('src/styles/charts.css', 'utf8');
 const productArtworkStyles = fs.readFileSync('src/styles/product-artwork.css', 'utf8');
 const sharedMarketStyles = fs.readFileSync('src/styles/unified-market-admin.css', 'utf8');
 const runtimeHarness = fs.readFileSync('tests/browser/market-runtime-harness.tsx', 'utf8');
@@ -23,8 +25,11 @@ function forbidText(source, text, message) {
 }
 
 requireText(marketStyles, 'grid-template-columns: 320px 360px minmax(620px, 1fr)', '宽屏市场必须为固定下单列、订单簿列和宽行情列。');
-requireText(marketStyles, 'aspect-ratio: 16 / 9', '完整行情图必须按自身宽度保持 16:9。');
-requireText(marketStyles, 'height: auto !important', '完整行情图必须覆盖旧视口高度内联规则。');
+requireText(chartSource, 'export function buildMarketChartGeometry', '完整行情图必须由组件计算动态几何。');
+requireText(chartSource, 'Math.max(48, rootFontSize', '完整行情图成交量绘图区必须保持至少 48px。');
+requireText(chartSource, '(0.22 / 0.78)', '完整行情图成交量绘图区必须保持至少 22% 数据区占比。');
+requireText(chartSource, 'style={{ height: geometry.height }}', '完整行情图必须把动态几何高度同步到实际容器。');
+forbidText(marketStyles, 'aspect-ratio: 16 / 9', '业务 CSS 不得用固定 16:9 覆盖行情图动态比例。');
 requireText(marketStyles, 'grid-template-rows: repeat(2', '资产目录必须使用两行连续目录。');
 requireText(marketStyles, 'grid-auto-columns: max-content;', '市场资产目录的隐式列必须按分组标签或资产卡自身宽度布局。');
 requireText(marketStyles, 'width: 46px;\n  min-width: 46px;\n  max-width: 46px;', '市场资产分组标签必须只占 46px 网格轨道。');
@@ -37,7 +42,7 @@ forbidText(marketStyles, 'scroll-behavior: smooth', '市场资产目录不得用
 forbidText(sharedMarketStyles, 'scroll-snap-align: start', '市场资产卡不得恢复吸附锚点。');
 requireText(marketStyles, '.single-order-book', '订单簿必须拥有自然高度覆盖。');
 forbidText(marketStyles, '.chart-footer', '行情图下方统计栏及其两列布局必须删除。');
-requireText(marketStyles, 'font-variant-numeric: tabular-nums;', '行情坐标轴必须使用稳定数字宽度。');
+requireText(chartStyles, 'font-variant-numeric: tabular-nums;', '行情坐标轴必须使用稳定数字宽度。');
 requireText(marketStyles, '.asset-directory-shell {\n    position: relative;\n    z-index: 0;', '移动市场资产目录必须建立局部堆叠上下文，防止 sticky 分组遮挡状态栏。');
 requireText(marketStyles, '.market-page-surface .market-asset-card__icon-layer', '市场商品卡必须提供独立图标层。');
 requireText(marketStyles, '.market-page-surface .market-asset-card__data-layer', '市场商品卡必须提供独立数据层。');
@@ -106,7 +111,7 @@ requireText(runtimeHarness, 'remaining: 1', '同价档位测试必须使用当�
 requireText(runtimeHarness, "lastTradePrice: product.id === 'wheat' ? 2 : null", '浏览器夹具必须显式提供真实成交价。');
 requireText(runtimeSpec, 'market desktop layout gives the full chart the dominant column', 'Playwright 必须覆盖宽屏行情主列。');
 requireText(runtimeSpec, "chartCard.locator('.chart-footer')", 'Playwright 必须验证行情底部统计栏已删除。');
-requireText(runtimeSpec, 'expect(axis.priceLabels).toHaveLength(5)', 'Playwright 必须验证价格轴使用固定数量的整数刻度。');
+requireText(runtimeSpec, 'expect(axis.priceTicks).toHaveLength(5)', 'Playwright 必须验证价格轴使用固定数量的整数刻度。');
 requireText(runtimeSpec, '不得越出图表左侧', 'Playwright 必须验证纵轴标签不会被裁剪。');
 requireText(runtimeSpec, 'status-neutral', 'Playwright 必须验证零涨跌中性状态。');
 requireText(runtimeSpec, 'market quick quantities use funds, inventory and holdings without duplicate quantity errors', 'Playwright 必须覆盖快捷数量语义与错误去重。');
@@ -154,4 +159,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场页布局、资产目录轨道、商品卡双层结构、价格档位、整数行情坐标、禁用反馈与共享移动层级浏览器回归基线验证通过。');
+console.log('市场页布局、资产目录轨道、商品卡双层结构、价格档位、ECharts 动态行情几何、禁用反馈与共享移动层级浏览器回归基线验证通过。');

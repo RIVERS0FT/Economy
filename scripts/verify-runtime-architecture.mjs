@@ -96,11 +96,12 @@ for (const values of [
     || (values.every((value) => !Number.isFinite(value) || value <= 0) && sum !== 0)) {
     fail(`资产可见百分比合计错误: ${values.join('/')}`);
   }
-  const gradient = String(allocation.allocationStyle.background || '');
-  if (!gradient.startsWith('conic-gradient(') || !gradient.endsWith('360deg)')) {
-    fail('资产圆环必须使用精确比例生成完整 360deg 渐变');
-  }
 }
+
+const assetAllocationChart = read('src/components/charts/AssetAllocationChart.tsx');
+if (!assetAllocationChart.includes("type: 'pie'")) fail('资产配置必须由 ECharts 圆环图渲染');
+if (!assetAllocationChart.includes("radius: ['64%', '84%']")) fail('资产配置 ECharts 必须保持圆环形态');
+if (read('src/utils/assetAllocation.ts').includes('conic-gradient')) fail('资产比例工具不得继续生成 CSS 圆环');
 
 const localActivity = read('src/utils/localActivityStore.ts');
 for (const structure of [
@@ -122,4 +123,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、资产比例和本地匿名成交缓存均已锁定。');
+console.log('运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。');

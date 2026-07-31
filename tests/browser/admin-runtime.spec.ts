@@ -298,10 +298,13 @@ await expect(page.getByRole('button', { name: '预览政策', exact: true })).to
 await expect(page.getByText('人口调控记录', { exact: true })).toHaveCount(0);
 await expect(page.getByText('管理备注', { exact: true })).toHaveCount(0);
 
-const visiblePositiveBarWidth = await page.locator('.admin-population-distribution-list > div').filter({ hasText: '市场服务' }).locator('.admin-population-bar > span').evaluate((element) => element.getBoundingClientRect().width);
-const zeroBarWidth = await page.locator('.admin-population-distribution-list > div').filter({ hasText: '仓库扩容' }).locator('.admin-population-bar > span').evaluate((element) => element.getBoundingClientRect().width);
-expect(visiblePositiveBarWidth).toBeGreaterThanOrEqual(3.5);
-expect(zeroBarWidth).toBe(0);
+const employmentSourceCard = page.locator('.admin-population-analysis-card').filter({ has: page.getByRole('heading', { name: '就业收入来源', exact: true }) });
+const employmentSourceChart = employmentSourceCard.locator('.economy-chart');
+await expect(employmentSourceChart).toHaveAttribute('data-echarts-ready', 'true');
+await expect(employmentSourceChart.locator('.economy-chart__canvas svg')).toBeVisible();
+const employmentSourceSummary = employmentSourceChart.locator('.economy-chart__accessible-summary');
+await expect(employmentSourceSummary).toContainText('市场服务1.00');
+await expect(employmentSourceSummary).toContainText('仓库扩容0.00');
 
 await page.getByLabel('生产工资系数（%）', { exact: true }).fill('135');
 await page.getByRole('button', { name: '玩家', exact: true }).click();

@@ -1,5 +1,6 @@
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
+import { AssetAllocationChart } from '../charts/AssetAllocationChart';
 import { PagePanel, WidgetHeading } from '../ui/layout';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
 
@@ -10,7 +11,6 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
     cashShare,
     commodityShare,
     facilityShare,
-    allocationStyle,
   } = model;
   const frozenInventory = Object.values(game.inventories).reduce((sum, inventory) => sum + inventory.frozen, 0);
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
@@ -61,9 +61,11 @@ export function AssetOverviewPanel({ model }: { model: LoadedGameViewModel }) {
         </section>
 
         <section className="asset-allocation-summary" aria-label="资产配置比例">
-          <div className="allocation-visual" style={allocationStyle}>
-            <div><strong>资产配置</strong><span>按毛值占比</span></div>
-          </div>
+          <AssetAllocationChart
+            cash={derived.cashValue}
+            commodities={derived.commodityValue}
+            facilities={derived.facilityValue}
+          />
           <div className="allocation-legend">
             <span><i className="cash-dot" />现金 <strong>{cashShare}%</strong></span>
             <span><i className="commodity-dot" />商品 <strong>{commodityShare}%</strong></span>

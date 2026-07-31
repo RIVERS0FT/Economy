@@ -20,6 +20,7 @@ import type { ProductMarketState } from '../../src/types';
 import { formatCurrency, formatNumber, formatRank } from '../../src/utils/formatters';
 import { loadLocalActivity } from '../../src/utils/localActivityStore';
 import '../../src/styles/globals.css';
+import '../../src/styles/charts.css';
 import '../../src/styles/desktop-sidebar.css';
 import '../../src/styles/viewport.css';
 import '../../src/styles/card-system.css';
@@ -323,7 +324,6 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     cashShare: 0,
     commodityShare: 28,
     facilityShare: 72,
-    allocationStyle: {},
     avatarText: 'M',
     showResult: async () => {},
     notify: () => {},

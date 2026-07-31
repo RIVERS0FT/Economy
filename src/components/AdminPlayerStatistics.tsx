@@ -4,6 +4,12 @@ import type {
   AdminPlayerStatisticsAttention,
 } from '../api/admin';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import {
+  DonutChart,
+  HorizontalPercentChart,
+  NumberBarChart,
+  PlayerActivityChart,
+} from './charts/AdminCharts';
 import { CurrencyAmount } from './ui/CurrencyAmount';
 import { EmptyState, StatusTag, type StatusTone } from './ui/layout';
 
@@ -14,7 +20,6 @@ function formatPercentBps(value: number) {
   if (percent < 10) return `${percent.toFixed(1)}%`;
   return `${Math.round(percent)}%`;
 }
-
 
 function attentionTone(item: AdminPlayerStatisticsAttention): StatusTone {
   if (item.tone === 'danger') return 'danger';
@@ -29,16 +34,6 @@ function Metric({ label, value, detail }: { label: string; value: ReactNode; det
       <strong>{value}</strong>
       {detail ? <small>{detail}</small> : null}
     </article>
-  );
-}
-
-function RatioBar({ value, label }: { value: number; label: string }) {
-  const normalized = Math.max(0, Math.min(10_000, Number(value) || 0));
-  const hasValue = normalized > 0;
-  return (
-    <span className="admin-player-statistics__bar" role="img" aria-label={`${label} ${formatPercentBps(normalized)}`}>
-      <span style={{ width: hasValue ? `max(4px, ${normalized / 100}%)` : '0%' }} />
-    </span>
   );
 }
 
@@ -58,16 +53,31 @@ export function AdminPlayerStatistics({
   }
 
   const { snapshot, activity, retention, funnel, participation, wealth, acquisition } = statistics;
-  const maxTrend = Math.max(
-    1,
-    ...statistics.series.flatMap((point) => [point.activePlayers || 0, point.newPlayers || 0]),
-  );
-  const compositionTotal = Math.max(1, wealth.composition.total);
-  const composition = [
-    ['现金', wealth.composition.cash],
-    ['商品', wealth.composition.commodities],
-    ['工厂', wealth.composition.facilities],
-  ] as const;
+  const retentionRows = ([
+    ['D1', retention.d1],
+    ['D7', retention.d7],
+    ['D30', retention.d30],
+  ] as const).map(([label, row]) => ({
+    label,
+    value: row.rateBps / 100,
+    detail: `${row.retained}/${row.eligible} 人`,
+    unavailable: row.eligible <= 0,
+  }));
+  const funnelRows = funnel.stages.map((stage) => ({
+    label: stage.label,
+    value: stage.conversionBps / 100,
+    detail: `${stage.count} 人 · ${stage.medianHours === null ? '历史耗时待积累' : `中位 ${stage.medianHours} 小时`}`,
+  }));
+  const participationRows = participation.rows.map((row) => ({
+    label: row.label,
+    value: row.shareBps / 100,
+    detail: `${row.count}/${snapshot.totalPlayers} 人`,
+  }));
+  const compositionRows = [
+    { label: '现金', value: wealth.composition.cash },
+    { label: '商品', value: wealth.composition.commodities },
+    { label: '工厂', value: wealth.composition.facilities },
+  ];
 
   return (
     <div className="admin-player-statistics" data-loading={loading ? 'true' : undefined}>
@@ -97,42 +107,15 @@ export function AdminPlayerStatistics({
       <section className="admin-player-statistics__two-column">
         <article className="admin-player-statistics__card admin-player-statistics__trend-card">
           <header>
-            <div><h3>新增与经济活跃趋势</h3><small>空心柱为新增，实心柱为成功经济操作玩家</small></div>
+            <div><h3>新增与经济活跃趋势</h3><small>空心柱为新增，实心柱为成功经济操作玩家；未覆盖日期不按零值展示</small></div>
             <span>{activity.productionParticipantsInRange} 人生产 · {activity.tradeParticipantsInRange} 人成交</span>
           </header>
-          <div className="admin-player-statistics__trend" role="img" aria-label={`${statistics.range.days} 日新增与经济活跃趋势`}>
-            {statistics.series.map((point) => {
-              const activeHeight = point.activePlayers === null ? 0 : point.activePlayers / maxTrend * 100;
-              const newHeight = point.newPlayers / maxTrend * 100;
-              return (
-                <div className="admin-player-statistics__trend-day" key={point.day} title={`${point.day} · 新增 ${point.newPlayers} · 活跃 ${point.activePlayers ?? '未覆盖'}`}>
-                  <span className="admin-player-statistics__trend-bars">
-                    <i className="new" style={{ height: point.newPlayers > 0 ? `max(3px, ${newHeight}%)` : '0%' }} />
-                    <i className="active" style={{ height: point.activePlayers && point.activePlayers > 0 ? `max(3px, ${activeHeight}%)` : '0%' }} />
-                    {!point.covered ? <i className="uncovered" /> : null}
-                  </span>
-                  <small>{point.day.slice(5)}</small>
-                </div>
-              );
-            })}
-          </div>
+          <PlayerActivityChart points={statistics.series} />
         </article>
 
         <article className="admin-player-statistics__card">
           <header><div><h3>留存</h3><small>注册后目标北京时间自然日内至少一次成功经济操作</small></div></header>
-          <div className="admin-player-statistics__retention">
-            {([
-              ['D1', retention.d1],
-              ['D7', retention.d7],
-              ['D30', retention.d30],
-            ] as const).map(([label, row]) => (
-              <div key={label}>
-                <span><strong>{label}</strong><small>{row.retained}/{row.eligible} 人</small></span>
-                <b>{row.eligible > 0 ? formatPercentBps(row.rateBps) : '覆盖不足'}</b>
-                <RatioBar value={row.rateBps} label={`${label} 留存`} />
-              </div>
-            ))}
-          </div>
+          <HorizontalPercentChart rows={retentionRows} ariaLabel="D1、D7 与 D30 玩家留存率" />
           <div className="admin-player-statistics__acquisition">
             <h4>区间注册来源</h4>
             <dl>
@@ -148,29 +131,12 @@ export function AdminPlayerStatistics({
       <section className="admin-player-statistics__two-column">
         <article className="admin-player-statistics__card">
           <header><div><h3>经营成长漏斗</h3><small>阶段人数使用当前权威状态与已记录里程碑，耗时只统计精确时间</small></div></header>
-          <div className="admin-player-statistics__funnel">
-            {funnel.stages.map((stage) => (
-              <div key={stage.id}>
-                <span><strong>{stage.label}</strong><small>{stage.medianHours === null ? '历史耗时待积累' : `中位 ${stage.medianHours} 小时`}</small></span>
-                <b>{stage.count}</b>
-                <RatioBar value={stage.conversionBps} label={`${stage.label}阶段转化`} />
-                <small>相邻转化 {formatPercentBps(stage.conversionBps)}</small>
-              </div>
-            ))}
-          </div>
+          <HorizontalPercentChart rows={funnelRows} ariaLabel="玩家经营成长阶段相邻转化率" className="admin-echart--tall" />
         </article>
 
         <article className="admin-player-statistics__card">
           <header><div><h3>当前经营参与</h3><small>只读诊断，不参与人口需求预算或排行榜</small></div></header>
-          <div className="admin-player-statistics__participation">
-            {participation.rows.map((row) => (
-              <div key={row.id}>
-                <span><strong>{row.label}</strong><small>{row.count}/{snapshot.totalPlayers}</small></span>
-                <RatioBar value={row.shareBps} label={row.label} />
-                <b>{formatPercentBps(row.shareBps)}</b>
-              </div>
-            ))}
-          </div>
+          <HorizontalPercentChart rows={participationRows} ariaLabel="当前玩家经营参与结构" />
         </article>
       </section>
 
@@ -183,15 +149,16 @@ export function AdminPlayerStatistics({
             <Metric label="P90／P99" value={<><Amount value={wealth.p90} />／<Amount value={wealth.p99} /></>} />
             <Metric label="前 10% 占比" value={formatPercentBps(wealth.top10ShareBps)} detail={`前 1% ${formatPercentBps(wealth.top1ShareBps)}`} />
           </section>
-          <div className="admin-player-statistics__composition">
-            {composition.map(([label, value]) => {
-              const shareBps = ratioBps(value, compositionTotal);
-              return <div key={label}><span><strong>{label}</strong><small><Amount value={value} /> · {formatPercentBps(shareBps)}</small></span><RatioBar value={shareBps} label={`${label}资产占比`} /></div>;
-            })}
-            <div><span><strong>冻结资产</strong><small>{formatPercentBps(wealth.frozenShareBps)} · 与资产类别重叠</small></span><RatioBar value={wealth.frozenShareBps} label="冻结资产占比" /></div>
-          </div>
-          <div className="admin-player-statistics__wealth-brackets">
-            {wealth.brackets.map((row) => <div key={row.id}><span>{row.label}</span><strong>{row.count}</strong></div>)}
+          <div className="admin-player-statistics__wealth-charts">
+            <section>
+              <h4>资产构成</h4>
+              <DonutChart rows={compositionRows} ariaLabel="玩家财富中的现金、商品与工厂构成" valueFormatter={formatCurrency} />
+              <small className="admin-player-statistics__chart-note">冻结资产 {formatPercentBps(wealth.frozenShareBps)}，与资产类别重叠，不重复计入扇区。</small>
+            </section>
+            <section>
+              <h4>财富区间</h4>
+              <NumberBarChart rows={wealth.brackets.map((row) => ({ label: row.label, value: row.count }))} ariaLabel="各财富区间玩家人数" />
+            </section>
           </div>
           {wealth.unpricedAssetPlayers > 0 ? <small className="admin-player-statistics__note">{wealth.unpricedAssetPlayers} 名玩家持有尚无真实成交估值的商品或工厂。</small> : null}
         </article>
