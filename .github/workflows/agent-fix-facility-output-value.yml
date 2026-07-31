@@ -78,7 +78,7 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: "__PR_NUMBER__"
+          PR_NUMBER: "378"
         run: |
           {
             echo '工厂产值修复自动化失败，以下为最后 180 行安全日志：'
