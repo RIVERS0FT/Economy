@@ -11,10 +11,9 @@ const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');`;
 const after = `import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { stripTypeScriptTypes } from 'node:module';
 import { resolve } from 'node:path';
-import * as tsModule from 'typescript';
 
-const ts = tsModule.default ?? tsModule;
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 
@@ -35,12 +34,7 @@ const recipeSource = read('src/utils/recipeProfitAnalysis.ts')
   .replace("import { isValidOrderPrice } from './defaultOrderPrice';\\n", '')
   .replaceAll('export interface', 'interface')
   .replace('export function analyzeRecipeProfit', 'function analyzeRecipeProfit');
-const executableRecipeSource = ts.transpileModule(recipeSource, {
-  compilerOptions: {
-    target: ts.ScriptTarget.ES2020,
-    module: ts.ModuleKind.None,
-  },
-}).outputText;
+const executableRecipeSource = stripTypeScriptTypes(recipeSource, { mode: 'strip' });
 const analyzeRecipeProfit = new Function(
   'isValidOrderPrice',
   executableRecipeSource + '\\nreturn analyzeRecipeProfit;',
@@ -48,4 +42,4 @@ const analyzeRecipeProfit = new Function(
 
 if (!source.includes(before)) throw new Error(`${path} 缺少直接 TypeScript 导入片段`);
 writeFileSync(path, source.replace(before, after));
-console.log('利润验证脚本已改为内存转译，继续复用正式价格校验。');
+console.log('利润验证脚本已改为 Node 类型剥离，继续复用正式价格校验。');
