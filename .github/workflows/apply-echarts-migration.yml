@@ -35,6 +35,7 @@ jobs:
           gzip --decompress --stdout /tmp/echarts-migration.patch.gz > /tmp/echarts-migration.patch
           echo "5958c064f95bd3321c204e1cca080db0327727ece4c31750e7db3558e2747328  /tmp/echarts-migration.patch" | sha256sum -c -
           echo "7a26b878b20ae6b79efa2596a4038219e95d6d0b647ba6fa4ffcdabfcc01638e  .agent/echarts-browser-fix.patch" | sha256sum -c -
+          echo "23179c9d736a9342bcf8faf59d848717a5e70010e9447e0346d4e6fdcd0e651d  .agent/echarts-geometry-fix.patch" | sha256sum -c -
           awk '
             /^diff -ruN / {
               skip = index($0, "economy-base/.agent/echarts-migration-placeholder.txt") > 0 \
@@ -50,6 +51,8 @@ jobs:
           patch --batch -p1 < /tmp/echarts-migration-code.patch
           patch --batch --dry-run -p1 < .agent/echarts-browser-fix.patch
           patch --batch -p1 < .agent/echarts-browser-fix.patch
+          patch --batch --dry-run -p1 < .agent/echarts-geometry-fix.patch
+          patch --batch -p1 < .agent/echarts-geometry-fix.patch
           rm -rf .agent
           rm -f .github/workflows/prepare-echarts-worktree.yml
           rm -f .github/workflows/apply-echarts-migration.yml
