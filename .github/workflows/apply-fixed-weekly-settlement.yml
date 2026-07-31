@@ -151,24 +151,36 @@ jobs:
           set -o pipefail
           npm run test:browser 2>&1 | tee /tmp/fixed-weekly-browser.log
 
-      - name: Commit failure diagnostics and applied sources
-        if: failure()
+      - name: Capture applied worktree
+        if: always()
         shell: bash
         run: |
+          mkdir -p /tmp/fixed-weekly-artifact
+          git status --short > /tmp/fixed-weekly-artifact/git-status.txt
+          git diff --binary > /tmp/fixed-weekly-artifact/applied.patch
           {
-            echo 'Fixed weekly settlement workflow failure'
-            echo
             echo '=== build log tail ==='
-            if [ -f /tmp/fixed-weekly-build.log ]; then tail -n 500 /tmp/fixed-weekly-build.log; else echo 'build log unavailable'; fi
+            if [ -f /tmp/fixed-weekly-build.log ]; then tail -n 1000 /tmp/fixed-weekly-build.log; else echo 'build log unavailable'; fi
             echo
             echo '=== browser log tail ==='
-            if [ -f /tmp/fixed-weekly-browser.log ]; then tail -n 500 /tmp/fixed-weekly-browser.log; else echo 'browser log unavailable'; fi
-          } > .github/fixed-weekly-settlement-failure.log
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore(ci): materialize fixed settlement failure [skip ci]"
-          git push origin HEAD:agent/fixed-weekly-bank-settlement
+            if [ -f /tmp/fixed-weekly-browser.log ]; then tail -n 1000 /tmp/fixed-weekly-browser.log; else echo 'browser log unavailable'; fi
+          } > /tmp/fixed-weekly-artifact/run.log
+          tar \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude=dist \
+            --exclude=test-results \
+            --exclude=playwright-report \
+            -czf /tmp/fixed-weekly-artifact/applied-worktree.tar.gz .
+
+      - name: Upload applied worktree
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed-weekly-applied-${{ github.run_id }}
+          path: /tmp/fixed-weekly-artifact
+          if-no-files-found: error
+          retention-days: 3
 
       - name: Commit implementation
         run: |
