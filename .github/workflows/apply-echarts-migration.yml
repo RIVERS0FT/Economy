@@ -56,7 +56,22 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Run browser regression suite
+        id: browser
+        continue-on-error: true
         run: npm run test:browser
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: echarts-browser-diagnostics
+          path: |
+            playwright-report
+            test-results
+          retention-days: 1
+          if-no-files-found: warn
+      - name: Require browser regressions to pass
+        if: steps.browser.outcome != 'success'
+        run: exit 1
       - name: Commit verified migration
         shell: bash
         run: |
