@@ -1,9 +1,34 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { isValidOrderPrice } from '../src/utils/defaultOrderPrice.ts';
-import { buildOrderBookLevels } from '../src/utils/orderBookLevels.ts';
+import ts from 'typescript';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const transpile = (source) => ts.transpileModule(source, {
+  compilerOptions: {
+    module: ts.ModuleKind.None,
+    target: ts.ScriptTarget.ES2022,
+  },
+}).outputText;
+
+const priceSource = read('../src/utils/defaultOrderPrice.ts');
+const priceFunctionMatch = priceSource.match(
+  /export function isValidOrderPrice\(price: number\) \{[\s\S]*?\n\}/,
+);
+assert.ok(priceFunctionMatch, 'Missing shared two-decimal order-price validator.');
+const isValidOrderPrice = new Function(
+  `${transpile(priceFunctionMatch[0].replace('export ', ''))}\nreturn isValidOrderPrice;`,
+)();
+
+const levelSource = read('../src/utils/orderBookLevels.ts');
+const executableLevelSource = levelSource
+  .replace(/^import .*;\n/gm, '')
+  .replace(/export interface OrderBookLevel \{[\s\S]*?\n\}\n\n/, '')
+  .replace('export function buildOrderBookLevels', 'function buildOrderBookLevels');
+const buildOrderBookLevels = new Function(
+  'isValidOrderPrice',
+  `${transpile(executableLevelSource)}\nreturn buildOrderBookLevels;`,
+)(isValidOrderPrice);
+
 const order = (id, side, price, remaining, status = 'open') => ({
   id,
   side,
@@ -56,7 +81,6 @@ assert.deepEqual(
   ],
 );
 
-const levelSource = read('../src/utils/orderBookLevels.ts');
 assert.match(levelSource, /isValidOrderPrice\(order\.price\)/);
 assert.doesNotMatch(levelSource, /Number\.isInteger\(order\.price\)|order\.price\s*<\s*1/);
 
