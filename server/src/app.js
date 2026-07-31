@@ -461,6 +461,14 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    const auctionBidHistoryMatch = path.match(/^\/api\/game\/auctions\/([^/]+)\/bids$/);
+    if (method === 'GET' && auctionBidHistoryMatch) {
+      sendJson(response, 200, {
+        history: store.getAuctionBidHistory(user, decodeRouteParameter(auctionBidHistoryMatch[1])),
+      });
+      return;
+    }
+
     if (method === 'GET' && path === '/api/game/state') {
       const revisionValue = url.searchParams.get('revision');
       const knownRevision = revisionValue !== null && /^\d+$/.test(revisionValue)

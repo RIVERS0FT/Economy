@@ -125,7 +125,7 @@ for (const text of [
   'loan assessment exposes transparent collateral and rate inputs',
 ]) requireText('server/test/banking.test.js', text);
 
-for (const text of ['<BankPage model={model} />', 'version: 23']) requireText('tests/browser/bank-runtime-harness.tsx', text);
+for (const text of ['<BankPage model={model} />', 'version: 24']) requireText('tests/browser/bank-runtime-harness.tsx', text);
 for (const text of ['transparent collateral assessment', 'stacks safely on mobile', 'scrollWidth <= element.clientWidth + 1']) requireText('tests/browser/bank-runtime.spec.ts', text);
 requireText('bank-runtime-test.html', '/tests/browser/bank-runtime-harness.tsx');
 

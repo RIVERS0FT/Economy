@@ -351,7 +351,7 @@ forbidText('src/config/navigation.ts', "{ id: 'assets', label: '资金' }");
 forbidText('src/config/navigation.ts', "{ id: 'collections'");
 
 if (existsSync(resolve(root, 'src/pages/CollectionsPage.tsx'))) failures.push('已删除的 CollectionsPage 不得恢复');
-for (const text of ['title="拍卖"', '发起资产拍卖', 'createAuction', 'placeAuctionBid', 'cancelAuction', '商品', '工厂', '最高出价资金都会冻结', '等待服务器结算']) {
+for (const text of ['title="拍卖"', '发布资产包拍卖', 'createAuction', 'placeAuctionBid', 'cancelAuction', '商品', '工厂', '发布费', '保留价状态', '查看最近 10 条', '等待服务器结算']) {
   requireText('src/pages/AuctionPage.tsx', text);
 }
 for (const text of ['collectible', 'Collectible', '藏品']) forbidText('src/pages/AuctionPage.tsx', text);
@@ -481,7 +481,7 @@ for (const text of [
   '以箭头替代生产进度条',
   '移动详情不显示顶部关闭按钮',
   '点击遮罩、按 `Escape` 和有效下拉共用收起动画',
-  '最高出价资金、商品仓库预占、卖方资产冻结、退款、拍卖状态和资产转移全部由服务器判定',
+  '最高出价资金、商品仓库预占、卖方资产冻结、发布费托管、隐藏保留价、最低加价、自动延时、退款、成交手续费、拍卖状态和资产转移全部由服务器判定',
   '默认进入“进行中的合同”',
   '合同只允许服务器正式商品和普通货币',
   '单批货款 20% 的履约保证金',

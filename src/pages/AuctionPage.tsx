@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNow } from '../hooks/useNow';
-import { gameActions } from '../api/game';
+import { gameActions, getAuctionBidHistory } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import {
   getAuctionState,
   type AssetAuction,
   type AuctionAssetKind,
+  type AuctionBidHistory,
   type AuctionItem,
   type AuctionItemSummary,
 } from '../auctions/types';
@@ -14,12 +14,17 @@ import { ProductIcon } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
+import { useNow } from '../hooks/useNow';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
 import '../styles/auction-card-layers.css';
 
 const MAX_AUCTION_ITEMS = 20;
+const LISTING_FEE_RATE = 0.002;
+const LISTING_FEE_MINIMUM = 0.5;
+const LISTING_FEE_MAXIMUM = 100;
+const SELLER_FEE_RATE = 0.01;
 
 const statusNames = {
   open: '进行中',
@@ -27,6 +32,15 @@ const statusNames = {
   ended: '流拍',
   cancelled: '已取消',
 } as const;
+
+const settlementNames: Record<Exclude<AssetAuction['settlementReason'], null>, string> = {
+  sold: '已成交',
+  no_bid: '无人出价',
+  reserve_not_met: '未达保留价',
+  seller_cancelled: '卖方取消',
+  settlement_failed: '结算异常',
+  migration_cancelled: '迁移取消',
+};
 
 const assetKindNames: Record<AuctionAssetKind, string> = {
   commodity: '商品',
@@ -37,6 +51,12 @@ interface AuctionOption {
   id: string;
   label: string;
   available: number;
+}
+
+interface BidHistoryCacheEntry {
+  bidCount: number;
+  latestBidAt: number | null;
+  history: AuctionBidHistory;
 }
 
 function parseAuctionQuantity(value: string, maximum?: number) {
@@ -73,6 +93,16 @@ function auctionTitle(auction: AssetAuction) {
 function auctionCardTitle(auction: AssetAuction) {
   const items = auctionItems(auction);
   return items.length === 1 ? items[0].name : auctionTitle(auction);
+}
+
+function calculateListingFee(startingBid: number, reservePrice: number | null) {
+  const basis = Math.max(startingBid, reservePrice ?? 0);
+  const proportional = Math.ceil(basis * LISTING_FEE_RATE * 100) / 100;
+  return Math.min(LISTING_FEE_MAXIMUM, Math.max(LISTING_FEE_MINIMUM, proportional));
+}
+
+function calculateMinimumIncrement(startingBid: number) {
+  return Math.max(0.01, Math.ceil(startingBid * 0.02 * 100) / 100);
 }
 
 function AuctionItemIcon({ item }: { item: AuctionItemSummary; compact?: boolean }) {
@@ -124,13 +154,65 @@ function AuctionAssetSummary({ auction }: { auction: AssetAuction }) {
         </div>
       ))}
       {Array.from({ length: placeholderCount }, (_, index) => (
-        <span
-          className="asset-auction-summary-placeholder"
-          key={`placeholder-${index}`}
-          aria-hidden="true"
-        />
+        <span className="asset-auction-summary-placeholder" key={`placeholder-${index}`} aria-hidden="true" />
       ))}
     </div>
+  );
+}
+
+function BidHistoryPanel({
+  auction,
+  expanded,
+  loading,
+  history,
+  error,
+  onToggle,
+}: {
+  auction: AssetAuction;
+  expanded: boolean;
+  loading: boolean;
+  history?: AuctionBidHistory;
+  error?: string;
+  onToggle: () => void;
+}) {
+  if (auction.bidCount === 0) {
+    return <div className="asset-auction-bid-history-empty">暂无出价记录</div>;
+  }
+  return (
+    <section className="asset-auction-bid-history" aria-label="出价记录">
+      <button
+        type="button"
+        className="asset-auction-bid-history-toggle"
+        aria-expanded={expanded}
+        onClick={onToggle}
+      >
+        <span>出价记录 · 共 {formatNumber(auction.bidCount)} 次</span>
+        <small>{auction.latestBidAt ? `最近出价 ${formatTime(auction.latestBidAt)}` : ''}</small>
+        <strong>{expanded ? '收起' : '查看最近 10 条'}</strong>
+      </button>
+      {expanded ? (
+        <div className="asset-auction-bid-history-content">
+          {loading ? <p>正在读取出价记录…</p> : null}
+          {error ? <p role="alert">{error}</p> : null}
+          {!loading && !error && history ? (
+            <>
+              <ol>
+                {history.bids.map((bid, index) => (
+                  <li key={`${bid.createdAt}-${bid.amount}-${index}`}>
+                    <span>{bid.isMine ? `你（${bid.bidderLabel}）` : bid.bidderLabel}</span>
+                    <CurrencyAmount>{formatCurrency(bid.amount)}</CurrencyAmount>
+                    <time>{formatTime(bid.createdAt)}</time>
+                  </li>
+                ))}
+              </ol>
+              {history.bidCount > history.bids.length ? (
+                <p>仅显示最近 10 条，共 {formatNumber(history.bidCount)} 次出价</p>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -146,10 +228,17 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const [bundleQuantityDrafts, setBundleQuantityDrafts] = useState<Record<string, string>>({});
   const [startingBid, setStartingBid] = useState(100);
   const [startingBidInput, setStartingBidInput] = useState('100');
+  const [reserveEnabled, setReserveEnabled] = useState(false);
+  const [reservePrice, setReservePrice] = useState(100);
+  const [reservePriceInput, setReservePriceInput] = useState('100');
   const [durationHours, setDurationHours] = useState(24);
   const [durationHoursInput, setDurationHoursInput] = useState('24');
   const [bidAmounts, setBidAmounts] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [expandedBidHistoryIds, setExpandedBidHistoryIds] = useState<Set<string>>(() => new Set());
+  const [bidHistoryCache, setBidHistoryCache] = useState<Record<string, BidHistoryCacheEntry>>({});
+  const [loadingBidHistoryIds, setLoadingBidHistoryIds] = useState<Set<string>>(() => new Set());
+  const [bidHistoryErrors, setBidHistoryErrors] = useState<Record<string, string>>({});
 
   const bundledQuantity = (kind: AuctionAssetKind, id: string) => (
     bundleItems.find((item) => item.assetKind === kind && item.assetId === id)?.quantity ?? 0
@@ -177,26 +266,65 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
 
   useEffect(() => {
     setSelectedAssetId((current) => (
-      availableOptions.some((item) => item.id === current)
-        ? current
-        : availableOptions[0]?.id ?? ''
+      availableOptions.some((item) => item.id === current) ? current : availableOptions[0]?.id ?? ''
     ));
   }, [availableOptions]);
+
+  useEffect(() => {
+    for (const auction of assetAuctions) {
+      if (!expandedBidHistoryIds.has(auction.id) || loadingBidHistoryIds.has(auction.id)) continue;
+      const cached = bidHistoryCache[auction.id];
+      if (cached && cached.bidCount === auction.bidCount && cached.latestBidAt === auction.latestBidAt) continue;
+      setLoadingBidHistoryIds((current) => new Set(current).add(auction.id));
+      setBidHistoryErrors((current) => {
+        const next = { ...current };
+        delete next[auction.id];
+        return next;
+      });
+      void getAuctionBidHistory(auction.id)
+        .then((history) => setBidHistoryCache((current) => ({
+          ...current,
+          [auction.id]: { bidCount: auction.bidCount, latestBidAt: auction.latestBidAt, history },
+        })))
+        .catch((reason) => setBidHistoryErrors((current) => ({
+          ...current,
+          [auction.id]: reason instanceof Error ? reason.message : '读取出价记录失败',
+        })))
+        .finally(() => setLoadingBidHistoryIds((current) => {
+          const next = new Set(current);
+          next.delete(auction.id);
+          return next;
+        }));
+    }
+  }, [assetAuctions, bidHistoryCache, expandedBidHistoryIds, loadingBidHistoryIds]);
+
   const selectedQuantity = parseAuctionQuantity(quantityInput, selectedOption?.available);
   const parsedStartingBid = parseMoneyDraft(startingBidInput, { min: 0.01, max: 1_000_000_000 });
+  const parsedReservePrice = reserveEnabled
+    ? parseMoneyDraft(reservePriceInput, { min: 0.01, max: 1_000_000_000 })
+    : null;
+  const reserveInvalid = reserveEnabled && (
+    parsedReservePrice === null || parsedStartingBid === null || parsedReservePrice < parsedStartingBid
+  );
   const parsedDurationHours = parseIntegerDraft(durationHoursInput, { min: 1, max: 168 });
+  const listingFeePreview = parsedStartingBid === null || reserveInvalid
+    ? null
+    : calculateListingFee(parsedStartingBid, parsedReservePrice);
+  const minimumIncrementPreview = parsedStartingBid === null ? null : calculateMinimumIncrement(parsedStartingBid);
   const canAdd = Boolean(selectedOption)
     && selectedQuantity !== null
     && selectedQuantity <= Number(selectedOption?.available || 0)
     && (bundleItems.length < MAX_AUCTION_ITEMS || bundledQuantity(assetKind, selectedOption?.id || '') > 0);
   const hasInvalidBundleQuantity = bundleItems.some((item) => {
     const draft = bundleQuantityDrafts[auctionItemKey(item)] ?? String(item.quantity);
-    const parsed = parseAuctionQuantity(draft, availableForItem(item));
-    return parsed === null;
+    return parseAuctionQuantity(draft, availableForItem(item)) === null;
   });
   const canPublish = bundleItems.length > 0
     && !hasInvalidBundleQuantity
     && parsedStartingBid !== null
+    && !reserveInvalid
+    && listingFeePreview !== null
+    && model.game.credits >= listingFeePreview
     && parsedDurationHours !== null;
 
   function labelForItem(item: AuctionItem) {
@@ -221,7 +349,19 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   function updateStartingBid(value: string) {
     setStartingBidInput(value);
     const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000_000 });
-    if (parsed !== null) setStartingBid(parsed);
+    if (parsed !== null) {
+      setStartingBid(parsed);
+      if (!reserveEnabled) {
+        setReservePrice(parsed);
+        setReservePriceInput(String(parsed));
+      }
+    }
+  }
+
+  function updateReservePrice(value: string) {
+    setReservePriceInput(value);
+    const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000_000 });
+    if (parsed !== null) setReservePrice(parsed);
   }
 
   function updateDurationHours(value: string) {
@@ -235,9 +375,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     const key = `${assetKind}:${selectedOption.id}`;
     setBundleItems((current) => {
       const existing = current.find((item) => item.assetKind === assetKind && item.assetId === selectedOption.id);
-      if (existing) {
-        return current.map((item) => item === existing ? { ...item, quantity: item.quantity + selectedQuantity } : item);
-      }
+      if (existing) return current.map((item) => item === existing ? { ...item, quantity: item.quantity + selectedQuantity } : item);
       return [...current, { assetKind, assetId: selectedOption.id, quantity: selectedQuantity }];
     });
     clearBundleQuantityDraft(key);
@@ -250,9 +388,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     setBundleQuantityDrafts((current) => ({ ...current, [key]: value }));
     const parsed = parseAuctionQuantity(value, availableForItem(target));
     if (parsed === null) return;
-    setBundleItems((current) => current.map((item) => (
-      auctionItemKey(item) === key ? { ...item, quantity: parsed } : item
-    )));
+    setBundleItems((current) => current.map((item) => auctionItemKey(item) === key ? { ...item, quantity: parsed } : item));
   }
 
   function commitBundleQuantityDraft(target: AuctionItem) {
@@ -262,17 +398,12 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
     const maximum = availableForItem(target);
     const parsed = parseAuctionQuantity(draft, maximum);
     const normalized = maximum < 1 || parsed === null ? target.quantity : parsed;
-    setBundleItems((current) => current.map((item) => (
-      auctionItemKey(item) === key ? { ...item, quantity: normalized } : item
-    )));
+    setBundleItems((current) => current.map((item) => auctionItemKey(item) === key ? { ...item, quantity: normalized } : item));
     setBundleQuantityDrafts((current) => ({ ...current, [key]: String(normalized) }));
   }
 
   function resetBundleQuantityDraft(target: AuctionItem) {
-    setBundleQuantityDrafts((current) => ({
-      ...current,
-      [auctionItemKey(target)]: String(target.quantity),
-    }));
+    setBundleQuantityDrafts((current) => ({ ...current, [auctionItemKey(target)]: String(target.quantity) }));
   }
 
   function removeBundleItem(target: AuctionItem) {
@@ -284,6 +415,15 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   function clearBundleBuilder() {
     setBundleItems([]);
     setBundleQuantityDrafts({});
+  }
+
+  function toggleBidHistory(auctionId: string) {
+    setExpandedBidHistoryIds((current) => {
+      const next = new Set(current);
+      if (next.has(auctionId)) next.delete(auctionId);
+      else next.add(auctionId);
+      return next;
+    });
   }
 
   async function run(operation: () => ReturnType<typeof gameActions.createAuction>, onSuccess?: () => void) {
@@ -304,7 +444,7 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="拍卖"
-      description="发起资产拍卖：将商品和工厂组合为不可拆分的资产包公开竞价。卖方资产与最高出价资金都会冻结；冻结只限制使用，成交前仍计入各自总资产。"
+      description="商品和工厂可组成不可拆分资产包公开竞价。卖方资产、最高出价资金和发布费均由服务器托管；竞买身份匿名。"
     >
       <Panel className="widget asset-auction-create">
         <WidgetHeading title="发布资产包拍卖" action={<StatusTag>{formatNumber(bundleItems.length)}/{MAX_AUCTION_ITEMS} 项 · 最长 168h</StatusTag>} />
@@ -332,21 +472,17 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
               <p className="ui-helper-text">当前没有可继续加入的{assetKindNames[assetKind]}；已冻结、已拍卖或已加入资产包的数量不能重复使用。</p>
             ) : (
               <div className="asset-auction-add-form">
-                <SelectInput
-                  label="资产"
-                  value={selectedAssetId}
-                  onChange={(event) => setSelectedAssetId(event.target.value)}
-                >
+                <SelectInput label="资产" value={selectedAssetId} onChange={(event) => setSelectedAssetId(event.target.value)}>
                   {availableOptions.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}
                 </SelectInput>
                 <IntegerInput
-                    label="数量"
-                    value={quantityInput}
-                    fallbackValue={selectedQuantity ?? 1}
-                    min={1}
-                    max={selectedOption?.available || 1}
-                    error={selectedQuantity === null ? `请输入 1～${formatNumber(selectedOption?.available || 1)} 的整数。` : undefined}
-                    onValueChange={setQuantityInput}
+                  label="数量"
+                  value={quantityInput}
+                  fallbackValue={selectedQuantity ?? 1}
+                  min={1}
+                  max={selectedOption?.available || 1}
+                  error={selectedQuantity === null ? `请输入 1～${formatNumber(selectedOption?.available || 1)} 的整数。` : undefined}
+                  onValueChange={setQuantityInput}
                 />
                 <Button variant="secondary" disabled={!canAdd} onClick={addSelectedItem}>加入资产包</Button>
               </div>
@@ -368,22 +504,22 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                       </div>
                       <span><strong>{labelForItem(item)}</strong><small>{assetKindNames[item.assetKind]}</small></span>
                       <input
-                          className="ui-control ui-control--integer ui-control--compact"
-                          aria-label={`${labelForItem(item)}数量`}
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={quantityDraft}
-                          aria-invalid={parsedQuantity === null}
-                          onChange={(event) => updateBundleQuantityDraft(item, event.target.value)}
-                          onBlur={() => commitBundleQuantityDraft(item)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') event.currentTarget.blur();
-                            if (event.key === 'Escape') {
-                              event.preventDefault();
-                              resetBundleQuantityDraft(item);
-                            }
-                          }}
+                        className="ui-control ui-control--integer ui-control--compact"
+                        aria-label={`${labelForItem(item)}数量`}
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={quantityDraft}
+                        aria-invalid={parsedQuantity === null}
+                        onChange={(event) => updateBundleQuantityDraft(item, event.target.value)}
+                        onBlur={() => commitBundleQuantityDraft(item)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') event.currentTarget.blur();
+                          if (event.key === 'Escape') {
+                            event.preventDefault();
+                            resetBundleQuantityDraft(item);
+                          }
+                        }}
                       />
                       <Button variant="danger" className="asset-auction-remove" onClick={() => removeBundleItem(item)}>移除</Button>
                     </div>
@@ -401,9 +537,34 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
             fallbackValue={startingBid}
             min={0.01}
             max={1_000_000_000}
-            error={parsedStartingBid === null ? '请输入不低于 0.01 的金额；超过两位小数会向下截断。' : undefined}
+            error={parsedStartingBid === null ? '请输入不低于 0.01、最多两位小数的金额。' : undefined}
             onValueChange={updateStartingBid}
           />
+          <label className="asset-auction-reserve-toggle">
+            <input
+              type="checkbox"
+              checked={reserveEnabled}
+              onChange={(event) => {
+                setReserveEnabled(event.target.checked);
+                if (event.target.checked && parsedStartingBid !== null && reservePrice < parsedStartingBid) {
+                  setReservePrice(parsedStartingBid);
+                  setReservePriceInput(String(parsedStartingBid));
+                }
+              }}
+            />
+            <span>设置隐藏保留价</span>
+          </label>
+          {reserveEnabled ? (
+            <MoneyInput
+              label="隐藏保留价"
+              value={reservePriceInput}
+              fallbackValue={reservePrice}
+              min={parsedStartingBid ?? 0.01}
+              max={1_000_000_000}
+              error={reserveInvalid ? '保留价必须为合法金额且不得低于起拍价。' : undefined}
+              onValueChange={updateReservePrice}
+            />
+          ) : null}
           <IntegerInput
             label="拍卖时长（h）"
             value={durationHoursInput}
@@ -416,14 +577,27 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
           <Button
             disabled={submitting || !canPublish}
             onClick={() => {
-              if (parsedStartingBid === null || parsedDurationHours === null) return;
-              void run(() => gameActions.createAuction(bundleItems, parsedStartingBid, parsedDurationHours), clearBundleBuilder);
+              if (parsedStartingBid === null || parsedDurationHours === null || listingFeePreview === null) return;
+              void run(
+                () => gameActions.createAuction(bundleItems, parsedStartingBid, parsedReservePrice, parsedDurationHours),
+                clearBundleBuilder,
+              );
             }}
           >
-            {submitting ? '发布中' : '发布资产包拍卖'}
+            {submitting ? '发布中' : listingFeePreview === null ? '发布资产包拍卖' : `支付 ${formatCurrency(listingFeePreview)} 并发布`}
           </Button>
         </div>
-        <p className="ui-helper-text">资产包中的全部资产会同时冻结，并作为整体成交、流拍或取消；已有有效出价后不能取消。冻结资产仍归卖方所有并计入总资产。</p>
+        <dl className="asset-auction-fee-summary">
+          <div><dt>发布费</dt><dd>{listingFeePreview === null ? '—' : <CurrencyAmount>{formatCurrency(listingFeePreview)}</CurrencyAmount>}</dd></div>
+          <div><dt>最低加价</dt><dd>{minimumIncrementPreview === null ? '—' : <CurrencyAmount>{formatCurrency(minimumIncrementPreview)}</CurrencyAmount>}</dd></div>
+          <div><dt>卖方成交手续费</dt><dd>成交总价的 1%</dd></div>
+          <div><dt>买方手续费</dt><dd>无</dd></div>
+        </dl>
+        <p className="ui-helper-text">
+          发布费按起拍价与保留价中较高者的 0.2% 计算，最低 <CurrencyAmount>{formatCurrency(0.5)}</CurrencyAmount>、最高 <CurrencyAmount>{formatCurrency(100)}</CurrencyAmount>；
+          流拍、未达保留价或卖方自行取消时不退。结束前 2min 内有效出价会自动延时，累计最多 30min。
+        </p>
+        {listingFeePreview !== null && model.game.credits < listingFeePreview ? <p className="ui-error-text">可用资金不足以支付发布费。</p> : null}
       </Panel>
 
       <section className="asset-auction-section" aria-labelledby="open-auctions-heading">
@@ -433,6 +607,9 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
             {openAuctions.map((auction) => {
               const bidInput = bidAmounts[auction.id] ?? String(auction.minimumBid);
               const amount = parseMoneyDraft(bidInput, { min: auction.minimumBid, max: 1_000_000_000 });
+              const currentPrice = auction.highestBid ?? auction.startingBid;
+              const estimatedSellerFee = currentPrice * SELLER_FEE_RATE;
+              const expanded = expandedBidHistoryIds.has(auction.id);
               return (
                 <Panel className={`asset-auction-card ${auction.isBundle ? 'asset-auction-bundle' : `asset-auction-${auction.assetKind}`}`} key={auction.id}>
                   <AuctionAssetVisual auction={auction} />
@@ -443,14 +620,24 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                     </div>
                     <AuctionAssetSummary auction={auction} />
                     <dl className="asset-auction-metrics asset-auction-primary-metrics asset-auction-data-layer">
-                      <div><dt>当前总价</dt><dd><CurrencyAmount>{formatCurrency(auction.highestBid ?? auction.startingBid)}</CurrencyAmount></dd></div>
-                      <div><dt>最高出价者</dt><dd>{auction.highestBidderName || '暂无'}</dd></div>
+                      <div><dt>当前总价</dt><dd><CurrencyAmount>{formatCurrency(currentPrice)}</CurrencyAmount></dd></div>
+                      <div><dt>最高竞买人</dt><dd>{auction.highestBidderLabel || '暂无'}</dd></div>
+                      <div><dt>下一口最低</dt><dd><CurrencyAmount>{formatCurrency(auction.minimumBid)}</CurrencyAmount></dd></div>
+                      <div><dt>保留价状态</dt><dd>{auction.hasHiddenReserve ? (auction.reserveMet ? '已达到' : '尚未达到') : '无隐藏保留价'}</dd></div>
                     </dl>
+                    {auction.extensionCount > 0 ? <p className="asset-auction-extension-note">已自动延时 {formatNumber(auction.extensionCount)} 次</p> : <p className="asset-auction-extension-note">结束前 2min 内有效出价会自动延时</p>}
                     {auction.isSeller ? (
-                      <div className="asset-auction-actions">
-                        <StatusTag tone="info">你是卖家</StatusTag>
-                        {!auction.highestBidderId ? <Button variant="danger" disabled={submitting} onClick={() => void run(() => gameActions.cancelAuction(auction.id))}>取消拍卖</Button> : <small>已有出价，不能取消</small>}
-                      </div>
+                      <>
+                        <dl className="asset-auction-seller-settlement">
+                          <div><dt>已支付发布费</dt><dd><CurrencyAmount>{formatCurrency(auction.listingFee ?? 0)}</CurrencyAmount></dd></div>
+                          <div><dt>按当前价预计手续费</dt><dd><CurrencyAmount>{formatCurrency(estimatedSellerFee)}</CurrencyAmount></dd></div>
+                          <div><dt>按当前价预计到账</dt><dd><CurrencyAmount>{formatCurrency(currentPrice - estimatedSellerFee)}</CurrencyAmount></dd></div>
+                        </dl>
+                        <div className="asset-auction-actions">
+                          <StatusTag tone="info">你是卖家</StatusTag>
+                          {!auction.hasBids ? <Button variant="danger" disabled={submitting} onClick={() => void run(() => gameActions.cancelAuction(auction.id))}>取消拍卖</Button> : <small>已有出价，不能取消</small>}
+                        </div>
+                      </>
                     ) : (
                       <div className="asset-bid-form">
                         <MoneyInput
@@ -459,17 +646,30 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                           fallbackValue={amount ?? auction.minimumBid}
                           min={auction.minimumBid}
                           max={1_000_000_000}
-                          error={amount === null ? `请输入不低于 ${formatCurrency(auction.minimumBid)} 的金额；超过两位小数会向下截断。` : undefined}
+                          error={amount === null ? `请输入不低于 ${formatCurrency(auction.minimumBid)} 的金额。` : undefined}
                           onValueChange={(value) => setBidAmounts((current) => ({ ...current, [auction.id]: value }))}
                         />
                         <Button disabled={submitting || amount === null} onClick={() => {
                           if (amount === null) return;
+                          setBidHistoryCache((current) => {
+                            const next = { ...current };
+                            delete next[auction.id];
+                            return next;
+                          });
                           void run(() => gameActions.placeAuctionBid(auction.id, amount));
                         }}>
                           {auction.isHighestBidder ? '提高出价' : '提交出价'}
                         </Button>
                       </div>
                     )}
+                    <BidHistoryPanel
+                      auction={auction}
+                      expanded={expanded}
+                      loading={loadingBidHistoryIds.has(auction.id)}
+                      history={bidHistoryCache[auction.id]?.history}
+                      error={bidHistoryErrors[auction.id]}
+                      onToggle={() => toggleBidHistory(auction.id)}
+                    />
                   </div>
                 </Panel>
               );
@@ -485,10 +685,19 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
             {closedAuctions.map((auction) => (
               <div key={auction.id}>
                 <AuctionAssetVisual auction={auction} compact />
-                <span><strong>{auctionTitle(auction)}</strong><small>{auction.isBundle ? '资产包' : assetKindNames[auction.assetKind]} · {auction.sellerName} · {formatTime(auction.settledAt ?? auction.endsAt)}</small></span>
+                <span>
+                  <strong>{auctionTitle(auction)}</strong>
+                  <small>
+                    {auction.isBundle ? '资产包' : assetKindNames[auction.assetKind]} · {auction.sellerName} · {formatTime(auction.settledAt ?? auction.endsAt)}
+                    {auction.isSeller && auction.listingFee ? ` · 发布费 ${formatCurrency(auction.listingFee)}` : ''}
+                  </small>
+                </span>
                 <StatusTag tone={auctionTone(auction.status)}>
-                  {statusNames[auction.status]}
+                  {auction.settlementReason ? settlementNames[auction.settlementReason] : statusNames[auction.status]}
                   {auction.highestBid ? <> · <CurrencyAmount>{formatCurrency(auction.highestBid)}</CurrencyAmount></> : null}
+                  {auction.isSeller && auction.sellerNetProceeds !== null && auction.sellerNetProceeds !== undefined
+                    ? <> · 到账 <CurrencyAmount>{formatCurrency(auction.sellerNetProceeds)}</CurrencyAmount></>
+                    : null}
                 </StatusTag>
               </div>
             ))}

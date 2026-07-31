@@ -8,6 +8,7 @@ import { GameShell } from '../../src/components/shell/GameShell';
 import type { StatusBarItem } from '../../src/components/shell/StatusBar';
 import { CurrencyAmount } from '../../src/components/ui/CurrencyAmount';
 import { ScrollArea } from '../../src/components/ui/ScrollArea';
+import { AuctionPage } from '../../src/pages/AuctionPage';
 import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
@@ -33,6 +34,8 @@ import '../../src/styles/facility-detail-sheet.css';
 import '../../src/styles/warehouse-expansion.css';
 import '../../src/styles/production-surface.css';
 import '../../src/styles/contracts.css';
+import '../../src/styles/asset-auctions.css';
+import '../../src/styles/auction-card-layers.css';
 import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
 import '../../src/styles/design-system.css';
@@ -49,6 +52,32 @@ const params = new URLSearchParams(window.location.search);
 const view = params.get('view') ?? 'settings';
 const scenario = params.get('scenario') ?? 'empty';
 const fixedNow = new Date(2026, 6, 17, 22, 30, 0).getTime();
+
+const auctionBidHistoryFetches: string[] = [];
+Object.assign(window, { __auctionBidHistoryFetches: auctionBidHistoryFetches });
+if (view === 'auction') {
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    if (url.includes('/economy-api/game/auctions/auction-runtime-1/bids') && (!init?.method || init.method === 'GET')) {
+      auctionBidHistoryFetches.push(url);
+      return new Response(JSON.stringify({
+        history: {
+          auctionId: 'auction-runtime-1',
+          bidCount: 12,
+          latestBidAt: fixedNow - 30_000,
+          bids: Array.from({ length: 10 }, (_, index) => ({
+            bidderLabel: `竞买人 A${String((index % 2) + 1).padStart(2, '0')}`,
+            amount: 122 - index * 2,
+            createdAt: fixedNow - (index + 1) * 30_000,
+            isMine: index % 3 === 0,
+          })),
+        },
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return originalFetch(input, init);
+  };
+}
 
 const completedTutorial: GameTutorialController = {
   ready: true,
@@ -70,7 +99,7 @@ const completedTutorial: GameTutorialController = {
   recordSellOrderSubmit: () => {},
 };
 
-document.documentElement.dataset.appSurface = ['overview', 'production', 'contracts', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
+document.documentElement.dataset.appSurface = ['overview', 'production', 'contracts', 'auction', 'gem-shop', 'scroll-ownership'].includes(view) ? 'game' : 'auth';
 
 function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const hasActivity = ['activity', 'two-sided', 'many-orders'].includes(scenario);
@@ -113,7 +142,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const inventoryCapacity = 6650;
 
   const game = {
-    version: 23,
+    version: 24,
     lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',
@@ -625,6 +654,52 @@ function ContractHarness() {
   );
 }
 
+
+function AuctionHarness() {
+  const [tab, setTab] = useState<TabId>('auction');
+  const model = useMemo(() => {
+    const next = buildOverviewModel(tab, setTab);
+    next.game.credits = 5_000;
+    next.game.assetAuctions = [{
+      id: 'auction-runtime-1',
+      items: [{ assetKind: 'commodity', assetId: 'machinery', quantity: 5 }],
+      itemSummaries: [{ kind: 'commodity', id: 'machinery', name: '机械', subtitle: '商品资产', quantity: 5 }],
+      itemCount: 1,
+      isBundle: false,
+      assetKind: 'commodity',
+      assetId: 'machinery',
+      productId: 'machinery',
+      quantity: 5,
+      asset: { kind: 'commodity', id: 'machinery', name: '机械', subtitle: '商品资产' },
+      sellerName: '匿名卖家',
+      startingBid: 100,
+      highestBid: 122,
+      highestBidderLabel: '竞买人 A02',
+      status: 'open',
+      escrowStatus: 'held',
+      settlementReason: null,
+      createdAt: fixedNow - 60 * 60_000,
+      originalEndsAt: fixedNow + 30 * 60_000,
+      endsAt: fixedNow + 32 * 60_000,
+      extensionCount: 1,
+      maxExtendedEndsAt: fixedNow + 60 * 60_000,
+      minimumIncrement: 2,
+      minimumBid: 124,
+      hasBids: true,
+      bidCount: 12,
+      latestBidAt: fixedNow - 30_000,
+      hasHiddenReserve: true,
+      reserveMet: true,
+      sellerFeeBps: 100,
+      buyerFeeBps: 0,
+      isSeller: false,
+      isHighestBidder: false,
+    }];
+    return next;
+  }, [tab]);
+  return <AuctionPage model={model} />;
+}
+
 function ScrollOwnershipHarness() {
   return (
     <main style={{ minHeight: '100dvh', display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 24, padding: 24 }}>
@@ -674,6 +749,8 @@ createRoot(document.getElementById('root') as HTMLElement).render(
       ? <ProductionHarness />
       : view === 'contracts'
       ? <ContractHarness />
+      : view === 'auction'
+        ? <AuctionHarness />
       : view === 'gem-shop'
         ? <GemShopHarness />
         : view === 'scroll-ownership'

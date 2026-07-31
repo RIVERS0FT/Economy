@@ -1,5 +1,5 @@
 import type { AssetKind, EconomyState, OrderSide } from '../types';
-import type { AuctionItem } from '../auctions/types';
+import type { AuctionBidHistory, AuctionItem } from '../auctions/types';
 import {
   createStateDeliveryCache,
   type StateDeliveryEnvelope,
@@ -197,6 +197,14 @@ export async function getCommunityLink(signal?: AbortSignal): Promise<CommunityL
   return payload.communityLink;
 }
 
+export async function getAuctionBidHistory(auctionId: string, signal?: AbortSignal): Promise<AuctionBidHistory> {
+  const payload = await request<{ history: AuctionBidHistory }>(
+    `/auctions/${encodeURIComponent(auctionId)}/bids`,
+    { method: 'GET', signal },
+  );
+  return payload.history;
+}
+
 export const gameActions = {
   work: () => postAction('/work'),
   checkIn: () => postAction('/check-in'),
@@ -235,8 +243,8 @@ export const gameActions = {
     postAction('/orders', { assetKind: 'commodity', assetId: productId, productId, side, quantity, price })
   ),
   cancelOrder: (orderId: string) => postAction(`/orders/${encodeURIComponent(orderId)}/cancel`),
-  createAuction: (items: AuctionItem[], startingBid: number, durationHours: number) => (
-    postAction('/auctions', { items, startingBid, durationHours })
+  createAuction: (items: AuctionItem[], startingBid: number, reservePrice: number | null, durationHours: number) => (
+    postAction('/auctions', { items, startingBid, reservePrice, durationHours })
   ),
   placeAuctionBid: (auctionId: string, amount: number) => (
     postAction(`/auctions/${encodeURIComponent(auctionId)}/bids`, { amount })

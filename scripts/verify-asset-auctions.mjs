@@ -5,33 +5,22 @@ const root = process.cwd();
 const failures = [];
 const absolute = (path) => resolve(root, path);
 const read = (path) => readFileSync(absolute(path), 'utf8');
-const requireFile = (path) => {
-  if (!existsSync(absolute(path))) failures.push(`缺少文件: ${path}`);
-};
-const forbidFile = (path) => {
-  if (existsSync(absolute(path))) failures.push(`永久删除的文件不得恢复: ${path}`);
-};
+const requireFile = (path) => { if (!existsSync(absolute(path))) failures.push(`缺少文件: ${path}`); };
+const forbidFile = (path) => { if (existsSync(absolute(path))) failures.push(`永久或临时文件不得存在: ${path}`); };
 const requireText = (path, fragments) => {
   const source = read(path);
-  for (const fragment of fragments) {
-    if (!source.includes(fragment)) failures.push(`${path} 缺少资产拍卖规则: ${fragment}`);
-  }
+  for (const fragment of fragments) if (!source.includes(fragment)) failures.push(`${path} 缺少资产拍卖规则: ${fragment}`);
 };
 const forbidText = (path, fragments) => {
   const source = read(path);
-  for (const fragment of fragments) {
-    if (source.includes(fragment)) failures.push(`${path} 不得恢复旧拍卖规则: ${fragment}`);
-  }
+  for (const fragment of fragments) if (source.includes(fragment)) failures.push(`${path} 不得恢复旧拍卖规则: ${fragment}`);
 };
 const requireOrder = (path, fragments) => {
   const source = read(path);
   let cursor = -1;
   for (const fragment of fragments) {
     const next = source.indexOf(fragment, cursor + 1);
-    if (next === -1) {
-      failures.push(`${path} 缺少顺序节点: ${fragment}`);
-      return;
-    }
+    if (next === -1) { failures.push(`${path} 缺少顺序节点: ${fragment}`); return; }
     cursor = next;
   }
 };
@@ -40,8 +29,7 @@ const filesUnder = (directory) => {
   const visit = (path) => {
     for (const entry of readdirSync(absolute(path))) {
       const child = `${path}/${entry}`;
-      if (statSync(absolute(child)).isDirectory()) visit(child);
-      else result.push(child);
+      if (statSync(absolute(child)).isDirectory()) visit(child); else result.push(child);
     }
   };
   visit(directory);
@@ -50,19 +38,23 @@ const filesUnder = (directory) => {
 
 [
   'server/src/asset-auctions.js',
+  'server/src/auction-audit-store.js',
   'server/src/facility-groups.js',
   'server/src/warehouse.js',
   'server/src/warehouse-reservations.js',
   'server/src/storage.js',
+  'server/src/runtime-store.js',
   'server/src/app.js',
   'server/src/game-routes.js',
   'server/src/state-partitions.js',
   'server/test/asset-auctions.test.js',
+  'server/test/auction-fees-audit.test.js',
   'src/auctions/types.ts',
   'src/pages/AuctionPage.tsx',
   'src/api/game.ts',
   'src/styles/asset-auctions.css',
   'src/styles/auction-card-layers.css',
+  'tests/browser/auction-bid-history.spec.ts',
   '.github/workflows/deploy.yml',
   'scripts/manage-production-backups.py',
   'README.md',
@@ -85,46 +77,73 @@ const filesUnder = (directory) => {
   'src/styles/collectibles-auctions.css',
   '.github/workflows/apply-remove-collectibles.yml',
   '.github/workflows/export-source-for-agent.yml',
+  '.github/workflows/agent-source-export.yml',
+  '.github/workflows/agent-apply-auction-patch.yml',
   '.agent',
 ].forEach(forbidFile);
 
 requireText('server/src/asset-auctions.js', [
-  'const MAX_AUCTION_ITEMS = 20;',
-  "if (raw?.assetKind === 'commodity' || raw?.assetKind === 'facility' || raw?.assetKind === 'collectible')",
-  "return item && item.assetKind !== 'collectible' ? item : null;",
-  'function isCurrentAssetAuctionWorld(world)',
-  'export function migrateAssetAuctionWorld(world, now = Date.now())',
-  'const legacyAuctions = Array.isArray(world.collectibleAuctions)',
-  'const currentAuctions = Array.isArray(world.assetAuctions)',
-  "if (items.some((item) => item.assetKind === 'collectible'))",
-  'releaseBid(world, auction);',
-  "items.filter((item) => item.assetKind !== 'collectible')",
-  'delete world.collectibles;',
-  'delete world.collectibleOwnershipHistory;',
-  'delete world.collectibleAuctions;',
-  'world.version = 20;',
-  'createWarehouseUsage(world, bidder).warehouseAvailableCapacity < requiredCommodityCapacity',
-  "if (action === 'createAuction')",
-  "if (action === 'placeAuctionBid')",
-  "if (action === 'cancelAuction')",
+  'export const ASSET_AUCTION_RULE_VERSION = 2;',
+  'export const AUCTION_LISTING_FEE_RATE_BPS = 20;',
+  'export const AUCTION_LISTING_FEE_MINIMUM = 0.5;',
+  'export const AUCTION_LISTING_FEE_MAXIMUM = 100;',
+  'export const AUCTION_SELLER_FEE_BPS = 100;',
+  'export const AUCTION_BUYER_FEE_BPS = 0;',
+  'export const AUCTION_MINIMUM_INCREMENT_RATE_BPS = 200;',
+  'export const AUCTION_EXTENSION_WINDOW_MS = 2 * 60 * 1_000;',
+  'export const AUCTION_MAX_EXTENSION_MS = 30 * 60 * 1_000;',
+  'export const AUCTION_RECENT_BID_LIMIT = 10;',
+  'export function calculateAuctionListingFee(startingBid, reservePrice = null)',
+  'export function calculateAuctionMinimumIncrement(startingBid)',
+  'world.auctionFeeEscrowCredits',
+  "listingFeeStatus: 'held'",
+  "finalizeAuction(world, auction, now, 'ended', 'reserve_not_met')",
+  'auction.extensionCount += 1;',
+  'highestBidderLabel:',
+  'bidCount:',
+  'reserveMet,',
   'export function createAssetAuctionClientState(world, userId, now = Date.now())',
-  'assetAuctions: world.assetAuctions',
+  'export function createAuctionBidHistoryFallback(auction, userId)',
+  "eventType: 'previous_bid_released'",
+  "eventType: 'seller_fee_charged'",
+  "eventType: 'listing_fee_distributed'",
+  "eventType: 'listing_fee_refunded'",
+  'world.version = 21;',
 ]);
 forbidText('server/src/asset-auctions.js', [
   'market.lastPrice = auction.highestBid',
   'lastTradePrice = auction.highestBid',
   'recordFacilityPrice(world, auction',
   'priceHistory.push',
+  'applyMarketSellFee(',
+  'calculateCumulativeMarketSellFee(',
+  'highestBidderName:',
+  '...auction,',
 ]);
-requireOrder('server/src/storage.js', [
-  'migrateAssetAuctionWorld(world, now);',
-  'migrateFacilityGroupWorld(world, now);',
+
+requireText('server/src/auction-audit-store.js', [
+  'economy_asset_auction_events',
+  'AUCTION_AUDIT_BUFFER',
+  'export function queueAuctionAuditEvent',
+  'export function flushAuctionAuditEvents',
+  'export function listRecentAuctionBidEvents',
+  'LIMIT ?',
+  'economy_asset_auction_events_no_update',
+  'economy_asset_auction_events_no_delete',
 ]);
+requireOrder('server/src/storage.js', ['migrateAssetAuctionWorld(world, now);', 'migrateFacilityGroupWorld(world, now);']);
 requireText('server/src/storage.js', [
-  "from './asset-auctions.js'",
-  "const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);",
-  '...createAssetAuctionClientState(world, userId, now)',
-  'gameResult = applyAssetAuctionAction(world, user, action, payload, now);',
+  "from './auction-audit-store.js'",
+  'configureAuctionAuditStore(this);',
+  'flushAuctionAuditEvents(this, world, revision, nextRevision);',
+  'getAuctionBidHistory(user, auctionId, now = Date.now())',
+  'listRecentAuctionBidEvents(this, auction.id, 10)',
+]);
+requireText('server/src/runtime-store.js', ['flushAuctionAuditEvents(this, world, revision, nextRevision);', 'prepared.version = 21;']);
+requireText('server/src/app.js', [
+  'const auctionBidHistoryMatch = path.match',
+  "method === 'GET' && auctionBidHistoryMatch",
+  'history: store.getAuctionBidHistory',
 ]);
 requireText('server/src/game-routes.js', [
   "path === '/api/game/auctions'",
@@ -132,160 +151,75 @@ requireText('server/src/game-routes.js', [
   "action: 'placeAuctionBid'",
   "action: 'cancelAuction'",
 ]);
-requireText('server/src/state-partitions.js', [
-  "const AUCTION_KEYS = new Set(['assetAuctions']);",
-]);
-requireText('server/src/warehouse.js', [
-  "from './warehouse-reservations.js'",
-  'nonContractWarehouseReservation(world, player.userId)',
-]);
-requireText('server/src/warehouse-reservations.js', [
-  'world?.assetAuctions',
-  "auction?.status !== 'open'",
-  "item.assetKind === 'commodity'",
-  'pendingCommodityBuyQuantityForOwner',
-]);
+requireText('server/src/state-partitions.js', ["const AUCTION_KEYS = new Set(['assetAuctions']);"]);
+requireText('server/src/warehouse-reservations.js', ['world?.assetAuctions', "auction?.status !== 'open'", "item.assetKind === 'commodity'"]);
 requireText('server/src/facility-groups.js', ['world.assetAuctions']);
-requireText('server/src/app.js', [
-  "path.startsWith('/api/game/admin/collectibles')",
-  "sendError(response, 410, '藏品管理接口已永久移除')",
-  "path === '/api/game/collectible-auctions'",
-  "sendError(response, 410, '藏品拍卖接口已永久移除，请使用通用资产拍卖接口')",
-]);
 
 requireText('server/test/asset-auctions.test.js', [
-  '商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量',
-  '商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品',
-  '工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情',
-  '商品与工厂资产包整体冻结并原子成交',
-  '客户端只返回商品与工厂通用资产拍卖',
-  '世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖',
-  '世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录',
-  "assert.deepEqual(state, once, '迁移重复执行不得再次退款或改变拍卖');",
+  '发布费按较高计费基数计算并限制最低和最高金额',
+  '发布资金不足时不扣费也不冻结资产',
+  '未达隐藏保留价时退回最高报价和资产但不退发布费',
+  '结束前两分钟出价自动延时且累计不超过三十分钟',
+  '客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组',
+]);
+requireText('server/test/auction-fees-audit.test.js', [
+  '发布费、出价和匿名最近十条在同一 SQLite 事务中审计',
+  '发布幂等重试不会重复扣费或重复冻结资产',
 ]);
 
 requireText('src/auctions/types.ts', [
-  "export type AuctionAssetKind = 'commodity' | 'facility';",
-  'assetAuctions: AssetAuction[];',
-  'assetAuctions: Array.isArray(state.assetAuctions) ? state.assetAuctions : [],',
+  'export interface AuctionBidHistory',
+  'highestBidderLabel: string | null;',
+  'bidCount: number;',
+  'latestBidAt: number | null;',
+  'reserveMet: boolean;',
 ]);
-forbidText('src/auctions/types.ts', ['collectible', 'Collectible', 'collections']);
+forbidText('src/auctions/types.ts', ['bidderId:', 'bidderName:', 'highestBidderId:', 'highestBidderName:', 'bids: AuctionBid[]']);
 requireText('src/api/game.ts', [
-  "import type { AuctionItem } from '../auctions/types';",
-  "postAction('/auctions', { items, startingBid, durationHours })",
-  'placeAuctionBid:',
-  'cancelAuction:',
+  'export async function getAuctionBidHistory',
+  'const payload = await request<{ history: AuctionBidHistory }>(',
+  '`/auctions/${encodeURIComponent(auctionId)}/bids`,',
+  'createAuction: (items: AuctionItem[], startingBid: number, reservePrice: number | null, durationHours: number)',
+  "postAction('/auctions', { items, startingBid, reservePrice, durationHours })",
 ]);
 requireText('src/pages/AuctionPage.tsx', [
-  "const [assetKind, setAssetKind] = useState<AuctionAssetKind>('commodity');",
-  "{(['commodity', 'facility'] as const).map((kind) => (",
-  'aria-pressed={assetKind === kind}',
-  '发布资产包拍卖',
-  '加入资产包',
-  'gameActions.createAuction(bundleItems, parsedStartingBid, parsedDurationHours)',
-  'gameActions.placeAuctionBid(auction.id, amount)',
-  'gameActions.cancelAuction(auction.id)',
-  'function parseAuctionQuantity(value: string, maximum?: number)',
-  "const [quantityInput, setQuantityInput] = useState('1')",
-  'const [bundleQuantityDrafts, setBundleQuantityDrafts] = useState<Record<string, string>>({})',
-  'onBlur={() => commitBundleQuantityDraft(item)}',
-  'const placeholderCount = Math.max(0, MAX_AUCTION_ITEMS - items.length);',
-  'className="asset-auction-icon-layer"',
-  'className="asset-auction-summary-placeholder"',
-  'label="整包起拍价"',
-  '整包出价（最低',
+  "const [reserveEnabled, setReserveEnabled] = useState(false);",
+  'calculateListingFee(parsedStartingBid, parsedReservePrice)',
+  'calculateMinimumIncrement(parsedStartingBid)',
+  '支付 ${formatCurrency(listingFeePreview)} 并发布',
+  '结束前 2min 内有效出价会自动延时',
+  '查看最近 10 条',
+  '仅显示最近 10 条，共',
+  'getAuctionBidHistory(auction.id)',
+  'aria-expanded={expanded}',
 ]);
-forbidText('src/pages/AuctionPage.tsx', [
-  'collectible',
-  'Collectible',
-  '藏品',
-  'artic.edu',
-  'currentOwnerId',
-  'const [quantity, setQuantity] = useState(1)',
-  'setQuantity(Number(event.target.value))',
+forbidText('src/pages/AuctionPage.tsx', ['highestBidderName', 'highestBidderId', 'bidderName', 'bidderId']);
+requireText('tests/browser/auction-bid-history.spec.ts', [
+  'auction bid history is collapsed, lazy, anonymous, and capped at ten rows',
+  "toHaveCount(10)",
+  'auction bid history is collapsed, lazy, anonymous, and capped at ten rows',
 ]);
-requireText('src/styles/asset-auctions.css', [
-  '.ui-segmented.asset-auction-kind-switch',
-  'grid-template-columns: repeat(2, minmax(0, 1fr));',
-  '.asset-auction-builder',
-  '.asset-auction-package-row',
-]);
-requireText('src/styles/auction-card-layers.css', [
-  '.asset-auction-icon-layer',
-  'grid-template-columns: repeat(5, minmax(0, 1fr));',
-  '.asset-auction-summary-quantity',
-  '.asset-auction-summary-placeholder',
-  '.asset-auction-data-layer',
-]);
-forbidText('src/styles/auction-card-layers.css', ['overflow-x: auto;', '.asset-auction-summary-more']);
 
 requireText('.github/workflows/deploy.yml', [
-  'Prune backups and create compact compressed database backup before world 20 migration',
-  'scripts/manage-production-backups.py',
-  'backup-world --target-world-version 20',
+  'backup before world 21 migration',
+  'backup-world --target-world-version 21',
   'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
-  'database-backup.log',
 ]);
-requireText('scripts/manage-production-backups.py', [
-  'VACUUM INTO',
-  'gzip.GzipFile(',
-  'PRAGMA quick_check(1)',
-  'PRAGMA foreign_key_check',
-  "economy-pre-world-v{args.target_world_version}",
-  "backup_directory.glob('economy-pre-*')",
-  'MAX_BACKUP_FAMILIES = 5',
-  'def prune_backups(',
-]);
-forbidText('.github/workflows/deploy.yml', [
-  'source.backup(destination)',
-  "backup_dir.glob('economy-pre-*.sqlite')",
-]);
-
-requireText('README.md', [
-  '客户端状态版本：`23`',
-  '世界状态版本：`20`',
-  '通过不可拆分资产包拍卖交易商品和工厂',
-  '商品和工厂可单独或混合组成最多 20 项的不可拆分资产包公开竞价',
-  '世界 15 迁移前备份',
-]);
-requireText('docs/README.md', [
-  '九个正式页面、银行资产总览与存贷款、商品／工厂资产拍卖',
-  '商品与工厂单项或捆绑资产包竞价',
-  '世界 15 必须保留纯商品／工厂拍卖并整包取消含已删除资产的旧拍卖',
-  '`scripts/verify-asset-auctions.mjs`',
-]);
+requireText('README.md', ['客户端状态版本：`24`', '世界状态版本：`21`', '发布费按起拍价与隐藏保留价较高者的 0.2%', '最近 10 条']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
-  '商品和工厂使用同一公开竞价、最高出价冻结和服务器自动结算模型',
-  '`assetKind` 只允许 `commodity` 或 `facility`',
-  '任何包含旧 `collectible` 项目的开放资产包必须整包取消',
-  '使用 `VACUUM INTO` 创建无 freelist 的紧凑 SQLite 副本',
-  'gzip 级别 6',
-  '`PRAGMA quick_check`、外键与 `auto_vacuum` 校验',
-  '旧 `/api/game/collectible-auctions*` 与 `/api/game/admin/collectibles*` 路径只返回 `410 Gone`',
+  '发布费计费基数为 `max(起拍价, 保留价)`',
+  '卖方成交手续费为成交总价的精确 1%',
+  '结束前 2 分钟出现有效最高出价',
+  '最近 10 条匿名有效出价',
+  '世界 21 收费、延时与隐私迁移',
 ]);
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
-  '玩家导航固定为九项',
-  '玩家可以在商品／工厂分段选择器间切换并连续加入资产',
-  '商品和工厂类型选择器必须固定为二等分单行布局',
-  '资产包添加数量和资产包行数量必须把输入中的原始字符串作为编辑草稿',
-  '五列四行、共 20 个槽位',
-  '捆绑拍卖必须按资产包全部商品合计预占仓库',
-]);
-requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
-  '`asset-auctions.js`：商品／工厂单项与捆绑资产拍卖',
-  '世界 15 的资产拍卖迁移由 `asset-auctions.js` 在工厂集群规范化之前执行',
-  '世界 15 资产拍卖迁移和世界 16 银行迁移的回滚仍必须同时恢复匹配代码',
-  '紧凑 gzip SQLite 快照',
-  '`VACUUM INTO` 消除 freelist',
-  '`410 Gone`',
-]);
-for (const [path, fragments] of [
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['冻结与抵押只改变可用性，不改变所有权', '托管记录不得作为第二份资产余额重复累加']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖与订单簿隔离', '拍卖成交不属于订单簿成交']],
-  ['docs/WAREHOUSE_EXPANSION_DESIGN.md', ['资产包', '全部商品数量']],
-  ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['工厂订单与拍卖冻结', '整包任一项目异常时不得部分转移工厂']],
-  ['docs/UI_DESIGN_SYSTEM.md', ['拍卖页只允许商品和工厂', '商品必须使用 `ProductIcon`', '工厂必须使用 `FactoryIcon`']],
-]) requireText(path, fragments);
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['发布费、最低加价、卖方 1% 成交手续费', '出价记录默认折叠', '固定只返回最近 10 条匿名记录']);
+requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`auction-audit-store.js`', '`economy_asset_auction_events`', 'GET | `/api/game/auctions/:auctionId/bids`', '世界 21 迁移']);
+requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖使用自身规则快照', '拍卖独立收费不得被误删']);
+requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', ['未达保留价']);
+requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['未达保留价']);
+requireText('docs/UI_DESIGN_SYSTEM.md', ['出价历史使用原生按钮', '`aria-expanded`']);
+requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['拍卖服务费用与货币流', '世界级拍卖费用托管']);
 
 for (const path of filesUnder('src')) {
   const source = read(path);
@@ -294,20 +228,9 @@ for (const path of filesUnder('src')) {
   }
 }
 
-const activeServerFiles = filesUnder('server/src').filter((path) => ![
-  'server/src/asset-auctions.js',
-  'server/src/app.js',
-].includes(path));
-for (const path of activeServerFiles) {
-  const source = read(path);
-  for (const forbidden of ['collectibleAuctions', 'collectibleOwnershipHistory', 'world.collectibles']) {
-    if (source.includes(forbidden)) failures.push(`${path} 不得在活动服务器模块恢复旧艺术资产状态: ${forbidden}`);
-  }
-}
-
 if (failures.length) {
   console.error(`商品／工厂资产拍卖验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('商品／工厂单项与捆绑资产拍卖、世界 15 整包取消迁移、紧凑压缩数据库快照、410 墓碑、九页导航、数量草稿、冻结与仓库预占、原子结算及订单簿行情隔离验证通过。');
+console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');

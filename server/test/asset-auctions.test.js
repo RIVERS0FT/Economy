@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applyAssetAuctionAction,
+  calculateAuctionListingFee,
+  calculateAuctionMinimumIncrement,
   createAssetAuctionClientState,
   migrateAssetAuctionWorld,
   processAssetAuctions,
@@ -65,7 +67,7 @@ test('商品拍卖冻结商品、为最高出价者预占仓库并在成交后�
   assert.equal(auction.status, 'sold');
   assert.equal(state.players['1'].inventories.wheat.frozen, 0);
   assert.equal(state.players['3'].inventories.wheat.available, 4);
-  assert.equal(state.players['1'].credits, 210);
+  assert.equal(state.players['1'].credits, 208.4);
   assert.equal(state.players['3'].frozenCredits, 0);
   assert.equal(state.markets.wheat.priceHistory.length, priceHistoryLength, '拍卖成交不得写入订单簿行情');
 });
@@ -235,7 +237,7 @@ test('世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍�
 
   migrateAssetAuctionWorld(state, 5_000);
 
-  assert.equal(state.version, 20);
+  assert.equal(state.version, 21);
   assert.deepEqual(state.assetAuctions.map((auction) => auction.id), ['legacy-pure']);
   assert.equal(bidder.credits, 500);
   assert.equal(bidder.frozenCredits, 0);
@@ -267,4 +269,152 @@ test('世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录', 
   assert.equal(state.assetAuctions.length, 1);
   assert.equal(state.assetAuctions[0].sellerName, '新记录');
   assert.equal(state.assetAuctions[0].assetKind, 'facility');
+});
+
+
+test('发布费按较高计费基数计算并限制最低和最高金额', () => {
+  assert.equal(calculateAuctionListingFee(20), 0.5);
+  assert.equal(calculateAuctionListingFee(1_000), 2);
+  assert.equal(calculateAuctionListingFee(100, 10_000), 20);
+  assert.equal(calculateAuctionListingFee(100_000), 100);
+  assert.equal(calculateAuctionListingFee(100, 99), null);
+  assert.equal(calculateAuctionMinimumIncrement(10), 0.2);
+  assert.equal(calculateAuctionMinimumIncrement(0.2), 0.01);
+});
+
+test('发布资金不足时不扣费也不冻结资产', () => {
+  const state = world();
+  state.players['1'].credits = 0.49;
+  state.players['1'].inventories.wheat.available = 3;
+  const created = createAuction(state, seller, {
+    items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 2 }],
+    startingBid: 100,
+    durationHours: 1,
+  });
+  assert.equal(created.ok, false);
+  assert.match(created.message, /发布/);
+  assert.equal(state.assetAuctions.length, 0);
+  assert.equal(state.auctionFeeEscrowCredits, 0);
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 0 });
+});
+
+test('未达隐藏保留价时退回最高报价和资产但不退发布费', () => {
+  const state = world();
+  state.players['1'].inventories.wheat.available = 3;
+  const created = createAuction(state, seller, {
+    items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 2 }],
+    startingBid: 100,
+    reservePrice: 200,
+    durationHours: 1,
+  });
+  assert.equal(created.ok, true);
+  const auction = state.assetAuctions.at(-1);
+  assert.equal(auction.listingFee, 0.5);
+  assert.equal(state.auctionFeeEscrowCredits, 0.5);
+  assert.equal(bid(state, bidderA, auction.id, 150, 3_000).ok, true);
+  processAssetAuctions(state, auction.endsAt + 1);
+  assert.equal(auction.status, 'ended');
+  assert.equal(auction.settlementReason, 'reserve_not_met');
+  assert.equal(state.players['2'].credits, 500);
+  assert.equal(state.players['2'].frozenCredits, 0);
+  assert.deepEqual(state.players['1'].inventories.wheat, { available: 3, frozen: 0 });
+  assert.equal(state.auctionFeeEscrowCredits, 0);
+  assert.equal(auction.listingFeeStatus, 'distributed');
+});
+
+test('结束前两分钟出价自动延时且累计不超过三十分钟', () => {
+  const state = world();
+  state.players['1'].inventories.wheat.available = 1;
+  createAuction(state, seller, {
+    items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 1 }],
+    startingBid: 10,
+    durationHours: 1,
+  }, 1_000);
+  const auction = state.assetAuctions.at(-1);
+  let moment = auction.originalEndsAt - 60_000;
+  let amount = 10;
+  for (let index = 0; index < 35; index += 1) {
+    const bidder = index % 2 === 0 ? bidderA : bidderB;
+    const minimum = auction.highestBid ? auction.highestBid + auction.minimumIncrement : auction.startingBid;
+    amount = Math.round(minimum * 100) / 100;
+    assert.equal(bid(state, bidder, auction.id, amount, moment).ok, true);
+    moment = auction.endsAt - 60_000;
+  }
+  assert.equal(auction.endsAt, auction.originalEndsAt + 30 * 60_000);
+  assert.ok(auction.extensionCount > 0);
+});
+
+test('客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组', () => {
+  const state = world();
+  state.players['1'].inventories.wheat.available = 1;
+  createAuction(state, seller, {
+    items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 1 }],
+    startingBid: 10,
+    durationHours: 1,
+  }, 1_000);
+  const auction = state.assetAuctions.at(-1);
+  assert.equal(bid(state, bidderA, auction.id, 10, 2_000).ok, true);
+  const client = createAssetAuctionClientState(state, seller.id, 2_100).assetAuctions[0];
+  assert.equal(client.highestBidderLabel, '竞买人 A01');
+  assert.equal(client.bidCount, 1);
+  for (const privateKey of ['sellerId', 'highestBidderId', 'highestBidderName', 'bids', 'bidderAliases']) {
+    assert.equal(Object.hasOwn(client, privateKey), false, `客户端不得包含 ${privateKey}`);
+  }
+});
+
+test('世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖', () => {
+  const state = world();
+  state.version = 20;
+  state.auctionFeeEscrowCredits = 999;
+  state.assetAuctions = [
+    {
+      id: 'legacy-open',
+      items: [{ assetKind: 'commodity', assetId: 'wheat', quantity: 1 }],
+      sellerId: 1,
+      sellerName: '卖家',
+      startingBid: 10,
+      status: 'open',
+      escrowStatus: 'held',
+      createdAt: 1_000,
+      endsAt: 99_000,
+      bids: [],
+    },
+    {
+      id: 'v2-open',
+      items: [{ assetKind: 'commodity', assetId: 'rice', quantity: 1 }],
+      sellerId: 1,
+      sellerName: '卖家',
+      startingBid: 100,
+      reservePrice: 200,
+      minimumIncrement: 2,
+      auctionRuleVersion: 2,
+      listingFee: 0.5,
+      listingFeeStatus: 'held',
+      sellerFeeBps: 100,
+      buyerFeeBps: 0,
+      originalEndsAt: 99_000,
+      extensionWindowMs: 120_000,
+      extensionDurationMs: 120_000,
+      maxExtensionMs: 1_800_000,
+      extensionCount: 0,
+      status: 'open',
+      escrowStatus: 'held',
+      createdAt: 1_000,
+      endsAt: 99_000,
+      bids: [],
+    },
+  ];
+
+  migrateAssetAuctionWorld(state, 5_000);
+  assert.equal(state.version, 21);
+  assert.equal(state.auctionFeeEscrowCredits, 0.5);
+  assert.equal(state.assetAuctions[0].auctionRuleVersion, 1);
+  assert.equal(state.assetAuctions[0].listingFee, 0);
+  assert.equal(state.assetAuctions[0].minimumIncrement, 0.01);
+  assert.equal(state.assetAuctions[0].maxExtensionMs, 0);
+  assert.equal(state.assetAuctions[1].auctionRuleVersion, 2);
+
+  const once = structuredClone(state);
+  migrateAssetAuctionWorld(state, 6_000);
+  assert.deepEqual(state, once, '世界 21 拍卖迁移必须幂等');
 });
