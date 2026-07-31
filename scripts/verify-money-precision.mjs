@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import {
   calculateRateMoney,
   floorPlayerMoney,
@@ -83,5 +83,11 @@ assert.match(read('README.md'), /统一微单位运算边界/);
 assert.match(read('docs/README.md'), /一种六位微单位运算精度/);
 assert.match(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'), /单一微单位货币核心/);
 assert.match(read('docs/UI_DESIGN_SYSTEM.md'), /普通金额统一显示两位/);
+
+const stalePrecisionRule = /第三位及以后不拒绝|始终结算到 0\.01|进入玩家账本前再次结算到两位|尾差进入服务器精度准备金/;
+for (const file of readdirSync(new URL('../docs/', import.meta.url))) {
+  if (!file.endsWith('.md')) continue;
+  assert.doesNotMatch(read(`docs/${file}`), stalePrecisionRule, `${file} contains a superseded money precision rule`);
+}
 
 console.log('Money precision verification passed.');
