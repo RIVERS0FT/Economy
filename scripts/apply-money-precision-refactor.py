@@ -11,4 +11,8 @@ replacement = """    if count != 1:\n        if path == 'server/src/contract-aud
 if source.count(needle) != 1:
     raise RuntimeError('Unable to patch refactor assertion helper')
 source = source.replace(needle, replacement, 1)
+doc_sentence = '市场、银行、合同、拍卖、概览、排行榜和管理员页面的普通金额共用 `formatCurrency` 两位显示；'
+if source.count(doc_sentence) != 1:
+    raise RuntimeError('Unable to patch authoritative display wording')
+source = source.replace(doc_sentence, '普通金额统一显示两位；市场、银行、合同、拍卖、概览、排行榜和管理员页面共用 `formatCurrency`；', 1)
 exec(compile(source, 'apply-money-precision-refactor.py', 'exec'))
