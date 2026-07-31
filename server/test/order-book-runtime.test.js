@@ -3,10 +3,12 @@ import test from 'node:test';
 import { compareRestingOrders, matchIncomingOrder } from '../src/order-matching.js';
 import { isOpenOrder } from '../src/order-identity.js';
 import {
+  closeOrderInOrderBook,
   countOpenOrdersForOwner,
   facilitySellQuantityForOwner,
   getOrderBookRuntimeDiagnostics,
   getOrderBookSide,
+  orderById,
   pendingCommodityBuyQuantityForOwner,
   resetOrderBookRuntimeDiagnostics,
 } from '../src/order-book-runtime.js';
@@ -147,4 +149,47 @@ test('repeated matching reuses one runtime index', () => {
   assert.equal(diagnostics.builds, 1);
   assert.equal(diagnostics.tailAppends, 49);
   assert.ok(diagnostics.ordersVisited <= 100, `访问订单数过高: ${diagnostics.ordersVisited}`);
+});
+
+
+test('runtime index excludes closed history from active books', () => {
+  const world = { orders: [] };
+  for (let index = 0; index < 3_999; index += 1) {
+    world.orders.push(order({
+      id: `closed-${index}`,
+      side: index % 2 === 0 ? 'buy' : 'sell',
+      ownerId: index + 1,
+      price: 10,
+      createdAt: index,
+      status: 'filled',
+    }));
+  }
+  world.orders.push(order({ id: 'open-sell', side: 'sell', ownerId: 9_999, price: 11, createdAt: 4_000 }));
+  resetOrderBookRuntimeDiagnostics(world);
+  assert.deepEqual(
+    getOrderBookSide(world, { assetKind: 'commodity', assetId: 'wheat', side: 'sell' }).map((entry) => entry.id),
+    ['open-sell'],
+  );
+  assert.equal(getOrderBookRuntimeDiagnostics(world).builds, 1);
+});
+
+test('runtime owner aggregates follow fills and explicit cancellation', () => {
+  const buy = order({ id: 'buy-aggregate', side: 'buy', ownerId: 7, price: 10, quantity: 5, createdAt: 1 });
+  const world = { orders: [buy] };
+  resetOrderBookRuntimeDiagnostics(world);
+  assert.equal(countOpenOrdersForOwner(world, 7), 1);
+  assert.equal(pendingCommodityBuyQuantityForOwner(world, 7), 5);
+
+  const sell = order({ id: 'sell-aggregate', side: 'sell', ownerId: 8, price: 10, quantity: 2, createdAt: 2 });
+  world.orders.push(sell);
+  matchIncomingOrder({ world, incoming: sell, createdAt: 3, settleTrade: () => {} });
+  assert.equal(buy.remaining, 3);
+  assert.equal(pendingCommodityBuyQuantityForOwner(world, 7), 3);
+  assert.equal(countOpenOrdersForOwner(world, 8), 0);
+
+  buy.status = 'cancelled';
+  closeOrderInOrderBook(world, buy);
+  assert.equal(countOpenOrdersForOwner(world, 7), 0);
+  assert.equal(pendingCommodityBuyQuantityForOwner(world, 7), 0);
+  assert.equal(orderById(world, buy.id), buy);
 });

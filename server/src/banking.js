@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { FACILITY_TYPE_CATALOG } from './domain.js';
 import { facilitySellQuantityForOwner } from './order-book-runtime.js';
 import { creditPopulationEmployment } from './population-economy.js';
-import { ceilPlayerMoney, floorPlayerMoney, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
+import { calculateRateMoney, floorInternalMoney, internalMoneyToMicros, microsToInternalMoney, multiplyMoneyRatio, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 import {
   createWeeklyCashSettlementClientState,
   isPlayerWeeklyInterestEligible,
@@ -33,7 +33,7 @@ function safeNonNegativeInteger(value, fallback = 0) {
 }
 
 function safeNonNegativeMoney(value, fallback = 0) {
-  const normalized = floorPlayerMoney(value);
+  const normalized = roundInternalMoney(value);
   return normalized !== null && normalized >= 0 ? normalized : fallback;
 }
 
@@ -48,19 +48,18 @@ function safePositiveInteger(value, max = MAX_SAFE) {
 
 function addSafe(left, right, message = '银行金额超出系统可表示范围') {
   const total = roundInternalMoney(Number(left || 0) + Number(right || 0));
-  if (total === null || !Number.isSafeInteger(Math.trunc(total * 100))) throw new Error(message);
+  if (total === null || internalMoneyToMicros(total) === null) throw new Error(message);
   return total;
 }
 
 function multiplyFloor(left, right, divisor, message = '银行计算结果超出系统可表示范围') {
-  const raw = Number(left || 0) * Number(right || 0) / Number(divisor || 1);
-  const result = Math.floor(raw * 1_000_000) / 1_000_000;
-  if (!Number.isFinite(result)) throw new Error(message);
+  const result = multiplyMoneyRatio(left, right, divisor, 'floor');
+  if (result === null) throw new Error(message);
   return result;
 }
 
 function multiplyCeil(left, right, divisor, message = '银行计算结果超出系统可表示范围') {
-  const result = ceilPlayerMoney(Number(left || 0) * Number(right || 0) / Number(divisor || 1));
+  const result = multiplyMoneyRatio(left, right, divisor, 'ceil');
   if (result === null) throw new Error(message);
   return result;
 }
@@ -142,14 +141,14 @@ function normalizeLoan(loan) {
   if (!loan || typeof loan !== 'object') return null;
   const collateral = normalizeCollateral(loan.collateral).map((item) => ({
     ...item,
-    prudentUnitValue: safeNonNegativeInteger(
+    prudentUnitValue: safeNonNegativeMoney(
       loan.collateral?.find?.((candidate) => String(candidate?.facilityTypeId) === item.facilityTypeId)?.prudentUnitValue,
       FACILITY_BY_ID.get(item.facilityTypeId)?.systemValue || 0,
     ),
   }));
   const status = loan.status === 'grace' ? 'grace' : 'active';
-  const principalOutstanding = safeNonNegativeInteger(loan.principalOutstanding ?? loan.principalOriginal);
-  const interestOutstanding = safeNonNegativeInteger(loan.interestOutstanding ?? loan.interestOriginal);
+  const principalOutstanding = safeNonNegativeMoney(loan.principalOutstanding ?? loan.principalOriginal);
+  const interestOutstanding = safeNonNegativeMoney(loan.interestOutstanding ?? loan.interestOriginal);
   if ((principalOutstanding + interestOutstanding) <= 0 || collateral.length === 0) return null;
   return {
     id: String(loan.id || `bank-loan-${randomUUID()}`),
@@ -176,7 +175,7 @@ export function ensureBankWorld(world, now = Date.now()) {
   bank.currentDayKey = typeof bank.currentDayKey === 'string' ? bank.currentDayKey : fallback.currentDayKey;
   bank.nextInterestSettlementAt = safeNonNegativeInteger(bank.nextInterestSettlementAt, fallback.nextInterestSettlementAt);
   bank.interestPoolMicros = safeNonNegativeInteger(bank.interestPoolMicros);
-  bank.riskReserveCredits = safeNonNegativeInteger(bank.riskReserveCredits);
+  bank.riskReserveCredits = safeNonNegativeMoney(bank.riskReserveCredits);
   bank.facilityReserves = bank.facilityReserves && typeof bank.facilityReserves === 'object' ? bank.facilityReserves : {};
   for (const facility of FACILITY_TYPE_CATALOG) {
     bank.facilityReserves[facility.id] = safeNonNegativeInteger(bank.facilityReserves[facility.id]);
@@ -232,7 +231,7 @@ function recordTransaction(account, type, amount, createdAt, description, metada
   account.recentTransactions.push({
     id: `bank-transaction-${randomUUID()}`,
     type,
-    amount: Math.max(0, floorPlayerMoney(amount) || 0),
+    amount: Math.max(0, roundInternalMoney(amount) || 0),
     createdAt: safeNonNegativeInteger(createdAt),
     description: String(description || ''),
     ...metadata,
@@ -290,11 +289,9 @@ export function transferableFacilityQuantity(world, player, facilityTypeId) {
 function prudentFacilityValue(world, facilityTypeId) {
   const facility = FACILITY_BY_ID.get(String(facilityTypeId));
   if (!facility) return 0;
-  const lastTradePrice = Number(world.facilityMarkets?.[facility.id]?.lastTradePrice);
-  const marketPrice = Number.isFinite(lastTradePrice) && lastTradePrice > 0
-    ? Math.floor(lastTradePrice)
-    : facility.systemValue;
-  return Math.max(1, Math.min(safeNonNegativeInteger(facility.systemValue), safeNonNegativeInteger(marketPrice)));
+  const lastTradePrice = roundInternalMoney(world.facilityMarkets?.[facility.id]?.lastTradePrice);
+  const marketPrice = lastTradePrice !== null && lastTradePrice > 0 ? lastTradePrice : facility.systemValue;
+  return Math.max(0.01, Math.min(safeNonNegativeMoney(facility.systemValue), safeNonNegativeMoney(marketPrice)));
 }
 
 function normalizeCollateralWithValues(world, player, collateral) {
@@ -334,7 +331,7 @@ export function calculateLoanAssessment(world, player, collateral, requestedAmou
     2_500,
     5_000,
   );
-  const maximumLoanCredits = Math.max(0, floorPlayerMoney(multiplyFloor(collateralValue, loanToValueBps, 10_000)) || 0);
+  const maximumLoanCredits = Math.max(0, floorInternalMoney(multiplyFloor(collateralValue, loanToValueBps, 10_000)) || 0);
   const amount = requestedAmount === undefined ? maximumLoanCredits : safePositiveMoney(requestedAmount, maximumLoanCredits || MAX_SAFE);
   const actualLtvBps = amount && collateralValue > 0
     ? Math.ceil(amount * 10_000 / collateralValue)
@@ -369,8 +366,8 @@ function completeLoan(account, loan, now) {
 
 function splitRealizedInterest(amount) {
   const total = Math.max(0, roundInternalMoney(amount) || 0);
-  const poolCredits = roundInternalMoney(total * BANK_INTEREST_POOL_SHARE_PERCENT / 100) || 0;
-  const employmentCredits = roundInternalMoney(total * BANK_EMPLOYMENT_SHARE_PERCENT / 100) || 0;
+  const poolCredits = calculateRateMoney(total, BANK_INTEREST_POOL_SHARE_PERCENT, 100, 'half-up') || 0;
+  const employmentCredits = calculateRateMoney(total, BANK_EMPLOYMENT_SHARE_PERCENT, 100, 'half-up') || 0;
   const reserveCredits = Math.max(0, roundInternalMoney(total - poolCredits - employmentCredits) || 0);
   return { poolCredits, employmentCredits, reserveCredits };
 }
@@ -404,7 +401,7 @@ function applyRepayment(world, player, amount, now, { fromDeposit = false, autom
   const requested = safePositiveMoney(amount, liability);
   if (!requested) return { ok: false, message: '还款金额无效', paid: 0 };
   const available = fromDeposit ? account.depositCredits : safeNonNegativeMoney(player.credits);
-  const paid = Math.max(0, floorPlayerMoney(Math.min(requested, liability, available)) || 0);
+  const paid = Math.max(0, floorInternalMoney(Math.min(requested, liability, available)) || 0);
   if (paid <= 0) return { ok: false, message: fromDeposit ? '银行存款不足' : '可用资金不足', paid: 0 };
   if (fromDeposit) {
     account.depositCredits -= paid;
@@ -413,9 +410,9 @@ function applyRepayment(world, player, amount, now, { fromDeposit = false, autom
     player.credits -= paid;
   }
   const interestPaid = Math.min(loan.interestOutstanding, paid);
-  loan.interestOutstanding -= interestPaid;
+  loan.interestOutstanding = Math.max(0, roundInternalMoney(loan.interestOutstanding - interestPaid) || 0);
   const principalPaid = paid - interestPaid;
-  loan.principalOutstanding -= principalPaid;
+  loan.principalOutstanding = Math.max(0, roundInternalMoney(loan.principalOutstanding - principalPaid) || 0);
   allocatePaidInterest(world, player, interestPaid, now, loan.id);
   const bank = ensureBankWorld(world, now);
   bank.totals.principalRepaid = addSafe(bank.totals.principalRepaid, principalPaid);
@@ -499,9 +496,9 @@ function settleDefault(world, player, now) {
   player.facilityGroups = (player.facilityGroups || []).filter((group) => safeNonNegativeInteger(group.count) > 0);
   const applied = Math.min(proceeds, liability);
   const interestPaid = Math.min(loan.interestOutstanding, applied);
-  loan.interestOutstanding -= interestPaid;
+  loan.interestOutstanding = Math.max(0, roundInternalMoney(loan.interestOutstanding - interestPaid) || 0);
   const principalPaid = applied - interestPaid;
-  loan.principalOutstanding -= principalPaid;
+  loan.principalOutstanding = Math.max(0, roundInternalMoney(loan.principalOutstanding - principalPaid) || 0);
   allocatePaidInterest(world, player, interestPaid, now, loan.id);
   const bank = ensureBankWorld(world, now);
   bank.totals.principalRepaid = addSafe(bank.totals.principalRepaid, principalPaid);
@@ -561,24 +558,19 @@ function settleDepositInterest(world, settlementAt) {
     if (!isPlayerWeeklyInterestEligible(player, settlementAt)) continue;
     const eligible = Math.min(account.dayOpeningDepositCredits, account.dayMinimumDepositCredits);
     totalEligible = addSafe(totalEligible, eligible);
-    const dailyMicros = Math.floor(
-      eligible * BANK_DAILY_INTEREST_RATE_BPS * BANK_INTEREST_MICROS_PER_CREDIT / 10_000,
-    );
-    const accruedMicros = addSafe(
-      account.depositInterestCarryMicros,
-      dailyMicros,
-      '银行存款利息微单位超出系统可表示范围',
-    );
-    const payableMicros = Math.floor(accruedMicros / 10_000) * 10_000;
-    account.depositInterestCarryMicros = accruedMicros - payableMicros;
-    if (payableMicros <= 0) continue;
+    const interestCredits = calculateRateMoney(eligible, BANK_DAILY_INTEREST_RATE_BPS, 10_000, 'floor') || 0;
+    const payableMicrosBig = internalMoneyToMicros(interestCredits) || 0n;
+    const payableMicros = payableMicrosBig > BigInt(Number.MAX_SAFE_INTEGER)
+      ? Number.MAX_SAFE_INTEGER
+      : Number(payableMicrosBig);
+    account.depositInterestCarryMicros = 0;
+    if (payableMicros <= 0 || interestCredits <= 0) continue;
 
     const poolMicros = Math.min(bank.interestPoolMicros, payableMicros);
     const issuedMicros = payableMicros - poolMicros;
     bank.interestPoolMicros -= poolMicros;
     fundedByPoolMicros += poolMicros;
     subsidyMicros += issuedMicros;
-    const interestCredits = payableMicros / BANK_INTEREST_MICROS_PER_CREDIT;
     account.lastDepositInterestEarned = interestCredits;
     account.depositCredits = addSafe(account.depositCredits, interestCredits);
     account.totalDepositInterestEarned = addSafe(account.totalDepositInterestEarned, interestCredits);
@@ -586,14 +578,14 @@ function settleDepositInterest(world, settlementAt) {
     player.stats.bankDepositInterestEarned = addSafe(player.stats.bankDepositInterestEarned, interestCredits);
     player.stats.bankDepositInterestSubsidyIssued = addSafe(
       player.stats.bankDepositInterestSubsidyIssued,
-      issuedMicros / BANK_INTEREST_MICROS_PER_CREDIT,
+      microsToInternalMoney(issuedMicros) || 0,
     );
     paidCredits = addSafe(paidCredits, interestCredits);
     recordTransaction(account, 'deposit_interest', interestCredits, settlementAt, '银行存款每日固定结息');
   }
 
-  const fundedByPoolCredits = fundedByPoolMicros / BANK_INTEREST_MICROS_PER_CREDIT;
-  const subsidyCredits = subsidyMicros / BANK_INTEREST_MICROS_PER_CREDIT;
+  const fundedByPoolCredits = microsToInternalMoney(fundedByPoolMicros) || 0;
+  const subsidyCredits = microsToInternalMoney(subsidyMicros) || 0;
   bank.lastDailyInterestCredits = paidCredits;
   bank.lastDailyRatePpm = totalEligible > 0 ? BANK_DAILY_INTEREST_RATE_BPS * 100 : 0;
   bank.recentDailyRatesPpm.push(bank.lastDailyRatePpm);
@@ -616,15 +608,18 @@ function settleDepositInterest(world, settlementAt) {
   const depositsAfter = Object.values(world.players || {}).reduce((sum, player) => (
     addSafe(sum, ensurePlayerBankAccount(player, settlementAt).depositCredits)
   ), 0);
-  const poolCapMicros = Math.floor(
-    depositsAfter * BANK_DAILY_INTEREST_RATE_BPS * BANK_INTEREST_MICROS_PER_CREDIT
-      / 10_000 * BANK_INTEREST_POOL_RETENTION_DAYS,
-  );
+  const retainedCredits = calculateRateMoney(
+    depositsAfter,
+    BANK_DAILY_INTEREST_RATE_BPS * BANK_INTEREST_POOL_RETENTION_DAYS,
+    10_000,
+    'floor',
+  ) || 0;
+  const poolCapMicros = Number(internalMoneyToMicros(retainedCredits) || 0n);
   if (bank.interestPoolMicros > poolCapMicros) {
     const excessMicros = bank.interestPoolMicros - poolCapMicros;
-    const reserveCredits = Math.floor(excessMicros / 10_000) / 100;
+    const reserveCredits = microsToInternalMoney(excessMicros) || 0;
     if (reserveCredits > 0) {
-      bank.interestPoolMicros -= Math.round(reserveCredits * BANK_INTEREST_MICROS_PER_CREDIT);
+      bank.interestPoolMicros -= excessMicros;
       bank.riskReserveCredits = addSafe(bank.riskReserveCredits, reserveCredits);
       bank.totals.interestTransferredToReserve = addSafe(bank.totals.interestTransferredToReserve, reserveCredits);
     }
@@ -680,7 +675,7 @@ export function processBankWorld(world, now = Date.now()) {
 }
 
 function applyDeposit(world, player, payload, now) {
-  const amount = safePositiveInteger(payload.amount, safeNonNegativeMoney(player.credits));
+  const amount = safePositiveMoney(payload.amount, safeNonNegativeMoney(player.credits));
   if (!amount) return { ok: false, message: '存款金额无效或可用资金不足' };
   const account = ensurePlayerBankAccount(player, now);
   player.credits -= amount;
@@ -803,7 +798,7 @@ export function createBankClientState(world, player, now = Date.now()) {
       sevenDayAverageRatePpm,
       dailyInterestCapBps: BANK_DAILY_INTEREST_RATE_BPS,
       dailyInterestRateBps: BANK_DAILY_INTEREST_RATE_BPS,
-      interestPoolCredits: Math.floor(bank.interestPoolMicros / 10_000) / 100,
+      interestPoolCredits: microsToInternalMoney(bank.interestPoolMicros) || 0,
       weeklyCashSettlement: createWeeklyCashSettlementClientState(world, player, now),
       loanTermMs: BANK_LOAN_TERM_MS,
       loanGraceMs: BANK_LOAN_GRACE_MS,

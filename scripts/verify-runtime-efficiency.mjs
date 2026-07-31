@@ -78,6 +78,38 @@ requireText('server/src/order-book-runtime.js', [
   'pendingCommodityBuyQuantityForOwner',
   'facilitySellQuantityForOwner',
   'tailAppends',
+  'function finalizeRuntimeBooks(state)',
+  'openOrders: new WeakSet()',
+  'recordOrderBookReduction',
+  'closeOrderInOrderBook',
+  'orderById',
+]);
+const orderBookRuntime = read('server/src/order-book-runtime.js');
+for (const forbidden of ['playerBooks', 'systemBooks', 'playerOrdersByAsset', 'systemOrdersByAsset']) {
+  assert.equal(orderBookRuntime.includes(forbidden), false, `统一订单簿不得分离玩家／系统盘口: ${forbidden}`);
+}
+const orderBookBuild = orderBookRuntime.slice(
+  orderBookRuntime.indexOf('function buildRuntime(world)'),
+  orderBookRuntime.indexOf('function runtimeFor(world)'),
+);
+assert.equal(orderBookBuild.includes('insertSorted('), false, '订单簿全量构建不得逐单二分插入');
+requireText('server/src/domain-core.js', [
+  'const retainedClosed = new Set(recentClosed.slice(-800))',
+  'isOpenOrder(order) || retainedClosed.has(order)',
+  'orderById(world, payload.orderId)',
+]);
+assert.equal(read('server/src/domain-core.js').includes('.slice(-4_000)'), false, '历史上限不得删除未完成订单');
+requireText('server/src/domain.js', [
+  'if (retainedOrders.length !== migratedOrders.length) migrated.orders = retainedOrders;',
+]);
+requireText('server/src/facility-groups.js', [
+  'const hasSystemFacilityOrder = orders.some',
+  'if (!hasSystemFacilityOrder) return world;',
+  'orderById(world, payload.orderId)',
+]);
+requireText('server/src/market-demand/state.js', [
+  'const missingPlayers = Object.entries(world.players).filter',
+  'if (missingPlayers.length === 0) return;',
 ]);
 requireText('server/src/contract-runtime-index.js', [
   'runtimeByWorld',
@@ -132,6 +164,13 @@ requireText('server/test/order-book-runtime.test.js', [
   'runtime order book preserves price-time-array priority for 4000 orders',
   'runtime order book tracks tail appends and rebuilds after array replacement',
   'repeated matching reuses one runtime index',
+  'runtime index excludes closed history from active books',
+  'runtime owner aggregates follow fills and explicit cancellation',
+]);
+requireText('server/test/order-book-pruning.test.js', [
+  'world pruning keeps the order array reference when no history is removed',
+  'world pruning never removes open orders and only keeps 800 recent closed orders',
+  'legacy system facility cleanup preserves the array when there is nothing to remove',
 ]);
 requireText('server/test/contract-runtime-index.test.js', [
   'contract runtime index matches the reference reservation scan for 2000 contracts',
@@ -155,6 +194,9 @@ requireText('docs/README.md', [
   '失败或无变化动作仍保存幂等确认但不得触发全服补拉',
   '每次合同处理、动作和状态序列化只能建立一次事务内合同索引',
   '统一订单簿运行时索引只属于服务器事务内派生状态',
+  '统一订单簿运行时性能属于订单簿与服务器共同规则',
+  '单一混合盘口，不得按玩家／系统拆分盘口',
+  '历史剪枝只限制已关闭订单为最近 800 笔',
   '正式世界调度只能使用 `world-deadline-planner.js` 计算的单一最早到期 `setTimeout`',
   '共享仓库统一预占必须同时包含未完成商品买单',
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
@@ -166,4 +208,15 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');
+requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', [
+  '统一混合盘口',
+  '先单次遍历未完成订单完成分组',
+  '不得因历史保存上限删除任何未完成订单',
+]);
+requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
+  '统一订单簿运行时容量边界',
+  '不得按玩家订单与系统订单拆分第二套盘口',
+  '订单历史最多保留最近 800 笔未过期关闭订单',
+]);
+
+console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');

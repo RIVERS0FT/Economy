@@ -21,7 +21,7 @@ for (const text of [
   'export function orderPricesCross',
   "import { applyMarketSellFee } from './market-sell-fee.js'",
   "import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js'",
-  "import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js'",
+  "import { getOrderBookSide, recordOrderBookReduction, recordOrderBookVisit } from './order-book-runtime.js'",
   'multiplyMoneyByInteger',
   "throw new RangeError('成交总额超出系统可表示范围')",
   'makerOrderId: resting.id',
@@ -70,4 +70,21 @@ assert.ok(
   '服务器架构未登记共享撮合内核',
 );
 
-console.log('共享撮合内核验证通过：商品与工厂复用有界订单簿索引、价格时间优先、maker price、部分成交、fill 和手续费状态机。');
+
+for (const text of [
+  'function finalizeRuntimeBooks(state)',
+  'openOrders: new WeakSet()',
+  'recordOrderBookReduction',
+  'closeOrderInOrderBook',
+  'orderById',
+]) assert.ok(runtime.includes(text), `订单簿索引优化缺少: ${text}`);
+for (const forbidden of ['playerBooks', 'systemBooks', 'playerOrdersByAsset', 'systemOrdersByAsset']) {
+  assert.equal(runtime.includes(forbidden), false, `统一订单簿不得分离玩家／系统盘口: ${forbidden}`);
+}
+const runtimeBuild = runtime.slice(runtime.indexOf('function buildRuntime(world)'), runtime.indexOf('function runtimeFor(world)'));
+assert.equal(runtimeBuild.includes('insertSorted('), false, '订单簿全量构建不得逐单二分插入');
+for (const text of ['统一混合盘口', '先单次遍历未完成订单完成分组', '不得因历史保存上限删除任何未完成订单']) {
+  assert.ok(design.includes(text), `统一订单簿设计缺少运行时边界: ${text}`);
+}
+
+console.log('共享撮合内核验证通过：商品与工厂复用单一混合盘口、分组排序索引、价格时间优先、maker price、部分成交、fill 和手续费状态机。');

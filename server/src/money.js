@@ -2,13 +2,13 @@ export const ORDER_PRICE_DECIMALS = 2;
 export const ACCOUNT_MONEY_DECIMALS = 6;
 export const PLAYER_MONEY_DECIMALS = ORDER_PRICE_DECIMALS;
 export const INTERNAL_MONEY_DECIMALS = ACCOUNT_MONEY_DECIMALS;
-export const PLAYER_MONEY_SCALE = 100;
-export const INTERNAL_MONEY_SCALE = 1_000_000;
+export const MONEY_SCALE = 1_000_000;
+export const ORDER_PRICE_TICK_MICROS = 10_000;
 export const ORDER_PRICE_TICK = 0.01;
-export const MONEY_PRECISION_VERSION = 2;
+export const MONEY_PRECISION_VERSION = 3;
 
-const PLAYER_SCALE_BIGINT = 100n;
-const INTERNAL_SCALE_BIGINT = 1_000_000n;
+const MONEY_SCALE_BIGINT = 1_000_000n;
+const PRICE_TICK_BIGINT = 10_000n;
 const MAX_SAFE_SCALED = BigInt(Number.MAX_SAFE_INTEGER);
 
 function expandExponent(value) {
@@ -27,7 +27,9 @@ function expandExponent(value) {
 }
 
 function decimalParts(value) {
-  if (typeof value === 'bigint') return { negative: value < 0n, integer: String(value < 0n ? -value : value), fraction: '' };
+  if (typeof value === 'bigint') {
+    return { negative: value < 0n, integer: String(value < 0n ? -value : value), fraction: '' };
+  }
   if (value === null || value === undefined || value === '') return null;
   const source = expandExponent(value);
   const match = /^([+-]?)(\d+)(?:\.(\d*))?$/.exec(source);
@@ -39,27 +41,22 @@ function decimalParts(value) {
   };
 }
 
-function scaledInteger(value, decimals, mode = 'floor') {
+function scaledInteger(value, mode = 'half-up') {
   const parts = decimalParts(value);
   if (!parts) return null;
-  const scale = 10n ** BigInt(decimals);
-  const kept = parts.fraction.slice(0, decimals).padEnd(decimals, '0');
-  const discarded = parts.fraction.slice(decimals);
-  let magnitude = BigInt(parts.integer) * scale + BigInt(kept || '0');
+  const kept = parts.fraction.slice(0, ACCOUNT_MONEY_DECIMALS).padEnd(ACCOUNT_MONEY_DECIMALS, '0');
+  const discarded = parts.fraction.slice(ACCOUNT_MONEY_DECIMALS);
+  let magnitude = BigInt(parts.integer) * MONEY_SCALE_BIGINT + BigInt(kept || '0');
   const hasDiscarded = /[1-9]/.test(discarded);
   if (mode === 'floor' && parts.negative && hasDiscarded) magnitude += 1n;
   if (mode === 'ceil' && !parts.negative && hasDiscarded) magnitude += 1n;
-  if (mode === 'half-up' && discarded) {
-    const first = Number(discarded[0] || 0);
-    if (first >= 5) magnitude += 1n;
-  }
+  if (mode === 'half-up' && discarded && Number(discarded[0] || 0) >= 5) magnitude += 1n;
   return parts.negative ? -magnitude : magnitude;
 }
 
-function scaledToNumber(value, scale) {
-  if (value === null) return null;
-  if (value > MAX_SAFE_SCALED || value < -MAX_SAFE_SCALED) return null;
-  return Number(value) / Number(scale);
+function scaledToNumber(value) {
+  if (value === null || value > MAX_SAFE_SCALED || value < -MAX_SAFE_SCALED) return null;
+  return Number(value) / MONEY_SCALE;
 }
 
 function finiteMoney(value) {
@@ -67,24 +64,65 @@ function finiteMoney(value) {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function floorToMultiple(value, multiple) {
+  const remainder = value % multiple;
+  if (remainder === 0n) return value;
+  return value >= 0n ? value - remainder : value - remainder - multiple;
+}
+
+function ceilToMultiple(value, multiple) {
+  const remainder = value % multiple;
+  if (remainder === 0n) return value;
+  return value >= 0n ? value - remainder + multiple : value - remainder;
+}
+
+function roundToMultiple(value, multiple) {
+  const quotient = value / multiple;
+  const remainder = value % multiple;
+  const absoluteRemainder = remainder < 0n ? -remainder : remainder;
+  if (absoluteRemainder * 2n < multiple) return quotient * multiple;
+  return (quotient + (value >= 0n ? 1n : -1n)) * multiple;
+}
+
+function divideScaled(product, denominator, mode) {
+  let quotient = product / denominator;
+  const remainder = product % denominator;
+  if (mode === 'floor' && remainder !== 0n && product < 0n) quotient -= 1n;
+  if (mode === 'ceil' && remainder !== 0n && product > 0n) quotient += 1n;
+  if (mode === 'half-up' && (remainder < 0n ? -remainder : remainder) * 2n >= denominator) {
+    quotient += product >= 0n ? 1n : -1n;
+  }
+  return quotient;
+}
+
+function exactOrderPriceMicros(value) {
+  const parts = decimalParts(value);
+  if (!parts || parts.fraction.length > ORDER_PRICE_DECIMALS) return null;
+  const micros = scaledInteger(value, 'half-up');
+  if (micros === null || micros % PRICE_TICK_BIGINT !== 0n) return null;
+  return micros;
+}
+
 export function floorPlayerMoney(value) {
-  return scaledToNumber(scaledInteger(value, PLAYER_MONEY_DECIMALS, 'floor'), PLAYER_SCALE_BIGINT);
+  const micros = scaledInteger(value, 'floor');
+  return scaledToNumber(micros === null ? null : floorToMultiple(micros, PRICE_TICK_BIGINT));
 }
 
 export function ceilPlayerMoney(value) {
-  return scaledToNumber(scaledInteger(value, PLAYER_MONEY_DECIMALS, 'ceil'), PLAYER_SCALE_BIGINT);
+  const micros = scaledInteger(value, 'ceil');
+  return scaledToNumber(micros === null ? null : ceilToMultiple(micros, PRICE_TICK_BIGINT));
 }
 
 export function roundInternalMoney(value) {
-  return scaledToNumber(scaledInteger(value, INTERNAL_MONEY_DECIMALS, 'half-up'), INTERNAL_SCALE_BIGINT);
+  return scaledToNumber(scaledInteger(value, 'half-up'));
 }
 
 export function floorInternalMoney(value) {
-  return scaledToNumber(scaledInteger(value, INTERNAL_MONEY_DECIMALS, 'floor'), INTERNAL_SCALE_BIGINT);
+  return scaledToNumber(scaledInteger(value, 'floor'));
 }
 
 export function ceilInternalMoney(value) {
-  return scaledToNumber(scaledInteger(value, INTERNAL_MONEY_DECIMALS, 'ceil'), INTERNAL_SCALE_BIGINT);
+  return scaledToNumber(scaledInteger(value, 'ceil'));
 }
 
 export function normalizeAccountMoney(value, { allowNegative = false } = {}) {
@@ -98,16 +136,19 @@ export function normalizeOrderPrice(value, options = {}) {
 }
 
 export function playerMoneyToCents(value, { liability = false } = {}) {
-  return scaledInteger(value, PLAYER_MONEY_DECIMALS, liability ? 'ceil' : 'floor');
+  const micros = scaledInteger(value, liability ? 'ceil' : 'floor');
+  if (micros === null) return null;
+  const ticked = liability ? ceilToMultiple(micros, PRICE_TICK_BIGINT) : floorToMultiple(micros, PRICE_TICK_BIGINT);
+  return ticked / PRICE_TICK_BIGINT;
 }
 
 export function internalMoneyToMicros(value) {
-  return scaledInteger(value, INTERNAL_MONEY_DECIMALS, 'half-up');
+  return scaledInteger(value, 'half-up');
 }
 
 export function centsToPlayerMoney(cents) {
   try {
-    return scaledToNumber(BigInt(cents), PLAYER_SCALE_BIGINT);
+    return scaledToNumber(BigInt(cents) * PRICE_TICK_BIGINT);
   } catch {
     return null;
   }
@@ -115,7 +156,7 @@ export function centsToPlayerMoney(cents) {
 
 export function microsToInternalMoney(micros) {
   try {
-    return scaledToNumber(BigInt(micros), INTERNAL_SCALE_BIGINT);
+    return scaledToNumber(BigInt(micros));
   } catch {
     return null;
   }
@@ -123,11 +164,12 @@ export function microsToInternalMoney(micros) {
 
 export function normalizePlayerMoneyInput(value, {
   min = 0.01,
-  max = Number.MAX_SAFE_INTEGER / PLAYER_MONEY_SCALE,
+  max = Number.MAX_SAFE_INTEGER / MONEY_SCALE,
   allowZero = false,
 } = {}) {
   if (value === 'all') return 'all';
-  const normalized = floorPlayerMoney(value);
+  const micros = exactOrderPriceMicros(value);
+  const normalized = scaledToNumber(micros);
   if (normalized === null || !Number.isFinite(normalized)) return null;
   if (!allowZero && normalized <= 0) return null;
   if (normalized < min || normalized > max) return null;
@@ -144,36 +186,70 @@ export function settlePlayerDebit(value) {
   return normalized === null ? 0 : Math.max(0, normalized);
 }
 
+export function addMoney(left, right) {
+  const leftMicros = internalMoneyToMicros(left);
+  const rightMicros = internalMoneyToMicros(right);
+  if (leftMicros === null || rightMicros === null) return null;
+  return microsToInternalMoney(leftMicros + rightMicros);
+}
+
+export function subtractMoney(left, right) {
+  const leftMicros = internalMoneyToMicros(left);
+  const rightMicros = internalMoneyToMicros(right);
+  if (leftMicros === null || rightMicros === null) return null;
+  return microsToInternalMoney(leftMicros - rightMicros);
+}
+
 export function multiplyMoneyByInteger(amount, quantity) {
   const micros = internalMoneyToMicros(amount);
   const count = Number(quantity);
   if (micros === null || !Number.isSafeInteger(count)) return null;
-  const result = micros * BigInt(count);
-  return microsToInternalMoney(result);
+  return microsToInternalMoney(micros * BigInt(count));
+}
+
+export function multiplyMoneyRatio(left, right, divisor = 1, mode = 'half-up') {
+  const leftMicros = internalMoneyToMicros(left);
+  const rightMicros = internalMoneyToMicros(right);
+  const normalizedDivisor = Number(divisor);
+  if (leftMicros === null || rightMicros === null || !Number.isSafeInteger(normalizedDivisor) || normalizedDivisor <= 0) return null;
+  const denominator = MONEY_SCALE_BIGINT * BigInt(normalizedDivisor);
+  return microsToInternalMoney(divideScaled(leftMicros * rightMicros, denominator, mode));
 }
 
 export function calculateRateMoney(amount, rateNumerator, rateDenominator = 10_000, mode = 'half-up') {
   const micros = internalMoneyToMicros(amount);
-  const numerator = BigInt(Math.trunc(Number(rateNumerator)));
-  const denominator = BigInt(Math.trunc(Number(rateDenominator)));
-  if (micros === null || denominator <= 0n) return null;
-  const product = micros * numerator;
-  let quotient = product / denominator;
-  const remainder = product % denominator;
-  if (mode === 'floor' && remainder !== 0n && product < 0n) quotient -= 1n;
-  if (mode === 'ceil' && remainder !== 0n && product > 0n) quotient += 1n;
-  if (mode === 'half-up' && (remainder < 0n ? -remainder : remainder) * 2n >= denominator) {
-    quotient += product >= 0n ? 1n : -1n;
-  }
-  return microsToInternalMoney(quotient);
+  const numeratorNumber = Number(rateNumerator);
+  const denominatorNumber = Number(rateDenominator);
+  if (
+    micros === null
+    || !Number.isSafeInteger(numeratorNumber)
+    || !Number.isSafeInteger(denominatorNumber)
+    || denominatorNumber <= 0
+  ) return null;
+  return microsToInternalMoney(divideScaled(
+    micros * BigInt(numeratorNumber),
+    BigInt(denominatorNumber),
+    mode,
+  ));
 }
 
 export function formatPlayerMoney(value) {
-  const normalized = floorPlayerMoney(value);
+  const micros = internalMoneyToMicros(value);
+  const normalized = scaledToNumber(micros === null ? null : roundToMultiple(micros, PRICE_TICK_BIGINT));
   if (normalized === null) return '0.00';
   return new Intl.NumberFormat('zh-CN', {
-    minimumFractionDigits: PLAYER_MONEY_DECIMALS,
-    maximumFractionDigits: PLAYER_MONEY_DECIMALS,
+    minimumFractionDigits: ORDER_PRICE_DECIMALS,
+    maximumFractionDigits: ORDER_PRICE_DECIMALS,
+    useGrouping: true,
+  }).format(normalized);
+}
+
+export function formatInternalMoney(value) {
+  const normalized = roundInternalMoney(value);
+  if (normalized === null) return '0.000000';
+  return new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: ACCOUNT_MONEY_DECIMALS,
+    maximumFractionDigits: ACCOUNT_MONEY_DECIMALS,
     useGrouping: true,
   }).format(normalized);
 }
@@ -197,25 +273,10 @@ const LIABILITY_KEYS = new Set([
 
 const INTERNAL_MONEY_KEY_PATTERN = /(credits|budget|income|spent|gross|fee|totalBuyValue|totalSellValue|reserveCredits|lastDailyInterestCredits|amount|payment|subsidy|withheld)$/i;
 
-function addRoundingReserve(world, decimalDifference) {
-  const micros = internalMoneyToMicros(decimalDifference);
-  if (micros === null || micros <= 0n) return;
-  world.moneyPrecision ||= { version: MONEY_PRECISION_VERSION, roundingReserveMicros: 0 };
-  const previous = BigInt(Math.max(0, Math.trunc(Number(world.moneyPrecision.roundingReserveMicros || 0))));
-  const next = previous + micros;
-  world.moneyPrecision.roundingReserveMicros = next > MAX_SAFE_SCALED ? Number.MAX_SAFE_INTEGER : Number(next);
-}
-
-function quantizePlayerField(world, object, key, { liability = false, reserve = true } = {}) {
+function quantizePlayerField(_world, object, key, { liability = false } = {}) {
   if (!object || object[key] === undefined || object[key] === null) return;
-  const before = roundInternalMoney(object[key]);
   const after = liability ? ceilPlayerMoney(object[key]) : floorPlayerMoney(object[key]);
-  if (before === null || after === null) {
-    object[key] = 0;
-    return;
-  }
-  object[key] = Math.max(0, after);
-  if (reserve) addRoundingReserve(world, liability ? after - before : before - after);
+  object[key] = after === null ? 0 : Math.max(0, after);
 }
 
 function quantizeSignedDisplayField(object, key) {
@@ -259,7 +320,7 @@ function normalizePlayer(world, player) {
     quantizeAccountField(entry, 'balanceAfter');
   }
   for (const trade of player.trades || []) {
-    quantizePlayerField(world, trade, 'price', { reserve: false });
+    quantizePlayerField(world, trade, 'price');
     for (const key of ['total', 'fee', 'netTotal']) quantizeSignedDisplayField(trade, key);
   }
   const account = player.bankAccount;
@@ -273,7 +334,7 @@ function normalizePlayer(world, player) {
     const loan = account.activeLoan;
     if (loan && typeof loan === 'object') {
       for (const key of LIABILITY_KEYS) quantizeAccountField(loan, key, { liability: true });
-      for (const key of ['collateralValueAtOrigination']) quantizeAccountField(loan, key);
+      quantizeAccountField(loan, 'collateralValueAtOrigination');
       for (const item of loan.collateral || []) quantizeAccountField(item, 'prudentUnitValue');
     }
   }
@@ -281,9 +342,9 @@ function normalizePlayer(world, player) {
 
 function normalizeOrders(world) {
   for (const order of world.orders || []) {
-    quantizePlayerField(world, order, 'price', { reserve: false });
+    quantizePlayerField(world, order, 'price');
     for (const fill of order.fills || []) {
-      quantizePlayerField(world, fill, 'price', { reserve: false });
+      quantizePlayerField(world, fill, 'price');
       for (const key of ['total', 'fee', 'netTotal']) quantizeSignedDisplayField(fill, key);
     }
     for (const slice of order.fundingSlices || []) quantizeAccountField(slice, 'reservedAmount');
@@ -296,37 +357,37 @@ function normalizeOrders(world) {
 function normalizeMarkets(world) {
   for (const market of Object.values(world.markets || {})) {
     for (const key of ['lastPrice', 'lastTradePrice']) {
-      if (market?.[key] !== null && market?.[key] !== undefined) quantizePlayerField(world, market, key, { reserve: false });
+      if (market?.[key] !== null && market?.[key] !== undefined) quantizePlayerField(world, market, key);
     }
-    for (const point of market?.priceHistory || []) quantizePlayerField(world, point, 'price', { reserve: false });
+    for (const point of market?.priceHistory || []) quantizePlayerField(world, point, 'price');
     const demand = market?.demand;
     if (demand) {
       for (const key of ['lastBudget', 'referencePrice', 'observedPrice', 'costAnchor', 'downstreamValueAnchor', 'targetPrice']) {
         if (demand[key] !== null && demand[key] !== undefined) demand[key] = roundInternalMoney(demand[key]) ?? demand[key];
       }
-      if (demand.lastPrice !== null && demand.lastPrice !== undefined) quantizePlayerField(world, demand, 'lastPrice', { reserve: false });
+      if (demand.lastPrice !== null && demand.lastPrice !== undefined) quantizePlayerField(world, demand, 'lastPrice');
     }
   }
   for (const market of Object.values(world.facilityMarkets || {})) {
     for (const key of ['lastPrice', 'lastTradePrice']) {
-      if (market?.[key] !== null && market?.[key] !== undefined) quantizePlayerField(world, market, key, { reserve: false });
+      if (market?.[key] !== null && market?.[key] !== undefined) quantizePlayerField(world, market, key);
     }
-    for (const point of market?.priceHistory || []) quantizePlayerField(world, point, 'price', { reserve: false });
+    for (const point of market?.priceHistory || []) quantizePlayerField(world, point, 'price');
   }
 }
 
 function normalizeAuctions(world) {
   for (const auction of world.assetAuctions || []) {
     for (const key of ['startingBid', 'highestBid', 'minimumBid']) {
-      if (auction[key] !== null && auction[key] !== undefined) quantizePlayerField(world, auction, key, { reserve: false });
+      if (auction[key] !== null && auction[key] !== undefined) quantizePlayerField(world, auction, key);
     }
-    for (const bid of auction.bids || []) quantizePlayerField(world, bid, 'amount', { reserve: false });
+    for (const bid of auction.bids || []) quantizePlayerField(world, bid, 'amount');
   }
 }
 
 function normalizeContracts(world) {
   for (const contract of world.productionContracts || []) {
-    quantizePlayerField(world, contract, 'unitPrice', { reserve: false });
+    quantizePlayerField(world, contract, 'unitPrice');
     for (const key of ['buyerEscrowCredits', 'buyerBondCredits', 'supplierBondCredits', 'lastDeliveryGross']) {
       quantizeAccountField(contract, key);
     }
@@ -335,7 +396,7 @@ function normalizeContracts(world) {
     }
     const proposal = contract.renewalProposal;
     if (proposal) {
-      quantizePlayerField(world, proposal.terms || {}, 'unitPrice', { reserve: false });
+      quantizePlayerField(world, proposal.terms || {}, 'unitPrice');
       for (const key of ['buyerEscrowCredits', 'buyerBondCredits', 'supplierBondCredits']) quantizeAccountField(proposal, key);
     }
   }
@@ -359,7 +420,7 @@ export function normalizeWorldMoneyPrecision(world) {
   migrateLegacyInterestCarry(world);
   world.moneyPrecision ||= { version: MONEY_PRECISION_VERSION, roundingReserveMicros: 0 };
   world.moneyPrecision.version = MONEY_PRECISION_VERSION;
-  world.moneyPrecision.roundingReserveMicros = Math.max(0, Math.trunc(Number(world.moneyPrecision.roundingReserveMicros || 0)));
+  world.moneyPrecision.roundingReserveMicros = 0;
   for (const player of Object.values(world.players || {})) normalizePlayer(world, player);
   normalizeOrders(world);
   normalizeMarkets(world);
@@ -393,7 +454,7 @@ export function normalizePlayerMoneyPayload(_action, payload = {}) {
 
 export function assertPlayerMoney(value) {
   const numeric = finiteMoney(value);
-  return numeric !== null && floorPlayerMoney(numeric) === numeric;
+  return numeric !== null && normalizePlayerMoneyInput(numeric, { min: -Number.MAX_SAFE_INTEGER, allowZero: true }) === numeric;
 }
 
 export const assertOrderPrice = assertPlayerMoney;

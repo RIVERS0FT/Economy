@@ -15,7 +15,11 @@ import {
 import { allocateMoneyBudget, clamp, round4, roundMoney } from './market-demand/math.js';
 import { ceilPlayerMoney, floorPlayerMoney, multiplyMoneyByInteger, ORDER_PRICE_TICK, roundInternalMoney } from './money.js';
 import { bestSystemPrice, systemBookIsCrossed } from './order-book-integrity.js';
-import { bestSystemOrder as indexedBestSystemOrder, ordersForDemandGroup } from './order-book-runtime.js';
+import {
+  bestSystemOrder as indexedBestSystemOrder,
+  ordersForDemandGroup,
+  recordOrderBookReduction,
+} from './order-book-runtime.js';
 
 const LIQUIDITY_BUY = 'liquidity-buy';
 const LIQUIDITY_SELL = 'liquidity-sell';
@@ -126,14 +130,15 @@ export function createMarketLiquidityRuntime({
 
   function releaseOpenOrder(world, order) {
     if (!isOpenOrder(order)) return;
+    const remaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
     const groupState = groupStateFor(world, order.demandGroupId);
     const reserve = reserveFor(world, order.demandGroupId, order.productId);
     if (!groupState || !reserve) {
       order.status = 'cancelled';
       order.remaining = 0;
+      recordOrderBookReduction(world, order, remaining);
       return;
     }
-    const remaining = Math.max(0, Math.floor(Number(order.remaining || 0)));
     if (order.demandTier === LIQUIDITY_BUY) {
       const release = multiplyMoneyByInteger(order.price, remaining) || 0;
       groupState.frozenCredits = roundMoney(groupState.frozenCredits - release);
@@ -144,6 +149,7 @@ export function createMarketLiquidityRuntime({
     }
     order.remaining = 0;
     order.status = 'cancelled';
+    recordOrderBookReduction(world, order, remaining);
   }
 
   function cancelGroupOrders(world, groupId) {

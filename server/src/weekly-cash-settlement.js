@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { floorPlayerMoney, roundInternalMoney } from './money.js';
+import { calculateRateMoney, internalMoneyToMicros, roundInternalMoney } from './money.js';
 
 export const WEEKLY_CASH_SETTLEMENT_VERSION = 1;
 export const WEEKLY_CASH_SETTLEMENT_RATE_BPS = 1_000;
@@ -17,7 +17,7 @@ function safeTimestamp(value, fallback = 0) {
 }
 
 function safeMoney(value, fallback = 0) {
-  const normalized = floorPlayerMoney(value);
+  const normalized = roundInternalMoney(value);
   return normalized !== null && normalized >= 0 ? normalized : fallback;
 }
 
@@ -28,7 +28,7 @@ function safeInteger(value, fallback = 0) {
 
 function addMoney(left, right, message = '周资金结算金额超出系统可表示范围') {
   const total = roundInternalMoney(Number(left || 0) + Number(right || 0));
-  if (total === null || !Number.isSafeInteger(Math.trunc(total * 100))) throw new Error(message);
+  if (total === null || internalMoneyToMicros(total) === null) throw new Error(message);
   return total;
 }
 
@@ -37,8 +37,8 @@ function subtractMoney(left, right) {
 }
 
 function floorRate(amount, rateBps) {
-  const normalized = Math.floor(Number(amount || 0) * Number(rateBps || 0) * 100 / 10_000) / 100;
-  if (!Number.isFinite(normalized) || normalized < 0 || normalized > MAX_SAFE) {
+  const normalized = calculateRateMoney(amount, rateBps, 10_000, 'floor');
+  if (normalized === null || normalized < 0 || normalized > MAX_SAFE) {
     throw new Error('周资金结算结果超出系统可表示范围');
   }
   return normalized;
