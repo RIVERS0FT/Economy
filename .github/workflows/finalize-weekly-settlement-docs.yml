@@ -1,0 +1,106 @@
+name: Finalize weekly settlement design contracts
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-weekly-settlement-docs
+  cancel-in-progress: true
+
+jobs:
+  finalize-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fixed-weekly-bank-settlement
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Align authoritative design and regression guards
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          design = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
+          content = design.read_text()
+          old_rate = '整笔 72 小时总利率分别为 2%／3%／5%'
+          new_rate = '整笔 72 小时总利率分别为 3%／4%／6%'
+          if content.count(old_rate) != 1:
+              raise RuntimeError('Expected one legacy loan-rate sentence')
+          content = content.replace(old_rate, new_rate)
+
+          inactive_rule = '无论离线两周或多年，每次连续离线期最多执行一次回归结算；同一登录、重试、轮询或服务重启不得重复扣除。'
+          stable_read_rule = inactive_rule + ' 同一自然周内的普通状态读取、无账单登录和幂等重试不得刷新 `lastLoginWeekKey` 或 `lastLoginAt`，也不得因此推进世界修订号。'
+          if content.count(inactive_rule) != 1:
+              raise RuntimeError('Expected one inactive-return rule')
+          content = content.replace(inactive_rule, stable_read_rule)
+
+          old_growth = '存款利息来自借款人已支付利息，属于正常经营收益。'
+          new_growth = '固定存款利息无论由贷款利息池还是补贴发行支付，都已在增长公式中扣除，不属于经营增长。'
+          if content.count(old_growth) != 1:
+              raise RuntimeError('Expected one legacy deposit-interest growth sentence')
+          content = content.replace(old_growth, new_growth)
+          design.write_text(content)
+
+          banking = Path('scripts/verify-banking.mjs')
+          content = banking.read_text()
+          anchor = "  '每日 1%',\n"
+          addition = "  '每日 1%',\n  '3%／4%／6%',\n  '同一自然周内的普通状态读取',\n  '不属于经营增长',\n"
+          if content.count(anchor) != 1:
+              raise RuntimeError('Expected banking design assertion anchor')
+          content = content.replace(anchor, addition)
+          guard_anchor = "forbidText('server/src/banking.js', 'setInterval(');"
+          guard = "forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');\n" + guard_anchor
+          if content.count(guard_anchor) != 1:
+              raise RuntimeError('Expected banking guard anchor')
+          banking.write_text(content.replace(guard_anchor, guard))
+
+          weekly = Path('scripts/verify-weekly-cash-settlement.mjs')
+          content = weekly.read_text()
+          anchor = "  '冻结资金',\n"
+          addition = "  '冻结资金',\n  '3%／4%／6%',\n  '同一自然周内的普通状态读取',\n  '不属于经营增长',\n"
+          if content.count(anchor) != 1:
+              raise RuntimeError('Expected weekly design assertion anchor')
+          content = content.replace(anchor, addition)
+          guard_anchor = "forbidText('server/src/banking.js', 'BANK_DAILY_INTEREST_CAP_BPS = 25');"
+          guard = "forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');\n" + guard_anchor
+          if content.count(guard_anchor) != 1:
+              raise RuntimeError('Expected weekly guard anchor')
+          weekly.write_text(content.replace(guard_anchor, guard))
+          PYTHON
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test browser runtime
+        run: npm run test:browser
+
+      - name: Commit design contract corrections
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/PRODUCT_AND_GAMEPLAY_DESIGN.md scripts/verify-banking.mjs scripts/verify-weekly-cash-settlement.mjs
+          git commit -m "Align weekly settlement design contracts"
+          git push origin HEAD:agent/fixed-weekly-bank-settlement
