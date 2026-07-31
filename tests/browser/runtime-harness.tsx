@@ -12,8 +12,10 @@ import { ContractPage } from '../../src/pages/ContractPage';
 import { GemShopPage } from '../../src/pages/GemShopPage';
 import { OverviewPage } from '../../src/pages/OverviewPage';
 import { ProductionPage } from '../../src/pages/ProductionPage';
+import { FacilityRecipeProfitMarketsProvider } from '../../src/components/facilities/FacilityRecipeProfitContext';
 import { SettingsPage } from '../../src/pages/SettingsPage';
 import type { TabId } from '../../src/config/navigation';
+import type { ProductMarketState } from '../../src/types';
 import { formatCurrency, formatNumber, formatRank } from '../../src/utils/formatters';
 import { loadLocalActivity } from '../../src/utils/localActivityStore';
 import '../../src/styles/globals.css';
@@ -373,6 +375,20 @@ function ProductionHarness() {
       { id: 'steel', name: '钢材', category: 'industrial', basePrice: 29 },
       ...next.game.products,
     ];
+    if (scenario === 'decimal-profit') {
+      const markets = next.game.markets as Record<string, ProductMarketState>;
+      markets.steel = {
+        ...markets.machinery,
+        productId: 'steel',
+        lastPrice: 29,
+        lastTradePrice: 28.75,
+        priceHistory: [],
+      };
+      markets.machinery = {
+        ...markets.machinery,
+        lastTradePrice: 76.25,
+      };
+    }
     if (scenario === 'cluster-summary') {
       const baseType = next.game.facilityTypes[0];
       const baseGroup = next.game.facilityGroups[0];
@@ -446,7 +462,9 @@ function ProductionHarness() {
 
   return (
     <GameShell model={model} statusItems={statusItems}>
-      <ProductionPage model={model} />
+      <FacilityRecipeProfitMarketsProvider markets={model.game.markets}>
+        <ProductionPage model={model} />
+      </FacilityRecipeProfitMarketsProvider>
     </GameShell>
   );
 }

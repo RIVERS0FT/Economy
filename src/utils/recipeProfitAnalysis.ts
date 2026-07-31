@@ -2,6 +2,7 @@ import type {
   FacilityRecipeDefinition,
   ProductMarketState,
 } from '../types';
+import { isValidOrderPrice } from './defaultOrderPrice';
 
 export interface RecipeMarketPriceLine {
   productId: string;
@@ -30,7 +31,7 @@ function normalizedQuantity(value: number) {
 
 function lastTradePrice(markets: Record<string, ProductMarketState>, productId: string) {
   const value = markets[productId]?.lastTradePrice;
-  return Number.isInteger(value) && Number(value) >= 1 ? Number(value) : null;
+  return typeof value === 'number' && isValidOrderPrice(value) ? value : null;
 }
 
 function marketPriceLine(

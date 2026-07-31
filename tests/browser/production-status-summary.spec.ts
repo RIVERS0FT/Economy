@@ -22,4 +22,15 @@ test.describe('production cluster status summary', () => {
     await expect(page.locator('.facility-detail-sheet')).toHaveCount(0);
     await expect(page.locator('.facility-cluster-selector-card[data-status="constructing"]')).toHaveCount(0);
   });
+
+  test('renders decimal last trade prices in single-factory profit', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=decimal-profit');
+
+    const profit = page.locator('.facility-average-profit');
+    await expect(profit).toHaveCount(1);
+    await expect(profit).toContainText('最近真实成交价');
+    await expect(profit).toContainText('5.38');
+    await expect(profit).not.toContainText('缺少');
+    await expect(profit).toHaveClass(/is-positive/);
+  });
 });
