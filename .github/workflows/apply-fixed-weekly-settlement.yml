@@ -90,6 +90,13 @@ jobs:
           content = content.replace('世界状态版本：`19`', '世界状态版本：`20`')
           auction_verifier.write_text(content)
 
+          deployment_verifier = Path('scripts/verify-deployment-storage.mjs')
+          content = deployment_verifier.read_text().replace(
+              'backup-world --target-world-version 19',
+              'backup-world --target-world-version 20',
+          )
+          deployment_verifier.write_text(content)
+
           settlement = Path('server/src/weekly-cash-settlement.js')
           content = settlement.read_text().replace('safeMoney(player?.frozenCredits)', 'safeMoney(player.frozenCredits)')
           settlement.write_text(content)
