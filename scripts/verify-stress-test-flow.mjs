@@ -59,7 +59,12 @@ assert.equal(packageJson.scripts?.['stress:smoke'], 'node tests/stress/run.mjs -
 assert.equal(packageJson.scripts?.['stress:run'], 'node tests/stress/run.mjs');
 assert.equal(packageJson.scripts?.['verify:stress'], 'node scripts/verify-stress-test-accounts.mjs && node scripts/verify-stress-test-flow.mjs && npm run test:stress');
 
-for (const text of ['隔离环境', '生产环境只允许', 'p50／p90／p95／p99', 'GitHub Actions']) {
+const budgets = JSON.parse(read('tests/stress/budgets.json'));
+assert.equal(budgets.profiles?.mixed?.routes?.['POST /api/game/work']?.maxP95Ms, 1_100, 'mixed work p95 预算必须使用三次 Node 24 基线校准值');
+assert.equal(budgets.baselines?.mixedGithubNode24?.runIds?.length, 3, 'mixed 预算校准必须保存三个同环境 run ID');
+assert.equal(budgets.baselines?.mixedGithubNode24?.workP95Ms?.length, 3, 'mixed 预算校准必须保存三个同环境观测值');
+
+for (const text of ['隔离环境', '生产环境只允许', 'p50／p90／p95／p99', 'GitHub Actions', 'run ID、环境和观测值']) {
   assert.equal(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md').includes(text), true, `服务器设计缺少压力测试规则 ${text}`);
 }
 assert.equal(read('docs/README.md').includes('压力测试执行器、环境隔离、安全门禁'), true, '设计索引缺少压力测试跨模块规则');
