@@ -330,6 +330,12 @@ if (failures.length === 0) {
   if (/\.mobile-bottom-navigation\s*\{[\s\S]*?position:\s*fixed;/.test(read(files.viewport))) {
     failures.push('移动底栏不得恢复 position: fixed');
   }
+  if (!/\.asset-bar\s*\{[^}]*position:\s*absolute;[^}]*z-index:\s*auto;[^}]*top:\s*0;/.test(read(files.viewport))) {
+    failures.push('桌面状态栏必须使用普通绘制顺序，不得建立正 z-index 合成层');
+  }
+  if (!/\.page-scroll\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*auto;[^}]*padding-top:\s*calc\(var\(--desktop-asset-bar-height\)/.test(read(files.viewport))) {
+    failures.push('桌面页面滚动层必须保持 z-index: auto 以开放状态栏背景采样');
+  }
 
   for (const text of [
     '.signed-in-shell.sidebar-layout {',
@@ -339,6 +345,9 @@ if (failures.length === 0) {
     '.signed-in-shell .page-scroll-area > .ui-scrollbar--vertical {',
     'right: 0;',
   ]) requireText(files.layout, text);
+  if (!/\.signed-in-shell \.asset-bar\s*\{[^}]*position:\s*absolute;[^}]*z-index:\s*auto;/.test(read(files.layout))) {
+    failures.push('桌面外壳不得用正 z-index 覆盖状态栏普通绘制顺序');
+  }
   forbidText(files.layout, 'html[data-app-surface="game"]');
 
   for (const text of [

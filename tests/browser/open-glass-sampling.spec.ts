@@ -21,7 +21,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   await expect(warps).toHaveCount(expectedWarpCount);
   await expect(warps.first()).toBeVisible();
 
-  const chain = await page.evaluate(({ surface: currentSurface }) => {
+  const chain = await page.evaluate(({ surface: currentSurface, mode: currentMode }) => {
     const samplingRoot = document.getElementById('root');
     const contentRoot = document.querySelector<HTMLElement>('.application-content-root');
     const shell = document.querySelector<HTMLElement>(currentSurface === 'admin' ? '.admin-shell' : '.game-shell');
@@ -30,6 +30,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
     const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
+    const assetBar = document.querySelector<HTMLElement>('.asset-bar');
     const imageLayer = document.querySelector<HTMLElement>('.application-image-layer');
     const atmosphereLayer = document.querySelector<HTMLElement>('.application-atmosphere-layer');
     const warpElements = [...document.querySelectorAll<HTMLElement>('.glass__warp')];
@@ -37,6 +38,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     const glasses = [...document.querySelectorAll<HTMLElement>('.liquid-glass-surface__effect > .glass')];
     if (!samplingRoot || !contentRoot || !shell || !workspace || !pageOverlay || !chromeOverlay
       || !pageScrollArea || !pageScroll || !imageLayer || !atmosphereLayer
+      || ((currentMode === 'desktop' || currentSurface === 'game') && !assetBar)
       || warpElements.length === 0 || surfaces.length === 0 || glasses.length === 0) {
       throw new Error('open glass sampling fixture is incomplete');
     }
@@ -64,6 +66,8 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
       openIsolations: openNodes.map((element) => getComputedStyle(element).isolation),
       openFilters: openNodes.map((element) => getComputedStyle(element).filter),
       openTransforms: openNodes.map((element) => getComputedStyle(element).transform),
+      pageScrollZIndex: getComputedStyle(pageScroll).zIndex,
+      assetBarZIndex: assetBar ? getComputedStyle(assetBar).zIndex : null,
       warpBackdropFilters: warpElements.map(backdropFilter),
       warpRects: warpElements.map(rect),
       surfaceRects: surfaces.map(rect),
@@ -74,7 +78,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
       surfaceVariants: surfaces.map((element) => element.dataset.liquidGlassVariant),
       overLightValues: surfaces.map((element) => element.dataset.liquidGlassOverLight),
     };
-  }, { surface });
+  }, { surface, mode });
 
   expect(chain.samplingRootIsolation).toBe('isolate');
   expect(chain.samplingRootFilter).toBe('none');
@@ -84,6 +88,8 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true);
   expect(chain.openFilters.every((value) => value === 'none')).toBe(true);
   expect(chain.openTransforms.every((value) => value === 'none')).toBe(true);
+  expect(chain.pageScrollZIndex).toBe('auto');
+  expect(chain.assetBarZIndex).toBe(surface === 'admin' && mode === 'mobile' ? null : 'auto');
   expect(chain.warpRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
   expect(chain.surfaceRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
   expect(chain.warpBackdropFilters.every((value) => value.includes('blur(4px)'))).toBe(true);
