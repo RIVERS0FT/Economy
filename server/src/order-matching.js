@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { applyMarketSellFee } from './market-sell-fee.js';
 import { centsToPlayerMoney, multiplyMoneyByInteger, playerMoneyToCents } from './money.js';
 import { isOpenOrder, orderAssetId, orderKind } from './order-identity.js';
-import { getOrderBookSide, recordOrderBookVisit } from './order-book-runtime.js';
+import { getOrderBookSide, recordOrderBookReduction, recordOrderBookVisit } from './order-book-runtime.js';
 
 const MAX_PLAYER_FILLS = 120;
 
@@ -40,10 +40,11 @@ function appendPlayerFill(order, fill) {
   order.fills = order.fills.slice(-MAX_PLAYER_FILLS);
 }
 
-function advanceOrder(order, quantity, createdAt) {
+function advanceOrder(world, order, quantity, createdAt) {
   order.remaining = Number(order.remaining) - quantity;
   order.status = order.remaining === 0 ? 'filled' : 'partial';
   order.lastFilledAt = createdAt;
+  recordOrderBookReduction(world, order, quantity);
 }
 
 export function matchIncomingOrder({
@@ -102,8 +103,8 @@ for (const resting of candidates) {
       ? applyMarketSellFee(sell, fillBase.total)
       : { fee: 0, netTotal: fillBase.total };
 
-    advanceOrder(incoming, quantity, createdAt);
-    advanceOrder(resting, quantity, createdAt);
+    advanceOrder(world, incoming, quantity, createdAt);
+    advanceOrder(world, resting, quantity, createdAt);
     appendPlayerFill(buy, {
       ...fillBase,
       fee: 0,

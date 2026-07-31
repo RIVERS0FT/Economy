@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createMarketLiquidityRuntime } from './market-liquidity.js';
-import { ordersForDemandGroup } from './order-book-runtime.js';
+import { ordersForDemandGroup, recordOrderBookReduction } from './order-book-runtime.js';
 import {
   DEMAND_CURVE,
   DEMAND_CURVE_SHORTAGE_MULTIPLIER,
@@ -156,6 +156,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     order.quantity = filledQuantity + keep;
     order.remaining = keep;
     order.status = keep <= 0 ? (filledQuantity > 0 ? 'filled' : 'cancelled') : (filledQuantity > 0 ? 'partial' : 'open');
+    recordOrderBookReduction(world, order, removed);
     return keep;
   }
 
