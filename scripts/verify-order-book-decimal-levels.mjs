@@ -19,15 +19,15 @@ const levelSource = read('../src/utils/orderBookLevels.ts');
 const executableLevelSource = levelSource
   .replace(/^import .*;\n/gm, '')
   .replace(/export interface OrderBookLevel \{[\s\S]*?\n\}\n\n/, '')
+  .replace('function validOrderPrice(price: number)', 'function validOrderPrice(price)')
   .replace('export function buildOrderBookLevels', 'function buildOrderBookLevels')
   .replace('orders: AssetOrder[]', 'orders')
   .replace('side: OrderSide', 'side')
   .replace('): OrderBookLevel[]', ')')
   .replace('new Map<number, OrderBookLevel>()', 'new Map()');
 const buildOrderBookLevels = new Function(
-  'isValidOrderPrice',
   `${executableLevelSource}\nreturn buildOrderBookLevels;`,
-)(isValidOrderPrice);
+)();
 
 const order = (id, side, price, remaining, status = 'open') => ({
   id,
@@ -81,8 +81,9 @@ assert.deepEqual(
   ],
 );
 
-assert.match(levelSource, /isValidOrderPrice\(order\.price\)/);
+assert.match(levelSource, /validOrderPrice\(order\.price\)/);
 assert.doesNotMatch(levelSource, /Number\.isInteger\(order\.price\)|order\.price\s*<\s*1/);
+assert.doesNotMatch(levelSource, /^import \{.*\} from '\.\/defaultOrderPrice';$/m);
 
 const design = read('../docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 assert.match(design, /价格为不低于 0\.01 的两位小数订单/);
