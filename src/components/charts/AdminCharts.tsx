@@ -4,6 +4,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption } from './echartsCore';
 import {
+  PIE_PAD_ANGLE,
   chartColor,
   commonCategoryAxis,
   commonTooltip,
@@ -213,6 +214,7 @@ export function DonutChart({
       type: 'pie',
       radius: ['52%', '78%'],
       center: ['50%', '50%'],
+      padAngle: PIE_PAD_ANGLE,
       avoidLabelOverlap: true,
       minAngle: 2,
       label: { show: false },
