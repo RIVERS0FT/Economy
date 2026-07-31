@@ -100,7 +100,7 @@ jobs:
                   queue.append(urljoin(url, match))
 
           combined = '\n'.join(texts.values())
-          required = ['隐藏保留价', '查看最近 10 条', '发布费', '最后 2 分钟']
+          required = ['隐藏保留价', '查看最近 10 条', '发布费', '结束前 2min']
           missing = [term for term in required if term not in combined]
           assert not missing, f'production JS chunks missing auction copy: {missing}; scanned={len(texts)} failures={failures[:20]}'
           matched = [url for url, text in texts.items() if any(term in text for term in required)]
