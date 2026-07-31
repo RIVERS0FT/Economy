@@ -181,7 +181,7 @@ function MarketHarness() {
       },
     ]));
     const game = {
-      version: 21,
+      version: 23,
       lastProcessedAt: fixedNow,
       userId: 123,
       playerName: 'MEVIUS',

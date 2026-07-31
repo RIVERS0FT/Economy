@@ -3,8 +3,8 @@
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-07-29
-> 客户端状态版本：22
-> 世界状态版本：19
+> 客户端状态版本：23
+> 世界状态版本：20
 
 本目录只保留当前设计。旧规则不归档在 `docs/`，也不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在。未列入下方权威文档表的 Markdown 文件不得存在。
 
@@ -96,3 +96,12 @@
 58. 生产数据库只读诊断工作流固定为 `.github/workflows/diagnose-production-database.yml`，只能手动触发并使用现有 `SERVER_HOST`、`SERVER_PORT`、`SERVER_USER` 与 `SERVER_SSH_KEY` 以服务用户连接；不得使用 `sudo`、停止或重启服务。诊断脚本必须以 SQLite URI `mode=ro`、`PRAGMA query_only = ON` 和 authorizer 三重只读约束打开 `/var/lib/riversoft-economy/economy.sqlite`，不得执行 `VACUUM`、`wal_checkpoint`、`PRAGMA optimize`、备份、附加数据库、DDL 或 DML。输出只允许包含数据库／WAL／SHM 字节数、页数、空闲页、预计有效页、世界修订号与 `state_json` 长度、`PRAGMA quick_check(1)`、Schema 数量和 `dbstat` 对象占用，不得输出玩家、邮箱、IP、邀请、Cookie、密钥或业务行内容；诊断不得上传数据库、WAL、SHM、备份或包含玩家明细的 Artifact。上述规则必须通过 `scripts/verify-readonly-database-diagnostics.mjs` 对临时数据库执行前后文件哈希、大小和修改时间完全一致的行为验证。
 59. 生产 SQLite `INCREMENTAL` 自动压缩属于服务器存储维护规则：现有 `auto_vacuum=NONE` 正式库只能通过停服、WAL `TRUNCATE` checkpoint、`VACUUM INTO` 紧凑副本、在副本执行 `PRAGMA auto_vacuum=INCREMENTAL; VACUUM;`、Schema／逐表内容／世界 JSON 哈希校验、同文件系统原子替换、健康检查和失败自动回滚迁移；迁移脚本固定为 `scripts/manage-production-database.py`，人工工作流固定为 `.github/workflows/migrate-production-database-incremental.yml` 并要求确认词。空间维护固定由 `.github/workflows/maintain-production-database-space.yml` 在每周一北京时间 02:30 和人工触发时检查，只有可回收空间不少于 64 MiB 且 freelist 比例不少于 25% 才停服执行，每批 `PRAGMA incremental_vacuum(1024)`、单次最多四批，前后都执行 WAL checkpoint、`quick_check` 和健康检查；不得省略正数页数清空整个 freelist，不得把 `incremental_vacuum` 放入玩家请求事务，也不得使用 `auto_vacuum=FULL`。上述迁移、批量上限、逻辑不变和回滚行为必须由 `scripts/verify-production-database-maintenance.mjs` 防回退。
 60. 普通货币精度与玩家结算属于跨模块强制规则：账户余额、冻结资金、预算、总额、手续费、退款和流水保留六位小数；可输入单价与订单价格保留两位小数并以 0.01 为最小步长；成交和费率使用整数微单位计算；界面显示两位但不得截断账户余额或把尾差写入精度准备金；宝石、商品和工厂数量保持整数。必须同步更新产品、订单簿、产业、服务器、页面、UI、商店、管理员、本地活动、根 README、测试和 `scripts/verify-money-precision.mjs`。
+
+
+## 银行固定收益与周资金结算防回退
+
+- 银行存款收益固定为活跃周每日 1%，成功经济写操作激活，次日开始；登录、轮询、签到、失败操作和后台推进不得激活或追溯补发。
+- 每周一关闭活跃周 10% 净货币资金账单，冻结资金计入但不得直接扣除；账单在下一次登录事务中先扣银行存款再扣可用资金，欠缴继续作为净资产负债。
+- 长期离线不逐周累计；有旧账单只完成旧账单，无旧账单时回归周只执行一次 10% 回归结算。
+- 固定利息先使用已实现贷款利息池，缺口必须记录为补贴发行；周结算实收必须记录为货币销毁。两者均从增长榜政策调整中排除。
+- 上述规则唯一归属 `PRODUCT_AND_GAMEPLAY_DESIGN.md`，服务器事务、调度、迁移和审计归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，页面展示归属 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`；修改时必须同步代码、测试和防回退脚本。

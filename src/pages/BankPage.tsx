@@ -25,29 +25,27 @@ const RECENT_DEFAULT_MS = 30 * 24 * 60 * 60 * 1000;
 
 type PendingAction = 'deposit' | 'withdraw' | 'borrow' | 'repay' | 'auto-repay' | null;
 
-function formatRatePpm(ratePpm: number) {
-  return `${(Math.max(0, ratePpm) / 10_000).toFixed(2)}%`;
-}
 
 function formatRateBps(rateBps: number) {
   return `${(Math.max(0, rateBps) / 100).toFixed(2)}%`;
 }
 
 function loanRateBps(actualLtvBps: number) {
-  if (actualLtvBps <= 3_000) return 200;
-  if (actualLtvBps <= 4_000) return 300;
-  return 500;
+  if (actualLtvBps <= 3_000) return 300;
+  if (actualLtvBps <= 4_000) return 400;
+  return 600;
 }
 
 function transactionTone(type: string) {
   if (['deposit', 'loan_disbursed', 'deposit_interest'].includes(type)) return 'success' as const;
-  if (['default', 'interest_paid'].includes(type)) return 'danger' as const;
+  if (['default', 'interest_paid', 'weekly_cash_settlement'].includes(type)) return 'danger' as const;
   if (['grace_started'].includes(type)) return 'warning' as const;
   return 'neutral' as const;
 }
 
 export function BankPage({ model }: { model: LoadedGameViewModel }) {
   const { bankAccount, bankSummary } = model.game;
+  const weeklyCashSettlement = bankSummary.weeklyCashSettlement;
   const now = useNow(model.game.lastProcessedAt);
   const [depositDraft, setDepositDraft] = useState('');
   const [withdrawDraft, setWithdrawDraft] = useState('');
@@ -124,7 +122,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="银行"
-      description="统一查看资产构成，并管理银行存款、动态存款利息和工厂抵押贷款。"
+      description="统一查看资产构成，并管理活跃周固定存款利息、周资金结算和工厂抵押贷款。"
     >
       <AssetOverviewPanel model={model} />
 
@@ -178,17 +176,22 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
         </PagePanel>
 
         <PagePanel className="bank-interest-panel">
-          <WidgetHeading title="存款利息" action={<StatusTag tone="success">动态收益</StatusTag>} />
+          <WidgetHeading
+            title="存款利息与周结算"
+            action={<StatusTag tone={weeklyCashSettlement.interestActive ? 'success' : 'neutral'}>{weeklyCashSettlement.interestActive ? '本周已激活' : '本周未激活'}</StatusTag>}
+          />
           <DataList>
-            <DataRow label="昨日实际日收益率" value={formatRatePpm(bankSummary.lastDailyRatePpm)} />
-            <DataRow label="近 7 日平均日收益率" value={formatRatePpm(bankSummary.sevenDayAverageRatePpm)} />
-            <DataRow label="每日最高收益率" value={formatRateBps(bankSummary.dailyInterestCapBps)} />
-            <DataRow label="当前可分配利息池" value={<CurrencyAmount>{formatCurrency(bankSummary.interestPoolCredits)}</CurrencyAmount>} />
+            <DataRow label="固定日利率" value={formatRateBps(bankSummary.dailyInterestCapBps)} tone="success" />
+            <DataRow label="本周状态" value={weeklyCashSettlement.interestActive ? '成功经济活动后已激活' : '等待成功经济活动'} />
+            <DataRow label="计息开始" value={weeklyCashSettlement.interestEligibleFrom ? formatTime(weeklyCashSettlement.interestEligibleFrom) : '激活后的下一个 00:00'} />
+            <DataRow label="预计周末计税资金" value={<CurrencyAmount>{formatCurrency(weeklyCashSettlement.estimatedTaxBase)}</CurrencyAmount>} />
+            <DataRow label="预计周扣除" value={<CurrencyAmount>{formatCurrency(weeklyCashSettlement.estimatedAssessment)}</CurrencyAmount>} tone="warning" />
+            <DataRow label="待完成结算" value={<CurrencyAmount>{formatCurrency(weeklyCashSettlement.outstandingCredits)}</CurrencyAmount>} tone={weeklyCashSettlement.outstandingCredits > 0 ? 'danger' : 'neutral'} />
             <DataRow label="昨日入账利息" value={<CurrencyAmount>{formatCurrency(bankAccount.lastDepositInterestEarned)}</CurrencyAmount>} tone="success" />
             <DataRow label="累计存款利息" value={<CurrencyAmount>{formatCurrency(bankAccount.totalDepositInterestEarned)}</CurrencyAmount>} />
           </DataList>
           <p className="bank-settlement-countdown">下一次结息：{settlementRemaining > 0 ? formatDuration(settlementRemaining) : '等待服务器结算'} · {formatTime(bankSummary.nextInterestSettlementAt)}</p>
-          <p className="bank-panel-note">收益只来自借款人已经实际支付的贷款利息，不保证固定收益，也不会凭空发行普通货币。</p>
+          <p className="bank-panel-note">成功经济操作会激活本周，存款从下一个北京时间自然日按每日 1% 计息；周末按净货币资金生成 10% 账单，并在下一次登录时优先从存款、再从可用资金完成。贷款利息池优先支付收益，缺口作为受审计补贴发行。</p>
         </PagePanel>
       </div>
 
@@ -329,7 +332,7 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
                 )}>
                   {pending === 'borrow' ? '评估并放款中…' : '申请贷款'}
                 </Button>
-                <small>贷款本金会同时增加等额负债，不会提高净资产或排行榜成绩。贷款最高存款收益低于贷款总利息，不能通过贷款后再存款获利。</small>
+                <small>贷款本金会同时增加等额负债，不会提高净资产或排行榜成绩。贷款最低总利率高于 72h 内最多可获得的固定存款利息，不能通过贷款后再存款获利。</small>
               </div>
             </div>
           </div>

@@ -6,7 +6,7 @@ async function capturePageErrors(page: Page) {
   return pageErrors;
 }
 
-test('bank page exposes deposits, real interest funding, and transparent collateral assessment', async ({ page }) => {
+test('bank page exposes fixed active-week interest, weekly settlement, and transparent collateral assessment', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('bank-runtime-test.html');
@@ -18,9 +18,11 @@ test('bank page exposes deposits, real interest funding, and transparent collate
   await expect(page.getByText('冻结资产', { exact: true })).toHaveCount(1);
   await expect(page.getByRole('table', { name: '资产构成明细' })).toBeVisible();
   await expect(page.getByRole('heading', { name: '存款账户', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: '存款利息', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '存款利息与周结算', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '工厂抵押贷款', exact: true })).toBeVisible();
-  await expect(page.getByText('收益只来自借款人已经实际支付的贷款利息，不保证固定收益，也不会凭空发行普通货币。', { exact: true })).toBeVisible();
+  await expect(page.getByText('固定日利率', { exact: true })).toBeVisible();
+  await expect(page.getByText('预计周扣除', { exact: true })).toBeVisible();
+  await expect(page.getByText(/成功经济操作会激活本周/)).toBeVisible();
   await expect(page.getByText('抵押物审慎估值', { exact: true })).toBeVisible();
 
   await page.getByLabel('农场抵押数量').fill('2');

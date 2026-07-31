@@ -47,12 +47,12 @@ assert.doesNotMatch(read('src/pages/MarketPage.tsx'), /parseIntegerDraft\(priceD
 assert.doesNotMatch(read('src/pages/AuctionPage.tsx'), /parseIntegerDraft\(startingBidInput/);
 assert.doesNotMatch(read('src/pages/ContractPage.tsx'), /parseIntegerDraft\(unitPriceInput/);
 
-assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 22/);
-assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22/);
+assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 23/);
+assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23/);
 assert.match(read('server/src/market-demand/catalog.js'), /MARKET_DEMAND_MODEL_VERSION = 12/);
 assert.match(read('server/src/storage.js'), /normalizeWorldMoneyPrecision/);
-assert.match(read('server/src/storage.js'), /world\.version = 19/);
-assert.match(read('server/src/banking.js'), /BANKING_VERSION = 2/);
+assert.match(read('server/src/storage.js'), /world\.version = 20/);
+assert.match(read('server/src/banking.js'), /BANKING_VERSION = 3/);
 assert.match(read('server/src/contracts.js'), /PRODUCTION_CONTRACT_SCHEMA_VERSION = 3/);
 assert.match(read('server/src/population-economy.js'), /POPULATION_ECONOMY_VERSION = 6/);
 assert.match(read('server/src/market-sell-fee.js'), /MARKET_SELL_FEE_VERSION = 3/);

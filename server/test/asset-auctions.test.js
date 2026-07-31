@@ -235,7 +235,7 @@ test('世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍�
 
   migrateAssetAuctionWorld(state, 5_000);
 
-  assert.equal(state.version, 19);
+  assert.equal(state.version, 20);
   assert.deepEqual(state.assetAuctions.map((auction) => auction.id), ['legacy-pure']);
   assert.equal(bidder.credits, 500);
   assert.equal(bidder.frozenCredits, 0);
