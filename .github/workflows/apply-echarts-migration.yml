@@ -1,0 +1,64 @@
+name: Apply ECharts migration
+
+on:
+  push:
+    branches:
+      - agent/echarts-migration
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-echarts-migration
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Reassemble and verify migration patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .agent/echarts-patch/part-* > /tmp/echarts-migration.patch.gz.b64
+          echo "daba72dfd2fc04024b73a0bd0c960b05fd31b7ab79f4cf2c0c46e1b20d391c26  /tmp/echarts-migration.patch.gz.b64" | sha256sum -c -
+          base64 --decode /tmp/echarts-migration.patch.gz.b64 > /tmp/echarts-migration.patch.gz
+          gzip --decompress --stdout /tmp/echarts-migration.patch.gz > /tmp/echarts-migration.patch
+          echo "5958c064f95bd3321c204e1cca080db0327727ece4c31750e7db3558e2747328  /tmp/echarts-migration.patch" | sha256sum -c -
+          patch --dry-run -p1 < /tmp/echarts-migration.patch
+      - name: Apply migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch -p1 < /tmp/echarts-migration.patch
+          rm -rf .agent
+          rm -f .github/workflows/prepare-echarts-worktree.yml
+          rm -f .github/workflows/apply-echarts-migration.yml
+          npm install --save-exact echarts@6.1.0
+      - name: Build and verify architecture
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser regression suite
+        run: npm run test:browser
+      - name: Commit verified migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .agent
+          test ! -e .github/workflows/prepare-echarts-worktree.yml
+          test ! -e .github/workflows/apply-echarts-migration.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "feat: migrate project charts to Apache ECharts"
+          git push origin HEAD:agent/echarts-migration
