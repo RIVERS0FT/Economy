@@ -1,5 +1,6 @@
 node_modules/
 dist/
+# Playwright runtime diagnostics and reports are CI artifacts, never source files.
 test-results/
 playwright-report/
 src/assets/product-icons/generated/
