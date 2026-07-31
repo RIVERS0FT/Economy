@@ -1,0 +1,50 @@
+name: Verify money precision browser runtime
+
+on:
+  push:
+    branches:
+      - agent/unify-money-precision
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out precision branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unify-money-precision
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser regression suite
+        run: npm run test:browser
+
+      - name: Verify clean source patch
+        run: git diff --check
+
+      - name: Remove temporary verifier
+        run: |
+          rm -f .github/workflows/verify-money-precision-browser.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Remove temporary precision browser verifier"
+          git push origin HEAD:agent/unify-money-precision
