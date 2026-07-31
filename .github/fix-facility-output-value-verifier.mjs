@@ -47,4 +47,4 @@ const analyzeRecipeProfit = new Function(
 
 if (!source.includes(before)) throw new Error(`${path} 缺少直接 TypeScript 导入片段`);
 writeFileSync(path, source.replace(before, after));
-console.log('利润验证脚本已改为内存转译，继续复用正式价格校验。');
+console.log('利润验证脚本已改为内存转译，继续复用正式价格校验；重新触发验证。');
