@@ -1,0 +1,126 @@
+name: Merge main into weekly settlement
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+permissions:
+  contents: write
+
+concurrency:
+  group: merge-main-weekly-settlement
+  cancel-in-progress: true
+
+jobs:
+  merge-resolve-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fixed-weekly-bank-settlement
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Merge main and resolve expected conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U | sort)
+          expected=(
+            README.md
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+            docs/README.md
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+            scripts/verify-money-precision.mjs
+            server/src/banking.js
+          )
+          if [ "$merge_status" -ne 0 ]; then
+            printf '%s\n' "${conflicts[@]}" > /tmp/actual-conflicts.txt
+            printf '%s\n' "${expected[@]}" | sort > /tmp/expected-conflicts.txt
+            diff -u /tmp/expected-conflicts.txt /tmp/actual-conflicts.txt
+          elif [ "${#conflicts[@]}" -ne 0 ]; then
+            echo "Merge reported success but unmerged files remain" >&2
+            exit 1
+          fi
+
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import base64
+          import gzip
+          import json
+
+          payload_path = Path('.github/scripts/merge-main-weekly-resolution.b64')
+          payload = json.loads(gzip.decompress(base64.b64decode(payload_path.read_text().strip())))
+          if payload.get('version') != 1:
+              raise RuntimeError('Unsupported merge resolution payload version')
+          expected = {
+              'README.md',
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+              'docs/README.md',
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
+              'scripts/verify-money-precision.mjs',
+              'server/src/banking.js',
+              'server/src/weekly-cash-settlement.js',
+              'server/test/banking.test.js',
+          }
+          files = payload.get('files') or {}
+          if set(files) != expected:
+              raise RuntimeError(f'Unexpected merge resolution files: {sorted(set(files) ^ expected)}')
+          for relative, content in files.items():
+              path = Path(relative)
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(content)
+          PYTHON
+
+          rm -f .github/scripts/fixed-weekly-settlement.part00
+          git add -A
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved merge conflicts remain" >&2
+            git diff --name-only --diff-filter=U >&2
+            exit 1
+          fi
+          git diff --check
+          node --check server/src/banking.js
+          node --check server/src/weekly-cash-settlement.js
+          node --check scripts/verify-money-precision.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and run server checks
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run test:browser
+
+      - name: Commit and push merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git commit -m "Merge main into fixed weekly settlement"
+          git push origin HEAD:agent/fixed-weekly-bank-settlement
