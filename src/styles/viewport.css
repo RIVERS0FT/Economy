@@ -65,9 +65,23 @@ html[data-app-surface="admin"] body {
   overflow: hidden;
 }
 
+/* #root is the only full-application isolation root. Every signed-in ancestor
+ * between the root photography and liquid-glass Chrome must keep the backdrop
+ * sampling chain open on both desktop and mobile. */
+.signed-in-shell,
+.workspace,
+.mobile-page-overlay,
+.mobile-chrome-overlay,
+.page-scroll-area,
+.page-scroll {
+  isolation: auto;
+  filter: none;
+  transform: none;
+}
+
 .workspace {
   position: relative;
-  isolation: isolate;
+  isolation: auto;
   height: 100%;
   min-width: 0;
   min-height: 0;
