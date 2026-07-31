@@ -57,7 +57,10 @@ test.describe('signed-in game three-layer background', () => {
           zIndex: getComputedStyle(atmosphere).zIndex,
         },
         contentZIndex: getComputedStyle(contentRoot).zIndex,
+        contentIsolation: getComputedStyle(contentRoot).isolation,
         shellIsolation: getComputedStyle(shellElement).isolation,
+        shellFilter: getComputedStyle(shellElement).filter,
+        shellTransform: getComputedStyle(shellElement).transform,
         imageFit: getComputedStyle(picture).objectFit,
         bodyGridDisplay: getComputedStyle(document.body, '::before').display,
       };
@@ -66,7 +69,10 @@ test.describe('signed-in game three-layer background', () => {
     expect(visual.image).toEqual({ position: 'fixed', zIndex: '0' });
     expect(visual.atmosphere).toEqual({ position: 'fixed', zIndex: '1' });
     expect(visual.contentZIndex).toBe('2');
-    expect(visual.shellIsolation).toBe('isolate');
+    expect(visual.contentIsolation).toBe('auto');
+    expect(visual.shellIsolation).toBe('auto');
+    expect(visual.shellFilter).toBe('none');
+    expect(visual.shellTransform).toBe('none');
     expect(visual.imageFit).toBe('cover');
     expect(visual.bodyGridDisplay).toBe('none');
   });
@@ -92,6 +98,9 @@ test.describe('signed-in game three-layer background', () => {
         workspaceZ: getComputedStyle(workspace).zIndex,
         pageZ: getComputedStyle(pageOverlay).zIndex,
         chromeZ: getComputedStyle(chromeOverlay).zIndex,
+        workspaceIsolation: getComputedStyle(workspace).isolation,
+        pageIsolation: getComputedStyle(pageOverlay).isolation,
+        chromeIsolation: getComputedStyle(chromeOverlay).isolation,
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: document.documentElement.clientWidth,
       };
@@ -102,6 +111,9 @@ test.describe('signed-in game three-layer background', () => {
     expect(layout.workspaceZ).toBe('auto');
     expect(layout.pageZ).toBe('auto');
     expect(layout.chromeZ).toBe('auto');
+    expect(layout.workspaceIsolation).toBe('auto');
+    expect(layout.pageIsolation).toBe('auto');
+    expect(layout.chromeIsolation).toBe('auto');
     expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
   });
 
