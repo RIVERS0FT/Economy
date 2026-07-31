@@ -50,7 +50,7 @@ jobs:
 
       - name: Commit verified source changes
         run: |
-          rm .agent/apply-orderbook-optimization.mjs
+          rm -rf .agent/orderbook .agent/apply-orderbook-optimization.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
@@ -69,6 +69,6 @@ jobs:
             docs/README.md \
             docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
-            .agent/apply-orderbook-optimization.mjs
+            .agent
           git commit -m "Optimize unified order book runtime"
           git push origin HEAD
