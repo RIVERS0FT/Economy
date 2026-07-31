@@ -63,36 +63,7 @@ jobs:
             exit 1
           fi
 
-          python3 - <<'PYTHON'
-          from pathlib import Path
-          import base64
-          import gzip
-          import json
-
-          payload_path = Path('.github/scripts/merge-main-weekly-resolution.b64')
-          payload = json.loads(gzip.decompress(base64.b64decode(payload_path.read_text().strip())))
-          if payload.get('version') != 1:
-              raise RuntimeError('Unsupported merge resolution payload version')
-          expected = {
-              'README.md',
-              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-              'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
-              'docs/README.md',
-              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
-              'scripts/verify-money-precision.mjs',
-              'server/src/banking.js',
-              'server/src/weekly-cash-settlement.js',
-              'server/test/banking.test.js',
-          }
-          files = payload.get('files') or {}
-          if set(files) != expected:
-              raise RuntimeError(f'Unexpected merge resolution files: {sorted(set(files) ^ expected)}')
-          for relative, content in files.items():
-              path = Path(relative)
-              path.parent.mkdir(parents=True, exist_ok=True)
-              path.write_text(content)
-          PYTHON
-
+          python3 .github/scripts/resolve-main-weekly.py
           rm -f .github/scripts/fixed-weekly-settlement.part00
           git add -A
           if git diff --name-only --diff-filter=U | grep -q .; then
