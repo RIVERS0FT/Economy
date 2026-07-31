@@ -81,21 +81,21 @@ jobs:
 
           auction_verifier = Path('scripts/verify-asset-auctions.mjs')
           content = auction_verifier.read_text()
-          content = content.replace(
-              'Prune backups and create compact compressed database backup before world 19 migration',
-              'Prune backups and create compact compressed database backup before world 20 migration',
-          )
-          content = content.replace('backup-world --target-world-version 19', 'backup-world --target-world-version 20')
           content = content.replace('客户端状态版本：`22`', '客户端状态版本：`23`')
           content = content.replace('世界状态版本：`19`', '世界状态版本：`20`')
           auction_verifier.write_text(content)
 
-          deployment_verifier = Path('scripts/verify-deployment-storage.mjs')
-          content = deployment_verifier.read_text().replace(
-              'backup-world --target-world-version 19',
-              'backup-world --target-world-version 20',
-          )
-          deployment_verifier.write_text(content)
+          for verifier_path in Path('scripts').glob('*.mjs'):
+              verifier_content = verifier_path.read_text()
+              verifier_content = verifier_content.replace(
+                  'Prune backups and create compact compressed database backup before world 19 migration',
+                  'Prune backups and create compact compressed database backup before world 20 migration',
+              )
+              verifier_content = verifier_content.replace(
+                  'backup-world --target-world-version 19',
+                  'backup-world --target-world-version 20',
+              )
+              verifier_path.write_text(verifier_content)
 
           settlement = Path('server/src/weekly-cash-settlement.js')
           content = settlement.read_text().replace('safeMoney(player?.frozenCredits)', 'safeMoney(player.frozenCredits)')
