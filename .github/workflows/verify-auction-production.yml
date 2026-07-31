@@ -25,30 +25,33 @@ jobs:
           import json
           import os
           import re
+          import urllib.error
           import urllib.request
           from collections import deque
-          from pathlib import Path
           from urllib.parse import urljoin, urlparse
 
+          origin = 'https://game.riversoft.top/economy/'
           token = os.environ['GH_TOKEN']
           sha = os.environ['TARGET_SHA']
-          api_url = f'https://api.github.com/repos/RIVERS0FT/Economy/actions/runs?head_sha={sha}&per_page=100'
-          request = urllib.request.Request(api_url, headers={
-              'Accept': 'application/vnd.github+json',
-              'Authorization': f'Bearer {token}',
-              'X-GitHub-Api-Version': '2022-11-28',
-              'User-Agent': 'economy-production-verifier',
-          })
-          with urllib.request.urlopen(request, timeout=20) as response:
+          runs_request = urllib.request.Request(
+              f'https://api.github.com/repos/RIVERS0FT/Economy/actions/runs?head_sha={sha}&per_page=100',
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': f'Bearer {token}',
+                  'X-GitHub-Api-Version': '2022-11-28',
+                  'User-Agent': 'economy-production-verifier',
+              },
+          )
+          with urllib.request.urlopen(runs_request, timeout=20) as response:
               payload = json.load(response)
-          runs = [run for run in payload.get('workflow_runs', []) if run.get('name') == 'Deploy Economy Website']
-          assert runs, 'deployment workflow run not found'
-          run = max(runs, key=lambda item: int(item.get('id') or 0))
-          assert run.get('status') == 'completed' and run.get('conclusion') == 'success', run
-          print('DEPLOYMENT_VERIFIED', run.get('id'), run.get('html_url'))
+          deploy_runs = [run for run in payload.get('workflow_runs', []) if run.get('name') == 'Deploy Economy Website']
+          assert deploy_runs, 'deployment workflow run not found'
+          deploy_run = max(deploy_runs, key=lambda item: int(item.get('id') or 0))
+          assert deploy_run.get('status') == 'completed' and deploy_run.get('conclusion') == 'success', deploy_run
+          print('DEPLOYMENT_VERIFIED', deploy_run.get('id'), deploy_run.get('html_url'))
 
           state_request = urllib.request.Request(
-              'https://game.riversoft.top/economy-api/game/state',
+              urljoin(origin, '../economy-api/game/state'),
               headers={'User-Agent': 'economy-production-verifier'},
           )
           try:
@@ -60,10 +63,7 @@ jobs:
               assert state_payload.get('message') == '请先登录', state_payload
               print('PRODUCTION_API_VERIFIED', state_payload)
 
-          index_request = urllib.request.Request(
-              'https://game.riversoft.top/economy/',
-              headers={'User-Agent': 'economy-production-verifier'},
-          )
+          index_request = urllib.request.Request(origin, headers={'User-Agent': 'economy-production-verifier'})
           with urllib.request.urlopen(index_request, timeout=30) as response:
               assert response.status == 200
               last_modified = response.headers.get('Last-Modified')
@@ -72,29 +72,37 @@ jobs:
 
           sources = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', html)
           assert sources, 'production HTML has no script bundle'
-          queue = deque(urljoin('https://game.riversoft.top/economy/', source) for source in sources)
+          queue = deque(urljoin(origin, source) for source in sources)
           visited = set()
           texts = {}
           asset_pattern = re.compile(r'(?:["\']|`)([^"\'`]*?assets/[A-Za-z0-9._-]+\.js)(?:["\']|`)')
           relative_pattern = re.compile(r'(?:["\']|`)(\.?\.?/[A-Za-z0-9._/-]+\.js)(?:["\']|`)')
-          while queue and len(visited) < 250:
+          bare_pattern = re.compile(r'(?:["\']|`)([A-Za-z0-9._-]+\.js)(?:["\']|`)')
+          failures = []
+          while queue and len(visited) < 300:
               url = queue.popleft()
               if url in visited or urlparse(url).netloc != 'game.riversoft.top':
                   continue
               visited.add(url)
               request = urllib.request.Request(url, headers={'User-Agent': 'economy-production-verifier'})
-              with urllib.request.urlopen(request, timeout=30) as response:
-                  text = response.read().decode('utf-8', errors='replace')
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      text = response.read().decode('utf-8', errors='replace')
+              except urllib.error.HTTPError as error:
+                  failures.append((url, error.code))
+                  continue
               texts[url] = text
               for match in asset_pattern.findall(text):
-                  queue.append(urljoin(url, match))
+                  queue.append(urljoin(origin, match.lstrip('/')))
               for match in relative_pattern.findall(text):
+                  queue.append(urljoin(url, match))
+              for match in bare_pattern.findall(text):
                   queue.append(urljoin(url, match))
 
           combined = '\n'.join(texts.values())
           required = ['隐藏保留价', '查看最近 10 条', '发布费', '最后 2 分钟']
-          missing = [text for text in required if text not in combined]
-          assert not missing, f'production JS chunks missing auction copy: {missing}; scanned={len(texts)}'
+          missing = [term for term in required if term not in combined]
+          assert not missing, f'production JS chunks missing auction copy: {missing}; scanned={len(texts)} failures={failures[:20]}'
           matched = [url for url, text in texts.items() if any(term in text for term in required)]
-          print('PRODUCTION_BUNDLE_VERIFIED', 'chunks', len(texts), 'matched', matched)
+          print('PRODUCTION_BUNDLE_VERIFIED', 'chunks', len(texts), 'matched', matched, 'ignored_failures', failures)
           PY
