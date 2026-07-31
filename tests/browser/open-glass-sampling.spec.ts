@@ -31,6 +31,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     const pageScrollArea = document.querySelector<HTMLElement>('.page-scroll-area');
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const assetBar = document.querySelector<HTMLElement>('.asset-bar');
+    const pageLayerProbe = document.querySelector<HTMLElement>('[data-sampling-layer-probe]');
     const imageLayer = document.querySelector<HTMLElement>('.application-image-layer');
     const atmosphereLayer = document.querySelector<HTMLElement>('.application-atmosphere-layer');
     const warpElements = [...document.querySelectorAll<HTMLElement>('.glass__warp')];
@@ -39,6 +40,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     if (!samplingRoot || !contentRoot || !shell || !workspace || !pageOverlay || !chromeOverlay
       || !pageScrollArea || !pageScroll || !imageLayer || !atmosphereLayer
       || ((currentMode === 'desktop' || currentSurface === 'game') && !assetBar)
+      || (currentMode === 'desktop' && !pageLayerProbe)
       || warpElements.length === 0 || surfaces.length === 0 || glasses.length === 0) {
       throw new Error('open glass sampling fixture is incomplete');
     }
@@ -52,6 +54,17 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
       const bounds = element.getBoundingClientRect();
       return { width: bounds.width, height: bounds.height };
     };
+    const statusAbovePageLayers = (() => {
+      if (currentMode !== 'desktop' || !assetBar || !pageLayerProbe) return null;
+      const statusItem = assetBar.querySelector<HTMLElement>('.asset-bar-item');
+      if (!statusItem) return false;
+      const bounds = statusItem.getBoundingClientRect();
+      const stack = document.elementsFromPoint(
+        bounds.left + (bounds.width / 2),
+        bounds.top + (bounds.height / 2),
+      );
+      return stack.indexOf(statusItem) < stack.indexOf(pageLayerProbe);
+    })();
 
     return {
       samplingRootIsolation: getComputedStyle(samplingRoot).isolation,
@@ -68,6 +81,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
       openTransforms: openNodes.map((element) => getComputedStyle(element).transform),
       pageScrollZIndex: getComputedStyle(pageScroll).zIndex,
       assetBarZIndex: assetBar ? getComputedStyle(assetBar).zIndex : null,
+      statusAbovePageLayers,
       warpBackdropFilters: warpElements.map(backdropFilter),
       warpRects: warpElements.map(rect),
       surfaceRects: surfaces.map(rect),
@@ -88,8 +102,9 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true);
   expect(chain.openFilters.every((value) => value === 'none')).toBe(true);
   expect(chain.openTransforms.every((value) => value === 'none')).toBe(true);
-  expect(chain.pageScrollZIndex).toBe('auto');
+  expect(chain.pageScrollZIndex).toBe(mode === 'desktop' ? '0' : 'auto');
   expect(chain.assetBarZIndex).toBe(surface === 'admin' && mode === 'mobile' ? null : 'auto');
+  expect(chain.statusAbovePageLayers).toBe(mode === 'desktop' ? true : null);
   expect(chain.warpRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
   expect(chain.surfaceRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
   expect(chain.warpBackdropFilters.every((value) => value.includes('blur(4px)'))).toBe(true);

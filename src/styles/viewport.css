@@ -131,7 +131,7 @@ html[data-app-surface="admin"] body {
 
 .page-scroll {
   position: relative;
-  z-index: auto;
+  z-index: 0;
   padding-top: calc(var(--desktop-asset-bar-height) + var(--desktop-status-gap));
   overflow-x: hidden;
   overflow-y: auto;

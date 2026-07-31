@@ -97,6 +97,21 @@ function SamplingPage() {
         backgroundSize: '64px 64px',
       }}
     >
+      {!isMobile ? (
+        <div
+          data-sampling-layer-probe=""
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            zIndex: 2,
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100px',
+            background: 'repeating-linear-gradient(90deg, #f5fffa 0 12px, #003d21 12px 24px)',
+          }}
+        />
+      ) : null}
       <section className="panel" style={{ minHeight: '280px', padding: '24px' }}>
         <h1>{isAdmin ? '管理员采样界面' : '玩家采样界面'}</h1>
         <p>高对比页面图案用于确认液态玻璃能够采样根级摄影、氛围与滚动内容。</p>
