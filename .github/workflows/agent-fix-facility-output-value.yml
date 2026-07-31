@@ -6,6 +6,7 @@ on:
       - agent/fix-facility-output-value
     paths:
       - .github/fix-facility-output-value.mjs
+      - .github/fix-facility-output-value-verifier.mjs
 
 permissions:
   contents: write
