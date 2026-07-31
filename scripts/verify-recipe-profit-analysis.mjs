@@ -1,10 +1,33 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { stripTypeScriptTypes } from 'node:module';
 import { resolve } from 'node:path';
-import { analyzeRecipeProfit } from '../src/utils/recipeProfitAnalysis.ts';
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
+
+const orderPriceSource = read('src/utils/defaultOrderPrice.ts');
+const priceFunctionMatch = orderPriceSource.match(
+  /export function isValidOrderPrice\(price: number\) \{[\s\S]*?\n\}/,
+);
+assert.ok(priceFunctionMatch, '缺少统一两位小数订单价格校验');
+const executablePriceSource = priceFunctionMatch[0]
+  .replace('export ', '')
+  .replace('price: number', 'price');
+const isValidOrderPrice = new Function(
+  executablePriceSource + '\nreturn isValidOrderPrice;',
+)();
+
+const recipeSource = read('src/utils/recipeProfitAnalysis.ts')
+  .replace(/import type \{[\s\S]*?\} from '\.\.\/types';\n/, '')
+  .replace("import { isValidOrderPrice } from './defaultOrderPrice';\n", '')
+  .replaceAll('export interface', 'interface')
+  .replace('export function analyzeRecipeProfit', 'function analyzeRecipeProfit');
+const executableRecipeSource = stripTypeScriptTypes(recipeSource, { mode: 'strip' });
+const analyzeRecipeProfit = new Function(
+  'isValidOrderPrice',
+  executableRecipeSource + '\nreturn analyzeRecipeProfit;',
+)(isValidOrderPrice);
 
 function market(productId, lastTradePrice, lastPrice = 999) {
   return { productId, lastPrice, lastTradePrice, priceHistory: [], demand: {} };
@@ -37,6 +60,52 @@ assert.equal(singleFactory.outputMarketValue, 24);
 assert.equal(singleFactory.operatingCost, 2);
 assert.equal(singleFactory.cycleProfit, 16);
 assert.equal(singleFactory.profitPerMinute, 16, '界面单厂平均利润必须固定按一座工厂计算');
+
+const decimalPrices = analyzeRecipeProfit({
+  recipe,
+  scopeCount: 1,
+  markets: {
+    wheat: market('wheat', 1.25, 100),
+    food: market('food', 4.75, 200),
+  },
+  buildCost: 0,
+});
+assert.equal(decimalPrices.inputMarketCost, 2.5);
+assert.equal(decimalPrices.outputMarketValue, 9.5);
+assert.equal(decimalPrices.operatingCost, 2);
+assert.equal(decimalPrices.cycleProfit, 5);
+assert.equal(decimalPrices.profitPerMinute, 5, '合法两位小数成交价必须参与工厂产值计算');
+assert.deepEqual(decimalPrices.missingPriceProductIds, []);
+
+const minimumPrice = analyzeRecipeProfit({
+  recipe: {
+    id: 'minimum-price-output',
+    name: '最小价格产出',
+    cycleMs: 60_000,
+    operatingCost: 0,
+    inputs: [],
+    output: { productId: 'wheat', quantity: 1 },
+  },
+  scopeCount: 1,
+  markets: { wheat: market('wheat', 0.01, 999) },
+  buildCost: 0,
+});
+assert.equal(minimumPrice.outputMarketValue, 0.01);
+assert.equal(minimumPrice.profitPerMinute, 0.01, '0.01 最小合法成交价必须参与工厂产值计算');
+
+for (const invalidPrice of [0, -1, 1.234, Number.POSITIVE_INFINITY]) {
+  const invalid = analyzeRecipeProfit({
+    recipe,
+    scopeCount: 1,
+    markets: {
+      wheat: market('wheat', 3),
+      food: market('food', invalidPrice, 200),
+    },
+    buildCost: 0,
+  });
+  assert.equal(invalid.profitPerMinute, null);
+  assert.deepEqual(invalid.missingPriceProductIds, ['food']);
+}
 
 const changedInventoryAndOrders = analyzeRecipeProfit({
   recipe,
@@ -73,15 +142,39 @@ const noInput = analyzeRecipeProfit({
 assert.equal(noInput.inputMarketCost, 0);
 assert.equal(noInput.profitPerMinute, 1);
 
+const profitSource = read('src/utils/recipeProfitAnalysis.ts');
 const analysisSource = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
 const marketPageSource = read('src/pages/MarketPage.tsx');
 const contextSource = read('src/components/facilities/FacilityRecipeProfitContext.tsx');
 const routerSource = read('src/pages/PageRouter.tsx');
+const runtimeHarnessSource = read('tests/browser/runtime-harness.tsx');
+const browserSource = read('tests/browser/production-status-summary.spec.ts');
 const styleSource = read('src/styles/facility-recipe-profit-analysis.css');
 const surfaceSource = read('src/styles/production-surface.css');
 const sheetSource = read('src/styles/facility-detail-sheet.css');
 const designSource = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 const marketDesignSource = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
+
+for (const text of [
+  "import { isValidOrderPrice } from './defaultOrderPrice';",
+  'isValidOrderPrice(value)',
+]) assert.ok(profitSource.includes(text), `工厂产值计算缺少统一价格边界: ${text}`);
+assert.doesNotMatch(
+  profitSource,
+  /Number\.isInteger\(value\)|Number\(value\)\s*>=\s*1/,
+  '工厂产值不得恢复整数或不低于 1 的成交价限制',
+);
+for (const text of [
+  "scenario === 'decimal-profit'",
+  'lastTradePrice: 28.75',
+  'lastTradePrice: 76.25',
+  'FacilityRecipeProfitMarketsProvider markets={model.game.markets}',
+]) assert.ok(runtimeHarnessSource.includes(text), `生产运行时小数产值场景缺少: ${text}`);
+for (const text of [
+  'renders decimal last trade prices in single-factory profit',
+  "toContainText('5.38')",
+  "not.toContainText('缺少')",
+]) assert.ok(browserSource.includes(text), `生产页小数产值浏览器回归缺少: ${text}`);
 
 for (const text of [
   '单厂平均利润／分钟',
@@ -144,6 +237,8 @@ for (const text of [
   '必须直接显示缺失商品名称',
   '不得只显示笼统的“暂无成交数据”',
   '完整状态与工厂名称放在同一紧凑标题行',
+  '最近真实成交价必须使用统一订单簿的价格边界',
+  '客户端不得要求成交价为整数或不低于 1',
 ]) assert.ok(designSource.includes(text), `产业权威设计缺少单厂利润规则: ${text}`);
 for (const removedText of [
   '### 9.5 玩家可见配方利润分析',
