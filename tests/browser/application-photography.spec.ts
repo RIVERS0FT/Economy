@@ -157,6 +157,9 @@ test.describe('all-interface photography', () => {
       return {
         shellBackground: getComputedStyle(shell).backgroundColor,
         shellIsolation: getComputedStyle(shell).isolation,
+        shellFilter: getComputedStyle(shell).filter,
+        shellTransform: getComputedStyle(shell).transform,
+        contentIsolation: getComputedStyle(contentRoot).isolation,
         imagePosition: getComputedStyle(image).position,
         atmospherePosition: getComputedStyle(atmosphere).position,
         imageZIndex: getComputedStyle(image).zIndex,
@@ -167,7 +170,10 @@ test.describe('all-interface photography', () => {
     });
 
     expect(visual.shellBackground).toBe('rgba(0, 0, 0, 0)');
-    expect(visual.shellIsolation).toBe('isolate');
+    expect(visual.shellIsolation).toBe('auto');
+    expect(visual.shellFilter).toBe('none');
+    expect(visual.shellTransform).toBe('none');
+    expect(visual.contentIsolation).toBe('auto');
     expect(visual.imagePosition).toBe('fixed');
     expect(visual.atmospherePosition).toBe('fixed');
     expect(visual.imageZIndex).toBe('0');

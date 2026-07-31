@@ -41,6 +41,9 @@ html[data-app-surface="error"] body::before {
 .application-content-root {
   position: relative;
   z-index: 2;
+  isolation: auto;
+  filter: none;
+  transform: none;
   min-width: 320px;
   min-height: 100%;
 }
@@ -194,8 +197,15 @@ html[data-app-tone="critical"] .application-atmosphere-layer {
 }
 
 .game-shell,
+.admin-shell {
+  isolation: auto;
+  filter: none;
+  transform: none;
+  color: var(--color-text-primary);
+  background: transparent;
+}
+
 .game-state-shell,
-.admin-shell,
 .photographic-state-shell {
   isolation: isolate;
   color: var(--color-text-primary);

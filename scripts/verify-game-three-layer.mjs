@@ -257,7 +257,7 @@ for (const text of [
   '不得重新提供 `SignedInShell.backdrop`',
   '`application-photography.spec.ts`',
   '不得出现纯色过渡页',
-  '图片与氛围使用 `-2 / -1` 负层级',
+  '生产认证态继续使用 `-2 / -1` 负层级',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 for (const text of [
