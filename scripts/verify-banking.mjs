@@ -103,6 +103,9 @@ for (const text of [
   '借款人实际支付的贷款利息',
   '70% 进入存款利息池',
   '每日 1%',
+  '3%／4%／6%',
+  '同一自然周内的普通状态读取',
+  '不属于经营增长',
   '每周 10%',
   '日初存款',
   '当日最低存款',
@@ -126,6 +129,7 @@ for (const text of ['<BankPage model={model} />', 'version: 23']) requireText('t
 for (const text of ['transparent collateral assessment', 'stacks safely on mobile', 'scrollWidth <= element.clientWidth + 1']) requireText('tests/browser/bank-runtime.spec.ts', text);
 requireText('bank-runtime-test.html', '/tests/browser/bank-runtime-harness.tsx');
 
+forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');
 forbidText('server/src/banking.js', 'setInterval(');
 forbidText('server/src/banking.js', 'depositCredits += Math.ceil');
 forbidText('src/pages/BankPage.tsx', '领取利息');

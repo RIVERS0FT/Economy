@@ -65,8 +65,12 @@ for (const text of [
   '成功经济写操作',
   '回归结算',
   '冻结资金',
+  '3%／4%／6%',
+  '同一自然周内的普通状态读取',
+  '不属于经营增长',
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 
+forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');
 forbidText('server/src/banking.js', 'BANK_DAILY_INTEREST_CAP_BPS = 25');
 forbidText('src/pages/BankPage.tsx', '动态收益');
 
