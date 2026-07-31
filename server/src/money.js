@@ -378,10 +378,13 @@ function normalizeMarkets(world) {
 
 function normalizeAuctions(world) {
   for (const auction of world.assetAuctions || []) {
-    for (const key of ['startingBid', 'highestBid', 'minimumBid']) {
+    for (const key of ['startingBid', 'highestBid', 'minimumBid', 'reservePrice', 'minimumIncrement']) {
       if (auction[key] !== null && auction[key] !== undefined) quantizePlayerField(world, auction, key);
     }
     for (const bid of auction.bids || []) quantizePlayerField(world, bid, 'amount');
+    for (const key of ['listingFee', 'sellerFee', 'sellerNetProceeds']) {
+      if (auction[key] !== null && auction[key] !== undefined) auction[key] = Math.max(0, roundInternalMoney(auction[key]) || 0);
+    }
   }
 }
 
@@ -425,6 +428,7 @@ export function normalizeWorldMoneyPrecision(world) {
   normalizeOrders(world);
   normalizeMarkets(world);
   normalizeAuctions(world);
+  world.auctionFeeEscrowCredits = Math.max(0, roundInternalMoney(world.auctionFeeEscrowCredits || 0) || 0);
   normalizeContracts(world);
   quantizeInternalTree(world.populationEconomy);
   quantizeInternalTree(world.marketDemand);
@@ -435,7 +439,7 @@ export function normalizeWorldMoneyPrecision(world) {
   return world;
 }
 
-const PLAYER_INPUT_MONEY_KEYS = new Set(['price', 'unitPrice', 'startingBid', 'amount']);
+const PLAYER_INPUT_MONEY_KEYS = new Set(['price', 'unitPrice', 'startingBid', 'reservePrice', 'amount']);
 
 function normalizePayloadValue(value, key) {
   if (value === 'all') return value;

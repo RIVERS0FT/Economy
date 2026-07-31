@@ -44,6 +44,7 @@ const versionedDocs = [
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
+  'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
 ];
 
 const forbiddenLegacyDocs = [
@@ -80,7 +81,7 @@ if (existsSync(pathFor('README.md'))) {
   const rootReadme = read('README.md');
   for (const text of [
     `客户端状态版本：\`${CURRENT_CLIENT_STATE_VERSION}\``,
-    '世界状态版本：`20`',
+    '世界状态版本：`21`',
     '市场需求模型版本：`12`',
     '概览｜市场｜生产｜拍卖｜合同｜银行｜排行｜商店｜设置',
     '共享仓库允许无限扩容',
@@ -117,7 +118,7 @@ for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
   if (!content.includes(`客户端状态版本：${CURRENT_CLIENT_STATE_VERSION}`)) failures.push(`${path} 客户端状态版本必须为 ${CURRENT_CLIENT_STATE_VERSION}`);
-  if (!content.includes('世界状态版本：20')) failures.push(`${path} 世界状态版本必须为 17`);
+  if (!content.includes('世界状态版本：21')) failures.push(`${path} 世界状态版本必须为 21`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -160,4 +161,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/20、市场需求模型 12、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。`);
+console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/21、市场需求模型 12、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。`);

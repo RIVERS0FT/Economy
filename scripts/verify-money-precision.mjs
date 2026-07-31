@@ -61,11 +61,11 @@ for (const path of ['src/pages/MarketPage.tsx', 'src/pages/BankPage.tsx', 'src/p
   assert.match(read(path), /MoneyInput/);
 }
 
-assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 23/);
-assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23/);
+assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 24/);
+assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 24/);
 assert.match(read('server/src/market-demand/catalog.js'), /MARKET_DEMAND_MODEL_VERSION = 12/);
 assert.match(read('server/src/storage.js'), /normalizeWorldMoneyPrecision/);
-assert.match(read('server/src/storage.js'), /world\.version = 20/);
+assert.match(read('server/src/storage.js'), /world\.version = 21/);
 assert.match(read('server/src/population-economy.js'), /POPULATION_ECONOMY_VERSION = 6/);
 assert.match(read('server/src/market-sell-fee.js'), /MARKET_SELL_FEE_VERSION = 4/);
 

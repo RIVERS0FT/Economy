@@ -66,11 +66,12 @@ for (const [path, text] of [
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', 'fee'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '预计手续费'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'market-sell-fee.js'],
-  ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '不收取统一订单簿玩家卖出手续费'],
+  ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '卖方成交手续费为成交总价的精确 1%'],
+  ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '不得调用统一订单簿 `applyMarketSellFee`'],
 ]) requireText(path, text);
 
 if (failures.length) {
   console.error(`玩家市场卖出手续费验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('玩家商品与工厂卖出手续费、累计部分成交、匿名公开字段、前端展示和拍卖隔离验证通过。');
+console.log('玩家商品与工厂订单簿卖出手续费、累计部分成交、匿名公开字段、前端展示和独立拍卖手续费隔离验证通过。');

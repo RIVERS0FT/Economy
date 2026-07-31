@@ -20,6 +20,7 @@ import {
   applyAssetAuctionAction,
   createAssetAuctionClientState,
   migrateAssetAuctionWorld,
+  createAuctionBidHistoryFallback,
 } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
 import {
@@ -57,6 +58,11 @@ import {
 import { createWorldDeadlinePlan } from './world-deadline-planner.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { normalizePlayerMoneyPayload, normalizeWorldMoneyPrecision } from './money.js';
+import {
+  configureAuctionAuditStore,
+  flushAuctionAuditEvents,
+  listRecentAuctionBidEvents,
+} from './auction-audit-store.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
@@ -274,6 +280,7 @@ export class EconomyStore {
       ) STRICT;
     `);
     migrateGemLedgerSchema(this.database);
+    configureAuctionAuditStore(this);
     this.gemEconomy = new GemEconomyStore(this.database);
     this.database.exec(`
       CREATE INDEX IF NOT EXISTS idx_economy_gem_ledger_user
@@ -515,7 +522,7 @@ export class EconomyStore {
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
     normalizeWorldMoneyPrecision(world);
-    world.version = 20;
+    world.version = 21;
     return world;
   }
 
@@ -562,6 +569,7 @@ export class EconomyStore {
     const stateJson = this.serializeWorld(world, now);
     const nextRevision = revision + 1;
     this.updateWorld.run(nextRevision, stateJson, now);
+    flushAuctionAuditEvents(this, world, revision, nextRevision);
     this.cacheWorld(nextRevision, stateJson, world);
     if (!this.scheduledProcessing) this.nextWorldProcessingAt = now + WORLD_PROCESS_INTERVAL_MS;
     return nextRevision;
@@ -574,12 +582,16 @@ export class EconomyStore {
       && cached.revision === revision
       && !cached.needsPersistence
       && isDeepStrictEqual(world, cached.world);
-    if (unchanged) return revision;
+    if (unchanged) {
+      flushAuctionAuditEvents(this, world, revision, revision);
+      return revision;
+    }
 
     world.lastProcessedAt = now;
     const stateJson = JSON.stringify(world);
     const nextRevision = revision + 1;
     this.updateWorld.run(nextRevision, stateJson, now);
+    flushAuctionAuditEvents(this, world, revision, nextRevision);
     this.cacheWorld(nextRevision, stateJson, world);
     return nextRevision;
   }
@@ -656,6 +668,33 @@ export class EconomyStore {
 
   getState(user, now = Date.now()) {
     return this.getStateSnapshot(user, undefined, now).state;
+  }
+
+  getAuctionBidHistory(user, auctionId, now = Date.now()) {
+    return this.transaction(() => {
+      const { world } = this.loadWorld(now);
+      const auction = (world.assetAuctions || []).find((entry) => entry.id === String(auctionId || ''));
+      if (!auction) {
+        const error = new Error('拍卖不存在');
+        error.statusCode = 404;
+        throw error;
+      }
+      const audited = listRecentAuctionBidEvents(this, auction.id, 10);
+      const bids = audited.length > 0
+        ? audited.map((bid) => ({
+          bidderLabel: bid.bidderLabel,
+          amount: bid.amount,
+          createdAt: bid.createdAt,
+          isMine: Number(bid.actorUserId) === Number(user.id),
+        }))
+        : createAuctionBidHistoryFallback(auction, Number(user.id));
+      return {
+        auctionId: auction.id,
+        bidCount: Math.max(0, Number(auction.bidCount || 0)),
+        latestBidAt: auction.latestBidAt ? Number(auction.latestBidAt) : null,
+        bids: bids.slice(0, 10),
+      };
+    }, { immediate: false });
   }
 
   dailyCheckInSummaryFor(player, now = Date.now()) {

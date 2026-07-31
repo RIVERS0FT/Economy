@@ -17,7 +17,7 @@ document.documentElement.dataset.appSurface = 'game';
 
 const model = {
   game: {
-    version: 23,
+    version: 24,
     lastProcessedAt: fixedNow,
     credits: 1_500,
     frozenCredits: 200,

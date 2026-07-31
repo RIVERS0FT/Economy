@@ -18,6 +18,7 @@ import { ensureGemState } from './invitations.js';
 import { configurePlayerAdminStatistics } from './player-admin-statistics.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createEconomicCalendarClientState } from './economic-events.js';
+import { flushAuctionAuditEvents } from './auction-audit-store.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const CONTRACT_ACTIONS = new Set([
@@ -109,7 +110,7 @@ export class EconomyStore extends PersistentEconomyStore {
   prepareWorldForStorage(world, now) {
     const prepared = super.prepareWorldForStorage(world, now);
     migrateProductionContractWorld(prepared);
-    prepared.version = 16;
+    prepared.version = 21;
     return prepared;
   }
 
@@ -122,6 +123,7 @@ export class EconomyStore extends PersistentEconomyStore {
       && isDeepStrictEqual(world, cached.world);
     if (unchanged) {
       this.flushContractAuditEvents(world, revision, revision);
+      flushAuctionAuditEvents(this, world, revision, revision);
       return revision;
     }
 
@@ -130,6 +132,7 @@ export class EconomyStore extends PersistentEconomyStore {
     const nextRevision = revision + 1;
     this.updateWorld.run(nextRevision, stateJson, now);
     this.flushContractAuditEvents(world, revision, nextRevision);
+    flushAuctionAuditEvents(this, world, revision, nextRevision);
     this.cacheWorld(nextRevision, stateJson, world);
     return nextRevision;
   }
