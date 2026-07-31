@@ -27,6 +27,7 @@ import './styles/facility-detail-sheet.css';
 import './styles/market-funds.css';
 import './styles/market-account-table.css';
 import './styles/asset-overview.css';
+import './styles/charts.css';
 import './styles/warehouse-expansion.css';
 import './styles/asset-auctions.css';
 import './styles/contracts.css';

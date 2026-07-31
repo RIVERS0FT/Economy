@@ -117,7 +117,9 @@ requireText('src/components/AdminPopulationHealth.tsx', [
   '当前钱包总缺口',
   '食品／家庭',
   'C1—C7 生产工资',
-  'max(4px,',
+  '<HorizontalPercentChart',
+  '<PopulationBudgetChart',
+  '<NumberBarChart',
 ]);
 requireText('src/components/AdminPopulationControl.tsx', [
   "import { AdminPopulationHealth } from './AdminPopulationHealth'",
@@ -218,8 +220,9 @@ requireText('tests/browser/admin-runtime.spec.ts', [
   'chromeLayerOrder',
   'pageLayerOrder',
   'topmostInsideNavigation',
-  'visiblePositiveBarWidth',
-  'zeroBarWidth',
+  "employmentSourceChart.locator('.economy-chart__canvas svg')",
+  "toContainText('市场服务1.00')",
+  "toContainText('仓库扩容0.00')",
 ]);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '桌面端复用统一 `SignedInShell`',
@@ -236,7 +239,7 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '`ADMIN_CONSOLE_SCHEME: command-center`',
   '封禁事件继续使用窗口化结构',
   '人口政策区域始终显示服务器当前执行的完整参数',
-  '比例条的真实值为正时必须至少保留 4px 可见填充',
+  '金额为零必须保留为零，不得用最小可见柱伪造正值',
 ]);
 
 if (failures.length) {
@@ -244,4 +247,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('管理员导航与运营控制台验证通过：概览、玩家、人口、礼品、封禁五分区，社区并入概览，桌面共享外壳、人口政策、虚拟列表及移动统一 Chrome 层均已锁定。');
+console.log('管理员导航与运营控制台验证通过：五分区、共享外壳、ECharts 人口分析、人口政策、虚拟列表及移动统一 Chrome 层均已锁定。');

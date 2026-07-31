@@ -52,22 +52,22 @@ async function inspectMarketLayoutBounds(locator: Locator) {
 
 async function inspectChartAxis(chart: Locator) {
   return chart.evaluate((element) => {
-    const svg = element as SVGSVGElement;
-    const svgRect = svg.getBoundingClientRect();
-    const readTexts = (selector: string) => Array.from(svg.querySelectorAll<SVGTextElement>(selector)).map((text) => {
+    const wrapper = element as HTMLElement;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const svg = wrapper.querySelector<SVGSVGElement>('.economy-chart__canvas svg');
+    if (!svg) throw new Error('ECharts SVG is not ready');
+    const allLabels = Array.from(svg.querySelectorAll<SVGTextElement>('text')).map((text) => {
       const rect = text.getBoundingClientRect();
-      return {
-        text: text.textContent?.trim() ?? '',
-        left: rect.left - svgRect.left,
-        right: rect.right - svgRect.left,
-      };
+      return { text: text.textContent?.trim() ?? '', left: rect.left - wrapperRect.left, right: rect.right - wrapperRect.left };
     });
+    const readTicks = (name: string) => (wrapper.dataset[name] || '').split(',').filter(Boolean).map(Number);
     return {
-      width: svgRect.width,
-      priceLabels: readTexts('.chart-price-tick-label'),
-      volumeLabels: readTexts('.chart-volume-tick-label'),
-      axisTitles: readTexts('.chart-axis-title'),
-      legendLabels: Array.from(svg.querySelectorAll<SVGTextElement>('.chart-legend-item text')).map((text) => text.textContent?.trim() ?? ''),
+      width: wrapperRect.width,
+      priceTicks: readTicks('priceTicks'),
+      volumeTicks: readTicks('volumeTicks'),
+      allLabels,
+      legendLabels: Array.from(wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item')).map((item) => item.textContent?.trim() ?? ''),
+      ready: wrapper.querySelector('.economy-chart')?.getAttribute('data-echarts-ready'),
     };
   });
 }
@@ -94,14 +94,17 @@ test('market desktop layout gives the full chart the dominant column and intrins
   expect(chartBox.width / chartBox.height).toBeGreaterThan(1.72);
   expect(chartBox.width / chartBox.height).toBeLessThan(1.82);
   expect(bookBox.height).toBeLessThan(chartCardBox.height * 0.8);
+  await expect(chartCard.locator('.market-chart-footer')).toBeVisible();
   await expect(chartCard.locator('.chart-footer')).toHaveCount(0);
   await expect(chartCard.getByText('均衡／方向未知', { exact: true })).toHaveCount(0);
 
   const axis = await inspectChartAxis(chart);
   expect(axis.legendLabels).toEqual(['净主动买入', '净主动卖出']);
-  expect(axis.priceLabels).toHaveLength(5);
-  expect(axis.priceLabels.every(({ text }) => /^\d+(?:,\d{3})*(?:[KMBT])?$/.test(text) && !text.includes('.'))).toBe(true);
-  for (const label of [...axis.priceLabels, ...axis.volumeLabels, ...axis.axisTitles]) {
+  expect(axis.ready).toBe('true');
+  expect(axis.priceTicks).toHaveLength(5);
+  expect(axis.priceTicks.every((value) => Number.isInteger(value))).toBe(true);
+  expect(axis.volumeTicks.every((value) => Number.isInteger(value))).toBe(true);
+  for (const label of axis.allLabels) {
     expect(label.left, `${label.text} 不得越出图表左侧`).toBeGreaterThanOrEqual(-1);
     expect(label.right, `${label.text} 不得越出图表右侧`).toBeLessThanOrEqual(axis.width + 1);
   }
@@ -151,7 +154,7 @@ test('market medium and narrow layouts follow the real content width without hor
 
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileAxis = await inspectChartAxis(page.locator('.market-history-chart.full'));
-  for (const label of [...mobileAxis.priceLabels, ...mobileAxis.volumeLabels, ...mobileAxis.axisTitles]) {
+  for (const label of mobileAxis.allLabels) {
     expect(label.left, `移动端 ${label.text} 不得越出图表左侧`).toBeGreaterThanOrEqual(-1);
     expect(label.right, `移动端 ${label.text} 不得越出图表右侧`).toBeLessThanOrEqual(mobileAxis.width + 1);
   }

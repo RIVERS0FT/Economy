@@ -116,7 +116,6 @@ export interface LoadedGameViewModel {
   cashShare: number;
   commodityShare: number;
   facilityShare: number;
-  allocationStyle: ReturnType<typeof buildAssetAllocation>['allocationStyle'];
   avatarText: string;
   showResult: (result: ActionResult | Promise<ActionResult>) => Promise<void>;
   notify: (message: string) => void;
@@ -390,7 +389,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   }
 
   const loadedGame = game;
-  const { cashShare, commodityShare, facilityShare, allocationStyle } = buildAssetAllocation(
+  const { cashShare, commodityShare, facilityShare } = buildAssetAllocation(
     derived.cashValue,
     derived.commodityValue,
     derived.facilityValue,
@@ -430,7 +429,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
     playerName, setPlayerName, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
     isWorking, isCheckingIn, inventoryUsed: derived.inventoryUsed,
-    cashShare, commodityShare, facilityShare, allocationStyle, avatarText,
+    cashShare, commodityShare, facilityShare, avatarText,
     showResult, notify, refresh,
     clearLocalTrades: () => { setLocalActivity(clearLocalTradesStore(user.id, loadedGame)); notify('本地成交记录已清除'); },
     signOut,

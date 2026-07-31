@@ -100,26 +100,22 @@ requireAll(paths.guide, [
 ]);
 
 requireAll(paths.chart, [
-  'const compactGeometry',
-  'height: 228,',
-  'function compactAxisLabelIndexes',
-  "const priceTickCount = variant === 'compact' ? 3 : 5;",
-  'const priceScale = buildIntegerPriceScale(rawMinPrice, rawMaxPrice, priceTickCount);',
-  'const volumeScale = buildIntegerVolumeScale(',
-  "variant === 'compact' ? 2 : 3,",
-  'const chartHeight = Math.max(baseHeight, requiredHeight);',
-  'aspectRatio: `${width} / ${chartHeight}`',
-  'className="chart-x-tick-label"',
-  'className="chart-price-tick-label"',
-  'className="chart-volume-tick-label"',
-  'className="chart-legend-item"',
-  "textAnchor={variant === 'compact' ? 'middle' : 'end'}",
-  "transform={variant === 'compact' ? undefined : `rotate(-45 ${x} ${xLabelY})`}",
+  "import { EconomyChart } from './EconomyChart'",
+  'export function buildMarketChartGeometry',
+  'export function buildIntegerPriceScale',
+  'export function buildIntegerVolumeScale',
+  "type: 'line'",
+  "type: 'bar'",
+  'volumeHeight / Math.max(1, dataAreaHeight)',
+  'Math.max(48, rootFontSize',
+  'className="market-chart-legend-item buy"',
+  'className="market-chart-legend-item sell"',
+  'data-volume-share={geometry.volumeShare.toFixed(4)}',
 ]);
 forbidAll(paths.chart, [
+  '<svg', '<polyline', '<rect',
   "variant === 'compact' ? 'clamp(168px, 20vw, 210px)'",
   'const height = 540;',
-  "style={variant === 'full' ? { height: 'clamp(320px, 42vw, 410px)' } : undefined}",
 ]);
 
 requireAll(paths.overviewStyle, [

@@ -1,11 +1,11 @@
 import type { PopulationEconomyAdminSummary, PopulationModelAdminSummary, PopulationModelId } from '../api/admin';
 import { formatCurrency } from '../utils/formatters';
+import { HorizontalPercentChart, NumberBarChart, PopulationBudgetChart } from './charts/AdminCharts';
 import { CurrencyAmount } from './ui/CurrencyAmount';
 import { StatusTag, type StatusTone } from './ui/layout';
 
 // ADMIN_OVERVIEW_SCHEME: population-health-matrix
 const MODEL_IDS: PopulationModelId[] = ['basic', 'skilled', 'professional'];
-type HealthTone = 'success' | 'warning' | 'danger' | 'neutral';
 
 function stateLabel(state: PopulationModelAdminSummary['consumptionState']) {
   if (state === 'lavish') return '奢靡';
@@ -44,8 +44,7 @@ function walletHealth(economy: PopulationEconomyAdminSummary, model: PopulationM
   const wallet = Math.max(0, model.credits + model.frozenCredits);
   const gap = Math.max(0, target - wallet);
   const coverage = target > 0 ? Math.round(wallet / target * 100) : 100;
-  const tone: HealthTone = coverage >= 100 ? 'success' : coverage >= 50 ? 'warning' : 'danger';
-  return { target, gap, coverage, tone };
+  return { target, gap, coverage };
 }
 
 function Amount({ value }: { value: number }) {
@@ -61,13 +60,6 @@ function formatPercent(value: number) {
 
 function formatBps(value: number) {
   return formatPercent(Math.max(0, value) / 100);
-}
-
-function Bar({ value, rawValue = value, tone, label }: { value: number; rawValue?: number; tone: HealthTone; label: string }) {
-  const clamped = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
-  const hasValue = Number.isFinite(rawValue) && rawValue > 0;
-  const width = hasValue ? `max(4px, ${clamped}%)` : '0%';
-  return <span className={`admin-population-bar admin-population-bar--${tone}`} role="img" aria-label={label}><span style={{ width }} /></span>;
 }
 
 function PopulationState({ model }: { model: PopulationModelAdminSummary }) {
@@ -90,16 +82,25 @@ function StateMetrics({ model }: { model: PopulationModelAdminSummary }) {
 
 export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyAdminSummary }) {
   const models = MODEL_IDS.map((id) => economy.models[id]);
-  const totalGap = models.reduce((sum, model) => sum + walletHealth(economy, model).gap, 0);
+  const healthRows = models.map((model) => ({ model, health: walletHealth(economy, model) }));
+  const totalGap = healthRows.reduce((sum, row) => sum + row.health.gap, 0);
   const sourceRows = [
-    ['生产运营', economy.sources.production],
-    ['建造业', economy.sources.construction],
-    ['仓库扩容', economy.sources.warehouse],
-    ['市场服务', economy.sources.marketService],
-  ] as const;
-  const sourceTotal = Math.max(0, sourceRows.reduce((sum, [, value]) => sum + value, 0));
-  const complexity = Object.entries(economy.productionByComplexity) as [string, number][];
-  const complexityMax = Math.max(1, ...complexity.map(([, value]) => value));
+    { label: '生产运营', value: economy.sources.production },
+    { label: '建造业', value: economy.sources.construction },
+    { label: '仓库扩容', value: economy.sources.warehouse },
+    { label: '市场服务', value: economy.sources.marketService },
+  ];
+  const complexityRows = Object.entries(economy.productionByComplexity).map(([label, value]) => ({ label, value }));
+  const walletChartRows = healthRows.map(({ model, health }) => ({
+    label: model.name,
+    value: health.coverage,
+    detail: health.gap > 0 ? `缺口 ${formatCurrency(health.gap)} · 目标 ${formatCurrency(health.target)}` : `钱包充足 · 目标 ${formatCurrency(health.target)}`,
+  }));
+  const budgetRows = models.map((model) => ({
+    label: model.name,
+    food: model.foodBudget,
+    household: model.householdBudget,
+  }));
 
   return (
     <section className="admin-population-health" aria-label="人口经济健康概况">
@@ -123,10 +124,12 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
         </div>
         <div className="admin-population-matrix__row" role="row">
           <span role="rowheader">钱包覆盖</span>
-          {models.map((model) => {
-            const health = walletHealth(economy, model);
-            return <span className="admin-population-coverage" role="cell" key={model.id}><span><strong>{health.coverage}%</strong><small>目标 <Amount value={health.target} /></small></span><Bar value={health.coverage} rawValue={health.coverage} tone={health.tone} label={`${model.name}钱包覆盖 ${health.coverage}%`} /><small>{health.gap > 0 ? <>缺口 <Amount value={health.gap} /></> : '钱包充足'}</small></span>;
-          })}
+          {healthRows.map(({ model, health }) => (
+            <span className="admin-population-coverage" role="cell" key={model.id}>
+              <span><strong>{health.coverage}%</strong><small>目标 <Amount value={health.target} /></small></span>
+              <small>{health.gap > 0 ? <>缺口 <Amount value={health.gap} /></> : '钱包充足'}</small>
+            </span>
+          ))}
         </div>
         <div className="admin-population-matrix__row" role="row"><span role="rowheader">可用／冻结</span>{models.map((model) => <span role="cell" key={model.id}><Amount value={model.credits} />／<Amount value={model.frozenCredits} /></span>)}</div>
         <div className="admin-population-matrix__row" role="row"><span role="rowheader">当前消费预算</span>{models.map((model) => <span role="cell" key={model.id}><Amount value={model.lastBudget} /></span>)}</div>
@@ -135,7 +138,7 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
           {models.map((model) => {
             const total = Math.max(0, model.foodBudget + model.householdBudget);
             const food = total > 0 ? Math.round(model.foodBudget / total * 100) : 0;
-            return <span className="admin-population-budget-cell" role="cell" key={model.id}><span className="admin-population-budget-split" aria-label={`食品 ${food}%，家庭 ${100 - food}%`}><span className="food" style={{ width: `${food}%` }} /><span className="household" style={{ width: `${100 - food}%` }} /></span><small>食品 {food}% · 家庭 {100 - food}%</small></span>;
+            return <span className="admin-population-budget-cell" role="cell" key={model.id}><small>食品 {food}% · 家庭 {100 - food}%</small></span>;
           })}
         </div>
         <div className="admin-population-matrix__row" role="row"><span role="rowheader">最近收入／EMA</span>{models.map((model) => <span role="cell" key={model.id}><Amount value={model.lastIncome} />／<Amount value={model.incomeEma} /></span>)}</div>
@@ -145,17 +148,18 @@ export function AdminPopulationHealth({ economy }: { economy: PopulationEconomyA
       </section>
 
       <section className="admin-population-mobile-models" aria-label="人口需求移动端摘要">
-        {models.map((model) => {
-          const health = walletHealth(economy, model);
+        {healthRows.map(({ model, health }) => {
           const total = Math.max(0, model.foodBudget + model.householdBudget);
           const food = total > 0 ? Math.round(model.foodBudget / total * 100) : 0;
-          return <article className="admin-population-model-card" key={model.id}><header><h3>{model.name}</h3><PopulationState model={model} /></header><div className="admin-population-mobile-coverage"><span><strong>钱包覆盖 {health.coverage}%</strong><small>{health.gap > 0 ? <>缺口 <Amount value={health.gap} /></> : '钱包充足'}</small></span><Bar value={health.coverage} rawValue={health.coverage} tone={health.tone} label={`${model.name}钱包覆盖 ${health.coverage}%`} /></div><dl><div><dt>可用／冻结</dt><dd><Amount value={model.credits} />／<Amount value={model.frozenCredits} /></dd></div><div><dt>当前预算</dt><dd><Amount value={model.lastBudget} /></dd></div><div><dt>食品／家庭</dt><dd>{food}%／{100 - food}%</dd></div><div><dt>收入／EMA</dt><dd><Amount value={model.lastIncome} />／<Amount value={model.incomeEma} /></dd></div><div><dt>状态判定</dt><dd><StateMetrics model={model} /></dd></div><div><dt>稳定／补充</dt><dd><Amount value={model.stabilizationBudget} />／<Amount value={model.lastStabilizationIssued} /></dd></div></dl></article>;
+          return <article className="admin-population-model-card" key={model.id}><header><h3>{model.name}</h3><PopulationState model={model} /></header><div className="admin-population-mobile-coverage"><span><strong>钱包覆盖 {health.coverage}%</strong><small>{health.gap > 0 ? <>缺口 <Amount value={health.gap} /></> : '钱包充足'}</small></span></div><dl><div><dt>可用／冻结</dt><dd><Amount value={model.credits} />／<Amount value={model.frozenCredits} /></dd></div><div><dt>当前预算</dt><dd><Amount value={model.lastBudget} /></dd></div><div><dt>食品／家庭</dt><dd>{food}%／{100 - food}%</dd></div><div><dt>收入／EMA</dt><dd><Amount value={model.lastIncome} />／<Amount value={model.incomeEma} /></dd></div><div><dt>状态判定</dt><dd><StateMetrics model={model} /></dd></div><div><dt>稳定／补充</dt><dd><Amount value={model.stabilizationBudget} />／<Amount value={model.lastStabilizationIssued} /></dd></div></dl></article>;
         })}
       </section>
 
-      <div className="admin-population-analysis-grid">
-        <section className="admin-population-analysis-card"><header><h3>就业收入来源</h3><small>累计构成</small></header><div className="admin-population-distribution-list">{sourceRows.map(([label, value]) => { const percent = sourceTotal > 0 ? value / sourceTotal * 100 : 0; const percentLabel = formatPercent(percent); return <div key={label}><span><strong>{label}</strong><small>{percentLabel} · <Amount value={value} /></small></span><Bar value={percent} rawValue={value} tone="neutral" label={`${label}占比 ${percentLabel}`} /></div>; })}</div></section>
-        <section className="admin-population-analysis-card"><header><h3>C1—C7 生产工资</h3><small>复杂度分布</small></header><div className="admin-population-complexity-bars">{complexity.map(([label, value]) => { const percent = value / complexityMax * 100; return <div key={label}><span>{label}</span><Bar value={percent} rawValue={value} tone="neutral" label={`${label}工资 ${formatCurrency(value)}`} /><strong><Amount value={value} /></strong></div>; })}</div></section>
+      <div className="admin-population-analysis-grid admin-population-chart-grid">
+        <section className="admin-population-analysis-card"><header><h3>钱包覆盖</h3><small>柱形封顶 100%，标签与提示保留真实覆盖率</small></header><HorizontalPercentChart rows={walletChartRows} ariaLabel="三类人口钱包目标覆盖率" /></section>
+        <section className="admin-population-analysis-card"><header><h3>食品／家庭预算</h3><small>当前消费预算构成</small></header><PopulationBudgetChart rows={budgetRows} /></section>
+        <section className="admin-population-analysis-card"><header><h3>就业收入来源</h3><small>累计金额</small></header><NumberBarChart rows={sourceRows} ariaLabel="人口就业收入来源累计金额" horizontal money /></section>
+        <section className="admin-population-analysis-card"><header><h3>C1—C7 生产工资</h3><small>复杂度分布</small></header><NumberBarChart rows={complexityRows} ariaLabel="C1 到 C7 生产复杂度工资金额" money /></section>
       </div>
 
       <section className="admin-population-ledger" aria-label="人口经济累计统计"><header><h3>累计资金流</h3><small>历史统计与发行构成</small></header><dl><div><dt>累计就业收入</dt><dd><Amount value={economy.totalEmploymentIncome} /></dd></div><div><dt>累计人口消费</dt><dd><Amount value={economy.totalConsumption} /></dd></div><div><dt>累计货币发行</dt><dd><Amount value={economy.issuance.total} /></dd></div><div><dt>累计稳定需求补充</dt><dd><Amount value={economy.issuance.stabilization} /></dd></div><div><dt>累计管理员人口补充</dt><dd><Amount value={economy.issuance.adminPopulation} /></dd></div><div><dt>累计生产工资补贴／扣留</dt><dd><Amount value={economy.productionWageAdjustment.subsidyIssued} />／<Amount value={economy.productionWageAdjustment.withheld} /></dd></div></dl></section>

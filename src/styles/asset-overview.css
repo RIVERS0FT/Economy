@@ -70,19 +70,6 @@
   padding: var(--space-3);
 }
 
-.asset-allocation-summary .allocation-visual {
-  width: min(176px, 78%);
-  margin: 0 auto;
-}
-
-.asset-allocation-summary .allocation-visual > div {
-  width: 62%;
-}
-
-.asset-allocation-summary .allocation-visual strong {
-  font-size: var(--font-size-md);
-}
-
 .asset-allocation-summary .allocation-legend {
   gap: var(--space-1);
 }

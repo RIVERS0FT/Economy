@@ -59,6 +59,9 @@ forbidText('src/app/AdminApp.tsx', [
   'function populationStateLabel',
 ]);
 requireText('src/components/AdminPlayerStatistics.tsx', [
+  "from './charts/AdminCharts'",
+  'DonutChart', 'HorizontalPercentChart', 'NumberBarChart', 'PlayerActivityChart',
+  '<PlayerActivityChart', '<HorizontalPercentChart', '<DonutChart', '<NumberBarChart',
   '24 小时经济活跃',
   '新增与经济活跃趋势',
   '经营成长漏斗',
@@ -81,11 +84,17 @@ forbidText('src/components/AdminOverview.tsx', [
   '玩家运营分析',
   '人口经济',
 ]);
+requireText('src/components/charts/AdminCharts.tsx', [
+  "type: 'bar'", "type: 'pie'", "point.activePlayers === null ? '精确记录未覆盖'",
+  '覆盖不足', 'accessibleSummary',
+]);
+forbidText('src/components/AdminPlayerStatistics.tsx', ['function RatioBar', 'admin-player-statistics__trend-bars']);
 requireText('src/styles/admin-player-statistics.css', [
   'ADMIN_PLAYER_STATISTICS_SCHEME: operations-diagnostics',
-  '.admin-player-statistics__trend',
+  '.admin-player-statistics__wealth-charts',
   '@media (max-width: 720px)',
 ]);
+forbidText('src/styles/admin-player-statistics.css', ['.admin-player-statistics__trend-bars', '.admin-player-statistics__bar']);
 requireText('server/test/player-admin-statistics.test.js', [
   'successful economic actions once',
   'assert.equal(activity.successful_action_count, 1)',
@@ -96,6 +105,7 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '成功经济写操作',
   '精确日活动覆盖起点',
   '不得把统计结果用于扩张人口需求预算',
+  'ECharts',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`player-admin-statistics.js`',
@@ -112,4 +122,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('管理员玩家运营统计验证通过：成功经济写操作、精确覆盖、真实成交估值、隐私边界、独立玩家分区和移动响应式均已锁定。');
+console.log('管理员玩家运营统计验证通过：ECharts 趋势、比例、财富图表与成功经济写操作、精确覆盖、隐私边界和移动响应式均已锁定。');

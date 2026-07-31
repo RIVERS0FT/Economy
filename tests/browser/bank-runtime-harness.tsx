@@ -3,6 +3,7 @@ import '../../src/app/interactionBootstrap';
 import type { LoadedGameViewModel } from '../../src/app/gameViewModel';
 import { BankPage } from '../../src/pages/BankPage';
 import '../../src/styles/globals.css';
+import '../../src/styles/charts.css';
 import '../../src/styles/card-system.css';
 import '../../src/styles/icon-system.css';
 import '../../src/styles/asset-overview.css';
@@ -104,7 +105,6 @@ const model = {
   cashShare: 62,
   commodityShare: 28,
   facilityShare: 10,
-  allocationStyle: { background: 'conic-gradient(var(--color-success) 0 62%, var(--color-warning) 62% 90%, var(--color-info) 90% 100%)' },
   notify: (message: string) => { document.body.dataset.notice = message; },
   bankDeposit: async () => ({ ok: true, message: '存款成功' }),
   bankWithdraw: async () => ({ ok: true, message: '取款成功' }),
