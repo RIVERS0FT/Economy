@@ -51,6 +51,14 @@ jobs:
           PYTHON
           node --check /tmp/apply-fixed-weekly-settlement.mjs
           node /tmp/apply-fixed-weekly-settlement.mjs
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          path = Path('scripts/verify-money-precision.mjs')
+          content = path.read_text()
+          content = content.replace('CURRENT_CLIENT_STATE_VERSION = 22', 'CURRENT_CLIENT_STATE_VERSION = 23')
+          content = content.replace('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23')
+          path.write_text(content)
+          PYTHON
           node --check server/src/weekly-cash-settlement.js
           node --check server/test/weekly-cash-settlement.test.js
           node --check scripts/verify-weekly-cash-settlement.mjs
