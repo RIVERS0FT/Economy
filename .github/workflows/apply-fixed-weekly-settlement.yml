@@ -131,16 +131,44 @@ jobs:
         run: npm ci
 
       - name: Build and run architecture checks
-        run: npm run build
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/fixed-weekly-build.log
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
       - name: Run browser tests
-        run: npm run test:browser
+        id: browser
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:browser 2>&1 | tee /tmp/fixed-weekly-browser.log
+
+      - name: Commit failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo 'Fixed weekly settlement workflow failure'
+            echo
+            echo '=== build log tail ==='
+            if [ -f /tmp/fixed-weekly-build.log ]; then tail -n 500 /tmp/fixed-weekly-build.log; else echo 'build log unavailable'; fi
+            echo
+            echo '=== browser log tail ==='
+            if [ -f /tmp/fixed-weekly-browser.log ]; then tail -n 500 /tmp/fixed-weekly-browser.log; else echo 'browser log unavailable'; fi
+          } > .github/fixed-weekly-settlement-failure.log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/fixed-weekly-settlement-failure.log
+          git commit -m "chore(ci): capture fixed settlement failure [skip ci]"
+          git push origin HEAD:agent/fixed-weekly-bank-settlement
 
       - name: Commit implementation
         run: |
+          rm -f .github/fixed-weekly-settlement-failure.log
           rm -f .github/workflows/apply-fixed-weekly-settlement.yml
           rm -f .github/scripts/fixed-weekly-settlement.part*
           git config user.name "github-actions[bot]"
