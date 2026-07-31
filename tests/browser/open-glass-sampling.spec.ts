@@ -11,12 +11,15 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   await page.goto(`/open-glass-sampling-test.html?surface=${surface}&mode=${mode}`);
 
   const shellSelector = surface === 'admin' ? '.admin-shell' : '.game-shell';
-  await expect(page.locator(shellSelector)).toBeVisible();
+  await expect(page.locator(shellSelector)).toBeAttached();
+  await expect(page.locator('.application-content-root')).toBeVisible();
   await expect(page.locator('.application-image-layer')).toHaveCount(1);
   await expect(page.locator('.application-atmosphere-layer')).toHaveCount(1);
 
   const expectedWarpCount = surface === 'game' && mode === 'mobile' ? 2 : 1;
-  await expect(page.locator('.glass__warp')).toHaveCount(expectedWarpCount);
+  const warps = page.locator('.glass__warp');
+  await expect(warps).toHaveCount(expectedWarpCount);
+  await expect(warps.first()).toBeVisible();
 
   const chain = await page.evaluate(({ surface: currentSurface }) => {
     const samplingRoot = document.getElementById('root');
@@ -29,12 +32,12 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const imageLayer = document.querySelector<HTMLElement>('.application-image-layer');
     const atmosphereLayer = document.querySelector<HTMLElement>('.application-atmosphere-layer');
-    const warps = [...document.querySelectorAll<HTMLElement>('.glass__warp')];
+    const warpElements = [...document.querySelectorAll<HTMLElement>('.glass__warp')];
     const surfaces = [...document.querySelectorAll<HTMLElement>('.liquid-glass-surface')];
     const glasses = [...document.querySelectorAll<HTMLElement>('.liquid-glass-surface__effect > .glass')];
     if (!samplingRoot || !contentRoot || !shell || !workspace || !pageOverlay || !chromeOverlay
       || !pageScrollArea || !pageScroll || !imageLayer || !atmosphereLayer
-      || warps.length === 0 || surfaces.length === 0 || glasses.length === 0) {
+      || warpElements.length === 0 || surfaces.length === 0 || glasses.length === 0) {
       throw new Error('open glass sampling fixture is incomplete');
     }
 
@@ -42,6 +45,10 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     const backdropFilter = (element: HTMLElement) => {
       const style = getComputedStyle(element) as CSSStyleDeclaration & { webkitBackdropFilter?: string };
       return style.backdropFilter || style.webkitBackdropFilter || '';
+    };
+    const rect = (element: HTMLElement) => {
+      const bounds = element.getBoundingClientRect();
+      return { width: bounds.width, height: bounds.height };
     };
 
     return {
@@ -57,7 +64,9 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
       openIsolations: openNodes.map((element) => getComputedStyle(element).isolation),
       openFilters: openNodes.map((element) => getComputedStyle(element).filter),
       openTransforms: openNodes.map((element) => getComputedStyle(element).transform),
-      warpBackdropFilters: warps.map(backdropFilter),
+      warpBackdropFilters: warpElements.map(backdropFilter),
+      warpRects: warpElements.map(rect),
+      surfaceRects: surfaces.map(rect),
       surfaceBackgrounds: surfaces.map((element) => getComputedStyle(element).backgroundColor),
       surfaceIsolations: surfaces.map((element) => getComputedStyle(element).isolation),
       surfaceContains: surfaces.map((element) => getComputedStyle(element).contain),
@@ -75,6 +84,8 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true);
   expect(chain.openFilters.every((value) => value === 'none')).toBe(true);
   expect(chain.openTransforms.every((value) => value === 'none')).toBe(true);
+  expect(chain.warpRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
+  expect(chain.surfaceRects.every(({ width, height }) => width > 0 && height > 0)).toBe(true);
   expect(chain.warpBackdropFilters.every((value) => value.includes('blur(4px)'))).toBe(true);
   expect(chain.warpBackdropFilters.every((value) => /saturate\((?:140%|1\.4)\)/.test(value))).toBe(true);
   expect(chain.surfaceBackgrounds.every((value) => value === 'rgba(0, 0, 0, 0)')).toBe(true);
