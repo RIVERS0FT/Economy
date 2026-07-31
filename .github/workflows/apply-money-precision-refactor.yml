@@ -4,10 +4,9 @@ on:
   push:
     branches:
       - agent/unify-money-precision
-    paths:
-      - scripts/apply-money-precision-refactor.py
-      - scripts/.money-precision-refactor/**
-      - .github/workflows/apply-money-precision-refactor.yml
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -42,6 +41,7 @@ jobs:
         run: git diff --check
 
       - name: Commit verified source changes
+        if: github.event_name == 'pull_request'
         run: |
           rm -rf scripts/.money-precision-refactor
           rm -f scripts/apply-money-precision-refactor.py
