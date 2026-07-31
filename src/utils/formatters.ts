@@ -1,5 +1,8 @@
 let compactNumbersEnabled = false;
 
+const MONEY_SCALE = 1_000_000;
+const PRICE_TICK_MICROS = 10_000n;
+
 function formatFullNumber(value: number) {
   return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 }).format(Math.round(value));
 }
@@ -19,6 +22,20 @@ function formatAbbreviatedNumber(value: number) {
   return `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits }).format(scaled)}${unit.suffix}`;
 }
 
+function roundCurrencyForDisplay(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  const scaled = Math.round(value * MONEY_SCALE);
+  if (!Number.isSafeInteger(scaled)) return 0;
+  const micros = BigInt(scaled);
+  const quotient = micros / PRICE_TICK_MICROS;
+  const remainder = micros % PRICE_TICK_MICROS;
+  const absoluteRemainder = remainder < 0n ? -remainder : remainder;
+  const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS
+    ? quotient
+    : quotient + (micros >= 0n ? 1n : -1n);
+  return Number(rounded) / 100;
+}
+
 export function setCompactNumbersEnabled(enabled: boolean) {
   compactNumbersEnabled = enabled;
 }
@@ -28,12 +45,21 @@ export function formatNumber(value: number) {
 }
 
 export function formatCurrency(value: number) {
-  const scaled = value * 100;
-  const tolerance = Number.EPSILON * Math.max(1, Math.abs(scaled)) * 8;
-  const normalized = Number.isFinite(value) ? Math.floor(scaled + tolerance) / 100 : 0;
+  if (Number.isFinite(value) && value !== 0 && Math.abs(value) < 0.01) {
+    return value < 0 ? '-<0.01' : '<0.01';
+  }
   return new Intl.NumberFormat('zh-CN', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+    useGrouping: true,
+  }).format(roundCurrencyForDisplay(value));
+}
+
+export function formatExactCurrency(value: number) {
+  const normalized = Number.isFinite(value) ? value : 0;
+  return new Intl.NumberFormat('zh-CN', {
+    minimumFractionDigits: 6,
+    maximumFractionDigits: 6,
     useGrouping: true,
   }).format(normalized);
 }

@@ -4,9 +4,9 @@ import { calculateCumulativeMarketSellFee } from './market-sell-fee.js';
 import { creditPopulationEmployment } from './population-economy.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createContractRuntimeIndex } from './contract-runtime-index.js';
-import { ceilPlayerMoney, floorPlayerMoney, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
+import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
-export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 3;
+export const PRODUCTION_CONTRACT_SCHEMA_VERSION = 4;
 export const PRODUCTION_CONTRACT_INTERVALS = Object.freeze([
   10 * 60 * 1000,
   30 * 60 * 1000,
@@ -80,14 +80,14 @@ function normalizeStats(player) {
   player.stats.contractDeliveriesCompleted = Math.max(0, Math.floor(Number(player.stats.contractDeliveriesCompleted || 0)));
   player.stats.contractGoodsSupplied = Math.max(0, Math.floor(Number(player.stats.contractGoodsSupplied || 0)));
   player.stats.contractGoodsPurchased = Math.max(0, Math.floor(Number(player.stats.contractGoodsPurchased || 0)));
-  player.stats.contractCreditsPaid = Math.max(0, floorPlayerMoney(player.stats.contractCreditsPaid || 0) || 0);
-  player.stats.contractCreditsReceived = Math.max(0, floorPlayerMoney(player.stats.contractCreditsReceived || 0) || 0);
+  player.stats.contractCreditsPaid = Math.max(0, roundInternalMoney(player.stats.contractCreditsPaid || 0) || 0);
+  player.stats.contractCreditsReceived = Math.max(0, roundInternalMoney(player.stats.contractCreditsReceived || 0) || 0);
   player.stats.contractDefaults = Math.max(0, Math.floor(Number(player.stats.contractDefaults || 0)));
   player.stats.boughtGoods = Math.max(0, Math.floor(Number(player.stats.boughtGoods || 0)));
   player.stats.soldGoods = Math.max(0, Math.floor(Number(player.stats.soldGoods || 0)));
   player.stats.commodityVolume = Math.max(0, Math.floor(Number(player.stats.commodityVolume || 0)));
-  player.stats.marketServiceFees = Math.max(0, floorPlayerMoney(player.stats.marketServiceFees || 0) || 0);
-  player.stats.employmentPayments = Math.max(0, floorPlayerMoney(player.stats.employmentPayments || 0) || 0);
+  player.stats.marketServiceFees = Math.max(0, roundInternalMoney(player.stats.marketServiceFees || 0) || 0);
+  player.stats.employmentPayments = Math.max(0, roundInternalMoney(player.stats.employmentPayments || 0) || 0);
   return player.stats;
 }
 
@@ -113,9 +113,9 @@ function normalizeRenewalProposal(contract, proposal) {
       totalDeliveries: Math.max(MIN_DELIVERIES, Math.floor(Number(terms.totalDeliveries || contract?.totalDeliveries || MIN_DELIVERIES))),
       firstDeliveryDelayMs: Math.max(0, Math.floor(Number(terms.firstDeliveryDelayMs || 0))),
     },
-    buyerEscrowCredits: Math.max(0, floorPlayerMoney(proposal.buyerEscrowCredits || 0) || 0),
-    buyerBondCredits: Math.max(0, floorPlayerMoney(proposal.buyerBondCredits || 0) || 0),
-    supplierBondCredits: Math.max(0, floorPlayerMoney(proposal.supplierBondCredits || 0) || 0),
+    buyerEscrowCredits: Math.max(0, roundInternalMoney(proposal.buyerEscrowCredits || 0) || 0),
+    buyerBondCredits: Math.max(0, roundInternalMoney(proposal.buyerBondCredits || 0) || 0),
+    supplierBondCredits: Math.max(0, roundInternalMoney(proposal.supplierBondCredits || 0) || 0),
     supplierReservedQuantity: Math.max(0, Math.floor(Number(proposal.supplierReservedQuantity || 0))),
   };
 }
@@ -143,10 +143,10 @@ function normalizeContract(contract) {
     acceptedAt: contract?.acceptedAt === undefined ? undefined : Math.max(0, Number(contract.acceptedAt)),
     nextDueAt: contract?.nextDueAt === null || contract?.nextDueAt === undefined ? null : Math.max(0, Number(contract.nextDueAt)),
     graceEndsAt: contract?.graceEndsAt === undefined ? undefined : Math.max(0, Number(contract.graceEndsAt)),
-    buyerEscrowCredits: Math.max(0, floorPlayerMoney(contract?.buyerEscrowCredits || 0) || 0),
+    buyerEscrowCredits: Math.max(0, roundInternalMoney(contract?.buyerEscrowCredits || 0) || 0),
     supplierReservedQuantity: Math.max(0, Math.floor(Number(contract?.supplierReservedQuantity || 0))),
-    buyerBondCredits: Math.max(0, floorPlayerMoney(contract?.buyerBondCredits || 0) || 0),
-    supplierBondCredits: Math.max(0, floorPlayerMoney(contract?.supplierBondCredits || 0) || 0),
+    buyerBondCredits: Math.max(0, roundInternalMoney(contract?.buyerBondCredits || 0) || 0),
+    supplierBondCredits: Math.max(0, roundInternalMoney(contract?.supplierBondCredits || 0) || 0),
     buyerAutoFund: contract?.buyerAutoFund !== false,
     supplierAutoReserve: contract?.supplierAutoReserve !== false,
     renewalProposal: normalizeRenewalProposal(contract, contract?.renewalProposal),
@@ -192,17 +192,20 @@ function hasWarehouseCapacity(world, buyer, quantity, exceptContractId, runtimeI
 }
 
 function batchGross(contract) {
-  const gross = roundInternalMoney(contract.quantityPerDelivery * contract.unitPrice);
+  const gross = multiplyMoneyByInteger(contract.unitPrice, contract.quantityPerDelivery);
   return gross !== null && gross > 0 ? gross : null;
 }
 
 function bondFor(gross) {
-  const bond = ceilPlayerMoney(gross * BOND_RATE_BPS / BASIS_POINTS);
+  const bond = calculateRateMoney(gross, BOND_RATE_BPS, BASIS_POINTS, 'ceil');
   return bond !== null && bond > 0 ? bond : null;
 }
 
 function renewalGross(proposal) {
-  const gross = roundInternalMoney(Number(proposal?.terms?.quantityPerDelivery || 0) * Number(proposal?.terms?.unitPrice || 0));
+  const gross = multiplyMoneyByInteger(
+    Number(proposal?.terms?.unitPrice || 0),
+    Number(proposal?.terms?.quantityPerDelivery || 0),
+  );
   return gross !== null && gross > 0 ? gross : null;
 }
 
@@ -214,27 +217,27 @@ function renewalTerms(payload) {
   const firstDeliveryDelayMs = exactAllowedInteger(payload.firstDeliveryDelayMs, PRODUCTION_CONTRACT_FIRST_DELAYS);
   if (!quantityPerDelivery || !unitPrice || !deliveryIntervalMs || !totalDeliveries || firstDeliveryDelayMs === null) return null;
   if (totalDeliveries < MIN_DELIVERIES) return null;
-  const gross = quantityPerDelivery * unitPrice;
-  if (!Number.isFinite(gross) || gross <= 0) return null;
+  const gross = multiplyMoneyByInteger(unitPrice, quantityPerDelivery);
+  if (gross === null || gross <= 0) return null;
   return { quantityPerDelivery, unitPrice, deliveryIntervalMs, totalDeliveries, firstDeliveryDelayMs };
 }
 
 function consumeFrozenCredits(player, amount) {
-  const normalized = Math.max(0, floorPlayerMoney(amount || 0) || 0);
-  const consumed = Math.min(normalized, Math.max(0, floorPlayerMoney(player.frozenCredits || 0) || 0));
-  player.frozenCredits = Math.max(0, Number(player.frozenCredits || 0) - consumed);
+  const normalized = Math.max(0, roundInternalMoney(amount || 0) || 0);
+  const consumed = Math.min(normalized, Math.max(0, roundInternalMoney(player.frozenCredits || 0) || 0));
+  player.frozenCredits = Math.max(0, roundInternalMoney(Number(player.frozenCredits || 0) - consumed) || 0);
   return consumed;
 }
 
 function releaseFrozenCredits(player, amount) {
   const released = consumeFrozenCredits(player, amount);
-  player.credits = Math.max(0, Number(player.credits || 0)) + released;
+  player.credits = Math.max(0, roundInternalMoney(Number(player.credits || 0) + released) || 0);
   return released;
 }
 
 function transferFrozenCredits(fromPlayer, toPlayer, amount) {
   const transferred = consumeFrozenCredits(fromPlayer, amount);
-  toPlayer.credits = Math.max(0, Number(toPlayer.credits || 0)) + transferred;
+  toPlayer.credits = Math.max(0, roundInternalMoney(Number(toPlayer.credits || 0) + transferred) || 0);
   return transferred;
 }
 

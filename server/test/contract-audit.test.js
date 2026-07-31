@@ -205,3 +205,38 @@ test('上线前已有合同只导入部分完整摘要，不伪造逐批事件',
     rmSync(`${databasePath}-wal`, { force: true });
   }
 });
+
+test('合同审计按整数微单位保留小数单价、手续费和转账', () => {
+  const now = 1_930_000_000_000;
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  const { buyerUser, supplierUser } = seedPlayers(store, now);
+  const created = store.apply(buyerUser, request('createProductionContract', '/api/game/contracts', 'contract-audit-decimal-create', {
+    publisherRole: 'buyer', productId: 'wheat', quantityPerDelivery: 3, unitPrice: 3.33,
+    deliveryIntervalMs: 10 * 60 * 1000, totalDeliveries: 2, firstDeliveryDelayMs: 0,
+  }), now + 1);
+  assert.equal(created.result.ok, true);
+  const contractId = store.transaction(() => store.loadWorld(now + 2).world.productionContracts[0].id, { immediate: false });
+  assert.equal(store.apply(supplierUser, request(
+    'acceptProductionContract', `/api/game/contracts/${contractId}/accept`,
+    'contract-audit-decimal-accept', { contractId },
+  ), now + 2).result.ok, true);
+  processAt(store, now + 3);
+  processAt(store, now + 10 * 60 * 1000 + 3);
+  const history = store.listContractAuditHistory(buyerUser, { limit: 20 });
+  assert.equal(history.items[0].unitPrice, 3.33);
+  assert.equal(history.items[0].grossTotal, 19.98);
+  assert.equal(history.items[0].feeTotal, 0.1998);
+  assert.equal(history.items[0].netTotal, 19.7802);
+  const detail = store.getContractAuditDetail(buyerUser, contractId, { limit: 100 });
+  const delivery = detail.events.find((event) => event.eventType === 'delivery_completed');
+  assert.equal(delivery.transfers.find((item) => item.purpose === 'delivery_net_payment')?.quantity, 9.8901);
+  assert.equal(delivery.transfers.find((item) => item.purpose === 'market_service_fee')?.quantity, 0.0999);
+  const stored = store.database.prepare(`
+    SELECT gross_total, fee_total, money_precision_version
+    FROM economy_contract_audit_contracts WHERE contract_id = ?
+  `).get(contractId);
+  assert.equal(stored.gross_total, 19_980_000);
+  assert.equal(stored.fee_total, 199_800);
+  assert.equal(stored.money_precision_version, 2);
+  store.close();
+});

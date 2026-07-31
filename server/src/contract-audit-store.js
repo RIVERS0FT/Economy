@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { internalMoneyToMicros, microsToInternalMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 
 const CONTRACT_AUDIT_BUFFER = Symbol('economy.contractAuditBuffer');
 const DEFAULT_HISTORY_LIMIT = 20;
@@ -7,6 +8,7 @@ const MAX_QUERY_LIMIT = 100;
 const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'terminated', 'expired']);
 const CONTRACT_STATUSES = new Set(['open', 'active', ...TERMINAL_STATUSES]);
 const HISTORY_ROLES = new Set(['any', 'publisher', 'buyer', 'supplier']);
+const CONTRACT_AUDIT_MONEY_PRECISION_VERSION = 2;
 
 function clone(value) {
   return value === undefined ? undefined : structuredClone(value);
@@ -23,11 +25,37 @@ function nullableInteger(value) {
   return Number.isSafeInteger(normalized) ? normalized : null;
 }
 
+function safeMoney(value, fallback = 0) {
+  const normalized = roundInternalMoney(value);
+  return normalized !== null && normalized >= 0 ? normalized : fallback;
+}
+
+function storedMoney(value) {
+  const micros = internalMoneyToMicros(safeMoney(value));
+  if (micros === null || micros > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('合同审计金额超出系统可表示范围');
+  return Number(micros);
+}
+
+function restoredMoney(value, precisionVersion = CONTRACT_AUDIT_MONEY_PRECISION_VERSION) {
+  if (Number(precisionVersion || 0) < CONTRACT_AUDIT_MONEY_PRECISION_VERSION) return safeMoney(value);
+  try {
+    return microsToInternalMoney(BigInt(value)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function tableColumns(database, tableName) {
+  return new Set(database.prepare(`PRAGMA table_info(${tableName})`).all().map((row) => String(row.name)));
+}
+
 function batchGross(contract) {
-  const explicit = safeInteger(contract?.batchGross, 0);
+  const explicit = safeMoney(contract?.batchGross, 0);
   if (explicit > 0) return explicit;
-  const gross = safeInteger(contract?.quantityPerDelivery, 0) * safeInteger(contract?.unitPrice, 0);
-  return Number.isSafeInteger(gross) && gross > 0 ? gross : 0;
+  return multiplyMoneyByInteger(
+    safeMoney(contract?.unitPrice, 0),
+    Math.max(0, safeInteger(contract?.quantityPerDelivery, 0)),
+  ) || 0;
 }
 
 function contractSnapshot(contract) {
@@ -43,7 +71,7 @@ function contractSnapshot(contract) {
     supplierName: contract.supplierName ? String(contract.supplierName) : null,
     productId: String(contract.productId || ''),
     quantityPerDelivery: Math.max(0, safeInteger(contract.quantityPerDelivery, 0)),
-    unitPrice: Math.max(0, safeInteger(contract.unitPrice, 0)),
+    unitPrice: safeMoney(contract.unitPrice, 0),
     batchGross: batchGross(contract),
     deliveryIntervalMs: Math.max(0, safeInteger(contract.deliveryIntervalMs, 0)),
     totalDeliveries: Math.max(0, safeInteger(contract.totalDeliveries, 0)),
@@ -57,16 +85,16 @@ function contractSnapshot(contract) {
     endedAt: nullableInteger(contract.endedAt),
     completedAt: nullableInteger(contract.completedAt),
     lastDeliveryAt: nullableInteger(contract.lastDeliveryAt),
-    lastDeliveryGross: Math.max(0, safeInteger(contract.lastDeliveryGross, 0)),
-    lastDeliveryFee: Math.max(0, safeInteger(contract.lastDeliveryFee, 0)),
-    buyerEscrowCredits: Math.max(0, safeInteger(contract.buyerEscrowCredits, 0)),
+    lastDeliveryGross: safeMoney(contract.lastDeliveryGross, 0),
+    lastDeliveryFee: safeMoney(contract.lastDeliveryFee, 0),
+    buyerEscrowCredits: safeMoney(contract.buyerEscrowCredits, 0),
     supplierReservedQuantity: Math.max(0, safeInteger(contract.supplierReservedQuantity, 0)),
-    buyerBondCredits: Math.max(0, safeInteger(contract.buyerBondCredits, 0)),
-    supplierBondCredits: Math.max(0, safeInteger(contract.supplierBondCredits, 0)),
+    buyerBondCredits: safeMoney(contract.buyerBondCredits, 0),
+    supplierBondCredits: safeMoney(contract.supplierBondCredits, 0),
     buyerAutoFund: contract.buyerAutoFund !== false,
     supplierAutoReserve: contract.supplierAutoReserve !== false,
-    marketSellFeeGross: Math.max(0, safeInteger(contract.marketSellFeeGross, 0)),
-    marketSellFeeCharged: Math.max(0, safeInteger(contract.marketSellFeeCharged, 0)),
+    marketSellFeeGross: safeMoney(contract.marketSellFeeGross, 0),
+    marketSellFeeCharged: safeMoney(contract.marketSellFeeCharged, 0),
     status: CONTRACT_STATUSES.has(contract.status) ? contract.status : 'open',
     roundStatus: ['preparing', 'ready', 'grace'].includes(contract.roundStatus) ? contract.roundStatus : 'preparing',
     terminationRequestedBy: nullableInteger(contract.terminationRequestedBy),
@@ -104,7 +132,7 @@ function graceReasonCode(world, contract, incomingByBuyer) {
   if (safeInteger(contract.supplierReservedQuantity, 0) < safeInteger(contract.quantityPerDelivery, 0)) {
     reasons.push('supplier_goods');
   }
-  if (safeInteger(contract.buyerEscrowCredits, 0) < gross) reasons.push('buyer_funds');
+  if (safeMoney(contract.buyerEscrowCredits, 0) < gross) reasons.push('buyer_funds');
   const buyer = world.players?.[String(contract.buyerId)];
   if (!buyer) {
     reasons.push('participant_missing');
@@ -128,7 +156,9 @@ function transfer({
   toAccount,
   purpose,
 }) {
-  const normalizedQuantity = Math.max(0, safeInteger(quantity, 0));
+  const normalizedQuantity = assetType === 'credits'
+    ? safeMoney(quantity, 0)
+    : Math.max(0, safeInteger(quantity, 0));
   if (normalizedQuantity <= 0) return null;
   return {
     assetType,
@@ -259,10 +289,10 @@ function renewalReleaseTransfers(contract, proposal) {
 }
 
 function deliveryTransfers(before, after) {
-  const gross = Math.max(0, safeInteger(after.lastDeliveryGross, 0) || after.batchGross);
-  const feeDelta = Math.max(0, safeInteger(after.marketSellFeeCharged, 0) - safeInteger(before.marketSellFeeCharged, 0));
-  const fee = Math.max(0, safeInteger(after.lastDeliveryFee, 0) || feeDelta);
-  const net = Math.max(0, gross - fee);
+  const gross = safeMoney(after.lastDeliveryGross, 0) || safeMoney(after.batchGross, 0);
+  const feeDelta = Math.max(0, roundInternalMoney(safeMoney(after.marketSellFeeCharged, 0) - safeMoney(before.marketSellFeeCharged, 0)) || 0);
+  const fee = safeMoney(after.lastDeliveryFee, 0) || feeDelta;
+  const net = Math.max(0, roundInternalMoney(gross - fee) || 0);
   return compactTransfers([
     transfer({ assetType: 'commodity', productId: after.productId, quantity: after.quantityPerDelivery, fromType: 'player', fromId: after.supplierId, fromAccount: 'contract_goods_escrow', toType: 'player', toId: after.buyerId, toAccount: 'inventory_available', purpose: 'delivery_goods' }),
     transfer({ assetType: 'credits', quantity: net, fromType: 'player', fromId: after.buyerId, fromAccount: 'contract_escrow', toType: 'player', toId: after.supplierId, toAccount: 'available', purpose: 'delivery_net_payment' }),
@@ -278,9 +308,9 @@ function completionTransfers(before) {
 }
 
 function terminationTransfers(before, after, actorUserId, completedDelta) {
-  const deliveredGross = Math.max(0, completedDelta) * before.batchGross;
+  const deliveredGross = multiplyMoneyByInteger(before.batchGross, Math.max(0, completedDelta)) || 0;
   const deliveredGoods = Math.max(0, completedDelta) * before.quantityPerDelivery;
-  const escrow = Math.max(0, before.buyerEscrowCredits - deliveredGross);
+  const escrow = Math.max(0, roundInternalMoney(before.buyerEscrowCredits - deliveredGross) || 0);
   const goods = Math.max(0, before.supplierReservedQuantity - deliveredGoods);
   const commonReleases = {
     buyerEscrowRelease: transfer({ assetType: 'credits', quantity: escrow, fromType: 'player', fromId: before.buyerId, fromAccount: 'contract_escrow', toType: 'player', toId: before.buyerId, toAccount: 'available', purpose: 'unused_escrow_release' }),
@@ -402,11 +432,11 @@ function publicHistoryRow(row, userId) {
     auditCompleteness: String(row.audit_completeness),
     lastEventSequence: Number(row.last_event_sequence),
     lastEventAt: Number(row.last_event_at),
-    grossTotal: Number(row.gross_total),
-    feeTotal: Number(row.fee_total),
-    netTotal: Number(row.net_total),
+    grossTotal: restoredMoney(row.gross_total, row.money_precision_version),
+    feeTotal: restoredMoney(row.fee_total, row.money_precision_version),
+    netTotal: restoredMoney(row.net_total, row.money_precision_version),
     transferredGoods: Number(row.transferred_goods),
-    compensationTotal: Number(row.compensation_total),
+    compensationTotal: restoredMoney(row.compensation_total, row.money_precision_version),
     isPublisher: Number(row.publisher_id) === userId,
     isBuyer: Number(row.buyer_id) === userId,
     isSupplier: Number(row.supplier_id) === userId,
@@ -417,7 +447,9 @@ function publicTransfer(row) {
   return {
     assetType: String(row.asset_type),
     productId: row.product_id === null ? null : String(row.product_id),
-    quantity: Number(row.quantity),
+    quantity: String(row.asset_type) === 'credits'
+      ? restoredMoney(row.quantity, row.money_precision_version)
+      : Number(row.quantity),
     fromType: String(row.from_type),
     fromId: row.from_id === null ? null : Number(row.from_id),
     fromAccount: String(row.from_account),
@@ -462,7 +494,8 @@ export function configureContractAuditStore(store) {
       compensation_total INTEGER NOT NULL DEFAULT 0 CHECK (compensation_total >= 0),
       last_event_sequence INTEGER NOT NULL CHECK (last_event_sequence >= 1),
       last_event_at INTEGER NOT NULL,
-      contract_json TEXT NOT NULL
+      contract_json TEXT NOT NULL,
+      money_precision_version INTEGER NOT NULL DEFAULT 2
     ) STRICT;
     CREATE INDEX IF NOT EXISTS idx_contract_audit_publisher ON economy_contract_audit_contracts(publisher_id, sort_at DESC, contract_id DESC);
     CREATE INDEX IF NOT EXISTS idx_contract_audit_buyer ON economy_contract_audit_contracts(buyer_id, sort_at DESC, contract_id DESC);
@@ -506,6 +539,7 @@ export function configureContractAuditStore(store) {
       to_id INTEGER,
       to_account TEXT NOT NULL,
       purpose TEXT NOT NULL,
+      money_precision_version INTEGER NOT NULL DEFAULT 2,
       UNIQUE(event_id, transfer_index)
     ) STRICT;
     CREATE INDEX IF NOT EXISTS idx_contract_audit_transfers_event ON economy_contract_audit_transfers(event_id, transfer_index);
@@ -527,6 +561,39 @@ export function configureContractAuditStore(store) {
       SELECT RAISE(ABORT, 'contract audit transfers are append-only');
     END;
   `);
+
+  const summaryColumns = tableColumns(store.database, 'economy_contract_audit_contracts');
+  if (!summaryColumns.has('money_precision_version')) {
+    store.database.exec(`
+      ALTER TABLE economy_contract_audit_contracts
+        ADD COLUMN money_precision_version INTEGER NOT NULL DEFAULT 1;
+      UPDATE economy_contract_audit_contracts SET
+        unit_price = unit_price * 1000000,
+        batch_gross = batch_gross * 1000000,
+        gross_total = gross_total * 1000000,
+        fee_total = fee_total * 1000000,
+        net_total = net_total * 1000000,
+        compensation_total = compensation_total * 1000000,
+        money_precision_version = 2
+      WHERE money_precision_version < 2;
+    `);
+  }
+  const transferColumns = tableColumns(store.database, 'economy_contract_audit_transfers');
+  if (!transferColumns.has('money_precision_version')) {
+    store.database.exec(`
+      DROP TRIGGER IF EXISTS prevent_contract_audit_transfer_update;
+      ALTER TABLE economy_contract_audit_transfers
+        ADD COLUMN money_precision_version INTEGER NOT NULL DEFAULT 1;
+      UPDATE economy_contract_audit_transfers SET
+        quantity = CASE WHEN asset_type = 'credits' THEN quantity * 1000000 ELSE quantity END,
+        money_precision_version = 2
+      WHERE money_precision_version < 2;
+      CREATE TRIGGER prevent_contract_audit_transfer_update
+      BEFORE UPDATE ON economy_contract_audit_transfers BEGIN
+        SELECT RAISE(ABORT, 'contract audit transfers are append-only');
+      END;
+    `);
+  }
 
   store.selectContractAuditSummary = store.database.prepare(`
     SELECT * FROM economy_contract_audit_contracts WHERE contract_id = ?
@@ -827,7 +894,7 @@ const accepted = before.status === 'open' && after.status === 'active';
           index,
           item.assetType,
           item.productId,
-          item.quantity,
+          item.assetType === 'credits' ? storedMoney(item.quantity) : safeInteger(item.quantity),
           item.fromType,
           item.fromId,
           item.fromAccount,
@@ -842,8 +909,10 @@ const accepted = before.status === 'open' && after.status === 'active';
         .reduce((sum, item) => sum + item.quantity, 0);
       const endedAt = after.endedAt || after.completedAt || null;
       const sortAt = endedAt || event.occurredAt || after.createdAt;
-      const grossTotal = Math.max(0, after.marketSellFeeGross || after.completedDeliveries * after.batchGross);
-      const feeTotal = Math.max(0, after.marketSellFeeCharged || 0);
+      const grossTotal = safeMoney(after.marketSellFeeGross, 0)
+        || multiplyMoneyByInteger(after.batchGross, after.completedDeliveries)
+        || 0;
+      const feeTotal = safeMoney(after.marketSellFeeCharged, 0);
       store.upsertContractAuditSummary.run(
         after.id,
         after.publisherId,
@@ -859,13 +928,13 @@ const accepted = before.status === 'open' && after.status === 'active';
         after.completedDeliveries,
         after.totalDeliveries,
         after.quantityPerDelivery,
-        after.unitPrice,
-        after.batchGross,
-        grossTotal,
-        feeTotal,
-        Math.max(0, grossTotal - feeTotal),
+        storedMoney(after.unitPrice),
+        storedMoney(after.batchGross),
+        storedMoney(grossTotal),
+        storedMoney(feeTotal),
+        storedMoney(Math.max(0, roundInternalMoney(grossTotal - feeTotal) || 0)),
         Math.max(0, after.completedDeliveries * after.quantityPerDelivery),
-        compensationDelta,
+        storedMoney(compensationDelta),
         sequence,
         event.occurredAt,
         JSON.stringify(after),
@@ -1003,14 +1072,17 @@ const accepted = before.status === 'open' && after.status === 'active';
       const after = event.after;
       const endedAt = after.endedAt || after.completedAt || null;
       const sortAt = endedAt || after.createdAt;
-      const grossTotal = Math.max(0, after.marketSellFeeGross || after.completedDeliveries * after.batchGross);
-      const feeTotal = Math.max(0, after.marketSellFeeCharged || 0);
+      const grossTotal = safeMoney(after.marketSellFeeGross, 0)
+        || multiplyMoneyByInteger(after.batchGross, after.completedDeliveries)
+        || 0;
+      const feeTotal = safeMoney(after.marketSellFeeCharged, 0);
       store.upsertContractAuditSummary.run(
         after.id, after.publisherId, after.buyerId, after.supplierId, after.productId, after.status,
         'legacy_partial', after.createdAt, after.acceptedAt, endedAt, sortAt,
-        after.completedDeliveries, after.totalDeliveries, after.quantityPerDelivery, after.unitPrice,
-        after.batchGross, grossTotal, feeTotal, Math.max(0, grossTotal - feeTotal),
-        Math.max(0, after.completedDeliveries * after.quantityPerDelivery), 0,
+        after.completedDeliveries, after.totalDeliveries, after.quantityPerDelivery, storedMoney(after.unitPrice),
+        storedMoney(after.batchGross), storedMoney(grossTotal), storedMoney(feeTotal),
+        storedMoney(Math.max(0, roundInternalMoney(grossTotal - feeTotal) || 0)),
+        Math.max(0, after.completedDeliveries * after.quantityPerDelivery), storedMoney(0),
         sequence, event.occurredAt, JSON.stringify(after),
       );
     }

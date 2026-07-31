@@ -1,8 +1,8 @@
-import { roundInternalMoney } from './money.js';
+import { calculateRateMoney, roundInternalMoney } from './money.js';
 
 export const MARKET_SELL_FEE_RATE_BPS = 100;
 export const MARKET_SELL_FEE_MINIMUM = 0;
-export const MARKET_SELL_FEE_VERSION = 3;
+export const MARKET_SELL_FEE_VERSION = 4;
 const BASIS_POINTS = 10_000;
 
 function normalizedFillTotal(fill) {
@@ -24,7 +24,12 @@ function initializeMarketSellFeeOrder(order) {
 
 export function calculateCumulativeMarketSellFee(grossTotal) {
   const normalizedGross = Math.max(0, roundInternalMoney(grossTotal) || 0);
-  return Math.max(0, roundInternalMoney(normalizedGross * MARKET_SELL_FEE_RATE_BPS / BASIS_POINTS) || 0);
+  return Math.max(0, calculateRateMoney(
+    normalizedGross,
+    MARKET_SELL_FEE_RATE_BPS,
+    BASIS_POINTS,
+    'half-up',
+  ) || 0);
 }
 
 export function applyMarketSellFee(order, fillTotal) {

@@ -1,5 +1,6 @@
 import { PRODUCT_CATALOG } from './domain.js';
 import { wealthAssetsFor } from './leaderboards.js';
+import { roundInternalMoney } from './money.js';
 
 export const PLAYER_STATISTICS_TIME_ZONE = 'Asia/Shanghai';
 export const PLAYER_STATISTICS_RANGE_DAYS = Object.freeze({
@@ -39,6 +40,10 @@ const ORDER_ACTIONS = new Set(['placeOrder', 'cancelOrder']);
 function safeNonNegativeInteger(value) {
   const normalized = Math.floor(Number(value) || 0);
   return Number.isSafeInteger(normalized) && normalized >= 0 ? normalized : 0;
+}
+
+function safeNonNegativeMoney(value) {
+  return Math.max(0, roundInternalMoney(value) || 0);
 }
 
 function safeTimestamp(value) {
@@ -130,7 +135,7 @@ function metricsForPlayer(player) {
 
 function valuationPrice(world, kind, assetId) {
   const market = kind === 'facility' ? world?.facilityMarkets?.[assetId] : world?.markets?.[assetId];
-  return safeNonNegativeInteger(market?.lastTradePrice);
+  return safeNonNegativeMoney(market?.lastTradePrice);
 }
 
 function frozenFacilityQuantity(world, userId, facilityTypeId) {
@@ -161,7 +166,7 @@ function frozenFacilityQuantity(world, userId, facilityTypeId) {
 }
 
 function wealthBreakdown(world, player) {
-  const cash = safeNonNegativeInteger(player?.credits) + safeNonNegativeInteger(player?.frozenCredits);
+  const cash = safeNonNegativeMoney(player?.credits) + safeNonNegativeMoney(player?.frozenCredits);
   const commodities = PRODUCT_CATALOG.reduce((sum, product) => {
     const quantity = inventoryQuantity(player, product.id, 'available')
       + inventoryQuantity(player, product.id, 'frozen');
@@ -183,7 +188,7 @@ function wealthBreakdown(world, player) {
   const total = wealthAssetsFor(world, player);
   const frozen = Math.min(
     total,
-    safeNonNegativeInteger(player?.frozenCredits) + frozenCommodities + frozenFacilities,
+    safeNonNegativeMoney(player?.frozenCredits) + frozenCommodities + frozenFacilities,
   );
   return { total, cash, commodities, facilities, frozen };
 }
@@ -196,7 +201,7 @@ function percentile(sortedValues, fraction) {
   const upper = Math.ceil(position);
   if (lower === upper) return sortedValues[lower];
   const weight = position - lower;
-  return Math.round(sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight);
+  return roundInternalMoney(sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight) || 0;
 }
 
 function median(values) {

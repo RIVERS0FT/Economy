@@ -1,39 +1,56 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  calculateRateMoney,
   floorPlayerMoney,
+  internalMoneyToMicros,
+  multiplyMoneyByInteger,
   normalizePlayerMoneyInput,
   normalizeWorldMoneyPrecision,
   roundInternalMoney,
 } from '../server/src/money.js';
 import { calculateCumulativeMarketSellFee } from '../server/src/market-sell-fee.js';
+import { formatCurrency } from '../src/utils/formatters.ts';
 import { parseMoneyDraft } from '../src/utils/moneyDraft.ts';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 assert.equal(floorPlayerMoney(9.996), 9.99);
-assert.equal(floorPlayerMoney(-9.996), -10);
-assert.equal(normalizePlayerMoneyInput('12.345678'), 12.34);
-assert.equal(normalizePlayerMoneyInput('0.009'), null);
+assert.equal(normalizePlayerMoneyInput('12.34'), 12.34);
+assert.equal(normalizePlayerMoneyInput('12.340'), null);
+assert.equal(normalizePlayerMoneyInput('12.345678'), null);
 assert.equal(roundInternalMoney(0.1234567), 0.123457);
+assert.equal(internalMoneyToMicros(0.123456), 123456n);
+assert.equal(multiplyMoneyByInteger(9.99, 3), 29.97);
+assert.equal(calculateRateMoney(9.99, 100, 10_000), 0.0999);
 assert.equal(calculateCumulativeMarketSellFee(9.99), 0.0999);
-assert.equal(parseMoneyDraft('9.996'), 9.99);
-assert.equal(parseMoneyDraft('-9.996'), -10);
+assert.equal(parseMoneyDraft('9.99'), 9.99);
+assert.equal(parseMoneyDraft('9.996'), null);
+assert.equal(formatCurrency(9.996), '10.00');
+assert.equal(formatCurrency(0.000001), '<0.01');
 
 const world = {
-  players: { 1: { credits: 9.996, frozenCredits: 0, gems: 3.7, stats: {}, ledger: [], trades: [] } },
+  players: { 1: { credits: 9.9960014, frozenCredits: 0, gems: 3.7, stats: {}, ledger: [], trades: [] } },
   orders: [], markets: {}, facilityMarkets: {}, assetAuctions: [], productionContracts: [], bank: {},
 };
 normalizeWorldMoneyPrecision(world);
-assert.equal(world.players[1].credits, 9.996);
+assert.equal(world.players[1].credits, 9.996001);
 assert.equal(world.players[1].gems, 3);
-assert.equal(world.moneyPrecision.version, 2);
+assert.equal(world.moneyPrecision.version, 3);
 assert.equal(world.moneyPrecision.roundingReserveMicros, 0);
+
+const money = read('server/src/money.js');
+assert.match(money, /MONEY_SCALE = 1_000_000/);
+assert.match(money, /ORDER_PRICE_TICK_MICROS = 10_000/);
+assert.match(money, /exactOrderPriceMicros/);
+assert.match(money, /multiplyMoneyRatio/);
+assert.doesNotMatch(money, /PLAYER_MONEY_SCALE|INTERNAL_MONEY_SCALE|addRoundingReserve/);
 
 const formatter = read('src/utils/formatters.ts');
 assert.match(formatter, /minimumFractionDigits:\s*2/);
 assert.match(formatter, /maximumFractionDigits:\s*2/);
-assert.doesNotMatch(formatter, /formatCurrency[\s\S]{0,120}formatNumber/);
+assert.match(formatter, /formatExactCurrency/);
+assert.match(formatter, /'<0\.01'/);
 
 const formControls = read('src/components/ui/FormControls.tsx');
 assert.match(formControls, /export function MoneyInput/);
@@ -43,30 +60,28 @@ assert.match(formControls, /normalizeMoneyDraft/);
 for (const path of ['src/pages/MarketPage.tsx', 'src/pages/BankPage.tsx', 'src/pages/AuctionPage.tsx', 'src/pages/ContractPage.tsx']) {
   assert.match(read(path), /MoneyInput/);
 }
-assert.doesNotMatch(read('src/pages/MarketPage.tsx'), /parseIntegerDraft\(priceDraft/);
-assert.doesNotMatch(read('src/pages/AuctionPage.tsx'), /parseIntegerDraft\(startingBidInput/);
-assert.doesNotMatch(read('src/pages/ContractPage.tsx'), /parseIntegerDraft\(unitPriceInput/);
 
-assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 22/);
-assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22/);
-assert.match(read('server/src/market-demand/catalog.js'), /MARKET_DEMAND_MODEL_VERSION = 12/);
-assert.match(read('server/src/storage.js'), /normalizeWorldMoneyPrecision/);
-assert.match(read('server/src/storage.js'), /world\.version = 19/);
-assert.match(read('server/src/banking.js'), /BANKING_VERSION = 2/);
-assert.match(read('server/src/contracts.js'), /PRODUCTION_CONTRACT_SCHEMA_VERSION = 3/);
-assert.match(read('server/src/population-economy.js'), /POPULATION_ECONOMY_VERSION = 6/);
-assert.match(read('server/src/market-sell-fee.js'), /MARKET_SELL_FEE_VERSION = 3/);
+const banking = read('server/src/banking.js');
+assert.match(banking, /BANKING_VERSION = 3/);
+assert.match(banking, /safePositiveMoney\(payload\.amount, safeNonNegativeMoney\(player\.credits\)\)/);
+assert.match(banking, /microsToInternalMoney\(shareMicros\)/);
+assert.doesNotMatch(banking, /Math\.floor\(shareMicros \/ 10_000\) \* 10_000/);
 
-const storage = read('server/src/storage.js');
-assert.match(storage, /amount INTEGER NOT NULL/);
-assert.match(storage, /gems_spent INTEGER NOT NULL/);
-assert.match(read('README.md'), /账户余额、冻结资金、预算、手续费、退款和流水金额统一保留六位小数/);
-assert.match(read('README.md'), /订单、拍卖与合同中的可输入单价保留两位小数/);
-assert.match(read('docs/README.md'), /普通货币精度与玩家结算属于跨模块强制规则/);
-assert.match(read('docs/README.md'), /账户余额、冻结资金、预算、总额、手续费、退款和流水保留六位小数/);
-assert.match(read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md'), /目标库存不设业务总量上限/);
-assert.match(read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md'), /最小价格步长为 0\.01/);
-assert.doesNotMatch(read('README.md'), /玩家可用、冻结、银行、贷款、订单、拍卖、合同和流水只保留两位小数/);
-assert.doesNotMatch(read('docs/README.md'), /玩家账本最多两位小数|尾差进入精度准备金/);
+const contracts = read('server/src/contracts.js');
+assert.match(contracts, /PRODUCTION_CONTRACT_SCHEMA_VERSION = 4/);
+assert.match(contracts, /multiplyMoneyByInteger\(contract\.unitPrice, contract\.quantityPerDelivery\)/);
+assert.doesNotMatch(contracts, /floorPlayerMoney/);
+
+const audit = read('server/src/contract-audit-store.js');
+assert.match(audit, /CONTRACT_AUDIT_MONEY_PRECISION_VERSION = 2/);
+assert.match(audit, /money_precision_version INTEGER NOT NULL DEFAULT 2/);
+assert.match(audit, /storedMoney\(item\.quantity\)/);
+assert.match(audit, /restoredMoney\(row\.gross_total/);
+
+assert.match(read('server/src/market-sell-fee.js'), /calculateRateMoney/);
+assert.match(read('README.md'), /统一微单位运算边界/);
+assert.match(read('docs/README.md'), /一种六位微单位运算精度/);
+assert.match(read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md'), /单一微单位货币核心/);
+assert.match(read('docs/UI_DESIGN_SYSTEM.md'), /普通金额统一显示两位/);
 
 console.log('Money precision verification passed.');

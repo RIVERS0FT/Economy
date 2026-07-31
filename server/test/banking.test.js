@@ -207,3 +207,15 @@ test('loan default seizes the minimum collateral once and releases the remaining
   assert.equal(world.bank.facilityReserves.farm, 2);
   assert.equal(player.stats.bankDefaults, 1);
 });
+
+test('bank accepts two-decimal deposits without truncating account precision', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 10;
+  assert.equal(applyBankAction(world, alice, 'bankDeposit', { amount: 1.23 }, now + 1).ok, true);
+  assert.equal(player.credits, 8.77);
+  assert.equal(player.bankAccount.depositCredits, 1.23);
+  assert.equal(applyBankAction(world, alice, 'bankWithdraw', { amount: 0.23 }, now + 2).ok, true);
+  assert.equal(player.credits, 9);
+  assert.equal(player.bankAccount.depositCredits, 1);
+});

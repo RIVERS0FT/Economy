@@ -32,7 +32,7 @@ for (const text of [
   'MARKET_SELL_FEE_RATE_BPS = 100',
   'MARKET_SELL_FEE_MINIMUM = 0',
   'calculateCumulativeMarketSellFee',
-  'MARKET_SELL_FEE_VERSION = 3',
+  'MARKET_SELL_FEE_VERSION = 4',
   'marketSellFeeGross',
   'marketSellFeeCharged',
 ]) requireText('server/src/market-sell-fee.js', text);
