@@ -4,20 +4,13 @@ on:
   push:
     branches:
       - agent/fixed-weekly-bank-settlement
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
 
 permissions:
   contents: write
 
 concurrency:
   group: apply-fixed-weekly-settlement
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   apply-and-verify:
