@@ -84,8 +84,9 @@ assert.deepEqual(
 assert.match(levelSource, /isValidOrderPrice\(order\.price\)/);
 assert.doesNotMatch(levelSource, /Number\.isInteger\(order\.price\)|order\.price\s*<\s*1/);
 
-const design = read('../docs/ORDER_BOOK_DECIMAL_LEVEL_DISPLAY_DESIGN.md');
-assert.match(design, /不得使用 `Number\.isInteger\(price\)`、`price >= 1`/);
-assert.match(design, /`0\.01`、`1\.10`、`1\.23`/);
+const design = read('../docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
+assert.match(design, /价格为不低于 0\.01 的两位小数订单/);
+assert.match(design, /同资产、同方向、同价格的有效订单按当前剩余数量聚合为价格档位/);
+assert.match(design, /聚合完成后再按最优价格截取 5 档/);
 
 console.log('Decimal order-book level verification passed.');
