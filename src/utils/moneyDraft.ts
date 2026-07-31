@@ -3,6 +3,9 @@ export type MoneyDraftOptions = {
   max?: number;
 };
 
+const MONEY_SCALE = 1_000_000;
+const PRICE_TICK_MICROS = 10_000n;
+
 function expandExponent(value: string) {
   if (!/[eE]/.test(value)) return value;
   const match = /^([+-]?)(\d+)(?:\.(\d*))?[eE]([+-]?\d+)$/.exec(value);
@@ -16,21 +19,34 @@ function expandExponent(value: string) {
   return `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
 }
 
-function floorToCents(value: string) {
+function exactCents(value: string) {
   const source = expandExponent(value.trim());
   const match = /^([+-]?)(\d+)(?:\.(\d*))?$/.exec(source);
   if (!match) return null;
-  const negative = match[1] === '-';
-  const integer = match[2];
   const fraction = match[3] || '';
-  let cents = Number.parseInt(integer, 10) * 100 + Number.parseInt(fraction.slice(0, 2).padEnd(2, '0') || '0', 10);
-  if (!Number.isSafeInteger(cents)) return null;
-  if (negative && /[1-9]/.test(fraction.slice(2))) cents += 1;
-  return (negative ? -cents : cents) / 100;
+  if (fraction.length > 2) return null;
+  const magnitude = BigInt(match[2]) * 100n + BigInt(fraction.padEnd(2, '0') || '0');
+  const signed = match[1] === '-' ? -magnitude : magnitude;
+  if (signed > BigInt(Number.MAX_SAFE_INTEGER) || signed < BigInt(Number.MIN_SAFE_INTEGER)) return null;
+  return Number(signed) / 100;
+}
+
+function roundToCents(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  const scaled = Math.round(value * MONEY_SCALE);
+  if (!Number.isSafeInteger(scaled)) return 0;
+  const micros = BigInt(scaled);
+  const quotient = micros / PRICE_TICK_MICROS;
+  const remainder = micros % PRICE_TICK_MICROS;
+  const absoluteRemainder = remainder < 0n ? -remainder : remainder;
+  const rounded = absoluteRemainder * 2n < PRICE_TICK_MICROS
+    ? quotient
+    : quotient + (micros >= 0n ? 1n : -1n);
+  return Number(rounded) / 100;
 }
 
 export function parseMoneyDraft(value: string, options: MoneyDraftOptions = {}) {
-  const parsed = floorToCents(value);
+  const parsed = exactCents(value);
   if (parsed === null || !Number.isFinite(parsed)) return null;
   if (options.min !== undefined && parsed < options.min) return null;
   if (options.max !== undefined && parsed > options.max) return null;
@@ -38,8 +54,7 @@ export function parseMoneyDraft(value: string, options: MoneyDraftOptions = {}) 
 }
 
 export function formatMoneyDraft(value: number) {
-  const parsed = floorToCents(String(value));
-  return (parsed ?? 0).toFixed(2);
+  return roundToCents(value).toFixed(2);
 }
 
 export function normalizeMoneyDraft(
