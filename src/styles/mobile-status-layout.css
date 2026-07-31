@@ -15,7 +15,7 @@
     max-height: var(--mobile-asset-bar-height);
     max-width: none;
     display: block;
-    border-radius: 999px;
+    border-radius: var(--radius-card-mobile);
     padding: 0;
     overflow: visible;
     transform: none;

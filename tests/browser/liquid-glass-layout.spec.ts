@@ -3,14 +3,14 @@ import { expect, test } from '@playwright/test';
 test.describe('liquid glass shell geometry', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('desktop status bar uses its dedicated single-shell glass preset and shell inset', async ({ page }) => {
+  test('desktop status bar uses the shared authentication-card material and shell inset', async ({ page }) => {
     await page.goto('runtime-test.html?view=overview&scenario=activity');
     await expect(page.locator('.asset-bar')).toBeVisible();
     const glassSurface = page.locator('.asset-bar .liquid-glass-surface');
     await expect(glassSurface).toBeVisible();
     await expect(glassSurface).toHaveAttribute('data-liquid-glass-variant', 'desktopStatusBar');
     await expect(glassSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
-    await expect(glassSurface).toHaveAttribute('data-liquid-glass-over-light', 'true');
+    await expect(glassSurface).toHaveAttribute('data-liquid-glass-over-light', 'false');
     await expect(page.locator('.overview-today-panel')).toBeVisible();
 
     const layout = await page.evaluate(() => {
@@ -74,6 +74,7 @@ test.describe('liquid glass shell geometry', () => {
         outlineBorderStyle: outlineStyle.borderTopStyle,
         outlineZIndex: outlineStyle.zIndex,
         outlinePointerEvents: outlineStyle.pointerEvents,
+        outlineContent: outlineStyle.content,
         statusScrollAreaCount: assetBar.querySelectorAll('.ui-scroll-area').length,
         contentHasHorizontalOverflow: Boolean(contentElement && contentElement.scrollWidth > contentElement.clientWidth + 1),
         surfaceBackgroundColor: surfaceStyle.backgroundColor,
@@ -111,26 +112,24 @@ test.describe('liquid glass shell geometry', () => {
     expect(layout.panelRadius).toBe('24px');
     expect(layout.surfaceBorderWidth).toBe('0px');
     expect(layout.surfaceBorderStyle).toBe('none');
-    expect(layout.outlineBorderWidth).toBe('1px');
-    expect(layout.outlineBorderStyle).toBe('solid');
-    expect(layout.outlineZIndex).toBe('2');
-    expect(layout.outlinePointerEvents).toBe('none');
+    expect(layout.outlineContent).toBe('none');
     expect(layout.statusScrollAreaCount).toBe(0);
     expect(layout.contentHasHorizontalOverflow).toBe(false);
-    expect(layout.surfaceBackgroundColor).toBe('rgba(194, 231, 214, 0.06)');
+    expect(layout.surfaceBackgroundColor).toBe('rgba(0, 0, 0, 0)');
     expect(layout.glassMode).toBe('standard');
     expect(layout.glassVariant).toBe('desktopStatusBar');
-    expect(layout.glassBoxShadow).toBe('none');
-    expect(layout.warpBackdropFilter).toContain('blur(12px)');
+    expect(layout.glassBoxShadow).toContain('0px 12px 40px');
+    expect(layout.glassBoxShadow).toContain('rgba(0, 0, 0, 0.25)');
+    expect(layout.warpBackdropFilter).toContain('blur(4px)');
     expect(layout.warpBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
     expect(layout.warpFilter).toContain('url(');
     expect(layout.directDecorationSpanCount).toBeGreaterThanOrEqual(2);
-    expect(layout.visibleDecorationSpanCount).toBe(0);
+    expect(layout.visibleDecorationSpanCount).toBe(2);
     expect(layout.directAuxiliaryDivCount).toBe(2);
     expect(layout.visibleAuxiliaryDivCount).toBe(2);
-    expect(layout.auxiliaryPaddings).toEqual(['1.5px', '1.5px']);
-    expect(layout.auxiliaryMaskImages.every((value) => value !== 'none' && value.length > 0)).toBe(true);
-    expect(layout.auxiliaryMaskComposites.every((value) => /xor|exclude/.test(value))).toBe(true);
+    expect(layout.auxiliaryPaddings).toEqual(['0px', '0px']);
+    expect(layout.auxiliaryMaskImages).toEqual(['none', 'none']);
+    expect(layout.auxiliaryMaskComposites.every((value) => !/xor|exclude/.test(value))).toBe(true);
     expect(layout.hasPanelClass).toBe(false);
     expect(layout.glassSurfaceCount).toBe(1);
     expect(layout.headingTop).toBeGreaterThanOrEqual(layout.assetBarBottom);
@@ -196,7 +195,7 @@ test.describe('liquid glass shell geometry', () => {
 });
 
 test.describe('mobile liquid glass host geometry', () => {
-  test('mobile status and navigation share the mobile chrome preset while status remains single-shell', async ({ page }) => {
+  test('mobile status and navigation share the authentication-card material while status remains single-shell', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
@@ -212,12 +211,12 @@ test.describe('mobile liquid glass host geometry', () => {
     await expect(statusSurface).toBeVisible();
     await expect(statusSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileStatusBar');
     await expect(statusSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
-    await expect(statusSurface).toHaveAttribute('data-liquid-glass-over-light', 'true');
+    await expect(statusSurface).toHaveAttribute('data-liquid-glass-over-light', 'false');
     await expect(navigationHost).toBeVisible();
     await expect(navigationSurface).toBeVisible();
     await expect(navigationSurface).toHaveAttribute('data-liquid-glass-variant', 'mobileNavigation');
     await expect(navigationSurface).toHaveAttribute('data-liquid-glass-mode', 'standard');
-    await expect(navigationSurface).toHaveAttribute('data-liquid-glass-over-light', 'true');
+    await expect(navigationSurface).toHaveAttribute('data-liquid-glass-over-light', 'false');
     await expect(primaryPanel).toBeVisible();
     await expect(statusHost).toHaveCSS('height', '48px');
     await expect(statusSurface).toHaveCSS('height', '48px');
@@ -241,11 +240,14 @@ test.describe('mobile liquid glass host geometry', () => {
       const statusGlassElement = document.querySelector<HTMLElement>(
         '.asset-bar .liquid-glass-surface__effect > .glass',
       );
+      const navigationGlassElement = document.querySelector<HTMLElement>(
+        '.mobile-bottom-navigation .liquid-glass-surface__effect > .glass',
+      );
       const primaryPanelElement = document.querySelector<HTMLElement>('.overview-today-panel');
       if (!workspaceElement || !pageOverlayElement || !chromeOverlayElement || !pageScrollElement
         || !statusHostElement || !navigationHostElement || !statusSurfaceElement
         || !navigationSurfaceElement || !statusWarpElement || !navigationWarpElement
-        || !statusGlassElement || !primaryPanelElement) {
+        || !statusGlassElement || !navigationGlassElement || !primaryPanelElement) {
         throw new Error('mobile liquid glass geometry fixture is incomplete');
       }
       const rect = (element: HTMLElement) => {
@@ -308,12 +310,14 @@ test.describe('mobile liquid glass host geometry', () => {
         statusVisibleAuxiliaryDivCount: visibleDirectAuxiliaryDivCount(statusSurfaceElement),
         navigationVisibleAuxiliaryDivCount: visibleDirectAuxiliaryDivCount(navigationSurfaceElement),
         statusGlassBoxShadow: getComputedStyle(statusGlassElement).boxShadow,
+        navigationGlassBoxShadow: getComputedStyle(navigationGlassElement).boxShadow,
         statusGlassSurfaceCount: statusHostElement.querySelectorAll('.liquid-glass-surface').length,
         statusScrollAreaCount: statusHostElement.querySelectorAll('.ui-scroll-area').length,
         statusContentOverflow: Boolean(statusContentElement && statusContentElement.scrollWidth > statusContentElement.clientWidth + 1),
         statusOutlineBorderWidth: statusOutlineStyle.borderTopWidth,
         statusOutlineZIndex: statusOutlineStyle.zIndex,
         statusOutlinePointerEvents: statusOutlineStyle.pointerEvents,
+        statusOutlineContent: statusOutlineStyle.content,
         workspaceIsolation: getComputedStyle(workspaceElement).isolation,
         pageOverlayZIndex: getComputedStyle(pageOverlayElement).zIndex,
         chromeOverlayZIndex: getComputedStyle(chromeOverlayElement).zIndex,
@@ -335,7 +339,7 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusVariant).toBe('mobileStatusBar');
     expect(geometry.navigationVariant).toBe('mobileNavigation');
     expect(geometry.statusBackground).toBe(geometry.navigationBackground);
-    expect(geometry.statusBackground).toBe('rgba(194, 231, 214, 0.06)');
+    expect(geometry.statusBackground).toBe('rgba(0, 0, 0, 0)');
     expect(geometry.statusContain).toBe('none');
     expect(geometry.navigationContain).toBe('none');
     expect(geometry.statusIsolation).toBe('auto');
@@ -345,21 +349,22 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusBackdropFilter).not.toBe('none');
     expect(geometry.navigationBackdropFilter).not.toBe('none');
     expect(geometry.statusBackdropFilter).toBe(geometry.navigationBackdropFilter);
-    expect(geometry.statusBackdropFilter).toContain('blur(12px)');
+    expect(geometry.statusBackdropFilter).toContain('blur(4px)');
     expect(geometry.statusBackdropFilter).toMatch(/saturate\((?:140%|1\.4)\)/);
     expect(geometry.statusFilterTargetExists).toBe(true);
     expect(geometry.navigationFilterTargetExists).toBe(true);
-    expect(geometry.statusVisibleDecorationSpanCount).toBe(0);
-    expect(geometry.navigationVisibleDecorationSpanCount).toBe(1);
+    expect(geometry.statusVisibleDecorationSpanCount).toBe(2);
+    expect(geometry.navigationVisibleDecorationSpanCount).toBe(2);
     expect(geometry.statusVisibleAuxiliaryDivCount).toBe(2);
     expect(geometry.navigationVisibleAuxiliaryDivCount).toBe(2);
-    expect(geometry.statusGlassBoxShadow).toBe('none');
+    expect(geometry.statusGlassBoxShadow).toContain('0px 12px 40px');
+    expect(geometry.statusGlassBoxShadow).toContain('rgba(0, 0, 0, 0.25)');
+    expect(geometry.navigationGlassBoxShadow).toContain('0px 12px 40px');
+    expect(geometry.navigationGlassBoxShadow).toContain('rgba(0, 0, 0, 0.25)');
     expect(geometry.statusGlassSurfaceCount).toBe(1);
     expect(geometry.statusScrollAreaCount).toBe(0);
     expect(geometry.statusContentOverflow).toBe(false);
-    expect(geometry.statusOutlineBorderWidth).toBe('1px');
-    expect(geometry.statusOutlineZIndex).toBe('2');
-    expect(geometry.statusOutlinePointerEvents).toBe('none');
+    expect(geometry.statusOutlineContent).toBe('none');
     expect(geometry.workspaceIsolation).toBe('auto');
     expect(geometry.pageOverlayZIndex).toBe('auto');
     expect(geometry.chromeOverlayZIndex).toBe('auto');
