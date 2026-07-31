@@ -1,0 +1,74 @@
+name: Apply order book runtime optimization
+
+on:
+  push:
+    branches:
+      - agent/order-book-runtime-optimization
+    paths:
+      - .agent/apply-orderbook-optimization.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out optimization branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Apply scoped optimization
+        run: node .agent/apply-orderbook-optimization.mjs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused order book checks
+        run: |
+          node --test \
+            server/test/order-book-runtime.test.js \
+            server/test/order-book-pruning.test.js \
+            server/test/order-matching.test.js \
+            server/test/market-action-latency.test.js \
+            server/test/order-book-integrity.test.js \
+            server/test/market-liquidity.test.js
+          npm run verify:order-matching-core
+          npm run verify:runtime-efficiency
+
+      - name: Run full build and server suite
+        run: npm run build
+
+      - name: Commit verified source changes
+        run: |
+          rm .agent/apply-orderbook-optimization.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            server/src/order-book-runtime.js \
+            server/src/order-matching.js \
+            server/src/domain-core.js \
+            server/src/domain.js \
+            server/src/facility-groups.js \
+            server/src/market-demand.js \
+            server/src/market-demand/state.js \
+            server/src/market-liquidity.js \
+            server/test/order-book-runtime.test.js \
+            server/test/order-book-pruning.test.js \
+            scripts/verify-runtime-efficiency.mjs \
+            scripts/verify-order-matching-core.mjs \
+            docs/README.md \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            .agent/apply-orderbook-optimization.mjs
+          git commit -m "Optimize unified order book runtime"
+          git push origin HEAD
