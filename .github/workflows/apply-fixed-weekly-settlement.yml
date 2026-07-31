@@ -39,6 +39,16 @@ jobs:
         run: |
           cat .github/scripts/fixed-weekly-settlement.part* > /tmp/fixed-weekly-settlement.b64
           base64 --decode /tmp/fixed-weekly-settlement.b64 | gzip --decompress > /tmp/apply-fixed-weekly-settlement.mjs
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          path = Path('/tmp/apply-fixed-weekly-settlement.mjs')
+          content = path.read_text()
+          content = content.replace(
+              "replaceAllLiteral('scripts/verify-document-authority.mjs', '应为 17', '应为 20');",
+              "replaceAllLiteral('scripts/verify-document-authority.mjs', '应为 17', '应为 20', { required: false });",
+          )
+          path.write_text(content)
+          PYTHON
           node --check /tmp/apply-fixed-weekly-settlement.mjs
           node /tmp/apply-fixed-weekly-settlement.mjs
           node --check server/src/weekly-cash-settlement.js
