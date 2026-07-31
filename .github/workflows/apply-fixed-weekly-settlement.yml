@@ -55,8 +55,14 @@ jobs:
           from pathlib import Path
           path = Path('scripts/verify-money-precision.mjs')
           content = path.read_text()
-          content = content.replace('CURRENT_CLIENT_STATE_VERSION = 22', 'CURRENT_CLIENT_STATE_VERSION = 23')
-          content = content.replace('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23')
+          replacements = {
+              'CURRENT_CLIENT_STATE_VERSION = 22': 'CURRENT_CLIENT_STATE_VERSION = 23',
+              'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22': 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23',
+              r'world\.version = 19': r'world\.version = 20',
+              'BANKING_VERSION = 2': 'BANKING_VERSION = 3',
+          }
+          for before, after in replacements.items():
+              content = content.replace(before, after)
           path.write_text(content)
           PYTHON
           node --check server/src/weekly-cash-settlement.js
