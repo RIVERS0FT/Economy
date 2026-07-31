@@ -54,8 +54,6 @@ jobs:
           patch --batch --dry-run -p1 < .agent/echarts-geometry-fix.patch
           patch --batch -p1 < .agent/echarts-geometry-fix.patch
           rm -rf .agent
-          rm -f .github/workflows/prepare-echarts-worktree.yml
-          rm -f .github/workflows/apply-echarts-migration.yml
           npm install --save-exact echarts@6.1.0
       - name: Build and verify architecture
         run: npm run build
@@ -83,8 +81,6 @@ jobs:
         run: |
           set -euo pipefail
           test ! -e .agent
-          test ! -e .github/workflows/prepare-echarts-worktree.yml
-          test ! -e .github/workflows/apply-echarts-migration.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
