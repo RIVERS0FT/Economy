@@ -15,7 +15,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify deployment and inspect production responses
+      - name: Verify deployed commit and production assets
         env:
           GH_TOKEN: ${{ github.token }}
           TARGET_SHA: ba2da87804e75c5d0da5f94907c641dc5470109b
@@ -40,30 +40,38 @@ jobs:
           runs = [run for run in payload.get('workflow_runs', []) if run.get('name') == 'Deploy Economy Website']
           assert runs, 'deployment workflow run not found'
           run = max(runs, key=lambda item: int(item.get('id') or 0))
-          print('DEPLOYMENT_RUN', {
-              'id': run.get('id'),
-              'status': run.get('status'),
-              'conclusion': run.get('conclusion'),
-              'event': run.get('event'),
-              'url': run.get('html_url'),
-          })
           assert run.get('status') == 'completed' and run.get('conclusion') == 'success', run
+          print('DEPLOYMENT_VERIFIED', run.get('id'), run.get('html_url'))
           PY
 
-          inspect_url() {
-            local name="$1"
-            local url="$2"
-            local body="/tmp/${name}.body"
-            local headers="/tmp/${name}.headers"
-            local result
-            result="$(curl --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -L -D "$headers" -o "$body" -w 'code=%{http_code} effective=%{url_effective} type=%{content_type} bytes=%{size_download}' "$url")"
-            echo "RESPONSE $name $result"
-            sed -n '1,30p' "$headers"
-            echo "BODY $name"
-            head -c 1000 "$body" || true
-            echo
-          }
+          api_code="$(curl --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o /tmp/api.json -w '%{http_code}' https://game.riversoft.top/economy-api/game/state)"
+          test "$api_code" = 401
+          python3 - <<'PY'
+          import json
+          payload = json.load(open('/tmp/api.json', encoding='utf-8'))
+          assert payload.get('message') == '请先登录', payload
+          print('PRODUCTION_API_VERIFIED', payload)
+          PY
 
-          inspect_url health https://game.riversoft.top/economy-api/health
-          inspect_url health_slash https://game.riversoft.top/economy-api/health/
-          inspect_url app https://game.riversoft.top/economy/
+          app_code="$(curl --retry 3 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -D /tmp/app.headers -o /tmp/app.html -w '%{http_code}' https://game.riversoft.top/economy/)"
+          test "$app_code" = 200
+          grep -i '^Last-Modified:' /tmp/app.headers
+
+          python3 - <<'PY'
+          import re
+          import urllib.request
+          from pathlib import Path
+          from urllib.parse import urljoin
+
+          html = Path('/tmp/app.html').read_text(encoding='utf-8')
+          sources = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', html)
+          assert sources, 'production HTML has no script bundle'
+          bundle_url = urljoin('https://game.riversoft.top/economy/', sources[-1])
+          request = urllib.request.Request(bundle_url, headers={'User-Agent': 'economy-production-verifier'})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              bundle = response.read().decode('utf-8', errors='replace')
+          required = ['隐藏保留价', '查看最近 10 条', '发布费', '最后 2 分钟']
+          missing = [text for text in required if text not in bundle]
+          assert not missing, f'production bundle missing auction copy: {missing}; bundle={bundle_url}'
+          print('PRODUCTION_BUNDLE_VERIFIED', bundle_url, 'bytes', len(bundle.encode('utf-8')))
+          PY
