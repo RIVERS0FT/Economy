@@ -21,19 +21,6 @@ function forbidText(path, fragments) {
   }
 }
 
-requireText('README.md', [
-  '游戏状态使用全局世界修订号排序，并按目录、玩家、市场、拍卖、合同、排行榜六个分区增量同步',
-  '每个 `GET state` 响应都在分区 envelope 顶层携带响应生成时的 `serverNow`',
-  '权威动作响应固定只返回 `{ result: { ok, message }, revision }`',
-  '动作已经提交但补拉失败时不得改写为操作失败',
-  '客户端默认每 5 秒轮询状态',
-  '共享单调服务器时钟',
-  '`lastProcessedAt` 不得在每次轮询时被重新解释为当前服务器时间',
-  '客户端只接受不低于当前值的状态修订号',
-  '大型 JSON 响应以及超过 1 KB 的 HTML、JavaScript、CSS、SVG、Web Manifest、XML 与 WASM 必须使用 gzip 压缩',
-  'PNG、JPEG、WebP、AVIF 与 WOFF2 等已压缩资源不得重复压缩',
-]);
-
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '?revision=N&catalog=',
   '`catalog`、`player`、`market`、`auction`、`contract`、`leaderboard`',

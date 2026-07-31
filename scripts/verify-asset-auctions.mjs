@@ -57,7 +57,6 @@ const filesUnder = (directory) => {
   'tests/browser/auction-bid-history.spec.ts',
   '.github/workflows/deploy.yml',
   'scripts/manage-production-backups.py',
-  'README.md',
   'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
@@ -207,7 +206,7 @@ requireText('.github/workflows/deploy.yml', [
   'backup-world --target-world-version 21',
   'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
 ]);
-requireText('README.md', ['客户端状态版本：`24`', '世界状态版本：`21`', '发布费按起拍价与隐藏保留价较高者的 0.2%', '最近 10 条']);
+requireText('docs/README.md', ['客户端状态版本：24', '世界状态版本：21']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '发布费计费基数为 `max(起拍价, 保留价)`',
   '卖方成交手续费为成交总价的精确 1%',

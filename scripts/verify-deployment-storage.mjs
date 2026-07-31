@@ -58,6 +58,7 @@ if (failures.length === 0) {
   ]) forbidText(files.workflow, text);
 
   for (const text of [
+    'from contextlib import closing',
     'VACUUM INTO',
     'gzip.GzipFile(',
     'compresslevel=6',
@@ -69,6 +70,9 @@ if (failures.length === 0) {
     'MIN_BACKUP_HEADROOM_BYTES = 512 * 1024 * 1024',
     "TIMESTAMP_PATTERN = re.compile(",
     "backup_directory.glob('economy-pre-*')",
+    "with closing(sqlite3.connect(",
+    "if hasattr(os, 'chown'):",
+    "if os.name == 'nt':",
   ]) requireText(files.backupTool, text);
 
   for (const text of [
@@ -85,6 +89,8 @@ if (failures.length === 0) {
     '解压后的 `auto_vacuum` 必须保持 `INCREMENTAL`',
     '最多保留最近 5 个迁移族',
     '至少为预计有效数据两倍再加 512 MiB',
+    '删除临时 SQLite 前显式关闭全部连接',
+    'Windows 本地行为验证与 Linux 正式部署共用同一实现',
   ]) requireText(files.design, text);
 }
 

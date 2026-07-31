@@ -112,6 +112,8 @@ for (const text of [
   '本金发行与等额负债同步发生',
   '净资产',
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
+for (const text of ['固定日利率', '每日固定 1%', '预计 10% 周扣除']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
+for (const text of ['每日固定 1%', '贷款利息池优先支付', '补贴发行']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
 for (const text of ['抵押数量必须继续计入当前或下一周期生产能力', '可转让数量', 'mortgagedCount']) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 for (const text of ['| 银行 | `bank` | `BankPage`', '玩家导航固定为九项', '资产总览', '存款账户', '额度评估']) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 for (const text of ['`banking.js`', '世界版本 17', '客户端状态版本 20', '/api/game/bank/deposits', '银行截止时间']) requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', text);
@@ -132,6 +134,11 @@ requireText('bank-runtime-test.html', '/tests/browser/bank-runtime-harness.tsx')
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '固定存款日利率为每日 1%，固定存款日利率为每日 1%');
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '每周 10% 的资金扣除只适用于完整活跃周。每周 10% 的资金扣除只适用于完整活跃周。');
+for (const path of ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md']) {
+  forbidText(path, '每日最高收益率 0.25%');
+  forbidText(path, '不承诺固定收益');
+  forbidText(path, '没有利息池时收益为 0');
+}
 forbidText('server/src/banking.js', 'setInterval(');
 forbidText('server/src/banking.js', 'depositCredits += Math.ceil');
 forbidText('src/pages/BankPage.tsx', '领取利息');

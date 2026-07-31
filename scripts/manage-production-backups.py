@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import datetime as dt
 import gzip
 import hashlib
@@ -178,6 +179,8 @@ def _verify_gzip(path: Path, expected_sha256: str, expected_size: int) -> None:
 
 
 def _fsync_directory(path: Path) -> None:
+    if os.name == 'nt':
+        return
     descriptor = os.open(path, os.O_RDONLY)
     try:
         os.fsync(descriptor)
@@ -204,7 +207,7 @@ def create_world_backup(args: argparse.Namespace) -> dict[str, Any]:
         }
 
     database_stat = database_path.stat()
-    with sqlite3.connect(database_path, isolation_level=None, timeout=60) as source:
+    with closing(sqlite3.connect(database_path, isolation_level=None, timeout=60)) as source:
         source_world = _world_info(source)
         source_metrics = _database_metrics(source, database_path)
         if source_world['version'] >= args.target_world_version:
@@ -239,7 +242,7 @@ def create_world_backup(args: argparse.Namespace) -> dict[str, Any]:
             source.execute(f'VACUUM INTO {_quote_sql_string(str(compact_path))}')
 
             compact_uri = f'file:{compact_path.as_posix()}?mode=ro'
-            with sqlite3.connect(compact_uri, uri=True, timeout=60) as compact:
+            with closing(sqlite3.connect(compact_uri, uri=True, timeout=60)) as compact:
                 compact.execute('PRAGMA query_only = ON')
                 checks = _check_database(compact)
                 backup_world = _world_info(compact)
@@ -259,7 +262,8 @@ def create_world_backup(args: argparse.Namespace) -> dict[str, Any]:
             compact_sha256, compact_size = _sha256_file(compact_path)
             _compress_gzip(compact_path, compressed_path)
             _verify_gzip(compressed_path, compact_sha256, compact_size)
-            os.chown(compressed_path, database_stat.st_uid, database_stat.st_gid)
+            if hasattr(os, 'chown'):
+                os.chown(compressed_path, database_stat.st_uid, database_stat.st_gid)
             os.chmod(compressed_path, stat.S_IRUSR | stat.S_IWUSR)
             os.replace(compressed_path, final_path)
             _fsync_directory(backup_directory)

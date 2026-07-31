@@ -29,7 +29,6 @@ const files = [
   'scripts/configure-economy-registration-nginx.py',
   'scripts/test_configure_economy_registration_nginx.py',
   '.github/workflows/configure-registration-email.yml',
-  'README.md',
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   'docs/GIFT_CODE_AND_ADMIN_DESIGN.md',
@@ -167,12 +166,6 @@ for (const text of [
   '已注册时直接提示登录且不启动倒计时、不创建验证码记录、不发送邮件',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 forbidText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '资料、偏好、邀请、礼品、退出和重置');
-
-for (const text of [
-  '发送验证码前必须先通过主页账号服务仅限回环的邮箱存在性接口查重',
-  '不创建验证码记录，也不调用 Resend',
-  '注册完成后不能补填',
-]) requireText('README.md', text);
 
 for (const text of [
   'ECONOMY_REGISTRATION_SECRET_FILE',

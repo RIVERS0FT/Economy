@@ -78,7 +78,6 @@ const requiredFiles = [
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
   'docs/README.md',
-  'README.md',
   'package.json',
 ];
 requiredFiles.forEach(requireFile);
@@ -146,7 +145,6 @@ if (failures.length === 0) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '触摸关闭后必须恢复为仅由工厂运行状态决定的基础视觉');
   requireText('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md', '触摸关闭悬浮框后不得残留悬停、按压或焦点选中视觉');
   requireText('docs/README.md', '输入方式、共享交互表面');
-  requireText('README.md', '全局输入方式由最近一次有效输入动态决定');
 
   for (const text of [
     'Input.dispatchTouchEvent',

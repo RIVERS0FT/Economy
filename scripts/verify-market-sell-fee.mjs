@@ -18,7 +18,6 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/types.ts',
   'src/utils/localActivityStore.ts',
   'src/pages/MarketPage.tsx',
-  'README.md',
   'docs/README.md',
   'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
   'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
@@ -59,7 +58,6 @@ for (const text of ['预计手续费（累计成交额的 1%）', '预计到账'
 }
 
 for (const [path, text] of [
-  ['README.md', '按单张卖单累计成交总额精确收取 1% 手续费'],
   ['docs/README.md', '统一订单簿玩家卖出手续费'],
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '不设最低手续费'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '累计成交总额精确计算'],

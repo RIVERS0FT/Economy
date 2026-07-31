@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import contextlib
 import datetime as dt
-import fcntl
 import hashlib
 import json
 import os
@@ -17,6 +16,14 @@ import time
 import urllib.request
 from pathlib import Path
 from typing import Any, Iterator
+
+try:
+    import fcntl
+except ModuleNotFoundError:
+    if os.name != 'nt':
+        raise
+    fcntl = None
+    import msvcrt
 
 SERVICE_NAME = 'riversoft-economy-api.service'
 DEFAULT_DATABASE = Path('/var/lib/riversoft-economy/economy.sqlite')
@@ -72,11 +79,23 @@ def _wait_for_health(url: str, timeout_seconds: int = 45) -> None:
 def _exclusive_lock(path: Path) -> Iterator[None]:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('a+', encoding='utf-8') as handle:
-        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        else:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write('\0')
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
         try:
             yield
         finally:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            if fcntl is not None:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            else:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def _connect(path: Path, *, readonly: bool = False, timeout: float = 60.0) -> sqlite3.Connection:
@@ -238,6 +257,8 @@ def _checkpoint(connection: sqlite3.Connection) -> dict[str, int]:
 
 
 def _fsync_directory(path: Path) -> None:
+    if os.name == 'nt':
+        return
     descriptor = os.open(path, os.O_RDONLY)
     try:
         os.fsync(descriptor)
@@ -246,7 +267,8 @@ def _fsync_directory(path: Path) -> None:
 
 
 def _preserve_stat(path: Path, original_stat: os.stat_result) -> None:
-    os.chown(path, original_stat.st_uid, original_stat.st_gid)
+    if hasattr(os, 'chown'):
+        os.chown(path, original_stat.st_uid, original_stat.st_gid)
     os.chmod(path, stat.S_IMODE(original_stat.st_mode))
 
 
@@ -268,7 +290,7 @@ def _vacuum_into(connection: sqlite3.Connection, target_path: Path) -> None:
 
 
 def _configure_incremental(database_path: Path) -> None:
-    with _connect(database_path) as connection:
+    with contextlib.closing(_connect(database_path)) as connection:
         connection.execute('PRAGMA journal_mode = DELETE')
         connection.execute('PRAGMA auto_vacuum = INCREMENTAL')
         connection.execute('VACUUM')
@@ -329,7 +351,7 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
                 raise RuntimeError('ECONOMY_DATABASE_SERVICE_DID_NOT_STOP')
 
         try:
-            with _connect(database_path) as source:
+            with contextlib.closing(_connect(database_path)) as source:
                 checkpoint = _checkpoint(source)
                 checks_before = _check_database(source)
                 _assert_declared_primary_keys(source)
@@ -343,7 +365,7 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
                 _vacuum_into(source, stage_path)
 
             _configure_incremental(stage_path)
-            with _connect(stage_path, readonly=True) as stage:
+            with contextlib.closing(_connect(stage_path, readonly=True)) as stage:
                 checks_stage = _check_database(stage)
                 stage_metrics = _database_metrics(stage, stage_path)
                 stage_fingerprint = _database_fingerprint(stage)
@@ -357,7 +379,8 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
                 )
 
             backup_directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-            os.chown(backup_directory, original_stat.st_uid, original_stat.st_gid)
+            if hasattr(os, 'chown'):
+                os.chown(backup_directory, original_stat.st_uid, original_stat.st_gid)
             os.chmod(backup_directory, 0o700)
 
             for suffix in ('-wal', '-shm'):
@@ -374,7 +397,7 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
             _preserve_stat(backup_path, original_stat)
             _fsync_directory(database_path.parent)
 
-            with _connect(database_path, readonly=True) as current:
+            with contextlib.closing(_connect(database_path, readonly=True)) as current:
                 checks_prestart = _check_database(current)
                 prestart_metrics = _database_metrics(current, database_path)
                 prestart_fingerprint = _database_fingerprint(current)
@@ -387,7 +410,7 @@ def migrate_incremental(args: argparse.Namespace) -> dict[str, Any]:
                 service_stopped = False
                 _wait_for_health(args.health_url, args.health_timeout_seconds)
 
-            with _connect(database_path, readonly=True) as current:
+            with contextlib.closing(_connect(database_path, readonly=True)) as current:
                 checks_after = _check_database(current)
                 after_metrics = _database_metrics(current, database_path)
                 after_fingerprint = _database_fingerprint(current)
@@ -456,7 +479,7 @@ def maintain_incremental(args: argparse.Namespace) -> dict[str, Any]:
         raise FileNotFoundError(f'ECONOMY_DATABASE_NOT_FOUND: {database_path}')
 
     with _exclusive_lock(lock_path):
-        with _connect(database_path, readonly=True) as readonly:
+        with contextlib.closing(_connect(database_path, readonly=True)) as readonly:
             before = _database_metrics(readonly, database_path)
             _check_database(readonly)
         if before['autoVacuum'] != INCREMENTAL_MODE:
@@ -487,7 +510,7 @@ def maintain_incremental(args: argparse.Namespace) -> dict[str, Any]:
 
         batches: list[dict[str, int]] = []
         try:
-            with _connect(database_path) as connection:
+            with contextlib.closing(_connect(database_path)) as connection:
                 checkpoint_before = _checkpoint(connection)
                 for index in range(args.max_batches):
                     free_before = int(_single(connection, 'PRAGMA freelist_count') or 0)
@@ -512,7 +535,7 @@ def maintain_incremental(args: argparse.Namespace) -> dict[str, Any]:
                 service_stopped = False
                 _wait_for_health(args.health_url, args.health_timeout_seconds)
 
-            with _connect(database_path, readonly=True) as readonly:
+            with contextlib.closing(_connect(database_path, readonly=True)) as readonly:
                 after = _database_metrics(readonly, database_path)
                 _check_database(readonly)
             return {

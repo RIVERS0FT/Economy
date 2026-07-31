@@ -351,7 +351,7 @@ hasDownstreamRecipe = 是否存在把该商品作为输入的正式配方
 
 ### 5.10 状态、订单与迁移
 
-权威状态使用 `marketDemand.modelVersion = 12`、`populationEconomy.modelVersion = 6`、`moneyPrecision.version = 2` 和世界版本 19。系统商品订单继续使用统一资产订单结构：
+权威状态使用 `marketDemand.modelVersion = 12`、`populationEconomy.modelVersion = 6` 和 `moneyPrecision.version = 2`。市场需求模型 12 随世界版本 19 引入；当前世界已迁移至版本 21。系统商品订单继续使用统一资产订单结构：
 
 - `ownerType = 'population'`：仅为持久化兼容标识；
 - `ownerName = '食品市场需求' | '家庭消费市场需求'`：仅为需求组兼容名称，消费与储备角色不得据此判断；

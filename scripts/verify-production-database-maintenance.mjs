@@ -48,6 +48,12 @@ if (failures.length === 0) {
     "VACUUM INTO",
     "PRAGMA wal_checkpoint(TRUNCATE)",
     "ECONOMY_DATABASE_FINGERPRINT_MISMATCH",
+    "import msvcrt",
+    "msvcrt.locking(",
+    "fcntl.flock(",
+    "contextlib.closing(_connect(",
+    "if hasattr(os, 'chown'):",
+    "if os.name == 'nt':",
     "minimum-reclaimable-bytes",
     "pages-per-batch",
   ]) requireText(maintenancePath, text);

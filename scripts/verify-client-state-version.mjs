@@ -47,7 +47,6 @@ if (existsSync('shared/economy-state-version.js')) {
   fail('不得恢复根目录平行客户端状态版本模块');
 }
 
-requireCurrentVersion('README.md', /客户端状态版本：`(\d+)`/, '客户端状态版本');
 requireCurrentVersion('docs/README.md', /> 客户端状态版本：(\d+)/, '客户端状态版本');
 requireCurrentVersion(
   'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',

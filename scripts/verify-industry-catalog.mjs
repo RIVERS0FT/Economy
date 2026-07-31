@@ -140,7 +140,6 @@ assert.equal(existsSync('src/components/icons/ProductIcons.tsx'), true);
 for (const id of expectedProducts) assert.match(iconSource, new RegExp(`case '${id}':`), `${id} 缺少显式 SVG 图标`);
 
 for (const [path, texts] of [
-  ['README.md', ['当前目录共 31 种商品和 21 种工厂类型', '`steelworks` ID 永久保留', '机械+电子产品', 'inputs[]']],
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '当前基线为 31 种商品和 21 种工厂类型',
     'C1=1、C2=3、C3=6、C4=6、C5=8、C6=10、C7=12',

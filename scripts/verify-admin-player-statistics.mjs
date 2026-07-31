@@ -104,7 +104,7 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`lastPlayerScaleBudget` 与 `lastInventoryBoost`',
 ]);
 requireText('docs/README.md', ['管理员玩家运营统计']);
-requireText('README.md', ['管理员“玩家”分区提供 7／30／90 日成功经济写操作']);
+requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['7／30／90 日', '成功经济写操作', '精确日活动覆盖起点']);
 requireText('package.json', ['verify:admin-player-statistics']);
 
 if (failures.length) {

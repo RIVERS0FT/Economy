@@ -186,7 +186,6 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['README.md', ['市场需求模型版本：`12`', '三类人口使用真实余额', '奢靡、繁荣、正常、拮据、生存五档', '稳定需求补充', '人口消费成交不再发行普通货币', '双向报价锚点', '零成交时按 0.75%', '参考价缺口 5%', '单周期最多参考价 2%', '只恢复 2.5% 缺口', '每周期最多追涨 0.5%']],
   ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：12', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.75%', '参考价缺口的 5%', '最多为参考价的 2%', '只恢复 2.5% 缺口', '当前报价锚点上追涨 0.5%']],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：12', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 6', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 12', '人口消费不得发行普通货币']],
