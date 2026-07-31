@@ -2,7 +2,7 @@
 
 > 状态：当前服务器、API、持久化和部署基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-07-29
+> 更新时间：2026-07-31
 > 客户端状态版本：24
 > 世界状态版本：21
 > 市场需求模型版本：12
@@ -444,8 +444,19 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - `tests/stress/accounts.json` 是压力测试普通玩家身份的唯一仓库记录，固定保存 24 个槽位 `stress-player-01`～`stress-player-24` 及对应 `economy-stress-01@riversoft.top`～`economy-stress-24@riversoft.top` 邮箱。
 - 这些账号只需在主页账号服务中预置一次；后续压力测试必须按槽位复用，不得默认调用注册接口、生成随机邮箱或在每轮测试后删除账号。需要超过 24 个并发身份时，必须先扩展清单、验证唯一性并完成一次性预置。
 - 仓库不得保存密码、Cookie、Token、Session 或管理员身份。运行时密码只从 `ECONOMY_STRESS_TEST_PASSWORD` 环境变量读取；测试日志、错误输出和 CI artifact 均不得打印该值。
-- `tests/stress/loadAccounts.mjs` 是 Node 压力测试脚本读取账号池的统一入口，支持按稳定顺序、`offset` 和 `limit` 选择槽位。账号池只提供登录身份，不改变经济资产、封禁、邀请或排行榜规则。
+- `tests/stress/loadAccounts.mjs` 是 Node 压力测试脚本读取账号池的统一入口，支持按稳定顺序、`offset` 和 `limit` 选择槽位；非法或越过 24 个槽位的范围必须直接失败，不得静默裁剪为空或换用其他账号。账号池只提供登录身份，不改变经济资产、封禁、邀请或排行榜规则。
 - 固定账号必须保持普通玩家角色，不得借压力测试账号绕过主页账号认证、同 IP 规则、写操作幂等或 Economy 服务器资产校验。
+
+压力测试执行器固定为 `tests/stress/run.mjs`，使用 Node 24 原生 HTTP 能力、每账号独立 Cookie、全局修订号和六分区哈希模拟真实客户端。每名虚拟玩家的状态请求必须串行，写操作不得自动重试；动作确认后立即补拉状态，并断言全局修订号和 `serverNow` 不倒退、初次状态包含六个完整分区、相同幂等键返回相同确认。测试必须分别统计每个归一化路由的请求数、RPS、响应字节、状态码、超时、5xx 和 p50／p90／p95／p99／最大延迟，使用版本化 `budgets.json` 决定退出状态。
+
+测试环境分为以下两类：
+
+- 隔离环境使用模拟统一账号服务、临时 SQLite 和真实 Economy API 进程，允许执行 `mixed`／`soak` 写入场景；结束后必须关闭子进程并删除临时数据库。PR 和 `npm run build` 只运行短时隔离行为测试，证明执行器、状态协议、幂等和安全门禁正确，不把共享 CI 机器延迟作为正式容量基线。
+- 远程 staging 必须由受保护的 `economy-stress` GitHub Environment 提供固定目标和密码，可以执行完整写压测，但目标不得解析为生产域名。生产环境只允许 `smoke`／`poll`，必须使用明确确认词、至少 3 秒轮询、最多 5 分钟，并且固定账号必须已经完成 Economy 建档；生产模式不得调用游戏写操作、初始化会话、注册、管理员、礼品码、封禁或数据库维护接口。
+
+正式场景为 `smoke`、`poll`、`burst`、`mixed` 和 `soak`：`smoke` 验证登录与完整／增量状态，`poll` 模拟正常轮询，`burst` 验证隔离环境冷状态尖峰，`mixed` 在隔离环境混合状态读取、工作动作、动作补拉和幂等重放，`soak` 长时间验证延迟、SQLite／WAL 与错误是否持续增长。未专门声明限流场景时，超时、5xx、非预期 4xx 和 429 必须为零。
+
+`.github/workflows/stress.yml` 是唯一完整压力测试工作流。每周运行一次五分钟隔离 `poll`，人工运行可选择目标、场景、1～24 个槽位、最长一小时和轮询间隔；同一目标不得并行压测。成功或失败都把脱敏 JSON 与 Markdown 报告写入 Job Summary 并作为 14 天 Artifact 保存，报告只记录槽位范围，不得记录邮箱、密码、Cookie、Token、Session 或请求正文。完整压力测试不得绑定到每个 PR 或主部署；性能预算调整必须依据至少三次同环境基线并作为独立审查修改。
 
 ## 10. 防回退
 
@@ -472,6 +483,7 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 永久保留失效验证码、让操作限流 Map 无边界增长、恢复浮动依赖或删除依赖锁；
 - 删除 CI 或主部署中的 Chromium 浏览器运行时测试、localStorage 拒绝访问覆盖或顶层错误边界；
 - 压力测试重新随机注册账号、把测试账号密码或会话写入仓库、让账号池包含管理员身份，或绕过 `tests/stress/accounts.json` 与 `loadAccounts.mjs` 的固定槽位；
+- 对生产环境执行经济写入、初始化未建档压力账号、使用低于 3 秒的生产轮询、允许任意远程目标、自动重试写操作、并行使用同一玩家状态请求、忽略修订号／`serverNow` 倒退、把 GitHub 共享 Runner 延迟直接写成正式容量基线，或让压力测试失败仍以零退出码结束；
 - 恢复与 CI 或 Deploy 重复执行完整构建的独立 `web-build.yml`、关闭同一 PR 旧运行自动取消，或在成功时长期上传浏览器测试 artifact；
 - 删除游戏 JSON gzip；
 - 让任何模块绕过 `domain.js` 直接导入 `domain-core.js`；
