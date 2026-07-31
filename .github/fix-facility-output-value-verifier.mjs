@@ -12,8 +12,9 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8');`;
 const after = `import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import * as ts from 'typescript';
+import * as tsModule from 'typescript';
 
+const ts = tsModule.default ?? tsModule;
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 
