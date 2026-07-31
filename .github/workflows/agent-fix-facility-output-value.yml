@@ -1,0 +1,90 @@
+name: Apply facility output value fix
+
+on:
+  push:
+    branches:
+      - agent/fix-facility-output-value
+    paths:
+      - .github/fix-facility-output-value.mjs
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out fix branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply scoped fix
+        run: |
+          set -o pipefail
+          node .github/fix-facility-output-value.mjs 2>&1 | tee facility-value-fix.log
+
+      - name: Remove temporary files
+        run: rm -f .github/fix-facility-output-value.mjs .github/workflows/agent-fix-facility-output-value.yml
+
+      - name: Install dependencies
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee -a facility-value-fix.log
+
+      - name: Verify focused calculation
+        run: |
+          set -o pipefail
+          node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs 2>&1 | tee -a facility-value-fix.log
+
+      - name: Run full build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee -a facility-value-fix.log
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify production page runtime
+        run: |
+          set -o pipefail
+          npx playwright test tests/browser/production-status-summary.spec.ts 2>&1 | tee -a facility-value-fix.log
+
+      - name: Commit verified fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/utils/recipeProfitAnalysis.ts \
+            scripts/verify-recipe-profit-analysis.mjs \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            tests/browser/runtime-harness.tsx \
+            tests/browser/production-status-summary.spec.ts
+          git add -A .github
+          git commit -m "Fix decimal facility output value calculation"
+          git push origin HEAD
+
+      - name: Report safe failure log
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: "__PR_NUMBER__"
+        run: |
+          {
+            echo '工厂产值修复自动化失败，以下为最后 180 行安全日志：'
+            echo
+            echo '```text'
+            tail -n 180 facility-value-fix.log 2>/dev/null || echo '补丁应用前失败，未生成日志。'
+            echo '```'
+          } > /tmp/facility-value-failure.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/facility-value-failure.md
