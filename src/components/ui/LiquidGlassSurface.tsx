@@ -22,7 +22,8 @@ interface LiquidGlassSurfaceProps {
 
 const STATIC_MOUSE_POSITION = { x: 0, y: 0 };
 const STATIC_MOUSE_OFFSET = { x: 0, y: 0 };
-const GLOBAL_OVER_LIGHT = true;
+// Every production surface shares the authentication card's floating-glass optics.
+const GLOBAL_OVER_LIGHT = false;
 
 const DESKTOP_STATUS_GLASS = {
   displacementScale: 70,

@@ -1,15 +1,11 @@
 /* liquid-glass-react is the only liquid-glass renderer. This stylesheet owns
- * geometry, sizing, content layout, clipping, minimum contrast and the
- * project status-bar outline. It must not recreate blur, refraction or
- * chromatic aberration in CSS. Status bars suppress upstream border highlights;
- * authentication surfaces retain the official full-area over-light tint and
- * upstream glass shadow. */
+ * geometry, sizing, content layout, clipping, shared floating-card optics and
+ * minimum contrast. It must not recreate blur, refraction or chromatic
+ * aberration in CSS. Authentication, status and navigation surfaces all keep
+ * transparent hosts, official highlights and the upstream glass shadow. */
 :root {
   --desktop-asset-bar-height: 76px;
-  --liquid-glass-contrast: rgba(194, 231, 214, 0.06);
-  --liquid-glass-contrast-strong: rgba(9, 25, 18, 0.9);
   --liquid-glass-auth-fallback: rgba(7, 20, 14, 0.94);
-  --liquid-glass-structure-border: rgba(232, 255, 244, 0.3);
 }
 
 .asset-bar,
@@ -33,7 +29,7 @@
   min-height: 0;
   overflow: hidden;
   border-radius: inherit;
-  background: var(--liquid-glass-contrast);
+  background: transparent;
 }
 
 .liquid-glass-surface > * {
@@ -108,15 +104,9 @@
   pointer-events: auto;
 }
 
-.liquid-glass-surface--desktopStatusBar .glass__warp {
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-}
-
+.liquid-glass-surface--desktopStatusBar .glass__warp,
 .liquid-glass-surface--mobileStatusBar .glass__warp,
-.liquid-glass-surface--mobileNavigation .glass__warp {
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-}
-
+.liquid-glass-surface--mobileNavigation .glass__warp,
 .liquid-glass-surface--desktopAuthCard .glass__warp,
 .liquid-glass-surface--mobileAuthCard .glass__warp {
   -webkit-backdrop-filter: blur(4px) saturate(140%);
@@ -149,137 +139,82 @@
 .liquid-glass-surface--desktopAuthCard,
 .liquid-glass-surface--mobileAuthCard {
   box-sizing: border-box;
-  background: var(--liquid-glass-contrast);
-}
-
-.liquid-glass-surface--desktopAuthCard,
-.liquid-glass-surface--mobileAuthCard {
   border: 0;
   background: transparent;
   box-shadow: none;
 }
 
-.liquid-glass-surface--desktopStatusBar,
-.liquid-glass-surface--mobileStatusBar {
-  border: 0;
-}
-
-.liquid-glass-surface--mobileNavigation {
-  border: 1px solid var(--liquid-glass-structure-border);
-}
-
 .liquid-glass-surface--desktopStatusBar::after,
-.liquid-glass-surface--mobileStatusBar::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  box-sizing: border-box;
-  border: 1px solid var(--liquid-glass-structure-border);
-  border-radius: inherit;
-  pointer-events: none;
-}
-
+.liquid-glass-surface--mobileStatusBar::after,
+.liquid-glass-surface--mobileNavigation::after,
 .liquid-glass-surface--desktopAuthCard::after,
 .liquid-glass-surface--mobileAuthCard::after {
   content: none;
 }
 
-.liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect) {
-  display: block !important;
-  visibility: visible !important;
-  pointer-events: none !important;
-  box-sizing: border-box !important;
-  background: #000 !important;
-}
-
-.liquid-glass-surface[data-liquid-glass-over-light="true"]:not(.liquid-glass-surface--desktopAuthCard):not(.liquid-glass-surface--mobileAuthCard) > div:not(.liquid-glass-surface__effect) {
-  padding: 1.5px !important;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-}
-
-.liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect):first-of-type {
-  opacity: 0.2 !important;
-}
-
-.liquid-glass-surface[data-liquid-glass-over-light="true"] > div:not(.liquid-glass-surface__effect):nth-of-type(2) {
-  opacity: 1 !important;
-  mix-blend-mode: overlay !important;
-}
-
 .liquid-glass-surface--desktopStatusBar > span,
-.liquid-glass-surface--mobileStatusBar > span {
-  display: none !important;
-  opacity: 0 !important;
-}
-
+.liquid-glass-surface--mobileStatusBar > span,
+.liquid-glass-surface--mobileNavigation > span,
 .liquid-glass-surface--desktopAuthCard > span,
 .liquid-glass-surface--mobileAuthCard > span {
   display: block !important;
   visibility: visible !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  transition: none !important;
 }
 
+.asset-bar > .liquid-glass-surface--desktopStatusBar > .liquid-glass-surface__effect,
+.asset-bar > .liquid-glass-surface--mobileStatusBar > .liquid-glass-surface__effect,
+.mobile-bottom-navigation .liquid-glass-surface > .liquid-glass-surface__effect,
 .login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect,
 .login-card > .liquid-glass-surface--mobileAuthCard > .liquid-glass-surface__effect,
+.asset-bar > .liquid-glass-surface--desktopStatusBar > .liquid-glass-surface__effect > .glass,
+.asset-bar > .liquid-glass-surface--mobileStatusBar > .liquid-glass-surface__effect > .glass,
+.mobile-bottom-navigation .liquid-glass-surface > .liquid-glass-surface__effect > .glass,
 .login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect > .glass,
 .login-card > .liquid-glass-surface--mobileAuthCard > .liquid-glass-surface__effect > .glass {
   transition: none !important;
 }
 
+.asset-bar > .liquid-glass-surface--desktopStatusBar > .liquid-glass-surface__effect > .glass,
+.asset-bar > .liquid-glass-surface--mobileStatusBar > .liquid-glass-surface__effect > .glass,
+.mobile-bottom-navigation .liquid-glass-surface > .liquid-glass-surface__effect > .glass,
 .login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect > .glass,
 .login-card > .liquid-glass-surface--mobileAuthCard > .liquid-glass-surface__effect > .glass,
+.asset-bar > .liquid-glass-surface--desktopStatusBar > .liquid-glass-surface__effect > .glass > div,
+.asset-bar > .liquid-glass-surface--mobileStatusBar > .liquid-glass-surface__effect > .glass > div,
+.mobile-bottom-navigation .liquid-glass-surface > .liquid-glass-surface__effect > .glass > div,
 .login-card > .liquid-glass-surface--desktopAuthCard > .liquid-glass-surface__effect > .glass > div,
 .login-card > .liquid-glass-surface--mobileAuthCard > .liquid-glass-surface__effect > .glass > div {
   width: 100% !important;
   height: 100% !important;
 }
 
-.login-card > .liquid-glass-surface--desktopAuthCard > span,
-.login-card > .liquid-glass-surface--mobileAuthCard > span {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  box-sizing: border-box !important;
-  transform: none !important;
-  transition: none !important;
-}
-
-.login-card > .liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),
-.login-card > .liquid-glass-surface--mobileAuthCard > div:not(.liquid-glass-surface__effect) {
+.liquid-glass-surface--desktopStatusBar > div:not(.liquid-glass-surface__effect),
+.liquid-glass-surface--mobileStatusBar > div:not(.liquid-glass-surface__effect),
+.liquid-glass-surface--mobileNavigation > div:not(.liquid-glass-surface__effect),
+.liquid-glass-surface--desktopAuthCard > div:not(.liquid-glass-surface__effect),
+.liquid-glass-surface--mobileAuthCard > div:not(.liquid-glass-surface__effect) {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
   border-radius: inherit !important;
+  box-sizing: border-box !important;
   padding: 0 !important;
+  background: transparent !important;
   transform: none !important;
   transition: none !important;
   -webkit-mask: none !important;
   mask: none !important;
   -webkit-mask-composite: source-over !important;
   mask-composite: add !important;
-}
-
-.asset-bar > .liquid-glass-surface--desktopStatusBar .liquid-glass-surface__effect > .glass,
-.asset-bar > .liquid-glass-surface--mobileStatusBar .liquid-glass-surface__effect > .glass {
-  box-shadow: none !important;
-}
-
-.liquid-glass-surface--mobileNavigation > span {
-  opacity: 0 !important;
-}
-
-.liquid-glass-surface--mobileNavigation > span:first-of-type {
-  opacity: 0.22 !important;
-  mix-blend-mode: screen !important;
+  pointer-events: none !important;
 }
 
 .asset-bar > .liquid-glass-surface {
@@ -304,15 +239,10 @@
 .asset-bar-item:last-child {
   min-width: 0;
   border: 0;
-  border-right: 1px solid rgba(225, 255, 235, 0.1);
   border-radius: 0;
   color: inherit;
   background: transparent;
   box-shadow: none;
-}
-
-.asset-bar-item:last-child {
-  border-right: 0;
 }
 
 .asset-bar-item .asset-bar-item-label {
@@ -373,13 +303,9 @@
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .liquid-glass-surface,
   .liquid-glass-surface--desktopStatusBar,
   .liquid-glass-surface--mobileStatusBar,
-  .liquid-glass-surface--mobileNavigation {
-    background: var(--liquid-glass-contrast-strong);
-  }
-
+  .liquid-glass-surface--mobileNavigation,
   .liquid-glass-surface--desktopAuthCard,
   .liquid-glass-surface--mobileAuthCard {
     background: var(--liquid-glass-auth-fallback);
