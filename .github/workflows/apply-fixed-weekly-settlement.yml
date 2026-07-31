@@ -66,6 +66,10 @@ jobs:
               content = content.replace(before, after)
           verifier.write_text(content)
 
+          settlement = Path('server/src/weekly-cash-settlement.js')
+          content = settlement.read_text().replace('safeMoney(player?.frozenCredits)', 'safeMoney(player.frozenCredits)')
+          settlement.write_text(content)
+
           design = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
           content = design.read_text()
           content = content.replace(
