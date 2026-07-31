@@ -1,0 +1,11 @@
+--- a/src/components/charts/PriceSparkline.tsx
++++ b/src/components/charts/PriceSparkline.tsx
+@@ -118,7 +118,7 @@ function volumeColor(direction: MarketHistoryBucket['direction']) {
+ }
+ 
+ export function buildMarketChartGeometry(width: number, rootFontSize: number, variant: MarketChartVariant): MarketChartGeometry {
+-  const safeWidth = Math.max(280, width || 960);
++  const safeWidth = Math.max(1, width || 960);
+   const scale = safeWidth / 960;
+   const compact = variant === 'compact';
+   const top = Math.max(compact ? 10 : 12, (compact ? 12 : 22) * scale);
