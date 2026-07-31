@@ -431,6 +431,8 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 
 `npm run build` 必须执行设计与架构验证、Nginx 测试、服务器语法和测试、TypeScript 与 Vite 构建。CI 和主部署都必须安装固定 Chromium 并执行 `npm run test:browser`；应用根节点必须由错误边界包裹，意外渲染异常只能显示可恢复页面，不得留下空白屏。主部署后验证 API 健康、静态网页、账号代理、注册代理、未登录 401、systemd 用户／端口／数据库、注册秘密和无重复路由；邀请与封禁专项验收必须覆盖分享链接即时奖励、手动邀请码唯一绑定、同 IP 异常上报不封禁、管理员手动封禁、423 响应、历史自动封禁幂等迁移和管理员解禁。邮件配置工作流另行验证运行进程实际环境和服务健康，并以 `deploy/economy-email` 独立状态防止主部署误报验证码可用。
 
+仓库所有文本文件必须通过根目录 `.gitattributes` 在所有平台统一为 LF，Git 索引与工作区均不得保留 CRLF 或混合换行；PNG、字体、压缩包、SQLite 等二进制资源必须标记为 `binary`，禁止参与文本转换。该规则不得依赖开发者的全局 `core.autocrlf` 配置；`npm run normalize:repository-text` 只允许转换 Git 已跟踪文本文件的换行字节，`scripts/verify-repository-text-format.mjs` 必须在其他架构校验前检查属性文件、索引行尾、工作区行尾和二进制属性，避免 Windows 本地源码精确匹配与 Linux CI 产生不同结果。
+
 ## 9.1 验证策略
 
 固定文案、禁止导入和样式入口可以使用源码字符串检查；交易估值、状态缓存快路径、资产比例、虚拟列表可视区间和本地日志持久化等行为不得仅靠 `includes()` 证明。核心规则必须至少由以下一种方式验证：服务器／浏览器行为测试、可直接执行的纯函数测试或 TypeScript 语法 token／AST 结构检查。注释、死代码或同名字符串不得让核心行为测试通过；变量改名和格式化也不得无意义破坏验证。
