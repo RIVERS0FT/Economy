@@ -1,0 +1,30 @@
+--- a/tests/browser/market-runtime-harness.tsx
++++ b/tests/browser/market-runtime-harness.tsx
+@@ -11,6 +11,7 @@
+ import type { TabId } from '../../src/config/navigation';
+ import { formatCurrency, formatNumber, formatRank } from '../../src/utils/formatters';
+ import '../../src/styles/globals.css';
++import '../../src/styles/charts.css';
+ import '../../src/styles/desktop-sidebar.css';
+ import '../../src/styles/viewport.css';
+ import '../../src/styles/scrollbars.css';
+--- a/tests/browser/bank-runtime-harness.tsx
++++ b/tests/browser/bank-runtime-harness.tsx
+@@ -3,6 +3,7 @@
+ import type { LoadedGameViewModel } from '../../src/app/gameViewModel';
+ import { BankPage } from '../../src/pages/BankPage';
+ import '../../src/styles/globals.css';
++import '../../src/styles/charts.css';
+ import '../../src/styles/card-system.css';
+ import '../../src/styles/icon-system.css';
+ import '../../src/styles/asset-overview.css';
+--- a/tests/browser/runtime-harness.tsx
++++ b/tests/browser/runtime-harness.tsx
+@@ -20,6 +20,7 @@
+ import { formatCurrency, formatNumber, formatRank } from '../../src/utils/formatters';
+ import { loadLocalActivity } from '../../src/utils/localActivityStore';
+ import '../../src/styles/globals.css';
++import '../../src/styles/charts.css';
+ import '../../src/styles/desktop-sidebar.css';
+ import '../../src/styles/viewport.css';
+ import '../../src/styles/card-system.css';
