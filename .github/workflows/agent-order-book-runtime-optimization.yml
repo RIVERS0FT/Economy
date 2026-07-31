@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   apply-and-verify:
@@ -28,28 +30,37 @@ jobs:
           cache: npm
 
       - name: Apply scoped optimization
-        run: node .agent/apply-orderbook-optimization.mjs
+        run: |
+          set -o pipefail
+          node .agent/apply-orderbook-optimization.mjs 2>&1 | tee orderbook-automation.log
 
       - name: Remove temporary application files
         run: rm -rf .agent
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee -a orderbook-automation.log
 
       - name: Run focused order book checks
         run: |
-          node --test \
-            server/test/order-book-runtime.test.js \
-            server/test/order-book-pruning.test.js \
-            server/test/order-matching.test.js \
-            server/test/market-action-latency.test.js \
-            server/test/order-book-integrity.test.js \
-            server/test/market-liquidity.test.js
-          npm run verify:order-matching-core
-          npm run verify:runtime-efficiency
+          set -o pipefail
+          {
+            node --test \
+              server/test/order-book-runtime.test.js \
+              server/test/order-book-pruning.test.js \
+              server/test/order-matching.test.js \
+              server/test/market-action-latency.test.js \
+              server/test/order-book-integrity.test.js \
+              server/test/market-liquidity.test.js
+            npm run verify:order-matching-core
+            npm run verify:runtime-efficiency
+          } 2>&1 | tee -a orderbook-automation.log
 
       - name: Run full build and server suite
-        run: npm run build
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee -a orderbook-automation.log
 
       - name: Commit verified source changes
         run: |
@@ -74,3 +85,17 @@ jobs:
           git add -A .agent
           git commit -m "Optimize unified order book runtime"
           git push origin HEAD
+
+      - name: Report safe failure log
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '订单簿优化自动化失败，以下为最后 180 行安全构建日志：'
+            echo
+            echo '```text'
+            tail -n 180 orderbook-automation.log 2>/dev/null || echo '补丁应用前失败，未生成日志。'
+            echo '```'
+          } > /tmp/orderbook-failure.md
+          gh pr comment 377 --body-file /tmp/orderbook-failure.md
