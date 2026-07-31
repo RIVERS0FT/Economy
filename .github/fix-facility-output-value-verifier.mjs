@@ -26,7 +26,7 @@ const executablePriceSource = priceFunctionMatch[0]
   .replace('export ', '')
   .replace('price: number', 'price');
 const isValidOrderPrice = new Function(
-  \\`\\${executablePriceSource}\\nreturn isValidOrderPrice;\\`,
+  executablePriceSource + '\\nreturn isValidOrderPrice;',
 )();
 
 const recipeSource = read('src/utils/recipeProfitAnalysis.ts')
@@ -42,9 +42,9 @@ const executableRecipeSource = ts.transpileModule(recipeSource, {
 }).outputText;
 const analyzeRecipeProfit = new Function(
   'isValidOrderPrice',
-  \\`\\${executableRecipeSource}\\nreturn analyzeRecipeProfit;\\`,
+  executableRecipeSource + '\\nreturn analyzeRecipeProfit;',
 )(isValidOrderPrice);`;
 
 if (!source.includes(before)) throw new Error(`${path} 缺少直接 TypeScript 导入片段`);
 writeFileSync(path, source.replace(before, after));
-console.log('利润验证脚本已改为内存转译，继续复用正式价格校验；重新触发验证。');
+console.log('利润验证脚本已改为内存转译，继续复用正式价格校验。');
