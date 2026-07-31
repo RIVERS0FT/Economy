@@ -102,7 +102,74 @@ jobs:
 
           settlement = Path('server/src/weekly-cash-settlement.js')
           content = settlement.read_text().replace('safeMoney(player?.frozenCredits)', 'safeMoney(player.frozenCredits)')
-          settlement.write_text(content)
+          old_login_settlement = '''export function settlePlayerWeeklyCashOnLogin(world, player, now = Date.now()) {
+            processWeeklyCashSettlementWorld(world, now);
+            const playerState = ensurePlayerWeeklyCashSettlement(player, now);
+            const currentPeriod = weeklyCashPeriodFor(now);
+            const hadPending = weeklySettlementLiability(player) > 0;
+            let result = collectPlayerWeeklyCashSettlement(world, player, now);
+            if (!hadPending
+              && !playerState.pendingSettlement
+              && playerState.lastLoginAt < currentPeriod.startsAt) {
+              createAssessment(world, player, 'returning_player', currentPeriod.key, now);
+              result = collectPlayerWeeklyCashSettlement(world, player, now);
+            }
+            playerState.lastLoginWeekKey = currentPeriod.key;
+            playerState.lastLoginAt = now;
+            return result;
+          }
+          '''
+          new_login_settlement = '''export function settlePlayerWeeklyCashOnLogin(world, player, now = Date.now()) {
+            processWeeklyCashSettlementWorld(world, now);
+            const playerState = ensurePlayerWeeklyCashSettlement(player, now);
+            const currentPeriod = weeklyCashPeriodFor(now);
+            const enteredNewLoginPeriod = playerState.lastLoginWeekKey !== currentPeriod.key
+              || playerState.lastLoginAt < currentPeriod.startsAt;
+            const hadPending = weeklySettlementLiability(player) > 0;
+            let result = collectPlayerWeeklyCashSettlement(world, player, now);
+            if (!hadPending
+              && !playerState.pendingSettlement
+              && enteredNewLoginPeriod) {
+              createAssessment(world, player, 'returning_player', currentPeriod.key, now);
+              result = collectPlayerWeeklyCashSettlement(world, player, now);
+            }
+            if (enteredNewLoginPeriod) {
+              playerState.lastLoginWeekKey = currentPeriod.key;
+              playerState.lastLoginAt = now;
+            }
+            return result;
+          }
+          '''
+          old_login_settlement = '\n'.join(line[10:] if line.startswith('          ') else line for line in old_login_settlement.splitlines()) + '\n'
+          new_login_settlement = '\n'.join(line[10:] if line.startswith('          ') else line for line in new_login_settlement.splitlines()) + '\n'
+          if old_login_settlement not in content:
+              raise RuntimeError('Missing weekly login settlement implementation')
+          settlement.write_text(content.replace(old_login_settlement, new_login_settlement))
+
+          domain = Path('server/src/domain.js')
+          content = domain.read_text()
+          if content.count('  migrated.version = 19;') != 1:
+              raise RuntimeError('Expected one legacy domain migration version assignment')
+          domain.write_text(content.replace('  migrated.version = 19;', '  migrated.version = 20;'))
+
+          banking_test = Path('server/test/banking.test.js')
+          content = banking_test.read_text()
+          before = """test('deposit interest preserves sub-cent carry until a full cent can be paid', () => {
+            const world = createWorld(now);
+            const player = ensurePlayer(world, alice, now);
+            const account = ensurePlayerBankAccount(player, now);
+          """
+          after = """test('deposit interest preserves sub-cent carry until a full cent can be paid', () => {
+            const world = createWorld(now);
+            const player = ensurePlayer(world, alice, now);
+            ensureBankWorld(world, now);
+            const account = ensurePlayerBankAccount(player, now);
+          """
+          before = '\n'.join(line[10:] if line.startswith('          ') else line for line in before.splitlines()) + '\n'
+          after = '\n'.join(line[10:] if line.startswith('          ') else line for line in after.splitlines()) + '\n'
+          if before not in content:
+              raise RuntimeError('Missing sub-cent carry test setup')
+          banking_test.write_text(content.replace(before, after))
 
           product_design = Path('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md')
           content = product_design.read_text()
