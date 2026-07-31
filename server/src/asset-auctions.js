@@ -213,7 +213,7 @@ export function migrateAssetAuctionWorld(world, now = Date.now()) {
   delete world.collectibleAuctions;
   delete world.collectibles;
   delete world.collectibleOwnershipHistory;
-  world.version = 19;
+  world.version = 20;
   return world;
 }
 

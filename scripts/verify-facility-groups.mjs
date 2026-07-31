@@ -55,7 +55,7 @@ for (const text of [
   "reason: 'warehouse_full'",
   "reason: 'insufficient_funds'",
   "reason: 'insufficient_input'",
-  'world.version = 19',
+  'world.version = 20',
   'FACILITY_STAFFING_RECOVERY_MS',
   'FACILITY_STAFFING_DECAY_MS',
   'projectStaffingRate',

@@ -61,10 +61,20 @@ for (const path of ['src/pages/MarketPage.tsx', 'src/pages/BankPage.tsx', 'src/p
   assert.match(read(path), /MoneyInput/);
 }
 
+assert.match(read('server/shared/economy-state-version.js'), /CURRENT_CLIENT_STATE_VERSION = 23/);
+assert.match(read('server/shared/economy-state-version.js'), /MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23/);
+assert.match(read('server/src/market-demand/catalog.js'), /MARKET_DEMAND_MODEL_VERSION = 12/);
+assert.match(read('server/src/storage.js'), /normalizeWorldMoneyPrecision/);
+assert.match(read('server/src/storage.js'), /world\.version = 20/);
+assert.match(read('server/src/population-economy.js'), /POPULATION_ECONOMY_VERSION = 6/);
+assert.match(read('server/src/market-sell-fee.js'), /MARKET_SELL_FEE_VERSION = 4/);
+
 const banking = read('server/src/banking.js');
 assert.match(banking, /BANKING_VERSION = 3/);
+assert.match(banking, /BANK_DAILY_INTEREST_RATE_BPS = 100/);
 assert.match(banking, /safePositiveMoney\(payload\.amount, safeNonNegativeMoney\(player\.credits\)\)/);
-assert.match(banking, /microsToInternalMoney\(shareMicros\)/);
+assert.match(banking, /calculateRateMoney\(eligible, BANK_DAILY_INTEREST_RATE_BPS/);
+assert.match(banking, /microsToInternalMoney\(fundedByPoolMicros\)/);
 assert.doesNotMatch(banking, /Math\.floor\(shareMicros \/ 10_000\) \* 10_000/);
 
 const contracts = read('server/src/contracts.js');

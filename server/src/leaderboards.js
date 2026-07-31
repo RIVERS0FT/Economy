@@ -3,6 +3,7 @@ import { processFacilityGroupWorld } from './facility-groups.js';
 import { processAssetAuctions } from './asset-auctions.js';
 import { ensureGemState } from './invitations.js';
 import { activeLoanLiability, ensurePlayerBankAccount } from './banking.js';
+import { weeklySettlementLiability } from './weekly-cash-settlement.js';
 
 export const LEADERBOARD_TIME_ZONE = 'Asia/Shanghai';
 export const LEADERBOARD_REWARDS = Object.freeze([50, 30, 20]);
@@ -74,6 +75,12 @@ function externalCreditsFor(player) {
     + safeNonNegativeInteger(stats.adminCreditsIssued);
 }
 
+function policyAdjustmentFor(player) {
+  const stats = playerStats(player);
+  return Number(stats.bankDepositInterestEarned || 0)
+    - Number(stats.weeklyCashSettlementBurned || 0);
+}
+
 function inventoryQuantity(player, productId) {
   const inventory = player.inventories?.[productId] || {};
   return safeNonNegativeInteger(inventory.available) + safeNonNegativeInteger(inventory.frozen);
@@ -90,7 +97,7 @@ export function operatingAssetsFor(player) {
     const facility = FACILITY_BY_ID.get(String(group.facilityTypeId || ''));
     return sum + (facility ? safeNonNegativeInteger(group.count) * facility.systemValue : 0);
   }, 0);
-  return cash + commodity + facilities - activeLoanLiability(player);
+  return cash + commodity + facilities - activeLoanLiability(player) - weeklySettlementLiability(player);
 }
 
 function recentTradePriceFor(world, kind, assetId) {
@@ -109,7 +116,7 @@ export function wealthAssetsFor(world, player) {
     sum + safeNonNegativeInteger(group.count)
       * recentTradePriceFor(world, 'facility', String(group.facilityTypeId || ''))
   ), 0);
-  return cash + commodity + facility - activeLoanLiability(player);
+  return cash + commodity + facility - activeLoanLiability(player) - weeklySettlementLiability(player);
 }
 
 function createEmptyPeriodState(period, partial) {
@@ -124,6 +131,7 @@ function createEmptyPeriodState(period, partial) {
     partial: Boolean(partial),
     openingAssets: {},
     openingExternalCredits: {},
+    openingPolicyAdjustments: {},
     production: {},
     trading: {},
     productionCheckpoints: {},
@@ -148,9 +156,14 @@ function ensurePlayerPeriodState(world, state, player) {
   if (!Object.hasOwn(state.openingAssets, userId)) {
     state.openingAssets[userId] = operatingAssetsFor(player);
     state.openingExternalCredits[userId] = externalCreditsFor(player);
+    state.openingPolicyAdjustments[userId] = policyAdjustmentFor(player);
     state.production[userId] = { score: 0, quantity: 0 };
     state.trading[userId] = { score: 0, tradeCount: 0, buyers: {} };
     ensureProductionCheckpoint(state, player);
+  }
+  state.openingPolicyAdjustments ||= {};
+  if (!Object.hasOwn(state.openingPolicyAdjustments, userId)) {
+    state.openingPolicyAdjustments[userId] = policyAdjustmentFor(player);
   }
   state.production[userId] ||= { score: 0, quantity: 0 };
   state.trading[userId] ||= { score: 0, tradeCount: 0, buyers: {} };
@@ -324,7 +337,8 @@ function internalRowsFor(world, state, boardId) {
     if (boardId === 'growth') {
       const currentAssets = operatingAssetsFor(player);
       const externalDelta = externalCreditsFor(player) - safeNonNegativeInteger(state.openingExternalCredits[userId]);
-      const score = currentAssets - (Number(state.openingAssets[userId]) || 0) - externalDelta;
+      const policyDelta = policyAdjustmentFor(player) - Number(state.openingPolicyAdjustments[userId] || 0);
+      const score = currentAssets - (Number(state.openingAssets[userId]) || 0) - externalDelta - policyDelta;
       return { ...common, score, secondary: currentAssets, tertiary: 0 };
     }
     if (boardId === 'production') {

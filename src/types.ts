@@ -243,6 +243,10 @@ export interface EconomyStats {
   bankPrincipalRepaid?: number;
   bankInterestPaid?: number;
   bankDepositInterestEarned?: number;
+  bankDepositInterestSubsidyIssued?: number;
+  weeklyCashSettlementAssessed?: number;
+  weeklyCashSettlementCollected?: number;
+  weeklyCashSettlementBurned?: number;
   bankDefaults?: number;
   bankFacilitiesSeized?: number;
   invitationGemsIssued: number;
@@ -363,13 +367,49 @@ export interface BankAccountState {
   availableCollateral: BankCollateralAvailability[];
 }
 
+export interface WeeklyCashSettlementRecord {
+  id: string;
+  type: 'active_week' | 'returning_player';
+  weekKey: string;
+  closingCurrencyAssets: number;
+  loanLiability: number;
+  priorSettlementLiability: number;
+  taxBase: number;
+  rateBps: number;
+  amountDue: number;
+  amountCollected: number;
+  amountOutstanding: number;
+  assessedAt: number;
+  appliedAt: number | null;
+}
+
+export interface WeeklyCashSettlementState {
+  version: 1;
+  timeZone: 'Asia/Shanghai';
+  rateBps: number;
+  currentWeekKey: string;
+  weekStartsAt: number;
+  weekEndsAt: number;
+  nextCloseAt: number;
+  interestActive: boolean;
+  activatedAt: number | null;
+  interestEligibleFrom: number | null;
+  estimatedTaxBase: number;
+  estimatedAssessment: number;
+  outstandingCredits: number;
+  pendingSettlement: WeeklyCashSettlementRecord | null;
+  lastSettlement: WeeklyCashSettlementRecord | null;
+}
+
 export interface BankSummaryState {
   nextInterestSettlementAt: number;
   lastDailyInterestCredits: number;
   lastDailyRatePpm: number;
   sevenDayAverageRatePpm: number;
   dailyInterestCapBps: number;
+  dailyInterestRateBps?: number;
   interestPoolCredits: number;
+  weeklyCashSettlement: WeeklyCashSettlementState;
   loanTermMs: number;
   loanGraceMs: number;
   baseLoanToValueBps: number;
@@ -401,7 +441,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 22;
+  version: 23;
   userId: number;
   playerName: string;
   registeredAt: number;

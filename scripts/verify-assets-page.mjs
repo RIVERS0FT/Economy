@@ -65,7 +65,7 @@ for (const text of [
   '<AssetOverviewPanel model={model} />',
   'className="bank-account-balance-strip"',
   'title="存款账户"',
-  'title="存款利息"',
+  'title="存款利息与周结算"',
   'title="工厂抵押贷款"',
   'title="银行记录"',
 ]) requireText(bankPath, text);
@@ -84,7 +84,7 @@ forbidText(navigationPath, "{ id: 'assets', label: '资产' }");
 requireText(navigationPath, "{ id: 'bank', label: '银行' }");
 for (const text of [
   '独立资产页面已经永久删除，资产总览唯一归属银行页',
-  '页面顺序固定为“资产总览／存款账户与存款利息／工厂抵押贷款／银行记录”',
+  '页面顺序固定为“资产总览／存款账户与存款利息、周资金结算／工厂抵押贷款／银行记录”',
   '不得恢复独立资产页',
 ]) requireText(designPath, text);
 

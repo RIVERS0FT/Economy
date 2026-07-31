@@ -10,6 +10,7 @@ import {
   ensurePlayerBankAccount,
   processBankWorld,
 } from '../src/banking.js';
+import { activateWeeklyCashSettlement } from '../src/weekly-cash-settlement.js';
 import {
   applyFacilityGroupAction,
   createFacilityGroupClientState,
@@ -91,12 +92,12 @@ test('loan proceeds add matching liability and do not inflate wealth', () => {
   }, now + 1).ok, true);
   const after = createFacilityGroupClientState(world, alice.id, now + 1).assetSummary;
   assert.equal(player.credits, 200);
-  assert.equal(activeLoanLiability(player), 103);
+  assert.equal(activeLoanLiability(player), 104);
   assert.equal(after.grossAssetValue, before.grossAssetValue + 100);
-  assert.equal(after.totalAssets, before.totalAssets - 3);
+  assert.equal(after.totalAssets, before.totalAssets - 4);
 });
 
-test('deposit interest is paid only from realized borrower interest and new deposits wait a full day', () => {
+test('active-week deposit interest is fixed at one percent, pool-funded first, and new deposits wait a full day', () => {
   const world = createWorld(now);
   const borrower = ensurePlayer(world, alice, now);
   const depositor = ensurePlayer(world, bob, now);
@@ -107,6 +108,7 @@ test('deposit interest is paid only from realized borrower interest and new depo
   ensureBankWorld(world, now);
 
   assert.equal(applyBankAction(world, bob, 'bankDeposit', { amount: 400 }, now + 1).ok, true);
+  activateWeeklyCashSettlement(world, depositor, now + 1);
   assert.equal(applyBankAction(world, alice, 'bankBorrow', {
     amount: 100,
     collateral: [{ facilityTypeId: 'farm', quantity: 4 }],
@@ -115,19 +117,20 @@ test('deposit interest is paid only from realized borrower interest and new depo
     loanId: borrower.bankAccount.activeLoan.id,
     amount: 'all',
   }, now + 3).ok, true);
-  assert.equal(world.bank.totals.borrowerInterestReceived, 3);
-  assert.equal(world.bank.interestPoolMicros, 2_100_000);
-  assert.equal(world.populationEconomy.stats.bankingIncome, 0.6);
+  assert.equal(world.bank.totals.borrowerInterestReceived, 4);
+  assert.equal(world.bank.interestPoolMicros, 2_800_000);
+  assert.equal(world.populationEconomy.stats.bankingIncome, 0.8);
 
   const firstMidnight = bankPeriodFor(now).nextSettlementAt;
   processBankWorld(world, firstMidnight);
   assert.equal(depositor.bankAccount.depositCredits, 400, 'same-day deposit is not eligible');
-  assert.equal(world.bank.interestPoolMicros, 2_100_000);
 
   processBankWorld(world, firstMidnight + 24 * 60 * 60 * 1000);
-  assert.equal(depositor.bankAccount.depositCredits, 401);
-  assert.equal(depositor.bankAccount.totalDepositInterestEarned, 1);
-  assert.equal(world.bank.interestPoolMicros, 1_100_000);
+  assert.equal(depositor.bankAccount.depositCredits, 404);
+  assert.equal(depositor.bankAccount.totalDepositInterestEarned, 4);
+  assert.equal(world.bank.interestPoolMicros, 0);
+  assert.equal(world.bank.totals.depositorInterestFundedByPool, 2.8);
+  assert.equal(world.bank.totals.depositInterestSubsidyIssued, 1.2);
 });
 
 test('loan assessment exposes transparent collateral and rate inputs', () => {
@@ -141,7 +144,7 @@ test('loan assessment exposes transparent collateral and rate inputs', () => {
   const state = createBankClientState(world, player, now);
   assert.equal(state.bankAccount.availableCollateral[0].availableQuantity, 5);
   assert.equal(state.bankSummary.baseLoanToValueBps, 4_000);
-  assert.equal(state.bankSummary.dailyInterestCapBps, 25);
+  assert.equal(state.bankSummary.dailyInterestCapBps, 100);
 });
 
 
@@ -161,23 +164,22 @@ test('withdrawal lowers the daily minimum and re-deposit cannot restore same-day
   assert.equal(createBankClientState(world, player, now + 2).bankAccount.eligibleDepositCredits, 200);
 });
 
-test('deposit interest pays cent-level fractional credits without hidden player carry', () => {
+test('deposit interest credits exact six-decimal amounts without a cent reserve', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
+  ensureBankWorld(world, now);
   const account = ensurePlayerBankAccount(player, now);
-  account.depositCredits = 200;
-  account.dayOpeningDepositCredits = 200;
-  account.dayMinimumDepositCredits = 200;
-  const bank = ensureBankWorld(world, now);
-  bank.interestPoolMicros = 500_000;
-
+  account.depositCredits = 0.5;
+  account.dayOpeningDepositCredits = 0.5;
+  account.dayMinimumDepositCredits = 0.5;
   const firstMidnight = bankPeriodFor(now).nextSettlementAt;
+  activateWeeklyCashSettlement(world, player, firstMidnight - 24 * 60 * 60 * 1000 + 1);
+
   processBankWorld(world, firstMidnight);
-  assert.equal(account.depositCredits, 200.5);
+  assert.equal(account.depositCredits, 0.505);
   assert.equal(account.depositInterestCarryMicros, 0);
-  bank.interestPoolMicros += 500_000;
   processBankWorld(world, firstMidnight + 24 * 60 * 60 * 1000);
-  assert.equal(account.depositCredits, 201);
+  assert.equal(account.depositCredits, 0.51005);
   assert.equal(account.depositInterestCarryMicros, 0);
 });
 

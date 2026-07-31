@@ -45,6 +45,15 @@ import {
   migrateBankWorld,
   processBankWorld,
 } from './banking.js';
+import {
+  activateWeeklyCashSettlement,
+  collectPlayerWeeklyCashSettlement,
+  ensurePlayerWeeklyCashSettlement,
+  ensureWeeklyCashSettlementWorld,
+  playerNeedsWeeklyLoginSettlement,
+  processWeeklyCashSettlementWorld,
+  settlePlayerWeeklyCashOnLogin,
+} from './weekly-cash-settlement.js';
 import { createWorldDeadlinePlan } from './world-deadline-planner.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { normalizePlayerMoneyPayload, normalizeWorldMoneyPrecision } from './money.js';
@@ -494,17 +503,19 @@ export class EconomyStore {
   prepareWorldForStorage(world, now) {
     processDailyCheckInWorld(world, now);
     migrateBankWorld(world, now);
+    ensureWeeklyCashSettlementWorld(world, now);
     for (const player of Object.values(world.players || {})) {
       ensureWarehouse(player);
       ensureGemState(player);
       ensurePlayerBankAccount(player, now);
+      ensurePlayerWeeklyCashSettlement(player, now);
     }
     migrateAssetAuctionWorld(world, now);
     migrateFacilityGroupWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
     normalizeWorldMoneyPrecision(world);
-    world.version = 19;
+    world.version = 20;
     return world;
   }
 
@@ -579,6 +590,7 @@ export class EconomyStore {
     onGemReward: (reward) => this.recordGemLedgerEvent(reward),
   });
   processBankWorld(world, now);
+  processWeeklyCashSettlementWorld(world, now);
   if (this.scheduledProcessing) {
     this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
   } else {
@@ -604,6 +616,7 @@ export class EconomyStore {
       && this.worldCache
       && normalizedKnownRevision === this.worldCache.revision
       && (this.scheduledProcessing || now < this.nextWorldProcessingAt)
+      && !playerNeedsWeeklyLoginSettlement(this.worldCache.world.players?.[String(user.id)], now)
     ) {
       return { revision: normalizedKnownRevision, unchanged: true };
     }
@@ -620,9 +633,11 @@ export class EconomyStore {
       if (!this.scheduledProcessing || !playerWasPresent) {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });
       }
+      settlePlayerWeeklyCashOnLogin(world, world.players[playerId], now);
       ensureWarehouse(world.players[playerId]);
       ensureGemState(world.players[playerId]);
       ensurePlayerBankAccount(world.players[playerId], now);
+      ensurePlayerWeeklyCashSettlement(world.players[playerId], now);
       const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
       const unchanged = normalizedKnownRevision !== undefined && normalizedKnownRevision === nextRevision;
       if (unchanged) return { revision: nextRevision, unchanged: true };
@@ -753,6 +768,7 @@ export class EconomyStore {
       if (!this.scheduledProcessing || !playerWasPresent) {
         this.processWorldIfDue(world, now, Number(user.id), { force: !playerWasPresent });
       }
+      settlePlayerWeeklyCashOnLogin(world, player, now);
       this.saveWorldIfChanged(revision, world, now, stateJson);
       return this.gemEconomy.createShopSummary(player, now);
     });
@@ -776,7 +792,12 @@ export class EconomyStore {
       const player = ensurePlayer(world, user, now);
       ensureWarehouse(player);
       ensureGemState(player);
+      ensureBankWorld(world, now);
+      ensurePlayerBankAccount(player, now);
+      ensureWeeklyCashSettlementWorld(world, now);
+      ensurePlayerWeeklyCashSettlement(player, now);
       this.processWorldIfDue(world, now, Number(user.id), { force: true });
+      settlePlayerWeeklyCashOnLogin(world, player, now);
       const playerBeforeAction = structuredClone(world.players[String(user.id)]);
       let gameResult;
       if (action === 'checkIn') {
@@ -799,10 +820,15 @@ export class EconomyStore {
       if (action === 'accelerateFacilityConstruction' && gameResult?.ok) {
         this.gemEconomy.recordConstructionAcceleration(user.id, requestKey, gameResult, now);
       }
+      const activePlayer = world.players[String(user.id)];
+      collectPlayerWeeklyCashSettlement(world, activePlayer, now);
       if (gameResult?.ok && ECONOMIC_ACTIVITY_ACTIONS.has(action)) {
-        const activePlayer = world.players[String(user.id)];
         if (activePlayer && !isDeepStrictEqual(activePlayer, playerBeforeAction)) {
           activePlayer.lastEconomicActivityAt = now;
+          const activated = activateWeeklyCashSettlement(world, activePlayer, now);
+          if (activated) {
+            gameResult.message = String(gameResult.message || '') + '；本周已激活，存款从下一个自然日按每日 1% 计息，周末按资金净额生成 10% 结算';
+          }
         }
       }
       normalizeWorldMoneyPrecision(world);
@@ -811,6 +837,7 @@ export class EconomyStore {
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
       ensurePlayerBankAccount(world.players[String(user.id)], now);
+      ensurePlayerWeeklyCashSettlement(world.players[String(user.id)], now);
       const nextRevision = this.saveWorldIfChanged(revision, world, now, stateJson);
       const response = createActionAcknowledgement(gameResult, nextRevision);
       this.insertIdempotency.run(

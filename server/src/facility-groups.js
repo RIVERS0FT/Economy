@@ -14,6 +14,7 @@ import { closeOrderInOrderBook, countOpenOrdersForOwner, facilitySellQuantityFor
 import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
+import { weeklySettlementLiability } from './weekly-cash-settlement.js';
 import { ensureGemState } from './invitations.js';
 import { multiplyMoneyByInteger } from './money.js';
 
@@ -513,14 +514,14 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
     }
   }
 
-  world.version = 19;
+  world.version = 20;
   return world;
 }
 
 export function stripLegacyFacilityInstances(world) {
   for (const player of Object.values(world.players || {})) delete player.facilities;
   world.facilityListings = [];
-  world.version = 19;
+  world.version = 20;
   return world;
 }
 
@@ -1229,7 +1230,7 @@ function assetSummaryFor(world, player) {
   const commodityValue = availableCommodityValue + frozenCommodityValue;
   const facilityValue = availableFacilityValue + mortgagedFacilityValue + frozenFacilityValue;
   const grossAssetValue = cashValue + commodityValue + facilityValue;
-  const liabilityValue = activeLoanLiability(player);
+  const liabilityValue = activeLoanLiability(player) + weeklySettlementLiability(player);
   const netAssetValue = grossAssetValue - liabilityValue;
   const availableAssetValue = availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue - liabilityValue;
   const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue + mortgagedFacilityValue;

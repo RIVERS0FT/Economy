@@ -38,7 +38,7 @@ const forbidText = (path, text) => {
 if (failures.length === 0) {
   for (const text of [
     'manage-production-backups.py',
-    'backup-world --target-world-version 19',
+    'backup-world --target-world-version 20',
     'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
     'minimum_free_kb=$((1024 * 1024))',
     'ECONOMY_DEPLOY_INSUFFICIENT_DISK',

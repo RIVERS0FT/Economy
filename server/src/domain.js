@@ -172,7 +172,7 @@ export function createWorld(now = Date.now()) {
   marketDemand.initializeWorld(world, now);
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
-  world.version = 19;
+  world.version = 20;
   normalizeWorldMoneyPrecision(world);
   return world;
 }
@@ -220,7 +220,7 @@ export function migrateWorld(world, now = Date.now()) {
   if (needsOrderBookRepair) reconcileCommodityOrderBook(migrated, now);
   ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
-  migrated.version = 19;
+  migrated.version = 20;
   normalizeWorldMoneyPrecision(migrated);
   return migrated;
 }
