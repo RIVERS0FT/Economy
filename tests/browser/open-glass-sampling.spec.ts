@@ -8,7 +8,7 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
     ? { width: 1440, height: 900 }
     : { width: 390, height: 844 };
   await page.setViewportSize(viewport);
-  await page.goto(`/open-glass-sampling-test.html?surface=${surface}&mode=${mode}`);
+  await page.goto(`open-glass-sampling-test.html?surface=${surface}&mode=${mode}`);
 
   const shellSelector = surface === 'admin' ? '.admin-shell' : '.game-shell';
   await expect(page.locator(shellSelector)).toBeAttached();
