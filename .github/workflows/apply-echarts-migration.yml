@@ -34,12 +34,19 @@ jobs:
           base64 --decode /tmp/echarts-migration.patch.gz.b64 > /tmp/echarts-migration.patch.gz
           gzip --decompress --stdout /tmp/echarts-migration.patch.gz > /tmp/echarts-migration.patch
           echo "5958c064f95bd3321c204e1cca080db0327727ece4c31750e7db3558e2747328  /tmp/echarts-migration.patch" | sha256sum -c -
-          patch --dry-run -p1 < /tmp/echarts-migration.patch
+          awk '
+            /^diff -ruN / {
+              skip = index($0, "economy-base/.agent/echarts-migration-placeholder.txt") > 0 \
+                || index($0, "economy-base/.github/workflows/prepare-echarts-worktree.yml") > 0
+            }
+            !skip { print }
+          ' /tmp/echarts-migration.patch > /tmp/echarts-migration-code.patch
+          patch --batch --dry-run -p1 < /tmp/echarts-migration-code.patch
       - name: Apply migration
         shell: bash
         run: |
           set -euo pipefail
-          patch -p1 < /tmp/echarts-migration.patch
+          patch --batch -p1 < /tmp/echarts-migration-code.patch
           rm -rf .agent
           rm -f .github/workflows/prepare-echarts-worktree.yml
           rm -f .github/workflows/apply-echarts-migration.yml
