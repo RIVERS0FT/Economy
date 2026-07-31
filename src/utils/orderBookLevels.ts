@@ -7,6 +7,10 @@ export interface OrderBookLevel {
   orderCount: number;
 }
 
+function validOrderPrice(price: number) {
+  return Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8;
+}
+
 /**
  * Aggregate active orders into price levels for anonymous order-book display.
  *
@@ -25,8 +29,7 @@ export function buildOrderBookLevels(
       order.side !== side
       || !['open', 'partial'].includes(order.status)
       || order.remaining <= 0
-      || !Number.isInteger(order.price)
-      || order.price < 1
+      || !validOrderPrice(order.price)
     ) {
       continue;
     }
