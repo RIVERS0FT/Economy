@@ -12,7 +12,6 @@ const legacyIndustryStyles = read('src/styles/industry-system.css');
 const industry = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 const productionAlignmentDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md');
 const chrome = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
-const readme = read('README.md');
 
 for (const text of [
   '--desktop-page-top-offset: calc(',
@@ -125,6 +124,6 @@ for (const text of [
 ]) assert.equal(productionAlignmentDesign.includes(text), true, `生产对齐设计缺少: ${text}`);
 
 assert.equal(chrome.includes('页面顶部避让必须集中为 `--desktop-page-top-offset`'), true, '外壳设计缺少统一顶部避让规则');
-assert.equal(readme.includes('大于等于 1600px 时建设卡、两列工厂集群选择器和自然高度的当前详情卡紧凑排列'), true, 'README 缺少桌面生产布局摘要');
+assert.equal(industry.includes('大于等于 `1600px` 时使用紧凑三列'), true, '产业设计缺少桌面生产布局规则');
 
 console.log('桌面生产页建设卡与详情卡 sticky 对齐、唯一职责、自然高度详情和统一滚动验证通过。');

@@ -10,10 +10,12 @@ function requireText(path, fragments) {
   }
 }
 
-requireText('README.md', [
-  '状态读取 10 秒、普通写操作最多 2 秒、管理员不使用缓存',
-  'LRU 上限 5,000 条',
-  'Cookie 的 SHA-256 摘要',
+requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
+  '`GET /api/game/state` 最多复用 10 秒认证结果',
+  '普通写操作最多复用 2 秒',
+  '`/api/game/admin/` 每次重新验证且不读取缓存',
+  '最多 5,000 条的 LRU',
+  '完整 Cookie header 的 SHA-256 摘要',
 ]);
 
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [

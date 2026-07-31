@@ -382,20 +382,6 @@ for (const text of [
 
 for (const [path, required] of [
   [
-    'README.md',
-    [
-      '建设卡只显示建造费用和施工时间',
-      '生产公式只展示集群参数',
-      '运行中显示 `participatingCount`、本周期锁定满员率与 `cycleEffectiveCount`',
-      '生产管理区采用工厂集群主从布局',
-      '移动端不展开全部详情',
-      '移动端不显示独立“当前工厂”栏',
-      '工厂卡固定三列',
-      '不保留选中态',
-      '工厂详情选择与建设类型选择使用独立客户端状态',
-    ],
-  ],
-  [
     'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
     [
       '建设卡不显示生产周期、单座产量和单座成本',

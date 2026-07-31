@@ -9,7 +9,6 @@ const requireText = (path, text) => { if (!read(path).includes(text)) failures.p
 const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
 
 [
-  'README.md',
   'server/src/warehouse.js',
   'server/src/warehouse-reservations.js',
   'server/src/contract-runtime-index.js',
@@ -67,7 +66,6 @@ for (const forbidden of [
 ]) forbidText('server/src/warehouse.js', forbidden);
 
 for (const [path, forbidden] of [
-  ['README.md', '× 0.6'],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '× 0.6'],
   ['docs/WAREHOUSE_EXPANSION_DESIGN.md', '3 / 5'],
 ]) forbidText(path, forbidden);
@@ -307,11 +305,12 @@ for (const forbidden of [
   '`30px` 图标',
 ]) forbidText('docs/WAREHOUSE_EXPANSION_DESIGN.md', forbidden);
 
+requireText('docs/UI_DESIGN_SYSTEM.md', '仓库商品网格的列数、容器断点、卡片高度、内边距和图标尺寸唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md` 第 7.1 节');
+forbidText('docs/UI_DESIGN_SYSTEM.md', '2／3／4／5／6 列');
+
 requireText('docs/README.md', '仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`');
 requireText('docs/README.md', '移动和窄容器固定每行四张卡');
 requireText('docs/README.md', '共享仓库统一预占必须同时包含未完成商品买单');
-requireText('README.md', '扩容费用为 `150 + ceil((当前实际总容量 - 500) × 1.2)`');
-requireText('README.md', '采购方下一批商品与未完成商品买单、最高出价拍卖共同使用统一仓库预占');
 for (const text of ['建设卡不得显示生产周期、单座周期产量或单座周期成本', '生产公式只展示集群参数']) {
   requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 }

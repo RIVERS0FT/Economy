@@ -13,6 +13,7 @@ for (const path of [
   'package-lock.json',
   'playwright.config.ts',
   'runtime-test.html',
+  'scripts/check-server-syntax.mjs',
   'tests/browser/runtime-harness.tsx',
   'tests/browser/runtime.spec.ts',
   'src/app/AppErrorBoundary.tsx',
@@ -42,6 +43,11 @@ for (const [group, dependencies] of Object.entries({
 }
 if (packageJson.engines?.node !== '>=24.4.0 <25') failures.push('package.json 必须固定 Node 24.4.0 主版本范围');
 if (packageJson.scripts?.['test:browser'] !== 'playwright test') failures.push('缺少固定的 Playwright 浏览器测试脚本');
+if (packageJson.scripts?.['server:check'] !== 'node scripts/check-server-syntax.mjs') failures.push('服务器语法检查必须使用跨平台 Node 枚举脚本');
+
+for (const text of ['readdirSync', "entry.name.endsWith('.js')", "spawnSync(process.execPath, ['--check', sourceFile]"]) {
+  requireText('scripts/check-server-syntax.mjs', text);
+}
 
 for (const text of ['界面音效', '画面性能']) forbidText('src/pages/SettingsPage.tsx', text);
 for (const text of ['紧凑数字', '状态刷新频率']) requireText('src/pages/SettingsPage.tsx', text);
@@ -89,9 +95,10 @@ for (const [path, text] of [
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '成功步骤日志不得上传'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得再为单次构建失败创建临时诊断工作流'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得显示没有实际运行效果的“界面音效”或“画面性能”控件'],
   ['docs/README.md', '运行时可靠性、依赖锁、浏览器测试'],
-  ['README.md', '管理员礼品码与兑换记录按游标分页'],
+  ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '礼品码列表和兑换记录可能持续增长'],
 ]) requireText(path, text);
 
 if (failures.length) {

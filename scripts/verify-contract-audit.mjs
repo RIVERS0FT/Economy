@@ -25,7 +25,6 @@ const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const industryDesign = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 const serverDesign = read('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md');
 const docsIndex = read('docs/README.md');
-const rootReadme = read('README.md');
 
 includesAll(auditStore, [
   'economy_contract_audit_contracts',
@@ -115,7 +114,6 @@ for (const [label, content] of [
   ['industry design', industryDesign],
   ['server design', serverDesign],
   ['document authority index', docsIndex],
-  ['root README', rootReadme],
 ]) {
   assert.ok(content.includes('合同审计'), `${label} must define contract audit rules`);
 }

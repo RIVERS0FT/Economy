@@ -7,6 +7,43 @@ const pathFor = (path) => resolve(root, path);
 const read = (path) => readFileSync(pathFor(path), 'utf8');
 const failures = [];
 
+const agentsPath = 'AGENTS.md';
+if (!existsSync(pathFor(agentsPath))) {
+  failures.push('缺少仓库协作入口: AGENTS.md');
+} else {
+  const agents = read(agentsPath);
+  const lineCount = agents.split(/\r?\n/).length;
+  const byteLength = Buffer.byteLength(agents, 'utf8');
+  if (lineCount > 60) failures.push(`AGENTS.md 只能保留精简协作规则，当前 ${lineCount} 行，最多 60 行`);
+  if (byteLength > 5 * 1024) failures.push(`AGENTS.md 只能保留精简协作规则，当前 ${byteLength} 字节，最多 5120 字节`);
+  for (const text of [
+    '# Economy 仓库协作规则',
+    '`docs/README.md`',
+    '只规定协作流程',
+    '运行时常量以实现代码为准',
+    '不得新建“补充说明”、V2/V3 或平行专题文档',
+    '设计文档、实现、测试或验证脚本互相冲突时',
+    'npm run build',
+    '.github/workflows/deploy.yml',
+  ]) {
+    if (!agents.includes(text)) failures.push(`AGENTS.md 缺少协作规则: ${text}`);
+  }
+  for (const text of [
+    '## 当前核心循环',
+    '## 当前关键规则',
+    '## 当前正式导航',
+    '## 权威设计文档',
+    '## 数据与部署',
+    '## 统一微单位运算边界',
+    '## 活跃周银行收益与周资金结算',
+    '客户端状态版本：',
+    '世界状态版本：',
+    '市场需求模型版本：',
+  ]) {
+    if (agents.includes(text)) failures.push(`AGENTS.md 不得重新承载详细业务规则: ${text}`);
+  }
+}
+
 const canonicalDocs = [
   'README.md',
   'docs/README.md',
@@ -80,37 +117,33 @@ if (existsSync(pathFor('docs'))) {
 if (existsSync(pathFor('README.md'))) {
   const rootReadme = read('README.md');
   for (const text of [
-    `客户端状态版本：\`${CURRENT_CLIENT_STATE_VERSION}\``,
-    '世界状态版本：`21`',
-    '市场需求模型版本：`12`',
-    '概览｜市场｜生产｜拍卖｜合同｜银行｜排行｜商店｜设置',
-    '共享仓库允许无限扩容',
-    '所有工厂集群统一使用服务器正式配方',
-    '长期生产合作合同只涉及商品与普通货币',
-    '合同交付不写入统一订单簿行情、商品估值或交易榜',
-    '三类人口使用真实余额',
-    '固定按基础人口 60%／技术人口 30%／专业人口 10%',
-    '每次有效点击继续直接发行新普通货币',
-    '商店按北京时间每日锁定的全服终端报价直接发行普通货币',
-    '不设置人口侧货币回收',
-    '人口消费成交不再发行普通货币',
-    '市场页面不得增加人口经济区域',
-    '管理员“人口”分区提供只读人口经济区域',
-    '70% 用于最终消费的直接需求，30% 用于沿正式配方反向推导的派生流动性',
-    '市场储备每 5 分钟撤销并重挂双边商品订单',
-    '账户资金保留六位小数',
-    '订单价格保留两位小数',
-    '市场储备不设置目标库存、挂单量或资金比例业务上限',
-    '可成交订单必须立即按 maker price 撮合',
-    '最高系统买价严格低于最低系统卖价',
-    '商品和工厂可单独或混合组成最多 20 项的不可拆分资产包公开竞价',
-    '不得通过新增“补充说明”、V2/V3 文件或平行专题文档覆盖现行规则',
-    '商品初始参考价、生产数量、周期秒数和周期成本全部保持整数',
+    '# Economy',
+    'https://game.riversoft.top/economy/',
+    'https://game.riversoft.top/economy/admin',
+    '[docs/README.md](docs/README.md)',
+    '[AGENTS.md](AGENTS.md)',
+    'Node.js 24.4.0',
+    'npm ci',
+    'npm run build',
+    'npm run test:browser',
+    '.github/workflows/deploy.yml',
+    '本文件不复制会随产品迭代变化的详细口径',
   ]) {
-    if (!rootReadme.includes(text)) failures.push(`README.md 缺少当前规则: ${text}`);
+    if (!rootReadme.includes(text)) failures.push(`README.md 缺少项目入口信息: ${text}`);
   }
-  for (const text of ['## 生产与仓库布局 V3', '## 统一资产订单簿与玩家系统（', '## 扩展产业目录']) {
-    if (rootReadme.includes(text)) failures.push(`README.md 不得恢复追加式旧章节: ${text}`);
+  for (const text of [
+    '## 当前核心循环',
+    '## 当前关键规则',
+    '## 当前正式导航',
+    '## 权威设计文档',
+    '## 数据与部署',
+    '## 统一微单位运算边界',
+    '## 活跃周银行收益与周资金结算',
+    '## 生产与仓库布局 V3',
+    '## 统一资产订单簿与玩家系统（',
+    '## 扩展产业目录',
+  ]) {
+    if (rootReadme.includes(text)) failures.push(`README.md 不得重新承载详细业务章节: ${text}`);
   }
 }
 
@@ -161,4 +194,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/21、市场需求模型 12、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。`);
+console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/21、市场需求模型 12、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。`);
