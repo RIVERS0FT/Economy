@@ -333,8 +333,8 @@ if (failures.length === 0) {
   if (!/\.asset-bar\s*\{[^}]*position:\s*absolute;[^}]*z-index:\s*auto;[^}]*top:\s*0;/.test(read(files.viewport))) {
     failures.push('桌面状态栏必须使用普通绘制顺序，不得建立正 z-index 合成层');
   }
-  if (!/\.page-scroll\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*auto;[^}]*padding-top:\s*calc\(var\(--desktop-asset-bar-height\)/.test(read(files.viewport))) {
-    failures.push('桌面页面滚动层必须保持 z-index: auto 以开放状态栏背景采样');
+  if (!/\.page-scroll\s*\{[^}]*position:\s*relative;[^}]*z-index:\s*0;[^}]*padding-top:\s*calc\(var\(--desktop-asset-bar-height\)/.test(read(files.viewport))) {
+    failures.push('桌面页面滚动层必须使用零层级封装业务子层，同时保持状态栏背景采样开放');
   }
 
   for (const text of [
