@@ -59,11 +59,17 @@ jobs:
           replacements = {
               'CURRENT_CLIENT_STATE_VERSION = 22': 'CURRENT_CLIENT_STATE_VERSION = 23',
               'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22': 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23',
-              r'world\.version = 19': r'world\.version = 20',
               'BANKING_VERSION = 2': 'BANKING_VERSION = 3',
           }
           for before, after in replacements.items():
               content = content.replace(before, after)
+          world_version_assertion = 'world' + chr(92) + '.version = 19'
+          if world_version_assertion not in content:
+              raise RuntimeError('Missing world version 19 assertion in verify-money-precision.mjs')
+          content = content.replace(
+              world_version_assertion,
+              'world' + chr(92) + '.version = 20',
+          )
           verifier.write_text(content)
 
           page_verifier = Path('scripts/verify-page-content.mjs')
