@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: apply-fixed-weekly-settlement
@@ -59,7 +60,7 @@ jobs:
           replacements = {
               'CURRENT_CLIENT_STATE_VERSION = 22': 'CURRENT_CLIENT_STATE_VERSION = 23',
               'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 22': 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 23',
-              r'world\.version = 19': r'world\.version = 20',
+              r'world\\.version = 19': r'world\\.version = 20',
               'BANKING_VERSION = 2': 'BANKING_VERSION = 3',
           }
           for before, after in replacements.items():
@@ -132,7 +133,26 @@ jobs:
         run: npm ci
 
       - name: Build and run architecture checks
-        run: npm run build
+        id: build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/fixed-weekly-build.log
+
+      - name: Publish build failure diagnostics
+        if: failure() && steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          {
+            echo '### Fixed weekly settlement build failure'
+            echo
+            echo '```text'
+            tail -n 350 /tmp/fixed-weekly-build.log
+            echo '```'
+          } > /tmp/fixed-weekly-build-comment.md
+          gh pr comment 374 --body-file /tmp/fixed-weekly-build-comment.md
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
