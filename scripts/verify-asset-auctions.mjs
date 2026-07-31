@@ -108,6 +108,8 @@ requireText('server/src/asset-auctions.js', [
   "eventType: 'seller_fee_charged'",
   "eventType: 'listing_fee_distributed'",
   "eventType: 'listing_fee_refunded'",
+  "eventType: 'listing_fee_refund_deferred'",
+  "auction.listingFeeStatus === 'held' ? addMoney(sum, auction.listingFee) : sum",
   'world.version = 21;',
 ]);
 forbidText('server/src/asset-auctions.js', [
