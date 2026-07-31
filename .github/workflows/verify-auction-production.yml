@@ -1,0 +1,97 @@
+name: Verify Auction Production
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/verify-auction-production.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify main deployment workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ba2da87804e75c5d0da5f94907c641dc5470109b
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.request
+
+          sha = os.environ['TARGET_SHA']
+          token = os.environ['GH_TOKEN']
+          url = f'https://api.github.com/repos/RIVERS0FT/Economy/actions/runs?head_sha={sha}&per_page=100'
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {token}',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'economy-production-verifier',
+          }
+          for attempt in range(90):
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  payload = json.load(response)
+              runs = [run for run in payload.get('workflow_runs', []) if run.get('name') == 'Deploy Economy Website']
+              print('deployment_runs', [
+                  {
+                      'id': run.get('id'),
+                      'status': run.get('status'),
+                      'conclusion': run.get('conclusion'),
+                      'event': run.get('event'),
+                      'url': run.get('html_url'),
+                  }
+                  for run in runs
+              ], flush=True)
+              if runs:
+                  run = max(runs, key=lambda item: int(item.get('id') or 0))
+                  if run.get('status') == 'completed':
+                      if run.get('conclusion') != 'success':
+                          raise SystemExit(f"deployment failed: {run.get('conclusion')} {run.get('html_url')}")
+                      print(f"DEPLOYMENT_VERIFIED id={run['id']} url={run['html_url']}")
+                      break
+              time.sleep(10)
+          else:
+              raise SystemExit('deployment workflow did not complete in verification window')
+          PY
+
+      - name: Verify production health and auction bundle
+        run: |
+          set -euo pipefail
+          health_code="$(curl --retry 5 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o /tmp/economy-health.json -w '%{http_code}' https://game.riversoft.top/economy-api/health)"
+          test "$health_code" = 200
+          python3 - <<'PY'
+          import json
+          payload = json.load(open('/tmp/economy-health.json', encoding='utf-8'))
+          assert payload.get('ok') is True, payload
+          assert payload.get('service') == 'economy-api', payload
+          print('PRODUCTION_HEALTH_VERIFIED', payload)
+          PY
+
+          index_code="$(curl --retry 5 --retry-all-errors --connect-timeout 10 --max-time 30 -sS -o /tmp/economy-index.html -w '%{http_code}' https://game.riversoft.top/economy/)"
+          test "$index_code" = 200
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          from urllib.parse import urljoin
+          from urllib.request import urlopen
+
+          html = Path('/tmp/economy-index.html').read_text(encoding='utf-8')
+          sources = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', html)
+          assert sources, 'production HTML has no script bundle'
+          bundle_url = urljoin('https://game.riversoft.top/economy/', sources[-1])
+          with urlopen(bundle_url, timeout=30) as response:
+              bundle = response.read().decode('utf-8', errors='replace')
+          required = ['隐藏保留价', '查看最近 10 条', '发布费', '最后 2 分钟']
+          missing = [text for text in required if text not in bundle]
+          assert not missing, f'production bundle missing auction copy: {missing}; bundle={bundle_url}'
+          print('PRODUCTION_BUNDLE_VERIFIED', bundle_url, 'bytes', len(bundle.encode('utf-8')))
+          PY
