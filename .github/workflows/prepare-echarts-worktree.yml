@@ -1,0 +1,30 @@
+name: Prepare ECharts migration worktree
+
+on:
+  push:
+    branches:
+      - agent/echarts-migration
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Install ECharts and refresh lockfile
+        run: npm install --save-exact echarts@6.1.0
+      - name: Pack prepared worktree
+        run: tar --exclude=.git --exclude=dist -czf /tmp/economy-agent-worktree.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-agent-worktree
+          path: /tmp/economy-agent-worktree.tar.gz
+          retention-days: 1
+          if-no-files-found: error
