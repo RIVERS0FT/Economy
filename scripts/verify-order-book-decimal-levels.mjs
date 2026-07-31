@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { isValidOrderPrice } from '../src/utils/defaultOrderPrice.ts';
 import { buildOrderBookLevels } from '../src/utils/orderBookLevels.ts';
 
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const order = (id, side, price, remaining, status = 'open') => ({
   id,
   side,
@@ -53,5 +55,13 @@ assert.deepEqual(
     { price: 2, remaining: 3, orderCount: 1 },
   ],
 );
+
+const levelSource = read('../src/utils/orderBookLevels.ts');
+assert.match(levelSource, /isValidOrderPrice\(order\.price\)/);
+assert.doesNotMatch(levelSource, /Number\.isInteger\(order\.price\)|order\.price\s*<\s*1/);
+
+const design = read('../docs/ORDER_BOOK_DECIMAL_LEVEL_DISPLAY_DESIGN.md');
+assert.match(design, /不得使用 `Number\.isInteger\(price\)`、`price >= 1`/);
+assert.match(design, /`0\.01`、`1\.10`、`1\.23`/);
 
 console.log('Decimal order-book level verification passed.');
