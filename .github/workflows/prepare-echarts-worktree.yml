@@ -1,9 +1,9 @@
 name: Prepare ECharts migration worktree
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/echarts-migration
+      - main
 
 permissions:
   contents: read
