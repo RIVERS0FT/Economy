@@ -28,6 +28,7 @@ test.describe('production cluster status summary', () => {
 
     const profit = page.locator('.facility-average-profit');
     await expect(profit).toHaveCount(1);
+    await expect(profit).toContainText('最近真实成交价');
     await expect(profit).toContainText('5.38');
     await expect(profit).not.toContainText('缺少');
     await expect(profit).toHaveClass(/is-positive/);
