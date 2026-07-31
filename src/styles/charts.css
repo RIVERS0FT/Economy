@@ -1,0 +1,153 @@
+/* ECHARTS_SHARED_SCHEME: economy-svg-charts */
+
+.economy-chart {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  height: 220px;
+}
+
+.economy-chart__canvas {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.economy-chart__accessible-summary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.economy-chart-tooltip {
+  max-width: min(320px, calc(100vw - 24px));
+  color: var(--color-text-primary) !important;
+  font-family: inherit !important;
+  line-height: 1.5 !important;
+  pointer-events: none !important;
+}
+
+.economy-chart-tooltip strong {
+  color: var(--color-text-primary);
+}
+
+.economy-chart-tooltip small {
+  color: var(--color-text-muted);
+}
+
+.economy-chart-empty {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+}
+
+.admin-echart {
+  height: 220px;
+}
+
+.admin-echart--compact {
+  height: 190px;
+}
+
+.admin-echart--tall {
+  height: 280px;
+}
+
+.asset-allocation-chart-shell {
+  position: relative;
+  width: min(176px, 78%);
+  aspect-ratio: 1;
+  margin: 0 auto;
+}
+
+.asset-allocation-chart {
+  height: 100%;
+}
+
+.asset-allocation-chart__center {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 62%;
+  display: grid;
+  gap: 2px;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.asset-allocation-chart__center strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+}
+
+.asset-allocation-chart__center span {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 720px) {
+  .admin-echart {
+    height: 210px;
+  }
+
+  .admin-echart--tall {
+    height: 250px;
+  }
+}
+
+.market-history-chart {
+  min-width: 0;
+  width: 100%;
+  color: var(--color-success);
+  font-variant-numeric: tabular-nums;
+}
+
+.market-history-echart {
+  height: 100%;
+}
+
+.market-chart-footer {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding-top: 8px;
+  padding-bottom: 6px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.market-chart-legend {
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 4vw, 30px);
+}
+
+.market-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.market-chart-legend-item > i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.market-chart-legend-item.buy > i { background: var(--color-success); }
+.market-chart-legend-item.sell > i { background: var(--color-danger); }
+
+.market-chart-x-axis-title {
+  min-height: 16px;
+  color: var(--color-text-muted);
+  line-height: 1;
+}

@@ -1,10 +1,7 @@
-import type { CSSProperties } from 'react';
-
 export interface AssetAllocation {
   cashShare: number;
   commodityShare: number;
   facilityShare: number;
-  allocationStyle: CSSProperties;
 }
 
 function normalizedValue(value: number) {
@@ -31,15 +28,9 @@ export function buildAssetAllocation(cashValue: number, commodityValue: number, 
   const [cashShare, commodityShare, facilityShare] = total > 0
     ? roundedShares(exactShares)
     : [0, 0, 0];
-  const cashEnd = exactShares[0] * 3.6;
-  const commodityEnd = (exactShares[0] + exactShares[1]) * 3.6;
-
   return {
     cashShare,
     commodityShare,
     facilityShare,
-    allocationStyle: {
-      background: `conic-gradient(var(--green) 0deg ${cashEnd}deg, var(--gold) ${cashEnd}deg ${commodityEnd}deg, var(--blue) ${commodityEnd}deg 360deg)`,
-    },
   };
 }

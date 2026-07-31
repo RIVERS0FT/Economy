@@ -264,12 +264,9 @@
 
 .market-chart-card .market-history-chart.full {
   width: 100%;
-  height: auto !important;
-  aspect-ratio: 16 / 9;
   min-height: 0;
   max-height: none;
   margin: 0;
-  font-variant-numeric: tabular-nums;
 }
 
 .market-trend-tag.status-neutral {

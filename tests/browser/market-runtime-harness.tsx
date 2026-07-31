@@ -11,6 +11,7 @@ import { MarketPage } from '../../src/pages/MarketPage';
 import type { TabId } from '../../src/config/navigation';
 import { formatCurrency, formatNumber, formatRank } from '../../src/utils/formatters';
 import '../../src/styles/globals.css';
+import '../../src/styles/charts.css';
 import '../../src/styles/desktop-sidebar.css';
 import '../../src/styles/viewport.css';
 import '../../src/styles/scrollbars.css';
@@ -304,7 +305,6 @@ function MarketHarness() {
       cashShare: 0,
       commodityShare: 100,
       facilityShare: 0,
-      allocationStyle: {},
       avatarText: 'M',
       showResult: async () => {},
       notify: () => {},

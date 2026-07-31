@@ -28,6 +28,7 @@
 | `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |
 | `src/styles/form-controls.css` | 输入、选择器、文本域、文件控件、自动填充、错误／只读／禁用状态和移动尺寸的最终视觉权威 |
 | `src/styles/globals.css` | 通用业务布局 |
+| `src/styles/charts.css` | 共享 ECharts 容器、Tooltip、无障碍摘要、市场底部安全区、管理员图表与资产圆环布局 |
 | `src/styles/overview.css` | 概览经营提醒、市场空状态、两排核心卡片和响应式布局 |
 | `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |
 | `src/styles/product-artwork.css` | 商品插画 128px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
@@ -79,8 +80,11 @@
 - `TextArea`
 - `FileInput`
 - `InputGroup`
+- `EconomyChart`
 
 `PagePanel` 是新增玩家端一级卡片的唯一 React 入口，固定复用 `Panel`、`.widget` 与 `.ui-primary-surface`。现有 `Panel className="widget ..."` 由兼容桥自动补充 `.ui-primary-surface`；生产页和排行页尚未迁移的旧一级卡片类只允许在 `primary-surfaces.css` 中作为兼容入口，不得在业务 CSS 中重新定义外层 padding。
+
+`EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新与卸载 `dispose()` 统一放在 `src/components/charts/`。市场、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据和 Option，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
 
 `src/components/ui/FormControls.tsx` 是统一表单控件的唯一 React 包装层。新页面不得为文本、整数、选择器、文本域、文件或组合输入创建平行基础组件；紧凑表格行内输入可以直接使用原生控件，但必须带 `.ui-control` 并遵守相同解析和状态规则。
 
@@ -494,11 +498,11 @@
 
 ## 市场页布局完整性
 
-市场页专用布局规则由 `src/styles/market-page-polish.css` 负责，但必须先于 `design-system.css`、`primary-surfaces.css` 与 `form-controls.css` 加载，只允许控制页面结构和尺寸，不得覆盖共享基础控件或一级卡片外层内边距。宽屏行情卡必须成为交易主区最宽列，完整 SVG 使用自身宽度计算 `16:9` 高度。订单簿不得通过 `stretch` 跟随行情卡制造空白。
+市场页专用布局规则由 `src/styles/market-page-polish.css` 负责，但必须先于 `design-system.css`、`primary-surfaces.css` 与 `form-controls.css` 加载，只允许控制页面结构和尺寸，不得覆盖共享基础控件或一级卡片外层内边距。宽屏行情卡必须成为交易主区最宽列。完整行情使用共享 `EconomyChart` 的 ECharts SVG 双 Grid，由组件按实际宽度、根字号、48px 成交量下限、22% 数据区占比和底部安全区计算动态高度；业务 CSS 不得固定 `16:9`。订单簿不得通过 `stretch` 跟随行情卡制造空白。
 
-连续资产目录在桌面使用两行横向网格。当前资产必须同时使用边框／背景和可见“当前”文字，不能只依赖颜色；前后滚动按钮必须具有稳定可访问名称。市场底部统计允许两列和单列重排，不得使用不可换行的单行 `space-between` 挤压文字。
+连续资产目录在桌面使用两行横向网格。当前资产必须同时使用边框／背景和可见“当前”文字，不能只依赖颜色；前后滚动按钮必须具有稳定可访问名称。市场不得恢复行情底部统计栏；仅允许行情内部的方向图例和“时间”轴标题使用组件稳定 DOM，并围绕真实绘图区居中。
 
-Playwright 必须验证 `1684×931`、`1280×900` 和 `900×1000` 下的真实卡片位置、完整图宽高比、24h 计数、零涨跌中性状态、禁用原因、资产目录滚动、订单簿标题顺序、同价档位聚合及水平溢出。
+Playwright 必须验证 `1684×931`、`1280×900` 和 `900×1000` 下的真实卡片位置、动态行情高度、ECharts SVG 初始化、零涨跌中性状态、禁用原因、资产目录滚动、订单簿标题顺序、同价档位聚合及水平溢出；市场专项断点继续以 `MARKET_CHART_LAYOUT_DESIGN.md` 为准。
 
 ## 资产拍卖图标规则
 

@@ -415,19 +415,6 @@ p {
   color: var(--color-success);
 }
 
-.chart-line {
-  stroke: currentColor;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.chart-gridline {
-  stroke: var(--color-gridline);
-  stroke-width: 1;
-}
-
 .wealth-total {
   margin: var(--space-2) 0 var(--space-4);
   background: var(--gradient-wealth);
@@ -563,18 +550,6 @@ p {
 
 .book-row.ask span:first-child {
   color: var(--color-danger);
-}
-
-.market-chart-card .price-chart {
-  height: 210px;
-}
-
-.chart-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
 }
 
 .listing-grid {
@@ -737,33 +712,9 @@ p {
   align-content: start;
 }
 
-.allocation-visual {
-  width: min(210px, 72%);
-  aspect-ratio: 1;
-  margin: var(--space-2) auto var(--space-4);
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-}
 
-.allocation-visual > div {
-  width: 60%;
-  aspect-ratio: 1;
-  display: grid;
-  place-content: center;
-  border-radius: 50%;
-  background: #0a1712;
-  text-align: center;
-}
 
-.allocation-visual strong {
-  font-size: var(--font-size-2xl);
-}
 
-.allocation-visual span {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
 
 .allocation-legend {
   display: grid;
