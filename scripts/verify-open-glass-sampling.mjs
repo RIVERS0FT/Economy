@@ -109,7 +109,7 @@ if (failures.length === 0) {
     "'admin-shell' : 'game-shell'",
     "' admin-workspace'",
     'className="mobile-page-overlay"',
-    "'mobile-chrome-overlay'",
+    'mobile-chrome-overlay',
     'variant={isMobile ? \'mobileStatusBar\' : \'desktopStatusBar\'}',
     'variant="mobileNavigation"',
   ]) requireText(files.harness, text);
