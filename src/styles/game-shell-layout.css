@@ -56,7 +56,7 @@
 
   .signed-in-shell .asset-bar {
     position: absolute;
-    z-index: 3;
+    z-index: auto;
     top: var(--desktop-layout-gutter);
     right: var(--desktop-layout-gutter);
     left: 0;
