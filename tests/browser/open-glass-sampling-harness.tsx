@@ -106,20 +106,47 @@ function SamplingPage() {
 }
 
 function SamplingApp() {
-  const shellStyle = { '--sidebar-column-width': '224px' } as CSSProperties;
+  const shellStyle = {
+    '--sidebar-column-width': isMobile ? '0px' : '224px',
+    position: 'fixed',
+    inset: 0,
+    width: '100vw',
+    height: '100vh',
+    display: isMobile ? 'block' : 'grid',
+    gridTemplateColumns: isMobile ? undefined : '224px minmax(0, 1fr)',
+  } as CSSProperties;
+  const sidebarStyle: CSSProperties = {
+    width: isMobile ? 0 : '224px',
+    height: '100%',
+    display: isMobile ? 'none' : 'block',
+  };
+  const workspaceStyle: CSSProperties = {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    minWidth: 0,
+    minHeight: 0,
+    display: isMobile ? 'grid' : 'block',
+    overflow: 'hidden',
+  };
+
   return (
     <>
       <FinancialBackdrop />
-      <div className="application-content-root">
+      <div className="application-content-root" style={{ width: '100%', height: '100%' }}>
         <main
           className={`${isAdmin ? 'admin-shell' : 'game-shell'} signed-in-shell sidebar-layout`}
           style={shellStyle}
           data-sampling-surface={surface}
           data-sampling-mode={mode}
         >
-          <aside className={`desktop-sidebar${isAdmin ? ' admin-sidebar' : ''}`} aria-hidden="true" />
-          <section className={`workspace${isAdmin ? ' admin-workspace' : ''}`}>
-            <div className="mobile-page-overlay">
+          <aside
+            className={`desktop-sidebar${isAdmin ? ' admin-sidebar' : ''}`}
+            style={sidebarStyle}
+            aria-hidden="true"
+          />
+          <section className={`workspace${isAdmin ? ' admin-workspace' : ''}`} style={workspaceStyle}>
+            <div className="mobile-page-overlay" style={{ width: '100%', height: '100%' }}>
               <ScrollArea
                 axis="y"
                 className="page-scroll-area"
@@ -129,7 +156,10 @@ function SamplingApp() {
                 <SamplingPage />
               </ScrollArea>
             </div>
-            <div className={`mobile-chrome-overlay${isAdmin ? ' admin-mobile-chrome-layer' : ''}`}>
+            <div
+              className={`mobile-chrome-overlay${isAdmin ? ' admin-mobile-chrome-layer' : ''}`}
+              style={{ width: '100%', height: '100%' }}
+            >
               <StatusChrome />
               <MobileNavigation />
             </div>
