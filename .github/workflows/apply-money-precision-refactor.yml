@@ -1,0 +1,53 @@
+name: Apply money precision refactor
+
+on:
+  push:
+    branches:
+      - agent/unify-money-precision
+    paths:
+      - scripts/apply-money-precision-refactor.py
+      - scripts/.money-precision-refactor/**
+      - .github/workflows/apply-money-precision-refactor.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unify-money-precision
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply precision refactor
+        run: python3 scripts/apply-money-precision-refactor.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full build
+        run: npm run build
+
+      - name: Check patch formatting
+        run: git diff --check
+
+      - name: Commit verified source changes
+        run: |
+          rm -rf scripts/.money-precision-refactor
+          rm -f scripts/apply-money-precision-refactor.py
+          rm -f .github/workflows/apply-money-precision-refactor.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Unify money precision boundaries"
+          git push origin HEAD:agent/unify-money-precision
