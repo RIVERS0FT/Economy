@@ -130,6 +130,8 @@ for (const text of ['transparent collateral assessment', 'stacks safely on mobil
 requireText('bank-runtime-test.html', '/tests/browser/bank-runtime-harness.tsx');
 
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');
+forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '固定存款日利率为每日 1%，固定存款日利率为每日 1%');
+forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '每周 10% 的资金扣除只适用于完整活跃周。每周 10% 的资金扣除只适用于完整活跃周。');
 forbidText('server/src/banking.js', 'setInterval(');
 forbidText('server/src/banking.js', 'depositCredits += Math.ceil');
 forbidText('src/pages/BankPage.tsx', '领取利息');

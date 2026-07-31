@@ -71,6 +71,8 @@ for (const text of [
 ]) requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', text);
 
 forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '2%／3%／5%');
+forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '固定存款日利率为每日 1%，固定存款日利率为每日 1%');
+forbidText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', '每周 10% 的资金扣除只适用于完整活跃周。每周 10% 的资金扣除只适用于完整活跃周。');
 forbidText('server/src/banking.js', 'BANK_DAILY_INTEREST_CAP_BPS = 25');
 forbidText('src/pages/BankPage.tsx', '动态收益');
 
