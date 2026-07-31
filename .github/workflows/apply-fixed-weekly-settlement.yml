@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - agent/fixed-weekly-bank-settlement
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 permissions:
   contents: write
@@ -20,6 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: agent/fixed-weekly-bank-settlement
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
