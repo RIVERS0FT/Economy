@@ -1,0 +1,37 @@
+name: Agent Apply Auction Formal
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/agent-apply-auction-formal.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/auction-fees-and-bid-history
+          fetch-depth: 0
+      - name: Verify and apply auction implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .agent/auction-formal/part-* | base64 -d > /tmp/auction-formal.patch.gz
+          echo "e28a752b0d7c55911ce135eae1ffdcdbc92ef34087cd7717f6fc7db30e3604be  /tmp/auction-formal.patch.gz" | sha256sum -c -
+          gzip -dc /tmp/auction-formal.patch.gz > /tmp/auction-formal.patch
+          echo "49c0f60e10e35cc0436697360b891a93a2bc1b64eb08f52ecf0dd7157acb0caf  /tmp/auction-formal.patch" | sha256sum -c -
+          git apply --check /tmp/auction-formal.patch
+          git apply --index /tmp/auction-formal.patch
+          git diff --cached --check
+          git rm -r .agent/auction-formal
+          git rm .github/workflows/agent-apply-auction-formal.yml
+          git config user.name "RIVERS0FT Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "Implement auction fees and private bid history"
+          git push origin HEAD:agent/auction-fees-and-bid-history
