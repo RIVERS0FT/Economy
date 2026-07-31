@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption } from './echartsCore';
-import { chartColor, commonTooltip, escapeChartHtml, formatChartPercent } from './chartOptions';
+import { PIE_PAD_ANGLE, chartColor, commonTooltip, escapeChartHtml, formatChartPercent } from './chartOptions';
 import { formatCurrency } from '../../utils/formatters';
 
 export function AssetAllocationChart({
@@ -34,6 +34,7 @@ export function AssetAllocationChart({
       type: 'pie',
       radius: ['64%', '84%'],
       center: ['50%', '50%'],
+      padAngle: PIE_PAD_ANGLE,
       label: { show: false },
       labelLine: { show: false },
       emphasis: { scale: false },

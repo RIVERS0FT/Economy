@@ -26,6 +26,15 @@ if (pkg.dependencies?.['echarts-for-react'] || pkg.devDependencies?.['echarts-fo
 if (!pkg.scripts?.['verify:echarts']) failures.push('package.json 必须登记 verify:echarts');
 
 const sourceFiles = walk('src').filter((path) => /\.(?:ts|tsx)$/.test(path));
+const pieSeriesFiles = sourceFiles.filter((path) => /type:\s*['"]pie['"]/.test(read(path)));
+for (const path of pieSeriesFiles) {
+  const content = read(path);
+  const pieSeriesCount = content.match(/type:\s*['"]pie['"]/g)?.length ?? 0;
+  const padAngleCount = content.match(/padAngle:\s*PIE_PAD_ANGLE/g)?.length ?? 0;
+  if (pieSeriesCount !== padAngleCount) {
+    failures.push(`${path} 的每个 Pie 系列都必须使用共享 PIE_PAD_ANGLE，当前 Pie=${pieSeriesCount}、padAngle=${padAngleCount}`);
+  }
+}
 const directEChartsImports = sourceFiles.filter((path) => /from ['"]echarts(?:\/|['"])/.test(read(path)));
 if (directEChartsImports.length !== 1 || directEChartsImports[0] !== 'src/components/charts/echartsCore.ts') {
   failures.push(`ECharts 直接导入只能位于 echartsCore.ts，当前为: ${directEChartsImports.join(', ') || '无'}`);
@@ -34,6 +43,7 @@ if (directEChartsImports.length !== 1 || directEChartsImports[0] !== 'src/compon
 requireText('src/components/charts/echartsCore.ts', [
   'BarChart', 'LineChart', 'PieChart', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',
 ]);
+requireText('src/components/charts/chartOptions.ts', ['export const PIE_PAD_ANGLE = 5;']);
 requireText('src/components/charts/EconomyChart.tsx', [
   'initECharts', "renderer: 'svg'", 'new ResizeObserver', 'requestAnimationFrame',
   'chartRef.current?.setOption', 'chart.dispose()', 'data-echarts-ready', 'economy-chart__accessible-summary',
@@ -42,14 +52,15 @@ requireText('src/components/charts/PriceSparkline.tsx', [
   '<EconomyChart', "type: 'line'", "type: 'bar'", 'buildMarketChartGeometry', 'data-volume-share',
 ]);
 requireText('src/components/charts/AssetAllocationChart.tsx', [
-  '<EconomyChart', "type: 'pie'", "radius: ['64%', '84%']",
+  '<EconomyChart', "type: 'pie'", "radius: ['64%', '84%']", 'padAngle: PIE_PAD_ANGLE',
 ]);
 requireText('src/components/charts/AdminCharts.tsx', [
-  '<EconomyChart', "type: 'bar'", "type: 'pie'", 'PopulationBudgetChart',
+  '<EconomyChart', "type: 'bar'", "type: 'pie'", 'padAngle: PIE_PAD_ANGLE', 'PopulationBudgetChart',
 ]);
 requireText('src/main.tsx', ["import './styles/charts.css';"]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '`EconomyChart` 是业务数据图表的唯一 React 入口', '不得引入 `echarts-for-react`', 'ECharts 必须随市场、银行和管理员页面',
+  '`PIE_PAD_ANGLE = 5`', '`padAngle: PIE_PAD_ANGLE`',
 ]);
 requireText('docs/MARKET_CHART_LAYOUT_DESIGN.md', ['ECharts SVG', '双 Grid', '稳定 `data-*`']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['玩家运营图统一使用共享 `EconomyChart`', '人口分析图统一使用共享 `EconomyChart`']);
@@ -70,4 +81,4 @@ if (failures.length) {
   console.error(`ECharts 架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('ECharts 架构验证通过：唯一 EconomyChart、精确依赖、SVG 按需模块、生命周期、无障碍、市场动态几何及管理员与资产图表均已锁定。');
+console.log('ECharts 架构验证通过：唯一 EconomyChart、精确依赖、SVG 按需模块、生命周期、无障碍、市场动态几何、统一 Pie padAngle 及管理员与资产图表均已锁定。');

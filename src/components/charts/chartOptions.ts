@@ -11,6 +11,8 @@ export const chartColor = {
   surface: 'rgba(7, 20, 15, 0.98)',
 } as const;
 
+export const PIE_PAD_ANGLE = 5;
+
 const compactFormatter = new Intl.NumberFormat('zh-CN', {
   notation: 'compact',
   maximumFractionDigits: 1,

@@ -86,6 +86,8 @@
 
 `EconomyChart` 是业务数据图表的唯一 React 入口。项目只安装 Apache `echarts`，不得引入 `echarts-for-react` 或第二套图表包装库；`echarts.init`、SVGRenderer、按需模块注册、`ResizeObserver`、`requestAnimationFrame` 合并 resize、Option 更新与卸载 `dispose()` 统一放在 `src/components/charts/`。市场、银行资产配置、管理员玩家与人口图表必须从现有 CSS 设计令牌读取颜色，提供中文 `aria-label` 与可读数据摘要；业务页面只提供数据和 Option，不得直接持有 ECharts 实例或依赖其私有 SVG DOM。ECharts 必须随市场、银行和管理员页面的既有动态 import 按需加载，登录首屏不得静态加载图表包。
 
+所有 `type: 'pie'` 系列（包括实心饼图与圆环图）必须使用 `chartOptions.ts` 的共享 `PIE_PAD_ANGLE = 5`，统一设置 `padAngle: PIE_PAD_ANGLE`；不得在业务图表中改回零间隔、直接写入魔法数字或定义第二套扇区间隔。
+
 `src/components/ui/FormControls.tsx` 是统一表单控件的唯一 React 包装层。新页面不得为文本、整数、选择器、文本域、文件或组合输入创建平行基础组件；紧凑表格行内输入可以直接使用原生控件，但必须带 `.ui-control` 并遵守相同解析和状态规则。
 
 管理员入口、游戏入口和九个游戏页面必须使用 `React.lazy` 与动态 `import()` 按需加载；登录页不得静态拉入管理员和全部游戏页面。根游戏模型不得维护每秒变化的时间状态，倒计时只在概览、生产、拍卖、合同和银行等实际需要的局部页面通过共享 `useNow` 维护，市场订单簿、导航和银行资产总览等静态区域不得被全局秒级时钟重渲染。
