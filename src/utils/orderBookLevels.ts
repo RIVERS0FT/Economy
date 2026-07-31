@@ -1,11 +1,14 @@
 import type { AssetOrder, OrderSide } from '../types';
-import { isValidOrderPrice } from './defaultOrderPrice';
 
 export interface OrderBookLevel {
   side: OrderSide;
   price: number;
   remaining: number;
   orderCount: number;
+}
+
+function validOrderPrice(price: number) {
+  return Number.isFinite(price) && price >= 0.01 && Math.abs(price * 100 - Math.round(price * 100)) < 1e-8;
 }
 
 /**
@@ -26,7 +29,7 @@ export function buildOrderBookLevels(
       order.side !== side
       || !['open', 'partial'].includes(order.status)
       || order.remaining <= 0
-      || !isValidOrderPrice(order.price)
+      || !validOrderPrice(order.price)
     ) {
       continue;
     }
