@@ -1,0 +1,37 @@
+name: Diagnose ECharts main sync
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/echarts-migration
+          fetch-depth: 0
+      - name: Diagnose merge conflicts
+        shell: bash
+        run: |
+          set +e
+          git fetch origin main
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          echo "MERGE_STATUS=$merge_status"
+          conflicts="$(git diff --name-only --diff-filter=U)"
+          echo "CONFLICT_FILES_BEGIN"
+          printf '%s\n' "$conflicts"
+          echo "CONFLICT_FILES_END"
+          for file in $conflicts; do
+            echo "CONFLICT_DIFF_BEGIN:$file"
+            git diff --cc -- "$file"
+            echo "CONFLICT_DIFF_END:$file"
+          done
+          exit "$merge_status"
