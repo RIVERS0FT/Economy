@@ -1,0 +1,67 @@
+name: Apply unified floating glass
+
+on:
+  push:
+    branches:
+      - agent/unify-floating-glass
+    paths:
+      - '.agent/**'
+      - '.github/workflows/apply-unified-glass.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-unified-floating-glass
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out implementation branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Apply unified glass material
+        run: |
+          sed -i 's/状态栏单描边/状态栏单层描边/g' .agent/apply_unified_glass.py
+          python3 -m py_compile .agent/apply_unified_glass.py
+          node --check .agent/new-verify-desktop-primary-surfaces.mjs
+          python3 .agent/apply_unified_glass.py
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run full Node 24 build verification
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run full browser regression suite
+        run: npm run test:browser
+
+      - name: Remove temporary application files
+        run: |
+          rm -rf .agent
+          rm -f .github/workflows/apply-unified-glass.yml
+          git diff --check
+
+      - name: Commit verified source changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Unify application glass surfaces'
+          git push origin HEAD:agent/unify-floating-glass
