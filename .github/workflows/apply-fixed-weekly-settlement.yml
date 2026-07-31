@@ -1,9 +1,13 @@
 name: Apply fixed weekly settlement
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/fixed-weekly-bank-settlement
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 permissions:
   contents: write
