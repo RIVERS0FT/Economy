@@ -7,7 +7,7 @@ const failures = [];
 
 function walk(directory) {
   return readdirSync(resolve(root, directory), { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
+    const path = join(directory, entry.name).replaceAll('\\', '/');
     return entry.isDirectory() ? walk(path) : [path];
   });
 }

@@ -1,0 +1,169 @@
+name: Economy Stress Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Pressure-test target
+        required: true
+        type: choice
+        default: local
+        options:
+          - local
+          - staging
+          - production-readonly
+      profile:
+        description: Workload profile
+        required: true
+        type: choice
+        default: poll
+        options:
+          - smoke
+          - poll
+          - burst
+          - mixed
+          - soak
+      users:
+        description: Fixed account slots to use (1-24)
+        required: true
+        default: '24'
+      duration_seconds:
+        description: Measured duration in seconds (1-3600)
+        required: true
+        default: '300'
+      poll_interval_ms:
+        description: Per-player polling interval in milliseconds
+        required: true
+        default: '5000'
+      offset:
+        description: Zero-based fixed account slot offset
+        required: true
+        default: '0'
+      confirmation:
+        description: Required only for production-readonly
+        required: false
+        default: ''
+  schedule:
+    - cron: '30 18 * * 0'
+
+concurrency:
+  group: economy-stress-${{ inputs.target || 'local' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  isolated:
+    if: github.event_name == 'schedule' || inputs.target == 'local'
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run isolated stress test
+        shell: bash
+        env:
+          STRESS_PROFILE: ${{ github.event_name == 'schedule' && 'poll' || inputs.profile }}
+          STRESS_USERS: ${{ github.event_name == 'schedule' && '24' || inputs.users }}
+          STRESS_DURATION_SECONDS: ${{ github.event_name == 'schedule' && '300' || inputs.duration_seconds }}
+          STRESS_POLL_INTERVAL_MS: ${{ github.event_name == 'schedule' && '1000' || inputs.poll_interval_ms }}
+          STRESS_OFFSET: ${{ github.event_name == 'schedule' && '0' || inputs.offset }}
+        run: |
+          set -euo pipefail
+          npm run stress:run -- \
+            --target local \
+            --profile "$STRESS_PROFILE" \
+            --users "$STRESS_USERS" \
+            --duration-seconds "$STRESS_DURATION_SECONDS" \
+            --poll-interval-ms "$STRESS_POLL_INTERVAL_MS" \
+            --offset "$STRESS_OFFSET" \
+            --output test-results/stress/result.json
+
+      - name: Publish stress summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f test-results/stress/result.md ]; then
+            cat test-results/stress/result.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload sanitized stress report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-stress-isolated-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/stress/
+          if-no-files-found: warn
+          retention-days: 14
+
+  remote:
+    if: github.event_name == 'workflow_dispatch' && inputs.target != 'local'
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    environment: economy-stress
+    env:
+      ECONOMY_STRESS_TEST_PASSWORD: ${{ secrets.ECONOMY_STRESS_TEST_PASSWORD }}
+      ECONOMY_STRESS_BASE_URL: ${{ secrets.ECONOMY_STRESS_BASE_URL }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run protected remote stress test
+        shell: bash
+        env:
+          STRESS_TARGET: ${{ inputs.target }}
+          STRESS_PROFILE: ${{ inputs.profile }}
+          STRESS_USERS: ${{ inputs.users }}
+          STRESS_DURATION_SECONDS: ${{ inputs.duration_seconds }}
+          STRESS_POLL_INTERVAL_MS: ${{ inputs.poll_interval_ms }}
+          STRESS_OFFSET: ${{ inputs.offset }}
+          STRESS_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          test -n "$ECONOMY_STRESS_TEST_PASSWORD"
+          npm run stress:run -- \
+            --target "$STRESS_TARGET" \
+            --profile "$STRESS_PROFILE" \
+            --users "$STRESS_USERS" \
+            --duration-seconds "$STRESS_DURATION_SECONDS" \
+            --poll-interval-ms "$STRESS_POLL_INTERVAL_MS" \
+            --offset "$STRESS_OFFSET" \
+            --confirmation "$STRESS_CONFIRMATION" \
+            --output test-results/stress/result.json
+
+      - name: Publish stress summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f test-results/stress/result.md ]; then
+            cat test-results/stress/result.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload sanitized stress report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-stress-remote-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/stress/
+          if-no-files-found: warn
+          retention-days: 14

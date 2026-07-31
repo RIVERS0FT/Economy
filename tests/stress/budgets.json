@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "profiles": {
+    "smoke": {
+      "maxTimeouts": 0,
+      "maxServerErrors": 0,
+      "maxUnexpectedStatuses": 0,
+      "maxP95Ms": 1000,
+      "maxP99Ms": 3000,
+      "maxLocalDatabaseBytes": 33554432,
+      "maxLocalWalBytes": 16777216,
+      "routes": {
+        "GET /api/game/state": { "maxP95Ms": 1000, "maxP99Ms": 3000 }
+      }
+    },
+    "poll": {
+      "maxTimeouts": 0,
+      "maxServerErrors": 0,
+      "maxUnexpectedStatuses": 0,
+      "maxP95Ms": 500,
+      "maxP99Ms": 1000,
+      "maxLocalDatabaseBytes": 33554432,
+      "maxLocalWalBytes": 16777216,
+      "routes": {
+        "GET /api/game/state": { "maxP95Ms": 500, "maxP99Ms": 1000 }
+      }
+    },
+    "burst": {
+      "maxTimeouts": 0,
+      "maxServerErrors": 0,
+      "maxUnexpectedStatuses": 0,
+      "maxP95Ms": 1000,
+      "maxP99Ms": 3000,
+      "maxLocalDatabaseBytes": 33554432,
+      "maxLocalWalBytes": 16777216,
+      "routes": {
+        "GET /api/game/state": { "maxP95Ms": 1000, "maxP99Ms": 3000 }
+      }
+    },
+    "mixed": {
+      "maxTimeouts": 0,
+      "maxServerErrors": 0,
+      "maxUnexpectedStatuses": 0,
+      "maxP95Ms": 1000,
+      "maxP99Ms": 3000,
+      "maxLocalDatabaseBytes": 33554432,
+      "maxLocalWalBytes": 16777216,
+      "routes": {
+        "GET /api/game/state": { "maxP95Ms": 1000, "maxP99Ms": 3000 },
+        "POST /api/game/work": { "maxP95Ms": 1000, "maxP99Ms": 3000 }
+      }
+    },
+    "soak": {
+      "maxTimeouts": 0,
+      "maxServerErrors": 0,
+      "maxUnexpectedStatuses": 0,
+      "maxP95Ms": 1000,
+      "maxP99Ms": 3000,
+      "maxLocalDatabaseBytes": 33554432,
+      "maxLocalWalBytes": 16777216,
+      "routes": {
+        "GET /api/game/state": { "maxP95Ms": 1000, "maxP99Ms": 3000 },
+        "POST /api/game/work": { "maxP95Ms": 1000, "maxP99Ms": 3000 }
+      }
+    }
+  }
+}

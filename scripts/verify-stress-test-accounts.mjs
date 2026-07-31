@@ -27,6 +27,9 @@ registry.accounts.forEach((account, index) => {
 });
 
 await assert.rejects(() => loadStressAccounts({ env: {} }), /ECONOMY_STRESS_TEST_PASSWORD/);
+await assert.rejects(() => loadStressAccounts({ env: { ECONOMY_STRESS_TEST_PASSWORD: 'runtime-only-secret' }, offset: -1 }), /offset/);
+await assert.rejects(() => loadStressAccounts({ env: { ECONOMY_STRESS_TEST_PASSWORD: 'runtime-only-secret' }, limit: 0 }), /limit/);
+await assert.rejects(() => loadStressAccounts({ env: { ECONOMY_STRESS_TEST_PASSWORD: 'runtime-only-secret' }, offset: 23, limit: 2 }), /账号池/);
 const loaded = await loadStressAccounts({ env: { ECONOMY_STRESS_TEST_PASSWORD: 'runtime-only-secret' }, offset: 2, limit: 3 });
 assert.deepEqual(loaded.map(({ id, email, password }) => ({ id, email, password })), [
   { id: 'stress-player-03', email: 'economy-stress-03@riversoft.top', password: 'runtime-only-secret' },
@@ -34,4 +37,4 @@ assert.deepEqual(loaded.map(({ id, email, password }) => ({ id, email, password 
   { id: 'stress-player-05', email: 'economy-stress-05@riversoft.top', password: 'runtime-only-secret' },
 ]);
 
-console.log('Fixed reusable stress-test account registry and secret boundary verification passed.');
+console.log('Fixed reusable stress-test account registry, strict slicing and secret boundary verification passed.');
