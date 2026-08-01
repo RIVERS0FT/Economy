@@ -19,9 +19,10 @@ export function createPriceTransmissionRuntime({
   normalizeWorld,
   defaultProductState,
 }) {
+  const baseRecipes = recipes.filter((recipe) => !String(recipe.recipeId || '').includes('--'));
   const relationId = (recipe, input) => `${recipe.facilityTypeId}/${recipe.recipeId}:${input.productId}`;
   const roundNullable = (value) => value === null ? null : round4(value);
-  const recipeCountByOutput = recipes.reduce((map, recipe) => {
+  const recipeCountByOutput = baseRecipes.reduce((map, recipe) => {
     map.set(recipe.output.productId, (map.get(recipe.output.productId) || 0) + 1);
     return map;
   }, new Map());
@@ -67,7 +68,7 @@ export function createPriceTransmissionRuntime({
     const costCandidates = new Map(products.map((product) => [product.id, []]));
     const downstreamCandidates = new Map(products.map((product) => [product.id, []]));
 
-    for (const recipe of recipes) {
+    for (const recipe of baseRecipes) {
       const outputProduct = productFor(recipe.output.productId);
       const profit = targetProfit(recipe);
       const inputCost = recipe.inputs.reduce((sum, input) => sum + signalPrice(snapshot, productFor(input.productId)) * input.quantity, 0);
@@ -104,7 +105,7 @@ export function createPriceTransmissionRuntime({
 
   function calculatePendingSignals(currentStates) {
     const pendingSignals = new Map();
-    for (const recipe of recipes) {
+    for (const recipe of baseRecipes) {
       const outputProduct = productFor(recipe.output.productId);
       const profit = targetProfit(recipe);
       const outputValue = signalPrice(currentStates, outputProduct) * recipe.output.quantity;
