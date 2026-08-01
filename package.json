@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "npm run generate:product-artwork && vite",
+    "postinstall": "node scripts/cleanup-market-chart-generated-text.mjs",
     "generate:product-artwork": "node scripts/generate-product-artwork-thumbnails.mjs",
     "verify:navigation-badges": "node --experimental-strip-types scripts/verify-navigation-badges.mjs",
     "verify:leaderboards": "node scripts/verify-leaderboards.mjs",
