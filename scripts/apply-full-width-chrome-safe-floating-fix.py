@@ -27,6 +27,13 @@ design_anchor = '- `.page-scroll-area` 与 `.page-scroll` 直接铺满下方工�
 design_replacement = design_anchor + '\n- 游戏端与管理员端继续共享这一个页面主 `ScrollArea`；不得为管理员创建第二个原生主滚动容器。'
 if design_anchor not in shell_design:
     raise SystemExit('Shared scroll ownership design anchor missing')
-shell_design_path.write_text(shell_design.replace(design_anchor, design_replacement, 1), encoding='utf-8')
+shell_design = shell_design.replace(design_anchor, design_replacement, 1)
 
-print('Fixed generated verifier quoting and restored shared page-scroll ownership authority.')
+photography_anchor = '- 玩家端和管理员端必须共享这套 DOM、CSS 变量、折叠行为和浏览器几何测试，不得分别创建第二套根外壳。'
+photography_rules = photography_anchor + '\n- 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；不得重建根级摄影节点。生产认证态继续使用 `-2 / -1` 负层级，游戏与管理员登录态保持非负根层级。'
+if photography_anchor not in shell_design:
+    raise SystemExit('Persistent photography design anchor missing')
+shell_design = shell_design.replace(photography_anchor, photography_rules, 1)
+shell_design_path.write_text(shell_design, encoding='utf-8')
+
+print('Fixed generated verifier quoting and restored shared scroll and persistent photography authority.')
