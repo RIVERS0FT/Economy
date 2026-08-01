@@ -155,19 +155,37 @@ export function FacilityStaffingSummary({
 }
 
 export function recipeVariantsForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
-  if (Array.isArray(type.recipes) && type.recipes.length > 0) return type.recipes;
-  return [
-    {
-      id: type.defaultRecipeId || `${type.id}-default`,
-      name: type.name,
-      baseRecipeId: type.defaultRecipeId || `${type.id}-default`,
-      productionMethodId: 'standard',
-      cycleMs: type.cycleMs,
-      operatingCost: type.operatingCost,
-      inputs: Array.isArray(type.inputs) ? type.inputs : type.input ? [type.input] : [],
-      output: type.output,
-    },
-  ];
+  const baseRecipes = Array.isArray(type.recipes) && type.recipes.length > 0
+    ? type.recipes.filter((recipe) => (recipe.productionMethodId ?? 'standard') === 'standard')
+    : [
+      {
+        id: type.defaultRecipeId || `${type.id}-default`,
+        name: type.name,
+        baseRecipeId: type.defaultRecipeId || `${type.id}-default`,
+        productionMethodId: 'standard' as const,
+        cycleMs: type.cycleMs,
+        operatingCost: type.operatingCost,
+        inputs: Array.isArray(type.inputs) ? type.inputs : type.input ? [type.input] : [],
+        output: type.output,
+      },
+    ];
+  const methodGroup = productionMethodGroupForType(type);
+  if (!methodGroup) return baseRecipes;
+  const variants = baseRecipes.flatMap((baseRecipe) => methodGroup.methods.flatMap((method) => {
+    const plan = method.plansByRecipeId[baseRecipe.id];
+    return plan ? [{
+      id: plan.recipeId,
+      name: baseRecipe.name,
+      baseRecipeId: baseRecipe.id,
+      productionMethodId: method.id,
+      cycleMs: plan.cycleMs,
+      operatingCost: plan.operatingCost,
+      inputs: plan.inputs,
+      input: plan.input,
+      output: plan.output,
+    }] : [];
+  }));
+  return variants.length > 0 ? variants : baseRecipes;
 }
 
 export function recipesForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {

@@ -583,4 +583,5 @@ GitHub Actions 使用 `SERVER_USER=deploy`，Economy systemd 服务也使用该�
 - 服务器 `industry-catalog.js` 是生产方式数值的唯一正式来源，并通过 `production-methods.js` 把每个基础配方编译为标准、高速、节约和高产四个生产方式配方变体。
 - 生产方式不新增世界状态字段、不新增动作路由，也不改变工厂资产结构；现有 `setFacilityRecipe` 动作接收目标变体 ID，继续复用 `activeRecipeId`／`pendingRecipeId` 和周期边界切换事务。
 - 该扩展只向客户端目录增加可选元数据，并保留标准配方原 ID，因此客户端状态版本保持 24、世界状态版本保持 21；旧世界缺少生产方式选择时自然使用标准生产。
+- 普通玩家状态中的 `facilityTypes[].recipes` 继续只公开标准生产路线；新客户端从可选 `productionMethodGroups` 元数据合成方式变体，旧版本 24 客户端忽略新增元数据后仍只看到原有配方列表。
 - 服务器必须在接受动作时验证变体属于目标工厂，在结算时只读取当前活动变体，禁止客户端上传自定义倍率或独立数值。
