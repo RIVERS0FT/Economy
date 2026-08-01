@@ -29,9 +29,12 @@ Object.values(files).forEach(requireFile);
 
 if (failures.length === 0) {
   const openChainSelectors = `.signed-in-shell,
+.signed-in-shell__body,
+.signed-in-shell__chrome,
 .workspace,
 .mobile-page-overlay,
 .mobile-chrome-overlay,
+.workspace-floating-layer,
 .page-scroll-area,
 .page-scroll {
   isolation: auto;

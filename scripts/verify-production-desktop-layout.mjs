@@ -14,9 +14,9 @@ const productionAlignmentDesign = read('docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md
 const chrome = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 
 for (const text of [
-  '--desktop-page-top-offset: calc(',
-  'padding-top: var(--desktop-page-top-offset);',
-  'scroll-padding-top: var(--desktop-page-top-offset);',
+  '--desktop-page-top-offset: var(--desktop-layout-gutter);',
+  'padding-top: 0;',
+  'scroll-padding-top: 0;',
 ]) assert.equal(shell.includes(text), true, `桌面外壳缺少: ${text}`);
 
 for (const text of [
@@ -124,7 +124,7 @@ for (const text of [
   '`721px–960px` 恢复普通文档流',
 ]) assert.equal(productionAlignmentDesign.includes(text), true, `生产对齐设计缺少: ${text}`);
 
-assert.equal(chrome.includes('页面顶部避让必须集中为 `--desktop-page-top-offset`'), true, '外壳设计缺少统一顶部避让规则');
+assert.equal(chrome.includes('`--desktop-page-top-offset` 只表示下方工作区内部沟槽'), true, '外壳设计缺少工作区内部顶部偏移规则');
 assert.equal(industry.includes('大于等于 `1600px` 时使用紧凑三列'), true, '产业设计缺少桌面生产布局规则');
 
 console.log('桌面生产页建设卡与详情卡 sticky 对齐、唯一职责、自然高度详情和统一滚动验证通过。');

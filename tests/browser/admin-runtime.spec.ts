@@ -238,6 +238,9 @@ expect(desktopNavigationLabels).toEqual(['概览', '玩家', '人口', '礼品',
       viewportWidth: window.innerWidth,
       sidebarLeft: sidebarRect.left,
       sidebarWorkspaceGap: workspaceRect.left - sidebarRect.right,
+      sidebarTopGap: sidebarRect.top - commandRect.bottom,
+      workspaceTopGap: workspaceRect.top - commandRect.bottom,
+      commandLeft: commandRect.left,
       commandTop: commandRect.top,
       commandRightGap: window.innerWidth - commandRect.right,
       commandHeight: commandRect.height,
@@ -247,15 +250,53 @@ expect(desktopNavigationLabels).toEqual(['概览', '玩家', '人口', '礼品',
       thumbRight: thumbRect.right,
     };
   });
-  expect(geometry.sidebarLeft).toBeCloseTo(12, 0);
-  expect(geometry.sidebarWorkspaceGap).toBeCloseTo(12, 0);
+  expect(geometry.commandLeft).toBeCloseTo(12, 0);
   expect(geometry.commandTop).toBeCloseTo(12, 0);
   expect(geometry.commandRightGap).toBeCloseTo(12, 0);
+  expect(geometry.sidebarLeft).toBeCloseTo(12, 0);
+  expect(geometry.sidebarWorkspaceGap).toBeCloseTo(12, 0);
+  expect(geometry.sidebarTopGap).toBeCloseTo(12, 0);
+  expect(geometry.workspaceTopGap).toBeCloseTo(12, 0);
   expect(geometry.commandHeight).toBeCloseTo(76, 0);
   expect(geometry.contentRightDifference).toBeLessThanOrEqual(1);
   expect(geometry.frameWorkspaceWidthDifference).toBeLessThanOrEqual(1);
   expect(geometry.railRight).toBeCloseTo(geometry.viewportWidth, 0);
   expect(geometry.thumbRight).toBeCloseTo(geometry.viewportWidth, 0);
+
+  const identity = page.locator('.admin-command-bar-identity');
+  await identity.hover();
+  const tooltip = page.getByRole('tooltip');
+  await expect(tooltip).toBeVisible();
+  const floatingGeometry = await page.evaluate(() => {
+    const workspace = document.querySelector<HTMLElement>('.admin-workspace');
+    const sidebar = document.querySelector<HTMLElement>('.admin-sidebar');
+    const command = document.querySelector<HTMLElement>('.admin-command-bar');
+    const layer = document.querySelector<HTMLElement>('.workspace-floating-layer');
+    const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]');
+    if (!workspace || !sidebar || !command || !layer || !tooltip) throw new Error('管理员安全悬浮层缺失');
+    const box = (element: HTMLElement) => element.getBoundingClientRect();
+    const intersects = (a: DOMRect, b: DOMRect) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
+      * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    const workspaceRect = box(workspace);
+    const tooltipRect = box(tooltip);
+    return {
+      layerMatchesWorkspace: Math.abs(box(layer).left - workspaceRect.left) <= 1
+        && Math.abs(box(layer).top - workspaceRect.top) <= 1
+        && Math.abs(box(layer).right - workspaceRect.right) <= 1
+        && Math.abs(box(layer).bottom - workspaceRect.bottom) <= 1,
+      tooltipInsideWorkspace: tooltipRect.left >= workspaceRect.left - 1
+        && tooltipRect.top >= workspaceRect.top - 1
+        && tooltipRect.right <= workspaceRect.right + 1
+        && tooltipRect.bottom <= workspaceRect.bottom + 1,
+      statusIntersection: intersects(tooltipRect, box(command)),
+      sidebarIntersection: intersects(tooltipRect, box(sidebar)),
+    };
+  });
+  expect(floatingGeometry.layerMatchesWorkspace).toBe(true);
+  expect(floatingGeometry.tooltipInsideWorkspace).toBe(true);
+  expect(floatingGeometry.statusIntersection).toBe(0);
+  expect(floatingGeometry.sidebarIntersection).toBe(0);
+
   const metricColumns = await page.locator('.admin-summary-grid').evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length);
   expect(metricColumns).toBe(6);
 
@@ -378,6 +419,8 @@ test('admin navigation uses the shared mobile overlay and stays above page cards
       scrollPaddingBottom: Number.parseFloat(scrollStyle.paddingBottom),
       documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       chromeLayerInsideWorkspace: workspace.contains(layer),
+      chromeLayerInsideShell: Boolean(document.querySelector('.admin-shell')?.contains(layer)),
+      bodyOrder: Number.parseInt(getComputedStyle(document.querySelector<HTMLElement>('.signed-in-shell__body')!).order, 10),
       chromeLayerOrder: Number.parseInt(layerStyle.order, 10),
       pageLayerOrder: Number.parseInt(pageLayerStyle.order, 10),
       topmostInsideNavigation: Boolean(topmost && nav.contains(topmost)),
@@ -391,8 +434,9 @@ test('admin navigation uses the shared mobile overlay and stays above page cards
   expect(geometry.navBottomGap).toBeLessThanOrEqual(20);
   expect(geometry.scrollPaddingBottom).toBeGreaterThan(geometry.navHeight);
   expect(geometry.documentOverflow).toBeLessThanOrEqual(1);
-  expect(geometry.chromeLayerInsideWorkspace).toBe(true);
-  expect(geometry.chromeLayerOrder).toBeGreaterThan(geometry.pageLayerOrder);
+  expect(geometry.chromeLayerInsideWorkspace).toBe(false);
+  expect(geometry.chromeLayerInsideShell).toBe(true);
+  expect(geometry.chromeLayerOrder).toBeGreaterThan(geometry.bodyOrder);
   expect(geometry.topmostInsideNavigation).toBe(true);
   expect(geometry.workspaceDisplay).toBe('grid');
   expect(geometry.layerPosition).toBe('relative');

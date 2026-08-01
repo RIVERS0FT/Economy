@@ -1,7 +1,7 @@
 /* Final geometry authority for signed-in game and administrator shells.
- * The viewport itself has no padding or grid gap. One desktop layout gutter
- * controls sidebar, command bar, primary content edges and primary-card gaps,
- * while the workspace and page scrollport remain flush to the viewport. */
+ * Desktop chrome spans the full shell width. Sidebar and workspace occupy a
+ * separate lower row, while the page scrollport and floating layer remain
+ * confined to the workspace. */
 :root {
   --desktop-layout-gutter: var(--space-3);
 }
@@ -12,14 +12,46 @@
     --desktop-sidebar-workspace-gap: var(--desktop-layout-gutter);
     --desktop-status-gap: var(--desktop-layout-gutter);
     --layout-gutter: var(--desktop-layout-gutter);
-    --desktop-page-top-offset: calc(
+    --desktop-shell-body-top: calc(
       var(--desktop-layout-gutter)
       + var(--desktop-asset-bar-height)
       + var(--desktop-layout-gutter)
     );
+    --desktop-page-top-offset: var(--desktop-layout-gutter);
 
     width: 100%;
     height: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--desktop-shell-body-top) minmax(0, 1fr);
+    gap: 0;
+    padding: 0;
+  }
+
+  .signed-in-shell__chrome {
+    position: relative;
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    display: block;
+    box-sizing: border-box;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    pointer-events: none;
+  }
+
+  .signed-in-shell__chrome > * {
+    pointer-events: auto;
+  }
+
+  .signed-in-shell__body {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
     display: grid;
     grid-template-columns:
       calc(
@@ -39,19 +71,21 @@
     align-self: stretch;
     justify-self: start;
     margin:
-      var(--desktop-shell-outer-inset)
+      0
       0
       var(--desktop-shell-outer-inset)
       var(--desktop-shell-outer-inset);
   }
 
   .signed-in-shell .workspace {
+    position: relative;
     width: 100%;
     height: 100%;
     min-width: 0;
     min-height: 0;
     margin: 0;
     padding: 0;
+    overflow: hidden;
   }
 
   .signed-in-shell .asset-bar {
@@ -59,7 +93,7 @@
     z-index: auto;
     top: var(--desktop-layout-gutter);
     right: var(--desktop-layout-gutter);
-    left: 0;
+    left: var(--desktop-layout-gutter);
     width: auto;
     height: var(--desktop-asset-bar-height);
     min-width: 0;
@@ -79,14 +113,16 @@
   }
 
   .signed-in-shell .page-scroll {
-    padding-top: var(--desktop-page-top-offset);
+    padding-top: 0;
     padding-right: 0;
     padding-left: 0;
-    scroll-padding-top: var(--desktop-page-top-offset);
+    scroll-padding-top: 0;
   }
 
   .signed-in-shell .page-scroll-area > .ui-scrollbar--vertical {
+    top: 0;
     right: 0;
+    bottom: 0;
   }
 
   .signed-in-shell .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
@@ -104,6 +140,20 @@
 
   .signed-in-shell .page-heading {
     padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .workspace-floating-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    min-width: 0;
+    min-height: 0;
+    overflow: clip;
+    pointer-events: none;
+  }
+
+  .workspace-floating-layer > * {
+    pointer-events: auto;
   }
 }
 

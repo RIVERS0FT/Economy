@@ -10,197 +10,138 @@ const check = (path, values) => {
     return;
   }
   const content = read(path);
-  for (const value of values) {
-    if (!content.includes(value)) failures.push(`${path} 缺少: ${value}`);
-  }
+  for (const value of values) if (!content.includes(value)) failures.push(`${path} 缺少: ${value}`);
 };
 const forbid = (path, values) => {
   const content = read(path);
-  for (const value of values) {
-    if (content.includes(value)) failures.push(`${path} 不应包含: ${value}`);
-  }
+  for (const value of values) if (content.includes(value)) failures.push(`${path} 不应包含: ${value}`);
 };
 
 check('src/main.tsx', [
   "import './styles/viewport.css';",
   "import './styles/scrollbars.css';",
   "import './styles/game-shell-layout.css';",
+  "import './styles/safe-floating.css';",
 ]);
 check('src/components/shell/SignedInShell.tsx', [
   "import { ScrollArea } from '../ui/ScrollArea'",
-  "'signed-in-shell'",
+  'WorkspaceFloatingLayerContext.Provider',
+  'className="signed-in-shell__body"',
+  "'signed-in-shell__chrome'",
   'className="mobile-page-overlay"',
-  "'mobile-chrome-overlay'",
+  'className="workspace-floating-layer"',
+  'data-workspace-floating-layer="true"',
   'className="page-scroll-area"',
   "'page-scroll'",
-  'scrollbarVisibility="adaptive"',
-  "data-admin-mobile-chrome={adminChromeLayer ? 'true' : undefined}",
 ]);
-check('src/components/shell/GameShell.tsx', [
-  "import { SignedInShell } from './SignedInShell'",
-  '<SignedInShell',
-  'rootClassName="game-shell"',
-  '<StatusBar items={statusItems} />',
-  'className="mobile-notice-region"',
-  '<MobileBottomNavigation',
-]);
-check('src/app/AdminApp.tsx', [
-  "import { SignedInShell } from '../components/shell/SignedInShell'",
-  '<SignedInShell',
-  'rootClassName="admin-shell"',
-  'workspaceClassName="admin-workspace"',
-  'pageViewportClassName="admin-page-scroll"',
-  'pageFrameClassName="admin-page-frame"',
-  'chromeOverlayClassName="admin-mobile-chrome-layer"',
-  '<AdminDesktopBar',
-  '<AdminMobileNavigation',
-]);
-
 const sharedShell = read('src/components/shell/SignedInShell.tsx');
-if (sharedShell.indexOf('className="mobile-page-overlay"') >= sharedShell.indexOf("'mobile-chrome-overlay'")) {
-  failures.push('SignedInShell 的页面 Overlay 必须先于 Chrome Overlay');
+if (sharedShell.indexOf('className="signed-in-shell__body"') >= sharedShell.indexOf("'signed-in-shell__chrome'")) {
+  failures.push('SignedInShell 必须先渲染页面主体、再渲染 Chrome，保持移动玻璃采样顺序');
 }
-const gameShell = read('src/components/shell/GameShell.tsx');
-const statusIndex = gameShell.indexOf('<StatusBar items={statusItems} />');
-const noticeIndex = gameShell.indexOf('className="mobile-notice-region"');
-const navigationIndex = gameShell.indexOf('<MobileBottomNavigation');
-if (!(statusIndex >= 0 && noticeIndex > statusIndex && navigationIndex > noticeIndex)) {
-  failures.push('移动通知必须位于状态栏之后、移动导航之前');
-}
-forbid('src/components/shell/GameShell.tsx', [
-  'className="mobile-page-overlay"',
-  'className="mobile-chrome-overlay"',
-  "import { ScrollArea } from '../ui/ScrollArea'",
+check('src/components/ui/WorkspaceFloatingLayer.tsx', [
+  'WorkspaceFloatingLayerContext', 'useWorkspaceFloatingLayer',
 ]);
-forbid('src/app/AdminApp.tsx', [
-  '<section className="admin-workspace">',
-  '<div className="admin-page-scroll">',
+check('src/components/ui/SafeTooltip.tsx', [
+  'createPortal', 'useWorkspaceFloatingLayer', 'SAFE_FLOATING_GAP = 8',
+  'role="tooltip"', 'floatingLayer.getBoundingClientRect()',
 ]);
+check('src/components/shell/AdminDesktopBar.tsx', [
+  "import { SafeTooltip } from '../ui/SafeTooltip'",
+  'className="admin-command-bar-identity"',
+]);
+forbid('src/components/shell/AdminDesktopBar.tsx', ['title={email}']);
+check('src/pages/production/MobileFacilityDetailSheet.tsx', [
+  'useWorkspaceFloatingLayer', '!floatingLayer', 'floatingLayer,',
+]);
+forbid('src/pages/production/MobileFacilityDetailSheet.tsx', ['document.body,']);
 
-check('src/styles/viewport.css', [
-  'html[data-app-surface="admin"]',
-  '.signed-in-shell {',
-  '--layout-gutter: var(--mobile-primary-surface-gap);',
-  'padding-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
-  'padding-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));',
-  '.mobile-page-overlay {',
-  'order: 1;',
-  '.mobile-chrome-overlay {',
-  'order: 2;',
-  'pointer-events: none;',
-  'min-height: var(--mobile-asset-bar-height);',
-  'max-height: var(--mobile-asset-bar-height);',
-  'min-height: var(--mobile-nav-height);',
-  'max-height: var(--mobile-nav-height);',
-]);
 check('src/styles/game-shell-layout.css', [
   '--desktop-layout-gutter: var(--space-3);',
-  '.signed-in-shell.sidebar-layout {',
-  '--desktop-shell-outer-inset: var(--desktop-layout-gutter);',
-  '--desktop-sidebar-workspace-gap: var(--desktop-layout-gutter);',
-  '--desktop-status-gap: var(--desktop-layout-gutter);',
-  '--layout-gutter: var(--desktop-layout-gutter);',
-  '--desktop-page-top-offset:',
-  '.signed-in-shell .asset-bar {',
-  'top: var(--desktop-layout-gutter);',
+  '--desktop-shell-body-top:',
+  'grid-template-rows: var(--desktop-shell-body-top) minmax(0, 1fr);',
+  '.signed-in-shell__chrome {',
+  'display: block;',
+  '.signed-in-shell__body {',
+  'left: var(--desktop-layout-gutter);',
   'right: var(--desktop-layout-gutter);',
-  '.signed-in-shell .page-scroll-area > .ui-scrollbar--vertical {',
-  '.signed-in-shell .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
-  'padding: 0 var(--desktop-layout-gutter) var(--desktop-layout-gutter) 0;',
-  '--desktop-layout-gutter: var(--space-2);',
-]);
-const desktopLayout = read('src/styles/game-shell-layout.css');
-if ((desktopLayout.match(/--desktop-layout-gutter: var\(--space-3\);/g) ?? []).length !== 1) {
-  failures.push('普通桌面只能定义一个 12px --desktop-layout-gutter 默认值');
-}
-if ((desktopLayout.match(/--desktop-layout-gutter: var\(--space-2\);/g) ?? []).length !== 2) {
-  failures.push('窄桌面与矮桌面必须统一使用 8px --desktop-layout-gutter');
-}
-forbid('src/styles/game-shell-layout.css', [
-  'html[data-app-surface="game"]',
-  '--desktop-shell-outer-inset: var(--space-3);',
-  '--desktop-status-gap: var(--space-3);',
-  '--desktop-shell-outer-inset: .45rem;',
-]);
-
-check('src/styles/admin-navigation.css', [
-  '.admin-command-bar-content {',
-  '.admin-page-frame .page-heading {',
-  'display: none;',
-  'top: var(--desktop-page-top-offset);',
-  '.admin-page-scroll {',
-  '.admin-mobile-chrome-layer .admin-mobile-bottom-navigation',
-]);
-forbid('src/styles/admin-navigation.css', [
-  'max-width: 1600px;',
-  'top: 112px;',
-  '.admin-workspace {',
-  'position: fixed;',
-]);
-forbid('src/styles/unified-market-admin.css', [
-  '.admin-shell {\n  position: fixed;',
-  'max-width: 1440px;',
-  '.admin-mobile-navigation {',
-]);
-
-check('src/styles/scrollbars.css', [
-  '.page-scroll-area {',
-  'overflow: visible;',
+  'padding-top: 0;',
+  'scroll-padding-top: 0;',
   '.page-scroll-area > .ui-scrollbar--vertical {',
-  'position: fixed;',
-  'right: env(safe-area-inset-right, 0px);',
-  '.page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {',
-  'right: var(--scrollbar-edge-offset);',
-  'left: auto;',
+  'top: 0;',
+  '.workspace-floating-layer {',
+  'overflow: clip;',
 ]);
-check('src/styles/performance.css', [
-  '.page-scroll {',
-  'overscroll-behavior-x: contain;',
-  'overscroll-behavior-y: auto;',
+forbid('src/styles/game-shell-layout.css', [
+  `left: 0;
+    width: auto;
+    height: var(--desktop-asset-bar-height);`,
+  '--desktop-page-top-offset: calc(',
 ]);
-forbid('src/components/shell/StatusBar.tsx', [
-  "import { ScrollArea }",
-  '<ScrollArea',
-  'asset-bar-scroll-area',
+check('src/styles/desktop-sidebar.css', [
+  '.signed-in-shell__body {',
+  'transition: grid-template-columns var(--desktop-sidebar-motion);',
+]);
+check('src/styles/viewport.css', [
+  '.signed-in-shell__body,', '.signed-in-shell__chrome,', '.workspace-floating-layer,',
+  'grid-template-rows: minmax(0, 1fr);',
+  'margin-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));',
+  'margin-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));',
+  'right: 0;', 'left: 0;',
+  'top: calc(', 'bottom: calc(', 'overflow: clip;',
+]);
+check('src/styles/facility-detail-sheet.css', [
+  '.workspace-floating-layer > .facility-detail-sheet-backdrop',
+  'position: absolute;', 'align-items: end;',
+]);
+check('src/styles/safe-floating.css', ['.safe-tooltip {', 'position: absolute;', 'pointer-events: none !important;']);
+check('src/components/charts/chartOptions.ts', ['appendToBody: false', 'confine: true']);
+
+check('tests/browser/game-shell-layout.spec.ts', [
+  'desktop shell uses one 12px gutter for full-width status bar, lower sidebar, cards and page edges',
+  'sidebar collapse leaves the full-width status bar fixed and only expands the lower workspace',
+  'expect(expanded.assetBar.left).toBeCloseTo(collapsed.assetBar.left, 0)',
+  'expect(layout.sidebar.top).toBeCloseTo(layout.body.top, 0)',
+  'expect(layout.floatingLayer.top).toBeCloseTo(layout.workspace.top, 0)',
+  'expect(layout.pageScrollbar.railTop).toBeCloseTo(layout.body.top, 0)',
+]);
+check('tests/browser/admin-runtime.spec.ts', [
+  'sidebarTopGap', 'workspaceTopGap', 'admin-command-bar-identity',
+  '管理员安全悬浮层缺失', 'tooltipInsideWorkspace',
+  'expect(geometry.chromeLayerInsideWorkspace).toBe(false)',
+]);
+check('tests/browser/game-three-layer.spec.ts', [
+  'bodyIndex: shellChildren.indexOf(body)',
+  'chromeIndex: shellChildren.indexOf(chromeOverlay)',
+]);
+check('tests/browser/shell-floating-safe-zone.spec.ts', [
+  'market-runtime-test.html?scenario=active',
+  "read('axisLeft')", "read('priceTop')", 'scrollIntoViewIfNeeded',
+  'game ECharts tooltip remains inside the lower workspace and never covers shell chrome',
+  'mobile workspace floating layer excludes the top status bar and bottom navigation',
+  'intersectionArea',
+]);
+check('tests/browser/liquid-glass-layout.spec.ts', [
+  'assetBarAreaWidth).toBeCloseTo(layout.viewportWidth - 24',
+  'workspaceTop - layout.assetBarBottom',
 ]);
 
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
-  '登录后桌面应用外壳几何',
-  '`SignedInShell`',
-  '游戏端和管理员端',
-  '普通桌面使用 `12px`',
-  '紧凑桌面使用 `8px`',
-  '桌面页面主滚动条的轨道和可见滑块都使用 `right: 0`',
-  '固定到视口安全边缘',
-  'right: env(safe-area-inset-right, 0px)',
-  '顶部状态栏不得包含 `ScrollArea`',
-]);
-check('docs/README.md', [
-  '移动操作结果通知归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `GameShell` Chrome Overlay',
-  '游戏端与管理员端桌面外壳必须共享 `SignedInShell`',
-  '桌面页面主滚动条固定贴合视口右边缘',
+  '跨越全部桌面列', '侧栏不得再从视口顶部开始',
+  '工作区浮层安全区', '不得追加到 `document.body`',
+  '`appendToBody: false`', '`confine: true`',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
-  '统一覆盖式滚动条',
-  '桌面侧栏导航网格必须从顶部开始排列',
-  '不得使用 `overscroll-behavior: contain` 阻断纵向滚动链',
-  '移动页面纵向轨道固定到视口安全边缘',
+  '登录后浮层安全区', '`SafeTooltip`',
+  '不得与桌面顶部状态栏／管理员工作栏、桌面侧栏',
 ]);
-check('tests/browser/game-shell-layout.spec.ts', [
-  'desktop shell uses one 12px gutter for sidebar, status bar, cards and page edges',
-  'compact desktop width uses the same 8px gutter everywhere',
-  'short desktop height uses the same 8px gutter everywhere',
-  'expect(layout.pageScrollbar.railRight).toBeCloseTo(layout.viewportWidth, 0)',
-]);
-check('tests/browser/admin-runtime.spec.ts', [
-  'admin desktop shares the game shell gutter, command bar and edge scrollbar',
-  '.admin-command-bar',
-  '.liquid-glass-surface--desktopStatusBar',
+check('docs/README.md', [
+  '全宽顶部工作栏', '浮层安全根', 'shell-floating-safe-zone.spec.ts',
 ]);
 
 if (failures.length) {
-  console.error(`游戏与管理员共享外壳验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`游戏与管理员共享外壳验证失败:
+- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：统一桌面沟槽、共享滚动视口、管理员玻璃工作栏、移动 Overlay 与贴边滚动条均已锁定。');
+console.log('游戏与管理员共享外壳验证通过：全宽顶部工作栏、下方侧栏与工作区、贴边滚动条和浮层安全根均已锁定。');

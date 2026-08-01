@@ -8,7 +8,9 @@
 
 .sidebar-layout {
   --sidebar-column-width: var(--desktop-sidebar-expanded-width);
-  grid-template-columns: var(--sidebar-column-width) minmax(0, 1fr);
+}
+
+.signed-in-shell__body {
   transition: grid-template-columns var(--desktop-sidebar-motion);
 }
 
@@ -289,6 +291,9 @@
   .sidebar-layout,
   .sidebar-layout.sidebar-collapsed {
     --sidebar-column-width: 86px;
+  }
+
+  .signed-in-shell__body {
     transition: none;
   }
 
@@ -330,7 +335,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sidebar-layout,
+  .signed-in-shell__body,
   .sidebar-brand-copy,
   .sidebar-collapse-button,
   .desktop-sidebar .sidebar-nav-button strong,

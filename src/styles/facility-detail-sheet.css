@@ -1,7 +1,7 @@
 /* Final authority for the mobile factory detail sheet. The shared production
  * card stylesheet remains authoritative for desktop detail cards; this file is
  * loaded afterwards and owns the mobile overlay structure, drag feedback,
- * fixed header/footer, and shared ScrollArea integration. */
+ * safe-area header/footer, and shared ScrollArea integration. */
 
 .page-scroll-area[data-modal-scrollbar-suppressed='true'] > .ui-scrollbar--vertical {
   opacity: 0 !important;
@@ -205,5 +205,27 @@
 
   .facility-detail-sheet .facility-count-summary strong {
     font-size: var(--font-size-xs);
+  }
+}
+
+
+@media (max-width: 720px) {
+  .workspace-floating-layer > .facility-detail-sheet-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    align-items: end;
+    overflow: hidden;
+    pointer-events: auto;
+  }
+
+  .workspace-floating-layer > .facility-detail-sheet-backdrop > .facility-detail-sheet {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100%;
   }
 }

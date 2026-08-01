@@ -87,14 +87,18 @@ test.describe('signed-in game three-layer background', () => {
     await expect(page.locator('.mobile-bottom-navigation')).toBeVisible();
 
     const layout = await page.evaluate(() => {
+      const shell = document.querySelector<HTMLElement>('.game-shell');
+      const body = document.querySelector<HTMLElement>('.signed-in-shell__body');
       const workspace = document.querySelector<HTMLElement>('.workspace');
       const pageOverlay = document.querySelector<HTMLElement>('.mobile-page-overlay');
       const chromeOverlay = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
-      if (!workspace || !pageOverlay || !chromeOverlay) throw new Error('mobile game overlay fixture is incomplete');
-      const children = [...workspace.children];
+      if (!shell || !body || !workspace || !pageOverlay || !chromeOverlay) throw new Error('mobile game overlay fixture is incomplete');
+      const shellChildren = [...shell.children];
+      const workspaceChildren = [...workspace.children];
       return {
-        pageIndex: children.indexOf(pageOverlay),
-        chromeIndex: children.indexOf(chromeOverlay),
+        bodyIndex: shellChildren.indexOf(body),
+        chromeIndex: shellChildren.indexOf(chromeOverlay),
+        pageIndex: workspaceChildren.indexOf(pageOverlay),
         workspaceZ: getComputedStyle(workspace).zIndex,
         pageZ: getComputedStyle(pageOverlay).zIndex,
         chromeZ: getComputedStyle(chromeOverlay).zIndex,
@@ -106,8 +110,9 @@ test.describe('signed-in game three-layer background', () => {
       };
     });
 
-    expect(layout.pageIndex).toBe(0);
+    expect(layout.bodyIndex).toBe(0);
     expect(layout.chromeIndex).toBe(1);
+    expect(layout.pageIndex).toBe(0);
     expect(layout.workspaceZ).toBe('auto');
     expect(layout.pageZ).toBe('auto');
     expect(layout.chromeZ).toBe('auto');
