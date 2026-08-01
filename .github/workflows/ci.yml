@@ -95,6 +95,14 @@ jobs:
           if old not in source:
               raise SystemExit('verify-market-page-layout.mjs fixed tick assertion missing')
           layout_verifier.write_text(source.replace(old, new), encoding='utf-8')
+
+          runtime = Path('tests/browser/market-runtime.spec.ts')
+          source = runtime.read_text(encoding='utf-8')
+          old = '  await expect(tooltip).toHaveText(priceHoverText);'
+          new = "  const volumeHoverText = await tooltip.innerText();\n  expect(volumeHoverText.replace(/\\s+/g, ' ').trim()).toBe(priceHoverText.replace(/\\s+/g, ' ').trim());"
+          if old not in source:
+              raise SystemExit('market hover text assertion missing')
+          runtime.write_text(source.replace(old, new), encoding='utf-8')
           PY
 
       - name: Install dependencies
