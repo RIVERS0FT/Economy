@@ -44,6 +44,7 @@ import './styles/overview-polish.css';
 import './styles/market-page-polish.css';
 import './styles/leaderboards.css';
 import './styles/product-artwork.css';
+import './styles/facility-artwork.css';
 import './styles/design-system.css';
 import './styles/interaction-states.css';
 import './styles/primary-surfaces.css';

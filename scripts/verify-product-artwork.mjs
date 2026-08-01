@@ -41,6 +41,7 @@ const productIds = [
 
 const artworkStylePath = 'src/styles/product-artwork.css';
 const generatorPath = 'scripts/generate-product-artwork-thumbnails.mjs';
+const sharedGeneratorPath = 'scripts/artwork-thumbnails.mjs';
 const packagePath = 'package.json';
 const gitignorePath = '.gitignore';
 const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
@@ -81,6 +82,7 @@ function validatePng(path, expectedSize, label) {
 for (const path of [
   artworkStylePath,
   generatorPath,
+  sharedGeneratorPath,
   packagePath,
   gitignorePath,
   uiDesignPath,
@@ -94,6 +96,7 @@ for (const path of [
 if (failures.length === 0) {
   const artworkStyles = read(artworkStylePath);
   const generator = read(generatorPath);
+  const sharedGenerator = read(sharedGeneratorPath);
   const packageJson = read(packagePath);
   const gitignore = read(gitignorePath);
   const uiDesign = read(uiDesignPath);
@@ -140,17 +143,25 @@ if (failures.length === 0) {
   }
 
   for (const required of [
-    "import { deflateSync, inflateSync } from 'node:zlib';",
-    'const targetSize = 128;',
-    'downsampleWithPremultipliedAlpha',
-    "resolve(sourceDirectory, 'generated/128')",
-    'level: 9',
+    "generateArtworkThumbnails } from './artwork-thumbnails.mjs'",
+    "sourceDirectory: resolve(process.cwd(), 'src/assets/product-icons')",
   ]) {
     if (!generator.includes(required)) failures.push(`${generatorPath} 缺少: ${required}`);
   }
 
   for (const required of [
-    '"dev": "npm run generate:product-artwork && vite"',
+    "import { deflateSync, inflateSync } from 'node:zlib';",
+    'targetSize = 128',
+    'downsampleWithPremultipliedAlpha',
+    'generated/${targetSize}',
+    'level: 9',
+  ]) {
+    if (!sharedGenerator.includes(required)) failures.push(`${sharedGeneratorPath} 缺少: ${required}`);
+  }
+
+  for (const required of [
+    '"dev": "npm run generate:artwork && vite"',
+    '"generate:artwork": "npm run generate:product-artwork && npm run generate:facility-artwork"',
     '"generate:product-artwork": "node scripts/generate-product-artwork-thumbnails.mjs"',
     '"verify:product-artwork": "npm run generate:product-artwork && node scripts/verify-product-artwork.mjs"',
     'npm run verify:product-artwork',

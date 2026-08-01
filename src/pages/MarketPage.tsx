@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { orderStatusNames, type LoadedGameViewModel } from '../app/gameViewModel';
 import { PriceSparkline } from '../components/charts/PriceSparkline';
+import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { FactoryIcon, WarehouseIcon } from '../components/icons/GameIcons';
 import { ProductIcon, ProductIconLabel } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
@@ -305,15 +306,27 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                   role="tab"
                   aria-selected={active}
                   aria-label={`${facility.name}，最近成交价 ${priceLabel}，持有 ${formatNumber(group?.count ?? 0)}${active ? '，当前选择' : ''}`}
-                  data-current={active ? '当前' : undefined}
                   className={active ? 'unified-asset-tab facility active' : 'unified-asset-tab facility'}
                   key={`facility-${facility.id}`}
                   onClick={() => selectMarketAsset('facility', facility.id)}
                 >
-                  <span className="asset-kind-icon" aria-hidden="true"><FactoryIcon /></span>
-                  <strong>{facility.name}</strong>
-                  <span><CurrencyAmount>{hasLastTradePrice ? formatCurrency(lastTradePrice) : '—'}</CurrencyAmount></span>
-                  <small>持有 {formatNumber(group?.count ?? 0)}</small>
+                  <span className="market-asset-card__icon-layer" aria-hidden="true">
+                    <FacilityIcon facilityTypeId={facility.id} />
+                  </span>
+                  <span className="market-asset-card__data-layer" aria-hidden="true">
+                    <strong className="market-asset-card__name">
+                      <FactoryIcon className="market-asset-card__name-icon" />
+                      <span>{facility.name}</span>
+                    </strong>
+                    <span className="market-asset-card__price" title={`最近成交价：${priceLabel}`}>
+                      <CurrencyAmount>{hasLastTradePrice ? formatCurrency(lastTradePrice) : '—'}</CurrencyAmount>
+                    </span>
+                    {active ? <span className="market-asset-card__current">当前</span> : null}
+                    <span className="market-asset-card__inventory" title={`持有数量：${formatNumber(group?.count ?? 0)}`}>
+                      <FactoryIcon />
+                      <span>{formatNumber(group?.count ?? 0)}</span>
+                    </span>
+                  </span>
                 </button>
               );
             })}

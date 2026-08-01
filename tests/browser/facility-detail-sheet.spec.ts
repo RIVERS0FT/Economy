@@ -42,6 +42,9 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     const pageScroll = page.locator('.page-scroll');
 
     await expect(trigger).toBeVisible();
+    const artwork = trigger.locator('[data-facility-icon="machine-factory"]');
+    await expect(artwork).toHaveCount(1);
+    await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');
 
     for (let iteration = 0; iteration < 3; iteration += 1) {
       await trigger.tap();

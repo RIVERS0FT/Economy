@@ -1,4 +1,4 @@
-import { FactoryIcon } from '../../components/icons/GameIcons';
+import { FacilityIcon } from '../../components/icons/FacilityIcons';
 import { SelectInput } from '../../components/ui/FormControls';
 import {
   Button,
@@ -219,7 +219,7 @@ export function FacilityClusterSelectorCard({
       onClick={(event) => onSelect(event.currentTarget)}
     >
       <strong className="facility-cluster-name">{type.name}</strong>
-      <FactoryIcon className="facility-cluster-icon" />
+      <FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />
       <span className="facility-cluster-count">{formatNumber(group.count)}</span>
     </button>
   );

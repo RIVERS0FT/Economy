@@ -28,6 +28,7 @@ import '../../src/styles/design-system.css';
 import '../../src/styles/interaction-states.css';
 import '../../src/styles/market-page-polish.css';
 import '../../src/styles/product-artwork.css';
+import '../../src/styles/facility-artwork.css';
 
 const params = new URLSearchParams(window.location.search);
 const scenario = params.get('scenario') ?? 'active';
@@ -59,7 +60,7 @@ function MarketHarness() {
       basePrice: index === 0 ? 12 : index + 2,
     }));
     const facilityTypes = facilityNames.map((name, index) => ({
-      id: index === facilityNames.length - 2 ? 'machinery-plant' : `facility-${index + 1}`,
+      id: index === facilityNames.length - 2 ? 'machine-factory' : `facility-${index + 1}`,
       name,
       category: 'runtime',
       buildCost: 500 + index,
@@ -147,11 +148,11 @@ function MarketHarness() {
     ]));
     const facilityGroups = facilityTypes.map((facility) => ({
       facilityTypeId: facility.id,
-      count: facility.id === 'machinery-plant' ? 18 : 0,
+      count: facility.id === 'machine-factory' ? 18 : 0,
       participatingCount: 0,
       pendingJoinCount: 0,
       listedCount: 0,
-      availableCount: facility.id === 'machinery-plant' ? 18 : 0,
+      availableCount: facility.id === 'machine-factory' ? 18 : 0,
       nextCycleCount: 0,
       enabled: false,
       status: 'stopped',
@@ -280,7 +281,7 @@ function MarketHarness() {
       tab,
       setTab,
       notice: '',
-      selectedFacilityTypeId: 'machinery-plant',
+      selectedFacilityTypeId: 'machine-factory',
       setSelectedFacilityTypeId: () => {},
       marketAssetKind,
       marketAssetId,

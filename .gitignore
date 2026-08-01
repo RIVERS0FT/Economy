@@ -4,5 +4,6 @@ dist/
 test-results/
 playwright-report/
 src/assets/product-icons/generated/
+src/assets/facility-icons/generated/
 __pycache__/
 *.pyc

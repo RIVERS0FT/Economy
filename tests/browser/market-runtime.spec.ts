@@ -337,6 +337,28 @@ test('market product card renders icon layer before the data layer with independ
   expect(pageErrors).toEqual([]);
 });
 
+test('market facility card uses the same layers with ID-mapped artwork and SVG fallback semantics', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const facilityTab = page.getByRole('tab', { name: /^机械工厂/ });
+  const directLayers = await facilityTab.locator(':scope > span').evaluateAll((elements) => (
+    elements.map((element) => element.className)
+  ));
+  expect(directLayers).toEqual([
+    'market-asset-card__icon-layer',
+    'market-asset-card__data-layer',
+  ]);
+
+  const artwork = facilityTab.locator(':scope > .market-asset-card__icon-layer > .facility-icon');
+  await expect(artwork).toHaveAttribute('data-facility-icon', 'machine-factory');
+  await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');
+  await expect(facilityTab.locator('.market-asset-card__name > .market-asset-card__name-icon')).toHaveCount(1);
+  await expect(facilityTab.locator('.market-asset-card__inventory > .game-icon')).toHaveCount(1);
+  expect(pageErrors).toEqual([]);
+});
+
 test('market asset directory uses two rows, explicit groups, controls and visible current state', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
@@ -357,7 +379,7 @@ test('market asset directory uses two rows, explicit groups, controls and visibl
   const finalFacility = page.getByRole('tab', { name: /^电子工厂/ });
   await finalFacility.click();
   await expect(finalFacility).toHaveAttribute('aria-selected', 'true');
-  await expect(finalFacility).toHaveAttribute('data-current', '当前');
+  await expect(finalFacility.locator('.market-asset-card__current')).toHaveText('当前');
   const directoryBox = await requireBox(directory);
   const facilityBox = await requireBox(finalFacility);
   expect(facilityBox.x).toBeGreaterThanOrEqual(directoryBox.x - 2);

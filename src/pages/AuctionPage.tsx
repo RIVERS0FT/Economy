@@ -9,7 +9,7 @@ import {
   type AuctionItem,
   type AuctionItemSummary,
 } from '../auctions/types';
-import { FactoryIcon } from '../components/icons/GameIcons';
+import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { ProductIcon } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
@@ -106,7 +106,9 @@ function calculateMinimumIncrement(startingBid: number) {
 }
 
 function AuctionItemIcon({ item }: { item: AuctionItemSummary; compact?: boolean }) {
-  return item.kind === 'commodity' ? <ProductIcon productId={item.id} /> : <FactoryIcon />;
+  return item.kind === 'commodity'
+    ? <ProductIcon productId={item.id} />
+    : <FacilityIcon facilityTypeId={item.id} />;
 }
 
 function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuction; compact?: boolean }) {
@@ -500,7 +502,9 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
                   return (
                     <div className="asset-auction-package-row" key={key}>
                       <div className="asset-auction-package-icon" aria-hidden="true">
-                        {item.assetKind === 'commodity' ? <ProductIcon productId={item.assetId} /> : <FactoryIcon />}
+                        {item.assetKind === 'commodity'
+                          ? <ProductIcon productId={item.assetId} />
+                          : <FacilityIcon facilityTypeId={item.assetId} />}
                       </div>
                       <span><strong>{labelForItem(item)}</strong><small>{assetKindNames[item.assetKind]}</small></span>
                       <input

@@ -10,6 +10,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 
 const iconPath = 'src/components/icons/GameIcons.tsx';
 const productIconPath = 'src/components/icons/ProductIcons.tsx';
+const facilityIconPath = 'src/components/icons/FacilityIcons.tsx';
 const navigationItemsPath = 'src/components/shell/NavigationItems.tsx';
 const navigationConfigPath = 'src/config/navigation.ts';
 const iconStylePath = 'src/styles/icon-system.css';
@@ -29,6 +30,7 @@ const productionDetailPath = 'src/pages/production/ProductionFacilityDetail.tsx'
   mobileNavigationStylePath,
   iconPath,
   productIconPath,
+  facilityIconPath,
   navigationItemsPath,
   navigationConfigPath,
   iconStylePath,
@@ -48,6 +50,7 @@ const designSystem = read('src/styles/design-system.css');
 const businessStyles = read('src/styles/unified-market-admin.css');
 const icons = read(iconPath);
 const productIcons = read(productIconPath);
+const facilityIcons = read(facilityIconPath);
 const navigationItems = read(navigationItemsPath);
 const navigationConfig = read(navigationConfigPath);
 const iconStyles = read(iconStylePath);
@@ -138,6 +141,14 @@ if (!machineryBlock.includes('<circle cx="12" cy="12" r="3.2" />')) {
 if (factoryBlock.includes('<circle cx="12" cy="12" r="3.2" />') || machineryBlock.includes('M17 6V3h3v17')) {
   failures.push('工厂图标不得与机械商品图标共用轮廓');
 }
+for (const text of [
+  'export function FacilityIcon',
+  'data-facility-icon={facilityTypeId}',
+  'game-icon facility-icon',
+  'M3 20V10',
+]) {
+  if (!facilityIcons.includes(text)) failures.push(`${facilityIconPath} 缺少: ${text}`);
+}
 
 for (const text of [
   "import { NavigationIcon } from '../icons/GameIcons'",
@@ -199,9 +210,12 @@ for (const legacyOpacity of [
 }
 
 for (const text of [
+  "from '../components/icons/FacilityIcons'",
   "from '../components/icons/GameIcons'",
+  'FacilityIcon',
   'FactoryIcon',
-  '<span className="asset-kind-icon" aria-hidden="true"><FactoryIcon /></span>',
+  '<FacilityIcon facilityTypeId={facility.id} />',
+  '<FactoryIcon className="market-asset-card__name-icon" />',
 ]) requireText(marketPagePath, text);
 for (const forbidden of ['>⚙</span>', '<ProductIcon productId="machinery" />']) {
   if (marketPage.includes(forbidden)) failures.push(`市场工厂标签不得使用机械或字符图标: ${forbidden}`);
@@ -223,7 +237,9 @@ for (const text of [
   '不得继续使用 Unicode 字符、Emoji 或字体符号作为图标',
   '导航配置只保存 `id` 与中文 `label`',
   '桌面侧栏和移动底栏复用同一套导航 SVG',
-  '工厂资产标签必须使用 `GameIcons.tsx` 的 `FactoryIcon`',
+  '紧凑工厂资产标签必须使用 `GameIcons.tsx` 的 `FactoryIcon`',
+  '工厂场景插画图标绘制规范',
+  '`FacilityIcon`',
   '`FactoryIcon` 使用厂房与烟囱轮廓',
   '导航颜色与不透明度',
   '未选中状态使用完全不透明的 `var(--color-text-muted)` 灰色',

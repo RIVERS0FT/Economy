@@ -37,6 +37,7 @@ import '../../src/styles/production-surface.css';
 import '../../src/styles/contracts.css';
 import '../../src/styles/asset-auctions.css';
 import '../../src/styles/auction-card-layers.css';
+import '../../src/styles/facility-artwork.css';
 import '../../src/styles/gem-shop.css';
 import '../../src/styles/overview.css';
 import '../../src/styles/design-system.css';
@@ -180,7 +181,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     warehouseUsedCapacity: inventoryCapacity - warehouseAvailableCapacity,
     warehouseAvailableCapacity,
     facilityGroups: [{
-      facilityTypeId: 'machinery-plant',
+      facilityTypeId: 'machine-factory',
       count: 18,
       participatingCount: hasAlerts ? 0 : 12,
       pendingJoinCount: 0,
@@ -196,7 +197,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
     }],
     products: [{ id: 'machinery', name: '机械', category: 'industrial', basePrice: 47 }],
     facilityTypes: [{
-      id: 'machinery-plant',
+      id: 'machine-factory',
       name: '机械工厂',
       category: 'industrial',
       buildCost: 500,
@@ -298,7 +299,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       setTabState(nextTab);
     },
     notice: '',
-    selectedFacilityTypeId: 'machinery-plant',
+    selectedFacilityTypeId: 'machine-factory',
     setSelectedFacilityTypeId: () => {},
     marketAssetKind: 'commodity',
     marketAssetId: 'machinery',
@@ -465,7 +466,7 @@ function ProductionHarness() {
         },
       ];
       next.game.facilityConstruction = {
-        facilityTypeId: 'machinery-plant',
+        facilityTypeId: 'machine-factory',
         startedAt: fixedNow - 10_000,
         completesAt: fixedNow + 50_000,
         buildCost: 500,

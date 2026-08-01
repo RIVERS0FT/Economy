@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-07-31
+> 更新时间：2026-08-01
 > 客户端状态版本：24
 > 世界状态版本：21
 
@@ -23,7 +23,7 @@
 | `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉、认证卡片几何与旧接口退役 |
-| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
+| `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品与工厂场景插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
 | `AUTHORITATIVE_COUNTDOWN_DESIGN.md` | 服务器绝对截止时间、状态响应 `serverNow`、共享单调服务器时钟、本地资格倒计时、权威状态转换倒计时、到期立即刷新、每秒确认与统一注册表 |
 | `PRIMARY_SURFACE_INSET_DESIGN.md` | 玩家端一级卡片外层内边距令牌、共享组件语义、加载顺序、页面 CSS 边界和贴边内容例外 |
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、签到日历、短列表滚动和浏览器几何回归 |
@@ -104,3 +104,5 @@
 63. 项目业务数据图表只允许通过共享 `EconomyChart` 使用 Apache ECharts SVG；只安装 `echarts`，不得引入 `echarts-for-react`、第二套图表库或业务页面直接 `echarts.init`。初始化、按需模块、`ResizeObserver`、逐帧 resize、`dispose()`、设计令牌、中文无障碍摘要和稳定测试接口归 `UI_DESIGN_SYSTEM.md`；市场专项几何继续归 `MARKET_CHART_LAYOUT_DESIGN.md`。
 
 64. 压力测试执行器、环境隔离、安全门禁、24 个固定普通玩家槽位、秘密边界、状态协议断言、幂等重放、场景、性能预算、脱敏报告与 GitHub Actions 属于服务器架构规则。完整写压测只能使用模拟账号服务与临时 SQLite 或受保护的 staging；生产只允许已建档固定账号执行显式确认、至少 3 秒轮询且不超过 5 分钟的 `smoke`／`poll`，不得调用任何游戏写操作。必须通过 `scripts/verify-stress-test-accounts.mjs`、`scripts/verify-stress-test-flow.mjs` 和隔离行为测试防回退。
+
+65. 工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`：`src/assets/facility-icons/` 必须与服务器 21 种正式工厂 ID 一一对应，只保存同名 `1024 × 1024` 8-bit RGBA PNG 源图；开发与构建通过共享缩略图管线生成 `src/assets/facility-icons/generated/128/`。生产选择卡、市场工厂目录和拍卖工厂主视觉统一使用 `FacilityIcon`，紧凑订单／成交／银行／概览及未知 ID 继续使用 `FactoryIcon`，低流量模式回退厂房 SVG。任何目录增删、图片替换或使用边界变化必须同步更新 `FacilityIcons.tsx`、`facility-artwork.css`、本设计和 `scripts/verify-facility-artwork.mjs`。

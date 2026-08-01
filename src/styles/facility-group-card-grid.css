@@ -137,8 +137,8 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 2rem;
-  height: 2rem;
+  width: 4rem;
+  height: 4rem;
   transform: translate(-50%, -50%);
   color: var(--facility-cluster-status-color);
 }
@@ -502,8 +502,8 @@
   }
 
   .facility-cluster-icon {
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 3rem;
+    height: 3rem;
   }
 
   .facility-cluster-count {
