@@ -38,6 +38,20 @@ jobs:
             capture { sub(/^          /, ""); print }
           ' .github/workflows/apply-market-chart-interaction.yml > /tmp/apply-market-chart.py
           test -s /tmp/apply-market-chart.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/apply-market-chart.py')
+          source = path.read_text(encoding='utf-8')
+          source = source.replace(
+              "Path('tests/browser/market-chart-safe-zone.spec.ts').write_text(\"\"\"",
+              "Path('tests/browser/market-chart-safe-zone.spec.ts').write_text(r\"\"\"",
+          )
+          source = source.replace(
+              "Path('scripts/verify-market-chart.mjs').write_text(\"\"\"",
+              "Path('scripts/verify-market-chart.mjs').write_text(r\"\"\"",
+          )
+          path.write_text(source, encoding='utf-8')
+          PY
           python3 /tmp/apply-market-chart.py
 
       - name: Install dependencies
