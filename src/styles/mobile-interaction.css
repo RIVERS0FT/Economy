@@ -1,15 +1,16 @@
 /* Mobile browsers add a native blue tap highlight to interactive elements.
- * Remove that transient overlay without changing keyboard focus-visible styles.
- * Keep this unconditional so hybrid touch devices do not fall through pointer media queries. */
-button,
-a,
-.ui-button,
-.ui-switch,
-.ui-toggle-field,
-[role="button"],
-.economy-chart,
-.economy-chart__canvas,
-.economy-chart__canvas *,
-.market-history-chart {
-  -webkit-tap-highlight-color: transparent;
+ * Remove that transient overlay without changing keyboard focus-visible styles. */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a,
+  .ui-button,
+  .ui-switch,
+  .ui-toggle-field,
+  [role="button"],
+  .economy-chart,
+  .economy-chart__canvas,
+  .economy-chart__canvas *,
+  .market-history-chart {
+    -webkit-tap-highlight-color: transparent;
+  }
 }
