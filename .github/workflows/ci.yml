@@ -33,6 +33,7 @@ jobs:
           python3 scripts/apply-full-width-chrome-safe-floating.py
           python3 scripts/apply-full-width-chrome-safe-floating-fix.py
           python3 scripts/apply-full-width-chrome-browser-fix.py
+          python3 scripts/apply-full-width-chrome-browser-fix-2.py
 
       - name: Install dependencies
         run: npm ci
