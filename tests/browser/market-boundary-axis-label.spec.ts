@@ -24,6 +24,7 @@ async function inspectBoundaryLabels(chart: Locator) {
 
     const boundaryY = wrapperRect.top + priceBottom;
     const axisLabelRight = wrapperRect.left + axisLeft + 4;
+    const tickLabelPattern = /^(?:\d{1,3}(?:,\d{3})*|\d+(?:\.\d+)?[KMBT])$/;
     const labels = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
       .map((text) => {
         const rect = text.getBoundingClientRect();
@@ -35,7 +36,7 @@ async function inspectBoundaryLabels(chart: Locator) {
           height: rect.height,
         };
       })
-      .filter((label) => label.text && label.right <= axisLabelRight)
+      .filter((label) => tickLabelPattern.test(label.text) && label.right <= axisLabelRight)
       .filter((label) => Math.abs((label.top + label.bottom) / 2 - boundaryY) <= Math.max(12, label.height));
 
     return {
