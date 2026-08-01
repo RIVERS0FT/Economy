@@ -12,6 +12,7 @@ test('mobile chart interaction surfaces suppress the native blue tap highlight',
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
   await page.goto('market-runtime-test.html?scenario=active');
+  await page.addStyleTag({ url: '/src/styles/mobile-interaction.css' });
 
   const chart = page.locator('.market-history-chart.full');
   await expect(chart).toBeVisible();
