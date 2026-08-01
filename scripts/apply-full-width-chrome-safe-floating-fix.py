@@ -29,6 +29,12 @@ if design_anchor not in shell_design:
     raise SystemExit('Shared scroll ownership design anchor missing')
 shell_design = shell_design.replace(design_anchor, design_replacement, 1)
 
+layout_token_anchor = '- `--desktop-layout-gutter` 是顶部工作栏外距、工作栏到下方主体、侧栏左／下外距、侧栏到工作区、页面右／下留白和一级内容 gap 的唯一权威；普通桌面使用 `12px`，宽度 `721px–960px` 或高度不大于 `760px` 的紧凑桌面使用 `8px`。'
+layout_token_rule = layout_token_anchor + '\n- `--desktop-layout-gutter` 是顶部工作栏、下方侧栏与页面内容唯一桌面外距令牌；顶部／左侧／右侧间距都来自统一桌面外距。`--desktop-shell-outer-inset` 只能作为下方侧栏几何的同值别名。'
+if layout_token_anchor not in shell_design:
+    raise SystemExit('Full-width chrome layout token design anchor missing')
+shell_design = shell_design.replace(layout_token_anchor, layout_token_rule, 1)
+
 photography_anchor = '- 玩家端和管理员端必须共享这套 DOM、CSS 变量、折叠行为和浏览器几何测试，不得分别创建第二套根外壳。'
 photography_rules = photography_anchor + '\n- 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；不得重建根级摄影节点。生产认证态继续使用 `-2 / -1` 负层级，游戏与管理员登录态保持非负根层级。\n- `#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根；新增的 `.signed-in-shell__body`、`.signed-in-shell__chrome` 与 `.workspace-floating-layer` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，不得在登录后外壳祖先上建立第二个隔离根。\n- 桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链；不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败。`verify-open-glass-sampling.mjs` 与 `open-glass-sampling.spec.ts` 必须覆盖新增祖先。'
 if photography_anchor not in shell_design:
@@ -104,4 +110,14 @@ if old_chrome_rule not in production_verify:
     raise SystemExit('Production legacy chrome offset design verifier anchor missing')
 production_verify_path.write_text(production_verify.replace(old_chrome_rule, new_chrome_rule, 1), encoding='utf-8')
 
-print('Updated shared shell, sampling, overview and production work-area offset authority.')
+desktop_surface_verify_path = Path('scripts/verify-desktop-primary-surfaces.mjs')
+desktop_surface_verify = desktop_surface_verify_path.read_text(encoding='utf-8')
+old_surface_rules = '''    '`--desktop-shell-outer-inset` 是侧栏与工作栏唯一桌面外距令牌',
+    '顶部／右侧间距都来自统一桌面外距','''
+new_surface_rules = '''    '`--desktop-layout-gutter` 是顶部工作栏、下方侧栏与页面内容唯一桌面外距令牌',
+    '顶部／左侧／右侧间距都来自统一桌面外距','''
+if old_surface_rules not in desktop_surface_verify:
+    raise SystemExit('Desktop primary surface legacy gutter design anchor missing')
+desktop_surface_verify_path.write_text(desktop_surface_verify.replace(old_surface_rules, new_surface_rules, 1), encoding='utf-8')
+
+print('Updated full-width shell, sampling, overview, production and desktop-surface authority.')
