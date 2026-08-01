@@ -2,6 +2,7 @@ import { init, use, type EChartsCoreOption, type EChartsType } from 'echarts/cor
 import { BarChart, LineChart, PieChart } from 'echarts/charts';
 import {
   AriaComponent,
+  AxisPointerComponent,
   GridComponent,
   TooltipComponent,
 } from 'echarts/components';
@@ -11,6 +12,7 @@ use([
   BarChart,
   LineChart,
   PieChart,
+  AxisPointerComponent,
   GridComponent,
   TooltipComponent,
   AriaComponent,

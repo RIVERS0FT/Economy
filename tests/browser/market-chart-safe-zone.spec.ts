@@ -12,11 +12,13 @@ async function inspectChartGeometry(chart: Locator) {
     const wrapperRect = wrapper.getBoundingClientRect();
     const canvas = wrapper.querySelector<HTMLElement>('.market-history-echart');
     const svg = wrapper.querySelector<SVGSVGElement>('.economy-chart__canvas svg');
+    const divider = wrapper.querySelector<HTMLElement>('.market-chart-price-volume-divider');
     const legendRects = Array.from(wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item'))
       .map((item) => item.getBoundingClientRect());
     const title = wrapper.querySelector<HTMLElement>('.market-chart-x-axis-title');
-    if (!canvas || !svg || legendRects.length !== 2 || !title) throw new Error('ECharts market chart fixture is incomplete');
+    if (!canvas || !svg || !divider || legendRects.length !== 2 || !title) throw new Error('ECharts market chart fixture is incomplete');
     const canvasRect = canvas.getBoundingClientRect();
+    const dividerRect = divider.getBoundingClientRect();
     const titleRect = title.getBoundingClientRect();
     const readNumber = (name: string) => {
       const value = Number(wrapper.dataset[name]);
@@ -46,6 +48,13 @@ async function inspectChartGeometry(chart: Locator) {
       volumeHeight: volumeBottom - volumeTop,
       volumeShare: readNumber('volumeShare'),
       priceVolumeGap: volumeTop - priceBottom,
+      dividerBoundaryDelta: Math.abs(dividerRect.top - (wrapperRect.top + priceBottom)),
+      dividerHeight: dividerRect.height,
+      timeAxisInterval: readNumber('timeAxisInterval'),
+      priceTickCount: readNumber('priceTickCount'),
+      volumeTickCount: readNumber('volumeTickCount'),
+      axisPointerLinked: wrapper.dataset.axisPointerLinked,
+      hoverEmphasisDisabled: wrapper.dataset.hoverEmphasisDisabled,
       priceTicks: (wrapper.dataset.priceTicks || '').split(',').filter(Boolean).map(Number),
       volumeTicks: (wrapper.dataset.volumeTicks || '').split(',').filter(Boolean).map(Number),
     };
@@ -65,26 +74,40 @@ async function expectChartGeometry(chart: Locator, context: string) {
   expect(bounds.legendCenterDelta, `${context}两项图例必须围绕绘图区中心整体居中`).toBeLessThanOrEqual(Math.max(2, bounds.chartWidth * 0.01));
   expect(bounds.volumeHeight, `${context}成交量图区实际高度不得低于 48px`).toBeGreaterThanOrEqual(48);
   expect(bounds.volumeShare, `${context}成交量图区不得低于数据绘图区的 22%`).toBeGreaterThanOrEqual(0.219);
-  expect(bounds.priceVolumeGap, `${context}价格与成交量图区必须保持分隔`).toBeGreaterThan(0);
+  expect(Math.abs(bounds.priceVolumeGap), `${context}价格与成交量 Grid 必须零间距连续排列`).toBeLessThanOrEqual(0.5);
+  expect(bounds.dividerBoundaryDelta, `${context}分界线必须贴合两个 Grid 的共同边界`).toBeLessThanOrEqual(1);
+  expect(bounds.dividerHeight, `${context}分界线必须保持 1px`).toBeGreaterThanOrEqual(0.9);
   expect(Math.abs(bounds.actualHeight - bounds.declaredHeight), `${context}动态计算高度必须同步到真实容器`).toBeLessThanOrEqual(2);
-  expect(bounds.priceTicks.length).toBeGreaterThanOrEqual(3);
+  expect(bounds.priceTicks.length).toBe(bounds.priceTickCount);
+  expect(bounds.volumeTicks.length).toBe(bounds.volumeTickCount);
   expect(bounds.priceTicks.every(Number.isInteger)).toBe(true);
   expect(bounds.volumeTicks.every(Number.isInteger)).toBe(true);
+  expect(bounds.axisPointerLinked).toBe('true');
+  expect(bounds.hoverEmphasisDisabled).toBe('true');
+  return bounds;
 }
 
-test('market chart preserves readable volume height and separate bottom safe zones', async ({ page }) => {
+test('market chart preserves readable volume height, zero-gap grids and dynamic ticks', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   const viewports = [
     { width: 1684, height: 931, label: '桌面端' },
     { width: 390, height: 844, label: '移动端' },
     { width: 320, height: 700, label: '极窄移动端' },
   ];
+  const results = new Map<string, Awaited<ReturnType<typeof inspectChartGeometry>>>();
 
   for (const viewport of viewports) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto('market-runtime-test.html?scenario=active');
-    await expectChartGeometry(page.locator('.market-history-chart.full'), viewport.label);
+    results.set(viewport.label, await expectChartGeometry(page.locator('.market-history-chart.full'), viewport.label));
   }
+
+  const desktop = results.get('桌面端')!;
+  const mobile = results.get('移动端')!;
+  const narrow = results.get('极窄移动端')!;
+  expect(desktop.timeAxisInterval).toBeLessThan(mobile.timeAxisInterval);
+  expect(mobile.timeAxisInterval).toBeLessThanOrEqual(narrow.timeAxisInterval);
+  expect(desktop.priceTickCount).toBeGreaterThanOrEqual(mobile.priceTickCount);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('market-runtime-test.html?scenario=active');
@@ -92,7 +115,8 @@ test('market chart preserves readable volume height and separate bottom safe zon
     document.documentElement.style.fontSize = '20px';
     window.dispatchEvent(new Event('resize'));
   });
-  await expectChartGeometry(page.locator('.market-history-chart.full'), '125% 根字号移动端');
+  const enlarged = await expectChartGeometry(page.locator('.market-history-chart.full'), '125% 根字号移动端');
+  expect(enlarged.timeAxisInterval).toBeGreaterThanOrEqual(mobile.timeAxisInterval);
 
   expect(pageErrors).toEqual([]);
 });

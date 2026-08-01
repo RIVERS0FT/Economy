@@ -111,7 +111,8 @@ requireText(runtimeHarness, 'remaining: 1', '同价档位测试必须使用当�
 requireText(runtimeHarness, "lastTradePrice: product.id === 'wheat' ? 2 : null", '浏览器夹具必须显式提供真实成交价。');
 requireText(runtimeSpec, 'market desktop layout gives the full chart the dominant column', 'Playwright 必须覆盖宽屏行情主列。');
 requireText(runtimeSpec, "chartCard.locator('.chart-footer')", 'Playwright 必须验证行情底部统计栏已删除。');
-requireText(runtimeSpec, 'expect(axis.priceTicks).toHaveLength(5)', 'Playwright 必须验证价格轴使用固定数量的整数刻度。');
+requireText(runtimeSpec, 'expect(axis.priceTicks.length).toBe(axis.priceTickCount)', 'Playwright 必须验证价格轴刻度数量来自组件动态声明。');
+requireText(runtimeSpec, 'expect(axis.priceTicks.every((value) => Number.isInteger(value))).toBe(true)', 'Playwright 必须验证动态价格轴仍只使用整数刻度。');
 requireText(runtimeSpec, '不得越出图表左侧', 'Playwright 必须验证纵轴标签不会被裁剪。');
 requireText(runtimeSpec, 'status-neutral', 'Playwright 必须验证零涨跌中性状态。');
 requireText(runtimeSpec, 'market quick quantities use funds, inventory and holdings without duplicate quantity errors', 'Playwright 必须覆盖快捷数量语义与错误去重。');

@@ -68,6 +68,9 @@ async function inspectChartAxis(chart: Locator) {
       allLabels,
       legendLabels: Array.from(wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item')).map((item) => item.textContent?.trim() ?? ''),
       ready: wrapper.querySelector('.economy-chart')?.getAttribute('data-echarts-ready'),
+      timeAxisInterval: Number(wrapper.dataset.timeAxisInterval),
+      priceTickCount: Number(wrapper.dataset.priceTickCount),
+      volumeTickCount: Number(wrapper.dataset.volumeTickCount),
     };
   });
 }
@@ -101,7 +104,9 @@ test('market desktop layout gives the full chart the dominant column and intrins
   const axis = await inspectChartAxis(chart);
   expect(axis.legendLabels).toEqual(['净主动买入', '净主动卖出']);
   expect(axis.ready).toBe('true');
-  expect(axis.priceTicks).toHaveLength(5);
+  expect(axis.priceTicks.length).toBe(axis.priceTickCount);
+  expect(axis.priceTicks.length).toBeGreaterThanOrEqual(3);
+  expect(axis.priceTicks.length).toBeLessThanOrEqual(7);
   expect(axis.priceTicks.every((value) => Number.isInteger(value))).toBe(true);
   expect(axis.volumeTicks.every((value) => Number.isInteger(value))).toBe(true);
   for (const label of axis.allLabels) {
@@ -112,6 +117,44 @@ test('market desktop layout gives the full chart the dominant column and intrins
   const layout = await inspectMarketLayoutBounds(page.locator('.market-page-surface'));
   expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
   expect(layout.directChildren.every((child) => child.left >= -1 && child.right <= layout.surfaceWidth + 1)).toBe(true);
+  expect(pageErrors).toEqual([]);
+});
+
+test('market chart uses one linked hover state and keeps the price line protected', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const chart = page.locator('.market-history-chart.full');
+  await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(chart).toHaveAttribute('data-axis-pointer-linked', 'true');
+  await expect(chart).toHaveAttribute('data-hover-emphasis-disabled', 'true');
+  const bounds = await requireBox(chart);
+  const geometry = await chart.evaluate((element) => {
+    const wrapper = element as HTMLElement;
+    const read = (name: string) => Number(wrapper.dataset[name]);
+    return {
+      left: read('axisLeft'),
+      right: read('axisRight'),
+      priceTop: read('priceTop'),
+      priceBottom: read('priceBottom'),
+      volumeTop: read('volumeTop'),
+      volumeBottom: read('volumeBottom'),
+    };
+  });
+  const x = bounds.x + geometry.left + (bounds.width - geometry.left - geometry.right) * 0.44;
+  const tooltip = page.locator('.economy-chart-tooltip');
+
+  await page.mouse.move(x, bounds.y + (geometry.priceTop + geometry.priceBottom) / 2);
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('价格');
+  await expect(tooltip).toContainText('总成交量');
+  const priceHoverText = await tooltip.innerText();
+
+  await page.mouse.move(x, bounds.y + (geometry.volumeTop + geometry.volumeBottom) / 2);
+  await expect(tooltip).toBeVisible();
+  const volumeHoverText = await tooltip.innerText();
+  expect(volumeHoverText.replace(/\s+/g, ' ').trim()).toBe(priceHoverText.replace(/\s+/g, ' ').trim());
   expect(pageErrors).toEqual([]);
 });
 
