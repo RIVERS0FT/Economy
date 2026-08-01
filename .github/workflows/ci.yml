@@ -86,6 +86,14 @@ jobs:
           source = source.replace('resolveMarketBucketIndex(windowEnd + 1, windowStart, 240)', 'resolveMarketBucketIndex(windowEnd + 1, windowStart, 240, MARKET_BUCKET_MS)')
           source = source.replace('resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length)', 'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)')
           verifier.write_text(source, encoding='utf-8')
+
+          layout_verifier = Path('scripts/verify-market-page-layout.mjs')
+          source = layout_verifier.read_text(encoding='utf-8')
+          old = "requireText(runtimeSpec, 'expect(axis.priceTicks).toHaveLength(5)', 'Playwright 必须验证价格轴使用固定数量的整数刻度。');"
+          new = "requireText(runtimeSpec, 'expect(axis.priceTicks.length).toBe(axis.priceTickCount)', 'Playwright 必须验证价格轴刻度数量来自组件动态声明。');\nrequireText(runtimeSpec, 'expect(axis.priceTicks.every((value) => Number.isInteger(value))).toBe(true)', 'Playwright 必须验证动态价格轴仍只使用整数刻度。');"
+          if old not in source:
+              raise SystemExit('verify-market-page-layout.mjs fixed tick assertion missing')
+          layout_verifier.write_text(source.replace(old, new), encoding='utf-8')
           PY
 
       - name: Install dependencies
