@@ -92,6 +92,7 @@ jobs:
             scripts/verify-game-shell-layout.mjs \
             scripts/verify-liquid-glass-chrome.mjs \
             scripts/verify-open-glass-sampling.mjs \
+            scripts/verify-overview-content.mjs \
             scripts/verify-echarts-adoption.mjs \
             tests/browser/game-shell-layout.spec.ts \
             tests/browser/liquid-glass-layout.spec.ts \
