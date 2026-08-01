@@ -39,6 +39,7 @@ const allocationSource = readFileSync('server/src/market-demand/allocation.js', 
 const transmissionSource = readFileSync('server/src/market-demand/price-transmission.js', 'utf8');
 const domainTestSource = readFileSync('server/test/domain.test.js', 'utf8');
 const stapleVerifierSource = readFileSync('scripts/verify-staple-crops-demand.mjs', 'utf8');
+const typesSource = readFileSync('src/types.ts', 'utf8');
 const detailSource = readFileSync('src/pages/production/ProductionFacilityDetail.tsx', 'utf8');
 const pageSource = readFileSync('src/pages/ProductionPage.tsx', 'utf8');
 const styleSource = readFileSync('src/styles/production-methods.css', 'utf8');
@@ -76,6 +77,10 @@ for (const text of [
   "const standardRecipes = (facility) => facility.recipes.filter(",
   "standardRecipes(facilities.get('beverage-factory'))",
 ]) assert.ok(stapleVerifierSource.includes(text), `主食需求验证未区分基础路线: ${text}`);
+assert.ok(
+  typesSource.includes('productionMethodGroups?: FacilityProductionMethodGroupDefinition[];'),
+  '客户端生产方式目录元数据必须保持向后兼容可选',
+);
 assert.ok(detailSource.includes('productionRecipeVariantId'));
 assert.ok(detailSource.includes('role="radiogroup"'));
 assert.ok(detailSource.includes('role="radio"'));
@@ -100,4 +105,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、领域与主食需求目录断言、响应式选择卡和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、领域与主食需求目录断言、可选客户端元数据、响应式选择卡和版本兼容均已锁定。');
