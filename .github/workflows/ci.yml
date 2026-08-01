@@ -59,6 +59,7 @@ jobs:
           scale = Path('src/components/charts/marketChartScale.ts')
           source = scale.read_text(encoding='utf-8')
           source = source.replace("import { MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';\n\n", '')
+          source = source.replace('MARKET_TIME_INTERVAL_HOURS.at(-1)!', 'MARKET_TIME_INTERVAL_HOURS[MARKET_TIME_INTERVAL_HOURS.length - 1]')
           source = source.replace(
               "  variant: MarketChartVariant,\n) {",
               "  variant: MarketChartVariant,\n  windowMs: number,\n) {",
