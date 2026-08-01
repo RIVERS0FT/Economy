@@ -43,6 +43,8 @@ const typesSource = readFileSync('src/types.ts', 'utf8');
 const detailSource = readFileSync('src/pages/production/ProductionFacilityDetail.tsx', 'utf8');
 const pageSource = readFileSync('src/pages/ProductionPage.tsx', 'utf8');
 const styleSource = readFileSync('src/styles/production-methods.css', 'utf8');
+const browserHarnessSource = readFileSync('tests/browser/runtime-harness.tsx', 'utf8');
+const browserSpecSource = readFileSync('tests/browser/production-methods.spec.ts', 'utf8');
 const versionSource = readFileSync('server/shared/economy-state-version.js', 'utf8');
 
 for (const text of [
@@ -96,6 +98,16 @@ for (const text of [
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
 assert.ok(styleSource.includes('.facility-production-method-grid'));
 assert.ok(styleSource.includes("[data-selected='true']"));
+for (const text of [
+  "scenario === 'production-methods'",
+  '__productionRecipeRequests',
+  "pendingRecipeId: `${baseRecipe.id}--rapid`",
+]) assert.ok(browserHarnessSource.includes(text), `生产方式浏览器夹具缺少 ${text}`);
+for (const text of [
+  '下一周期切换为：机械制造 · 高速生产',
+  "'machine-factory:machinery-recipe--economical'",
+  "getByRole('radio', { name: /节约生产/ })",
+]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
 assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 24'));
 assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 24'));
 
@@ -117,4 +129,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、响应式选择卡和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、响应式选择卡、浏览器交互和版本兼容均已锁定。');
