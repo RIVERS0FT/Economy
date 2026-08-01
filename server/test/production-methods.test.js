@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createWorld, ensurePlayer, FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../src/domain.js';
 import {
   applyFacilityGroupAction,
+  createFacilityGroupClientState,
   migrateFacilityGroupWorld,
   processFacilityGroupWorld,
 } from '../src/facility-groups.js';
@@ -115,6 +116,23 @@ test('representative production method plans use the approved integer values', (
       [60_000, [2, 2], 2, 40],
     ],
   );
+});
+
+test('public client state keeps the legacy recipe list and exposes optional method metadata', () => {
+  const world = createWorld(now);
+  ensurePlayer(world, alice, now);
+  const state = createFacilityGroupClientState(world, alice.id, now);
+
+  for (const type of state.facilityTypes) {
+    assert.ok(Array.isArray(type.productionMethodGroups));
+    assert.equal(type.productionMethodGroups.length, 1);
+    assert.equal(type.recipes.every((recipe) => (recipe.productionMethodId || 'standard') === 'standard'), true);
+    const internal = FACILITY_TYPE_CATALOG.find((candidate) => candidate.id === type.id);
+    const expectedBaseRecipeCount = internal.recipes.filter(
+      (recipe) => recipe.productionMethodId === 'standard',
+    ).length;
+    assert.equal(type.recipes.length, expectedBaseRecipeCount);
+  }
 });
 
 test('running factory switches production method only after the current full cycle', () => {
