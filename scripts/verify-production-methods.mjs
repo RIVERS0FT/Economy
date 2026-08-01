@@ -50,6 +50,7 @@ for (const text of [
   "id: 'high-yield'",
   'createProductionMethodRecipes',
   'alignedCycleMs',
+  'id: plan.recipeId',
 ]) assert.ok(methodSource.includes(text), `生产方式计算缺少 ${text}`);
 assert.ok(catalogSource.includes('productionMethodGroups'));
 assert.ok(catalogSource.includes('createProductionMethodRecipes'));
@@ -84,7 +85,7 @@ for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '标准生产、高速生产、节约生产和高产生产',
     '生产方式与配方必须在同一个周期边界原子切换',
-    '不新增单座工厂生产方式状态',
+    '不得新增单座工厂生产方式状态',
   ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['作业制度', '下一周期切换']],
   ['docs/UI_DESIGN_SYSTEM.md', ['生产方式选择卡', 'radiogroup']],
@@ -94,4 +95,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、整数平衡、周期边界切换、需求图去重、领域目录断言、响应式选择卡和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、领域目录断言、响应式选择卡和版本兼容均已锁定。');
