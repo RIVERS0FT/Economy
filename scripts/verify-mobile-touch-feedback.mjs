@@ -86,13 +86,13 @@ for (const text of [
 ]) requireText(chartDocsPath, text);
 
 for (const text of [
+  "import { readFile } from 'node:fs/promises'",
+  "resolve(process.cwd(), 'src/styles/mobile-interaction.css')",
+  "page.addStyleTag({ content: mobileInteractionCss })",
   "test.use({",
   'hasTouch: true',
   'isMobile: true',
   "page.goto('market-runtime-test.html?scenario=active')",
-  "document.createElement('link')",
-  "stylesheet.rel = 'stylesheet'",
-  "stylesheet.href = '/src/styles/mobile-interaction.css'",
   "matchMedia('(hover: none) and (pointer: coarse)').matches",
   "'.market-history-chart.full'",
   "'.economy-chart__canvas svg'",
