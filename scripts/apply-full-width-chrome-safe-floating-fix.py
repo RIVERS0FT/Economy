@@ -14,5 +14,11 @@ if multiline_old not in content:
     raise SystemExit('Generated legacy layout verifier multiline anchor missing')
 content = content.replace(multiline_old, multiline_new, 1)
 
+join_old = "failures.join('\n- ')"
+join_new = "failures.join('\\n- ')"
+if join_old not in content:
+    raise SystemExit('Generated failure summary join anchor missing')
+content = content.replace(join_old, join_new, 1)
+
 path.write_text(content, encoding='utf-8')
-print('Fixed SafeTooltip and multiline legacy-layout verifier quoting.')
+print('Fixed SafeTooltip, multiline legacy-layout and failure-summary verifier quoting.')
