@@ -30,10 +30,39 @@ if design_anchor not in shell_design:
 shell_design = shell_design.replace(design_anchor, design_replacement, 1)
 
 photography_anchor = '- 玩家端和管理员端必须共享这套 DOM、CSS 变量、折叠行为和浏览器几何测试，不得分别创建第二套根外壳。'
-photography_rules = photography_anchor + '\n- 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；不得重建根级摄影节点。生产认证态继续使用 `-2 / -1` 负层级，游戏与管理员登录态保持非负根层级。'
+photography_rules = photography_anchor + '\n- 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；不得重建根级摄影节点。生产认证态继续使用 `-2 / -1` 负层级，游戏与管理员登录态保持非负根层级。\n- `#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根；新增的 `.signed-in-shell__body`、`.signed-in-shell__chrome` 与 `.workspace-floating-layer` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，不得在登录后外壳祖先上建立第二个隔离根。\n- 桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链；不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败。`verify-open-glass-sampling.mjs` 与 `open-glass-sampling.spec.ts` 必须覆盖新增祖先。'
 if photography_anchor not in shell_design:
     raise SystemExit('Persistent photography design anchor missing')
 shell_design = shell_design.replace(photography_anchor, photography_rules, 1)
 shell_design_path.write_text(shell_design, encoding='utf-8')
 
-print('Fixed generated verifier quoting and restored shared scroll and persistent photography authority.')
+open_verify_path = Path('scripts/verify-open-glass-sampling.mjs')
+open_verify = open_verify_path.read_text(encoding='utf-8')
+old_chain = '''  const openChainSelectors = `.signed-in-shell,
+.workspace,
+.mobile-page-overlay,
+.mobile-chrome-overlay,
+.page-scroll-area,
+.page-scroll {
+  isolation: auto;
+  filter: none;
+  transform: none;
+}`;'''
+new_chain = '''  const openChainSelectors = `.signed-in-shell,
+.signed-in-shell__body,
+.signed-in-shell__chrome,
+.workspace,
+.mobile-page-overlay,
+.mobile-chrome-overlay,
+.workspace-floating-layer,
+.page-scroll-area,
+.page-scroll {
+  isolation: auto;
+  filter: none;
+  transform: none;
+}`;'''
+if old_chain not in open_verify:
+    raise SystemExit('Open glass sampling selector anchor missing')
+open_verify_path.write_text(open_verify.replace(old_chain, new_chain, 1), encoding='utf-8')
+
+print('Fixed generated verifier quoting and restored shared scroll, photography and expanded open sampling authority.')
