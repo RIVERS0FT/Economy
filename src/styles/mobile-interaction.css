@@ -6,7 +6,11 @@
   .ui-button,
   .ui-switch,
   .ui-toggle-field,
-  [role="button"] {
+  [role="button"],
+  .economy-chart,
+  .economy-chart__canvas,
+  .economy-chart__canvas *,
+  .market-history-chart {
     -webkit-tap-highlight-color: transparent;
   }
 }

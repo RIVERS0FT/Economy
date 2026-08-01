@@ -18,6 +18,8 @@ const stylePath = 'src/styles/mobile-interaction.css';
 const mainPath = 'src/main.tsx';
 const designSystemPath = 'src/styles/design-system.css';
 const docsPath = 'docs/README.md';
+const chartDocsPath = 'docs/MARKET_CHART_LAYOUT_DESIGN.md';
+const browserSpecPath = 'tests/browser/mobile-chart-tap-highlight.spec.ts';
 const packagePath = 'package.json';
 
 [
@@ -25,6 +27,8 @@ const packagePath = 'package.json';
   mainPath,
   designSystemPath,
   docsPath,
+  chartDocsPath,
+  browserSpecPath,
   packagePath,
 ].forEach(requireFile);
 
@@ -35,7 +39,11 @@ for (const text of [
   '.ui-button,',
   '.ui-switch,',
   '.ui-toggle-field,',
-  '[role="button"]',
+  '[role="button"],',
+  '.economy-chart,',
+  '.economy-chart__canvas,',
+  '.economy-chart__canvas *,',
+  '.market-history-chart',
   '-webkit-tap-highlight-color: transparent;',
 ]) requireText(stylePath, text);
 
@@ -68,6 +76,32 @@ for (const text of [
   '`scripts/verify-mobile-touch-feedback.mjs`',
 ]) requireText(docsPath, text);
 
+for (const text of [
+  '移动端触控高亮',
+  '`.economy-chart`',
+  '`.economy-chart__canvas`',
+  'ECharts 动态生成的 SVG／Canvas 子节点',
+  '`.market-history-chart`',
+  '`tests/browser/mobile-chart-tap-highlight.spec.ts`',
+]) requireText(chartDocsPath, text);
+
+for (const text of [
+  "import { readFile } from 'node:fs/promises'",
+  "resolve(process.cwd(), 'src/styles/mobile-interaction.css')",
+  "page.addStyleTag({ content: mobileInteractionCss })",
+  "test.use({",
+  'hasTouch: true',
+  'isMobile: true',
+  "page.goto('market-runtime-test.html?scenario=active')",
+  "matchMedia('(hover: none) and (pointer: coarse)').matches",
+  "'.market-history-chart.full'",
+  "'.economy-chart__canvas svg'",
+  "'.economy-chart__canvas svg path'",
+  'webkitTapHighlightColor',
+  "await chart.tap({ position: { x: 180, y: 120 } })",
+  "'rgba(0, 0, 0, 0)'",
+]) requireText(browserSpecPath, text);
+
 requireText(packagePath, 'node scripts/verify-mobile-touch-feedback.mjs');
 
 if (failures.length > 0) {
@@ -75,4 +109,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('移动触摸反馈验证通过：原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。');
+console.log('移动触摸反馈验证通过：按钮、链接与图表交互区域的原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。');
