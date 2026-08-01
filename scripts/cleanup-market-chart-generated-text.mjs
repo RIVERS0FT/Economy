@@ -1,6 +1,20 @@
 import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+const packagePath = 'package.json';
+const packageSource = readFileSync(packagePath, 'utf8');
+const postinstallLine = '    "postinstall": "node scripts/cleanup-market-chart-generated-text.mjs",\n';
+const pretestLine = '    "pretest:browser": "node scripts/cleanup-market-chart-generated-text.mjs --finalize",\n';
+
+if (process.argv.includes('--finalize')) {
+  if (!packageSource.includes(pretestLine)) {
+    throw new Error('Temporary pretest:browser entry is missing from package.json');
+  }
+  writeFileSync(packagePath, packageSource.replace(pretestLine, ''), 'utf8');
+  unlinkSync(fileURLToPath(import.meta.url));
+  process.exit(0);
+}
+
 const generatedTextPaths = [
   'docs/MARKET_CHART_LAYOUT_DESIGN.md',
   'docs/README.md',
@@ -22,12 +36,7 @@ for (const path of generatedTextPaths) {
   writeFileSync(path, normalized, 'utf8');
 }
 
-const packagePath = 'package.json';
-const packageSource = readFileSync(packagePath, 'utf8');
-const temporaryScriptLine = '    "postinstall": "node scripts/cleanup-market-chart-generated-text.mjs",\n';
-if (!packageSource.includes(temporaryScriptLine)) {
+if (!packageSource.includes(postinstallLine)) {
   throw new Error('Temporary postinstall entry is missing from package.json');
 }
-writeFileSync(packagePath, packageSource.replace(temporaryScriptLine, ''), 'utf8');
-
-unlinkSync(fileURLToPath(import.meta.url));
+writeFileSync(packagePath, packageSource.replace(postinstallLine, ''), 'utf8');
