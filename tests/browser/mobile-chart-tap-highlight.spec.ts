@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 
 test.use({
@@ -12,15 +14,11 @@ test('mobile chart interaction surfaces suppress the native blue tap highlight',
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
   await page.goto('market-runtime-test.html?scenario=active');
-  await page.evaluate(() => new Promise<void>((resolve, reject) => {
-    const stylesheet = document.createElement('link');
-    stylesheet.rel = 'stylesheet';
-    stylesheet.href = '/src/styles/mobile-interaction.css';
-    stylesheet.dataset.testStylesheet = 'mobile-interaction';
-    stylesheet.addEventListener('load', () => resolve(), { once: true });
-    stylesheet.addEventListener('error', () => reject(new Error('移动触摸样式加载失败')), { once: true });
-    document.head.append(stylesheet);
-  }));
+  const mobileInteractionCss = await readFile(
+    resolve(process.cwd(), 'src/styles/mobile-interaction.css'),
+    'utf8',
+  );
+  await page.addStyleTag({ content: mobileInteractionCss });
 
   expect(await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches)).toBe(true);
 
