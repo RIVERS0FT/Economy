@@ -69,6 +69,7 @@ const marketPage = read('src/pages/MarketPage.tsx');
 const marketCss = read('src/styles/market-page-polish.css');
 const chartCss = read('src/styles/charts.css');
 const safeZoneSpec = read('tests/browser/market-chart-safe-zone.spec.ts');
+const boundaryLabelSpec = read('tests/browser/market-boundary-axis-label.spec.ts');
 const runtimeSpec = read('tests/browser/market-runtime.spec.ts');
 const types = read('src/types.ts');
 const matchingCore = read('server/src/order-matching.js');
@@ -92,10 +93,16 @@ for (const text of [
   'Math.max(48, rootFontSize', '(0.22 / 0.78) * priceHeight',
   'buildIntegerPriceScale', 'buildIntegerVolumeScale',
   'formatIntegerPriceTick', 'formatCompactVolumeTick',
+  'showMinLabel: true', 'showMaxLabel: false',
+  "value === volumeScale.max ? '' : formatCompactVolumeTick(value)",
   'data-volume-share={geometry.volumeShare.toFixed(4)}',
   'data-time-axis-interval={axisInterval}',
   'data-price-tick-count={priceTickCount}', 'data-volume-tick-count={volumeTickCount}',
   'data-axis-pointer-linked="true"', 'data-hover-emphasis-disabled="true"',
+  'data-shared-boundary-label-owner="price"',
+  'data-price-min-label={priceBoundaryLabel}',
+  'data-volume-max-label={volumeBoundaryLabel}',
+  'data-volume-max-label-visible="false"',
   'className="market-chart-price-volume-divider"',
   'className="market-chart-footer"',
   '净主动买入', '净主动卖出',
@@ -137,6 +144,13 @@ for (const text of [
   '成交量图区实际高度不得低于 48px', '成交量图区不得低于数据绘图区的 22%',
 ]) assert.ok(safeZoneSpec.includes(text), `行情图浏览器几何回归缺少: ${text}`);
 for (const text of [
+  'market zero-gap grids give the shared boundary label to the price axis only',
+  "{ width: 721, height: 445, label: '问题截图尺寸' }",
+  'data-echarts-ready', 'sharedBoundaryLabelOwner', 'volumeMaxLabelVisible',
+  'priceMinMatches', 'volumeMaxMatches', '共享边界只能存在一项纵轴刻度',
+  "document.documentElement.style.fontSize = '20px'",
+]) assert.ok(boundaryLabelSpec.includes(text), `行情图共享边界刻度回归缺少: ${text}`);
+for (const text of [
   'market chart uses one linked hover state and keeps the price line protected',
   "data-axis-pointer-linked", "data-hover-emphasis-disabled", 'priceHoverText',
   'priceTicks', 'volumeTicks', 'ECharts SVG is not ready', 'market-chart-footer',
@@ -159,10 +173,11 @@ for (const text of [
   '市场行情图几何、交互与可读性唯一专项基线', 'ECharts SVG', '零间距连续双 Grid',
   '统一悬浮交互', '`axisPointer.link`', '`axisValue`',
   '动态时间间隔', '真实像素高度和根字号动态计算',
+  '共享边界只能显示一项纵轴刻度标签', '价格轴保留最小刻度', '成交量轴隐藏最大刻度',
   '成交量绘图区必须保持最低可读屏幕高度', '不得低于 `48px`',
   '价格区与成交量区合计数据绘图区的 `22%`',
   '不得由业务 CSS 再用固定比例覆盖组件计算结果',
-  '稳定 `data-*`', '390 × 844` 且根字号放大到 `125%',
+  '稳定 `data-*`', '`721 × 445`', '390 × 844` 且根字号放大到 `125%',
 ]) assert.ok(chartDesign.includes(text), `市场行情图专项设计缺少: ${text}`);
 for (const text of ['动态横纵轴刻度', '零间距双 Grid', '统一 AxisPointer／Tooltip', '悬浮折线保护']) {
   assert.ok(designIndex.includes(text), `设计索引缺少市场图规则: ${text}`);
@@ -171,4 +186,4 @@ for (const text of ['保存吃单方（taker／incoming order）的买卖方向'
   assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 }
 
-console.log('Market ECharts verification passed: linked hover, protected line, zero-gap grids, dynamic integer ticks and readable volume geometry satisfy the design baseline.');
+console.log('Market ECharts verification passed: linked hover, protected line, zero-gap grids, single shared-boundary label, dynamic integer ticks and readable volume geometry satisfy the design baseline.');
