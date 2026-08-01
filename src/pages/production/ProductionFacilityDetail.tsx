@@ -14,12 +14,15 @@ import {
 } from '../../components/facilities/FacilityProductionFormula';
 import type {
   FacilityGroup,
+  FacilityProductionMethodDefinition,
+  FacilityProductionMethodGroupDefinition,
+  FacilityProductionMethodId,
   FacilityRecipeDefinition,
   FacilityTypeDefinition,
   ProductDefinition,
   ProductInventory,
 } from '../../types';
-import { formatNumber } from '../../utils/formatters';
+import { formatDuration, formatNumber } from '../../utils/formatters';
 import { resolveFacilityProfitPresentation } from '../../utils/facilityProfitPresentation';
 
 export interface FacilityClusterEntry {
@@ -39,12 +42,20 @@ export interface FacilityClusterDetailSharedProps {
 
 export interface FacilityDetailRecipeState {
   recipes: FacilityRecipeDefinition[];
+  variants: FacilityRecipeDefinition[];
+  productionMethodGroup: FacilityProductionMethodGroupDefinition | undefined;
   activeRecipe: FacilityRecipeDefinition;
   pendingRecipe: FacilityRecipeDefinition | undefined;
+  activeBaseRecipe: FacilityRecipeDefinition;
+  pendingBaseRecipe: FacilityRecipeDefinition | undefined;
+  activeProductionMethod: FacilityProductionMethodDefinition | undefined;
+  pendingProductionMethod: FacilityProductionMethodDefinition | undefined;
   formulaType: FacilityTypeDefinition;
   nextFormulaType: FacilityTypeDefinition;
   showNextCyclePreview: boolean;
   selectedRecipeId: string;
+  selectedBaseRecipeId: string;
+  selectedProductionMethodId: FacilityProductionMethodId;
 }
 
 export interface FacilitySheetDragSession {
@@ -143,18 +154,50 @@ export function FacilityStaffingSummary({
   );
 }
 
-export function recipesForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
+export function recipeVariantsForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
   if (Array.isArray(type.recipes) && type.recipes.length > 0) return type.recipes;
   return [
     {
       id: type.defaultRecipeId || `${type.id}-default`,
       name: type.name,
+      baseRecipeId: type.defaultRecipeId || `${type.id}-default`,
+      productionMethodId: 'standard',
       cycleMs: type.cycleMs,
       operatingCost: type.operatingCost,
       inputs: Array.isArray(type.inputs) ? type.inputs : type.input ? [type.input] : [],
       output: type.output,
     },
   ];
+}
+
+export function recipesForType(type: FacilityTypeDefinition): FacilityRecipeDefinition[] {
+  const variants = recipeVariantsForType(type);
+  const standardRecipes = variants.filter((recipe) => (recipe.productionMethodId ?? 'standard') === 'standard');
+  return standardRecipes.length > 0 ? standardRecipes : variants;
+}
+
+function baseRecipeId(recipe: FacilityRecipeDefinition) {
+  return recipe.baseRecipeId ?? recipe.id;
+}
+
+function productionMethodId(recipe: FacilityRecipeDefinition): FacilityProductionMethodId {
+  return recipe.productionMethodId ?? 'standard';
+}
+
+function productionMethodGroupForType(type: FacilityTypeDefinition) {
+  return type.productionMethodGroups?.find((group) => group.id === 'operation')
+    ?? type.productionMethodGroups?.[0];
+}
+
+function variantForSelection(
+  variants: FacilityRecipeDefinition[],
+  selectedBaseRecipeId: string,
+  selectedProductionMethodId: FacilityProductionMethodId,
+) {
+  return variants.find((recipe) => (
+    baseRecipeId(recipe) === selectedBaseRecipeId
+    && productionMethodId(recipe) === selectedProductionMethodId
+  ));
 }
 
 export function typeForRecipe(type: FacilityTypeDefinition, recipe: FacilityRecipeDefinition): FacilityTypeDefinition {
@@ -170,23 +213,57 @@ export function typeForRecipe(type: FacilityTypeDefinition, recipe: FacilityReci
 
 export function resolveFacilityDetailRecipeState(entry: FacilityClusterEntry): FacilityDetailRecipeState {
   const { group, type } = entry;
+  const variants = recipeVariantsForType(type);
   const recipes = recipesForType(type);
   const activeRecipe =
-    recipes.find((recipe) => recipe.id === group.activeRecipeId) ??
-    recipes.find((recipe) => recipe.id === type.defaultRecipeId) ??
-    recipes[0];
-  const pendingRecipe = recipes.find((recipe) => recipe.id === group.pendingRecipeId);
+    variants.find((recipe) => recipe.id === group.activeRecipeId) ??
+    variants.find((recipe) => recipe.id === type.defaultRecipeId) ??
+    variants[0];
+  const pendingRecipe = variants.find((recipe) => recipe.id === group.pendingRecipeId);
   const nextRecipe = pendingRecipe ?? activeRecipe;
+  const productionMethodGroup = productionMethodGroupForType(type);
+  const activeBaseRecipeId = baseRecipeId(activeRecipe);
+  const pendingBaseRecipeId = pendingRecipe ? baseRecipeId(pendingRecipe) : undefined;
+  const activeBaseRecipe = recipes.find((recipe) => recipe.id === activeBaseRecipeId) ?? recipes[0];
+  const pendingBaseRecipe = pendingBaseRecipeId
+    ? recipes.find((recipe) => recipe.id === pendingBaseRecipeId)
+    : undefined;
+  const activeMethodId = productionMethodId(activeRecipe);
+  const pendingMethodId = pendingRecipe ? productionMethodId(pendingRecipe) : undefined;
+  const activeProductionMethod = productionMethodGroup?.methods.find((method) => method.id === activeMethodId);
+  const pendingProductionMethod = pendingMethodId
+    ? productionMethodGroup?.methods.find((method) => method.id === pendingMethodId)
+    : undefined;
 
   return {
     recipes,
+    variants,
+    productionMethodGroup,
     activeRecipe,
     pendingRecipe,
+    activeBaseRecipe,
+    pendingBaseRecipe,
+    activeProductionMethod,
+    pendingProductionMethod,
     formulaType: typeForRecipe(type, activeRecipe),
     nextFormulaType: typeForRecipe(type, nextRecipe),
     showNextCyclePreview: Boolean(pendingRecipe),
     selectedRecipeId: pendingRecipe?.id ?? activeRecipe.id,
+    selectedBaseRecipeId: pendingBaseRecipeId ?? activeBaseRecipeId,
+    selectedProductionMethodId: pendingMethodId ?? activeMethodId,
   };
+}
+
+export function productionRecipeVariantId(
+  type: FacilityTypeDefinition,
+  selectedBaseRecipeId: string,
+  selectedProductionMethodId: FacilityProductionMethodId,
+) {
+  return variantForSelection(
+    recipeVariantsForType(type),
+    selectedBaseRecipeId,
+    selectedProductionMethodId,
+  )?.id;
 }
 
 export function isMobileFacilityLayout() {
@@ -310,25 +387,38 @@ export function FacilityClusterDetailBody({
 }: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
   const { group, type } = entry;
   const recipeState = resolveFacilityDetailRecipeState(entry);
+  const selectedMethod = recipeState.productionMethodGroup?.methods.find(
+    (method) => method.id === recipeState.selectedProductionMethodId,
+  );
+
+  const selectConfiguration = (
+    selectedBaseRecipeId: string,
+    selectedProductionMethodId: FacilityProductionMethodId,
+  ) => {
+    const recipeId = productionRecipeVariantId(type, selectedBaseRecipeId, selectedProductionMethodId);
+    if (recipeId && recipeId !== recipeState.selectedRecipeId) onRecipeChange(recipeId);
+  };
 
   return (
     <>
       <div className="facility-recipe-section">
         <div className="facility-recipe-heading">
-          <strong>生产配方</strong>
+          <strong>生产配置</strong>
           {recipeState.pendingRecipe ? (
             <small className="facility-recipe-status" aria-live="polite">
-              下一周期切换为：{recipeState.pendingRecipe.name}
+              下一周期切换为：{recipeState.pendingBaseRecipe?.name ?? recipeState.pendingRecipe.name}
+              {' · '}
+              {recipeState.pendingProductionMethod?.name ?? '标准生产'}
             </small>
           ) : null}
         </div>
         <SelectInput
           label={<span className="sr-only">{type.name}生产配方</span>}
           aria-label={`${type.name}生产配方`}
-          value={recipeState.selectedRecipeId}
+          value={recipeState.selectedBaseRecipeId}
           disabled={group.count < 1 || recipeState.recipes.length === 0}
           onChange={(event) => {
-            if (event.target.value !== recipeState.selectedRecipeId) onRecipeChange(event.target.value);
+            selectConfiguration(event.target.value, recipeState.selectedProductionMethodId);
           }}
         >
           {recipeState.recipes.map((recipe) => (
@@ -338,6 +428,41 @@ export function FacilityClusterDetailBody({
           ))}
         </SelectInput>
       </div>
+
+      {recipeState.productionMethodGroup ? (
+        <section className="facility-production-method-section" aria-labelledby={`${type.id}-production-method-title`}>
+          <div className="facility-production-method-heading">
+            <strong id={`${type.id}-production-method-title`}>{recipeState.productionMethodGroup.name}</strong>
+            <small>{selectedMethod?.description}</small>
+          </div>
+          <div className="facility-production-method-grid" role="radiogroup" aria-label={`${type.name}生产方式`}>
+            {recipeState.productionMethodGroup.methods.map((method) => {
+              const plan = method.plansByRecipeId[recipeState.selectedBaseRecipeId];
+              const selected = method.id === recipeState.selectedProductionMethodId;
+              return (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className="facility-production-method-option"
+                  data-selected={selected ? 'true' : 'false'}
+                  data-tone={method.tone}
+                  key={method.id}
+                  disabled={group.count < 1 || !plan}
+                  onClick={() => selectConfiguration(recipeState.selectedBaseRecipeId, method.id)}
+                >
+                  <strong>{method.name}</strong>
+                  {plan ? (
+                    <span>
+                      {formatDuration(plan.cycleMs)} · 产出 {formatNumber(plan.output.quantity)} · 成本 {formatNumber(plan.operatingCost)}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <FacilityProductionFormula
         group={group}
