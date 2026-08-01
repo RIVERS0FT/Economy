@@ -29,7 +29,9 @@ jobs:
           cache: npm
 
       - name: Apply full-width chrome and safe floating changes
-        run: python3 scripts/apply-full-width-chrome-safe-floating.py
+        run: |
+          python3 scripts/apply-full-width-chrome-safe-floating.py
+          python3 scripts/apply-full-width-chrome-safe-floating-fix.py
 
       - name: Install dependencies
         run: npm ci
