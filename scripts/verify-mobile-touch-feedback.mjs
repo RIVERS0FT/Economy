@@ -33,6 +33,7 @@ const packagePath = 'package.json';
 ].forEach(requireFile);
 
 for (const text of [
+  '@media (hover: none) and (pointer: coarse)',
   'button,',
   'a,',
   '.ui-button,',
@@ -44,11 +45,9 @@ for (const text of [
   '.economy-chart__canvas *,',
   '.market-history-chart',
   '-webkit-tap-highlight-color: transparent;',
-  'hybrid touch devices',
 ]) requireText(stylePath, text);
 
 for (const forbidden of [
-  '@media',
   ':focus',
   ':focus-visible',
   'outline: none',
@@ -91,6 +90,7 @@ for (const text of [
   'hasTouch: true',
   'isMobile: true',
   "page.goto('market-runtime-test.html?scenario=active')",
+  "page.addStyleTag({ url: '/src/styles/mobile-interaction.css' })",
   "'.market-history-chart.full'",
   "'.economy-chart__canvas svg'",
   "'.economy-chart__canvas svg path'",
@@ -106,4 +106,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('移动触摸反馈验证通过：按钮、链接与图表交互区域的原生蓝色 tap highlight 已无条件关闭，键盘 focus-visible 焦点保持不变。');
+console.log('移动触摸反馈验证通过：按钮、链接与图表交互区域的原生蓝色 tap highlight 已关闭，键盘 focus-visible 焦点保持不变。');
