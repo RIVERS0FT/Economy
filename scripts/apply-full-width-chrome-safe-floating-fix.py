@@ -65,4 +65,22 @@ if old_chain not in open_verify:
     raise SystemExit('Open glass sampling selector anchor missing')
 open_verify_path.write_text(open_verify.replace(old_chain, new_chain, 1), encoding='utf-8')
 
-print('Fixed generated verifier quoting and restored shared scroll, photography and expanded open sampling authority.')
+overview_verify_path = Path('scripts/verify-overview-content.mjs')
+overview_verify = overview_verify_path.read_text(encoding='utf-8')
+overview_verify = overview_verify.replace(
+    "  sidebarStyle: 'src/styles/desktop-sidebar.css',\n",
+    "  sidebarStyle: 'src/styles/desktop-sidebar.css',\n  shellLayoutStyle: 'src/styles/game-shell-layout.css',\n",
+    1,
+)
+old_sidebar_requirement = "  'grid-template-columns: var(--sidebar-column-width) minmax(0, 1fr);',\n"
+if old_sidebar_requirement not in overview_verify:
+    raise SystemExit('Overview legacy sidebar grid requirement anchor missing')
+overview_verify = overview_verify.replace(old_sidebar_requirement, '', 1)
+insert_anchor = "forbidAll(paths.sidebarStyle, ['right: -11px;']);"
+insert_rule = "requireAll(paths.shellLayoutStyle, ['.signed-in-shell__body {', 'grid-template-columns:', 'var(--sidebar-column-width)']);\n" + insert_anchor
+if insert_anchor not in overview_verify:
+    raise SystemExit('Overview shell layout verifier insertion anchor missing')
+overview_verify = overview_verify.replace(insert_anchor, insert_rule, 1)
+overview_verify_path.write_text(overview_verify, encoding='utf-8')
+
+print('Fixed generated verifier quoting and updated shared scroll, photography, sampling and lower-body layout authority.')
