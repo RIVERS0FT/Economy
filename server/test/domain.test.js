@@ -221,13 +221,16 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   }
 
   const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
-  assert.deepEqual(facilities.get('farm').recipes.map((recipe) => recipe.output.productId), ['wheat', 'rice', 'cotton', 'sugarcane']);
+  const standardRecipes = (facility) => facility.recipes.filter(
+    (recipe) => (recipe.productionMethodId || 'standard') === 'standard',
+  );
+  assert.deepEqual(standardRecipes(facilities.get('farm')).map((recipe) => recipe.output.productId), ['wheat', 'rice', 'cotton', 'sugarcane']);
   assert.equal(facilities.get('orchard').recipes[0].output.productId, 'fruit');
   assert.equal(facilities.get('fishery').recipes[0].output.productId, 'fish');
   assert.equal(facilities.get('mill').name, '磨坊');
-  assert.deepEqual(facilities.get('mill').recipes.map((recipe) => recipe.output.productId), ['flour', 'sugar']);
-  assert.deepEqual(facilities.get('food-factory').recipes.map((recipe) => recipe.output.productId), ['food', 'prepared-meal']);
-  assert.deepEqual(facilities.get('beverage-factory').recipes.map((recipe) => recipe.inputs), [
+  assert.deepEqual(standardRecipes(facilities.get('mill')).map((recipe) => recipe.output.productId), ['flour', 'sugar']);
+  assert.deepEqual(standardRecipes(facilities.get('food-factory')).map((recipe) => recipe.output.productId), ['food', 'prepared-meal']);
+  assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((recipe) => recipe.inputs), [
     [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }],
     [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }],
   ]);
