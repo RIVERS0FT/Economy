@@ -53,6 +53,40 @@ jobs:
           path.write_text(source, encoding='utf-8')
           PY
           python3 /tmp/apply-market-chart.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          scale = Path('src/components/charts/marketChartScale.ts')
+          source = scale.read_text(encoding='utf-8')
+          source = source.replace("import { MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';\n\n", '')
+          source = source.replace(
+              "  variant: MarketChartVariant,\n) {",
+              "  variant: MarketChartVariant,\n  windowMs: number,\n) {",
+          )
+          source = source.replace('    MARKET_WINDOW_MS / (hours * 60 * 60 * 1000) <= maximumSegments', '    Math.max(1, windowMs) / (hours * 60 * 60 * 1000) <= maximumSegments')
+          source = source.replace(
+              "  bucketCount: number,\n) {\n  if (!(bucketCount > 0) || !Number.isFinite(axisValue) || !Number.isFinite(windowStart)) return 0;\n  const rawIndex = Math.floor((axisValue - windowStart) / MARKET_BUCKET_MS);",
+              "  bucketCount: number,\n  bucketMs: number,\n) {\n  if (!(bucketCount > 0) || !(bucketMs > 0) || !Number.isFinite(axisValue) || !Number.isFinite(windowStart)) return 0;\n  const rawIndex = Math.floor((axisValue - windowStart) / bucketMs);",
+          )
+          scale.write_text(source, encoding='utf-8')
+
+          chart = Path('src/components/charts/PriceSparkline.tsx')
+          source = chart.read_text(encoding='utf-8')
+          source = source.replace('chooseMarketTimeInterval(plotWidth, rootFontSize, variant)', 'chooseMarketTimeInterval(plotWidth, rootFontSize, variant, MARKET_WINDOW_MS)')
+          source = source.replace('resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length)', 'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)')
+          chart.write_text(source, encoding='utf-8')
+
+          verifier = Path('scripts/verify-market-chart.mjs')
+          source = verifier.read_text(encoding='utf-8')
+          source = source.replace("chooseMarketTimeInterval(900, 16, 'full')", "chooseMarketTimeInterval(900, 16, 'full', MARKET_WINDOW_MS)")
+          source = source.replace("chooseMarketTimeInterval(260, 16, 'full')", "chooseMarketTimeInterval(260, 16, 'full', MARKET_WINDOW_MS)")
+          source = source.replace("chooseMarketTimeInterval(260, 20, 'full')", "chooseMarketTimeInterval(260, 20, 'full', MARKET_WINDOW_MS)")
+          source = source.replace('resolveMarketBucketIndex(windowStart - 1, windowStart, 240)', 'resolveMarketBucketIndex(windowStart - 1, windowStart, 240, MARKET_BUCKET_MS)')
+          source = source.replace('resolveMarketBucketIndex(windowStart + MARKET_BUCKET_MS * 40 + 1, windowStart, 240)', 'resolveMarketBucketIndex(windowStart + MARKET_BUCKET_MS * 40 + 1, windowStart, 240, MARKET_BUCKET_MS)')
+          source = source.replace('resolveMarketBucketIndex(windowEnd + 1, windowStart, 240)', 'resolveMarketBucketIndex(windowEnd + 1, windowStart, 240, MARKET_BUCKET_MS)')
+          source = source.replace('resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length)', 'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)')
+          verifier.write_text(source, encoding='utf-8')
+          PY
 
       - name: Install dependencies
         run: npm ci
