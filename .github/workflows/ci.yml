@@ -9,18 +9,15 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
-      - name: Checkout implementation branch
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: agent/market-unified-hover-dynamic-ticks
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -28,88 +25,8 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Apply market chart changes
-        shell: bash
-        run: |
-          set -euo pipefail
-          awk '
-            /python3 - <<.PY./ { capture=1; next }
-            capture && /^          PY$/ { exit }
-            capture { sub(/^          /, ""); print }
-          ' .github/workflows/apply-market-chart-interaction.yml > /tmp/apply-market-chart.py
-          test -s /tmp/apply-market-chart.py
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('/tmp/apply-market-chart.py')
-          source = path.read_text(encoding='utf-8')
-          source = source.replace(
-              "Path('tests/browser/market-chart-safe-zone.spec.ts').write_text(\"\"\"",
-              "Path('tests/browser/market-chart-safe-zone.spec.ts').write_text(r\"\"\"",
-          )
-          source = source.replace(
-              "Path('scripts/verify-market-chart.mjs').write_text(\"\"\"",
-              "Path('scripts/verify-market-chart.mjs').write_text(r\"\"\"",
-          )
-          path.write_text(source, encoding='utf-8')
-          PY
-          python3 /tmp/apply-market-chart.py
-          python3 - <<'PY'
-          from pathlib import Path
-
-          scale = Path('src/components/charts/marketChartScale.ts')
-          source = scale.read_text(encoding='utf-8')
-          source = source.replace("import { MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';\n\n", '')
-          source = source.replace('MARKET_TIME_INTERVAL_HOURS.at(-1)!', 'MARKET_TIME_INTERVAL_HOURS[MARKET_TIME_INTERVAL_HOURS.length - 1]')
-          source = source.replace(
-              "  variant: MarketChartVariant,\n) {",
-              "  variant: MarketChartVariant,\n  windowMs: number,\n) {",
-          )
-          source = source.replace('    MARKET_WINDOW_MS / (hours * 60 * 60 * 1000) <= maximumSegments', '    Math.max(1, windowMs) / (hours * 60 * 60 * 1000) <= maximumSegments')
-          source = source.replace(
-              "  bucketCount: number,\n) {\n  if (!(bucketCount > 0) || !Number.isFinite(axisValue) || !Number.isFinite(windowStart)) return 0;\n  const rawIndex = Math.floor((axisValue - windowStart) / MARKET_BUCKET_MS);",
-              "  bucketCount: number,\n  bucketMs: number,\n) {\n  if (!(bucketCount > 0) || !(bucketMs > 0) || !Number.isFinite(axisValue) || !Number.isFinite(windowStart)) return 0;\n  const rawIndex = Math.floor((axisValue - windowStart) / bucketMs);",
-          )
-          scale.write_text(source, encoding='utf-8')
-
-          chart = Path('src/components/charts/PriceSparkline.tsx')
-          source = chart.read_text(encoding='utf-8')
-          source = source.replace('chooseMarketTimeInterval(plotWidth, rootFontSize, variant)', 'chooseMarketTimeInterval(plotWidth, rootFontSize, variant, MARKET_WINDOW_MS)')
-          source = source.replace('resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length)', 'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)')
-          chart.write_text(source, encoding='utf-8')
-
-          verifier = Path('scripts/verify-market-chart.mjs')
-          source = verifier.read_text(encoding='utf-8')
-          source = source.replace("chooseMarketTimeInterval(900, 16, 'full')", "chooseMarketTimeInterval(900, 16, 'full', MARKET_WINDOW_MS)")
-          source = source.replace("chooseMarketTimeInterval(260, 16, 'full')", "chooseMarketTimeInterval(260, 16, 'full', MARKET_WINDOW_MS)")
-          source = source.replace("chooseMarketTimeInterval(260, 20, 'full')", "chooseMarketTimeInterval(260, 20, 'full', MARKET_WINDOW_MS)")
-          source = source.replace('resolveMarketBucketIndex(windowStart - 1, windowStart, 240)', 'resolveMarketBucketIndex(windowStart - 1, windowStart, 240, MARKET_BUCKET_MS)')
-          source = source.replace('resolveMarketBucketIndex(windowStart + MARKET_BUCKET_MS * 40 + 1, windowStart, 240)', 'resolveMarketBucketIndex(windowStart + MARKET_BUCKET_MS * 40 + 1, windowStart, 240, MARKET_BUCKET_MS)')
-          source = source.replace('resolveMarketBucketIndex(windowEnd + 1, windowStart, 240)', 'resolveMarketBucketIndex(windowEnd + 1, windowStart, 240, MARKET_BUCKET_MS)')
-          source = source.replace('resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length)', 'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)')
-          verifier.write_text(source, encoding='utf-8')
-
-          layout_verifier = Path('scripts/verify-market-page-layout.mjs')
-          source = layout_verifier.read_text(encoding='utf-8')
-          old = "requireText(runtimeSpec, 'expect(axis.priceTicks).toHaveLength(5)', 'Playwright 必须验证价格轴使用固定数量的整数刻度。');"
-          new = "requireText(runtimeSpec, 'expect(axis.priceTicks.length).toBe(axis.priceTickCount)', 'Playwright 必须验证价格轴刻度数量来自组件动态声明。');\nrequireText(runtimeSpec, 'expect(axis.priceTicks.every((value) => Number.isInteger(value))).toBe(true)', 'Playwright 必须验证动态价格轴仍只使用整数刻度。');"
-          if old not in source:
-              raise SystemExit('verify-market-page-layout.mjs fixed tick assertion missing')
-          layout_verifier.write_text(source.replace(old, new), encoding='utf-8')
-
-          runtime = Path('tests/browser/market-runtime.spec.ts')
-          source = runtime.read_text(encoding='utf-8')
-          old = '  await expect(tooltip).toHaveText(priceHoverText);'
-          new = "  const volumeHoverText = await tooltip.innerText();\n  expect(volumeHoverText.replace(/\\s+/g, ' ').trim()).toBe(priceHoverText.replace(/\\s+/g, ' ').trim());"
-          if old not in source:
-              raise SystemExit('market hover text assertion missing')
-          runtime.write_text(source.replace(old, new), encoding='utf-8')
-          PY
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Verify market chart
-        run: node --experimental-strip-types scripts/verify-market-chart.mjs
 
       - name: Build and test
         shell: bash
@@ -130,7 +47,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: market-chart-test-artifacts
+          name: economy-test-artifacts
           path: |
             build-test.log
             browser-test.log
@@ -138,18 +55,3 @@ jobs:
             test-results
           if-no-files-found: warn
           retention-days: 3
-
-      - name: Commit verified implementation and restore CI
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-          rm -f .github/workflows/apply-market-chart-interaction.yml
-          git add -A
-          git diff --cached --check
-          test ! -e .github/workflows/apply-market-chart-interaction.yml
-          git commit -m "统一市场图悬浮与动态刻度"
-          git push origin HEAD:agent/market-unified-hover-dynamic-ticks
