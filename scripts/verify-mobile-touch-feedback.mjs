@@ -82,7 +82,7 @@ for (const text of [
   '`.economy-chart__canvas`',
   'ECharts 动态生成的 SVG／Canvas 子节点',
   '`.market-history-chart`',
-  '`mobile-chart-tap-highlight.spec.ts`',
+  '`tests/browser/mobile-chart-tap-highlight.spec.ts`',
 ]) requireText(chartDocsPath, text);
 
 for (const text of [
