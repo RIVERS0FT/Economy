@@ -43,6 +43,12 @@ function valueOfItems(items, prices) {
   return cloneItems(items).reduce((sum, item) => sum + (prices.get(item.productId) || 0) * item.quantity, 0);
 }
 
+function variantRecipeId(baseRecipeId, methodId) {
+  return methodId === DEFAULT_PRODUCTION_METHOD_ID
+    ? baseRecipeId
+    : `${baseRecipeId}--${methodId}`;
+}
+
 function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode) {
   const base = Math.max(1_000, Math.floor(Number(baseCycleMs) / 1_000) * 1_000);
   const target = mode === 'rapid'
@@ -69,9 +75,11 @@ function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
     productId: String(recipe.output.productId),
     quantity: Math.max(1, Math.floor(Number(recipe.output.quantity) || 1)),
   };
+  const baseRecipeId = recipe.id;
   if (methodId === DEFAULT_PRODUCTION_METHOD_ID) {
     return {
-      recipeId: recipe.id,
+      recipeId: baseRecipeId,
+      baseRecipeId,
       productionMethodId: methodId,
       cycleMs: recipe.cycleMs,
       operatingCost: recipe.operatingCost,
@@ -90,14 +98,15 @@ function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
   const inputValue = valueOfItems(inputs, prices);
   const profitNumerator = expectedProfitPerMinute * cycleMs;
   if (profitNumerator % 60_000 !== 0) {
-    throw new Error(`${recipe.id}/${methodId} 无法形成整数参考利润`);
+    throw new Error(`${baseRecipeId}/${methodId} 无法形成整数参考利润`);
   }
   const operatingCost = outputValue - inputValue - profitNumerator / 60_000;
   if (!Number.isSafeInteger(operatingCost) || operatingCost < 0) {
-    throw new Error(`${recipe.id}/${methodId} 无法形成非负整数周期成本`);
+    throw new Error(`${baseRecipeId}/${methodId} 无法形成非负整数周期成本`);
   }
   return {
-    recipeId: recipe.id,
+    recipeId: variantRecipeId(baseRecipeId, methodId),
+    baseRecipeId,
     productionMethodId: methodId,
     cycleMs,
     operatingCost,
@@ -137,41 +146,57 @@ export function createProductionMethodGroups(facility, products, expectedProfitP
   ]);
 }
 
+export function createProductionMethodRecipes(facility, productionMethodGroups) {
+  const baseRecipes = new Map(facility.recipes.map((recipe) => [recipe.id, recipe]));
+  const group = productionMethodGroups.find((candidate) => candidate.id === PRODUCTION_METHOD_GROUP_ID)
+    || productionMethodGroups[0];
+  return Object.freeze(facility.recipes.flatMap((baseRecipe) => (
+    group.methods.map((method) => {
+      const plan = method.plansByRecipeId[baseRecipe.id];
+      return freezePlan({
+        ...plan,
+        name: baseRecipe.name,
+        baseRecipeId: baseRecipe.id,
+        productionMethodId: method.id,
+      });
+    })
+  )).filter((recipe) => baseRecipes.has(recipe.baseRecipeId)));
+}
+
 export function productionMethodGroupFor(type, groupId = PRODUCTION_METHOD_GROUP_ID) {
   return (type?.productionMethodGroups || []).find((group) => group.id === groupId)
     || type?.productionMethodGroups?.[0];
 }
 
-export function normalizeProductionMethodSelections(type, value) {
-  const normalized = {};
-  for (const group of type?.productionMethodGroups || []) {
-    const candidate = String(value?.[group.id] || '');
-    normalized[group.id] = group.methods.some((method) => method.id === candidate)
-      ? candidate
-      : group.defaultMethodId;
-  }
-  return normalized;
+export function baseRecipeIdFor(recipe) {
+  return recipe?.baseRecipeId || recipe?.id;
+}
+
+export function productionMethodIdFor(recipe) {
+  return recipe?.productionMethodId || DEFAULT_PRODUCTION_METHOD_ID;
+}
+
+export function recipeVariantFor(type, baseRecipeId, productionMethodId) {
+  return (type?.recipes || []).find((recipe) => (
+    baseRecipeIdFor(recipe) === baseRecipeId
+    && productionMethodIdFor(recipe) === productionMethodId
+  ));
 }
 
 export function resolveProductionPlan(type, recipeId, selections) {
-  const recipe = (type?.recipes || []).find((candidate) => candidate.id === recipeId)
+  const selectedRecipe = (type?.recipes || []).find((candidate) => candidate.id === recipeId)
     || (type?.recipes || []).find((candidate) => candidate.id === type?.defaultRecipeId)
     || type?.recipes?.[0];
-  if (!recipe) return null;
-  const normalizedSelections = normalizeProductionMethodSelections(type, selections);
+  if (!selectedRecipe) return null;
+  const baseRecipeId = baseRecipeIdFor(selectedRecipe);
   const group = productionMethodGroupFor(type);
-  const methodId = normalizedSelections[group.id];
-  const method = group.methods.find((candidate) => candidate.id === methodId)
+  const candidateMethodId = String(selections?.[group.id] || productionMethodIdFor(selectedRecipe));
+  const method = group.methods.find((candidate) => candidate.id === candidateMethodId)
     || group.methods.find((candidate) => candidate.id === group.defaultMethodId)
     || group.methods[0];
-  const plan = method?.plansByRecipeId?.[recipe.id];
+  const plan = method?.plansByRecipeId?.[baseRecipeId];
   return plan ? {
-    recipeId: recipe.id,
-    productionMethodSelections: normalizedSelections,
-    productionMethodId: method.id,
-    cycleMs: plan.cycleMs,
-    operatingCost: plan.operatingCost,
-    inputs: cloneItems(plan.inputs),
-    output: { ...plan.output },
+    ...plan,
+    productionMethodSelections: { [group.id]: method.id },
   } : null;
 }
