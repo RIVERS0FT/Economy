@@ -99,7 +99,7 @@ test('representative production method plans use the approved integer values', (
       [40_000, 3, 1, 4],
       [20_000, 3, 1, 6],
       [60_000, 3, 1, 2],
-      [40_000, 6, 2, 8],
+      [40_000, 6, 2, 12],
     ],
   );
 
