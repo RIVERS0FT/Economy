@@ -84,7 +84,7 @@ export interface FacilityTypeDefinition {
   output: FacilityRecipeItem;
   defaultRecipeId: string;
   recipes: FacilityRecipeDefinition[];
-  productionMethodGroups: FacilityProductionMethodGroupDefinition[];
+  productionMethodGroups?: FacilityProductionMethodGroupDefinition[];
   systemValue: number;
 }
 
