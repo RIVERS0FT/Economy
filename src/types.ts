@@ -472,7 +472,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 25;
+  version: 24;
   userId: number;
   playerName: string;
   registeredAt: number;
