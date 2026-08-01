@@ -69,9 +69,12 @@ html[data-app-surface="admin"] body {
  * between the root photography and liquid-glass Chrome must keep the backdrop
  * sampling chain open on both desktop and mobile. */
 .signed-in-shell,
+.signed-in-shell__body,
+.signed-in-shell__chrome,
 .workspace,
 .mobile-page-overlay,
 .mobile-chrome-overlay,
+.workspace-floating-layer,
 .page-scroll-area,
 .page-scroll {
   isolation: auto;
@@ -89,9 +92,19 @@ html[data-app-surface="admin"] body {
   overflow: hidden;
 }
 
+.signed-in-shell__body,
+.signed-in-shell__chrome {
+  min-width: 0;
+  min-height: 0;
+}
+
 .mobile-page-overlay,
 .mobile-chrome-overlay {
   display: contents;
+}
+
+.workspace-floating-layer {
+  pointer-events: none;
 }
 
 .asset-bar {
@@ -186,8 +199,35 @@ html[data-app-surface="admin"] body {
 
 @media (max-width: 720px) {
   .signed-in-shell {
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     padding: 0;
+  }
+
+  .signed-in-shell__body,
+  .signed-in-shell__chrome {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .signed-in-shell__body {
+    order: 1;
+    display: block;
+  }
+
+  .signed-in-shell__chrome {
+    position: relative;
+    order: 2;
+    width: auto;
+    margin-inline-start: max(var(--mobile-workspace-gutter), env(safe-area-inset-left));
+    margin-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));
+    overflow: visible;
+    pointer-events: none;
   }
 
   .workspace {
@@ -207,14 +247,10 @@ html[data-app-surface="admin"] body {
     overflow: hidden;
   }
 
-  /* Mobile glass relies on normal DOM paint order: the page layer is emitted
-   * first and the chrome layer second. Positive z-index stacking contexts here
-   * can turn into backdrop roots on older Android Chromium/WebView builds. */
   .mobile-page-overlay,
-  .mobile-chrome-overlay {
+  .workspace-floating-layer {
     grid-column: 1;
     grid-row: 1;
-    z-index: auto;
     min-width: 0;
     min-height: 0;
     display: block;
@@ -227,10 +263,31 @@ html[data-app-surface="admin"] body {
   }
 
   .mobile-chrome-overlay {
-    position: relative;
-    order: 2;
-    overflow: visible;
+    display: block;
     pointer-events: none;
+  }
+
+  .workspace-floating-layer {
+    position: absolute;
+    z-index: auto;
+    top: calc(
+      max(var(--mobile-chrome-block-inset), env(safe-area-inset-top))
+      + var(--mobile-asset-bar-height)
+      + var(--mobile-content-gap)
+    );
+    right: 0;
+    bottom: calc(
+      var(--mobile-nav-height)
+      + var(--mobile-nav-gap)
+      + max(var(--mobile-chrome-block-inset), env(safe-area-inset-bottom))
+    );
+    left: 0;
+    overflow: clip;
+    pointer-events: none;
+  }
+
+  .workspace-floating-layer > * {
+    pointer-events: auto;
   }
 
   .page-scroll {

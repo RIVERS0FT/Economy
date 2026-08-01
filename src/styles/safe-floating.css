@@ -1,0 +1,22 @@
+.safe-tooltip-anchor {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.safe-tooltip {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  overflow: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  background: rgba(7, 20, 15, 0.98);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  pointer-events: none !important;
+}

@@ -61,7 +61,7 @@
     column-gap: var(--space-3);
   }
 
-  .admin-command-bar-actions > span {
+  .admin-command-bar-actions > .admin-command-bar-identity {
     grid-area: identity;
     max-width: 280px;
     overflow: hidden;
@@ -362,5 +362,16 @@
   .admin-population-presets .ui-button,
   .admin-population-control__actions .ui-button {
     width: 100%;
+  }
+}
+
+
+@media (min-width: 721px) {
+  .admin-command-bar-identity {
+    grid-area: identity;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

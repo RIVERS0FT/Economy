@@ -1,3 +1,4 @@
+import { SafeTooltip } from '../ui/SafeTooltip';
 import { LiquidGlassSurface } from '../ui/LiquidGlassSurface';
 import { Button } from '../ui/layout';
 
@@ -25,7 +26,7 @@ export function AdminDesktopBar({
             <p>{description}</p>
           </div>
           <div className="admin-command-bar-actions">
-            <span title={email}>{email}</span>
+            <SafeTooltip content={email} className="admin-command-bar-identity">{email}</SafeTooltip>
             <small>
               世界版本 {worldVersion ?? '—'} · API {apiStatus ?? '—'}
             </small>

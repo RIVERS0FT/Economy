@@ -49,12 +49,15 @@ test.describe('liquid glass shell geometry', () => {
       };
 
       return {
+        viewportWidth: document.documentElement.clientWidth,
         workspaceWidth: workspaceRect.width,
+        workspaceTop: workspaceRect.top,
         assetBarAreaWidth: assetBarAreaRect.width,
         assetBarWidth: assetBarRect.width,
         surfaceWidth: surfaceRect.width,
-        assetBarTopInset: assetBarAreaRect.top - workspaceRect.top,
-        assetBarRightInset: workspaceRect.right - assetBarAreaRect.right,
+        assetBarLeft: assetBarAreaRect.left,
+        assetBarTop: assetBarAreaRect.top,
+        assetBarRightGap: document.documentElement.clientWidth - assetBarAreaRect.right,
         assetBarBottom: assetBarAreaRect.bottom,
         headingTop: headingRect.top,
         assetBarDisplay: assetBarStyle.display,
@@ -99,11 +102,13 @@ test.describe('liquid glass shell geometry', () => {
       };
     });
 
-    expect(Math.abs(layout.workspaceWidth - layout.assetBarAreaWidth - 12)).toBeLessThanOrEqual(1);
+    expect(layout.assetBarAreaWidth).toBeCloseTo(layout.viewportWidth - 24, 0);
     expect(Math.abs(layout.assetBarWidth - layout.assetBarAreaWidth)).toBeLessThanOrEqual(1);
     expect(Math.abs(layout.surfaceWidth - layout.assetBarWidth)).toBeLessThanOrEqual(1);
-    expect(layout.assetBarTopInset).toBeCloseTo(12, 0);
-    expect(layout.assetBarRightInset).toBeCloseTo(12, 0);
+    expect(layout.assetBarLeft).toBeCloseTo(12, 0);
+    expect(layout.assetBarTop).toBeCloseTo(12, 0);
+    expect(layout.assetBarRightGap).toBeCloseTo(12, 0);
+    expect(layout.workspaceTop - layout.assetBarBottom).toBeCloseTo(12, 0);
     expect(layout.assetBarDisplay).not.toBe('grid');
     expect(layout.surfaceOverflowX).toBe('hidden');
     expect(layout.surfaceContain).toBe('none');

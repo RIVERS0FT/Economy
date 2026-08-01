@@ -31,6 +31,7 @@ const paths = {
   polishStyle: 'src/styles/overview-polish.css',
   guideStyle: 'src/styles/game-guide.css',
   sidebarStyle: 'src/styles/desktop-sidebar.css',
+  shellLayoutStyle: 'src/styles/game-shell-layout.css',
   harness: 'tests/browser/runtime-harness.tsx',
   browserSpec: 'tests/browser/runtime.spec.ts',
   main: 'src/main.tsx',
@@ -162,12 +163,12 @@ requireAll(paths.sidebarFrame, [
 requireAll(paths.sidebarStyle, [
   '.sidebar-layout.sidebar-collapsed {',
   '--desktop-sidebar-collapsed-width: 78px;',
-  'grid-template-columns: var(--sidebar-column-width) minmax(0, 1fr);',
   '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:hover',
   '.desktop-sidebar[data-collapsed="true"] .sidebar-logo-expand-button:focus-visible',
   '.desktop-sidebar button:hover:not(:disabled)',
   '@media (max-width: 960px)',
 ]);
+requireAll(paths.shellLayoutStyle, ['.signed-in-shell__body {', 'grid-template-columns:', 'var(--sidebar-column-width)']);
 forbidAll(paths.sidebarStyle, ['right: -11px;']);
 requireAll(paths.statusBar, ['onClick?: () => void;', "if (item.onClick) classNames.push('asset-bar-item--interactive')", "aria-label={`${item.label}，打开详情`}"]);
 

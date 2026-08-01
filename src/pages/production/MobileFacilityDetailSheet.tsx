@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { ScrollArea } from '../../components/ui/ScrollArea';
+import { useWorkspaceFloatingLayer } from '../../components/ui/WorkspaceFloatingLayer';
 import {
   FACILITY_SHEET_AXIS_DOMINANCE,
   FACILITY_SHEET_AXIS_THRESHOLD,
@@ -41,6 +42,7 @@ export function MobileFacilityDetailSheet({
   returnFocusRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 }) {
+  const floatingLayer = useWorkspaceFloatingLayer();
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
@@ -418,7 +420,7 @@ export function MobileFacilityDetailSheet({
     [clearSettleTimer, resetDragStyles],
   );
 
-  if (!isOpen || !entry) return null;
+  if (!isOpen || !entry || !floatingLayer) return null;
 
   return createPortal(
     <div
@@ -482,6 +484,6 @@ export function MobileFacilityDetailSheet({
         </div>
       </div>
     </div>,
-    document.body,
+    floatingLayer,
   );
 }

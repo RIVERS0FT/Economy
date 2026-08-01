@@ -195,8 +195,10 @@ if (failures.length === 0) {
   for (const text of [
     "import { ScrollArea } from '../ui/ScrollArea'",
     "'signed-in-shell'",
+    'className="signed-in-shell__body"',
+    "'signed-in-shell__chrome'",
     'className="mobile-page-overlay"',
-    "'mobile-chrome-overlay'",
+    'className="workspace-floating-layer"',
     'className="page-scroll-area"',
     "'page-scroll'",
     'scrollbarVisibility="adaptive"',

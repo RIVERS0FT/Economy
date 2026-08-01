@@ -1,8 +1,8 @@
 # Economy liquid-glass-react 应用外壳设计
 
-> 状态：统一认证卡片、游戏与管理员桌面工作栏、全应用三层摄影背景、移动状态栏、移动底部导航及登录后共享外壳几何基线  
-> 适用项目：`RIVERS0FT/Economy`  
-> 更新时间：2026-07-31
+> 状态：统一认证卡片、游戏与管理员桌面工作栏、全应用三层摄影背景、移动状态栏、移动底部导航及登录后共享外壳几何基线
+> 适用项目：`RIVERS0FT/Economy`
+> 更新时间：2026-08-01
 
 本文件定义应用唯一液态玻璃实现、认证卡片、全应用三层摄影背景与背景采样、游戏端和管理员端登录后桌面应用外壳几何、根级摄影状态外壳、移动工作区 Overlay、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。摄影资源、认证／玩家／管理员氛围变体、根级加载与异常状态以 `REGISTRATION_INVITE_FLOW_DESIGN.md` 为共享摄影专项权威；认证卡片光学与静态输入参数、边缘高光和登录布局仍由该文档约束；通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
@@ -108,27 +108,35 @@
 
 ## 5. 登录后桌面应用外壳几何
 
-大于 `720px` 时，游戏端和管理员端都必须由 `SignedInShell` 渲染同一个根结构：
+大于 `720px` 时，游戏端和管理员端都必须由 `SignedInShell` 渲染同一个两行根结构：
 
-- `.signed-in-shell` 固定覆盖视口，最终 `padding` 和 `gap` 都为 `0`；
-- `--desktop-layout-gutter` 是桌面侧栏、悬浮工作栏、页面内容边缘与一级内容父网格之间间距的唯一权威；普通桌面使用 `12px`，宽度 `721px–960px` 或高度不大于 `760px` 的紧凑桌面使用 `8px`；
-- `--desktop-shell-outer-inset` 是侧栏与工作栏唯一桌面外距令牌 `--desktop-layout-gutter` 的兼容别名；`--desktop-sidebar-workspace-gap`、`--desktop-status-gap` 与桌面 `--layout-gutter` 同样只能指向该令牌，不得单独赋值；
-- 第一列由侧栏左侧外距、侧栏宽度和侧栏与工作区间隔组成；第二列 `.workspace` 使用全部剩余宽度；侧栏左／上／下外距、侧栏到工作区、工作栏顶部／右侧、工作栏到页面内容、页面右／下留白和一级内容之间的 gap 必须等于同一个沟槽值；
-- 工作区和页面滚动视口继续铺满视口右边缘；`.workspace`、`.page-scroll-area` 与 `.page-scroll` 不得因卡片留白而缩宽，滚动条显隐不得改变页面 `clientWidth`；
-- 玩家状态栏和管理员桌面玻璃工作栏都保持 `position: absolute` 悬浮，左边缘与 `.workspace` 一致；顶部／右侧间距都来自统一桌面外距；
-- 侧栏展开宽度为 `224px`，折叠宽度为 `78px`，只能通过 `--sidebar-column-width` 改变工作区起点；
-- `721px–960px` 使用 `8px` 统一外距；高度不大于 `760px` 时同样使用 `8px`，不得恢复 `.45rem` 第三种外距；
-- 桌面侧栏导航必须从顶部按固有行高排列，不能把导航按钮平均拉伸到整列高度；
-- 桌面工作栏高度保持 `76px`，实际玻璃圆角为 `24px`；
-- `.page-scroll-area` 与 `.page-scroll` 铺满工作区，桌面左右 padding 为 `0`；页面顶部避让固定为“沟槽 + 工作栏高度 + 沟槽”；
-- 页面顶部避让必须集中为 `--desktop-page-top-offset`，由“`--desktop-layout-gutter` + `--desktop-asset-bar-height` + `--desktop-layout-gutter`”派生；需要避让工作栏的桌面 sticky 业务卡片必须直接读取该令牌；
-- `.page-content` 使用 `width: 100%`、`max-width: none`、`margin: 0`，左侧 padding 为 `0`，右侧与底部 padding 使用 `--desktop-layout-gutter`；最外层内容网格的右边缘必须与工作栏右边缘共线；
-- 一级内容父网格继续使用 `gap: var(--layout-gutter)`；页面内部二级卡片、列表行、按钮组和表单间距不属于该规则；
-- 桌面页面主滚动条的轨道和可见滑块都使用 `right: 0`，直接贴合视口右边缘；不得影响侧栏、表格、虚拟列表或移动页面轨道；
-- 管理员 `.admin-page-frame` 必须 `width: 100%`、`max-width: none`，不得恢复全局 `1440px`／`1600px` 居中限制；桌面 `PageLayout` 标题隐藏，由 `AdminDesktopBar` 承载上下文，业务内容仍保留主从双栏；
-- 不得给 `.signed-in-shell`、`.workspace`、`.page-scroll-area` 或 `.page-scroll` 添加外边距／水平 padding 模拟内容留白，不得为管理员创建第二个原生主滚动容器。
+- `.signed-in-shell` 固定覆盖视口，最终 `padding` 和 `gap` 都为 `0`；第一行是跨越全部桌面列的 `.signed-in-shell__chrome`，第二行是包含侧栏与工作区的 `.signed-in-shell__body`。
+- `--desktop-layout-gutter` 是顶部工作栏外距、工作栏到下方主体、侧栏左／下外距、侧栏到工作区、页面右／下留白和一级内容 gap 的唯一权威；普通桌面使用 `12px`，宽度 `721px–960px` 或高度不大于 `760px` 的紧凑桌面使用 `8px`。
+- `--desktop-layout-gutter` 是顶部工作栏、下方侧栏与页面内容唯一桌面外距令牌；顶部／左侧／右侧间距都来自统一桌面外距。`--desktop-shell-outer-inset` 只能作为下方侧栏几何的同值别名。
+- 玩家状态栏与管理员桌面工作栏都必须从视口左侧沟槽延伸到右侧沟槽，横跨侧栏列和工作区列。侧栏展开、折叠或紧凑化不得改变顶部工作栏的 `left`、`right`、`top` 或宽度。
+- `.signed-in-shell__body` 的顶部固定为“沟槽 + 工作栏高度 + 沟槽”；侧栏与 `.workspace` 的顶部必须与主体顶部共线，侧栏不得再从视口顶部开始或与工作栏并排顶头。
+- 下方主体第一列由侧栏左侧外距、侧栏宽度和侧栏到工作区间隔组成；第二列 `.workspace` 使用全部剩余宽度并继续铺满视口右边缘。侧栏展开宽度为 `224px`，折叠宽度为 `78px`，只能改变下方工作区起点。
+- 桌面工作栏高度保持 `76px`，实际玻璃圆角为 `24px`；工作栏仍使用单一 `desktopStatusBar` 玻璃实例。
+- `.page-scroll-area` 与 `.page-scroll` 直接铺满下方工作区，不得再使用“工作栏高度 + 双沟槽”的顶部 padding 模拟避让；页面 sticky 内容只允许使用工作区内部沟槽作为偏移。
+- `--desktop-page-top-offset` 只表示下方工作区内部沟槽，不再包含顶部工作栏高度；页面主滚动视口的 `padding-top` 与 `scroll-padding-top` 必须为 `0`。
+- 游戏端与管理员端继续共享这一个页面主 `ScrollArea`；不得为管理员创建第二个原生主滚动容器。
+- 页面主滚动条只覆盖下方工作区的纵向范围，右边缘继续贴合视口；不得穿过顶部工作栏，也不得因显隐改变页面 `clientWidth`。
+- `.signed-in-shell__chrome` 在桌面必须是有真实尺寸的块级网格行，禁止继承 `display:contents`；移动端 Chrome 作为根外壳兄弟层时必须自行承接与工作区相同的左右 gutter。
+- 桌面页面滚动条的定位上下文已经是下方工作区，因此轨道使用工作区内 `top:0; bottom:0`，不得再次叠加 `--desktop-shell-body-top`。移动端左右 gutter 只能由 Chrome wrapper 承担一次，状态栏与底栏在 wrapper 内使用 `left:0; right:0`。
+- 桌面侧栏导航必须从侧栏内部顶部按固有行高排列，不能把导航按钮平均拉伸到整列高度。
+- 玩家端和管理员端必须共享这套 DOM、CSS 变量、折叠行为和浏览器几何测试，不得分别创建第二套根外壳。
+- 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；不得重建根级摄影节点。生产认证态继续使用 `-2 / -1` 负层级，游戏与管理员登录态保持非负根层级。
+- `#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根；新增的 `.signed-in-shell__body`、`.signed-in-shell__chrome` 与 `.workspace-floating-layer` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，不得在登录后外壳祖先上建立第二个隔离根。
+- 桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链；不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败。`verify-open-glass-sampling.mjs` 与 `open-glass-sampling.spec.ts` 必须覆盖新增祖先。
 
-摄影图片和氛围节点位于 `.application-content-root` 之外。`#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根。图片、氛围和 `.application-content-root` 必须位于该根内；生产认证态继续使用 `-2 / -1` 负层级，登录后玩家与管理员继续使用 `0 / 1 / 2` 根级层级。`.application-content-root`、`.signed-in-shell`、`.game-shell`、`.admin-shell`、`.workspace`、`.mobile-page-overlay`、`.mobile-chrome-overlay`、`.page-scroll-area` 与 `.page-scroll` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，让状态栏、管理员工作栏和移动底栏直接采样同根摄影与氛围。页面内部表格、详情抽屉、弹窗和 sticky 业务区可以在不包围 Chrome 的局部子树建立隔离；不得在登录后外壳祖先上建立第二个隔离根，也不得用用途专用染色掩盖采样链故障。页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`，不得重新提供 `SignedInShell.backdrop`。
+### 5.1 工作区浮层安全区
+
+- `SignedInShell` 必须在 `.workspace` 内提供唯一 `.workspace-floating-layer`，其桌面几何与工作区完全一致；移动端顶部必须位于状态栏下方，底部必须位于移动导航上方。
+- Tooltip、Popover、菜单、确认框、页面 Dialog、移动工厂详情 Sheet 和其他登录后业务浮层只能渲染到工作区浮层根，或像 ECharts Tooltip 一样由业务容器内部 `confine`；不得追加到 `document.body` 后覆盖顶部工作栏、侧栏或移动底栏。
+- 工作区浮层根必须使用 `overflow: clip`，自身不拦截指针，只有实际浮层恢复指针事件。定位算法必须以浮层根真实 `getBoundingClientRect()` 为边界，并保留至少 `8px` 内部安全间距。
+- 顶部工作栏和侧栏中的提示必须向工作区内部翻转和收敛；不得使用浏览器原生 `title` 承担必须可见的完整信息。
+- ECharts `commonTooltip` 必须继续保持 `appendToBody: false` 与 `confine: true`，不得为了避免裁切改成全局 Portal。
+- 移动工厂详情必须 Portal 到工作区浮层根，背景和 Sheet 都只能覆盖状态栏与移动导航之间的安全区域；焦点陷阱、Escape、拖动关闭和页面滚动锁保持不变。
 
 ## 6. 移动工作区、Overlay 与滚动条
 

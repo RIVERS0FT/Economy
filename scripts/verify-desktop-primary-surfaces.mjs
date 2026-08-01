@@ -105,8 +105,8 @@ if (failures.length === 0) {
     '官方双层高光',
     '第三方 `.glass` 默认外部阴影',
     '所有五种表面都不得绘制项目结构描边',
-    '`--desktop-shell-outer-inset` 是侧栏与工作栏唯一桌面外距令牌',
-    '顶部／右侧间距都来自统一桌面外距',
+    '`--desktop-layout-gutter` 是顶部工作栏、下方侧栏与页面内容唯一桌面外距令牌',
+    '顶部／左侧／右侧间距都来自统一桌面外距',
   ]) requireText(paths.liquidDesign, text);
 
   for (const text of [
