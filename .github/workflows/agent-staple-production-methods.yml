@@ -1,0 +1,32 @@
+name: Agent staple production method tests
+
+on:
+  push:
+    branches:
+      - agent/factory-production-methods
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/factory-production-methods
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Update staple demand catalog assertions
+        run: node scripts/agent-update-staple-production-methods.mjs
+      - name: Commit compatibility and remove one-time files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -- .github/workflows/agent-staple-production-methods.yml scripts/agent-update-staple-production-methods.mjs
+          git add -- scripts/verify-staple-crops-demand.mjs
+          git commit -m "test: keep staple demand on base production routes"
+          git push origin HEAD:agent/factory-production-methods
