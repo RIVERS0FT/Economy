@@ -1,4 +1,7 @@
-import { createProductionMethodGroups } from './production-methods.js';
+import {
+  createProductionMethodGroups,
+  createProductionMethodRecipes,
+} from './production-methods.js';
 
 const rawProducts = [
   { id: 'wheat', name: '小麦', category: 'raw', basePrice: 2 },
@@ -193,13 +196,14 @@ function freezeRecipe(recipe) {
 }
 
 export const FACILITY_TYPE_CATALOG = Object.freeze(rawFacilities.map((facility) => {
-  const recipes = Object.freeze(facility.recipes.map(freezeRecipe));
-  const defaultRecipe = recipes.find((recipe) => recipe.id === facility.defaultRecipeId) || recipes[0];
+  const baseRecipes = Object.freeze(facility.recipes.map(freezeRecipe));
   const productionMethodGroups = createProductionMethodGroups(
-    { ...facility, recipes },
+    { ...facility, recipes: baseRecipes },
     PRODUCT_CATALOG,
     EXPECTED_PROFIT_PER_MINUTE[facility.complexity],
   );
+  const recipes = createProductionMethodRecipes({ ...facility, recipes: baseRecipes }, productionMethodGroups);
+  const defaultRecipe = recipes.find((recipe) => recipe.id === facility.defaultRecipeId) || recipes[0];
   return Object.freeze({
     ...facility,
     cycleMs: defaultRecipe.cycleMs,
