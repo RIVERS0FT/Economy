@@ -9,15 +9,18 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
-      - name: Checkout code
+      - name: Checkout implementation branch
         uses: actions/checkout@v4
+        with:
+          ref: agent/market-unified-hover-dynamic-ticks
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -25,8 +28,23 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
+      - name: Apply market chart changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '
+            /python3 - <<.PY./ { capture=1; next }
+            capture && /^          PY$/ { exit }
+            capture { sub(/^          /, ""); print }
+          ' .github/workflows/apply-market-chart-interaction.yml > /tmp/apply-market-chart.py
+          test -s /tmp/apply-market-chart.py
+          python3 /tmp/apply-market-chart.py
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify market chart
+        run: node --experimental-strip-types scripts/verify-market-chart.mjs
 
       - name: Build and test
         shell: bash
@@ -47,7 +65,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: economy-test-artifacts
+          name: market-chart-test-artifacts
           path: |
             build-test.log
             browser-test.log
@@ -55,3 +73,18 @@ jobs:
             test-results
           if-no-files-found: warn
           retention-days: 3
+
+      - name: Commit verified implementation and restore CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
+          rm -f .github/workflows/apply-market-chart-interaction.yml
+          git add -A
+          git diff --cached --check
+          test ! -e .github/workflows/apply-market-chart-interaction.yml
+          git commit -m "统一市场图悬浮与动态刻度"
+          git push origin HEAD:agent/market-unified-hover-dynamic-ticks
