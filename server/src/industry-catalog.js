@@ -1,3 +1,5 @@
+import { createProductionMethodGroups } from './production-methods.js';
+
 const rawProducts = [
   { id: 'wheat', name: '小麦', category: 'raw', basePrice: 2 },
   { id: 'rice', name: '水稻', category: 'raw', basePrice: 2 },
@@ -170,6 +172,16 @@ const rawFacilities = [
   },
 ];
 
+const EXPECTED_PROFIT_PER_MINUTE = Object.freeze({
+  C1: 1,
+  C2: 3,
+  C3: 6,
+  C4: 6,
+  C5: 8,
+  C6: 10,
+  C7: 12,
+});
+
 function freezeRecipe(recipe) {
   const inputs = Object.freeze((recipe.inputs || []).map((input) => Object.freeze({ ...input })));
   return Object.freeze({
@@ -183,6 +195,11 @@ function freezeRecipe(recipe) {
 export const FACILITY_TYPE_CATALOG = Object.freeze(rawFacilities.map((facility) => {
   const recipes = Object.freeze(facility.recipes.map(freezeRecipe));
   const defaultRecipe = recipes.find((recipe) => recipe.id === facility.defaultRecipeId) || recipes[0];
+  const productionMethodGroups = createProductionMethodGroups(
+    { ...facility, recipes },
+    PRODUCT_CATALOG,
+    EXPECTED_PROFIT_PER_MINUTE[facility.complexity],
+  );
   return Object.freeze({
     ...facility,
     cycleMs: defaultRecipe.cycleMs,
@@ -191,5 +208,6 @@ export const FACILITY_TYPE_CATALOG = Object.freeze(rawFacilities.map((facility) 
     input: defaultRecipe.input,
     output: defaultRecipe.output,
     recipes,
+    productionMethodGroups,
   });
 }));
