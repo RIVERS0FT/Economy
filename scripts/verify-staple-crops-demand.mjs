@@ -144,7 +144,10 @@ for (const text of [
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
-assert.deepEqual(facilities.get('beverage-factory').recipes.map((recipe) => recipe.inputs), [
+const standardRecipes = (facility) => facility.recipes.filter(
+  (recipe) => (recipe.productionMethodId || 'standard') === 'standard',
+);
+assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((recipe) => recipe.inputs), [
   [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }],
   [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }],
 ]);
