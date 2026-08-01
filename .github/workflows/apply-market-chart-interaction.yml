@@ -1,0 +1,1032 @@
+name: Apply market chart interaction
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-market-chart-interaction
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/market-unified-hover-dynamic-ticks
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Apply unified hover and dynamic ticks
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              source = path.read_text(encoding='utf-8')
+              count = source.count(old)
+              if count == 0 and new in source:
+                  return
+              if count != 1:
+                  raise SystemExit(f'{path_name}: expected one replacement target, found {count}')
+              path.write_text(source.replace(old, new), encoding='utf-8')
+
+          Path('src/components/charts/marketChartScale.ts').write_text("""import { MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';
+
+export type MarketChartVariant = 'compact' | 'full';
+
+const MARKET_TIME_INTERVAL_HOURS = [1, 2, 3, 4, 6, 8, 12] as const;
+
+function clampInteger(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, Math.floor(value)));
+}
+
+export function chooseMarketTimeInterval(
+  plotWidth: number,
+  rootFontSize: number,
+  variant: MarketChartVariant,
+) {
+  const minimumLabelSpacing = variant === 'compact'
+    ? Math.max(52, rootFontSize * 3.25)
+    : Math.max(60, rootFontSize * 3.75);
+  const maximumSegments = clampInteger(Math.max(1, plotWidth) / minimumLabelSpacing, 3, 24);
+  const intervalHours = MARKET_TIME_INTERVAL_HOURS.find((hours) => (
+    MARKET_WINDOW_MS / (hours * 60 * 60 * 1000) <= maximumSegments
+  )) ?? MARKET_TIME_INTERVAL_HOURS.at(-1)!;
+  return intervalHours * 60 * 60 * 1000;
+}
+
+export function chooseMarketPriceTickCount(priceHeight: number, rootFontSize: number) {
+  const minimumTickSpacing = Math.max(38, rootFontSize * 2.4);
+  return clampInteger(Math.max(1, priceHeight) / minimumTickSpacing + 1, 3, 7);
+}
+
+export function chooseMarketVolumeTickCount(volumeHeight: number, rootFontSize: number) {
+  const minimumTickSpacing = Math.max(34, rootFontSize * 2.2);
+  return clampInteger(Math.max(1, volumeHeight) / minimumTickSpacing + 1, 2, 5);
+}
+
+export function resolveMarketBucketIndex(
+  axisValue: number,
+  windowStart: number,
+  bucketCount: number,
+) {
+  if (!(bucketCount > 0) || !Number.isFinite(axisValue) || !Number.isFinite(windowStart)) return 0;
+  const rawIndex = Math.floor((axisValue - windowStart) / MARKET_BUCKET_MS);
+  return clampInteger(rawIndex, 0, bucketCount - 1);
+}
+""", encoding='utf-8')
+
+          Path('src/components/charts/PriceSparkline.tsx').write_text("""import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { MarketHistoryBucket } from '../../utils/marketHistory';
+import { formatMarketAxisTime, MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';
+import { EconomyChart } from './EconomyChart';
+import type { EChartsCoreOption } from './echartsCore';
+import { chartColor, commonTooltip, escapeChartHtml } from './chartOptions';
+import {
+  chooseMarketPriceTickCount,
+  chooseMarketTimeInterval,
+  chooseMarketVolumeTickCount,
+  resolveMarketBucketIndex,
+  type MarketChartVariant,
+} from './marketChartScale';
+
+type IntegerAxisScale = {
+  min: number;
+  max: number;
+  step: number;
+  ticks: number[];
+};
+
+type MarketChartGeometry = {
+  width: number;
+  height: number;
+  canvasHeight: number;
+  top: number;
+  left: number;
+  right: number;
+  priceBottom: number;
+  volumeTop: number;
+  volumeBottom: number;
+  volumeShare: number;
+  plotCenterX: number;
+  timeLabelHeight: number;
+};
+
+const fullIntegerFormatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 0 });
+const compactVolumeFormatters = new Map<number, Intl.NumberFormat>();
+const compactUnits = [
+  { threshold: 1_000_000_000_000, suffix: 'T' },
+  { threshold: 1_000_000_000, suffix: 'B' },
+  { threshold: 1_000_000, suffix: 'M' },
+  { threshold: 1_000, suffix: 'K' },
+];
+
+export function niceIntegerStep(roughStep: number) {
+  if (!(roughStep > 1)) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const normalized = roughStep / magnitude;
+  if (normalized <= 1) return magnitude;
+  if (normalized <= 2) return 2 * magnitude;
+  if (normalized <= 5) return 5 * magnitude;
+  return 10 * magnitude;
+}
+
+function nextNiceIntegerStep(step: number) {
+  const magnitude = 10 ** Math.floor(Math.log10(Math.max(1, step)));
+  const normalized = step / magnitude;
+  if (normalized < 2) return 2 * magnitude;
+  if (normalized < 5) return 5 * magnitude;
+  return 10 * magnitude;
+}
+
+export function buildIntegerPriceScale(rawMin: number, rawMax: number, tickCount: number): IntegerAxisScale {
+  const safeTickCount = Math.max(2, Math.floor(tickCount));
+  const intervals = safeTickCount - 1;
+  const minValue = Math.max(0, Math.floor(Math.min(rawMin, rawMax)));
+  const maxValue = Math.max(minValue, Math.ceil(Math.max(rawMin, rawMax)));
+
+  if (minValue === maxValue) {
+    const step = niceIntegerStep(Math.max(1, minValue) / Math.max(2, intervals));
+    const lowerIntervals = Math.floor(intervals / 2);
+    const min = Math.max(0, minValue - step * lowerIntervals);
+    const max = min + step * intervals;
+    return { min, max, step, ticks: Array.from({ length: safeTickCount }, (_, index) => max - index * step) };
+  }
+
+  let step = niceIntegerStep((maxValue - minValue) / Math.max(1, safeTickCount - 2));
+  let min = Math.floor(minValue / step) * step;
+  let max = min + step * intervals;
+  while (max < maxValue) {
+    step = nextNiceIntegerStep(step);
+    min = Math.floor(minValue / step) * step;
+    max = min + step * intervals;
+  }
+  return { min, max, step, ticks: Array.from({ length: safeTickCount }, (_, index) => max - index * step) };
+}
+
+export function buildIntegerVolumeScale(rawMax: number, tickCount: number): IntegerAxisScale {
+  const safeTickCount = Math.max(2, Math.floor(tickCount));
+  const intervals = safeTickCount - 1;
+  const maxValue = Math.max(1, Math.ceil(rawMax));
+  let step = niceIntegerStep(maxValue / intervals);
+  while (step * intervals < maxValue) step = nextNiceIntegerStep(step);
+  const max = step * intervals;
+  return { min: 0, max, step, ticks: Array.from({ length: safeTickCount }, (_, index) => max - index * step) };
+}
+
+export function formatIntegerPriceTick(value: number) {
+  const integer = Math.max(0, Math.round(value));
+  const unit = compactUnits.find(({ threshold }) => integer >= threshold && integer % threshold === 0);
+  return unit ? `${integer / unit.threshold}${unit.suffix}` : fullIntegerFormatter.format(integer);
+}
+
+export function formatCompactVolumeTick(value: number) {
+  const integer = Math.max(0, Math.round(value));
+  const unit = compactUnits.find(({ threshold }) => integer >= threshold);
+  if (!unit) return fullIntegerFormatter.format(integer);
+  const scaled = integer / unit.threshold;
+  const maximumFractionDigits = Math.abs(scaled) >= 100 ? 0 : 1;
+  let formatter = compactVolumeFormatters.get(maximumFractionDigits);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('zh-CN', { maximumFractionDigits });
+    compactVolumeFormatters.set(maximumFractionDigits, formatter);
+  }
+  return `${formatter.format(scaled)}${unit.suffix}`;
+}
+
+function volumeColor(direction: MarketHistoryBucket['direction']) {
+  if (direction === 'buy') return chartColor.success;
+  if (direction === 'sell') return chartColor.danger;
+  return chartColor.muted;
+}
+
+export function buildMarketChartGeometry(width: number, rootFontSize: number, variant: MarketChartVariant): MarketChartGeometry {
+  const safeWidth = Math.max(1, width || 960);
+  const scale = safeWidth / 960;
+  const compact = variant === 'compact';
+  const top = Math.max(compact ? 10 : 12, (compact ? 12 : 22) * scale);
+  const left = Math.max(compact ? 58 : 68, rootFontSize * (compact ? 3.7 : 4.3));
+  const right = Math.max(12, (compact ? 18 : 24) * scale);
+  const priceHeight = Math.max(compact ? 72 : 112, (compact ? 78 : 208) * scale);
+  const priceVolumeGap = 0;
+  const minimumVolumeHeight = Math.max(48, rootFontSize * (compact ? 3 : 3.4));
+  const ratioProtectedVolumeHeight = (0.22 / 0.78) * priceHeight;
+  const preferredVolumeHeight = (compact ? 33 : 106) * scale;
+  const volumeHeight = Math.max(preferredVolumeHeight, minimumVolumeHeight, ratioProtectedVolumeHeight);
+  const timeLabelHeight = compact ? Math.max(28, rootFontSize * 1.8) : Math.max(52, rootFontSize * 3.2);
+  const legendGap = 8;
+  const legendHeight = Math.max(20, rootFontSize * 1.25);
+  const legendTitleGap = 10;
+  const titleHeight = Math.max(16, rootFontSize);
+  const bottomSafeInset = 6;
+  const priceBottom = top + priceHeight;
+  const volumeTop = priceBottom + priceVolumeGap;
+  const volumeBottom = volumeTop + volumeHeight;
+  const footerHeight = legendGap + legendHeight + legendTitleGap + titleHeight + bottomSafeInset;
+  const requiredCanvasHeight = volumeBottom + timeLabelHeight;
+  const baseHeight = (compact ? 228 : 540) * scale;
+  const height = Math.max(baseHeight, requiredCanvasHeight + footerHeight);
+  const canvasHeight = height - footerHeight;
+  const dataAreaHeight = priceHeight + volumeHeight;
+  return {
+    width: safeWidth,
+    height,
+    canvasHeight,
+    top,
+    left,
+    right,
+    priceBottom,
+    volumeTop,
+    volumeBottom,
+    volumeShare: volumeHeight / Math.max(1, dataAreaHeight),
+    plotCenterX: left + Math.max(1, safeWidth - left - right) / 2,
+    timeLabelHeight,
+  };
+}
+
+function useMarketChartWidth() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = useState({ width: 960, rootFontSize: 16 });
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return undefined;
+    let frame: number | null = null;
+    const update = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const width = element.getBoundingClientRect().width;
+        const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        setMetrics((current) => (
+          Math.abs(current.width - width) < 0.5 && Math.abs(current.rootFontSize - rootFontSize) < 0.1
+            ? current
+            : { width, rootFontSize }
+        ));
+      });
+    };
+    update();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
+    observer?.observe(element);
+    window.addEventListener('resize', update);
+    void document.fonts?.ready.then(update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', update);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, []);
+  return { ref, ...metrics };
+}
+
+function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket[]; variant: MarketChartVariant }) {
+  const safeBuckets: MarketHistoryBucket[] = buckets.length > 0 ? buckets : [{
+    startAt: Date.now(), price: 1, volume: 0, buyVolume: 0, sellVolume: 0,
+    neutralVolume: 0, netVolume: 0, direction: 'neutral',
+  }];
+  const { ref, width, rootFontSize } = useMarketChartWidth();
+  const geometry = buildMarketChartGeometry(width, rootFontSize, variant);
+  const priceHeight = geometry.priceBottom - geometry.top;
+  const volumeHeight = geometry.volumeBottom - geometry.volumeTop;
+  const plotWidth = Math.max(1, geometry.width - geometry.left - geometry.right);
+  const priceTickCount = chooseMarketPriceTickCount(priceHeight, rootFontSize);
+  const volumeTickCount = chooseMarketVolumeTickCount(volumeHeight, rootFontSize);
+  const priceScale = buildIntegerPriceScale(
+    Math.min(...safeBuckets.map((bucket) => bucket.price)),
+    Math.max(...safeBuckets.map((bucket) => bucket.price)),
+    priceTickCount,
+  );
+  const volumeScale = buildIntegerVolumeScale(
+    Math.max(1, ...safeBuckets.map((bucket) => bucket.volume)),
+    volumeTickCount,
+  );
+  const windowStart = safeBuckets[0].startAt;
+  const windowEnd = windowStart + MARKET_WINDOW_MS;
+  const axisInterval = chooseMarketTimeInterval(plotWidth, rootFontSize, variant);
+  const barWidth = Math.max(1, (plotWidth / safeBuckets.length) * 0.74);
+  const axisPointerLineStyle = {
+    color: chartColor.secondary,
+    width: 1,
+    type: 'dashed' as const,
+    opacity: 0.82,
+  };
+
+  const option = useMemo<EChartsCoreOption>(() => ({
+    animation: false,
+    aria: { enabled: true, description: '近二十四小时价格折线和成交量柱状图。绿色为净主动买入，红色为净主动卖出，灰色为方向未知。' },
+    grid: [
+      { left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
+      { left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
+    ],
+    axisPointer: { link: [{ xAxisIndex: [0, 1] }] },
+    tooltip: {
+      ...commonTooltip,
+      trigger: 'axis',
+      triggerOn: 'mousemove|click',
+      axisPointer: {
+        type: 'line',
+        snap: true,
+        triggerEmphasis: false,
+        lineStyle: axisPointerLineStyle,
+      },
+      formatter: (params: any) => {
+        const list = Array.isArray(params) ? params : [params];
+        const axisValue = Number(list.find((item: any) => Number.isFinite(Number(item?.axisValue)))?.axisValue);
+        const index = resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length);
+        const bucket = safeBuckets[index];
+        if (!bucket) return '';
+        const sign = bucket.netVolume > 0 ? '+' : '';
+        return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }))}</strong>`
+          + `<div><small>价格</small> ${escapeChartHtml(formatIntegerPriceTick(bucket.price))}</div>`
+          + `<div><small>总成交量</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.volume))}</div>`
+          + `<div><small>主动买入</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.buyVolume))}</div>`
+          + `<div><small>主动卖出</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.sellVolume))}</div>`
+          + `<div><small>方向未知</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.neutralVolume))}</div>`
+          + `<div><small>净主动量</small> ${escapeChartHtml(`${sign}${fullIntegerFormatter.format(bucket.netVolume)}`)}</div>`;
+      },
+    },
+    xAxis: [
+      {
+        type: 'value', gridIndex: 0, min: windowStart, max: windowEnd, interval: axisInterval,
+        axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
+        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: axisPointerLineStyle },
+        splitLine: { show: true, lineStyle: { color: chartColor.border } },
+      },
+      {
+        type: 'value', gridIndex: 1, min: windowStart, max: windowEnd, interval: axisInterval,
+        axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
+        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: axisPointerLineStyle },
+        axisLabel: {
+          color: chartColor.muted,
+          fontSize: Math.max(11, rootFontSize * 0.75),
+          rotate: variant === 'compact' ? 0 : 45,
+          hideOverlap: true,
+          margin: 10,
+          formatter: (value: number) => formatMarketAxisTime(value),
+        },
+        splitLine: { show: true, lineStyle: { color: chartColor.border } },
+      },
+    ],
+    yAxis: [
+      {
+        type: 'value', gridIndex: 0, min: priceScale.min, max: priceScale.max, interval: priceScale.step,
+        name: '价格', nameLocation: 'middle', nameRotate: 90, nameGap: geometry.left - 18,
+        nameTextStyle: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75) },
+        axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
+        axisLabel: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75), formatter: (value: number) => formatIntegerPriceTick(value) },
+        splitLine: { lineStyle: { color: chartColor.border } },
+      },
+      {
+        type: 'value', gridIndex: 1, min: 0, max: volumeScale.max, interval: volumeScale.step,
+        name: '成交量', nameLocation: 'middle', nameRotate: 90, nameGap: geometry.left - 18,
+        nameTextStyle: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75) },
+        axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
+        axisLabel: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75), formatter: (value: number) => formatCompactVolumeTick(value) },
+        splitLine: { lineStyle: { color: chartColor.border } },
+      },
+    ],
+    series: [
+      {
+        name: '价格', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, symbol: 'none', smooth: false, z: 3,
+        data: safeBuckets.map((bucket) => [bucket.startAt + MARKET_BUCKET_MS / 2, bucket.price]),
+        lineStyle: { color: chartColor.success, width: 2.5, opacity: 1 },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(123,228,158,.24)' }, { offset: 1, color: 'rgba(123,228,158,0)' }] } },
+        emphasis: { disabled: true },
+        blur: { lineStyle: { opacity: 1 }, areaStyle: { opacity: 1 } },
+      },
+      {
+        name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth,
+        data: safeBuckets.map((bucket) => ({ value: [bucket.startAt + MARKET_BUCKET_MS / 2, bucket.volume], direction: bucket.direction })),
+        itemStyle: { color: (params: any) => volumeColor(params?.data?.direction), opacity: 0.78, borderRadius: [2, 2, 0, 0] },
+        emphasis: { disabled: true },
+      },
+    ],
+  }), [axisInterval, axisPointerLineStyle, barWidth, geometry, priceHeight, priceScale, rootFontSize, safeBuckets, variant, volumeHeight, volumeScale, windowEnd, windowStart]);
+
+  return (
+    <div
+      ref={ref}
+      className={`price-chart market-history-chart ${variant}`}
+      role="img"
+      aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
+      data-chart-variant={variant}
+      data-axis-left={geometry.left.toFixed(2)}
+      data-axis-right={geometry.right.toFixed(2)}
+      data-price-top={geometry.top.toFixed(2)}
+      data-price-bottom={geometry.priceBottom.toFixed(2)}
+      data-volume-top={geometry.volumeTop.toFixed(2)}
+      data-volume-bottom={geometry.volumeBottom.toFixed(2)}
+      data-volume-share={geometry.volumeShare.toFixed(4)}
+      data-chart-height={geometry.height.toFixed(2)}
+      data-plot-center-x={geometry.plotCenterX.toFixed(2)}
+      data-time-label-height={geometry.timeLabelHeight.toFixed(2)}
+      data-time-axis-interval={axisInterval}
+      data-price-tick-count={priceTickCount}
+      data-volume-tick-count={volumeTickCount}
+      data-axis-pointer-linked="true"
+      data-hover-emphasis-disabled="true"
+      data-price-ticks={priceScale.ticks.join(',')}
+      data-volume-ticks={volumeScale.ticks.join(',')}
+      style={{ height: geometry.height }}
+    >
+      <EconomyChart
+        option={option}
+        className="market-history-echart"
+        style={{ height: geometry.canvasHeight }}
+        ariaLabel="近 24 小时价格、成交量与主动买卖方向趋势图"
+        accessibleSummary={safeBuckets.map((bucket) => `${formatMarketAxisTime(bucket.startAt)}价格${formatIntegerPriceTick(bucket.price)}成交量${formatCompactVolumeTick(bucket.volume)}`).join('；')}
+      />
+      <div
+        className="market-chart-price-volume-divider"
+        style={{ top: geometry.priceBottom, left: geometry.left, right: geometry.right }}
+        aria-hidden="true"
+      />
+      <div className="market-chart-footer" style={{ paddingLeft: geometry.left, paddingRight: geometry.right }}>
+        <div className="market-chart-legend" aria-label="主动买卖方向图例">
+          <span className="market-chart-legend-item buy"><i />净主动买入</span>
+          <span className="market-chart-legend-item sell"><i />净主动卖出</span>
+        </div>
+        <div className="market-chart-x-axis-title">时间</div>
+      </div>
+    </div>
+  );
+}
+
+export function PriceSparkline({ buckets, variant = 'full' }: { buckets: MarketHistoryBucket[]; variant?: MarketChartVariant }) {
+  return <MarketHistoryChart buckets={buckets} variant={variant} />;
+}
+""", encoding='utf-8')
+
+          replace_once(
+              'src/components/charts/echartsCore.ts',
+              "  AriaComponent,\n  GridComponent,\n  TooltipComponent,",
+              "  AriaComponent,\n  AxisPointerComponent,\n  GridComponent,\n  TooltipComponent,",
+          )
+          replace_once(
+              'src/components/charts/echartsCore.ts',
+              "  PieChart,\n  GridComponent,",
+              "  PieChart,\n  AxisPointerComponent,\n  GridComponent,",
+          )
+
+          replace_once(
+              'src/utils/marketHistory.ts',
+              "export const MARKET_BUCKET_COUNT = MARKET_WINDOW_MS / MARKET_BUCKET_MS;\nexport const MARKET_AXIS_SEGMENTS = 12;",
+              "export const MARKET_BUCKET_COUNT = MARKET_WINDOW_MS / MARKET_BUCKET_MS;",
+          )
+          old_ticks = """export function buildMarketAxisTicks(
+  buckets: MarketHistoryBucket[],
+  locales?: Intl.LocalesArgument,
+) {
+  const startAt = buckets[0]?.startAt ?? 0;
+  const segmentMs = MARKET_WINDOW_MS / MARKET_AXIS_SEGMENTS;
+  return Array.from({ length: MARKET_AXIS_SEGMENTS + 1 }, (_, index) => {
+    const timestamp = startAt + index * segmentMs;
+    return {
+      timestamp,
+      label: formatMarketAxisTime(timestamp, locales),
+    };
+  });
+}
+"""
+          replace_once('src/utils/marketHistory.ts', old_ticks, '')
+
+          replace_once(
+              'src/styles/charts.css',
+              ".market-history-chart {\n  min-width: 0;",
+              ".market-history-chart {\n  position: relative;\n  min-width: 0;",
+          )
+          replace_once(
+              'src/styles/charts.css',
+              ".market-history-echart {\n  height: 100%;\n}\n\n.market-chart-footer",
+              ".market-history-echart {\n  height: 100%;\n}\n\n.market-chart-price-volume-divider {\n  position: absolute;\n  height: 1px;\n  background: var(--color-border-strong);\n  opacity: 0.78;\n  pointer-events: none;\n  z-index: 4;\n}\n\n.market-chart-footer",
+          )
+
+          Path('tests/browser/market-chart-safe-zone.spec.ts').write_text("""import { expect, test, type Locator, type Page } from '@playwright/test';
+
+async function capturePageErrors(page: Page) {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  return pageErrors;
+}
+
+async function inspectChartGeometry(chart: Locator) {
+  return chart.evaluate((element) => {
+    const wrapper = element as HTMLElement;
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const canvas = wrapper.querySelector<HTMLElement>('.market-history-echart');
+    const svg = wrapper.querySelector<SVGSVGElement>('.economy-chart__canvas svg');
+    const divider = wrapper.querySelector<HTMLElement>('.market-chart-price-volume-divider');
+    const legendRects = Array.from(wrapper.querySelectorAll<HTMLElement>('.market-chart-legend-item'))
+      .map((item) => item.getBoundingClientRect());
+    const title = wrapper.querySelector<HTMLElement>('.market-chart-x-axis-title');
+    if (!canvas || !svg || !divider || legendRects.length !== 2 || !title) throw new Error('ECharts market chart fixture is incomplete');
+    const canvasRect = canvas.getBoundingClientRect();
+    const dividerRect = divider.getBoundingClientRect();
+    const titleRect = title.getBoundingClientRect();
+    const readNumber = (name: string) => {
+      const value = Number(wrapper.dataset[name]);
+      if (!Number.isFinite(value)) throw new Error(`market chart is missing data-${name}`);
+      return value;
+    };
+    const timeTicks = Array.from(svg.querySelectorAll<SVGTextElement>('text'))
+      .filter((text) => /^\d{2}:\d{2}$/.test(text.textContent?.trim() ?? ''))
+      .map((text) => text.getBoundingClientRect());
+    const legendLeft = Math.min(...legendRects.map((rect) => rect.left));
+    const legendRight = Math.max(...legendRects.map((rect) => rect.right));
+    const volumeTop = readNumber('volumeTop');
+    const volumeBottom = readNumber('volumeBottom');
+    const priceBottom = readNumber('priceBottom');
+    const plotCenterX = readNumber('plotCenterX');
+    return {
+      ready: wrapper.querySelector('.economy-chart')?.getAttribute('data-echarts-ready'),
+      hasSvg: svg.getBoundingClientRect().width > 0,
+      timeVolumeGap: timeTicks.length > 0 ? Math.min(...timeTicks.map((rect) => rect.top)) - (wrapperRect.top + volumeBottom) : readNumber('timeLabelHeight'),
+      timeLegendGap: Math.min(...legendRects.map((rect) => rect.top)) - canvasRect.bottom,
+      legendTitleGap: titleRect.top - Math.max(...legendRects.map((rect) => rect.bottom)),
+      bottomGap: wrapperRect.bottom - titleRect.bottom,
+      legendCenterDelta: Math.abs((legendLeft + legendRight) / 2 - (wrapperRect.left + plotCenterX)),
+      chartWidth: wrapperRect.width,
+      actualHeight: wrapperRect.height,
+      declaredHeight: readNumber('chartHeight'),
+      volumeHeight: volumeBottom - volumeTop,
+      volumeShare: readNumber('volumeShare'),
+      priceVolumeGap: volumeTop - priceBottom,
+      dividerBoundaryDelta: Math.abs(dividerRect.top - (wrapperRect.top + priceBottom)),
+      dividerHeight: dividerRect.height,
+      timeAxisInterval: readNumber('timeAxisInterval'),
+      priceTickCount: readNumber('priceTickCount'),
+      volumeTickCount: readNumber('volumeTickCount'),
+      axisPointerLinked: wrapper.dataset.axisPointerLinked,
+      hoverEmphasisDisabled: wrapper.dataset.hoverEmphasisDisabled,
+      priceTicks: (wrapper.dataset.priceTicks || '').split(',').filter(Boolean).map(Number),
+      volumeTicks: (wrapper.dataset.volumeTicks || '').split(',').filter(Boolean).map(Number),
+    };
+  });
+}
+
+async function expectChartGeometry(chart: Locator, context: string) {
+  await expect(chart).toBeVisible();
+  await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+  const bounds = await inspectChartGeometry(chart);
+  expect(bounds.ready).toBe('true');
+  expect(bounds.hasSvg).toBe(true);
+  expect(bounds.timeVolumeGap, `${context}时间刻度不得侵入成交量图区`).toBeGreaterThanOrEqual(1);
+  expect(bounds.timeLegendGap, `${context}时间刻度区与图例之间必须保留安全区`).toBeGreaterThanOrEqual(7);
+  expect(bounds.legendTitleGap, `${context}图例与时间轴标题之间必须保留安全区`).toBeGreaterThanOrEqual(9);
+  expect(bounds.bottomGap, `${context}时间轴标题不得贴住图表底边`).toBeGreaterThanOrEqual(5);
+  expect(bounds.legendCenterDelta, `${context}两项图例必须围绕绘图区中心整体居中`).toBeLessThanOrEqual(Math.max(2, bounds.chartWidth * 0.01));
+  expect(bounds.volumeHeight, `${context}成交量图区实际高度不得低于 48px`).toBeGreaterThanOrEqual(48);
+  expect(bounds.volumeShare, `${context}成交量图区不得低于数据绘图区的 22%`).toBeGreaterThanOrEqual(0.219);
+  expect(Math.abs(bounds.priceVolumeGap), `${context}价格与成交量 Grid 必须零间距连续排列`).toBeLessThanOrEqual(0.5);
+  expect(bounds.dividerBoundaryDelta, `${context}分界线必须贴合两个 Grid 的共同边界`).toBeLessThanOrEqual(1);
+  expect(bounds.dividerHeight, `${context}分界线必须保持 1px`).toBeGreaterThanOrEqual(0.9);
+  expect(Math.abs(bounds.actualHeight - bounds.declaredHeight), `${context}动态计算高度必须同步到真实容器`).toBeLessThanOrEqual(2);
+  expect(bounds.priceTicks.length).toBe(bounds.priceTickCount);
+  expect(bounds.volumeTicks.length).toBe(bounds.volumeTickCount);
+  expect(bounds.priceTicks.every(Number.isInteger)).toBe(true);
+  expect(bounds.volumeTicks.every(Number.isInteger)).toBe(true);
+  expect(bounds.axisPointerLinked).toBe('true');
+  expect(bounds.hoverEmphasisDisabled).toBe('true');
+  return bounds;
+}
+
+test('market chart preserves readable volume height, zero-gap grids and dynamic ticks', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  const viewports = [
+    { width: 1684, height: 931, label: '桌面端' },
+    { width: 390, height: 844, label: '移动端' },
+    { width: 320, height: 700, label: '极窄移动端' },
+  ];
+  const results = new Map<string, Awaited<ReturnType<typeof inspectChartGeometry>>>();
+
+  for (const viewport of viewports) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto('market-runtime-test.html?scenario=active');
+    results.set(viewport.label, await expectChartGeometry(page.locator('.market-history-chart.full'), viewport.label));
+  }
+
+  const desktop = results.get('桌面端')!;
+  const mobile = results.get('移动端')!;
+  const narrow = results.get('极窄移动端')!;
+  expect(desktop.timeAxisInterval).toBeLessThan(mobile.timeAxisInterval);
+  expect(mobile.timeAxisInterval).toBeLessThanOrEqual(narrow.timeAxisInterval);
+  expect(desktop.priceTickCount).toBeGreaterThanOrEqual(mobile.priceTickCount);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('market-runtime-test.html?scenario=active');
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '20px';
+    window.dispatchEvent(new Event('resize'));
+  });
+  const enlarged = await expectChartGeometry(page.locator('.market-history-chart.full'), '125% 根字号移动端');
+  expect(enlarged.timeAxisInterval).toBeGreaterThanOrEqual(mobile.timeAxisInterval);
+
+  expect(pageErrors).toEqual([]);
+});
+""", encoding='utf-8')
+
+          runtime = Path('tests/browser/market-runtime.spec.ts')
+          source = runtime.read_text(encoding='utf-8')
+          source = source.replace(
+              "      ready: wrapper.querySelector('.economy-chart')?.getAttribute('data-echarts-ready'),\n",
+              "      ready: wrapper.querySelector('.economy-chart')?.getAttribute('data-echarts-ready'),\n      timeAxisInterval: Number(wrapper.dataset.timeAxisInterval),\n      priceTickCount: Number(wrapper.dataset.priceTickCount),\n      volumeTickCount: Number(wrapper.dataset.volumeTickCount),\n",
+              1,
+          )
+          source = source.replace(
+              "  expect(axis.priceTicks).toHaveLength(5);",
+              "  expect(axis.priceTicks.length).toBe(axis.priceTickCount);\n  expect(axis.priceTicks.length).toBeGreaterThanOrEqual(3);\n  expect(axis.priceTicks.length).toBeLessThanOrEqual(7);",
+              1,
+          )
+          marker = "test('market medium and narrow layouts follow the real content width without horizontal overflow'"
+          hover_test = """test('market chart uses one linked hover state and keeps the price line protected', async ({ page }) => {
+  const pageErrors = await capturePageErrors(page);
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const chart = page.locator('.market-history-chart.full');
+  await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(chart).toHaveAttribute('data-axis-pointer-linked', 'true');
+  await expect(chart).toHaveAttribute('data-hover-emphasis-disabled', 'true');
+  const bounds = await requireBox(chart);
+  const geometry = await chart.evaluate((element) => {
+    const wrapper = element as HTMLElement;
+    const read = (name: string) => Number(wrapper.dataset[name]);
+    return {
+      left: read('axisLeft'),
+      right: read('axisRight'),
+      priceTop: read('priceTop'),
+      priceBottom: read('priceBottom'),
+      volumeTop: read('volumeTop'),
+      volumeBottom: read('volumeBottom'),
+    };
+  });
+  const x = bounds.x + geometry.left + (bounds.width - geometry.left - geometry.right) * 0.44;
+  const tooltip = page.locator('.economy-chart-tooltip');
+
+  await page.mouse.move(x, bounds.y + (geometry.priceTop + geometry.priceBottom) / 2);
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('价格');
+  await expect(tooltip).toContainText('总成交量');
+  const priceHoverText = await tooltip.innerText();
+
+  await page.mouse.move(x, bounds.y + (geometry.volumeTop + geometry.volumeBottom) / 2);
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toHaveText(priceHoverText);
+  expect(pageErrors).toEqual([]);
+});
+
+"""
+          if hover_test not in source:
+              if marker not in source:
+                  raise SystemExit('market-runtime.spec.ts insertion marker missing')
+              source = source.replace(marker, hover_test + marker, 1)
+          runtime.write_text(source, encoding='utf-8')
+
+          Path('docs/MARKET_CHART_LAYOUT_DESIGN.md').write_text("""# Economy 市场行情图布局设计
+
+> 状态：市场行情图几何、交互与可读性唯一专项基线
+> 适用项目：`RIVERS0FT/Economy`
+> 更新时间：2026-08-01
+> 上位文档：`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`UI_DESIGN_SYSTEM.md`
+
+## 1. 规则优先级
+
+本文件只负责市场页近 24h 行情图的绘图区、坐标、悬浮交互、图例与安全区几何。与通用页面文档发生冲突时，本文件的行情图专项规则优先。
+
+`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` 中“窄屏优先压缩成交量绘图区”和“完整行情图固定使用 16:9”的旧表述已被本文件废止。`16:9` 只允许作为桌面基础比例与首次渲染回退，不得作为窄屏最终强制比例。旧版“价格区与成交量区必须保持正间距”的规则同样废止，当前使用零间距连续双 Grid。
+
+## 2. ECharts 唯一实现
+
+- 市场行情图必须使用共享 `EconomyChart` 和 Apache ECharts 的 **ECharts SVG** 渲染，不得恢复手写 `<svg>`、`polyline`、`polygon` 或成交量 `rect`。
+- 图表固定使用价格区和成交量区两个纵向 **双 Grid**；价格 `line` 与成交量 `bar` 共享同一 24h 时间尺度。
+- 两个 Grid 必须零间距连续排列，并在共同边界绘制稳定 `1px` 分界线；不得重新使用空白间距把它们拆成两个独立图表。
+- ECharts 只负责渲染。24h 聚合、整数坐标、颜色方向、动态刻度和几何结果仍由项目纯函数计算，业务规则不得交给库默认值猜测。
+- 业务页面不得直接调用 `echarts.init`；初始化、`ResizeObserver`、逐帧合并 resize、Option 更新和 `dispose()` 统一由 `EconomyChart` 负责。
+- 市场组件必须在外层提供稳定 `data-*` 几何、刻度与交互接口；浏览器回归不得依赖 ECharts 私有 SVG 类名或内部 DOM 层级。
+
+## 3. 数据与动态坐标基线
+
+- 行情仍统计当前资产最近 24h，使用 `6m × 240` 固定数据分段；动态变化只影响可见刻度密度，不改变聚合窗口或经济数据。
+- 价格折线位于上方，成交量柱状图位于下方；两个 x 轴必须使用同一动态时间间隔并保持网格线对齐。
+- 横轴时间间隔必须根据真实绘图区宽度、根字号和 compact／full 变体，从 `1／2／3／4／6／8／12` 小时中选择，宽屏显示更多刻度，窄屏或放大字号自动减少刻度。
+- 价格与成交量纵轴的目标刻度数必须按各自真实像素高度和根字号动态计算；价格轴仍只能显示整数刻度，步长使用 `1／2／5 × 10^n`。
+- 成交量轴继续使用 K／M／B／T 紧凑格式；两个纵轴都不受设置页“紧凑数字”开关影响。
+- 图例只显示“净主动买入”和“净主动卖出”；中性成交量继续使用灰色柱，但不显示“均衡／方向未知”图例。
+
+## 4. 统一悬浮交互
+
+- 价格与成交量不得分别处理悬浮。两个 x 轴必须通过 `axisPointer.link` 联动，鼠标位于任一 Grid 时都指向同一个 6 分钟分段。
+- 竖向指针必须在零间距双 Grid 中保持同一 x 坐标、样式和虚线节奏，视觉上从价格区连续贯穿成交量区。
+- 全图只显示一个 Tooltip；其数据索引必须由统一 `axisValue` 映射到分段，不得依赖当前触发 Series 的 `dataIndex`。
+- Tooltip 只展示当前分段的时间、价格、总成交量、主动买入、主动卖出、方向未知和净主动量，不得显示玩家身份、订单来源或交易对手。
+- AxisPointer 必须关闭自动 Series emphasis，价格线和成交量柱也必须禁用 hover emphasis；悬浮前后价格折线的颜色、宽度与不透明度必须保持不变，不得隐藏或被面积层覆盖。
+- 价格折线必须保持高于自身面积填充的稳定渲染层级。
+
+## 5. 成交量绘图区可读性
+
+完整行情图的成交量绘图区必须保持最低可读屏幕高度，不得作为底部标注空间不足时的压缩对象。
+
+- 任意支持断点下，成交量绘图区实际屏幕高度不得低于 `48px`；正常移动端目标下限为约 `54px`。
+- 成交量绘图区不得低于价格区与成交量区合计数据绘图区的 `22%`；零间距分界线不计入数据区高度。
+- 成交量纵轴刻度不得互相覆盖；成交量柱必须完整位于成交量绘图区内。
+- 价格区底边与成交量区顶边必须使用同一坐标；视觉分区仅由 `1px` 分界线完成。
+
+成交量高度必须取以下三项的最大值：桌面首选高度、按屏幕字号反算的最低高度、满足 `22%` 数据区占比所需高度。
+
+## 6. 动态总高度
+
+图表必须先确定价格区、成交量区，再为旋转时间刻度、方向图例和“时间”轴标题计算底部安全区。
+
+当桌面基础比例无法同时容纳可读成交量区与底部安全区时，组件必须增加实际像素高度，不得继续压缩成交量区，不得隐藏标注，也不得制造页面横向溢出。桌面空间充足时保持接近 `16:9`；移动端允许自然增高。不得由业务 CSS 再用固定比例覆盖组件计算结果。
+
+ECharts 画布高度只覆盖价格、成交量和时间刻度；方向图例与“时间”标题由组件外层稳定 DOM 承载。组件计算出的总高度必须同步到外层实际高度，避免库内部自动布局改变业务几何。
+
+## 7. 底部安全区
+
+旋转时间刻度、方向图例和“时间”轴标题分别拥有独立安全区：
+
+- 时间刻度不得侵入成交量绘图区；
+- 时间刻度与图例之间至少保留约 `8px`；
+- 图例与“时间”轴标题之间至少保留约 `10px`；
+- “时间”轴标题与图表底边至少保留约 `6px`；
+- 两项图例按实际文字总宽度围绕绘图区中心整体居中，而不是围绕整个卡片或平均分配半栏。
+
+安全区必须根据实际屏幕字号和最长 `HH:mm` 标签旋转后的真实占用动态计算。
+
+## 8. 浏览器回归
+
+必须在以下尺寸验证真实几何：
+
+- `1684 × 931` 桌面端；
+- `390 × 844` 移动端；
+- `320 × 700` 极窄移动端；
+- `390 × 844` 且根字号放大到 `125%`。
+
+浏览器测试必须通过组件稳定 `data-*` 接口和实际边界同时验证：ECharts SVG 已初始化、成交量区实际高度、`22%` 最低占比、双 Grid 零间距、`1px` 分界线、整数动态纵轴刻度、动态横轴间隔、时间刻度不侵入成交量区、三层底部安全区、图例围绕绘图区中心居中以及页面无横向溢出。
+
+浏览器交互回归还必须分别在价格区和成交量区移动到同一横坐标，确认 Tooltip 内容一致、联动指针启用、Series emphasis 已禁用且页面无运行时错误。
+
+## 9. 防回退
+
+不得：
+
+- 恢复“窄屏优先压缩成交量绘图区”；
+- 让成交量图区低于 `48px` 实际高度或低于数据绘图区的 `22%`；
+- 恢复价格区与成交量区之间的空白间距，或删除共同边界的 `1px` 分界线；
+- 把上下 Grid 恢复为分别触发 Tooltip、分别选取分段或不同步的 AxisPointer；
+- 让 AxisPointer 或 Series emphasis 改变、模糊或隐藏价格折线；
+- 恢复固定 12 个两小时横轴分段、固定 3／5 个价格刻度或固定 2／3 个成交量刻度；
+- 用固定 `16:9` 最终覆盖动态比例；
+- 在底部空间不足时隐藏时间刻度、图例或“时间”标题；
+- 让成交量刻度重叠、柱越出成交量区或侵入价格区；
+- 让时间刻度、图例和轴标题互相覆盖或越出图表；
+- 使用负外边距、缩小到低于 `--font-size-xs` 或删除图例规避几何问题；
+- 绕过 `EconomyChart` 直接初始化 ECharts，或用 ECharts 私有 DOM 作为测试合同。
+""", encoding='utf-8')
+
+          replace_once(
+              'docs/README.md',
+              "51. 市场行情图的整数坐标、成交量绘图区最低 `48px` 实际高度、最低 `22%` 数据区占比、ECharts SVG 双 Grid 动态实际高度／纵横比、底部安全区与图例居中唯一归属 `MARKET_CHART_LAYOUT_DESIGN.md`；页面职责和通用 UI 文档只保留模块边界与引用。实现必须同步 `PriceSparkline.tsx`、`scripts/verify-market-chart.mjs` 和真实浏览器几何回归，不得恢复窄屏压缩成交量区或强制固定 `16:9`。",
+              "51. 市场行情图的整数坐标、动态横纵轴刻度、成交量绘图区最低 `48px` 实际高度、最低 `22%` 数据区占比、ECharts SVG 零间距双 Grid、统一 AxisPointer／Tooltip、悬浮折线保护、动态实际高度／纵横比、底部安全区与图例居中唯一归属 `MARKET_CHART_LAYOUT_DESIGN.md`；页面职责和通用 UI 文档只保留模块边界与引用。实现必须同步 `PriceSparkline.tsx`、`marketChartScale.ts`、`scripts/verify-market-chart.mjs` 和真实浏览器几何／交互回归，不得恢复固定刻度、上下图独立悬浮、窄屏压缩成交量区或强制固定 `16:9`。",
+          )
+
+          verifier = Path('scripts/verify-echarts-adoption.mjs')
+          source = verifier.read_text(encoding='utf-8')
+          source = source.replace(
+              "  'BarChart', 'LineChart', 'PieChart', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',",
+              "  'BarChart', 'LineChart', 'PieChart', 'AxisPointerComponent', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',",
+              1,
+          )
+          verifier.write_text(source, encoding='utf-8')
+
+          Path('scripts/verify-market-chart.mjs').write_text("""import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import {
+  buildMarketHistoryBuckets,
+  countMarketHistoryPointsInWindow,
+  MARKET_BUCKET_COUNT,
+  MARKET_BUCKET_MS,
+  MARKET_WINDOW_MS,
+  summarizeMarketFlow,
+} from '../src/utils/marketHistory.ts';
+import {
+  chooseMarketPriceTickCount,
+  chooseMarketTimeInterval,
+  chooseMarketVolumeTickCount,
+  resolveMarketBucketIndex,
+} from '../src/components/charts/marketChartScale.ts';
+
+const root = process.cwd();
+const read = (path) => readFileSync(resolve(root, path), 'utf8').replace(/\r\n?/g, '\n');
+const now = Date.UTC(2026, 6, 17, 8, 3, 0);
+const windowEnd = Math.floor(now / MARKET_BUCKET_MS) * MARKET_BUCKET_MS + MARKET_BUCKET_MS;
+const windowStart = windowEnd - MARKET_WINDOW_MS;
+const points = [
+  { price: 8, quantity: 9, createdAt: windowStart - 1_000 },
+  { price: 10, quantity: 2, takerSide: 'buy', createdAt: windowStart + 60_000 },
+  { price: 12, quantity: 3, takerSide: 'sell', createdAt: windowStart + 3 * 60_000 },
+  { price: 13, quantity: 4, createdAt: windowStart + 5 * 60_000 },
+  { price: 15, quantity: 4, takerSide: 'buy', createdAt: windowStart + MARKET_BUCKET_MS + 60_000 },
+];
+const buckets = buildMarketHistoryBuckets(points, 6, now);
+
+assert.equal(MARKET_BUCKET_COUNT, 240, '24h / 6m 必须等于 240 个分段');
+assert.equal(buckets.length, 240, '行情聚合必须输出固定 240 个分段');
+assert.equal(countMarketHistoryPointsInWindow(points, now), 4, '成交笔数必须只统计与图表相同的最近 24h 窗口');
+assert.deepEqual(
+  { price: buckets[0].price, volume: buckets[0].volume, buyVolume: buckets[0].buyVolume, sellVolume: buckets[0].sellVolume, neutralVolume: buckets[0].neutralVolume, netVolume: buckets[0].netVolume, direction: buckets[0].direction },
+  { price: 13, volume: 9, buyVolume: 2, sellVolume: 3, neutralVolume: 4, netVolume: -1, direction: 'sell' },
+  '同一分段必须使用最后成交价并按吃单方向汇总',
+);
+assert.deepEqual(
+  { price: buckets[2].price, volume: buckets[2].volume, netVolume: buckets[2].netVolume, direction: buckets[2].direction },
+  { price: 15, volume: 0, netVolume: 0, direction: 'neutral' },
+  '无成交分段必须延续最近有效价格且成交量为零',
+);
+const summary = summarizeMarketFlow(buckets);
+assert.deepEqual(
+  { volume: summary.volume, buyVolume: summary.buyVolume, sellVolume: summary.sellVolume, neutralVolume: summary.neutralVolume, netVolume: summary.netVolume },
+  { volume: 13, buyVolume: 6, sellVolume: 3, neutralVolume: 4, netVolume: 3 },
+  '24h 汇总必须保留完整方向数据',
+);
+assert.equal(buckets[0].startAt, windowStart, '首个分段必须从 24h 窗口起点开始');
+assert.equal(buckets.at(-1).startAt + MARKET_BUCKET_MS, windowEnd, '最后分段必须覆盖当前区间');
+
+assert.equal(chooseMarketTimeInterval(900, 16, 'full'), 2 * 60 * 60 * 1000, '宽屏应显示两小时间隔');
+assert.equal(chooseMarketTimeInterval(260, 16, 'full'), 6 * 60 * 60 * 1000, '窄屏应降低为六小时间隔');
+assert.equal(chooseMarketTimeInterval(260, 20, 'full'), 8 * 60 * 60 * 1000, '放大字号应进一步降低时间刻度密度');
+assert.ok(chooseMarketPriceTickCount(240, 16) > chooseMarketPriceTickCount(112, 16), '价格刻度数必须随真实高度增加');
+assert.ok(chooseMarketVolumeTickCount(140, 16) > chooseMarketVolumeTickCount(48, 16), '成交量刻度数必须随真实高度增加');
+assert.equal(resolveMarketBucketIndex(windowStart - 1, windowStart, 240), 0, '悬浮索引必须限制在首个分段');
+assert.equal(resolveMarketBucketIndex(windowStart + MARKET_BUCKET_MS * 40 + 1, windowStart, 240), 40, '悬浮索引必须由统一轴值映射');
+assert.equal(resolveMarketBucketIndex(windowEnd + 1, windowStart, 240), 239, '悬浮索引必须限制在最后分段');
+
+const chart = read('src/components/charts/PriceSparkline.tsx');
+const scale = read('src/components/charts/marketChartScale.ts');
+const wrapper = read('src/components/charts/EconomyChart.tsx');
+const registry = read('src/components/charts/echartsCore.ts');
+const marketPage = read('src/pages/MarketPage.tsx');
+const marketCss = read('src/styles/market-page-polish.css');
+const chartCss = read('src/styles/charts.css');
+const safeZoneSpec = read('tests/browser/market-chart-safe-zone.spec.ts');
+const runtimeSpec = read('tests/browser/market-runtime.spec.ts');
+const types = read('src/types.ts');
+const matchingCore = read('server/src/order-matching.js');
+const commodityMarket = read('server/src/balanced-market.js');
+const facilityMarket = read('server/src/facility-groups.js');
+const design = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+const chartDesign = read('docs/MARKET_CHART_LAYOUT_DESIGN.md');
+const designIndex = read('docs/README.md');
+const orderBookDesign = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
+
+for (const text of [
+  "import { EconomyChart } from './EconomyChart'",
+  "name: '价格', type: 'line'",
+  "name: '成交量', type: 'bar'",
+  'grid: [', 'xAxisIndex: 0', 'xAxisIndex: 1',
+  'axisPointer: { link: [{ xAxisIndex: [0, 1] }] }',
+  'triggerEmphasis: false', 'emphasis: { disabled: true }',
+  'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length)',
+  'const priceVolumeGap = 0', 'const volumeTop = priceBottom + priceVolumeGap',
+  'export function buildMarketChartGeometry',
+  'Math.max(48, rootFontSize', '(0.22 / 0.78) * priceHeight',
+  'buildIntegerPriceScale', 'buildIntegerVolumeScale',
+  'formatIntegerPriceTick', 'formatCompactVolumeTick',
+  'data-volume-share={geometry.volumeShare.toFixed(4)}',
+  'data-time-axis-interval={axisInterval}',
+  'data-price-tick-count={priceTickCount}', 'data-volume-tick-count={volumeTickCount}',
+  'data-axis-pointer-linked="true"', 'data-hover-emphasis-disabled="true"',
+  'className="market-chart-price-volume-divider"',
+  'className="market-chart-footer"',
+  '净主动买入', '净主动卖出',
+  '主动买入', '主动卖出', '方向未知', '净主动量',
+]) assert.ok(chart.includes(text), `ECharts 行情图缺少: ${text}`);
+for (const text of [
+  'chooseMarketTimeInterval', 'chooseMarketPriceTickCount', 'chooseMarketVolumeTickCount',
+  'resolveMarketBucketIndex', 'MARKET_TIME_INTERVAL_HOURS',
+]) assert.ok(scale.includes(text), `行情动态刻度纯函数缺少: ${text}`);
+for (const text of ['<svg', '<polyline', '<polygon', '<rect', 'context.measureText', 'useChartAxisMetrics']) {
+  assert.ok(!chart.includes(text), `ECharts 行情图不得保留手写 SVG: ${text}`);
+}
+
+for (const text of [
+  'initECharts', "renderer: 'svg'", 'new ResizeObserver', 'requestAnimationFrame',
+  'chartRef.current?.setOption', 'chart.dispose()', 'data-echarts-ready',
+]) assert.ok(wrapper.includes(text), `共享 EconomyChart 缺少生命周期规则: ${text}`);
+for (const text of ['LineChart', 'BarChart', 'PieChart', 'AxisPointerComponent', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer']) {
+  assert.ok(registry.includes(text), `ECharts 模块注册缺少: ${text}`);
+}
+
+for (const text of ['buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now)', '<PriceSparkline buckets={marketBuckets} variant="full" />']) {
+  assert.ok(marketPage.includes(text), `MarketPage 缺少: ${text}`);
+}
+for (const text of ['countMarketHistoryPointsInWindow', 'summarizeMarketFlow', 'className="chart-footer"', '最近成交估值', '主动买卖均衡／方向未知']) {
+  assert.ok(!marketPage.includes(text), `MarketPage 不应恢复行情底部说明: ${text}`);
+}
+assert.ok(!marketCss.includes('aspect-ratio: 16 / 9'), '业务 CSS 不得固定覆盖动态行情比例');
+assert.ok(chartCss.includes('.market-chart-footer'), '共享图表样式必须提供市场底部安全区');
+assert.ok(chartCss.includes('.market-chart-price-volume-divider'), '共享图表样式必须提供零间距分界线');
+assert.ok(chartCss.includes('font-variant-numeric: tabular-nums'), '行情坐标必须使用稳定数字宽度');
+
+for (const text of [
+  'market chart preserves readable volume height, zero-gap grids and dynamic ticks',
+  "{ width: 1684, height: 931, label: '桌面端' }", "{ width: 390, height: 844, label: '移动端' }",
+  "{ width: 320, height: 700, label: '极窄移动端' }", "document.documentElement.style.fontSize = '20px'",
+  'priceVolumeGap', 'dividerBoundaryDelta', 'timeAxisInterval', 'priceTickCount', 'volumeTickCount',
+  '价格与成交量 Grid 必须零间距连续排列',
+  '成交量图区实际高度不得低于 48px', '成交量图区不得低于数据绘图区的 22%',
+]) assert.ok(safeZoneSpec.includes(text), `行情图浏览器几何回归缺少: ${text}`);
+for (const text of [
+  'market chart uses one linked hover state and keeps the price line protected',
+  "data-axis-pointer-linked", "data-hover-emphasis-disabled", 'priceHoverText',
+  'priceTicks', 'volumeTicks', 'ECharts SVG is not ready', 'market-chart-footer',
+]) assert.ok(runtimeSpec.includes(text), `市场运行时回归缺少: ${text}`);
+
+assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
+assert.ok(matchingCore.includes('takerSide: incoming.side'), '撮合内核必须记录吃单方向');
+assert.ok(commodityMarket.includes('recordPrice(world, incoming.productId, price, quantity, takerSide, createdAt, signalWeight, marketRole);'), '商品成交必须记录方向与信号');
+assert.ok(commodityMarket.includes('LIQUIDITY_SIGNAL_WEIGHT'), '储备成交必须降低传导信号权重');
+assert.ok(facilityMarket.includes('recordFacilityPrice(world, typeId, price, quantity, takerSide, createdAt);'), '工厂成交必须记录吃单方向');
+
+for (const text of [
+  '市场页的商品行情统一统计当前资产最近 24h', '柱高始终表示总成交量',
+  '净主动买入使用成功色', '旧历史方向未知使用中性色',
+  '价格轴刻度只能是整数', '图例只显示净主动买入和净主动卖出',
+  '不得显示行情图下方统计栏', '旋转时间刻度、方向图例和“时间”轴标题分别保留独立安全区',
+  'ECharts',
+]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
+for (const text of [
+  '市场行情图几何、交互与可读性唯一专项基线', 'ECharts SVG', '零间距连续双 Grid',
+  '统一悬浮交互', '`axisPointer.link`', '`axisValue`',
+  '动态时间间隔', '真实像素高度和根字号动态计算',
+  '成交量绘图区必须保持最低可读屏幕高度', '不得低于 `48px`',
+  '价格区与成交量区合计数据绘图区的 `22%`',
+  '不得由业务 CSS 再用固定比例覆盖组件计算结果',
+  '稳定 `data-*`', '390 × 844` 且根字号放大到 `125%',
+]) assert.ok(chartDesign.includes(text), `市场行情图专项设计缺少: ${text}`);
+for (const text of ['动态横纵轴刻度', '零间距双 Grid', '统一 AxisPointer／Tooltip', '悬浮折线保护']) {
+  assert.ok(designIndex.includes(text), `设计索引缺少市场图规则: ${text}`);
+}
+for (const text of ['保存吃单方（taker／incoming order）的买卖方向', '净主动量为主动买入量减主动卖出量', '禁止伪造迁移方向']) {
+  assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
+}
+
+console.log('Market ECharts verification passed: linked hover, protected line, zero-gap grids, dynamic integer ticks and readable volume geometry satisfy the design baseline.');
+""", encoding='utf-8')
+          PY
+
+          npm ci
+          node --experimental-strip-types scripts/verify-market-chart.mjs
+          npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser regression suite
+        id: browser
+        continue-on-error: true
+        run: npm run test:browser
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-chart-interaction-diagnostics
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 2
+      - name: Require browser regressions to pass
+        if: steps.browser.outcome != 'success'
+        run: exit 1
+      - name: Commit verified change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            src/components/charts/PriceSparkline.tsx \
+            src/components/charts/marketChartScale.ts \
+            src/components/charts/echartsCore.ts \
+            src/utils/marketHistory.ts \
+            src/styles/charts.css \
+            scripts/verify-market-chart.mjs \
+            scripts/verify-echarts-adoption.mjs \
+            tests/browser/market-chart-safe-zone.spec.ts \
+            tests/browser/market-runtime.spec.ts \
+            docs/MARKET_CHART_LAYOUT_DESIGN.md \
+            docs/README.md
+          git diff --cached --check
+          git commit -m "统一市场图悬浮与动态刻度"
+          git push origin HEAD:agent/market-unified-hover-dynamic-ticks
