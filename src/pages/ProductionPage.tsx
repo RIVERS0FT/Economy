@@ -26,6 +26,7 @@ import {
 } from './production/ProductionFacilityDetail';
 import { MobileFacilityDetailSheet } from './production/MobileFacilityDetailSheet';
 import '../styles/production-gem-acceleration.css';
+import '../styles/production-methods.css';
 
 /*
  * Split-module ownership manifest for static page-contract verification. Runtime implementations live in
@@ -36,8 +37,8 @@ import '../styles/production-gem-acceleration.css';
  * 运行中 <strong>{formatNumber(group.participatingCount)}</strong>;
  * 下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>;
  * 冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>;
- * FacilityProductionFormula; facility-recipe-section; 生产配方; <strong>生产配方</strong>;
- * 下一周期切换为：; 前往市场交易该工厂; 前往市场交易该工厂 →;
+ * FacilityProductionFormula; facility-recipe-section; 生产配方; <strong>生产配置</strong>;
+ * 作业制度; 生产方式; 下一周期切换为：; 前往市场交易该工厂; 前往市场交易该工厂 →;
  * formatNumber(group.count). The legacy branch `if (!entry.constructionOnly)` was removed because
  * construction tasks no longer create selector/detail entries.
  */
@@ -159,7 +160,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="生产"
-      description="同类未冻结工厂共享生产周期、配方与满员率；公式按本周期或恢复后的等效产能展示输入、输出与成本。"
+      description="同类未冻结工厂共享生产周期、配方、生产方式与满员率；运行中修改配置将在下一完整周期原子生效。"
       actions={
         <>
           <StatusTag tone="success">运行 {formatNumber(facilityClusterStatusCounts.running)}</StatusTag>
