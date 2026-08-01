@@ -1,4 +1,4 @@
-import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const packagePath = 'package.json';
@@ -40,3 +40,12 @@ if (!packageSource.includes(postinstallLine)) {
   throw new Error('Temporary postinstall entry is missing from package.json');
 }
 writeFileSync(packagePath, packageSource.replace(postinstallLine, ''), 'utf8');
+
+mkdirSync('.git/hooks', { recursive: true });
+const hookPath = '.git/hooks/pre-commit';
+writeFileSync(
+  hookPath,
+  '#!/bin/sh\nset -eu\ngit reset -q HEAD -- .github/workflows/ci.yml .github/workflows/apply-market-chart-interaction.yml\n',
+  'utf8',
+);
+chmodSync(hookPath, 0o755);
