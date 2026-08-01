@@ -2,7 +2,7 @@
 
 > 状态：市场行情图几何、交互与可读性唯一专项基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-01
+> 更新时间：2026-08-02
 > 上位文档：`PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`、`UI_DESIGN_SYSTEM.md`
 
 ## 1. 规则优先级
@@ -19,6 +19,7 @@
 - ECharts 只负责渲染。24h 聚合、整数坐标、颜色方向、动态刻度和几何结果仍由项目纯函数计算，业务规则不得交给库默认值猜测。
 - 业务页面不得直接调用 `echarts.init`；初始化、`ResizeObserver`、逐帧合并 resize、Option 更新和 `dispose()` 统一由 `EconomyChart` 负责。
 - 市场组件必须在外层提供稳定 `data-*` 几何、刻度与交互接口；浏览器回归不得依赖 ECharts 私有 SVG 类名或内部 DOM 层级。
+- 移动端触控高亮必须按通用触摸规则统一关闭：共享 `.economy-chart` 根节点、`.economy-chart__canvas`、ECharts 动态生成的 SVG／Canvas 子节点，以及直接绑定 Pointer Event 的 `.market-history-chart` 外层都必须计算为透明 `-webkit-tap-highlight-color`。实现唯一放在 `src/styles/mobile-interaction.css`，不得通过禁用 Pointer Event、Tooltip 或键盘 `:focus-visible` 规避蓝色区域。
 
 ## 3. 数据与动态坐标基线
 
@@ -92,6 +93,8 @@ ECharts 画布高度只覆盖价格、成交量和时间刻度；方向图例与
 
 Tooltip 持久性回归必须让父组件至少每秒发生一次无关重渲染，鼠标静止超过正式 `5s` 轮询周期并等待至少 `6.5s`，随后再触发一次真实行情 Option 更新；两阶段 Tooltip 均须保持可见、ECharts 实例 ID 不变，真实更新后内容须刷新。最后必须验证指针离开图表时 Tooltip 正常隐藏。
 
+`tests/browser/mobile-chart-tap-highlight.spec.ts` 必须在 `390 × 844`、`hasTouch: true` 和 `isMobile: true` 的 Chromium 上下文中，读取行情图外层、共享图表根、画布宿主、实际 SVG 与路径节点的计算样式，确认 `-webkit-tap-highlight-color` 全部透明，并执行一次真实 `tap()`；只检查 CSS 源码字符串不足以证明动态 ECharts 子节点已被覆盖。
+
 ## 9. 防回退
 
 不得：
@@ -109,4 +112,5 @@ Tooltip 持久性回归必须让父组件至少每秒发生一次无关重渲染
 - 让成交量刻度重叠、柱越出成交量区或侵入价格区；
 - 让时间刻度、图例和轴标题互相覆盖或越出图表；
 - 使用负外边距、缩小到低于 `--font-size-xs` 或删除图例规避几何问题；
+- 只覆盖按钮或链接的 tap highlight，而遗漏 `.economy-chart`、`.economy-chart__canvas` 的动态子节点或 `.market-history-chart` 指针交互外层；
 - 绕过 `EconomyChart` 直接初始化 ECharts，或用 ECharts 私有 DOM 作为测试合同。
