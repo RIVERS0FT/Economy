@@ -46,7 +46,9 @@ requireText('src/components/charts/echartsCore.ts', [
 requireText('src/components/charts/chartOptions.ts', ['export const PIE_PAD_ANGLE = 5;']);
 requireText('src/components/charts/EconomyChart.tsx', [
   'initECharts', "renderer: 'svg'", 'new ResizeObserver', 'requestAnimationFrame',
-  'chartRef.current?.setOption', 'chart.dispose()', 'data-echarts-ready', 'economy-chart__accessible-summary',
+  'chart.setOption', 'chart.dispose()', 'data-echarts-ready', 'economy-chart__accessible-summary',
+  "updateMode = 'replace'", "notMerge: updateMode !== 'merge'",
+  'onChartReadyRef.current?.(chart)', 'onOptionAppliedRef.current?.(chart)',
 ]);
 requireText('src/components/charts/PriceSparkline.tsx', [
   '<EconomyChart', "type: 'line'", "type: 'bar'", 'buildMarketChartGeometry', 'data-volume-share',

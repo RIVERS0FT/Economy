@@ -1,8 +1,8 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { formatMarketAxisTime, MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';
 import { EconomyChart } from './EconomyChart';
-import type { EChartsCoreOption } from './echartsCore';
+import type { EChartsCoreOption, EChartsType } from './echartsCore';
 import { chartColor, commonTooltip, escapeChartHtml } from './chartOptions';
 import {
   chooseMarketPriceTickCount,
@@ -41,7 +41,28 @@ const compactUnits = [
   { threshold: 1_000_000_000, suffix: 'B' },
   { threshold: 1_000_000, suffix: 'M' },
   { threshold: 1_000, suffix: 'K' },
+
 ];
+
+const MARKET_AXIS_POINTER_LINE_STYLE = {
+  color: chartColor.secondary,
+  width: 1,
+  type: 'dashed' as const,
+  opacity: 0.82,
+};
+
+function marketBucketSignature(buckets: MarketHistoryBucket[]) {
+  return buckets.map((bucket) => [
+    bucket.startAt,
+    bucket.price,
+    bucket.volume,
+    bucket.buyVolume,
+    bucket.sellVolume,
+    bucket.neutralVolume,
+    bucket.netVolume,
+    bucket.direction,
+  ].join(':')).join('|');
+}
 
 export function niceIntegerStep(roughStep: number) {
   if (!(roughStep > 1)) return 1;
@@ -201,45 +222,115 @@ function useMarketChartWidth() {
 }
 
 function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket[]; variant: MarketChartVariant }) {
-  const safeBuckets: MarketHistoryBucket[] = buckets.length > 0 ? buckets : [{
-    startAt: Date.now(), price: 1, volume: 0, buyVolume: 0, sellVolume: 0,
-    neutralVolume: 0, netVolume: 0, direction: 'neutral',
-  }];
+  const bucketSignature = marketBucketSignature(buckets);
+  const safeBuckets = useMemo<MarketHistoryBucket[]>(() => (
+    buckets.length > 0 ? buckets : [{
+      startAt: Math.floor(Date.now() / MARKET_BUCKET_MS) * MARKET_BUCKET_MS,
+      price: 1,
+      volume: 0,
+      buyVolume: 0,
+      sellVolume: 0,
+      neutralVolume: 0,
+      netVolume: 0,
+      direction: 'neutral',
+    }]
+  ), [bucketSignature]);
   const { ref, width, rootFontSize } = useMarketChartWidth();
-  const geometry = buildMarketChartGeometry(width, rootFontSize, variant);
+  const geometry = useMemo(
+    () => buildMarketChartGeometry(width, rootFontSize, variant),
+    [rootFontSize, variant, width],
+  );
   const priceHeight = geometry.priceBottom - geometry.top;
   const volumeHeight = geometry.volumeBottom - geometry.volumeTop;
   const plotWidth = Math.max(1, geometry.width - geometry.left - geometry.right);
   const priceTickCount = chooseMarketPriceTickCount(priceHeight, rootFontSize);
   const volumeTickCount = chooseMarketVolumeTickCount(volumeHeight, rootFontSize);
-  const priceScale = buildIntegerPriceScale(
+  const priceScale = useMemo(() => buildIntegerPriceScale(
     Math.min(...safeBuckets.map((bucket) => bucket.price)),
     Math.max(...safeBuckets.map((bucket) => bucket.price)),
     priceTickCount,
-  );
-  const volumeScale = buildIntegerVolumeScale(
+  ), [priceTickCount, safeBuckets]);
+  const volumeScale = useMemo(() => buildIntegerVolumeScale(
     Math.max(1, ...safeBuckets.map((bucket) => bucket.volume)),
     volumeTickCount,
-  );
+  ), [safeBuckets, volumeTickCount]);
   const priceBoundaryLabel = formatIntegerPriceTick(priceScale.min);
   const volumeBoundaryLabel = formatCompactVolumeTick(volumeScale.max);
   const windowStart = safeBuckets[0].startAt;
   const windowEnd = windowStart + MARKET_WINDOW_MS;
   const axisInterval = chooseMarketTimeInterval(plotWidth, rootFontSize, variant, MARKET_WINDOW_MS);
   const barWidth = Math.max(1, (plotWidth / safeBuckets.length) * 0.74);
-  const axisPointerLineStyle = {
-    color: chartColor.secondary,
-    width: 1,
-    type: 'dashed' as const,
-    opacity: 0.82,
-  };
+  const chartInstanceRef = useRef<EChartsType | null>(null);
+  const pointerInsideRef = useRef(false);
+  const hoveredBucketIndexRef = useRef<number | null>(null);
+  const bucketCountRef = useRef(safeBuckets.length);
+  const restoreFrameRef = useRef<number | null>(null);
+  bucketCountRef.current = safeBuckets.length;
+
+  const handleChartReady = useCallback((chartInstance: EChartsType) => {
+    chartInstanceRef.current = chartInstance;
+  }, []);
+
+  const restoreActiveTooltip = useCallback((chartInstance: EChartsType) => {
+    if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+    if (!pointerInsideRef.current || hoveredBucketIndexRef.current === null) return;
+    restoreFrameRef.current = requestAnimationFrame(() => {
+      restoreFrameRef.current = null;
+      if (!pointerInsideRef.current || hoveredBucketIndexRef.current === null) return;
+      const dataIndex = Math.min(
+        Math.max(0, hoveredBucketIndexRef.current),
+        Math.max(0, bucketCountRef.current - 1),
+      );
+      chartInstance.dispatchAction({
+        type: 'showTip',
+        seriesIndex: 0,
+        dataIndex,
+      });
+    });
+  }, []);
+
+  const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const pointerX = event.clientX - bounds.left;
+    const pointerY = event.clientY - bounds.top;
+    const plotRight = geometry.width - geometry.right;
+    const insideDataArea = pointerX >= geometry.left
+      && pointerX <= plotRight
+      && pointerY >= geometry.top
+      && pointerY <= geometry.volumeBottom;
+    if (!insideDataArea) {
+      pointerInsideRef.current = false;
+      hoveredBucketIndexRef.current = null;
+      chartInstanceRef.current?.dispatchAction({ type: 'hideTip' });
+      return;
+    }
+    pointerInsideRef.current = true;
+    const ratio = Math.min(1, Math.max(0, (pointerX - geometry.left) / plotWidth));
+    hoveredBucketIndexRef.current = Math.min(
+      safeBuckets.length - 1,
+      Math.floor(ratio * safeBuckets.length),
+    );
+  }, [geometry.left, geometry.right, geometry.top, geometry.volumeBottom, geometry.width, plotWidth, safeBuckets.length]);
+
+  const handlePointerLeave = useCallback(() => {
+    pointerInsideRef.current = false;
+    hoveredBucketIndexRef.current = null;
+    if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+    restoreFrameRef.current = null;
+    chartInstanceRef.current?.dispatchAction({ type: 'hideTip' });
+  }, []);
+
+  useEffect(() => () => {
+    if (restoreFrameRef.current !== null) cancelAnimationFrame(restoreFrameRef.current);
+    chartInstanceRef.current = null;
+  }, []);
 
   const option = useMemo<EChartsCoreOption>(() => ({
     animation: false,
     aria: { enabled: true, description: '近二十四小时价格折线和成交量柱状图。绿色为净主动买入，红色为净主动卖出，灰色为方向未知。' },
     grid: [
-      { left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
-      { left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
+      { id: 'market-price-grid', left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
+      { id: 'market-volume-grid', left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
     ],
     axisPointer: { link: [{ xAxisIndex: [0, 1] }] },
     tooltip: {
@@ -250,7 +341,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         type: 'line',
         snap: true,
         triggerEmphasis: false,
-        lineStyle: axisPointerLineStyle,
+        lineStyle: MARKET_AXIS_POINTER_LINE_STYLE,
       },
       formatter: (params: any) => {
         const list = Array.isArray(params) ? params : [params];
@@ -270,15 +361,15 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     },
     xAxis: [
       {
-        type: 'value', gridIndex: 0, min: windowStart, max: windowEnd, interval: axisInterval,
+        id: 'market-price-time-axis', type: 'value', gridIndex: 0, min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
-        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: axisPointerLineStyle },
+        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: MARKET_AXIS_POINTER_LINE_STYLE },
         splitLine: { show: true, lineStyle: { color: chartColor.border } },
       },
       {
-        type: 'value', gridIndex: 1, min: windowStart, max: windowEnd, interval: axisInterval,
+        id: 'market-volume-time-axis', type: 'value', gridIndex: 1, min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
-        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: axisPointerLineStyle },
+        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: MARKET_AXIS_POINTER_LINE_STYLE },
         axisLabel: {
           color: chartColor.muted,
           fontSize: Math.max(11, rootFontSize * 0.75),
@@ -292,7 +383,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     ],
     yAxis: [
       {
-        type: 'value', gridIndex: 0, min: priceScale.min, max: priceScale.max, interval: priceScale.step,
+        id: 'market-price-value-axis', type: 'value', gridIndex: 0, min: priceScale.min, max: priceScale.max, interval: priceScale.step,
         name: '价格', nameLocation: 'middle', nameRotate: 90, nameGap: geometry.left - 18,
         nameTextStyle: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75) },
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
@@ -306,7 +397,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         splitLine: { lineStyle: { color: chartColor.border } },
       },
       {
-        type: 'value', gridIndex: 1, min: 0, max: volumeScale.max, interval: volumeScale.step,
+        id: 'market-volume-value-axis', type: 'value', gridIndex: 1, min: 0, max: volumeScale.max, interval: volumeScale.step,
         name: '成交量', nameLocation: 'middle', nameRotate: 90, nameGap: geometry.left - 18,
         nameTextStyle: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75) },
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
@@ -322,7 +413,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     ],
     series: [
       {
-        name: '价格', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, symbol: 'none', smooth: false, z: 3,
+        id: 'market-price-series', name: '价格', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, symbol: 'none', smooth: false, z: 3,
         data: safeBuckets.map((bucket) => [bucket.startAt + MARKET_BUCKET_MS / 2, bucket.price]),
         lineStyle: { color: chartColor.success, width: 2.5, opacity: 1 },
         areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(123,228,158,.24)' }, { offset: 1, color: 'rgba(123,228,158,0)' }] } },
@@ -330,13 +421,13 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         blur: { lineStyle: { opacity: 1 }, areaStyle: { opacity: 1 } },
       },
       {
-        name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth,
+        id: 'market-volume-series', name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth,
         data: safeBuckets.map((bucket) => ({ value: [bucket.startAt + MARKET_BUCKET_MS / 2, bucket.volume], direction: bucket.direction })),
         itemStyle: { color: (params: any) => volumeColor(params?.data?.direction), opacity: 0.78, borderRadius: [2, 2, 0, 0] },
         emphasis: { disabled: true },
       },
     ],
-  }), [axisInterval, axisPointerLineStyle, barWidth, geometry, priceHeight, priceScale, rootFontSize, safeBuckets, variant, volumeHeight, volumeScale, windowEnd, windowStart]);
+  }), [axisInterval, barWidth, geometry, priceHeight, priceScale, rootFontSize, safeBuckets, variant, volumeHeight, volumeScale, windowEnd, windowStart]);
 
   return (
     <div
@@ -344,6 +435,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       className={`price-chart market-history-chart ${variant}`}
       role="img"
       aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
       data-chart-variant={variant}
       data-axis-left={geometry.left.toFixed(2)}
       data-axis-right={geometry.right.toFixed(2)}
@@ -360,6 +453,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       data-volume-tick-count={volumeTickCount}
       data-axis-pointer-linked="true"
       data-hover-emphasis-disabled="true"
+      data-tooltip-persistence="true"
       data-shared-boundary-label-owner="price"
       data-price-min-label={priceBoundaryLabel}
       data-volume-max-label={volumeBoundaryLabel}
@@ -374,6 +468,9 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         style={{ height: geometry.canvasHeight }}
         ariaLabel="近 24 小时价格、成交量与主动买卖方向趋势图"
         accessibleSummary={safeBuckets.map((bucket) => `${formatMarketAxisTime(bucket.startAt)}价格${formatIntegerPriceTick(bucket.price)}成交量${formatCompactVolumeTick(bucket.volume)}`).join('；')}
+        updateMode="merge"
+        onChartReady={handleChartReady}
+        onOptionApplied={restoreActiveTooltip}
       />
       <div
         className="market-chart-price-volume-divider"
