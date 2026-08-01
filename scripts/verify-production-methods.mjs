@@ -35,6 +35,8 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 const methodSource = readFileSync('server/src/production-methods.js', 'utf8');
 const catalogSource = readFileSync('server/src/industry-catalog.js', 'utf8');
 const runtimeSource = readFileSync('server/src/facility-groups.js', 'utf8');
+const allocationSource = readFileSync('server/src/market-demand/allocation.js', 'utf8');
+const transmissionSource = readFileSync('server/src/market-demand/price-transmission.js', 'utf8');
 const detailSource = readFileSync('src/pages/production/ProductionFacilityDetail.tsx', 'utf8');
 const pageSource = readFileSync('src/pages/ProductionPage.tsx', 'utf8');
 const styleSource = readFileSync('src/styles/production-methods.css', 'utf8');
@@ -52,6 +54,16 @@ assert.ok(catalogSource.includes('productionMethodGroups'));
 assert.ok(catalogSource.includes('createProductionMethodRecipes'));
 assert.ok(runtimeSource.includes('group.pendingRecipeId = recipe.id'));
 assert.ok(runtimeSource.includes('applyPendingRecipe(group)'));
+for (const text of [
+  "String(recipe?.recipeId || '').split('--')[0]",
+  'function baseProductionRecipes(outputProductId)',
+  'const candidates = baseProductionRecipes(outputProductId)',
+]) assert.ok(allocationSource.includes(text), `派生需求生产路线去重缺少 ${text}`);
+for (const text of [
+  "const baseRecipes = recipes.filter((recipe) => !String(recipe.recipeId || '').includes('--'))",
+  'const recipeCountByOutput = baseRecipes.reduce',
+  'for (const recipe of baseRecipes)',
+]) assert.ok(transmissionSource.includes(text), `价格传导生产路线去重缺少 ${text}`);
 assert.ok(detailSource.includes('productionRecipeVariantId'));
 assert.ok(detailSource.includes('role="radiogroup"'));
 assert.ok(detailSource.includes('role="radio"'));
@@ -76,4 +88,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、整数平衡、周期边界切换、响应式选择卡和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、整数平衡、周期边界切换、需求图去重、响应式选择卡和版本兼容均已锁定。');
