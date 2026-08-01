@@ -9,6 +9,8 @@ import { initECharts, type EChartsCoreOption, type EChartsType } from './echarts
 
 let nextChartInstanceId = 1;
 
+export type EconomyChartUpdateMode = 'replace' | 'merge';
+
 export function EconomyChart({
   option,
   ariaLabel,
@@ -16,6 +18,9 @@ export function EconomyChart({
   className,
   style,
   testId,
+  updateMode = 'replace',
+  onChartReady,
+  onOptionApplied,
 }: {
   option: EChartsCoreOption;
   ariaLabel: string;
@@ -23,20 +28,33 @@ export function EconomyChart({
   className?: string;
   style?: CSSProperties;
   testId?: string;
+  updateMode?: EconomyChartUpdateMode;
+  onChartReady?: (chart: EChartsType) => void;
+  onOptionApplied?: (chart: EChartsType) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartsType | null>(null);
   const optionRef = useRef(option);
   const resizeFrameRef = useRef<number | null>(null);
+  const updateModeRef = useRef(updateMode);
+  const onChartReadyRef = useRef(onChartReady);
+  const onOptionAppliedRef = useRef(onOptionApplied);
   const [ready, setReady] = useState(false);
+
+  updateModeRef.current = updateMode;
+  onChartReadyRef.current = onChartReady;
+  onOptionAppliedRef.current = onOptionApplied;
 
   useLayoutEffect(() => {
     optionRef.current = option;
-    chartRef.current?.setOption(option, {
-      notMerge: true,
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.setOption(option, {
+      notMerge: updateMode !== 'merge',
       lazyUpdate: true,
     });
-  }, [option]);
+    onOptionAppliedRef.current?.(chart);
+  }, [option, updateMode]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -51,10 +69,12 @@ export function EconomyChart({
     container.dataset.echartsInstanceId = String(instanceId);
     chartRef.current = chart;
     chart.setOption(optionRef.current, {
-      notMerge: true,
+      notMerge: updateModeRef.current !== 'merge',
       lazyUpdate: false,
     });
     setReady(true);
+    onChartReadyRef.current?.(chart);
+    onOptionAppliedRef.current?.(chart);
 
     const scheduleResize = () => {
       if (resizeFrameRef.current !== null) cancelAnimationFrame(resizeFrameRef.current);

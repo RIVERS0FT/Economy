@@ -70,6 +70,8 @@ const marketCss = read('src/styles/market-page-polish.css');
 const chartCss = read('src/styles/charts.css');
 const safeZoneSpec = read('tests/browser/market-chart-safe-zone.spec.ts');
 const boundaryLabelSpec = read('tests/browser/market-boundary-axis-label.spec.ts');
+const tooltipPersistenceSpec = read('tests/browser/market-tooltip-persistence.spec.ts');
+const tooltipPersistenceHarness = read('tests/browser/market-tooltip-persistence-harness.tsx');
 const runtimeSpec = read('tests/browser/market-runtime.spec.ts');
 const types = read('src/types.ts');
 const matchingCore = read('server/src/order-matching.js');
@@ -103,6 +105,11 @@ for (const text of [
   'data-price-min-label={priceBoundaryLabel}',
   'data-volume-max-label={volumeBoundaryLabel}',
   'data-volume-max-label-visible="false"',
+  'marketBucketSignature', 'useMemo<MarketHistoryBucket[]>',
+  "id: 'market-price-grid'", "id: 'market-volume-grid'",
+  "id: 'market-price-series'", "id: 'market-volume-series'",
+  'updateMode="merge"', 'onChartReady={handleChartReady}', 'onOptionApplied={restoreActiveTooltip}',
+  "type: 'showTip'", "type: 'hideTip'", 'data-tooltip-persistence="true"',
   'className="market-chart-price-volume-divider"',
   'className="market-chart-footer"',
   '净主动买入', '净主动卖出',
@@ -118,7 +125,9 @@ for (const text of ['<svg', '<polyline', '<polygon', '<rect', 'context.measureTe
 
 for (const text of [
   'initECharts', "renderer: 'svg'", 'new ResizeObserver', 'requestAnimationFrame',
-  'chartRef.current?.setOption', 'chart.dispose()', 'data-echarts-ready',
+  'chart.setOption', 'chart.dispose()', 'data-echarts-ready',
+  "updateMode = 'replace'", "notMerge: updateMode !== 'merge'",
+  'onChartReadyRef.current?.(chart)', 'onOptionAppliedRef.current?.(chart)',
 ]) assert.ok(wrapper.includes(text), `共享 EconomyChart 缺少生命周期规则: ${text}`);
 for (const text of ['LineChart', 'BarChart', 'PieChart', 'AxisPointerComponent', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer']) {
   assert.ok(registry.includes(text), `ECharts 模块注册缺少: ${text}`);
@@ -155,6 +164,15 @@ for (const text of [
   "data-axis-pointer-linked", "data-hover-emphasis-disabled", 'priceHoverText',
   'priceTicks', 'volumeTicks', 'ECharts SVG is not ready', 'market-chart-footer',
 ]) assert.ok(runtimeSpec.includes(text), `市场运行时回归缺少: ${text}`);
+for (const text of [
+  'market tooltip survives idle rerenders and real option updates until the pointer leaves',
+  'page.waitForTimeout(6_500)', 'data-echarts-instance-id', 'data-tooltip-persistence',
+  '__advanceMarketTooltipData', 'toBeGreaterThanOrEqual(6)', 'toBeHidden()',
+]) assert.ok(tooltipPersistenceSpec.includes(text), `行情 Tooltip 持久性浏览器回归缺少: ${text}`);
+for (const text of [
+  'setInterval(() => setRenderCount', 'buildBuckets(dataRevision)',
+  '__advanceMarketTooltipData', '<PriceSparkline buckets={buckets} variant="full" />',
+]) assert.ok(tooltipPersistenceHarness.includes(text), `行情 Tooltip 持久性 Harness 缺少: ${text}`);
 
 assert.ok(types.includes('takerSide?: OrderSide;'), 'PricePoint 必须保存可选吃单方向');
 assert.ok(matchingCore.includes('takerSide: incoming.side'), '撮合内核必须记录吃单方向');
@@ -174,6 +192,8 @@ for (const text of [
   '统一悬浮交互', '`axisPointer.link`', '`axisValue`',
   '动态时间间隔', '真实像素高度和根字号动态计算',
   '共享边界只能显示一项纵轴刻度标签', '价格轴保留最小刻度', '成交量轴隐藏最大刻度',
+  '普通 `5s` 状态轮询', '无关 React 重渲染', 'Option 应用后恢复',
+  '至少 `6.5s`', '`alwaysShowContent`', '超长 `hideDelay`',
   '成交量绘图区必须保持最低可读屏幕高度', '不得低于 `48px`',
   '价格区与成交量区合计数据绘图区的 `22%`',
   '不得由业务 CSS 再用固定比例覆盖组件计算结果',
@@ -186,4 +206,4 @@ for (const text of ['保存吃单方（taker／incoming order）的买卖方向'
   assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 }
 
-console.log('Market ECharts verification passed: linked hover, protected line, zero-gap grids, single shared-boundary label, dynamic integer ticks and readable volume geometry satisfy the design baseline.');
+console.log('Market ECharts verification passed: linked persistent hover, protected line, zero-gap grids, single shared-boundary label, dynamic integer ticks and readable volume geometry satisfy the design baseline.');
