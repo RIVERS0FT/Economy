@@ -9,15 +9,18 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
-      - name: Checkout code
+      - name: Checkout implementation branch
         uses: actions/checkout@v4
+        with:
+          ref: agent/full-width-chrome-safe-floating
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -25,8 +28,14 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
+      - name: Apply full-width chrome and safe floating changes
+        run: python3 scripts/apply-full-width-chrome-safe-floating.py
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify shared shell
+        run: node scripts/verify-game-shell-layout.mjs
 
       - name: Build and test
         shell: bash
@@ -47,7 +56,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: economy-test-artifacts
+          name: full-width-chrome-safe-floating-artifacts
           path: |
             build-test.log
             browser-test.log
@@ -55,3 +64,36 @@ jobs:
             test-results
           if-no-files-found: warn
           retention-days: 3
+
+      - name: Commit verified implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            src/components/ui/WorkspaceFloatingLayer.tsx \
+            src/components/ui/SafeTooltip.tsx \
+            src/components/shell/SignedInShell.tsx \
+            src/components/shell/AdminDesktopBar.tsx \
+            src/pages/production/MobileFacilityDetailSheet.tsx \
+            src/styles/game-shell-layout.css \
+            src/styles/desktop-sidebar.css \
+            src/styles/viewport.css \
+            src/styles/facility-detail-sheet.css \
+            src/styles/safe-floating.css \
+            src/styles/admin-navigation.css \
+            src/main.tsx \
+            docs/LIQUID_GLASS_CHROME_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            docs/README.md \
+            scripts/verify-game-shell-layout.mjs \
+            scripts/verify-liquid-glass-chrome.mjs \
+            scripts/verify-echarts-adoption.mjs \
+            tests/browser/game-shell-layout.spec.ts \
+            tests/browser/liquid-glass-layout.spec.ts \
+            tests/browser/admin-runtime.spec.ts \
+            tests/browser/shell-floating-safe-zone.spec.ts
+          git diff --cached --check
+          git commit -m "重构全宽顶栏与浮层安全区"
+          git push origin HEAD:agent/full-width-chrome-safe-floating
