@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+// compact 变体继续满足“成交量图区实际高度不得低于 48px”，本回归验证 full 变体提高后的 68px 基线。
 async function capturePageErrors(page: Page) {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
