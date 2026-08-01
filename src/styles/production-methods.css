@@ -52,7 +52,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .facility-production-method-option:hover:not(:disabled) {
+  html[data-input-modality='mouse'] .facility-production-method-option:hover:not(:disabled) {
     border-color: var(--color-border-strong);
     background: var(--color-surface-raised);
   }
