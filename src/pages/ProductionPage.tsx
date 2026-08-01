@@ -37,7 +37,7 @@ import '../styles/production-methods.css';
  * 运行中 <strong>{formatNumber(group.participatingCount)}</strong>;
  * 下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>;
  * 冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>;
- * FacilityProductionFormula; facility-recipe-section; 生产配方; <strong>生产配置</strong>;
+ * FacilityProductionFormula; facility-recipe-section; <strong>生产配方</strong>; <strong>生产配置</strong>;
  * 作业制度; 生产方式; 下一周期切换为：; 前往市场交易该工厂; 前往市场交易该工厂 →;
  * formatNumber(group.count). The legacy branch `if (!entry.constructionOnly)` was removed because
  * construction tasks no longer create selector/detail entries.
