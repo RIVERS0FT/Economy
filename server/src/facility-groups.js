@@ -1359,7 +1359,12 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
       gemAccelerationMs: GEM_CONSTRUCTION_ACCELERATION_MS,
       gemAccelerationCost: GEM_CONSTRUCTION_ACCELERATION_COST,
     } : undefined,
-    facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone(type)),
+    facilityTypes: FACILITY_TYPE_CATALOG.map(({ internalCapacity: _internalCapacity, ...type }) => clone({
+      ...type,
+      recipes: recipesFor(type).filter(
+        (recipe) => (recipe.productionMethodId || 'standard') === 'standard',
+      ),
+    })),
     orders: normalizedOrders,
     facilityListings: [],
     facilityMarkets: clone(world.facilityMarkets || {}),

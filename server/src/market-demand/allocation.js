@@ -8,6 +8,21 @@ export function createDemandAllocationRuntime({
   realTradeStats,
   productWeightMultiplier = () => 1,
 }) {
+  function baseRecipeId(recipe) {
+    return String(recipe?.recipeId || '').split('--')[0];
+  }
+
+  function baseProductionRecipes(outputProductId) {
+    const candidates = recipesByOutput.get(outputProductId) || [];
+    const routes = new Map();
+    for (const recipe of candidates) {
+      const routeId = baseRecipeId(recipe);
+      const current = routes.get(routeId);
+      if (!current || recipe.recipeId === routeId) routes.set(routeId, recipe);
+    }
+    return [...routes.values()];
+  }
+
   function allocateClassBudgets(group, state, directBudget, classDetails, classShareOverride) {
     if (classShareOverride && typeof classShareOverride === 'object') {
       const entries = group.classes.map((demandClass) => ({
@@ -147,7 +162,7 @@ export function createDemandAllocationRuntime({
   }
 
   function recipeSharesFor(world, outputProductId, state) {
-    const candidates = recipesByOutput.get(outputProductId) || [];
+    const candidates = baseProductionRecipes(outputProductId);
     if (candidates.length <= 1) return candidates.length === 1 ? { [candidates[0].recipeId]: 1 } : {};
     const costs = Object.fromEntries(candidates.map((recipe) => [recipe.recipeId, recipeUnitCost(world, recipe)]));
     const minimum = Math.min(...Object.values(costs));
@@ -170,7 +185,7 @@ export function createDemandAllocationRuntime({
     for (const [outputProductId, demandedQuantityRaw] of Object.entries(state.previousDemandQuantities || {})) {
       const demandedQuantity = Math.max(0, Number(demandedQuantityRaw || 0));
       if (demandedQuantity <= 0) continue;
-      const candidateRecipes = recipesByOutput.get(outputProductId) || [];
+      const candidateRecipes = baseProductionRecipes(outputProductId);
       if (candidateRecipes.length === 0) continue;
       const shares = recipeSharesFor(world, outputProductId, state);
       for (const recipe of candidateRecipes) {

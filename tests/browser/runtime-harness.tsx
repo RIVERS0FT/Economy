@@ -56,7 +56,11 @@ const scenario = params.get('scenario') ?? 'empty';
 const fixedNow = new Date(2026, 6, 17, 22, 30, 0).getTime();
 
 const auctionBidHistoryFetches: string[] = [];
-Object.assign(window, { __auctionBidHistoryFetches: auctionBidHistoryFetches });
+const productionRecipeRequests: string[] = [];
+Object.assign(window, {
+  __auctionBidHistoryFetches: auctionBidHistoryFetches,
+  __productionRecipeRequests: productionRecipeRequests,
+});
 if (view === 'auction') {
   const originalFetch = window.fetch.bind(window);
   window.fetch = async (input, init) => {
@@ -405,6 +409,80 @@ function ProductionHarness() {
       { id: 'steel', name: '钢材', category: 'industrial', basePrice: 29 },
       ...next.game.products,
     ];
+    if (scenario === 'production-methods') {
+      const baseType = next.game.facilityTypes[0];
+      const baseRecipe = baseType.recipes[0];
+      next.game.facilityTypes = [{
+        ...baseType,
+        productionMethodGroups: [{
+          id: 'operation',
+          name: '作业制度',
+          defaultMethodId: 'standard',
+          methods: [
+            {
+              id: 'standard', name: '标准生产', description: '保持标准生产参数。', tone: 'neutral',
+              plansByRecipeId: {
+                [baseRecipe.id]: {
+                  recipeId: baseRecipe.id,
+                  baseRecipeId: baseRecipe.id,
+                  productionMethodId: 'standard',
+                  cycleMs: baseRecipe.cycleMs,
+                  operatingCost: baseRecipe.operatingCost,
+                  inputs: baseRecipe.inputs,
+                  output: baseRecipe.output,
+                },
+              },
+            },
+            {
+              id: 'rapid', name: '高速生产', description: '缩短周期并提高成本。', tone: 'warning',
+              plansByRecipeId: {
+                [baseRecipe.id]: {
+                  recipeId: `${baseRecipe.id}--rapid`,
+                  baseRecipeId: baseRecipe.id,
+                  productionMethodId: 'rapid',
+                  cycleMs: 60_000,
+                  operatingCost: 12,
+                  inputs: baseRecipe.inputs,
+                  output: baseRecipe.output,
+                },
+              },
+            },
+            {
+              id: 'economical', name: '节约生产', description: '延长周期并降低成本。', tone: 'success',
+              plansByRecipeId: {
+                [baseRecipe.id]: {
+                  recipeId: `${baseRecipe.id}--economical`,
+                  baseRecipeId: baseRecipe.id,
+                  productionMethodId: 'economical',
+                  cycleMs: 180_000,
+                  operatingCost: 4,
+                  inputs: baseRecipe.inputs,
+                  output: baseRecipe.output,
+                },
+              },
+            },
+            {
+              id: 'high-yield', name: '高产生产', description: '增加投入与产出。', tone: 'accent',
+              plansByRecipeId: {
+                [baseRecipe.id]: {
+                  recipeId: `${baseRecipe.id}--high-yield`,
+                  baseRecipeId: baseRecipe.id,
+                  productionMethodId: 'high-yield',
+                  cycleMs: baseRecipe.cycleMs,
+                  operatingCost: 16,
+                  inputs: baseRecipe.inputs.map((input) => ({ ...input, quantity: input.quantity * 2 })),
+                  output: { ...baseRecipe.output, quantity: baseRecipe.output.quantity * 2 },
+                },
+              },
+            },
+          ],
+        }],
+      }];
+      next.game.facilityGroups = [{
+        ...next.game.facilityGroups[0],
+        pendingRecipeId: `${baseRecipe.id}--rapid`,
+      }];
+    }
     if (scenario === 'decimal-profit') {
       const markets = next.game.markets as Record<string, ProductMarketState>;
       markets.steel = {
@@ -525,7 +603,10 @@ function ProductionHarness() {
       buildFacility: async () => ({ ok: true, message: '测试建设完成' }),
       startFacility: async () => ({ ok: true, message: '测试启动完成' }),
       stopFacility: async () => ({ ok: true, message: '测试停止完成' }),
-      setFacilityRecipe: async () => ({ ok: true, message: '测试配方完成' }),
+      setFacilityRecipe: async (facilityTypeId: string, recipeId: string) => {
+        productionRecipeRequests.push(`${facilityTypeId}:${recipeId}`);
+        return { ok: true, message: '测试配方完成' };
+      },
       upgradeWarehouse: async () => ({ ok: true, message: '测试扩容完成' }),
     });
     return next;

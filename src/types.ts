@@ -28,9 +28,39 @@ export interface FacilityRecipeItem {
   quantity: number;
 }
 
+export type FacilityProductionMethodId = 'standard' | 'rapid' | 'economical' | 'high-yield';
+
+export interface FacilityProductionMethodPlan {
+  recipeId: string;
+  baseRecipeId: string;
+  productionMethodId: FacilityProductionMethodId;
+  cycleMs: number;
+  operatingCost: number;
+  inputs: FacilityRecipeItem[];
+  input?: FacilityRecipeItem | null;
+  output: FacilityRecipeItem;
+}
+
+export interface FacilityProductionMethodDefinition {
+  id: FacilityProductionMethodId;
+  name: string;
+  description: string;
+  tone: 'neutral' | 'warning' | 'success' | 'accent';
+  plansByRecipeId: Record<string, FacilityProductionMethodPlan>;
+}
+
+export interface FacilityProductionMethodGroupDefinition {
+  id: 'operation';
+  name: string;
+  defaultMethodId: FacilityProductionMethodId;
+  methods: FacilityProductionMethodDefinition[];
+}
+
 export interface FacilityRecipeDefinition {
   id: string;
   name: string;
+  baseRecipeId?: string;
+  productionMethodId?: FacilityProductionMethodId;
   cycleMs: number;
   operatingCost: number;
   inputs: FacilityRecipeItem[];
@@ -54,6 +84,7 @@ export interface FacilityTypeDefinition {
   output: FacilityRecipeItem;
   defaultRecipeId: string;
   recipes: FacilityRecipeDefinition[];
+  productionMethodGroups?: FacilityProductionMethodGroupDefinition[];
   systemValue: number;
 }
 

@@ -53,8 +53,12 @@ const constructionTimeRanges = {
   C6: [60 * 60_000, 120 * 60_000],
   C7: [60 * 60_000, 120 * 60_000],
 };
-
 const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
+const expectedProductionMethods = ['standard', 'rapid', 'economical', 'high-yield'];
+
+function standardRecipes(facility) {
+  return facility.recipes.filter((recipe) => (recipe.productionMethodId || 'standard') === 'standard');
+}
 
 assert.equal(PRODUCT_CATALOG.length, 31, '商品目录必须为 31 项');
 assert.equal(FACILITY_TYPE_CATALOG.length, 21, '工厂目录必须为 21 项');
@@ -87,51 +91,77 @@ for (const facility of FACILITY_TYPE_CATALOG) {
     Math.ceil((facility.buildCost * 1.3) / 5) * 5,
     `${facility.id} 系统参考值必须按建造费 130% 向上取整到 5`,
   );
-  assert.ok(facility.recipes.some((recipe) => recipe.id === facility.defaultRecipeId));
-  const defaultRecipe = facility.recipes.find((recipe) => recipe.id === facility.defaultRecipeId);
+
+  const routes = standardRecipes(facility);
+  assert.ok(routes.some((recipe) => recipe.id === facility.defaultRecipeId));
+  const defaultRecipe = routes.find((recipe) => recipe.id === facility.defaultRecipeId);
   assert.equal(facility.cycleMs, defaultRecipe.cycleMs);
   assert.equal(facility.operatingCost, defaultRecipe.operatingCost);
-  for (const recipe of facility.recipes) {
-    assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
-    assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
-    assert.equal(Number.isInteger(recipe.operatingCost), true);
-    for (const input of recipe.inputs) {
-      assert.ok(productIds.has(input.productId));
-      assert.equal(Number.isInteger(input.quantity), true);
+
+  const methodGroup = facility.productionMethodGroups.find((group) => group.id === 'operation');
+  assert.ok(methodGroup, `${facility.id} 必须声明作业制度`);
+  assert.equal(methodGroup.defaultMethodId, 'standard');
+  assert.deepEqual(methodGroup.methods.map((method) => method.id), expectedProductionMethods);
+  assert.equal(facility.recipes.length, routes.length * expectedProductionMethods.length);
+
+  for (const route of routes) {
+    const variants = facility.recipes.filter((recipe) => recipe.baseRecipeId === route.id);
+    assert.deepEqual(variants.map((recipe) => recipe.productionMethodId), expectedProductionMethods);
+    for (const recipe of variants) {
+      assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
+      assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
+      assert.equal(Number.isInteger(recipe.operatingCost), true);
+      assert.ok(recipe.operatingCost >= 0, `${facility.id}/${recipe.id} 周期成本不得为负数`);
+      for (const input of recipe.inputs) {
+        assert.ok(productIds.has(input.productId));
+        assert.equal(Number.isInteger(input.quantity), true);
+      }
+      assert.ok(productIds.has(recipe.output.productId));
+      assert.equal(Number.isInteger(recipe.output.quantity), true);
+      const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
+      const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
+        * 60_000 / recipe.cycleMs;
+      assert.equal(profit, expectedProfitByComplexity[facility.complexity], `${facility.id}/${recipe.id} 参考分钟利润错误`);
     }
-    assert.ok(productIds.has(recipe.output.productId));
-    assert.equal(Number.isInteger(recipe.output.quantity), true);
-    const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
-    const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
-      * 60_000 / recipe.cycleMs;
-    const expectedProfit = expectedProfitByComplexity[facility.complexity];
-    assert.equal(profit, expectedProfit, `${facility.id}/${recipe.id} 参考分钟利润错误`);
+    const rapid = variants.find((recipe) => recipe.productionMethodId === 'rapid');
+    const economical = variants.find((recipe) => recipe.productionMethodId === 'economical');
+    const highYield = variants.find((recipe) => recipe.productionMethodId === 'high-yield');
+    assert.ok(rapid.cycleMs <= route.cycleMs && rapid.operatingCost >= route.operatingCost);
+    assert.ok(economical.cycleMs >= route.cycleMs && economical.operatingCost <= route.operatingCost);
+    assert.equal(highYield.cycleMs, route.cycleMs);
+    assert.equal(highYield.output.quantity, route.output.quantity * 2);
+    assert.deepEqual(highYield.inputs, route.inputs.map((input) => ({ ...input, quantity: input.quantity * 2 })));
   }
 }
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((item) => [item.id, item]));
-assert.deepEqual(facilities.get('farm').recipes.map((item) => item.id), ['wheat-crop', 'rice-crop', 'cotton-crop', 'sugarcane-crop']);
-assert.equal(facilities.get('orchard').recipes[0].output.productId, 'fruit');
-assert.equal(facilities.get('fishery').recipes[0].output.productId, 'fish');
+assert.deepEqual(standardRecipes(facilities.get('farm')).map((item) => item.id), ['wheat-crop', 'rice-crop', 'cotton-crop', 'sugarcane-crop']);
+assert.equal(standardRecipes(facilities.get('orchard'))[0].output.productId, 'fruit');
+assert.equal(standardRecipes(facilities.get('fishery'))[0].output.productId, 'fish');
 assert.equal(facilities.get('mill').name, '磨坊');
-assert.deepEqual(facilities.get('mill').recipes.map((item) => item.id), ['mill-default', 'sugar-milling']);
+assert.deepEqual(standardRecipes(facilities.get('mill')).map((item) => item.id), ['mill-default', 'sugar-milling']);
 assert.equal(facilities.get('steelworks').name, '冶炼厂');
 assert.equal(facilities.has('copper-smelter'), false, '不得新增铜冶炼厂');
-assert.deepEqual(facilities.get('food-factory').recipes.map((item) => item.id), ['food-factory-default', 'prepared-meal-production']);
-assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.id), ['milk-beverage', 'fruit-beverage']);
-assert.deepEqual(facilities.get('beverage-factory').recipes.map((item) => item.operatingCost), [14, 9]);
-assert.equal(facilities.get('furniture-factory').recipes[0].operatingCost, 8);
-assert.deepEqual(facilities.get('electronics-factory').recipes[0].inputs, [
+assert.deepEqual(standardRecipes(facilities.get('food-factory')).map((item) => item.id), ['food-factory-default', 'prepared-meal-production']);
+assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.id), ['milk-beverage', 'fruit-beverage']);
+assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14, 9]);
+assert.equal(standardRecipes(facilities.get('furniture-factory'))[0].operatingCost, 8);
+assert.deepEqual(standardRecipes(facilities.get('electronics-factory'))[0].inputs, [
   { productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 },
 ]);
-assert.deepEqual(facilities.get('appliance-factory').recipes[0].inputs, [
+assert.deepEqual(standardRecipes(facilities.get('appliance-factory'))[0].inputs, [
   { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
 ]);
 
 const coreSource = readFileSync('server/src/domain-core.js', 'utf8');
 const catalogSource = readFileSync('server/src/industry-catalog.js', 'utf8');
+const methodSource = readFileSync('server/src/production-methods.js', 'utf8');
 assert.ok(coreSource.includes("from './industry-catalog.js'"), '核心领域必须读取单一产业目录');
 assert.equal(coreSource.includes('export const PRODUCT_CATALOG = Object.freeze(['), false, 'domain-core.js 不得复制正式商品目录');
+assert.ok(catalogSource.includes("from './production-methods.js'"));
+assert.ok(methodSource.includes("id: 'rapid'"));
+assert.ok(methodSource.includes("id: 'economical'"));
+assert.ok(methodSource.includes("id: 'high-yield'"));
 assert.ok(catalogSource.includes("id: 'fruit'"));
 assert.ok(catalogSource.includes("id: 'appliance-factory'"));
 
@@ -150,12 +180,14 @@ for (const [path, texts] of [
     'C2 为 5～10 分钟',
     'C3 为 30 分钟～1 小时',
     'C4～C7 为 1～2 小时',
+    '标准生产、高速生产、节约生产和高产生产',
+    '生产方式与配方必须在同一个周期边界原子切换',
   ]],
-  ['docs/UI_DESIGN_SYSTEM.md', ['当前 31 种正式商品', '服务器未来返回未知商品 ID']],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['31 种商品和 21 种工厂', '饮料、预制餐、电子产品和家电']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['当前 31 种正式商品', '服务器未来返回未知商品 ID', '生产方式选择卡']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['31 种商品和 21 种工厂', '饮料、预制餐、电子产品和家电', '作业制度']],
 ]) {
   const content = readFileSync(path, 'utf8');
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：31 种商品、21 种工厂、C1～C7 建设复杂度、精确建造费与施工时间、配方级参数及 1/3/6/6/8/10/12 参考分钟利润梯度。');
+console.log('产业目录验证通过：31 种商品、21 种工厂、四种作业制度、配方级整数计划及 1/3/6/6/8/10/12 参考分钟利润梯度。');
