@@ -1,3 +1,4 @@
+# Temporary implementation workflow; removed before merge.
 name: Apply market chart interaction
 
 on:
