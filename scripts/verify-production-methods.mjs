@@ -59,6 +59,10 @@ assert.ok(catalogSource.includes('createProductionMethodRecipes'));
 assert.ok(runtimeSource.includes('group.pendingRecipeId = recipe.id'));
 assert.ok(runtimeSource.includes('applyPendingRecipe(group)'));
 for (const text of [
+  'facilityTypes: FACILITY_TYPE_CATALOG.map',
+  "(recipe.productionMethodId || 'standard') === 'standard'",
+]) assert.ok(runtimeSource.includes(text), `公开工厂目录兼容缺少 ${text}`);
+for (const text of [
   "String(recipe?.recipeId || '').split('--')[0]",
   'function baseProductionRecipes(outputProductId)',
   'const candidates = baseProductionRecipes(outputProductId)',
@@ -81,10 +85,14 @@ assert.ok(
   typesSource.includes('productionMethodGroups?: FacilityProductionMethodGroupDefinition[];'),
   '客户端生产方式目录元数据必须保持向后兼容可选',
 );
-assert.ok(detailSource.includes('productionRecipeVariantId'));
-assert.ok(detailSource.includes('role="radiogroup"'));
-assert.ok(detailSource.includes('role="radio"'));
-assert.ok(detailSource.includes('facility-production-method-option'));
+for (const text of [
+  'productionRecipeVariantId',
+  'const methodGroup = productionMethodGroupForType(type);',
+  'id: plan.recipeId',
+  'role="radiogroup"',
+  'role="radio"',
+  'facility-production-method-option',
+]) assert.ok(detailSource.includes(text), `生产方式客户端合成缺少 ${text}`);
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
 assert.ok(styleSource.includes('.facility-production-method-grid'));
 assert.ok(styleSource.includes("[data-selected='true']"));
@@ -99,10 +107,14 @@ for (const [path, required] of [
   ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['作业制度', '下一周期切换']],
   ['docs/UI_DESIGN_SYSTEM.md', ['生产方式选择卡', 'radiogroup']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['生产方式配方变体', 'setFacilityRecipe']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
+    '生产方式配方变体',
+    'setFacilityRecipe',
+    '普通玩家状态中的 `facilityTypes[].recipes` 继续只公开标准生产路线',
+  ]],
 ]) {
   const content = readFileSync(path, 'utf8');
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、领域与主食需求目录断言、可选客户端元数据、响应式选择卡和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、响应式选择卡和版本兼容均已锁定。');
