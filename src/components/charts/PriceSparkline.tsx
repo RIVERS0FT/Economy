@@ -180,9 +180,9 @@ function useMarketChartWidth() {
         const width = element.getBoundingClientRect().width;
         const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         setMetrics((current) => (
-Math.abs(current.width - width) < 0.5 && Math.abs(current.rootFontSize - rootFontSize) < 0.1
-  ? current
-  : { width, rootFontSize }
+          Math.abs(current.width - width) < 0.5 && Math.abs(current.rootFontSize - rootFontSize) < 0.1
+            ? current
+            : { width, rootFontSize }
         ));
       });
     };
@@ -221,6 +221,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     Math.max(1, ...safeBuckets.map((bucket) => bucket.volume)),
     volumeTickCount,
   );
+  const priceBoundaryLabel = formatIntegerPriceTick(priceScale.min);
+  const volumeBoundaryLabel = formatCompactVolumeTick(volumeScale.max);
   const windowStart = safeBuckets[0].startAt;
   const windowEnd = windowStart + MARKET_WINDOW_MS;
   const axisInterval = chooseMarketTimeInterval(plotWidth, rootFontSize, variant, MARKET_WINDOW_MS);
@@ -258,12 +260,12 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         if (!bucket) return '';
         const sign = bucket.netVolume > 0 ? '+' : '';
         return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }))}</strong>`
-+ `<div><small>价格</small> ${escapeChartHtml(formatIntegerPriceTick(bucket.price))}</div>`
-+ `<div><small>总成交量</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.volume))}</div>`
-+ `<div><small>主动买入</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.buyVolume))}</div>`
-+ `<div><small>主动卖出</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.sellVolume))}</div>`
-+ `<div><small>方向未知</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.neutralVolume))}</div>`
-+ `<div><small>净主动量</small> ${escapeChartHtml(`${sign}${fullIntegerFormatter.format(bucket.netVolume)}`)}</div>`;
+          + `<div><small>价格</small> ${escapeChartHtml(formatIntegerPriceTick(bucket.price))}</div>`
+          + `<div><small>总成交量</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.volume))}</div>`
+          + `<div><small>主动买入</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.buyVolume))}</div>`
+          + `<div><small>主动卖出</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.sellVolume))}</div>`
+          + `<div><small>方向未知</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.neutralVolume))}</div>`
+          + `<div><small>净主动量</small> ${escapeChartHtml(`${sign}${fullIntegerFormatter.format(bucket.netVolume)}`)}</div>`;
       },
     },
     xAxis: [
@@ -278,12 +280,12 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
         axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: axisPointerLineStyle },
         axisLabel: {
-color: chartColor.muted,
-fontSize: Math.max(11, rootFontSize * 0.75),
-rotate: variant === 'compact' ? 0 : 45,
-hideOverlap: true,
-margin: 10,
-formatter: (value: number) => formatMarketAxisTime(value),
+          color: chartColor.muted,
+          fontSize: Math.max(11, rootFontSize * 0.75),
+          rotate: variant === 'compact' ? 0 : 45,
+          hideOverlap: true,
+          margin: 10,
+          formatter: (value: number) => formatMarketAxisTime(value),
         },
         splitLine: { show: true, lineStyle: { color: chartColor.border } },
       },
@@ -294,7 +296,13 @@ formatter: (value: number) => formatMarketAxisTime(value),
         name: '价格', nameLocation: 'middle', nameRotate: 90, nameGap: geometry.left - 18,
         nameTextStyle: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75) },
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
-        axisLabel: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75), formatter: (value: number) => formatIntegerPriceTick(value) },
+        axisLabel: {
+          color: chartColor.muted,
+          fontSize: Math.max(11, rootFontSize * 0.75),
+          showMinLabel: true,
+          showMaxLabel: true,
+          formatter: (value: number) => formatIntegerPriceTick(value),
+        },
         splitLine: { lineStyle: { color: chartColor.border } },
       },
       {
@@ -302,7 +310,13 @@ formatter: (value: number) => formatMarketAxisTime(value),
         name: '成交量', nameLocation: 'middle', nameRotate: 90, nameGap: geometry.left - 18,
         nameTextStyle: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75) },
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
-        axisLabel: { color: chartColor.muted, fontSize: Math.max(11, rootFontSize * 0.75), formatter: (value: number) => formatCompactVolumeTick(value) },
+        axisLabel: {
+          color: chartColor.muted,
+          fontSize: Math.max(11, rootFontSize * 0.75),
+          showMinLabel: true,
+          showMaxLabel: false,
+          formatter: (value: number) => value === volumeScale.max ? '' : formatCompactVolumeTick(value),
+        },
         splitLine: { lineStyle: { color: chartColor.border } },
       },
     ],
@@ -346,6 +360,10 @@ formatter: (value: number) => formatMarketAxisTime(value),
       data-volume-tick-count={volumeTickCount}
       data-axis-pointer-linked="true"
       data-hover-emphasis-disabled="true"
+      data-shared-boundary-label-owner="price"
+      data-price-min-label={priceBoundaryLabel}
+      data-volume-max-label={volumeBoundaryLabel}
+      data-volume-max-label-visible="false"
       data-price-ticks={priceScale.ticks.join(',')}
       data-volume-ticks={volumeScale.ticks.join(',')}
       style={{ height: geometry.height }}
@@ -364,8 +382,8 @@ formatter: (value: number) => formatMarketAxisTime(value),
       />
       <div className="market-chart-footer" style={{ paddingLeft: geometry.left, paddingRight: geometry.right }}>
         <div className="market-chart-legend" aria-label="主动买卖方向图例">
-<span className="market-chart-legend-item buy"><i />净主动买入</span>
-<span className="market-chart-legend-item sell"><i />净主动卖出</span>
+          <span className="market-chart-legend-item buy"><i />净主动买入</span>
+          <span className="market-chart-legend-item sell"><i />净主动卖出</span>
         </div>
         <div className="market-chart-x-axis-title">时间</div>
       </div>
