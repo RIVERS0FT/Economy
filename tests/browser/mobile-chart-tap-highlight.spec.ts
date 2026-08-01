@@ -12,7 +12,17 @@ test('mobile chart interaction surfaces suppress the native blue tap highlight',
   page.on('pageerror', (error) => pageErrors.push(error.message));
 
   await page.goto('market-runtime-test.html?scenario=active');
-  await page.addStyleTag({ url: '/src/styles/mobile-interaction.css' });
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = '/src/styles/mobile-interaction.css';
+    stylesheet.dataset.testStylesheet = 'mobile-interaction';
+    stylesheet.addEventListener('load', () => resolve(), { once: true });
+    stylesheet.addEventListener('error', () => reject(new Error('移动触摸样式加载失败')), { once: true });
+    document.head.append(stylesheet);
+  }));
+
+  expect(await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches)).toBe(true);
 
   const chart = page.locator('.market-history-chart.full');
   await expect(chart).toBeVisible();
