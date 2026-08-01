@@ -48,6 +48,7 @@
     "test:nginx-config": "python3 scripts/test_configure_economy_nginx.py && python3 scripts/test_configure_economy_registration_nginx.py",
     "server:check": "node scripts/check-server-syntax.mjs",
     "server:test": "node --test server/test/*.test.js",
+    "pretest:browser": "node scripts/cleanup-market-chart-generated-text.mjs --finalize",
     "test:browser": "playwright test",
     "build": "node scripts/verify-contract-renewal-economic-events.mjs && npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build",
     "typecheck": "tsc --noEmit",
