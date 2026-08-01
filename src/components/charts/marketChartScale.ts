@@ -27,9 +27,14 @@ export function chooseMarketPriceTickCount(priceHeight: number, rootFontSize: nu
   return clampInteger(Math.max(1, priceHeight) / minimumTickSpacing + 1, 3, 7);
 }
 
-export function chooseMarketVolumeTickCount(volumeHeight: number, rootFontSize: number) {
+export function chooseMarketVolumeTickCount(
+  volumeHeight: number,
+  rootFontSize: number,
+  variant: MarketChartVariant = 'full',
+) {
   const minimumTickSpacing = Math.max(34, rootFontSize * 2.2);
-  return clampInteger(Math.max(1, volumeHeight) / minimumTickSpacing + 1, 2, 5);
+  const minimumTicks = variant === 'compact' ? 2 : 3;
+  return clampInteger(Math.max(1, volumeHeight) / minimumTickSpacing + 1, minimumTicks, 5);
 }
 
 export function resolveMarketBucketIndex(

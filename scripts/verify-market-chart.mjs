@@ -56,7 +56,9 @@ assert.equal(chooseMarketTimeInterval(900, 16, 'full', MARKET_WINDOW_MS), 2 * 60
 assert.equal(chooseMarketTimeInterval(260, 16, 'full', MARKET_WINDOW_MS), 6 * 60 * 60 * 1000, '窄屏应降低为六小时间隔');
 assert.equal(chooseMarketTimeInterval(260, 20, 'full', MARKET_WINDOW_MS), 8 * 60 * 60 * 1000, '放大字号应进一步降低时间刻度密度');
 assert.ok(chooseMarketPriceTickCount(240, 16) > chooseMarketPriceTickCount(112, 16), '价格刻度数必须随真实高度增加');
-assert.ok(chooseMarketVolumeTickCount(140, 16) > chooseMarketVolumeTickCount(48, 16), '成交量刻度数必须随真实高度增加');
+assert.equal(chooseMarketVolumeTickCount(48, 16, 'full'), 3, '完整行情图必须至少生成三个成交量刻度');
+assert.equal(chooseMarketVolumeTickCount(48, 16, 'compact'), 2, '紧凑行情图允许保留两个成交量刻度');
+assert.ok(chooseMarketVolumeTickCount(140, 16, 'full') > chooseMarketVolumeTickCount(48, 16, 'full'), '成交量刻度数必须随真实高度增加');
 assert.equal(resolveMarketBucketIndex(windowStart - 1, windowStart, 240, MARKET_BUCKET_MS), 0, '悬浮索引必须限制在首个分段');
 assert.equal(resolveMarketBucketIndex(windowStart + MARKET_BUCKET_MS * 40 + 1, windowStart, 240, MARKET_BUCKET_MS), 40, '悬浮索引必须由统一轴值映射');
 assert.equal(resolveMarketBucketIndex(windowEnd + 1, windowStart, 240, MARKET_BUCKET_MS), 239, '悬浮索引必须限制在最后分段');
@@ -70,6 +72,7 @@ const marketCss = read('src/styles/market-page-polish.css');
 const chartCss = read('src/styles/charts.css');
 const safeZoneSpec = read('tests/browser/market-chart-safe-zone.spec.ts');
 const boundaryLabelSpec = read('tests/browser/market-boundary-axis-label.spec.ts');
+const readabilitySpec = read('tests/browser/market-chart-readability.spec.ts');
 const tooltipPersistenceSpec = read('tests/browser/market-tooltip-persistence.spec.ts');
 const tooltipPersistenceHarness = read('tests/browser/market-tooltip-persistence-harness.tsx');
 const runtimeSpec = read('tests/browser/market-runtime.spec.ts');
@@ -92,14 +95,22 @@ for (const text of [
   'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)',
   'const priceVolumeGap = 0', 'const volumeTop = priceBottom + priceVolumeGap',
   'export function buildMarketChartGeometry',
-  'Math.max(48, rootFontSize', '(0.22 / 0.78) * priceHeight',
+  'Math.max(68, rootFontSize * 4.25)', '(0.22 / 0.78) * priceHeight',
   'buildIntegerPriceScale', 'buildIntegerVolumeScale',
+  'expandScaleToMinimumTicks', 'left.padding - right.padding',
+  'estimateMarketAxisLabelWidth', 'axisLabelWidth + 10',
   'formatIntegerPriceTick', 'formatCompactVolumeTick',
   'showMinLabel: true', 'showMaxLabel: false',
   "value === volumeScale.max ? '' : formatCompactVolumeTick(value)",
+  'lineStyle: { color: chartColor.info', 'areaStyle: { color: chartColor.info',
+  'barMinHeight: 2', 'color: chartColor.secondary',
   'data-volume-share={geometry.volumeShare.toFixed(4)}',
   'data-time-axis-interval={axisInterval}',
-  'data-price-tick-count={priceTickCount}', 'data-volume-tick-count={volumeTickCount}',
+  'data-price-tick-count={priceScale.ticks.length}', 'data-volume-tick-count={volumeScale.ticks.length}',
+  'data-volume-nonzero-label-visible={hasVisibleNonZeroVolumeTick',
+  'data-price-color-role="info"',
+  'data-mobile-axis-titles={geometry.mobileAxisTitles',
+  'data-x-axis-title-visible={geometry.showXAxisTitle',
   'data-axis-pointer-linked="true"', 'data-hover-emphasis-disabled="true"',
   'data-shared-boundary-label-owner="price"',
   'data-price-min-label={priceBoundaryLabel}',
@@ -111,12 +122,14 @@ for (const text of [
   'updateMode="merge"', 'onChartReady={handleChartReady}', 'onOptionApplied={restoreActiveTooltip}',
   "type: 'showTip'", "type: 'hideTip'", 'data-tooltip-persistence="true"',
   'className="market-chart-price-volume-divider"',
-  'className="market-chart-footer"',
+  'className="market-chart-section-label"',
+  'geometry.showXAxisTitle ? <div className="market-chart-x-axis-title">时间</div> : null',
   '净主动买入', '净主动卖出',
   '主动买入', '主动卖出', '方向未知', '净主动量',
 ]) assert.ok(chart.includes(text), `ECharts 行情图缺少: ${text}`);
 for (const text of [
   'chooseMarketTimeInterval', 'chooseMarketPriceTickCount', 'chooseMarketVolumeTickCount',
+  "variant: MarketChartVariant = 'full'", "variant === 'compact' ? 2 : 3",
   'resolveMarketBucketIndex', 'MARKET_TIME_INTERVAL_HOURS',
 ]) assert.ok(scale.includes(text), `行情动态刻度纯函数缺少: ${text}`);
 for (const text of ['<svg', '<polyline', '<polygon', '<rect', 'context.measureText', 'useChartAxisMetrics']) {
@@ -140,9 +153,11 @@ for (const text of ['countMarketHistoryPointsInWindow', 'summarizeMarketFlow', '
   assert.ok(!marketPage.includes(text), `MarketPage 不应恢复行情底部说明: ${text}`);
 }
 assert.ok(!marketCss.includes('aspect-ratio: 16 / 9'), '业务 CSS 不得固定覆盖动态行情比例');
-assert.ok(chartCss.includes('.market-chart-footer'), '共享图表样式必须提供市场底部安全区');
-assert.ok(chartCss.includes('.market-chart-price-volume-divider'), '共享图表样式必须提供零间距分界线');
-assert.ok(chartCss.includes('font-variant-numeric: tabular-nums'), '行情坐标必须使用稳定数字宽度');
+for (const text of [
+  '.market-chart-footer', '.market-chart-price-volume-divider', '.market-chart-section-label',
+  'font-variant-numeric: tabular-nums', 'color: var(--color-text-secondary)',
+  'background: var(--color-surface-control)',
+]) assert.ok(chartCss.includes(text), `共享图表样式缺少: ${text}`);
 
 for (const text of [
   'market chart preserves readable volume height, zero-gap grids and dynamic ticks',
@@ -159,6 +174,16 @@ for (const text of [
   'priceMinMatches', 'volumeMaxMatches', '共享边界只能存在一项纵轴刻度',
   "document.documentElement.style.fontSize = '20px'",
 ]) assert.ok(boundaryLabelSpec.includes(text), `行情图共享边界刻度回归缺少: ${text}`);
+for (const text of [
+  'market chart keeps price, volume and mobile axis semantics readable',
+  "page.goto('market-runtime-test.html?scenario=active')",
+  'priceTicks', 'volumeTicks', 'volumeNonzeroLabelVisible', 'priceColorRole',
+  'mobileAxisTitles', 'xAxisTitleVisible', 'axisLeft', 'volumeHeight',
+  'not.toContain(0)', 'toBeGreaterThanOrEqual(3)', 'toBeGreaterThanOrEqual(68)',
+  "chart.locator('.market-chart-section-label')", "chart.locator('.market-chart-x-axis-title')",
+  "root.getPropertyValue('--color-info')", "root.getPropertyValue('--color-success')",
+  "chart.locator('.economy-chart__canvas svg text')", "toContain('2')",
+]) assert.ok(readabilitySpec.includes(text), `行情图可读性浏览器回归缺少: ${text}`);
 for (const text of [
   'market chart uses one linked hover state and keeps the price line protected',
   "data-axis-pointer-linked", "data-hover-emphasis-disabled", 'priceHoverText',
@@ -184,17 +209,23 @@ for (const text of [
   '市场页的商品行情统一统计当前资产最近 24h', '柱高始终表示总成交量',
   '净主动买入使用成功色', '旧历史方向未知使用中性色',
   '价格轴刻度只能是整数', '图例只显示净主动买入和净主动卖出',
-  '不得显示行情图下方统计栏', '旋转时间刻度、方向图例和“时间”轴标题分别保留独立安全区',
-  'ECharts',
+  '不得显示行情图下方统计栏', 'ECharts',
 ]) assert.ok(design.includes(text), `页面设计文档缺少: ${text}`);
 for (const text of [
   '市场行情图几何、交互与可读性唯一专项基线', 'ECharts SVG', '零间距连续双 Grid',
   '统一悬浮交互', '`axisPointer.link`', '`axisValue`',
   '动态时间间隔', '真实像素高度和根字号动态计算',
+  '额外空白最少的区间', '`3～6`', '`0～10`',
+  '`--color-info`', '`--color-success`', '`--color-text-secondary`',
   '共享边界只能显示一项纵轴刻度标签', '价格轴保留最小刻度', '成交量轴隐藏最大刻度',
+  '成交量轴目标刻度不得低于 3 个', '非零中间刻度',
+  'full 变体任意支持断点下成交量绘图区实际屏幕高度不得低于 `68px`',
+  '最小可见高度 `2px`',
+  '容器宽度不大于 `720px` 或使用 compact 变体时不渲染可见“时间”标题',
+  '水平小标题', '最长可见标签估算宽度',
+  '`tests/browser/market-chart-readability.spec.ts`',
   '普通 `5s` 状态轮询', '无关 React 重渲染', 'Option 应用后恢复',
   '至少 `6.5s`', '`alwaysShowContent`', '超长 `hideDelay`',
-  '成交量绘图区必须保持最低可读屏幕高度', '不得低于 `48px`',
   '价格区与成交量区合计数据绘图区的 `22%`',
   '不得由业务 CSS 再用固定比例覆盖组件计算结果',
   '稳定 `data-*`', '`721 × 445`', '390 × 844` 且根字号放大到 `125%',
@@ -206,4 +237,4 @@ for (const text of ['保存吃单方（taker／incoming order）的买卖方向'
   assert.ok(orderBookDesign.includes(text), `订单簿设计文档缺少: ${text}`);
 }
 
-console.log('Market ECharts verification passed: linked persistent hover, protected line, zero-gap grids, single shared-boundary label, dynamic integer ticks and readable volume geometry satisfy the design baseline.');
+console.log('Market ECharts verification passed: distinct price semantics, minimal-padding integer scales, readable volume labels, mobile axis layout, linked persistent hover and zero-gap grids satisfy the design baseline.');
