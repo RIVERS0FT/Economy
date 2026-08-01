@@ -155,6 +155,7 @@ export function createProductionMethodRecipes(facility, productionMethodGroups) 
       const plan = method.plansByRecipeId[baseRecipe.id];
       return freezePlan({
         ...plan,
+        id: plan.recipeId,
         name: baseRecipe.name,
         baseRecipeId: baseRecipe.id,
         productionMethodId: method.id,
