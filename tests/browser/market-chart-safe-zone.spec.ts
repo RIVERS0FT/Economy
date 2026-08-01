@@ -75,10 +75,10 @@ async function expectChartGeometry(chart: Locator, context: string) {
   expect(bounds.timeVolumeGap, `${context}时间刻度不得侵入成交量图区`).toBeGreaterThanOrEqual(1);
   expect(bounds.timeLegendGap, `${context}时间刻度区与图例之间必须保留安全区`).toBeGreaterThanOrEqual(7);
   if (bounds.xAxisTitleVisible === 'true') {
-    expect(bounds.titlePresent, `${context}桌面时间轴标题必须存在`).toBe(true);
+    expect(bounds.titlePresent, `${context}宽图时间轴标题必须存在`).toBe(true);
     expect(bounds.legendTitleGap, `${context}图例与时间轴标题之间必须保留安全区`).toBeGreaterThanOrEqual(9);
   } else {
-    expect(bounds.titlePresent, `${context}移动端不得保留冗余时间轴标题`).toBe(false);
+    expect(bounds.titlePresent, `${context}窄图不得保留冗余时间轴标题`).toBe(false);
     expect(bounds.legendTitleGap).toBeNull();
   }
   expect(bounds.bottomGap, `${context}底部可见内容不得贴住图表边缘`).toBeGreaterThanOrEqual(5);
@@ -98,6 +98,21 @@ async function expectChartGeometry(chart: Locator, context: string) {
   return bounds;
 }
 
+function expectWidthResponsiveAxisChrome(
+  bounds: Awaited<ReturnType<typeof inspectChartGeometry>>,
+  context: string,
+) {
+  const usesMobileAxisChrome = bounds.chartWidth <= 720;
+  expect(
+    bounds.mobileAxisTitles,
+    `${context}轴标题模式必须由图表自身宽度决定`,
+  ).toBe(usesMobileAxisChrome ? 'true' : 'false');
+  expect(
+    bounds.xAxisTitleVisible,
+    `${context}可见时间标题必须由图表自身宽度决定`,
+  ).toBe(usesMobileAxisChrome ? 'false' : 'true');
+}
+
 test('market chart preserves readable volume height, zero-gap grids and dynamic ticks', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   const viewports = [
@@ -110,7 +125,9 @@ test('market chart preserves readable volume height, zero-gap grids and dynamic 
   for (const viewport of viewports) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto('market-runtime-test.html?scenario=active');
-    results.set(viewport.label, await expectChartGeometry(page.locator('.market-history-chart.full'), viewport.label));
+    const bounds = await expectChartGeometry(page.locator('.market-history-chart.full'), viewport.label);
+    expectWidthResponsiveAxisChrome(bounds, viewport.label);
+    results.set(viewport.label, bounds);
   }
 
   const desktop = results.get('桌面端')!;
@@ -119,12 +136,6 @@ test('market chart preserves readable volume height, zero-gap grids and dynamic 
   expect(desktop.timeAxisInterval).toBeLessThan(mobile.timeAxisInterval);
   expect(mobile.timeAxisInterval).toBeLessThanOrEqual(narrow.timeAxisInterval);
   expect(desktop.priceTickCount).toBeGreaterThanOrEqual(mobile.priceTickCount);
-  expect(desktop.xAxisTitleVisible).toBe('true');
-  expect(desktop.mobileAxisTitles).toBe('false');
-  expect(mobile.xAxisTitleVisible).toBe('false');
-  expect(mobile.mobileAxisTitles).toBe('true');
-  expect(narrow.xAxisTitleVisible).toBe('false');
-  expect(narrow.mobileAxisTitles).toBe('true');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('market-runtime-test.html?scenario=active');
@@ -133,9 +144,8 @@ test('market chart preserves readable volume height, zero-gap grids and dynamic 
     window.dispatchEvent(new Event('resize'));
   });
   const enlarged = await expectChartGeometry(page.locator('.market-history-chart.full'), '125% 根字号移动端');
+  expectWidthResponsiveAxisChrome(enlarged, '125% 根字号移动端');
   expect(enlarged.timeAxisInterval).toBeGreaterThanOrEqual(mobile.timeAxisInterval);
-  expect(enlarged.xAxisTitleVisible).toBe('false');
-  expect(enlarged.mobileAxisTitles).toBe('true');
 
   expect(pageErrors).toEqual([]);
 });
