@@ -50,6 +50,7 @@
     "server:test": "node --test server/test/*.test.js",
     "pretest:browser": "node scripts/cleanup-market-chart-generated-text.mjs --finalize",
     "test:browser": "playwright test",
+    "posttest:browser": "node scripts/cleanup-market-chart-generated-text.mjs --publish",
     "build": "node scripts/verify-contract-renewal-economic-events.mjs && npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
