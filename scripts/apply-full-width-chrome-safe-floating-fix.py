@@ -24,7 +24,7 @@ path.write_text(content, encoding='utf-8')
 shell_design_path = Path('docs/LIQUID_GLASS_CHROME_DESIGN.md')
 shell_design = shell_design_path.read_text(encoding='utf-8')
 design_anchor = '- `.page-scroll-area` 与 `.page-scroll` 直接铺满下方工作区，不得再使用“工作栏高度 + 双沟槽”的顶部 padding 模拟避让；页面 sticky 内容只允许使用工作区内部沟槽作为偏移。'
-design_replacement = design_anchor + '\n- 游戏端与管理员端继续共享这一个页面主 `ScrollArea`；不得为管理员创建第二个原生主滚动容器。'
+design_replacement = design_anchor + '\n- `--desktop-page-top-offset` 只表示下方工作区内部沟槽，不再包含顶部工作栏高度；页面主滚动视口的 `padding-top` 与 `scroll-padding-top` 必须为 `0`。\n- 游戏端与管理员端继续共享这一个页面主 `ScrollArea`；不得为管理员创建第二个原生主滚动容器。'
 if design_anchor not in shell_design:
     raise SystemExit('Shared scroll ownership design anchor missing')
 shell_design = shell_design.replace(design_anchor, design_replacement, 1)
@@ -83,4 +83,25 @@ if insert_anchor not in overview_verify:
 overview_verify = overview_verify.replace(insert_anchor, insert_rule, 1)
 overview_verify_path.write_text(overview_verify, encoding='utf-8')
 
-print('Fixed generated verifier quoting and updated shared scroll, photography, sampling and lower-body layout authority.')
+production_verify_path = Path('scripts/verify-production-desktop-layout.mjs')
+production_verify = production_verify_path.read_text(encoding='utf-8')
+old_shell_rules = '''for (const text of [
+  '--desktop-page-top-offset: calc(',
+  'padding-top: var(--desktop-page-top-offset);',
+  'scroll-padding-top: var(--desktop-page-top-offset);',
+]) assert.equal(shell.includes(text), true, `桌面外壳缺少: ${text}`);'''
+new_shell_rules = '''for (const text of [
+  '--desktop-page-top-offset: var(--desktop-layout-gutter);',
+  'padding-top: 0;',
+  'scroll-padding-top: 0;',
+]) assert.equal(shell.includes(text), true, `桌面外壳缺少: ${text}`);'''
+if old_shell_rules not in production_verify:
+    raise SystemExit('Production legacy page top offset verifier anchor missing')
+production_verify = production_verify.replace(old_shell_rules, new_shell_rules, 1)
+old_chrome_rule = "assert.equal(chrome.includes('页面顶部避让必须集中为 `--desktop-page-top-offset`'), true, '外壳设计缺少统一顶部避让规则');"
+new_chrome_rule = "assert.equal(chrome.includes('`--desktop-page-top-offset` 只表示下方工作区内部沟槽'), true, '外壳设计缺少工作区内部顶部偏移规则');"
+if old_chrome_rule not in production_verify:
+    raise SystemExit('Production legacy chrome offset design verifier anchor missing')
+production_verify_path.write_text(production_verify.replace(old_chrome_rule, new_chrome_rule, 1), encoding='utf-8')
+
+print('Updated shared shell, sampling, overview and production work-area offset authority.')
