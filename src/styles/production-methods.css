@@ -51,9 +51,11 @@
     transform 160ms ease;
 }
 
-.facility-production-method-option:hover:not(:disabled) {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-raised);
+@media (hover: hover) and (pointer: fine) {
+  .facility-production-method-option:hover:not(:disabled) {
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-raised);
+  }
 }
 
 .facility-production-method-option:active:not(:disabled) {
