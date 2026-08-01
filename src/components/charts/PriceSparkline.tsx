@@ -4,8 +4,13 @@ import { formatMarketAxisTime, MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../
 import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption } from './echartsCore';
 import { chartColor, commonTooltip, escapeChartHtml } from './chartOptions';
-
-type MarketChartVariant = 'compact' | 'full';
+import {
+  chooseMarketPriceTickCount,
+  chooseMarketTimeInterval,
+  chooseMarketVolumeTickCount,
+  resolveMarketBucketIndex,
+  type MarketChartVariant,
+} from './marketChartScale';
 
 type IntegerAxisScale = {
   min: number;
@@ -125,9 +130,9 @@ export function buildMarketChartGeometry(width: number, rootFontSize: number, va
   const left = Math.max(compact ? 58 : 68, rootFontSize * (compact ? 3.7 : 4.3));
   const right = Math.max(12, (compact ? 18 : 24) * scale);
   const priceHeight = Math.max(compact ? 72 : 112, (compact ? 78 : 208) * scale);
-  const priceVolumeGap = Math.max(compact ? 10 : 12, (compact ? 20 : 46) * scale);
+  const priceVolumeGap = 0;
   const minimumVolumeHeight = Math.max(48, rootFontSize * (compact ? 3 : 3.4));
-  const ratioProtectedVolumeHeight = (0.22 / 0.78) * (priceHeight + priceVolumeGap);
+  const ratioProtectedVolumeHeight = (0.22 / 0.78) * priceHeight;
   const preferredVolumeHeight = (compact ? 33 : 106) * scale;
   const volumeHeight = Math.max(preferredVolumeHeight, minimumVolumeHeight, ratioProtectedVolumeHeight);
   const timeLabelHeight = compact ? Math.max(28, rootFontSize * 1.8) : Math.max(52, rootFontSize * 3.2);
@@ -144,7 +149,7 @@ export function buildMarketChartGeometry(width: number, rootFontSize: number, va
   const baseHeight = (compact ? 228 : 540) * scale;
   const height = Math.max(baseHeight, requiredCanvasHeight + footerHeight);
   const canvasHeight = height - footerHeight;
-  const dataAreaHeight = priceHeight + priceVolumeGap + volumeHeight;
+  const dataAreaHeight = priceHeight + volumeHeight;
   return {
     width: safeWidth,
     height,
@@ -175,9 +180,9 @@ function useMarketChartWidth() {
         const width = element.getBoundingClientRect().width;
         const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         setMetrics((current) => (
-          Math.abs(current.width - width) < 0.5 && Math.abs(current.rootFontSize - rootFontSize) < 0.1
-            ? current
-            : { width, rootFontSize }
+Math.abs(current.width - width) < 0.5 && Math.abs(current.rootFontSize - rootFontSize) < 0.1
+  ? current
+  : { width, rootFontSize }
         ));
       });
     };
@@ -202,22 +207,30 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
   }];
   const { ref, width, rootFontSize } = useMarketChartWidth();
   const geometry = buildMarketChartGeometry(width, rootFontSize, variant);
-  const priceScale = buildIntegerPriceScale(
-    Math.min(...safeBuckets.map((bucket) => bucket.price)),
-    Math.max(...safeBuckets.map((bucket) => bucket.price)),
-    variant === 'compact' ? 3 : 5,
-  );
-  const volumeScale = buildIntegerVolumeScale(
-    Math.max(1, ...safeBuckets.map((bucket) => bucket.volume)),
-    variant === 'compact' ? 2 : 3,
-  );
-  const windowStart = safeBuckets[0].startAt;
-  const windowEnd = windowStart + MARKET_WINDOW_MS;
-  const axisInterval = MARKET_WINDOW_MS / 12;
   const priceHeight = geometry.priceBottom - geometry.top;
   const volumeHeight = geometry.volumeBottom - geometry.volumeTop;
   const plotWidth = Math.max(1, geometry.width - geometry.left - geometry.right);
+  const priceTickCount = chooseMarketPriceTickCount(priceHeight, rootFontSize);
+  const volumeTickCount = chooseMarketVolumeTickCount(volumeHeight, rootFontSize);
+  const priceScale = buildIntegerPriceScale(
+    Math.min(...safeBuckets.map((bucket) => bucket.price)),
+    Math.max(...safeBuckets.map((bucket) => bucket.price)),
+    priceTickCount,
+  );
+  const volumeScale = buildIntegerVolumeScale(
+    Math.max(1, ...safeBuckets.map((bucket) => bucket.volume)),
+    volumeTickCount,
+  );
+  const windowStart = safeBuckets[0].startAt;
+  const windowEnd = windowStart + MARKET_WINDOW_MS;
+  const axisInterval = chooseMarketTimeInterval(plotWidth, rootFontSize, variant, MARKET_WINDOW_MS);
   const barWidth = Math.max(1, (plotWidth / safeBuckets.length) * 0.74);
+  const axisPointerLineStyle = {
+    color: chartColor.secondary,
+    width: 1,
+    type: 'dashed' as const,
+    opacity: 0.82,
+  };
 
   const option = useMemo<EChartsCoreOption>(() => ({
     animation: false,
@@ -226,40 +239,51 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       { left: geometry.left, right: geometry.right, top: geometry.top, height: priceHeight },
       { left: geometry.left, right: geometry.right, top: geometry.volumeTop, height: volumeHeight },
     ],
+    axisPointer: { link: [{ xAxisIndex: [0, 1] }] },
     tooltip: {
       ...commonTooltip,
       trigger: 'axis',
-      axisPointer: { type: 'line', lineStyle: { color: chartColor.secondary } },
+      triggerOn: 'mousemove|click',
+      axisPointer: {
+        type: 'line',
+        snap: true,
+        triggerEmphasis: false,
+        lineStyle: axisPointerLineStyle,
+      },
       formatter: (params: any) => {
         const list = Array.isArray(params) ? params : [params];
-        const index = Number(list[0]?.dataIndex ?? 0);
+        const axisValue = Number(list.find((item: any) => Number.isFinite(Number(item?.axisValue)))?.axisValue);
+        const index = resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS);
         const bucket = safeBuckets[index];
         if (!bucket) return '';
         const sign = bucket.netVolume > 0 ? '+' : '';
         return `<strong>${escapeChartHtml(new Date(bucket.startAt).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }))}</strong>`
-          + `<div><small>价格</small> ${escapeChartHtml(formatIntegerPriceTick(bucket.price))}</div>`
-          + `<div><small>总成交量</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.volume))}</div>`
-          + `<div><small>主动买入</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.buyVolume))}</div>`
-          + `<div><small>主动卖出</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.sellVolume))}</div>`
-          + `<div><small>方向未知</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.neutralVolume))}</div>`
-          + `<div><small>净主动量</small> ${escapeChartHtml(`${sign}${fullIntegerFormatter.format(bucket.netVolume)}`)}</div>`;
++ `<div><small>价格</small> ${escapeChartHtml(formatIntegerPriceTick(bucket.price))}</div>`
++ `<div><small>总成交量</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.volume))}</div>`
++ `<div><small>主动买入</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.buyVolume))}</div>`
++ `<div><small>主动卖出</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.sellVolume))}</div>`
++ `<div><small>方向未知</small> ${escapeChartHtml(formatCompactVolumeTick(bucket.neutralVolume))}</div>`
++ `<div><small>净主动量</small> ${escapeChartHtml(`${sign}${fullIntegerFormatter.format(bucket.netVolume)}`)}</div>`;
       },
     },
     xAxis: [
       {
         type: 'value', gridIndex: 0, min: windowStart, max: windowEnd, interval: axisInterval,
-        axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false }, splitLine: { show: true, lineStyle: { color: chartColor.border } },
+        axisLine: { show: false }, axisTick: { show: false }, axisLabel: { show: false },
+        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: axisPointerLineStyle },
+        splitLine: { show: true, lineStyle: { color: chartColor.border } },
       },
       {
         type: 'value', gridIndex: 1, min: windowStart, max: windowEnd, interval: axisInterval,
         axisLine: { lineStyle: { color: chartColor.secondary } }, axisTick: { show: false },
+        axisPointer: { show: true, snap: true, label: { show: false }, lineStyle: axisPointerLineStyle },
         axisLabel: {
-          color: chartColor.muted,
-          fontSize: Math.max(11, rootFontSize * 0.75),
-          rotate: variant === 'compact' ? 0 : 45,
-          hideOverlap: true,
-          margin: 10,
-          formatter: (value: number) => formatMarketAxisTime(value),
+color: chartColor.muted,
+fontSize: Math.max(11, rootFontSize * 0.75),
+rotate: variant === 'compact' ? 0 : 45,
+hideOverlap: true,
+margin: 10,
+formatter: (value: number) => formatMarketAxisTime(value),
         },
         splitLine: { show: true, lineStyle: { color: chartColor.border } },
       },
@@ -284,18 +308,21 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     ],
     series: [
       {
-        name: '价格', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, symbol: 'none', smooth: false,
+        name: '价格', type: 'line', xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, symbol: 'none', smooth: false, z: 3,
         data: safeBuckets.map((bucket) => [bucket.startAt + MARKET_BUCKET_MS / 2, bucket.price]),
-        lineStyle: { color: chartColor.success, width: 2.5 },
+        lineStyle: { color: chartColor.success, width: 2.5, opacity: 1 },
         areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(123,228,158,.24)' }, { offset: 1, color: 'rgba(123,228,158,0)' }] } },
+        emphasis: { disabled: true },
+        blur: { lineStyle: { opacity: 1 }, areaStyle: { opacity: 1 } },
       },
       {
         name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth,
         data: safeBuckets.map((bucket) => ({ value: [bucket.startAt + MARKET_BUCKET_MS / 2, bucket.volume], direction: bucket.direction })),
         itemStyle: { color: (params: any) => volumeColor(params?.data?.direction), opacity: 0.78, borderRadius: [2, 2, 0, 0] },
+        emphasis: { disabled: true },
       },
     ],
-  }), [axisInterval, barWidth, geometry, priceHeight, priceScale, rootFontSize, safeBuckets, variant, volumeHeight, volumeScale, windowEnd, windowStart]);
+  }), [axisInterval, axisPointerLineStyle, barWidth, geometry, priceHeight, priceScale, rootFontSize, safeBuckets, variant, volumeHeight, volumeScale, windowEnd, windowStart]);
 
   return (
     <div
@@ -305,6 +332,7 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       aria-label="近 24 小时价格、成交量与主动买卖方向趋势图"
       data-chart-variant={variant}
       data-axis-left={geometry.left.toFixed(2)}
+      data-axis-right={geometry.right.toFixed(2)}
       data-price-top={geometry.top.toFixed(2)}
       data-price-bottom={geometry.priceBottom.toFixed(2)}
       data-volume-top={geometry.volumeTop.toFixed(2)}
@@ -313,6 +341,11 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       data-chart-height={geometry.height.toFixed(2)}
       data-plot-center-x={geometry.plotCenterX.toFixed(2)}
       data-time-label-height={geometry.timeLabelHeight.toFixed(2)}
+      data-time-axis-interval={axisInterval}
+      data-price-tick-count={priceTickCount}
+      data-volume-tick-count={volumeTickCount}
+      data-axis-pointer-linked="true"
+      data-hover-emphasis-disabled="true"
       data-price-ticks={priceScale.ticks.join(',')}
       data-volume-ticks={volumeScale.ticks.join(',')}
       style={{ height: geometry.height }}
@@ -324,10 +357,15 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         ariaLabel="近 24 小时价格、成交量与主动买卖方向趋势图"
         accessibleSummary={safeBuckets.map((bucket) => `${formatMarketAxisTime(bucket.startAt)}价格${formatIntegerPriceTick(bucket.price)}成交量${formatCompactVolumeTick(bucket.volume)}`).join('；')}
       />
+      <div
+        className="market-chart-price-volume-divider"
+        style={{ top: geometry.priceBottom, left: geometry.left, right: geometry.right }}
+        aria-hidden="true"
+      />
       <div className="market-chart-footer" style={{ paddingLeft: geometry.left, paddingRight: geometry.right }}>
         <div className="market-chart-legend" aria-label="主动买卖方向图例">
-          <span className="market-chart-legend-item buy"><i />净主动买入</span>
-          <span className="market-chart-legend-item sell"><i />净主动卖出</span>
+<span className="market-chart-legend-item buy"><i />净主动买入</span>
+<span className="market-chart-legend-item sell"><i />净主动卖出</span>
         </div>
         <div className="market-chart-x-axis-title">时间</div>
       </div>

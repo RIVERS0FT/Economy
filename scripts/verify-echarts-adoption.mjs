@@ -41,7 +41,7 @@ if (directEChartsImports.length !== 1 || directEChartsImports[0] !== 'src/compon
 }
 
 requireText('src/components/charts/echartsCore.ts', [
-  'BarChart', 'LineChart', 'PieChart', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',
+  'BarChart', 'LineChart', 'PieChart', 'AxisPointerComponent', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',
 ]);
 requireText('src/components/charts/chartOptions.ts', ['export const PIE_PAD_ANGLE = 5;']);
 requireText('src/components/charts/EconomyChart.tsx', [

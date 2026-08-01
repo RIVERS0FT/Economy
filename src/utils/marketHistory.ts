@@ -3,7 +3,6 @@ import type { PricePoint } from '../types';
 export const MARKET_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const MARKET_BUCKET_MS = 6 * 60 * 1000;
 export const MARKET_BUCKET_COUNT = MARKET_WINDOW_MS / MARKET_BUCKET_MS;
-export const MARKET_AXIS_SEGMENTS = 12;
 
 export type MarketFlowDirection = 'buy' | 'sell' | 'neutral';
 
@@ -153,19 +152,4 @@ export function formatMarketAxisTime(timestamp: number, locales?: Intl.LocalesAr
     minute: '2-digit',
     hour12: false,
   }).format(timestamp);
-}
-
-export function buildMarketAxisTicks(
-  buckets: MarketHistoryBucket[],
-  locales?: Intl.LocalesArgument,
-) {
-  const startAt = buckets[0]?.startAt ?? 0;
-  const segmentMs = MARKET_WINDOW_MS / MARKET_AXIS_SEGMENTS;
-  return Array.from({ length: MARKET_AXIS_SEGMENTS + 1 }, (_, index) => {
-    const timestamp = startAt + index * segmentMs;
-    return {
-      timestamp,
-      label: formatMarketAxisTime(timestamp, locales),
-    };
-  });
 }

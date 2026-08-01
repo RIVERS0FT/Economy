@@ -102,6 +102,7 @@
 }
 
 .market-history-chart {
+  position: relative;
   min-width: 0;
   width: 100%;
   color: var(--color-success);
@@ -110,6 +111,15 @@
 
 .market-history-echart {
   height: 100%;
+}
+
+.market-chart-price-volume-divider {
+  position: absolute;
+  height: 1px;
+  background: var(--color-border-strong);
+  opacity: 0.78;
+  pointer-events: none;
+  z-index: 4;
 }
 
 .market-chart-footer {
