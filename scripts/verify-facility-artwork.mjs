@@ -126,6 +126,19 @@ if (failures.length === 0) {
     if (!styles.includes(required)) failures.push(`${paths.artworkStyles} 缺少: ${required}`);
   }
 
+  const productionStyles = read('src/styles/facility-group-card-grid.css');
+  for (const required of [
+    'aspect-ratio: 4 / 5;',
+    '.facility-cluster-selector-card::before',
+    '.facility-cluster-icon',
+    'inset: 0;',
+    'width: 100%;',
+    'height: 100%;',
+    'transform: none;',
+  ]) {
+    if (!productionStyles.includes(required)) failures.push(`工厂选择卡未落实竖向铺满插画: ${required}`);
+  }
+
   for (const required of [
     "FACILITY_TYPE_CATALOG } from '../server/src/industry-catalog.js'",
     'FACILITY_TYPE_CATALOG.map((facility) => facility.id)',
@@ -191,6 +204,8 @@ if (failures.length === 0) {
       '`src/assets/facility-icons/generated/128/`',
       '`FacilityIcon`',
       '`prefers-reduced-data`',
+      '覆盖完整 `4:5` 竖卡',
+      '`background-size: cover` 与居中定位',
     ]],
     [paths.designIndex, designIndex, ['工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`']],
     [paths.catalogDesign, catalogDesign, ['`FacilityIcon` 只按 `facilityTypeId` 选择视觉资源']],

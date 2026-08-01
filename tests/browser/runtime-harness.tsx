@@ -419,6 +419,54 @@ function ProductionHarness() {
         lastTradePrice: 76.25,
       };
     }
+    if (scenario === 'facility-card-profit') {
+      const markets = next.game.markets as Record<string, ProductMarketState>;
+      markets.steel = {
+        ...markets.machinery,
+        productId: 'steel',
+        lastPrice: 29,
+        lastTradePrice: 28.75,
+        priceHistory: [],
+      };
+      markets.machinery = {
+        ...markets.machinery,
+        lastTradePrice: 76.25,
+      };
+      const baseType = next.game.facilityTypes[0];
+      const baseGroup = next.game.facilityGroups[0];
+      const lossRecipe = {
+        id: 'sawmill-loss-recipe',
+        name: '测试亏损配方',
+        cycleMs: 120_000,
+        operatingCost: 8,
+        inputs: [{ productId: 'steel', quantity: 3 }],
+        output: { productId: 'machinery', quantity: 1 },
+      };
+      next.game.facilityTypes = [
+        baseType,
+        {
+          ...baseType,
+          id: 'sawmill',
+          name: '锯木厂',
+          defaultRecipeId: lossRecipe.id,
+          inputs: lossRecipe.inputs,
+          output: lossRecipe.output,
+          recipes: [lossRecipe],
+        },
+      ];
+      next.game.facilityGroups = [
+        baseGroup,
+        {
+          ...baseGroup,
+          facilityTypeId: 'sawmill',
+          count: 7,
+          participatingCount: 7,
+          availableCount: 7,
+          nextCycleCount: 7,
+          activeRecipeId: lossRecipe.id,
+        },
+      ];
+    }
     if (scenario === 'cluster-summary') {
       const baseType = next.game.facilityTypes[0];
       const baseGroup = next.game.facilityGroups[0];

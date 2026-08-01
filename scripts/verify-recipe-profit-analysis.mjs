@@ -143,12 +143,15 @@ assert.equal(noInput.inputMarketCost, 0);
 assert.equal(noInput.profitPerMinute, 1);
 
 const profitSource = read('src/utils/recipeProfitAnalysis.ts');
+const presentationSource = read('src/utils/facilityProfitPresentation.ts');
 const analysisSource = read('src/components/facilities/FacilityRecipeProfitAnalysis.tsx');
+const selectorSource = read('src/pages/production/ProductionFacilityDetail.tsx');
 const marketPageSource = read('src/pages/MarketPage.tsx');
 const contextSource = read('src/components/facilities/FacilityRecipeProfitContext.tsx');
 const routerSource = read('src/pages/PageRouter.tsx');
 const runtimeHarnessSource = read('tests/browser/runtime-harness.tsx');
 const browserSource = read('tests/browser/production-status-summary.spec.ts');
+const facilityCardsBrowserSource = read('tests/browser/production-facility-cards.spec.ts');
 const styleSource = read('src/styles/facility-recipe-profit-analysis.css');
 const surfaceSource = read('src/styles/production-surface.css');
 const sheetSource = read('src/styles/facility-detail-sheet.css');
@@ -166,8 +169,10 @@ assert.doesNotMatch(
 );
 for (const text of [
   "scenario === 'decimal-profit'",
+  "scenario === 'facility-card-profit'",
   'lastTradePrice: 28.75',
   'lastTradePrice: 76.25',
+  "id: 'sawmill-loss-recipe'",
   'FacilityRecipeProfitMarketsProvider markets={model.game.markets}',
 ]) assert.ok(runtimeHarnessSource.includes(text), `生产运行时小数产值场景缺少: ${text}`);
 for (const text of [
@@ -177,14 +182,46 @@ for (const text of [
 ]) assert.ok(browserSource.includes(text), `生产页小数产值浏览器回归缺少: ${text}`);
 
 for (const text of [
+  "toHaveText('5.38')",
+  "toHaveText('-9.00')",
+  'toHaveClass(/is-positive/)',
+  'toHaveClass(/is-negative/)',
+  "backgroundPosition).toBe('50% 50%')",
+  "backgroundSize).toBe('cover')",
+  'gridTemplateColumns',
+  'toBeCloseTo(1.25, 1)',
+]) assert.ok(facilityCardsBrowserSource.includes(text), `工厂竖卡利润浏览器回归缺少: ${text}`);
+
+for (const text of [
   '单厂平均利润／分钟',
+  '最近真实成交价',
+  'resolveFacilityProfitPresentation({',
+]) assert.ok(analysisSource.includes(text), `单厂平均利润界面缺少: ${text}`);
+for (const text of [
   'scopeCount: scopeCount > 0 ? 1 : 0',
   'buildCost: 0',
-  '最近真实成交价',
   'analysis.missingPriceProductIds',
   "missingPriceNames.join('、')",
+  "visibleValue = profitPerMinute === null ? '—' : formatCurrency(profitPerMinute)",
+  "? 'positive'",
+  "? 'negative'",
+  "? `盈利 ${formatCurrency(profitPerMinute)}`",
+  "? `亏损 ${formatCurrency(Math.abs(profitPerMinute))}`",
   '不计玩家库存、挂单深度和交易手续费',
-]) assert.ok(analysisSource.includes(text), `单厂平均利润界面缺少: ${text}`);
+]) assert.ok(presentationSource.includes(text), `共享单厂利润展示模型缺少: ${text}`);
+for (const text of [
+  'className={`facility-cluster-profit is-${profit.tone}`}',
+  '{profit.visibleValue}',
+  '每分钟平均利润：${profit.accessibleValue}',
+  'title={`${type.name}单厂平均利润／分钟；${profit.detail}`}',
+]) assert.ok(selectorSource.includes(text), `工厂选择卡利润数字缺少: ${text}`);
+const selectorCardSource = selectorSource.slice(
+  selectorSource.indexOf('export function FacilityClusterSelectorCard'),
+  selectorSource.indexOf('export function FacilityClusterDetailHeader'),
+);
+for (const forbiddenText of ['<CurrencyAmount', '/分']) {
+  assert.equal(selectorCardSource.includes(forbiddenText), false, `工厂选择卡利润不得显示: ${forbiddenText}`);
+}
 for (const removedText of [
   '市场利润分析',
   '<small>原料市场成本</small>',
@@ -239,6 +276,8 @@ for (const text of [
   '完整状态与工厂名称放在同一紧凑标题行',
   '最近真实成交价必须使用统一订单簿的价格边界',
   '客户端不得要求成交价为整数或不低于 1',
+  '选择卡只显示格式化数字或缺价占位',
+  '正数不加正号并使用绿色，负数保留负号并使用红色',
 ]) assert.ok(designSource.includes(text), `产业权威设计缺少单厂利润规则: ${text}`);
 for (const removedText of [
   '### 9.5 玩家可见配方利润分析',

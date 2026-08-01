@@ -268,6 +268,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
               <FacilityClusterSelectorCard
                 key={entry.group.facilityTypeId}
                 entry={entry}
+                products={game.products}
                 onSelect={(trigger) => selectFacilityEntry(entry.type.id, trigger)}
               />
             ))}

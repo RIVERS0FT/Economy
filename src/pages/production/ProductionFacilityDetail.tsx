@@ -1,4 +1,5 @@
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
+import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
 import { SelectInput } from '../../components/ui/FormControls';
 import {
   Button,
@@ -6,7 +7,11 @@ import {
   SwitchControl,
   type StatusTone,
 } from '../../components/ui/layout';
-import { FacilityProductionFormula } from '../../components/facilities/FacilityProductionFormula';
+import {
+  FacilityProductionFormula,
+  currentFormulaScope,
+  nextFormulaScope,
+} from '../../components/facilities/FacilityProductionFormula';
 import type {
   FacilityGroup,
   FacilityRecipeDefinition,
@@ -15,6 +20,7 @@ import type {
   ProductInventory,
 } from '../../types';
 import { formatNumber } from '../../utils/formatters';
+import { resolveFacilityProfitPresentation } from '../../utils/facilityProfitPresentation';
 
 export interface FacilityClusterEntry {
   group: FacilityGroup;
@@ -202,12 +208,30 @@ export function isFacilitySheetInteractiveTarget(target: EventTarget | null) {
 
 export function FacilityClusterSelectorCard({
   entry,
+  products,
   onSelect,
 }: {
   entry: FacilityClusterEntry;
+  products: ProductDefinition[];
   onSelect: (trigger: HTMLButtonElement) => void;
 }) {
   const { group, type } = entry;
+  const markets = useFacilityRecipeProfitMarkets();
+  const recipeState = resolveFacilityDetailRecipeState(entry);
+  const profitScope = recipeState.showNextCyclePreview
+    ? nextFormulaScope(group)
+    : currentFormulaScope(group);
+  const profitType = recipeState.showNextCyclePreview
+    ? recipeState.nextFormulaType
+    : recipeState.formulaType;
+  const profit = resolveFacilityProfitPresentation({
+    type: profitType,
+    scopeCount: profitScope.physicalCount,
+    scopeLabel: profitScope.name,
+    staffingRateBps: profitScope.staffingRateBps,
+    products,
+    markets,
+  });
 
   return (
     <button
@@ -215,11 +239,17 @@ export function FacilityClusterSelectorCard({
       className="facility-cluster-selector-card"
       data-ui-interactive="surface"
       data-status={group.status}
-      aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}`}
+      aria-label={`${type.name}，数量 ${formatNumber(group.count)}，${facilityStatusLabel(group)}，每分钟平均利润：${profit.accessibleValue}`}
       onClick={(event) => onSelect(event.currentTarget)}
     >
       <strong className="facility-cluster-name">{type.name}</strong>
       <FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />
+      <span
+        className={`facility-cluster-profit is-${profit.tone}`}
+        title={`${type.name}单厂平均利润／分钟；${profit.detail}`}
+      >
+        {profit.visibleValue}
+      </span>
       <span className="facility-cluster-count">{formatNumber(group.count)}</span>
     </button>
   );

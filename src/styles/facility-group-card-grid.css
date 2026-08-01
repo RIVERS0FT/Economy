@@ -2,7 +2,7 @@
  * shared detail content, and the mobile factory detail bottom sheet. */
 .production-workspace {
   display: grid;
-  grid-template-columns: minmax(280px, 320px) minmax(260px, 300px) minmax(480px, 1fr);
+  grid-template-columns: minmax(280px, 320px) minmax(300px, 360px) minmax(480px, 1fr);
   grid-template-areas: "build navigation detail";
   align-items: start;
   gap: var(--space-3);
@@ -56,7 +56,7 @@
 .facility-cluster-selector-list {
   min-width: 0;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
   gap: var(--space-2);
 }
@@ -84,13 +84,16 @@
 
   position: relative;
   width: 100%;
+  max-width: 10rem;
   min-width: 0;
-  min-height: 6rem;
+  min-height: 0;
+  aspect-ratio: 4 / 5;
+  justify-self: center;
   display: block;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--facility-cluster-status-color) 48%, var(--color-border));
   border-radius: var(--radius-control);
-  padding: var(--space-2);
+  padding: 0;
   color: var(--facility-cluster-status-color);
   background: var(--facility-cluster-status-soft);
   text-align: left;
@@ -99,6 +102,22 @@
     border-color 160ms ease,
     background-color 160ms ease,
     transform 160ms ease;
+}
+
+.facility-cluster-selector-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-background) 82%, transparent) 0%,
+    color-mix(in srgb, var(--color-background) 40%, transparent) 24%,
+    transparent 54%,
+    color-mix(in srgb, var(--color-background) 58%, transparent) 100%
+  );
+  pointer-events: none;
 }
 
 .facility-cluster-selector-card[data-status='running'] {
@@ -122,35 +141,70 @@
 
 .facility-cluster-name {
   position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
-  max-width: calc(100% - var(--space-3));
+  top: 0.625rem;
+  left: 0.625rem;
+  z-index: 2;
+  max-width: 56%;
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-md);
+  font-weight: 750;
   line-height: var(--line-height-tight);
+  text-shadow: 0 1px 3px var(--color-background);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .facility-cluster-icon {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 4rem;
-  height: 4rem;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  transform: none;
   color: var(--facility-cluster-status-color);
+}
+
+.facility-cluster-profit {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  z-index: 2;
+  max-width: 42%;
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  line-height: var(--line-height-tight);
+  text-align: right;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px var(--color-background);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.facility-cluster-profit.is-positive {
+  color: var(--color-success);
+}
+
+.facility-cluster-profit.is-negative {
+  color: var(--color-danger);
+}
+
+.facility-cluster-profit.is-neutral,
+.facility-cluster-profit.is-unavailable {
+  color: var(--color-text-primary);
 }
 
 .facility-cluster-count {
   position: absolute;
-  right: var(--space-2);
-  bottom: var(--space-2);
+  right: 0.625rem;
+  bottom: 0.625rem;
+  z-index: 2;
   color: var(--facility-cluster-status-color);
   font-size: var(--font-size-md);
   font-weight: 750;
   line-height: 1;
+  text-shadow: 0 1px 3px var(--color-background);
   font-variant-numeric: tabular-nums;
 }
 
@@ -437,7 +491,7 @@
   }
 
   .facility-cluster-selector-list {
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));
   }
 
   .facility-cluster-detail-card {
@@ -455,7 +509,7 @@
   }
 
   .facility-cluster-selector-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));
   }
 
   .production-build-card {
@@ -486,29 +540,32 @@
 
   .facility-cluster-selector-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: center;
   }
 
   .facility-cluster-selector-card {
     min-height: 0;
-    aspect-ratio: 1;
-    padding: 0.5rem;
+    aspect-ratio: 4 / 5;
+    padding: 0;
   }
 
   .facility-cluster-name {
     top: 0.5rem;
     left: 0.5rem;
-    max-width: calc(100% - 0.75rem);
+    max-width: 54%;
     font-size: var(--font-size-xs);
   }
 
-  .facility-cluster-icon {
-    width: 3rem;
-    height: 3rem;
+  .facility-cluster-profit {
+    top: 0.5rem;
+    right: 0.5rem;
+    max-width: 44%;
+    font-size: var(--font-size-xs);
   }
 
   .facility-cluster-count {
     right: 0.5rem;
-    bottom: 0.45rem;
+    bottom: 0.5rem;
     font-size: var(--font-size-sm);
   }
 
@@ -665,6 +722,6 @@
   }
 
   .facility-cluster-selector-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

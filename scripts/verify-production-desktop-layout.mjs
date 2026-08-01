@@ -29,6 +29,7 @@ for (const text of [
   'minmax(480px, 680px)',
   'justify-content: start;',
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  'grid-template-columns: repeat(3, minmax(0, 1fr));',
 ]) assert.equal(production.includes(text), true, `桌面生产布局缺少: ${text}`);
 
 const facilityGridImport = "import './styles/facility-group-card-grid.css';";
@@ -105,7 +106,7 @@ for (const block of legacyBuildBlocks) {
 
 for (const text of [
   '大于等于 `1600px` 时使用紧凑三列',
-  '固定两列选择卡',
+  '固定三列竖向选择卡',
   '桌面详情卡高度由内容决定',
   '`--desktop-page-top-offset`',
   '`src/styles/facility-group-card-grid.css` 负责',

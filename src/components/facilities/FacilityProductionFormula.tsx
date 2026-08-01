@@ -19,7 +19,7 @@ type MultiRecipeFacilityType = FacilityTypeDefinition & {
 
 type ProductNameMap = Map<string, string>;
 
-type FormulaScope = {
+export type FormulaScope = {
   name: string;
   count: number;
   physicalCount: number;
@@ -68,7 +68,7 @@ function formulaScope(
   };
 }
 
-function currentFormulaScope(group: FacilityGroup): FormulaScope {
+export function currentFormulaScope(group: FacilityGroup): FormulaScope {
   if (group.status === 'running') {
     return formulaScope(
       '本周期',
@@ -98,7 +98,7 @@ function currentFormulaScope(group: FacilityGroup): FormulaScope {
   );
 }
 
-function nextFormulaScope(group: FacilityGroup): FormulaScope {
+export function nextFormulaScope(group: FacilityGroup): FormulaScope {
   return formulaScope(
     '下一周期',
     group.nextCycleCount,

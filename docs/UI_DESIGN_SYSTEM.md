@@ -240,7 +240,7 @@
 - 最终文件为 `1:1`、`1024 × 1024`、8-bit PNG RGBA；工厂是满画布场景，允许 Alpha 全不透明，不要求商品插画的透明四角；
 - 同一批资源必须保持相机高度、透视、主体占比、日间光向、材质细节密度和空气透视一致，单个产业不得另起一套画风。
 
-运行时不得直接加载 1024px 源图。`npm run dev`、`npm run build` 和独立工厂图片验证先调用 `scripts/generate-facility-artwork-thumbnails.mjs`，通过共享预乘 Alpha 面积采样生成 `src/assets/facility-icons/generated/128/` 下的 128px RGBA 缩略图；生成目录是可复现构建产物，构建产物不得提交仓库。`facility-artwork.css` 只能通过 `FacilityIcon` 的 `data-facility-icon` 映射缩略图，并且只允许在上述主视觉上下文显示；未知 ID 沿用组件内厂房 SVG，`prefers-reduced-data` 下所有工厂场景恢复厂房 SVG。运行、异常、停止和选中状态只能由卡片边框、背景、文字和数量表达，不得给插画本身着色或叠加状态滤镜。
+运行时不得直接加载 1024px 源图。`npm run dev`、`npm run build` 和独立工厂图片验证先调用 `scripts/generate-facility-artwork-thumbnails.mjs`，通过共享预乘 Alpha 面积采样生成 `src/assets/facility-icons/generated/128/` 下的 128px RGBA 缩略图；生成目录是可复现构建产物，构建产物不得提交仓库。`facility-artwork.css` 只能通过 `FacilityIcon` 的 `data-facility-icon` 映射缩略图，并且只允许在上述主视觉上下文显示；未知 ID 沿用组件内厂房 SVG，`prefers-reduced-data` 下所有工厂场景恢复厂房 SVG。生产集群选择卡中的插画必须覆盖完整 `4:5` 竖卡，使用 `background-size: cover` 与居中定位进行等比裁切，不得拉伸、重复、偏移主体或给插画叠加状态滤镜；上下文字可使用轻量渐变保证可读性。运行、异常、停止和选中状态只能由卡片边框、背景、文字和数量表达，不得给插画本身着色。
 
 新增或删除正式工厂时，服务器目录、同名源图、`FacilityIcon` ID 声明、CSS 映射和验证必须在同一变更中完成。`scripts/verify-facility-artwork.mjs` 必须校验目录一一对应、源图、缩略图、映射、生成入口、批准使用上下文、低流量回退和未知 ID 降级。
 
@@ -379,7 +379,7 @@
 - 建设新工厂卡桌面独占 `280px–320px` 左列并使用 `position: sticky`；低于 960px 恢复普通文档流。
 - 建设卡只显示工厂类型、配方名称、建造费用和施工时间；不显示生产周期、单座周期产量或单座周期成本。
 - 生产管理区使用建设卡、工厂集群选择器和单张当前工厂详情的主从布局；桌面和平板不得同时铺开全部完整工厂卡，移动端完整详情只在底部悬浮框中渲染。具体断点和 Overlay 行为以 `INDUSTRY_AND_PRODUCTION_DESIGN.md` 为准。
-- 工厂集群选择卡使用按 `facilityTypeId` 映射的 `FacilityIcon` 场景插画，名称固定左上、总数量纯数字固定右下、插画居中；运行中／异常／已停止分别由绿色／红色／灰色边框、轻量背景、文字及数量表达，不得给插画着色。卡片点击不保留选中态，不使用 `aria-pressed`；移动端固定三列且极窄屏不降列。无障碍名称仍必须包含完整状态和异常原因。
+- 工厂集群选择卡统一为最大宽度 `160px`、`4:5` 竖卡；按 `facilityTypeId` 映射的 `FacilityIcon` 场景插画等比居中裁切并铺满整卡，名称固定左上、总数量纯数字固定右下。右上角只显示与详情同源的单厂有效平均利润数字：盈利为绿色且不加正号，亏损为红色且保留负号，零值为中性色，缺价为中性色 `—`；不得出现货币图标、货币符号、标签、单位或胶囊。运行中／异常／已停止分别由绿色／红色／灰色边框、轻量背景和数量表达，不得给插画着色。卡片点击不保留选中态，不使用 `aria-pressed`；移动端固定三列且极窄屏不降列。无障碍名称必须同时包含利润盈亏语义、完整状态和异常原因。
 - 共享仓库、建设新工厂、工厂集群选择器和桌面当前工厂详情都是生产页同一一级平面的 `Panel`，统一带 `.production-surface`；它们通过 `primary-surfaces.css` 读取同一个 `--primary-surface-inset`，大于 `720px` 时四边统一为 `16px`，不大于 `720px` 时统一为 `12px`。
 - 一级卡片标题元素盒子的左上锚点必须一致；右侧等级标签或 `SwitchControl` 不得改变标题位置。容器查询只允许调整卡片内部密度和换行，不得改变一级外层内边距。
 - 当前工厂详情标题区中，名称与完整状态组成左侧标题块，状态固定显示在名称下方且异常原因只显示一次；`SwitchControl` 位于标题区右侧。
