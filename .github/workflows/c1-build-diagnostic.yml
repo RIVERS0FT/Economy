@@ -1,4 +1,4 @@
-name: C1 build diagnostic
+name: C1 state diagnostic
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
   diagnose:
     if: github.head_ref == 'agent/c1-fast-production'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,22 +20,45 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Run build and report failure
+      - name: Compare idle world state
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         shell: bash
         run: |
-          set +e
-          npm run build > /tmp/c1-build.log 2>&1
-          status=$?
-          if [ "$status" -ne 0 ]; then
-            {
-              echo '## C1 build diagnostic'
-              echo '```text'
-              tail -n 180 /tmp/c1-build.log
-              echo '```'
-            } > /tmp/comment.md
-            gh pr comment "$PR_NUMBER" --body-file /tmp/comment.md
-          fi
-          exit "$status"
+          cat > /tmp/diagnose.mjs <<'NODE'
+          import { EconomyStore } from './server/src/storage.js';
+          const alice = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
+          const store = new EconomyStore(':memory:');
+          const now = 1_700_000_000_000;
+          const initial = store.getStateSnapshot(alice, undefined, now);
+          const beforeRow = store.database.prepare('SELECT revision, state_json FROM economy_world WHERE id = 1').get();
+          const polled = store.getStateSnapshot(alice, initial.revision, now + 1_000);
+          const afterRow = store.database.prepare('SELECT revision, state_json FROM economy_world WHERE id = 1').get();
+          const before = JSON.parse(beforeRow.state_json);
+          const after = JSON.parse(afterRow.state_json);
+          const diffs = [];
+          function walk(a, b, path = '') {
+            if (Object.is(a, b)) return;
+            if (!a || !b || typeof a !== 'object' || typeof b !== 'object') {
+              diffs.push(`${path}: ${JSON.stringify(a)} -> ${JSON.stringify(b)}`);
+              return;
+            }
+            const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+            for (const key of keys) {
+              if (diffs.length >= 120) return;
+              walk(a[key], b[key], path ? `${path}.${key}` : key);
+            }
+          }
+          walk(before, after);
+          console.log(JSON.stringify({ initialRevision: initial.revision, polled, beforeRevision: beforeRow.revision, afterRevision: afterRow.revision, diffs }, null, 2));
+          store.close();
+          NODE
+          node /tmp/diagnose.mjs > /tmp/state-diff.log 2>&1 || true
+          {
+            echo '## C1 state drift diagnostic'
+            echo '```json'
+            cat /tmp/state-diff.log
+            echo '```'
+          } > /tmp/comment.md
+          gh pr comment "$PR_NUMBER" --body-file /tmp/comment.md
