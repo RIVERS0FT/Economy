@@ -1,0 +1,219 @@
+diff --git a/src/pages/ContractPage.tsx b/src/pages/ContractPage.tsx
+--- a/src/pages/ContractPage.tsx
++++ b/src/pages/ContractPage.tsx
+@@ -61,7 +61,7 @@ const FIRST_DELAY_OPTIONS = [
+   [24 * 60 * 60 * 1000, '签订后 24 小时'],
+ ] as const;
+ 
+-type ContractTab = 'active' | 'market' | 'pending' | 'history';
++type PersonalContractView = 'active' | 'history';
+ type HistoryRole = 'any' | 'publisher' | 'buyer' | 'supplier';
+ 
+ const STATUS_LABELS: Record<ProductionContractStatus, string> = {
+@@ -157,6 +157,15 @@ function statusTone(contract: Pick<ProductionContract, 'status'> & Partial<Pick<
+   return 'success' as const;
+ }
+ 
++function contractNeedsAttention(contract: ProductionContract) {
++  return Boolean(
++    contract.graceEndsAt
++    || contract.issue
++    || contract.terminationRequestedBy
++    || (contract.renewalProposal?.status === 'proposed' && !contract.renewalProposal.isProposer),
++  );
++}
++
+ function contractTitle(contract: Pick<ProductionContract, 'productId'>, productName: string) {
+   void contract;
+   return `${productName}长期供货合同`;
+@@ -329,12 +338,16 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
+   const canFund = contract.isBuyer && contract.buyerEscrowCredits < contract.batchGross;
+   const counterparty = contract.isBuyer ? contract.supplierName : contract.buyerName;
+   const statusLabel = contract.graceEndsAt ? '宽限期' : STATUS_LABELS[contract.status];
++  const needsAttention = contractNeedsAttention(contract);
+ 
+   return (
+-    <PagePanel className={`contract-card contract-card--${contract.graceEndsAt ? 'danger' : contract.issue ? 'attention' : 'normal'}`}>
++    <PagePanel
++      className={`contract-card contract-card--${contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'}`}
++      data-attention={needsAttention ? 'true' : 'false'}
++    >
+       <header className="contract-card-heading">
+         <div className="contract-card-title">
+-          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{statusLabel}</StatusTag></div>
++          <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{statusLabel}</StatusTag>{needsAttention && !contract.graceEndsAt ? <StatusTag tone="warning">待处理</StatusTag> : null}</div>
+           <h2><ProductIconLabel productId={contract.productId}>{contractTitle(contract, productName)}</ProductIconLabel></h2>
+           <p>合作方：{counterparty || '等待服务器同步'}</p>
+         </div>
+@@ -838,7 +852,7 @@ function PublishContractPanel({
+ }
+ 
+ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+-  const [tab, setTab] = useState<ContractTab>('active');
++  const [personalView, setPersonalView] = useState<PersonalContractView>('active');
+   const [showPublish, setShowPublish] = useState(false);
+   const [busyKey, setBusyKey] = useState('');
+   const [historyStatus, setHistoryStatus] = useState<ProductionContractStatus | ''>('');
+@@ -858,9 +872,14 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+ 
+   const activeContracts = productionContracts
+     .filter((contract) => contract.status === 'active' && (contract.isBuyer || contract.isSupplier))
+-    .sort((left, right) => Number(Boolean(right.graceEndsAt)) - Number(Boolean(left.graceEndsAt)) || Number(right.issue !== null) - Number(left.issue !== null) || Number(left.nextDueAt || Infinity) - Number(right.nextDueAt || Infinity));
++    .sort((left, right) => (
++      Number(Boolean(right.graceEndsAt)) - Number(Boolean(left.graceEndsAt))
++      || Number(contractNeedsAttention(right)) - Number(contractNeedsAttention(left))
++      || Number(Boolean(right.issue)) - Number(Boolean(left.issue))
++      || Number(left.nextDueAt || Infinity) - Number(right.nextDueAt || Infinity)
++    ));
+   const openContracts = productionContracts.filter((contract) => contract.status === 'open').sort((left, right) => right.createdAt - left.createdAt);
+-  const pendingContracts = activeContracts.filter((contract) => contract.issue || contract.terminationRequestedBy);
++  const pendingContracts = activeContracts.filter(contractNeedsAttention);
+ 
+   const historyQuery = useMemo<ContractHistoryQuery>(() => ({
+     limit: 20,
+@@ -872,7 +891,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+   }), [historyFrom, historyProductId, historyRole, historyStatus, historyTo]);
+ 
+   useEffect(() => {
+-    if (tab !== 'history') return undefined;
++    if (personalView !== 'history') return undefined;
+     let cancelled = false;
+     setHistoryLoading(true);
+     setHistoryError('');
+@@ -893,6 +912,6 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+       });
+     return () => { cancelled = true; };
+-  }, [historyQuery, tab]);
++  }, [historyQuery, personalView]);
+ 
+   const run = async (
+     key: string,
+@@ -957,21 +976,8 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+     }
+   }
+ 
+-  const visibleCount = tab === 'active'
+-    ? activeContracts.length
+-    : tab === 'market'
+-      ? openContracts.length
+-      : tab === 'pending'
+-        ? pendingContracts.length
+-        : historyItems.length;
+-
+-  const emptyMessage = tab === 'active'
+-    ? '当前没有进行中的长期合作合同。'
+-    : tab === 'market'
+-      ? '当前没有可承接的公开合同。'
+-      : tab === 'pending'
+-        ? '当前没有需要处理的合同事项。'
+-        : '当前没有符合筛选条件的已结束合同。';
++  const activeEmptyMessage = '当前没有进行中的长期合作合同。';
++  const historyEmptyMessage = '当前没有符合筛选条件的已结束合同。';
+ 
+   return (
+     <PageLayout
+@@ -990,32 +996,47 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+ 
+       {showPublish ? <PublishContractPanel model={model} busy={Boolean(busyKey)} close={() => setShowPublish(false)} run={run} /> : null}
+ 
+-      <nav className="ui-segmented contract-tabs" role="tablist" aria-label="合同页面分类">
+-        <Button id="contract-tab-active" variant="text" role="tab" aria-selected={tab === 'active'} aria-controls="contract-tabpanel" className={tab === 'active' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('active')}>进行中的合同 <span className="contract-tab-count">{activeContracts.length}</span></Button>
+-        <Button id="contract-tab-market" variant="text" role="tab" aria-selected={tab === 'market'} aria-controls="contract-tabpanel" className={tab === 'market' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('market')}>合同广场 <span className="contract-tab-count">{openContracts.length}</span></Button>
+-        <Button id="contract-tab-pending" variant="text" role="tab" aria-selected={tab === 'pending'} aria-controls="contract-tabpanel" className={tab === 'pending' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('pending')}>待处理 <span className="contract-tab-count">{pendingContracts.length}</span></Button>
+-        <Button id="contract-tab-history" variant="text" role="tab" aria-selected={tab === 'history'} aria-controls="contract-tabpanel" className={tab === 'history' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setTab('history')}>合同历史 <span className="contract-tab-count">{historyItems.length}</span></Button>
+-      </nav>
+-
+-      <section
+-        id="contract-tabpanel"
+-        className={`contract-list${tab === 'market' ? ' contract-offer-grid' : ''}`}
+-        role="tabpanel"
+-        aria-labelledby={`contract-tab-${tab}`}
+-        tabIndex={0}
+-        aria-live="polite"
+-      >
+-        {tab !== 'history' && visibleCount === 0 ? <EmptyState>{emptyMessage}</EmptyState> : null}
+-        {tab === 'active' ? activeContracts.map((contract) => (
+-          <ActiveContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
+-        )) : null}
+-        {tab === 'pending' ? pendingContracts.map((contract) => (
+-          <ActiveContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
+-        )) : null}
+-        {tab === 'market' ? openContracts.map((contract) => (
+-          <OpenContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
+-        )) : null}
+-        {tab === 'history' ? (
++      <div className="contract-workspace">
++        <section className="contract-workspace-pane contract-market-pane" aria-labelledby="contract-market-heading">
++          <header className="contract-pane-heading">
++            <div>
++              <h2 id="contract-market-heading">合同广场</h2>
++              <p>公开合同常驻显示，可随时承接或管理自己发布的合同。</p>
++            </div>
++            <StatusTag>{formatNumber(openContracts.length)} 个公开合同</StatusTag>
++          </header>
++          <div className="contract-pane-grid contract-market-grid">
++            {openContracts.length === 0 ? <EmptyState>当前没有可承接的公开合同。</EmptyState> : openContracts.map((contract) => (
++              <OpenContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
++            ))}
++          </div>
++        </section>
++
++        <section className="contract-workspace-pane contract-personal-pane" aria-labelledby="contract-personal-heading">
++          <header className="contract-pane-heading contract-personal-heading">
++            <div>
++              <h2 id="contract-personal-heading">我的合同</h2>
++              <p>待处理合同使用警示色并固定排在进行中列表最前。</p>
++            </div>
++            <nav className="ui-segmented contract-personal-tabs" role="tablist" aria-label="我的合同分类">
++              <Button id="contract-personal-tab-active" variant="text" role="tab" aria-selected={personalView === 'active'} aria-controls="contract-personal-panel" className={personalView === 'active' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setPersonalView('active')}>进行中的合同 <span className="contract-tab-count">{activeContracts.length}</span>{pendingContracts.length ? <span className="contract-tab-attention-count">待处理 {pendingContracts.length}</span> : null}</Button>
++              <Button id="contract-personal-tab-history" variant="text" role="tab" aria-selected={personalView === 'history'} aria-controls="contract-personal-panel" className={personalView === 'history' ? 'ui-segmented__button active' : 'ui-segmented__button'} onClick={() => setPersonalView('history')}>历史合同</Button>
++            </nav>
++          </header>
++
++          <section
++            id="contract-personal-panel"
++            className={`contract-personal-content${personalView === 'active' ? ' contract-active-grid' : ''}`}
++            role="tabpanel"
++            aria-labelledby={`contract-personal-tab-${personalView}`}
++            tabIndex={0}
++            aria-live="polite"
++          >
++            {personalView === 'active' && activeContracts.length === 0 ? <EmptyState>{activeEmptyMessage}</EmptyState> : null}
++            {personalView === 'active' ? activeContracts.map((contract) => (
++              <ActiveContractCard key={contract.id} contract={contract} productName={productNames.get(contract.productId) ?? contract.productId} busy={Boolean(busyKey)} run={run} />
++            )) : null}
++            {personalView === 'history' ? (
+           <PagePanel className="contract-history-panel">
+             <div className="contract-history-filters" aria-label="合同历史筛选">
+               <SelectInput label="最终状态" value={historyStatus} onChange={(event) => setHistoryStatus(event.target.value as ProductionContractStatus | '')}>
+@@ -1043,7 +1062,8 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+               </SelectInput>
+               <TextInput label="开始日期" type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} />
+               <TextInput label="结束日期" type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} />
+               <Button
++                className="contract-history-clear"
+                 variant="text"
+                 onClick={() => {
+                   setHistoryStatus('');
+@@ -1054,7 +1074,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+             </div>
+             {historyError ? <p className="contract-issue" role="alert">{historyError}</p> : null}
+             {historyLoading && historyItems.length === 0 ? <p className="contract-audit-loading" role="status">正在读取权威合同历史…</p> : null}
+-            {!historyLoading && historyItems.length === 0 && !historyError ? <EmptyState>{emptyMessage}</EmptyState> : null}
++            {!historyLoading && historyItems.length === 0 && !historyError ? <EmptyState>{historyEmptyMessage}</EmptyState> : null}
+             {historyItems.map((contract) => (
+               <HistoryContractRow
+                 key={contract.id}
+@@ -1071,8 +1091,10 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
+             ))}
+             {historyNextCursor ? <Button variant="text" disabled={historyLoading} onClick={() => void loadMoreHistory()}>{historyLoading ? '读取中' : '加载更多合同历史'}</Button> : null}
+           </PagePanel>
+-        ) : null}
+-      </section>
++            ) : null}
++          </section>
++        </section>
++      </div>
+     </PageLayout>
+   );
+ }
