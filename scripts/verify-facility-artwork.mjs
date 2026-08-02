@@ -28,6 +28,7 @@ const paths = {
   production: 'src/pages/production/ProductionFacilityDetail.tsx',
   market: 'src/pages/MarketPage.tsx',
   auction: 'src/pages/AuctionPage.tsx',
+  marketArtworkBrowser: 'tests/browser/market-facility-artwork.spec.ts',
 };
 
 function validatePng(path, expectedSize, label) {
@@ -88,6 +89,7 @@ if (failures.length === 0) {
   const production = read(paths.production);
   const market = read(paths.market);
   const auction = read(paths.auction);
+  const marketArtworkBrowser = read(paths.marketArtworkBrowser);
 
   const sourceDirectory = resolve(root, 'src/assets/facility-icons');
   const actualSources = readdirSync(sourceDirectory, { withFileTypes: true })
@@ -156,12 +158,34 @@ if (failures.length === 0) {
     '.asset-auction-summary-icon',
     '.asset-auction-history-icon',
     'background-image: var(--facility-artwork-image, none);',
+    'background-position: center;',
     'background-size: cover;',
     'stroke: transparent;',
     '@media (prefers-reduced-data: reduce)',
     'stroke: currentColor;',
   ]) {
     if (!styles.includes(required)) failures.push(`${paths.artworkStyles} 缺少: ${required}`);
+  }
+
+  for (const required of [
+    '.unified-asset-tab.facility',
+    '.market-asset-card__icon-layer > .facility-icon',
+    '.market-asset-card__icon-layer::after',
+    'top: -14px;',
+    'height: calc(100% + 28px);',
+    'width: 100%;',
+    'border-radius: 0;',
+    'rgb(0 0 0 / 72%) 0%',
+    'rgb(0 0 0 / 68%) 0%',
+    'top: -18px;',
+    'height: calc(100% + 36px);',
+    'position: static;',
+    'width: 72px;',
+    'height: 72px;',
+    'width: 56px;',
+    'height: 56px;',
+  ]) {
+    if (!styles.includes(required)) failures.push(`市场工厂目录卡未落实满幅居中插画与低流量回退: ${required}`);
   }
 
   const productionStyles = read('src/styles/facility-group-card-grid.css');
@@ -256,13 +280,23 @@ if (failures.length === 0) {
       '`FacilityIcon`',
       '`prefers-reduced-data`',
       '覆盖完整 `4:5` 竖卡',
+      '市场工厂目录卡中的插画必须覆盖完整目录卡',
       '`background-size: cover` 与居中定位',
       '上下两层黑色渐变',
       '中央主体区域保持透明',
+      '工厂卡插画必须等比居中裁切并铺满整张卡',
     ]],
     [paths.designIndex, designIndex, ['工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`']],
     [paths.catalogDesign, catalogDesign, ['`FacilityIcon` 只按 `facilityTypeId` 选择视觉资源']],
     [paths.pageDesign, pageDesign, ['商品与工厂目录卡统一使用图标层在前、数据层在后的双层结构']],
+    [paths.marketArtworkBrowser, marketArtworkBrowser, [
+      'market facility artwork fills the card with centered cover cropping on desktop and mobile',
+      "expect(metrics.backgroundSize).toBe('cover')",
+      "expect(metrics.backgroundPosition).toBe('50% 50%')",
+      'Math.abs(metrics.artwork.width - metrics.card.width)',
+      'Math.abs(metrics.artwork.height - metrics.card.height)',
+      "expect(metrics.readabilityBackground).toContain('linear-gradient')",
+    ]],
   ]) {
     for (const fragment of fragments) {
       if (!source.includes(fragment)) failures.push(`${path} 缺少工厂场景规则: ${fragment}`);
@@ -276,5 +310,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、上下可读性渐变、主视觉使用边界及 C1 从空白新绘 SHA-256 基线一致。`,
+  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、市场满幅居中裁切、上下可读性渐变、主视觉使用边界及 C1 从空白新绘 SHA-256 基线一致。`,
 );
