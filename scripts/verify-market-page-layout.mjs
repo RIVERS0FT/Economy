@@ -26,7 +26,8 @@ function forbidText(source, text, message) {
   if (source.includes(text)) failures.push(message);
 }
 
-requireText(marketStyles, 'grid-template-columns: minmax(640px, 1.05fr) minmax(620px, 0.95fr)', '宽屏市场必须使用合并交易卡与行情图双列布局。');
+requireText(marketStyles, 'grid-template-columns: minmax(560px, 0.82fr) minmax(680px, 1.18fr)', '宽屏市场必须缩小交易列并扩大行情列。');
+requireText(marketStyles, 'align-items: stretch;', '宽屏交易卡与行情卡必须允许同排等高。');
 forbidText(marketStyles, 'grid-template-columns: 320px 360px minmax(620px, 1fr)', '市场不得恢复下单、订单簿和行情图三个独立一级卡片列。');
 requireText(chartSource, 'export function buildMarketChartGeometry', '完整行情图必须由组件计算动态几何。');
 requireText(chartSource, 'Math.max(48, rootFontSize', '完整行情图成交量绘图区必须保持至少 48px。');
@@ -45,6 +46,11 @@ forbidText(marketStyles, 'scroll-behavior: smooth', '市场资产目录不得用
 forbidText(sharedMarketStyles, 'scroll-snap-align: start', '市场资产卡不得恢复吸附锚点。');
 requireText(marketPage, '<Panel className="widget market-trade-card">', '下单与订单簿必须共用同一个一级交易卡片。');
 requireText(marketPage, 'className="market-trade-layout"', '交易卡必须提供内部响应式组合布局。');
+requireText(marketPage, 'const orderActionLabel = orderDisabledReason', '主交易按钮必须承载不能交易的原因。');
+requireText(marketPage, 'aria-label={orderActionLabel}', '主交易按钮可访问名称必须与阻断原因一致。');
+forbidText(marketPage, 'order-disabled-reason', '市场不得恢复独立阻断提示。');
+forbidText(marketPage, '当前没有可出售的', '市场不得恢复独立无库存提示。');
+forbidText(marketPage, '当前最多可卖', '市场不得恢复常驻最大可卖说明。');
 requireText(marketPage, 'order-entry market-trade-entry', '交易卡必须保留下单区语义。');
 requireText(marketPage, 'order-book single-order-book market-trade-book', '交易卡必须保留订单簿语义。');
 forbidText(marketPage, '<Panel className="widget order-entry">', '下单区不得恢复为独立一级卡片。');
@@ -131,8 +137,8 @@ requireText(marketPage, 'aria-label="填写最大可交易数量"', '快捷数�
 requireText(marketPage, '>25%</Button>', '快捷数量可见文案必须保持紧凑的 25%。');
 requireText(marketPage, '>50%</Button>', '快捷数量可见文案必须保持紧凑的 50%。');
 requireText(marketPage, '>最大</Button>', '快捷数量可见文案必须保持紧凑的最大值。');
-requireText(marketPage, 'warehouseLimitsBuy', '商品买入必须识别仓库先于资金形成的数量上限。');
-requireText(marketPage, '{visibleDisabledReason ? <p id="order-disabled-reason"', '提交区只允许显示字段外阻断原因。');
+requireText(marketPage, "marketAssetKind === 'commodity' && game.warehouseAvailableCapacity < 1", '商品买入必须识别仓库空间阻断。');
+requireText(marketPage, 'aria-label={orderActionLabel}', '提交按钮必须直接承载字段外阻断原因。');
 requireText(marketPage, 'const orderLimitReason = ownOpenOrders.length >= maxOpenOrders', '提交区必须覆盖商品与工厂合计未完成订单的动态上限。');
 forbidText(marketPage, "aria-describedby={orderDisabledReason ? 'order-disabled-reason' : undefined}", '数量字段不得重复关联提交区的同一错误。');
 requireText(marketPage, '<VirtualRecordTable', '本地成交必须使用单一双轴虚拟表格。');

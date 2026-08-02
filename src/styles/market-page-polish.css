@@ -214,7 +214,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--layout-gutter);
-  align-items: start;
+  align-items: stretch;
 }
 
 .market-page-surface .unified-market-grid > .market-account-panel {
@@ -231,7 +231,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .market-trade-summary > span {
@@ -281,7 +281,7 @@
 .market-trade-entry,
 .market-trade-book {
   min-width: 0;
-  padding-top: var(--space-4);
+  padding-top: var(--space-3);
 }
 
 .market-trade-entry {
@@ -321,7 +321,7 @@
 }
 
 .market-side-switch {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .market-stepper-block {
@@ -329,7 +329,7 @@
   min-width: 0;
   display: grid;
   gap: var(--space-1);
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .market-page-surface .market-stepper {
@@ -420,7 +420,7 @@
 .market-order-summary-grid {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
   margin-top: var(--space-3);
 }
@@ -571,16 +571,6 @@
   margin-bottom: var(--space-1);
 }
 
-.order-disabled-reason {
-  margin: 0 0 var(--space-3);
-  border-left: 3px solid var(--color-warning);
-  padding: var(--space-2) var(--space-3);
-  color: var(--color-warning);
-  background: var(--color-warning-soft);
-  font-size: var(--font-size-sm);
-  line-height: 1.45;
-}
-
 .market-chart-card {
   min-width: 0;
   container: market-chart / inline-size;
@@ -715,7 +705,12 @@
 
 @container market-page (min-width: 1300px) {
   .market-page-surface .unified-market-grid {
-    grid-template-columns: minmax(640px, 1.05fr) minmax(620px, 0.95fr);
+    grid-template-columns: minmax(560px, 0.82fr) minmax(680px, 1.18fr);
+  }
+
+  .market-page-surface .market-trade-card,
+  .market-page-surface .market-chart-card {
+    height: 100%;
   }
 
   .market-page-surface .unified-market-grid > .market-trade-card,

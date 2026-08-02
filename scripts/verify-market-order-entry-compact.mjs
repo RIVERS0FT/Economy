@@ -36,6 +36,8 @@ for (const text of [
 for (const text of [
   'wheelStep={0.01}',
   'className="market-submit-order"',
+  'const orderActionLabel = orderDisabledReason',
+  'aria-label={orderActionLabel}',
 ]) requireText(pagePath, text);
 
 for (const text of [
@@ -65,6 +67,7 @@ for (const text of [
 for (const text of [
   '订单摘要中常驻显示按整张订单完全成交估算的“预计到账”',
   '不显示重复的交易资产详情折叠区',
+  '主买入／卖出按钮必须直接显示最主要的阻断原因',
 ]) requireText(pageDesignPath, text);
 
 for (const text of [
@@ -82,6 +85,9 @@ for (const text of [
 
 forbidText(pagePath, 'market-order-details');
 forbidText(pagePath, '交易资产详情');
+forbidText(pagePath, 'order-disabled-reason');
+forbidText(pagePath, '当前没有可出售的');
+forbidText(pagePath, '当前最多可卖');
 forbidText(stylePath, '.market-order-details');
 forbidText(stylePath, 'minmax(280px, 44fr) minmax(300px, 56fr)');
 forbidText(stylePath, 'minmax(0, 3fr) minmax(126px, 2fr)');
