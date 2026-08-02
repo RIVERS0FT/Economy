@@ -135,8 +135,12 @@ if (failures.length === 0) {
     'width: 100%;',
     'height: 100%;',
     'transform: none;',
+    'rgb(0 0 0 / 82%) 0%',
+    'transparent 44%',
+    'rgb(0 0 0 / 76%) 0%',
+    'transparent 42%',
   ]) {
-    if (!productionStyles.includes(required)) failures.push(`工厂选择卡未落实竖向铺满插画: ${required}`);
+    if (!productionStyles.includes(required)) failures.push(`工厂选择卡未落实竖向铺满插画和上下渐变: ${required}`);
   }
 
   for (const required of [
@@ -206,6 +210,8 @@ if (failures.length === 0) {
       '`prefers-reduced-data`',
       '覆盖完整 `4:5` 竖卡',
       '`background-size: cover` 与居中定位',
+      '上下两层黑色渐变',
+      '中央主体区域保持透明',
     ]],
     [paths.designIndex, designIndex, ['工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`']],
     [paths.catalogDesign, catalogDesign, ['`FacilityIcon` 只按 `facilityTypeId` 选择视觉资源']],
@@ -223,5 +229,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射和主视觉使用边界一致。`,
+  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、上下可读性渐变和主视觉使用边界一致。`,
 );
