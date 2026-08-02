@@ -57,7 +57,7 @@ for (const text of [
 ]) requireText(orderDesignPath, text);
 
 for (const text of [
-  '预计到账常驻显示',
+  '订单摘要中常驻显示按整张订单完全成交估算的“预计到账”',
   '不显示重复的交易资产详情折叠区',
 ]) requireText(pageDesignPath, text);
 
