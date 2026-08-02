@@ -24,13 +24,16 @@ for (const text of [
   "import { buildOrderBookLevels } from '../utils/orderBookLevels'",
   "buildOrderBookLevels(selectedOrders, 'sell').reverse()",
   "buildOrderBookLevels(selectedOrders, 'buy')",
-  '最低价前 5 档','最高价前 5 档','data-order-count={level.orderCount}',
-  '合计剩余 ${formatNumber(level.remaining)}','包含 ${formatNumber(level.orderCount)} 笔订单',
+  'const levelName = `卖${bestAsks.length - index}`;',
+  'const levelName = `买${index + 1}`;',
+  'className="market-book-level"','data-order-count={level.orderCount}',
+  '合计剩余 ${formatNumber(level.remaining)}','点击填入价格',
+  'onClick={() => fillOrderPrice(level.price)}','const maxBookDepth = Math.max',
   'key={`sell-${level.price}`}','key={`buy-${level.price}`}',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of [
   'localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价',
-  '最低价前 5 笔','最高价前 5 笔',
+  '最低价前 5 笔','最高价前 5 笔','order-book-side-label',
   ".filter((order) => order.side === 'sell')\n    .sort(",
   ".filter((order) => order.side === 'buy')\n    .sort(",
 ]) forbidText('src/pages/MarketPage.tsx', text);
@@ -153,6 +156,10 @@ for (const text of [
   '同资产、同方向、同价格的有效订单按当前剩余数量聚合为价格档位',
   '档位聚合只属于客户端匿名展示',
   '聚合完成后再按最优价格截取 5 档',
+  '卖 5 至卖 1',
+  '买 1 至买 5',
+  '点击任一档位只把该档价格填入价格输入',
+  '价格和数量均使用“减号按钮／共享输入控件／加号按钮”',
   '最高系统买价 < 最低系统卖价',
   '服务器必须在冻结任何资金、商品或工厂之前拒绝新订单',
   '不同主体之间可成交的交叉订单必须在新订单进入订单簿时立即按 maker price 撮合',
@@ -262,4 +269,4 @@ if (!failures.length) {
 }
 
 if (failures.length) { console.error('统一资产市场、价格档位、窗口化记录与管理功能验证失败:\n- ' + failures.join('\n- ')); process.exit(1); }
-console.log('统一资产市场、非交叉撮合、价格档位聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
+console.log('统一资产市场、非交叉撮合、连续五档价格聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。');
