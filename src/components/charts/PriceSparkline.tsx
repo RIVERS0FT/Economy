@@ -281,11 +281,15 @@ function useMarketChartMetrics() {
           && Math.abs(chartCardRect.top - tradeCardRect.top) < 3
           && chartCardRect.left > tradeCardRect.left + tradeCardRect.width - 3
         );
-        const cardPaddingBottom = chartCard
-          ? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0
+        const chartCardStyle = chartCard ? getComputedStyle(chartCard) : null;
+        const cardPaddingBottom = chartCardStyle
+          ? Number.parseFloat(chartCardStyle.paddingBottom) || 0
           : 0;
-        const minimumHeight = sideBySide && chartCardRect
-          ? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)
+        const cardContentBottom = chartCard && chartCardRect
+          ? chartCardRect.top + chartCard.clientTop + chartCard.clientHeight - cardPaddingBottom
+          : 0;
+        const minimumHeight = sideBySide
+          ? Math.max(0, cardContentBottom - elementRect.top)
           : 0;
         const width = elementRect.width;
         const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -300,7 +304,6 @@ function useMarketChartMetrics() {
     };
     update();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
-    observer?.observe(element);
     if (chartCard) observer?.observe(chartCard);
     if (tradeCard) observer?.observe(tradeCard);
     window.addEventListener('resize', update);
