@@ -5,7 +5,7 @@ on:
     branches:
       - agent/contract-four-column-workspace
     paths:
-      - .agent/contract-four-column-workspace.patch
+      - .agent/apply-ready
 
 permissions:
   contents: write
@@ -19,12 +19,13 @@ jobs:
         with:
           ref: agent/contract-four-column-workspace
           fetch-depth: 0
-      - name: Apply patch
+      - name: Apply patches
         run: |
-          git apply --check .agent/contract-four-column-workspace.patch
-          git apply .agent/contract-four-column-workspace.patch
-          rm .agent/contract-four-column-workspace.patch
-          rmdir .agent || true
+          for patch in .agent/part-*.patch; do
+            git apply --check "$patch"
+            git apply "$patch"
+          done
+          rm -rf .agent
           rm .github/workflows/apply-contract-four-column-workspace.yml
       - name: Commit applied sources
         run: |
