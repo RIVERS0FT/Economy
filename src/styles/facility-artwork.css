@@ -1,24 +1,24 @@
-.facility-icon[data-facility-icon='farm'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/farm.png'); }
-.facility-icon[data-facility-icon='orchard'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/orchard.png'); }
-.facility-icon[data-facility-icon='logging-camp'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/logging-camp.png'); }
-.facility-icon[data-facility-icon='mine'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/mine.png'); }
-.facility-icon[data-facility-icon='ranch'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/ranch.png'); }
-.facility-icon[data-facility-icon='fishery'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/fishery.png'); }
-.facility-icon[data-facility-icon='oil-field'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/oil-field.png'); }
-.facility-icon[data-facility-icon='mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/mill.png'); }
-.facility-icon[data-facility-icon='sawmill'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/sawmill.png'); }
-.facility-icon[data-facility-icon='pulp-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/pulp-mill.png'); }
-.facility-icon[data-facility-icon='steelworks'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/steelworks.png'); }
-.facility-icon[data-facility-icon='refinery'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/refinery.png'); }
-.facility-icon[data-facility-icon='textile-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/textile-mill.png'); }
-.facility-icon[data-facility-icon='food-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/food-factory.png'); }
-.facility-icon[data-facility-icon='beverage-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/beverage-factory.png'); }
-.facility-icon[data-facility-icon='paper-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/paper-mill.png'); }
-.facility-icon[data-facility-icon='furniture-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/furniture-factory.png'); }
-.facility-icon[data-facility-icon='garment-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/garment-factory.png'); }
-.facility-icon[data-facility-icon='machine-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/machine-factory.png'); }
-.facility-icon[data-facility-icon='electronics-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/electronics-factory.png'); }
-.facility-icon[data-facility-icon='appliance-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/128/appliance-factory.png'); }
+.facility-icon[data-facility-icon='farm'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/farm.png'); }
+.facility-icon[data-facility-icon='orchard'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/orchard.png'); }
+.facility-icon[data-facility-icon='logging-camp'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/logging-camp.png'); }
+.facility-icon[data-facility-icon='mine'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/mine.png'); }
+.facility-icon[data-facility-icon='ranch'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/ranch.png'); }
+.facility-icon[data-facility-icon='fishery'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/fishery.png'); }
+.facility-icon[data-facility-icon='oil-field'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/oil-field.png'); }
+.facility-icon[data-facility-icon='mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/mill.png'); }
+.facility-icon[data-facility-icon='sawmill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/sawmill.png'); }
+.facility-icon[data-facility-icon='pulp-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/pulp-mill.png'); }
+.facility-icon[data-facility-icon='steelworks'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/steelworks.png'); }
+.facility-icon[data-facility-icon='refinery'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/refinery.png'); }
+.facility-icon[data-facility-icon='textile-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/textile-mill.png'); }
+.facility-icon[data-facility-icon='food-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/food-factory.png'); }
+.facility-icon[data-facility-icon='beverage-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/beverage-factory.png'); }
+.facility-icon[data-facility-icon='paper-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/paper-mill.png'); }
+.facility-icon[data-facility-icon='furniture-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/furniture-factory.png'); }
+.facility-icon[data-facility-icon='garment-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/garment-factory.png'); }
+.facility-icon[data-facility-icon='machine-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/machine-factory.png'); }
+.facility-icon[data-facility-icon='electronics-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/electronics-factory.png'); }
+.facility-icon[data-facility-icon='appliance-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/appliance-factory.png'); }
 
 :is(
   .facility-cluster-selector-card,
