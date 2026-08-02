@@ -12,8 +12,11 @@ test.describe('factory production methods', () => {
 
     const methodSelect = detail.getByRole('combobox', { name: '机械工厂生产方式' });
     await expect(methodSelect).toHaveValue('rapid');
-    await expect(detail.locator('.facility-production-method-summary')).toContainText('高速生产');
-    await expect(detail.locator('.facility-production-method-summary')).toContainText('缩短周期并提高成本');
+
+    const summary = detail.locator('.facility-production-method-summary');
+    await expect(summary).toContainText('高速生产');
+    await expect(summary).toContainText('1m · 产出 1 · 成本 12');
+    await expect(summary).toContainText('缩短周期并提高成本');
 
     await methodSelect.selectOption('economical');
     await expect.poll(async () => page.evaluate(() => (
