@@ -349,10 +349,7 @@ function ActiveContractCard({ contract, productName, busy, run }: ContractCardPr
   const needsAttention = contractNeedsAttention(contract);
 
   return (
-    <PagePanel
-      className={`contract-card contract-card--${contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'}`}
-      data-attention={needsAttention ? 'true' : 'false'}
-    >
+    <PagePanel className={`contract-card contract-card--${contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'}`}>
       <header className="contract-card-heading">
         <div className="contract-card-title">
           <div className="contract-card-tags"><RoleTag contract={contract} /><StatusTag tone={statusTone(contract)}>{statusLabel}</StatusTag>{needsAttention && !contract.graceEndsAt ? <StatusTag tone="warning">待处理</StatusTag> : null}</div>

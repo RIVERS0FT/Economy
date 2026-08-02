@@ -54,7 +54,7 @@ for (const text of [
   'contract-personal-pane',
   'contract-personal-tabs',
   'contract-active-grid',
-  'data-attention={needsAttention',
+  "contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'",
   'contract-publish-layout',
   'contract-history-panel',
   '自动准备商品',
@@ -81,7 +81,7 @@ for (const text of [
   '.contract-active-grid {',
   '.contract-personal-tabs {',
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
-  '.contract-card--attention[data-attention="true"]',
+  '.contract-workspace .contract-card--attention {',
   '.contract-publish-layout',
   '.contract-history-panel',
   '@media (max-width: 1399px)',
@@ -129,7 +129,7 @@ for (const text of [
   "page.locator('.contract-workspace')",
   "page.locator('.contract-market-grid')",
   "page.locator('.contract-active-grid')",
-  "toHaveAttribute('data-attention', 'true')",
+  'toHaveClass(/contract-card--attention/)',
 ]) requireText(browserTestPath, text);
 
 for (const text of [
@@ -137,8 +137,8 @@ for (const text of [
   "getByRole('region', { name: '合同广场' })",
   "getByRole('region', { name: '我的合同' })",
   "getByRole('tab', { name: '历史合同', exact: true })",
-  "toHaveAttribute('data-attention', 'true')",
-  "toHaveAttribute('data-attention', 'false')",
+  'toHaveClass(/contract-card--attention/)',
+  'toHaveClass(/contract-card--normal/)',
 ]) requireText(workspaceTestPath, text);
 
 for (const text of [

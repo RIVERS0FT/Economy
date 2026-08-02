@@ -375,7 +375,7 @@ for (const text of [
   'contract-market-grid',
   'contract-personal-tabs',
   'contract-active-grid',
-  'data-attention={needsAttention',
+  "contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'",
 ]) requireText('src/pages/ContractPage.tsx', text);
 for (const text of [
   '.contract-workspace {',

@@ -174,10 +174,12 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   expect(await gridTrackCount(page.locator('.contract-market-grid'))).toBe(2);
   expect(await gridTrackCount(page.locator('.contract-active-grid'))).toBe(2);
   expect(await gridTrackCount(page.locator('.contract-detail-layout').first())).toBe(1);
-  await expect(page.getByRole('checkbox', { name: '自动补充货款' })).toBeVisible();
+  const autoFundToggles = page.getByRole('checkbox', { name: '自动补充货款' });
+  await expect(autoFundToggles).toHaveCount(2);
+  await expect(autoFundToggles.first()).toBeVisible();
   await expect(page.locator('.contract-active-grid .contract-card h2 .product-icon')).toHaveCount(2);
   await expect(page.getByText('采购 机械', { exact: true })).toBeVisible();
-  await expect(page.locator('.contract-active-grid .contract-card').first()).toHaveAttribute('data-attention', 'true');
+  await expect(page.locator('.contract-active-grid .contract-card').first()).toHaveClass(/contract-card--attention/);
   await expect(page.locator('.contract-active-grid .contract-card').first().getByText('待处理', { exact: true })).toBeVisible();
   await expectPersonalContractTabs(page);
   await expectUniformPageSectionGaps(page);
