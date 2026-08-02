@@ -1,9 +1,13 @@
 name: Apply unified loading states
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/unify-loading-states
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
     paths:
       - .github/workflows/agent-apply-loading-unification.yml
       - .agent/apply-loading-unification.py.gz.b64
@@ -20,6 +24,7 @@ jobs:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
+          ref: agent/unify-loading-states
           fetch-depth: 0
 
       - name: Setup Node
@@ -67,4 +72,4 @@ jobs:
           git config user.name 'RIVERS0FT Automation'
           git config user.email 'actions@users.noreply.github.com'
           git commit -m '统一应用加载状态'
-          git push origin HEAD
+          git push origin HEAD:agent/unify-loading-states
