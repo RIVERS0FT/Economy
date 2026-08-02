@@ -56,6 +56,14 @@ jobs:
               raise SystemExit(f'expected one verifier marker, found {verifier_content.count(verifier_old)}')
           verifier.write_text(verifier_content.replace(verifier_old, verifier_new), encoding='utf-8')
 
+          market_verifier = Path('scripts/verify-market-chart.mjs')
+          market_verifier_content = market_verifier.read_text(encoding='utf-8')
+          market_verifier_old = "'triggerEmphasis: false', 'emphasis: { disabled: true }',"
+          market_verifier_new = "'triggerEmphasis: false', 'emphasis: STABLE_TOOLTIP_EMPHASIS',"
+          if market_verifier_content.count(market_verifier_old) != 1:
+              raise SystemExit(f'expected one market emphasis verifier, found {market_verifier_content.count(market_verifier_old)}')
+          market_verifier.write_text(market_verifier_content.replace(market_verifier_old, market_verifier_new), encoding='utf-8')
+
           browser_test = Path('tests/browser/chart-hover-visibility.spec.ts')
           browser_content = browser_test.read_text(encoding='utf-8')
           browser_url_old = "await page.goto('/chart-hover-runtime-test.html');"
@@ -145,6 +153,7 @@ jobs:
             src/components/charts/AdminCharts.tsx \
             docs/UI_DESIGN_SYSTEM.md \
             scripts/verify-echarts-adoption.mjs \
+            scripts/verify-market-chart.mjs \
             chart-hover-runtime-test.html \
             src/chart-hover-runtime-test.tsx \
             tests/browser/chart-hover-visibility.spec.ts
