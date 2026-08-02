@@ -378,6 +378,11 @@ for (const text of [
   'data-attention={needsAttention',
 ]) requireText('src/pages/ContractPage.tsx', text);
 for (const text of [
+  '.contract-workspace {',
+  'gap: var(--layout-gutter);',
+]) requireText('src/styles/contracts.css', text);
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '工作区内部左右区域使用 `var(--layout-gutter)`');
+for (const text of [
   'collectibleId',
   'facilityTypeId',
   'type ContractTab',
