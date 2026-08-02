@@ -108,7 +108,8 @@ test('market desktop layout keeps order entry and order book in one trade card b
   await expect(tradeCard.getByRole('heading', { name: /交易$/ })).toBeVisible();
   await expect(tradeCard.getByRole('heading', { name: '下单', exact: true })).toBeVisible();
   await expect(tradeCard.getByRole('heading', { name: '订单簿', exact: true })).toBeVisible();
-  await expect(tradeCard.locator('.order-book-columns')).toContainText(/方向\s*价格\s*数量/);
+  await expect(tradeCard.locator('.order-book-columns')).toContainText(/档位\s*价格\s*数量/);
+  await expect(tradeCard.locator('.market-trade-summary')).toContainText(/最近成交.*24h 变化.*可用小麦/);
   await expect(chartCard.locator('.market-chart-footer')).toBeVisible();
   await expect(chartCard.locator('.chart-footer')).toHaveCount(0);
   await expect(chartCard.getByText('均衡／方向未知', { exact: true })).toHaveCount(0);
@@ -197,11 +198,14 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   });
   await expect.poll(() => surface.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThan(820);
   const narrowTrade = await requireBox(tradeCard);
-  const stackedOrder = await requireBox(orderEntry);
-  const stackedBook = await requireBox(orderBook);
-  const stackedChart = await requireBox(page.locator('.market-chart-card'));
-  expect(stackedBook.y).toBeGreaterThan(stackedOrder.y + stackedOrder.height - 2);
-  expect(stackedChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);
+  const narrowOrder = await requireBox(orderEntry);
+  const narrowBook = await requireBox(orderBook);
+  const narrowChart = await requireBox(page.locator('.market-chart-card'));
+  expect(Math.abs(narrowOrder.y - narrowBook.y)).toBeLessThan(3);
+  expect(narrowBook.x).toBeGreaterThan(narrowOrder.x + narrowOrder.width - 3);
+  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.35);
+  expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.65);
+  expect(narrowChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);
 
   const layout = await inspectMarketLayoutBounds(surface);
   expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
@@ -214,14 +218,34 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await surface.evaluate((element) => {
+    const htmlElement = element as HTMLElement;
+    htmlElement.style.width = '';
+    htmlElement.style.maxWidth = '';
+  });
   const mobileOrder = await requireBox(orderEntry);
   const mobileBook = await requireBox(orderBook);
-  expect(mobileBook.y).toBeGreaterThan(mobileOrder.y + mobileOrder.height - 2);
+  expect(Math.abs(mobileOrder.y - mobileBook.y)).toBeLessThan(3);
+  expect(mobileBook.x).toBeGreaterThan(mobileOrder.x + mobileOrder.width - 3);
+  await expect(page.getByRole('button', { name: '挂单', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '成交', exact: true })).toBeVisible();
+  await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('未完成订单');
+  await page.getByRole('button', { name: '成交', exact: true }).click();
+  await expect(page.locator('.market-account-grid > section.market-account-pane--active')).toContainText('本地成交记录');
+
   const mobileAxis = await inspectChartAxis(page.locator('.market-history-chart.full'));
   for (const label of mobileAxis.allLabels) {
     expect(label.left, `移动端 ${label.text} 不得越出图表左侧`).toBeGreaterThanOrEqual(-1);
     expect(label.right, `移动端 ${label.text} 不得越出图表右侧`).toBeLessThanOrEqual(mobileAxis.width + 1);
   }
+
+  await page.setViewportSize({ width: 320, height: 720 });
+  await expect(page.getByRole('button', { name: '下单', exact: true })).toBeVisible();
+  await expect(orderEntry).toBeVisible();
+  await expect(orderBook).toBeHidden();
+  await page.getByRole('button', { name: '盘口', exact: true }).click();
+  await expect(orderEntry).toBeHidden();
+  await expect(orderBook).toBeVisible();
   expect(pageErrors).toEqual([]);
 });
 
@@ -230,7 +254,7 @@ test('market trend uses neutral semantics for zero', async ({ page }) => {
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=zero-trend');
 
-  const trend = page.locator('.market-trend-tag');
+  const trend = page.locator('.market-chart-card .market-trend-tag');
   await expect(trend).toHaveClass(/status-neutral/);
   await expect(trend).toContainText('0');
   expect((await trend.textContent())?.includes('+')).toBe(false);
@@ -245,7 +269,7 @@ test('market order form explains why an order cannot be submitted', async ({ pag
   await page.goto('market-runtime-test.html?scenario=funds-empty');
   await expect(page.getByRole('status')).toHaveText('可用资金不足，当前价格至少需要 2.00。');
   await expect(page.getByRole('spinbutton', { name: '数量' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: '提交小麦买单' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '买入小麦' })).toBeDisabled();
 
   await page.goto('market-runtime-test.html?scenario=warehouse-full');
   await expect(page.getByRole('status')).toHaveText('仓库剩余空间不足，无法提交商品买单。');
@@ -253,48 +277,53 @@ test('market order form explains why an order cannot be submitted', async ({ pag
 
   await page.goto('market-runtime-test.html?scenario=sell-empty');
   await expect(page.getByRole('status')).toHaveText('当前没有可出售的小麦。');
-  await expect(page.getByRole('button', { name: '提交小麦卖单' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '卖出小麦' })).toBeDisabled();
 
   await page.goto('market-runtime-test.html?scenario=active');
   await expect(page.getByRole('status')).toHaveCount(0);
   await expect(page.getByRole('spinbutton', { name: '数量' })).toBeEnabled();
-  await expect(page.getByRole('button', { name: '提交小麦买单' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '买入小麦' })).toBeEnabled();
   expect(pageErrors).toEqual([]);
 });
 
-test('market quick quantities use funds, inventory and holdings without duplicate quantity errors', async ({ page }) => {
+test('market steppers and compact quick quantities preserve price and quantity limits', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active');
 
+  const priceInput = page.getByRole('textbox', { name: '价格' });
   const quantityInput = page.getByRole('spinbutton', { name: '数量' });
-  await expect(page.getByRole('button', { name: '1/4 资金', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '1/2 资金', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '全部资金', exact: true })).toBeVisible();
+  await expect(priceInput).toHaveValue('2');
+  await page.getByRole('button', { name: '价格增加 0.01' }).click();
+  await expect(priceInput).toHaveValue('2.01');
+  await page.getByRole('button', { name: '价格减少 0.01' }).click();
+  await expect(priceInput).toHaveValue('2.00');
+  await page.getByRole('button', { name: '数量增加 1' }).click();
+  await expect(quantityInput).toHaveValue('2');
+  await page.getByRole('button', { name: '数量减少 1' }).click();
+  await expect(quantityInput).toHaveValue('1');
+
+  await expect(page.getByRole('button', { name: '填写四分之一可交易数量' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '填写二分之一可交易数量' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '填写最大可交易数量' })).toBeVisible();
   await expect(page.getByText('当前价格下最多可买 500。', { exact: true })).toHaveCount(1);
 
-  await page.getByRole('button', { name: '全部资金', exact: true }).click();
+  await page.getByRole('button', { name: '填写最大可交易数量' }).click();
   await expect(quantityInput).toHaveValue('500');
   await quantityInput.fill('501');
   await expect(page.getByRole('alert')).toHaveText('当前价格下最多可买 500。');
   await expect(page.getByText('当前价格下最多可买 500。', { exact: true })).toHaveCount(1);
   await expect(page.getByRole('status')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '提交小麦买单' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '买入小麦' })).toBeDisabled();
 
   await page.getByRole('button', { name: '卖出', exact: true }).click();
-  await expect(page.getByRole('button', { name: '1/4 库存', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '1/2 库存', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '全部库存', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '全部库存', exact: true }).click();
+  await page.getByRole('button', { name: '填写最大可交易数量' }).click();
   await expect(quantityInput).toHaveValue('8');
 
   const machineryTab = page.getByRole('tab', { name: /^机械工厂/ });
   await machineryTab.click();
   await expect(machineryTab).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('button', { name: '1/4 持有', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '1/2 持有', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '全部持有', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '全部持有', exact: true }).click();
+  await page.getByRole('button', { name: '填写最大可交易数量' }).click();
   await expect(quantityInput).toHaveValue('18');
   await expect(page.getByRole('status')).toHaveCount(0);
   expect(pageErrors).toEqual([]);
@@ -458,21 +487,28 @@ test('mobile market sticky asset divider stays below the status bar chrome', asy
   expect(pageErrors).toEqual([]);
 });
 
-test('market order book headings precede their rows and midpoint separates both sides', async ({ page }) => {
+test('market order book keeps sell five to buy five sequence and fills price without submitting', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  const askLabel = await requireBox(page.locator('.ask-label'));
-  const askRow = await requireBox(page.locator('.book-order-row.ask'));
-  const midpoint = await requireBox(page.locator('.order-book-midpoint'));
-  const bidLabel = await requireBox(page.locator('.bid-label'));
-  const bidRow = await requireBox(page.locator('.book-order-row.bid'));
-  expect(askLabel.y).toBeLessThan(askRow.y);
-  expect(askRow.y).toBeLessThan(midpoint.y);
-  expect(midpoint.y).toBeLessThan(bidLabel.y);
-  expect(bidLabel.y).toBeLessThan(bidRow.y);
-  await expect(page.locator('.order-book-midpoint')).toContainText('最近成交');
+  const askRow = page.locator('.book-order-row.ask').first();
+  const midpoint = page.locator('.order-book-midpoint');
+  const bidRow = page.locator('.book-order-row.bid').first();
+  const askBox = await requireBox(askRow);
+  const midpointBox = await requireBox(midpoint);
+  const bidBox = await requireBox(bidRow);
+  expect(askBox.y).toBeLessThan(midpointBox.y);
+  expect(midpointBox.y).toBeLessThan(bidBox.y);
+  await expect(askRow.locator('.market-book-level')).toHaveText('卖1');
+  await expect(midpoint).toContainText('最新');
+  await expect(bidRow.locator('.market-book-level')).toHaveText('买1');
+
+  const priceInput = page.getByRole('textbox', { name: '价格' });
+  await expect(priceInput).toHaveValue('2');
+  await askRow.click();
+  await expect(priceInput).toHaveValue('13.00');
+  await expect(page.getByRole('button', { name: '买入小麦' })).toBeEnabled();
 
   const tradeCard = await requireBox(page.locator('.market-trade-card'));
   const book = await requireBox(page.locator('.single-order-book'));
@@ -486,8 +522,7 @@ test('market order book aggregates same-price orders into one price level', asyn
   await page.setViewportSize({ width: 720, height: 1000 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  await expect(page.getByText('最低价前 5 档', { exact: true })).toBeVisible();
-  await expect(page.getByText('最高价前 5 档', { exact: true })).toBeVisible();
+  await expect(page.locator('.order-book-columns')).toContainText(/档位\s*价格\s*数量/);
 
   const askLevels = page.locator('.book-order-row.ask');
   const bidLevels = page.locator('.book-order-row.bid');
@@ -495,8 +530,8 @@ test('market order book aggregates same-price orders into one price level', asyn
   await expect(bidLevels).toHaveCount(1);
   await expect(askLevels).toHaveAttribute('data-order-count', '2');
   await expect(bidLevels).toHaveAttribute('data-order-count', '5');
-  await expect(askLevels).toHaveAttribute('aria-label', '卖盘，价格 13.00，合计剩余 4，包含 2 笔订单');
-  await expect(bidLevels).toHaveAttribute('aria-label', '买盘，价格 2.00，合计剩余 5，包含 5 笔订单');
+  await expect(askLevels).toHaveAttribute('aria-label', '卖1，价格 13.00，合计剩余 4，点击填入价格');
+  await expect(bidLevels).toHaveAttribute('aria-label', '买1，价格 2.00，合计剩余 5，点击填入价格');
   expect(pageErrors).toEqual([]);
 });
 
