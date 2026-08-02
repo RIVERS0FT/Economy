@@ -74,6 +74,9 @@ jobs:
               "                raise SystemExit(f'{path}: chart metrics hook regex matched {matches}')",
               "            file.write_text(updated, encoding='utf-8')",
               '            return',
+              "        if path == 'tests/browser/market-runtime.spec.ts' and old == \"  await expect(page.getByText('当前价格下最多可买 500。', { exact: true })).toHaveCount(1);\" and count == 2:",
+              "            file.write_text(text.replace(old, new, 1), encoding='utf-8')",
+              '            return',
               "        raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')",
               '    file.write_text(text.replace(old, new, 1), encoding=\'utf-8\')',
           ])
