@@ -40,56 +40,15 @@ async function expectUniformPageSectionGaps(page: Page) {
   }
 }
 
-async function expectContractTabsDoNotOverlap(page: Page) {
-  const container = page.locator('.contract-tabs');
+async function expectPersonalContractTabs(page: Page) {
+  const container = page.locator('.contract-personal-tabs');
   const tabs = page.getByRole('tab');
-  const layout = await container.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      display: style.display,
-      overflowX: style.overflowX,
-      overflowY: style.overflowY,
-      touchAction: style.touchAction,
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-    };
-  });
-
-  expect(layout.display).toBe('flex');
-  expect(layout.overflowX).toBe('auto');
-  expect(layout.overflowY).toBe('hidden');
-  expect(layout.touchAction).toContain('pan-x');
-  expect(layout.touchAction).toContain('pan-y');
-  expect(layout.scrollWidth).toBeGreaterThan(layout.clientWidth);
-  await expect(tabs).toHaveCount(4);
-
-  for (let index = 0; index < 4; index += 1) {
+  await expect(tabs).toHaveCount(2);
+  expect(await gridTrackCount(container)).toBe(2);
+  for (let index = 0; index < 2; index += 1) {
     const tab = tabs.nth(index);
     await tab.click();
     await expect(tab).toHaveAttribute('aria-selected', 'true');
-
-    const geometry = await container.evaluate((element) => {
-      const containerRect = element.getBoundingClientRect();
-      const tabElements = Array.from(element.querySelectorAll<HTMLElement>('[role="tab"]'));
-      const rects = tabElements.map((item) => {
-        const rect = item.getBoundingClientRect();
-        return { left: rect.left, right: rect.right, width: rect.width };
-      });
-      const activeIndex = tabElements.findIndex((item) => item.getAttribute('aria-selected') === 'true');
-      return {
-        container: { left: containerRect.left, right: containerRect.right },
-        rects,
-        active: activeIndex >= 0 ? rects[activeIndex] : null,
-      };
-    });
-
-    expect(geometry.active).not.toBeNull();
-    for (let itemIndex = 1; itemIndex < geometry.rects.length; itemIndex += 1) {
-      expect(geometry.rects[itemIndex].left).toBeGreaterThanOrEqual(geometry.rects[itemIndex - 1].right - 1);
-    }
-    for (const rect of geometry.rects) expect(rect.width).toBeGreaterThan(0);
-    expect(geometry.active!.left).toBeGreaterThanOrEqual(geometry.container.left - 1);
-    expect(geometry.active!.right).toBeLessThanOrEqual(geometry.container.right + 1);
   }
 }
 
@@ -211,11 +170,19 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await openContracts(page, 1440, 900);
 
   expect(await gridTrackCount(page.locator('.contract-summary-grid'))).toBe(4);
-  expect(await gridTrackCount(page.locator('.contract-detail-layout').first())).toBe(2);
+  expect(await gridTrackCount(page.locator('.contract-workspace'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.contract-market-grid'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.contract-active-grid'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.contract-detail-layout').first())).toBe(1);
   await expect(page.getByRole('checkbox', { name: '自动补充货款' })).toBeVisible();
-  await expect(page.locator('.contract-card h2 .product-icon')).toHaveCount(1);
+  await expect(page.locator('.contract-active-grid .contract-card h2 .product-icon')).toHaveCount(2);
+  await expect(page.getByText('采购 机械', { exact: true })).toBeVisible();
+  await expect(page.locator('.contract-active-grid .contract-card').first()).toHaveAttribute('data-attention', 'true');
+  await expect(page.locator('.contract-active-grid .contract-card').first().getByText('待处理', { exact: true })).toBeVisible();
+  await expectPersonalContractTabs(page);
   await expectUniformPageSectionGaps(page);
 
+  await page.getByRole('tab', { name: /进行中的合同/ }).click();
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(2);
   await expect(page.locator('.contract-direction-switch')).toBeVisible();
@@ -230,13 +197,10 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await quantity.blur();
   await expect(quantity).toHaveValue('100');
 
-  await page.getByRole('tab', { name: /合同广场/ }).click();
-  expect(await gridTrackCount(page.locator('.contract-offer-grid'))).toBe(2);
-  await expect(page.getByText('采购 机械', { exact: true })).toBeVisible();
-
-  await page.getByRole('tab', { name: /合同历史/ }).click();
+  await page.getByRole('tab', { name: /历史合同/ }).click();
   await expect(page.locator('.contract-history-panel')).toHaveCount(1);
   await expect(page.locator('.contract-history-row')).toHaveCount(1);
+  await expect(page.getByText('采购 机械', { exact: true })).toBeVisible();
   await page.locator('.contract-history-row').click();
   await expect(page.getByText('该合同从发布开始具有完整服务器审计记录。')).toBeVisible();
   await expect(page.locator('.contract-audit-event')).toHaveCount(4);
@@ -249,6 +213,9 @@ test('tablet contract publish form keeps two-column fields', async ({ page }) =>
   await mockContractAudit(page);
   await openContracts(page, 1100, 900);
 
+  expect(await gridTrackCount(page.locator('.contract-workspace'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.contract-market-grid'))).toBe(1);
+  expect(await gridTrackCount(page.locator('.contract-active-grid'))).toBe(1);
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
   expect(await gridTrackCount(page.locator('.contract-publish-grid'))).toBe(2);
@@ -261,10 +228,14 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
   await openContracts(page, 390, 844);
 
   expect(await gridTrackCount(page.locator('.contract-summary-grid'))).toBe(2);
+  expect(await gridTrackCount(page.locator('.contract-workspace'))).toBe(1);
+  expect(await gridTrackCount(page.locator('.contract-market-grid'))).toBe(1);
+  expect(await gridTrackCount(page.locator('.contract-active-grid'))).toBe(1);
   expect(await gridTrackCount(page.locator('.contract-card-heading').first())).toBe(1);
-  await expectContractTabsDoNotOverlap(page);
+  await expectPersonalContractTabs(page);
   await expectUniformPageSectionGaps(page);
 
+  await page.getByRole('tab', { name: /进行中的合同/ }).click();
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(1);
   expect(await gridTrackCount(page.locator('.contract-publish-grid'))).toBe(1);
@@ -276,7 +247,7 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
   const quantityFontSize = await quantity.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
   expect(quantityFontSize).toBeGreaterThanOrEqual(16);
 
-  await page.getByRole('tab', { name: /合同历史/ }).click();
+  await page.getByRole('tab', { name: /历史合同/ }).click();
   await expect(page.locator('.contract-history-row')).toHaveCount(1);
   await page.locator('.contract-history-row').click();
   await expect(page.locator('.contract-audit-summary-grid')).toBeVisible();
@@ -284,10 +255,10 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
-test('narrow mobile contract tabs keep separate hit areas', async ({ page }) => {
+test('narrow mobile contract tabs keep two stable hit areas', async ({ page }) => {
   await mockContractAudit(page);
   await openContracts(page, 320, 844);
-  await expectContractTabsDoNotOverlap(page);
+  await expectPersonalContractTabs(page);
   await expectUniformPageSectionGaps(page);
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });

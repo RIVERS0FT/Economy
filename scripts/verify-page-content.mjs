@@ -362,15 +362,30 @@ for (const text of [
   '进行中的合同',
   '合同广场',
   '待处理',
-  '合同历史',
+  '历史合同',
   '发布合同',
   'productionContractActions',
   '准备本批商品',
   '补充本批货款',
   '立即违约终止',
-  "useState<ContractTab>('active')",
+  "type PersonalContractView = 'active' | 'history'",
+  "useState<PersonalContractView>('active')",
+  'contractNeedsAttention',
+  'contract-workspace',
+  'contract-market-grid',
+  'contract-personal-tabs',
+  'contract-active-grid',
+  'data-attention={needsAttention',
 ]) requireText('src/pages/ContractPage.tsx', text);
-for (const text of ['collectibleId', 'facilityTypeId']) forbidText('src/pages/ContractPage.tsx', text);
+for (const text of [
+  'collectibleId',
+  'facilityTypeId',
+  'type ContractTab',
+  'contract-tab-market',
+  'contract-tab-pending',
+  "tab === 'market'",
+  "tab === 'pending'",
+]) forbidText('src/pages/ContractPage.tsx', text);
 for (const text of [
   "'/contracts'",
   "'accept'",
