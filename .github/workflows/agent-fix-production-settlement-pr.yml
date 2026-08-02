@@ -1,0 +1,62 @@
+name: Agent fix production settlement PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.head_ref == 'agent/fix-mobile-production-settlement-layout'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply production settlement fix
+        run: python3 scripts/agent-apply-mobile-settlement-fix.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run verify:production-settlement
+          node scripts/verify-facility-groups.mjs
+          node scripts/verify-unified-factory-recipes-grid.mjs
+          npx playwright install --with-deps chromium
+          npx playwright test tests/browser/production-methods.spec.ts --project=chromium
+          git diff --check
+
+      - name: Run full build and browser suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build
+          npm run test:browser
+          git diff --check
+
+      - name: Commit verified changes and remove temporary files
+        shell: bash
+        run: |
+          rm scripts/agent-apply-mobile-settlement-fix.py
+          rm .github/workflows/agent-fix-production-settlement-pr.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src scripts tests docs .github/workflows/agent-fix-production-settlement-pr.yml
+          git commit -m "修复移动生产结算布局"
+          git push origin HEAD:${{ github.head_ref }}
