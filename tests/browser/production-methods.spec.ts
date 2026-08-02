@@ -9,8 +9,10 @@ test.describe('factory production methods', () => {
     const detail = page.locator('.facility-cluster-detail-card');
     await expect(detail).toContainText('作业制度');
     await expect(detail).toContainText('下一周期切换为：机械制造 · 高速生产');
+    await expect(detail.getByRole('radio')).toHaveCount(0);
 
     const methodSelect = detail.getByRole('combobox', { name: '机械工厂生产方式' });
+    await expect(methodSelect).toHaveCount(1);
     await expect(methodSelect).toHaveValue('rapid');
 
     const summary = detail.locator('.facility-production-method-summary');
