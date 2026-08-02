@@ -420,9 +420,9 @@ export function FacilityClusterDetailBody({
 
   return (
     <>
-      <div className="facility-recipe-section">
-        <div className="facility-recipe-heading">
-          <strong>生产配置</strong>
+      <section className="facility-production-settings">
+        <div className="facility-production-settings-heading">
+          <strong>生产设置</strong>
           {recipeState.pendingRecipe ? (
             <small className="facility-recipe-status" aria-live="polite">
               下一周期切换为：{recipeState.pendingBaseRecipe?.name ?? recipeState.pendingRecipe.name}
@@ -431,57 +431,58 @@ export function FacilityClusterDetailBody({
             </small>
           ) : null}
         </div>
-        <SelectInput
-          label={<span className="sr-only">{type.name}生产配方</span>}
-          aria-label={`${type.name}生产配方`}
-          value={recipeState.selectedBaseRecipeId}
-          disabled={group.count < 1 || recipeState.recipes.length === 0}
-          onChange={(event) => {
-            selectConfiguration(event.target.value, recipeState.selectedProductionMethodId);
-          }}
-        >
-          {recipeState.recipes.map((recipe) => (
-            <option key={recipe.id} value={recipe.id}>
-              {recipe.name}
-            </option>
-          ))}
-        </SelectInput>
-      </div>
 
-      {recipeState.productionMethodGroup ? (
-        <section className="facility-production-method-section">
+        <div className="facility-production-settings-grid">
           <SelectInput
-            label={recipeState.productionMethodGroup.name}
-            aria-label={`${type.name}生产方式`}
-            value={recipeState.selectedProductionMethodId}
-            disabled={group.count < 1}
+            label="生产配方"
+            aria-label={`${type.name}生产配方`}
+            value={recipeState.selectedBaseRecipeId}
+            disabled={group.count < 1 || recipeState.recipes.length === 0}
             onChange={(event) => {
-              selectConfiguration(
-                recipeState.selectedBaseRecipeId,
-                event.target.value as FacilityProductionMethodId,
-              );
+              selectConfiguration(event.target.value, recipeState.selectedProductionMethodId);
             }}
           >
-            {recipeState.productionMethodGroup.methods.map((method) => {
-              const plan = method.plansByRecipeId[recipeState.selectedBaseRecipeId];
-              return (
-                <option value={method.id} key={method.id} disabled={!plan}>
-                  {method.name}
-                </option>
-              );
-            })}
+            {recipeState.recipes.map((recipe) => (
+              <option key={recipe.id} value={recipe.id}>
+                {recipe.name}
+              </option>
+            ))}
           </SelectInput>
-          {selectedMethod && selectedPlan ? (
-            <div className="facility-production-method-summary" aria-live="polite">
-              <strong>{selectedMethod.name}</strong>
-              <span>
-                {formatDuration(selectedPlan.cycleMs)} · 产出 {formatNumber(selectedPlan.output.quantity)} · 成本 {formatNumber(selectedPlan.operatingCost)}
-              </span>
-              <small>{selectedMethod.description}</small>
-            </div>
+
+          {recipeState.productionMethodGroup ? (
+            <SelectInput
+              label={recipeState.productionMethodGroup.name}
+              aria-label={`${type.name}生产方式`}
+              value={recipeState.selectedProductionMethodId}
+              disabled={group.count < 1}
+              onChange={(event) => {
+                selectConfiguration(
+                  recipeState.selectedBaseRecipeId,
+                  event.target.value as FacilityProductionMethodId,
+                );
+              }}
+            >
+              {recipeState.productionMethodGroup.methods.map((method) => {
+                const plan = method.plansByRecipeId[recipeState.selectedBaseRecipeId];
+                return (
+                  <option value={method.id} key={method.id} disabled={!plan}>
+                    {method.name}
+                  </option>
+                );
+              })}
+            </SelectInput>
           ) : null}
-        </section>
-      ) : null}
+        </div>
+
+        {selectedMethod && selectedPlan ? (
+          <div className="facility-production-method-summary" aria-live="polite">
+            <span>
+              {formatDuration(selectedPlan.cycleMs)} · 产出 {formatNumber(selectedPlan.output.quantity)} · 成本 {formatNumber(selectedPlan.operatingCost)}
+            </span>
+            <small>{selectedMethod.description}</small>
+          </div>
+        ) : null}
+      </section>
 
       <FacilityProductionFormula
         group={group}

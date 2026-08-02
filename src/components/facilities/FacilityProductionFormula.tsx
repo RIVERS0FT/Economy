@@ -216,52 +216,53 @@ export function FacilityProductionFormula({
   const profitScopeLabel = profitScope.name;
 
   return (
-    <>
-      <div className="facility-production-formula" role="group" aria-label={description}>
+    <section className="facility-production-formula" role="group" aria-label={description}>
+      <div className="facility-production-formula-heading">
+        <strong>生产结算</strong>
         <div className="facility-formula-scope" aria-hidden="true">{scope.label}</div>
-        <div className="facility-formula-visual" aria-hidden="true">
-          <div className="facility-formula-top">
-            <div className="facility-formula-input">
-              {inputs.length > 0 ? (
-                <RecipeItems
-                  items={inputs}
-                  productNames={productNames}
-                  inventories={inventories}
-                  multiplier={scope.count}
-                  showInventory
-                  groupClassName="facility-formula-input-group"
-                  itemClassName="facility-formula-input-item"
-                />
-              ) : <span className="facility-formula-empty">无</span>}
-            </div>
-
-            <div className="facility-formula-center">
-              <span className="facility-formula-meta-unit">
-                <CycleIcon className="facility-formula-meta-icon" />
-                <span>{formatDuration(type.cycleMs)}</span>
-              </span>
-              <span className="facility-formula-meta-divider">·</span>
-              <span className="facility-formula-meta-unit">
-                <CreditsIcon className="facility-formula-meta-icon" />
-                <span>{formatCurrency(type.operatingCost * scope.count)}</span>
-              </span>
-            </div>
-
-            <div className="facility-formula-output">
+      </div>
+      <div className="facility-formula-visual" aria-hidden="true">
+        <div className="facility-formula-top">
+          <div className="facility-formula-input">
+            {inputs.length > 0 ? (
               <RecipeItems
-                items={outputs}
+                items={inputs}
                 productNames={productNames}
                 inventories={inventories}
                 multiplier={scope.count}
-                groupClassName="facility-formula-output-group"
-                itemClassName="facility-formula-output-item"
+                showInventory
+                groupClassName="facility-formula-input-group"
+                itemClassName="facility-formula-input-item"
               />
-            </div>
+            ) : <span className="facility-formula-empty">无</span>}
           </div>
 
-          <div className="facility-formula-progress">
-            <FacilityGroupProgress group={group} type={type} now={now} />
+          <div className="facility-formula-center">
+            <span className="facility-formula-meta-unit">
+              <CycleIcon className="facility-formula-meta-icon" />
+              <span>{formatDuration(type.cycleMs)}</span>
+            </span>
+            <span className="facility-formula-meta-divider">·</span>
+            <span className="facility-formula-meta-unit">
+              <CreditsIcon className="facility-formula-meta-icon" />
+              <span>{formatCurrency(type.operatingCost * scope.count)}</span>
+            </span>
           </div>
+
+          <div className="facility-formula-output">
+            <RecipeItems
+              items={outputs}
+              productNames={productNames}
+              inventories={inventories}
+              multiplier={scope.count}
+              groupClassName="facility-formula-output-group"
+              itemClassName="facility-formula-output-item"
+            />
+          </div>
+        </div>
+
+        <div className="facility-formula-progress">
+          <FacilityGroupProgress group={group} type={type} now={now} />
         </div>
       </div>
 
@@ -273,6 +274,6 @@ export function FacilityProductionFormula({
         products={products}
         inventories={inventories}
       />
-    </>
+    </section>
   );
 }
