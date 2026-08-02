@@ -23,6 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
+      - name: Repair dropdown updater
+        run: node scripts/agent-fix-production-method-dropdown-script.mjs
       - name: Apply dropdown update
         run: node scripts/agent-production-method-dropdown.mjs
       - name: Commit formal changes
@@ -37,6 +39,7 @@ jobs:
             scripts/verify-production-methods.mjs \
             tests/browser/production-methods.spec.ts
           git add -u -- \
+            scripts/agent-fix-production-method-dropdown-script.mjs \
             scripts/agent-production-method-dropdown.mjs \
             .github/workflows/agent-production-method-dropdown.yml
           git commit -m "改用下拉框选择作业制度"
