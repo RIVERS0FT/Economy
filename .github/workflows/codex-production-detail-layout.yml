@@ -37,6 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .agent/apply-production-detail-layout.py
+          python3 .agent/fix-facility-groups-verifier.py
           git rm -r .agent .github/workflows/codex-production-detail-layout.yml
 
       - name: Install dependencies
@@ -47,6 +48,7 @@ jobs:
           set -euo pipefail
           node scripts/verify-production-methods.mjs
           node scripts/verify-unified-factory-recipes-grid.mjs
+          node scripts/verify-facility-groups.mjs
           node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs
 
       - name: Build and run repository verification
