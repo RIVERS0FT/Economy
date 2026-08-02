@@ -110,13 +110,20 @@
   inset: 0;
   z-index: 1;
   border-radius: inherit;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-background) 82%, transparent) 0%,
-    color-mix(in srgb, var(--color-background) 40%, transparent) 24%,
-    transparent 54%,
-    color-mix(in srgb, var(--color-background) 58%, transparent) 100%
-  );
+  background:
+    linear-gradient(
+      to bottom,
+      rgb(0 0 0 / 82%) 0%,
+      rgb(0 0 0 / 54%) 17%,
+      rgb(0 0 0 / 18%) 32%,
+      transparent 44%
+    ),
+    linear-gradient(
+      to top,
+      rgb(0 0 0 / 76%) 0%,
+      rgb(0 0 0 / 38%) 20%,
+      transparent 42%
+    );
   pointer-events: none;
 }
 
