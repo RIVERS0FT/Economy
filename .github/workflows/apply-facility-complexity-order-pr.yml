@@ -33,7 +33,7 @@ jobs:
       - name: Apply implementation
         run: |
           set -euo pipefail
-          python3 .github/apply-facility-complexity-order.py
+          python3 .github/apply-facility-complexity-order-v2.py
           git diff --check
 
       - name: Install dependencies
