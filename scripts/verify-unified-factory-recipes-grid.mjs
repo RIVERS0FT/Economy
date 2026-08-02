@@ -5,6 +5,12 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js'
 const read = (path) => readFileSync(path, 'utf8');
 const productIds = new Set(PRODUCT_CATALOG.map((product) => product.id));
 
+  assert.equal(
+    FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'electronics-factory')?.name,
+    '电子厂',
+    'electronics-factory 正式显示名称必须为电子厂',
+  );
+
 for (const facility of FACILITY_TYPE_CATALOG) {
   assert.ok(Array.isArray(facility.recipes) && facility.recipes.length >= 1, `${facility.id} 必须显式提供配方`);
   assert.ok(facility.defaultRecipeId, `${facility.id} 缺少默认配方`);
@@ -222,6 +228,10 @@ for (const text of [
   'width: 100%;',
   'height: 100%;',
   'transform: none;',
+    'rgb(0 0 0 / 82%) 0%',
+    'transparent 44%',
+    'rgb(0 0 0 / 76%) 0%',
+    'transparent 42%',
   '.facility-cluster-detail-shell',
   '.facility-cluster-detail-card',
   '.facility-detail-sheet-backdrop',
@@ -346,7 +356,8 @@ for (const text of [
   '选择卡统一为 `4:5` 竖卡',
   '`FacilityIcon` 场景插画等比铺满整卡并以中心裁切',
   '选择卡右上角显示与详情相同口径的单厂有效平均利润／分钟',
-  '正数不加正号并使用绿色，负数保留负号并使用红色',
+  '正数不加正号并使用绿色，负数显示绝对值、不显示负号并使用红色',
+    '不得恢复“正数不加正号并使用绿色，负数保留负号并使用红色”的旧规则',
   '不得显示货币图标、货币符号、“利润”“每分钟”“/分”等标签、单位或胶囊',
   '不使用 `aria-pressed`、选中描边或持久选中背景',
   '绿色、红色、灰色分别表达运行中、异常、已停止',
@@ -416,7 +427,10 @@ for (const [path, required] of [
       '停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount`',
       '不得使用 `group.count` 作为公式乘数',
       '工厂集群选择卡统一为最大宽度 `160px`、`4:5` 竖卡',
-      '盈利为绿色且不加正号，亏损为红色且保留负号',
+      '盈利为绿色且不加正号，亏损为红色、显示绝对值且不显示负号',
+        '不得恢复“盈利为绿色且不加正号，亏损为红色且保留负号”的旧规则',
+        '上下两层黑色渐变',
+        '中央主体区域保持透明',
       '卡片点击不保留选中态',
     ],
   ],

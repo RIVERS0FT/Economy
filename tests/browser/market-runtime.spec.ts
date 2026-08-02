@@ -376,7 +376,7 @@ test('market asset directory uses two rows, explicit groups, controls and visibl
   await page.getByRole('button', { name: '向后浏览资产' }).click();
   await expect.poll(() => directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
 
-  const finalFacility = page.getByRole('tab', { name: /^电子工厂/ });
+  const finalFacility = page.getByRole('tab', { name: /^电子厂/ });
   await finalFacility.click();
   await expect(finalFacility).toHaveAttribute('aria-selected', 'true');
   await expect(finalFacility.locator('.market-asset-card__current')).toHaveText('当前');
