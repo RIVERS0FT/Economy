@@ -10,7 +10,7 @@ on:
       - synchronize
     paths:
       - .github/workflows/agent-apply-loading-unification.yml
-      - .agent/apply-loading-unification.py.gz.b64
+      - .agent/apply-loading-unification.py
 
 permissions:
   contents: write
@@ -33,12 +33,11 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Decode and apply patch
+      - name: Apply patch
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode .agent/apply-loading-unification.py.gz.b64 | gzip -d > /tmp/apply-loading-unification.py
-          python3 /tmp/apply-loading-unification.py
+          python3 .agent/apply-loading-unification.py
           git diff --check
 
       - name: Run focused verification
