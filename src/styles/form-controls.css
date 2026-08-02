@@ -138,6 +138,46 @@ textarea:disabled {
   opacity: 0.7;
 }
 
+.ui-control-shell {
+  min-width: 0;
+  position: relative;
+  display: block;
+}
+
+.ui-control-shell > .ui-control {
+  display: block;
+}
+
+.ui-control-leading-icon {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: var(--space-3);
+  width: 1.1rem;
+  height: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.ui-control-leading-icon .game-icon,
+.ui-control-leading-icon .product-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.ui-control-shell--with-leading-icon > select.ui-control {
+  padding-left: 2.55rem;
+}
+
+.ui-control-shell:has(select:disabled) .ui-control-leading-icon {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
 select.ui-control,
 select {
   appearance: none;

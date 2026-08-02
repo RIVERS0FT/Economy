@@ -1,4 +1,6 @@
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
+import { AssetsIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../../components/icons/GameIcons';
+import { ProductIcon } from '../../components/icons/ProductIcons';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
 import { SelectInput } from '../../components/ui/FormControls';
 import {
@@ -200,6 +202,21 @@ function baseRecipeId(recipe: FacilityRecipeDefinition) {
 
 function productionMethodId(recipe: FacilityRecipeDefinition): FacilityProductionMethodId {
   return recipe.productionMethodId ?? 'standard';
+}
+
+function ProductionMethodIcon({ methodId }: { methodId: FacilityProductionMethodId }) {
+  const icon = methodId === 'rapid'
+    ? <CycleIcon />
+    : methodId === 'economical'
+      ? <CreditsIcon />
+      : methodId === 'high-yield'
+        ? <AssetsIcon />
+        : <ProductionIcon />;
+  return (
+    <span className="production-method-icon" data-production-method-icon={methodId}>
+      {icon}
+    </span>
+  );
 }
 
 function productionMethodGroupForType(type: FacilityTypeDefinition) {
@@ -409,6 +426,9 @@ export function FacilityClusterDetailBody({
     (method) => method.id === recipeState.selectedProductionMethodId,
   );
   const selectedPlan = selectedMethod?.plansByRecipeId[recipeState.selectedBaseRecipeId];
+  const selectedBaseRecipe = recipeState.recipes.find(
+    (recipe) => recipe.id === recipeState.selectedBaseRecipeId,
+  ) ?? recipeState.activeBaseRecipe;
 
   const selectConfiguration = (
     selectedBaseRecipeId: string,
@@ -436,6 +456,7 @@ export function FacilityClusterDetailBody({
           <SelectInput
             label="生产配方"
             aria-label={`${type.name}生产配方`}
+            leadingIcon={<ProductIcon productId={selectedBaseRecipe.output.productId} />}
             value={recipeState.selectedBaseRecipeId}
             disabled={group.count < 1 || recipeState.recipes.length === 0}
             onChange={(event) => {
@@ -453,6 +474,7 @@ export function FacilityClusterDetailBody({
             <SelectInput
               label={recipeState.productionMethodGroup.name}
               aria-label={`${type.name}生产方式`}
+              leadingIcon={<ProductionMethodIcon methodId={recipeState.selectedProductionMethodId} />}
               value={recipeState.selectedProductionMethodId}
               disabled={group.count < 1}
               onChange={(event) => {

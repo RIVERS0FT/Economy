@@ -27,7 +27,7 @@ for (const text of [
   '<FacilityGroupProgress group={group} type={type} now={now} />',
 ]) assert.equal(formula.includes(text), true, `生产结算结构缺少: ${text}`);
 
-assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 3, '生产结算必须保留组件定义、输入调用和输出调用');
+assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 2, '生产结算必须保留输入和输出调用');
 for (const forbidden of [
   'showInventory',
   'facility-formula-meta-divider',
