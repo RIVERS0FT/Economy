@@ -58,11 +58,47 @@ jobs:
 
           browser_test = Path('tests/browser/chart-hover-visibility.spec.ts')
           browser_content = browser_test.read_text(encoding='utf-8')
-          browser_old = "await page.goto('/chart-hover-runtime-test.html');"
-          browser_new = "await page.goto('chart-hover-runtime-test.html');"
-          if browser_content.count(browser_old) != 1:
-              raise SystemExit(f'expected one browser URL, found {browser_content.count(browser_old)}')
-          browser_test.write_text(browser_content.replace(browser_old, browser_new), encoding='utf-8')
+          browser_url_old = "await page.goto('/chart-hover-runtime-test.html');"
+          browser_url_new = "await page.goto('chart-hover-runtime-test.html');"
+          if browser_content.count(browser_url_old) != 1:
+              raise SystemExit(f'expected one browser URL, found {browser_content.count(browser_url_old)}')
+          browser_content = browser_content.replace(browser_url_old, browser_url_new)
+
+          helper_anchor = "async function assertStableHover(page: Page, testId: string) {"
+          helper = '''async function hoverInsideFill(page: Page, mark: Locator) {
+  const point = await mark.evaluate((element) => {
+    const geometry = element as SVGGeometryElement;
+    const matrix = geometry.getScreenCTM();
+    const box = geometry.getBBox();
+    if (matrix && typeof geometry.isPointInFill === 'function') {
+      for (let yStep = 1; yStep < 10; yStep += 1) {
+        for (let xStep = 1; xStep < 10; xStep += 1) {
+          const localPoint = new DOMPoint(
+            box.x + box.width * xStep / 10,
+            box.y + box.height * yStep / 10,
+          );
+          if (!geometry.isPointInFill(localPoint)) continue;
+          const screenPoint = localPoint.matrixTransform(matrix);
+          return { x: screenPoint.x, y: screenPoint.y };
+        }
+      }
+    }
+    const bounds = element.getBoundingClientRect();
+    return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
+  });
+  await page.mouse.move(point.x, point.y);
+}
+
+'''
+          if browser_content.count(helper_anchor) != 1:
+              raise SystemExit(f'expected one helper anchor, found {browser_content.count(helper_anchor)}')
+          browser_content = browser_content.replace(helper_anchor, helper + helper_anchor)
+
+          hover_old = "  await mark.hover({ force: true });"
+          hover_new = "  await hoverInsideFill(page, mark);"
+          if browser_content.count(hover_old) != 1:
+              raise SystemExit(f'expected one hover call, found {browser_content.count(hover_old)}')
+          browser_test.write_text(browser_content.replace(hover_old, hover_new), encoding='utf-8')
           PY
 
       - name: Install dependencies
