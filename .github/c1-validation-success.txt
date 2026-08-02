@@ -1,0 +1,3 @@
+npm ci: passed
+npm run build: passed
+npm run test:browser: passed
