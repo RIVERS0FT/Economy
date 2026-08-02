@@ -99,6 +99,19 @@ jobs:
           if browser_content.count(hover_old) != 1:
               raise SystemExit(f'expected one hover call, found {browser_content.count(hover_old)}')
           browser_test.write_text(browser_content.replace(hover_old, hover_new), encoding='utf-8')
+
+          harness = Path('src/chart-hover-runtime-test.tsx')
+          harness_content = harness.read_text(encoding='utf-8')
+          bootstrap_old = "import ReactDOM from 'react-dom/client';"
+          bootstrap_new = "import ReactDOM from 'react-dom/client';\nimport './app/interactionBootstrap';"
+          if harness_content.count(bootstrap_old) != 1:
+              raise SystemExit(f'expected one ReactDOM import, found {harness_content.count(bootstrap_old)}')
+          harness_content = harness_content.replace(bootstrap_old, bootstrap_new)
+          interaction_old = "import './styles/design-system.css';"
+          interaction_new = "import './styles/design-system.css';\nimport './styles/interaction-states.css';"
+          if harness_content.count(interaction_old) != 1:
+              raise SystemExit(f'expected one design-system import, found {harness_content.count(interaction_old)}')
+          harness.write_text(harness_content.replace(interaction_old, interaction_new), encoding='utf-8')
           PY
 
       - name: Install dependencies
