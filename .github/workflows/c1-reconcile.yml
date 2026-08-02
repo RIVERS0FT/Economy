@@ -1,0 +1,255 @@
+name: C1 reconcile latest main
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: github.head_ref == 'agent/c1-fast-production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/c1-fast-production
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+      - name: Merge main, resolve catalog changes, and update regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin main
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+
+          if [ "$merge_status" -ne 0 ]; then
+            unmerged="$(git diff --name-only --diff-filter=U)"
+            for path in server/src/industry-catalog.js scripts/verify-industry-catalog.mjs server/test/domain.test.js; do
+              if grep -Fqx "$path" <<<"$unmerged"; then
+                case "$path" in
+                  server/src/industry-catalog.js) git checkout --theirs -- "$path" ;;
+                  *) git checkout --ours -- "$path" ;;
+                esac
+                git add "$path"
+              fi
+            done
+            remaining="$(git diff --name-only --diff-filter=U)"
+            if [ -n "$remaining" ]; then
+              echo "Unresolved merge conflicts:"
+              echo "$remaining"
+              exit 1
+            fi
+          fi
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing expected text in {path}: {old[:120]!r}')
+              file.write_text(text.replace(old, new, 1))
+
+          catalog = 'server/src/industry-catalog.js'
+          catalog_replacements = [
+              ("  { id: 'wheat', name: '小麦', category: 'raw', basePrice: 2 },", "  { id: 'wheat', name: '小麦', category: 'raw', basePrice: 1.2 },"),
+              ("  { id: 'rice', name: '水稻', category: 'raw', basePrice: 2 },", "  { id: 'rice', name: '水稻', category: 'raw', basePrice: 1.2 },"),
+              ("  { id: 'cotton', name: '棉花', category: 'raw', basePrice: 2 },", "  { id: 'cotton', name: '棉花', category: 'raw', basePrice: 1.2 },"),
+              ("  { id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 2 },", "  { id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 1.2 },"),
+              ("  { id: 'fruit', name: '水果', category: 'raw', basePrice: 4 },", "  { id: 'fruit', name: '水果', category: 'raw', basePrice: 1.3 },"),
+              ("  { id: 'meat', name: '肉', category: 'consumer', basePrice: 6 },", "  { id: 'meat', name: '肉', category: 'consumer', basePrice: 2.4 },"),
+              ("  { id: 'eggs', name: '蛋', category: 'consumer', basePrice: 3 },", "  { id: 'eggs', name: '蛋', category: 'consumer', basePrice: 2.4 },"),
+              ("  { id: 'milk', name: '奶', category: 'consumer', basePrice: 3 },", "  { id: 'milk', name: '奶', category: 'consumer', basePrice: 2.4 },"),
+              ("  { id: 'fish', name: '鱼类', category: 'raw', basePrice: 6 },", "  { id: 'fish', name: '鱼类', category: 'raw', basePrice: 2.5 },"),
+              ("  { id: 'wool', name: '毛', category: 'raw', basePrice: 6 },", "  { id: 'wool', name: '毛', category: 'raw', basePrice: 2.4 },"),
+              ("      { id: 'wheat-crop', name: '种植小麦', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'wheat', quantity: 4 } },", "      { id: 'wheat-crop', name: '种植小麦', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'wheat', quantity: 1 } },"),
+              ("      { id: 'rice-crop', name: '种植水稻', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'rice', quantity: 4 } },", "      { id: 'rice-crop', name: '种植水稻', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'rice', quantity: 1 } },"),
+              ("      { id: 'cotton-crop', name: '种植棉花', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'cotton', quantity: 4 } },", "      { id: 'cotton-crop', name: '种植棉花', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'cotton', quantity: 1 } },"),
+              ("      { id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'sugarcane', quantity: 4 } },", "      { id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'sugarcane', quantity: 1 } },"),
+              ("    recipes: [{ id: 'orchard-fruit', name: '种植水果', cycleMs: 120_000, operatingCost: 10, inputs: [], output: { productId: 'fruit', quantity: 3 } }],", "    recipes: [{ id: 'orchard-fruit', name: '种植水果', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'fruit', quantity: 1 } }],"),
+              ("      { id: 'ranch-meat', name: '生产肉', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'meat', quantity: 3 } },", "      { id: 'ranch-meat', name: '生产肉', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'meat', quantity: 1 } },"),
+              ("      { id: 'ranch-eggs', name: '生产蛋', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'eggs', quantity: 6 } },", "      { id: 'ranch-eggs', name: '生产蛋', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'eggs', quantity: 1 } },"),
+              ("      { id: 'ranch-milk', name: '生产奶', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'milk', quantity: 6 } },", "      { id: 'ranch-milk', name: '生产奶', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'milk', quantity: 1 } },"),
+              ("      { id: 'ranch-wool', name: '生产毛', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'wool', quantity: 3 } },", "      { id: 'ranch-wool', name: '生产毛', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'wool', quantity: 1 } },"),
+              ("    recipes: [{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'fish', quantity: 3 } }],", "    recipes: [{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'fish', quantity: 1 } }],"),
+              ("      { id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } },", "      { id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 8.6, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } },"),
+              ("      { id: 'sugar-milling', name: '加工砂糖', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'sugarcane', quantity: 2 }], output: { productId: 'sugar', quantity: 1 } },", "      { id: 'sugar-milling', name: '加工砂糖', cycleMs: 40_000, operatingCost: 8.6, inputs: [{ productId: 'sugarcane', quantity: 2 }], output: { productId: 'sugar', quantity: 1 } },"),
+              ("      { id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } },", "      { id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 8.8, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } },"),
+              ("      { id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } },", "      { id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 11.2, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } },"),
+              ("      { id: 'prepared-meal-production', name: '生产预制餐', cycleMs: 60_000, operatingCost: 11, inputs: [{ productId: 'flour', quantity: 1 }, { productId: 'fish', quantity: 1 }], output: { productId: 'prepared-meal', quantity: 2 } },", "      { id: 'prepared-meal-production', name: '生产预制餐', cycleMs: 60_000, operatingCost: 14.5, inputs: [{ productId: 'flour', quantity: 1 }, { productId: 'fish', quantity: 1 }], output: { productId: 'prepared-meal', quantity: 2 } },"),
+              ("      { id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },", "      { id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14.6, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },"),
+              ("      { id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 9, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },", "      { id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 14.4, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },"),
+          ]
+          for old, new in catalog_replacements:
+              replace_once(catalog, old, new)
+          replace_once(catalog, """const EXPECTED_PROFIT_PER_MINUTE = Object.freeze({
+            C1: 1,
+            C2: 3,
+            C3: 6,
+            C4: 6,
+            C5: 8,
+            C6: 10,
+            C7: 12,
+          });
+
+          """, "")
+          replace_once(catalog, """  const productionMethodGroups = createProductionMethodGroups(
+            { ...facility, recipes: baseRecipes },
+            PRODUCT_CATALOG,
+            EXPECTED_PROFIT_PER_MINUTE[facility.complexity],
+          );""", """  const productionMethodGroups = createProductionMethodGroups(
+            { ...facility, recipes: baseRecipes },
+            PRODUCT_CATALOG,
+          );""")
+
+          old_facilities = """const expectedFacilities = [
+            'farm', 'orchard', 'logging-camp', 'mine', 'ranch', 'fishery', 'oil-field', 'mill', 'sawmill',
+            'pulp-mill', 'steelworks', 'refinery', 'textile-mill', 'food-factory', 'beverage-factory',
+            'paper-mill', 'furniture-factory', 'garment-factory', 'machine-factory',
+            'electronics-factory', 'appliance-factory',
+          ];"""
+          new_facilities = """const expectedFacilities = [
+            'farm', 'orchard', 'ranch', 'fishery',
+            'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill',
+            'pulp-mill', 'steelworks', 'textile-mill', 'food-factory', 'paper-mill',
+            'refinery', 'beverage-factory', 'furniture-factory', 'garment-factory',
+            'machine-factory', 'electronics-factory', 'appliance-factory',
+          ];"""
+          replace_once('scripts/verify-industry-catalog.mjs', old_facilities, new_facilities)
+          replace_once(
+              'scripts/verify-industry-catalog.mjs',
+              """assert.deepEqual(FACILITY_TYPE_CATALOG.map((item) => item.id), expectedFacilities);
+          assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((item) => [item.id, item.basePrice])), expectedPrices);""",
+              """assert.deepEqual(FACILITY_TYPE_CATALOG.map((item) => item.id), expectedFacilities);
+          const facilityComplexityRanks = FACILITY_TYPE_CATALOG.map((item) => Number(item.complexity.slice(1)));
+          assert.deepEqual(
+            facilityComplexityRanks,
+            [...facilityComplexityRanks].sort((left, right) => left - right),
+            '工厂正式目录必须按复杂度 C1 至 C7 升序排列',
+          );
+          assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((item) => [item.id, item.basePrice])), expectedPrices);""",
+          )
+          replace_once('server/test/domain.test.js', old_facilities.replace('const expectedFacilities', '  const expectedFacilities').replace('\n  ', '\n    ', 1), new_facilities.replace('const expectedFacilities', '  const expectedFacilities').replace('\n  ', '\n    ', 1))
+          replace_once(
+              'server/test/domain.test.js',
+              """  assert.deepEqual(FACILITY_TYPE_CATALOG.map((facility) => facility.id), expectedFacilities);
+
+            const expectedPrices = {""",
+              """  assert.deepEqual(FACILITY_TYPE_CATALOG.map((facility) => facility.id), expectedFacilities);
+            const facilityComplexityRanks = FACILITY_TYPE_CATALOG.map((facility) => Number(facility.complexity.slice(1)));
+            assert.deepEqual(
+              facilityComplexityRanks,
+              [...facilityComplexityRanks].sort((left, right) => left - right),
+              '工厂正式目录必须按复杂度 C1 至 C7 升序排列',
+            );
+
+            const expectedPrices = {""",
+          )
+
+          replace_once(
+              'server/test/banking.test.js',
+              "import { createWorld, ensurePlayer } from '../src/domain.js';",
+              "import { createWorld, ensurePlayer, FACILITY_TYPE_CATALOG } from '../src/domain.js';",
+          )
+          replace_once(
+              'server/test/banking.test.js',
+              """  processFacilityGroupWorld(world, now + 120_000);
+            assert.equal(player.inventories.wheat.available, 8);""",
+              """  const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
+            const recipe = farm.recipes.find((entry) => entry.id === 'wheat-crop');
+            processFacilityGroupWorld(world, now + recipe.cycleMs);
+            assert.equal(player.inventories.wheat.available, 2 * recipe.output.quantity);""",
+          )
+
+          warehouse_path = 'server/test/facility-groups.test.js'
+          warehouse_old = """  player.inventories.wheat.available = 499;
+            player.facilityGroups = [group('farm', 1, {
+              enabled: true, status: 'error', statusReason: 'warehouse_full', staffingBatchCarryBps: 9_999,
+            })];
+            migrateFacilityGroupWorld(world, now);
+            processFacilityGroupWorld(world, now + 20_000);
+            assert.equal(player.facilityGroups[0].status, 'error');
+            assert.equal(player.inventories.wheat.available, 499);
+
+            player.warehouseLevel = 2;
+            player.inventoryCapacity = 750;
+            processFacilityGroupWorld(world, now + 120_001);
+            assert.equal(player.facilityGroups[0].status, 'running');
+            assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_001);
+            assert.equal(player.inventories.wheat.available, 499);"""
+          warehouse_new = warehouse_old.replace('499', '500')
+          replace_once(warehouse_path, warehouse_old, warehouse_new)
+
+          replace_once(
+              'server/test/facility-staffing-zero-capacity.test.js',
+              "import { createWorld, ensurePlayer } from '../src/domain.js';",
+              "import { createWorld, ensurePlayer, FACILITY_TYPE_CATALOG } from '../src/domain.js';",
+          )
+          replace_once(
+              'server/test/facility-staffing-zero-capacity.test.js',
+              """  processFacilityGroupWorld(world, now + 120_001);
+            assert.equal(player.facilityGroups[0].status, 'running');
+            assert.equal(player.credits, 0);
+            assert.equal(player.inventories.wheat.available, 0);
+
+            processFacilityGroupWorld(world, now + 600_001);
+            assert.equal(player.facilityGroups[0].status, 'error');
+            assert.equal(player.facilityGroups[0].statusReason, 'insufficient_funds');
+            assert.equal(player.credits, 0);
+            assert.equal(player.inventories.wheat.available, 0);""",
+              """  const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
+            const recipe = farm.recipes.find((entry) => entry.id === 'wheat-crop');
+            let payableBatchDueAt = null;
+            for (
+              let tick = player.facilityGroups[0].cycleStartedAt + recipe.cycleMs;
+              tick <= now + 10 * 60_000 + recipe.cycleMs;
+              tick += recipe.cycleMs
+            ) {
+              processFacilityGroupWorld(world, tick);
+              if (player.facilityGroups[0].status === 'error') {
+                payableBatchDueAt = tick;
+                break;
+              }
+              assert.equal(player.credits, 0);
+              assert.equal(player.inventories.wheat.available, 0);
+            }
+
+            assert.notEqual(payableBatchDueAt, null, '满员率余数最终必须形成首个应付批次');
+            assert.equal(player.facilityGroups[0].status, 'error');
+            assert.equal(player.facilityGroups[0].statusReason, 'insufficient_funds');
+            assert.equal(player.credits, 0);
+            assert.equal(player.inventories.wheat.available, 0);""",
+          )
+          PY
+
+          git rm .github/workflows/c1-reconcile.yml
+          git add server/src/industry-catalog.js scripts/verify-industry-catalog.mjs server/test/domain.test.js \
+            server/test/banking.test.js server/test/facility-groups.test.js server/test/facility-staffing-zero-capacity.test.js
+
+          npm ci
+          node scripts/verify-industry-catalog.mjs
+          node scripts/verify-production-methods.mjs
+          node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs
+          node --test \
+            server/test/banking.test.js \
+            server/test/c1-fast-production.test.js \
+            server/test/domain.test.js \
+            server/test/facility-groups.test.js \
+            server/test/facility-staffing-zero-capacity.test.js \
+            server/test/production-methods.test.js
+          git diff --check
+          git commit -m "合并最新 main 并适配 C1 回归测试"
+          git push origin HEAD:agent/c1-fast-production
