@@ -64,11 +64,21 @@ jobs:
           from pathlib import Path
           path = Path('scripts/verify-unified-factory-recipes-grid.mjs')
           content = path.read_text(encoding='utf-8')
-          old = "  '生产配方与作业制度必须合并为同一个“生产设置”区',"
-          new = "  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',"
-          if content.count(old) != 1:
-              raise RuntimeError('生产设置权威验证文案目标不唯一')
-          path.write_text(content.replace(old, new), encoding='utf-8')
+          replacements = [
+              (
+                  "  '生产配方与作业制度必须合并为同一个“生产设置”区',",
+                  "  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',",
+              ),
+              (
+                  "      '生产配方与作业制度使用同一个“生产设置”区',",
+                  "      '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',",
+              ),
+          ]
+          for old, new in replacements:
+              if content.count(old) != 1:
+                  raise RuntimeError(f'生产设置权威验证文案目标不唯一: {old}')
+              content = content.replace(old, new)
+          path.write_text(content, encoding='utf-8')
           PY
 
       - name: Remove temporary application files
