@@ -57,6 +57,56 @@ test('market order fields keep labels and embedded steppers on one row', async (
   expect(mobileIncrease.height).toBeGreaterThanOrEqual(44);
 });
 
+test('embedded market steppers keep stable geometry through press and disabled states', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const quantityInput = page.getByRole('spinbutton', { name: '数量' });
+  const quantityDecrease = page.getByRole('button', { name: '数量减少 1' });
+  const quantityIncrease = page.getByRole('button', { name: '数量增加 1' });
+  const priceIncrease = page.getByRole('button', { name: '价格增加 0.01' });
+
+  await priceIncrease.hover();
+  const pressBefore = await requireBox(priceIncrease);
+  await page.mouse.down();
+  const pressDuring = await requireBox(priceIncrease);
+  expect(Math.abs(pressDuring.x - pressBefore.x)).toBeLessThan(0.5);
+  expect(Math.abs(pressDuring.y - pressBefore.y)).toBeLessThan(0.5);
+  await page.mouse.up();
+
+  const maxQuantity = Number(await quantityInput.getAttribute('max'));
+  expect(Number.isSafeInteger(maxQuantity)).toBe(true);
+  expect(maxQuantity).toBeGreaterThan(1);
+
+  await quantityInput.fill(String(maxQuantity - 1));
+  await quantityInput.blur();
+  await expect(quantityInput).toHaveValue(String(maxQuantity - 1));
+  await expect(quantityIncrease).toBeEnabled();
+  const increaseBefore = await requireBox(quantityIncrease);
+  await quantityIncrease.click();
+  await expect(quantityInput).toHaveValue(String(maxQuantity));
+  await expect(quantityIncrease).toBeDisabled();
+  const increaseAfter = await requireBox(quantityIncrease);
+  expect(Math.abs(increaseAfter.x - increaseBefore.x)).toBeLessThan(0.5);
+  expect(Math.abs(increaseAfter.y - increaseBefore.y)).toBeLessThan(0.5);
+  expect(Math.abs(increaseAfter.width - increaseBefore.width)).toBeLessThan(0.5);
+  expect(Math.abs(increaseAfter.height - increaseBefore.height)).toBeLessThan(0.5);
+
+  await quantityInput.fill('2');
+  await quantityInput.blur();
+  await expect(quantityInput).toHaveValue('2');
+  await expect(quantityDecrease).toBeEnabled();
+  const decreaseBefore = await requireBox(quantityDecrease);
+  await quantityDecrease.click();
+  await expect(quantityInput).toHaveValue('1');
+  await expect(quantityDecrease).toBeDisabled();
+  const decreaseAfter = await requireBox(quantityDecrease);
+  expect(Math.abs(decreaseAfter.x - decreaseBefore.x)).toBeLessThan(0.5);
+  expect(Math.abs(decreaseAfter.y - decreaseBefore.y)).toBeLessThan(0.5);
+  expect(Math.abs(decreaseAfter.width - decreaseBefore.width)).toBeLessThan(0.5);
+  expect(Math.abs(decreaseAfter.height - decreaseBefore.height)).toBeLessThan(0.5);
+});
+
 test('focused market price input owns the wheel in 0.01 steps', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 700 });
   await page.goto('market-runtime-test.html?scenario=active');

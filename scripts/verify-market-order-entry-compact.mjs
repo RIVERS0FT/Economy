@@ -46,6 +46,10 @@ for (const text of [
   "html[data-input-modality='mouse']",
   '@media (hover: hover) and (pointer: fine)',
   'position: absolute;',
+  'top: 0;',
+  'bottom: 0;',
+  'margin-block: auto;',
+  '.market-page-surface .market-stepper__button:disabled {',
   'width: 44px;',
   'padding-inline: 52px;',
 ]) requireText(stylePath, text);
@@ -66,11 +70,13 @@ for (const text of [
 for (const text of [
   '金额输入默认不响应滚轮',
   '输入框必须已经聚焦才消费纵向滚轮',
+  '嵌入输入框的绝对定位操作按钮不得依赖',
 ]) requireText(uiDesignPath, text);
 
 for (const text of [
   'market order fields keep labels and embedded steppers on one row',
   'focused market price input owns the wheel in 0.01 steps',
+  'embedded market steppers keep stable geometry through press and disabled states',
   'market order book yields width to the order entry on desktop and mobile',
 ]) requireText(browserPath, text);
 
@@ -79,10 +85,11 @@ forbidText(pagePath, '交易资产详情');
 forbidText(stylePath, '.market-order-details');
 forbidText(stylePath, 'minmax(280px, 44fr) minmax(300px, 56fr)');
 forbidText(stylePath, 'minmax(0, 3fr) minmax(126px, 2fr)');
+forbidText(stylePath, 'transform: translateY(-50%);');
 
 if (failures.length) {
   console.error(`市场紧凑下单区验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('市场同行标签、内嵌步进按钮、聚焦金额滚轮、详情移除和订单簿宽度验证通过。');
+console.log('市场同行标签、内嵌步进按钮稳定定位、聚焦金额滚轮、详情移除和订单簿宽度验证通过。');
