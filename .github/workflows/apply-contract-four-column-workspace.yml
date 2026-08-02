@@ -1,0 +1,36 @@
+name: Apply contract four-column workspace
+
+on:
+  push:
+    branches:
+      - agent/contract-four-column-workspace
+    paths:
+      - .agent/contract-four-column-workspace.patch
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/contract-four-column-workspace
+          fetch-depth: 0
+      - name: Apply patch
+        run: |
+          git apply --check .agent/contract-four-column-workspace.patch
+          git apply .agent/contract-four-column-workspace.patch
+          rm .agent/contract-four-column-workspace.patch
+          rmdir .agent || true
+          rm .github/workflows/apply-contract-four-column-workspace.yml
+      - name: Commit applied sources
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "重构合同四列工作区"
+          git push origin HEAD:agent/contract-four-column-workspace
