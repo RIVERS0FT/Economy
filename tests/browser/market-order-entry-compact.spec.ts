@@ -79,7 +79,7 @@ test('focused market price input owns the wheel in 0.01 steps', async ({ page })
   await page.getByRole('button', { name: '买入', exact: true }).focus();
   await priceInput.hover();
   await page.mouse.wheel(0, -120);
-  await expect(priceInput).toHaveValue('2');
+  await expect(priceInput).toHaveValue('2.00');
 });
 
 test('market order book yields width to the order entry on desktop and mobile', async ({ page }) => {
