@@ -65,31 +65,31 @@ jobs:
           browser_content = browser_content.replace(browser_url_old, browser_url_new)
 
           helper_anchor = "async function assertStableHover(page: Page, testId: string) {"
-          helper = '''async function hoverInsideFill(page: Page, mark: Locator) {
-  const point = await mark.evaluate((element) => {
-    const geometry = element as SVGGeometryElement;
-    const matrix = geometry.getScreenCTM();
-    const box = geometry.getBBox();
-    if (matrix && typeof geometry.isPointInFill === 'function') {
-      for (let yStep = 1; yStep < 10; yStep += 1) {
-        for (let xStep = 1; xStep < 10; xStep += 1) {
-          const localPoint = new DOMPoint(
-            box.x + box.width * xStep / 10,
-            box.y + box.height * yStep / 10,
-          );
-          if (!geometry.isPointInFill(localPoint)) continue;
-          const screenPoint = localPoint.matrixTransform(matrix);
-          return { x: screenPoint.x, y: screenPoint.y };
-        }
-      }
-    }
-    const bounds = element.getBoundingClientRect();
-    return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
-  });
-  await page.mouse.move(point.x, point.y);
-}
-
-'''
+          helper = (
+              "async function hoverInsideFill(page: Page, mark: Locator) {\n"
+              "  const point = await mark.evaluate((element) => {\n"
+              "    const geometry = element as SVGGeometryElement;\n"
+              "    const matrix = geometry.getScreenCTM();\n"
+              "    const box = geometry.getBBox();\n"
+              "    if (matrix && typeof geometry.isPointInFill === 'function') {\n"
+              "      for (let yStep = 1; yStep < 10; yStep += 1) {\n"
+              "        for (let xStep = 1; xStep < 10; xStep += 1) {\n"
+              "          const localPoint = new DOMPoint(\n"
+              "            box.x + box.width * xStep / 10,\n"
+              "            box.y + box.height * yStep / 10,\n"
+              "          );\n"
+              "          if (!geometry.isPointInFill(localPoint)) continue;\n"
+              "          const screenPoint = localPoint.matrixTransform(matrix);\n"
+              "          return { x: screenPoint.x, y: screenPoint.y };\n"
+              "        }\n"
+              "      }\n"
+              "    }\n"
+              "    const bounds = element.getBoundingClientRect();\n"
+              "    return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };\n"
+              "  });\n"
+              "  await page.mouse.move(point.x, point.y);\n"
+              "}\n\n"
+          )
           if browser_content.count(helper_anchor) != 1:
               raise SystemExit(f'expected one helper anchor, found {browser_content.count(helper_anchor)}')
           browser_content = browser_content.replace(helper_anchor, helper + helper_anchor)
