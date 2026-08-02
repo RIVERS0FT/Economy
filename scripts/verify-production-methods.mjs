@@ -102,7 +102,9 @@ for (const text of [
   'const selectedPlan = selectedMethod?.plansByRecipeId[recipeState.selectedBaseRecipeId];',
   'aria-label={`${type.name}生产方式`}',
   'value={recipeState.selectedProductionMethodId}',
-  'event.target.value as FacilityProductionMethodId',
+  'methodId as FacilityProductionMethodId',
+  'RichSelectInput',
+  'onValueChange={(methodId)',
   'facility-production-method-summary',
 ]) assert.ok(detailSource.includes(text), `生产方式客户端合成缺少 ${text}`);
 for (const forbidden of ['role="radiogroup"', 'role="radio"', 'facility-production-method-option']) {
@@ -122,7 +124,8 @@ for (const text of [
   '下一周期切换为：机械制造 · 高速生产',
   "'machine-factory:machinery-recipe--economical'",
   "getByRole('combobox', { name: '机械工厂生产方式' })",
-  "selectOption('economical')",
+  "getByRole('option', { name: '节约生产' })",
+  "methodListbox.getByRole('option', { name: '节约生产' }).click()",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
 assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 24'));
 assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 24'));

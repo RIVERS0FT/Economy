@@ -28,6 +28,7 @@ import '../../src/styles/liquid-glass-chrome.css';
 import '../../src/styles/mobile-status-navigation.css';
 import '../../src/styles/mobile-status-layout.css';
 import '../../src/styles/icon-system.css';
+import '../../src/styles/product-artwork.css';
 import '../../src/styles/industry-system.css';
 import '../../src/styles/facility-production-formula.css';
 import '../../src/styles/facility-group-card-grid.css';

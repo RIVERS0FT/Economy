@@ -15,6 +15,7 @@ const forbidText = (path, text) => {
 };
 
 const componentPath = 'src/components/ui/FormControls.tsx';
+const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
 const draftPath = 'src/utils/integerDraft.ts';
 const stylePath = 'src/styles/form-controls.css';
 const navigationPath = 'src/components/shell/NavigationItems.tsx';
@@ -27,6 +28,7 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
 
 [
   componentPath,
+  richSelectPath,
   draftPath,
   stylePath,
   navigationPath,
@@ -67,6 +69,16 @@ for (const text of [
 ]) requireText(componentPath, text);
 
 for (const text of [
+  'export function RichSelectInput',
+  'role="combobox"',
+  'role="listbox"',
+  'role="option"',
+  'createPortal(',
+  'useWorkspaceFloatingLayer()',
+  'data-facility-sheet-no-drag="true"',
+]) requireText(richSelectPath, text);
+
+for (const text of [
   'export function parseIntegerDraft',
   'export function normalizeIntegerDraft',
   'Number.isSafeInteger',
@@ -81,6 +93,9 @@ for (const text of [
   'font-size: 16px;',
   'min-height: 48px;',
   '.ui-input-group',
+  '.ui-rich-select__trigger',
+  '.ui-rich-select__listbox',
+  '.ui-rich-select__option',
 ]) requireText(stylePath, text);
 
 for (const text of [

@@ -160,7 +160,7 @@ for (const text of [
   'products={game.products}',
   'inventories={game.inventories}',
   'facility-recipe-section',
-  '<strong>生产配方</strong>',
+  '<strong>生产产物</strong>',
   '下一周期切换为：',
   'setFacilityRecipe',
   '前往市场交易该工厂 →',

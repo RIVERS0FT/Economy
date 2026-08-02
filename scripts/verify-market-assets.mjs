@@ -106,7 +106,7 @@ for (const text of [
   '下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>',
   '冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>',
   'facility-recipe-section',
-  '生产配方',
+  '生产产物',
   '下一周期切换为：',
   '前往市场交易该工厂',
   '前往市场交易该工厂 →',

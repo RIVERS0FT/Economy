@@ -279,3 +279,189 @@ input:not([type="checkbox"]):not([type="radio"]):-webkit-autofill {
     width: 100%;
   }
 }
+
+.ui-rich-select {
+  min-width: 0;
+  display: block;
+}
+
+.ui-rich-select__trigger {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  background: var(--color-surface-control);
+  box-shadow: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  transition:
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse'] .ui-rich-select__trigger:hover:not(:disabled) {
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-hover);
+  }
+}
+
+.ui-rich-select__trigger[aria-expanded='true'] {
+  border-color: rgba(123, 228, 158, 0.72);
+  box-shadow: var(--shadow-focus);
+}
+
+.ui-rich-select__trigger:focus-visible {
+  outline: 2px solid var(--color-success);
+  outline-offset: 2px;
+}
+
+.ui-rich-select__trigger:disabled {
+  color: var(--color-text-muted);
+  background: var(--color-surface-inset);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.ui-rich-select__visual {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.ui-rich-select__visual .product-artwork {
+  width: 1.5rem;
+  height: 1.5rem;
+  filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--color-bg-deep) 72%, transparent));
+}
+
+.ui-rich-select__visual .game-icon,
+.ui-rich-select__visual .production-method-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ui-rich-select__value,
+.ui-rich-select__option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-rich-select__chevron {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-0.12rem) rotate(45deg);
+  color: var(--color-text-muted);
+  transition: transform var(--motion-fast) ease;
+}
+
+.ui-rich-select__trigger[aria-expanded='true'] .ui-rich-select__chevron {
+  transform: translateY(0.12rem) rotate(225deg);
+}
+
+.ui-rich-select__listbox {
+  position: absolute;
+  z-index: 120;
+  display: grid;
+  gap: 0.2rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  padding: 0.3rem;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-bg-deep) 94%, var(--color-surface-control));
+  box-shadow:
+    0 18px 44px color-mix(in srgb, var(--color-bg-deep) 72%, transparent),
+    inset 0 1px color-mix(in srgb, var(--color-text-primary) 7%, transparent);
+}
+
+.ui-rich-select__option {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  border-radius: calc(var(--radius-control) - 0.25rem);
+  padding: 0.38rem 0.65rem;
+  color: var(--color-text-secondary);
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-rich-select__option .ui-rich-select__visual {
+  width: 2rem;
+  height: 2rem;
+}
+
+.ui-rich-select__option .product-artwork {
+  width: 2rem;
+  height: 2rem;
+}
+
+.ui-rich-select__option .game-icon,
+.ui-rich-select__option .production-method-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.ui-rich-select__option[data-active='true']:not(:disabled) {
+  color: var(--color-text-primary);
+  background: var(--color-surface-hover);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse'] .ui-rich-select__option:hover:not(:disabled) {
+    color: var(--color-text-primary);
+    background: var(--color-surface-hover);
+  }
+}
+
+.ui-rich-select__option[aria-selected='true'] {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 13%, var(--color-surface-hover));
+}
+
+.ui-rich-select__option:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+@media (max-width: 720px) {
+  .ui-rich-select__trigger,
+  .ui-rich-select__option {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .ui-rich-select__option .ui-rich-select__visual,
+  .ui-rich-select__option .product-artwork {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}

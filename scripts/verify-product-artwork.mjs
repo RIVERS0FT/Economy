@@ -47,6 +47,8 @@ const gitignorePath = '.gitignore';
 const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
 const mainPath = 'src/main.tsx';
 const productIconsPath = 'src/components/icons/ProductIcons.tsx';
+const productArtworkPath = 'src/components/products/ProductArtwork.tsx';
+const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
 const formulaPath = 'src/components/facilities/FacilityProductionFormula.tsx';
 const denseProductPages = [
   'src/components/assets/AssetOverviewPanel.tsx',
@@ -88,6 +90,8 @@ for (const path of [
   uiDesignPath,
   mainPath,
   productIconsPath,
+  productArtworkPath,
+  richSelectPath,
   formulaPath,
 ]) {
   if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`);
@@ -134,6 +138,7 @@ if (failures.length === 0) {
     '.asset-auction-package-icon',
     '.asset-auction-bundle-tile',
     '.asset-auction-history-icon',
+    '.product-artwork {',
     'background-image: var(--product-artwork-image, none);',
     'stroke: transparent;',
     '@media (prefers-reduced-data: reduce)',
@@ -197,8 +202,20 @@ if (failures.length === 0) {
   }
 
   const formula = read(formulaPath);
-  if (!formula.includes('ProductIcon')) {
-    failures.push('生产公式必须继续使用紧凑 ProductIcon SVG');
+  const productArtwork = read(productArtworkPath);
+  const richSelect = read(richSelectPath);
+  if (!formula.includes('ProductArtwork') || formula.includes('<ProductIcon')) {
+    failures.push('生产公式必须使用 ProductArtwork PNG 且不得渲染商品 SVG');
+  }
+  for (const required of [
+    'data-product-artwork={productId}',
+    "classNames('product-icon', 'product-artwork', className)",
+  ]) if (!productArtwork.includes(required)) failures.push(`${productArtworkPath} 缺少: ${required}`);
+  for (const forbidden of ['<svg', '<path']) {
+    if (productArtwork.includes(forbidden)) failures.push(`${productArtworkPath} 不得包含: ${forbidden}`);
+  }
+  for (const required of ['role="listbox"', 'role="option"', 'createPortal(']) {
+    if (!richSelect.includes(required)) failures.push(`${richSelectPath} 缺少: ${required}`);
   }
 }
 
@@ -208,5 +225,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `商品图片视觉验证通过：${productIds.length} 种 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，紧凑语义位置继续使用 SVG。`,
+  `商品图片视觉验证通过：${productIds.length} 种 1024×1024 RGBA PNG 源图已生成 128×128 运行时缩略图，生产结算与富内容下拉框使用 ProductArtwork PNG，其余紧凑语义位置继续使用 SVG。`,
 );
