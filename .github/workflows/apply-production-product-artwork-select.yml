@@ -39,7 +39,12 @@ jobs:
           new = """    if marker not in content:\n        raise RuntimeError(f'{path} 缺少插入标记: {marker}')\n    target.write_text(content.replace(marker, addition + marker, 1), encoding='utf-8')"""
           if content.count(old) != 1:
               raise RuntimeError('append_before 修复目标不唯一')
-          path.write_text(content.replace(old, new), encoding='utf-8')
+          content = content.replace(old, new)
+          scroll_old = '  overscroll-behavior: contain;'
+          scroll_new = '  overscroll-behavior-y: auto;'
+          if content.count(scroll_old) != 1:
+              raise RuntimeError('富内容下拉框滚动边界修复目标不唯一')
+          path.write_text(content.replace(scroll_old, scroll_new), encoding='utf-8')
           PY
           python3 .agent/apply-production-product-artwork-select.py
 
