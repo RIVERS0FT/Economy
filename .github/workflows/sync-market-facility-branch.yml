@@ -1,0 +1,27 @@
+name: Sync market facility branch
+
+on:
+  push:
+    branches:
+      - codex/market-facility-full-bleed-artwork-v2
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge latest main and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+          git rm .github/workflows/sync-market-facility-branch.yml
+          git commit -m "删除临时主分支同步工作流"
+          git push origin HEAD:${GITHUB_REF_NAME}
