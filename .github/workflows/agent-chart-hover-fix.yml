@@ -47,13 +47,22 @@ jobs:
           python3 /tmp/apply-chart-hover-fix.py
           python3 <<'PY'
           from pathlib import Path
-          path = Path('scripts/verify-echarts-adoption.mjs')
-          content = path.read_text(encoding='utf-8')
-          old = "'data.echartsCssColorsResolved'"
-          new = "'dataset.echartsCssColorsResolved'"
-          if content.count(old) != 1:
-              raise SystemExit(f'expected one verifier marker, found {content.count(old)}')
-          path.write_text(content.replace(old, new), encoding='utf-8')
+
+          verifier = Path('scripts/verify-echarts-adoption.mjs')
+          verifier_content = verifier.read_text(encoding='utf-8')
+          verifier_old = "'data.echartsCssColorsResolved'"
+          verifier_new = "'dataset.echartsCssColorsResolved'"
+          if verifier_content.count(verifier_old) != 1:
+              raise SystemExit(f'expected one verifier marker, found {verifier_content.count(verifier_old)}')
+          verifier.write_text(verifier_content.replace(verifier_old, verifier_new), encoding='utf-8')
+
+          browser_test = Path('tests/browser/chart-hover-visibility.spec.ts')
+          browser_content = browser_test.read_text(encoding='utf-8')
+          browser_old = "await page.goto('/chart-hover-runtime-test.html');"
+          browser_new = "await page.goto('chart-hover-runtime-test.html');"
+          if browser_content.count(browser_old) != 1:
+              raise SystemExit(f'expected one browser URL, found {browser_content.count(browser_old)}')
+          browser_test.write_text(browser_content.replace(browser_old, browser_new), encoding='utf-8')
           PY
 
       - name: Install dependencies
