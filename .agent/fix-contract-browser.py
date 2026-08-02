@@ -54,12 +54,12 @@ replace_once(
 
 replace_once(
     'scripts/verify-contract-layout.mjs',
-    "  \"toHaveAttribute('data-attention', 'true')\",",
-    "  'toHaveClass(/contract-card--attention/)',",
+    "  \"page.locator('.contract-active-grid')\",\n  \"toHaveAttribute('data-attention', 'true')\",\n]) requireText(browserTestPath, text);",
+    "  \"page.locator('.contract-active-grid')\",\n  'toHaveClass(/contract-card--attention/)',\n]) requireText(browserTestPath, text);",
 )
 
 replace_once(
     'scripts/verify-contract-layout.mjs',
-    "  \"toHaveAttribute('data-attention', 'true')\",\n  \"toHaveAttribute('data-attention', 'false')\",",
-    "  'toHaveClass(/contract-card--attention/)',\n  'toHaveClass(/contract-card--normal/)',",
+    "  \"getByRole('tab', { name: '历史合同', exact: true })\",\n  \"toHaveAttribute('data-attention', 'true')\",\n  \"toHaveAttribute('data-attention', 'false')\",\n]) requireText(workspaceTestPath, text);",
+    "  \"getByRole('tab', { name: '历史合同', exact: true })\",\n  'toHaveClass(/contract-card--attention/)',\n  'toHaveClass(/contract-card--normal/)',\n]) requireText(workspaceTestPath, text);",
 )
