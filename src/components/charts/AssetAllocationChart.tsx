@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption } from './echartsCore';
-import { PIE_PAD_ANGLE, chartColor, commonTooltip, escapeChartHtml, formatChartPercent } from './chartOptions';
+import { PIE_PAD_ANGLE, STABLE_TOOLTIP_EMPHASIS, chartColor, commonTooltip, escapeChartHtml, formatChartPercent } from './chartOptions';
 import { formatCurrency } from '../../utils/formatters';
 
 export function AssetAllocationChart({
@@ -37,7 +37,7 @@ export function AssetAllocationChart({
       padAngle: PIE_PAD_ANGLE,
       label: { show: false },
       labelLine: { show: false },
-      emphasis: { scale: false },
+      emphasis: STABLE_TOOLTIP_EMPHASIS,
       itemStyle: { borderColor: 'rgba(7,20,15,.9)', borderWidth: 2 },
       data: rows.map((row) => ({ name: row.name, value: row.value, itemStyle: { color: row.color } })),
     }],

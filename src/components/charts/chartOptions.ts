@@ -13,6 +13,10 @@ export const chartColor = {
 
 export const PIE_PAD_ANGLE = 5;
 
+export const STABLE_TOOLTIP_EMPHASIS = {
+  disabled: true,
+} as const;
+
 const compactFormatter = new Intl.NumberFormat('zh-CN', {
   notation: 'compact',
   maximumFractionDigits: 1,
