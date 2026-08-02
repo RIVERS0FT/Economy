@@ -29,6 +29,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          exec > >(tee .agent/workflow.log) 2>&1
 
           configure_git() {
             git config user.name "github-actions[bot]"
@@ -37,15 +38,18 @@ jobs:
 
           report_failure() {
             status=$?
+            trap - ERR
             configure_git
             printf 'C1 artwork workflow failed with exit code %s\n' "$status" > .agent/workflow-failed.txt
-            git add .agent/workflow-failed.txt
+            git add .agent/workflow-failed.txt .agent/workflow.log
             git commit -m "记录 C1 插画实施失败" || true
             git push origin HEAD:agent/c1-facility-artwork || true
             exit "$status"
           }
           trap report_failure ERR
 
+          rm -f .agent/workflow-failed.txt .agent/workflow.log
+          exec > >(tee .agent/workflow.log) 2>&1
           python -m pip install --disable-pip-version-check pillow==11.3.0
           python .agent/redraw-c1-facilities.py
           git apply --check .agent/c1-facility-artwork.patch
