@@ -408,6 +408,7 @@ export function FacilityClusterDetailBody({
   const selectedMethod = recipeState.productionMethodGroup?.methods.find(
     (method) => method.id === recipeState.selectedProductionMethodId,
   );
+  const selectedPlan = selectedMethod?.plansByRecipeId[recipeState.selectedBaseRecipeId];
 
   const selectConfiguration = (
     selectedBaseRecipeId: string,
@@ -448,37 +449,37 @@ export function FacilityClusterDetailBody({
       </div>
 
       {recipeState.productionMethodGroup ? (
-        <section className="facility-production-method-section" aria-labelledby={`${type.id}-production-method-title`}>
-          <div className="facility-production-method-heading">
-            <strong id={`${type.id}-production-method-title`}>{recipeState.productionMethodGroup.name}</strong>
-            <small>{selectedMethod?.description}</small>
-          </div>
-          <div className="facility-production-method-grid" role="radiogroup" aria-label={`${type.name}生产方式`}>
+        <section className="facility-production-method-section">
+          <SelectInput
+            label={recipeState.productionMethodGroup.name}
+            aria-label={`${type.name}生产方式`}
+            value={recipeState.selectedProductionMethodId}
+            disabled={group.count < 1}
+            onChange={(event) => {
+              selectConfiguration(
+                recipeState.selectedBaseRecipeId,
+                event.target.value as FacilityProductionMethodId,
+              );
+            }}
+          >
             {recipeState.productionMethodGroup.methods.map((method) => {
               const plan = method.plansByRecipeId[recipeState.selectedBaseRecipeId];
-              const selected = method.id === recipeState.selectedProductionMethodId;
               return (
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  className="facility-production-method-option"
-                  data-selected={selected ? 'true' : 'false'}
-                  data-tone={method.tone}
-                  key={method.id}
-                  disabled={group.count < 1 || !plan}
-                  onClick={() => selectConfiguration(recipeState.selectedBaseRecipeId, method.id)}
-                >
-                  <strong>{method.name}</strong>
-                  {plan ? (
-                    <span>
-                      {formatDuration(plan.cycleMs)} · 产出 {formatNumber(plan.output.quantity)} · 成本 {formatNumber(plan.operatingCost)}
-                    </span>
-                  ) : null}
-                </button>
+                <option value={method.id} key={method.id} disabled={!plan}>
+                  {method.name}
+                </option>
               );
             })}
-          </div>
+          </SelectInput>
+          {selectedMethod && selectedPlan ? (
+            <div className="facility-production-method-summary" aria-live="polite">
+              <strong>{selectedMethod.name}</strong>
+              <span>
+                {formatDuration(selectedPlan.cycleMs)} · 产出 {formatNumber(selectedPlan.output.quantity)} · 成本 {formatNumber(selectedPlan.operatingCost)}
+              </span>
+              <small>{selectedMethod.description}</small>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
