@@ -40,17 +40,17 @@ jobs:
             status=$?
             trap - ERR
             configure_git
-            printf 'C1 validation failed with exit code %s\n' "$status" > .agent/c1-validation-failed.txt
-            git add .agent/c1-validation-failed.txt .agent/c1-validation.log
+            cp /tmp/c1-validation.log .github/c1-validation.log || true
+            printf 'C1 validation failed with exit code %s\n' "$status" > .github/c1-validation-failed.txt
+            git add -A .github/c1-validation.log .github/c1-validation-failed.txt .github/c1-validation-success.txt
             git commit -m "记录 C1 插画验证失败" || true
             git push origin HEAD:agent/c1-facility-artwork || true
             exit "$status"
           }
           trap report_failure ERR
 
-          mkdir -p .agent
-          rm -f .agent/c1-validation-success.txt .agent/c1-validation-failed.txt .agent/c1-validation.log
-          exec > >(tee .agent/c1-validation.log) 2>&1
+          rm -f .github/c1-validation-success.txt .github/c1-validation-failed.txt .github/c1-validation.log
+          exec > >(tee /tmp/c1-validation.log) 2>&1
           npm ci
           npm run build
           npx playwright install --with-deps chromium
@@ -61,7 +61,7 @@ jobs:
             'npm ci: passed' \
             'npm run build: passed' \
             'npm run test:browser: passed' \
-            > .agent/c1-validation-success.txt
-          git add .agent/c1-validation-success.txt
+            > .github/c1-validation-success.txt
+          git add -A .github/c1-validation-success.txt .github/c1-validation-failed.txt .github/c1-validation.log
           git commit -m "记录 C1 插画验证通过"
           git push origin HEAD:agent/c1-facility-artwork
