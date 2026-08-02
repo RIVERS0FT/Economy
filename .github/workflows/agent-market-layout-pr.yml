@@ -27,6 +27,7 @@ jobs:
           end = source.index("\n          PY\n", start)
           lines = source[start:end].splitlines()
           code = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines) + '\n'
+
           duplicate = '''replace_once(page, "          ? `当前没有可出售的${assetName}。`", "          ? '暂无可售库存。'")
           replace_once(page, "          ? `当前没有可出售的${assetName}。`", "          ? '暂无可售库存。'")'''
           corrected = '''file = Path(page)
@@ -38,6 +39,32 @@ jobs:
           if duplicate not in code:
               raise SystemExit('embedded patch does not contain the expected duplicate replacement')
           code = code.replace(duplicate, corrected, 1)
+
+          helper = '''def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')'''
+          enhanced = '''def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  if path == 'src/pages/MarketPage.tsx' and old.lstrip().startswith('{visibleDisabledReason'):
+                      pattern = re.compile(r'                \\{visibleDisabledReason \\? <p id="order-disabled-reason".*?                </Button>\\n', re.S)
+                      updated, matches = pattern.subn(new, text, count=1)
+                      if matches != 1:
+                          raise SystemExit(f'{path}: disabled action block regex matched {matches}')
+                      file.write_text(updated, encoding='utf-8')
+                      return
+                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')'''
+          if helper not in code:
+              raise SystemExit('embedded patch helper changed unexpectedly')
+          code = code.replace(helper, enhanced, 1)
+
           Path('/tmp/apply-market-layout.py').write_text(code, encoding='utf-8')
           PY
           python3 /tmp/apply-market-layout.py
