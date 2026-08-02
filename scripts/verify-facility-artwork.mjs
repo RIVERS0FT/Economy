@@ -30,6 +30,7 @@ const paths = {
   market: 'src/pages/MarketPage.tsx',
   auction: 'src/pages/AuctionPage.tsx',
   marketArtworkBrowser: 'tests/browser/market-facility-artwork.spec.ts',
+  resolutionBrowser: 'tests/browser/facility-artwork-resolution.spec.ts',
 };
 
 function validatePng(path, expectedSize, label) {
@@ -94,6 +95,7 @@ if (failures.length === 0) {
   const market = read(paths.market);
   const auction = read(paths.auction);
   const marketArtworkBrowser = read(paths.marketArtworkBrowser);
+  const resolutionBrowser = read(paths.resolutionBrowser);
 
   const sourceDirectory = resolve(root, 'src/assets/facility-icons');
   const actualSources = readdirSync(sourceDirectory, { withFileTypes: true })
@@ -112,9 +114,9 @@ if (failures.length === 0) {
 
   for (const facilityId of facilityIds) {
     const sourcePath = `src/assets/facility-icons/${facilityId}.png`;
-    const thumbnailPath = `src/assets/facility-icons/generated/128/${facilityId}.png`;
+    const thumbnailPath = `src/assets/facility-icons/generated/256/${facilityId}.png`;
     validatePng(sourcePath, 1024, '工厂场景源图');
-    validatePng(thumbnailPath, 128, '工厂场景运行时缩略图');
+    validatePng(thumbnailPath, 256, '工厂场景运行时缩略图');
 
     if (fromScratchFacilityIds.includes(facilityId)) {
       const expectedHash = baselineHashes[facilityId];
@@ -133,7 +135,7 @@ if (failures.length === 0) {
     if (!styles.includes(`[data-facility-icon='${facilityId}']`)) {
       failures.push(`${paths.artworkStyles} 缺少 ${facilityId} 映射`);
     }
-    if (!styles.includes(`../assets/facility-icons/generated/128/${facilityId}.png`)) {
+    if (!styles.includes(`../assets/facility-icons/generated/256/${facilityId}.png`)) {
       failures.push(`${paths.artworkStyles} 未引用 ${thumbnailPath}`);
     }
     if (styles.includes(`../assets/facility-icons/${facilityId}.png`)) {
@@ -213,6 +215,8 @@ if (failures.length === 0) {
     "FACILITY_TYPE_CATALOG } from '../server/src/industry-catalog.js'",
     'FACILITY_TYPE_CATALOG.map((facility) => facility.id)',
     "sourceDirectory: resolve(process.cwd(), 'src/assets/facility-icons')",
+    'targetSize: 256',
+    "rmSync(resolve(process.cwd(), 'src/assets/facility-icons/generated/128')",
     "generateArtworkThumbnails } from './artwork-thumbnails.mjs'",
   ]) {
     if (!generator.includes(required)) failures.push(`${paths.generator} 缺少: ${required}`);
@@ -283,7 +287,7 @@ if (failures.length === 0) {
       '`scripts/facility-artwork-baseline.json`',
       'C1／C2 目录、覆盖复杂度与批准源图 SHA-256 基线一致',
       '无文字、无人物、无水印、无品牌标志',
-      '`src/assets/facility-icons/generated/128/`',
+      '`src/assets/facility-icons/generated/256/`',
       '`FacilityIcon`',
       '`prefers-reduced-data`',
       '覆盖完整 `4:5` 竖卡',
@@ -309,6 +313,23 @@ if (failures.length === 0) {
       if (!source.includes(fragment)) failures.push(`${path} 缺少工厂场景规则: ${fragment}`);
     }
   }
+
+  if (styles.includes('facility-icons/generated/128/')) {
+    failures.push('工厂场景样式不得继续引用 128px 运行时缩略图');
+  }
+  if (uiDesign.includes('facility-icons/generated/128/')) {
+    failures.push('工厂场景权威设计不得继续声明 128px 运行时缩略图');
+  }
+  for (const required of [
+    'production and market facility artwork use 256px runtime thumbnails',
+    'naturalWidth',
+    'naturalHeight',
+    'expectedSize: number',
+  ]) {
+    if (!resolutionBrowser.includes(required)) {
+      failures.push(paths.resolutionBrowser + ' 缺少: ' + required);
+    }
+  }
 }
 
 if (failures.length > 0) {
@@ -317,5 +338,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、市场满幅居中裁切、上下可读性渐变、主视觉使用边界及 C1／C2 从空白新绘 SHA-256 基线一致。`,
+  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、256×256 运行时缩略图、ID 映射、市场满幅居中裁切、上下可读性渐变、主视觉使用边界及 C1／C2 从空白新绘 SHA-256 基线一致。`,
 );
