@@ -24,8 +24,8 @@ jobs:
         run: |
           set -euo pipefail
           sed -i 's/^ diff --git /diff --git /' .agent/c1-fast-production.patch
-          git apply --check .agent/c1-fast-production.patch
-          git apply .agent/c1-fast-production.patch
+          git apply --recount --check .agent/c1-fast-production.patch
+          git apply --recount .agent/c1-fast-production.patch
           rm -f .agent/c1-fast-production.patch .github/workflows/c1-fast-production-apply.yml
           rmdir .agent 2>/dev/null || true
 
