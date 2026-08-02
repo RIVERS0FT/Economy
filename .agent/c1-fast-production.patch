@@ -1,696 +1,495 @@
-diff --git a/server/src/industry-catalog.js b/server/src/industry-catalog.js
---- a/server/src/industry-catalog.js
-+++ b/server/src/industry-catalog.js
-@@ -4,19 +4,19 @@ import {
- } from './production-methods.js';
- 
- const rawProducts = [
--  { id: 'wheat', name: '小麦', category: 'raw', basePrice: 2 },
--  { id: 'rice', name: '水稻', category: 'raw', basePrice: 2 },
--  { id: 'cotton', name: '棉花', category: 'raw', basePrice: 2 },
--  { id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 2 },
--  { id: 'fruit', name: '水果', category: 'raw', basePrice: 4 },
-+  { id: 'wheat', name: '小麦', category: 'raw', basePrice: 1.2 },
-+  { id: 'rice', name: '水稻', category: 'raw', basePrice: 1.2 },
-+  { id: 'cotton', name: '棉花', category: 'raw', basePrice: 1.2 },
-+  { id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 1.2 },
-+  { id: 'fruit', name: '水果', category: 'raw', basePrice: 1.3 },
-   { id: 'timber', name: '木材', category: 'raw', basePrice: 6 },
-   { id: 'ore', name: '铁矿石', category: 'raw', basePrice: 7 },
-   { id: 'copper-ore', name: '铜矿石', category: 'raw', basePrice: 7 },
-   { id: 'crude-oil', name: '原油', category: 'raw', basePrice: 9 },
--  { id: 'meat', name: '肉', category: 'consumer', basePrice: 6 },
--  { id: 'eggs', name: '蛋', category: 'consumer', basePrice: 3 },
--  { id: 'milk', name: '奶', category: 'consumer', basePrice: 3 },
--  { id: 'fish', name: '鱼类', category: 'raw', basePrice: 6 },
--  { id: 'wool', name: '毛', category: 'raw', basePrice: 6 },
-+  { id: 'meat', name: '肉', category: 'consumer', basePrice: 2.4 },
-+  { id: 'eggs', name: '蛋', category: 'consumer', basePrice: 2.4 },
-+  { id: 'milk', name: '奶', category: 'consumer', basePrice: 2.4 },
-+  { id: 'fish', name: '鱼类', category: 'raw', basePrice: 2.5 },
-+  { id: 'wool', name: '毛', category: 'raw', basePrice: 2.4 },
-   { id: 'flour', name: '面粉', category: 'intermediate', basePrice: 13 },
-   { id: 'sugar', name: '砂糖', category: 'intermediate', basePrice: 13 },
-@@ -42,17 +42,17 @@ const rawFacilities = [
-     id: 'farm', name: '农场', category: 'raw', complexity: 'C1', buildCost: 50, buildTimeMs: 30_000,
-     defaultRecipeId: 'wheat-crop', internalCapacity: 40, systemValue: 65,
-     recipes: [
--      { id: 'wheat-crop', name: '种植小麦', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'wheat', quantity: 4 } },
--      { id: 'rice-crop', name: '种植水稻', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'rice', quantity: 4 } },
--      { id: 'cotton-crop', name: '种植棉花', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'cotton', quantity: 4 } },
--      { id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'sugarcane', quantity: 4 } },
-+      { id: 'wheat-crop', name: '种植小麦', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'wheat', quantity: 1 } },
-+      { id: 'rice-crop', name: '种植水稻', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'rice', quantity: 1 } },
-+      { id: 'cotton-crop', name: '种植棉花', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'cotton', quantity: 1 } },
-+      { id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'sugarcane', quantity: 1 } },
-     ],
-   },
-   {
-     id: 'orchard', name: '果园', category: 'raw', complexity: 'C1', buildCost: 70, buildTimeMs: 40_000,
-     defaultRecipeId: 'orchard-fruit', internalCapacity: 40, systemValue: 95,
--    recipes: [{ id: 'orchard-fruit', name: '种植水果', cycleMs: 120_000, operatingCost: 10, inputs: [], output: { productId: 'fruit', quantity: 3 } }],
-+    recipes: [{ id: 'orchard-fruit', name: '种植水果', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'fruit', quantity: 1 } }],
-   },
-@@ -72,16 +72,16 @@ const rawFacilities = [
-     id: 'ranch', name: '畜牧场', category: 'raw', complexity: 'C1', buildCost: 90, buildTimeMs: 50_000,
-     defaultRecipeId: 'ranch-meat', internalCapacity: 40, systemValue: 120,
-     recipes: [
--      { id: 'ranch-meat', name: '生产肉', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'meat', quantity: 3 } },
--      { id: 'ranch-eggs', name: '生产蛋', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'eggs', quantity: 6 } },
--      { id: 'ranch-milk', name: '生产奶', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'milk', quantity: 6 } },
--      { id: 'ranch-wool', name: '生产毛', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'wool', quantity: 3 } },
-+      { id: 'ranch-meat', name: '生产肉', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'meat', quantity: 1 } },
-+      { id: 'ranch-eggs', name: '生产蛋', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'eggs', quantity: 1 } },
-+      { id: 'ranch-milk', name: '生产奶', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'milk', quantity: 1 } },
-+      { id: 'ranch-wool', name: '生产毛', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'wool', quantity: 1 } },
-     ],
-   },
-   {
-     id: 'fishery', name: '渔场', category: 'raw', complexity: 'C1', buildCost: 100, buildTimeMs: 60_000,
-     defaultRecipeId: 'fishery-fish', internalCapacity: 40, systemValue: 130,
--    recipes: [{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'fish', quantity: 3 } }],
-+    recipes: [{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'fish', quantity: 1 } }],
-   },
-@@ -94,8 +94,8 @@ const rawFacilities = [
-     id: 'mill', name: '磨坊', category: 'processing', complexity: 'C2', buildCost: 150, buildTimeMs: 7 * 60 * 1000,
-     defaultRecipeId: 'mill-default', internalCapacity: 30, systemValue: 195,
-     recipes: [
--      { id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } },
--      { id: 'sugar-milling', name: '加工砂糖', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'sugarcane', quantity: 2 }], output: { productId: 'sugar', quantity: 1 } },
-+      { id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 8.6, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } },
-+      { id: 'sugar-milling', name: '加工砂糖', cycleMs: 40_000, operatingCost: 8.6, inputs: [{ productId: 'sugarcane', quantity: 2 }], output: { productId: 'sugar', quantity: 1 } },
-     ],
-   },
-@@ -129,8 +129,8 @@ const rawFacilities = [
-     id: 'textile-mill', name: '纺织厂', category: 'processing', complexity: 'C3', buildCost: 220, buildTimeMs: 35 * 60 * 1000,
-     defaultRecipeId: 'cotton-textile', internalCapacity: 25, systemValue: 290,
-     recipes: [
--      { id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } },
--      { id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } },
-+      { id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 8.8, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } },
-+      { id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 11.2, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } },
-     ],
-   },
-@@ -140,7 +140,7 @@ const rawFacilities = [
-     defaultRecipeId: 'food-factory-default', internalCapacity: 45, systemValue: 300,
-     recipes: [
-       { id: 'food-factory-default', name: '生产食品', cycleMs: 50_000, operatingCost: 14, inputs: [{ productId: 'flour', quantity: 2 }], output: { productId: 'food', quantity: 3 } },
--      { id: 'prepared-meal-production', name: '生产预制餐', cycleMs: 60_000, operatingCost: 11, inputs: [{ productId: 'flour', quantity: 1 }, { productId: 'fish', quantity: 1 }], output: { productId: 'prepared-meal', quantity: 2 } },
-+      { id: 'prepared-meal-production', name: '生产预制餐', cycleMs: 60_000, operatingCost: 14.5, inputs: [{ productId: 'flour', quantity: 1 }, { productId: 'fish', quantity: 1 }], output: { productId: 'prepared-meal', quantity: 2 } },
-     ],
-   },
-@@ -149,8 +149,8 @@ const rawFacilities = [
-     id: 'beverage-factory', name: '饮料厂', category: 'consumer', complexity: 'C4', buildCost: 280, buildTimeMs: 60 * 60 * 1000,
-     defaultRecipeId: 'milk-beverage', internalCapacity: 35, systemValue: 365,
-     recipes: [
--      { id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
--      { id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 9, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
-+      { id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14.6, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
-+      { id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 14.4, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
-     ],
-   },
-@@ -188,16 +188,6 @@ const rawFacilities = [
-   },
- ];
- 
--const EXPECTED_PROFIT_PER_MINUTE = Object.freeze({
--  C1: 1,
--  C2: 3,
--  C3: 6,
--  C4: 6,
--  C5: 8,
--  C6: 10,
--  C7: 12,
--});
--
- function freezeRecipe(recipe) {
-@@ -213,7 +203,6 @@ export const FACILITY_TYPE_CATALOG = Object.freeze(rawFacilities.map((facility)
-   const productionMethodGroups = createProductionMethodGroups(
-     { ...facility, recipes: baseRecipes },
-     PRODUCT_CATALOG,
--    EXPECTED_PROFIT_PER_MINUTE[facility.complexity],
-   );
- diff --git a/server/src/production-methods.js b/server/src/production-methods.js
---- a/server/src/production-methods.js
-+++ b/server/src/production-methods.js
-@@ -24,6 +24,9 @@ const METHOD_DEFINITIONS = Object.freeze([
-   }),
- ]);
- 
-+const MONEY_DECIMALS = 2;
-+const MONEY_SCALE = 10 ** MONEY_DECIMALS;
-+
- function cloneItems(items) {
-@@ -36,8 +39,32 @@ function productPriceMap(products) {
-   return new Map((products || []).map((product) => [product.id, Number(product.basePrice)]));
- }
- 
--function valueOfItems(items, prices) {
--  return cloneItems(items).reduce((sum, item) => sum + (prices.get(item.productId) || 0) * item.quantity, 0);
-+function moneyUnits(value, label = '金额') {
-+  const numeric = Number(value);
-+  const units = Math.round(numeric * MONEY_SCALE);
-+  if (
-+    !Number.isFinite(numeric)
-+    || !Number.isSafeInteger(units)
-+    || Math.abs(numeric - units / MONEY_SCALE) > 1e-9
-+  ) throw new Error(`${label}必须为最多两位小数的安全数值`);
-+  return units;
-+}
-+
-+function moneyFromUnits(units) {
-+  return units / MONEY_SCALE;
-+}
-+
-+function valueOfItemsUnits(items, prices) {
-+  return cloneItems(items).reduce(
-+    (sum, item) => sum + moneyUnits(prices.get(item.productId) || 0, `${item.productId} 参考价`) * item.quantity,
-+    0,
-+  );
-+}
-+
-+function referenceProfitPerMinute(recipe, prices) {
-+  const outputValueUnits = valueOfItemsUnits([recipe.output], prices);
-+  const inputValueUnits = valueOfItemsUnits(recipe.inputs || (recipe.input ? [recipe.input] : []), prices);
-+  const profitPerCycleUnits = outputValueUnits - inputValueUnits - moneyUnits(recipe.operatingCost, `${recipe.id} 周期成本`);
-+  const profitNumerator = profitPerCycleUnits * 60_000;
-+  if (!Number.isSafeInteger(profitNumerator) || profitNumerator % recipe.cycleMs !== 0) {
-+    throw new Error(`${recipe.id} 无法形成分币精确的参考分钟利润`);
-+  }
-+  return moneyFromUnits(profitNumerator / recipe.cycleMs);
- }
-@@ -49,13 +76,15 @@ function variantRecipeId(baseRecipeId, methodId) {
-     : `${baseRecipeId}--${methodId}`;
- }
- 
--function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode) {
-+function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode, allowFractionalCost = false) {
-   const base = Math.max(1_000, Math.floor(Number(baseCycleMs) / 1_000) * 1_000);
-   const target = mode === 'rapid'
-     ? Math.max(1_000, Math.floor(base / 2_000) * 1_000)
-     : Math.ceil((base * 3) / 2_000) * 1_000;
--  const profit = Math.max(1, Math.floor(Number(expectedProfitPerMinute) || 1));
-+  const profit = allowFractionalCost
-+    ? moneyUnits(expectedProfitPerMinute, '参考分钟利润')
-+    : Math.max(1, Math.floor(Number(expectedProfitPerMinute) || 1));
- 
-   if (mode === 'rapid') {
-@@ -73,7 +102,7 @@ function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode) {
-   return base * 2;
- }
- 
--function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
-+function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute, allowFractionalCost) {
-   const baseInputs = cloneItems(recipe.inputs || (recipe.input ? [recipe.input] : []));
-@@ -99,19 +128,19 @@ function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
-   const cycleMs = methodId === 'high-yield'
-     ? recipe.cycleMs
--    : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId);
--  const outputValue = valueOfItems([output], prices);
--  const inputValue = valueOfItems(inputs, prices);
--  const profitNumerator = expectedProfitPerMinute * cycleMs;
--  if (profitNumerator % 60_000 !== 0) {
--    throw new Error(`${baseRecipeId}/${methodId} 无法形成整数参考利润`);
-+    : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId, allowFractionalCost);
-+  const outputValueUnits = valueOfItemsUnits([output], prices);
-+  const inputValueUnits = valueOfItemsUnits(inputs, prices);
-+  const profitNumerator = moneyUnits(expectedProfitPerMinute, '参考分钟利润') * cycleMs;
-+  if (!Number.isSafeInteger(profitNumerator) || profitNumerator % 60_000 !== 0) {
-+    throw new Error(`${baseRecipeId}/${methodId} 无法形成分币精确的参考利润`);
-   }
--  const operatingCost = outputValue - inputValue - profitNumerator / 60_000;
--  if (!Number.isSafeInteger(operatingCost) || operatingCost < 0) {
--    throw new Error(`${baseRecipeId}/${methodId} 无法形成非负整数周期成本`);
-+  const operatingCostUnits = outputValueUnits - inputValueUnits - profitNumerator / 60_000;
-+  if (!Number.isSafeInteger(operatingCostUnits) || operatingCostUnits < 0) {
-+    throw new Error(`${baseRecipeId}/${methodId} 无法形成非负两位小数周期成本`);
-   }
-   return {
-@@ -120,7 +149,7 @@ function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
-     baseRecipeId,
-     productionMethodId: methodId,
-     cycleMs,
--    operatingCost,
-+    operatingCost: moneyFromUnits(operatingCostUnits),
-     inputs,
-     output,
-@@ -139,13 +168,18 @@ function freezePlan(plan) {
-   });
- }
- 
--export function createProductionMethodGroups(facility, products, expectedProfitPerMinute) {
-+export function createProductionMethodGroups(facility, products) {
-   const prices = productPriceMap(products);
-+  const allowFractionalCost = facility.complexity === 'C1';
-   const methods = METHOD_DEFINITIONS.map((definition) => {
-     const plansByRecipeId = Object.freeze(Object.fromEntries(
--      facility.recipes.map((recipe) => [
--        recipe.id,
--        freezePlan(createBalancedPlan(recipe, definition.id, prices, expectedProfitPerMinute)),
--      ]),
-+      facility.recipes.map((recipe) => {
-+        const expectedProfitPerMinute = referenceProfitPerMinute(recipe, prices);
-+        return [
-+          recipe.id,
-+          freezePlan(createBalancedPlan(
-+            recipe, definition.id, prices, expectedProfitPerMinute, allowFractionalCost,
-+          )),
-+        ];
-+      }),
-     ));
- diff --git a/server/src/facility-groups.js b/server/src/facility-groups.js
---- a/server/src/facility-groups.js
-+++ b/server/src/facility-groups.js
-@@ -13,7 +13,7 @@ import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity
- import { weeklySettlementLiability } from './weekly-cash-settlement.js';
- import { ensureGemState } from './invitations.js';
--import { multiplyMoneyByInteger } from './money.js';
-+import { calculateRateMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
-@@ -102,18 +102,15 @@ function cycleCapacity(
- }
- 
- function calculateProductionWage(cost, multiplierBps) {
--  const normalizedCost = Math.max(0, Math.floor(Number(cost)));
-+  const normalizedCost = roundInternalMoney(cost);
-   const normalizedMultiplier = normalizeProductionWageMultiplier(multiplierBps);
--  if (!Number.isSafeInteger(normalizedCost) || normalizedMultiplier === null) {
-+  if (normalizedCost === null || normalizedCost < 0 || normalizedMultiplier === null) {
-     throw new Error('生产工资参数超出系统可表示范围');
-   }
--  const rounded = (BigInt(normalizedCost) * BigInt(normalizedMultiplier) + 5_000n) / 10_000n;
--  if (rounded > BigInt(Number.MAX_SAFE_INTEGER)) {
-+  const wage = calculateRateMoney(normalizedCost, normalizedMultiplier, 10_000, 'half-up');
-+  if (wage === null) {
-     throw new Error('生产工资计算结果超出系统可表示范围');
-   }
--  return Number(rounded);
-+  return wage;
- }
-@@ -447,6 +444,7 @@ function groupRequirements(recipe, count) {
-     quantity: item.quantity * participating,
-   }));
-   const output = recipe.output.quantity * participating;
-+  const cost = multiplyMoneyByInteger(recipe.operatingCost, participating) ?? Number.POSITIVE_INFINITY;
-   const inputTotal = inputs.reduce((sum, item) => sum + item.quantity, 0);
-   return {
-@@ -454,7 +452,7 @@ function groupRequirements(recipe, count) {
-     output,
-     inputs,
-     inputTotal,
--    cost: recipe.operatingCost * participating,
-+    cost,
-     netStorage: Math.max(0, output - inputTotal),
-   };
- diff --git a/server/src/market-demand/catalog.js b/server/src/market-demand/catalog.js
---- a/server/src/market-demand/catalog.js
-+++ b/server/src/market-demand/catalog.js
-@@ -58,7 +58,7 @@ export const LIQUIDITY_INVENTORY_SKEW = 0.10;
- export const LIQUIDITY_TARGET_MAX_RISE = 0.50;
- export const LIQUIDITY_TARGET_MAX_FALL = 0.25;
--export const LIQUIDITY_MIN_TARGET = 2;
-+export const LIQUIDITY_MIN_TARGET = 0.01;
- export const LIQUIDITY_SIGNAL_WEIGHT = 0.50;
- diff --git a/scripts/verify-industry-catalog.mjs b/scripts/verify-industry-catalog.mjs
---- a/scripts/verify-industry-catalog.mjs
-+++ b/scripts/verify-industry-catalog.mjs
-@@ -17,9 +17,9 @@ const expectedFacilities = [
- ];
- const expectedPrices = {
--  wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
--  'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
-+  wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
-+  'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-@@ -63,7 +63,8 @@ const constructionTimeRanges = {
-   C7: [60 * 60_000, 120 * 60_000],
- };
--const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
-+const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
-+const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
- const expectedProductionMethods = ['standard', 'rapid', 'economical', 'high-yield'];
-@@ -73,6 +74,14 @@ function standardRecipes(facility) {
-   return facility.recipes.filter((recipe) => (recipe.productionMethodId || 'standard') === 'standard');
- }
-+
-+function hasAtMostTwoDecimals(value) {
-+  return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
-+}
-+
-+function expectedProfitFor(facility) {
-+  return facility.complexity === 'C1'
-+    ? expectedC1ProfitByFacility[facility.id]
-+    : expectedProfitByComplexity[facility.complexity];
-+}
-@@ -89,7 +98,7 @@ const productIds = new Set(expectedProducts);
- for (const product of PRODUCT_CATALOG) {
--  assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
-+  assert.equal(hasAtMostTwoDecimals(product.basePrice), true, `${product.id} 初始参考价最多保留两位小数`);
-@@ -124,7 +133,7 @@ for (const facility of FACILITY_TYPE_CATALOG) {
-       assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
-       assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
--      assert.equal(Number.isInteger(recipe.operatingCost), true);
-+      assert.equal(hasAtMostTwoDecimals(recipe.operatingCost), true);
-@@ -139,7 +148,10 @@ for (const facility of FACILITY_TYPE_CATALOG) {
-       const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
-       const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
-         * 60_000 / recipe.cycleMs;
--      assert.equal(profit, expectedProfitByComplexity[facility.complexity], `${facility.id}/${recipe.id} 参考分钟利润错误`);
-+      assert.ok(
-+        Math.abs(profit - expectedProfitFor(facility)) < 1e-9,
-+        `${facility.id}/${recipe.id} 参考分钟利润错误: ${profit}`,
-+      );
-@@ -159,6 +171,19 @@ const facilities = new Map(FACILITY_TYPE_CATALOG.map((item) => [item.id, item]));
-+const expectedC1Standard = {
-+  farm: { cycleMs: 20_000, operatingCost: 1, outputQuantity: 1 },
-+  orchard: { cycleMs: 20_000, operatingCost: 1, outputQuantity: 1 },
-+  ranch: { cycleMs: 30_000, operatingCost: 2, outputQuantity: 1 },
-+  fishery: { cycleMs: 30_000, operatingCost: 2, outputQuantity: 1 },
-+};
-+for (const [facilityId, expected] of Object.entries(expectedC1Standard)) {
-+  for (const recipe of standardRecipes(facilities.get(facilityId))) {
-+    assert.equal(recipe.cycleMs, expected.cycleMs);
-+    assert.equal(recipe.operatingCost, expected.operatingCost);
-+    assert.equal(recipe.output.quantity, expected.outputQuantity);
-+  }
-+}
- assert.deepEqual(standardRecipes(facilities.get('farm')).map((item) => item.id), ['wheat-crop', 'rice-crop', 'cotton-crop', 'sugarcane-crop']);
-@@ -171,7 +196,11 @@ assert.equal(facilities.has('copper-smelter'), false, '不得新增铜冶炼厂');
- assert.deepEqual(standardRecipes(facilities.get('food-factory')).map((item) => item.id), ['food-factory-default', 'prepared-meal-production']);
- assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.id), ['milk-beverage', 'fruit-beverage']);
--assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14, 9]);
-+assert.deepEqual(standardRecipes(facilities.get('mill')).map((item) => item.operatingCost), [8.6, 8.6]);
-+assert.deepEqual(standardRecipes(facilities.get('textile-mill')).map((item) => item.operatingCost), [8.8, 11.2]);
-+assert.equal(standardRecipes(facilities.get('food-factory'))[1].operatingCost, 14.5);
-+assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14.6, 14.4]);
-@@ -203,7 +232,8 @@ for (const [path, texts] of [
-   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
-     '当前基线为 31 种商品和 21 种工厂类型',
--    'C1=1、C2=3、C3=6、C4=6、C5=8、C6=10、C7=12',
-+    'C1 快速生产采用工厂级参考分钟利润',
-+    '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',
-@@ -222,4 +252,4 @@ for (const [path, texts] of [
- }
- 
--console.log('产业目录验证通过：31 种商品、21 种工厂、四种作业制度、配方级整数计划及 1/3/6/6/8/10/12 参考分钟利润梯度。');
-+console.log('产业目录验证通过：31 种商品、21 种工厂、C1 快速生产、两位小数成本及 C2～C7 参考分钟利润梯度。');
- diff --git a/scripts/verify-production-methods.mjs b/scripts/verify-production-methods.mjs
---- a/scripts/verify-production-methods.mjs
-+++ b/scripts/verify-production-methods.mjs
-@@ -4,7 +4,11 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js';
- const methodIds = ['standard', 'rapid', 'economical', 'high-yield'];
- const productPrices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice]));
--const expectedProfit = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
-+
-+function hasAtMostTwoDecimals(value) {
-+  return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
-+}
-@@ -18,6 +22,12 @@ for (const facility of FACILITY_TYPE_CATALOG) {
-   for (const baseRecipe of baseRecipes) {
-+    const baseInputValue = baseRecipe.inputs.reduce(
-+      (sum, input) => sum + productPrices.get(input.productId) * input.quantity,
-+      0,
-+    );
-+    const baseOutputValue = productPrices.get(baseRecipe.output.productId) * baseRecipe.output.quantity;
-+    const baseProfit = (baseOutputValue - baseInputValue - baseRecipe.operatingCost) * 60_000 / baseRecipe.cycleMs;
-     const variants = methodIds.map((methodId) => facility.recipes.find((recipe) => (
-@@ -32,8 +42,8 @@ for (const facility of FACILITY_TYPE_CATALOG) {
-       const outputValue = productPrices.get(recipe.output.productId) * recipe.output.quantity;
-       const profitPerMinute = (outputValue - inputValue - recipe.operatingCost) * 60_000 / recipe.cycleMs;
--      assert.equal(profitPerMinute, expectedProfit[facility.complexity], `${facility.id}/${recipe.id} 利润基线漂移`);
--      assert.equal(Number.isSafeInteger(recipe.operatingCost), true);
-+      assert.ok(Math.abs(profitPerMinute - baseProfit) < 1e-9, `${facility.id}/${recipe.id} 利润基线漂移`);
-+      assert.equal(hasAtMostTwoDecimals(recipe.operatingCost), true);
-@@ -131,4 +141,4 @@ for (const [path, required] of [
- }
- 
--console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、浏览器交互和版本兼容均已锁定。');
-+console.log('生产方式验证通过：四种作业制度、两位小数固定精度平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、浏览器交互和版本兼容均已锁定。');
- diff --git a/scripts/verify-recipe-profit-analysis.mjs b/scripts/verify-recipe-profit-analysis.mjs
---- a/scripts/verify-recipe-profit-analysis.mjs
-+++ b/scripts/verify-recipe-profit-analysis.mjs
-@@ -118,14 +118,14 @@ const noInput = analyzeRecipeProfit({
-   recipe: {
-     id: 'farm-production',
-     name: '种植小麦',
--    cycleMs: 120_000,
--    operatingCost: 6,
-+    cycleMs: 20_000,
-+    operatingCost: 1,
-     inputs: [],
--    output: { productId: 'wheat', quantity: 4 },
-+    output: { productId: 'wheat', quantity: 1 },
-   },
-   scopeCount: 1,
--  markets: { wheat: market('wheat', 2) },
-+  markets: { wheat: market('wheat', 1.2) },
-   buildCost: 0,
- });
- assert.equal(noInput.inputMarketCost, 0);
--assert.equal(noInput.profitPerMinute, 1);
-+assert.ok(Math.abs(noInput.profitPerMinute - 0.6) < 1e-9);
- diff --git a/server/test/production-methods.test.js b/server/test/production-methods.test.js
---- a/server/test/production-methods.test.js
-+++ b/server/test/production-methods.test.js
-@@ -10,7 +10,6 @@ import {
- const now = 1_700_000_000_000;
- const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
--const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
- const prices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice]));
-@@ -42,13 +41,14 @@ test('every factory route exposes four balanced production methods', () => {
-     const baseRecipes = type.recipes.filter((recipe) => recipe.productionMethodId === 'standard');
-     for (const baseRecipe of baseRecipes) {
-+      const baseProfit = referenceProfitPerMinute(baseRecipe);
-       const variants = methodGroup.methods.map((method) => variant(type, baseRecipe.id, method.id));
-@@ -56,13 +56,13 @@ test('every factory route exposes four balanced production methods', () => {
-       for (const recipe of variants) {
-         assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
--        assert.equal(Number.isInteger(recipe.operatingCost), true);
-+        assert.ok(Math.abs(recipe.operatingCost - Math.round(recipe.operatingCost * 100) / 100) < 1e-9);
-         assert.equal(recipe.operatingCost >= 0, true);
--        assert.equal(
--          referenceProfitPerMinute(recipe),
--          expectedProfitByComplexity[type.complexity],
--          `${type.id}/${recipe.id} 参考分钟利润错误`,
-+        assert.ok(
-+          Math.abs(referenceProfitPerMinute(recipe) - baseProfit) < 1e-9,
-+          `${type.id}/${recipe.id} 参考分钟利润错误`,
-         );
-@@ -79,7 +79,7 @@ test('every factory route exposes four balanced production methods', () => {
-   }
- });
- 
--test('representative production method plans use the approved integer values', () => {
-+test('representative production method plans use the approved fixed-precision values', () => {
-@@ -94,10 +94,10 @@ test('representative production method plans use the approved integer values', () => {
-     }),
-     [
--      [120_000, 4, 6],
--      [60_000, 4, 7],
--      [180_000, 4, 5],
--      [120_000, 8, 14],
-+      [20_000, 1, 1],
-+      [10_000, 1, 1.1],
-+      [30_000, 1, 0.9],
-+      [20_000, 2, 2.2],
-@@ -176,15 +176,15 @@ test('running factory switches production method only after the current full cycle', () => {
--  processFacilityGroupWorld(world, now + 120_000);
--  assert.equal(player.inventories.wheat.available, 4);
--  assert.equal(player.credits, 94);
-+  processFacilityGroupWorld(world, now + 20_000);
-+  assert.equal(player.inventories.wheat.available, 1);
-+  assert.equal(player.credits, 99);
-@@ -193,9 +193,9 @@ test('running factory switches production method only after the current full cycle', () => {
--  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_000);
-+  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 20_000);
- 
--  processFacilityGroupWorld(world, now + 180_000);
--  assert.equal(player.inventories.wheat.available, 8);
--  assert.equal(player.credits, 87);
--  assert.equal(player.facilityGroups[0].lifetimeOutput, 8);
-+  processFacilityGroupWorld(world, now + 30_000);
-+  assert.equal(player.inventories.wheat.available, 2);
-+  assert.ok(Math.abs(player.credits - 97.9) < 1e-9);
-+  assert.equal(player.facilityGroups[0].lifetimeOutput, 2);
- });
- diff --git a/server/test/domain.test.js b/server/test/domain.test.js
---- a/server/test/domain.test.js
-+++ b/server/test/domain.test.js
-@@ -167,9 +167,9 @@ test('expanded industry catalog exposes fruit and complete production chains', () => {
-   const expectedPrices = {
--    wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
--    'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
-+    wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
-+    'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-@@ -183,9 +183,12 @@ test('expanded industry catalog exposes fruit and complete production chains', () => {
-   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
- 
-   const productIds = new Set(expectedProducts);
--  const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
-+  const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
-+  const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
-   for (const product of PRODUCT_CATALOG) {
--    assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
-+    assert.ok(
-+      Math.abs(product.basePrice - Math.round(product.basePrice * 100) / 100) < 1e-9,
-+      `${product.id} 初始参考价最多保留两位小数`,
-+    );
-@@ -201,7 +204,10 @@ test('expanded industry catalog exposes fruit and complete production chains', () => {
-       assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
-       assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true, `${facility.id}/${recipe.id} 周期秒数必须为整数`);
--      assert.equal(Number.isInteger(recipe.operatingCost), true, `${facility.id}/${recipe.id} 周期成本必须为整数`);
-+      assert.ok(
-+        Math.abs(recipe.operatingCost - Math.round(recipe.operatingCost * 100) / 100) < 1e-9,
-+        `${facility.id}/${recipe.id} 周期成本最多保留两位小数`,
-+      );
-@@ -217,8 +223,11 @@ test('expanded industry catalog exposes fruit and complete production chains', () => {
-       const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
-         * 60_000 / recipe.cycleMs;
--      const expectedProfit = expectedProfitByComplexity[facility.complexity];
--      assert.equal(profit, expectedProfit, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
-+      const expectedProfit = facility.complexity === 'C1'
-+        ? expectedC1ProfitByFacility[facility.id]
-+        : expectedProfitByComplexity[facility.complexity];
-+      assert.ok(Math.abs(profit - expectedProfit) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
- diff --git a/server/test/facility-groups.test.js b/server/test/facility-groups.test.js
---- a/server/test/facility-groups.test.js
-+++ b/server/test/facility-groups.test.js
-@@ -66,9 +66,9 @@ test('production increments produced goods statistics', () => {
-   player.facilityGroups = [group('farm', 2, { enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now })];
-   migrateFacilityGroupWorld(world, now);
--  processFacilityGroupWorld(world, now + 120_000);
--  assert.equal(player.stats.producedGoods, 8);
--  assert.equal(player.inventories.wheat.available, 8);
-+  processFacilityGroupWorld(world, now + 20_000);
-+  assert.equal(player.stats.producedGoods, 2);
-+  assert.equal(player.inventories.wheat.available, 2);
-@@ -103,19 +103,19 @@ test('production wage multiplier changes population wages without changing production cost and only affects the next cycle', () => {
--  processFacilityGroupWorld(world, now + 120_000);
--  assert.equal(player.credits, 994);
--  assert.equal(pendingProduction(), 6);
-+  processFacilityGroupWorld(world, now + 20_000);
-+  assert.equal(player.credits, 999);
-+  assert.equal(pendingProduction(), 1);
-   assert.equal(population.stats.productionWageSubsidyIssued, 0);
- 
--  processFacilityGroupWorld(world, now + 240_000);
--  assert.equal(player.credits, 988);
--  assert.equal(pendingProduction(), 14);
--  assert.equal(population.stats.productionWageSubsidyIssued, 2);
-+  processFacilityGroupWorld(world, now + 40_000);
-+  assert.equal(player.credits, 998);
-+  assert.ok(Math.abs(pendingProduction() - 2.33) < 1e-9);
-+  assert.ok(Math.abs(population.stats.productionWageSubsidyIssued - 0.33) < 1e-9);
-   assert.equal(population.stats.productionWageWithheld, 0);
--  assert.equal(player.stats.productionPayroll, 12);
--  assert.equal(player.stats.employmentPayments, 12);
--  assert.equal('cycleWageMultiplierBps' in createFacilityGroupClientState(world, alice.id, now + 240_000).facilityGroups[0], false);
-+  assert.equal(player.stats.productionPayroll, 2);
-+  assert.equal(player.stats.employmentPayments, 2);
-+  assert.equal('cycleWageMultiplierBps' in createFacilityGroupClientState(world, alice.id, now + 40_000).facilityGroups[0], false);
-@@ -181,7 +181,7 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and sugar', () => {
--  assert.equal(player.credits, 91);
-+  assert.ok(Math.abs(player.credits - 85.6) < 1e-9);
-@@ -252,15 +252,15 @@ test('running farm crop changes apply at the next cycle boundary', () => {
--  processFacilityGroupWorld(world, now + 120_000);
-+  processFacilityGroupWorld(world, now + 20_000);
-@@ -268,11 +268,11 @@ test('running farm crop changes apply at the next cycle boundary', () => {
--  assert.equal(player.inventories.wheat.available, 8);
-+  assert.equal(player.inventories.wheat.available, 2);
-   assert.equal(player.inventories.rice.available, 0);
- 
--  processFacilityGroupWorld(world, now + 240_000);
--  assert.equal(player.inventories.rice.available, 8);
-+  processFacilityGroupWorld(world, now + 40_000);
-+  assert.equal(player.inventories.rice.available, 2);
-@@ -338,11 +338,11 @@ test('legacy running target plans become continuous production', () => {
--  processFacilityGroupWorld(world, now + 120_000);
-+  processFacilityGroupWorld(world, now + 20_000);
-@@ -352,7 +352,7 @@ test('legacy running target plans become continuous production', () => {
--  assert.equal(player.inventories.wheat.available, 4);
-+  assert.equal(player.inventories.wheat.available, 1);
-@@ -418,11 +418,11 @@ test('running factory staffing locks each cycle and carries fractional capacity', () => {
--  processFacilityGroupWorld(world, now + 360_000);
--  assert.equal(player.inventories.wheat.available, 4);
--  assert.equal(player.credits, 94);
--  assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 3_500);
--  assert.equal(player.facilityGroups[0].staffingRateBps, 8_500);
--  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 8_500);
-+  processFacilityGroupWorld(world, now + 80_000);
-+  assert.equal(player.inventories.wheat.available, 1);
-+  assert.equal(player.credits, 99);
-+  assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 1_998);
-+  assert.equal(player.facilityGroups[0].staffingRateBps, 3_832);
-+  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 3_832);
- diff --git a/docs/README.md b/docs/README.md
---- a/docs/README.md
-+++ b/docs/README.md
-@@ -15,7 +15,7 @@
--| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 31 种商品、21 种工厂、整数经济数值、参考利润、周期成本工资、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及长期供货合同与生产／资产守恒审计边界 |
-+| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 31 种商品、21 种工厂、固定精度经济数值、参考利润、周期成本工资、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及长期供货合同与生产／资产守恒审计边界 |
-@@ -45,7 +45,7 @@
--10. 商品初始参考价、生产数量、周期秒数和周期成本必须保持整数；参考分钟利润必须由正式目录自动校验，不得只在文档中手算。
-+10. 商品初始参考价和周期成本允许最多两位小数，生产数量和周期秒数必须保持整数；参考分钟利润必须由正式目录自动校验，不得只在文档中手算。
- diff --git a/docs/INDUSTRY_AND_PRODUCTION_DESIGN.md b/docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
---- a/docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
-+++ b/docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
-@@ -1,6 +1,6 @@
- # Economy 产业目录与工厂集群设计
- 
--> 状态：当前商品目录、整数经济数值与生产设计基线
-+> 状态：当前商品目录、固定精度经济数值与生产设计基线
-@@ -23,10 +23,10 @@
--- 商品初始参考价、配方输入输出数量、生产周期秒数和目录周期成本必须保持整数；满员率使用 0～10000 基点固定点，实际结算继续保持整数商品与整数目录成本倍数。
-+- 商品初始参考价和目录周期成本允许最多两位小数；配方输入输出数量与生产周期秒数必须保持整数。满员率使用 0～10000 基点固定点，实际结算使用六位小数内部金额与整数商品数量。
-@@ -26,7 +26,7 @@
--- 工厂复杂度同时约束建设门槛和参考分钟利润；正式梯度固定为 C1=1、C2=3、C3=6、C4=6、C5=8、C6=10、C7=12。复杂度决定生产运营就业结构，但不得直接创造市场需求预算。
-+- 工厂复杂度同时约束建设门槛和参考分钟利润；C1 快速生产采用工厂级参考分钟利润，农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0；C2～C7 固定为 3、6、6、8、10、12。复杂度决定生产运营就业结构，但不得直接创造市场需求预算。
-@@ -45,23 +45,23 @@
- | 商品 | 初始参考价 | 单座生产关系 | 周期 | 周期成本 | 参考分钟利润 |
- |---|---:|---|---:|---:|---:|
--| 小麦 (`wheat`) | 2 | 无原料 → 4 小麦 | 120 秒 | 6 | 1 |
--| 水稻 (`rice`) | 2 | 无原料 → 4 水稻 | 120 秒 | 6 | 1 |
--| 棉花 (`cotton`) | 2 | 无原料 → 4 棉花 | 120 秒 | 6 | 1 |
--| 甘蔗 (`sugarcane`) | 2 | 无原料 → 4 甘蔗 | 120 秒 | 6 | 1 |
--| 水果 (`fruit`) | 4 | 无原料 → 3 水果 | 120 秒 | 10 | 1 |
-+| 小麦 (`wheat`) | 1.2 | 无原料 → 1 小麦 | 20 秒 | 1 | 0.6 |
-+| 水稻 (`rice`) | 1.2 | 无原料 → 1 水稻 | 20 秒 | 1 | 0.6 |
-+| 棉花 (`cotton`) | 1.2 | 无原料 → 1 棉花 | 20 秒 | 1 | 0.6 |
-+| 甘蔗 (`sugarcane`) | 1.2 | 无原料 → 1 甘蔗 | 20 秒 | 1 | 0.6 |
-+| 水果 (`fruit`) | 1.3 | 无原料 → 1 水果 | 20 秒 | 1 | 0.9 |
-@@ -55,15 +55,15 @@
--| 肉 (`meat`) | 6 | 无原料 → 3 肉 | 120 秒 | 16 | 1 |
--| 蛋 (`eggs`) | 3 | 无原料 → 6 蛋 | 120 秒 | 16 | 1 |
--| 奶 (`milk`) | 3 | 无原料 → 6 奶 | 120 秒 | 16 | 1 |
--| 鱼类 (`fish`) | 6 | 无原料 → 3 鱼类 | 120 秒 | 16 | 1 |
--| 毛 (`wool`) | 6 | 无原料 → 3 毛 | 120 秒 | 16 | 1 |
--| 面粉 (`flour`) | 13 | 2 小麦 → 1 面粉 | 40 秒 | 7 | 3 |
--| 砂糖 (`sugar`) | 13 | 2 甘蔗 → 1 砂糖 | 40 秒 | 7 | 3 |
-+| 肉 (`meat`) | 2.4 | 无原料 → 1 肉 | 30 秒 | 2 | 0.8 |
-+| 蛋 (`eggs`) | 2.4 | 无原料 → 1 蛋 | 30 秒 | 2 | 0.8 |
-+| 奶 (`milk`) | 2.4 | 无原料 → 1 奶 | 30 秒 | 2 | 0.8 |
-+| 鱼类 (`fish`) | 2.5 | 无原料 → 1 鱼类 | 30 秒 | 2 | 1.0 |
-+| 毛 (`wool`) | 2.4 | 无原料 → 1 毛 | 30 秒 | 2 | 0.8 |
-+| 面粉 (`flour`) | 13 | 2 小麦 → 1 面粉 | 40 秒 | 8.6 | 3 |
-+| 砂糖 (`sugar`) | 13 | 2 甘蔗 → 1 砂糖 | 40 秒 | 8.6 | 3 |
-@@ -73,11 +73,11 @@
--| 纺织品 (`textile`) | 20 | 6 棉花或 2 毛 → 1 纺织品 | 40 秒 | 4 | 6 |
-+| 纺织品 (`textile`) | 20 | 6 棉花或 2 毛 → 1 纺织品 | 40 秒 | 8.8；或 11.2 | 6 |
-@@ -76,8 +76,8 @@
--| 饮料 (`beverage`) | 18 | 1 砂糖 + 1 奶 → 2 饮料；或 2 水果 + 1 砂糖 → 2 饮料 | 60 秒 | 14；或 9 | 6 |
--| 预制餐 (`prepared-meal`) | 18 | 1 面粉 + 1 鱼类 → 2 预制餐 | 60 秒 | 11 | 6 |
-+| 饮料 (`beverage`) | 18 | 1 砂糖 + 1 奶 → 2 饮料；或 2 水果 + 1 砂糖 → 2 饮料 | 60 秒 | 14.6；或 14.4 | 6 |
-+| 预制餐 (`prepared-meal`) | 18 | 1 面粉 + 1 鱼类 → 2 预制餐 | 60 秒 | 14.5 | 6 |
-@@ -87,11 +87,11 @@
--| 参考分钟利润 | 1 | 3 | 6 | 6 | 8 | 10 | 12 |
-+| 参考分钟利润 | 0.6～1.0 | 3 | 6 | 6 | 8 | 10 | 12 |
- 
--同一工厂的所有正式配方必须精确达到该工厂复杂度对应的参考分钟利润。为保持初始参考价和周期成本均为整数，乳制饮料、果汁饮料和家具的周期成本分别固定为 14、9、8；机械、电子产品和家电分别固定为 10、15、12。目录只保存一套固定周期成本；生产工资系数属于人口政策，不得改写目录成本或参考利润。
-+同一工厂的所有正式配方必须精确达到该工厂的参考分钟利润。C1 按工厂分别锁定农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0；C2～C7 继续按复杂度统一。为保持完整产业链原有梯度，磨坊、纺织厂、预制餐与饮料配方随 C1 商品参考价同步重平衡周期成本。目录成本最多保留两位小数；生产工资系数属于人口政策，不得改写目录成本或参考利润。
-@@ -94,7 +94,7 @@
--整数工资使用最大余数法分配，三类人口新增收入之和必须精确等于系数调整后的整数人口生产工资。
-+固定精度工资使用最大余数法分配，三类人口新增收入之和必须精确等于系数调整后的人口生产工资。
-@@ -149,9 +149,9 @@
--7. 新数值必须保持整数，并通过目录验证脚本重新计算参考分钟利润。
-+7. 新商品参考价与周期成本最多保留两位小数，输入输出数量和周期秒数必须保持整数，并通过目录验证脚本重新计算参考分钟利润。
-@@ -151,7 +151,7 @@
--9. 新工厂必须声明 C1～C7 复杂度，施工时间必须落在对应区间，且所有正式配方必须精确达到该复杂度的参考分钟利润；调整现有复杂度时必须同步审查利润、同级工厂及相邻等级的时间递增关系。
-+9. 新工厂必须声明 C1～C7 复杂度，施工时间必须落在对应区间，且所有正式配方必须精确达到该工厂的参考分钟利润；C2～C7 继续按复杂度统一，调整现有复杂度时必须同步审查利润、同级工厂及相邻等级的时间递增关系。
+from pathlib import Path
+
+
+def replace(path, old, new, expected=1):
+    file = Path(path)
+    text = file.read_text(encoding='utf-8')
+    actual = text.count(old)
+    if actual != expected:
+        raise SystemExit(f'{path}: expected {expected} matches, found {actual}: {old[:120]!r}')
+    file.write_text(text.replace(old, new), encoding='utf-8')
+
+
+# Formal product prices and recipes.
+for old, new in {
+    "{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 2 }": "{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 1.2 }",
+    "{ id: 'rice', name: '水稻', category: 'raw', basePrice: 2 }": "{ id: 'rice', name: '水稻', category: 'raw', basePrice: 1.2 }",
+    "{ id: 'cotton', name: '棉花', category: 'raw', basePrice: 2 }": "{ id: 'cotton', name: '棉花', category: 'raw', basePrice: 1.2 }",
+    "{ id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 2 }": "{ id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 1.2 }",
+    "{ id: 'fruit', name: '水果', category: 'raw', basePrice: 4 }": "{ id: 'fruit', name: '水果', category: 'raw', basePrice: 1.3 }",
+    "{ id: 'meat', name: '肉', category: 'consumer', basePrice: 6 }": "{ id: 'meat', name: '肉', category: 'consumer', basePrice: 2.4 }",
+    "{ id: 'eggs', name: '蛋', category: 'consumer', basePrice: 3 }": "{ id: 'eggs', name: '蛋', category: 'consumer', basePrice: 2.4 }",
+    "{ id: 'milk', name: '奶', category: 'consumer', basePrice: 3 }": "{ id: 'milk', name: '奶', category: 'consumer', basePrice: 2.4 }",
+    "{ id: 'fish', name: '鱼类', category: 'raw', basePrice: 6 }": "{ id: 'fish', name: '鱼类', category: 'raw', basePrice: 2.5 }",
+    "{ id: 'wool', name: '毛', category: 'raw', basePrice: 6 }": "{ id: 'wool', name: '毛', category: 'raw', basePrice: 2.4 }",
+}.items():
+    replace('server/src/industry-catalog.js', old, new)
+
+recipe_replacements = {
+    "{ id: 'wheat-crop', name: '种植小麦', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'wheat', quantity: 4 } }": "{ id: 'wheat-crop', name: '种植小麦', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'wheat', quantity: 1 } }",
+    "{ id: 'rice-crop', name: '种植水稻', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'rice', quantity: 4 } }": "{ id: 'rice-crop', name: '种植水稻', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'rice', quantity: 1 } }",
+    "{ id: 'cotton-crop', name: '种植棉花', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'cotton', quantity: 4 } }": "{ id: 'cotton-crop', name: '种植棉花', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'cotton', quantity: 1 } }",
+    "{ id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'sugarcane', quantity: 4 } }": "{ id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'sugarcane', quantity: 1 } }",
+    "{ id: 'orchard-fruit', name: '种植水果', cycleMs: 120_000, operatingCost: 10, inputs: [], output: { productId: 'fruit', quantity: 3 } }": "{ id: 'orchard-fruit', name: '种植水果', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'fruit', quantity: 1 } }",
+    "{ id: 'ranch-meat', name: '生产肉', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'meat', quantity: 3 } }": "{ id: 'ranch-meat', name: '生产肉', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'meat', quantity: 1 } }",
+    "{ id: 'ranch-eggs', name: '生产蛋', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'eggs', quantity: 6 } }": "{ id: 'ranch-eggs', name: '生产蛋', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'eggs', quantity: 1 } }",
+    "{ id: 'ranch-milk', name: '生产奶', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'milk', quantity: 6 } }": "{ id: 'ranch-milk', name: '生产奶', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'milk', quantity: 1 } }",
+    "{ id: 'ranch-wool', name: '生产毛', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'wool', quantity: 3 } }": "{ id: 'ranch-wool', name: '生产毛', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'wool', quantity: 1 } }",
+    "{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'fish', quantity: 3 } }": "{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'fish', quantity: 1 } }",
+    "{ id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } }": "{ id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 8.6, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } }",
+    "{ id: 'sugar-milling', name: '加工砂糖', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'sugarcane', quantity: 2 }], output: { productId: 'sugar', quantity: 1 } }": "{ id: 'sugar-milling', name: '加工砂糖', cycleMs: 40_000, operatingCost: 8.6, inputs: [{ productId: 'sugarcane', quantity: 2 }], output: { productId: 'sugar', quantity: 1 } }",
+    "{ id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } }": "{ id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 8.8, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } }",
+    "{ id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } }": "{ id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 11.2, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } }",
+    "{ id: 'prepared-meal-production', name: '生产预制餐', cycleMs: 60_000, operatingCost: 11, inputs: [{ productId: 'flour', quantity: 1 }, { productId: 'fish', quantity: 1 }], output: { productId: 'prepared-meal', quantity: 2 } }": "{ id: 'prepared-meal-production', name: '生产预制餐', cycleMs: 60_000, operatingCost: 14.5, inputs: [{ productId: 'flour', quantity: 1 }, { productId: 'fish', quantity: 1 }], output: { productId: 'prepared-meal', quantity: 2 } }",
+    "{ id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } }": "{ id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14.6, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } }",
+    "{ id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 9, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } }": "{ id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 14.4, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } }",
+}
+for old, new in recipe_replacements.items():
+    replace('server/src/industry-catalog.js', old, new)
+
+replace('server/src/industry-catalog.js', """const EXPECTED_PROFIT_PER_MINUTE = Object.freeze({
+  C1: 1,
+  C2: 3,
+  C3: 6,
+  C4: 6,
+  C5: 8,
+  C6: 10,
+  C7: 12,
+});
+
+""", '')
+replace('server/src/industry-catalog.js', """  const productionMethodGroups = createProductionMethodGroups(
+    { ...facility, recipes: baseRecipes },
+    PRODUCT_CATALOG,
+    EXPECTED_PROFIT_PER_MINUTE[facility.complexity],
+  );""", """  const productionMethodGroups = createProductionMethodGroups(
+    { ...facility, recipes: baseRecipes },
+    PRODUCT_CATALOG,
+  );""")
+
+# Production methods use exact cents while deriving each route's own baseline.
+replace('server/src/production-methods.js', "]);\n\nfunction cloneItems", "]);\n\nconst MONEY_DECIMALS = 2;\nconst MONEY_SCALE = 10 ** MONEY_DECIMALS;\n\nfunction cloneItems")
+replace('server/src/production-methods.js', """function valueOfItems(items, prices) {
+  return cloneItems(items).reduce((sum, item) => sum + (prices.get(item.productId) || 0) * item.quantity, 0);
+}""", """function moneyUnits(value, label = '金额') {
+  const numeric = Number(value);
+  const units = Math.round(numeric * MONEY_SCALE);
+  if (
+    !Number.isFinite(numeric)
+    || !Number.isSafeInteger(units)
+    || Math.abs(numeric - units / MONEY_SCALE) > 1e-9
+  ) throw new Error(`${label}必须为最多两位小数的安全数值`);
+  return units;
+}
+
+function moneyFromUnits(units) {
+  return units / MONEY_SCALE;
+}
+
+function valueOfItemsUnits(items, prices) {
+  return cloneItems(items).reduce(
+    (sum, item) => sum + moneyUnits(prices.get(item.productId) || 0, `${item.productId} 参考价`) * item.quantity,
+    0,
+  );
+}
+
+function referenceProfitPerMinute(recipe, prices) {
+  const outputValueUnits = valueOfItemsUnits([recipe.output], prices);
+  const inputValueUnits = valueOfItemsUnits(recipe.inputs || (recipe.input ? [recipe.input] : []), prices);
+  const profitPerCycleUnits = outputValueUnits - inputValueUnits - moneyUnits(recipe.operatingCost, `${recipe.id} 周期成本`);
+  const profitNumerator = profitPerCycleUnits * 60_000;
+  if (!Number.isSafeInteger(profitNumerator) || profitNumerator % recipe.cycleMs !== 0) {
+    throw new Error(`${recipe.id} 无法形成分币精确的参考分钟利润`);
+  }
+  return moneyFromUnits(profitNumerator / recipe.cycleMs);
+}""")
+replace('server/src/production-methods.js', """function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode) {
+  const base = Math.max(1_000, Math.floor(Number(baseCycleMs) / 1_000) * 1_000);
+  const target = mode === 'rapid'
+    ? Math.max(1_000, Math.floor(base / 2_000) * 1_000)
+    : Math.ceil((base * 3) / 2_000) * 1_000;
+  const profit = Math.max(1, Math.floor(Number(expectedProfitPerMinute) || 1));
+
+  if (mode === 'rapid') {
+    for (let cycleMs = target; cycleMs < base; cycleMs += 1_000) {
+      if ((profit * cycleMs) % 60_000 === 0) return cycleMs;
+    }
+    return base;
+  }
+
+  for (let cycleMs = target; cycleMs <= base * 3; cycleMs += 1_000) {
+    if ((profit * cycleMs) % 60_000 === 0) return cycleMs;
+  }
+  return base * 2;
+}""", """function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode, useCentAlignment = false) {
+  const base = Math.max(1_000, Math.floor(Number(baseCycleMs) / 1_000) * 1_000);
+  const target = mode === 'rapid'
+    ? Math.max(1_000, Math.floor(base / 2_000) * 1_000)
+    : Math.ceil((base * 3) / 2_000) * 1_000;
+  const profit = useCentAlignment
+    ? moneyUnits(expectedProfitPerMinute, '参考分钟利润')
+    : Math.max(1, Math.floor(Number(expectedProfitPerMinute) || 1));
+
+  if (mode === 'rapid') {
+    for (let cycleMs = target; cycleMs < base; cycleMs += 1_000) {
+      if ((profit * cycleMs) % 60_000 === 0) return cycleMs;
+    }
+    return base;
+  }
+
+  for (let cycleMs = target; cycleMs <= base * 3; cycleMs += 1_000) {
+    if ((profit * cycleMs) % 60_000 === 0) return cycleMs;
+  }
+  return base * 2;
+}""")
+replace('server/src/production-methods.js', """function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
+  const baseInputs = cloneItems(recipe.inputs || (recipe.input ? [recipe.input] : []));
+  const baseOutput = {
+    productId: String(recipe.output.productId),
+    quantity: Math.max(1, Math.floor(Number(recipe.output.quantity) || 1)),
+  };
+  const baseRecipeId = recipe.id;
+  if (methodId === DEFAULT_PRODUCTION_METHOD_ID) {
+    return {
+      recipeId: baseRecipeId,
+      baseRecipeId,
+      productionMethodId: methodId,
+      cycleMs: recipe.cycleMs,
+      operatingCost: recipe.operatingCost,
+      inputs: baseInputs,
+      output: baseOutput,
+    };
+  }
+
+  const scale = methodId === 'high-yield' ? 2 : 1;
+  const inputs = baseInputs.map((item) => ({ ...item, quantity: item.quantity * scale }));
+  const output = { ...baseOutput, quantity: baseOutput.quantity * scale };
+  const cycleMs = methodId === 'high-yield'
+    ? recipe.cycleMs
+    : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId);
+  const outputValue = valueOfItems([output], prices);
+  const inputValue = valueOfItems(inputs, prices);
+  const profitNumerator = expectedProfitPerMinute * cycleMs;
+  if (profitNumerator % 60_000 !== 0) {
+    throw new Error(`${baseRecipeId}/${methodId} 无法形成整数参考利润`);
+  }
+  const operatingCost = outputValue - inputValue - profitNumerator / 60_000;
+  if (!Number.isSafeInteger(operatingCost) || operatingCost < 0) {
+    throw new Error(`${baseRecipeId}/${methodId} 无法形成非负整数周期成本`);
+  }
+  return {
+    recipeId: variantRecipeId(baseRecipeId, methodId),
+    baseRecipeId,
+    productionMethodId: methodId,
+    cycleMs,
+    operatingCost,
+    inputs,
+    output,
+  };
+}""", """function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute, useCentAlignment) {
+  const baseInputs = cloneItems(recipe.inputs || (recipe.input ? [recipe.input] : []));
+  const baseOutput = {
+    productId: String(recipe.output.productId),
+    quantity: Math.max(1, Math.floor(Number(recipe.output.quantity) || 1)),
+  };
+  const baseRecipeId = recipe.id;
+  if (methodId === DEFAULT_PRODUCTION_METHOD_ID) {
+    return {
+      recipeId: baseRecipeId,
+      baseRecipeId,
+      productionMethodId: methodId,
+      cycleMs: recipe.cycleMs,
+      operatingCost: recipe.operatingCost,
+      inputs: baseInputs,
+      output: baseOutput,
+    };
+  }
+
+  const scale = methodId === 'high-yield' ? 2 : 1;
+  const inputs = baseInputs.map((item) => ({ ...item, quantity: item.quantity * scale }));
+  const output = { ...baseOutput, quantity: baseOutput.quantity * scale };
+  const cycleMs = methodId === 'high-yield'
+    ? recipe.cycleMs
+    : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId, useCentAlignment);
+  const outputValueUnits = valueOfItemsUnits([output], prices);
+  const inputValueUnits = valueOfItemsUnits(inputs, prices);
+  const profitNumerator = moneyUnits(expectedProfitPerMinute, '参考分钟利润') * cycleMs;
+  if (!Number.isSafeInteger(profitNumerator) || profitNumerator % 60_000 !== 0) {
+    throw new Error(`${baseRecipeId}/${methodId} 无法形成分币精确的参考利润`);
+  }
+  const operatingCostUnits = outputValueUnits - inputValueUnits - profitNumerator / 60_000;
+  if (!Number.isSafeInteger(operatingCostUnits) || operatingCostUnits < 0) {
+    throw new Error(`${baseRecipeId}/${methodId} 无法形成非负两位小数周期成本`);
+  }
+  return {
+    recipeId: variantRecipeId(baseRecipeId, methodId),
+    baseRecipeId,
+    productionMethodId: methodId,
+    cycleMs,
+    operatingCost: moneyFromUnits(operatingCostUnits),
+    inputs,
+    output,
+  };
+}""")
+replace('server/src/production-methods.js', """export function createProductionMethodGroups(facility, products, expectedProfitPerMinute) {
+  const prices = productPriceMap(products);
+  const methods = METHOD_DEFINITIONS.map((definition) => {
+    const plansByRecipeId = Object.freeze(Object.fromEntries(
+      facility.recipes.map((recipe) => [
+        recipe.id,
+        freezePlan(createBalancedPlan(recipe, definition.id, prices, expectedProfitPerMinute)),
+      ]),
+    ));
+    return Object.freeze({ ...definition, plansByRecipeId });
+  });""", """export function createProductionMethodGroups(facility, products) {
+  const prices = productPriceMap(products);
+  const useCentAlignment = facility.complexity === 'C1';
+  const methods = METHOD_DEFINITIONS.map((definition) => {
+    const plansByRecipeId = Object.freeze(Object.fromEntries(
+      facility.recipes.map((recipe) => {
+        const expectedProfitPerMinute = referenceProfitPerMinute(recipe, prices);
+        return [
+          recipe.id,
+          freezePlan(createBalancedPlan(
+            recipe, definition.id, prices, expectedProfitPerMinute, useCentAlignment,
+          )),
+        ];
+      }),
+    ));
+    return Object.freeze({ ...definition, plansByRecipeId });
+  });""")
+
+# Exact production settlement and market floor.
+replace('server/src/facility-groups.js', "import { multiplyMoneyByInteger } from './money.js';", "import { calculateRateMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';")
+replace('server/src/facility-groups.js', """function calculateProductionWage(cost, multiplierBps) {
+  const normalizedCost = Math.max(0, Math.floor(Number(cost)));
+  const normalizedMultiplier = normalizeProductionWageMultiplier(multiplierBps);
+  if (!Number.isSafeInteger(normalizedCost) || normalizedMultiplier === null) {
+    throw new Error('生产工资参数超出系统可表示范围');
+  }
+  const rounded = (BigInt(normalizedCost) * BigInt(normalizedMultiplier) + 5_000n) / 10_000n;
+  if (rounded > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error('生产工资计算结果超出系统可表示范围');
+  }
+  return Number(rounded);
+}""", """function calculateProductionWage(cost, multiplierBps) {
+  const normalizedCost = roundInternalMoney(cost);
+  const normalizedMultiplier = normalizeProductionWageMultiplier(multiplierBps);
+  if (normalizedCost === null || normalizedCost < 0 || normalizedMultiplier === null) {
+    throw new Error('生产工资参数超出系统可表示范围');
+  }
+  const wage = calculateRateMoney(normalizedCost, normalizedMultiplier, 10_000, 'half-up');
+  if (wage === null) {
+    throw new Error('生产工资计算结果超出系统可表示范围');
+  }
+  return wage;
+}""")
+replace('server/src/facility-groups.js', """  const output = recipe.output.quantity * participating;
+  const inputTotal = inputs.reduce((sum, item) => sum + item.quantity, 0);
+  return {
+    output,
+    inputs,
+    inputTotal,
+    cost: recipe.operatingCost * participating,""", """  const output = recipe.output.quantity * participating;
+  const cost = multiplyMoneyByInteger(recipe.operatingCost, participating) ?? Number.POSITIVE_INFINITY;
+  const inputTotal = inputs.reduce((sum, item) => sum + item.quantity, 0);
+  return {
+    output,
+    inputs,
+    inputTotal,
+    cost,""")
+replace('server/src/market-demand/catalog.js', 'export const LIQUIDITY_MIN_TARGET = 2;', 'export const LIQUIDITY_MIN_TARGET = 0.01;')
+
+# Authority docs.
+replace('docs/README.md', '31 种商品、21 种工厂、整数经济数值、参考利润', '31 种商品、21 种工厂、固定精度经济数值、参考利润')
+replace('docs/README.md', '商品初始参考价、生产数量、周期秒数和周期成本必须保持整数；参考分钟利润必须由正式目录自动校验，不得只在文档中手算。', '商品初始参考价和周期成本允许最多两位小数，生产数量和周期秒数必须保持整数；参考分钟利润必须由正式目录自动校验，不得只在文档中手算。')
+replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '> 状态：当前商品目录、整数经济数值与生产设计基线', '> 状态：当前商品目录、固定精度经济数值与生产设计基线')
+replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '商品初始参考价、配方输入输出数量、生产周期秒数和目录周期成本必须保持整数；满员率使用 0～10000 基点固定点，实际结算继续保持整数商品与整数目录成本倍数。', '商品初始参考价和目录周期成本允许最多两位小数；配方输入输出数量与生产周期秒数必须保持整数。满员率使用 0～10000 基点固定点，实际结算使用六位小数内部金额与整数商品数量。')
+replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '工厂复杂度同时约束建设门槛和参考分钟利润；正式梯度固定为 C1=1、C2=3、C3=6、C4=6、C5=8、C6=10、C7=12。', '工厂复杂度同时约束建设门槛和参考分钟利润；C1 快速生产采用工厂级参考分钟利润，农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0；C2～C7 固定为 3、6、6、8、10、12。')
+doc_rows = {
+    '| 小麦 (`wheat`) | 2 | 无原料 → 4 小麦 | 120 秒 | 6 | 1 |': '| 小麦 (`wheat`) | 1.2 | 无原料 → 1 小麦 | 20 秒 | 1 | 0.6 |',
+    '| 水稻 (`rice`) | 2 | 无原料 → 4 水稻 | 120 秒 | 6 | 1 |': '| 水稻 (`rice`) | 1.2 | 无原料 → 1 水稻 | 20 秒 | 1 | 0.6 |',
+    '| 棉花 (`cotton`) | 2 | 无原料 → 4 棉花 | 120 秒 | 6 | 1 |': '| 棉花 (`cotton`) | 1.2 | 无原料 → 1 棉花 | 20 秒 | 1 | 0.6 |',
+    '| 甘蔗 (`sugarcane`) | 2 | 无原料 → 4 甘蔗 | 120 秒 | 6 | 1 |': '| 甘蔗 (`sugarcane`) | 1.2 | 无原料 → 1 甘蔗 | 20 秒 | 1 | 0.6 |',
+    '| 水果 (`fruit`) | 4 | 无原料 → 3 水果 | 120 秒 | 10 | 1 |': '| 水果 (`fruit`) | 1.3 | 无原料 → 1 水果 | 20 秒 | 1 | 0.9 |',
+    '| 肉 (`meat`) | 6 | 无原料 → 3 肉 | 120 秒 | 16 | 1 |': '| 肉 (`meat`) | 2.4 | 无原料 → 1 肉 | 30 秒 | 2 | 0.8 |',
+    '| 蛋 (`eggs`) | 3 | 无原料 → 6 蛋 | 120 秒 | 16 | 1 |': '| 蛋 (`eggs`) | 2.4 | 无原料 → 1 蛋 | 30 秒 | 2 | 0.8 |',
+    '| 奶 (`milk`) | 3 | 无原料 → 6 奶 | 120 秒 | 16 | 1 |': '| 奶 (`milk`) | 2.4 | 无原料 → 1 奶 | 30 秒 | 2 | 0.8 |',
+    '| 鱼类 (`fish`) | 6 | 无原料 → 3 鱼类 | 120 秒 | 16 | 1 |': '| 鱼类 (`fish`) | 2.5 | 无原料 → 1 鱼类 | 30 秒 | 2 | 1.0 |',
+    '| 毛 (`wool`) | 6 | 无原料 → 3 毛 | 120 秒 | 16 | 1 |': '| 毛 (`wool`) | 2.4 | 无原料 → 1 毛 | 30 秒 | 2 | 0.8 |',
+    '| 面粉 (`flour`) | 13 | 2 小麦 → 1 面粉 | 40 秒 | 7 | 3 |': '| 面粉 (`flour`) | 13 | 2 小麦 → 1 面粉 | 40 秒 | 8.6 | 3 |',
+    '| 砂糖 (`sugar`) | 13 | 2 甘蔗 → 1 砂糖 | 40 秒 | 7 | 3 |': '| 砂糖 (`sugar`) | 13 | 2 甘蔗 → 1 砂糖 | 40 秒 | 8.6 | 3 |',
+    '| 纺织品 (`textile`) | 20 | 6 棉花或 2 毛 → 1 纺织品 | 40 秒 | 4 | 6 |': '| 纺织品 (`textile`) | 20 | 6 棉花或 2 毛 → 1 纺织品 | 40 秒 | 8.8；或 11.2 | 6 |',
+    '| 饮料 (`beverage`) | 18 | 1 砂糖 + 1 奶 → 2 饮料；或 2 水果 + 1 砂糖 → 2 饮料 | 60 秒 | 14；或 9 | 6 |': '| 饮料 (`beverage`) | 18 | 1 砂糖 + 1 奶 → 2 饮料；或 2 水果 + 1 砂糖 → 2 饮料 | 60 秒 | 14.6；或 14.4 | 6 |',
+    '| 预制餐 (`prepared-meal`) | 18 | 1 面粉 + 1 鱼类 → 2 预制餐 | 60 秒 | 11 | 6 |': '| 预制餐 (`prepared-meal`) | 18 | 1 面粉 + 1 鱼类 → 2 预制餐 | 60 秒 | 14.5 | 6 |',
+}
+for old, new in doc_rows.items():
+    replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', old, new)
+replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '| 参考分钟利润 | 1 | 3 | 6 | 6 | 8 | 10 | 12 |', '| 参考分钟利润 | 0.6～1.0 | 3 | 6 | 6 | 8 | 10 | 12 |')
+replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '同一工厂的所有正式配方必须精确达到该工厂复杂度对应的参考分钟利润。为保持初始参考价和周期成本均为整数，乳制饮料、果汁饮料和家具的周期成本分别固定为 14、9、8；机械、电子产品和家电分别固定为 10、15、12。目录只保存一套固定周期成本；生产工资系数属于人口政策，不得改写目录成本或参考利润。', '同一工厂的所有正式配方必须精确达到该工厂的参考分钟利润。C1 按工厂分别锁定农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0；C2～C7 继续按复杂度统一。为保持完整产业链原有梯度，磨坊、纺织厂、预制餐与饮料配方随 C1 商品参考价同步重平衡周期成本。目录成本最多保留两位小数；生产工资系数属于人口政策，不得改写目录成本或参考利润。')
+replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '整数工资使用最大余数法分配，三类人口新增收入之和必须精确等于系数调整后的整数人口生产工资。', '固定精度工资使用最大余数法分配，三类人口新增收入之和必须精确等于系数调整后的人口生产工资。')
+replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '7. 新数值必须保持整数，并通过目录验证脚本重新计算参考分钟利润。', '7. 新商品参考价与周期成本最多保留两位小数，输入输出数量和周期秒数必须保持整数，并通过目录验证脚本重新计算参考分钟利润。')
+replace('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', '9. 新工厂必须声明 C1～C7 复杂度，施工时间必须落在对应区间，且所有正式配方必须精确达到该复杂度的参考分钟利润；调整现有复杂度时必须同步审查利润、同级工厂及相邻等级的时间递增关系。', '9. 新工厂必须声明 C1～C7 复杂度，施工时间必须落在对应区间，且所有正式配方必须精确达到该工厂的参考分钟利润；C2～C7 继续按复杂度统一，调整现有复杂度时必须同步审查利润、同级工厂及相邻等级的时间递增关系。')
+
+# Primary verifiers.
+replace('scripts/verify-industry-catalog.mjs', """  wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
+  'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,""", """  wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
+  'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,""")
+replace('scripts/verify-industry-catalog.mjs', "const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };", """const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
+const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };""")
+replace('scripts/verify-industry-catalog.mjs', """function standardRecipes(facility) {
+  return facility.recipes.filter((recipe) => (recipe.productionMethodId || 'standard') === 'standard');
+}""", """function standardRecipes(facility) {
+  return facility.recipes.filter((recipe) => (recipe.productionMethodId || 'standard') === 'standard');
+}
+
+function hasAtMostTwoDecimals(value) {
+  return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
+}
+
+function expectedProfitFor(facility) {
+  return facility.complexity === 'C1'
+    ? expectedC1ProfitByFacility[facility.id]
+    : expectedProfitByComplexity[facility.complexity];
+}""")
+replace('scripts/verify-industry-catalog.mjs', "assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);", "assert.equal(hasAtMostTwoDecimals(product.basePrice), true, `${product.id} 初始参考价最多保留两位小数`);")
+replace('scripts/verify-industry-catalog.mjs', "assert.equal(Number.isInteger(recipe.operatingCost), true);", "assert.equal(hasAtMostTwoDecimals(recipe.operatingCost), true);")
+replace('scripts/verify-industry-catalog.mjs', "assert.equal(profit, expectedProfitByComplexity[facility.complexity], `${facility.id}/${recipe.id} 参考分钟利润错误`);", "assert.ok(Math.abs(profit - expectedProfitFor(facility)) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润错误: ${profit}`);")
+replace('scripts/verify-industry-catalog.mjs', "const facilities = new Map(FACILITY_TYPE_CATALOG.map((item) => [item.id, item]));", """const facilities = new Map(FACILITY_TYPE_CATALOG.map((item) => [item.id, item]));
+const expectedC1Standard = {
+  farm: { cycleMs: 20_000, operatingCost: 1, outputQuantity: 1 },
+  orchard: { cycleMs: 20_000, operatingCost: 1, outputQuantity: 1 },
+  ranch: { cycleMs: 30_000, operatingCost: 2, outputQuantity: 1 },
+  fishery: { cycleMs: 30_000, operatingCost: 2, outputQuantity: 1 },
+};
+for (const [facilityId, expected] of Object.entries(expectedC1Standard)) {
+  for (const recipe of standardRecipes(facilities.get(facilityId))) {
+    assert.equal(recipe.cycleMs, expected.cycleMs);
+    assert.equal(recipe.operatingCost, expected.operatingCost);
+    assert.equal(recipe.output.quantity, expected.outputQuantity);
+  }
+}""")
+replace('scripts/verify-industry-catalog.mjs', "assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14, 9]);", """assert.deepEqual(standardRecipes(facilities.get('mill')).map((item) => item.operatingCost), [8.6, 8.6]);
+assert.deepEqual(standardRecipes(facilities.get('textile-mill')).map((item) => item.operatingCost), [8.8, 11.2]);
+assert.equal(standardRecipes(facilities.get('food-factory'))[1].operatingCost, 14.5);
+assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14.6, 14.4]);""")
+replace('scripts/verify-industry-catalog.mjs', "'C1=1、C2=3、C3=6、C4=6、C5=8、C6=10、C7=12',", """'C1 快速生产采用工厂级参考分钟利润',
+    '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',""")
+replace('scripts/verify-industry-catalog.mjs', "console.log('产业目录验证通过：31 种商品、21 种工厂、四种作业制度、配方级整数计划及 1/3/6/6/8/10/12 参考分钟利润梯度。');", "console.log('产业目录验证通过：31 种商品、21 种工厂、C1 快速生产、两位小数成本及 C2～C7 参考分钟利润梯度。');")
+
+replace('scripts/verify-production-methods.mjs', "const expectedProfit = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };", """function hasAtMostTwoDecimals(value) {
+  return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
+}""")
+replace('scripts/verify-production-methods.mjs', """  for (const baseRecipe of baseRecipes) {
+    const variants = methodIds.map((methodId) => facility.recipes.find((recipe) => (""", """  for (const baseRecipe of baseRecipes) {
+    const baseInputValue = baseRecipe.inputs.reduce(
+      (sum, input) => sum + productPrices.get(input.productId) * input.quantity,
+      0,
+    );
+    const baseOutputValue = productPrices.get(baseRecipe.output.productId) * baseRecipe.output.quantity;
+    const baseProfit = (baseOutputValue - baseInputValue - baseRecipe.operatingCost) * 60_000 / baseRecipe.cycleMs;
+    const variants = methodIds.map((methodId) => facility.recipes.find((recipe) => (""")
+replace('scripts/verify-production-methods.mjs', """      assert.equal(profitPerMinute, expectedProfit[facility.complexity], `${facility.id}/${recipe.id} 利润基线漂移`);
+      assert.equal(Number.isSafeInteger(recipe.operatingCost), true);""", """      assert.ok(Math.abs(profitPerMinute - baseProfit) < 1e-9, `${facility.id}/${recipe.id} 利润基线漂移`);
+      assert.equal(hasAtMostTwoDecimals(recipe.operatingCost), true);""")
+replace('scripts/verify-production-methods.mjs', "console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、浏览器交互和版本兼容均已锁定。');", "console.log('生产方式验证通过：四种作业制度、两位小数固定精度平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、浏览器交互和版本兼容均已锁定。');")
+
+replace('scripts/verify-recipe-profit-analysis.mjs', """    cycleMs: 120_000,
+    operatingCost: 6,
+    inputs: [],
+    output: { productId: 'wheat', quantity: 4 },""", """    cycleMs: 20_000,
+    operatingCost: 1,
+    inputs: [],
+    output: { productId: 'wheat', quantity: 1 },""")
+replace('scripts/verify-recipe-profit-analysis.mjs', "markets: { wheat: market('wheat', 2) },", "markets: { wheat: market('wheat', 1.2) },")
+replace('scripts/verify-recipe-profit-analysis.mjs', "assert.equal(noInput.profitPerMinute, 1);", "assert.ok(Math.abs(noInput.profitPerMinute - 0.6) < 1e-9);")
+
+# Focused server regression updates.
+replace('server/test/production-methods.test.js', "const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };\n", '')
+replace('server/test/production-methods.test.js', """    for (const baseRecipe of baseRecipes) {
+      const variants = methodGroup.methods.map((method) => variant(type, baseRecipe.id, method.id));""", """    for (const baseRecipe of baseRecipes) {
+      const baseProfit = referenceProfitPerMinute(baseRecipe);
+      const variants = methodGroup.methods.map((method) => variant(type, baseRecipe.id, method.id));""")
+replace('server/test/production-methods.test.js', "assert.equal(Number.isInteger(recipe.operatingCost), true);", "assert.ok(Math.abs(recipe.operatingCost - Math.round(recipe.operatingCost * 100) / 100) < 1e-9);")
+replace('server/test/production-methods.test.js', """        assert.equal(
+          referenceProfitPerMinute(recipe),
+          expectedProfitByComplexity[type.complexity],
+          `${type.id}/${recipe.id} 参考分钟利润错误`,
+        );""", """        assert.ok(
+          Math.abs(referenceProfitPerMinute(recipe) - baseProfit) < 1e-9,
+          `${type.id}/${recipe.id} 参考分钟利润错误`,
+        );""")
+replace('server/test/production-methods.test.js', "test('representative production method plans use the approved integer values'", "test('representative production method plans use the approved fixed-precision values'")
+replace('server/test/production-methods.test.js', """      [120_000, 4, 6],
+      [60_000, 4, 7],
+      [180_000, 4, 5],
+      [120_000, 8, 14],""", """      [20_000, 1, 1],
+      [10_000, 1, 1.1],
+      [30_000, 1, 0.9],
+      [20_000, 2, 2.2],""")
+replace('server/test/production-methods.test.js', """  processFacilityGroupWorld(world, now + 120_000);
+  assert.equal(player.inventories.wheat.available, 4);
+  assert.equal(player.credits, 94);""", """  processFacilityGroupWorld(world, now + 20_000);
+  assert.equal(player.inventories.wheat.available, 1);
+  assert.equal(player.credits, 99);""")
+replace('server/test/production-methods.test.js', "assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_000);", "assert.equal(player.facilityGroups[0].cycleStartedAt, now + 20_000);")
+replace('server/test/production-methods.test.js', """  processFacilityGroupWorld(world, now + 180_000);
+  assert.equal(player.inventories.wheat.available, 8);
+  assert.equal(player.credits, 87);
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 8);""", """  processFacilityGroupWorld(world, now + 30_000);
+  assert.equal(player.inventories.wheat.available, 2);
+  assert.ok(Math.abs(player.credits - 97.9) < 1e-9);
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 2);""")
+
+replace('server/test/domain.test.js', """    wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
+    'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,""", """    wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
+    'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,""")
+replace('server/test/domain.test.js', "const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };", """const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
+  const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };""")
+replace('server/test/domain.test.js', "assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);", "assert.ok(Math.abs(product.basePrice - Math.round(product.basePrice * 100) / 100) < 1e-9, `${product.id} 初始参考价最多保留两位小数`);")
+replace('server/test/domain.test.js', "assert.equal(Number.isInteger(recipe.operatingCost), true, `${facility.id}/${recipe.id} 周期成本必须为整数`);", "assert.ok(Math.abs(recipe.operatingCost - Math.round(recipe.operatingCost * 100) / 100) < 1e-9, `${facility.id}/${recipe.id} 周期成本最多保留两位小数`);")
+replace('server/test/domain.test.js', """      const expectedProfit = expectedProfitByComplexity[facility.complexity];
+      assert.equal(profit, expectedProfit, `${facility.id}/${recipe.id} 参考分钟利润不正确`);""", """      const expectedProfit = facility.complexity === 'C1'
+        ? expectedC1ProfitByFacility[facility.id]
+        : expectedProfitByComplexity[facility.complexity];
+      assert.ok(Math.abs(profit - expectedProfit) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润不正确`);""")
+
+replace('server/test/facility-groups.test.js', """  processFacilityGroupWorld(world, now + 120_000);
+  assert.equal(player.stats.producedGoods, 8);
+  assert.equal(player.inventories.wheat.available, 8);""", """  processFacilityGroupWorld(world, now + 20_000);
+  assert.equal(player.stats.producedGoods, 2);
+  assert.equal(player.inventories.wheat.available, 2);""")
+replace('server/test/facility-groups.test.js', """  processFacilityGroupWorld(world, now + 120_000);
+  assert.equal(player.credits, 994);
+  assert.equal(pendingProduction(), 6);""", """  processFacilityGroupWorld(world, now + 20_000);
+  assert.equal(player.credits, 999);
+  assert.equal(pendingProduction(), 1);""")
+replace('server/test/facility-groups.test.js', """  processFacilityGroupWorld(world, now + 240_000);
+  assert.equal(player.credits, 988);
+  assert.equal(pendingProduction(), 14);
+  assert.equal(population.stats.productionWageSubsidyIssued, 2);""", """  processFacilityGroupWorld(world, now + 40_000);
+  assert.equal(player.credits, 998);
+  assert.ok(Math.abs(pendingProduction() - 2.33) < 1e-9);
+  assert.ok(Math.abs(population.stats.productionWageSubsidyIssued - 0.33) < 1e-9);""")
+replace('server/test/facility-groups.test.js', """  assert.equal(player.stats.productionPayroll, 12);
+  assert.equal(player.stats.employmentPayments, 12);
+  assert.equal('cycleWageMultiplierBps' in createFacilityGroupClientState(world, alice.id, now + 240_000).facilityGroups[0], false);""", """  assert.equal(player.stats.productionPayroll, 2);
+  assert.equal(player.stats.employmentPayments, 2);
+  assert.equal('cycleWageMultiplierBps' in createFacilityGroupClientState(world, alice.id, now + 40_000).facilityGroups[0], false);""")
+replace('server/test/facility-groups.test.js', "assert.equal(player.credits, 91);", "assert.ok(Math.abs(player.credits - 85.6) < 1e-9);")
+replace('server/test/facility-groups.test.js', "processFacilityGroupWorld(world, now + 120_000);", "processFacilityGroupWorld(world, now + 20_000);", expected=3)
+replace('server/test/facility-groups.test.js', "processFacilityGroupWorld(world, now + 240_000);", "processFacilityGroupWorld(world, now + 40_000);")
+replace('server/test/facility-groups.test.js', "assert.equal(player.inventories.wheat.available, 8);", "assert.equal(player.inventories.wheat.available, 2);")
+replace('server/test/facility-groups.test.js', "assert.equal(player.inventories.rice.available, 8);", "assert.equal(player.inventories.rice.available, 2);")
+replace('server/test/facility-groups.test.js', "assert.equal(player.inventories.wheat.available, 4);", "assert.equal(player.inventories.wheat.available, 1);", expected=2)
+replace('server/test/facility-groups.test.js', """  processFacilityGroupWorld(world, now + 360_000);
+  assert.equal(player.credits, 94);
+  assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 3_500);
+  assert.equal(player.facilityGroups[0].staffingRateBps, 8_500);
+  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 8_500);""", """  processFacilityGroupWorld(world, now + 80_000);
+  assert.equal(player.credits, 99);
+  assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 1_998);
+  assert.equal(player.facilityGroups[0].staffingRateBps, 3_832);
+  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 3_832);""")
+
+print('C1 fast production transformations applied')
