@@ -53,7 +53,7 @@ for (const text of ['fee?: number', 'netTotal?: number']) requireText('src/types
 for (const text of ['fee: Number(fill.fee || 0)', 'netTotal: Number(fill.netTotal ?? fill.total)']) {
   requireText('src/utils/localActivityStore.ts', text);
 }
-for (const text of ['预计手续费（累计成交额的 1%）', '预计到账', '手续费 / 实收']) {
+for (const text of ['estimatedSellFee', '预计手续费', '预计到账', '手续费 / 实收']) {
   requireText('src/pages/MarketPage.tsx', text);
 }
 
@@ -72,4 +72,4 @@ if (failures.length) {
   console.error(`玩家市场卖出手续费验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('玩家商品与工厂订单簿卖出手续费、累计部分成交、匿名公开字段、前端展示和独立拍卖手续费隔离验证通过。');
+console.log('玩家商品与工厂订单簿卖出手续费、累计部分成交、匿名公开字段、紧凑前端展示和独立拍卖手续费隔离验证通过。');
