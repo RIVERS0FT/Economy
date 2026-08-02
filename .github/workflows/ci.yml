@@ -76,6 +76,15 @@ jobs:
           path.write_text(source)
           PY
           rm -f .github/workflows/apply-unified-atmosphere.yml scripts/apply-unified-atmosphere.mjs
+          git add -- \
+            src/styles/financial-backdrop.css \
+            docs/REGISTRATION_INVITE_FLOW_DESIGN.md \
+            docs/LIQUID_GLASS_CHROME_DESIGN.md \
+            scripts/verify-game-three-layer.mjs \
+            tests/browser/application-atmosphere-consistency.spec.ts
+          git add -u -- \
+            .github/workflows/apply-unified-atmosphere.yml \
+            scripts/apply-unified-atmosphere.mjs
 
       - name: Install dependencies
         run: npm ci
@@ -97,7 +106,7 @@ jobs:
 
       - name: Check patch cleanliness
         if: github.event_name == 'pull_request' && hashFiles('tests/browser/application-atmosphere-consistency.spec.ts') != ''
-        run: git diff --check
+        run: git diff --check --cached
 
       - name: Commit verified change
         if: github.event_name == 'pull_request' && hashFiles('tests/browser/application-atmosphere-consistency.spec.ts') != ''
@@ -109,15 +118,7 @@ jobs:
           git checkout "$BASE_SHA" -- .github/workflows/ci.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- \
-            .github/workflows/ci.yml \
-            .github/workflows/apply-unified-atmosphere.yml \
-            scripts/apply-unified-atmosphere.mjs \
-            src/styles/financial-backdrop.css \
-            docs/REGISTRATION_INVITE_FLOW_DESIGN.md \
-            docs/LIQUID_GLASS_CHROME_DESIGN.md \
-            scripts/verify-game-three-layer.mjs \
-            tests/browser/application-atmosphere-consistency.spec.ts
+          git add -- .github/workflows/ci.yml
           git commit -m "统一全应用摄影氛围"
           git push origin HEAD:"$HEAD_BRANCH"
 
