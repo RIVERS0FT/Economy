@@ -164,7 +164,7 @@ const rawFacilities = [
     recipes: [{ id: 'machine-factory-default', name: '生产机械', cycleMs: 60_000, operatingCost: 10, inputs: [{ productId: 'steel', quantity: 2 }], output: { productId: 'machinery', quantity: 1 } }],
   },
   {
-    id: 'electronics-factory', name: '电子工厂', category: 'industrial', complexity: 'C6', buildCost: 700, buildTimeMs: 110 * 60 * 1000,
+    id: 'electronics-factory', name: '电子厂', category: 'industrial', complexity: 'C6', buildCost: 700, buildTimeMs: 110 * 60 * 1000,
     defaultRecipeId: 'electronics-factory-default', internalCapacity: 15, systemValue: 910,
     recipes: [{ id: 'electronics-factory-default', name: '生产电子产品', cycleMs: 60_000, operatingCost: 15, inputs: [{ productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 }], output: { productId: 'electronics', quantity: 1 } }],
   },
