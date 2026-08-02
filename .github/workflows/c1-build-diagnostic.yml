@@ -1,0 +1,41 @@
+name: C1 build diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'agent/c1-fast-production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run build and report failure
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set +e
+          npm run build > /tmp/c1-build.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            {
+              echo '## C1 build diagnostic'
+              echo '```text'
+              tail -n 180 /tmp/c1-build.log
+              echo '```'
+            } > /tmp/comment.md
+            gh pr comment "$PR_NUMBER" --body-file /tmp/comment.md
+          fi
+          exit "$status"
