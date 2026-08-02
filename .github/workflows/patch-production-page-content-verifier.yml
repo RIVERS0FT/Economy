@@ -1,0 +1,50 @@
+name: Patch production page content verifier
+
+on:
+  push:
+    branches:
+      - codex/production-settlement-input-meta
+
+permissions:
+  contents: write
+
+jobs:
+  patch-verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update page content verifier
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-page-content.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = """  'facility-formula-input-group',
+  'facility-formula-center',
+  'facility-formula-output-group',"""
+          new = """  'facility-formula-input-group',
+  'facility-formula-input-side',
+  'facility-formula-meta',
+  'facility-formula-output-group',"""
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one production formula verifier match, found {text.count(old)}')
+          text = text.replace(old, new)
+          old_forbid = "forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-summary');"
+          new_forbid = """forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-summary');
+forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-center');"""
+          if text.count(old_forbid) != 1:
+              raise SystemExit(f'expected one formula forbid match, found {text.count(old_forbid)}')
+          text = text.replace(old_forbid, new_forbid)
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit verifier update and remove temporary workflow
+        run: |
+          rm .github/workflows/patch-production-page-content-verifier.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/verify-page-content.mjs .github/workflows/patch-production-page-content-verifier.yml
+          git commit -m "更新生产结算页面内容验证"
+          git push origin HEAD:${GITHUB_REF_NAME}
