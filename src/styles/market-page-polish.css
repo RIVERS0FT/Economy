@@ -510,7 +510,6 @@
   background: color-mix(in srgb, var(--color-success) 10%, transparent);
 }
 
-.market-book-price-button:hover:not(:disabled),
 .market-book-price-button:active:not(:disabled) {
   transform: none;
   background: rgba(255, 255, 255, 0.035);
@@ -801,5 +800,11 @@
 
   .market-account-grid > section.market-account-pane--active {
     display: grid;
+  }
+}
+
+@container market-page (max-width: 339px) {
+  .market-trade-summary {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
