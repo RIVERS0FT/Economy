@@ -40,11 +40,24 @@ jobs:
           if content.count(old) != 1:
               raise RuntimeError('append_before 修复目标不唯一')
           content = content.replace(old, new)
+
           scroll_old = '  overscroll-behavior: contain;'
           scroll_new = '  overscroll-behavior-y: auto;'
           if content.count(scroll_old) != 1:
               raise RuntimeError('富内容下拉框滚动边界修复目标不唯一')
-          path.write_text(content.replace(scroll_old, scroll_new), encoding='utf-8')
+          content = content.replace(scroll_old, scroll_new)
+
+          trigger_hover_old = """.ui-rich-select__trigger:hover:not(:disabled) {\n  border-color: var(--color-border-strong);\n  background: var(--color-surface-hover);\n}"""
+          trigger_hover_new = """@media (hover: hover) and (pointer: fine) {\n  html[data-input-modality='mouse'] .ui-rich-select__trigger:hover:not(:disabled) {\n    border-color: var(--color-border-strong);\n    background: var(--color-surface-hover);\n  }\n}"""
+          if content.count(trigger_hover_old) != 1:
+              raise RuntimeError('富内容下拉框触发器 hover 修复目标不唯一')
+          content = content.replace(trigger_hover_old, trigger_hover_new)
+
+          option_hover_old = """.ui-rich-select__option:hover:not(:disabled),\n.ui-rich-select__option[data-active='true']:not(:disabled) {\n  color: var(--color-text-primary);\n  background: var(--color-surface-hover);\n}"""
+          option_hover_new = """.ui-rich-select__option[data-active='true']:not(:disabled) {\n  color: var(--color-text-primary);\n  background: var(--color-surface-hover);\n}\n\n@media (hover: hover) and (pointer: fine) {\n  html[data-input-modality='mouse'] .ui-rich-select__option:hover:not(:disabled) {\n    color: var(--color-text-primary);\n    background: var(--color-surface-hover);\n  }\n}"""
+          if content.count(option_hover_old) != 1:
+              raise RuntimeError('富内容下拉框选项 hover 修复目标不唯一')
+          path.write_text(content.replace(option_hover_old, option_hover_new), encoding='utf-8')
           PY
           python3 .agent/apply-production-product-artwork-select.py
 
