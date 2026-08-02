@@ -77,6 +77,7 @@ test('touch input hides horizontal rails while local trade cells keep native two
   await directory.evaluate((element) => { element.scrollLeft = 140; });
   expect(await directory.evaluate((element) => element.scrollLeft)).toBeGreaterThan(100);
 
+  await page.getByRole('button', { name: '成交', exact: true }).click();
   const tradeRoot = page.locator('.local-trades-scroll-area');
   const tradeViewport = tradeRoot.locator(':scope > .ui-scroll-area__viewport');
   await expect(tradeViewport.locator('.virtual-record-row').first()).toBeVisible();
