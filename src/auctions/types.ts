@@ -78,6 +78,8 @@ export interface AssetAuction {
   buyerFeeBps: number;
   isSeller: boolean;
   isHighestBidder: boolean;
+  // Player-scoped attention state; no bidder identities or bid arrays are exposed.
+  isOutbid?: boolean;
   reservePrice?: number | null;
   listingFee?: number;
   listingFeeStatus?: 'held' | 'distributed' | 'refunded' | 'none';

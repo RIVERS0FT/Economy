@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { LoadedGameViewModel } from '../../app/gameViewModel';
 import { DEFAULT_QQ_GROUP_URL, getCommunityLink } from '../../api/game';
-import { useNavigationBadges } from '../../hooks/useNavigationBadges';
+import { AuctionNewIdsContext, useNavigationBadges } from '../../hooks/useNavigationBadges';
 import { CurrencyText } from '../ui/CurrencyAmount';
 import { DesktopSidebar } from './DesktopSidebar';
 import { MobileBottomNavigation } from './MobileBottomNavigation';
@@ -15,7 +15,8 @@ export function GameShell({ model, statusItems, children }: {
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [qqGroupUrl, setQqGroupUrl] = useState(DEFAULT_QQ_GROUP_URL);
-  const badges = useNavigationBadges(model);
+  const { badges, auctionNewIds } = useNavigationBadges(model);
+  const auctionNewIdSet = useMemo(() => new Set(auctionNewIds), [auctionNewIds]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -26,7 +27,8 @@ export function GameShell({ model, statusItems, children }: {
   }, []);
 
   return (
-    <SignedInShell
+    <AuctionNewIdsContext.Provider value={auctionNewIdSet}>
+      <SignedInShell
       rootClassName="game-shell"
       sidebarCollapsed={sidebarCollapsed}
       sidebar={(
@@ -59,7 +61,8 @@ export function GameShell({ model, statusItems, children }: {
         </>
       )}
     >
-      {children}
-    </SignedInShell>
+        {children}
+      </SignedInShell>
+    </AuctionNewIdsContext.Provider>
   );
 }

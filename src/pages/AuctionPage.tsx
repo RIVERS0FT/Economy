@@ -14,6 +14,7 @@ import { ProductIcon } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
+import { useAuctionNewIds } from '../hooks/useNavigationBadges';
 import { useNow } from '../hooks/useNow';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
@@ -25,22 +26,6 @@ const LISTING_FEE_RATE = 0.002;
 const LISTING_FEE_MINIMUM = 0.5;
 const LISTING_FEE_MAXIMUM = 100;
 const SELLER_FEE_RATE = 0.01;
-
-const statusNames = {
-  open: '进行中',
-  sold: '已成交',
-  ended: '流拍',
-  cancelled: '已取消',
-} as const;
-
-const settlementNames: Record<Exclude<AssetAuction['settlementReason'], null>, string> = {
-  sold: '已成交',
-  no_bid: '无人出价',
-  reserve_not_met: '未达保留价',
-  seller_cancelled: '卖方取消',
-  settlement_failed: '结算异常',
-  migration_cancelled: '迁移取消',
-};
 
 const assetKindNames: Record<AuctionAssetKind, string> = {
   commodity: '商品',
@@ -72,12 +57,6 @@ function remainingText(endsAt: number, now: number) {
   return remaining === 0 ? '等待服务器结算' : formatDuration(remaining);
 }
 
-function auctionTone(status: AssetAuction['status']) {
-  if (status === 'open') return 'warning' as const;
-  if (status === 'sold') return 'success' as const;
-  return 'neutral' as const;
-}
-
 function auctionItems(auction: AssetAuction): AuctionItemSummary[] {
   if (auction.itemSummaries?.length) return auction.itemSummaries;
   return [{ ...auction.asset, quantity: auction.quantity }];
@@ -93,6 +72,16 @@ function auctionTitle(auction: AssetAuction) {
 function auctionCardTitle(auction: AssetAuction) {
   const items = auctionItems(auction);
   return items.length === 1 ? items[0].name : auctionTitle(auction);
+}
+
+function auctionAttentionPriority(auction: AssetAuction, newAuctionIds: ReadonlySet<string>) {
+  if (auction.isOutbid) return 0;
+  if (newAuctionIds.has(auction.id)) return 1;
+  return 2;
+}
+
+function auctionActivityAt(auction: AssetAuction) {
+  return auction.latestBidAt ?? auction.createdAt;
 }
 
 function calculateListingFee(startingBid: number, reservePrice: number | null) {
@@ -220,9 +209,25 @@ function BidHistoryPanel({
 
 export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
   const now = useNow(model.game.lastProcessedAt);
+  const auctionNewIds = useAuctionNewIds();
   const { assetAuctions } = getAuctionState(model.game);
-  const openAuctions = assetAuctions.filter((auction) => auction.status === 'open');
-  const closedAuctions = assetAuctions.filter((auction) => auction.status !== 'open').slice(0, 12);
+  const openAuctions = useMemo(() => (
+    assetAuctions
+      .filter((auction) => auction.status === 'open')
+      .slice()
+      .sort((left, right) => (
+        auctionAttentionPriority(left, auctionNewIds) - auctionAttentionPriority(right, auctionNewIds)
+        || auctionActivityAt(right) - auctionActivityAt(left)
+        || left.id.localeCompare(right.id)
+      ))
+  ), [assetAuctions, auctionNewIds]);
+  const outbidAuctionCount = openAuctions.filter((auction) => Boolean(auction.isOutbid)).length;
+  const newAuctionCount = openAuctions.filter((auction) => !auction.isOutbid && auctionNewIds.has(auction.id)).length;
+  const auctionCountSummary = [
+    `${formatNumber(openAuctions.length)} 场`,
+    outbidAuctionCount > 0 ? `被超价 ${formatNumber(outbidAuctionCount)}` : '',
+    newAuctionCount > 0 ? `新增 ${formatNumber(newAuctionCount)}` : '',
+  ].filter(Boolean).join(' · ');
   const [assetKind, setAssetKind] = useState<AuctionAssetKind>('commodity');
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const [quantityInput, setQuantityInput] = useState('1');
@@ -448,8 +453,10 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
       title="拍卖"
       description="商品和工厂可组成不可拆分资产包公开竞价。卖方资产、最高出价资金和发布费均由服务器托管；竞买身份匿名。"
     >
-      <Panel className="widget asset-auction-create">
-        <WidgetHeading title="发布资产包拍卖" action={<StatusTag>{formatNumber(bundleItems.length)}/{MAX_AUCTION_ITEMS} 项 · 最长 168h</StatusTag>} />
+      <div className="asset-auction-workspace">
+        <div className="asset-auction-create-column">
+          <Panel className="widget asset-auction-create">
+            <WidgetHeading title="发起拍卖" action={<StatusTag>{formatNumber(bundleItems.length)}/{MAX_AUCTION_ITEMS} 项 · 最长 168h</StatusTag>} />
         <div className="asset-auction-builder">
           <section className="asset-auction-add" aria-labelledby="auction-add-heading">
             <h3 id="auction-add-heading">添加资产</h3>
@@ -602,10 +609,11 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
           流拍、未达保留价或卖方自行取消时不退。结束前 2min 内有效出价会自动延时，累计最多 30min。
         </p>
         {listingFeePreview !== null && model.game.credits < listingFeePreview ? <p className="ui-error-text">可用资金不足以支付发布费。</p> : null}
-      </Panel>
+          </Panel>
+        </div>
 
-      <section className="asset-auction-section" aria-labelledby="open-auctions-heading">
-        <div className="section-heading"><h2 id="open-auctions-heading">进行中的拍卖</h2><span>{formatNumber(openAuctions.length)} 场</span></div>
+        <section className="asset-auction-section asset-auction-live-column" aria-labelledby="open-auctions-heading">
+          <div className="section-heading"><h2 id="open-auctions-heading">正在进行的拍卖</h2><span>{auctionCountSummary}</span></div>
         {openAuctions.length === 0 ? <EmptyState>暂无进行中的资产拍卖。</EmptyState> : (
           <div className="asset-auction-grid">
             {openAuctions.map((auction) => {
@@ -614,13 +622,18 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
               const currentPrice = auction.highestBid ?? auction.startingBid;
               const estimatedSellerFee = currentPrice * SELLER_FEE_RATE;
               const expanded = expandedBidHistoryIds.has(auction.id);
+              const isNewAuction = !auction.isOutbid && auctionNewIds.has(auction.id);
               return (
                 <Panel className={`asset-auction-card ${auction.isBundle ? 'asset-auction-bundle' : `asset-auction-${auction.assetKind}`}`} key={auction.id}>
                   <AuctionAssetVisual auction={auction} />
                   <div className="asset-auction-body">
                     <div className="asset-auction-card-heading">
                       <h2 title={auctionCardTitle(auction)}>{auctionCardTitle(auction)}</h2>
-                      <StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>
+                      <div className="asset-auction-card-heading-status">
+                        {auction.isOutbid ? <StatusTag tone="danger">被超价</StatusTag> : null}
+                        {isNewAuction ? <StatusTag tone="success">新增</StatusTag> : null}
+                        <StatusTag tone="warning">{remainingText(auction.endsAt, now)}</StatusTag>
+                      </div>
                     </div>
                     <AuctionAssetSummary auction={auction} />
                     <dl className="asset-auction-metrics asset-auction-primary-metrics asset-auction-data-layer">
@@ -680,34 +693,8 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
             })}
           </div>
         )}
-      </section>
-
-      <Panel className="widget asset-auction-history">
-        <WidgetHeading title="最近结束" />
-        {closedAuctions.length === 0 ? <EmptyState>暂无最近结束的拍卖。</EmptyState> : (
-          <div className="asset-auction-history-list">
-            {closedAuctions.map((auction) => (
-              <div key={auction.id}>
-                <AuctionAssetVisual auction={auction} compact />
-                <span>
-                  <strong>{auctionTitle(auction)}</strong>
-                  <small>
-                    {auction.isBundle ? '资产包' : assetKindNames[auction.assetKind]} · {auction.sellerName} · {formatTime(auction.settledAt ?? auction.endsAt)}
-                    {auction.isSeller && auction.listingFee ? ` · 发布费 ${formatCurrency(auction.listingFee)}` : ''}
-                  </small>
-                </span>
-                <StatusTag tone={auctionTone(auction.status)}>
-                  {auction.settlementReason ? settlementNames[auction.settlementReason] : statusNames[auction.status]}
-                  {auction.highestBid ? <> · <CurrencyAmount>{formatCurrency(auction.highestBid)}</CurrencyAmount></> : null}
-                  {auction.isSeller && auction.sellerNetProceeds !== null && auction.sellerNetProceeds !== undefined
-                    ? <> · 到账 <CurrencyAmount>{formatCurrency(auction.sellerNetProceeds)}</CurrencyAmount></>
-                    : null}
-                </StatusTag>
-              </div>
-            ))}
-          </div>
-        )}
-      </Panel>
+        </section>
+      </div>
     </PageLayout>
   );
 }

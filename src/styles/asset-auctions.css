@@ -365,3 +365,69 @@
   .asset-auction-bid-history-content li { grid-template-columns: minmax(0, 1fr) auto; }
   .asset-auction-bid-history-content time { grid-column: 1 / -1; }
 }
+
+
+/* Two-column auction workspace and attention ordering. */
+.asset-auction-workspace {
+  display: grid;
+  grid-template-columns: minmax(340px, .82fr) minmax(0, 1.48fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.asset-auction-create-column,
+.asset-auction-live-column {
+  min-width: 0;
+}
+
+.asset-auction-create-column .asset-auction-create,
+.asset-auction-live-column {
+  margin-bottom: 0;
+}
+
+.asset-auction-create-column .asset-auction-builder,
+.asset-auction-create-column .asset-auction-parameters {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.asset-auction-create-column .asset-auction-fee-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.asset-auction-card-heading-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.asset-auction-card-heading-status .ui-status-tag {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1080px) {
+  .asset-auction-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .asset-auction-create-column .asset-auction-builder {
+    grid-template-columns: minmax(260px, .9fr) minmax(0, 1.4fr);
+  }
+
+  .asset-auction-create-column .asset-auction-parameters {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .asset-auction-create-column .asset-auction-builder,
+  .asset-auction-create-column .asset-auction-parameters,
+  .asset-auction-create-column .asset-auction-fee-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .asset-auction-card-heading-status {
+    gap: var(--space-1);
+  }
+}

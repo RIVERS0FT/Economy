@@ -847,6 +847,13 @@ function clientAuction(auction, userId) {
   const isSeller = auction.sellerId === userId;
   const reserve = auction.reservePrice || auction.startingBid;
   const reserveMet = Boolean(auction.highestBid && auction.highestBid >= reserve);
+  const hasParticipated = Boolean(auction.bidderAliases?.[String(userId)]);
+  const isOutbid = Boolean(
+    auction.status === 'open'
+      && !isSeller
+      && hasParticipated
+      && auction.highestBidderId !== userId,
+  );
   return {
     id: auction.id,
     items: auctionItems(auction).map((item) => ({ ...item })),
@@ -883,6 +890,7 @@ function clientAuction(auction, userId) {
     buyerFeeBps: auction.buyerFeeBps,
     isSeller,
     isHighestBidder: auction.highestBidderId === userId,
+    isOutbid,
     ...(isSeller ? {
       reservePrice: auction.reservePrice,
       listingFee: auction.listingFee,

@@ -78,8 +78,7 @@ function gameFixture() {
       targetPrice: 0,
     },
     assetAuctions: [{
-      id: 'auction-seen', status: 'open', isSeller: false, isHighestBidder: true,
-      bids: [{ bidderId: 7 }],
+      id: 'auction-seen', status: 'open', isSeller: false, isHighestBidder: true, isOutbid: false,
     }],
     productionContracts: [{
       id: 'contract-seen', status: 'active', issue: null,
@@ -111,12 +110,10 @@ changedGame.facilityGroups = [{ facilityTypeId: 'farm', status: 'error' }];
 changedGame.warehouseAvailableCapacity = 10;
 changedGame.assetAuctions = [
   {
-    id: 'auction-seen', status: 'open', isSeller: false, isHighestBidder: false,
-    bids: [{ bidderId: 7 }],
+    id: 'auction-seen', status: 'open', isSeller: false, isHighestBidder: false, isOutbid: true,
   },
   {
-    id: 'auction-new', status: 'open', isSeller: false, isHighestBidder: false,
-    bids: [{ bidderId: 7 }],
+    id: 'auction-new', status: 'open', isSeller: false, isHighestBidder: false, isOutbid: true,
   },
 ];
 changedGame.productionContracts = [
@@ -148,6 +145,7 @@ assert.equal(buildNavigationBadges(changedGame, auctionRead).auction?.count, 2,
   'visiting auction clears unread auctions but preserves both outbid auctions');
 
 changedGame.assetAuctions[1].isHighestBidder = true;
+changedGame.assetAuctions[1].isOutbid = false;
 assert.equal(buildNavigationBadges(changedGame, auctionRead).auction?.count, 1,
   'an auction disappears after the player becomes highest bidder again');
 
@@ -162,6 +160,10 @@ const navigationSource = readFileSync(new URL('../src/components/shell/Navigatio
 const globalsCss = readFileSync(new URL('../src/styles/globals.css', import.meta.url), 'utf8');
 const desktopCss = readFileSync(new URL('../src/styles/desktop-sidebar.css', import.meta.url), 'utf8');
 const mobileCss = readFileSync(new URL('../src/styles/mobile-status-navigation.css', import.meta.url), 'utf8');
+const auctionPageSource = readFileSync(new URL('../src/pages/AuctionPage.tsx', import.meta.url), 'utf8');
+const auctionCss = readFileSync(new URL('../src/styles/asset-auctions.css', import.meta.url), 'utf8');
+const auctionServerSource = readFileSync(new URL('../server/src/asset-auctions.js', import.meta.url), 'utf8');
+const auctionTypesSource = readFileSync(new URL('../src/auctions/types.ts', import.meta.url), 'utf8');
 const uiDesign = readFileSync(new URL('../docs/UI_DESIGN_SYSTEM.md', import.meta.url), 'utf8');
 const pageDesign = readFileSync(new URL('../docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', import.meta.url), 'utf8');
 
@@ -177,5 +179,18 @@ assert.match(uiDesign, /99\+/);
 assert.match(pageDesign, /拍卖角标/);
 assert.match(pageDesign, /合同角标/);
 assert.match(pageDesign, /排行榜结算/);
+assert.match(auctionServerSource, /const isOutbid = Boolean/);
+assert.match(auctionServerSource, /isOutbid,/);
+assert.match(auctionTypesSource, /isOutbid\?: boolean;/);
+assert.match(auctionPageSource, /asset-auction-workspace/);
+assert.match(auctionPageSource, /auctionAttentionPriority/);
+assert.match(auctionPageSource, /被超价/);
+assert.match(auctionPageSource, /新增/);
+assert.doesNotMatch(auctionPageSource, /closedAuctions|最近结束/);
+assert.match(auctionCss, /grid-template-columns: minmax\(340px, \.82fr\) minmax\(0, 1\.48fr\)/);
+assert.match(pageDesign, /被超价.*新增.*已读/);
+assert.match(pageDesign, /不得渲染最近结束或历史结算区域/);
+assert.doesNotMatch(pageDesign, /“发布资产包拍卖”和“最近结束”/);
+assert.match(pageDesign, /左列“发起拍卖”.*右列“正在进行的拍卖”/);
 
-console.log('navigation badge verification passed');
+console.log('navigation badge and auction attention verification passed');
