@@ -157,10 +157,10 @@ export function SafeTooltip({
 
   const tooltip = !open
     ? null
-    : topLayerSupported
-      ? tooltipNode
-      : floatingLayer
-        ? createPortal(tooltipNode, floatingLayer)
+    : floatingLayer
+      ? createPortal(tooltipNode, floatingLayer)
+      : topLayerSupported
+        ? tooltipNode
         : null;
 
   return (
