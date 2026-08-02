@@ -26,8 +26,7 @@ jobs:
           fetch-depth: 0
       - name: Apply spacing fix
         run: |
-          git apply --check .agent/contract-spacing-fix.patch
-          git apply .agent/contract-spacing-fix.patch
+          python .agent/fix-spacing.py
           rm -rf .agent
           rm .github/workflows/apply-contract-spacing-fix.yml
       - name: Commit spacing fix
