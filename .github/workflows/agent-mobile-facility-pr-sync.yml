@@ -4,7 +4,7 @@ on:
   pull_request:
     branches:
       - main
-    types: [opened, reopened]
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: write
@@ -34,6 +34,16 @@ jobs:
           Path('/tmp/agent-mobile-facility-sync.py').write_text(script, encoding='utf-8')
           PY
           python3 /tmp/agent-mobile-facility-sync.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-unified-factory-recipes-grid.mjs')
+          text = path.read_text(encoding='utf-8')
+          old = "      '紧凑满员率状态必须使用无独立边框、圆角和背景的状态带',"
+          new = "      '当前工厂详情正文先显示 256px 工厂场景插画横幅',"
+          if old not in text:
+              raise SystemExit('统一工厂验证器缺少待更新的满员率规则')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
           node scripts/verify-game-shell-layout.mjs
           node scripts/verify-open-glass-sampling.mjs
           node scripts/verify-production-methods.mjs
