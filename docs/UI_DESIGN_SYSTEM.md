@@ -33,7 +33,7 @@
 | `src/styles/overview.css` | 概览经营提醒、市场空状态、两排核心卡片和响应式布局 |
 | `src/styles/icon-system.css` | 全局 SVG 图标尺寸、商品图标标签、货币金额、导航图标槽位和移动图标尺寸 |
 | `src/styles/product-artwork.css` | 商品插画 128px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
-| `src/styles/facility-artwork.css` | 工厂场景插画 128px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
+| `src/styles/facility-artwork.css` | 工厂场景插画 256px 运行时缩略图映射、批准展示上下文、尺寸与低流量 SVG 回退 |
 | `src/styles/unified-market-admin.css` | 统一市场与管理员页面布局 |
 | `src/styles/settings.css` | 设置页独立主列／侧列、统计密度、账号分组和危险区域布局 |
 | `src/styles/asset-overview.css` | 银行页资产总览的净资产摘要、资产配置圆环、资产构成表和移动两行两列重排 |
@@ -252,7 +252,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 C1 与 C2 图片都必须在实际 `4:5` 居中裁切后保持核心主体完整，且不得恢复“底部宽阔道路—远处小建筑—高饱和蓝天”的统一模板。当前批准源图的 SHA-256、覆盖复杂度与从空白新绘的创作模式记录在 `scripts/facility-artwork-baseline.json`，由 `scripts/verify-facility-artwork.mjs` 校验；替换任一已纳入基线的图片时必须采用独立新构图，同步更新本节视觉规则、机器基线和审核结果，不得只覆盖 PNG 或把旧图作为图像编辑输入。
 
-运行时不得直接加载 1024px 源图。`npm run dev`、`npm run build` 和独立工厂图片验证先调用 `scripts/generate-facility-artwork-thumbnails.mjs`，通过共享预乘 Alpha 面积采样生成 `src/assets/facility-icons/generated/128/` 下的 128px RGBA 缩略图；生成目录是可复现构建产物，构建产物不得提交仓库。`facility-artwork.css` 只能通过 `FacilityIcon` 的 `data-facility-icon` 映射缩略图，并且只允许在上述主视觉上下文显示；未知 ID 沿用组件内厂房 SVG，`prefers-reduced-data` 下所有工厂场景恢复厂房 SVG。生产集群选择卡中的插画必须覆盖完整 `4:5` 竖卡；市场工厂目录卡中的插画必须覆盖完整目录卡。两者统一使用 `background-size: cover` 与居中定位进行等比裁切，不得拉伸、重复、偏移主体或给插画叠加状态滤镜；两者必须通过上下两层黑色渐变分别保护顶部名称／价格／利润与底部数量，中央主体区域保持透明，不得用整卡蒙黑替代。运行、异常、停止、当前和悬停状态只能由卡片边框、背景、文字、胶囊和数量表达，不得给插画本身着色。
+运行时不得直接加载 1024px 源图。`npm run dev`、`npm run build` 和独立工厂图片验证先调用 `scripts/generate-facility-artwork-thumbnails.mjs`，通过共享预乘 Alpha 面积采样生成 `src/assets/facility-icons/generated/256/` 下的 256px RGBA 缩略图；生成目录是可复现构建产物，构建产物不得提交仓库。`facility-artwork.css` 只能通过 `FacilityIcon` 的 `data-facility-icon` 映射缩略图，并且只允许在上述主视觉上下文显示；未知 ID 沿用组件内厂房 SVG，`prefers-reduced-data` 下所有工厂场景恢复厂房 SVG。生产集群选择卡、市场工厂目录卡与拍卖工厂主视觉统一加载 256px 运行时缩略图；生产集群选择卡中的插画必须覆盖完整 `4:5` 竖卡，市场工厂目录卡中的插画必须覆盖完整目录卡。两者统一使用 `background-size: cover` 与居中定位进行等比裁切，不得拉伸、重复、偏移主体或给插画叠加状态滤镜；两者必须通过上下两层黑色渐变分别保护顶部名称／价格／利润与底部数量，中央主体区域保持透明，不得用整卡蒙黑替代。运行、异常、停止、当前和悬停状态只能由卡片边框、背景、文字、胶囊和数量表达，不得给插画本身着色。
 
 新增或删除正式工厂时，服务器目录、同名源图、`FacilityIcon` ID 声明、CSS 映射和验证必须在同一变更中完成。`scripts/verify-facility-artwork.mjs` 必须校验目录一一对应、源图、缩略图、映射、生成入口、批准使用上下文、低流量回退、未知 ID 降级，以及 C1／C2 目录、覆盖复杂度与批准源图 SHA-256 基线一致。
 
