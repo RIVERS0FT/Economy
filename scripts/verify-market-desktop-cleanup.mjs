@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 
 const main = fs.readFileSync('src/main.tsx', 'utf8');
+const marketRuntimeHtml = fs.readFileSync('market-runtime-test.html', 'utf8');
 const marketPage = fs.readFileSync('src/pages/MarketPage.tsx', 'utf8');
 const styles = fs.readFileSync('src/styles/market-desktop-cleanup.css', 'utf8');
 const design = fs.readFileSync('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', 'utf8');
@@ -18,6 +19,11 @@ requireText(
   main,
   "import './styles/form-controls.css';\nimport './styles/market-desktop-cleanup.css';",
   '桌面市场精简样式必须在全部共享和页面样式之后最终加载。',
+);
+requireText(
+  marketRuntimeHtml,
+  '<link rel="stylesheet" href="/src/styles/market-desktop-cleanup.css" />',
+  '市场浏览器运行时夹具必须加载与生产一致的桌面精简样式。',
 );
 requireText(styles, '@media (min-width: 721px)', '桌面精简规则必须严格限定在大于 720px。');
 for (const selector of [
