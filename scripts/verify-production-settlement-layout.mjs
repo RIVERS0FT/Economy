@@ -7,6 +7,7 @@ const formulaCss = read('src/styles/facility-production-formula.css');
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
 const browserTest = read('tests/browser/production-methods.spec.ts');
 const design = read('docs/UI_DESIGN_SYSTEM.md');
+const main = read('src/main.tsx');
 
 for (const text of [
   'data-status={group.status}',
@@ -32,6 +33,7 @@ for (const text of [
   '.facility-formula-meta',
   '.facility-formula-item-group',
   'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);',
+  'grid-template-areas: none;',
   '.facility-formula-progress .progress-track span::after',
   'clip-path: polygon(0 0, 100% 50%, 0 100%);',
   '@container (max-width: 420px)',
@@ -42,6 +44,10 @@ for (const forbidden of [
   '.facility-formula-center',
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
+
+const groupCssImport = main.indexOf("import './styles/facility-group-card-grid.css';");
+const formulaCssImport = main.indexOf("import './styles/facility-production-formula.css';");
+assert.ok(groupCssImport >= 0 && formulaCssImport > groupCssImport, '生产结算样式必须在工厂详情基础样式之后加载');
 
 const profitRule = profitCss.slice(
   profitCss.indexOf('.facility-average-profit {'),
@@ -77,4 +83,4 @@ for (const forbidden of [
   '破坏输入／中央信息／输出三列语义',
 ]) assert.equal(design.includes(forbidden), false, `UI 权威设计仍保留旧生产结算规则: ${forbidden}`);
 
-console.log('生产结算输入侧周期成本、工业物资槽、流向进度与利润结果栏验证通过。');
+console.log('生产结算输入侧周期成本、工业物资槽、流向进度、样式加载与利润结果栏验证通过。');
