@@ -1,0 +1,231 @@
+name: Apply market chart height stability fix
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.head_ref == 'agent/fix-market-chart-height-loop' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-market-chart-height-loop
+          fetch-depth: 0
+
+      - name: Apply source, design, and regression changes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          chart_path = 'src/components/charts/PriceSparkline.tsx'
+          replace_once(
+              chart_path,
+              """        const cardPaddingBottom = chartCard
+          ? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0
+          : 0;
+        const minimumHeight = sideBySide && chartCardRect
+          ? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)
+          : 0;
+""",
+              """        const chartCardStyle = chartCard ? getComputedStyle(chartCard) : null;
+        const cardPaddingBottom = chartCardStyle
+          ? Number.parseFloat(chartCardStyle.paddingBottom) || 0
+          : 0;
+        const cardContentBottom = chartCard && chartCardRect
+          ? chartCardRect.top + chartCard.clientTop + chartCard.clientHeight - cardPaddingBottom
+          : 0;
+        const minimumHeight = sideBySide
+          ? Math.max(0, cardContentBottom - elementRect.top)
+          : 0;
+""",
+          )
+          replace_once(
+              chart_path,
+              """    observer?.observe(element);
+    if (chartCard) observer?.observe(chartCard);
+""",
+              """    if (chartCard) observer?.observe(chartCard);
+""",
+          )
+
+          style_path = 'src/styles/market-page-polish.css'
+          replace_once(
+              style_path,
+              """  .market-page-surface .market-trade-card,
+  .market-page-surface .market-chart-card {
+    height: 100%;
+  }
+
+""",
+              "",
+          )
+
+          design_path = 'docs/MARKET_CHART_LAYOUT_DESIGN.md'
+          replace_once(
+              design_path,
+              "市场页进入宽屏双列布局时，交易卡和行情卡外框必须同排等高，行情组件必须读取行情卡标题下方的真实剩余高度作为最小总高度。自然高度或等高目标产生的额外空间必须进入数据绘图区，按约 `72%` 分配给价格区、`28%` 分配给成交量区；不得把额外高度留在成交量横轴与图例之间形成空白。退出双列布局后立即恢复自然高度，不得让上下排列页面继承另一张卡片的高度。",
+              "市场页进入宽屏双列布局时，交易卡和行情卡外框必须同排等高，行情组件必须以行情卡内容盒底边为基准读取标题下方的真实剩余高度作为最小总高度，计算时排除卡片边框和底部内边距。尺寸观察只允许监听交易卡、行情卡或其他外部约束，不得监听由组件自身写入高度的图表节点，也不得把当前图表增长反向计入下一轮最小高度。自然高度或等高目标产生的额外空间必须进入数据绘图区，按约 `72%` 分配给价格区、`28%` 分配给成交量区；不得把额外高度留在成交量横轴与图例之间形成空白。退出双列布局后立即恢复自然高度，不得让上下排列页面继承另一张卡片的高度。",
+          )
+          replace_once(
+              design_path,
+              "浏览器测试必须通过组件稳定 `data-*` 接口和实际边界同时验证：ECharts SVG 已初始化、full 成交量区实际高度、`22%` 最低占比、双 Grid 零间距、`1px` 分界线、整数动态纵轴刻度、动态横轴间隔、时间刻度不侵入成交量区、对应断点的两层或三层底部安全区、图例围绕绘图区中心居中以及页面无横向溢出。",
+              "浏览器测试必须通过组件稳定 `data-*` 接口和实际边界同时验证：ECharts SVG 已初始化、full 成交量区实际高度、`22%` 最低占比、双 Grid 零间距、`1px` 分界线、整数动态纵轴刻度、动态横轴间隔、时间刻度不侵入成交量区、对应断点的两层或三层底部安全区、图例围绕绘图区中心居中以及页面无横向溢出。\n\n`tests/browser/market-chart-height-stability.spec.ts` 必须在 `1684 × 931` 宽屏双列中连续采样至少 `120` 个动画帧，并跨越正式 `5s` 轮询周期等待至少 `6.5s`，确认行情图、行情卡和最小高度的波动均不超过 `1px`；随后切换到 `1280 × 900` 上下排列，确认填充模式恢复为自然高度且继续稳定。",
+          )
+          replace_once(
+              design_path,
+              "- 把自然比例或等高目标产生的额外高度留在横轴与图例之间，而不是分配给价格和成交量绘图区；",
+              "- 把自然比例或等高目标产生的额外高度留在横轴与图例之间，而不是分配给价格和成交量绘图区；\n- 使用行情卡 border-box 底边或监听图表自身高度反推最小高度，形成每轮增长的尺寸反馈；",
+          )
+
+          verify_chart_path = 'scripts/verify-market-chart.mjs'
+          replace_once(
+              verify_chart_path,
+              "const runtimeSpec = read('tests/browser/market-runtime.spec.ts');",
+              "const runtimeSpec = read('tests/browser/market-runtime.spec.ts');\nconst heightStabilitySpec = read('tests/browser/market-chart-height-stability.spec.ts');",
+          )
+          replace_once(
+              verify_chart_path,
+              "  'chartCardRect.bottom - elementRect.top', 'data-chart-fill-mode={minimumHeight > 0',",
+              "  'chartCard.clientTop', 'chartCard.clientHeight', 'cardContentBottom - elementRect.top',\n  'data-chart-fill-mode={minimumHeight > 0',",
+          )
+          replace_once(
+              verify_chart_path,
+              """for (const text of ['<svg', '<polyline', '<polygon', '<rect', 'context.measureText', 'useChartAxisMetrics']) {
+  assert.ok(!chart.includes(text), `ECharts 行情图不得保留手写 SVG: ${text}`);
+}
+
+""",
+              """for (const text of ['<svg', '<polyline', '<polygon', '<rect', 'context.measureText', 'useChartAxisMetrics']) {
+  assert.ok(!chart.includes(text), `ECharts 行情图不得保留手写 SVG: ${text}`);
+}
+for (const text of ['chartCardRect.bottom - elementRect.top', 'observer?.observe(element)']) {
+  assert.ok(!chart.includes(text), `行情图不得恢复高度反馈表达式: ${text}`);
+}
+for (const text of [
+  'market chart row fill height remains stable without resize feedback',
+  'for (let frame = 0; frame < 120; frame += 1)',
+  'await page.waitForTimeout(6_500)',
+  "toHaveAttribute('data-chart-fill-mode', 'natural')",
+]) assert.ok(heightStabilitySpec.includes(text), `行情图高度稳定回归缺少: ${text}`);
+
+""",
+          )
+          replace_once(
+              verify_chart_path,
+              "  '交易卡和行情卡外框必须同排等高', '按约 `72%` 分配给价格区、`28%` 分配给成交量区',",
+              "  '交易卡和行情卡外框必须同排等高', '内容盒底边',\n  '不得监听由组件自身写入高度的图表节点', '按约 `72%` 分配给价格区、`28%` 分配给成交量区',\n  '连续采样至少 `120` 个动画帧',",
+          )
+
+          verify_layout_path = 'scripts/verify-market-page-layout.mjs'
+          replace_once(
+              verify_layout_path,
+              """requireText(marketStyles, 'align-items: stretch;', '宽屏交易卡与行情卡必须允许同排等高。');
+forbidText(marketStyles, 'grid-template-columns: 320px 360px minmax(620px, 1fr)', '市场不得恢复下单、订单簿和行情图三个独立一级卡片列。');
+""",
+              """requireText(marketStyles, 'align-items: stretch;', '宽屏交易卡与行情卡必须允许同排等高。');
+forbidText(
+  marketStyles,
+  '.market-page-surface .market-trade-card,\\n  .market-page-surface .market-chart-card {\\n    height: 100%;',
+  '宽屏卡片不得用百分比高度参与自动网格行的尺寸反馈。',
+);
+forbidText(marketStyles, 'grid-template-columns: 320px 360px minmax(620px, 1fr)', '市场不得恢复下单、订单簿和行情图三个独立一级卡片列。');
+""",
+          )
+
+          stability_spec = Path('tests/browser/market-chart-height-stability.spec.ts')
+          if stability_spec.exists():
+              raise SystemExit(f'{stability_spec}: file already exists')
+          stability_spec.write_text("""import { expect, test, type Locator } from '@playwright/test';
+
+type HeightSample = {
+  chartHeight: number;
+  cardHeight: number;
+  minimumHeight: number;
+};
+
+async function sampleAnimationFrames(chart: Locator): Promise<HeightSample[]> {
+  return chart.evaluate(async (element) => {
+    const samples: HeightSample[] = [];
+    for (let frame = 0; frame < 120; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const chartCard = element.closest<HTMLElement>('.market-chart-card');
+      if (!chartCard) throw new Error('Market chart card is missing');
+      samples.push({
+        chartHeight: element.getBoundingClientRect().height,
+        cardHeight: chartCard.getBoundingClientRect().height,
+        minimumHeight: Number((element as HTMLElement).dataset.chartMinimumHeight ?? 0),
+      });
+    }
+    return samples;
+  });
+}
+
+function range(samples: HeightSample[], field: keyof HeightSample) {
+  const values = samples.map((sample) => sample[field]);
+  return Math.max(...values) - Math.min(...values);
+}
+
+test('market chart row fill height remains stable without resize feedback', async ({ page }) => {
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const chart = page.locator('.market-history-chart.full');
+  await expect(chart.locator('.economy-chart')).toHaveAttribute('data-echarts-ready', 'true');
+  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'row');
+  await page.waitForTimeout(300);
+
+  const rowSamples = await sampleAnimationFrames(chart);
+  expect(range(rowSamples, 'chartHeight')).toBeLessThanOrEqual(1);
+  expect(range(rowSamples, 'cardHeight')).toBeLessThanOrEqual(1);
+  expect(range(rowSamples, 'minimumHeight')).toBeLessThanOrEqual(1);
+  const stableRowHeight = rowSamples.at(-1)?.chartHeight ?? 0;
+
+  await page.waitForTimeout(6_500);
+  const postPollSamples = await sampleAnimationFrames(chart);
+  expect(range(postPollSamples, 'chartHeight')).toBeLessThanOrEqual(1);
+  expect(range(postPollSamples, 'cardHeight')).toBeLessThanOrEqual(1);
+  expect(range(postPollSamples, 'minimumHeight')).toBeLessThanOrEqual(1);
+  expect(Math.abs((postPollSamples.at(-1)?.chartHeight ?? 0) - stableRowHeight)).toBeLessThanOrEqual(1);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'natural');
+  await page.waitForTimeout(300);
+  const naturalSamples = await sampleAnimationFrames(chart);
+  expect(range(naturalSamples, 'chartHeight')).toBeLessThanOrEqual(1);
+  expect(range(naturalSamples, 'cardHeight')).toBeLessThanOrEqual(1);
+  expect(range(naturalSamples, 'minimumHeight')).toBeLessThanOrEqual(1);
+  expect(naturalSamples.at(-1)?.minimumHeight).toBe(0);
+});
+""", encoding='utf-8')
+
+          Path('.github/workflows/agent-fix-market-chart-height-loop.yml').unlink()
+          PY
+
+      - name: Verify focused invariants
+        run: |
+          git diff --check
+          node --experimental-strip-types scripts/verify-market-chart.mjs
+          node scripts/verify-market-page-layout.mjs
+
+      - name: Commit implementation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "修复市场行情卡高度持续增长"
+          git push origin HEAD:agent/fix-market-chart-height-loop
