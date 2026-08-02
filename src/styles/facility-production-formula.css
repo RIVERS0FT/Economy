@@ -316,6 +316,7 @@
 
 @container (max-width: 560px) {
   .facility-formula-top {
+    grid-template-areas: none;
     gap: var(--space-2);
   }
 
