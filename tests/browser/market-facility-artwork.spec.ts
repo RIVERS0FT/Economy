@@ -51,6 +51,7 @@ async function inspectFacilityArtwork(facilityTab: Locator) {
 }
 
 function expectFullBleed(metrics: Awaited<ReturnType<typeof inspectFacilityArtwork>>) {
+  expect(metrics.card.width).toBeGreaterThan(metrics.card.height);
   expect(Math.abs(metrics.artwork.left - metrics.card.left)).toBeLessThan(1.5);
   expect(Math.abs(metrics.artwork.top - metrics.card.top)).toBeLessThan(1.5);
   expect(Math.abs(metrics.artwork.width - metrics.card.width)).toBeLessThan(1.5);
