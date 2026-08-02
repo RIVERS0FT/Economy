@@ -24,7 +24,9 @@ jobs:
           node-version: '24'
           cache: npm
       - name: Replay approved auction changes
-        run: python3 scripts/codex-replay-auction-on-main.py
+        run: |
+          python3 scripts/codex-replay-auction-on-main.py
+          git add -u
       - name: Install dependencies
         run: npm ci
       - name: Build and test
@@ -52,8 +54,7 @@ jobs:
             src/hooks/useNavigationBadges.ts \
             src/navigation/navigationBadges.ts \
             src/pages/AuctionPage.tsx \
-            src/styles/asset-auctions.css \
-            scripts/codex-replay-auction-on-main.py \
-            .github/workflows/codex-replay-auction-on-main.yml
+            src/styles/asset-auctions.css
+          git add -u
           git commit -m 'feat: reorganize auction attention workspace'
           git push origin HEAD:codex/auction-two-column-attention
