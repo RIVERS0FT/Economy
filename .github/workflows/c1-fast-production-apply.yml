@@ -1,13 +1,54 @@
-name: Prepare C1 fast production patch
+name: Apply C1 fast production patch
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - agent/c1-fast-production
 
 permissions:
   contents: write
 
 jobs:
-  noop:
+  apply:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - run: echo ready
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply validated patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/^ diff --git /diff --git /' .agent/c1-fast-production.patch
+          git apply --check .agent/c1-fast-production.patch
+          git apply .agent/c1-fast-production.patch
+          rm -f .agent/c1-fast-production.patch .github/workflows/c1-fast-production-apply.yml
+          rmdir .agent 2>/dev/null || true
+
+      - name: Commit source changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            server/src/industry-catalog.js \
+            server/src/production-methods.js \
+            server/src/facility-groups.js \
+            server/src/market-demand/catalog.js \
+            scripts/verify-industry-catalog.mjs \
+            scripts/verify-production-methods.mjs \
+            scripts/verify-recipe-profit-analysis.mjs \
+            server/test/production-methods.test.js \
+            server/test/domain.test.js \
+            server/test/facility-groups.test.js \
+            docs/README.md \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            .agent/c1-fast-production.patch \
+            .github/workflows/c1-fast-production-apply.yml
+          git diff --cached --check
+          git commit -m '调整 C1 工厂为快速生产'
+          git push origin HEAD:agent/c1-fast-production
