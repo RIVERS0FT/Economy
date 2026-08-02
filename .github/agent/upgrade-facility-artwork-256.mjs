@@ -25,26 +25,12 @@ function replaceAllRequired(path, before, after, minimumCount = 1) {
   write(path, source.split(before).join(after));
 }
 
-const generatorPath = 'scripts/generate-facility-artwork-thumbnails.mjs';
-replaceOnce(
-  generatorPath,
-  `import { resolve } from 'node:path';`,
-  `import { rmSync } from 'node:fs';\nimport { resolve } from 'node:path';`,
-);
-replaceOnce(
-  generatorPath,
-  `generateArtworkThumbnails({\n  ids: FACILITY_TYPE_CATALOG.map((facility) => facility.id),\n  label: '工厂场景',\n  sourceDirectory: resolve(process.cwd(), 'src/assets/facility-icons'),\n});`,
-  `rmSync(resolve(process.cwd(), 'src/assets/facility-icons/generated/128'), {\n  recursive: true,\n  force: true,\n});\n\ngenerateArtworkThumbnails({\n  ids: FACILITY_TYPE_CATALOG.map((facility) => facility.id),\n  label: '工厂场景',\n  sourceDirectory: resolve(process.cwd(), 'src/assets/facility-icons'),\n  targetSize: 256,\n});`,
-);
-
-replaceAllRequired(
-  'src/styles/facility-artwork.css',
-  'facility-icons/generated/128/',
-  'facility-icons/generated/256/',
-  21,
-);
-
 const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
+replaceOnce(
+  uiDesignPath,
+  '工厂场景插画 128px 运行时缩略图映射',
+  '工厂场景插画 256px 运行时缩略图映射',
+);
 replaceOnce(
   uiDesignPath,
   '`src/assets/facility-icons/generated/128/` 下的 128px RGBA 缩略图',
@@ -91,16 +77,21 @@ replaceOnce(
 );
 replaceOnce(
   verifierPath,
-  `\n}\n\nif (failures.length) {`,
-  `\n\n  if (styles.includes('facility-icons/generated/128/')) {\n    failures.push('工厂场景样式不得继续引用 128px 运行时缩略图');\n  }\n  if (uiDesign.includes('facility-icons/generated/128/')) {\n    failures.push('工厂场景权威设计不得继续声明 128px 运行时缩略图');\n  }\n  for (const required of [\n    'production and market facility artwork use 256px runtime thumbnails',\n    'naturalWidth',\n    'naturalHeight',\n    'expectedSize: 256',\n  ]) {\n    if (!resolutionBrowser.includes(required)) {\n      failures.push(\`${paths.resolutionBrowser} 缺少: \${required}\`);\n    }\n  }\n}\n\nif (failures.length) {`,
+  `      \`src/assets/facility-icons/generated/128/\`,`,
+  `      \`src/assets/facility-icons/generated/256/\`,`,
 );
 replaceOnce(
   verifierPath,
-  '工厂场景插画验证通过：21 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、',
-  '工厂场景插画验证通过：21 种正式工厂与 1024×1024 RGBA 源图、256×256 运行时缩略图、',
+  `  }\n}\n\nif (failures.length > 0) {`,
+  `  }\n\n  if (styles.includes('facility-icons/generated/128/')) {\n    failures.push('工厂场景样式不得继续引用 128px 运行时缩略图');\n  }\n  if (uiDesign.includes('facility-icons/generated/128/')) {\n    failures.push('工厂场景权威设计不得继续声明 128px 运行时缩略图');\n  }\n  for (const required of [\n    'production and market facility artwork use 256px runtime thumbnails',\n    'naturalWidth',\n    'naturalHeight',\n    'expectedSize: number',\n  ]) {\n    if (!resolutionBrowser.includes(required)) {\n      failures.push(\`${paths.resolutionBrowser} 缺少: \${required}\`);\n    }\n  }\n}\n\nif (failures.length > 0) {`,
+);
+replaceOnce(
+  verifierPath,
+  '工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、',
+  '工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、256×256 运行时缩略图、',
 );
 
 const browserPath = 'tests/browser/facility-artwork-resolution.spec.ts';
-write(browserPath, `import { expect, test, type Locator } from '@playwright/test';\n\nasync function expectBackgroundImageResolution(locator: Locator, expectedSize: 256) {\n  const size = await locator.evaluate(async (element) => {\n    const backgroundImage = getComputedStyle(element).backgroundImage;\n    const match = backgroundImage.match(/url\\(["']?(.*?)["']?\\)/);\n    if (!match) return null;\n\n    const image = new Image();\n    image.src = match[1];\n    await image.decode();\n    return { width: image.naturalWidth, height: image.naturalHeight };\n  });\n\n  expect(size).toEqual({ width: expectedSize, height: expectedSize });\n}\n\ntest('production and market facility artwork use 256px runtime thumbnails', async ({ page }) => {\n  await page.setViewportSize({ width: 1440, height: 900 });\n  await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');\n  await expectBackgroundImageResolution(\n    page.locator('.facility-cluster-selector-card .facility-icon').first(),\n    256,\n  );\n\n  await page.goto('market-runtime-test.html?scenario=active');\n  await expectBackgroundImageResolution(\n    page.locator('.unified-asset-tab.facility .market-asset-card__icon-layer .facility-icon').first(),\n    256,\n  );\n});\n`);
+write(browserPath, `import { expect, test, type Locator } from '@playwright/test';\n\nasync function expectBackgroundImageResolution(locator: Locator, expectedSize: number) {\n  const size = await locator.evaluate(async (element) => {\n    const backgroundImage = getComputedStyle(element).backgroundImage;\n    const match = backgroundImage.match(/url\\(["']?(.*?)["']?\\)/);\n    if (!match) return null;\n\n    const image = new Image();\n    image.src = match[1];\n    await image.decode();\n    return { width: image.naturalWidth, height: image.naturalHeight };\n  });\n\n  expect(size).toEqual({ width: expectedSize, height: expectedSize });\n}\n\ntest('production and market facility artwork use 256px runtime thumbnails', async ({ page }) => {\n  await page.setViewportSize({ width: 1440, height: 900 });\n  await page.goto('runtime-test.html?view=production&scenario=facility-card-profit');\n  await expectBackgroundImageResolution(\n    page.locator('.facility-cluster-selector-card .facility-icon').first(),\n    256,\n  );\n\n  await page.goto('market-runtime-test.html?scenario=active');\n  await expectBackgroundImageResolution(\n    page.locator('.unified-asset-tab.facility .market-asset-card__icon-layer .facility-icon').first(),\n    256,\n  );\n});\n`);
 
 console.log('工厂场景运行时缩略图已升级为 256px。');
