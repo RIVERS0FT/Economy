@@ -29,7 +29,6 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          exec > >(tee .agent/workflow.log) 2>&1
 
           configure_git() {
             git config user.name "github-actions[bot]"
@@ -52,8 +51,6 @@ jobs:
           exec > >(tee .agent/workflow.log) 2>&1
           python -m pip install --disable-pip-version-check pillow==11.3.0
           python .agent/redraw-c1-facilities.py
-          git apply --check .agent/c1-facility-artwork.patch
-          git apply --whitespace=fix .agent/c1-facility-artwork.patch
           git diff --check
 
           configure_git
