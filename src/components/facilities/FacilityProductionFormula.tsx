@@ -216,37 +216,43 @@ export function FacilityProductionFormula({
   const profitScopeLabel = profitScope.name;
 
   return (
-    <section className="facility-production-formula" role="group" aria-label={description}>
+    <section className="facility-production-formula"
+      data-status={group.status}
+      role="group"
+      aria-label={description}
+    >
       <div className="facility-production-formula-heading">
         <strong>生产结算</strong>
         <div className="facility-formula-scope" aria-hidden="true">{scope.label}</div>
       </div>
       <div className="facility-formula-visual" aria-hidden="true">
         <div className="facility-formula-top">
-          <div className="facility-formula-input">
-            {inputs.length > 0 ? (
-              <RecipeItems
-                items={inputs}
-                productNames={productNames}
-                inventories={inventories}
-                multiplier={scope.count}
-                showInventory
-                groupClassName="facility-formula-input-group"
-                itemClassName="facility-formula-input-item"
-              />
-            ) : <span className="facility-formula-empty">无</span>}
-          </div>
+          <div className="facility-formula-input-side">
+            <div className="facility-formula-input">
+              {inputs.length > 0 ? (
+                <RecipeItems
+                  items={inputs}
+                  productNames={productNames}
+                  inventories={inventories}
+                  multiplier={scope.count}
+                  showInventory
+                  groupClassName="facility-formula-input-group"
+                  itemClassName="facility-formula-input-item"
+                />
+              ) : <span className="facility-formula-empty">无</span>}
+            </div>
 
-          <div className="facility-formula-center">
-            <span className="facility-formula-meta-unit">
-              <CycleIcon className="facility-formula-meta-icon" />
-              <span>{formatDuration(type.cycleMs)}</span>
-            </span>
-            <span className="facility-formula-meta-divider">·</span>
-            <span className="facility-formula-meta-unit">
-              <CreditsIcon className="facility-formula-meta-icon" />
-              <span>{formatCurrency(type.operatingCost * scope.count)}</span>
-            </span>
+            <div className="facility-formula-meta">
+              <span className="facility-formula-meta-unit is-cycle">
+                <CycleIcon className="facility-formula-meta-icon" />
+                <span>{formatDuration(type.cycleMs)}</span>
+              </span>
+              <span className="facility-formula-meta-divider" />
+              <span className="facility-formula-meta-unit is-cost">
+                <CreditsIcon className="facility-formula-meta-icon" />
+                <span>{formatCurrency(type.operatingCost * scope.count)}</span>
+              </span>
+            </div>
           </div>
 
           <div className="facility-formula-output">

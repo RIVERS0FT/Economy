@@ -263,8 +263,9 @@ if (/^\.warehouse-product-card-icon\s*\{/m.test(artworkContent)) {
 }
 
 for (const text of [
+  'facility-formula-input-side',
   'facility-formula-input-group',
-  'facility-formula-center',
+  'facility-formula-meta',
   'facility-formula-output-group',
   'facility-formula-progress',
   'function currentFormulaScope',
@@ -275,6 +276,7 @@ for (const text of [
   'facility-formula-scope',
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
 for (const text of [
+  'facility-formula-center',
   '单座配方每',
   'multiplier={group.count}',
   'type.operatingCost * group.count',
@@ -348,10 +350,11 @@ for (const text of [
   '仓库商品网格使用容器查询',
   '左上名称／居中大图标／可用主值／冻结辅助值',
   '生产公式是集群运行能力展示',
+  '工厂生产公式固定采用双列顶层布局',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、预占来源分段、容量线性定价、紧凑商品插画布局、移动端四列、桌面七列、目录顺序工厂卡、建设卡精简和集群公式验证通过。');
+console.log('仓库无限扩容、预占来源分段、容量线性定价、紧凑商品插画布局、移动端四列、桌面七列、目录顺序工厂卡、建设卡精简和输入侧周期成本集群公式验证通过。');

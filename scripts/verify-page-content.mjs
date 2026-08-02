@@ -178,7 +178,8 @@ requireText(
 );
 for (const text of [
   'facility-formula-input-group',
-  'facility-formula-center',
+  'facility-formula-input-side',
+  'facility-formula-meta',
   'facility-formula-output-group',
   'facility-formula-progress',
   'CycleIcon',
@@ -186,6 +187,7 @@ for (const text of [
   'WarehouseIcon',
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
 forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-summary');
+forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-formula-center');
 for (const text of [
   'title="工厂"',
   'facility-power-button',
