@@ -87,6 +87,21 @@ jobs:
           Path('/tmp/apply-market-layout.py').write_text(code, encoding='utf-8')
           PY
           python3 /tmp/apply-market-layout.py
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-market-page-layout.mjs')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              "requireText(marketPage, 'warehouseLimitsBuy', '商品买入必须识别仓库先于资金形成的数量上限。');": "requireText(marketPage, \"marketAssetKind === 'commodity' && game.warehouseAvailableCapacity < 1\", '商品买入必须识别仓库空间阻断。');",
+              "requireText(marketPage, '{visibleDisabledReason ? <p id=\"order-disabled-reason\"', '提交区只允许显示字段外阻断原因。');": "requireText(marketPage, 'aria-label={orderActionLabel}', '提交按钮必须直接承载字段外阻断原因。');",
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'missing outdated market verifier rule: {old}')
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
           rm .github/workflows/agent-market-layout-pr.yml
       - name: Verify patch
         run: |
