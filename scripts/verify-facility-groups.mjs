@@ -121,9 +121,10 @@ for (const text of [
   'inputs?: FacilityRecipeItem[]',
   'outputs?: FacilityRecipeItem[]',
   'facility-formula-top',
+  'facility-formula-input-side',
   'facility-formula-input-group',
   'facility-formula-input-item',
-  'facility-formula-center',
+  'facility-formula-meta',
   'facility-formula-output-group',
   'facility-formula-output-item',
   'facility-formula-progress',
@@ -137,6 +138,7 @@ for (const text of [
 
 for (const forbidden of [
   'facility-formula-summary',
+  'facility-formula-center',
   'facility-formula-arrow',
   '→',
   '⏱',
@@ -220,23 +222,33 @@ for (const forbidden of ['.facility-detail-sheet-close']) forbidText('src/styles
 for (const text of [
   '.facility-production-formula',
   '.facility-formula-top',
+  '.facility-formula-input-side',
   '.facility-formula-input-item',
   '.facility-formula-output-item',
-  '.facility-formula-center',
+  '.facility-formula-meta',
   '.facility-formula-progress',
   '.facility-formula-meta-icon',
-  'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)',
+  'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)',
   '.facility-production-formula-heading',
 ]) requireText('src/styles/facility-production-formula.css', text);
 
-forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');
+for (const forbidden of [
+  '.facility-formula-summary',
+  '.facility-formula-center',
+  'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)',
+]) forbidText('src/styles/facility-production-formula.css', forbidden);
 forbidText(
   'src/styles/facility-production-formula.css',
   'grid-template-rows: auto minmax(112px, auto) minmax(0, 1fr) auto',
 );
 forbidText('src/styles/facility-production-formula.css', '.facility-group-card {');
 
+const mainSource = read('src/main.tsx');
 requireText('src/main.tsx', "import './styles/facility-production-formula.css';");
+if (
+  mainSource.indexOf("import './styles/facility-production-formula.css';")
+  <= mainSource.indexOf("import './styles/facility-group-card-grid.css';")
+) failures.push('生产结算样式必须晚于工厂详情基础样式加载');
 
 for (const forbidden of [
   'facility-power-button',
@@ -293,7 +305,9 @@ for (const text of [
   'CycleIcon',
   'CreditsIcon',
   'WarehouseIcon',
-  '输入在左、周期成本在中、输出在右',
+  '工厂生产公式固定采用双列顶层布局',
+  '左侧为输入组合区，右侧为输出区',
+  '周期与成本不得回到输入输出之间的独立中列',
   '生产进度条',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整文本无障碍描述',
@@ -305,4 +319,4 @@ if (failures.length) {
   console.error(`工厂三态、生产公式、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('工厂持续生产、紧凑标题状态、统一收起动画、通用配方周期边界切换、三态自动恢复、多输入输出公式和自然高度主从卡片验证通过。');
+console.log('工厂持续生产、紧凑标题状态、统一收起动画、通用配方周期边界切换、三态自动恢复、输入侧周期成本公式和自然高度主从卡片验证通过。');
