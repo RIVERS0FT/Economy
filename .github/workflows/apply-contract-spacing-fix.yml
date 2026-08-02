@@ -1,0 +1,40 @@
+name: Apply contract workspace spacing fix
+
+on:
+  push:
+    branches:
+      - agent/contract-four-column-workspace
+    paths:
+      - .agent/apply-spacing-ready
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .agent/apply-spacing-ready
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/contract-four-column-workspace
+          fetch-depth: 0
+      - name: Apply spacing fix
+        run: |
+          git apply --check .agent/contract-spacing-fix.patch
+          git apply .agent/contract-spacing-fix.patch
+          rm -rf .agent
+          rm .github/workflows/apply-contract-spacing-fix.yml
+      - name: Commit spacing fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "修复合同工作区间距规则"
+          git push origin HEAD:agent/contract-four-column-workspace
