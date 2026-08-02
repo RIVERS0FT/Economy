@@ -45,6 +45,16 @@ jobs:
           Path('/tmp/apply-chart-hover-fix.py').write_text(script, encoding='utf-8')
           PY
           python3 /tmp/apply-chart-hover-fix.py
+          python3 <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-echarts-adoption.mjs')
+          content = path.read_text(encoding='utf-8')
+          old = "'data.echartsCssColorsResolved'"
+          new = "'dataset.echartsCssColorsResolved'"
+          if content.count(old) != 1:
+              raise SystemExit(f'expected one verifier marker, found {content.count(old)}')
+          path.write_text(content.replace(old, new), encoding='utf-8')
+          PY
 
       - name: Install dependencies
         run: npm ci
