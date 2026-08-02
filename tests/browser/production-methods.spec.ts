@@ -9,13 +9,18 @@ test.describe('factory production methods', () => {
     const detail = page.locator('.facility-cluster-detail-card');
     await expect(detail).toContainText('作业制度');
     await expect(detail).toContainText('下一周期切换为：机械制造 · 高速生产');
+    await expect(detail.getByRole('radio')).toHaveCount(0);
 
-    const rapid = detail.getByRole('radio', { name: /高速生产/ });
-    const economical = detail.getByRole('radio', { name: /节约生产/ });
-    await expect(rapid).toHaveAttribute('aria-checked', 'true');
-    await expect(economical).toHaveAttribute('aria-checked', 'false');
+    const methodSelect = detail.getByRole('combobox', { name: '机械工厂生产方式' });
+    await expect(methodSelect).toHaveCount(1);
+    await expect(methodSelect).toHaveValue('rapid');
 
-    await economical.click();
+    const summary = detail.locator('.facility-production-method-summary');
+    await expect(summary).toContainText('高速生产');
+    await expect(summary).toContainText('1m · 产出 1 · 成本 12');
+    await expect(summary).toContainText('缩短周期并提高成本');
+
+    await methodSelect.selectOption('economical');
     await expect.poll(async () => page.evaluate(() => (
       window as typeof window & { __productionRecipeRequests?: string[] }
     ).__productionRecipeRequests ?? [])).toEqual([

@@ -1,123 +1,31 @@
 .facility-production-method-section {
   min-width: 0;
   display: grid;
-  gap: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  padding: var(--space-2);
-  background: var(--color-surface-inset);
-}
-
-.facility-production-method-heading {
-  min-width: 0;
-  display: grid;
   gap: var(--space-1);
 }
 
-.facility-production-method-heading strong {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-}
-
-.facility-production-method-heading small {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
-}
-
-.facility-production-method-grid {
+.facility-production-method-summary {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
+  gap: 0.2rem;
+  padding-inline: var(--space-1);
 }
 
-.facility-production-method-option {
-  min-width: 0;
-  min-height: var(--control-height);
-  display: grid;
-  align-content: center;
-  gap: 0.25rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  padding: var(--space-2);
-  color: var(--color-text-secondary);
-  background: color-mix(in srgb, var(--color-surface-raised) 82%, transparent);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    transform 160ms ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  html[data-input-modality='mouse'] .facility-production-method-option:hover:not(:disabled) {
-    border-color: var(--color-border-strong);
-    background: var(--color-surface-raised);
-  }
-}
-
-.facility-production-method-option:active:not(:disabled) {
-  transform: scale(0.985);
-}
-
-.facility-production-method-option:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-.facility-production-method-option[data-selected='true'] {
-  border-color: var(--color-accent);
+.facility-production-method-summary strong {
   color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-accent) 14%, var(--color-surface-raised));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
-}
-
-.facility-production-method-option[data-tone='warning'][data-selected='true'] {
-  border-color: var(--color-warning);
-  background: color-mix(in srgb, var(--color-warning) 14%, var(--color-surface-raised));
-}
-
-.facility-production-method-option[data-tone='success'][data-selected='true'] {
-  border-color: var(--color-success);
-  background: color-mix(in srgb, var(--color-success) 14%, var(--color-surface-raised));
-}
-
-.facility-production-method-option:disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.facility-production-method-option strong {
-  min-width: 0;
-  overflow: hidden;
-  color: inherit;
   font-size: var(--font-size-sm);
   line-height: var(--line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.facility-production-method-option span {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-text-muted);
+.facility-production-method-summary span {
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 520px) {
-  .facility-production-method-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .facility-production-method-option {
-    transition: none;
-  }
+.facility-production-method-summary small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
 }

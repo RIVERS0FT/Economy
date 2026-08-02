@@ -91,13 +91,20 @@ for (const text of [
   'productionRecipeVariantId',
   'const methodGroup = productionMethodGroupForType(type);',
   'id: plan.recipeId',
-  'role="radiogroup"',
-  'role="radio"',
-  'facility-production-method-option',
+  'const selectedPlan = selectedMethod?.plansByRecipeId[recipeState.selectedBaseRecipeId];',
+  'aria-label={`${type.name}生产方式`}',
+  'value={recipeState.selectedProductionMethodId}',
+  'event.target.value as FacilityProductionMethodId',
+  'facility-production-method-summary',
 ]) assert.ok(detailSource.includes(text), `生产方式客户端合成缺少 ${text}`);
+for (const forbidden of ['role="radiogroup"', 'role="radio"', 'facility-production-method-option']) {
+  assert.equal(detailSource.includes(forbidden), false, `生产方式不得恢复选择卡: ${forbidden}`);
+}
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
-assert.ok(styleSource.includes('.facility-production-method-grid'));
-assert.ok(styleSource.includes("[data-selected='true']"));
+assert.ok(styleSource.includes('.facility-production-method-summary'));
+for (const forbidden of ['.facility-production-method-grid', '.facility-production-method-option', "[data-selected='true']"]) {
+  assert.equal(styleSource.includes(forbidden), false, `生产方式样式不得恢复选择卡: ${forbidden}`);
+}
 for (const text of [
   "scenario === 'production-methods'",
   '__productionRecipeRequests',
@@ -106,7 +113,8 @@ for (const text of [
 for (const text of [
   '下一周期切换为：机械制造 · 高速生产',
   "'machine-factory:machinery-recipe--economical'",
-  "getByRole('radio', { name: /节约生产/ })",
+  "getByRole('combobox', { name: '机械工厂生产方式' })",
+  "selectOption('economical')",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
 assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 24'));
 assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 24'));
@@ -118,7 +126,7 @@ for (const [path, required] of [
     '不得新增单座工厂生产方式状态',
   ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['作业制度', '下一周期切换']],
-  ['docs/UI_DESIGN_SYSTEM.md', ['生产方式选择卡', 'radiogroup']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['生产方式下拉选择', 'combobox']],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
     '生产方式配方变体',
     'setFacilityRecipe',
@@ -129,4 +137,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、响应式选择卡、浏览器交互和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、浏览器交互和版本兼容均已锁定。');
