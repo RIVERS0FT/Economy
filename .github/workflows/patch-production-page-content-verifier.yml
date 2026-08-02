@@ -48,3 +48,5 @@ forbidText('src/components/facilities/FacilityProductionFormula.tsx', 'facility-
           git add scripts/verify-page-content.mjs .github/workflows/patch-production-page-content-verifier.yml
           git commit -m "更新生产结算页面内容验证"
           git push origin HEAD:${GITHUB_REF_NAME}
+
+# Updated to retrigger the branch-only patch workflow.
