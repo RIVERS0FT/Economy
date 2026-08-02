@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
-async function expectTopLayerHitTarget(locator: ReturnType<Parameters<typeof test>[0]['page']['locator']>) {
+async function expectTopLayerHitTarget(locator: Locator) {
   const hit = await locator.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     const target = document.elementFromPoint(
