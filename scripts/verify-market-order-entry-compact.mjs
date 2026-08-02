@@ -1,0 +1,88 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const root = process.cwd();
+const failures = [];
+const read = (path) => readFileSync(resolve(root, path), 'utf8');
+const requireFile = (path) => { if (!existsSync(resolve(root, path))) failures.push(`缺少文件: ${path}`); };
+const requireText = (path, text) => { if (!read(path).includes(text)) failures.push(`${path} 缺少: ${text}`); };
+const forbidText = (path, text) => { if (read(path).includes(text)) failures.push(`${path} 不应包含: ${text}`); };
+
+const componentPath = 'src/components/ui/FormControls.tsx';
+const pagePath = 'src/pages/MarketPage.tsx';
+const stylePath = 'src/styles/market-page-polish.css';
+const orderDesignPath = 'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md';
+const pageDesignPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
+const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
+const browserPath = 'tests/browser/market-order-entry-compact.spec.ts';
+
+[
+  componentPath,
+  pagePath,
+  stylePath,
+  orderDesignPath,
+  pageDesignPath,
+  uiDesignPath,
+  browserPath,
+].forEach(requireFile);
+
+for (const text of [
+  'wheelStep?: number',
+  'document.activeElement !== input',
+  "input.addEventListener('wheel', handleWheel, { passive: false })",
+  'onValueChange(formatMoneyDraft(clampedCents / 100))',
+]) requireText(componentPath, text);
+
+for (const text of [
+  'wheelStep={0.01}',
+  'className="market-submit-order"',
+]) requireText(pagePath, text);
+
+for (const text of [
+  'grid-template-columns: minmax(320px, 3fr) minmax(240px, 2fr);',
+  'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);',
+  'grid-template-columns: var(--market-stepper-label-width) minmax(0, 1fr);',
+  '.market-page-surface .market-stepper__button {',
+  "html[data-input-modality='mouse']",
+  '@media (hover: hover) and (pointer: fine)',
+  'position: absolute;',
+  'width: 44px;',
+  'padding-inline: 52px;',
+]) requireText(stylePath, text);
+
+for (const text of [
+  '字段标签／内嵌减号按钮／共享输入控件／内嵌加号按钮',
+  '不再提供“交易资产详情”折叠区',
+  '下单 60%／盘口 40%',
+  '约 66%／34%',
+  'wheelStep={0.01}',
+]) requireText(orderDesignPath, text);
+
+for (const text of [
+  '订单摘要中常驻显示按整张订单完全成交估算的“预计到账”',
+  '不显示重复的交易资产详情折叠区',
+]) requireText(pageDesignPath, text);
+
+for (const text of [
+  '金额输入默认不响应滚轮',
+  '输入框必须已经聚焦才消费纵向滚轮',
+]) requireText(uiDesignPath, text);
+
+for (const text of [
+  'market order fields keep labels and embedded steppers on one row',
+  'focused market price input owns the wheel in 0.01 steps',
+  'market order book yields width to the order entry on desktop and mobile',
+]) requireText(browserPath, text);
+
+forbidText(pagePath, 'market-order-details');
+forbidText(pagePath, '交易资产详情');
+forbidText(stylePath, '.market-order-details');
+forbidText(stylePath, 'minmax(280px, 44fr) minmax(300px, 56fr)');
+forbidText(stylePath, 'minmax(0, 3fr) minmax(126px, 2fr)');
+
+if (failures.length) {
+  console.error(`市场紧凑下单区验证失败:\n- ${failures.join('\n- ')}`);
+  process.exit(1);
+}
+
+console.log('市场同行标签、内嵌步进按钮、聚焦金额滚轮、详情移除和订单簿宽度验证通过。');

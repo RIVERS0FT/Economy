@@ -203,8 +203,8 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   const narrowChart = await requireBox(page.locator('.market-chart-card'));
   expect(Math.abs(narrowOrder.y - narrowBook.y)).toBeLessThan(3);
   expect(narrowBook.x).toBeGreaterThan(narrowOrder.x + narrowOrder.width - 3);
-  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.35);
-  expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.65);
+  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.75);
+  expect(narrowOrder.width / narrowBook.width).toBeLessThan(2.25);
   expect(narrowChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);
 
   const layout = await inspectMarketLayoutBounds(surface);

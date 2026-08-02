@@ -274,6 +274,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - 所有可编辑正整数使用字符串草稿保存当前文本，允许用户暂时清空；合法值才同步到业务数值、参与预览或提交。不得在 `onChange` 中直接执行 `Number(event.target.value)`，不得把空白立即回填为 `0` 或 `1`。
 - 正整数统一通过 `src/utils/integerDraft.ts` 的 `parseIntegerDraft` 和 `normalizeIntegerDraft` 解析；非法或越界时禁用操作，失焦恢复上一个合法值或收敛到范围，Escape 恢复上一个合法值。
 - 整数输入始终拥有发生在自身命中区域内的滚轮事件：`IntegerInput` 必须在真实 `<input>` 节点上注册非被动原生 `wheel` 监听器，并在事件到达父级 `ScrollArea` 前同时调用 `preventDefault()` 与 `stopPropagation()`；可编辑输入按纵向滚轮方向以步长 1 增减并限制在 `min`／`max`，只读、禁用、横向滚轮和到达数值边界时仍消费事件但不改变值，页面不得跟随滚动。
+- 金额输入默认不响应滚轮；只有业务显式传入正数 `wheelStep` 时，`MoneyInput` 才在真实输入节点注册非被动原生 `wheel` 监听器。输入框必须已经聚焦才消费纵向滚轮，并按“分”的整数步长限制在 `min`／`max`；未聚焦时必须放行滚轮，避免浏览页面时误改金额。
 - 精确输入永远不使用 K/M/B/T 紧凑格式。快捷数量按钮必须同时更新草稿和业务值。
 - 登录邮箱和密码是自动填充例外：继续使用原生未受控值、稳定 `name` 和 `FormData`，不得绑定到初始为空的 React `value`。
 
