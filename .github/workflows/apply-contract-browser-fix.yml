@@ -1,0 +1,39 @@
+name: Apply contract browser fix
+
+on:
+  push:
+    branches:
+      - agent/contract-four-column-workspace
+    paths:
+      - .agent/apply-contract-browser-fix
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .agent/apply-contract-browser-fix
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/contract-four-column-workspace
+          fetch-depth: 0
+      - name: Apply contract browser fix
+        run: |
+          python .agent/fix-contract-browser.py
+          rm -rf .agent
+          rm .github/workflows/apply-contract-browser-fix.yml
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "修复合同工作区浏览器回归"
+          git push origin HEAD:agent/contract-four-column-workspace
