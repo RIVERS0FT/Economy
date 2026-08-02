@@ -23,114 +23,111 @@ jobs:
           python3 <<'PY'
           from pathlib import Path
 
-          def replace_once(path: str, old: str, new: str) -> None:
+          def replace_lines(path: str, old_lines: list[str], new_lines: list[str]) -> None:
               file = Path(path)
               text = file.read_text(encoding='utf-8')
+              old = '\n'.join(old_lines) + '\n'
+              new = '\n'.join(new_lines) + '\n'
               if text.count(old) != 1:
                   raise SystemExit(f'{path}: expected one block, found {text.count(old)}')
               file.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-          replace_once(
-              'src/pages/MarketPage.tsx',
-              """        : availabilityReason
-? orderSide === 'buy'
-  ? game.credits < (parsedOrderPrice ?? 0)
-    ? `资金不足，无法买入${assetName}`
-    : `仓库已满，无法买入${assetName}`
-  : `暂无${assetName}可卖`
-: `数量超出范围，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
-""",
-              """        : availabilityReason
-          ? orderSide === 'buy'
-            ? game.credits < (parsedOrderPrice ?? 0)
-              ? `资金不足，无法买入${assetName}`
-              : `仓库已满，无法买入${assetName}`
-            : `暂无${assetName}可卖`
-          : `数量超出范围，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
-""",
-          )
-          replace_once(
-              'src/pages/MarketPage.tsx',
-              """                <Button
-        block
-        className="market-submit-order"
-        disabled={Boolean(orderDisabledReason)}
-        aria-label={orderActionLabel}
-        onClick={submitOrder}
-      >
-        {orderActionLabel}
-      </Button>
-""",
-              """                <Button
-                  block
-                  className="market-submit-order"
-                  disabled={Boolean(orderDisabledReason)}
-                  aria-label={orderActionLabel}
-                  onClick={submitOrder}
-                >
-                  {orderActionLabel}
-                </Button>
-""",
-          )
-          replace_once(
-              'src/components/charts/PriceSparkline.tsx',
-              """        const sideBySide = Boolean(
-chartCardRect
-&& tradeCardRect
-&& Math.abs(chartCardRect.top - tradeCardRect.top) < 3
-&& chartCardRect.left > tradeCardRect.left + tradeCardRect.width - 3
-        );
-        const cardPaddingBottom = chartCard
-? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0
-: 0;
-        const minimumHeight = sideBySide && chartCardRect
-? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)
-: 0;
-""",
-              """        const sideBySide = Boolean(
-          chartCardRect
-          && tradeCardRect
-          && Math.abs(chartCardRect.top - tradeCardRect.top) < 3
-          && chartCardRect.left > tradeCardRect.left + tradeCardRect.width - 3
-        );
-        const cardPaddingBottom = chartCard
-          ? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0
-          : 0;
-        const minimumHeight = sideBySide && chartCardRect
-          ? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)
-          : 0;
-""",
-          )
-          replace_once(
-              'src/components/charts/PriceSparkline.tsx',
-              """        setMetrics((current) => (
-Math.abs(current.width - width) < 0.5
-&& Math.abs(current.rootFontSize - rootFontSize) < 0.1
-&& Math.abs(current.minimumHeight - minimumHeight) < 0.5
-  ? current
-  : { width, rootFontSize, minimumHeight }
-        ));
-""",
-              """        setMetrics((current) => (
-          Math.abs(current.width - width) < 0.5
-          && Math.abs(current.rootFontSize - rootFontSize) < 0.1
-          && Math.abs(current.minimumHeight - minimumHeight) < 0.5
-            ? current
-            : { width, rootFontSize, minimumHeight }
-        ));
-""",
-          )
-          replace_once(
-              'src/components/charts/PriceSparkline.tsx',
-              """  return { ref, ...metrics };
-}
-function MarketHistoryChart""",
-              """  return { ref, ...metrics };
-}
-
-function MarketHistoryChart""",
-          )
+          replace_lines('src/pages/MarketPage.tsx', [
+              '        : availabilityReason',
+              "? orderSide === 'buy'",
+              '  ? game.credits < (parsedOrderPrice ?? 0)',
+              '    ? `资金不足，无法买入${assetName}`',
+              '    : `仓库已满，无法买入${assetName}`',
+              '  : `暂无${assetName}可卖`',
+              ": `数量超出范围，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`",
+          ], [
+              '        : availabilityReason',
+              "          ? orderSide === 'buy'",
+              '            ? game.credits < (parsedOrderPrice ?? 0)',
+              '              ? `资金不足，无法买入${assetName}`',
+              '              : `仓库已满，无法买入${assetName}`',
+              '            : `暂无${assetName}可卖`',
+              "          : `数量超出范围，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`",
+          ])
+          replace_lines('src/pages/MarketPage.tsx', [
+              '                <Button',
+              '        block',
+              '        className="market-submit-order"',
+              '        disabled={Boolean(orderDisabledReason)}',
+              '        aria-label={orderActionLabel}',
+              '        onClick={submitOrder}',
+              '      >',
+              '        {orderActionLabel}',
+              '      </Button>',
+          ], [
+              '                <Button',
+              '                  block',
+              '                  className="market-submit-order"',
+              '                  disabled={Boolean(orderDisabledReason)}',
+              '                  aria-label={orderActionLabel}',
+              '                  onClick={submitOrder}',
+              '                >',
+              '                  {orderActionLabel}',
+              '                </Button>',
+          ])
+          replace_lines('src/components/charts/PriceSparkline.tsx', [
+              '        const sideBySide = Boolean(',
+              'chartCardRect',
+              '&& tradeCardRect',
+              '&& Math.abs(chartCardRect.top - tradeCardRect.top) < 3',
+              '&& chartCardRect.left > tradeCardRect.left + tradeCardRect.width - 3',
+              '        );',
+              '        const cardPaddingBottom = chartCard',
+              '? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0',
+              ': 0;',
+              '        const minimumHeight = sideBySide && chartCardRect',
+              '? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)',
+              ': 0;',
+          ], [
+              '        const sideBySide = Boolean(',
+              '          chartCardRect',
+              '          && tradeCardRect',
+              '          && Math.abs(chartCardRect.top - tradeCardRect.top) < 3',
+              '          && chartCardRect.left > tradeCardRect.left + tradeCardRect.width - 3',
+              '        );',
+              '        const cardPaddingBottom = chartCard',
+              '          ? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0',
+              '          : 0;',
+              '        const minimumHeight = sideBySide && chartCardRect',
+              '          ? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)',
+              '          : 0;',
+          ])
+          replace_lines('src/components/charts/PriceSparkline.tsx', [
+              '        setMetrics((current) => (',
+              'Math.abs(current.width - width) < 0.5',
+              '&& Math.abs(current.rootFontSize - rootFontSize) < 0.1',
+              '&& Math.abs(current.minimumHeight - minimumHeight) < 0.5',
+              '  ? current',
+              '  : { width, rootFontSize, minimumHeight }',
+              '        ));',
+          ], [
+              '        setMetrics((current) => (',
+              '          Math.abs(current.width - width) < 0.5',
+              '          && Math.abs(current.rootFontSize - rootFontSize) < 0.1',
+              '          && Math.abs(current.minimumHeight - minimumHeight) < 0.5',
+              '            ? current',
+              '            : { width, rootFontSize, minimumHeight }',
+              '        ));',
+          ])
+          replace_lines('src/components/charts/PriceSparkline.tsx', [
+              '  return { ref, ...metrics };',
+              '}',
+              'function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket[]; variant: MarketChartVariant }) {',
+          ], [
+              '  return { ref, ...metrics };',
+              '}',
+              '',
+              'function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket[]; variant: MarketChartVariant }) {',
+          ])
           Path('.github/workflows/agent-market-format.yml').unlink()
+          trigger = Path('.agent-format-trigger')
+          if trigger.exists():
+              trigger.unlink()
           PY
       - name: Verify formatting patch
         run: |
