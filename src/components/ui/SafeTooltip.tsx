@@ -101,16 +101,16 @@ export function SafeTooltip({
   }, [floatingLayer, topLayerSupported]);
 
   useLayoutEffect(() => {
+    if (!topLayerSupported || !open) return undefined;
     const tooltip = tooltipRef.current;
-    if (!topLayerSupported || !tooltip) return undefined;
-    if (!open) {
-      hideTopLayerPopover(tooltip);
-      return undefined;
-    }
+    if (!tooltip) return undefined;
     showTopLayerPopover(tooltip);
     updatePosition();
     const frame = requestAnimationFrame(updatePosition);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      hideTopLayerPopover(tooltip);
+    };
   }, [open, topLayerSupported, updatePosition]);
 
   useLayoutEffect(() => {
@@ -154,11 +154,13 @@ export function SafeTooltip({
     </div>
   );
 
-  const tooltip = topLayerSupported
-    ? tooltipNode
-    : open && floatingLayer
-      ? createPortal(tooltipNode, floatingLayer)
-      : null;
+  const tooltip = !open
+    ? null
+    : topLayerSupported
+      ? tooltipNode
+      : floatingLayer
+        ? createPortal(tooltipNode, floatingLayer)
+        : null;
 
   return (
     <>
