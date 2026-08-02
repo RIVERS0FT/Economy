@@ -37,6 +37,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m py_compile .agent/apply-loading-unification.py
           python3 .agent/apply-loading-unification.py
           git diff --check
 
