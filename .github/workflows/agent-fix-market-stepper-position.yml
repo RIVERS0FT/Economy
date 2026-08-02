@@ -1,0 +1,45 @@
+name: Apply Market Stepper Position Fix
+
+on:
+  push:
+    branches:
+      - agent/fix-market-stepper-position
+    paths:
+      - .github/agent/fix-market-stepper-position.mjs
+      - .github/workflows/agent-fix-market-stepper-position.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: agent/fix-market-stepper-position
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+
+      - name: Apply stable stepper positioning
+        run: |
+          set -euo pipefail
+          node .github/agent/fix-market-stepper-position.mjs
+          node scripts/verify-market-order-entry-compact.mjs
+          git diff --check
+
+      - name: Commit implementation
+        run: |
+          set -euo pipefail
+          rm .github/agent/fix-market-stepper-position.mjs
+          rm .github/workflows/agent-fix-market-stepper-position.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "修复市场加减按钮状态偏移"
+          git push origin HEAD:agent/fix-market-stepper-position
