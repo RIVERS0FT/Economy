@@ -27,6 +27,17 @@ jobs:
           end = source.index("\n          PY\n", start)
           lines = source[start:end].splitlines()
           code = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines) + '\n'
+          duplicate = '''replace_once(page, "          ? `当前没有可出售的${assetName}。`", "          ? '暂无可售库存。'")
+          replace_once(page, "          ? `当前没有可出售的${assetName}。`", "          ? '暂无可售库存。'")'''
+          corrected = '''file = Path(page)
+          text = file.read_text(encoding='utf-8')
+          old = "          ? `当前没有可出售的${assetName}。`"
+          if text.count(old) != 2:
+              raise SystemExit(f'{page}: expected two no-inventory branches, found {text.count(old)}')
+          file.write_text(text.replace(old, "          ? '暂无可售库存。'"), encoding='utf-8')'''
+          if duplicate not in code:
+              raise SystemExit('embedded patch does not contain the expected duplicate replacement')
+          code = code.replace(duplicate, corrected, 1)
           Path('/tmp/apply-market-layout.py').write_text(code, encoding='utf-8')
           PY
           python3 /tmp/apply-market-layout.py
