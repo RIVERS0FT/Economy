@@ -1,7 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test';
 
 async function expectBackgroundImageResolution(locator: Locator, expectedSize: number) {
-  const size = await locator.evaluate(async (element) => {
+  const imageMetadata = await locator.evaluate(async (element) => {
     const backgroundImage = getComputedStyle(element).backgroundImage;
     const match = backgroundImage.match(/url\(["']?(.*?)["']?\)/);
     if (!match) return null;
@@ -9,10 +9,15 @@ async function expectBackgroundImageResolution(locator: Locator, expectedSize: n
     const image = new Image();
     image.src = match[1];
     await image.decode();
-    return { width: image.naturalWidth, height: image.naturalHeight };
+    return {
+      source: image.currentSrc || image.src,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+    };
   });
 
-  expect(size).toEqual({ width: expectedSize, height: expectedSize });
+  expect(imageMetadata).toMatchObject({ width: expectedSize, height: expectedSize });
+  expect(imageMetadata?.source).toContain('/generated/256/');
 }
 
 test('production and market facility artwork use 256px runtime thumbnails', async ({ page }) => {
