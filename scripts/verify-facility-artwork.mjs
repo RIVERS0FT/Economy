@@ -74,10 +74,11 @@ if (failures.length === 0) {
     && typeof artworkBaseline.sha256 === 'object'
     ? artworkBaseline.sha256
     : {};
-  if (artworkBaseline.version !== 1
-    || artworkBaseline.style !== 'subject-first-road-optional-2026-08-02'
+  if (artworkBaseline.version !== 2
+    || artworkBaseline.style !== 'fresh-original-subject-first-2026-08-02'
+    || artworkBaseline.creationMode !== 'from-scratch-new-illustration'
     || artworkBaseline.complexity !== 'C1') {
-    failures.push(`${paths.artworkBaseline} 不是当前 C1 主体优先／道路可选基线`);
+    failures.push(`${paths.artworkBaseline} 不是当前 C1 从空白新绘／主体优先基线`);
   }
   const designIndex = read(paths.designIndex);
   const catalogDesign = read(paths.catalogDesign);
@@ -247,6 +248,8 @@ if (failures.length === 0) {
       '道路不是必选元素',
       '不得为了统一构图强制加入道路',
       '当前 C1 复杂度工厂 `farm`、`orchard`、`ranch` 与 `fishery`',
+      '采用统一新风格从空白新绘',
+      '不以旧图为编辑、描摹或重绘底稿',
       '`scripts/facility-artwork-baseline.json`',
       '无文字、无人物、无水印、无品牌标志',
       '`src/assets/facility-icons/generated/128/`',
@@ -273,5 +276,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、上下可读性渐变、主视觉使用边界及 C1 SHA-256 基线一致。`,
+  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、上下可读性渐变、主视觉使用边界及 C1 从空白新绘 SHA-256 基线一致。`,
 );
