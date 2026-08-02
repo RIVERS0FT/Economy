@@ -195,7 +195,7 @@ replaceOnce(
   `  '输入框必须已经聚焦才消费纵向滚轮',
 ]) requireText(uiDesignPath, text);`,
   `  '输入框必须已经聚焦才消费纵向滚轮',
-  '嵌入输入框的绝对定位操作按钮不得依赖 \\`transform\\` 完成基础居中',
+  '嵌入输入框的绝对定位操作按钮不得依赖',
 ]) requireText(uiDesignPath, text);`,
 );
 replaceOnce(
