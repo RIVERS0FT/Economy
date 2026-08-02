@@ -50,8 +50,9 @@ export function SafeTooltip({
     const tooltip = tooltipRef.current;
     if (!anchor || !tooltip) return;
 
-    const layerRect = floatingLayer?.getBoundingClientRect()
-      ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+    const layerRect = floatingLayer
+      ? floatingLayer.getBoundingClientRect()
+      : new DOMRect(0, 0, window.innerWidth, window.innerHeight);
     const anchorRect = anchor.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
     const maxWidth = Math.max(1, layerRect.width - SAFE_FLOATING_GAP * 2);
