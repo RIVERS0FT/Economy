@@ -16,6 +16,8 @@ const forbidText = (path, text) => {
 
 const componentPath = 'src/components/ui/FormControls.tsx';
 const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
+const safeTooltipPath = 'src/components/ui/SafeTooltip.tsx';
+const topLayerPath = 'src/components/ui/topLayer.ts';
 const draftPath = 'src/utils/integerDraft.ts';
 const stylePath = 'src/styles/form-controls.css';
 const navigationPath = 'src/components/shell/NavigationItems.tsx';
@@ -24,11 +26,14 @@ const mainPath = 'src/main.tsx';
 const designDocPath = 'docs/UI_DESIGN_SYSTEM.md';
 const integerWheelTestPath = 'tests/browser/gem-shop-layout.spec.ts';
 const sidebarBadgeTestPath = 'tests/browser/sidebar-badge.spec.ts';
+const topLayerTestPath = 'tests/browser/top-layer-overlays.spec.ts';
 const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
 
 [
   componentPath,
   richSelectPath,
+  safeTooltipPath,
+  topLayerPath,
   draftPath,
   stylePath,
   navigationPath,
@@ -37,6 +42,7 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   designDocPath,
   integerWheelTestPath,
   sidebarBadgeTestPath,
+  topLayerTestPath,
   'src/app/LoginPage.tsx',
   'src/app/AdminApp.tsx',
   adminGiftCodesPath,
@@ -75,8 +81,34 @@ for (const text of [
   'role="option"',
   'createPortal(',
   'useWorkspaceFloatingLayer()',
+  'supportsTopLayerPopover()',
+  'showTopLayerPopover(listbox)',
+  'hideTopLayerPopover(listbox)',
+  "popover={topLayerSupported ? 'manual' : undefined}",
+  "data-top-layer={topLayerSupported ? 'true' : undefined}",
+  "position: topLayerSupported ? 'fixed' : undefined",
+  "zIndex: topLayerSupported ? 'auto' : undefined",
   'data-facility-sheet-no-drag="true"',
 ]) requireText(richSelectPath, text);
+
+for (const text of [
+  'supportsTopLayerPopover()',
+  'showTopLayerPopover(tooltip)',
+  'hideTopLayerPopover(tooltip)',
+  "popover={topLayerSupported ? 'manual' : undefined}",
+  "data-top-layer={topLayerSupported ? 'true' : undefined}",
+  "position: topLayerSupported ? 'fixed' : undefined",
+  "zIndex: topLayerSupported ? 'auto' : undefined",
+  'createPortal(',
+]) requireText(safeTooltipPath, text);
+
+for (const text of [
+  'export function supportsTopLayerPopover',
+  'export function isTopLayerPopoverOpen',
+  'export function showTopLayerPopover',
+  'export function hideTopLayerPopover',
+  "element.matches(':popover-open')",
+]) requireText(topLayerPath, text);
 
 for (const text of [
   'export function parseIntegerDraft',
@@ -175,6 +207,8 @@ for (const text of [
   '展开态固定在第三网格列右侧',
   '折叠态、`721px–960px` 自动紧凑侧栏和移动底栏固定在按钮内部右上角',
   '只显示 `1`～`99` 或 `99+`',
+  '根级 Dialog 内的 `RichSelectInput` 列表必须复用该 Dialog 根作为安全定位边界并位于详情遮罩之上',
+  '只检查 `z-index` 或 Option 字符串不能证明安全区有效',
 ]) requireText(designDocPath, text);
 
 for (const text of [
@@ -188,10 +222,17 @@ for (const text of [
   'expectBadgeInside(collapsed)',
   'expectBadgeInside(compact)',
 ]) requireText(sidebarBadgeTestPath, text);
+for (const text of [
+  'mobile production rich selects use the browser top layer above the facility sheet',
+  "element.matches(':popover-open')",
+  'document.elementFromPoint(',
+  'expectTopLayerHitTarget',
+  "toHaveAttribute('data-top-layer', 'true')",
+]) requireText(topLayerTestPath, text);
 
 if (failures.length) {
-  console.error(`统一表单与统一导航角标验证失败:\n- ${failures.join('\n- ')}`);
+  console.error(`统一表单、顶层浮层与统一导航角标验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log('统一表单、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');
+console.log('统一表单、顶层浮层、数字草稿、整数输入滚轮归属、统一导航角标与移动端尺寸验证通过。');
