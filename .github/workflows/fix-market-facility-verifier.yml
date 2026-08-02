@@ -1,0 +1,48 @@
+name: Fix market facility verifier
+
+on:
+  push:
+    branches:
+      - codex/market-facility-full-bleed-artwork-v2
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update verifier expectations
+        shell: python
+        run: |
+          from pathlib import Path
+
+          replacements = {
+              Path('scripts/verify-facility-artwork.mjs'): (
+                  '"expect(metrics.readabilityBackground).toContain(\'linear-gradient\')",',
+                  '"expect((metrics.readabilityBackground.match(/linear-gradient/g) ?? []).length).toBe(2)",',
+              ),
+              Path('scripts/verify-market-page-layout.mjs'): (
+                  'requireText(facilityArtworkSpec, "expect(metrics.readabilityBackground).toContain(\'linear-gradient\')", \'Playwright 必须验证市场工厂插画可读性渐变。\');',
+                  'requireText(facilityArtworkSpec, "expect((metrics.readabilityBackground.match(/linear-gradient/g) ?? []).length).toBe(2)", \'Playwright 必须验证市场工厂插画上下双层可读性渐变。\');',
+              ),
+          }
+
+          for path, (old, new) in replacements.items():
+              content = path.read_text(encoding='utf-8')
+              if content.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one verifier string, found {content.count(old)}')
+              path.write_text(content.replace(old, new, 1), encoding='utf-8')
+
+          Path('.github/workflows/fix-market-facility-verifier.yml').unlink()
+      - name: Commit verifier fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/verify-facility-artwork.mjs scripts/verify-market-page-layout.mjs .github/workflows/fix-market-facility-verifier.yml
+          git commit -m "同步市场工厂上下双层渐变验证"
+          git push origin HEAD:${GITHUB_REF_NAME}
