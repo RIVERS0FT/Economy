@@ -9,6 +9,22 @@
   background: var(--color-surface-inset);
 }
 
+.facility-production-formula-heading {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.facility-production-formula-heading strong {
+  flex: 0 0 auto;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+}
+
 .facility-formula-scope {
   min-width: 0;
   justify-self: end;
@@ -173,12 +189,6 @@
 
 .facility-formula-progress .facility-progress-running.is-idle .progress-track {
   opacity: 0.72;
-}
-
-@media (min-width: 961px) {
-  .facility-group-card {
-    grid-template-rows: auto minmax(112px, auto) minmax(0, 1fr) auto;
-  }
 }
 
 @media (max-width: 960px) {

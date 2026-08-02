@@ -15,6 +15,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/types.ts',
   'src/main.tsx',
   'src/pages/ProductionPage.tsx',
+  'src/pages/production/ProductionFacilityDetail.tsx',
   'src/components/ui/layout.tsx',
   'src/components/icons/GameIcons.tsx',
   'src/components/facilities/FacilityProgress.tsx',
@@ -77,11 +78,23 @@ for (const text of [
   'FacilityProductionFormula',
   'products={game.products}',
   'inventories={game.inventories}',
-  'facility-recipe-section',
   '生产配方',
   '下一周期切换为：',
   'setFacilityRecipe',
 ]) requireText('src/pages/ProductionPage.tsx', text);
+
+for (const text of [
+  'facility-production-settings',
+  'facility-production-settings-grid',
+  '<strong>生产设置</strong>',
+  '生产配方',
+  '下一周期切换为：',
+]) requireText('src/pages/production/ProductionFacilityDetail.tsx', text);
+for (const forbidden of [
+  'facility-recipe-section',
+  'facility-production-method-section',
+  '<strong>{selectedMethod.name}</strong>',
+]) forbidText('src/pages/production/ProductionFacilityDetail.tsx', forbidden);
 
 for (const forbidden of [
   'facilityStatusDetail',
@@ -213,10 +226,15 @@ for (const text of [
   '.facility-formula-progress',
   '.facility-formula-meta-icon',
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)',
-  'grid-template-rows: auto minmax(112px, auto) minmax(0, 1fr) auto',
+  '.facility-production-formula-heading',
 ]) requireText('src/styles/facility-production-formula.css', text);
 
 forbidText('src/styles/facility-production-formula.css', '.facility-formula-summary');
+forbidText(
+  'src/styles/facility-production-formula.css',
+  'grid-template-rows: auto minmax(112px, auto) minmax(0, 1fr) auto',
+);
+forbidText('src/styles/facility-production-formula.css', '.facility-group-card {');
 
 requireText('src/main.tsx', "import './styles/facility-production-formula.css';");
 
@@ -259,6 +277,8 @@ for (const text of [
   '不包含顶部关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '自然内容流是桌面详情高度的唯一来源',
+  '生产配方与作业制度必须合并为同一个“生产设置”区',
+  '生产公式与单厂平均利润共同属于同一个“生产结算”容器',
   '工厂满员率与等效产能',
   'staffingBatchCarryBps',
   '不得新增每秒或更高频率扫描全世界工厂的调度器',
@@ -277,6 +297,8 @@ for (const text of [
   '生产进度条',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整文本无障碍描述',
+  '生产配方与作业制度使用同一个“生产设置”区',
+  '公式、进度和单厂平均利润共同组成一张“生产结算”卡',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {

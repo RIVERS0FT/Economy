@@ -1,20 +1,8 @@
-.facility-production-method-section {
-  min-width: 0;
-  display: grid;
-  gap: var(--space-1);
-}
-
 .facility-production-method-summary {
   min-width: 0;
   display: grid;
   gap: 0.2rem;
   padding-inline: var(--space-1);
-}
-
-.facility-production-method-summary strong {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-tight);
 }
 
 .facility-production-method-summary span {

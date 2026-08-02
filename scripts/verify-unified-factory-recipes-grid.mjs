@@ -69,6 +69,8 @@ for (const text of [
   'className={`facility-cluster-profit is-${profit.tone}`}',
   'className="facility-cluster-count"',
   'className="facility-cluster-detail-shell"',
+  'className="facility-production-settings"',
+  'className="facility-production-settings-grid"',
   'className="facility-card-title-block facility-cluster-selector-heading"',
   'role="dialog"',
   'aria-modal="true"',
@@ -81,7 +83,7 @@ for (const text of [
   "pageScroll.style.overflowY = 'hidden'",
   "pageScrollArea.dataset.modalScrollbarSuppressed = 'true'",
   'returnFocusRef.current?.focus()',
-  '<strong>生产配置</strong>',
+  '<strong>生产设置</strong>',
   '下一周期切换为：',
   'showNextCyclePreview={recipeState.showNextCyclePreview}',
   'productionRecipeVariantId',
@@ -262,6 +264,49 @@ for (const forbidden of [
 ])
   assert.equal(css.includes(forbidden), false, `生产主从与悬浮框样式不应包含: ${forbidden}`);
 
+const staffingRule = css.slice(
+  css.indexOf('.facility-staffing-summary {'),
+  css.indexOf('.facility-staffing-heading {'),
+);
+for (const forbidden of ['border:', 'border-radius:', 'background:'])
+  assert.equal(staffingRule.includes(forbidden), false, `满员率状态不得恢复卡片外观: ${forbidden}`);
+
+const settingsRule = css.slice(
+  css.indexOf('.facility-production-settings {'),
+  css.indexOf('.facility-production-formula {'),
+);
+for (const required of [
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  '@container (max-width: 479px)',
+]) assert.equal(css.includes(required), true, `生产设置响应式布局缺少: ${required}`);
+for (const forbidden of ['border-radius:', 'background:'])
+  assert.equal(settingsRule.includes(forbidden), false, `生产设置不得恢复嵌套卡片: ${forbidden}`);
+
+const settlementStart = formula.indexOf('<section className="facility-production-formula"');
+const settlementEnd = formula.indexOf('</section>', settlementStart);
+const profitIndex = formula.indexOf('<FacilityRecipeProfitAnalysis', settlementStart);
+assert.equal(formula.includes('<strong>生产结算</strong>'), true, '生产公式缺少生产结算标题');
+assert.equal(profitIndex > settlementStart && profitIndex < settlementEnd, true, '单厂利润必须位于生产结算容器内');
+
+const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
+const profitRule = profitCss.slice(
+  profitCss.indexOf('.facility-average-profit {'),
+  profitCss.indexOf('.facility-average-profit__copy {'),
+);
+assert.equal(profitRule.includes('border-top:'), true, '单厂利润行必须保留结算分隔线');
+for (const forbidden of ['border:', 'border-radius:', 'background:'])
+  assert.equal(profitRule.includes(forbidden), false, `单厂利润行不得恢复独立卡片: ${forbidden}`);
+
+const detailBodySource = detail.slice(
+  detail.indexOf('export function FacilityClusterDetailBody'),
+  detail.indexOf('export function FacilityMarketAction'),
+);
+for (const forbidden of [
+  'facility-recipe-section',
+  'facility-production-method-section',
+  '<strong>{selectedMethod.name}</strong>',
+]) assert.equal(detailBodySource.includes(forbidden), false, `生产设置不得恢复拆分结构: ${forbidden}`);
+
 const sheetCss = read('src/styles/facility-detail-sheet.css');
 for (const text of [
   'Final authority for the mobile factory detail sheet',
@@ -384,6 +429,8 @@ for (const text of [
   '选择卡内部不得嵌套运行开关、配方选择器或市场按钮',
   '生产公式只展示集群参数',
   '公式不得使用总持有 `count` 作为生产乘数',
+  '生产配方与作业制度必须合并为同一个“生产设置”区',
+  '生产公式与单厂平均利润共同属于同一个“生产结算”容器',
 ])
   assert.equal(industryDoc.includes(text), true, `产业设计缺少: ${text}`);
 for (const forbidden of [
@@ -432,6 +479,9 @@ for (const [path, required] of [
         '上下两层黑色渐变',
         '中央主体区域保持透明',
       '卡片点击不保留选中态',
+      '紧凑满员率状态必须使用无独立边框、圆角和背景的状态带',
+      '生产配方与作业制度使用同一个“生产设置”区',
+      '公式、进度和单厂平均利润共同组成一张“生产结算”卡',
     ],
   ],
   [

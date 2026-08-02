@@ -4,10 +4,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--color-success) 18%, var(--color-border));
-  border-radius: var(--radius-control);
-  padding: var(--space-1) var(--space-2);
-  background: color-mix(in srgb, var(--color-success-soft) 34%, var(--color-surface-inset));
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-2);
 }
 
 .facility-average-profit__copy {
@@ -46,11 +44,6 @@
   color: var(--color-success);
 }
 
-.facility-average-profit.is-negative {
-  border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
-  background: color-mix(in srgb, var(--color-danger-soft) 40%, var(--color-surface-inset));
-}
-
 .facility-average-profit.is-negative .facility-average-profit__value {
   color: var(--color-danger);
 }
@@ -58,7 +51,6 @@
 @container (max-width: 360px) {
   .facility-average-profit {
     gap: var(--space-1);
-    padding-inline: var(--space-1);
   }
 
   .facility-average-profit__copy small {
