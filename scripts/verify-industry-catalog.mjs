@@ -183,7 +183,7 @@ for (const [path, texts] of [
     '标准生产、高速生产、节约生产和高产生产',
     '生产方式与配方必须在同一个周期边界原子切换',
   ]],
-  ['docs/UI_DESIGN_SYSTEM.md', ['当前 31 种正式商品', '服务器未来返回未知商品 ID', '生产方式选择卡']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['当前 31 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡或按钮组']],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['31 种商品和 21 种工厂', '饮料、预制餐、电子产品和家电', '作业制度']],
 ]) {
   const content = readFileSync(path, 'utf8');
