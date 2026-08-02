@@ -262,6 +262,7 @@ export function RichSelectInput({
       case 'Escape':
         if (open) {
           event.preventDefault();
+          event.stopPropagation();
           closeList();
         }
         return;
@@ -324,10 +325,10 @@ export function RichSelectInput({
 
   const listbox = !open
     ? null
-    : topLayerSupported
-      ? listboxNode
-      : floatingLayer
-        ? createPortal(listboxNode, floatingLayer)
+    : floatingLayer
+      ? createPortal(listboxNode, floatingLayer)
+      : topLayerSupported
+        ? listboxNode
         : null;
 
   return (
