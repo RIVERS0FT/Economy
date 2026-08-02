@@ -38,3 +38,5 @@ jobs:
             .github/workflows/agent-production-method-dropdown.yml
           git commit -m "改用下拉框选择作业制度"
           git push origin HEAD:agent/production-method-dropdown
+
+# Trigger after workflow registration.
