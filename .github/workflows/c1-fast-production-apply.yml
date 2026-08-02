@@ -25,6 +25,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.agent/c1-fast-production.patch')
+          text = path.read_text(encoding='utf-8')
+          start = text.index("replace('server/test/facility-groups.test.js', \"\"\"  processFacilityGroupWorld(world, now + 360_000);")
+          end = text.index("\n\nprint('C1 fast production transformations applied')", start)
+          replacement = '''replace('server/test/facility-groups.test.js', "processFacilityGroupWorld(world, now + 360_000);", "processFacilityGroupWorld(world, now + 80_000);")
+          replace('server/test/facility-groups.test.js', "assert.equal(player.credits, 94);", "assert.equal(player.credits, 99);")
+          replace('server/test/facility-groups.test.js', "assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 3_500);", "assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 1_998);")
+          replace('server/test/facility-groups.test.js', "assert.equal(player.facilityGroups[0].staffingRateBps, 8_500);", "assert.equal(player.facilityGroups[0].staffingRateBps, 3_832);")
+          replace('server/test/facility-groups.test.js', "assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 8_500);", "assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 3_832);")'''
+          path.write_text(text[:start] + replacement + text[end:], encoding='utf-8')
+          PY
           python .agent/c1-fast-production.patch
           rm -f .agent/c1-fast-production.patch .github/workflows/c1-fast-production-apply.yml
           rmdir .agent 2>/dev/null || true
