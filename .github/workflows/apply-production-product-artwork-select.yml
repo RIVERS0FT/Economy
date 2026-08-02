@@ -35,50 +35,58 @@ jobs:
           from pathlib import Path
           path = Path('.agent/apply-production-product-artwork-select.py')
           content = path.read_text(encoding='utf-8')
-          old = """    if content.count(marker) != 1:\n        raise RuntimeError(f'{path} 插入标记不唯一: {marker}')\n    target.write_text(content.replace(marker, addition + marker), encoding='utf-8')"""
-          new = """    if marker not in content:\n        raise RuntimeError(f'{path} 缺少插入标记: {marker}')\n    target.write_text(content.replace(marker, addition + marker, 1), encoding='utf-8')"""
-          if content.count(old) != 1:
-              raise RuntimeError('append_before 修复目标不唯一')
-          content = content.replace(old, new)
-
-          scroll_old = '  overscroll-behavior: contain;'
-          scroll_new = '  overscroll-behavior-y: auto;'
-          if content.count(scroll_old) != 1:
-              raise RuntimeError('富内容下拉框滚动边界修复目标不唯一')
-          content = content.replace(scroll_old, scroll_new)
-
-          trigger_hover_old = """.ui-rich-select__trigger:hover:not(:disabled) {\n  border-color: var(--color-border-strong);\n  background: var(--color-surface-hover);\n}"""
-          trigger_hover_new = """@media (hover: hover) and (pointer: fine) {\n  html[data-input-modality='mouse'] .ui-rich-select__trigger:hover:not(:disabled) {\n    border-color: var(--color-border-strong);\n    background: var(--color-surface-hover);\n  }\n}"""
-          if content.count(trigger_hover_old) != 1:
-              raise RuntimeError('富内容下拉框触发器 hover 修复目标不唯一')
-          content = content.replace(trigger_hover_old, trigger_hover_new)
-
-          option_hover_old = """.ui-rich-select__option:hover:not(:disabled),\n.ui-rich-select__option[data-active='true']:not(:disabled) {\n  color: var(--color-text-primary);\n  background: var(--color-surface-hover);\n}"""
-          option_hover_new = """.ui-rich-select__option[data-active='true']:not(:disabled) {\n  color: var(--color-text-primary);\n  background: var(--color-surface-hover);\n}\n\n@media (hover: hover) and (pointer: fine) {\n  html[data-input-modality='mouse'] .ui-rich-select__option:hover:not(:disabled) {\n    color: var(--color-text-primary);\n    background: var(--color-surface-hover);\n  }\n}"""
-          if content.count(option_hover_old) != 1:
-              raise RuntimeError('富内容下拉框选项 hover 修复目标不唯一')
-          path.write_text(content.replace(option_hover_old, option_hover_new), encoding='utf-8')
-          PY
-          python3 .agent/apply-production-product-artwork-select.py
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('scripts/verify-unified-factory-recipes-grid.mjs')
-          content = path.read_text(encoding='utf-8')
           replacements = [
               (
-                  "  '生产配方与作业制度必须合并为同一个“生产设置”区',",
-                  "  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',",
+                  """    if content.count(marker) != 1:\n        raise RuntimeError(f'{path} 插入标记不唯一: {marker}')\n    target.write_text(content.replace(marker, addition + marker), encoding='utf-8')""",
+                  """    if marker not in content:\n        raise RuntimeError(f'{path} 缺少插入标记: {marker}')\n    target.write_text(content.replace(marker, addition + marker, 1), encoding='utf-8')""",
+              ),
+              ('  overscroll-behavior: contain;', '  overscroll-behavior-y: auto;'),
+              (
+                  ".ui-rich-select__trigger:hover:not(:disabled) {\n  border-color: var(--color-border-strong);\n  background: var(--color-surface-hover);\n}",
+                  "@media (hover: hover) and (pointer: fine) {\n  html[data-input-modality='mouse'] .ui-rich-select__trigger:hover:not(:disabled) {\n    border-color: var(--color-border-strong);\n    background: var(--color-surface-hover);\n  }\n}",
               ),
               (
-                  "      '生产配方与作业制度使用同一个“生产设置”区',",
-                  "      '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',",
+                  ".ui-rich-select__option:hover:not(:disabled),\n.ui-rich-select__option[data-active='true']:not(:disabled) {\n  color: var(--color-text-primary);\n  background: var(--color-surface-hover);\n}",
+                  ".ui-rich-select__option[data-active='true']:not(:disabled) {\n  color: var(--color-text-primary);\n  background: var(--color-surface-hover);\n}\n\n@media (hover: hover) and (pointer: fine) {\n  html[data-input-modality='mouse'] .ui-rich-select__option:hover:not(:disabled) {\n    color: var(--color-text-primary);\n    background: var(--color-surface-hover);\n  }\n}",
               ),
           ]
           for old, new in replacements:
               if content.count(old) != 1:
-                  raise RuntimeError(f'生产设置权威验证文案目标不唯一: {old}')
+                  raise RuntimeError(f'实施脚本修复目标不唯一: {old[:60]}')
               content = content.replace(old, new)
           path.write_text(content, encoding='utf-8')
+          PY
+          python3 .agent/apply-production-product-artwork-select.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_one(path, old, new):
+              target = Path(path)
+              content = target.read_text(encoding='utf-8')
+              if content.count(old) != 1:
+                  raise RuntimeError(f'{path} 验证文案目标不唯一: {old}')
+              target.write_text(content.replace(old, new), encoding='utf-8')
+
+          replace_one(
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              "  '生产配方与作业制度必须合并为同一个“生产设置”区',",
+              "  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',",
+          )
+          replace_one(
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              "      '生产配方与作业制度使用同一个“生产设置”区',",
+              "      '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',",
+          )
+          replace_one(
+              'scripts/verify-market-assets.mjs',
+              "  '生产配方',\n  '下一周期切换为：',",
+              "  '生产产物',\n  '下一周期切换为：',",
+          )
+          replace_one(
+              'scripts/verify-warehouse-expansion.mjs',
+              "  '生产配方',\n  '固定配方：',",
+              "  '生产产物',\n  '固定产物：',",
+          )
           PY
 
       - name: Remove temporary application files
