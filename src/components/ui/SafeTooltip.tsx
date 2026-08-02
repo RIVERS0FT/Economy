@@ -140,6 +140,10 @@ export function SafeTooltip({
       data-top-layer={topLayerSupported ? 'true' : undefined}
       popover={topLayerSupported ? 'manual' : undefined}
       style={{
+        position: topLayerSupported ? 'fixed' : undefined,
+        inset: topLayerSupported ? 'auto' : undefined,
+        margin: topLayerSupported ? 0 : undefined,
+        zIndex: topLayerSupported ? 'auto' : undefined,
         left: `${position.left}px`,
         top: `${position.top}px`,
         maxWidth: `${position.maxWidth}px`,
