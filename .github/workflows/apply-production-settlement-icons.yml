@@ -34,13 +34,26 @@ jobs:
           python3 .agent/apply-production-settlement-icons.py
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('scripts/verify-production-settlement-layout.mjs')
-          content = path.read_text(encoding='utf-8')
-          old = "assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 3, '生产结算必须保留组件定义、输入调用和输出调用');"
-          new = "assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 2, '生产结算必须保留输入和输出调用');"
-          if content.count(old) != 1:
+
+          settlement = Path('scripts/verify-production-settlement-layout.mjs')
+          settlement_content = settlement.read_text(encoding='utf-8')
+          settlement_old = "assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 3, '生产结算必须保留组件定义、输入调用和输出调用');"
+          settlement_new = "assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 2, '生产结算必须保留输入和输出调用');"
+          if settlement_content.count(settlement_old) != 1:
               raise RuntimeError('生产结算 RecipeItems 防回退目标不唯一')
-          path.write_text(content.replace(old, new), encoding='utf-8')
+          settlement.write_text(settlement_content.replace(settlement_old, settlement_new), encoding='utf-8')
+
+          facility_groups = Path('scripts/verify-facility-groups.mjs')
+          facility_content = facility_groups.read_text(encoding='utf-8')
+          replacements = {
+              "  '周期 SVG 图标',": "  '周期与当前集群周期成本固定放在输入组合区的物资行下方',",
+              "  '周期与成本不得回到输入输出之间的独立中列',": "  '时间与成本不得回到输入输出之间的独立中列',",
+          }
+          for old, new in replacements.items():
+              if facility_content.count(old) != 1:
+                  raise RuntimeError(f'工厂集群防回退目标不唯一: {old}')
+              facility_content = facility_content.replace(old, new)
+          facility_groups.write_text(facility_content, encoding='utf-8')
           PY
 
       - name: Remove temporary application files
