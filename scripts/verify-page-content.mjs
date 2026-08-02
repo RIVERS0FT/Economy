@@ -121,7 +121,7 @@ for (const text of [
   'unified-asset-tabs',
   'placeAssetOrder',
   'single-order-book',
-  'order-book-divider',
+  'order-book-midpoint',
   'items={localTrades}',
   'local-trades-virtual-table',
   '<FactoryIcon />',

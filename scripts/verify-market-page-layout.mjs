@@ -25,7 +25,8 @@ function forbidText(source, text, message) {
   if (source.includes(text)) failures.push(message);
 }
 
-requireText(marketStyles, 'grid-template-columns: 320px 360px minmax(620px, 1fr)', '宽屏市场必须为固定下单列、订单簿列和宽行情列。');
+requireText(marketStyles, 'grid-template-columns: minmax(640px, 1.05fr) minmax(620px, 0.95fr)', '宽屏市场必须使用合并交易卡与行情图双列布局。');
+forbidText(marketStyles, 'grid-template-columns: 320px 360px minmax(620px, 1fr)', '市场不得恢复下单、订单簿和行情图三个独立一级卡片列。');
 requireText(chartSource, 'export function buildMarketChartGeometry', '完整行情图必须由组件计算动态几何。');
 requireText(chartSource, 'Math.max(48, rootFontSize', '完整行情图成交量绘图区必须保持至少 48px。');
 requireText(chartSource, '(0.22 / 0.78)', '完整行情图成交量绘图区必须保持至少 22% 数据区占比。');
@@ -41,7 +42,20 @@ forbidText(marketStyles, 'grid-auto-columns: 132px;', '市场分组标签不得�
 requireText(marketStyles, 'scroll-snap-type: none', '市场资产目录必须关闭吸附并允许无级滑动。');
 forbidText(marketStyles, 'scroll-behavior: smooth', '市场资产目录不得用容器级平滑滚动干扰拖动。');
 forbidText(sharedMarketStyles, 'scroll-snap-align: start', '市场资产卡不得恢复吸附锚点。');
-requireText(marketStyles, '.single-order-book', '订单簿必须拥有自然高度覆盖。');
+requireText(marketPage, '<Panel className="widget market-trade-card">', '下单与订单簿必须共用同一个一级交易卡片。');
+requireText(marketPage, 'className="market-trade-layout"', '交易卡必须提供内部响应式组合布局。');
+requireText(marketPage, 'className="order-entry market-trade-entry"', '交易卡必须保留下单区语义。');
+requireText(marketPage, 'className="order-book single-order-book market-trade-book"', '交易卡必须保留订单簿语义。');
+forbidText(marketPage, '<Panel className="widget order-entry">', '下单区不得恢复为独立一级卡片。');
+forbidText(marketPage, '<Panel className="widget order-book single-order-book">', '订单簿不得恢复为独立一级卡片。');
+requireText(marketPage, 'ownSelectedOrders.length > 0 ? (', '当前资产快捷撤单列表必须只在存在未完成订单时显示。');
+forbidText(marketPage, '当前资产没有未完成订单。', '交易卡不得重复显示零订单空状态。');
+requireText(marketStyles, 'grid-template-columns: minmax(280px, 44fr) minmax(300px, 56fr);', '交易卡桌面内部必须使用下单区 44%、订单簿 56% 的双列结构。');
+requireText(marketStyles, '@container market-page (max-width: 819px)', '交易卡必须定义窄容器响应式断点。');
+requireText(marketStyles, 'border-left: 0;', '窄容器必须把订单簿竖分隔改为横向堆叠。');
+requireText(marketDesign, '市场下单表单与同资产五档订单簿必须位于同一个一级“{资产}交易”卡片内', '统一订单簿权威设计必须记录合并交易卡规则。');
+requireText(runtimeSpec, 'market desktop layout keeps order entry and order book in one trade card beside the chart', 'Playwright 必须覆盖宽屏合并交易卡布局。');
+requireText(runtimeSpec, 'market medium and narrow layouts keep the trade card responsive without horizontal overflow', 'Playwright 必须覆盖中窄宽度交易卡响应式布局。');
 forbidText(marketStyles, '.chart-footer', '行情图下方统计栏及其两列布局必须删除。');
 requireText(chartStyles, 'font-variant-numeric: tabular-nums;', '行情坐标轴必须使用稳定数字宽度。');
 requireText(marketStyles, '.asset-directory-shell {\n    position: relative;\n    z-index: 0;', '移动市场资产目录必须建立局部堆叠上下文，防止 sticky 分组遮挡状态栏。');
@@ -114,7 +128,7 @@ requireText(runtimeHarness, "scenario === 'sell-empty'", '浏览器运行时必�
 requireText(runtimeHarness, '...Array.from({ length: 5 }', '浏览器运行时必须提供五张同价买单。');
 requireText(runtimeHarness, 'remaining: 1', '同价档位测试必须使用当前剩余数量。');
 requireText(runtimeHarness, "lastTradePrice: product.id === 'wheat' ? 2 : null", '浏览器夹具必须显式提供真实成交价。');
-requireText(runtimeSpec, 'market desktop layout gives the full chart the dominant column', 'Playwright 必须覆盖宽屏行情主列。');
+requireText(runtimeSpec, "page.locator('.market-trade-card')", 'Playwright 必须覆盖宽屏合并交易卡与行情列。');
 requireText(runtimeSpec, "chartCard.locator('.chart-footer')", 'Playwright 必须验证行情底部统计栏已删除。');
 requireText(runtimeSpec, 'expect(axis.priceTicks.length).toBe(axis.priceTickCount)', 'Playwright 必须验证价格轴刻度数量来自组件动态声明。');
 requireText(runtimeSpec, 'expect(axis.priceTicks.every((value) => Number.isInteger(value))).toBe(true)', 'Playwright 必须验证动态价格轴仍只使用整数刻度。');
