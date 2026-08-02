@@ -16,7 +16,7 @@
 |---|---|---|---|
 | 概览 | `home` | `OverviewPage` | 工作、基础教程当前步骤和经营摘要 |
 | 市场 | `market` | `MarketPage` | 商品与工厂统一交易 |
-| 生产 | `production` | `ProductionPage` | 仓库、建设和工厂集群 |
+| 生产 | `production` | `ProductionPage` | 仓库、建设、工厂集群，以及玩家可见“生产产物／作业制度”配置 |
 | 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包竞价及结算结果 |
 | 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |
 | 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |

@@ -113,8 +113,8 @@ for (const text of [
   'orderedFacilityGroups.map',
   'facility-status-header',
   'FacilityProductionFormula',
-  '生产配方',
-  '固定配方：',
+  '生产产物',
+  '固定产物：',
   '前往市场交易该工厂',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 for (const forbidden of [

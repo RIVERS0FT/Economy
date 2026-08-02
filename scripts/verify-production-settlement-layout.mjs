@@ -4,9 +4,11 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(path, 'utf8');
 const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
-const controls = read('src/components/ui/FormControls.tsx');
+const richSelect = read('src/components/ui/RichSelectInput.tsx');
+const productArtwork = read('src/components/products/ProductArtwork.tsx');
 const formulaCss = read('src/styles/facility-production-formula.css');
 const controlsCss = read('src/styles/form-controls.css');
+const artworkCss = read('src/styles/product-artwork.css');
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
 const browserTest = read('tests/browser/production-methods.spec.ts');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
@@ -22,13 +24,14 @@ for (const text of [
   'facility-formula-meta-unit is-cost',
   'className="facility-formula-output"',
   'className="facility-formula-inventory"',
-  '<ProductIcon productId={item.productId} />',
+  '<ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />',
   '<WarehouseIcon className="facility-formula-meta-icon" />',
   '<FacilityGroupProgress group={group} type={type} now={now} />',
 ]) assert.equal(formula.includes(text), true, `生产结算结构缺少: ${text}`);
 
 assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 2, '生产结算必须保留输入和输出调用');
 for (const forbidden of [
+  '<ProductIcon',
   'showInventory',
   'facility-formula-meta-divider',
   '<strong>{formatNumber(quantity)} ×</strong>',
@@ -36,11 +39,24 @@ for (const forbidden of [
 ]) assert.equal(formula.includes(forbidden), false, `生产结算不得包含: ${forbidden}`);
 
 const itemStart = formula.indexOf('className={itemClassName}');
-const productIconStart = formula.indexOf('<ProductIcon productId={item.productId} />', itemStart);
+const artworkStart = formula.indexOf('<ProductArtwork', itemStart);
 const quantityStart = formula.indexOf('<strong>{formatNumber(quantity)}</strong>', itemStart);
 const inventoryStart = formula.indexOf('className="facility-formula-inventory"', itemStart);
-assert.ok(itemStart >= 0 && productIconStart > itemStart, '商品 Icon 必须位于物资行内');
-assert.ok(quantityStart > productIconStart && inventoryStart > quantityStart, '物资行必须依次为商品 Icon、生产数量、仓库数量');
+assert.ok(itemStart >= 0 && artworkStart > itemStart, '商品图片必须位于物资行内');
+assert.ok(quantityStart > artworkStart && inventoryStart > quantityStart, '物资行必须依次为商品图片、生产数量、仓库数量');
+
+for (const text of [
+  'data-product-artwork={productId}',
+  "classNames('product-icon', 'product-artwork', className)",
+]) assert.equal(productArtwork.includes(text), true, `商品图片组件缺少: ${text}`);
+for (const forbidden of ['<svg', '<path']) {
+  assert.equal(productArtwork.includes(forbidden), false, `商品图片组件不得渲染: ${forbidden}`);
+}
+for (const text of [
+  '.product-artwork {',
+  'background-image: var(--product-artwork-image, none);',
+  'background-size: contain;',
+]) assert.equal(artworkCss.includes(text), true, `商品图片样式缺少: ${text}`);
 
 const inputSideStart = formula.indexOf('className="facility-formula-input-side"');
 const inputStart = formula.indexOf('className="facility-formula-input"', inputSideStart);
@@ -53,6 +69,7 @@ for (const text of [
   '.facility-formula-input-side',
   '.facility-formula-meta',
   '.facility-formula-item-group',
+  '.facility-formula-product-artwork',
   'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);',
   'grid-template-columns: auto auto auto;',
   'grid-template-columns: minmax(0, 1fr);',
@@ -72,24 +89,34 @@ for (const forbidden of [
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
 
 for (const text of [
-  'leadingIcon?: ReactNode;',
-  "classNames('ui-control-shell', leadingIcon && 'ui-control-shell--with-leading-icon')",
-  'className="ui-control-leading-icon"',
-]) assert.equal(controls.includes(text), true, `统一选择器前置 Icon 支持缺少: ${text}`);
+  'export function RichSelectInput',
+  'role="combobox"',
+  'role="listbox"',
+  'role="option"',
+  'createPortal(',
+  'useWorkspaceFloatingLayer()',
+  "event.key === 'ArrowDown'",
+  "case 'Escape':",
+  'data-facility-sheet-no-drag="true"',
+]) assert.equal(richSelect.includes(text), true, `统一富内容下拉框缺少: ${text}`);
 for (const text of [
-  '.ui-control-leading-icon',
-  '.ui-control-shell--with-leading-icon > select.ui-control',
-  'padding-left: 2.55rem;',
-]) assert.equal(controlsCss.includes(text), true, `统一选择器前置 Icon 样式缺少: ${text}`);
+  '.ui-rich-select__trigger',
+  '.ui-rich-select__listbox',
+  '.ui-rich-select__option',
+  "[aria-selected='true']",
+  'min-height: 48px;',
+]) assert.equal(controlsCss.includes(text), true, `统一富内容下拉框样式缺少: ${text}`);
 for (const text of [
-  'leadingIcon={<ProductIcon productId={selectedBaseRecipe.output.productId} />}',
-  'leadingIcon={<ProductionMethodIcon methodId={recipeState.selectedProductionMethodId} />}',
+  'label="生产产物"',
+  'aria-label={`${type.name}生产产物`}',
+  'visual: <ProductArtwork productId={recipe.output.productId} />',
+  'visual: <ProductionMethodIcon methodId={method.id} />',
   'data-production-method-icon={methodId}',
-]) assert.equal(detail.includes(text), true, `生产设置 Icon 缺少: ${text}`);
-for (const forbidden of ['<svg', '<path']) {
+]) assert.equal(detail.includes(text), true, `生产设置富内容选项缺少: ${text}`);
+for (const forbidden of ['<SelectInput', '<option']) {
   const settingsStart = detail.indexOf('<section className="facility-production-settings">');
   const settingsEnd = detail.indexOf('<FacilityProductionFormula', settingsStart);
-  assert.equal(detail.slice(settingsStart, settingsEnd).includes(forbidden), false, `生产设置不得手写图形标记: ${forbidden}`);
+  assert.equal(detail.slice(settingsStart, settingsEnd).includes(forbidden), false, `生产设置不得恢复: ${forbidden}`);
 }
 
 const groupCssImport = main.indexOf("import './styles/facility-group-card-grid.css';");
@@ -106,29 +133,23 @@ for (const forbidden of ['border-radius:', 'background:']) {
 }
 
 for (const text of [
-  "const inputSide = settlement.locator('.facility-formula-input-side')",
-  'expect(formulaColumns).toBe(2)',
-  'expect(metaBox.x + metaBox.width).toBeLessThan(outputBox.x)',
-  "settlement.locator('.facility-formula-item-group').first()",
-  "settlement.locator('.facility-formula-output .facility-formula-inventory')",
+  "getByRole('combobox', { name: '机械工厂生产产物' })",
+  "getByRole('listbox', { name: '机械工厂生产产物' })",
+  "getByRole('option', { name: '节约生产' })",
+  "settlement.locator('svg.product-icon')",
+  "settlement.locator('.product-artwork')",
+  'expect(box.x + box.width).toBeLessThanOrEqual(390)',
   'expect(costBox.y).toBeGreaterThan(cycleBox.y + cycleBox.height - 1)',
-  "settings.locator('.ui-control-leading-icon')",
   'arrowClipPath',
 ]) assert.equal(browserTest.includes(text), true, `生产结算浏览器回归缺少: ${text}`);
 
 for (const text of [
   '工厂生产公式固定采用双列顶层布局',
-  '商品 Icon、生产数量、仓库 Icon、当前可用库存',
-  '时间和成本固定上下两行',
-  '业务组件只能传入统一 Icon 组件',
-  '`SelectInput` 的 `leadingIcon`',
+  '商品图片、生产数量、仓库 Icon、当前可用库存',
+  '`ProductArtwork`',
+  '`RichSelectInput`',
+  '不得恢复浏览器浅色原生选项弹层',
   '输入与输出均显示当前可用库存',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
 
-for (const forbidden of [
-  '输入项目下方使用仓库 SVG',
-  '输入项目下方显示对应当前可用库存',
-  '输入和输出项目使用“数量 × 商品 SVG”结构',
-]) assert.equal(uiDesign.includes(forbidden) || industryDesign.includes(forbidden), false, `权威设计仍保留旧生产结算规则: ${forbidden}`);
-
-console.log('生产结算 Icon、数量、输入输出仓库库存、两行周期成本、Icon 选择器、流向进度、样式加载与利润结果栏验证通过。');
+console.log('生产结算商品 PNG、输入输出仓库库存、两行周期成本、统一富内容下拉框、流向进度、响应式与利润结果栏验证通过。');

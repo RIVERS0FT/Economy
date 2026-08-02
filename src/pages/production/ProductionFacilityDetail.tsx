@@ -1,8 +1,8 @@
 import { FacilityIcon } from '../../components/icons/FacilityIcons';
 import { AssetsIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../../components/icons/GameIcons';
-import { ProductIcon } from '../../components/icons/ProductIcons';
+import { ProductArtwork } from '../../components/products/ProductArtwork';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
-import { SelectInput } from '../../components/ui/FormControls';
+import { RichSelectInput } from '../../components/ui/RichSelectInput';
 import {
   Button,
   StatusTag,
@@ -426,9 +426,6 @@ export function FacilityClusterDetailBody({
     (method) => method.id === recipeState.selectedProductionMethodId,
   );
   const selectedPlan = selectedMethod?.plansByRecipeId[recipeState.selectedBaseRecipeId];
-  const selectedBaseRecipe = recipeState.recipes.find(
-    (recipe) => recipe.id === recipeState.selectedBaseRecipeId,
-  ) ?? recipeState.activeBaseRecipe;
 
   const selectConfiguration = (
     selectedBaseRecipeId: string,
@@ -453,46 +450,40 @@ export function FacilityClusterDetailBody({
         </div>
 
         <div className="facility-production-settings-grid">
-          <SelectInput
-            label="生产配方"
-            aria-label={`${type.name}生产配方`}
-            leadingIcon={<ProductIcon productId={selectedBaseRecipe.output.productId} />}
+          <RichSelectInput
+            label="生产产物"
+            aria-label={`${type.name}生产产物`}
             value={recipeState.selectedBaseRecipeId}
+            options={recipeState.recipes.map((recipe) => ({
+              value: recipe.id,
+              label: recipe.name,
+              visual: <ProductArtwork productId={recipe.output.productId} />,
+            }))}
             disabled={group.count < 1 || recipeState.recipes.length === 0}
-            onChange={(event) => {
-              selectConfiguration(event.target.value, recipeState.selectedProductionMethodId);
+            onValueChange={(baseRecipeId) => {
+              selectConfiguration(baseRecipeId, recipeState.selectedProductionMethodId);
             }}
-          >
-            {recipeState.recipes.map((recipe) => (
-              <option key={recipe.id} value={recipe.id}>
-                {recipe.name}
-              </option>
-            ))}
-          </SelectInput>
+          />
 
           {recipeState.productionMethodGroup ? (
-            <SelectInput
+            <RichSelectInput
               label={recipeState.productionMethodGroup.name}
               aria-label={`${type.name}生产方式`}
-              leadingIcon={<ProductionMethodIcon methodId={recipeState.selectedProductionMethodId} />}
               value={recipeState.selectedProductionMethodId}
+              options={recipeState.productionMethodGroup.methods.map((method) => ({
+                value: method.id,
+                label: method.name,
+                disabled: !method.plansByRecipeId[recipeState.selectedBaseRecipeId],
+                visual: <ProductionMethodIcon methodId={method.id} />,
+              }))}
               disabled={group.count < 1}
-              onChange={(event) => {
+              onValueChange={(methodId) => {
                 selectConfiguration(
                   recipeState.selectedBaseRecipeId,
-                  event.target.value as FacilityProductionMethodId,
+                  methodId as FacilityProductionMethodId,
                 );
               }}
-            >
-              {recipeState.productionMethodGroup.methods.map((method) => {
-                const plan = method.plansByRecipeId[recipeState.selectedBaseRecipeId];
-                return (
-                  <option value={method.id} key={method.id} disabled={!plan}>
-                    {method.name}
-                  </option>
-                );
-              })}
-            </SelectInput>
+            />
           ) : null}
         </div>
 

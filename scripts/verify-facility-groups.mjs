@@ -78,7 +78,7 @@ for (const text of [
   'FacilityProductionFormula',
   'products={game.products}',
   'inventories={game.inventories}',
-  '生产配方',
+  '生产产物',
   '下一周期切换为：',
   'setFacilityRecipe',
 ]) requireText('src/pages/ProductionPage.tsx', text);
@@ -87,7 +87,7 @@ for (const text of [
   'facility-production-settings',
   'facility-production-settings-grid',
   '<strong>生产设置</strong>',
-  '生产配方',
+  '生产产物',
   '下一周期切换为：',
 ]) requireText('src/pages/production/ProductionFacilityDetail.tsx', text);
 for (const forbidden of [
@@ -289,7 +289,7 @@ for (const text of [
   '不包含顶部关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '自然内容流是桌面详情高度的唯一来源',
-  '生产配方与作业制度必须合并为同一个“生产设置”区',
+  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
   '生产公式与单厂平均利润共同属于同一个“生产结算”容器',
   '工厂满员率与等效产能',
   'staffingBatchCarryBps',
@@ -300,7 +300,7 @@ for (const text of [
   'SwitchControl',
   '.ui-switch',
   '唯一',
-  '生产配方',
+  '生产产物',
   'facility-production-formula.css',
   'CycleIcon',
   'CreditsIcon',
@@ -311,7 +311,7 @@ for (const text of [
   '生产进度条',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整文本无障碍描述',
-  '生产配方与作业制度使用同一个“生产设置”区',
+  '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
   '公式、进度和单厂平均利润共同组成一张“生产结算”卡',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 

@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { CreditsIcon, CycleIcon, WarehouseIcon } from '../icons/GameIcons';
-import { ProductIcon } from '../icons/ProductIcons';
+import { ProductArtwork } from '../products/ProductArtwork';
 import type {
   FacilityGroup,
   FacilityRecipeItem,
@@ -143,7 +143,7 @@ function RecipeItems({
                 className={itemClassName}
                 title={`${productName}：生产 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}
               >
-                <ProductIcon productId={item.productId} />
+                <ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />
                 <strong>{formatNumber(quantity)}</strong>
                 <span className="facility-formula-inventory" title={`${productName}仓库可用数量`}>
                   <WarehouseIcon className="facility-formula-meta-icon" />

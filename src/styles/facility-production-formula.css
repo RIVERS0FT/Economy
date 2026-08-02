@@ -147,13 +147,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.facility-formula-input-item > .product-icon,
-.facility-formula-output-item > .product-icon {
+.facility-formula-product-artwork {
   flex: 0 0 auto;
-  width: 1.5rem;
-  height: 1.5rem;
-  color: var(--color-warning);
-  filter: drop-shadow(0 1px 1px color-mix(in srgb, var(--color-bg-deep) 72%, transparent));
+  width: 1.85rem;
+  height: 1.85rem;
+  filter: drop-shadow(0 2px 2px color-mix(in srgb, var(--color-bg-deep) 72%, transparent));
 }
 
 .facility-formula-inventory,
@@ -354,10 +352,9 @@
     font-size: var(--font-size-xs);
   }
 
-  .facility-formula-input-item > .product-icon,
-  .facility-formula-output-item > .product-icon {
-    width: 1.25rem;
-    height: 1.25rem;
+  .facility-formula-product-artwork {
+    width: 1.55rem;
+    height: 1.55rem;
   }
 
   .facility-formula-inventory {

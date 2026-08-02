@@ -30,6 +30,15 @@
 .product-icon[data-product-icon='electronics'] { --product-artwork-image: url('../assets/product-icons/generated/128/electronics.png'); }
 .product-icon[data-product-icon='appliance'] { --product-artwork-image: url('../assets/product-icons/generated/128/appliance.png'); }
 
+.product-artwork {
+  display: inline-block;
+  flex: 0 0 auto;
+  background-image: var(--product-artwork-image, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
 :is(
   .warehouse-product-card-icon,
   .market-asset-card__icon-layer,
@@ -137,6 +146,12 @@
   .market-summary > .widget-heading .product-icon {
     width: 34px;
     height: 34px;
+  }
+}
+
+@media (prefers-reduced-data: reduce) {
+  .product-artwork {
+    background-image: none;
   }
 }
 
