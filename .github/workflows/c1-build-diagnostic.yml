@@ -46,12 +46,19 @@ jobs:
             }
             const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
             for (const key of keys) {
-              if (diffs.length >= 120) return;
+              if (diffs.length >= 40) return;
               walk(a[key], b[key], path ? `${path}.${key}` : key);
             }
           }
           walk(before, after);
-          console.log(JSON.stringify({ initialRevision: initial.revision, polled, beforeRevision: beforeRow.revision, afterRevision: afterRow.revision, diffs }, null, 2));
+          console.log(JSON.stringify({
+            initialRevision: initial.revision,
+            polledRevision: polled.revision,
+            polledUnchanged: polled.unchanged,
+            beforeRevision: beforeRow.revision,
+            afterRevision: afterRow.revision,
+            diffs,
+          }, null, 2));
           store.close();
           NODE
           node c1-state-diagnose.mjs > /tmp/state-diff.log 2>&1 || true
