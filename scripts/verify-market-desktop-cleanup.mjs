@@ -16,8 +16,8 @@ const forbidText = (source, text, message) => {
 
 requireText(
   main,
-  "import './styles/market-page-polish.css';\nimport './styles/market-desktop-cleanup.css';",
-  '桌面市场精简样式必须在市场页面权威样式之后加载。',
+  "import './styles/form-controls.css';\nimport './styles/market-desktop-cleanup.css';",
+  '桌面市场精简样式必须在全部共享和页面样式之后最终加载。',
 );
 requireText(styles, '@media (min-width: 721px)', '桌面精简规则必须严格限定在大于 720px。');
 for (const selector of [
@@ -30,6 +30,7 @@ for (const selector of [
   requireText(styles, selector, `桌面精简样式缺少选择器：${selector}`);
 }
 requireText(styles, 'display: none;', '桌面辅助元素必须隐藏。');
+requireText(styles, 'visibility: hidden;', '桌面最新成交分隔必须视觉隐藏并保留既有几何兼容。');
 requireText(styles, '@container market-page (max-width: 339px)', '桌面超窄内容必须覆盖移动分段切换隐藏规则。');
 requireText(styles, 'display: block;', '桌面超窄内容必须同时显示下单区和订单簿。');
 forbidText(styles, '@media (max-width: 720px)', '桌面精简样式不得改写移动端规则。');
