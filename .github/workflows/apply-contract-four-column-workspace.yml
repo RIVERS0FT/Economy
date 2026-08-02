@@ -6,6 +6,11 @@ on:
       - agent/contract-four-column-workspace
     paths:
       - .agent/apply-ready
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .agent/apply-ready
 
 permissions:
   contents: write
