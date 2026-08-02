@@ -33,13 +33,17 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Apply patch
+      - name: Apply patch and remove helper
         shell: bash
         run: |
           set -euo pipefail
           python3 -m py_compile .agent/apply-loading-unification.py
           python3 .agent/apply-loading-unification.py
           rm -rf .agent
+          git config user.name 'RIVERS0FT Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -u -- .agent
+          git commit -m '移除临时补丁文件'
           git diff --check
 
       - name: Run focused verification
@@ -70,7 +74,5 @@ jobs:
             echo 'No implementation changes were produced.' >&2
             exit 1
           fi
-          git config user.name 'RIVERS0FT Automation'
-          git config user.email 'actions@users.noreply.github.com'
           git commit -m '统一应用加载状态'
           git push origin HEAD:agent/unify-loading-states
