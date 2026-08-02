@@ -179,39 +179,45 @@ for (const text of [
   '.warehouse-summary-item--available',
   'grid-column: 1 / -1;',
   '.warehouse-product-grid',
-  'grid-template-columns: repeat(4, minmax(0, 1fr));',
-  'min-height: 116px;',
-  'grid-template-rows: auto minmax(56px, 1fr) auto auto;',
-  'align-self: start;',
-  'padding: var(--space-2);',
-  '.warehouse-product-card-name',
-  'position: static;',
-  '.warehouse-product-card-icon .product-icon',
-  'width: 56px;',
-  'height: 56px;',
-  '@container (max-width: 559px)',
+  'grid-template-columns: repeat(5, minmax(0, 1fr));',
   'gap: 6px;',
   'min-height: 104px;',
   'grid-template-rows: auto minmax(46px, 1fr) auto auto;',
-  'padding: 6px 4px;',
+  'align-self: start;',
+  'padding: 6px;',
+  '.warehouse-product-card-name',
+  'position: static;',
+  '.warehouse-product-card-icon .product-icon',
   'width: 46px;',
   'height: 46px;',
+  '@container (max-width: 559px)',
+  'grid-template-columns: repeat(4, minmax(0, 1fr));',
+  'gap: 4px;',
+  'min-height: 96px;',
+  'grid-template-rows: auto minmax(40px, 1fr) auto auto;',
+  'padding: 4px;',
+  'width: 40px;',
+  'height: 40px;',
   '@container (min-width: 760px)',
-  'grid-template-columns: repeat(5, minmax(0, 1fr));',
-  'min-height: 124px;',
-  'grid-template-rows: auto minmax(64px, 1fr) auto auto;',
-  'width: 64px;',
-  'height: 64px;',
-  '@container (min-width: 960px)',
   'grid-template-columns: repeat(6, minmax(0, 1fr));',
-  'min-height: 132px;',
-  'grid-template-rows: auto minmax(72px, 1fr) auto auto;',
-  'width: 72px;',
-  'height: 72px;',
+  'min-height: 112px;',
+  'grid-template-rows: auto minmax(52px, 1fr) auto auto;',
+  'width: 52px;',
+  'height: 52px;',
+  'font-size: var(--font-size-md);',
+  '@container (min-width: 960px)',
+  'grid-template-columns: repeat(7, minmax(0, 1fr));',
+  'min-height: 120px;',
+  'grid-template-rows: auto minmax(58px, 1fr) auto auto;',
+  'width: 58px;',
+  'height: 58px;',
   '@media (max-width: 960px)',
 ]) requireText(css, text);
-if (!/\.warehouse-product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s.test(cssContent)) {
-  failures.push('仓库商品网格默认必须为四列');
+if (!/^\.warehouse-product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/ms.test(cssContent)) {
+  failures.push('仓库商品网格默认必须为五列');
+}
+if (!/@container \(max-width: 559px\)[\s\S]*?\.warehouse-product-grid\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/m.test(cssContent)) {
+  failures.push('窄容器仓库商品网格必须为四列');
 }
 if (!/\.warehouse-product-card-name\s*\{[^}]*position:\s*static;/s.test(cssContent)) {
   failures.push('仓库商品名称必须参与正常网格布局');
@@ -227,6 +233,19 @@ for (const text of [
   '@media (max-width: 1220px)',
   'grid-template-columns: repeat(3, minmax(130px, 1fr));',
   '@container (min-width: 360px)',
+  'min-height: 116px;',
+  'grid-template-rows: auto minmax(56px, 1fr) auto auto;',
+  'width: 56px;',
+  'height: 56px;',
+  'padding: 6px 4px;',
+  'min-height: 124px;',
+  'grid-template-rows: auto minmax(64px, 1fr) auto auto;',
+  'width: 64px;',
+  'height: 64px;',
+  'min-height: 132px;',
+  'grid-template-rows: auto minmax(72px, 1fr) auto auto;',
+  'width: 72px;',
+  'height: 72px;',
 ]) forbidText(css, text);
 
 const artworkCss = 'src/styles/product-artwork.css';
@@ -282,11 +301,11 @@ for (const text of [
   '四类占用即使为 `0` 也不得隐藏',
   '不得把订单、合同和拍卖的合计错误标记为“买单预占”',
   '容器查询',
-  '4／5／6 列',
-  '`< 560px` | 4 列 | `104px` | `46px`',
-  '`560px–759px` | 4 列 | `116px` | `56px`',
-  '`760px–959px` | 5 列 | `124px` | `64px`',
-  '`≥ 960px` | 6 列 | `132px` | `72px`',
+  '4／5／6／7 列',
+  '`< 560px` | 4 列 | `96px` | `40px`',
+  '`560px–759px` | 5 列 | `104px` | `46px`',
+  '`760px–959px` | 6 列 | `112px` | `52px`',
+  '`≥ 960px` | 7 列 | `120px` | `58px`',
   '任何移动或窄容器都不得少于四列',
   '正常四行网格',
   '插画是卡片第一视觉主体',
@@ -335,4 +354,4 @@ if (failures.length) {
   console.error(`仓库扩容与生产卡片架构验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('仓库无限扩容、预占来源分段、容量线性定价、商品插画主视觉布局、移动端四列、目录顺序工厂卡、建设卡精简和集群公式验证通过。');
+console.log('仓库无限扩容、预占来源分段、容量线性定价、紧凑商品插画布局、移动端四列、桌面七列、目录顺序工厂卡、建设卡精简和集群公式验证通过。');
