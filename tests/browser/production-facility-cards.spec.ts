@@ -12,8 +12,9 @@ test.describe('production facility selector cards', () => {
     const negativeProfit = cards.nth(1).locator('.facility-cluster-profit');
     await expect(positiveProfit).toHaveText('5.38');
     await expect(positiveProfit).toHaveClass(/is-positive/);
-    await expect(negativeProfit).toHaveText('-9.00');
+    await expect(negativeProfit).toHaveText('9.00');
     await expect(negativeProfit).toHaveClass(/is-negative/);
+    await expect(cards.nth(1)).toHaveAttribute('aria-label', /亏损 9\.00/);
     await expect(cards.locator('.facility-cluster-profit .currency-amount')).toHaveCount(0);
     await expect(positiveProfit).not.toContainText('/分');
     await expect(negativeProfit).not.toContainText('/分');
@@ -49,6 +50,12 @@ test.describe('production facility selector cards', () => {
         backgroundSize: style.backgroundSize,
       };
     });
+    const overlayBackground = await cards.first().evaluate((element) => (
+      getComputedStyle(element, '::before').backgroundImage
+    ));
+    expect((overlayBackground.match(/linear-gradient/g) ?? []).length).toBe(2);
+    expect(overlayBackground).toContain('rgba(0, 0, 0');
+
     expect(artworkStyle.backgroundImage).toContain('.png');
     expect(artworkStyle.backgroundPosition).toBe('50% 50%');
     expect(artworkStyle.backgroundRepeat).toBe('no-repeat');
