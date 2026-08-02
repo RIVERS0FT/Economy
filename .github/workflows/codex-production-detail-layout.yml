@@ -37,8 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .agent/apply-production-detail-layout.py
-          rm -rf .agent
-          rm .github/workflows/codex-production-detail-layout.yml
+          git rm -r .agent .github/workflows/codex-production-detail-layout.yml
 
       - name: Install dependencies
         run: npm ci
