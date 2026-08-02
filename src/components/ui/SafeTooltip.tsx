@@ -8,6 +8,11 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  hideTopLayerPopover,
+  showTopLayerPopover,
+  supportsTopLayerPopover,
+} from './topLayer';
 import { useWorkspaceFloatingLayer } from './WorkspaceFloatingLayer';
 
 const SAFE_FLOATING_GAP = 8;
@@ -28,6 +33,7 @@ export function SafeTooltip({
   className?: string;
 }) {
   const floatingLayer = useWorkspaceFloatingLayer();
+  const topLayerSupported = supportsTopLayerPopover();
   const tooltipId = useId();
   const anchorRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -42,36 +48,77 @@ export function SafeTooltip({
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
     const tooltip = tooltipRef.current;
-    if (!floatingLayer || !anchor || !tooltip) return;
+    if (!anchor || !tooltip) return;
 
-    const layerRect = floatingLayer.getBoundingClientRect();
+    const layerRect = floatingLayer?.getBoundingClientRect()
+      ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
     const anchorRect = anchor.getBoundingClientRect();
     const tooltipRect = tooltip.getBoundingClientRect();
     const maxWidth = Math.max(1, layerRect.width - SAFE_FLOATING_GAP * 2);
     const maxHeight = Math.max(1, layerRect.height - SAFE_FLOATING_GAP * 2);
     const tooltipWidth = Math.min(tooltipRect.width, maxWidth);
     const tooltipHeight = Math.min(tooltipRect.height, maxHeight);
-    const centeredLeft = anchorRect.left + anchorRect.width / 2 - layerRect.left - tooltipWidth / 2;
-    const belowTop = anchorRect.bottom - layerRect.top + SAFE_FLOATING_GAP;
-    const aboveTop = anchorRect.top - layerRect.top - tooltipHeight - SAFE_FLOATING_GAP;
-    const preferredTop = belowTop + tooltipHeight <= layerRect.height - SAFE_FLOATING_GAP
+    const centeredLeft = topLayerSupported
+      ? anchorRect.left + anchorRect.width / 2 - tooltipWidth / 2
+      : anchorRect.left + anchorRect.width / 2 - layerRect.left - tooltipWidth / 2;
+    const belowTop = topLayerSupported
+      ? anchorRect.bottom + SAFE_FLOATING_GAP
+      : anchorRect.bottom - layerRect.top + SAFE_FLOATING_GAP;
+    const aboveTop = topLayerSupported
+      ? anchorRect.top - tooltipHeight - SAFE_FLOATING_GAP
+      : anchorRect.top - layerRect.top - tooltipHeight - SAFE_FLOATING_GAP;
+    const bottomBoundary = topLayerSupported ? layerRect.bottom : layerRect.height;
+    const preferredTop = belowTop + tooltipHeight <= bottomBoundary - SAFE_FLOATING_GAP
       ? belowTop
       : aboveTop;
 
     setPosition({
-      left: clamp(centeredLeft, SAFE_FLOATING_GAP, layerRect.width - tooltipWidth - SAFE_FLOATING_GAP),
-      top: clamp(preferredTop, SAFE_FLOATING_GAP, layerRect.height - tooltipHeight - SAFE_FLOATING_GAP),
+      left: topLayerSupported
+        ? clamp(
+          centeredLeft,
+          layerRect.left + SAFE_FLOATING_GAP,
+          layerRect.right - tooltipWidth - SAFE_FLOATING_GAP,
+        )
+        : clamp(
+          centeredLeft,
+          SAFE_FLOATING_GAP,
+          layerRect.width - tooltipWidth - SAFE_FLOATING_GAP,
+        ),
+      top: topLayerSupported
+        ? clamp(
+          preferredTop,
+          layerRect.top + SAFE_FLOATING_GAP,
+          layerRect.bottom - tooltipHeight - SAFE_FLOATING_GAP,
+        )
+        : clamp(
+          preferredTop,
+          SAFE_FLOATING_GAP,
+          layerRect.height - tooltipHeight - SAFE_FLOATING_GAP,
+        ),
       maxWidth,
       maxHeight,
     });
-  }, [floatingLayer]);
+  }, [floatingLayer, topLayerSupported]);
 
   useLayoutEffect(() => {
-    if (!open) return undefined;
+    const tooltip = tooltipRef.current;
+    if (!topLayerSupported || !tooltip) return undefined;
+    if (!open) {
+      hideTopLayerPopover(tooltip);
+      return undefined;
+    }
+    showTopLayerPopover(tooltip);
     updatePosition();
     const frame = requestAnimationFrame(updatePosition);
     return () => cancelAnimationFrame(frame);
-  }, [open, updatePosition]);
+  }, [open, topLayerSupported, updatePosition]);
+
+  useLayoutEffect(() => {
+    if (topLayerSupported || !open) return undefined;
+    updatePosition();
+    const frame = requestAnimationFrame(updatePosition);
+    return () => cancelAnimationFrame(frame);
+  }, [open, topLayerSupported, updatePosition]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -84,25 +131,30 @@ export function SafeTooltip({
     };
   }, [open, updatePosition]);
 
-  const tooltip = open && floatingLayer
-    ? createPortal(
-      <div
-        ref={tooltipRef}
-        id={tooltipId}
-        className="safe-tooltip"
-        role="tooltip"
-        style={{
-          left: `${position.left}px`,
-          top: `${position.top}px`,
-          maxWidth: `${position.maxWidth}px`,
-          maxHeight: `${position.maxHeight}px`,
-        }}
-      >
-        {content}
-      </div>,
-      floatingLayer,
-    )
-    : null;
+  const tooltipNode = (
+    <div
+      ref={tooltipRef}
+      id={tooltipId}
+      className="safe-tooltip"
+      role="tooltip"
+      data-top-layer={topLayerSupported ? 'true' : undefined}
+      popover={topLayerSupported ? 'manual' : undefined}
+      style={{
+        left: `${position.left}px`,
+        top: `${position.top}px`,
+        maxWidth: `${position.maxWidth}px`,
+        maxHeight: `${position.maxHeight}px`,
+      }}
+    >
+      {content}
+    </div>
+  );
+
+  const tooltip = topLayerSupported
+    ? tooltipNode
+    : open && floatingLayer
+      ? createPortal(tooltipNode, floatingLayer)
+      : null;
 
   return (
     <>
