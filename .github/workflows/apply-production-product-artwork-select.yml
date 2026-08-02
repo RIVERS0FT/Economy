@@ -30,7 +30,18 @@ jobs:
           cache: npm
 
       - name: Apply product artwork and rich select changes
-        run: python3 .agent/apply-production-product-artwork-select.py
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.agent/apply-production-product-artwork-select.py')
+          content = path.read_text(encoding='utf-8')
+          old = """    if content.count(marker) != 1:\n        raise RuntimeError(f'{path} 插入标记不唯一: {marker}')\n    target.write_text(content.replace(marker, addition + marker), encoding='utf-8')"""
+          new = """    if marker not in content:\n        raise RuntimeError(f'{path} 缺少插入标记: {marker}')\n    target.write_text(content.replace(marker, addition + marker, 1), encoding='utf-8')"""
+          if content.count(old) != 1:
+              raise RuntimeError('append_before 修复目标不唯一')
+          path.write_text(content.replace(old, new), encoding='utf-8')
+          PY
+          python3 .agent/apply-production-product-artwork-select.py
 
       - name: Remove temporary application files
         run: |
