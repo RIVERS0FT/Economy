@@ -69,3 +69,5 @@ jobs:
             scripts/apply-unified-atmosphere.mjs
           git commit -m "统一全应用摄影氛围"
           git push origin HEAD:codex/unify-application-atmosphere-auth-style
+
+# Existing-workflow trigger commit.
