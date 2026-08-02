@@ -91,7 +91,7 @@ for (const text of [
   "name: '成交量', type: 'bar'",
   'grid: [', 'xAxisIndex: 0', 'xAxisIndex: 1',
   'axisPointer: { link: [{ xAxisIndex: [0, 1] }] }',
-  'triggerEmphasis: false', 'emphasis: { disabled: true }',
+  'triggerEmphasis: false', 'emphasis: STABLE_TOOLTIP_EMPHASIS',
   'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)',
   'const priceVolumeGap = 0', 'const volumeTop = priceBottom + priceVolumeGap',
   'export function buildMarketChartGeometry',

@@ -6,10 +6,25 @@ import {
   type CSSProperties,
 } from 'react';
 import { initECharts, type EChartsCoreOption, type EChartsType } from './echartsCore';
+import { resolveEChartsCssColors } from './resolveEChartsCssColors';
 
 let nextChartInstanceId = 1;
 
 export type EconomyChartUpdateMode = 'replace' | 'merge';
+
+function applyChartOption(
+  chart: EChartsType,
+  container: HTMLElement,
+  option: EChartsCoreOption,
+  updateMode: EconomyChartUpdateMode,
+  lazyUpdate: boolean,
+) {
+  chart.setOption(resolveEChartsCssColors(option, container), {
+    notMerge: updateMode !== 'merge',
+    lazyUpdate,
+  });
+  container.dataset.echartsCssColorsResolved = 'true';
+}
 
 export function EconomyChart({
   option,
@@ -48,11 +63,9 @@ export function EconomyChart({
   useLayoutEffect(() => {
     optionRef.current = option;
     const chart = chartRef.current;
-    if (!chart) return;
-    chart.setOption(option, {
-      notMerge: updateMode !== 'merge',
-      lazyUpdate: true,
-    });
+    const container = containerRef.current;
+    if (!chart || !container) return;
+    applyChartOption(chart, container, option, updateMode, true);
     onOptionAppliedRef.current?.(chart);
   }, [option, updateMode]);
 
@@ -68,10 +81,7 @@ export function EconomyChart({
     nextChartInstanceId += 1;
     container.dataset.echartsInstanceId = String(instanceId);
     chartRef.current = chart;
-    chart.setOption(optionRef.current, {
-      notMerge: updateModeRef.current !== 'merge',
-      lazyUpdate: false,
-    });
+    applyChartOption(chart, container, optionRef.current, updateModeRef.current, false);
     setReady(true);
     onChartReadyRef.current?.(chart);
     onOptionAppliedRef.current?.(chart);

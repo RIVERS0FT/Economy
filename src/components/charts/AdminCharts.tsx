@@ -5,6 +5,7 @@ import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption } from './echartsCore';
 import {
   PIE_PAD_ANGLE,
+  STABLE_TOOLTIP_EMPHASIS,
   chartColor,
   commonCategoryAxis,
   commonTooltip,
@@ -86,6 +87,7 @@ export function PlayerActivityChart({
           borderWidth: 1.5,
           borderRadius: [4, 4, 0, 0],
         },
+        emphasis: STABLE_TOOLTIP_EMPHASIS,
       },
       {
         name: '经济活跃',
@@ -93,6 +95,7 @@ export function PlayerActivityChart({
         barMaxWidth: 12,
         data: points.map((point) => point.activePlayers),
         itemStyle: { color: chartColor.info, borderRadius: [4, 4, 0, 0] },
+        emphasis: STABLE_TOOLTIP_EMPHASIS,
       },
     ],
   }), [points]);
@@ -160,6 +163,7 @@ export function HorizontalPercentChart({
       backgroundStyle: { color: 'rgba(255,255,255,.055)', borderRadius: 999 },
       data: rows.map((row) => ({ value: row.unavailable ? 0 : Math.max(0, Math.min(100, row.value)), detail: row.detail })),
       itemStyle: { color, borderRadius: 999 },
+      emphasis: STABLE_TOOLTIP_EMPHASIS,
       label: {
         show: true,
         position: 'right',
@@ -219,7 +223,7 @@ export function DonutChart({
       minAngle: 2,
       label: { show: false },
       labelLine: { show: false },
-      emphasis: { scale: false },
+      emphasis: STABLE_TOOLTIP_EMPHASIS,
       itemStyle: { borderColor: 'rgba(7,20,15,.9)', borderWidth: 2, borderRadius: 4 },
       data: rows.map((row) => ({ name: row.label, value: Math.max(0, row.value) })),
     }],
@@ -288,6 +292,7 @@ export function NumberBarChart({
       barMaxWidth: horizontal ? 18 : 28,
       data: rows.map((row) => Math.max(0, row.value)),
       itemStyle: { color: chartColor.info, borderRadius: horizontal ? 999 : [5, 5, 0, 0] },
+      emphasis: STABLE_TOOLTIP_EMPHASIS,
     }],
   }), [ariaLabel, categoryAxis, horizontal, money, rows, valueAxis, valueFormatter]);
 
@@ -354,6 +359,7 @@ export function PopulationBudgetChart({
         barMaxWidth: 20,
         data: normalized.map((row) => row.foodPercent),
         itemStyle: { color: chartColor.warning, borderRadius: [999, 0, 0, 999] },
+        emphasis: STABLE_TOOLTIP_EMPHASIS,
       },
       {
         name: '家庭',
@@ -362,6 +368,7 @@ export function PopulationBudgetChart({
         barMaxWidth: 20,
         data: normalized.map((row) => row.householdPercent),
         itemStyle: { color: chartColor.info, borderRadius: [0, 999, 999, 0] },
+        emphasis: STABLE_TOOLTIP_EMPHASIS,
       },
     ],
   }), [normalized]);

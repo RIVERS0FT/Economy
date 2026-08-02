@@ -3,7 +3,7 @@ import type { MarketHistoryBucket } from '../../utils/marketHistory';
 import { formatMarketAxisTime, MARKET_BUCKET_MS, MARKET_WINDOW_MS } from '../../utils/marketHistory';
 import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption, EChartsType } from './echartsCore';
-import { chartColor, commonTooltip, escapeChartHtml } from './chartOptions';
+import { STABLE_TOOLTIP_EMPHASIS, chartColor, commonTooltip, escapeChartHtml } from './chartOptions';
 import {
   chooseMarketPriceTickCount,
   chooseMarketTimeInterval,
@@ -488,14 +488,14 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
         data: safeBuckets.map((bucket) => [bucket.startAt + MARKET_BUCKET_MS / 2, bucket.price]),
         lineStyle: { color: chartColor.info, width: 2.5, opacity: 1 },
         areaStyle: { color: chartColor.info, opacity: 0.16 },
-        emphasis: { disabled: true },
+        emphasis: STABLE_TOOLTIP_EMPHASIS,
         blur: { lineStyle: { opacity: 1 }, areaStyle: { opacity: 0.16 } },
       },
       {
         id: 'market-volume-series', name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, barWidth, barMinHeight: 2,
         data: safeBuckets.map((bucket) => ({ value: [bucket.startAt + MARKET_BUCKET_MS / 2, bucket.volume], direction: bucket.direction })),
         itemStyle: { color: (params: any) => volumeColor(params?.data?.direction), opacity: 0.78, borderRadius: [2, 2, 0, 0] },
-        emphasis: { disabled: true },
+        emphasis: STABLE_TOOLTIP_EMPHASIS,
       },
     ],
   }), [axisInterval, barWidth, geometry, priceHeight, priceScale, rootFontSize, safeBuckets, variant, volumeHeight, volumeScale, windowEnd, windowStart]);

@@ -19,6 +19,11 @@ function forbidText(path, fragments) {
   const content = read(path);
   for (const fragment of fragments) if (content.includes(fragment)) failures.push(`${path} 不得恢复旧图表实现: ${fragment}`);
 }
+function requireCount(path, fragment, expected) {
+  const content = read(path);
+  const actual = content.split(fragment).length - 1;
+  if (actual !== expected) failures.push(`${path} 必须包含 ${expected} 个 ${fragment}，当前为 ${actual}`);
+}
 
 const pkg = JSON.parse(read('package.json'));
 if (pkg.dependencies?.echarts !== '6.1.0') failures.push('package.json 必须精确锁定 echarts 6.1.0');
@@ -43,26 +48,37 @@ if (directEChartsImports.length !== 1 || directEChartsImports[0] !== 'src/compon
 requireText('src/components/charts/echartsCore.ts', [
   'BarChart', 'LineChart', 'PieChart', 'AxisPointerComponent', 'GridComponent', 'TooltipComponent', 'AriaComponent', 'SVGRenderer',
 ]);
-requireText('src/components/charts/chartOptions.ts', ['export const PIE_PAD_ANGLE = 5;', 'appendToBody: false', 'confine: true']);
+requireText('src/components/charts/chartOptions.ts', ['export const PIE_PAD_ANGLE = 5;', 'STABLE_TOOLTIP_EMPHASIS', 'disabled: true', 'appendToBody: false', 'confine: true']);
+requireText('src/components/charts/resolveEChartsCssColors.ts', [
+  'resolveEChartsCssColors', 'resolveCssColorVariables', 'getComputedStyle(container)', 'propertyName?.endsWith', 'resolvedColorCallback',
+]);
 requireText('src/components/charts/EconomyChart.tsx', [
   'initECharts', "renderer: 'svg'", 'new ResizeObserver', 'requestAnimationFrame',
   'chart.setOption', 'chart.dispose()', 'data-echarts-ready', 'economy-chart__accessible-summary',
   "updateMode = 'replace'", "notMerge: updateMode !== 'merge'",
+  'resolveEChartsCssColors', 'dataset.echartsCssColorsResolved', 'applyChartOption',
   'onChartReadyRef.current?.(chart)', 'onOptionAppliedRef.current?.(chart)',
 ]);
 requireText('src/components/charts/PriceSparkline.tsx', [
-  '<EconomyChart', "type: 'line'", "type: 'bar'", 'buildMarketChartGeometry', 'data-volume-share',
+  '<EconomyChart', "type: 'line'", "type: 'bar'", 'buildMarketChartGeometry', 'data-volume-share', 'STABLE_TOOLTIP_EMPHASIS',
 ]);
+requireCount('src/components/charts/PriceSparkline.tsx', 'emphasis: STABLE_TOOLTIP_EMPHASIS', 2);
 requireText('src/components/charts/AssetAllocationChart.tsx', [
-  '<EconomyChart', "type: 'pie'", "radius: ['64%', '84%']", 'padAngle: PIE_PAD_ANGLE',
+  '<EconomyChart', "type: 'pie'", "radius: ['64%', '84%']", 'padAngle: PIE_PAD_ANGLE', 'STABLE_TOOLTIP_EMPHASIS',
 ]);
+requireCount('src/components/charts/AssetAllocationChart.tsx', 'emphasis: STABLE_TOOLTIP_EMPHASIS', 1);
 requireText('src/components/charts/AdminCharts.tsx', [
-  '<EconomyChart', "type: 'bar'", "type: 'pie'", 'padAngle: PIE_PAD_ANGLE', 'PopulationBudgetChart',
+  '<EconomyChart', "type: 'bar'", "type: 'pie'", 'padAngle: PIE_PAD_ANGLE', 'PopulationBudgetChart', 'STABLE_TOOLTIP_EMPHASIS',
 ]);
+requireCount('src/components/charts/AdminCharts.tsx', 'emphasis: STABLE_TOOLTIP_EMPHASIS', 7);
 requireText('src/main.tsx', ["import './styles/charts.css';"]);
+requireText('tests/browser/chart-hover-visibility.spec.ts', [
+  'data-echarts-css-colors-resolved', 'assertStableHover', 'economy-chart-tooltip', 'callback-color-chart',
+]);
 requireText('docs/UI_DESIGN_SYSTEM.md', [
   '`EconomyChart` 是业务数据图表的唯一 React 入口', '不得引入 `echarts-for-react`', 'ECharts 必须随市场、银行和管理员页面',
-  '`PIE_PAD_ANGLE = 5`', '`padAngle: PIE_PAD_ANGLE`',
+  '`PIE_PAD_ANGLE = 5`', '`padAngle: PIE_PAD_ANGLE`', 'STABLE_TOOLTIP_EMPHASIS',
+  '不得把 `var(--color-*)` 原样交给 ZRender', '每次 `setOption` 前读取图表容器的浏览器计算样式',
 ]);
 requireText('docs/MARKET_CHART_LAYOUT_DESIGN.md', ['ECharts SVG', '双 Grid', '稳定 `data-*`']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', ['玩家运营图统一使用共享 `EconomyChart`', '人口分析图统一使用共享 `EconomyChart`']);
