@@ -5,12 +5,14 @@ from textwrap import dedent
 def replace_once(path: str, old: str, new: str) -> None:
     file = Path(path)
     text = file.read_text(encoding='utf-8')
-    old = dedent(old)
-    new = dedent(new)
     count = text.count(old)
     if count != 1:
-        raise SystemExit(f'{path}: expected one match, found {count}: {old[:160]!r}')
+        raise SystemExit(f'{path}: expected one match, found {count}: {old[:180]!r}')
     file.write_text(text.replace(old, new), encoding='utf-8')
+
+
+def replace_block(path: str, old: str, new: str) -> None:
+    replace_once(path, dedent(old), dedent(new))
 
 
 def require(path: str, text: str) -> None:
@@ -19,7 +21,7 @@ def require(path: str, text: str) -> None:
 
 
 group_css = 'src/styles/facility-group-card-grid.css'
-replace_once(
+replace_block(
     group_css,
     '''
     @container (max-width: 519px) {
@@ -50,7 +52,7 @@ replace_once(
 )
 
 formula_css = 'src/styles/facility-production-formula.css'
-replace_once(
+replace_block(
     formula_css,
     '''
     .facility-formula-input,
@@ -71,7 +73,7 @@ replace_once(
     }
     ''',
 )
-replace_once(
+replace_block(
     formula_css,
     '''
     .facility-formula-meta {
@@ -155,82 +157,72 @@ test_path = 'tests/browser/production-methods.spec.ts'
 replace_once(
     test_path,
     '    expect(costBox.y).toBeGreaterThan(cycleBox.y + cycleBox.height - 1);',
-    '''
-    expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1);
+    '''    expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1);
     expect(costBox.x).toBeGreaterThan(cycleBox.x + cycleBox.width - 1);
     const costDividerWidth = await metaUnits.nth(1).evaluate((element) => (
       Number.parseFloat(getComputedStyle(element).borderLeftWidth)
     ));
-    expect(costDividerWidth).toBeGreaterThan(0);
-    ''',
+    expect(costDividerWidth).toBeGreaterThan(0);''',
 )
 replace_once(
     test_path,
-    '''
-      test('keeps mobile production controls aligned inside the top dialog layer', async ({ page }) => {
-        await page.setViewportSize({ width: 390, height: 844 });
-        await page.goto('runtime-test.html?view=production&scenario=production-methods');
-    ''',
-    '''
-      test('keeps mobile production controls and settlement aligned inside the top dialog layer', async ({ page }) => {
-        for (const width of [320, 390, 430]) {
-          await page.setViewportSize({ width, height: 844 });
-          await page.goto('runtime-test.html?view=production&scenario=production-methods');
-    ''',
+    "test('keeps mobile production controls aligned inside the top dialog layer'",
+    "test('keeps mobile production controls and settlement aligned inside the top dialog layer'",
 )
 replace_once(
     test_path,
-    '''
-        expect(Math.abs(recipeBox.y - methodBox.y)).toBeLessThanOrEqual(1);
-        expect(methodBox.x).toBeGreaterThan(recipeBox.x + recipeBox.width - 1);
+    "await page.setViewportSize({ width: 390, height: 844 });\n    await page.goto('runtime-test.html?view=production&scenario=production-methods');",
+    "for (const width of [320, 390, 430]) {\n      await page.setViewportSize({ width, height: 844 });\n      await page.goto('runtime-test.html?view=production&scenario=production-methods');",
+)
+replace_once(
+    test_path,
+    '''    expect(Math.abs(recipeBox.y - methodBox.y)).toBeLessThanOrEqual(1);
+    expect(methodBox.x).toBeGreaterThan(recipeBox.x + recipeBox.width - 1);
 
-        await recipeSelect.click();
-    ''',
-    '''
-        expect(Math.abs(recipeBox.y - methodBox.y)).toBeLessThanOrEqual(1);
-        expect(methodBox.x).toBeGreaterThan(recipeBox.x + recipeBox.width - 1);
+    await recipeSelect.click();''',
+    '''    expect(Math.abs(recipeBox.y - methodBox.y)).toBeLessThanOrEqual(1);
+    expect(methodBox.x).toBeGreaterThan(recipeBox.x + recipeBox.width - 1);
 
-        const settlement = sheet.locator('.facility-production-formula');
-        const inputSlot = settlement.locator('.facility-formula-input .facility-formula-item-group').first();
-        const outputSlot = settlement.locator('.facility-formula-output .facility-formula-item-group').first();
-        const formulaMeta = settlement.locator('.facility-formula-meta');
-        const progress = settlement.locator('.facility-formula-progress');
-        const metaUnits = formulaMeta.locator(':scope > .facility-formula-meta-unit');
-        const [inputBox, outputBox, metaBox, progressBox, cycleBox, costBox] = await Promise.all([
-          inputSlot.boundingBox(),
-          outputSlot.boundingBox(),
-          formulaMeta.boundingBox(),
-          progress.boundingBox(),
-          metaUnits.nth(0).boundingBox(),
-          metaUnits.nth(1).boundingBox(),
-        ]);
-        expect(inputBox).not.toBeNull();
-        expect(outputBox).not.toBeNull();
-        expect(metaBox).not.toBeNull();
-        expect(progressBox).not.toBeNull();
-        expect(cycleBox).not.toBeNull();
-        expect(costBox).not.toBeNull();
-        if (!inputBox || !outputBox || !metaBox || !progressBox || !cycleBox || !costBox) {
-          throw new Error(`移动生产结算几何不可用: ${width}px`);
-        }
-        expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1);
-        expect(metaBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height - 1);
-        expect(progressBox.y).toBeGreaterThanOrEqual(
-          Math.max(metaBox.y + metaBox.height, outputBox.y + outputBox.height) - 1,
-        );
-        expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1);
-        expect(costBox.x).toBeGreaterThan(cycleBox.x + cycleBox.width - 1);
-        expect(await metaUnits.nth(1).evaluate((element) => (
-          Number.parseFloat(getComputedStyle(element).borderLeftWidth)
-        ))).toBeGreaterThan(0);
-        const settlementOverflow = await settlement.evaluate((element) => ({
-          clientWidth: element.clientWidth,
-          scrollWidth: element.scrollWidth,
-        }));
-        expect(settlementOverflow.scrollWidth).toBeLessThanOrEqual(settlementOverflow.clientWidth + 1);
+    const settlement = sheet.locator('.facility-production-formula');
+    const inputSlot = settlement.locator('.facility-formula-input .facility-formula-item-group').first();
+    const outputSlot = settlement.locator('.facility-formula-output .facility-formula-item-group').first();
+    const formulaMeta = settlement.locator('.facility-formula-meta');
+    const progress = settlement.locator('.facility-formula-progress');
+    const metaUnits = formulaMeta.locator(':scope > .facility-formula-meta-unit');
+    const [inputBox, outputBox, metaBox, progressBox, cycleBox, costBox] = await Promise.all([
+      inputSlot.boundingBox(),
+      outputSlot.boundingBox(),
+      formulaMeta.boundingBox(),
+      progress.boundingBox(),
+      metaUnits.nth(0).boundingBox(),
+      metaUnits.nth(1).boundingBox(),
+    ]);
+    expect(inputBox).not.toBeNull();
+    expect(outputBox).not.toBeNull();
+    expect(metaBox).not.toBeNull();
+    expect(progressBox).not.toBeNull();
+    expect(cycleBox).not.toBeNull();
+    expect(costBox).not.toBeNull();
+    if (!inputBox || !outputBox || !metaBox || !progressBox || !cycleBox || !costBox) {
+      throw new Error(`移动生产结算几何不可用: ${width}px`);
+    }
+    expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1);
+    expect(metaBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height - 1);
+    expect(progressBox.y).toBeGreaterThanOrEqual(
+      Math.max(metaBox.y + metaBox.height, outputBox.y + outputBox.height) - 1,
+    );
+    expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1);
+    expect(costBox.x).toBeGreaterThan(cycleBox.x + cycleBox.width - 1);
+    expect(await metaUnits.nth(1).evaluate((element) => (
+      Number.parseFloat(getComputedStyle(element).borderLeftWidth)
+    ))).toBeGreaterThan(0);
+    const settlementOverflow = await settlement.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(settlementOverflow.scrollWidth).toBeLessThanOrEqual(settlementOverflow.clientWidth + 1);
 
-        await recipeSelect.click();
-    ''',
+    await recipeSelect.click();''',
 )
 replace_once(
     test_path,
@@ -239,19 +231,15 @@ replace_once(
 )
 replace_once(
     test_path,
-    '''
-        await expect(listbox).toHaveCount(0);
-        await expect(recipeSelect).toBeFocused();
-      });
-    });
-    ''',
-    '''
-        await expect(listbox).toHaveCount(0);
-        await expect(recipeSelect).toBeFocused();
-        }
-      });
-    });
-    ''',
+    '''    await expect(listbox).toHaveCount(0);
+    await expect(recipeSelect).toBeFocused();
+  });
+});''',
+    '''    await expect(listbox).toHaveCount(0);
+    await expect(recipeSelect).toBeFocused();
+    }
+  });
+});''',
 )
 
 verifier = 'scripts/verify-production-settlement-layout.mjs'
@@ -265,7 +253,7 @@ replace_once(
     "  'grid-template-columns: minmax(0, 1fr);',",
     "  'display: inline-flex;',\n  'grid-area: auto;',\n  '.facility-formula-meta-unit.is-cost {',",
 )
-replace_once(
+replace_block(
     verifier,
     '''
     for (const forbidden of [
@@ -297,7 +285,7 @@ replace_once(
 )
 
 groups_verifier = 'scripts/verify-facility-groups.mjs'
-replace_once(
+replace_block(
     groups_verifier,
     '''
     for (const forbidden of [
