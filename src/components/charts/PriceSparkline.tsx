@@ -203,6 +203,7 @@ export function buildMarketChartGeometry(
   rootFontSize: number,
   variant: MarketChartVariant,
   axisLabelWidth = 0,
+  minimumHeight = 0,
 ): MarketChartGeometry {
   const safeWidth = Math.max(1, width || 960);
   const scale = safeWidth / 960;
@@ -214,28 +215,31 @@ export function buildMarketChartGeometry(
     ? Math.max(compact ? 42 : 46, axisLabelWidth + 10)
     : Math.max(compact ? 58 : 68, rootFontSize * (compact ? 3.7 : 4.3), axisLabelWidth + rootFontSize * 2.1);
   const right = Math.max(12, (compact ? 18 : 24) * scale);
-  const priceHeight = Math.max(compact ? 72 : 112, (compact ? 78 : 208) * scale);
+  let priceHeight = Math.max(compact ? 72 : 112, (compact ? 78 : 208) * scale);
   const priceVolumeGap = 0;
   const minimumVolumeHeight = compact
     ? Math.max(48, rootFontSize * 3)
     : Math.max(68, rootFontSize * 4.25);
   const ratioProtectedVolumeHeight = (0.22 / 0.78) * priceHeight;
   const preferredVolumeHeight = (compact ? 33 : 106) * scale;
-  const volumeHeight = Math.max(preferredVolumeHeight, minimumVolumeHeight, ratioProtectedVolumeHeight);
+  let volumeHeight = Math.max(preferredVolumeHeight, minimumVolumeHeight, ratioProtectedVolumeHeight);
   const timeLabelHeight = compact ? Math.max(28, rootFontSize * 1.8) : Math.max(52, rootFontSize * 3.2);
   const legendGap = 8;
   const legendHeight = Math.max(20, rootFontSize * 1.25);
   const legendTitleGap = showXAxisTitle ? 10 : 0;
   const titleHeight = showXAxisTitle ? Math.max(16, rootFontSize) : 0;
   const bottomSafeInset = 6;
+  const footerHeight = legendGap + legendHeight + legendTitleGap + titleHeight + bottomSafeInset;
+  const baseHeight = (compact ? 228 : 540) * scale;
+  const naturalHeight = top + priceHeight + priceVolumeGap + volumeHeight + timeLabelHeight + footerHeight;
+  const height = Math.max(baseHeight, naturalHeight, minimumHeight);
+  const extraDataHeight = Math.max(0, height - naturalHeight);
+  priceHeight += extraDataHeight * 0.72;
+  volumeHeight += extraDataHeight * 0.28;
   const priceBottom = top + priceHeight;
   const volumeTop = priceBottom + priceVolumeGap;
   const volumeBottom = volumeTop + volumeHeight;
-  const footerHeight = legendGap + legendHeight + legendTitleGap + titleHeight + bottomSafeInset;
-  const requiredCanvasHeight = volumeBottom + timeLabelHeight;
-  const baseHeight = (compact ? 228 : 540) * scale;
-  const height = Math.max(baseHeight, requiredCanvasHeight + footerHeight);
-  const canvasHeight = height - footerHeight;
+  const canvasHeight = volumeBottom + timeLabelHeight;
   const dataAreaHeight = priceHeight + volumeHeight;
   return {
     width: safeWidth,
@@ -255,29 +259,50 @@ export function buildMarketChartGeometry(
   };
 }
 
-function useMarketChartWidth() {
+function useMarketChartMetrics() {
   const ref = useRef<HTMLDivElement>(null);
-  const [metrics, setMetrics] = useState({ width: 960, rootFontSize: 16 });
+  const [metrics, setMetrics] = useState({ width: 960, rootFontSize: 16, minimumHeight: 0 });
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return undefined;
+    const chartCard = element.closest<HTMLElement>('.market-chart-card');
+    const tradeCard = chartCard?.parentElement?.querySelector<HTMLElement>('.market-trade-card') ?? null;
     let frame: number | null = null;
     const update = () => {
       if (frame !== null) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         frame = null;
-        const width = element.getBoundingClientRect().width;
+        const elementRect = element.getBoundingClientRect();
+        const chartCardRect = chartCard?.getBoundingClientRect();
+        const tradeCardRect = tradeCard?.getBoundingClientRect();
+        const sideBySide = Boolean(
+          chartCardRect
+          && tradeCardRect
+          && Math.abs(chartCardRect.top - tradeCardRect.top) < 3
+          && chartCardRect.left > tradeCardRect.left + tradeCardRect.width - 3
+        );
+        const cardPaddingBottom = chartCard
+          ? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0
+          : 0;
+        const minimumHeight = sideBySide && chartCardRect
+          ? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)
+          : 0;
+        const width = elementRect.width;
         const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         setMetrics((current) => (
-          Math.abs(current.width - width) < 0.5 && Math.abs(current.rootFontSize - rootFontSize) < 0.1
+          Math.abs(current.width - width) < 0.5
+          && Math.abs(current.rootFontSize - rootFontSize) < 0.1
+          && Math.abs(current.minimumHeight - minimumHeight) < 0.5
             ? current
-            : { width, rootFontSize }
+            : { width, rootFontSize, minimumHeight }
         ));
       });
     };
     update();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(update);
     observer?.observe(element);
+    if (chartCard) observer?.observe(chartCard);
+    if (tradeCard) observer?.observe(tradeCard);
     window.addEventListener('resize', update);
     void document.fonts?.ready.then(update);
     return () => {
@@ -303,10 +328,10 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       direction: 'neutral',
     }]
   ), [bucketSignature]);
-  const { ref, width, rootFontSize } = useMarketChartWidth();
+  const { ref, width, rootFontSize, minimumHeight } = useMarketChartMetrics();
   const baseGeometry = useMemo(
-    () => buildMarketChartGeometry(width, rootFontSize, variant),
-    [rootFontSize, variant, width],
+    () => buildMarketChartGeometry(width, rootFontSize, variant, 0, minimumHeight),
+    [minimumHeight, rootFontSize, variant, width],
   );
   const priceHeight = baseGeometry.priceBottom - baseGeometry.top;
   const volumeHeight = baseGeometry.volumeBottom - baseGeometry.volumeTop;
@@ -326,8 +351,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
     ...volumeScale.ticks.slice(1).map(formatCompactVolumeTick),
   ], rootFontSize), [priceScale.ticks, rootFontSize, volumeScale.ticks]);
   const geometry = useMemo(
-    () => buildMarketChartGeometry(width, rootFontSize, variant, axisLabelWidth),
-    [axisLabelWidth, rootFontSize, variant, width],
+    () => buildMarketChartGeometry(width, rootFontSize, variant, axisLabelWidth, minimumHeight),
+    [axisLabelWidth, minimumHeight, rootFontSize, variant, width],
   );
   const plotWidth = Math.max(1, geometry.width - geometry.left - geometry.right);
   const priceBoundaryLabel = formatIntegerPriceTick(priceScale.min);
@@ -517,6 +542,8 @@ function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket
       data-volume-bottom={geometry.volumeBottom.toFixed(2)}
       data-volume-share={geometry.volumeShare.toFixed(4)}
       data-chart-height={geometry.height.toFixed(2)}
+      data-chart-fill-mode={minimumHeight > 0 ? 'row' : 'natural'}
+      data-chart-minimum-height={minimumHeight.toFixed(2)}
       data-plot-center-x={geometry.plotCenterX.toFixed(2)}
       data-time-label-height={geometry.timeLabelHeight.toFixed(2)}
       data-time-axis-interval={axisInterval}

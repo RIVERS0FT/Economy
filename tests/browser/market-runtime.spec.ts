@@ -96,15 +96,16 @@ test('market desktop layout keeps order entry and order book in one trade card b
   await expect(page.locator('.market-grid > .order-entry')).toHaveCount(0);
   await expect(page.locator('.market-grid > .single-order-book')).toHaveCount(0);
   expect(Math.abs(tradeBox.y - chartCardBox.y)).toBeLessThan(3);
-  expect(tradeBox.width).toBeGreaterThanOrEqual(640);
-  expect(chartCardBox.width).toBeGreaterThanOrEqual(620);
+  expect(tradeBox.width).toBeGreaterThanOrEqual(560);
+  expect(chartCardBox.width).toBeGreaterThanOrEqual(680);
+  expect(Math.abs(tradeBox.height - chartCardBox.height)).toBeLessThan(3);
   expect(Math.abs(orderBox.y - bookBox.y)).toBeLessThan(3);
   expect(bookBox.x).toBeGreaterThan(orderBox.x + orderBox.width - 3);
   expect(orderBox.x).toBeGreaterThanOrEqual(tradeBox.x - 1);
   expect(bookBox.x + bookBox.width).toBeLessThanOrEqual(tradeBox.x + tradeBox.width + 1);
   expect(chartBox.width).toBeGreaterThan(chartCardBox.width * 0.94);
-  expect(chartBox.width / chartBox.height).toBeGreaterThan(1.72);
-  expect(chartBox.width / chartBox.height).toBeLessThan(1.82);
+  await expect(chart).toHaveAttribute('data-chart-fill-mode', 'row');
+  expect(chartBox.y + chartBox.height).toBeGreaterThan(chartCardBox.y + chartCardBox.height - 28);
   await expect(tradeCard.getByRole('heading', { name: /交易$/ })).toBeVisible();
   await expect(tradeCard.getByRole('heading', { name: '下单', exact: true })).toBeVisible();
   await expect(tradeCard.getByRole('heading', { name: '订单簿', exact: true })).toBeVisible();
@@ -267,17 +268,18 @@ test('market order form explains why an order cannot be submitted', async ({ pag
   await page.setViewportSize({ width: 1400, height: 900 });
 
   await page.goto('market-runtime-test.html?scenario=funds-empty');
-  await expect(page.getByRole('status')).toHaveText('可用资金不足，当前价格至少需要 2.00。');
   await expect(page.getByRole('spinbutton', { name: '数量' })).toBeDisabled();
-  await expect(page.getByRole('button', { name: '买入小麦' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '资金不足，无法买入小麦' })).toBeDisabled();
+  await expect(page.getByText('当前没有可出售的', { exact: false })).toHaveCount(0);
 
   await page.goto('market-runtime-test.html?scenario=warehouse-full');
-  await expect(page.getByRole('status')).toHaveText('仓库剩余空间不足，无法提交商品买单。');
   await expect(page.getByRole('spinbutton', { name: '数量' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '仓库已满，无法买入小麦' })).toBeDisabled();
 
   await page.goto('market-runtime-test.html?scenario=sell-empty');
-  await expect(page.getByRole('status')).toHaveText('当前没有可出售的小麦。');
-  await expect(page.getByRole('button', { name: '卖出小麦' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '暂无小麦可卖' })).toBeDisabled();
+  await expect(page.getByText('当前没有可出售的', { exact: false })).toHaveCount(0);
+  await expect(page.getByText('当前最多可卖', { exact: false })).toHaveCount(0);
 
   await page.goto('market-runtime-test.html?scenario=active');
   await expect(page.getByRole('status')).toHaveCount(0);
@@ -306,7 +308,7 @@ test('market steppers and compact quick quantities preserve price and quantity l
   await expect(page.getByRole('button', { name: '填写四分之一可交易数量' })).toBeVisible();
   await expect(page.getByRole('button', { name: '填写二分之一可交易数量' })).toBeVisible();
   await expect(page.getByRole('button', { name: '填写最大可交易数量' })).toBeVisible();
-  await expect(page.getByText('当前价格下最多可买 500。', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('当前价格下最多可买 500。', { exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: '填写最大可交易数量' }).click();
   await expect(quantityInput).toHaveValue('500');

@@ -149,10 +149,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
           : undefined
       : marketAssetKind === 'commodity'
         ? selectedInventory.available < 1
-          ? `当前没有可出售的${assetName}。`
+          ? '暂无可售库存。'
           : undefined
         : (selectedGroup?.availableCount ?? 0) < 1
-          ? `当前没有可出售的${assetName}。`
+          ? '暂无可售库存。'
           : undefined;
   const quantityReason = priceReason === undefined && availabilityReason === undefined
     ? parsedOrderQuantity === null
@@ -160,24 +160,28 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
       : parsedOrderQuantity > maxTradeQuantity
         ? orderSide === 'buy'
           ? `当前价格下最多可买 ${formatNumber(maxTradeQuantity)}。`
-          : `当前最多可卖 ${formatNumber(maxTradeQuantity)}。`
+          : '数量超过可售范围。'
         : undefined
     : undefined;
   const orderLimitReason = ownOpenOrders.length >= maxOpenOrders
     ? `未完成订单数量已达上限（${formatNumber(maxOpenOrders)} 笔）。`
     : undefined;
-  const visibleDisabledReason = orderLimitReason ?? availabilityReason;
   const orderDisabledReason = orderLimitReason ?? priceReason ?? availabilityReason ?? quantityReason;
-  const warehouseLimitsBuy = orderSide === 'buy'
-    && marketAssetKind === 'commodity'
-    && maxBuyByFunds > game.warehouseAvailableCapacity;
-  const quantityDescription = quantityReason || maxTradeQuantity < 1
-    ? undefined
+  const orderActionLabel = orderDisabledReason
+    ? orderLimitReason
+      ? '订单已达上限'
+      : priceReason
+        ? `价格无效，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
+        : availabilityReason
+          ? orderSide === 'buy'
+            ? game.credits < (parsedOrderPrice ?? 0)
+              ? `资金不足，无法买入${assetName}`
+              : `仓库已满，无法买入${assetName}`
+            : `暂无${assetName}可卖`
+          : `数量超出范围，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
     : orderSide === 'buy'
-      ? warehouseLimitsBuy
-        ? `受仓库剩余容量限制，当前最多可买 ${formatNumber(maxTradeQuantity)}。`
-        : `当前价格下最多可买 ${formatNumber(maxTradeQuantity)}。`
-      : `当前最多可卖 ${formatNumber(maxTradeQuantity)}。`;
+      ? `买入${assetName}`
+      : `卖出${assetName}`;
 
   useEffect(() => {
     const active = assetDirectoryRef.current?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
@@ -483,7 +487,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                       max={maxTradeQuantity > 0 ? maxTradeQuantity : undefined}
                       disabled={maxTradeQuantity < 1}
                       aria-invalid={Boolean(quantityReason)}
-                      aria-describedby={quantityReason ? 'market-order-quantity-error' : quantityDescription ? 'market-order-quantity-description' : undefined}
+                      aria-describedby={quantityReason ? 'market-order-quantity-error' : undefined}
                       onValueChange={updateQuantityDraft}
                       onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
                     />
@@ -496,7 +500,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                     >＋</Button>
                   </div>
                   {quantityReason ? <small id="market-order-quantity-error" className="ui-form-field__error" role="alert">{quantityReason}</small> : null}
-                  {!quantityReason && quantityDescription ? <small id="market-order-quantity-description" className="ui-form-field__description">{quantityDescription}</small> : null}
                 </div>
                 <div className="order-quick-fill" role="group" aria-label="快捷填写交易数量">
                   <Button variant="compact" aria-label="填写四分之一可交易数量" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>25%</Button>
@@ -504,21 +507,19 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                   <Button variant="compact" aria-label="填写最大可交易数量" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>最大</Button>
                 </div>
                 <div className="market-order-summary-grid">
-                  <span><small>{orderSide === 'buy' ? '最大可买' : '最大可卖'}</small><strong>{formatNumber(maxTradeQuantity)}</strong></span>
                   <span><small>订单总额</small><strong><CurrencyAmount>{formatCurrency(orderTotal)}</CurrencyAmount></strong></span>
                   {orderSide === 'sell'
                     ? <span><small>预计到账</small><strong><CurrencyAmount>{formatCurrency(estimatedNetTotal)}</CurrencyAmount></strong></span>
                     : <span><small>可用资金</small><strong><CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></strong></span>}
                 </div>
-                {visibleDisabledReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{visibleDisabledReason}</p> : null}
                 <Button
                   block
                   className="market-submit-order"
                   disabled={Boolean(orderDisabledReason)}
-                  aria-describedby={visibleDisabledReason ? 'order-disabled-reason' : undefined}
+                  aria-label={orderActionLabel}
                   onClick={submitOrder}
                 >
-                  {orderSide === 'buy' ? `买入${assetName}` : `卖出${assetName}`}
+                  {orderActionLabel}
                 </Button>
               </section>
 

@@ -95,6 +95,8 @@ for (const text of [
   'resolveMarketBucketIndex(axisValue, windowStart, safeBuckets.length, MARKET_BUCKET_MS)',
   'const priceVolumeGap = 0', 'const volumeTop = priceBottom + priceVolumeGap',
   'export function buildMarketChartGeometry',
+  'minimumHeight = 0', 'extraDataHeight * 0.72', 'extraDataHeight * 0.28',
+  'chartCardRect.bottom - elementRect.top', 'data-chart-fill-mode={minimumHeight > 0',
   'Math.max(68, rootFontSize * 4.25)', '(0.22 / 0.78) * priceHeight',
   'buildIntegerPriceScale', 'buildIntegerVolumeScale',
   'expandScaleToMinimumTicks', 'left.padding - right.padding',
@@ -112,6 +114,7 @@ for (const text of [
   'data-mobile-axis-titles={geometry.mobileAxisTitles',
   'data-x-axis-title-visible={geometry.showXAxisTitle',
   'data-axis-pointer-linked="true"', 'data-hover-emphasis-disabled="true"',
+  'data-chart-fill-mode={minimumHeight > 0',
   'data-shared-boundary-label-owner="price"',
   'data-price-min-label={priceBoundaryLabel}',
   'data-volume-max-label={volumeBoundaryLabel}',
@@ -228,6 +231,7 @@ for (const text of [
   '至少 `6.5s`', '`alwaysShowContent`', '超长 `hideDelay`',
   '价格区与成交量区合计数据绘图区的 `22%`',
   '不得由业务 CSS 再用固定比例覆盖组件计算结果',
+  '交易卡和行情卡外框必须同排等高', '按约 `72%` 分配给价格区、`28%` 分配给成交量区',
   '稳定 `data-*`', '`721 × 445`', '390 × 844` 且根字号放大到 `125%',
 ]) assert.ok(chartDesign.includes(text), `市场行情图专项设计缺少: ${text}`);
 for (const text of ['动态横纵轴刻度', '零间距双 Grid', '统一 AxisPointer／Tooltip', '悬浮折线保护']) {
