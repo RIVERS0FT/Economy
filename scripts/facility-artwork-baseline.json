@@ -1,10 +1,15 @@
 {
-  "version": 3,
+  "version": 4,
   "style": "fresh-original-subject-first-2026-08-02",
   "creationMode": "from-scratch-new-illustration",
   "complexities": [
     "C1",
-    "C2"
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7"
   ],
   "facilityIds": [
     "farm",
@@ -15,7 +20,19 @@
     "mine",
     "oil-field",
     "mill",
-    "sawmill"
+    "sawmill",
+    "pulp-mill",
+    "steelworks",
+    "textile-mill",
+    "food-factory",
+    "paper-mill",
+    "refinery",
+    "beverage-factory",
+    "furniture-factory",
+    "garment-factory",
+    "machine-factory",
+    "electronics-factory",
+    "appliance-factory"
   ],
   "sha256": {
     "farm": "e4c8f8c18cad0a38554445f092cb19bca23246379ed9309e27021fa7fbf8edfa",
@@ -26,6 +43,18 @@
     "mine": "ddbfd8cbc7de54ae4591fda684864b90700cb9aad66668b59f6f27fceff8ec0a",
     "oil-field": "29cb5198224d263b3d94e6e3f198b9becd460bf9e9f61cffeac261b81617aec0",
     "mill": "c069e7953bd9d3bee778562685d4fe7be731102d4c8581223e6ef0cbbfbff791",
-    "sawmill": "6b1ade9722b7a88710cdd4ccce967a773c7326a688da30a19ec14b45ee0db657"
+    "sawmill": "6b1ade9722b7a88710cdd4ccce967a773c7326a688da30a19ec14b45ee0db657",
+    "pulp-mill": "e9ea8cad3b323a92c50ae8bc2f5500138b4768e7cfb4bd0ac69c1f6e0d801bfa",
+    "steelworks": "7eb77a16b02c91f4d1e43421918a321a0c1806d97a5d95a9640257f4afb79a18",
+    "textile-mill": "beeede3177e5fdc4c44d4fa9d60cd6ccd7836cbece1c2c6e0e97258c6b91cc96",
+    "food-factory": "1f072a21963db08385516bbe1e12afefacbdb67c3375ae47bfe210cae8a92a36",
+    "paper-mill": "fc8011d4ac542a87f5d4a730c350b72cf5d1c244ce87313ed7e980baa08f1351",
+    "refinery": "dd34cdd288ca523ee11b8226c4508ce2c751af66994dc500ae1ea3c56b5537d4",
+    "beverage-factory": "bcc4a34ea2c8753a5f6c09bd95a0e5c46168a0e63c4c40483535065e6d5d1194",
+    "furniture-factory": "c18b02e730eaf443d53dfef33c98731ab031fc66c9662d28ea2163c5776df262",
+    "garment-factory": "1de2946842bb7a43380bae6f0ed61c0cb77c727f2adeb3014e397dafa66918b5",
+    "machine-factory": "bbd780621ed357742eb406ff050037113189c6d18f20463cc82fc0edd2694ae2",
+    "electronics-factory": "c4eb10814589c9988ecfde7b268eed63c48313d49ec4cd141f1082f81ae5cddf",
+    "appliance-factory": "b7ce7d0dcb5ce3587978a8dc88e2054a4e5e96855046da1591c5e33f3d63c778"
   }
 }
