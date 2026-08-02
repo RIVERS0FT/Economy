@@ -6,12 +6,14 @@ on:
       - main
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
   apply:
     if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/c1-fast-production'
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Checkout feature branch
         uses: actions/checkout@v4
@@ -19,13 +21,11 @@ jobs:
           ref: agent/c1-fast-production
           fetch-depth: 0
 
-      - name: Apply validated patch
+      - name: Apply deterministic transformations
         shell: bash
         run: |
           set -euo pipefail
-          sed -i 's/^ diff --git /diff --git /' .agent/c1-fast-production.patch
-          git apply --recount --check .agent/c1-fast-production.patch
-          git apply --recount .agent/c1-fast-production.patch
+          python .agent/c1-fast-production.patch
           rm -f .agent/c1-fast-production.patch .github/workflows/c1-fast-production-apply.yml
           rmdir .agent 2>/dev/null || true
 
@@ -53,3 +53,27 @@ jobs:
           git diff --cached --check
           git commit -m '调整 C1 工厂为快速生产'
           git push origin HEAD:agent/c1-fast-production
+
+      - name: Run final repository CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          head_sha="$(git rev-parse HEAD)"
+          gh workflow run ci.yml --ref agent/c1-fast-production
+          run_id=''
+          for attempt in $(seq 1 30); do
+            run_id="$(gh run list \
+              --workflow ci.yml \
+              --branch agent/c1-fast-production \
+              --event workflow_dispatch \
+              --limit 20 \
+              --json databaseId,headSha \
+              --jq ".[] | select(.headSha == \"${head_sha}\") | .databaseId" \
+              | head -n 1)"
+            if [ -n "$run_id" ]; then break; fi
+            sleep 2
+          done
+          test -n "$run_id"
+          gh run watch "$run_id" --exit-status
