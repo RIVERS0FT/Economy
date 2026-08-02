@@ -16,8 +16,8 @@ test('contract market stays visible while personal contracts switch views', asyn
 
   const activeCards = personal.locator('.contract-active-grid .contract-card');
   await expect(activeCards).toHaveCount(2);
-  await expect(activeCards.nth(0)).toHaveAttribute('data-attention', 'true');
-  await expect(activeCards.nth(1)).toHaveAttribute('data-attention', 'false');
+  await expect(activeCards.nth(0)).toHaveClass(/contract-card--attention/);
+  await expect(activeCards.nth(1)).toHaveClass(/contract-card--normal/);
 
   await page.getByRole('tab', { name: '历史合同', exact: true }).click();
   await expect(page.getByRole('tab', { name: '历史合同', exact: true })).toHaveAttribute('aria-selected', 'true');
