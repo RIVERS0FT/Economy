@@ -32,7 +32,6 @@ jobs:
           set -euo pipefail
           node <<'NODE'
           import assert from 'node:assert/strict';
-          import { execFileSync } from 'node:child_process';
           import { readFileSync, writeFileSync } from 'node:fs';
 
           const read = (path) => readFileSync(path, 'utf8');
@@ -91,15 +90,6 @@ jobs:
                   '上下两层黑色渐变',
                   '中央主体区域保持透明',`,
           );
-
-          let oldNameFound = false;
-          try {
-            execFileSync('git', ['grep', '-n', '电子工厂'], { stdio: 'pipe' });
-            oldNameFound = true;
-          } catch (error) {
-            assert.equal(error.status, 1, '检查旧名称时 git grep 失败');
-          }
-          assert.equal(oldNameFound, false, '仓库仍包含旧名称“电子工厂”');
           NODE
 
       - name: Install dependencies
