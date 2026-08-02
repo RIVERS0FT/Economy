@@ -12,6 +12,11 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { FormField } from './FormControls';
+import {
+  hideTopLayerPopover,
+  showTopLayerPopover,
+  supportsTopLayerPopover,
+} from './topLayer';
 import { useWorkspaceFloatingLayer } from './WorkspaceFloatingLayer';
 
 const FLOATING_GAP = 6;
@@ -87,6 +92,7 @@ export function RichSelectInput({
   const inputId = id ?? generatedId;
   const listboxId = `${inputId}-listbox`;
   const floatingLayer = useWorkspaceFloatingLayer();
+  const topLayerSupported = supportsTopLayerPopover();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -109,9 +115,10 @@ export function RichSelectInput({
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
-    if (!floatingLayer || !trigger) return;
+    if (!trigger) return;
 
-    const layerRect = floatingLayer.getBoundingClientRect();
+    const layerRect = floatingLayer?.getBoundingClientRect()
+      ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
     const triggerRect = trigger.getBoundingClientRect();
     const width = Math.min(triggerRect.width, Math.max(1, layerRect.width - FLOATING_INSET * 2));
     const estimatedHeight = Math.min(
@@ -132,17 +139,27 @@ export function RichSelectInput({
       : 'below';
     const availableHeight = placement === 'above' ? availableAbove : availableBelow;
     const maxHeight = Math.max(OPTION_HEIGHT, Math.min(estimatedHeight, availableHeight || estimatedHeight));
-    const left = clamp(
-      triggerRect.left - layerRect.left,
-      FLOATING_INSET,
-      layerRect.width - width - FLOATING_INSET,
-    );
-    const top = placement === 'above'
-      ? triggerRect.top - layerRect.top - FLOATING_GAP - maxHeight
-      : triggerRect.bottom - layerRect.top + FLOATING_GAP;
+    const left = topLayerSupported
+      ? clamp(
+        triggerRect.left,
+        layerRect.left + FLOATING_INSET,
+        layerRect.right - width - FLOATING_INSET,
+      )
+      : clamp(
+        triggerRect.left - layerRect.left,
+        FLOATING_INSET,
+        layerRect.width - width - FLOATING_INSET,
+      );
+    const top = topLayerSupported
+      ? placement === 'above'
+        ? triggerRect.top - FLOATING_GAP - maxHeight
+        : triggerRect.bottom + FLOATING_GAP
+      : placement === 'above'
+        ? triggerRect.top - layerRect.top - FLOATING_GAP - maxHeight
+        : triggerRect.bottom - layerRect.top + FLOATING_GAP;
 
     setPosition({ left, top, width, maxHeight, placement });
-  }, [floatingLayer, options.length]);
+  }, [floatingLayer, options.length, topLayerSupported]);
 
   const openList = useCallback((direction: 1 | -1 = 1) => {
     if (disabled || options.length === 0) return;
@@ -167,11 +184,24 @@ export function RichSelectInput({
   }, [closeList, onValueChange, options, value]);
 
   useLayoutEffect(() => {
-    if (!open) return undefined;
+    const listbox = listboxRef.current;
+    if (!topLayerSupported || !listbox) return undefined;
+    if (!open) {
+      hideTopLayerPopover(listbox);
+      return undefined;
+    }
+    showTopLayerPopover(listbox);
     updatePosition();
     const frame = requestAnimationFrame(updatePosition);
     return () => cancelAnimationFrame(frame);
-  }, [open, updatePosition]);
+  }, [open, topLayerSupported, updatePosition]);
+
+  useLayoutEffect(() => {
+    if (topLayerSupported || !open) return undefined;
+    updatePosition();
+    const frame = requestAnimationFrame(updatePosition);
+    return () => cancelAnimationFrame(frame);
+  }, [open, topLayerSupported, updatePosition]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -250,44 +280,49 @@ export function RichSelectInput({
     maxHeight: `${position.maxHeight}px`,
   };
 
-  const listbox = open && floatingLayer
-    ? createPortal(
-      <div
-        ref={listboxRef}
-        id={listboxId}
-        className="ui-rich-select__listbox"
-        role="listbox"
-        aria-label={ariaLabel ?? (typeof label === 'string' ? label : undefined)}
-        data-placement={position.placement}
-        style={listboxStyle}
-      >
-        {options.map((option, index) => (
-          <button
-            key={option.value}
-            id={`${listboxId}-option-${index}`}
-            type="button"
-            className="ui-rich-select__option"
-            role="option"
-            aria-selected={option.value === value}
-            aria-disabled={option.disabled || undefined}
-            data-active={index === activeIndex ? 'true' : undefined}
-            data-value={option.value}
-            disabled={option.disabled}
-            tabIndex={-1}
-            onMouseDown={(event) => event.preventDefault()}
-            onPointerMove={() => {
-              if (!option.disabled) setActiveIndex(index);
-            }}
-            onClick={() => selectIndex(index)}
-          >
-            {option.visual ? <span className="ui-rich-select__visual">{option.visual}</span> : null}
-            <span className="ui-rich-select__option-label">{option.label}</span>
-          </button>
-        ))}
-      </div>,
-      floatingLayer,
-    )
-    : null;
+  const listboxNode = (
+    <div
+      ref={listboxRef}
+      id={listboxId}
+      className="ui-rich-select__listbox"
+      role="listbox"
+      aria-label={ariaLabel ?? (typeof label === 'string' ? label : undefined)}
+      data-placement={position.placement}
+      data-top-layer={topLayerSupported ? 'true' : undefined}
+      popover={topLayerSupported ? 'manual' : undefined}
+      style={listboxStyle}
+    >
+      {options.map((option, index) => (
+        <button
+          key={option.value}
+          id={`${listboxId}-option-${index}`}
+          type="button"
+          className="ui-rich-select__option"
+          role="option"
+          aria-selected={option.value === value}
+          aria-disabled={option.disabled || undefined}
+          data-active={index === activeIndex ? 'true' : undefined}
+          data-value={option.value}
+          disabled={option.disabled}
+          tabIndex={-1}
+          onMouseDown={(event) => event.preventDefault()}
+          onPointerMove={() => {
+            if (!option.disabled) setActiveIndex(index);
+          }}
+          onClick={() => selectIndex(index)}
+        >
+          {option.visual ? <span className="ui-rich-select__visual">{option.visual}</span> : null}
+          <span className="ui-rich-select__option-label">{option.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  const listbox = topLayerSupported
+    ? listboxNode
+    : open && floatingLayer
+      ? createPortal(listboxNode, floatingLayer)
+      : null;
 
   return (
     <FormField
