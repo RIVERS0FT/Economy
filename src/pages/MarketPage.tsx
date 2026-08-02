@@ -173,12 +173,12 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
       : priceReason
         ? `价格无效，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
         : availabilityReason
-? orderSide === 'buy'
-  ? game.credits < (parsedOrderPrice ?? 0)
-    ? `资金不足，无法买入${assetName}`
-    : `仓库已满，无法买入${assetName}`
-  : `暂无${assetName}可卖`
-: `数量超出范围，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
+          ? orderSide === 'buy'
+            ? game.credits < (parsedOrderPrice ?? 0)
+              ? `资金不足，无法买入${assetName}`
+              : `仓库已满，无法买入${assetName}`
+            : `暂无${assetName}可卖`
+          : `数量超出范围，无法${orderSide === 'buy' ? '买入' : '卖出'}${assetName}`
     : orderSide === 'buy'
       ? `买入${assetName}`
       : `卖出${assetName}`;
@@ -513,14 +513,14 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                     : <span><small>可用资金</small><strong><CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></strong></span>}
                 </div>
                 <Button
-        block
-        className="market-submit-order"
-        disabled={Boolean(orderDisabledReason)}
-        aria-label={orderActionLabel}
-        onClick={submitOrder}
-      >
-        {orderActionLabel}
-      </Button>
+                  block
+                  className="market-submit-order"
+                  disabled={Boolean(orderDisabledReason)}
+                  aria-label={orderActionLabel}
+                  onClick={submitOrder}
+                >
+                  {orderActionLabel}
+                </Button>
               </section>
 
               <section className={`order-book single-order-book market-trade-book${compactTradeView === 'book' ? ' market-compact-pane--active' : ''}`} aria-labelledby="market-order-book-title">

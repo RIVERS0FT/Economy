@@ -276,25 +276,25 @@ function useMarketChartMetrics() {
         const chartCardRect = chartCard?.getBoundingClientRect();
         const tradeCardRect = tradeCard?.getBoundingClientRect();
         const sideBySide = Boolean(
-chartCardRect
-&& tradeCardRect
-&& Math.abs(chartCardRect.top - tradeCardRect.top) < 3
-&& chartCardRect.left > tradeCardRect.left + tradeCardRect.width - 3
+          chartCardRect
+          && tradeCardRect
+          && Math.abs(chartCardRect.top - tradeCardRect.top) < 3
+          && chartCardRect.left > tradeCardRect.left + tradeCardRect.width - 3
         );
         const cardPaddingBottom = chartCard
-? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0
-: 0;
+          ? Number.parseFloat(getComputedStyle(chartCard).paddingBottom) || 0
+          : 0;
         const minimumHeight = sideBySide && chartCardRect
-? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)
-: 0;
+          ? Math.max(0, chartCardRect.bottom - elementRect.top - cardPaddingBottom)
+          : 0;
         const width = elementRect.width;
         const rootFontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         setMetrics((current) => (
-Math.abs(current.width - width) < 0.5
-&& Math.abs(current.rootFontSize - rootFontSize) < 0.1
-&& Math.abs(current.minimumHeight - minimumHeight) < 0.5
-  ? current
-  : { width, rootFontSize, minimumHeight }
+          Math.abs(current.width - width) < 0.5
+          && Math.abs(current.rootFontSize - rootFontSize) < 0.1
+          && Math.abs(current.minimumHeight - minimumHeight) < 0.5
+            ? current
+            : { width, rootFontSize, minimumHeight }
         ));
       });
     };
@@ -313,6 +313,7 @@ Math.abs(current.width - width) < 0.5
   }, []);
   return { ref, ...metrics };
 }
+
 function MarketHistoryChart({ buckets, variant }: { buckets: MarketHistoryBucket[]; variant: MarketChartVariant }) {
   const bucketSignature = marketBucketSignature(buckets);
   const safeBuckets = useMemo<MarketHistoryBucket[]>(() => (
