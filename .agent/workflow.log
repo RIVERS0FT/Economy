@@ -1,9 +1,9 @@
 Collecting pillow==11.3.0
   Downloading pillow-11.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (9.0 kB)
 Downloading pillow-11.3.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.6 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.6/6.6 MB 174.2 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.6/6.6 MB 31.6 MB/s  0:00:00
 Installing collected packages: pillow
 Successfully installed pillow-11.3.0
 Redrew C1 facility artwork: farm, orchard, ranch, fishery; wrote SHA-256 baseline.
-error: patch failed: docs/UI_DESIGN_SYSTEM.md:1
+error: patch failed: docs/UI_DESIGN_SYSTEM.md:236
 error: docs/UI_DESIGN_SYSTEM.md: patch does not apply
