@@ -43,6 +43,7 @@ import './styles/production-surface.css';
 import './styles/settings.css';
 import './styles/overview-polish.css';
 import './styles/market-page-polish.css';
+import './styles/market-desktop-cleanup.css';
 import './styles/leaderboards.css';
 import './styles/product-artwork.css';
 import './styles/facility-artwork.css';
