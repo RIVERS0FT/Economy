@@ -75,28 +75,40 @@ async function inspectChartAxis(chart: Locator) {
   });
 }
 
-test('market desktop layout gives the full chart the dominant column and intrinsic ratio', async ({ page }) => {
+test('market desktop layout keeps order entry and order book in one trade card beside the chart', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
 
   await expect(page.getByRole('heading', { name: '市场', exact: true })).toBeVisible();
-  const orderEntry = page.locator('.order-entry');
-  const orderBook = page.locator('.single-order-book');
+  const tradeCard = page.locator('.market-trade-card');
+  const orderEntry = tradeCard.locator('.order-entry');
+  const orderBook = tradeCard.locator('.single-order-book');
   const chartCard = page.locator('.market-chart-card');
   const chart = chartCard.locator('.market-history-chart.full');
+  const tradeBox = await requireBox(tradeCard);
   const orderBox = await requireBox(orderEntry);
   const bookBox = await requireBox(orderBook);
   const chartCardBox = await requireBox(chartCard);
   const chartBox = await requireBox(chart);
 
-  expect(Math.max(orderBox.y, bookBox.y, chartCardBox.y) - Math.min(orderBox.y, bookBox.y, chartCardBox.y)).toBeLessThan(3);
+  await expect(page.locator('.market-trade-card')).toHaveCount(1);
+  await expect(page.locator('.market-grid > .order-entry')).toHaveCount(0);
+  await expect(page.locator('.market-grid > .single-order-book')).toHaveCount(0);
+  expect(Math.abs(tradeBox.y - chartCardBox.y)).toBeLessThan(3);
+  expect(tradeBox.width).toBeGreaterThanOrEqual(640);
   expect(chartCardBox.width).toBeGreaterThanOrEqual(620);
-  expect(chartCardBox.width).toBeGreaterThan(orderBox.width * 1.7);
+  expect(Math.abs(orderBox.y - bookBox.y)).toBeLessThan(3);
+  expect(bookBox.x).toBeGreaterThan(orderBox.x + orderBox.width - 3);
+  expect(orderBox.x).toBeGreaterThanOrEqual(tradeBox.x - 1);
+  expect(bookBox.x + bookBox.width).toBeLessThanOrEqual(tradeBox.x + tradeBox.width + 1);
   expect(chartBox.width).toBeGreaterThan(chartCardBox.width * 0.94);
   expect(chartBox.width / chartBox.height).toBeGreaterThan(1.72);
   expect(chartBox.width / chartBox.height).toBeLessThan(1.82);
-  expect(bookBox.height).toBeLessThan(chartCardBox.height * 0.8);
+  await expect(tradeCard.getByRole('heading', { name: /交易$/ })).toBeVisible();
+  await expect(tradeCard.getByRole('heading', { name: '下单', exact: true })).toBeVisible();
+  await expect(tradeCard.getByRole('heading', { name: '订单簿', exact: true })).toBeVisible();
+  await expect(tradeCard.locator('.order-book-columns')).toContainText(/方向\s*价格\s*数量/);
   await expect(chartCard.locator('.market-chart-footer')).toBeVisible();
   await expect(chartCard.locator('.chart-footer')).toHaveCount(0);
   await expect(chartCard.getByText('均衡／方向未知', { exact: true })).toHaveCount(0);
@@ -158,18 +170,23 @@ test('market chart uses one linked hover state and keeps the price line protecte
   expect(pageErrors).toEqual([]);
 });
 
-test('market medium and narrow layouts follow the real content width without horizontal overflow', async ({ page }) => {
+test('market medium and narrow layouts keep the trade card responsive without horizontal overflow', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  const orderBox = await requireBox(page.locator('.order-entry'));
-  const bookBox = await requireBox(page.locator('.single-order-book'));
+  const tradeCard = page.locator('.market-trade-card');
+  const orderEntry = tradeCard.locator('.order-entry');
+  const orderBook = tradeCard.locator('.single-order-book');
+  const tradeBox = await requireBox(tradeCard);
+  const orderBox = await requireBox(orderEntry);
+  const bookBox = await requireBox(orderBook);
   const chartBox = await requireBox(page.locator('.market-chart-card'));
   expect(Math.abs(orderBox.y - bookBox.y)).toBeLessThan(3);
-  expect(chartBox.y).toBeGreaterThan(Math.max(orderBox.y + orderBox.height, bookBox.y + bookBox.height) - 2);
-  expect(Math.abs(chartBox.x - orderBox.x)).toBeLessThan(3);
-  expect(chartBox.width).toBeGreaterThan(orderBox.width + bookBox.width);
+  expect(bookBox.x).toBeGreaterThan(orderBox.x + orderBox.width - 3);
+  expect(chartBox.y).toBeGreaterThan(tradeBox.y + tradeBox.height - 2);
+  expect(Math.abs(chartBox.x - tradeBox.x)).toBeLessThan(3);
+  expect(Math.abs(chartBox.width - tradeBox.width)).toBeLessThan(3);
 
   await page.setViewportSize({ width: 900, height: 1000 });
   const surface = page.locator('.market-page-surface');
@@ -179,11 +196,12 @@ test('market medium and narrow layouts follow the real content width without hor
     htmlElement.style.maxWidth = '100%';
   });
   await expect.poll(() => surface.evaluate((element) => element.getBoundingClientRect().width)).toBeLessThan(820);
-  const stackedOrder = await requireBox(page.locator('.order-entry'));
-  const stackedBook = await requireBox(page.locator('.single-order-book'));
+  const narrowTrade = await requireBox(tradeCard);
+  const stackedOrder = await requireBox(orderEntry);
+  const stackedBook = await requireBox(orderBook);
   const stackedChart = await requireBox(page.locator('.market-chart-card'));
   expect(stackedBook.y).toBeGreaterThan(stackedOrder.y + stackedOrder.height - 2);
-  expect(stackedChart.y).toBeGreaterThan(stackedBook.y + stackedBook.height - 2);
+  expect(stackedChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);
 
   const layout = await inspectMarketLayoutBounds(surface);
   expect(layout.pageScrollScrollWidth).toBeLessThanOrEqual(layout.pageScrollClientWidth + 1);
@@ -196,6 +214,9 @@ test('market medium and narrow layouts follow the real content width without hor
   }
 
   await page.setViewportSize({ width: 390, height: 844 });
+  const mobileOrder = await requireBox(orderEntry);
+  const mobileBook = await requireBox(orderBook);
+  expect(mobileBook.y).toBeGreaterThan(mobileOrder.y + mobileOrder.height - 2);
   const mobileAxis = await inspectChartAxis(page.locator('.market-history-chart.full'));
   for (const label of mobileAxis.allLabels) {
     expect(label.left, `移动端 ${label.text} 不得越出图表左侧`).toBeGreaterThanOrEqual(-1);
@@ -437,24 +458,26 @@ test('mobile market sticky asset divider stays below the status bar chrome', asy
   expect(pageErrors).toEqual([]);
 });
 
-test('market order book headings precede their rows and sparse books keep natural height', async ({ page }) => {
+test('market order book headings precede their rows and midpoint separates both sides', async ({ page }) => {
   const pageErrors = await capturePageErrors(page);
   await page.setViewportSize({ width: 1684, height: 931 });
   await page.goto('market-runtime-test.html?scenario=active');
 
   const askLabel = await requireBox(page.locator('.ask-label'));
   const askRow = await requireBox(page.locator('.book-order-row.ask'));
-  const divider = await requireBox(page.locator('.order-book-divider'));
+  const midpoint = await requireBox(page.locator('.order-book-midpoint'));
   const bidLabel = await requireBox(page.locator('.bid-label'));
   const bidRow = await requireBox(page.locator('.book-order-row.bid'));
   expect(askLabel.y).toBeLessThan(askRow.y);
-  expect(askRow.y).toBeLessThan(divider.y);
-  expect(divider.y).toBeLessThan(bidLabel.y);
+  expect(askRow.y).toBeLessThan(midpoint.y);
+  expect(midpoint.y).toBeLessThan(bidLabel.y);
   expect(bidLabel.y).toBeLessThan(bidRow.y);
+  await expect(page.locator('.order-book-midpoint')).toContainText('最近成交');
 
+  const tradeCard = await requireBox(page.locator('.market-trade-card'));
   const book = await requireBox(page.locator('.single-order-book'));
-  const chart = await requireBox(page.locator('.market-chart-card'));
-  expect(book.height).toBeLessThan(chart.height * 0.8);
+  expect(book.x).toBeGreaterThanOrEqual(tradeCard.x - 1);
+  expect(book.x + book.width).toBeLessThanOrEqual(tradeCard.x + tradeCard.width + 1);
   expect(pageErrors).toEqual([]);
 });
 

@@ -16,10 +16,10 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/ui/VirtualRecordTable.tsx','src/hooks/useVirtualWindow.ts','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
 for (const text of [
-  'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-divider','items={localTrades}',
+  'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-midpoint','items={localTrades}',
   'local-trades-virtual-table','VirtualRecordTable',
   "from '../components/icons/GameIcons'",'FactoryIcon','<FactoryIcon />','selectOrderSide',
-  'title={selectedAssetTitle(`${assetName}订单`)}','label="价格"','className="numeric-cell">价格</th>',
+  'title={selectedAssetTitle(`${assetName}交易`)}','label="价格"','className="numeric-cell">价格</th>',
   'formatNumber(order.remaining)','formatCurrency(order.price)',
   "import { buildOrderBookLevels } from '../utils/orderBookLevels'",
   "buildOrderBookLevels(selectedOrders, 'sell').reverse()",

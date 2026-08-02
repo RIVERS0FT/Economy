@@ -92,6 +92,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const maxOpenOrders = openOrderLimitForCatalog(game.products.length, game.facilityTypes.length);
   const bestAsks = buildOrderBookLevels(selectedOrders, 'sell').reverse();
   const bestBids = buildOrderBookLevels(selectedOrders, 'buy');
+  const selectedLastTradePrice = selectedMarket?.lastTradePrice;
   const marketHistory = selectedMarket?.priceHistory ?? [];
   const marketFallbackPrice = selectedMarket?.lastPrice
     ?? selectedProduct?.basePrice
@@ -340,134 +341,153 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
         </div>
 
         <div className="market-grid unified-market-grid">
-          <Panel className="widget order-entry">
+          <Panel className="widget market-trade-card">
             <WidgetHeading
-              title={selectedAssetTitle(`${assetName}订单`)}
+              title={selectedAssetTitle(`${assetName}交易`)}
               action={<StatusTag>{formatNumber(ownSelectedOrders.length)} 笔未完成</StatusTag>}
             />
-            <div className="ui-segmented" role="group" aria-label="订单方向">
-              <Button
-                variant="text"
-                className={orderSide === 'buy' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-                aria-pressed={orderSide === 'buy'}
-                onClick={() => selectOrderSide('buy')}
-              >买入</Button>
-              <Button
-                variant="text"
-                className={orderSide === 'sell' ? 'ui-segmented__button active danger' : 'ui-segmented__button'}
-                aria-pressed={orderSide === 'sell'}
-                onClick={() => selectOrderSide('sell')}
-              >卖出</Button>
-            </div>
-            <MoneyInput
-              label="价格"
-              value={priceDraft}
-              fallbackValue={orderPrice}
-              min={0.01}
-              max={1_000_000}
-              error={priceReason}
-              onValueChange={updatePriceDraft}
-              onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
-            />
-            <IntegerInput
-              label="数量"
-              value={quantityDraft}
-              fallbackValue={Math.min(Math.max(1, orderQuantity), Math.max(1, maxTradeQuantity))}
-              min={1}
-              max={maxTradeQuantity > 0 ? maxTradeQuantity : undefined}
-              disabled={maxTradeQuantity < 1}
-              description={quantityDescription}
-              error={quantityReason}
-              onValueChange={updateQuantityDraft}
-              onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
-            />
-            <div className="order-quick-fill" role="group" aria-label="快捷填写交易数量">
-              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>{quickQuantityLabels[0]}</Button>
-              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>{quickQuantityLabels[1]}</Button>
-              <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>{quickQuantityLabels[2]}</Button>
-            </div>
-            <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderTotal)}</CurrencyAmount></strong></div>
-            {orderSide === 'sell' ? (
-              <>
-                <div className="order-summary"><span>预计手续费（累计成交额的 1%）</span><strong><CurrencyAmount>{formatCurrency(estimatedSellFee)}</CurrencyAmount></strong></div>
-                <div className="order-summary"><span>预计到账</span><strong><CurrencyAmount>{formatCurrency(estimatedNetTotal)}</CurrencyAmount></strong></div>
-              </>
-            ) : null}
-            <div className="order-capacity">
-              <span>可用资金 <CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></span>
-              {marketAssetKind === 'commodity' ? (
-                <>
-                  <span>仓库剩余 {formatNumber(game.warehouseAvailableCapacity)}</span>
-                  <span>可用{assetName} {formatNumber(selectedInventory.available)}</span>
-                  <span>冻结{assetName} {formatNumber(selectedInventory.frozen)}</span>
-                </>
-              ) : (
-                <>
-                  <span>持有 {formatNumber(selectedGroup?.count ?? 0)} 座</span>
-                  <span>可出售 {formatNumber(selectedGroup?.availableCount ?? 0)} 座</span>
-                  <span>卖单／拍卖冻结 {formatNumber(selectedGroup?.frozenCount ?? selectedGroup?.listedCount ?? 0)} 座</span>
-                  <span>抵押中 {formatNumber(selectedGroup?.mortgagedCount ?? 0)} 座</span>
-                  <span>当前参与 {formatNumber(selectedGroup?.participatingCount ?? 0)} 座</span>
-                </>
-              )}
-            </div>
-            {visibleDisabledReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{visibleDisabledReason}</p> : null}
-            <Button
-              block
-              disabled={Boolean(orderDisabledReason)}
-              aria-describedby={visibleDisabledReason ? 'order-disabled-reason' : undefined}
-              onClick={submitOrder}
-            >
-              提交{assetName}{orderSide === 'buy' ? '买单' : '卖单'}
-            </Button>
-            <div className="inline-order-list" aria-label={`我的${assetName}未完成订单`}>
-              {ownSelectedOrders.map((order) => (
-                <div key={order.id}>
-                  <span>
-                    <StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag>
-                    <strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong>
-                    <small>{formatNumber(order.remaining)}/{formatNumber(order.quantity)}</small>
-                  </span>
-                  <Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button>
+            <div className="market-trade-layout">
+              <section className="order-entry market-trade-entry" aria-labelledby="market-order-entry-title">
+                <h3 id="market-order-entry-title" className="market-trade-section-title">下单</h3>
+                <div className="ui-segmented" role="group" aria-label="订单方向">
+                  <Button
+                    variant="text"
+                    className={orderSide === 'buy' ? 'ui-segmented__button active' : 'ui-segmented__button'}
+                    aria-pressed={orderSide === 'buy'}
+                    onClick={() => selectOrderSide('buy')}
+                  >买入</Button>
+                  <Button
+                    variant="text"
+                    className={orderSide === 'sell' ? 'ui-segmented__button active danger' : 'ui-segmented__button'}
+                    aria-pressed={orderSide === 'sell'}
+                    onClick={() => selectOrderSide('sell')}
+                  >卖出</Button>
                 </div>
-              ))}
-              {ownSelectedOrders.length === 0 ? <p className="muted">当前资产没有未完成订单。</p> : null}
-            </div>
-          </Panel>
+                <MoneyInput
+                  label="价格"
+                  value={priceDraft}
+                  fallbackValue={orderPrice}
+                  min={0.01}
+                  max={1_000_000}
+                  error={priceReason}
+                  onValueChange={updatePriceDraft}
+                  onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
+                />
+                <IntegerInput
+                  label="数量"
+                  value={quantityDraft}
+                  fallbackValue={Math.min(Math.max(1, orderQuantity), Math.max(1, maxTradeQuantity))}
+                  min={1}
+                  max={maxTradeQuantity > 0 ? maxTradeQuantity : undefined}
+                  disabled={maxTradeQuantity < 1}
+                  description={quantityDescription}
+                  error={quantityReason}
+                  onValueChange={updateQuantityDraft}
+                  onKeyDown={(event) => { if (event.key === 'Enter') submitOrder(); }}
+                />
+                <div className="order-quick-fill" role="group" aria-label="快捷填写交易数量">
+                  <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.25)}>{quickQuantityLabels[0]}</Button>
+                  <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(0.5)}>{quickQuantityLabels[1]}</Button>
+                  <Button variant="compact" disabled={maxTradeQuantity < 1} onClick={() => fillQuickQuantity(1)}>{quickQuantityLabels[2]}</Button>
+                </div>
+                <div className="order-summary"><span>订单总额</span><strong><CurrencyAmount>{formatCurrency(orderTotal)}</CurrencyAmount></strong></div>
+                {orderSide === 'sell' ? (
+                  <>
+                    <div className="order-summary"><span>预计手续费（累计成交额的 1%）</span><strong><CurrencyAmount>{formatCurrency(estimatedSellFee)}</CurrencyAmount></strong></div>
+                    <div className="order-summary"><span>预计到账</span><strong><CurrencyAmount>{formatCurrency(estimatedNetTotal)}</CurrencyAmount></strong></div>
+                  </>
+                ) : null}
+                <div className="order-capacity market-order-capacity">
+                  <span><small>可用资金</small><strong><CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></strong></span>
+                  {marketAssetKind === 'commodity' ? (
+                    <>
+                      <span><small>仓库剩余</small><strong>{formatNumber(game.warehouseAvailableCapacity)}</strong></span>
+                      <span><small>可用{assetName}</small><strong>{formatNumber(selectedInventory.available)}</strong></span>
+                      <span><small>冻结{assetName}</small><strong>{formatNumber(selectedInventory.frozen)}</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <span><small>持有</small><strong>{formatNumber(selectedGroup?.count ?? 0)} 座</strong></span>
+                      <span><small>可出售</small><strong>{formatNumber(selectedGroup?.availableCount ?? 0)} 座</strong></span>
+                      <span><small>卖单／拍卖冻结</small><strong>{formatNumber(selectedGroup?.frozenCount ?? selectedGroup?.listedCount ?? 0)} 座</strong></span>
+                      <span><small>抵押中</small><strong>{formatNumber(selectedGroup?.mortgagedCount ?? 0)} 座</strong></span>
+                      <span><small>当前参与</small><strong>{formatNumber(selectedGroup?.participatingCount ?? 0)} 座</strong></span>
+                    </>
+                  )}
+                </div>
+                {visibleDisabledReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{visibleDisabledReason}</p> : null}
+                <Button
+                  block
+                  disabled={Boolean(orderDisabledReason)}
+                  aria-describedby={visibleDisabledReason ? 'order-disabled-reason' : undefined}
+                  onClick={submitOrder}
+                >
+                  提交{assetName}{orderSide === 'buy' ? '买单' : '卖单'}
+                </Button>
+              </section>
 
-          <Panel className="widget order-book single-order-book">
-            <WidgetHeading title={selectedAssetTitle(`${assetName}订单簿`)} />
-            <div className="order-book-stack" aria-label={`${assetName}买卖盘`}>
-              <div className="order-book-side-label ask-label"><span>卖盘</span><small>最低价前 5 档</small></div>
-              {bestAsks.map((level) => (
-                <div
-                  className="book-order-row ask"
-                  key={`sell-${level.price}`}
-                  aria-label={`卖盘，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，包含 ${formatNumber(level.orderCount)} 笔订单`}
-                  data-order-count={level.orderCount}
-                >
-                  <StatusTag tone="danger">卖</StatusTag>
-                  <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
-                  <span>{formatNumber(level.remaining)}</span>
+              <section className="order-book single-order-book market-trade-book" aria-labelledby="market-order-book-title">
+                <div className="market-trade-section-heading">
+                  <h3 id="market-order-book-title">订单簿</h3>
+                  <small>实时五档</small>
                 </div>
-              ))}
-              {bestAsks.length === 0 ? <p className="muted order-book-empty">暂无卖单</p> : null}
-              <div className="order-book-divider" aria-hidden="true" />
-              <div className="order-book-side-label bid-label"><span>买盘</span><small>最高价前 5 档</small></div>
-              {bestBids.map((level) => (
-                <div
-                  className="book-order-row bid"
-                  key={`buy-${level.price}`}
-                  aria-label={`买盘，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，包含 ${formatNumber(level.orderCount)} 笔订单`}
-                  data-order-count={level.orderCount}
-                >
-                  <StatusTag tone="success">买</StatusTag>
-                  <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
-                  <span>{formatNumber(level.remaining)}</span>
+                <div className="order-book-columns" aria-hidden="true">
+                  <span>方向</span>
+                  <span>价格</span>
+                  <span>数量</span>
                 </div>
-              ))}
-              {bestBids.length === 0 ? <p className="muted order-book-empty">暂无买单</p> : null}
+                <div className="order-book-stack" aria-label={`${assetName}买卖盘`}>
+                  <div className="order-book-side-label ask-label"><span>卖盘</span><small>最低价前 5 档</small></div>
+                  {bestAsks.map((level) => (
+                    <div
+                      className="book-order-row ask"
+                      key={`sell-${level.price}`}
+                      aria-label={`卖盘，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，包含 ${formatNumber(level.orderCount)} 笔订单`}
+                      data-order-count={level.orderCount}
+                    >
+                      <StatusTag tone="danger">卖</StatusTag>
+                      <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
+                      <span>{formatNumber(level.remaining)}</span>
+                    </div>
+                  ))}
+                  {bestAsks.length === 0 ? <p className="muted order-book-empty">暂无卖单</p> : null}
+                  <div className="order-book-midpoint" aria-label={`最近成交价 ${typeof selectedLastTradePrice === 'number' ? formatCurrency(selectedLastTradePrice) : '暂无成交'}`}>
+                    <span>最近成交</span>
+                    <strong><CurrencyAmount>{typeof selectedLastTradePrice === 'number' ? formatCurrency(selectedLastTradePrice) : '—'}</CurrencyAmount></strong>
+                  </div>
+                  <div className="order-book-side-label bid-label"><span>买盘</span><small>最高价前 5 档</small></div>
+                  {bestBids.map((level) => (
+                    <div
+                      className="book-order-row bid"
+                      key={`buy-${level.price}`}
+                      aria-label={`买盘，价格 ${formatCurrency(level.price)}，合计剩余 ${formatNumber(level.remaining)}，包含 ${formatNumber(level.orderCount)} 笔订单`}
+                      data-order-count={level.orderCount}
+                    >
+                      <StatusTag tone="success">买</StatusTag>
+                      <strong><CurrencyAmount>{formatCurrency(level.price)}</CurrencyAmount></strong>
+                      <span>{formatNumber(level.remaining)}</span>
+                    </div>
+                  ))}
+                  {bestBids.length === 0 ? <p className="muted order-book-empty">暂无买单</p> : null}
+                </div>
+              </section>
             </div>
+
+            {ownSelectedOrders.length > 0 ? (
+              <div className="inline-order-list market-trade-orders" aria-label={`我的${assetName}未完成订单`}>
+                <h3>当前资产未完成订单</h3>
+                {ownSelectedOrders.map((order) => (
+                  <div key={order.id}>
+                    <span>
+                      <StatusTag tone={order.side === 'buy' ? 'success' : 'danger'}>{order.side === 'buy' ? '买入' : '卖出'}</StatusTag>
+                      <strong><CurrencyAmount>{formatCurrency(order.price)}</CurrencyAmount></strong>
+                      <small>{formatNumber(order.remaining)}/{formatNumber(order.quantity)}</small>
+                    </span>
+                    <Button variant="compact" onClick={() => void showResult(cancelOrder(order.id))}>撤单</Button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </Panel>
 
           <Panel className="widget market-chart-card">
