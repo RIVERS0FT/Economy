@@ -70,16 +70,12 @@ jobs:
           );
           replaceExact(
             verifier,
-            `  'height: 100%;',
-              'transform: none;',
-              '.facility-cluster-detail-shell',`,
-            `  'height: 100%;',
-              'transform: none;',
+            "  'transform: none;',",
+            `  'transform: none;',
               'rgb(0 0 0 / 82%) 0%',
               'transparent 44%',
               'rgb(0 0 0 / 76%) 0%',
-              'transparent 42%',
-              '.facility-cluster-detail-shell',`,
+              'transparent 42%',`,
           );
           replaceExact(
             verifier,
