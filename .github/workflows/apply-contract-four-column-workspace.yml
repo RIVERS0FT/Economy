@@ -26,10 +26,11 @@ jobs:
           fetch-depth: 0
       - name: Apply patches
         run: |
-          for patch in .agent/part-*.patch; do
+          for patch in .agent/part-0[1-6].patch; do
             git apply --check "$patch"
             git apply "$patch"
           done
+          python .agent/update-doc.py
           rm -rf .agent
           rm .github/workflows/apply-contract-four-column-workspace.yml
       - name: Commit applied sources
