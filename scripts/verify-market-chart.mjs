@@ -76,6 +76,7 @@ const readabilitySpec = read('tests/browser/market-chart-readability.spec.ts');
 const tooltipPersistenceSpec = read('tests/browser/market-tooltip-persistence.spec.ts');
 const tooltipPersistenceHarness = read('tests/browser/market-tooltip-persistence-harness.tsx');
 const runtimeSpec = read('tests/browser/market-runtime.spec.ts');
+const heightStabilitySpec = read('tests/browser/market-chart-height-stability.spec.ts');
 const types = read('src/types.ts');
 const matchingCore = read('server/src/order-matching.js');
 const commodityMarket = read('server/src/balanced-market.js');
@@ -96,7 +97,8 @@ for (const text of [
   'const priceVolumeGap = 0', 'const volumeTop = priceBottom + priceVolumeGap',
   'export function buildMarketChartGeometry',
   'minimumHeight = 0', 'extraDataHeight * 0.72', 'extraDataHeight * 0.28',
-  'chartCardRect.bottom - elementRect.top', 'data-chart-fill-mode={minimumHeight > 0',
+  'chartCard.clientTop', 'chartCard.clientHeight', 'cardContentBottom - elementRect.top',
+  'data-chart-fill-mode={minimumHeight > 0',
   'Math.max(68, rootFontSize * 4.25)', '(0.22 / 0.78) * priceHeight',
   'buildIntegerPriceScale', 'buildIntegerVolumeScale',
   'expandScaleToMinimumTicks', 'left.padding - right.padding',
@@ -138,6 +140,15 @@ for (const text of [
 for (const text of ['<svg', '<polyline', '<polygon', '<rect', 'context.measureText', 'useChartAxisMetrics']) {
   assert.ok(!chart.includes(text), `ECharts 行情图不得保留手写 SVG: ${text}`);
 }
+for (const text of ['chartCardRect.bottom - elementRect.top', 'observer?.observe(element)']) {
+  assert.ok(!chart.includes(text), `行情图不得恢复高度反馈表达式: ${text}`);
+}
+for (const text of [
+  'market chart row fill height remains stable without resize feedback',
+  'for (let frame = 0; frame < 120; frame += 1)',
+  'await page.waitForTimeout(6_500)',
+  "toHaveAttribute('data-chart-fill-mode', 'natural')",
+]) assert.ok(heightStabilitySpec.includes(text), `行情图高度稳定回归缺少: ${text}`);
 
 for (const text of [
   'initECharts', "renderer: 'svg'", 'new ResizeObserver', 'requestAnimationFrame',
@@ -231,7 +242,9 @@ for (const text of [
   '至少 `6.5s`', '`alwaysShowContent`', '超长 `hideDelay`',
   '价格区与成交量区合计数据绘图区的 `22%`',
   '不得由业务 CSS 再用固定比例覆盖组件计算结果',
-  '交易卡和行情卡外框必须同排等高', '按约 `72%` 分配给价格区、`28%` 分配给成交量区',
+  '交易卡和行情卡外框必须同排等高', '内容盒底边',
+  '不得监听由组件自身写入高度的图表节点', '按约 `72%` 分配给价格区、`28%` 分配给成交量区',
+  '连续采样至少 `120` 个动画帧',
   '稳定 `data-*`', '`721 × 445`', '390 × 844` 且根字号放大到 `125%',
 ]) assert.ok(chartDesign.includes(text), `市场行情图专项设计缺少: ${text}`);
 for (const text of ['动态横纵轴刻度', '零间距双 Grid', '统一 AxisPointer／Tooltip', '悬浮折线保护']) {
