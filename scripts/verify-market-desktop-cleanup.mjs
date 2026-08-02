@@ -23,16 +23,16 @@ requireText(styles, '@media (min-width: 721px)', '桌面精简规则必须严格
 for (const selector of [
   '.market-page-surface .market-compact-view-switch',
   '.market-page-surface .market-account-view-switch',
-  '.market-page-surface .market-trade-section-heading > small',
+  '.market-page-surface .market-trade-section-heading small',
   '.market-page-surface .order-book-columns',
   '.market-page-surface .order-book-midpoint',
 ]) {
   requireText(styles, selector, `桌面精简样式缺少选择器：${selector}`);
 }
-requireText(styles, 'display: none;', '桌面辅助元素必须隐藏。');
-requireText(styles, 'visibility: hidden;', '桌面最新成交分隔必须视觉隐藏并保留既有几何兼容。');
+requireText(styles, 'display: none !important;', '桌面辅助元素必须使用最终覆盖优先级隐藏。');
+requireText(styles, 'visibility: hidden !important;', '桌面最新成交分隔必须视觉隐藏并保留既有几何兼容。');
 requireText(styles, '@container market-page (max-width: 339px)', '桌面超窄内容必须覆盖移动分段切换隐藏规则。');
-requireText(styles, 'display: block;', '桌面超窄内容必须同时显示下单区和订单簿。');
+requireText(styles, 'display: block !important;', '桌面超窄内容必须同时显示下单区和订单簿。');
 forbidText(styles, '@media (max-width: 720px)', '桌面精简样式不得改写移动端规则。');
 
 for (const text of [
