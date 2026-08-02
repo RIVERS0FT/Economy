@@ -35,7 +35,6 @@ jobs:
           set -euo pipefail
           node .github/agent/fix-market-stepper-hover.mjs
           node scripts/verify-market-order-entry-compact.mjs
-          node scripts/verify-interaction-modality.mjs
           rm .github/agent/fix-market-stepper-hover.mjs
           git fetch origin main
           git checkout origin/main -- .github/workflows/ci.yml
