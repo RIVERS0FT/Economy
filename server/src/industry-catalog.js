@@ -4,20 +4,20 @@ import {
 } from './production-methods.js';
 
 const rawProducts = [
-  { id: 'wheat', name: '小麦', category: 'raw', basePrice: 2 },
-  { id: 'rice', name: '水稻', category: 'raw', basePrice: 2 },
-  { id: 'cotton', name: '棉花', category: 'raw', basePrice: 2 },
-  { id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 2 },
-  { id: 'fruit', name: '水果', category: 'raw', basePrice: 4 },
+  { id: 'wheat', name: '小麦', category: 'raw', basePrice: 1.2 },
+  { id: 'rice', name: '水稻', category: 'raw', basePrice: 1.2 },
+  { id: 'cotton', name: '棉花', category: 'raw', basePrice: 1.2 },
+  { id: 'sugarcane', name: '甘蔗', category: 'raw', basePrice: 1.2 },
+  { id: 'fruit', name: '水果', category: 'raw', basePrice: 1.3 },
   { id: 'timber', name: '木材', category: 'raw', basePrice: 6 },
   { id: 'ore', name: '铁矿石', category: 'raw', basePrice: 7 },
   { id: 'copper-ore', name: '铜矿石', category: 'raw', basePrice: 7 },
   { id: 'crude-oil', name: '原油', category: 'raw', basePrice: 9 },
-  { id: 'meat', name: '肉', category: 'consumer', basePrice: 6 },
-  { id: 'eggs', name: '蛋', category: 'consumer', basePrice: 3 },
-  { id: 'milk', name: '奶', category: 'consumer', basePrice: 3 },
-  { id: 'fish', name: '鱼类', category: 'raw', basePrice: 6 },
-  { id: 'wool', name: '毛', category: 'raw', basePrice: 6 },
+  { id: 'meat', name: '肉', category: 'consumer', basePrice: 2.4 },
+  { id: 'eggs', name: '蛋', category: 'consumer', basePrice: 2.4 },
+  { id: 'milk', name: '奶', category: 'consumer', basePrice: 2.4 },
+  { id: 'fish', name: '鱼类', category: 'raw', basePrice: 2.5 },
+  { id: 'wool', name: '毛', category: 'raw', basePrice: 2.4 },
   { id: 'flour', name: '面粉', category: 'intermediate', basePrice: 13 },
   { id: 'sugar', name: '砂糖', category: 'intermediate', basePrice: 13 },
   { id: 'lumber', name: '木板', category: 'intermediate', basePrice: 17 },
@@ -44,16 +44,16 @@ const rawFacilities = [
     id: 'farm', name: '农场', category: 'raw', complexity: 'C1', buildCost: 50, buildTimeMs: 30_000,
     defaultRecipeId: 'wheat-crop', internalCapacity: 40, systemValue: 65,
     recipes: [
-      { id: 'wheat-crop', name: '种植小麦', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'wheat', quantity: 4 } },
-      { id: 'rice-crop', name: '种植水稻', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'rice', quantity: 4 } },
-      { id: 'cotton-crop', name: '种植棉花', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'cotton', quantity: 4 } },
-      { id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 120_000, operatingCost: 6, inputs: [], output: { productId: 'sugarcane', quantity: 4 } },
+      { id: 'wheat-crop', name: '种植小麦', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'wheat', quantity: 1 } },
+      { id: 'rice-crop', name: '种植水稻', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'rice', quantity: 1 } },
+      { id: 'cotton-crop', name: '种植棉花', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'cotton', quantity: 1 } },
+      { id: 'sugarcane-crop', name: '种植甘蔗', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'sugarcane', quantity: 1 } },
     ],
   },
   {
     id: 'orchard', name: '果园', category: 'raw', complexity: 'C1', buildCost: 70, buildTimeMs: 40_000,
     defaultRecipeId: 'orchard-fruit', internalCapacity: 40, systemValue: 95,
-    recipes: [{ id: 'orchard-fruit', name: '种植水果', cycleMs: 120_000, operatingCost: 10, inputs: [], output: { productId: 'fruit', quantity: 3 } }],
+    recipes: [{ id: 'orchard-fruit', name: '种植水果', cycleMs: 20_000, operatingCost: 1, inputs: [], output: { productId: 'fruit', quantity: 1 } }],
   },
   {
     id: 'logging-camp', name: '伐木场', category: 'raw', complexity: 'C2', buildCost: 120, buildTimeMs: 5 * 60 * 1000,
@@ -72,16 +72,16 @@ const rawFacilities = [
     id: 'ranch', name: '畜牧场', category: 'raw', complexity: 'C1', buildCost: 90, buildTimeMs: 50_000,
     defaultRecipeId: 'ranch-meat', internalCapacity: 40, systemValue: 120,
     recipes: [
-      { id: 'ranch-meat', name: '生产肉', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'meat', quantity: 3 } },
-      { id: 'ranch-eggs', name: '生产蛋', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'eggs', quantity: 6 } },
-      { id: 'ranch-milk', name: '生产奶', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'milk', quantity: 6 } },
-      { id: 'ranch-wool', name: '生产毛', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'wool', quantity: 3 } },
+      { id: 'ranch-meat', name: '生产肉', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'meat', quantity: 1 } },
+      { id: 'ranch-eggs', name: '生产蛋', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'eggs', quantity: 1 } },
+      { id: 'ranch-milk', name: '生产奶', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'milk', quantity: 1 } },
+      { id: 'ranch-wool', name: '生产毛', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'wool', quantity: 1 } },
     ],
   },
   {
     id: 'fishery', name: '渔场', category: 'raw', complexity: 'C1', buildCost: 100, buildTimeMs: 60_000,
     defaultRecipeId: 'fishery-fish', internalCapacity: 40, systemValue: 130,
-    recipes: [{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'fish', quantity: 3 } }],
+    recipes: [{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 30_000, operatingCost: 2, inputs: [], output: { productId: 'fish', quantity: 1 } }],
   },
   {
     id: 'oil-field', name: '油田', category: 'raw', complexity: 'C2', buildCost: 180, buildTimeMs: 10 * 60 * 1000,
@@ -92,8 +92,8 @@ const rawFacilities = [
     id: 'mill', name: '磨坊', category: 'processing', complexity: 'C2', buildCost: 150, buildTimeMs: 7 * 60 * 1000,
     defaultRecipeId: 'mill-default', internalCapacity: 30, systemValue: 195,
     recipes: [
-      { id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } },
-      { id: 'sugar-milling', name: '加工砂糖', cycleMs: 40_000, operatingCost: 7, inputs: [{ productId: 'sugarcane', quantity: 2 }], output: { productId: 'sugar', quantity: 1 } },
+      { id: 'mill-default', name: '研磨面粉', cycleMs: 40_000, operatingCost: 8.6, inputs: [{ productId: 'wheat', quantity: 2 }], output: { productId: 'flour', quantity: 1 } },
+      { id: 'sugar-milling', name: '加工砂糖', cycleMs: 40_000, operatingCost: 8.6, inputs: [{ productId: 'sugarcane', quantity: 2 }], output: { productId: 'sugar', quantity: 1 } },
     ],
   },
   {
@@ -123,8 +123,8 @@ const rawFacilities = [
     id: 'textile-mill', name: '纺织厂', category: 'processing', complexity: 'C3', buildCost: 220, buildTimeMs: 35 * 60 * 1000,
     defaultRecipeId: 'cotton-textile', internalCapacity: 25, systemValue: 290,
     recipes: [
-      { id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } },
-      { id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } },
+      { id: 'cotton-textile', name: '棉纺', cycleMs: 40_000, operatingCost: 8.8, inputs: [{ productId: 'cotton', quantity: 6 }], output: { productId: 'textile', quantity: 1 } },
+      { id: 'wool-textile', name: '毛纺', cycleMs: 40_000, operatingCost: 11.2, inputs: [{ productId: 'wool', quantity: 2 }], output: { productId: 'textile', quantity: 1 } },
     ],
   },
   {
@@ -132,15 +132,15 @@ const rawFacilities = [
     defaultRecipeId: 'food-factory-default', internalCapacity: 45, systemValue: 300,
     recipes: [
       { id: 'food-factory-default', name: '生产食品', cycleMs: 50_000, operatingCost: 14, inputs: [{ productId: 'flour', quantity: 2 }], output: { productId: 'food', quantity: 3 } },
-      { id: 'prepared-meal-production', name: '生产预制餐', cycleMs: 60_000, operatingCost: 11, inputs: [{ productId: 'flour', quantity: 1 }, { productId: 'fish', quantity: 1 }], output: { productId: 'prepared-meal', quantity: 2 } },
+      { id: 'prepared-meal-production', name: '生产预制餐', cycleMs: 60_000, operatingCost: 14.5, inputs: [{ productId: 'flour', quantity: 1 }, { productId: 'fish', quantity: 1 }], output: { productId: 'prepared-meal', quantity: 2 } },
     ],
   },
   {
     id: 'beverage-factory', name: '饮料厂', category: 'consumer', complexity: 'C4', buildCost: 280, buildTimeMs: 60 * 60 * 1000,
     defaultRecipeId: 'milk-beverage', internalCapacity: 35, systemValue: 365,
     recipes: [
-      { id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
-      { id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 9, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
+      { id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14.6, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
+      { id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 14.4, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
     ],
   },
   {
@@ -175,16 +175,6 @@ const rawFacilities = [
   },
 ];
 
-const EXPECTED_PROFIT_PER_MINUTE = Object.freeze({
-  C1: 1,
-  C2: 3,
-  C3: 6,
-  C4: 6,
-  C5: 8,
-  C6: 10,
-  C7: 12,
-});
-
 function freezeRecipe(recipe) {
   const inputs = Object.freeze((recipe.inputs || []).map((input) => Object.freeze({ ...input })));
   return Object.freeze({
@@ -200,7 +190,6 @@ export const FACILITY_TYPE_CATALOG = Object.freeze(rawFacilities.map((facility) 
   const productionMethodGroups = createProductionMethodGroups(
     { ...facility, recipes: baseRecipes },
     PRODUCT_CATALOG,
-    EXPECTED_PROFIT_PER_MINUTE[facility.complexity],
   );
   const recipes = createProductionMethodRecipes({ ...facility, recipes: baseRecipes }, productionMethodGroups);
   const defaultRecipe = recipes.find((recipe) => recipe.id === facility.defaultRecipeId) || recipes[0];

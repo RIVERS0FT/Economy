@@ -28,6 +28,9 @@ const METHOD_DEFINITIONS = Object.freeze([
   }),
 ]);
 
+const MONEY_DECIMALS = 2;
+const MONEY_SCALE = 10 ** MONEY_DECIMALS;
+
 function cloneItems(items) {
   return (items || []).map((item) => ({
     productId: String(item.productId),
@@ -39,8 +42,37 @@ function productPriceMap(products) {
   return new Map((products || []).map((product) => [product.id, Number(product.basePrice)]));
 }
 
-function valueOfItems(items, prices) {
-  return cloneItems(items).reduce((sum, item) => sum + (prices.get(item.productId) || 0) * item.quantity, 0);
+function moneyUnits(value, label = '金额') {
+  const numeric = Number(value);
+  const units = Math.round(numeric * MONEY_SCALE);
+  if (
+    !Number.isFinite(numeric)
+    || !Number.isSafeInteger(units)
+    || Math.abs(numeric - units / MONEY_SCALE) > 1e-9
+  ) throw new Error(`${label}必须为最多两位小数的安全数值`);
+  return units;
+}
+
+function moneyFromUnits(units) {
+  return units / MONEY_SCALE;
+}
+
+function valueOfItemsUnits(items, prices) {
+  return cloneItems(items).reduce(
+    (sum, item) => sum + moneyUnits(prices.get(item.productId) || 0, `${item.productId} 参考价`) * item.quantity,
+    0,
+  );
+}
+
+function referenceProfitPerMinute(recipe, prices) {
+  const outputValueUnits = valueOfItemsUnits([recipe.output], prices);
+  const inputValueUnits = valueOfItemsUnits(recipe.inputs || (recipe.input ? [recipe.input] : []), prices);
+  const profitPerCycleUnits = outputValueUnits - inputValueUnits - moneyUnits(recipe.operatingCost, `${recipe.id} 周期成本`);
+  const profitNumerator = profitPerCycleUnits * 60_000;
+  if (!Number.isSafeInteger(profitNumerator) || profitNumerator % recipe.cycleMs !== 0) {
+    throw new Error(`${recipe.id} 无法形成分币精确的参考分钟利润`);
+  }
+  return moneyFromUnits(profitNumerator / recipe.cycleMs);
 }
 
 function variantRecipeId(baseRecipeId, methodId) {
@@ -49,12 +81,14 @@ function variantRecipeId(baseRecipeId, methodId) {
     : `${baseRecipeId}--${methodId}`;
 }
 
-function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode) {
+function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode, useCentAlignment = false) {
   const base = Math.max(1_000, Math.floor(Number(baseCycleMs) / 1_000) * 1_000);
   const target = mode === 'rapid'
     ? Math.max(1_000, Math.floor(base / 2_000) * 1_000)
     : Math.ceil((base * 3) / 2_000) * 1_000;
-  const profit = Math.max(1, Math.floor(Number(expectedProfitPerMinute) || 1));
+  const profit = useCentAlignment
+    ? moneyUnits(expectedProfitPerMinute, '参考分钟利润')
+    : Math.max(1, Math.floor(Number(expectedProfitPerMinute) || 1));
 
   if (mode === 'rapid') {
     for (let cycleMs = target; cycleMs < base; cycleMs += 1_000) {
@@ -69,7 +103,7 @@ function alignedCycleMs(baseCycleMs, expectedProfitPerMinute, mode) {
   return base * 2;
 }
 
-function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
+function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute, useCentAlignment) {
   const baseInputs = cloneItems(recipe.inputs || (recipe.input ? [recipe.input] : []));
   const baseOutput = {
     productId: String(recipe.output.productId),
@@ -93,23 +127,23 @@ function createBalancedPlan(recipe, methodId, prices, expectedProfitPerMinute) {
   const output = { ...baseOutput, quantity: baseOutput.quantity * scale };
   const cycleMs = methodId === 'high-yield'
     ? recipe.cycleMs
-    : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId);
-  const outputValue = valueOfItems([output], prices);
-  const inputValue = valueOfItems(inputs, prices);
-  const profitNumerator = expectedProfitPerMinute * cycleMs;
-  if (profitNumerator % 60_000 !== 0) {
-    throw new Error(`${baseRecipeId}/${methodId} 无法形成整数参考利润`);
+    : alignedCycleMs(recipe.cycleMs, expectedProfitPerMinute, methodId, useCentAlignment);
+  const outputValueUnits = valueOfItemsUnits([output], prices);
+  const inputValueUnits = valueOfItemsUnits(inputs, prices);
+  const profitNumerator = moneyUnits(expectedProfitPerMinute, '参考分钟利润') * cycleMs;
+  if (!Number.isSafeInteger(profitNumerator) || profitNumerator % 60_000 !== 0) {
+    throw new Error(`${baseRecipeId}/${methodId} 无法形成分币精确的参考利润`);
   }
-  const operatingCost = outputValue - inputValue - profitNumerator / 60_000;
-  if (!Number.isSafeInteger(operatingCost) || operatingCost < 0) {
-    throw new Error(`${baseRecipeId}/${methodId} 无法形成非负整数周期成本`);
+  const operatingCostUnits = outputValueUnits - inputValueUnits - profitNumerator / 60_000;
+  if (!Number.isSafeInteger(operatingCostUnits) || operatingCostUnits < 0) {
+    throw new Error(`${baseRecipeId}/${methodId} 无法形成非负两位小数周期成本`);
   }
   return {
     recipeId: variantRecipeId(baseRecipeId, methodId),
     baseRecipeId,
     productionMethodId: methodId,
     cycleMs,
-    operatingCost,
+    operatingCost: moneyFromUnits(operatingCostUnits),
     inputs,
     output,
   };
@@ -125,14 +159,20 @@ function freezePlan(plan) {
   });
 }
 
-export function createProductionMethodGroups(facility, products, expectedProfitPerMinute) {
+export function createProductionMethodGroups(facility, products) {
   const prices = productPriceMap(products);
+  const useCentAlignment = facility.complexity === 'C1';
   const methods = METHOD_DEFINITIONS.map((definition) => {
     const plansByRecipeId = Object.freeze(Object.fromEntries(
-      facility.recipes.map((recipe) => [
-        recipe.id,
-        freezePlan(createBalancedPlan(recipe, definition.id, prices, expectedProfitPerMinute)),
-      ]),
+      facility.recipes.map((recipe) => {
+        const expectedProfitPerMinute = referenceProfitPerMinute(recipe, prices);
+        return [
+          recipe.id,
+          freezePlan(createBalancedPlan(
+            recipe, definition.id, prices, expectedProfitPerMinute, useCentAlignment,
+          )),
+        ];
+      }),
     ));
     return Object.freeze({ ...definition, plansByRecipeId });
   });

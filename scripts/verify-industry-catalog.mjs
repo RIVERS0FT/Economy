@@ -15,8 +15,8 @@ const expectedFacilities = [
   'electronics-factory', 'appliance-factory',
 ];
 const expectedPrices = {
-  wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
-  'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
+  wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
+  'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
   flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, textile: 20,
   pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
   clothing: 55, machinery: 76, electronics: 84, appliance: 92,
@@ -53,11 +53,22 @@ const constructionTimeRanges = {
   C6: [60 * 60_000, 120 * 60_000],
   C7: [60 * 60_000, 120 * 60_000],
 };
-const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
+const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
+const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
 const expectedProductionMethods = ['standard', 'rapid', 'economical', 'high-yield'];
 
 function standardRecipes(facility) {
   return facility.recipes.filter((recipe) => (recipe.productionMethodId || 'standard') === 'standard');
+}
+
+function hasAtMostTwoDecimals(value) {
+  return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
+}
+
+function expectedProfitFor(facility) {
+  return facility.complexity === 'C1'
+    ? expectedC1ProfitByFacility[facility.id]
+    : expectedProfitByComplexity[facility.complexity];
 }
 
 assert.equal(PRODUCT_CATALOG.length, 31, '商品目录必须为 31 项');
@@ -74,7 +85,7 @@ assert.deepEqual(Object.fromEntries(FACILITY_TYPE_CATALOG.map((item) => [item.id
 
 const productIds = new Set(expectedProducts);
 for (const product of PRODUCT_CATALOG) {
-  assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
+  assert.equal(hasAtMostTwoDecimals(product.basePrice), true, `${product.id} 初始参考价最多保留两位小数`);
   assert.ok(product.marketDemandGroupId === undefined || ['food', 'household'].includes(product.marketDemandGroupId), `${product.id} 市场需求组无效`);
 }
 for (const facility of FACILITY_TYPE_CATALOG) {
@@ -110,7 +121,7 @@ for (const facility of FACILITY_TYPE_CATALOG) {
     for (const recipe of variants) {
       assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
       assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
-      assert.equal(Number.isInteger(recipe.operatingCost), true);
+      assert.equal(hasAtMostTwoDecimals(recipe.operatingCost), true);
       assert.ok(recipe.operatingCost >= 0, `${facility.id}/${recipe.id} 周期成本不得为负数`);
       for (const input of recipe.inputs) {
         assert.ok(productIds.has(input.productId));
@@ -121,7 +132,7 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
       const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
         * 60_000 / recipe.cycleMs;
-      assert.equal(profit, expectedProfitByComplexity[facility.complexity], `${facility.id}/${recipe.id} 参考分钟利润错误`);
+      assert.ok(Math.abs(profit - expectedProfitFor(facility)) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润错误: ${profit}`);
     }
     const rapid = variants.find((recipe) => recipe.productionMethodId === 'rapid');
     const economical = variants.find((recipe) => recipe.productionMethodId === 'economical');
@@ -135,6 +146,19 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 }
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((item) => [item.id, item]));
+const expectedC1Standard = {
+  farm: { cycleMs: 20_000, operatingCost: 1, outputQuantity: 1 },
+  orchard: { cycleMs: 20_000, operatingCost: 1, outputQuantity: 1 },
+  ranch: { cycleMs: 30_000, operatingCost: 2, outputQuantity: 1 },
+  fishery: { cycleMs: 30_000, operatingCost: 2, outputQuantity: 1 },
+};
+for (const [facilityId, expected] of Object.entries(expectedC1Standard)) {
+  for (const recipe of standardRecipes(facilities.get(facilityId))) {
+    assert.equal(recipe.cycleMs, expected.cycleMs);
+    assert.equal(recipe.operatingCost, expected.operatingCost);
+    assert.equal(recipe.output.quantity, expected.outputQuantity);
+  }
+}
 assert.deepEqual(standardRecipes(facilities.get('farm')).map((item) => item.id), ['wheat-crop', 'rice-crop', 'cotton-crop', 'sugarcane-crop']);
 assert.equal(standardRecipes(facilities.get('orchard'))[0].output.productId, 'fruit');
 assert.equal(standardRecipes(facilities.get('fishery'))[0].output.productId, 'fish');
@@ -144,7 +168,10 @@ assert.equal(facilities.get('steelworks').name, '冶炼厂');
 assert.equal(facilities.has('copper-smelter'), false, '不得新增铜冶炼厂');
 assert.deepEqual(standardRecipes(facilities.get('food-factory')).map((item) => item.id), ['food-factory-default', 'prepared-meal-production']);
 assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.id), ['milk-beverage', 'fruit-beverage']);
-assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14, 9]);
+assert.deepEqual(standardRecipes(facilities.get('mill')).map((item) => item.operatingCost), [8.6, 8.6]);
+assert.deepEqual(standardRecipes(facilities.get('textile-mill')).map((item) => item.operatingCost), [8.8, 11.2]);
+assert.equal(standardRecipes(facilities.get('food-factory'))[1].operatingCost, 14.5);
+assert.deepEqual(standardRecipes(facilities.get('beverage-factory')).map((item) => item.operatingCost), [14.6, 14.4]);
 assert.equal(standardRecipes(facilities.get('furniture-factory'))[0].operatingCost, 8);
 assert.deepEqual(standardRecipes(facilities.get('electronics-factory'))[0].inputs, [
   { productId: 'plastic', quantity: 1 }, { productId: 'copper', quantity: 1 },
@@ -172,7 +199,8 @@ for (const id of expectedProducts) assert.match(iconSource, new RegExp(`case '${
 for (const [path, texts] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '当前基线为 31 种商品和 21 种工厂类型',
-    'C1=1、C2=3、C3=6、C4=6、C5=8、C6=10、C7=12',
+    'C1 快速生产采用工厂级参考分钟利润',
+    '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',
     '不新增铜冶炼厂',
     '任一输入不足时不得扣除其他输入',
     '模型 1 的未完成市场需求订单',
@@ -190,4 +218,4 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：31 种商品、21 种工厂、四种作业制度、配方级整数计划及 1/3/6/6/8/10/12 参考分钟利润梯度。');
+console.log('产业目录验证通过：31 种商品、21 种工厂、C1 快速生产、两位小数成本及 C2～C7 参考分钟利润梯度。');

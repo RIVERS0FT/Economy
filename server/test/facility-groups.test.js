@@ -54,9 +54,9 @@ test('production increments produced goods statistics', () => {
   const player = ensurePlayer(world, alice, now);
   player.facilityGroups = [group('farm', 2, { enabled: true, status: 'running', participatingCount: 2, cycleStartedAt: now })];
   migrateFacilityGroupWorld(world, now);
-  processFacilityGroupWorld(world, now + 120_000);
-  assert.equal(player.stats.producedGoods, 8);
-  assert.equal(player.inventories.wheat.available, 8);
+  processFacilityGroupWorld(world, now + 20_000);
+  assert.equal(player.stats.producedGoods, 2);
+  assert.equal(player.inventories.wheat.available, 2);
 });
 
 
@@ -88,19 +88,19 @@ test('production wage multiplier changes population wages without changing produ
     note: '测试生产工资系数仅影响后续周期',
   }, { adminUserId: 1, now: now + 1 });
 
-  processFacilityGroupWorld(world, now + 120_000);
-  assert.equal(player.credits, 994);
-  assert.equal(pendingProduction(), 6);
+  processFacilityGroupWorld(world, now + 20_000);
+  assert.equal(player.credits, 999);
+  assert.equal(pendingProduction(), 1);
   assert.equal(population.stats.productionWageSubsidyIssued, 0);
 
-  processFacilityGroupWorld(world, now + 240_000);
-  assert.equal(player.credits, 988);
-  assert.equal(pendingProduction(), 14);
-  assert.equal(population.stats.productionWageSubsidyIssued, 2);
+  processFacilityGroupWorld(world, now + 40_000);
+  assert.equal(player.credits, 998);
+  assert.ok(Math.abs(pendingProduction() - 2.33) < 1e-9);
+  assert.ok(Math.abs(population.stats.productionWageSubsidyIssued - 0.33) < 1e-9);
   assert.equal(population.stats.productionWageWithheld, 0);
-  assert.equal(player.stats.productionPayroll, 12);
-  assert.equal(player.stats.employmentPayments, 12);
-  assert.equal('cycleWageMultiplierBps' in createFacilityGroupClientState(world, alice.id, now + 240_000).facilityGroups[0], false);
+  assert.equal(player.stats.productionPayroll, 2);
+  assert.equal(player.stats.employmentPayments, 2);
+  assert.equal('cycleWageMultiplierBps' in createFacilityGroupClientState(world, alice.id, now + 40_000).facilityGroups[0], false);
 });
 
 test('electronics factory atomically consumes plastic and copper', () => {
@@ -162,7 +162,7 @@ test('fruit beverage recipe uses its own cost and atomically consumes fruit and 
   assert.equal(player.inventories.fruit.available, 0);
   assert.equal(player.inventories.sugar.available, 0);
   assert.equal(player.inventories.beverage.available, 2);
-  assert.equal(player.credits, 91);
+  assert.ok(Math.abs(player.credits - 85.6) < 1e-9);
 });
 
 test('asset valuation uses the latest order-book trade and ignores open bid prices', () => {
@@ -246,14 +246,14 @@ test('running farm crop changes apply at the next cycle boundary', () => {
     facilityTypeId: 'farm', recipeId: 'rice-crop',
   }, now + 3).ok, true);
 
-  processFacilityGroupWorld(world, now + 120_000);
+  processFacilityGroupWorld(world, now + 20_000);
   assert.equal(player.facilityGroups[0].activeRecipeId, 'rice-crop');
   assert.equal(player.facilityGroups[0].pendingRecipeId, undefined);
-  assert.equal(player.inventories.wheat.available, 8);
+  assert.equal(player.inventories.wheat.available, 2);
   assert.equal(player.inventories.rice.available, 0);
 
-  processFacilityGroupWorld(world, now + 240_000);
-  assert.equal(player.inventories.rice.available, 8);
+  processFacilityGroupWorld(world, now + 40_000);
+  assert.equal(player.inventories.rice.available, 2);
 });
 
 test('warehouse errors recover without backfilling missed cycles', () => {
@@ -266,7 +266,7 @@ test('warehouse errors recover without backfilling missed cycles', () => {
     enabled: true, status: 'error', statusReason: 'warehouse_full', staffingBatchCarryBps: 9_999,
   })];
   migrateFacilityGroupWorld(world, now);
-  processFacilityGroupWorld(world, now + 120_000);
+  processFacilityGroupWorld(world, now + 20_000);
   assert.equal(player.facilityGroups[0].status, 'error');
   assert.equal(player.inventories.wheat.available, 499);
 
@@ -336,12 +336,12 @@ test('legacy running target plans become continuous production', () => {
   })];
   migrateFacilityGroupWorld(world, now);
 
-  processFacilityGroupWorld(world, now + 120_000);
+  processFacilityGroupWorld(world, now + 20_000);
 
   const completed = player.facilityGroups[0];
   assert.equal(completed.enabled, true);
   assert.equal(completed.status, 'running');
-  assert.equal(player.inventories.wheat.available, 4);
+  assert.equal(player.inventories.wheat.available, 1);
   assert.equal(Object.hasOwn(completed, 'productionMode'), false);
   assert.equal(Object.hasOwn(completed, 'pendingProductionPlan'), false);
 });
@@ -410,12 +410,12 @@ test('running factory staffing locks each cycle and carries fractional capacity'
   assert.equal(midway.cycleStaffingRateBps, 2_500);
   assert.equal(midway.cycleEffectiveCount, 0);
 
-  processFacilityGroupWorld(world, now + 360_000);
-  assert.equal(player.inventories.wheat.available, 4);
-  assert.equal(player.credits, 94);
-  assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 3_500);
-  assert.equal(player.facilityGroups[0].staffingRateBps, 8_500);
-  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 8_500);
+  processFacilityGroupWorld(world, now + 80_000);
+  assert.equal(player.inventories.wheat.available, 1);
+  assert.equal(player.credits, 99);
+  assert.equal(player.facilityGroups[0].staffingBatchCarryBps, 1_998);
+  assert.equal(player.facilityGroups[0].staffingRateBps, 3_832);
+  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 3_832);
 });
 
 test('error staffing decays and auto recovery starts from the reduced rate', () => {
