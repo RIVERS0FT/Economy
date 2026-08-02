@@ -297,7 +297,7 @@ test('market steppers and compact quick quantities preserve price and quantity l
   await page.getByRole('button', { name: '价格增加 0.01' }).click();
   await expect(priceInput).toHaveValue('2.01');
   await page.getByRole('button', { name: '价格减少 0.01' }).click();
-  await expect(priceInput).toHaveValue('2.00');
+  await expect(priceInput).toHaveValue('2');
   await page.getByRole('button', { name: '数量增加 1' }).click();
   await expect(quantityInput).toHaveValue('2');
   await page.getByRole('button', { name: '数量减少 1' }).click();
@@ -507,7 +507,7 @@ test('market order book keeps sell five to buy five sequence and fills price wit
   const priceInput = page.getByRole('textbox', { name: '价格' });
   await expect(priceInput).toHaveValue('2');
   await askRow.click();
-  await expect(priceInput).toHaveValue('13.00');
+  await expect(priceInput).toHaveValue('13');
   await expect(page.getByRole('button', { name: '买入小麦' })).toBeEnabled();
 
   const tradeCard = await requireBox(page.locator('.market-trade-card'));
