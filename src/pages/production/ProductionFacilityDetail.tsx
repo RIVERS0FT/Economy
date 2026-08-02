@@ -437,6 +437,12 @@ export function FacilityClusterDetailBody({
 
   return (
     <>
+      <div className="facility-detail-artwork" aria-hidden="true">
+        <FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />
+      </div>
+
+      <FacilityStaffingSummary entry={entry} />
+
       <section className="facility-production-settings">
         <div className="facility-production-settings-heading">
           <strong>生产设置</strong>
@@ -492,7 +498,6 @@ export function FacilityClusterDetailBody({
             <span>
               {formatDuration(selectedPlan.cycleMs)} · 产出 {formatNumber(selectedPlan.output.quantity)} · 成本 {formatNumber(selectedPlan.operatingCost)}
             </span>
-            <small>{selectedMethod.description}</small>
           </div>
         ) : null}
       </section>
@@ -535,7 +540,6 @@ export function FacilityClusterDetailContent({
   return (
     <>
       <FacilityClusterDetailHeader entry={entry} onToggle={onToggle} titleId={titleId} />
-      <FacilityStaffingSummary entry={entry} />
       <FacilityClusterDetailBody
         entry={entry}
         products={products}
