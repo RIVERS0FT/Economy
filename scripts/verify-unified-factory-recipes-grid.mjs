@@ -37,9 +37,26 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 const page = read('src/pages/ProductionPage.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
 const mobile = read('src/pages/production/MobileFacilityDetailSheet.tsx');
+const catalogPresentationDesign = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 const productionSource = `${page}
 ${detail}
 ${mobile}`;
+assert.equal(
+  page.includes('按复杂度从 C1 到 C7 选择工厂并查看生产详情。'),
+  true,
+  '生产页必须说明正式复杂度顺序',
+);
+for (const forbidden of [
+  'game.facilityTypes.sort(',
+  'game.facilityTypes.toSorted(',
+  'game.facilityTypes.slice().sort(',
+]) assert.equal(page.includes(forbidden), false, `生产页不得对服务器工厂目录二次排序: ${forbidden}`);
+for (const required of [
+  '正式目录必须按 `complexity` 从 `C1` 到 `C7` 升序排列',
+  '同一复杂度内保持服务器目录声明的相对顺序',
+  '不得对 `game.facilityTypes` 再次执行 `sort()` 或 `toSorted()`',
+]) assert.equal(catalogPresentationDesign.includes(required), true, `工厂目录权威设计缺少: ${required}`);
+
 for (const text of [
   'interface FacilityClusterEntry',
   'interface FacilitySheetDragSession',

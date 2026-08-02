@@ -545,6 +545,31 @@ function ProductionHarness() {
         },
       ];
     }
+    if (scenario === 'facility-order') {
+      const baseType = next.game.facilityTypes[0];
+      const baseGroup = next.game.facilityGroups[0];
+      const orderedTypes = [
+        { id: 'farm', name: '农场', complexity: 'C1' },
+        { id: 'orchard', name: '果园', complexity: 'C1' },
+        { id: 'ranch', name: '畜牧场', complexity: 'C1' },
+        { id: 'fishery', name: '渔场', complexity: 'C1' },
+        { id: 'mine', name: '矿场', complexity: 'C2' },
+        { id: 'steelworks', name: '冶炼厂', complexity: 'C3' },
+        { id: 'refinery', name: '炼油厂', complexity: 'C4' },
+        { id: 'machine-factory', name: '机械厂', complexity: 'C5' },
+        { id: 'electronics-factory', name: '电子厂', complexity: 'C6' },
+        { id: 'appliance-factory', name: '家电厂', complexity: 'C7' },
+      ];
+      next.game.facilityTypes = orderedTypes.map((type) => ({ ...baseType, ...type }));
+      next.game.facilityGroups = [...orderedTypes].reverse().map((type, index) => ({
+        ...baseGroup,
+        facilityTypeId: type.id,
+        count: index + 1,
+        participatingCount: index + 1,
+        availableCount: index + 1,
+        nextCycleCount: index + 1,
+      }));
+    }
     if (scenario === 'cluster-summary') {
       const baseType = next.game.facilityTypes[0];
       const baseGroup = next.game.facilityGroups[0];

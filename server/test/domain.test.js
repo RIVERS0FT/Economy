@@ -174,13 +174,20 @@ test('expanded industry catalog exposes fruit and complete production chains', (
     'clothing', 'machinery', 'electronics', 'appliance',
   ];
   const expectedFacilities = [
-    'farm', 'orchard', 'logging-camp', 'mine', 'ranch', 'fishery', 'oil-field', 'mill', 'sawmill',
-    'pulp-mill', 'steelworks', 'refinery', 'textile-mill', 'food-factory', 'beverage-factory',
-    'paper-mill', 'furniture-factory', 'garment-factory', 'machine-factory',
-    'electronics-factory', 'appliance-factory',
+    'farm', 'orchard', 'ranch', 'fishery',
+    'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill',
+    'pulp-mill', 'steelworks', 'textile-mill', 'food-factory', 'paper-mill',
+    'refinery', 'beverage-factory', 'furniture-factory', 'garment-factory',
+    'machine-factory', 'electronics-factory', 'appliance-factory',
   ];
   assert.deepEqual(PRODUCT_CATALOG.map((product) => product.id), expectedProducts);
   assert.deepEqual(FACILITY_TYPE_CATALOG.map((facility) => facility.id), expectedFacilities);
+  const facilityComplexityRanks = FACILITY_TYPE_CATALOG.map((facility) => Number(facility.complexity.slice(1)));
+  assert.deepEqual(
+    facilityComplexityRanks,
+    [...facilityComplexityRanks].sort((left, right) => left - right),
+    '工厂正式目录必须按复杂度 C1 至 C7 升序排列',
+  );
 
   const expectedPrices = {
     wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
