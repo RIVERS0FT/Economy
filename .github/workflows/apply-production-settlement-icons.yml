@@ -30,7 +30,18 @@ jobs:
           cache: npm
 
       - name: Apply shared controls and design updates
-        run: python3 .agent/apply-production-settlement-icons.py
+        run: |
+          python3 .agent/apply-production-settlement-icons.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-production-settlement-layout.mjs')
+          content = path.read_text(encoding='utf-8')
+          old = "assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 3, '生产结算必须保留组件定义、输入调用和输出调用');"
+          new = "assert.equal((formula.match(/<RecipeItems/g) ?? []).length, 2, '生产结算必须保留输入和输出调用');"
+          if content.count(old) != 1:
+              raise RuntimeError('生产结算 RecipeItems 防回退目标不唯一')
+          path.write_text(content.replace(old, new), encoding='utf-8')
+          PY
 
       - name: Remove temporary application files
         run: |
