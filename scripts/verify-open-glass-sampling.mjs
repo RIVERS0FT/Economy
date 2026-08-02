@@ -35,6 +35,7 @@ if (failures.length === 0) {
 .mobile-page-overlay,
 .mobile-chrome-overlay,
 .workspace-floating-layer,
+.workspace-dialog-layer,
 .page-scroll-area,
 .page-scroll {
   isolation: auto;
@@ -86,6 +87,7 @@ if (failures.length === 0) {
     '不得在登录后外壳祖先上建立第二个隔离根',
     '桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链',
     '不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败',
+    '`workspace-dialog-layer`',
     '`verify-open-glass-sampling.mjs`',
     '`open-glass-sampling.spec.ts`',
   ]) requireText(files.liquidDesign, text);
@@ -148,4 +150,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('登录后液态玻璃开放采样链验证通过：唯一根隔离、桌面与移动玩家／管理员祖先开放和四场景浏览器回归均已锁定。');
+console.log('登录后液态玻璃开放采样链验证通过：唯一根隔离、桌面与移动玩家／管理员祖先、普通浮层与根级 Dialog 层开放和四场景浏览器回归均已锁定。');
