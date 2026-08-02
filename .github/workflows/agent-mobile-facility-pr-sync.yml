@@ -1,0 +1,51 @@
+name: Agent mobile facility PR sync
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.head_ref == 'agent/mobile-facility-detail-layer-fix'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Execute synchronized design update
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/agent-mobile-facility-doc-sync.yml').read_text(encoding='utf-8')
+          start_marker = "          python3 - <<'PY'\n"
+          end_marker = "\n          PY\n"
+          start = source.index(start_marker) + len(start_marker)
+          end = source.index(end_marker, start)
+          lines = source[start:end].splitlines()
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines) + '\n'
+          Path('/tmp/agent-mobile-facility-sync.py').write_text(script, encoding='utf-8')
+          PY
+          python3 /tmp/agent-mobile-facility-sync.py
+          node scripts/verify-game-shell-layout.mjs
+          node scripts/verify-open-glass-sampling.mjs
+          node scripts/verify-production-methods.mjs
+          node scripts/verify-unified-factory-recipes-grid.mjs
+
+      - name: Commit synchronized rules and remove temporary workflows
+        shell: bash
+        run: |
+          rm .github/workflows/agent-mobile-facility-doc-sync.yml
+          rm .github/workflows/agent-mobile-facility-pr-sync.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs scripts .github/workflows/agent-mobile-facility-doc-sync.yml .github/workflows/agent-mobile-facility-pr-sync.yml
+          git commit -m "同步移动工厂详情设计与防回退"
+          git push origin HEAD:${{ github.head_ref }}
