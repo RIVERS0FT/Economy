@@ -216,8 +216,7 @@ export function FacilityProductionFormula({
   const profitScopeLabel = profitScope.name;
 
   return (
-    <section
-      className="facility-production-formula"
+    <section className="facility-production-formula"
       data-status={group.status}
       role="group"
       aria-label={description}
