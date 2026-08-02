@@ -48,6 +48,7 @@ jobs:
           rm .agent/apply-production-settlement-icons.py
           rm .github/workflows/apply-production-settlement-icons.yml
           rmdir .agent 2>/dev/null || true
+          git add -A
 
       - name: Install dependencies
         run: npm ci
@@ -62,7 +63,7 @@ jobs:
         run: npm run build
 
       - name: Check patch formatting
-        run: git diff --check
+        run: git diff --check --cached
 
       - name: Commit applied changes
         run: |
