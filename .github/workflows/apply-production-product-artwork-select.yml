@@ -67,26 +67,40 @@ jobs:
                   raise RuntimeError(f'{path} 验证文案目标不唯一: {old}')
               target.write_text(content.replace(old, new), encoding='utf-8')
 
-          replace_one(
-              'scripts/verify-unified-factory-recipes-grid.mjs',
-              "  '生产配方与作业制度必须合并为同一个“生产设置”区',",
-              "  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',",
-          )
-          replace_one(
-              'scripts/verify-unified-factory-recipes-grid.mjs',
-              "      '生产配方与作业制度使用同一个“生产设置”区',",
-              "      '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',",
-          )
-          replace_one(
-              'scripts/verify-market-assets.mjs',
-              "  '生产配方',\n  '下一周期切换为：',",
-              "  '生产产物',\n  '下一周期切换为：',",
-          )
-          replace_one(
-              'scripts/verify-warehouse-expansion.mjs',
-              "  '生产配方',\n  '固定配方：',",
-              "  '生产产物',\n  '固定产物：',",
-          )
+          replacements = [
+              (
+                  'scripts/verify-unified-factory-recipes-grid.mjs',
+                  "  '生产配方与作业制度必须合并为同一个“生产设置”区',",
+                  "  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',",
+              ),
+              (
+                  'scripts/verify-unified-factory-recipes-grid.mjs',
+                  "      '生产配方与作业制度使用同一个“生产设置”区',",
+                  "      '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',",
+              ),
+              (
+                  'scripts/verify-market-assets.mjs',
+                  "  '生产配方',\n  '下一周期切换为：',",
+                  "  '生产产物',\n  '下一周期切换为：',",
+              ),
+              (
+                  'scripts/verify-warehouse-expansion.mjs',
+                  "  '生产配方',\n  '固定配方：',",
+                  "  '生产产物',\n  '固定产物：',",
+              ),
+              (
+                  'scripts/verify-facility-groups.mjs',
+                  "  '生产配方与作业制度必须合并为同一个“生产设置”区',",
+                  "  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',",
+              ),
+              (
+                  'scripts/verify-facility-groups.mjs',
+                  "  '生产配方与作业制度使用同一个“生产设置”区',",
+                  "  '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',",
+              ),
+          ]
+          for path, old, new in replacements:
+              replace_one(path, old, new)
           PY
 
       - name: Remove temporary application files
