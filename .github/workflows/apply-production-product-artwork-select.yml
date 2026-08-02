@@ -1,0 +1,71 @@
+name: Apply production product artwork select
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.agent/apply-production-product-artwork-select.py'
+      - '.github/workflows/apply-production-product-artwork-select.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply product artwork and rich select changes
+        run: python3 .agent/apply-production-product-artwork-select.py
+
+      - name: Remove temporary application files
+        run: |
+          rm .agent/apply-production-product-artwork-select.py
+          rm .github/workflows/apply-production-product-artwork-select.yml
+          rmdir .agent 2>/dev/null || true
+          git add -A
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify product artwork
+        run: npm run verify:product-artwork
+
+      - name: Verify production settlement
+        run: npm run verify:production-settlement
+
+      - name: Verify production methods
+        run: npm run verify:production-methods
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test browser runtime
+        run: npm run test:browser
+
+      - name: Check patch formatting
+        run: git diff --check --cached
+
+      - name: Commit applied changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "统一生产商品图片与下拉框"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
