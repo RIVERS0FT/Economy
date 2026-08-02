@@ -1,21 +1,22 @@
 name: Apply C1 fast production patch
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/c1-fast-production
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'agent/c1-fast-production'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout branch
+      - name: Checkout feature branch
         uses: actions/checkout@v4
         with:
+          ref: agent/c1-fast-production
           fetch-depth: 0
 
       - name: Apply validated patch
