@@ -321,7 +321,7 @@ for (const text of [
   '`AuthCardSurface`',
   '`desktopAuthCard`',
   '`mobileAuthCard`',
-  '移动登录氛围层必须比原基线更透明',
+  '认证、九个玩家页面、管理员五个分区及根级普通状态必须使用完全相同的正常态视觉参数',
   '`rgba(1, 7, 4, 0.62)`',
   '`rgba(2, 10, 6, 0.6)`',
   '`rgba(2, 8, 5, 0.82)`',
