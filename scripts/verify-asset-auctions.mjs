@@ -101,6 +101,7 @@ requireText('server/src/asset-auctions.js', [
   'highestBidderLabel:',
   'bidCount:',
   'reserveMet,',
+  'isOutbid,',
   'export function createAssetAuctionClientState(world, userId, now = Date.now())',
   'export function createAuctionBidHistoryFallback(auction, userId)',
   "eventType: 'previous_bid_released'",
@@ -174,6 +175,7 @@ requireText('src/auctions/types.ts', [
   'bidCount: number;',
   'latestBidAt: number | null;',
   'reserveMet: boolean;',
+  'isOutbid?: boolean;',
 ]);
 forbidText('src/auctions/types.ts', ['bidderId:', 'bidderName:', 'highestBidderId:', 'highestBidderName:', 'bids: AuctionBid[]']);
 requireText('src/api/game.ts', [
@@ -193,8 +195,12 @@ requireText('src/pages/AuctionPage.tsx', [
   '仅显示最近 10 条，共',
   'getAuctionBidHistory(auction.id)',
   'aria-expanded={expanded}',
+  'asset-auction-workspace',
+  'auctionAttentionPriority',
+  '被超价',
+  '新增',
 ]);
-forbidText('src/pages/AuctionPage.tsx', ['highestBidderName', 'highestBidderId', 'bidderName', 'bidderId']);
+forbidText('src/pages/AuctionPage.tsx', ['highestBidderName', 'highestBidderId', 'bidderName', 'bidderId', 'closedAuctions', '最近结束']);
 requireText('tests/browser/auction-bid-history.spec.ts', [
   'auction bid history is collapsed, lazy, anonymous, and capped at ten rows',
   "toHaveCount(10)",
@@ -214,7 +220,7 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '最近 10 条匿名有效出价',
   '世界 21 收费、延时与隐私迁移',
 ]);
-requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['发布费、最低加价、卖方 1% 成交手续费', '出价记录默认折叠', '固定只返回最近 10 条匿名记录']);
+requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['发布费、最低加价、卖方 1% 成交手续费', '出价记录默认折叠', '固定只返回最近 10 条匿名记录', '被超价', '本次访问新增集合', '不得渲染最近结束或历史结算区域']);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`auction-audit-store.js`', '`economy_asset_auction_events`', 'GET | `/api/game/auctions/:auctionId/bids`', '世界 21 迁移']);
 requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖使用自身规则快照', '拍卖独立收费不得被误删']);
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', ['未达保留价']);

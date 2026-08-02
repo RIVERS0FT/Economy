@@ -357,6 +357,8 @@ for (const text of ['title="拍卖"', '发布资产包拍卖', 'createAuction', 
   requireText('src/pages/AuctionPage.tsx', text);
 }
 for (const text of ['collectible', 'Collectible', '藏品']) forbidText('src/pages/AuctionPage.tsx', text);
+for (const text of ['asset-auction-workspace', '发起拍卖', '正在进行的拍卖', 'auctionAttentionPriority', '被超价', '新增']) requireText('src/pages/AuctionPage.tsx', text);
+for (const text of ['closedAuctions', '最近结束']) forbidText('src/pages/AuctionPage.tsx', text);
 for (const text of [
   'title="合同"',
   '进行中的合同',
@@ -485,7 +487,7 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 
 for (const text of [
   '概览｜市场｜生产｜拍卖｜合同｜银行｜排行｜商店｜设置',
-  '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包竞价及结算结果 |',
+  '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包发布及进行中竞价 |',
   '| 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |',
   '| 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |',
   '| 商店 | `gem-shop` | `GemShopPage` | 邀请获取宝石与每日终端动态报价兑换普通货币 |',

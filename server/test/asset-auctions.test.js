@@ -357,6 +357,12 @@ test('客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组',
   const client = createAssetAuctionClientState(state, seller.id, 2_100).assetAuctions[0];
   assert.equal(client.highestBidderLabel, '竞买人 A01');
   assert.equal(client.bidCount, 1);
+  assert.equal(client.isOutbid, false, '卖方不得被标记为被超价');
+  const leadingClient = createAssetAuctionClientState(state, bidderA.id, 2_100).assetAuctions[0];
+  assert.equal(leadingClient.isOutbid, false, '当前最高竞买人不得被标记为被超价');
+  assert.equal(bid(state, bidderB, auction.id, 10.2, 2_200).ok, true);
+  const outbidClient = createAssetAuctionClientState(state, bidderA.id, 2_300).assetAuctions[0];
+  assert.equal(outbidClient.isOutbid, true, '曾出价但不再领先的玩家必须被标记为被超价');
   for (const privateKey of ['sellerId', 'highestBidderId', 'highestBidderName', 'bids', 'bidderAliases']) {
     assert.equal(Object.hasOwn(client, privateKey), false, `客户端不得包含 ${privateKey}`);
   }

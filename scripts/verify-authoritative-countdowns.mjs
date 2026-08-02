@@ -112,7 +112,9 @@ if (failures.length === 0) {
 
   for (const text of [
     "return remaining === 0 ? '等待服务器结算' : formatDuration(remaining);",
-    "const openAuctions = assetAuctions.filter((auction) => auction.status === 'open');",
+    ".filter((auction) => auction.status === 'open')",
+    'const openAuctions = useMemo(() => (',
+    'auctionActivityAt(right) - auctionActivityAt(left)',
   ]) requireText(paths.auction, text);
 
   for (const text of [

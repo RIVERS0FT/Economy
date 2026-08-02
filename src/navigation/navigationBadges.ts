@@ -23,7 +23,7 @@ interface NavigationAuction {
   status: 'open' | 'sold' | 'ended' | 'cancelled';
   isSeller: boolean;
   isHighestBidder: boolean;
-  bids?: Array<{ bidderId: number }>;
+  isOutbid?: boolean;
 }
 
 interface NavigationContract {
@@ -73,7 +73,7 @@ function leaderboardPeriodKey(game: EconomyState) {
   return typeof key === 'string' ? key : '';
 }
 
-function unreadAuctionCandidateIds(game: EconomyState) {
+export function unreadAuctionCandidateIds(game: EconomyState) {
   return normalizedUniqueIds(auctionsFromGame(game)
     .filter((auction) => auction.status === 'open' && !auction.isSeller)
     .map((auction) => auction.id));
@@ -90,11 +90,7 @@ function unreadContractCandidateIds(game: EconomyState) {
 
 function outbidAuctionIds(game: EconomyState) {
   return normalizedUniqueIds(auctionsFromGame(game)
-    .filter((auction) => (
-      auction.status === 'open'
-      && !auction.isHighestBidder
-      && auction.bids?.some((bid) => Number(bid.bidderId) === Number(game.userId))
-    ))
+    .filter((auction) => auction.status === 'open' && Boolean(auction.isOutbid))
     .map((auction) => auction.id));
 }
 
@@ -163,6 +159,14 @@ export function navigationBadgeStorageKey(userId: number) {
   return `economy:navigation-badges:v${NAVIGATION_BADGE_STORAGE_VERSION}:${userId}`;
 }
 
+export function getUnreadAuctionIds(
+  game: EconomyState,
+  readState: NavigationBadgeReadState,
+) {
+  const seenAuctions = new Set(readState.seenAuctionIds);
+  return unreadAuctionCandidateIds(game).filter((id) => !seenAuctions.has(id));
+}
+
 export function markNavigationBadgeTabRead(
   current: NavigationBadgeReadState,
   tab: TabId,
@@ -210,9 +214,7 @@ export function buildNavigationBadges(
   const productionCount = new Set(productionIssueIds).size;
   result.production = badge(productionCount, `${productionCount} 项生产问题需要处理`);
 
-  const seenAuctions = new Set(readState.seenAuctionIds);
-  const unreadAuctionIds = unreadAuctionCandidateIds(game)
-    .filter((id) => !seenAuctions.has(id));
+  const unreadAuctionIds = getUnreadAuctionIds(game, readState);
   const outbidIds = outbidAuctionIds(game);
   const auctionAttentionIds = unionIds(unreadAuctionIds, outbidIds);
   const auctionCount = auctionAttentionIds.length;
