@@ -4,9 +4,18 @@
   .market-page-surface .market-compact-view-switch,
   .market-page-surface .market-account-view-switch,
   .market-page-surface .market-trade-section-heading > small,
-  .market-page-surface .order-book-columns,
-  .market-page-surface .order-book-midpoint {
+  .market-page-surface .order-book-columns {
     display: none;
+  }
+
+  .market-page-surface .order-book-midpoint {
+    min-height: 0;
+    height: 1px;
+    overflow: hidden;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    visibility: hidden;
   }
 
   @container market-page (max-width: 339px) {
