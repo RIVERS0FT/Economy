@@ -20,7 +20,6 @@ const safeTooltipPath = 'src/components/ui/SafeTooltip.tsx';
 const topLayerPath = 'src/components/ui/topLayer.ts';
 const draftPath = 'src/utils/integerDraft.ts';
 const stylePath = 'src/styles/form-controls.css';
-const topLayerStylePath = 'src/styles/top-layer-overlays.css';
 const navigationPath = 'src/components/shell/NavigationItems.tsx';
 const sidebarStylePath = 'src/styles/desktop-sidebar.css';
 const mainPath = 'src/main.tsx';
@@ -37,7 +36,6 @@ const adminGiftCodesPath = 'src/components/AdminGiftCodesSection.tsx';
   topLayerPath,
   draftPath,
   stylePath,
-  topLayerStylePath,
   navigationPath,
   sidebarStylePath,
   mainPath,
@@ -88,6 +86,8 @@ for (const text of [
   'hideTopLayerPopover(listbox)',
   "popover={topLayerSupported ? 'manual' : undefined}",
   "data-top-layer={topLayerSupported ? 'true' : undefined}",
+  "position: topLayerSupported ? 'fixed' : undefined",
+  "zIndex: topLayerSupported ? 'auto' : undefined",
   'data-facility-sheet-no-drag="true"',
 ]) requireText(richSelectPath, text);
 
@@ -97,6 +97,8 @@ for (const text of [
   'hideTopLayerPopover(tooltip)',
   "popover={topLayerSupported ? 'manual' : undefined}",
   "data-top-layer={topLayerSupported ? 'true' : undefined}",
+  "position: topLayerSupported ? 'fixed' : undefined",
+  "zIndex: topLayerSupported ? 'auto' : undefined",
   'createPortal(',
 ]) requireText(safeTooltipPath, text);
 
@@ -129,15 +131,6 @@ for (const text of [
 ]) requireText(stylePath, text);
 
 for (const text of [
-  ".ui-rich-select__listbox[data-top-layer='true']",
-  ".safe-tooltip[data-top-layer='true']",
-  'position: fixed;',
-  'inset: auto;',
-  'z-index: auto;',
-  ':not(:popover-open)',
-]) requireText(topLayerStylePath, text);
-
-for (const text of [
   'badges: NavigationBadgeMap',
   'className="navigation-badge"',
   'aria-label={accessibleLabel}',
@@ -165,12 +158,8 @@ for (const forbidden of [
 const main = read(mainPath);
 const designSystemIndex = main.indexOf("import './styles/design-system.css'");
 const formControlsIndex = main.indexOf("import './styles/form-controls.css'");
-const topLayerStyleIndex = main.indexOf("import './styles/top-layer-overlays.css'");
 if (designSystemIndex < 0 || formControlsIndex < 0 || formControlsIndex < designSystemIndex) {
   failures.push('form-controls.css 必须在 design-system.css 之后加载');
-}
-if (topLayerStyleIndex < 0 || topLayerStyleIndex < formControlsIndex) {
-  failures.push('top-layer-overlays.css 必须在 form-controls.css 之后加载');
 }
 
 for (const path of [
@@ -218,6 +207,8 @@ for (const text of [
   '展开态固定在第三网格列右侧',
   '折叠态、`721px–960px` 自动紧凑侧栏和移动底栏固定在按钮内部右上角',
   '只显示 `1`～`99` 或 `99+`',
+  '根级 Dialog 内的 `RichSelectInput` 列表必须复用该 Dialog 根作为安全定位边界并位于详情遮罩之上',
+  '只检查 `z-index` 或 Option 字符串不能证明安全区有效',
 ]) requireText(designDocPath, text);
 
 for (const text of [
