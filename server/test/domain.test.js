@@ -190,8 +190,8 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   );
 
   const expectedPrices = {
-    wheat: 2, rice: 2, cotton: 2, sugarcane: 2, fruit: 4, timber: 6, ore: 7,
-    'copper-ore': 7, 'crude-oil': 9, meat: 6, eggs: 3, milk: 3, fish: 6, wool: 6,
+    wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
+    'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
     flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, textile: 20,
     pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
     clothing: 55, machinery: 76, electronics: 84, appliance: 92,
@@ -199,9 +199,10 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
 
   const productIds = new Set(expectedProducts);
-  const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
+  const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
+  const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
   for (const product of PRODUCT_CATALOG) {
-    assert.equal(Number.isInteger(product.basePrice), true, `${product.id} 初始参考价必须为整数`);
+    assert.ok(Math.abs(product.basePrice - Math.round(product.basePrice * 100) / 100) < 1e-9, `${product.id} 初始参考价最多保留两位小数`);
   }
   for (const facility of FACILITY_TYPE_CATALOG) {
     assert.ok(Array.isArray(facility.recipes) && facility.recipes.length >= 1);
@@ -212,7 +213,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
     for (const recipe of facility.recipes) {
       assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
       assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true, `${facility.id}/${recipe.id} 周期秒数必须为整数`);
-      assert.equal(Number.isInteger(recipe.operatingCost), true, `${facility.id}/${recipe.id} 周期成本必须为整数`);
+      assert.ok(Math.abs(recipe.operatingCost - Math.round(recipe.operatingCost * 100) / 100) < 1e-9, `${facility.id}/${recipe.id} 周期成本最多保留两位小数`);
       assert.equal(productIds.has(recipe.output.productId), true);
       assert.equal(Number.isInteger(recipe.output.quantity), true);
       for (const input of recipe.inputs) {
@@ -222,8 +223,10 @@ test('expanded industry catalog exposes fruit and complete production chains', (
       const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
       const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
         * 60_000 / recipe.cycleMs;
-      const expectedProfit = expectedProfitByComplexity[facility.complexity];
-      assert.equal(profit, expectedProfit, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
+      const expectedProfit = facility.complexity === 'C1'
+        ? expectedC1ProfitByFacility[facility.id]
+        : expectedProfitByComplexity[facility.complexity];
+      assert.ok(Math.abs(profit - expectedProfit) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
     }
   }
 

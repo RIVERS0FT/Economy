@@ -4,7 +4,9 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js'
 
 const methodIds = ['standard', 'rapid', 'economical', 'high-yield'];
 const productPrices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice]));
-const expectedProfit = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
+function hasAtMostTwoDecimals(value) {
+  return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
+}
 
 for (const facility of FACILITY_TYPE_CATALOG) {
   const group = facility.productionMethodGroups?.find((candidate) => candidate.id === 'operation');
@@ -14,6 +16,12 @@ for (const facility of FACILITY_TYPE_CATALOG) {
   assert.ok(baseRecipes.length > 0, `${facility.id} 缺少标准生产配方`);
 
   for (const baseRecipe of baseRecipes) {
+    const baseInputValue = baseRecipe.inputs.reduce(
+      (sum, input) => sum + productPrices.get(input.productId) * input.quantity,
+      0,
+    );
+    const baseOutputValue = productPrices.get(baseRecipe.output.productId) * baseRecipe.output.quantity;
+    const baseProfit = (baseOutputValue - baseInputValue - baseRecipe.operatingCost) * 60_000 / baseRecipe.cycleMs;
     const variants = methodIds.map((methodId) => facility.recipes.find((recipe) => (
       recipe.baseRecipeId === baseRecipe.id && recipe.productionMethodId === methodId
     )));
@@ -25,8 +33,8 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       );
       const outputValue = productPrices.get(recipe.output.productId) * recipe.output.quantity;
       const profitPerMinute = (outputValue - inputValue - recipe.operatingCost) * 60_000 / recipe.cycleMs;
-      assert.equal(profitPerMinute, expectedProfit[facility.complexity], `${facility.id}/${recipe.id} 利润基线漂移`);
-      assert.equal(Number.isSafeInteger(recipe.operatingCost), true);
+      assert.ok(Math.abs(profitPerMinute - baseProfit) < 1e-9, `${facility.id}/${recipe.id} 利润基线漂移`);
+      assert.equal(hasAtMostTwoDecimals(recipe.operatingCost), true);
       assert.equal(recipe.operatingCost >= 0, true);
     }
   }
@@ -137,4 +145,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、整数平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、浏览器交互和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、两位小数固定精度平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、浏览器交互和版本兼容均已锁定。');

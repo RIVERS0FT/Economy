@@ -130,17 +130,17 @@ const noInput = analyzeRecipeProfit({
   recipe: {
     id: 'farm-production',
     name: '种植小麦',
-    cycleMs: 120_000,
-    operatingCost: 6,
+    cycleMs: 20_000,
+    operatingCost: 1,
     inputs: [],
-    output: { productId: 'wheat', quantity: 4 },
+    output: { productId: 'wheat', quantity: 1 },
   },
   scopeCount: 1,
-  markets: { wheat: market('wheat', 2) },
+  markets: { wheat: market('wheat', 1.2) },
   buildCost: 0,
 });
 assert.equal(noInput.inputMarketCost, 0);
-assert.equal(noInput.profitPerMinute, 1);
+assert.ok(Math.abs(noInput.profitPerMinute - 0.6) < 1e-9);
 
 const profitSource = read('src/utils/recipeProfitAnalysis.ts');
 const presentationSource = read('src/utils/facilityProfitPresentation.ts');

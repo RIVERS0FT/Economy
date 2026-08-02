@@ -10,7 +10,6 @@ import {
 
 const now = 1_700_000_000_000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
-const expectedProfitByComplexity = { C1: 1, C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
 const prices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice]));
 
 function referenceProfitPerMinute(recipe) {
@@ -45,15 +44,15 @@ test('every factory route exposes four balanced production methods', () => {
 
     const baseRecipes = type.recipes.filter((recipe) => recipe.productionMethodId === 'standard');
     for (const baseRecipe of baseRecipes) {
+      const baseProfit = referenceProfitPerMinute(baseRecipe);
       const variants = methodGroup.methods.map((method) => variant(type, baseRecipe.id, method.id));
       assert.equal(variants.every(Boolean), true, `${type.id}/${baseRecipe.id} 生产方式不完整`);
       for (const recipe of variants) {
         assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
-        assert.equal(Number.isInteger(recipe.operatingCost), true);
+        assert.ok(Math.abs(recipe.operatingCost - Math.round(recipe.operatingCost * 100) / 100) < 1e-9);
         assert.equal(recipe.operatingCost >= 0, true);
-        assert.equal(
-          referenceProfitPerMinute(recipe),
-          expectedProfitByComplexity[type.complexity],
+        assert.ok(
+          Math.abs(referenceProfitPerMinute(recipe) - baseProfit) < 1e-9,
           `${type.id}/${recipe.id} 参考分钟利润错误`,
         );
       }
@@ -73,7 +72,7 @@ test('every factory route exposes four balanced production methods', () => {
   }
 });
 
-test('representative production method plans use the approved integer values', () => {
+test('representative production method plans use the approved fixed-precision values', () => {
   const farm = FACILITY_TYPE_CATALOG.find((type) => type.id === 'farm');
   const steelworks = FACILITY_TYPE_CATALOG.find((type) => type.id === 'steelworks');
   const electronics = FACILITY_TYPE_CATALOG.find((type) => type.id === 'electronics-factory');
@@ -84,10 +83,10 @@ test('representative production method plans use the approved integer values', (
       return [recipe.cycleMs, recipe.output.quantity, recipe.operatingCost];
     }),
     [
-      [120_000, 4, 6],
-      [60_000, 4, 7],
-      [180_000, 4, 5],
-      [120_000, 8, 14],
+      [20_000, 1, 1],
+      [10_000, 1, 1.1],
+      [30_000, 1, 0.9],
+      [20_000, 2, 2.2],
     ],
   );
 
@@ -160,15 +159,15 @@ test('running factory switches production method only after the current full cyc
   assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop');
   assert.equal(player.facilityGroups[0].pendingRecipeId, 'wheat-crop--rapid');
 
-  processFacilityGroupWorld(world, now + 120_000);
-  assert.equal(player.inventories.wheat.available, 4);
-  assert.equal(player.credits, 94);
+  processFacilityGroupWorld(world, now + 20_000);
+  assert.equal(player.inventories.wheat.available, 1);
+  assert.equal(player.credits, 99);
   assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop--rapid');
   assert.equal(player.facilityGroups[0].pendingRecipeId, undefined);
-  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_000);
+  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 20_000);
 
-  processFacilityGroupWorld(world, now + 180_000);
-  assert.equal(player.inventories.wheat.available, 8);
-  assert.equal(player.credits, 87);
-  assert.equal(player.facilityGroups[0].lifetimeOutput, 8);
+  processFacilityGroupWorld(world, now + 30_000);
+  assert.equal(player.inventories.wheat.available, 2);
+  assert.ok(Math.abs(player.credits - 97.9) < 1e-9);
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 2);
 });

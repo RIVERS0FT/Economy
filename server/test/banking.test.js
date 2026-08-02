@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createWorld, ensurePlayer } from '../src/domain.js';
+import { createWorld, ensurePlayer, FACILITY_TYPE_CATALOG } from '../src/domain.js';
 import {
   activeLoanLiability,
   applyBankAction,
@@ -74,8 +74,10 @@ test('mortgaged factories keep producing but cannot be transferred', () => {
   }, now + 2);
   assert.equal(sell.ok, false);
 
-  processFacilityGroupWorld(world, now + 120_000);
-  assert.equal(player.inventories.wheat.available, 8);
+  const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
+  const recipe = farm.recipes.find((entry) => entry.id === 'wheat-crop');
+  processFacilityGroupWorld(world, now + recipe.cycleMs);
+  assert.equal(player.inventories.wheat.available, 2 * recipe.output.quantity);
 });
 
 test('loan proceeds add matching liability and do not inflate wealth', () => {

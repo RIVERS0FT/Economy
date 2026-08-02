@@ -16,7 +16,7 @@ import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
 import { weeklySettlementLiability } from './weekly-cash-settlement.js';
 import { ensureGemState } from './invitations.js';
-import { multiplyMoneyByInteger } from './money.js';
+import { calculateRateMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
@@ -117,16 +117,16 @@ function cycleCapacity(
 }
 
 function calculateProductionWage(cost, multiplierBps) {
-  const normalizedCost = Math.max(0, Math.floor(Number(cost)));
+  const normalizedCost = roundInternalMoney(cost);
   const normalizedMultiplier = normalizeProductionWageMultiplier(multiplierBps);
-  if (!Number.isSafeInteger(normalizedCost) || normalizedMultiplier === null) {
+  if (normalizedCost === null || normalizedCost < 0 || normalizedMultiplier === null) {
     throw new Error('生产工资参数超出系统可表示范围');
   }
-  const rounded = (BigInt(normalizedCost) * BigInt(normalizedMultiplier) + 5_000n) / 10_000n;
-  if (rounded > BigInt(Number.MAX_SAFE_INTEGER)) {
+  const wage = calculateRateMoney(normalizedCost, normalizedMultiplier, 10_000, 'half-up');
+  if (wage === null) {
     throw new Error('生产工资计算结果超出系统可表示范围');
   }
-  return Number(rounded);
+  return wage;
 }
 
 function currentProductionWageMultiplier(world, now) {
@@ -599,12 +599,13 @@ function groupRequirements(recipe, count) {
     quantity: item.quantity * participating,
   }));
   const output = recipe.output.quantity * participating;
+  const cost = multiplyMoneyByInteger(recipe.operatingCost, participating) ?? Number.POSITIVE_INFINITY;
   const inputTotal = inputs.reduce((sum, item) => sum + item.quantity, 0);
   return {
     output,
     inputs,
     inputTotal,
-    cost: recipe.operatingCost * participating,
+    cost,
     netStorage: Math.max(0, output - inputTotal),
   };
 }
