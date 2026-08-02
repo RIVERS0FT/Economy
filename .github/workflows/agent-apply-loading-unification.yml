@@ -39,6 +39,7 @@ jobs:
           set -euo pipefail
           python3 -m py_compile .agent/apply-loading-unification.py
           python3 .agent/apply-loading-unification.py
+          rm -rf .agent
           git diff --check
 
       - name: Run focused verification
