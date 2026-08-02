@@ -306,6 +306,47 @@ for (const text of [
   "page.locator('.photographic-state-shell')",
 ]) requireText('tests/browser/application-photography.spec.ts', text);
 
+
+
+const unifiedAtmosphereCss = read('src/styles/financial-backdrop.css');
+for (const text of [
+  'filter: saturate(0.72) contrast(1.08) brightness(0.72);',
+  'filter: saturate(0.68) contrast(1.08) brightness(0.62);',
+  'opacity: 0.24;',
+  'opacity: 0.075;',
+  'opacity: 0.12;',
+  'opacity: 0.05;',
+]) requireText('src/styles/financial-backdrop.css', text);
+for (const text of [
+  'brightness(0.5)',
+  'brightness(0.42)',
+  'brightness(0.43)',
+  'brightness(0.36)',
+  'opacity: 0.065;',
+  'opacity: 0.045;',
+  'opacity: 0.16;',
+  'opacity: 0.09;',
+]) forbidText('src/styles/financial-backdrop.css', text);
+if ((unifiedAtmosphereCss.match(/filter: saturate\(0\.72\) contrast\(1\.08\) brightness\(0\.72\);/g) ?? []).length !== 1) {
+  failures.push('桌面认证、玩家与管理员必须且只能共享一套登录页摄影滤镜');
+}
+if ((unifiedAtmosphereCss.match(/filter: saturate\(0\.68\) contrast\(1\.08\) brightness\(0\.62\);/g) ?? []).length !== 1) {
+  failures.push('移动认证、玩家与管理员必须且只能共享一套登录页摄影滤镜');
+}
+for (const text of [
+  '认证、注册、九个玩家页面、管理员后台以及根级加载／异常状态',
+  '页面或角色不得再覆盖这些参数',
+]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
+for (const text of [
+  '登录、玩家与管理员必须使用完全相同的摄影滤镜',
+  '`data-app-backdrop` 只保留语义和状态路由职责',
+]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
+requireFile('tests/browser/application-atmosphere-consistency.spec.ts');
+for (const text of [
+  'auth, game and admin share the desktop atmosphere baseline',
+  'auth, game and admin share the mobile atmosphere baseline',
+]) requireText('tests/browser/application-atmosphere-consistency.spec.ts', text);
+
 if (failures.length) {
   console.error(`持久全应用摄影背景验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
