@@ -99,8 +99,11 @@ jobs:
                   "  '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',",
               ),
           ]
-          for path, old, new in replacements:
-              replace_one(path, old, new)
+          for target_path, old, new in replacements:
+              replace_one(target_path, old, new)
+
+          css_path = Path('src/styles/form-controls.css')
+          css_path.write_text(css_path.read_text(encoding='utf-8').rstrip() + '\n', encoding='utf-8')
           PY
 
       - name: Remove temporary application files
