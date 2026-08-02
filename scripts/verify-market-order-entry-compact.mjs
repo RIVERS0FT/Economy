@@ -43,6 +43,8 @@ for (const text of [
   'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);',
   'grid-template-columns: var(--market-stepper-label-width) minmax(0, 1fr);',
   '.market-page-surface .market-stepper__button {',
+  "html[data-input-modality='mouse']",
+  '@media (hover: hover) and (pointer: fine)',
   'position: absolute;',
   'width: 44px;',
   'padding-inline: 52px;',

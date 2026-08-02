@@ -382,7 +382,14 @@
   border-radius: 0 var(--radius-control) var(--radius-control) 0;
 }
 
-.market-page-surface .market-stepper__button:hover:not(:disabled),
+@media (hover: hover) and (pointer: fine) {
+  html[data-input-modality='mouse']
+    .market-page-surface .market-stepper__button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.045);
+    transform: translateY(-50%);
+  }
+}
+
 .market-page-surface .market-stepper__button:active:not(:disabled) {
   background: rgba(255, 255, 255, 0.045);
   transform: translateY(-50%);
