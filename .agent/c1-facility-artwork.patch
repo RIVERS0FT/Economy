@@ -1,7 +1,7 @@
 diff --git a/docs/UI_DESIGN_SYSTEM.md b/docs/UI_DESIGN_SYSTEM.md
 --- a/docs/UI_DESIGN_SYSTEM.md
 +++ b/docs/UI_DESIGN_SYSTEM.md
-@@ -1,13 +1,18 @@
+@@ -236,13 +236,18 @@
  所有工厂场景插画必须遵循同一绘制语言：
  
  - 高质量写实数字插画／商业级写实 CG，结构真实、材质清晰、细节丰富，允许适度商业游戏美化，但不得使用卡通化夸张造型；
