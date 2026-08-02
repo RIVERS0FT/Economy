@@ -26,7 +26,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         shell: bash
         run: |
-          cat > /tmp/diagnose.mjs <<'NODE'
+          cat > c1-state-diagnose.mjs <<'NODE'
           import { EconomyStore } from './server/src/storage.js';
           const alice = { id: 1, email: 'alice@example.com', name: 'Alice', role: 'user' };
           const store = new EconomyStore(':memory:');
@@ -54,7 +54,8 @@ jobs:
           console.log(JSON.stringify({ initialRevision: initial.revision, polled, beforeRevision: beforeRow.revision, afterRevision: afterRow.revision, diffs }, null, 2));
           store.close();
           NODE
-          node /tmp/diagnose.mjs > /tmp/state-diff.log 2>&1 || true
+          node c1-state-diagnose.mjs > /tmp/state-diff.log 2>&1 || true
+          rm -f c1-state-diagnose.mjs
           {
             echo '## C1 state drift diagnostic'
             echo '```json'
