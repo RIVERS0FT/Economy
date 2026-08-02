@@ -184,16 +184,16 @@ export function RichSelectInput({
   }, [closeList, onValueChange, options, value]);
 
   useLayoutEffect(() => {
+    if (!topLayerSupported || !open) return undefined;
     const listbox = listboxRef.current;
-    if (!topLayerSupported || !listbox) return undefined;
-    if (!open) {
-      hideTopLayerPopover(listbox);
-      return undefined;
-    }
+    if (!listbox) return undefined;
     showTopLayerPopover(listbox);
     updatePosition();
     const frame = requestAnimationFrame(updatePosition);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      hideTopLayerPopover(listbox);
+    };
   }, [open, topLayerSupported, updatePosition]);
 
   useLayoutEffect(() => {
@@ -322,11 +322,13 @@ export function RichSelectInput({
     </div>
   );
 
-  const listbox = topLayerSupported
-    ? listboxNode
-    : open && floatingLayer
-      ? createPortal(listboxNode, floatingLayer)
-      : null;
+  const listbox = !open
+    ? null
+    : topLayerSupported
+      ? listboxNode
+      : floatingLayer
+        ? createPortal(listboxNode, floatingLayer)
+        : null;
 
   return (
     <FormField
