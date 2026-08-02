@@ -19,13 +19,19 @@ test.describe('factory production methods', () => {
     await expect(methodSelect).toHaveCount(1);
     await expect(methodSelect).toHaveValue('rapid');
 
+    const settings = detail.locator('.facility-production-settings');
+    await expect(settings.locator('.ui-control-leading-icon')).toHaveCount(2);
+    await expect(settings.locator('.ui-control-leading-icon [data-product-icon="machinery"]')).toHaveCount(1);
+    await expect(settings.locator('[data-production-method-icon="rapid"]')).toHaveCount(1);
+    const recipeSelectPadding = await recipeSelect.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingLeft));
+    expect(recipeSelectPadding).toBeGreaterThan(30);
+
     const summary = detail.locator('.facility-production-method-summary');
     await expect(summary.locator('strong')).toHaveCount(0);
     await expect(summary).not.toContainText('高速生产');
     await expect(summary).toContainText('1m · 产出 1 · 成本 12');
     await expect(summary).toContainText('缩短周期并提高成本');
 
-    const settings = detail.locator('.facility-production-settings');
     await expect(settings.locator('.facility-production-settings-grid')).toHaveCount(1);
     expect(await settings.locator('.facility-production-settings-grid').evaluate((element) => (
       getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
@@ -69,17 +75,41 @@ test.describe('factory production methods', () => {
     expect(metaBox.x + metaBox.width).toBeLessThanOrEqual(inputSideBox.x + inputSideBox.width + 1);
     expect(metaBox.x + metaBox.width).toBeLessThan(outputBox.x);
 
+    const metaUnits = formulaMeta.locator(':scope > .facility-formula-meta-unit');
+    await expect(metaUnits).toHaveCount(2);
+    const [cycleBox, costBox] = await Promise.all([
+      metaUnits.nth(0).boundingBox(),
+      metaUnits.nth(1).boundingBox(),
+    ]);
+    expect(cycleBox).not.toBeNull();
+    expect(costBox).not.toBeNull();
+    if (!cycleBox || !costBox) throw new Error('周期成本两行几何不可用');
+    expect(costBox.y).toBeGreaterThan(cycleBox.y + cycleBox.height - 1);
+
+    const materialRows = settlement.locator('.facility-formula-item-group');
+    await expect(materialRows).toHaveCount(2);
+    await expect(settlement.locator('.facility-formula-inventory')).toHaveCount(2);
+    await expect(settlement.locator('.facility-formula-input .facility-formula-inventory')).toHaveCount(1);
+    await expect(settlement.locator('.facility-formula-output .facility-formula-inventory')).toHaveCount(1);
+
     const slotStyle = await settlement.locator('.facility-formula-item-group').first().evaluate((element) => {
       const style = getComputedStyle(element);
+      const row = element.firstElementChild;
+      const children = row ? Array.from(row.children) : [];
+      const boxes = children.map((child) => child.getBoundingClientRect().x);
       return {
         backgroundImage: style.backgroundImage,
         borderLeftWidth: style.borderLeftWidth,
         borderRadius: style.borderRadius,
+        childCount: children.length,
+        ordered: boxes.every((value, index) => index === 0 || value >= boxes[index - 1]),
       };
     });
     expect(slotStyle.backgroundImage).not.toBe('none');
     expect(slotStyle.borderLeftWidth).not.toBe('0px');
     expect(slotStyle.borderRadius).not.toBe('0px');
+    expect(slotStyle.childCount).toBe(3);
+    expect(slotStyle.ordered).toBe(true);
 
     const flowStyle = await settlement.locator('.facility-formula-progress .progress-track span').evaluate((element) => {
       const style = getComputedStyle(element.parentElement!);
