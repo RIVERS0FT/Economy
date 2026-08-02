@@ -77,11 +77,6 @@ replaceOnce(
 );
 replaceOnce(
   verifierPath,
-  `      \`src/assets/facility-icons/generated/128/\`,`,
-  `      \`src/assets/facility-icons/generated/256/\`,`,
-);
-replaceOnce(
-  verifierPath,
   `  }\n}\n\nif (failures.length > 0) {`,
   `  }\n\n  if (styles.includes('facility-icons/generated/128/')) {\n    failures.push('工厂场景样式不得继续引用 128px 运行时缩略图');\n  }\n  if (uiDesign.includes('facility-icons/generated/128/')) {\n    failures.push('工厂场景权威设计不得继续声明 128px 运行时缩略图');\n  }\n  for (const required of [\n    'production and market facility artwork use 256px runtime thumbnails',\n    'naturalWidth',\n    'naturalHeight',\n    'expectedSize: number',\n  ]) {\n    if (!resolutionBrowser.includes(required)) {\n      failures.push(\`${paths.resolutionBrowser} 缺少: \${required}\`);\n    }\n  }\n}\n\nif (failures.length > 0) {`,
 );
