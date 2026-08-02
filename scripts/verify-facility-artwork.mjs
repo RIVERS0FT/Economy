@@ -295,7 +295,7 @@ if (failures.length === 0) {
       "expect(metrics.backgroundPosition).toBe('50% 50%')",
       'Math.abs(metrics.artwork.width - metrics.card.width)',
       'Math.abs(metrics.artwork.height - metrics.card.height)',
-      "expect(metrics.readabilityBackground).toContain('linear-gradient')",
+      "expect((metrics.readabilityBackground.match(/linear-gradient/g) ?? []).length).toBe(2)",
     ]],
   ]) {
     for (const fragment of fragments) {

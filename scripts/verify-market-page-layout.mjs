@@ -106,7 +106,7 @@ requireText(runtimeSpec, 'market product artwork uses 72px desktop and 56px mobi
 requireText(facilityArtworkSpec, 'market facility artwork fills the card with centered cover cropping on desktop and mobile', 'Playwright 必须覆盖桌面与移动市场工厂满幅插画。');
 requireText(facilityArtworkSpec, "expect(metrics.backgroundSize).toBe('cover')", 'Playwright 必须验证市场工厂插画使用 cover。');
 requireText(facilityArtworkSpec, "expect(metrics.backgroundPosition).toBe('50% 50%')", 'Playwright 必须验证市场工厂插画居中。');
-requireText(facilityArtworkSpec, "expect(metrics.readabilityBackground).toContain('linear-gradient')", 'Playwright 必须验证市场工厂插画可读性渐变。');
+requireText(facilityArtworkSpec, "expect((metrics.readabilityBackground.match(/linear-gradient/g) ?? []).length).toBe(2)", 'Playwright 必须验证市场工厂插画上下双层可读性渐变。');
 requireText(marketPage, 'FactoryIcon, WarehouseIcon', '市场商品库存必须复用统一 WarehouseIcon。');
 requireText(marketPage, 'className="market-asset-card__icon-layer"', '市场商品卡必须先渲染图标层。');
 requireText(marketPage, 'className="market-asset-card__data-layer"', '市场商品卡必须后渲染数据层。');
