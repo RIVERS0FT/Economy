@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-// Mobile contract tabs must keep independent hit areas at both narrow regression widths.
+// Contract market remains visible while the personal pane switches active/history views.
 const root = process.cwd();
 const failures = [];
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
@@ -19,6 +19,7 @@ const pagePath = 'src/pages/ContractPage.tsx';
 const stylePath = 'src/styles/contracts.css';
 const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
 const browserTestPath = 'tests/browser/contract-layout.spec.ts';
+const workspaceTestPath = 'tests/browser/contract-workspace.spec.ts';
 const harnessPath = 'tests/browser/runtime-harness.tsx';
 const formVerifierPath = 'scripts/verify-form-controls.mjs';
 const packagePath = 'package.json';
@@ -28,6 +29,7 @@ const packagePath = 'package.json';
   stylePath,
   designPath,
   browserTestPath,
+  workspaceTestPath,
   harnessPath,
   formVerifierPath,
   packagePath,
@@ -43,9 +45,17 @@ for (const text of [
   'role="tablist"',
   'role="tab"',
   'role="tabpanel"',
-  "useState<ContractTab>('active')",
+  "type PersonalContractView = 'active' | 'history'",
+  "useState<PersonalContractView>('active')",
+  'contractNeedsAttention',
+  'contract-workspace',
+  'contract-market-pane',
+  'contract-market-grid',
+  'contract-personal-pane',
+  'contract-personal-tabs',
+  'contract-active-grid',
+  'data-attention={needsAttention',
   'contract-publish-layout',
-  'contract-offer-grid',
   'contract-history-panel',
   '自动准备商品',
   '自动补充货款',
@@ -55,47 +65,52 @@ for (const text of [
   'Number(event.target.value)',
   '<input type="number"',
   '<select',
+  'type ContractTab',
+  'contract-tab-market',
+  'contract-tab-pending',
+  "tab === 'market'",
+  "tab === 'pending'",
 ]) forbidText(pagePath, text);
 
 for (const text of [
   '.contract-summary-grid',
   'grid-template-columns: repeat(4, minmax(0, 1fr));',
+  '.contract-workspace {',
+  'gap: var(--layout-gutter);',
+  '.contract-pane-grid,',
+  '.contract-active-grid {',
+  '.contract-personal-tabs {',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  '.contract-card--attention[data-attention="true"]',
   '.contract-publish-layout',
-  '.contract-offer-grid',
   '.contract-history-panel',
-  '@media (max-width: 1219px)',
-  '  .contract-publish-grid {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n  }',
-  '.ui-segmented.contract-tabs {',
-  'display: flex;',
-  'overflow-y: hidden;',
-  'touch-action: pan-x pan-y;',
-  'flex: 0 0 auto;',
-  'width: auto;',
-  'max-width: none;',
-  '.contract-tabs .contract-tab-count {',
+  '@media (max-width: 1399px)',
+  '@media (max-width: 960px)',
   '@media (max-width: 720px)',
+  '  .contract-publish-grid {\n    grid-template-columns: repeat(2, minmax(0, 1fr));\n  }',
 ]) requireText(stylePath, text);
 
 for (const text of [
-  '.contract-tabs button {',
-  '.contract-publish-grid input',
-  '.contract-publish-grid select',
-  '.contract-tabs {\n  grid-template-columns: repeat(4, minmax(0, 1fr));\n  margin-bottom: 0;',
+  '--page-section-gap',
+  '.ui-segmented.contract-tabs {',
+  '.contract-tabs .contract-tab-count {',
   'grid-auto-flow: column;',
   'grid-auto-columns: max-content;',
 ]) forbidText(stylePath, text);
 
 for (const text of [
   '合同页的四项摘要在宽布局四列同排',
-  '标签栏必须复用 `Button` 与 `.ui-segmented`',
-  '单行固有宽度 Flex 横向滚动',
-  '`width: 100%` 为 `width: auto`',
-  '`320px` 与 `390px`',
+  '桌面合同主体固定为四列工作区',
+  '左侧两列是常驻“合同广场”',
+  '右侧只使用“进行中的合同／历史合同”两个共享分段按钮切换',
+  '待处理不再是独立标签',
+  '待处理卡片使用警示色边框与柔和背景',
+  '桌面视口不小于 `1400px`',
+  '`961px–1399px` 时左右区域仍并排但各自单列',
   '发布合同面板必须使用 `PagePanel`',
   '进行中合同卡先展示当前批次履约状态',
-  '合同广场在宽度不小于 `1220px` 时使用双列',
-  '合同历史使用单张一级 `PagePanel`',
-  '不得恢复合同页原生数字输入',
+  '合同历史使用右侧区域内的单张一级 `PagePanel`',
+  '工作区内部左右区域使用 `var(--layout-gutter)`',
   '作为 `PageLayout` 自动生成的 `.ui-page-stack` 直接子元素',
 ]) requireText(designPath, text);
 
@@ -104,21 +119,33 @@ for (const text of [
   'desktop contract workspace uses shared controls and dense two-column layouts',
   'tablet contract publish form keeps two-column fields',
   'mobile contract workspace keeps two-column summaries, scrollable tabs and full-size inputs',
-  'narrow mobile contract tabs keep separate hit areas',
+  'narrow mobile contract tabs keep two stable hit areas',
   "openContracts(page, 320, 844)",
   "openContracts(page, 390, 844)",
   "toHaveValue('')",
   "toHaveValue('100')",
   'expectUniformPageSectionGaps',
-  'expectContractTabsDoNotOverlap',
-  "expect(layout.display).toBe('flex')",
-  'geometry.rects[itemIndex].left',
+  'expectPersonalContractTabs',
+  "page.locator('.contract-workspace')",
+  "page.locator('.contract-market-grid')",
+  "page.locator('.contract-active-grid')",
+  "toHaveAttribute('data-attention', 'true')",
 ]) requireText(browserTestPath, text);
+
+for (const text of [
+  'contract market stays visible while personal contracts switch views',
+  "getByRole('region', { name: '合同广场' })",
+  "getByRole('region', { name: '我的合同' })",
+  "getByRole('tab', { name: '历史合同', exact: true })",
+  "toHaveAttribute('data-attention', 'true')",
+  "toHaveAttribute('data-attention', 'false')",
+]) requireText(workspaceTestPath, text);
 
 for (const text of [
   "import { ContractPage } from '../../src/pages/ContractPage';",
   "view === 'contracts'",
   '<ContractPage model={model} />',
+  "id: 'contract-active-normal'",
 ]) requireText(harnessPath, text);
 
 requireText(formVerifierPath, "'src/pages/ContractPage.tsx'");
@@ -133,4 +160,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('合同页统一表单、工作台层级、移动标签独立命中区域、平板与移动响应式布局、历史列表和浏览器回归验证通过。');
+console.log('合同页四列工作区、常驻合同广场、待处理置顶、双视图切换、响应式布局、历史列表和浏览器回归验证通过。');
