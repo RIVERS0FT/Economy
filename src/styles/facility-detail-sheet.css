@@ -1,6 +1,6 @@
 /* Final authority for the mobile factory detail sheet. The shared production
  * card stylesheet remains authoritative for desktop detail cards; this file is
- * loaded afterwards and owns the mobile overlay structure, drag feedback,
+ * loaded afterwards and owns the root dialog overlay, drag feedback,
  * safe-area header/footer, and shared ScrollArea integration. */
 
 .page-scroll-area[data-modal-scrollbar-suppressed='true'] > .ui-scrollbar--vertical {
@@ -23,8 +23,8 @@
     position: absolute;
     inset: 0;
     z-index: 0;
-    background: color-mix(in srgb, var(--color-background) 42%, transparent);
-    backdrop-filter: blur(6px);
+    background: color-mix(in srgb, var(--color-background) 54%, transparent);
+    backdrop-filter: blur(8px);
     opacity: var(--facility-sheet-backdrop-progress);
     pointer-events: none;
     transition: opacity 200ms ease-out;
@@ -37,6 +37,7 @@
     z-index: 1;
     display: grid;
     grid-template-rows: auto minmax(0, 1fr) auto;
+    background: color-mix(in srgb, var(--color-surface) 96%, var(--color-bg-deep));
     transform: translate3d(0, var(--facility-sheet-drag-offset), 0);
     will-change: transform;
   }
@@ -70,7 +71,7 @@
     position: relative;
     z-index: 3;
     min-width: 0;
-    background: var(--color-surface);
+    background: color-mix(in srgb, var(--color-surface) 98%, var(--color-bg-deep));
   }
 
   .facility-detail-sheet-header {
@@ -130,7 +131,7 @@
     height: 100%;
     min-height: 0;
     display: grid;
-    grid-template-rows: auto auto;
+    grid-template-rows: auto;
     align-content: start;
     gap: var(--space-2);
     overflow-x: hidden;
@@ -146,6 +147,26 @@
     top: var(--scrollbar-edge-offset);
     right: var(--scrollbar-edge-offset);
     bottom: var(--scrollbar-edge-offset);
+  }
+
+  .facility-detail-sheet .facility-production-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+
+  .facility-detail-sheet .facility-production-settings-grid > * {
+    min-width: 0;
+  }
+
+  .facility-detail-sheet .facility-production-settings-grid .ui-form-field {
+    min-width: 0;
+    gap: var(--space-1);
+    font-size: var(--font-size-sm);
+  }
+
+  .facility-detail-sheet .facility-production-settings-grid .ui-rich-select__trigger {
+    gap: var(--space-1);
+    padding-inline: var(--space-2);
   }
 
   .facility-detail-sheet-footer {
@@ -178,6 +199,31 @@
     border-color: color-mix(in srgb, var(--color-success) 62%, var(--color-border));
     background: color-mix(in srgb, var(--color-success-soft) 82%, var(--color-surface-hover));
   }
+
+  .workspace-dialog-layer > .facility-detail-sheet-backdrop {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    align-items: end;
+    overflow: hidden;
+    pointer-events: auto;
+  }
+
+  .workspace-dialog-layer > .facility-detail-sheet-backdrop > .facility-detail-sheet {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(88dvh, 760px);
+  }
+
+  .workspace-dialog-layer > .ui-rich-select__listbox {
+    z-index: 2;
+    pointer-events: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -186,7 +232,6 @@
     transition: none;
   }
 }
-
 
 @media (max-width: 720px) {
   .facility-detail-sheet .facility-status-header {
@@ -205,27 +250,5 @@
 
   .facility-detail-sheet .facility-count-summary strong {
     font-size: var(--font-size-xs);
-  }
-}
-
-
-@media (max-width: 720px) {
-  .workspace-floating-layer > .facility-detail-sheet-backdrop {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    display: grid;
-    align-items: end;
-    overflow: hidden;
-    pointer-events: auto;
-  }
-
-  .workspace-floating-layer > .facility-detail-sheet-backdrop > .facility-detail-sheet {
-    width: 100%;
-    max-width: 100%;
-    max-height: 100%;
   }
 }
