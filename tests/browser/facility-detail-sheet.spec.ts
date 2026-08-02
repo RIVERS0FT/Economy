@@ -39,6 +39,7 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
 
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
     const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+    const dialogLayer = page.locator('.workspace-dialog-layer');
     const pageScroll = page.locator('.page-scroll');
 
     await expect(trigger).toBeVisible();
@@ -49,8 +50,35 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     for (let iteration = 0; iteration < 3; iteration += 1) {
       await trigger.tap();
       await expect(dialog).toBeVisible();
+      await expect(dialogLayer.locator(':scope > .facility-detail-sheet-backdrop')).toHaveCount(1);
       await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
       await waitForSheetAnimations(dialog);
+
+      const detailArtwork = dialog.locator('.facility-detail-artwork-icon');
+      await expect(detailArtwork).toHaveCount(1);
+      await expect.poll(() => detailArtwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');
+      await expect(dialog.locator('.facility-staffing-track')).toBeVisible();
+      await expect(dialog.locator('.facility-staffing-fill')).toBeVisible();
+
+      const backdropBox = await dialogLayer.locator(':scope > .facility-detail-sheet-backdrop').boundingBox();
+      expect(backdropBox).not.toBeNull();
+      if (!backdropBox) throw new Error('工厂详情遮罩几何不可用');
+      expect(backdropBox.x).toBe(0);
+      expect(backdropBox.y).toBe(0);
+      expect(backdropBox.width).toBe(390);
+      expect(backdropBox.height).toBe(844);
+
+      const navigation = page.locator('.mobile-bottom-navigation');
+      const navigationBox = await navigation.boundingBox();
+      expect(navigationBox).not.toBeNull();
+      if (!navigationBox) throw new Error('移动导航几何不可用');
+      const navigationCovered = await page.evaluate(({ x, y }) => Boolean(
+        document.elementFromPoint(x, y)?.closest('.facility-detail-sheet-backdrop'),
+      ), {
+        x: navigationBox.x + navigationBox.width / 2,
+        y: navigationBox.y + navigationBox.height / 2,
+      });
+      expect(navigationCovered).toBe(true);
 
       const sheetBox = await dialog.boundingBox();
       expect(sheetBox).not.toBeNull();
@@ -95,11 +123,11 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       const closedVisual = await trigger.evaluate((element) => {
         const style = getComputedStyle(element);
         return {
-background: style.background,
-borderColor: style.borderColor,
-transform: style.transform,
-outlineStyle: style.outlineStyle,
-boxShadow: style.boxShadow,
+          background: style.background,
+          borderColor: style.borderColor,
+          transform: style.transform,
+          outlineStyle: style.outlineStyle,
+          boxShadow: style.boxShadow,
         };
       });
       expect(closedVisual.background).toBe(baseVisual.background);

@@ -2,7 +2,7 @@
 
 > 状态：统一认证卡片、游戏与管理员桌面工作栏、全应用三层摄影背景、移动状态栏、移动底部导航及登录后共享外壳几何基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-02
+> 更新时间：2026-08-03
 
 本文件定义应用唯一液态玻璃实现、认证卡片、全应用三层摄影背景与背景采样、游戏端和管理员端登录后桌面应用外壳几何、根级摄影状态外壳、移动工作区 Overlay、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。摄影资源、认证／玩家／管理员语义变体共享唯一氛围基线、根级加载与异常状态以 `REGISTRATION_INVITE_FLOW_DESIGN.md` 为共享摄影专项权威；认证卡片光学与静态输入参数、边缘高光和登录布局仍由该文档约束；通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
@@ -130,17 +130,18 @@
 - 桌面侧栏导航必须从侧栏内部顶部按固有行高排列，不能把导航按钮平均拉伸到整列高度。
 - 玩家端和管理员端必须共享这套 DOM、CSS 变量、折叠行为和浏览器几何测试，不得分别创建第二套根外壳。
 - 页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`；不得重建根级摄影节点。生产认证态继续使用 `-2 / -1` 负层级，游戏与管理员登录态保持非负根层级。
-- `#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根；新增的 `.signed-in-shell__body`、`.signed-in-shell__chrome` 与 `.workspace-floating-layer` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，不得在登录后外壳祖先上建立第二个隔离根。
+- `#root` 是全应用唯一允许同时包围摄影层、氛围层与液态玻璃的 `isolation:isolate` 根；新增的 `.signed-in-shell__body`、`.signed-in-shell__chrome`、`.workspace-floating-layer` 与 `workspace-dialog-layer` 在桌面和移动端都必须保持 `isolation:auto`、`filter:none` 与 `transform:none`，不得在登录后外壳祖先上建立第二个隔离根。
 - 桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链；不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败。`verify-open-glass-sampling.mjs` 与 `open-glass-sampling.spec.ts` 必须覆盖新增祖先。
 
 ### 5.1 工作区浮层安全区
 
 - `SignedInShell` 必须在 `.workspace` 内提供唯一 `.workspace-floating-layer`，其桌面几何与工作区完全一致；移动端顶部必须位于状态栏下方，底部必须位于移动导航上方。
-- Tooltip、Popover、菜单、确认框、页面 Dialog、移动工厂详情 Sheet 和其他登录后业务浮层只能渲染到工作区浮层根，或像 ECharts Tooltip 一样由业务容器内部 `confine`；不得追加到 `document.body` 后覆盖顶部工作栏、侧栏或移动底栏。
+- Tooltip、Popover、菜单、确认框和其他不应覆盖应用 Chrome 的登录后业务浮层只能渲染到工作区浮层根，或像 ECharts Tooltip 一样由业务容器内部 `confine`；不得追加到 `document.body`。需要覆盖完整移动视口的业务模态层只能使用 `SignedInShell` 唯一根级业务 Dialog 层 `.workspace-dialog-layer`，不得另建第二个全局 Portal 根。
 - 工作区浮层根必须使用 `overflow: clip`，自身不拦截指针，只有实际浮层恢复指针事件。定位算法必须以浮层根真实 `getBoundingClientRect()` 为边界，并保留至少 `8px` 内部安全间距。
+- 根级业务 Dialog 层固定覆盖视口、位于 `.signed-in-shell__chrome` 之后并高于全部 Chrome；自身不拦截指针，只有实际遮罩、Sheet 和其富内容弹层恢复交互。普通工作区浮层不得借用该层逃逸安全区。
 - 顶部工作栏和侧栏中的提示必须向工作区内部翻转和收敛；不得使用浏览器原生 `title` 承担必须可见的完整信息。
 - ECharts `commonTooltip` 必须继续保持 `appendToBody: false` 与 `confine: true`，不得为了避免裁切改成全局 Portal。
-- 移动工厂详情必须 Portal 到工作区浮层根，背景和 Sheet 都只能覆盖状态栏与移动导航之间的安全区域；焦点陷阱、Escape、拖动关闭和页面滚动锁保持不变。
+- 移动工厂详情是当前唯一批准使用根级业务 Dialog 层的页面浮层：必须 Portal 到 `.workspace-dialog-layer`，完整视口遮罩与 Sheet 位于移动状态栏和底部导航之上；详情内 `RichSelectInput` 列表继续 Portal 到同一根并位于遮罩之上。焦点陷阱、Escape、拖动关闭、页面滚动锁和安全区底部内边距保持不变。
 
 ## 6. 移动工作区、Overlay 与滚动条
 

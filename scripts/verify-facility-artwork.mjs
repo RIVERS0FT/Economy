@@ -157,6 +157,7 @@ if (failures.length === 0) {
 
   for (const required of [
     '.facility-cluster-selector-card',
+    '.facility-detail-artwork',
     '.market-asset-card__icon-layer',
     '.asset-auction-icon',
     '.asset-auction-package-icon',
@@ -192,6 +193,16 @@ if (failures.length === 0) {
     'height: 56px;',
   ]) {
     if (!styles.includes(required)) failures.push(`市场工厂目录卡未落实满幅居中插画与低流量回退: ${required}`);
+  }
+
+  for (const required of [
+    '.facility-detail-artwork {',
+    '.facility-detail-artwork::after',
+    '.facility-detail-artwork .facility-detail-artwork-icon',
+    'background-size: cover;',
+    '@media (max-width: 720px)',
+  ]) {
+    if (!styles.includes(required)) failures.push(`工厂详情未落实场景插画横幅: ${required}`);
   }
 
   const productionStyles = read('src/styles/facility-group-card-grid.css');
@@ -253,6 +264,7 @@ if (failures.length === 0) {
 
   for (const [path, source, required] of [
     [paths.production, production, '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />'],
+    [paths.production, production, '<FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />'],
     [paths.market, market, '<FacilityIcon facilityTypeId={facility.id} />'],
     [paths.auction, auction, '<FacilityIcon facilityTypeId={item.id} />'],
   ]) {
@@ -300,6 +312,7 @@ if (failures.length === 0) {
       '上下两层黑色渐变',
       '中央主体区域保持透明',
       '工厂卡插画必须等比居中裁切并铺满整张卡',
+      '当前工厂详情横幅',
     ]],
     [paths.designIndex, designIndex, ['工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`']],
     [paths.catalogDesign, catalogDesign, ['`FacilityIcon` 只按 `facilityTypeId` 选择视觉资源']],

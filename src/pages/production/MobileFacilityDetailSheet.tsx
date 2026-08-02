@@ -8,7 +8,10 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { ScrollArea } from '../../components/ui/ScrollArea';
-import { useWorkspaceFloatingLayer } from '../../components/ui/WorkspaceFloatingLayer';
+import {
+  WorkspaceFloatingLayerContext,
+  useWorkspaceDialogLayer,
+} from '../../components/ui/WorkspaceFloatingLayer';
 import {
   FACILITY_SHEET_AXIS_DOMINANCE,
   FACILITY_SHEET_AXIS_THRESHOLD,
@@ -42,7 +45,7 @@ export function MobileFacilityDetailSheet({
   returnFocusRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
 }) {
-  const floatingLayer = useWorkspaceFloatingLayer();
+  const dialogLayer = useWorkspaceDialogLayer();
   const backdropRef = useRef<HTMLDivElement | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
@@ -420,70 +423,72 @@ export function MobileFacilityDetailSheet({
     [clearSettleTimer, resetDragStyles],
   );
 
-  if (!isOpen || !entry || !floatingLayer) return null;
+  if (!isOpen || !entry || !dialogLayer) return null;
 
   return createPortal(
-    <div
-      ref={backdropRef}
-      className="facility-detail-sheet-backdrop"
-      onPointerDown={handleBackdropPointerDown}
-      onPointerUp={handleBackdropPointerUp}
-      onPointerCancel={handleBackdropPointerCancel}
-    >
+    <WorkspaceFloatingLayerContext.Provider value={dialogLayer}>
       <div
-        ref={sheetRef}
-        className="facility-detail-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="mobile-facility-detail-title"
-        tabIndex={-1}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={() => {
-          dragSessionRef.current = null;
-          settleDrag(false);
-        }}
+        ref={backdropRef}
+        className="facility-detail-sheet-backdrop"
+        onPointerDown={handleBackdropPointerDown}
+        onPointerUp={handleBackdropPointerUp}
+        onPointerCancel={handleBackdropPointerCancel}
       >
-        <div className="facility-detail-sheet-header">
-          <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
-            <span className="facility-detail-sheet-handle" />
-          </div>
-          <FacilityClusterDetailHeader
-            entry={entry}
-            onToggle={onToggle}
-            titleId="mobile-facility-detail-title"
-          />
-        </div>
-
-        <ScrollArea
-          axis="y"
-          className="facility-detail-sheet-scroll-area"
-          viewportClassName="facility-detail-sheet-scroll"
-          viewportRef={scrollViewportRef}
-          viewportRole="region"
-          viewportAriaLabel={`${entry.type.name}工厂详情内容`}
-          viewportTabIndex={0}
-          scrollbarVisibility="adaptive"
+        <div
+          ref={sheetRef}
+          className="facility-detail-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-facility-detail-title"
+          tabIndex={-1}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={() => {
+            dragSessionRef.current = null;
+            settleDrag(false);
+          }}
         >
-          <FacilityClusterDetailBody
-            entry={entry}
-            products={products}
-            inventories={inventories}
-            now={now}
-            onRecipeChange={onRecipeChange}
-          />
-        </ScrollArea>
+          <div className="facility-detail-sheet-header">
+            <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
+              <span className="facility-detail-sheet-handle" />
+            </div>
+            <FacilityClusterDetailHeader
+              entry={entry}
+              onToggle={onToggle}
+              titleId="mobile-facility-detail-title"
+            />
+          </div>
 
-        <div className="facility-detail-sheet-footer">
-          <FacilityMarketAction onOpenMarket={() => requestClose(onOpenMarket)} />
+          <ScrollArea
+            axis="y"
+            className="facility-detail-sheet-scroll-area"
+            viewportClassName="facility-detail-sheet-scroll"
+            viewportRef={scrollViewportRef}
+            viewportRole="region"
+            viewportAriaLabel={`${entry.type.name}工厂详情内容`}
+            viewportTabIndex={0}
+            scrollbarVisibility="adaptive"
+          >
+            <FacilityClusterDetailBody
+              entry={entry}
+              products={products}
+              inventories={inventories}
+              now={now}
+              onRecipeChange={onRecipeChange}
+            />
+          </ScrollArea>
+
+          <div className="facility-detail-sheet-footer">
+            <FacilityMarketAction onOpenMarket={() => requestClose(onOpenMarket)} />
+          </div>
         </div>
       </div>
-    </div>,
-    floatingLayer,
+    </WorkspaceFloatingLayerContext.Provider>,
+    dialogLayer,
   );
 }

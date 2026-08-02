@@ -70,6 +70,9 @@ for (const text of [
   "import { ScrollArea } from '../../components/ui/ScrollArea';",
   "import { FacilityIcon } from '../../components/icons/FacilityIcons';",
   '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />',
+  'className="facility-detail-artwork"',
+  'className="facility-detail-artwork-icon"',
+  '<FacilityStaffingSummary entry={entry} />',
   'return createPortal(',
   "const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('')",
   'const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false)',
@@ -100,6 +103,9 @@ for (const text of [
   "pageScroll.style.overflowY = 'hidden'",
   "pageScrollArea.dataset.modalScrollbarSuppressed = 'true'",
   'returnFocusRef.current?.focus()',
+  'useWorkspaceDialogLayer',
+  'WorkspaceFloatingLayerContext.Provider value={dialogLayer}',
+  '!dialogLayer',
   '<strong>生产设置</strong>',
   '下一周期切换为：',
   'showNextCyclePreview={recipeState.showNextCyclePreview}',
@@ -168,6 +174,8 @@ for (const forbidden of [
   'facility-current-selection-bar',
   '查看详情',
   'if (event.target === event.currentTarget) requestClose();',
+  'useWorkspaceFloatingLayer',
+  'selectedMethod.description',
   'constructionOnly',
   'FacilityConstructionAcceleration',
   'onAccelerateConstruction',
@@ -189,6 +197,8 @@ for (const text of [
   'data-input-modality',
   'outlineStyle',
   'await expect(trigger).toBeFocused()',
+  "page.locator('.workspace-dialog-layer')",
+  'expect(navigationCovered).toBe(true)',
 ])
   assert.equal(facilitySheetBrowserTest.includes(text), true, `移动工厂详情浏览器回归缺少: ${text}`);
 
@@ -322,6 +332,7 @@ for (const forbidden of [
   'facility-recipe-section',
   'facility-production-method-section',
   '<strong>{selectedMethod.name}</strong>',
+  'selectedMethod.description',
 ]) assert.equal(detailBodySource.includes(forbidden), false, `生产设置不得恢复拆分结构: ${forbidden}`);
 
 const sheetCss = read('src/styles/facility-detail-sheet.css');
@@ -346,12 +357,17 @@ for (const text of [
   'env(safe-area-inset-bottom)',
   'min-height: 48px;',
   '@media (prefers-reduced-motion: reduce)',
+  '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
+  '.workspace-dialog-layer > .ui-rich-select__listbox',
+  '.facility-detail-sheet .facility-production-settings-grid',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
 ])
   assert.equal(sheetCss.includes(text), true, `移动工厂详情样式缺少: ${text}`);
 for (const forbidden of [
   'overscroll-behavior-y: contain',
   'display: none !important; /* vertical */',
   '.facility-detail-sheet-close',
+  '.workspace-floating-layer > .facility-detail-sheet-backdrop',
 ])
   assert.equal(sheetCss.includes(forbidden), false, `移动工厂详情样式不应包含: ${forbidden}`);
 
@@ -448,6 +464,8 @@ for (const text of [
   '公式不得使用总持有 `count` 作为生产乘数',
   '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
   '生产公式与单厂平均利润共同属于同一个“生产结算”容器',
+  '移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层',
+  '作业制度下方只显示周期、单周期产出和周期成本',
 ])
   assert.equal(industryDoc.includes(text), true, `产业设计缺少: ${text}`);
 for (const forbidden of [
@@ -496,9 +514,11 @@ for (const [path, required] of [
         '上下两层黑色渐变',
         '中央主体区域保持透明',
       '卡片点击不保留选中态',
-      '紧凑满员率状态必须使用无独立边框、圆角和背景的状态带',
+      '当前工厂详情正文先显示 256px 工厂场景插画横幅',
       '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
       '公式、进度和单厂平均利润共同组成一张“生产结算”卡',
+      '作业制度说明不得显示',
+      '根级 Dialog',
     ],
   ],
   [

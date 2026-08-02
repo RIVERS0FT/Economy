@@ -75,6 +75,7 @@ html[data-app-surface="admin"] body {
 .mobile-page-overlay,
 .mobile-chrome-overlay,
 .workspace-floating-layer,
+.workspace-dialog-layer,
 .page-scroll-area,
 .page-scroll {
   isolation: auto;
@@ -103,8 +104,20 @@ html[data-app-surface="admin"] body {
   display: contents;
 }
 
-.workspace-floating-layer {
+.workspace-floating-layer,
+.workspace-dialog-layer {
   pointer-events: none;
+}
+
+.workspace-dialog-layer {
+  position: fixed;
+  z-index: 3000;
+  inset: 0;
+  overflow: clip;
+}
+
+.workspace-dialog-layer > * {
+  pointer-events: auto;
 }
 
 .asset-bar {
