@@ -1,0 +1,37 @@
+name: Agent fix industry production method dropdown
+
+on:
+  push:
+    branches:
+      - agent/production-method-dropdown
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/production-method-dropdown
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+      - name: Update industry verifier
+        run: node scripts/agent-fix-industry-production-method-dropdown.mjs
+      - name: Commit formal verifier change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- scripts/verify-industry-catalog.mjs
+          git add -u -- \
+            scripts/agent-fix-industry-production-method-dropdown.mjs \
+            .github/workflows/agent-fix-industry-production-method-dropdown.yml
+          git commit -m "同步作业制度下拉框产业门禁"
+          git push origin HEAD:agent/production-method-dropdown
