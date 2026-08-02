@@ -62,6 +62,7 @@ function expectFullBleed(metrics: Awaited<ReturnType<typeof inspectFacilityArtwo
   expect(metrics.transform).toBe('none');
   expect(metrics.cardOverflow).toBe('hidden');
   expect(Number(metrics.dataLayerZIndex)).toBeGreaterThan(Number(metrics.iconLayerZIndex));
+  expect(metrics.readabilityBackground).not.toBe('none');
   expect((metrics.readabilityBackground.match(/linear-gradient/g) ?? []).length).toBe(2);
   expect(metrics.readabilityPointerEvents).toBe('none');
 }
