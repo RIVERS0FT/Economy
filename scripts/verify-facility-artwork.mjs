@@ -7,8 +7,9 @@ const root = process.cwd();
 const failures = [];
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const facilityIds = FACILITY_TYPE_CATALOG.map((facility) => facility.id);
-const c1FacilityIds = FACILITY_TYPE_CATALOG
-  .filter((facility) => facility.complexity === 'C1')
+const fromScratchComplexities = ['C1', 'C2'];
+const fromScratchFacilityIds = FACILITY_TYPE_CATALOG
+  .filter((facility) => fromScratchComplexities.includes(facility.complexity))
   .map((facility) => facility.id);
 
 const paths = {
@@ -71,15 +72,18 @@ if (failures.length === 0) {
   const baselineFacilityIds = Array.isArray(artworkBaseline.facilityIds)
     ? artworkBaseline.facilityIds
     : [];
+  const baselineComplexities = Array.isArray(artworkBaseline.complexities)
+    ? artworkBaseline.complexities
+    : [];
   const baselineHashes = artworkBaseline.sha256
     && typeof artworkBaseline.sha256 === 'object'
     ? artworkBaseline.sha256
     : {};
-  if (artworkBaseline.version !== 2
+  if (artworkBaseline.version !== 3
     || artworkBaseline.style !== 'fresh-original-subject-first-2026-08-02'
     || artworkBaseline.creationMode !== 'from-scratch-new-illustration'
-    || artworkBaseline.complexity !== 'C1') {
-    failures.push(`${paths.artworkBaseline} 不是当前 C1 从空白新绘／主体优先基线`);
+    || JSON.stringify(baselineComplexities) !== JSON.stringify(fromScratchComplexities)) {
+    failures.push(`${paths.artworkBaseline} 不是当前 C1／C2 从空白新绘／主体优先基线`);
   }
   const designIndex = read(paths.designIndex);
   const catalogDesign = read(paths.catalogDesign);
@@ -100,9 +104,9 @@ if (failures.length === 0) {
   if (JSON.stringify(actualSources) !== JSON.stringify(expectedSources)) {
     failures.push('工厂场景源图必须与服务器工厂目录一一对应，不得缺失或保留目录外 PNG');
   }
-  if (JSON.stringify(baselineFacilityIds) !== JSON.stringify(c1FacilityIds)) {
+  if (JSON.stringify(baselineFacilityIds) !== JSON.stringify(fromScratchFacilityIds)) {
     failures.push(
-      `${paths.artworkBaseline} 的 C1 工厂顺序必须等于服务器目录：${c1FacilityIds.join(', ')}`,
+      `${paths.artworkBaseline} 的 C1／C2 工厂顺序必须等于服务器目录：${fromScratchFacilityIds.join(', ')}`,
     );
   }
 
@@ -112,7 +116,7 @@ if (failures.length === 0) {
     validatePng(sourcePath, 1024, '工厂场景源图');
     validatePng(thumbnailPath, 128, '工厂场景运行时缩略图');
 
-    if (c1FacilityIds.includes(facilityId)) {
+    if (fromScratchFacilityIds.includes(facilityId)) {
       const expectedHash = baselineHashes[facilityId];
       if (typeof expectedHash !== 'string' || !/^[a-f0-9]{64}$/.test(expectedHash)) {
         failures.push(`${paths.artworkBaseline} 缺少 ${facilityId} 的有效 SHA-256`);
@@ -121,7 +125,7 @@ if (failures.length === 0) {
           .update(readFileSync(resolve(root, sourcePath)))
           .digest('hex');
         if (actualHash !== expectedHash) {
-          failures.push(`${sourcePath} 已偏离批准的 C1 插画基线`);
+          failures.push(`${sourcePath} 已偏离批准的 C1／C2 从空白新绘插画基线`);
         }
       }
     }
@@ -272,9 +276,12 @@ if (failures.length === 0) {
       '道路不是必选元素',
       '不得为了统一构图强制加入道路',
       '当前 C1 复杂度工厂 `farm`、`orchard`、`ranch` 与 `fishery`',
+      '当前 C2 复杂度工厂 `logging-camp`、`mine`、`oil-field`、`mill` 与 `sawmill`',
       '采用统一新风格从空白新绘',
       '不以旧图为编辑、描摹或重绘底稿',
+      '不把旧 C2 图作为图像生成、编辑、构图参考或描摹输入',
       '`scripts/facility-artwork-baseline.json`',
+      'C1／C2 目录、覆盖复杂度与批准源图 SHA-256 基线一致',
       '无文字、无人物、无水印、无品牌标志',
       '`src/assets/facility-icons/generated/128/`',
       '`FacilityIcon`',
@@ -310,5 +317,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、市场满幅居中裁切、上下可读性渐变、主视觉使用边界及 C1 从空白新绘 SHA-256 基线一致。`,
+  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、市场满幅居中裁切、上下可读性渐变、主视觉使用边界及 C1／C2 从空白新绘 SHA-256 基线一致。`,
 );

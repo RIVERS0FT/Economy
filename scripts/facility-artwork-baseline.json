@@ -1,18 +1,31 @@
 {
-  "version": 2,
+  "version": 3,
   "style": "fresh-original-subject-first-2026-08-02",
   "creationMode": "from-scratch-new-illustration",
-  "complexity": "C1",
+  "complexities": [
+    "C1",
+    "C2"
+  ],
   "facilityIds": [
     "farm",
     "orchard",
     "ranch",
-    "fishery"
+    "fishery",
+    "logging-camp",
+    "mine",
+    "oil-field",
+    "mill",
+    "sawmill"
   ],
   "sha256": {
     "farm": "e4c8f8c18cad0a38554445f092cb19bca23246379ed9309e27021fa7fbf8edfa",
     "orchard": "f4d4cc6e88b1f47cef6b9ec5f18ca55ce2ac852eea5106c0d4fe66688c24f7c9",
     "ranch": "fa92b4d7cdbf7078ebba8540a2a34b4b0c87193e8c1a9d61c7809c59bbe61685",
-    "fishery": "4b3e656aec85b5bca8611721bc57b2e1933770a0eeab1f177cc0de27002d96ec"
+    "fishery": "4b3e656aec85b5bca8611721bc57b2e1933770a0eeab1f177cc0de27002d96ec",
+    "logging-camp": "dbe6d41e24d8a45d8d307aaddc81053029f966ec800e70670f241c135eefd60c",
+    "mine": "ddbfd8cbc7de54ae4591fda684864b90700cb9aad66668b59f6f27fceff8ec0a",
+    "oil-field": "29cb5198224d263b3d94e6e3f198b9becd460bf9e9f61cffeac261b81617aec0",
+    "mill": "c069e7953bd9d3bee778562685d4fe7be731102d4c8581223e6ef0cbbfbff791",
+    "sawmill": "6b1ade9722b7a88710cdd4ccce967a773c7326a688da30a19ec14b45ee0db657"
   }
 }
