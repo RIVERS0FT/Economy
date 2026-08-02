@@ -1,0 +1,71 @@
+name: Patch production settlement design
+
+on:
+  push:
+    branches:
+      - codex/production-settlement-input-meta
+
+permissions:
+  contents: write
+
+jobs:
+  patch-design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update authoritative UI design
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          replacements = [
+              (
+                  '| `src/styles/facility-production-formula.css` | 工厂集群生产公式、多输入输出、周期成本图标、范围标识和进度条布局 |',
+                  '| `src/styles/facility-production-formula.css` | 工厂集群生产结算的输入侧周期成本、物资槽、流向进度、范围标识和响应式布局 |',
+              ),
+              (
+                  '- 工厂生产公式固定采用三列顶层布局：输入在左、周期成本在中、输出在右；多输入或多输出内部允许换行，中列保持视觉居中。公式、进度和单厂平均利润共同组成一张“生产结算”卡，利润行只使用顶部分隔线，不得拥有独立外框、圆角或背景。',
+                  '- 工厂生产公式固定采用双列顶层布局：左侧为输入组合区，右侧为输出区；输入组合区内先显示投入物资槽，再在其下显示周期与成本仪表。多输入或多输出内部允许换行，周期与成本不得回到输入输出之间的独立中列。公式、进度和单厂平均利润共同组成一张“生产结算”卡，利润行只使用顶部分隔线，不得拥有独立外框、圆角或背景。',
+              ),
+              (
+                  '- 周期成本中列只显示周期 SVG、周期数值、成本 SVG 和集群成本数值，不显示可见的“周期”或“运行成本”标签。',
+                  '- 输入侧周期成本仪表只显示周期 SVG、周期数值、成本 SVG 和集群成本数值，不显示可见的“周期”或“运行成本”标签。',
+              ),
+              (
+                  '- 生产进度条横向铺满公式容器并作为输入到输出的唯一连接视觉；运行、停止和异常状态都保留同一进度轨道。',
+                  '- 生产进度条横向铺满公式容器并作为输入到输出的唯一连接视觉；运行、停止和异常状态都保留同一进度轨道。进度填充允许使用内置方向端帽和低强度高光，但不得新增独立箭头元素或第二条连接线。',
+              ),
+              (
+                  '- `960px` 以下允许输入／输出与中央信息换行；不得造成页面横向滚动。',
+                  '- 窄容器允许输入侧物资槽、周期成本仪表与输出槽在各自列内换行；顶层仍保持输入侧／输出双列，不得造成页面横向滚动。',
+              ),
+              (
+                  '- 在生产公式中使用箭头、Emoji 周期或成本图标、可见“周期”标签或可见“运行成本”标签；',
+                  '- 在生产公式中恢复独立箭头元素、Emoji 周期或成本图标、可见“周期”标签或可见“运行成本”标签；',
+              ),
+              (
+                  '- 破坏输入／中央信息／输出三列语义、`+` 分隔或逐输入库存能力；',
+                  '- 破坏输入侧／输出双列语义、把周期成本移回独立中列、删除 `+` 分隔或逐输入库存能力；',
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected one design rule match, found {count}: {old}')
+              text = text.replace(old, new)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit design update and remove temporary workflow
+        run: |
+          rm .github/workflows/patch-production-settlement-doc.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/UI_DESIGN_SYSTEM.md .github/workflows/patch-production-settlement-doc.yml
+          git commit -m "更新生产结算权威设计"
+          git push origin HEAD:${GITHUB_REF_NAME}
