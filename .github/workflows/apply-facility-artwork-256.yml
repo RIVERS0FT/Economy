@@ -1,18 +1,20 @@
 name: Apply facility artwork 256
 
 on:
-  push:
+  pull_request:
     branches:
-      - agent/facility-artwork-256
-    paths:
-      - .github/agent/upgrade-facility-artwork-256.mjs
-      - .github/workflows/apply-facility-artwork-256.yml
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
 
 jobs:
   apply:
+    if: github.head_ref == 'agent/facility-artwork-256'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout branch
@@ -20,6 +22,7 @@ jobs:
         with:
           ref: agent/facility-artwork-256
           fetch-depth: 0
+          token: ${{ github.token }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -43,7 +46,9 @@ jobs:
         run: |
           set -euo pipefail
           rm .github/agent/upgrade-facility-artwork-256.mjs
+          rm .github/agent/facility-artwork-256.trigger
           rm .github/workflows/apply-facility-artwork-256.yml
+          rm .github/workflows/apply-facility-artwork-256-trigger.yml
           git config user.name 'RIVERS0FT'
           git config user.email '105160096+RIVERS0FT@users.noreply.github.com'
           git add docs/UI_DESIGN_SYSTEM.md \
