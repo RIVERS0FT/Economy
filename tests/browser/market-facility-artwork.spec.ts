@@ -26,10 +26,10 @@ async function inspectFacilityArtwork(facilityTab: Locator) {
 
     return {
       card: {
-        width: cardRect.width,
-        height: cardRect.height,
-        left: cardRect.left,
-        top: cardRect.top,
+        width: card.clientWidth,
+        height: card.clientHeight,
+        left: cardRect.left + card.clientLeft,
+        top: cardRect.top + card.clientTop,
       },
       artwork: {
         width: artworkRect.width,
