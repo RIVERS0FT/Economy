@@ -60,6 +60,16 @@ jobs:
           path.write_text(content.replace(option_hover_old, option_hover_new), encoding='utf-8')
           PY
           python3 .agent/apply-production-product-artwork-select.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-unified-factory-recipes-grid.mjs')
+          content = path.read_text(encoding='utf-8')
+          old = "  '生产配方与作业制度必须合并为同一个“生产设置”区',"
+          new = "  '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',"
+          if content.count(old) != 1:
+              raise RuntimeError('生产设置权威验证文案目标不唯一')
+          path.write_text(content.replace(old, new), encoding='utf-8')
+          PY
 
       - name: Remove temporary application files
         run: |
