@@ -1,9 +1,6 @@
 name: Agent Market Trade Card
 
 on:
-  push:
-    branches:
-      - agent/merge-market-order-card
   pull_request:
     branches:
       - main
@@ -12,21 +9,21 @@ permissions:
   contents: write
 
 concurrency:
-  group: agent-market-trade-card-${{ github.event.pull_request.number || github.ref_name }}
-  cancel-in-progress: false
+  group: agent-market-trade-card-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   apply-and-verify:
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+      TARGET_BRANCH: ${{ github.head_ref }}
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
+          ref: ${{ github.head_ref }}
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -58,9 +55,13 @@ jobs:
           rm -f .agent/apply-market-trade-card.py.gz.b64
           rmdir .agent 2>/dev/null || true
           rm -f .github/workflows/agent-market-trade-card.yml
+          git add -A
 
       - name: Check patch formatting
-        run: git diff --check
+        shell: bash
+        run: |
+          git diff --cached --check
+          git diff --check
 
       - name: Install dependencies
         run: npm ci
@@ -81,7 +82,7 @@ jobs:
         shell: bash
         run: |
           git status --short
-          git diff --stat
+          git diff --cached --stat
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
