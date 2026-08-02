@@ -4,13 +4,20 @@ on:
   push:
     branches:
       - fix/chart-hover-visibility
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
 
 permissions:
   contents: write
 
 jobs:
   apply-and-verify:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name == 'push' || github.head_ref == 'fix/chart-hover-visibility')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +33,9 @@ jobs:
       - name: Restore and apply reviewed patch
         shell: bash
         run: |
-          git fetch origin d8130844f7b29465d711f8124700b9d4cd811df1
-          git show FETCH_HEAD:.github/workflows/agent-chart-hover-fix.yml > /tmp/chart-hover-source.yml
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/RIVERS0FT/Economy/d8130844f7b29465d711f8124700b9d4cd811df1/.github/workflows/agent-chart-hover-fix.yml \
+            --output /tmp/chart-hover-source.yml
           python3 <<'PY'
           from pathlib import Path
           lines = Path('/tmp/chart-hover-source.yml').read_text(encoding='utf-8').splitlines()
