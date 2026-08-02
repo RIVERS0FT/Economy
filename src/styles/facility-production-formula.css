@@ -1,4 +1,4 @@
-/* Factory production settlement: industrial material slots, input-side cycle/cost metadata, and flow progress. */
+/* Factory production settlement: icon-first material rows, two-line input metadata, and flow progress. */
 .facility-production-formula {
   min-width: 0;
   position: relative;
@@ -104,9 +104,8 @@
 
 .facility-formula-item-group {
   min-width: 0;
-  display: grid;
-  justify-items: start;
-  gap: 0.22rem;
+  display: flex;
+  align-items: center;
   border: 1px solid var(--color-border-strong);
   border-radius: calc(var(--radius-control) - 0.2rem);
   padding: 0.42rem 0.55rem;
@@ -123,7 +122,6 @@
 }
 
 .facility-formula-output .facility-formula-item-group {
-  justify-items: end;
   border-color: color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--color-warning) 8%, transparent), transparent 46%),
@@ -133,7 +131,8 @@
 .facility-formula-input-item,
 .facility-formula-output-item {
   min-width: 0;
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: auto auto auto;
   align-items: center;
   gap: 0.38rem;
   color: var(--color-text-primary);
@@ -148,8 +147,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.facility-formula-input-item .product-icon,
-.facility-formula-output-item .product-icon {
+.facility-formula-input-item > .product-icon,
+.facility-formula-output-item > .product-icon {
   flex: 0 0 auto;
   width: 1.5rem;
   height: 1.5rem;
@@ -165,9 +164,9 @@
 }
 
 .facility-formula-inventory {
-  width: 100%;
-  border-top: 1px solid var(--color-divider);
-  padding-top: 0.18rem;
+  min-width: 0;
+  border-left: 1px solid var(--color-divider);
+  padding-left: 0.45rem;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
@@ -197,12 +196,13 @@
 
 .facility-formula-meta {
   max-width: 100%;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.28rem;
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 76%, var(--color-bg-deep));
   border-radius: calc(var(--radius-control) - 0.25rem);
-  padding: 0.34rem 0.5rem;
+  padding: 0.38rem 0.52rem;
   color: var(--color-text-muted);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--color-text-primary) 4%, transparent), transparent),
@@ -213,6 +213,11 @@
   font-size: var(--font-size-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.facility-formula-meta-unit {
+  width: 100%;
+  justify-content: flex-start;
 }
 
 .facility-formula-meta-unit.is-cycle {
@@ -228,13 +233,6 @@
   width: 1rem;
   height: 1rem;
   vertical-align: -0.1em;
-}
-
-.facility-formula-meta-divider {
-  width: 1px;
-  height: 0.9rem;
-  flex: 0 0 auto;
-  background: var(--color-border-strong);
 }
 
 .facility-formula-progress {
@@ -322,7 +320,6 @@
 
   .facility-formula-meta {
     width: 100%;
-    justify-content: flex-start;
   }
 }
 
@@ -357,15 +354,19 @@
     font-size: var(--font-size-xs);
   }
 
-  .facility-formula-input-item .product-icon,
-  .facility-formula-output-item .product-icon {
+  .facility-formula-input-item > .product-icon,
+  .facility-formula-output-item > .product-icon {
     width: 1.25rem;
     height: 1.25rem;
   }
 
-  .facility-formula-meta {
-    flex-wrap: wrap;
-    row-gap: 0.15rem;
+  .facility-formula-inventory {
+    padding-left: 0.32rem;
+  }
+
+  .facility-formula-inventory .facility-formula-meta-icon {
+    width: 0.9rem;
+    height: 0.9rem;
   }
 
   .facility-formula-progress .progress-meta {
