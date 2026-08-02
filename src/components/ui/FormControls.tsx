@@ -65,6 +65,10 @@ type SharedFieldProps = {
   fieldClassName?: string;
 };
 
+type SelectInputProps = SharedFieldProps & SelectHTMLAttributes<HTMLSelectElement> & {
+  leadingIcon?: ReactNode;
+};
+
 export function TextInput({
   label,
   description,
@@ -111,10 +115,11 @@ export function SelectInput({
   className,
   id,
   required,
+  leadingIcon,
   'aria-describedby': ariaDescribedBy,
   children,
   ...props
-}: SharedFieldProps & SelectHTMLAttributes<HTMLSelectElement>) {
+}: SelectInputProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   return (
@@ -126,20 +131,23 @@ export function SelectInput({
       required={required}
       className={fieldClassName}
     >
-      <select
-        {...props}
-        id={inputId}
-        required={required}
-        className={classNames('ui-control', className)}
-        aria-invalid={error ? true : props['aria-invalid']}
-        aria-describedby={mergeDescribedBy(
-          ariaDescribedBy,
-          description ? `${inputId}-description` : undefined,
-          error ? `${inputId}-error` : undefined,
-        )}
-      >
-        {children}
-      </select>
+      <span className={classNames('ui-control-shell', leadingIcon && 'ui-control-shell--with-leading-icon')}>
+        {leadingIcon ? <span className="ui-control-leading-icon" aria-hidden="true">{leadingIcon}</span> : null}
+        <select
+          {...props}
+          id={inputId}
+          required={required}
+          className={classNames('ui-control', className)}
+          aria-invalid={error ? true : props['aria-invalid']}
+          aria-describedby={mergeDescribedBy(
+            ariaDescribedBy,
+            description ? `${inputId}-description` : undefined,
+            error ? `${inputId}-error` : undefined,
+          )}
+        >
+          {children}
+        </select>
+      </span>
     </FormField>
   );
 }

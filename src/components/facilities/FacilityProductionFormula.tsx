@@ -119,7 +119,6 @@ function RecipeItems({
   productNames,
   inventories,
   multiplier,
-  showInventory = false,
   groupClassName,
   itemClassName,
 }: {
@@ -127,7 +126,6 @@ function RecipeItems({
   productNames: ProductNameMap;
   inventories: Record<string, ProductInventory>;
   multiplier: number;
-  showInventory?: boolean;
   groupClassName: string;
   itemClassName: string;
 }) {
@@ -136,20 +134,22 @@ function RecipeItems({
       {items.map((item, index) => {
         const productName = productNames.get(item.productId) ?? item.productId;
         const quantity = item.quantity * multiplier;
+        const warehouseQuantity = inventories[item.productId]?.available ?? 0;
         return (
           <Fragment key={`${item.productId}-${index}`}>
             {index > 0 ? <span className="facility-formula-separator">+</span> : null}
             <span className="facility-formula-item-group">
-              <span className={itemClassName} title={`${formatNumber(quantity)} ${productName}`}>
-                <strong>{formatNumber(quantity)} ×</strong>
+              <span
+                className={itemClassName}
+                title={`${productName}：生产 ${formatNumber(quantity)}，仓库可用 ${formatNumber(warehouseQuantity)}`}
+              >
                 <ProductIcon productId={item.productId} />
-              </span>
-              {showInventory ? (
-                <span className="facility-formula-inventory" title={`${productName}库存`}>
+                <strong>{formatNumber(quantity)}</strong>
+                <span className="facility-formula-inventory" title={`${productName}仓库可用数量`}>
                   <WarehouseIcon className="facility-formula-meta-icon" />
-                  <span>{formatNumber(inventories[item.productId]?.available ?? 0)}</span>
+                  <span>{formatNumber(warehouseQuantity)}</span>
                 </span>
-              ) : null}
+              </span>
             </span>
           </Fragment>
         );
@@ -235,7 +235,6 @@ export function FacilityProductionFormula({
                   productNames={productNames}
                   inventories={inventories}
                   multiplier={scope.count}
-                  showInventory
                   groupClassName="facility-formula-input-group"
                   itemClassName="facility-formula-input-item"
                 />
@@ -247,7 +246,6 @@ export function FacilityProductionFormula({
                 <CycleIcon className="facility-formula-meta-icon" />
                 <span>{formatDuration(type.cycleMs)}</span>
               </span>
-              <span className="facility-formula-meta-divider" />
               <span className="facility-formula-meta-unit is-cost">
                 <CreditsIcon className="facility-formula-meta-icon" />
                 <span>{formatCurrency(type.operatingCost * scope.count)}</span>
