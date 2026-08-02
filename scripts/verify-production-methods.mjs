@@ -107,13 +107,23 @@ for (const text of [
   'onValueChange={(methodId)',
   'facility-production-method-summary',
 ]) assert.ok(detailSource.includes(text), `生产方式客户端合成缺少 ${text}`);
-for (const forbidden of ['role="radiogroup"', 'role="radio"', 'facility-production-method-option']) {
-  assert.equal(detailSource.includes(forbidden), false, `生产方式不得恢复选择卡: ${forbidden}`);
+for (const forbidden of [
+  'role="radiogroup"',
+  'role="radio"',
+  'facility-production-method-option',
+  'selectedMethod.description',
+]) {
+  assert.equal(detailSource.includes(forbidden), false, `生产方式不得恢复旧展示: ${forbidden}`);
 }
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
 assert.ok(styleSource.includes('.facility-production-method-summary'));
-for (const forbidden of ['.facility-production-method-grid', '.facility-production-method-option', "[data-selected='true']"]) {
-  assert.equal(styleSource.includes(forbidden), false, `生产方式样式不得恢复选择卡: ${forbidden}`);
+for (const forbidden of [
+  '.facility-production-method-grid',
+  '.facility-production-method-option',
+  "[data-selected='true']",
+  '.facility-production-method-summary small',
+]) {
+  assert.equal(styleSource.includes(forbidden), false, `生产方式样式不得恢复旧展示: ${forbidden}`);
 }
 for (const text of [
   "scenario === 'production-methods'",
@@ -126,6 +136,8 @@ for (const text of [
   "getByRole('combobox', { name: '机械工厂生产方式' })",
   "getByRole('option', { name: '节约生产' })",
   "methodListbox.getByRole('option', { name: '节约生产' }).click()",
+  "summary.locator('small')",
+  "not.toContainText('缩短周期并提高成本')",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
 assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 24'));
 assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 24'));
@@ -135,9 +147,18 @@ for (const [path, required] of [
     '标准生产、高速生产、节约生产和高产生产',
     '生产方式与配方必须在同一个周期边界原子切换',
     '不得新增单座工厂生产方式状态',
+    '作业制度下方只显示周期、单周期产出和周期成本',
   ]],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['作业制度', '下一周期切换']],
-  ['docs/UI_DESIGN_SYSTEM.md', ['生产方式下拉选择', 'combobox']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
+    '作业制度',
+    '下一周期切换',
+    '不显示作业制度说明',
+  ]],
+  ['docs/UI_DESIGN_SYSTEM.md', [
+    '生产方式下拉选择',
+    'combobox',
+    '作业制度说明不得显示',
+  ]],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
     '生产方式配方变体',
     'setFacilityRecipe',
@@ -148,4 +169,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、两位小数固定精度平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、浏览器交互和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、两位小数固定精度平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、紧凑参数摘要、浏览器交互和版本兼容均已锁定。');
