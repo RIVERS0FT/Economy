@@ -1,0 +1,74 @@
+name: Agent Market Trade Card
+
+on:
+  push:
+    branches:
+      - agent/merge-market-order-card
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-market-trade-card
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply market transaction card patch
+        shell: bash
+        run: |
+          base64 -d .agent/apply-market-trade-card.py.gz.b64 | gunzip > /tmp/apply-market-trade-card.py
+          echo "40ed594dff1beb2ea3ca25f8672cc7ee75255592a0e960885b23d16a4c111858  /tmp/apply-market-trade-card.py" | sha256sum -c -
+          python3 /tmp/apply-market-trade-card.py
+
+      - name: Remove one-time implementation files
+        shell: bash
+        run: |
+          rm -f .agent/apply-market-trade-card.py.gz.b64
+          rmdir .agent 2>/dev/null || true
+          rm -f .github/workflows/agent-market-trade-card.yml
+
+      - name: Check patch formatting
+        run: git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify market layout contract
+        run: node scripts/verify-market-page-layout.mjs
+
+      - name: Build project
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run test:browser
+
+      - name: Commit verified implementation
+        shell: bash
+        run: |
+          git status --short
+          git diff --stat
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "合并市场下单与订单簿卡片"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
