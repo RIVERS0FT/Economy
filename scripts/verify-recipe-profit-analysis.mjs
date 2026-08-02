@@ -183,9 +183,12 @@ for (const text of [
 
 for (const text of [
   "toHaveText('5.38')",
-  "toHaveText('-9.00')",
+  "toHaveText('9.00')",
+  "toHaveAttribute('aria-label', /亏损 9\\.00/)",
   'toHaveClass(/is-positive/)',
   'toHaveClass(/is-negative/)',
+  'overlayBackground.match(/linear-gradient/g)',
+  "toContain('rgba(0, 0, 0')",
   "backgroundPosition).toBe('50% 50%')",
   "backgroundSize).toBe('cover')",
   'gridTemplateColumns',
@@ -202,7 +205,7 @@ for (const text of [
   'buildCost: 0',
   'analysis.missingPriceProductIds',
   "missingPriceNames.join('、')",
-  "visibleValue = profitPerMinute === null ? '—' : formatCurrency(profitPerMinute)",
+  "visibleValue = profitPerMinute === null ? '—' : formatCurrency(Math.abs(profitPerMinute))",
   "? 'positive'",
   "? 'negative'",
   "? `盈利 ${formatCurrency(profitPerMinute)}`",
@@ -277,7 +280,7 @@ for (const text of [
   '最近真实成交价必须使用统一订单簿的价格边界',
   '客户端不得要求成交价为整数或不低于 1',
   '选择卡只显示格式化数字或缺价占位',
-  '正数不加正号并使用绿色，负数保留负号并使用红色',
+  '正数不加正号并使用绿色，负数显示绝对值、不显示负号并使用红色',
 ]) assert.ok(designSource.includes(text), `产业权威设计缺少单厂利润规则: ${text}`);
 for (const removedText of [
   '### 9.5 玩家可见配方利润分析',
