@@ -39,6 +39,47 @@ async function configureSession(page: Page, {
   }));
 }
 
+async function expectSharedLoadingState(page: Page, label: string) {
+  const shell = page.locator('.game-state-shell');
+  const loading = shell.locator('.loading-screen');
+  await expect(shell).toBeVisible();
+  await expect(loading).toHaveText(label);
+  await expect(loading).toHaveAttribute('role', 'status');
+  await expect(loading).toHaveAttribute('aria-live', 'polite');
+  await expect(page.locator('.photographic-state-card--loading')).toHaveCount(0);
+
+  const visual = await loading.evaluate((element) => {
+    const shellElement = element.parentElement;
+    if (!(shellElement instanceof HTMLElement)) throw new Error('loading shell is missing');
+    const shellStyle = getComputedStyle(shellElement);
+    const loadingStyle = getComputedStyle(element);
+    return {
+      shellPosition: shellStyle.position,
+      shellTop: shellStyle.top,
+      shellRight: shellStyle.right,
+      shellBottom: shellStyle.bottom,
+      shellLeft: shellStyle.left,
+      display: loadingStyle.display,
+      alignItems: loadingStyle.alignItems,
+      justifyItems: loadingStyle.justifyItems,
+      fontWeight: loadingStyle.fontWeight,
+      textAlign: loadingStyle.textAlign,
+    };
+  });
+  expect(visual).toEqual({
+    shellPosition: 'fixed',
+    shellTop: '0px',
+    shellRight: '0px',
+    shellBottom: '0px',
+    shellLeft: '0px',
+    display: 'grid',
+    alignItems: 'center',
+    justifyItems: 'center',
+    fontWeight: '800',
+    textAlign: 'center',
+  });
+}
+
 test.describe('all-interface photography', () => {
   test('keeps the same photography node from account checking into authentication', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -55,15 +96,13 @@ test.describe('all-interface photography', () => {
 
     await page.goto('/economy/', { waitUntil: 'domcontentloaded' });
 
-    const shell = page.locator('.photographic-state-shell');
     const imageLayer = page.locator('.application-image-layer');
     const image = imageLayer.locator('img');
-    await expect(shell).toBeVisible();
-    await expect(shell).toHaveAttribute('data-photographic-state-variant', 'auth');
+    await expectSharedLoadingState(page, '正在连接统一账号服务…');
+    await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'auth');
     await expect(imageLayer).toHaveCount(1);
     await expect(imageLayer).toBeVisible();
     await expect(page.locator('.application-atmosphere-layer')).toBeVisible();
-    await expect(page.getByText('正在连接统一账号服务…', { exact: true })).toBeVisible();
 
     await image.evaluate((element) => {
       const data = element.dataset;
@@ -88,6 +127,47 @@ test.describe('all-interface photography', () => {
     expect(visual.documentOverflow).toBeLessThanOrEqual(1);
     expect(visual.imageLoading).toBe('eager');
     expect(visual.imageFetchPriority).toBe('high');
+  });
+
+  test('uses the shared loading layout while loading the financial empire code', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await routePhotography(page);
+    await configureSession(page);
+
+    let releaseModule = () => {};
+    const moduleGate = new Promise<void>((resolve) => {
+      releaseModule = resolve;
+    });
+    await page.route('**/src/app/GameApp.tsx*', async (route) => {
+      await moduleGate;
+      await route.continue();
+    });
+
+    await page.goto('/economy/', { waitUntil: 'domcontentloaded' });
+    await expectSharedLoadingState(page, '正在加载金融帝国…');
+    await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'game');
+    releaseModule();
+  });
+
+  test('uses the shared loading layout while connecting to the authoritative game server', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await routePhotography(page);
+    await configureSession(page);
+
+    let releaseState = () => {};
+    const stateGate = new Promise<void>((resolve) => {
+      releaseState = resolve;
+    });
+    await page.route('**/economy-api/game/state**', async (route) => {
+      await stateGate;
+      await route.abort('failed');
+    });
+
+    await page.goto('/economy/', { waitUntil: 'domcontentloaded' });
+    await expectSharedLoadingState(page, '正在连接权威游戏服务器…');
+    await expect(page.locator('html')).toHaveAttribute('data-app-backdrop', 'game');
+    releaseState();
+    await expect(page.getByText('无法加载游戏状态', { exact: true })).toBeVisible();
   });
 
   test('uses the game critical atmosphere for banned accounts', async ({ page }) => {

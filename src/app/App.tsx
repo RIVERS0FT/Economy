@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { getCurrentUser, initializeEconomySession, type EconomySessionResponse } from '../api/auth';
+import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
 import type {
   FinancialBackdropTone,
   FinancialBackdropVariant,
@@ -43,14 +44,6 @@ function BannedAccount({ incidentId }: { incidentId?: number }) {
         {incidentId ? <p>事件编号：#{incidentId}</p> : null}
         <p>如需申诉，请联系管理员并提供事件编号。</p>
       </section>
-    </PhotographicStateShell>
-  );
-}
-
-function LoadingState({ variant, children }: { variant: FinancialBackdropVariant; children: string }) {
-  return (
-    <PhotographicStateShell variant={variant} role="status">
-      <div className="photographic-state-card photographic-state-card--loading">{children}</div>
     </PhotographicStateShell>
   );
 }
@@ -128,9 +121,9 @@ export default function App() {
 
   if (checking) {
     return (
-      <LoadingState variant={stateVariantForPath(adminPath)}>
+      <ApplicationLoadingState>
         正在连接统一账号服务…
-      </LoadingState>
+      </ApplicationLoadingState>
     );
   }
   if (!user) {
@@ -145,9 +138,9 @@ export default function App() {
   return (
     <Suspense
       fallback={(
-        <LoadingState variant={adminPath ? 'admin' : 'game'}>
+        <ApplicationLoadingState>
           正在加载金融帝国…
-        </LoadingState>
+        </ApplicationLoadingState>
       )}
     >
       {adminPath === 'main'

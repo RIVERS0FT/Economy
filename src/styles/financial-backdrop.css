@@ -292,10 +292,6 @@ html[data-app-tone="critical"] .application-atmosphere-layer {
   justify-self: center;
 }
 
-.photographic-state-card--loading {
-  font-weight: 800;
-}
-
 .photographic-state-shell--critical .photographic-state-card {
   border-color: rgba(255, 143, 131, 0.3);
   background: rgba(26, 7, 6, 0.94);
