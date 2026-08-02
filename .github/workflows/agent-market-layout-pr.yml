@@ -29,38 +29,45 @@ jobs:
           code = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines) + '\n'
 
           duplicate = '''replace_once(page, "          ? `当前没有可出售的${assetName}。`", "          ? '暂无可售库存。'")
-          replace_once(page, "          ? `当前没有可出售的${assetName}。`", "          ? '暂无可售库存。'")'''
+replace_once(page, "          ? `当前没有可出售的${assetName}。`", "          ? '暂无可售库存。'")'''
           corrected = '''file = Path(page)
-          text = file.read_text(encoding='utf-8')
-          old = "          ? `当前没有可出售的${assetName}。`"
-          if text.count(old) != 2:
-              raise SystemExit(f'{page}: expected two no-inventory branches, found {text.count(old)}')
-          file.write_text(text.replace(old, "          ? '暂无可售库存。'"), encoding='utf-8')'''
+text = file.read_text(encoding='utf-8')
+old = "          ? `当前没有可出售的${assetName}。`"
+if text.count(old) != 2:
+    raise SystemExit(f'{page}: expected two no-inventory branches, found {text.count(old)}')
+file.write_text(text.replace(old, "          ? '暂无可售库存。'"), encoding='utf-8')'''
           if duplicate not in code:
               raise SystemExit('embedded patch does not contain the expected duplicate replacement')
           code = code.replace(duplicate, corrected, 1)
 
           helper = '''def replace_once(path, old, new):
-              file = Path(path)
-              text = file.read_text(encoding='utf-8')
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
-              file.write_text(text.replace(old, new, 1), encoding='utf-8')'''
+    file = Path(path)
+    text = file.read_text(encoding='utf-8')
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
+    file.write_text(text.replace(old, new, 1), encoding='utf-8')'''
           enhanced = '''def replace_once(path, old, new):
-              file = Path(path)
-              text = file.read_text(encoding='utf-8')
-              count = text.count(old)
-              if count != 1:
-                  if path == 'src/pages/MarketPage.tsx' and old.lstrip().startswith('{visibleDisabledReason'):
-                      pattern = re.compile(r'                \\{visibleDisabledReason \\? <p id="order-disabled-reason".*?                </Button>\\n', re.S)
-                      updated, matches = pattern.subn(new, text, count=1)
-                      if matches != 1:
-                          raise SystemExit(f'{path}: disabled action block regex matched {matches}')
-                      file.write_text(updated, encoding='utf-8')
-                      return
-                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
-              file.write_text(text.replace(old, new, 1), encoding='utf-8')'''
+    file = Path(path)
+    text = file.read_text(encoding='utf-8')
+    count = text.count(old)
+    if count != 1:
+        if path == 'src/pages/MarketPage.tsx' and old.lstrip().startswith('{visibleDisabledReason'):
+            pattern = re.compile(r'                \\{visibleDisabledReason \\? <p id="order-disabled-reason".*?                </Button>\\n', re.S)
+            updated, matches = pattern.subn(new, text, count=1)
+            if matches != 1:
+                raise SystemExit(f'{path}: disabled action block regex matched {matches}')
+            file.write_text(updated, encoding='utf-8')
+            return
+        if path == 'src/components/charts/PriceSparkline.tsx' and old.startswith('function useMarketChartWidth()'):
+            pattern = re.compile(r'function useMarketChartWidth\\(\\) \\{.*?\\n\\}\\n(?=\\nfunction MarketHistoryChart)', re.S)
+            updated, matches = pattern.subn(new.rstrip('\\n'), text, count=1)
+            if matches != 1:
+                raise SystemExit(f'{path}: chart metrics hook regex matched {matches}')
+            file.write_text(updated, encoding='utf-8')
+            return
+        raise SystemExit(f'{path}: expected one occurrence, found {count}: {old[:120]!r}')
+    file.write_text(text.replace(old, new, 1), encoding='utf-8')'''
           if helper not in code:
               raise SystemExit('embedded patch helper changed unexpectedly')
           code = code.replace(helper, enhanced, 1)
