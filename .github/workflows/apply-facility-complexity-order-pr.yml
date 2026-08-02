@@ -1,0 +1,68 @@
+name: Apply Facility Complexity Order PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply implementation
+        run: |
+          set -euo pipefail
+          python3 .github/apply-facility-complexity-order.py
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run test:browser
+
+      - name: Commit implementation
+        run: |
+          set -euo pipefail
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            server/src/industry-catalog.js \
+            server/test/domain.test.js \
+            docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md \
+            src/pages/ProductionPage.tsx \
+            scripts/verify-industry-catalog.mjs \
+            scripts/verify-unified-factory-recipes-grid.mjs \
+            tests/browser/runtime-harness.tsx \
+            tests/browser/production-facility-cards.spec.ts
+          git diff --cached --check
+          git commit -m "按复杂度排序工厂目录"
+          git push origin HEAD:${{ github.head_ref }}
