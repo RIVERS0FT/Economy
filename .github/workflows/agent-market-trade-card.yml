@@ -41,6 +41,16 @@ jobs:
           base64 -d .agent/apply-market-trade-card.py.gz.b64 | gunzip > /tmp/apply-market-trade-card.py
           echo "40ed594dff1beb2ea3ca25f8672cc7ee75255592a0e960885b23d16a4c111858  /tmp/apply-market-trade-card.py" | sha256sum -c -
           python3 /tmp/apply-market-trade-card.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-market-page-layout.mjs')
+          source = path.read_text()
+          old = "requireText(runtimeSpec, 'market desktop layout gives the full chart the dominant column', 'Playwright 必须覆盖宽屏行情主列。');"
+          new = "requireText(runtimeSpec, \"page.locator('.market-trade-card')\", 'Playwright 必须覆盖宽屏合并交易卡与行情列。');"
+          if old not in source:
+              raise SystemExit('missing legacy desktop layout verifier')
+          path.write_text(source.replace(old, new, 1))
+          PY
 
       - name: Remove one-time implementation files
         shell: bash
