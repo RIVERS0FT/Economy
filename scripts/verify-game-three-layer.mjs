@@ -18,6 +18,7 @@ for (const path of [
   'src/config/visualAssets.ts',
   'src/components/visual/FinancialBackdrop.tsx',
   'src/components/visual/PhotographicStateShell.tsx',
+  'src/components/system/ApplicationLoadingState.tsx',
   'src/components/shell/SignedInShell.tsx',
   'src/components/shell/GameShell.tsx',
   'src/app/LoginPage.tsx',
@@ -76,6 +77,14 @@ for (const text of [
 forbidText('src/components/visual/PhotographicStateShell.tsx', '<FinancialBackdrop');
 
 for (const text of [
+  'export function ApplicationLoadingState',
+  '<main className="game-state-shell">',
+  '<div className="loading-screen" role="status" aria-live="polite">',
+]) requireText('src/components/system/ApplicationLoadingState.tsx', text);
+forbidText('src/components/system/ApplicationLoadingState.tsx', 'PhotographicStateShell');
+forbidText('src/components/system/ApplicationLoadingState.tsx', 'FinancialBackdrop');
+
+for (const text of [
   'rootClassName="game-shell"',
   '<DesktopSidebar',
   '<StatusBar items={statusItems} />',
@@ -84,12 +93,16 @@ forbidText('src/components/shell/GameShell.tsx', 'FinancialBackdrop');
 forbidText('src/components/shell/GameShell.tsx', 'backdrop=');
 
 for (const text of [
-  'function GameStateShell',
-  '<main className="game-state-shell">',
-  '正在连接权威游戏服务器',
+  "import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';",
+  'function GameErrorStateShell',
+  '<div className="loading-screen" role="alert">',
+  '<ApplicationLoadingState>正在连接权威游戏服务器…</ApplicationLoadingState>',
   '无法加载游戏状态',
 ]) requireText('src/app/GameApp.tsx', text);
 forbidText('src/app/GameApp.tsx', 'FinancialBackdrop');
+forbidText('src/app/App.tsx', 'function LoadingState');
+forbidText('src/app/App.tsx', '<LoadingState');
+forbidText('src/app/GameApp.tsx', 'function GameStateShell');
 
 for (const text of [
   "import { PhotographicStateShell } from '../components/visual/PhotographicStateShell';",
@@ -103,15 +116,18 @@ for (const text of [
   "import type {\n  FinancialBackdropTone,\n  FinancialBackdropVariant,",
   'function BannedAccount',
   '<PhotographicStateShell variant="game" tone="critical" className="banned-account-shell" role="alert">',
-  'function LoadingState',
+  "import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';",
   'document.documentElement.dataset.appSurface = surface;',
   'document.documentElement.dataset.appBackdrop = backdrop;',
   'document.documentElement.dataset.appTone = tone;',
-  '<LoadingState variant={stateVariantForPath(adminPath)}>',
-  "<LoadingState variant={adminPath ? 'admin' : 'game'}>",
+  '<ApplicationLoadingState>',
   '正在连接统一账号服务',
   '正在加载金融帝国',
 ]) requireText('src/app/App.tsx', text);
+const appSource = read('src/app/App.tsx');
+if ((appSource.match(/<ApplicationLoadingState>/g) ?? []).length !== 2) {
+  failures.push('App.tsx 必须且只能为账号检查和代码包加载渲染两个 ApplicationLoadingState');
+}
 
 for (const text of [
   'function currentFallbackVariant()',
@@ -127,6 +143,7 @@ for (const path of [
   'src/app/GameApp.tsx',
   'src/components/shell/GameShell.tsx',
   'src/components/visual/PhotographicStateShell.tsx',
+  'src/components/system/ApplicationLoadingState.tsx',
 ]) forbidText(path, 'FinancialBackdrop');
 
 const mainSource = read('src/main.tsx');
@@ -171,6 +188,7 @@ for (const text of [
   '.financial-backdrop-image img[hidden] {',
   '.photographic-state-shell__content {',
   '.photographic-state-card {',
+  '.game-state-shell > .loading-screen {',
   '@media (max-width: 720px)',
 ]) requireText('src/styles/financial-backdrop.css', text);
 
@@ -179,6 +197,7 @@ const authAtmosphereNegativeLayer = 'html[data-app-surface="auth"] .application-
 for (const text of [authImageNegativeLayer, authAtmosphereNegativeLayer]) {
   requireText('src/styles/financial-backdrop.css', text);
 }
+forbidText('src/styles/financial-backdrop.css', '.photographic-state-card--loading');
 const unexpectedNegativeLayerSource = read('src/styles/financial-backdrop.css')
   .replace(authImageNegativeLayer, '')
   .replace(authAtmosphereNegativeLayer, '');
@@ -246,7 +265,9 @@ for (const text of [
   '摄影节点固定在 `main.tsx`',
   '`data-app-backdrop`',
   '`data-app-tone`',
-  '不得在 `LoginPage`、`GameStateShell`、`GameShell`、`AdminApp` 或 `PhotographicStateShell` 中重新挂载',
+  '统一账号服务连接、代码包加载与权威游戏服务器连接统一由 `ApplicationLoadingState`',
+  '不得恢复深色加载卡片或创建平行加载样式',
+  '不得在 `LoginPage`、`ApplicationLoadingState`、`GameErrorStateShell`、`GameShell`、`AdminApp` 或 `PhotographicStateShell` 中重新挂载',
   '`tests/browser/application-photography.spec.ts`',
 ]) requireText('docs/REGISTRATION_INVITE_FLOW_DESIGN.md', text);
 
@@ -255,6 +276,8 @@ for (const text of [
   '摄影 `<picture>` 固定挂载在 `main.tsx`',
   '页面和状态切换只修改 `data-app-backdrop` 与 `data-app-tone`',
   '不得重新提供 `SignedInShell.backdrop`',
+  '`ApplicationLoadingState.tsx`',
+  '三个入口只允许替换中文文字',
   '`application-photography.spec.ts`',
   '不得出现纯色过渡页',
   '生产认证态继续使用 `-2 / -1` 负层级',
@@ -271,6 +294,9 @@ for (const text of [
 for (const text of [
   "test.describe('all-interface photography'",
   'keeps the same photography node from account checking into authentication',
+  'uses the shared loading layout while loading the financial empire code',
+  'uses the shared loading layout while connecting to the authoritative game server',
+  'expectSharedLoadingState',
   "data.persistenceProbe = 'account-check'",
   "toHaveAttribute('data-persistence-probe', 'account-check')",
   'uses the game critical atmosphere for banned accounts',

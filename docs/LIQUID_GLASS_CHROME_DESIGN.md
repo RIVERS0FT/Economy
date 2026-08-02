@@ -29,7 +29,8 @@
 | `LiquidGlassSurface.tsx` | 第三方库适配、五种平台预设、统一零弹性与静态鼠标输入、固定／内容自适应布局、认证内容首次绘制前同步测高、提交后观察器补充测量、上游滤镜尺寸通知和统一 DOM |
 | `AuthCardSurface.tsx` | 认证卡片语义宿主、`720px` 响应式预设切换和单一认证玻璃实例 |
 | `FinancialBackdrop.tsx` | 根级唯一摄影 `<picture>`、响应式图片、高优先级加载、图片失败隐藏和单一氛围节点；不接收页面变体 props |
-| `PhotographicStateShell.tsx` | 统一账号检查、代码包加载、封禁、无权限和致命错误的语义状态、安全区内容几何与 critical 状态卡；不得挂载摄影图片 |
+| `ApplicationLoadingState.tsx` | 统一账号服务连接、代码包加载和权威游戏服务器连接的唯一全屏居中加载结构；三个入口只允许替换中文文字，不得恢复深色加载卡片或创建平行加载样式 |
+| `PhotographicStateShell.tsx` | 封禁、无权限和致命错误的语义状态、安全区内容几何与 critical 状态卡；不得承担普通加载状态或挂载摄影图片 |
 | `SignedInShell.tsx` | 游戏与管理员共享根外壳、侧栏／工作区轨道、唯一页面 `ScrollArea`、页面 Overlay 与 Chrome Overlay DOM 顺序；不得重新提供 `SignedInShell.backdrop` |
 | `GameShell.tsx` | 向共享外壳提供玩家侧栏、单一状态栏、移动通知和玩家移动导航；不得挂载背景节点 |
 | `AdminDesktopBar.tsx` | 向共享外壳提供管理员桌面标题、说明、账号、世界／API 摘要与刷新操作，并复用 `desktopStatusBar` |
@@ -51,7 +52,7 @@
 | `mobile-status-layout.css` | 移动状态栏固定五列、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略和移动通知定位 |
 | `verify-liquid-glass-chrome.mjs` | 唯一依赖入口、五种预设、全预设零弹性、静态鼠标输入、固定／内容自适应布局、认证内容内部定位、单实例、单壳装饰、兼容入口、背景采样链、移动导航和认证卡片防回退 |
 | `verify-open-glass-sampling.mjs` | 唯一根隔离、桌面／移动玩家与管理员开放采样链、禁止登录后祖先恢复隔离／滤镜／变换以及浏览器回归入口 |
-| `verify-game-three-layer.mjs` | 根级唯一摄影节点、三种氛围、数据属性切换、根级状态外壳、兼容入口、浏览器 harness 和移动 Overlay 防回退 |
+| `verify-game-three-layer.mjs` | 根级唯一摄影节点、三种氛围、数据属性切换、统一加载结构、critical 状态外壳、兼容入口、浏览器 harness 和移动 Overlay 防回退 |
 | `verify-mobile-status-value-fit.mjs` | 移动状态栏数值测量、单观察器、逐项字号适配、禁止省略号、设计记录和浏览器回归检查 |
 | `verify-game-shell-layout.mjs` | 游戏与管理员共享桌面沟槽、双列、导航行高、页面滚动条贴边、移动 Overlay、滚动条和滚动链检查 |
 | `verify-overlay-scrollbars.mjs` | 覆盖式滚动条、移动底栏原生滚动视口和滚动能力检查 |
@@ -185,7 +186,7 @@
 - `html[data-app-surface="auth"|"game"|"admin"|"loading"|"banned"|"error"] body::before` 必须关闭；网格只能由根级氛围层绘制，不得在摄影、氛围和内容之间恢复第四个全局网格层。
 - 图片请求失败时隐藏根级图片元素，`.application-image-layer` 的深色底色与 `.application-atmosphere-layer` 必须继续覆盖视口，不得显示破图图标或白底。
 - 管理员氛围必须低于玩家氛围的饱和度并使用更均匀遮罩；封禁、无权限和致命错误只增加 `critical` 红色暗角，不得更换图片资源。
-- `LoginPage`、`GameStateShell`、`GameShell`、`AdminApp`、`PhotographicStateShell` 和 `SignedInShell` 不得导入或渲染 `FinancialBackdrop`；浏览器测试必须用自定义 DOM 标记证明账号检查切换到认证后仍是同一 `<img>`。
+- `LoginPage`、`ApplicationLoadingState`、`GameErrorStateShell`、`GameShell`、`AdminApp`、`PhotographicStateShell` 和 `SignedInShell` 不得导入或渲染 `FinancialBackdrop`；浏览器测试必须用自定义 DOM 标记证明账号检查切换到认证后仍是同一 `<img>`。
 - `.asset-bar` 和 `.mobile-bottom-navigation` 不得包含 `.panel`；认证卡片不得包含 `.panel` 或 `.login-card.panel`。
 - 每个可见顶部工作栏只允许一个玻璃实例；整个移动底栏也只允许一个玻璃实例；认证页面只允许一个认证玻璃实例。
 - 支持环境中的桌面状态栏、管理员桌面工作栏、移动状态栏、移动底栏和认证卡片全部使用 `overLight=false`；两个辅助节点保持完整几何但不得产生可见黑色绘制。所有宿主保持透明，第三方 `.glass__warp` 继续采样页面内容和根级氛围背景；认证输入框自身继续保持不透明深色控件以保护表单可读性。

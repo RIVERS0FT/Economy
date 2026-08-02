@@ -1,5 +1,6 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
 import type { AuthUser } from '../types';
+import { ApplicationLoadingState } from '../components/system/ApplicationLoadingState';
 import { AssetsIcon, CreditsIcon, RankIcon, WarehouseIcon } from '../components/icons/GameIcons';
 import { GemIcon } from '../components/icons/GemIcon';
 import { GameShell } from '../components/shell/GameShell';
@@ -13,10 +14,10 @@ import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
 import { useAdaptivePolling } from './useAdaptivePolling';
 import '../styles/game-guide.css';
 
-function GameStateShell({ children }: { children: ReactNode }) {
+function GameErrorStateShell({ children }: { children: ReactNode }) {
   return (
     <main className="game-state-shell">
-      <div className="loading-screen">{children}</div>
+      <div className="loading-screen" role="alert">{children}</div>
     </main>
   );
 }
@@ -116,13 +117,13 @@ export function GameApp({ user, onSignedOut }: { user: AuthUser; onSignedOut: ()
   const viewModel = useGameViewModel(user, onSignedOut);
 
   if (viewModel.status === 'loading') {
-    return <GameStateShell>正在连接权威游戏服务器…</GameStateShell>;
+    return <ApplicationLoadingState>正在连接权威游戏服务器…</ApplicationLoadingState>;
   }
   if (viewModel.status === 'error') {
     return (
-      <GameStateShell>
+      <GameErrorStateShell>
         <div><strong>无法加载游戏状态</strong><p><CurrencyText>{viewModel.message}</CurrencyText></p><button type="button" onClick={viewModel.retry}>重新连接</button></div>
-      </GameStateShell>
+      </GameErrorStateShell>
     );
   }
 
