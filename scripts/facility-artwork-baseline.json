@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "style": "subject-first-road-optional-2026-08-02",
+  "complexity": "C1",
+  "facilityIds": [
+    "farm",
+    "orchard",
+    "ranch",
+    "fishery"
+  ],
+  "sha256": {
+    "farm": "adee342bd7ab90b55133db21a418d7a7cd0d78a8e083c44c34cfee898473eb64",
+    "orchard": "00cd875f493d9edebbdbe190f2127cd0d202c094a0c7017a7eb968ea75e4693d",
+    "ranch": "8cbd1bc73e7e3f209d0d617c7719f71ae27095056d4dface64b5743a760875d3",
+    "fishery": "90d8538ed8394ee00f5c3457ea2ffe628d2c94a40fdfc14d126ad9d69726d680"
+  }
+}
