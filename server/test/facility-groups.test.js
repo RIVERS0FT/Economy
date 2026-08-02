@@ -261,21 +261,21 @@ test('warehouse errors recover without backfilling missed cycles', () => {
   const player = ensurePlayer(world, alice, now);
   player.warehouseLevel = 1;
   player.inventoryCapacity = 500;
-  player.inventories.wheat.available = 499;
+  player.inventories.wheat.available = 500;
   player.facilityGroups = [group('farm', 1, {
     enabled: true, status: 'error', statusReason: 'warehouse_full', staffingBatchCarryBps: 9_999,
   })];
   migrateFacilityGroupWorld(world, now);
   processFacilityGroupWorld(world, now + 20_000);
   assert.equal(player.facilityGroups[0].status, 'error');
-  assert.equal(player.inventories.wheat.available, 499);
+  assert.equal(player.inventories.wheat.available, 500);
 
   player.warehouseLevel = 2;
   player.inventoryCapacity = 750;
   processFacilityGroupWorld(world, now + 120_001);
   assert.equal(player.facilityGroups[0].status, 'running');
   assert.equal(player.facilityGroups[0].cycleStartedAt, now + 120_001);
-  assert.equal(player.inventories.wheat.available, 499);
+  assert.equal(player.inventories.wheat.available, 500);
 });
 
 test('stopped facilities apply recipes immediately and fixed recipes are idempotent', () => {

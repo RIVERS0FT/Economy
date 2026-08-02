@@ -52,6 +52,7 @@ import './styles/primary-surfaces.css';
 import './styles/auth.css';
 import './styles/registration-auth.css';
 import './styles/form-controls.css';
+import './styles/market-desktop-cleanup.css';
 
 configureRuntimePerformance();
 

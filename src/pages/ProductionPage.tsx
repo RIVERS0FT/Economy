@@ -259,7 +259,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
           <div className="facility-cluster-navigation-heading">
             <div>
               <h2 id="facility-cluster-navigation-title">工厂集群</h2>
-              <p>按服务器正式目录顺序选择工厂并查看生产详情。</p>
+              <p>按复杂度从 C1 到 C7 选择工厂并查看生产详情。</p>
             </div>
             <StatusTag tone="neutral">{formatNumber(orderedFacilityGroups.length)} 类</StatusTag>
           </div>

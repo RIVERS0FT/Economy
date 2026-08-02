@@ -1,0 +1,27 @@
+/* Desktop-only market card cleanup.
+ * Mobile layouts retain the existing switches, order-book header and latest-trade row. */
+@media (min-width: 721px) {
+  .market-page-surface .market-compact-view-switch,
+  .market-page-surface .market-account-view-switch,
+  .market-page-surface .market-trade-section-heading small,
+  .market-page-surface .order-book-columns {
+    display: none !important;
+  }
+
+  .market-page-surface .order-book-midpoint {
+    min-height: 0 !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: hidden !important;
+  }
+
+  @container market-page (max-width: 339px) {
+    .market-page-surface .market-trade-entry,
+    .market-page-surface .market-trade-book {
+      display: block !important;
+    }
+  }
+}

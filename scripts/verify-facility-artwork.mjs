@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { FACILITY_TYPE_CATALOG } from '../server/src/industry-catalog.js';
@@ -6,6 +7,9 @@ const root = process.cwd();
 const failures = [];
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const facilityIds = FACILITY_TYPE_CATALOG.map((facility) => facility.id);
+const c1FacilityIds = FACILITY_TYPE_CATALOG
+  .filter((facility) => facility.complexity === 'C1')
+  .map((facility) => facility.id);
 
 const paths = {
   artworkStyles: 'src/styles/facility-artwork.css',
@@ -15,6 +19,7 @@ const paths = {
   package: 'package.json',
   gitignore: '.gitignore',
   uiDesign: 'docs/UI_DESIGN_SYSTEM.md',
+  artworkBaseline: 'scripts/facility-artwork-baseline.json',
   designIndex: 'docs/README.md',
   catalogDesign: 'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
   pageDesign: 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
@@ -61,6 +66,19 @@ if (failures.length === 0) {
   const packageJson = read(paths.package);
   const gitignore = read(paths.gitignore);
   const uiDesign = read(paths.uiDesign);
+  const artworkBaseline = JSON.parse(read(paths.artworkBaseline));
+  const baselineFacilityIds = Array.isArray(artworkBaseline.facilityIds)
+    ? artworkBaseline.facilityIds
+    : [];
+  const baselineHashes = artworkBaseline.sha256
+    && typeof artworkBaseline.sha256 === 'object'
+    ? artworkBaseline.sha256
+    : {};
+  if (artworkBaseline.version !== 1
+    || artworkBaseline.style !== 'subject-first-road-optional-2026-08-02'
+    || artworkBaseline.complexity !== 'C1') {
+    failures.push(`${paths.artworkBaseline} 不是当前 C1 主体优先／道路可选基线`);
+  }
   const designIndex = read(paths.designIndex);
   const catalogDesign = read(paths.catalogDesign);
   const pageDesign = read(paths.pageDesign);
@@ -79,12 +97,31 @@ if (failures.length === 0) {
   if (JSON.stringify(actualSources) !== JSON.stringify(expectedSources)) {
     failures.push('工厂场景源图必须与服务器工厂目录一一对应，不得缺失或保留目录外 PNG');
   }
+  if (JSON.stringify(baselineFacilityIds) !== JSON.stringify(c1FacilityIds)) {
+    failures.push(
+      `${paths.artworkBaseline} 的 C1 工厂顺序必须等于服务器目录：${c1FacilityIds.join(', ')}`,
+    );
+  }
 
   for (const facilityId of facilityIds) {
     const sourcePath = `src/assets/facility-icons/${facilityId}.png`;
     const thumbnailPath = `src/assets/facility-icons/generated/128/${facilityId}.png`;
     validatePng(sourcePath, 1024, '工厂场景源图');
     validatePng(thumbnailPath, 128, '工厂场景运行时缩略图');
+
+    if (c1FacilityIds.includes(facilityId)) {
+      const expectedHash = baselineHashes[facilityId];
+      if (typeof expectedHash !== 'string' || !/^[a-f0-9]{64}$/.test(expectedHash)) {
+        failures.push(`${paths.artworkBaseline} 缺少 ${facilityId} 的有效 SHA-256`);
+      } else {
+        const actualHash = createHash('sha256')
+          .update(readFileSync(resolve(root, sourcePath)))
+          .digest('hex');
+        if (actualHash !== expectedHash) {
+          failures.push(`${sourcePath} 已偏离批准的 C1 插画基线`);
+        }
+      }
+    }
 
     if (!styles.includes(`[data-facility-icon='${facilityId}']`)) {
       failures.push(`${paths.artworkStyles} 缺少 ${facilityId} 映射`);
@@ -204,6 +241,13 @@ if (failures.length === 0) {
       '高质量写实数字插画／商业级写实 CG',
       '明亮自然的日间环境光',
       '主体建筑或主要设施居中或略居中',
+      '通常应占画面宽度约 `60%–80%`',
+      '核心主体必须落在中央约 `80%` 安全区域',
+      '天空通常控制在画面高度约 `20%–30%`',
+      '道路不是必选元素',
+      '不得为了统一构图强制加入道路',
+      '当前 C1 复杂度工厂 `farm`、`orchard`、`ranch` 与 `fishery`',
+      '`scripts/facility-artwork-baseline.json`',
       '无文字、无人物、无水印、无品牌标志',
       '`src/assets/facility-icons/generated/128/`',
       '`FacilityIcon`',
@@ -229,5 +273,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、上下可读性渐变和主视觉使用边界一致。`,
+  `工厂场景插画验证通过：${facilityIds.length} 种正式工厂与 1024×1024 RGBA 源图、128×128 运行时缩略图、ID 映射、上下可读性渐变、主视觉使用边界及 C1 SHA-256 基线一致。`,
 );
