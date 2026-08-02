@@ -4,23 +4,77 @@
   gap: var(--space-3);
 }
 
-.contract-tabs {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  overflow-x: auto;
-  scrollbar-width: none;
+.contract-workspace {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--layout-gutter);
 }
 
-.contract-tabs::-webkit-scrollbar {
-  display: none;
+.contract-workspace-pane,
+.contract-personal-content,
+.contract-pane-grid {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: var(--space-3);
 }
 
-.contract-tabs .ui-segmented__button {
+.contract-pane-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  min-width: 0;
+  gap: var(--space-3);
+}
+
+.contract-pane-heading > div {
+  min-width: 0;
+}
+
+.contract-pane-heading h2 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xl);
+}
+
+.contract-pane-heading p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+}
+
+.contract-pane-grid,
+.contract-active-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.contract-personal-heading {
+  align-items: stretch;
+}
+
+.contract-personal-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: min(100%, 25rem);
+  margin: 0;
+}
+
+.contract-personal-tabs .ui-segmented__button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-width: 0;
   white-space: nowrap;
+}
+
+.contract-tab-attention-count {
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-2);
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+  font-size: var(--font-size-xs);
+  line-height: 1;
 }
 
 .contract-tab-count {
@@ -34,8 +88,37 @@
   text-align: center;
 }
 
-.contract-tabs .active .contract-tab-count {
+.contract-personal-tabs .active .contract-tab-count {
   background: rgba(6, 20, 12, 0.14);
+}
+
+.contract-workspace .contract-card-heading,
+.contract-workspace .contract-detail-layout,
+.contract-workspace .contract-fulfillment-controls,
+.contract-workspace .contract-offer-terms {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.contract-workspace .contract-progress {
+  justify-items: stretch;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+
+.contract-workspace .contract-offer-price {
+  justify-items: start;
+}
+
+.contract-workspace .contract-primary-actions .ui-button,
+.contract-workspace .contract-card-actions .ui-button,
+.contract-workspace .contract-management-actions .ui-button {
+  flex: 1 1 100%;
+}
+
+.contract-workspace .contract-card--attention {
+  border-color: var(--color-warning);
+  background: linear-gradient(0deg, var(--color-warning-soft), var(--color-warning-soft)), var(--color-surface-primary);
 }
 
 .contract-list {
@@ -386,6 +469,18 @@
   color: var(--color-text-primary);
 }
 
+@media (max-width: 1399px) {
+  .contract-pane-grid,
+  .contract-active-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contract-pane-heading {
+    display: grid;
+    align-items: start;
+  }
+}
+
 @media (max-width: 1219px) {
   .contract-offer-grid,
   .contract-publish-layout {
@@ -407,6 +502,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .contract-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contract-pane-grid,
+  .contract-active-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .contract-detail-layout,
   .contract-fulfillment-controls {
     grid-template-columns: minmax(0, 1fr);
@@ -419,25 +523,18 @@
     gap: var(--space-2);
   }
 
-  .ui-segmented.contract-tabs {
-    display: flex;
-    align-items: stretch;
-    justify-content: flex-start;
-    gap: var(--space-1);
-    overflow-x: auto;
-    overflow-y: hidden;
-    touch-action: pan-x pan-y;
+  .contract-pane-grid,
+  .contract-active-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .contract-tabs .ui-segmented__button {
-    flex: 0 0 auto;
-    width: auto;
-    min-width: max-content;
-    max-width: none;
+  .contract-personal-tabs {
+    width: 100%;
+    min-width: 0;
   }
 
-  .contract-tabs .contract-tab-count {
-    flex: 0 0 auto;
+  .contract-personal-tabs .ui-segmented__button {
+    white-space: normal;
   }
 
   .contract-card,
