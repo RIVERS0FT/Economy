@@ -447,6 +447,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                       fallbackValue={orderPrice}
                       min={0.01}
                       max={1_000_000}
+                      wheelStep={0.01}
                       aria-invalid={Boolean(priceReason)}
                       aria-describedby={priceReason ? 'market-order-price-error' : undefined}
                       onValueChange={updatePriceDraft}
@@ -509,31 +510,10 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                     ? <span><small>预计到账</small><strong><CurrencyAmount>{formatCurrency(estimatedNetTotal)}</CurrencyAmount></strong></span>
                     : <span><small>可用资金</small><strong><CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></strong></span>}
                 </div>
-                <details className="market-order-details">
-                  <summary>交易资产详情</summary>
-                  <div className="order-capacity market-order-capacity">
-                    <span><small>可用资金</small><strong><CurrencyAmount>{formatCurrency(game.credits)}</CurrencyAmount></strong></span>
-                    {orderSide === 'sell' ? <span><small>预计手续费</small><strong><CurrencyAmount>{formatCurrency(estimatedSellFee)}</CurrencyAmount></strong></span> : null}
-                    {marketAssetKind === 'commodity' ? (
-                      <>
-                        <span><small>仓库剩余</small><strong>{formatNumber(game.warehouseAvailableCapacity)}</strong></span>
-                        <span><small>可用{assetName}</small><strong>{formatNumber(selectedInventory.available)}</strong></span>
-                        <span><small>冻结{assetName}</small><strong>{formatNumber(selectedInventory.frozen)}</strong></span>
-                      </>
-                    ) : (
-                      <>
-                        <span><small>持有</small><strong>{formatNumber(selectedGroup?.count ?? 0)} 座</strong></span>
-                        <span><small>可出售</small><strong>{formatNumber(selectedGroup?.availableCount ?? 0)} 座</strong></span>
-                        <span><small>卖单／拍卖冻结</small><strong>{formatNumber(selectedGroup?.frozenCount ?? selectedGroup?.listedCount ?? 0)} 座</strong></span>
-                        <span><small>抵押中</small><strong>{formatNumber(selectedGroup?.mortgagedCount ?? 0)} 座</strong></span>
-                        <span><small>当前参与</small><strong>{formatNumber(selectedGroup?.participatingCount ?? 0)} 座</strong></span>
-                      </>
-                    )}
-                  </div>
-                </details>
                 {visibleDisabledReason ? <p id="order-disabled-reason" className="order-disabled-reason" role="status">{visibleDisabledReason}</p> : null}
                 <Button
                   block
+                  className="market-submit-order"
                   disabled={Boolean(orderDisabledReason)}
                   aria-describedby={visibleDisabledReason ? 'order-disabled-reason' : undefined}
                   onClick={submitOrder}

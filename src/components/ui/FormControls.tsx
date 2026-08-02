@@ -10,7 +10,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 import { normalizeIntegerDraft, parseIntegerDraft } from '../../utils/integerDraft';
-import { formatMoneyDraft, normalizeMoneyDraft } from '../../utils/moneyDraft';
+import { formatMoneyDraft, normalizeMoneyDraft, parseMoneyDraft } from '../../utils/moneyDraft';
 
 function classNames(...values: Array<string | number | bigint | false | null | undefined>) {
   return values.filter(Boolean).join(' ');
@@ -291,6 +291,7 @@ type MoneyInputProps = Omit<
   fallbackValue: number;
   min?: number;
   max?: number;
+  wheelStep?: number;
   onValueChange: (value: string) => void;
 };
 
@@ -305,6 +306,7 @@ export function MoneyInput({
   fallbackValue,
   min,
   max,
+  wheelStep,
   required,
   onValueChange,
   onBlur,
@@ -314,10 +316,41 @@ export function MoneyInput({
 }: MoneyInputProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input || wheelStep === undefined) return undefined;
+    const stepCents = Math.round(wheelStep * 100);
+    if (!Number.isFinite(wheelStep) || !Number.isSafeInteger(stepCents) || stepCents <= 0) return undefined;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (document.activeElement !== input || event.deltaY === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (input.disabled || input.readOnly) return;
+
+      const parsed = parseMoneyDraft(input.value, { min, max });
+      const minimum = min ?? Number.MIN_SAFE_INTEGER;
+      const maximum = max ?? Number.MAX_SAFE_INTEGER;
+      const current = parsed ?? Math.min(maximum, Math.max(minimum, fallbackValue));
+      const direction = event.deltaY < 0 ? 1 : -1;
+      const nextCents = Math.round(current * 100) + direction * stepCents;
+      const minimumCents = Math.ceil(minimum * 100);
+      const maximumCents = Math.floor(maximum * 100);
+      const clampedCents = Math.min(maximumCents, Math.max(minimumCents, nextCents));
+      onValueChange(formatMoneyDraft(clampedCents / 100));
+    };
+
+    input.addEventListener('wheel', handleWheel, { passive: false });
+    return () => input.removeEventListener('wheel', handleWheel);
+  }, [fallbackValue, max, min, onValueChange, wheelStep]);
+
   return (
     <FormField label={label} htmlFor={inputId} description={description} error={error} required={required} className={fieldClassName}>
       <input
         {...props}
+        ref={inputRef}
         id={inputId}
         type="text"
         inputMode="decimal"

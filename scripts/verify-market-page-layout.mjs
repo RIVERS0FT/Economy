@@ -56,9 +56,9 @@ requireText(marketPage, '价格减少 0.01', '价格步进必须按 0.01 向下�
 requireText(marketPage, '价格增加 0.01', '价格步进必须按 0.01 向上调整。');
 requireText(marketPage, '数量减少 1', '数量步进必须按 1 向下调整。');
 requireText(marketPage, '数量增加 1', '数量步进必须按 1 向上调整。');
-requireText(marketStyles, 'grid-template-columns: minmax(280px, 44fr) minmax(300px, 56fr);', '交易卡桌面内部必须使用下单区 44%、订单簿 56% 的双列结构。');
+requireText(marketStyles, 'grid-template-columns: minmax(320px, 3fr) minmax(240px, 2fr);', '交易卡桌面内部必须使用下单区 60%、订单簿 40% 的双列结构。');
 requireText(marketStyles, '@container market-page (max-width: 819px)', '交易卡必须定义常见移动宽度响应式断点。');
-requireText(marketStyles, 'grid-template-columns: minmax(0, 3fr) minmax(126px, 2fr);', '340px 至 819px 交易卡必须保持约 60%／40% 的下单与盘口同排结构。');
+requireText(marketStyles, 'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);', '340px 至 819px 交易卡必须保持约 66%／34% 的下单与盘口同排结构。');
 requireText(marketStyles, '@container market-page (max-width: 339px)', '超窄交易卡必须定义下单／盘口切换断点。');
 requireText(marketStyles, '.market-compact-view-switch', '超窄交易卡必须提供下单／盘口切换控件。');
 requireText(marketStyles, 'border-left: 0;', '超窄交易卡堆叠时必须移除订单簿竖分隔。');
@@ -167,7 +167,7 @@ requireText(marketDesign, '## 市场页面布局与可用性', '订单簿设计�
 requireText(marketDesign, '聚合完成后再按最优价格截取 5 档', '订单簿设计必须记录聚合后截取规则。');
 requireText(marketDesign, '内容宽度为 `340px–819px` 时', '订单簿设计必须记录常见手机下单与盘口同排规则。');
 requireText(marketDesign, '点击任一档位只把该档价格填入价格输入', '订单簿设计必须记录盘口点击只填价。');
-requireText(marketDesign, '价格和数量均使用“减号按钮／共享输入控件／加号按钮”', '订单簿设计必须记录步进输入组合。');
+requireText(marketDesign, '字段标签／内嵌减号按钮／共享输入控件／内嵌加号按钮', '订单簿设计必须记录同行内嵌步进输入组合。');
 requireText(pageDesign, '### 4.1 市场页桌面布局与反馈', '页面职责设计必须记录市场页布局。');
 requireText(pageDesign, '订单簿按价格档位聚合展示', '页面职责设计必须记录价格档位职责。');
 requireText(pageDesign, '同一价格或数量输入错误只允许在对应字段下显示一次', '页面职责设计必须记录市场字段错误唯一显示规则。');

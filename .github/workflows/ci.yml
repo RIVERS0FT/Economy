@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -18,36 +18,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
           cache: npm
-
-      - name: Apply compact market order entry
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'agent/compact-market-order-entry'
-        shell: bash
-        run: |
-          set -euo pipefail
-          node .github/agent/apply-compact-market-order-entry.mjs
-          node scripts/verify-market-order-entry-compact.mjs
-          node scripts/verify-market-page-layout.mjs
-          node scripts/verify-market-assets.mjs
-          node scripts/verify-market-sell-fee.mjs
-          rm .github/agent/apply-compact-market-order-entry.mjs
-          rm .github/workflows/agent-compact-market-order-entry.yml
-          git fetch origin main
-          git checkout origin/main -- .github/workflows/ci.yml
-          git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "紧凑市场下单输入与订单簿布局"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
 
       - name: Install dependencies
         run: npm ci
