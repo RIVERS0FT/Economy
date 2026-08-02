@@ -27,6 +27,15 @@ const expected = {
   fishery: { productIds: ['fish'], value: 2.5, cycleMs: 30_000, cost: 2, profit: 1 },
 };
 
+test('C1 catalog contains exactly the approved fast-production factories', () => {
+  assert.deepEqual(
+    FACILITY_TYPE_CATALOG
+      .filter((facility) => facility.complexity === 'C1')
+      .map((facility) => facility.id),
+    Object.keys(expected),
+  );
+});
+
 test('C1 factories use the approved fast-production parameters', () => {
   for (const [facilityId, rule] of Object.entries(expected)) {
     const recipes = standardRecipes(facilityId);
