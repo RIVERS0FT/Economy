@@ -77,7 +77,7 @@ export function resolveFacilityProfitPresentation({
       : profitPerMinute < 0
         ? 'negative'
         : 'neutral';
-  const visibleValue = profitPerMinute === null ? '—' : formatCurrency(profitPerMinute);
+  const visibleValue = profitPerMinute === null ? '—' : formatCurrency(Math.abs(profitPerMinute));
   const accessibleValue = profitPerMinute === null
     ? fallback
     : profitPerMinute > 0
