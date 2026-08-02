@@ -56,19 +56,6 @@ const rawFacilities = [
     recipes: [{ id: 'orchard-fruit', name: '种植水果', cycleMs: 120_000, operatingCost: 10, inputs: [], output: { productId: 'fruit', quantity: 3 } }],
   },
   {
-    id: 'logging-camp', name: '伐木场', category: 'raw', complexity: 'C2', buildCost: 120, buildTimeMs: 5 * 60 * 1000,
-    defaultRecipeId: 'logging-camp-default', internalCapacity: 40, systemValue: 160,
-    recipes: [{ id: 'logging-camp-default', name: '采伐木材', cycleMs: 60_000, operatingCost: 9, inputs: [], output: { productId: 'timber', quantity: 2 } }],
-  },
-  {
-    id: 'mine', name: '矿场', category: 'raw', complexity: 'C2', buildCost: 140, buildTimeMs: 6 * 60 * 1000,
-    defaultRecipeId: 'mine-default', internalCapacity: 40, systemValue: 185,
-    recipes: [
-      { id: 'mine-default', name: '开采铁矿石', cycleMs: 60_000, operatingCost: 11, inputs: [], output: { productId: 'ore', quantity: 2 } },
-      { id: 'copper-ore-mining', name: '开采铜矿石', cycleMs: 60_000, operatingCost: 11, inputs: [], output: { productId: 'copper-ore', quantity: 2 } },
-    ],
-  },
-  {
     id: 'ranch', name: '畜牧场', category: 'raw', complexity: 'C1', buildCost: 90, buildTimeMs: 50_000,
     defaultRecipeId: 'ranch-meat', internalCapacity: 40, systemValue: 120,
     recipes: [
@@ -82,6 +69,19 @@ const rawFacilities = [
     id: 'fishery', name: '渔场', category: 'raw', complexity: 'C1', buildCost: 100, buildTimeMs: 60_000,
     defaultRecipeId: 'fishery-fish', internalCapacity: 40, systemValue: 130,
     recipes: [{ id: 'fishery-fish', name: '捕捞鱼类', cycleMs: 120_000, operatingCost: 16, inputs: [], output: { productId: 'fish', quantity: 3 } }],
+  },
+  {
+    id: 'logging-camp', name: '伐木场', category: 'raw', complexity: 'C2', buildCost: 120, buildTimeMs: 5 * 60 * 1000,
+    defaultRecipeId: 'logging-camp-default', internalCapacity: 40, systemValue: 160,
+    recipes: [{ id: 'logging-camp-default', name: '采伐木材', cycleMs: 60_000, operatingCost: 9, inputs: [], output: { productId: 'timber', quantity: 2 } }],
+  },
+  {
+    id: 'mine', name: '矿场', category: 'raw', complexity: 'C2', buildCost: 140, buildTimeMs: 6 * 60 * 1000,
+    defaultRecipeId: 'mine-default', internalCapacity: 40, systemValue: 185,
+    recipes: [
+      { id: 'mine-default', name: '开采铁矿石', cycleMs: 60_000, operatingCost: 11, inputs: [], output: { productId: 'ore', quantity: 2 } },
+      { id: 'copper-ore-mining', name: '开采铜矿石', cycleMs: 60_000, operatingCost: 11, inputs: [], output: { productId: 'copper-ore', quantity: 2 } },
+    ],
   },
   {
     id: 'oil-field', name: '油田', category: 'raw', complexity: 'C2', buildCost: 180, buildTimeMs: 10 * 60 * 1000,
@@ -115,11 +115,6 @@ const rawFacilities = [
     ],
   },
   {
-    id: 'refinery', name: '炼油厂', category: 'processing', complexity: 'C4', buildCost: 300, buildTimeMs: 80 * 60 * 1000,
-    defaultRecipeId: 'refinery-default', internalCapacity: 25, systemValue: 390,
-    recipes: [{ id: 'refinery-default', name: '生产塑料', cycleMs: 40_000, operatingCost: 8, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'plastic', quantity: 1 } }],
-  },
-  {
     id: 'textile-mill', name: '纺织厂', category: 'processing', complexity: 'C3', buildCost: 220, buildTimeMs: 35 * 60 * 1000,
     defaultRecipeId: 'cotton-textile', internalCapacity: 25, systemValue: 290,
     recipes: [
@@ -136,17 +131,22 @@ const rawFacilities = [
     ],
   },
   {
+    id: 'paper-mill', name: '造纸厂', category: 'consumer', complexity: 'C3', buildCost: 250, buildTimeMs: 60 * 60 * 1000,
+    defaultRecipeId: 'paper-mill-default', internalCapacity: 35, systemValue: 325,
+    recipes: [{ id: 'paper-mill-default', name: '生产纸品', cycleMs: 60_000, operatingCost: 4, inputs: [{ productId: 'pulp', quantity: 1 }], output: { productId: 'paper', quantity: 2 } }],
+  },
+  {
+    id: 'refinery', name: '炼油厂', category: 'processing', complexity: 'C4', buildCost: 300, buildTimeMs: 80 * 60 * 1000,
+    defaultRecipeId: 'refinery-default', internalCapacity: 25, systemValue: 390,
+    recipes: [{ id: 'refinery-default', name: '生产塑料', cycleMs: 40_000, operatingCost: 8, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'plastic', quantity: 1 } }],
+  },
+  {
     id: 'beverage-factory', name: '饮料厂', category: 'consumer', complexity: 'C4', buildCost: 280, buildTimeMs: 60 * 60 * 1000,
     defaultRecipeId: 'milk-beverage', internalCapacity: 35, systemValue: 365,
     recipes: [
       { id: 'milk-beverage', name: '生产乳制饮料', cycleMs: 60_000, operatingCost: 14, inputs: [{ productId: 'sugar', quantity: 1 }, { productId: 'milk', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
       { id: 'fruit-beverage', name: '生产果汁饮料', cycleMs: 60_000, operatingCost: 9, inputs: [{ productId: 'fruit', quantity: 2 }, { productId: 'sugar', quantity: 1 }], output: { productId: 'beverage', quantity: 2 } },
     ],
-  },
-  {
-    id: 'paper-mill', name: '造纸厂', category: 'consumer', complexity: 'C3', buildCost: 250, buildTimeMs: 60 * 60 * 1000,
-    defaultRecipeId: 'paper-mill-default', internalCapacity: 35, systemValue: 325,
-    recipes: [{ id: 'paper-mill-default', name: '生产纸品', cycleMs: 60_000, operatingCost: 4, inputs: [{ productId: 'pulp', quantity: 1 }], output: { productId: 'paper', quantity: 2 } }],
   },
   {
     id: 'furniture-factory', name: '家具厂', category: 'consumer', complexity: 'C4', buildCost: 300, buildTimeMs: 70 * 60 * 1000,
