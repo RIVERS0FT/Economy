@@ -38,6 +38,7 @@ jobs:
             src/styles/financial-backdrop.css \
             docs/REGISTRATION_INVITE_FLOW_DESIGN.md \
             docs/LIQUID_GLASS_CHROME_DESIGN.md \
+            scripts/verify-auth-three-layer.mjs \
             scripts/verify-game-three-layer.mjs
           python - <<'PY'
           from pathlib import Path
@@ -74,12 +75,21 @@ jobs:
               '`tests/browser/application-photography.spec.ts` 必须用 DOM 标记验证账号检查切换到认证后仍是同一图片节点，并覆盖管理员、封禁、无权限与摄影失败回退；`tests/browser/application-atmosphere-consistency.spec.ts` 必须分别在桌面与移动视口比较 `auth`、`game`、`admin` 的图片滤镜、渐变、网格和噪点计算样式完全相同。',
           )
           path.write_text(source)
+
+          verifier_path = Path('scripts/verify-auth-three-layer.mjs')
+          verifier = verifier_path.read_text()
+          old_check = "  '移动登录氛围层必须比原基线更透明',"
+          new_check = "  '认证、九个玩家页面、管理员五个分区及根级普通状态必须使用完全相同的正常态视觉参数',"
+          if old_check not in verifier:
+              raise SystemExit('legacy auth atmosphere document assertion not found')
+          verifier_path.write_text(verifier.replace(old_check, new_check))
           PY
           rm -f .github/workflows/apply-unified-atmosphere.yml scripts/apply-unified-atmosphere.mjs
           git add -- \
             src/styles/financial-backdrop.css \
             docs/REGISTRATION_INVITE_FLOW_DESIGN.md \
             docs/LIQUID_GLASS_CHROME_DESIGN.md \
+            scripts/verify-auth-three-layer.mjs \
             scripts/verify-game-three-layer.mjs \
             tests/browser/application-atmosphere-consistency.spec.ts
           git add -u -- \
