@@ -552,7 +552,7 @@ function ProductionHarness() {
         baseType,
         { ...baseType, id: 'sawmill', name: '锯木厂' },
         { ...baseType, id: 'flour-mill', name: '磨坊' },
-        { ...baseType, id: 'electronics-factory', name: '电子工厂' },
+        { ...baseType, id: 'electronics-factory', name: '电子厂' },
       ];
       next.game.facilityGroups = [
         baseGroup,
