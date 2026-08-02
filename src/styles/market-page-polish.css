@@ -357,17 +357,19 @@
 .market-page-surface .market-stepper__button {
   position: absolute;
   z-index: 2;
-  top: 50%;
+  top: 0;
+  bottom: 0;
   width: 36px;
   min-width: 36px;
   height: 36px;
+  margin-block: auto;
   border: 0;
   padding: 0;
   background: transparent;
   box-shadow: none;
   font-size: 1.15rem;
   line-height: 1;
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .market-page-surface .market-stepper__button:first-child {
@@ -386,13 +388,17 @@
   html[data-input-modality='mouse']
     .market-page-surface .market-stepper__button:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.045);
-    transform: translateY(-50%);
+    transform: none;
   }
 }
 
 .market-page-surface .market-stepper__button:active:not(:disabled) {
   background: rgba(255, 255, 255, 0.045);
-  transform: translateY(-50%);
+  transform: none;
+}
+
+.market-page-surface .market-stepper__button:disabled {
+  transform: none;
 }
 
 .market-page-surface .market-stepper__input {
