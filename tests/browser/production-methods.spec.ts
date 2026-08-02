@@ -41,8 +41,59 @@ test.describe('factory production methods', () => {
     expect(staffingStyle.borderRadius).toBe('0px');
 
     const settlement = detail.locator('.facility-production-formula');
+    const formulaTop = settlement.locator('.facility-formula-top');
+    const inputSide = settlement.locator('.facility-formula-input-side');
+    const formulaMeta = inputSide.locator(':scope > .facility-formula-meta');
+    const output = settlement.locator('.facility-formula-output');
     const profit = settlement.locator('.facility-average-profit');
+    await expect(inputSide).toHaveCount(1);
+    await expect(formulaMeta).toHaveCount(1);
+    await expect(output).toHaveCount(1);
     await expect(profit).toHaveCount(1);
+
+    const formulaColumns = await formulaTop.evaluate((element) => (
+      getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
+    ));
+    expect(formulaColumns).toBe(2);
+
+    const [inputSideBox, metaBox, outputBox] = await Promise.all([
+      inputSide.boundingBox(),
+      formulaMeta.boundingBox(),
+      output.boundingBox(),
+    ]);
+    expect(inputSideBox).not.toBeNull();
+    expect(metaBox).not.toBeNull();
+    expect(outputBox).not.toBeNull();
+    if (!inputSideBox || !metaBox || !outputBox) throw new Error('生产结算几何不可用');
+    expect(metaBox.x).toBeGreaterThanOrEqual(inputSideBox.x - 1);
+    expect(metaBox.x + metaBox.width).toBeLessThanOrEqual(inputSideBox.x + inputSideBox.width + 1);
+    expect(metaBox.x + metaBox.width).toBeLessThan(outputBox.x);
+
+    const slotStyle = await settlement.locator('.facility-formula-item-group').first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        backgroundImage: style.backgroundImage,
+        borderLeftWidth: style.borderLeftWidth,
+        borderRadius: style.borderRadius,
+      };
+    });
+    expect(slotStyle.backgroundImage).not.toBe('none');
+    expect(slotStyle.borderLeftWidth).not.toBe('0px');
+    expect(slotStyle.borderRadius).not.toBe('0px');
+
+    const flowStyle = await settlement.locator('.facility-formula-progress .progress-track span').evaluate((element) => {
+      const style = getComputedStyle(element.parentElement!);
+      const arrow = getComputedStyle(element, '::after');
+      return {
+        trackHeight: Number.parseFloat(style.height),
+        arrowContent: arrow.content,
+        arrowClipPath: arrow.clipPath,
+      };
+    });
+    expect(flowStyle.trackHeight).toBeGreaterThanOrEqual(8);
+    expect(flowStyle.arrowContent).not.toBe('none');
+    expect(flowStyle.arrowClipPath).not.toBe('none');
+
     const profitStyle = await profit.evaluate((element) => {
       const style = getComputedStyle(element);
       return {
