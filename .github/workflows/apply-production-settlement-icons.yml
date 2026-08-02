@@ -1,0 +1,62 @@
+name: Apply production settlement icons
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.agent/apply-production-settlement-icons.py'
+      - '.github/workflows/apply-production-settlement-icons.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Apply shared controls and design updates
+        run: python3 .agent/apply-production-settlement-icons.py
+
+      - name: Remove temporary application files
+        run: |
+          rm .agent/apply-production-settlement-icons.py
+          rm .github/workflows/apply-production-settlement-icons.yml
+          rmdir .agent 2>/dev/null || true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run production settlement verification
+        run: npm run verify:production-settlement
+
+      - name: Run production method verification
+        run: npm run verify:production-methods
+
+      - name: Build
+        run: npm run build
+
+      - name: Check patch formatting
+        run: git diff --check
+
+      - name: Commit applied changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "完善生产结算与生产设置图标布局"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
