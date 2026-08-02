@@ -10,6 +10,7 @@ const facilityArtworkStyles = fs.readFileSync('src/styles/facility-artwork.css',
 const sharedMarketStyles = fs.readFileSync('src/styles/unified-market-admin.css', 'utf8');
 const runtimeHarness = fs.readFileSync('tests/browser/market-runtime-harness.tsx', 'utf8');
 const runtimeSpec = fs.readFileSync('tests/browser/market-runtime.spec.ts', 'utf8');
+const facilityArtworkSpec = fs.readFileSync('tests/browser/market-facility-artwork.spec.ts', 'utf8');
 const scrollInputSpec = fs.readFileSync('tests/browser/scroll-input-modality.spec.ts', 'utf8');
 const marketDesign = fs.readFileSync('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', 'utf8');
 const pageDesign = fs.readFileSync('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', 'utf8');
@@ -85,9 +86,13 @@ forbidText(productArtworkStyles, '.unified-asset-tab:not(.facility) .asset-kind-
 requireText(productArtworkStyles, '.market-asset-card__icon-layer', '商品插画映射必须识别市场商品图标层。');
 requireText(productArtworkStyles, 'width: 72px;\n  height: 72px;', '桌面市场商品中央插画必须固定为 72px。');
 requireText(productArtworkStyles, 'width: 56px;\n    height: 56px;', '移动市场商品中央插画必须固定为 56px。');
+requireText(facilityArtworkStyles, '.unified-asset-tab.facility', '工厂场景映射必须限定市场工厂目录卡。');
 requireText(facilityArtworkStyles, '.market-asset-card__icon-layer > .facility-icon', '工厂场景映射必须识别市场工厂图标层。');
-requireText(facilityArtworkStyles, 'width: 72px;\n  height: 72px;', '桌面市场工厂中央插画必须固定为 72px。');
-requireText(facilityArtworkStyles, 'width: 56px;\n    height: 56px;', '移动市场工厂中央插画必须固定为 56px。');
+requireText(facilityArtworkStyles, 'top: -14px;\n  left: 0;\n  width: 100%;\n  height: calc(100% + 28px);', '桌面市场工厂插画必须抵消图标层内缩并覆盖完整卡片。');
+requireText(facilityArtworkStyles, 'top: -18px;\n    height: calc(100% + 36px);', '移动市场工厂插画必须抵消图标层内缩并覆盖完整卡片。');
+requireText(facilityArtworkStyles, 'background-position: center;', '市场工厂插画必须居中裁切。');
+requireText(facilityArtworkStyles, 'background-size: cover;', '市场工厂插画必须等比覆盖且不得拉伸。');
+requireText(facilityArtworkStyles, '.market-asset-card__icon-layer::after', '市场工厂插画必须提供上下可读性渐变。');
 requireText(marketStyles, 'gap: var(--space-3);\n  overflow-x: auto;', '市场资产卡间距必须使用 12px 设计令牌。');
 requireText(marketStyles, 'border-radius: var(--radius-control);', '市场资产卡必须使用统一圆角令牌。');
 requireText(marketStyles, 'inset: 14px 0;', '桌面市场中央插画层必须保持既有居中锚点，不得压缩四角留白。');
@@ -97,7 +102,11 @@ requireText(marketStyles, 'gap: 2px 5px;\n    padding: 6px 8px;', '移动市场�
 requireText(marketStyles, '.market-page-surface .market-asset-card__name-icon', '市场商品名称必须提供独立 SVG 图标样式。');
 requireText(marketStyles, 'transform: none;', '市场资产卡和盘口按钮悬停不得位移。');
 requireText(marketPage, 'className="market-asset-card__name-icon"', '市场商品名称前必须渲染对应商品 SVG。');
-requireText(runtimeSpec, 'market product artwork uses 72px desktop and 56px mobile while preserving cards and corner spacing', 'Playwright 必须覆盖放大后的插画尺寸以及未变化的卡片与四角留白。');
+requireText(runtimeSpec, 'market product artwork uses 72px desktop and 56px mobile while preserving cards and corner spacing', 'Playwright 必须覆盖放大后的商品插画尺寸以及未变化的卡片与四角留白。');
+requireText(facilityArtworkSpec, 'market facility artwork fills the card with centered cover cropping on desktop and mobile', 'Playwright 必须覆盖桌面与移动市场工厂满幅插画。');
+requireText(facilityArtworkSpec, "expect(metrics.backgroundSize).toBe('cover')", 'Playwright 必须验证市场工厂插画使用 cover。');
+requireText(facilityArtworkSpec, "expect(metrics.backgroundPosition).toBe('50% 50%')", 'Playwright 必须验证市场工厂插画居中。');
+requireText(facilityArtworkSpec, "expect((metrics.readabilityBackground.match(/linear-gradient/g) ?? []).length).toBe(2)", 'Playwright 必须验证市场工厂插画上下双层可读性渐变。');
 requireText(marketPage, 'FactoryIcon, WarehouseIcon', '市场商品库存必须复用统一 WarehouseIcon。');
 requireText(marketPage, 'className="market-asset-card__icon-layer"', '市场商品卡必须先渲染图标层。');
 requireText(marketPage, 'className="market-asset-card__data-layer"', '市场商品卡必须后渲染数据层。');
@@ -172,7 +181,7 @@ requireText(pageDesign, '### 4.1 市场页桌面布局与反馈', '页面职责�
 requireText(pageDesign, '订单簿按价格档位聚合展示', '页面职责设计必须记录价格档位职责。');
 requireText(pageDesign, '同一价格或数量输入错误只允许在对应字段下显示一次', '页面职责设计必须记录市场字段错误唯一显示规则。');
 requireText(pageDesign, '商品与工厂目录卡统一使用图标层在前、数据层在后的双层结构', '页面职责设计必须记录市场商品与工厂卡双层结构。');
-requireText(pageDesign, '中央插画分别固定为 `72 × 72px` 和 `56 × 56px`', '页面职责设计必须记录市场插画尺寸。');
+requireText(pageDesign, '商品卡中央插画分别固定为 `72 × 72px` 和 `56 × 56px`，工厂卡插画等比居中裁切并铺满整张卡', '页面职责设计必须区分商品固定尺寸与工厂满幅插画。');
 requireText(pageDesign, '不得通过压缩四角留白容纳插画', '页面职责设计必须禁止通过压缩四角留白容纳插画。');
 requireText(pageDesign, '数据层位于上方且不得用伪元素生成“当前”胶囊', '页面职责设计必须禁止商品卡伪元素当前状态。');
 requireText(pageDesign, '买入快捷数量以可用资金除以当前价格所得数量为基准', '页面职责设计必须记录买入快捷数量资金语义。');
@@ -181,7 +190,8 @@ requireText(pageDesign, '不得显示行情图下方统计栏', '页面职责设
 requireText(uiDesign, '## 市场页布局完整性', 'UI 设计系统必须记录市场页布局完整性。');
 requireText(uiDesign, '图标层分别只包含居中的 `ProductIcon` 或 `FacilityIcon`', 'UI 设计系统必须记录市场商品与工厂卡图标层。');
 requireText(uiDesign, '图标层 `z-index` 必须低于数据层', 'UI 设计系统必须记录市场商品卡覆盖层级。');
-requireText(uiDesign, '桌面中央插画固定 `72 × 72px`，不大于 `720px` 时固定 `56 × 56px`', 'UI 设计系统必须记录放大后的市场商品插画尺寸。');
+requireText(uiDesign, '商品卡的桌面中央插画固定 `72 × 72px`，不大于 `720px` 时固定 `56 × 56px`', 'UI 设计系统必须记录市场商品插画尺寸。');
+requireText(uiDesign, '工厂卡插画必须等比居中裁切并铺满整张卡', 'UI 设计系统必须记录市场工厂满幅插画。');
 requireText(uiDesign, '不得通过压缩四角留白容纳插画', 'UI 设计系统必须禁止压缩市场商品卡四角留白。');
 requireText(uiDesign, '同价档位聚合及水平溢出', 'UI 设计系统必须要求浏览器验证同价档位聚合。');
 requireText(chromeDesign, '页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须由页面局部堆叠上下文收口', '液态玻璃外壳设计必须记录移动页面 sticky 层级收口规则。');
@@ -191,7 +201,7 @@ requireText(designIndex, '商品卡不得用 `::after` 生成“当前”胶囊'
 requireText(designIndex, '不得回退到商品基础价或工厂系统价值', '设计索引必须禁止目录价格伪装真实成交价。');
 requireText(designIndex, '分组标签只占自身 `46px` 轨道', '设计索引必须记录市场分组标签独立轨道宽度。');
 requireText(designIndex, '标签与首张资产卡之间只保留 `var(--space-3)` 间距', '设计索引必须禁止市场目录左侧恢复额外空白。');
-requireText(designIndex, '中央插画固定为 `72 × 72px`／`56 × 56px`', '设计索引必须记录放大后的市场商品插画尺寸。');
+requireText(designIndex, '中央插画固定为 `72 × 72px`／`56 × 56px`', '设计索引必须记录市场商品插画尺寸。');
 requireText(designIndex, '不得通过压缩四角留白容纳插画', '设计索引必须禁止压缩市场商品卡四角留白。');
 
 if (failures.length > 0) {
@@ -200,4 +210,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场页布局、紧凑步进下单、连续五档盘口、移动并排与超窄切换、资产目录轨道、ECharts 动态行情几何及浏览器回归基线验证通过。');
+console.log('市场页布局、商品固定尺寸与工厂满幅插画、紧凑步进下单、连续五档盘口、移动并排与超窄切换、资产目录轨道、ECharts 动态行情几何及浏览器回归基线验证通过。');

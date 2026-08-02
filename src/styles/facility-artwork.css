@@ -70,9 +70,33 @@
   stroke: transparent;
 }
 
+.market-page-surface
+.unified-asset-tab.facility
 .market-asset-card__icon-layer > .facility-icon {
-  width: 72px;
-  height: 72px;
+  position: absolute;
+  z-index: 0;
+  top: -14px;
+  left: 0;
+  width: 100%;
+  height: calc(100% + 28px);
+  border-radius: 0;
+  transform: none;
+}
+
+.market-page-surface
+.unified-asset-tab.facility
+.market-asset-card__icon-layer::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -14px;
+  left: 0;
+  width: 100%;
+  height: calc(100% + 28px);
+  background:
+    linear-gradient(to bottom, rgb(0 0 0 / 72%) 0%, rgb(0 0 0 / 26%) 24%, transparent 48%),
+    linear-gradient(to top, rgb(0 0 0 / 68%) 0%, rgb(0 0 0 / 22%) 24%, transparent 46%);
+  pointer-events: none;
 }
 
 .unified-asset-tab.facility {
@@ -101,9 +125,14 @@
 }
 
 @media (max-width: 720px) {
-  .market-asset-card__icon-layer > .facility-icon {
-    width: 56px;
-    height: 56px;
+  .market-page-surface
+  .unified-asset-tab.facility
+  .market-asset-card__icon-layer > .facility-icon,
+  .market-page-surface
+  .unified-asset-tab.facility
+  .market-asset-card__icon-layer::after {
+    top: -18px;
+    height: calc(100% + 36px);
   }
 }
 
@@ -121,9 +150,33 @@
     stroke: currentColor;
   }
 
+  .market-page-surface
+  .unified-asset-tab.facility
+  .market-asset-card__icon-layer > .facility-icon {
+    position: static;
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-control);
+  }
+
+  .market-page-surface
+  .unified-asset-tab.facility
+  .market-asset-card__icon-layer::after {
+    display: none;
+  }
+
   .facility-cluster-selector-card .facility-cluster-icon {
     inset: 24%;
     width: 52%;
     height: 52%;
+  }
+}
+
+@media (max-width: 720px) and (prefers-reduced-data: reduce) {
+  .market-page-surface
+  .unified-asset-tab.facility
+  .market-asset-card__icon-layer > .facility-icon {
+    width: 56px;
+    height: 56px;
   }
 }
