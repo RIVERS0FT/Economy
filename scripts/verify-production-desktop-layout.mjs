@@ -28,7 +28,8 @@ for (const text of [
   'minmax(480px, 1040px)',
   'minmax(480px, 680px)',
   'justify-content: start;',
-  'grid-template-columns: repeat(auto-fit, minmax(8.25rem, 10rem));',
+  'max-width: 60rem;',
+  'grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));',
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
   'grid-template-columns: repeat(3, minmax(0, 1fr));',
 ]) assert.equal(production.includes(text), true, `桌面生产布局缺少: ${text}`);
