@@ -111,7 +111,7 @@ for (const text of [
   '下一周期切换为：',
   'showNextCyclePreview={recipeState.showNextCyclePreview}',
   'productionRecipeVariantId',
-  'FACILITY_SHEET_CLOSE_VELOCCITY',
+  'FACILITY_SHEET_CLOSE_VELOCITY',
   'FACILITY_SHEET_AXIS_DOMINANCE',
   'setPointerCapture',
   'const requestClose = useCallback',
