@@ -30,6 +30,14 @@ for (const root of ['scripts', 'server/test', 'server/src', 'tests/browser']) {
   }
 }
 
+update('src/styles/facility-group-card-grid.css', (source) => source.replace(
+  '$' + '{anchor}',
+  `.facility-group-card > * {
+  min-width: 0;
+  margin-inline: 0;
+}`,
+));
+
 update('src/styles/production-methods.css', (source) => source.replace(
   /\n\.facility-production-method-summary \{[\s\S]*?\n\}\n\n\.facility-production-method-summary span \{[\s\S]*?\n\}\n?/,
   '\n',
@@ -53,6 +61,10 @@ update('scripts/verify-production-methods.mjs', (source) => {
     );
   return source;
 });
+
+for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
+  if (read(path).includes('$' + '{')) throw new Error(`${path}: unresolved generated placeholder`);
+}
 
 unlinkSync('scripts/apply-live-staffing-settlement-v3.mjs');
 console.log('Updated version 25 and production method guards.');
