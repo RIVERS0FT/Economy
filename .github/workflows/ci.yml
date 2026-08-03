@@ -41,6 +41,14 @@ jobs:
           node scripts/apply-live-staffing-settlement.mjs
           node scripts/apply-live-staffing-settlement-v2.mjs
 
+      - name: Stage removed helpers for repository validation
+        run: |
+          git add -u -- \
+            scripts/prepare-live-staffing-helper.mjs \
+            scripts/apply-live-staffing-settlement.mjs \
+            scripts/apply-live-staffing-settlement-v2.mjs \
+            .github/workflows/apply-live-staffing-settlement.yml
+
       - name: Install dependencies
         run: npm ci
 
