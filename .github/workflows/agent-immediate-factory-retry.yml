@@ -68,7 +68,8 @@ jobs:
           path = Path('/tmp/apply-immediate-factory.mjs')
           source = path.read_text()
           old = "replaceExact(runtime, '  group.pendingJoinCount = 0;\\n', '', 2);"
-          new = "replaceExact(runtime, '  group.pendingJoinCount = 0;\\n', '', 3);"
+          new = """replaceExact(runtime, '  group.participatingCount = 0;\\n  group.pendingJoinCount = 0;\\n', '  group.participatingCount = 0;\\n');
+          replaceExact(runtime, '  group.participatingCount = count;\\n  group.pendingJoinCount = 0;\\n', '  group.participatingCount = count;\\n');"""
           if source.count(old) != 1:
               raise SystemExit(f'expected one pendingJoinCount cleanup assertion, found {source.count(old)}')
           path.write_text(source.replace(old, new))
