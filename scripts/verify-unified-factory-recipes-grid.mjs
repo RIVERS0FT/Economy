@@ -200,6 +200,10 @@ for (const text of [
   'await expect(trigger).toBeFocused()',
   "page.locator('.workspace-dialog-layer')",
   'expect(navigationCovered).toBe(true)',
+  'for (const width of [320, 390, 430, 720])',
+  'expect(sheetBox.x).toBeCloseTo(0, 1)',
+  'expect(sheetBox.width).toBeCloseTo(width, 1)',
+  "expect(alignment.justifyContent).toBe('stretch')",
 ])
   assert.equal(facilitySheetBrowserTest.includes(text), true, `移动工厂详情浏览器回归缺少: ${text}`);
 
@@ -360,6 +364,10 @@ for (const text of [
   'min-height: 48px;',
   '@media (prefers-reduced-motion: reduce)',
   '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
+  'grid-template-columns: minmax(0, 1fr);',
+  'justify-content: stretch;',
+  'justify-items: stretch;',
+  'justify-self: stretch;',
   '.workspace-dialog-layer > .ui-rich-select__listbox',
   '.facility-detail-sheet .facility-production-settings-grid',
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
@@ -467,6 +475,7 @@ for (const text of [
   '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
   '生产公式与单厂平均利润共同属于同一个“生产结算”容器',
   '移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层',
+  'Bottom Sheet 左边缘固定为视口 `x = 0`',
   '作业制度下方只显示周期、单周期产出和周期成本',
 ])
   assert.equal(industryDoc.includes(text), true, `产业设计缺少: ${text}`);
