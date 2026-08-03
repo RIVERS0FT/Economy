@@ -245,7 +245,7 @@ function createPlayer(user, now) {
     playerName: String(user.name || user.email?.split('@')[0] || '新玩家').trim().slice(0, 32) || '新玩家',
     registeredAt: now,
     lastEconomicActivityAt: now,
-    credits: 100,
+    credits: 500,
     frozenCredits: 0,
     inventories: createInventories(),
     inventoryCapacity: ECONOMY_CONSTANTS.defaultInventoryCapacity,
@@ -279,7 +279,7 @@ function createPlayer(user, now) {
       bankFacilitiesSeized: 0,
     },
   };
-  addLedger(player, 'system', 100, '服务器发放玩家启动资金', now);
+  addLedger(player, 'system', 500, '服务器发放玩家启动资金', now);
   return player;
 }
 
@@ -1140,14 +1140,14 @@ export function applyAction(world, user, action, payload = {}, now = Date.now())
     case 'work': return work(world, userId, now);
     case 'buildFacility': return buildFacility(world, userId, payload, now);
     case 'startFacility': return startFacility(world, userId, payload, now);
-    case 'pauseFacility': return pauseFacility(world, userId, payload, now);
+    case 'pauseFacility': return pauseFacility(world, userId, payload);
     case 'collectFacility': return collectFacility(world, userId, payload, now);
     case 'listFacility': return listFacility(world, userId, payload, now);
-    case 'cancelFacilityListing': return cancelFacilityListing(world, userId, payload, now);
+    case 'cancelFacilityListing': return cancelFacilityListing(world, userId, payload);
     case 'buyFacility': return buyFacility(world, userId, payload, now);
     case 'placeOrder': return placeOrder(world, userId, payload, now);
-    case 'cancelOrder': return cancelOrder(world, userId, payload, now);
-    case 'renamePlayer': return renamePlayer(world, userId, payload, now);
+    case 'cancelOrder': return cancelOrder(world, userId, payload);
+    case 'renamePlayer': return renamePlayer(world, userId, payload);
     default: return result(false, '不支持的游戏操作');
   }
 }
