@@ -1140,14 +1140,14 @@ export function applyAction(world, user, action, payload = {}, now = Date.now())
     case 'work': return work(world, userId, now);
     case 'buildFacility': return buildFacility(world, userId, payload, now);
     case 'startFacility': return startFacility(world, userId, payload, now);
-    case 'pauseFacility': return pauseFacility(world, userId, payload);
+    case 'pauseFacility': return pauseFacility(world, userId, payload, now);
     case 'collectFacility': return collectFacility(world, userId, payload, now);
     case 'listFacility': return listFacility(world, userId, payload, now);
-    case 'cancelFacilityListing': return cancelFacilityListing(world, userId, payload);
+    case 'cancelFacilityListing': return cancelFacilityListing(world, userId, payload, now);
     case 'buyFacility': return buyFacility(world, userId, payload, now);
     case 'placeOrder': return placeOrder(world, userId, payload, now);
-    case 'cancelOrder': return cancelOrder(world, userId, payload);
-    case 'renamePlayer': return renamePlayer(world, userId, payload);
+    case 'cancelOrder': return cancelOrder(world, userId, payload, now);
+    case 'renamePlayer': return renamePlayer(world, userId, payload, now);
     default: return result(false, '不支持的游戏操作');
   }
 }
