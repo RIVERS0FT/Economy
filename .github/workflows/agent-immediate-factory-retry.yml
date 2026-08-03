@@ -1,0 +1,94 @@
+name: Retry immediate factory implementation
+
+on:
+  push:
+    branches:
+      - agent/immediate-factory-participation
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-immediate-factory-retry
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[agent-final]') && !contains(github.event.head_commit.message, '[agent-diagnostic]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/immediate-factory-participation
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply, verify and publish
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          : > /tmp/immediate-factory-run.log
+          report_failure() {
+            local status=$?
+            trap - ERR
+            set +e
+            local failed_command="${BASH_COMMAND}"
+            git reset --hard HEAD
+            mkdir -p .agent
+            {
+              echo "exit_status=${status}"
+              echo "failed_command=${failed_command}"
+              echo
+              tail -c 100000 /tmp/immediate-factory-run.log
+            } > .agent/immediate-factory-error.txt
+            git config user.name "RIVERS0FT Automation"
+            git config user.email "actions@users.noreply.github.com"
+            git add -- .agent/immediate-factory-error.txt
+            git commit -m "chore: capture immediate factory implementation failure [agent-diagnostic]"
+            git push origin HEAD:agent/immediate-factory-participation
+            exit "${status}"
+          }
+          exec > >(tee -a /tmp/immediate-factory-run.log) 2>&1
+          trap report_failure ERR
+
+          npm ci
+          awk '/<<'\''AGENT_PATCH'\''/{capture=1;next} capture && /^[[:space:]]*AGENT_PATCH[[:space:]]*$/{exit} capture{print}' \
+            .github/workflows/agent-immediate-factory.yml > /tmp/apply-immediate-factory.mjs.gz.b64
+          base64 --decode /tmp/apply-immediate-factory.mjs.gz.b64 | gzip --decompress > /tmp/apply-immediate-factory.mjs
+          node --check /tmp/apply-immediate-factory.mjs
+          node /tmp/apply-immediate-factory.mjs
+          git diff --check
+          git diff --name-only | sort > /tmp/expected-changed-paths
+          test -s /tmp/expected-changed-paths
+
+          node --test \
+            server/test/facility-groups.test.js \
+            server/test/listed-factory-production.test.js \
+            server/test/production-methods.test.js \
+            server/test/asset-auctions.test.js
+          node scripts/verify-facility-groups.mjs
+          node scripts/verify-production-methods.mjs
+          node scripts/verify-unified-factory-recipes-grid.mjs
+          npm run build
+          npx playwright install --with-deps chromium
+          npm run test:browser
+
+          git diff --check
+          git diff --name-only | sort > /tmp/actual-changed-paths
+          diff -u /tmp/expected-changed-paths /tmp/actual-changed-paths
+          test -z "$(git ls-files --others --exclude-standard)"
+          mapfile -t changed_paths < /tmp/actual-changed-paths
+          test "${#changed_paths[@]}" -gt 0
+          git config user.name "RIVERS0FT Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- "${changed_paths[@]}"
+          git status --short
+          git commit -m "feat: make factory participation and configuration immediate [agent-final]"
+          git push origin HEAD:agent/immediate-factory-participation
