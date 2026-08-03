@@ -42,11 +42,22 @@ jobs:
           end = workflow.index('\n      - name: Check patch formatting', start)
           block = workflow[start:end]
           lines = []
+          in_triple = False
           for line in block.splitlines():
-              if line.startswith('          '):
-                  lines.append(line[10:])
-              else:
-                  lines.append(line)
+              has_triple = "'''" in line or '"""' in line
+              if in_triple:
+                  if has_triple:
+                      lines.append(line[10:] if line.startswith('          ') else line)
+                      in_triple = False
+                  else:
+                      lines.append(line)
+                  continue
+              normalized = line[10:] if line.startswith('          ') else line
+              lines.append(normalized)
+              if has_triple and normalized.count("'''") % 2 == 1:
+                  in_triple = True
+              elif has_triple and normalized.count('"""') % 2 == 1:
+                  in_triple = True
           Path('/tmp/apply-mobile-market-layout.sh').write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
           bash /tmp/apply-mobile-market-layout.sh
