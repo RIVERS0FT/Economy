@@ -113,6 +113,13 @@ jobs:
           if source.count(formula_old) != 1:
               raise SystemExit(f'expected one formula scope assertion, found {source.count(formula_old)}')
           source = source.replace(formula_old, formula_new)
+
+          harness_old = "replaceExact(harness, '      pendingJoinCount: 0,\\n', '');"
+          harness_new = "replaceExact(harness, '      pendingJoinCount: 0,\\n', '', 3);"
+          if source.count(harness_old) != 1:
+              raise SystemExit(f'expected one harness pendingJoinCount assertion, found {source.count(harness_old)}')
+          source = source.replace(harness_old, harness_new)
+
           path.write_text(source)
           PY
           node --check /tmp/apply-immediate-factory.mjs
