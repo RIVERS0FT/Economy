@@ -10,9 +10,9 @@ replacements = [
         '产业设计旧规则替换基线',
     ),
     (
-        "  'expect(box.x + box.width).toBeLessThanOrEqual(390)',",
-        "  'expect(box.x + box.width).toBeLessThanOrEqual(width)',",
-        '移动下拉框宽度验证基线',
+        "require(group_css, '.facility-production-settings-grid')",
+        "replace_once(\n    verifier,\n    \"  'expect(box.x + box.width).toBeLessThanOrEqual(390)',\",\n    \"  'expect(box.x + box.width).toBeLessThanOrEqual(width)',\",\n)\n\nrequire(group_css, '.facility-production-settings-grid')",
+        '移动下拉框宽度验证补丁入口',
     ),
 ]
 
