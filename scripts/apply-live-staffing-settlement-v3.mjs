@@ -62,9 +62,20 @@ update('scripts/verify-production-methods.mjs', (source) => {
   return source;
 });
 
-update('scripts/verify-unified-factory-recipes-grid.mjs', (source) => source.replace(
-  "  '<FacilityStaffingSummary entry={entry} />',",
-  "  '<FacilityStaffingSummary entry={entry} now={now} />',",
+update('scripts/verify-unified-factory-recipes-grid.mjs', (source) => source
+  .replace(
+    "  '<FacilityStaffingSummary entry={entry} />',",
+    "  '<FacilityStaffingSummary entry={entry} now={now} />',",
+  )
+  .replace("  'facility-formula-scope',\n", '')
+  .replace(
+    "  'facility-formula-next-cycle',\n",
+    "  'facility-formula-next-cycle',\n  'facility-formula-scope',\n",
+  ));
+
+update('scripts/verify-warehouse-expansion.mjs', (source) => source.replaceAll(
+  "  'facility-formula-scope',\n",
+  '',
 ));
 
 for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
