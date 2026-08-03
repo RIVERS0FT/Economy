@@ -13,7 +13,7 @@ if (!original.includes(readDefinition)) {
 const aggregatedReadDefinition = `const read = (path) => {
   const content = readFileSync(resolve(root, path), 'utf8');
   if (path === 'server/test/domain.test.js') {
-    return content + '\n' + readFileSync(resolve(root, 'server/test/asset-events.test.js'), 'utf8');
+    return content + '\\n' + readFileSync(resolve(root, 'server/test/asset-events.test.js'), 'utf8');
   }
   return content;
 };`;
