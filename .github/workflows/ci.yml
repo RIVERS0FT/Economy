@@ -34,12 +34,14 @@ jobs:
           node --check scripts/prepare-live-staffing-helper.mjs
           node --check scripts/apply-live-staffing-settlement.mjs
           node --check scripts/apply-live-staffing-settlement-v2.mjs
+          node --check scripts/apply-live-staffing-settlement-v3.mjs
 
       - name: Apply migration
         run: |
           node scripts/prepare-live-staffing-helper.mjs
           node scripts/apply-live-staffing-settlement.mjs
           node scripts/apply-live-staffing-settlement-v2.mjs
+          node scripts/apply-live-staffing-settlement-v3.mjs
 
       - name: Stage removed helpers for repository validation
         run: |
@@ -47,6 +49,7 @@ jobs:
             scripts/prepare-live-staffing-helper.mjs \
             scripts/apply-live-staffing-settlement.mjs \
             scripts/apply-live-staffing-settlement-v2.mjs \
+            scripts/apply-live-staffing-settlement-v3.mjs \
             .github/workflows/apply-live-staffing-settlement.yml
 
       - name: Install dependencies
