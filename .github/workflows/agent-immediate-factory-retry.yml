@@ -191,6 +191,25 @@ jobs:
             '  assert.equal(farm.lifetimeOutput, 4);\n',
             '  assert.equal(player.facilityGroups[0].lifetimeOutput, 4);\n',
           );
+          replaceExact(
+            detail,
+            `        <div className="facility-production-settings-heading">
+            <strong>生产设置</strong>
+          </div>
+          `,
+            `        <div className="facility-production-settings-heading">
+            <strong>生产设置</strong>
+            <small className="facility-recipe-status">
+              配置切换结果会提示“生产进度已清零”，并同步降低满员率。
+            </small>
+          </div>
+          `,
+          );
+          replaceExact(
+            industryDoc,
+            '- 运行中切换生产产物或作业制度立即写入新的 `activeRecipeId`；动作时间点之前已经完成的完整周期先正常结算，未完成周期不扣费、不耗料、不产出。\n',
+            '- 生产配置切换立即写入 `activeRecipeId`，生产进度立即清零，并在同一次原子动作中降低满员率。\n- 运行中切换生产产物或作业制度立即写入新的 `activeRecipeId`；动作时间点之前已经完成的完整周期先正常结算，未完成周期不扣费、不耗料、不产出。\n',
+          );
 
           """
           source = source.replace(marker, extra + marker)
