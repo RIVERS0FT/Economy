@@ -53,6 +53,8 @@ forbidText(marketPage, '当前没有可出售的', '市场不得恢复独立无�
 forbidText(marketPage, '当前最多可卖', '市场不得恢复常驻最大可卖说明。');
 requireText(marketPage, 'order-entry market-trade-entry', '交易卡必须保留下单区语义。');
 requireText(marketPage, 'order-book single-order-book market-trade-book', '交易卡必须保留订单簿语义。');
+forbidText(marketPage, 'compactTradeView', '市场不得恢复下单／盘口本地切换状态。');
+forbidText(marketPage, 'market-compact-view-switch', '市场不得恢复下单／盘口切换控件。');
 forbidText(marketPage, '<Panel className="widget order-entry">', '下单区不得恢复为独立一级卡片。');
 forbidText(marketPage, '<Panel className="widget order-book single-order-book">', '订单簿不得恢复为独立一级卡片。');
 requireText(marketPage, 'ownSelectedOrders.length > 0 ? (', '当前资产快捷撤单列表必须只在存在未完成订单时显示。');
@@ -65,14 +67,17 @@ requireText(marketPage, '数量减少 1', '数量步进必须按 1 向下调整�
 requireText(marketPage, '数量增加 1', '数量步进必须按 1 向上调整。');
 requireText(marketStyles, 'grid-template-columns: minmax(320px, 3fr) minmax(240px, 2fr);', '交易卡桌面内部必须使用下单区 60%、订单簿 40% 的双列结构。');
 requireText(marketStyles, '@container market-page (max-width: 819px)', '交易卡必须定义常见移动宽度响应式断点。');
-requireText(marketStyles, 'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);', '340px 至 819px 交易卡必须保持约 66%／34% 的下单与盘口同排结构。');
-requireText(marketStyles, '@container market-page (max-width: 339px)', '超窄交易卡必须定义下单／盘口切换断点。');
-requireText(marketStyles, '.market-compact-view-switch', '超窄交易卡必须提供下单／盘口切换控件。');
-requireText(marketStyles, 'border-left: 0;', '超窄交易卡堆叠时必须移除订单簿竖分隔。');
+requireText(marketStyles, 'grid-template-columns: minmax(0, 3fr) minmax(112px, 2fr);', '不大于 819px 的交易卡必须保持约 60%／40% 的下单与盘口同排结构。');
+requireText(marketStyles, '@container market-page (max-width: 359px)', '极窄交易卡必须压缩内部控件而不是隐藏盘口。');
+requireText(marketStyles, 'grid-template-columns: 24px minmax(0, 1fr) 34px;', '极窄盘口必须使用紧凑三列。');
+requireText(marketStyles, 'min-height: 44px;', '极窄盘口档位必须保持移动触控高度。');
+forbidText(marketStyles, '@container market-page (max-width: 339px)', '市场不得恢复超窄下单／盘口切换断点。');
 requireText(marketDesign, '市场下单表单与同资产五档订单簿必须位于同一个一级“{资产}交易”卡片内', '统一订单簿权威设计必须记录合并交易卡规则。');
+requireText(marketDesign, '不大于 `720px` 的移动端始终同时显示下单区和五档盘口', '权威设计必须记录移动端永久双列规则。');
 requireText(runtimeSpec, 'market desktop layout keeps order entry and order book in one trade card beside the chart', 'Playwright 必须覆盖宽屏合并交易卡布局。');
 requireText(runtimeSpec, 'market medium and narrow layouts keep the trade card responsive without horizontal overflow', 'Playwright 必须覆盖中窄宽度交易卡响应式布局。');
-requireText(runtimeSpec, 'width: 320', 'Playwright 必须覆盖超窄下单／盘口切换。');
+requireText(runtimeSpec, 'width: 320', 'Playwright 必须覆盖 320px 永久双列。');
+requireText(runtimeSpec, "name: '盘口', exact: true })).toHaveCount(0)", 'Playwright 必须验证移动端不再存在下单／盘口切换。');
 forbidText(marketStyles, '.chart-footer', '行情图下方统计栏及其两列布局必须删除。');
 requireText(chartStyles, 'font-variant-numeric: tabular-nums;', '行情坐标轴必须使用稳定数字宽度。');
 requireText(marketStyles, '.asset-directory-shell {\n    position: relative;\n    z-index: 0;', '移动市场资产目录必须建立局部堆叠上下文，防止 sticky 分组遮挡状态栏。');
@@ -216,4 +221,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('市场页布局、商品固定尺寸与工厂满幅插画、紧凑步进下单、连续五档盘口、移动并排与超窄切换、资产目录轨道、ECharts 动态行情几何及浏览器回归基线验证通过。');
+console.log('市场页布局、商品固定尺寸与工厂满幅插画、紧凑步进下单、连续五档盘口、移动端永久双列与极窄控件压缩、资产目录轨道、ECharts 动态行情几何及浏览器回归基线验证通过。');

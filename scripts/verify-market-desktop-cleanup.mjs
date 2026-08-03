@@ -27,7 +27,6 @@ requireText(
 );
 requireText(styles, '@media (min-width: 721px)', '桌面精简规则必须严格限定在大于 720px。');
 for (const selector of [
-  '.market-page-surface .market-compact-view-switch',
   '.market-page-surface .market-account-view-switch',
   '.market-page-surface .market-trade-section-heading small',
   '.market-page-surface .order-book-columns',
@@ -37,12 +36,9 @@ for (const selector of [
 }
 requireText(styles, 'display: none !important;', '桌面辅助元素必须使用最终覆盖优先级隐藏。');
 requireText(styles, 'visibility: hidden !important;', '桌面最新成交分隔必须视觉隐藏并保留既有几何兼容。');
-requireText(styles, '@container market-page (max-width: 339px)', '桌面超窄内容必须覆盖移动分段切换隐藏规则。');
-requireText(styles, 'display: block !important;', '桌面超窄内容必须同时显示下单区和订单簿。');
 forbidText(styles, '@media (max-width: 720px)', '桌面精简样式不得改写移动端规则。');
 
 for (const text of [
-  'className="market-compact-view-switch ui-segmented"',
   'className="market-account-view-switch ui-segmented"',
   '<small>实时五档 · 点击填价</small>',
   'className="order-book-columns"',
@@ -51,13 +47,13 @@ for (const text of [
   requireText(marketPage, text, `移动端复用的现有 DOM 不得删除：${text}`);
 }
 
-requireText(design, '大于 `720px` 时隐藏交易卡“下单／盘口”', '权威设计必须记录桌面隐藏辅助切换。');
-requireText(design, '同时隐藏订单簿表头、最新成交分隔和“实时五档 · 点击填价”辅助文案', '权威设计必须记录桌面订单簿精简范围。');
-requireText(design, '不大于 `720px` 时账户记录使用“挂单／成交”切换', '权威设计必须保留移动端挂单／成交切换。');
-requireText(design, '浏览器视口不大于 `720px`', '权威设计必须把超窄下单／盘口切换限定在移动端。');
+requireText(design, '不大于 720px 的移动端保留上述表头和最新成交分隔', '权威设计必须保留移动盘口表头与最新成交行。');
+requireText(design, '不大于 `720px` 的移动端始终同时显示下单区和五档盘口', '权威设计必须记录移动端永久双列。');
+requireText(design, '桌面端不显示该账户视图切换', '权威设计必须保留桌面账户区域精简。');
+forbidText(marketPage, 'market-compact-view-switch', '市场页面不得恢复下单／盘口切换 DOM。');
 
 requireText(browserSpec, 'desktop market hides auxiliary trade switches and order-book rows', '浏览器测试必须覆盖桌面精简。');
-requireText(browserSpec, 'mobile market keeps existing switches, order-book header and latest-trade row', '浏览器测试必须覆盖移动端不变。');
+requireText(browserSpec, 'mobile market keeps order-book details and side-by-side trade panels', '浏览器测试必须覆盖移动端盘口信息与永久双列。');
 requireText(browserSpec, "locator('.order-book-midpoint')).toBeHidden()", '浏览器测试必须验证桌面隐藏最新成交分隔。');
 requireText(browserSpec, "locator('.order-book-midpoint')).toBeVisible()", '浏览器测试必须验证移动端保留最新成交分隔。');
 requireText(browserSpec, "name: '盘口'", '浏览器测试必须验证移动端下单／盘口切换仍可操作。');
@@ -69,4 +65,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('桌面市场辅助切换、盘口表头、最新成交分隔与说明文案已隐藏；移动端既有交互保持不变。');
+console.log('桌面市场盘口表头、最新成交分隔与说明文案已隐藏；移动端保留盘口信息并永久双列显示下单与盘口。');
