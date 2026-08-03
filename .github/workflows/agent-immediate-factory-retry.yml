@@ -149,6 +149,7 @@ jobs:
             const group = account ? groupFor(account, typeId) : null;
             const normalizedQuantity = normalizePositiveInteger(quantity, MAX_FACILITY_AUCTION_QUANTITY);
             if (!group || !normalizedQuantity) return result(false, '拍卖工厂不存在');
+            delete group.pendingJoinCount;
             const currentAvailable = availableGroupCount(world, account, group);
             const previousAvailable = assumeReserved
               ? Math.max(0, currentAvailable - normalizedQuantity)
