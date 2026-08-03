@@ -58,13 +58,18 @@ jobs:
           exec > >(tee -a /tmp/immediate-factory-run.log) 2>&1
           trap report_failure ERR
 
-          git rm --ignore-unmatch -- .agent/immediate-factory-error.txt
+          cp .agent/immediate-factory-overlays.py /tmp/immediate-factory-overlays.py
+          cp .agent/immediate-factory-market-overlays.py /tmp/immediate-factory-market-overlays.py
+          git rm --ignore-unmatch -- \
+            .agent/immediate-factory-error.txt \
+            .agent/immediate-factory-overlays.py \
+            .agent/immediate-factory-market-overlays.py
           npm ci
           awk '/<<'\''AGENT_PATCH'\''/{capture=1;next} capture && /^[[:space:]]*AGENT_PATCH[[:space:]]*$/{exit} capture{print}' \
             .github/workflows/agent-immediate-factory.yml > /tmp/apply-immediate-factory.mjs.gz.b64
           base64 --decode /tmp/apply-immediate-factory.mjs.gz.b64 | gzip --decompress > /tmp/apply-immediate-factory.mjs
-          python .agent/immediate-factory-overlays.py /tmp/apply-immediate-factory.mjs
-          python .agent/immediate-factory-market-overlays.py /tmp/apply-immediate-factory.mjs
+          python /tmp/immediate-factory-overlays.py /tmp/apply-immediate-factory.mjs
+          python /tmp/immediate-factory-market-overlays.py /tmp/apply-immediate-factory.mjs
           node --check /tmp/apply-immediate-factory.mjs
           node /tmp/apply-immediate-factory.mjs
           git diff --check
