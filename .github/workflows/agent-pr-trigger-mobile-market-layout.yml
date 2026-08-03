@@ -109,7 +109,14 @@ jobs:
           count = runtime_text.count(old_ratio)
           if count != 1:
               raise SystemExit(f'market runtime expected one old narrow ratio block, found {count}')
-          runtime_path.write_text(runtime_text.replace(old_ratio, new_ratio, 1), encoding='utf-8')
+          runtime_text = runtime_text.replace(old_ratio, new_ratio, 1)
+
+          old_price_assertion = "await expect.poll(async () => Number(await page.getByRole('spinbutton', { name: '价格' }).inputValue())).toBe(expectedPrice);"
+          new_price_assertion = "await expect.poll(async () => Number(await page.getByRole('textbox', { name: '价格' }).inputValue())).toBe(expectedPrice);"
+          count = runtime_text.count(old_price_assertion)
+          if count != 1:
+              raise SystemExit(f'market runtime expected one money-input price assertion, found {count}')
+          runtime_path.write_text(runtime_text.replace(old_price_assertion, new_price_assertion, 1), encoding='utf-8')
           PY
 
       - name: Check patch formatting
@@ -129,6 +136,9 @@ jobs:
 
       - name: Run complete build
         run: npm run build
+
+      - name: Run focused mobile market regression
+        run: npx playwright test tests/browser/market-runtime.spec.ts -g "market medium and narrow layouts keep the trade card responsive without horizontal overflow"
 
       - name: Run browser regression suite
         run: npm run test:browser
