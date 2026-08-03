@@ -150,6 +150,7 @@ test('selling to a reserve transfers reserve funds and does not count as consump
   const buyOrder = liquidityOrders(world, 'food', 'wheat')
     .find((order) => order.demandTier === 'liquidity-buy' && order.remaining > 0);
   assert.ok(buyOrder);
+  const creditsBefore = player.credits;
   const inventoryBefore = world.marketDemand.liquidity.groups.food.reserves.wheat.inventory;
   const totalFundsBefore = world.marketDemand.liquidity.groups.food.credits
     + world.marketDemand.liquidity.groups.food.frozenCredits;
@@ -168,7 +169,7 @@ test('selling to a reserve transfers reserve funds and does not count as consump
   assert.equal(world.players[String(alice.id)].stats.populationIssued, issuedBefore);
   const playerSellOrder = world.orders.find((order) => order.ownerType === 'player' && order.side === 'sell' && order.productId === 'wheat');
   assert.ok(playerSellOrder?.fills?.length);
-  assert.equal(world.players[String(alice.id)].credits, Number((100 + playerSellOrder.fills.at(-1).netTotal).toFixed(6)));
+  assert.equal(world.players[String(alice.id)].credits, Number((creditsBefore + playerSellOrder.fills.at(-1).netTotal).toFixed(6)));
 });
 
 test('buying from a reserve transfers real inventory and returns credits to the reserve', () => {
