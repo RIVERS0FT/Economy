@@ -62,6 +62,47 @@ jobs:
           PY
           bash /tmp/apply-mobile-market-layout.sh
 
+      - name: Update compact order-entry verifier
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/verify-market-order-entry-compact.mjs')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  "  'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);',",
+                  "  'grid-template-columns: minmax(0, 3fr) minmax(112px, 2fr);',\n  '@container market-page (max-width: 359px)',\n  'grid-template-columns: 24px minmax(0, 1fr) 34px;',",
+              ),
+              (
+                  "  '约 66%／34%',",
+                  "  '不大于 `720px` 的移动端始终同时显示下单区和五档盘口',\n  '盘口保留不小于 112px 的可读宽度',",
+              ),
+              (
+                  "forbidText(pagePath, 'market-order-details');",
+                  "forbidText(pagePath, 'market-order-details');\nforbidText(pagePath, 'compactTradeView');\nforbidText(pagePath, 'market-compact-view-switch');",
+              ),
+              (
+                  "forbidText(stylePath, '.market-order-details');",
+                  "forbidText(stylePath, '.market-order-details');\nforbidText(stylePath, '@container market-page (max-width: 339px)');\nforbidText(stylePath, 'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);');",
+              ),
+              (
+                  "console.log('市场同行标签、内嵌步进按钮稳定定位、聚焦金额滚轮、详情移除和订单簿宽度验证通过。');",
+                  "console.log('市场同行标签、内嵌步进按钮稳定定位、聚焦金额滚轮、详情移除、移动端永久双列和极窄盘口验证通过。');",
+              ),
+          ]
+
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'compact verifier expected one match, found {count}: {old}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Check patch formatting
         run: git diff --check
 
@@ -75,6 +116,7 @@ jobs:
         run: |
           node scripts/verify-market-page-layout.mjs
           npm run verify:market-desktop-cleanup
+          node scripts/verify-market-order-entry-compact.mjs
 
       - name: Run complete build
         run: npm run build
@@ -98,6 +140,7 @@ jobs:
             src/styles/market-desktop-cleanup.css \
             scripts/verify-market-page-layout.mjs \
             scripts/verify-market-desktop-cleanup.mjs \
+            scripts/verify-market-order-entry-compact.mjs \
             tests/browser/market-runtime.spec.ts \
             tests/browser/market-desktop-cleanup.spec.ts \
             .github/workflows/agent-apply-mobile-market-layout.yml \
