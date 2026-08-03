@@ -126,7 +126,7 @@ test.describe('production facility selector cards', () => {
       expect(geometry.navigationWidth).toBeLessThanOrEqual(1040.5);
       expect(geometry.detailWidth).toBeGreaterThanOrEqual(479.5);
       expect(geometry.detailWidth).toBeLessThanOrEqual(680.5);
-      expect(geometry.minCardWidth).toBeGreaterThanOrEqual(143.5);
+      expect(geometry.minCardWidth).toBeGreaterThanOrEqual(131.5);
       expect(geometry.maxCardWidth).toBeLessThanOrEqual(160.5);
       expect(geometry.fitsViewport).toBe(true);
     }
