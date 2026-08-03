@@ -139,14 +139,8 @@
     overscroll-behavior-x: none;
     overscroll-behavior-y: auto;
     touch-action: pan-y;
-    padding: var(--space-2) calc(var(--space-3) + var(--scrollbar-hit-size)) var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-3);
     container-type: inline-size;
-  }
-
-  .facility-detail-sheet-scroll-area > .ui-scrollbar--vertical {
-    top: var(--scrollbar-edge-offset);
-    right: var(--scrollbar-edge-offset);
-    bottom: var(--scrollbar-edge-offset);
   }
 
   .facility-detail-sheet .facility-production-settings-grid {

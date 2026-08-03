@@ -45,7 +45,7 @@
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、统一导航角标与可访问状态 |
-| `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面视口安全边缘轨道 |
+| `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面／根级 Dialog 安全边缘轨道 |
 | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
 | `src/styles/liquid-glass-surfaces.css` | 正式状态栏与移动底栏玻璃宿主、材质适配和结构描边 |
 | `src/styles/liquid-glass-chrome.css` | 仅供浏览器运行时 harness 使用的固定样式聚合兼容入口，不是第二套材质 |
@@ -311,6 +311,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 
 - `src/components/ui/ScrollArea.tsx` 是应用内覆盖式滚动区域的唯一共享组件，`src/hooks/useOverlayScrollbar.ts` 是尺寸、位置、拖动、轨道翻页、活动判断和双轴输入分派的唯一实现，`src/styles/scrollbars.css` 是滚动条视觉的唯一来源。
 - 原生滚动容器继续负责可访问滚动、触控惯性与浏览器滚动链；原生滚动条视觉在 `ScrollArea` 视口内隐藏，项目轨道覆盖在内容上方且不占布局空间。
+- 业务 `ScrollArea` 不得通过 `padding`、`margin` 或宽度计算预留 `--scrollbar-hit-size`；项目轨道必须覆盖在内容边缘，不得为轨道命中区制造永久空白。
 - 全局统一令牌为视觉宽度 `6px`、轨道命中尺寸 `14px`、透明滑块触控目标 `44px`、边缘偏移 `2px`、最小滑块 `44px`、鼠标空闲延迟 `1200ms`、触控纵向空闲延迟 `1600ms`、淡入淡出 `120ms`。横轴、纵轴、鼠标和触控不得定义第二套尺寸。
 - 当前输入方式由最近一次有效输入动态决定：鼠标或触控板为 `mouse`，手指或笔为 `touch`，键盘为 `keyboard`；`pointer: coarse` 只决定首次默认值。混合输入设备必须在运行时切换，不得只按视口宽度判断。
 - 鼠标模式下，横纵轨道在悬停、键盘聚焦、实际滚动、滑块拖动或轨道操作时显示；离开且空闲后隐藏。滑块必须使用 pointer capture，拖动写入通过 `requestAnimationFrame` 合并，指针离开轨道后仍连续工作。
@@ -324,6 +325,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 双轴轨道同时存在时纵向轨道 `z-index` 更高，水平轨道在右侧避让纵向命中区，不绘制额外右下角块。触控模式隐藏横向轨道后不得留下空白或命中区域。
 - 不得使用 `overscroll-behavior: contain` 阻断纵向滚动链；只有明确的横向视口可以使用 `overscroll-behavior-x: contain`，并保持 `overscroll-behavior-y: auto`。
 - 移动页面纵向轨道固定到视口安全边缘：仅 `.page-scroll-area > .ui-scrollbar--vertical` 在不大于 `720px` 时使用 `position: fixed`，右侧使用 `right: env(safe-area-inset-right, 0px)`。固定的只有覆盖式轨道，工作区和卡片宽度不得改变。
+- 移动根级 Dialog 内与视口同宽的纵向轨道保持内容区内的绝对定位，但右侧安全边缘和滑块可见偏移必须与移动页面轨道一致；轨道与滑块几何只允许在 `scrollbars.css` 定义，业务 CSS 不得重写 `right`、`left`、宽度或颜色。
 - 市场商品与工厂资产目录必须支持无级滑动：不得使用 `scroll-snap-type`、`scroll-snap-align` 或容器级 `scroll-behavior: smooth`。手动滑动与滑块拖动使用即时连续位置，只有左右浏览按钮和明确的程序化定位可以显式使用平滑滚动。
 - 本地成交记录必须使用单一双轴原生视口的 `VirtualRecordTable`；表头与虚拟数据共享同一个 `scrollLeft`，数据单元格本身必须能作为横向触控起点，不得恢复“外层横向 + 内层纵向”的正交嵌套视口。
 - 滚动过程中不得用 React state 更新滑块位置；使用 ref、CSS transform、`requestAnimationFrame` 和 `ResizeObserver`。滑块保留 `role="scrollbar"`、方向和范围语义，支持拖动、轨道翻页与键盘控制。
@@ -531,6 +533,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 对高增长记录恢复全量 `.map()` DOM 渲染，或用分页、截断替代 `VirtualList`；
 - 恢复会阻断纵向滚动链的 `overscroll-behavior: contain` 或其他双轴越界隔离；
 - 为页面、侧栏或业务表格复制滚动条宽度、颜色、计时器或活动判断；
+- 为业务 `ScrollArea` 按 `--scrollbar-hit-size` 预留内容空白、在业务 CSS 重写轨道或滑块几何，或让移动根级 Dialog 纵向轨道偏离页面安全边缘；
 - 隐藏存在横向溢出的水平滚动条，把普通纵向滚轮转换为水平滚动，或让水平轨道覆盖纵向轨道；
 - 把移动页面纵向轨道重新限制在工作区或卡片右边缘，恢复 `--mobile-scrollbar-edge-escape`／`translateX(...)` 逃逸实现，越过右侧安全区，或通过改变 viewport／卡片宽度实现贴边；
 - 使用 `.login-shell:focus-within` 或其他焦点选择器改变移动登录页标题字号、区块间距或整体对齐；
