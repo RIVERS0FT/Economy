@@ -1,0 +1,131 @@
+name: Trigger unified order-book cleanup
+
+on:
+  push:
+    branches:
+      - agent/unify-mobile-order-book-cleanup
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-unify-mobile-order-book-cleanup-push
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unify-mobile-order-book-cleanup
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Extract and apply approved changes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/agent-apply-unify-order-book-cleanup.yml').read_text(encoding='utf-8')
+          marker = '      - name: Apply approved order-book cleanup\n        shell: bash\n        run: |\n'
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index('\n      - name: Check patch formatting and scope', start)
+          block = workflow[start:end]
+          Path('/tmp/apply-order-book-cleanup.sh').write_text(textwrap.dedent(block) + '\n', encoding='utf-8')
+          PY
+          bash /tmp/apply-order-book-cleanup.sh
+
+      - name: Check patch formatting and scope
+        shell: bash
+        run: |
+          git diff --check
+          python3 <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          expected = {
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              'scripts/verify-market-assets.mjs',
+              'scripts/verify-market-desktop-cleanup.mjs',
+              'scripts/verify-market-order-entry-compact.mjs',
+              'scripts/verify-market-page-layout.mjs',
+              'scripts/verify-page-content.mjs',
+              'src/pages/MarketPage.tsx',
+              'src/styles/market-desktop-cleanup.css',
+              'src/styles/market-page-polish.css',
+              'tests/browser/market-desktop-cleanup.spec.ts',
+              'tests/browser/market-runtime.spec.ts',
+          }
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'unexpected changed paths: actual={sorted(changed)} expected={sorted(expected)}')
+          for path in ['src/pages/MarketPage.tsx', 'src/styles/market-page-polish.css', 'src/styles/market-desktop-cleanup.css']:
+              text = Path(path).read_text(encoding='utf-8')
+              for forbidden in ['order-book-columns', 'order-book-midpoint']:
+                  if forbidden in text:
+                      raise SystemExit(f'{path} still contains {forbidden}')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run market order-book gates
+        run: |
+          node scripts/verify-market-page-layout.mjs
+          npm run verify:market-desktop-cleanup
+          node scripts/verify-market-order-entry-compact.mjs
+          node --experimental-strip-types scripts/verify-market-assets.mjs
+          node scripts/verify-page-content.mjs
+
+      - name: Run focused order-book browser regression
+        run: >-
+          npx playwright test
+          tests/browser/market-desktop-cleanup.spec.ts
+          tests/browser/market-runtime.spec.ts
+          --grep "order-book|trade card responsive|market desktop layout|desktop market|mobile market"
+
+      - name: Run complete build
+        run: npm run build
+
+      - name: Run browser regression suite
+        run: npm run test:browser
+
+      - name: Commit verified source changes
+        shell: bash
+        run: |
+          rm .github/workflows/agent-apply-unify-order-book-cleanup.yml
+          rm .github/workflows/agent-push-trigger-unify-order-book-cleanup.yml
+          rm .github/agent-unify-order-book-trigger.txt
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            scripts/verify-market-assets.mjs \
+            scripts/verify-market-desktop-cleanup.mjs \
+            scripts/verify-market-order-entry-compact.mjs \
+            scripts/verify-market-page-layout.mjs \
+            scripts/verify-page-content.mjs \
+            src/pages/MarketPage.tsx \
+            src/styles/market-desktop-cleanup.css \
+            src/styles/market-page-polish.css \
+            tests/browser/market-desktop-cleanup.spec.ts \
+            tests/browser/market-runtime.spec.ts \
+            .github/workflows/agent-apply-unify-order-book-cleanup.yml \
+            .github/workflows/agent-push-trigger-unify-order-book-cleanup.yml \
+            .github/agent-unify-order-book-trigger.txt
+          git commit -m "feat: unify order book structure across viewports"
+          git push origin HEAD:agent/unify-mobile-order-book-cleanup
