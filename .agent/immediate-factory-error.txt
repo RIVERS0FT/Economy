@@ -9,7 +9,7 @@ added 133 packages, and audited 140 packages in 2s
   run `npm fund` for details
 
 found 0 vulnerabilities
-Updated 22 files:
+Updated 23 files:
 docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
 docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
 docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
@@ -17,6 +17,7 @@ docs/UI_DESIGN_SYSTEM.md
 docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
 scripts/verify-facility-groups.mjs
 scripts/verify-industry-catalog.mjs
+scripts/verify-market-assets.mjs
 scripts/verify-page-content.mjs
 scripts/verify-production-methods.mjs
 scripts/verify-unified-factory-recipes-grid.mjs
@@ -32,48 +33,48 @@ src/pages/production/ProductionFacilityDetail.tsx
 src/types.ts
 tests/browser/production-methods.spec.ts
 tests/browser/runtime-harness.tsx
-✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (32.687532ms)
-✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (11.515505ms)
-✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (29.711582ms)
-✔ 商品与工厂资产包整体冻结并原子成交 (10.224306ms)
-✔ 客户端只返回商品与工厂通用资产拍卖 (11.73836ms)
-✔ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (9.960149ms)
-✔ 世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录 (6.322892ms)
-✔ 发布费按较高计费基数计算并限制最低和最高金额 (0.224473ms)
-✔ 发布资金不足时不扣费也不冻结资产 (4.050245ms)
-✔ 未达隐藏保留价时退回最高报价和资产但不退发布费 (4.795583ms)
-✔ 结束前两分钟出价自动延时且累计不超过三十分钟 (5.803224ms)
-✔ 客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组 (10.886069ms)
-✔ 世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖 (14.530739ms)
-✔ 卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失 (5.070616ms)
-✔ factory buy and sell orders use price-time matching and partial fills (119.308994ms)
-✔ running factory sell order immediately reduces participating output (74.28639ms)
-✔ production increments produced goods statistics (49.872348ms)
-✔ production wage multiplier changes population wages without changing production cost and only affects the next cycle (47.230333ms)
-✔ electronics factory atomically consumes plastic and copper (31.27214ms)
-✔ electronics factory deducts no material when either input is missing (30.213407ms)
-✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (23.050828ms)
-✔ asset valuation uses the latest order-book trade and ignores open bid prices (36.178799ms)
-✔ factory automatically recovers after funds return (28.395477ms)
-✔ manual stop disables automatic recovery (27.201803ms)
-✔ running farm crop changes apply immediately with a staffing penalty and progress reset (30.950412ms)
-✔ legacy pending factory and recipe state migrates once into immediate participation (1.887263ms)
-✔ warehouse errors recover without backfilling missed cycles (46.97871ms)
-✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (36.659111ms)
-✔ legacy completed target plans migrate to a manual stop (1.967012ms)
-✔ legacy running target plans become continuous production (29.702308ms)
-✔ factory order books contain player orders only (22.845433ms)
-✔ empty factory order books stay empty after world processing (21.439855ms)
-✔ purchased factories join a running group immediately and dilute current-cycle staffing (33.001288ms)
-✔ stopped factory staffing decays linearly from its stored timestamp (6.667013ms)
-✔ running factory staffing locks each cycle and carries fractional capacity (25.65715ms)
-✔ error staffing decays and auto recovery starts from the reduced rate (34.079891ms)
-✔ cancelling a running factory sell order restores the quantity immediately and dilutes staffing (148.563192ms)
-✔ selling every participating factory puts the enabled group in error (53.929404ms)
-✔ every factory route exposes four balanced production methods (3.440961ms)
-✔ representative production method plans use the approved fixed-precision values (0.643996ms)
-✔ public client state keeps the legacy recipe list and exposes optional method metadata (23.923485ms)
-✔ running factory switches production method immediately with one staffing penalty (85.008441ms)
+✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (34.62442ms)
+✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (11.023528ms)
+✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (40.675983ms)
+✔ 商品与工厂资产包整体冻结并原子成交 (16.539198ms)
+✔ 客户端只返回商品与工厂通用资产拍卖 (18.044685ms)
+✔ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (11.503164ms)
+✔ 世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录 (13.617942ms)
+✔ 发布费按较高计费基数计算并限制最低和最高金额 (0.281437ms)
+✔ 发布资金不足时不扣费也不冻结资产 (15.429408ms)
+✔ 未达隐藏保留价时退回最高报价和资产但不退发布费 (7.36936ms)
+✔ 结束前两分钟出价自动延时且累计不超过三十分钟 (20.802967ms)
+✔ 客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组 (7.551851ms)
+✔ 世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖 (12.866736ms)
+✔ 卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失 (10.941487ms)
+✔ factory buy and sell orders use price-time matching and partial fills (218.56088ms)
+✔ running factory sell order immediately reduces participating output (80.518798ms)
+✔ production increments produced goods statistics (48.275534ms)
+✔ production wage multiplier changes population wages without changing production cost and only affects the next cycle (67.865661ms)
+✔ electronics factory atomically consumes plastic and copper (59.72632ms)
+✔ electronics factory deducts no material when either input is missing (28.451522ms)
+✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (23.003164ms)
+✔ asset valuation uses the latest order-book trade and ignores open bid prices (30.200498ms)
+✔ factory automatically recovers after funds return (31.319635ms)
+✔ manual stop disables automatic recovery (33.472905ms)
+✔ running farm crop changes apply immediately with a staffing penalty and progress reset (32.248373ms)
+✔ legacy pending factory and recipe state migrates once into immediate participation (2.049435ms)
+✔ warehouse errors recover without backfilling missed cycles (50.123772ms)
+✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (40.252832ms)
+✔ legacy completed target plans migrate to a manual stop (6.508549ms)
+✔ legacy running target plans become continuous production (32.574023ms)
+✔ factory order books contain player orders only (22.180345ms)
+✔ empty factory order books stay empty after world processing (23.588229ms)
+✔ purchased factories join a running group immediately and dilute current-cycle staffing (34.188744ms)
+✔ stopped factory staffing decays linearly from its stored timestamp (6.69128ms)
+✔ running factory staffing locks each cycle and carries fractional capacity (27.03089ms)
+✔ error staffing decays and auto recovery starts from the reduced rate (32.492901ms)
+✔ cancelling a running factory sell order restores the quantity immediately and dilutes staffing (197.826968ms)
+✔ selling every participating factory puts the enabled group in error (75.162254ms)
+✔ every factory route exposes four balanced production methods (2.59727ms)
+✔ representative production method plans use the approved fixed-precision values (0.380903ms)
+✔ public client state keeps the legacy recipe list and exposes optional method metadata (30.461783ms)
+✔ running factory switches production method immediately with one staffing penalty (96.439879ms)
 ℹ tests 42
 ℹ suites 0
 ℹ pass 42
@@ -81,7 +82,7 @@ tests/browser/runtime-harness.tsx
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 862.292734
+ℹ duration_ms 1071.956253
 工厂即时加入、配置立即切换、满员率稀释与惩罚、紧凑标题状态、三态自动恢复和生产结算验证通过。
 生产方式验证通过：四种作业制度、固定精度平衡、稳定变体 ID、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。
 工厂集群三列状态卡、无持久选中态、主从布局、状态标题层级、无顶部关闭按钮、统一收起动画、单厂平均利润布局、紧凑标题、共享活动滚动条、目录顺序默认详情、焦点与滚动控制、通用配方和集群公式验证通过。
@@ -119,9 +120,9 @@ Fixed reusable stress-test account registry, strict slicing and secret boundary 
 > economy@0.4.0 test:stress
 > node --test tests/stress/stress-flow.test.mjs
 
-✔ stress metrics calculate percentiles and enforce budgets (1.889062ms)
-✔ stress safety prevents production writes and unsafe targets (0.666162ms)
-✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4690.322921ms)
+✔ stress metrics calculate percentiles and enforce budgets (1.868694ms)
+✔ stress safety prevents production writes and unsafe targets (0.663622ms)
+✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4690.914494ms)
 ℹ tests 3
 ℹ suites 0
 ℹ pass 3
@@ -129,7 +130,7 @@ Fixed reusable stress-test account registry, strict slicing and secret boundary 
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 9758.704957
+ℹ duration_ms 9750.726157
 Nested custom/native scroll ownership, shared signed-in page scroll, boundary release and control location verification passed.
 宝石、邀请与封禁验证通过：同 IP 仅上报异常，账号封禁只由管理员执行，邀请防刷与审计边界保持。
 Daily check-in verification passed.
@@ -198,7 +199,28 @@ Shared virtual windowing, single two-axis record viewport and boundary scroll ch
 生产结算商品 PNG、输入输出仓库库存、两行周期成本、统一富内容下拉框、流向进度、响应式与利润结果栏验证通过。
 桌面生产页建设卡与详情卡 sticky 对齐、唯一职责、自然高度详情和统一滚动验证通过。
 市场需求验证通过：模型 12 使用真实人口钱包覆盖全部 31 种商品，并保持双向直接需求报价、既有总预算、派生流动性和市场储备约束。
-统一资产市场、价格档位、窗口化记录与管理功能验证失败:
-- src/pages/ProductionPage.tsx 缺少: 下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>
-- src/pages/ProductionPage.tsx 缺少: 下一周期切换为：
-HEAD is now at 17b3820 chore: update industry catalog switching contract [agent-retry14]
+统一资产市场、非交叉撮合、连续五档价格聚合、玩家／消费需求／市场储备商品订单、窗口化本地成交、管理员高增长记录和本地默认价格验证通过。
+市场页布局、商品固定尺寸与工厂满幅插画、紧凑步进下单、连续五档盘口、移动端永久双列与极窄控件压缩、资产目录轨道、ECharts 动态行情几何及浏览器回归基线验证通过。
+
+> economy@0.4.0 verify:market-desktop-cleanup
+> node scripts/verify-market-desktop-cleanup.mjs
+
+桌面与移动端订单簿统一为连续五档行，表头和最新价分隔已从 DOM 与样式中移除。
+普通玩家订单 API、本地存储和市场成交展示均已匿名化，人口模型及资金池字段不会公开。
+玩家商品与工厂订单簿卖出手续费、累计部分成交、匿名公开字段、紧凑前端展示和独立拍卖手续费隔离验证通过。
+Leaderboard verification passed.
+Market ECharts verification passed: distinct price semantics, minimal-padding integer scales, readable volume labels, mobile axis layout, linked persistent hover and zero-gap grids satisfy the design baseline.
+liquid-glass-react 登录后外壳、认证光学参数、全预设零弹性、静态鼠标输入、双层高光、认证透明宿主与统一透明宿主、平台预设、内容自适应、开放背景采样链与安全边缘滚动条验证通过。
+移动状态栏数值自适应验证通过。
+桌面一级卡片、玩家状态栏与管理员工作栏的 24px 圆角、透明宿主、官方双层高光、默认阴影和无项目结构描边验证通过。
+权威倒计时验证通过：GET state 使用独立 serverNow 校准共享单调服务器时钟，market 与排行榜分区不携带请求时刻字段；权威刷新可抢占普通轮询，请求具备超时，施工、生产周期、拍卖和排行榜到期采用串行每秒确认，状态分区使用完整快照替换。
+一级卡片统一内边距验证通过：桌面 16px、移动 12px、共享组件语义、旧类兼容、样式与设计文档权威、加载顺序和页面覆盖清理均已锁定。
+游戏与管理员共享外壳验证通过：全宽顶部工作栏、下方侧栏与工作区、贴边滚动条、普通浮层安全根和根级业务 Dialog 层均已锁定。
+仓库无限扩容、预占来源分段、容量线性定价、紧凑商品插画布局、移动端四列、桌面七列、目录顺序工厂卡、建设卡精简和输入侧周期成本集群公式验证通过。
+工厂即时加入、配置立即切换、满员率稀释与惩罚、紧凑标题状态、三态自动恢复和生产结算验证通过。
+市场目录真实成交价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。
+(node:3147) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+商品／工厂资产拍卖验证失败:
+- 永久或临时文件不得存在: .agent
+HEAD is now at b8b7998 chore: validate market asset contracts for immediate production [agent-retry15]
