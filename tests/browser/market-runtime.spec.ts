@@ -109,7 +109,8 @@ test('market desktop layout keeps order entry and order book in one trade card b
   await expect(tradeCard.getByRole('heading', { name: /交易$/ })).toBeVisible();
   await expect(tradeCard.getByRole('heading', { name: '下单', exact: true })).toBeVisible();
   await expect(tradeCard.getByRole('heading', { name: '订单簿', exact: true })).toBeVisible();
-  await expect(tradeCard.locator('.order-book-columns')).toContainText(/档位\s*价格\s*数量/);
+  await expect(tradeCard.locator('.order-book-columns')).toHaveCount(0);
+  await expect(tradeCard.locator('.order-book-midpoint')).toHaveCount(0);
   await expect(tradeCard.locator('.market-trade-summary')).toContainText(/最近成交.*24h 变化.*可用小麦/);
   await expect(chartCard.locator('.market-chart-footer')).toBeVisible();
   await expect(chartCard.locator('.chart-footer')).toHaveCount(0);
@@ -245,6 +246,8 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   await expect(page.getByRole('button', { name: '盘口', exact: true })).toHaveCount(0);
   await expect(orderEntry).toBeVisible();
   await expect(orderBook).toBeVisible();
+  await expect(orderBook.locator('.order-book-columns')).toHaveCount(0);
+  await expect(orderBook.locator('.order-book-midpoint')).toHaveCount(0);
   const compactOrder = await requireBox(orderEntry);
   const compactBook = await requireBox(orderBook);
   expect(Math.abs(compactOrder.y - compactBook.y)).toBeLessThan(3);
@@ -509,15 +512,13 @@ test('market order book keeps sell five to buy five sequence and fills price wit
   await page.goto('market-runtime-test.html?scenario=active');
 
   const askRow = page.locator('.book-order-row.ask').first();
-  const midpoint = page.locator('.order-book-midpoint');
   const bidRow = page.locator('.book-order-row.bid').first();
   const askBox = await requireBox(askRow);
-  const midpointBox = await requireBox(midpoint);
   const bidBox = await requireBox(bidRow);
-  expect(askBox.y).toBeLessThan(midpointBox.y);
-  expect(midpointBox.y).toBeLessThan(bidBox.y);
+  expect(askBox.y).toBeLessThan(bidBox.y);
+  await expect(page.locator('.order-book-columns')).toHaveCount(0);
+  await expect(page.locator('.order-book-midpoint')).toHaveCount(0);
   await expect(askRow.locator('.market-book-level')).toHaveText('卖1');
-  await expect(midpoint).toContainText('最新');
   await expect(bidRow.locator('.market-book-level')).toHaveText('买1');
 
   const priceInput = page.getByRole('textbox', { name: '价格' });
@@ -538,7 +539,8 @@ test('market order book aggregates same-price orders into one price level', asyn
   await page.setViewportSize({ width: 720, height: 1000 });
   await page.goto('market-runtime-test.html?scenario=active');
 
-  await expect(page.locator('.order-book-columns')).toContainText(/档位\s*价格\s*数量/);
+  await expect(page.locator('.order-book-columns')).toHaveCount(0);
+  await expect(page.locator('.order-book-midpoint')).toHaveCount(0);
 
   const askLevels = page.locator('.book-order-row.ask');
   const bidLevels = page.locator('.book-order-row.bid');

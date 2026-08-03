@@ -9,18 +9,15 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     steps:
-      - name: Checkout source branch
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: agent/unify-mobile-order-book-cleanup
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -28,181 +25,33 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
-      - name: Extract and apply approved changes
-        shell: bash
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-
-          workflow = Path('.github/workflows/agent-apply-unify-order-book-cleanup.yml').read_text(encoding='utf-8')
-          marker = '      - name: Apply approved order-book cleanup\n        shell: bash\n        run: |\n'
-          start = workflow.index(marker) + len(marker)
-          end = workflow.index('\n      - name: Check patch formatting and scope', start)
-          block = workflow[start:end]
-          lines = []
-          in_triple = False
-          for line in block.splitlines():
-              has_single = "'''" in line
-              has_double = '"""' in line
-              has_triple = has_single or has_double
-              if in_triple:
-                  if has_triple:
-                      lines.append(line[10:] if line.startswith('          ') else line)
-                      in_triple = False
-                  else:
-                      lines.append(line)
-                  continue
-              normalized = line[10:] if line.startswith('          ') else line
-              lines.append(normalized)
-              if has_single and normalized.count("'''") % 2 == 1:
-                  in_triple = True
-              elif has_double and normalized.count('"""') % 2 == 1:
-                  in_triple = True
-
-          script = '\n'.join(lines) + '\n'
-          old_helper = (
-              "def remove_range(path: str, start: str, end: str) -> None:\n"
-              "    file = Path(path)\n"
-              "    text = file.read_text(encoding='utf-8')\n"
-              "    start_count = text.count(start)\n"
-              "    end_count = text.count(end)\n"
-              "    if start_count != 1 or end_count < 1:\n"
-              "        raise SystemExit(f'{path}: invalid range counts start={start_count} end={end_count}')\n"
-              "    begin = text.index(start)\n"
-              "    finish = text.index(end, begin)\n"
-              "    file.write_text(text[:begin] + text[finish:], encoding='utf-8')\n"
-          )
-          new_helper = (
-              "def remove_first_range(path: str, start: str, end: str) -> None:\n"
-              "    file = Path(path)\n"
-              "    text = file.read_text(encoding='utf-8')\n"
-              "    if start not in text or end not in text:\n"
-              "        raise SystemExit(f'{path}: range boundary missing: start={start!r} end={end!r}')\n"
-              "    begin = text.index(start)\n"
-              "    finish = text.index(end, begin)\n"
-              "    file.write_text(text[:begin] + text[finish:], encoding='utf-8')\n"
-          )
-          if script.count(old_helper) != 1:
-              raise SystemExit(f'expected one remove_range helper, found {script.count(old_helper)}')
-          script = script.replace(old_helper, new_helper, 1)
-          if script.count('remove_range(style_path,') != 2:
-              raise SystemExit(f"expected two style remove_range calls, found {script.count('remove_range(style_path,')}")
-          script = script.replace('remove_range(style_path,', 'remove_first_range(style_path,')
-          Path('/tmp/apply-order-book-cleanup.sh').write_text(script, encoding='utf-8')
-          PY
-          bash /tmp/apply-order-book-cleanup.sh
-          python3 <<'PY'
-          from pathlib import Path
-
-          runtime_path = Path('tests/browser/market-runtime.spec.ts')
-          runtime_text = runtime_path.read_text(encoding='utf-8')
-          expanded = "test('market order book keeps a continuous sell-five to buy-five sequence and fills price without submitting', async ({ page }) => {"
-          existing = "test('market order book keeps sell five to buy five sequence and fills price without submitting', async ({ page }) => {"
-          if runtime_text.count(expanded) != 1:
-              raise SystemExit(f'expected one expanded order-book test title, found {runtime_text.count(expanded)}')
-          runtime_path.write_text(runtime_text.replace(expanded, existing, 1), encoding='utf-8')
-
-          verifier_path = Path('scripts/verify-market-desktop-cleanup.mjs')
-          verifier_text = verifier_path.read_text(encoding='utf-8')
-          invalid_import_matcher = "\"import './styles/form-controls.css';\nimport './styles/market-desktop-cleanup.css';\""
-          escaped_import_matcher = "\"import './styles/form-controls.css';\\nimport './styles/market-desktop-cleanup.css';\""
-          if verifier_text.count(invalid_import_matcher) != 1:
-              raise SystemExit(f'expected one unescaped import matcher, found {verifier_text.count(invalid_import_matcher)}')
-          verifier_path.write_text(verifier_text.replace(invalid_import_matcher, escaped_import_matcher, 1), encoding='utf-8')
-          PY
-
-      - name: Check patch formatting and scope
-        shell: bash
-        run: |
-          git diff --check
-          python3 <<'PY'
-          from pathlib import Path
-          import subprocess
-
-          expected = {
-              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
-              'scripts/verify-market-assets.mjs',
-              'scripts/verify-market-desktop-cleanup.mjs',
-              'scripts/verify-market-order-entry-compact.mjs',
-              'scripts/verify-market-page-layout.mjs',
-              'scripts/verify-page-content.mjs',
-              'src/pages/MarketPage.tsx',
-              'src/styles/market-desktop-cleanup.css',
-              'src/styles/market-page-polish.css',
-              'tests/browser/market-desktop-cleanup.spec.ts',
-              'tests/browser/market-runtime.spec.ts',
-          }
-          changed = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
-          if changed != expected:
-              raise SystemExit(f'unexpected changed paths: actual={sorted(changed)} expected={sorted(expected)}')
-          for path in ['src/pages/MarketPage.tsx', 'src/styles/market-page-polish.css', 'src/styles/market-desktop-cleanup.css']:
-              text = Path(path).read_text(encoding='utf-8')
-              for forbidden in ['order-book-columns', 'order-book-midpoint']:
-                  if forbidden in text:
-                      raise SystemExit(f'{path} still contains {forbidden}')
-          PY
-
       - name: Install dependencies
         run: npm ci
+
+      - name: Build and test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Run market order-book gates
-        run: |
-          node scripts/verify-market-page-layout.mjs
-          npm run verify:market-desktop-cleanup
-          node scripts/verify-market-order-entry-compact.mjs
-          node --experimental-strip-types scripts/verify-market-assets.mjs
-          node scripts/verify-page-content.mjs
-
-      - name: Run focused order-book browser regression
-        run: >-
-          npx playwright test
-          tests/browser/market-desktop-cleanup.spec.ts
-          tests/browser/market-runtime.spec.ts
-          --grep "order-book|trade card responsive|market desktop layout|desktop market|mobile market"
-
-      - name: Run complete build
-        run: npm run build
-
-      - name: Run browser regression suite
-        run: npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Upload browser failure log
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: economy-ci-browser-failure-${{ github.run_id }}-${{ github.run_attempt }}
-          path: browser-test.log
-          if-no-files-found: ignore
-          retention-days: 3
-
-      - name: Commit verified source changes
+      - name: Test browser runtime
         shell: bash
         run: |
-          git checkout origin/main -- .github/workflows/ci.yml
-          rm .github/workflows/agent-apply-unify-order-book-cleanup.yml
-          rm .github/workflows/agent-push-trigger-unify-order-book-cleanup.yml
-          rm .github/agent-unify-order-book-trigger.txt
-          git diff --check
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -- \
-            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
-            scripts/verify-market-assets.mjs \
-            scripts/verify-market-desktop-cleanup.mjs \
-            scripts/verify-market-order-entry-compact.mjs \
-            scripts/verify-market-page-layout.mjs \
-            scripts/verify-page-content.mjs \
-            src/pages/MarketPage.tsx \
-            src/styles/market-desktop-cleanup.css \
-            src/styles/market-page-polish.css \
-            tests/browser/market-desktop-cleanup.spec.ts \
-            tests/browser/market-runtime.spec.ts \
-            .github/workflows/ci.yml \
-            .github/workflows/agent-apply-unify-order-book-cleanup.yml \
-            .github/workflows/agent-push-trigger-unify-order-book-cleanup.yml \
-            .github/agent-unify-order-book-trigger.txt
-          git commit -m "feat: unify order book structure across viewports"
-          git push origin HEAD:agent/unify-mobile-order-book-cleanup
+          set -o pipefail
+          npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload test artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: economy-test-artifacts
+          path: |
+            build-test.log
+            browser-test.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
