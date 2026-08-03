@@ -58,7 +58,37 @@ jobs:
                   in_triple = True
               elif has_double and normalized.count('"""') % 2 == 1:
                   in_triple = True
-          Path('/tmp/apply-order-book-cleanup.sh').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+          script = '\n'.join(lines) + '\n'
+          old_helper = (
+              "def remove_range(path: str, start: str, end: str) -> None:\n"
+              "    file = Path(path)\n"
+              "    text = file.read_text(encoding='utf-8')\n"
+              "    start_count = text.count(start)\n"
+              "    end_count = text.count(end)\n"
+              "    if start_count != 1 or end_count < 1:\n"
+              "        raise SystemExit(f'{path}: invalid range counts start={start_count} end={end_count}')\n"
+              "    begin = text.index(start)\n"
+              "    finish = text.index(end, begin)\n"
+              "    file.write_text(text[:begin] + text[finish:], encoding='utf-8')\n"
+          )
+          new_helper = (
+              "def remove_first_range(path: str, start: str, end: str) -> None:\n"
+              "    file = Path(path)\n"
+              "    text = file.read_text(encoding='utf-8')\n"
+              "    if start not in text or end not in text:\n"
+              "        raise SystemExit(f'{path}: range boundary missing: start={start!r} end={end!r}')\n"
+              "    begin = text.index(start)\n"
+              "    finish = text.index(end, begin)\n"
+              "    file.write_text(text[:begin] + text[finish:], encoding='utf-8')\n"
+          )
+          if script.count(old_helper) != 1:
+              raise SystemExit(f'expected one remove_range helper, found {script.count(old_helper)}')
+          script = script.replace(old_helper, new_helper, 1)
+          if script.count('remove_range(style_path,') != 2:
+              raise SystemExit(f"expected two style remove_range calls, found {script.count('remove_range(style_path,')}")
+          script = script.replace('remove_range(style_path,', 'remove_first_range(style_path,')
+          Path('/tmp/apply-order-book-cleanup.sh').write_text(script, encoding='utf-8')
           PY
           bash /tmp/apply-order-book-cleanup.sh
 
