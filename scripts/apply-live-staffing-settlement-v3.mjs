@@ -69,6 +69,7 @@ const runningFormulaAuthority = '运行中公式使用 `participatingCount`、�
 const inactiveFormulaAuthority = '停止或异常使用 `productionAvailableCount`、实时投影的满员率和 `staffingBatchCarryBps` 计算启动后或恢复后的整数等效产能';
 const detailHierarchyAuthority = '当前工厂详情正文按“插画与满员率 → 生产设置 → 生产结算”组织';
 const settlementCompositionAuthority = '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡';
+const completionRateAuthority = '周期完成时刻的满员率是生产结算的权威值';
 
 update('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', (source) => {
   source = source
@@ -102,6 +103,11 @@ update('docs/UI_DESIGN_SYSTEM.md', (source) => {
   source = ensureSentence(source, `${detailHierarchyAuthority}；${settlementCompositionAuthority}。`);
   return source;
 });
+
+update('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', (source) => ensureSentence(
+  source,
+  `${completionRateAuthority}；服务器必须按每个周期准确的完成时刻逐周期投影，不得使用周期开始值或离线补算结束时的最终值。`,
+));
 
 update('scripts/verify-unified-factory-recipes-grid.mjs', (source) => source
   .replace(
@@ -162,9 +168,23 @@ update('scripts/verify-warehouse-expansion.mjs', (source) => source
     "  'group.productionAvailableCount',\n  'projectFacilityStaffingRate',\n  'facilityEffectiveCount',\n",
   ));
 
+update('scripts/verify-facility-groups.mjs', (source) => source
+  .replace(
+    "  '生产产物',\n  '生产进度已清零',\n]) requireText('src/pages/production/ProductionFacilityDetail.tsx', text);",
+    "  '生产产物',\n]) requireText('src/pages/production/ProductionFacilityDetail.tsx', text);",
+  )
+  .replace(
+    "  'purchased factories join a running group immediately and dilute current-cycle staffing',",
+    "  'purchased factories join a running group immediately and dilute live staffing',",
+  )
+  .replace(
+    "  'error staffing decays and auto recovery starts from the reduced rate',",
+    "  'error staffing decays and auto recovery starts from the reduced live rate',",
+  ));
+
 for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
   if (read(path).includes('$' + '{')) throw new Error(`${path}: unresolved generated placeholder`);
 }
 
 unlinkSync('scripts/apply-live-staffing-settlement-v3.mjs');
-console.log('Updated version 25, live staffing authority, and production method guards.');
+console.log('Updated version 25, completion-time staffing authority, and production guards.');
