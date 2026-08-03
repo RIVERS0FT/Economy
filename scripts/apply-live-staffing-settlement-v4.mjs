@@ -15,9 +15,10 @@ for (const path of walk('scripts').filter((item) => item.endsWith('.mjs'))) {
   const source = readFileSync(path, 'utf8');
   const next = source
     .replaceAll('客户端状态版本：24', '客户端状态版本：25')
-    .replaceAll('客户端状态版本 24', '客户端状态版本 25');
+    .replaceAll('客户端状态版本 24', '客户端状态版本 25')
+    .replaceAll('node-version: 25.4.0', 'node-version: 24.4.0');
   writeFileSync(path, next);
 }
 
 unlinkSync('scripts/apply-live-staffing-settlement-v4.mjs');
-console.log('Updated remaining client state version authority guards.');
+console.log('Updated remaining client state version authority guards while preserving Node 24.4.0.');
