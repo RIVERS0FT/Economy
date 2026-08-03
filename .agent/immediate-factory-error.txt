@@ -1,5 +1,5 @@
 exit_status=1
-failed_command=node --test server/test/facility-groups.test.js server/test/listed-factory-production.test.js server/test/production-methods.test.js server/test/asset-auctions.test.js
+failed_command=node scripts/verify-facility-groups.mjs
 
 rm '.agent/immediate-factory-error.txt'
 
@@ -30,76 +30,58 @@ src/pages/production/ProductionFacilityDetail.tsx
 src/types.ts
 tests/browser/production-methods.spec.ts
 tests/browser/runtime-harness.tsx
-✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (36.606429ms)
-✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (11.660656ms)
-✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (42.953407ms)
-✔ 商品与工厂资产包整体冻结并原子成交 (11.490608ms)
-✔ 客户端只返回商品与工厂通用资产拍卖 (11.283371ms)
-✖ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (11.102734ms)
-✔ 世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录 (6.856618ms)
-✔ 发布费按较高计费基数计算并限制最低和最高金额 (0.413812ms)
-✔ 发布资金不足时不扣费也不冻结资产 (6.440502ms)
-✔ 未达隐藏保留价时退回最高报价和资产但不退发布费 (10.762322ms)
-✔ 结束前两分钟出价自动延时且累计不超过三十分钟 (16.453271ms)
-✔ 客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组 (9.338761ms)
-✔ 世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖 (23.440651ms)
-✔ 卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失 (8.753089ms)
-✔ factory buy and sell orders use price-time matching and partial fills (162.315668ms)
-✔ running factory sell order immediately reduces participating output (67.42748ms)
-✔ production increments produced goods statistics (65.771245ms)
-✔ production wage multiplier changes population wages without changing production cost and only affects the next cycle (81.7463ms)
-✔ electronics factory atomically consumes plastic and copper (39.484051ms)
-✔ electronics factory deducts no material when either input is missing (39.020977ms)
-✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (44.319687ms)
-✔ asset valuation uses the latest order-book trade and ignores open bid prices (38.96916ms)
-✔ factory automatically recovers after funds return (32.898839ms)
-✔ manual stop disables automatic recovery (33.105515ms)
-✔ running farm crop changes apply immediately with a staffing penalty and progress reset (30.581383ms)
-✔ legacy pending factory and recipe state migrates once into immediate participation (1.884277ms)
-✔ warehouse errors recover without backfilling missed cycles (55.760311ms)
-✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (40.606166ms)
-✔ legacy completed target plans migrate to a manual stop (2.339136ms)
-✔ legacy running target plans become continuous production (31.500646ms)
-✔ factory order books contain player orders only (22.169942ms)
-✔ empty factory order books stay empty after world processing (25.707235ms)
-✔ purchased factories join a running group immediately and dilute current-cycle staffing (34.079833ms)
-✔ stopped factory staffing decays linearly from its stored timestamp (7.225307ms)
-✔ running factory staffing locks each cycle and carries fractional capacity (27.862518ms)
-✔ error staffing decays and auto recovery starts from the reduced rate (40.586412ms)
-✔ cancelling a running factory sell order restores the quantity immediately and dilutes staffing (190.917816ms)
-✔ selling every participating factory puts the enabled group in error (74.070807ms)
-✔ every factory route exposes four balanced production methods (2.568385ms)
-✔ representative production method plans use the approved fixed-precision values (0.381763ms)
-✔ public client state keeps the legacy recipe list and exposes optional method metadata (25.227349ms)
-✔ running factory switches production method immediately with one staffing penalty (105.837819ms)
+✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (31.431113ms)
+✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (9.874091ms)
+✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (38.139548ms)
+✔ 商品与工厂资产包整体冻结并原子成交 (10.706276ms)
+✔ 客户端只返回商品与工厂通用资产拍卖 (14.625289ms)
+✔ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (15.192449ms)
+✔ 世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录 (6.216666ms)
+✔ 发布费按较高计费基数计算并限制最低和最高金额 (0.269995ms)
+✔ 发布资金不足时不扣费也不冻结资产 (6.741717ms)
+✔ 未达隐藏保留价时退回最高报价和资产但不退发布费 (5.68338ms)
+✔ 结束前两分钟出价自动延时且累计不超过三十分钟 (9.154617ms)
+✔ 客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组 (12.612148ms)
+✔ 世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖 (8.479274ms)
+✔ 卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失 (14.202149ms)
+✔ factory buy and sell orders use price-time matching and partial fills (200.076607ms)
+✔ running factory sell order immediately reduces participating output (75.544955ms)
+✔ production increments produced goods statistics (49.115067ms)
+✔ production wage multiplier changes population wages without changing production cost and only affects the next cycle (90.385504ms)
+✔ electronics factory atomically consumes plastic and copper (42.175761ms)
+✔ electronics factory deducts no material when either input is missing (31.514088ms)
+✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (23.928352ms)
+✔ asset valuation uses the latest order-book trade and ignores open bid prices (32.22691ms)
+✔ factory automatically recovers after funds return (35.044755ms)
+✔ manual stop disables automatic recovery (39.068284ms)
+✔ running farm crop changes apply immediately with a staffing penalty and progress reset (32.051743ms)
+✔ legacy pending factory and recipe state migrates once into immediate participation (2.149507ms)
+✔ warehouse errors recover without backfilling missed cycles (52.762453ms)
+✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (35.41652ms)
+✔ legacy completed target plans migrate to a manual stop (3.848862ms)
+✔ legacy running target plans become continuous production (33.390093ms)
+✔ factory order books contain player orders only (24.020565ms)
+✔ empty factory order books stay empty after world processing (25.963786ms)
+✔ purchased factories join a running group immediately and dilute current-cycle staffing (34.17508ms)
+✔ stopped factory staffing decays linearly from its stored timestamp (6.915372ms)
+✔ running factory staffing locks each cycle and carries fractional capacity (27.536865ms)
+✔ error staffing decays and auto recovery starts from the reduced rate (33.956963ms)
+✔ cancelling a running factory sell order restores the quantity immediately and dilutes staffing (182.829018ms)
+✔ selling every participating factory puts the enabled group in error (66.682755ms)
+✔ every factory route exposes four balanced production methods (2.688483ms)
+✔ representative production method plans use the approved fixed-precision values (0.422589ms)
+✔ public client state keeps the legacy recipe list and exposes optional method metadata (25.909345ms)
+✔ running factory switches production method immediately with one staffing penalty (120.218876ms)
 ℹ tests 42
 ℹ suites 0
-ℹ pass 41
-ℹ fail 1
+ℹ pass 42
+ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 1062.84342
-
-✖ failing tests:
-
-test at server/test/asset-auctions.test.js:185:1
-✖ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (11.102734ms)
-  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
-  
-  true !== false
-  
-      at TestContext.<anonymous> (file:///home/runner/work/Economy/Economy/server/test/asset-auctions.test.js:248:10)
-      at Test.runInAsyncScope (node:async_hooks:214:14)
-      at Test.run (node:internal/test_runner/test:1062:25)
-      at Test.processPendingSubtests (node:internal/test_runner/test:752:18)
-      at Test.postRun (node:internal/test_runner/test:1191:19)
-      at Test.run (node:internal/test_runner/test:1119:12)
-      at async Test.processPendingSubtests (node:internal/test_runner/test:752:7) {
-    generatedMessage: true,
-    code: 'ERR_ASSERTION',
-    actual: true,
-    expected: false,
-    operator: 'strictEqual'
-  }
-HEAD is now at 3882cec chore: fix legacy auction release and current test reference [agent-retry7]
+ℹ duration_ms 1083.869909
+工厂三态、生产公式、自动恢复与统一开关验证失败:
+- src/pages/production/ProductionFacilityDetail.tsx 缺少: 生产进度已清零
+- docs/INDUSTRY_AND_PRODUCTION_DESIGN.md 缺少: 生产配置切换立即写入 `activeRecipeId`
+- docs/INDUSTRY_AND_PRODUCTION_DESIGN.md 缺少: 生产进度立即清零
+HEAD is now at 3b011f8 chore: remove legacy pending factory field on release [agent-retry8]
