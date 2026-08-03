@@ -1,1 +1,1 @@
-Trigger the verified order-book cleanup workflow after PR creation.
+Trigger the verified order-book cleanup push workflow.
