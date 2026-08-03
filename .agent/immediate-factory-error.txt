@@ -1,5 +1,5 @@
 exit_status=1
-failed_command=node /tmp/apply-immediate-factory.mjs
+failed_command=python .agent/immediate-factory-overlays.py /tmp/apply-immediate-factory.mjs
 
 rm '.agent/immediate-factory-error.txt'
 
@@ -9,19 +9,5 @@ added 133 packages, and audited 140 packages in 2s
   run `npm fund` for details
 
 found 0 vulnerabilities
-file:///tmp/apply-immediate-factory.mjs:20
-    throw new Error(`${path}: expected ${expected} occurrence(s), found ${count}: ${before.slice(0, 120)}`);
-          ^
-
-Error: src/pages/production/ProductionFacilityDetail.tsx: expected 1 occurrence(s), found 0:         <div className="facility-production-settings-heading">
-  <strong>生产设置</strong>
-</div>
-
-    at replaceExact (file:///tmp/apply-immediate-factory.mjs:20:11)
-    at file:///tmp/apply-immediate-factory.mjs:1203:1
-    at ModuleJob.run (node:internal/modules/esm/module_job:370:25)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5)
-
-Node.js v24.4.0
-HEAD is now at 398bbba chore: document and surface immediate configuration reset [agent-retry9]
+formula scope indentation: expected one occurrence, found 0
+HEAD is now at e264d2c chore: run immediate factory validation from overlay script [agent-retry10]
