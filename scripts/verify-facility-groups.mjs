@@ -193,6 +193,10 @@ for (const forbidden of [
   'align-self: stretch;',
   '.facility-card-spacer',
   'top: var(--desktop-page-top-offset);',
+  '@container (max-width: 519px)',
+  'grid-area: input;',
+  'grid-area: output;',
+  '.facility-formula-center',
 ]) forbidText('src/styles/facility-group-card-grid.css', forbidden);
 
 for (const text of [
@@ -230,6 +234,9 @@ for (const text of [
   '.facility-formula-meta-icon',
   'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)',
   '.facility-production-formula-heading',
+  'display: inline-flex;',
+  '.facility-formula-meta-unit.is-cost {',
+  'border-left: 1px solid var(--color-divider);',
 ]) requireText('src/styles/facility-production-formula.css', text);
 
 for (const forbidden of [
@@ -283,7 +290,7 @@ for (const text of [
   '集群生产公式',
   '集群生产公式支持无输入、单输入、多输入和单输出',
   '进度条',
-  '周期与当前集群周期成本固定放在输入组合区的物资行下方',
+  '时间与成本固定放在输入组合区的物资行下方同一行显示',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整状态与工厂名称放在同一紧凑标题行',
   '不包含顶部关闭按钮',
@@ -307,6 +314,7 @@ for (const text of [
   'WarehouseIcon',
   '工厂生产公式固定采用双列顶层布局',
   '左侧为输入组合区，右侧为输出区',
+  '输入与输出物资槽顶部对齐',
   '时间与成本不得回到输入输出之间的独立中列',
   '生产进度条',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',

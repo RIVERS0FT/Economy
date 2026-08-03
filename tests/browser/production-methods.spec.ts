@@ -110,7 +110,12 @@ test.describe('factory production methods', () => {
     expect(cycleBox).not.toBeNull();
     expect(costBox).not.toBeNull();
     if (!cycleBox || !costBox) throw new Error('周期成本两行几何不可用');
-    expect(costBox.y).toBeGreaterThan(cycleBox.y + cycleBox.height - 1);
+    expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1);
+    expect(costBox.x).toBeGreaterThan(cycleBox.x + cycleBox.width - 1);
+    const costDividerWidth = await metaUnits.nth(1).evaluate((element) => (
+      Number.parseFloat(getComputedStyle(element).borderLeftWidth)
+    ));
+    expect(costDividerWidth).toBeGreaterThan(0);
 
     const materialRows = settlement.locator('.facility-formula-item-group');
     await expect(materialRows).toHaveCount(2);
@@ -179,9 +184,10 @@ test.describe('factory production methods', () => {
     ]);
   });
 
-  test('keeps mobile production controls aligned inside the top dialog layer', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('runtime-test.html?view=production&scenario=production-methods');
+  test('keeps mobile production controls and settlement aligned inside the top dialog layer', async ({ page }) => {
+    for (const width of [320, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('runtime-test.html?view=production&scenario=production-methods');
 
     await page.locator('.facility-cluster-selector-card').first().click();
     const dialogLayer = page.locator('.workspace-dialog-layer');
@@ -208,6 +214,45 @@ test.describe('factory production methods', () => {
     expect(Math.abs(recipeBox.y - methodBox.y)).toBeLessThanOrEqual(1);
     expect(methodBox.x).toBeGreaterThan(recipeBox.x + recipeBox.width - 1);
 
+    const settlement = sheet.locator('.facility-production-formula');
+    const inputSlot = settlement.locator('.facility-formula-input .facility-formula-item-group').first();
+    const outputSlot = settlement.locator('.facility-formula-output .facility-formula-item-group').first();
+    const formulaMeta = settlement.locator('.facility-formula-meta');
+    const progress = settlement.locator('.facility-formula-progress');
+    const metaUnits = formulaMeta.locator(':scope > .facility-formula-meta-unit');
+    const [inputBox, outputBox, metaBox, progressBox, cycleBox, costBox] = await Promise.all([
+      inputSlot.boundingBox(),
+      outputSlot.boundingBox(),
+      formulaMeta.boundingBox(),
+      progress.boundingBox(),
+      metaUnits.nth(0).boundingBox(),
+      metaUnits.nth(1).boundingBox(),
+    ]);
+    expect(inputBox).not.toBeNull();
+    expect(outputBox).not.toBeNull();
+    expect(metaBox).not.toBeNull();
+    expect(progressBox).not.toBeNull();
+    expect(cycleBox).not.toBeNull();
+    expect(costBox).not.toBeNull();
+    if (!inputBox || !outputBox || !metaBox || !progressBox || !cycleBox || !costBox) {
+      throw new Error(`移动生产结算几何不可用: ${width}px`);
+    }
+    expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1);
+    expect(metaBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height - 1);
+    expect(progressBox.y).toBeGreaterThanOrEqual(
+      Math.max(metaBox.y + metaBox.height, outputBox.y + outputBox.height) - 1,
+    );
+    expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1);
+    expect(costBox.x).toBeGreaterThan(cycleBox.x + cycleBox.width - 1);
+    expect(await metaUnits.nth(1).evaluate((element) => (
+      Number.parseFloat(getComputedStyle(element).borderLeftWidth)
+    ))).toBeGreaterThan(0);
+    const settlementOverflow = await settlement.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+    expect(settlementOverflow.scrollWidth).toBeLessThanOrEqual(settlementOverflow.clientWidth + 1);
+
     await recipeSelect.click();
     const listbox = page.getByRole('listbox', { name: '机械工厂生产产物' });
     await expect(listbox).toBeVisible();
@@ -217,11 +262,12 @@ test.describe('factory production methods', () => {
     if (!box) throw new Error('移动生产产物下拉框几何不可用');
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.y).toBeGreaterThanOrEqual(0);
-    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
     expect(box.y + box.height).toBeLessThanOrEqual(844);
     await expect(listbox.locator('[data-product-artwork="machinery"]')).toHaveCount(1);
     await page.keyboard.press('Escape');
     await expect(listbox).toHaveCount(0);
     await expect(recipeSelect).toBeFocused();
+    }
   });
 });

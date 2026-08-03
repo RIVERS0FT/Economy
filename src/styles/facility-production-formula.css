@@ -77,8 +77,10 @@
 .facility-formula-input,
 .facility-formula-output {
   min-width: 0;
+  grid-area: auto;
   display: flex;
   align-items: flex-start;
+  align-self: start;
 }
 
 .facility-formula-input {
@@ -194,10 +196,12 @@
 
 .facility-formula-meta {
   max-width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  gap: 0.28rem;
+  min-width: 0;
+  grid-area: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0;
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 76%, var(--color-bg-deep));
   border-radius: calc(var(--radius-control) - 0.25rem);
   padding: 0.38rem 0.52rem;
@@ -214,7 +218,8 @@
 }
 
 .facility-formula-meta-unit {
-  width: 100%;
+  width: auto;
+  flex: 0 0 auto;
   justify-content: flex-start;
 }
 
@@ -223,6 +228,9 @@
 }
 
 .facility-formula-meta-unit.is-cost {
+  margin-left: 0.48rem;
+  border-left: 1px solid var(--color-divider);
+  padding-left: 0.48rem;
   color: var(--color-warning);
 }
 
