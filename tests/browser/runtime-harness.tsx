@@ -189,10 +189,10 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
       facilityTypeId: 'machine-factory',
       count: 18,
       participatingCount: hasAlerts ? 0 : 12,
-      pendingJoinCount: 0,
       listedCount: 0,
       availableCount: 18,
-      nextCycleCount: 12,
+      productionAvailableCount: 18,
+      projectedEffectiveCount: 18,
       enabled: true,
       status: facilityStatus,
       statusReason: facilityStatusReason,
@@ -481,7 +481,10 @@ function ProductionHarness() {
       }];
       next.game.facilityGroups = [{
         ...next.game.facilityGroups[0],
-        pendingRecipeId: `${baseRecipe.id}--rapid`,
+        activeRecipeId: `${baseRecipe.id}--rapid`,
+        staffingRateBps: 8_000,
+        cycleStaffingRateBps: 8_000,
+        cycleEffectiveCount: 9,
       }];
     }
     if (scenario === 'decimal-profit') {
@@ -541,7 +544,8 @@ function ProductionHarness() {
           count: 7,
           participatingCount: 7,
           availableCount: 7,
-          nextCycleCount: 7,
+          productionAvailableCount: 7,
+          projectedEffectiveCount: 7,
           activeRecipeId: lossRecipe.id,
         },
       ];
@@ -568,7 +572,8 @@ function ProductionHarness() {
         count: index + 1,
         participatingCount: index + 1,
         availableCount: index + 1,
-        nextCycleCount: index + 1,
+        productionAvailableCount: index + 1,
+        projectedEffectiveCount: index + 1,
       }));
     }
     if (scenario === 'cluster-summary') {
@@ -586,10 +591,10 @@ function ProductionHarness() {
           ...baseGroup,
           facilityTypeId: 'sawmill',
           count: 7,
-          participatingCount: 5,
-          pendingJoinCount: 2,
+          participatingCount: 7,
+          productionAvailableCount: 7,
+          projectedEffectiveCount: 7,
           availableCount: 7,
-          nextCycleCount: 7,
           status: 'running',
           statusReason: undefined,
         },
@@ -598,9 +603,9 @@ function ProductionHarness() {
           facilityTypeId: 'flour-mill',
           count: 4,
           participatingCount: 0,
-          pendingJoinCount: 0,
+          productionAvailableCount: 4,
+          projectedEffectiveCount: 4,
           availableCount: 4,
-          nextCycleCount: 4,
           enabled: false,
           status: 'stopped',
           statusReason: 'manual',
@@ -610,9 +615,9 @@ function ProductionHarness() {
           facilityTypeId: 'electronics-factory',
           count: 3,
           participatingCount: 0,
-          pendingJoinCount: 0,
+          productionAvailableCount: 3,
+          projectedEffectiveCount: 3,
           availableCount: 3,
-          nextCycleCount: 3,
           status: 'error',
           statusReason: 'insufficient_input',
         },

@@ -108,8 +108,6 @@ for (const text of [
   'WorkspaceFloatingLayerContext.Provider value={dialogLayer}',
   '!dialogLayer',
   '<strong>生产设置</strong>',
-  '下一周期切换为：',
-  'showNextCyclePreview={recipeState.showNextCyclePreview}',
   'productionRecipeVariantId',
   'FACILITY_SHEET_CLOSE_VELOCITY',
   'FACILITY_SHEET_AXIS_DOMINANCE',
@@ -208,18 +206,16 @@ for (const text of [
 const formula = read('src/components/facilities/FacilityProductionFormula.tsx');
 for (const text of [
   'function currentFormulaScope',
-  'function nextFormulaScope',
   'function clusterRecipeDescription',
   "group.status === 'running'",
   'group.participatingCount',
-  'group.nextCycleCount',
+  'group.productionAvailableCount',
   'item.quantity * multiplier',
   'type.operatingCost * scope.count',
   'multiplier={scope.count}',
   'facility-formula-scope',
   'formatDuration(type.cycleMs)',
   '<FacilityGroupProgress group={group} type={type} now={now} />',
-  'showNextCyclePreview',
 ])
   assert.equal(formula.includes(text), true, `生产公式缺少: ${text}`);
 for (const forbidden of [

@@ -82,31 +82,22 @@ export function currentFormulaScope(group: FacilityGroup): FormulaScope {
   if (group.status === 'error') {
     return formulaScope(
       '恢复后',
-      group.nextCycleCount,
-      group.nextCycleEffectiveCount ?? group.nextCycleCount,
-      group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+      group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+      group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+      group.staffingRateBps ?? 10_000,
       '条件恢复后 ',
     );
   }
 
   return formulaScope(
     '启动后',
-    group.nextCycleCount,
-    group.nextCycleEffectiveCount ?? group.nextCycleCount,
-    group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+    group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+    group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+    group.staffingRateBps ?? 10_000,
     '启动后 ',
   );
 }
 
-export function nextFormulaScope(group: FacilityGroup): FormulaScope {
-  return formulaScope(
-    '下一周期',
-    group.nextCycleCount,
-    group.nextCycleEffectiveCount ?? group.nextCycleCount,
-    group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
-    '下一周期 ',
-  );
-}
 
 function recipeText(items: FacilityRecipeItem[], productNames: ProductNameMap, multiplier: number) {
   return items
@@ -185,16 +176,12 @@ function clusterRecipeDescription(
 export function FacilityProductionFormula({
   group,
   type,
-  nextType,
-  showNextCyclePreview,
   products,
   inventories,
   now,
 }: {
   group: FacilityGroup;
   type: FacilityTypeDefinition;
-  nextType: FacilityTypeDefinition;
-  showNextCyclePreview: boolean;
   products: ProductDefinition[];
   inventories: Record<string, ProductInventory>;
   now: number;
@@ -203,16 +190,12 @@ export function FacilityProductionFormula({
   const outputs = recipeOutputs(type);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
   const scope = currentFormulaScope(group);
-  const nextScope = nextFormulaScope(group);
   const currentDescription = clusterRecipeDescription(type, productNames, scope);
-  const nextDescription = showNextCyclePreview
-    ? clusterRecipeDescription(nextType, productNames, nextScope)
-    : '';
-  const description = [currentDescription, progressDescription(group, type, now), nextDescription]
+  const description = [currentDescription, progressDescription(group, type, now)]
     .filter(Boolean)
     .join('。');
-  const profitScope = showNextCyclePreview ? nextScope : scope;
-  const profitType = showNextCyclePreview ? nextType : type;
+  const profitScope = scope;
+  const profitType = type;
   const profitScopeLabel = profitScope.name;
 
   return (

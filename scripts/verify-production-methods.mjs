@@ -66,8 +66,9 @@ for (const text of [
 ]) assert.ok(methodSource.includes(text), `生产方式计算缺少 ${text}`);
 assert.ok(catalogSource.includes('productionMethodGroups'));
 assert.ok(catalogSource.includes('createProductionMethodRecipes'));
-assert.ok(runtimeSource.includes('group.pendingRecipeId = recipe.id'));
-assert.ok(runtimeSource.includes('applyPendingRecipe(group)'));
+assert.ok(runtimeSource.includes('group.activeRecipeId = recipe.id'));
+assert.ok(runtimeSource.includes('applyConfigurationStaffingPenalty(group, now)'));
+assert.equal(runtimeSource.includes('group.pendingRecipeId = recipe.id'), false);
 for (const text of [
   'facilityTypes: FACILITY_TYPE_CATALOG.map',
   "(recipe.productionMethodId || 'standard') === 'standard'",
@@ -128,10 +129,10 @@ for (const forbidden of [
 for (const text of [
   "scenario === 'production-methods'",
   '__productionRecipeRequests',
-  "pendingRecipeId: `${baseRecipe.id}--rapid`",
+  "activeRecipeId: `${baseRecipe.id}--rapid`",
 ]) assert.ok(browserHarnessSource.includes(text), `生产方式浏览器夹具缺少 ${text}`);
 for (const text of [
-  '下一周期切换为：机械制造 · 高速生产',
+  "not.toContainText('下一周期')",
   "'machine-factory:machinery-recipe--economical'",
   "getByRole('combobox', { name: '机械工厂生产方式' })",
   "getByRole('option', { name: '节约生产' })",
@@ -145,13 +146,13 @@ assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 24'));
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '标准生产、高速生产、节约生产和高产生产',
-    '生产方式与配方必须在同一个周期边界原子切换',
+    '生产方式与配方必须在同一次配置动作中原子切换',
     '不得新增单座工厂生产方式状态',
     '作业制度下方只显示周期、单周期产出和周期成本',
   ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
     '作业制度',
-    '下一周期切换',
+    '立即切换',
     '不显示作业制度说明',
   ]],
   ['docs/UI_DESIGN_SYSTEM.md', [
@@ -169,4 +170,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、两位小数固定精度平衡、稳定变体 ID、周期边界切换、需求图去重、标准路线公开兼容、可选客户端元数据、统一下拉选择、紧凑参数摘要、浏览器交互和版本兼容均已锁定。');
+console.log('生产方式验证通过：四种作业制度、固定精度平衡、稳定变体 ID、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。');

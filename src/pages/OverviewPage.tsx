@@ -55,9 +55,7 @@ export function OverviewPage({ model }: OverviewPageProps) {
   } = model;
   const now = useNow(game.lastProcessedAt);
   const workRemaining = Math.max(0, game.work.cooldownUntil - now);
-  const pendingRecipeChanges = game.facilityGroups.filter((group) => Boolean(group.pendingRecipeId)).length;
   const totalFacilities = game.facilityGroups.reduce((sum, group) => sum + group.count, 0);
-  const pendingJoin = game.facilityGroups.reduce((sum, group) => sum + group.pendingJoinCount, 0);
   const greeting = greetingForHour(new Date(now).getHours());
   const ownOpenOrders = [...derived.ownOpenOrders].sort((left, right) => right.createdAt - left.createdAt);
   const buyOrderCount = ownOpenOrders.filter((order) => order.side === 'buy').length;
@@ -332,8 +330,8 @@ export function OverviewPage({ model }: OverviewPageProps) {
             </DataList>
             <div className="overview-production-footnote">
               <span>施工 {formatNumber(derived.constructingFacilities)}</span>
-              <span>下一周期加入 {formatNumber(pendingJoin)}</span>
-              <span>待改种 {formatNumber(pendingRecipeChanges)} 组</span>
+              <span>新增工厂直接加入运行</span>
+              <span>生产配置立即生效</span>
             </div>
           </Panel>
 

@@ -263,7 +263,7 @@ function releaseBid(world, auction) {
   return amount;
 }
 
-function releaseItems(world, sellerId, items) {
+function releaseItems(world, sellerId, items, now, assumeReserved = false) {
   const seller = player(world, sellerId);
   for (const item of items) {
     if (item.assetKind === 'commodity' && seller) {
@@ -272,14 +272,14 @@ function releaseItems(world, sellerId, items) {
       inventory.frozen = Math.max(0, Number(inventory.frozen || 0) - quantity);
       inventory.available = Number(inventory.available || 0) + quantity;
     } else if (item.assetKind === 'facility') {
-      releaseFacilityAuctionQuantity(world, sellerId, item.assetId, item.quantity);
+      releaseFacilityAuctionQuantity(world, sellerId, item.assetId, item.quantity, now, assumeReserved);
     }
   }
 }
 
-function releaseAuctionAsset(world, auction) {
+function releaseAuctionAsset(world, auction, now) {
   if (auction.escrowStatus !== 'held') return;
-  releaseItems(world, auction.sellerId, auctionItems(auction));
+  releaseItems(world, auction.sellerId, auctionItems(auction), now);
   auction.escrowStatus = 'released';
 }
 
@@ -360,7 +360,7 @@ function cancelLegacyCollectibleAuction(world, auction, items, now) {
   if (auction.status !== 'open') return;
   releaseBid(world, auction);
   if (auction.escrowStatus !== 'released' && auction.escrowStatus !== 'transferred') {
-    releaseItems(world, auction.sellerId, items.filter((item) => item.assetKind !== 'collectible'));
+    releaseItems(world, auction.sellerId, items.filter((item) => item.assetKind !== 'collectible'), now, true);
   }
   auction.status = 'cancelled';
   auction.escrowStatus = 'released';
@@ -494,7 +494,7 @@ function settleAuction(world, auction, now) {
     return;
   }
   if (!auction.highestBidderId || !auction.highestBid) {
-    releaseAuctionAsset(world, auction);
+    releaseAuctionAsset(world, auction, now);
     const listingFee = distributeListingFee(world, auction, now, 'no_bid');
     finalizeAuction(world, auction, now, 'ended', 'no_bid');
     queueAuctionAuditEvent(world, {
@@ -509,7 +509,7 @@ function settleAuction(world, auction, now) {
   const reserve = auction.reservePrice || auction.startingBid;
   if (auction.highestBid < reserve) {
     const refundedBid = releaseBid(world, auction);
-    releaseAuctionAsset(world, auction);
+    releaseAuctionAsset(world, auction, now);
     const listingFee = distributeListingFee(world, auction, now, 'reserve_not_met');
     finalizeAuction(world, auction, now, 'ended', 'reserve_not_met');
     queueAuctionAuditEvent(world, {
