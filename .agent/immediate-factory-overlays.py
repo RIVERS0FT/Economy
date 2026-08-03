@@ -72,7 +72,7 @@ replaceExact(
         raise SystemExit(f"final verification marker: expected one occurrence, found {source.count(marker)}")
 
     extra = textwrap.dedent(
-        r'''\
+        r'''
         replaceExact(
           runtime,
           `export function releaseFacilityAuctionQuantity(world, userId, typeId, quantity, now = Date.now()) {
