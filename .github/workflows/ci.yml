@@ -94,13 +94,21 @@ jobs:
           python3 <<'PY'
           from pathlib import Path
 
-          path = Path('tests/browser/market-runtime.spec.ts')
-          text = path.read_text(encoding='utf-8')
+          runtime_path = Path('tests/browser/market-runtime.spec.ts')
+          runtime_text = runtime_path.read_text(encoding='utf-8')
           expanded = "test('market order book keeps a continuous sell-five to buy-five sequence and fills price without submitting', async ({ page }) => {"
           existing = "test('market order book keeps sell five to buy five sequence and fills price without submitting', async ({ page }) => {"
-          if text.count(expanded) != 1:
-              raise SystemExit(f'expected one expanded order-book test title, found {text.count(expanded)}')
-          path.write_text(text.replace(expanded, existing, 1), encoding='utf-8')
+          if runtime_text.count(expanded) != 1:
+              raise SystemExit(f'expected one expanded order-book test title, found {runtime_text.count(expanded)}')
+          runtime_path.write_text(runtime_text.replace(expanded, existing, 1), encoding='utf-8')
+
+          verifier_path = Path('scripts/verify-market-desktop-cleanup.mjs')
+          verifier_text = verifier_path.read_text(encoding='utf-8')
+          invalid_import_matcher = "\"import './styles/form-controls.css';\nimport './styles/market-desktop-cleanup.css';\""
+          escaped_import_matcher = "\"import './styles/form-controls.css';\\nimport './styles/market-desktop-cleanup.css';\""
+          if verifier_text.count(invalid_import_matcher) != 1:
+              raise SystemExit(f'expected one unescaped import matcher, found {verifier_text.count(invalid_import_matcher)}')
+          verifier_path.write_text(verifier_text.replace(invalid_import_matcher, escaped_import_matcher, 1), encoding='utf-8')
           PY
 
       - name: Check patch formatting and scope
