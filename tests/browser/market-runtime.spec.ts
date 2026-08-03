@@ -204,8 +204,8 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   const narrowChart = await requireBox(page.locator('.market-chart-card'));
   expect(Math.abs(narrowOrder.y - narrowBook.y)).toBeLessThan(3);
   expect(narrowBook.x).toBeGreaterThan(narrowOrder.x + narrowOrder.width - 3);
-  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.75);
-  expect(narrowOrder.width / narrowBook.width).toBeLessThan(2.25);
+  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.4);
+  expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.7);
   expect(narrowChart.y).toBeGreaterThan(narrowTrade.y + narrowTrade.height - 2);
 
   const layout = await inspectMarketLayoutBounds(surface);
@@ -241,12 +241,26 @@ test('market medium and narrow layouts keep the trade card responsive without ho
   }
 
   await page.setViewportSize({ width: 320, height: 720 });
-  await expect(page.getByRole('button', { name: '下单', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '下单', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '盘口', exact: true })).toHaveCount(0);
   await expect(orderEntry).toBeVisible();
-  await expect(orderBook).toBeHidden();
-  await page.getByRole('button', { name: '盘口', exact: true }).click();
-  await expect(orderEntry).toBeHidden();
   await expect(orderBook).toBeVisible();
+  const compactOrder = await requireBox(orderEntry);
+  const compactBook = await requireBox(orderBook);
+  expect(Math.abs(compactOrder.y - compactBook.y)).toBeLessThan(3);
+  expect(compactBook.x).toBeGreaterThan(compactOrder.x + compactOrder.width - 3);
+  const compactLayout = await inspectMarketLayoutBounds(surface);
+  expect(compactLayout.pageScrollScrollWidth).toBeLessThanOrEqual(compactLayout.pageScrollClientWidth + 1);
+  expect(compactLayout.directChildren.every((child) => child.left >= -1 && child.right <= compactLayout.surfaceWidth + 1)).toBe(true);
+
+  const firstAsk = orderBook.locator('.book-order-row.ask').first();
+  const firstAskLabel = await firstAsk.getAttribute('aria-label');
+  const priceMatch = firstAskLabel?.match(/价格 ([\d,.]+)/);
+  expect(priceMatch).not.toBeNull();
+  const expectedPrice = Number(priceMatch![1].replaceAll(',', ''));
+  await firstAsk.click();
+  await expect.poll(async () => Number(await page.getByRole('textbox', { name: '价格' }).inputValue())).toBe(expectedPrice);
+  expect(await firstAsk.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(43);
   expect(pageErrors).toEqual([]);
 });
 

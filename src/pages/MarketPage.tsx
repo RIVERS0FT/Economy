@@ -62,7 +62,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const assetDirectoryRef = useRef<HTMLDivElement>(null);
   const [priceDraft, setPriceDraft] = useState(String(orderPrice));
   const [quantityDraft, setQuantityDraft] = useState(String(orderQuantity));
-  const [compactTradeView, setCompactTradeView] = useState<'entry' | 'book'>('entry');
   const [mobileAccountView, setMobileAccountView] = useState<'orders' | 'trades'>('orders');
 
   const selectedProduct = marketAssetKind === 'commodity'
@@ -402,22 +401,8 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 <strong>{formatNumber(availableAssetQuantity)}</strong>
               </span>
             </div>
-            <div className="market-compact-view-switch ui-segmented" role="group" aria-label="交易卡片视图">
-              <Button
-                variant="text"
-                className={compactTradeView === 'entry' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-                aria-pressed={compactTradeView === 'entry'}
-                onClick={() => setCompactTradeView('entry')}
-              >下单</Button>
-              <Button
-                variant="text"
-                className={compactTradeView === 'book' ? 'ui-segmented__button active' : 'ui-segmented__button'}
-                aria-pressed={compactTradeView === 'book'}
-                onClick={() => setCompactTradeView('book')}
-              >盘口</Button>
-            </div>
             <div className="market-trade-layout">
-              <section className={`order-entry market-trade-entry${compactTradeView === 'entry' ? ' market-compact-pane--active' : ''}`} aria-labelledby="market-order-entry-title">
+              <section className="order-entry market-trade-entry" aria-labelledby="market-order-entry-title">
                 <h3 id="market-order-entry-title" className="market-trade-section-title">下单</h3>
                 <div className="ui-segmented market-side-switch" role="group" aria-label="订单方向">
                   <Button
@@ -523,7 +508,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                 </Button>
               </section>
 
-              <section className={`order-book single-order-book market-trade-book${compactTradeView === 'book' ? ' market-compact-pane--active' : ''}`} aria-labelledby="market-order-book-title">
+              <section className="order-book single-order-book market-trade-book" aria-labelledby="market-order-book-title">
                 <div className="market-trade-section-heading">
                   <h3 id="market-order-book-title">订单簿</h3>
                   <small>实时五档 · 点击填价</small>

@@ -42,7 +42,9 @@ for (const text of [
 
 for (const text of [
   'grid-template-columns: minmax(320px, 3fr) minmax(240px, 2fr);',
-  'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);',
+  'grid-template-columns: minmax(0, 3fr) minmax(112px, 2fr);',
+  '@container market-page (max-width: 359px)',
+  'grid-template-columns: 24px minmax(0, 1fr) 34px;',
   'grid-template-columns: var(--market-stepper-label-width) minmax(0, 1fr);',
   '.market-page-surface .market-stepper__button {',
   "html[data-input-modality='mouse']",
@@ -60,7 +62,8 @@ for (const text of [
   '字段标签／内嵌减号按钮／共享输入控件／内嵌加号按钮',
   '不再提供“交易资产详情”折叠区',
   '下单 60%／盘口 40%',
-  '约 66%／34%',
+  '不大于 `720px` 的移动端始终同时显示下单区和五档盘口',
+  '盘口保留不小于 112px 的可读宽度',
   'wheelStep={0.01}',
 ]) requireText(orderDesignPath, text);
 
@@ -84,11 +87,15 @@ for (const text of [
 ]) requireText(browserPath, text);
 
 forbidText(pagePath, 'market-order-details');
+forbidText(pagePath, 'compactTradeView');
+forbidText(pagePath, 'market-compact-view-switch');
 forbidText(pagePath, '交易资产详情');
 forbidText(pagePath, 'order-disabled-reason');
 forbidText(pagePath, '当前没有可出售的');
 forbidText(pagePath, '当前最多可卖');
 forbidText(stylePath, '.market-order-details');
+forbidText(stylePath, '@container market-page (max-width: 339px)');
+forbidText(stylePath, 'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);');
 forbidText(stylePath, 'minmax(280px, 44fr) minmax(300px, 56fr)');
 forbidText(stylePath, 'minmax(0, 3fr) minmax(126px, 2fr)');
 forbidText(stylePath, 'transform: translateY(-50%);');
@@ -98,4 +105,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('市场同行标签、内嵌步进按钮稳定定位、聚焦金额滚轮、详情移除和订单簿宽度验证通过。');
+console.log('市场同行标签、内嵌步进按钮稳定定位、聚焦金额滚轮、详情移除、移动端永久双列和极窄盘口验证通过。');
