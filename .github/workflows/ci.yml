@@ -55,6 +55,9 @@ jobs:
             scripts/apply-live-staffing-settlement-v4.mjs \
             .github/workflows/apply-live-staffing-settlement.yml
 
+      - name: Restore formal CI workflow before validation
+        run: git checkout origin/main -- .github/workflows/ci.yml
+
       - name: Install dependencies
         run: npm ci
 
@@ -63,9 +66,6 @@ jobs:
         run: |
           set -o pipefail
           npm run build 2>&1 | tee build-test.log
-
-      - name: Restore formal CI workflow
-        run: git checkout origin/main -- .github/workflows/ci.yml
 
       - name: Commit implementation
         shell: bash
