@@ -1,0 +1,95 @@
+name: Trigger mobile market layout application
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-mobile-market-entry-book-columns-pr
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    if: github.head_ref == 'agent/mobile-market-entry-book-columns'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/mobile-market-entry-book-columns
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Extract and run approved edits
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/agent-apply-mobile-market-layout.yml').read_text(encoding='utf-8')
+          marker = '      - name: Apply approved layout changes\n        shell: bash\n        run: |\n'
+          start = workflow.index(marker) + len(marker)
+          end = workflow.index('\n      - name: Check patch formatting', start)
+          block = workflow[start:end]
+          lines = []
+          for line in block.splitlines():
+              if line.startswith('          '):
+                  lines.append(line[10:])
+              else:
+                  lines.append(line)
+          Path('/tmp/apply-mobile-market-layout.sh').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          bash /tmp/apply-mobile-market-layout.sh
+
+      - name: Check patch formatting
+        run: git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run market layout gates
+        run: |
+          node scripts/verify-market-page-layout.mjs
+          npm run verify:market-desktop-cleanup
+
+      - name: Run complete build
+        run: npm run build
+
+      - name: Run browser regression suite
+        run: npm run test:browser
+
+      - name: Commit verified source changes
+        shell: bash
+        run: |
+          rm .github/workflows/agent-apply-mobile-market-layout.yml
+          rm .github/workflows/agent-pr-trigger-mobile-market-layout.yml
+          git diff --check
+          git status --short
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            src/pages/MarketPage.tsx \
+            src/styles/market-page-polish.css \
+            src/styles/market-desktop-cleanup.css \
+            scripts/verify-market-page-layout.mjs \
+            scripts/verify-market-desktop-cleanup.mjs \
+            tests/browser/market-runtime.spec.ts \
+            tests/browser/market-desktop-cleanup.spec.ts \
+            .github/workflows/agent-apply-mobile-market-layout.yml \
+            .github/workflows/agent-pr-trigger-mobile-market-layout.yml
+          git commit -m "feat: keep mobile market entry and book side by side"
+          git push origin HEAD:agent/mobile-market-entry-book-columns
