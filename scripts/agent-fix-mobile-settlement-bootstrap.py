@@ -14,6 +14,11 @@ replacements = [
         "replace_once(\n    verifier,\n    \"  'expect(box.x + box.width).toBeLessThanOrEqual(390)',\",\n    \"  'expect(box.x + box.width).toBeLessThanOrEqual(width)',\",\n)\n\nrequire(group_css, '.facility-production-settings-grid')",
         '移动下拉框宽度验证补丁入口',
     ),
+    (
+        "  '时间与成本在输入物资下方同一行显示',",
+        "  '输入与输出物资槽顶部对齐',\n  '再在其下同一行显示时间与成本',",
+        '生产结算设计验证文案',
+    ),
 ]
 
 for old, new, label in replacements:
