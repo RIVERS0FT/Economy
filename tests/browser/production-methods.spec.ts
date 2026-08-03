@@ -12,7 +12,7 @@ test.describe('factory production methods', () => {
     await expect(detail).not.toContainText('生产配方');
     await expect(detail).toContainText('作业制度');
     await expect(detail).toContainText('生产结算');
-    await expect(detail).toContainText('下一周期切换为：机械制造 · 高速生产');
+    await expect(detail).not.toContainText('下一周期');
     await expect(detail.getByRole('radio')).toHaveCount(0);
 
     const recipeSelect = detail.getByRole('combobox', { name: '机械工厂生产产物' });

@@ -102,13 +102,15 @@ export interface FacilityGroup {
   facilityTypeId: string;
   count: number;
   participatingCount: number;
-  pendingJoinCount: number;
+  /** Production-eligible factories after order-book and auction freezes. Mortgaged factories remain eligible. */
+  productionAvailableCount?: number;
+  /** Projected integer equivalent capacity if a new full cycle starts now. */
+  projectedEffectiveCount?: number;
   listedCount: number;
   auctionedCount?: number;
   frozenCount?: number;
   mortgagedCount: number;
   availableCount: number;
-  nextCycleCount: number;
   enabled: boolean;
   status: FacilityStatus;
   statusReason?: FacilityStatusReason;
@@ -118,14 +120,17 @@ export interface FacilityGroup {
   cycleStaffingRateBps?: number;
   /** Integer equivalent factory batches settled by the current cycle. */
   cycleEffectiveCount?: number;
-  /** Projected staffing rate for the next full cycle. */
+  /** @deprecated Version 24 compatibility alias; always 0 because factories no longer queue for the next cycle. */
+  pendingJoinCount?: number;
+  /** @deprecated Version 24 compatibility alias for productionAvailableCount. */
+  nextCycleCount?: number;
+  /** @deprecated Version 24 compatibility alias for staffingRateBps. */
   nextCycleStaffingRateBps?: number;
-  /** Projected integer equivalent factory batches for the next full cycle. */
+  /** @deprecated Version 24 compatibility alias for projectedEffectiveCount. */
   nextCycleEffectiveCount?: number;
   cycleStartedAt?: number;
   lifetimeOutput: number;
   activeRecipeId: string;
-  pendingRecipeId?: string;
 }
 
 export interface FacilityConstruction {

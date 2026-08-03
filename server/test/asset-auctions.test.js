@@ -242,7 +242,10 @@ test('世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍�
   assert.equal(bidder.credits, 500);
   assert.equal(bidder.frozenCredits, 0);
   assert.deepEqual(sellerAccount.inventories.wheat, { available: 10, frozen: 0 });
-  assert.equal(sellerAccount.facilityGroups[0].pendingJoinCount, 1);
+  assert.equal(sellerAccount.facilityGroups[0].participatingCount, 2);
+  assert.equal(sellerAccount.facilityGroups[0].staffingRateBps, 5_000);
+  assert.equal(sellerAccount.facilityGroups[0].cycleStaffingRateBps, 5_000);
+  assert.equal(Object.hasOwn(sellerAccount.facilityGroups[0], 'pendingJoinCount'), false);
   assert.equal(Object.hasOwn(state, 'collectibles'), false);
   assert.equal(Object.hasOwn(state, 'collectibleOwnershipHistory'), false);
   assert.equal(Object.hasOwn(state, 'collectibleAuctions'), false);

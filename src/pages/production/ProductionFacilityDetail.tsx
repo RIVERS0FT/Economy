@@ -12,7 +12,6 @@ import {
 import {
   FacilityProductionFormula,
   currentFormulaScope,
-  nextFormulaScope,
 } from '../../components/facilities/FacilityProductionFormula';
 import type {
   FacilityGroup,
@@ -47,14 +46,9 @@ export interface FacilityDetailRecipeState {
   variants: FacilityRecipeDefinition[];
   productionMethodGroup: FacilityProductionMethodGroupDefinition | undefined;
   activeRecipe: FacilityRecipeDefinition;
-  pendingRecipe: FacilityRecipeDefinition | undefined;
   activeBaseRecipe: FacilityRecipeDefinition;
-  pendingBaseRecipe: FacilityRecipeDefinition | undefined;
   activeProductionMethod: FacilityProductionMethodDefinition | undefined;
-  pendingProductionMethod: FacilityProductionMethodDefinition | undefined;
   formulaType: FacilityTypeDefinition;
-  nextFormulaType: FacilityTypeDefinition;
-  showNextCyclePreview: boolean;
   selectedRecipeId: string;
   selectedBaseRecipeId: string;
   selectedProductionMethodId: FacilityProductionMethodId;
@@ -116,12 +110,14 @@ export function FacilityStaffingSummary({
   const { group, type } = entry;
   const currentPercent = staffingPercent(group.staffingRateBps);
   const settlementPercent = staffingPercent(
-    group.status === 'running' ? group.cycleStaffingRateBps : group.nextCycleStaffingRateBps,
+    group.status === 'running' ? group.cycleStaffingRateBps : group.staffingRateBps,
   );
-  const physicalCount = group.status === 'running' ? group.participatingCount : group.nextCycleCount;
+  const physicalCount = group.status === 'running'
+    ? group.participatingCount
+    : group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount;
   const effectiveCount = group.status === 'running'
     ? group.cycleEffectiveCount ?? group.participatingCount
-    : group.nextCycleEffectiveCount ?? group.nextCycleCount;
+    : group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? physicalCount;
   const scopeLabel = group.status === 'running'
     ? '本周期'
     : group.status === 'error'
@@ -254,38 +250,23 @@ export function resolveFacilityDetailRecipeState(entry: FacilityClusterEntry): F
     variants.find((recipe) => recipe.id === group.activeRecipeId) ??
     variants.find((recipe) => recipe.id === type.defaultRecipeId) ??
     variants[0];
-  const pendingRecipe = variants.find((recipe) => recipe.id === group.pendingRecipeId);
-  const nextRecipe = pendingRecipe ?? activeRecipe;
   const productionMethodGroup = productionMethodGroupForType(type);
   const activeBaseRecipeId = baseRecipeId(activeRecipe);
-  const pendingBaseRecipeId = pendingRecipe ? baseRecipeId(pendingRecipe) : undefined;
   const activeBaseRecipe = recipes.find((recipe) => recipe.id === activeBaseRecipeId) ?? recipes[0];
-  const pendingBaseRecipe = pendingBaseRecipeId
-    ? recipes.find((recipe) => recipe.id === pendingBaseRecipeId)
-    : undefined;
   const activeMethodId = productionMethodId(activeRecipe);
-  const pendingMethodId = pendingRecipe ? productionMethodId(pendingRecipe) : undefined;
   const activeProductionMethod = productionMethodGroup?.methods.find((method) => method.id === activeMethodId);
-  const pendingProductionMethod = pendingMethodId
-    ? productionMethodGroup?.methods.find((method) => method.id === pendingMethodId)
-    : undefined;
 
   return {
     recipes,
     variants,
     productionMethodGroup,
     activeRecipe,
-    pendingRecipe,
     activeBaseRecipe,
-    pendingBaseRecipe,
     activeProductionMethod,
-    pendingProductionMethod,
     formulaType: typeForRecipe(type, activeRecipe),
-    nextFormulaType: typeForRecipe(type, nextRecipe),
-    showNextCyclePreview: Boolean(pendingRecipe),
-    selectedRecipeId: pendingRecipe?.id ?? activeRecipe.id,
-    selectedBaseRecipeId: pendingBaseRecipeId ?? activeBaseRecipeId,
-    selectedProductionMethodId: pendingMethodId ?? activeMethodId,
+    selectedRecipeId: activeRecipe.id,
+    selectedBaseRecipeId: activeBaseRecipeId,
+    selectedProductionMethodId: activeMethodId,
   };
 }
 
@@ -330,12 +311,8 @@ export function FacilityClusterSelectorCard({
   const { group, type } = entry;
   const markets = useFacilityRecipeProfitMarkets();
   const recipeState = resolveFacilityDetailRecipeState(entry);
-  const profitScope = recipeState.showNextCyclePreview
-    ? nextFormulaScope(group)
-    : currentFormulaScope(group);
-  const profitType = recipeState.showNextCyclePreview
-    ? recipeState.nextFormulaType
-    : recipeState.formulaType;
+  const profitScope = currentFormulaScope(group);
+  const profitType = recipeState.formulaType;
   const profit = resolveFacilityProfitPresentation({
     type: profitType,
     scopeCount: profitScope.physicalCount,
@@ -400,9 +377,6 @@ export function FacilityClusterDetailHeader({
           运行中 <strong>{formatNumber(group.participatingCount)}</strong>
         </span>
         <span>
-          下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>
-        </span>
-        <span>
           冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>
         </span>
         <span>
@@ -445,15 +419,11 @@ export function FacilityClusterDetailBody({
 
       <section className="facility-production-settings">
         <div className="facility-production-settings-heading">
-          <strong>生产设置</strong>
-          {recipeState.pendingRecipe ? (
-            <small className="facility-recipe-status" aria-live="polite">
-              下一周期切换为：{recipeState.pendingBaseRecipe?.name ?? recipeState.pendingRecipe.name}
-              {' · '}
-              {recipeState.pendingProductionMethod?.name ?? '标准生产'}
-            </small>
-          ) : null}
-        </div>
+  <strong>生产设置</strong>
+  <small className="facility-recipe-status">
+    配置切换结果会提示“生产进度已清零”，并同步降低满员率。
+  </small>
+</div>
 
         <div className="facility-production-settings-grid">
           <RichSelectInput
@@ -505,8 +475,6 @@ export function FacilityClusterDetailBody({
       <FacilityProductionFormula
         group={group}
         type={recipeState.formulaType}
-        nextType={recipeState.nextFormulaType}
-        showNextCyclePreview={recipeState.showNextCyclePreview}
         products={products}
         inventories={inventories}
         now={now}

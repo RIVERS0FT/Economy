@@ -155,14 +155,14 @@ for (const text of [
   '异常：仓库已满',
   '异常：原料不足',
   '运行中',
-  '下一周期加入',
+  '新增生产可用工厂立即参与运行并同步稀释满员率',
   '冻结中',
   'FacilityProductionFormula',
   'products={game.products}',
   'inventories={game.inventories}',
   'facility-recipe-section',
   '<strong>生产产物</strong>',
-  '下一周期切换为：',
+  '生产进度已清零',
   'setFacilityRecipe',
   '前往市场交易该工厂 →',
   'formatNumber(group.count)',
@@ -207,6 +207,8 @@ for (const text of [
   'facility-group-specs',
   'facility-card-status-row',
   'facility-detail-sheet-close',
+  '下一周期加入',
+  '下一周期切换为：',
 ]) forbidText('src/pages/ProductionPage.tsx', text);
 
 for (const text of [

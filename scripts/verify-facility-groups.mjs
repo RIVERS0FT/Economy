@@ -36,13 +36,12 @@ for (const text of [
   'enabled: boolean',
   'statusReason?: FacilityStatusReason',
   'activeRecipeId: string',
-  'pendingRecipeId?: string',
   'lifetimeOutput: number',
   'staffingRateBps?: number',
   'cycleStaffingRateBps?: number',
   'cycleEffectiveCount?: number',
-  'nextCycleStaffingRateBps?: number',
-  'nextCycleEffectiveCount?: number',
+  'productionAvailableCount?: number',
+  'projectedEffectiveCount?: number',
 ]) requireText('src/types.ts', text);
 
 for (const text of [
@@ -50,7 +49,9 @@ for (const text of [
   "group.status = 'stopped'",
   "group.status = 'error'",
   'reconcileFacilityGroup',
-  'applyPendingRecipe',
+  'expandAvailableFacilities',
+  'applyConfigurationStaffingPenalty',
+  'FACILITY_CONFIGURATION_STAFFING_PENALTY_BPS',
   'setGroupRecipe',
   'activeRecipeFor',
   "reason: 'warehouse_full'",
@@ -79,7 +80,7 @@ for (const text of [
   'products={game.products}',
   'inventories={game.inventories}',
   '生产产物',
-  '下一周期切换为：',
+  '生产进度已清零',
   'setFacilityRecipe',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
@@ -88,7 +89,7 @@ for (const text of [
   'facility-production-settings-grid',
   '<strong>生产设置</strong>',
   '生产产物',
-  '下一周期切换为：',
+  '生产进度已清零',
 ]) requireText('src/pages/production/ProductionFacilityDetail.tsx', text);
 for (const forbidden of [
   'facility-recipe-section',
@@ -269,7 +270,9 @@ for (const forbidden of [
 
 for (const text of [
   'factory automatically recovers after funds return',
-  'running farm crop changes apply at the next cycle boundary',
+  'running farm crop changes apply immediately with a staffing penalty and progress reset',
+  'legacy pending factory and recipe state migrates once into immediate participation',
+  'purchased factories join a running group immediately and dilute current-cycle staffing',
   'warehouse errors recover without backfilling missed cycles',
   'manual stop disables automatic recovery',
   'stopped factory staffing decays linearly from its stored timestamp',
@@ -283,9 +286,9 @@ for (const text of [
   '三种顶层状态',
   '自动恢复',
   'activeRecipeId',
-  'pendingRecipeId',
+  '生产配置切换立即写入 `activeRecipeId`',
   '持续生产与通用配方切换',
-  '下一周期切换为：配方名称',
+  '生产进度立即清零',
   '固定价格工厂挂牌市场',
   '集群生产公式',
   '集群生产公式支持无输入、单输入、多输入和单输出',
@@ -327,4 +330,4 @@ if (failures.length) {
   console.error(`工厂三态、生产公式、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('工厂持续生产、紧凑标题状态、统一收起动画、通用配方周期边界切换、三态自动恢复、输入侧周期成本公式和自然高度主从卡片验证通过。');
+console.log('工厂即时加入、配置立即切换、满员率稀释与惩罚、紧凑标题状态、三态自动恢复和生产结算验证通过。');

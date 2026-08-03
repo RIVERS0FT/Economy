@@ -134,18 +134,21 @@ test('public client state keeps the legacy recipe list and exposes optional meth
   }
 });
 
-test('running factory switches production method only after the current full cycle', () => {
+test('running factory switches production method immediately with one staffing penalty', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 100;
   player.facilityGroups = [{
     facilityTypeId: 'farm',
-    count: 1,
-    participatingCount: 1,
-    pendingJoinCount: 0,
+    count: 5,
+    participatingCount: 5,
     enabled: true,
     status: 'running',
     cycleStartedAt: now,
+    staffingRateBps: 10_000,
+    staffingUpdatedAt: now,
+    cycleStaffingRateBps: 10_000,
+    staffingBatchCarryBps: 9_999,
     activeRecipeId: 'wheat-crop',
     lifetimeOutput: 0,
   }];
@@ -155,19 +158,19 @@ test('running factory switches production method only after the current full cyc
     facilityTypeId: 'farm',
     recipeId: 'wheat-crop--rapid',
   }, now + 1);
+  const farm = player.facilityGroups[0];
   assert.equal(result.ok, true);
-  assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop');
-  assert.equal(player.facilityGroups[0].pendingRecipeId, 'wheat-crop--rapid');
+  assert.equal(farm.activeRecipeId, 'wheat-crop--rapid');
+  assert.equal(farm.cycleStartedAt, now + 1);
+  assert.equal(farm.staffingRateBps, 8_000);
+  assert.equal(farm.cycleStaffingRateBps, 8_000);
+  assert.equal(farm.staffingBatchCarryBps, 0);
+  assert.equal(Object.hasOwn(farm, 'pendingRecipeId'), false);
 
-  processFacilityGroupWorld(world, now + 20_000);
-  assert.equal(player.inventories.wheat.available, 1);
-  assert.equal(player.credits, 99);
-  assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop--rapid');
-  assert.equal(player.facilityGroups[0].pendingRecipeId, undefined);
-  assert.equal(player.facilityGroups[0].cycleStartedAt, now + 20_000);
-
-  processFacilityGroupWorld(world, now + 30_000);
-  assert.equal(player.inventories.wheat.available, 2);
-  assert.ok(Math.abs(player.credits - 97.9) < 1e-9);
-  assert.equal(player.facilityGroups[0].lifetimeOutput, 2);
+  processFacilityGroupWorld(world, now + 10_000);
+  assert.equal(player.inventories.wheat.available, 0);
+  processFacilityGroupWorld(world, now + 10_001);
+  assert.equal(player.inventories.wheat.available, 4);
+  assert.ok(Math.abs(player.credits - 95.6) < 1e-9);
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 4);
 });

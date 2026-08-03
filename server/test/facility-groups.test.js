@@ -10,7 +10,7 @@ const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 const bob = { id: 2, email: 'bob@example.com', name: 'Bob' };
 
 function group(typeId, count, overrides = {}) {
-  return { facilityTypeId: typeId, count, participatingCount: 0, pendingJoinCount: 0, enabled: false, status: 'stopped', statusReason: 'manual', activeRecipeId: typeId === 'farm' ? 'wheat-crop' : `${typeId}-default`, lifetimeOutput: 0, ...overrides };
+  return { facilityTypeId: typeId, count, participatingCount: 0, enabled: false, status: 'stopped', statusReason: 'manual', activeRecipeId: typeId === 'farm' ? 'wheat-crop' : `${typeId}-default`, lifetimeOutput: 0, ...overrides };
 }
 
 test('factory buy and sell orders use price-time matching and partial fills', () => {
@@ -220,7 +220,7 @@ test('manual stop disables automatic recovery', () => {
   assert.equal(player.facilityGroups[0].enabled, false);
 });
 
-test('running farm crop changes apply at the next cycle boundary', () => {
+test('running farm crop changes apply immediately with a staffing penalty and progress reset', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 1_000;
@@ -229,31 +229,66 @@ test('running farm crop changes apply at the next cycle boundary', () => {
     status: 'running',
     participatingCount: 2,
     cycleStartedAt: now,
+    staffingRateBps: 10_000,
+    staffingUpdatedAt: now,
+    cycleStaffingRateBps: 10_000,
+    staffingBatchCarryBps: 7_500,
   })];
   migrateFacilityGroupWorld(world, now);
   const response = applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
     facilityTypeId: 'farm', recipeId: 'rice-crop',
   }, now + 1);
+  const farm = player.facilityGroups[0];
   assert.equal(response.ok, true);
-  assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop');
-  assert.equal(player.facilityGroups[0].pendingRecipeId, 'rice-crop');
+  assert.match(response.message, /生产进度已清零/);
+  assert.equal(farm.activeRecipeId, 'rice-crop');
+  assert.equal(farm.cycleStartedAt, now + 1);
+  assert.equal(farm.staffingRateBps, 8_000);
+  assert.equal(farm.cycleStaffingRateBps, 8_000);
+  assert.equal(farm.staffingBatchCarryBps, 0);
+  assert.equal(Object.hasOwn(farm, 'pendingRecipeId'), false);
 
-  assert.equal(applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
-    facilityTypeId: 'farm', recipeId: 'wheat-crop',
-  }, now + 2).ok, true);
-  assert.equal(player.facilityGroups[0].pendingRecipeId, undefined);
-  assert.equal(applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
+  const repeated = applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
     facilityTypeId: 'farm', recipeId: 'rice-crop',
-  }, now + 3).ok, true);
+  }, now + 2);
+  assert.equal(repeated.ok, true);
+  assert.equal(farm.cycleStartedAt, now + 1);
+  assert.equal(farm.staffingRateBps, 8_000);
 
   processFacilityGroupWorld(world, now + 20_000);
-  assert.equal(player.facilityGroups[0].activeRecipeId, 'rice-crop');
-  assert.equal(player.facilityGroups[0].pendingRecipeId, undefined);
-  assert.equal(player.inventories.wheat.available, 2);
+  assert.equal(player.inventories.wheat.available, 0);
   assert.equal(player.inventories.rice.available, 0);
+  processFacilityGroupWorld(world, now + 20_001);
+  assert.equal(player.inventories.rice.available, 1);
+});
 
-  processFacilityGroupWorld(world, now + 40_000);
-  assert.equal(player.inventories.rice.available, 2);
+test('legacy pending factory and recipe state migrates once into immediate participation', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.facilityGroups = [group('farm', 10, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 8,
+    pendingJoinCount: 2,
+    cycleStartedAt: now - 5_000,
+    staffingRateBps: 8_000,
+    staffingUpdatedAt: now,
+    cycleStaffingRateBps: 8_000,
+    staffingBatchCarryBps: 9_999,
+    pendingRecipeId: 'rice-crop',
+  })];
+  migrateFacilityGroupWorld(world, now);
+  const farm = player.facilityGroups[0];
+  assert.equal(farm.participatingCount, 10);
+  assert.equal(farm.activeRecipeId, 'rice-crop');
+  assert.equal(farm.staffingRateBps, 4_400);
+  assert.equal(farm.cycleStaffingRateBps, 4_400);
+  assert.equal(farm.cycleStartedAt, now);
+  assert.equal(farm.staffingBatchCarryBps, 0);
+  assert.equal(Object.hasOwn(farm, 'pendingJoinCount'), false);
+  assert.equal(Object.hasOwn(farm, 'pendingRecipeId'), false);
+  migrateFacilityGroupWorld(world, now + 1);
+  assert.equal(farm.staffingRateBps, 4_400);
 });
 
 test('warehouse errors recover without backfilling missed cycles', () => {
@@ -372,6 +407,40 @@ test('empty factory order books stay empty after world processing', () => {
   assert.equal(world.orders.some((order) => order.assetKind === 'facility' || order.facilityTypeId), false);
 });
 
+test('purchased factories join a running group immediately and dilute current-cycle staffing', () => {
+  const world = createWorld(now);
+  const buyer = ensurePlayer(world, alice, now);
+  const seller = ensurePlayer(world, bob, now);
+  buyer.credits = 10_000;
+  buyer.facilityGroups = [group('farm', 10, {
+    enabled: true,
+    status: 'running',
+    participatingCount: 10,
+    cycleStartedAt: now,
+    staffingRateBps: 8_000,
+    staffingUpdatedAt: now,
+    cycleStaffingRateBps: 8_000,
+  })];
+  seller.facilityGroups = [group('farm', 2)];
+  migrateFacilityGroupWorld(world, now);
+  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 2, price: 80,
+  }, now + 1).ok, true);
+  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'buy', quantity: 2, price: 80,
+  }, now + 2).ok, true);
+  const farm = buyer.facilityGroups[0];
+  assert.equal(farm.count, 12);
+  assert.equal(farm.participatingCount, 12);
+  assert.equal(farm.staffingRateBps, 6_666);
+  assert.equal(farm.cycleStaffingRateBps, 6_666);
+  assert.equal(farm.cycleStartedAt, now);
+  assert.equal(Object.hasOwn(farm, 'pendingJoinCount'), false);
+  const state = createFacilityGroupClientState(world, alice.id, now + 2).facilityGroups[0];
+  assert.equal(state.productionAvailableCount, 12);
+  assert.equal(state.cycleEffectiveCount, 7);
+});
+
 test('stopped factory staffing decays linearly from its stored timestamp', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
@@ -384,8 +453,8 @@ test('stopped factory staffing decays linearly from its stored timestamp', () =>
   const state = createFacilityGroupClientState(world, alice.id, now + 15 * 60_000);
   const farm = state.facilityGroups[0];
   assert.equal(farm.staffingRateBps, 5_000);
-  assert.equal(farm.nextCycleStaffingRateBps, 5_000);
-  assert.equal(farm.nextCycleEffectiveCount, 1);
+  assert.equal(farm.productionAvailableCount, 2);
+  assert.equal(farm.projectedEffectiveCount, 1);
   assert.equal(player.facilityGroups[0].staffingRateBps, 10_000, 'read-only projection must not create a high-frequency write loop');
 });
 

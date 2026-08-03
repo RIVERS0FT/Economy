@@ -35,10 +35,10 @@ import '../styles/production-methods.css';
  * facility-card-title-row; facility-card-title-block; facility-count-summary; facility-staffing-summary;
  * 异常：资金不足; 异常：仓库已满; 异常：原料不足;
  * 运行中 <strong>{formatNumber(group.participatingCount)}</strong>;
- * 下一周期加入 <strong>{formatNumber(group.pendingJoinCount)}</strong>;
+ * 新增生产可用工厂立即参与运行并同步稀释满员率;
  * 冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>;
  * FacilityProductionFormula; facility-recipe-section; <strong>生产产物</strong>; <strong>生产配置</strong>;
- * 作业制度; 生产方式; 下一周期切换为：; 前往市场交易该工厂; 前往市场交易该工厂 →;
+ * 作业制度; 生产方式; 生产进度已清零; 前往市场交易该工厂; 前往市场交易该工厂 →;
  * formatNumber(group.count). The legacy branch `if (!entry.constructionOnly)` was removed because
  * construction tasks no longer create selector/detail entries.
  */
@@ -160,7 +160,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="生产"
-      description="同类未冻结工厂共享生产周期、配方、生产方式与满员率；运行中修改配置将在下一完整周期原子生效。"
+      description="同类未冻结工厂共享生产周期、配方、生产方式与满员率；新增工厂立即参与运行，配置切换立即清零进度并降低满员率。"
       actions={
         <>
           <StatusTag tone="success">运行 {formatNumber(facilityClusterStatusCounts.running)}</StatusTag>
@@ -238,7 +238,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 </Button>
                 <small>每次固定减少 30m；剩余不足 30m 时直接完工，不退还部分宝石。</small>
               </div>
-              <small>建成后不会重置当前集群进度，将在下一生产周期加入。</small>
+              <small>建成后直接加入运行中的同类集群，不重置当前进度，并按扩容比例同步稀释满员率。</small>
             </div>
           ) : null}
           <Button
