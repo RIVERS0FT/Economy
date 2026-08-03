@@ -26,47 +26,41 @@ def main() -> None:
     )
     source = replace_once(source, pending_old, pending_new, "pendingJoinCount cleanup")
 
-    formula_old = textwrap.dedent(
-        """\
-        replaceExact(
-          formula,
-          `      group.nextCycleCount,
-            group.nextCycleEffectiveCount ?? group.nextCycleCount,
-            group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
-        `,
-          `      group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-            group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-            group.staffingRateBps ?? 10_000,
-        `,
-          2,
-        );"""
-    )
-    formula_new = textwrap.dedent(
-        """\
-        replaceExact(
-          formula,
-          `      group.nextCycleCount,
-            group.nextCycleEffectiveCount ?? group.nextCycleCount,
-            group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
-        `,
-          `      group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-            group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-            group.staffingRateBps ?? 10_000,
-        `,
-        );
-        replaceExact(
-          formula,
-          `    group.nextCycleCount,
-          group.nextCycleEffectiveCount ?? group.nextCycleCount,
-          group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
-        `,
-          `    group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-          group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-          group.staffingRateBps ?? 10_000,
-        `,
-          2,
-        );"""
-    )
+    formula_old = """replaceExact(
+  formula,
+  `      group.nextCycleCount,
+      group.nextCycleEffectiveCount ?? group.nextCycleCount,
+      group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+`,
+  `      group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+      group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+      group.staffingRateBps ?? 10_000,
+`,
+  2,
+);"""
+    formula_new = """replaceExact(
+  formula,
+  `      group.nextCycleCount,
+      group.nextCycleEffectiveCount ?? group.nextCycleCount,
+      group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+`,
+  `      group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+      group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+      group.staffingRateBps ?? 10_000,
+`,
+);
+replaceExact(
+  formula,
+  `    group.nextCycleCount,
+    group.nextCycleEffectiveCount ?? group.nextCycleCount,
+    group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+`,
+  `    group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+    group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+    group.staffingRateBps ?? 10_000,
+`,
+  2,
+);"""
     source = replace_once(source, formula_old, formula_new, "formula scope indentation")
 
     harness_old = "replaceExact(harness, '      pendingJoinCount: 0,\\n', '');"
