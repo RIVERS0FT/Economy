@@ -18,21 +18,9 @@ jobs:
           ref: fix/unify-root-backdrop-layers
           fetch-depth: 1
 
-      - name: Extract and run focused patch
+      - name: Apply focused root layer patch
         shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          workflow = Path('.github/workflows/tmp-unify-root-backdrop-layers.yml').read_text(encoding='utf-8').splitlines()
-          start = workflow.index("          python - <<'PY'") + 1
-          end = workflow.index('          PY', start)
-          script = []
-          for line in workflow[start:end]:
-              script.append(line[10:] if line.startswith('          ') else line)
-          Path('/tmp/unify-root-backdrop-layers.py').write_text('\n'.join(script) + '\n', encoding='utf-8')
-          PY
-          python /tmp/unify-root-backdrop-layers.py
+        run: python scripts/tmp-unify-root-backdrop-layers.py
 
       - name: Verify focused architecture rules
         shell: bash
@@ -42,12 +30,13 @@ jobs:
           node scripts/verify-open-glass-sampling.mjs
           git diff --check
 
-      - name: Commit focused change and remove temporary workflows
+      - name: Commit focused change and remove temporary files
         shell: bash
         run: |
           rm -- \
             .github/workflows/tmp-unify-root-backdrop-layers.yml \
-            .github/workflows/tmp-run-root-backdrop-patch.yml
+            .github/workflows/tmp-run-root-backdrop-patch.yml \
+            scripts/tmp-unify-root-backdrop-layers.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- \
@@ -62,6 +51,7 @@ jobs:
             tests/browser/application-photography.spec.ts
           git add -u -- \
             .github/workflows/tmp-unify-root-backdrop-layers.yml \
-            .github/workflows/tmp-run-root-backdrop-patch.yml
+            .github/workflows/tmp-run-root-backdrop-patch.yml \
+            scripts/tmp-unify-root-backdrop-layers.py
           git commit -m 'fix: unify root backdrop layers'
           git push origin HEAD:fix/unify-root-backdrop-layers
