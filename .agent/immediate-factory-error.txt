@@ -1,5 +1,5 @@
 exit_status=1
-failed_command=python .agent/immediate-factory-overlays.py /tmp/apply-immediate-factory.mjs
+failed_command=node --check /tmp/apply-immediate-factory.mjs
 
 rm '.agent/immediate-factory-error.txt'
 
@@ -9,5 +9,12 @@ added 133 packages, and audited 140 packages in 2s
   run `npm fund` for details
 
 found 0 vulnerabilities
-formula scope indentation: expected one occurrence, found 0
-HEAD is now at e264d2c chore: run immediate factory validation from overlay script [agent-retry10]
+/tmp/apply-immediate-factory.mjs:1135
+\
+^
+
+SyntaxError: Invalid or unexpected token
+    at checkSyntax (node:internal/main/check_syntax:72:5)
+
+Node.js v24.4.0
+HEAD is now at c25a7ce chore: preserve exact production formula indentation [agent-retry11]
