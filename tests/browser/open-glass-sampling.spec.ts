@@ -70,6 +70,9 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
       samplingRootIsolation: getComputedStyle(samplingRoot).isolation,
       samplingRootFilter: getComputedStyle(samplingRoot).filter,
       samplingRootTransform: getComputedStyle(samplingRoot).transform,
+      imageLayerZIndex: getComputedStyle(imageLayer).zIndex,
+      atmosphereLayerZIndex: getComputedStyle(atmosphereLayer).zIndex,
+      contentRootZIndex: getComputedStyle(contentRoot).zIndex,
       rootContainsAllLayers: samplingRoot.contains(imageLayer)
         && samplingRoot.contains(atmosphereLayer)
         && samplingRoot.contains(contentRoot),
@@ -97,6 +100,9 @@ async function verifySamplingChain(page: Page, surface: SamplingSurface, mode: S
   expect(chain.samplingRootIsolation).toBe('isolate');
   expect(chain.samplingRootFilter).toBe('none');
   expect(chain.samplingRootTransform).toBe('none');
+  expect(chain.imageLayerZIndex).toBe('-2');
+  expect(chain.atmosphereLayerZIndex).toBe('-1');
+  expect(chain.contentRootZIndex).toBe('auto');
   expect(chain.rootContainsAllLayers).toBe(true);
   expect(chain.layersShareRoot).toBe(true);
   expect(chain.openIsolations.every((value) => value === 'auto')).toBe(true);

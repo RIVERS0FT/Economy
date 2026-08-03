@@ -66,9 +66,9 @@ test.describe('signed-in game three-layer background', () => {
       };
     });
 
-    expect(visual.image).toEqual({ position: 'fixed', zIndex: '0' });
-    expect(visual.atmosphere).toEqual({ position: 'fixed', zIndex: '1' });
-    expect(visual.contentZIndex).toBe('2');
+    expect(visual.image).toEqual({ position: 'fixed', zIndex: '-2' });
+    expect(visual.atmosphere).toEqual({ position: 'fixed', zIndex: '-1' });
+    expect(visual.contentZIndex).toBe('auto');
     expect(visual.contentIsolation).toBe('auto');
     expect(visual.shellIsolation).toBe('auto');
     expect(visual.shellFilter).toBe('none');

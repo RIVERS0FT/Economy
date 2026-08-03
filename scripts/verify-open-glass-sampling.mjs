@@ -54,13 +54,15 @@ if (failures.length === 0) {
     'filter: none;',
     'transform: none;',
     '.application-content-root {',
-    'z-index: 2;',
+    'z-index: auto;',
+    '.application-image-layer {\n  z-index: -2;',
+    '.application-atmosphere-layer {\n  z-index: -1;',
     '.game-shell,\n.admin-shell {',
     '.game-state-shell,\n.photographic-state-shell {',
   ]) requireText(files.backdrop, text);
   requireText(files.backdrop, `.application-content-root {
   position: relative;
-  z-index: 2;
+  z-index: auto;
   isolation: auto;
   filter: none;
   transform: none;`);

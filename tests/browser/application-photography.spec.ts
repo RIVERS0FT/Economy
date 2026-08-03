@@ -256,9 +256,9 @@ test.describe('all-interface photography', () => {
     expect(visual.contentIsolation).toBe('auto');
     expect(visual.imagePosition).toBe('fixed');
     expect(visual.atmospherePosition).toBe('fixed');
-    expect(visual.imageZIndex).toBe('0');
-    expect(visual.atmosphereZIndex).toBe('1');
-    expect(visual.contentZIndex).toBe('2');
+    expect(visual.imageZIndex).toBe('-2');
+    expect(visual.atmosphereZIndex).toBe('-1');
+    expect(visual.contentZIndex).toBe('auto');
     expect(visual.imageInsideShell).toBe(false);
   });
 });

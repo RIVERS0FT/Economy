@@ -40,7 +40,7 @@ html[data-app-surface="error"] body::before {
 
 .application-content-root {
   position: relative;
-  z-index: 2;
+  z-index: auto;
   isolation: auto;
   filter: none;
   transform: none;
@@ -73,7 +73,7 @@ html[data-app-surface="admin"] .application-content-root {
 }
 
 .application-image-layer {
-  z-index: 0;
+  z-index: -2;
   overflow: hidden;
   background: #07100b;
 }
@@ -99,17 +99,10 @@ html[data-app-backdrop="admin"] .application-image-layer img {
 }
 
 .application-atmosphere-layer {
-  z-index: 1;
+  z-index: -1;
   overflow: hidden;
 }
 
-html[data-app-surface="auth"] .application-image-layer {
-  z-index: -2;
-}
-
-html[data-app-surface="auth"] .application-atmosphere-layer {
-  z-index: -1;
-}
 
 html[data-app-backdrop="auth"] .application-atmosphere-layer,
 html[data-app-backdrop="game"] .application-atmosphere-layer,
