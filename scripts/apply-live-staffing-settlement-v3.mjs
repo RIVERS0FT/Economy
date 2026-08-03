@@ -71,6 +71,11 @@ update('scripts/verify-unified-factory-recipes-grid.mjs', (source) => source
   .replace(
     "  'facility-formula-next-cycle',\n",
     "  'facility-formula-next-cycle',\n  'facility-formula-scope',\n",
+  )
+  .replace("  '@container (max-width: 479px)',\n", '')
+  .replace(
+    "  '@media (max-width: 359px)',\n",
+    "  '@media (max-width: 359px)',\n  '@container (max-width: 479px)',\n",
   ));
 
 update('scripts/verify-warehouse-expansion.mjs', (source) => source.replaceAll(
