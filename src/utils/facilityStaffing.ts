@@ -18,6 +18,7 @@ function staffingDeltaBps(elapsedMs: number, durationMs: number) {
   return Math.min(FACILITY_STAFFING_FULL_BPS, Math.floor(elapsed * FACILITY_STAFFING_FULL_BPS / durationMs));
 }
 
+/** Project the read-only live value from the server-stamped baseline; settlement repeats this at each exact cycle due time. */
 export function projectFacilityStaffingRate(group: FacilityGroup, now: number) {
   const baseRate = normalizedRate(group.staffingRateBps);
   const updatedAt = Number.isFinite(Number(group.staffingUpdatedAt))
