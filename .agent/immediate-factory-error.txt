@@ -2,6 +2,8 @@ exit_status=1
 failed_command=npm run build
 
 rm '.agent/immediate-factory-error.txt'
+rm '.agent/immediate-factory-market-overlays.py'
+rm '.agent/immediate-factory-overlays.py'
 
 added 133 packages, and audited 140 packages in 2s
 
@@ -33,48 +35,48 @@ src/pages/production/ProductionFacilityDetail.tsx
 src/types.ts
 tests/browser/production-methods.spec.ts
 tests/browser/runtime-harness.tsx
-✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (34.62442ms)
-✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (11.023528ms)
-✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (40.675983ms)
-✔ 商品与工厂资产包整体冻结并原子成交 (16.539198ms)
-✔ 客户端只返回商品与工厂通用资产拍卖 (18.044685ms)
-✔ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (11.503164ms)
-✔ 世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录 (13.617942ms)
-✔ 发布费按较高计费基数计算并限制最低和最高金额 (0.281437ms)
-✔ 发布资金不足时不扣费也不冻结资产 (15.429408ms)
-✔ 未达隐藏保留价时退回最高报价和资产但不退发布费 (7.36936ms)
-✔ 结束前两分钟出价自动延时且累计不超过三十分钟 (20.802967ms)
-✔ 客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组 (7.551851ms)
-✔ 世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖 (12.866736ms)
-✔ 卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失 (10.941487ms)
-✔ factory buy and sell orders use price-time matching and partial fills (218.56088ms)
-✔ running factory sell order immediately reduces participating output (80.518798ms)
-✔ production increments produced goods statistics (48.275534ms)
-✔ production wage multiplier changes population wages without changing production cost and only affects the next cycle (67.865661ms)
-✔ electronics factory atomically consumes plastic and copper (59.72632ms)
-✔ electronics factory deducts no material when either input is missing (28.451522ms)
-✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (23.003164ms)
-✔ asset valuation uses the latest order-book trade and ignores open bid prices (30.200498ms)
-✔ factory automatically recovers after funds return (31.319635ms)
-✔ manual stop disables automatic recovery (33.472905ms)
-✔ running farm crop changes apply immediately with a staffing penalty and progress reset (32.248373ms)
-✔ legacy pending factory and recipe state migrates once into immediate participation (2.049435ms)
-✔ warehouse errors recover without backfilling missed cycles (50.123772ms)
-✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (40.252832ms)
-✔ legacy completed target plans migrate to a manual stop (6.508549ms)
-✔ legacy running target plans become continuous production (32.574023ms)
-✔ factory order books contain player orders only (22.180345ms)
-✔ empty factory order books stay empty after world processing (23.588229ms)
-✔ purchased factories join a running group immediately and dilute current-cycle staffing (34.188744ms)
-✔ stopped factory staffing decays linearly from its stored timestamp (6.69128ms)
-✔ running factory staffing locks each cycle and carries fractional capacity (27.03089ms)
-✔ error staffing decays and auto recovery starts from the reduced rate (32.492901ms)
-✔ cancelling a running factory sell order restores the quantity immediately and dilutes staffing (197.826968ms)
-✔ selling every participating factory puts the enabled group in error (75.162254ms)
-✔ every factory route exposes four balanced production methods (2.59727ms)
-✔ representative production method plans use the approved fixed-precision values (0.380903ms)
-✔ public client state keeps the legacy recipe list and exposes optional method metadata (30.461783ms)
-✔ running factory switches production method immediately with one staffing penalty (96.439879ms)
+✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (23.215181ms)
+✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (8.569288ms)
+✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (27.359115ms)
+✔ 商品与工厂资产包整体冻结并原子成交 (7.016134ms)
+✔ 客户端只返回商品与工厂通用资产拍卖 (7.367558ms)
+✔ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (11.176473ms)
+✔ 世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录 (4.14827ms)
+✔ 发布费按较高计费基数计算并限制最低和最高金额 (0.237895ms)
+✔ 发布资金不足时不扣费也不冻结资产 (5.358634ms)
+✔ 未达隐藏保留价时退回最高报价和资产但不退发布费 (5.722967ms)
+✔ 结束前两分钟出价自动延时且累计不超过三十分钟 (11.059869ms)
+✔ 客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组 (9.646393ms)
+✔ 世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖 (8.521416ms)
+✔ 卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失 (6.292496ms)
+✔ factory buy and sell orders use price-time matching and partial fills (169.50425ms)
+✔ running factory sell order immediately reduces participating output (64.830347ms)
+✔ production increments produced goods statistics (34.308119ms)
+✔ production wage multiplier changes population wages without changing production cost and only affects the next cycle (57.320727ms)
+✔ electronics factory atomically consumes plastic and copper (29.696418ms)
+✔ electronics factory deducts no material when either input is missing (28.537711ms)
+✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (21.267739ms)
+✔ asset valuation uses the latest order-book trade and ignores open bid prices (28.873151ms)
+✔ factory automatically recovers after funds return (25.980952ms)
+✔ manual stop disables automatic recovery (32.219587ms)
+✔ running farm crop changes apply immediately with a staffing penalty and progress reset (28.251514ms)
+✔ legacy pending factory and recipe state migrates once into immediate participation (1.868283ms)
+✔ warehouse errors recover without backfilling missed cycles (47.970737ms)
+✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (37.42993ms)
+✔ legacy completed target plans migrate to a manual stop (2.211865ms)
+✔ legacy running target plans become continuous production (26.646003ms)
+✔ factory order books contain player orders only (20.167649ms)
+✔ empty factory order books stay empty after world processing (22.358654ms)
+✔ purchased factories join a running group immediately and dilute current-cycle staffing (30.3557ms)
+✔ stopped factory staffing decays linearly from its stored timestamp (6.917176ms)
+✔ running factory staffing locks each cycle and carries fractional capacity (25.218986ms)
+✔ error staffing decays and auto recovery starts from the reduced rate (31.821895ms)
+✔ cancelling a running factory sell order restores the quantity immediately and dilutes staffing (148.421949ms)
+✔ selling every participating factory puts the enabled group in error (46.825479ms)
+✔ every factory route exposes four balanced production methods (2.583489ms)
+✔ representative production method plans use the approved fixed-precision values (0.361839ms)
+✔ public client state keeps the legacy recipe list and exposes optional method metadata (23.062413ms)
+✔ running factory switches production method immediately with one staffing penalty (74.318414ms)
 ℹ tests 42
 ℹ suites 0
 ℹ pass 42
@@ -82,7 +84,7 @@ tests/browser/runtime-harness.tsx
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 1071.956253
+ℹ duration_ms 899.187828
 工厂即时加入、配置立即切换、满员率稀释与惩罚、紧凑标题状态、三态自动恢复和生产结算验证通过。
 生产方式验证通过：四种作业制度、固定精度平衡、稳定变体 ID、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。
 工厂集群三列状态卡、无持久选中态、主从布局、状态标题层级、无顶部关闭按钮、统一收起动画、单厂平均利润布局、紧凑标题、共享活动滚动条、目录顺序默认详情、焦点与滚动控制、通用配方和集群公式验证通过。
@@ -120,9 +122,9 @@ Fixed reusable stress-test account registry, strict slicing and secret boundary 
 > economy@0.4.0 test:stress
 > node --test tests/stress/stress-flow.test.mjs
 
-✔ stress metrics calculate percentiles and enforce budgets (1.868694ms)
-✔ stress safety prevents production writes and unsafe targets (0.663622ms)
-✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4690.914494ms)
+✔ stress metrics calculate percentiles and enforce budgets (1.779631ms)
+✔ stress safety prevents production writes and unsafe targets (0.623709ms)
+✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4696.511614ms)
 ℹ tests 3
 ℹ suites 0
 ℹ pass 3
@@ -130,7 +132,7 @@ Fixed reusable stress-test account registry, strict slicing and secret boundary 
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 9750.726157
+ℹ duration_ms 9753.984903
 Nested custom/native scroll ownership, shared signed-in page scroll, boundary release and control location verification passed.
 宝石、邀请与封禁验证通过：同 IP 仅上报异常，账号封禁只由管理员执行，邀请防刷与审计边界保持。
 Daily check-in verification passed.
@@ -219,8 +221,388 @@ liquid-glass-react 登录后外壳、认证光学参数、全预设零弹性、�
 仓库无限扩容、预占来源分段、容量线性定价、紧凑商品插画布局、移动端四列、桌面七列、目录顺序工厂卡、建设卡精简和输入侧周期成本集群公式验证通过。
 工厂即时加入、配置立即切换、满员率稀释与惩罚、紧凑标题状态、三态自动恢复和生产结算验证通过。
 市场目录真实成交价、单厂平均利润固定单座口径、具体缺价提示和完整利润卡移除验证通过。
-(node:3147) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(node:3064) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
 (Use `node --trace-warnings ...` to show where the warning was created)
-商品／工厂资产拍卖验证失败:
-- 永久或临时文件不得存在: .agent
-HEAD is now at b8b7998 chore: validate market asset contracts for immediate production [agent-retry15]
+资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。
+最多 50000 个礼品码的原子批量生成、幂等重试、游标分页和 TXT 下载验证通过。
+管理员导航与运营控制台验证通过：五分区、共享外壳、ECharts 人口分析、人口政策、虚拟列表及移动统一 Chrome 层均已锁定。
+管理员玩家运营统计验证通过：ECharts 趋势、比例、财富图表与成功经济写操作、精确覆盖、隐私边界和移动响应式均已锁定。
+运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。
+依赖锁、CI 去重、失败步骤日志 Artifact、浏览器存储容错、管理员分页、验证码保留、限流清理和浏览器测试均符合当前设计。
+部署 VACUUM INTO、gzip 压缩、恢复校验、保留策略与空间预检通过。
+(node:3113) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+生产 SQLite 只读诊断、无写入行为、汇总输出与设计规则验证通过。
+(node:3121) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+生产 SQLite INCREMENTAL 迁移、限量回收与设计规则验证通过。
+(node:3130) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+移动工厂详情下拉刷新保护验证通过：根视口终止 overscroll、详情局部非被动手势、设计与浏览器回归均已锁定。
+
+> economy@0.4.0 test:nginx-config
+> python3 scripts/test_configure_economy_nginx.py && python3 scripts/test_configure_economy_registration_nginx.py
+
+...................ECONOMY_STATIC_GZIP_RETRY attempt=1 max_attempts=2 sleep_seconds=0.250 error=ECONOMY_STATIC_GZIP_MISSING label=html
+ECONOMY_STATIC_GZIP_RETRY_EXHAUSTED attempt=2 elapsed_seconds=0.000 error=ECONOMY_STATIC_GZIP_MISSING label=html
+.ECONOMY_STATIC_GZIP_RETRY attempt=1 max_attempts=3 sleep_seconds=0.250 error=ECONOMY_STATIC_GZIP_VARY_MISSING label=html
+ECONOMY_STATIC_GZIP_RETRY attempt=2 max_attempts=3 sleep_seconds=0.250 error=ECONOMY_STATIC_GZIP_VARY_MISSING label=html
+ECONOMY_STATIC_GZIP_RECOVERED attempt=3 elapsed_seconds=0.000
+..
+----------------------------------------------------------------------
+Ran 22 tests in 0.018s
+
+OK
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+OK
+
+> economy@0.4.0 server:check
+> node scripts/check-server-syntax.mjs
+
+服务器语法检查通过，共检查 55 个文件。
+
+> economy@0.4.0 server:test
+> node --test server/test/*.test.js
+
+✔ checks the homepage loopback endpoint and rejects registered emails (34.177659ms)
+(node:3583) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gift codes and redemptions use stable cursor pagination (7.182567ms)
+(node:3584) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ unchanged admin summary does not advance the world revision (175.157933ms)
+✔ market demand model 11 gives every product direct terminal demand (2.684647ms)
+✔ model 9 migration refunds population escrow before model 11 rebuild (145.718806ms)
+✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (22.267986ms)
+✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (8.803681ms)
+✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (27.084397ms)
+✔ 商品与工厂资产包整体冻结并原子成交 (8.620294ms)
+✔ 客户端只返回商品与工厂通用资产拍卖 (6.98537ms)
+✔ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (12.122613ms)
+✔ 世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录 (4.52434ms)
+✔ 发布费按较高计费基数计算并限制最低和最高金额 (0.262175ms)
+✔ 发布资金不足时不扣费也不冻结资产 (4.107592ms)
+✔ 未达隐藏保留价时退回最高报价和资产但不退发布费 (3.616301ms)
+✔ 结束前两分钟出价自动延时且累计不超过三十分钟 (6.569583ms)
+✔ 客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组 (5.515684ms)
+✔ 世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖 (7.096157ms)
+✔ 卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失 (5.629606ms)
+(node:3617) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ current client state version excludes all player log arrays and factory instances (152.147827ms)
+✔ actions update authoritative state without writing player logs to SQLite (213.139465ms)
+✔ legacy server logs and factory instance array are removed during the next state load (105.723093ms)
+✔ idempotency preserves authoritative response without creating server logs (121.028746ms)
+(node:3624) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 发布费、出价和匿名最近十条在同一 SQLite 事务中审计 (533.65459ms)
+✔ 发布幂等重试不会重复扣费或重复冻结资产 (97.144462ms)
+✔ 拍卖审计事件禁止更新和删除 (66.812838ms)
+✔ 卖方缺失的异常结算记录延迟退款审计且不减少发布费托管 (150.39548ms)
+✔ authentication cache enforces TTL, LRU order, and request coalescing (22.320145ms)
+✔ authentication policy separates state, write, and administrator requests (0.390368ms)
+✔ authentication caches valid state reads, coalesces misses, and never caches upstream failures (76.002446ms)
+✔ deposits and withdrawals move existing funds without changing net assets (52.239496ms)
+✔ mortgaged factories keep producing but cannot be transferred (134.984745ms)
+✔ loan proceeds add matching liability and do not inflate wealth (37.783535ms)
+✔ active-week deposit interest is fixed at one percent, pool-funded first, and new deposits wait a full day (8.730776ms)
+✔ loan assessment exposes transparent collateral and rate inputs (5.290628ms)
+✔ withdrawal lowers the daily minimum and re-deposit cannot restore same-day eligibility (5.009613ms)
+✔ deposit interest credits exact six-decimal amounts without a cent reserve (4.319158ms)
+✔ loan default seizes the minimum collateral once and releases the remaining mortgage (7.151576ms)
+✔ bank accepts two-decimal deposits without truncating account precision (4.864204ms)
+✔ C1 catalog contains exactly the approved fast-production factories (1.979516ms)
+✔ C1 factories use the approved fast-production parameters (0.627399ms)
+(node:3652) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ community link has a stable default and persists an idempotent admin update (6.370594ms)
+✔ community link rejects unsafe URLs and non-admin updates (3.9308ms)
+(node:3659) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 合同审计与世界状态在同一事务提交，逐批资产转移可查询且幂等重试不重复 (412.723185ms)
+✔ 审计写入失败时世界状态和审计事件一起回滚 (69.843385ms)
+✔ 上线前已有合同只导入部分完整摘要，不伪造逐批事件 (30.96965ms)
+✔ 合同审计按整数微单位保留小数单价、手续费和转账 (168.695582ms)
+✔ contract runtime index matches the reference reservation scan for 2000 contracts (31.726926ms)
+✔ contract runtime transitions release and acquire counts without rebuilding (2.765225ms)
+✔ contract runtime deadline reads a live grace deadline without rebuilding (0.295237ms)
+✔ unified incoming reservation adds commodity orders and highest auction bids (1.271525ms)
+✔ 长期合同按批次冻结商品和货款并原子结算，不改变市场价格 (26.571292ms)
+✔ 合同忽略非商品资产字段，商品不足时进入宽限期并由供应方违约 (9.232125ms)
+✔ 客户端状态包含进行中合同摘要，路由解析所有合同动作 (10.367764ms)
+✔ 合同最后三批可提出续签，双方确认后预留资产并在原合同完成时激活关联合同 (9.176801ms)
+(node:3680) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ daily check-in boundaries use Monday weeks and Shanghai midnight (2.86015ms)
+✔ daily check-in grants one gem once per server day (369.146692ms)
+✔ seven complete days atomically grant the five-gem full-attendance bonus (480.088059ms)
+✔ registration week can claim daily gems but cannot receive full-attendance bonus (360.172348ms)
+✔ upstream cost changes propagate downstream one production edge per cycle (27.616123ms)
+✔ downstream value changes propagate upstream one production edge per cycle (7.582037ms)
+✔ multi-input downstream value reaches both copper and plastic with lag (4.743501ms)
+✔ price transmission is damped and also carries price decreases (7.374793ms)
+✔ hybrid fruit prices respond to beverage value after one relation lag (11.694502ms)
+✔ appliance value makes machinery an automatically derived chain product (7.698163ms)
+(node:3694) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ different products never match in the same order book (51.064068ms)
+✔ work cooldown uses server time (45.37111ms)
+✔ version 1 state migrates inventory and commodity orders without losing assets (4.579633ms)
+✔ world version 7 grain assets migrate entirely to wheat (7.814529ms)
+✔ idempotency returns the original response without applying an action twice (207.134458ms)
+✔ client state uses the current version and exposes no factory instances (102.973415ms)
+✔ expanded industry catalog exposes fruit and complete production chains (2.200501ms)
+✔ market demand creates direct and derived orders within the shared group budget (57.541623ms)
+✔ market demand retains 70% of zero-fill orders and publishes a bounded demand curve (72.282447ms)
+✔ market demand retains partially filled carried orders and publishes a cent-priced next curve (70.445796ms)
+✔ population-funded market demand does not scale with active player count (347.804616ms)
+✔ population wallets continue funded demand without active players (24.527959ms)
+✔ player inventory never increases market demand budget or product allocation (121.165814ms)
+✔ consumer substitutes shift demand toward the cheaper grain without changing total budget (17.994058ms)
+✔ beverage production paths shift toward cheaper fruit inputs (58.945719ms)
+✔ fruit participates in fresh direct demand without expanding the food budget (37.27888ms)
+✔ complement gating prioritizes the bottleneck input for electronics (21.928354ms)
+✔ downstream price signals move upstream only after relation lag cycles (7.482496ms)
+✔ state polling and failed actions do not refresh economic activity (155.547729ms)
+✔ new worlds create private market demand orders during the first authoritative state read (76.714957ms)
+✔ legacy demand migration immediately rebuilds market demand without losing player assets (40.742764ms)
+✔ market demand model version 2 migrates to version 3 without resetting player assets (43.70614ms)
+✔ migration removes obsolete system orders while preserving player orders (5.651675ms)
+✔ world version 8 migration restarts electronics and upgrades market demand state without resetting assets (4.641065ms)
+✔ commodity order fills preserve every exact player resting price without system liquidity (17.651029ms)
+✔ 公开经济事件日历只返回当前与未来七天事件，并在同一事件窗口内保持确定性 (2.740688ms)
+✔ 经济事件只重分配类别份额和商品选择权重，不扩大类别份额总和 (0.674141ms)
+✔ reports whether RESEND_API_KEY and EMAIL_FROM are configured (2.109023ms)
+✔ returns a safe explicit error when email delivery is not configured (1.304194ms)
+✔ factory buy and sell orders use price-time matching and partial fills (165.978799ms)
+✔ running factory sell order immediately reduces participating output (76.953338ms)
+✔ production increments produced goods statistics (56.356729ms)
+✔ production wage multiplier changes population wages without changing production cost and only affects the next cycle (75.856396ms)
+✔ electronics factory atomically consumes plastic and copper (51.512577ms)
+✔ electronics factory deducts no material when either input is missing (43.020561ms)
+✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (28.041617ms)
+✔ asset valuation uses the latest order-book trade and ignores open bid prices (61.194914ms)
+✔ factory automatically recovers after funds return (49.549235ms)
+✔ manual stop disables automatic recovery (44.231525ms)
+✔ running farm crop changes apply immediately with a staffing penalty and progress reset (55.271116ms)
+✔ legacy pending factory and recipe state migrates once into immediate participation (3.392675ms)
+✔ warehouse errors recover without backfilling missed cycles (99.776787ms)
+✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (58.984417ms)
+✔ legacy completed target plans migrate to a manual stop (5.032879ms)
+✔ legacy running target plans become continuous production (40.078648ms)
+✔ factory order books contain player orders only (27.520348ms)
+✔ empty factory order books stay empty after world processing (38.179173ms)
+✔ purchased factories join a running group immediately and dilute current-cycle staffing (59.051118ms)
+✔ stopped factory staffing decays linearly from its stored timestamp (12.358838ms)
+✔ running factory staffing locks each cycle and carries fractional capacity (50.421555ms)
+✔ error staffing decays and auto recovery starts from the reduced rate (56.173773ms)
+✔ zero effective capacity can run without funds until a payable batch is due (265.538487ms)
+✔ game routes decode identifiers and reject unsupported methods (2.023573ms)
+✔ malformed route encoding is rejected as a client error (0.485254ms)
+(node:3736) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ one gem removes thirty minutes and immediately completes shorter construction (251.465694ms)
+✔ construction acceleration rejects missing gems without changing deadline (193.308099ms)
+(node:3743) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gem shop exchanges gems for credits atomically and records history (255.800646ms)
+✔ gem shop idempotency prevents duplicate deduction and issuance (195.413625ms)
+✔ legacy full idempotency responses are projected to slim acknowledgements (120.484262ms)
+✔ gem shop rejects invalid quantities and insufficient balance without mutation (225.009967ms)
+✔ terminal quote can be accepted only once per Shanghai day (159.860457ms)
+✔ rejecting terminal quote locks the day without changing assets (184.805317ms)
+✔ dynamic terminal quote uses the 100 baseline, 1-10000 bounds, and a 10% maximum daily change (0.463652ms)
+(node:3750) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ admins can atomically generate and retry a 50000-code batch (1136.775614ms)
+✔ bulk gift code generation validates count and administrator role (4.328211ms)
+✔ HTTP API authenticates through the shared account service and honors idempotency (611.012655ms)
+(node:3771) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ share link registration immediately rewards only the inviter with gems (8.063215ms)
+✔ registration form invite code rewards inviter once inside first-profile transaction (3.645999ms)
+✔ existing Economy profile ignores invite parameters and can never be backfilled (2.894481ms)
+✔ a second registration on the same IP creates an anomaly report without banning accounts (2.837866ms)
+✔ administrator manually controls single-account and whole-incident bans (3.960606ms)
+✔ review survives restart and a new same-IP account only reopens the report (3.606029ms)
+✔ same-IP registration form code is recorded without a gem reward (2.438401ms)
+✔ legacy automatic-ban migration remains idempotent after an audit-only partial attempt (4.788308ms)
+✔ leaderboard week starts Monday 00:00 in Beijing time (1.249081ms)
+✔ production board ranks weekly output quantity without price weighting (102.146443ms)
+✔ all boards break score ties by latest economic activity before user id (60.92782ms)
+✔ legacy players without activity timestamps fall back to registration time (5.902395ms)
+✔ trading board sums actual seller gross volume, counts completed fills on cancelled orders, and ignores unfilled remainder and auctions (64.744116ms)
+✔ legacy capped trading state is rebuilt once from current-period actual fills (68.337125ms)
+✔ three weekly boards grant 50, 30, and 20 gems and allow repeat winners (130.577139ms)
+✔ the first partial week records results without granting gems (119.469356ms)
+✔ top ten payload still returns the current player outside the visible rows (50.922854ms)
+✔ cancelling a running factory sell order restores the quantity immediately and dilutes staffing (110.453498ms)
+✔ selling every participating factory puts the enabled group in error (34.097365ms)
+✔ commodity sell order is created once and frozen once (32.609262ms)
+✔ commodity order-book repair runs only when the persisted integrity version is stale (17.843481ms)
+✔ market model 12 settles fills that happen after demand orders are created (122.521156ms)
+✔ direct demand quote anchor accumulates fractional no-fill increases and recovers after service (294.064387ms)
+✔ sustained fast full service lowers all direct demand tiers below reference price (56.029644ms)
+✔ direct demand quote anchor stops at one cent (28.166046ms)
+✔ zero fill below reference recovers slowly while partial service recovers more gently (46.708745ms)
+✔ no direct demand converges toward reference and derived liquidity ignores a low direct anchor (9.481873ms)
+✔ shortage pressure approaches the reference premium by at most half a percent per cycle (6.155598ms)
+✔ market model 12 uses funded population wallets when no player is active (9.780896ms)
+✔ player-only activity excludes consumption and reserve trades from budget activity (0.50879ms)
+✔ market model 12 creates inventory-backed buy and sell orders without system self-trades (119.187269ms)
+✔ system liquidity asks reprice above retained consumption bids instead of crossing (123.694341ms)
+✔ selling to a reserve transfers reserve funds and does not count as consumption issuance (58.870225ms)
+✔ buying from a reserve transfers real inventory and returns credits to the reserve (60.676238ms)
+✔ liquidity orders are cancelled and re-reserved on the next cycle (103.120227ms)
+✔ model 3 migrates directly to model 12 with one-time reserve seeding (6.653341ms)
+✔ model 5 migrates to model 12 and releases obsolete liquidity reservations (114.306319ms)
+✔ market reserve has no business target or quote-size ceiling and quotes cents (39.547775ms)
+✔ 累计卖出手续费按成交总额精确收取 1% (2.086728ms)
+✔ 既有卖单只从新成交开始累计且不追收旧 fill (1.332377ms)
+✔ 商品卖单部分成交按同一卖单累计补收手续费 (75.55437ms)
+✔ 工厂卖单使用相同手续费并只向本人公开匿名金额字段 (136.889135ms)
+✔ 价格量化使用统一微单位并严格拒绝超过两位的玩家输入 (2.909805ms)
+✔ 服务器金额只有一套六位微单位运算 (0.4493ms)
+✔ 玩家提交金额不再静默截断且不改变宝石和数量 (0.874154ms)
+✔ 市场卖方手续费通过整数微单位累计 (0.340406ms)
+✔ 世界保存前保留六位账户金额且不再累计价格尾差准备金 (0.922667ms)
+✔ commodity orders reject a price that crosses the same player resting order before freezing assets (45.858849ms)
+✔ facility orders reject a price that crosses the same player resting order before freezing funds (22.271203ms)
+✔ migration immediately settles legacy crossed commodity orders from different players at maker price (11.458084ms)
+✔ migration cancels the newer legacy self-crossing commodity order and releases its frozen funds (7.931977ms)
+✔ world pruning keeps the order array reference when no history is removed (3.636355ms)
+✔ world pruning never removes open orders and only keeps 800 recent closed orders (22.564567ms)
+✔ legacy system facility cleanup preserves the array when there is nothing to remove (1.218564ms)
+✔ runtime order book preserves price-time-array priority for 4000 orders (61.141773ms)
+✔ runtime order book tracks tail appends and rebuilds after array replacement (0.547769ms)
+✔ runtime owner summaries share the indexed orders (0.863377ms)
+✔ repeated matching reuses one runtime index (33.839214ms)
+✔ runtime index excludes closed history from active books (12.375613ms)
+✔ runtime owner aggregates follow fills and explicit cancellation (0.511424ms)
+✔ commodity and facility orders share one safe-integer quantity boundary without a fixed business cap (127.382865ms)
+✔ commodity and facility books share the catalog-sized unfinished order limit (63.96756ms)
+✔ orders reject notionals outside the representable money range (60.271456ms)
+✔ shared matcher preserves price-time priority, maker price, and partial fills for commodity (3.90404ms)
+✔ shared matcher preserves price-time priority, maker price, and partial fills for facility (0.784308ms)
+✔ shared matcher skips a same-player crossing order and continues to an eligible counterparty (0.970579ms)
+✔ asset adapter can exclude otherwise crossing system orders without duplicating the matching loop (2.333993ms)
+✔ ordinary player order state removes counterparties, demand sources, and linked order ids (46.655034ms)
+(node:3869) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ player statistics record successful economic actions once and keep reads revision-stable (198.782976ms)
+✔ player statistics reject non-admin callers (3.760262ms)
+(node:3876) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ population economy version 5 migration does not repeat bootstrap issuance (15.662228ms)
+✔ manual population top-up shares the same per-cycle cap with automatic stabilization (12.971035ms)
+✔ runtime population policy mutations are idempotent, accept values above former caps, and create no audit rows (135.841749ms)
+✔ population policy rejects only unsafe numeric results rather than fixed business maxima (2.903225ms)
+✔ production employment uses factory complexity and preserves every integer credit (18.188333ms)
+✔ construction employment is fixed at 60/30/10 and ignores factory complexity (3.705589ms)
+✔ construction escrow releases by progress without creating or deleting money (3.393948ms)
+✔ population buy orders use real escrow and refund price improvement and cancellation (4.171695ms)
+✔ stabilization budget refills wallet gaps with a capped three-cycle target (4.566672ms)
+✔ five consumption states use the authoritative food and household budget shares (0.333635ms)
+✔ five consumption states expose complete food and household class shares (5.380434ms)
+✔ population enters prosperous and lavish only after sustained qualification (5.409158ms)
+✔ a single income spike does not immediately create prosperity and peak follows EMA (2.920932ms)
+✔ lavish and prosperous states use two-cycle downgrade grace (5.055934ms)
+✔ income stress downgrades immediately and two zero-income cycles enter subsistence (6.700132ms)
+✔ consumption state changes allocation but not the spendable budget formula (13.295446ms)
+✔ version 3 cautious state migrates to version 5 strained without reissuing bootstrap funds (3.320906ms)
+✔ population funding slices preserve six-decimal escrow across fills and cancellation (7.425801ms)
+✔ every factory route exposes four balanced production methods (3.9568ms)
+✔ representative production method plans use the approved fixed-precision values (0.547468ms)
+✔ public client state keeps the legacy recipe list and exposes optional method metadata (29.354926ms)
+✔ running factory switches production method immediately with one staffing penalty (97.009677ms)
+✔ rate limit removes expired user buckets instead of growing forever (3.199202ms)
+✔ rate limit still enforces the configured window after sweeping (0.295998ms)
+(node:3903) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ registration IP prefers trusted reverse-proxy real IP over a client-supplied forwarded chain (1.328411ms)
+✔ rejects an existing unified account before creating or sending a verification (4.37299ms)
+✔ sends and completes a verification without storing plaintext code (6.113354ms)
+✔ sends share-link invite code through email registration and immediately rewards inviter (4.529256ms)
+✔ accepts a manually entered invite code during registration and rewards immediately (4.035599ms)
+✔ enforces ten-minute expiry and sixty-second resend cooldown (3.438936ms)
+✔ invalidates after five wrong attempts and rejects IP changes (3.933244ms)
+✔ used code cannot be reused but the same completion request is idempotent (3.689876ms)
+✔ homepage and direct Economy registrations both create duplicate-IP anomaly reports without automatic bans (6.517997ms)
+✔ request metrics normalize route identifiers (1.536075ms)
+✔ request metrics aggregate duration and application response bytes (12.147778ms)
+✔ request metrics cap route cardinality and aggregate overflow (0.601761ms)
+✔ new players receive 500 credits with a matching startup ledger entry (14.854104ms)
+✔ ensuring an existing player does not top up or rewrite their balance (4.53189ms)
+✔ initial delivery returns all six state partitions without a full state field (3.13126ms)
+✔ known partition revisions suppress unchanged partitions (0.640239ms)
+✔ ranked leaderboard changes stay inside the leaderboard partition (0.600509ms)
+✔ a global revision change unrelated to the viewer can return no patches (0.521569ms)
+✔ unchanged delivery still returns a fresh server time without creating patches (0.24445ms)
+✔ action delivery keeps only result status, message, and committed revision (0.333535ms)
+✔ partition revisions accept only bounded safe tokens (0.613429ms)
+(node:3932) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ idle version polling returns a compact response without writing the world (183.536765ms)
+✔ same-revision polls inside the processing window bypass SQLite transactions (71.704472ms)
+✔ an authoritative action advances the revision and invalidates an older poll (150.383543ms)
+✔ due world processing advances the revision during version polling (204.200742ms)
+✔ scheduled production polling always uses the revision fast path until the global scheduler changes it (141.140749ms)
+✔ same economic event window keeps the market revision stable while serverNow advances (93.489861ms)
+✔ another player work action does not send an unrelated viewer a full market partition (213.959564ms)
+✔ rolled back transactions restore the in-memory world cache (103.047901ms)
+✔ runtime failed actions keep the world row unchanged and reuse the current revision (98.506354ms)
+✔ runtime state delivery reuses the current revision cache for the contract projection (45.979885ms)
+(node:3939) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing players migrate as completed while new players start incomplete (212.34702ms)
+✔ tutorial completion is idempotent and does not mutate world state (117.331646ms)
+(node:3940) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gift codes can be created by admins and redeemed once per player (248.454719ms)
+✔ non-admin users cannot read administrator summary (3.924174ms)
+✔ warehouse usage combines inventory, buy orders, highest bids, and active contract next batches (21.549364ms)
+✔ contract acceptance rejects capacity already reserved by buy orders and highest bids (7.647195ms)
+(node:3960) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ email verification cleanup expires active rows and deletes only old terminal records (2.708719ms)
+(node:3968) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ warehouse state defaults to level 1 and current client version (172.925545ms)
+✔ warehouse capacity increase grows by level while upgrade cost grows linearly with capacity (0.519585ms)
+✔ warehouse usage counts stored goods and remaining open commodity buy orders only (111.126387ms)
+✔ warehouse usage excludes legacy facility buy orders before migration (0.525513ms)
+✔ warehouse upgrade deducts server funds and increases shared capacity (126.849925ms)
+✔ warehouse summary price matches the amount deducted for the same actual capacity (166.570971ms)
+✔ warehouse upgrade preserves stored and reserved usage while adding free capacity (105.122604ms)
+✔ warehouse upgrade rejects insufficient funds without changing capacity (61.311612ms)
+✔ legacy custom capacity infers a non-decreasing warehouse level (56.059713ms)
+✔ legacy stored level behind capacity is advanced and can still expand (75.23356ms)
+✔ warehouse can continue upgrading after former level 12 limit (64.465243ms)
+✔ warehouse upgrade is idempotent (65.226082ms)
+✔ successful economic activity activates only the current week and interest begins next midnight (17.254158ms)
+✔ an active week closes one immutable ten-percent assessment and login collects deposit before cash (7.057054ms)
+✔ frozen money is assessed without breaking escrow and unpaid settlement remains a liability (4.211808ms)
+✔ a long inactive return produces one login assessment instead of one assessment per missed week (4.428866ms)
+✔ loan liabilities lower the weekly assessment base (3.883343ms)
+(node:3982) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ construction employment deadline is the next integer release boundary (1.023005ms)
+✔ world deadline planner selects the earliest authoritative event (19.939723ms)
+✔ deadline scheduler performs zero world transactions during a 60 second idle window (145.601874ms)
+✔ deadline scheduler wakes at the planned event and processes one world transaction (138.911816ms)
+✔ long deadline timer segments early wakeups without opening a world transaction (53.54728ms)
+✔ scheduler transaction failure preserves authority and retries after the one second floor (126.611715ms)
+ℹ tests 286
+ℹ suites 0
+ℹ pass 286
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8095.580121
+src/pages/OverviewPage.tsx(58,84): error TS2339: Property 'pendingRecipeId' does not exist on type 'FacilityGroup'.
+src/pages/OverviewPage.tsx(60,72): error TS18048: 'group.pendingJoinCount' is possibly 'undefined'.
+HEAD is now at 573e0eb chore: remove agent files before full validation [agent-retry16]
