@@ -23,8 +23,9 @@ import type {
   ProductDefinition,
   ProductInventory,
 } from '../../types';
-import { formatDuration, formatNumber } from '../../utils/formatters';
+import { formatNumber } from '../../utils/formatters';
 import { resolveFacilityProfitPresentation } from '../../utils/facilityProfitPresentation';
+import { facilityEffectiveCount, projectFacilityStaffingRate } from '../../utils/facilityStaffing';
 
 export interface FacilityClusterEntry {
   group: FacilityGroup;
@@ -104,30 +105,22 @@ function staffingPercent(rateBps: number | undefined) {
 
 export function FacilityStaffingSummary({
   entry,
+  now,
 }: {
   entry: FacilityClusterEntry;
+  now: number;
 }) {
   const { group, type } = entry;
-  const currentPercent = staffingPercent(group.staffingRateBps);
-  const settlementPercent = staffingPercent(
-    group.status === 'running' ? group.cycleStaffingRateBps : group.staffingRateBps,
-  );
+  const currentRateBps = projectFacilityStaffingRate(group, now);
+  const currentPercent = staffingPercent(currentRateBps);
   const physicalCount = group.status === 'running'
     ? group.participatingCount
-    : group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount;
-  const effectiveCount = group.status === 'running'
-    ? group.cycleEffectiveCount ?? group.participatingCount
-    : group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? physicalCount;
-  const scopeLabel = group.status === 'running'
-    ? '本周期'
-    : group.status === 'error'
-      ? '恢复后'
-      : '启动后';
-  const settlementVerb = group.status === 'running' ? '锁定' : '预计';
+    : group.productionAvailableCount ?? group.participatingCount;
+  const effectiveCount = facilityEffectiveCount(group, physicalCount, now);
   const directionLabel = group.status === 'running'
-    ? currentPercent >= 100 ? '已满员' : '运行中，正在恢复'
-    : currentPercent <= 0 ? '已降至最低' : `${facilityStatusLabel(group)}，正在下降`;
-  const description = `${type.name}当前满员率 ${currentPercent}%，${directionLabel}。${scopeLabel} ${physicalCount} 座工厂按 ${settlementPercent}% 满员率形成 ${effectiveCount} 座等效产能。`;
+    ? currentPercent >= 100 ? '已满员' : '恢复中'
+    : currentPercent <= 0 ? '已降至最低' : '下降中';
+  const description = `${type.name}当前满员率 ${currentPercent}%，${directionLabel}，当前 ${physicalCount} 座工厂形成 ${effectiveCount} 座整数等效产能；周期完成时按届时满员率结算。`;
 
   return (
     <section className="facility-staffing-summary" aria-label={description}>
@@ -145,9 +138,6 @@ export function FacilityStaffingSummary({
       >
         <span className="facility-staffing-fill" style={{ width: `${currentPercent}%` }} />
       </div>
-      <small className="facility-staffing-meta">
-        {scopeLabel} {formatNumber(physicalCount)} 座 · {settlementVerb} {formatNumber(settlementPercent)}% · 等效 {formatNumber(effectiveCount)} 座
-      </small>
     </section>
   );
 }
@@ -302,16 +292,18 @@ export function isFacilitySheetInteractiveTarget(target: EventTarget | null) {
 export function FacilityClusterSelectorCard({
   entry,
   products,
+  now,
   onSelect,
 }: {
   entry: FacilityClusterEntry;
   products: ProductDefinition[];
+  now: number;
   onSelect: (trigger: HTMLButtonElement) => void;
 }) {
   const { group, type } = entry;
   const markets = useFacilityRecipeProfitMarkets();
   const recipeState = resolveFacilityDetailRecipeState(entry);
-  const profitScope = currentFormulaScope(group);
+  const profitScope = currentFormulaScope(group, now);
   const profitType = recipeState.formulaType;
   const profit = resolveFacilityProfitPresentation({
     type: profitType,
@@ -396,11 +388,6 @@ export function FacilityClusterDetailBody({
 }: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
   const { group, type } = entry;
   const recipeState = resolveFacilityDetailRecipeState(entry);
-  const selectedMethod = recipeState.productionMethodGroup?.methods.find(
-    (method) => method.id === recipeState.selectedProductionMethodId,
-  );
-  const selectedPlan = selectedMethod?.plansByRecipeId[recipeState.selectedBaseRecipeId];
-
   const selectConfiguration = (
     selectedBaseRecipeId: string,
     selectedProductionMethodId: FacilityProductionMethodId,
@@ -411,19 +398,19 @@ export function FacilityClusterDetailBody({
 
   return (
     <>
-      <div className="facility-detail-artwork" aria-hidden="true">
-        <FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />
-      </div>
+      <div className="facility-detail-overview">
+        <div className="facility-detail-identity-column">
+          <div className="facility-detail-artwork" aria-hidden="true">
+            <FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />
+          </div>
+          <FacilityStaffingSummary entry={entry} now={now} />
+        </div>
 
-      <FacilityStaffingSummary entry={entry} />
-
-      <section className="facility-production-settings">
-        <div className="facility-production-settings-heading">
-  <strong>生产设置</strong>
-  <small className="facility-recipe-status">
-    配置切换结果会提示“生产进度已清零”，并同步降低满员率。
-  </small>
-</div>
+        <div className="facility-detail-operation-column">
+          <section className="facility-production-settings">
+            <div className="facility-production-settings-heading">
+              <strong>生产设置</strong>
+            </div>
 
         <div className="facility-production-settings-grid">
           <RichSelectInput
@@ -463,22 +450,17 @@ export function FacilityClusterDetailBody({
           ) : null}
         </div>
 
-        {selectedMethod && selectedPlan ? (
-          <div className="facility-production-method-summary" aria-live="polite">
-            <span>
-              {formatDuration(selectedPlan.cycleMs)} · 产出 {formatNumber(selectedPlan.output.quantity)} · 成本 {formatNumber(selectedPlan.operatingCost)}
-            </span>
-          </div>
-        ) : null}
-      </section>
+          </section>
 
-      <FacilityProductionFormula
-        group={group}
-        type={recipeState.formulaType}
-        products={products}
-        inventories={inventories}
-        now={now}
-      />
+          <FacilityProductionFormula
+            group={group}
+            type={recipeState.formulaType}
+            products={products}
+            inventories={inventories}
+            now={now}
+          />
+        </div>
+      </div>
     </>
   );
 }

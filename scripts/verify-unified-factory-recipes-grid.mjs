@@ -73,7 +73,7 @@ for (const text of [
   '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />',
   'className="facility-detail-artwork"',
   'className="facility-detail-artwork-icon"',
-  '<FacilityStaffingSummary entry={entry} />',
+  '<FacilityStaffingSummary entry={entry} now={now} />',
   'return createPortal(',
   "const [selectedFacilityGroupId, setSelectedFacilityGroupId] = useState('')",
   'const [isFacilityDetailOpen, setFacilityDetailOpen] = useState(false)',
@@ -217,7 +217,6 @@ for (const text of [
   'item.quantity * multiplier',
   'type.operatingCost * scope.count',
   'multiplier={scope.count}',
-  'facility-formula-scope',
   'formatDuration(type.cycleMs)',
   '<FacilityGroupProgress group={group} type={type} now={now} />',
 ])
@@ -231,6 +230,7 @@ for (const forbidden of [
   'multiplier={group.pendingJoinCount}',
   'facility-formula-summary',
   'facility-formula-next-cycle',
+  'facility-formula-scope',
   '总工时',
 ])
   assert.equal(formula.includes(forbidden), false, `生产公式不应包含: ${forbidden}`);
@@ -294,6 +294,7 @@ for (const forbidden of [
   '.facility-cluster-selector-card.is-selected',
   '.facility-current-selection-bar',
   '@media (max-width: 359px)',
+  '@container (max-width: 479px)',
 ])
   assert.equal(css.includes(forbidden), false, `生产主从与悬浮框样式不应包含: ${forbidden}`);
 
@@ -304,13 +305,10 @@ const staffingRule = css.slice(
 for (const forbidden of ['border:', 'border-radius:', 'background:'])
   assert.equal(staffingRule.includes(forbidden), false, `满员率状态不得恢复卡片外观: ${forbidden}`);
 
-const settingsRule = css.slice(
-  css.indexOf('.facility-production-settings {'),
-  css.indexOf('.facility-production-formula {'),
-);
+const settingsRuleStart = css.indexOf('.facility-production-settings {');
+const settingsRule = css.slice(settingsRuleStart, css.indexOf('}', settingsRuleStart) + 1);
 for (const required of [
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
-  '@container (max-width: 479px)',
 ]) assert.equal(css.includes(required), true, `生产设置响应式布局缺少: ${required}`);
 for (const forbidden of ['border-radius:', 'background:'])
   assert.equal(settingsRule.includes(forbidden), false, `生产设置不得恢复嵌套卡片: ${forbidden}`);
@@ -395,8 +393,9 @@ assert.equal(
 );
 
 const formulaCss = read('src/styles/facility-production-formula.css');
-for (const text of ['.facility-formula-scope', 'justify-self: end;', 'font-variant-numeric: tabular-nums;'])
+for (const text of ['.facility-formula-side-label', 'font-variant-numeric: tabular-nums;'])
   assert.equal(formulaCss.includes(text), true, `生产公式样式缺少: ${text}`);
+assert.equal(formulaCss.includes('.facility-formula-scope'), false, '生产结算范围长描述样式必须删除');
 
 const surfaceCss = read('src/styles/production-surface.css');
 for (const text of [
@@ -507,7 +506,7 @@ for (const [path, required] of [
     [
       '建设卡不显示生产周期、单座产量和单座成本',
       '公式只展示集群输入、输出、周期和成本',
-      '当前周期显示 `participatingCount`、`cycleStaffingRateBps` 和 `cycleEffectiveCount`',
+      '运行中公式使用 `participatingCount`、实时投影的 `staffingRateBps` 和跨周期 `staffingBatchCarryBps`，在周期完成时计算整数等效产能',
       '移动端选择网格固定三列',
       '`FacilityIcon` 场景插画等比居中裁切并铺满整卡',
       '右上只显示单厂有效平均利润数字',
@@ -517,7 +516,7 @@ for (const [path, required] of [
     'docs/UI_DESIGN_SYSTEM.md',
     [
       '生产公式是集群运行能力展示',
-      '停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount`',
+      '停止或异常使用 `productionAvailableCount`、实时投影的满员率和 `staffingBatchCarryBps` 计算启动后或恢复后的整数等效产能',
       '不得使用 `group.count` 作为公式乘数',
       '工厂集群选择卡统一为最大宽度 `160px`、`4:5` 竖卡',
       '盈利为绿色且不加正号，亏损为红色、显示绝对值且不显示负号',
@@ -525,9 +524,9 @@ for (const [path, required] of [
         '上下两层黑色渐变',
         '中央主体区域保持透明',
       '卡片点击不保留选中态',
-      '当前工厂详情正文先显示 256px 工厂场景插画横幅',
+      '当前工厂详情正文按“插画与满员率 → 生产设置 → 生产结算”组织',
       '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
-      '公式、进度和单厂平均利润共同组成一张“生产结算”卡',
+      '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
       '作业制度说明不得显示',
       '根级 Dialog',
     ],

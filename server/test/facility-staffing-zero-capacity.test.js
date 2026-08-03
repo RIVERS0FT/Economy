@@ -11,7 +11,6 @@ function group(typeId, count, overrides = {}) {
     facilityTypeId: typeId,
     count,
     participatingCount: 0,
-    pendingJoinCount: 0,
     enabled: false,
     status: 'stopped',
     statusReason: 'manual',
@@ -37,7 +36,6 @@ test('zero effective capacity can run without funds until a payable batch is due
 
   processFacilityGroupWorld(world, now + 1);
   assert.equal(player.facilityGroups[0].status, 'running');
-  assert.equal(player.facilityGroups[0].cycleStaffingRateBps, 0);
 
   const farm = FACILITY_TYPE_CATALOG.find((facility) => facility.id === 'farm');
   const recipe = farm.recipes.find((entry) => entry.id === 'wheat-crop');

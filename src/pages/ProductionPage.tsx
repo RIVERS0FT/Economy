@@ -160,7 +160,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
   return (
     <PageLayout
       title="生产"
-      description="同类未冻结工厂共享生产周期、配方、生产方式与满员率；新增工厂立即参与运行，配置切换立即清零进度并降低满员率。"
+      description="同类未冻结工厂共享生产周期、配方、生产方式与满员率；变化即时生效，每个周期按完成时刻的满员率结算。"
       actions={
         <>
           <StatusTag tone="success">运行 {formatNumber(facilityClusterStatusCounts.running)}</StatusTag>
@@ -270,6 +270,7 @@ export function ProductionPage({ model }: { model: LoadedGameViewModel }) {
                 key={entry.group.facilityTypeId}
                 entry={entry}
                 products={game.products}
+                now={now}
                 onSelect={(trigger) => selectFacilityEntry(entry.type.id, trigger)}
               />
             ))}

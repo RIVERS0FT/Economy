@@ -12,7 +12,7 @@ test('cancelling a running factory sell order restores the quantity immediately 
   player.facilityGroups = [{
     facilityTypeId: 'farm', count: 5, participatingCount: 5,
     enabled: true, status: 'running', cycleStartedAt: now,
-    staffingRateBps: 10_000, staffingUpdatedAt: now, cycleStaffingRateBps: 10_000,
+    staffingRateBps: 10_000, staffingUpdatedAt: now,
     activeRecipeId: 'wheat-crop', lifetimeOutput: 0,
   }];
   migrateFacilityGroupWorld(world, now);
@@ -25,10 +25,9 @@ test('cancelling a running factory sell order restores the quantity immediately 
   const farm = player.facilityGroups[0];
   assert.equal(farm.participatingCount, 5);
   assert.equal(farm.staffingRateBps, 6_000);
-  assert.equal(farm.cycleStaffingRateBps, 6_000);
   const state = createFacilityGroupClientState(world, alice.id, now + 2).facilityGroups[0];
   assert.equal(state.listedCount, 0);
-  assert.equal(state.pendingJoinCount, 0);
+  assert.equal(Object.hasOwn(state, 'pendingJoinCount'), false);
 });
 
 test('selling every participating factory puts the enabled group in error', () => {

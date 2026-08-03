@@ -270,10 +270,11 @@ for (const text of [
   'facility-formula-progress',
   'function currentFormulaScope',
   'group.participatingCount',
-  'group.nextCycleCount',
+  'group.productionAvailableCount',
+  'projectFacilityStaffingRate',
+  'facilityEffectiveCount',
   'item.quantity * multiplier',
   'type.operatingCost * scope.count',
-  'facility-formula-scope',
 ]) requireText('src/components/facilities/FacilityProductionFormula.tsx', text);
 for (const text of [
   'facility-formula-center',

@@ -47,12 +47,11 @@ test.describe('factory production methods', () => {
     await expect(recipeListbox).toHaveCount(0);
     await expect(recipeSelect).toBeFocused();
 
-    const summary = detail.locator('.facility-production-method-summary');
-    await expect(summary.locator('strong')).toHaveCount(0);
-    await expect(summary.locator('small')).toHaveCount(0);
-    await expect(summary).not.toContainText('高速生产');
-    await expect(summary).toContainText('1m · 产出 1 · 成本 12');
-    await expect(summary).not.toContainText('缩短周期并提高成本');
+    await expect(detail.locator('.facility-production-method-summary')).toHaveCount(0);
+    await expect(detail.locator('.facility-staffing-meta')).toHaveCount(0);
+    await expect(detail.locator('.facility-formula-scope')).toHaveCount(0);
+    await expect(detail).not.toContainText('配置切换结果会提示');
+    await expect(detail).not.toContainText('1m · 产出 1 · 成本 12');
 
     await expect(settings.locator('.facility-production-settings-grid')).toHaveCount(1);
     expect(await settings.locator('.facility-production-settings-grid').evaluate((element) => (
@@ -75,7 +74,7 @@ test.describe('factory production methods', () => {
     const settlement = detail.locator('.facility-production-formula');
     const formulaTop = settlement.locator('.facility-formula-top');
     const inputSide = settlement.locator('.facility-formula-input-side');
-    const formulaMeta = inputSide.locator(':scope > .facility-formula-meta');
+    const formulaMeta = settlement.locator(':scope > .facility-formula-visual > .facility-formula-meta');
     const output = settlement.locator('.facility-formula-output');
     const profit = settlement.locator('.facility-average-profit');
     await expect(inputSide).toHaveCount(1);
@@ -97,9 +96,8 @@ test.describe('factory production methods', () => {
     expect(metaBox).not.toBeNull();
     expect(outputBox).not.toBeNull();
     if (!inputSideBox || !metaBox || !outputBox) throw new Error('生产结算几何不可用');
+    expect(metaBox.y).toBeGreaterThanOrEqual(Math.max(inputSideBox.y + inputSideBox.height, outputBox.y + outputBox.height) - 1);
     expect(metaBox.x).toBeGreaterThanOrEqual(inputSideBox.x - 1);
-    expect(metaBox.x + metaBox.width).toBeLessThanOrEqual(inputSideBox.x + inputSideBox.width + 1);
-    expect(metaBox.x + metaBox.width).toBeLessThan(outputBox.x);
 
     const metaUnits = formulaMeta.locator(':scope > .facility-formula-meta-unit');
     await expect(metaUnits).toHaveCount(2);
@@ -199,7 +197,9 @@ test.describe('factory production methods', () => {
     ))).toContain('machine-factory');
     await expect(sheet.locator('.facility-staffing-track')).toBeVisible();
     await expect(sheet.locator('.facility-staffing-fill')).toBeVisible();
-    await expect(sheet.locator('.facility-production-method-summary small')).toHaveCount(0);
+    await expect(sheet.locator('.facility-production-method-summary')).toHaveCount(0);
+    await expect(sheet.locator('.facility-staffing-meta')).toHaveCount(0);
+    await expect(sheet.locator('.facility-formula-scope')).toHaveCount(0);
     await expect(sheet).not.toContainText('缩短周期并提高成本');
 
     const recipeSelect = sheet.getByRole('combobox', { name: '机械工厂生产产物' });
@@ -238,7 +238,7 @@ test.describe('factory production methods', () => {
       throw new Error(`移动生产结算几何不可用: ${width}px`);
     }
     expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1);
-    expect(metaBox.y).toBeGreaterThanOrEqual(inputBox.y + inputBox.height - 1);
+    expect(metaBox.y).toBeGreaterThanOrEqual(Math.max(inputBox.y + inputBox.height, outputBox.y + outputBox.height) - 1);
     expect(progressBox.y).toBeGreaterThanOrEqual(
       Math.max(metaBox.y + metaBox.height, outputBox.y + outputBox.height) - 1,
     );

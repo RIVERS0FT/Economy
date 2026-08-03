@@ -100,13 +100,11 @@ for (const text of [
   'productionRecipeVariantId',
   'const methodGroup = productionMethodGroupForType(type);',
   'id: plan.recipeId',
-  'const selectedPlan = selectedMethod?.plansByRecipeId[recipeState.selectedBaseRecipeId];',
   'aria-label={`${type.name}生产方式`}',
   'value={recipeState.selectedProductionMethodId}',
   'methodId as FacilityProductionMethodId',
   'RichSelectInput',
   'onValueChange={(methodId)',
-  'facility-production-method-summary',
 ]) assert.ok(detailSource.includes(text), `生产方式客户端合成缺少 ${text}`);
 for (const forbidden of [
   'role="radiogroup"',
@@ -117,7 +115,7 @@ for (const forbidden of [
   assert.equal(detailSource.includes(forbidden), false, `生产方式不得恢复旧展示: ${forbidden}`);
 }
 assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
-assert.ok(styleSource.includes('.facility-production-method-summary'));
+assert.equal(styleSource.includes('.facility-production-method-summary'), false, '生产方式规格摘要必须删除');
 for (const forbidden of [
   '.facility-production-method-grid',
   '.facility-production-method-option',
@@ -137,18 +135,18 @@ for (const text of [
   "getByRole('combobox', { name: '机械工厂生产方式' })",
   "getByRole('option', { name: '节约生产' })",
   "methodListbox.getByRole('option', { name: '节约生产' }).click()",
-  "summary.locator('small')",
   "not.toContainText('缩短周期并提高成本')",
+  "locator('.facility-production-method-summary')).toHaveCount(0)",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
-assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 24'));
-assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 24'));
+assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 25'));
+assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 25'));
 
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '标准生产、高速生产、节约生产和高产生产',
     '生产方式与配方必须在同一次配置动作中原子切换',
     '不得新增单座工厂生产方式状态',
-    '作业制度下方只显示周期、单周期产出和周期成本',
+    '生产设置下方不得再显示“周期 · 产出 · 成本”摘要',
   ]],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', [
     '作业制度',

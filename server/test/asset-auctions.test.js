@@ -99,7 +99,6 @@ test('工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂�
     facilityTypeId: 'farm',
     count: 3,
     participatingCount: 3,
-    pendingJoinCount: 0,
     enabled: true,
     status: 'running',
     cycleStartedAt: 1_000,
@@ -244,7 +243,6 @@ test('世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍�
   assert.deepEqual(sellerAccount.inventories.wheat, { available: 10, frozen: 0 });
   assert.equal(sellerAccount.facilityGroups[0].participatingCount, 2);
   assert.equal(sellerAccount.facilityGroups[0].staffingRateBps, 5_000);
-  assert.equal(sellerAccount.facilityGroups[0].cycleStaffingRateBps, 5_000);
   assert.equal(Object.hasOwn(sellerAccount.facilityGroups[0], 'pendingJoinCount'), false);
   assert.equal(Object.hasOwn(state, 'collectibles'), false);
   assert.equal(Object.hasOwn(state, 'collectibleOwnershipHistory'), false);

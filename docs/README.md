@@ -3,7 +3,7 @@
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-08-03
-> 客户端状态版本：24
+> 客户端状态版本：25
 > 世界状态版本：21
 
 本目录只保留当前设计。旧规则不归档在 `docs/`，也不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在。未列入下方权威文档表的 Markdown 文件不得存在。
@@ -63,7 +63,7 @@
 26. 登录后游戏与管理员桌面外壳几何、侧栏导航固有行高、覆盖式滚动条、移动贴边轨道和纵向滚动链分别归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `UI_DESIGN_SYSTEM.md`；不得重新创建 `GAME_SHELL_LAYOUT_DESIGN.md`、`OVERLAY_SCROLLBAR_AND_MARKET_ACCOUNT_DESIGN.md` 或其他职责重叠的平行专题文档。
 27. 工厂目录展示顺序、概览布局完整性、生产页胶囊例外、注册邀请码交互和一级卡片外层内边距虽使用独立文档，但职责必须保持在本索引限定范围内；不得把产品经济、页面模块归属、通用 UI、服务器事务或部署规则复制进这些专题文档。
 28. 玩家端一级卡片的外层内边距、组件语义、业务 CSS 责任和贴边内容例外唯一归属 `PRIMARY_SURFACE_INSET_DESIGN.md`；页面职责和通用 UI 文档只引用，不得重复维护具体间距表。
-29. 状态交付使用 `server/shared/economy-state-version.js` 作为客户端版本唯一来源；README、权威文档、`src/types.ts` 和服务器序列化必须通过 `scripts/verify-client-state-version.mjs` 保持一致。客户端状态版本 24 是拍卖身份字段删除、主状态移除出价数组与收费／保留价／延时摘要的破坏性边界，只接受当前版本。
+29. 状态交付使用 `server/shared/economy-state-version.js` 作为客户端版本唯一来源；README、权威文档、`src/types.ts` 和服务器序列化必须通过 `scripts/verify-client-state-version.mjs` 保持一致。客户端状态版本 25 是拍卖身份字段删除、主状态移除出价数组与收费／保留价／延时摘要的破坏性边界，只接受当前版本。
 30. `serverNow` 只属于状态交付 envelope，不进入 `EconomyState`、世界 JSON 或状态分区；倒计时必须读取共享单调服务器时钟。普通权威动作只返回精简确认，动作成功后用动作前全局修订号与分区哈希补拉状态。
 31. 六分区协议只在分区之间增量传输；每个返回分区内部都是完整快照，客户端必须整块替换同名缓存分区后再重组 `EconomyState`。服务器省略可选字段即表示删除，空对象也必须清空旧分区内容，不得恢复对旧完整状态的字段级浅合并。
 32. 仓库商品卡结构与网格密度唯一归属 `WAREHOUSE_EXPANSION_DESIGN.md`；移动和窄容器固定每行四张卡，760px 起五列、960px 起六列，并通过 `scripts/verify-warehouse-expansion.mjs` 防回退。页面职责与通用 UI 文档只能引用该规则，不得维护另一套断点。

@@ -250,6 +250,30 @@
   min-width: 0;
   margin-inline: 0;
 }
+.facility-detail-overview,
+.facility-detail-identity-column,
+.facility-detail-operation-column {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--facility-card-section-gap);
+}
+
+.facility-detail-operation-column {
+  gap: var(--facility-card-inner-gap);
+}
+
+@container (min-width: 620px) {
+  .facility-detail-overview {
+    grid-template-columns: minmax(11rem, 0.82fr) minmax(0, 1.18fr);
+    align-items: start;
+  }
+
+  .facility-detail-operation-column .facility-production-settings {
+    border-top: 0;
+    padding-top: 0;
+  }
+}
 
 .facility-status-header {
   min-width: 0;
@@ -310,7 +334,7 @@
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: baseline;
   gap: var(--space-1);
   color: var(--color-text-muted);
@@ -361,8 +385,7 @@
   font-size: var(--font-size-sm);
 }
 
-.facility-staffing-heading span,
-.facility-staffing-meta {
+.facility-staffing-heading span {
   min-width: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
@@ -415,15 +438,6 @@
   white-space: nowrap;
 }
 
-.facility-recipe-status {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .facility-production-settings-grid {
   min-width: 0;
@@ -474,11 +488,6 @@
   display: none;
 }
 
-@container (max-width: 479px) {
-  .facility-production-settings-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 @media (min-width: 961px) and (max-width: 1380px) {
   .production-workspace {
     grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);

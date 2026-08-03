@@ -10,16 +10,3 @@
   width: 100%;
   height: 100%;
 }
-
-.facility-production-method-summary {
-  min-width: 0;
-  display: block;
-  padding-inline: var(--space-1);
-}
-
-.facility-production-method-summary span {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
-  font-variant-numeric: tabular-nums;
-}

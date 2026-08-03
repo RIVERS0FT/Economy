@@ -158,8 +158,8 @@
 
 @media (max-width: 720px) {
   .facility-detail-artwork {
-    min-height: 7rem;
-    aspect-ratio: 16 / 6;
+    min-height: 5.75rem;
+    aspect-ratio: 16 / 5;
   }
 
   .market-page-surface

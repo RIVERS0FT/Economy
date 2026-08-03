@@ -38,19 +38,6 @@
   white-space: nowrap;
 }
 
-.facility-formula-scope {
-  min-width: 0;
-  justify-self: end;
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  line-height: var(--line-height-tight);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .facility-formula-visual {
   min-width: 0;
@@ -66,12 +53,27 @@
   gap: var(--space-3);
 }
 
-.facility-formula-input-side {
+.facility-formula-input-side,
+.facility-formula-output-side {
   min-width: 0;
   display: grid;
   align-content: start;
+  gap: var(--space-1);
+}
+
+.facility-formula-input-side {
   justify-items: start;
-  gap: var(--space-2);
+}
+
+.facility-formula-output-side {
+  justify-items: end;
+}
+
+.facility-formula-side-label {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: var(--line-height-tight);
 }
 
 .facility-formula-input,
@@ -195,6 +197,7 @@
 }
 
 .facility-formula-meta {
+  width: fit-content;
   max-width: 100%;
   min-width: 0;
   grid-area: auto;
@@ -338,9 +341,6 @@
     align-items: flex-start;
   }
 
-  .facility-formula-scope {
-    white-space: normal;
-  }
 
   .facility-formula-top {
     gap: var(--space-1) var(--space-2);

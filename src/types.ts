@@ -116,18 +116,10 @@ export interface FacilityGroup {
   statusReason?: FacilityStatusReason;
   /** Current projected cluster staffing rate in basis points, where 10000 = 100%. */
   staffingRateBps?: number;
-  /** Staffing rate locked when the current full production cycle started. */
-  cycleStaffingRateBps?: number;
-  /** Integer equivalent factory batches settled by the current cycle. */
-  cycleEffectiveCount?: number;
-  /** @deprecated Version 24 compatibility alias; always 0 because factories no longer queue for the next cycle. */
-  pendingJoinCount?: number;
-  /** @deprecated Version 24 compatibility alias for productionAvailableCount. */
-  nextCycleCount?: number;
-  /** @deprecated Version 24 compatibility alias for staffingRateBps. */
-  nextCycleStaffingRateBps?: number;
-  /** @deprecated Version 24 compatibility alias for projectedEffectiveCount. */
-  nextCycleEffectiveCount?: number;
+  /** Server timestamp at which staffingRateBps was projected. */
+  staffingUpdatedAt?: number;
+  /** Fixed-point equivalent-capacity carry retained between completed cycles. */
+  staffingBatchCarryBps?: number;
   cycleStartedAt?: number;
   lifetimeOutput: number;
   activeRecipeId: string;
@@ -477,7 +469,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 24;
+  version: 25;
   userId: number;
   playerName: string;
   registeredAt: number;
