@@ -64,6 +64,7 @@ jobs:
             .github/workflows/agent-immediate-factory.yml > /tmp/apply-immediate-factory.mjs.gz.b64
           base64 --decode /tmp/apply-immediate-factory.mjs.gz.b64 | gzip --decompress > /tmp/apply-immediate-factory.mjs
           python .agent/immediate-factory-overlays.py /tmp/apply-immediate-factory.mjs
+          python .agent/immediate-factory-market-overlays.py /tmp/apply-immediate-factory.mjs
           node --check /tmp/apply-immediate-factory.mjs
           node /tmp/apply-immediate-factory.mjs
           git diff --check
