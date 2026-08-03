@@ -84,6 +84,14 @@ update('scripts/verify-unified-factory-recipes-grid.mjs', (source) => source
 );`,
     `const settingsRuleStart = css.indexOf('.facility-production-settings {');
 const settingsRule = css.slice(settingsRuleStart, css.indexOf('}', settingsRuleStart) + 1);`,
+  )
+  .replace(
+    "for (const text of ['.facility-formula-scope', 'justify-self: end;', 'font-variant-numeric: tabular-nums;'])",
+    "for (const text of ['.facility-formula-side-label', 'font-variant-numeric: tabular-nums;'])",
+  )
+  .replace(
+    "  assert.equal(formulaCss.includes(text), true, `生产公式样式缺少: ${text}`);",
+    "  assert.equal(formulaCss.includes(text), true, `生产公式样式缺少: ${text}`);\nassert.equal(formulaCss.includes('.facility-formula-scope'), false, '生产结算范围长描述样式必须删除');",
   ));
 
 update('scripts/verify-warehouse-expansion.mjs', (source) => source.replaceAll(
