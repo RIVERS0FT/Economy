@@ -13,14 +13,13 @@ file:///tmp/apply-immediate-factory.mjs:20
     throw new Error(`${path}: expected ${expected} occurrence(s), found ${count}: ${before.slice(0, 120)}`);
           ^
 
-Error: src/components/facilities/FacilityProductionFormula.tsx: expected 2 occurrence(s), found 1:       group.nextCycleCount,
-      group.nextCycleEffectiveCount ?? group.nextCycleCount,
-      group.nextCycleStaffingRa
+Error: tests/browser/runtime-harness.tsx: expected 1 occurrence(s), found 3:       pendingJoinCount: 0,
+
     at replaceExact (file:///tmp/apply-immediate-factory.mjs:20:11)
-    at file:///tmp/apply-immediate-factory.mjs:677:1
+    at file:///tmp/apply-immediate-factory.mjs:963:1
     at ModuleJob.run (node:internal/modules/esm/module_job:370:25)
     at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:665:26)
     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:99:5)
 
 Node.js v24.4.0
-HEAD is now at ee3c8aa chore: preserve cycle block while removing queue fields [agent-retry3]
+HEAD is now at bc16322 chore: patch formula scope indentation [agent-retry4]
