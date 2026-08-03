@@ -1,1 +1,0 @@
-Trigger the verified mobile market layout application after the browser ratio assertion update.
