@@ -7,6 +7,7 @@ const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
 const richSelect = read('src/components/ui/RichSelectInput.tsx');
 const productArtwork = read('src/components/products/ProductArtwork.tsx');
 const formulaCss = read('src/styles/facility-production-formula.css');
+const groupCss = read('src/styles/facility-group-card-grid.css');
 const controlsCss = read('src/styles/form-controls.css');
 const artworkCss = read('src/styles/product-artwork.css');
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
@@ -72,7 +73,9 @@ for (const text of [
   '.facility-formula-product-artwork',
   'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);',
   'grid-template-columns: auto auto auto;',
-  'grid-template-columns: minmax(0, 1fr);',
+  'display: inline-flex;',
+  'grid-area: auto;',
+  '.facility-formula-meta-unit.is-cost {',
   'border-left: 1px solid var(--color-divider);',
   'grid-template-areas: none;',
   '.facility-formula-progress .progress-track span::after',
@@ -87,6 +90,12 @@ for (const forbidden of [
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
   'border-top: 1px solid var(--color-divider);',
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
+for (const forbidden of [
+  '@container (max-width: 519px)',
+  'grid-area: input;',
+  'grid-area: output;',
+  '.facility-formula-center',
+]) assert.equal(groupCss.includes(forbidden), false, `工厂主从样式不得控制生产结算内部网格: ${forbidden}`);
 
 for (const text of [
   'export function RichSelectInput',
@@ -138,8 +147,11 @@ for (const text of [
   "getByRole('option', { name: '节约生产' })",
   "settlement.locator('svg.product-icon')",
   "settlement.locator('.product-artwork')",
-  'expect(box.x + box.width).toBeLessThanOrEqual(390)',
-  'expect(costBox.y).toBeGreaterThan(cycleBox.y + cycleBox.height - 1)',
+  'expect(box.x + box.width).toBeLessThanOrEqual(width)',
+  'expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1)',
+  'expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1)',
+  'settlementOverflow.scrollWidth',
+  'for (const width of [320, 390, 430])',
   'arrowClipPath',
 ]) assert.equal(browserTest.includes(text), true, `生产结算浏览器回归缺少: ${text}`);
 
