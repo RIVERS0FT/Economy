@@ -722,7 +722,8 @@
   }
 
   .facility-cluster-selector-list {
-    grid-template-columns: repeat(auto-fit, minmax(8.25rem, 10rem));
+    max-width: 60rem;
+    grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));
     justify-content: start;
   }
 }
