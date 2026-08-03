@@ -1,0 +1,460 @@
+name: Apply unified order-book cleanup
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-unify-mobile-order-book-cleanup
+  cancel-in-progress: false
+
+jobs:
+  apply-and-verify:
+    if: github.head_ref == 'agent/unify-mobile-order-book-cleanup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/unify-mobile-order-book-cleanup
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply approved order-book cleanup
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}: {old[:120]!r}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          def replace_count(path: str, old: str, new: str, expected: int) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(f'{path}: expected {expected} matches, found {count}: {old[:120]!r}')
+              file.write_text(text.replace(old, new), encoding='utf-8')
+
+          def remove_range(path: str, start: str, end: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              start_count = text.count(start)
+              end_count = text.count(end)
+              if start_count != 1 or end_count < 1:
+                  raise SystemExit(f'{path}: invalid range counts start={start_count} end={end_count}')
+              begin = text.index(start)
+              finish = text.index(end, begin)
+              file.write_text(text[:begin] + text[finish:], encoding='utf-8')
+
+          def regex_replace(path: str, pattern: str, replacement: str, expected: int) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              updated, count = re.subn(pattern, replacement, text, flags=re.DOTALL)
+              if count != expected:
+                  raise SystemExit(f'{path}: expected {expected} regex matches, found {count}: {pattern}')
+              file.write_text(updated, encoding='utf-8')
+
+          def write_file(path: str, content: str) -> None:
+              Path(path).write_text(content, encoding='utf-8')
+
+          replace_once(
+              'src/pages/MarketPage.tsx',
+              '''                <div className="order-book-columns" aria-hidden="true">
+                  <span>档位</span>
+                  <span>价格</span>
+                  <span>数量</span>
+                </div>
+''',
+              '',
+          )
+          replace_once(
+              'src/pages/MarketPage.tsx',
+              '''                  <div className="order-book-midpoint" aria-label={`最近成交价 ${typeof selectedLastTradePrice === 'number' ? formatCurrency(selectedLastTradePrice) : '暂无成交'}`}>
+                    <span>最新</span>
+                    <strong><CurrencyAmount>{typeof selectedLastTradePrice === 'number' ? formatCurrency(selectedLastTradePrice) : '—'}</CurrencyAmount></strong>
+                  </div>
+''',
+              '',
+          )
+
+          style_path = 'src/styles/market-page-polish.css'
+          remove_range(style_path, '.order-book-columns {\n', '.market-trade-book .order-book-stack {')
+          remove_range(style_path, '.order-book-midpoint {\n', '.order-book-empty {')
+          replace_count(
+              style_path,
+              '''  .order-book-columns,
+  .market-trade-book .book-order-row {''',
+              '''  .market-trade-book .book-order-row {''',
+              2,
+          )
+          replace_count(
+              style_path,
+              '''  .market-book-price-button,
+  .order-book-midpoint {''',
+              '''  .market-book-price-button {''',
+              2,
+          )
+          replace_once(
+              style_path,
+              '''  .market-book-price-button strong,
+  .order-book-midpoint strong {''',
+              '''  .market-book-price-button strong {''',
+          )
+          regex_replace(style_path, r'\n  \.order-book-columns \{\n.*?\n  \}\n', '\n', 1)
+          regex_replace(style_path, r'\n  \.order-book-midpoint(?: strong)? \{\n.*?\n  \}\n', '\n', 4)
+
+          write_file(
+              'src/styles/market-desktop-cleanup.css',
+              '''/* Desktop-only market card cleanup.
+ * Order-book rows now use the same structure on desktop and mobile. */
+@media (min-width: 721px) {
+  .market-page-surface .market-account-view-switch,
+  .market-page-surface .market-trade-section-heading small {
+    display: none !important;
+  }
+}
+''',
+          )
+
+          old_design = '桌面订单簿连续展示卖 5 至卖 1 和买 1 至买 5，并隐藏“档位／价格／数量”表头、真实最近成交价“最新”分隔及“实时五档 · 点击填价”辅助文案；不大于 720px 的移动端保留上述表头和最新成交分隔。'
+          new_design = '桌面端和移动端订单簿使用同一信息结构，均连续展示卖 5 至卖 1 和买 1 至买 5，不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行；桌面端继续隐藏“实时五档 · 点击填价”辅助文案。'
+          replace_once('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', old_design, new_design)
+
+          write_file(
+              'scripts/verify-market-desktop-cleanup.mjs',
+              '''import fs from 'node:fs';
+
+const main = fs.readFileSync('src/main.tsx', 'utf8');
+const marketRuntimeHtml = fs.readFileSync('market-runtime-test.html', 'utf8');
+const marketPage = fs.readFileSync('src/pages/MarketPage.tsx', 'utf8');
+const styles = fs.readFileSync('src/styles/market-desktop-cleanup.css', 'utf8');
+const marketStyles = fs.readFileSync('src/styles/market-page-polish.css', 'utf8');
+const design = fs.readFileSync('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', 'utf8');
+const browserSpec = fs.readFileSync('tests/browser/market-desktop-cleanup.spec.ts', 'utf8');
+
+const failures = [];
+const requireText = (source, text, message) => {
+  if (!source.includes(text)) failures.push(message);
+};
+const forbidText = (source, text, message) => {
+  if (source.includes(text)) failures.push(message);
+};
+
+requireText(
+  main,
+  "import './styles/form-controls.css';\nimport './styles/market-desktop-cleanup.css';",
+  '桌面市场精简样式必须在全部共享和页面样式之后最终加载。',
+);
+requireText(
+  marketRuntimeHtml,
+  '<link rel="stylesheet" href="/src/styles/market-desktop-cleanup.css" />',
+  '市场浏览器运行时夹具必须加载与生产一致的桌面精简样式。',
+);
+requireText(styles, '@media (min-width: 721px)', '桌面精简规则必须严格限定在大于 720px。');
+for (const selector of [
+  '.market-page-surface .market-account-view-switch',
+  '.market-page-surface .market-trade-section-heading small',
+]) {
+  requireText(styles, selector, `桌面精简样式缺少选择器：${selector}`);
+}
+requireText(styles, 'display: none !important;', '桌面辅助元素必须使用最终覆盖优先级隐藏。');
+forbidText(styles, '.order-book-columns', '桌面精简样式不得保留已删除的订单簿表头规则。');
+forbidText(styles, '.order-book-midpoint', '桌面精简样式不得保留已删除的最新价分隔规则。');
+forbidText(marketStyles, '.order-book-columns', '市场基础样式不得恢复订单簿表头。');
+forbidText(marketStyles, '.order-book-midpoint', '市场基础样式不得恢复最新价分隔行。');
+forbidText(styles, '@media (max-width: 720px)', '桌面精简样式不得改写移动端规则。');
+
+for (const text of [
+  'className="market-account-view-switch ui-segmented"',
+  '<small>实时五档 · 点击填价</small>',
+]) {
+  requireText(marketPage, text, `现有市场 DOM 不得删除：${text}`);
+}
+forbidText(marketPage, 'order-book-columns', '市场页面不得恢复订单簿表头 DOM。');
+forbidText(marketPage, 'order-book-midpoint', '市场页面不得恢复最新价分隔 DOM。');
+
+requireText(design, '桌面端和移动端订单簿使用同一信息结构', '权威设计必须记录全端统一盘口结构。');
+requireText(design, '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行', '权威设计必须记录表头和最新价行永久移除。');
+requireText(design, '不大于 `720px` 的移动端始终同时显示下单区和五档盘口', '权威设计必须记录移动端永久双列。');
+requireText(design, '桌面端不显示该账户视图切换', '权威设计必须保留桌面账户区域精简。');
+forbidText(marketPage, 'market-compact-view-switch', '市场页面不得恢复下单／盘口切换 DOM。');
+
+requireText(browserSpec, 'desktop market uses compact order-book rows without duplicate headers', '浏览器测试必须覆盖桌面统一盘口结构。');
+requireText(browserSpec, 'mobile market matches desktop order-book structure and keeps side-by-side trade panels', '浏览器测试必须覆盖移动端统一盘口结构与永久双列。');
+requireText(browserSpec, "locator('.order-book-columns')).toHaveCount(0)", '浏览器测试必须验证订单簿表头不存在。');
+requireText(browserSpec, "locator('.order-book-midpoint')).toHaveCount(0)", '浏览器测试必须验证最新价分隔行不存在。');
+requireText(browserSpec, "name: '盘口', exact: true })).toHaveCount(0)", '浏览器测试必须验证移动端不恢复下单／盘口切换。');
+requireText(browserSpec, "name: '成交'", '浏览器测试必须验证移动端挂单／成交切换仍存在。');
+
+if (failures.length > 0) {
+  console.error('市场订单簿统一结构验证失败：');
+  for (const failure of failures) console.error(`- ${failure}`);
+  process.exit(1);
+}
+
+console.log('桌面与移动端订单簿统一为连续五档行，表头和最新价分隔已从 DOM 与样式中移除。');
+''',
+          )
+
+          replace_once(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(marketPage, 'order-book single-order-book market-trade-book', '交易卡必须保留订单簿语义。');",
+              "requireText(marketPage, 'order-book single-order-book market-trade-book', '交易卡必须保留订单簿语义。');\nforbidText(marketPage, 'order-book-columns', '订单簿不得恢复重复表头 DOM。');\nforbidText(marketPage, 'order-book-midpoint', '订单簿不得恢复最新价分隔 DOM。');",
+          )
+          replace_once(
+              'scripts/verify-market-page-layout.mjs',
+              "forbidText(marketStyles, '@container market-page (max-width: 339px)', '市场不得恢复超窄下单／盘口切换断点。');",
+              "forbidText(marketStyles, '@container market-page (max-width: 339px)', '市场不得恢复超窄下单／盘口切换断点。');\nforbidText(marketStyles, '.order-book-columns', '市场样式不得恢复订单簿表头。');\nforbidText(marketStyles, '.order-book-midpoint', '市场样式不得恢复最新价分隔行。');",
+          )
+          replace_once(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(marketDesign, '不大于 `720px` 的移动端始终同时显示下单区和五档盘口', '权威设计必须记录移动端永久双列规则。');",
+              "requireText(marketDesign, '不大于 `720px` 的移动端始终同时显示下单区和五档盘口', '权威设计必须记录移动端永久双列规则。');\nrequireText(marketDesign, '桌面端和移动端订单簿使用同一信息结构', '权威设计必须记录全端统一盘口结构。');\nrequireText(marketDesign, '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行', '权威设计必须记录重复信息永久移除。');",
+          )
+          replace_once(
+              'scripts/verify-market-page-layout.mjs',
+              "requireText(runtimeSpec, \"name: '盘口', exact: true })).toHaveCount(0)\", 'Playwright 必须验证移动端不再存在下单／盘口切换。');",
+              "requireText(runtimeSpec, \"name: '盘口', exact: true })).toHaveCount(0)\", 'Playwright 必须验证移动端不再存在下单／盘口切换。');\nrequireText(runtimeSpec, \"locator('.order-book-columns')).toHaveCount(0)\", 'Playwright 必须验证全端不渲染订单簿表头。');\nrequireText(runtimeSpec, \"locator('.order-book-midpoint')).toHaveCount(0)\", 'Playwright 必须验证全端不渲染最新价分隔。');",
+          )
+
+          replace_once(
+              'scripts/verify-market-order-entry-compact.mjs',
+              "  '盘口保留不小于 112px 的可读宽度',",
+              "  '盘口保留不小于 112px 的可读宽度',\n  '桌面端和移动端订单簿使用同一信息结构',\n  '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行',",
+          )
+          replace_once(
+              'scripts/verify-market-order-entry-compact.mjs',
+              "forbidText(pagePath, 'market-compact-view-switch');",
+              "forbidText(pagePath, 'market-compact-view-switch');\nforbidText(pagePath, 'order-book-columns');\nforbidText(pagePath, 'order-book-midpoint');",
+          )
+          replace_once(
+              'scripts/verify-market-order-entry-compact.mjs',
+              "forbidText(stylePath, '.market-order-details');",
+              "forbidText(stylePath, '.market-order-details');\nforbidText(stylePath, '.order-book-columns');\nforbidText(stylePath, '.order-book-midpoint');",
+          )
+
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "  'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-midpoint','items={localTrades}',",
+              "  'unified-asset-tabs','placeAssetOrder','single-order-book','items={localTrades}',",
+          )
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "  'localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价',",
+              "  'localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价','order-book-columns','order-book-midpoint',",
+          )
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "  '买 1 至买 5',\n  '点击任一档位只把该档价格填入价格输入',",
+              "  '买 1 至买 5',\n  '桌面端和移动端订单簿使用同一信息结构',\n  '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行',\n  '点击任一档位只把该档价格填入价格输入',",
+          )
+
+          replace_once(
+              'scripts/verify-page-content.mjs',
+              "  'single-order-book',\n  'order-book-midpoint',\n  'items={localTrades}',",
+              "  'single-order-book',\n  'items={localTrades}',",
+          )
+          replace_once(
+              'scripts/verify-page-content.mjs',
+              "  '>⚙</span>',\n]) forbidText('src/pages/MarketPage.tsx', text);",
+              "  '>⚙</span>',\n  'order-book-columns',\n  'order-book-midpoint',\n]) forbidText('src/pages/MarketPage.tsx', text);",
+          )
+
+          replace_once(
+              'tests/browser/market-runtime.spec.ts',
+              "  await expect(tradeCard.locator('.order-book-columns')).toContainText(/档位\\s*价格\\s*数量/);",
+              "  await expect(tradeCard.locator('.order-book-columns')).toHaveCount(0);\n  await expect(tradeCard.locator('.order-book-midpoint')).toHaveCount(0);",
+          )
+          replace_once(
+              'tests/browser/market-runtime.spec.ts',
+              "test('market order book keeps sell five to buy five sequence and fills price without submitting', async ({ page }) => {",
+              "test('market order book keeps a continuous sell-five to buy-five sequence and fills price without submitting', async ({ page }) => {",
+          )
+          replace_once(
+              'tests/browser/market-runtime.spec.ts',
+              '''  const askRow = page.locator('.book-order-row.ask').first();
+  const midpoint = page.locator('.order-book-midpoint');
+  const bidRow = page.locator('.book-order-row.bid').first();
+  const askBox = await requireBox(askRow);
+  const midpointBox = await requireBox(midpoint);
+  const bidBox = await requireBox(bidRow);
+  expect(askBox.y).toBeLessThan(midpointBox.y);
+  expect(midpointBox.y).toBeLessThan(bidBox.y);
+  await expect(askRow.locator('.market-book-level')).toHaveText('卖1');
+  await expect(midpoint).toContainText('最新');
+  await expect(bidRow.locator('.market-book-level')).toHaveText('买1');
+''',
+              '''  const askRow = page.locator('.book-order-row.ask').first();
+  const bidRow = page.locator('.book-order-row.bid').first();
+  const askBox = await requireBox(askRow);
+  const bidBox = await requireBox(bidRow);
+  expect(askBox.y).toBeLessThan(bidBox.y);
+  await expect(page.locator('.order-book-columns')).toHaveCount(0);
+  await expect(page.locator('.order-book-midpoint')).toHaveCount(0);
+  await expect(askRow.locator('.market-book-level')).toHaveText('卖1');
+  await expect(bidRow.locator('.market-book-level')).toHaveText('买1');
+''',
+          )
+          replace_once(
+              'tests/browser/market-runtime.spec.ts',
+              "  await expect(page.locator('.order-book-columns')).toContainText(/档位\\s*价格\\s*数量/);\n\n  const askLevels",
+              "  await expect(page.locator('.order-book-columns')).toHaveCount(0);\n  await expect(page.locator('.order-book-midpoint')).toHaveCount(0);\n\n  const askLevels",
+          )
+          replace_once(
+              'tests/browser/market-runtime.spec.ts',
+              "  await expect(orderEntry).toBeVisible();\n  await expect(orderBook).toBeVisible();\n  const compactOrder",
+              "  await expect(orderEntry).toBeVisible();\n  await expect(orderBook).toBeVisible();\n  await expect(orderBook.locator('.order-book-columns')).toHaveCount(0);\n  await expect(orderBook.locator('.order-book-midpoint')).toHaveCount(0);\n  const compactOrder",
+          )
+
+          write_file(
+              'tests/browser/market-desktop-cleanup.spec.ts',
+              '''import { expect, test } from '@playwright/test';
+
+test('desktop market uses compact order-book rows without duplicate headers', async ({ page }) => {
+  await page.setViewportSize({ width: 1684, height: 931 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const tradeCard = page.locator('.market-trade-card');
+  await expect(tradeCard).toBeVisible();
+  await expect(tradeCard.locator('.market-compact-view-switch')).toHaveCount(0);
+  await expect(tradeCard.locator('.market-trade-section-heading small')).toBeHidden();
+  await expect(tradeCard.locator('.order-book-columns')).toHaveCount(0);
+  await expect(tradeCard.locator('.order-book-midpoint')).toHaveCount(0);
+  await expect(page.locator('.market-account-view-switch')).toBeHidden();
+
+  await expect(tradeCard.locator('.market-trade-entry')).toBeVisible();
+  await expect(tradeCard.locator('.market-trade-book')).toBeVisible();
+  await expect(tradeCard.locator('.book-order-row.ask').first()).toBeVisible();
+  await expect(tradeCard.locator('.book-order-row.bid').first()).toBeVisible();
+});
+
+test('mobile market matches desktop order-book structure and keeps side-by-side trade panels', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('market-runtime-test.html?scenario=active');
+
+  const tradeCard = page.locator('.market-trade-card');
+  await expect(tradeCard.locator('.order-book-columns')).toHaveCount(0);
+  await expect(tradeCard.locator('.order-book-midpoint')).toHaveCount(0);
+  await expect(tradeCard.locator('.book-order-row.ask').first()).toBeVisible();
+  await expect(tradeCard.locator('.book-order-row.bid').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: '挂单', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '成交', exact: true })).toBeVisible();
+
+  await page.setViewportSize({ width: 320, height: 720 });
+  await expect(page.getByRole('button', { name: '下单', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '盘口', exact: true })).toHaveCount(0);
+  await expect(tradeCard.locator('.order-book-columns')).toHaveCount(0);
+  await expect(tradeCard.locator('.order-book-midpoint')).toHaveCount(0);
+  const orderEntry = tradeCard.locator('.market-trade-entry');
+  const orderBook = tradeCard.locator('.market-trade-book');
+  await expect(orderEntry).toBeVisible();
+  await expect(orderBook).toBeVisible();
+  const entryBox = await orderEntry.boundingBox();
+  const bookBox = await orderBook.boundingBox();
+  expect(entryBox).not.toBeNull();
+  expect(bookBox).not.toBeNull();
+  expect(Math.abs(entryBox!.y - bookBox!.y)).toBeLessThan(3);
+  expect(bookBox!.x).toBeGreaterThan(entryBox!.x + entryBox!.width - 3);
+});
+''',
+          )
+          PY
+
+      - name: Check patch formatting and scope
+        shell: bash
+        run: |
+          git diff --check
+          python3 <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          expected = {
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              'scripts/verify-market-assets.mjs',
+              'scripts/verify-market-desktop-cleanup.mjs',
+              'scripts/verify-market-order-entry-compact.mjs',
+              'scripts/verify-market-page-layout.mjs',
+              'scripts/verify-page-content.mjs',
+              'src/pages/MarketPage.tsx',
+              'src/styles/market-desktop-cleanup.css',
+              'src/styles/market-page-polish.css',
+              'tests/browser/market-desktop-cleanup.spec.ts',
+              'tests/browser/market-runtime.spec.ts',
+          }
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'unexpected changed paths: actual={sorted(changed)} expected={sorted(expected)}')
+          for path in ['src/pages/MarketPage.tsx', 'src/styles/market-page-polish.css', 'src/styles/market-desktop-cleanup.css']:
+              text = Path(path).read_text(encoding='utf-8')
+              for forbidden in ['order-book-columns', 'order-book-midpoint']:
+                  if forbidden in text:
+                      raise SystemExit(f'{path} still contains {forbidden}')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run market order-book gates
+        run: |
+          node scripts/verify-market-page-layout.mjs
+          npm run verify:market-desktop-cleanup
+          node scripts/verify-market-order-entry-compact.mjs
+          node --experimental-strip-types scripts/verify-market-assets.mjs
+          node scripts/verify-page-content.mjs
+
+      - name: Run focused order-book browser regression
+        run: >-
+          npx playwright test
+          tests/browser/market-desktop-cleanup.spec.ts
+          tests/browser/market-runtime.spec.ts
+          --grep "order-book|trade card responsive|market desktop layout|desktop market|mobile market"
+
+      - name: Run complete build
+        run: npm run build
+
+      - name: Run browser regression suite
+        run: npm run test:browser
+
+      - name: Commit verified source changes
+        shell: bash
+        run: |
+          rm .github/workflows/agent-apply-unify-order-book-cleanup.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
+            scripts/verify-market-assets.mjs \
+            scripts/verify-market-desktop-cleanup.mjs \
+            scripts/verify-market-order-entry-compact.mjs \
+            scripts/verify-market-page-layout.mjs \
+            scripts/verify-page-content.mjs \
+            src/pages/MarketPage.tsx \
+            src/styles/market-desktop-cleanup.css \
+            src/styles/market-page-polish.css \
+            tests/browser/market-desktop-cleanup.spec.ts \
+            tests/browser/market-runtime.spec.ts \
+            .github/workflows/agent-apply-unify-order-book-cleanup.yml
+          git commit -m "feat: unify order book structure across viewports"
+          git push origin HEAD:agent/unify-mobile-order-book-cleanup
