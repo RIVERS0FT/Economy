@@ -203,10 +203,11 @@ for (const text of [
   'opacity: 0.05;',
   '.application-content-root .login-shell',
   'background: transparent !important;',
-  'html[data-app-surface="auth"] .application-content-root {',
-  'html[data-app-surface="auth"] .application-image-layer {',
+  '.application-content-root {',
+  'z-index: auto;',
+  '.application-image-layer {',
   'z-index: -2;',
-  'html[data-app-surface="auth"] .application-atmosphere-layer {',
+  '.application-atmosphere-layer {',
   'z-index: -1;',
 ]) requireText('src/styles/financial-backdrop.css', text);
 

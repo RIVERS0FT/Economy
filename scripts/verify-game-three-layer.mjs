@@ -170,14 +170,14 @@ for (const text of [
   '#root {',
   'isolation: isolate;',
   '.application-content-root {',
-  'z-index: 2;',
+  'z-index: auto;',
   '.application-image-layer,',
   '.application-atmosphere-layer {',
   'position: fixed;',
   '.application-image-layer {',
-  'z-index: 0;',
+  'z-index: -2;',
   '.application-atmosphere-layer {',
-  'z-index: 1;',
+  'z-index: -1;',
   'html[data-app-backdrop="auth"] .application-image-layer img',
   'html[data-app-backdrop="game"] .application-image-layer img',
   'html[data-app-backdrop="admin"] .application-image-layer img',
@@ -192,18 +192,19 @@ for (const text of [
   '@media (max-width: 720px)',
 ]) requireText('src/styles/financial-backdrop.css', text);
 
-const authImageNegativeLayer = 'html[data-app-surface="auth"] .application-image-layer {\n  z-index: -2;\n}';
-const authAtmosphereNegativeLayer = 'html[data-app-surface="auth"] .application-atmosphere-layer {\n  z-index: -1;\n}';
-for (const text of [authImageNegativeLayer, authAtmosphereNegativeLayer]) {
-  requireText('src/styles/financial-backdrop.css', text);
-}
+for (const text of [
+  '.application-image-layer {\n  z-index: -2;',
+  '.application-atmosphere-layer {\n  z-index: -1;',
+  '.application-content-root {\n  position: relative;\n  z-index: auto;',
+]) requireText('src/styles/financial-backdrop.css', text);
+for (const text of [
+  'html[data-app-surface="auth"] .application-image-layer',
+  'html[data-app-surface="auth"] .application-atmosphere-layer',
+  '.application-image-layer {\n  z-index: 0;',
+  '.application-atmosphere-layer {\n  z-index: 1;',
+  '.application-content-root {\n  position: relative;\n  z-index: 2;',
+]) forbidText('src/styles/financial-backdrop.css', text);
 forbidText('src/styles/financial-backdrop.css', '.photographic-state-card--loading');
-const unexpectedNegativeLayerSource = read('src/styles/financial-backdrop.css')
-  .replace(authImageNegativeLayer, '')
-  .replace(authAtmosphereNegativeLayer, '');
-if (/z-index:\s*-\d+\s*;/.test(unexpectedNegativeLayerSource)) {
-  failures.push('src/styles/financial-backdrop.css 只有认证图片层和认证氛围层允许使用 -2 / -1 负层级');
-}
 
 for (const text of [
   '.game-image-layer',
@@ -280,7 +281,7 @@ for (const text of [
   '三个入口只允许替换中文文字',
   '`application-photography.spec.ts`',
   '不得出现纯色过渡页',
-  '生产认证态继续使用 `-2 / -1` 负层级',
+  '认证、玩家、管理员与根级状态统一使用图片层 `z-index:-2`、氛围层 `z-index:-1` 和 `.application-content-root` 的 `z-index:auto`',
 ]) requireText('docs/LIQUID_GLASS_CHROME_DESIGN.md', text);
 
 for (const text of [
