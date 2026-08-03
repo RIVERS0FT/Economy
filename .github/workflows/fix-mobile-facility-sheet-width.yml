@@ -1,0 +1,202 @@
+name: Fix mobile facility sheet width
+
+on:
+  push:
+    branches:
+      - fix/mobile-facility-sheet-full-width
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/mobile-facility-sheet-full-width
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply width fix and regression coverage
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one replacement, found {count}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'src/styles/facility-detail-sheet.css',
+              '''    display: grid;
+              align-items: end;
+              overflow: hidden;''',
+              '''    display: grid;
+              grid-template-columns: minmax(0, 1fr);
+              align-items: end;
+              justify-content: stretch;
+              justify-items: stretch;
+              overflow: hidden;''',
+          )
+          replace_once(
+              'src/styles/facility-detail-sheet.css',
+              '''  .workspace-dialog-layer > .facility-detail-sheet-backdrop > .facility-detail-sheet {
+              width: 100%;
+              max-width: 100%;
+              max-height: min(88dvh, 760px);
+            }''',
+              '''  .workspace-dialog-layer > .facility-detail-sheet-backdrop > .facility-detail-sheet {
+              width: 100%;
+              min-width: 0;
+              max-width: 100%;
+              max-height: min(88dvh, 760px);
+              justify-self: stretch;
+            }''',
+          )
+
+          design_bullet = '- 移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层，遮罩覆盖完整视口并位于移动状态栏与底部导航之上；不得退回只覆盖两者之间的 `.workspace-floating-layer`。详情内 `RichSelectInput` 的列表继续 Portal 到同一个根层，并以更高层级显示在 Sheet 与遮罩之上。'
+          design_addition = design_bullet + '\n- 根级遮罩必须显式使用单列 `minmax(0, 1fr)` Grid 并在横向拉伸；Bottom Sheet 左边缘固定为视口 `x = 0`，宽度等于当前视觉视口，在 `320px–720px` 内不得受工作区 gutter、内容固有宽度、遗留 `justify-content: center` 或最大内容轨道影响而居中缩窄。'
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              design_bullet,
+              design_addition,
+          )
+
+          test_path = Path('tests/browser/facility-detail-sheet.spec.ts')
+          test_text = test_path.read_text(encoding='utf-8')
+          marker = "test.describe('mobile facility detail sheet full-width geometry'"
+          if marker in test_text:
+              raise SystemExit('full-width geometry test already exists')
+          test_text += r'''
+
+
+test.describe('mobile facility detail sheet full-width geometry', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  });
+
+  for (const width of [320, 390, 430, 720]) {
+    test(`sheet fills the ${width}px viewport`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('runtime-test.html?view=production&scenario=activity');
+
+      const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+      const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+      const backdrop = page.locator('.workspace-dialog-layer > .facility-detail-sheet-backdrop');
+
+      await trigger.tap();
+      await expect(dialog).toBeVisible();
+      await waitForSheetAnimations(dialog);
+
+      const backdropBox = await backdrop.boundingBox();
+      const sheetBox = await dialog.boundingBox();
+      expect(backdropBox).not.toBeNull();
+      expect(sheetBox).not.toBeNull();
+      if (!backdropBox || !sheetBox) throw new Error('工厂详情全宽几何不可用');
+
+      expect(backdropBox.x).toBeCloseTo(0, 1);
+      expect(backdropBox.width).toBeCloseTo(width, 1);
+      expect(sheetBox.x).toBeCloseTo(0, 1);
+      expect(sheetBox.width).toBeCloseTo(width, 1);
+
+      const alignment = await backdrop.evaluate((element) => {
+        const backdropStyle = getComputedStyle(element);
+        const sheet = element.querySelector<HTMLElement>('.facility-detail-sheet');
+        if (!sheet) throw new Error('工厂详情 Sheet 缺失');
+        const sheetStyle = getComputedStyle(sheet);
+        return {
+          display: backdropStyle.display,
+          gridTemplateColumns: backdropStyle.gridTemplateColumns,
+          justifyContent: backdropStyle.justifyContent,
+          justifyItems: backdropStyle.justifyItems,
+          sheetJustifySelf: sheetStyle.justifySelf,
+        };
+      });
+      expect(alignment.display).toBe('grid');
+      expect(alignment.gridTemplateColumns).not.toBe('none');
+      expect(alignment.justifyContent).toBe('stretch');
+      expect(alignment.justifyItems).toBe('stretch');
+      expect(alignment.sheetJustifySelf).toBe('stretch');
+
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+    });
+  }
+});
+'''
+          test_path.write_text(test_text, encoding='utf-8')
+
+          replace_once(
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              '''  '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
+              '.workspace-dialog-layer > .ui-rich-select__listbox',
+              '.facility-detail-sheet .facility-production-settings-grid',''',
+              '''  '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
+              'grid-template-columns: minmax(0, 1fr);',
+              'justify-content: stretch;',
+              'justify-items: stretch;',
+              'justify-self: stretch;',
+              '.workspace-dialog-layer > .ui-rich-select__listbox',
+              '.facility-detail-sheet .facility-production-settings-grid',''',
+          )
+          replace_once(
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              '''  "page.locator('.workspace-dialog-layer')",
+              'expect(navigationCovered).toBe(true)',
+            ])''',
+              '''  "page.locator('.workspace-dialog-layer')",
+              'expect(navigationCovered).toBe(true)',
+              'for (const width of [320, 390, 430, 720])',
+              'expect(sheetBox.x).toBeCloseTo(0, 1)',
+              'expect(sheetBox.width).toBeCloseTo(width, 1)',
+              "expect(alignment.justifyContent).toBe('stretch')",
+            ])''',
+          )
+          replace_once(
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              '''  '移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层',
+              '作业制度下方只显示周期、单周期产出和周期成本',''',
+              '''  '移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层',
+              'Bottom Sheet 左边缘固定为视口 `x = 0`',
+              '作业制度下方只显示周期、单周期产出和周期成本',''',
+          )
+          PY
+
+          rm .github/workflows/fix-mobile-facility-sheet-width.yml
+          git add -A
+          git diff --cached --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify production layout
+        run: node scripts/verify-unified-factory-recipes-grid.mjs
+
+      - name: Run focused browser regression
+        run: npx playwright test tests/browser/facility-detail-sheet.spec.ts --project=chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Run browser suite
+        run: npm run test:browser
+
+      - name: Commit verified fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "修复移动工厂详情全宽布局"
+          git push origin HEAD:fix/mobile-facility-sheet-full-width
