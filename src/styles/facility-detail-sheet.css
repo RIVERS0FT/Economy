@@ -203,15 +203,20 @@
     min-width: 0;
     min-height: 0;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-items: end;
+    justify-content: stretch;
+    justify-items: stretch;
     overflow: hidden;
     pointer-events: auto;
   }
 
   .workspace-dialog-layer > .facility-detail-sheet-backdrop > .facility-detail-sheet {
     width: 100%;
+    min-width: 0;
     max-width: 100%;
     max-height: min(88dvh, 760px);
+    justify-self: stretch;
   }
 
   .workspace-dialog-layer > .ui-rich-select__listbox {
