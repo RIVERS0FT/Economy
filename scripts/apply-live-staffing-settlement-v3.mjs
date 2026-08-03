@@ -19,8 +19,8 @@ function update(path, transform) {
   write(path, next);
 }
 
-for (const root of ['scripts', 'server/test', 'server/src']) {
-  for (const path of walk(root).filter((item) => /\.(?:js|mjs)$/.test(item))) {
+for (const root of ['scripts', 'server/test', 'server/src', 'tests/browser']) {
+  for (const path of walk(root).filter((item) => /\.(?:js|mjs|ts|tsx)$/.test(item))) {
     let source = read(path);
     source = source
       .replaceAll('CURRENT_CLIENT_STATE_VERSION = 24', 'CURRENT_CLIENT_STATE_VERSION = 25')
