@@ -62,6 +62,11 @@ update('scripts/verify-production-methods.mjs', (source) => {
   return source;
 });
 
+update('scripts/verify-unified-factory-recipes-grid.mjs', (source) => source.replace(
+  "  '<FacilityStaffingSummary entry={entry} />',",
+  "  '<FacilityStaffingSummary entry={entry} now={now} />',",
+));
+
 for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
   if (read(path).includes('$' + '{')) throw new Error(`${path}: unresolved generated placeholder`);
 }
