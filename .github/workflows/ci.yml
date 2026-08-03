@@ -1,13 +1,11 @@
 name: Economy CI
 
 on:
-  push:
-    branches:
-      - feat/live-staffing-settlement
+  pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: economy-live-staffing-apply
+  group: economy-live-staffing-apply-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
