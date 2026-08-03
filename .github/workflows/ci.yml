@@ -91,6 +91,17 @@ jobs:
           Path('/tmp/apply-order-book-cleanup.sh').write_text(script, encoding='utf-8')
           PY
           bash /tmp/apply-order-book-cleanup.sh
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/browser/market-runtime.spec.ts')
+          text = path.read_text(encoding='utf-8')
+          expanded = "test('market order book keeps a continuous sell-five to buy-five sequence and fills price without submitting', async ({ page }) => {"
+          existing = "test('market order book keeps sell five to buy five sequence and fills price without submitting', async ({ page }) => {"
+          if text.count(expanded) != 1:
+              raise SystemExit(f'expected one expanded order-book test title, found {text.count(expanded)}')
+          path.write_text(text.replace(expanded, existing, 1), encoding='utf-8')
+          PY
 
       - name: Check patch formatting and scope
         shell: bash
