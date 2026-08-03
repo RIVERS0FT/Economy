@@ -121,7 +121,6 @@ for (const text of [
   'unified-asset-tabs',
   'placeAssetOrder',
   'single-order-book',
-  'order-book-midpoint',
   'items={localTrades}',
   'local-trades-virtual-table',
   '<FactoryIcon />',
@@ -134,6 +133,8 @@ for (const text of [
   '工厂数量市场',
   '仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。',
   '>⚙</span>',
+  'order-book-columns',
+  'order-book-midpoint',
 ]) forbidText('src/pages/MarketPage.tsx', text);
 
 for (const text of [

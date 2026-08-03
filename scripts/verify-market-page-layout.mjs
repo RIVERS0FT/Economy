@@ -53,6 +53,8 @@ forbidText(marketPage, '当前没有可出售的', '市场不得恢复独立无�
 forbidText(marketPage, '当前最多可卖', '市场不得恢复常驻最大可卖说明。');
 requireText(marketPage, 'order-entry market-trade-entry', '交易卡必须保留下单区语义。');
 requireText(marketPage, 'order-book single-order-book market-trade-book', '交易卡必须保留订单簿语义。');
+forbidText(marketPage, 'order-book-columns', '订单簿不得恢复重复表头 DOM。');
+forbidText(marketPage, 'order-book-midpoint', '订单簿不得恢复最新价分隔 DOM。');
 forbidText(marketPage, 'compactTradeView', '市场不得恢复下单／盘口本地切换状态。');
 forbidText(marketPage, 'market-compact-view-switch', '市场不得恢复下单／盘口切换控件。');
 forbidText(marketPage, '<Panel className="widget order-entry">', '下单区不得恢复为独立一级卡片。');
@@ -72,12 +74,18 @@ requireText(marketStyles, '@container market-page (max-width: 359px)', '极窄�
 requireText(marketStyles, 'grid-template-columns: 24px minmax(0, 1fr) 34px;', '极窄盘口必须使用紧凑三列。');
 requireText(marketStyles, 'min-height: 44px;', '极窄盘口档位必须保持移动触控高度。');
 forbidText(marketStyles, '@container market-page (max-width: 339px)', '市场不得恢复超窄下单／盘口切换断点。');
+forbidText(marketStyles, '.order-book-columns', '市场样式不得恢复订单簿表头。');
+forbidText(marketStyles, '.order-book-midpoint', '市场样式不得恢复最新价分隔行。');
 requireText(marketDesign, '市场下单表单与同资产五档订单簿必须位于同一个一级“{资产}交易”卡片内', '统一订单簿权威设计必须记录合并交易卡规则。');
 requireText(marketDesign, '不大于 `720px` 的移动端始终同时显示下单区和五档盘口', '权威设计必须记录移动端永久双列规则。');
+requireText(marketDesign, '桌面端和移动端订单簿使用同一信息结构', '权威设计必须记录全端统一盘口结构。');
+requireText(marketDesign, '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行', '权威设计必须记录重复信息永久移除。');
 requireText(runtimeSpec, 'market desktop layout keeps order entry and order book in one trade card beside the chart', 'Playwright 必须覆盖宽屏合并交易卡布局。');
 requireText(runtimeSpec, 'market medium and narrow layouts keep the trade card responsive without horizontal overflow', 'Playwright 必须覆盖中窄宽度交易卡响应式布局。');
 requireText(runtimeSpec, 'width: 320', 'Playwright 必须覆盖 320px 永久双列。');
 requireText(runtimeSpec, "name: '盘口', exact: true })).toHaveCount(0)", 'Playwright 必须验证移动端不再存在下单／盘口切换。');
+requireText(runtimeSpec, "locator('.order-book-columns')).toHaveCount(0)", 'Playwright 必须验证全端不渲染订单簿表头。');
+requireText(runtimeSpec, "locator('.order-book-midpoint')).toHaveCount(0)", 'Playwright 必须验证全端不渲染最新价分隔。');
 forbidText(marketStyles, '.chart-footer', '行情图下方统计栏及其两列布局必须删除。');
 requireText(chartStyles, 'font-variant-numeric: tabular-nums;', '行情坐标轴必须使用稳定数字宽度。');
 requireText(marketStyles, '.asset-directory-shell {\n    position: relative;\n    z-index: 0;', '移动市场资产目录必须建立局部堆叠上下文，防止 sticky 分组遮挡状态栏。');

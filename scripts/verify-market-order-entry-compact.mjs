@@ -64,6 +64,8 @@ for (const text of [
   '下单 60%／盘口 40%',
   '不大于 `720px` 的移动端始终同时显示下单区和五档盘口',
   '盘口保留不小于 112px 的可读宽度',
+  '桌面端和移动端订单簿使用同一信息结构',
+  '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行',
   'wheelStep={0.01}',
 ]) requireText(orderDesignPath, text);
 
@@ -89,11 +91,15 @@ for (const text of [
 forbidText(pagePath, 'market-order-details');
 forbidText(pagePath, 'compactTradeView');
 forbidText(pagePath, 'market-compact-view-switch');
+forbidText(pagePath, 'order-book-columns');
+forbidText(pagePath, 'order-book-midpoint');
 forbidText(pagePath, '交易资产详情');
 forbidText(pagePath, 'order-disabled-reason');
 forbidText(pagePath, '当前没有可出售的');
 forbidText(pagePath, '当前最多可卖');
 forbidText(stylePath, '.market-order-details');
+forbidText(stylePath, '.order-book-columns');
+forbidText(stylePath, '.order-book-midpoint');
 forbidText(stylePath, '@container market-page (max-width: 339px)');
 forbidText(stylePath, 'grid-template-columns: minmax(0, 2fr) minmax(126px, 1fr);');
 forbidText(stylePath, 'minmax(280px, 44fr) minmax(300px, 56fr)');

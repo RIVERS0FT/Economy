@@ -16,7 +16,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/utils/localActivityStore.ts','src/types.ts','src/components/ui/layout.tsx','src/components/ui/VirtualList.tsx','src/components/ui/VirtualRecordTable.tsx','src/hooks/useVirtualWindow.ts','src/components/icons/GameIcons.tsx'
 ].forEach(requireFile);
 for (const text of [
-  'unified-asset-tabs','placeAssetOrder','single-order-book','order-book-midpoint','items={localTrades}',
+  'unified-asset-tabs','placeAssetOrder','single-order-book','items={localTrades}',
   'local-trades-virtual-table','VirtualRecordTable',
   "from '../components/icons/GameIcons'",'FactoryIcon','<FactoryIcon />','selectOrderSide',
   'title={selectedAssetTitle(`${assetName}交易`)}','label="价格"','className="numeric-cell">价格</th>',
@@ -32,7 +32,7 @@ for (const text of [
   'key={`sell-${level.price}`}','key={`buy-${level.price}`}',
 ]) requireText('src/pages/MarketPage.tsx', text);
 for (const text of [
-  'localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价',
+  'localTrades.map(','market-stat-strip','工厂数量市场','仅保存在当前浏览器；更换设备或清除网站数据后不会恢复。','>⚙</span>','限价','order-book-columns','order-book-midpoint',
   '最低价前 5 笔','最高价前 5 笔','order-book-side-label',
   ".filter((order) => order.side === 'sell')\n    .sort(",
   ".filter((order) => order.side === 'buy')\n    .sort(",
@@ -158,6 +158,8 @@ for (const text of [
   '聚合完成后再按最优价格截取 5 档',
   '卖 5 至卖 1',
   '买 1 至买 5',
+  '桌面端和移动端订单簿使用同一信息结构',
+  '不渲染“档位／价格／数量”表头或真实最近成交价“最新”分隔行',
   '点击任一档位只把该档价格填入价格输入',
   '字段标签／内嵌减号按钮／共享输入控件／内嵌加号按钮',
   '最高系统买价 < 最低系统卖价',

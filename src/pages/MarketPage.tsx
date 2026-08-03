@@ -513,11 +513,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                   <h3 id="market-order-book-title">订单簿</h3>
                   <small>实时五档 · 点击填价</small>
                 </div>
-                <div className="order-book-columns" aria-hidden="true">
-                  <span>档位</span>
-                  <span>价格</span>
-                  <span>数量</span>
-                </div>
                 <div className="order-book-stack" aria-label={`${assetName}买卖盘`}>
                   {bestAsks.map((level, index) => {
                     const levelName = `卖${bestAsks.length - index}`;
@@ -538,10 +533,6 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                     );
                   })}
                   {bestAsks.length === 0 ? <p className="muted order-book-empty">暂无卖单</p> : null}
-                  <div className="order-book-midpoint" aria-label={`最近成交价 ${typeof selectedLastTradePrice === 'number' ? formatCurrency(selectedLastTradePrice) : '暂无成交'}`}>
-                    <span>最新</span>
-                    <strong><CurrencyAmount>{typeof selectedLastTradePrice === 'number' ? formatCurrency(selectedLastTradePrice) : '—'}</CurrencyAmount></strong>
-                  </div>
                   {bestBids.map((level, index) => {
                     const levelName = `买${index + 1}`;
                     return (
