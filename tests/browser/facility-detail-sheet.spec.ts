@@ -209,3 +209,58 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     expect(focusVisual.boxShadow).not.toBe('none');
   });
 });
+
+test.describe('mobile facility detail sheet full-width geometry', () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+  });
+
+  for (const width of [320, 390, 430, 720]) {
+    test(`sheet fills the ${width}px viewport`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('runtime-test.html?view=production&scenario=activity');
+
+      const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+      const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+      const backdrop = page.locator('.workspace-dialog-layer > .facility-detail-sheet-backdrop');
+
+      await trigger.tap();
+      await expect(dialog).toBeVisible();
+      await waitForSheetAnimations(dialog);
+
+      const backdropBox = await backdrop.boundingBox();
+      const sheetBox = await dialog.boundingBox();
+      expect(backdropBox).not.toBeNull();
+      expect(sheetBox).not.toBeNull();
+      if (!backdropBox || !sheetBox) throw new Error('工厂详情全宽几何不可用');
+
+      expect(backdropBox.x).toBeCloseTo(0, 1);
+      expect(backdropBox.width).toBeCloseTo(width, 1);
+      expect(sheetBox.x).toBeCloseTo(0, 1);
+      expect(sheetBox.width).toBeCloseTo(width, 1);
+
+      const alignment = await backdrop.evaluate((element) => {
+        const backdropStyle = getComputedStyle(element);
+        const sheet = element.querySelector<HTMLElement>('.facility-detail-sheet');
+        if (!sheet) throw new Error('工厂详情 Sheet 缺失');
+        const sheetStyle = getComputedStyle(sheet);
+        return {
+          display: backdropStyle.display,
+          gridTemplateColumns: backdropStyle.gridTemplateColumns,
+          justifyContent: backdropStyle.justifyContent,
+          justifyItems: backdropStyle.justifyItems,
+          sheetJustifySelf: sheetStyle.justifySelf,
+        };
+      });
+      expect(alignment.display).toBe('grid');
+      expect(alignment.gridTemplateColumns).not.toBe('none');
+      expect(alignment.justifyContent).toBe('stretch');
+      expect(alignment.justifyItems).toBe('stretch');
+      expect(alignment.sheetJustifySelf).toBe('stretch');
+
+      await page.keyboard.press('Escape');
+      await expect(dialog).toBeHidden();
+    });
+  }
+});
