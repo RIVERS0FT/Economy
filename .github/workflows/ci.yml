@@ -89,47 +89,44 @@ jobs:
               file.write_text(text.replace(old, new, 1), encoding='utf-8')
 
           design_bullet = '- 移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层，遮罩覆盖完整视口并位于移动状态栏与底部导航之上；不得退回只覆盖两者之间的 `.workspace-floating-layer`。详情内 `RichSelectInput` 的列表继续 Portal 到同一个根层，并以更高层级显示在 Sheet 与遮罩之上。'
-          design_addition = design_bullet + '\n- 根级遮罩必须显式使用单列 `minmax(0, 1fr)` Grid 并在横向拉伸；Bottom Sheet 左边缘固定为视口 `x = 0`，宽度等于当前视觉视口，在 `320px–720px` 内不得受工作区 gutter、内容固有宽度、遗留 `justify-content: center` 或最大内容轨道影响而居中缩窄。'
           replace_once(
               'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
               design_bullet,
-              design_addition,
+              design_bullet + '\n- 根级遮罩必须显式使用单列 `minmax(0, 1fr)` Grid 并在横向拉伸；Bottom Sheet 左边缘固定为视口 `x = 0`，宽度等于当前视觉视口，在 `320px–720px` 内不得受工作区 gutter、内容固有宽度、遗留 `justify-content: center` 或最大内容轨道影响而居中缩窄。',
           )
 
-          replace_once(
-              'scripts/verify-unified-factory-recipes-grid.mjs',
-              '''  '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
-              '.workspace-dialog-layer > .ui-rich-select__listbox',
-              '.facility-detail-sheet .facility-production-settings-grid',''',
-              '''  '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
-              'grid-template-columns: minmax(0, 1fr);',
-              'justify-content: stretch;',
-              'justify-items: stretch;',
-              'justify-self: stretch;',
-              '.workspace-dialog-layer > .ui-rich-select__listbox',
-              '.facility-detail-sheet .facility-production-settings-grid',''',
+          verifier = Path('scripts/verify-unified-factory-recipes-grid.mjs')
+          text = verifier.read_text(encoding='utf-8')
+          sheet_marker = "  '.workspace-dialog-layer > .facility-detail-sheet-backdrop',\n"
+          browser_marker = "  'expect(navigationCovered).toBe(true)',\n"
+          design_marker = "  '移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层',\n"
+          for marker in [sheet_marker, browser_marker, design_marker]:
+              if text.count(marker) != 1:
+                  raise SystemExit(f'verifier marker count mismatch: {marker!r}')
+          text = text.replace(
+              sheet_marker,
+              sheet_marker
+              + "  'grid-template-columns: minmax(0, 1fr);',\n"
+              + "  'justify-content: stretch;',\n"
+              + "  'justify-items: stretch;',\n"
+              + "  'justify-self: stretch;',\n",
+              1,
           )
-          replace_once(
-              'scripts/verify-unified-factory-recipes-grid.mjs',
-              '''  "page.locator('.workspace-dialog-layer')",
-              'expect(navigationCovered).toBe(true)',
-            ])''',
-              '''  "page.locator('.workspace-dialog-layer')",
-              'expect(navigationCovered).toBe(true)',
-              'for (const width of [320, 390, 430, 720])',
-              'expect(sheetBox.x).toBeCloseTo(0, 1)',
-              'expect(sheetBox.width).toBeCloseTo(width, 1)',
-              "expect(alignment.justifyContent).toBe('stretch')",
-            ])''',
+          text = text.replace(
+              browser_marker,
+              browser_marker
+              + "  'for (const width of [320, 390, 430, 720])',\n"
+              + "  'expect(sheetBox.x).toBeCloseTo(0, 1)',\n"
+              + "  'expect(sheetBox.width).toBeCloseTo(width, 1)',\n"
+              + '  "expect(alignment.justifyContent).toBe(\'stretch\')",\n',
+              1,
           )
-          replace_once(
-              'scripts/verify-unified-factory-recipes-grid.mjs',
-              '''  '移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层',
-              '作业制度下方只显示周期、单周期产出和周期成本',''',
-              '''  '移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层',
-              'Bottom Sheet 左边缘固定为视口 `x = 0`',
-              '作业制度下方只显示周期、单周期产出和周期成本',''',
+          text = text.replace(
+              design_marker,
+              design_marker + "  'Bottom Sheet 左边缘固定为视口 `x = 0`',\n",
+              1,
           )
+          verifier.write_text(text, encoding='utf-8')
           PY
 
           git fetch origin main
