@@ -76,6 +76,14 @@ update('scripts/verify-unified-factory-recipes-grid.mjs', (source) => source
   .replace(
     "  '@media (max-width: 359px)',\n",
     "  '@media (max-width: 359px)',\n  '@container (max-width: 479px)',\n",
+  )
+  .replace(
+    `const settingsRule = css.slice(
+  css.indexOf('.facility-production-settings {'),
+  css.indexOf('.facility-production-formula {'),
+);`,
+    `const settingsRuleStart = css.indexOf('.facility-production-settings {');
+const settingsRule = css.slice(settingsRuleStart, css.indexOf('}', settingsRuleStart) + 1);`,
   ));
 
 update('scripts/verify-warehouse-expansion.mjs', (source) => source.replaceAll(
