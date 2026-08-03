@@ -18,6 +18,9 @@ function update(path, transform) {
   if (next === source) throw new Error(`${path}: no update produced`);
   write(path, next);
 }
+function ensureSentence(source, sentence) {
+  return source.includes(sentence) ? source : `${source.trimEnd()}\n\n${sentence}\n`;
+}
 
 for (const root of ['scripts', 'server/test', 'server/src', 'tests/browser']) {
   for (const path of walk(root).filter((item) => /\.(?:js|mjs|ts|tsx)$/.test(item))) {
@@ -62,6 +65,44 @@ update('scripts/verify-production-methods.mjs', (source) => {
   return source;
 });
 
+const runningFormulaAuthority = '运行中公式使用 `participatingCount`、实时投影的 `staffingRateBps` 和跨周期 `staffingBatchCarryBps`，在周期完成时计算整数等效产能';
+const inactiveFormulaAuthority = '停止或异常使用 `productionAvailableCount`、实时投影的满员率和 `staffingBatchCarryBps` 计算启动后或恢复后的整数等效产能';
+const detailHierarchyAuthority = '当前工厂详情正文按“插画与满员率 → 生产设置 → 生产结算”组织';
+const settlementCompositionAuthority = '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡';
+
+update('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', (source) => {
+  source = source
+    .replace(
+      '当前周期显示 `participatingCount`、`staffingRateBps` 和 `周期完成时整数等效产能`；停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount` 表示启动后或恢复后的集群能力。',
+      `${runningFormulaAuthority}；${inactiveFormulaAuthority}。`,
+    )
+    .replace(
+      '当前周期显示 `participatingCount`、`staffingRateBps` 和 `projectedEffectiveCount`；停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount` 表示启动后或恢复后的集群能力。',
+      `${runningFormulaAuthority}；${inactiveFormulaAuthority}。`,
+    );
+  source = ensureSentence(source, `${runningFormulaAuthority}；${inactiveFormulaAuthority}。`);
+  return source;
+});
+
+update('docs/UI_DESIGN_SYSTEM.md', (source) => {
+  source = source
+    .replace(
+      '停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount`',
+      inactiveFormulaAuthority,
+    )
+    .replace(
+      '当前工厂详情正文先显示 256px 工厂场景插画横幅',
+      detailHierarchyAuthority,
+    )
+    .replace(
+      '公式、进度和单厂平均利润共同组成一张“生产结算”卡',
+      settlementCompositionAuthority,
+    );
+  source = ensureSentence(source, `${runningFormulaAuthority}；${inactiveFormulaAuthority}。`);
+  source = ensureSentence(source, `${detailHierarchyAuthority}；${settlementCompositionAuthority}。`);
+  return source;
+});
+
 update('scripts/verify-unified-factory-recipes-grid.mjs', (source) => source
   .replace(
     "  '<FacilityStaffingSummary entry={entry} />',",
@@ -92,6 +133,26 @@ const settingsRule = css.slice(settingsRuleStart, css.indexOf('}', settingsRuleS
   .replace(
     "  assert.equal(formulaCss.includes(text), true, `生产公式样式缺少: ${text}`);",
     "  assert.equal(formulaCss.includes(text), true, `生产公式样式缺少: ${text}`);\nassert.equal(formulaCss.includes('.facility-formula-scope'), false, '生产结算范围长描述样式必须删除');",
+  )
+  .replace(
+    "      '当前周期显示 `participatingCount`、`cycleStaffingRateBps` 和 `cycleEffectiveCount`',",
+    `      '${runningFormulaAuthority}',`,
+  )
+  .replace(
+    "      '当前周期显示 `participatingCount`、`staffingRateBps` 和 `projectedEffectiveCount`',",
+    `      '${runningFormulaAuthority}',`,
+  )
+  .replace(
+    "      '停止或异常使用 `nextCycleCount`、预计满员率与 `nextCycleEffectiveCount`',",
+    `      '${inactiveFormulaAuthority}',`,
+  )
+  .replace(
+    "      '当前工厂详情正文先显示 256px 工厂场景插画横幅',",
+    `      '${detailHierarchyAuthority}',`,
+  )
+  .replace(
+    "      '公式、进度和单厂平均利润共同组成一张“生产结算”卡',",
+    `      '${settlementCompositionAuthority}',`,
   ));
 
 update('scripts/verify-warehouse-expansion.mjs', (source) => source.replaceAll(
@@ -104,4 +165,4 @@ for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
 }
 
 unlinkSync('scripts/apply-live-staffing-settlement-v3.mjs');
-console.log('Updated version 25 and production method guards.');
+console.log('Updated version 25, live staffing authority, and production method guards.');
