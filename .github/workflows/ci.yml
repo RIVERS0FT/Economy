@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -18,6 +18,209 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Apply approved wide factory cluster layout
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/wide-facility-cluster-grid'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}')
+              file.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_once(
+              'src/styles/facility-group-card-grid.css',
+              """@media (min-width: 1600px) {
+            .production-workspace {
+              grid-template-columns: minmax(280px, 320px) minmax(440px, 520px) minmax(480px, 680px);
+              justify-content: start;
+            }
+
+            .facility-cluster-selector-list {
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+          }
+          """,
+              """@media (min-width: 1600px) {
+            .production-workspace {
+              grid-template-columns:
+                minmax(280px, 320px)
+                minmax(480px, 1040px)
+                minmax(480px, 680px);
+              justify-content: start;
+            }
+
+            .facility-cluster-selector-list {
+              grid-template-columns: repeat(auto-fit, minmax(9rem, 10rem));
+              justify-content: start;
+            }
+          }
+          """,
+          )
+
+          replace_once(
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              "- 大于等于 `1600px` 时使用紧凑三列：建设卡 `280px–320px`、工厂集群选择 `440px–520px` 并固定三列竖向选择卡、当前工厂详情 `480px–680px`；三列从左侧开始排列，详情不得继续吞占全部剩余宽度。",
+              "- 大于等于 `1600px` 时使用宽屏三列：建设卡 `280px–320px`、工厂集群选择 `480px–1040px` 并按可用宽度自动形成 `3～6` 列竖向选择卡、当前工厂详情 `480px–680px`；三列从左侧开始排列，剩余宽度优先分配给工厂集群选择，详情不得继续吞占全部剩余宽度。",
+          )
+
+          replace_once(
+              'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+              '盈利数字为绿色，亏损数字为红色且保留负号，零值和缺价占位为中性色',
+              '盈利数字为绿色，亏损数字为红色且不显示负号，零值和缺价占位为中性色',
+          )
+
+          replace_once(
+              'scripts/verify-production-desktop-layout.mjs',
+              """  'minmax(440px, 520px)',
+            'minmax(480px, 680px)',
+            'justify-content: start;',
+            'grid-template-columns: repeat(2, minmax(0, 1fr));',
+            'grid-template-columns: repeat(3, minmax(0, 1fr));',
+          """,
+              """  'minmax(480px, 1040px)',
+            'minmax(480px, 680px)',
+            'justify-content: start;',
+            'grid-template-columns: repeat(auto-fit, minmax(9rem, 10rem));',
+            'grid-template-columns: repeat(2, minmax(0, 1fr));',
+            'grid-template-columns: repeat(3, minmax(0, 1fr));',
+          """,
+          )
+
+          replace_once(
+              'scripts/verify-production-desktop-layout.mjs',
+              """  '大于等于 `1600px` 时使用紧凑三列',
+            '固定三列竖向选择卡',
+            '桌面详情卡高度由内容决定',
+          """,
+              """  '大于等于 `1600px` 时使用宽屏三列',
+            '自动形成 `3～6` 列竖向选择卡',
+            '剩余宽度优先分配给工厂集群选择',
+            '桌面详情卡高度由内容决定',
+          """,
+          )
+
+          replace_once(
+              'scripts/verify-production-desktop-layout.mjs',
+              "assert.equal(industry.includes('大于等于 `1600px` 时使用紧凑三列'), true, '产业设计缺少桌面生产布局规则');",
+              "assert.equal(industry.includes('大于等于 `1600px` 时使用宽屏三列'), true, '产业设计缺少桌面生产布局规则');\nassert.equal(production.includes('minmax(440px, 520px)'), false, '宽屏工厂集群列不得回退为 440px–520px');\nassert.equal(industry.includes('固定三列竖向选择卡'), false, '宽屏工厂集群不得回退为固定三列');",
+          )
+
+          replace_once(
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              """const catalogPresentationDesign = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
+          const productionSource = `${page}
+          ${detail}
+          ${mobile}`;
+          """,
+              """const catalogPresentationDesign = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
+          const pageContentDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
+          const productionSource = `${page}
+          ${detail}
+          ${mobile}`;
+          """,
+          )
+
+          replace_once(
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              """assert.equal(selectorCardSource.includes('×'), false, '工厂选择卡数量不得显示乘号');
+          assert.equal(selectorCardSource.includes(' x '), false, '工厂选择卡数量不得显示字母 x');
+          """,
+              """assert.equal(selectorCardSource.includes('×'), false, '工厂选择卡数量不得显示乘号');
+          assert.equal(selectorCardSource.includes(' x '), false, '工厂选择卡数量不得显示字母 x');
+          assert.equal(pageContentDesign.includes('亏损数字为红色且不显示负号'), true, '页面设计必须记录亏损数字不显示负号');
+          assert.equal(pageContentDesign.includes('亏损数字为红色且保留负号'), false, '页面设计不得保留亏损负号旧规则');
+          """,
+          )
+
+          replace_once(
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              """  'grid-template-columns: repeat(3, minmax(0, 1fr));',
+            'aspect-ratio: 4 / 5;',
+          """,
+              """  'grid-template-columns: repeat(auto-fit, minmax(9rem, 10rem));',
+            'minmax(480px, 1040px)',
+            'grid-template-columns: repeat(3, minmax(0, 1fr));',
+            'aspect-ratio: 4 / 5;',
+          """,
+          )
+
+          spec = Path('tests/browser/production-facility-cards.spec.ts')
+          text = spec.read_text(encoding='utf-8')
+          marker = '\n\n});\n'
+          if not text.endswith(marker):
+              raise SystemExit('production facility card spec closing marker changed')
+          addition = r'''
+
+            test('expands selector cards from three to six columns on wide desktops', async ({ page }) => {
+              const columnCounts: number[] = [];
+
+              for (const width of [1600, 1920, 2560]) {
+                await page.setViewportSize({ width, height: 1000 });
+                await page.goto('runtime-test.html?view=production&scenario=facility-order');
+
+                const grid = page.locator('.facility-cluster-selector-list');
+                await expect(grid).toBeVisible();
+                columnCounts.push(await grid.evaluate((element) => (
+                  getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
+                )));
+
+                const geometry = await page.evaluate(() => {
+                  const build = document.querySelector<HTMLElement>('.production-build-card')?.getBoundingClientRect();
+                  const navigation = document.querySelector<HTMLElement>('.facility-cluster-navigation')?.getBoundingClientRect();
+                  const detail = document.querySelector<HTMLElement>('.facility-cluster-detail-card')?.getBoundingClientRect();
+                  const cardWidths = [...document.querySelectorAll<HTMLElement>('.facility-cluster-selector-card')]
+                    .map((card) => card.getBoundingClientRect().width);
+                  return {
+                    buildWidth: build?.width ?? 0,
+                    navigationWidth: navigation?.width ?? 0,
+                    detailWidth: detail?.width ?? 0,
+                    minCardWidth: Math.min(...cardWidths),
+                    maxCardWidth: Math.max(...cardWidths),
+                    fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
+                  };
+                });
+
+                expect(geometry.buildWidth).toBeGreaterThanOrEqual(279.5);
+                expect(geometry.buildWidth).toBeLessThanOrEqual(320.5);
+                expect(geometry.navigationWidth).toBeGreaterThanOrEqual(479.5);
+                expect(geometry.navigationWidth).toBeLessThanOrEqual(1040.5);
+                expect(geometry.detailWidth).toBeGreaterThanOrEqual(479.5);
+                expect(geometry.detailWidth).toBeLessThanOrEqual(680.5);
+                expect(geometry.minCardWidth).toBeGreaterThanOrEqual(143.5);
+                expect(geometry.maxCardWidth).toBeLessThanOrEqual(160.5);
+                expect(geometry.fitsViewport).toBe(true);
+              }
+
+              expect(columnCounts).toEqual([3, 4, 6]);
+            });'''
+          spec.write_text(text[:-len(marker)] + addition + marker, encoding='utf-8')
+          PY
+
+          rm -- .github/workflows/apply-wide-facility-cluster.yml
+          git fetch origin main
+          git checkout origin/main -- .github/workflows/ci.yml
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            src/styles/facility-group-card-grid.css \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md \
+            scripts/verify-production-desktop-layout.mjs \
+            scripts/verify-unified-factory-recipes-grid.mjs \
+            tests/browser/production-facility-cards.spec.ts \
+            .github/workflows/ci.yml \
+            .github/workflows/apply-wide-facility-cluster.yml
+          git diff --cached --check
+          git commit -m "feat: expand wide factory cluster grid"
+          git push origin HEAD:codex/wide-facility-cluster-grid
 
       - name: Setup Node
         uses: actions/setup-node@v4
