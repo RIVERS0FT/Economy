@@ -92,6 +92,50 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     }
   });
 
+  test('detail scroll area reuses the shared overlay scrollbar geometry', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=activity');
+
+    const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+    const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+    await trigger.tap();
+    await expect(dialog).toBeVisible();
+    await waitForSheetAnimations(dialog);
+
+    const scrollArea = dialog.locator('.facility-detail-sheet-scroll-area');
+    const viewport = scrollArea.locator('.facility-detail-sheet-scroll');
+    await expect(scrollArea).toHaveCount(1);
+    await expect(viewport).toHaveCount(1);
+    const geometry = await scrollArea.evaluate((root) => {
+      const viewportElement = root.querySelector('.facility-detail-sheet-scroll') as HTMLElement | null;
+      const rail = root.querySelector(':scope > .ui-scrollbar--vertical') as HTMLElement | null;
+      const thumb = rail?.querySelector('.ui-scrollbar__thumb') as HTMLElement | null;
+      if (!viewportElement || !rail || !thumb) throw new Error('工厂详情滚动条结构缺失');
+
+      const rootRect = root.getBoundingClientRect();
+      const railRect = rail.getBoundingClientRect();
+      const thumbRect = thumb.getBoundingClientRect();
+      const viewportStyle = getComputedStyle(viewportElement);
+      const rootStyle = getComputedStyle(document.documentElement);
+      return {
+        paddingLeft: Number.parseFloat(viewportStyle.paddingLeft),
+        paddingRight: Number.parseFloat(viewportStyle.paddingRight),
+        railWidth: railRect.width,
+        thumbWidth: thumbRect.width,
+        railRightInset: rootRect.right - railRect.right,
+        thumbRightInset: rootRect.right - thumbRect.right,
+        hitSize: Number.parseFloat(rootStyle.getPropertyValue('--scrollbar-hit-size')),
+        visualSize: Number.parseFloat(rootStyle.getPropertyValue('--scrollbar-visual-size')),
+        edgeOffset: Number.parseFloat(rootStyle.getPropertyValue('--scrollbar-edge-offset')),
+      };
+    });
+
+    expect(geometry.paddingRight).toBeCloseTo(geometry.paddingLeft, 1);
+    expect(geometry.railWidth).toBeCloseTo(geometry.hitSize, 1);
+    expect(geometry.thumbWidth).toBeCloseTo(geometry.visualSize, 1);
+    expect(geometry.railRightInset).toBeCloseTo(0, 1);
+    expect(geometry.thumbRightInset).toBeCloseTo(geometry.edgeOffset, 1);
+  });
+
   test('swipe close restores the touch surface visual while preserving semantic focus', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=activity');
 

@@ -263,12 +263,21 @@ html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)::-webkit-scro
   .page-scroll-area > .ui-scrollbar--vertical {
     position: fixed;
     top: var(--scrollbar-edge-offset);
-    right: env(safe-area-inset-right, 0px);
     bottom: var(--scrollbar-edge-offset);
     transform: none;
   }
 
+  .page-scroll-area > .ui-scrollbar--vertical,
+  .facility-detail-sheet-scroll-area > .ui-scrollbar--vertical {
+    right: env(safe-area-inset-right, 0px);
+  }
+
   .page-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
+    right: var(--scrollbar-edge-offset);
+    left: auto;
+  }
+
+  .facility-detail-sheet-scroll-area > .ui-scrollbar--vertical .ui-scrollbar__thumb {
     right: var(--scrollbar-edge-offset);
     left: auto;
   }
