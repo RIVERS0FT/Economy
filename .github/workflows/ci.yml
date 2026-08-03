@@ -31,11 +31,13 @@ jobs:
 
       - name: Validate migration helpers
         run: |
+          node --check scripts/prepare-live-staffing-helper.mjs
           node --check scripts/apply-live-staffing-settlement.mjs
           node --check scripts/apply-live-staffing-settlement-v2.mjs
 
       - name: Apply migration
         run: |
+          node scripts/prepare-live-staffing-helper.mjs
           node scripts/apply-live-staffing-settlement.mjs
           node scripts/apply-live-staffing-settlement-v2.mjs
 
