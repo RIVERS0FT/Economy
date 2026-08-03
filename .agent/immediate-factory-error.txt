@@ -1,5 +1,5 @@
 exit_status=1
-failed_command=node --check /tmp/apply-immediate-factory.mjs
+failed_command=npm run build
 
 rm '.agent/immediate-factory-error.txt'
 
@@ -9,12 +9,132 @@ added 133 packages, and audited 140 packages in 2s
   run `npm fund` for details
 
 found 0 vulnerabilities
-/tmp/apply-immediate-factory.mjs:1135
-\
-^
+Updated 20 files:
+docs/INDUSTRY_AND_PRODUCTION_DESIGN.md
+docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md
+docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md
+docs/UI_DESIGN_SYSTEM.md
+docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+scripts/verify-facility-groups.mjs
+scripts/verify-production-methods.mjs
+scripts/verify-unified-factory-recipes-grid.mjs
+server/src/asset-auctions.js
+server/src/facility-groups.js
+server/test/asset-auctions.test.js
+server/test/facility-groups.test.js
+server/test/listed-factory-production.test.js
+server/test/production-methods.test.js
+src/components/facilities/FacilityProductionFormula.tsx
+src/pages/ProductionPage.tsx
+src/pages/production/ProductionFacilityDetail.tsx
+src/types.ts
+tests/browser/production-methods.spec.ts
+tests/browser/runtime-harness.tsx
+✔ 商品拍卖冻结商品、为最高出价者预占仓库并在成交后转移数量 (21.983761ms)
+✔ 商品竞拍必须有足够仓库容量，取消无出价拍卖释放商品 (6.39021ms)
+✔ 工厂拍卖冻结运行数量，成交后转移工厂且不写入工厂行情 (37.571333ms)
+✔ 商品与工厂资产包整体冻结并原子成交 (11.270505ms)
+✔ 客户端只返回商品与工厂通用资产拍卖 (10.023441ms)
+✔ 世界 15 迁移保留纯资产拍卖并整包取消含藏品的开放拍卖 (11.393848ms)
+✔ 世界 15 迁移按稳定 ID 去重并优先保留 assetAuctions 记录 (7.838652ms)
+✔ 发布费按较高计费基数计算并限制最低和最高金额 (0.296581ms)
+✔ 发布资金不足时不扣费也不冻结资产 (12.913658ms)
+✔ 未达隐藏保留价时退回最高报价和资产但不退发布费 (9.736123ms)
+✔ 结束前两分钟出价自动延时且累计不超过三十分钟 (11.308842ms)
+✔ 客户端拍卖字段白名单不暴露竞买 ID、姓名或出价数组 (7.368464ms)
+✔ 世界 21 迁移按开放收费拍卖重建发布费托管且不追收旧拍卖 (8.371916ms)
+✔ 卖方账户异常缺失时发布费保留在托管且未来迁移不会丢失 (7.600438ms)
+✔ factory buy and sell orders use price-time matching and partial fills (117.866179ms)
+✔ running factory sell order immediately reduces participating output (74.722602ms)
+✔ production increments produced goods statistics (38.037366ms)
+✔ production wage multiplier changes population wages without changing production cost and only affects the next cycle (52.985157ms)
+✔ electronics factory atomically consumes plastic and copper (37.377355ms)
+✔ electronics factory deducts no material when either input is missing (40.208043ms)
+✔ fruit beverage recipe uses its own cost and atomically consumes fruit and sugar (32.927319ms)
+✔ asset valuation uses the latest order-book trade and ignores open bid prices (32.387832ms)
+✔ factory automatically recovers after funds return (26.918817ms)
+✔ manual stop disables automatic recovery (27.852335ms)
+✔ running farm crop changes apply immediately with a staffing penalty and progress reset (30.227346ms)
+✔ legacy pending factory and recipe state migrates once into immediate participation (2.784941ms)
+✔ warehouse errors recover without backfilling missed cycles (55.767383ms)
+✔ stopped facilities apply recipes immediately and fixed recipes are idempotent (34.752919ms)
+✔ legacy completed target plans migrate to a manual stop (3.070544ms)
+✔ legacy running target plans become continuous production (26.679772ms)
+✔ factory order books contain player orders only (20.597119ms)
+✔ empty factory order books stay empty after world processing (23.666312ms)
+✔ purchased factories join a running group immediately and dilute current-cycle staffing (32.558822ms)
+✔ stopped factory staffing decays linearly from its stored timestamp (6.718898ms)
+✔ running factory staffing locks each cycle and carries fractional capacity (26.376321ms)
+✔ error staffing decays and auto recovery starts from the reduced rate (34.488871ms)
+✔ cancelling a running factory sell order restores the quantity immediately and dilutes staffing (138.882402ms)
+✔ selling every participating factory puts the enabled group in error (51.094728ms)
+✔ every factory route exposes four balanced production methods (2.761085ms)
+✔ representative production method plans use the approved fixed-precision values (0.352985ms)
+✔ public client state keeps the legacy recipe list and exposes optional method metadata (27.618317ms)
+✔ running factory switches production method immediately with one staffing penalty (99.738581ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 910.290763
+工厂即时加入、配置立即切换、满员率稀释与惩罚、紧凑标题状态、三态自动恢复和生产结算验证通过。
+生产方式验证通过：四种作业制度、固定精度平衡、稳定变体 ID、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。
+工厂集群三列状态卡、无持久选中态、主从布局、状态标题层级、无顶部关闭按钮、统一收起动画、单厂平均利润布局、紧凑标题、共享活动滚动条、目录顺序默认详情、焦点与滚动控制、通用配方和集群公式验证通过。
 
-SyntaxError: Invalid or unexpected token
-    at checkSyntax (node:internal/main/check_syntax:72:5)
+> economy@0.4.0 build
+> node scripts/verify-contract-renewal-economic-events.mjs && npm run verify:architecture && npm run test:nginx-config && npm run server:check && npm run server:test && tsc && vite build
 
-Node.js v24.4.0
-HEAD is now at c25a7ce chore: preserve exact production formula indentation [agent-retry11]
+Contract renewal and economic event verification passed.
+
+> economy@0.4.0 verify:architecture
+> npm run verify:repository-text-format && node --experimental-strip-types scripts/verify-money-precision.mjs && node --experimental-strip-types scripts/verify-order-book-decimal-levels.mjs && node scripts/verify-document-authority.mjs && node scripts/verify-client-state-version.mjs && node scripts/verify-order-matching-core.mjs && node scripts/verify-market-action-latency.mjs && node --experimental-strip-types scripts/verify-runtime-architecture.mjs && node scripts/verify-state-delivery-capacity.mjs && node scripts/verify-authentication-cache.mjs && node scripts/verify-email-registration.mjs && npm run verify:stress && node scripts/verify-scroll-ownership.mjs && node scripts/verify-gems-invitations-and-bans.mjs && node scripts/verify-daily-check-in.mjs && node scripts/verify-banking.mjs && node scripts/verify-weekly-cash-settlement.mjs && node scripts/verify-gem-shop.mjs && node scripts/verify-page-content.mjs && node scripts/verify-auth-three-layer.mjs && node scripts/verify-game-three-layer.mjs && node scripts/verify-open-glass-sampling.mjs && npm run verify:navigation-badges && node scripts/verify-game-tutorial.mjs && node scripts/verify-assets-page.mjs && node scripts/verify-settings-layout.mjs && node scripts/verify-reset-disabled.mjs && node --experimental-strip-types scripts/verify-display-format.mjs && node scripts/verify-ui-architecture-runner.mjs && npm run verify:echarts && node scripts/verify-page-section-spacing.mjs && npm run verify:product-artwork && npm run verify:facility-artwork && node scripts/verify-form-state-isolation.mjs && node scripts/verify-form-controls.mjs && node scripts/verify-market-order-entry-compact.mjs && node scripts/verify-contract-layout.mjs && node scripts/verify-contract-audit.mjs && node scripts/verify-currency-svg.mjs && node scripts/verify-mobile-touch-feedback.mjs && node scripts/verify-interaction-modality.mjs && node scripts/verify-virtual-list-scroll-chaining.mjs && node scripts/verify-overlay-scrollbars.mjs && node scripts/verify-overview-content.mjs && node scripts/verify-industry-catalog.mjs && node scripts/verify-production-methods.mjs && node scripts/verify-unified-factory-recipes-grid.mjs && npm run verify:production-settlement && node scripts/verify-production-desktop-layout.mjs && node scripts/verify-staple-crops-demand.mjs && node --experimental-strip-types scripts/verify-market-assets.mjs && node scripts/verify-market-page-layout.mjs && npm run verify:market-desktop-cleanup && node scripts/verify-local-trade-privacy.mjs && node scripts/verify-market-sell-fee.mjs && node scripts/verify-leaderboards.mjs && node --experimental-strip-types scripts/verify-market-chart.mjs && node scripts/verify-liquid-glass-chrome.mjs && node scripts/verify-mobile-status-value-fit.mjs && node scripts/verify-desktop-primary-surfaces.mjs && node scripts/verify-authoritative-countdowns.mjs && node scripts/verify-primary-surface-insets.mjs && node scripts/verify-game-shell-layout.mjs && node scripts/verify-warehouse-expansion.mjs && node scripts/verify-facility-groups.mjs && node --experimental-strip-types scripts/verify-recipe-profit-analysis.mjs && node scripts/verify-asset-auctions.mjs && node scripts/verify-gift-code-batches.mjs && node scripts/verify-admin-navigation.mjs && node scripts/verify-admin-player-statistics.mjs && node scripts/verify-runtime-efficiency.mjs && node scripts/verify-runtime-reliability.mjs && node scripts/verify-deployment-storage.mjs && node scripts/verify-readonly-database-diagnostics.mjs && node scripts/verify-production-database-maintenance.mjs && node scripts/verify-mobile-facility-pull-refresh.mjs
+
+
+> economy@0.4.0 verify:repository-text-format
+> node scripts/verify-repository-text-format.mjs
+
+仓库文本格式验证通过：所有文本文件均使用 LF，二进制资源不参与转换。
+Money precision verification passed.
+Decimal order-book level verification passed.
+文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 24/21、500 新玩家启动资金、市场需求模型 12、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。
+客户端状态版本契约验证通过：当前 24，最低兼容 24
+共享撮合内核验证通过：商品与工厂复用单一混合盘口、分组排序索引、价格时间优先、maker price、部分成交、fill 和手续费状态机。
+市场动作延迟防回退验证通过：商品订单单次共享撮合、全量修复版本化、POST 后异步补拉、重复提交锁和请求超时均已锁定。
+运行时架构验证通过：页面动态拆包、局部时钟、虚拟列表二分与滚动合并、ECharts 资产圆环、资产比例和本地匿名成交缓存均已锁定。
+状态交付容量验证通过：世界缓存、单一全局调度、六分区增量交付与完整快照替换、独立 serverNow、共享单调服务器时钟、动作精简确认与确认后分区补拉、修订号门禁、可抢占刷新任务、5 秒默认间隔和 JSON gzip 均已锁定。
+认证缓存验证通过：状态 10 秒、写操作 2 秒、管理员零缓存、请求合并和 5000 条 LRU 已锁定。
+邮箱验证码注册验证通过：发送前查重、验证码安全、首次建档邀请码归因、注册后禁止补填、统一同 IP 异常上报与管理员封禁、双模式页面与 Nginx 路由均已锁定。
+
+> economy@0.4.0 verify:stress
+> node scripts/verify-stress-test-accounts.mjs && node scripts/verify-stress-test-flow.mjs && npm run test:stress
+
+Fixed reusable stress-test account registry, strict slicing and secret boundary verification passed.
+压力测试执行器、隔离环境、协议断言、性能预算、生产安全门禁、报告和工作流均已锁定。
+
+> economy@0.4.0 test:stress
+> node --test tests/stress/stress-flow.test.mjs
+
+✔ stress metrics calculate percentiles and enforce budgets (1.820574ms)
+✔ stress safety prevents production writes and unsafe targets (0.667812ms)
+✔ isolated mixed stress exercises real authentication, state delivery, writes and idempotency (4701.542822ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9760.213232
+Nested custom/native scroll ownership, shared signed-in page scroll, boundary release and control location verification passed.
+宝石、邀请与封禁验证通过：同 IP 仅上报异常，账号封禁只由管理员执行，邀请防刷与审计边界保持。
+Daily check-in verification passed.
+银行验证通过：存取款守恒、抵押生产边界、净资产、透明额度、期限利率、活跃周每日固定 1%、贷款利息池优先支付、补贴发行、周结算和统一截止时间均已锁定。
+固定利息与周资金结算验证通过：活跃周每日 1%、周末 10% 账单、登录扣款、长期回归一次性结算、冻结资金守恒和排行榜调整均已锁定。
+商店验证通过：每日终端报价、动态汇率、建设卡施工宝石加速、原子兑换与共享一级卡片规则均已锁定。
+页面内容与职责验证失败:
+- src/pages/ProductionPage.tsx 缺少: 下一周期加入
+- src/pages/ProductionPage.tsx 缺少: 下一周期切换为：
+HEAD is now at 6a58421 chore: remove literal overlay backslash [agent-retry12]
