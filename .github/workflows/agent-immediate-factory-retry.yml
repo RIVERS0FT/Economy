@@ -115,7 +115,7 @@ jobs:
           source = source.replace(formula_old, formula_new)
 
           harness_old = "replaceExact(harness, '      pendingJoinCount: 0,\\n', '');"
-          harness_new = "replaceExact(harness, '      pendingJoinCount: 0,\\n', '', 3);"
+          harness_new = "replaceRegex(harness, /^      pendingJoinCount: 0,\\n/m, '');"
           if source.count(harness_old) != 1:
               raise SystemExit(f'expected one harness pendingJoinCount assertion, found {source.count(harness_old)}')
           source = source.replace(harness_old, harness_new)
