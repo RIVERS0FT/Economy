@@ -155,10 +155,12 @@ const settingsRule = css.slice(settingsRuleStart, css.indexOf('}', settingsRuleS
     `      '${settlementCompositionAuthority}',`,
   ));
 
-update('scripts/verify-warehouse-expansion.mjs', (source) => source.replaceAll(
-  "  'facility-formula-scope',\n",
-  '',
-));
+update('scripts/verify-warehouse-expansion.mjs', (source) => source
+  .replaceAll("  'facility-formula-scope',\n", '')
+  .replace(
+    "  'group.nextCycleCount',\n",
+    "  'group.productionAvailableCount',\n  'projectFacilityStaffingRate',\n  'facilityEffectiveCount',\n",
+  ));
 
 for (const path of walk('src/styles').filter((item) => item.endsWith('.css'))) {
   if (read(path).includes('$' + '{')) throw new Error(`${path}: unresolved generated placeholder`);
