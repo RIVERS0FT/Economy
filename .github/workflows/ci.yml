@@ -167,7 +167,16 @@ jobs:
         run: npm run build
 
       - name: Run browser regression suite
-        run: npm run test:browser
+        run: npm run test:browser 2>&1 | tee browser-test.log
+
+      - name: Upload browser failure log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: economy-ci-browser-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: browser-test.log
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: Commit verified source changes
         shell: bash
