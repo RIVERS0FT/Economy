@@ -4,12 +4,16 @@ on:
   push:
     branches:
       - fix/mobile-facility-sheet-full-width
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   apply-and-verify:
+    if: github.event_name == 'push' || github.head_ref == 'fix/mobile-facility-sheet-full-width'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -175,6 +179,7 @@ test.describe('mobile facility detail sheet full-width geometry', () => {
           PY
 
           rm .github/workflows/fix-mobile-facility-sheet-width.yml
+          rm -f .agent-mobile-facility-sheet-trigger
           git add -A
           git diff --cached --check
 
