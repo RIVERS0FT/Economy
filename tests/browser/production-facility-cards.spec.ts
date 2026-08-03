@@ -91,4 +91,47 @@ test.describe('production facility selector cards', () => {
     await expect(page.getByText('按复杂度从 C1 到 C7 选择工厂并查看生产详情。')).toBeVisible();
   });
 
+  test('expands selector cards from three to six columns on wide desktops', async ({ page }) => {
+    const columnCounts: number[] = [];
+
+    for (const width of [1600, 1920, 2560]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto('runtime-test.html?view=production&scenario=facility-order');
+
+      const grid = page.locator('.facility-cluster-selector-list');
+      await expect(grid).toBeVisible();
+      columnCounts.push(await grid.evaluate((element) => (
+        getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
+      )));
+
+      const geometry = await page.evaluate(() => {
+        const build = document.querySelector<HTMLElement>('.production-build-card')?.getBoundingClientRect();
+        const navigation = document.querySelector<HTMLElement>('.facility-cluster-navigation')?.getBoundingClientRect();
+        const detail = document.querySelector<HTMLElement>('.facility-cluster-detail-card')?.getBoundingClientRect();
+        const cardWidths = [...document.querySelectorAll<HTMLElement>('.facility-cluster-selector-card')]
+          .map((card) => card.getBoundingClientRect().width);
+        return {
+          buildWidth: build?.width ?? 0,
+          navigationWidth: navigation?.width ?? 0,
+          detailWidth: detail?.width ?? 0,
+          minCardWidth: Math.min(...cardWidths),
+          maxCardWidth: Math.max(...cardWidths),
+          fitsViewport: document.documentElement.scrollWidth <= window.innerWidth,
+        };
+      });
+
+      expect(geometry.buildWidth).toBeGreaterThanOrEqual(279.5);
+      expect(geometry.buildWidth).toBeLessThanOrEqual(320.5);
+      expect(geometry.navigationWidth).toBeGreaterThanOrEqual(479.5);
+      expect(geometry.navigationWidth).toBeLessThanOrEqual(1040.5);
+      expect(geometry.detailWidth).toBeGreaterThanOrEqual(479.5);
+      expect(geometry.detailWidth).toBeLessThanOrEqual(680.5);
+      expect(geometry.minCardWidth).toBeGreaterThanOrEqual(143.5);
+      expect(geometry.maxCardWidth).toBeLessThanOrEqual(160.5);
+      expect(geometry.fitsViewport).toBe(true);
+    }
+
+    expect(columnCounts).toEqual([3, 4, 6]);
+  });
+
 });
