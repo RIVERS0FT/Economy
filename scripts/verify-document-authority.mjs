@@ -192,9 +192,47 @@ if (existsSync(pathFor('docs/README.md'))) {
   }
 }
 
+const startingFundsFiles = [
+  'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
+  'server/src/domain-core.js',
+  'server/test/starting-funds.test.js',
+];
+for (const path of startingFundsFiles) {
+  if (!existsSync(pathFor(path))) failures.push(`新玩家启动资金规则缺少文件: ${path}`);
+}
+
+if (startingFundsFiles.every((path) => existsSync(pathFor(path)))) {
+  const productDesign = read('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md');
+  const domainCore = read('server/src/domain-core.js');
+  const startingFundsTest = read('server/test/starting-funds.test.js');
+  const createPlayerStart = domainCore.indexOf('function createPlayer');
+  const createPlayerEnd = domainCore.indexOf('function migrateFacility', createPlayerStart);
+  const createPlayerBlock = createPlayerStart >= 0 && createPlayerEnd > createPlayerStart
+    ? domainCore.slice(createPlayerStart, createPlayerEnd)
+    : '';
+
+  for (const text of [
+    '服务器一次性发放 **500 普通货币**作为启动资金',
+    '不迁移、不补发，也不改写既有玩家余额',
+  ]) {
+    if (!productDesign.includes(text)) failures.push(`产品玩法设计缺少新玩家启动资金规则: ${text}`);
+  }
+  if (!createPlayerBlock.includes('credits: 500,')) failures.push('新玩家首次建档可用货币必须为 500');
+  if (!createPlayerBlock.includes("addLedger(player, 'system', 500, '服务器发放玩家启动资金', now);")) {
+    failures.push('新玩家启动资金账本必须与 500 可用货币保持一致');
+  }
+  if (createPlayerBlock.includes('credits: 100,')) failures.push('不得将新玩家初始货币恢复为 100');
+  for (const text of [
+    "test('new players receive 500 credits with a matching startup ledger entry'",
+    "test('ensuring an existing player does not top up or rewrite their balance'",
+  ]) {
+    if (!startingFundsTest.includes(text)) failures.push(`新玩家启动资金回归测试缺少场景: ${text}`);
+  }
+}
+
 if (failures.length) {
   console.error(`文档权威性验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/21、市场需求模型 12、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。`);
+console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/21、500 新玩家启动资金、市场需求模型 12、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和九页导航与银行资产总览职责均满足当前基线。`);
