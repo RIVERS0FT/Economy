@@ -104,10 +104,8 @@ jobs:
 
           runtime_path = Path('tests/browser/market-runtime.spec.ts')
           runtime_text = runtime_path.read_text(encoding='utf-8')
-          old_ratio = '''  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.75);
-  expect(narrowOrder.width / narrowBook.width).toBeLessThan(2.25);'''
-          new_ratio = '''  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.4);
-  expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.7);'''
+          old_ratio = "  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.75);\n  expect(narrowOrder.width / narrowBook.width).toBeLessThan(2.25);"
+          new_ratio = "  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.4);\n  expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.7);"
           count = runtime_text.count(old_ratio)
           if count != 1:
               raise SystemExit(f'market runtime expected one old narrow ratio block, found {count}')
