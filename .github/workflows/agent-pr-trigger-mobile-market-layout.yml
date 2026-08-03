@@ -62,7 +62,7 @@ jobs:
           PY
           bash /tmp/apply-mobile-market-layout.sh
 
-      - name: Update compact order-entry verifier
+      - name: Update compact order-entry verification
         shell: bash
         run: |
           python3 <<'PY'
@@ -101,6 +101,17 @@ jobs:
               text = text.replace(old, new, 1)
 
           path.write_text(text, encoding='utf-8')
+
+          runtime_path = Path('tests/browser/market-runtime.spec.ts')
+          runtime_text = runtime_path.read_text(encoding='utf-8')
+          old_ratio = '''  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.75);
+  expect(narrowOrder.width / narrowBook.width).toBeLessThan(2.25);'''
+          new_ratio = '''  expect(narrowOrder.width / narrowBook.width).toBeGreaterThan(1.4);
+  expect(narrowOrder.width / narrowBook.width).toBeLessThan(1.7);'''
+          count = runtime_text.count(old_ratio)
+          if count != 1:
+              raise SystemExit(f'market runtime expected one old narrow ratio block, found {count}')
+          runtime_path.write_text(runtime_text.replace(old_ratio, new_ratio, 1), encoding='utf-8')
           PY
 
       - name: Check patch formatting
