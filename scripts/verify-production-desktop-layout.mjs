@@ -25,9 +25,11 @@ for (const text of [
   'grid-template-rows: auto;',
   'align-content: start;',
   '@media (min-width: 1600px)',
-  'minmax(440px, 520px)',
+  'minmax(480px, 1040px)',
   'minmax(480px, 680px)',
   'justify-content: start;',
+  'max-width: 60rem;',
+  'grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));',
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
   'grid-template-columns: repeat(3, minmax(0, 1fr));',
 ]) assert.equal(production.includes(text), true, `桌面生产布局缺少: ${text}`);
@@ -105,8 +107,9 @@ for (const block of legacyBuildBlocks) {
 }
 
 for (const text of [
-  '大于等于 `1600px` 时使用紧凑三列',
-  '固定三列竖向选择卡',
+  '大于等于 `1600px` 时使用宽屏三列',
+  '自动形成 `3～6` 列竖向选择卡',
+  '剩余宽度优先分配给工厂集群选择',
   '桌面详情卡高度由内容决定',
   '`--desktop-page-top-offset`',
   '`src/styles/facility-group-card-grid.css` 负责',
@@ -125,6 +128,8 @@ for (const text of [
 ]) assert.equal(productionAlignmentDesign.includes(text), true, `生产对齐设计缺少: ${text}`);
 
 assert.equal(chrome.includes('`--desktop-page-top-offset` 只表示下方工作区内部沟槽'), true, '外壳设计缺少工作区内部顶部偏移规则');
-assert.equal(industry.includes('大于等于 `1600px` 时使用紧凑三列'), true, '产业设计缺少桌面生产布局规则');
+assert.equal(industry.includes('大于等于 `1600px` 时使用宽屏三列'), true, '产业设计缺少桌面生产布局规则');
+assert.equal(production.includes('minmax(440px, 520px)'), false, '宽屏工厂集群列不得回退为 440px–520px');
+assert.equal(industry.includes('固定三列竖向选择卡'), false, '宽屏工厂集群不得回退为固定三列');
 
 console.log('桌面生产页建设卡与详情卡 sticky 对齐、唯一职责、自然高度详情和统一滚动验证通过。');

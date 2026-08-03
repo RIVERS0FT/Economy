@@ -38,6 +38,7 @@ const page = read('src/pages/ProductionPage.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
 const mobile = read('src/pages/production/MobileFacilityDetailSheet.tsx');
 const catalogPresentationDesign = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
+const pageContentDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productionSource = `${page}
 ${detail}
 ${mobile}`;
@@ -152,6 +153,8 @@ const selectorCardSource = detail.slice(
 );
 assert.equal(selectorCardSource.includes('×'), false, '工厂选择卡数量不得显示乘号');
 assert.equal(selectorCardSource.includes(' x '), false, '工厂选择卡数量不得显示字母 x');
+assert.equal(pageContentDesign.includes('亏损数字为红色且不显示负号'), true, '页面设计必须记录亏损数字不显示负号');
+assert.equal(pageContentDesign.includes('亏损数字为红色且保留负号'), false, '页面设计不得保留亏损负号旧规则');
 
 for (const forbidden of [
   'facility-group-card-shell',
@@ -249,6 +252,9 @@ for (const text of [
   '.facility-cluster-profit.is-positive',
   '.facility-cluster-profit.is-negative',
   '.facility-cluster-count',
+  'max-width: 60rem;',
+  'grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));',
+  'minmax(480px, 1040px)',
   'grid-template-columns: repeat(3, minmax(0, 1fr));',
   'aspect-ratio: 4 / 5;',
   'max-width: 10rem;',
