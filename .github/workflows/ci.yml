@@ -33,14 +33,14 @@ jobs:
         run: |
           python3 <<'PY'
           from pathlib import Path
-          import textwrap
 
           workflow = Path('.github/workflows/agent-apply-unify-order-book-cleanup.yml').read_text(encoding='utf-8')
           marker = '      - name: Apply approved order-book cleanup\n        shell: bash\n        run: |\n'
           start = workflow.index(marker) + len(marker)
           end = workflow.index('\n      - name: Check patch formatting and scope', start)
           block = workflow[start:end]
-          Path('/tmp/apply-order-book-cleanup.sh').write_text(textwrap.dedent(block) + '\n', encoding='utf-8')
+          lines = [line[10:] if line.startswith('          ') else line for line in block.splitlines()]
+          Path('/tmp/apply-order-book-cleanup.sh').write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
           bash /tmp/apply-order-book-cleanup.sh
 
