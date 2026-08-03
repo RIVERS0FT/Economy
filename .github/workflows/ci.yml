@@ -84,8 +84,7 @@ jobs:
             docs \
             scripts \
             tests/browser \
-            .github/workflows/ci.yml \
-            .github/workflows/apply-live-staffing-settlement.yml
+            .github/workflows/ci.yml
           git diff --cached --check
           git commit -m "feat: 按周期完成时满员率结算并重排工厂详情"
           git push origin HEAD:feat/live-staffing-settlement
