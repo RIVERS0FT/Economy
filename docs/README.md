@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-02
+> 更新时间：2026-08-03
 > 客户端状态版本：24
 > 世界状态版本：21
 
@@ -20,7 +20,7 @@
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单与合同采购预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
-| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 九个正式页面、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
+| `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md` | 十个正式页面、研发只读入口与技术路线边界、银行资产总览与存贷款、商品／工厂资产拍卖、排行榜生产数量纯数字显示、统一导航角标语义与已读规则、进行中的合同默认视图、可审计合同历史、登录注册入口、独立商店、分享链接、邀请码、封禁提示、模块唯一归属和页面防回退规则 |
 | `MARKET_CHART_LAYOUT_DESIGN.md` | 市场近 24h 行情图的整数坐标、成交量绘图区最低可读高度、动态纵横比、底部安全区、图例居中和真实浏览器几何回归 |
 | `REGISTRATION_INVITE_FLOW_DESIGN.md` | 注册邀请码输入、分享链接预填、来源归因、首次绑定、注册完成后禁止补填、登录／注册入口三层视觉、认证卡片几何与旧接口退役 |
 | `UI_DESIGN_SYSTEM.md` | 设计令牌、共享组件、工作区浮层安全区、统一表单控件、统一 SVG 图标、统一导航角标视觉、商品与工厂场景插画主视觉、覆盖式滚动条、订单成交表、桌面导航行高、中文界面、响应式、移动触摸反馈与可访问性 |
@@ -89,23 +89,17 @@
 52. 独立 `assets` 导航、`AssetsPage` 和浏览器本地资产变动已永久删除；资产总览唯一归属银行页，状态栏与概览资产入口统一打开银行。浏览器本地存储 v6 只保留匿名逐笔成交和识别新增成交所需的最小自有订单快照，必须同步更新页面、本地日志、概览、银行、浏览器测试及 `scripts/verify-assets-page.mjs`，不得恢复资产事件差异扫描、资产页空壳或兼容路由。
 53. 合同历史必须由 `economy_contract_audit_contracts`、`economy_contract_audit_events` 与 `economy_contract_audit_transfers` 组成的 SQLite 追加式审计账本提供；玩家动作、服务器调度、逐批商品／货款／手续费／保证金流转、宽限和违约必须与世界状态在同一事务提交，并以确定性来源键防止幂等重试或重复截止时间写入重复事件。旧世界合同只能导入 `legacy_partial` 当前快照，不得伪造上线前逐批事件。历史和详情通过独立只读 API 按需分页，只允许参与者读取，不进入世界 JSON、六分区、分区哈希或常规轮询；必须同步页面、产业、服务器设计、迁移备份、服务器／浏览器测试和 `scripts/verify-contract-audit.mjs` 防回退。
 54. 未登录入口的图片背景、深色氛围背景、标语与认证卡片三层结构唯一归属 `REGISTRATION_INVITE_FLOW_DESIGN.md`；通用表单与颜色令牌继续归 `UI_DESIGN_SYSTEM.md`，认证行为继续归页面与服务器文档。实现必须同步 `LoginPage.tsx`、`auth.css`、`card-system.css`、`scripts/verify-auth-three-layer.mjs` 与 `tests/browser/auth-three-layer.spec.ts`，不得恢复移动端整页外层面板、共享卡片层登录几何映射、第四个全局背景层或改变登录／注册业务流程。
-
 55. 认证卡片必须使用 `AuthCardSurface` 与 `LiquidGlassSurface` 的 `desktopAuthCard`／`mobileAuthCard` 预设，任一时刻只允许一个内容自适应玻璃实例；卡片几何归 `REGISTRATION_INVITE_FLOW_DESIGN.md`，材质参数归 `LIQUID_GLASS_CHROME_DESIGN.md`。不得在 `auth.css` 恢复手写 `backdrop-filter`、玻璃渐变、材质描边、`.panel`、固定高度或内部滚动区；必须同步两份权威文档、`scripts/verify-auth-three-layer.mjs`、`scripts/verify-liquid-glass-chrome.mjs` 与认证浏览器回归。
 56. 排行榜生产数量的显示规则唯一归属 `PAGE_CONTENT_AND_NAVIGATION_DESIGN.md`：前十名和“我的成绩”必须共用 `scoreValue`，只显示经过 `formatNumber` 千分位格式化的纯数字，不附加“个”“件”“单位”或恢复“分”；显示调整不得改变服务器数量、排序、同分规则、奖励、迁移或历史结算，并通过 `scripts/verify-leaderboards.mjs` 防回退。
 57. 状态版本 22 固定稳定分区时间字段：`economicCalendar` 不再返回按请求毫秒变化的 `visibleUntil`，未来七天展示使用 envelope `serverNow` 校准的共享时钟；排行榜不得返回请求生成 `generatedAt` 或逐行 `updatedAt`，四榜必须位于顶层 `leaderboards` 并归入 `leaderboard` 分区，不得嵌入玩家 `stats`。同一事件窗口连续请求必须保持相同 `market` revision，其他玩家不改变市场的操作不得让无关用户收到完整 `market`，并通过状态轮询服务器测试、`scripts/verify-contract-renewal-economic-events.mjs`、`scripts/verify-leaderboards.mjs` 与权威倒计时验证防回退。
 58. 生产数据库只读诊断工作流固定为 `.github/workflows/diagnose-production-database.yml`，只能手动触发并使用现有 `SERVER_HOST`、`SERVER_PORT`、`SERVER_USER` 与 `SERVER_SSH_KEY` 以服务用户连接；不得使用 `sudo`、停止或重启服务。诊断脚本必须以 SQLite URI `mode=ro`、`PRAGMA query_only = ON` 和 authorizer 三重只读约束打开 `/var/lib/riversoft-economy/economy.sqlite`，不得执行 `VACUUM`、`wal_checkpoint`、`PRAGMA optimize`、备份、附加数据库、DDL 或 DML。输出只允许包含数据库／WAL／SHM 字节数、页数、空闲页、预计有效页、世界修订号与 `state_json` 长度、`PRAGMA quick_check(1)`、Schema 数量和 `dbstat` 对象占用，不得输出玩家、邮箱、IP、邀请、Cookie、密钥或业务行内容；诊断不得上传数据库、WAL、SHM、备份或包含玩家明细的 Artifact。上述规则必须通过 `scripts/verify-readonly-database-diagnostics.mjs` 对临时数据库执行前后文件哈希、大小和修改时间完全一致的行为验证。
 59. 生产 SQLite `INCREMENTAL` 自动压缩属于服务器存储维护规则：现有 `auto_vacuum=NONE` 正式库只能通过停服、WAL `TRUNCATE` checkpoint、`VACUUM INTO` 紧凑副本、在副本执行 `PRAGMA auto_vacuum=INCREMENTAL; VACUUM;`、Schema／逐表内容／世界 JSON 哈希校验、同文件系统原子替换、健康检查和失败自动回滚迁移；迁移脚本固定为 `scripts/manage-production-database.py`，人工工作流固定为 `.github/workflows/migrate-production-database-incremental.yml` 并要求确认词。空间维护固定由 `.github/workflows/maintain-production-database-space.yml` 在每周一北京时间 02:30 和人工触发时检查，只有可回收空间不少于 64 MiB 且 freelist 比例不少于 25% 才停服执行，每批 `PRAGMA incremental_vacuum(1024)`、单次最多四批，前后都执行 WAL checkpoint、`quick_check` 和健康检查；不得省略正数页数清空整个 freelist，不得把 `incremental_vacuum` 放入玩家请求事务，也不得使用 `auto_vacuum=FULL`。上述迁移、批量上限、逻辑不变和回滚行为必须由 `scripts/verify-production-database-maintenance.mjs` 防回退。
 60. 普通货币精度与玩家结算属于跨模块强制规则：普通货币只有一种六位微单位运算精度，`1 货币 = 1,000,000` 微单位；账户余额、冻结资金、预算、总额、手续费、利息、退款和流水统一按微单位结算。玩家可编辑金额与单价最多两位并以 `0.01` 为步长，超过两位直接拒绝；两位限制不得形成第二套账户精度。普通界面显示两位，审计详情可显示六位，显示值不得参与运算；宝石、商品和工厂数量保持整数，比例使用整数 BPS／PPM。合同审计金额以 SQLite 整数微单位保存，世界与客户端十进制字段仅作为状态版本 22 的兼容边界。必须同步更新产品、订单簿、产业、服务器、页面、UI、商店、管理员、本地活动、根 README、测试和 `scripts/verify-money-precision.mjs`。
-
 61. 统一订单簿运行时性能属于订单簿与服务器共同规则：`world.orders` 保持唯一持久化权威集合和单一混合盘口，不得按玩家／系统拆分盘口；全量索引必须先分组后排序且只索引未完成订单，尾部追加继续增量插入，成交缩量与撤单同步维护开放订单、商品买单预占和工厂卖单冻结聚合。当前版本迁移、无变化剪枝和无旧系统工厂订单清理必须保持订单数组引用；历史剪枝只限制已关闭订单为最近 800 笔，绝不得删除未完成订单。必须同步更新 `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md`、`SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、服务器测试、`scripts/verify-order-matching-core.mjs` 与 `scripts/verify-runtime-efficiency.mjs`。
-
 62. 银行固定收益与周资金结算属于跨模块强制规则：银行存款仅在成功经济写操作激活的北京时间自然周内从次日开始按每日固定 1% 结息；贷款利息池优先支付，缺口记录为补贴发行。完整活跃周结束生成净货币资金 10% 账单，冻结资金计入但不直接扣除，登录时先扣存款再扣可用资金，欠缴保留为负债；离线周不累计，无旧账单时回归只结算一次。同一自然周普通读取不得刷新登录标记或推进世界修订号，固定利息与周资金销毁不得计入增长榜经营成绩。规则唯一归属产品、服务器和页面三份权威文档，并由银行、周结算、状态轮询与资金精度验证共同防回退。
-
 63. 项目业务数据图表只允许通过共享 `EconomyChart` 使用 Apache ECharts SVG；只安装 `echarts`，不得引入 `echarts-for-react`、第二套图表库或业务页面直接 `echarts.init`。初始化、按需模块、`ResizeObserver`、逐帧 resize、`dispose()`、设计令牌、中文无障碍摘要和稳定测试接口归 `UI_DESIGN_SYSTEM.md`；市场专项几何继续归 `MARKET_CHART_LAYOUT_DESIGN.md`。
-
 64. 压力测试执行器、环境隔离、安全门禁、24 个固定普通玩家槽位、秘密边界、状态协议断言、幂等重放、场景、性能预算、脱敏报告与 GitHub Actions 属于服务器架构规则。完整写压测只能使用模拟账号服务与临时 SQLite 或受保护的 staging；生产只允许已建档固定账号执行显式确认、至少 3 秒轮询且不超过 5 分钟的 `smoke`／`poll`，不得调用任何游戏写操作。必须通过 `scripts/verify-stress-test-accounts.mjs`、`scripts/verify-stress-test-flow.mjs` 和隔离行为测试防回退。
-
 65. 工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`：`src/assets/facility-icons/` 必须与服务器 21 种正式工厂 ID 一一对应，只保存同名 `1024 × 1024` 8-bit RGBA PNG 源图；开发与构建通过共享缩略图管线生成 `src/assets/facility-icons/generated/128/`。生产选择卡、市场工厂目录和拍卖工厂主视觉统一使用 `FacilityIcon`，紧凑订单／成交／银行／概览及未知 ID 继续使用 `FactoryIcon`，低流量模式回退厂房 SVG。任何目录增删、图片替换或使用边界变化必须同步更新 `FacilityIcons.tsx`、`facility-artwork.css`、本设计和 `scripts/verify-facility-artwork.mjs`。
-
+66. 研发页是生产右侧、拍卖左侧的第十个正式页面；研发机制未定义前只能读取现有状态并展示产业基础和未开放边界，不得增加服务器状态、研发货币、进度、成本、加成或写操作。任何实际研发机制必须先同步产品、产业、页面、服务器权威设计与防回退，再接入接口和状态版本。
 
 - 游戏端与管理员端桌面顶部工作栏必须横跨侧栏列与内容列；侧栏和工作区从其下方开始。所有登录后业务浮层必须限制在工作区安全根内，并由 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/shell-floating-safe-zone.spec.ts` 防回退。
