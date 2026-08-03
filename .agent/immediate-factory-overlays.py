@@ -156,6 +156,23 @@ replaceExact(
           '- 生产配置切换立即写入 `activeRecipeId`，生产进度立即清零，并在同一次原子动作中降低满员率。\n- 运行中切换生产产物或作业制度立即写入新的 `activeRecipeId`；动作时间点之前已经完成的完整周期先正常结算，未完成周期不扣费、不耗料、不产出。\n',
         );
 
+        const pageContentVerifier = 'scripts/verify-page-content.mjs';
+        replaceExact(
+          pageContentVerifier,
+          "  '下一周期加入',\n",
+          "  '新增生产可用工厂立即参与运行并同步稀释满员率',\n",
+        );
+        replaceExact(
+          pageContentVerifier,
+          "  '下一周期切换为：',\n",
+          "  '生产进度已清零',\n",
+        );
+        replaceExact(
+          pageContentVerifier,
+          "  'facility-detail-sheet-close',\n]) forbidText('src/pages/ProductionPage.tsx', text);\n",
+          "  'facility-detail-sheet-close',\n  '下一周期加入',\n  '下一周期切换为：',\n]) forbidText('src/pages/ProductionPage.tsx', text);\n",
+        );
+
         '''
     )
     source = source.replace(marker, extra + marker)
