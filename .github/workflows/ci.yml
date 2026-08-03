@@ -39,7 +39,25 @@ jobs:
           start = workflow.index(marker) + len(marker)
           end = workflow.index('\n      - name: Check patch formatting and scope', start)
           block = workflow[start:end]
-          lines = [line[10:] if line.startswith('          ') else line for line in block.splitlines()]
+          lines = []
+          in_triple = False
+          for line in block.splitlines():
+              has_single = "'''" in line
+              has_double = '"""' in line
+              has_triple = has_single or has_double
+              if in_triple:
+                  if has_triple:
+                      lines.append(line[10:] if line.startswith('          ') else line)
+                      in_triple = False
+                  else:
+                      lines.append(line)
+                  continue
+              normalized = line[10:] if line.startswith('          ') else line
+              lines.append(normalized)
+              if has_single and normalized.count("'''") % 2 == 1:
+                  in_triple = True
+              elif has_double and normalized.count('"""') % 2 == 1:
+                  in_triple = True
           Path('/tmp/apply-order-book-cleanup.sh').write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
           bash /tmp/apply-order-book-cleanup.sh
