@@ -67,12 +67,53 @@ jobs:
           from pathlib import Path
           path = Path('/tmp/apply-immediate-factory.mjs')
           source = path.read_text()
-          old = "replaceExact(runtime, '  group.pendingJoinCount = 0;\\n', '', 2);"
-          new = """replaceExact(runtime, '  group.participatingCount = 0;\\n  group.pendingJoinCount = 0;\\n', '  group.participatingCount = 0;\\n');
+
+          pending_old = "replaceExact(runtime, '  group.pendingJoinCount = 0;\\n', '', 2);"
+          pending_new = """replaceExact(runtime, '  group.participatingCount = 0;\\n  group.pendingJoinCount = 0;\\n', '  group.participatingCount = 0;\\n');
           replaceExact(runtime, '  group.participatingCount = count;\\n  group.pendingJoinCount = 0;\\n', '  group.participatingCount = count;\\n');"""
-          if source.count(old) != 1:
-              raise SystemExit(f'expected one pendingJoinCount cleanup assertion, found {source.count(old)}')
-          path.write_text(source.replace(old, new))
+          if source.count(pending_old) != 1:
+              raise SystemExit(f'expected one pendingJoinCount cleanup assertion, found {source.count(pending_old)}')
+          source = source.replace(pending_old, pending_new)
+
+          formula_old = """replaceExact(
+            formula,
+            `      group.nextCycleCount,
+                group.nextCycleEffectiveCount ?? group.nextCycleCount,
+                group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+          `,
+            `      group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+                group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+                group.staffingRateBps ?? 10_000,
+          `,
+            2,
+          );"""
+          formula_new = """replaceExact(
+            formula,
+            `      group.nextCycleCount,
+                group.nextCycleEffectiveCount ?? group.nextCycleCount,
+                group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+          `,
+            `      group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+                group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+                group.staffingRateBps ?? 10_000,
+          `,
+          );
+          replaceExact(
+            formula,
+            `    group.nextCycleCount,
+              group.nextCycleEffectiveCount ?? group.nextCycleCount,
+              group.nextCycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
+          `,
+            `    group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+              group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
+              group.staffingRateBps ?? 10_000,
+          `,
+            2,
+          );"""
+          if source.count(formula_old) != 1:
+              raise SystemExit(f'expected one formula scope assertion, found {source.count(formula_old)}')
+          source = source.replace(formula_old, formula_new)
+          path.write_text(source)
           PY
           node --check /tmp/apply-immediate-factory.mjs
           node /tmp/apply-immediate-factory.mjs
