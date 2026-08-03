@@ -2,7 +2,7 @@ import type { PropsWithChildren, SVGProps } from 'react';
 import { GemIcon } from './GemIcon';
 
 type GameIconProps = SVGProps<SVGSVGElement>;
-export type NavigationIconName = 'home' | 'market' | 'production' | 'auction' | 'contracts' | 'bank' | 'leaderboard' | 'gem-shop' | 'settings';
+export type NavigationIconName = 'home' | 'market' | 'production' | 'research' | 'auction' | 'contracts' | 'bank' | 'leaderboard' | 'gem-shop' | 'settings';
 
 function GameIcon({ children, className, ...props }: PropsWithChildren<GameIconProps>) {
   return (
@@ -57,6 +57,17 @@ export function ProductionIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="M3 20V9l6 3V9l6 3V5h4v15H3Z" /><path d="M7 16h.01M11 16h.01M15 16h.01" /></GameIcon>;
 }
 
+export function ResearchIcon(props: GameIconProps) {
+  return (
+    <GameIcon {...props}>
+      <path d="M9 3h6M10 3v5.2L5.7 16a3.3 3.3 0 0 0 2.9 5h6.8a3.3 3.3 0 0 0 2.9-5L14 8.2V3" />
+      <path d="M7.5 15h9M9.2 12h5.6" />
+      <circle cx="9.2" cy="17.8" r=".6" fill="currentColor" stroke="none" />
+      <circle cx="14.8" cy="18.2" r=".6" fill="currentColor" stroke="none" />
+    </GameIcon>
+  );
+}
+
 export function FactoryIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="M3 20V10l5 3V9l5 3V6h4l1 14H3Z" /><path d="M17 6V3h3v17" /><path d="M7 16h2M12 16h2M16 16h2" /></GameIcon>;
 }
@@ -64,7 +75,6 @@ export function FactoryIcon(props: GameIconProps) {
 export function FundsIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6.5Z" /><path d="M4 8h16M15 14h3" /></GameIcon>;
 }
-
 
 export function AuctionIcon(props: GameIconProps) {
   return <GameIcon {...props}><path d="m13.5 5.5 5 5M11.5 7.5l5 5M8 11l7-7M13 16l7-7" /><path d="m10.2 9.8 4 4M3 20h11M5 16h7v4H5z" /></GameIcon>;
@@ -154,6 +164,7 @@ export function NavigationIcon({ name, ...props }: { name: NavigationIconName } 
     case 'home': return <HomeIcon {...props} />;
     case 'market': return <MarketIcon {...props} />;
     case 'production': return <ProductionIcon {...props} />;
+    case 'research': return <ResearchIcon {...props} />;
     case 'auction': return <AuctionIcon {...props} />;
     case 'contracts': return <ContractIcon {...props} />;
     case 'bank': return <BankIcon {...props} />;

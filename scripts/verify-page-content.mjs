@@ -489,7 +489,7 @@ for (const text of ['openOrderCount', "id === 'market'", 'sidebar-nav-count']) {
 }
 
 for (const text of [
-  '概览｜市场｜生产｜拍卖｜合同｜银行｜排行｜商店｜设置',
+  '概览｜市场｜生产｜研发｜拍卖｜合同｜银行｜排行｜商店｜设置',
   '| 拍卖 | `auction` | `AuctionPage` | 商品与工厂资产包发布及进行中竞价 |',
   '| 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |',
   '| 银行 | `bank` | `BankPage` | 资产总览、存取款、活跃周固定存款利息、周资金结算、工厂抵押贷款、额度评估与还款 |',
@@ -561,4 +561,4 @@ if (failures.length) {
   console.error(`页面内容与职责验证失败:\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('页面内容、九页导航与银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');
+console.log('页面内容、十页导航与银行资产总览、合同默认进行中视图、主页 SVG Logo、登录注册、高增长记录窗口化、邀请、商店、商品／工厂资产拍卖、管理员共享外壳、全局紧凑数字、生产公式和仓库职责验证通过。');

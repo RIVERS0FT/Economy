@@ -21,3 +21,4 @@ const aggregatedReadDefinition = `const read = (path) => {
 const source = original.replace(readDefinition, aggregatedReadDefinition);
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
 await import(moduleUrl);
+await import('./verify-research-page.mjs');

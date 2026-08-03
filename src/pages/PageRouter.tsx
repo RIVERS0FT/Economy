@@ -9,6 +9,7 @@ const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => 
 const MarketPage = lazy(() => import('./MarketPage').then((module) => ({ default: module.MarketPage })));
 const OverviewPage = lazy(() => import('./OverviewPage').then((module) => ({ default: module.OverviewPage })));
 const ProductionPage = lazy(() => import('./ProductionPage').then((module) => ({ default: module.ProductionPage })));
+const ResearchPage = lazy(() => import('./ResearchPage').then((module) => ({ default: module.ResearchPage })));
 const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
 const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
@@ -24,6 +25,9 @@ export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
           <ProductionPage model={model} />
         </FacilityRecipeProfitMarketsProvider>
       );
+      break;
+    case 'research':
+      page = <ResearchPage model={model} />;
       break;
     case 'auction':
       page = <AuctionPage model={model} />;
