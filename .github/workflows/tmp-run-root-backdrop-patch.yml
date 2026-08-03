@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/unify-root-backdrop-layers
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Extract and run focused patch
         shell: bash
