@@ -194,6 +194,7 @@
     background: color-mix(in srgb, var(--color-success-soft) 82%, var(--color-surface-hover));
   }
 
+  /* Override the legacy centered flex backdrop: the dialog grid owns the full visual viewport. */
   .workspace-dialog-layer > .facility-detail-sheet-backdrop {
     position: absolute;
     z-index: 1;
