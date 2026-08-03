@@ -173,6 +173,13 @@ replaceExact(
           "  'facility-detail-sheet-close',\n  '下一周期加入',\n  '下一周期切换为：',\n]) forbidText('src/pages/ProductionPage.tsx', text);\n",
         );
 
+        const industryCatalogVerifier = 'scripts/verify-industry-catalog.mjs';
+        replaceExact(
+          industryCatalogVerifier,
+          "    '生产方式与配方必须在同一个周期边界原子切换',\n",
+          "    '生产方式与配方必须在同一次配置动作中原子切换',\n",
+        );
+
         '''
     )
     source = source.replace(marker, extra + marker)
