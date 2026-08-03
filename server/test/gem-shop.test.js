@@ -38,7 +38,7 @@ test('gem shop exchanges gems for credits atomically and records history', () =>
 
     const state = store.getState(user, now + 3);
     assert.equal(state.gems, 7);
-    assert.equal(state.credits, 100 + 5 * GEM_SHOP_CREDITS_PER_GEM);
+    assert.equal(state.credits, 500 + 5 * GEM_SHOP_CREDITS_PER_GEM);
 
     const summary = store.getGemShopSummary(user, now + 4);
     assert.equal(summary.totalGemsSpent, 5);
@@ -124,7 +124,7 @@ test('gem shop rejects invalid quantities and insufficient balance without mutat
     });
     const state = store.getState(user, now + 10);
     assert.equal(state.gems, 3);
-    assert.equal(state.credits, 100);
+    assert.equal(state.credits, 500);
     assert.equal(store.getGemShopSummary(user, now + 11).recentExchanges.length, 0);
   } finally {
     store.close();

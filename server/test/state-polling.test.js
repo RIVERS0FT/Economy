@@ -22,7 +22,7 @@ test('idle version polling returns a compact response without writing the world'
     const before = persistedWorld(store);
 
     assert.equal(initial.unchanged, false);
-    assert.equal(initial.state.credits, 100);
+    assert.equal(initial.state.credits, 500);
     assert.equal(initial.revision, before.revision);
 
     const polled = store.getStateSnapshot(alice, initial.revision, now + 1_000);
@@ -73,7 +73,7 @@ test('an authoritative action advances the revision and invalidates an older pol
     const changed = store.getStateSnapshot(alice, initial.revision, now + 2_001);
     assert.equal(changed.unchanged, false);
     assert.equal(changed.revision, action.revision);
-    assert.equal(changed.state.credits, 101);
+    assert.equal(changed.state.credits, 501);
 
     const unchanged = store.getStateSnapshot(alice, action.revision, now + 3_000);
     assert.deepEqual(unchanged, { revision: action.revision, unchanged: true });

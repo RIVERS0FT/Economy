@@ -245,7 +245,7 @@ function createPlayer(user, now) {
     playerName: String(user.name || user.email?.split('@')[0] || '新玩家').trim().slice(0, 32) || '新玩家',
     registeredAt: now,
     lastEconomicActivityAt: now,
-    credits: 100,
+    credits: 500,
     frozenCredits: 0,
     inventories: createInventories(),
     inventoryCapacity: ECONOMY_CONSTANTS.defaultInventoryCapacity,
@@ -279,7 +279,7 @@ function createPlayer(user, now) {
       bankFacilitiesSeized: 0,
     },
   };
-  addLedger(player, 'system', 100, '服务器发放玩家启动资金', now);
+  addLedger(player, 'system', 500, '服务器发放玩家启动资金', now);
   return player;
 }
 

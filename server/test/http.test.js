@@ -79,7 +79,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
     assert.equal(stateResponse.status, 200);
     const statePayload = await stateResponse.json();
     const initialState = mergePatches(null, statePayload.patches);
-    assert.equal(initialState.credits, 100);
+    assert.equal(initialState.credits, 500);
     assert.equal(statePayload.unchanged, false);
     assert.equal(Number.isFinite(statePayload.serverNow), true);
     assert.equal('serverNow' in initialState, false);
@@ -126,7 +126,7 @@ test('HTTP API authenticates through the shared account service and honors idemp
     assert.equal(actionStateResponse.status, 200);
     const actionStatePayload = await actionStateResponse.json();
     const actionState = mergePatches(initialState, actionStatePayload.patches);
-    assert.equal(actionState.credits, 101);
+    assert.equal(actionState.credits, 501);
     assert.equal(actionStatePayload.revision >= firstPayload.revision, true);
     assert.equal(actionStatePayload.serverNow >= unchangedPayload.serverNow, true);
 
