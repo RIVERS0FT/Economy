@@ -1,0 +1,32 @@
+name: Apply notification authority
+
+on:
+  push:
+    branches:
+      - codex/notification-center
+    paths:
+      - .github/workflows/apply-notification-authority.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/notification-center
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Synchronize notification authority and regressions
+        run: node scripts/apply-notification-authority.mjs
+      - name: Commit authoritative changes and remove migration files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- docs/LIQUID_GLASS_CHROME_DESIGN.md docs/UI_DESIGN_SYSTEM.md scripts/verify-notification-center.mjs tests/browser/notification-center.spec.ts
+          git rm -- .github/workflows/apply-notification-authority.yml scripts/apply-notification-authority.mjs
+          git commit -m "docs: align notification chrome authority"
+          git push origin HEAD:codex/notification-center
