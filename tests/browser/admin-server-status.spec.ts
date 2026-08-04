@@ -107,7 +107,7 @@ test('admin server status renders runtime trends and read-only diagnostics', asy
   await page.goto('/economy/admin');
   await page.getByRole('button', { name: '服务器', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: '服务器运行状态', exact: true })).toBeVisible();
+  await expect(page.locator('.admin-server-health-panel h2')).toHaveText('服务器运行状态');
   await expect(page.getByText('运行正常', { exact: true })).toBeVisible();
   await expect(page.getByText('进程 CPU', { exact: true })).toBeVisible();
   await expect(page.getByText('高负载接口', { exact: true })).toBeVisible();
@@ -123,7 +123,7 @@ test('admin server status uses mobile cards without a page-level horizontal tabl
   const navigation = page.locator('.admin-mobile-bottom-navigation');
   await navigation.getByRole('button', { name: '服务器', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: '服务器状态', exact: true })).toBeVisible();
+  await expect(page.locator('.admin-server-health-panel h2')).toHaveText('服务器运行状态');
   await expect(page.locator('.admin-server-route-cards')).toBeVisible();
   await expect(page.locator('.admin-server-route-table-wrap')).toBeHidden();
   await expect(page.locator('.admin-server-chart-grid')).toHaveCSS('grid-template-columns', /.+/);
