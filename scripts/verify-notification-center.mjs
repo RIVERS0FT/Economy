@@ -127,8 +127,11 @@ assert.doesNotMatch(component, /LiquidGlassSurface/);
 assert.doesNotMatch(component, /notice-toast/);
 
 const browserTest = read('tests/browser/notification-center.spec.ts');
-assert.match(browserTest, /layout\.classList\.add\('asset-bar-layout'\)/);
-assert.doesNotMatch(browserTest, /layout\.className = 'asset-bar-layout'/);
+assert.match(browserTest, /partial runtime state keeps the signed-in shell/);
+assert.match(browserTest, /openNotificationPanelAndMountToast/);
+assert.match(browserTest, /getByRole\('dialog', \{ name: '通知' \}\)/);
+assert.match(browserTest, /document\.querySelectorAll\('\.asset-bar \.liquid-glass-surface'\)/);
+assert.doesNotMatch(browserTest, /layout\.classList/);
 assert.doesNotMatch(browserTest, /notice-toast/);
 
 const currencyVerifier = read('scripts/verify-currency-svg.mjs');
