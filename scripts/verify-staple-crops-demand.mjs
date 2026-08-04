@@ -7,11 +7,20 @@ import {
   MARKET_DEMAND_PRODUCT_IDS,
   PRODUCT_CATALOG,
 } from '../server/src/domain.js';
+import {
+  POPULATION_BASE_WORLD,
+  POPULATION_C1_CAPACITY,
+  POPULATION_COMPLEXITY_WEIGHTS_BPS,
+  POPULATION_MIGRATION_IN_BPS,
+  POPULATION_MIGRATION_OUT_BPS,
+  POPULATION_STANDARD_BUDGET,
+  POPULATION_STANDARD_POPULATION,
+} from '../server/src/population-demographics.js';
 
 const read = (path) => readFileSync(path, 'utf8');
 const products = new Map(PRODUCT_CATALOG.map((product) => [product.id, product]));
 assert.equal(PRODUCT_CATALOG.length, 31);
-assert.equal(MARKET_DEMAND_MODEL_VERSION, 12);
+assert.equal(MARKET_DEMAND_MODEL_VERSION, 13);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.id), ['food', 'household']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.ownerName), ['食品市场需求', '家庭消费市场需求']);
 assert.deepEqual(MARKET_DEMAND_GROUP_CATALOG.map((group) => group.name), ['食品市场', '社会消费市场']);
@@ -36,9 +45,17 @@ for (const group of MARKET_DEMAND_GROUP_CATALOG) {
   }
 }
 assert.equal(MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + group.baseBudget, 0), 5_700);
+assert.equal(POPULATION_BASE_WORLD, 1_000);
+assert.equal(POPULATION_C1_CAPACITY, 11);
+assert.equal(POPULATION_STANDARD_POPULATION, 10_000);
+assert.equal(POPULATION_STANDARD_BUDGET, 5_700);
+assert.equal(POPULATION_MIGRATION_IN_BPS, 200);
+assert.equal(POPULATION_MIGRATION_OUT_BPS, 50);
+assert.deepEqual(POPULATION_COMPLEXITY_WEIGHTS_BPS, { C1: 10_000, C2: 15_000, C3: 22_000, C4: 32_000, C5: 45_000, C6: 62_000, C7: 85_000 });
 
 const runtime = [
   'server/src/population-economy.js',
+  'server/src/population-demographics.js',
   'server/src/market-demand.js',
   'server/src/market-liquidity.js',
   'server/src/market-demand/catalog.js',
@@ -52,11 +69,19 @@ const runtime = [
   'server/src/order-book-integrity.js',
 ].map(read).join('\n');
 for (const text of [
-  'MARKET_DEMAND_MODEL_VERSION = 12',
+  'MARKET_DEMAND_MODEL_VERSION = 13',
   'DIRECT_BUDGET_SHARE = 0.70',
   "POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional'])",
   "POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence'])",
-  'POPULATION_ECONOMY_VERSION = 6',
+  'POPULATION_ECONOMY_VERSION = 7',
+  'POPULATION_BASE_WORLD = 1_000',
+  'POPULATION_C1_CAPACITY = 11',
+  'POPULATION_MIGRATION_IN_BPS = 200',
+  'POPULATION_MIGRATION_OUT_BPS = 50',
+  'POPULATION_CLASS_CONVERSION_BPS = 100',
+  'POPULATION_LABOR_PARTICIPATION_BPS = 5_500',
+  'populationReferenceBudget',
+  'advancePopulationDemographics',
   'POPULATION_GROUP_SHARES_BY_STATE',
   'PROSPEROUS_ENTRY_CYCLES = 2',
   'LAVISH_ENTRY_CYCLES = 3',
@@ -125,7 +150,7 @@ for (const text of [
   'previousDemandQuantities',
   'processPriceTransmission',
 ]) assert.ok(runtime.includes(text), '市场需求实现缺少: ' + text);
-for (const forbidden of ['DEMAND_INVENTORY_BOOST_RATE', 'stockSnapshot.totalValue', 'inventoryFactor', 'playerScaleBudget * tradeActivityFactor']) {
+for (const forbidden of ['DEMAND_INVENTORY_BOOST_RATE', 'stockSnapshot.totalValue', 'inventoryFactor', 'playerScaleBudget * tradeActivityFactor', 'totalPopulationBaseBudget']) {
   assert.equal(runtime.includes(forbidden), false, '人口需求不得恢复库存或活跃玩家增发预算: ' + forbidden);
 }
 
@@ -140,7 +165,7 @@ for (const text of [
   'balancedMarket.matchOrder(world, incoming, now)',
   'reconcileCommodityOrderBook',
   'ensurePopulationEconomy',
-  'world.version = 22',
+  'world.version = 23',
 ]) assert.ok(domain.includes(text), 'domain.js 缺少: ' + text);
 
 const facilities = new Map(FACILITY_TYPE_CATALOG.map((facility) => [facility.id, facility]));
@@ -165,7 +190,9 @@ for (const text of [
   'shortage pressure approaches the reference premium by at most half a percent per cycle',
 ]) assert.ok(marketDemandTests.includes(text), '市场需求测试缺少模型 10 双向报价回归: ' + text);
 
-const populationTests = read('server/test/population-economy.test.js');
+const populationTests = read('server/test/population-economy.test.js')
+  + read('server/test/population-demographics.test.js')
+  + read('server/test/all-products-demand.test.js');
 for (const text of [
   'production employment uses factory complexity and preserves every integer credit',
   'construction employment is fixed at 60/30/10 and ignores factory complexity',
@@ -179,6 +206,10 @@ for (const text of [
   'income stress downgrades immediately and two zero-income cycles enter subsistence',
   'consumption state changes allocation but not the spendable budget formula',
   'version 3 cautious state migrates to version 5 strained without reissuing bootstrap funds',
+  'one C1 factory adds exactly eleven structural capacity and transfer keeps world capacity',
+  'population migration is directional, bounded, and idempotent within one cycle',
+  'dynamic stabilization budget follows actual population and preserves wallet-gap cap',
+  'population model 6 migration refunds current model 13 escrow before rebuilding demand',
 ]) assert.ok(populationTests.includes(text), '人口经济测试缺少: ' + text);
 
 const liquidityTests = read('server/test/market-liquidity.test.js');
@@ -189,11 +220,11 @@ for (const text of [
 ]) assert.ok(liquidityTests.includes(text), '储备测试缺少: ' + text);
 
 for (const [path, texts] of [
-  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：12', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.75%', '参考价缺口的 5%', '最多为参考价的 2%', '只恢复 2.5% 缺口', '当前报价锚点上追涨 0.5%']],
-  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：12', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
-  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', '人口经济内部版本固定为 6', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 12', '人口消费不得发行普通货币']],
-  ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
-  ['src/components/AdminPopulationHealth.tsx', ['累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
+  ['docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['市场需求模型版本：13', '单座 C1 工厂人口承载基数固定为 **11**', '每五分钟迁入剩余缺口的 **2%**', '实际人口 × 0.57', '三类人口账户', '`lavish` 奢靡', '自动稳定补充发生前', '状态只重新分配同一周期预算', '真实冻结资金', '稳定需求补充', '三周期目标钱包', '双向报价锚点', '上一锚点的 0.75%', '参考价缺口的 5%', '最多为参考价的 2%', '只恢复 2.5% 缺口', '当前报价锚点上追涨 0.5%']],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['市场需求模型版本：13', '`populationModelId`', '`fundingPool`', '真实人口冻结资金', '双向报价锚点']],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7', '五档状态只重新分配食品／家庭与类别份额', '市场需求模型 13', '人口消费不得发行普通货币']],
+  ['src/api/admin.ts', ["'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence'", 'PopulationDemographicsAdminSummary', 'currentPopulation', 'targetPopulation', 'structuralCapacityByComplexity', 'laborForce', 'employed', 'unemployed', 'vacancies', 'perCapitaIncomeEma', 'stateCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps', 'stabilizationBudget', 'lastStabilizationIssued', 'stabilization: number']],
+  ['src/components/AdminPopulationHealth.tsx', ['实际／目标人口', '结构人口承载', '活跃承载 EMA', '就业／失业／岗位缺口', '人均收入 EMA', '产业人口承载', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充']],
   ['src/components/AdminPopulationSection.tsx', ['AdminPopulationControl']],
   ['tests/browser/admin-runtime.spec.ts', ["consumptionState: 'lavish'", "consumptionState: 'prosperous'", "consumptionState: 'strained'", '状态判定指标', 'stabilization: 684', 'adminPopulation: 0', '累计稳定需求补充', '累计管理员人口补充', '稳定预算／自动补充', '人口政策调控']],
 ]) {
@@ -201,7 +232,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 12 使用真实人口钱包覆盖全部 31 种商品，并保持双向直接需求报价、既有总预算、派生流动性和市场储备约束。');
+console.log('市场需求验证通过：模型 13 使用工厂承载驱动的实际人口与真实钱包覆盖全部 31 种商品，并保持双向报价、派生流动性和市场储备约束。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');

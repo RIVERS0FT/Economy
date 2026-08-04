@@ -57,7 +57,6 @@ const FUNDING_POOL_BY_ROLE = Object.freeze({ direct: 'direct', 'derived-liquidit
 export function createMarketDemandRuntime({ products, facilities, constants, marketFor, matchOrder, isOpenOrder }) {
   const productMap = new Map(products.map((product) => [product.id, product]));
   const groupMap = new Map(MARKET_DEMAND_GROUP_CATALOG.map((group) => [group.id, group]));
-  const totalPopulationBaseBudget = MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + Number(group.baseBudget || 0), 0);
   const directProductIds = new Set(MARKET_DEMAND_PRODUCT_IDS);
   const productFor = (productId) => productMap.get(String(productId || '')) || productMap.get('wheat');
   const allRecipes = Object.freeze(facilities.flatMap((facility) => facility.recipes
@@ -747,7 +746,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
 
     updateDirectQuoteAnchors(world, group, state, settlement);
     prepareGroupOrders(world, group, state, cycleId);
-    const populationCycle = preparePopulationDemandCycle(world, cycleId, now, { totalBaseBudget: totalPopulationBaseBudget });
+    const populationCycle = preparePopulationDemandCycle(world, cycleId, now);
     const allocations = {};
     const demandPlans = new Map();
     const totals = {

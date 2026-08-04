@@ -151,7 +151,7 @@ for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
   if (!content.includes(`客户端状态版本：${CURRENT_CLIENT_STATE_VERSION}`)) failures.push(`${path} 客户端状态版本必须为 ${CURRENT_CLIENT_STATE_VERSION}`);
-  if (!content.includes('世界状态版本：22')) failures.push(`${path} 世界状态版本必须为 22`);
+  if (!content.includes('世界状态版本：23')) failures.push(`${path} 世界状态版本必须为 23`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -163,7 +163,7 @@ if (existsSync(pathFor('docs/README.md'))) {
     '新的功能规则必须合并进现有权威文档',
     '`scripts/verify-document-authority.mjs` 必须遍历 `docs/*.md`',
     '参考分钟利润必须由正式目录自动校验',
-    '人口就业收入、三类人口真实钱包、生产复杂度岗位结构、固定建造业岗位结构',
+    '人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、生产复杂度岗位结构',
     '商店每日终端动态报价、全服同价、接受／拒绝决策、单向兑换、直接货币发行、施工宝石加速',
     '普通玩家成交记录不得暴露来源、去向或对手订单',
     '库存与资金守恒的双边市场储备',
@@ -235,4 +235,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/21、500 新玩家启动资金、市场需求模型 12、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航与银行资产总览职责均满足当前基线。`);
+console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/23、500 新玩家启动资金、市场需求模型 13、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航与银行资产总览职责均满足当前基线。`);

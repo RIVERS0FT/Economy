@@ -19,13 +19,21 @@ const now = 1_700_000_000_000;
 
 function resetPopulation(world) {
   const state = ensurePopulationEconomy(world, now);
-  for (const model of Object.values(state.models)) {
+  const populations = { basic: 6_000, skilled: 3_000, professional: 1_000 };
+  for (const [modelId, model] of Object.entries(state.models)) {
+    model.population = populations[modelId];
+    model.targetPopulation = populations[modelId];
     model.credits = 0;
     model.frozenCredits = 0;
-    model.pendingIncome = { production: 0, construction: 0, warehouse: 0, marketService: 0 };
+    model.pendingIncome = { production: 0, construction: 0, warehouse: 0, marketService: 0, banking: 0, research: 0 };
     model.totalIncome = 0;
     model.totalSpent = 0;
   }
+  state.demographics.currentPopulation = 10_000;
+  state.demographics.targetPopulation = 10_000;
+  state.demographics.referenceBudget = 5_700;
+  state.demographics.targetByModel = { ...populations };
+  state.demographics.lastPopulationCycleId = Number.MAX_SAFE_INTEGER;
   return state;
 }
 
@@ -87,12 +95,12 @@ test('stabilization budget refills wallet gaps with a capped three-cycle target'
     model.recentPeakIncome = 100;
     model.lastBudget = 100;
   }
-  const cycle = preparePopulationDemandCycle(world, 1, now, { totalBaseBudget: 5_700 });
+  const cycle = preparePopulationDemandCycle(world, 1, now);
   const issued = Object.values(state.models).reduce((sum, model) => sum + model.lastStabilizationIssued, 0);
   const baseBudget = Object.values(cycle.baseGroups.food).reduce((sum, value) => sum + value, 0)
     + Object.values(cycle.baseGroups.household).reduce((sum, value) => sum + value, 0);
-  assert.equal(issued, 684);
-  assert.equal(baseBudget, 684);
+  assert.equal(roundInternalMoney(issued), 684);
+  assert.equal(roundInternalMoney(baseBudget), 684);
   assert.equal(state.stats.stabilizationIssued, 684);
   assert.ok(Object.values(state.models).every((model) => model.incomeEma === 85));
 
@@ -100,7 +108,7 @@ test('stabilization budget refills wallet gaps with a capped three-cycle target'
     model.credits = model.stabilizationBudget * 3;
     model.frozenCredits = 0;
   }
-  preparePopulationDemandCycle(world, 2, now + 300_000, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 2, now + 300_000);
   assert.ok(Object.values(state.models).every((model) => model.lastStabilizationIssued === 0));
   assert.equal(state.stats.stabilizationIssued, 684);
 });
@@ -116,9 +124,11 @@ function configureQualifiedBasic(world, {
   const model = populationModelState(world, 'basic');
   model.credits = credits;
   model.frozenCredits = 0;
-  model.pendingIncome = { production: income, construction: 0, warehouse: 0, marketService: 0 };
+  model.pendingIncome = { production: income, construction: 0, warehouse: 0, marketService: 0, banking: 0, research: 0 };
   model.incomeEma = income;
   model.recentPeakIncome = income;
+  model.perCapitaIncomeEma = model.population > 0 ? income / model.population : 0;
+  model.recentPeakPerCapitaIncome = model.perCapitaIncomeEma;
   model.noIncomeCycles = 0;
   model.consumptionState = state;
   model.stateCycles = 1;
@@ -189,18 +199,18 @@ test('population enters prosperous and lavish only after sustained qualification
   resetPopulation(world);
   const model = configureQualifiedBasic(world);
 
-  preparePopulationDemandCycle(world, 1, now, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 1, now);
   assert.equal(model.consumptionState, 'normal');
   assert.equal(model.prosperityCycles, 1);
   assert.equal(model.lavishCycles, 1);
 
   model.pendingIncome.production = 1_000;
-  preparePopulationDemandCycle(world, 2, now + 300_000, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 2, now + 300_000);
   assert.equal(model.consumptionState, 'prosperous');
   assert.equal(model.stateCycles, 1);
 
   model.pendingIncome.production = 1_000;
-  preparePopulationDemandCycle(world, 3, now + 600_000, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 3, now + 600_000);
   assert.equal(model.consumptionState, 'lavish');
   assert.equal(model.stateCycles, 1);
 });
@@ -211,8 +221,10 @@ test('a single income spike does not immediately create prosperity and peak foll
   const model = configureQualifiedBasic(world, { income: 1_000 });
   model.incomeEma = 100;
   model.recentPeakIncome = 100;
+  model.perCapitaIncomeEma = 100 / model.population;
+  model.recentPeakPerCapitaIncome = 100 / model.population;
 
-  preparePopulationDemandCycle(world, 1, now, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 1, now);
   assert.equal(model.incomeEma, 235);
   assert.equal(model.recentPeakIncome, 235);
   assert.equal(model.consumptionState, 'normal');
@@ -226,12 +238,12 @@ test('lavish and prosperous states use two-cycle downgrade grace', () => {
     state: 'lavish', income: 500, credits: 2_000, prosperityCycles: 2, lavishCycles: 3,
   });
 
-  preparePopulationDemandCycle(world, 1, now, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 1, now);
   assert.equal(model.consumptionState, 'lavish');
   assert.equal(model.downgradeCycles, 1);
 
   model.pendingIncome.production = 500;
-  preparePopulationDemandCycle(world, 2, now + 300_000, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 2, now + 300_000);
   assert.equal(model.consumptionState, 'prosperous');
   assert.equal(model.downgradeCycles, 0);
 
@@ -239,7 +251,7 @@ test('lavish and prosperous states use two-cycle downgrade grace', () => {
     model.incomeEma = 300;
     model.recentPeakIncome = 300;
     model.pendingIncome.production = 300;
-    preparePopulationDemandCycle(world, cycleId, now + cycleId * 300_000, { totalBaseBudget: 5_700 });
+    preparePopulationDemandCycle(world, cycleId, now + cycleId * 300_000);
   }
   assert.equal(model.consumptionState, 'normal');
 });
@@ -252,11 +264,11 @@ test('income stress downgrades immediately and two zero-income cycles enter subs
   model.recentPeakIncome = 500;
   model.pendingIncome.production = 0;
 
-  preparePopulationDemandCycle(world, 1, now, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 1, now);
   assert.equal(model.consumptionState, 'strained');
   assert.equal(model.noIncomeCycles, 1);
 
-  preparePopulationDemandCycle(world, 2, now + 300_000, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(world, 2, now + 300_000);
   assert.equal(model.consumptionState, 'subsistence');
   assert.equal(model.noIncomeCycles, 2);
 });
@@ -271,8 +283,8 @@ test('consumption state changes allocation but not the spendable budget formula'
     state: 'lavish', prosperityCycles: 2, lavishCycles: 3,
   });
 
-  preparePopulationDemandCycle(normalWorld, 1, now, { totalBaseBudget: 5_700 });
-  preparePopulationDemandCycle(lavishWorld, 1, now, { totalBaseBudget: 5_700 });
+  preparePopulationDemandCycle(normalWorld, 1, now);
+  preparePopulationDemandCycle(lavishWorld, 1, now);
 
   assert.equal(normal.consumptionState, 'normal');
   assert.equal(lavish.consumptionState, 'lavish');
@@ -295,7 +307,7 @@ test('version 3 cautious state migrates to version 5 strained without reissuing 
   delete state.models.skilled.incomeHealthBps;
 
   ensurePopulationEconomy(world, now);
-  assert.equal(state.modelVersion, 6);
+  assert.equal(state.modelVersion, 7);
   assert.equal(state.models.skilled.consumptionState, 'strained');
   assert.equal(state.models.skilled.stateCycles, 1);
   assert.equal(Object.values(state.models).reduce((sum, model) => sum + model.credits, 0), beforeCredits);

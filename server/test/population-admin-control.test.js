@@ -3,7 +3,6 @@ import test from 'node:test';
 import { createWorld } from '../src/domain.js';
 import {
   applyPopulationPolicy,
-  populationBaseBudgetTotal,
   topUpPopulationByPolicy,
 } from '../src/population-admin-control.js';
 import {
@@ -22,7 +21,7 @@ test('population economy version 5 migration does not repeat bootstrap issuance'
   const beforeMigration = state.stats.migrationIssued;
   state.modelVersion = 1;
   ensurePopulationEconomy(world, now);
-  assert.equal(state.modelVersion, 6);
+  assert.equal(state.modelVersion, 7);
   assert.equal(Object.values(state.models).reduce((sum, model) => sum + model.credits, 0), beforeCredits);
   assert.equal(state.stats.migrationIssued, beforeMigration);
 });
@@ -53,8 +52,8 @@ test('manual population top-up shares the same per-cycle cap with automatic stab
   assert.equal(second.issuedTotal, 0);
 
   const cycleId = Math.floor(now / (5 * 60 * 1000));
-  preparePopulationDemandCycle(world, cycleId, now, { totalBaseBudget: populationBaseBudgetTotal() });
-  const summary = createPopulationEconomySummary(world, now, { totalBaseBudget: populationBaseBudgetTotal() });
+  preparePopulationDemandCycle(world, cycleId, now);
+  const summary = createPopulationEconomySummary(world, now);
   const issuedThisCycle = Object.values(summary.policy.currentCycleIssued.issuedByModel).reduce((sum, value) => sum + value, 0);
   assert.equal(issuedThisCycle, first.issuedTotal);
   assert.equal(summary.issuance.adminPopulation, first.issuedTotal);

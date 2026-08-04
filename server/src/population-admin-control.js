@@ -3,7 +3,8 @@ import {
   ensurePopulationEconomy,
   POPULATION_MODEL_IDS,
 } from './population-economy.js';
-import { MARKET_DEMAND_GROUP_CATALOG } from './market-demand/catalog.js';
+import { populationDemographicBudgetInputs } from './population-demographics.js';
+import { addMoney, roundInternalMoney } from './money.js';
 import {
   calculatePopulationStabilizationBudgets,
   createPopulationPolicyFromPayload,
@@ -15,10 +16,6 @@ import {
   validatePopulationPolicyCapacity,
 } from './population-policy.js';
 
-export function populationBaseBudgetTotal() {
-  return MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + Math.max(0, Math.floor(Number(group.baseBudget || 0))), 0);
-}
-
 function policyResult(state, beforePolicy, now) {
   return {
     beforePolicy,
@@ -27,8 +24,8 @@ function policyResult(state, beforePolicy, now) {
 }
 
 function safeAdd(left, right, message) {
-  const result = Number(left) + Number(right);
-  if (!Number.isSafeInteger(result) || result < 0) {
+  const result = addMoney(left, right);
+  if (result === null || result < 0) {
     const error = new Error(message);
     error.statusCode = 400;
     throw error;
@@ -40,7 +37,8 @@ export function applyPopulationPolicy(world, payload, { adminUserId, now = Date.
   const state = ensurePopulationEconomy(world, now);
   const beforePolicy = populationPolicySnapshot(state, now);
   const nextPolicy = createPopulationPolicyFromPayload(payload, { adminUserId, now });
-  validatePopulationPolicyCapacity(populationBaseBudgetTotal(), nextPolicy);
+  const budgetInputs = populationDemographicBudgetInputs(state);
+  validatePopulationPolicyCapacity(budgetInputs.totalBaseBudget, nextPolicy, budgetInputs.modelWeights);
   state.policy = nextPolicy;
   return policyResult(state, beforePolicy, now);
 }
@@ -61,7 +59,12 @@ export function topUpPopulationByPolicy(world, payload, { now = Date.now() } = {
     error.statusCode = 400;
     throw error;
   }
-  const budgets = calculatePopulationStabilizationBudgets(populationBaseBudgetTotal(), policy);
+  const budgetInputs = populationDemographicBudgetInputs(state);
+  const budgets = calculatePopulationStabilizationBudgets(
+    budgetInputs.totalBaseBudget,
+    policy,
+    budgetInputs.modelWeights,
+  );
   const targets = targetModel === 'all' ? POPULATION_MODEL_IDS : [targetModel];
   const issuedByModel = Object.fromEntries(POPULATION_MODEL_IDS.map((id) => [id, 0]));
   for (const modelId of POPULATION_MODEL_IDS) state.models[modelId].lastAdminPopulationIssued = 0;
@@ -71,7 +74,7 @@ export function topUpPopulationByPolicy(world, payload, { now = Date.now() } = {
     const targetWallet = populationPolicyWalletTarget(stabilizationBudget, policy);
     const walletTotal = safeAdd(model.credits, model.frozenCredits, '人口钱包总额超出系统可表示范围');
     const refillCap = populationPolicyRefillCap(stabilizationBudget, policy);
-    const remainingCap = Math.max(0, refillCap - Number(policyCycle.issuedByModel[modelId] || 0));
+    const remainingCap = Math.max(0, roundInternalMoney(refillCap - Number(policyCycle.issuedByModel[modelId] || 0)) || 0);
     const issued = Math.min(remainingCap, Math.max(0, targetWallet - walletTotal));
     if (issued <= 0) continue;
     model.credits = safeAdd(model.credits, issued, '人口可用资金超出系统可表示范围');
@@ -97,11 +100,11 @@ export function topUpPopulationByPolicy(world, payload, { now = Date.now() } = {
     targetModel,
     currentCycleId,
     issuedByModel,
-    issuedTotal: Object.values(issuedByModel).reduce((sum, value) => sum + value, 0),
+    issuedTotal: roundInternalMoney(Object.values(issuedByModel).reduce((sum, value) => sum + value, 0)) || 0,
     policy: populationPolicySnapshot(state, now),
   };
 }
 
 export function createPopulationAdminSummary(world, now = Date.now()) {
-  return createPopulationEconomySummary(world, now, { totalBaseBudget: populationBaseBudgetTotal() });
+  return createPopulationEconomySummary(world, now);
 }

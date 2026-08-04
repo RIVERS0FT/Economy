@@ -7,10 +7,18 @@ import {
   POPULATION_POLICY_LIMITS,
   populationPolicyRefillCap,
   populationPolicySnapshot,
+  populationPolicyWalletTarget,
 } from './population-policy.js';
 import { internalMoneyToMicros, microsToInternalMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
+import {
+  advancePopulationDemographics,
+  ensurePopulationDemographics,
+  POPULATION_PRODUCTION_PROFILE_BPS,
+  populationDemographicBudgetInputs,
+  populationReferenceBudget,
+} from './population-demographics.js';
 
-export const POPULATION_ECONOMY_VERSION = 6;
+export const POPULATION_ECONOMY_VERSION = 7;
 export const POPULATION_MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional']);
 export const POPULATION_CONSUMPTION_STATES = Object.freeze(['lavish', 'prosperous', 'normal', 'strained', 'subsistence']);
 export const POPULATION_STABILIZATION_BUDGET_SHARE = 0.12;
@@ -80,15 +88,12 @@ const WAREHOUSE_PROFILE = Object.freeze({ basic: 0.50, skilled: 0.40, profession
 const MARKET_SERVICE_PROFILE = Object.freeze({ basic: 0.20, skilled: 0.60, professional: 0.20 });
 const BANKING_PROFILE = Object.freeze({ basic: 0.10, skilled: 0.60, professional: 0.30 });
 const RESEARCH_PROFILE = Object.freeze({ basic: 0.10, skilled: 0.40, professional: 0.50 });
-const PRODUCTION_PROFILES = Object.freeze({
-  C1: Object.freeze({ basic: 0.90, skilled: 0.09, professional: 0.01 }),
-  C2: Object.freeze({ basic: 0.78, skilled: 0.20, professional: 0.02 }),
-  C3: Object.freeze({ basic: 0.55, skilled: 0.40, professional: 0.05 }),
-  C4: Object.freeze({ basic: 0.30, skilled: 0.60, professional: 0.10 }),
-  C5: Object.freeze({ basic: 0.18, skilled: 0.55, professional: 0.27 }),
-  C6: Object.freeze({ basic: 0.10, skilled: 0.40, professional: 0.50 }),
-  C7: Object.freeze({ basic: 0.05, skilled: 0.25, professional: 0.70 }),
-});
+const PRODUCTION_PROFILES = Object.freeze(Object.fromEntries(
+  Object.entries(POPULATION_PRODUCTION_PROFILE_BPS).map(([complexity, profile]) => [
+    complexity,
+    Object.freeze(Object.fromEntries(POPULATION_MODEL_IDS.map((id) => [id, profile[id] / 10_000]))),
+  ]),
+));
 
 const LAVISH_CLASS_SHARES = Object.freeze({
   basic: Object.freeze({
@@ -193,6 +198,14 @@ function defaultModel(modelId) {
   return {
     id: modelId,
     name: MODEL_CONFIG[modelId].name,
+    population: 0,
+    targetPopulation: 0,
+    laborForce: 0,
+    employed: 0,
+    unemployed: 0,
+    vacancies: 0,
+    perCapitaIncomeEma: 0,
+    recentPeakPerCapitaIncome: 0,
     credits: 0,
     frozenCredits: 0,
     pendingIncome: emptyIncomeSources(),
@@ -270,22 +283,14 @@ function normalizeModel(modelId, previous = {}) {
   model.frozenCredits = nonNegativeMoney(model.frozenCredits);
   model.pendingIncome = { ...emptyIncomeSources(), ...(previous.pendingIncome || {}) };
   for (const key of Object.keys(model.pendingIncome)) model.pendingIncome[key] = nonNegativeMoney(model.pendingIncome[key]);
-  for (const key of ['lastIncome', 'incomeEma', 'recentPeakIncome', 'lastBudget', 'foodBudget', 'householdBudget', 'stabilizationBudget', 'lastStabilizationIssued', 'lastAdminPopulationIssued', 'totalIncome', 'totalSpent']) model[key] = nonNegativeMoney(model[key]);
-  for (const key of ['noIncomeCycles', 'stateCycles', 'prosperityCycles', 'lavishCycles', 'downgradeCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps']) model[key] = nonNegativeInteger(model[key]);
+  for (const key of ['lastIncome', 'incomeEma', 'recentPeakIncome', 'perCapitaIncomeEma', 'recentPeakPerCapitaIncome', 'lastBudget', 'foodBudget', 'householdBudget', 'stabilizationBudget', 'lastStabilizationIssued', 'lastAdminPopulationIssued', 'totalIncome', 'totalSpent']) model[key] = nonNegativeMoney(model[key]);
+  for (const key of ['population', 'targetPopulation', 'laborForce', 'employed', 'unemployed', 'vacancies', 'noIncomeCycles', 'stateCycles', 'prosperityCycles', 'lavishCycles', 'downgradeCycles', 'incomeHealthBps', 'walletCoverageBps', 'incomeCoverageBps']) model[key] = nonNegativeInteger(model[key]);
   if (model.consumptionState === 'cautious') model.consumptionState = 'strained';
   if (!POPULATION_CONSUMPTION_STATES.includes(model.consumptionState)) model.consumptionState = 'normal';
   if (migratedCautious) model.stateReason = 'income-strained';
   if (typeof model.stateReason !== 'string' || !model.stateReason) model.stateReason = 'healthy';
   if (!hadStateCycles) model.stateCycles = 1;
   return model;
-}
-
-function bootstrapAmount(world) {
-  const groupTotal = Object.values(world.demandGroups || {}).reduce(
-    (sum, group) => sum + nonNegativeInteger(group?.lastBudget),
-    0,
-  );
-  return Math.max(5_700, groupTotal);
 }
 
 function bindPlayers(world) {
@@ -296,7 +301,8 @@ export function ensurePopulationEconomy(world, now = undefined) {
   const previous = world.populationEconomy && typeof world.populationEconomy === 'object'
     ? world.populationEconomy
     : null;
-  const needsBootstrap = !previous || Number(previous.modelVersion || 0) < 1;
+  const previousModelVersion = Number(previous?.modelVersion || 0);
+  const needsBootstrap = !previous || previousModelVersion < 1;
   const state = previous || defaultState();
   state.modelVersion = POPULATION_ECONOMY_VERSION;
   state.models ||= {};
@@ -319,9 +325,12 @@ export function ensurePopulationEconomy(world, now = undefined) {
     ? Math.max(0, Number(state.policyCycle?.cycleId || 0)) * POPULATION_POLICY_CYCLE_MS
     : Number(now);
   ensurePopulationPolicyState(state, policyNow);
+  const migrateLegacyPopulation = Boolean(previous && previousModelVersion < POPULATION_ECONOMY_VERSION)
+    || Boolean(!previous && Object.keys(world.players || {}).length > 0);
+  ensurePopulationDemographics(world, state, { migrateLegacy: migrateLegacyPopulation });
 
   if (needsBootstrap) {
-    const seed = bootstrapAmount(world);
+    const seed = populationReferenceBudget(state.demographics.currentPopulation);
     const allocation = allocateMoney(seed, CONSTRUCTION_PROFILE);
     for (const modelId of POPULATION_MODEL_IDS) {
       const amount = allocation[modelId];
@@ -330,7 +339,7 @@ export function ensurePopulationEconomy(world, now = undefined) {
       state.models[modelId].recentPeakIncome = amount;
       state.models[modelId].totalIncome += amount;
     }
-    state.stats.migrationIssued = nonNegativeInteger(state.stats.migrationIssued) + seed;
+    state.stats.migrationIssued = roundInternalMoney(nonNegativeMoney(state.stats.migrationIssued) + seed) || 0;
     state.demandCycle = { cycleId: -1, groups: {}, initializedAt: now };
   }
 
@@ -368,13 +377,13 @@ export function creditPopulationEmployment(world, amount, source, { complexity, 
   for (const modelId of POPULATION_MODEL_IDS) {
     state.models[modelId].pendingIncome[key] += allocation[modelId];
   }
-  state.stats.totalEmploymentIncome += total;
+  state.stats.totalEmploymentIncome = roundInternalMoney(nonNegativeMoney(state.stats.totalEmploymentIncome) + total) || 0;
   state.stats[`${key}Income`] = roundInternalMoney(nonNegativeMoney(state.stats[`${key}Income`]) + total) || 0;
   if (key === 'production') {
     const normalizedComplexity = PRODUCTION_PROFILES[String(complexity)] ? String(complexity) : 'C1';
-    state.stats.productionByComplexity[normalizedComplexity] = nonNegativeInteger(
-      state.stats.productionByComplexity[normalizedComplexity],
-    ) + total;
+    state.stats.productionByComplexity[normalizedComplexity] = roundInternalMoney(
+      nonNegativeMoney(state.stats.productionByComplexity[normalizedComplexity]) + total,
+    ) || 0;
     const playerFunded = nonNegativeMoney(payerAmount);
     if (total > playerFunded) {
       state.stats.productionWageSubsidyIssued = roundInternalMoney(nonNegativeMoney(state.stats.productionWageSubsidyIssued) + total - playerFunded) || 0;
@@ -439,14 +448,23 @@ function updateModelIncome(model) {
   model.pendingIncome = emptyIncomeSources();
   model.incomeEma = Math.max(0, roundInternalMoney(model.incomeEma * INCOME_EMA_PREVIOUS_WEIGHT + income * (1 - INCOME_EMA_PREVIOUS_WEIGHT)) || 0);
   model.recentPeakIncome = Math.max(model.incomeEma, roundInternalMoney(model.recentPeakIncome * 0.92) || 0);
+  model.perCapitaIncomeEma = model.population > 0
+    ? Math.max(0, roundInternalMoney(model.incomeEma / model.population) || 0)
+    : 0;
+  model.recentPeakPerCapitaIncome = Math.max(
+    model.perCapitaIncomeEma,
+    roundInternalMoney(model.recentPeakPerCapitaIncome * 0.92) || 0,
+  );
   model.noIncomeCycles = income > 0 ? 0 : incrementCounter(model.noIncomeCycles);
 }
 
 function updateModelConsumptionState(model, stabilizationBudget, targetWallet, walletTotal) {
-  const incomeHealth = model.recentPeakIncome <= 0 ? 1 : model.incomeEma / model.recentPeakIncome;
+  const incomeHealth = model.recentPeakPerCapitaIncome <= 0
+    ? 1
+    : model.perCapitaIncomeEma / model.recentPeakPerCapitaIncome;
   const walletCoverage = targetWallet <= 0 ? 0 : walletTotal / targetWallet;
   const incomeCoverage = stabilizationBudget <= 0 ? 0 : model.incomeEma / stabilizationBudget;
-  model.incomeHealthBps = ratioToBps(model.incomeEma, model.recentPeakIncome);
+  model.incomeHealthBps = ratioToBps(model.perCapitaIncomeEma, model.recentPeakPerCapitaIncome);
   model.walletCoverageBps = ratioToBps(walletTotal, targetWallet, 0);
   model.incomeCoverageBps = ratioToBps(model.incomeEma, stabilizationBudget, 0);
 
@@ -550,29 +568,35 @@ function modelSpendableBudget(modelId, model, stabilizationBudget = 0) {
   return Math.min(model.credits, Math.max(minimum, Math.min(maximum, target)));
 }
 
-export function preparePopulationDemandCycle(world, cycleId, now = Date.now(), { totalBaseBudget = 5_700 } = {}) {
+export function preparePopulationDemandCycle(world, cycleId, now = Date.now()) {
   const state = ensurePopulationEconomy(world, now);
+  advancePopulationDemographics(world, state, cycleId, now);
   if (Number(state.demandCycle?.cycleId) === Number(cycleId)) return state.demandCycle;
   const { policy, policyCycle } = ensurePopulationPolicyState(state, now);
   const groups = { food: {}, household: {} };
   const baseGroups = { food: {}, household: {} };
   const earnedGroups = { food: {}, household: {} };
-  const stabilization = calculatePopulationStabilizationBudgets(nonNegativeInteger(totalBaseBudget), policy);
+  const budgetInputs = populationDemographicBudgetInputs(state);
+  const stabilization = calculatePopulationStabilizationBudgets(
+    budgetInputs.totalBaseBudget,
+    policy,
+    budgetInputs.modelWeights,
+  );
   for (const modelId of POPULATION_MODEL_IDS) {
     const model = state.models[modelId];
     updateModelIncome(model);
     const stabilizationBudget = stabilization.byModel[modelId];
-    const targetWallet = stabilizationBudget * policy.targetWalletCycles;
+    const targetWallet = populationPolicyWalletTarget(stabilizationBudget, policy);
     const walletTotal = model.credits + model.frozenCredits;
     updateModelConsumptionState(model, stabilizationBudget, targetWallet, walletTotal);
     const refillCap = populationPolicyRefillCap(stabilizationBudget, policy);
-    const remainingCap = Math.max(0, refillCap - nonNegativeInteger(policyCycle.issuedByModel[modelId]));
-    const stabilizationIssued = Math.min(remainingCap, Math.max(0, targetWallet - walletTotal));
+    const remainingCap = Math.max(0, roundInternalMoney(refillCap - nonNegativeMoney(policyCycle.issuedByModel[modelId])) || 0);
+    const stabilizationIssued = roundInternalMoney(Math.min(remainingCap, Math.max(0, targetWallet - walletTotal))) || 0;
     if (stabilizationIssued > 0) {
-      model.credits += stabilizationIssued;
-      state.stats.stabilizationIssued = nonNegativeInteger(state.stats.stabilizationIssued) + stabilizationIssued;
-      policyCycle.issuedByModel[modelId] += stabilizationIssued;
-      policyCycle.automaticByModel[modelId] += stabilizationIssued;
+      model.credits = roundInternalMoney(model.credits + stabilizationIssued) || 0;
+      state.stats.stabilizationIssued = roundInternalMoney(nonNegativeMoney(state.stats.stabilizationIssued) + stabilizationIssued) || 0;
+      policyCycle.issuedByModel[modelId] = roundInternalMoney(nonNegativeMoney(policyCycle.issuedByModel[modelId]) + stabilizationIssued) || 0;
+      policyCycle.automaticByModel[modelId] = roundInternalMoney(nonNegativeMoney(policyCycle.automaticByModel[modelId]) + stabilizationIssued) || 0;
     }
     model.stabilizationBudget = stabilizationBudget;
     model.lastStabilizationIssued = stabilizationIssued;
@@ -584,8 +608,8 @@ export function preparePopulationDemandCycle(world, cycleId, now = Date.now(), {
     const householdBaseBudget = baseSpendable - foodBaseBudget;
     const foodEarnedBudget = nonNegativeMoney(earnedSpendable * shares.food);
     const householdEarnedBudget = earnedSpendable - foodEarnedBudget;
-    const foodBudget = foodBaseBudget + foodEarnedBudget;
-    const householdBudget = householdBaseBudget + householdEarnedBudget;
+    const foodBudget = roundInternalMoney(foodBaseBudget + foodEarnedBudget) || 0;
+    const householdBudget = roundInternalMoney(householdBaseBudget + householdEarnedBudget) || 0;
     model.lastBudget = spendable;
     model.foodBudget = foodBudget;
     model.householdBudget = householdBudget;
@@ -603,6 +627,11 @@ export function preparePopulationDemandCycle(world, cycleId, now = Date.now(), {
     baseGroups,
     earnedGroups,
     stabilizationTotal: stabilization.total,
+    population: {
+      currentPopulation: state.demographics.currentPopulation,
+      targetPopulation: state.demographics.targetPopulation,
+      referenceBudget: state.demographics.referenceBudget,
+    },
     policy: populationPolicySnapshot(state, now),
   };
   return state.demandCycle;
@@ -740,15 +769,28 @@ export function recordPopulationSellerIncome(player, amount) {
   player.stats.populationIncome = roundInternalMoney(nonNegativeMoney(player.stats.populationIncome) + nonNegativeMoney(amount)) || 0;
 }
 
-export function createPopulationEconomySummary(world, now = Date.now(), { totalBaseBudget = 5_700 } = {}) {
+export function createPopulationEconomySummary(world, now = Date.now()) {
   const state = ensurePopulationEconomy(world, now);
   const policy = populationPolicySnapshot(state, now);
-  const policyBudget = calculatePopulationStabilizationBudgets(totalBaseBudget, policy);
+  const budgetInputs = populationDemographicBudgetInputs(state);
+  const policyBudget = calculatePopulationStabilizationBudgets(
+    budgetInputs.totalBaseBudget,
+    policy,
+    budgetInputs.modelWeights,
+  );
   const models = Object.fromEntries(POPULATION_MODEL_IDS.map((modelId) => {
     const model = state.models[modelId];
     return [modelId, {
       id: modelId,
       name: model.name,
+      population: model.population,
+      targetPopulation: model.targetPopulation,
+      laborForce: model.laborForce,
+      employed: model.employed,
+      unemployed: model.unemployed,
+      vacancies: model.vacancies,
+      perCapitaIncomeEma: model.perCapitaIncomeEma,
+      recentPeakPerCapitaIncome: model.recentPeakPerCapitaIncome,
       consumptionState: model.consumptionState,
       credits: model.credits,
       frozenCredits: model.frozenCredits,
@@ -799,36 +841,55 @@ export function createPopulationEconomySummary(world, now = Date.now(), { totalB
   return {
     ...totals,
     constructionEscrow,
+    demographics: {
+      currentPopulation: state.demographics.currentPopulation,
+      targetPopulation: state.demographics.targetPopulation,
+      structuralCapacity: state.demographics.structuralCapacity,
+      activeCapacity: state.demographics.activeCapacity,
+      activeCapacityEma: state.demographics.activeCapacityEma,
+      occupancyRateBps: state.demographics.occupancyRateBps,
+      industryOperatingRateBps: state.demographics.industryOperatingRateBps,
+      incomeHealthBps: state.demographics.incomeHealthBps,
+      demandSatisfactionBps: state.demographics.demandSatisfactionBps,
+      lastMigration: state.demographics.lastMigration,
+      lastMigrationDirection: state.demographics.lastMigrationDirection,
+      lastClassConversions: state.demographics.lastClassConversions,
+      lastPopulationCycleId: state.demographics.lastPopulationCycleId,
+      referenceBudget: state.demographics.referenceBudget,
+      targetByModel: { ...state.demographics.targetByModel },
+      structuralCapacityByComplexity: structuredClone(state.demographics.structuralCapacityByComplexity),
+    },
     models,
     sources: {
-      production: nonNegativeInteger(state.stats.productionIncome),
-      construction: nonNegativeInteger(state.stats.constructionIncome),
-      warehouse: nonNegativeInteger(state.stats.warehouseIncome),
-      marketService: nonNegativeInteger(state.stats.marketServiceIncome),
-      banking: nonNegativeInteger(state.stats.bankingIncome),
+      production: nonNegativeMoney(state.stats.productionIncome),
+      construction: nonNegativeMoney(state.stats.constructionIncome),
+      warehouse: nonNegativeMoney(state.stats.warehouseIncome),
+      marketService: nonNegativeMoney(state.stats.marketServiceIncome),
+      banking: nonNegativeMoney(state.stats.bankingIncome),
+      research: nonNegativeMoney(state.stats.researchIncome),
     },
     productionByComplexity: { ...state.stats.productionByComplexity },
-    totalEmploymentIncome: nonNegativeInteger(state.stats.totalEmploymentIncome),
-    totalConsumption: nonNegativeInteger(state.stats.totalConsumption),
+    totalEmploymentIncome: nonNegativeMoney(state.stats.totalEmploymentIncome),
+    totalConsumption: nonNegativeMoney(state.stats.totalConsumption),
     productionWageAdjustment: {
-      subsidyIssued: nonNegativeInteger(state.stats.productionWageSubsidyIssued),
-      withheld: nonNegativeInteger(state.stats.productionWageWithheld),
+      subsidyIssued: nonNegativeMoney(state.stats.productionWageSubsidyIssued),
+      withheld: nonNegativeMoney(state.stats.productionWageWithheld),
     },
     issuance: {
       ...issuance,
-      migration: nonNegativeInteger(state.stats.migrationIssued),
-      stabilization: nonNegativeInteger(state.stats.stabilizationIssued),
-      adminPopulation: nonNegativeInteger(state.stats.adminPopulationIssued),
-      productionWageSubsidy: nonNegativeInteger(state.stats.productionWageSubsidyIssued),
+      migration: nonNegativeMoney(state.stats.migrationIssued),
+      stabilization: nonNegativeMoney(state.stats.stabilizationIssued),
+      adminPopulation: nonNegativeMoney(state.stats.adminPopulationIssued),
+      productionWageSubsidy: nonNegativeMoney(state.stats.productionWageSubsidyIssued),
       total: issuance.work + issuance.exchange + issuance.gift + issuance.legacyPopulation
-        + nonNegativeInteger(state.stats.migrationIssued)
-        + nonNegativeInteger(state.stats.stabilizationIssued)
-        + nonNegativeInteger(state.stats.adminPopulationIssued)
-        + nonNegativeInteger(state.stats.productionWageSubsidyIssued),
+        + nonNegativeMoney(state.stats.migrationIssued)
+        + nonNegativeMoney(state.stats.stabilizationIssued)
+        + nonNegativeMoney(state.stats.adminPopulationIssued)
+        + nonNegativeMoney(state.stats.productionWageSubsidyIssued),
     },
     policy,
     policyLimits: POPULATION_POLICY_LIMITS,
-    policyBaseBudget: nonNegativeInteger(totalBaseBudget),
+    policyBaseBudget: budgetInputs.totalBaseBudget,
     policyProjectedStabilizationTotal: policyBudget.total,
   };
 }

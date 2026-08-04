@@ -8,10 +8,18 @@ export type PopulationModelId = 'basic' | 'skilled' | 'professional';
 export interface PopulationModelAdminSummary {
   id: PopulationModelId;
   name: string;
+  population: number;
+  targetPopulation: number;
+  laborForce: number;
+  employed: number;
+  unemployed: number;
+  vacancies: number;
+  perCapitaIncomeEma: number;
+  recentPeakPerCapitaIncome: number;
   consumptionState: 'lavish' | 'prosperous' | 'normal' | 'strained' | 'subsistence';
   credits: number;
   frozenCredits: number;
-  pendingIncome: Record<'production' | 'construction' | 'warehouse' | 'marketService', number>;
+  pendingIncome: Record<'production' | 'construction' | 'warehouse' | 'marketService' | 'banking' | 'research', number>;
   lastIncome: number;
   incomeEma: number;
   recentPeakIncome: number;
@@ -65,6 +73,30 @@ export interface PopulationPolicyLimits {
   durationCycles: { min: number };
 }
 
+export interface PopulationDemographicsAdminSummary {
+  currentPopulation: number;
+  targetPopulation: number;
+  structuralCapacity: number;
+  activeCapacity: number;
+  activeCapacityEma: number;
+  occupancyRateBps: number;
+  industryOperatingRateBps: number;
+  incomeHealthBps: number;
+  demandSatisfactionBps: number;
+  lastMigration: number;
+  lastMigrationDirection: 'in' | 'out' | 'none';
+  lastClassConversions: number;
+  lastPopulationCycleId: number;
+  referenceBudget: number;
+  targetByModel: Record<PopulationModelId, number>;
+  structuralCapacityByComplexity: Record<'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7', {
+    count: number;
+    participatingCount: number;
+    structuralCapacity: number;
+    activeCapacity: number;
+  }>;
+}
+
 export interface PopulationEconomyAdminSummary {
   credits: number;
   frozenCredits: number;
@@ -74,10 +106,11 @@ export interface PopulationEconomyAdminSummary {
   totalIncome: number;
   totalSpent: number;
   constructionEscrow: number;
+  demographics: PopulationDemographicsAdminSummary;
   totalEmploymentIncome: number;
   totalConsumption: number;
   models: Record<PopulationModelId, PopulationModelAdminSummary>;
-  sources: Record<'production' | 'construction' | 'warehouse' | 'marketService', number>;
+  sources: Record<'production' | 'construction' | 'warehouse' | 'marketService' | 'banking' | 'research', number>;
   productionByComplexity: Record<'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7', number>;
   productionWageAdjustment: { subsidyIssued: number; withheld: number };
   issuance: { work: number; exchange: number; gift: number; legacyPopulation: number; migration: number; stabilization: number; adminPopulation: number; productionWageSubsidy: number; total: number };
