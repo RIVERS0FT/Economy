@@ -126,7 +126,8 @@ export type ExtendedAdminSummary = AdminSummary & {
   populationEconomy: PopulationEconomyAdminSummary;
 };
 
-export type AdminServerStatusRange = '15m' | '1h' | '6h';
+export type AdminServerStatusRange = '1h' | '1d' | '30d';
+export type AdminServerStatusGranularity = 'minute' | 'hour' | 'day';
 export type AdminServerHealthLevel = 'healthy' | 'warning' | 'critical' | 'collecting';
 
 export interface AdminServerRouteMetric {
@@ -150,7 +151,9 @@ export interface AdminServerMetricBucket {
   p50DurationMs: number;
   p95DurationMs: number;
   p99DurationMs: number;
+  eventLoopP50Ms: number;
   eventLoopP95Ms: number;
+  eventLoopP99Ms: number;
   eventLoopMaxMs: number;
   cpuAveragePercent: number | null;
   cpuMaxPercent: number | null;
@@ -165,6 +168,8 @@ export interface AdminServerStatus {
     key: AdminServerStatusRange;
     milliseconds: number;
     startsAt: number;
+    bucketMilliseconds: number;
+    granularity: AdminServerStatusGranularity;
   };
   health: {
     level: AdminServerHealthLevel;

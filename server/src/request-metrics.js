@@ -12,6 +12,8 @@ const OVERFLOW_METHOD = 'OTHER';
 const OVERFLOW_ROUTE = '/api/other';
 const MAX_SAMPLES_PER_ROUTE = 4_096;
 const MAX_GLOBAL_SAMPLES = 16_384;
+const LATENCY_HISTOGRAM_BINS = 256;
+const LATENCY_HISTOGRAM_SCALE = 8;
 const DYNAMIC_ROUTE_PATTERNS = [
   [/^(\/api\/game\/(?:orders|auctions|facility-listings))\/[^/]+(\/(?:bids|cancel|buy))$/, '$1/:id$2'],
   [/^(\/api\/game\/admin\/gift-codes)\/[^/]+(\/(?:disable|redemptions))$/, '$1/:id$2'],
@@ -37,6 +39,46 @@ function percentile(values, ratio) {
 
 function appendSample(samples, value, limit = MAX_SAMPLES_PER_ROUTE) {
   if (samples.length < limit) samples.push(finiteNonNegative(value));
+}
+
+
+export function createLatencyHistogram() {
+  return Array.from({ length: LATENCY_HISTOGRAM_BINS }, () => 0);
+}
+
+export function addLatencyHistogramSample(histogram, value, count = 1) {
+  if (!Array.isArray(histogram) || histogram.length !== LATENCY_HISTOGRAM_BINS) return histogram;
+  const duration = finiteNonNegative(value);
+  const index = Math.min(
+    LATENCY_HISTOGRAM_BINS - 1,
+    Math.max(0, Math.floor(Math.log2(duration + 1) * LATENCY_HISTOGRAM_SCALE)),
+  );
+  histogram[index] += Math.max(0, Math.floor(Number(count) || 0));
+  return histogram;
+}
+
+export function mergeLatencyHistograms(target, source) {
+  if (!Array.isArray(target) || target.length !== LATENCY_HISTOGRAM_BINS) return target;
+  if (!Array.isArray(source)) return target;
+  for (let index = 0; index < LATENCY_HISTOGRAM_BINS; index += 1) {
+    target[index] += Math.max(0, Math.floor(Number(source[index]) || 0));
+  }
+  return target;
+}
+
+export function latencyHistogramPercentile(histogram, ratio) {
+  if (!Array.isArray(histogram) || histogram.length === 0) return 0;
+  const total = histogram.reduce((sum, count) => sum + Math.max(0, Number(count) || 0), 0);
+  if (total <= 0) return 0;
+  const target = Math.max(1, Math.ceil(total * Math.min(1, Math.max(0, Number(ratio) || 0))));
+  let cumulative = 0;
+  for (let index = 0; index < histogram.length; index += 1) {
+    cumulative += Math.max(0, Number(histogram[index]) || 0);
+    if (cumulative >= target) {
+      return round((2 ** ((index + 1) / LATENCY_HISTOGRAM_SCALE)) - 1);
+    }
+  }
+  return round((2 ** (histogram.length / LATENCY_HISTOGRAM_SCALE)) - 1);
 }
 
 function eventLoopDelaySnapshot(eventLoopDelay) {
@@ -94,6 +136,7 @@ export function createRequestMetricsCollector({
   let totalResponseBytes = 0;
   let maxResponseBytes = 0;
   const durationSamples = [];
+  const durationHistogram = createLatencyHistogram();
 
   function record({ method, url, statusCode, durationMs, responseBytes, phases = {}, gauges = {} }) {
     let route = normalizeMetricRoute(url);
@@ -117,6 +160,7 @@ export function createRequestMetricsCollector({
     totalResponseBytes += bytes;
     maxResponseBytes = Math.max(maxResponseBytes, bytes);
     appendSample(durationSamples, duration, MAX_GLOBAL_SAMPLES);
+    addLatencyHistogramSample(durationHistogram, duration);
 
     const current = routes.get(key) || {
       method: metricMethod,
@@ -213,6 +257,7 @@ export function createRequestMetricsCollector({
       windowMs: Math.max(0, endedAt - windowStartedAt),
       overflowedRequestCount,
       ...requestSummary,
+      durationHistogram: [...durationHistogram],
       routes: summaries,
       ...extraSummary,
     };
@@ -229,6 +274,7 @@ export function createRequestMetricsCollector({
     totalResponseBytes = 0;
     maxResponseBytes = 0;
     durationSamples.length = 0;
+    durationHistogram.fill(0);
     windowStartedAt = endedAt;
   }
 
@@ -240,7 +286,10 @@ export function createRequestMetricsCollector({
     const endedAt = now();
     const summary = createSummary(extraSummary, endedAt);
     reset(endedAt);
-    if (summary.routes.length > 0) log('Economy request metrics', JSON.stringify(summary));
+    if (summary.routes.length > 0) {
+      const { durationHistogram: _durationHistogram, ...logSummary } = summary;
+      log('Economy request metrics', JSON.stringify(logSummary));
+    }
     return summary;
   }
 
