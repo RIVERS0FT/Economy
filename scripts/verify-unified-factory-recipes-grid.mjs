@@ -71,7 +71,7 @@ for (const text of [
   "import { ScrollArea } from '../../components/ui/ScrollArea';",
   "import { FacilityIcon } from '../../components/icons/FacilityIcons';",
   '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />',
-  'className="facility-detail-artwork"',
+  'className="facility-detail-artwork facility-information-artwork"',
   'className="facility-detail-artwork-icon"',
   '<FacilityStaffingSummary entry={entry} now={now} />',
   'return createPortal(',
