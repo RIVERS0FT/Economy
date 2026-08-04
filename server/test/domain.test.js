@@ -287,7 +287,7 @@ test('market demand retains 70% of zero-fill orders and publishes a bounded dema
     order.ownerType === 'population'
     && order.demandGroupId === 'food'
     && order.demandTier === 'direct'
-    && order.productId === 'food'
+    && order.productId === 'wheat'
     && order.demandCycleId === firstCycleId
     && order.status === 'open'
   ));
@@ -304,7 +304,7 @@ test('market demand retains 70% of zero-fill orders and publishes a bounded dema
     order.ownerType === 'population'
     && order.demandGroupId === 'food'
     && order.demandTier === 'direct'
-    && order.productId === 'food'
+    && order.productId === 'wheat'
     && order.demandCycleId === nextCycleId
     && (order.status === 'open' || order.status === 'partial')
   ));
@@ -543,7 +543,7 @@ test('new worlds create private market demand orders during the first authoritat
     assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [
       '家庭消费市场需求', '食品市场需求',
     ]);
-    assert.equal(persisted.version, 22);
+    assert.equal(persisted.version, 23);
     assert.equal(persisted.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
     assert.ok(persisted.demandGroups.food.lastCommitted <= persisted.demandGroups.food.lastBudget);
     assert.ok(persisted.demandGroups.household.lastCommitted <= persisted.demandGroups.household.lastBudget);
@@ -571,7 +571,7 @@ test('legacy demand migration immediately rebuilds market demand without losing 
   }];
 
   migrateWorld(world, now);
-  assert.equal(world.version, 22);
+  assert.equal(world.version, 23);
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-wheat-sell']);
   assert.equal(player.inventories.wheat.available, 2);
@@ -621,7 +621,7 @@ test('migration removes obsolete system orders while preserving player orders', 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 22);
+  assert.equal(world.version, 23);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-order']);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.wheat.available, 9);
@@ -643,7 +643,7 @@ test('world version 8 migration restarts electronics and upgrades market demand 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 22);
+  assert.equal(world.version, 23);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.plastic.available, 9);
   assert.equal(player.inventories.copper.available, 4);

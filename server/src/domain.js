@@ -173,7 +173,7 @@ export function createWorld(now = Date.now()) {
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 22;
+  world.version = 23;
   normalizeWorldMoneyPrecision(world);
   return world;
 }
@@ -183,6 +183,8 @@ export function migrateWorld(world, now = Date.now()) {
   const previousVersion = Number(world.version || 0);
   const needsOrderBookRepair = Number(world.orderBookIntegrityVersion || 0) < ORDER_BOOK_INTEGRITY_VERSION;
   const hadCurrentMarketDemandModel = Number(world.marketDemand?.modelVersion || 0) >= MARKET_DEMAND_MODEL_VERSION;
+  const hadCurrentPopulationModel = Number(world.populationEconomy?.modelVersion || 0) >= 7;
+  const hadCurrentDemandSystem = hadCurrentMarketDemandModel && hadCurrentPopulationModel;
   const existingMarketIds = new Set(Object.keys(world.markets || {}));
   const legacy = {
     price: Number.isFinite(Number(world.marketPrice)) ? Number(world.marketPrice) : undefined,
@@ -194,7 +196,7 @@ export function migrateWorld(world, now = Date.now()) {
   };
   const migrated = core.migrateWorld(world, now);
   balancedMarket.repairMissingMarkets(migrated, existingMarketIds, now, legacy);
-  if (!hadCurrentMarketDemandModel) {
+  if (!hadCurrentDemandSystem) {
     ensurePopulationEconomy(migrated, now);
     for (const order of migrated.orders || []) {
       if (order.ownerType !== 'population' || !balancedMarket.isOpenOrder(order)) continue;
@@ -206,7 +208,7 @@ export function migrateWorld(world, now = Date.now()) {
   const retainedOrders = migratedOrders.filter((order) => {
     if (order.ownerType === 'player') return true;
     if (order.ownerType !== 'population') return false;
-    return hadCurrentMarketDemandModel && marketDemand.isValidMarketOrder(order);
+    return hadCurrentDemandSystem && marketDemand.isValidMarketOrder(order);
   });
   if (retainedOrders.length !== migratedOrders.length) migrated.orders = retainedOrders;
   if (previousVersion < 9) {
@@ -216,13 +218,13 @@ export function migrateWorld(world, now = Date.now()) {
     }
   }
   marketDemand.normalizeWorld(migrated, now, {
-    forceRebuild: !hadCurrentMarketDemandModel || previousVersion < 13,
+    forceRebuild: !hadCurrentDemandSystem,
   });
   if (needsOrderBookRepair) reconcileCommodityOrderBook(migrated, now);
   ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   migrated.auctionFeeEscrowCredits = Math.max(0, Number(migrated.auctionFeeEscrowCredits || 0));
-  migrated.version = 22;
+  migrated.version = 23;
   normalizeWorldMoneyPrecision(migrated);
   return migrated;
 }

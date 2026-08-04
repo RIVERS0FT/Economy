@@ -30,14 +30,29 @@ async function configureAdminRoutes(page: Page) {
         lastProcessedAt: Date.UTC(2026, 6, 19, 10),
         apiStatus: 'ok',
         populationEconomy: {
+          demographics: {
+            currentPopulation: 10_000, targetPopulation: 10_152, structuralCapacity: 14_026, activeCapacity: 5_170, activeCapacityEma: 5_170,
+            occupancyRateBps: 7_026, industryOperatingRateBps: 3_969, incomeHealthBps: 10_000, demandSatisfactionBps: 4_384,
+            lastMigration: 4, lastMigrationDirection: 'in', lastClassConversions: 2, lastPopulationCycleId: 100, referenceBudget: 5_786.64,
+            targetByModel: { basic: 6_165, skilled: 2_845, professional: 1_142 },
+            structuralCapacityByComplexity: {
+              C1: { count: 332, participatingCount: 90, structuralCapacity: 3_652, activeCapacity: 995 },
+              C2: { count: 223, participatingCount: 122, structuralCapacity: 3_680, activeCapacity: 2_013 },
+              C3: { count: 79, participatingCount: 36, structuralCapacity: 1_912, activeCapacity: 871 },
+              C4: { count: 48, participatingCount: 18, structuralCapacity: 1_690, activeCapacity: 634 },
+              C5: { count: 11, participatingCount: 4, structuralCapacity: 545, activeCapacity: 198 },
+              C6: { count: 9, participatingCount: 4, structuralCapacity: 614, activeCapacity: 273 },
+              C7: { count: 10, participatingCount: 2, structuralCapacity: 935, activeCapacity: 187 },
+            },
+          },
           credits: 5_000, frozenCredits: 500, pendingIncome: 300, lastIncome: 200, lastBudget: 1_000,
           totalIncome: 10_000, totalSpent: 5_000, constructionEscrow: 250, totalEmploymentIncome: 8_000, totalConsumption: 5_000,
           models: {
-            basic: { id: 'basic', name: '基础人口', consumptionState: 'lavish', stateReason: 'lavish-qualified', stateCycles: 5, incomeHealthBps: 9_800, walletCoverageBps: 17_000, incomeCoverageBps: 16_000, credits: 3_000, frozenCredits: 300, pendingIncome: { production: 100, construction: 50, warehouse: 20, marketService: 10 }, lastIncome: 120, incomeEma: 110, recentPeakIncome: 112, noIncomeCycles: 0, lastBudget: 600, foodBudget: 390, householdBudget: 210, stabilizationBudget: 69, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 6_000, totalSpent: 3_000 },
-            skilled: { id: 'skilled', name: '技术人口', consumptionState: 'prosperous', stateReason: 'prosperous-qualified', stateCycles: 3, incomeHealthBps: 9_000, walletCoverageBps: 12_000, incomeCoverageBps: 12_000, credits: 1_500, frozenCredits: 150, pendingIncome: { production: 60, construction: 20, warehouse: 10, marketService: 10 }, lastIncome: 60, incomeEma: 70, recentPeakIncome: 78, noIncomeCycles: 0, lastBudget: 300, foodBudget: 150, householdBudget: 150, stabilizationBudget: 58, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 3_000, totalSpent: 1_500 },
-            professional: { id: 'professional', name: '专业人口', consumptionState: 'strained', stateReason: 'income-strained', stateCycles: 2, incomeHealthBps: 5_000, walletCoverageBps: 8_000, incomeCoverageBps: 6_000, credits: 500, frozenCredits: 50, pendingIncome: { production: 10, construction: 5, warehouse: 3, marketService: 2 }, lastIncome: 20, incomeEma: 20, recentPeakIncome: 40, noIncomeCycles: 1, lastBudget: 100, foodBudget: 58, householdBudget: 42, stabilizationBudget: 33, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 1_000, totalSpent: 500 },
+            basic: { id: 'basic', name: '基础人口', population: 6_000, targetPopulation: 6_165, laborForce: 3_300, employed: 3_200, unemployed: 100, vacancies: 0, perCapitaIncomeEma: 0.018333, recentPeakPerCapitaIncome: 0.018667, consumptionState: 'lavish', stateReason: 'lavish-qualified', stateCycles: 5, incomeHealthBps: 9_800, walletCoverageBps: 17_000, incomeCoverageBps: 16_000, credits: 3_000, frozenCredits: 300, pendingIncome: { production: 100, construction: 50, warehouse: 20, marketService: 10, banking: 0, research: 0 }, lastIncome: 120, incomeEma: 110, recentPeakIncome: 112, noIncomeCycles: 0, lastBudget: 600, foodBudget: 390, householdBudget: 210, stabilizationBudget: 69, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 6_000, totalSpent: 3_000 },
+            skilled: { id: 'skilled', name: '技术人口', population: 3_000, targetPopulation: 2_845, laborForce: 1_650, employed: 1_500, unemployed: 150, vacancies: 0, perCapitaIncomeEma: 0.023333, recentPeakPerCapitaIncome: 0.026, consumptionState: 'prosperous', stateReason: 'prosperous-qualified', stateCycles: 3, incomeHealthBps: 9_000, walletCoverageBps: 12_000, incomeCoverageBps: 12_000, credits: 1_500, frozenCredits: 150, pendingIncome: { production: 60, construction: 20, warehouse: 10, marketService: 10, banking: 0, research: 0 }, lastIncome: 60, incomeEma: 70, recentPeakIncome: 78, noIncomeCycles: 0, lastBudget: 300, foodBudget: 150, householdBudget: 150, stabilizationBudget: 58, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 3_000, totalSpent: 1_500 },
+            professional: { id: 'professional', name: '专业人口', population: 1_000, targetPopulation: 1_142, laborForce: 550, employed: 470, unemployed: 80, vacancies: 20, perCapitaIncomeEma: 0.02, recentPeakPerCapitaIncome: 0.04, consumptionState: 'strained', stateReason: 'income-strained', stateCycles: 2, incomeHealthBps: 5_000, walletCoverageBps: 8_000, incomeCoverageBps: 6_000, credits: 500, frozenCredits: 50, pendingIncome: { production: 10, construction: 5, warehouse: 3, marketService: 2, banking: 0, research: 0 }, lastIncome: 20, incomeEma: 20, recentPeakIncome: 40, noIncomeCycles: 1, lastBudget: 100, foodBudget: 58, householdBudget: 42, stabilizationBudget: 33, lastStabilizationIssued: 0, lastAdminPopulationIssued: 0, totalIncome: 1_000, totalSpent: 500 },
           },
-          sources: { production: 10_000, construction: 2_000, warehouse: 0, marketService: 1 },
+          sources: { production: 10_000, construction: 2_000, warehouse: 0, marketService: 1, banking: 0, research: 0 },
           productionByComplexity: { C1: 10_000, C2: 5_000, C3: 1_000, C4: 500, C5: 100, C6: 1, C7: 0 },
           productionWageAdjustment: { subsidyIssued: 0, withheld: 0 },
           issuance: { work: 20_000, exchange: 5_000, gift: 1_000, legacyPopulation: 0, migration: 5_700, stabilization: 684, adminPopulation: 0, productionWageSubsidy: 0, total: 32_384 },
@@ -326,14 +341,14 @@ await expect(page.locator('.admin-population-matrix').getByText('健康 98%', { 
 await expect(page.locator('.admin-population-matrix').getByText('收入覆盖 160% · 判定钱包 170%', { exact: true })).toBeVisible();
 await expect(page.getByRole('heading', { name: '人口政策调控', exact: true })).toBeVisible();
 await expect(page.getByRole('heading', { name: '当前政策', exact: true })).toBeVisible();
-await expect(page.getByText('稳定需求比例／目标钱包', { exact: true })).toBeVisible();
+await expect(page.getByText('最低消费保障率／目标钱包', { exact: true })).toBeVisible();
 await expect(page.getByText('基础／技术／专业人口倍率', { exact: true })).toBeVisible();
 await expect(page.getByText('总持续时间', { exact: true })).toBeVisible();
 await expect(page.locator('.admin-population-policy-current--summary').getByText('长期', { exact: true }).first()).toBeVisible();
 await expect(page.getByRole('button', { name: '展开拟应用政策', exact: true })).toBeVisible();
 await page.getByRole('button', { name: '展开拟应用政策', exact: true }).click();
 await expect(page.getByLabel('生产工资系数（%）', { exact: true })).toHaveValue('100');
-await expect(page.getByLabel('稳定需求比例（%）', { exact: true })).not.toHaveAttribute('max');
+await expect(page.getByLabel('最低消费保障率（%）', { exact: true })).not.toHaveAttribute('max');
 await expect(page.getByLabel('政策有效周期', { exact: true })).not.toHaveAttribute('max');
 await expect(page.getByRole('button', { name: '预览政策', exact: true })).toBeVisible();
 await expect(page.getByText('人口调控记录', { exact: true })).toHaveCount(0);

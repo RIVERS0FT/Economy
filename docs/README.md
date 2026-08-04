@@ -2,9 +2,9 @@
 
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-03
+> 更新时间：2026-08-04
 > 客户端状态版本：26
-> 世界状态版本：22
+> 世界状态版本：23
 
 本目录只保留当前设计。旧规则不归档在 `docs/`，也不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在。未列入下方权威文档表的 Markdown 文件不得存在。
 
@@ -14,9 +14,9 @@
 
 | 文档 | 唯一职责 |
 |---|---|
-| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、每日签到、普通货币与宝石、直接货币发行、人口就业收入、三类人口真实钱包、消费需求与排行榜目标 |
+| `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、每日签到、普通货币与宝石、直接货币发行、人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、消费需求与排行榜目标 |
 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` | 1 宝石减少施工 30 分钟、每日终端动态报价、接受／拒绝决策、历史汇率、SQLite 审计与禁止宝石兑换工厂产量 |
-| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 31 种商品、21 种工厂、固定精度经济数值、参考利润、周期成本工资、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及长期供货合同与生产／资产守恒审计边界 |
+| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 31 种商品、21 种工厂、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及长期供货合同与生产／资产守恒审计边界 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单与合同采购预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
@@ -29,9 +29,9 @@
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、签到日历、短列表滚动和浏览器几何回归 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 认证卡片、游戏与管理员共享桌面外壳、全宽顶部工作栏、下方侧栏与工作区、浮层安全根、桌面贴边页面滚动条、移动工作区与 Overlay、登录态根视口下拉刷新边界、移动操作结果通知、移动底栏和唯一液态玻璃材质 |
-| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、银行事务与结息调度、每日签到、长期合同事务、追加式 SQLite 合同／拍卖审计、匿名最近 10 条出价接口与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、生产 SQLite 只读诊断、生产 SQLite INCREMENTAL 空间维护、API、容量限制、Nginx、systemd 和部署 |
+| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、世界级人口状态与周期迁移、银行事务与结息调度、每日签到、长期合同事务、追加式 SQLite 合同／拍卖审计、匿名最近 10 条出价接口与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、生产 SQLite 只读诊断、生产 SQLite INCREMENTAL 空间维护、API、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器仅保留匿名逐笔成交所需的最小订单快照、v6 迁移、清除语义与银行权威流水边界 |
-| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、商品／工厂单项与捆绑资产包拍卖、发布费与卖方手续费、隐藏保留价、最低加价、自动延时、匿名出价、世界 15／21 迁移、封禁复核、管理员权限、四分区后台范围与运营控制台编排 |
+| `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、商品／工厂单项与捆绑资产包拍卖、发布费与卖方手续费、隐藏保留价、最低加价、自动延时、匿名出价、世界 15／21 迁移、人口规模与就业诊断、人口政策、封禁复核、管理员权限和运营控制台编排 |
 
 ## 修改规则
 
@@ -50,7 +50,7 @@
 13. 主页账号认证缓存的分级 TTL、Cookie 摘要、并发合并、错误策略和 LRU 上限属于安全与容量规则；必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并通过 `scripts/verify-authentication-cache.mjs` 防回退。
 14. 小麦／水稻目录、农场改种、持续生产和主食替代预算属于产业与需求权威规则；必须同步更新产业、产品、服务器文档，并通过产业、工厂与主食需求验证脚本防回退。
 15. Economy 注册完成时点、主页账号自动建档、邮箱验证码、IP 指纹、多账号封禁、Resend、注册路由和登录注册双模式属于服务器与页面权威规则；必须同步更新服务器、页面、根 README、`scripts/verify-email-registration.mjs` 与服务器测试。
-16. 消费需求订单、三类人口六位小数真实钱包、私有 `fundingSlices`、五档消费状态与预算份额、聚合落单、虚拟商品预算赤字、两位小数三档需求曲线、跨周期成交率保留、证据置信度供需压力、无业务总量上限、库存与资金守恒的双边市场储备、生产链双向滞后价格传导和迁移清理属于产品、产业、订单簿与服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-staple-crops-demand.mjs`。
+16. 人口数量、工厂结构与活跃承载、迁入迁出、类别转换、劳动力就业、按实际人口计算的消费需求、三类人口六位小数真实钱包、私有 `fundingSlices`、五档消费状态与预算份额、聚合落单、虚拟商品预算赤字、两位小数三档需求曲线、跨周期成交率保留、证据置信度供需压力、无业务总量上限、库存与资金守恒的双边市场储备、生产链双向滞后价格传导和迁移清理属于产品、产业、订单簿与服务器权威规则；必须同步更新对应文档、测试和 `scripts/verify-staple-crops-demand.mjs`。
 17. 宝石、永久邀请码、首次建档时的分享链接／注册表单邀请码归因、注册完成后禁止补填、同 IP 异常上报、管理员手动封禁、423 响应、管理员解禁与审计属于产品、页面、服务器和管理员权威规则；必须同步更新对应文档、测试和 `scripts/verify-gems-invitations-and-bans.mjs`。
 18. 商店每日终端动态报价、全服同价、接受／拒绝决策、单向兑换、直接货币发行、施工宝石加速、兑换幂等与独立页面属于产品、页面和服务器权威规则；必须同步更新 `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md`、对应文档、测试和 `scripts/verify-gem-shop.mjs`；邀请卡唯一归属商店，不得恢复固定永久汇率、同日重复兑换或宝石兑换工厂产量。
 19. 普通玩家成交记录不得暴露来源、去向或对手订单；API、本地存储和市场页面必须同时匿名化，并通过 `scripts/verify-local-trade-privacy.mjs` 防回退。
@@ -70,7 +70,7 @@
 33. 移动操作结果通知归属 `LIQUID_GLASS_CHROME_DESIGN.md` 与 `GameShell` Chrome Overlay；DOM 必须位于 `StatusBar` 后、`MobileBottomNavigation` 前，顶部位置固定为安全区顶部 + `48px` 状态栏 + `8px` 间距。通知采用普通半透明提示样式，不新增液态玻璃实例、不推动页面内容、不拦截状态栏或底栏交互，并通过 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/mobile-workspace-overlay.spec.ts` 防回退。
 34. 游戏端与管理员端桌面外壳必须共享 `SignedInShell`、`--desktop-layout-gutter`、唯一页面 `ScrollArea`、悬浮桌面工作栏几何和贴边滚动条；普通桌面为 `12px`，宽度不大于 `960px` 或高度不大于 `760px` 的桌面为 `8px`。工作区与页面滚动视口继续铺满视口，桌面页面主滚动条固定贴合视口右边缘，并通过 `scripts/verify-game-shell-layout.mjs`、`scripts/verify-admin-navigation.mjs`、`tests/browser/game-shell-layout.spec.ts` 与 `tests/browser/admin-runtime.spec.ts` 防回退。
 35. `GET state` 的响应时钟必须使用 envelope 顶层 `serverNow`，即使 `unchanged: true` 也必须返回；`serverNow` 不得进入六分区或世界 JSON。客户端只能用它向前校准共享单调服务器时钟，迟到或较旧响应不得让工作冷却、施工、生产、拍卖、合同或排行榜倒计时回退，也不得把 `lastProcessedAt` 在每次轮询时重新解释为当前服务器时间。
-36. 人口就业收入、三类人口真实钱包、生产复杂度岗位结构、固定建造业岗位结构、施工托管、仓储与市场服务就业、人口消费不得发行、工作与商店兑换直接发行、不设置人口回收或通胀控制属于产品、产业、订单簿、仓库、管理员与服务器共同规则；必须同步更新对应文档、测试和人口经济验证。
+36. 人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、生产复杂度岗位结构、固定建造业岗位结构、施工托管、仓储与市场服务就业、人口消费不得发行、工作与商店兑换直接发行、不设置人口回收或通胀控制属于产品、产业、订单簿、仓库、管理员与服务器共同规则；必须同步更新对应文档、测试和人口经济验证。
 37. 状态刷新设置继续只保存和显示 `3s`／`5s`／`10s`，前台活跃时使用玩家选择的间隔；连续 30 秒无交互后临时使用 15 秒，页面隐藏时临时使用 60 秒，重新可见、网络恢复或从限速状态恢复交互时立即请求一次权威状态，临时间隔不得覆盖玩家偏好。正式服务每 60 秒输出一次按方法与归一化路由聚合的请求指标，包含平均／p50／p95／p99／最大处理时长、应用层 JSON 响应字节数、固定阶段耗时、事件循环延迟和无身份容量指标；单个窗口最多保留 256 个方法／路由键，超出上限统一聚合为 `OTHER /api/other` 并记录溢出请求数；超过 1 秒、超过 200 KB 或返回 5xx 的请求立即输出异常摘要。`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限。同一 `GET state` 的合同分区必须复用当前修订缓存，只克隆玩家、合同与人口经济投影，不得再完整克隆世界；普通与合同动作只有世界结构实际变化时才能更新 `economy_world` 与修订号，失败或无变化动作仍保存幂等确认但不得触发全服补拉。以上规则通过 `scripts/verify-runtime-efficiency.mjs` 和服务器测试防回退，不得记录 Cookie、请求体、玩家资产或其他敏感内容。
 38. 管理员桌面 `PageLayout` 标题必须隐藏并由 `AdminDesktopBar` 的桌面玻璃工作栏承载标题、说明、身份、世界／API 摘要和刷新操作；管理员移动端不得渲染该顶部工作栏，继续使用页面标题和统一移动底栏。管理员专属 CSS 只能负责业务内容网格、表单、表格和局部 sticky 编排，不得恢复独立根外壳、页面主滚动视口、全局居中限宽框或管理员专属玻璃参数。
 39. 商品物资插画主视觉归属 `UI_DESIGN_SYSTEM.md` 的商品图标体系：`src/assets/product-icons/` 只保存 `1024 × 1024` RGBA PNG 正式源图，开发与构建统一由 `scripts/generate-product-artwork-thumbnails.mjs` 生成 `src/assets/product-icons/generated/128/` 下的 `128 × 128` RGBA PNG 运行时缩略图；`product-artwork.css` 只能通过 `ProductIcon` 的 `data-product-icon` 映射缩略图，禁止直接加载源图。仓库商品卡、市场商品目录、概览商品行情和拍卖商品主视觉使用缩略图，生产公式、订单表格、资产变动和未知商品继续使用 SVG，并通过 `scripts/verify-product-artwork.mjs` 校验 31 种源图、缩略图、映射、生成入口、降级和使用边界。
