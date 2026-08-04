@@ -1,0 +1,28 @@
+name: Export Latest Main For PR 450
+
+on:
+  push:
+    branches:
+      - agent/export-latest-main-for-450
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/export-latest-main-for-450
+      - name: Create repository archive
+        run: tar --exclude=.git --exclude=.github/workflows/export-main-450.yml -czf /tmp/repository.tar.gz .
+      - name: Upload repository archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: latest-main-repository
+          path: /tmp/repository.tar.gz
+          retention-days: 1
