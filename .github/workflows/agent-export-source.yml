@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/c1-c7-research
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
