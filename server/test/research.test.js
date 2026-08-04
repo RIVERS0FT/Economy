@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createWorld, ensurePlayer } from '../src/domain.js';
 import {
   applyResearchAction,
+  createResearchClientState,
   ensurePlayerResearch,
   processResearchWorld,
   validateResearchAccess,
@@ -23,6 +24,20 @@ test('C1-C7 research is sequential and authoritative', () => {
   assert.equal(player.research.active, null);
   assert.equal(player.stats.researchPayroll, 300);
   assert.equal(validateResearchAccess(world, user, 'buildFacility', { facilityTypeId: 'logging-camp' }, now + 300_000), null);
+});
+
+test('research client state serialization does not advance or mutate the world', () => {
+  const now = 1_800_000_000_000;
+  const world = createWorld(now);
+  const user = { id: 7003, email: 'readonly@example.com', name: 'Readonly' };
+  const player = ensurePlayer(world, user, now);
+  ensurePlayerResearch(world, player, now);
+  assert.equal(applyResearchAction(world, user, 'startResearch', { targetComplexity: 'C2' }, now).ok, true);
+  const before = structuredClone(world);
+  const state = createResearchClientState(world, player, now + 300_000);
+  assert.deepEqual(world, before);
+  assert.equal(state.research.unlockedComplexity, 'C1');
+  assert.equal(state.research.active.targetComplexity, 'C2');
 });
 
 test('legacy players inherit their highest committed facility complexity', () => {
