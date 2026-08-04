@@ -73,6 +73,7 @@ assert.match(gameShell, /NotificationCenterButton/);
 assert.match(gameShell, /NotificationCenterPanel/);
 assert.match(gameShell, /NotificationToasts/);
 assert.doesNotMatch(gameShell, /model\.notice\s*\?/);
+assert.doesNotMatch(gameShell, /CurrencyText/);
 
 const statusBar = read('src/components/shell/StatusBar.tsx');
 assert.match(statusBar, /action\?: ReactNode/);
@@ -94,9 +95,14 @@ assert.match(hook, /deleteNotification/);
 const component = read('src/components/notifications/NotificationCenter.tsx');
 assert.match(component, /useWorkspaceFloatingLayer/);
 assert.match(component, /createPortal/);
+assert.match(component, /CurrencyText/);
 assert.match(component, /清除已读/);
 assert.match(component, /删除通知/);
 assert.doesNotMatch(component, /LiquidGlassSurface/);
+
+const currencyVerifier = read('scripts/verify-currency-svg.mjs');
+assert.match(currencyVerifier, /src\/components\/notifications\/NotificationCenter\.tsx/);
+assert.doesNotMatch(currencyVerifier, /src\/components\/shell\/GameShell\.tsx/);
 
 const styles = read('src/styles/notification-center.css');
 assert.match(styles, /\.asset-bar-layout/);
