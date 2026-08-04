@@ -11,6 +11,8 @@ export interface StateDeliveryEnvelope {
   serverNow: number;
   partitionRevisions?: StatePartitionRevisions;
   patches?: StatePartitionPatches;
+  stateChanged?: boolean;
+  changedPartitions?: readonly StatePartitionName[];
 }
 
 export interface StatePatchMerge {
@@ -26,5 +28,9 @@ export function mergeStatePatches(
 export function createStateDeliveryCache(): {
   reset(): void;
   getPartitionRevisions(): StatePartitionRevisions;
-  accept<T extends StateDeliveryEnvelope>(payload: T): T & { state?: EconomyState };
+  accept<T extends StateDeliveryEnvelope>(payload: T): T & {
+    state?: EconomyState;
+    stateChanged: boolean;
+    changedPartitions: readonly StatePartitionName[];
+  };
 };
