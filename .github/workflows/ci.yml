@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   inspect-pr449-deploy:
-    if: github.event_name == 'push' && github.ref_name == 'agent/pr449-deploy-check'
+    if: (github.event_name == 'push' && github.ref_name == 'agent/pr449-deploy-check') || (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'agent/pr449-deploy-check')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout diagnostic branch
         uses: actions/checkout@v4
+        with:
+          ref: agent/pr449-deploy-check
 
       - name: Wait for production workflows
         env:
