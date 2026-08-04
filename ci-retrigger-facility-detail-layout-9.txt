@@ -1,0 +1,1 @@
+clean validation after recipe profit style ownership correction
