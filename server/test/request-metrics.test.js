@@ -36,6 +36,8 @@ test('request metrics aggregate duration and application response bytes', () => 
     statusCode: 200,
     durationMs: 40,
     responseBytes: 800,
+    phases: { worldCloneMs: 10, stateProjectionMs: 20 },
+    gauges: { worldJsonBytes: 4_096 },
   });
   collector.record({
     method: 'GET',
@@ -43,6 +45,8 @@ test('request metrics aggregate duration and application response bytes', () => 
     statusCode: 200,
     durationMs: 80,
     responseBytes: 1_200,
+    phases: { worldCloneMs: 30, stateProjectionMs: 40 },
+    gauges: { worldJsonBytes: 8_192 },
   });
   collector.record({
     method: 'POST',
@@ -69,9 +73,17 @@ test('request metrics aggregate duration and application response bytes', () => 
     count: 2,
     errorCount: 0,
     averageDurationMs: 60,
+    p50DurationMs: 40,
+    p95DurationMs: 80,
+    p99DurationMs: 80,
     maxDurationMs: 80,
     averageResponseBytes: 1_000,
     maxResponseBytes: 1_200,
+    phases: {
+      stateProjectionMs: { p50Ms: 20, p95Ms: 40, p99Ms: 40, maxMs: 40 },
+      worldCloneMs: { p50Ms: 10, p95Ms: 30, p99Ms: 30, maxMs: 30 },
+    },
+    gauges: { worldJsonBytes: 8_192 },
   });
   assert.equal(summary.routes[1].method, 'POST');
   assert.equal(summary.routes[1].errorCount, 1);
@@ -112,9 +124,14 @@ test('request metrics cap route cardinality and aggregate overflow', () => {
       count: 8,
       errorCount: 0,
       averageDurationMs: 1,
+      p50DurationMs: 1,
+      p95DurationMs: 1,
+      p99DurationMs: 1,
       maxDurationMs: 1,
       averageResponseBytes: 20,
       maxResponseBytes: 20,
+      phases: {},
+      gauges: {},
     },
   );
 });

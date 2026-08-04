@@ -15,34 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  apply-approved-performance-phase-1:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'perf/phase-observability'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: perf/phase-observability
-          fetch-depth: 0
-      - name: Apply approved patch to head branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          awk '/^H4sI/{copy=1} copy {if ($0 == "PATCH") exit; print}'             .github/workflows/apply-performance-phase-1.yml > /tmp/performance.patch.gz.b64
-          base64 -d /tmp/performance.patch.gz.b64 | gzip -d > /tmp/performance.patch
-          git apply --check /tmp/performance.patch
-          git apply /tmp/performance.patch
-          git checkout origin/main -- .github/workflows/ci.yml
-          rm -f -- .github/workflows/apply-performance-phase-1.yml .performance-phase-1-trigger
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -- docs/README.md docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-efficiency.mjs server/src/app.js server/src/request-metrics.js server/src/request-performance.js server/src/runtime-store.js server/src/state-partitions.js server/src/storage.js server/test/request-metrics.test.js server/test/request-performance.test.js tests/stress/budgets.json .github/workflows/ci.yml .github/workflows/apply-performance-phase-1.yml .performance-phase-1-trigger
-          git commit -m "perf: add request phase observability"
-          git push origin HEAD:perf/phase-observability
-
   verify-head-ci-registration:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref != 'perf/phase-observability'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -54,7 +28,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          python3 - <<'PY2'
+          python3 - <<'PY'
           import json
           import os
           import time
@@ -68,6 +42,7 @@ jobs:
               'Authorization': f'Bearer {token}',
               'X-GitHub-Api-Version': '2022-11-28',
           }
+
           runs = []
           for _ in range(12):
               url = f'https://api.github.com/repos/{repository}/actions/runs?head_sha={head_sha}&event=push&per_page=20'
@@ -77,39 +52,54 @@ jobs:
               if runs:
                   break
               time.sleep(5)
+
+          print(json.dumps({
+              'head_sha': head_sha,
+              'push_runs': [
+                  {
+                      'id': run['id'],
+                      'run_number': run['run_number'],
+                      'status': run['status'],
+                      'conclusion': run['conclusion'],
+                  }
+                  for run in runs
+              ],
+          }, ensure_ascii=False, indent=2))
           if not runs:
               raise SystemExit('No push workflow run found for the pull request head SHA')
-          PY2
+          PY
 
   build:
-    needs: [apply-approved-performance-phase-1]
-    if: always() && (needs.apply-approved-performance-phase-1.result == 'success' || needs.apply-approved-performance-phase-1.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24.4.0
           cache: npm
+
       - name: Install dependencies
         run: npm ci
+
       - name: Build and test
         shell: bash
         run: |
           set -o pipefail
           npm run build 2>&1 | tee build-test.log
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+
       - name: Test browser runtime
         shell: bash
         run: |
           set -o pipefail
           npm run test:browser 2>&1 | tee browser-test.log
+
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v4

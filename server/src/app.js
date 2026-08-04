@@ -26,6 +26,7 @@ import {
 import { EconomyStore } from './runtime-store.js';
 import { createTutorialStore, CURRENT_TUTORIAL_VERSION } from './tutorial-store.js';
 import { cleanupEmailVerificationRecords } from './verification-retention.js';
+import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 
 const port = Number(process.env.PORT || 3002);
 const databasePath = process.env.ECONOMY_DB_PATH || '/var/lib/riversoft-economy/economy.sqlite';
@@ -42,7 +43,8 @@ const registrationService = createRegistrationService({ registrationStore });
 configureGiftCodeAdminStore(store);
 
 function sendJson(response, statusCode, payload, extraHeaders = {}) {
-  const body = JSON.stringify(payload);
+  const body = measureRequestPhase('serializeResponseMs', () => JSON.stringify(payload));
+  setRequestGauge('responseJsonBytes', Buffer.byteLength(body));
   response.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),

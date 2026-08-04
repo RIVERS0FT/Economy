@@ -19,6 +19,7 @@ import { configurePlayerAdminStatistics } from './player-admin-statistics.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createEconomicCalendarClientState } from './economic-events.js';
 import { flushAuctionAuditEvents } from './auction-audit-store.js';
+import { measureRequestPhase } from './request-performance.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const CONTRACT_ACTIONS = new Set([
@@ -165,13 +166,13 @@ export class EconomyStore extends PersistentEconomyStore {
     const cached = this.worldCache;
     const contractState = cached && cached.revision === snapshot.revision
       ? createProductionContractClientState(
-        contractProjectionForState(cached.world),
+        measureRequestPhase('contractProjectionCloneMs', () => contractProjectionForState(cached.world)),
         Number(user.id),
         now,
       )
       : this.transaction(() => {
         const { world } = this.loadWorld(now);
-        return createProductionContractClientState(world, Number(user.id), now);
+        return measureRequestPhase('contractStateProjectionMs', () => createProductionContractClientState(world, Number(user.id), now));
       }, { immediate: false });
 
     return {

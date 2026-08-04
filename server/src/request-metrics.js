@@ -1,5 +1,6 @@
 import { Server } from 'node:http';
-import { performance } from 'node:perf_hooks';
+import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
+import { createRequestPerformanceContext, runWithRequestPerformance, snapshotRequestPerformance } from './request-performance.js';
 
 const INSTALLATION_KEY = Symbol.for('riversoft.economy.requestMetrics');
 const DEFAULT_WINDOW_MS = 60_000;
@@ -8,6 +9,7 @@ const DEFAULT_LARGE_RESPONSE_BYTES = 200 * 1024;
 const DEFAULT_MAX_ROUTE_KEYS = 256;
 const OVERFLOW_METHOD = 'OTHER';
 const OVERFLOW_ROUTE = '/api/other';
+const MAX_SAMPLES_PER_ROUTE = 4_096;
 const DYNAMIC_ROUTE_PATTERNS = [
   [/^(\/api\/game\/(?:orders|auctions|facility-listings))\/[^/]+(\/(?:bids|cancel|buy))$/, '$1/:id$2'],
   [/^(\/api\/game\/admin\/gift-codes)\/[^/]+(\/(?:disable|redemptions))$/, '$1/:id$2'],
@@ -22,6 +24,17 @@ function finiteNonNegative(value) {
 
 function round(value) {
   return Math.round(finiteNonNegative(value) * 100) / 100;
+}
+
+function percentile(values, ratio) {
+  if (!Array.isArray(values) || values.length === 0) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * ratio) - 1));
+  return round(sorted[index]);
+}
+
+function appendSample(samples, value) {
+  if (samples.length < MAX_SAMPLES_PER_ROUTE) samples.push(finiteNonNegative(value));
 }
 
 export function normalizeMetricRoute(value) {
@@ -48,7 +61,7 @@ export function createRequestMetricsCollector({
   const routeKeyLimit = Math.max(1, Math.floor(Number(maxRouteKeys) || DEFAULT_MAX_ROUTE_KEYS));
   let overflowedRequestCount = 0;
 
-  function record({ method, url, statusCode, durationMs, responseBytes }) {
+  function record({ method, url, statusCode, durationMs, responseBytes, phases = {}, gauges = {} }) {
     let route = normalizeMetricRoute(url);
     if (route !== '/health' && !route.startsWith('/api/')) return;
     let metricMethod = String(method || 'GET').toUpperCase();
@@ -71,6 +84,9 @@ export function createRequestMetricsCollector({
       maxDurationMs: 0,
       totalResponseBytes: 0,
       maxResponseBytes: 0,
+      durationSamples: [],
+      phaseSamples: new Map(),
+      gauges: Object.create(null),
     };
     current.count += 1;
     if (status >= 500) current.errorCount += 1;
@@ -78,6 +94,16 @@ export function createRequestMetricsCollector({
     current.maxDurationMs = Math.max(current.maxDurationMs, duration);
     current.totalResponseBytes += bytes;
     current.maxResponseBytes = Math.max(current.maxResponseBytes, bytes);
+    appendSample(current.durationSamples, duration);
+    for (const [phase, phaseDuration] of Object.entries(phases || {})) {
+      if (!current.phaseSamples.has(phase)) current.phaseSamples.set(phase, []);
+      appendSample(current.phaseSamples.get(phase), phaseDuration);
+    }
+    for (const [name, value] of Object.entries(gauges || {})) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) continue;
+      current.gauges[name] = Math.max(Number(current.gauges[name] ?? number), number);
+    }
     routes.set(key, current);
 
     if (status >= 500 || duration >= slowRequestMs || bytes >= largeResponseBytes) {
@@ -87,11 +113,13 @@ export function createRequestMetricsCollector({
         statusCode: status,
         durationMs: round(duration),
         responseBytes: bytes,
+        phases,
+        gauges,
       }));
     }
   }
 
-  function flush() {
+  function flush(extraSummary = {}) {
     const endedAt = now();
     const summaries = [...routes.values()]
       .sort((left, right) => `${left.method} ${left.route}`.localeCompare(`${right.method} ${right.route}`))
@@ -101,9 +129,21 @@ export function createRequestMetricsCollector({
         count: entry.count,
         errorCount: entry.errorCount,
         averageDurationMs: round(entry.totalDurationMs / entry.count),
+        p50DurationMs: percentile(entry.durationSamples, 0.5),
+        p95DurationMs: percentile(entry.durationSamples, 0.95),
+        p99DurationMs: percentile(entry.durationSamples, 0.99),
         maxDurationMs: round(entry.maxDurationMs),
         averageResponseBytes: Math.round(entry.totalResponseBytes / entry.count),
         maxResponseBytes: Math.round(entry.maxResponseBytes),
+        phases: Object.fromEntries([...entry.phaseSamples.entries()]
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([name, samples]) => [name, {
+            p50Ms: percentile(samples, 0.5),
+            p95Ms: percentile(samples, 0.95),
+            p99Ms: percentile(samples, 0.99),
+            maxMs: percentile(samples, 1),
+          }])),
+        gauges: { ...entry.gauges },
       }));
     const summary = {
       windowStartedAt,
@@ -111,6 +151,7 @@ export function createRequestMetricsCollector({
       windowMs: Math.max(0, endedAt - windowStartedAt),
       overflowedRequestCount,
       routes: summaries,
+      ...extraSummary,
     };
     routes.clear();
     overflowedRequestCount = 0;
@@ -126,32 +167,50 @@ export function installRequestMetrics({ windowMs = DEFAULT_WINDOW_MS } = {}) {
   if (globalThis[INSTALLATION_KEY]) return globalThis[INSTALLATION_KEY];
 
   const collector = createRequestMetricsCollector();
+  const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
+  eventLoopDelay.enable();
   const originalEmit = Server.prototype.emit;
   function instrumentedEmit(event, ...args) {
-    if (event === 'request') {
-      const [request, response] = args;
-      const startedAt = performance.now();
-      response.once('finish', () => {
-        collector.record({
-          method: request.method,
-          url: request.url,
-          statusCode: response.statusCode,
-          durationMs: performance.now() - startedAt,
-          responseBytes: response.getHeader('Content-Length'),
-        });
+    if (event !== 'request') return Reflect.apply(originalEmit, this, [event, ...args]);
+    const [request, response] = args;
+    const startedAt = performance.now();
+    const performanceContext = createRequestPerformanceContext();
+    response.once('finish', () => {
+      const details = snapshotRequestPerformance(performanceContext);
+      collector.record({
+        method: request.method,
+        url: request.url,
+        statusCode: response.statusCode,
+        durationMs: performance.now() - startedAt,
+        responseBytes: response.getHeader('Content-Length'),
+        phases: details.phases,
+        gauges: details.gauges,
       });
-    }
-    return Reflect.apply(originalEmit, this, [event, ...args]);
+    });
+    return runWithRequestPerformance(performanceContext, () => (
+      Reflect.apply(originalEmit, this, [event, ...args])
+    ));
   }
   Server.prototype.emit = instrumentedEmit;
 
-  const timer = setInterval(() => collector.flush(), Math.max(1_000, Number(windowMs) || DEFAULT_WINDOW_MS));
+  const timer = setInterval(() => {
+    collector.flush({
+      eventLoopDelay: {
+        p50Ms: round(eventLoopDelay.percentile(50) / 1_000_000),
+        p95Ms: round(eventLoopDelay.percentile(95) / 1_000_000),
+        p99Ms: round(eventLoopDelay.percentile(99) / 1_000_000),
+        maxMs: round(eventLoopDelay.max / 1_000_000),
+      },
+    });
+    eventLoopDelay.reset();
+  }, Math.max(1_000, Number(windowMs) || DEFAULT_WINDOW_MS));
   timer.unref();
   const installation = {
     collector,
     flush: () => collector.flush(),
     uninstall() {
       clearInterval(timer);
+      eventLoopDelay.disable();
       if (Server.prototype.emit === instrumentedEmit) Server.prototype.emit = originalEmit;
       delete globalThis[INSTALLATION_KEY];
     },
