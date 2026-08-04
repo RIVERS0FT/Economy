@@ -30,12 +30,22 @@ jobs:
           from pathlib import Path
           path = Path('.agent/apply-factory-settlement-fix.py')
           text = path.read_text()
+
           old = '`生产结算不得包含: ${text}`'
           new = '`生产结算不得包含: ${forbidden}`'
           count = text.count(old)
           if count != 2:
               raise SystemExit(f'expected two verifier template matches, found {count}')
-          path.write_text(text.replace(old, new))
+          text = text.replace(old, new)
+
+          old = r"\n  'width: 100%;',\n"
+          new = r"\n  '  .facility-formula-meta {\\n    width: 100%;\\n  }',\n"
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one mobile width verifier match, found {count}')
+          text = text.replace(old, new)
+
+          path.write_text(text)
           PY
           python .agent/apply-factory-settlement-fix.py
 
