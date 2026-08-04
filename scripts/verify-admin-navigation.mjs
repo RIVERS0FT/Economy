@@ -41,7 +41,7 @@ requireText('src/components/shell/AdminSidebar.tsx', [
   'className="admin-mobile-bottom-navigation"',
   'surfaceId="admin-mobile-navigation"',
   'navLabel="管理员移动导航"',
-  "export type AdminSectionId = 'overview' | 'server' | 'players' | 'population' | 'gift-codes' | 'bans';",
+  "export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans' | 'server';",
   "{ id: 'overview', label: '概览'",
   "{ id: 'server', label: '服务器'",
   "{ id: 'players', label: '玩家'",

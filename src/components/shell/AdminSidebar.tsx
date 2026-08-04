@@ -2,7 +2,7 @@ import { GiftIcon, HomeIcon, PlayersIcon, PopulationIcon, SettingsIcon, ShieldIc
 import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 import { SidebarFrame } from './SidebarFrame';
 
-export type AdminSectionId = 'overview' | 'server' | 'players' | 'population' | 'gift-codes' | 'bans';
+export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans' | 'server';
 
 export const adminNavigationItems: Array<{
   id: AdminSectionId;
