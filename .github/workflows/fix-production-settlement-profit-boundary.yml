@@ -1,0 +1,64 @@
+name: Fix production settlement profit boundary
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Update settlement verifier
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-production-settlement-layout.mjs')
+          source = path.read_text()
+          old = """const profitRule = profitCss.slice(
+            profitCss.indexOf('.facility-average-profit {'),
+            profitCss.indexOf('.facility-average-profit__copy {'),
+          );
+          assert.equal(profitRule.includes('border-top:'), true, '利润结果栏必须保留顶部分隔线');
+          for (const forbidden of ['border-radius:', 'background:']) {
+            assert.equal(profitRule.includes(forbidden), false, `利润结果栏不得恢复独立卡片视觉: ${forbidden}`);
+          }
+          """
+          new = """const profitRule = profitCss.slice(
+            profitCss.indexOf('.facility-average-profit {'),
+            profitCss.indexOf('.facility-average-profit__copy {'),
+          );
+          assert.equal(formula.includes('<FacilityRecipeProfitAnalysis'), false, '生产结算不得继续包含单厂利润');
+          assert.equal(detail.includes('<FacilityRecipeProfitAnalysis'), true, '工厂信息必须渲染单厂利润');
+          assert.equal(groupCss.includes('.facility-information > .facility-average-profit'), true, '工厂信息布局必须承担利润分隔线');
+          assert.equal(profitRule.includes('border-top:'), false, '利润组件基础样式不得绑定生产结算分隔线');
+          for (const forbidden of ['border-radius:', 'background:']) {
+            assert.equal(profitRule.includes(forbidden), false, `利润结果栏不得恢复独立卡片视觉: ${forbidden}`);
+          }
+          """
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one old profit boundary block, found {source.count(old)}')
+          source = source.replace(old, new, 1)
+          source = source.replace(
+              "console.log('生产结算商品 PNG、投入产出、单行周期成本操作带、实时满员率、响应式与利润结果栏验证通过。');",
+              "console.log('生产结算商品 PNG、投入产出、单行周期成本操作带、实时满员率、响应式与工厂信息利润归属验证通过。');",
+              1,
+          )
+          path.write_text(source)
+          Path('.github/workflows/fix-production-settlement-profit-boundary.yml').unlink()
+          PY
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- scripts/verify-production-settlement-layout.mjs .github/workflows/fix-production-settlement-profit-boundary.yml
+          git commit -m "同步生产结算利润归属验证"
+          git push origin HEAD:${{ github.head_ref }}
