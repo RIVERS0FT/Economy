@@ -49,7 +49,7 @@ interface NotificationContract {
   isSupplier?: boolean;
 }
 
-type NotificationGameState = EconomyState & {
+type NotificationGameState = Omit<Partial<EconomyState>, 'assetAuctions' | 'productionContracts'> & {
   assetAuctions?: NotificationAuction[];
   productionContracts?: NotificationContract[];
 };
@@ -243,12 +243,14 @@ export function targetTabFromMessage(message: string): TabId | undefined {
   return undefined;
 }
 
-function facilityPendingItems(game: EconomyState): PendingNotificationItem[] {
-  const facilityNames = new Map(game.facilityTypes.map((facility) => [facility.id, facility.name]));
-  return game.facilityGroups.flatMap((group) => {
+function facilityPendingItems(game: NotificationGameState): PendingNotificationItem[] {
+  const facilityTypes = Array.isArray(game.facilityTypes) ? game.facilityTypes : [];
+  const facilityGroups = Array.isArray(game.facilityGroups) ? game.facilityGroups : [];
+  const facilityNames = new Map(facilityTypes.map((facility) => [facility.id, facility.name]));
+  return facilityGroups.flatMap((group) => {
     if (group.status !== 'error') return [];
     const reason = group.statusReason ?? 'maintenance';
-    const copy = FACILITY_REASON_COPY[reason];
+    const copy = FACILITY_REASON_COPY[reason] ?? FACILITY_REASON_COPY.maintenance;
     const facilityName = facilityNames.get(group.facilityTypeId) ?? group.facilityTypeId;
     return [{
       key: `facility:${group.facilityTypeId}`,
@@ -262,10 +264,13 @@ function facilityPendingItems(game: EconomyState): PendingNotificationItem[] {
   });
 }
 
-function warehousePendingItem(game: EconomyState): PendingNotificationItem[] {
-  const threshold = Math.max(25, Math.ceil(game.inventoryCapacity * 0.1));
-  if (game.warehouseAvailableCapacity > threshold) return [];
-  const full = game.warehouseAvailableCapacity <= 0;
+function warehousePendingItem(game: NotificationGameState): PendingNotificationItem[] {
+  const inventoryCapacity = Number(game.inventoryCapacity);
+  const availableCapacity = Number(game.warehouseAvailableCapacity);
+  if (!Number.isFinite(inventoryCapacity) || !Number.isFinite(availableCapacity)) return [];
+  const threshold = Math.max(25, Math.ceil(Math.max(0, inventoryCapacity) * 0.1));
+  if (availableCapacity > threshold) return [];
+  const full = availableCapacity <= 0;
   return [{
     key: 'warehouse:capacity',
     signature: `warehouse:capacity:${full ? 'full' : 'low'}`,
@@ -274,7 +279,7 @@ function warehousePendingItem(game: EconomyState): PendingNotificationItem[] {
     title: full ? '共享仓库已满' : '共享仓库空间不足',
     message: full
       ? '商品买入、合同采购或工厂产出可能被阻塞'
-      : `仓库仅剩 ${Math.max(0, game.warehouseAvailableCapacity)} 个容量`,
+      : `仓库仅剩 ${Math.max(0, availableCapacity)} 个容量`,
     targetTab: 'production',
   }];
 }
@@ -313,9 +318,9 @@ function contractPendingItems(game: NotificationGameState): PendingNotificationI
     }));
 }
 
-function bankPendingItems(game: EconomyState): PendingNotificationItem[] {
+function bankPendingItems(game: NotificationGameState): PendingNotificationItem[] {
   const items: PendingNotificationItem[] = [];
-  if (game.bankAccount.activeLoan?.status === 'grace') {
+  if (game.bankAccount?.activeLoan?.status === 'grace') {
     items.push({
       key: 'bank:loan-grace',
       signature: 'bank:loan-grace',
@@ -326,7 +331,10 @@ function bankPendingItems(game: EconomyState): PendingNotificationItem[] {
       targetTab: 'bank',
     });
   }
-  if (game.bankSummary.weeklyCashSettlement.outstandingCredits > 0) {
+  const outstandingCredits = Number(
+    game.bankSummary?.weeklyCashSettlement?.outstandingCredits,
+  );
+  if (Number.isFinite(outstandingCredits) && outstandingCredits > 0) {
     items.push({
       key: 'bank:weekly-settlement',
       signature: 'bank:weekly-settlement',
@@ -340,13 +348,14 @@ function bankPendingItems(game: EconomyState): PendingNotificationItem[] {
   return items;
 }
 
-export function derivePendingNotificationItems(game: EconomyState): PendingNotificationItem[] {
-  const extendedGame = game as NotificationGameState;
+export function derivePendingNotificationItems(
+  game: NotificationGameState,
+): PendingNotificationItem[] {
   return [
     ...facilityPendingItems(game),
     ...warehousePendingItem(game),
-    ...contractPendingItems(extendedGame),
-    ...auctionPendingItems(extendedGame),
+    ...contractPendingItems(game),
+    ...auctionPendingItems(game),
     ...bankPendingItems(game),
   ].sort((left, right) => (
     SEVERITY_ORDER[left.severity] - SEVERITY_ORDER[right.severity]
