@@ -131,8 +131,11 @@ assert.match(browserTest, /partial runtime state keeps the signed-in shell/);
 assert.match(browserTest, /openNotificationPanelAndMountToast/);
 assert.match(browserTest, /getByRole\('dialog', \{ name: '通知' \}\)/);
 assert.match(browserTest, /document\.querySelectorAll\('\.asset-bar \.liquid-glass-surface'\)/);
+assert.match(browserTest, /geometry\.trigger\.width\)\.toBeCloseTo\(44, 0\)/);
+assert.match(browserTest, /geometry\.trigger\.height\)\.toBeCloseTo\(44, 0\)/);
 assert.doesNotMatch(browserTest, /layout\.classList/);
 assert.doesNotMatch(browserTest, /notice-toast/);
+assert.doesNotMatch(browserTest, /toBeCloseTo\(36, 0\)/);
 
 const currencyVerifier = read('scripts/verify-currency-svg.mjs');
 assert.match(currencyVerifier, /src\/components\/notifications\/NotificationCenter\.tsx/);
@@ -141,14 +144,16 @@ assert.doesNotMatch(currencyVerifier, /src\/components\/shell\/GameShell\.tsx/);
 const styles = read('src/styles/notification-center.css');
 assert.match(styles, /\.asset-bar-layout/);
 assert.match(styles, /grid-template-columns:\s*minmax\(0, 1fr\) 56px/);
+assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 48px/);
+assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-trigger\s*\{[\s\S]*?width:\s*44px;[\s\S]*?min-width:\s*44px;[\s\S]*?height:\s*44px;[\s\S]*?min-height:\s*44px;/);
 assert.match(styles, /\.notification-panel-layer/);
 assert.match(styles, /\.notification-toast-stack/);
-assert.match(styles, /@media \(max-width: 720px\)/);
 assert.match(styles, /@media \(hover: hover\) and \(pointer: fine\)/);
 assert.match(styles, /html\[data-input-modality="mouse"\] \.notification-toast:hover/);
 assert.match(styles, /\.notification-toast:not\(:last-child\)/);
 assert.match(styles, /overscroll-behavior-y:\s*auto/);
 assert.doesNotMatch(styles, /overscroll-behavior:\s*contain/);
+assert.doesNotMatch(styles, /(?:width|height):\s*36px/);
 
 const mobileStatusStyles = read('src/styles/mobile-status-layout.css');
 assert.match(mobileStatusStyles, /\.mobile-notice-region \.notification-toast/);
@@ -170,5 +175,7 @@ assert.match(uiDesign, /## 通知面板与关闭态 Toast/);
 assert.match(uiDesign, /移动只显示队列最后一条/);
 assert.match(uiDesign, /关闭后焦点返回通知入口/);
 assert.match(uiDesign, /缺失领域不得阻断登录后外壳/);
+assert.match(uiDesign, /`48px` 工具轨道和 `44×44px` 触控目标/);
+assert.match(uiDesign, /不得缩回旧测试夹具的 `36px`/);
 
 console.log('notification center verification passed');
