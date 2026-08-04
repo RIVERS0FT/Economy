@@ -42,9 +42,9 @@ if (failures.length === 0) {
     'text-overflow: clip;',
     'white-space: nowrap;',
     '@media (max-width: 340px)',
-    'padding-inline: 0;',
-    'width: .85rem;',
-    'height: .85rem;',
+    'gap: .05rem;',
+    'width: .7rem;',
+    'height: .7rem;',
   ]);
   forbidText(paths.mobileStyle, 'text-overflow: ellipsis');
   requireAll(paths.design, [
