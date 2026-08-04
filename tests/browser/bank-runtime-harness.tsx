@@ -25,9 +25,11 @@ const model = {
     inventories: { wheat: { available: 5, frozen: 2 } },
     products: [{ id: 'wheat', name: '小麦', category: 'raw', basePrice: 2 }],
     facilityGroups: [{
-      facilityTypeId: 'farm', count: 6, participatingCount: 6, pendingJoinCount: 0,
+      facilityTypeId: 'farm', count: 6, participatingCount: 5,
+      productionAvailableCount: 5, projectedEffectiveCount: 5,
       listedCount: 1, auctionedCount: 0, frozenCount: 1, mortgagedCount: 0,
-      availableCount: 5, nextCycleCount: 6, enabled: true, status: 'running',
+      availableCount: 5, enabled: true, status: 'running',
+      staffingRateBps: 10_000, staffingUpdatedAt: fixedNow, staffingBatchCarryBps: 0,
       lifetimeOutput: 40, activeRecipeId: 'wheat-crop',
     }],
     facilityTypes: [{

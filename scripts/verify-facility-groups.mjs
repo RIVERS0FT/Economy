@@ -30,6 +30,9 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/styles/unified-market-admin.css',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
   'docs/UI_DESIGN_SYSTEM.md',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'tests/browser/bank-runtime-harness.tsx',
+  'tests/browser/market-runtime-harness.tsx',
 ].forEach(requireFile);
 
 for (const text of [
@@ -316,12 +319,12 @@ for (const text of [
   '进度条',
   '时间与成本固定放在投入与产出下方的同一条操作数据带',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
-  '完整状态与工厂名称放在同一紧凑标题行',
+  '完整状态与工厂名称位于紧凑标题区域',
   '不包含顶部关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
-  '自然内容流是桌面详情高度的唯一来源',
+  '桌面详情卡高度由自然内容流决定',
   '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
-  '生产公式与单厂平均利润共同属于同一个“生产结算”容器',
+  '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
   '工厂满员率与等效产能',
   '周期完成时刻的满员率',
   'staffingBatchCarryBps',
@@ -347,6 +350,40 @@ for (const text of [
   '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
   '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
+
+for (const path of [
+  'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+  'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
+  'docs/UI_DESIGN_SYSTEM.md',
+]) {
+  for (const forbidden of [
+    'cycleStaffingRateBps',
+    'cycleEffectiveCount',
+    'nextCycleCount',
+    'nextCycleStaffingRateBps',
+    'nextCycleEffectiveCount',
+    'pendingJoinCount',
+    '每个新完整周期锁定',
+    '四项数量摘要',
+  ]) forbidText(path, forbidden);
+}
+for (const path of [
+  'tests/browser/bank-runtime-harness.tsx',
+  'tests/browser/market-runtime-harness.tsx',
+]) {
+  for (const forbidden of ['pendingJoinCount', 'nextCycleCount', 'nextCycleStaffingRateBps', 'nextCycleEffectiveCount']) {
+    forbidText(path, forbidden);
+  }
+  for (const required of ['productionAvailableCount', 'projectedEffectiveCount', 'staffingRateBps', 'staffingUpdatedAt', 'staffingBatchCarryBps']) {
+    requireText(path, required);
+  }
+}
+for (const text of [
+  '不存在周期开始时锁定的满员率或整数等效产能字段',
+  '离线补算多个周期时必须逐周期使用各自的 `cycleDueAt`',
+  '满员率状态带只显示当前百分比、恢复／下降方向和进度条',
+  '生产结算标题只显示“生产结算”',
+]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
 
 if (failures.length) {
   console.error(`工厂三态、生产公式、自动恢复与统一开关验证失败:\n- ${failures.join('\n- ')}`);
