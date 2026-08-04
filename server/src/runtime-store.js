@@ -108,15 +108,15 @@ export class EconomyStore extends PersistentEconomyStore {
     configurePlayerAdminStatistics(this);
   }
 
-  prepareWorldForStorage(world, now) {
-    const prepared = super.prepareWorldForStorage(world, now);
+  migrateLoadedWorld(world, now) {
+    const prepared = super.migrateLoadedWorld(world, now);
     migrateProductionContractWorld(prepared);
     prepared.version = 22;
-    return prepared;
+    return this.finalizeWorldForStorage(prepared, now);
   }
 
   _persistWorldWithContractAudit(revision, world, now) {
-    this.prepareWorldForStorage(world, now);
+    this.finalizeWorldForStorage(world, now);
     const cached = this.worldCache;
     const unchanged = cached
       && cached.revision === revision
@@ -233,7 +233,15 @@ export class EconomyStore extends PersistentEconomyStore {
         });
       }
 
-      this.processWorldIfDue(world, now, Number(user.id), { force: true, auditTrigger: 'action_postprocess' });
+      const beforePostActionContracts = contractSnapshot(world);
+      processProductionContracts(world, now);
+      this.captureContractAuditTransition(beforePostActionContracts, world, {
+        actorUserId: Number(user.id),
+        triggerType: 'action_postprocess',
+        action,
+        requestKey,
+        now,
+      });
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
       const nextRevision = this.saveWorld(revision, world, now);
@@ -246,7 +254,7 @@ export class EconomyStore extends PersistentEconomyStore {
         JSON.stringify(response),
         now,
       );
-      this.deleteExpiredIdempotency.run(now - IDEMPOTENCY_TTL_MS);
+      this.cleanupExpiredIdempotency(now);
       return response;
     });
   }
