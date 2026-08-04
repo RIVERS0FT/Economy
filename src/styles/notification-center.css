@@ -37,7 +37,6 @@
   height: 23px;
 }
 
-.notification-center-trigger:hover,
 .notification-center-trigger.active {
   color: var(--color-text-primary);
   background: rgba(123, 228, 158, 0.1);
@@ -159,13 +158,6 @@
   font-weight: 800;
 }
 
-.notification-panel__clear:hover:not(:disabled),
-.notification-panel__close:hover,
-.notification-record__delete:hover {
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.07);
-}
-
 .notification-panel__clear:disabled {
   opacity: .4;
   cursor: default;
@@ -262,7 +254,6 @@
   border-left-color: #69a7ff;
 }
 
-.notification-pending-item:hover,
 .notification-pending-item:focus-visible {
   border-color: rgba(171, 220, 188, 0.45);
   background: rgba(255, 255, 255, 0.065);
@@ -358,10 +349,6 @@
   cursor: pointer;
 }
 
-.notification-record__body--interactive:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
 .notification-record__body time {
   color: var(--color-text-muted);
   font-size: .68rem;
@@ -437,7 +424,6 @@
   line-height: 1.4;
 }
 
-.notification-toast:hover,
 .notification-toast:focus-visible {
   border-color: rgba(171, 220, 188, 0.5);
   background: rgba(10, 31, 20, 0.99);
@@ -560,6 +546,34 @@
 
   .notification-toast:not(:last-child) {
     display: none;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .notification-center-trigger:hover {
+    color: var(--color-text-primary);
+    background: rgba(123, 228, 158, 0.1);
+  }
+
+  .notification-panel__clear:hover:not(:disabled),
+  .notification-panel__close:hover,
+  .notification-record__delete:hover {
+    color: var(--color-text-primary);
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .notification-pending-item:hover {
+    border-color: rgba(171, 220, 188, 0.45);
+    background: rgba(255, 255, 255, 0.065);
+  }
+
+  .notification-record__body--interactive:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .notification-toast:hover {
+    border-color: rgba(171, 220, 188, 0.5);
+    background: rgba(10, 31, 20, 0.99);
   }
 }
 
