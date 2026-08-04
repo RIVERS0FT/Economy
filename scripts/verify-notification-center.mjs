@@ -101,6 +101,11 @@ assert.match(component, /删除通知/);
 assert.doesNotMatch(component, /LiquidGlassSurface/);
 assert.doesNotMatch(component, /notice-toast/);
 
+const browserTest = read('tests/browser/notification-center.spec.ts');
+assert.match(browserTest, /layout\.classList\.add\('asset-bar-layout'\)/);
+assert.doesNotMatch(browserTest, /layout\.className = 'asset-bar-layout'/);
+assert.doesNotMatch(browserTest, /notice-toast/);
+
 const currencyVerifier = read('scripts/verify-currency-svg.mjs');
 assert.match(currencyVerifier, /src\/components\/notifications\/NotificationCenter\.tsx/);
 assert.doesNotMatch(currencyVerifier, /src\/components\/shell\/GameShell\.tsx/);
