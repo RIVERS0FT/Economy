@@ -1,0 +1,39 @@
+name: Fix facility detail viewport documentation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Restore authoritative viewport rule
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md')
+          source = path.read_text()
+          old = '- 当前工厂详情的可见顺序固定为“移动端把手（桌面端无）→ 工厂信息 → 满员率 → 生产设置 → 生产结算 → 市场入口”。桌面端不得渲染把手 DOM；移动 Bottom Sheet 的固定头部只保留拖动把手，工厂名称、状态和开关必须进入正文中的共享工厂信息区。'
+          new = old + ' Bottom Sheet 必须在首次可见绘制前完成页面滚动锁定、稳定视觉视口高度快照和 `focus({ preventScroll: true })`，打开后不得因动态视口变化产生纵向抖动。'
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one industry hierarchy rule, found {source.count(old)}')
+          path.write_text(source.replace(old, new, 1))
+          Path('.github/workflows/fix-facility-detail-viewport-doc.yml').unlink()
+          PY
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- docs/INDUSTRY_AND_PRODUCTION_DESIGN.md .github/workflows/fix-facility-detail-viewport-doc.yml
+          git commit -m "补回移动工厂详情稳定视口规则"
+          git push origin HEAD:${{ github.head_ref }}
