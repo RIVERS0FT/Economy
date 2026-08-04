@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { AdminServerMetricBucket } from '../../api/admin';
+import type { AdminServerMetricBucket, AdminServerStatusGranularity } from '../../api/admin';
 import { EconomyChart } from './EconomyChart';
 import type { EChartsCoreOption } from './echartsCore';
 import {
@@ -11,10 +11,20 @@ import {
   escapeChartHtml,
 } from './chartOptions';
 
-const timeFormatter = new Intl.DateTimeFormat('zh-CN', {
+const minuteFormatter = new Intl.DateTimeFormat('zh-CN', {
   hour: '2-digit',
   minute: '2-digit',
   hour12: false,
+});
+const hourFormatter = new Intl.DateTimeFormat('zh-CN', {
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  hour12: false,
+});
+const dayFormatter = new Intl.DateTimeFormat('zh-CN', {
+  month: '2-digit',
+  day: '2-digit',
 });
 
 export type AdminServerTrendSeries = {
@@ -23,6 +33,12 @@ export type AdminServerTrendSeries = {
   color: string;
   format: (value: number) => string;
 };
+
+function timeLabel(value: number, granularity: AdminServerStatusGranularity) {
+  if (granularity === 'day') return dayFormatter.format(value);
+  if (granularity === 'hour') return hourFormatter.format(value);
+  return minuteFormatter.format(value);
+}
 
 function tooltipRows(title: string, rows: Array<[string, string]>) {
   return `<strong>${escapeChartHtml(title)}</strong>${rows.map(([label, value]) => (
@@ -33,15 +49,17 @@ function tooltipRows(title: string, rows: Array<[string, string]>) {
 export function AdminServerTrendChart({
   history,
   series,
+  granularity,
   ariaLabel,
   className,
 }: {
   history: AdminServerMetricBucket[];
   series: AdminServerTrendSeries[];
+  granularity: AdminServerStatusGranularity;
   ariaLabel: string;
   className?: string;
 }) {
-  const labels = history.map((bucket) => timeFormatter.format(bucket.startsAt));
+  const labels = history.map((bucket) => timeLabel(bucket.startsAt, granularity));
   const option = useMemo<EChartsCoreOption>(() => ({
     animation: false,
     aria: { enabled: true, description: ariaLabel },

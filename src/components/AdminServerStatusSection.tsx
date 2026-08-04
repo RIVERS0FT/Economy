@@ -19,12 +19,18 @@ import {
 } from './ui/layout';
 import { formatNumber, formatTime } from '../utils/formatters';
 
-const RANGES: AdminServerStatusRange[] = ['15m', '1h', '6h'];
+const RANGES: AdminServerStatusRange[] = ['1h', '1d', '30d'];
 const RANGE_LABELS: Record<AdminServerStatusRange, string> = {
-  '15m': '15 分钟',
   '1h': '1 小时',
-  '6h': '6 小时',
+  '1d': '1 天',
+  '30d': '1 个月',
 };
+const RANGE_GRANULARITY = {
+  '1h': 'minute',
+  '1d': 'hour',
+  '30d': 'day',
+} as const;
+const GRANULARITY_LABELS = { minute: '分钟', hour: '小时', day: '天' } as const;
 const HEALTH_COPY: Record<AdminServerStatus['health']['level'], { label: string; tone: StatusTone }> = {
   healthy: { label: '运行正常', tone: 'success' },
   warning: { label: '负载较高', tone: 'warning' },
@@ -88,26 +94,32 @@ export function AdminServerStatusSection({
   refreshToken: number;
   onError: (message: string) => void;
 }) {
-  const [status, setStatus] = useState<AdminServerStatus | null>(null);
-  const [range, setRange] = useState<AdminServerStatusRange>('15m');
+  const [statuses, setStatuses] = useState<Partial<Record<AdminServerStatusRange, AdminServerStatus>>>({});
+  const [range, setRange] = useState<AdminServerStatusRange>('1h');
   const [loading, setLoading] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
+  const requestSequenceRef = useRef(0);
 
   const loadStatus = useCallback(async (nextRange: AdminServerStatusRange) => {
     requestRef.current?.abort();
     const controller = new AbortController();
+    const requestSequence = requestSequenceRef.current + 1;
+    requestSequenceRef.current = requestSequence;
     requestRef.current = controller;
     setLoading(true);
     try {
       const nextStatus = await adminApi.serverStatus(nextRange, controller.signal);
-      if (controller.signal.aborted) return;
-      setStatus(nextStatus);
+      if (controller.signal.aborted || requestSequenceRef.current !== requestSequence) return;
+      if (nextStatus.range.key !== nextRange) {
+        throw new Error(`服务器返回了错误的时间范围：${nextStatus.range.key}`);
+      }
+      setStatuses((current) => ({ ...current, [nextRange]: nextStatus }));
       onError('');
     } catch (reason) {
       if (controller.signal.aborted) return;
       onError(reason instanceof Error ? reason.message : '无法加载服务器状态');
     } finally {
-      if (requestRef.current === controller) {
+      if (requestRef.current === controller && requestSequenceRef.current === requestSequence) {
         requestRef.current = null;
         setLoading(false);
       }
@@ -117,6 +129,7 @@ export function AdminServerStatusSection({
   useEffect(() => {
     if (!active) {
       requestRef.current?.abort();
+      requestSequenceRef.current += 1;
       return undefined;
     }
     const refreshWhenVisible = () => {
@@ -129,10 +142,14 @@ export function AdminServerStatusSection({
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
       requestRef.current?.abort();
+      requestSequenceRef.current += 1;
     };
   }, [active, loadStatus, range, refreshToken]);
 
+  const status = statuses[range] ?? null;
   const history = status?.history ?? [];
+  const granularity = status?.range.granularity ?? RANGE_GRANULARITY[range];
+  const rangeSummary = `最近 ${RANGE_LABELS[range]} · 按${GRANULARITY_LABELS[granularity]}聚合 · 延迟 P50／P95／P99`;
   const chartSeries = useMemo(() => ({
     requests: [
       { name: '请求数', values: history.map((bucket) => bucket.requestCount), color: chartColor.info, format: (value: number) => formatNumber(value) },
@@ -157,8 +174,9 @@ export function AdminServerStatusSection({
       },
     ],
     eventLoop: [
+      { name: 'P50', values: history.map((bucket) => bucket.eventLoopP50Ms), color: chartColor.success, format: formatMilliseconds },
       { name: 'P95', values: history.map((bucket) => bucket.eventLoopP95Ms), color: chartColor.warning, format: formatMilliseconds },
-      { name: '最大', values: history.map((bucket) => bucket.eventLoopMaxMs), color: chartColor.danger, format: formatMilliseconds },
+      { name: 'P99', values: history.map((bucket) => bucket.eventLoopP99Ms), color: chartColor.danger, format: formatMilliseconds },
     ],
   }), [history]);
 
@@ -236,22 +254,24 @@ export function AdminServerStatusSection({
         />
       </section>
 
-      <section className="admin-server-chart-grid" aria-label="服务器近期趋势">
+      <p className="admin-server-note admin-server-range-summary" aria-live="polite">{rangeSummary}</p>
+
+      <section className="admin-server-chart-grid" aria-label={`服务器近期趋势，${rangeSummary}`}>
         <Panel className="admin-panel admin-server-chart-panel">
           <WidgetHeading title="请求负载" />
-          <AdminServerTrendChart history={history} series={chartSeries.requests} ariaLabel="服务器每分钟请求数与 5xx 趋势" />
+          <AdminServerTrendChart history={history} series={chartSeries.requests} granularity={granularity} ariaLabel={`服务器按${GRANULARITY_LABELS[granularity]}请求数与 5xx 趋势`} />
         </Panel>
         <Panel className="admin-panel admin-server-chart-panel">
-          <WidgetHeading title="响应延迟" />
-          <AdminServerTrendChart history={history} series={chartSeries.latency} ariaLabel="服务器响应 P50、P95 与 P99 延迟趋势" />
+          <WidgetHeading title="响应延迟 P50／P95／P99" />
+          <AdminServerTrendChart history={history} series={chartSeries.latency} granularity={granularity} ariaLabel={`服务器按${GRANULARITY_LABELS[granularity]}响应 P50、P95 与 P99 延迟趋势`} />
         </Panel>
         <Panel className="admin-panel admin-server-chart-panel">
           <WidgetHeading title="运行时负载" />
-          <AdminServerTrendChart history={history} series={chartSeries.runtime} ariaLabel="Node 进程 CPU 与 Heap 使用率趋势" />
+          <AdminServerTrendChart history={history} series={chartSeries.runtime} granularity={granularity} ariaLabel={`Node 进程按${GRANULARITY_LABELS[granularity]} CPU 与 Heap 使用率趋势`} />
         </Panel>
         <Panel className="admin-panel admin-server-chart-panel">
           <WidgetHeading title="事件循环" />
-          <AdminServerTrendChart history={history} series={chartSeries.eventLoop} ariaLabel="Node 事件循环 P95 与最大延迟趋势" />
+          <AdminServerTrendChart history={history} series={chartSeries.eventLoop} granularity={granularity} ariaLabel={`Node 事件循环按${GRANULARITY_LABELS[granularity]} P50、P95 与 P99 延迟趋势`} />
         </Panel>
       </section>
 

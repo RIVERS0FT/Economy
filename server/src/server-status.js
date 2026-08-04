@@ -2,17 +2,29 @@ import { statSync, statfsSync } from 'node:fs';
 import { cpus, freemem, loadavg, platform, totalmem } from 'node:os';
 import { dirname } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { getRequestMetricsSnapshot } from './request-metrics.js';
+import {
+  createLatencyHistogram,
+  getRequestMetricsSnapshot,
+  latencyHistogramPercentile,
+  mergeLatencyHistograms,
+} from './request-metrics.js';
 
 const INSTALLATION_KEY = Symbol.for('riversoft.economy.serverRuntimeMetrics');
 const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+const MONTH_MS = 30 * DAY_MS;
 const DEFAULT_SAMPLE_MS = 5_000;
 const DEFAULT_HISTORY_MINUTES = 360;
+const MINUTE_TREND_LIMIT = 60;
+const HOUR_TREND_LIMIT = 24;
+const DAY_TREND_LIMIT = 30;
+const REQUEST_CAPTURE_RANGE_MS = 2 * HOUR_MS;
 
 export const SERVER_STATUS_RANGES = Object.freeze({
-  '15m': 15 * MINUTE_MS,
-  '1h': 60 * MINUTE_MS,
-  '6h': 360 * MINUTE_MS,
+  '1h': Object.freeze({ milliseconds: HOUR_MS, bucketMilliseconds: MINUTE_MS, granularity: 'minute' }),
+  '1d': Object.freeze({ milliseconds: DAY_MS, bucketMilliseconds: HOUR_MS, granularity: 'hour' }),
+  '30d': Object.freeze({ milliseconds: MONTH_MS, bucketMilliseconds: DAY_MS, granularity: 'day' }),
 });
 
 export const SERVER_STATUS_THRESHOLDS = Object.freeze({
@@ -45,8 +57,12 @@ function round(value) {
   return Math.round(finiteNonNegative(value) * 100) / 100;
 }
 
+function bucketStart(value, bucketMs) {
+  return Math.floor(finiteNonNegative(value) / bucketMs) * bucketMs;
+}
+
 function minuteStart(value) {
-  return Math.floor(finiteNonNegative(value) / MINUTE_MS) * MINUTE_MS;
+  return bucketStart(value, MINUTE_MS);
 }
 
 function safeStat(path) {
@@ -81,6 +97,229 @@ function runtimeBucketSnapshot(bucket) {
   };
 }
 
+function createRouteAccumulator(entry) {
+  return {
+    method: String(entry?.method || 'GET'),
+    route: String(entry?.route || '/api/other'),
+    count: 0,
+    clientErrorCount: 0,
+    serverErrorCount: 0,
+    weightedDuration: 0,
+    p95DurationMs: 0,
+    maxDurationMs: 0,
+    weightedResponseBytes: 0,
+    maxResponseBytes: 0,
+    phases: Object.create(null),
+  };
+}
+
+function mergeRouteEntry(target, entry) {
+  const count = finiteNonNegative(entry?.count);
+  target.count += count;
+  target.clientErrorCount += finiteNonNegative(entry?.clientErrorCount);
+  target.serverErrorCount += finiteNonNegative(entry?.serverErrorCount ?? entry?.errorCount);
+  target.weightedDuration += finiteNonNegative(entry?.averageDurationMs) * count;
+  target.p95DurationMs = Math.max(target.p95DurationMs, finiteNonNegative(entry?.p95DurationMs));
+  target.maxDurationMs = Math.max(target.maxDurationMs, finiteNonNegative(entry?.maxDurationMs));
+  target.weightedResponseBytes += finiteNonNegative(entry?.averageResponseBytes) * count;
+  target.maxResponseBytes = Math.max(target.maxResponseBytes, finiteNonNegative(entry?.maxResponseBytes));
+  for (const [name, phase] of Object.entries(entry?.phases || {})) {
+    const p95Ms = typeof phase === 'number' ? phase : phase?.p95Ms;
+    target.phases[name] = Math.max(finiteNonNegative(target.phases[name]), finiteNonNegative(p95Ms));
+  }
+}
+
+function routeSnapshot(entry) {
+  return {
+    method: entry.method,
+    route: entry.route,
+    count: entry.count,
+    clientErrorCount: entry.clientErrorCount,
+    serverErrorCount: entry.serverErrorCount,
+    averageDurationMs: entry.count > 0 ? round(entry.weightedDuration / entry.count) : 0,
+    p95DurationMs: round(entry.p95DurationMs),
+    maxDurationMs: round(entry.maxDurationMs),
+    averageResponseBytes: entry.count > 0 ? Math.round(entry.weightedResponseBytes / entry.count) : 0,
+    maxResponseBytes: Math.round(entry.maxResponseBytes),
+    phases: Object.fromEntries(Object.entries(entry.phases)
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 4)
+      .map(([name, p95Ms]) => [name, round(p95Ms)])),
+  };
+}
+
+function createTrendAccumulator(startsAt, bucketMs) {
+  return {
+    startsAt,
+    endsAt: startsAt + bucketMs,
+    windowMs: 0,
+    requestCount: 0,
+    clientErrorCount: 0,
+    serverErrorCount: 0,
+    weightedDuration: 0,
+    durationHistogram: createLatencyHistogram(),
+    p50FallbackMs: 0,
+    p95FallbackMs: 0,
+    p99FallbackMs: 0,
+    maxDurationMs: 0,
+    weightedResponseBytes: 0,
+    maxResponseBytes: 0,
+    eventLoopP50Ms: 0,
+    eventLoopP95Ms: 0,
+    eventLoopP99Ms: 0,
+    eventLoopMaxMs: 0,
+    runtimeSamples: 0,
+    cpuTotalPercent: 0,
+    cpuMaxPercent: 0,
+    rssMaxBytes: null,
+    heapUsedMaxBytes: null,
+    heapTotalMaxBytes: null,
+    routes: new Map(),
+  };
+}
+
+function cloneTrendAccumulator(source) {
+  const clone = createTrendAccumulator(source.startsAt, source.endsAt - source.startsAt);
+  clone.windowMs = source.windowMs;
+  clone.requestCount = source.requestCount;
+  clone.clientErrorCount = source.clientErrorCount;
+  clone.serverErrorCount = source.serverErrorCount;
+  clone.weightedDuration = source.weightedDuration;
+  mergeLatencyHistograms(clone.durationHistogram, source.durationHistogram);
+  clone.p50FallbackMs = source.p50FallbackMs;
+  clone.p95FallbackMs = source.p95FallbackMs;
+  clone.p99FallbackMs = source.p99FallbackMs;
+  clone.maxDurationMs = source.maxDurationMs;
+  clone.weightedResponseBytes = source.weightedResponseBytes;
+  clone.maxResponseBytes = source.maxResponseBytes;
+  clone.eventLoopP50Ms = source.eventLoopP50Ms;
+  clone.eventLoopP95Ms = source.eventLoopP95Ms;
+  clone.eventLoopP99Ms = source.eventLoopP99Ms;
+  clone.eventLoopMaxMs = source.eventLoopMaxMs;
+  clone.runtimeSamples = source.runtimeSamples;
+  clone.cpuTotalPercent = source.cpuTotalPercent;
+  clone.cpuMaxPercent = source.cpuMaxPercent;
+  clone.rssMaxBytes = source.rssMaxBytes;
+  clone.heapUsedMaxBytes = source.heapUsedMaxBytes;
+  clone.heapTotalMaxBytes = source.heapTotalMaxBytes;
+  for (const [key, route] of source.routes) clone.routes.set(key, { ...route, phases: { ...route.phases } });
+  return clone;
+}
+
+function mergeRequestWindow(target, window) {
+  const count = finiteNonNegative(window?.requestCount);
+  target.windowMs += finiteNonNegative(window?.windowMs);
+  target.requestCount += count;
+  target.clientErrorCount += finiteNonNegative(window?.clientErrorCount);
+  target.serverErrorCount += finiteNonNegative(window?.serverErrorCount);
+  target.weightedDuration += finiteNonNegative(window?.averageDurationMs) * count;
+  mergeLatencyHistograms(target.durationHistogram, window?.durationHistogram);
+  target.p50FallbackMs = Math.max(target.p50FallbackMs, finiteNonNegative(window?.p50DurationMs));
+  target.p95FallbackMs = Math.max(target.p95FallbackMs, finiteNonNegative(window?.p95DurationMs));
+  target.p99FallbackMs = Math.max(target.p99FallbackMs, finiteNonNegative(window?.p99DurationMs));
+  target.maxDurationMs = Math.max(target.maxDurationMs, finiteNonNegative(window?.maxDurationMs));
+  target.weightedResponseBytes += finiteNonNegative(window?.averageResponseBytes) * count;
+  target.maxResponseBytes = Math.max(target.maxResponseBytes, finiteNonNegative(window?.maxResponseBytes));
+  target.eventLoopP50Ms = Math.max(target.eventLoopP50Ms, finiteNonNegative(window?.eventLoopDelay?.p50Ms));
+  target.eventLoopP95Ms = Math.max(target.eventLoopP95Ms, finiteNonNegative(window?.eventLoopDelay?.p95Ms));
+  target.eventLoopP99Ms = Math.max(target.eventLoopP99Ms, finiteNonNegative(window?.eventLoopDelay?.p99Ms));
+  target.eventLoopMaxMs = Math.max(target.eventLoopMaxMs, finiteNonNegative(window?.eventLoopDelay?.maxMs));
+  for (const entry of window?.routes || []) {
+    const key = `${entry.method} ${entry.route}`;
+    const route = target.routes.get(key) || createRouteAccumulator(entry);
+    mergeRouteEntry(route, entry);
+    target.routes.set(key, route);
+  }
+}
+
+function mergeRuntimeBucket(target, runtime) {
+  const samples = Math.max(0, Math.floor(Number(runtime?.samples) || 0));
+  if (samples <= 0) return;
+  target.runtimeSamples += samples;
+  target.cpuTotalPercent += finiteNonNegative(runtime?.cpuAveragePercent) * samples;
+  target.cpuMaxPercent = Math.max(target.cpuMaxPercent, finiteNonNegative(runtime?.cpuMaxPercent));
+  target.rssMaxBytes = Math.max(finiteNonNegative(target.rssMaxBytes), finiteNonNegative(runtime?.rssMaxBytes));
+  target.heapUsedMaxBytes = Math.max(finiteNonNegative(target.heapUsedMaxBytes), finiteNonNegative(runtime?.heapUsedMaxBytes));
+  target.heapTotalMaxBytes = Math.max(finiteNonNegative(target.heapTotalMaxBytes), finiteNonNegative(runtime?.heapTotalMaxBytes));
+}
+
+function mergeTrendAccumulator(target, source) {
+  target.windowMs += source.windowMs;
+  target.requestCount += source.requestCount;
+  target.clientErrorCount += source.clientErrorCount;
+  target.serverErrorCount += source.serverErrorCount;
+  target.weightedDuration += source.weightedDuration;
+  mergeLatencyHistograms(target.durationHistogram, source.durationHistogram);
+  target.p50FallbackMs = Math.max(target.p50FallbackMs, source.p50FallbackMs);
+  target.p95FallbackMs = Math.max(target.p95FallbackMs, source.p95FallbackMs);
+  target.p99FallbackMs = Math.max(target.p99FallbackMs, source.p99FallbackMs);
+  target.maxDurationMs = Math.max(target.maxDurationMs, source.maxDurationMs);
+  target.weightedResponseBytes += source.weightedResponseBytes;
+  target.maxResponseBytes = Math.max(target.maxResponseBytes, source.maxResponseBytes);
+  target.eventLoopP50Ms = Math.max(target.eventLoopP50Ms, source.eventLoopP50Ms);
+  target.eventLoopP95Ms = Math.max(target.eventLoopP95Ms, source.eventLoopP95Ms);
+  target.eventLoopP99Ms = Math.max(target.eventLoopP99Ms, source.eventLoopP99Ms);
+  target.eventLoopMaxMs = Math.max(target.eventLoopMaxMs, source.eventLoopMaxMs);
+  target.runtimeSamples += source.runtimeSamples;
+  target.cpuTotalPercent += source.cpuTotalPercent;
+  target.cpuMaxPercent = Math.max(target.cpuMaxPercent, source.cpuMaxPercent);
+  target.rssMaxBytes = Math.max(finiteNonNegative(target.rssMaxBytes), finiteNonNegative(source.rssMaxBytes));
+  target.heapUsedMaxBytes = Math.max(finiteNonNegative(target.heapUsedMaxBytes), finiteNonNegative(source.heapUsedMaxBytes));
+  target.heapTotalMaxBytes = Math.max(finiteNonNegative(target.heapTotalMaxBytes), finiteNonNegative(source.heapTotalMaxBytes));
+  for (const [key, sourceRoute] of source.routes) {
+    const route = target.routes.get(key) || createRouteAccumulator(sourceRoute);
+    mergeRouteEntry(route, routeSnapshot(sourceRoute));
+    target.routes.set(key, route);
+  }
+}
+
+function trendPercentile(bucket, ratio, fallback) {
+  const percentile = latencyHistogramPercentile(bucket.durationHistogram, ratio);
+  return percentile > 0 ? percentile : round(fallback);
+}
+
+function publicTrendBucket(bucket) {
+  return {
+    startsAt: bucket.startsAt,
+    endsAt: bucket.endsAt,
+    requestCount: bucket.requestCount,
+    serverErrorCount: bucket.serverErrorCount,
+    p50DurationMs: trendPercentile(bucket, 0.5, bucket.p50FallbackMs),
+    p95DurationMs: trendPercentile(bucket, 0.95, bucket.p95FallbackMs),
+    p99DurationMs: trendPercentile(bucket, 0.99, bucket.p99FallbackMs),
+    eventLoopP50Ms: round(bucket.eventLoopP50Ms),
+    eventLoopP95Ms: round(bucket.eventLoopP95Ms),
+    eventLoopP99Ms: round(bucket.eventLoopP99Ms),
+    eventLoopMaxMs: round(bucket.eventLoopMaxMs),
+    cpuAveragePercent: bucket.runtimeSamples > 0 ? round(bucket.cpuTotalPercent / bucket.runtimeSamples) : null,
+    cpuMaxPercent: bucket.runtimeSamples > 0 ? round(bucket.cpuMaxPercent) : null,
+    rssMaxBytes: bucket.runtimeSamples > 0 ? Math.round(bucket.rssMaxBytes) : null,
+    heapUsedMaxBytes: bucket.runtimeSamples > 0 ? Math.round(bucket.heapUsedMaxBytes) : null,
+    heapTotalMaxBytes: bucket.runtimeSamples > 0 ? Math.round(bucket.heapTotalMaxBytes) : null,
+  };
+}
+
+function appendBounded(history, value, limit) {
+  history.push(value);
+  if (history.length > limit) history.splice(0, history.length - limit);
+}
+
+function mergeIntoRollup(history, limit, bucketMs, source) {
+  const startsAt = bucketStart(source.startsAt, bucketMs);
+  let target = history.at(-1);
+  if (!target || target.startsAt !== startsAt) {
+    target = createTrendAccumulator(startsAt, bucketMs);
+    appendBounded(history, target, limit);
+  }
+  mergeTrendAccumulator(target, source);
+}
+
+function requestWindowMinuteStart(window) {
+  const endedAt = finiteNonNegative(window?.windowEndedAt);
+  const startedAt = finiteNonNegative(window?.windowStartedAt);
+  return minuteStart(Math.max(startedAt, endedAt > 0 ? endedAt - 1 : startedAt));
+}
+
 export function installServerRuntimeMetrics({
   sampleMs = DEFAULT_SAMPLE_MS,
   historyMinutes = DEFAULT_HISTORY_MINUTES,
@@ -88,15 +327,42 @@ export function installServerRuntimeMetrics({
   performanceNow = performance.now.bind(performance),
   cpuUsage = process.cpuUsage.bind(process),
   memoryUsage = process.memoryUsage.bind(process),
+  requestSnapshot = getRequestMetricsSnapshot,
 } = {}) {
   if (globalThis[INSTALLATION_KEY]) return globalThis[INSTALLATION_KEY];
 
   const startedAt = now();
   const historyLimit = Math.max(1, Math.floor(Number(historyMinutes) || DEFAULT_HISTORY_MINUTES));
-  const buckets = [];
+  const runtimeBuckets = [];
+  const minuteTrendHistory = [];
+  const hourTrendHistory = [];
+  const dayTrendHistory = [];
+  const capturedRequestWindows = new Set();
   let previousCpu = cpuUsage();
   let previousPerformanceAt = performanceNow();
   let lastSampleAt = 0;
+
+  function runtimeForMinute(startsAt) {
+    const exact = runtimeBuckets.find((bucket) => bucket.startsAt === startsAt);
+    return exact ? runtimeBucketSnapshot(exact) : null;
+  }
+
+  function captureCompletedRequestWindows() {
+    const snapshot = requestSnapshot(REQUEST_CAPTURE_RANGE_MS);
+    for (const window of snapshot.history || []) {
+      const key = `${window.windowStartedAt}:${window.windowEndedAt}`;
+      if (capturedRequestWindows.has(key)) continue;
+      capturedRequestWindows.add(key);
+      if (capturedRequestWindows.size > 512) capturedRequestWindows.delete(capturedRequestWindows.values().next().value);
+      const startsAt = requestWindowMinuteStart(window);
+      const minute = createTrendAccumulator(startsAt, MINUTE_MS);
+      mergeRequestWindow(minute, window);
+      mergeRuntimeBucket(minute, runtimeForMinute(startsAt));
+      appendBounded(minuteTrendHistory, minute, MINUTE_TREND_LIMIT);
+      mergeIntoRollup(hourTrendHistory, HOUR_TREND_LIMIT, HOUR_MS, minute);
+      mergeIntoRollup(dayTrendHistory, DAY_TREND_LIMIT, DAY_MS, minute);
+    }
+  }
 
   function sample() {
     const sampledAt = now();
@@ -111,7 +377,7 @@ export function installServerRuntimeMetrics({
 
     const memory = memoryUsage();
     const startsAt = minuteStart(sampledAt);
-    let bucket = buckets.at(-1);
+    let bucket = runtimeBuckets.at(-1);
     if (!bucket || bucket.startsAt !== startsAt) {
       bucket = {
         startsAt,
@@ -125,8 +391,8 @@ export function installServerRuntimeMetrics({
         heapUsedMaxBytes: 0,
         heapTotalMaxBytes: 0,
       };
-      buckets.push(bucket);
-      if (buckets.length > historyLimit) buckets.splice(0, buckets.length - historyLimit);
+      runtimeBuckets.push(bucket);
+      if (runtimeBuckets.length > historyLimit) runtimeBuckets.splice(0, runtimeBuckets.length - historyLimit);
     }
     bucket.endsAt = sampledAt;
     bucket.samples += 1;
@@ -137,6 +403,7 @@ export function installServerRuntimeMetrics({
     bucket.heapUsedTotalBytes += finiteNonNegative(memory.heapUsed);
     bucket.heapUsedMaxBytes = Math.max(bucket.heapUsedMaxBytes, finiteNonNegative(memory.heapUsed));
     bucket.heapTotalMaxBytes = Math.max(bucket.heapTotalMaxBytes, finiteNonNegative(memory.heapTotal));
+    captureCompletedRequestWindows();
     return runtimeBucketSnapshot(bucket);
   }
 
@@ -147,12 +414,32 @@ export function installServerRuntimeMetrics({
   const installation = {
     startedAt,
     sample,
-    snapshot({ rangeMs = SERVER_STATUS_RANGES['6h'] } = {}) {
+    snapshot({ rangeKey = '1h', requestMetricsSnapshot } = {}) {
       const generatedAt = now();
       if (generatedAt - lastSampleAt >= 1_000) sample();
-      const cutoff = generatedAt - Math.max(MINUTE_MS, Number(rangeMs) || MINUTE_MS);
-      const history = buckets
-        .filter((bucket) => bucket.endsAt >= cutoff)
+      captureCompletedRequestWindows();
+      const normalizedRange = normalizeServerStatusRange(rangeKey);
+      const range = SERVER_STATUS_RANGES[normalizedRange];
+      const requestMetrics = requestMetricsSnapshot || requestSnapshot(range.milliseconds);
+      const source = normalizedRange === '1h'
+        ? minuteTrendHistory
+        : normalizedRange === '1d' ? hourTrendHistory : dayTrendHistory;
+      const trendBuckets = source.map(cloneTrendAccumulator);
+      if (requestMetrics.current) {
+        const liveStart = bucketStart(generatedAt, range.bucketMilliseconds);
+        const live = createTrendAccumulator(liveStart, range.bucketMilliseconds);
+        mergeRequestWindow(live, requestMetrics.current);
+        mergeRuntimeBucket(live, runtimeForMinute(minuteStart(generatedAt)));
+        const existing = trendBuckets.at(-1);
+        if (existing?.startsAt === live.startsAt) mergeTrendAccumulator(existing, live);
+        else trendBuckets.push(live);
+      }
+      const cutoff = generatedAt - range.milliseconds;
+      const filteredTrendBuckets = trendBuckets
+        .filter((bucket) => bucket.endsAt > cutoff)
+        .sort((left, right) => left.startsAt - right.startsAt);
+      const runtimeHistory = runtimeBuckets
+        .filter((bucket) => bucket.endsAt >= generatedAt - Math.max(3 * MINUTE_MS, range.milliseconds))
         .map(runtimeBucketSnapshot);
       const memory = memoryUsage();
       return {
@@ -160,7 +447,7 @@ export function installServerRuntimeMetrics({
         startedAt,
         uptimeSeconds: Math.max(0, Math.floor((generatedAt - startedAt) / 1_000)),
         current: {
-          cpuPercent: history.at(-1)?.cpuAveragePercent ?? 0,
+          cpuPercent: runtimeHistory.at(-1)?.cpuAveragePercent ?? 0,
           rssBytes: finiteNonNegative(memory.rss),
           heapUsedBytes: finiteNonNegative(memory.heapUsed),
           heapTotalBytes: finiteNonNegative(memory.heapTotal),
@@ -170,7 +457,9 @@ export function installServerRuntimeMetrics({
           totalMemoryBytes: finiteNonNegative(totalmem()),
           freeMemoryBytes: finiteNonNegative(freemem()),
         },
-        history,
+        history: runtimeHistory,
+        trendBuckets: filteredTrendBuckets,
+        trendHistory: filteredTrendBuckets.map(publicTrendBucket),
       };
     },
     uninstall() {
@@ -182,120 +471,54 @@ export function installServerRuntimeMetrics({
   return installation;
 }
 
-export function getServerRuntimeMetricsSnapshot(rangeMs) {
+export function getServerRuntimeMetricsSnapshot(rangeKey, requestMetricsSnapshot) {
   const installation = globalThis[INSTALLATION_KEY] || installServerRuntimeMetrics();
-  return installation.snapshot({ rangeMs });
+  return installation.snapshot({ rangeKey, requestMetricsSnapshot });
+}
+
+function aggregateRequestAccumulators(buckets, generatedAt) {
+  const total = createTrendAccumulator(buckets[0]?.startsAt ?? generatedAt, Math.max(MINUTE_MS, generatedAt - (buckets[0]?.startsAt ?? generatedAt)));
+  for (const bucket of buckets) mergeTrendAccumulator(total, bucket);
+  const routes = [...total.routes.values()].map(routeSnapshot).sort((left, right) => (
+    (right.averageDurationMs * right.count) - (left.averageDurationMs * left.count)
+    || right.p95DurationMs - left.p95DurationMs
+    || right.serverErrorCount - left.serverErrorCount
+  ));
+  const requestCount = total.requestCount;
+  return {
+    windowStartedAt: buckets[0]?.startsAt ?? generatedAt,
+    windowEndedAt: buckets.at(-1)?.endsAt ?? generatedAt,
+    requestCount,
+    requestsPerSecond: total.windowMs > 0 ? round(requestCount / (total.windowMs / 1_000)) : 0,
+    clientErrorCount: total.clientErrorCount,
+    serverErrorCount: total.serverErrorCount,
+    serverErrorRateBps: requestCount > 0 ? Math.round((total.serverErrorCount / requestCount) * 10_000) : 0,
+    averageDurationMs: requestCount > 0 ? round(total.weightedDuration / requestCount) : 0,
+    p50DurationMs: trendPercentile(total, 0.5, total.p50FallbackMs),
+    p95DurationMs: trendPercentile(total, 0.95, total.p95FallbackMs),
+    p99DurationMs: trendPercentile(total, 0.99, total.p99FallbackMs),
+    maxDurationMs: round(total.maxDurationMs),
+    averageResponseBytes: requestCount > 0 ? Math.round(total.weightedResponseBytes / requestCount) : 0,
+    maxResponseBytes: Math.round(total.maxResponseBytes),
+    eventLoop: {
+      p50Ms: round(total.eventLoopP50Ms),
+      p95Ms: round(total.eventLoopP95Ms),
+      p99Ms: round(total.eventLoopP99Ms),
+      maxMs: round(total.eventLoopMaxMs),
+    },
+    routes,
+  };
 }
 
 function aggregateRequestWindows(snapshot) {
   const windows = [...(snapshot.history || []), ...(snapshot.current ? [snapshot.current] : [])];
-  const routes = new Map();
-  let requestCount = 0;
-  let clientErrorCount = 0;
-  let serverErrorCount = 0;
-  let weightedDuration = 0;
-  let weightedResponseBytes = 0;
-  let maxDurationMs = 0;
-  let p50DurationMs = 0;
-  let p95DurationMs = 0;
-  let p99DurationMs = 0;
-  let maxResponseBytes = 0;
-  let eventLoopP50Ms = 0;
-  let eventLoopP95Ms = 0;
-  let eventLoopP99Ms = 0;
-  let eventLoopMaxMs = 0;
-
-  for (const window of windows) {
-    const count = finiteNonNegative(window.requestCount);
-    requestCount += count;
-    clientErrorCount += finiteNonNegative(window.clientErrorCount);
-    serverErrorCount += finiteNonNegative(window.serverErrorCount);
-    weightedDuration += finiteNonNegative(window.averageDurationMs) * count;
-    weightedResponseBytes += finiteNonNegative(window.averageResponseBytes) * count;
-    maxDurationMs = Math.max(maxDurationMs, finiteNonNegative(window.maxDurationMs));
-    p50DurationMs = Math.max(p50DurationMs, finiteNonNegative(window.p50DurationMs));
-    p95DurationMs = Math.max(p95DurationMs, finiteNonNegative(window.p95DurationMs));
-    p99DurationMs = Math.max(p99DurationMs, finiteNonNegative(window.p99DurationMs));
-    maxResponseBytes = Math.max(maxResponseBytes, finiteNonNegative(window.maxResponseBytes));
-    eventLoopP50Ms = Math.max(eventLoopP50Ms, finiteNonNegative(window.eventLoopDelay?.p50Ms));
-    eventLoopP95Ms = Math.max(eventLoopP95Ms, finiteNonNegative(window.eventLoopDelay?.p95Ms));
-    eventLoopP99Ms = Math.max(eventLoopP99Ms, finiteNonNegative(window.eventLoopDelay?.p99Ms));
-    eventLoopMaxMs = Math.max(eventLoopMaxMs, finiteNonNegative(window.eventLoopDelay?.maxMs));
-
-    for (const entry of window.routes || []) {
-      const key = `${entry.method} ${entry.route}`;
-      const current = routes.get(key) || {
-        method: String(entry.method || 'GET'),
-        route: String(entry.route || '/api/other'),
-        count: 0,
-        clientErrorCount: 0,
-        serverErrorCount: 0,
-        weightedDuration: 0,
-        p95DurationMs: 0,
-        maxDurationMs: 0,
-        weightedResponseBytes: 0,
-        maxResponseBytes: 0,
-        phases: Object.create(null),
-      };
-      const routeCount = finiteNonNegative(entry.count);
-      current.count += routeCount;
-      current.clientErrorCount += finiteNonNegative(entry.clientErrorCount);
-      current.serverErrorCount += finiteNonNegative(entry.serverErrorCount ?? entry.errorCount);
-      current.weightedDuration += finiteNonNegative(entry.averageDurationMs) * routeCount;
-      current.p95DurationMs = Math.max(current.p95DurationMs, finiteNonNegative(entry.p95DurationMs));
-      current.maxDurationMs = Math.max(current.maxDurationMs, finiteNonNegative(entry.maxDurationMs));
-      current.weightedResponseBytes += finiteNonNegative(entry.averageResponseBytes) * routeCount;
-      current.maxResponseBytes = Math.max(current.maxResponseBytes, finiteNonNegative(entry.maxResponseBytes));
-      for (const [name, phase] of Object.entries(entry.phases || {})) {
-        current.phases[name] = Math.max(finiteNonNegative(current.phases[name]), finiteNonNegative(phase?.p95Ms));
-      }
-      routes.set(key, current);
-    }
-  }
-
-  const elapsedMs = windows.reduce((total, window) => total + finiteNonNegative(window.windowMs), 0);
-  return {
-    windowStartedAt: windows[0]?.windowStartedAt ?? snapshot.generatedAt,
-    windowEndedAt: windows.at(-1)?.windowEndedAt ?? snapshot.generatedAt,
-    requestCount,
-    requestsPerSecond: elapsedMs > 0 ? round(requestCount / (elapsedMs / 1_000)) : 0,
-    clientErrorCount,
-    serverErrorCount,
-    serverErrorRateBps: requestCount > 0 ? Math.round((serverErrorCount / requestCount) * 10_000) : 0,
-    averageDurationMs: requestCount > 0 ? round(weightedDuration / requestCount) : 0,
-    p50DurationMs: round(p50DurationMs),
-    p95DurationMs: round(p95DurationMs),
-    p99DurationMs: round(p99DurationMs),
-    maxDurationMs: round(maxDurationMs),
-    averageResponseBytes: requestCount > 0 ? Math.round(weightedResponseBytes / requestCount) : 0,
-    maxResponseBytes: Math.round(maxResponseBytes),
-    eventLoop: {
-      p50Ms: round(eventLoopP50Ms),
-      p95Ms: round(eventLoopP95Ms),
-      p99Ms: round(eventLoopP99Ms),
-      maxMs: round(eventLoopMaxMs),
-    },
-    routes: [...routes.values()].map((entry) => ({
-      method: entry.method,
-      route: entry.route,
-      count: entry.count,
-      clientErrorCount: entry.clientErrorCount,
-      serverErrorCount: entry.serverErrorCount,
-      averageDurationMs: entry.count > 0 ? round(entry.weightedDuration / entry.count) : 0,
-      p95DurationMs: round(entry.p95DurationMs),
-      maxDurationMs: round(entry.maxDurationMs),
-      averageResponseBytes: entry.count > 0 ? Math.round(entry.weightedResponseBytes / entry.count) : 0,
-      maxResponseBytes: Math.round(entry.maxResponseBytes),
-      phases: Object.fromEntries(Object.entries(entry.phases)
-        .sort((left, right) => right[1] - left[1])
-        .slice(0, 4)
-        .map(([name, p95Ms]) => [name, round(p95Ms)])),
-    })).sort((left, right) => (
-      (right.averageDurationMs * right.count) - (left.averageDurationMs * left.count)
-      || right.p95DurationMs - left.p95DurationMs
-      || right.serverErrorCount - left.serverErrorCount
-    )),
-  };
+  const accumulators = windows.map((window) => {
+    const startsAt = requestWindowMinuteStart(window);
+    const accumulator = createTrendAccumulator(startsAt, MINUTE_MS);
+    mergeRequestWindow(accumulator, window);
+    return accumulator;
+  });
+  return aggregateRequestAccumulators(accumulators, snapshot.generatedAt || Date.now());
 }
 
 function readDatabaseStatus(store, databasePath) {
@@ -335,54 +558,6 @@ function readDatabaseStatus(store, databasePath) {
     diskFreeBytes: finiteNonNegative(diskFreeBytes),
     diskFreeRatioBps: diskTotalBytes > 0 ? Math.round((diskFreeBytes / diskTotalBytes) * 10_000) : 0,
   };
-}
-
-function mergeHistory(requestSnapshot, runtimeSnapshot, generatedAt, rangeMs) {
-  const buckets = new Map();
-  const ensureBucket = (timestamp) => {
-    const startsAt = minuteStart(timestamp);
-    if (!buckets.has(startsAt)) {
-      buckets.set(startsAt, {
-        startsAt,
-        requestCount: 0,
-        serverErrorCount: 0,
-        p50DurationMs: 0,
-        p95DurationMs: 0,
-        p99DurationMs: 0,
-        eventLoopP95Ms: 0,
-        eventLoopMaxMs: 0,
-        cpuAveragePercent: null,
-        cpuMaxPercent: null,
-        rssMaxBytes: null,
-        heapUsedMaxBytes: null,
-        heapTotalMaxBytes: null,
-      });
-    }
-    return buckets.get(startsAt);
-  };
-
-  for (const window of [...(requestSnapshot.history || []), ...(requestSnapshot.current ? [requestSnapshot.current] : [])]) {
-    const bucket = ensureBucket(window.windowEndedAt || window.windowStartedAt);
-    bucket.requestCount += finiteNonNegative(window.requestCount);
-    bucket.serverErrorCount += finiteNonNegative(window.serverErrorCount);
-    bucket.p50DurationMs = Math.max(bucket.p50DurationMs, finiteNonNegative(window.p50DurationMs));
-    bucket.p95DurationMs = Math.max(bucket.p95DurationMs, finiteNonNegative(window.p95DurationMs));
-    bucket.p99DurationMs = Math.max(bucket.p99DurationMs, finiteNonNegative(window.p99DurationMs));
-    bucket.eventLoopP95Ms = Math.max(bucket.eventLoopP95Ms, finiteNonNegative(window.eventLoopDelay?.p95Ms));
-    bucket.eventLoopMaxMs = Math.max(bucket.eventLoopMaxMs, finiteNonNegative(window.eventLoopDelay?.maxMs));
-  }
-  for (const runtime of runtimeSnapshot.history || []) {
-    const bucket = ensureBucket(runtime.startsAt);
-    bucket.cpuAveragePercent = runtime.cpuAveragePercent;
-    bucket.cpuMaxPercent = runtime.cpuMaxPercent;
-    bucket.rssMaxBytes = runtime.rssMaxBytes;
-    bucket.heapUsedMaxBytes = runtime.heapUsedMaxBytes;
-    bucket.heapTotalMaxBytes = runtime.heapTotalMaxBytes;
-  }
-  const cutoff = generatedAt - rangeMs;
-  return [...buckets.values()]
-    .filter((bucket) => bucket.startsAt >= minuteStart(cutoff))
-    .sort((left, right) => left.startsAt - right.startsAt);
 }
 
 function healthStatus({ requests, runtime, scheduler, database }) {
@@ -436,8 +611,26 @@ function healthStatus({ requests, runtime, scheduler, database }) {
 }
 
 export function normalizeServerStatusRange(value) {
-  const key = String(value || '15m');
-  return Object.hasOwn(SERVER_STATUS_RANGES, key) ? key : '15m';
+  const key = String(value || '1h');
+  return Object.hasOwn(SERVER_STATUS_RANGES, key) ? key : '1h';
+}
+
+function buildFallbackTrendHistory(requestSnapshot, runtimeSnapshot, generatedAt, range) {
+  const buckets = new Map();
+  const ensureBucket = (timestamp) => {
+    const startsAt = bucketStart(timestamp, range.bucketMilliseconds);
+    if (!buckets.has(startsAt)) buckets.set(startsAt, createTrendAccumulator(startsAt, range.bucketMilliseconds));
+    return buckets.get(startsAt);
+  };
+  for (const window of [...(requestSnapshot.history || []), ...(requestSnapshot.current ? [requestSnapshot.current] : [])]) {
+    mergeRequestWindow(ensureBucket(window.windowEndedAt || window.windowStartedAt), window);
+  }
+  for (const runtime of runtimeSnapshot.history || []) mergeRuntimeBucket(ensureBucket(runtime.startsAt), runtime);
+  const cutoff = generatedAt - range.milliseconds;
+  const trendBuckets = [...buckets.values()]
+    .filter((bucket) => bucket.endsAt > cutoff)
+    .sort((left, right) => left.startsAt - right.startsAt);
+  return { trendBuckets, trendHistory: trendBuckets.map(publicTrendBucket) };
 }
 
 export function createAdminServerStatus({
@@ -449,11 +642,21 @@ export function createAdminServerStatus({
   runtimeMetricsSnapshot,
 } = {}) {
   const rangeKey = normalizeServerStatusRange(range);
-  const rangeMs = SERVER_STATUS_RANGES[rangeKey];
+  const rangeConfig = SERVER_STATUS_RANGES[rangeKey];
   const generatedAt = now();
-  const requestSnapshot = requestMetricsSnapshot || getRequestMetricsSnapshot(rangeMs);
-  const runtime = runtimeMetricsSnapshot || getServerRuntimeMetricsSnapshot(rangeMs);
-  const requests = aggregateRequestWindows(requestSnapshot);
+  const requestSnapshot = requestMetricsSnapshot || getRequestMetricsSnapshot(rangeConfig.milliseconds);
+  const runtime = runtimeMetricsSnapshot || getServerRuntimeMetricsSnapshot(rangeKey, requestSnapshot);
+  const fallback = runtime.trendBuckets
+    ? null
+    : buildFallbackTrendHistory(requestSnapshot, runtime, generatedAt, rangeConfig);
+  const trendBuckets = runtime.trendBuckets || fallback.trendBuckets;
+  const history = runtime.trendHistory || fallback.trendHistory;
+  const requests = trendBuckets.length > 0
+    ? aggregateRequestAccumulators(trendBuckets, generatedAt)
+    : aggregateRequestWindows(requestSnapshot);
+  const healthRequests = requestMetricsSnapshot
+    ? aggregateRequestWindows(requestSnapshot)
+    : aggregateRequestWindows(getRequestMetricsSnapshot(3 * MINUTE_MS));
   const database = readDatabaseStatus(store, databasePath);
   const scheduler = {
     schedules: 0,
@@ -489,11 +692,16 @@ export function createAdminServerStatus({
     diskFreeBytes: database.diskFreeBytes,
     diskFreeRatioBps: database.diskFreeRatioBps,
   };
-  const history = mergeHistory(requestSnapshot, runtime, generatedAt, rangeMs);
-  const health = healthStatus({ requests, runtime, scheduler, database });
+  const health = healthStatus({ requests: healthRequests, runtime, scheduler, database });
   return {
     generatedAt,
-    range: { key: rangeKey, milliseconds: rangeMs, startsAt: generatedAt - rangeMs },
+    range: {
+      key: rangeKey,
+      milliseconds: rangeConfig.milliseconds,
+      startsAt: generatedAt - rangeConfig.milliseconds,
+      bucketMilliseconds: rangeConfig.bucketMilliseconds,
+      granularity: rangeConfig.granularity,
+    },
     health,
     thresholds: SERVER_STATUS_THRESHOLDS,
     process: processStatus,

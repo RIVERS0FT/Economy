@@ -47,6 +47,12 @@
   background: color-mix(in srgb, var(--color-info) 14%, transparent);
 }
 
+.admin-server-range-summary {
+  margin: 0;
+  padding-inline: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
 .admin-server-summary-grid {
   min-width: 0;
   display: grid;
