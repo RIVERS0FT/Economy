@@ -3,6 +3,8 @@ name: Apply fertilizer factory implementation
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - scripts/fertilizer-bootstrap-ready.txt
 
 permissions:
   contents: write
@@ -28,7 +30,7 @@ jobs:
       - name: Apply implementation
         shell: bash
         run: |
-          base64 -d scripts/apply-fertilizer-factory.py.gz.b64 | gzip -d > "$RUNNER_TEMP/apply-fertilizer-factory.py"
+          cat scripts/apply-fertilizer-factory.py.gz.b64.part-* | base64 -d | gzip -d > "$RUNNER_TEMP/apply-fertilizer-factory.py"
           python3 -m py_compile "$RUNNER_TEMP/apply-fertilizer-factory.py"
           python3 "$RUNNER_TEMP/apply-fertilizer-factory.py"
 
@@ -61,6 +63,8 @@ jobs:
         run: |
           rm -f .github/workflows/apply-fertilizer-factory-pr.yml
           rm -f scripts/apply-fertilizer-factory.py.gz.b64
+          rm -f scripts/apply-fertilizer-factory.py.gz.b64.part-*
+          rm -f scripts/fertilizer-bootstrap-ready.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
