@@ -1,0 +1,119 @@
+name: Finalize PR 456 Delivery
+
+on:
+  push:
+    branches:
+      - agent/recover-pr450-bundle
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: finalize-pr456-delivery
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FINAL_BRANCH: agent/pr456-final
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/recover-pr450-bundle
+          fetch-depth: 0
+
+      - name: Rebase final branch onto latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main "$FINAL_BRANCH"
+          final_dir="$RUNNER_TEMP/pr456-final"
+          git worktree add -B "$FINAL_BRANCH" "$final_dir" "origin/$FINAL_BRANCH"
+          git -C "$final_dir" config user.name "RIVERS0FT Automation"
+          git -C "$final_dir" config user.email "actions@users.noreply.github.com"
+          git -C "$final_dir" rebase origin/main
+          git -C "$final_dir" push --force-with-lease origin HEAD:"$FINAL_BRANCH"
+
+          if git -C "$final_dir" diff --name-only origin/main...HEAD | grep -E '^\.github/(pr456-|workflows/(apply-pr456|build-pr456|finalize-pr456))'; then
+            echo 'Temporary delivery files leaked into the final branch.' >&2
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ runner.temp }}/pr456-final
+        run: npm ci
+
+      - name: Build and run server tests
+        working-directory: ${{ runner.temp }}/pr456-final
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build
+          node --test server/test/*.test.js
+
+      - name: Install Chromium and WebKit
+        working-directory: ${{ runner.temp }}/pr456-final
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run browser matrix
+        working-directory: ${{ runner.temp }}/pr456-final
+        run: npm run test:browser
+
+      - name: Create or update final pull request
+        id: final_pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$FINAL_BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$pr_number" ]; then
+            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$FINAL_BRANCH" --base main --draft \
+              --title '优化新玩家路径、前端架构与容量诊断' \
+              --body '实施第一、第二、第五和第六阶段：修复研发设计冲突与文档一致性；完善七步经营任务链和阶段化主操作；拆分权威状态与派生数据并统一 CSS Cascade Layers；增加教程、失败动作和容量诊断，以及 Chromium/WebKit 发布回归。')"
+            pr_number="${pr_url##*/}"
+          fi
+          gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" \
+            --title '优化新玩家路径、前端架构与容量诊断' \
+            --body '实施第一、第二、第五和第六阶段：修复研发设计冲突与文档一致性；完善七步经营任务链和阶段化主操作；拆分权威状态与派生数据并统一 CSS Cascade Layers；增加教程、失败动作和容量诊断，以及 Chromium/WebKit 发布回归。\n\n验证：Node 24 构建、完整服务器测试、Chromium 与 WebKit 浏览器矩阵。'
+          gh pr ready "$pr_number" --repo "$GITHUB_REPOSITORY" || true
+          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+
+      - name: Close superseded recovery pull request
+        run: gh pr close 456 --repo "$GITHUB_REPOSITORY" --comment '已由干净最终分支 PR #${{ steps.final_pr.outputs.number }} 替代。' || true
+
+      - name: Wait for final PR checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          pr_number='${{ steps.final_pr.outputs.number }}'
+          for attempt in $(seq 1 90); do
+            state="$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json mergeStateStatus,statusCheckRollup --jq '[.mergeStateStatus, ([.statusCheckRollup[]? | select(.status != "COMPLETED" or (.conclusion != "SUCCESS" and .conclusion != "SKIPPED" and .conclusion != "NEUTRAL"))] | length)] | @tsv')"
+            merge_state="${state%%$'\t'*}"
+            pending="${state##*$'\t'}"
+            if [ "$pending" = '0' ] && { [ "$merge_state" = 'CLEAN' ] || [ "$merge_state" = 'HAS_HOOKS' ] || [ "$merge_state" = 'UNSTABLE' ]; }; then
+              exit 0
+            fi
+            sleep 20
+          done
+          gh pr checks "$pr_number" --repo "$GITHUB_REPOSITORY"
+          exit 1
+
+      - name: Squash merge final pull request
+        run: |
+          gh pr merge '${{ steps.final_pr.outputs.number }}' --repo "$GITHUB_REPOSITORY" --squash \
+            --subject '优化新玩家路径、前端架构与容量诊断' \
+            --body '完成设计一致性、新玩家任务链、前端职责拆分、容量诊断与 Chromium/WebKit 发布回归。'
