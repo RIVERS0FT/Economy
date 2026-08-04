@@ -4,13 +4,7 @@ on:
   push:
     branches:
       - agent/recover-pr450-bundle
-  pull_request:
-    branches:
-      - main
-    types:
-      - reopened
-      - ready_for_review
-      - synchronize
+  workflow_dispatch:
 
 concurrency:
   group: rebuild-pr456-clean-head
@@ -21,7 +15,6 @@ permissions:
 
 jobs:
   rebuild-clean-head:
-    if: github.event_name == 'push' || github.event.pull_request.number == 456
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +22,7 @@ jobs:
           ref: agent/recover-pr450-bundle
           fetch-depth: 0
 
-      - name: Rebuild on latest main with three-way merges
+      - name: Rebuild on latest main and publish merge result
         shell: bash
         run: |
           set -euo pipefail
@@ -37,6 +30,7 @@ jobs:
           source_sha="$(git rev-parse HEAD)"
           base_sha="6a76f330a02a753571a2235624da9d7ccb4a40e1"
           target_branch="agent/recover-pr450-bundle"
+          debug_branch="agent/pr456-merge-debug"
 
           git fetch origin main --force
           main_sha="$(git rev-parse origin/main)"
@@ -47,17 +41,17 @@ jobs:
             | grep -v '^\.github/workflows/apply-pr456-overlap\.yml$' \
             | grep -v '^\.github/workflows/build-pr456-final-branch\.yml$' \
             | grep -v '^\.github/workflows/finalize-pr456-delivery\.yml$' \
+            | grep -v '^test-results/' \
             | sort -u \
             > "$formal_paths"
-
           test -s "$formal_paths"
-          echo "Rebuilding $(wc -l < "$formal_paths") formal paths on $main_sha"
 
           final_dir="$RUNNER_TEMP/pr456-clean"
           merge_dir="$RUNNER_TEMP/pr456-merge"
           mkdir -p "$merge_dir"
           git worktree add --detach "$final_dir" "$main_sha"
 
+          had_conflict=0
           while IFS= read -r path; do
             [ -n "$path" ] || continue
 
@@ -92,9 +86,8 @@ jobs:
               merge_status=$?
               set -e
               if [ "$merge_status" -ne 0 ]; then
-                echo "Three-way merge conflict: $path" >&2
-                grep -n -C 3 '^<<<<<<<\|^|||||||\|^=======\|^>>>>>>>' "$ours" >&2 || true
-                exit 1
+                had_conflict=1
+                echo "Three-way merge conflict retained for inspection: $path"
               fi
               install -D -m 0644 "$ours" "$final_dir/$path"
               continue
@@ -103,8 +96,14 @@ jobs:
             if [ "$base_exists" = false ] && [ "$main_exists" = true ]; then
               git show "$main_sha:$path" > "$theirs"
               if ! cmp -s "$ours" "$theirs"; then
-                echo "Both branches added different versions: $path" >&2
-                exit 1
+                had_conflict=1
+                {
+                  echo '<<<<<<< PR456'
+                  cat "$ours"
+                  echo '======='
+                  cat "$theirs"
+                  echo '>>>>>>> MAIN'
+                } > "$final_dir/$path"
               fi
               continue
             fi
@@ -112,16 +111,20 @@ jobs:
             install -D -m 0644 "$ours" "$final_dir/$path"
           done < "$formal_paths"
 
-          git -C "$final_dir" diff --check
           git -C "$final_dir" config user.name "RIVERS0FT Automation"
           git -C "$final_dir" config user.email "actions@users.noreply.github.com"
           git -C "$final_dir" add -A --pathspec-from-file="$formal_paths"
-          git -C "$final_dir" diff --cached --stat
-          git -C "$final_dir" diff --cached --quiet && {
-            echo "No formal changes remain after rebuilding" >&2
+          git -C "$final_dir" commit -m "feat: rebuild PR 456 on latest main"
+          result_sha="$(git -C "$final_dir" rev-parse HEAD)"
+
+          git -C "$final_dir" push --force origin "HEAD:refs/heads/$debug_branch"
+
+          if [ "$had_conflict" -ne 0 ]; then
+            echo "Published conflict result to $debug_branch at $result_sha" >&2
             exit 1
-          }
-          git -C "$final_dir" commit -m "feat: optimize onboarding architecture and capacity diagnostics"
+          fi
+
+          git -C "$final_dir" diff-tree --check "$result_sha"
           git -C "$final_dir" push \
             --force-with-lease="refs/heads/$target_branch:$source_sha" \
             origin "HEAD:refs/heads/$target_branch"
