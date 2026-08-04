@@ -55,10 +55,12 @@ jobs:
           base64 --decode /tmp/population-model.b64 | gzip --decompress > /tmp/population-model.patch
           echo '180f6a67786b737bfc6473ac86b04a41522e22c90a7a1de6789cf3b7890de714  /tmp/population-model.patch' | sha256sum --check
           git apply --index --check \
+            --exclude=.github/workflows/deploy.yml \
             --exclude=docs/GIFT_CODE_AND_ADMIN_DESIGN.md \
             --exclude=server/src/runtime-store.js \
             /tmp/population-model.patch
           git apply --index \
+            --exclude=.github/workflows/deploy.yml \
             --exclude=docs/GIFT_CODE_AND_ADMIN_DESIGN.md \
             --exclude=server/src/runtime-store.js \
             /tmp/population-model.patch
@@ -70,8 +72,6 @@ jobs:
           git add -- docs/GIFT_CODE_AND_ADMIN_DESIGN.md server/src/runtime-store.js tests/browser/admin-runtime.spec.ts
 
           git rm -- \
-            .github/workflows/apply-population-final.yml \
-            .github/workflows/export-population-final-source.yml \
             scripts/.apply-population-conflicts.py \
             scripts/.apply-population-browser-fixture.py \
             scripts/.population-final-conflicts.b64 \
@@ -93,6 +93,10 @@ jobs:
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
           test -z "$(git diff --name-only)"
+          if git diff --cached --name-only | grep -q '^\.github/workflows/'; then
+            echo 'Workflow files must be committed separately' >&2
+            exit 1
+          fi
           git status --short
 
       - name: Commit implementation
