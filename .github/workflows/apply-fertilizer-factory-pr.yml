@@ -48,6 +48,13 @@ jobs:
                   ('world.version = 23', 'world.version = 24'),
                   ('assert.equal(world.version, 23)', 'assert.equal(world.version, 24)'),
                   ('assert.equal(persisted.version, 23)', 'assert.equal(persisted.version, 24)'),
+                  ('assert.equal(state.products.length, 31)', 'assert.equal(state.products.length, 32)'),
+                  ('assert.equal(state.facilityTypes.length, 21)', 'assert.equal(state.facilityTypes.length, 22)'),
+                  ('assert.equal(PRODUCT_CATALOG.length, 31)', 'assert.equal(PRODUCT_CATALOG.length, 32)'),
+                  ('assert.equal(FACILITY_TYPE_CATALOG.length, 21)', 'assert.equal(FACILITY_TYPE_CATALOG.length, 22)'),
+                  ("'plastic', 'textile', 'pulp', 'food', 'beverage',", "'plastic', 'textile', 'pulp', 'fertilizer', 'food', 'beverage',"),
+                  ("'refinery', 'beverage-factory'", "'refinery', 'fertilizer-factory', 'beverage-factory'"),
+                  ("pulp: 20, food: 15,", "pulp: 20, fertilizer: 34, food: 15,"),
               ],
               'server/test/all-products-demand.test.js': [
                   ('model 13', 'model 14'),
