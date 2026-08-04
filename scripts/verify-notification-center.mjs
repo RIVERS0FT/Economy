@@ -101,6 +101,8 @@ assert.match(styles, /\.notification-panel-layer/);
 assert.match(styles, /\.notification-toast-stack/);
 assert.match(styles, /@media \(max-width: 720px\)/);
 assert.match(styles, /\.notification-toast:not\(:last-child\)/);
+assert.match(styles, /overscroll-behavior-y:\s*auto/);
+assert.doesNotMatch(styles, /overscroll-behavior:\s*contain/);
 
 const mobileStatusStyles = read('src/styles/mobile-status-layout.css');
 assert.match(mobileStatusStyles, /\.mobile-notice-region \.notification-toast/);
