@@ -44,7 +44,20 @@ jobs:
               'server/src/runtime-store.js': [('prepared.version = 23', 'prepared.version = 24')],
               'scripts/verify-staple-crops-demand.mjs': [('world.version = 23', 'world.version = 24')],
               'scripts/verify-asset-auctions.mjs': [('prepared.version = 23', 'prepared.version = 24')],
-              'server/test/domain.test.js': [('world.version = 23', 'world.version = 24')],
+              'server/test/domain.test.js': [
+                  ('world.version = 23', 'world.version = 24'),
+                  ('assert.equal(world.version, 23)', 'assert.equal(world.version, 24)'),
+                  ('assert.equal(persisted.version, 23)', 'assert.equal(persisted.version, 24)'),
+              ],
+              'server/test/all-products-demand.test.js': [
+                  ('model 13', 'model 14'),
+                  ('modelVersion, 13', 'modelVersion, 14'),
+                  ('MARKET_DEMAND_MODEL_VERSION, 13', 'MARKET_DEMAND_MODEL_VERSION, 14'),
+              ],
+              'server/test/market-liquidity.test.js': [
+                  ('model 13', 'model 14'),
+                  ('modelVersion, 13', 'modelVersion, 14'),
+              ],
               'scripts/verify-money-precision.mjs': [
                   ('CURRENT_CLIENT_STATE_VERSION = 26', 'CURRENT_CLIENT_STATE_VERSION = 27'),
                   ('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 26', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 27'),
