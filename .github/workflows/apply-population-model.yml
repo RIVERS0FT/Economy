@@ -15,7 +15,6 @@ concurrency:
 
 jobs:
   apply:
-    if: contains(github.event.head_commit.message, 'stage population patch parts')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -40,7 +39,12 @@ jobs:
           echo '180f6a67786b737bfc6473ac86b04a41522e22c90a7a1de6789cf3b7890de714  /tmp/population-model.patch' | sha256sum --check
           git apply --index --check /tmp/population-model.patch
           git apply --index /tmp/population-model.patch
-          git rm -- scripts/.population-model-patch.b64 scripts/.population-model-patch-part-* scripts/.population-model-ready
+          git rm -- \
+            .github/workflows/apply-population-model.yml \
+            .github/workflows/export-population-model-source.yml \
+            scripts/.population-model-patch.b64 \
+            scripts/.population-model-patch-part-* \
+            scripts/.population-model-ready
 
       - name: Install dependencies
         run: npm ci
