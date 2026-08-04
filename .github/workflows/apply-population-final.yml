@@ -65,12 +65,15 @@ jobs:
 
           echo 'f0f6da088aac0164d9a985509e15e93f77a1c182c8f26798ac6905da9787a21f  scripts/.apply-population-conflicts.py' | sha256sum --check
           python3 scripts/.apply-population-conflicts.py
-          git add -- docs/GIFT_CODE_AND_ADMIN_DESIGN.md server/src/runtime-store.js
+          echo '217658a1b8432b9763595c2390b67c99cab35b298c5d3ccabdffca5291805391  scripts/.apply-population-browser-fixture.py' | sha256sum --check
+          python3 scripts/.apply-population-browser-fixture.py
+          git add -- docs/GIFT_CODE_AND_ADMIN_DESIGN.md server/src/runtime-store.js tests/browser/admin-runtime.spec.ts
 
           git rm -- \
             .github/workflows/apply-population-final.yml \
             .github/workflows/export-population-final-source.yml \
             scripts/.apply-population-conflicts.py \
+            scripts/.apply-population-browser-fixture.py \
             scripts/.population-final-conflicts.b64 \
             scripts/.population-final-part-*
 
