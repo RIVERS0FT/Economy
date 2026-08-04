@@ -64,6 +64,9 @@ requireText('server/src/index.js', [
 requireText('server/src/request-metrics.js', [
   'createRequestMetricsCollector',
   'averageDurationMs',
+  'p50DurationMs',
+  'p95DurationMs',
+  'p99DurationMs',
   'averageResponseBytes',
   'Economy request outlier',
   'Economy request metrics',
@@ -71,6 +74,16 @@ requireText('server/src/request-metrics.js', [
   'DEFAULT_MAX_ROUTE_KEYS = 256',
   "OVERFLOW_ROUTE = '/api/other'",
   'overflowedRequestCount',
+  'monitorEventLoopDelay',
+  'createRequestPerformanceContext',
+  'phases',
+  'gauges',
+]);
+requireText('server/src/request-performance.js', [
+  'AsyncLocalStorage',
+  'measureRequestPhase',
+  'setRequestGauge',
+  'snapshotRequestPerformance',
 ]);
 requireText('server/src/order-book-runtime.js', [
   'getOrderBookSide',
@@ -152,6 +165,13 @@ requireText('server/test/request-metrics.test.js', [
   'request metrics normalize route identifiers',
   'request metrics aggregate duration and application response bytes',
   'request metrics cap route cardinality and aggregate overflow',
+  'p95DurationMs',
+  'worldCloneMs',
+  'worldJsonBytes',
+]);
+requireText('server/test/request-performance.test.js', [
+  'aggregates nested phases and gauges',
+  'does nothing outside a request context',
 ]);
 requireText('server/test/world-deadline-planner.test.js', [
   'zero world transactions during a 60 second idle window',
@@ -186,7 +206,7 @@ requireText('docs/README.md', [
   '页面隐藏时临时使用 60 秒',
   '重新可见、网络恢复或从限速状态恢复交互时立即请求一次权威状态',
   '每 60 秒输出一次按方法与归一化路由聚合的请求指标',
-  '平均／最大处理时长和应用层 JSON 响应字节数',
+  '平均／p50／p95／p99／最大处理时长、应用层 JSON 响应字节数、固定阶段耗时、事件循环延迟和无身份容量指标',
   '超过 1 秒、超过 200 KB 或返回 5xx',
   '单个窗口最多保留 256 个方法／路由键',
   '`OTHER /api/other`',

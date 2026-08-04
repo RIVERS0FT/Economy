@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 
 export const STATE_PARTITION_NAMES = Object.freeze([
   'catalog',
@@ -36,10 +37,10 @@ function partitionNameForKey(key) {
 }
 
 function revisionForPartition(partition) {
-  return createHash('sha256')
+  return measureRequestPhase('partitionHashMs', () => createHash('sha256')
     .update(JSON.stringify(partition))
     .digest('base64url')
-    .slice(0, 16);
+    .slice(0, 16));
 }
 
 function normalizeRevisionRecord(value) {
@@ -90,8 +91,9 @@ export function readKnownPartitionRevisionsFromHeader(value) {
 export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now()) {
   const responseServerNow = normalizeServerNow(serverNow);
   if (snapshot?.unchanged || !snapshot?.state) return { ...snapshot, serverNow: responseServerNow };
-  const partitions = splitClientState(snapshot.state);
+  const partitions = measureRequestPhase('partitionBuildMs', () => splitClientState(snapshot.state));
   const partitionRevisions = createPartitionRevisions(partitions);
+  setRequestGauge('statePartitionCount', STATE_PARTITION_NAMES.length);
   const known = normalizeRevisionRecord(knownRevisions);
   const patches = {};
   for (const name of STATE_PARTITION_NAMES) {

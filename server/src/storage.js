@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
+import { measureRequestPhase, setRequestGauge } from './request-performance.js';
 import {
   createWorld,
   ensurePlayer,
@@ -500,10 +501,10 @@ export class EconomyStore {
   const cacheBefore = this.worldCache;
   const processingDeadlineBefore = this.nextWorldProcessingAt;
   const schedulerNotBeforeBefore = this.schedulerNotBefore;
-  this.database.exec(immediate ? 'BEGIN IMMEDIATE' : 'BEGIN');
+  measureRequestPhase('transactionWaitMs', () => this.database.exec(immediate ? 'BEGIN IMMEDIATE' : 'BEGIN'));
   try {
     const value = callback();
-    this.database.exec('COMMIT');
+    measureRequestPhase('commitMs', () => this.database.exec('COMMIT'));
     if (this.scheduledProcessing && this.worldCache !== cacheBefore) this.scheduleWorldProcessing();
     return value;
   } catch (error) {
@@ -530,7 +531,7 @@ export class EconomyStore {
     migrateResearchWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
-    normalizeWorldMoneyPrecision(world);
+    measureRequestPhase('moneyNormalizeMs', () => normalizeWorldMoneyPrecision(world));
     world.version = 22;
     return world;
   }
@@ -539,7 +540,7 @@ export class EconomyStore {
     this.worldCache = {
       revision: Number(revision),
       stateJson,
-      world: structuredClone(world),
+      world: measureRequestPhase('worldCloneMs', () => structuredClone(world)),
       needsPersistence: Boolean(needsPersistence),
     };
   }
@@ -549,28 +550,30 @@ export class EconomyStore {
       return {
         revision: this.worldCache.revision,
         stateJson: this.worldCache.stateJson,
-        world: structuredClone(this.worldCache.world),
+        world: measureRequestPhase('worldCloneMs', () => structuredClone(this.worldCache.world)),
       };
     }
 
     const row = this.selectWorld.get();
     if (!row) {
       const world = this.prepareWorldForStorage(stripPlayerLogs(createWorld(now)), now);
-      const stateJson = JSON.stringify(world);
+      const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
       this.insertWorld.run(1, stateJson, now);
       this.cacheWorld(1, stateJson, world);
-      return { revision: 1, stateJson, world: structuredClone(world) };
+      setRequestGauge('worldJsonBytes', Buffer.byteLength(stateJson));
+      return { revision: 1, stateJson, world: measureRequestPhase('worldCloneMs', () => structuredClone(world)) };
     }
 
     const persistedStateJson = String(row.state_json);
     const world = this.prepareWorldForStorage(migrateWorld(JSON.parse(persistedStateJson), now), now);
-    const stateJson = JSON.stringify(world);
+    const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
     this.cacheWorld(Number(row.revision), stateJson, world, stateJson !== persistedStateJson);
-    return { revision: Number(row.revision), stateJson, world: structuredClone(world) };
+    setRequestGauge('worldJsonBytes', Buffer.byteLength(stateJson));
+    return { revision: Number(row.revision), stateJson, world: measureRequestPhase('worldCloneMs', () => structuredClone(world)) };
   }
 
   serializeWorld(world, now) {
-    return JSON.stringify(this.prepareWorldForStorage(world, now));
+    return measureRequestPhase('serializeWorldMs', () => JSON.stringify(this.prepareWorldForStorage(world, now)));
   }
 
   saveWorld(revision, world, now) {
@@ -607,12 +610,14 @@ export class EconomyStore {
 
   processWorldIfDue(world, now, _currentUserId, { force = false } = {}) {
   if (!force && now < this.nextWorldProcessingAt) return false;
-  processLeaderboardWorld(world, now, {
-    onGemReward: (reward) => this.recordGemLedgerEvent(reward),
+  measureRequestPhase('worldProcessMs', () => {
+    processLeaderboardWorld(world, now, {
+      onGemReward: (reward) => this.recordGemLedgerEvent(reward),
+    });
+    processBankWorld(world, now);
+    processWeeklyCashSettlementWorld(world, now);
+    processResearchWorld(world, now);
   });
-  processBankWorld(world, now);
-  processWeeklyCashSettlementWorld(world, now);
-  processResearchWorld(world, now);
   if (this.scheduledProcessing) {
     this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
   } else {
@@ -666,12 +671,12 @@ export class EconomyStore {
       return {
         revision: nextRevision,
         unchanged: false,
-        state: normalizeJson(createVersionedClientState(
+        state: measureRequestPhase('stateProjectionMs', () => normalizeJson(createVersionedClientState(
           world,
           Number(user.id),
           now,
           this.dailyCheckInSummaryFor(world.players[playerId], now),
-        )),
+        ))),
       };
     }, { immediate: false });
   }
