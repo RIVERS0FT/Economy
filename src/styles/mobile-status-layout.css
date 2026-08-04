@@ -126,17 +126,13 @@
 }
 
 @media (max-width: 340px) {
-  .asset-bar-content {
-    padding-inline: 0;
-  }
-
   .asset-bar-item,
   .asset-bar-item:last-child {
     gap: .05rem;
   }
 
   .asset-bar-item-icon {
-    width: .85rem;
-    height: .85rem;
+    width: .7rem;
+    height: .7rem;
   }
 }
