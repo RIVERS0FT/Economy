@@ -371,7 +371,7 @@ test.describe('mobile liquid glass host geometry', () => {
     expect(geometry.statusContentOverflow).toBe(false);
     expect(geometry.statusOutlineContent).toBe('none');
     expect(geometry.workspaceIsolation).toBe('auto');
-    expect(geometry.pageOverlayZIndex).toBe('auto');
+    expect(geometry.pageOverlayZIndex).toBe('0');
     expect(geometry.chromeOverlayZIndex).toBe('auto');
     expect(geometry.pageScrollZIndex).toBe('auto');
     expect(geometry.statusHostZIndex).toBe('auto');

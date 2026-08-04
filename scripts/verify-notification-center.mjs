@@ -133,6 +133,12 @@ assert.match(browserTest, /getByRole\('dialog', \{ name: '通知' \}\)/);
 assert.match(browserTest, /document\.querySelectorAll\('\.asset-bar \.liquid-glass-surface'\)/);
 assert.match(browserTest, /geometry\.trigger\.width\)\.toBeCloseTo\(44, 0\)/);
 assert.match(browserTest, /geometry\.trigger\.height\)\.toBeCloseTo\(44, 0\)/);
+assert.match(browserTest, /panel stays above extreme workspace z-index/);
+assert.match(browserTest, /notification-layer-regression-sentinel/);
+assert.match(browserTest, /document\.elementFromPoint/);
+assert.match(browserTest, /panelCloseIsTopmost/);
+assert.match(browserTest, /floatingLayerOrder/);
+assert.match(browserTest, /floatingLayerZIndex\)\.toBe\('1'\)/);
 assert.doesNotMatch(browserTest, /layout\.classList/);
 assert.doesNotMatch(browserTest, /notice-toast/);
 assert.doesNotMatch(browserTest, /toBeCloseTo\(36, 0\)/);
@@ -155,6 +161,11 @@ assert.match(styles, /\.notification-toast:not\(:last-child\)/);
 assert.match(styles, /overscroll-behavior-y:\s*auto/);
 assert.doesNotMatch(styles, /overscroll-behavior:\s*contain/);
 
+const viewportStyles = read('src/styles/viewport.css');
+assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.signed-in-shell__body\s*\{[\s\S]*?position:\s*relative;[\s\S]*?z-index:\s*0;[\s\S]*?order:\s*1;/);
+assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.mobile-page-overlay\s*\{[\s\S]*?position:\s*relative;[\s\S]*?z-index:\s*0;[\s\S]*?order:\s*1;/);
+assert.match(viewportStyles, /@media \(max-width: 720px\)[\s\S]*?\.workspace-floating-layer\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?z-index:\s*1;[\s\S]*?order:\s*2;/);
+
 const mobileStatusStyles = read('src/styles/mobile-status-layout.css');
 assert.match(mobileStatusStyles, /\.mobile-notice-region \.notification-toast/);
 assert.match(mobileStatusStyles, /pointer-events:\s*auto/);
@@ -169,6 +180,9 @@ const liquidDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
 assert.match(liquidDesign, /\.asset-bar-layout/);
 assert.match(liquidDesign, /实际 `\.notification-toast` 必须恢复 `pointer-events:auto`/);
 assert.match(liquidDesign, /面板打开时立即清空 Toast 队列/);
+assert.match(liquidDesign, /移动工作区使用局部层级堆叠边界/);
+assert.match(liquidDesign, /工作区浮层根固定 `order: 2; z-index: 1`/);
+assert.match(liquidDesign, /页面内部任意正 `z-index`/);
 
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.match(uiDesign, /## 通知面板与关闭态 Toast/);

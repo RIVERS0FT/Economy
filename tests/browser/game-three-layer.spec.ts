@@ -99,6 +99,7 @@ test.describe('signed-in game three-layer background', () => {
         bodyIndex: shellChildren.indexOf(body),
         chromeIndex: shellChildren.indexOf(chromeOverlay),
         pageIndex: workspaceChildren.indexOf(pageOverlay),
+        bodyZ: getComputedStyle(body).zIndex,
         workspaceZ: getComputedStyle(workspace).zIndex,
         pageZ: getComputedStyle(pageOverlay).zIndex,
         chromeZ: getComputedStyle(chromeOverlay).zIndex,
@@ -113,8 +114,9 @@ test.describe('signed-in game three-layer background', () => {
     expect(layout.bodyIndex).toBe(0);
     expect(layout.chromeIndex).toBe(1);
     expect(layout.pageIndex).toBe(0);
+    expect(layout.bodyZ).toBe('0');
     expect(layout.workspaceZ).toBe('auto');
-    expect(layout.pageZ).toBe('auto');
+    expect(layout.pageZ).toBe('0');
     expect(layout.chromeZ).toBe('auto');
     expect(layout.workspaceIsolation).toBe('auto');
     expect(layout.pageIsolation).toBe('auto');

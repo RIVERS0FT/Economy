@@ -110,6 +110,18 @@ check('src/styles/viewport.css', [
   'margin-inline-end: max(var(--mobile-workspace-gutter), env(safe-area-inset-right));',
   'right: 0;', 'left: 0;',
   'top: calc(', 'bottom: calc(', 'overflow: clip;',
+  `  .signed-in-shell__body {
+    position: relative;
+    z-index: 0;
+    order: 1;`,
+  `  .mobile-page-overlay {
+    position: relative;
+    z-index: 0;
+    order: 1;`,
+  `  .workspace-floating-layer {
+    position: absolute;
+    z-index: 1;
+    order: 2;`,
 ]);
 check('src/styles/facility-detail-sheet.css', [
   '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
@@ -139,6 +151,8 @@ check('tests/browser/admin-runtime.spec.ts', [
 check('tests/browser/game-three-layer.spec.ts', [
   'bodyIndex: shellChildren.indexOf(body)',
   'chromeIndex: shellChildren.indexOf(chromeOverlay)',
+  "expect(layout.bodyZ).toBe('0')",
+  "expect(layout.pageZ).toBe('0')",
 ]);
 check('tests/browser/shell-floating-safe-zone.spec.ts', [
   'market-runtime-test.html?scenario=active',
@@ -146,6 +160,16 @@ check('tests/browser/shell-floating-safe-zone.spec.ts', [
   'game ECharts tooltip remains inside the lower workspace and never covers shell chrome',
   'mobile workspace floating layer excludes the top status bar and bottom navigation',
   'intersectionArea',
+]);
+check('tests/browser/notification-center.spec.ts', [
+  'panel stays above extreme workspace z-index',
+  'notification-layer-regression-sentinel',
+  'document.elementFromPoint',
+  'panelCloseIsTopmost',
+  "expect(geometry.shellBodyZIndex).toBe('0')",
+  "expect(geometry.pageLayerZIndex).toBe('0')",
+  "expect(geometry.floatingLayerZIndex).toBe('1')",
+  "expect(geometry.floatingLayerOrder).toBe('2')",
 ]);
 check('tests/browser/facility-detail-sheet.spec.ts', [
   "page.locator('.workspace-dialog-layer')",
@@ -155,6 +179,7 @@ check('tests/browser/facility-detail-sheet.spec.ts', [
 check('tests/browser/liquid-glass-layout.spec.ts', [
   'assetBarAreaWidth).toBeCloseTo(layout.viewportWidth - 24',
   'workspaceTop - layout.assetBarBottom',
+  "expect(geometry.pageOverlayZIndex).toBe('0')",
 ]);
 
 check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
@@ -163,6 +188,9 @@ check('docs/LIQUID_GLASS_CHROME_DESIGN.md', [
   '`appendToBody: false`', '`confine: true`',
   '根级业务 Dialog 层',
   '移动工厂详情',
+  '移动工作区使用局部层级堆叠边界',
+  '工作区浮层根固定 `order: 2; z-index: 1`',
+  '页面内部任意正 `z-index`',
 ]);
 check('docs/UI_DESIGN_SYSTEM.md', [
   '登录后浮层安全区', '`SafeTooltip`',
@@ -178,4 +206,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('游戏与管理员共享外壳验证通过：全宽顶部工作栏、下方侧栏与工作区、贴边滚动条、普通浮层安全根和根级业务 Dialog 层均已锁定。');
+console.log('游戏与管理员共享外壳验证通过：全宽顶部工作栏、下方侧栏与工作区、贴边滚动条、普通浮层安全根、移动局部层级边界和根级业务 Dialog 层均已锁定。');
