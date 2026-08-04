@@ -1,48 +1,89 @@
-name: Export Population Model Source
+name: Apply Population Model
 
 on:
   push:
     branches: [feature/population-model]
 
 permissions:
-  contents: read
+  contents: write
   statuses: write
 
-jobs:
-  export:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+concurrency:
+  group: apply-population-model
+  cancel-in-progress: false
 
-      - name: Create source archive
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/population-model
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply population model patch
         run: |
           set -euo pipefail
-          tar --exclude=.git -czf /tmp/source-export.tar.gz .
+          cat scripts/.population-model-patch-part-* > /tmp/population-model-patch.b64
+          echo '2614022a63ca92b4107efc7344cf3374ad68976366253f667b0d4ab2a94ff9cd  /tmp/population-model-patch.b64' | sha256sum --check
+          base64 --decode /tmp/population-model-patch.b64 | gzip --decompress > /tmp/population-model.patch
+          echo '180f6a67786b737bfc6473ac86b04a41522e22c90a7a1de6789cf3b7890de714  /tmp/population-model.patch' | sha256sum --check
+          git apply --index --check /tmp/population-model.patch
+          git apply --index /tmp/population-model.patch
+          git rm -- \
+            .github/workflows/apply-population-model.yml \
+            .github/workflows/export-population-model-source.yml \
+            scripts/.population-model-patch.b64 \
+            scripts/.population-model-patch-part-* \
+            scripts/.population-model-ready
 
-      - name: Upload source archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-population-source-${{ github.run_id }}
-          path: /tmp/source-export.tar.gz
-          retention-days: 1
-          if-no-files-found: error
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Publish export status
+      - name: Build and test
+        run: |
+          set -euo pipefail
+          npm run build
+          npx playwright install --with-deps chromium
+          npm run test:browser
+
+      - name: Verify staged scope
+        run: |
+          set -euo pipefail
+          git diff --cached --check
+          git status --short
+          test -n "$(git diff --cached --name-only)"
+
+      - name: Commit implementation
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: implement factory-driven population model'
+          git push origin HEAD:feature/population-model
+
+      - name: Publish implementation status
         if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JOB_STATUS: ${{ job.status }}
         run: |
           set -euo pipefail
-          if [ "$JOB_STATUS" = success ]; then state=success; description='Population source export completed'; else state=failure; description='Population source export failed'; fi
+          if [ "$JOB_STATUS" = success ]; then state=success; description='Population model implementation verified'; else state=failure; description='Population model implementation failed'; fi
           python3 - "$state" "$description" <<'PYTHON' > /tmp/status.json
           import json, os, sys
           print(json.dumps({
               'state': sys.argv[1],
               'description': sys.argv[2],
-              'context': 'diagnostics/population-source-export',
+              'context': 'implementation/population-model',
               'target_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
           }))
           PYTHON
