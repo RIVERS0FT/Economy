@@ -276,7 +276,7 @@ function applyCommodityOrder(world, user, payload, now) {
     ? String(payload.productId || payload.assetId || 'wheat')
     : null;
   const quantity = normalizePositiveInteger(payload.quantity, core.ECONOMY_CONSTANTS.maxOrderQuantity);
-  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01, max: 1_000_000 });
+  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
   if (!side || !productId || !quantity || !price) return { ok: false, message: '订单参数无效' };
   const total = multiplyMoneyByInteger(price, quantity);
   if (total === null) return { ok: false, message: '订单总额超出系统可表示范围' };

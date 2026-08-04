@@ -122,6 +122,19 @@ for (const text of ["label: '仓库剩余'", "id: 'warehouse'"]) requireText('sr
 for (const text of ["id: 'inventory'", "id: 'market'"]) forbidText('src/app/GameApp.tsx', text);
 for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 20','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','SELF_CROSS_MESSAGE']) requireText('server/src/facility-groups.js', text);
 for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
+for (const [path, text] of [
+  ['server/src/domain.js', "normalizePlayerMoneyInput(payload.price, { min: 0.01 })"],
+  ['server/src/facility-groups.js', "normalizePlayerMoneyInput(payload.price ?? payload.unitPrice, { min: 0.01 })"],
+  ['src/config/economy.ts', 'maxOrderPrice: Number.MAX_SAFE_INTEGER / 1_000_000'],
+  ['src/pages/MarketPage.tsx', 'max: economyConstants.maxOrderPrice'],
+  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '不设置固定业务最高价'],
+]) requireText(path, text);
+for (const [path, text] of [
+  ['server/src/domain.js', 'max: 1_000_000'],
+  ['server/src/facility-groups.js', 'MAX_ORDER_PRICE'],
+  ['server/src/facility-groups.js', '系统参考价的 50%～200%'],
+  ['src/pages/MarketPage.tsx', 'max={1_000_000}'],
+]) forbidText(path, text);
 for (const text of ['SELF_CROSS_MESSAGE','findSelfCrossingOrder','pricesCross','bestSystemPrice','systemBookIsCrossed']) requireText('server/src/order-book-integrity.js', text);
 const domainSource = [
   'server/src/domain.js',
