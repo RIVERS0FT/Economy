@@ -1,0 +1,81 @@
+name: Apply fertilizer factory
+
+on:
+  push:
+    branches:
+      - agent/add-fertilizer-factory-bootstrap
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ contains(github.event.head_commit.message, '[fertilizer-bootstrap]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout bootstrap branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply, validate, and publish clean branch
+        shell: bash
+        run: |
+          set -u
+          log_file="$RUNNER_TEMP/fertilizer-factory-bootstrap.log"
+          applicator="$RUNNER_TEMP/apply-fertilizer-factory.py"
+          : > "$log_file"
+
+          base64 -d scripts/apply-fertilizer-factory.py.gz.b64 | gzip -d > "$applicator"
+          python3 -m py_compile "$applicator" >> "$log_file" 2>&1
+
+          git checkout -B agent/add-fertilizer-factory origin/main >> "$log_file" 2>&1
+
+          status=0
+          run_step() {
+            if [ "$status" -ne 0 ]; then
+              return
+            fi
+            echo "\n===== $1 =====" >> "$log_file"
+            shift
+            "$@" >> "$log_file" 2>&1 || status=$?
+          }
+
+          run_step "apply changes" python3 "$applicator"
+          run_step "install dependencies" npm ci
+          run_step "catalog verification" node scripts/verify-industry-catalog.mjs
+          run_step "production methods verification" node scripts/verify-production-methods.mjs
+          run_step "demand verification" node scripts/verify-staple-crops-demand.mjs
+          run_step "client state version verification" node scripts/verify-client-state-version.mjs
+          run_step "product artwork verification" npm run verify:product-artwork
+          run_step "facility artwork verification" npm run verify:facility-artwork
+          run_step "fertilizer server regression" node --test server/test/fertilizer-factory.test.js
+          run_step "repository diff check" git diff --check
+          run_step "full production build" npm run build
+          run_step "install chromium" npx playwright install --with-deps chromium
+          run_step "full browser regression" npm run test:browser
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ "$status" -eq 0 ]; then
+            target_branch="agent/add-fertilizer-factory"
+            git add -A
+            git commit -m "增加化肥厂与化肥产业支线"
+          else
+            target_branch="agent/add-fertilizer-factory-diagnostic"
+            cp "$log_file" fertilizer-factory-bootstrap.log
+            git add -A
+            git commit -m "记录化肥厂实施失败诊断"
+          fi
+
+          git push --force origin "HEAD:$target_branch"
+          cat "$log_file"
+          exit "$status"
