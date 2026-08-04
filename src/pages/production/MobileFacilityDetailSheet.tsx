@@ -20,7 +20,7 @@ import {
   FACILITY_SHEET_MIN_FLING_DISTANCE,
   FACILITY_SHEET_SETTLE_DURATION,
   FacilityClusterDetailBody,
-  FacilityClusterDetailHeader,
+  FacilityClusterInformation,
   FacilityMarketAction,
   type FacilityClusterDetailSharedProps,
   type FacilityClusterEntry,
@@ -461,16 +461,11 @@ export function MobileFacilityDetailSheet({
             settleDrag(false);
           }}
         >
-          <div className="facility-detail-sheet-header">
-            <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
-              <span className="facility-detail-sheet-handle" />
-            </div>
-            <FacilityClusterDetailHeader
-              entry={entry}
-              onToggle={onToggle}
-              titleId="mobile-facility-detail-title"
-            />
-          </div>
+<div className="facility-detail-sheet-header">
+  <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
+    <span className="facility-detail-sheet-handle" />
+  </div>
+</div>
 
           <ScrollArea
             axis="y"
@@ -482,13 +477,21 @@ export function MobileFacilityDetailSheet({
             viewportTabIndex={0}
             scrollbarVisibility="adaptive"
           >
-            <FacilityClusterDetailBody
-              entry={entry}
-              products={products}
-              inventories={inventories}
-              now={now}
-              onRecipeChange={onRecipeChange}
-            />
+<FacilityClusterInformation
+  entry={entry}
+  products={products}
+  inventories={inventories}
+  now={now}
+  onToggle={onToggle}
+  titleId="mobile-facility-detail-title"
+/>
+<FacilityClusterDetailBody
+  entry={entry}
+  products={products}
+  inventories={inventories}
+  now={now}
+  onRecipeChange={onRecipeChange}
+/>
           </ScrollArea>
 
           <div className="facility-detail-sheet-footer">

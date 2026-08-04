@@ -220,7 +220,7 @@ for (const text of [
 ]) assert.ok(selectorSource.includes(text), `工厂选择卡利润数字缺少: ${text}`);
 const selectorCardSource = selectorSource.slice(
   selectorSource.indexOf('export function FacilityClusterSelectorCard'),
-  selectorSource.indexOf('export function FacilityClusterDetailHeader'),
+  selectorSource.indexOf('export function FacilityClusterInformation'),
 );
 for (const forbiddenText of ['<CurrencyAmount', '/分']) {
   assert.equal(selectorCardSource.includes(forbiddenText), false, `工厂选择卡利润不得显示: ${forbiddenText}`);
@@ -259,14 +259,14 @@ for (const text of [
 assert.equal(styleSource.includes('.facility-profit-analysis__summary'), false);
 
 for (const text of [
-  '.facility-cluster-selector-heading',
-  'flex-wrap: wrap;',
+  '.facility-information-heading',
+  'grid-template-columns: minmax(0, 1fr) auto;',
   '--facility-card-section-gap: var(--space-2);',
 ]) assert.ok(surfaceSource.includes(text), `工厂详情头部压缩样式缺少: ${text}`);
 for (const text of [
   'min-height: 32px;',
-  'gap: 0.35rem var(--space-2);',
-  'font-size: 0.72rem;',
+  '.facility-detail-sheet-header',
+  'border-bottom: 0;',
 ]) assert.ok(sheetSource.includes(text), `移动详情头部压缩样式缺少: ${text}`);
 
 for (const text of [
@@ -276,7 +276,7 @@ for (const text of [
   '不得恢复市场利润分析标题',
   '必须直接显示缺失商品名称',
   '不得只显示笼统的“暂无成交数据”',
-  '完整状态与工厂名称位于紧凑标题区域',
+  '工厂信息是唯一身份与经营摘要区',
   '最近真实成交价必须使用统一订单簿的价格边界',
   '客户端不得要求成交价为整数或不低于 1',
   '选择卡只显示格式化数字或缺价占位',

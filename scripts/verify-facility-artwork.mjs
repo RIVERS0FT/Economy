@@ -200,9 +200,10 @@ if (failures.length === 0) {
     '.facility-detail-artwork::after',
     '.facility-detail-artwork .facility-detail-artwork-icon',
     'background-size: cover;',
+    'aspect-ratio: 4 / 5;',
     '@media (max-width: 720px)',
   ]) {
-    if (!styles.includes(required)) failures.push(`工厂详情未落实场景插画横幅: ${required}`);
+    if (!styles.includes(required)) failures.push(`工厂详情未落实纵向场景插画: ${required}`);
   }
 
   const productionStyles = read('src/styles/facility-group-card-grid.css');

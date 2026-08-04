@@ -204,7 +204,7 @@ for (const text of [
 for (const forbidden of ['.production-grid {']) forbidText('src/styles/industry-system.css', forbidden);
 
 for (const text of [
-  '.facility-card-title-row',
+  '.facility-information-heading',
   '.facility-count-summary',
   'align-self: start;',
   'grid-auto-rows: auto;',
@@ -241,7 +241,7 @@ if (facilityGroupBlocks.some((block) => block.includes('grid-template-rows: auto
 }
 
 for (const text of [
-  '.facility-detail-sheet .facility-card-title-block',
+  '.facility-detail-sheet-header',
   '.facility-detail-sheet.is-closing',
   '--facility-sheet-max-height',
   'animation: facility-sheet-open',
@@ -334,14 +334,14 @@ for (const text of [
   '进度条',
   '时间与成本固定放在投入与产出下方的同一条操作数据带',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
-  '完整状态与工厂名称位于紧凑标题区域',
+  '工厂信息是唯一身份与经营摘要区',
   '不包含顶部关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '桌面详情卡高度由自然内容流决定',
   '移动 Bottom Sheet 打开期间只允许单向上移',
   '移动触控下工厂选择卡不得使用缩放按压反馈',
   '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
-  '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
+  '生产进度位于数据带下方，并且是生产结算最后一个可见元素',
   '工厂满员率与等效产能',
   '周期完成时刻的满员率',
   'staffingBatchCarryBps',
@@ -367,7 +367,7 @@ for (const text of [
   '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
   '首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定',
   '`focus({ preventScroll: true })`',
-  '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
+  '生产进度位于数据带下方，并且是生产结算最后一个可见元素',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 for (const path of [
