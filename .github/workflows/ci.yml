@@ -26,7 +26,7 @@ jobs:
           ref: codex/notification-center
           fetch-depth: 0
 
-      - name: Update CI authority and self-clean
+      - name: Update CI authority documentation
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -60,80 +60,15 @@ jobs:
           elif new_doc_checks not in verify:
               raise SystemExit('runtime verifier authority anchor not found')
           verify_path.write_text(verify, encoding='utf-8')
-
-          final_ci = f'''name: Economy CI
-
-          on:
-            pull_request:
-            push:
-              branches-ignore:
-                - main
-            workflow_dispatch:
-
-          concurrency:
-            {ci_group}
-            cancel-in-progress: true
-
-          permissions:
-            contents: read
-
-          jobs:
-            build:
-              runs-on: ubuntu-latest
-              timeout-minutes: 20
-              steps:
-                - name: Checkout code
-                  uses: actions/checkout@v4
-
-                - name: Setup Node
-                  uses: actions/setup-node@v4
-                  with:
-                    node-version: 24.4.0
-                    cache: npm
-
-                - name: Install dependencies
-                  run: npm ci
-
-                - name: Build and test
-                  shell: bash
-                  run: |
-                    set -o pipefail
-                    npm run build 2>&1 | tee build-test.log
-
-                - name: Install Chromium
-                  run: npx playwright install --with-deps chromium
-
-                - name: Test browser runtime
-                  shell: bash
-                  run: |
-                    set -o pipefail
-                    npm run test:browser 2>&1 | tee browser-test.log
-
-                - name: Upload test artifacts
-                  if: failure()
-                  uses: actions/upload-artifact@v4
-                  with:
-                    name: economy-test-artifacts
-                    path: |
-                      build-test.log
-                      browser-test.log
-                      playwright-report
-                      test-results
-                    if-no-files-found: warn
-                    retention-days: 3
-          '''
-          Path('.github/workflows/ci.yml').write_text(final_ci, encoding='utf-8')
           PY
 
-          rm -f .github/workflows/patch-ci-head-status.yml
-          git add .github/workflows/ci.yml docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs
-          git add -u .github/workflows/patch-ci-head-status.yml
+          git add docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs
           if git diff --cached --quiet; then
             exit 0
           fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git commit -m "fix: align CI checks with branch protection"
+          git commit -m "docs: align CI checks with branch protection"
           git push origin HEAD:codex/notification-center
 
   build:
