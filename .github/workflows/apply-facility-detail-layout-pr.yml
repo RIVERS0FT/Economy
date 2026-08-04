@@ -33,6 +33,28 @@ jobs:
               for line in workflow[start:end].splitlines()
           )
           exec(compile(script, 'facility-detail-layout-v2.py', 'exec'))
+
+          for path in [
+              'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
+              'docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md',
+              'docs/UI_DESIGN_SYSTEM.md',
+              'scripts/verify-facility-artwork.mjs',
+              'scripts/verify-facility-groups.mjs',
+              'scripts/verify-recipe-profit-analysis.mjs',
+              'scripts/verify-unified-factory-recipes-grid.mjs',
+              'src/components/facilities/FacilityProductionFormula.tsx',
+              'src/pages/production/MobileFacilityDetailSheet.tsx',
+              'src/pages/production/ProductionFacilityDetail.tsx',
+              'src/styles/facility-artwork.css',
+              'src/styles/facility-detail-sheet.css',
+              'src/styles/facility-group-card-grid.css',
+              'src/styles/facility-recipe-profit-analysis.css',
+              'src/styles/production-surface.css',
+              'tests/browser/facility-detail-sheet.spec.ts',
+              'tests/browser/production-methods.spec.ts',
+          ]:
+              file = Path(path)
+              file.write_text(file.read_text().rstrip() + '\n')
           PY
 
           git diff --check
