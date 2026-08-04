@@ -213,7 +213,7 @@ requireText(uiDesign, '商品卡的桌面中央插画固定 `72 × 72px`，不�
 requireText(uiDesign, '工厂卡插画必须等比居中裁切并铺满整张卡', 'UI 设计系统必须记录市场工厂满幅插画。');
 requireText(uiDesign, '不得通过压缩四角留白容纳插画', 'UI 设计系统必须禁止压缩市场商品卡四角留白。');
 requireText(uiDesign, '同价档位聚合及水平溢出', 'UI 设计系统必须要求浏览器验证同价档位聚合。');
-requireText(chromeDesign, '页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须由页面局部堆叠上下文收口', '液态玻璃外壳设计必须记录移动页面 sticky 层级收口规则。');
+requireText(chromeDesign, '页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须被 `.mobile-page-overlay` 的零层级堆叠边界收口', '液态玻璃外壳设计必须记录移动页面 sticky 层级收口规则。');
 requireText(designIndex, '先渲染只包含居中 `ProductIcon` 的图标层', '设计索引必须记录市场商品卡图标层优先渲染。');
 requireText(designIndex, '再渲染包含左上名称、右上 `CurrencyAmount` 最近真实成交价', '设计索引必须记录市场商品卡数据层内容。');
 requireText(designIndex, '商品卡不得用 `::after` 生成“当前”胶囊', '设计索引必须禁止商品卡伪元素当前胶囊。');

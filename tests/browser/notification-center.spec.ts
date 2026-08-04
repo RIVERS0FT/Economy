@@ -91,35 +91,68 @@ test.describe('notification center geometry', () => {
     expect(geometry.glassCount).toBe(1);
   });
 
-  test('mobile entry keeps the 48px status height and panel stays between status and navigation', async ({ page }) => {
+  test('mobile entry keeps the 48px status height and panel stays above extreme workspace z-index', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
     await openNotificationPanelAndMountToast(page);
 
+    await page.evaluate(() => {
+      const pageLayer = document.querySelector<HTMLElement>('.mobile-page-overlay');
+      if (!pageLayer) throw new Error('mobile page overlay is incomplete');
+      const sentinel = document.createElement('div');
+      sentinel.className = 'notification-layer-regression-sentinel';
+      Object.assign(sentinel.style, {
+        position: 'absolute',
+        inset: '0',
+        zIndex: '2147483647',
+        pointerEvents: 'auto',
+      });
+      pageLayer.append(sentinel);
+    });
+
     const geometry = await page.evaluate(() => {
+      const shellBody = document.querySelector<HTMLElement>('.signed-in-shell__body');
+      const pageLayer = document.querySelector<HTMLElement>('.mobile-page-overlay');
       const status = document.querySelector<HTMLElement>('.asset-bar');
       const trigger = document.querySelector<HTMLElement>('.notification-center-trigger');
       const floatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
       const panel = document.querySelector<HTMLElement>('.notification-panel');
+      const closeButton = document.querySelector<HTMLElement>('.notification-panel__close');
       const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
       const toast = document.querySelector<HTMLElement>('.notification-toast');
-      if (!status || !trigger || !floatingLayer || !panel || !navigation || !toast) {
+      const sentinel = document.querySelector<HTMLElement>('.notification-layer-regression-sentinel');
+      if (!shellBody || !pageLayer || !status || !trigger || !floatingLayer || !panel || !closeButton || !navigation || !toast || !sentinel) {
         throw new Error('mobile notification geometry is incomplete');
       }
       const rect = (element: HTMLElement) => {
         const box = element.getBoundingClientRect();
         return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
       };
+      const toastRect = rect(toast);
+      const toastPointerEvents = getComputedStyle(toast).pointerEvents;
+      // Opening the panel clears Chrome Toasts in production; remove the geometry-only fixture before hit testing.
+      toast.remove();
+      const closeRect = closeButton.getBoundingClientRect();
+      const topmostAtClose = document.elementFromPoint(
+        closeRect.left + closeRect.width / 2,
+        closeRect.top + closeRect.height / 2,
+      );
       return {
         status: rect(status),
         trigger: rect(trigger),
         floatingLayer: rect(floatingLayer),
         panel: rect(panel),
         navigation: rect(navigation),
-        toast: rect(toast),
+        toast: toastRect,
         itemColumns: getComputedStyle(document.querySelector<HTMLElement>('.asset-bar-content')!).gridTemplateColumns.split(' ').length,
         panelMaxHeight: getComputedStyle(panel).maxHeight,
-        toastPointerEvents: getComputedStyle(toast).pointerEvents,
+        toastPointerEvents,
+        shellBodyZIndex: getComputedStyle(shellBody).zIndex,
+        pageLayerZIndex: getComputedStyle(pageLayer).zIndex,
+        pageLayerOrder: getComputedStyle(pageLayer).order,
+        floatingLayerZIndex: getComputedStyle(floatingLayer).zIndex,
+        floatingLayerOrder: getComputedStyle(floatingLayer).order,
+        panelCloseIsTopmost: topmostAtClose === closeButton || closeButton.contains(topmostAtClose),
       };
     });
 
@@ -136,5 +169,11 @@ test.describe('notification center geometry', () => {
     expect(geometry.toast.bottom).toBeLessThan(geometry.navigation.top);
     expect(geometry.panelMaxHeight).not.toBe('none');
     expect(geometry.toastPointerEvents).toBe('auto');
+    expect(geometry.shellBodyZIndex).toBe('0');
+    expect(geometry.pageLayerZIndex).toBe('0');
+    expect(geometry.pageLayerOrder).toBe('1');
+    expect(geometry.floatingLayerZIndex).toBe('1');
+    expect(geometry.floatingLayerOrder).toBe('2');
+    expect(geometry.panelCloseIsTopmost).toBe(true);
   });
 });

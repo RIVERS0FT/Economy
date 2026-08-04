@@ -2,7 +2,7 @@
 
 > 状态：统一认证卡片、游戏与管理员桌面工作栏、全应用三层摄影背景、移动状态栏、移动底部导航及登录后共享外壳几何基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-08-03
+> 更新时间：2026-08-04
 
 本文件定义应用唯一液态玻璃实现、认证卡片、全应用三层摄影背景与背景采样、游戏端和管理员端登录后桌面应用外壳几何、根级摄影状态外壳、移动工作区 Overlay、移动导航结构、浏览器运行时样式入口、性能约束和防回退规则。摄影资源、认证／玩家／管理员语义变体共享唯一氛围基线、根级加载与异常状态以 `REGISTRATION_INVITE_FLOW_DESIGN.md` 为共享摄影专项权威；认证卡片光学与静态输入参数、边缘高光和登录布局仍由该文档约束；通用 UI、覆盖式滚动条和市场表格仍以 `docs/UI_DESIGN_SYSTEM.md` 为准。
 
@@ -50,20 +50,20 @@
 | `liquid-glass-chrome.css` | 浏览器 harness 的共享外壳样式兼容聚合入口，必须包含全应用摄影背景样式 |
 | `game-shell-layout.css` | 登录后桌面双列轨道、唯一布局沟槽、工作栏外距、页面避让、内容边缘和桌面页面滚动条贴边几何 |
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
-| `viewport.css` | 游戏与管理员固定视口、桌面／移动开放背景采样链、登录态根视口纵向 overscroll 终止、移动工作区 gutter、两层 Overlay 与安全区层级 |
+| `viewport.css` | 游戏与管理员固定视口、桌面／移动开放背景采样链、登录态根视口纵向 overscroll 终止、移动工作区 gutter、两层 Overlay、局部层级堆叠边界与安全区层级 |
 | `scrollbars.css` | 通用覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘，不负责移动底栏 |
 | `mobileFacilityPullRefresh.ts` | 仅对已打开的移动工厂详情识别顶部向下关闭手势，并在该手势激活后局部取消浏览器默认纵向过度滚动 |
 | `admin-navigation.css` | 管理员桌面工作栏内容布局与运营业务编排，不得定义第二套根外壳 |
 | `mobile-status-navigation.css` | 移动导航唯一原生横向滚动视口、原生轨道隐藏、按钮几何和内部焦点环 |
 | `mobile-status-layout.css` | 移动状态栏固定五列、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略、关闭态 Toast 定位及其点击恢复 |
 | `notification-center.css` | 状态栏独立通知工具轨道、桌面／移动面板几何、待处理与普通通知视觉、关闭态 Toast 队列和响应式交互 |
-| `verify-notification-center.mjs` | 二十条上限、待处理稳定键、打开态抑制、清除与删除边界、单一工作区 Portal、无新增玻璃和文档规则防回退 |
-| `notification-center.spec.ts` | 桌面工作区右上角、移动状态栏下方安全区、固定五列、单玻璃实例与可点击关闭态 Toast 浏览器几何回归 |
+| `verify-notification-center.mjs` | 二十条上限、待处理稳定键、打开态抑制、清除与删除边界、单一工作区 Portal、移动局部层级边界、真实命中回归、无新增玻璃和文档规则防回退 |
+| `notification-center.spec.ts` | 桌面工作区右上角、移动状态栏下方安全区、固定五列、极端页面层级下的真实命中、单玻璃实例与可点击关闭态 Toast 浏览器几何回归 |
 | `verify-liquid-glass-chrome.mjs` | 唯一依赖入口、五种预设、全预设零弹性、静态鼠标输入、固定／内容自适应布局、认证内容内部定位、单实例、单壳装饰、兼容入口、背景采样链、移动导航和认证卡片防回退 |
 | `verify-open-glass-sampling.mjs` | 唯一根隔离、桌面／移动玩家与管理员开放采样链、禁止登录后祖先恢复隔离／滤镜／变换以及浏览器回归入口 |
 | `verify-game-three-layer.mjs` | 根级唯一摄影节点、三种氛围、数据属性切换、统一加载结构、critical 状态外壳、兼容入口、浏览器 harness 和移动 Overlay 防回退 |
 | `verify-mobile-status-value-fit.mjs` | 移动状态栏数值测量、单观察器、逐项字号适配、禁止省略号、设计记录和浏览器回归检查 |
-| `verify-game-shell-layout.mjs` | 游戏与管理员共享桌面沟槽、双列、导航行高、页面滚动条贴边、移动 Overlay、滚动条和滚动链检查 |
+| `verify-game-shell-layout.mjs` | 游戏与管理员共享桌面沟槽、双列、导航行高、页面滚动条贴边、移动 Overlay、移动局部层级边界、滚动条和滚动链检查 |
 | `verify-overlay-scrollbars.mjs` | 覆盖式滚动条、移动底栏原生滚动视口和滚动能力检查 |
 | `verify-mobile-facility-pull-refresh.mjs` | 登录态根 overscroll、工厂详情局部非被动触摸监听、设计记录和浏览器回归检查 |
 | `verify-desktop-primary-surfaces.mjs` | 桌面一级卡片、玩家状态栏与管理员工作栏的 24px 圆角、透明宿主、官方双层高光、默认阴影和无项目结构描边检查 |
@@ -142,6 +142,7 @@
 ### 5.1 工作区浮层安全区
 
 - `SignedInShell` 必须在 `.workspace` 内提供唯一 `.workspace-floating-layer`，其桌面几何与工作区完全一致；移动端顶部必须位于状态栏下方，底部必须位于移动导航上方。
+- 移动工作区使用局部层级堆叠边界：`.signed-in-shell__body` 和 `.mobile-page-overlay` 在移动端分别使用 `position: relative; z-index: 0` 收口工作区与页面内部层级；`.mobile-page-overlay` 固定 `order: 1`，工作区浮层根固定 `order: 2; z-index: 1`。页面内部任意正 `z-index` 只能在页面边界内排序，不得覆盖工作区浮层；工作区浮层的正层级被外层 `.signed-in-shell__body` 的 `z-index: 0` 限制，不能越过后绘制的 Chrome。除该共享浮层根的局部 `1` 外，不得给业务面板分配全局魔法层级绕过边界。
 - Tooltip、Popover、菜单、确认框和其他不应覆盖应用 Chrome 的登录后业务浮层只能渲染到工作区浮层根，或像 ECharts Tooltip 一样由业务容器内部 `confine`；不得追加到 `document.body`。需要覆盖完整移动视口的业务模态层只能使用 `SignedInShell` 唯一根级业务 Dialog 层 `.workspace-dialog-layer`，不得另建第二个全局 Portal 根。
 - 工作区浮层根必须使用 `overflow: clip`，自身不拦截指针，只有实际浮层恢复指针事件。定位算法必须以浮层根真实 `getBoundingClientRect()` 为边界，并保留至少 `8px` 内部安全间距。
 - 根级业务 Dialog 层固定覆盖视口、位于 `.signed-in-shell__chrome` 之后并高于全部 Chrome；自身不拦截指针，只有实际遮罩、Sheet 和其富内容弹层恢复交互。普通工作区浮层不得借用该层逃逸安全区。
@@ -154,9 +155,10 @@
 不大于 `720px` 时：
 
 - `.workspace` 是页面、状态栏和底栏唯一水平边界，左右 padding 使用 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left/right))`；
-- `SignedInShell` 的 `.mobile-page-overlay` 和 `.mobile-chrome-overlay` 占据同一 Grid 单元；页面层固定 `order: 1`，Chrome 层固定 `order: 2`；
-- 移动层级依赖 DOM 绘制顺序：页面 Overlay 先渲染，Chrome Overlay 后渲染；`.workspace`、两层 Overlay、`.page-scroll`、状态栏宿主和底栏宿主在移动端都不得建立正 `z-index` 或 `isolation: isolate` 背景根；
-- 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须由页面局部堆叠上下文收口，不能让其层级逃逸到 Chrome Overlay 之上；
+- `SignedInShell` 的 `.signed-in-shell__body` 和 `.mobile-chrome-overlay` 占据根外壳同一 Grid 单元；页面主体固定 `order: 1` 并使用 `position: relative; z-index: 0` 收口全部工作区子层，Chrome 层固定 `order: 2` 且保持 `z-index: auto`；
+- `.workspace` 内的 `.mobile-page-overlay` 与 `.workspace-floating-layer` 占据同一 Grid 单元；页面层固定 `order: 1; z-index: 0`，工作区浮层根固定 `order: 2; z-index: 1`，确保普通 Portal 浮层始终在页面内容之上；
+- 移动层级依赖 DOM 绘制顺序与局部层级边界共同约束：`.workspace`、`.page-scroll`、状态栏宿主和底栏宿主保持 `z-index: auto`，`.signed-in-shell__body` 与 `.mobile-page-overlay` 使用 `z-index: 0` 收口子层，`.workspace-floating-layer` 是唯一允许使用 `z-index: 1` 的普通浮层根；不得给其他共享外壳或业务面板添加正 `z-index`，也不得建立 `isolation: isolate` 背景根；
+- 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须被 `.mobile-page-overlay` 的零层级堆叠边界收口，不能覆盖工作区浮层或逃逸到 Chrome Overlay 之上；新增普通面板必须继续 Portal 到 `.workspace-floating-layer`，不得在业务样式中使用更大的全局层级补丁；
 - Chrome Overlay 使用 `pointer-events: none`，只有状态栏、底栏和实际显示的关闭态 Toast 恢复交互；通知面板位于工作区浮层，不得借用 Chrome Overlay；
 - 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
 - 玩家 `.asset-bar` 直接包含唯一 `LiquidGlassSurface`；不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
@@ -204,7 +206,7 @@
 - 五种表面都不得创建 `.liquid-glass-surface__material-fill`，也不得恢复 `--liquid-glass-contrast`、`--liquid-glass-structure-border`、`--liquid-glass-auth-contrast` 或 `--liquid-glass-auth-mobile-contrast`；只有不支持背景滤镜时可统一使用 `--liquid-glass-auth-fallback`。
 - `#root` 是唯一全应用隔离根；登录后玩家与管理员外壳、工作区、两层移动 Overlay、页面主滚动区和玻璃宿主不得建立第二个 `isolation:isolate`、非 `none` `filter` 或非 `none` `transform`。
 - `.glass__warp` 到根级摄影和氛围之间必须在桌面玩家、桌面管理员、移动玩家和移动管理员四种场景保持开放的背景采样链；`.liquid-glass-surface` 不得使用 `contain: paint`、`isolation: isolate` 或 `overflow: clip`，统一使用 `overflow: hidden` 完成圆角裁切。
-- 桌面 `.page-scroll` 必须使用 `z-index:0` 建立零层级堆叠上下文，把业务卡片内部的正层级封装在页面滚动层内；桌面 `.asset-bar` 必须保持 `z-index:auto` 并依靠页面层先绘制、Chrome 层后绘制的 DOM 顺序完成覆盖。不得把页面滚动层改回 `auto` 让商品图片等业务子层覆盖状态栏，也不得用正 `z-index` 提升桌面状态栏，否则 `.glass__warp` 无法稳定采样滚动页面。移动端继续由两层 Overlay 的普通绘制顺序负责覆盖，`.page-scroll` 与 `.asset-bar` 保持 `z-index:auto`。
+- 桌面 `.page-scroll` 必须使用 `z-index:0` 建立零层级堆叠上下文，把业务卡片内部的正层级封装在页面滚动层内；桌面 `.asset-bar` 必须保持 `z-index:auto` 并依靠页面层先绘制、Chrome 层后绘制的 DOM 顺序完成覆盖。不得把页面滚动层改回 `auto` 让商品图片等业务子层覆盖状态栏，也不得用正 `z-index` 提升桌面状态栏，否则 `.glass__warp` 无法稳定采样滚动页面。移动端 `.signed-in-shell__body` 与 `.mobile-page-overlay` 分别使用 `z-index:0` 收口工作区和页面子层，`.workspace-floating-layer` 使用 `order:2; z-index:1` 覆盖页面内容，Chrome 仍由根外壳后续顺序覆盖；`.workspace`、`.page-scroll`、`.asset-bar` 和移动底栏保持 `z-index:auto`。
 - 只允许不包围状态栏、管理员工作栏或移动底栏的页面局部业务子树建立隔离；不得通过状态栏专属填充、描边或氛围副本掩盖根级采样失败。
 - 桌面、移动和认证预设的 WebKit 兼容别名必须统一匹配共享上游参数；只有圆角和固定／内容高度模型允许因平台与用途不同。
 - 所有五种表面都不得绘制项目结构描边或宿主边框；`desktopStatusBar`、`mobileStatusBar`、`mobileNavigation`、`desktopAuthCard` 与 `mobileAuthCard` 的 `::after` 必须统一使用 `content: none`。
@@ -262,8 +264,8 @@
 8. 移动状态栏、一级卡片和底栏实际玻璃左右共线；移动状态栏固定 `48px`，底栏固定 `68px`；移动 Chrome 与移动认证卡圆角均为 `40px`。
 9. 状态栏、管理员工作栏、移动底栏和认证卡片统一传入 `70 / 0 / 140 / 2`、弹性 `0` 与 `overLight=false`，浏览器统一计算为 `blur(4px) saturate(140%)`、首个位移 scale 为 `70`；两个辅助黑色层不可见，两个官方直属高光可见，第三方 `.glass` 默认阴影存在。
 10. 根级采样容器计算 `isolation` 为 `isolate`；桌面玩家、桌面管理员、移动玩家和移动管理员的 `.application-content-root`、登录后外壳、`.workspace`、两层 Overlay、`.page-scroll-area` 与 `.page-scroll` 均为 `isolation:auto`、`filter:none`、`transform:none`。玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
-11. 桌面 `.page-scroll` 计算 `z-index` 为 `0`，桌面 `.asset-bar` 为 `auto`，页面内部 `z-index:1/2` 的商品图片和数据层不得覆盖状态栏；移动背景采样链中的 `.page-scroll`、`.asset-bar`、工作区、两层 Overlay 和底栏宿主计算 `z-index` 均为 `auto`。状态栏不得创建正层级合成上下文。
-12. 管理员移动页面层与 Chrome 层位于同一工作区，顺序为 `1` 和 `2`，桌面工作栏隐藏且底栏保持可点击。
+11. 桌面 `.page-scroll` 计算 `z-index` 为 `0`，桌面 `.asset-bar` 为 `auto`，页面内部 `z-index:1/2` 的商品图片和数据层不得覆盖状态栏；移动 `.signed-in-shell__body` 与 `.mobile-page-overlay` 计算 `z-index` 为 `0`，`.workspace-floating-layer` 为 `1`，`.workspace`、`.page-scroll`、`.asset-bar` 和移动底栏宿主均为 `auto`，状态栏和底栏不得创建正层级合成上下文。
+12. 管理员与玩家移动端的页面主体固定 `order:1; z-index:0`，Chrome 层固定 `order:2; z-index:auto`；工作区内部页面层固定 `order:1; z-index:0`，工作区浮层根固定 `order:2; z-index:1`。插入页面内部极端正 `z-index` 哨兵后，通知面板操作仍必须由 `elementFromPoint` 命中，状态栏和底栏继续保持可点击。
 13. 页面首次加载后全应用始终只有一个摄影 `<picture>` 和一个 `<img>`；账号检查切换到认证时自定义 DOM 标记必须保留，证明节点未被替换。认证、玩家、管理员和状态页只改变 `data-app-backdrop` 与 `data-app-tone`。
 14. 摄影请求失败时图片元素隐藏，氛围背景、状态卡、页面内容、状态栏、管理员工作栏与导航仍然可见并可交互。
 15. 登录切换为注册后，同一个认证玻璃随内容自然增高；认证内容保持在 `.glass` 内，卡片、玻璃宿主和内容均不得创建内部纵向滚动区，输入框、验证码、错误提示和按钮保持可操作。
