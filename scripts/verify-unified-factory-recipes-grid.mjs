@@ -207,7 +207,7 @@ for (const text of [
   'expect(sheetBox.x).toBeCloseTo(0, 1)',
   'expect(sheetBox.width).toBeCloseTo(width, 1)',
   "expect(alignment.justifyContent).toBe('stretch')",
-  "'facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)'",
+  "'.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)'",
   "'.facility-production-formula .facility-average-profit'",
   "'.facility-information .facility-average-profit'",
 ])
