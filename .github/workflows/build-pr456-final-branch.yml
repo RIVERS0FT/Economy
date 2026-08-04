@@ -1,79 +1,119 @@
-name: Build PR 456 Final Branch
+name: Rebuild PR 456 Clean Head
 
 on:
   push:
     branches:
       - agent/recover-pr450-bundle
-  pull_request:
-    branches:
-      - main
 
 concurrency:
-  group: build-pr456-final-${{ github.sha }}
+  group: rebuild-pr456-clean-head
   cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  build-final:
+  rebuild-clean-head:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: agent/recover-pr450-bundle
           fetch-depth: 0
-      - name: Build clean final branch
+
+      - name: Rebuild on latest main with three-way merges
         shell: bash
         run: |
           set -euo pipefail
-          shopt -s nullglob
-
-          if [ -f .github/pr456-overlap.ready ]; then
-            parts=(.github/pr456-overlap.patch.gz.b64.part*)
-            test "${#parts[@]}" -gt 0
-            patch_file="$RUNNER_TEMP/pr456-overlap.patch"
-            cat "${parts[@]}" | base64 --decode | gzip --decompress > "$patch_file"
-            echo "320566e865af37e2415fc3fd1f4e0f4311a1be438fffa5842ec73b8b2720ae80  $patch_file" | sha256sum --check
-            git apply --check "$patch_file"
-            git apply "$patch_file"
-            rm -- .github/pr456-overlap.ready "${parts[@]}"
-            git add -u -- .github
-            mapfile -t overlap_paths < <(git apply --numstat "$patch_file" | awk '{ print $3 }')
-            git add -- "${overlap_paths[@]}"
-            git config user.name "RIVERS0FT Automation"
-            git config user.email "actions@users.noreply.github.com"
-            git commit -m "chore: materialize overlap merge for final branch"
-          fi
 
           source_sha="$(git rev-parse HEAD)"
-          git fetch origin main
-          main_sha="$(git rev-parse origin/main)"
-          if [ "$main_sha" != "6a76f330a02a753571a2235624da9d7ccb4a40e1" ]; then
-            echo "MAIN_ADVANCED=$main_sha" >&2
-            exit 1
-          fi
+          base_sha="6a76f330a02a753571a2235624da9d7ccb4a40e1"
+          target_branch="agent/recover-pr450-bundle"
 
-          git diff --name-only "$main_sha...$source_sha" \
+          git fetch origin main --force
+          main_sha="$(git rev-parse origin/main)"
+
+          formal_paths="$RUNNER_TEMP/pr456-formal-paths.txt"
+          git diff --name-only "$base_sha...$source_sha" \
             | grep -v '^\.github/pr456-' \
             | grep -v '^\.github/workflows/apply-pr456-overlap\.yml$' \
             | grep -v '^\.github/workflows/build-pr456-final-branch\.yml$' \
-            > "$RUNNER_TEMP/formal-paths.txt"
+            | grep -v '^\.github/workflows/finalize-pr456-delivery\.yml$' \
+            | sort -u \
+            > "$formal_paths"
 
-          final_dir="$RUNNER_TEMP/pr456-final"
+          test -s "$formal_paths"
+          echo "Rebuilding $(wc -l < "$formal_paths") formal paths on $main_sha"
+
+          final_dir="$RUNNER_TEMP/pr456-clean"
+          merge_dir="$RUNNER_TEMP/pr456-merge"
+          mkdir -p "$merge_dir"
           git worktree add --detach "$final_dir" "$main_sha"
+
           while IFS= read -r path; do
             [ -n "$path" ] || continue
-            if git cat-file -e "$source_sha:$path" 2>/dev/null; then
-              git -C "$final_dir" checkout "$source_sha" -- "$path"
-            else
+
+            source_exists=false
+            base_exists=false
+            main_exists=false
+            git cat-file -e "$source_sha:$path" 2>/dev/null && source_exists=true
+            git cat-file -e "$base_sha:$path" 2>/dev/null && base_exists=true
+            git cat-file -e "$main_sha:$path" 2>/dev/null && main_exists=true
+
+            if [ "$source_exists" = false ]; then
               git -C "$final_dir" rm --ignore-unmatch -- "$path"
+              continue
             fi
-          done < "$RUNNER_TEMP/formal-paths.txt"
+
+            if git diff --quiet "$base_sha" "$main_sha" -- "$path"; then
+              git -C "$final_dir" checkout "$source_sha" -- "$path"
+              continue
+            fi
+
+            ours="$merge_dir/ours"
+            ancestor="$merge_dir/ancestor"
+            theirs="$merge_dir/theirs"
+            rm -f "$ours" "$ancestor" "$theirs"
+            git show "$source_sha:$path" > "$ours"
+
+            if [ "$base_exists" = true ] && [ "$main_exists" = true ]; then
+              git show "$base_sha:$path" > "$ancestor"
+              git show "$main_sha:$path" > "$theirs"
+              set +e
+              git merge-file --diff3 "$ours" "$ancestor" "$theirs"
+              merge_status=$?
+              set -e
+              if [ "$merge_status" -ne 0 ]; then
+                echo "Three-way merge conflict: $path" >&2
+                grep -n -C 3 '^<<<<<<<\|^|||||||\|^=======\|^>>>>>>>' "$ours" >&2 || true
+                exit 1
+              fi
+              install -D -m 0644 "$ours" "$final_dir/$path"
+              continue
+            fi
+
+            if [ "$base_exists" = false ] && [ "$main_exists" = true ]; then
+              git show "$main_sha:$path" > "$theirs"
+              if ! cmp -s "$ours" "$theirs"; then
+                echo "Both branches added different versions: $path" >&2
+                exit 1
+              fi
+              continue
+            fi
+
+            install -D -m 0644 "$ours" "$final_dir/$path"
+          done < "$formal_paths"
 
           git -C "$final_dir" diff --check
           git -C "$final_dir" config user.name "RIVERS0FT Automation"
           git -C "$final_dir" config user.email "actions@users.noreply.github.com"
-          git -C "$final_dir" add --pathspec-from-file="$RUNNER_TEMP/formal-paths.txt"
+          git -C "$final_dir" add -A --pathspec-from-file="$formal_paths"
+          git -C "$final_dir" diff --cached --stat
+          git -C "$final_dir" diff --cached --quiet && {
+            echo "No formal changes remain after rebuilding" >&2
+            exit 1
+          }
           git -C "$final_dir" commit -m "feat: optimize onboarding architecture and capacity diagnostics"
-          git -C "$final_dir" push --force origin HEAD:agent/pr456-final
+          git -C "$final_dir" push \
+            --force-with-lease="refs/heads/$target_branch:$source_sha" \
+            origin "HEAD:refs/heads/$target_branch"
