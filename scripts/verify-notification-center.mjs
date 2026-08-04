@@ -80,6 +80,10 @@ assert.match(statusBar, /className="asset-bar-layout"/);
 assert.match(statusBar, /className="asset-bar-content"/);
 assert.match(statusBar, /className="asset-bar-action"/);
 
+const gameThreeLayerVerifier = read('scripts/verify-game-three-layer.mjs');
+assert.match(gameThreeLayerVerifier, /NotificationCenterButton/);
+assert.doesNotMatch(gameThreeLayerVerifier, /<StatusBar items=\{statusItems\} \/>/);
+
 const hook = read('src/hooks/useNotificationCenter.ts');
 assert.match(hook, /panelOpenRef\.current/);
 assert.match(hook, /if \(panelOpenRef\.current \|\| !title\.trim\(\)\) return/);
