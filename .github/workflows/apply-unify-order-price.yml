@@ -41,6 +41,10 @@ jobs:
             .agent/unify-order-price.patch \
             .github/workflows/apply-unify-order-price.yml
           rmdir .agent
+          git add -u -- \
+            .agent/apply-unify-order-price.py \
+            .agent/unify-order-price.patch \
+            .github/workflows/apply-unify-order-price.yml
 
       - name: Install dependencies
         run: npm ci
@@ -61,10 +65,6 @@ jobs:
         env:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
-          git add -u -- \
-            .agent/apply-unify-order-price.py \
-            .agent/unify-order-price.patch \
-            .github/workflows/apply-unify-order-price.yml
           git add -- \
             server/src/domain.js \
             server/src/facility-groups.js \
