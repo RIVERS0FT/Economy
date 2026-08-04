@@ -22,6 +22,7 @@ const productIds = [
   'steel',
   'copper',
   'plastic',
+  'fertilizer',
   'textile',
   'pulp',
   'food',

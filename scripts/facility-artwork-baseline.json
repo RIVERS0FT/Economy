@@ -27,6 +27,7 @@
     "food-factory",
     "paper-mill",
     "refinery",
+    "fertilizer-factory",
     "beverage-factory",
     "furniture-factory",
     "garment-factory",
@@ -55,6 +56,7 @@
     "garment-factory": "1de2946842bb7a43380bae6f0ed61c0cb77c727f2adeb3014e397dafa66918b5",
     "machine-factory": "bbd780621ed357742eb406ff050037113189c6d18f20463cc82fc0edd2694ae2",
     "electronics-factory": "c4eb10814589c9988ecfde7b268eed63c48313d49ec4cd141f1082f81ae5cddf",
-    "appliance-factory": "b7ce7d0dcb5ce3587978a8dc88e2054a4e5e96855046da1591c5e33f3d63c778"
+    "appliance-factory": "b7ce7d0dcb5ce3587978a8dc88e2054a4e5e96855046da1591c5e33f3d63c778",
+    "fertilizer-factory": "06b580081ce85353acad479ab7c9893ad78f9e450ffa7fd02e77d085c00faeb0"
   }
 }

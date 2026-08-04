@@ -3,8 +3,8 @@
 > 状态：当前文档入口
 > 适用项目：`RIVERS0FT/Economy`
 > 更新时间：2026-08-04
-> 客户端状态版本：26
-> 世界状态版本：23
+> 客户端状态版本：27
+> 世界状态版本：24
 
 本目录只保留当前设计。旧规则不归档在 `docs/`，也不得以“补充说明”“V2/V3”或未登记专题文档的形式继续并行存在。未列入下方权威文档表的 Markdown 文件不得存在。
 
@@ -16,7 +16,7 @@
 |---|---|
 | `PRODUCT_AND_GAMEPLAY_DESIGN.md` | 产品定位、核心循环、工作冷却、每日签到、普通货币与宝石、直接货币发行、人口数量、工厂承载、迁入迁出、就业收入、三类人口真实钱包、消费需求与排行榜目标 |
 | `GEM_ACCELERATION_AND_DYNAMIC_EXCHANGE_DESIGN.md` | 1 宝石减少施工 30 分钟、每日终端动态报价、接受／拒绝决策、历史汇率、SQLite 审计与禁止宝石兑换工厂产量 |
-| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 31 种商品、21 种工厂、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及长期供货合同与生产／资产守恒审计边界 |
+| `INDUSTRY_AND_PRODUCTION_DESIGN.md` | 32 种商品、22 种工厂（含原油→化肥 C4 支线）、固定精度经济数值、参考利润、周期成本工资、C1–C7 人口承载权重、生产复杂度岗位结构、固定建造业岗位结构、持续生产、集群级生产方式、三态、自动恢复、工厂抵押生产资格，以及长期供货合同与生产／资产守恒审计边界 |
 | `FACILITY_CATALOG_PRESENTATION_DESIGN.md` | 客户端工厂目录展示顺序、已拥有工厂卡片排序和目录顺序防回退 |
 | `UNIFIED_ASSET_ORDER_BOOK_DESIGN.md` | 商品和工厂统一限价订单、冻结、抵押后的可转让数量、撮合、成交价、估值、资产统计和普通玩家成交匿名化 |
 | `WAREHOUSE_EXPANSION_DESIGN.md` | 共享仓库占用、买单与合同采购预占、无限扩容、商品卡、商品网格密度和生产空间约束 |
@@ -105,7 +105,7 @@
 
 64. 压力测试执行器、环境隔离、安全门禁、24 个固定普通玩家槽位、秘密边界、状态协议断言、幂等重放、场景、性能预算、脱敏报告与 GitHub Actions 属于服务器架构规则。完整写压测只能使用模拟账号服务与临时 SQLite 或受保护的 staging；生产只允许已建档固定账号执行显式确认、至少 3 秒轮询且不超过 5 分钟的 `smoke`／`poll`，不得调用任何游戏写操作。必须通过 `scripts/verify-stress-test-accounts.mjs`、`scripts/verify-stress-test-flow.mjs` 和隔离行为测试防回退。
 
-65. 工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`：`src/assets/facility-icons/` 必须与服务器 21 种正式工厂 ID 一一对应，只保存同名 `1024 × 1024` 8-bit RGBA PNG 源图；开发与构建通过共享缩略图管线生成 `src/assets/facility-icons/generated/128/`。生产选择卡、市场工厂目录和拍卖工厂主视觉统一使用 `FacilityIcon`，紧凑订单／成交／银行／概览及未知 ID 继续使用 `FactoryIcon`，低流量模式回退厂房 SVG。任何目录增删、图片替换或使用边界变化必须同步更新 `FacilityIcons.tsx`、`facility-artwork.css`、本设计和 `scripts/verify-facility-artwork.mjs`。
+65. 工厂场景插画主视觉归属 `UI_DESIGN_SYSTEM.md`：`src/assets/facility-icons/` 必须与服务器 22 种正式工厂 ID 一一对应，只保存同名 `1024 × 1024` 8-bit RGBA PNG 源图；开发与构建通过共享缩略图管线生成 `src/assets/facility-icons/generated/128/`。生产选择卡、市场工厂目录和拍卖工厂主视觉统一使用 `FacilityIcon`，紧凑订单／成交／银行／概览及未知 ID 继续使用 `FactoryIcon`，低流量模式回退厂房 SVG。任何目录增删、图片替换或使用边界变化必须同步更新 `FacilityIcons.tsx`、`facility-artwork.css`、本设计和 `scripts/verify-facility-artwork.mjs`。
 66. 研发页是生产右侧、拍卖左侧的第十个正式页面；C1-C7 研发采用玩家级顺序最高复杂度、普通货币一次性扣款、进度式人口就业释放、单项目不可取消和服务器权威完成。复杂度准入必须同时覆盖建设、工厂买单、竞拍、启动与配置，迁移必须按既有资产及承诺推导等级；必须同步产品、产业、页面、服务器、倒计时、状态版本、测试与 `scripts/verify-research-progression.mjs`，不得恢复只读占位、研发点、宝石加速、并行队列或生产数值加成。
 67. 世界冷加载迁移与热保存必须分离：完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载或版本升级时执行；普通动作热路径只允许一次全局到期推进、一次最终资金精度收口和一次持久化判定，合同动作的动作后结算必须使用合同专项处理而不是再次推进全部银行、研发和排行榜。幂等记录过期清理最多每 5 分钟执行一次，不得随每个玩家动作重复删除扫描。以上规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并由 `server/test/runtime-hot-path.test.js` 与 `scripts/verify-runtime-efficiency.mjs` 防回退。
 68. 最终客户端状态必须在运行时存储层直接形成六分区快照，并按世界修订号与玩家 ID 缓存；同修订重复请求不得重新进入事务、重建合同投影或重复分区哈希。目录分区固定为进程内共享静态快照，投影缓存上限为 256 个玩家并在世界修订变化时清空；HTTP 层只比较已生成的分区修订和选择补丁。必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、`state-partitions.js`、运行时存储、状态轮询测试和 `scripts/verify-runtime-efficiency.mjs`。

@@ -13,6 +13,7 @@ export const FACILITY_ICON_IDS = [
   'pulp-mill',
   'steelworks',
   'refinery',
+  'fertilizer-factory',
   'textile-mill',
   'food-factory',
   'beverage-factory',
