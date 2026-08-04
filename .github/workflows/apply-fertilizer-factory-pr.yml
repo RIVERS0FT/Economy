@@ -33,6 +33,7 @@ jobs:
           cat scripts/apply-fertilizer-factory.py.gz.b64.part-* | base64 -d | gzip -d > "$RUNNER_TEMP/apply-fertilizer-factory.py"
           python3 -m py_compile "$RUNNER_TEMP/apply-fertilizer-factory.py"
           python3 "$RUNNER_TEMP/apply-fertilizer-factory.py"
+          sed -i 's/migrated\.version = 23/migrated.version = 24/g' server/src/domain.js
 
       - name: Install dependencies
         run: npm ci
