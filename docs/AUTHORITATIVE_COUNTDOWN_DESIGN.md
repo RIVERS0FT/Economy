@@ -2,7 +2,7 @@
 
 > 状态：当前客户端倒计时、到期刷新与服务器确认基线
 > 适用项目：`RIVERS0FT/Economy`
-> 更新时间：2026-07-29
+> 更新时间：2026-08-04
 
 ## 1. 唯一职责
 
@@ -78,6 +78,8 @@
 
 未变化分区继续复用缓存快照；低于当前全局修订号的迟到响应不得替换任何分区。空对象同样是合法的完整分区快照，必须能够清除该分区原有的全部字段。
 
+客户端状态缓存每次接受响应时必须同时返回 `stateChanged` 和 `changedPartitions`。只有实际接受至少一个完整分区快照时，`stateChanged` 才能为 `true`；无变化轻量确认、仅更新时间的响应和低于当前修订号的迟到响应必须返回 `stateChanged: false`、空 `changedPartitions`，并复用当前完整 `EconomyState` 对象引用。
+
 ## 5. 页面表现
 
 权威状态转换倒计时归零后、服务器仍返回旧状态期间：
@@ -97,6 +99,8 @@
 - `serverNow` 只属于状态交付 envelope；不得写入世界 JSON、`EconomyState` 或六分区缓存。
 - `market` 分区不得包含 `visibleUntil` 等按请求时刻变化的滚动边界；排行榜分区不得包含 `generatedAt` 或逐行 `updatedAt`。
 - 接收新 `serverNow` 可以通知当前可见倒计时和全局协调器重新校准，但不得触发全部静态页面每秒重渲染。
+- `stateChanged: false` 的响应不得执行 `setGame`、完整派生数据重算或本地成交快照扫描；只允许推进修订号、接受新的 `serverNow` 和结束当前请求。
+- 本地匿名成交快照只依赖 `catalog` 与 `market` 分区；仅 `player`、`auction`、`contract` 或 `leaderboard` 变化时不得重新复制自有订单和目录。
 - 全局协调器只为最近一个权威截止时间维护一个 `setTimeout`；到期后最多维护一个串行确认请求和一个下一次重试 `setTimeout`。
 - 默认状态轮询继续存在；统一到期确认只补足截止时点的即时同步，不替代普通轮询。
 - 浏览器后台节流导致定时器延迟时，`visibilitychange` 恢复可见后必须立即确认当前已过期的最近截止时间。
@@ -132,6 +136,8 @@
 - 到期确认失败后停止所有后续确认，只能等待下一次普通轮询；
 - 删除统一注册表、共享单调服务器时钟、应用外壳协调器或每秒确认上限；
 - 恢复无超时 `fetch`、单一布尔刷新锁、固定 `setInterval` 并发确认，或让权威刷新因普通轮询／动作请求而永久跳过；
-- 把变化分区浅合并进旧完整状态，导致服务器已删除的 `facilityConstruction`、拍卖状态、待切换配方或其他可选字段继续残留。
+- 把变化分区浅合并进旧完整状态，导致服务器已删除的 `facilityConstruction`、拍卖状态、待切换配方或其他可选字段继续残留；
+- 把无变化或迟到响应当作新状态提交给 React，导致默认轮询持续重渲染状态栏和当前页面；
+- 在非 `catalog`／`market` 分区变化时重新扫描和复制本地成交快照。
 
-`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、施工确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段和本文档规则。
+`scripts/verify-authoritative-countdowns.mjs` 必须加入 `verify:architecture`，锁定注册表、共享单调服务器时钟、应用外壳协调、请求超时、权威刷新模式、后台恢复、串行每秒确认、施工确认文案、工作冷却例外、拍卖等待结算文案、完整分区替换、稳定分区时间字段和本文档规则。新增的客户端状态接受性能边界由 `scripts/verify-client-response-performance.mjs` 继续锁定。

@@ -1,6 +1,43 @@
 import { lazy, Suspense } from 'react';
 import { FacilityRecipeProfitMarketsProvider } from '../components/facilities/FacilityRecipeProfitContext';
+import type { TabId } from '../config/navigation';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
+
+function cachedLoader<T>(loader: () => Promise<T>) {
+  let promise: Promise<T> | null = null;
+  return () => {
+    promise ??= loader();
+    return promise;
+  };
+}
+
+const loadAuctionPage = cachedLoader(() => import('./AuctionPage'));
+const loadBankPage = cachedLoader(() => import('./BankPage'));
+const loadContractPage = cachedLoader(() => import('./ContractPage'));
+const loadLeaderboardPage = cachedLoader(() => import('./LeaderboardPage'));
+const loadMarketPage = cachedLoader(() => import('./MarketPage'));
+const loadOverviewPage = cachedLoader(() => import('./OverviewPage'));
+const loadProductionPage = cachedLoader(() => import('./ProductionPage'));
+const loadResearchPage = cachedLoader(() => import('./ResearchPage'));
+const loadGemShopPage = cachedLoader(() => import('./GemShopPage'));
+const loadSettingsPage = cachedLoader(() => import('./SettingsPage'));
+
+const pagePreloaders: Record<TabId, () => Promise<unknown>> = {
+  home: loadOverviewPage,
+  market: loadMarketPage,
+  production: loadProductionPage,
+  research: loadResearchPage,
+  auction: loadAuctionPage,
+  contracts: loadContractPage,
+  bank: loadBankPage,
+  leaderboard: loadLeaderboardPage,
+  'gem-shop': loadGemShopPage,
+  settings: loadSettingsPage,
+};
+
+export function preloadPage(tab: TabId) {
+  return pagePreloaders[tab]();
+}
 
 const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ default: module.AuctionPage })));
 const BankPage = lazy(() => import('./BankPage').then((module) => ({ default: module.BankPage })));

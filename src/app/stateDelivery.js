@@ -29,6 +29,11 @@ function validPartitionSnapshot(value) {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value));
 }
 
+function changedPartitionNames(patches) {
+  if (!validPartitionSnapshot(patches)) return [];
+  return STATE_PARTITION_NAMES.filter((name) => validPartitionSnapshot(patches[name]));
+}
+
 function describeVersion(value) {
   return Number.isInteger(value) ? String(value) : '无效值';
 }
@@ -85,17 +90,25 @@ export function createStateDeliveryCache() {
     accept(payload) {
       if (!payload || typeof payload !== 'object' || !validRevision(payload.revision)) return payload;
       if (revision !== null && payload.revision < revision) {
-        return state ? { ...payload, state } : payload;
+        return state
+          ? { ...payload, state, stateChanged: false, changedPartitions: [] }
+          : { ...payload, stateChanged: false, changedPartitions: [] };
       }
       const incomingPartitionRevisions = validPartitionRevisions(payload.partitionRevisions);
       if (Object.keys(incomingPartitionRevisions).length > 0) partitionRevisions = incomingPartitionRevisions;
-      if (payload.patches && Object.keys(payload.patches).length > 0) {
+      const changedPartitions = changedPartitionNames(payload.patches);
+      if (changedPartitions.length > 0) {
         const merged = mergeStatePatches(partitions, payload.patches);
         partitions = merged.partitions;
         state = merged.state;
       }
       revision = payload.revision;
-      return state ? { ...payload, state } : payload;
+      const acceptance = {
+        ...payload,
+        stateChanged: changedPartitions.length > 0,
+        changedPartitions,
+      };
+      return state ? { ...acceptance, state } : acceptance;
     },
   };
 }

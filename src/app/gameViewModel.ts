@@ -23,6 +23,7 @@ import type {
   TradeRecord,
 } from '../types';
 import { canAcceptRevision } from './revisionGate.js';
+import type { StatePartitionName } from './stateDelivery.js';
 import { buildAssetAllocation } from '../utils/assetAllocation';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
 import {
@@ -175,6 +176,11 @@ function messageFromError(reason: unknown) {
   return reason instanceof Error ? reason.message : '游戏服务器请求失败';
 }
 
+function shouldSyncLocalActivity(changedPartitions: readonly StatePartitionName[] | undefined) {
+  if (!changedPartitions) return true;
+  return changedPartitions.includes('catalog') || changedPartitions.includes('market');
+}
+
 export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameViewModelState {
   const [game, setGame] = useState<EconomyState | null>(null);
   const [localActivity, setLocalActivity] = useState<LocalActivityView>(() => loadLocalActivity(user.id));
@@ -195,6 +201,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [refreshRate, setRefreshRate] = useState('5');
   const [isWorking, setIsWorking] = useState(false);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const gameRef = useRef<EconomyState | null>(null);
   const revisionRef = useRef<number | null>(null);
   const refreshTaskRef = useRef<RefreshTask | null>(null);
   const actionsInFlightRef = useRef(0);
@@ -203,23 +210,38 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const orderPendingRef = useRef(false);
   const noticeTimerRef = useRef<number | null>(null);
 
-  const handleUnauthorized = useCallback(() => { setGame(null); onSignedOut(); }, [onSignedOut]);
-  const acceptState = useCallback((state: EconomyState, action: LocalActivityAction, message?: string) => {
-    setLocalActivity(syncLocalActivity(user.id, state, { action, message, createdAt: Date.now() }));
+  const handleUnauthorized = useCallback(() => {
+    gameRef.current = null;
+    setGame(null);
+    onSignedOut();
+  }, [onSignedOut]);
+  const acceptState = useCallback((
+    state: EconomyState,
+    action: LocalActivityAction,
+    message?: string,
+    changedPartitions?: readonly StatePartitionName[],
+  ) => {
+    if (gameRef.current === state) return false;
+    if (shouldSyncLocalActivity(changedPartitions)) {
+      setLocalActivity(syncLocalActivity(user.id, state, { action, message, createdAt: Date.now() }));
+    }
+    gameRef.current = state;
     setGame(state);
+    return true;
   }, [user.id]);
   const acceptVersionedState = useCallback((
     incomingRevision: number | undefined,
     state: EconomyState | undefined,
     action: LocalActivityAction,
     message?: string,
+    changedPartitions?: readonly StatePartitionName[],
   ) => {
     const currentRevision = revisionRef.current;
     if (!canAcceptRevision(currentRevision, incomingRevision)) return false;
     if (typeof incomingRevision === 'number' && Number.isInteger(incomingRevision)) {
       revisionRef.current = incomingRevision;
     }
-    if (state) acceptState(state, action, message);
+    if (state) acceptState(state, action, message, changedPartitions);
     return true;
   }, [acceptState]);
 
@@ -238,7 +260,13 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       try {
         const response = await getGameState(revisionRef.current, controller.signal);
         if (mode === 'normal' && actionsInFlightRef.current > 0) return;
-        acceptVersionedState(response.revision, response.state, 'refresh');
+        acceptVersionedState(
+          response.revision,
+          response.state,
+          'refresh',
+          undefined,
+          response.changedPartitions,
+        );
         setLoadError('');
       } catch (reason) {
         if (reason instanceof Error && reason.name === 'AbortError') return;
@@ -261,6 +289,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   useEffect(() => {
     refreshTaskRef.current?.controller.abort();
     refreshTaskRef.current = null;
+    gameRef.current = null;
     revisionRef.current = null;
     setLocalActivity(loadLocalActivity(user.id));
     void refresh();
@@ -301,7 +330,13 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       if (stateResponse.revision < response.revision) {
         throw new Error('服务器状态同步落后于已确认操作');
       }
-      acceptVersionedState(stateResponse.revision, stateResponse.state, action, response.result.message);
+      acceptVersionedState(
+        stateResponse.revision,
+        stateResponse.state,
+        action,
+        response.result.message,
+        stateResponse.changedPartitions,
+      );
       setLoadError('');
     } catch (syncReason) {
       if (syncReason instanceof GameApiError && syncReason.status === 401) handleUnauthorized();

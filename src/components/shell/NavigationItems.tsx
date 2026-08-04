@@ -1,6 +1,7 @@
 import { NavigationIcon } from '../icons/GameIcons';
 import { navigationItems, type TabId } from '../../config/navigation';
 import { formatNavigationBadgeCount, type NavigationBadgeMap } from '../../navigation/navigationBadges';
+import { preloadPage } from '../../pages/PageRouter';
 
 export function NavigationItems({
   activeTab,
@@ -18,6 +19,7 @@ export function NavigationItems({
         const accessibleLabel = navigationBadge
           ? `${label}，${navigationBadge.accessibleLabel}`
           : label;
+        const preload = () => { void preloadPage(id); };
 
         return (
           <button
@@ -26,6 +28,9 @@ export function NavigationItems({
             aria-label={accessibleLabel}
             aria-current={activeTab === id ? 'page' : undefined}
             className={activeTab === id ? 'sidebar-nav-button active' : 'sidebar-nav-button'}
+            onPointerEnter={preload}
+            onPointerDown={preload}
+            onFocus={preload}
             onClick={() => onSelect(id)}
           >
             <span aria-hidden="true"><NavigationIcon name={id} /></span>
