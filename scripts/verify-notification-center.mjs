@@ -66,6 +66,23 @@ assert.deepEqual(
   ]),
   'pending items must be stable, deduplicated, state-derived records',
 );
+assert.deepEqual(
+  derivePendingNotificationItems({}),
+  [],
+  'missing domain partitions must produce no pending items instead of blocking the shell',
+);
+assert.deepEqual(
+  derivePendingNotificationItems({
+    facilityTypes: [],
+    facilityGroups: [],
+    inventoryCapacity: undefined,
+    warehouseAvailableCapacity: undefined,
+    bankAccount: undefined,
+    bankSummary: undefined,
+  }),
+  [],
+  'partial browser and migration states must remain safe',
+);
 
 const gameShell = read('src/components/shell/GameShell.tsx');
 assert.match(gameShell, /useNotificationCenter\(model\)/);
@@ -91,6 +108,14 @@ assert.match(hook, /if \(panelOpenRef\.current \|\| !title\.trim\(\)\) return/);
 assert.match(hook, /markNotificationsRead/);
 assert.match(hook, /clearReadNotifications/);
 assert.match(hook, /deleteNotification/);
+
+const notificationModel = read('src/notifications/notificationCenter.ts');
+assert.match(notificationModel, /Omit<Partial<EconomyState>/);
+assert.match(notificationModel, /Array\.isArray\(game\.facilityTypes\)/);
+assert.match(notificationModel, /Array\.isArray\(game\.facilityGroups\)/);
+assert.match(notificationModel, /Number\.isFinite\(inventoryCapacity\)/);
+assert.match(notificationModel, /game\.bankAccount\?\.activeLoan\?\.status/);
+assert.match(notificationModel, /game\.bankSummary\?\.weeklyCashSettlement\?\.outstandingCredits/);
 
 const component = read('src/components/notifications/NotificationCenter.tsx');
 assert.match(component, /useWorkspaceFloatingLayer/);
@@ -141,5 +166,6 @@ const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 assert.match(uiDesign, /## 通知面板与关闭态 Toast/);
 assert.match(uiDesign, /移动只显示队列最后一条/);
 assert.match(uiDesign, /关闭后焦点返回通知入口/);
+assert.match(uiDesign, /缺失领域不得阻断登录后外壳/);
 
 console.log('notification center verification passed');
