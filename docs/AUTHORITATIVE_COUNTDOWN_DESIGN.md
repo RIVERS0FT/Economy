@@ -36,6 +36,7 @@
 当前实例：
 
 - 工厂施工完成 `facilityConstruction.completesAt`；
+- 研发完成 `research.active.completesAt`；
 - 运行中工厂集群当前周期结束 `cycleStartedAt + activeRecipe.cycleMs`；
 - 进行中资产拍卖结束 `assetAuction.endsAt`；
 - 排行榜周期结算 `leaderboards.period.endsAt`。
@@ -87,7 +88,7 @@
 - 不得为了让按钮提前恢复而在客户端删除施工、拍卖或生产状态；
 - 服务器确认后立即恢复正常按钮或展示结算结果，不再等待默认 3／5／10 秒轮询间隔。
 
-施工卡固定在归零后显示“确认完工中…”并保持建设按钮禁用，直到服务器删除 `facilityConstruction`。即使某次普通轮询、动作后状态补拉或代理连接未返回，8 秒超时也必须释放请求协调状态，使下一次权威确认能够继续执行。
+施工卡固定在归零后显示“确认完工中…”并保持建设按钮禁用，直到服务器删除 `facilityConstruction`。研发卡在归零后显示“确认研发完成中…”并保持下一等级按钮禁用，直到服务器提升 `research.unlockedComplexity` 并删除 `research.active`。即使某次普通轮询、动作后状态补拉或代理连接未返回，8 秒超时也必须释放请求协调状态，使下一次权威确认能够继续执行。
 
 ## 6. 性能与时钟边界
 

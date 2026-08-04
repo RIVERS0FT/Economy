@@ -131,6 +131,7 @@ export interface LoadedGameViewModel {
   bankSetAutoRepay: (loanId: string, enabled: boolean) => Promise<ActionResult>;
   upgradeWarehouse: () => Promise<ActionResult>;
   buildFacility: (facilityTypeId: string) => Promise<ActionResult>;
+  startResearch: (targetComplexity: string) => Promise<ActionResult>;
   accelerateFacilityConstruction: () => Promise<ActionResult>;
   startFacility: (facilityTypeId: string) => Promise<ActionResult>;
   stopFacility: (facilityTypeId: string) => Promise<ActionResult>;
@@ -442,6 +443,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
     buildFacility: (facilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
+    startResearch: (targetComplexity) => runAction('startResearch', () => gameActions.startResearch(targetComplexity)),
     accelerateFacilityConstruction: () => runAction('buildFacility', gameActions.accelerateFacilityConstruction),
     startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),
     stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),

@@ -221,6 +221,7 @@ export const gameActions = {
   ),
   upgradeWarehouse: () => postAction('/warehouse/upgrade'),
   buildFacility: (facilityTypeId: string) => postAction('/facilities', { facilityTypeId }),
+  startResearch: (targetComplexity: string) => postAction('/research/start', { targetComplexity }),
   accelerateFacilityConstruction: () => postAction('/facilities/construction/accelerate'),
   startFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/start`),
   stopFacility: (facilityTypeId: string) => postAction(`/facilities/${encodeURIComponent(facilityTypeId)}/stop`),

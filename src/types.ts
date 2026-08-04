@@ -8,6 +8,7 @@ export interface AuthUser {
 
 export type ProductCategory = 'raw' | 'intermediate' | 'consumer' | 'industrial';
 export type AssetKind = 'commodity' | 'facility';
+export type FacilityComplexity = 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7';
 
 export interface ProductDefinition {
   id: string;
@@ -73,7 +74,7 @@ export interface FacilityTypeDefinition {
   id: string;
   name: string;
   category: 'raw' | 'processing' | 'consumer' | 'industrial';
-  complexity: 'C1' | 'C2' | 'C3' | 'C4' | 'C5' | 'C6' | 'C7';
+  complexity: FacilityComplexity;
   buildCost: number;
   buildTimeMs: number;
   cycleMs: number;
@@ -133,6 +134,27 @@ export interface FacilityConstruction {
   employmentReleased?: number;
   gemAccelerationMs?: number;
   gemAccelerationCost?: number;
+}
+
+export interface ResearchLevelDefinition {
+  id: FacilityComplexity;
+  rank: number;
+  cost: number;
+  durationMs: number;
+}
+
+export interface ActiveResearch {
+  targetComplexity: FacilityComplexity;
+  startedAt: number;
+  completesAt: number;
+  cost: number;
+  employmentReleased: number;
+}
+
+export interface ResearchState {
+  unlockedComplexity: FacilityComplexity;
+  completedAt: number | null;
+  active: ActiveResearch | null;
 }
 
 export type OrderSide = 'buy' | 'sell';
@@ -267,6 +289,7 @@ export interface EconomyStats {
   constructionPayroll: number;
   warehousePayroll: number;
   marketServiceFees: number;
+  researchPayroll?: number;
   bankCreditIssued?: number;
   bankPrincipalRepaid?: number;
   bankInterestPaid?: number;
@@ -469,7 +492,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 25;
+  version: 26;
   userId: number;
   playerName: string;
   registeredAt: number;
@@ -494,6 +517,8 @@ export interface EconomyState {
   warehouseAvailableCapacity: number;
   facilityGroups: FacilityGroup[];
   facilityConstruction?: FacilityConstruction;
+  researchLevels: ResearchLevelDefinition[];
+  research: ResearchState;
   products: ProductDefinition[];
   facilityTypes: FacilityTypeDefinition[];
   markets: Record<string, ProductMarketState>;

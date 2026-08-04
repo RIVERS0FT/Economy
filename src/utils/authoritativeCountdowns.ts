@@ -11,6 +11,7 @@ export function authoritativeCountdownDeadlines(game: EconomyState): number[] {
   const deadlines: number[] = [];
 
   addDeadline(deadlines, game.facilityConstruction?.completesAt);
+  addDeadline(deadlines, game.research?.active?.completesAt);
 
   for (const group of game.facilityGroups) {
     if (group.status !== 'running' || !Number.isFinite(group.cycleStartedAt)) continue;
