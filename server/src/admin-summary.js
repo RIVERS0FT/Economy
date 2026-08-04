@@ -22,6 +22,7 @@ export function getStableAdminSummary(store, user, now = Date.now()) {
       revision: nextRevision,
       lastProcessedAt: Number(world.lastProcessedAt || now),
       apiStatus: 'ok',
+      authoritativeWriteExecutor: store.getAuthoritativeWriteDiagnostics(),
       populationEconomy: createPopulationAdminSummary(world, now),
     };
   });

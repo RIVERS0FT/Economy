@@ -72,6 +72,50 @@ async function send(setupResult, now = 1_700_000_000_000, requestKey = 'send-key
 }
 
 
+test('registration external account and email calls run outside the authoritative write executor', async () => {
+  const store = new FakeEconomyStore();
+  const registrationStore = new EconomyRegistrationStore(store, { secret: 'x'.repeat(64), ensurePlayer });
+  let writeDepth = 0;
+  const writeOperations = [];
+  const executeWrite = async (options, callback) => {
+    writeOperations.push(options.operation);
+    writeDepth += 1;
+    try { return callback(); } finally { writeDepth -= 1; }
+  };
+  const deliveries = [];
+  const service = createRegistrationService({
+    registrationStore,
+    executeWrite,
+    accountAvailabilityChecker: async () => assert.equal(writeDepth, 0),
+    emailSender: async (message) => {
+      assert.equal(writeDepth, 0);
+      deliveries.push(message);
+      return { id: 'mail-outside-queue' };
+    },
+    accountClient: async ({ email }) => {
+      assert.equal(writeDepth, 0);
+      return { user: { id: 7, email, role: 'user' }, setCookie: ['sid=test'] };
+    },
+  });
+  try {
+    const now = 1_700_000_000_000;
+    await service.requestEmailCode({
+      email: 'alice@example.com', ipFingerprint: 'ip-a', requestKey: 'send-outside-queue', now,
+    });
+    await service.complete({
+      email: 'alice@example.com', password: 'password123', code: deliveries[0].code,
+      ipFingerprint: 'ip-a', requestKey: 'complete-outside-queue', now: now + 1,
+    });
+    assert.deepEqual(writeOperations, [
+      'registration-email-verification',
+      'registration-email-verification',
+      'registration-completion',
+      'registration-profile-creation',
+    ]);
+  } finally { store.close(); }
+});
+
+
 test('registration IP prefers trusted reverse-proxy real IP over a client-supplied forwarded chain', () => {
   assert.equal(requestIpAddress({
     headers: {

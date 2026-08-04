@@ -59,17 +59,22 @@ export function createRegistrationService({
   emailSender = sendRegistrationEmail,
   accountClient = createOrLoginUnifiedAccount,
   accountAvailabilityChecker = assertUnifiedAccountEmailAvailable,
+  executeWrite = async (_options, callback) => callback(),
 }) {
   return {
     async requestEmailCode({ email, ipFingerprint, requestKey, now = Date.now() }) {
       const normalizedEmail = validateRegistrationInput(email);
       await accountAvailabilityChecker({ email: normalizedEmail });
-      const verification = registrationStore.beginEmailVerification({
+      const writeOptions = {
+        actor: `registration:${String(ipFingerprint).slice(0, 16)}`,
+        operation: 'registration-email-verification',
+      };
+      const verification = await executeWrite(writeOptions, () => registrationStore.beginEmailVerification({
         email: normalizedEmail,
         ipFingerprint,
         requestKey,
         now,
-      });
+      }));
       try {
         const delivery = await emailSender({
           to: normalizedEmail,
@@ -77,9 +82,9 @@ export function createRegistrationService({
           idempotencyKey: `economy-registration-${verification.id}`,
           expiresInMinutes: 10,
         });
-        registrationStore.markEmailSent(verification.id, delivery.id, now);
+        await executeWrite(writeOptions, () => registrationStore.markEmailSent(verification.id, delivery.id, now));
       } catch (error) {
-        registrationStore.markEmailFailed(verification.id);
+        await executeWrite(writeOptions, () => registrationStore.markEmailFailed(verification.id));
         throw error;
       }
       return {
@@ -92,15 +97,22 @@ export function createRegistrationService({
     async complete({ email, password, code, inviteCode, invitationSource, ipFingerprint, requestKey, now = Date.now() }) {
       const normalizedEmail = validateRegistrationInput(email, password);
       if (!/^\d{6}$/.test(String(code || ''))) throw httpError('请输入 6 位邮箱验证码', 400);
-      const prepared = registrationStore.prepareEmailCompletion({
+      const writeOptions = {
+        actor: `registration:${String(ipFingerprint).slice(0, 16)}`,
+        operation: 'registration-completion',
+      };
+      const prepared = await executeWrite(writeOptions, () => registrationStore.prepareEmailCompletion({
         email: normalizedEmail,
         code: String(code),
         ipFingerprint,
         requestKey,
         now,
-      });
+      }));
       const account = await accountClient({ email: normalizedEmail, password: String(password) });
-      const economyRegistration = registrationStore.completeEmailRegistration({
+      const economyRegistration = await executeWrite({
+        actor: `user:${Number(account.user.id)}`,
+        operation: 'registration-profile-creation',
+      }, () => registrationStore.completeEmailRegistration({
         verificationId: prepared.verificationId,
         requestKey,
         user: account.user,
@@ -108,7 +120,7 @@ export function createRegistrationService({
         inviteCode,
         invitationSource,
         now,
-      });
+      }));
       return { ...account, economyRegistration };
     },
   };
