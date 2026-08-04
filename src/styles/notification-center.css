@@ -449,25 +449,29 @@
   }
 
   .notification-center-trigger {
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
   }
 }
 
 @media (max-width: 720px) {
   .asset-bar-layout {
-    grid-template-columns: minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(0, 1fr) 48px;
   }
 
   .asset-bar-action {
-    width: 40px;
-    min-width: 40px;
-    padding: 0 0 0 .2rem;
+    width: 48px;
+    min-width: 48px;
+    padding: 2px;
   }
 
   .notification-center-trigger {
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
     border-radius: 50%;
   }
 
