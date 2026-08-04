@@ -1,0 +1,37 @@
+name: Apply notification browser fixture fixes
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+    paths:
+      - .github/workflows/apply-notification-browser-fixtures.yml
+      - scripts/fix-notification-browser-fixtures.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.ref == 'codex/notification-center'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/notification-center
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Fix notification browser fixtures
+        run: node scripts/fix-notification-browser-fixtures.mjs
+      - name: Commit fixes and remove migration files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/components/notifications/NotificationCenter.tsx src/styles/mobile-status-layout.css tests/browser/notification-center.spec.ts scripts/verify-notification-center.mjs
+          git rm -- .github/workflows/apply-notification-browser-fixtures.yml scripts/fix-notification-browser-fixtures.mjs
+          git commit -m "fix: isolate notification browser fixtures"
+          git push origin HEAD:codex/notification-center
