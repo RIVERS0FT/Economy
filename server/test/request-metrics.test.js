@@ -18,7 +18,7 @@ test('request metrics normalize route identifiers', () => {
   assert.equal(normalizeMetricRoute('/api/game/state?revision=4'), '/api/game/state');
 });
 
-test('request metrics aggregate duration, errors and application response bytes', () => {
+test('request metrics aggregate duration and application response bytes with errors', () => {
   let currentTime = 1_000;
   const logs = [];
   const warnings = [];
