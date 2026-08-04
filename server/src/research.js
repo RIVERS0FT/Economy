@@ -200,11 +200,15 @@ export function validateResearchAccess(world, user, action, payload = {}, now = 
   return null;
 }
 
-export function createResearchClientState(world, player, now = Date.now()) {
-  processResearchWorld(world, now);
+export function createResearchClientState(world, player) {
+  const fallback = {
+    unlockedComplexity: levelForRank(legacyUnlockedRank(world, player)).id,
+    completedAt: null,
+    active: null,
+  };
   return {
     researchLevels: clone(RESEARCH_LEVEL_CATALOG),
-    research: clone(ensurePlayerResearch(world, player, now)),
+    research: clone(player?.research && typeof player.research === 'object' ? player.research : fallback),
   };
 }
 
