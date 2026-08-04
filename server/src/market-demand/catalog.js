@@ -4,7 +4,7 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 13;
+export const MARKET_DEMAND_MODEL_VERSION = 14;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -146,12 +146,13 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
         ],
       },
       {
-        id: 'daily', name: '能源、包装与日用消耗', budgetShare: 0.20, minBudgetShare: 0.10, maxBudgetShare: 0.35,
+        id: 'daily', name: '能源、化工与日用消耗', budgetShare: 0.20, minBudgetShare: 0.10, maxBudgetShare: 0.35,
         elasticity: 0.9,
         products: [
-          { productId: 'paper', baseWeight: 0.45, utilityPerUnit: 2, minShare: 0.15 },
-          { productId: 'crude-oil', baseWeight: 0.20, utilityPerUnit: 1, minShare: 0.05 },
-          { productId: 'plastic', baseWeight: 0.35, utilityPerUnit: 2, minShare: 0.10 },
+          { productId: 'paper', baseWeight: 0.35, utilityPerUnit: 2, minShare: 0.15 },
+          { productId: 'crude-oil', baseWeight: 0.15, utilityPerUnit: 1, minShare: 0.05 },
+          { productId: 'plastic', baseWeight: 0.25, utilityPerUnit: 2, minShare: 0.10 },
+          { productId: 'fertilizer', baseWeight: 0.25, utilityPerUnit: 2, minShare: 0.10 },
         ],
       },
       {
@@ -171,7 +172,7 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
     seedDemandQuantities: Object.freeze({
       timber: 6, lumber: 3, pulp: 3, furniture: 7,
       cotton: 8, wool: 4, textile: 3, clothing: 5,
-      paper: 7, 'crude-oil': 4, plastic: 3,
+      paper: 7, 'crude-oil': 4, plastic: 3, fertilizer: 3,
       ore: 5, 'copper-ore': 5, steel: 2, copper: 2, machinery: 1, electronics: 4, appliance: 3,
     }),
   }),

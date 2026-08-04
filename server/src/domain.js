@@ -173,7 +173,7 @@ export function createWorld(now = Date.now()) {
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 23;
+  world.version = 24;
   normalizeWorldMoneyPrecision(world);
   return world;
 }

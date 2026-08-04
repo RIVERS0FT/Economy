@@ -164,20 +164,20 @@ test('client state uses the current version and exposes no factory instances', (
 });
 
 test('expanded industry catalog exposes fruit and complete production chains', () => {
-  assert.equal(PRODUCT_CATALOG.length, 31);
-  assert.equal(FACILITY_TYPE_CATALOG.length, 21);
+  assert.equal(PRODUCT_CATALOG.length, 32);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 22);
 
   const expectedProducts = [
     'wheat', 'rice', 'cotton', 'sugarcane', 'fruit', 'timber', 'ore', 'copper-ore', 'crude-oil',
     'meat', 'eggs', 'milk', 'fish', 'wool', 'flour', 'sugar', 'lumber', 'steel', 'copper',
-    'plastic', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
+    'plastic', 'fertilizer', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
     'clothing', 'machinery', 'electronics', 'appliance',
   ];
   const expectedFacilities = [
     'farm', 'orchard', 'ranch', 'fishery',
     'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill',
     'pulp-mill', 'steelworks', 'textile-mill', 'food-factory', 'paper-mill',
-    'refinery', 'beverage-factory', 'furniture-factory', 'garment-factory',
+    'refinery', 'fertilizer-factory', 'beverage-factory', 'furniture-factory', 'garment-factory',
     'machine-factory', 'electronics-factory', 'appliance-factory',
   ];
   assert.deepEqual(PRODUCT_CATALOG.map((product) => product.id), expectedProducts);
@@ -192,7 +192,7 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   const expectedPrices = {
     wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
     'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, textile: 20,
+    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, textile: 20,
     pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
     clothing: 55, machinery: 76, electronics: 84, appliance: 92,
   };

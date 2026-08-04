@@ -72,7 +72,7 @@ test('market model 13 creates inventory-backed buy and sell orders without syste
   prepareAllDemand(world);
   processWorld(world, now + 1);
 
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 13);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 14);
   const systemOrders = world.orders.filter((order) => order.ownerType === 'population');
   assert.ok(systemOrders.some((order) => order.demandTier === 'direct'));
   assert.ok(systemOrders.some((order) => order.demandTier === 'derived-liquidity'));
