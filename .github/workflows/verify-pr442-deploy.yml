@@ -1,0 +1,57 @@
+name: Verify PR 442 Deployment
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SHA: 48bf50163153cedae2c0c9fff7c4497f11a72ab0
+    steps:
+      - name: Dispatch main deployment
+        id: dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy.yml --branch main --limit 1 --json databaseId --jq '.[0].databaseId // 0')"
+          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main
+          run_id=''
+          for attempt in $(seq 1 60); do
+            run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow deploy.yml --branch main --event workflow_dispatch --limit 20 \
+              --json databaseId,headSha,createdAt \
+              --jq '[.[] | select(.headSha == env.EXPECTED_SHA and .databaseId != '"$before"')] | sort_by(.databaseId) | last | .databaseId // empty')"
+            if [ -n "$run_id" ]; then
+              break
+            fi
+            sleep 2
+          done
+          test -n "$run_id" || { echo DEPLOY_RUN_NOT_FOUND >&2; exit 1; }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "DEPLOY_RUN_ID=$run_id"
+
+      - name: Wait for deployment and verify result
+        shell: bash
+        env:
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --json databaseId,headSha,status,conclusion,url,jobs > /tmp/deploy-result.json
+          cat /tmp/deploy-result.json
+          test "$(jq -r '.headSha' /tmp/deploy-result.json)" = "$EXPECTED_SHA"
+          test "$(jq -r '.status' /tmp/deploy-result.json)" = completed
+          test "$(jq -r '.conclusion' /tmp/deploy-result.json)" = success
+          jq -e 'all(.jobs[]; .conclusion == "success")' /tmp/deploy-result.json >/dev/null
+          jq -e 'all(.jobs[].steps[]; .conclusion == "success" or .conclusion == "skipped")' /tmp/deploy-result.json >/dev/null
+          echo "DEPLOYMENT_VERIFIED_SHA=$EXPECTED_SHA"
+          echo "DEPLOYMENT_VERIFIED_RUN_ID=$RUN_ID"
