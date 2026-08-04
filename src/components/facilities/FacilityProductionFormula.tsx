@@ -109,7 +109,6 @@ function RecipeItems({
         const warehouseQuantity = inventories[item.productId]?.available ?? 0;
         return (
           <Fragment key={`${item.productId}-${index}`}>
-            {index > 0 ? <span className="facility-formula-separator">+</span> : null}
             <span className="facility-formula-item-group">
               <span
                 className={itemClassName}
