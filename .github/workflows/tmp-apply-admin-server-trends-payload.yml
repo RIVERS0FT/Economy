@@ -30,7 +30,8 @@ jobs:
             scripts/.tmp-admin-server-trends.part02 \
             scripts/.tmp-admin-server-trends.part03a \
             scripts/.tmp-admin-server-trends.part03b \
-            scripts/.tmp-admin-server-trends.part04 \
+            scripts/.tmp-admin-server-trends.part04a \
+            scripts/.tmp-admin-server-trends.part04b \
             | base64 --decode > /tmp/admin-server-trends.tar.gz
           echo "bd5ee8cba2633e91de10cf057550e86c89a81591f7e9065c8e856f412e29b8d9  /tmp/admin-server-trends.tar.gz" | sha256sum --check -
           tar -xzf /tmp/admin-server-trends.tar.gz
