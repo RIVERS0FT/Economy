@@ -1,4 +1,0 @@
-Switched to a new branch 'agent/add-fertilizer-factory'
-branch 'agent/add-fertilizer-factory' set up to track 'origin/main'.
-\n===== apply changes =====
-server/test/domain.test.js: missing replacement target (0 < 1): "  refinery: { complexity: 'C4', buildCost: 300, buildTimeMs: 80 * 60_000, systemValue: 390 },\n"
