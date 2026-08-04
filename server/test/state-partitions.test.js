@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   createPartitionedActionDelivery,
   createPartitionedStateDelivery,
+  createStatePartitionSnapshot,
   readKnownPartitionRevisionsFromHeader,
   readKnownPartitionRevisionsFromSearch,
 } from '../src/state-partitions.js';
@@ -55,6 +56,34 @@ test('initial delivery returns all six state partitions without a full state fie
   assert.equal(delivery.patches.market.markets.wheat.lastPrice, 2);
   assert.equal(delivery.patches.leaderboard.leaderboards.period.key, '2026-07-27');
   assert.equal('leaderboards' in delivery.patches.player, false);
+});
+
+
+test('precomputed partition snapshots bypass state splitting and hashing during delivery', () => {
+  const prepared = createStatePartitionSnapshot(sampleState());
+  const delivery = createPartitionedStateDelivery({
+    revision: 30,
+    unchanged: false,
+    ...prepared,
+  });
+
+  assert.strictEqual(delivery.patches.catalog, prepared.partitions.catalog);
+  assert.strictEqual(delivery.patches.player, prepared.partitions.player);
+  assert.deepEqual(delivery.partitionRevisions, prepared.partitionRevisions);
+});
+
+test('catalog snapshots reuse one static partition and revision across player projections', () => {
+  const first = createStatePartitionSnapshot(sampleState());
+  const catalogSnapshot = {
+    version: first.partitions.catalog.version,
+    partition: first.partitions.catalog,
+    revision: first.partitionRevisions.catalog,
+  };
+  const second = createStatePartitionSnapshot(sampleState({ userId: 2, playerName: 'Bob' }), { catalogSnapshot });
+
+  assert.strictEqual(second.partitions.catalog, first.partitions.catalog);
+  assert.equal(second.partitionRevisions.catalog, first.partitionRevisions.catalog);
+  assert.notEqual(second.partitionRevisions.player, first.partitionRevisions.player);
 });
 
 test('known partition revisions suppress unchanged partitions', () => {

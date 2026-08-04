@@ -88,6 +88,18 @@ requireText('server/src/request-metrics.js', [
   'phases',
   'gauges',
 ]);
+requireText('server/src/state-partitions.js', [
+  'createStatePartitionSnapshot',
+  'catalogSnapshot?.partition',
+  'combineStatePartitions',
+  'snapshot?.partitions && snapshot?.partitionRevisions',
+]);
+requireText('server/src/storage.js', [
+  'clientStateProjectionCache = new Map()',
+  'clientStateProjectionCacheLimit = 256',
+  'canReuseStateProjection',
+  'clientStateProjectionCache.clear()',
+]);
 requireText('server/src/request-performance.js', [
   'AsyncLocalStorage',
   'measureRequestPhase',
@@ -152,6 +164,10 @@ requireText('server/src/contracts.js', [
   'runtimeIndex.openCountForPublisher',
 ]);
 requireText('server/src/runtime-store.js', [
+  'createClientPartitionSnapshot',
+  'cachedStateProjection(user.id, currentRevision)',
+  'rememberStateProjection(user.id, snapshot.revision',
+  "setRequestGauge('stateProjectionCacheHit', 1)",
   'contractProjectionForState',
   'cached.revision === snapshot.revision',
   'saveWorld(revision, world, now)',
@@ -181,6 +197,10 @@ requireText('server/test/request-metrics.test.js', [
   'p95DurationMs',
   'worldCloneMs',
   'worldJsonBytes',
+]);
+requireText('server/test/state-projection-cache.test.js', [
+  'runtime state projection cache reuses final state and partition snapshots for one revision',
+  'catalog partition cache is shared across users while player partitions remain isolated',
 ]);
 requireText('server/test/request-performance.test.js', [
   'aggregates nested phases and gauges',
@@ -241,6 +261,8 @@ requireText('docs/README.md', [
   '世界冷加载迁移与热保存必须分离',
   '普通动作热路径只允许一次全局到期推进',
   '幂等记录过期清理最多每 5 分钟执行一次',
+  '最终客户端状态必须在运行时存储层直接形成六分区快照',
+  '目录分区固定为进程内共享静态快照',
 ]);
 
 if (failures.length) {
@@ -261,6 +283,8 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`migrateLoadedWorld`',
   '`finalizeWorldForStorage`',
   '幂等确认仍保留 24 小时，但过期删除使用服务内 5 分钟门控',
+  '按 `世界修订号 + 玩家 ID` 缓存最终投影',
+  'HTTP 交付层优先消费已经构造的 `partitions` 与 `partitionRevisions`',
 ]);
 
 console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');

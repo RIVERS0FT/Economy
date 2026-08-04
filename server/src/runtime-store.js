@@ -19,7 +19,8 @@ import { configurePlayerAdminStatistics } from './player-admin-statistics.js';
 import { ensureWarehouse } from './warehouse.js';
 import { createEconomicCalendarClientState } from './economic-events.js';
 import { flushAuctionAuditEvents } from './auction-audit-store.js';
-import { measureRequestPhase } from './request-performance.js';
+import { measureRequestPhase, setRequestGauge } from './request-performance.js';
+import { createStatePartitionSnapshot } from './state-partitions.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const CONTRACT_ACTIONS = new Set([
@@ -108,6 +109,20 @@ export class EconomyStore extends PersistentEconomyStore {
     configurePlayerAdminStatistics(this);
   }
 
+  createClientPartitionSnapshot(state) {
+    const snapshot = measureRequestPhase('partitionSnapshotMs', () => createStatePartitionSnapshot(state, {
+      catalogSnapshot: this.catalogPartitionSnapshot,
+    }));
+    if (!this.catalogPartitionSnapshot) {
+      this.catalogPartitionSnapshot = {
+        version: snapshot.partitions.catalog?.version,
+        partition: snapshot.partitions.catalog,
+        revision: snapshot.partitionRevisions.catalog,
+      };
+    }
+    return snapshot;
+  }
+
   migrateLoadedWorld(world, now) {
     const prepared = super.migrateLoadedWorld(world, now);
     migrateProductionContractWorld(prepared);
@@ -160,6 +175,20 @@ export class EconomyStore extends PersistentEconomyStore {
   }
 
   getStateSnapshot(user, knownRevision, now = Date.now()) {
+    const currentRevision = this.worldCache?.revision;
+    if (currentRevision !== undefined && this.canReuseStateProjection(user.id, now)) {
+      if (Number.isInteger(knownRevision) && knownRevision === currentRevision) {
+        setRequestGauge('stateProjectionCacheHit', 1);
+        return { revision: currentRevision, unchanged: true };
+      }
+      const cachedProjection = this.cachedStateProjection(user.id, currentRevision);
+      if (cachedProjection) {
+        setRequestGauge('stateProjectionCacheHit', 1);
+        return cachedProjection;
+      }
+    }
+    setRequestGauge('stateProjectionCacheHit', 0);
+
     const snapshot = super.getStateSnapshot(user, knownRevision, now);
     if (snapshot.unchanged || !snapshot.state) return snapshot;
 
@@ -175,14 +204,17 @@ export class EconomyStore extends PersistentEconomyStore {
         return measureRequestPhase('contractStateProjectionMs', () => createProductionContractClientState(world, Number(user.id), now));
       }, { immediate: false });
 
-    return {
-      ...snapshot,
-      state: {
-        ...createStablePartitionClientState(snapshot.state),
-        ...normalizeJson(contractState),
-        economicCalendar: normalizeJson(createEconomicCalendarClientState(now)),
-      },
+    const state = {
+      ...createStablePartitionClientState(snapshot.state),
+      ...normalizeJson(contractState),
+      economicCalendar: normalizeJson(createEconomicCalendarClientState(now)),
     };
+    const partitionSnapshot = this.createClientPartitionSnapshot(state);
+    return this.rememberStateProjection(user.id, snapshot.revision, {
+      ...snapshot,
+      state,
+      ...partitionSnapshot,
+    });
   }
 
   apply(user, requestMeta, now = Date.now()) {
