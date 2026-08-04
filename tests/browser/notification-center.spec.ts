@@ -1,37 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
-async function mountNotificationFixture(page: Page) {
+async function openNotificationPanelAndMountToast(page: Page) {
   await page.addStyleTag({ path: 'src/styles/notification-center.css' });
+  const trigger = page.getByRole('button', { name: /^通知，/ });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await expect(page.getByRole('dialog', { name: '通知' })).toBeVisible();
+
   await page.evaluate(() => {
-    const statusContent = document.querySelector<HTMLElement>('.asset-bar-content');
-    const floatingLayer = document.querySelector<HTMLElement>('.workspace-floating-layer');
     const chromeLayer = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
-    if (!statusContent || !floatingLayer || !chromeLayer) {
-      throw new Error('notification geometry fixture is incomplete');
-    }
-
-    const layout = statusContent.parentElement;
-    if (!layout) throw new Error('notification status surface is incomplete');
-    layout.classList.add('asset-bar-layout');
-
-    const action = document.createElement('div');
-    action.className = 'asset-bar-action';
-    const trigger = document.createElement('button');
-    trigger.className = 'notification-center-trigger';
-    trigger.setAttribute('aria-label', '通知，2 项待处理，1 条未读通知');
-    trigger.setAttribute('aria-expanded', 'true');
-    trigger.innerHTML = '<svg class="notification-icon" viewBox="0 0 24 24"><path d="M6 10a6 6 0 0 1 12 0v7H6Z" /></svg><span class="notification-center-trigger__count">2</span><span class="notification-center-trigger__unread"></span>';
-    action.append(trigger);
-    layout.append(action);
-
-    const panelLayer = document.createElement('div');
-    panelLayer.className = 'notification-panel-layer';
-    const panel = document.createElement('section');
-    panel.className = 'notification-panel';
-    panel.innerHTML = '<header class="notification-panel__header"><div><h2>通知</h2><p>2 项待处理</p></div></header><div class="notification-panel__scroll"><section class="notification-panel__section"><div class="notification-panel__section-heading"><h3>待处理</h3><span>2</span></div><button class="notification-pending-item severity-warning"><span></span><span class="notification-pending-item__content"><strong>共享仓库空间不足</strong><small>仓库仅剩 8 个容量</small></span><span class="notification-pending-item__action">查看</span></button></section></div>';
-    panelLayer.append(panel);
-    floatingLayer.append(panelLayer);
-
+    if (!chromeLayer) throw new Error('notification chrome fixture is incomplete');
     const toastStack = document.createElement('div');
     toastStack.className = 'mobile-notice-region notification-toast-stack';
     const toast = document.createElement('button');
@@ -43,10 +21,20 @@ async function mountNotificationFixture(page: Page) {
 }
 
 test.describe('notification center geometry', () => {
+  test('partial runtime state keeps the signed-in shell and notification entry renderable', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+    await expect(page.locator('.game-shell')).toBeVisible();
+    await expect(page.locator('.workspace')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^通知，/ })).toBeVisible();
+    await expect(page.getByText('应用暂时无法显示')).toHaveCount(0);
+  });
+
   test('desktop entry stays on the status right and panel opens at workspace top-right', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
-    await mountNotificationFixture(page);
+    await openNotificationPanelAndMountToast(page);
 
     const geometry = await page.evaluate(() => {
       const status = document.querySelector<HTMLElement>('.asset-bar');
@@ -68,7 +56,7 @@ test.describe('notification center geometry', () => {
         workspace: rect(workspace),
         panel: rect(panel),
         toast: rect(toast),
-        glassCount: document.querySelectorAll('.liquid-glass-surface').length,
+        glassCount: document.querySelectorAll('.asset-bar .liquid-glass-surface').length,
         panelParentIsFloatingLayer: panel.parentElement?.parentElement === floatingLayer,
       };
     });
@@ -86,7 +74,7 @@ test.describe('notification center geometry', () => {
   test('mobile entry keeps the 48px status height and panel stays between status and navigation', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
-    await mountNotificationFixture(page);
+    await openNotificationPanelAndMountToast(page);
 
     const geometry = await page.evaluate(() => {
       const status = document.querySelector<HTMLElement>('.asset-bar');
