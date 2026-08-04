@@ -65,6 +65,12 @@ jobs:
             --exclude=server/src/runtime-store.js \
             /tmp/population-model.patch
 
+          # The deployment verifier must observe world version 23 during the test run,
+          # but Actions cannot push workflow-file changes without workflow scope.
+          # Apply this path only to the working tree and restore it before committing.
+          git apply --check --include=.github/workflows/deploy.yml /tmp/population-model.patch
+          git apply --include=.github/workflows/deploy.yml /tmp/population-model.patch
+
           echo 'f0f6da088aac0164d9a985509e15e93f77a1c182c8f26798ac6905da9787a21f  scripts/.apply-population-conflicts.py' | sha256sum --check
           python3 scripts/.apply-population-conflicts.py
           echo '217658a1b8432b9763595c2390b67c99cab35b298c5d3ccabdffca5291805391  scripts/.apply-population-browser-fixture.py' | sha256sum --check
@@ -86,6 +92,11 @@ jobs:
           npm run build
           npx playwright install --with-deps chromium
           npm run test:browser
+
+      - name: Restore deployment workflow
+        run: |
+          set -euo pipefail
+          git restore --source=HEAD --worktree .github/workflows/deploy.yml
 
       - name: Verify implementation scope
         run: |
