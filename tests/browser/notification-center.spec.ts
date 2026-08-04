@@ -4,6 +4,7 @@ async function openNotificationPanelAndMountToast(page: Page) {
   await page.addStyleTag({ path: 'src/styles/notification-center.css' });
   const trigger = page.getByRole('button', { name: /^通知，/ });
   await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute('aria-controls', 'notification-center-panel');
   await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await trigger.click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
@@ -38,6 +39,7 @@ test.describe('notification center geometry', () => {
     await page.goto('runtime-test.html?view=overview&scenario=activity');
 
     const trigger = page.getByRole('button', { name: /^通知，/ });
+    await expect(trigger).toHaveAttribute('aria-controls', 'notification-center-panel');
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await trigger.click();
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
