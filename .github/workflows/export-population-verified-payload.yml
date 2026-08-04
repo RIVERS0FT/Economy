@@ -1,0 +1,33 @@
+name: Export Verified Population Payload
+
+on:
+  push:
+    branches: [feature/population-model]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: tar --exclude=.git -czf /tmp/source-export.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: economy-population-verified-payload-${{ github.run_id }}
+          path: /tmp/source-export.tar.gz
+          retention-days: 1
+      - if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ "$JOB_STATUS" = success ]; then state=success; else state=failure; fi
+          python3 - "$state" <<'PYTHON' > /tmp/status.json
+          import json, os, sys
+          print(json.dumps({'state':sys.argv[1],'description':'Verified population payload export','context':'diagnostics/population-verified-payload','target_url':f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"}))
+          PYTHON
+          curl --fail --silent --show-error --request POST --header "Authorization: Bearer $GITHUB_TOKEN" --header 'Accept: application/vnd.github+json' --header 'X-GitHub-Api-Version: 2022-11-28' --data-binary @/tmp/status.json "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" >/dev/null
