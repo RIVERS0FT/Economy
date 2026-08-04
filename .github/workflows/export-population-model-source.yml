@@ -19,13 +19,13 @@ jobs:
       - name: Create source archive
         run: |
           set -euo pipefail
-          tar --exclude=.git --exclude=source-export.tar.gz -czf source-export.tar.gz .
+          tar --exclude=.git -czf /tmp/source-export.tar.gz .
 
       - name: Upload source archive
         uses: actions/upload-artifact@v4
         with:
           name: economy-population-source-${{ github.run_id }}
-          path: source-export.tar.gz
+          path: /tmp/source-export.tar.gz
           retention-days: 1
           if-no-files-found: error
 
