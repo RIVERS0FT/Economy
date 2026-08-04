@@ -1,7 +1,7 @@
 export const economyConstants = {
   // 商品与工厂订单共用的技术安全边界，不是固定业务数量上限。
   maxOrderQuantity: Number.MAX_SAFE_INTEGER,
-  // 六位小数内部金额的技术安全边界，不是固定业务价格上限。
+  // 商品与工厂共用六位小数内部金额的技术安全边界，不是固定业务价格上限。
   maxOrderPrice: Number.MAX_SAFE_INTEGER / 1_000_000,
 } as const;
 
