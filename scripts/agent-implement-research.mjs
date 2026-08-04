@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 // Temporary bootstrap: it is removed together with the payload after a verified implementation run.
+// The runner stages generated changes before repository-format verification.
 const parts = [1, 2, 3, 4, 5].map((part) => (
   readFileSync(`scripts/agent-implement-research.part${part}`, 'utf8').trim()
 ));
