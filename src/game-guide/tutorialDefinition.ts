@@ -52,6 +52,13 @@ export const TUTORIAL_STEPS: TutorialStepDefinition[] = [
     actionLabel: '查看卖单',
     targetTab: 'market',
   },
+  {
+    id: 'expand-business',
+    title: '扩大一次经营',
+    description: '开始下一等级研发、扩容共享仓库，或在已有工厂基础上再建设一座工厂。完成任一项即可。',
+    actionLabel: '选择扩大方式',
+    targetTab: 'research',
+  },
 ];
 
 export function tutorialStepDefinition(stepId: TutorialStepId) {

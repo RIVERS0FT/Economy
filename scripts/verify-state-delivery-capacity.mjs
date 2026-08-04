@@ -219,23 +219,28 @@ forbidText('src/api/game.ts', [
 
 requireText('src/app/gameViewModel.ts', [
   "useState('5')",
+  'return response.result;',
+  "action === 'work' && workPendingRef.current",
+  'setIsWorking(true)',
+  'setIsWorking(false)',
+  'useAuthoritativeGameState(user, onSignedOut, refreshRate)',
+]);
+requireText('src/app/useAuthoritativeGameState.ts', [
   'revisionRef.current',
-  'canAcceptRevision(currentRevision, incomingRevision)',
+  'canAcceptRevision(revisionRef.current, incomingRevision)',
   'getGameState(revisionRef.current, controller.signal)',
   'const stateResponse = await getGameState(revisionRef.current);',
   'stateResponse.revision < response.revision',
   '操作已完成，但状态同步失败',
-  'return response.result;',
   'refreshTaskRef.current?.controller.abort()',
   "mode === 'normal' && actionsInFlightRef.current > 0",
   'existing.controller.abort()',
-  "action === 'work' && workPendingRef.current",
-  'setIsWorking(true)',
-  'setIsWorking(false)',
 ]);
 forbidText('src/app/gameViewModel.ts', [
   'acceptVersionedState(response.revision, response.state, action',
   'refreshAbortRef.current',
+  'const revisionRef',
+  'const refreshTaskRef',
 ]);
 
 requireText('src/hooks/useNow.ts', [

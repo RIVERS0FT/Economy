@@ -51,6 +51,7 @@ const typesSource = readFileSync('src/types.ts', 'utf8');
 const detailSource = readFileSync('src/pages/production/ProductionFacilityDetail.tsx', 'utf8');
 const pageSource = readFileSync('src/pages/ProductionPage.tsx', 'utf8');
 const styleSource = readFileSync('src/styles/production-methods.css', 'utf8');
+const styleManifestSource = readFileSync('src/styles/app.css', 'utf8');
 const browserHarnessSource = readFileSync('tests/browser/runtime-harness.tsx', 'utf8');
 const browserSpecSource = readFileSync('tests/browser/production-methods.spec.ts', 'utf8');
 const versionSource = readFileSync('server/shared/economy-state-version.js', 'utf8');
@@ -114,7 +115,7 @@ for (const forbidden of [
 ]) {
   assert.equal(detailSource.includes(forbidden), false, `生产方式不得恢复旧展示: ${forbidden}`);
 }
-assert.ok(pageSource.includes("import '../styles/production-methods.css'"));
+assert.ok(styleManifestSource.includes("url('./production-methods.css')"));
 assert.equal(styleSource.includes('.facility-production-method-summary'), false, '生产方式规格摘要必须删除');
 for (const forbidden of [
   '.facility-production-method-grid',

@@ -19,6 +19,7 @@ const contractApi = read('src/contracts/api.ts');
 const contractTypes = read('src/contracts/types.ts');
 const contractPage = read('src/pages/ContractPage.tsx');
 const contractAuditCss = read('src/styles/contract-audit.css');
+const styleManifest = read('src/styles/app.css');
 const serverTests = read('server/test/contract-audit.test.js');
 const browserTests = read('tests/browser/contract-layout.spec.ts');
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
@@ -79,7 +80,6 @@ includesAll(contractTypes, [
   'ContractAuditDetail',
 ], 'contract audit client types');
 includesAll(contractPage, [
-  "import '../styles/contract-audit.css';",
   '合同历史筛选',
   '完整审计',
   '旧数据摘要',
@@ -88,6 +88,7 @@ includesAll(contractPage, [
   'productionContractAudit.detail',
   'data-ui-interactive="surface"',
 ], 'contract audit player UI');
+assert.ok(styleManifest.includes("url('./contract-audit.css')"), 'contract audit style must be loaded by app.css');
 includesAll(contractAuditCss, [
   '.contract-history-filters',
   '.contract-audit-summary-grid',

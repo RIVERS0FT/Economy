@@ -24,7 +24,7 @@ const paths = {
   designIndex: 'docs/README.md',
   catalogDesign: 'docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md',
   pageDesign: 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
-  main: 'src/main.tsx',
+  main: 'src/styles/app.css',
   component: 'src/components/icons/FacilityIcons.tsx',
   production: 'src/pages/production/ProductionFacilityDetail.tsx',
   market: 'src/pages/MarketPage.tsx',
@@ -257,9 +257,9 @@ if (failures.length === 0) {
     failures.push(`${paths.gitignore} 必须忽略构建生成的工厂场景缩略图`);
   }
 
-  const artworkImport = "import './styles/facility-artwork.css';";
+  const artworkImport = "url('./facility-artwork.css')";
   if (!main.includes(artworkImport)) failures.push(`${paths.main} 未加载工厂场景图片样式`);
-  if (main.indexOf(artworkImport) > main.indexOf("import './styles/design-system.css';")) {
+  if (main.indexOf(artworkImport) > main.indexOf("url('./design-system.css')")) {
     failures.push('facility-artwork.css 必须在 design-system.css 前加载');
   }
 

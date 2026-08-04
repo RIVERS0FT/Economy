@@ -25,8 +25,6 @@ import {
   type FacilityClusterEntry,
 } from './production/ProductionFacilityDetail';
 import { MobileFacilityDetailSheet } from './production/MobileFacilityDetailSheet';
-import '../styles/production-gem-acceleration.css';
-import '../styles/production-methods.css';
 
 /*
  * Split-module ownership manifest for static page-contract verification. Runtime implementations live in

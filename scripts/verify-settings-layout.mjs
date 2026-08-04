@@ -21,7 +21,7 @@ for (const path of requiredFiles) {
 if (failures.length === 0) {
   const page = read('src/pages/SettingsPage.tsx');
   const styles = read('src/styles/settings.css');
-  const main = read('src/main.tsx');
+  const main = read('src/styles/app.css');
   const browser = read('tests/browser/settings-layout.spec.ts');
   const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
   const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
@@ -79,8 +79,8 @@ if (failures.length === 0) {
     if (pattern.test(styles)) failures.push(`settings.css 不得复制基础控件视觉: ${selector}`);
   }
 
-  const settingsImport = "import './styles/settings.css';";
-  const designImport = "import './styles/design-system.css';";
+  const settingsImport = "url('./settings.css')";
+  const designImport = "url('./design-system.css')";
   if (!main.includes(settingsImport)) failures.push(`src/main.tsx 缺少: ${settingsImport}`);
   if (main.indexOf(settingsImport) > main.indexOf(designImport)) {
     failures.push('settings.css 必须在 design-system.css 之前加载');

@@ -7,83 +7,28 @@ import {
   useRef,
   useState,
 } from 'react';
-import { gameActions, GameApiError, getGameState, type GameActionResponse, type GameActionResult } from '../api/game';
+import { gameActions, GameApiError, type GameActionResponse, type GameActionResult } from '../api/game';
 import { logout } from '../api/auth';
 import { type TabId } from '../config/navigation';
-import type {
-  AssetKind,
-  AssetOrder,
-  AuthUser,
-  EconomyState,
-  FacilityStatus,
-  FacilityStatusReason,
-  LeaderboardEntry,
-  OrderSide,
-  OrderStatus,
-  TradeRecord,
-} from '../types';
-import { canAcceptRevision } from './revisionGate.js';
+import type { AssetKind, AuthUser, EconomyState, OrderSide, TradeRecord } from '../types';
 import { buildAssetAllocation } from '../utils/assetAllocation';
 import { defaultOrderPrice } from '../utils/defaultOrderPrice';
 import {
   clearLocalTrades as clearLocalTradesStore,
-  loadLocalActivity,
-  syncLocalActivity,
   type LocalActivityAction,
-  type LocalActivityView,
 } from '../utils/localActivityStore';
+import { deriveGameData, type DerivedGameData } from './gameDerivedData';
+import {
+  messageFromGameError,
+  useAuthoritativeGameState,
+  type RefreshOptions,
+} from './useAuthoritativeGameState';
 
-export const facilityStatusNames: Record<FacilityStatus, string> = {
-  running: '运行',
-  stopped: '停止',
-  error: '异常',
-};
-
-export const facilityStatusReasonNames: Record<FacilityStatusReason, string> = {
-  manual: '手动停止',
-  insufficient_funds: '运营资金不足',
-  insufficient_input: '生产原料不足',
-  warehouse_full: '共享仓库空间不足',
-  no_available_facility: '没有未冻结工厂可参与生产',
-  maintenance: '系统维护',
-};
-
-export const orderStatusNames: Record<OrderStatus, string> = {
-  open: '等待成交',
-  partial: '部分成交',
-  filled: '全部成交',
-  cancelled: '已取消',
-};
-
-export interface DerivedGameData {
-  ownOpenOrders: AssetOrder[];
-  facilityValue: number;
-  commodityValue: number;
-  cashValue: number;
-  totalAssets: number;
-  currentRank?: LeaderboardEntry;
-  previousRank: LeaderboardEntry | null;
-  runningFacilities: number;
-  constructingFacilities: number;
-  stoppedFacilities: number;
-  blockedFacilities: number;
-  inventoryUsed: number;
-}
+export { facilityStatusNames, facilityStatusReasonNames, orderStatusNames } from './gameViewModelLabels';
+export type { DerivedGameData } from './gameDerivedData';
+export type { RefreshMode, RefreshOptions } from './useAuthoritativeGameState';
 
 export type ActionResult = GameActionResult;
-export type RefreshMode = 'normal' | 'authoritative';
-export interface RefreshOptions {
-  mode?: RefreshMode;
-  expectedDeadline?: number;
-}
-
-interface RefreshTask {
-  controller: AbortController;
-  startedAt: number;
-  mode: RefreshMode;
-  expectedDeadline?: number;
-  promise: Promise<void>;
-}
 
 export interface LoadedGameViewModel {
   user: AuthUser;
@@ -149,37 +94,21 @@ export type GameViewModelState =
   | { status: 'error'; message: string; retry: () => void }
   | { status: 'ready'; model: LoadedGameViewModel };
 
-function deriveGameData(game: EconomyState): DerivedGameData {
-  const ownOpenOrders = game.orders.filter((order) => (
-    order.isOwn && ['open', 'partial'].includes(order.status)
-  ));
-  const currentRank = game.leaderboard.find((entry) => entry.isCurrentPlayer);
-  const previousRank = currentRank ? game.leaderboard.find((entry) => entry.rank === currentRank.rank - 1) ?? null : null;
-  return {
-    ownOpenOrders,
-    facilityValue: game.assetSummary.facilityValue,
-    commodityValue: game.assetSummary.commodityValue,
-    cashValue: game.assetSummary.cashValue,
-    totalAssets: game.assetSummary.totalAssets,
-    currentRank,
-    previousRank,
-    runningFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'running' ? group.participatingCount : 0), 0),
-    constructingFacilities: game.facilityConstruction ? 1 : 0,
-    stoppedFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'stopped' ? group.count : 0), 0),
-    blockedFacilities: game.facilityGroups.reduce((sum, group) => sum + (group.status === 'error' ? group.count : 0), 0),
-    inventoryUsed: game.warehouseStoredQuantity,
-  };
-}
-
-function messageFromError(reason: unknown) {
-  return reason instanceof Error ? reason.message : '游戏服务器请求失败';
-}
-
 export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameViewModelState {
-  const [game, setGame] = useState<EconomyState | null>(null);
-  const [localActivity, setLocalActivity] = useState<LocalActivityView>(() => loadLocalActivity(user.id));
-  const [loadError, setLoadError] = useState('');
-  const [reloadVersion, setReloadVersion] = useState(0);
+  const [refreshRate, setRefreshRate] = useState('5');
+  const authoritative = useAuthoritativeGameState(user, onSignedOut, refreshRate);
+  const {
+    game,
+    localActivity,
+    setLocalActivity,
+    loadError,
+    retry,
+    refresh,
+    beginAction,
+    endAction,
+    syncConfirmedAction,
+    handleUnauthorized,
+  } = authoritative;
   const [tab, setActiveTab] = useState<TabId>('home');
   const [notice, setNotice] = useState('');
   const [selectedFacilityTypeId, setSelectedFacilityTypeId] = useState('farm');
@@ -192,132 +121,47 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   const [compactNumbers, setCompactNumbers] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches
   ));
-  const [refreshRate, setRefreshRate] = useState('5');
   const [isWorking, setIsWorking] = useState(false);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const revisionRef = useRef<number | null>(null);
-  const refreshTaskRef = useRef<RefreshTask | null>(null);
-  const actionsInFlightRef = useRef(0);
   const workPendingRef = useRef(false);
   const checkInPendingRef = useRef(false);
   const orderPendingRef = useRef(false);
   const noticeTimerRef = useRef<number | null>(null);
 
-  const handleUnauthorized = useCallback(() => { setGame(null); onSignedOut(); }, [onSignedOut]);
-  const acceptState = useCallback((state: EconomyState, action: LocalActivityAction, message?: string) => {
-    setLocalActivity(syncLocalActivity(user.id, state, { action, message, createdAt: Date.now() }));
-    setGame(state);
-  }, [user.id]);
-  const acceptVersionedState = useCallback((
-    incomingRevision: number | undefined,
-    state: EconomyState | undefined,
-    action: LocalActivityAction,
-    message?: string,
-  ) => {
-    const currentRevision = revisionRef.current;
-    if (!canAcceptRevision(currentRevision, incomingRevision)) return false;
-    if (typeof incomingRevision === 'number' && Number.isInteger(incomingRevision)) {
-      revisionRef.current = incomingRevision;
-    }
-    if (state) acceptState(state, action, message);
-    return true;
-  }, [acceptState]);
-
-  const refresh = useCallback((options: RefreshOptions = {}) => {
-    const mode = options.mode ?? 'normal';
-    if (mode === 'normal' && actionsInFlightRef.current > 0) return Promise.resolve();
-
-    const existing = refreshTaskRef.current;
-    if (existing) {
-      if (mode === 'normal' || existing.mode === 'authoritative') return existing.promise;
-      existing.controller.abort();
-    }
-
-    const controller = new AbortController();
-    const promise = (async () => {
-      try {
-        const response = await getGameState(revisionRef.current, controller.signal);
-        if (mode === 'normal' && actionsInFlightRef.current > 0) return;
-        acceptVersionedState(response.revision, response.state, 'refresh');
-        setLoadError('');
-      } catch (reason) {
-        if (reason instanceof Error && reason.name === 'AbortError') return;
-        if (reason instanceof GameApiError && reason.status === 401) { handleUnauthorized(); return; }
-        setLoadError(messageFromError(reason));
-      } finally {
-        if (refreshTaskRef.current?.controller === controller) refreshTaskRef.current = null;
-      }
-    })();
-    refreshTaskRef.current = {
-      controller,
-      startedAt: Date.now(),
-      mode,
-      expectedDeadline: options.expectedDeadline,
-      promise,
-    };
-    return promise;
-  }, [acceptVersionedState, handleUnauthorized]);
-
-  useEffect(() => {
-    refreshTaskRef.current?.controller.abort();
-    refreshTaskRef.current = null;
-    revisionRef.current = null;
-    setLocalActivity(loadLocalActivity(user.id));
-    void refresh();
-  }, [refresh, reloadVersion, user.id]);
   useEffect(() => () => {
-    refreshTaskRef.current?.controller.abort();
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
   }, []);
-  useEffect(() => {
-    if (!game) return undefined;
-    const timer = window.setInterval(() => void refresh(), Math.max(1, Number(refreshRate)) * 1_000);
-    return () => window.clearInterval(timer);
-  }, [game, refresh, refreshRate]);
+
   useEffect(() => {
     if (!game) return;
     setPlayerName(game.playerName);
-    if (!game.facilityTypes.some((facility) => facility.id === selectedFacilityTypeId)) setSelectedFacilityTypeId(game.facilityTypes[0]?.id ?? 'farm');
+    if (!game.facilityTypes.some((facility) => facility.id === selectedFacilityTypeId)) {
+      setSelectedFacilityTypeId(game.facilityTypes[0]?.id ?? 'farm');
+    }
   }, [game, selectedFacilityTypeId]);
+
   useEffect(() => {
     if (!game) return;
     if (marketAssetKind === 'commodity') {
       const product = game.products.find((item) => item.id === marketAssetId) ?? game.products[0];
-      if (!product) return;
-      if (product.id !== marketAssetId) setMarketAssetId(product.id);
+      if (product && product.id !== marketAssetId) setMarketAssetId(product.id);
       return;
     }
     const type = game.facilityTypes.find((item) => item.id === marketAssetId) ?? game.facilityTypes[0];
-    if (!type) return;
-    if (type.id !== marketAssetId) setMarketAssetId(type.id);
+    if (type && type.id !== marketAssetId) setMarketAssetId(type.id);
   }, [game, marketAssetId, marketAssetKind]);
 
-  const syncConfirmedAction = useCallback(async (
-    response: GameActionResponse,
+  const runAction = useCallback(async (
     action: LocalActivityAction,
-  ) => {
-    try {
-      const stateResponse = await getGameState(revisionRef.current);
-      if (stateResponse.revision < response.revision) {
-        throw new Error('服务器状态同步落后于已确认操作');
-      }
-      acceptVersionedState(stateResponse.revision, stateResponse.state, action, response.result.message);
-      setLoadError('');
-    } catch (syncReason) {
-      if (syncReason instanceof GameApiError && syncReason.status === 401) handleUnauthorized();
-      else setLoadError(`操作已完成，但状态同步失败：${messageFromError(syncReason)}`);
-    }
-  }, [acceptVersionedState, handleUnauthorized]);
-
-  const runAction = useCallback(async (action: LocalActivityAction, operation: () => Promise<GameActionResponse>): Promise<ActionResult> => {
+    operation: () => Promise<GameActionResponse>,
+  ): Promise<ActionResult> => {
     if (action === 'work' && workPendingRef.current) {
       return { ok: false, message: '工作正在处理中' };
     }
     if (action === 'checkIn' && checkInPendingRef.current) {
       return { ok: false, message: '签到正在处理中' };
     }
-    actionsInFlightRef.current += 1;
-    refreshTaskRef.current?.controller.abort();
+    beginAction();
     if (action === 'work') {
       workPendingRef.current = true;
       setIsWorking(true);
@@ -332,9 +176,9 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
       return response.result;
     } catch (reason) {
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
-      return { ok: false, message: messageFromError(reason) };
+      return { ok: false, message: messageFromGameError(reason) };
     } finally {
-      actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
+      endAction();
       if (action === 'work') {
         workPendingRef.current = false;
         setIsWorking(false);
@@ -344,7 +188,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
         setIsCheckingIn(false);
       }
     }
-  }, [handleUnauthorized, syncConfirmedAction]);
+  }, [beginAction, endAction, handleUnauthorized, syncConfirmedAction]);
 
   const placeAssetOrder = useCallback(async (
     assetKind: AssetKind,
@@ -355,10 +199,9 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   ): Promise<ActionResult> => {
     if (orderPendingRef.current) return { ok: false, message: '市场订单正在同步中，请勿重复提交' };
     orderPendingRef.current = true;
-    actionsInFlightRef.current += 1;
-    refreshTaskRef.current?.controller.abort();
+    beginAction();
     const finish = () => {
-      actionsInFlightRef.current = Math.max(0, actionsInFlightRef.current - 1);
+      endAction();
       orderPendingRef.current = false;
     };
     try {
@@ -368,24 +211,35 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     } catch (reason) {
       finish();
       if (reason instanceof GameApiError && reason.status === 401) handleUnauthorized();
-      return { ok: false, message: messageFromError(reason) };
+      return { ok: false, message: messageFromGameError(reason) };
     }
-  }, [handleUnauthorized, syncConfirmedAction]);
+  }, [beginAction, endAction, handleUnauthorized, syncConfirmedAction]);
 
   const derived = useMemo(() => (game ? deriveGameData(game) : null), [game]);
-  function notify(message: string) {
+
+  const notify = useCallback((message: string) => {
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current);
     setNotice(message);
     noticeTimerRef.current = window.setTimeout(() => {
       noticeTimerRef.current = null;
       setNotice('');
     }, 3_000);
-  }
-  async function showResult(actionResult: ActionResult | Promise<ActionResult>) { notify((await actionResult).message); }
-  async function signOut() { try { await logout(); } finally { onSignedOut(); } }
+  }, []);
+
+  const showResult = useCallback(async (actionResult: ActionResult | Promise<ActionResult>) => {
+    notify((await actionResult).message);
+  }, [notify]);
+
+  const signOut = useCallback(async () => {
+    try {
+      await logout();
+    } finally {
+      onSignedOut();
+    }
+  }, [onSignedOut]);
 
   if (!game || !derived) {
-    if (loadError) return { status: 'error', message: loadError, retry: () => { setLoadError(''); setReloadVersion((current) => current + 1); } };
+    if (loadError) return { status: 'error', message: loadError, retry };
     return { status: 'loading' };
   }
 
@@ -396,6 +250,7 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
     derived.facilityValue,
   );
   const avatarText = (loadedGame.playerName || user.email).slice(0, 1).toUpperCase();
+
   function setTab(nextTab: TabId) {
     if (nextTab === 'market' && tab !== 'market') {
       setOrderPrice(defaultOrderPrice(loadedGame.orders, marketAssetKind, marketAssetId, orderSide));
@@ -422,33 +277,74 @@ export function useGameViewModel(user: AuthUser, onSignedOut: () => void): GameV
   }
 
   const model: LoadedGameViewModel = {
-    user, game: loadedGame, derived,
+    user,
+    game: loadedGame,
+    derived,
     localTrades: localActivity.trades,
-    tab, setTab, notice,
-    selectedFacilityTypeId, setSelectedFacilityTypeId,
-    marketAssetKind, marketAssetId, selectMarketAsset,
-    orderSide, selectOrderSide, orderQuantity, setOrderQuantity, orderPrice, setOrderPrice,
-    playerName, setPlayerName, compactNumbers, setCompactNumbers, refreshRate, setRefreshRate,
-    isWorking, isCheckingIn, inventoryUsed: derived.inventoryUsed,
-    cashShare, commodityShare, facilityShare, avatarText,
-    showResult, notify, refresh,
-    clearLocalTrades: () => { setLocalActivity(clearLocalTradesStore(user.id, loadedGame)); notify('本地成交记录已清除'); },
+    tab,
+    setTab,
+    notice,
+    selectedFacilityTypeId,
+    setSelectedFacilityTypeId,
+    marketAssetKind,
+    marketAssetId,
+    selectMarketAsset,
+    orderSide,
+    selectOrderSide,
+    orderQuantity,
+    setOrderQuantity,
+    orderPrice,
+    setOrderPrice,
+    playerName,
+    setPlayerName,
+    compactNumbers,
+    setCompactNumbers,
+    refreshRate,
+    setRefreshRate,
+    isWorking,
+    isCheckingIn,
+    inventoryUsed: derived.inventoryUsed,
+    cashShare,
+    commodityShare,
+    facilityShare,
+    avatarText,
+    showResult,
+    notify,
+    refresh,
+    clearLocalTrades: () => {
+      setLocalActivity(clearLocalTradesStore(user.id, loadedGame));
+      notify('本地成交记录已清除');
+    },
     signOut,
     work: () => runAction('work', gameActions.work),
     checkIn: () => runAction('checkIn', gameActions.checkIn),
     bankDeposit: (amount) => runAction('bankDeposit', () => gameActions.bankDeposit(amount)),
     bankWithdraw: (amount) => runAction('bankWithdraw', () => gameActions.bankWithdraw(amount)),
-    bankBorrow: (amount, collateral, autoRepay = true) => runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay)),
+    bankBorrow: (amount, collateral, autoRepay = true) => (
+      runAction('bankBorrow', () => gameActions.bankBorrow(amount, collateral, autoRepay))
+    ),
     bankRepay: (loanId, amount) => runAction('bankRepay', () => gameActions.bankRepay(loanId, amount)),
-    bankSetAutoRepay: (loanId, enabled) => runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled)),
+    bankSetAutoRepay: (loanId, enabled) => (
+      runAction('bankSetAutoRepay', () => gameActions.bankSetAutoRepay(loanId, enabled))
+    ),
     upgradeWarehouse: () => runAction('upgradeWarehouse', gameActions.upgradeWarehouse),
     buildFacility: (facilityTypeId) => runAction('buildFacility', () => gameActions.buildFacility(facilityTypeId)),
-    startResearch: (targetComplexity) => runAction('startResearch', () => gameActions.startResearch(targetComplexity)),
+    startResearch: (targetComplexity) => (
+      runAction('startResearch', () => gameActions.startResearch(targetComplexity))
+    ),
     accelerateFacilityConstruction: () => runAction('buildFacility', gameActions.accelerateFacilityConstruction),
-    startFacility: (facilityTypeId) => runAction('startFacility', () => gameActions.startFacility(facilityTypeId)),
-    stopFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId)),
-    pauseFacility: (facilityTypeId) => runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId)),
-    setFacilityRecipe: (facilityTypeId, recipeId) => runAction('setFacilityRecipe', () => gameActions.setFacilityRecipe(facilityTypeId, recipeId)),
+    startFacility: (facilityTypeId) => (
+      runAction('startFacility', () => gameActions.startFacility(facilityTypeId))
+    ),
+    stopFacility: (facilityTypeId) => (
+      runAction('pauseFacility', () => gameActions.stopFacility(facilityTypeId))
+    ),
+    pauseFacility: (facilityTypeId) => (
+      runAction('pauseFacility', () => gameActions.pauseFacility(facilityTypeId))
+    ),
+    setFacilityRecipe: (facilityTypeId, recipeId) => (
+      runAction('setFacilityRecipe', () => gameActions.setFacilityRecipe(facilityTypeId, recipeId))
+    ),
     placeAssetOrder,
     cancelOrder: (orderId) => runAction('cancelOrder', () => gameActions.cancelOrder(orderId)),
     renamePlayer: (name) => runAction('renamePlayer', () => gameActions.renamePlayer(name)),

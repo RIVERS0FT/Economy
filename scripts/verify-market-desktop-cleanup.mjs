@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-const main = fs.readFileSync('src/main.tsx', 'utf8');
+const main = fs.readFileSync('src/styles/app.css', 'utf8');
 const marketRuntimeHtml = fs.readFileSync('market-runtime-test.html', 'utf8');
 const marketPage = fs.readFileSync('src/pages/MarketPage.tsx', 'utf8');
 const styles = fs.readFileSync('src/styles/market-desktop-cleanup.css', 'utf8');
@@ -16,11 +16,11 @@ const forbidText = (source, text, message) => {
   if (source.includes(text)) failures.push(message);
 };
 
-requireText(
-  main,
-  "import './styles/form-controls.css';\nimport './styles/market-desktop-cleanup.css';",
-  '桌面市场精简样式必须在全部共享和页面样式之后最终加载。',
-);
+const formControlsIndex = main.indexOf("url('./form-controls.css')");
+const marketCleanupIndex = main.indexOf("url('./market-desktop-cleanup.css')");
+if (!(formControlsIndex >= 0 && marketCleanupIndex > formControlsIndex)) {
+  failures.push('桌面市场精简样式必须在表单控件之后最终加载。');
+}
 requireText(
   marketRuntimeHtml,
   '<link rel="stylesheet" href="/src/styles/market-desktop-cleanup.css" />',

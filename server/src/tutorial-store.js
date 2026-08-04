@@ -1,4 +1,4 @@
-export const CURRENT_TUTORIAL_VERSION = 1;
+export const CURRENT_TUTORIAL_VERSION = 2;
 
 const MIGRATION_SETTING_KEY = 'game_tutorial_completion_migration_version';
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
@@ -31,9 +31,28 @@ export function createTutorialStore(store, now = Date.now()) {
     CREATE TABLE IF NOT EXISTS economy_tutorial_completions (
       user_id INTEGER PRIMARY KEY,
       completed_version INTEGER NOT NULL CHECK (completed_version >= 0),
-      completed_at INTEGER NOT NULL
+      completed_at INTEGER NOT NULL,
+      completion_source TEXT NOT NULL DEFAULT 'legacy'
+        CHECK (completion_source IN ('legacy', 'migration', 'player'))
     ) STRICT;
+    CREATE TABLE IF NOT EXISTS economy_tutorial_events (
+      user_id INTEGER NOT NULL,
+      request_key TEXT NOT NULL,
+      tutorial_version INTEGER NOT NULL CHECK (tutorial_version >= 0),
+      event_type TEXT NOT NULL CHECK (event_type IN ('hidden', 'restarted')),
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, request_key)
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS idx_economy_tutorial_events_created
+      ON economy_tutorial_events(created_at, event_type);
   `);
+  const completionColumns = new Set(
+    database.prepare('PRAGMA table_info(economy_tutorial_completions)').all()
+      .map((column) => String(column.name)),
+  );
+  if (!completionColumns.has('completion_source')) {
+    database.exec("ALTER TABLE economy_tutorial_completions ADD COLUMN completion_source TEXT NOT NULL DEFAULT 'legacy'");
+  }
 
   const selectStatus = database.prepare(`
     SELECT completed_version, completed_at
@@ -41,15 +60,31 @@ export function createTutorialStore(store, now = Date.now()) {
     WHERE user_id = ?
   `);
   const upsertStatus = database.prepare(`
-    INSERT INTO economy_tutorial_completions (user_id, completed_version, completed_at)
-    VALUES (?, ?, ?)
+    INSERT INTO economy_tutorial_completions (
+      user_id, completed_version, completed_at, completion_source
+    ) VALUES (?, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       completed_version = MAX(economy_tutorial_completions.completed_version, excluded.completed_version),
       completed_at = CASE
         WHEN excluded.completed_version > economy_tutorial_completions.completed_version
           THEN excluded.completed_at
         ELSE economy_tutorial_completions.completed_at
+      END,
+      completion_source = CASE
+        WHEN excluded.completed_version > economy_tutorial_completions.completed_version
+          THEN excluded.completion_source
+        ELSE economy_tutorial_completions.completion_source
       END
+  `);
+  const selectTutorialEvent = database.prepare(`
+    SELECT tutorial_version, event_type
+    FROM economy_tutorial_events
+    WHERE user_id = ? AND request_key = ?
+  `);
+  const insertTutorialEvent = database.prepare(`
+    INSERT INTO economy_tutorial_events (
+      user_id, request_key, tutorial_version, event_type, created_at
+    ) VALUES (?, ?, ?, ?, ?)
   `);
   const selectMigration = database.prepare(`
     SELECT setting_value
@@ -88,7 +123,7 @@ export function createTutorialStore(store, now = Date.now()) {
     for (const player of Object.values(world.players || {})) {
       const userId = Number(player?.userId);
       if (!Number.isInteger(userId) || userId <= 0) continue;
-      upsertStatus.run(userId, CURRENT_TUTORIAL_VERSION, now);
+      upsertStatus.run(userId, CURRENT_TUTORIAL_VERSION, now, 'migration');
     }
     upsertMigration.run(
       MIGRATION_SETTING_KEY,
@@ -133,7 +168,7 @@ export function createTutorialStore(store, now = Date.now()) {
     if (existing.completedVersion >= version) return completionResponse(existing);
 
     return store.transaction(() => {
-      upsertStatus.run(normalizedUserId, version, completedAt);
+      upsertStatus.run(normalizedUserId, version, completedAt, 'player');
       const response = completionResponse(getStatus(normalizedUserId));
       insertIdempotency.run(
         normalizedUserId,
@@ -148,5 +183,47 @@ export function createTutorialStore(store, now = Date.now()) {
     });
   }
 
-  return { getStatus, complete };
+  function recordEvent(userId, requestedVersion, eventType, requestContext = {}) {
+    const normalizedUserId = Number(userId);
+    const version = normalizeVersion(requestedVersion);
+    const normalizedEventType = String(eventType || '');
+    if (!Number.isInteger(normalizedUserId) || normalizedUserId <= 0) {
+      const error = new Error('玩家账号无效');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (version !== CURRENT_TUTORIAL_VERSION) {
+      const error = new Error('教程版本无效');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (normalizedEventType !== 'hidden' && normalizedEventType !== 'restarted') {
+      const error = new Error('教程事件无效');
+      error.statusCode = 400;
+      throw error;
+    }
+    const requestKey = String(requestContext.requestKey || '');
+    const createdAt = Number(requestContext.now || Date.now());
+    const existing = selectTutorialEvent.get(normalizedUserId, requestKey);
+    if (existing) {
+      if (Number(existing.tutorial_version) !== version || existing.event_type !== normalizedEventType) {
+        const error = new Error('幂等键已被其他操作使用');
+        error.statusCode = 409;
+        throw error;
+      }
+      return { result: { ok: true, message: '教程事件已记录' } };
+    }
+    return store.transaction(() => {
+      insertTutorialEvent.run(
+        normalizedUserId,
+        requestKey,
+        version,
+        normalizedEventType,
+        createdAt,
+      );
+      return { result: { ok: true, message: '教程事件已记录' } };
+    });
+  }
+
+  return { getStatus, complete, recordEvent };
 }

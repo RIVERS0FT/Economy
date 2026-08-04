@@ -27,6 +27,36 @@ function attentionTone(item: AdminPlayerStatisticsAttention): StatusTone {
   return 'neutral';
 }
 
+const FAILURE_REASON_LABELS: Record<string, string> = {
+  funds: '资金不足',
+  input: '原料不足',
+  warehouse: '仓库容量',
+  research: '研发准入',
+  cooldown: '冷却限制',
+  frozen: '资产冻结',
+  limit: '数量上限',
+  conflict: '重复或冲突',
+  unavailable: '服务不可用',
+  validation: '输入校验',
+  other: '其他原因',
+};
+
+const ACTION_LABELS: Record<string, string> = {
+  work: '工作',
+  buildFacility: '建设工厂',
+  startFacility: '启动工厂',
+  placeOrder: '提交订单',
+  upgradeWarehouse: '扩容仓库',
+  startResearch: '开始研发',
+};
+
+function formatBytes(value: number) {
+  const bytes = Math.max(0, Number(value) || 0);
+  if (bytes < 1_024) return `${Math.round(bytes)} B`;
+  if (bytes < 1_024 * 1_024) return `${(bytes / 1_024).toFixed(1)} KB`;
+  return `${(bytes / (1_024 * 1_024)).toFixed(1)} MB`;
+}
+
 function Metric({ label, value, detail }: { label: string; value: ReactNode; detail?: ReactNode }) {
   return (
     <article className="admin-player-statistics__metric">
@@ -52,7 +82,7 @@ export function AdminPlayerStatistics({
     return <EmptyState>{loading ? '正在读取玩家运营统计…' : '玩家运营统计尚未初始化。'}</EmptyState>;
   }
 
-  const { snapshot, activity, retention, funnel, participation, wealth, acquisition } = statistics;
+  const { snapshot, activity, retention, funnel, tutorial, participation, wealth, acquisition, failures, capacity } = statistics;
   const retentionRows = ([
     ['D1', retention.d1],
     ['D7', retention.d7],
@@ -135,8 +165,51 @@ export function AdminPlayerStatistics({
         </article>
 
         <article className="admin-player-statistics__card">
+          <header><div><h3>基础教程行为</h3><small>只聚合完成、隐藏与重开次数，不保存步骤或上下文</small></div></header>
+          <section className="admin-player-statistics__tutorial-grid">
+            <Metric label="完整完成" value={tutorial.completed.events} detail={`${tutorial.completed.players} 名玩家`} />
+            <Metric label="隐藏教程" value={tutorial.hidden.events} detail={`${tutorial.hidden.players} 名玩家`} />
+            <Metric label="重新开始" value={tutorial.restarted.events} detail={`${tutorial.restarted.players} 名玩家`} />
+          </section>
+        </article>
+      </section>
+
+      <section className="admin-player-statistics__two-column">
+        <article className="admin-player-statistics__card">
           <header><div><h3>当前经营参与</h3><small>只读诊断，不参与人口需求预算或排行榜</small></div></header>
           <HorizontalPercentChart rows={participationRows} ariaLabel="当前玩家经营参与结构" />
+        </article>
+      </section>
+
+      <section className="admin-player-statistics__two-column">
+        <article className="admin-player-statistics__card">
+          <header><div><h3>失败动作</h3><small>按稳定原因代码聚合，不保存原始错误文本或请求体</small></div></header>
+          {failures.length > 0 ? (
+            <div className="admin-player-statistics__diagnostic-list">
+              {failures.map((item) => (
+                <div key={`${item.action}:${item.reasonCode}`}>
+                  <span><strong>{ACTION_LABELS[item.action] || item.action}</strong><small>{FAILURE_REASON_LABELS[item.reasonCode] || item.reasonCode}</small></span>
+                  <span>
+                    <strong>{item.count}</strong>
+                    <small>{item.affectedPlayers} 名玩家{item.newPlayerFailures > 0 ? ` · 首 30 分钟 ${item.newPlayerFailures} 次／${item.newPlayersAffected} 人` : ''}</small>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : <EmptyState>当前区间没有已记录的失败经济动作。</EmptyState>}
+        </article>
+
+        <article className="admin-player-statistics__card">
+          <header><div><h3>运行容量</h3><small>有界事务样本和当前权威世界规模，仅用于容量决策</small></div></header>
+          <section className="admin-player-statistics__capacity-grid">
+            <Metric label="事务 P50／P95" value={`${capacity.transactionP50Ms}／${capacity.transactionP95Ms} ms`} detail={`${capacity.transactionSamples} 个样本`} />
+            <Metric label="事务 P99／最大" value={`${capacity.transactionP99Ms}／${capacity.transactionMaxMs} ms`} />
+            <Metric label="写事务 P95" value={`${capacity.writeTransactionP95Ms} ms`} />
+            <Metric label="世界 JSON" value={formatBytes(capacity.worldJsonBytes)} />
+            <Metric label="SQLite／WAL" value={`${formatBytes(capacity.databaseBytes)}／${formatBytes(capacity.walBytes)}`} />
+            <Metric label="运行规模" value={`${capacity.playerCount} 玩家`} detail={`${capacity.openOrderCount} 订单 · ${capacity.openContractCount} 合同 · ${capacity.openAuctionCount} 拍卖`} />
+          </section>
+          {capacity.scheduler ? <small className="admin-player-statistics__note">调度事务 {capacity.scheduler.transactions} · 最近延迟 {capacity.scheduler.lastLagMs} ms</small> : null}
         </article>
       </section>
 

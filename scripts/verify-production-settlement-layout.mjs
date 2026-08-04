@@ -14,7 +14,7 @@ const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
 const browserTest = read('tests/browser/production-methods.spec.ts');
 const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
 const industryDesign = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
-const main = read('src/main.tsx');
+const main = read('src/styles/app.css');
 
 for (const text of [
   'data-status={group.status}',
@@ -133,8 +133,8 @@ for (const forbidden of ['<SelectInput', '<option']) {
   assert.equal(detail.slice(settingsStart, settingsEnd).includes(forbidden), false, `生产设置不得恢复: ${forbidden}`);
 }
 
-const groupCssImport = main.indexOf("import './styles/facility-group-card-grid.css';");
-const formulaCssImport = main.indexOf("import './styles/facility-production-formula.css';");
+const groupCssImport = main.indexOf("url('./facility-group-card-grid.css')");
+const formulaCssImport = main.indexOf("url('./facility-production-formula.css')");
 assert.ok(groupCssImport >= 0 && formulaCssImport > groupCssImport, '生产结算样式必须在工厂详情基础样式之后加载');
 
 const profitRule = profitCss.slice(

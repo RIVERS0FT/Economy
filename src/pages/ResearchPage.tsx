@@ -8,6 +8,7 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
+import { AdvancedFeatureGuide } from '../components/onboarding/AdvancedFeatureGuide';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { useNow } from '../hooks/useNow';
 import { formatDuration, formatNumber } from '../utils/formatters';
@@ -46,6 +47,12 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
 
   return (
     <PageLayout title="研发" description="顺序研发 C1-C7，解锁更高复杂度的工厂建设、购买和运营资格。">
+      <AdvancedFeatureGuide
+        game={model.game}
+        title="了解基础生产与交易循环"
+        description="研发用于解锁更高复杂度工厂，不直接提高现有工厂产量、周期或利润。"
+        recommendedAfter="完成首次生产和出售"
+      />
       <PagePanel className="research-baseline-card">
         <WidgetHeading
           title="当前研发状态"

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { ProductIconLabel } from '../components/icons/ProductIcons';
+import { AdvancedFeatureGuide } from '../components/onboarding/AdvancedFeatureGuide';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput, MoneyInput, SelectInput, TextInput } from '../components/ui/FormControls';
 import {
@@ -35,7 +36,6 @@ import {
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
-import '../styles/contract-audit.css';
 
 const INTERVAL_OPTIONS = [
   [10 * 60 * 1000, '每 10 分钟'],
@@ -986,6 +986,12 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
       description="与其他玩家签订长期周期供货协议，稳定上下游生产合作。合同不绑定工厂、不控制配方，也不涉及其他资产类型。"
       actions={<Button onClick={() => setShowPublish((current) => !current)}>{showPublish ? '收起发布表单' : '发布合同'}</Button>}
     >
+      <AdvancedFeatureGuide
+        game={model.game}
+        title="建立持续供货能力"
+        description="合同用于约定多批次供货、货款和履约保证金。"
+        recommendedAfter="能够稳定生产同一种商品"
+      />
       <div className="contract-summary-grid">
         <MetricCard label="进行中的合同" value={formatNumber(productionContractSummary.active)} detail="我采购或我供货" tone="info" />
         <MetricCard label="等待我处理" value={formatNumber(productionContractSummary.needsAttention)} detail="商品、货款或仓库异常" tone={productionContractSummary.needsAttention ? 'warning' : 'success'} />

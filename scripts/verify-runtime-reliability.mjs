@@ -71,7 +71,7 @@ for (const text of [
   'actions: read',
   'No push workflow run found for the pull request head SHA',
   'npm run build',
-  'npx playwright install --with-deps chromium',
+  'npx playwright install --with-deps chromium webkit',
   'npm run test:browser 2>&1 | tee browser-test.log',
   'if: failure()',
   'retention-days: 3',

@@ -22,7 +22,7 @@ const draftPath = 'src/utils/integerDraft.ts';
 const stylePath = 'src/styles/form-controls.css';
 const navigationPath = 'src/components/shell/NavigationItems.tsx';
 const sidebarStylePath = 'src/styles/desktop-sidebar.css';
-const mainPath = 'src/main.tsx';
+const mainPath = 'src/styles/app.css';
 const designDocPath = 'docs/UI_DESIGN_SYSTEM.md';
 const integerWheelTestPath = 'tests/browser/gem-shop-layout.spec.ts';
 const sidebarBadgeTestPath = 'tests/browser/sidebar-badge.spec.ts';
@@ -156,8 +156,8 @@ for (const forbidden of [
 ]) forbidText(sidebarStylePath, forbidden);
 
 const main = read(mainPath);
-const designSystemIndex = main.indexOf("import './styles/design-system.css'");
-const formControlsIndex = main.indexOf("import './styles/form-controls.css'");
+const designSystemIndex = main.indexOf("url('./design-system.css')");
+const formControlsIndex = main.indexOf("url('./form-controls.css')");
 if (designSystemIndex < 0 || formControlsIndex < 0 || formControlsIndex < designSystemIndex) {
   failures.push('form-controls.css 必须在 design-system.css 之后加载');
 }

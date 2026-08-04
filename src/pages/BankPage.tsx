@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
 import { AssetOverviewPanel } from '../components/assets/AssetOverviewPanel';
 import { BankIcon, FactoryIcon } from '../components/icons/GameIcons';
+import { AdvancedFeatureGuide } from '../components/onboarding/AdvancedFeatureGuide';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput, MoneyInput } from '../components/ui/FormControls';
 import {
@@ -124,6 +125,12 @@ export function BankPage({ model }: { model: LoadedGameViewModel }) {
       title="银行"
       description="统一查看资产构成，并管理活跃周固定存款利息、周资金结算和工厂抵押贷款。"
     >
+      <AdvancedFeatureGuide
+        game={model.game}
+        title="形成稳定现金流"
+        description="银行用于存款、周结算和以工厂抵押扩大经营。"
+        recommendedAfter="拥有稳定运行的工厂和现金流"
+      />
       <AssetOverviewPanel model={model} />
 
       <div className="bank-account-grid">

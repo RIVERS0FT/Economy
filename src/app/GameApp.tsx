@@ -12,7 +12,6 @@ import { formatCompactNumber, formatCurrency, formatNumber, formatRank, setCompa
 import { useGameTutorial, type TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { useGameViewModel, type LoadedGameViewModel } from './gameViewModel';
 import { useAdaptivePolling } from './useAdaptivePolling';
-import '../styles/game-guide.css';
 
 function GameErrorStateShell({ children }: { children: ReactNode }) {
   return (
@@ -48,6 +47,14 @@ function ReadyGameApp({ model }: { model: LoadedGameViewModel }) {
     placeAssetOrder: (assetKind, assetId, side, quantity, price) => {
       tutorial.recordSellOrderSubmit(assetKind, assetId, side);
       return model.placeAssetOrder(assetKind, assetId, side, quantity, price);
+    },
+    upgradeWarehouse: () => {
+      tutorial.recordExpansionAction();
+      return model.upgradeWarehouse();
+    },
+    startResearch: (targetComplexity) => {
+      tutorial.recordExpansionAction();
+      return model.startResearch(targetComplexity);
     },
   }), [model, pollingModel, tutorial]);
   const compactNumbers = tutorialModel.compactNumbers;

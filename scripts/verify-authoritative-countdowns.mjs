@@ -20,6 +20,7 @@ const paths = {
   clock: 'src/utils/serverClock.js',
   coordinator: 'src/components/system/AuthoritativeCountdownRefresh.tsx',
   model: 'src/app/gameViewModel.ts',
+  authorityModel: 'src/app/useAuthoritativeGameState.ts',
   api: 'src/api/game.ts',
   delivery: 'src/app/stateDelivery.js',
   app: 'src/app/GameApp.tsx',
@@ -70,12 +71,13 @@ if (failures.length === 0) {
   forbidText(paths.coordinator, 'game.lastProcessedAt + Math.max(0, Date.now() - receivedAt)');
   forbidText(paths.coordinator, 'window.setInterval(confirmAuthority');
 
+  requireText(paths.model, "export type { RefreshMode, RefreshOptions } from './useAuthoritativeGameState'");
   for (const text of [
     "export type RefreshMode = 'normal' | 'authoritative'",
     'refreshTaskRef.current',
     "mode === 'normal' && actionsInFlightRef.current > 0",
     'existing.controller.abort()',
-  ]) requireText(paths.model, text);
+  ]) requireText(paths.authorityModel, text);
 
   for (const text of [
     'DEFAULT_READ_TIMEOUT_MS = 8_000',

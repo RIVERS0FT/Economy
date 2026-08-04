@@ -229,6 +229,10 @@
 }
 
 @media (max-width: 720px) {
+  .admin-player-statistics__tutorial-grid {
+    grid-template-columns: 1fr;
+  }
+
   .admin-player-statistics__coverage,
   .admin-player-statistics__card > header {
     align-items: stretch;
@@ -241,4 +245,56 @@
   .admin-player-statistics__metric { min-height: 78px; padding: 9px 10px; }
   .admin-player-statistics__wealth-summary { grid-template-columns: minmax(0, 1fr); }
   .admin-player-statistics__attention > div { grid-template-columns: minmax(0, 1fr); }
+}
+
+.admin-player-statistics__diagnostic-list {
+  display: grid;
+  gap: 0.625rem;
+}
+
+.admin-player-statistics__diagnostic-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.625rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-player-statistics__diagnostic-list span {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.admin-player-statistics__diagnostic-list span:last-child {
+  text-align: right;
+}
+
+.admin-player-statistics__diagnostic-list small {
+  color: var(--text-secondary);
+}
+
+
+.admin-player-statistics__tutorial-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.admin-player-statistics__capacity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .admin-player-statistics__tutorial-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-player-statistics__capacity-grid {
+    grid-template-columns: 1fr;
+  }
 }

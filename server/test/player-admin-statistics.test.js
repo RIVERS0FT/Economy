@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { EconomyStore } from '../src/runtime-store.js';
+import { createTutorialStore, CURRENT_TUTORIAL_VERSION } from '../src/tutorial-store.js';
 
 function createRegistrationTable(store) {
   store.database.exec(`
@@ -21,6 +22,7 @@ test('player statistics record successful economic actions once and keep reads r
   const now = Date.UTC(2026, 6, 24, 3, 0, 0);
   try {
     createRegistrationTable(store);
+    const tutorialStore = createTutorialStore(store, now - 120_000);
     store.database.prepare(`
       INSERT INTO economy_registrations (
         user_id, email, registration_ip_fingerprint, registered_at, source
@@ -38,6 +40,27 @@ test('player statistics record successful economic actions once and keep reads r
     const replay = store.apply(player, request, now + 1);
     assert.equal(first.result.ok, true);
     assert.deepEqual(replay, first);
+
+    const failed = store.apply(player, {
+      ...request,
+      requestKey: 'player-stats-work-cooldown',
+    }, now + 1);
+    assert.equal(failed.result.ok, false);
+
+    tutorialStore.complete(player.id, CURRENT_TUTORIAL_VERSION, {
+      requestKey: 'player-stats-tutorial-complete',
+      method: 'POST',
+      path: '/api/game/tutorial/complete',
+      now: now + 1,
+    });
+    tutorialStore.recordEvent(player.id, CURRENT_TUTORIAL_VERSION, 'hidden', {
+      requestKey: 'player-stats-tutorial-hidden',
+      now: now + 1,
+    });
+    tutorialStore.recordEvent(player.id, CURRENT_TUTORIAL_VERSION, 'restarted', {
+      requestKey: 'player-stats-tutorial-restarted',
+      now: now + 2,
+    });
 
     const activity = store.database.prepare(`
       SELECT successful_action_count, work_count, production_output_count, trade_quantity
@@ -88,6 +111,19 @@ test('player statistics record successful economic actions once and keep reads r
     assert.equal(statistics.participation.rows.find((row) => row.id === 'open-auction')?.count, 1);
     assert.equal(statistics.range.key, '30d');
     assert.equal(statistics.range.timeZone, 'Asia/Shanghai');
+    const cooldownFailure = statistics.failures.find((row) => row.action === 'work' && row.reasonCode === 'cooldown');
+    assert.equal(Boolean(cooldownFailure), true);
+    assert.equal(cooldownFailure.newPlayerFailures, 1);
+    assert.equal(cooldownFailure.newPlayersAffected, 1);
+    assert.deepEqual(statistics.tutorial, {
+      completed: { events: 1, players: 1 },
+      hidden: { events: 1, players: 1 },
+      restarted: { events: 1, players: 1 },
+    });
+    assert.equal(statistics.capacity.transactionSamples > 0, true);
+    assert.equal(statistics.capacity.playerCount, 1);
+    assert.equal(statistics.capacity.openAuctionCount, 1);
+    assert.equal(statistics.funnel.stages.some((stage) => stage.id === 'first-expansion'), true);
     assert.equal(JSON.stringify(statistics).includes(player.email), false);
     assert.equal(JSON.stringify(statistics).includes('test-fingerprint'), false);
 

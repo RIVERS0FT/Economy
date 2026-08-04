@@ -149,6 +149,7 @@ for (const path of [
 ]) forbidText(path, 'FinancialBackdrop');
 
 const mainSource = read('src/main.tsx');
+const styleManifestSource = read('src/styles/app.css');
 for (const text of [
   "import { FinancialBackdrop } from './components/visual/FinancialBackdrop';",
   "document.documentElement.dataset.appSurface = 'loading';",
@@ -231,9 +232,9 @@ for (const path of [
   'src/styles/financial-backdrop.css',
 ]) forbidText(path, 'upload.wikimedia.org');
 
-const gameLayoutIndex = mainSource.indexOf("import './styles/game-shell-layout.css';");
-const backdropStyleIndex = mainSource.indexOf("import './styles/financial-backdrop.css';");
-const glassIndex = mainSource.indexOf("import './styles/liquid-glass-surfaces.css';");
+const gameLayoutIndex = styleManifestSource.indexOf("url('./game-shell-layout.css')");
+const backdropStyleIndex = styleManifestSource.indexOf("url('./financial-backdrop.css')");
+const glassIndex = styleManifestSource.indexOf("url('./liquid-glass-surfaces.css')");
 if (!(gameLayoutIndex >= 0 && backdropStyleIndex > gameLayoutIndex && glassIndex > backdropStyleIndex)) {
   failures.push('共享背景样式必须在游戏外壳几何之后、液态玻璃材质之前加载');
 }

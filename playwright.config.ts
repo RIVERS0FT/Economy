@@ -12,12 +12,28 @@ export default defineConfig({
   use: {
     baseURL: 'http://127.0.0.1:1420/economy/',
     trace: 'retain-on-failure',
-    launchOptions: executablePath ? { executablePath } : undefined,
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      testIgnore: '**/mobile-critical-smoke.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: executablePath ? { executablePath } : undefined,
+      },
+    },
+    {
+      name: 'mobile-chromium',
+      testMatch: '**/mobile-critical-smoke.spec.ts',
+      use: {
+        ...devices['Pixel 7'],
+        launchOptions: executablePath ? { executablePath } : undefined,
+      },
+    },
+    {
+      name: 'mobile-webkit',
+      testMatch: '**/mobile-critical-smoke.spec.ts',
+      use: { ...devices['iPhone 13'] },
     },
   ],
   webServer: {

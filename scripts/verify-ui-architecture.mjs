@@ -221,7 +221,7 @@ for (const forbidden of ['>⚙</span>', '<ProductIcon productId="machinery" />']
   if (marketPage.includes(forbidden)) failures.push(`市场工厂标签不得使用机械或字符图标: ${forbidden}`);
 }
 
-requireText('src/main.tsx', "import './styles/icon-system.css'");
+requireText('src/styles/app.css', "url('./icon-system.css')");
 
 for (const text of [
   '统一 SVG 图标',

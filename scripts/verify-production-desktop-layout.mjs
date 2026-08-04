@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(path, 'utf8');
-const main = read('src/main.tsx');
+const main = read('src/styles/app.css');
 const shell = read('src/styles/game-shell-layout.css');
 const page = read('src/pages/ProductionPage.tsx');
 const production = read('src/styles/facility-group-card-grid.css');
@@ -34,8 +34,8 @@ for (const text of [
   'grid-template-columns: repeat(3, minmax(0, 1fr));',
 ]) assert.equal(production.includes(text), true, `桌面生产布局缺少: ${text}`);
 
-const facilityGridImport = "import './styles/facility-group-card-grid.css';";
-const productionSurfaceImport = "import './styles/production-surface.css';";
+const facilityGridImport = "url('./facility-group-card-grid.css')";
+const productionSurfaceImport = "url('./production-surface.css')";
 assert.equal(main.includes(facilityGridImport), true, '入口缺少工厂主从布局样式');
 assert.equal(main.includes(productionSurfaceImport), true, '入口缺少生产表面样式');
 assert.equal(

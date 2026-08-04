@@ -15,7 +15,7 @@ const forbidText = (path, text) => {
 };
 
 const paths = {
-  main: 'src/main.tsx',
+  main: 'src/styles/app.css',
   layout: 'src/components/ui/layout.tsx',
   primaryStyles: 'src/styles/primary-surfaces.css',
   productionStyles: 'src/styles/production-surface.css',
@@ -30,12 +30,12 @@ Object.values(paths).forEach(requireFile);
 
 if (failures.length === 0) {
   const main = read(paths.main);
-  const designSystemIndex = main.indexOf("import './styles/design-system.css';");
-  const primarySurfaceIndex = main.indexOf("import './styles/primary-surfaces.css';");
-  const formControlsIndex = main.indexOf("import './styles/form-controls.css';");
+  const designSystemIndex = main.indexOf("url('./design-system.css')");
+  const primarySurfaceIndex = main.indexOf("url('./primary-surfaces.css')");
+  const formControlsIndex = main.indexOf("url('./form-controls.css')");
 
   if (!(designSystemIndex >= 0 && primarySurfaceIndex > designSystemIndex && formControlsIndex > primarySurfaceIndex)) {
-    failures.push('src/main.tsx 必须按 design-system.css → primary-surfaces.css → form-controls.css 顺序加载');
+    failures.push('src/styles/app.css 必须按 design-system.css → primary-surfaces.css → form-controls.css 顺序加载');
   }
 
   for (const text of [

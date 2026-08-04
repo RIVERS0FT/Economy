@@ -7,7 +7,6 @@ import { resolveFacilityProfitPresentation } from '../../utils/facilityProfitPre
 import { formatCurrency } from '../../utils/formatters';
 import { CurrencyAmount } from '../ui/CurrencyAmount';
 import { useFacilityRecipeProfitMarkets } from './FacilityRecipeProfitContext';
-import '../../styles/facility-recipe-profit-analysis.css';
 
 function amountTone(value: number | null) {
   if (value === null || value === 0) return '';

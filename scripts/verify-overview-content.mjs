@@ -34,7 +34,7 @@ const paths = {
   shellLayoutStyle: 'src/styles/game-shell-layout.css',
   harness: 'tests/browser/runtime-harness.tsx',
   browserSpec: 'tests/browser/runtime.spec.ts',
-  main: 'src/main.tsx',
+  main: 'src/styles/app.css',
   pageDesign: 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md',
   uiDesign: 'docs/UI_DESIGN_SYSTEM.md',
   integrityDesign: 'docs/OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md',
@@ -59,7 +59,13 @@ requireAll(paths.overview, [
   "id: 'warehouse-full'",
   "id: `facility-error-${group.facilityTypeId}`",
   "id: 'open-orders'",
-  'const primaryAction = ownOpenOrders.length > 0',
+  'const hasCompletedProduction =',
+  'const hasCompletedSale =',
+  'const hasExpandedBusiness =',
+  'model.tutorial.isVisible && model.tutorial.currentStep',
+  "label: '建设第一座工厂'",
+  "label: '完成首次商品出售'",
+  "label: '扩大经营'",
   'title="本周签到"',
   'role="list" aria-label="本周签到日历"',
   'weeklyBonusEligible',
@@ -228,8 +234,8 @@ requireAll(paths.integrityDesign, [
 ]);
 for (const path of [paths.pageDesign, paths.uiDesign, paths.integrityDesign]) forbidText(path, '统一为 `384px` 高');
 
-requireText(paths.main, "import './styles/overview.css'");
-requireText(paths.main, "import './styles/overview-polish.css'");
+requireText(paths.main, "url('./overview.css')");
+requireText(paths.main, "url('./overview-polish.css')");
 requireText(paths.package, 'node scripts/verify-overview-content.mjs');
 
 if (failures.length > 0) {

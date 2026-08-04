@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   completeTutorial,
   getTutorialStatus,
+  recordTutorialEvent,
   type TutorialCompletionState,
 } from '../api/game';
 import type { LoadedGameViewModel } from '../app/gameViewModel';
@@ -44,6 +45,7 @@ export interface GameTutorialController {
     assetId: string,
     side: OrderSide,
   ) => void;
+  recordExpansionAction: () => void;
 }
 
 export type TutorialAwareGameViewModel = LoadedGameViewModel & {
@@ -224,17 +226,19 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     if (!order) return;
     setRun((current) => {
       if (!current || current.currentStep !== 'complete-sale') return current;
-      return {
+      const next: LocalTutorialRun = {
         ...current,
+        currentStep: 'expand-business',
         completedStepIds: current.completedStepIds.includes('complete-sale')
           ? current.completedStepIds
           : [...current.completedStepIds, 'complete-sale'],
         stats: { ...current.stats, saleCompletions: current.stats.saleCompletions + 1 },
         updatedAt: Date.now(),
       };
+      saveTutorialRun(userId, next);
+      return next;
     });
-    finishTutorial();
-  }, [finishTutorial, model.game.orders, run]);
+  }, [model.game.orders, run, userId]);
 
   const restart = useCallback(() => {
     const fresh = createTutorialRun();
@@ -242,11 +246,13 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     finishingRef.current = false;
     model.setTab('home');
     model.notify('基础教程已从第一步重新开始');
+    void recordTutorialEvent('restarted', CURRENT_TUTORIAL_VERSION).catch(() => {});
   }, [model, persistRun]);
 
   const hide = useCallback(() => {
     if (!run) return;
     persistRun({ ...run, status: 'hidden', updatedAt: Date.now() });
+    void recordTutorialEvent('hidden', CURRENT_TUTORIAL_VERSION).catch(() => {});
   }, [persistRun, run]);
 
   const show = useCallback(() => {
@@ -274,8 +280,25 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
   }, [updateCurrentRun]);
 
   const recordBuildSubmit = useCallback((facilityTypeId: string) => {
+    if (run?.currentStep === 'expand-business') {
+      setRun((current) => {
+        if (!current || current.currentStep !== 'expand-business') return current;
+        const completed: LocalTutorialRun = {
+          ...current,
+          completedStepIds: current.completedStepIds.includes('expand-business')
+            ? current.completedStepIds
+            : [...current.completedStepIds, 'expand-business'],
+          stats: { ...current.stats, expansionActions: current.stats.expansionActions + 1 },
+          updatedAt: Date.now(),
+        };
+        saveTutorialRun(userId, completed);
+        return completed;
+      });
+      finishTutorial();
+      return;
+    }
     updateCurrentRun('build-facility', 'buildSubmits', { facilityTypeId });
-  }, [updateCurrentRun]);
+  }, [finishTutorial, run?.currentStep, updateCurrentRun, userId]);
 
   const recordFacilityStartClick = useCallback((facilityTypeId: string) => {
     const group = model.game.facilityGroups.find((item) => item.facilityTypeId === facilityTypeId);
@@ -296,6 +319,25 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
       sellOrderBaselineIds: ownCommoditySellOrderIds(model),
     });
   }, [model, updateCurrentRun]);
+
+
+  const recordExpansionAction = useCallback(() => {
+    if (run?.currentStep !== 'expand-business') return;
+    setRun((current) => {
+      if (!current || current.currentStep !== 'expand-business') return current;
+      const completed: LocalTutorialRun = {
+        ...current,
+        completedStepIds: current.completedStepIds.includes('expand-business')
+          ? current.completedStepIds
+          : [...current.completedStepIds, 'expand-business'],
+        stats: { ...current.stats, expansionActions: current.stats.expansionActions + 1 },
+        updatedAt: Date.now(),
+      };
+      saveTutorialRun(userId, completed);
+      return completed;
+    });
+    finishTutorial();
+  }, [finishTutorial, run?.currentStep, userId]);
 
   const currentStep = run ? tutorialStepDefinition(run.currentStep) : null;
   const currentStepIndex = run ? TUTORIAL_STEP_IDS.indexOf(run.currentStep) + 1 : 0;
@@ -326,6 +368,7 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     recordBuildSubmit,
     recordFacilityStartClick,
     recordSellOrderSubmit,
+    recordExpansionAction,
   }), [
     currentStep,
     currentStepIndex,
@@ -335,6 +378,7 @@ export function useGameTutorial(model: LoadedGameViewModel): GameTutorialControl
     recordBuildSubmit,
     recordFacilityStartClick,
     recordSellOrderSubmit,
+    recordExpansionAction,
     recordWorkClick,
     restart,
     run,

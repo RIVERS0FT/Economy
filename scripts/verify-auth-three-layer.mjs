@@ -275,6 +275,7 @@ for (const text of ['AUTH_BACKGROUND_IMAGE_URL', 'AUTH_BACKGROUND_IMAGE_960_URL'
 }
 
 const mainSource = read('src/main.tsx');
+const styleManifestSource = read('src/styles/app.css');
 for (const text of [
   "import { FinancialBackdrop } from './components/visual/FinancialBackdrop';",
   "document.documentElement.dataset.appSurface = 'loading';",
@@ -288,30 +289,30 @@ const strictModeIndex = mainSource.indexOf('<React.StrictMode>');
 if (!(backdropNodeIndex >= 0 && strictModeIndex > backdropNodeIndex)) {
   failures.push('持久摄影节点必须在 StrictMode 与错误边界之外先渲染');
 }
-const gameLayoutIndex = mainSource.indexOf("import './styles/game-shell-layout.css';");
-const backdropStyleIndex = mainSource.indexOf("import './styles/financial-backdrop.css';");
-const glassIndex = mainSource.indexOf("import './styles/liquid-glass-surfaces.css';");
+const gameLayoutIndex = styleManifestSource.indexOf("url('./game-shell-layout.css')");
+const backdropStyleIndex = styleManifestSource.indexOf("url('./financial-backdrop.css')");
+const glassIndex = styleManifestSource.indexOf("url('./liquid-glass-surfaces.css')");
 if (!(gameLayoutIndex >= 0 && backdropStyleIndex > gameLayoutIndex && glassIndex > backdropStyleIndex)) {
-  failures.push('src/main.tsx 必须按 game-shell-layout.css → financial-backdrop.css → liquid-glass-surfaces.css 加载');
+  failures.push('src/styles/app.css 必须按 game-shell-layout.css → financial-backdrop.css → liquid-glass-surfaces.css 加载');
 }
 
 const finalStyleOrder = [
-  "import './styles/design-system.css';",
-  "import './styles/interaction-states.css';",
-  "import './styles/primary-surfaces.css';",
-  "import './styles/auth.css';",
-  "import './styles/registration-auth.css';",
-  "import './styles/form-controls.css';",
+  "url('./design-system.css')",
+  "url('./interaction-states.css')",
+  "url('./primary-surfaces.css')",
+  "url('./auth.css')",
+  "url('./registration-auth.css')",
+  "url('./form-controls.css')",
 ];
 for (let index = 0; index < finalStyleOrder.length; index += 1) {
-  const current = mainSource.indexOf(finalStyleOrder[index]);
+  const current = styleManifestSource.indexOf(finalStyleOrder[index]);
   if (current < 0) {
-    failures.push(`src/main.tsx 缺少最终样式入口: ${finalStyleOrder[index]}`);
+    failures.push(`src/styles/app.css 缺少最终样式入口: ${finalStyleOrder[index]}`);
     continue;
   }
   if (index > 0) {
-    const previous = mainSource.indexOf(finalStyleOrder[index - 1]);
-    if (previous >= current) failures.push(`src/main.tsx 样式顺序错误: ${finalStyleOrder[index - 1]} 必须早于 ${finalStyleOrder[index]}`);
+    const previous = styleManifestSource.indexOf(finalStyleOrder[index - 1]);
+    if (previous >= current) failures.push(`src/styles/app.css 样式顺序错误: ${finalStyleOrder[index - 1]} 必须早于 ${finalStyleOrder[index]}`);
   }
 }
 

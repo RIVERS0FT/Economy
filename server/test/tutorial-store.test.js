@@ -83,3 +83,57 @@ test('tutorial completion is idempotent and does not mutate world state', () => 
     store.close();
   }
 });
+
+test('tutorial hide and restart events are aggregated without changing world state', () => {
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  try {
+    const tutorialStore = createTutorialStore(store, 1_000);
+    store.getState(newUser, 2_000);
+    const revisionBefore = store.loadWorld(2_001).revision;
+    const context = { requestKey: 'tutorial-hidden-202', now: 3_000 };
+    const first = tutorialStore.recordEvent(
+      newUser.id,
+      CURRENT_TUTORIAL_VERSION,
+      'hidden',
+      context,
+    );
+    const repeated = tutorialStore.recordEvent(
+      newUser.id,
+      CURRENT_TUTORIAL_VERSION,
+      'hidden',
+      context,
+    );
+    tutorialStore.recordEvent(
+      newUser.id,
+      CURRENT_TUTORIAL_VERSION,
+      'restarted',
+      { requestKey: 'tutorial-restarted-202', now: 4_000 },
+    );
+    assert.deepEqual(repeated, first);
+    assert.equal(store.loadWorld(4_001).revision, revisionBefore);
+    const events = store.database.prepare(`
+      SELECT event_type, COUNT(*) AS count
+      FROM economy_tutorial_events
+      WHERE user_id = ?
+      GROUP BY event_type ORDER BY event_type
+    `).all(newUser.id).map((row) => ({
+      event_type: String(row.event_type),
+      count: Number(row.count),
+    }));
+    assert.deepEqual(events, [
+      { event_type: 'hidden', count: 1 },
+      { event_type: 'restarted', count: 1 },
+    ]);
+    assert.throws(
+      () => tutorialStore.recordEvent(
+        newUser.id,
+        CURRENT_TUTORIAL_VERSION,
+        'restarted',
+        context,
+      ),
+      (error) => error?.statusCode === 409,
+    );
+  } finally {
+    store.close();
+  }
+});

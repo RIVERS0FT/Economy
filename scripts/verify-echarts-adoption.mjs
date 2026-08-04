@@ -71,7 +71,7 @@ requireText('src/components/charts/AdminCharts.tsx', [
   '<EconomyChart', "type: 'bar'", "type: 'pie'", 'padAngle: PIE_PAD_ANGLE', 'PopulationBudgetChart', 'STABLE_TOOLTIP_EMPHASIS',
 ]);
 requireCount('src/components/charts/AdminCharts.tsx', 'emphasis: STABLE_TOOLTIP_EMPHASIS', 7);
-requireText('src/main.tsx', ["import './styles/charts.css';"]);
+requireText('src/styles/app.css', ["url('./charts.css')"]);
 requireText('tests/browser/chart-hover-visibility.spec.ts', [
   'data-echarts-css-colors-resolved', 'assertStableHover', 'economy-chart-tooltip', 'callback-color-chart',
 ]);

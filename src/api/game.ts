@@ -187,6 +187,16 @@ export async function completeTutorial(version: number): Promise<TutorialComplet
   });
 }
 
+export async function recordTutorialEvent(
+  eventType: 'hidden' | 'restarted',
+  version: number,
+): Promise<void> {
+  await request<{ result: GameActionResult }>('/tutorial/event', {
+    method: 'POST',
+    body: JSON.stringify({ eventType, version }),
+  });
+}
+
 export async function getGemShopSummary(): Promise<GemShopSummary> {
   const payload = await request<{ gemShop: GemShopSummary }>('/gem-shop', { method: 'GET' });
   return payload.gemShop;

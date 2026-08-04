@@ -147,11 +147,29 @@ export function OverviewPage({ model }: OverviewPageProps) {
   }, [buyOrderCount, derived.stoppedFacilities, game, now, ownOpenOrders.length, sellOrderCount, setTab]);
 
   const visibleAlerts = businessAlerts.slice(0, model.tutorial.isVisible ? 2 : 3);
-  const primaryAction = ownOpenOrders.length > 0
-    ? { label: '处理订单', onClick: () => setTab('market') }
-    : businessAlerts.some((alert) => alert.id !== 'open-orders')
-      ? { label: '查看经营提醒', onClick: () => setTab('production') }
-      : { label: '进入市场', onClick: () => setTab('market') };
+  const hasCompletedProduction = Number(game.stats.producedGoods || 0) > 0
+    || game.facilityGroups.some((group) => Number(group.lifetimeOutput || 0) > 0);
+  const hasCompletedSale = Number(game.stats.soldGoods || 0) > 0;
+  const hasExpandedBusiness = game.warehouseLevel > 1
+    || game.research.unlockedComplexity !== 'C1'
+    || totalFacilities > 1;
+  const primaryAction = model.tutorial.isVisible && model.tutorial.currentStep
+    ? { label: model.tutorial.currentStep.actionLabel, onClick: model.tutorial.openCurrentTarget }
+    : totalFacilities === 0 && !game.facilityConstruction
+      ? { label: '建设第一座工厂', onClick: () => setTab('production') }
+      : game.facilityConstruction
+        ? { label: '查看施工进度', onClick: () => setTab('production') }
+        : !hasCompletedProduction
+          ? { label: '启动并完成首次生产', onClick: () => setTab('production') }
+          : !hasCompletedSale
+            ? { label: '完成首次商品出售', onClick: () => setTab('market') }
+            : !hasExpandedBusiness
+              ? { label: '扩大经营', onClick: () => setTab('research') }
+              : ownOpenOrders.length > 0
+              ? { label: '处理订单', onClick: () => setTab('market') }
+              : businessAlerts.some((alert) => alert.id !== 'open-orders')
+                ? { label: '查看经营提醒', onClick: () => setTab('production') }
+                : { label: '进入市场', onClick: () => setTab('market') };
 
   const claimedCheckInDates = new Set(game.checkIn.claimedDateKeys);
   const claimCompletesWeek = game.checkIn.weeklyBonusEligible

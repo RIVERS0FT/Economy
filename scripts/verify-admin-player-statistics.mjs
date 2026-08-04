@@ -26,6 +26,15 @@ requireText('server/src/player-admin-statistics.js', [
   'configurePlayerAdminStatistics',
   'coverage_started_at',
   'world?.assetAuctions',
+  'economy_player_action_failures_daily',
+  'failureReasonCode',
+  'first_expansion_at',
+  'createCapacitySummary',
+  'transactionP95Ms',
+  'new_player_failure_count',
+  'NEW_PLAYER_FAILURE_WINDOW_MS',
+  'createTutorialSummary',
+  "completion_source = 'player'",
 ]);
 forbidText('server/src/player-admin-statistics.js', [
   'collectibleAuctions',
@@ -67,6 +76,10 @@ requireText('src/components/AdminPlayerStatistics.tsx', [
   '经营成长漏斗',
   '财富分布',
   '需要关注的玩家群体',
+  '失败动作',
+  '运行容量',
+  '基础教程行为',
+  '首 30 分钟',
   '只统计成功经济写操作',
 ]);
 requireText('src/components/AdminPlayerSection.tsx', [
@@ -99,6 +112,10 @@ requireText('server/test/player-admin-statistics.test.js', [
   'successful economic actions once',
   'assert.equal(activity.successful_action_count, 1)',
   'assert.equal(second.revision, statistics.revision)',
+  "row.reasonCode === 'cooldown'",
+  'statistics.capacity.transactionSamples > 0',
+  'cooldownFailure.newPlayerFailures',
+  'statistics.tutorial',
 ]);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '玩家运营统计固定归属“玩家”分区',
@@ -106,6 +123,9 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '精确日活动覆盖起点',
   '不得把统计结果用于扩张人口需求预算',
   'ECharts',
+  '失败动作与容量诊断',
+  '基础教程行为',
+  '首 30 分钟',
 ]);
 requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '`player-admin-statistics.js`',

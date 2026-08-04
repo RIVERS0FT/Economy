@@ -1,3 +1,5 @@
+import { statSync } from 'node:fs';
+import { performance } from 'node:perf_hooks';
 import { PRODUCT_CATALOG } from './domain.js';
 import { wealthAssetsFor } from './leaderboards.js';
 import { roundInternalMoney } from './money.js';
@@ -10,6 +12,7 @@ export const PLAYER_STATISTICS_RANGE_DAYS = Object.freeze({
 });
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const NEW_PLAYER_FAILURE_WINDOW_MS = 30 * 60 * 1000;
 const BEIJING_OFFSET_MS = 8 * 60 * 60 * 1000;
 const CONFIGURED = Symbol('player-admin-statistics-configured');
 const CONTRACT_ACTIONS = new Set([
@@ -58,6 +61,31 @@ function clampBps(value) {
 function ratioBps(numerator, denominator) {
   if (denominator <= 0) return 0;
   return clampBps(numerator / denominator * 10_000);
+}
+
+function boundedSample(samples, value, limit = 2_048) {
+  samples.push(Math.max(0, Math.round(Number(value) * 100) / 100));
+  if (samples.length > limit) samples.splice(0, samples.length - limit);
+}
+
+function failureReasonCode(message) {
+  const text = String(message || '').toLowerCase();
+  if (/资金|余额|credits|money/.test(text)) return 'funds';
+  if (/原料|库存不足|input/.test(text)) return 'input';
+  if (/仓库|容量|warehouse/.test(text)) return 'warehouse';
+  if (/研发|复杂度|research/.test(text)) return 'research';
+  if (/冷却|频繁|稍后|cooldown/.test(text)) return 'cooldown';
+  if (/冻结|抵押|托管|frozen|escrow/.test(text)) return 'frozen';
+  if (/上限|最多|limit/.test(text)) return 'limit';
+  if (/冲突|幂等|重复|conflict/.test(text)) return 'conflict';
+  if (/不可用|维护|连接|服务|unavailable/.test(text)) return 'unavailable';
+  if (/无效|必须|不能|格式|范围|invalid/.test(text)) return 'validation';
+  return 'other';
+}
+
+function fileSize(path) {
+  if (!path || path === ':memory:') return 0;
+  try { return Number(statSync(path).size || 0); } catch { return 0; }
 }
 
 function dayStart(timestamp) {
@@ -283,20 +311,59 @@ function configureSchema(store, now) {
       first_production_at INTEGER,
       first_trade_at INTEGER,
       first_contract_at INTEGER,
-      first_auction_at INTEGER
+      first_auction_at INTEGER,
+      first_expansion_at INTEGER
     ) STRICT;
+    CREATE TABLE IF NOT EXISTS economy_player_action_failures_daily (
+      day_key TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      reason_code TEXT NOT NULL,
+      failure_count INTEGER NOT NULL DEFAULT 0 CHECK (failure_count >= 0),
+      new_player_failure_count INTEGER NOT NULL DEFAULT 0 CHECK (new_player_failure_count >= 0),
+      last_failed_at INTEGER NOT NULL,
+      PRIMARY KEY (day_key, user_id, action, reason_code)
+    ) STRICT;
+    CREATE TABLE IF NOT EXISTS economy_player_action_failure_keys (
+      user_id INTEGER NOT NULL,
+      request_key TEXT NOT NULL,
+      failed_at INTEGER NOT NULL,
+      PRIMARY KEY (user_id, request_key)
+    ) STRICT;
+    CREATE INDEX IF NOT EXISTS idx_economy_player_failures_day
+      ON economy_player_action_failures_daily(day_key, action, reason_code);
     CREATE TABLE IF NOT EXISTS economy_player_statistics_meta (
       meta_key TEXT PRIMARY KEY,
       meta_value INTEGER NOT NULL
     ) STRICT;
   `);
+  const milestoneColumns = new Set(
+    store.database.prepare('PRAGMA table_info(economy_player_milestones)').all()
+      .map((column) => String(column.name)),
+  );
+  if (!milestoneColumns.has('first_expansion_at')) {
+    store.database.exec('ALTER TABLE economy_player_milestones ADD COLUMN first_expansion_at INTEGER');
+  }
+  const failureColumns = new Set(
+    store.database.prepare('PRAGMA table_info(economy_player_action_failures_daily)').all()
+      .map((column) => String(column.name)),
+  );
+  if (!failureColumns.has('new_player_failure_count')) {
+    store.database.exec(`
+      ALTER TABLE economy_player_action_failures_daily
+      ADD COLUMN new_player_failure_count INTEGER NOT NULL DEFAULT 0
+    `);
+  }
   store.database.prepare(`
     INSERT OR IGNORE INTO economy_player_statistics_meta (meta_key, meta_value)
     VALUES ('coverage_started_at', ?)
   `).run(now);
 
   return {
+    database: store.database,
     actionContext: null,
+    transactionSamples: [],
+    writeTransactionSamples: [],
     upsertAction: store.database.prepare(`
       INSERT INTO economy_player_activity_daily (
         day_key, user_id, successful_action_count, work_count, facility_action_count,
@@ -329,16 +396,34 @@ function configureSchema(store, now) {
     upsertMilestones: store.database.prepare(`
       INSERT INTO economy_player_milestones (
         user_id, first_economic_action_at, first_facility_at, first_production_at,
-        first_trade_at, first_contract_at, first_auction_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        first_trade_at, first_contract_at, first_auction_at, first_expansion_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         first_economic_action_at = COALESCE(first_economic_action_at, excluded.first_economic_action_at),
         first_facility_at = COALESCE(first_facility_at, excluded.first_facility_at),
         first_production_at = COALESCE(first_production_at, excluded.first_production_at),
         first_trade_at = COALESCE(first_trade_at, excluded.first_trade_at),
         first_contract_at = COALESCE(first_contract_at, excluded.first_contract_at),
-        first_auction_at = COALESCE(first_auction_at, excluded.first_auction_at)
+        first_auction_at = COALESCE(first_auction_at, excluded.first_auction_at),
+        first_expansion_at = COALESCE(first_expansion_at, excluded.first_expansion_at)
     `),
+    insertFailureKey: store.database.prepare(`
+      INSERT OR IGNORE INTO economy_player_action_failure_keys (user_id, request_key, failed_at)
+      VALUES (?, ?, ?)
+    `),
+    upsertFailure: store.database.prepare(`
+      INSERT INTO economy_player_action_failures_daily (
+        day_key, user_id, action, reason_code, failure_count,
+        new_player_failure_count, last_failed_at
+      ) VALUES (?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(day_key, user_id, action, reason_code) DO UPDATE SET
+        failure_count = failure_count + 1,
+        new_player_failure_count = new_player_failure_count + excluded.new_player_failure_count,
+        last_failed_at = MAX(last_failed_at, excluded.last_failed_at)
+    `),
+    deleteExpiredFailureKeys: store.database.prepare(
+      'DELETE FROM economy_player_action_failure_keys WHERE failed_at < ?',
+    ),
     coverageStartedAt: () => Number(store.database.prepare(`
       SELECT meta_value FROM economy_player_statistics_meta WHERE meta_key = 'coverage_started_at'
     `).get()?.meta_value || now),
@@ -367,6 +452,11 @@ function recordAction(state, context, beforeWorld, world, now) {
     now,
     now,
   );
+  const firstExpansionAt = context.action === 'startResearch'
+    || context.action === 'upgradeWarehouse'
+    || (context.action === 'buildFacility' && facilityCount(beforePlayer) > 0)
+    ? now
+    : null;
   state.upsertMilestones.run(
     userId,
     now,
@@ -375,6 +465,7 @@ function recordAction(state, context, beforeWorld, world, now) {
     null,
     CONTRACT_ACTIONS.has(context.action) ? now : null,
     AUCTION_ACTIONS.has(context.action) ? now : null,
+    firstExpansionAt,
   );
 }
 
@@ -403,6 +494,7 @@ function recordWorldDeltas(state, beforeWorld, world, now) {
         firstFacilityAt,
         firstProductionAt,
         firstTradeAt,
+        null,
         null,
         null,
       );
@@ -621,6 +713,121 @@ function attentionSummary({
   ];
 }
 
+
+function recordFailedAction(state, user, requestMeta, failedAt, message) {
+  try {
+    const requestKey = String(requestMeta?.requestKey || `${user?.id}:${requestMeta?.action}:${failedAt}`);
+    const inserted = state.insertFailureKey.run(Number(user.id), requestKey, failedAt);
+    if (Number(inserted.changes || 0) < 1) return;
+    const registeredAt = safeTimestamp(rowOrNull(state.database, `
+      SELECT registered_at FROM economy_registrations WHERE user_id = ?
+    `, Number(user.id))?.registered_at);
+    const newPlayerFailure = registeredAt > 0
+      && failedAt >= registeredAt
+      && failedAt - registeredAt <= NEW_PLAYER_FAILURE_WINDOW_MS
+      ? 1
+      : 0;
+    state.upsertFailure.run(
+      dayKey(failedAt),
+      Number(user.id),
+      String(requestMeta?.action || 'unknown'),
+      failureReasonCode(message),
+      newPlayerFailure,
+      failedAt,
+    );
+    state.deleteExpiredFailureKeys.run(failedAt - DAY_MS);
+  } catch {
+    // Read-only operational diagnostics must never change the result of a player action.
+  }
+}
+
+function createFailureSummary(database, range) {
+  return rowsOrEmpty(database, `
+    SELECT action, reason_code, SUM(failure_count) AS count,
+           COUNT(DISTINCT user_id) AS affected_players,
+           SUM(new_player_failure_count) AS new_player_failures,
+           COUNT(DISTINCT CASE WHEN new_player_failure_count > 0 THEN user_id END)
+             AS new_players_affected
+    FROM economy_player_action_failures_daily
+    WHERE day_key >= ? AND day_key <= ?
+    GROUP BY action, reason_code
+    ORDER BY count DESC, affected_players DESC, action, reason_code
+    LIMIT 30
+  `, dayKey(range.startsAt), dayKey(range.endsAt)).map((row) => ({
+    action: String(row.action),
+    reasonCode: String(row.reason_code),
+    count: safeNonNegativeInteger(row.count),
+    affectedPlayers: safeNonNegativeInteger(row.affected_players),
+    newPlayerFailures: safeNonNegativeInteger(row.new_player_failures),
+    newPlayersAffected: safeNonNegativeInteger(row.new_players_affected),
+  }));
+}
+
+function createTutorialSummary(database, range) {
+  const empty = { events: 0, players: 0 };
+  if (!tableExists(database, 'economy_tutorial_completions')) {
+    return { completed: empty, hidden: empty, restarted: empty };
+  }
+  const completionColumns = new Set(
+    database.prepare('PRAGMA table_info(economy_tutorial_completions)').all()
+      .map((column) => String(column.name)),
+  );
+  const completionSourceFilter = completionColumns.has('completion_source')
+    ? "AND completion_source = 'player'"
+    : 'AND 0 = 1';
+  const completedRow = rowOrNull(database, `
+    SELECT COUNT(*) AS events, COUNT(DISTINCT user_id) AS players
+    FROM economy_tutorial_completions
+    WHERE completed_at >= ? AND completed_at <= ? ${completionSourceFilter}
+  `, range.startsAt, range.endsAt);
+  const summary = {
+    completed: {
+      events: safeNonNegativeInteger(completedRow?.events),
+      players: safeNonNegativeInteger(completedRow?.players),
+    },
+    hidden: { ...empty },
+    restarted: { ...empty },
+  };
+  if (!tableExists(database, 'economy_tutorial_events')) return summary;
+  const rows = rowsOrEmpty(database, `
+    SELECT event_type, COUNT(*) AS events, COUNT(DISTINCT user_id) AS players
+    FROM economy_tutorial_events
+    WHERE created_at >= ? AND created_at <= ?
+    GROUP BY event_type
+  `, range.startsAt, range.endsAt);
+  for (const row of rows) {
+    const eventType = String(row.event_type);
+    if (eventType !== 'hidden' && eventType !== 'restarted') continue;
+    summary[eventType] = {
+      events: safeNonNegativeInteger(row.events),
+      players: safeNonNegativeInteger(row.players),
+    };
+  }
+  return summary;
+}
+
+function createCapacitySummary(store, state, world) {
+  const transactionSamples = [...state.transactionSamples].sort((left, right) => left - right);
+  const writeSamples = [...state.writeTransactionSamples].sort((left, right) => left - right);
+  const databasePath = String(store.databasePath || '');
+  return {
+    transactionSamples: transactionSamples.length,
+    transactionP50Ms: percentile(transactionSamples, 0.5),
+    transactionP95Ms: percentile(transactionSamples, 0.95),
+    transactionP99Ms: percentile(transactionSamples, 0.99),
+    transactionMaxMs: transactionSamples.at(-1) || 0,
+    writeTransactionP95Ms: percentile(writeSamples, 0.95),
+    worldJsonBytes: Buffer.byteLength(JSON.stringify(world), 'utf8'),
+    databaseBytes: fileSize(databasePath),
+    walBytes: fileSize(databasePath ? `${databasePath}-wal` : ''),
+    playerCount: Object.keys(world?.players || {}).length,
+    openOrderCount: (world?.orders || []).filter(isOpenOrder).length,
+    openContractCount: (world?.productionContracts || []).filter((item) => item?.status === 'open' || item?.status === 'active').length,
+    openAuctionCount: (world?.assetAuctions || []).filter((item) => item?.status === 'open').length,
+    scheduler: store.getSchedulerDiagnostics?.() || null,
+  };
+}
+
 function createStatisticsSummary(store, world, rangeKey, now) {
   const range = rangeFor(rangeKey, now);
   const coverageStartedAt = store[CONFIGURED].coverageStartedAt();
@@ -758,6 +965,13 @@ function createStatisticsSummary(store, world, rangeKey, now) {
       return safeTimestamp(milestonesByUser.get(userId)?.first_trade_at) > 0
         || currentMetrics.get(userId).tradeQuantity > 0;
     }).length,
+    expansion: players.filter((player) => {
+      const userId = Number(player.userId);
+      return safeTimestamp(milestonesByUser.get(userId)?.first_expansion_at) > 0
+        || String(player?.research?.unlockedComplexity || 'C1') !== 'C1'
+        || safeNonNegativeInteger(player?.warehouseLevel) > 1
+        || currentMetrics.get(userId).facilityCount > 1;
+    }).length,
   };
   const funnelStages = [
     { id: 'registered', label: '完成建档', count: stageCounts.registered, medianHours: 0 },
@@ -776,6 +990,10 @@ function createStatisticsSummary(store, world, rangeKey, now) {
     {
       id: 'first-trade', label: '完成首次订单簿成交', count: stageCounts.trade,
       medianHours: stageMedianHours(milestones, registrationsByUser, 'first_trade_at'),
+    },
+    {
+      id: 'first-expansion', label: '首次扩大经营', count: stageCounts.expansion,
+      medianHours: stageMedianHours(milestones, registrationsByUser, 'first_expansion_at'),
     },
   ].map((stage, index, stages) => ({
     ...stage,
@@ -847,8 +1065,11 @@ function createStatisticsSummary(store, world, rangeKey, now) {
     },
     retention,
     funnel: { stages: funnelStages, retained7d: retention.d7 },
+    tutorial: createTutorialSummary(store.database, range),
     participation,
     wealth: publicWealth,
+    failures: createFailureSummary(store.database, range),
+    capacity: createCapacitySummary(store, store[CONFIGURED], world),
     attention,
     series,
   };
@@ -858,6 +1079,18 @@ export function configurePlayerAdminStatistics(store, now = Date.now()) {
   if (store[CONFIGURED]) return store;
   const state = configureSchema(store, now);
   Object.defineProperty(store, CONFIGURED, { value: state, enumerable: false });
+
+  const originalTransaction = store.transaction.bind(store);
+  store.transaction = (callback, options = {}) => {
+    const startedAt = performance.now();
+    try {
+      return originalTransaction(callback, options);
+    } finally {
+      const durationMs = performance.now() - startedAt;
+      boundedSample(state.transactionSamples, durationMs);
+      if (options.immediate !== false) boundedSample(state.writeTransactionSamples, durationMs);
+    }
+  };
 
   const originalSaveWorld = store.saveWorld.bind(store);
   store.saveWorld = (revision, world, savedAt) => {
@@ -889,7 +1122,14 @@ export function configurePlayerAdminStatistics(store, now = Date.now()) {
       now: Number(appliedAt),
     };
     try {
-      return originalApply(user, requestMeta, appliedAt);
+      const response = originalApply(user, requestMeta, appliedAt);
+      if (response?.result?.ok !== true) {
+        recordFailedAction(state, user, requestMeta, appliedAt, response?.result?.message);
+      }
+      return response;
+    } catch (error) {
+      recordFailedAction(state, user, requestMeta, appliedAt, error?.message);
+      throw error;
     } finally {
       state.actionContext = previousContext;
     }

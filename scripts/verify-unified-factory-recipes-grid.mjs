@@ -389,15 +389,15 @@ for (const forbidden of [
 ])
   assert.equal(sheetCss.includes(forbidden), false, `移动工厂详情样式不应包含: ${forbidden}`);
 
-const main = read('src/main.tsx');
+const main = read('src/styles/app.css');
 assert.equal(
-  main.includes("import './styles/facility-detail-sheet.css';"),
+  main.includes("url('./facility-detail-sheet.css')"),
   true,
   '入口必须在旧工厂卡样式后加载移动详情样式',
 );
 assert.equal(
-  main.indexOf("import './styles/facility-detail-sheet.css';") >
-    main.indexOf("import './styles/facility-group-card-grid.css';"),
+  main.indexOf("url('./facility-detail-sheet.css')") >
+    main.indexOf("url('./facility-group-card-grid.css')"),
   true,
   '移动详情样式必须晚于基础工厂卡样式加载',
 );

@@ -59,6 +59,7 @@ const files = {
   mobileBrowser: 'tests/browser/mobile-workspace-overlay.spec.ts',
   navigationBrowser: 'tests/browser/mobile-navigation-scrollbar.spec.ts',
   main: 'src/main.tsx',
+  styleManifest: 'src/styles/app.css',
   package: 'package.json',
 };
 
@@ -304,12 +305,12 @@ if (failures.length === 0) {
     forbidText(files.authStyles, text);
   }
 
-  requireOrder(files.main, [
-    "import './styles/viewport.css'",
-    "import './styles/scrollbars.css'",
-    "import './styles/game-shell-layout.css'",
-    "import './styles/financial-backdrop.css'",
-    "import './styles/liquid-glass-surfaces.css'",
+  requireOrder(files.styleManifest, [
+    "url('./viewport.css')",
+    "url('./scrollbars.css')",
+    "url('./game-shell-layout.css')",
+    "url('./financial-backdrop.css')",
+    "url('./liquid-glass-surfaces.css')",
   ]);
   requireOrder(files.compatibility, [
     "@import './performance.css';",

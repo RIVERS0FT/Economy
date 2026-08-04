@@ -288,11 +288,11 @@ forbidText(
 );
 forbidText('src/styles/facility-production-formula.css', '.facility-group-card {');
 
-const mainSource = read('src/main.tsx');
-requireText('src/main.tsx', "import './styles/facility-production-formula.css';");
+const mainSource = read('src/styles/app.css');
+requireText('src/styles/app.css', "url('./facility-production-formula.css')");
 if (
-  mainSource.indexOf("import './styles/facility-production-formula.css';")
-  <= mainSource.indexOf("import './styles/facility-group-card-grid.css';")
+  mainSource.indexOf("url('./facility-production-formula.css')")
+  <= mainSource.indexOf("url('./facility-group-card-grid.css')")
 ) failures.push('生产结算样式必须晚于工厂详情基础样式加载');
 
 for (const forbidden of [

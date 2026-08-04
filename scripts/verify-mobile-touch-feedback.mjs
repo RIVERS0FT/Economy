@@ -15,7 +15,7 @@ const forbidText = (path, text) => {
 };
 
 const stylePath = 'src/styles/mobile-interaction.css';
-const mainPath = 'src/main.tsx';
+const mainPath = 'src/styles/app.css';
 const designSystemPath = 'src/styles/design-system.css';
 const docsPath = 'docs/README.md';
 const chartDocsPath = 'docs/MARKET_CHART_LAYOUT_DESIGN.md';
@@ -54,12 +54,12 @@ for (const forbidden of [
   'box-shadow: none',
 ]) forbidText(stylePath, forbidden);
 
-requireText(mainPath, "import './styles/mobile-interaction.css'");
+requireText(mainPath, "url('./mobile-interaction.css')");
 const main = read(mainPath);
-const interactionIndex = main.indexOf("import './styles/mobile-interaction.css'");
-const designIndex = main.indexOf("import './styles/design-system.css'");
-if (interactionIndex < 0 || designIndex < 0 || interactionIndex > designIndex) {
-  failures.push('mobile-interaction.css 必须在 design-system.css 之前加载');
+const interactionIndex = main.indexOf("url('./mobile-interaction.css')");
+const designIndex = main.indexOf("url('./design-system.css')");
+if (interactionIndex < 0 || designIndex < 0 || interactionIndex < designIndex) {
+  failures.push('mobile-interaction.css 必须在 design-system.css 之后加载');
 }
 
 for (const text of [

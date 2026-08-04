@@ -23,6 +23,7 @@
 
 | 文件 | 唯一职责 |
 |---|---|
+| `src/styles/app.css` | 唯一运行时样式清单和 Cascade Layers 顺序；集中导入基础、页面、组件、交互和最终覆盖样式 |
 | `src/styles/design-system.css` | 设计令牌、页面一级内容栈、按钮、面板、状态、表格、开关和通用焦点视觉 |
 | `src/styles/interaction-states.css` | 最近输入方式驱动的共享 hover、active、程序化焦点与键盘焦点视觉 |
 | `src/styles/primary-surfaces.css` | 玩家端一级卡片外层内边距令牌、最终选择器、移动断点与旧一级卡片类兼容入口 |
@@ -52,7 +53,7 @@
 | `src/styles/virtual-list.css` | 共享窗口化列表、虚拟表格行、滚动视口和管理员高增长记录布局 |
 | `src/styles/mobile-*.css` | 移动导航、安全区和页面布局 |
 
-业务页面样式先加载，`design-system.css` 在页面样式之后收束页面一级区块间距和共享基础视觉，`interaction-states.css` 随后根据最近输入方式收束共享交互状态，`primary-surfaces.css` 再收束玩家端一级卡片外层几何，`form-controls.css` 最后加载并只负责表单控件。页面样式不得重新实现页面一级区块间距、按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标、hover、active 或焦点的基础外观。
+运行时只允许 `src/main.tsx` 导入 `src/styles/app.css`。该清单固定声明 `reset → foundations → pages → components → interactions → overrides` 六层 Cascade Layers，并按原有职责导入全部正式样式；业务组件和页面不得再直接导入 CSS，避免懒加载顺序改变级联结果。`design-system.css` 位于 `components` 层，`interaction-states.css` 位于 `interactions` 层，`primary-surfaces.css`、认证收束和表单最终规则位于 `overrides` 层。页面样式不得重新实现页面一级区块间距、按钮、输入、面板、一级卡片外层内边距、状态标签、开关、表格、图标、hover、active 或焦点的基础外观。
 
 ## 3. 共享 React 组件
 
@@ -94,7 +95,12 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 `src/components/ui/FormControls.tsx` 是文本、整数、原生纯文字选择器、文本域、文件与组合输入的唯一 React 包装层；紧凑表格行内输入可以直接使用原生控件，但必须带 `.ui-control` 并遵守相同解析和状态规则。需要在收起状态和选项中显示商品图片或语义 Icon 时，必须使用共享 `RichSelectInput`，不得由业务页面自行实现下拉弹层。`RichSelectInput` 的触发器、深色列表、选项高度、圆角、悬停、选中、禁用、键盘导航、焦点返回和工作区安全浮层定位统一由 `form-controls.css` 与组件实现；生产产物使用 `ProductArtwork`，作业制度使用统一功能 Icon，不得手写 `<svg>`、`<path>`、Emoji、字符或字体图标。 移动工厂详情中的生产产物与作业制度必须在同一行双列显示，作业制度说明不得显示；根级 Dialog 内的 `RichSelectInput` 列表必须复用该 Dialog 根作为安全定位边界并位于详情遮罩之上。
 
+
+高级页面渐进说明固定使用共享 `AdvancedFeatureGuide`。玩家尚未完成首次生产或首次交易时，研发、银行、合同和拍卖在首个正式业务区块之前说明适用时机；说明只读、可自动消失，不得隐藏导航、禁用页面或复制完整教程。
+
 管理员入口、游戏入口和十个游戏页面必须使用 `React.lazy` 与动态 `import()` 按需加载；登录页不得静态拉入管理员和全部游戏页面。根游戏模型不得维护每秒变化的时间状态，倒计时只在概览、生产、拍卖、合同和银行等实际需要的局部页面通过共享 `useNow` 维护，市场订单簿、导航和银行资产总览等静态区域不得被全局秒级时钟重渲染。
+
+`src/app/gameViewModel.ts` 只作为页面模型门面：服务器修订号、增量刷新、动作／轮询互斥和权威状态补拉唯一归属 `useAuthoritativeGameState.ts`；净资产、运行工厂等纯派生数据唯一归属 `gameDerivedData.ts`；玩家可见状态名称唯一归属 `gameViewModelLabels.ts`。市场草稿、生产选择、通知和本地偏好可以由门面组合，但不得把修订门、刷新任务或派生计算重新复制回单个大型 Hook。
 
 `SwitchControl` 是布尔开关的唯一 React 基础组件，`.ui-switch` 是唯一视觉实现。不得新增工厂开关、音乐开关或设置开关的平行 CSS。
 
@@ -618,3 +624,7 @@ Playwright 必须验证 `1684×931`、`1280×900` 和 `900×1000` 下的真实�
 - 面板支持外部点击、`Escape` 和关闭按钮，关闭后焦点返回通知入口；入口使用 `aria-expanded`／`aria-controls`，面板使用命名 `dialog`，删除按钮必须包含具体通知标题的可访问名称。
 - `prefers-reduced-motion` 下关闭 Toast 位移动画；颜色不得作为待处理严重程度、未读状态或操作结果的唯一表达。
 - 待处理派生必须容忍浏览器夹具、迁移中状态或分区尚未送达造成的局部字段缺失；缺失领域不得阻断登录后外壳，只能不生成对应提醒，不得伪造提醒。
+
+## 12. 浏览器发布矩阵
+
+正式浏览器回归由桌面 Chromium 全量测试、移动 Chromium 关键路径和 Mobile WebKit 关键路径组成。移动关键路径至少覆盖登录外壳、底部导航、生产页工厂详情 Bottom Sheet、共享富下拉、市场入口、滚动锁定、焦点恢复与安全区。CI 和正式部署必须安装 Chromium 与 WebKit；不得恢复仅 Chromium 的发布门槛。

@@ -11,6 +11,7 @@ import {
 } from '../auctions/types';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
 import { ProductIcon } from '../components/icons/ProductIcons';
+import { AdvancedFeatureGuide } from '../components/onboarding/AdvancedFeatureGuide';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
@@ -19,7 +20,6 @@ import { useNow } from '../hooks/useNow';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
 import { parseIntegerDraft } from '../utils/integerDraft';
 import { parseMoneyDraft } from '../utils/moneyDraft';
-import '../styles/auction-card-layers.css';
 
 const MAX_AUCTION_ITEMS = 20;
 const LISTING_FEE_RATE = 0.002;
@@ -453,6 +453,12 @@ export function AuctionPage({ model }: { model: LoadedGameViewModel }) {
       title="拍卖"
       description="商品和工厂可组成不可拆分资产包公开竞价。卖方资产、最高出价资金和发布费均由服务器托管；竞买身份匿名。"
     >
+      <AdvancedFeatureGuide
+        game={model.game}
+        title="积累可转让资产"
+        description="拍卖适合整体出售或竞买商品与工厂资产包。"
+        recommendedAfter="完成首次交易并拥有可转让资产"
+      />
       <div className="asset-auction-workspace">
         <div className="asset-auction-create-column">
           <Panel className="widget asset-auction-create">

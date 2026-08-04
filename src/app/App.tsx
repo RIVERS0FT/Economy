@@ -10,7 +10,6 @@ import type { AuthUser } from '../types';
 import { LoginPage } from './LoginPage';
 const AdminApp = lazy(() => import('./AdminApp').then((module) => ({ default: module.AdminApp })));
 const GameApp = lazy(() => import('./GameApp').then((module) => ({ default: module.GameApp })));
-import '../styles/invitations.css';
 
 type AppSurface = 'loading' | 'auth' | 'game' | 'admin' | 'banned';
 

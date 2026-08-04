@@ -45,7 +45,7 @@ const sharedGeneratorPath = 'scripts/artwork-thumbnails.mjs';
 const packagePath = 'package.json';
 const gitignorePath = '.gitignore';
 const uiDesignPath = 'docs/UI_DESIGN_SYSTEM.md';
-const mainPath = 'src/main.tsx';
+const mainPath = 'src/styles/app.css';
 const productIconsPath = 'src/components/icons/ProductIcons.tsx';
 const productArtworkPath = 'src/components/products/ProductArtwork.tsx';
 const richSelectPath = 'src/components/ui/RichSelectInput.tsx';
@@ -188,9 +188,9 @@ if (failures.length === 0) {
     if (!uiDesign.includes(required)) failures.push(`${uiDesignPath} 缺少运行时缩略图规则: ${required}`);
   }
 
-  const artworkImport = "import './styles/product-artwork.css';";
+  const artworkImport = "url('./product-artwork.css')";
   if (!main.includes(artworkImport)) failures.push(`${mainPath} 未加载商品图片样式`);
-  if (main.indexOf(artworkImport) > main.indexOf("import './styles/design-system.css';")) {
+  if (main.indexOf(artworkImport) > main.indexOf("url('./design-system.css')")) {
     failures.push('product-artwork.css 必须在 design-system.css 前加载');
   }
 
