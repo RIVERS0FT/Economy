@@ -105,6 +105,38 @@ test('commodity and facility books share the catalog-sized unfinished order limi
   assert.deepEqual(facilityResult, { ok: false, message: '未完成订单数量已达上限' });
 });
 
+test('commodity and facility orders share the cent tick without a fixed business price cap', () => {
+  const world = createWorld(now);
+  const commoditySeller = ensurePlayer(world, alice, now);
+  const facilitySeller = ensurePlayer(world, bob, now);
+  commoditySeller.inventories.wheat.available = 2;
+  facilitySeller.facilityGroups = [stoppedGroup('farm', 2)];
+  migrateFacilityGroupWorld(world, now);
+
+  const uncappedPrice = 1_000_000.01;
+  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: uncappedPrice,
+  }, now + 1).ok, true);
+  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: uncappedPrice,
+  }, now + 2).ok, true);
+  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: 0.01,
+  }, now + 3).ok, true);
+  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: 0.01,
+  }, now + 4).ok, true);
+
+  assert.equal(world.orders.find((order) => order.ownerId === alice.id && order.price === uncappedPrice)?.price, uncappedPrice);
+  assert.equal(world.orders.find((order) => order.ownerId === bob.id && order.price === uncappedPrice)?.price, uncappedPrice);
+  assert.deepEqual(applyFacilityGroupAction(world, alice, 'placeOrder', {
+    assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: 0.001,
+  }, now + 5), { ok: false, message: '订单参数无效' });
+  assert.deepEqual(applyFacilityGroupAction(world, bob, 'placeOrder', {
+    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: 0.001,
+  }, now + 6), { ok: false, message: '工厂订单参数无效' });
+});
+
 test('orders reject notionals outside the representable money range', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);

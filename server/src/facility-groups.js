@@ -16,12 +16,11 @@ import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
 import { weeklySettlementLiability } from './weekly-cash-settlement.js';
 import { ensureGemState } from './invitations.js';
-import { calculateRateMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
+import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
 
 const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
 const MAX_CYCLES_PER_GROUP = 50_000;
 const MAX_FACILITY_AUCTION_QUANTITY = 1_000_000;
-const MAX_ORDER_PRICE = 1_000_000;
 const MAX_PRICE_POINTS = 288;
 export const FACILITY_STAFFING_FULL_BPS = 10_000;
 export const FACILITY_STAFFING_RECOVERY_MS = 10 * 60 * 1000;
@@ -1112,14 +1111,11 @@ function placeFacilityOrder(world, userId, payload, now) {
   const typeId = String(payload.assetId || payload.facilityTypeId || '');
   const type = typeFor(typeId);
   const quantity = normalizePositiveInteger(payload.quantity, ECONOMY_CONSTANTS.maxOrderQuantity);
-  const price = normalizePositiveInteger(payload.price ?? payload.unitPrice, MAX_ORDER_PRICE);
+  const price = normalizePlayerMoneyInput(payload.price ?? payload.unitPrice, { min: 0.01 });
   if (!side || !type || !quantity || !price) return result(false, '工厂订单参数无效');
   const total = multiplyMoneyByInteger(price, quantity);
   if (total === null) return result(false, '工厂订单总额超出系统可表示范围');
   if (countOpenOrdersForOwner(world, userId) >= ECONOMY_CONSTANTS.maxOpenOrders) return result(false, '未完成订单数量已达上限');
-  if (price < Math.ceil(type.systemValue * 0.5) || price > type.systemValue * 2) {
-    return result(false, '工厂订单价格必须在系统参考价的 50%～200% 之间');
-  }
   if (findSelfCrossingOrder(world, {
     ownerId: userId,
     assetKind: 'facility',

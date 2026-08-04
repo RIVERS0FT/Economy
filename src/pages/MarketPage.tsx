@@ -103,7 +103,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const marketBuckets = buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now);
   const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
-  const parsedOrderPrice = parseMoneyDraft(priceDraft, { min: 0.01, max: 1_000_000 });
+  const parsedOrderPrice = parseMoneyDraft(priceDraft, { min: 0.01, max: economyConstants.maxOrderPrice });
   const effectiveOrderPrice = parsedOrderPrice ?? 0;
   const maxBuyByFunds = effectiveOrderPrice > 0
     ? Math.max(0, Math.floor(game.credits / effectiveOrderPrice))
@@ -127,7 +127,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   const priceStepBase = parsedOrderPrice ?? orderPrice;
   const quantityStepBase = parsedOrderQuantity ?? orderQuantity;
   const canDecreasePrice = priceStepBase > 0.01;
-  const canIncreasePrice = priceStepBase < 1_000_000;
+  const canIncreasePrice = priceStepBase < economyConstants.maxOrderPrice;
   const canDecreaseQuantity = maxTradeQuantity >= 1 && quantityStepBase > 1;
   const canIncreaseQuantity = maxTradeQuantity >= 1 && quantityStepBase < maxTradeQuantity;
   const availableAssetLabel = marketAssetKind === 'commodity' ? `可用${assetName}` : '可出售';
@@ -197,7 +197,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
 
   function updatePriceDraft(value: string) {
     setPriceDraft(value);
-    const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000 });
+    const parsed = parseMoneyDraft(value, { min: 0.01, max: economyConstants.maxOrderPrice });
     if (parsed !== null) setOrderPrice(parsed);
   }
 
@@ -208,7 +208,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
   }
 
   function setPriceValue(value: number) {
-    const normalized = Math.min(1_000_000, Math.max(0.01, Math.round(value * 100) / 100));
+    const normalized = Math.min(economyConstants.maxOrderPrice, Math.max(0.01, Math.round(value * 100) / 100));
     setOrderPrice(normalized);
     setPriceDraft(normalized.toFixed(2));
   }
@@ -435,7 +435,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
                       value={priceDraft}
                       fallbackValue={orderPrice}
                       min={0.01}
-                      max={1_000_000}
+                      max={economyConstants.maxOrderPrice}
                       wheelStep={0.01}
                       aria-invalid={Boolean(priceReason)}
                       aria-describedby={priceReason ? 'market-order-price-error' : undefined}
