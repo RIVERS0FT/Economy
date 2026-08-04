@@ -20,6 +20,7 @@ const paths = {
   mobileStyle: 'src/styles/mobile-status-layout.css',
   design: 'docs/LIQUID_GLASS_CHROME_DESIGN.md',
   browserSpec: 'tests/browser/mobile-status-value-fit.spec.ts',
+  runtimeHarness: 'runtime-test.html',
   package: 'package.json',
 };
 Object.values(paths).forEach(requireFile);
@@ -40,6 +41,10 @@ if (failures.length === 0) {
     'font-size: var(--mobile-status-value-font-size, clamp(.7rem, 3.45vw, .95rem));',
     'text-overflow: clip;',
     'white-space: nowrap;',
+    '@media (max-width: 340px)',
+    'gap: .05rem;',
+    'width: .7rem;',
+    'height: .7rem;',
   ]);
   forbidText(paths.mobileStyle, 'text-overflow: ellipsis');
   requireAll(paths.design, [
@@ -53,6 +58,10 @@ if (failures.length === 0) {
     'const mobileWidths = [430, 390, 375, 360, 320];',
     "dataset.statusValueFitted",
     "textOverflow",
+  ]);
+  requireAll(paths.runtimeHarness, [
+    '/src/styles/mobile-pages.css',
+    '/src/styles/notification-center.css',
   ]);
   requireAll(paths.package, [
     '"verify:mobile-status-value-fit": "node scripts/verify-mobile-status-value-fit.mjs"',

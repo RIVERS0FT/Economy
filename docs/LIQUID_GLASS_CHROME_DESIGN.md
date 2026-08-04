@@ -55,7 +55,7 @@
 | `mobileFacilityPullRefresh.ts` | 仅对已打开的移动工厂详情识别顶部向下关闭手势，并在该手势激活后局部取消浏览器默认纵向过度滚动 |
 | `admin-navigation.css` | 管理员桌面工作栏内容布局与运营业务编排，不得定义第二套根外壳 |
 | `mobile-status-navigation.css` | 移动导航唯一原生横向滚动视口、原生轨道隐藏、按钮几何和内部焦点环 |
-| `mobile-status-layout.css` | 移动状态栏固定五列、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略、关闭态 Toast 定位及其点击恢复 |
+| `mobile-status-layout.css` | 移动状态栏固定五列、内容轨道零纵向内边距、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略、关闭态 Toast 定位及其点击恢复 |
 | `notification-center.css` | 状态栏独立通知工具轨道、桌面／移动面板几何、待处理与普通通知视觉、关闭态 Toast 队列和响应式交互 |
 | `verify-notification-center.mjs` | 二十条上限、待处理稳定键、打开态抑制、清除与删除边界、单一工作区 Portal、移动局部层级边界、真实命中回归、无新增玻璃和文档规则防回退 |
 | `notification-center.spec.ts` | 桌面工作区右上角、移动状态栏下方安全区、固定五列、极端页面层级下的真实命中、单玻璃实例与可点击关闭态 Toast 浏览器几何回归 |
@@ -76,6 +76,7 @@
 | `application-photography.spec.ts` | 账号检查到认证的同一图片 DOM 节点、管理员桌面／移动、封禁、无权限和摄影加载失败回退 |
 | `persistent-backdrop-harness.tsx` | 浏览器页面在业务 harness 之外挂载唯一根级 `FinancialBackdrop` |
 | `mobile-status-value-fit.spec.ts` | 在 `430px` 至 `320px` 真实浏览器宽度验证长数字逐项缩小、短数字保持默认字号、数值更新后恢复和零省略号 |
+| `mobile-status-vertical-inset.spec.ts` | 在 `430px` 至 `320px` 真实浏览器宽度验证状态内容轨道零纵向内边距、状态项与通知轨道完整占满状态栏高度 |
 | `game-shell-layout.spec.ts` | 玩家普通、窄宽和矮高桌面的统一沟槽、卡片间距、工作栏／侧栏外距、页面边缘和贴边滚动条几何回归 |
 | `admin-runtime.spec.ts` | 管理员共享沟槽、桌面玻璃工作栏、满宽页面框、贴边滚动条、业务双栏与移动 Overlay 回归 |
 | `mobile-workspace-overlay.spec.ts` | 移动安全边缘轨道和内容宽度验证 |
@@ -161,8 +162,8 @@
 - 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须被 `.mobile-page-overlay` 的零层级堆叠边界收口，不能覆盖工作区浮层或逃逸到 Chrome Overlay 之上；新增普通面板必须继续 Portal 到 `.workspace-floating-layer`，不得在业务样式中使用更大的全局层级补丁；
 - Chrome Overlay 使用 `pointer-events: none`，只有状态栏、底栏和实际显示的关闭态 Toast 恢复交互；通知面板位于工作区浮层，不得借用 Chrome Overlay；
 - 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
-- 玩家 `.asset-bar` 直接包含唯一 `LiquidGlassSurface`；不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
-- `.asset-bar-content` 固定五列布局使用 `repeat(5, minmax(0, 1fr))`，不得通过横向滚动解决空间不足；
+- 玩家 `.asset-bar` 直接包含唯一 `LiquidGlassSurface`；不得用水平 padding 缩窄实际玻璃，状态项水平留白只能放入 `.asset-bar-content`；移动端该层上下 `padding` 必须为 `0`；
+- `.asset-bar-content` 固定五列布局使用 `repeat(5, minmax(0, 1fr))`，不得通过横向滚动解决空间不足；其内容轨道与 `.asset-bar-layout` 上下边缘必须共线；
 - `.page-scroll` 左右 padding 必须为 `0`；管理员 `.admin-page-scroll` 因不渲染移动顶部状态栏，只保留安全区顶部 inset 和底栏避让；
 - 玩家通知按钮固定为同一状态栏玻璃内容层最右侧独立工具位；五项经济状态仍由 `.asset-bar-content` 固定五列承载，通知按钮不得成为第六个等宽状态项。
 - 移动通知面板必须 Portal 到 `SignedInShell` 现有 `.workspace-floating-layer`，顶部从 `48px` 状态栏下方开始，底部止于 `68px` 移动导航上方；面板不得进入 `.mobile-chrome-overlay`、`.page-scroll`、根级 Dialog 层或 `document.body`，也不得新增液态玻璃实例。
@@ -232,7 +233,8 @@
 ### 8.1 顶部状态栏固定内容规则
 
 - 玩家状态栏 DOM 固定为 `header.asset-bar → LiquidGlassSurface → .liquid-glass-surface__content → .asset-bar-layout → (.asset-bar-content → 五个状态项) + (.asset-bar-action → 唯一通知按钮)`；状态栏范围内不得出现 `.ui-scroll-area`、`.ui-scroll-area__viewport`、`.ui-scrollbar`、`.asset-bar-scroll-area` 或 `.asset-bar-scroll-track`；
-- `.asset-bar-content` 继续固定五列，`.asset-bar-action` 使用桌面 `56px`、紧凑桌面 `48px`、移动 `40px` 的独立轨道；玻璃宽度始终等于宿主可视宽度，状态内容和通知工具位都不得扩大玻璃最小宽度；
+- `.asset-bar-content` 继续固定五列，`.asset-bar-action` 使用桌面 `56px`、紧凑桌面 `48px`、移动 `48px` 的独立轨道；玻璃宽度始终等于宿主可视宽度，状态内容和通知工具位都不得扩大玻璃最小宽度；
+- 移动 `.asset-bar-content` 固定使用 `padding: 0 .4rem`，只允许水平留白；其顶部和底部必须与 `.asset-bar-layout` 共线，五个 `.asset-bar-item` 与通知工具轨道都必须完整占满状态栏高度，不得恢复顶部或底部内部 gap；
 - `.asset-bar-item-value` 必须使用 `text-overflow: clip`，不得继承全局 `strong` 的 `ellipsis`；主数值通过 `--mobile-status-value-font-size` 接收逐项计算后的字号，不得统一缩小整条状态栏；
 - 数值测量只能复用一个 `ResizeObserver`，并由同一个 `requestAnimationFrame` 合并宽度、方向、字体和 React 数值更新后的重算；不得为五个状态项分别创建观察器、轮询器或滚动监听；
 - 顶部状态栏不得创建 `::after` 结构描边；圆角边缘只由官方双层高光与 `.glass` 默认阴影表达。
@@ -261,7 +263,7 @@
 5. 游戏和管理员桌面外壳覆盖整个视口；普通桌面统一沟槽为 `12px`，窄宽或矮高桌面为 `8px`；页面主滚动条轨道和滑块右边缘均为 `0px`。
 6. 管理员桌面工作栏使用一个 `desktopStatusBar` 玻璃实例，页面标题不重复显示，内容右边缘与工作栏共线，页面框不居中限宽。
 7. 桌面导航按钮从顶部按固有高度排列；桌面工作栏、桌面认证卡和桌面一级卡片均为 `24px`。
-8. 移动状态栏、一级卡片和底栏实际玻璃左右共线；移动状态栏固定 `48px`，底栏固定 `68px`；移动 Chrome 与移动认证卡圆角均为 `40px`。
+8. 移动状态栏、一级卡片和底栏实际玻璃左右共线；移动状态栏固定 `48px`，底栏固定 `68px`；移动 Chrome 与移动认证卡圆角均为 `40px`。移动 `.asset-bar-content` 的上下计算内边距必须为 `0px`，顶部和底部与 `.asset-bar-layout` 的误差不得超过 `1px`，五个状态项和通知工具轨道必须完整占满状态栏高度。
 9. 状态栏、管理员工作栏、移动底栏和认证卡片统一传入 `70 / 0 / 140 / 2`、弹性 `0` 与 `overLight=false`，浏览器统一计算为 `blur(4px) saturate(140%)`、首个位移 scale 为 `70`；两个辅助黑色层不可见，两个官方直属高光可见，第三方 `.glass` 默认阴影存在。
 10. 根级采样容器计算 `isolation` 为 `isolate`；桌面玩家、桌面管理员、移动玩家和移动管理员的 `.application-content-root`、登录后外壳、`.workspace`、两层 Overlay、`.page-scroll-area` 与 `.page-scroll` 均为 `isolation:auto`、`filter:none`、`transform:none`。玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
 11. 桌面 `.page-scroll` 计算 `z-index` 为 `0`，桌面 `.asset-bar` 为 `auto`，页面内部 `z-index:1/2` 的商品图片和数据层不得覆盖状态栏；移动 `.signed-in-shell__body` 与 `.mobile-page-overlay` 计算 `z-index` 为 `0`，`.workspace-floating-layer` 为 `1`，`.workspace`、`.page-scroll`、`.asset-bar` 和移动底栏宿主均为 `auto`，状态栏和底栏不得创建正层级合成上下文。

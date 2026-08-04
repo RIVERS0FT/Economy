@@ -39,7 +39,7 @@
     grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: center;
     gap: 0;
-    padding: .25rem .4rem;
+    padding: 0 .4rem;
     overflow: visible;
   }
 
@@ -122,5 +122,17 @@
 
   .mobile-notice-region .notification-toast {
     pointer-events: auto;
+  }
+}
+
+@media (max-width: 340px) {
+  .asset-bar-item,
+  .asset-bar-item:last-child {
+    gap: .05rem;
+  }
+
+  .asset-bar-item-icon {
+    width: .7rem;
+    height: .7rem;
   }
 }
