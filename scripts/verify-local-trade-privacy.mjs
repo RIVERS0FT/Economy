@@ -11,6 +11,9 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
 
 [
   'server/src/facility-groups.js',
+  'server/src/app.js',
+  'server/src/runtime-store.js',
+  'server/test/order-history.test.js',
   'src/types.ts',
   'src/app/gameViewModel.ts',
   'src/utils/localActivityStore.ts',
@@ -36,8 +39,26 @@ for (const text of [
   'normalized.fills.map(publicOrderFill)',
   'else delete normalized.fills',
   'version: CURRENT_CLIENT_STATE_VERSION',
+  'CLIENT_RECENT_CLOSED_ORDER_LIMIT = ECONOMY_CONSTANTS.maxOpenOrders',
+  'closedOrdersForOwner(world, userId)',
+  'createOrderHistoryPage',
+  'isOpenOrder(order) || recentClosedIds.has',
 ]) requireText('server/src/facility-groups.js', text);
 
+
+for (const text of [
+  "path === '/api/game/orders/history'",
+  'store.listOrderHistory(user',
+]) requireText('server/src/app.js', text);
+for (const text of [
+  'listOrderHistory(user, options = {}',
+  'createOrderHistoryPage(this.worldCache.world',
+]) requireText('server/src/runtime-store.js', text);
+for (const text of [
+  'main state keeps all open orders and only bounded recent closed orders for the current player',
+  'order history provides opaque cursor pagination with only the current player anonymous fills',
+  'order history rejects malformed cursors',
+]) requireText('server/test/order-history.test.js', text);
 for (const text of ['isOwn?: boolean', `version: ${CURRENT_CLIENT_STATE_VERSION};`, 'export interface OrderFill']) requireText('src/types.ts', text);
 for (const text of ['counterparty: string', 'makerOrderId', 'takerOrderId', "liquidity: 'maker' | 'taker'", 'populationModelId?:', 'fundingPool?:']) forbidText('src/types.ts', text);
 
@@ -61,6 +82,8 @@ for (const text of ['trade.counterparty', 'role="columnheader">来源', '人口�
 for (const [path, text] of [
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '只保存当前玩家订单新增的匿名逐笔成交'],
   ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '隐藏页面列但继续在 API 或 localStorage 中保留来源信息'],
+  ['docs/LOCAL_ACTIVITY_LOG_DESIGN.md', '`GET /api/game/orders/history`'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '主状态不得发送全部 800 笔关闭历史'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '集中式公开订单序列化'],
   ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '`populationModelId`'],
   ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', '不得设置“来源”列'],

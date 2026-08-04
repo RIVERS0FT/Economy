@@ -29,6 +29,7 @@ export const FACILITY_STAFFING_DECAY_MS = 30 * 60 * 1000;
 export const FACILITY_CONFIGURATION_STAFFING_PENALTY_BPS = 2_000;
 export const GEM_CONSTRUCTION_ACCELERATION_MS = 30 * 60 * 1000;
 export const GEM_CONSTRUCTION_ACCELERATION_COST = 1;
+export const CLIENT_RECENT_CLOSED_ORDER_LIMIT = ECONOMY_CONSTANTS.maxOpenOrders;
 
 function result(ok, message) {
   return { ok, message };
@@ -217,7 +218,7 @@ function publicOrderFill(fill) {
   };
 }
 
-function publicOrderView(order, userId) {
+export function publicOrderView(order, userId) {
   const normalized = clone(normalizeOrder(order));
   const isOwn = Number(normalized.ownerId) === Number(userId);
   normalized.isOwn = isOwn;
@@ -236,6 +237,76 @@ function publicOrderView(order, userId) {
   if (isOwn) normalized.fills = normalized.fills.map(publicOrderFill);
   else delete normalized.fills;
   return normalized;
+}
+
+function orderHistoryTimestamp(order) {
+  return Math.max(
+    Math.max(0, Number(order?.createdAt || 0)),
+    ...(Array.isArray(order?.fills) ? order.fills.map((fill) => Math.max(0, Number(fill?.createdAt || 0))) : [0]),
+  );
+}
+
+function compareOrderHistory(left, right) {
+  return orderHistoryTimestamp(right) - orderHistoryTimestamp(left)
+    || String(right?.id || '').localeCompare(String(left?.id || ''));
+}
+
+function encodeOrderHistoryCursor(order) {
+  return Buffer.from(JSON.stringify([
+    orderHistoryTimestamp(order),
+    String(order?.id || ''),
+  ])).toString('base64url');
+}
+
+function decodeOrderHistoryCursor(value) {
+  if (value === null || value === undefined || value === '') return null;
+  try {
+    const [createdAt, id] = JSON.parse(Buffer.from(String(value), 'base64url').toString('utf8'));
+    if (!Number.isFinite(Number(createdAt)) || typeof id !== 'string' || !id) throw new Error('invalid cursor');
+    return { createdAt: Number(createdAt), id };
+  } catch {
+    const error = new Error('订单历史游标无效');
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+function closedOrdersForOwner(world, userId) {
+  return (world.orders || [])
+    .filter((order) => !isOpenOrder(order) && Number(order?.ownerId) === Number(userId))
+    .sort(compareOrderHistory);
+}
+
+export function createOrderHistoryPage(world, userId, { cursor, limit } = {}) {
+  const normalizedLimit = Math.min(100, Math.max(1, Number.parseInt(String(limit || '50'), 10) || 50));
+  const cursorValue = decodeOrderHistoryCursor(cursor);
+  const all = closedOrdersForOwner(world, userId);
+  const afterCursor = cursorValue
+    ? all.filter((order) => {
+      const timestamp = orderHistoryTimestamp(order);
+      return timestamp < cursorValue.createdAt
+        || (timestamp === cursorValue.createdAt && String(order.id).localeCompare(cursorValue.id) < 0);
+    })
+    : all;
+  const selected = afterCursor.slice(0, normalizedLimit);
+  return {
+    items: selected.map((order) => publicOrderView(order, userId)),
+    total: all.length,
+    nextCursor: afterCursor.length > normalizedLimit
+      ? encodeOrderHistoryCursor(selected[selected.length - 1])
+      : null,
+  };
+}
+
+function clientOrdersForState(world, userId) {
+  const recentClosedIds = new Set(
+    closedOrdersForOwner(world, userId)
+      .slice(0, CLIENT_RECENT_CLOSED_ORDER_LIMIT)
+      .map((order) => String(order.id)),
+  );
+  return (world.orders || [])
+    .filter((order) => isOpenOrder(order) || recentClosedIds.has(String(order.id)))
+    .map((order) => publicOrderView(order, userId));
 }
 
 function listedQuantity(world, ownerId, typeId) {
@@ -1378,7 +1449,7 @@ export function createFacilityGroupClientState(world, userId, now = Date.now()) 
   const base = withLegacyFacilitiesSuppressed(world, () => createClientState(world, userId, now));
   const player = getPlayer(world, userId);
   const { facilities: _legacyFacilities, ...withoutFacilities } = base;
-  const normalizedOrders = (world.orders || []).map((order) => publicOrderView(order, userId));
+  const normalizedOrders = clientOrdersForState(world, userId);
   return {
     ...withoutFacilities,
     version: CURRENT_CLIENT_STATE_VERSION,
