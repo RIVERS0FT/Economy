@@ -41,8 +41,9 @@ requireText('src/components/shell/AdminSidebar.tsx', [
   'className="admin-mobile-bottom-navigation"',
   'surfaceId="admin-mobile-navigation"',
   'navLabel="管理员移动导航"',
-  "export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans';",
+  "export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans' | 'server';",
   "{ id: 'overview', label: '概览'",
+  "{ id: 'server', label: '服务器'",
   "{ id: 'players', label: '玩家'",
   "{ id: 'population', label: '人口'",
   "{ id: 'gift-codes', label: '礼品'",
@@ -71,6 +72,7 @@ requireText('src/components/shell/AdminDesktopBar.tsx', [
 requireText('src/app/AdminApp.tsx', [
   "import { SignedInShell } from '../components/shell/SignedInShell'",
   "import { AdminDesktopBar } from '../components/shell/AdminDesktopBar'",
+  "import { AdminServerStatusSection } from '../components/AdminServerStatusSection'",
   "import { AdminPlayerSection } from '../components/AdminPlayerSection'",
   "import { AdminPopulationSection } from '../components/AdminPopulationSection'",
   "import { AdminGiftCodesSection } from '../components/AdminGiftCodesSection'",
@@ -83,10 +85,12 @@ requireText('src/app/AdminApp.tsx', [
   '<AdminDesktopBar',
   '<AdminMobileNavigation',
   "visitedSections.has('overview')",
+  "visitedSections.has('server')",
   "visitedSections.has('players')",
   "visitedSections.has('population')",
   "visitedSections.has('gift-codes')",
   "visitedSections.has('bans')",
+  'refreshTokens.server',
 ]);
 requireText('src/components/AdminOverview.tsx', [
   '<AdminCommunityLinkPanel',
@@ -96,6 +100,21 @@ requireText('src/components/AdminCommunityLinkPanel.tsx', [
   '玩家社区入口',
   'adminApi.communityLink()',
   'adminApi.updateCommunityLink',
+]);
+requireText('src/components/AdminServerStatusSection.tsx', [
+  '服务器运行状态',
+  'adminApi.serverStatus(nextRange, controller.signal)',
+  "window.setInterval(refreshWhenVisible, 10_000)",
+  "document.addEventListener('visibilitychange'",
+  '高负载接口',
+  '世界调度',
+  'SQLite 与磁盘',
+  '<AdminServerTrendChart',
+  'requestRef.current?.abort()',
+]);
+requireText('src/components/charts/AdminServerStatusCharts.tsx', [
+  "import { EconomyChart } from './EconomyChart'",
+  "type: 'line'",
 ]);
 requireText('src/components/AdminPlayerSection.tsx', [
   '玩家运营分析',
@@ -139,6 +158,13 @@ requireText('src/styles/admin-overview-density.css', [
   '.admin-population-matrix',
   '.admin-population-health-grid',
   '.admin-population-control__workspace',
+  '@media (max-width: 720px)',
+]);
+requireText('src/styles/admin-server-status.css', [
+  'ADMIN_SERVER_STATUS_SCHEME: readonly-runtime-diagnostics',
+  '.admin-server-summary-grid',
+  '.admin-server-chart-grid',
+  '.admin-server-route-cards',
   '@media (max-width: 720px)',
 ]);
 forbidText('src/app/AdminApp.tsx', [
@@ -208,6 +234,56 @@ requireText('src/main.tsx', [
   "import './styles/game-shell-layout.css';",
   "import './styles/unified-market-admin.css';",
   "import './styles/admin-navigation.css';",
+  "import './styles/admin-server-status.css';",
+]);
+requireText('src/api/admin.ts', [
+  "export type AdminServerStatusRange = '15m' | '1h' | '6h'",
+  'export interface AdminServerStatus',
+  'serverStatus: async (range: AdminServerStatusRange, signal?: AbortSignal)',
+  '`/server-status?range=${encodeURIComponent(range)}`',
+]);
+requireText('server/src/index.js', [
+  "import './request-metrics-bootstrap.js';",
+  "import './server-status-bootstrap.js';",
+  "import './app.js';",
+]);
+requireText('server/src/app.js', [
+  "import { createAdminServerStatus } from './server-status.js'",
+  "path === '/api/game/admin/server-status'",
+  'createAdminServerStatus({',
+  'databasePath,',
+]);
+requireText('server/src/request-metrics.js', [
+  'DEFAULT_HISTORY_WINDOWS = 360',
+  'snapshot(extraSummary = {})',
+  'getRequestMetricsSnapshot(rangeMs)',
+  'clientErrorCount',
+  'serverErrorCount',
+]);
+requireText('server/src/server-status.js', [
+  'SERVER_STATUS_RANGES',
+  'SERVER_STATUS_THRESHOLDS',
+  'DEFAULT_SAMPLE_MS = 5_000',
+  'DEFAULT_HISTORY_MINUTES = 360',
+  'process.cpuUsage',
+  'statfsSync',
+  "store.database.prepare('PRAGMA page_count')",
+  'store.getSchedulerDiagnostics?.()',
+  'createAdminServerStatus',
+  'requests.routes.slice(0, 20)',
+]);
+forbidText('server/src/server-status.js', [
+  'BEGIN IMMEDIATE',
+  'processWorldIfDue',
+  'loadWorld(',
+  'VACUUM',
+  'wal_checkpoint',
+  'PRAGMA optimize',
+]);
+requireText('server/test/server-status.test.js', [
+  'server status is read-only and returns bounded diagnostics',
+  'assert.deepEqual(after, before)',
+  'includes(fixture.databasePath), false',
 ]);
 requireText('tests/browser/admin-runtime.spec.ts', [
   "toEqual(['概览', '玩家', '人口', '礼品', '封禁'])",
@@ -224,13 +300,20 @@ requireText('tests/browser/admin-runtime.spec.ts', [
   "toContainText('市场服务1.00')",
   "toContainText('仓库扩容0.00')",
 ]);
+requireText('tests/browser/admin-server-status.spec.ts', [
+  'admin server status renders runtime trends and read-only diagnostics',
+  'admin server status uses mobile cards without a page-level horizontal table',
+  "getByRole('button', { name: '服务器', exact: true })",
+  "toHaveCount(4)",
+  "locator('.admin-server-route-cards')",
+]);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '桌面端复用统一 `SignedInShell`',
   '桌面玻璃工作栏',
   '移动端复用统一 `MobileBottomNavigationFrame`',
   '不得恢复管理员独立页面滚动视口',
   '运营控制台布局方案',
-  '“概览／玩家／人口／礼品／封禁”五分区导航',
+  '“概览／服务器／玩家／人口／礼品／封禁”六分区导航',
   '社区入口配置并入“概览”',
   '玩家运营统计固定归属“玩家”分区',
   '人口经济固定归属“人口”分区',
@@ -240,6 +323,10 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '封禁事件继续使用窗口化结构',
   '人口政策区域始终显示服务器当前执行的完整参数',
   '金额为零必须保留为零，不得用最小可见柱伪造正值',
+  '### 4.4 服务器状态',
+  '`ADMIN_SERVER_STATUS_SCHEME: readonly-runtime-diagnostics`',
+  '服务器状态读取不得调用 `loadWorld`',
+  '不得运行 `quick_check`、`wal_checkpoint`、`PRAGMA optimize`、`VACUUM`',
 ]);
 
 if (failures.length) {
@@ -247,4 +334,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('管理员导航与运营控制台验证通过：五分区、共享外壳、ECharts 人口分析、人口政策、虚拟列表及移动统一 Chrome 层均已锁定。');
+console.log('管理员导航与运营控制台验证通过：六分区、只读服务器状态、共享外壳、ECharts 运营分析、人口政策、虚拟列表及移动统一 Chrome 层均已锁定。');
