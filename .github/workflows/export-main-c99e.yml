@@ -1,0 +1,29 @@
+name: Export Main c99e
+
+on:
+  push:
+    branches:
+      - agent/export-main-c99e
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Create archive
+        run: tar --exclude=.git -czf /tmp/main-c99e.tar.gz .
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-c99e
+          path: /tmp/main-c99e.tar.gz
+          retention-days: 1
