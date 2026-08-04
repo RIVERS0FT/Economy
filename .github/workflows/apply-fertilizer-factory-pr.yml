@@ -33,8 +33,33 @@ jobs:
           cat scripts/apply-fertilizer-factory.py.gz.b64.part-* | base64 -d | gzip -d > "$RUNNER_TEMP/apply-fertilizer-factory.py"
           python3 -m py_compile "$RUNNER_TEMP/apply-fertilizer-factory.py"
           python3 "$RUNNER_TEMP/apply-fertilizer-factory.py"
-          sed -i 's/migrated\.version = 23/migrated.version = 24/g' server/src/domain.js
-          sed -i 's/toHaveCount(21)/toHaveCount(22)/g' tests/browser/market-runtime.spec.ts
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'server/src/domain.js': [('migrated.version = 23', 'migrated.version = 24')],
+              'server/src/domain-core.js': [('world.version = 23', 'world.version = 24')],
+              'server/src/research.js': [('world.version = 23', 'world.version = 24')],
+              'server/src/storage.js': [('world.version = 23', 'world.version = 24')],
+              'server/src/runtime-store.js': [('prepared.version = 23', 'prepared.version = 24')],
+              'scripts/verify-staple-crops-demand.mjs': [('world.version = 23', 'world.version = 24')],
+              'scripts/verify-asset-auctions.mjs': [('prepared.version = 23', 'prepared.version = 24')],
+              'server/test/domain.test.js': [('world.version = 23', 'world.version = 24')],
+              'scripts/verify-money-precision.mjs': [
+                  ('CURRENT_CLIENT_STATE_VERSION = 26', 'CURRENT_CLIENT_STATE_VERSION = 27'),
+                  ('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 26', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 27'),
+                  ('MARKET_DEMAND_MODEL_VERSION = 13', 'MARKET_DEMAND_MODEL_VERSION = 14'),
+                  ('world\\.version = 23', 'world\\.version = 24'),
+              ],
+              'tests/browser/market-runtime.spec.ts': [('toHaveCount(21)', 'toHaveCount(22)')],
+          }
+          for path, pairs in replacements.items():
+              file = Path(path)
+              source = file.read_text()
+              for old, new in pairs:
+                  source = source.replace(old, new)
+              file.write_text(source)
+          PY
 
       - name: Install dependencies
         run: npm ci
