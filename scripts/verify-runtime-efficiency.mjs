@@ -106,6 +106,45 @@ requireText('server/src/request-performance.js', [
   'setRequestGauge',
   'snapshotRequestPerformance',
 ]);
+requireText('server/src/authoritative-write-executor.js', [
+  'export class AuthoritativeWriteExecutor',
+  'DEFAULT_MAX_QUEUE_DEPTH = 128',
+  'DEFAULT_MAX_PENDING_PER_ACTOR = 4',
+  'DEFAULT_MAX_WAIT_MS = 10_000',
+  'WRITE_QUEUE_BUSY',
+  'WRITE_QUEUE_ACTOR_LIMIT',
+  'WRITE_QUEUE_TIMEOUT',
+  'WRITE_QUEUE_CLOSED',
+  "addRequestPhase('writeQueueWaitMs'",
+  "measureRequestPhase('writeExecutionMs'",
+  "setRequestGauge('writeQueueDepth'",
+  "setRequestGauge('writeQueueRejected'",
+  '#drainNext()',
+]);
+requireText('server/src/storage.js', [
+  'authoritativeWriteExecutor = new AuthoritativeWriteExecutor',
+  'enqueueAuthoritativeWrite(options, callback)',
+  'getAuthoritativeWriteDiagnostics()',
+  'stateReadRequiresWrite(user, now = Date.now())',
+  "actor: 'system:scheduler'",
+  'allowWhenFull: true',
+  'timeoutMs: null',
+  'await this.authoritativeWriteExecutor.close({ drain: true })',
+]);
+requireText('server/src/registration.js', [
+  'executeWrite = async (_options, callback) => callback()',
+  "operation: 'registration-email-verification'",
+  "operation: 'registration-completion'",
+  "operation: 'registration-profile-creation'",
+]);
+requireText('server/src/app.js', [
+  'store.enqueueAuthoritativeWrite(options, callback)',
+  'store.stateReadRequiresWrite(user)',
+  "userWriteOptions(user, 'state-read-settlement')",
+  "errorCode.startsWith('WRITE_QUEUE_')",
+  "response.setHeader('Retry-After'",
+  'void store.shutdown().then(',
+]);
 requireText('server/src/order-book-runtime.js', [
   'getOrderBookSide',
   'getOwnerOrderBookSide',
@@ -213,6 +252,16 @@ requireText('server/test/request-performance.test.js', [
   'aggregates nested phases and gauges',
   'does nothing outside a request context',
 ]);
+requireText('server/test/authoritative-write-executor.test.js', [
+  'preserves FIFO order and single concurrency',
+  'rejects total and per-actor overload',
+  'expires queued writes before execution',
+  'records queue phases in the submitting request context',
+  'drains accepted work during graceful close',
+]);
+requireText('server/test/registration.test.js', [
+  'registration external account and email calls run outside the authoritative write executor',
+]);
 requireText('server/test/world-deadline-planner.test.js', [
   'zero world transactions during a 60 second idle window',
   'wakes at the planned event and processes one world transaction',
@@ -270,6 +319,9 @@ requireText('docs/README.md', [
   '幂等记录过期清理最多每 5 分钟执行一次',
   '最终客户端状态必须在运行时存储层直接形成六分区快照',
   '目录分区固定为进程内共享静态快照',
+  '所有可能修改 SQLite、世界状态、审计、注册、封禁、礼品、教程或运行时调度状态的操作必须进入同一进程内有界权威写执行器',
+  '全局总深度最多 128、同一主体最多 4 个待处理操作、普通请求最多等待 10 秒',
+  '注册邮件与统一账号网络调用必须位于写队列外',
 ]);
 
 if (failures.length) {
@@ -294,6 +346,11 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   'HTTP 交付层优先消费已经构造的 `partitions` 与 `partitionRevisions`',
   '六分区主状态不得发送全部 800 笔关闭历史',
   '`GET /api/game/orders/history?cursor=&limit=`',
+  '`server/src/authoritative-write-executor.js` 的单一进程内执行器',
+  '默认总深度上限固定为 128',
+  '同一玩家、注册网络指纹或系统主体最多保留 4 个正在执行或排队任务',
+  '统一账号可用性检查、邮件发送和统一账号创建／登录等外部网络调用必须在队列外执行',
+  '优雅关闭必须先停止 HTTP 接收与世界调度',
 ]);
 
 console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');

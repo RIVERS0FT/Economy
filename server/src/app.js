@@ -39,7 +39,15 @@ const registrationStore = new EconomyRegistrationStore(store, {
   ensurePlayer,
   publicOrigin,
 });
-const registrationService = createRegistrationService({ registrationStore });
+const enqueueAuthoritativeWrite = (options, callback) => store.enqueueAuthoritativeWrite(options, callback);
+const userWriteOptions = (user, operation) => ({
+  actor: `user:${Number(user.id)}`,
+  operation,
+});
+const registrationService = createRegistrationService({
+  registrationStore,
+  executeWrite: enqueueAuthoritativeWrite,
+});
 configureGiftCodeAdminStore(store);
 
 function sendJson(response, statusCode, payload, extraHeaders = {}) {
@@ -117,7 +125,17 @@ const server = createServer(async (request, response) => {
 
   try {
     if (method === 'GET' && path === '/health') {
-      sendJson(response, 200, { ok: true, service: 'economy-api' });
+      const writeExecutor = store.getAuthoritativeWriteDiagnostics();
+      sendJson(response, 200, {
+        ok: true,
+        service: 'economy-api',
+        writeQueue: {
+          accepting: writeExecutor.accepting,
+          running: writeExecutor.running,
+          queueDepth: writeExecutor.queueDepth,
+          rejected: writeExecutor.rejected,
+        },
+      });
       return;
     }
 
@@ -134,7 +152,10 @@ const server = createServer(async (request, response) => {
     }
 
     if (isRegistrationPath) {
-      cleanupEmailVerificationRecords(registrationStore.database);
+      const registrationActor = `registration:${registrationIpFingerprint(request).slice(0, 16)}`;
+      await enqueueAuthoritativeWrite({ actor: registrationActor, operation: 'verification-retention' }, () => {
+        cleanupEmailVerificationRecords(registrationStore.database);
+      });
       const requestKey = requireIdempotencyKey(request);
       const body = await readJson(request);
       const ipFingerprint = registrationIpFingerprint(request);
@@ -179,12 +200,15 @@ const server = createServer(async (request, response) => {
     if (method === 'POST' && path === '/api/game/session') {
       const requestKey = requireIdempotencyKey(request);
       const body = await readJson(request);
-      sendJson(response, 200, registrationStore.initializeSession({
-        user,
-        ipFingerprint: registrationIpFingerprint(request),
-        inviteCode: body.inviteCode,
-        requestKey,
-      }));
+      const session = await enqueueAuthoritativeWrite(userWriteOptions(user, 'session-initialization'), () => (
+        registrationStore.initializeSession({
+          user,
+          ipFingerprint: registrationIpFingerprint(request),
+          inviteCode: body.inviteCode,
+          requestKey,
+        })
+      ));
+      sendJson(response, 200, session);
       return;
     }
 
@@ -196,11 +220,13 @@ const server = createServer(async (request, response) => {
     if (path.startsWith('/api/game/admin/')) {
       requireAdmin(user);
       if (method === 'GET' && path === '/api/game/admin/summary') {
-        sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
+        const summary = await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-summary'), () => getStableAdminSummary(store, user));
+        sendJson(response, 200, { summary });
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/population-economy') {
-        sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
+        const summary = await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-population-summary'), () => getStableAdminSummary(store, user));
+        sendJson(response, 200, { summary });
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/player-statistics') {
@@ -212,19 +238,19 @@ const server = createServer(async (request, response) => {
       if (method === 'PUT' && path === '/api/game/admin/population-economy/policy') {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, store.updatePopulationPolicy(user, body, { requestKey, method, path }));
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-population-policy'), () => store.updatePopulationPolicy(user, body, { requestKey, method, path })));
         return;
       }
       if (method === 'POST' && path === '/api/game/admin/population-economy/policy/reset') {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, store.resetPopulationPolicy(user, body, { requestKey, method, path }));
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-population-policy-reset'), () => store.resetPopulationPolicy(user, body, { requestKey, method, path })));
         return;
       }
       if (method === 'POST' && path === '/api/game/admin/population-economy/top-up') {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, store.topUpPopulation(user, body, { requestKey, method, path }));
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-population-top-up'), () => store.topUpPopulation(user, body, { requestKey, method, path })));
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/community-link') {
@@ -235,7 +261,7 @@ const server = createServer(async (request, response) => {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
         sendJson(response, 200, {
-          communityLink: store.updateCommunityLink(user, body, { requestKey, method, path }),
+          communityLink: await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-community-link'), () => store.updateCommunityLink(user, body, { requestKey, method, path })),
         });
         return;
       }
@@ -255,7 +281,7 @@ const server = createServer(async (request, response) => {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
         sendJson(response, 200, {
-          giftCode: store.createGiftCode(user, body, { requestKey, method, path }),
+          giftCode: await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-gift-code-create'), () => store.createGiftCode(user, body, { requestKey, method, path })),
         });
         return;
       }
@@ -263,14 +289,14 @@ const server = createServer(async (request, response) => {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
         sendJson(response, 200, {
-          result: createGiftCodeBatch(store, user, body, { requestKey, method, path }),
+          result: await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-gift-code-batch'), () => createGiftCodeBatch(store, user, body, { requestKey, method, path })),
         });
         return;
       }
       const disableMatch = path.match(/^\/api\/game\/admin\/gift-codes\/(\d+)\/disable$/);
       if (method === 'POST' && disableMatch) {
         const requestKey = requireIdempotencyKey(request);
-        sendJson(response, 200, store.disableGiftCode(user, Number(disableMatch[1]), { requestKey, method, path }));
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-gift-code-disable'), () => store.disableGiftCode(user, Number(disableMatch[1]), { requestKey, method, path })));
         return;
       }
       const redemptionsMatch = path.match(/^\/api\/game\/admin\/gift-codes\/(\d+)\/redemptions$/);
@@ -303,95 +329,99 @@ const server = createServer(async (request, response) => {
       if (method === 'POST' && banUser) {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, registrationStore.banUser({
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-ban-user'), () => registrationStore.banUser({
           userId: Number(banUser[1]),
           adminUserId: Number(user.id),
           note: body.note,
           incidentId: body.incidentId,
           requestKey,
-        }));
+        })));
         return;
       }
       const unbanUser = path.match(/^\/api\/game\/admin\/bans\/users\/(\d+)\/unban$/);
       if (method === 'POST' && unbanUser) {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, registrationStore.unbanUser({
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-unban-user'), () => registrationStore.unbanUser({
           userId: Number(unbanUser[1]),
           adminUserId: Number(user.id),
           note: body.note,
           requestKey,
-        }));
+        })));
         return;
       }
       const rebanUser = path.match(/^\/api\/game\/admin\/bans\/users\/(\d+)\/reban$/);
       if (method === 'POST' && rebanUser) {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, registrationStore.rebanUser({
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-reban-user'), () => registrationStore.rebanUser({
           userId: Number(rebanUser[1]),
           adminUserId: Number(user.id),
           note: body.note,
           requestKey,
-        }));
+        })));
         return;
       }
       const banAllIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)\/ban-all$/);
       if (method === 'POST' && banAllIncident) {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, registrationStore.banIncident({
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-ban-incident'), () => registrationStore.banIncident({
           incidentId: Number(banAllIncident[1]),
           adminUserId: Number(user.id),
           note: body.note,
           requestKey,
-        }));
+        })));
         return;
       }
       const reviewIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)\/review$/);
       if (method === 'POST' && reviewIncident) {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, registrationStore.reviewIncident({
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-review-incident'), () => registrationStore.reviewIncident({
           incidentId: Number(reviewIncident[1]),
           adminUserId: Number(user.id),
           note: body.note,
           requestKey,
-        }));
+        })));
         return;
       }
       const closeIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)\/close$/);
       if (method === 'POST' && closeIncident) {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, registrationStore.closeIncident({
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-close-incident'), () => registrationStore.closeIncident({
           incidentId: Number(closeIncident[1]),
           adminUserId: Number(user.id),
           note: body.note,
           requestKey,
-        }));
+        })));
         return;
       }
       const unbanIncident = path.match(/^\/api\/game\/admin\/bans\/(\d+)\/unban-all$/);
       if (method === 'POST' && unbanIncident) {
         const requestKey = requireIdempotencyKey(request);
         const body = await readJson(request);
-        sendJson(response, 200, registrationStore.unbanIncident({
+        sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'admin-unban-incident'), () => registrationStore.unbanIncident({
           incidentId: Number(unbanIncident[1]),
           adminUserId: Number(user.id),
           note: body.note,
           requestKey,
-        }));
+        })));
         return;
       }
       sendError(response, 404, '管理员接口不存在');
       return;
     }
 
-    registrationStore.ensureLoggedInPlayer({
-      user,
-      ipFingerprint: registrationIpFingerprint(request),
-    });
+    if (!registrationStore.getRegistration(user.id)) {
+      await enqueueAuthoritativeWrite(userWriteOptions(user, 'automatic-player-registration'), () => (
+        registrationStore.ensureLoggedInPlayer({
+          user,
+          ipFingerprint: registrationIpFingerprint(request),
+        })
+      ));
+    }
     registrationStore.assertPlayerActive(user.id);
 
     if (method === 'GET' && path === '/api/game/tutorial') {
@@ -411,20 +441,22 @@ const server = createServer(async (request, response) => {
       }
       const requestKey = requireIdempotencyKey(request);
       const body = await readJson(request);
-      sendJson(response, 200, tutorialStore.complete(user.id, body.version, {
+      sendJson(response, 200, await enqueueAuthoritativeWrite(userWriteOptions(user, 'tutorial-complete'), () => tutorialStore.complete(user.id, body.version, {
         requestKey,
         method,
         path,
-      }));
+      })));
       return;
     }
 
     if (method === 'GET' && path === '/api/game/invitations') {
-      sendJson(response, 200, { invitation: registrationStore.getInvitationSummary(user.id) });
+      const invitation = await enqueueAuthoritativeWrite(userWriteOptions(user, 'invitation-summary'), () => registrationStore.getInvitationSummary(user.id));
+      sendJson(response, 200, { invitation });
       return;
     }
     if (method === 'GET' && path === '/api/game/gem-shop') {
-      sendJson(response, 200, { gemShop: store.getGemShopSummary(user) });
+      const gemShop = await enqueueAuthoritativeWrite(userWriteOptions(user, 'gem-shop-summary'), () => store.getGemShopSummary(user));
+      sendJson(response, 200, { gemShop });
       return;
     }
 
@@ -477,10 +509,12 @@ const server = createServer(async (request, response) => {
         ? Number(revisionValue)
         : undefined;
       const knownPartitions = readKnownPartitionRevisionsFromSearch(url.searchParams);
-      sendJson(response, 200, createPartitionedStateDelivery(
-        store.getStateSnapshot(user, knownRevision),
-        knownPartitions,
-      ));
+      const snapshot = store.stateReadRequiresWrite(user)
+        ? await enqueueAuthoritativeWrite(userWriteOptions(user, 'state-read-settlement'), () => (
+          store.getStateSnapshot(user, knownRevision)
+        ))
+        : store.getStateSnapshot(user, knownRevision);
+      sendJson(response, 200, createPartitionedStateDelivery(snapshot, knownPartitions));
       return;
     }
 
@@ -525,27 +559,32 @@ const server = createServer(async (request, response) => {
     const requestKey = requireIdempotencyKey(request);
     const body = await readJson(request);
     const payload = { ...body, ...(route.routePayload || {}) };
-    const actionResponse = store.apply(user, {
-      action: route.action,
-      payload,
-      requestKey,
-      method,
-      path,
-    });
+    const actionResponse = await enqueueAuthoritativeWrite(
+      userWriteOptions(user, `game-action:${route.action}`),
+      () => store.apply(user, {
+        action: route.action,
+        payload,
+        requestKey,
+        method,
+        path,
+      }),
+    );
     const knownPartitions = readKnownPartitionRevisionsFromHeader(
       request.headers['x-economy-state-revisions'],
     );
     sendJson(response, 200, createPartitionedActionDelivery(actionResponse, knownPartitions));
   } catch (error) {
     const statusCode = Number(error?.statusCode) || 500;
+    const errorCode = String(error?.code || '');
+    const expectedCapacityError = statusCode === 503 && errorCode.startsWith('WRITE_QUEUE_');
     if (error?.retryAfterSeconds) response.setHeader('Retry-After', String(error.retryAfterSeconds));
-    if (statusCode >= 500) console.error(error);
+    if (statusCode >= 500 && !expectedCapacityError) console.error(error);
     sendError(
       response,
       statusCode,
-      statusCode >= 500 ? '游戏服务器暂时不可用' : error.message,
-      statusCode >= 500 ? {} : {
-        ...(error?.code ? { code: error.code } : {}),
+      statusCode >= 500 && !expectedCapacityError ? '游戏服务器暂时不可用' : error.message,
+      statusCode >= 500 && !expectedCapacityError ? {} : {
+        ...(errorCode ? { code: errorCode } : {}),
         ...(error?.incidentId ? { incidentId: Number(error.incidentId) } : {}),
       },
     );
@@ -558,10 +597,15 @@ server.listen(port, '127.0.0.1', () => {
 
 function shutdown() {
   server.close(() => {
-    store.close();
-    process.exit(0);
+    void store.shutdown().then(
+      () => process.exit(0),
+      (error) => {
+        console.error('Economy graceful shutdown failed', error);
+        process.exit(1);
+      },
+    );
   });
-  setTimeout(() => process.exit(1), 5_000).unref();
+  setTimeout(() => process.exit(1), 10_000).unref();
 }
 
 process.on('SIGTERM', shutdown);

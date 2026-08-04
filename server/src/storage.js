@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
 import { measureRequestPhase, setRequestGauge } from './request-performance.js';
+import { AuthoritativeWriteExecutor } from './authoritative-write-executor.js';
 import {
   createWorld,
   ensurePlayer,
@@ -183,6 +184,7 @@ export class EconomyStore {
     setTimeoutFn = setTimeout,
     clearTimeoutFn = clearTimeout,
     schedulerMaxDelayMs = 2_147_000_000,
+    writeExecutorOptions = {},
   } = {}) {
     if (databasePath !== ':memory:') mkdirSync(dirname(databasePath), { recursive: true });
     this.database = new DatabaseSync(databasePath, { timeout: 5_000 });
@@ -400,6 +402,8 @@ export class EconomyStore {
         updated_by = excluded.updated_by
     `);
     this.worldCache = null;
+  this.authoritativeWriteExecutor = new AuthoritativeWriteExecutor(writeExecutorOptions);
+  this.databaseClosed = false;
   this.clientStateProjectionCache = new Map();
   this.clientStateProjectionCacheLimit = 256;
   this.catalogPartitionSnapshot = null;
@@ -469,14 +473,19 @@ export class EconomyStore {
     }
     this.schedulerDiagnostics.processedWakeups += 1;
     this.schedulerDiagnostics.lastLagMs = Math.max(0, now - this.nextWorldProcessingAt);
-    try {
-      this.processScheduledWorld(now);
-    } catch (error) {
-      this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
-      console.error('Economy scheduled world processing failed', error);
-    } finally {
-      if (!this.processingTimer && !this.schedulerClosed) this.scheduleWorldProcessing();
-    }
+    this.enqueueAuthoritativeWrite({
+      actor: 'system:scheduler',
+      operation: 'scheduled-world-processing',
+      allowWhenFull: true,
+      timeoutMs: null,
+      onSettled: (error) => {
+        if (error) {
+          this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
+          console.error('Economy scheduled world processing failed', error);
+        }
+        if (!this.processingTimer && !this.schedulerClosed) this.scheduleWorldProcessing();
+      },
+    }, () => this.processScheduledWorld(now)).catch(() => {});
   }
 
   getSchedulerDiagnostics() {
@@ -495,11 +504,47 @@ export class EconomyStore {
     };
   }
 
-  close() {
+  enqueueAuthoritativeWrite(options, callback) {
+  return this.authoritativeWriteExecutor.submit(options, callback);
+}
+
+  getAuthoritativeWriteDiagnostics() {
+  return this.authoritativeWriteExecutor.getDiagnostics();
+}
+
+  stateReadRequiresWrite(user, now = Date.now()) {
+  if (!this.worldCache) return true;
+  const player = this.worldCache.world.players?.[String(user?.id)];
+  if (!player) return true;
+  if (playerNeedsWeeklyLoginSettlement(player, now)) return true;
+  return !this.scheduledProcessing && now >= this.nextWorldProcessingAt;
+}
+
+  stopScheduler() {
   this.schedulerClosed = true;
   this.schedulerGeneration += 1;
   this.clearWorldProcessingTimer();
-  this.database.close();
+}
+
+  close() {
+  this.stopScheduler();
+  this.authoritativeWriteExecutor.stopAccepting();
+  if (!this.authoritativeWriteExecutor.isIdle()) {
+    throw new Error('权威写执行器仍有待处理任务，请使用 shutdown()');
+  }
+  if (!this.databaseClosed) {
+    this.database.close();
+    this.databaseClosed = true;
+  }
+}
+
+  async shutdown() {
+  this.stopScheduler();
+  await this.authoritativeWriteExecutor.close({ drain: true });
+  if (!this.databaseClosed) {
+    this.database.close();
+    this.databaseClosed = true;
+  }
 }
 
   transaction(callback, { immediate = true } = {}) {
