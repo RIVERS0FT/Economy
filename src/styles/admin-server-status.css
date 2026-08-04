@@ -1,0 +1,225 @@
+/* ADMIN_SERVER_STATUS_SCHEME: readonly-runtime-diagnostics */
+
+.admin-server-console {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.admin-server-health-panel {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.admin-server-health-panel__copy {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.admin-server-health-panel__title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-server-health-panel h2,
+.admin-server-health-panel p { margin: 0; }
+.admin-server-health-panel p { color: var(--color-text-secondary); }
+.admin-server-health-panel small,
+.admin-server-note,
+.admin-server-empty { color: var(--color-text-muted); }
+
+.admin-server-range {
+  flex: 0 0 auto;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.admin-server-range .ui-button { min-width: 76px; }
+.admin-server-range .ui-button.is-active {
+  color: var(--color-text-primary);
+  border-color: var(--color-info);
+  background: color-mix(in srgb, var(--color-info) 14%, transparent);
+}
+
+.admin-server-summary-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.admin-server-summary-grid .ui-metric-card {
+  min-width: 0;
+  min-height: 92px;
+}
+
+.admin-server-chart-grid,
+.admin-server-diagnostics-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.admin-server-chart-panel,
+.admin-server-routes-panel,
+.admin-server-diagnostics-grid > .panel { min-width: 0; }
+
+.admin-server-trend-chart { min-height: 228px; }
+
+.admin-server-route-table { min-width: 1120px; }
+.admin-server-route-table th,
+.admin-server-route-table td { vertical-align: top; }
+.admin-server-route-table td:first-child {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+}
+
+.admin-server-route-table code,
+.admin-server-route-cards code {
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: .76rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-server-route-table td:last-child {
+  min-width: 260px;
+  color: var(--color-text-muted);
+  font-size: .76rem;
+  line-height: 1.45;
+}
+
+.admin-server-route-cards { display: none; }
+
+.admin-server-note {
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+
+.admin-server-process-panel { grid-column: 1 / -1; }
+.admin-server-empty { margin: 0; padding: var(--space-3) 0; }
+
+@media (max-width: 1179px) {
+  .admin-server-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .admin-server-chart-grid,
+  .admin-server-diagnostics-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-server-process-panel { grid-column: auto; }
+}
+
+@media (max-width: 720px) {
+  .admin-server-health-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-server-health-panel__title {
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .admin-server-range { width: 100%; }
+  .admin-server-range .ui-button { flex: 1 1 0; min-width: 0; }
+  .admin-server-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-server-summary-grid .ui-metric-card { min-height: 82px; }
+  .admin-server-trend-chart { min-height: 210px; }
+
+  .admin-server-route-table-wrap { display: none; }
+  .admin-server-route-cards {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .admin-server-route-cards article {
+    min-width: 0;
+    display: grid;
+    gap: var(--space-2);
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-control);
+    background: var(--color-surface-inset);
+  }
+
+  .admin-server-route-cards header {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .admin-server-route-cards dl {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0;
+  }
+
+  .admin-server-route-cards dl > div {
+    min-width: 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: var(--radius-control);
+    background: var(--color-surface);
+  }
+
+  .admin-server-route-cards dt { color: var(--color-text-muted); }
+  .admin-server-route-cards dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .admin-server-route-cards small { color: var(--color-text-muted); line-height: 1.45; }
+}
+
+/* Server navigation label mirrors the shared strong label while preserving legacy geometry assertions. */
+.admin-sidebar .sidebar-nav-button > b {
+  min-width: 0;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 120ms ease 80ms, transform 120ms ease 80ms, visibility 0s linear 0s;
+}
+
+.desktop-sidebar[data-collapsed="true"] .sidebar-nav-button > b {
+  visibility: hidden;
+  opacity: 0;
+  transform: translateX(-4px);
+  pointer-events: none;
+  transition-delay: 0s;
+}
+
+@media (max-width: 960px) and (min-width: 721px) {
+  .desktop-sidebar .sidebar-nav-button > b { display: none; }
+}
+
+@media (max-width: 720px) {
+  .mobile-bottom-navigation .sidebar-nav-button > b {
+    display: block;
+    color: inherit;
+    opacity: 1;
+    font-size: .66rem;
+    line-height: 1;
+    letter-spacing: .01em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-sidebar .sidebar-nav-button > b { transition: none !important; }
+}

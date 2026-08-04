@@ -18,7 +18,7 @@ test('request metrics normalize route identifiers', () => {
   assert.equal(normalizeMetricRoute('/api/game/state?revision=4'), '/api/game/state');
 });
 
-test('request metrics aggregate duration and application response bytes', () => {
+test('request metrics aggregate duration, errors and application response bytes', () => {
   let currentTime = 1_000;
   const logs = [];
   const warnings = [];
@@ -42,7 +42,7 @@ test('request metrics aggregate duration and application response bytes', () => 
   collector.record({
     method: 'GET',
     url: '/api/game/state?revision=2',
-    statusCode: 200,
+    statusCode: 404,
     durationMs: 80,
     responseBytes: 1_200,
     phases: { worldCloneMs: 30, stateProjectionMs: 40 },
@@ -63,15 +63,29 @@ test('request metrics aggregate duration and application response bytes', () => 
     responseBytes: 10,
   });
 
+  currentTime = 31_000;
+  const partial = collector.snapshot();
+  assert.equal(partial.requestCount, 3);
+  assert.equal(partial.clientErrorCount, 1);
+  assert.equal(partial.serverErrorCount, 1);
+  assert.equal(partial.routes.length, 2);
+
   currentTime = 61_000;
   const summary = collector.flush();
   assert.equal(summary.windowMs, 60_000);
+  assert.equal(summary.requestCount, 3);
+  assert.equal(summary.clientErrorCount, 1);
+  assert.equal(summary.serverErrorCount, 1);
+  assert.equal(summary.averageDurationMs, 440);
+  assert.equal(summary.p95DurationMs, 1_200);
   assert.equal(summary.routes.length, 2);
   assert.deepEqual(summary.routes[0], {
     method: 'GET',
     route: '/api/game/state',
     count: 2,
     errorCount: 0,
+    clientErrorCount: 1,
+    serverErrorCount: 0,
     averageDurationMs: 60,
     p50DurationMs: 40,
     p95DurationMs: 80,
@@ -87,11 +101,14 @@ test('request metrics aggregate duration and application response bytes', () => 
   });
   assert.equal(summary.routes[1].method, 'POST');
   assert.equal(summary.routes[1].errorCount, 1);
+  assert.equal(summary.routes[1].serverErrorCount, 1);
   assert.equal(logs.length, 1);
   assert.equal(warnings.length, 1);
 
   currentTime = 62_000;
-  assert.deepEqual(collector.flush().routes, []);
+  const empty = collector.flush();
+  assert.deepEqual(empty.routes, []);
+  assert.equal(empty.requestCount, 0);
   assert.equal(logs.length, 1);
 });
 
@@ -116,6 +133,7 @@ test('request metrics cap route cardinality and aggregate overflow', () => {
   const summary = collector.flush();
   assert.equal(summary.routes.length, 3);
   assert.equal(summary.overflowedRequestCount, 8);
+  assert.equal(summary.clientErrorCount, 10);
   assert.deepEqual(
     summary.routes.find((route) => route.method === 'OTHER'),
     {
@@ -123,6 +141,8 @@ test('request metrics cap route cardinality and aggregate overflow', () => {
       route: '/api/other',
       count: 8,
       errorCount: 0,
+      clientErrorCount: 8,
+      serverErrorCount: 0,
       averageDurationMs: 1,
       p50DurationMs: 1,
       p95DurationMs: 1,

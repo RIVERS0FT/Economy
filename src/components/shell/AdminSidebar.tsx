@@ -1,8 +1,8 @@
-import { GiftIcon, HomeIcon, PlayersIcon, PopulationIcon, ShieldIcon } from '../icons/GameIcons';
+import { GiftIcon, HomeIcon, PlayersIcon, PopulationIcon, SettingsIcon, ShieldIcon } from '../icons/GameIcons';
 import { MobileBottomNavigationFrame } from './MobileBottomNavigationFrame';
 import { SidebarFrame } from './SidebarFrame';
 
-export type AdminSectionId = 'overview' | 'players' | 'population' | 'gift-codes' | 'bans';
+export type AdminSectionId = 'overview' | 'server' | 'players' | 'population' | 'gift-codes' | 'bans';
 
 export const adminNavigationItems: Array<{
   id: AdminSectionId;
@@ -10,6 +10,7 @@ export const adminNavigationItems: Array<{
   icon: typeof HomeIcon;
 }> = [
   { id: 'overview', label: '概览', icon: HomeIcon },
+  { id: 'server', label: '服务器', icon: SettingsIcon },
   { id: 'players', label: '玩家', icon: PlayersIcon },
   { id: 'population', label: '人口', icon: PopulationIcon },
   { id: 'gift-codes', label: '礼品', icon: GiftIcon },
@@ -33,7 +34,7 @@ function AdminNavigationItems({
       onClick={() => onSelect(id)}
     >
       <span aria-hidden="true"><Icon /></span>
-      <strong>{label}</strong>
+      {id === 'server' ? <b>{label}</b> : <strong>{label}</strong>}
     </button>
   ));
 }

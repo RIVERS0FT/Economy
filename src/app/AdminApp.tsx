@@ -5,6 +5,7 @@ import { AdminGiftCodesSection } from '../components/AdminGiftCodesSection';
 import { AdminOverview } from '../components/AdminOverview';
 import { AdminPlayerSection } from '../components/AdminPlayerSection';
 import { AdminPopulationSection } from '../components/AdminPopulationSection';
+import { AdminServerStatusSection } from '../components/AdminServerStatusSection';
 import {
   AdminMobileNavigation,
   AdminSidebar,
@@ -19,6 +20,7 @@ import type { AuthUser } from '../types';
 
 const ADMIN_SECTION_COPY: Record<AdminSectionId, { title: string; description: string }> = {
   overview: { title: '世界概览', description: '查看 Economy 世界状态、核心运营指标与玩家社区入口。' },
+  server: { title: '服务器状态', description: '查看 API、Node 进程、世界调度、SQLite 和主机资源的实时负载与近期趋势。' },
   players: { title: '玩家运营', description: '分析玩家活跃、留存、经营成长、参与结构与财富分布。' },
   population: { title: '人口经济', description: '查看人口健康、就业资金流并执行受控人口政策调控。' },
   'gift-codes': { title: '礼品码', description: '创建、停用礼品码并审阅玩家兑换记录。' },
@@ -27,6 +29,7 @@ const ADMIN_SECTION_COPY: Record<AdminSectionId, { title: string; description: s
 
 const INITIAL_REFRESH_TOKENS: Record<AdminSectionId, number> = {
   overview: 0,
+  server: 0,
   players: 0,
   population: 0,
   'gift-codes': 0,
@@ -133,6 +136,16 @@ export function AdminApp({ user }: { user: AuthUser }) {
               summary={summary}
               refreshToken={refreshTokens.overview}
               onNotice={setNotice}
+              onError={setError}
+            />
+          </div>
+        ) : null}
+
+        {visitedSections.has('server') ? (
+          <div className="admin-section-view" hidden={activeSection !== 'server'}>
+            <AdminServerStatusSection
+              active={activeSection === 'server'}
+              refreshToken={refreshTokens.server}
               onError={setError}
             />
           </div>

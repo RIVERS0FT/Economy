@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { getStableAdminSummary } from './admin-summary.js';
+import { createAdminServerStatus } from './server-status.js';
 import { authenticateRequest, authenticationCacheMaxAgeForRequest } from './auth.js';
 import { ensurePlayer } from './domain.js';
 import {
@@ -197,6 +198,16 @@ const server = createServer(async (request, response) => {
       requireAdmin(user);
       if (method === 'GET' && path === '/api/game/admin/summary') {
         sendJson(response, 200, { summary: getStableAdminSummary(store, user) });
+        return;
+      }
+      if (method === 'GET' && path === '/api/game/admin/server-status') {
+        sendJson(response, 200, {
+          serverStatus: createAdminServerStatus({
+            store,
+            databasePath,
+            range: url.searchParams.get('range'),
+          }),
+        });
         return;
       }
       if (method === 'GET' && path === '/api/game/admin/population-economy') {

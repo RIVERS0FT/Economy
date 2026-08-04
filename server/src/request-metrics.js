@@ -7,9 +7,11 @@ const DEFAULT_WINDOW_MS = 60_000;
 const DEFAULT_SLOW_REQUEST_MS = 1_000;
 const DEFAULT_LARGE_RESPONSE_BYTES = 200 * 1024;
 const DEFAULT_MAX_ROUTE_KEYS = 256;
+const DEFAULT_HISTORY_WINDOWS = 360;
 const OVERFLOW_METHOD = 'OTHER';
 const OVERFLOW_ROUTE = '/api/other';
 const MAX_SAMPLES_PER_ROUTE = 4_096;
+const MAX_GLOBAL_SAMPLES = 16_384;
 const DYNAMIC_ROUTE_PATTERNS = [
   [/^(\/api\/game\/(?:orders|auctions|facility-listings))\/[^/]+(\/(?:bids|cancel|buy))$/, '$1/:id$2'],
   [/^(\/api\/game\/admin\/gift-codes)\/[^/]+(\/(?:disable|redemptions))$/, '$1/:id$2'],
@@ -33,8 +35,32 @@ function percentile(values, ratio) {
   return round(sorted[index]);
 }
 
-function appendSample(samples, value) {
-  if (samples.length < MAX_SAMPLES_PER_ROUTE) samples.push(finiteNonNegative(value));
+function appendSample(samples, value, limit = MAX_SAMPLES_PER_ROUTE) {
+  if (samples.length < limit) samples.push(finiteNonNegative(value));
+}
+
+function eventLoopDelaySnapshot(eventLoopDelay) {
+  return {
+    p50Ms: round(eventLoopDelay.percentile(50) / 1_000_000),
+    p95Ms: round(eventLoopDelay.percentile(95) / 1_000_000),
+    p99Ms: round(eventLoopDelay.percentile(99) / 1_000_000),
+    maxMs: round(eventLoopDelay.max / 1_000_000),
+  };
+}
+
+function emptyRequestSummary() {
+  return {
+    requestCount: 0,
+    clientErrorCount: 0,
+    serverErrorCount: 0,
+    averageDurationMs: 0,
+    p50DurationMs: 0,
+    p95DurationMs: 0,
+    p99DurationMs: 0,
+    maxDurationMs: 0,
+    averageResponseBytes: 0,
+    maxResponseBytes: 0,
+  };
 }
 
 export function normalizeMetricRoute(value) {
@@ -60,6 +86,14 @@ export function createRequestMetricsCollector({
   const routes = new Map();
   const routeKeyLimit = Math.max(1, Math.floor(Number(maxRouteKeys) || DEFAULT_MAX_ROUTE_KEYS));
   let overflowedRequestCount = 0;
+  let requestCount = 0;
+  let clientErrorCount = 0;
+  let serverErrorCount = 0;
+  let totalDurationMs = 0;
+  let maxDurationMs = 0;
+  let totalResponseBytes = 0;
+  let maxResponseBytes = 0;
+  const durationSamples = [];
 
   function record({ method, url, statusCode, durationMs, responseBytes, phases = {}, gauges = {} }) {
     let route = normalizeMetricRoute(url);
@@ -75,11 +109,22 @@ export function createRequestMetricsCollector({
     const duration = finiteNonNegative(durationMs);
     const bytes = finiteNonNegative(responseBytes);
     const status = Number(statusCode) || 0;
+    requestCount += 1;
+    if (status >= 400 && status < 500) clientErrorCount += 1;
+    if (status >= 500) serverErrorCount += 1;
+    totalDurationMs += duration;
+    maxDurationMs = Math.max(maxDurationMs, duration);
+    totalResponseBytes += bytes;
+    maxResponseBytes = Math.max(maxResponseBytes, bytes);
+    appendSample(durationSamples, duration, MAX_GLOBAL_SAMPLES);
+
     const current = routes.get(key) || {
       method: metricMethod,
       route,
       count: 0,
       errorCount: 0,
+      clientErrorCount: 0,
+      serverErrorCount: 0,
       totalDurationMs: 0,
       maxDurationMs: 0,
       totalResponseBytes: 0,
@@ -89,7 +134,11 @@ export function createRequestMetricsCollector({
       gauges: Object.create(null),
     };
     current.count += 1;
-    if (status >= 500) current.errorCount += 1;
+    if (status >= 400 && status < 500) current.clientErrorCount += 1;
+    if (status >= 500) {
+      current.errorCount += 1;
+      current.serverErrorCount += 1;
+    }
     current.totalDurationMs += duration;
     current.maxDurationMs = Math.max(current.maxDurationMs, duration);
     current.totalResponseBytes += bytes;
@@ -119,8 +168,7 @@ export function createRequestMetricsCollector({
     }
   }
 
-  function flush(extraSummary = {}) {
-    const endedAt = now();
+  function createSummary(extraSummary = {}, endedAt = now()) {
     const summaries = [...routes.values()]
       .sort((left, right) => `${left.method} ${left.route}`.localeCompare(`${right.method} ${right.route}`))
       .map((entry) => ({
@@ -128,6 +176,8 @@ export function createRequestMetricsCollector({
         route: entry.route,
         count: entry.count,
         errorCount: entry.errorCount,
+        clientErrorCount: entry.clientErrorCount,
+        serverErrorCount: entry.serverErrorCount,
         averageDurationMs: round(entry.totalDurationMs / entry.count),
         p50DurationMs: percentile(entry.durationSamples, 0.5),
         p95DurationMs: percentile(entry.durationSamples, 0.95),
@@ -145,31 +195,76 @@ export function createRequestMetricsCollector({
           }])),
         gauges: { ...entry.gauges },
       }));
-    const summary = {
+    const requestSummary = requestCount > 0 ? {
+      requestCount,
+      clientErrorCount,
+      serverErrorCount,
+      averageDurationMs: round(totalDurationMs / requestCount),
+      p50DurationMs: percentile(durationSamples, 0.5),
+      p95DurationMs: percentile(durationSamples, 0.95),
+      p99DurationMs: percentile(durationSamples, 0.99),
+      maxDurationMs: round(maxDurationMs),
+      averageResponseBytes: Math.round(totalResponseBytes / requestCount),
+      maxResponseBytes: Math.round(maxResponseBytes),
+    } : emptyRequestSummary();
+    return {
       windowStartedAt,
       windowEndedAt: endedAt,
       windowMs: Math.max(0, endedAt - windowStartedAt),
       overflowedRequestCount,
+      ...requestSummary,
       routes: summaries,
       ...extraSummary,
     };
+  }
+
+  function reset(endedAt) {
     routes.clear();
     overflowedRequestCount = 0;
+    requestCount = 0;
+    clientErrorCount = 0;
+    serverErrorCount = 0;
+    totalDurationMs = 0;
+    maxDurationMs = 0;
+    totalResponseBytes = 0;
+    maxResponseBytes = 0;
+    durationSamples.length = 0;
     windowStartedAt = endedAt;
-    if (summaries.length > 0) log('Economy request metrics', JSON.stringify(summary));
+  }
+
+  function snapshot(extraSummary = {}) {
+    return createSummary(extraSummary, now());
+  }
+
+  function flush(extraSummary = {}) {
+    const endedAt = now();
+    const summary = createSummary(extraSummary, endedAt);
+    reset(endedAt);
+    if (summary.routes.length > 0) log('Economy request metrics', JSON.stringify(summary));
     return summary;
   }
 
-  return { record, flush };
+  return { record, snapshot, flush };
 }
 
-export function installRequestMetrics({ windowMs = DEFAULT_WINDOW_MS } = {}) {
+export function installRequestMetrics({
+  windowMs = DEFAULT_WINDOW_MS,
+  historyWindows = DEFAULT_HISTORY_WINDOWS,
+} = {}) {
   if (globalThis[INSTALLATION_KEY]) return globalThis[INSTALLATION_KEY];
 
   const collector = createRequestMetricsCollector();
   const eventLoopDelay = monitorEventLoopDelay({ resolution: 20 });
   eventLoopDelay.enable();
+  const history = [];
+  const historyLimit = Math.max(1, Math.floor(Number(historyWindows) || DEFAULT_HISTORY_WINDOWS));
   const originalEmit = Server.prototype.emit;
+
+  function appendHistory(summary) {
+    history.push(summary);
+    if (history.length > historyLimit) history.splice(0, history.length - historyLimit);
+  }
+
   function instrumentedEmit(event, ...args) {
     if (event !== 'request') return Reflect.apply(originalEmit, this, [event, ...args]);
     const [request, response] = args;
@@ -194,20 +289,29 @@ export function installRequestMetrics({ windowMs = DEFAULT_WINDOW_MS } = {}) {
   Server.prototype.emit = instrumentedEmit;
 
   const timer = setInterval(() => {
-    collector.flush({
-      eventLoopDelay: {
-        p50Ms: round(eventLoopDelay.percentile(50) / 1_000_000),
-        p95Ms: round(eventLoopDelay.percentile(95) / 1_000_000),
-        p99Ms: round(eventLoopDelay.percentile(99) / 1_000_000),
-        maxMs: round(eventLoopDelay.max / 1_000_000),
-      },
-    });
+    const summary = collector.flush({ eventLoopDelay: eventLoopDelaySnapshot(eventLoopDelay) });
+    appendHistory(summary);
     eventLoopDelay.reset();
   }, Math.max(1_000, Number(windowMs) || DEFAULT_WINDOW_MS));
   timer.unref();
+
   const installation = {
     collector,
-    flush: () => collector.flush(),
+    snapshot({ rangeMs = DEFAULT_WINDOW_MS * DEFAULT_HISTORY_WINDOWS } = {}) {
+      const generatedAt = Date.now();
+      const cutoff = generatedAt - Math.max(DEFAULT_WINDOW_MS, Number(rangeMs) || DEFAULT_WINDOW_MS);
+      return {
+        generatedAt,
+        current: collector.snapshot({ eventLoopDelay: eventLoopDelaySnapshot(eventLoopDelay) }),
+        history: history.filter((summary) => summary.windowEndedAt >= cutoff).map((summary) => ({ ...summary })),
+      };
+    },
+    flush() {
+      const summary = collector.flush({ eventLoopDelay: eventLoopDelaySnapshot(eventLoopDelay) });
+      appendHistory(summary);
+      eventLoopDelay.reset();
+      return summary;
+    },
     uninstall() {
       clearInterval(timer);
       eventLoopDelay.disable();
@@ -217,4 +321,16 @@ export function installRequestMetrics({ windowMs = DEFAULT_WINDOW_MS } = {}) {
   };
   globalThis[INSTALLATION_KEY] = installation;
   return installation;
+}
+
+export function getRequestMetricsSnapshot(rangeMs) {
+  const installation = globalThis[INSTALLATION_KEY];
+  if (!installation) {
+    return {
+      generatedAt: Date.now(),
+      current: null,
+      history: [],
+    };
+  }
+  return installation.snapshot({ rangeMs });
 }

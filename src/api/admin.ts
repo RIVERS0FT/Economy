@@ -93,6 +93,127 @@ export type ExtendedAdminSummary = AdminSummary & {
   populationEconomy: PopulationEconomyAdminSummary;
 };
 
+export type AdminServerStatusRange = '15m' | '1h' | '6h';
+export type AdminServerHealthLevel = 'healthy' | 'warning' | 'critical' | 'collecting';
+
+export interface AdminServerRouteMetric {
+  method: string;
+  route: string;
+  count: number;
+  clientErrorCount: number;
+  serverErrorCount: number;
+  averageDurationMs: number;
+  p95DurationMs: number;
+  maxDurationMs: number;
+  averageResponseBytes: number;
+  maxResponseBytes: number;
+  phases: Record<string, number>;
+}
+
+export interface AdminServerMetricBucket {
+  startsAt: number;
+  requestCount: number;
+  serverErrorCount: number;
+  p50DurationMs: number;
+  p95DurationMs: number;
+  p99DurationMs: number;
+  eventLoopP95Ms: number;
+  eventLoopMaxMs: number;
+  cpuAveragePercent: number | null;
+  cpuMaxPercent: number | null;
+  rssMaxBytes: number | null;
+  heapUsedMaxBytes: number | null;
+  heapTotalMaxBytes: number | null;
+}
+
+export interface AdminServerStatus {
+  generatedAt: number;
+  range: {
+    key: AdminServerStatusRange;
+    milliseconds: number;
+    startsAt: number;
+  };
+  health: {
+    level: AdminServerHealthLevel;
+    reasons: string[];
+  };
+  thresholds: Record<string, number>;
+  process: {
+    startedAt: number;
+    uptimeSeconds: number;
+    cpuPercent: number;
+    rssBytes: number;
+    heapUsedBytes: number;
+    heapTotalBytes: number;
+    externalBytes: number;
+    arrayBuffersBytes: number;
+    nodeVersion: string;
+    releaseSha: string | null;
+  };
+  system: {
+    platform: string;
+    cpuCount: number;
+    loadAverage1m: number;
+    totalMemoryBytes: number;
+    freeMemoryBytes: number;
+    diskTotalBytes: number;
+    diskFreeBytes: number;
+    diskFreeRatioBps: number;
+  };
+  requests: {
+    windowStartedAt: number;
+    windowEndedAt: number;
+    requestCount: number;
+    requestsPerSecond: number;
+    clientErrorCount: number;
+    serverErrorCount: number;
+    serverErrorRateBps: number;
+    averageDurationMs: number;
+    p50DurationMs: number;
+    p95DurationMs: number;
+    p99DurationMs: number;
+    maxDurationMs: number;
+    averageResponseBytes: number;
+    maxResponseBytes: number;
+    eventLoop: {
+      p50Ms: number;
+      p95Ms: number;
+      p99Ms: number;
+      maxMs: number;
+    };
+    routes: AdminServerRouteMetric[];
+  };
+  scheduler: {
+    schedules: number;
+    wakeups: number;
+    processedWakeups: number;
+    staleWakeups: number;
+    transactions: number;
+    lastLagMs: number;
+    nextDueAt: number | null;
+  };
+  database: {
+    databaseBytes: number;
+    walBytes: number;
+    shmBytes: number;
+    pageCount: number;
+    pageSize: number;
+    freelistCount: number;
+    reclaimableBytes: number;
+    reclaimableRatioBps: number;
+    journalMode: string;
+    synchronous: number;
+    lockTimeoutMs: number;
+    worldRevision: number;
+    worldUpdatedAt: number;
+    worldJsonBytes: number;
+    diskTotalBytes: number;
+    diskFreeBytes: number;
+    diskFreeRatioBps: number;
+  };
+  history: AdminServerMetricBucket[];
+}
+
 export type AdminPlayerStatisticsRange = '7d' | '30d' | '90d';
 
 export interface AdminPlayerStatisticsRetentionRow {
@@ -328,6 +449,12 @@ function pagePath(path: string, cursor?: string | null) {
 
 export const adminApi = {
   summary: async () => (await request<{ summary: ExtendedAdminSummary }>('/summary', { method: 'GET' })).summary,
+  serverStatus: async (range: AdminServerStatusRange, signal?: AbortSignal) => (
+    await request<{ serverStatus: AdminServerStatus }>(
+      `/server-status?range=${encodeURIComponent(range)}`,
+      { method: 'GET', signal },
+    )
+  ).serverStatus,
   playerStatistics: async (range: AdminPlayerStatisticsRange) => (
     await request<{ playerStatistics: AdminPlayerStatistics }>(
       `/player-statistics?range=${encodeURIComponent(range)}`,
