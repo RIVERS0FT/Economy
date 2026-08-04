@@ -33,6 +33,22 @@ test.describe('notification center geometry', () => {
     await expect(page.getByText('应用暂时无法显示')).toHaveCount(0);
   });
 
+  test('escape closes the panel and restores the notification trigger', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+
+    const trigger = page.getByRole('button', { name: /^通知，/ });
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('dialog', { name: '通知' })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: '通知' })).toHaveCount(0);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+  });
+
   test('desktop entry stays on the status right and panel opens at workspace top-right', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
