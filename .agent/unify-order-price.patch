@@ -1,0 +1,189 @@
+diff --git a/server/src/domain.js b/server/src/domain.js
+index 3ec8a9d..f26c6e5 100644
+--- a/server/src/domain.js
++++ b/server/src/domain.js
+@@ -267,7 +267,7 @@ function applyCommodityOrder(world, user, payload, now) {
+     ? String(payload.productId || payload.assetId || 'wheat')
+     : null;
+   const quantity = normalizePositiveInteger(payload.quantity, core.ECONOMY_CONSTANTS.maxOrderQuantity);
+-  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01, max: 1_000_000 });
++  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01 });
+   if (!side || !productId || !quantity || !price) return { ok: false, message: '订单参数无效' };
+   const total = multiplyMoneyByInteger(price, quantity);
+   if (total === null) return { ok: false, message: '订单总额超出系统可表示范围' };
+diff --git a/server/src/facility-groups.js b/server/src/facility-groups.js
+index 3c50eac..af101b2 100644
+--- a/server/src/facility-groups.js
++++ b/server/src/facility-groups.js
+@@ -15,11 +15,10 @@ import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity
+ import { weeklySettlementLiability } from './weekly-cash-settlement.js';
+ import { ensureGemState } from './invitations.js';
+-import { calculateRateMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
++import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
+ 
+ const TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
+ const MAX_CYCLES_PER_GROUP = 50_000;
+ const MAX_FACILITY_AUCTION_QUANTITY = 1_000_000;
+-const MAX_ORDER_PRICE = 1_000_000;
+ const MAX_PRICE_POINTS = 288;
+ export const FACILITY_STAFFING_FULL_BPS = 10_000;
+ export const FACILITY_STAFFING_RECOVERY_MS = 10 * 60 * 1000;
+@@ -1106,14 +1105,11 @@ function placeFacilityOrder(world, userId, payload, now) {
+   const typeId = String(payload.assetId || payload.facilityTypeId || '');
+   const type = typeFor(typeId);
+   const quantity = normalizePositiveInteger(payload.quantity, ECONOMY_CONSTANTS.maxOrderQuantity);
+-  const price = normalizePositiveInteger(payload.price ?? payload.unitPrice, MAX_ORDER_PRICE);
++  const price = normalizePlayerMoneyInput(payload.price ?? payload.unitPrice, { min: 0.01 });
+   if (!side || !type || !quantity || !price) return result(false, '工厂订单参数无效');
+   const total = multiplyMoneyByInteger(price, quantity);
+   if (total === null) return result(false, '工厂订单总额超出系统可表示范围');
+   if (countOpenOrdersForOwner(world, userId) >= ECONOMY_CONSTANTS.maxOpenOrders) return result(false, '未完成订单数量已达上限');
+-  if (price < Math.ceil(type.systemValue * 0.5) || price > type.systemValue * 2) {
+-    return result(false, '工厂订单价格必须在系统参考价的 50%～200% 之间');
+-  }
+   if (findSelfCrossingOrder(world, {
+     ownerId: userId,
+     assetKind: 'facility',
+diff --git a/src/config/economy.ts b/src/config/economy.ts
+index d758d31..9d31d8c 100644
+--- a/src/config/economy.ts
++++ b/src/config/economy.ts
+@@ -1,6 +1,8 @@
+ export const economyConstants = {
+   // 商品与工厂订单共用的技术安全边界，不是固定业务数量上限。
+   maxOrderQuantity: Number.MAX_SAFE_INTEGER,
++  // 六位小数内部金额的技术安全边界，不是固定业务价格上限。
++  maxOrderPrice: Number.MAX_SAFE_INTEGER / 1_000_000,
+ } as const;
+ 
+ export function openOrderLimitForCatalog(productTypeCount: number, facilityTypeCount: number) {
+diff --git a/src/pages/MarketPage.tsx b/src/pages/MarketPage.tsx
+index 47c3aa9..b721a3b 100644
+--- a/src/pages/MarketPage.tsx
++++ b/src/pages/MarketPage.tsx
+@@ -105,7 +105,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
+   const marketBuckets = buildMarketHistoryBuckets(marketHistory, marketFallbackPrice, now);
+   const marketTrend = marketBuckets[marketBuckets.length - 1].price - marketBuckets[0].price;
+   const trendTone: StatusTone = marketTrend > 0 ? 'success' : marketTrend < 0 ? 'danger' : 'neutral';
+-  const parsedOrderPrice = parseMoneyDraft(priceDraft, { min: 0.01, max: 1_000_000 });
++  const parsedOrderPrice = parseMoneyDraft(priceDraft, { min: 0.01, max: economyConstants.maxOrderPrice });
+   const effectiveOrderPrice = parsedOrderPrice ?? 0;
+   const maxBuyByFunds = effectiveOrderPrice > 0
+     ? Math.max(0, Math.floor(game.credits / effectiveOrderPrice))
+@@ -128,7 +128,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
+   const priceStepBase = parsedOrderPrice ?? orderPrice;
+   const quantityStepBase = parsedOrderQuantity ?? orderQuantity;
+   const canDecreasePrice = priceStepBase > 0.01;
+-  const canIncreasePrice = priceStepBase < 1_000_000;
++  const canIncreasePrice = priceStepBase < economyConstants.maxOrderPrice;
+   const canDecreaseQuantity = maxTradeQuantity >= 1 && quantityStepBase > 1;
+   const canIncreaseQuantity = maxTradeQuantity >= 1 && quantityStepBase < maxTradeQuantity;
+   const availableAssetLabel = marketAssetKind === 'commodity' ? `可用${assetName}` : '可出售';
+@@ -204,7 +204,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
+ 
+   function updatePriceDraft(value: string) {
+     setPriceDraft(value);
+-    const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000 });
++    const parsed = parseMoneyDraft(value, { min: 0.01, max: economyConstants.maxOrderPrice });
+     if (parsed !== null) setOrderPrice(parsed);
+   }
+ 
+@@ -215,7 +215,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
+   }
+ 
+   function setPriceValue(value: number) {
+-    const normalized = Math.min(1_000_000, Math.max(0.01, Math.round(value * 100) / 100));
++    const normalized = Math.min(economyConstants.maxOrderPrice, Math.max(0.01, Math.round(value * 100) / 100));
+     setOrderPrice(normalized);
+     setPriceDraft(normalized.toFixed(2));
+   }
+@@ -472,7 +472,7 @@ export function MarketPage({ model }: { model: LoadedGameViewModel }) {
+                       className="market-stepper__input"
+                       value={priceDraft}
+                       fallbackValue={orderPrice}
+                       min={0.01}
+-                      max={1_000_000}
++                      max={economyConstants.maxOrderPrice}
+                       wheelStep={0.01}
+                       aria-invalid={Boolean(priceReason)}
+                       aria-describedby={priceReason ? 'market-order-price-error' : undefined}
+diff --git a/server/test/order-limits.test.js b/server/test/order-limits.test.js
+index bd66e10..2047a6d 100644
+--- a/server/test/order-limits.test.js
++++ b/server/test/order-limits.test.js
+@@ -100,6 +100,38 @@ test('commodity and facility books share the catalog-sized unfinished order lim
+   assert.deepEqual(facilityResult, { ok: false, message: '未完成订单数量已达上限' });
+ });
+ 
++test('commodity and facility orders share the cent tick without a fixed business price cap', () => {
++  const world = createWorld(now);
++  const commoditySeller = ensurePlayer(world, alice, now);
++  const facilitySeller = ensurePlayer(world, bob, now);
++  commoditySeller.inventories.wheat.available = 2;
++  facilitySeller.facilityGroups = [stoppedGroup('farm', 2)];
++  migrateFacilityGroupWorld(world, now);
++
++  const uncappedPrice = 1_000_000.01;
++  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
++    assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: uncappedPrice,
++  }, now + 1).ok, true);
++  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
++    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: uncappedPrice,
++  }, now + 2).ok, true);
++  assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
++    assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: 0.01,
++  }, now + 3).ok, true);
++  assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
++    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: 0.01,
++  }, now + 4).ok, true);
++
++  assert.equal(world.orders.find((order) => order.ownerId === alice.id && order.price === uncappedPrice)?.price, uncappedPrice);
++  assert.equal(world.orders.find((order) => order.ownerId === bob.id && order.price === uncappedPrice)?.price, uncappedPrice);
++  assert.deepEqual(applyFacilityGroupAction(world, alice, 'placeOrder', {
++    assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: 0.001,
++  }, now + 5), { ok: false, message: '订单参数无效' });
++  assert.deepEqual(applyFacilityGroupAction(world, bob, 'placeOrder', {
++    assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: 0.001,
++  }, now + 6), { ok: false, message: '工厂订单参数无效' });
++});
++
+ test('orders reject notionals outside the representable money range', () => {
+   const world = createWorld(now);
+   ensurePlayer(world, alice, now);
+diff --git a/docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md b/docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+index c6b244f..fba7f2b 100644
+--- a/docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
++++ b/docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md
+@@ -80,7 +80,7 @@ interface AssetOrder {
+ 
+ 所有订单均由服务器校验：
+ 
+-- 商品和工厂订单价格必须为不低于 0.01 的两位小数，最小价格步长为 0.01；数量必须为正安全整数。账户余额、冻结、总额、手续费和退款保留六位小数。商品和工厂买卖单统一读取 `ECONOMY_CONSTANTS.maxOrderQuantity`，其值为 `Number.MAX_SAFE_INTEGER`，只表示技术安全边界，不构成固定业务数量上限。
++- 商品和工厂订单价格统一为不低于 0.01 的两位小数，最小价格步长为 0.01，不设置固定业务最高价；价格只受六位小数内部金额安全范围和单笔订单总额可表示范围约束。数量必须为正安全整数。账户余额、冻结、总额、手续费和退款保留六位小数。商品和工厂买卖单统一读取 `ECONOMY_CONSTANTS.maxOrderQuantity`，其值为 `Number.MAX_SAFE_INTEGER`，只表示技术安全边界，不构成固定业务数量上限。
+ - 买单和卖单都必须在冻结资产前校验单笔订单总额处于系统可表示金额范围内；超出范围时拒绝下单，不得截断、回绕或按 0 金额继续撮合。
+ - 每名玩家的商品和工厂订单合计最多同时存在 `PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length` 笔未完成订单；当前目录为 31 种商品加 21 种工厂类型，因此当前上限为 52 笔，目录增减时自动变化。
+ - 玩家买单冻结对应资金。
+diff --git a/scripts/verify-market-assets.mjs b/scripts/verify-market-assets.mjs
+index 3ec9d7b..3b6bd23 100644
+--- a/scripts/verify-market-assets.mjs
++++ b/scripts/verify-market-assets.mjs
+@@ -121,8 +121,22 @@ for (const text of [
+ ]) forbidText('src/app/GameApp.tsx', text);
+ for (const text of ['assetKind','matchFacilityOrder','reduceRunningGroupForSellOrder','valuationPricesFor','recentTradePriceFor','lastTradePrice','world.version = 20','reconcileFacilityGroup','activeRecipeId','pendingRecipeId','removeSystemFacilityOrders','SELF_CROSS_MESSAGE']) requireText('server/src/facility-groups.js', text);
+ for (const text of ['refreshFacilityLiquidity','系统资产采购','系统资产供给']) forbidText('server/src/facility-groups.js', text);
++for (const [path, text] of [
++  ['server/src/domain.js', "normalizePlayerMoneyInput(payload.price, { min: 0.01 })"],
++  ['server/src/facility-groups.js', "normalizePlayerMoneyInput(payload.price ?? payload.unitPrice, { min: 0.01 })"],
++  ['src/config/economy.ts', 'maxOrderPrice: Number.MAX_SAFE_INTEGER / 1_000_000'],
++  ['src/pages/MarketPage.tsx', 'max: economyConstants.maxOrderPrice'],
++  ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '不设置固定业务最高价'],
++]) requireText(path, text);
++for (const [path, text] of [
++  ['server/src/domain.js', 'max: 1_000_000'],
++  ['server/src/facility-groups.js', 'MAX_ORDER_PRICE'],
++  ['server/src/facility-groups.js', '系统参考价的 50%～200%'],
++  ['src/pages/MarketPage.tsx', 'max={1_000_000}'],
++]) forbidText(path, text);
+ for (const text of ['SELF_CROSS_MESSAGE','findSelfCrossingOrder','pricesCross','bestSystemPrice','systemBookIsCrossed']) requireText('server/src/order-book-integrity.js', text);
+ const domainSource = [
+   'server/src/domain.js',
