@@ -57,6 +57,7 @@ jobs:
           rm -f scripts/apply-fertilizer-factory.py.gz.b64
           rm -f scripts/apply-fertilizer-factory.py.gz.b64.part-*
           rm -f scripts/fertilizer-bootstrap-ready.txt
+          git add -A
 
       - name: Run full production build
         run: npm run build
