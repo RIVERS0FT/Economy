@@ -400,6 +400,9 @@ export class EconomyStore {
         updated_by = excluded.updated_by
     `);
     this.worldCache = null;
+  this.clientStateProjectionCache = new Map();
+  this.clientStateProjectionCacheLimit = 256;
+  this.catalogPartitionSnapshot = null;
   this.nextWorldProcessingAt = 0;
   this.scheduledProcessing = Boolean(scheduledProcessing);
   this.nowProvider = nowProvider;
@@ -552,12 +555,41 @@ export class EconomyStore {
   }
 
   cacheWorld(revision, stateJson, world, needsPersistence = false) {
+    const nextRevision = Number(revision);
+    if (this.worldCache?.revision !== nextRevision) this.clientStateProjectionCache.clear();
     this.worldCache = {
-      revision: Number(revision),
+      revision: nextRevision,
       stateJson,
       world: measureRequestPhase('worldCloneMs', () => structuredClone(world)),
       needsPersistence: Boolean(needsPersistence),
     };
+  }
+
+  canReuseStateProjection(userId, now = Date.now()) {
+    return Boolean(
+      this.worldCache
+      && (this.scheduledProcessing || now < this.nextWorldProcessingAt)
+      && !playerNeedsWeeklyLoginSettlement(this.worldCache.world.players?.[String(userId)], now)
+    );
+  }
+
+  cachedStateProjection(userId, revision) {
+    const key = `${Number(revision)}:${Number(userId)}`;
+    const cached = this.clientStateProjectionCache.get(key);
+    if (!cached) return null;
+    this.clientStateProjectionCache.delete(key);
+    this.clientStateProjectionCache.set(key, cached);
+    return cached;
+  }
+
+  rememberStateProjection(userId, revision, snapshot) {
+    const key = `${Number(revision)}:${Number(userId)}`;
+    this.clientStateProjectionCache.delete(key);
+    this.clientStateProjectionCache.set(key, snapshot);
+    while (this.clientStateProjectionCache.size > this.clientStateProjectionCacheLimit) {
+      this.clientStateProjectionCache.delete(this.clientStateProjectionCache.keys().next().value);
+    }
+    return snapshot;
   }
 
   loadWorld(now) {

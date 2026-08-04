@@ -66,11 +66,30 @@ export function splitClientState(state) {
   return partitions;
 }
 
-export function createPartitionRevisions(partitions) {
-  return Object.fromEntries(STATE_PARTITION_NAMES.map((name) => [
-    name,
-    revisionForPartition(partitions[name] || {}),
-  ]));
+export function createPartitionRevisions(partitions, { catalogSnapshot } = {}) {
+  return Object.fromEntries(STATE_PARTITION_NAMES.map((name) => {
+    if (
+      name === 'catalog'
+      && catalogSnapshot?.revision
+      && catalogSnapshot?.partition
+      && Number(catalogSnapshot.version) === Number(partitions.catalog?.version)
+    ) {
+      partitions.catalog = catalogSnapshot.partition;
+      return [name, catalogSnapshot.revision];
+    }
+    return [name, revisionForPartition(partitions[name] || {})];
+  }));
+}
+
+export function createStatePartitionSnapshot(state, { catalogSnapshot } = {}) {
+  const partitions = measureRequestPhase('partitionBuildMs', () => splitClientState(state));
+  const partitionRevisions = createPartitionRevisions(partitions, { catalogSnapshot });
+  setRequestGauge('statePartitionCount', STATE_PARTITION_NAMES.length);
+  return { partitions, partitionRevisions };
+}
+
+export function combineStatePartitions(partitions = {}) {
+  return Object.assign({}, ...STATE_PARTITION_NAMES.map((name) => partitions[name] || {}));
 }
 
 export function readKnownPartitionRevisionsFromSearch(searchParams) {
@@ -90,10 +109,14 @@ export function readKnownPartitionRevisionsFromHeader(value) {
 
 export function createPartitionedStateDelivery(snapshot, knownRevisions = {}, serverNow = Date.now()) {
   const responseServerNow = normalizeServerNow(serverNow);
-  if (snapshot?.unchanged || !snapshot?.state) return { ...snapshot, serverNow: responseServerNow };
-  const partitions = measureRequestPhase('partitionBuildMs', () => splitClientState(snapshot.state));
-  const partitionRevisions = createPartitionRevisions(partitions);
-  setRequestGauge('statePartitionCount', STATE_PARTITION_NAMES.length);
+  if (snapshot?.unchanged) return { revision: snapshot.revision, unchanged: true, serverNow: responseServerNow };
+  const prepared = snapshot?.partitions && snapshot?.partitionRevisions
+    ? { partitions: snapshot.partitions, partitionRevisions: snapshot.partitionRevisions }
+    : snapshot?.state
+      ? createStatePartitionSnapshot(snapshot.state)
+      : null;
+  if (!prepared) return { revision: snapshot?.revision, unchanged: true, serverNow: responseServerNow };
+  const { partitions, partitionRevisions } = prepared;
   const known = normalizeRevisionRecord(knownRevisions);
   const patches = {};
   for (const name of STATE_PARTITION_NAMES) {
