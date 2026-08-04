@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - agent/add-fertilizer-factory-bootstrap
+      - agent/add-fertilizer-factory-bootstrap-2
 
 permissions:
   contents: write
