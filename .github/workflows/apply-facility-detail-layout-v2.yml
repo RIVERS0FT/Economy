@@ -1,0 +1,933 @@
+name: Apply facility detail layout v2
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout head branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Apply source, design and regression changes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import textwrap
+
+          def read(path: str) -> str:
+              return Path(path).read_text()
+
+          def write(path: str, content: str) -> None:
+              Path(path).write_text(content)
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              source = read(path)
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: exact match count {count}: {old[:90]!r}')
+              write(path, source.replace(old, new, 1))
+
+          def sub_once(path: str, pattern: str, replacement: str) -> None:
+              source = read(path)
+              updated, count = re.subn(pattern, replacement, source, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'{path}: regex match count {count}: {pattern[:110]!r}')
+              write(path, updated)
+
+          detail_path = 'src/pages/production/ProductionFacilityDetail.tsx'
+          replace_once(
+              detail_path,
+              "import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';\n",
+              "import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';\n"
+              "import { FacilityRecipeProfitAnalysis } from '../../components/facilities/FacilityRecipeProfitAnalysis';\n",
+          )
+
+          information_component = textwrap.dedent(r"""
+          export function FacilityClusterInformation({
+            entry,
+            products,
+            inventories,
+            now,
+            onToggle,
+            titleId,
+          }: Pick<
+            FacilityClusterDetailSharedProps,
+            'entry' | 'products' | 'inventories' | 'now' | 'onToggle'
+          > & {
+            titleId: string;
+          }) {
+            const { group, type } = entry;
+            const recipeState = resolveFacilityDetailRecipeState(entry);
+            const profitScope = currentFormulaScope(group, now);
+
+            return (
+              <section
+                className="facility-information"
+                data-status={group.status}
+                aria-label={`${type.name}工厂信息`}
+              >
+                <div className="facility-detail-artwork facility-information-artwork" aria-hidden="true">
+                  <FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />
+                </div>
+
+                <div className="facility-information-main">
+                  <div className="facility-information-heading">
+                    <div className="facility-information-title">
+                      <h2 id={titleId}>{type.name}</h2>
+                      <div className="facility-information-meta">
+                        <span className="facility-information-total">
+                          <small>总数量</small>
+                          <strong>{formatNumber(group.count)}</strong>
+                        </span>
+                        <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
+                      </div>
+                    </div>
+                    <SwitchControl
+                      checked={group.enabled}
+                      aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
+                      title={group.enabled ? '停止生产' : '开启自动运行'}
+                      disabled={group.count < 1}
+                      onChange={(event) => onToggle(event.target.checked)}
+                    />
+                  </div>
+                </div>
+
+                <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
+                  <span>
+                    运行中 <strong>{formatNumber(group.participatingCount)}</strong>
+                  </span>
+                  <span>
+                    冻结中 <strong>{formatNumber(group.frozenCount ?? group.listedCount)}</strong>
+                  </span>
+                  <span>
+                    抵押中 <strong>{formatNumber(group.mortgagedCount)}</strong>
+                  </span>
+                </div>
+
+                <FacilityRecipeProfitAnalysis
+                  type={recipeState.formulaType}
+                  scopeCount={profitScope.physicalCount}
+                  scopeLabel={profitScope.name}
+                  staffingRateBps={profitScope.staffingRateBps}
+                  products={products}
+                  inventories={inventories}
+                />
+              </section>
+            );
+          }
+
+          """).lstrip()
+          sub_once(
+              detail_path,
+              r'export function FacilityClusterDetailHeader\([\s\S]*?\n}\n\n(?=export function FacilityClusterDetailBody)',
+              information_component,
+          )
+
+          detail_body = textwrap.dedent(r"""
+          export function FacilityClusterDetailBody({
+            entry,
+            products,
+            inventories,
+            now,
+            onRecipeChange,
+          }: Omit<FacilityClusterDetailSharedProps, 'onToggle' | 'onOpenMarket'>) {
+            const { group, type } = entry;
+            const recipeState = resolveFacilityDetailRecipeState(entry);
+            const selectConfiguration = (
+              selectedBaseRecipeId: string,
+              selectedProductionMethodId: FacilityProductionMethodId,
+            ) => {
+              const recipeId = productionRecipeVariantId(type, selectedBaseRecipeId, selectedProductionMethodId);
+              if (recipeId && recipeId !== recipeState.selectedRecipeId) onRecipeChange(recipeId);
+            };
+
+            return (
+              <>
+                <FacilityStaffingSummary entry={entry} now={now} />
+
+                <section className="facility-production-settings">
+                  <div className="facility-production-settings-heading">
+                    <strong>生产设置</strong>
+                  </div>
+
+                  <div className="facility-production-settings-grid">
+                    <RichSelectInput
+                      label="生产产物"
+                      aria-label={`${type.name}生产产物`}
+                      value={recipeState.selectedBaseRecipeId}
+                      options={recipeState.recipes.map((recipe) => ({
+                        value: recipe.id,
+                        label: recipe.name,
+                        visual: <ProductArtwork productId={recipe.output.productId} />,
+                      }))}
+                      disabled={group.count < 1 || recipeState.recipes.length === 0}
+                      onValueChange={(baseRecipeId) => {
+                        selectConfiguration(baseRecipeId, recipeState.selectedProductionMethodId);
+                      }}
+                    />
+
+                    {recipeState.productionMethodGroup ? (
+                      <RichSelectInput
+                        label={recipeState.productionMethodGroup.name}
+                        aria-label={`${type.name}生产方式`}
+                        value={recipeState.selectedProductionMethodId}
+                        options={recipeState.productionMethodGroup.methods.map((method) => ({
+                          value: method.id,
+                          label: method.name,
+                          disabled: !method.plansByRecipeId[recipeState.selectedBaseRecipeId],
+                          visual: <ProductionMethodIcon methodId={method.id} />,
+                        }))}
+                        disabled={group.count < 1}
+                        onValueChange={(methodId) => {
+                          selectConfiguration(
+                            recipeState.selectedBaseRecipeId,
+                            methodId as FacilityProductionMethodId,
+                          );
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                </section>
+
+                <FacilityProductionFormula
+                  group={group}
+                  type={recipeState.formulaType}
+                  products={products}
+                  inventories={inventories}
+                  now={now}
+                />
+              </>
+            );
+          }
+
+          """).lstrip()
+          sub_once(
+              detail_path,
+              r'export function FacilityClusterDetailBody\([\s\S]*?\n}\n\n(?=export function FacilityMarketAction)',
+              detail_body,
+          )
+          replace_once(
+              detail_path,
+              '      <FacilityClusterDetailHeader entry={entry} onToggle={onToggle} titleId={titleId} />\n',
+              textwrap.dedent("""
+                    <FacilityClusterInformation
+                      entry={entry}
+                      products={products}
+                      inventories={inventories}
+                      now={now}
+                      onToggle={onToggle}
+                      titleId={titleId}
+                    />
+              """),
+          )
+
+          mobile_path = 'src/pages/production/MobileFacilityDetailSheet.tsx'
+          replace_once(mobile_path, '  FacilityClusterDetailHeader,\n', '  FacilityClusterInformation,\n')
+          sub_once(
+              mobile_path,
+              r'\s*<div className="facility-detail-sheet-header">[\s\S]*?</div>\n\n(?=\s*<ScrollArea)',
+              textwrap.dedent("""
+                        <div className="facility-detail-sheet-header">
+                          <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
+                            <span className="facility-detail-sheet-handle" />
+                          </div>
+                        </div>
+
+              """),
+          )
+          sub_once(
+              mobile_path,
+              r'\s*<FacilityClusterDetailBody[\s\S]*?/>\n(?=\s*</ScrollArea>)',
+              textwrap.dedent("""
+                        <FacilityClusterInformation
+                          entry={entry}
+                          products={products}
+                          inventories={inventories}
+                          now={now}
+                          onToggle={onToggle}
+                          titleId="mobile-facility-detail-title"
+                        />
+                        <FacilityClusterDetailBody
+                          entry={entry}
+                          products={products}
+                          inventories={inventories}
+                          now={now}
+                          onRecipeChange={onRecipeChange}
+                        />
+              """),
+          )
+
+          formula_path = 'src/components/facilities/FacilityProductionFormula.tsx'
+          replace_once(formula_path, "import { FacilityRecipeProfitAnalysis } from './FacilityRecipeProfitAnalysis';\n", '')
+          for obsolete in [
+              '  const profitScope = scope;\n',
+              '  const profitType = type;\n',
+              '  const profitScopeLabel = profitScope.name;\n',
+          ]:
+              replace_once(formula_path, obsolete, '')
+          sub_once(
+              formula_path,
+              r'\n\s*<FacilityRecipeProfitAnalysis[\s\S]*?\n\s*/>\n(?=\s*</section>)',
+              '\n',
+          )
+
+          group_css_path = 'src/styles/facility-group-card-grid.css'
+          group_css = textwrap.dedent("""
+          .facility-group-card {
+            --facility-card-section-gap: var(--space-3);
+            --facility-card-inner-gap: var(--space-2);
+
+            display: grid;
+            grid-template-rows: auto;
+            grid-auto-rows: auto;
+            align-content: start;
+            align-items: start;
+            gap: var(--facility-card-section-gap);
+            overflow: visible;
+          }
+
+          .facility-group-card > * {
+            min-width: 0;
+            margin-inline: 0;
+          }
+
+          .facility-information {
+            min-width: 0;
+            display: grid;
+            grid-template-columns: minmax(8.5rem, 11.5rem) minmax(0, 1fr);
+            grid-template-areas:
+              "artwork main"
+              "summary summary"
+              "profit profit";
+            align-items: start;
+            gap: var(--space-2) var(--space-3);
+          }
+
+          .facility-information-artwork {
+            grid-area: artwork;
+            width: 100%;
+            align-self: start;
+          }
+
+          .facility-information-main {
+            grid-area: main;
+            min-width: 0;
+            display: grid;
+            align-content: start;
+          }
+
+          .facility-information-heading {
+            width: 100%;
+            min-width: 0;
+            min-height: var(--control-height-compact);
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: start;
+            gap: var(--space-2);
+          }
+
+          .facility-information-title {
+            min-width: 0;
+            display: grid;
+            align-content: start;
+            gap: var(--space-2);
+          }
+
+          .facility-information-title h2 {
+            min-width: 0;
+            margin: 0;
+            overflow: hidden;
+            font-size: var(--font-size-xl);
+            line-height: var(--line-height-tight);
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .facility-information-meta {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-1);
+          }
+
+          .facility-information-total {
+            min-width: 0;
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.35rem;
+            color: var(--color-text-muted);
+            white-space: nowrap;
+          }
+
+          .facility-information-total small {
+            font-size: var(--font-size-xs);
+          }
+
+          .facility-information-total strong {
+            color: var(--color-text-primary);
+            font-size: var(--font-size-lg);
+            font-variant-numeric: tabular-nums;
+          }
+
+          .facility-information-heading > .ui-switch {
+            flex: 0 0 auto;
+            margin: 0;
+          }
+
+          .facility-count-summary {
+            grid-area: summary;
+            width: 100%;
+            min-width: 0;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            align-items: baseline;
+            gap: var(--space-1);
+            color: var(--color-text-muted);
+            font-size: var(--font-size-xs);
+          }
+
+          .facility-count-summary span {
+            min-width: 0;
+            display: flex;
+            align-items: baseline;
+            gap: 0.25rem;
+            white-space: nowrap;
+          }
+
+          .facility-count-summary span:nth-child(2) {
+            justify-content: center;
+          }
+
+          .facility-count-summary span:last-child {
+            justify-content: flex-end;
+          }
+
+          .facility-count-summary strong {
+            flex: 0 0 auto;
+            color: var(--color-text-primary);
+            font-size: var(--font-size-sm);
+          }
+
+          .facility-information > .facility-average-profit {
+            grid-area: profit;
+            margin: 0;
+            border-top: 1px solid var(--color-divider);
+            padding-top: var(--space-2);
+          }
+
+          .facility-staffing-summary {
+            min-width: 0;
+            display: grid;
+            gap: var(--space-1);
+            border-top: 1px solid var(--color-divider);
+            padding: var(--space-2) var(--space-1) 0;
+          }
+
+          .facility-staffing-heading {
+            min-width: 0;
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: var(--space-2);
+          }
+
+          .facility-staffing-heading strong {
+            flex: 0 0 auto;
+            color: var(--color-text-primary);
+            font-size: var(--font-size-sm);
+          }
+
+          .facility-staffing-heading span {
+            min-width: 0;
+            overflow: hidden;
+            color: var(--color-text-muted);
+            font-size: var(--font-size-xs);
+            line-height: var(--line-height-normal);
+            text-align: right;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .facility-staffing-track {
+            width: 100%;
+            height: 0.5rem;
+            overflow: hidden;
+            border-radius: var(--radius-pill);
+            background: color-mix(in srgb, var(--color-border-strong) 38%, transparent);
+          }
+
+          .facility-staffing-fill {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--color-success);
+            transition: width 180ms ease;
+          }
+
+          .facility-production-settings {
+            min-width: 0;
+            display: grid;
+            gap: var(--facility-card-inner-gap);
+            border-top: 1px solid var(--color-divider);
+            padding-top: var(--space-2);
+          }
+
+          .facility-production-settings-heading {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space-2);
+          }
+
+          .facility-production-settings-heading strong {
+            flex: 0 0 auto;
+            color: var(--color-text-primary);
+            font-size: var(--font-size-sm);
+            white-space: nowrap;
+          }
+
+          .facility-production-settings-grid {
+            min-width: 0;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+            gap: var(--space-2);
+          }
+
+          .facility-production-settings-grid > * {
+            min-width: 0;
+          }
+
+          .facility-production-settings select {
+            min-height: var(--control-height-compact);
+          }
+
+          .facility-production-settings select:disabled {
+            opacity: 0.72;
+            color: var(--color-text-secondary);
+          }
+
+          .facility-production-formula {
+            align-self: start;
+          }
+
+          @media (max-width: 720px) {
+            .facility-information {
+              grid-template-columns: minmax(6rem, 7.25rem) minmax(0, 1fr);
+              gap: var(--space-2);
+            }
+
+            .facility-information-title {
+              gap: var(--space-1);
+            }
+
+            .facility-information-title h2 {
+              font-size: var(--font-size-lg);
+            }
+
+            .facility-information-total {
+              display: grid;
+              gap: 0.1rem;
+            }
+
+            .facility-information-total strong {
+              font-size: var(--font-size-md);
+            }
+
+            .facility-count-summary {
+              gap: 0.25rem;
+              font-size: 0.68rem;
+            }
+
+            .facility-count-summary span {
+              display: grid;
+              justify-items: start;
+              gap: 0.1rem;
+            }
+
+            .facility-count-summary span:nth-child(2) {
+              justify-content: initial;
+              justify-items: center;
+            }
+
+            .facility-count-summary span:last-child {
+              justify-content: initial;
+              justify-items: end;
+            }
+          }
+
+          """).lstrip()
+          sub_once(group_css_path, r'\.facility-group-card \{[\s\S]*?(?=\.facility-market-link-row \{)', group_css)
+
+          artwork_css = 'src/styles/facility-artwork.css'
+          sub_once(
+              artwork_css,
+              r'\.facility-detail-artwork \{[\s\S]*?\n\}',
+              textwrap.dedent("""
+              .facility-detail-artwork {
+                position: relative;
+                width: 100%;
+                min-height: 0;
+                aspect-ratio: 4 / 5;
+                overflow: hidden;
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-control);
+                background: var(--color-surface-inset);
+              }
+              """).lstrip(),
+          )
+          sub_once(
+              artwork_css,
+              r'  \.facility-detail-artwork \{[\s\S]*?aspect-ratio: 16 / 5;[\s\S]*?\n  \}',
+              textwrap.dedent("""
+                .facility-detail-artwork {
+                  min-height: 0;
+                  aspect-ratio: 4 / 5;
+                }
+              """).rstrip(),
+          )
+
+          profit_css = 'src/styles/facility-recipe-profit-analysis.css'
+          sub_once(
+              profit_css,
+              r'\.facility-average-profit \{[\s\S]*?\n\}',
+              textwrap.dedent("""
+              .facility-average-profit {
+                min-width: 0;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: var(--space-3);
+              }
+              """).lstrip(),
+          )
+
+          surface_css = 'src/styles/production-surface.css'
+          surface_block = textwrap.dedent("""
+          .panel.production-surface > .widget-heading,
+          .panel.production-surface .facility-information-heading {
+            align-items: start;
+          }
+
+          .panel.production-surface .facility-information-heading {
+            min-height: var(--production-pill-visible-height);
+          }
+
+          .panel.production-surface > .widget-heading h2,
+          .panel.production-surface .facility-information-title h2 {
+            margin: 0;
+            font-size: var(--font-size-xl);
+            line-height: var(--line-height-tight);
+          }
+
+          .panel.production-surface .facility-information-heading > .ui-switch {
+            width: 2.75rem;
+            min-width: 2.75rem;
+            height: var(--production-pill-visible-height);
+            min-height: var(--production-pill-visible-height);
+            align-self: start;
+          }
+
+          .panel.production-surface .facility-information-heading > .ui-switch::before {
+            inset: 0;
+            height: auto;
+            border-radius: var(--radius-pill);
+          }
+
+          .panel.production-surface .facility-information-heading > .ui-switch::after {
+            top: calc((var(--production-pill-visible-height) - var(--production-switch-thumb-size)) / 2);
+            left: var(--production-switch-thumb-inset);
+            width: var(--production-switch-thumb-size);
+            height: var(--production-switch-thumb-size);
+          }
+
+          .panel.production-surface .facility-information-heading > .ui-switch:checked::after {
+            transform: translateX(var(--production-switch-thumb-travel));
+          }
+
+          .panel.production-surface.facility-group-card {
+            --facility-card-section-gap: var(--space-2);
+            --facility-card-inner-gap: var(--space-1);
+          }
+
+          .panel.production-surface .facility-information-meta .ui-status-tag {
+            flex: 0 0 auto;
+          }
+
+          .panel.production-surface .facility-count-summary {
+            line-height: var(--line-height-tight);
+          }
+
+          """).lstrip()
+          sub_once(
+              surface_css,
+              r'\.panel\.production-surface > \.widget-heading,[\s\S]*?(?=/\* Desktop production sticky alignment\.)',
+              surface_block,
+          )
+
+          sheet_css = 'src/styles/facility-detail-sheet.css'
+          for pattern in [
+              r'\n\s*\.facility-detail-sheet \.facility-status-header \{[\s\S]*?\n\s*\}\n',
+              r'\n\s*\.facility-detail-sheet \.facility-card-title-row,[\s\S]*?touch-action: pan-y;\n\s*\}\n',
+              r'\n\s*\.facility-detail-sheet \.facility-card-title-block \{[\s\S]*?\n\s*\}\n',
+              r'\n\s*\.facility-detail-sheet \.facility-card-title-block \.ui-status-tag \{[\s\S]*?\n\s*\}\n',
+          ]:
+              sub_once(sheet_css, pattern, '\n')
+          replace_once(
+              sheet_css,
+              '  .facility-detail-sheet-header {\n    border-bottom: 1px solid var(--color-divider);\n  }\n',
+              '  .facility-detail-sheet-header {\n    border-bottom: 0;\n  }\n',
+          )
+          source = read(sheet_css)
+          source, count = re.subn(
+              r'\n@media \(max-width: 720px\) \{\n\s*\.facility-detail-sheet \.facility-status-header[\s\S]*?\n\}\n?$',
+              '\n',
+              source,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit(f'{sheet_css}: obsolete compact header media count {count}')
+          write(sheet_css, source)
+
+          industry_path = 'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md'
+          industry_section = textwrap.dedent("""
+          ### 9.4 当前工厂详情
+
+          - 当前工厂详情的可见顺序固定为“移动端把手（桌面端无）→ 工厂信息 → 满员率 → 生产设置 → 生产结算 → 市场入口”。桌面端不得渲染把手 DOM；移动 Bottom Sheet 的固定头部只保留拖动把手，工厂名称、状态和开关必须进入正文中的共享工厂信息区。
+          - 工厂信息是唯一身份与经营摘要区，包含工厂名称、`4:5` 纵向场景插画、总数量、唯一完整状态胶囊、运行开关、运行中／冻结中／抵押中三项数量明细，以及唯一一行单厂平均利润／分钟。不得再把标题状态固定在移动头部、把插画拆到另一列或把利润留在生产结算中。
+          - 工厂信息内部允许“纵向插画 + 右侧主信息”的两列布局；三项数量明细与利润位于该信息区内部并按 DOM 顺序出现在后。桌面与移动共用同一个 `FacilityClusterInformation`，不得通过 CSS `order` 建立与 DOM 不同的视觉顺序。
+          - 详情正文整体只使用纵向内容流，不得恢复“左侧插画与满员率、右侧设置与结算”的宽详情双列。桌面详情高度继续由自然内容决定，不使用弹性空白行、可见 spacer 或独立纵向滚动条；移动端继续使用唯一正文 `ScrollArea` 和固定底部市场入口。
+          - 满员率紧跟工厂信息之后，显示当前百分比、恢复／下降方向和进度条。物理数量、完成时满员率与整数等效产能只进入完整无障碍描述，不得恢复可见长句、独立卡片背景或与插画绑定的并排布局。
+          - 玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区；桌面与移动在 `320px` 及以上固定双列同行。两者使用共享 `RichSelectInput`、商品 PNG 或制度 Icon 与名称；不得显示制度说明、周期摘要、产出摘要或成本摘要。
+          - 集群生产公式支持无输入、单输入、多输入和单输出；投入位于左侧、产出位于右侧，逐项显示商品 PNG、结算数量、仓库 Icon 与当前可用库存。多项物资只使用独立物资槽与间距，不显示 `+` 或其他连接字符。
+          - 时间与成本固定放在投入与产出下方的同一条内容宽度操作数据带，中间使用竖向分隔线；生产进度位于数据带下方，并且是生产结算最后一个可见元素。生产结算不得包含单厂平均利润、当前周期说明或第二张结果卡。
+          - 单厂平均利润／分钟继续复用统一展示模型与最近真实成交价，固定按一座工厂计算；它只在工厂信息区出现一次，不参与生产结算、订单撮合、估值、排行榜或市场需求。
+          - 市场入口固定为“前往市场交易该工厂 →”，桌面位于详情自然内容底部，移动端位于固定 Footer。
+
+          """).lstrip()
+          sub_once(
+              industry_path,
+              r'### 9\.4 当前工厂详情[\s\S]*?(?=### 9\.5 单厂平均利润／分钟)',
+              industry_section,
+          )
+
+          ui_path = 'docs/UI_DESIGN_SYSTEM.md'
+          ui = read(ui_path)
+          replacements = [
+              (
+                  '当前工厂详情标题区中，名称与完整状态组成左侧标题块，状态固定显示在名称下方且异常原因只显示一次；`SwitchControl` 位于标题区右侧。',
+                  '当前工厂详情使用唯一 `FacilityClusterInformation` 合并名称、`4:5` 纵向场景插画、总数量、唯一状态胶囊、`SwitchControl`、运行中／冻结中／抵押中数量明细与单厂平均利润；移动固定头部不得继续承载名称、状态或开关。',
+              ),
+              (
+                  '数量摘要位于标题区下一行，“运行中／立即加入运行／冻结中”固定为三列单行布局。',
+                  '数量摘要位于工厂信息区内部，固定为“运行中／冻结中／抵押中”三列；总数量只在主信息中显示一次，不得重新拼入标题。',
+              ),
+              (
+                  '移动详情悬浮框不显示顶部关闭按钮；对话框容器承担初始焦点，点击遮罩、按 `Escape` 和有效向下拖动共用向下收起与遮罩淡出动画，关闭后焦点返回触发卡。移动详情使用 `SignedInShell` 的根级 Dialog 层覆盖完整视口并位于状态栏与底部导航之上，普通 Tooltip／Popover 仍使用工作区安全浮层根。Bottom Sheet 必须在首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定、稳定视觉视口高度快照和 `focus({ preventScroll: true })`；打开后不得继续读取动态 `dvh` 改变高度。',
+                  '移动详情悬浮框不显示顶部关闭按钮；固定头部只保留拖动把手，完整工厂信息作为正文 `ScrollArea` 的第一个区块。对话框容器承担初始焦点，点击遮罩、按 `Escape` 和有效向下拖动共用向下收起与遮罩淡出动画，关闭后焦点返回触发卡。移动详情使用 `SignedInShell` 的根级 Dialog 层覆盖完整视口并位于状态栏与底部导航之上。Bottom Sheet 必须在首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定、稳定视觉视口高度快照和 `focus({ preventScroll: true })`；打开后不得继续读取动态 `dvh` 改变高度。',
+              ),
+              (
+                  '当前工厂详情正文按“插画与满员率 → 生产设置 → 生产结算”组织，再显示紧凑满员率状态；满员率必须使用无独立边框、圆角和背景的状态带，保留百分比、方向、进度条和周期产能说明，桌面与移动共用同一正文组件，不得在详情卡内部再形成卡片或在移动端遗漏。',
+                  '当前工厂详情顺序固定为“移动把手（桌面无）→ 工厂信息 → 满员率 → 生产设置 → 生产结算 → 市场入口”。仅工厂信息内部允许纵向插画与主信息两列；其余区块必须按 DOM 自上而下排列。满员率使用无独立圆角和背景的状态带，只显示百分比、方向和进度条。',
+              ),
+              (
+                  '工厂生产公式固定采用双列顶层布局：左侧为输入组合区，右侧为输出区；输入与输出物资槽顶部对齐。时间与成本位于双列物资区下方的同一条操作数据带，中间使用竖向分隔线；多输入或多输出内部允许换行，时间与成本不得回到输入输出之间的独立中列。公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡，利润行只使用顶部分隔线，不得拥有独立外框、圆角或背景。',
+                  '工厂生产公式固定采用双列顶层布局：左侧为输入组合区，右侧为输出区；输入与输出物资槽顶部对齐。时间与成本位于双列物资区下方的同一条操作数据带，中间使用竖向分隔线；多输入或多输出内部允许换行，时间与成本不得回到输入输出之间的独立中列。公式、操作数据带和进度共同组成“生产结算”，进度条是最后一个可见元素；单厂平均利润只属于工厂信息区。',
+              ),
+              (
+                  '工厂详情参考经营模拟游戏的建筑信息层级组织为“身份与状态 → 场景插画与满员率 → 生产设置 → 投入产出与进度 → 经营结果”，但继续使用本项目组件与视觉令牌。移动端场景插画使用更紧凑的 16:5 比例；满员率状态带不得显示周期范围、锁定值或等效产能说明；生产设置不得重复周期、产出和成本摘要；生产结算标题不得显示右侧长描述。',
+                  '工厂详情参考经营模拟游戏的建筑信息层级组织为“工厂信息 → 满员率 → 生产设置 → 投入产出与进度”。工厂信息统一使用 `4:5` 纵向场景插画并包含经营结果；满员率不得显示周期范围、锁定值或等效产能说明；生产设置不得重复周期、产出和成本摘要；生产结算标题不得显示右侧长描述。',
+              ),
+              (
+                  '当前工厂详情正文按“插画与满员率 → 生产设置 → 生产结算”组织；公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡。',
+                  '当前工厂详情正文按“工厂信息 → 满员率 → 生产设置 → 生产结算”组织；单厂平均利润属于工厂信息，生产结算只包含公式、操作数据带和进度。',
+              ),
+          ]
+          for old, new in replacements:
+              if old not in ui:
+                  raise SystemExit(f'{ui_path}: missing design sentence {old[:90]!r}')
+              ui = ui.replace(old, new, 1)
+          write(ui_path, ui)
+
+          pill_path = 'docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md'
+          pill = read(pill_path)
+          pill = pill.replace('标题行最小高度', '工厂信息标题行最小高度')
+          pill = pill.replace('标题行继续使用', '工厂信息标题行继续使用')
+          pill = pill.replace('工厂标题、状态、数量摘要和详情自然高度', '工厂信息、状态、数量摘要和详情自然高度')
+          write(pill_path, pill)
+
+          verify_path = 'scripts/verify-unified-factory-recipes-grid.mjs'
+          verify = read(verify_path)
+          verify = verify.replace("  'function FacilityClusterDetailHeader',", "  'function FacilityClusterInformation',")
+          verify = verify.replace("  'className=\"facility-card-title-block facility-cluster-selector-heading\"',", "  'className=\"facility-information\"',")
+          verify = verify.replace("detail.indexOf('function FacilityClusterDetailHeader')", "detail.indexOf('function FacilityClusterInformation')")
+          verify = verify.replace("  '.facility-detail-sheet .facility-status-header',\n  '.facility-detail-sheet .facility-card-title-row > .ui-switch',", "  '.facility-information',\n  '.facility-information > .facility-average-profit',")
+          verify = verify.replace("  'touch-action: none;',\n  '.facility-card-title-block',", "  'touch-action: none;',\n  '.facility-detail-sheet-header',")
+          verify = verify.replace("  '.panel.production-surface .facility-card-title-row',", "  '.panel.production-surface .facility-information-heading',")
+          verify = verify.replace("  '.panel.production-surface .facility-card-title-row > .ui-switch {',", "  '.panel.production-surface .facility-information-heading > .ui-switch {',")
+          verify = verify.replace("  '.panel.production-surface .facility-card-title-row > .ui-switch::before',", "  '.panel.production-surface .facility-information-heading > .ui-switch::before',")
+          verify = verify.replace("  '完整状态与工厂名称位于紧凑标题区域',", "  '工厂信息是唯一身份与经营摘要区',")
+          verify = verify.replace("  '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',", "  '生产进度位于数据带下方，并且是生产结算最后一个可见元素',")
+          verify = verify.replace("      '当前工厂详情正文按“插画与满员率 → 生产设置 → 生产结算”组织',", "      '当前工厂详情顺序固定为“移动把手（桌面无）→ 工厂信息 → 满员率 → 生产设置 → 生产结算 → 市场入口”',")
+          verify = verify.replace("      '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',", "      '单厂平均利润只属于工厂信息区',")
+          verify = verify.replace("  '悬浮框最大高度为 `min(88dvh, 760px)`',", "  '稳定视觉视口高度快照',")
+          old_profit_assertion = "const profitIndex = formula.indexOf('<FacilityRecipeProfitAnalysis', settlementStart);\nassert.equal(formula.includes('<strong>生产结算</strong>'), true, '生产公式缺少生产结算标题');\nassert.equal(profitIndex > settlementStart && profitIndex < settlementEnd, true, '单厂利润必须位于生产结算容器内');"
+          new_profit_assertion = "const profitIndex = formula.indexOf('<FacilityRecipeProfitAnalysis', settlementStart);\nconst informationStart = detail.indexOf('className=\"facility-information\"');\nconst informationProfitIndex = detail.indexOf('<FacilityRecipeProfitAnalysis', informationStart);\nassert.equal(formula.includes('<strong>生产结算</strong>'), true, '生产公式缺少生产结算标题');\nassert.equal(profitIndex, -1, '生产结算不得继续包含单厂利润');\nassert.equal(informationProfitIndex > informationStart, true, '单厂利润必须位于工厂信息区');"
+          if old_profit_assertion not in verify:
+              raise SystemExit('unified verifier: old profit assertion missing')
+          verify = verify.replace(old_profit_assertion, new_profit_assertion, 1)
+          verify = verify.replace(
+              "assert.equal(profitRule.includes('border-top:'), true, '单厂利润行必须保留结算分隔线');",
+              "assert.equal(profitRule.includes('border-top:'), false, '利润组件基础样式不得绑定生产结算分隔线');\nassert.equal(css.includes('.facility-information > .facility-average-profit'), true, '工厂信息必须承载利润行');",
+          )
+          write(verify_path, verify)
+
+          groups_path = 'scripts/verify-facility-groups.mjs'
+          groups = read(groups_path)
+          groups = groups.replace("  '.facility-card-title-row',", "  '.facility-information-heading',")
+          groups = groups.replace("  '.facility-detail-sheet .facility-card-title-block',", "  '.facility-detail-sheet-header',")
+          groups = groups.replace("  '完整状态与工厂名称位于紧凑标题区域',", "  '工厂信息是唯一身份与经营摘要区',")
+          groups = groups.replace("  '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',", "  '生产进度位于数据带下方，并且是生产结算最后一个可见元素',")
+          write(groups_path, groups)
+
+          profit_verify_path = 'scripts/verify-recipe-profit-analysis.mjs'
+          profit_verify = read(profit_verify_path)
+          profit_verify = profit_verify.replace("  selectorSource.indexOf('export function FacilityClusterDetailHeader'),", "  selectorSource.indexOf('export function FacilityClusterInformation'),")
+          profit_verify = profit_verify.replace("  '.facility-cluster-selector-heading',\n  'flex-wrap: wrap;',", "  '.facility-information-heading',\n  'grid-template-columns: minmax(0, 1fr) auto;',")
+          profit_verify = profit_verify.replace("  'gap: 0.35rem var(--space-2);',\n  'font-size: 0.72rem;',", "  '.facility-detail-sheet-header',\n  'border-bottom: 0;',")
+          profit_verify = profit_verify.replace("  '完整状态与工厂名称位于紧凑标题区域',", "  '工厂信息是唯一身份与经营摘要区',")
+          write(profit_verify_path, profit_verify)
+
+          artwork_verify_path = 'scripts/verify-facility-artwork.mjs'
+          artwork_verify = read(artwork_verify_path)
+          artwork_verify = artwork_verify.replace('工厂详情未落实场景插画横幅', '工厂详情未落实纵向场景插画')
+          marker = "    'background-size: cover;',\n    '@media (max-width: 720px)',"
+          if marker not in artwork_verify:
+              raise SystemExit('facility artwork verifier insertion marker missing')
+          artwork_verify = artwork_verify.replace(marker, "    'background-size: cover;',\n    'aspect-ratio: 4 / 5;',\n    '@media (max-width: 720px)',", 1)
+          write(artwork_verify_path, artwork_verify)
+
+          methods_path = 'tests/browser/production-methods.spec.ts'
+          methods = read(methods_path)
+          methods = methods.replace("    expect(staffingStyle.borderTopWidth).toBe('0px');", "    expect(Number.parseFloat(staffingStyle.borderTopWidth)).toBeGreaterThan(0);")
+          methods = methods.replace("    const profit = settlement.locator('.facility-average-profit');", "    const profit = detail.locator(':scope > .facility-information > .facility-average-profit');")
+          methods = methods.replace("    await expect(profit).toHaveCount(1);", "    await expect(profit).toHaveCount(1);\n    await expect(settlement.locator('.facility-average-profit')).toHaveCount(0);", 1)
+          artwork_marker = "    await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');\n"
+          artwork_addition = textwrap.dedent("""
+              const artworkBox = await detail.locator('.facility-detail-artwork').boundingBox();
+              expect(artworkBox).not.toBeNull();
+              if (!artworkBox) throw new Error('工厂信息纵向插画几何不可用');
+              expect(artworkBox.height / artworkBox.width).toBeCloseTo(1.25, 1);
+
+              const sectionOrder = await detail.evaluate((element) => Array.from(element.children).map((child) => child.className));
+              const informationIndex = sectionOrder.findIndex((value) => String(value).includes('facility-information'));
+              const staffingIndex = sectionOrder.findIndex((value) => String(value).includes('facility-staffing-summary'));
+              const settingsIndex = sectionOrder.findIndex((value) => String(value).includes('facility-production-settings'));
+              const settlementIndex = sectionOrder.findIndex((value) => String(value).includes('facility-production-formula'));
+              expect(informationIndex).toBeGreaterThanOrEqual(0);
+              expect(staffingIndex).toBeGreaterThan(informationIndex);
+              expect(settingsIndex).toBeGreaterThan(staffingIndex);
+              expect(settlementIndex).toBeGreaterThan(settingsIndex);
+          """)
+          if artwork_marker not in methods:
+              raise SystemExit('production methods artwork marker missing')
+          methods = methods.replace(artwork_marker, artwork_marker + artwork_addition, 1)
+          mobile_marker = "    await expect(sheet.locator('.facility-staffing-fill')).toBeVisible();\n"
+          mobile_addition = textwrap.dedent("""
+              await expect(sheet.locator('.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)')).toHaveCount(0);
+              await expect(sheet.locator('.facility-information')).toHaveCount(1);
+              await expect(sheet.locator('.facility-information .facility-average-profit')).toHaveCount(1);
+              await expect(sheet.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
+              const mobileArtworkBox = await sheet.locator('.facility-detail-artwork').boundingBox();
+              expect(mobileArtworkBox).not.toBeNull();
+              if (!mobileArtworkBox) throw new Error(`移动工厂信息纵向插画几何不可用: ${width}px`);
+              expect(mobileArtworkBox.height / mobileArtworkBox.width).toBeCloseTo(1.25, 1);
+          """)
+          if mobile_marker not in methods:
+              raise SystemExit('production methods mobile marker missing')
+          methods = methods.replace(mobile_marker, mobile_marker + mobile_addition, 1)
+          write(methods_path, methods)
+
+          sheet_test_path = 'tests/browser/facility-detail-sheet.spec.ts'
+          sheet_test = read(sheet_test_path)
+          sheet_marker = "      await expect(dialog.locator('.facility-staffing-fill')).toBeVisible();\n"
+          sheet_addition = textwrap.dedent("""
+              await expect(dialog.locator('.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)')).toHaveCount(0);
+              await expect(dialog.locator('.facility-information')).toHaveCount(1);
+              await expect(dialog.locator('.facility-information .facility-average-profit')).toHaveCount(1);
+              await expect(dialog.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
+              const visibleOrder = await dialog.locator('.facility-detail-sheet-scroll').evaluate((element) => (
+                Array.from(element.children).map((child) => child.className)
+              ));
+              expect(String(visibleOrder[0])).toContain('facility-information');
+              expect(String(visibleOrder[1])).toContain('facility-staffing-summary');
+              expect(String(visibleOrder[2])).toContain('facility-production-settings');
+              expect(String(visibleOrder[3])).toContain('facility-production-formula');
+          """)
+          if sheet_marker not in sheet_test:
+              raise SystemExit('facility sheet test marker missing')
+          sheet_test = sheet_test.replace(sheet_marker, sheet_marker + sheet_addition, 1)
+          write(sheet_test_path, sheet_test)
+
+          # Static verifiers must require the newly added browser contracts.
+          verify = read(verify_path)
+          browser_insertion = "  \"expect(alignment.justifyContent).toBe('stretch')\",\n"
+          for token in [
+              "  \"'.facility-information .facility-average-profit'\",\n",
+              "  \"'.facility-production-formula .facility-average-profit'\",\n",
+              "  \"'facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)'\",\n",
+          ]:
+              if token.strip() not in verify:
+                  verify = verify.replace(browser_insertion, browser_insertion + token, 1)
+          write(verify_path, verify)
+
+          for temporary in [
+              '.github/workflows/apply-facility-detail-layout.yml',
+              '.github/workflows/apply-facility-detail-layout-pr.yml',
+              '.github/workflows/apply-facility-detail-layout-v2.yml',
+              'facility-detail-layout-trigger.txt',
+          ]:
+              Path(temporary).unlink(missing_ok=True)
+          PY
+
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            docs/INDUSTRY_AND_PRODUCTION_DESIGN.md \
+            docs/PRODUCTION_PILL_ALIGNMENT_DESIGN.md \
+            docs/UI_DESIGN_SYSTEM.md \
+            scripts/verify-facility-artwork.mjs \
+            scripts/verify-facility-groups.mjs \
+            scripts/verify-recipe-profit-analysis.mjs \
+            scripts/verify-unified-factory-recipes-grid.mjs \
+            src/components/facilities/FacilityProductionFormula.tsx \
+            src/pages/production/MobileFacilityDetailSheet.tsx \
+            src/pages/production/ProductionFacilityDetail.tsx \
+            src/styles/facility-artwork.css \
+            src/styles/facility-detail-sheet.css \
+            src/styles/facility-group-card-grid.css \
+            src/styles/facility-recipe-profit-analysis.css \
+            src/styles/production-surface.css \
+            tests/browser/facility-detail-sheet.spec.ts \
+            tests/browser/production-methods.spec.ts \
+            .github/workflows/apply-facility-detail-layout.yml \
+            .github/workflows/apply-facility-detail-layout-pr.yml \
+            .github/workflows/apply-facility-detail-layout-v2.yml \
+            facility-detail-layout-trigger.txt
+          git commit -m "重构工厂详情纵向信息层级"
+          git push origin HEAD:${{ github.head_ref }}
