@@ -1,4 +1,4 @@
-/* Factory production settlement: icon-first material rows, two-line input metadata, and flow progress. */
+/* Factory production settlement: icon-first material rows, compact operation metadata, and flow progress. */
 .facility-production-formula {
   min-width: 0;
   position: relative;
@@ -175,14 +175,6 @@
   white-space: nowrap;
 }
 
-.facility-formula-separator {
-  align-self: center;
-  color: color-mix(in srgb, var(--color-warning) 72%, var(--color-text-muted));
-  font-size: var(--font-size-sm);
-  font-weight: 800;
-  text-shadow: 0 1px color-mix(in srgb, var(--color-bg-deep) 82%, transparent);
-}
-
 .facility-formula-empty {
   min-height: 2.4rem;
   display: inline-flex;
@@ -201,6 +193,7 @@
   max-width: 100%;
   min-width: 0;
   grid-area: auto;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -325,10 +318,6 @@
   .facility-formula-top {
     grid-template-areas: none;
     gap: var(--space-2);
-  }
-
-  .facility-formula-meta {
-    width: 100%;
   }
 }
 

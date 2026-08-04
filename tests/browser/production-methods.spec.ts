@@ -117,6 +117,7 @@ test.describe('factory production methods', () => {
 
     const materialRows = settlement.locator('.facility-formula-item-group');
     await expect(materialRows).toHaveCount(2);
+    await expect(settlement.locator('.facility-formula-separator')).toHaveCount(0);
     await expect(settlement.locator('.facility-formula-inventory')).toHaveCount(2);
     await expect(settlement.locator('.facility-formula-input .facility-formula-inventory')).toHaveCount(1);
     await expect(settlement.locator('.facility-formula-output .facility-formula-inventory')).toHaveCount(1);
@@ -215,12 +216,14 @@ test.describe('factory production methods', () => {
     expect(methodBox.x).toBeGreaterThan(recipeBox.x + recipeBox.width - 1);
 
     const settlement = sheet.locator('.facility-production-formula');
+    const visual = settlement.locator('.facility-formula-visual');
     const inputSlot = settlement.locator('.facility-formula-input .facility-formula-item-group').first();
     const outputSlot = settlement.locator('.facility-formula-output .facility-formula-item-group').first();
     const formulaMeta = settlement.locator('.facility-formula-meta');
     const progress = settlement.locator('.facility-formula-progress');
     const metaUnits = formulaMeta.locator(':scope > .facility-formula-meta-unit');
-    const [inputBox, outputBox, metaBox, progressBox, cycleBox, costBox] = await Promise.all([
+    const [visualBox, inputBox, outputBox, metaBox, progressBox, cycleBox, costBox] = await Promise.all([
+      visual.boundingBox(),
       inputSlot.boundingBox(),
       outputSlot.boundingBox(),
       formulaMeta.boundingBox(),
@@ -228,17 +231,20 @@ test.describe('factory production methods', () => {
       metaUnits.nth(0).boundingBox(),
       metaUnits.nth(1).boundingBox(),
     ]);
+    expect(visualBox).not.toBeNull();
     expect(inputBox).not.toBeNull();
     expect(outputBox).not.toBeNull();
     expect(metaBox).not.toBeNull();
     expect(progressBox).not.toBeNull();
     expect(cycleBox).not.toBeNull();
     expect(costBox).not.toBeNull();
-    if (!inputBox || !outputBox || !metaBox || !progressBox || !cycleBox || !costBox) {
+    if (!visualBox || !inputBox || !outputBox || !metaBox || !progressBox || !cycleBox || !costBox) {
       throw new Error(`移动生产结算几何不可用: ${width}px`);
     }
     expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1);
     expect(metaBox.y).toBeGreaterThanOrEqual(Math.max(inputBox.y + inputBox.height, outputBox.y + outputBox.height) - 1);
+    expect(Math.abs(metaBox.x - visualBox.x)).toBeLessThanOrEqual(1);
+    expect(metaBox.width).toBeLessThan(visualBox.width - 8);
     expect(progressBox.y).toBeGreaterThanOrEqual(
       Math.max(metaBox.y + metaBox.height, outputBox.y + outputBox.height) - 1,
     );

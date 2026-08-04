@@ -39,6 +39,7 @@ for (const forbidden of [
   'facility-formula-meta-divider',
   '<strong>{formatNumber(quantity)} ×</strong>',
   'facility-formula-center',
+  'facility-formula-separator',
 ]) assert.equal(formula.includes(forbidden), false, `生产结算不得包含: ${forbidden}`);
 
 const itemStart = formula.indexOf('className={itemClassName}');
@@ -77,6 +78,8 @@ for (const text of [
   'grid-template-columns: auto auto auto;',
   'display: inline-flex;',
   'grid-area: auto;',
+  'width: fit-content;',
+  'justify-self: start;',
   '.facility-formula-meta-unit.is-cost {',
   'border-left: 1px solid var(--color-divider);',
   '.facility-formula-progress .progress-track span::after',
@@ -89,6 +92,8 @@ for (const forbidden of [
   '.facility-formula-center',
   '.facility-formula-meta-divider',
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
+  '.facility-formula-separator',
+  '  .facility-formula-meta {\n    width: 100%;\n  }',
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
 for (const forbidden of [
   '@container (max-width: 519px)',
@@ -147,7 +152,9 @@ for (const text of [
   "getByRole('option', { name: '节约生产' })",
   "settlement.locator('svg.product-icon')",
   "settlement.locator('.product-artwork')",
+  "settlement.locator('.facility-formula-separator')",
   'expect(box.x + box.width).toBeLessThanOrEqual(width)',
+  'expect(metaBox.width).toBeLessThan(visualBox.width - 8)',
   'expect(Math.abs(costBox.y - cycleBox.y)).toBeLessThanOrEqual(1)',
   'expect(Math.abs(inputBox.y - outputBox.y)).toBeLessThanOrEqual(1)',
   'settlementOverflow.scrollWidth',
@@ -162,6 +169,8 @@ for (const text of [
   '`RichSelectInput`',
   '不得恢复浏览器浅色原生选项弹层',
   '输入与输出均显示当前可用库存',
+  '不显示 `+` 或其他连接字符',
+  '移动端不得拉伸为全宽',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
 
 console.log('生产结算商品 PNG、投入产出、单行周期成本操作带、实时满员率、响应式与利润结果栏验证通过。');
