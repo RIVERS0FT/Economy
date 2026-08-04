@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - agent/fix-mobile-settlement-meta-and-separators
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: apply-factory-settlement-fix
+  cancel-in-progress: true
 
 permissions:
   contents: write
