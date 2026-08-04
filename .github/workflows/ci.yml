@@ -31,6 +31,9 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
+          expression = '$' + '{{ github.event.pull_request.number || github.ref }}'
+          ci_group = f'group: economy-ci-{expression}'
+
           doc_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
           doc = doc_path.read_text(encoding='utf-8')
           old_rule = '- Pull Request 只由 `.github/workflows/ci.yml` 执行完整 `npm run build` 与 Chromium 浏览器测试，不保留第二个重复的 PR Web Build 工作流；同一 PR 的旧 CI 在新提交到达后必须自动取消。'
@@ -43,8 +46,8 @@ jobs:
 
           verify_path = Path('scripts/verify-runtime-reliability.mjs')
           verify = verify_path.read_text(encoding='utf-8')
-          old_ci_checks = "for (const text of [\n  'group: economy-ci-${{ github.event.pull_request.number || github.ref }}',\n  'cancel-in-progress: true',"
-          new_ci_checks = "for (const text of [\n  'push:',\n  'branches-ignore:',\n  '- main',\n  'group: economy-ci-${{ github.event.pull_request.number || github.ref }}',\n  'cancel-in-progress: true',"
+          old_ci_checks = "for (const text of [\n  '" + ci_group + "',\n  'cancel-in-progress: true',"
+          new_ci_checks = "for (const text of [\n  'push:',\n  'branches-ignore:',\n  '- main',\n  '" + ci_group + "',\n  'cancel-in-progress: true',"
           if old_ci_checks in verify:
               verify = verify.replace(old_ci_checks, new_ci_checks, 1)
           elif new_ci_checks not in verify:
@@ -57,10 +60,8 @@ jobs:
           elif new_doc_checks not in verify:
               raise SystemExit('runtime verifier authority anchor not found')
           verify_path.write_text(verify, encoding='utf-8')
-          PY
 
-          cat > .github/workflows/ci.yml <<'YAML'
-          name: Economy CI
+          final_ci = f'''name: Economy CI
 
           on:
             pull_request:
@@ -70,7 +71,7 @@ jobs:
             workflow_dispatch:
 
           concurrency:
-            group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+            {ci_group}
             cancel-in-progress: true
 
           permissions:
@@ -120,7 +121,9 @@ jobs:
                       test-results
                     if-no-files-found: warn
                     retention-days: 3
-          YAML
+          '''
+          Path('.github/workflows/ci.yml').write_text(final_ci, encoding='utf-8')
+          PY
 
           rm -f .github/workflows/patch-ci-head-status.yml
           git add .github/workflows/ci.yml docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs
