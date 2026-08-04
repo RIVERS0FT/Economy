@@ -233,7 +233,7 @@
 ### 8.1 顶部状态栏固定内容规则
 
 - 玩家状态栏 DOM 固定为 `header.asset-bar → LiquidGlassSurface → .liquid-glass-surface__content → .asset-bar-layout → (.asset-bar-content → 五个状态项) + (.asset-bar-action → 唯一通知按钮)`；状态栏范围内不得出现 `.ui-scroll-area`、`.ui-scroll-area__viewport`、`.ui-scrollbar`、`.asset-bar-scroll-area` 或 `.asset-bar-scroll-track`；
-- `.asset-bar-content` 继续固定五列，`.asset-bar-action` 使用桌面 `56px`、紧凑桌面 `48px`、移动 `40px` 的独立轨道；玻璃宽度始终等于宿主可视宽度，状态内容和通知工具位都不得扩大玻璃最小宽度；
+- `.asset-bar-content` 继续固定五列，`.asset-bar-action` 使用桌面 `56px`、紧凑桌面 `48px`、移动 `48px` 的独立轨道；玻璃宽度始终等于宿主可视宽度，状态内容和通知工具位都不得扩大玻璃最小宽度；
 - 移动 `.asset-bar-content` 固定使用 `padding: 0 .4rem`，只允许水平留白；其顶部和底部必须与 `.asset-bar-layout` 共线，五个 `.asset-bar-item` 与通知工具轨道都必须完整占满状态栏高度，不得恢复顶部或底部内部 gap；
 - `.asset-bar-item-value` 必须使用 `text-overflow: clip`，不得继承全局 `strong` 的 `ellipsis`；主数值通过 `--mobile-status-value-font-size` 接收逐项计算后的字号，不得统一缩小整条状态栏；
 - 数值测量只能复用一个 `ResizeObserver`，并由同一个 `requestAnimationFrame` 合并宽度、方向、字体和 React 数值更新后的重算；不得为五个状态项分别创建观察器、轮询器或滚动监听；
