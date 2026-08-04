@@ -22,6 +22,8 @@ try {
   replaceRequired('scripts/verify-money-precision.mjs', 'world\\.version = 21', 'world\\.version = 22');
   replaceRequired('scripts/verify-production-methods.mjs', 'CURRENT_CLIENT_STATE_VERSION = 25', 'CURRENT_CLIENT_STATE_VERSION = 26');
   replaceRequired('scripts/verify-production-methods.mjs', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 25', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 26');
+  replaceRequired('scripts/verify-document-authority.mjs', '世界状态版本：21', '世界状态版本：22');
+  replaceRequired('scripts/verify-document-authority.mjs', '世界状态版本必须为 21', '世界状态版本必须为 22');
 } finally {
   try { unlinkSync(temporary); } catch { /* temporary implementation already removed */ }
   for (let part = 1; part <= 5; part += 1) {
