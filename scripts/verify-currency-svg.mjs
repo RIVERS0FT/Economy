@@ -28,7 +28,7 @@ const stylePath = 'src/styles/icon-system.css';
 const designPath = 'docs/UI_DESIGN_SYSTEM.md';
 const usagePaths = [
   'src/app/GameApp.tsx',
-  'src/components/shell/GameShell.tsx',
+  'src/components/notifications/NotificationCenter.tsx',
   'src/pages/OverviewPage.tsx',
   'src/pages/MarketPage.tsx',
   'src/components/assets/AssetOverviewPanel.tsx',
@@ -70,7 +70,7 @@ for (const path of usagePaths) {
 }
 for (const path of [
   'src/app/GameApp.tsx',
-  'src/components/shell/GameShell.tsx',
+  'src/components/notifications/NotificationCenter.tsx',
   'src/app/AdminApp.tsx',
 ]) requireText(path, 'CurrencyText');
 

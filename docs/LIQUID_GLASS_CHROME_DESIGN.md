@@ -35,12 +35,15 @@
 | `ApplicationLoadingState.tsx` | 统一账号服务连接、代码包加载和权威游戏服务器连接的唯一全屏居中加载结构；三个入口只允许替换中文文字，不得恢复深色加载卡片或创建平行加载样式 |
 | `PhotographicStateShell.tsx` | 封禁、无权限和致命错误的语义状态、安全区内容几何与 critical 状态卡；不得承担普通加载状态或挂载摄影图片 |
 | `SignedInShell.tsx` | 游戏与管理员共享根外壳、侧栏／工作区轨道、唯一页面 `ScrollArea`、页面 Overlay 与 Chrome Overlay DOM 顺序；不得重新提供 `SignedInShell.backdrop` |
-| `GameShell.tsx` | 向共享外壳提供玩家侧栏、单一状态栏、移动通知和玩家移动导航；不得挂载背景节点 |
+| `GameShell.tsx` | 向共享外壳提供玩家侧栏、单一状态栏、统一通知入口、关闭态 Toast、通知面板和玩家移动导航；不得挂载背景节点 |
+| `notificationCenter.ts` | 普通通知二十条历史、稳定待处理键、状态派生、已读与删除纯函数；不得创建通知专用轮询 |
+| `useNotificationCenter.ts` | 按玩家隔离的通知持久化、面板开关、打开态 Toast 抑制、关闭态 Toast 队列和待处理状态转换监听 |
+| `NotificationCenter.tsx` | 状态栏入口、工作区通知面板、待处理与普通通知列表、清除已读、单条删除和可点击关闭态 Toast；不得导入液态玻璃组件 |
 | `AdminDesktopBar.tsx` | 向共享外壳提供管理员桌面标题、说明、账号、世界／API 摘要与刷新操作，并复用 `desktopStatusBar` |
 | `AdminApp.tsx` | 向共享外壳提供管理员侧栏、管理员移动导航和业务页面；不得重建根滚动视口、挂载背景节点或复用玩家／认证氛围变体 |
 | `App.tsx` | 计算 `data-app-surface`、`data-app-backdrop` 与 `data-app-tone`，驱动根级摄影表现；不得重建摄影节点 |
 | `main.tsx` | 在 `StrictMode` 与 `AppErrorBoundary` 外部永久挂载唯一 `FinancialBackdrop`，并承载 `.application-content-root` |
-| `StatusBar.tsx` | 保持单一玩家状态栏实例，按 `720px` 断点选择预设，直接承载固定五列状态内容，并使用单一 `ResizeObserver` 与合并后的 `requestAnimationFrame` 对移动端真实溢出的主数值逐项缩小字号；不得引入 `ScrollArea` |
+| `StatusBar.tsx` | 保持单一玩家状态栏实例，按 `720px` 断点选择预设；`.asset-bar-layout` 左侧直接承载固定五列状态内容，右侧只承载独立通知工具位，并使用单一 `ResizeObserver` 与合并后的 `requestAnimationFrame` 对移动端真实溢出的主数值逐项缩小字号；不得引入 `ScrollArea` |
 | `financial-backdrop.css` | 根级唯一隔离、图片层、认证／玩家／管理员三种滤镜与氛围、网格、噪点、critical 暗角、失败回退、登录后开放采样链和根级状态外壳 |
 | `auth.css` | 认证内容层、品牌区、卡片外层宽度／对齐／圆角、认证内容内边距、输入与自动填充兼容；不得实现摄影层或玻璃材质 |
 | `liquid-glass-surfaces.css` | 所有玻璃宿主、第三方 DOM 尺寸、内容自适应层、开放背景采样链、平台圆角、统一透明宿主与回退、全部表面的官方双层高光及宿主几何绑定、透明辅助层、零尺寸过渡、无项目结构描边和移动底栏唯一垂直留白 |
@@ -52,7 +55,10 @@
 | `mobileFacilityPullRefresh.ts` | 仅对已打开的移动工厂详情识别顶部向下关闭手势，并在该手势激活后局部取消浏览器默认纵向过度滚动 |
 | `admin-navigation.css` | 管理员桌面工作栏内容布局与运营业务编排，不得定义第二套根外壳 |
 | `mobile-status-navigation.css` | 移动导航唯一原生横向滚动视口、原生轨道隐藏、按钮几何和内部焦点环 |
-| `mobile-status-layout.css` | 移动状态栏固定五列、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略和移动通知定位 |
+| `mobile-status-layout.css` | 移动状态栏固定五列、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略、关闭态 Toast 定位及其点击恢复 |
+| `notification-center.css` | 状态栏独立通知工具轨道、桌面／移动面板几何、待处理与普通通知视觉、关闭态 Toast 队列和响应式交互 |
+| `verify-notification-center.mjs` | 二十条上限、待处理稳定键、打开态抑制、清除与删除边界、单一工作区 Portal、无新增玻璃和文档规则防回退 |
+| `notification-center.spec.ts` | 桌面工作区右上角、移动状态栏下方安全区、固定五列、单玻璃实例与可点击关闭态 Toast 浏览器几何回归 |
 | `verify-liquid-glass-chrome.mjs` | 唯一依赖入口、五种预设、全预设零弹性、静态鼠标输入、固定／内容自适应布局、认证内容内部定位、单实例、单壳装饰、兼容入口、背景采样链、移动导航和认证卡片防回退 |
 | `verify-open-glass-sampling.mjs` | 唯一根隔离、桌面／移动玩家与管理员开放采样链、禁止登录后祖先恢复隔离／滤镜／变换以及浏览器回归入口 |
 | `verify-game-three-layer.mjs` | 根级唯一摄影节点、三种氛围、数据属性切换、统一加载结构、critical 状态外壳、兼容入口、浏览器 harness 和移动 Overlay 防回退 |
@@ -151,14 +157,15 @@
 - `SignedInShell` 的 `.mobile-page-overlay` 和 `.mobile-chrome-overlay` 占据同一 Grid 单元；页面层固定 `order: 1`，Chrome 层固定 `order: 2`；
 - 移动层级依赖 DOM 绘制顺序：页面 Overlay 先渲染，Chrome Overlay 后渲染；`.workspace`、两层 Overlay、`.page-scroll`、状态栏宿主和底栏宿主在移动端都不得建立正 `z-index` 或 `isolation: isolate` 背景根；
 - 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须由页面局部堆叠上下文收口，不能让其层级逃逸到 Chrome Overlay 之上；
-- Chrome Overlay 使用 `pointer-events: none`，只有状态栏和底栏恢复交互；
+- Chrome Overlay 使用 `pointer-events: none`，只有状态栏、底栏和实际显示的关闭态 Toast 恢复交互；通知面板位于工作区浮层，不得借用 Chrome Overlay；
 - 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
 - 玩家 `.asset-bar` 直接包含唯一 `LiquidGlassSurface`；不得用水平 padding 缩窄实际玻璃，状态项留白放入 `.asset-bar-content`；
 - `.asset-bar-content` 固定五列布局使用 `repeat(5, minmax(0, 1fr))`，不得通过横向滚动解决空间不足；
 - `.page-scroll` 左右 padding 必须为 `0`；管理员 `.admin-page-scroll` 因不渲染移动顶部状态栏，只保留安全区顶部 inset 和底栏避让；
-- 移动操作结果通知必须位于 `GameShell` 的 `.mobile-chrome-overlay` 内容内，DOM 顺序固定为 `StatusBar` 后、`MobileBottomNavigation` 前；不得放入 `.mobile-page-overlay` 或 `.page-scroll`；
-- 通知顶部固定为安全区顶部 + `48px` 状态栏 + `8px` 间距，左右各 `8px`，内容水平居中且最大宽度 `30rem`；通知使用普通半透明提示样式，不新增液态玻璃实例；
-- 通知宿主与提示本体均不得拦截指针事件，通知显示／隐藏不得推动页面内容、状态栏或底栏，也不得改变页面滚动高度；
+- 玩家通知按钮固定为同一状态栏玻璃内容层最右侧独立工具位；五项经济状态仍由 `.asset-bar-content` 固定五列承载，通知按钮不得成为第六个等宽状态项。
+- 移动通知面板必须 Portal 到 `SignedInShell` 现有 `.workspace-floating-layer`，顶部从 `48px` 状态栏下方开始，底部止于 `68px` 移动导航上方；面板不得进入 `.mobile-chrome-overlay`、`.page-scroll`、根级 Dialog 层或 `document.body`，也不得新增液态玻璃实例。
+- 面板关闭时，操作结果以及新增或原因变化的待处理事项使用 `.mobile-chrome-overlay` 内的关闭态 Toast；DOM 顺序固定为 `StatusBar` 后、`MobileBottomNavigation` 前。Toast 顶部固定为安全区顶部 + `48px` 状态栏 + `8px`，左右各 `8px`，内容水平居中且最大宽度 `30rem`。
+- 关闭态 Toast 宿主保持 `pointer-events:none`，实际 `.notification-toast` 必须恢复 `pointer-events:auto`，点击后打开通知面板；面板打开时立即清空 Toast 队列，并禁止同时显示面板外 Toast。面板与 Toast 显示／隐藏都不得推动页面内容、状态栏或底栏，也不得改变页面滚动高度；
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`；底栏相对 Chrome Overlay 使用 `position: absolute`；
 - 管理员移动端只显示统一底栏，不显示 `.admin-command-bar`；不得给 `.asset-bar` 设置 `height: 100%`。
 
@@ -222,8 +229,8 @@
 
 ### 8.1 顶部状态栏固定内容规则
 
-- 玩家状态栏 DOM 固定为 `header.asset-bar → LiquidGlassSurface → .liquid-glass-surface__content → .asset-bar-content → 五个状态项`；状态栏范围内不得出现 `.ui-scroll-area`、`.ui-scroll-area__viewport`、`.ui-scrollbar`、`.asset-bar-scroll-area` 或 `.asset-bar-scroll-track`；
-- 状态栏固定五列布局，玻璃宽度始终等于宿主可视宽度，内容不得扩大玻璃最小宽度；
+- 玩家状态栏 DOM 固定为 `header.asset-bar → LiquidGlassSurface → .liquid-glass-surface__content → .asset-bar-layout → (.asset-bar-content → 五个状态项) + (.asset-bar-action → 唯一通知按钮)`；状态栏范围内不得出现 `.ui-scroll-area`、`.ui-scroll-area__viewport`、`.ui-scrollbar`、`.asset-bar-scroll-area` 或 `.asset-bar-scroll-track`；
+- `.asset-bar-content` 继续固定五列，`.asset-bar-action` 使用桌面 `56px`、紧凑桌面 `48px`、移动 `40px` 的独立轨道；玻璃宽度始终等于宿主可视宽度，状态内容和通知工具位都不得扩大玻璃最小宽度；
 - `.asset-bar-item-value` 必须使用 `text-overflow: clip`，不得继承全局 `strong` 的 `ellipsis`；主数值通过 `--mobile-status-value-font-size` 接收逐项计算后的字号，不得统一缩小整条状态栏；
 - 数值测量只能复用一个 `ResizeObserver`，并由同一个 `requestAnimationFrame` 合并宽度、方向、字体和 React 数值更新后的重算；不得为五个状态项分别创建观察器、轮询器或滚动监听；
 - 顶部状态栏不得创建 `::after` 结构描边；圆角边缘只由官方双层高光与 `.glass` 默认阴影表达。

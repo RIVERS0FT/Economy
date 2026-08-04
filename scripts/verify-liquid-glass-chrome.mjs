@@ -208,7 +208,9 @@ if (failures.length === 0) {
   for (const text of [
     "import { SignedInShell } from './SignedInShell'",
     '<SignedInShell',
-    '<StatusBar items={statusItems} />',
+    '<StatusBar',
+    'action={(',
+    'NotificationCenterButton',
     '<MobileBottomNavigation',
   ]) requireText(files.gameShell, text);
   for (const text of [

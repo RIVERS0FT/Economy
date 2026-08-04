@@ -87,7 +87,9 @@ forbidText('src/components/system/ApplicationLoadingState.tsx', 'FinancialBackdr
 for (const text of [
   'rootClassName="game-shell"',
   '<DesktopSidebar',
-  '<StatusBar items={statusItems} />',
+  '<StatusBar',
+  'action={(',
+  'NotificationCenterButton',
 ]) requireText('src/components/shell/GameShell.tsx', text);
 forbidText('src/components/shell/GameShell.tsx', 'FinancialBackdrop');
 forbidText('src/components/shell/GameShell.tsx', 'backdrop=');

@@ -62,8 +62,14 @@ requireText('src/main.tsx', '<AppErrorBoundary>');
 for (const text of ['Storage.prototype', '界面音效', '画面性能', '__localActivityResult']) requireText('tests/browser/runtime.spec.ts', text);
 
 for (const text of [
+  'push:',
+  'branches-ignore:',
+  '- main',
   'group: economy-ci-${{ github.event.pull_request.number || github.ref }}',
   'cancel-in-progress: true',
+  'verify-head-ci-registration:',
+  'actions: read',
+  'No push workflow run found for the pull request head SHA',
   'npm run build',
   'npx playwright install --with-deps chromium',
   'npm run test:browser 2>&1 | tee browser-test.log',
@@ -92,7 +98,12 @@ for (const [path, text] of [
   ['docs/GIFT_CODE_AND_ADMIN_DESIGN.md', '默认每页 100 条、最多 200 条'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '验证码终态记录保留 30 天'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'Node 24.4.0'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '真实头提交'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'GitHub 合并快照'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'verify-head-ci-registration'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得写入 commit status'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],
+  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得用手工成功状态替代任一真实检查'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '成功步骤日志不得上传'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得再为单次构建失败创建临时诊断工作流'],
   ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '服务器语法检查由 Node 枚举'],
