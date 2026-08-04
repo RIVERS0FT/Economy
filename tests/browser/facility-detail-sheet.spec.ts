@@ -60,6 +60,18 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       await expect(dialog.locator('.facility-staffing-track')).toBeVisible();
       await expect(dialog.locator('.facility-staffing-fill')).toBeVisible();
 
+await expect(dialog.locator('.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)')).toHaveCount(0);
+await expect(dialog.locator('.facility-information')).toHaveCount(1);
+await expect(dialog.locator('.facility-information .facility-average-profit')).toHaveCount(1);
+await expect(dialog.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
+const visibleOrder = await dialog.locator('.facility-detail-sheet-scroll').evaluate((element) => (
+  Array.from(element.children).map((child) => child.className)
+));
+expect(String(visibleOrder[0])).toContain('facility-information');
+expect(String(visibleOrder[1])).toContain('facility-staffing-summary');
+expect(String(visibleOrder[2])).toContain('facility-production-settings');
+expect(String(visibleOrder[3])).toContain('facility-production-formula');
+
       const backdropBox = await dialogLayer.locator(':scope > .facility-detail-sheet-backdrop').boundingBox();
       expect(backdropBox).not.toBeNull();
       if (!backdropBox) throw new Error('工厂详情遮罩几何不可用');

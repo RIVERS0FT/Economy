@@ -75,13 +75,14 @@
 .facility-detail-artwork {
   position: relative;
   width: 100%;
-  min-height: 8.5rem;
-  aspect-ratio: 16 / 7;
+  min-height: 0;
+  aspect-ratio: 4 / 5;
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background: var(--color-surface-inset);
 }
+
 
 .facility-detail-artwork::after {
   content: '';
@@ -157,10 +158,11 @@
 }
 
 @media (max-width: 720px) {
-  .facility-detail-artwork {
-    min-height: 5.75rem;
-    aspect-ratio: 16 / 5;
-  }
+
+.facility-detail-artwork {
+  min-height: 0;
+  aspect-ratio: 4 / 5;
+}
 
   .market-page-surface
   .unified-asset-tab.facility

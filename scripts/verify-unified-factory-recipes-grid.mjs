@@ -62,7 +62,7 @@ for (const text of [
   'interface FacilityClusterEntry',
   'interface FacilitySheetDragSession',
   'function FacilityClusterSelectorCard',
-  'function FacilityClusterDetailHeader',
+  'function FacilityClusterInformation',
   'function FacilityClusterDetailBody',
   'function FacilityMarketAction',
   'function FacilityClusterDetailContent',
@@ -71,7 +71,7 @@ for (const text of [
   "import { ScrollArea } from '../../components/ui/ScrollArea';",
   "import { FacilityIcon } from '../../components/icons/FacilityIcons';",
   '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />',
-  'className="facility-detail-artwork"',
+  'className="facility-detail-artwork facility-information-artwork"',
   'className="facility-detail-artwork-icon"',
   '<FacilityStaffingSummary entry={entry} now={now} />',
   'return createPortal(',
@@ -92,7 +92,7 @@ for (const text of [
   'className="facility-cluster-detail-shell"',
   'className="facility-production-settings"',
   'className="facility-production-settings-grid"',
-  'className="facility-card-title-block facility-cluster-selector-heading"',
+  'className="facility-information"',
   'role="dialog"',
   'aria-modal="true"',
   'aria-labelledby="mobile-facility-detail-title"',
@@ -149,7 +149,7 @@ assert.equal(
 
 const selectorCardSource = detail.slice(
   detail.indexOf('function FacilityClusterSelectorCard'),
-  detail.indexOf('function FacilityClusterDetailHeader'),
+  detail.indexOf('function FacilityClusterInformation'),
 );
 assert.equal(selectorCardSource.includes('×'), false, '工厂选择卡数量不得显示乘号');
 assert.equal(selectorCardSource.includes(' x '), false, '工厂选择卡数量不得显示字母 x');
@@ -207,6 +207,9 @@ for (const text of [
   'expect(sheetBox.x).toBeCloseTo(0, 1)',
   'expect(sheetBox.width).toBeCloseTo(width, 1)',
   "expect(alignment.justifyContent).toBe('stretch')",
+  "'.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)'",
+  "'.facility-production-formula .facility-average-profit'",
+  "'.facility-information .facility-average-profit'",
 ])
   assert.equal(facilitySheetBrowserTest.includes(text), true, `移动工厂详情浏览器回归缺少: ${text}`);
 
@@ -278,8 +281,8 @@ for (const text of [
   'env(safe-area-inset-bottom)',
   '.facility-detail-sheet-scroll',
   'overscroll-behavior-y: auto;',
-  '.facility-detail-sheet .facility-status-header',
-  '.facility-detail-sheet .facility-card-title-row > .ui-switch',
+  '.facility-information',
+  '.facility-information > .facility-average-profit',
   'position: sticky;',
   '.facility-detail-sheet .facility-market-link-row',
   '@media (max-width: 720px)',
@@ -319,15 +322,19 @@ for (const forbidden of ['border-radius:', 'background:'])
 const settlementStart = formula.indexOf('<section className="facility-production-formula"');
 const settlementEnd = formula.indexOf('</section>', settlementStart);
 const profitIndex = formula.indexOf('<FacilityRecipeProfitAnalysis', settlementStart);
+const informationStart = detail.indexOf('className="facility-information"');
+const informationProfitIndex = detail.indexOf('<FacilityRecipeProfitAnalysis', informationStart);
 assert.equal(formula.includes('<strong>生产结算</strong>'), true, '生产公式缺少生产结算标题');
-assert.equal(profitIndex > settlementStart && profitIndex < settlementEnd, true, '单厂利润必须位于生产结算容器内');
+assert.equal(profitIndex, -1, '生产结算不得继续包含单厂利润');
+assert.equal(informationProfitIndex > informationStart, true, '单厂利润必须位于工厂信息区');
 
 const profitCss = read('src/styles/facility-recipe-profit-analysis.css');
 const profitRule = profitCss.slice(
   profitCss.indexOf('.facility-average-profit {'),
   profitCss.indexOf('.facility-average-profit__copy {'),
 );
-assert.equal(profitRule.includes('border-top:'), true, '单厂利润行必须保留结算分隔线');
+assert.equal(profitRule.includes('border-top:'), false, '利润组件基础样式不得绑定生产结算分隔线');
+assert.equal(css.includes('.facility-information > .facility-average-profit'), true, '工厂信息必须承载利润行');
 for (const forbidden of ['border:', 'border-radius:', 'background:'])
   assert.equal(profitRule.includes(forbidden), false, `单厂利润行不得恢复独立卡片: ${forbidden}`);
 
@@ -355,7 +362,7 @@ for (const text of [
   'pointer-events: none;',
   '.facility-detail-sheet-drag-handle',
   'touch-action: none;',
-  '.facility-card-title-block',
+  '.facility-detail-sheet-header',
   '.facility-detail-sheet-scroll-area',
   '.facility-detail-sheet-scroll',
   'overflow-y: auto;',
@@ -404,11 +411,11 @@ const surfaceCss = read('src/styles/production-surface.css');
 for (const text of [
   '.panel.production-surface',
   '--production-pill-visible-height: 1.6rem;',
-  '.panel.production-surface .facility-card-title-row',
+  '.panel.production-surface .facility-information-heading',
   'min-height: var(--production-pill-visible-height);',
-  '.panel.production-surface .facility-card-title-row > .ui-switch {',
+  '.panel.production-surface .facility-information-heading > .ui-switch {',
   'height: var(--production-pill-visible-height);',
-  '.panel.production-surface .facility-card-title-row > .ui-switch::before',
+  '.panel.production-surface .facility-information-heading > .ui-switch::before',
   'inset: 0;',
   'Primary surface padding is owned by primary-surfaces.css.',
 ])
@@ -454,7 +461,7 @@ for (const text of [
   '所有工厂详情统一显示启用的“生产配方”选择器',
   '单配方工厂显示唯一选项并保持启用',
   '重复选择当前正式配方不得提交经济动作',
-  '完整状态与工厂名称位于紧凑标题区域',
+  '工厂信息是唯一身份与经营摘要区',
   '详情只显示一行“单厂平均利润／分钟”',
   '指标固定按一座工厂计算',
   '打开后焦点进入可程序化聚焦的对话框容器',
@@ -462,7 +469,7 @@ for (const text of [
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '关闭互斥状态只覆盖当前一次收起流程',
   '不得只依赖移动浏览器合成的 `click`',
-  '悬浮框最大高度为 `min(88dvh, 760px)`',
+  '稳定视觉视口高度快照',
   '关闭后焦点返回触发卡',
   '固定头部／唯一 `ScrollArea` 正文／固定底部操作区',
   '正文 `scrollTop` 实际变化后显示',
@@ -475,7 +482,7 @@ for (const text of [
   '生产公式只展示集群参数',
   '公式不得使用总持有 `count` 作为生产乘数',
   '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
-  '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
+  '生产进度位于数据带下方，并且是生产结算最后一个可见元素',
   '移动工厂详情必须 Portal 到 `SignedInShell` 的根级业务 Dialog 层',
   'Bottom Sheet 左边缘固定为视口 `x = 0`',
   '生产设置下方不得显示“周期 · 产出 · 成本”摘要、制度说明或重复当前制度名称',
@@ -527,9 +534,9 @@ for (const [path, required] of [
         '上下两层黑色渐变',
         '中央主体区域保持透明',
       '卡片点击不保留选中态',
-      '当前工厂详情正文按“插画与满员率 → 生产设置 → 生产结算”组织',
+      '当前工厂详情顺序固定为“移动把手（桌面无）→ 工厂信息 → 满员率 → 生产设置 → 生产结算 → 市场入口”',
       '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
-      '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
+      '生产进度位于数据带下方，并且是生产结算最后一个可见元素',
       '作业制度说明不得显示',
       '根级 Dialog',
     ],

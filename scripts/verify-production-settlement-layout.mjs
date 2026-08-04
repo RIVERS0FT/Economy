@@ -141,7 +141,10 @@ const profitRule = profitCss.slice(
   profitCss.indexOf('.facility-average-profit {'),
   profitCss.indexOf('.facility-average-profit__copy {'),
 );
-assert.equal(profitRule.includes('border-top:'), true, '利润结果栏必须保留顶部分隔线');
+assert.equal(formula.includes('<FacilityRecipeProfitAnalysis'), false, '生产结算不得继续包含单厂利润');
+assert.equal(detail.includes('<FacilityRecipeProfitAnalysis'), true, '工厂信息必须渲染单厂利润');
+assert.equal(groupCss.includes('.facility-information > .facility-average-profit'), true, '工厂信息布局必须承担利润分隔线');
+assert.equal(profitRule.includes('border-top:'), false, '利润组件基础样式不得绑定生产结算分隔线');
 for (const forbidden of ['border-radius:', 'background:']) {
   assert.equal(profitRule.includes(forbidden), false, `利润结果栏不得恢复独立卡片视觉: ${forbidden}`);
 }
@@ -173,4 +176,4 @@ for (const text of [
   '移动端不得拉伸为全宽',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、投入产出、单行周期成本操作带、实时满员率、响应式与利润结果栏验证通过。');
+console.log('生产结算商品 PNG、投入产出、单行周期成本操作带、实时满员率、响应式与工厂信息利润归属验证通过。');

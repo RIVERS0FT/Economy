@@ -11,7 +11,6 @@ import type {
 import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
 import { facilityEffectiveCount, projectFacilityStaffingRate } from '../../utils/facilityStaffing';
 import { FacilityGroupProgress } from './FacilityProgress';
-import { FacilityRecipeProfitAnalysis } from './FacilityRecipeProfitAnalysis';
 
 type MultiRecipeFacilityType = FacilityTypeDefinition & {
   inputs?: FacilityRecipeItem[];
@@ -174,9 +173,6 @@ export function FacilityProductionFormula({
   const description = [currentDescription, progressDescription(group, type, now)]
     .filter(Boolean)
     .join('。');
-  const profitScope = scope;
-  const profitType = type;
-  const profitScopeLabel = profitScope.name;
 
   return (
     <section className="facility-production-formula"
@@ -235,15 +231,6 @@ export function FacilityProductionFormula({
           <FacilityGroupProgress group={group} type={type} now={now} />
         </div>
       </div>
-
-      <FacilityRecipeProfitAnalysis
-        type={profitType}
-        scopeCount={profitScope.physicalCount}
-        scopeLabel={profitScopeLabel}
-        staffingRateBps={profitScope.staffingRateBps}
-        products={products}
-        inventories={inventories}
-      />
     </section>
   );
 }
