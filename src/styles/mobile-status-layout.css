@@ -123,6 +123,33 @@
   .mobile-notice-region .notification-toast {
     pointer-events: auto;
   }
+
+  /* The island anchor is the physical viewport center, not the inset Chrome wrapper center. */
+  .notification-island-region {
+    right: auto;
+    left: calc(
+      50vw
+      - max(var(--mobile-workspace-gutter), env(safe-area-inset-left))
+    );
+    width: min(
+      360px,
+      calc(
+        100vw
+        - max(var(--mobile-workspace-gutter), env(safe-area-inset-left))
+        - max(var(--mobile-workspace-gutter), env(safe-area-inset-right))
+      )
+    );
+    transform: translateX(-50%);
+  }
+
+  .notification-island-region .notification-island {
+    position: static;
+    z-index: auto;
+    top: auto;
+    left: auto;
+    margin: 0;
+    pointer-events: auto;
+  }
 }
 
 @media (max-width: 340px) {

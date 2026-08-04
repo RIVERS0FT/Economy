@@ -1,7 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
-async function openNotificationPanelAndMountToast(page: Page) {
+async function loadNotificationStyles(page: Page) {
   await page.addStyleTag({ path: 'src/styles/notification-center.css' });
+}
+
+async function openNotificationPanel(page: Page) {
+  await loadNotificationStyles(page);
   const trigger = page.getByRole('button', { name: /^通知，/ });
   await expect(trigger).toBeVisible();
   await expect(trigger).toHaveAttribute('aria-controls', 'notification-center-panel');
@@ -9,18 +13,54 @@ async function openNotificationPanelAndMountToast(page: Page) {
   await trigger.click();
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByRole('dialog', { name: '通知' })).toBeVisible();
+  await page.waitForTimeout(220);
+}
 
+async function mountDesktopToast(page: Page) {
   await page.evaluate(() => {
     const chromeLayer = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
     if (!chromeLayer) throw new Error('notification chrome fixture is incomplete');
     const toastStack = document.createElement('div');
-    toastStack.className = 'mobile-notice-region notification-toast-stack';
+    toastStack.className = 'notification-toast-stack';
     const toast = document.createElement('button');
     toast.className = 'notification-toast notification-toast--success';
     toast.textContent = '订单已经提交';
     toastStack.append(toast);
     chromeLayer.append(toastStack);
   });
+}
+
+async function mountMobileIsland(page: Page, queueSize = 1) {
+  await page.evaluate((count) => {
+    const chromeLayer = document.querySelector<HTMLElement>('.mobile-chrome-overlay');
+    if (!chromeLayer) throw new Error('notification chrome fixture is incomplete');
+    const region = document.createElement('div');
+    region.className = 'mobile-notice-region notification-island-region';
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', 'polite');
+
+    const island = document.createElement('button');
+    island.className = 'notification-island notification-island--success';
+    island.dataset.phase = 'visible';
+    island.setAttribute('aria-label', '完成：订单已经提交');
+
+    const icon = document.createElement('span');
+    icon.className = 'notification-island__icon';
+    icon.textContent = '✓';
+    const content = document.createElement('span');
+    content.className = 'notification-island__content';
+    const title = document.createElement('strong');
+    title.textContent = '订单已经提交';
+    content.append(title);
+    const status = document.createElement('span');
+    status.className = 'notification-island__status';
+    status.textContent = count > 1 ? `+${count - 1}` : '完成';
+
+    island.append(icon, content, status);
+    region.append(island);
+    chromeLayer.append(region);
+  }, queueSize);
+  await page.waitForTimeout(320);
 }
 
 test.describe('notification center geometry', () => {
@@ -54,7 +94,8 @@ test.describe('notification center geometry', () => {
   test('desktop entry stays on the status right and panel opens at workspace top-right', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
-    await openNotificationPanelAndMountToast(page);
+    await openNotificationPanel(page);
+    await mountDesktopToast(page);
 
     const geometry = await page.evaluate(() => {
       const status = document.querySelector<HTMLElement>('.asset-bar');
@@ -91,10 +132,11 @@ test.describe('notification center geometry', () => {
     expect(geometry.glassCount).toBe(1);
   });
 
-  test('mobile entry keeps the 48px status height and panel stays above extreme workspace z-index', async ({ page }) => {
+  test('mobile island stays centered while the panel remains above extreme workspace z-index', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=overview&scenario=activity');
-    await openNotificationPanelAndMountToast(page);
+    await openNotificationPanel(page);
+    await mountMobileIsland(page, 3);
 
     await page.evaluate(() => {
       const pageLayer = document.querySelector<HTMLElement>('.mobile-page-overlay');
@@ -119,34 +161,46 @@ test.describe('notification center geometry', () => {
       const panel = document.querySelector<HTMLElement>('.notification-panel');
       const closeButton = document.querySelector<HTMLElement>('.notification-panel__close');
       const navigation = document.querySelector<HTMLElement>('.mobile-bottom-navigation');
-      const toast = document.querySelector<HTMLElement>('.notification-toast');
+      const islandRegion = document.querySelector<HTMLElement>('.notification-island-region');
+      const island = document.querySelector<HTMLElement>('.notification-island');
       const sentinel = document.querySelector<HTMLElement>('.notification-layer-regression-sentinel');
-      if (!shellBody || !pageLayer || !status || !trigger || !floatingLayer || !panel || !closeButton || !navigation || !toast || !sentinel) {
+      if (!shellBody || !pageLayer || !status || !trigger || !floatingLayer || !panel || !closeButton || !navigation || !islandRegion || !island || !sentinel) {
         throw new Error('mobile notification geometry is incomplete');
       }
       const rect = (element: HTMLElement) => {
         const box = element.getBoundingClientRect();
         return { left: box.left, top: box.top, right: box.right, bottom: box.bottom, width: box.width, height: box.height };
       };
-      const toastRect = rect(toast);
-      const toastPointerEvents = getComputedStyle(toast).pointerEvents;
-      // Opening the panel clears Chrome Toasts in production; remove the geometry-only fixture before hit testing.
-      toast.remove();
+      const islandRect = rect(island);
+      const islandPointerEvents = getComputedStyle(island).pointerEvents;
+      const regionPointerEvents = getComputedStyle(islandRegion).pointerEvents;
+      const islandAnimationName = getComputedStyle(island).animationName;
+      const queueLabel = island.querySelector<HTMLElement>('.notification-island__status')?.textContent;
+      // Opening the panel clears Chrome notices in production; remove the geometry-only fixture before hit testing.
+      islandRegion.remove();
       const closeRect = closeButton.getBoundingClientRect();
       const topmostAtClose = document.elementFromPoint(
         closeRect.left + closeRect.width / 2,
         closeRect.top + closeRect.height / 2,
       );
       return {
+        viewportWidth: window.innerWidth,
         status: rect(status),
         trigger: rect(trigger),
         floatingLayer: rect(floatingLayer),
         panel: rect(panel),
         navigation: rect(navigation),
-        toast: toastRect,
+        island: islandRect,
+        islandCenter: islandRect.left + islandRect.width / 2,
         itemColumns: getComputedStyle(document.querySelector<HTMLElement>('.asset-bar-content')!).gridTemplateColumns.split(' ').length,
         panelMaxHeight: getComputedStyle(panel).maxHeight,
-        toastPointerEvents,
+        panelTransformOrigin: getComputedStyle(panel).transformOrigin,
+        islandPointerEvents,
+        regionPointerEvents,
+        islandAnimationName,
+        queueLabel,
+        islandCount: document.querySelectorAll('.notification-island').length + 1,
+        glassCount: document.querySelectorAll('.asset-bar .liquid-glass-surface').length,
         shellBodyZIndex: getComputedStyle(shellBody).zIndex,
         pageLayerZIndex: getComputedStyle(pageLayer).zIndex,
         pageLayerOrder: getComputedStyle(pageLayer).order,
@@ -163,17 +217,52 @@ test.describe('notification center geometry', () => {
     expect(geometry.panel.top).toBeCloseTo(geometry.floatingLayer.top, 0);
     expect(geometry.panel.top).toBeGreaterThan(geometry.status.bottom);
     expect(geometry.panel.bottom).toBeLessThanOrEqual(geometry.navigation.top);
-    expect(geometry.panel.left).toBeCloseTo(geometry.floatingLayer.left, 0);
-    expect(geometry.panel.right).toBeCloseTo(geometry.floatingLayer.right, 0);
-    expect(geometry.toast.top).toBeGreaterThan(geometry.status.bottom);
-    expect(geometry.toast.bottom).toBeLessThan(geometry.navigation.top);
+    expect(geometry.panel.left).toBeCloseTo(geometry.status.left, 0);
+    expect(geometry.panel.right).toBeCloseTo(geometry.status.right, 0);
+    expect(geometry.islandCenter).toBeCloseTo(geometry.viewportWidth / 2, 0);
+    expect(geometry.island.top).toBeCloseTo(geometry.status.bottom + 8, 0);
+    expect(geometry.island.bottom).toBeLessThan(geometry.navigation.top);
+    expect(geometry.island.width).toBeLessThanOrEqual(360);
+    expect(geometry.island.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.island.right).toBeLessThanOrEqual(geometry.viewportWidth);
     expect(geometry.panelMaxHeight).not.toBe('none');
-    expect(geometry.toastPointerEvents).toBe('auto');
+    expect(geometry.panelTransformOrigin.endsWith(' 0px')).toBe(true);
+    expect(geometry.islandPointerEvents).toBe('auto');
+    expect(geometry.regionPointerEvents).toBe('none');
+    expect(geometry.islandAnimationName).toContain('notification-island-enter');
+    expect(geometry.queueLabel).toBe('+2');
+    expect(geometry.islandCount).toBe(1);
+    expect(geometry.glassCount).toBe(1);
     expect(geometry.shellBodyZIndex).toBe('0');
     expect(geometry.pageLayerZIndex).toBe('0');
     expect(geometry.pageLayerOrder).toBe('1');
     expect(geometry.floatingLayerZIndex).toBe('1');
     expect(geometry.floatingLayerOrder).toBe('2');
     expect(geometry.panelCloseIsTopmost).toBe(true);
+  });
+
+  test('mobile island disables shape and movement animation for reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('runtime-test.html?view=overview&scenario=activity');
+    await loadNotificationStyles(page);
+    await mountMobileIsland(page, 2);
+
+    const reduced = await page.evaluate(() => {
+      const island = document.querySelector<HTMLElement>('.notification-island');
+      if (!island) throw new Error('mobile notification island is missing');
+      const box = island.getBoundingClientRect();
+      const style = getComputedStyle(island);
+      return {
+        animationName: style.animationName,
+        center: box.left + box.width / 2,
+        count: document.querySelectorAll('.notification-island').length,
+        viewportWidth: window.innerWidth,
+      };
+    });
+
+    expect(reduced.animationName).toBe('none');
+    expect(reduced.center).toBeCloseTo(reduced.viewportWidth / 2, 0);
+    expect(reduced.count).toBe(1);
   });
 });

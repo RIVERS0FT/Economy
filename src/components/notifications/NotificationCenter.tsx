@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { TabId } from '../../config/navigation';
 import type {
@@ -9,6 +9,27 @@ import type {
 import type { NotificationToast } from '../../hooks/useNotificationCenter';
 import { CurrencyText } from '../ui/CurrencyAmount';
 import { useWorkspaceFloatingLayer } from '../ui/WorkspaceFloatingLayer';
+
+const MOBILE_NOTIFICATION_QUERY = '(max-width: 720px)';
+const MOBILE_ISLAND_EXIT_MS = 230;
+
+type MobileIslandPhase = 'visible' | 'exiting';
+
+function useMobileNotificationSurface() {
+  const [mobile, setMobile] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia(MOBILE_NOTIFICATION_QUERY).matches
+  ));
+
+  useEffect(() => {
+    const query = window.matchMedia(MOBILE_NOTIFICATION_QUERY);
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+
+  return mobile;
+}
 
 function NotificationIcon({ children }: { children: ReactNode }) {
   return (
@@ -69,8 +90,25 @@ function InfoIcon() {
   );
 }
 
+function SuccessIcon() {
+  return (
+    <NotificationIcon>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8 12.4 2.5 2.5L16.5 9" />
+    </NotificationIcon>
+  );
+}
+
 function iconForTone(tone: NotificationTone) {
+  if (tone === 'success') return <SuccessIcon />;
   return tone === 'warning' || tone === 'error' ? <AlertIcon /> : <InfoIcon />;
+}
+
+function labelForTone(tone: NotificationTone) {
+  if (tone === 'success') return '完成';
+  if (tone === 'warning') return '需要关注';
+  if (tone === 'error') return '需要处理';
+  return '通知';
 }
 
 function formatNotificationTime(createdAt: number) {
@@ -328,16 +366,15 @@ export function NotificationCenterPanel({
   );
 }
 
-export function NotificationToasts({
+function DesktopNotificationToasts({
   toasts,
   onOpen,
 }: {
   toasts: NotificationToast[];
   onOpen: () => void;
 }) {
-  if (toasts.length === 0) return null;
   return (
-    <div className="mobile-notice-region notification-toast-stack" role="status" aria-live="polite" aria-atomic="false">
+    <div className="notification-toast-stack" role="status" aria-live="polite" aria-atomic="false">
       {toasts.map((toast) => (
         <button
           type="button"
@@ -351,4 +388,89 @@ export function NotificationToasts({
       ))}
     </div>
   );
+}
+
+function MobileNotificationIsland({
+  toasts,
+  onOpen,
+}: {
+  toasts: NotificationToast[];
+  onOpen: () => void;
+}) {
+  const [renderedToasts, setRenderedToasts] = useState<NotificationToast[]>(toasts);
+  const [phase, setPhase] = useState<MobileIslandPhase>('visible');
+
+  useEffect(() => {
+    if (toasts.length > 0) {
+      setRenderedToasts(toasts);
+      setPhase('visible');
+      return undefined;
+    }
+    if (renderedToasts.length === 0) return undefined;
+
+    setPhase('exiting');
+    const timer = window.setTimeout(() => {
+      setRenderedToasts([]);
+      setPhase('visible');
+    }, MOBILE_ISLAND_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [renderedToasts.length, toasts]);
+
+  const latestToast = renderedToasts[renderedToasts.length - 1];
+  if (!latestToast) return null;
+
+  const hiddenCount = Math.max(0, renderedToasts.length - 1);
+  const toneLabel = labelForTone(latestToast.tone);
+  const ariaLabel = hiddenCount > 0
+    ? `${toneLabel}：${latestToast.title}，另有 ${hiddenCount} 条通知`
+    : `${toneLabel}：${latestToast.title}`;
+
+  return (
+    <div
+      className="mobile-notice-region notification-island-region"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <button
+        type="button"
+        className={`notification-island notification-island--${latestToast.tone}`}
+        data-phase={phase}
+        aria-label={ariaLabel}
+        onClick={onOpen}
+      >
+        <span
+          key={`${latestToast.id}-icon`}
+          className="notification-island__icon"
+          aria-hidden="true"
+        >
+          {iconForTone(latestToast.tone)}
+        </span>
+        <span
+          key={latestToast.id}
+          className="notification-island__content"
+          aria-hidden="true"
+        >
+          <strong><CurrencyText>{latestToast.title}</CurrencyText></strong>
+        </span>
+        <span className="notification-island__status" aria-hidden="true">
+          {hiddenCount > 0 ? `+${hiddenCount}` : toneLabel}
+        </span>
+      </button>
+    </div>
+  );
+}
+
+export function NotificationToasts({
+  toasts,
+  onOpen,
+}: {
+  toasts: NotificationToast[];
+  onOpen: () => void;
+}) {
+  const mobile = useMobileNotificationSurface();
+  if (toasts.length === 0 && !mobile) return null;
+  return mobile
+    ? <MobileNotificationIsland toasts={toasts} onOpen={onOpen} />
+    : <DesktopNotificationToasts toasts={toasts} onOpen={onOpen} />;
 }
