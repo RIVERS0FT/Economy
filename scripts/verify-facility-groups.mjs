@@ -243,8 +243,23 @@ if (facilityGroupBlocks.some((block) => block.includes('grid-template-rows: auto
 for (const text of [
   '.facility-detail-sheet .facility-card-title-block',
   '.facility-detail-sheet.is-closing',
+  '--facility-sheet-max-height',
+  'animation: facility-sheet-open',
+  '@keyframes facility-sheet-open',
 ]) requireText('src/styles/facility-detail-sheet.css', text);
-for (const forbidden of ['.facility-detail-sheet-close']) forbidText('src/styles/facility-detail-sheet.css', forbidden);
+for (const forbidden of ['.facility-detail-sheet-close', '88dvh']) forbidText('src/styles/facility-detail-sheet.css', forbidden);
+for (const text of [
+  'useLayoutEffect',
+  "window.visualViewport?.height ?? window.innerHeight",
+  "sheet?.focus({ preventScroll: true });",
+  "returnFocusRef.current?.focus({ preventScroll: true })",
+]) requireText('src/pages/production/MobileFacilityDetailSheet.tsx', text);
+for (const forbidden of [
+  "document.body.style.overflow = 'hidden';",
+  'const focusFrame = window.requestAnimationFrame',
+]) forbidText('src/pages/production/MobileFacilityDetailSheet.tsx', forbidden);
+requireText('src/styles/facility-group-card-grid.css', '--ui-interactive-active-transform: none;');
+forbidText('src/styles/facility-group-card-grid.css', '88dvh');
 
 for (const text of [
   '.facility-production-formula',
@@ -323,6 +338,8 @@ for (const text of [
   '不包含顶部关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '桌面详情卡高度由自然内容流决定',
+  '移动 Bottom Sheet 打开期间只允许单向上移',
+  '移动触控下工厂选择卡不得使用缩放按压反馈',
   '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
   '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
   '工厂满员率与等效产能',
@@ -348,6 +365,8 @@ for (const text of [
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整文本无障碍描述',
   '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
+  '首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定',
+  '`focus({ preventScroll: true })`',
   '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 

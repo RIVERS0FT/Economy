@@ -92,6 +92,55 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     }
   });
 
+  test('opens with stable monotonic geometry and preserves page scroll position', async ({ page }) => {
+    await page.goto('runtime-test.html?view=production&scenario=activity');
+
+    const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
+    const dialog = page.getByRole('dialog', { name: /机械工厂/ });
+    const pageScroll = page.locator('.page-scroll');
+    await expect(trigger).toBeVisible();
+    expect(await trigger.evaluate((element) => (
+      getComputedStyle(element).getPropertyValue('--ui-interactive-active-transform').trim()
+    ))).toBe('none');
+
+    const initialScrollTop = await pageScroll.evaluate((element) => {
+      const target = Math.min(180, Math.max(0, element.scrollHeight - element.clientHeight));
+      element.scrollTop = target;
+      return element.scrollTop;
+    });
+    const opening = await trigger.evaluate(async (element) => {
+      const frames: Array<{ y: number; height: number }> = [];
+      const pageScrollElement = document.querySelector<HTMLElement>('.page-scroll');
+      element.click();
+      for (let index = 0; index < 18; index += 1) {
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const sheet = document.querySelector<HTMLElement>('.facility-detail-sheet');
+        if (!sheet) continue;
+        const rect = sheet.getBoundingClientRect();
+        frames.push({ y: rect.y, height: rect.height });
+      }
+      return {
+        frames,
+        scrollTop: pageScrollElement?.scrollTop ?? -1,
+        focused: document.activeElement?.classList.contains('facility-detail-sheet') ?? false,
+      };
+    });
+
+    await expect(dialog).toBeVisible();
+    expect(opening.frames.length).toBeGreaterThanOrEqual(8);
+    const heights = opening.frames.map((frame) => frame.height);
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
+    for (let index = 1; index < opening.frames.length; index += 1) {
+      expect(opening.frames[index].y).toBeLessThanOrEqual(opening.frames[index - 1].y + 1);
+    }
+    expect(opening.scrollTop).toBe(initialScrollTop);
+    expect(opening.focused).toBe(true);
+
+    await waitForSheetAnimations(dialog);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  });
+
   test('detail scroll area reuses the shared overlay scrollbar geometry', async ({ page }) => {
     await page.goto('runtime-test.html?view=production&scenario=activity');
 

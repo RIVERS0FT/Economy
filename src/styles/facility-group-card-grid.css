@@ -550,6 +550,8 @@
   }
 
   .facility-cluster-selector-card {
+    --ui-interactive-active-transform: none;
+
     min-height: 0;
     aspect-ratio: 4 / 5;
     padding: 0;
@@ -593,7 +595,7 @@
 
   .facility-detail-sheet {
     width: 100%;
-    max-height: min(88dvh, 760px);
+    max-height: min(88svh, 760px);
     display: flex;
     flex-direction: column;
     border: 1px solid var(--color-border-strong);

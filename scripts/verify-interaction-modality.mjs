@@ -100,7 +100,7 @@ if (failures.length === 0) {
 
   requireText(productionDetailPath, 'data-ui-interactive="surface"');
   requireText('src/pages/ProductionPage.tsx', 'detailTriggerRef.current = trigger;');
-  requireText(mobileDetailPath, 'returnFocusRef.current?.focus()');
+  requireText(mobileDetailPath, 'returnFocusRef.current?.focus({ preventScroll: true })');
 
   for (const text of [
     '--ui-interactive-hover-border-color',
