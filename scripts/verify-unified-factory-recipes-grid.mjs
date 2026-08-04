@@ -274,7 +274,7 @@ for (const text of [
   '.facility-cluster-detail-card',
   '.facility-detail-sheet-backdrop',
   '.facility-detail-sheet',
-  'max-height: min(88dvh, 760px);',
+  'max-height: min(88svh, 760px);',
   'env(safe-area-inset-bottom)',
   '.facility-detail-sheet-scroll',
   'overscroll-behavior-y: auto;',
