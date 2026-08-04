@@ -146,6 +146,7 @@ assert.match(styles, /\.asset-bar-layout/);
 assert.match(styles, /grid-template-columns:\s*minmax\(0, 1fr\) 56px/);
 assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 48px/);
 assert.match(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-trigger\s*\{[\s\S]*?width:\s*44px;[\s\S]*?min-width:\s*44px;[\s\S]*?height:\s*44px;[\s\S]*?min-height:\s*44px;/);
+assert.doesNotMatch(styles, /@media \(max-width: 720px\)[\s\S]*?\.notification-center-trigger\s*\{[\s\S]*?(?:width|height):\s*36px;/);
 assert.match(styles, /\.notification-panel-layer/);
 assert.match(styles, /\.notification-toast-stack/);
 assert.match(styles, /@media \(hover: hover\) and \(pointer: fine\)/);
@@ -153,7 +154,6 @@ assert.match(styles, /html\[data-input-modality="mouse"\] \.notification-toast:h
 assert.match(styles, /\.notification-toast:not\(:last-child\)/);
 assert.match(styles, /overscroll-behavior-y:\s*auto/);
 assert.doesNotMatch(styles, /overscroll-behavior:\s*contain/);
-assert.doesNotMatch(styles, /(?:width|height):\s*36px/);
 
 const mobileStatusStyles = read('src/styles/mobile-status-layout.css');
 assert.match(mobileStatusStyles, /\.mobile-notice-region \.notification-toast/);
