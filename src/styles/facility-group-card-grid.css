@@ -250,55 +250,50 @@
   min-width: 0;
   margin-inline: 0;
 }
-.facility-detail-overview,
-.facility-detail-identity-column,
-.facility-detail-operation-column {
+
+.facility-information {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 11.5rem) minmax(0, 1fr);
+  grid-template-areas:
+    "artwork main"
+    "summary summary"
+    "profit profit";
+  align-items: start;
+  gap: var(--space-2) var(--space-3);
+}
+
+.facility-information-artwork {
+  grid-area: artwork;
+  width: 100%;
+  align-self: start;
+}
+
+.facility-information-main {
+  grid-area: main;
   min-width: 0;
   display: grid;
   align-content: start;
-  gap: var(--facility-card-section-gap);
 }
 
-.facility-detail-operation-column {
-  gap: var(--facility-card-inner-gap);
-}
-
-@container (min-width: 620px) {
-  .facility-detail-overview {
-    grid-template-columns: minmax(11rem, 0.82fr) minmax(0, 1.18fr);
-    align-items: start;
-  }
-
-  .facility-detail-operation-column .facility-production-settings {
-    border-top: 0;
-    padding-top: 0;
-  }
-}
-
-.facility-status-header {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "title actions"
-    "summary summary";
-  align-items: start;
-  gap: var(--space-2);
-}
-
-.facility-card-title-row {
-  grid-area: title;
+.facility-information-heading {
   width: 100%;
   min-width: 0;
-  min-height: var(--control-height);
+  min-height: var(--control-height-compact);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: var(--space-2);
 }
 
-.facility-card-title-row h2 {
+.facility-information-title {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.facility-information-title h2 {
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -308,25 +303,36 @@
   white-space: nowrap;
 }
 
-.facility-card-title-row > .ui-switch {
-  flex: 0 0 auto;
-  margin: 0;
-}
-
-.facility-detail-header-actions,
-.facility-card-status-row {
-  grid-area: actions;
+.facility-information-meta {
   min-width: 0;
-  min-height: var(--control-height-compact);
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-1);
 }
 
-.facility-detail-header-actions .ui-status-tag {
-  max-width: min(100%, 16rem);
-  white-space: normal;
+.facility-information-total {
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.facility-information-total small {
+  font-size: var(--font-size-xs);
+}
+
+.facility-information-total strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
+}
+
+.facility-information-heading > .ui-switch {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .facility-count-summary {
@@ -349,8 +355,7 @@
   white-space: nowrap;
 }
 
-.facility-count-summary span:nth-child(2),
-.facility-count-summary span:nth-child(3) {
+.facility-count-summary span:nth-child(2) {
   justify-content: center;
 }
 
@@ -364,11 +369,19 @@
   font-size: var(--font-size-sm);
 }
 
+.facility-information > .facility-average-profit {
+  grid-area: profit;
+  margin: 0;
+  border-top: 1px solid var(--color-divider);
+  padding-top: var(--space-2);
+}
+
 .facility-staffing-summary {
   min-width: 0;
   display: grid;
   gap: var(--space-1);
-  padding-inline: var(--space-1);
+  border-top: 1px solid var(--color-divider);
+  padding: var(--space-2) var(--space-1) 0;
 }
 
 .facility-staffing-heading {
@@ -387,13 +400,10 @@
 
 .facility-staffing-heading span {
   min-width: 0;
+  overflow: hidden;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-normal);
-}
-
-.facility-staffing-heading span {
-  overflow: hidden;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -438,7 +448,6 @@
   white-space: nowrap;
 }
 
-
 .facility-production-settings-grid {
   min-width: 0;
   display: grid;
@@ -462,6 +471,51 @@
 
 .facility-production-formula {
   align-self: start;
+}
+
+@media (max-width: 720px) {
+  .facility-information {
+    grid-template-columns: minmax(6rem, 7.25rem) minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .facility-information-title {
+    gap: var(--space-1);
+  }
+
+  .facility-information-title h2 {
+    font-size: var(--font-size-lg);
+  }
+
+  .facility-information-total {
+    display: grid;
+    gap: 0.1rem;
+  }
+
+  .facility-information-total strong {
+    font-size: var(--font-size-md);
+  }
+
+  .facility-count-summary {
+    gap: 0.25rem;
+    font-size: 0.68rem;
+  }
+
+  .facility-count-summary span {
+    display: grid;
+    justify-items: start;
+    gap: 0.1rem;
+  }
+
+  .facility-count-summary span:nth-child(2) {
+    justify-content: initial;
+    justify-items: center;
+  }
+
+  .facility-count-summary span:last-child {
+    justify-content: initial;
+    justify-items: end;
+  }
 }
 
 .facility-market-link-row {

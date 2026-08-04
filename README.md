@@ -1,30 +1,168 @@
 # Economy
 
-Economy 是一款网页端多人在线经济模拟与产业经营游戏，包含统一资产交易、生产合作合同、银行和资产包拍卖。
+<div align="center">
+  <img src="https://riversoft.top/logo.svg" width="88" height="88" alt="RIVERSOFT">
 
-- 游戏网页：<https://game.riversoft.top/economy/>
-- 管理员页面：<https://game.riversoft.top/economy/admin>
-- 权威设计索引：[docs/README.md](docs/README.md)
-- 仓库协作规则：[AGENTS.md](AGENTS.md)
+  <p><strong>网页端多人在线经济模拟、产业经营与市场交易游戏。</strong></p>
+  <p>从一枚货币开始，建设工厂、组织产业链，在持续演化的多人经济中配置资产、竞争与合作。</p>
 
-业务规则、当前版本和部署参数只在权威设计文档、实现代码及对应验证脚本中维护；本文件不复制会随产品迭代变化的详细口径。
+  <p>
+    <a href="https://game.riversoft.top/economy/"><strong>开始游戏</strong></a>
+    ·
+    <a href="https://game.riversoft.top/economy/admin">管理员页面</a>
+    ·
+    <a href="docs/README.md">设计文档</a>
+  </p>
+</div>
+
+<p align="center">
+  <a href="https://github.com/RIVERS0FT/Economy/actions/workflows/ci.yml">
+    <img alt="Economy CI" src="https://github.com/RIVERS0FT/Economy/actions/workflows/ci.yml/badge.svg">
+  </a>
+  <img alt="Node.js 24.4.0" src="https://img.shields.io/badge/Node.js-24.4.0-339933?logo=nodedotjs&logoColor=white">
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827">
+  <img alt="TypeScript 7" src="https://img.shields.io/badge/TypeScript-7-3178C6?logo=typescript&logoColor=white">
+</p>
+
+## 项目简介
+
+Economy 是一款以生产、交易和资产配置为核心的多人在线经济模拟游戏。玩家从基础收入和启动资金出发，建设或买入工厂，选择生产配方，管理仓库与现金流，并在统一市场中交易商品和工厂资产。
+
+市场价格由玩家订单、生产活动、消费需求和市场储备共同影响。玩家还可以通过产业研发、长期供货合同、银行存贷款和资产包拍卖扩展经营策略，持续提升净资产与排行榜名次。
+
+游戏中的普通货币、宝石、商品、工厂、积分和价格均为虚构内容，不对应真实货币、证券或商品。
+
+## 核心特色
+
+- **产业链经营**：建设工厂、选择配方、配置作业制度，并根据原料、产能和利润调整生产结构。
+- **统一资产市场**：商品与工厂使用统一限价订单体系，支持真实冻结、撮合、成交和估值。
+- **动态经济环境**：消费需求、人口收入、市场储备和产业链价格传导共同形成持续变化的供需关系。
+- **合同与拍卖**：发布和承接长期供货合同，或通过资产包拍卖完成更复杂的资产流转。
+- **银行与研发**：管理存款、贷款、抵押和周期结算，并通过产业研发解锁更高复杂度的生产能力。
+- **服务器权威状态**：资金、库存、生产、订单、合同和倒计时均由服务器确认，客户端只负责交互和展示。
+- **响应式界面**：统一支持桌面端和移动端，并保留 Tauri 桌面应用外壳。
+
+## 玩法循环
+
+```mermaid
+flowchart LR
+    A[获得启动资金] --> B[建设或买入工厂]
+    B --> C[选择配方并组织生产]
+    C --> D[管理仓库与现金流]
+    D --> E[交易商品与工厂]
+    E --> F[研发、合同、拍卖与银行]
+    F --> G[调整产业链与资产配置]
+    G --> C
+```
+
+## 在线入口
+
+| 入口 | 地址 | 用途 |
+|---|---|---|
+| 游戏网页 | <https://game.riversoft.top/economy/> | 登录并进入正式游戏 |
+| 管理员页面 | <https://game.riversoft.top/economy/admin> | 运营、审计与管理 |
+| RIVERSOFT 主页 | <https://riversoft.top/> | 项目主页与统一账号入口 |
+| 设计文档 | [docs/README.md](docs/README.md) | 当前业务规则与设计索引 |
+| 协作规则 | [AGENTS.md](AGENTS.md) | 仓库修改、验证和交付流程 |
+
+## 技术栈
+
+| 层级 | 技术 |
+|---|---|
+| Web 客户端 | React 19、TypeScript 7、Vite 8、Tailwind CSS 4 |
+| 数据可视化 | Apache ECharts 6 |
+| 桌面外壳 | Tauri 2 |
+| 游戏服务 | Node.js 24.4.0、服务器权威 HTTP API |
+| 数据存储 | SQLite |
+| 测试与验证 | Node.js Test Runner、Playwright、项目专项防回退脚本 |
+| 发布与运行 | GitHub Actions、Nginx、systemd |
 
 ## 本地开发
 
-项目固定使用 Node.js 24.4.0 和 `package-lock.json`：
+### 环境要求
+
+- Node.js 24.4.0
+- 与仓库 `package-lock.json` 匹配的 npm
+- Chromium 浏览器依赖仅在运行浏览器测试时需要
+
+### 启动前端
 
 ```bash
+git clone https://github.com/RIVERS0FT/Economy.git
+cd Economy
 npm ci
 npm run dev
 ```
 
-默认开发地址：<http://localhost:5173>
+开发地址：<http://localhost:1420/economy/>
 
-## 验证与部署
+Vite 会将 `/economy-api` 代理到 `127.0.0.1:3001`，并将 `/economy-api/game` 代理到 `127.0.0.1:3002`。只进行界面开发时可以单独启动前端；完整登录、注册和游戏流程还需要对应的本地账号服务与 Economy 游戏服务。
+
+### 启动游戏服务
+
+开发环境可以使用本地 SQLite 文件启动 Economy 游戏 API：
+
+```bash
+PORT=3002 \
+ECONOMY_DB_PATH=./economy.sqlite \
+PUBLIC_ORIGIN=http://localhost:1420 \
+node server/src/app.js
+```
+
+统一账号服务仍需单独运行在 `127.0.0.1:3001`。
+
+## 常用命令
+
+| 命令 | 作用 |
+|---|---|
+| `npm run dev` | 生成运行时插画缩略图并启动 Vite |
+| `npm run typecheck` | 执行 TypeScript 类型检查 |
+| `npm run build` | 运行架构验证、服务器测试、类型检查和生产构建 |
+| `npm run test:browser` | 执行 Playwright 浏览器回归 |
+| `npm run stress:smoke` | 在隔离环境执行短时压力冒烟测试 |
+| `npm run preview` | 本地预览生产构建结果 |
+
+首次运行浏览器测试前安装 Chromium：
+
+```bash
+npx playwright install --with-deps chromium
+npm run test:browser
+```
+
+## 项目结构
+
+```text
+Economy/
+├── src/          # React 客户端、页面、组件、样式与游戏资源
+├── server/       # 服务器权威领域逻辑、HTTP API、SQLite 与服务器测试
+├── docs/         # 当前有效的权威设计文档
+├── scripts/      # 构建、验证、生成、诊断和部署脚本
+├── tests/        # 浏览器回归与压力测试
+├── deploy/       # Nginx、systemd 与生产部署配置
+├── src-tauri/    # Tauri 桌面应用配置
+└── .github/      # CI、部署、诊断和数据库维护工作流
+```
+
+## 文档导航
+
+- [产品与玩法设计](docs/PRODUCT_AND_GAMEPLAY_DESIGN.md)
+- [产业与生产设计](docs/INDUSTRY_AND_PRODUCTION_DESIGN.md)
+- [统一资产订单簿设计](docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md)
+- [页面内容与导航设计](docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md)
+- [UI 设计系统](docs/UI_DESIGN_SYSTEM.md)
+- [服务器架构与部署设计](docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md)
+
+业务规则、当前版本和部署参数只在权威设计文档、实现代码及对应验证脚本中维护；本文件不复制会随产品迭代变化的详细口径。
+
+## 开发与交付
+
+开始修改前，先阅读 [AGENTS.md](AGENTS.md) 和 [docs/README.md](docs/README.md)，再按任务范围核对对应设计、实现、测试和验证脚本。
+
+提交前至少完成与修改直接相关的专项验证。涉及代码时还应执行：
 
 ```bash
 npm run build
 npm run test:browser
 ```
 
-合入 `main` 后，[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) 会重新执行构建和浏览器测试，并在通过后部署及完成线上验收。
+Pull Request 会触发 [Economy CI](.github/workflows/ci.yml)。修改压缩合并到 `main` 后，[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) 会重新构建、运行浏览器测试、部署正式环境并执行线上验收。

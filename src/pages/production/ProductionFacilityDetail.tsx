@@ -2,6 +2,7 @@ import { FacilityIcon } from '../../components/icons/FacilityIcons';
 import { AssetsIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../../components/icons/GameIcons';
 import { ProductArtwork } from '../../components/products/ProductArtwork';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
+import { FacilityRecipeProfitAnalysis } from '../../components/facilities/FacilityRecipeProfitAnalysis';
 import { RichSelectInput } from '../../components/ui/RichSelectInput';
 import {
   Button,
@@ -336,34 +337,55 @@ export function FacilityClusterSelectorCard({
   );
 }
 
-export function FacilityClusterDetailHeader({
+export function FacilityClusterInformation({
   entry,
+  products,
+  inventories,
+  now,
   onToggle,
   titleId,
-}: {
-  entry: FacilityClusterEntry;
-  onToggle: (enabled: boolean) => void;
+}: Pick<
+  FacilityClusterDetailSharedProps,
+  'entry' | 'products' | 'inventories' | 'now' | 'onToggle'
+> & {
   titleId: string;
 }) {
   const { group, type } = entry;
+  const recipeState = resolveFacilityDetailRecipeState(entry);
+  const profitScope = currentFormulaScope(group, now);
 
   return (
-    <div className="facility-card-head facility-status-header">
-      <div className="facility-card-title-row">
-        <div className="facility-card-title-block facility-cluster-selector-heading">
-          <h2 id={titleId}>
-            {type.name} × {formatNumber(group.count)}
-          </h2>
-          <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
-        </div>
-        <SwitchControl
-          checked={group.enabled}
-          aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
-          title={group.enabled ? '停止生产' : '开启自动运行'}
-          disabled={group.count < 1}
-          onChange={(event) => onToggle(event.target.checked)}
-        />
+    <section
+      className="facility-information"
+      data-status={group.status}
+      aria-label={`${type.name}工厂信息`}
+    >
+      <div className="facility-detail-artwork facility-information-artwork" aria-hidden="true">
+        <FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />
       </div>
+
+      <div className="facility-information-main">
+        <div className="facility-information-heading">
+          <div className="facility-information-title">
+            <h2 id={titleId}>{type.name}</h2>
+            <div className="facility-information-meta">
+              <span className="facility-information-total">
+                <small>总数量</small>
+                <strong>{formatNumber(group.count)}</strong>
+              </span>
+              <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
+            </div>
+          </div>
+          <SwitchControl
+            checked={group.enabled}
+            aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
+            title={group.enabled ? '停止生产' : '开启自动运行'}
+            disabled={group.count < 1}
+            onChange={(event) => onToggle(event.target.checked)}
+          />
+        </div>
+      </div>
+
       <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
         <span>
           运行中 <strong>{formatNumber(group.participatingCount)}</strong>
@@ -375,7 +397,16 @@ export function FacilityClusterDetailHeader({
           抵押中 <strong>{formatNumber(group.mortgagedCount)}</strong>
         </span>
       </div>
-    </div>
+
+      <FacilityRecipeProfitAnalysis
+        type={recipeState.formulaType}
+        scopeCount={profitScope.physicalCount}
+        scopeLabel={profitScope.name}
+        staffingRateBps={profitScope.staffingRateBps}
+        products={products}
+        inventories={inventories}
+      />
+    </section>
   );
 }
 
@@ -398,19 +429,12 @@ export function FacilityClusterDetailBody({
 
   return (
     <>
-      <div className="facility-detail-overview">
-        <div className="facility-detail-identity-column">
-          <div className="facility-detail-artwork" aria-hidden="true">
-            <FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />
-          </div>
-          <FacilityStaffingSummary entry={entry} now={now} />
-        </div>
+      <FacilityStaffingSummary entry={entry} now={now} />
 
-        <div className="facility-detail-operation-column">
-          <section className="facility-production-settings">
-            <div className="facility-production-settings-heading">
-              <strong>生产设置</strong>
-            </div>
+      <section className="facility-production-settings">
+        <div className="facility-production-settings-heading">
+          <strong>生产设置</strong>
+        </div>
 
         <div className="facility-production-settings-grid">
           <RichSelectInput
@@ -449,18 +473,15 @@ export function FacilityClusterDetailBody({
             />
           ) : null}
         </div>
+      </section>
 
-          </section>
-
-          <FacilityProductionFormula
-            group={group}
-            type={recipeState.formulaType}
-            products={products}
-            inventories={inventories}
-            now={now}
-          />
-        </div>
-      </div>
+      <FacilityProductionFormula
+        group={group}
+        type={recipeState.formulaType}
+        products={products}
+        inventories={inventories}
+        now={now}
+      />
     </>
   );
 }
@@ -489,7 +510,15 @@ export function FacilityClusterDetailContent({
 }) {
   return (
     <>
-      <FacilityClusterDetailHeader entry={entry} onToggle={onToggle} titleId={titleId} />
+
+<FacilityClusterInformation
+  entry={entry}
+  products={products}
+  inventories={inventories}
+  now={now}
+  onToggle={onToggle}
+  titleId={titleId}
+/>
       <FacilityClusterDetailBody
         entry={entry}
         products={products}

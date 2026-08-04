@@ -64,11 +64,26 @@ test.describe('factory production methods', () => {
     await expect(artwork).toHaveCount(1);
     await expect.poll(() => artwork.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain('machine-factory');
 
+const artworkBox = await detail.locator('.facility-detail-artwork').boundingBox();
+expect(artworkBox).not.toBeNull();
+if (!artworkBox) throw new Error('工厂信息纵向插画几何不可用');
+expect(artworkBox.height / artworkBox.width).toBeCloseTo(1.25, 1);
+
+const sectionOrder = await detail.evaluate((element) => Array.from(element.children).map((child) => child.className));
+const informationIndex = sectionOrder.findIndex((value) => String(value).includes('facility-information'));
+const staffingIndex = sectionOrder.findIndex((value) => String(value).includes('facility-staffing-summary'));
+const settingsIndex = sectionOrder.findIndex((value) => String(value).includes('facility-production-settings'));
+const settlementIndex = sectionOrder.findIndex((value) => String(value).includes('facility-production-formula'));
+expect(informationIndex).toBeGreaterThanOrEqual(0);
+expect(staffingIndex).toBeGreaterThan(informationIndex);
+expect(settingsIndex).toBeGreaterThan(staffingIndex);
+expect(settlementIndex).toBeGreaterThan(settingsIndex);
+
     const staffingStyle = await detail.locator('.facility-staffing-summary').evaluate((element) => {
       const style = getComputedStyle(element);
       return { borderTopWidth: style.borderTopWidth, borderRadius: style.borderRadius };
     });
-    expect(staffingStyle.borderTopWidth).toBe('0px');
+    expect(Number.parseFloat(staffingStyle.borderTopWidth)).toBeGreaterThan(0);
     expect(staffingStyle.borderRadius).toBe('0px');
 
     const settlement = detail.locator('.facility-production-formula');
@@ -76,11 +91,12 @@ test.describe('factory production methods', () => {
     const inputSide = settlement.locator('.facility-formula-input-side');
     const formulaMeta = settlement.locator(':scope > .facility-formula-visual > .facility-formula-meta');
     const output = settlement.locator('.facility-formula-output');
-    const profit = settlement.locator('.facility-average-profit');
+    const profit = detail.locator(':scope > .facility-information > .facility-average-profit');
     await expect(inputSide).toHaveCount(1);
     await expect(formulaMeta).toHaveCount(1);
     await expect(output).toHaveCount(1);
     await expect(profit).toHaveCount(1);
+    await expect(settlement.locator('.facility-average-profit')).toHaveCount(0);
 
     const formulaColumns = await formulaTop.evaluate((element) => (
       getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length
@@ -198,6 +214,15 @@ test.describe('factory production methods', () => {
     ))).toContain('machine-factory');
     await expect(sheet.locator('.facility-staffing-track')).toBeVisible();
     await expect(sheet.locator('.facility-staffing-fill')).toBeVisible();
+
+await expect(sheet.locator('.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)')).toHaveCount(0);
+await expect(sheet.locator('.facility-information')).toHaveCount(1);
+await expect(sheet.locator('.facility-information .facility-average-profit')).toHaveCount(1);
+await expect(sheet.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
+const mobileArtworkBox = await sheet.locator('.facility-detail-artwork').boundingBox();
+expect(mobileArtworkBox).not.toBeNull();
+if (!mobileArtworkBox) throw new Error(`移动工厂信息纵向插画几何不可用: ${width}px`);
+expect(mobileArtworkBox.height / mobileArtworkBox.width).toBeCloseTo(1.25, 1);
     await expect(sheet.locator('.facility-production-method-summary')).toHaveCount(0);
     await expect(sheet.locator('.facility-staffing-meta')).toHaveCount(0);
     await expect(sheet.locator('.facility-formula-scope')).toHaveCount(0);
