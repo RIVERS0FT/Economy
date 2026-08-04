@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - agent/recover-pr450-bundle
+  pull_request:
+    branches:
+      - main
+    types:
+      - reopened
+      - ready_for_review
+      - synchronize
 
 concurrency:
   group: rebuild-pr456-clean-head
@@ -14,6 +21,7 @@ permissions:
 
 jobs:
   rebuild-clean-head:
+    if: github.event_name == 'push' || github.event.pull_request.number == 456
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
