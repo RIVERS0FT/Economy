@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
@@ -336,7 +337,7 @@ export function MobileFacilityDetailSheet({
     if (backdropPointerIdRef.current === event.pointerId) backdropPointerIdRef.current = undefined;
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isOpen) return undefined;
 
     clearSettleTimer();
@@ -346,14 +347,19 @@ export function MobileFacilityDetailSheet({
 
     const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
     const pageScrollArea = pageScroll?.closest<HTMLElement>('.page-scroll-area');
-    const previousBodyOverflow = document.body.style.overflow;
     const previousPageOverflow = pageScroll?.style.overflowY ?? '';
+    const previousPageScrollTop = pageScroll?.scrollTop ?? 0;
     const previousPageScrollbarSuppressed = pageScrollArea?.dataset.modalScrollbarSuppressed;
-    document.body.style.overflow = 'hidden';
-    if (pageScroll) pageScroll.style.overflowY = 'hidden';
+    const sheet = sheetRef.current;
+    const viewportHeight = Math.max(1, window.visualViewport?.height ?? window.innerHeight);
+    const sheetMaxHeight = Math.min(viewportHeight * 0.88, 760);
+    sheet?.style.setProperty('--facility-sheet-max-height', `${Math.round(sheetMaxHeight)}px`);
+    if (pageScroll) {
+      pageScroll.style.overflowY = 'hidden';
+      pageScroll.scrollTop = previousPageScrollTop;
+    }
     if (pageScrollArea) pageScrollArea.dataset.modalScrollbarSuppressed = 'true';
-
-    const focusFrame = window.requestAnimationFrame(() => sheetRef.current?.focus());
+    sheet?.focus({ preventScroll: true });
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -369,7 +375,7 @@ export function MobileFacilityDetailSheet({
       );
       if (focusable.length === 0) {
         event.preventDefault();
-        sheetRef.current?.focus();
+        sheetRef.current?.focus({ preventScroll: true });
         return;
       }
 
@@ -389,15 +395,17 @@ export function MobileFacilityDetailSheet({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.cancelAnimationFrame(focusFrame);
       document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousBodyOverflow;
-      if (pageScroll) pageScroll.style.overflowY = previousPageOverflow;
+      sheet?.style.removeProperty('--facility-sheet-max-height');
+      if (pageScroll) {
+        pageScroll.style.overflowY = previousPageOverflow;
+        pageScroll.scrollTop = previousPageScrollTop;
+      }
       if (pageScrollArea) {
         if (previousPageScrollbarSuppressed === undefined) delete pageScrollArea.dataset.modalScrollbarSuppressed;
         else pageScrollArea.dataset.modalScrollbarSuppressed = previousPageScrollbarSuppressed;
       }
-      requestAnimationFrame(() => returnFocusRef.current?.focus());
+      requestAnimationFrame(() => returnFocusRef.current?.focus({ preventScroll: true }));
     };
   }, [clearSettleTimer, isOpen, requestClose, resetDragStyles, returnFocusRef]);
 
