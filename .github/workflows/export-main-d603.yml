@@ -1,0 +1,29 @@
+name: Export Main d603
+
+on:
+  push:
+    branches:
+      - agent/export-main-d603
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/export-main-d603
+          fetch-depth: 0
+      - name: Create archive
+        run: tar --exclude=.git -czf /tmp/main-d603.tar.gz .
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-d603
+          path: /tmp/main-d603.tar.gz
+          retention-days: 1
