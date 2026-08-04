@@ -49,6 +49,7 @@ jobs:
           PY
           python .agent/apply-factory-settlement-fix.py
           rm -rf .agent
+          git rm --cached -f .agent/apply-factory-settlement-fix.py
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -83,7 +84,6 @@ jobs:
           git fetch origin main
           git checkout origin/main -- .github/workflows/ci.yml
           git rm -f .github/workflows/apply-factory-settlement-fix.yml
-          git add -u -- .agent/apply-factory-settlement-fix.py
           git add -- \
             .github/workflows/ci.yml \
             src/components/facilities/FacilityProductionFormula.tsx \
