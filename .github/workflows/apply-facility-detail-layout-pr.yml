@@ -32,6 +32,70 @@ jobs:
               line[10:] if line.startswith('          ') else line
               for line in workflow[start:end].splitlines()
           )
+
+          header_start = script.index(
+              "replace_once(\n    mobile_path,\n    '''          <div className=\"facility-detail-sheet-header\">",
+          )
+          body_start = script.index(
+              "replace_once(\n    mobile_path,\n    '''            <FacilityClusterDetailBody",
+              header_start,
+          )
+          header_replacement = r'''sub_once(
+              mobile_path,
+              r'\s*<div className="facility-detail-sheet-header">[\s\S]*?</div>\n\n(?=\s*<ScrollArea)',
+              '''          <div className="facility-detail-sheet-header">
+                <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
+                  <span className="facility-detail-sheet-handle" />
+                </div>
+              </div>
+
+''',
+          )
+          '''
+          script = script[:header_start] + header_replacement + script[body_start:]
+
+          body_start = script.index(
+              "replace_once(\n    mobile_path,\n    '''            <FacilityClusterDetailBody",
+          )
+          body_end = script.index("\n\nformula_path =", body_start)
+          body_replacement = r'''sub_once(
+              mobile_path,
+              r'\s*<FacilityClusterDetailBody[\s\S]*?/>\n(?=\s*</ScrollArea>)',
+              '''            <FacilityClusterInformation
+                entry={entry}
+                products={products}
+                inventories={inventories}
+                now={now}
+                onToggle={onToggle}
+                titleId="mobile-facility-detail-title"
+              />
+              <FacilityClusterDetailBody
+                entry={entry}
+                products={products}
+                inventories={inventories}
+                now={now}
+                onRecipeChange={onRecipeChange}
+              />
+''',
+          )
+          '''
+          script = script[:body_start] + body_replacement + script[body_end:]
+
+          artwork_start = script.index(
+              "replace_once(\n    artwork_css,\n    '''  .facility-detail-artwork {",
+          )
+          artwork_end = script.index("\n\nprofit_css =", artwork_start)
+          artwork_replacement = r'''sub_once(
+              artwork_css,
+              r'  \.facility-detail-artwork \{[\s\S]*?aspect-ratio: 16 / 5;[\s\S]*?\n  \}',
+              '''  .facility-detail-artwork {
+                min-height: 0;
+                aspect-ratio: 4 / 5;
+              }''',
+          )
+          '''
+          script = script[:artwork_start] + artwork_replacement + script[artwork_end:]
+
           exec(compile(script, 'embedded-facility-detail-layout.py', 'exec'))
           PY
 
