@@ -63,15 +63,14 @@ jobs:
             --exclude=server/src/runtime-store.js \
             /tmp/population-model.patch
 
-          echo 'bc201d934115f5b8debdb34e4195d20988dd683095572e04e57697ce7968fb72  scripts/.population-final-conflicts.b64' | sha256sum --check
-          base64 --decode scripts/.population-final-conflicts.b64 | gzip --decompress > /tmp/population-conflicts.patch
-          echo '1a04f018bb55981228b9754fbc93aa9936d1139fc28aa0ac2b9e0496b2b9be8d  /tmp/population-conflicts.patch' | sha256sum --check
-          git apply --index --check /tmp/population-conflicts.patch
-          git apply --index /tmp/population-conflicts.patch
+          echo 'f0f6da088aac0164d9a985509e15e93f77a1c182c8f26798ac6905da9787a21f  scripts/.apply-population-conflicts.py' | sha256sum --check
+          python3 scripts/.apply-population-conflicts.py
+          git add -- docs/GIFT_CODE_AND_ADMIN_DESIGN.md server/src/runtime-store.js
 
           git rm -- \
             .github/workflows/apply-population-final.yml \
             .github/workflows/export-population-final-source.yml \
+            scripts/.apply-population-conflicts.py \
             scripts/.population-final-conflicts.b64 \
             scripts/.population-final-part-*
 
