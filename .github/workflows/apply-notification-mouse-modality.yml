@@ -1,0 +1,37 @@
+name: Apply notification mouse modality
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+    paths:
+      - .github/workflows/apply-notification-mouse-modality.yml
+      - scripts/patch-notification-mouse-modality.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.ref == 'codex/notification-center'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/notification-center
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Bind notification hover to mouse modality
+        run: node scripts/patch-notification-mouse-modality.mjs
+      - name: Commit modality update and remove migration files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/styles/notification-center.css
+          git rm -- .github/workflows/apply-notification-mouse-modality.yml scripts/patch-notification-mouse-modality.mjs
+          git commit -m "fix: bind notification hover to mouse modality"
+          git push origin HEAD:codex/notification-center
