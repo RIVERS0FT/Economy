@@ -232,7 +232,7 @@ for (const [path, texts] of [
   for (const text of texts) assert.ok(content.includes(text), path + ' 缺少: ' + text);
 }
 
-console.log('市场需求验证通过：模型 13 使用工厂承载驱动的实际人口与真实钱包覆盖全部 32 种商品，并保持双向报价、派生流动性和市场储备约束。');
+console.log('市场需求验证通过：模型 14 使用工厂承载驱动的实际人口与真实钱包覆盖全部 32 种商品，并保持双向报价、派生流动性和市场储备约束。');
 
 const populationPolicy = read('server/src/population-policy.js');
 const populationControl = read('server/src/population-admin-control.js');
