@@ -1,0 +1,39 @@
+name: Fix facility detail browser token
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Fix browser verifier token
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-unified-factory-recipes-grid.mjs')
+          source = path.read_text()
+          old = '  "\'facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)\'",'
+          new = '  "\'.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)\'",'
+          if source.count(old) != 1:
+              raise SystemExit(f'expected one old browser token, found {source.count(old)}')
+          path.write_text(source.replace(old, new, 1))
+          Path('.github/workflows/fix-facility-detail-browser-token.yml').unlink()
+          PY
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- scripts/verify-unified-factory-recipes-grid.mjs .github/workflows/fix-facility-detail-browser-token.yml
+          git commit -m "修正工厂详情浏览器选择器验证"
+          git push origin HEAD:${{ github.head_ref }}
