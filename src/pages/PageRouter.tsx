@@ -39,16 +39,16 @@ export function preloadPage(tab: TabId) {
   return pagePreloaders[tab]();
 }
 
-const AuctionPage = lazy(() => loadAuctionPage().then((module) => ({ default: module.AuctionPage })));
-const BankPage = lazy(() => loadBankPage().then((module) => ({ default: module.BankPage })));
-const ContractPage = lazy(() => loadContractPage().then((module) => ({ default: module.ContractPage })));
-const LeaderboardPage = lazy(() => loadLeaderboardPage().then((module) => ({ default: module.LeaderboardPage })));
-const MarketPage = lazy(() => loadMarketPage().then((module) => ({ default: module.MarketPage })));
-const OverviewPage = lazy(() => loadOverviewPage().then((module) => ({ default: module.OverviewPage })));
-const ProductionPage = lazy(() => loadProductionPage().then((module) => ({ default: module.ProductionPage })));
-const ResearchPage = lazy(() => loadResearchPage().then((module) => ({ default: module.ResearchPage })));
-const GemShopPage = lazy(() => loadGemShopPage().then((module) => ({ default: module.GemShopPage })));
-const SettingsPage = lazy(() => loadSettingsPage().then((module) => ({ default: module.SettingsPage })));
+const AuctionPage = lazy(() => import('./AuctionPage').then((module) => ({ default: module.AuctionPage })));
+const BankPage = lazy(() => import('./BankPage').then((module) => ({ default: module.BankPage })));
+const ContractPage = lazy(() => import('./ContractPage').then((module) => ({ default: module.ContractPage })));
+const LeaderboardPage = lazy(() => import('./LeaderboardPage').then((module) => ({ default: module.LeaderboardPage })));
+const MarketPage = lazy(() => import('./MarketPage').then((module) => ({ default: module.MarketPage })));
+const OverviewPage = lazy(() => import('./OverviewPage').then((module) => ({ default: module.OverviewPage })));
+const ProductionPage = lazy(() => import('./ProductionPage').then((module) => ({ default: module.ProductionPage })));
+const ResearchPage = lazy(() => import('./ResearchPage').then((module) => ({ default: module.ResearchPage })));
+const GemShopPage = lazy(() => import('./GemShopPage').then((module) => ({ default: module.GemShopPage })));
+const SettingsPage = lazy(() => import('./SettingsPage').then((module) => ({ default: module.SettingsPage })));
 
 export function PageRouter({ model }: { model: TutorialAwareGameViewModel }) {
   let page;
