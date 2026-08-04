@@ -55,8 +55,17 @@ requireText('server/src/storage.js', [
   'schedulerMaxDelayMs',
   'schedulerNotBefore',
   'schedulerDiagnostics.transactions',
+  'migrateLoadedWorld',
+  'finalizeWorldForStorage',
+  'cleanupExpiredIdempotency',
+  'IDEMPOTENCY_CLEANUP_INTERVAL_MS = 5 * 60 * 1000',
 ]);
 assert.doesNotMatch(read('server/src/storage.js'), /setInterval\(/, '正式世界调度不得恢复固定 setInterval');
+assert.equal(read('server/src/storage.js').includes('prepareWorldForStorage'), false, '热保存不得恢复完整冷加载迁移入口');
+const storageApply = read('server/src/storage.js').slice(read('server/src/storage.js').indexOf('  apply(user,'), read('server/src/storage.js').indexOf('  requireAdmin(user)'));
+assert.equal((storageApply.match(/processWorldIfDue\(/g) || []).length, 1, '普通动作只允许一次全局到期推进');
+assert.equal((storageApply.match(/normalizeWorldMoneyPrecision\(world\)/g) || []).length, 0, '普通动作不得在最终保存前重复全世界资金扫描');
+assert.equal((storageApply.match(/cleanupExpiredIdempotency\(now\)/g) || []).length, 1, '普通动作必须使用门控幂等清理');
 requireText('server/src/index.js', [
   "import './request-metrics-bootstrap.js';",
   "import './app.js';",
@@ -152,6 +161,10 @@ requireText('server/src/runtime-store.js', [
   'this.updateWorld.run(nextRevision, stateJson, now)',
   'this.flushContractAuditEvents(world, revision, nextRevision)',
   'this.cacheWorld(nextRevision, stateJson, world)',
+  'migrateLoadedWorld(world, now)',
+  "triggerType: 'action_postprocess'",
+  'processProductionContracts(world, now)',
+  'this.cleanupExpiredIdempotency(now)',
 ]);
 const runtimeStore = read('server/src/runtime-store.js');
 assert.ok(
@@ -200,6 +213,10 @@ requireText('server/test/state-polling.test.js', [
   'runtime failed actions keep the world row unchanged',
   'runtime state delivery reuses the current revision cache',
 ]);
+requireText('server/test/runtime-hot-path.test.js', [
+  'hot actions do not rerun cold world migrations and process global deadlines once',
+  'idempotency expiry cleanup is throttled instead of running on every action',
+]);
 requireText('docs/README.md', [
   '状态刷新设置继续只保存和显示 `3s`／`5s`／`10s`',
   '连续 30 秒无交互后临时使用 15 秒',
@@ -221,6 +238,9 @@ requireText('docs/README.md', [
   '共享仓库统一预占必须同时包含未完成商品买单',
   '`DatabaseSync` 的 5 秒超时是 SQLite 锁等待上限',
   '不得记录 Cookie、请求体、玩家资产或其他敏感内容',
+  '世界冷加载迁移与热保存必须分离',
+  '普通动作热路径只允许一次全局到期推进',
+  '幂等记录过期清理最多每 5 分钟执行一次',
 ]);
 
 if (failures.length) {
@@ -237,6 +257,10 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '统一订单簿运行时容量边界',
   '不得按玩家订单与系统订单拆分第二套盘口',
   '订单历史最多保留最近 800 笔未过期关闭订单',
+  '世界存储必须区分冷加载迁移与热保存收口',
+  '`migrateLoadedWorld`',
+  '`finalizeWorldForStorage`',
+  '幂等确认仍保留 24 小时，但过期删除使用服务内 5 分钟门控',
 ]);
 
 console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');

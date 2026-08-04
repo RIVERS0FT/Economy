@@ -73,6 +73,7 @@ import {
 } from './auction-audit-store.js';
 
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+const IDEMPOTENCY_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const WORLD_PROCESS_INTERVAL_MS = 1_000;
 const AUCTION_ACTIONS = new Set(['createAuction', 'placeAuctionBid', 'cancelAuction']);
 const BANK_ACTIONS = new Set(['bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay']);
@@ -409,6 +410,7 @@ export class EconomyStore {
   this.schedulerGeneration = 0;
   this.schedulerNotBefore = 0;
   this.schedulerClosed = false;
+  this.nextIdempotencyCleanupAt = 0;
   this.schedulerDiagnostics = {
     schedules: 0,
     wakeups: 0,
@@ -501,6 +503,7 @@ export class EconomyStore {
   const cacheBefore = this.worldCache;
   const processingDeadlineBefore = this.nextWorldProcessingAt;
   const schedulerNotBeforeBefore = this.schedulerNotBefore;
+  const idempotencyCleanupBefore = this.nextIdempotencyCleanupAt;
   measureRequestPhase('transactionWaitMs', () => this.database.exec(immediate ? 'BEGIN IMMEDIATE' : 'BEGIN'));
   try {
     const value = callback();
@@ -511,12 +514,13 @@ export class EconomyStore {
     this.worldCache = cacheBefore;
     this.nextWorldProcessingAt = processingDeadlineBefore;
     this.schedulerNotBefore = schedulerNotBeforeBefore;
+    this.nextIdempotencyCleanupAt = idempotencyCleanupBefore;
     this.database.exec('ROLLBACK');
     throw error;
   }
 }
 
-  prepareWorldForStorage(world, now) {
+  migrateLoadedWorld(world, now) {
     processDailyCheckInWorld(world, now);
     migrateBankWorld(world, now);
     ensureWeeklyCashSettlementWorld(world, now);
@@ -529,11 +533,22 @@ export class EconomyStore {
     migrateAssetAuctionWorld(world, now);
     migrateFacilityGroupWorld(world, now);
     migrateResearchWorld(world, now);
+    return this.finalizeWorldForStorage(world, now);
+  }
+
+  finalizeWorldForStorage(world, _now) {
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
     measureRequestPhase('moneyNormalizeMs', () => normalizeWorldMoneyPrecision(world));
     world.version = 22;
     return world;
+  }
+
+  cleanupExpiredIdempotency(now) {
+    if (now < this.nextIdempotencyCleanupAt) return false;
+    this.deleteExpiredIdempotency.run(now - IDEMPOTENCY_TTL_MS);
+    this.nextIdempotencyCleanupAt = now + IDEMPOTENCY_CLEANUP_INTERVAL_MS;
+    return true;
   }
 
   cacheWorld(revision, stateJson, world, needsPersistence = false) {
@@ -556,7 +571,7 @@ export class EconomyStore {
 
     const row = this.selectWorld.get();
     if (!row) {
-      const world = this.prepareWorldForStorage(stripPlayerLogs(createWorld(now)), now);
+      const world = this.migrateLoadedWorld(stripPlayerLogs(createWorld(now)), now);
       const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
       this.insertWorld.run(1, stateJson, now);
       this.cacheWorld(1, stateJson, world);
@@ -565,7 +580,7 @@ export class EconomyStore {
     }
 
     const persistedStateJson = String(row.state_json);
-    const world = this.prepareWorldForStorage(migrateWorld(JSON.parse(persistedStateJson), now), now);
+    const world = this.migrateLoadedWorld(migrateWorld(JSON.parse(persistedStateJson), now), now);
     const stateJson = measureRequestPhase('serializeWorldMs', () => JSON.stringify(world));
     this.cacheWorld(Number(row.revision), stateJson, world, stateJson !== persistedStateJson);
     setRequestGauge('worldJsonBytes', Buffer.byteLength(stateJson));
@@ -573,7 +588,7 @@ export class EconomyStore {
   }
 
   serializeWorld(world, now) {
-    return measureRequestPhase('serializeWorldMs', () => JSON.stringify(this.prepareWorldForStorage(world, now)));
+    return measureRequestPhase('serializeWorldMs', () => JSON.stringify(this.finalizeWorldForStorage(world, now)));
   }
 
   saveWorld(revision, world, now) {
@@ -588,7 +603,7 @@ export class EconomyStore {
   }
 
   saveWorldIfChanged(revision, world, now, _previousStateJson) {
-    this.prepareWorldForStorage(world, now);
+    this.finalizeWorldForStorage(world, now);
     const cached = this.worldCache;
     const unchanged = cached
       && cached.revision === revision
@@ -890,9 +905,6 @@ export class EconomyStore {
           }
         }
       }
-      normalizeWorldMoneyPrecision(world);
-      this.processWorldIfDue(world, now, Number(user.id), { force: true });
-      normalizeWorldMoneyPrecision(world);
       ensureWarehouse(world.players[String(user.id)]);
       ensureGemState(world.players[String(user.id)]);
       ensurePlayerBankAccount(world.players[String(user.id)], now);
@@ -907,7 +919,7 @@ export class EconomyStore {
         JSON.stringify(response),
         now,
       );
-      this.deleteExpiredIdempotency.run(now - IDEMPOTENCY_TTL_MS);
+      this.cleanupExpiredIdempotency(now);
       return response;
     });
   }
@@ -1078,7 +1090,7 @@ export class EconomyStore {
       }
       const response = normalizeJson(callback());
       this.insertIdempotency.run(Number(user.id), requestKey, method, path, JSON.stringify(response), now);
-      this.deleteExpiredIdempotency.run(now - IDEMPOTENCY_TTL_MS);
+      this.cleanupExpiredIdempotency(now);
       return response;
     });
   }
