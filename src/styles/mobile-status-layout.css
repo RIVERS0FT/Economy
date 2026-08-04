@@ -118,4 +118,8 @@
     white-space: normal;
     pointer-events: none;
   }
+
+  .mobile-notice-region .notification-toast {
+    pointer-events: auto;
+  }
 }
