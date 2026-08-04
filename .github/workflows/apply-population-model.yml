@@ -3,7 +3,7 @@ name: Apply Population Model
 on:
   push:
     branches: [feature/population-model]
-    paths: [scripts/.population-model-patch.b64]
+    paths: [scripts/.population-model-ready]
 
 permissions:
   contents: write
@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   apply:
+    if: github.event.head_commit.message == 'chore: stage population patch parts'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -33,14 +34,13 @@ jobs:
       - name: Apply population model patch
         run: |
           set -euo pipefail
-          python3 - <<'PYTHON'
-          import base64, gzip
-          from pathlib import Path
-          encoded = Path('scripts/.population-model-patch.b64').read_text(encoding='utf-8').strip()
-          Path('/tmp/population-model.patch').write_bytes(gzip.decompress(base64.b64decode(encoded)))
-          PYTHON
+          cat scripts/.population-model-patch-part-* > /tmp/population-model-patch.b64
+          echo '2614022a63ca92b4107efc7344cf3374ad68976366253f667b0d4ab2a94ff9cd  /tmp/population-model-patch.b64' | sha256sum --check
+          base64 --decode /tmp/population-model-patch.b64 | gzip --decompress > /tmp/population-model.patch
+          echo '180f6a67786b737bfc6473ac86b04a41522e22c90a7a1de6789cf3b7890de714  /tmp/population-model.patch' | sha256sum --check
+          git apply --index --check /tmp/population-model.patch
           git apply --index /tmp/population-model.patch
-          git rm -- scripts/.population-model-patch.b64
+          git rm -- scripts/.population-model-patch.b64 scripts/.population-model-patch-part-* scripts/.population-model-ready
 
       - name: Install dependencies
         run: npm ci
