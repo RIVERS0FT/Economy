@@ -484,6 +484,16 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (method === 'GET' && path === '/api/game/orders/history') {
+      sendJson(response, 200, {
+        orderHistory: store.listOrderHistory(user, {
+          cursor: url.searchParams.get('cursor'),
+          limit: url.searchParams.get('limit'),
+        }),
+      });
+      return;
+    }
+
     if (path === '/api/game/collectible-auctions' || path.startsWith('/api/game/collectible-auctions/')) {
       sendError(response, 410, '藏品拍卖接口已永久移除，请使用通用资产拍卖接口');
       return;

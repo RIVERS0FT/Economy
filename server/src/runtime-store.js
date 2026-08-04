@@ -7,6 +7,7 @@ import {
 } from './population-admin-control.js';
 import { EconomyStore as PersistentEconomyStore } from './storage.js';
 import { ensurePlayer } from './domain.js';
+import { createOrderHistoryPage } from './facility-groups.js';
 import {
   applyProductionContractAction,
   createProductionContractClientState,
@@ -215,6 +216,20 @@ export class EconomyStore extends PersistentEconomyStore {
       state,
       ...partitionSnapshot,
     });
+  }
+
+  listOrderHistory(user, options = {}, now = Date.now()) {
+    if (this.worldCache?.world) {
+      return measureRequestPhase('orderHistoryProjectionMs', () => (
+        createOrderHistoryPage(this.worldCache.world, Number(user.id), options)
+      ));
+    }
+    return this.transaction(() => {
+      const { world } = this.loadWorld(now);
+      return measureRequestPhase('orderHistoryProjectionMs', () => (
+        createOrderHistoryPage(world, Number(user.id), options)
+      ));
+    }, { immediate: false });
   }
 
   apply(user, requestMeta, now = Date.now()) {

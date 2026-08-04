@@ -137,6 +137,9 @@ requireText('server/src/domain.js', [
   'if (retainedOrders.length !== migratedOrders.length) migrated.orders = retainedOrders;',
 ]);
 requireText('server/src/facility-groups.js', [
+  'CLIENT_RECENT_CLOSED_ORDER_LIMIT',
+  'clientOrdersForState',
+  'createOrderHistoryPage',
   'const hasSystemFacilityOrder = orders.some',
   'if (!hasSystemFacilityOrder) return world;',
   'orderById(world, payload.orderId)',
@@ -197,6 +200,10 @@ requireText('server/test/request-metrics.test.js', [
   'p95DurationMs',
   'worldCloneMs',
   'worldJsonBytes',
+]);
+requireText('server/test/order-history.test.js', [
+  'main state keeps all open orders and only bounded recent closed orders for the current player',
+  'order history provides opaque cursor pagination with only the current player anonymous fills',
 ]);
 requireText('server/test/state-projection-cache.test.js', [
   'runtime state projection cache reuses final state and partition snapshots for one revision',
@@ -285,6 +292,8 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', [
   '幂等确认仍保留 24 小时，但过期删除使用服务内 5 分钟门控',
   '按 `世界修订号 + 玩家 ID` 缓存最终投影',
   'HTTP 交付层优先消费已经构造的 `partitions` 与 `partitionRevisions`',
+  '六分区主状态不得发送全部 800 笔关闭历史',
+  '`GET /api/game/orders/history?cursor=&limit=`',
 ]);
 
 console.log('运行时效率验证通过：自适应轮询、到期驱动调度、无变化动作不写世界、合同审计事务与缓存顺序、单一混合订单簿与合同线性索引、状态投影复用和有界请求指标均已锁定。');

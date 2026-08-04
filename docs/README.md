@@ -109,5 +109,6 @@
 66. 研发页是生产右侧、拍卖左侧的第十个正式页面；C1-C7 研发采用玩家级顺序最高复杂度、普通货币一次性扣款、进度式人口就业释放、单项目不可取消和服务器权威完成。复杂度准入必须同时覆盖建设、工厂买单、竞拍、启动与配置，迁移必须按既有资产及承诺推导等级；必须同步产品、产业、页面、服务器、倒计时、状态版本、测试与 `scripts/verify-research-progression.mjs`，不得恢复只读占位、研发点、宝石加速、并行队列或生产数值加成。
 67. 世界冷加载迁移与热保存必须分离：完整世界迁移、旧字段补全和全玩家兼容初始化只允许在首次加载或版本升级时执行；普通动作热路径只允许一次全局到期推进、一次最终资金精度收口和一次持久化判定，合同动作的动作后结算必须使用合同专项处理而不是再次推进全部银行、研发和排行榜。幂等记录过期清理最多每 5 分钟执行一次，不得随每个玩家动作重复删除扫描。以上规则归属 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`，并由 `server/test/runtime-hot-path.test.js` 与 `scripts/verify-runtime-efficiency.mjs` 防回退。
 68. 最终客户端状态必须在运行时存储层直接形成六分区快照，并按世界修订号与玩家 ID 缓存；同修订重复请求不得重新进入事务、重建合同投影或重复分区哈希。目录分区固定为进程内共享静态快照，投影缓存上限为 256 个玩家并在世界修订变化时清空；HTTP 层只比较已生成的分区修订和选择补丁。必须同步更新 `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md`、`state-partitions.js`、运行时存储、状态轮询测试和 `scripts/verify-runtime-efficiency.mjs`。
+69. 六分区 `orders` 只允许全部未完成订单与当前玩家最近 `maxOpenOrders` 笔已关闭订单；更早的本人关闭订单必须通过只读不透明游标接口 `GET /api/game/orders/history` 分页读取，默认 50、最多 100 条。主状态瘦身和历史接口必须复用普通玩家匿名订单序列化，不得恢复其他玩家关闭订单、对手信息、需求来源或内部资金字段，并同步 `LOCAL_ACTIVITY_LOG_DESIGN.md`、服务器设计、测试及 `scripts/verify-local-trade-privacy.mjs`。
 
 - 游戏端与管理员端桌面顶部工作栏必须横跨侧栏列与内容列；侧栏和工作区从其下方开始。所有登录后业务浮层必须限制在工作区安全根内，并由 `scripts/verify-game-shell-layout.mjs` 与 `tests/browser/shell-floating-safe-zone.spec.ts` 防回退。
