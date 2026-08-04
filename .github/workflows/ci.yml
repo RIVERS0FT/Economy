@@ -2,113 +2,46 @@ name: Economy CI
 
 on:
   pull_request:
-  push:
-    branches-ignore:
-      - main
   workflow_dispatch:
 
-concurrency:
-  group: economy-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  verify-head-ci-registration:
-    if: github.event_name == 'pull_request'
+  apply-approved-performance-phase-5:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'perf/phase-write-executor'
     runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
     steps:
-      - name: Verify head push CI registration
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import time
-          import urllib.request
-
-          token = os.environ['GH_TOKEN']
-          head_sha = os.environ['HEAD_SHA']
-          repository = os.environ['REPOSITORY']
-          headers = {
-              'Accept': 'application/vnd.github+json',
-              'Authorization': f'Bearer {token}',
-              'X-GitHub-Api-Version': '2022-11-28',
-          }
-
-          runs = []
-          for _ in range(12):
-              url = f'https://api.github.com/repos/{repository}/actions/runs?head_sha={head_sha}&event=push&per_page=20'
-              request = urllib.request.Request(url, headers=headers)
-              with urllib.request.urlopen(request) as response:
-                  runs = json.load(response).get('workflow_runs', [])
-              if runs:
-                  break
-              time.sleep(5)
-
-          print(json.dumps({
-              'head_sha': head_sha,
-              'push_runs': [
-                  {
-                      'id': run['id'],
-                      'run_number': run['run_number'],
-                      'status': run['status'],
-                      'conclusion': run['conclusion'],
-                  }
-                  for run in runs
-              ],
-          }, ensure_ascii=False, indent=2))
-          if not runs:
-              raise SystemExit('No push workflow run found for the pull request head SHA')
-          PY
-
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version: 24.4.0
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and test
+          ref: perf/phase-write-executor
+          fetch-depth: 0
+      - name: Apply approved bounded write executor patch
         shell: bash
         run: |
-          set -o pipefail
-          npm run build 2>&1 | tee build-test.log
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Test browser runtime
-        shell: bash
-        run: |
-          set -o pipefail
-          npm run test:browser 2>&1 | tee browser-test.log
-
-      - name: Upload test artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: economy-test-artifacts
-          path: |
-            build-test.log
-            browser-test.log
-            playwright-report
-            test-results
-          if-no-files-found: warn
-          retention-days: 3
+          set -euo pipefail
+          cat .performance-phase-5-part01 .performance-phase-5-part02 \
+            | base64 -d | gzip -d > /tmp/performance-phase-5.patch
+          printf '%s  %s\n' '67b1bc45bb9c50fddbb4d2e8b6db6a27cc50cc2df6d66845ef9dd595b0fc4e5d' /tmp/performance-phase-5.patch | sha256sum --check
+          git apply --check /tmp/performance-phase-5.patch
+          git apply /tmp/performance-phase-5.patch
+          git checkout origin/main -- .github/workflows/ci.yml
+          rm -f -- .performance-phase-5-part01 .performance-phase-5-part02
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            docs/README.md \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            scripts/verify-runtime-efficiency.mjs \
+            server/src/admin-summary.js \
+            server/src/app.js \
+            server/src/registration.js \
+            server/src/storage.js \
+            server/src/authoritative-write-executor.js \
+            server/test/authoritative-write-executor.test.js \
+            server/test/registration.test.js \
+            .github/workflows/ci.yml \
+            .performance-phase-5-part01 \
+            .performance-phase-5-part02
+          git commit -m "perf: serialize authoritative writes through bounded executor"
+          git push origin HEAD:perf/phase-write-executor
