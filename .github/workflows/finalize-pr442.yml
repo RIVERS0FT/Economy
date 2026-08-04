@@ -1,0 +1,104 @@
+name: Finalize PR 442
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: finalize-pr442-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/live-staffing-authority-cleanup
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Rebuild cleanup on latest main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main fix/live-staffing-authority-cleanup
+          git show 5f4671d6b75fb427997bbc496115a1302b633184:scripts/prepare-live-staffing-authority-cleanup.mjs > /tmp/prepare-live-staffing-authority-cleanup.mjs
+          git show 5f4671d6b75fb427997bbc496115a1302b633184:scripts/apply-live-staffing-authority-cleanup.mjs > /tmp/apply-live-staffing-authority-cleanup.mjs
+          git reset --hard origin/main
+          cp /tmp/prepare-live-staffing-authority-cleanup.mjs scripts/prepare-live-staffing-authority-cleanup.mjs
+          cp /tmp/apply-live-staffing-authority-cleanup.mjs scripts/apply-live-staffing-authority-cleanup.mjs
+          node --check scripts/prepare-live-staffing-authority-cleanup.mjs
+          node scripts/prepare-live-staffing-authority-cleanup.mjs
+          node --check scripts/apply-live-staffing-authority-cleanup.mjs
+          node scripts/apply-live-staffing-authority-cleanup.mjs
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const path = 'docs/UI_DESIGN_SYSTEM.md';
+          let source = readFileSync(path, 'utf8');
+          const additions = [
+            '生产结算的多项物资只使用独立物资槽与间距分隔，不显示 `+` 或其他连接字符。',
+            '生产结算操作数据带按内容宽度左对齐且最大不超过结算容器，移动端不得拉伸为全宽。',
+          ];
+          for (const text of additions) {
+            if (!source.includes(text)) source = source.trimEnd() + '\n\n' + text + '\n';
+          }
+          writeFileSync(path, source);
+          NODE
+          git add -A
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build-test.log
+
+      - name: Commit clean branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f build-test.log browser-test.log
+          git add -A
+          actual="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
+            'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md' \
+            'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md' \
+            'docs/UI_DESIGN_SYSTEM.md' \
+            'scripts/verify-facility-groups.mjs' \
+            'scripts/verify-recipe-profit-analysis.mjs' \
+            'scripts/verify-unified-factory-recipes-grid.mjs' \
+            'tests/browser/bank-runtime-harness.tsx' \
+            'tests/browser/market-runtime-harness.tsx' | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo 'Unexpected rebuilt files:'
+            printf '%s\n' "$actual"
+            exit 1
+          fi
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix: 清理满员率结算权威规则残留"
+          git push --force-with-lease=refs/heads/fix/live-staffing-authority-cleanup:4238898155e071d28c593725b591a8c973925686 origin HEAD:fix/live-staffing-authority-cleanup
+
+      - name: Upload failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finalize-pr442-failure
+          path: build-test.log
+          if-no-files-found: warn
+          retention-days: 3
