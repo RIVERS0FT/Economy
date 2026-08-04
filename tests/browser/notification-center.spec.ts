@@ -4,7 +4,9 @@ async function openNotificationPanelAndMountToast(page: Page) {
   await page.addStyleTag({ path: 'src/styles/notification-center.css' });
   const trigger = page.getByRole('button', { name: /^通知，/ });
   await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
   await trigger.click();
+  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByRole('dialog', { name: '通知' })).toBeVisible();
 
   await page.evaluate(() => {
