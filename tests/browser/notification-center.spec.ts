@@ -114,6 +114,7 @@ test.describe('notification center geometry', () => {
         toast: rect(toast),
         itemColumns: getComputedStyle(document.querySelector<HTMLElement>('.asset-bar-content')!).gridTemplateColumns.split(' ').length,
         panelMaxHeight: getComputedStyle(panel).maxHeight,
+        toastPointerEvents: getComputedStyle(toast).pointerEvents,
       };
     });
 
@@ -128,5 +129,6 @@ test.describe('notification center geometry', () => {
     expect(geometry.toast.top).toBeGreaterThan(geometry.status.bottom);
     expect(geometry.toast.bottom).toBeLessThan(geometry.navigation.top);
     expect(geometry.panelMaxHeight).not.toBe('none');
+    expect(geometry.toastPointerEvents).toBe('auto');
   });
 });

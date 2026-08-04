@@ -102,10 +102,24 @@ assert.match(styles, /\.notification-toast-stack/);
 assert.match(styles, /@media \(max-width: 720px\)/);
 assert.match(styles, /\.notification-toast:not\(:last-child\)/);
 
+const mobileStatusStyles = read('src/styles/mobile-status-layout.css');
+assert.match(mobileStatusStyles, /\.mobile-notice-region \.notification-toast/);
+assert.match(mobileStatusStyles, /pointer-events:\s*auto/);
+
 const pageDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 assert.match(pageDesign, /状态栏最右侧/);
 assert.match(pageDesign, /最近 20 条/);
 assert.match(pageDesign, /面板关闭/);
 assert.match(pageDesign, /待处理事项不能删除/);
+
+const liquidDesign = read('docs/LIQUID_GLASS_CHROME_DESIGN.md');
+assert.match(liquidDesign, /\.asset-bar-layout/);
+assert.match(liquidDesign, /实际 `\.notification-toast` 必须恢复 `pointer-events:auto`/);
+assert.match(liquidDesign, /面板打开时立即清空 Toast 队列/);
+
+const uiDesign = read('docs/UI_DESIGN_SYSTEM.md');
+assert.match(uiDesign, /## 通知面板与关闭态 Toast/);
+assert.match(uiDesign, /移动只显示队列最后一条/);
+assert.match(uiDesign, /关闭后焦点返回通知入口/);
 
 console.log('notification center verification passed');
