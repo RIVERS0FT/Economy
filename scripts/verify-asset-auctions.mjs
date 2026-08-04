@@ -208,7 +208,7 @@ requireText('tests/browser/auction-bid-history.spec.ts', [
 ]);
 
 requireText('.github/workflows/deploy.yml', [
-  'backup before world 22 migration',
+  'backup before world 23 migration',
   'backup-world --target-world-version 23',
   'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
 ]);
