@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   migrate-ci-authority:
-    if: github.event_name == 'push' && github.ref_name == 'codex/notification-center'
+    if: github.event_name == 'pull_request' && github.head_ref == 'codex/notification-center'
     runs-on: ubuntu-latest
     permissions:
       contents: write
