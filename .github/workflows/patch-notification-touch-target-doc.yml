@@ -1,0 +1,46 @@
+name: Patch notification touch target documentation
+
+on:
+  push:
+    branches:
+      - codex/notification-center
+    paths:
+      - .github/workflows/patch-notification-touch-target-doc.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/notification-center
+          fetch-depth: 0
+      - name: Record notification touch target rule
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/UI_DESIGN_SYSTEM.md')
+          text = path.read_text(encoding='utf-8')
+          anchor = '- 玩家通知入口只有状态栏最右侧按钮。数字只表示当前未解决待处理事项，普通未读通知使用独立圆点；二者不得合并成同一数字。'
+          rule = '- 移动状态栏继续固定为 `48px` 高；通知入口使用独立 `48px` 工具轨道和 `44×44px` 触控目标，不得缩回旧测试夹具的 `36px`，也不得挤入五项状态数据网格。'
+          if rule not in text:
+              if anchor not in text:
+                  raise SystemExit('notification touch-target anchor not found')
+              text = text.replace(anchor, f'{anchor}\n{rule}', 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit documentation and self-clean
+        run: |
+          git rm .github/workflows/patch-notification-touch-target-doc.yml
+          git add docs/UI_DESIGN_SYSTEM.md
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "docs: lock notification touch target"
+          git push origin HEAD:codex/notification-center
