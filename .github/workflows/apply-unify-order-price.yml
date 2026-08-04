@@ -33,10 +33,136 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Apply patch
+      - name: Apply source edits
         run: |
-          git apply --check .agent/unify-order-price.patch
-          git apply .agent/unify-order-price.patch
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              file = Path(path)
+              text = file.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one match, found {count}: {old!r}')
+              file.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'server/src/domain.js',
+              "  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01, max: 1_000_000 });",
+              "  const price = normalizePlayerMoneyInput(payload.price, { min: 0.01 });",
+          )
+          replace_once(
+              'server/src/facility-groups.js',
+              "import { calculateRateMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';",
+              "import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';",
+          )
+          replace_once('server/src/facility-groups.js', "const MAX_ORDER_PRICE = 1_000_000;\n", '')
+          replace_once(
+              'server/src/facility-groups.js',
+              "  const price = normalizePositiveInteger(payload.price ?? payload.unitPrice, MAX_ORDER_PRICE);",
+              "  const price = normalizePlayerMoneyInput(payload.price ?? payload.unitPrice, { min: 0.01 });",
+          )
+          replace_once(
+              'server/src/facility-groups.js',
+              "  if (price < Math.ceil(type.systemValue * 0.5) || price > type.systemValue * 2) {\n    return result(false, '工厂订单价格必须在系统参考价的 50%～200% 之间');\n  }\n",
+              '',
+          )
+          replace_once(
+              'src/config/economy.ts',
+              "  maxOrderQuantity: Number.MAX_SAFE_INTEGER,\n",
+              "  maxOrderQuantity: Number.MAX_SAFE_INTEGER,\n  // 六位小数内部金额的技术安全边界，不是固定业务价格上限。\n  maxOrderPrice: Number.MAX_SAFE_INTEGER / 1_000_000,\n",
+          )
+          replace_once(
+              'src/pages/MarketPage.tsx',
+              "  const parsedOrderPrice = parseMoneyDraft(priceDraft, { min: 0.01, max: 1_000_000 });",
+              "  const parsedOrderPrice = parseMoneyDraft(priceDraft, { min: 0.01, max: economyConstants.maxOrderPrice });",
+          )
+          replace_once(
+              'src/pages/MarketPage.tsx',
+              "  const canIncreasePrice = priceStepBase < 1_000_000;",
+              "  const canIncreasePrice = priceStepBase < economyConstants.maxOrderPrice;",
+          )
+          replace_once(
+              'src/pages/MarketPage.tsx',
+              "    const parsed = parseMoneyDraft(value, { min: 0.01, max: 1_000_000 });",
+              "    const parsed = parseMoneyDraft(value, { min: 0.01, max: economyConstants.maxOrderPrice });",
+          )
+          replace_once(
+              'src/pages/MarketPage.tsx',
+              "    const normalized = Math.min(1_000_000, Math.max(0.01, Math.round(value * 100) / 100));",
+              "    const normalized = Math.min(economyConstants.maxOrderPrice, Math.max(0.01, Math.round(value * 100) / 100));",
+          )
+          replace_once(
+              'src/pages/MarketPage.tsx',
+              "                      max={1_000_000}",
+              "                      max={economyConstants.maxOrderPrice}",
+          )
+
+          order_test = """test('commodity and facility orders share the cent tick without a fixed business price cap', () => {
+            const world = createWorld(now);
+            const commoditySeller = ensurePlayer(world, alice, now);
+            const facilitySeller = ensurePlayer(world, bob, now);
+            commoditySeller.inventories.wheat.available = 2;
+            facilitySeller.facilityGroups = [stoppedGroup('farm', 2)];
+            migrateFacilityGroupWorld(world, now);
+
+            const uncappedPrice = 1_000_000.01;
+            assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
+              assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: uncappedPrice,
+            }, now + 1).ok, true);
+            assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
+              assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: uncappedPrice,
+            }, now + 2).ok, true);
+            assert.equal(applyFacilityGroupAction(world, alice, 'placeOrder', {
+              assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: 0.01,
+            }, now + 3).ok, true);
+            assert.equal(applyFacilityGroupAction(world, bob, 'placeOrder', {
+              assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: 0.01,
+            }, now + 4).ok, true);
+
+            assert.equal(world.orders.find((order) => order.ownerId === alice.id && order.price === uncappedPrice)?.price, uncappedPrice);
+            assert.equal(world.orders.find((order) => order.ownerId === bob.id && order.price === uncappedPrice)?.price, uncappedPrice);
+            assert.deepEqual(applyFacilityGroupAction(world, alice, 'placeOrder', {
+              assetKind: 'commodity', assetId: 'wheat', side: 'sell', quantity: 1, price: 0.001,
+            }, now + 5), { ok: false, message: '订单参数无效' });
+            assert.deepEqual(applyFacilityGroupAction(world, bob, 'placeOrder', {
+              assetKind: 'facility', assetId: 'farm', side: 'sell', quantity: 1, price: 0.001,
+            }, now + 6), { ok: false, message: '工厂订单参数无效' });
+          });
+
+          """
+          replace_once(
+              'server/test/order-limits.test.js',
+              "test('orders reject notionals outside the representable money range', () => {",
+              order_test + "test('orders reject notionals outside the representable money range', () => {",
+          )
+
+          replace_once(
+              'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
+              "- 商品和工厂订单价格必须为不低于 0.01 的两位小数，最小价格步长为 0.01；数量必须为正安全整数。账户余额、冻结、总额、手续费和退款保留六位小数。商品和工厂买卖单统一读取 `ECONOMY_CONSTANTS.maxOrderQuantity`，其值为 `Number.MAX_SAFE_INTEGER`，只表示技术安全边界，不构成固定业务数量上限。",
+              "- 商品和工厂订单价格统一为不低于 0.01 的两位小数，最小价格步长为 0.01，不设置固定业务最高价；价格只受六位小数内部金额安全范围和单笔订单总额可表示范围约束。数量必须为正安全整数。账户余额、冻结、总额、手续费和退款保留六位小数。商品和工厂买卖单统一读取 `ECONOMY_CONSTANTS.maxOrderQuantity`，其值为 `Number.MAX_SAFE_INTEGER`，只表示技术安全边界，不构成固定业务数量上限。",
+          )
+
+          verification = """for (const [path, text] of [
+            ['server/src/domain.js', "normalizePlayerMoneyInput(payload.price, { min: 0.01 })"],
+            ['server/src/facility-groups.js', "normalizePlayerMoneyInput(payload.price ?? payload.unitPrice, { min: 0.01 })"],
+            ['src/config/economy.ts', 'maxOrderPrice: Number.MAX_SAFE_INTEGER / 1_000_000'],
+            ['src/pages/MarketPage.tsx', 'max: economyConstants.maxOrderPrice'],
+            ['docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', '不设置固定业务最高价'],
+          ]) requireText(path, text);
+          for (const [path, text] of [
+            ['server/src/domain.js', 'max: 1_000_000'],
+            ['server/src/facility-groups.js', 'MAX_ORDER_PRICE'],
+            ['server/src/facility-groups.js', '系统参考价的 50%～200%'],
+            ['src/pages/MarketPage.tsx', 'max={1_000_000}'],
+          ]) forbidText(path, text);
+          """
+          replace_once(
+              'scripts/verify-market-assets.mjs',
+              "for (const text of ['SELF_CROSS_MESSAGE','findSelfCrossingOrder','pricesCross','bestSystemPrice','systemBookIsCrossed']) requireText('server/src/order-book-integrity.js', text);",
+              verification + "for (const text of ['SELF_CROSS_MESSAGE','findSelfCrossingOrder','pricesCross','bestSystemPrice','systemBookIsCrossed']) requireText('server/src/order-book-integrity.js', text);",
+          )
+          PY
 
       - name: Install dependencies
         run: npm ci
