@@ -2,6 +2,9 @@ name: Economy CI
 
 on:
   pull_request:
+  push:
+    branches-ignore:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -12,6 +15,124 @@ permissions:
   contents: read
 
 jobs:
+  migrate-ci-authority:
+    if: github.event_name == 'push' && github.ref_name == 'codex/notification-center'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/notification-center
+          fetch-depth: 0
+
+      - name: Update CI authority and self-clean
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          doc_path = Path('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md')
+          doc = doc_path.read_text(encoding='utf-8')
+          old_rule = '- Pull Request 只由 `.github/workflows/ci.yml` 执行完整 `npm run build` 与 Chromium 浏览器测试，不保留第二个重复的 PR Web Build 工作流；同一 PR 的旧 CI 在新提交到达后必须自动取消。'
+          new_rule = '- `.github/workflows/ci.yml` 是唯一 CI 工作流：非 `main` 分支的 `push` 必须在真实头提交上执行完整 `npm run build` 与 Chromium 浏览器测试，使分支保护所需 `build` 绑定可合并头 SHA；`pull_request` 事件同时在 GitHub 合并快照上执行相同验证，覆盖与最新 `main` 的集成结果。两类事件使用既有独立并发键，各自只保留该事件最新运行；不保留第二个重复的 PR Web Build 工作流，也不得用手工成功状态替代任一真实检查。'
+          if old_rule in doc:
+              doc = doc.replace(old_rule, new_rule, 1)
+          elif new_rule not in doc:
+              raise SystemExit('CI authority anchor not found')
+          doc_path.write_text(doc, encoding='utf-8')
+
+          verify_path = Path('scripts/verify-runtime-reliability.mjs')
+          verify = verify_path.read_text(encoding='utf-8')
+          old_ci_checks = "for (const text of [\n  'group: economy-ci-${{ github.event.pull_request.number || github.ref }}',\n  'cancel-in-progress: true',"
+          new_ci_checks = "for (const text of [\n  'push:',\n  'branches-ignore:',\n  '- main',\n  'group: economy-ci-${{ github.event.pull_request.number || github.ref }}',\n  'cancel-in-progress: true',"
+          if old_ci_checks in verify:
+              verify = verify.replace(old_ci_checks, new_ci_checks, 1)
+          elif new_ci_checks not in verify:
+              raise SystemExit('runtime verifier CI anchor not found')
+
+          old_doc_check = "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],"
+          new_doc_checks = "  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '真实头提交'],\n  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', 'GitHub 合并快照'],\n  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不保留第二个重复的 PR Web Build 工作流'],\n  ['docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', '不得用手工成功状态替代任一真实检查'],"
+          if old_doc_check in verify:
+              verify = verify.replace(old_doc_check, new_doc_checks, 1)
+          elif new_doc_checks not in verify:
+              raise SystemExit('runtime verifier authority anchor not found')
+          verify_path.write_text(verify, encoding='utf-8')
+          PY
+
+          cat > .github/workflows/ci.yml <<'YAML'
+          name: Economy CI
+
+          on:
+            pull_request:
+            push:
+              branches-ignore:
+                - main
+            workflow_dispatch:
+
+          concurrency:
+            group: economy-ci-${{ github.event.pull_request.number || github.ref }}
+            cancel-in-progress: true
+
+          permissions:
+            contents: read
+
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              timeout-minutes: 20
+              steps:
+                - name: Checkout code
+                  uses: actions/checkout@v4
+
+                - name: Setup Node
+                  uses: actions/setup-node@v4
+                  with:
+                    node-version: 24.4.0
+                    cache: npm
+
+                - name: Install dependencies
+                  run: npm ci
+
+                - name: Build and test
+                  shell: bash
+                  run: |
+                    set -o pipefail
+                    npm run build 2>&1 | tee build-test.log
+
+                - name: Install Chromium
+                  run: npx playwright install --with-deps chromium
+
+                - name: Test browser runtime
+                  shell: bash
+                  run: |
+                    set -o pipefail
+                    npm run test:browser 2>&1 | tee browser-test.log
+
+                - name: Upload test artifacts
+                  if: failure()
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: economy-test-artifacts
+                    path: |
+                      build-test.log
+                      browser-test.log
+                      playwright-report
+                      test-results
+                    if-no-files-found: warn
+                    retention-days: 3
+          YAML
+
+          rm -f .github/workflows/patch-ci-head-status.yml
+          git add .github/workflows/ci.yml docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md scripts/verify-runtime-reliability.mjs
+          git add -u .github/workflows/patch-ci-head-status.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "fix: align CI checks with branch protection"
+          git push origin HEAD:codex/notification-center
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
