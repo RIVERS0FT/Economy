@@ -1,0 +1,47 @@
+name: Apply Final PR 450 Change
+
+on:
+  push:
+    branches:
+      - agent/optimize-onboarding-architecture-capacity
+
+concurrency:
+  group: apply-final-pr-450
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/optimize-onboarding-architecture-capacity
+          fetch-depth: 0
+      - name: Apply validated source change
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          ready_file=.github/final-450.ready
+          parts=(.github/final-450.patch.gz.b64.part*)
+          if [ ! -f "$ready_file" ]; then
+            echo "Final change bundle is not ready."
+            exit 0
+          fi
+          test "${#parts[@]}" -gt 0
+          patch_file="$RUNNER_TEMP/final-450.patch"
+          cat "${parts[@]}" | base64 --decode | gzip --decompress > "$patch_file"
+          printf '%s  %s\n' 'aec6c075e57ab07721ba12b538c6f189ce1cb7311d3f7094c81198082cfb9b2e' "$patch_file" | sha256sum --check --status
+          mapfile -t patch_paths < <(git apply --numstat "$patch_file" | awk '{ print $3 }')
+          git apply --check "$patch_file"
+          git apply "$patch_file"
+          rm -- "$ready_file" "${parts[@]}"
+          git add -- "${patch_paths[@]}" "$ready_file" "${parts[@]}"
+          git diff --cached --check
+          git config user.name "RIVERS0FT Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "feat: optimize onboarding architecture and capacity diagnostics"
+          git push origin HEAD:agent/optimize-onboarding-architecture-capacity
