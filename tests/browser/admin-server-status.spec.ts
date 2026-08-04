@@ -111,7 +111,7 @@ test('admin server status renders runtime trends and read-only diagnostics', asy
   await expect(page.getByText('运行正常', { exact: true })).toBeVisible();
   await expect(page.getByText('进程 CPU', { exact: true })).toBeVisible();
   await expect(page.getByText('高负载接口', { exact: true })).toBeVisible();
-  await expect(page.getByText('/api/game/state', { exact: true })).toBeVisible();
+  await expect(page.locator('.admin-server-route-table code').getByText('/api/game/state', { exact: true })).toBeVisible();
   await expect(page.locator('.admin-server-chart-grid .economy-chart__canvas svg')).toHaveCount(4);
   await expect(page.getByText('此页面只执行轻量只读查询，不运行 quick_check、WAL checkpoint、VACUUM、优化或备份。')).toBeVisible();
 });
