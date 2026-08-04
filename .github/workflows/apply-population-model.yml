@@ -3,7 +3,7 @@ name: Apply Population Model
 on:
   push:
     branches: [feature/population-model]
-    paths: [scripts/.population-model-ready]
+    paths: [scripts/.population-model-patch.b64]
 
 permissions:
   contents: write
