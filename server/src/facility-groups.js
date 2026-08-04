@@ -115,16 +115,7 @@ function expandAvailableFacilities(group, previousCount, nextCount, now) {
   const currentRate = commitStaffingRate(group, now);
   group.staffingRateBps = scaleStaffingRateForExpansion(currentRate, previous, next);
   group.staffingUpdatedAt = Math.max(0, Number(now) || 0);
-  if (group.status === 'running') {
-    const previousParticipating = Math.max(0, Math.floor(Number(group.participatingCount) || 0));
-    const cycleRate = normalizeStaffingRate(group.cycleStaffingRateBps) ?? currentRate;
-    group.cycleStaffingRateBps = scaleStaffingRateForExpansion(
-      cycleRate,
-      previousParticipating,
-      next,
-    );
-    group.participatingCount = next;
-  }
+  if (group.status === 'running') group.participatingCount = next;
 }
 
 function applyConfigurationStaffingPenalty(group, now) {
@@ -139,7 +130,7 @@ function applyConfigurationStaffingPenalty(group, now) {
 function cycleCapacity(
   group,
   count,
-  rateBps = group?.cycleStaffingRateBps,
+  rateBps = group?.staffingRateBps,
   carryBps = group?.staffingBatchCarryBps,
 ) {
   const physicalCount = Math.max(0, Math.floor(Number(count) || 0));
@@ -310,9 +301,6 @@ function createGroup(typeId, overrides = {}, now = Date.now()) {
   const staffingUpdatedAt = Number.isFinite(Number(overrides.staffingUpdatedAt))
     ? Math.min(Math.max(0, Number(overrides.staffingUpdatedAt)), Math.max(0, Number(now) || 0))
     : Math.max(0, Number(now) || 0);
-  const cycleStaffingRateBps = status === 'running'
-    ? normalizeStaffingRate(overrides.cycleStaffingRateBps) ?? staffingRateBps
-    : undefined;
   return {
     facilityTypeId: typeId,
     count: Math.max(0, Number(overrides.count || 0)),
@@ -325,7 +313,6 @@ function createGroup(typeId, overrides = {}, now = Date.now()) {
     staffingRateBps,
     staffingUpdatedAt,
     staffingBatchCarryBps: normalizeStaffingCarry(overrides.staffingBatchCarryBps),
-    cycleStaffingRateBps,
     lifetimeOutput: Math.max(0, Number(overrides.lifetimeOutput ?? overrides.completedQuantity ?? 0)),
     activeRecipeId: recipeFor(type, overrides.activeRecipeId)?.id,
   };
@@ -346,11 +333,6 @@ function normalizeGroup(group, now = Date.now()) {
     const currentRate = projectStaffingRate(normalized, now);
     normalized.staffingRateBps = scaleStaffingRateForExpansion(currentRate, previousCount, nextCount);
     normalized.staffingUpdatedAt = Math.max(0, Number(now) || 0);
-    normalized.cycleStaffingRateBps = scaleStaffingRateForExpansion(
-      normalizeStaffingRate(normalized.cycleStaffingRateBps) ?? currentRate,
-      previousCount,
-      nextCount,
-    );
     normalized.participatingCount = nextCount;
   }
 
@@ -363,7 +345,6 @@ function normalizeGroup(group, now = Date.now()) {
     normalized.staffingBatchCarryBps = 0;
     if (normalized.status === 'running') {
       normalized.cycleStartedAt = Math.max(0, Number(now) || 0);
-      normalized.cycleStaffingRateBps = penalizedRate;
       delete normalized.cycleWageMultiplierBps;
     }
   }
@@ -372,7 +353,6 @@ function normalizeGroup(group, now = Date.now()) {
     normalized.participatingCount = 0;
     delete normalized.cycleStartedAt;
     delete normalized.cycleWageMultiplierBps;
-    delete normalized.cycleStaffingRateBps;
     normalized.status = normalized.enabled ? 'error' : 'stopped';
   }
   delete normalized.stopReason;
@@ -604,7 +584,6 @@ function clearGroupRuntime(group) {
   group.participatingCount = 0;
   delete group.cycleStartedAt;
   delete group.cycleWageMultiplierBps;
-  delete group.cycleStaffingRateBps;
 }
 
 function setGroupStopped(group, reason = 'manual', now = Date.now()) {
@@ -631,7 +610,7 @@ function startGroupRuntime(world, group, count, now) {
   group.participatingCount = count;
   group.cycleStartedAt = now;
   group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
-  group.cycleStaffingRateBps = staffingRateBps;
+  group.staffingRateBps = staffingRateBps;
 }
 
 function recipeInputs(recipe) {
@@ -699,8 +678,6 @@ function reconcileFacilityGroup(world, player, group, now) {
 
   const available = availableGroupCount(world, player, group);
   if (group.status === 'running') {
-    group.cycleStaffingRateBps = normalizeStaffingRate(group.cycleStaffingRateBps)
-      ?? projectStaffingRate(group, group.cycleStartedAt ?? now);
     group.cycleWageMultiplierBps = normalizeProductionWageMultiplier(group.cycleWageMultiplierBps)
       || currentProductionWageMultiplier(world, now);
     const previousCount = group.participatingCount;
@@ -710,7 +687,11 @@ function reconcileFacilityGroup(world, player, group, now) {
       setGroupError(group, 'no_available_facility', now);
       return;
     }
-    const capacity = cycleCapacity(group, group.participatingCount);
+    const recipe = activeRecipeFor(type, group);
+    const cycleDueAt = Number(group.cycleStartedAt || now) + recipe.cycleMs;
+    const evaluationAt = Math.min(Math.max(0, Number(now) || 0), cycleDueAt);
+    const liveStaffingRateBps = projectStaffingRate(group, evaluationAt);
+    const capacity = cycleCapacity(group, group.participatingCount, liveStaffingRateBps);
     const blocked = blockReason(
       world,
       player,
@@ -743,9 +724,8 @@ function reconcileFacilityGroup(world, player, group, now) {
   }
 }
 
-function executeCycle(world, player, group, type, count, now) {
+function executeCycle(world, player, group, type, count, capacity, cycleDueAt, now) {
   const recipe = activeRecipeFor(type, group);
-  const capacity = cycleCapacity(group, count);
   const requirements = groupRequirements(recipe, capacity.effectiveCount);
   const wageMultiplierBps = normalizeProductionWageMultiplier(group.cycleWageMultiplierBps) || 10_000;
   const populationWage = calculateProductionWage(requirements.cost, wageMultiplierBps);
@@ -763,8 +743,8 @@ function executeCycle(world, player, group, type, count, now) {
   inventoryFor(player, recipe.output.productId).available += requirements.output;
   group.lifetimeOutput += requirements.output;
   group.staffingBatchCarryBps = capacity.carryBps;
-  group.cycleStartedAt += recipe.cycleMs;
-  commitStaffingRate(group, group.cycleStartedAt);
+  group.cycleStartedAt = cycleDueAt;
+  commitStaffingRate(group, cycleDueAt);
   group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
 }
 
@@ -791,7 +771,8 @@ function processGroup(world, player, group, now) {
     const recipe = activeRecipeFor(type, group);
     if (now - group.cycleStartedAt < recipe.cycleMs) break;
     const cycleDueAt = group.cycleStartedAt + recipe.cycleMs;
-    const capacity = cycleCapacity(group, group.participatingCount);
+    const settlementStaffingRateBps = projectStaffingRate(group, cycleDueAt);
+    const capacity = cycleCapacity(group, group.participatingCount, settlementStaffingRateBps);
     const blocked = blockReason(
       world,
       player,
@@ -805,11 +786,11 @@ function processGroup(world, player, group, now) {
       break;
     }
 
-    executeCycle(world, player, group, type, group.participatingCount, now);
+    executeCycle(world, player, group, type, group.participatingCount, capacity, cycleDueAt, now);
     processed += 1;
 
-    group.cycleStaffingRateBps = group.staffingRateBps;
-    const nextCapacity = cycleCapacity(group, group.participatingCount);
+    const nextStaffingRateBps = projectStaffingRate(group, group.cycleStartedAt);
+    const nextCapacity = cycleCapacity(group, group.participatingCount, nextStaffingRateBps);
     const nextBlocked = blockReason(
       world,
       player,
@@ -1026,7 +1007,6 @@ function setGroupRecipe(world, userId, payload, now) {
     group.participatingCount = availableGroupCount(world, player, group);
     group.cycleStartedAt = now;
     group.cycleWageMultiplierBps = currentProductionWageMultiplier(world, now);
-    group.cycleStaffingRateBps = after;
     const capacity = cycleCapacity(group, group.participatingCount, after);
     const blocked = blockReason(
       world,
@@ -1367,39 +1347,24 @@ function clientGroup(world, player, group, now) {
   const mortgagedCount = mortgagedFacilityQuantity(player, group.facilityTypeId);
   const productionAvailableCount = Math.max(0, group.count - frozenCount);
   const availableCount = Math.max(0, productionAvailableCount - mortgagedCount);
-  const type = typeFor(group.facilityTypeId);
-  const recipe = activeRecipeFor(type, group);
   const staffingRateBps = projectStaffingRate(group, now);
-  const cycleStaffingRateBps = group.status === 'running'
-    ? normalizeStaffingRate(group.cycleStaffingRateBps) ?? staffingRateBps
-    : undefined;
-  const cycleResult = group.status === 'running'
-    ? cycleCapacity(group, group.participatingCount, cycleStaffingRateBps)
-    : { effectiveCount: 0, carryBps: normalizeStaffingCarry(group.staffingBatchCarryBps) };
   const projectedResult = cycleCapacity(
     group,
     productionAvailableCount,
     staffingRateBps,
-    cycleResult.carryBps,
   );
   const {
     cycleWageMultiplierBps: _cycleWageMultiplierBps,
-    staffingUpdatedAt: _staffingUpdatedAt,
-    staffingBatchCarryBps: _staffingBatchCarryBps,
+    cycleStaffingRateBps: _legacyCycleStaffingRateBps,
     ...publicGroup
   } = clone(group);
   return {
     ...publicGroup,
     staffingRateBps,
-    cycleStaffingRateBps,
-    cycleEffectiveCount: cycleResult.effectiveCount,
+    staffingUpdatedAt: Math.max(0, Number(now) || 0),
+    staffingBatchCarryBps: normalizeStaffingCarry(group.staffingBatchCarryBps),
     productionAvailableCount,
     projectedEffectiveCount: projectedResult.effectiveCount,
-    // Version 24 compatibility aliases. They no longer represent queued work.
-    pendingJoinCount: 0,
-    nextCycleCount: productionAvailableCount,
-    nextCycleStaffingRateBps: staffingRateBps,
-    nextCycleEffectiveCount: projectedResult.effectiveCount,
     listedCount,
     auctionedCount,
     frozenCount,

@@ -149,7 +149,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const inventoryCapacity = 6650;
 
   const game = {
-    version: 24,
+    version: 25,
     lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',
@@ -483,8 +483,6 @@ function ProductionHarness() {
         ...next.game.facilityGroups[0],
         activeRecipeId: `${baseRecipe.id}--rapid`,
         staffingRateBps: 8_000,
-        cycleStaffingRateBps: 8_000,
-        cycleEffectiveCount: 9,
       }];
     }
     if (scenario === 'decimal-profit') {

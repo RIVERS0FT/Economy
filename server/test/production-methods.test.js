@@ -147,7 +147,6 @@ test('running factory switches production method immediately with one staffing p
     cycleStartedAt: now,
     staffingRateBps: 10_000,
     staffingUpdatedAt: now,
-    cycleStaffingRateBps: 10_000,
     staffingBatchCarryBps: 9_999,
     activeRecipeId: 'wheat-crop',
     lifetimeOutput: 0,
@@ -163,7 +162,6 @@ test('running factory switches production method immediately with one staffing p
   assert.equal(farm.activeRecipeId, 'wheat-crop--rapid');
   assert.equal(farm.cycleStartedAt, now + 1);
   assert.equal(farm.staffingRateBps, 8_000);
-  assert.equal(farm.cycleStaffingRateBps, 8_000);
   assert.equal(farm.staffingBatchCarryBps, 0);
   assert.equal(Object.hasOwn(farm, 'pendingRecipeId'), false);
 

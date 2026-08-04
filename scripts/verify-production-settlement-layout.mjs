@@ -23,7 +23,9 @@ for (const text of [
   'className="facility-formula-meta"',
   'facility-formula-meta-unit is-cycle',
   'facility-formula-meta-unit is-cost',
+  'className="facility-formula-output-side"',
   'className="facility-formula-output"',
+  'className="facility-formula-side-label"',
   'className="facility-formula-inventory"',
   '<ProductArtwork productId={item.productId} className="facility-formula-product-artwork" />',
   '<WarehouseIcon className="facility-formula-meta-icon" />',
@@ -61,10 +63,10 @@ for (const text of [
 
 const inputSideStart = formula.indexOf('className="facility-formula-input-side"');
 const inputStart = formula.indexOf('className="facility-formula-input"', inputSideStart);
-const metaStart = formula.indexOf('className="facility-formula-meta"', inputSideStart);
 const outputStart = formula.indexOf('className="facility-formula-output"', inputSideStart);
+const metaStart = formula.indexOf('className="facility-formula-meta"', outputStart);
 assert.ok(inputSideStart >= 0 && inputStart > inputSideStart, '输入物资必须位于输入侧组合区内');
-assert.ok(metaStart > inputStart && outputStart > metaStart, '两行周期成本仪表必须位于输入物资之后、输出之前');
+assert.ok(outputStart > inputStart && metaStart > outputStart, '周期成本操作数据带必须位于投入与产出之后');
 
 for (const text of [
   '.facility-formula-input-side',
@@ -77,7 +79,6 @@ for (const text of [
   'grid-area: auto;',
   '.facility-formula-meta-unit.is-cost {',
   'border-left: 1px solid var(--color-divider);',
-  'grid-template-areas: none;',
   '.facility-formula-progress .progress-track span::after',
   'clip-path: polygon(0 0, 100% 50%, 0 100%);',
   '@container (max-width: 420px)',
@@ -88,7 +89,6 @@ for (const forbidden of [
   '.facility-formula-center',
   '.facility-formula-meta-divider',
   'grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);',
-  'border-top: 1px solid var(--color-divider);',
 ]) assert.equal(formulaCss.includes(forbidden), false, `生产结算样式不得包含: ${forbidden}`);
 for (const forbidden of [
   '@container (max-width: 519px)',
@@ -164,4 +164,4 @@ for (const text of [
   '输入与输出均显示当前可用库存',
 ]) assert.equal(uiDesign.includes(text) || industryDesign.includes(text), true, `权威设计缺少: ${text}`);
 
-console.log('生产结算商品 PNG、输入输出仓库库存、两行周期成本、统一富内容下拉框、流向进度、响应式与利润结果栏验证通过。');
+console.log('生产结算商品 PNG、投入产出、单行周期成本操作带、实时满员率、响应式与利润结果栏验证通过。');

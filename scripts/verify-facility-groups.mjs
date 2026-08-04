@@ -13,6 +13,7 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'server/test/facility-groups.test.js',
   'server/test/listed-factory-production.test.js',
   'src/types.ts',
+  'src/utils/facilityStaffing.ts',
   'src/main.tsx',
   'src/pages/ProductionPage.tsx',
   'src/pages/production/ProductionFacilityDetail.tsx',
@@ -38,8 +39,8 @@ for (const text of [
   'activeRecipeId: string',
   'lifetimeOutput: number',
   'staffingRateBps?: number',
-  'cycleStaffingRateBps?: number',
-  'cycleEffectiveCount?: number',
+  'staffingUpdatedAt?: number',
+  'staffingBatchCarryBps?: number',
   'productionAvailableCount?: number',
   'projectedEffectiveCount?: number',
 ]) requireText('src/types.ts', text);
@@ -61,8 +62,26 @@ for (const text of [
   'FACILITY_STAFFING_RECOVERY_MS',
   'FACILITY_STAFFING_DECAY_MS',
   'projectStaffingRate',
-  'cycleEffectiveCount',
+  'settlementStaffingRateBps',
+  'cycleDueAt',
 ]) requireText('server/src/facility-groups.js', text);
+
+
+for (const forbidden of [
+  'cycleStaffingRateBps?: number',
+  'cycleEffectiveCount?: number',
+  'nextCycleStaffingRateBps?: number',
+]) forbidText('src/types.ts', forbidden);
+for (const forbidden of [
+  'group.cycleStaffingRateBps',
+  'cycleEffectiveCount:',
+]) forbidText('server/src/facility-groups.js', forbidden);
+for (const forbidden of [
+  'facility-staffing-meta',
+  'facility-production-method-summary',
+  'facility-formula-scope',
+  '配置切换结果会提示',
+]) forbidText('src/pages/production/ProductionFacilityDetail.tsx', forbidden);
 
 for (const text of [
   'SwitchControl',
@@ -81,6 +100,7 @@ for (const text of [
   'inventories={game.inventories}',
   '生产产物',
   '生产进度已清零',
+  'now={now}',
   'setFacilityRecipe',
 ]) requireText('src/pages/ProductionPage.tsx', text);
 
@@ -89,7 +109,6 @@ for (const text of [
   'facility-production-settings-grid',
   '<strong>生产设置</strong>',
   '生产产物',
-  '生产进度已清零',
 ]) requireText('src/pages/production/ProductionFacilityDetail.tsx', text);
 for (const forbidden of [
   'facility-recipe-section',
@@ -272,12 +291,14 @@ for (const text of [
   'factory automatically recovers after funds return',
   'running farm crop changes apply immediately with a staffing penalty and progress reset',
   'legacy pending factory and recipe state migrates once into immediate participation',
-  'purchased factories join a running group immediately and dilute current-cycle staffing',
+  'purchased factories join a running group immediately and dilute live staffing',
   'warehouse errors recover without backfilling missed cycles',
   'manual stop disables automatic recovery',
   'stopped factory staffing decays linearly from its stored timestamp',
-  'running factory staffing locks each cycle and carries fractional capacity',
-  'error staffing decays and auto recovery starts from the reduced rate',
+  'running factory settles each completed cycle at its completion staffing rate and carries fractional capacity',
+  'cycle completion rate can increase integer output beyond the cycle-start projection',
+  'completion-time capacity still settles atomically when the final requirement is unavailable',
+  'error staffing decays and auto recovery starts from the reduced live rate',
   'legacy completed target plans migrate to a manual stop',
   'legacy running target plans become continuous production',
 ]) requireText('server/test/facility-groups.test.js', text);
@@ -293,7 +314,7 @@ for (const text of [
   '集群生产公式',
   '集群生产公式支持无输入、单输入、多输入和单输出',
   '进度条',
-  '时间与成本固定放在输入组合区的物资行下方同一行显示',
+  '时间与成本固定放在投入与产出下方的同一条操作数据带',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整状态与工厂名称放在同一紧凑标题行',
   '不包含顶部关闭按钮',
@@ -302,6 +323,7 @@ for (const text of [
   '玩家可见“生产产物”与“作业制度”必须合并为同一个“生产设置”区',
   '生产公式与单厂平均利润共同属于同一个“生产结算”容器',
   '工厂满员率与等效产能',
+  '周期完成时刻的满员率',
   'staffingBatchCarryBps',
   '不得新增每秒或更高频率扫描全世界工厂的调度器',
 ]) requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', text);
@@ -323,7 +345,7 @@ for (const text of [
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '完整文本无障碍描述',
   '玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区',
-  '公式、进度和单厂平均利润共同组成一张“生产结算”卡',
+  '公式、操作数据带、进度和单厂平均利润共同组成一张“生产结算”卡',
 ]) requireText('docs/UI_DESIGN_SYSTEM.md', text);
 
 if (failures.length) {

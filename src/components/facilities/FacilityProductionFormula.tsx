@@ -9,6 +9,7 @@ import type {
   ProductInventory,
 } from '../../types';
 import { formatCurrency, formatDuration, formatNumber } from '../../utils/formatters';
+import { facilityEffectiveCount, projectFacilityStaffingRate } from '../../utils/facilityStaffing';
 import { FacilityGroupProgress } from './FacilityProgress';
 import { FacilityRecipeProfitAnalysis } from './FacilityRecipeProfitAnalysis';
 
@@ -24,7 +25,6 @@ export type FormulaScope = {
   count: number;
   physicalCount: number;
   staffingRateBps: number;
-  label: string;
   description: string;
 };
 
@@ -50,54 +50,35 @@ function staffingRateLabel(rateBps: number) {
 
 function formulaScope(
   name: string,
+  group: FacilityGroup,
   physicalCount: number,
-  effectiveCount: number,
-  staffingRateBps: number,
+  now: number,
   descriptionPrefix: string,
 ): FormulaScope {
   const normalizedPhysicalCount = Math.max(0, physicalCount);
-  const normalizedEffectiveCount = Math.max(0, effectiveCount);
-  const normalizedRate = normalizedStaffingRate(staffingRateBps);
+  const staffingRateBps = projectFacilityStaffingRate(group, now);
+  const effectiveCount = facilityEffectiveCount(group, normalizedPhysicalCount, now);
   return {
     name,
-    count: normalizedEffectiveCount,
+    count: effectiveCount,
     physicalCount: normalizedPhysicalCount,
-    staffingRateBps: normalizedRate,
-    label: `${name} ${formatNumber(normalizedPhysicalCount)} 座 · 满员率 ${staffingRateLabel(normalizedRate)} · 等效 × ${formatNumber(normalizedEffectiveCount)}`,
-    description: `${descriptionPrefix}${formatNumber(normalizedPhysicalCount)} 座工厂按 ${staffingRateLabel(normalizedRate)} 满员率形成 ${formatNumber(normalizedEffectiveCount)} 座等效产能`,
+    staffingRateBps,
+    description: `${descriptionPrefix}${formatNumber(normalizedPhysicalCount)} 座工厂按完成时预计 ${staffingRateLabel(staffingRateBps)} 满员率形成 ${formatNumber(effectiveCount)} 座整数等效产能，`,
   };
 }
 
-export function currentFormulaScope(group: FacilityGroup): FormulaScope {
+export function currentFormulaScope(group: FacilityGroup, now: number): FormulaScope {
   if (group.status === 'running') {
-    return formulaScope(
-      '本周期',
-      group.participatingCount,
-      group.cycleEffectiveCount ?? group.participatingCount,
-      group.cycleStaffingRateBps ?? group.staffingRateBps ?? 10_000,
-      '本周期 ',
-    );
+    return formulaScope('本周期', group, group.participatingCount, now, '当前 ');
   }
 
+  const physicalCount = group.productionAvailableCount ?? group.participatingCount;
   if (group.status === 'error') {
-    return formulaScope(
-      '恢复后',
-      group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-      group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-      group.staffingRateBps ?? 10_000,
-      '条件恢复后 ',
-    );
+    return formulaScope('恢复后', group, physicalCount, now, '条件恢复后 ');
   }
 
-  return formulaScope(
-    '启动后',
-    group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-    group.projectedEffectiveCount ?? group.nextCycleEffectiveCount ?? group.productionAvailableCount ?? group.nextCycleCount ?? group.participatingCount,
-    group.staffingRateBps ?? 10_000,
-    '启动后 ',
-  );
+  return formulaScope('启动后', group, physicalCount, now, '启动后 ');
 }
-
 
 function recipeText(items: FacilityRecipeItem[], productNames: ProductNameMap, multiplier: number) {
   return items
@@ -189,7 +170,7 @@ export function FacilityProductionFormula({
   const inputs = recipeInputs(type);
   const outputs = recipeOutputs(type);
   const productNames = new Map(products.map((product) => [product.id, product.name]));
-  const scope = currentFormulaScope(group);
+  const scope = currentFormulaScope(group, now);
   const currentDescription = clusterRecipeDescription(type, productNames, scope);
   const description = [currentDescription, progressDescription(group, type, now)]
     .filter(Boolean)
@@ -206,11 +187,11 @@ export function FacilityProductionFormula({
     >
       <div className="facility-production-formula-heading">
         <strong>生产结算</strong>
-        <div className="facility-formula-scope" aria-hidden="true">{scope.label}</div>
       </div>
       <div className="facility-formula-visual" aria-hidden="true">
         <div className="facility-formula-top">
           <div className="facility-formula-input-side">
+            <span className="facility-formula-side-label">投入</span>
             <div className="facility-formula-input">
               {inputs.length > 0 ? (
                 <RecipeItems
@@ -223,29 +204,32 @@ export function FacilityProductionFormula({
                 />
               ) : <span className="facility-formula-empty">无</span>}
             </div>
-
-            <div className="facility-formula-meta">
-              <span className="facility-formula-meta-unit is-cycle">
-                <CycleIcon className="facility-formula-meta-icon" />
-                <span>{formatDuration(type.cycleMs)}</span>
-              </span>
-              <span className="facility-formula-meta-unit is-cost">
-                <CreditsIcon className="facility-formula-meta-icon" />
-                <span>{formatCurrency(type.operatingCost * scope.count)}</span>
-              </span>
-            </div>
           </div>
 
-          <div className="facility-formula-output">
-            <RecipeItems
+          <div className="facility-formula-output-side">
+            <span className="facility-formula-side-label">产出</span>
+            <div className="facility-formula-output">
+              <RecipeItems
               items={outputs}
               productNames={productNames}
               inventories={inventories}
               multiplier={scope.count}
               groupClassName="facility-formula-output-group"
-              itemClassName="facility-formula-output-item"
-            />
+                itemClassName="facility-formula-output-item"
+              />
+            </div>
           </div>
+        </div>
+
+        <div className="facility-formula-meta">
+          <span className="facility-formula-meta-unit is-cycle">
+            <CycleIcon className="facility-formula-meta-icon" />
+            <span>{formatDuration(type.cycleMs)}</span>
+          </span>
+          <span className="facility-formula-meta-unit is-cost">
+            <CreditsIcon className="facility-formula-meta-icon" />
+            <span>{formatCurrency(type.operatingCost * scope.count)}</span>
+          </span>
         </div>
 
         <div className="facility-formula-progress">
