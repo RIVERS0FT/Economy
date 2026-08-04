@@ -14,13 +14,15 @@ test('mobile status content fills the bar without an internal vertical inset', a
     const geometry = await status.evaluate((element) => {
       const layout = element.querySelector<HTMLElement>('.asset-bar-layout');
       const content = element.querySelector<HTMLElement>('.asset-bar-content');
+      const action = element.querySelector<HTMLElement>('.asset-bar-action');
       const items = Array.from(element.querySelectorAll<HTMLElement>('.asset-bar-item'));
-      if (!layout || !content || items.length !== 5) {
+      if (!layout || !content || !action || items.length !== 5) {
         throw new Error('mobile status vertical geometry fixture is incomplete');
       }
 
       const layoutRect = layout.getBoundingClientRect();
       const contentRect = content.getBoundingClientRect();
+      const actionRect = action.getBoundingClientRect();
       const contentStyle = getComputedStyle(content);
       const itemRects = items.map((item) => item.getBoundingClientRect());
 
@@ -29,6 +31,8 @@ test('mobile status content fills the bar without an internal vertical inset', a
         paddingBottom: contentStyle.paddingBottom,
         contentTopDelta: contentRect.top - layoutRect.top,
         contentBottomDelta: layoutRect.bottom - contentRect.bottom,
+        actionTopDelta: actionRect.top - layoutRect.top,
+        actionBottomDelta: layoutRect.bottom - actionRect.bottom,
         itemsFillContent: itemRects.every((rect) => (
           Math.abs(rect.top - contentRect.top) <= 1
           && Math.abs(rect.bottom - contentRect.bottom) <= 1
@@ -40,6 +44,8 @@ test('mobile status content fills the bar without an internal vertical inset', a
     expect(geometry.paddingBottom, `${width}px 状态内容不应保留底部内边距`).toBe('0px');
     expect(Math.abs(geometry.contentTopDelta), `${width}px 状态内容顶部未与布局对齐`).toBeLessThanOrEqual(1);
     expect(Math.abs(geometry.contentBottomDelta), `${width}px 状态内容底部未与布局对齐`).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.actionTopDelta), `${width}px 通知轨道顶部未与布局对齐`).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry.actionBottomDelta), `${width}px 通知轨道底部未与布局对齐`).toBeLessThanOrEqual(1);
     expect(geometry.itemsFillContent, `${width}px 状态项未占满状态内容轨道`).toBe(true);
   }
 });
