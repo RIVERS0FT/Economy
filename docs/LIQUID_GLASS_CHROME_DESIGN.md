@@ -35,10 +35,10 @@
 | `ApplicationLoadingState.tsx` | 统一账号服务连接、代码包加载和权威游戏服务器连接的唯一全屏居中加载结构；三个入口只允许替换中文文字，不得恢复深色加载卡片或创建平行加载样式 |
 | `PhotographicStateShell.tsx` | 封禁、无权限和致命错误的语义状态、安全区内容几何与 critical 状态卡；不得承担普通加载状态或挂载摄影图片 |
 | `SignedInShell.tsx` | 游戏与管理员共享根外壳、侧栏／工作区轨道、唯一页面 `ScrollArea`、页面 Overlay 与 Chrome Overlay DOM 顺序；不得重新提供 `SignedInShell.backdrop` |
-| `GameShell.tsx` | 向共享外壳提供玩家侧栏、单一状态栏、统一通知入口、关闭态 Toast、通知面板和玩家移动导航；不得挂载背景节点 |
+| `GameShell.tsx` | 向共享外壳提供玩家侧栏、单一状态栏、统一通知入口、桌面关闭态 Toast、移动通知灵动岛、通知面板和玩家移动导航；不得挂载背景节点 |
 | `notificationCenter.ts` | 普通通知二十条历史、稳定待处理键、状态派生、已读与删除纯函数；不得创建通知专用轮询 |
-| `useNotificationCenter.ts` | 按玩家隔离的通知持久化、面板开关、打开态 Toast 抑制、关闭态 Toast 队列和待处理状态转换监听 |
-| `NotificationCenter.tsx` | 状态栏入口、工作区通知面板、待处理与普通通知列表、清除已读、单条删除和可点击关闭态 Toast；不得导入液态玻璃组件 |
+| `useNotificationCenter.ts` | 按玩家隔离的通知持久化、面板开关、打开态通知抑制、关闭态通知队列和待处理状态转换监听 |
+| `NotificationCenter.tsx` | 状态栏入口、工作区通知面板、待处理与普通通知列表、清除已读、单条删除、桌面关闭态 Toast 和移动通知灵动岛；不得导入液态玻璃组件 |
 | `AdminDesktopBar.tsx` | 向共享外壳提供管理员桌面标题、说明、账号、世界／API 摘要与刷新操作，并复用 `desktopStatusBar` |
 | `AdminApp.tsx` | 向共享外壳提供管理员侧栏、管理员移动导航和业务页面；不得重建根滚动视口、挂载背景节点或复用玩家／认证氛围变体 |
 | `App.tsx` | 计算 `data-app-surface`、`data-app-backdrop` 与 `data-app-tone`，驱动根级摄影表现；不得重建摄影节点 |
@@ -55,10 +55,10 @@
 | `mobileFacilityPullRefresh.ts` | 仅对已打开的移动工厂详情识别顶部向下关闭手势，并在该手势激活后局部取消浏览器默认纵向过度滚动 |
 | `admin-navigation.css` | 管理员桌面工作栏内容布局与运营业务编排，不得定义第二套根外壳 |
 | `mobile-status-navigation.css` | 移动导航唯一原生横向滚动视口、原生轨道隐藏、按钮几何和内部焦点环 |
-| `mobile-status-layout.css` | 移动状态栏固定五列、内容轨道零纵向内边距、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略、关闭态 Toast 定位及其点击恢复 |
-| `notification-center.css` | 状态栏独立通知工具轨道、桌面／移动面板几何、待处理与普通通知视觉、关闭态 Toast 队列和响应式交互 |
-| `verify-notification-center.mjs` | 二十条上限、待处理稳定键、打开态抑制、清除与删除边界、单一工作区 Portal、移动局部层级边界、真实命中回归、无新增玻璃和文档规则防回退 |
-| `notification-center.spec.ts` | 桌面工作区右上角、移动状态栏下方安全区、固定五列、极端页面层级下的真实命中、单玻璃实例与可点击关闭态 Toast 浏览器几何回归 |
+| `mobile-status-layout.css` | 移动状态栏固定五列、内容轨道零纵向内边距、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略、移动通知灵动岛的物理屏幕中心定位与安全区宽度 |
+| `notification-center.css` | 状态栏独立通知工具轨道、桌面／移动面板几何、待处理与普通通知视觉、桌面关闭态 Toast、移动通知灵动岛形态与响应式动效 |
+| `verify-notification-center.mjs` | 二十条上限、待处理稳定键、打开态抑制、清除与删除边界、单一工作区 Portal、移动局部层级边界、通知灵动岛中心锚点、低动态、真实命中、无新增玻璃和文档规则防回退 |
+| `notification-center.spec.ts` | 桌面工作区右上角、移动状态栏下方安全区、通知灵动岛中心锚点、固定五列、极端页面层级下的真实命中、单玻璃实例、低动态与可点击关闭态通知浏览器几何回归 |
 | `verify-liquid-glass-chrome.mjs` | 唯一依赖入口、五种预设、全预设零弹性、静态鼠标输入、固定／内容自适应布局、认证内容内部定位、单实例、单壳装饰、兼容入口、背景采样链、移动导航和认证卡片防回退 |
 | `verify-open-glass-sampling.mjs` | 唯一根隔离、桌面／移动玩家与管理员开放采样链、禁止登录后祖先恢复隔离／滤镜／变换以及浏览器回归入口 |
 | `verify-game-three-layer.mjs` | 根级唯一摄影节点、三种氛围、数据属性切换、统一加载结构、critical 状态外壳、兼容入口、浏览器 harness 和移动 Overlay 防回退 |
@@ -160,15 +160,19 @@
 - `.workspace` 内的 `.mobile-page-overlay` 与 `.workspace-floating-layer` 占据同一 Grid 单元；页面层固定 `order: 1; z-index: 0`，工作区浮层根固定 `order: 2; z-index: 1`，确保普通 Portal 浮层始终在页面内容之上；
 - 移动层级依赖 DOM 绘制顺序与局部层级边界共同约束：`.workspace`、`.page-scroll`、状态栏宿主和底栏宿主保持 `z-index: auto`，`.signed-in-shell__body` 与 `.mobile-page-overlay` 使用 `z-index: 0` 收口子层，`.workspace-floating-layer` 是唯一允许使用 `z-index: 1` 的普通浮层根；不得给其他共享外壳或业务面板添加正 `z-index`，也不得建立 `isolation: isolate` 背景根；
 - 页面内部若使用带非 `auto` `z-index` 的 `position: sticky`／定位元素，必须被 `.mobile-page-overlay` 的零层级堆叠边界收口，不能覆盖工作区浮层或逃逸到 Chrome Overlay 之上；新增普通面板必须继续 Portal 到 `.workspace-floating-layer`，不得在业务样式中使用更大的全局层级补丁；
-- Chrome Overlay 使用 `pointer-events: none`，只有状态栏、底栏和实际显示的关闭态 Toast 恢复交互；通知面板位于工作区浮层，不得借用 Chrome Overlay；
+- Chrome Overlay 使用 `pointer-events: none`，只有状态栏、底栏和实际显示的关闭态通知恢复交互；通知面板位于工作区浮层，不得借用 Chrome Overlay；
 - 状态栏玻璃、底栏玻璃和一级卡片左右边缘必须共线；
 - 玩家 `.asset-bar` 直接包含唯一 `LiquidGlassSurface`；不得用水平 padding 缩窄实际玻璃，状态项水平留白只能放入 `.asset-bar-content`；移动端该层上下 `padding` 必须为 `0`；
 - `.asset-bar-content` 固定五列布局使用 `repeat(5, minmax(0, 1fr))`，不得通过横向滚动解决空间不足；其内容轨道与 `.asset-bar-layout` 上下边缘必须共线；
 - `.page-scroll` 左右 padding 必须为 `0`；管理员 `.admin-page-scroll` 因不渲染移动顶部状态栏，只保留安全区顶部 inset 和底栏避让；
 - 玩家通知按钮固定为同一状态栏玻璃内容层最右侧独立工具位；五项经济状态仍由 `.asset-bar-content` 固定五列承载，通知按钮不得成为第六个等宽状态项。
-- 移动通知面板必须 Portal 到 `SignedInShell` 现有 `.workspace-floating-layer`，顶部从 `48px` 状态栏下方开始，底部止于 `68px` 移动导航上方；面板不得进入 `.mobile-chrome-overlay`、`.page-scroll`、根级 Dialog 层或 `document.body`，也不得新增液态玻璃实例。
-- 面板关闭时，操作结果以及新增或原因变化的待处理事项使用 `.mobile-chrome-overlay` 内的关闭态 Toast；DOM 顺序固定为 `StatusBar` 后、`MobileBottomNavigation` 前。Toast 顶部固定为安全区顶部 + `48px` 状态栏 + `8px`，左右各 `8px`，内容水平居中且最大宽度 `30rem`。
-- 关闭态 Toast 宿主保持 `pointer-events:none`，实际 `.notification-toast` 必须恢复 `pointer-events:auto`，点击后打开通知面板；面板打开时立即清空 Toast 队列，并禁止同时显示面板外 Toast。面板与 Toast 显示／隐藏都不得推动页面内容、状态栏或底栏，也不得改变页面滚动高度；
+- 移动通知面板必须 Portal 到 `SignedInShell` 现有 `.workspace-floating-layer`，顶部从 `48px` 状态栏下方开始，底部止于 `68px` 移动导航上方；工作区浮层根已经提供唯一水平边界，`.notification-panel-layer` 必须保持 `padding: 0`，不得再次叠加安全区或 workspace gutter；面板因此与状态栏、底栏和一级卡片共线。面板不得进入 `.mobile-chrome-overlay`、`.page-scroll`、根级 Dialog 层或 `document.body`，也不得新增液态玻璃实例。
+- 面板关闭时，操作结果以及新增或原因变化的待处理事项使用 `.mobile-chrome-overlay` 内的移动通知灵动岛；DOM 顺序固定为 `StatusBar` 后、`MobileBottomNavigation` 前。`UI_DESIGN_SYSTEM.md` 中的移动关闭态 Toast 在本外壳中的唯一视觉实现即该通知灵动岛。
+- 通知灵动岛顶部固定为安全区顶部 + `48px` 状态栏 + `8px`，以物理屏幕水平中线为锚点并从中心对称展开；展开宽度不得超过 `360px`，左右必须分别避让 `max(var(--mobile-workspace-gutter), env(safe-area-inset-left/right))`。岛体使用高不透明度深色普通表面，不使用 `backdrop-filter`、`LiquidGlassSurface`、硬件刘海形状或新增玻璃实例。
+- 移动端同时只渲染一个通知灵动岛；最新通知显示标题和语义图标，其余关闭态通知折叠为 `+N`。已有岛体收到新通知时只替换内容并更新计时，不得堆叠多个岛或反复执行完整收缩展开；桌面端继续保留最多三条关闭态 Toast。
+- 通知灵动岛从居中种子态扩展到 `56px` 高胶囊，进入总时长约 `280ms`；退出时先隐藏内容，再于约 `230ms` 内向中心收缩。点击岛体时先收缩，完整通知面板独立从顶部中心以轻微上移和缩放进入；岛体和面板不得共享 DOM 或跨越各自 Overlay 层级。
+- 关闭态通知宿主保持 `pointer-events:none`，实际 `.notification-island` 必须恢复 `pointer-events:auto`，点击后打开通知面板；面板打开时立即清空 Toast 队列，并禁止同时显示面板外通知。面板与岛体显示／隐藏都不得推动页面内容、状态栏或底栏，也不得改变页面滚动高度。
+- `prefers-reduced-motion: reduce` 下通知灵动岛不得执行位移、宽高变形、缩放或图标脉冲，只允许短透明度切换和内容交叉淡入；完整通知面板也不得执行移动或缩放进入动画。
 - 移动状态栏固定 `48px`，移动底栏固定 `68px`；底栏相对 Chrome Overlay 使用 `position: absolute`；
 - 管理员移动端只显示统一底栏，不显示 `.admin-command-bar`；不得给 `.asset-bar` 设置 `height: 100%`。
 
@@ -247,6 +251,7 @@
 - 禁止滚动事件更新玻璃参数、噪点动画和每项独立滤镜。所有玻璃预设使用零弹性和静态鼠标输入，不得在玻璃宿主、页面或滚动容器注册指针跟踪来驱动折射、位移、缩放或边缘高光。
 - 认证 React 内容提交后只允许一次无依赖 `useLayoutEffect` 同步测量，并仅在高度值改变时更新状态；该测量用于首次绘制前同步提交，不属于持续每帧测量。单个 `ResizeObserver`、条件 `MutationObserver` 和合并后的 `requestAnimationFrame` 只处理提交后的异步几何变化和上游 SVG 滤镜通知。
 - 移动状态栏字号适配只在数值、容器几何、方向或字体就绪时运行，必须使用单一观察器与帧合并，不得加入定时轮询或每帧持续测量。
+- 通知灵动岛只允许在出现、内容替换和退出阶段使用有限时长动画，不得持续脉冲、循环发光、绑定滚动或建立每帧测量；动画结束后不得保留额外常驻合成提示。
 - 页面初始内容避让工作栏和底栏，滚动时允许进入玻璃后方；认证页面继续使用文档滚动。
 - 装饰 SVG、官方边缘高光、摄影背景、氛围覆盖层和认证玻璃宿主不得阻止内部按钮或输入事件；全部直属高光保持 `pointer-events: none`。
 - 页面和内部列表到达纵向边界后必须保留滚动链；登录态根 `html` 只在链最终到达浏览器视口时终止原生过度滚动。
@@ -268,9 +273,10 @@
 10. 根级采样容器计算 `isolation` 为 `isolate`；桌面玩家、桌面管理员、移动玩家和移动管理员的 `.application-content-root`、登录后外壳、`.workspace`、两层 Overlay、`.page-scroll-area` 与 `.page-scroll` 均为 `isolation:auto`、`filter:none`、`transform:none`。玻璃宿主 `contain` 为 `none`、`isolation` 为 `auto`、裁切为 `overflow: hidden`。
 11. 桌面 `.page-scroll` 计算 `z-index` 为 `0`，桌面 `.asset-bar` 为 `auto`，页面内部 `z-index:1/2` 的商品图片和数据层不得覆盖状态栏；移动 `.signed-in-shell__body` 与 `.mobile-page-overlay` 计算 `z-index` 为 `0`，`.workspace-floating-layer` 为 `1`，`.workspace`、`.page-scroll`、`.asset-bar` 和移动底栏宿主均为 `auto`，状态栏和底栏不得创建正层级合成上下文。
 12. 管理员与玩家移动端的页面主体固定 `order:1; z-index:0`，Chrome 层固定 `order:2; z-index:auto`；工作区内部页面层固定 `order:1; z-index:0`，工作区浮层根固定 `order:2; z-index:1`。插入页面内部极端正 `z-index` 哨兵后，通知面板操作仍必须由 `elementFromPoint` 命中，状态栏和底栏继续保持可点击。
-13. 页面首次加载后全应用始终只有一个摄影 `<picture>` 和一个 `<img>`；账号检查切换到认证时自定义 DOM 标记必须保留，证明节点未被替换。认证、玩家、管理员和状态页只改变 `data-app-backdrop` 与 `data-app-tone`。
-14. 摄影请求失败时图片元素隐藏，氛围背景、状态卡、页面内容、状态栏、管理员工作栏与导航仍然可见并可交互。
-15. 登录切换为注册后，同一个认证玻璃随内容自然增高；认证内容保持在 `.glass` 内，卡片、玻璃宿主和内容均不得创建内部纵向滚动区，输入框、验证码、错误提示和按钮保持可操作。
-16. 支持环境中的五种玻璃宿主背景均透明、宿主阴影为 `none` 且不存在 `.liquid-glass-surface__material-fill`；所有表面的 `::after` 均不生成项目外框，两个官方高光 `span` 和第三方 `.glass` 默认阴影按规则可见，两个辅助黑色节点不可见；`auth.css` 不包含认证卡片的模糊、玻璃渐变或材质描边，登录卡片不包含 `.panel`；不支持背景滤镜时五种表面统一使用深色回退。
-17. Chromium 中把指针从认证卡片一侧移动到另一侧后，第三方效果层的视觉 `transform` 和直属高光背景方向必须保持不变；登录→注册→登录时，在点击后首个 `requestAnimationFrame` 内宿主、`.glass` 与两个官方高光的实际底部误差不得超过 `1px`，`.glass` 与两个高光的 `transition-property` 必须为 `none`；随后宿主、效果层、`.glass`、SVG 滤镜与高光的未变换布局尺寸保持同步。人工尺寸通知期间必须短暂出现且同步清除 `data-liquid-glass-measuring="true"` 中性测量态，不得把视觉矩形持久化为玻璃尺寸。
-18. 受控对照页中的官方组件与项目认证表面必须共享同一个 Backdrop Root；项目生产 `FinancialBackdrop` 图片层与氛围层是该根下使用负层级的固定兄弟层，两组玻璃内容也必须位于同一个根内且不得创建独立 `z-index` stacking context。根节点只允许承担一次 `isolation: isolate`，不得使用 `filter` 或 `transform`。对照页不得覆盖生产摄影图片，项目认证氛围渐变、网格、噪点和图片滤镜保持不变。两侧必须使用相同的 `440 × 352px` 卡片尺寸、内容、`70 / 0 / 140 / 2 / 0 / 24 / standard / overLight=false` 参数和固定 `{0,0}` 鼠标输入；辅助黑色图层必须保持透明、宿主透明，官方 `.glass` 阴影、`blur(4px) saturate(140%)` 与实际几何必须一致。
+13. 移动通知灵动岛顶部位于状态栏下方 `8px`，展开前后中心与物理屏幕水平中线误差不超过 `1px`，宽度不超过 `360px` 且不侵入左右安全区；同时只存在一个岛体，队列折叠为 `+N`，点击后岛体消失并打开工作区通知面板。岛体不得新增液态玻璃实例或改变页面滚动高度，`prefers-reduced-motion` 下不得出现位移、缩放或宽高变形动画。
+14. 页面首次加载后全应用始终只有一个摄影 `<picture>` 和一个 `<img>`；账号检查切换到认证时自定义 DOM 标记必须保留，证明节点未被替换。认证、玩家、管理员和状态页只改变 `data-app-backdrop` 与 `data-app-tone`。
+15. 摄影请求失败时图片元素隐藏，氛围背景、状态卡、页面内容、状态栏、管理员工作栏与导航仍然可见并可交互。
+16. 登录切换为注册后，同一个认证玻璃随内容自然增高；认证内容保持在 `.glass` 内，卡片、玻璃宿主和内容均不得创建内部纵向滚动区，输入框、验证码、错误提示和按钮保持可操作。
+17. 支持环境中的五种玻璃宿主背景均透明、宿主阴影为 `none` 且不存在 `.liquid-glass-surface__material-fill`；所有表面的 `::after` 均不生成项目外框，两个官方高光 `span` 和第三方 `.glass` 默认阴影按规则可见，两个辅助黑色节点不可见；`auth.css` 不包含认证卡片的模糊、玻璃渐变或材质描边，登录卡片不包含 `.panel`；不支持背景滤镜时五种表面统一使用深色回退。
+18. Chromium 中把指针从认证卡片一侧移动到另一侧后，第三方效果层的视觉 `transform` 和直属高光背景方向必须保持不变；登录→注册→登录时，在点击后首个 `requestAnimationFrame` 内宿主、`.glass` 与两个官方高光的实际底部误差不得超过 `1px`，`.glass` 与两个高光的 `transition-property` 必须为 `none`；随后宿主、效果层、`.glass`、SVG 滤镜与高光的未变换布局尺寸保持同步。人工尺寸通知期间必须短暂出现且同步清除 `data-liquid-glass-measuring="true"` 中性测量态，不得把视觉矩形持久化为玻璃尺寸。
+19. 受控对照页中的官方组件与项目认证表面必须共享同一个 Backdrop Root；项目生产 `FinancialBackdrop` 图片层与氛围层是该根下使用负层级的固定兄弟层，两组玻璃内容也必须位于同一个根内且不得创建独立 `z-index` stacking context。根节点只允许承担一次 `isolation: isolate`，不得使用 `filter` 或 `transform`。对照页不得覆盖生产摄影图片，项目认证氛围渐变、网格、噪点和图片滤镜保持不变。两侧必须使用相同的 `440 × 352px` 卡片尺寸、内容、`70 / 0 / 140 / 2 / 0 / 24 / standard / overLight=false` 参数和固定 `{0,0}` 鼠标输入；辅助黑色图层必须保持透明、宿主透明，官方 `.glass` 阴影、`blur(4px) saturate(140%)` 与实际几何必须一致。

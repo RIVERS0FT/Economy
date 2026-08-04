@@ -162,10 +162,11 @@ check('tests/browser/shell-floating-safe-zone.spec.ts', [
   'intersectionArea',
 ]);
 check('tests/browser/notification-center.spec.ts', [
-  'panel stays above extreme workspace z-index',
+  'mobile island stays centered while the panel remains above extreme workspace z-index',
   'notification-layer-regression-sentinel',
   'document.elementFromPoint',
   'panelCloseIsTopmost',
+  'islandCenter',
   "expect(geometry.shellBodyZIndex).toBe('0')",
   "expect(geometry.pageLayerZIndex).toBe('0')",
   "expect(geometry.floatingLayerZIndex).toBe('1')",
