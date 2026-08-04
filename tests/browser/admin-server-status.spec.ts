@@ -4,11 +4,20 @@ async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 }
 
-function serverStatus() {
+type ServerRange = '1h' | '1d' | '30d';
+
+const RANGE_CONFIG: Record<ServerRange, { milliseconds: number; bucketMilliseconds: number; granularity: 'minute' | 'hour' | 'day' }> = {
+  '1h': { milliseconds: 3_600_000, bucketMilliseconds: 60_000, granularity: 'minute' },
+  '1d': { milliseconds: 86_400_000, bucketMilliseconds: 3_600_000, granularity: 'hour' },
+  '30d': { milliseconds: 30 * 86_400_000, bucketMilliseconds: 86_400_000, granularity: 'day' },
+};
+
+function serverStatus(range: ServerRange) {
   const generatedAt = Date.UTC(2026, 7, 4, 9, 0);
+  const config = RANGE_CONFIG[range];
   return {
     generatedAt,
-    range: { key: '15m', milliseconds: 900_000, startsAt: generatedAt - 900_000 },
+    range: { key: range, ...config, startsAt: generatedAt - config.milliseconds },
     health: { level: 'healthy', reasons: ['当前指标未达到警告阈值'] },
     thresholds: {},
     process: {
@@ -29,9 +38,9 @@ function serverStatus() {
       diskTotalBytes: 80 * 1024 ** 3, diskFreeBytes: 42 * 1024 ** 3, diskFreeRatioBps: 5_250,
     },
     requests: {
-      windowStartedAt: generatedAt - 900_000,
+      windowStartedAt: generatedAt - config.milliseconds,
       windowEndedAt: generatedAt,
-      requestCount: 420,
+      requestCount: range === '1h' ? 420 : range === '1d' ? 4_200 : 42_000,
       requestsPerSecond: 0.47,
       clientErrorCount: 8,
       serverErrorCount: 1,
@@ -65,13 +74,16 @@ function serverStatus() {
       diskTotalBytes: 80 * 1024 ** 3, diskFreeBytes: 42 * 1024 ** 3, diskFreeRatioBps: 5_250,
     },
     history: [0, 1, 2].map((index) => ({
-      startsAt: generatedAt - (2 - index) * 60_000,
+      startsAt: generatedAt - (2 - index) * config.bucketMilliseconds,
+      endsAt: generatedAt - (1 - index) * config.bucketMilliseconds,
       requestCount: 120 + index * 10,
       serverErrorCount: index === 1 ? 1 : 0,
       p50DurationMs: 20 + index,
       p95DurationMs: 100 + index * 9,
       p99DurationMs: 170 + index * 10,
+      eventLoopP50Ms: 2 + index * 0.2,
       eventLoopP95Ms: 4 + index * 0.4,
+      eventLoopP99Ms: 7 + index * 0.5,
       eventLoopMaxMs: 10 + index,
       cpuAveragePercent: 15 + index * 2,
       cpuMaxPercent: 24 + index * 2,
@@ -82,7 +94,7 @@ function serverStatus() {
   };
 }
 
-async function configureAdminRoutes(page: Page) {
+async function configureAdminRoutes(page: Page, requestedRanges: ServerRange[] = []) {
   await page.route('**/economy-api/me', (route) => json(route, {
     user: { id: 1, email: 'admin@example.com', name: '管理员', role: 'admin' },
   }));
@@ -96,20 +108,32 @@ async function configureAdminRoutes(page: Page) {
       lastProcessedAt: Date.UTC(2026, 7, 4, 9), apiStatus: 'ok', populationEconomy: {},
     },
   }));
-  await page.route('**/economy-api/game/admin/server-status?**', (route) => json(route, {
-    serverStatus: serverStatus(),
-  }));
+  await page.route('**/economy-api/game/admin/server-status?**', (route) => {
+    const range = new URL(route.request().url()).searchParams.get('range') as ServerRange;
+    requestedRanges.push(range);
+    return json(route, { serverStatus: serverStatus(range) });
+  });
 }
 
-test('admin server status renders runtime trends and read-only diagnostics', async ({ page }) => {
+test('admin server status switches hour, day, and month trend granularity', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await configureAdminRoutes(page);
+  const requestedRanges: ServerRange[] = [];
+  await configureAdminRoutes(page, requestedRanges);
   await page.goto('/economy/admin');
   await page.getByRole('button', { name: '服务器', exact: true }).click();
 
   await expect(page.locator('.admin-server-health-panel h2')).toHaveText('服务器运行状态');
   await expect(page.getByText('运行正常', { exact: true })).toBeVisible();
-  await expect(page.getByText('进程 CPU', { exact: true })).toBeVisible();
+  await expect(page.getByText('最近 1 小时 · 按分钟聚合 · 延迟 P50／P95／P99', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: '1 天', exact: true }).click();
+  await expect(page.getByText('最近 1 天 · 按小时聚合 · 延迟 P50／P95／P99', { exact: true })).toBeVisible();
+  await expect.poll(() => requestedRanges.at(-1)).toBe('1d');
+
+  await page.getByRole('button', { name: '1 个月', exact: true }).click();
+  await expect(page.getByText('最近 1 个月 · 按天聚合 · 延迟 P50／P95／P99', { exact: true })).toBeVisible();
+  await expect.poll(() => requestedRanges.at(-1)).toBe('30d');
+
   await expect(page.getByText('高负载接口', { exact: true })).toBeVisible();
   await expect(page.locator('.admin-server-route-table code').getByText('/api/game/state', { exact: true })).toBeVisible();
   await expect(page.locator('.admin-server-chart-grid .economy-chart__canvas svg')).toHaveCount(4);
