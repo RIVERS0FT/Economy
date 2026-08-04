@@ -1,3 +1,5 @@
+import { calculateRateMoney, internalMoneyToMicros, microsToInternalMoney, multiplyMoneyByInteger, roundInternalMoney } from './money.js';
+
 const MODEL_IDS = Object.freeze(['basic', 'skilled', 'professional']);
 const MODEL_NAMES = Object.freeze({
   basic: '基础人口',
@@ -177,7 +179,10 @@ export function defaultPopulationPolicyCycle(cycleId = -1) {
 }
 
 function normalizeIssueMap(value = {}) {
-  return Object.fromEntries(MODEL_IDS.map((id) => [id, Math.max(0, integer(value?.[id], 0))]));
+  return Object.fromEntries(MODEL_IDS.map((id) => {
+    const amount = roundInternalMoney(value?.[id] || 0);
+    return [id, amount === null ? 0 : Math.max(0, amount)];
+  }));
 }
 
 export function ensurePopulationPolicyState(state, now = Date.now()) {
@@ -295,80 +300,128 @@ export function createResetPopulationPolicy({ adminUserId, now = Date.now() } = 
   });
 }
 
-function allocateByWeights(total, weights) {
-  const safeTotal = requireIntegerAtLeast(total, '人口政策预算', 0);
-  const entries = MODEL_IDS.map((id, index) => {
-    const weight = BigInt(requireIntegerAtLeast(weights[id] || 0, `${MODEL_NAMES[id]}权重`, 0));
-    return { id, index, weight, value: 0n, remainder: 0n };
-  });
-  const weightTotal = entries.reduce((sum, entry) => sum + entry.weight, 0n);
-  if (safeTotal <= 0 || weightTotal <= 0n) return Object.fromEntries(entries.map((entry) => [entry.id, 0]));
-  let assigned = 0n;
-  for (const entry of entries) {
-    const numerator = BigInt(safeTotal) * entry.weight;
-    entry.value = numerator / weightTotal;
-    entry.remainder = numerator % weightTotal;
-    assigned += entry.value;
-  }
-  entries.sort((left, right) => {
-    if (left.remainder === right.remainder) return left.index - right.index;
-    return left.remainder > right.remainder ? -1 : 1;
-  });
-  for (let cursor = 0; assigned < BigInt(safeTotal); cursor = (cursor + 1) % entries.length) {
-    entries[cursor].value += 1n;
-    assigned += 1n;
-  }
-  return Object.fromEntries(entries.map((entry) => [entry.id, Number(entry.value)]));
+function moneyOrInvalid(value, name) {
+  const normalized = roundInternalMoney(value);
+  if (normalized === null || normalized < 0) throw invalid(`${name}计算结果超出系统可表示范围`);
+  return normalized;
 }
 
-export function calculatePopulationStabilizationBudgets(totalBaseBudget, policyValue) {
+function normalizedWeight(value, name) {
+  if (typeof value === 'bigint') {
+    if (value < 0n) throw invalid(`${name}必须为非负整数`);
+    return value;
+  }
+  return BigInt(requireIntegerAtLeast(value || 0, name, 0));
+}
+
+function allocateMoneyByWeights(total, weights) {
+  const totalMicros = internalMoneyToMicros(moneyOrInvalid(total, '人口政策预算'));
+  if (totalMicros === null || totalMicros < 0n) throw invalid('人口政策预算计算结果超出系统可表示范围');
+  const rows = MODEL_IDS.map((id, index) => ({
+    id,
+    index,
+    weight: normalizedWeight(weights?.[id] || 0, `${MODEL_NAMES[id]}权重`),
+    value: 0n,
+    remainder: 0n,
+  }));
+  const weightTotal = rows.reduce((sum, row) => sum + row.weight, 0n);
+  if (totalMicros <= 0n || weightTotal <= 0n) return Object.fromEntries(rows.map((row) => [row.id, 0]));
+  let assigned = 0n;
+  for (const row of rows) {
+    const numerator = totalMicros * row.weight;
+    row.value = numerator / weightTotal;
+    row.remainder = numerator % weightTotal;
+    assigned += row.value;
+  }
+  rows.sort((left, right) => left.remainder === right.remainder
+    ? left.index - right.index
+    : left.remainder > right.remainder ? -1 : 1);
+  for (let cursor = 0; assigned < totalMicros; cursor = (cursor + 1) % rows.length) {
+    rows[cursor].value += 1n;
+    assigned += 1n;
+  }
+  return Object.fromEntries(rows.map((row) => {
+    const value = microsToInternalMoney(row.value);
+    if (value === null) throw invalid(`${MODEL_NAMES[row.id]}稳定需求预算计算结果超出系统可表示范围`);
+    return [row.id, value];
+  }));
+}
+
+function sumMoney(values, name) {
+  const micros = values.reduce((sum, value) => {
+    const amount = internalMoneyToMicros(moneyOrInvalid(value, name));
+    if (amount === null) throw invalid(`${name}计算结果超出系统可表示范围`);
+    return sum + amount;
+  }, 0n);
+  const result = microsToInternalMoney(micros);
+  if (result === null) throw invalid(`${name}计算结果超出系统可表示范围`);
+  return result;
+}
+
+export function calculatePopulationStabilizationBudgets(
+  totalBaseBudget,
+  policyValue,
+  modelWeights = DEFAULT_MODEL_SHARES_BPS,
+) {
   const policy = normalizePopulationPolicy(policyValue, 0);
-  const baseTotal = safeMultiplyDivideFloor(
-    Math.max(0, integer(totalBaseBudget, 0)),
+  const baseTotal = calculateRateMoney(
+    moneyOrInvalid(totalBaseBudget, '人口参考需求预算'),
     policy.stabilizationShareBps,
     10_000,
-    '稳定需求预算',
+    'half-up',
   );
-  const baseByModel = allocateByWeights(baseTotal, DEFAULT_MODEL_SHARES_BPS);
-  const adjustedByModel = Object.fromEntries(MODEL_IDS.map((id) => [
+  if (baseTotal === null) throw invalid('稳定需求预算计算结果超出系统可表示范围');
+  const normalizedWeights = Object.fromEntries(MODEL_IDS.map((id) => [
     id,
-    safeMultiplyDivideFloor(
+    requireIntegerAtLeast(modelWeights?.[id] || 0, `${MODEL_NAMES[id]}人口数量`, 0),
+  ]));
+  const baseByModel = allocateMoneyByWeights(baseTotal, normalizedWeights);
+  const adjustedByModel = Object.fromEntries(MODEL_IDS.map((id) => {
+    const adjusted = calculateRateMoney(
       baseByModel[id],
       policy.modelMultipliersBps[id],
       10_000,
-      `${MODEL_NAMES[id]}稳定需求预算`,
-    ),
-  ]));
-  const adjustedTotal = safeSum(Object.values(adjustedByModel), '稳定需求预算');
+      'half-up',
+    );
+    if (adjusted === null) throw invalid(`${MODEL_NAMES[id]}稳定需求预算计算结果超出系统可表示范围`);
+    return [id, adjusted];
+  }));
+  const adjustedTotal = sumMoney(Object.values(adjustedByModel), '稳定需求预算');
   const byModel = adjustedTotal > baseTotal
-    ? allocateByWeights(baseTotal, adjustedByModel)
+    ? allocateMoneyByWeights(baseTotal, Object.fromEntries(MODEL_IDS.map((id) => [
+      id,
+      internalMoneyToMicros(adjustedByModel[id]) || 0n,
+    ])))
     : adjustedByModel;
   return {
-    total: safeSum(Object.values(byModel), '稳定需求预算'),
+    total: sumMoney(Object.values(byModel), '稳定需求预算'),
     maximumTotal: baseTotal,
     byModel,
   };
 }
 
 export function populationPolicyRefillCap(stabilizationBudget, policy) {
-  return safeMultiplyDivideFloor(
-    Math.max(0, integer(stabilizationBudget, 0)),
-    Math.max(0, integer(policy?.refillCapBps, 0)),
+  const result = calculateRateMoney(
+    moneyOrInvalid(stabilizationBudget, '人口稳定预算'),
+    requireIntegerAtLeast(policy?.refillCapBps || 0, '单周期补充比例', 0),
     10_000,
-    '人口补充额度',
+    'half-up',
   );
+  if (result === null) throw invalid('人口补充额度计算结果超出系统可表示范围');
+  return result;
 }
 
 export function populationPolicyWalletTarget(stabilizationBudget, policy) {
-  return safeMultiply(
-    Math.max(0, integer(stabilizationBudget, 0)),
-    Math.max(1, integer(policy?.targetWalletCycles, 1)),
-    '目标钱包',
+  const result = multiplyMoneyByInteger(
+    moneyOrInvalid(stabilizationBudget, '人口稳定预算'),
+    requireIntegerAtLeast(policy?.targetWalletCycles || 1, '目标钱包周期', 1),
   );
+  if (result === null) throw invalid('目标钱包计算结果超出系统可表示范围');
+  return result;
 }
 
-export function validatePopulationPolicyCapacity(totalBaseBudget, policy) {
-  const budgets = calculatePopulationStabilizationBudgets(totalBaseBudget, policy);
+export function validatePopulationPolicyCapacity(totalBaseBudget, policy, modelWeights = DEFAULT_MODEL_SHARES_BPS) {
+  const budgets = calculatePopulationStabilizationBudgets(totalBaseBudget, policy, modelWeights);
   for (const modelId of MODEL_IDS) {
     populationPolicyWalletTarget(budgets.byModel[modelId], policy);
     populationPolicyRefillCap(budgets.byModel[modelId], policy);

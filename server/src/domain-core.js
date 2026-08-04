@@ -227,7 +227,7 @@ function seedFacilityListings(now) {
 
 export function createWorld(now = Date.now()) {
   return {
-    version: 22,
+    version: 23,
     auctionFeeEscrowCredits: 0,
     players: {},
     orders: seedOrders(now),
@@ -428,7 +428,7 @@ export function migrateWorld(world, now = Date.now()) {
     world.demandGroups[group.id] = { ...createDemandGroups(now)[group.id], ...world.demandGroups[group.id] };
   }
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 22;
+  world.version = 23;
   return world;
 }
 

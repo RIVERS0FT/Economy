@@ -54,23 +54,26 @@ function percentToBps(value: number) {
   return Number.isSafeInteger(result) ? result : null;
 }
 
-function safeMulDiv(value: number, multiplier: number, divisor = 10_000) {
-  const result = BigInt(value) * BigInt(multiplier) / BigInt(divisor);
-  return result <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(result) : null;
+function roundMoney(value: number) {
+  return Math.round(value * 1_000_000) / 1_000_000;
 }
 
 function calculatePreviewBudget(economy: PopulationEconomyAdminSummary, payload: PopulationPolicyPayload) {
-  const maximum = safeMulDiv(economy.policyBaseBudget, payload.stabilizationShareBps);
-  if (maximum === null) return null;
-  const basicBase = Math.floor(maximum * 0.6);
-  const skilledBase = Math.floor(maximum * 0.3);
-  const professionalBase = maximum - basicBase - skilledBase;
-  const basic = safeMulDiv(basicBase, payload.modelMultipliersBps.basic);
-  const skilled = safeMulDiv(skilledBase, payload.modelMultipliersBps.skilled);
-  const professional = safeMulDiv(professionalBase, payload.modelMultipliersBps.professional);
-  if (basic === null || skilled === null || professional === null) return null;
-  const adjusted = BigInt(basic) + BigInt(skilled) + BigInt(professional);
-  return Number(adjusted > BigInt(maximum) ? BigInt(maximum) : adjusted);
+  const maximum = roundMoney(economy.policyBaseBudget * payload.stabilizationShareBps / 10_000);
+  if (!Number.isSafeInteger(Math.round(maximum * 1_000_000))) return null;
+  const populations = {
+    basic: Math.max(0, economy.models.basic.population),
+    skilled: Math.max(0, economy.models.skilled.population),
+    professional: Math.max(0, economy.models.professional.population),
+  };
+  const totalPopulation = populations.basic + populations.skilled + populations.professional;
+  if (totalPopulation <= 0) return 0;
+  const adjusted = (Object.keys(populations) as PopulationModelId[]).reduce((sum, modelId) => {
+    const base = maximum * populations[modelId] / totalPopulation;
+    return sum + base * payload.modelMultipliersBps[modelId] / 10_000;
+  }, 0);
+  const result = roundMoney(Math.min(maximum, adjusted));
+  return Number.isSafeInteger(Math.round(result * 1_000_000)) ? result : null;
 }
 
 function durationLabel(cycles: number | null) {
@@ -186,7 +189,7 @@ export function AdminPopulationControl({
     setBusy(true);
     try {
       await adminApi.resetPopulationPolicy();
-      onNotice('人口政策已恢复模型 8 默认参数。');
+      onNotice('人口政策已恢复人口模型默认参数。');
       await onChanged();
     } catch (reason) {
       onNotice(reason instanceof Error ? reason.message : '恢复默认政策失败');
@@ -230,7 +233,7 @@ export function AdminPopulationControl({
         <section className="admin-population-policy-current admin-population-policy-current--summary" aria-label="当前人口政策参数">
           <header><h4>当前政策</h4><small>服务器只读</small></header>
           <dl>
-            <div><dt>稳定需求比例／目标钱包</dt><dd>{economy.policy.stabilizationShareBps / 100}%／{economy.policy.targetWalletCycles} 个周期</dd></div>
+            <div><dt>最低消费保障率／目标钱包</dt><dd>{economy.policy.stabilizationShareBps / 100}%／{economy.policy.targetWalletCycles} 个周期</dd></div>
             <div><dt>单周期补充比例／生产工资</dt><dd>{economy.policy.refillCapBps / 100}%／{economy.policy.productionWageMultiplierBps / 100}%</dd></div>
             <div><dt>基础／技术／专业人口倍率</dt><dd>{economy.policy.modelMultipliersBps.basic / 100}%／{economy.policy.modelMultipliersBps.skilled / 100}%／{economy.policy.modelMultipliersBps.professional / 100}%</dd></div>
             <div><dt>总持续时间</dt><dd>{durationLabel(currentDuration)}</dd></div>
@@ -255,7 +258,7 @@ export function AdminPopulationControl({
                 <fieldset>
                   <legend>需求规模</legend>
                   <div className="admin-population-policy-grid">
-                    <IntegerInput label="稳定需求比例（%）" value={draft.sharePercent} fallbackValue={12} min={0} onValueChange={(value) => setField('sharePercent', value)} />
+                    <IntegerInput label="最低消费保障率（%）" value={draft.sharePercent} fallbackValue={12} min={0} onValueChange={(value) => setField('sharePercent', value)} />
                     <IntegerInput label="目标钱包周期" value={draft.targetCycles} fallbackValue={3} min={1} onValueChange={(value) => setField('targetCycles', value)} />
                     <IntegerInput label="单周期补充比例（%）" value={draft.refillPercent} fallbackValue={100} min={0} onValueChange={(value) => setField('refillPercent', value)} />
                     <IntegerInput label="政策有效周期" value={draft.durationCycles} fallbackValue={12} min={1} onValueChange={(value) => setField('durationCycles', value)} />

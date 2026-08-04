@@ -1,7 +1,7 @@
 import { FACILITY_TYPE_CATALOG } from './industry-catalog.js';
 import { creditPopulationEmployment } from './population-economy.js';
 
-export const RESEARCH_WORLD_VERSION = 22;
+export const RESEARCH_WORLD_VERSION = 23;
 export const RESEARCH_LEVEL_CATALOG = Object.freeze([
   Object.freeze({ id: 'C1', rank: 1, cost: 0, durationMs: 0 }),
   Object.freeze({ id: 'C2', rank: 2, cost: 300, durationMs: 5 * 60_000 }),

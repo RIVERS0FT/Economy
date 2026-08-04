@@ -111,9 +111,16 @@ requireText('src/components/AdminServerStatusSection.tsx', [
   'SQLite 与磁盘',
   '<AdminServerTrendChart',
   'requestRef.current?.abort()',
+  "const RANGES: AdminServerStatusRange[] = ['1h', '1d', '30d']",
+  'requestSequenceRef',
+  'nextStatus.range.key !== nextRange',
+  'admin-server-range-summary',
+  'P50／P95／P99',
 ]);
 requireText('src/components/charts/AdminServerStatusCharts.tsx', [
   "import { EconomyChart } from './EconomyChart'",
+  'AdminServerStatusGranularity',
+  'granularity',
   "type: 'line'",
 ]);
 requireText('src/components/AdminPlayerSection.tsx', [
@@ -165,6 +172,7 @@ requireText('src/styles/admin-server-status.css', [
   '.admin-server-summary-grid',
   '.admin-server-chart-grid',
   '.admin-server-route-cards',
+  '.admin-server-range-summary',
   '@media (max-width: 720px)',
 ]);
 forbidText('src/app/AdminApp.tsx', [
@@ -237,7 +245,10 @@ requireText('src/main.tsx', [
   "import './styles/admin-server-status.css';",
 ]);
 requireText('src/api/admin.ts', [
-  "export type AdminServerStatusRange = '15m' | '1h' | '6h'",
+  "export type AdminServerStatusRange = '1h' | '1d' | '30d'",
+  "export type AdminServerStatusGranularity = 'minute' | 'hour' | 'day'",
+  'bucketMilliseconds',
+  'granularity',
   'export interface AdminServerStatus',
   'serverStatus: async (range: AdminServerStatusRange, signal?: AbortSignal)',
   '`/server-status?range=${encodeURIComponent(range)}`',
@@ -255,6 +266,9 @@ requireText('server/src/app.js', [
 ]);
 requireText('server/src/request-metrics.js', [
   'DEFAULT_HISTORY_WINDOWS = 360',
+  'createLatencyHistogram',
+  'durationHistogram',
+  'latencyHistogramPercentile',
   'snapshot(extraSummary = {})',
   'getRequestMetricsSnapshot(rangeMs)',
   'clientErrorCount',
@@ -265,6 +279,12 @@ requireText('server/src/server-status.js', [
   'SERVER_STATUS_THRESHOLDS',
   'DEFAULT_SAMPLE_MS = 5_000',
   'DEFAULT_HISTORY_MINUTES = 360',
+  'MINUTE_TREND_LIMIT = 60',
+  'HOUR_TREND_LIMIT = 24',
+  'DAY_TREND_LIMIT = 30',
+  "'30d': Object.freeze",
+  'bucketMilliseconds',
+  'granularity',
   'process.cpuUsage',
   'statfsSync',
   "store.database.prepare('PRAGMA page_count')",
@@ -282,6 +302,8 @@ forbidText('server/src/server-status.js', [
 ]);
 requireText('server/test/server-status.test.js', [
   'server status is read-only and returns bounded diagnostics',
+  'server status changes bucket granularity for hour, day, and month ranges',
+  'runtime collector rolls completed minutes into bounded hour and day buckets',
   'assert.deepEqual(after, before)',
   'includes(fixture.databasePath), false',
 ]);
@@ -301,7 +323,12 @@ requireText('tests/browser/admin-runtime.spec.ts', [
   "toContainText('仓库扩容0.00')",
 ]);
 requireText('tests/browser/admin-server-status.spec.ts', [
-  'admin server status renders runtime trends and read-only diagnostics',
+  'admin server status switches hour, day, and month trend granularity',
+  "getByRole('button', { name: '1 天', exact: true })",
+  "getByRole('button', { name: '1 个月', exact: true })",
+  '按分钟聚合',
+  '按小时聚合',
+  '按天聚合',
   'admin server status uses mobile cards without a page-level horizontal table',
   "getByRole('button', { name: '服务器', exact: true })",
   "toHaveCount(4)",
@@ -327,6 +354,9 @@ requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '`ADMIN_SERVER_STATUS_SCHEME: readonly-runtime-diagnostics`',
   '服务器状态读取不得调用 `loadWorld`',
   '不得运行 `quick_check`、`wal_checkpoint`、`PRAGMA optimize`、`VACUUM`',
+  '最近 1 小时、1 天与 1 个月',
+  '分钟级请求延迟使用有界直方图',
+  '`GET /api/game/admin/server-status?range=1h|1d|30d`',
 ]);
 
 if (failures.length) {

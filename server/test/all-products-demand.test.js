@@ -15,8 +15,8 @@ const now = 1_700_000_000_000;
 const cycleMs = 5 * 60 * 1000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 
-test('market demand model 11 gives every product direct terminal demand', () => {
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 12);
+test('market demand model 13 gives every product direct terminal demand', () => {
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 13);
   assert.equal(MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + group.baseBudget, 0), 5_700);
   assert.equal(MARKET_DEMAND_GROUP_CATALOG.find((group) => group.id === 'household')?.name, '社会消费市场');
 
@@ -45,7 +45,66 @@ test('market demand model 11 gives every product direct terminal demand', () => 
   }
 });
 
-test('model 9 migration refunds population escrow before model 11 rebuild', () => {
+
+test('population model 6 migration refunds current model 13 escrow before rebuilding demand', () => {
+  const world = createWorld(now);
+  ensurePlayer(world, alice, now);
+  for (const state of Object.values(world.demandGroups)) {
+    state.nextDemandAt = now;
+    state.lastCycleId = Math.floor(now / cycleMs) - 1;
+  }
+  processWorld(world, now + 1);
+
+  const oldOrders = world.orders.filter((order) => (
+    order.ownerType === 'population'
+    && (order.demandTier === 'direct' || order.demandTier === 'derived-liquidity')
+    && order.remaining > 0
+    && (order.status === 'open' || order.status === 'partial')
+  ));
+  assert.ok(oldOrders.length > 0);
+  const oldOrderIds = new Set(oldOrders.map((order) => order.id));
+  const totalsBefore = Object.fromEntries(Object.entries(world.populationEconomy.models).map(([id, model]) => [
+    id,
+    model.credits + model.frozenCredits,
+  ]));
+  const reserveBefore = Object.fromEntries(Object.entries(world.marketDemand.liquidity.groups).map(([groupId, group]) => [
+    groupId,
+    {
+      credits: group.credits + group.frozenCredits,
+      inventories: Object.fromEntries(Object.entries(group.reserves).map(([productId, reserve]) => [
+        productId,
+        reserve.inventory + reserve.frozenInventory,
+      ])),
+    },
+  ]));
+
+  world.populationEconomy.modelVersion = 6;
+  delete world.populationEconomy.demographics;
+  for (const model of Object.values(world.populationEconomy.models)) {
+    delete model.population;
+    delete model.targetPopulation;
+  }
+  migrateWorld(world, now + 2);
+
+  assert.equal(world.marketDemand.modelVersion, 13);
+  assert.equal(world.populationEconomy.modelVersion, 7);
+  assert.equal(world.populationEconomy.demographics.currentPopulation, 10_000);
+  assert.equal(world.orders.some((order) => oldOrderIds.has(order.id)), false);
+  for (const [id, model] of Object.entries(world.populationEconomy.models)) {
+    assert.equal(model.frozenCredits, 0, id);
+    assert.equal(model.credits, totalsBefore[id], id);
+  }
+  for (const [groupId, group] of Object.entries(world.marketDemand.liquidity.groups)) {
+    assert.equal(group.frozenCredits, 0, groupId);
+    assert.equal(group.credits, reserveBefore[groupId].credits, groupId);
+    for (const [productId, reserve] of Object.entries(group.reserves)) {
+      assert.equal(reserve.frozenInventory, 0, `${groupId}/${productId}`);
+      assert.equal(reserve.inventory, reserveBefore[groupId].inventories[productId], `${groupId}/${productId}`);
+    }
+  }
+});
+
+test('model 9 migration refunds population escrow before model 13 rebuild', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   for (const state of Object.values(world.demandGroups)) {
@@ -73,7 +132,7 @@ test('model 9 migration refunds population escrow before model 11 rebuild', () =
   world.marketDemand.modelVersion = 9;
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 12);
+  assert.equal(world.marketDemand.modelVersion, 13);
   assert.equal(world.marketDemand.groups.food.directQuoteAnchors.wheat, wheatReference);
   assert.equal(world.marketDemand.groups.food.directOversupplyCycles.wheat, 0);
   assert.equal(world.orders.some((order) => oldOrderIds.has(order.id)), false);

@@ -141,7 +141,7 @@ requireText('server/src/storage.js', [
   'getAuctionBidHistory(user, auctionId, now = Date.now())',
   'listRecentAuctionBidEvents(this, auction.id, 10)',
 ]);
-requireText('server/src/runtime-store.js', ['flushAuctionAuditEvents(this, world, revision, nextRevision);', 'prepared.version = 22;']);
+requireText('server/src/runtime-store.js', ['flushAuctionAuditEvents(this, world, revision, nextRevision);', 'prepared.version = 23;']);
 requireText('server/src/app.js', [
   'const auctionBidHistoryMatch = path.match',
   "method === 'GET' && auctionBidHistoryMatch",
@@ -208,11 +208,11 @@ requireText('tests/browser/auction-bid-history.spec.ts', [
 ]);
 
 requireText('.github/workflows/deploy.yml', [
-  'backup before world 22 migration',
-  'backup-world --target-world-version 22',
+  'backup before world 23 migration',
+  'backup-world --target-world-version 23',
   'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
 ]);
-requireText('docs/README.md', ['客户端状态版本：26', '世界状态版本：22']);
+requireText('docs/README.md', ['客户端状态版本：26', '世界状态版本：23']);
 requireText('docs/GIFT_CODE_AND_ADMIN_DESIGN.md', [
   '发布费计费基数为 `max(起拍价, 保留价)`',
   '卖方成交手续费为成交总价的精确 1%',

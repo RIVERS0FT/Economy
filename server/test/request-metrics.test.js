@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  addLatencyHistogramSample,
+  createLatencyHistogram,
   createRequestMetricsCollector,
+  latencyHistogramPercentile,
+  mergeLatencyHistograms,
   normalizeMetricRoute,
 } from '../src/request-metrics.js';
 
@@ -18,7 +22,7 @@ test('request metrics normalize route identifiers', () => {
   assert.equal(normalizeMetricRoute('/api/game/state?revision=4'), '/api/game/state');
 });
 
-test('request metrics aggregate duration and application response bytes with errors', () => {
+test('request metrics aggregate duration and application response bytes', () => {
   let currentTime = 1_000;
   const logs = [];
   const warnings = [];
@@ -154,4 +158,19 @@ test('request metrics cap route cardinality and aggregate overflow', () => {
       gauges: {},
     },
   );
+});
+
+
+test('request latency histograms merge across minute, hour, and day rollups', () => {
+  const first = createLatencyHistogram();
+  const second = createLatencyHistogram();
+  for (const value of [10, 20, 30, 40]) addLatencyHistogramSample(first, value);
+  for (const value of [100, 200, 300, 400]) addLatencyHistogramSample(second, value);
+  mergeLatencyHistograms(first, second);
+  const p50 = latencyHistogramPercentile(first, 0.5);
+  const p95 = latencyHistogramPercentile(first, 0.95);
+  const p99 = latencyHistogramPercentile(first, 0.99);
+  assert.ok(p50 >= 40 && p50 < 100);
+  assert.ok(p95 >= 400);
+  assert.equal(p99, p95);
 });
