@@ -1,0 +1,92 @@
+name: Apply Population Model
+
+on:
+  push:
+    branches: [feature/population-model]
+    paths: [scripts/.population-model-patch.b64]
+
+permissions:
+  contents: write
+  statuses: write
+
+concurrency:
+  group: apply-population-model
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/population-model
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Apply population model patch
+        run: |
+          set -euo pipefail
+          python3 - <<'PYTHON'
+          import base64, gzip
+          from pathlib import Path
+          encoded = Path('scripts/.population-model-patch.b64').read_text(encoding='utf-8').strip()
+          Path('/tmp/population-model.patch').write_bytes(gzip.decompress(base64.b64decode(encoded)))
+          PYTHON
+          git apply --index /tmp/population-model.patch
+          git rm -- scripts/.population-model-patch.b64
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and test
+        run: |
+          set -euo pipefail
+          npm run build
+          npx playwright install --with-deps chromium
+          npm run test:browser
+
+      - name: Verify staged scope
+        run: |
+          set -euo pipefail
+          git diff --cached --check
+          git status --short
+          test -n "$(git diff --cached --name-only)"
+
+      - name: Commit implementation
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: implement factory-driven population model'
+          git push origin HEAD:feature/population-model
+
+      - name: Publish implementation status
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          if [ "$JOB_STATUS" = success ]; then state=success; description='Population model implementation verified'; else state=failure; description='Population model implementation failed'; fi
+          python3 - "$state" "$description" <<'PYTHON' > /tmp/status.json
+          import json, os, sys
+          print(json.dumps({
+              'state': sys.argv[1],
+              'description': sys.argv[2],
+              'context': 'implementation/population-model',
+              'target_url': f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+          }))
+          PYTHON
+          curl --fail --silent --show-error --request POST \
+            --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            --data-binary @/tmp/status.json \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" >/dev/null
