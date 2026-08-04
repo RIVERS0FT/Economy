@@ -138,8 +138,8 @@ for (const text of [
   "not.toContainText('缩短周期并提高成本')",
   "locator('.facility-production-method-summary')).toHaveCount(0)",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
-assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 25'));
-assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 25'));
+assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 26'));
+assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 26'));
 
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [

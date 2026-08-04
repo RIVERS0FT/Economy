@@ -9,7 +9,7 @@ export const STATE_PARTITION_NAMES = Object.freeze([
   'leaderboard',
 ]);
 
-const CATALOG_KEYS = new Set(['version', 'products', 'facilityTypes']);
+const CATALOG_KEYS = new Set(['version', 'products', 'facilityTypes', 'researchLevels']);
 const MARKET_KEYS = new Set([
   'markets',
   'facilityMarkets',

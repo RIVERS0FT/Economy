@@ -22,6 +22,7 @@ export type LocalActivityAction =
   | 'placeOrder'
   | 'cancelOrder'
   | 'buildFacility'
+  | 'startResearch'
   | 'startFacility'
   | 'pauseFacility'
   | 'setFacilityRecipe'

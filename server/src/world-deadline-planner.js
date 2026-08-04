@@ -6,6 +6,7 @@ import { FACILITY_TYPE_CATALOG } from './domain.js';
 import { isOpenOrder } from './order-identity.js';
 import { POPULATION_POLICY_CYCLE_MS } from './population-policy.js';
 import { nextEconomicEventDeadline } from './economic-events.js';
+import { nextResearchDeadlineAt } from './research.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FACILITY_TYPES = new Map(FACILITY_TYPE_CATALOG.map((type) => [type.id, type]));
@@ -143,6 +144,7 @@ export function createWorldDeadlinePlan(world, now = Date.now()) {
     checkIn: nextDailyCheckInResetAt(normalizedNow),
     bank: nextBankDeadlineAt(world, normalizedNow),
     weeklyCashSettlement: nextWeeklyCashSettlementDeadlineAt(world, normalizedNow),
+    research: nextResearchDeadlineAt(world),
     orderPrune: orderPruneDeadline(world, normalizedNow),
   };
   const nextDueAt = Object.values(deadlines).reduce(earlier, null);

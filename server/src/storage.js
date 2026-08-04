@@ -56,6 +56,13 @@ import {
   settlePlayerWeeklyCashOnLogin,
 } from './weekly-cash-settlement.js';
 import { createWorldDeadlinePlan } from './world-deadline-planner.js';
+import {
+  applyResearchAction,
+  createResearchClientState,
+  migrateResearchWorld,
+  processResearchWorld,
+  validateResearchAccess,
+} from './research.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { normalizePlayerMoneyPayload, normalizeWorldMoneyPrecision } from './money.js';
 import {
@@ -73,7 +80,7 @@ const ECONOMIC_ACTIVITY_ACTIONS = new Set([
   'collectFacility', 'placeOrder', 'cancelOrder', 'listFacility',
   'cancelFacilityListing', 'buyFacility', 'upgradeWarehouse', 'redeemGift',
   'exchangeGems', 'accelerateFacilityConstruction', 'createAuction', 'placeAuctionBid', 'cancelAuction',
-  'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay',
+  'bankDeposit', 'bankWithdraw', 'bankBorrow', 'bankRepay', 'bankSetAutoRepay', 'startResearch',
 ]);
 
 function normalizeJson(value) {
@@ -162,6 +169,7 @@ function createVersionedClientState(world, userId, now, checkIn) {
     ...createWarehouseSummary(world, player),
     ...createAssetAuctionClientState(world, userId, now),
     ...createBankClientState(world, player, now),
+    ...createResearchClientState(world, player, now),
     version: CURRENT_CLIENT_STATE_VERSION,
   };
 }
@@ -519,10 +527,11 @@ export class EconomyStore {
     }
     migrateAssetAuctionWorld(world, now);
     migrateFacilityGroupWorld(world, now);
+    migrateResearchWorld(world, now);
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
     normalizeWorldMoneyPrecision(world);
-    world.version = 21;
+    world.version = 22;
     return world;
   }
 
@@ -603,6 +612,7 @@ export class EconomyStore {
   });
   processBankWorld(world, now);
   processWeeklyCashSettlementWorld(world, now);
+  processResearchWorld(world, now);
   if (this.scheduledProcessing) {
     this.schedulerNotBefore = Math.max(this.schedulerNotBefore, now + WORLD_PROCESS_INTERVAL_MS);
   } else {
@@ -839,7 +849,12 @@ export class EconomyStore {
       settlePlayerWeeklyCashOnLogin(world, player, now);
       const playerBeforeAction = structuredClone(world.players[String(user.id)]);
       let gameResult;
-      if (action === 'checkIn') {
+      const researchAccess = validateResearchAccess(world, user, action, payload, now);
+      if (researchAccess) {
+        gameResult = researchAccess;
+      } else if (action === 'startResearch') {
+        gameResult = applyResearchAction(world, user, action, payload, now);
+      } else if (action === 'checkIn') {
         gameResult = this.checkInInTransaction(player, requestKey, now);
       } else if (action === 'upgradeWarehouse') {
         gameResult = upgradeWarehouse(world.players[String(user.id)]);
