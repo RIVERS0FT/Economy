@@ -1,0 +1,57 @@
+name: Fix recipe profit style ownership
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Split shared and surface style checks
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/verify-recipe-profit-analysis.mjs')
+          source = path.read_text()
+          old_source = "const surfaceSource = read('src/styles/production-surface.css');\nconst sheetSource = read('src/styles/facility-detail-sheet.css');"
+          new_source = "const surfaceSource = read('src/styles/production-surface.css');\nconst groupSource = read('src/styles/facility-group-card-grid.css');\nconst sheetSource = read('src/styles/facility-detail-sheet.css');"
+          if source.count(old_source) != 1:
+              raise SystemExit(f'expected one style source block, found {source.count(old_source)}')
+          source = source.replace(old_source, new_source, 1)
+          old_checks = """for (const text of [
+            '.facility-information-heading',
+            'grid-template-columns: minmax(0, 1fr) auto;',
+            '--facility-card-section-gap: var(--space-2);',
+          ]) assert.ok(surfaceSource.includes(text), `工厂详情头部压缩样式缺少: ${text}`);
+          """
+          new_checks = """for (const text of [
+            '.facility-information-heading',
+            'grid-template-columns: minmax(0, 1fr) auto;',
+          ]) assert.ok(groupSource.includes(text), `工厂信息基础布局样式缺少: ${text}`);
+          for (const text of [
+            '.facility-information-heading',
+            '--facility-card-section-gap: var(--space-2);',
+          ]) assert.ok(surfaceSource.includes(text), `生产一级表面压缩样式缺少: ${text}`);
+          """
+          if source.count(old_checks) != 1:
+              raise SystemExit(f'expected one old surface check block, found {source.count(old_checks)}')
+          path.write_text(source.replace(old_checks, new_checks, 1))
+          Path('.github/workflows/fix-recipe-profit-style-ownership.yml').unlink()
+          PY
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- scripts/verify-recipe-profit-analysis.mjs .github/workflows/fix-recipe-profit-style-ownership.yml
+          git commit -m "修正工厂信息样式职责验证"
+          git push origin HEAD:${{ github.head_ref }}
