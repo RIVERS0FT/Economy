@@ -1,0 +1,53 @@
+name: Apply PR 456 Final Source
+
+on:
+  push:
+    branches:
+      - agent/recover-pr450-bundle
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: apply-pr456-final-source
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/recover-pr450-bundle
+          fetch-depth: 0
+      - name: Apply validated final source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          ready_file=.github/pr456-final.ready
+          parts=(.github/pr456-final.patch.gz.b64.part*)
+          if [ ! -f "$ready_file" ]; then
+            echo "Final source bundle is not ready."
+            exit 0
+          fi
+          if [ "${#parts[@]}" -eq 0 ]; then
+            echo "Final source bundle parts are missing." >&2
+            exit 1
+          fi
+          patch_file="$RUNNER_TEMP/pr456-final.patch"
+          cat "${parts[@]}" | base64 --decode | gzip --decompress > "$patch_file"
+          echo "fafa796b7ca432e78592ee222d3d2591b54662f517b6a61208c53a8e5c6f0fa4  $patch_file" | sha256sum --check
+          mapfile -t patch_paths < <(git apply --numstat "$patch_file" | awk '{ print $3 }')
+          git apply --check "$patch_file"
+          git apply "$patch_file"
+          rm -- "$ready_file" "${parts[@]}"
+          git add -- "${patch_paths[@]}" "$ready_file" "${parts[@]}"
+          git diff --cached --check
+          git config user.name "RIVERS0FT Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "feat: optimize onboarding architecture and capacity diagnostics"
+          git push origin HEAD:agent/recover-pr450-bundle
