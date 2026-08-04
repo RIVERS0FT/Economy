@@ -10,12 +10,9 @@ async function mountNotificationFixture(page: Page) {
       throw new Error('notification geometry fixture is incomplete');
     }
 
-    const surfaceContent = statusContent.parentElement;
-    if (!surfaceContent) throw new Error('notification status surface is incomplete');
-    const layout = document.createElement('div');
-    layout.className = 'asset-bar-layout';
-    surfaceContent.insertBefore(layout, statusContent);
-    layout.append(statusContent);
+    const layout = statusContent.parentElement;
+    if (!layout) throw new Error('notification status surface is incomplete');
+    layout.classList.add('asset-bar-layout');
 
     const action = document.createElement('div');
     action.className = 'asset-bar-action';
@@ -38,7 +35,7 @@ async function mountNotificationFixture(page: Page) {
     const toastStack = document.createElement('div');
     toastStack.className = 'mobile-notice-region notification-toast-stack';
     const toast = document.createElement('button');
-    toast.className = 'notice-toast notification-toast notification-toast--success';
+    toast.className = 'notification-toast notification-toast--success';
     toast.textContent = '订单已经提交';
     toastStack.append(toast);
     chromeLayer.append(toastStack);

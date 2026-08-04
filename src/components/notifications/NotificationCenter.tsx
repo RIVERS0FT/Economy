@@ -341,7 +341,7 @@ export function NotificationToasts({
       {toasts.map((toast) => (
         <button
           type="button"
-          className={`notice-toast notification-toast notification-toast--${toast.tone}`}
+          className={`notification-toast notification-toast--${toast.tone}`}
           key={toast.id}
           onClick={onOpen}
         >

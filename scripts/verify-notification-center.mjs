@@ -99,6 +99,7 @@ assert.match(component, /CurrencyText/);
 assert.match(component, /清除已读/);
 assert.match(component, /删除通知/);
 assert.doesNotMatch(component, /LiquidGlassSurface/);
+assert.doesNotMatch(component, /notice-toast/);
 
 const currencyVerifier = read('scripts/verify-currency-svg.mjs');
 assert.match(currencyVerifier, /src\/components\/notifications\/NotificationCenter\.tsx/);
