@@ -203,7 +203,8 @@ requireText('src/pages/AuctionPage.tsx', [
   'auctionAttentionPriority',
   '被超价',
   '新增',
-  'className="asset-auction-item-tooltip-anchor asset-auction-item-tooltip-anchor--main"',
+  'className="asset-auction-bundle-tile"',
+  'aria-label={auctionItemTooltipText(item)}',
   'className="asset-auction-item-tooltip-anchor asset-auction-item-tooltip-anchor--summary"',
   'content={tooltipText}',
   'tabIndex={0}',
@@ -217,17 +218,18 @@ forbidText('src/pages/AuctionPage.tsx', [
   'closedAuctions',
   '最近结束',
   'title={`${item.name} ×${formatNumber(item.quantity)}`}',
+  'asset-auction-item-tooltip-anchor--main',
 ]);
 requireText('src/styles/auction-card-layers.css', [
   '.asset-auction-item-tooltip-anchor {',
   'aspect-ratio: 1;',
   'align-items: stretch;',
-  '.asset-auction-item-tooltip-anchor--main {',
-  'max-width: 256px;',
-  '.asset-auction-item-tooltip-anchor > .asset-auction-bundle-tile,',
+  '.asset-auction-item-tooltip-anchor > .asset-auction-summary-icon {',
+  '.asset-auction-summary-icon {',
   '--ui-interactive-active-transform: none;',
   '.asset-auction-bundle-tile {',
   'box-sizing: border-box;',
+  'max-width: 256px;',
   'max-height: 256px;',
   'justify-self: center;',
   '.asset-auction-bundle-tile > .facility-icon.game-icon,',
@@ -235,6 +237,10 @@ requireText('src/styles/auction-card-layers.css', [
   'width: 100%;',
   'height: 100%;',
   'border-radius: 0;',
+]);
+forbidText('src/styles/auction-card-layers.css', [
+  '.asset-auction-item-tooltip-anchor--main',
+  '.asset-auction-item-tooltip-anchor > .asset-auction-bundle-tile,',
 ]);
 requireText('tests/browser/auction-bid-history.spec.ts', [
   'auction bid history is collapsed, lazy, anonymous, and capped at ten rows',
@@ -244,10 +250,13 @@ requireText('tests/browser/auction-bid-history.spec.ts', [
   'toBeLessThanOrEqual(256.5)',
   "expect(mainGeometry.backgroundSize).toBe('cover');",
   "expect(summaryGeometry.backgroundSize).toBe('cover');",
-  'auction asset tiles show name and quantity through SafeTooltip on hover and focus',
+  'auction asset matrix tiles show name and quantity while the main visual remains static',
+  'await expect(tooltip).toHaveCount(0);',
+  "expect(await mainTile.getAttribute('tabindex')).toBeNull();",
+  "node.closest('.safe-tooltip-anchor') === null",
   "await expect(tooltip).toHaveText('机械 ×5');",
   "expect(await summaryTile.getAttribute('title')).toBeNull();",
-  "page.locator('.asset-auction-item-tooltip-anchor')",
+  "toHaveCount(1)",
   "page.locator('.asset-auction-summary-placeholder')",
 ]);
 
@@ -273,8 +282,9 @@ requireText('docs/UI_DESIGN_SYSTEM.md', [
   '出价历史使用原生按钮',
   '`aria-expanded`',
   '主视觉格子外边界不得超过 `256 × 256px`',
-  '主视觉和资产矩阵的非空格子必须复用 `SafeTooltip`',
+  '资产矩阵的非空格子必须复用 `SafeTooltip`',
   '格式固定为“名称 ×数量”',
+  '主视觉只作静态展示',
 ]);
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['拍卖服务费用与货币流', '世界级拍卖费用托管']);
 
@@ -290,4 +300,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、工厂插画铺满与 256px 主视觉上限、格子名称数量安全悬浮、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
+console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、工厂插画铺满与 256px 主视觉上限、主视觉静态展示与资产矩阵名称数量安全悬浮、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
