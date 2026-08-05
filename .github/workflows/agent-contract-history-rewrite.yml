@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           cat .agent/contract-history-rewrite.part-* > /tmp/contract-history-rewrite.mjs
-          echo '6ebc91fb22d4f308a9b5a06766497a42d91dce871c11402e79cca40c4eb7cbe5  /tmp/contract-history-rewrite.mjs' | sha256sum --check
+          echo '92ee1c8b90c80b390604667d8567b76c7405fa0579986ed1319793b49e432c2a  /tmp/contract-history-rewrite.mjs' | sha256sum --check
           node --check /tmp/contract-history-rewrite.mjs
           node /tmp/contract-history-rewrite.mjs
 
