@@ -63,7 +63,7 @@ rewrite('scripts/verify-page-content.mjs', [
     ),
     (
         '| 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |',
-        '| 合同 | `contracts` | `ContractPage` | 商品供货、玩家借贷与工厂租赁合同的发布、承接、履约与历史 |',
+        '| 合同 | `contracts` | `ContractPage` | 商品供货、玩家抵押借贷和工厂使用权租赁合同的发布、承接、履约与历史 |',
     ),
 ])
 
