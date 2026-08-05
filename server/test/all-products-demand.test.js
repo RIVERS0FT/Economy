@@ -15,8 +15,8 @@ const now = 1_700_000_000_000;
 const cycleMs = 5 * 60 * 1000;
 const alice = { id: 1, email: 'alice@example.com', name: 'Alice' };
 
-test('market demand model 15 gives every product direct terminal demand', () => {
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 15);
+test('market demand model 16 gives every product direct terminal demand', () => {
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 16);
   assert.equal(MARKET_DEMAND_GROUP_CATALOG.reduce((sum, group) => sum + group.baseBudget, 0), 5_700);
   assert.equal(MARKET_DEMAND_GROUP_CATALOG.find((group) => group.id === 'household')?.name, '社会消费市场');
 
@@ -46,7 +46,7 @@ test('market demand model 15 gives every product direct terminal demand', () => 
 });
 
 
-test('population model 6 migration refunds current model 15 escrow before rebuilding demand', () => {
+test('population model 6 migration refunds current model 16 escrow before rebuilding demand', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   for (const state of Object.values(world.demandGroups)) {
@@ -86,7 +86,7 @@ test('population model 6 migration refunds current model 15 escrow before rebuil
   }
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 15);
+  assert.equal(world.marketDemand.modelVersion, 16);
   assert.equal(world.populationEconomy.modelVersion, 7);
   assert.equal(world.populationEconomy.demographics.currentPopulation, 10_000);
   assert.equal(world.orders.some((order) => oldOrderIds.has(order.id)), false);
@@ -104,7 +104,7 @@ test('population model 6 migration refunds current model 15 escrow before rebuil
   }
 });
 
-test('model 9 migration refunds population escrow before model 15 rebuild', () => {
+test('model 9 migration refunds population escrow before model 16 rebuild', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   for (const state of Object.values(world.demandGroups)) {
@@ -132,7 +132,7 @@ test('model 9 migration refunds population escrow before model 15 rebuild', () =
   world.marketDemand.modelVersion = 9;
   migrateWorld(world, now + 2);
 
-  assert.equal(world.marketDemand.modelVersion, 15);
+  assert.equal(world.marketDemand.modelVersion, 16);
   assert.equal(world.marketDemand.groups.food.directQuoteAnchors.wheat, wheatReference);
   assert.equal(world.marketDemand.groups.food.directOversupplyCycles.wheat, 0);
   assert.equal(world.orders.some((order) => oldOrderIds.has(order.id)), false);

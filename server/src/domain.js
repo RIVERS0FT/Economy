@@ -57,7 +57,11 @@ function buildMarketDemandMetadata() {
 
   return Object.fromEntries(core.PRODUCT_CATALOG.map((product) => {
     const direct = directGroups.has(product.id);
-    const groups = [...(reachableGroups.get(product.id) || [])].sort();
+    const groups = [...(
+      direct
+        ? directGroups.get(product.id)
+        : reachableGroups.get(product.id)
+    ) || []].sort();
     if (groups.length === 0) return [product.id, Object.freeze({})];
     const tier = product.category === 'raw'
       ? 'raw'

@@ -5,22 +5,25 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js'
 const expectedProducts = [
   'wheat', 'rice', 'cotton', 'sugarcane', 'fruit', 'timber', 'ore', 'copper-ore', 'crude-oil',
   'meat', 'eggs', 'milk', 'fish', 'wool', 'flour', 'sugar', 'lumber', 'steel', 'copper',
-  'plastic', 'fertilizer', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
-  'clothing', 'tools', 'machinery', 'electronics', 'appliance',
+  'plastic', 'fertilizer', 'feed', 'veterinary-medicine', 'textile', 'pulp', 'food', 'beverage',
+  'prepared-meal', 'paper', 'furniture', 'clothing', 'tools', 'machinery', 'tractor', 'electronics',
+  'appliance',
 ];
 const expectedFacilities = [
   'farm', 'orchard', 'ranch', 'fishery',
-  'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill',
+  'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill', 'feed-factory',
   'pulp-mill', 'steelworks', 'textile-mill', 'food-factory', 'paper-mill',
-  'refinery', 'fertilizer-factory', 'beverage-factory', 'furniture-factory', 'garment-factory',
-  'tool-workshop', 'machine-factory', 'electronics-factory', 'appliance-factory',
+  'refinery', 'fertilizer-factory', 'veterinary-medicine-factory', 'beverage-factory',
+  'furniture-factory', 'garment-factory', 'tool-workshop', 'machine-factory', 'tractor-factory',
+  'electronics-factory', 'appliance-factory',
 ];
 const expectedPrices = {
   wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
   'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, textile: 20,
-  pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
-  clothing: 55, tools: 60, machinery: 76, electronics: 84, appliance: 92,
+  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, feed: 10,
+  'veterinary-medicine': 40, textile: 20, pulp: 20, food: 15, beverage: 18,
+  'prepared-meal': 18, paper: 15, furniture: 24, clothing: 55, tools: 60, machinery: 76,
+  tractor: 120, electronics: 84, appliance: 92,
 };
 const expectedConstruction = {
   farm: { complexity: 'C1', buildCost: 50, buildTimeMs: 30_000, systemValue: 65 },
@@ -32,10 +35,12 @@ const expectedConstruction = {
   'oil-field': { complexity: 'C2', buildCost: 180, buildTimeMs: 10 * 60_000, systemValue: 235 },
   mill: { complexity: 'C2', buildCost: 150, buildTimeMs: 7 * 60_000, systemValue: 195 },
   sawmill: { complexity: 'C2', buildCost: 170, buildTimeMs: 8 * 60_000, systemValue: 225 },
+  'feed-factory': { complexity: 'C2', buildCost: 160, buildTimeMs: 8 * 60_000, systemValue: 210 },
   'pulp-mill': { complexity: 'C3', buildCost: 190, buildTimeMs: 30 * 60_000, systemValue: 250 },
   steelworks: { complexity: 'C3', buildCost: 240, buildTimeMs: 40 * 60_000, systemValue: 315 },
   refinery: { complexity: 'C4', buildCost: 300, buildTimeMs: 80 * 60_000, systemValue: 390 },
   'fertilizer-factory': { complexity: 'C4', buildCost: 330, buildTimeMs: 85 * 60_000, systemValue: 430 },
+  'veterinary-medicine-factory': { complexity: 'C4', buildCost: 360, buildTimeMs: 95 * 60_000, systemValue: 470 },
   'textile-mill': { complexity: 'C3', buildCost: 220, buildTimeMs: 35 * 60_000, systemValue: 290 },
   'food-factory': { complexity: 'C3', buildCost: 230, buildTimeMs: 45 * 60_000, systemValue: 300 },
   'beverage-factory': { complexity: 'C4', buildCost: 280, buildTimeMs: 60 * 60_000, systemValue: 365 },
@@ -44,6 +49,7 @@ const expectedConstruction = {
   'garment-factory': { complexity: 'C4', buildCost: 350, buildTimeMs: 90 * 60_000, systemValue: 455 },
   'tool-workshop': { complexity: 'C4', buildCost: 320, buildTimeMs: 75 * 60_000, systemValue: 420 },
   'machine-factory': { complexity: 'C5', buildCost: 480, buildTimeMs: 100 * 60_000, systemValue: 625 },
+  'tractor-factory': { complexity: 'C5', buildCost: 520, buildTimeMs: 105 * 60_000, systemValue: 680 },
   'electronics-factory': { complexity: 'C6', buildCost: 700, buildTimeMs: 110 * 60_000, systemValue: 910 },
   'appliance-factory': { complexity: 'C7', buildCost: 950, buildTimeMs: 120 * 60_000, systemValue: 1235 },
 };
@@ -59,6 +65,13 @@ const constructionTimeRanges = {
 const expectedProfitByComplexity = { C2: 3, C3: 6, C4: 6, C5: 8, C6: 10, C7: 12 };
 const expectedC1ProfitByFacility = { farm: 0.6, orchard: 0.9, ranch: 0.8, fishery: 1 };
 const expectedProductionMethods = ['standard', 'rapid', 'economical', 'high-yield'];
+const expectedC1ProductionMethods = ['standard', 'assisted', 'intensive', 'mechanized'];
+const expectedC1Plans = {
+  farm: [[], [['tools', 1], 51], [['fertilizer', 2], 58], [['tractor', 1], 102]],
+  orchard: [[], [['tools', 1], 48], [['fertilizer', 2], 55], [['tractor', 1], 96]],
+  ranch: [[], [['feed', 1], 6], [['veterinary-medicine', 1], 19], [['machinery', 1], 35]],
+  fishery: [[], [['feed', 1], 5], [['veterinary-medicine', 1], 18], [['machinery', 1], 33]],
+};
 
 function standardRecipes(facility) {
   return facility.recipes.filter((recipe) => (recipe.productionMethodId || 'standard') === 'standard');
@@ -74,8 +87,8 @@ function expectedProfitFor(facility) {
     : expectedProfitByComplexity[facility.complexity];
 }
 
-assert.equal(PRODUCT_CATALOG.length, 33, '商品目录必须为 33 项');
-assert.equal(FACILITY_TYPE_CATALOG.length, 23, '工厂目录必须为 23 项');
+assert.equal(PRODUCT_CATALOG.length, 36, '商品目录必须为 36 项');
+assert.equal(FACILITY_TYPE_CATALOG.length, 26, '工厂目录必须为 26 项');
 assert.deepEqual(PRODUCT_CATALOG.map((item) => item.id), expectedProducts);
 assert.deepEqual(FACILITY_TYPE_CATALOG.map((item) => item.id), expectedFacilities);
 const facilityComplexityRanks = FACILITY_TYPE_CATALOG.map((item) => Number(item.complexity.slice(1)));
@@ -121,12 +134,13 @@ for (const facility of FACILITY_TYPE_CATALOG) {
   const methodGroup = facility.productionMethodGroups.find((group) => group.id === 'operation');
   assert.ok(methodGroup, `${facility.id} 必须声明作业制度`);
   assert.equal(methodGroup.defaultMethodId, 'standard');
-  assert.deepEqual(methodGroup.methods.map((method) => method.id), expectedProductionMethods);
-  assert.equal(facility.recipes.length, routes.length * expectedProductionMethods.length);
+  const methodIds = facility.complexity === 'C1' ? expectedC1ProductionMethods : expectedProductionMethods;
+  assert.deepEqual(methodGroup.methods.map((method) => method.id), methodIds);
+  assert.equal(facility.recipes.length, routes.length * methodIds.length);
 
   for (const route of routes) {
     const variants = facility.recipes.filter((recipe) => recipe.baseRecipeId === route.id);
-    assert.deepEqual(variants.map((recipe) => recipe.productionMethodId), expectedProductionMethods);
+    assert.deepEqual(variants.map((recipe) => recipe.productionMethodId), methodIds);
     for (const recipe of variants) {
       assert.ok(Array.isArray(recipe.inputs), `${facility.id}/${recipe.id} 必须使用 inputs[]`);
       assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
@@ -138,10 +152,24 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       }
       assert.ok(productIds.has(recipe.output.productId));
       assert.equal(Number.isInteger(recipe.output.quantity), true);
-      const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
-      const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
-        * 60_000 / recipe.cycleMs;
-      assert.ok(Math.abs(profit - expectedProfitFor(facility)) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润错误: ${profit}`);
+      if (facility.complexity !== 'C1' || recipe.productionMethodId === 'standard') {
+        const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
+        const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
+          * 60_000 / recipe.cycleMs;
+        assert.ok(Math.abs(profit - expectedProfitFor(facility)) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润错误: ${profit}`);
+      }
+    }
+    if (facility.complexity === 'C1') {
+      assert.equal(variants.every((recipe) => recipe.cycleMs === route.cycleMs), true);
+      assert.equal(variants.every((recipe) => recipe.operatingCost === route.operatingCost), true);
+      assert.deepEqual(variants[0].inputs, []);
+      assert.equal(variants[0].output.quantity, 1);
+      for (let index = 1; index < variants.length; index += 1) {
+        const [expectedInput, expectedOutput] = expectedC1Plans[facility.id][index];
+        assert.deepEqual(variants[index].inputs.map((input) => [input.productId, input.quantity]), [expectedInput]);
+        assert.equal(variants[index].output.quantity, expectedOutput);
+      }
+      continue;
     }
     const rapid = variants.find((recipe) => recipe.productionMethodId === 'rapid');
     const economical = variants.find((recipe) => recipe.productionMethodId === 'economical');
@@ -200,8 +228,14 @@ assert.ok(catalogSource.includes("from './production-methods.js'"));
 assert.ok(methodSource.includes("id: 'rapid'"));
 assert.ok(methodSource.includes("id: 'economical'"));
 assert.ok(methodSource.includes("id: 'high-yield'"));
+assert.ok(methodSource.includes("id: 'assisted'"));
+assert.ok(methodSource.includes("id: 'intensive'"));
+assert.ok(methodSource.includes("id: 'mechanized'"));
 assert.ok(catalogSource.includes("id: 'fruit'"));
 assert.ok(catalogSource.includes("id: 'appliance-factory'"));
+assert.ok(catalogSource.includes("id: 'feed-factory'"));
+assert.ok(catalogSource.includes("id: 'veterinary-medicine-factory'"));
+assert.ok(catalogSource.includes("id: 'tractor-factory'"));
 
 const iconSource = readFileSync('src/components/icons/ProductIcons.tsx', 'utf8');
 assert.equal(existsSync('src/components/icons/ProductIcons.tsx'), true);
@@ -209,8 +243,8 @@ for (const id of expectedProducts) assert.match(iconSource, new RegExp(`case '${
 
 for (const [path, texts] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
-    '当前基线为 33 种商品和 23 种工厂类型',
-    'C1 快速生产采用工厂级参考分钟利润',
+    '当前基线为 36 种商品和 26 种工厂类型',
+    'C1 基础制度采用工厂级参考分钟利润',
     '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',
     '不新增铜冶炼厂',
     '任一输入不足时不得扣除其他输入',
@@ -220,16 +254,19 @@ for (const [path, texts] of [
     'C3 为 30 分钟～1 小时',
     'C4～C7 为 1～2 小时',
     '标准生产、高速生产、节约生产和高产生产',
+    '基础、工具／饲料、化肥／药剂、拖拉机／机械化',
+    '每周期整件消耗',
+    '不累计折旧',
     '生产方式与配方必须在同一次配置动作中原子切换',
   ]],
-  ['docs/UI_DESIGN_SYSTEM.md', ['当前 33 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡或按钮组']],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['33 种商品和 23 种工厂', '饮料、预制餐、电子产品和家电', '作业制度']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['当前 36 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡或按钮组']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['36 种商品和 26 种工厂', '饮料、预制餐、电子产品和家电', '作业制度']],
 ]) {
   const content = readFileSync(path, 'utf8');
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：33 种商品、23 种工厂、C1 快速生产、两位小数成本及 C2～C7 参考分钟利润梯度。');
+console.log('产业目录验证通过：36 种商品、26 种工厂、C1 固定作业制度、两位小数成本及 C2～C7 参考分钟利润梯度。');
 
 const fertilizerFacility = facilities.get('fertilizer-factory');
 assert.ok(fertilizerFacility, '化肥厂必须存在于正式目录');

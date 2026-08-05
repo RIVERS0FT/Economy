@@ -19,6 +19,8 @@
 .product-icon[data-product-icon='copper'] { --product-artwork-image: url('../assets/product-icons/generated/128/copper.png'); }
 .product-icon[data-product-icon='plastic'] { --product-artwork-image: url('../assets/product-icons/generated/128/plastic.png'); }
 .product-icon[data-product-icon='fertilizer'] { --product-artwork-image: url('../assets/product-icons/generated/128/fertilizer.png'); }
+.product-icon[data-product-icon='feed'] { --product-artwork-image: url('../assets/product-icons/generated/128/feed.png'); }
+.product-icon[data-product-icon='veterinary-medicine'] { --product-artwork-image: url('../assets/product-icons/generated/128/veterinary-medicine.png'); }
 .product-icon[data-product-icon='textile'] { --product-artwork-image: url('../assets/product-icons/generated/128/textile.png'); }
 .product-icon[data-product-icon='pulp'] { --product-artwork-image: url('../assets/product-icons/generated/128/pulp.png'); }
 .product-icon[data-product-icon='food'] { --product-artwork-image: url('../assets/product-icons/generated/128/food.png'); }
@@ -29,6 +31,7 @@
 .product-icon[data-product-icon='clothing'] { --product-artwork-image: url('../assets/product-icons/generated/128/clothing.png'); }
 .product-icon[data-product-icon='tools'] { --product-artwork-image: url('../assets/product-icons/generated/128/tools.png'); }
 .product-icon[data-product-icon='machinery'] { --product-artwork-image: url('../assets/product-icons/generated/128/machinery.png'); }
+.product-icon[data-product-icon='tractor'] { --product-artwork-image: url('../assets/product-icons/generated/128/tractor.png'); }
 .product-icon[data-product-icon='electronics'] { --product-artwork-image: url('../assets/product-icons/generated/128/electronics.png'); }
 .product-icon[data-product-icon='appliance'] { --product-artwork-image: url('../assets/product-icons/generated/128/appliance.png'); }
 
@@ -86,6 +89,8 @@
   [data-product-icon='copper'],
   [data-product-icon='plastic'],
   [data-product-icon='fertilizer'],
+  [data-product-icon='feed'],
+  [data-product-icon='veterinary-medicine'],
   [data-product-icon='textile'],
   [data-product-icon='pulp'],
   [data-product-icon='food'],
@@ -96,6 +101,7 @@
   [data-product-icon='clothing'],
   [data-product-icon='tools'],
   [data-product-icon='machinery'],
+  [data-product-icon='tractor'],
   [data-product-icon='electronics'],
   [data-product-icon='appliance']
 ) {

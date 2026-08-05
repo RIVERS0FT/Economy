@@ -171,7 +171,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 5.1 商品 SVG 图标目录
 
-当前 33 种正式商品必须在 `ProductIcons.tsx` 中各有一个独立、可辨识的本地内联 SVG。甘蔗、水果、鱼类、砂糖、纸浆、饮料、预制餐、纸品和家电不得使用默认包装箱图标。
+当前 36 种正式商品必须在 `ProductIcons.tsx` 中各有一个独立、可辨识的本地内联 SVG。甘蔗、水果、鱼类、砂糖、纸浆、饮料、预制餐、纸品、配合饲料、养殖药剂、拖拉机和家电不得使用默认包装箱图标。
 
 - `wheat`：麦穗；
 - `rice`：稻穗与米碗；
@@ -193,6 +193,9 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - `steel`：工字钢；
 - `copper`：铜材；
 - `plastic`：塑料瓶；
+- `fertilizer`：化肥袋与颗粒；
+- `feed`：配合饲料袋与颗粒；
+- `veterinary-medicine`：养殖药剂瓶；
 - `pulp`：纸浆卷；
 - `textile`：纺织布卷；
 - `food`：食物碗；
@@ -202,6 +205,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 - `furniture`：椅子；
 - `clothing`：服装；
 - `machinery`：齿轮机械；
+- `tractor`：农业拖拉机；
 - `electronics`：芯片；
 - `appliance`：家电机身与滚筒。
 
@@ -626,5 +630,7 @@ Playwright 必须验证 `1684×931`、`1280×900` 和 `900×1000` 下的真实�
 ### 化肥与化肥厂视觉资产
 
 正式商品 `fertilizer` 和正式设施 `fertilizer-factory` 必须分别具有 1024×1024 RGBA 源图、运行时缩略图、共享 `ProductIcon`／`FacilityIcon` ID 与 CSS 映射。化肥主视觉使用颗粒肥料袋、叶片和田地语义；化肥厂主视觉使用造粒塔、储罐、管线和包装区域，并与以蒸馏塔为主体的炼油厂保持可辨识差异。目录外回退不得替代正式资产；化肥厂插画哈希必须进入现有工厂基线，化肥商品源图继续接受商品资源完整性验证。
+
+正式商品 `feed`、`veterinary-medicine`、`tractor` 与正式设施 `feed-factory`、`veterinary-medicine-factory`、`tractor-factory` 必须分别具有同名 1024×1024 RGBA 源图、运行时缩略图、共享图标 ID 与 CSS 映射。配合饲料主视觉使用无文字饲料袋和颗粒，养殖药剂使用琥珀药剂瓶，拖拉机使用无品牌农业拖拉机；三座工厂分别以粮仓与制粒设备、洁净混合与灌装设备、拖拉机总装线为中央识别主体。三座工厂均从空白生成且哈希进入工厂基线，不得以旧图编辑、通用厂房或未知 ID 回退替代。
 
 - `tools` 使用工具箱、锤和扳手主体；`tool-workshop` 使用中小型锻造炉、工作台与工具架，并纳入 SHA-256 插画基线。

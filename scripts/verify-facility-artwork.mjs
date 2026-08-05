@@ -80,8 +80,8 @@ if (failures.length === 0) {
     && typeof artworkBaseline.sha256 === 'object'
     ? artworkBaseline.sha256
     : {};
-  if (artworkBaseline.version !== 4
-    || artworkBaseline.style !== 'fresh-original-subject-first-2026-08-02'
+  if (artworkBaseline.version !== 5
+    || artworkBaseline.style !== 'c1-work-systems-expansion-2026-08-05'
     || artworkBaseline.creationMode !== 'from-scratch-new-illustration'
     || JSON.stringify(baselineComplexities) !== JSON.stringify(fromScratchComplexities)) {
     failures.push(`${paths.artworkBaseline} 不是当前 C1–C7 从空白新绘／主体优先基线`);

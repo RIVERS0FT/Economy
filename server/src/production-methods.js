@@ -28,6 +28,33 @@ const METHOD_DEFINITIONS = Object.freeze([
   }),
 ]);
 
+const C1_METHOD_BLUEPRINTS = Object.freeze({
+  farm: Object.freeze([
+    Object.freeze({ id: 'standard', name: '基础耕作', description: '保持基础耕作，不消耗额外生产资料。', tone: 'neutral', inputs: [], outputQuantity: 1 }),
+    Object.freeze({ id: 'assisted', name: '工具耕作', description: '每周期整件消耗 1 工具并提高作物产量。', tone: 'warning', inputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 51 }),
+    Object.freeze({ id: 'intensive', name: '化肥耕作', description: '每周期整件消耗 2 化肥并进一步提高作物产量。', tone: 'success', inputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 58 }),
+    Object.freeze({ id: 'mechanized', name: '拖拉机耕作', description: '每周期整件消耗 1 拖拉机并获得最高作物产量。', tone: 'accent', inputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 102 }),
+  ]),
+  orchard: Object.freeze([
+    Object.freeze({ id: 'standard', name: '基础管护', description: '保持基础果园管护，不消耗额外生产资料。', tone: 'neutral', inputs: [], outputQuantity: 1 }),
+    Object.freeze({ id: 'assisted', name: '工具管护', description: '每周期整件消耗 1 工具并提高水果产量。', tone: 'warning', inputs: [{ productId: 'tools', quantity: 1 }], outputQuantity: 48 }),
+    Object.freeze({ id: 'intensive', name: '化肥管护', description: '每周期整件消耗 2 化肥并进一步提高水果产量。', tone: 'success', inputs: [{ productId: 'fertilizer', quantity: 2 }], outputQuantity: 55 }),
+    Object.freeze({ id: 'mechanized', name: '拖拉机管护', description: '每周期整件消耗 1 拖拉机并获得最高水果产量。', tone: 'accent', inputs: [{ productId: 'tractor', quantity: 1 }], outputQuantity: 96 }),
+  ]),
+  ranch: Object.freeze([
+    Object.freeze({ id: 'standard', name: '粗放饲养', description: '保持粗放饲养，不消耗额外生产资料。', tone: 'neutral', inputs: [], outputQuantity: 1 }),
+    Object.freeze({ id: 'assisted', name: '饲料饲养', description: '每周期整件消耗 1 配合饲料并提高畜产品产量。', tone: 'warning', inputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 6 }),
+    Object.freeze({ id: 'intensive', name: '药剂精养', description: '每周期整件消耗 1 养殖药剂并进一步提高畜产品产量。', tone: 'success', inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 19 }),
+    Object.freeze({ id: 'mechanized', name: '机械化养殖', description: '每周期整件消耗 1 机械并获得最高畜产品产量。', tone: 'accent', inputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 35 }),
+  ]),
+  fishery: Object.freeze([
+    Object.freeze({ id: 'standard', name: '粗放养殖', description: '保持粗放养殖，不消耗额外生产资料。', tone: 'neutral', inputs: [], outputQuantity: 1 }),
+    Object.freeze({ id: 'assisted', name: '饲料精养', description: '每周期整件消耗 1 配合饲料并提高鱼类产量。', tone: 'warning', inputs: [{ productId: 'feed', quantity: 1 }], outputQuantity: 5 }),
+    Object.freeze({ id: 'intensive', name: '药剂精养', description: '每周期整件消耗 1 养殖药剂并进一步提高鱼类产量。', tone: 'success', inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], outputQuantity: 18 }),
+    Object.freeze({ id: 'mechanized', name: '机械化养殖', description: '每周期整件消耗 1 机械并获得最高鱼类产量。', tone: 'accent', inputs: [{ productId: 'machinery', quantity: 1 }], outputQuantity: 33 }),
+  ]),
+});
+
 const MONEY_DECIMALS = 2;
 const MONEY_SCALE = 10 ** MONEY_DECIMALS;
 
@@ -159,7 +186,41 @@ function freezePlan(plan) {
   });
 }
 
+function createC1ProductionMethodGroups(facility) {
+  const blueprints = C1_METHOD_BLUEPRINTS[facility.id];
+  if (!blueprints) return null;
+  const methods = blueprints.map((blueprint) => {
+    const plansByRecipeId = Object.freeze(Object.fromEntries(facility.recipes.map((recipe) => [
+      recipe.id,
+      freezePlan({
+        recipeId: variantRecipeId(recipe.id, blueprint.id),
+        baseRecipeId: recipe.id,
+        productionMethodId: blueprint.id,
+        cycleMs: recipe.cycleMs,
+        operatingCost: recipe.operatingCost,
+        inputs: cloneItems(blueprint.inputs),
+        output: {
+          productId: String(recipe.output.productId),
+          quantity: blueprint.outputQuantity,
+        },
+      }),
+    ])));
+    const { inputs: _inputs, outputQuantity: _outputQuantity, ...definition } = blueprint;
+    return Object.freeze({ ...definition, plansByRecipeId });
+  });
+  return Object.freeze([
+    Object.freeze({
+      id: PRODUCTION_METHOD_GROUP_ID,
+      name: '作业制度',
+      defaultMethodId: DEFAULT_PRODUCTION_METHOD_ID,
+      methods: Object.freeze(methods),
+    }),
+  ]);
+}
+
 export function createProductionMethodGroups(facility, products) {
+  const c1Groups = createC1ProductionMethodGroups(facility);
+  if (c1Groups) return c1Groups;
   const prices = productPriceMap(products);
   const useCentAlignment = facility.complexity === 'C1';
   const methods = METHOD_DEFINITIONS.map((definition) => {

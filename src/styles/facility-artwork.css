@@ -7,10 +7,12 @@
 .facility-icon[data-facility-icon='oil-field'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/oil-field.png'); }
 .facility-icon[data-facility-icon='mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/mill.png'); }
 .facility-icon[data-facility-icon='sawmill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/sawmill.png'); }
+.facility-icon[data-facility-icon='feed-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/feed-factory.png'); }
 .facility-icon[data-facility-icon='pulp-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/pulp-mill.png'); }
 .facility-icon[data-facility-icon='steelworks'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/steelworks.png'); }
 .facility-icon[data-facility-icon='refinery'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/refinery.png'); }
 .facility-icon[data-facility-icon='fertilizer-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/fertilizer-factory.png'); }
+.facility-icon[data-facility-icon='veterinary-medicine-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/veterinary-medicine-factory.png'); }
 .facility-icon[data-facility-icon='textile-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/textile-mill.png'); }
 .facility-icon[data-facility-icon='food-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/food-factory.png'); }
 .facility-icon[data-facility-icon='beverage-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/beverage-factory.png'); }
@@ -19,6 +21,7 @@
 .facility-icon[data-facility-icon='garment-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/garment-factory.png'); }
 .facility-icon[data-facility-icon='tool-workshop'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/tool-workshop.png'); }
 .facility-icon[data-facility-icon='machine-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/machine-factory.png'); }
+.facility-icon[data-facility-icon='tractor-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/tractor-factory.png'); }
 .facility-icon[data-facility-icon='electronics-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/electronics-factory.png'); }
 .facility-icon[data-facility-icon='appliance-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/appliance-factory.png'); }
 
@@ -58,10 +61,12 @@
   [data-facility-icon='oil-field'],
   [data-facility-icon='mill'],
   [data-facility-icon='sawmill'],
+  [data-facility-icon='feed-factory'],
   [data-facility-icon='pulp-mill'],
   [data-facility-icon='steelworks'],
   [data-facility-icon='refinery'],
   [data-facility-icon='fertilizer-factory'],
+  [data-facility-icon='veterinary-medicine-factory'],
   [data-facility-icon='textile-mill'],
   [data-facility-icon='food-factory'],
   [data-facility-icon='beverage-factory'],
@@ -70,6 +75,7 @@
   [data-facility-icon='garment-factory'],
   [data-facility-icon='tool-workshop'],
   [data-facility-icon='machine-factory'],
+  [data-facility-icon='tractor-factory'],
   [data-facility-icon='electronics-factory'],
   [data-facility-icon='appliance-factory']
 ) {

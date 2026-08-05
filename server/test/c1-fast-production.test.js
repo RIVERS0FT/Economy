@@ -11,6 +11,12 @@ function standardRecipes(facilityId) {
   return facility.recipes.filter((recipe) => recipe.productionMethodId === 'standard');
 }
 
+function routeVariants(facilityId, baseRecipeId) {
+  const facility = facilities.get(facilityId);
+  assert.ok(facility, `${facilityId} 必须存在于正式目录`);
+  return facility.recipes.filter((recipe) => recipe.baseRecipeId === baseRecipeId);
+}
+
 function profitPerMinute(recipe) {
   const outputValue = products.get(recipe.output.productId).basePrice * recipe.output.quantity;
   const inputValue = recipe.inputs.reduce(
@@ -49,6 +55,51 @@ test('C1 factories use the approved fast-production parameters', () => {
         Math.abs(profitPerMinute(recipe) - rule.profit) < 1e-9,
         `${facilityId}/${recipe.id} 每分钟利润错误`,
       );
+    }
+  }
+});
+
+test('C1 work systems keep fixed time and cash cost while consuming whole goods each cycle', () => {
+  const methodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
+  const plans = {
+    farm: [
+      { inputs: [], output: 1 },
+      { inputs: [{ productId: 'tools', quantity: 1 }], output: 51 },
+      { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 58 },
+      { inputs: [{ productId: 'tractor', quantity: 1 }], output: 102 },
+    ],
+    orchard: [
+      { inputs: [], output: 1 },
+      { inputs: [{ productId: 'tools', quantity: 1 }], output: 48 },
+      { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 55 },
+      { inputs: [{ productId: 'tractor', quantity: 1 }], output: 96 },
+    ],
+    ranch: [
+      { inputs: [], output: 1 },
+      { inputs: [{ productId: 'feed', quantity: 1 }], output: 6 },
+      { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 19 },
+      { inputs: [{ productId: 'machinery', quantity: 1 }], output: 35 },
+    ],
+    fishery: [
+      { inputs: [], output: 1 },
+      { inputs: [{ productId: 'feed', quantity: 1 }], output: 5 },
+      { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 18 },
+      { inputs: [{ productId: 'machinery', quantity: 1 }], output: 33 },
+    ],
+  };
+
+  for (const [facilityId, expectedPlans] of Object.entries(plans)) {
+    const facility = facilities.get(facilityId);
+    const baseRecipe = standardRecipes(facilityId)[0];
+    const variants = routeVariants(facilityId, baseRecipe.id);
+    assert.deepEqual(variants.map((recipe) => recipe.productionMethodId), methodIds);
+    assert.equal(facility.productionMethodGroups[0].methods.length, 4);
+    for (const [index, recipe] of variants.entries()) {
+      assert.equal(recipe.cycleMs, baseRecipe.cycleMs);
+      assert.equal(recipe.operatingCost, baseRecipe.operatingCost);
+      assert.deepEqual(recipe.inputs, expectedPlans[index].inputs);
+      assert.equal(recipe.output.quantity, expectedPlans[index].output);
+      assert.equal(recipe.inputs.every((input) => Number.isInteger(input.quantity)), true);
     }
   }
 });

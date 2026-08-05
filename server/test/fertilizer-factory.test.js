@@ -17,8 +17,8 @@ function standardRecipe(facility) {
 }
 
 test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
-  assert.equal(PRODUCT_CATALOG.length, 33);
-  assert.equal(FACILITY_TYPE_CATALOG.length, 23);
+  assert.equal(PRODUCT_CATALOG.length, 36);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 26);
   const product = PRODUCT_CATALOG.find((item) => item.id === 'fertilizer');
   const facility = FACILITY_TYPE_CATALOG.find((item) => item.id === 'fertilizer-factory');
   assert.deepEqual(product, {
@@ -45,7 +45,7 @@ test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
   assert.equal(recipe.operatingCost, 10);
   assert.equal((34 - 2 * 9 - 10) * 60_000 / recipe.cycleMs, 6);
   assert.equal(facility.recipes.length, 4);
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 15);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 16);
 });
 
 test('世界版本 25 迁移仍补齐化肥库存与市场且保留既有资产', () => {

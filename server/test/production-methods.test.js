@@ -32,14 +32,45 @@ function variant(type, baseRecipeId, productionMethodId) {
   ));
 }
 
-test('every factory route exposes four balanced production methods', () => {
+const c1Methods = ['standard', 'assisted', 'intensive', 'mechanized'];
+const genericMethods = ['standard', 'rapid', 'economical', 'high-yield'];
+
+const expectedC1Methods = {
+  farm: {
+    standard: { inputs: [], output: 1 },
+    assisted: { inputs: [{ productId: 'tools', quantity: 1 }], output: 51 },
+    intensive: { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 58 },
+    mechanized: { inputs: [{ productId: 'tractor', quantity: 1 }], output: 102 },
+  },
+  orchard: {
+    standard: { inputs: [], output: 1 },
+    assisted: { inputs: [{ productId: 'tools', quantity: 1 }], output: 48 },
+    intensive: { inputs: [{ productId: 'fertilizer', quantity: 2 }], output: 55 },
+    mechanized: { inputs: [{ productId: 'tractor', quantity: 1 }], output: 96 },
+  },
+  ranch: {
+    standard: { inputs: [], output: 1 },
+    assisted: { inputs: [{ productId: 'feed', quantity: 1 }], output: 6 },
+    intensive: { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 19 },
+    mechanized: { inputs: [{ productId: 'machinery', quantity: 1 }], output: 35 },
+  },
+  fishery: {
+    standard: { inputs: [], output: 1 },
+    assisted: { inputs: [{ productId: 'feed', quantity: 1 }], output: 5 },
+    intensive: { inputs: [{ productId: 'veterinary-medicine', quantity: 1 }], output: 18 },
+    mechanized: { inputs: [{ productId: 'machinery', quantity: 1 }], output: 33 },
+  },
+};
+
+test('every factory route exposes four production methods with dedicated C1 inputs', () => {
   for (const type of FACILITY_TYPE_CATALOG) {
     const methodGroup = productionGroup(type);
     assert.ok(methodGroup, `${type.id} 缺少作业制度`);
     assert.equal(methodGroup.defaultMethodId, 'standard');
+    const expectedMethodIds = type.complexity === 'C1' ? c1Methods : genericMethods;
     assert.deepEqual(
       methodGroup.methods.map((method) => method.id),
-      ['standard', 'rapid', 'economical', 'high-yield'],
+      expectedMethodIds,
     );
 
     const baseRecipes = type.recipes.filter((recipe) => recipe.productionMethodId === 'standard');
@@ -51,6 +82,20 @@ test('every factory route exposes four balanced production methods', () => {
         assert.equal(Number.isInteger(recipe.cycleMs / 1_000), true);
         assert.ok(Math.abs(recipe.operatingCost - Math.round(recipe.operatingCost * 100) / 100) < 1e-9);
         assert.equal(recipe.operatingCost >= 0, true);
+      }
+
+      if (type.complexity === 'C1') {
+        for (const recipe of variants) {
+          const expected = expectedC1Methods[type.id][recipe.productionMethodId];
+          assert.equal(recipe.cycleMs, baseRecipe.cycleMs);
+          assert.equal(recipe.operatingCost, baseRecipe.operatingCost);
+          assert.deepEqual(recipe.inputs, expected.inputs);
+          assert.equal(recipe.output.quantity, expected.output);
+        }
+        continue;
+      }
+
+      for (const recipe of variants) {
         assert.ok(
           Math.abs(referenceProfitPerMinute(recipe) - baseProfit) < 1e-9,
           `${type.id}/${recipe.id} 参考分钟利润错误`,
@@ -78,15 +123,15 @@ test('representative production method plans use the approved fixed-precision va
   const electronics = FACILITY_TYPE_CATALOG.find((type) => type.id === 'electronics-factory');
 
   assert.deepEqual(
-    ['standard', 'rapid', 'economical', 'high-yield'].map((methodId) => {
+    c1Methods.map((methodId) => {
       const recipe = variant(farm, 'wheat-crop', methodId);
-      return [recipe.cycleMs, recipe.output.quantity, recipe.operatingCost];
+      return [recipe.cycleMs, recipe.inputs, recipe.output.quantity, recipe.operatingCost];
     }),
     [
-      [20_000, 1, 1],
-      [10_000, 1, 1.1],
-      [30_000, 1, 0.9],
-      [20_000, 2, 2.2],
+      [20_000, [], 1, 1],
+      [20_000, [{ productId: 'tools', quantity: 1 }], 51, 1],
+      [20_000, [{ productId: 'fertilizer', quantity: 2 }], 58, 1],
+      [20_000, [{ productId: 'tractor', quantity: 1 }], 102, 1],
     ],
   );
 
@@ -138,6 +183,7 @@ test('running factory switches production method immediately with one staffing p
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 100;
+  player.inventories.tools.available = 10;
   player.facilityGroups = [{
     facilityTypeId: 'farm',
     count: 5,
@@ -155,20 +201,57 @@ test('running factory switches production method immediately with one staffing p
 
   const result = applyFacilityGroupAction(world, alice, 'setFacilityRecipe', {
     facilityTypeId: 'farm',
-    recipeId: 'wheat-crop--rapid',
+    recipeId: 'wheat-crop--assisted',
   }, now + 1);
   const farm = player.facilityGroups[0];
   assert.equal(result.ok, true);
-  assert.equal(farm.activeRecipeId, 'wheat-crop--rapid');
+  assert.equal(farm.activeRecipeId, 'wheat-crop--assisted');
   assert.equal(farm.cycleStartedAt, now + 1);
   assert.equal(farm.staffingRateBps, 8_000);
   assert.equal(farm.staffingBatchCarryBps, 0);
   assert.equal(Object.hasOwn(farm, 'pendingRecipeId'), false);
 
-  processFacilityGroupWorld(world, now + 10_000);
+  processFacilityGroupWorld(world, now + 20_000);
   assert.equal(player.inventories.wheat.available, 0);
-  processFacilityGroupWorld(world, now + 10_001);
-  assert.equal(player.inventories.wheat.available, 4);
-  assert.ok(Math.abs(player.credits - 95.6) < 1e-9);
-  assert.equal(player.facilityGroups[0].lifetimeOutput, 4);
+  processFacilityGroupWorld(world, now + 20_001);
+  assert.equal(player.inventories.wheat.available, 204);
+  assert.equal(player.inventories.tools.available, 6);
+  assert.ok(Math.abs(player.credits - 96) < 1e-9);
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 204);
+});
+
+test('legacy C1 generic method IDs migrate safely to the base method', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.facilityGroups = [{
+    facilityTypeId: 'farm', count: 1, participatingCount: 1, enabled: true,
+    status: 'running', cycleStartedAt: now, staffingRateBps: 10_000,
+    staffingUpdatedAt: now, activeRecipeId: 'wheat-crop--rapid', lifetimeOutput: 0,
+  }];
+
+  migrateFacilityGroupWorld(world, now);
+
+  assert.equal(player.facilityGroups[0].activeRecipeId, 'wheat-crop');
+});
+
+test('C1 whole-good inputs fail atomically when a complete cycle input is unavailable', () => {
+  const world = createWorld(now);
+  const player = ensurePlayer(world, alice, now);
+  player.credits = 100;
+  player.inventories.fertilizer.available = 2;
+  player.facilityGroups = [{
+    facilityTypeId: 'farm', count: 1, participatingCount: 1, enabled: true,
+    status: 'running', cycleStartedAt: now, staffingRateBps: 10_000,
+    staffingUpdatedAt: now, activeRecipeId: 'wheat-crop--intensive', lifetimeOutput: 0,
+  }];
+  migrateFacilityGroupWorld(world, now);
+  player.inventories.fertilizer.available = 1;
+
+  processFacilityGroupWorld(world, now + 20_000);
+
+  assert.equal(player.facilityGroups[0].status, 'error');
+  assert.equal(player.inventories.fertilizer.available, 1);
+  assert.equal(player.inventories.wheat.available, 0);
+  assert.equal(player.credits, 100);
+  assert.equal(player.facilityGroups[0].lifetimeOutput, 0);
 });

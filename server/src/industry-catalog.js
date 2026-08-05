@@ -25,6 +25,8 @@ const rawProducts = [
   { id: 'copper', name: '铜材', category: 'intermediate', basePrice: 29 },
   { id: 'plastic', name: '塑料', category: 'intermediate', basePrice: 30 },
   { id: 'fertilizer', name: '化肥', category: 'intermediate', basePrice: 34 },
+  { id: 'feed', name: '配合饲料', category: 'intermediate', basePrice: 10 },
+  { id: 'veterinary-medicine', name: '养殖药剂', category: 'intermediate', basePrice: 40 },
   { id: 'textile', name: '纺织品', category: 'intermediate', basePrice: 20 },
   { id: 'pulp', name: '纸浆', category: 'intermediate', basePrice: 20 },
   { id: 'food', name: '食品', category: 'consumer', basePrice: 15 },
@@ -35,6 +37,7 @@ const rawProducts = [
   { id: 'clothing', name: '服装', category: 'consumer', basePrice: 55 },
   { id: 'tools', name: '工具', category: 'industrial', basePrice: 60 },
   { id: 'machinery', name: '机械', category: 'industrial', basePrice: 76 },
+  { id: 'tractor', name: '拖拉机', category: 'industrial', basePrice: 120 },
   { id: 'electronics', name: '电子产品', category: 'industrial', basePrice: 84 },
   { id: 'appliance', name: '家电', category: 'industrial', basePrice: 92 },
 ];
@@ -104,6 +107,11 @@ const rawFacilities = [
     recipes: [{ id: 'sawmill-default', name: '加工木板', cycleMs: 40_000, operatingCost: 3, inputs: [{ productId: 'timber', quantity: 2 }], output: { productId: 'lumber', quantity: 1 } }],
   },
   {
+    id: 'feed-factory', name: '饲料厂', category: 'processing', complexity: 'C2', buildCost: 160, buildTimeMs: 8 * 60 * 1000,
+    defaultRecipeId: 'feed-factory-default', internalCapacity: 30, systemValue: 210,
+    recipes: [{ id: 'feed-factory-default', name: '生产配合饲料', cycleMs: 60_000, operatingCost: 3.4, inputs: [{ productId: 'wheat', quantity: 2 }, { productId: 'sugarcane', quantity: 1 }], output: { productId: 'feed', quantity: 1 } }],
+  },
+  {
     id: 'pulp-mill', name: '纸浆厂', category: 'processing', complexity: 'C3', buildCost: 190, buildTimeMs: 30 * 60 * 1000,
     defaultRecipeId: 'pulp-mill-default', internalCapacity: 25, systemValue: 250,
     recipes: [{ id: 'pulp-mill-default', name: '生产纸浆', cycleMs: 40_000, operatingCost: 4, inputs: [{ productId: 'timber', quantity: 2 }], output: { productId: 'pulp', quantity: 1 } }],
@@ -148,6 +156,11 @@ const rawFacilities = [
     recipes: [{ id: 'fertilizer-factory-default', name: '生产化肥', cycleMs: 60_000, operatingCost: 10, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'fertilizer', quantity: 1 } }],
   },
   {
+    id: 'veterinary-medicine-factory', name: '养殖药剂厂', category: 'processing', complexity: 'C4', buildCost: 360, buildTimeMs: 95 * 60 * 1000,
+    defaultRecipeId: 'veterinary-medicine-factory-default', internalCapacity: 25, systemValue: 470,
+    recipes: [{ id: 'veterinary-medicine-factory-default', name: '生产养殖药剂', cycleMs: 60_000, operatingCost: 10, inputs: [{ productId: 'fertilizer', quantity: 1 }, { productId: 'plastic', quantity: 1 }], output: { productId: 'veterinary-medicine', quantity: 2 } }],
+  },
+  {
     id: 'beverage-factory', name: '饮料厂', category: 'consumer', complexity: 'C4', buildCost: 280, buildTimeMs: 60 * 60 * 1000,
     defaultRecipeId: 'milk-beverage', internalCapacity: 35, systemValue: 365,
     recipes: [
@@ -174,6 +187,11 @@ const rawFacilities = [
     id: 'machine-factory', name: '机械厂', category: 'industrial', complexity: 'C5', buildCost: 480, buildTimeMs: 100 * 60 * 1000,
     defaultRecipeId: 'machine-factory-default', internalCapacity: 15, systemValue: 625,
     recipes: [{ id: 'machine-factory-default', name: '生产机械', cycleMs: 60_000, operatingCost: 10, inputs: [{ productId: 'steel', quantity: 2 }], output: { productId: 'machinery', quantity: 1 } }],
+  },
+  {
+    id: 'tractor-factory', name: '拖拉机厂', category: 'industrial', complexity: 'C5', buildCost: 520, buildTimeMs: 105 * 60 * 1000,
+    defaultRecipeId: 'tractor-factory-default', internalCapacity: 15, systemValue: 680,
+    recipes: [{ id: 'tractor-factory-default', name: '生产拖拉机', cycleMs: 60_000, operatingCost: 7, inputs: [{ productId: 'machinery', quantity: 1 }, { productId: 'steel', quantity: 1 }], output: { productId: 'tractor', quantity: 1 } }],
   },
   {
     id: 'electronics-factory', name: '电子厂', category: 'industrial', complexity: 'C6', buildCost: 700, buildTimeMs: 110 * 60 * 1000,

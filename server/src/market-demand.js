@@ -78,7 +78,7 @@ export function createMarketDemandRuntime({ products, facilities, constants, mar
     hasDownstreamRecipe: downstreamProductIds.has(product.id),
   })]));
   const recipesByOutput = new Map();
-  for (const recipe of recipes) {
+  for (const recipe of allRecipes) {
     const candidates = recipesByOutput.get(recipe.output.productId) || [];
     candidates.push(recipe);
     recipesByOutput.set(recipe.output.productId, candidates);
