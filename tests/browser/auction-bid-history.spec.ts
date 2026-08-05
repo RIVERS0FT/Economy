@@ -84,7 +84,7 @@ test('auction facility artwork fills the main and summary slots within a 256px t
   expect(summaryGeometry.backgroundSize).toBe('cover');
 });
 
-test('auction asset tiles show name and quantity through SafeTooltip on hover and focus', async ({ page }) => {
+test('auction asset matrix tiles show name and quantity while the main visual remains static', async ({ page }) => {
   await page.setViewportSize({ width: 476, height: 900 });
   await page.goto('runtime-test.html?view=auction&scenario=bid-history');
 
@@ -92,13 +92,18 @@ test('auction asset tiles show name and quantity through SafeTooltip on hover an
   const mainTile = page.locator('.asset-auction-bundle-tile').first();
   await mainTile.scrollIntoViewIfNeeded();
   await mainTile.hover();
+  await expect(tooltip).toHaveCount(0);
+  expect(await mainTile.getAttribute('tabindex')).toBeNull();
+  expect(await mainTile.evaluate((node) => node.closest('.safe-tooltip-anchor') === null)).toBe(true);
+
+  const summaryTile = page.locator('.asset-auction-summary-icon').first();
+  await summaryTile.hover();
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toHaveText('机械 ×5');
 
   await page.mouse.move(0, 0);
   await expect(tooltip).toHaveCount(0);
 
-  const summaryTile = page.locator('.asset-auction-summary-icon').first();
   await summaryTile.focus();
   await expect(tooltip).toBeVisible();
   await expect(tooltip).toHaveText('机械 ×5');
@@ -106,6 +111,6 @@ test('auction asset tiles show name and quantity through SafeTooltip on hover an
 
   await page.keyboard.press('Tab');
   await expect(tooltip).toHaveCount(0);
-  await expect(page.locator('.asset-auction-item-tooltip-anchor')).toHaveCount(2);
+  await expect(page.locator('.asset-auction-item-tooltip-anchor')).toHaveCount(1);
   await expect(page.locator('.asset-auction-summary-placeholder')).toHaveCount(19);
 });
