@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { applyProductionContractAction, createProductionContractClientState, migrateProductionContractWorld, processProductionContracts } from '../src/contracts.js';
 import { FACILITY_TYPE_CATALOG } from '../src/domain.js';
-import { leasedInFacilityQuantity, leasedOutFacilityQuantity, playerLoanCollateralQuantity } from '../src/contract-asset-locks.js';
+import { contractLockedFacilityQuantity, leasedInFacilityQuantity, leasedOutFacilityQuantity, playerLoanCollateralQuantity } from '../src/contract-asset-locks.js';
 
 function player(userId, name, credits = 100_000) {
   const facility = FACILITY_TYPE_CATALOG[0];
@@ -35,12 +35,14 @@ test('player loan preserves funds and locks collateral until repayment', () => {
 
 test('facility lease transfers only production usage and settles rent', () => {
   const state = world(); const facility = FACILITY_TYPE_CATALOG[0]; const now = 2_000_000;
+  state.players['2'].facilityGroups = [];
   assert.equal(applyProductionContractAction(state, { id: 1 }, 'createProductionContract', { kind: 'facility_lease', publisherSide: 'lessor', facilityTypeId: facility.id, quantity: 3, rentPerPeriod: 10, periodMs: 60 * 60 * 1000, totalPeriods: 2, firstPeriodDelayMs: 0 }, now).ok, true);
   let contract = state.productionContracts[0];
   assert.equal(applyProductionContractAction(state, { id: 2 }, 'acceptProductionContract', { contractId: contract.id }, now).ok, true);
   contract = state.productionContracts[0];
   assert.equal(leasedOutFacilityQuantity(state, 1, facility.id), 3);
   assert.equal(leasedInFacilityQuantity(state, 2, facility.id), 3);
+  assert.equal(state.players['2'].facilityGroups.some((group) => group.facilityTypeId === facility.id && group.count === 0), true);
   processProductionContracts(state, now + 1);
   contract = state.productionContracts[0];
   assert.equal(contract.completedPeriods, 1);
@@ -50,6 +52,22 @@ test('facility lease transfers only production usage and settles rent', () => {
   contract = state.productionContracts[0];
   assert.equal(contract.status, 'completed');
   assert.equal(leasedOutFacilityQuantity(state, 1, facility.id), 0);
+});
+
+
+test('lease grace suspends production usage without unlocking the lessor asset', () => {
+  const state = world(); const facility = FACILITY_TYPE_CATALOG[0]; const now = 3_000_000;
+  assert.equal(applyProductionContractAction(state, { id: 1 }, 'createProductionContract', { kind: 'facility_lease', publisherSide: 'lessor', facilityTypeId: facility.id, quantity: 2, rentPerPeriod: 10, periodMs: 60 * 60 * 1000, totalPeriods: 2, firstPeriodDelayMs: 0 }, now).ok, true);
+  const contractId = state.productionContracts[0].id;
+  assert.equal(applyProductionContractAction(state, { id: 2 }, 'acceptProductionContract', { contractId }, now).ok, true);
+  state.players['2'].credits = 0;
+  processProductionContracts(state, now + 1);
+  processProductionContracts(state, now + 60 * 60 * 1000 + 2);
+  const contract = state.productionContracts[0];
+  assert.ok(contract.graceEndsAt);
+  assert.equal(leasedOutFacilityQuantity(state, 1, facility.id), 0);
+  assert.equal(leasedInFacilityQuantity(state, 2, facility.id), 0);
+  assert.equal(contractLockedFacilityQuantity(state, 1, facility.id), 2);
 });
 
 test('schema 5 migrates legacy supply contracts without changing roles', () => {

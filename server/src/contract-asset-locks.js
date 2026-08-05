@@ -28,6 +28,16 @@ export function leasedOutFacilityQuantity(world, userId, facilityTypeId) {
   ), 0);
 }
 
+export function leasedOutLockedFacilityQuantity(world, userId, facilityTypeId) {
+  return activeContracts(world).reduce((sum, contract) => (
+    contract.kind === 'facility_lease'
+    && Number(contract.lessorId ?? contract.supplierId) === Number(userId)
+    && String(contract.facilityTypeId) === String(facilityTypeId)
+      ? sum + quantity(contract.quantity)
+      : sum
+  ), 0);
+}
+
 export function leasedInFacilityQuantity(world, userId, facilityTypeId) {
   return activeContracts(world).reduce((sum, contract) => (
     contract.kind === 'facility_lease'
@@ -41,7 +51,7 @@ export function leasedInFacilityQuantity(world, userId, facilityTypeId) {
 
 export function contractLockedFacilityQuantity(world, userId, facilityTypeId) {
   return playerLoanCollateralQuantity(world, userId, facilityTypeId)
-    + leasedOutFacilityQuantity(world, userId, facilityTypeId);
+    + leasedOutLockedFacilityQuantity(world, userId, facilityTypeId);
 }
 
 export function playerLoanFinancialPosition(world, userId) {

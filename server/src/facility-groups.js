@@ -615,8 +615,7 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
       .map((group) => normalizeGroup(group, now))
       .filter(Boolean);
     for (const group of player.facilityGroups) {
-      const frozen = frozenFacilityQuantity(world, player.userId, group.facilityTypeId);
-      const available = Math.max(0, group.count - frozen);
+      const available = availableGroupCount(world, player, group);
       if (group.status === 'running') {
         const previousCount = group.participatingCount;
         if (available > previousCount) expandAvailableFacilities(group, previousCount, available, now);

@@ -52,7 +52,7 @@ function transferFrozenCredits(from, to, amount) {
   to.credits = Math.max(0, roundInternalMoney(Number(to.credits || 0) + transferred) || 0);
   return transferred;
 }
-function groupFor(player, facilityTypeId, create = false) {
+function groupFor(player, facilityTypeId, create = false, now = Date.now()) {
   player.facilityGroups ||= [];
   let group = player.facilityGroups.find((candidate) => String(candidate.facilityTypeId) === String(facilityTypeId));
   if (!group && create) {
@@ -60,7 +60,7 @@ function groupFor(player, facilityTypeId, create = false) {
       facilityTypeId: String(facilityTypeId), count: 0, participatingCount: 0,
       enabled: false, status: 'stopped', statusReason: 'manual', lifetimeOutput: 0,
       activeRecipeId: FACILITY_BY_ID.get(String(facilityTypeId))?.defaultRecipeId,
-      staffingRateBps: 10_000, staffingUpdatedAt: Date.now(), staffingBatchCarryBps: 0,
+      staffingRateBps: 10_000, staffingUpdatedAt: Math.max(0, Number(now) || 0), staffingBatchCarryBps: 0,
     };
     player.facilityGroups.push(group);
   }
@@ -359,6 +359,7 @@ function acceptLease(world, contract, user, now, runtimeIndex) {
     contract.lessorName = lessor.playerName;
     contract.lesseeId = Number(lessee.userId);
     contract.lesseeName = lessee.playerName;
+    groupFor(lessee, contract.facilityTypeId, true, now);
     contract.lesseeEscrowCredits = gross;
     contract.lesseeBondCredits = bond;
     contract.lessorBondCredits = bond;
@@ -423,7 +424,7 @@ function transferLoanCollateral(world, contract, now, runtimeIndex) {
   runtimeIndex.transition(contract, () => {
     borrowerGroup.count = Math.max(0, borrowerGroup.count - quantity);
     if (borrowerGroup.count === 0) borrower.facilityGroups = borrower.facilityGroups.filter((candidate) => candidate !== borrowerGroup);
-    const lenderGroup = groupFor(lender, contract.facilityTypeId, true);
+    const lenderGroup = groupFor(lender, contract.facilityTypeId, true, now);
     lenderGroup.count += quantity;
     contract.collateralTransferredQuantity = quantity;
     contract.lastCollateralUnitValue = unitValue;

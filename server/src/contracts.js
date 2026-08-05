@@ -677,11 +677,11 @@ function acceptContract(world, user, payload, now, runtimeIndex) {
   const contract = runtimeIndex.contractById(payload.contractId);
   if (!contract || contract.status !== 'open') return result(false, '合同不存在或已被承接');
   if (contract.publisherId === Number(user.id)) return result(false, '不能承接自己发布的合同');
+  if (runtimeIndex.activeCountForParticipant(user.id) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '进行中的合同数量已达上限');
+  if (runtimeIndex.activeCountForParticipant(contract.publisherId) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '发布者进行中的合同数量已达上限');
   if (contract.kind !== 'supply') {
     return acceptCommercialContract(world, contract, user, now, runtimeIndex) || result(false, '合同类型不存在');
   }
-  if (runtimeIndex.activeCountForParticipant(user.id) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '进行中的合同数量已达上限');
-  if (runtimeIndex.activeCountForParticipant(contract.publisherId) >= MAX_ACTIVE_CONTRACTS_PER_PLAYER) return result(false, '发布者进行中的合同数量已达上限');
 
   const accepter = playerFor(world, user.id);
   const publisher = playerFor(world, contract.publisherId);
