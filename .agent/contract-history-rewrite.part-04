@@ -1,0 +1,167 @@
+.contract-audit-loading {
+  margin: var(--space-4) 0 0;
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  background: var(--color-surface-subtle);
+}
+
+.contract-history-legacy-note {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+
+@media (max-width: 1219px) {
+  .contract-history-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .contract-history-filters,
+  .contract-personal-pane .contract-history-filters,
+  .contract-history-result-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .contract-history-filters {
+    gap: var(--space-2);
+    padding-bottom: var(--space-3);
+  }
+
+  .contract-history-entry {
+    gap: var(--space-3);
+    padding: var(--space-3) 0;
+  }
+
+  .contract-history-heading {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .contract-history-section--statistics {
+    grid-column: auto;
+  }
+
+  .contract-history-republish {
+    width: 100%;
+  }
+}
+`);
+
+update('server/test/contract-audit.test.js', (content) => {
+  content = replaceOnce(
+    content,
+    "  assert.equal(history.items[0].transferredGoods, 200);",
+    `  assert.equal(history.items[0].transferredGoods, 200);
+  assert.equal(history.items[0].endSummary.reasonCode, 'completed');
+  assert.deepEqual(history.items[0].endSummary.completion, {
+    completed: 2, total: 2, unit: 'delivery', ratioBps: 10_000,
+  });
+  assert.equal(history.items[0].endSummary.settlement.goodsDelivered, 200);
+  assert.equal(history.items[0].endSummary.settlement.compensationReceivedByMe, 0);`,
+    'contract history end summary test',
+  );
+  const newTest = `
+test('异常结束统计按当前玩家方向返回赔付款', () => {
+  const now = 1_905_000_000_000;
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  const { buyerUser, supplierUser } = seedPlayers(store, now);
+  assert.equal(store.apply(buyerUser, request('createProductionContract', '/api/game/contracts', 'contract-audit-compensation-create', {
+    publisherRole: 'buyer', productId: 'wheat', quantityPerDelivery: 100, unitPrice: 3,
+    deliveryIntervalMs: 10 * 60 * 1000, totalDeliveries: 2, firstDeliveryDelayMs: 0,
+  }), now + 1).result.ok, true);
+  const contractId = store.transaction(() => store.loadWorld(now + 2).world.productionContracts[0].id, { immediate: false });
+  assert.equal(store.apply(supplierUser, request(
+    'acceptProductionContract', '/api/game/contracts/' + contractId + '/accept',
+    'contract-audit-compensation-accept', { contractId },
+  ), now + 2).result.ok, true);
+  assert.equal(store.apply(supplierUser, request(
+    'terminateProductionContractNow', '/api/game/contracts/' + contractId + '/terminate-now',
+    'contract-audit-compensation-terminate', { contractId },
+  ), now + 3).result.ok, true);
+  const buyerHistory = store.listContractAuditHistory(buyerUser, { limit: 20 }).items[0];
+  const supplierHistory = store.listContractAuditHistory(supplierUser, { limit: 20 }).items[0];
+  assert.equal(buyerHistory.endSummary.reasonCode, 'immediate_by_participant');
+  assert.equal(buyerHistory.endSummary.settlement.compensationReceivedByMe, 60);
+  assert.equal(buyerHistory.endSummary.settlement.compensationPaidByMe, 0);
+  assert.equal(supplierHistory.endSummary.settlement.compensationPaidByMe, 60);
+  assert.equal(supplierHistory.endSummary.settlement.compensationReceivedByMe, 0);
+  store.close();
+});
+
+`;
+  return replaceOnce(
+    content,
+    "test('审计写入失败时世界状态和审计事件一起回滚', () => {",
+    `${newTest}test('审计写入失败时世界状态和审计事件一起回滚', () => {`,
+    'compensation direction server test',
+  );
+});
+
+update('tests/browser/contract-layout.spec.ts', (content) => {
+  content = replaceOnce(
+    content,
+    "    id: 'contract-history',\n    publisherId: 123,",
+    "    id: 'contract-history',\n    kind: 'supply',\n    publisherSide: 'buyer',\n    publisherId: 123,",
+    'browser history kind',
+  );
+  content = replaceOnce(
+    content,
+    "    isSupplier: false,\n  };",
+    `    isSupplier: false,
+    endSummary: {
+      reasonCode: 'completed',
+      endedAt: 1_768_176_400_000,
+      completion: { completed: 8, total: 8, unit: 'delivery', ratioBps: 10_000 },
+      settlement: {
+        grossTotal: 21_600, feeTotal: 216, netTotal: 21_384, goodsDelivered: 480,
+        loanPrincipalDisbursed: 0, loanRepaid: 0, leaseRentPaid: 0,
+        compensationPaidByMe: 0, compensationReceivedByMe: 0,
+        refundedCreditsToMe: 0, refundedGoodsToMe: 0,
+        collateralReceivedByMe: 0, collateralReturnedToMe: 0,
+      },
+    },
+  };`,
+    'browser history end summary',
+  );
+  content = replaceOnce(
+    content,
+    `  await page.getByRole('tab', { name: /历史合同/ }).click();
+  await expect(page.locator('.contract-history-panel')).toHaveCount(1);
+  await expect(page.locator('.contract-history-row')).toHaveCount(1);
+  await expect(page.getByText('采购 机械', { exact: true })).toBeVisible();
+  await page.locator('.contract-history-row').click();
+  await expect(page.getByText('该合同从发布开始具有完整服务器审计记录。')).toBeVisible();
+  await expect(page.locator('.contract-audit-event')).toHaveCount(4);
+  await expect(page.getByText(/交付商品.*历史供应商 → MEVIUS.*机械 × 60/)).toBeVisible();
+  await expect(page.getByText(/市场服务费.*MEVIUS → 系统/)).toBeVisible();`,
+    `  await page.getByRole('tab', { name: /历史合同/ }).click();
+  await expect(page.locator('.contract-history-panel')).toHaveCount(1);
+  await expect(page.locator('.contract-history-entry')).toHaveCount(1);
+  await expect(page.getByText('合同内容', { exact: true })).toBeVisible();
+  await expect(page.getByText('完成情况', { exact: true })).toBeVisible();
+  await expect(page.getByText('结束原因', { exact: true })).toBeVisible();
+  await expect(page.getByText('结束时间', { exact: true })).toBeVisible();
+  await expect(page.getByText('结束统计', { exact: true })).toBeVisible();
+  await expect(page.getByText('正常完成', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/21,600/).first()).toBeVisible();
+  await expect(page.locator('.contract-audit-timeline')).toHaveCount(0);
+  await page.getByRole('button', { name: '重新拟定', exact: true }).click();
+  await expect(page.locator('.contract-publish-panel')).toBeVisible();
+  await expect(page.locator('.contract-type-option').filter({ hasText: '采购合同' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('每批数量')).toHaveValue('60');
+  await expect(page.getByLabel('单位价格')).toHaveValue('45');
+  await expect(page.getByLabel('总交付批次')).toHaveValue('8');`,
+    'desktop history result and republish assertions',
+  );
+  content = replaceOnce(
+    content,
+    `  await page.getByRole('tab', { name: /历史合同/ }).click();
+  await expect(page.locator('.contract-history-row')).toHaveCount(1);
+  await page.locator('.contract-history-row').click();
+  await expect(page.locator('.contract-audit-summary-grid')).toBeVisible();
+  await expect(page.locator('.contract-audit-timeline')).toBeVisible();`,
+    `  await page.getByRole('tab', { name: /历史合同/ }).click();
+  await expect(page.locator('.contract-history-entry')).toHaveCount(1);
