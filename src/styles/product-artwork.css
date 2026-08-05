@@ -27,6 +27,7 @@
 .product-icon[data-product-icon='paper'] { --product-artwork-image: url('../assets/product-icons/generated/128/paper.png'); }
 .product-icon[data-product-icon='furniture'] { --product-artwork-image: url('../assets/product-icons/generated/128/furniture.png'); }
 .product-icon[data-product-icon='clothing'] { --product-artwork-image: url('../assets/product-icons/generated/128/clothing.png'); }
+.product-icon[data-product-icon='tools'] { --product-artwork-image: url('../assets/product-icons/generated/128/tools.png'); }
 .product-icon[data-product-icon='machinery'] { --product-artwork-image: url('../assets/product-icons/generated/128/machinery.png'); }
 .product-icon[data-product-icon='electronics'] { --product-artwork-image: url('../assets/product-icons/generated/128/electronics.png'); }
 .product-icon[data-product-icon='appliance'] { --product-artwork-image: url('../assets/product-icons/generated/128/appliance.png'); }
@@ -93,6 +94,7 @@
   [data-product-icon='paper'],
   [data-product-icon='furniture'],
   [data-product-icon='clothing'],
+  [data-product-icon='tools'],
   [data-product-icon='machinery'],
   [data-product-icon='electronics'],
   [data-product-icon='appliance']

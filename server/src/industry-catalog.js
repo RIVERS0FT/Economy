@@ -33,6 +33,7 @@ const rawProducts = [
   { id: 'paper', name: '纸品', category: 'consumer', basePrice: 15 },
   { id: 'furniture', name: '家具', category: 'consumer', basePrice: 24 },
   { id: 'clothing', name: '服装', category: 'consumer', basePrice: 55 },
+  { id: 'tools', name: '工具', category: 'industrial', basePrice: 60 },
   { id: 'machinery', name: '机械', category: 'industrial', basePrice: 76 },
   { id: 'electronics', name: '电子产品', category: 'industrial', basePrice: 84 },
   { id: 'appliance', name: '家电', category: 'industrial', basePrice: 92 },
@@ -163,6 +164,11 @@ const rawFacilities = [
     id: 'garment-factory', name: '制衣厂', category: 'consumer', complexity: 'C4', buildCost: 350, buildTimeMs: 90 * 60 * 1000,
     defaultRecipeId: 'garment-factory-default', internalCapacity: 30, systemValue: 455,
     recipes: [{ id: 'garment-factory-default', name: '生产服装', cycleMs: 60_000, operatingCost: 9, inputs: [{ productId: 'textile', quantity: 2 }], output: { productId: 'clothing', quantity: 1 } }],
+  },
+  {
+    id: 'tool-workshop', name: '工具工坊', category: 'industrial', complexity: 'C4', buildCost: 320, buildTimeMs: 75 * 60 * 1000,
+    defaultRecipeId: 'tool-workshop-default', internalCapacity: 25, systemValue: 420,
+    recipes: [{ id: 'tool-workshop-default', name: '生产工具', cycleMs: 60_000, operatingCost: 8, inputs: [{ productId: 'steel', quantity: 1 }, { productId: 'lumber', quantity: 1 }], output: { productId: 'tools', quantity: 1 } }],
   },
   {
     id: 'machine-factory', name: '机械厂', category: 'industrial', complexity: 'C5', buildCost: 480, buildTimeMs: 100 * 60 * 1000,

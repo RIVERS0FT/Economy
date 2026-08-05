@@ -35,6 +35,7 @@ const productIds = [
   'paper',
   'furniture',
   'clothing',
+  'tools',
   'machinery',
   'electronics',
   'appliance',
