@@ -1,7 +1,0 @@
-
-update('scripts/verify-contract-audit.mjs', (content) => replaceOnce(
-  content,
-  "for (const [label, content] of [['page design', pageDesign], ['industry design', industryDesign], ['server design', serverDesign], ['document authority index', docsIndex]]) {",
-  "for (const [label, content] of [['industry design', industryDesign], ['server design', serverDesign], ['document authority index', docsIndex]]) {",
-  'contract audit document phrase scope',
-));
