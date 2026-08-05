@@ -187,8 +187,11 @@ test('desktop contract workspace uses shared controls and dense two-column layou
   await page.getByRole('tab', { name: /进行中的合同/ }).click();
   await page.getByRole('button', { name: '发布合同', exact: true }).click();
   expect(await gridTrackCount(page.locator('.contract-publish-layout'))).toBe(2);
-  await expect(page.locator('.contract-direction-switch')).toBeVisible();
-  await expect(page.getByRole('button', { name: '我长期采购', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.contract-type-grid')).toBeVisible();
+  await expect(page.locator('.contract-type-option')).toHaveCount(6);
+  const purchaseType = page.locator('.contract-type-option').filter({ hasText: '采购合同' });
+  await expect(purchaseType).toHaveCount(1);
+  await expect(purchaseType).toHaveAttribute('aria-pressed', 'true');
   await expectUniformPageSectionGaps(page);
 
   const quantity = page.getByLabel('每批数量');
