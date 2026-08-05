@@ -119,26 +119,16 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
       className={`asset-auction-bundle-visual asset-auction-item-count-${Math.min(items.length, 4)}`}
       aria-label={`拍卖包含 ${items.length} 项资产`}
     >
-      {items.slice(0, 4).map((item) => {
-        const tooltipText = auctionItemTooltipText(item);
-        return (
-          <SafeTooltip
-            className="asset-auction-item-tooltip-anchor asset-auction-item-tooltip-anchor--main"
-            content={tooltipText}
-            key={`${item.kind}:${item.id}`}
-          >
-            <span
-              className="asset-auction-bundle-tile"
-              role="img"
-              tabIndex={0}
-              aria-label={tooltipText}
-              data-ui-interactive="surface"
-            >
-              <AuctionItemIcon item={item} compact />
-            </span>
-          </SafeTooltip>
-        );
-      })}
+      {items.slice(0, 4).map((item) => (
+        <span
+          className="asset-auction-bundle-tile"
+          role="img"
+          key={`${item.kind}:${item.id}`}
+          aria-label={auctionItemTooltipText(item)}
+        >
+          <AuctionItemIcon item={item} compact />
+        </span>
+      ))}
       {items.length > 4 ? <strong className="asset-auction-more-count">+{formatNumber(items.length - 4)}</strong> : null}
     </div>
   );
