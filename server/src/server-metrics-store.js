@@ -116,7 +116,7 @@ export class ServerMetricsStore {
     `);
     this.deleteBucketsStatement = this.database.prepare(`
       DELETE FROM economy_server_metric_buckets
-      WHERE granularity = ? AND ends_at < ?
+      WHERE granularity = ? AND ends_at <= ?
     `);
     this.deleteEmptyBootsStatement = this.database.prepare(`
       DELETE FROM economy_server_metric_boots
