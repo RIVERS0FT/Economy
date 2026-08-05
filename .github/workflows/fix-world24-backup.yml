@@ -1,0 +1,98 @@
+name: Fix world 24 deployment backup
+
+on:
+  push:
+    branches:
+      - fix/world24-deploy-backup
+    paths:
+      - .github/workflows/fix-world24-backup.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout hotfix branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/world24-deploy-backup
+          fetch-depth: 0
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.4.0
+          cache: npm
+
+      - name: Fix backup target and design rule
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              '.github/workflows/deploy.yml': [
+                  (
+                      'Prune backups and create compact compressed database backup before world 23 migration',
+                      'Prune backups and create compact compressed database backup before world 24 migration',
+                  ),
+                  ('backup-world --target-world-version 23', 'backup-world --target-world-version 24'),
+              ],
+              'scripts/verify-deployment-storage.mjs': [
+                  ("'backup-world --target-world-version 23'", "'backup-world --target-world-version 24'"),
+              ],
+              'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md': [
+                  (
+                      '- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：',
+                      '- 正式 SQLite 迁移备份的目标世界版本必须与待部署代码的当前世界版本一致；当前为 24，禁止继续传入 23 导致升级前快照被跳过。\n- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：',
+                  ),
+              ],
+          }
+
+          for path, pairs in replacements.items():
+              file = Path(path)
+              source = file.read_text()
+              for old, new in pairs:
+                  count = source.count(old)
+                  if path == '.github/workflows/deploy.yml' and old == 'backup-world --target-world-version 23':
+                      if count != 2:
+                          raise SystemExit(f'{path}: expected two backup target occurrences, found {count}')
+                  elif count != 1:
+                      raise SystemExit(f'{path}: expected one occurrence of {old!r}, found {count}')
+                  source = source.replace(old, new)
+              file.write_text(source)
+
+          deploy = Path('.github/workflows/deploy.yml').read_text()
+          if deploy.count('backup-world --target-world-version 24') != 2:
+              raise SystemExit('deploy workflow must pass target world version 24 twice')
+          if 'world 23 migration' in deploy or 'target-world-version 23' in deploy:
+              raise SystemExit('stale world 23 deployment backup target remains')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify deployment storage and build
+        shell: bash
+        run: |
+          node scripts/verify-deployment-storage.mjs
+          git diff --check
+          npm run build
+
+      - name: Publish clean hotfix
+        shell: bash
+        run: |
+          rm -f .github/workflows/fix-world24-backup.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            .github/workflows/deploy.yml \
+            scripts/verify-deployment-storage.mjs \
+            docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
+            .github/workflows/fix-world24-backup.yml
+          git diff --cached --check
+          git commit -m "修复 world 24 部署前备份目标"
+          git push origin HEAD:fix/world24-deploy-backup
