@@ -61,6 +61,13 @@ jobs:
           from pathlib import Path
           source = Path('server/src/commercial-contracts.js')
           source.write_text(source.read_text().replace("creditPopulationEmployment(world, fee, 'bankService')", "creditPopulationEmployment(world, fee, 'banking')"))
+          page = Path('src/pages/ContractPage.tsx')
+          page_text = page.read_text()
+          page_text = page_text.replace("Pick<ProductionContract, 'kind' | 'publisherSide'>", "Pick<ProductionContract, 'kind' | 'publisherSide' | 'publisherRole'>", 1)
+          page_text = page_text.replace("principal, interestRateBps: Math.round(interestPercent * 100), loanTerm,", "principal, interestRateBps: Math.round(interestPercent * 100), termMs: loanTerm,", 1)
+          page.write_text(page_text)
+          types = Path('src/contracts/types.ts')
+          types.write_text(types.read_text().replace('  issue?: string | null;\n  auditCompleteness:', '  issue: string | null;\n  auditCompleteness:', 1))
           path = Path('server/test/commercial-contracts.test.js')
           text = path.read_text()
           text = text.replace("principal: 100,", "principal: 10,")
