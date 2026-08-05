@@ -25,6 +25,51 @@ jobs:
           node-version: 24.4.0
           cache: npm
 
+      - name: Repair patch constraints
+        run: |
+          set -euo pipefail
+          python3 - <<'PYTHON'
+          from pathlib import Path
+
+          path = Path('.github/scripts/apply-population-demand-price-growth.py')
+          text = path.read_text(encoding='utf-8')
+          old = """for path in docs:
+              replace(path, '> 更新时间：2026-08-05', '> 更新时间：2026-08-06')
+              replace(path, '> 市场需求模型版本：16', '> 市场需求模型版本：17')
+              replace_all(path, '市场需求模型 16', '市场需求模型 17')
+              replace_all(path, '模型 16', '模型 17')
+              text = read(path).replace('`marketDemand.modelVersion = 14`', '`marketDemand.modelVersion = 17`')
+              write(path, text)
+          """
+          new = """for path in docs:
+              replace(path, '> 更新时间：2026-08-05', '> 更新时间：2026-08-06')
+              replace(path, '> 市场需求模型版本：16', '> 市场需求模型版本：17')
+              text = read(path)
+              for old, new in [
+                  ('市场需求模型 16 与人口经济模型 7 迁移', '市场需求模型 17 与人口经济模型 7 迁移'),
+                  ('## 市场需求模型 16 迁移与运行顺序', '## 市场需求模型 17 迁移与运行顺序'),
+                  ('市场需求模型 16 必须遵守', '市场需求模型 17 必须遵守'),
+                  ('模型 16 需求覆盖规则', '模型 17 需求覆盖规则'),
+                  ('模型 16 按实际人口', '模型 17 按实际人口'),
+              ]:
+                  text = text.replace(old, new)
+              text = text.replace('`marketDemand.modelVersion = 14`', '`marketDemand.modelVersion = 17`')
+              write(path, text)
+          """
+          if old not in text:
+              raise SystemExit('documentation loop not found')
+          text = text.replace(old, new)
+          text = text.replace(
+              "['市场需求模型版本：17', '单座 C1 工厂人口承载基数固定为 **11**'",
+              "['市场需求模型版本：17', '市场需求模型 16 升级至 17', '单座 C1 工厂人口承载基数固定为 **11**'",
+          )
+          text = text.replace(
+              "['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7'",
+              "['population-economy.js', 'population-demographics.js', '`marketDemand.modelVersion = 17`', '市场需求模型 16 升级至 17', '人口经济内部版本固定为 7'",
+          )
+          path.write_text(text, encoding='utf-8')
+          PYTHON
+
       - name: Apply authoritative change
         run: |
           set -euo pipefail
