@@ -1,3 +1,3 @@
-import { installServerRuntimeMetrics } from './server-status.js';
+import { installPersistentServerRuntimeMetrics } from './persistent-server-runtime-metrics.js';
 
-installServerRuntimeMetrics();
+installPersistentServerRuntimeMetrics();
