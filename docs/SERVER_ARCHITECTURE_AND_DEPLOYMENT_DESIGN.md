@@ -62,6 +62,8 @@
 - `app.js`：HTTP、会话、限流、客户端状态和管理员 API；
 - `leaderboards.js`：排行榜唯一实现。
 - `player-admin-statistics.js`：管理员玩家运营统计、精确日活动覆盖、首次里程碑、财富分布和只读运营诊断。
+- `server-metrics-store.js`：独立服务器监控 SQLite、启动批次、分钟／小时／天聚合桶、保留期清理和完整性检查。
+- `persistent-server-runtime-metrics.js`：将进程内请求、CPU、内存和事件循环趋势按启动批次持久化，并在管理员查询时合并历史批次与当前实时桶。
 
 `domain-core.js` 不得成为跨模块公共入口；目录、世界迁移和订单函数统一从 `domain.js` 导出。商品初始参考价、生产参数和复杂度只维护在服务器目录中，客户端和市场模块不得复制第二套正式数值。
 
@@ -89,6 +91,18 @@ economy_world(
 ```text
 /var/lib/riversoft-economy/economy.sqlite
 ```
+
+管理员服务器监控数据库：
+
+```text
+/var/lib/riversoft-economy/server-metrics.sqlite
+```
+
+服务器监控数据库只保存管理员服务器页使用的非权威诊断聚合，不得保存单次请求、IP、Cookie、会话、完整动态 URL 或玩家资产状态。它必须与权威游戏库分离，默认由 `ECONOMY_SERVER_METRICS_DB_PATH` 指定；未指定时从 `ECONOMY_DB_PATH` 的目录派生。监控库必须位于 `/var/lib/riversoft-economy`，不得写入 `/var/www/game/economy-api` 或其他会被 `rsync --delete-before` 替换的发布目录。
+
+监控数据按进程启动批次写入 `economy_server_metric_boots` 与 `economy_server_metric_buckets`。聚合桶主键由 `boot_id + granularity + starts_at` 组成；同一进程重复快照使用 UPSERT 替换当前批次贡献，管理员查询排除当前批次已落库副本，再将旧批次与当前实时桶按时间合并，避免重复累计并允许同一分钟内重新部署。进程启动时间和 `uptimeSeconds` 始终表示当前进程，不得伪造为跨部署连续运行时间。
+
+保留策略固定为：分钟聚合桶保留 48 小时，小时聚合桶保留 35 天，天聚合桶保留 180 天。持久化内容包括请求数量、4xx／5xx、延迟直方图、响应大小、有限路由聚合、事件循环延迟、CPU 和内存聚合；不得落单次请求明细。正常 `SIGTERM`／`SIGINT` 和退出前必须同步刷新当前批次、记录停止时间并关闭 SQLite。监控写入失败只记录告警，不得阻断权威游戏 API；损坏的单条诊断记录应跳过，正式部署必须由服务安装脚本执行监控库 `PRAGMA quick_check(1)` 和表存在性验收。
 
 写事务固定：
 

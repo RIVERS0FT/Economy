@@ -212,6 +212,7 @@ EnvironmentFile=-{ENVIRONMENT_FILE}
 Environment=NODE_ENV=production
 Environment=PORT=3002
 Environment=ECONOMY_DB_PATH={STATE_DIRECTORY / 'economy.sqlite'}
+Environment=ECONOMY_SERVER_METRICS_DB_PATH={STATE_DIRECTORY / 'server-metrics.sqlite'}
 Environment=ECONOMY_REGISTRATION_SECRET_FILE={REGISTRATION_SECRET_PATH}
 Environment=ACCOUNT_SERVICE_URL=http://127.0.0.1:3001
 Environment=ACCOUNT_SERVICE_HOST=riversoft.top
@@ -239,6 +240,32 @@ WantedBy=multi-user.target
     run(["systemctl", "enable", SERVICE_NAME])
     run(["systemctl", "restart", SERVICE_NAME])
     run(["systemctl", "is-active", "--quiet", SERVICE_NAME])
+
+    metrics_database = STATE_DIRECTORY / "server-metrics.sqlite"
+    if not metrics_database.is_file():
+        raise RuntimeError(f"server metrics database was not created: {metrics_database}")
+    metrics_uri = f"file:{metrics_database.as_posix()}?mode=ro"
+    with sqlite3.connect(metrics_uri, uri=True, timeout=10) as connection:
+        connection.execute("PRAGMA query_only = ON")
+        metrics_quick_check = str(connection.execute("PRAGMA quick_check(1)").fetchone()[0])
+        metric_tables = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+    required_metric_tables = {
+        "economy_server_metric_boots",
+        "economy_server_metric_buckets",
+    }
+    if metrics_quick_check != "ok":
+        raise RuntimeError(f"server metrics quick check failed: {metrics_quick_check}")
+    missing_metric_tables = sorted(required_metric_tables - metric_tables)
+    if missing_metric_tables:
+        raise RuntimeError(
+            "server metrics tables are missing: " + ", ".join(missing_metric_tables)
+        )
+    print("ECONOMY_SERVER_METRICS_DATABASE_VERIFIED")
     print(f"Installed {SERVICE_NAME} with Node.js {version} at {node_path}")
     return 0
 

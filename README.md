@@ -73,7 +73,7 @@ flowchart LR
 | 数据可视化 | Apache ECharts 6 |
 | 桌面外壳 | Tauri 2 |
 | 游戏服务 | Node.js 24.4.0、服务器权威 HTTP API |
-| 数据存储 | SQLite |
+| 数据存储 | SQLite（权威游戏库与独立服务器监控库） |
 | 测试与验证 | Node.js Test Runner、Playwright、项目专项防回退脚本 |
 | 发布与运行 | GitHub Actions、Nginx、systemd |
 
@@ -105,6 +105,7 @@ Vite 会将 `/economy-api` 代理到 `127.0.0.1:3001`，并将 `/economy-api/gam
 ```bash
 PORT=3002 \
 ECONOMY_DB_PATH=./economy.sqlite \
+ECONOMY_SERVER_METRICS_DB_PATH=./server-metrics.sqlite \
 PUBLIC_ORIGIN=http://localhost:1420 \
 node server/src/app.js
 ```

@@ -29,7 +29,7 @@
 | `OVERVIEW_LAYOUT_INTEGRITY_DESIGN.md` | 概览真实内容宽度断点、外层轨道、签到日历、短列表滚动和浏览器几何回归 |
 | `PRODUCTION_PILL_ALIGNMENT_DESIGN.md` | 生产页状态／等级胶囊与工厂开关的统一可见几何和紧凑点击区域例外 |
 | `LIQUID_GLASS_CHROME_DESIGN.md` | 认证卡片、游戏与管理员共享桌面外壳、全宽顶部工作栏、下方侧栏与工作区、浮层安全根、桌面贴边页面滚动条、移动工作区与 Overlay、登录态根视口下拉刷新边界、移动操作结果通知、移动底栏和唯一液态玻璃材质 |
-| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、世界级人口状态与周期迁移、银行事务与结息调度、每日签到、长期合同事务、追加式 SQLite 合同／拍卖审计、匿名最近 10 条出价接口与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、生产 SQLite 只读诊断、生产 SQLite INCREMENTAL 空间维护、API、容量限制、Nginx、systemd 和部署 |
+| `SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md` | 服务器权威边界、世界级人口状态与周期迁移、银行事务与结息调度、每日签到、长期合同事务、追加式 SQLite 合同／拍卖审计、匿名最近 10 条出价接口与 `contract` 分区、普通玩家订单公开序列化、邮箱验证码注册、统一账号首次建档、邀请归因、注册 IP 封禁、生产 SQLite 只读诊断、生产 SQLite INCREMENTAL 空间维护、独立服务器监控 SQLite 持久化、API、容量限制、Nginx、systemd 和部署 |
 | `LOCAL_ACTIVITY_LOG_DESIGN.md` | 浏览器仅保留匿名逐笔成交所需的最小订单快照、v6 迁移、清除语义与银行权威流水边界 |
 | `GIFT_CODE_AND_ADMIN_DESIGN.md` | 单个与最多 50,000 个批量礼品码、TXT 明文导出、礼品兑换、商品／工厂单项与捆绑资产包拍卖、发布费与卖方手续费、隐藏保留价、最低加价、自动延时、匿名出价、世界 15／21 迁移、人口规模与就业诊断、人口政策、封禁复核、管理员权限和运营控制台编排 |
 
