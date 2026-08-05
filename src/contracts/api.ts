@@ -52,7 +52,7 @@ export interface ContractHistoryQuery {
   status?: ProductionContractStatus | '';
   kind?: ContractKind | '';
   productId?: string;
-  role?: 'any' | 'publisher' | 'buyer' | 'supplier';
+  role?: 'any' | 'publisher' | 'buyer' | 'supplier' | 'lender' | 'borrower' | 'lessor' | 'lessee';
   from?: number | null;
   to?: number | null;
 }

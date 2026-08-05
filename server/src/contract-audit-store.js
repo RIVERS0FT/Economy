@@ -7,7 +7,7 @@ const DEFAULT_EVENT_LIMIT = 50;
 const MAX_QUERY_LIMIT = 100;
 const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'terminated', 'expired']);
 const CONTRACT_STATUSES = new Set(['open', 'active', ...TERMINAL_STATUSES]);
-const HISTORY_ROLES = new Set(['any', 'publisher', 'buyer', 'supplier']);
+const HISTORY_ROLES = new Set(['any', 'publisher', 'buyer', 'supplier', 'lender', 'borrower', 'lessor', 'lessee']);
 const CONTRACT_AUDIT_MONEY_PRECISION_VERSION = 2;
 
 function clone(value) {
@@ -417,6 +417,18 @@ function visibleHistoryWhere(userId, options) {
   } else if (role === 'supplier') {
     clauses.push('supplier_id = ?');
     values.push(userId);
+  } else if (role === 'lender') {
+    clauses.push("json_extract(contract_json, '$.lenderId') = ?");
+    values.push(userId);
+  } else if (role === 'borrower') {
+    clauses.push("json_extract(contract_json, '$.borrowerId') = ?");
+    values.push(userId);
+  } else if (role === 'lessor') {
+    clauses.push("json_extract(contract_json, '$.lessorId') = ?");
+    values.push(userId);
+  } else if (role === 'lessee') {
+    clauses.push("json_extract(contract_json, '$.lesseeId') = ?");
+    values.push(userId);
   } else {
     clauses.push('(publisher_id = ? OR buyer_id = ? OR supplier_id = ?)');
     values.push(userId, userId, userId);
@@ -449,21 +461,143 @@ function visibleHistoryWhere(userId, options) {
   return { clauses, values };
 }
 
-function publicHistoryRow(row, userId) {
+const CONTRACT_HISTORY_CREDIT_REFUND_PURPOSES = new Set([
+  'buyer_bond_release',
+  'supplier_bond_release',
+  'unused_escrow_release',
+  'renewal_escrow_release',
+  'lease_unused_rent_release',
+  'lease_lessee_bond_release',
+  'lease_lessor_bond_release',
+]);
+const CONTRACT_HISTORY_GOODS_REFUND_PURPOSES = new Set([
+  'unused_goods_release',
+  'renewal_escrow_release',
+]);
+
+function emptyHistorySettlement() {
+  return {
+    loanPrincipalDisbursed: 0,
+    loanRepaid: 0,
+    leaseRentPaid: 0,
+    compensationPaidByMe: 0,
+    compensationReceivedByMe: 0,
+    refundedCreditsToMe: 0,
+    refundedGoodsToMe: 0,
+    collateralReceivedByMe: 0,
+    collateralReturnedToMe: 0,
+  };
+}
+
+function addHistoryAmount(summary, key, amount) {
+  summary[key] = Math.max(0, roundInternalMoney(Number(summary[key] || 0) + Number(amount || 0)) || 0);
+}
+
+function contractHistorySettlementSummaries(store, rows, userId) {
+  const contractIds = rows.map((row) => String(row.contract_id));
+  const summaries = new Map(contractIds.map((contractId) => [contractId, emptyHistorySettlement()]));
+  if (contractIds.length === 0) return summaries;
+  const transferRows = store.database.prepare(
+    `SELECT e.contract_id, t.asset_type, t.quantity, t.from_id, t.to_id, t.purpose, t.money_precision_version
+       FROM economy_contract_audit_transfers AS t
+       INNER JOIN economy_contract_audit_events AS e ON e.event_id = t.event_id
+       WHERE e.contract_id IN (${contractIds.map(() => '?').join(', ')})
+       ORDER BY e.contract_id ASC, e.sequence ASC, t.transfer_index ASC`,
+  ).all(...contractIds);
+  for (const row of transferRows) {
+    const contractId = String(row.contract_id);
+    const summary = summaries.get(contractId) || emptyHistorySettlement();
+    summaries.set(contractId, summary);
+    const assetType = String(row.asset_type);
+    const purpose = String(row.purpose);
+    const quantity = assetType === 'credits'
+      ? restoredMoney(row.quantity, row.money_precision_version)
+      : Math.max(0, Number(row.quantity || 0));
+    const fromUser = row.from_id !== null && Number(row.from_id) === userId;
+    const toUser = row.to_id !== null && Number(row.to_id) === userId;
+    if (purpose === 'player_loan_principal') addHistoryAmount(summary, 'loanPrincipalDisbursed', quantity);
+    if (purpose === 'player_loan_repayment') addHistoryAmount(summary, 'loanRepaid', quantity);
+    if (purpose === 'lease_rent_payment') addHistoryAmount(summary, 'leaseRentPaid', quantity);
+    if (purpose === 'bond_compensation' && fromUser) addHistoryAmount(summary, 'compensationPaidByMe', quantity);
+    if (purpose === 'bond_compensation' && toUser) addHistoryAmount(summary, 'compensationReceivedByMe', quantity);
+    if (assetType === 'credits' && toUser && CONTRACT_HISTORY_CREDIT_REFUND_PURPOSES.has(purpose)) {
+      addHistoryAmount(summary, 'refundedCreditsToMe', quantity);
+    }
+    if (assetType === 'commodity' && toUser && CONTRACT_HISTORY_GOODS_REFUND_PURPOSES.has(purpose)) {
+      summary.refundedGoodsToMe += Math.max(0, Math.floor(quantity));
+    }
+    if (purpose === 'player_loan_default_collateral' && toUser) {
+      summary.collateralReceivedByMe += Math.max(0, Math.floor(quantity));
+    }
+    if (['player_loan_collateral_release', 'player_loan_collateral_remainder_release'].includes(purpose) && toUser) {
+      summary.collateralReturnedToMe += Math.max(0, Math.floor(quantity));
+    }
+  }
+  return summaries;
+}
+
+function historyEndReasonCode(contract) {
+  if (contract.status === 'completed') return 'completed';
+  if (contract.status === 'cancelled') return 'publisher_cancelled';
+  if (contract.status === 'expired') return 'offer_expired';
+  if (contract.terminationReason === 'notice_completed') return 'termination_requested';
+  return String(contract.terminationReason || (contract.status === 'terminated' ? 'unknown' : contract.status));
+}
+
+function historyCompletion(contract) {
+  if (contract.kind === 'loan') {
+    const completed = contract.status === 'completed' ? 1 : 0;
+    return { completed, total: 1, unit: 'repayment', ratioBps: completed ? 10_000 : 0 };
+  }
+  const completed = contract.kind === 'facility_lease'
+    ? Math.max(0, safeInteger(contract.completedPeriods ?? contract.completedDeliveries, 0))
+    : Math.max(0, safeInteger(contract.completedDeliveries, 0));
+  const total = contract.kind === 'facility_lease'
+    ? Math.max(0, safeInteger(contract.totalPeriods ?? contract.totalDeliveries, 0))
+    : Math.max(0, safeInteger(contract.totalDeliveries, 0));
+  return {
+    completed,
+    total,
+    unit: contract.kind === 'facility_lease' ? 'lease_period' : 'delivery',
+    ratioBps: total > 0 ? Math.min(10_000, Math.floor(completed * 10_000 / total)) : 0,
+  };
+}
+
+function publicHistoryRow(row, userId, settlement = emptyHistorySettlement()) {
   const contract = JSON.parse(String(row.contract_json));
+  const grossTotal = restoredMoney(row.gross_total, row.money_precision_version);
+  const feeTotal = restoredMoney(row.fee_total, row.money_precision_version);
+  const netTotal = restoredMoney(row.net_total, row.money_precision_version);
+  const endedAt = Number(row.ended_at || contract.endedAt || contract.completedAt || row.last_event_at);
   return {
     ...contract,
     auditCompleteness: String(row.audit_completeness),
     lastEventSequence: Number(row.last_event_sequence),
     lastEventAt: Number(row.last_event_at),
-    grossTotal: restoredMoney(row.gross_total, row.money_precision_version),
-    feeTotal: restoredMoney(row.fee_total, row.money_precision_version),
-    netTotal: restoredMoney(row.net_total, row.money_precision_version),
+    grossTotal,
+    feeTotal,
+    netTotal,
     transferredGoods: Number(row.transferred_goods),
     compensationTotal: restoredMoney(row.compensation_total, row.money_precision_version),
     isPublisher: Number(row.publisher_id) === userId,
     isBuyer: Number(row.buyer_id) === userId,
     isSupplier: Number(row.supplier_id) === userId,
+    isLender: Number(contract.lenderId) === userId,
+    isBorrower: Number(contract.borrowerId) === userId,
+    isLessor: Number(contract.lessorId) === userId,
+    isLessee: Number(contract.lesseeId) === userId,
+    endSummary: {
+      reasonCode: historyEndReasonCode(contract),
+      endedAt,
+      completion: historyCompletion(contract),
+      settlement: {
+        grossTotal,
+        feeTotal,
+        netTotal,
+        goodsDelivered: Number(row.transferred_goods),
+        ...settlement,
+      },
+    },
   };
 }
 
@@ -1066,8 +1200,9 @@ const accepted = before.status === 'open' && after.status === 'active';
     const hasMore = rows.length > normalized.limit;
     const pageRows = hasMore ? rows.slice(0, normalized.limit) : rows;
     const last = pageRows.at(-1);
+    const settlementSummaries = contractHistorySettlementSummaries(store, pageRows, userId);
     return {
-      items: pageRows.map((row) => publicHistoryRow(row, userId)),
+      items: pageRows.map((row) => publicHistoryRow(row, userId, settlementSummaries.get(String(row.contract_id)))),
       nextCursor: hasMore && last ? encodeCursor({ sortAt: Number(last.sort_at), contractId: String(last.contract_id) }) : null,
     };
   }, { immediate: false });

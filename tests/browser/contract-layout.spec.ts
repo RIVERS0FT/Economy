@@ -55,6 +55,8 @@ async function expectPersonalContractTabs(page: Page) {
 async function mockContractAudit(page: Page) {
   const contract = {
     id: 'contract-history',
+    kind: 'supply',
+    publisherSide: 'buyer',
     publisherId: 123,
     publisherName: 'MEVIUS',
     publisherRole: 'buyer',
@@ -86,6 +88,18 @@ async function mockContractAudit(page: Page) {
     isPublisher: true,
     isBuyer: true,
     isSupplier: false,
+    endSummary: {
+      reasonCode: 'completed',
+      endedAt: 1_768_176_400_000,
+      completion: { completed: 8, total: 8, unit: 'delivery', ratioBps: 10_000 },
+      settlement: {
+        grossTotal: 21_600, feeTotal: 216, netTotal: 21_384, goodsDelivered: 480,
+        loanPrincipalDisbursed: 0, loanRepaid: 0, leaseRentPaid: 0,
+        compensationPaidByMe: 0, compensationReceivedByMe: 0,
+        refundedCreditsToMe: 0, refundedGoodsToMe: 0,
+        collateralReceivedByMe: 0, collateralReturnedToMe: 0,
+      },
+    },
   };
   const events = [
     {
@@ -204,13 +218,22 @@ test('desktop contract workspace uses shared controls and dense two-column layou
 
   await page.getByRole('tab', { name: /历史合同/ }).click();
   await expect(page.locator('.contract-history-panel')).toHaveCount(1);
-  await expect(page.locator('.contract-history-row')).toHaveCount(1);
-  await expect(page.getByText('采购 机械', { exact: true })).toBeVisible();
-  await page.locator('.contract-history-row').click();
-  await expect(page.getByText('该合同从发布开始具有完整服务器审计记录。')).toBeVisible();
-  await expect(page.locator('.contract-audit-event')).toHaveCount(4);
-  await expect(page.getByText(/交付商品.*历史供应商 → MEVIUS.*机械 × 60/)).toBeVisible();
-  await expect(page.getByText(/市场服务费.*MEVIUS → 系统/)).toBeVisible();
+  await expect(page.locator('.contract-history-entry')).toHaveCount(1);
+  await expect(page.getByText('合同内容', { exact: true })).toBeVisible();
+  await expect(page.getByText('完成情况', { exact: true })).toBeVisible();
+  await expect(page.getByText('结束原因', { exact: true })).toBeVisible();
+  await expect(page.getByText('结束时间', { exact: true })).toBeVisible();
+  await expect(page.getByText('结束统计', { exact: true })).toBeVisible();
+  await expect(page.getByText('正常完成', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/21,600/).first()).toBeVisible();
+  await expect(page.locator('.contract-audit-timeline')).toHaveCount(0);
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: '重新拟定', exact: true }).click();
+  await expect(page.locator('.contract-publish-panel')).toBeVisible();
+  await expect(page.locator('.contract-type-option').filter({ hasText: '采购合同' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByLabel('每批数量')).toHaveValue('60');
+  await expect(page.getByLabel('单位价格')).toHaveValue('45');
+  await expect(page.getByLabel('总交付批次')).toHaveValue('8');
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 
@@ -253,10 +276,12 @@ test('mobile contract workspace keeps two-column summaries, scrollable tabs and 
   expect(quantityFontSize).toBeGreaterThanOrEqual(16);
 
   await page.getByRole('tab', { name: /历史合同/ }).click();
-  await expect(page.locator('.contract-history-row')).toHaveCount(1);
-  await page.locator('.contract-history-row').click();
-  await expect(page.locator('.contract-audit-summary-grid')).toBeVisible();
-  await expect(page.locator('.contract-audit-timeline')).toBeVisible();
+  await expect(page.locator('.contract-history-entry')).toHaveCount(1);
+  await expect(page.locator('.contract-history-result-grid')).toBeVisible();
+  await expect(page.locator('.contract-audit-timeline')).toHaveCount(0);
+  const republish = page.getByRole('button', { name: '重新拟定', exact: true });
+  const republishBox = await requireBox(republish);
+  expect(republishBox.width).toBeGreaterThanOrEqual(250);
   expect(await page.locator('body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 });
 

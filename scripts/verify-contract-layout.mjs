@@ -59,6 +59,8 @@ for (const text of [
   'contract-type-grid',
   'contract-type-option',
   'contract-history-panel',
+  'contract-history-result-grid',
+  '重新拟定',
   '自动准备商品',
   '自动补充货款',
 ]) requireText(pagePath, text);
@@ -168,4 +170,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('合同页四列工作区、常驻合同广场、待处理置顶、双视图切换、响应式布局、历史列表和浏览器回归验证通过。');
+console.log('合同页四列工作区、常驻合同广场、待处理置顶、双视图切换、历史结果、重新拟定和响应式浏览器回归验证通过。');

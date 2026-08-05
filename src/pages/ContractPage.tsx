@@ -24,10 +24,7 @@ import {
 } from '../contracts/api';
 import {
   productionContractStateFromGame,
-  type ContractAuditDetail,
-  type ContractAuditEvent,
   type ContractAuditHistoryItem,
-  type ContractAuditTransfer,
   type ContractKind,
   type ProductionContract,
   type ProductionContractStatus,
@@ -60,7 +57,7 @@ const FIRST_DELAY_OPTIONS = [
 ] as const;
 
 type PersonalContractView = 'active' | 'history';
-type HistoryRole = 'any' | 'publisher' | 'buyer' | 'supplier';
+type HistoryRole = 'any' | 'publisher' | 'buyer' | 'supplier' | 'lender' | 'borrower' | 'lessor' | 'lessee';
 
 const STATUS_LABELS: Record<ProductionContractStatus, string> = {
   open: '等待承接',
@@ -71,80 +68,20 @@ const STATUS_LABELS: Record<ProductionContractStatus, string> = {
   expired: '已过期',
 };
 
-const AUDIT_EVENT_LABELS: Record<string, string> = {
-  legacy_snapshot_imported: '导入旧合同摘要',
-  contract_published: '发布合同',
-  contract_accepted: '承接并签订',
-  contract_cancelled: '取消公开合同',
-  contract_expired: '公开合同过期',
-  buyer_funds_reserved_manual: '采购方手动补充货款',
-  buyer_funds_reserved_auto: '采购方自动补充货款',
-  supplier_goods_reserved_manual: '供应方手动准备商品',
-  supplier_goods_reserved_auto: '供应方自动准备商品',
-  buyer_auto_fund_changed: '修改自动补款',
-  supplier_auto_reserve_changed: '修改自动准备',
-  termination_requested: '申请批次后结束',
-  grace_started: '进入宽限期',
-  delivery_completed: '批次交付完成',
-  contract_completed: '合同全部完成',
-  contract_terminated_after_batch: '当前批次后结束',
-  contract_terminated_immediate: '立即违约终止',
-  contract_defaulted: '宽限期违约终止',
-  contract_terminated_participant_missing: '参与者异常终止',
-  contract_terminated: '合同终止',
-  contract_removed_unexpectedly: '合同异常移除',
-  renewal_proposed: '提出续签',
-  renewal_accepted: '确认续签',
-  renewal_rejected: '拒绝续签',
-  renewal_revoked: '撤回续签',
-  renewal_expired: '续签提议过期',
-  renewal_activated: '续签合同生效',
-  renewal_cancelled_parent_ended: '父合同结束并取消续签',
-  loan_contract_accepted: '玩家贷款放款',
-  loan_repaid: '玩家贷款偿还',
-  loan_defaulted: '玩家贷款违约处置',
-  lease_contract_accepted: '工厂租赁生效',
-  lease_rent_paid: '租金周期结算',
-  lease_terminated: '工厂租赁终止',
-};
-
-const REASON_LABELS: Record<string, string> = {
-  supplier_goods: '供应方商品不足',
-  buyer_funds: '采购方货款不足',
-  buyer_warehouse: '采购方仓库空间不足',
-  participant_missing: '合同参与者不存在',
+const END_REASON_LABELS: Record<string, string> = {
+  completed: '正常完成',
+  publisher_cancelled: '发布者取消',
+  offer_expired: '等待承接超时',
+  termination_requested: '按申请完成当前批次后结束',
+  immediate_by_participant: '参与方主动违约终止',
   buyer_default: '采购方违约',
   supplier_default: '供应方违约',
-  both_default: '双方均未满足履约条件',
-  immediate_by_participant: '参与方主动立即终止',
-  notice_completed: '按申请完成当前批次后结束',
-  history_before_audit_unavailable: '审计功能上线前的逐批历史不可恢复',
-  missing_from_world: '合同从权威世界异常消失',
-  unknown: '服务器未识别到单一原因',
-};
-
-const TRANSFER_PURPOSE_LABELS: Record<string, string> = {
-  first_batch_funding: '首批货款托管',
-  buyer_bond: '采购方保证金托管',
-  supplier_bond: '供应方保证金托管',
-  first_batch_goods: '首批商品托管',
-  manual_batch_funding: '手动补充货款',
-  automatic_batch_funding: '自动补充货款',
-  manual_goods_reservation: '手动准备商品',
-  automatic_goods_reservation: '自动准备商品',
-  delivery_goods: '交付商品',
-  delivery_net_payment: '供应方实收货款',
-  market_service_fee: '市场服务费',
-  buyer_bond_release: '退回采购方保证金',
-  supplier_bond_release: '退回供应方保证金',
-  unused_escrow_release: '退回未使用货款',
-  unused_goods_release: '退回未交付商品',
-  bond_compensation: '违约保证金赔付',
-  renewal_first_batch_funding: '续签首批货款托管',
-  renewal_buyer_bond: '续签采购方保证金托管',
-  renewal_supplier_bond: '续签供应方保证金托管',
-  renewal_first_batch_goods: '续签首批商品托管',
-  renewal_escrow_release: '退回续签托管资产',
+  both_default: '双方违约',
+  borrower_default: '借款方违约',
+  lessee_default: '承租方违约',
+  participant_missing: '参与者状态异常',
+  missing_from_world: '合同数据异常结束',
+  unknown: '结束原因待核查',
 };
 
 function durationLabel(milliseconds: number) {
@@ -626,176 +563,143 @@ function dateBoundary(value: string, endOfDay = false) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
-function actorLabel(event: ContractAuditEvent, contract: ContractAuditHistoryItem) {
-  if (event.actorType === 'system') return '服务器';
-  if (event.actorUserId === contract.buyerId) return contract.buyerName || '采购方';
-  if (event.actorUserId === contract.supplierId) return contract.supplierName || '供应方';
-  if (event.actorUserId === contract.publisherId) return contract.publisherName || '发布者';
-  return '参与玩家';
+function endReasonTone(reasonCode: string) {
+  if (reasonCode === 'completed') return 'success' as const;
+  if (['publisher_cancelled', 'offer_expired'].includes(reasonCode)) return 'neutral' as const;
+  if (reasonCode === 'termination_requested') return 'warning' as const;
+  return 'danger' as const;
 }
 
-function reasonLabel(reasonCode: string | null) {
-  if (!reasonCode) return null;
-  return reasonCode
-    .split('+')
-    .map((reason) => REASON_LABELS[reason] || reason)
-    .join('、');
+function completionUnitLabel(unit: ContractAuditHistoryItem['endSummary']['completion']['unit']) {
+  if (unit === 'repayment') return '笔';
+  if (unit === 'lease_period') return '期';
+  return '批';
 }
 
-function accountOwnerLabel(type: string, id: number | null, contract: ContractAuditHistoryItem) {
-  if (type === 'system') return '系统';
-  if (id === contract.buyerId) return contract.buyerName || '采购方';
-  if (id === contract.supplierId) return contract.supplierName || '供应方';
-  return '玩家';
-}
-
-function transferLabel(
-  item: ContractAuditTransfer,
-  contract: ContractAuditHistoryItem,
-  productNames: Map<string, string>,
-) {
-  const asset = item.assetType === 'credits'
-    ? <CurrencyAmount>{formatCurrency(item.quantity)}</CurrencyAmount>
-    : `${productNames.get(item.productId || '') || item.productId || '商品'} × ${formatNumber(item.quantity)}`;
-  return (
-    <span>
-      <strong>{TRANSFER_PURPOSE_LABELS[item.purpose] || item.purpose}</strong>
-      {' · '}{accountOwnerLabel(item.fromType, item.fromId, contract)} → {accountOwnerLabel(item.toType, item.toId, contract)}
-      {' · '}{asset}
-    </span>
-  );
-}
-
-function AuditEventRow({
-  event,
-  contract,
-  productNames,
-}: {
-  event: ContractAuditEvent;
-  contract: ContractAuditHistoryItem;
-  productNames: Map<string, string>;
-}) {
-  const reason = reasonLabel(event.reasonCode);
-  const gross = typeof event.metadata.gross === 'number' ? Number(event.metadata.gross) : null;
-  const fee = typeof event.metadata.fee === 'number' ? Number(event.metadata.fee) : null;
-  const plannedAt = typeof event.metadata.plannedAt === 'number' ? Number(event.metadata.plannedAt) : null;
-  const deliveredAt = typeof event.metadata.deliveredAt === 'number' ? Number(event.metadata.deliveredAt) : null;
-  return (
-    <li className="contract-audit-event">
-      <div className="contract-audit-event-marker" aria-hidden="true" />
-      <div className="contract-audit-event-body">
-        <header>
-          <div>
-            <strong>{AUDIT_EVENT_LABELS[event.eventType] || event.eventType}</strong>
-            {event.batchNumber ? <StatusTag>第 {formatNumber(event.batchNumber)} 批</StatusTag> : null}
-          </div>
-          <time dateTime={new Date(event.occurredAt).toISOString()}>{dateTimeLabel(event.occurredAt)}</time>
-        </header>
-        <p>执行者：{actorLabel(event, contract)}{reason ? ` · 原因：${reason}` : ''}</p>
-        {event.eventType === 'delivery_completed' ? (
-          <DataList className="compact contract-audit-delivery-data">
-            <DataRow label="计划交付" value={dateTimeLabel(plannedAt)} />
-            <DataRow label="实际交付" value={dateTimeLabel(deliveredAt || event.occurredAt)} />
-            <DataRow label="批次总额" value={<CurrencyAmount>{formatCurrency(gross || contract.batchGross)}</CurrencyAmount>} />
-            <DataRow label="服务费" value={<CurrencyAmount>{formatCurrency(fee || 0)}</CurrencyAmount>} />
-          </DataList>
-        ) : null}
-        {event.transfers.length > 0 ? (
-          <ul className="contract-audit-transfers">
-            {event.transfers.map((item, index) => <li key={`${event.sequence}:${index}`}>{transferLabel(item, contract, productNames)}</li>)}
-          </ul>
-        ) : null}
-      </div>
-    </li>
-  );
-}
-
-function AuditDetailPanel({
-  detail,
-  loading,
-  onLoadMore,
-  productNames,
-}: {
-  detail: ContractAuditDetail | null;
-  loading: boolean;
-  onLoadMore: () => void;
-  productNames: Map<string, string>;
-}) {
-  if (loading && !detail) return <p className="contract-audit-loading" role="status">正在读取权威审计记录…</p>;
-  if (!detail) return <p className="contract-issue" role="alert">合同审计记录读取失败，请稍后重试。</p>;
-  const contract = detail.contract;
-  const productName = productNames.get(contract.productId) || contract.productId;
-  return (
-    <section className="contract-audit-detail" aria-label="合同完整审计">
-      {contract.auditCompleteness === 'legacy_partial' ? (
-        <p className="contract-audit-legacy-note" role="note">
-          该合同在审计功能上线前已经存在。当前条款和上线后的事件可核查，但更早的逐批操作无法可靠还原。
-        </p>
-      ) : <p className="contract-audit-complete-note">该合同从发布开始具有完整服务器审计记录。</p>}
-      <div className="contract-audit-summary-grid">
-        <DataList className="compact">
-          <DataRow label="合同商品" value={`${productName} × ${formatNumber(contract.quantityPerDelivery)} / 批`} />
-          <DataRow label="合同单价" value={<CurrencyAmount>{formatCurrency(contract.unitPrice)}</CurrencyAmount>} />
-          <DataRow label="交付周期" value={durationLabel(contract.deliveryIntervalMs)} />
-          <DataRow label="完成批次" value={`${formatNumber(contract.completedDeliveries)} / ${formatNumber(contract.totalDeliveries)}`} />
-        </DataList>
-        <DataList className="compact">
-          <DataRow label="累计货款" value={<CurrencyAmount>{formatCurrency(contract.grossTotal)}</CurrencyAmount>} />
-          <DataRow label="累计服务费" value={<CurrencyAmount>{formatCurrency(contract.feeTotal)}</CurrencyAmount>} />
-          <DataRow label="供应方净收入" value={<CurrencyAmount>{formatCurrency(contract.netTotal)}</CurrencyAmount>} />
-          <DataRow label="保证金赔付" value={<CurrencyAmount>{formatCurrency(contract.compensationTotal)}</CurrencyAmount>} />
-        </DataList>
-      </div>
-      <ol className="contract-audit-timeline">
-        {detail.events.map((event) => (
-          <AuditEventRow key={event.sequence} event={event} contract={contract} productNames={productNames} />
-        ))}
-      </ol>
-      {detail.nextCursor ? <Button variant="text" disabled={loading} onClick={onLoadMore}>{loading ? '读取中' : '加载更多审计事件'}</Button> : null}
-    </section>
-  );
+function plainDurationLabel(milliseconds: number) {
+  const minutes = Math.max(0, Math.round(milliseconds / 60_000));
+  if (minutes === 0) return '立即';
+  if (minutes % 60 === 0) return String(minutes / 60) + ' 小时';
+  return String(minutes) + ' 分钟';
 }
 
 function HistoryContractRow({
   contract,
   productName,
-  expanded,
-  detail,
-  loading,
-  onToggle,
-  onLoadMore,
-  productNames,
+  facilityName,
+  onRepublish,
 }: {
   contract: ContractAuditHistoryItem;
   productName: string;
-  expanded: boolean;
-  detail: ContractAuditDetail | null;
-  loading: boolean;
-  onToggle: () => void;
-  onLoadMore: () => void;
-  productNames: Map<string, string>;
+  facilityName: string;
+  onRepublish: () => void;
 }) {
+  const summary = contract.endSummary;
+  const completion = summary.completion;
+  const settlement = summary.settlement;
+  const unit = completionUnitLabel(completion.unit);
+  const percentage = Math.min(100, Math.max(0, completion.ratioBps / 100));
+  const counterparty = contract.kind === 'loan'
+    ? (contract.isLender ? contract.borrowerName : contract.lenderName)
+    : contract.kind === 'facility_lease'
+      ? (contract.isLessor ? contract.lesseeName : contract.lessorName)
+      : (contract.isBuyer ? contract.supplierName : contract.buyerName);
+  const loanInterest = Number(contract.principal || 0) * Number(contract.interestRateBps || 0) / 10_000;
   return (
-    <article className="contract-history-entry" data-expanded={expanded ? 'true' : 'false'}>
-      <button className="contract-history-row" type="button" data-ui-interactive="surface" aria-expanded={expanded} onClick={onToggle}>
+    <article className="contract-history-entry">
+      <header className="contract-history-heading">
         <div className="contract-history-copy">
-          <div className="contract-card-tags">
-            <RoleTag contract={contract} />
-            <StatusTag tone={statusTone(contract)}>{STATUS_LABELS[contract.status]}</StatusTag>
-            <StatusTag tone={contract.auditCompleteness === 'full' ? 'success' : 'warning'}>
-              {contract.auditCompleteness === 'full' ? '完整审计' : '旧数据摘要'}
-            </StatusTag>
-          </div>
+          <div className="contract-card-tags"><RoleTag contract={contract} /></div>
           <h2><ProductIconLabel productId={contract.productId}>{contractTitle(contract, productName)}</ProductIconLabel></h2>
-          <p>{formatNumber(contract.completedDeliveries)} / {formatNumber(contract.totalDeliveries)} 批 · {durationLabel(contract.deliveryIntervalMs)}</p>
         </div>
-        <div className="contract-history-meta">
-          <strong><CurrencyAmount>{formatCurrency(contract.grossTotal)}</CurrencyAmount> 累计货款</strong>
-          <span>{dateTimeLabel(contract.endedAt || contract.completedAt || contract.lastEventAt)}</span>
-          <span>{expanded ? '收起审计 ↑' : '查看审计 ↓'}</span>
-        </div>
-      </button>
-      {expanded ? <AuditDetailPanel detail={detail} loading={loading} onLoadMore={onLoadMore} productNames={productNames} /> : null}
+        <Button className="contract-history-republish" variant="text" onClick={onRepublish}>重新拟定</Button>
+      </header>
+
+      <div className="contract-history-result-grid">
+        <section className="contract-history-section" aria-label="合同内容">
+          <h3>合同内容</h3>
+          <DataList className="compact">
+            {contract.kind === 'supply' ? <>
+              <DataRow label="合作商品" value={productName} />
+              <DataRow label="每批数量" value={formatNumber(contract.quantityPerDelivery)} />
+              <DataRow label="单位价格" value={<CurrencyAmount>{formatCurrency(contract.unitPrice)}</CurrencyAmount>} />
+              <DataRow label="每批货款" value={<CurrencyAmount>{formatCurrency(contract.batchGross)}</CurrencyAmount>} />
+              <DataRow label="交付周期" value={durationLabel(contract.deliveryIntervalMs)} />
+              <DataRow label="总批次" value={formatNumber(contract.totalDeliveries) + ' 批'} />
+              <DataRow label="首次交付" value={'签订后 ' + plainDurationLabel(contract.firstDeliveryDelayMs)} />
+            </> : null}
+            {contract.kind === 'loan' ? <>
+              <DataRow label="贷款本金" value={<CurrencyAmount>{formatCurrency(contract.principal || 0)}</CurrencyAmount>} />
+              <DataRow label="固定总利率" value={(Number(contract.interestRateBps || 0) / 100).toFixed(2) + '%'} />
+              <DataRow label="到期应还" value={<CurrencyAmount>{formatCurrency(Number(contract.principal || 0) + loanInterest)}</CurrencyAmount>} />
+              <DataRow label="贷款期限" value={plainDurationLabel(contract.termMs || 0)} />
+              <DataRow label="抵押工厂" value={facilityName} />
+              <DataRow label="抵押数量" value={formatNumber(contract.collateralQuantity || 0)} />
+            </> : null}
+            {contract.kind === 'facility_lease' ? <>
+              <DataRow label="租赁工厂" value={facilityName} />
+              <DataRow label="工厂数量" value={formatNumber(contract.quantity || 0)} />
+              <DataRow label="每期租金" value={<CurrencyAmount>{formatCurrency(contract.rentPerPeriod || 0)}</CurrencyAmount>} />
+              <DataRow label="租金周期" value={durationLabel(contract.periodMs || 0)} />
+              <DataRow label="总租期" value={formatNumber(contract.totalPeriods || 0) + ' 期'} />
+              <DataRow label="首次生效" value={'签订后 ' + plainDurationLabel(contract.firstPeriodDelayMs || 0)} />
+            </> : null}
+            <DataRow label="合作方" value={counterparty || '—'} />
+          </DataList>
+        </section>
+
+        <section className="contract-history-section" aria-label="完成情况">
+          <h3>完成情况</h3>
+          <div className="contract-progress" aria-label={'已完成 ' + completion.completed + ' / ' + completion.total + ' ' + unit}>
+            <div className="contract-progress-track"><span style={{ width: String(percentage) + '%' }} /></div>
+            <strong>{formatNumber(completion.completed)} / {formatNumber(completion.total)} {unit}</strong>
+          </div>
+          <DataList className="compact">
+            <DataRow label="完成率" value={percentage.toFixed(0) + '%'} />
+            {contract.kind === 'supply' ? <DataRow label="实际交付" value={formatNumber(settlement.goodsDelivered) + ' 个'} /> : null}
+            {contract.kind === 'loan' ? <DataRow label="偿还状态" value={completion.completed ? '已全部偿还' : '未完成偿还'} /> : null}
+            {contract.kind === 'facility_lease' ? <DataRow label="已结算租期" value={formatNumber(completion.completed) + ' 期'} /> : null}
+          </DataList>
+        </section>
+
+        <section className="contract-history-section" aria-label="结束原因">
+          <h3>结束原因</h3>
+          <StatusTag tone={endReasonTone(summary.reasonCode)}>{END_REASON_LABELS[summary.reasonCode] || summary.reasonCode}</StatusTag>
+        </section>
+
+        <section className="contract-history-section" aria-label="结束时间">
+          <h3>结束时间</h3>
+          <time dateTime={new Date(summary.endedAt).toISOString()}>{dateTimeLabel(summary.endedAt)}</time>
+        </section>
+
+        <section className="contract-history-section contract-history-section--statistics" aria-label="结束统计">
+          <h3>结束统计</h3>
+          <DataList className="compact">
+            {contract.kind === 'supply' ? <>
+              <DataRow label="累计货款" value={<CurrencyAmount>{formatCurrency(settlement.grossTotal)}</CurrencyAmount>} />
+              <DataRow label="累计服务费" value={<CurrencyAmount>{formatCurrency(settlement.feeTotal)}</CurrencyAmount>} />
+              {contract.isSupplier ? <DataRow label="我的净收入" value={<CurrencyAmount>{formatCurrency(settlement.netTotal)}</CurrencyAmount>} /> : <DataRow label="我支付货款" value={<CurrencyAmount>{formatCurrency(settlement.grossTotal)}</CurrencyAmount>} />}
+            </> : null}
+            {contract.kind === 'loan' ? <>
+              <DataRow label="实际发放本金" value={<CurrencyAmount>{formatCurrency(settlement.loanPrincipalDisbursed || contract.principal || 0)}</CurrencyAmount>} />
+              <DataRow label="实际偿还" value={<CurrencyAmount>{formatCurrency(settlement.loanRepaid)}</CurrencyAmount>} />
+              <DataRow label="服务费" value={<CurrencyAmount>{formatCurrency(settlement.feeTotal)}</CurrencyAmount>} />
+              {settlement.collateralReceivedByMe > 0 ? <DataRow label="我获得抵押工厂" value={formatNumber(settlement.collateralReceivedByMe) + ' 个'} /> : null}
+              {settlement.collateralReturnedToMe > 0 ? <DataRow label="退回我的抵押工厂" value={formatNumber(settlement.collateralReturnedToMe) + ' 个'} /> : null}
+            </> : null}
+            {contract.kind === 'facility_lease' ? <>
+              <DataRow label="累计租金" value={<CurrencyAmount>{formatCurrency(settlement.leaseRentPaid || settlement.grossTotal)}</CurrencyAmount>} />
+              <DataRow label="累计服务费" value={<CurrencyAmount>{formatCurrency(settlement.feeTotal)}</CurrencyAmount>} />
+              {contract.isLessor ? <DataRow label="我的净收入" value={<CurrencyAmount>{formatCurrency(settlement.netTotal)}</CurrencyAmount>} /> : <DataRow label="我支付租金" value={<CurrencyAmount>{formatCurrency(settlement.leaseRentPaid || settlement.grossTotal)}</CurrencyAmount>} />}
+            </> : null}
+            {settlement.compensationReceivedByMe > 0 ? <DataRow label="我获得赔付" value={<CurrencyAmount>{formatCurrency(settlement.compensationReceivedByMe)}</CurrencyAmount>} tone="success" /> : null}
+            {settlement.compensationPaidByMe > 0 ? <DataRow label="我支付赔付" value={<CurrencyAmount>{formatCurrency(settlement.compensationPaidByMe)}</CurrencyAmount>} tone="danger" /> : null}
+            {settlement.refundedCreditsToMe > 0 ? <DataRow label="退回我的资金" value={<CurrencyAmount>{formatCurrency(settlement.refundedCreditsToMe)}</CurrencyAmount>} /> : null}
+            {settlement.refundedGoodsToMe > 0 ? <DataRow label="退回我的商品" value={formatNumber(settlement.refundedGoodsToMe) + ' 个'} /> : null}
+          </DataList>
+        </section>
+      </div>
+      {contract.auditCompleteness === 'legacy_partial' ? <p className="contract-history-legacy-note">旧合同的部分过程统计无法恢复，以上内容以现有权威摘要为准。</p> : null}
     </article>
   );
 }
@@ -805,11 +709,13 @@ function PublishContractPanel({
   busy,
   close,
   run,
+  initialContract,
 }: {
   model: TutorialAwareGameViewModel;
   busy: boolean;
   close: () => void;
   run: (key: string, operation: () => Promise<{ result: { ok: boolean; message: string } }>) => Promise<void>;
+  initialContract: ContractAuditHistoryItem | null;
 }) {
   type PublishType = 'supply' | 'purchase' | 'lend' | 'borrow' | 'lease-out' | 'lease-in';
   const initialProduct = model.game.products[0];
@@ -829,6 +735,46 @@ function PublishContractPanel({
   const [rentInput, setRentInput] = useState('100');
   const [leasePeriod, setLeasePeriod] = useState(3 * 60 * 60 * 1000);
   const [leasePeriodsInput, setLeasePeriodsInput] = useState('12');
+
+  useEffect(() => {
+    if (!initialContract) return;
+    const userId = model.game.userId;
+    if (initialContract.kind === 'supply') {
+      const asSupplier = Number(initialContract.supplierId) === userId
+        || (initialContract.isPublisher && initialContract.publisherRole === 'supplier');
+      setPublishType(asSupplier ? 'supply' : 'purchase');
+      setProductId(model.game.products.some((product) => product.id === initialContract.productId) ? initialContract.productId : '');
+      setQuantityInput(String(initialContract.quantityPerDelivery));
+      setUnitPriceInput(String(initialContract.unitPrice));
+      setIntervalValue(initialContract.deliveryIntervalMs);
+      setDeliveriesInput(String(initialContract.totalDeliveries));
+      setFirstDelay(initialContract.firstDeliveryDelayMs);
+    } else if (initialContract.kind === 'loan') {
+      const asLender = Number(initialContract.lenderId) === userId
+        || (initialContract.isPublisher && initialContract.publisherSide === 'lender');
+      setPublishType(asLender ? 'lend' : 'borrow');
+      setPrincipalInput(String(initialContract.principal || 0));
+      setInterestInput(String(Number(initialContract.interestRateBps || 0) / 100));
+      setLoanTerm(initialContract.termMs || 24 * 60 * 60 * 1000);
+      setFacilityTypeId(model.game.facilityTypes.some((facility) => facility.id === initialContract.facilityTypeId) ? initialContract.facilityTypeId || '' : '');
+      setCollateralInput(String(initialContract.collateralQuantity || 1));
+    } else {
+      const asLessor = Number(initialContract.lessorId) === userId
+        || (initialContract.isPublisher && initialContract.publisherSide === 'lessor');
+      setPublishType(asLessor ? 'lease-out' : 'lease-in');
+      setFacilityTypeId(model.game.facilityTypes.some((facility) => facility.id === initialContract.facilityTypeId) ? initialContract.facilityTypeId || '' : '');
+      setQuantityInput(String(initialContract.quantity || 1));
+      setRentInput(String(initialContract.rentPerPeriod || 0));
+      setLeasePeriod(initialContract.periodMs || 3 * 60 * 60 * 1000);
+      setLeasePeriodsInput(String(initialContract.totalPeriods || 2));
+      setFirstDelay(initialContract.firstPeriodDelayMs || 0);
+    }
+    globalThis.requestAnimationFrame(() => {
+      const panel = document.querySelector<HTMLElement>('.contract-publish-panel');
+      panel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      panel?.querySelector<HTMLElement>('.contract-publish-form input, .contract-publish-form select')?.focus();
+    });
+  }, [initialContract?.id]);
 
   const quantity = parseIntegerDraft(quantityInput, { min: 1, max: 1_000_000 });
   const unitPrice = parseMoneyDraft(unitPriceInput, { min: 0.01, max: 1_000_000 });
@@ -960,9 +906,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
   const [historyNextCursor, setHistoryNextCursor] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
-  const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
-  const [auditDetails, setAuditDetails] = useState<Record<string, ContractAuditDetail>>({});
-  const [auditLoadingId, setAuditLoadingId] = useState<string | null>(null);
+  const [republishContract, setRepublishContract] = useState<ContractAuditHistoryItem | null>(null);
   const { productionContracts, productionContractSummary } = productionContractStateFromGame(model.game);
   const productNames = useMemo(() => new Map([
     ...model.game.products.map((product) => [product.id, product.name] as const),
@@ -996,7 +940,6 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
     let cancelled = false;
     setHistoryLoading(true);
     setHistoryError('');
-    setExpandedContractId(null);
     productionContractAudit.history(historyQuery)
       .then((page) => {
         if (cancelled) return;
@@ -1026,7 +969,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
       model.notify(response.result.message);
       if (response.result.ok) {
         await model.refresh({ mode: 'authoritative' });
-        if (key === 'publish') setShowPublish(false);
+        if (key === 'publish') { setShowPublish(false); setRepublishContract(null); }
       }
     } catch (reason) {
       model.notify(reason instanceof Error ? reason.message : '合同操作失败');
@@ -1050,43 +993,11 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
     }
   }
 
-  async function toggleAudit(contractId: string) {
-    if (expandedContractId === contractId) {
-      setExpandedContractId(null);
-      return;
-    }
-    setExpandedContractId(contractId);
-    if (auditDetails[contractId]) return;
-    setAuditLoadingId(contractId);
-    try {
-      const detail = await productionContractAudit.detail(contractId);
-      setAuditDetails((current) => ({ ...current, [contractId]: detail }));
-    } catch (reason) {
-      model.notify(reason instanceof Error ? reason.message : '合同审计读取失败');
-    } finally {
-      setAuditLoadingId(null);
-    }
-  }
-
-  async function loadMoreAudit(contractId: string) {
-    const current = auditDetails[contractId];
-    if (!current?.nextCursor || auditLoadingId) return;
-    setAuditLoadingId(contractId);
-    try {
-      const page = await productionContractAudit.detail(contractId, current.nextCursor);
-      setAuditDetails((details) => ({
-        ...details,
-        [contractId]: {
-          contract: page.contract,
-          events: [...current.events, ...page.events],
-          nextCursor: page.nextCursor,
-        },
-      }));
-    } catch (reason) {
-      model.notify(reason instanceof Error ? reason.message : '合同审计读取失败');
-    } finally {
-      setAuditLoadingId(null);
-    }
+  function startRepublish(contract: ContractAuditHistoryItem) {
+    if (showPublish && !window.confirm('使用历史合同参数将替换当前未发布内容，是否继续？')) return;
+    setRepublishContract(contract);
+    setShowPublish(true);
+    model.notify('已填入历史合同参数，请核对当前条件后发布。');
   }
 
   const activeEmptyMessage = '当前没有进行中的长期合作合同。';
@@ -1096,7 +1007,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
     <PageLayout
       title="合同"
       description="通过商品供货、玩家抵押借贷和工厂使用权租赁建立长期合作。所有资产冻结、到期结算、宽限与违约均由服务器确认。"
-      actions={<Button onClick={() => setShowPublish((current) => !current)}>{showPublish ? '收起发布表单' : '发布合同'}</Button>}
+      actions={<Button onClick={() => { if (showPublish) { setShowPublish(false); setRepublishContract(null); } else { setRepublishContract(null); setShowPublish(true); } }}>{showPublish ? '收起发布表单' : '发布合同'}</Button>}
     >
       <div className="contract-summary-grid">
         <MetricCard label="进行中的合同" value={formatNumber(productionContractSummary.active)} detail="供货、借贷或租赁" tone="info" />
@@ -1105,7 +1016,7 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
         <MetricCard label="我的公开合同" value={formatNumber(productionContractSummary.open)} detail="尚未被其他玩家承接" />
       </div>
 
-      {showPublish ? <PublishContractPanel model={model} busy={Boolean(busyKey)} close={() => setShowPublish(false)} run={run} /> : null}
+      {showPublish ? <PublishContractPanel key={republishContract?.id || 'new'} model={model} busy={Boolean(busyKey)} close={() => { setShowPublish(false); setRepublishContract(null); }} run={run} initialContract={republishContract} /> : null}
 
       <div className="contract-workspace">
         <section className="contract-workspace-pane contract-market-pane" aria-labelledby="contract-market-heading">
@@ -1164,11 +1075,17 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
                 <option value="any">全部角色</option>
                 <option value="buyer">我采购</option>
                 <option value="supplier">我供货</option>
+                <option value="lender">我放贷</option>
+                <option value="borrower">我贷款</option>
+                <option value="lessor">我出租</option>
+                <option value="lessee">我租赁</option>
                 <option value="publisher">我发布</option>
               </SelectInput>
-              <SelectInput label="合同商品" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}>
-                <option value="">全部商品</option>
+              <SelectInput label="合同标的" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}>
+                <option value="">全部标的</option>
+                <option value="credits">普通货币</option>
                 {model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+                {model.game.facilityTypes.map((facility) => <option key={`facility:${facility.id}`} value={`facility:${facility.id}`}>{facility.name}</option>)}
               </SelectInput>
               <TextInput label="开始日期" type="date" value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} />
               <TextInput label="结束日期" type="date" value={historyTo} onChange={(event) => setHistoryTo(event.target.value)} />
@@ -1193,12 +1110,8 @@ export function ContractPage({ model }: { model: TutorialAwareGameViewModel }) {
                 key={contract.id}
                 contract={contract}
                 productName={productNames.get(contract.productId) ?? contract.productId}
-                expanded={expandedContractId === contract.id}
-                detail={auditDetails[contract.id] || null}
-                loading={auditLoadingId === contract.id}
-                onToggle={() => void toggleAudit(contract.id)}
-                onLoadMore={() => void loadMoreAudit(contract.id)}
-                productNames={productNames}
+                facilityName={productNames.get('facility:' + (contract.facilityTypeId || '')) ?? contract.facilityTypeId ?? '—'}
+                onRepublish={() => startRepublish(contract)}
               />
             ))}
             {historyNextCursor ? <Button variant="text" disabled={historyLoading} onClick={() => void loadMoreHistory()}>{historyLoading ? '读取中' : '加载更多合同历史'}</Button> : null}
