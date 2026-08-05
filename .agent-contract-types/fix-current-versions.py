@@ -31,6 +31,14 @@ for root in ['tests/browser', 'tests/stress']:
         if path.is_file() and path.suffix in {'.ts', '.tsx', '.js', '.mjs'}:
             rewrite(path, CURRENT_REPLACEMENTS)
 
+for path in Path('server/test').rglob('*.test.js'):
+    rewrite(path, [
+        ('assert.equal(world.version, 25);', 'assert.equal(world.version, 26);'),
+        ('assert.equal(persisted.version, 25);', 'assert.equal(persisted.version, 26);'),
+        ('assert.equal(migrated.version, 25);', 'assert.equal(migrated.version, 26);'),
+        ('assert.equal(state.version, 25);', 'assert.equal(state.version, 26);'),
+    ])
+
 for path in Path('scripts').glob('*'):
     if not path.is_file() or path.suffix not in {'.mjs', '.js', '.py'}:
         continue
@@ -67,4 +75,4 @@ rewrite('scripts/verify-page-content.mjs', [
     ),
 ])
 
-print('客户端版本 29、世界版本 26、合同 Schema 5 与三领域合同页面防回退已同步')
+print('客户端版本 29、世界版本 26、合同 Schema 5 与当前迁移结果断言已同步')
