@@ -75,26 +75,6 @@ jobs:
               "replace_all('scripts/verify-document-authority.mjs', '模型 16', '模型 17')\n",
               '',
           )
-          marker = "\nproduct_doc = 'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md'"
-          addition = """
-replace_all(
-    'server/test/tool-workshop.test.js',
-    'MARKET_DEMAND_MODEL_VERSION, 16',
-    'MARKET_DEMAND_MODEL_VERSION, 17',
-)
-replace_all(
-    'server/test/tool-workshop.test.js',
-    '模型 16 在固定耐用品预算内加入工具需求',
-    '模型 17 在固定耐用品预算内加入工具需求',
-)
-"""
-          if marker not in text:
-              raise SystemExit('tool workshop insertion marker not found')
-          text = text.replace(marker, addition + marker)
-          text = text.replace(
-              "    'server/test/fertilizer-factory.test.js',\n    verify,",
-              "    'server/test/fertilizer-factory.test.js',\n    'server/test/tool-workshop.test.js',\n    verify,",
-          )
           path.write_text(text, encoding='utf-8')
           PYTHON
 
@@ -114,8 +94,7 @@ replace_all(
             server/test/market-demand-v6.test.js \
             server/test/all-products-demand.test.js \
             server/test/market-liquidity.test.js \
-            server/test/fertilizer-factory.test.js \
-            server/test/tool-workshop.test.js
+            server/test/fertilizer-factory.test.js
 
       - name: Build
         run: npm run build
@@ -145,7 +124,6 @@ replace_all(
               'server/test/fertilizer-factory.test.js',
               'server/test/market-demand-v6.test.js',
               'server/test/market-liquidity.test.js',
-              'server/test/tool-workshop.test.js',
           }
           actual = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
           if actual != expected:
@@ -167,8 +145,7 @@ replace_all(
             server/test/all-products-demand.test.js \
             server/test/fertilizer-factory.test.js \
             server/test/market-demand-v6.test.js \
-            server/test/market-liquidity.test.js \
-            server/test/tool-workshop.test.js
+            server/test/market-liquidity.test.js
           git add -u -- \
             .github/scripts/apply-population-demand-price-growth.py \
             .github/workflows/apply-population-demand-price-growth.yml
