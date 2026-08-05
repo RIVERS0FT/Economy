@@ -615,7 +615,7 @@
 
 
 @media (hover: hover) and (pointer: fine) and (max-width: 720px) {
-  .mobile-detail-sheet-footer .facility-market-link:hover {
+  html[data-input-modality='mouse'] .mobile-detail-sheet-footer .facility-market-link:hover {
     border-color: color-mix(in srgb, var(--color-success) 62%, var(--color-border));
     background: color-mix(in srgb, var(--color-success-soft) 82%, var(--color-surface-hover));
   }
