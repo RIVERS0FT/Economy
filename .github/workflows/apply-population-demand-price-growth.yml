@@ -82,8 +82,6 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/scripts/apply-population-demand-price-growth.py
-          rm .github/scripts/apply-population-demand-price-growth.py
-          rm .github/workflows/apply-population-demand-price-growth.yml
 
       - name: Install dependencies
         run: npm ci
@@ -104,6 +102,8 @@ jobs:
       - name: Commit validated change
         run: |
           set -euo pipefail
+          rm .github/scripts/apply-population-demand-price-growth.py
+          rm .github/workflows/apply-population-demand-price-growth.yml
           git diff --check
           python3 - <<'PYTHON'
           import subprocess
