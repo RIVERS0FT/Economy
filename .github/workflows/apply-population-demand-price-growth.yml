@@ -67,6 +67,14 @@ jobs:
               "['population-economy.js', 'population-demographics.js', '人口经济内部版本固定为 7'",
               "['population-economy.js', 'population-demographics.js', '`marketDemand.modelVersion = 17`', '市场需求模型 16 升级至 17', '人口经济内部版本固定为 7'",
           )
+          text = text.replace(
+              "replace_all('scripts/verify-document-authority.mjs', '市场需求模型 16', '市场需求模型 17')\n",
+              '',
+          )
+          text = text.replace(
+              "replace_all('scripts/verify-document-authority.mjs', '模型 16', '模型 17')\n",
+              '',
+          )
           path.write_text(text, encoding='utf-8')
           PYTHON
 
@@ -106,7 +114,6 @@ jobs:
               'docs/PRODUCT_AND_GAMEPLAY_DESIGN.md',
               'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
               'docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md',
-              'scripts/verify-document-authority.mjs',
               'scripts/verify-money-precision.mjs',
               'scripts/verify-staple-crops-demand.mjs',
               'server/src/domain.js',
@@ -129,7 +136,6 @@ jobs:
             docs/PRODUCT_AND_GAMEPLAY_DESIGN.md \
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
             docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md \
-            scripts/verify-document-authority.mjs \
             scripts/verify-money-precision.mjs \
             scripts/verify-staple-crops-demand.mjs \
             server/src/domain.js \
