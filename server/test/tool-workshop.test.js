@@ -12,7 +12,7 @@ test('工具与工具工坊进入正式目录并保持 C4 参考利润', () => {
   const farm = FACILITY_TYPE_CATALOG.find((x) => x.id === 'farm');
   assert.deepEqual(farm.recipes.find((x) => x.id === 'wheat-crop--assisted').inputs, [{ productId: 'tools', quantity: 1 }]);
 });
-test('模型 17 在固定耐用品预算内加入工具需求', () => {
+test('市场需求模型 17 在固定耐用品预算内加入工具需求', () => {
   assert.equal(MARKET_DEMAND_MODEL_VERSION, 17); const h = MARKET_DEMAND_GROUP_CATALOG.find((x) => x.id === 'household'); const d = h.classes.find((x) => x.id === 'durables'); assert.equal(d.name, '金属、工具与耐用品'); assert.equal(d.budgetShare, .30); assert.equal(d.products.reduce((a,x)=>a+x.baseWeight,0), 1); assert.deepEqual(d.products.find((x)=>x.productId==='tools'), { productId:'tools', baseWeight:.14, utilityPerUnit:3, minShare:.06 }); assert.equal(h.seedDemandQuantities.tools,2);
 });
 test('世界版本 25 迁移补齐工具库存与市场且保留资产', () => {
