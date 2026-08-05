@@ -120,7 +120,10 @@ function contractSnapshot(contract) {
     periodMs: Math.max(0, safeInteger(contract.periodMs, 0)), totalPeriods: Math.max(0, safeInteger(contract.totalPeriods, 0)), completedPeriods: Math.max(0, safeInteger(contract.completedPeriods, 0)),
     lesseeEscrowCredits: safeMoney(contract.lesseeEscrowCredits, 0), lesseeBondCredits: safeMoney(contract.lesseeBondCredits, 0), lessorBondCredits: safeMoney(contract.lessorBondCredits, 0),
     autoFund: contract.autoFund !== false, lastPaymentGross: safeMoney(contract.lastPaymentGross, 0), lastPaymentFee: safeMoney(contract.lastPaymentFee, 0),
-    lastCompensation: safeMoney(contract.lastCompensation, 0), auditGrossTotal: safeMoney(contract.auditGrossTotal, 0),
+    lastCompensation: safeMoney(contract.lastCompensation, 0),
+    lastCompensationFromId: nullableInteger(contract.lastCompensationFromId),
+    lastCompensationToId: nullableInteger(contract.lastCompensationToId),
+    auditGrossTotal: safeMoney(contract.auditGrossTotal, 0),
   };
 }
 
@@ -499,9 +502,11 @@ function commercialTransfersForTransition(before, after, eventType) {
     if (eventType === 'loan_repaid') return compactTransfers([
       transfer({ assetType: 'credits', quantity: after.lastPaymentGross, fromType: 'player', fromId: after.borrowerId, fromAccount: 'available', toType: 'player', toId: after.lenderId, toAccount: 'available', purpose: 'player_loan_repayment' }),
       transfer({ assetType: 'credits', quantity: after.lastPaymentFee, fromType: 'player', fromId: after.lenderId, fromAccount: 'loan_interest', toType: 'system', toAccount: 'bank_service_employment', purpose: 'market_service_fee' }),
+      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.borrowerId, toAccount: 'facility_owned', purpose: 'player_loan_collateral_release' }),
     ]);
     if (eventType === 'loan_defaulted') return compactTransfers([
       transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralTransferredQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.lenderId, toAccount: 'facility_owned', purpose: 'player_loan_default_collateral' }),
+      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: Math.max(0, after.collateralQuantity - after.collateralTransferredQuantity), fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.borrowerId, toAccount: 'facility_owned', purpose: 'player_loan_collateral_remainder_release' }),
     ]);
   }
   if (after.kind === 'facility_lease') {
@@ -515,9 +520,22 @@ function commercialTransfersForTransition(before, after, eventType) {
       transfer({ assetType: 'credits', quantity: after.lastDeliveryGross, fromType: 'player', fromId: after.lesseeId, fromAccount: 'contract_escrow', toType: 'player', toId: after.lessorId, toAccount: 'available', purpose: 'lease_rent_payment' }),
       transfer({ assetType: 'credits', quantity: after.lastDeliveryFee, fromType: 'player', fromId: after.lessorId, fromAccount: 'lease_income', toType: 'system', toAccount: 'market_service_employment', purpose: 'market_service_fee' }),
     ]);
-    if (eventType === 'lease_terminated' && after.lastCompensation > 0) return compactTransfers([
-      transfer({ assetType: 'credits', quantity: after.lastCompensation, fromType: 'player', fromId: before?.terminationReason === 'lessee_default' ? after.lesseeId : null, fromAccount: 'contract_bond', toType: 'player', toId: after.terminationReason === 'lessee_default' ? after.lessorId : null, toAccount: 'available', purpose: 'bond_compensation' }),
+    if (eventType === 'contract_completed') return compactTransfers([
+      transfer({ assetType: 'credits', quantity: before?.lesseeBondCredits, fromType: 'player', fromId: after.lesseeId, fromAccount: 'contract_bond', toType: 'player', toId: after.lesseeId, toAccount: 'available', purpose: 'lease_lessee_bond_release' }),
+      transfer({ assetType: 'credits', quantity: before?.lessorBondCredits, fromType: 'player', fromId: after.lessorId, fromAccount: 'contract_bond', toType: 'player', toId: after.lessorId, toAccount: 'available', purpose: 'lease_lessor_bond_release' }),
+      transfer({ assetType: 'commodity', productId: `facility-usage:${after.facilityTypeId}`, quantity: after.quantity, fromType: 'player', fromId: after.lesseeId, fromAccount: 'facility_usage', toType: 'player', toId: after.lessorId, toAccount: 'facility_usage', purpose: 'lease_usage_right_return' }),
     ]);
+    if (eventType === 'lease_terminated') {
+      const compensationFromId = Number.isFinite(Number(after.lastCompensationFromId)) ? Number(after.lastCompensationFromId) : null;
+      const compensationToId = Number.isFinite(Number(after.lastCompensationToId)) ? Number(after.lastCompensationToId) : null;
+      return compactTransfers([
+        transfer({ assetType: 'credits', quantity: before?.lesseeEscrowCredits, fromType: 'player', fromId: after.lesseeId, fromAccount: 'contract_escrow', toType: 'player', toId: after.lesseeId, toAccount: 'available', purpose: 'lease_unused_rent_release' }),
+        transfer({ assetType: 'credits', quantity: after.lastCompensation, fromType: 'player', fromId: compensationFromId, fromAccount: 'contract_bond', toType: 'player', toId: compensationToId, toAccount: 'available', purpose: 'bond_compensation' }),
+        transfer({ assetType: 'credits', quantity: compensationFromId === Number(after.lesseeId) ? 0 : before?.lesseeBondCredits, fromType: 'player', fromId: after.lesseeId, fromAccount: 'contract_bond', toType: 'player', toId: after.lesseeId, toAccount: 'available', purpose: 'lease_lessee_bond_release' }),
+        transfer({ assetType: 'credits', quantity: compensationFromId === Number(after.lessorId) ? 0 : before?.lessorBondCredits, fromType: 'player', fromId: after.lessorId, fromAccount: 'contract_bond', toType: 'player', toId: after.lessorId, toAccount: 'available', purpose: 'lease_lessor_bond_release' }),
+        transfer({ assetType: 'commodity', productId: `facility-usage:${after.facilityTypeId}`, quantity: after.quantity, fromType: 'player', fromId: after.lesseeId, fromAccount: 'facility_usage', toType: 'player', toId: after.lessorId, toAccount: 'facility_usage', purpose: 'lease_usage_right_return' }),
+      ]);
+    }
   }
   return [];
 }

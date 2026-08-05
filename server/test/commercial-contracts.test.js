@@ -68,6 +68,29 @@ test('lease grace suspends production usage without unlocking the lessor asset',
   assert.equal(leasedOutFacilityQuantity(state, 1, facility.id), 0);
   assert.equal(leasedInFacilityQuantity(state, 2, facility.id), 0);
   assert.equal(contractLockedFacilityQuantity(state, 1, facility.id), 2);
+  processProductionContracts(state, contract.graceEndsAt + 1);
+  const terminated = state.productionContracts[0];
+  assert.equal(terminated.lastCompensationFromId, 2);
+  assert.equal(terminated.lastCompensationToId, 1);
+});
+
+
+test('loan default transfers only enough collateral and releases the remainder', () => {
+  const state = world(); const facility = FACILITY_TYPE_CATALOG[0]; const now = 4_000_000;
+  assert.equal(applyProductionContractAction(state, { id: 1 }, 'createProductionContract', { kind: 'loan', publisherSide: 'borrower', principal: 10, interestRateBps: 500, termMs: 12 * 60 * 60 * 1000, facilityTypeId: facility.id, collateralQuantity: 2 }, now).ok, true);
+  const contractId = state.productionContracts[0].id;
+  assert.equal(applyProductionContractAction(state, { id: 2 }, 'acceptProductionContract', { contractId }, now).ok, true);
+  state.players['1'].credits = 0;
+  processProductionContracts(state, now + 12 * 60 * 60 * 1000 + 1);
+  const grace = state.productionContracts[0];
+  assert.ok(grace.graceEndsAt);
+  processProductionContracts(state, grace.graceEndsAt + 1);
+  const terminated = state.productionContracts[0];
+  assert.equal(terminated.status, 'terminated');
+  assert.equal(terminated.collateralTransferredQuantity, 1);
+  assert.equal(playerLoanCollateralQuantity(state, 1, facility.id), 0);
+  assert.equal(state.players['1'].facilityGroups[0].count, 9);
+  assert.equal(state.players['2'].facilityGroups[0].count, 11);
 });
 
 test('schema 5 migrates legacy supply contracts without changing roles', () => {

@@ -490,6 +490,8 @@ function terminateLeaseDefault(contract, lessee, lessor, now, runtimeIndex) {
     transferFrozenCredits(lessee, lessor, contract.lesseeBondCredits);
     releaseFrozenCredits(lessor, contract.lessorBondCredits);
     contract.lastCompensation = contract.lesseeBondCredits;
+    contract.lastCompensationFromId = Number(lessee.userId);
+    contract.lastCompensationToId = Number(lessor.userId);
     contract.lesseeEscrowCredits = 0;
     contract.lesseeBondCredits = 0;
     contract.lessorBondCredits = 0;
@@ -585,10 +587,14 @@ export function applyCommercialContractAction(world, user, action, payload, now,
         transferFrozenCredits(lessee, lessor, contract.lesseeBondCredits);
         releaseFrozenCredits(lessor, contract.lessorBondCredits);
         contract.lastCompensation = contract.lesseeBondCredits;
+        contract.lastCompensationFromId = Number(lessee.userId);
+        contract.lastCompensationToId = Number(lessor.userId);
       } else {
         releaseFrozenCredits(lessee, contract.lesseeBondCredits);
         transferFrozenCredits(lessor, lessee, contract.lessorBondCredits);
         contract.lastCompensation = contract.lessorBondCredits;
+        contract.lastCompensationFromId = Number(lessor.userId);
+        contract.lastCompensationToId = Number(lessee.userId);
       }
       contract.lesseeEscrowCredits = 0; contract.lesseeBondCredits = 0; contract.lessorBondCredits = 0;
       contract.status = 'terminated'; contract.terminationReason = 'immediate_by_participant'; contract.endedAt = now; contract.nextDueAt = null;
