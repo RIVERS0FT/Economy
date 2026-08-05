@@ -29,6 +29,7 @@ for path in Path('scripts').glob('*'):
     text = path.read_text(encoding='utf-8')
     text = text.replace('CURRENT_CLIENT_STATE_VERSION = 28', 'CURRENT_CLIENT_STATE_VERSION = 29')
     text = text.replace('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 28', 'MIN_COMPATIBLE_CLIENT_STATE_VERSION = 29')
+    text = text.replace('PRODUCTION_CONTRACT_SCHEMA_VERSION = 4', 'PRODUCTION_CONTRACT_SCHEMA_VERSION = 5')
     text = text.replace('RESEARCH_WORLD_VERSION = 25', 'RESEARCH_WORLD_VERSION = 26')
     text = text.replace('world\\.version = 25', 'world\\.version = 26')
     text = text.replace('world.version = 25', 'world.version = 26')
@@ -45,4 +46,4 @@ for path in Path('docs').glob('*.md'):
         ('> 世界状态版本：25', '> 世界状态版本：26'),
     ])
 
-print('当前客户端版本 29 与世界版本 26 已同步到运行时和防回退断言')
+print('客户端版本 29、世界版本 26 与合同 Schema 5 已同步到运行时和防回退断言')
