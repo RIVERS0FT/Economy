@@ -65,7 +65,7 @@ function reserveTotals(world, groupId) {
   };
 }
 
-test('market model 16 creates inventory-backed buy and sell orders without system self-trades', () => {
+test('market model 17 creates inventory-backed buy and sell orders without system self-trades', () => {
   const world = createWorld(now);
   ensurePlayer(world, alice, now);
   world.marketDemand.liquidity.groups.food.reserves.wheat.inventory = 6;
@@ -218,7 +218,7 @@ test('liquidity orders are cancelled and re-reserved on the next cycle', () => {
   )));
 });
 
-test('model 3 migrates directly to model 16 with one-time reserve seeding', () => {
+test('model 3 migrates directly to model 17 with one-time reserve seeding', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
@@ -242,7 +242,7 @@ test('model 3 migrates directly to model 16 with one-time reserve seeding', () =
   assert.ok(world.marketDemand.liquidity.groups.food.reserves.wheat.inventory > 0);
 });
 
-test('model 5 migrates to model 16 and releases obsolete liquidity reservations', () => {
+test('model 5 migrates to model 17 and releases obsolete liquidity reservations', () => {
   const world = createWorld(now);
   const player = ensurePlayer(world, alice, now);
   player.credits = 777;
