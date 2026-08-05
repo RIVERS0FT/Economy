@@ -1,0 +1,46 @@
+name: Apply Mobile Detail Sheet Patch
+
+on:
+  push:
+    branches:
+      - agent/unify-mobile-detail-sheet
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/unify-mobile-detail-sheet
+          fetch-depth: 0
+      - name: Reconstruct and apply patch
+        shell: bash
+        run: |
+          cat \
+            .agent/unify-mobile-detail-sheet.patch.xz.b64.part00 \
+            .agent/unify-mobile-detail-sheet.patch.xz.b64.part01 \
+            .agent/unify-mobile-detail-sheet.patch.xz.b64.part02 \
+            .agent/unify-mobile-detail-sheet.patch.xz.b64.part03 \
+            | base64 --decode \
+            | xz --decompress \
+            > /tmp/unify-mobile-detail-sheet.patch
+          git apply --index --whitespace=error-all /tmp/unify-mobile-detail-sheet.patch
+      - name: Remove temporary transport files
+        run: |
+          git rm -- \
+            .agent/unify-mobile-detail-sheet.patch.xz.b64.part00 \
+            .agent/unify-mobile-detail-sheet.patch.xz.b64.part01 \
+            .agent/unify-mobile-detail-sheet.patch.xz.b64.part02 \
+            .agent/unify-mobile-detail-sheet.patch.xz.b64.part03 \
+            .github/workflows/apply-unify-mobile-detail-sheet.yml \
+            .github/workflows/export-unify-mobile-detail-sheet.yml
+      - name: Verify and publish final tree
+        run: |
+          git diff --cached --check
+          git config user.name "RIVERSOFT"
+          git config user.email "105160096+RIVERS0FT@users.noreply.github.com"
+          git commit -m "fix: unify mobile detail sheets"
+          git push origin HEAD:agent/unify-mobile-detail-sheet
