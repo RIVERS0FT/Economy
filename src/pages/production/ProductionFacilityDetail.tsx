@@ -192,11 +192,11 @@ function productionMethodId(recipe: FacilityRecipeDefinition): FacilityProductio
 }
 
 function ProductionMethodIcon({ methodId }: { methodId: FacilityProductionMethodId }) {
-  const icon = methodId === 'rapid'
+  const icon = methodId === 'rapid' || methodId === 'assisted'
     ? <CycleIcon />
-    : methodId === 'economical'
+    : methodId === 'economical' || methodId === 'intensive'
       ? <CreditsIcon />
-      : methodId === 'high-yield'
+      : methodId === 'high-yield' || methodId === 'mechanized'
         ? <AssetsIcon />
         : <ProductionIcon />;
   return (

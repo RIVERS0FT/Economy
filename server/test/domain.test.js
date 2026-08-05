@@ -156,29 +156,31 @@ test('client state uses the current version and exposes no factory instances', (
     assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
-    assert.equal(state.products.length, 33);
-    assert.equal(state.facilityTypes.length, 23);
+    assert.equal(state.products.length, 36);
+    assert.equal(state.facilityTypes.length, 26);
   } finally {
     store.close();
   }
 });
 
 test('expanded industry catalog exposes fruit and complete production chains', () => {
-  assert.equal(PRODUCT_CATALOG.length, 33);
-  assert.equal(FACILITY_TYPE_CATALOG.length, 23);
+  assert.equal(PRODUCT_CATALOG.length, 36);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 26);
 
   const expectedProducts = [
     'wheat', 'rice', 'cotton', 'sugarcane', 'fruit', 'timber', 'ore', 'copper-ore', 'crude-oil',
     'meat', 'eggs', 'milk', 'fish', 'wool', 'flour', 'sugar', 'lumber', 'steel', 'copper',
-    'plastic', 'fertilizer', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
-    'clothing', 'tools', 'machinery', 'electronics', 'appliance',
+    'plastic', 'fertilizer', 'feed', 'veterinary-medicine', 'textile', 'pulp', 'food', 'beverage',
+    'prepared-meal', 'paper', 'furniture', 'clothing', 'tools', 'machinery', 'tractor', 'electronics',
+    'appliance',
   ];
   const expectedFacilities = [
     'farm', 'orchard', 'ranch', 'fishery',
-    'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill',
+    'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill', 'feed-factory',
     'pulp-mill', 'steelworks', 'textile-mill', 'food-factory', 'paper-mill',
-    'refinery', 'fertilizer-factory', 'beverage-factory', 'furniture-factory', 'garment-factory',
-    'tool-workshop', 'machine-factory', 'electronics-factory', 'appliance-factory',
+    'refinery', 'fertilizer-factory', 'veterinary-medicine-factory', 'beverage-factory',
+    'furniture-factory', 'garment-factory', 'tool-workshop', 'machine-factory', 'tractor-factory',
+    'electronics-factory', 'appliance-factory',
   ];
   assert.deepEqual(PRODUCT_CATALOG.map((product) => product.id), expectedProducts);
   assert.deepEqual(FACILITY_TYPE_CATALOG.map((facility) => facility.id), expectedFacilities);
@@ -192,9 +194,10 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   const expectedPrices = {
     wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
     'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, textile: 20,
-    pulp: 20, fertilizer: 34, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
-    clothing: 55, tools: 60, machinery: 76, electronics: 84, appliance: 92,
+    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, feed: 10,
+    'veterinary-medicine': 40, textile: 20, pulp: 20, food: 15, beverage: 18,
+    'prepared-meal': 18, paper: 15, furniture: 24, clothing: 55, tools: 60, machinery: 76,
+    tractor: 120, electronics: 84, appliance: 92,
   };
   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
 
@@ -223,10 +226,12 @@ test('expanded industry catalog exposes fruit and complete production chains', (
       const inputValue = recipe.inputs.reduce((sum, input) => sum + expectedPrices[input.productId] * input.quantity, 0);
       const profit = (expectedPrices[recipe.output.productId] * recipe.output.quantity - inputValue - recipe.operatingCost)
         * 60_000 / recipe.cycleMs;
-      const expectedProfit = facility.complexity === 'C1'
-        ? expectedC1ProfitByFacility[facility.id]
-        : expectedProfitByComplexity[facility.complexity];
-      assert.ok(Math.abs(profit - expectedProfit) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
+      if (facility.complexity !== 'C1' || recipe.productionMethodId === 'standard') {
+        const expectedProfit = facility.complexity === 'C1'
+          ? expectedC1ProfitByFacility[facility.id]
+          : expectedProfitByComplexity[facility.complexity];
+        assert.ok(Math.abs(profit - expectedProfit) < 1e-9, `${facility.id}/${recipe.id} 参考分钟利润不正确`);
+      }
     }
   }
 
@@ -246,6 +251,15 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   ]);
   assert.deepEqual(facilities.get('appliance-factory').recipes[0].inputs, [
     { productId: 'machinery', quantity: 1 }, { productId: 'electronics', quantity: 1 },
+  ]);
+  assert.deepEqual(standardRecipes(facilities.get('feed-factory'))[0].inputs, [
+    { productId: 'wheat', quantity: 2 }, { productId: 'sugarcane', quantity: 1 },
+  ]);
+  assert.deepEqual(standardRecipes(facilities.get('veterinary-medicine-factory'))[0].inputs, [
+    { productId: 'fertilizer', quantity: 1 }, { productId: 'plastic', quantity: 1 },
+  ]);
+  assert.deepEqual(standardRecipes(facilities.get('tractor-factory'))[0].inputs, [
+    { productId: 'machinery', quantity: 1 }, { productId: 'steel', quantity: 1 },
   ]);
 });
 

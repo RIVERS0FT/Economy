@@ -1,6 +1,6 @@
 {
-  "version": 4,
-  "style": "fresh-original-subject-first-2026-08-02",
+  "version": 5,
+  "style": "c1-work-systems-expansion-2026-08-05",
   "creationMode": "from-scratch-new-illustration",
   "complexities": [
     "C1",
@@ -21,6 +21,7 @@
     "oil-field",
     "mill",
     "sawmill",
+    "feed-factory",
     "pulp-mill",
     "steelworks",
     "textile-mill",
@@ -28,11 +29,13 @@
     "paper-mill",
     "refinery",
     "fertilizer-factory",
+    "veterinary-medicine-factory",
     "beverage-factory",
     "furniture-factory",
     "garment-factory",
     "tool-workshop",
     "machine-factory",
+    "tractor-factory",
     "electronics-factory",
     "appliance-factory"
   ],
@@ -46,6 +49,7 @@
     "oil-field": "29cb5198224d263b3d94e6e3f198b9becd460bf9e9f61cffeac261b81617aec0",
     "mill": "c069e7953bd9d3bee778562685d4fe7be731102d4c8581223e6ef0cbbfbff791",
     "sawmill": "6b1ade9722b7a88710cdd4ccce967a773c7326a688da30a19ec14b45ee0db657",
+    "feed-factory": "172888ba6343815ee95cf5d9a5013fb7536f060f0d6962b73474b3bc1565ab7b",
     "pulp-mill": "e9ea8cad3b323a92c50ae8bc2f5500138b4768e7cfb4bd0ac69c1f6e0d801bfa",
     "steelworks": "7eb77a16b02c91f4d1e43421918a321a0c1806d97a5d95a9640257f4afb79a18",
     "textile-mill": "beeede3177e5fdc4c44d4fa9d60cd6ccd7836cbece1c2c6e0e97258c6b91cc96",
@@ -59,6 +63,8 @@
     "electronics-factory": "c4eb10814589c9988ecfde7b268eed63c48313d49ec4cd141f1082f81ae5cddf",
     "appliance-factory": "b7ce7d0dcb5ce3587978a8dc88e2054a4e5e96855046da1591c5e33f3d63c778",
     "fertilizer-factory": "06b580081ce85353acad479ab7c9893ad78f9e450ffa7fd02e77d085c00faeb0",
-    "tool-workshop": "bd46b7f0916a595f46ba987dbb9e3fb0d899b1c5265d275797f40f0e4a258eba"
+    "veterinary-medicine-factory": "caa65a3a96dbe0291ec505857d0a5bcc13afcd1ecb519c7ffd3954dd71169830",
+    "tool-workshop": "bd46b7f0916a595f46ba987dbb9e3fb0d899b1c5265d275797f40f0e4a258eba",
+    "tractor-factory": "674b0b64052ec1739da069043191872d0ef657d5dee8d9a8f99c5c8ee49c7474"
   }
 }

@@ -59,7 +59,7 @@ test('commodity and facility books share the catalog-sized unfinished order limi
 
   const expectedLimit = PRODUCT_CATALOG.length + FACILITY_TYPE_CATALOG.length;
   assert.equal(ECONOMY_CONSTANTS.maxOpenOrders, expectedLimit);
-  assert.equal(expectedLimit, 56);
+  assert.equal(expectedLimit, 62);
 
   world.orders = [
     ...PRODUCT_CATALOG.map((product, index) => ({

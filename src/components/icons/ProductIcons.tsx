@@ -22,6 +22,8 @@ export const PRODUCT_ICON_IDS = [
   'copper',
   'plastic',
   'fertilizer',
+  'feed',
+  'veterinary-medicine',
   'textile',
   'pulp',
   'food',
@@ -32,6 +34,7 @@ export const PRODUCT_ICON_IDS = [
   'clothing',
   'tools',
   'machinery',
+  'tractor',
   'electronics',
   'appliance',
 ] as const;
@@ -247,6 +250,24 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <circle cx="16.5" cy="17" r=".7" />
         </ProductSvg>
       );
+    case 'feed':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M7 5h10l2 4-1 11H6L5 9Z" />
+          <path d="M5 9h14M9 5l1-2h6l1 2" />
+          <path d="M9 13h6M8 16h8" />
+          <circle cx="10" cy="11.5" r=".6" />
+          <circle cx="14" cy="11.5" r=".6" />
+        </ProductSvg>
+      );
+    case 'veterinary-medicine':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M9 3h6v3l2 2v12H7V8l2-2Z" />
+          <path d="M9 6h6M9 11h6M12 9v6M9 12h6" />
+          <path d="M10 18h4" />
+        </ProductSvg>
+      );
     case 'textile':
       return (
         <ProductSvg productId={productId} {...props}>
@@ -332,6 +353,15 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
           <path d="m5.6 18.4 1.4-1.4" />
           <path d="m17 7 1.4-1.4" />
           <circle cx="12" cy="12" r="7" />
+        </ProductSvg>
+      );
+    case 'tractor':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <circle cx="7" cy="17" r="3" />
+          <circle cx="17" cy="17" r="2" />
+          <path d="M4 17H2v-5h9l2 3h6l2 2h-2" />
+          <path d="M8 12V7h5v8M10 7V4h3M13 10h4l2 5" />
         </ProductSvg>
       );
     case 'electronics':

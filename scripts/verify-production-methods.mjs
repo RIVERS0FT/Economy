@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js';
 
-const methodIds = ['standard', 'rapid', 'economical', 'high-yield'];
+const genericMethodIds = ['standard', 'rapid', 'economical', 'high-yield'];
+const c1MethodIds = ['standard', 'assisted', 'intensive', 'mechanized'];
+const expectedC1Plans = {
+  farm: [[], [['tools', 1], 51], [['fertilizer', 2], 58], [['tractor', 1], 102]],
+  orchard: [[], [['tools', 1], 48], [['fertilizer', 2], 55], [['tractor', 1], 96]],
+  ranch: [[], [['feed', 1], 6], [['veterinary-medicine', 1], 19], [['machinery', 1], 35]],
+  fishery: [[], [['feed', 1], 5], [['veterinary-medicine', 1], 18], [['machinery', 1], 33]],
+};
 const productPrices = new Map(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice]));
 function hasAtMostTwoDecimals(value) {
   return Math.abs(Number(value) - Math.round(Number(value) * 100) / 100) < 1e-9;
@@ -11,6 +18,7 @@ function hasAtMostTwoDecimals(value) {
 for (const facility of FACILITY_TYPE_CATALOG) {
   const group = facility.productionMethodGroups?.find((candidate) => candidate.id === 'operation');
   assert.ok(group, `${facility.id} 缺少作业制度`);
+  const methodIds = facility.complexity === 'C1' ? c1MethodIds : genericMethodIds;
   assert.deepEqual(group.methods.map((method) => method.id), methodIds);
   const baseRecipes = facility.recipes.filter((recipe) => recipe.productionMethodId === 'standard');
   assert.ok(baseRecipes.length > 0, `${facility.id} 缺少标准生产配方`);
@@ -26,6 +34,21 @@ for (const facility of FACILITY_TYPE_CATALOG) {
       recipe.baseRecipeId === baseRecipe.id && recipe.productionMethodId === methodId
     )));
     assert.equal(variants.every(Boolean), true, `${facility.id}/${baseRecipe.id} 生产方式不完整`);
+    if (facility.complexity === 'C1') {
+      assert.equal(variants.every((recipe) => recipe.cycleMs === baseRecipe.cycleMs), true);
+      assert.equal(variants.every((recipe) => recipe.operatingCost === baseRecipe.operatingCost), true);
+      assert.deepEqual(variants[0].inputs, []);
+      assert.equal(variants[0].output.quantity, 1);
+      for (let index = 1; index < variants.length; index += 1) {
+        const [expectedInput, expectedOutput] = expectedC1Plans[facility.id][index];
+        assert.deepEqual(
+          variants[index].inputs.map((input) => [input.productId, input.quantity]),
+          [expectedInput],
+        );
+        assert.equal(variants[index].output.quantity, expectedOutput);
+      }
+      continue;
+    }
     for (const recipe of variants) {
       const inputValue = recipe.inputs.reduce(
         (sum, input) => sum + productPrices.get(input.productId) * input.quantity,
@@ -60,6 +83,10 @@ for (const text of [
   "id: 'rapid'",
   "id: 'economical'",
   "id: 'high-yield'",
+  "id: 'assisted'",
+  "id: 'intensive'",
+  "id: 'mechanized'",
+  'C1_METHOD_BLUEPRINTS',
   'createProductionMethodRecipes',
   'alignedCycleMs',
   'id: plan.recipeId',
@@ -78,6 +105,10 @@ for (const text of [
   'function baseProductionRecipes(outputProductId)',
   'const candidates = baseProductionRecipes(outputProductId)',
 ]) assert.ok(allocationSource.includes(text), `派生需求生产路线去重缺少 ${text}`);
+assert.ok(
+  readFileSync('server/src/market-demand.js', 'utf8').includes('for (const recipe of allRecipes)'),
+  '派生需求必须在过滤无投入路线前先纳入标准配方，以免把 C1 投入型变体当成基础路线',
+);
 for (const text of [
   "const baseRecipes = recipes.filter((recipe) => !String(recipe.recipeId || '').includes('--'))",
   'const recipeCountByOutput = baseRecipes.reduce',
@@ -138,12 +169,15 @@ for (const text of [
   "not.toContainText('缩短周期并提高成本')",
   "locator('.facility-production-method-summary')).toHaveCount(0)",
 ]) assert.ok(browserSpecSource.includes(text), `生产方式浏览器回归缺少 ${text}`);
-assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 29'));
-assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 29'));
+assert.ok(versionSource.includes('CURRENT_CLIENT_STATE_VERSION = 30'));
+assert.ok(versionSource.includes('MIN_COMPATIBLE_CLIENT_STATE_VERSION = 30'));
 
 for (const [path, required] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
     '标准生产、高速生产、节约生产和高产生产',
+    '基础、工具／饲料、化肥／药剂、拖拉机／机械化',
+    '每周期整件消耗',
+    '不累计折旧',
     '生产方式与配方必须在同一次配置动作中原子切换',
     '不得新增单座工厂生产方式状态',
     '生产设置下方不得再显示“周期 · 产出 · 成本”摘要',
@@ -168,4 +202,4 @@ for (const [path, required] of [
   for (const text of required) assert.ok(content.includes(text), `${path} 缺少 ${text}`);
 }
 
-console.log('生产方式验证通过：四种作业制度、固定精度平衡、稳定变体 ID、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。');
+console.log('生产方式验证通过：C1 固定时间与现金成本、整件投入和渐进产出，C2～C7 固定精度平衡、稳定变体 ID、配置立即切换、进度清零、满员率惩罚、需求图去重和浏览器交互均已锁定。');

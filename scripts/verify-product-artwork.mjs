@@ -27,6 +27,8 @@ const productIds = [
   'copper',
   'plastic',
   'fertilizer',
+  'feed',
+  'veterinary-medicine',
   'textile',
   'pulp',
   'food',
@@ -37,6 +39,7 @@ const productIds = [
   'clothing',
   'tools',
   'machinery',
+  'tractor',
   'electronics',
   'appliance',
 ];

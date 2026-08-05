@@ -29,7 +29,14 @@ export interface FacilityRecipeItem {
   quantity: number;
 }
 
-export type FacilityProductionMethodId = 'standard' | 'rapid' | 'economical' | 'high-yield';
+export type FacilityProductionMethodId =
+  | 'standard'
+  | 'rapid'
+  | 'economical'
+  | 'high-yield'
+  | 'assisted'
+  | 'intensive'
+  | 'mechanized';
 
 export interface FacilityProductionMethodPlan {
   recipeId: string;
@@ -498,7 +505,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 29;
+  version: 30;
   userId: number;
   playerName: string;
   registeredAt: number;
