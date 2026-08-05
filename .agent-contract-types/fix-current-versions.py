@@ -56,4 +56,15 @@ for path in Path('docs').glob('*.md'):
         ('> 世界状态版本：25', '> 世界状态版本：26'),
     ])
 
-print('客户端版本 29、世界版本 26 与合同 Schema 5 已同步到运行时、测试夹具和防回退断言')
+rewrite('scripts/verify-page-content.mjs', [
+    (
+        "  'collectibleId',\n  'facilityTypeId',\n  'type ContractTab',",
+        "  'collectibleId',\n  'facilityInstanceId',\n  'type ContractTab',",
+    ),
+    (
+        '| 合同 | `contracts` | `ContractPage` | 长期商品供货合同的发布、承接、履约与历史 |',
+        '| 合同 | `contracts` | `ContractPage` | 商品供货、玩家借贷与工厂租赁合同的发布、承接、履约与历史 |',
+    ),
+])
+
+print('客户端版本 29、世界版本 26、合同 Schema 5 与三领域合同页面防回退已同步')
