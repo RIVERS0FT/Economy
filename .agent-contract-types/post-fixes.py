@@ -23,6 +23,10 @@ page_text = page_text.replace(
     "principal, interestRateBps: Math.round(interestPercent * 100), termMs: loanTerm,",
     1,
 )
+page_text = page_text.replace(
+    'Number(event.target.value)',
+    'Number.parseInt(event.target.value, 10)',
+)
 page.write_text(page_text, encoding='utf-8', newline='\n')
 
 types = Path('src/contracts/types.ts')
