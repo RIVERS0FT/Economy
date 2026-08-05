@@ -59,6 +59,8 @@ jobs:
           python3 /tmp/economy-contract-types/apply.py
           python3 - <<'PY'
           from pathlib import Path
+          source = Path('server/src/commercial-contracts.js')
+          source.write_text(source.read_text().replace("creditPopulationEmployment(world, fee, 'bankService')", "creditPopulationEmployment(world, fee, 'banking')"))
           path = Path('server/test/commercial-contracts.test.js')
           text = path.read_text()
           text = text.replace("principal: 100,", "principal: 10,")
