@@ -12,17 +12,17 @@ def replace(path, old, new, count=-1):
 
 replace(
     'server/src/contract-asset-locks.js',
-    "export function leasedInFacilityQuantity(world, lesseeId, facilityTypeId) {",
-    "export function leasedOutLockedFacilityQuantity(world, lessorId, facilityTypeId) {\n"
+    "export function leasedInFacilityQuantity(world, userId, facilityTypeId) {",
+    "export function leasedOutLockedFacilityQuantity(world, userId, facilityTypeId) {\n"
     "  return activeContracts(world).reduce((sum, contract) => (\n"
     "    contract.kind === 'facility_lease'\n"
-    "    && Number(contract.lessorId) === Number(lessorId)\n"
+    "    && Number(contract.lessorId ?? contract.supplierId) === Number(userId)\n"
     "    && String(contract.facilityTypeId) === String(facilityTypeId)\n"
-    "      ? sum + nonNegativeInteger(contract.quantity)\n"
+    "      ? sum + quantity(contract.quantity)\n"
     "      : sum\n"
     "  ), 0);\n"
     "}\n\n"
-    "export function leasedInFacilityQuantity(world, lesseeId, facilityTypeId) {",
+    "export function leasedInFacilityQuantity(world, userId, facilityTypeId) {",
     1,
 )
 replace(
