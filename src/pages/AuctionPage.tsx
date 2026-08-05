@@ -14,6 +14,7 @@ import { ProductIcon } from '../components/icons/ProductIcons';
 import { CurrencyAmount } from '../components/ui/CurrencyAmount';
 import { IntegerInput, MoneyInput, SelectInput } from '../components/ui/FormControls';
 import { Button, EmptyState, PageLayout, Panel, StatusTag, WidgetHeading } from '../components/ui/layout';
+import { SafeTooltip } from '../components/ui/SafeTooltip';
 import { useAuctionNewIds } from '../hooks/useNavigationBadges';
 import { useNow } from '../hooks/useNow';
 import { formatCurrency, formatDuration, formatNumber, formatTime } from '../utils/formatters';
@@ -74,6 +75,10 @@ function auctionCardTitle(auction: AssetAuction) {
   return items.length === 1 ? items[0].name : auctionTitle(auction);
 }
 
+function auctionItemTooltipText(item: AuctionItemSummary) {
+  return `${item.name} ×${formatNumber(item.quantity)}`;
+}
+
 function auctionAttentionPriority(auction: AssetAuction, newAuctionIds: ReadonlySet<string>) {
   if (auction.isOutbid) return 0;
   if (newAuctionIds.has(auction.id)) return 1;
@@ -114,15 +119,26 @@ function AuctionAssetVisual({ auction, compact = false }: { auction: AssetAuctio
       className={`asset-auction-bundle-visual asset-auction-item-count-${Math.min(items.length, 4)}`}
       aria-label={`拍卖包含 ${items.length} 项资产`}
     >
-      {items.slice(0, 4).map((item) => (
-        <div
-          className="asset-auction-bundle-tile"
-          key={`${item.kind}:${item.id}`}
-          aria-label={`${item.name}，数量 ${formatNumber(item.quantity)}`}
-        >
-          <AuctionItemIcon item={item} compact />
-        </div>
-      ))}
+      {items.slice(0, 4).map((item) => {
+        const tooltipText = auctionItemTooltipText(item);
+        return (
+          <SafeTooltip
+            className="asset-auction-item-tooltip-anchor asset-auction-item-tooltip-anchor--main"
+            content={tooltipText}
+            key={`${item.kind}:${item.id}`}
+          >
+            <span
+              className="asset-auction-bundle-tile"
+              role="img"
+              tabIndex={0}
+              aria-label={tooltipText}
+              data-ui-interactive="surface"
+            >
+              <AuctionItemIcon item={item} compact />
+            </span>
+          </SafeTooltip>
+        );
+      })}
       {items.length > 4 ? <strong className="asset-auction-more-count">+{formatNumber(items.length - 4)}</strong> : null}
     </div>
   );
@@ -133,17 +149,27 @@ function AuctionAssetSummary({ auction }: { auction: AssetAuction }) {
   const placeholderCount = Math.max(0, MAX_AUCTION_ITEMS - items.length);
   return (
     <div className="asset-auction-icon-layer" aria-label={`资产明细，共 ${formatNumber(items.length)} 项`}>
-      {items.map((item) => (
-        <div
-          className="asset-auction-summary-icon"
-          key={`${item.kind}:${item.id}`}
-          aria-label={`${item.name}，数量 ${formatNumber(item.quantity)}`}
-          title={`${item.name} ×${formatNumber(item.quantity)}`}
-        >
-          <AuctionItemIcon item={item} compact />
-          <span className="asset-auction-summary-quantity" aria-hidden="true">×{formatNumber(item.quantity)}</span>
-        </div>
-      ))}
+      {items.map((item) => {
+        const tooltipText = auctionItemTooltipText(item);
+        return (
+          <SafeTooltip
+            className="asset-auction-item-tooltip-anchor asset-auction-item-tooltip-anchor--summary"
+            content={tooltipText}
+            key={`${item.kind}:${item.id}`}
+          >
+            <span
+              className="asset-auction-summary-icon"
+              role="img"
+              tabIndex={0}
+              aria-label={tooltipText}
+              data-ui-interactive="surface"
+            >
+              <AuctionItemIcon item={item} compact />
+              <span className="asset-auction-summary-quantity" aria-hidden="true">×{formatNumber(item.quantity)}</span>
+            </span>
+          </SafeTooltip>
+        );
+      })}
       {Array.from({ length: placeholderCount }, (_, index) => (
         <span className="asset-auction-summary-placeholder" key={`placeholder-${index}`} aria-hidden="true" />
       ))}
