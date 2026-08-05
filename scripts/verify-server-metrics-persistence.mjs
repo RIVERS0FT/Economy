@@ -11,6 +11,7 @@ const files = {
   persistentRuntime: 'server/src/persistent-server-runtime-metrics.js',
   store: 'server/src/server-metrics-store.js',
   test: 'server/test/server-metrics-persistence.test.js',
+  degradationTest: 'server/test/server-metrics-degradation.test.js',
   installer: 'scripts/install-economy-api.py',
   design: 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   docsIndex: 'docs/README.md',
@@ -40,7 +41,10 @@ if (failures.length === 0) {
     'store.upsertBuckets(bootId, range.granularity',
     "process.once('SIGTERM'",
     'trendBuckets.map(publicServerMetricBucket)',
+    'continuing without persistence',
+    'returning live metrics only',
   ]) requireText(files.persistentRuntime, text);
+  requireText(files.degradationTest, 'keeps the live server collector available');
   for (const text of [
     'Environment=ECONOMY_SERVER_METRICS_DB_PATH=',
     'ECONOMY_SERVER_METRICS_DATABASE_VERIFIED',
@@ -96,4 +100,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('管理员服务器监控独立 SQLite、跨启动批次合并、保留策略、部署目录隔离和安装验收验证通过。');
+console.log('管理员服务器监控独立 SQLite、跨启动批次合并、保留策略、故障降级、部署目录隔离和安装验收验证通过。');
