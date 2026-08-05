@@ -93,7 +93,7 @@ jobs:
               '',
               '监控数据按进程启动批次写入 `economy_server_metric_boots` 与 `economy_server_metric_buckets`。聚合桶主键由 `boot_id + granularity + starts_at` 组成；同一进程重复快照使用 UPSERT 替换当前批次贡献，管理员查询排除当前批次已落库副本，再将旧批次与当前实时桶按时间合并，避免重复累计并允许同一分钟内重新部署。进程启动时间和 `uptimeSeconds` 始终表示当前进程，不得伪造为跨部署连续运行时间。',
               '',
-              '保留策略固定为：分钟聚合桶保留 48 小时，小时聚合桶保留 35 天，天聚合桶保留 180 天。持久化内容包括请求数量、4xx／5xx、延迟直方图、响应大小、有限路由聚合、事件循环延迟、CPU 和内存聚合；不得落单次请求明细。正常 `SIGTERM`／`SIGINT` 和退出前必须同步刷新当前批次、记录停止时间并关闭 SQLite。监控写入失败只记录告警，不得阻断权威游戏 API；损坏的单条诊断记录应跳过，正式部署必须执行监控库 `PRAGMA quick_check(1)` 和表存在性验收。',
+              '保留策略固定为：分钟聚合桶保留 48 小时，小时聚合桶保留 35 天，天聚合桶保留 180 天。持久化内容包括请求数量、4xx／5xx、延迟直方图、响应大小、有限路由聚合、事件循环延迟、CPU 和内存聚合；不得落单次请求明细。正常 `SIGTERM`／`SIGINT` 和退出前必须同步刷新当前批次、记录停止时间并关闭 SQLite。监控写入失败只记录告警，不得阻断权威游戏 API；损坏的单条诊断记录应跳过，正式部署必须由服务安装脚本执行监控库 `PRAGMA quick_check(1)` 和表存在性验收。',
               '',
               '写事务固定：',
           ])
@@ -103,30 +103,49 @@ jobs:
               monitoring_design,
           )
 
+          installer_path = 'scripts/install-economy-api.py'
           replace_once(
-              'scripts/install-economy-api.py',
+              installer_path,
               "Environment=ECONOMY_DB_PATH={STATE_DIRECTORY / 'economy.sqlite'}\nEnvironment=ECONOMY_REGISTRATION_SECRET_FILE={REGISTRATION_SECRET_PATH}".replace('\n', chr(10)),
               "Environment=ECONOMY_DB_PATH={STATE_DIRECTORY / 'economy.sqlite'}\nEnvironment=ECONOMY_SERVER_METRICS_DB_PATH={STATE_DIRECTORY / 'server-metrics.sqlite'}\nEnvironment=ECONOMY_REGISTRATION_SECRET_FILE={REGISTRATION_SECRET_PATH}".replace('\n', chr(10)),
           )
-
-          deploy_old = "          print('ECONOMY_DATABASE_INCREMENTAL_VERIFIED')\n          PYTHON".replace('\n', chr(10))
-          deploy_new = '\n'.join([
-              "          print('ECONOMY_DATABASE_INCREMENTAL_VERIFIED')",
-              '',
-              "          metrics_database = '/var/lib/riversoft-economy/server-metrics.sqlite'",
-              "          with sqlite3.connect(f'file:{metrics_database}?mode=ro', uri=True) as connection:",
-              "              connection.execute('PRAGMA query_only = ON')",
-              "              metrics_quick_check = str(connection.execute('PRAGMA quick_check(1)').fetchone()[0])",
-              "              metric_tables = {row[0] for row in connection.execute(\"SELECT name FROM sqlite_master WHERE type = 'table'\")}",
-              "          required_metric_tables = {'economy_server_metric_boots', 'economy_server_metric_buckets'}",
-              "          if metrics_quick_check != 'ok':",
-              "              raise SystemExit(f'ECONOMY_SERVER_METRICS_QUICK_CHECK_FAILED={metrics_quick_check}')",
-              "          if not required_metric_tables.issubset(metric_tables):",
-              "              raise SystemExit(f'ECONOMY_SERVER_METRICS_TABLES_MISSING={sorted(required_metric_tables - metric_tables)}')",
-              "          print('ECONOMY_SERVER_METRICS_DATABASE_VERIFIED')",
-              '          PYTHON',
+          installer_old = '\n'.join([
+              '    run(["systemctl", "restart", SERVICE_NAME])',
+              '    run(["systemctl", "is-active", "--quiet", SERVICE_NAME])',
+              '    print(f"Installed {SERVICE_NAME} with Node.js {version} at {node_path}")',
           ])
-          replace_once('.github/workflows/deploy.yml', deploy_old, deploy_new)
+          installer_new = '\n'.join([
+              '    run(["systemctl", "restart", SERVICE_NAME])',
+              '    run(["systemctl", "is-active", "--quiet", SERVICE_NAME])',
+              '',
+              '    metrics_database = STATE_DIRECTORY / "server-metrics.sqlite"',
+              '    if not metrics_database.is_file():',
+              '        raise RuntimeError(f"server metrics database was not created: {metrics_database}")',
+              '    metrics_uri = f"file:{metrics_database.as_posix()}?mode=ro"',
+              '    with sqlite3.connect(metrics_uri, uri=True, timeout=10) as connection:',
+              '        connection.execute("PRAGMA query_only = ON")',
+              '        metrics_quick_check = str(connection.execute("PRAGMA quick_check(1)").fetchone()[0])',
+              '        metric_tables = {',
+              '            str(row[0])',
+              '            for row in connection.execute(',
+              '                "SELECT name FROM sqlite_master WHERE type = \'table\'"',
+              '            )',
+              '        }',
+              '    required_metric_tables = {',
+              '        "economy_server_metric_boots",',
+              '        "economy_server_metric_buckets",',
+              '    }',
+              '    if metrics_quick_check != "ok":',
+              '        raise RuntimeError(f"server metrics quick check failed: {metrics_quick_check}")',
+              '    missing_metric_tables = sorted(required_metric_tables - metric_tables)',
+              '    if missing_metric_tables:',
+              '        raise RuntimeError(',
+              '            "server metrics tables are missing: " + ", ".join(missing_metric_tables)',
+              '        )',
+              '    print("ECONOMY_SERVER_METRICS_DATABASE_VERIFIED")',
+              '    print(f"Installed {SERVICE_NAME} with Node.js {version} at {node_path}")',
+          ])
+          replace_once(installer_path, installer_old, installer_new)
           PYTHON
 
       - name: Install dependencies
@@ -146,26 +165,18 @@ jobs:
           git diff --check
           git status --short
 
-      - name: Commit verified implementation and remove temporary workflow
+      - name: Commit verified documentation and deployment rules
         shell: bash
         run: |
           set -euo pipefail
-          rm .github/workflows/temporary-persist-server-metrics.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- \
-            .github/workflows/deploy.yml \
-            .github/workflows/temporary-persist-server-metrics.yml \
             README.md \
             docs/README.md \
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
             package.json \
-            scripts/install-economy-api.py \
-            scripts/verify-server-metrics-persistence.mjs \
-            server/src/persistent-server-runtime-metrics.js \
-            server/src/server-metrics-store.js \
-            server/src/server-status-bootstrap.js \
-            server/test/server-metrics-persistence.test.js
+            scripts/install-economy-api.py
           git diff --cached --check
-          git commit -m 'fix: persist admin server metrics across deployments'
+          git commit -m 'docs: lock server metrics persistence rules'
           git push origin HEAD:fix/persist-admin-server-metrics
