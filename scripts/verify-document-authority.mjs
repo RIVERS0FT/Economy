@@ -151,7 +151,7 @@ for (const path of versionedDocs) {
   if (!existsSync(pathFor(path))) continue;
   const content = read(path);
   if (!content.includes(`客户端状态版本：${CURRENT_CLIENT_STATE_VERSION}`)) failures.push(`${path} 客户端状态版本必须为 ${CURRENT_CLIENT_STATE_VERSION}`);
-  if (!content.includes('世界状态版本：25')) failures.push(`${path} 世界状态版本必须为 25`);
+  if (!content.includes('世界状态版本：26')) failures.push(`${path} 世界状态版本必须为 25`);
 }
 
 if (existsSync(pathFor('docs/README.md'))) {
@@ -235,4 +235,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/25、500 新玩家启动资金、市场需求模型 15、固定银行收益与周资金结算、长期生产合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航与银行资产总览职责均满足当前基线。`);
+console.log(`文档权威性验证通过：精简协作入口与项目 README、登记文档清单、版本 ${CURRENT_CLIENT_STATE_VERSION}/26、500 新玩家启动资金、市场需求模型 15、固定银行收益与周资金结算、商品供货、玩家抵押借贷与工厂使用权租赁合同、商品／工厂资产拍卖、市场行情图可读性、真实人口钱包、就业资金流、统一订单簿、双边市场储备和十页导航与银行资产总览职责均满足当前基线。`);

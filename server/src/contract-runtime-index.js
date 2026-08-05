@@ -22,6 +22,7 @@ function uniqueIds(...values) {
 function contractSnapshot(contract) {
   return {
     id: String(contract?.id || ''),
+    kind: String(contract?.kind || 'supply'),
     status: String(contract?.status || ''),
     publisherId: numericId(contract?.publisherId),
     buyerId: numericId(contract?.buyerId),
@@ -41,7 +42,8 @@ function contractSnapshot(contract) {
 
 function currentReservationQuantity(snapshot) {
   if (
-    snapshot.status !== 'active'
+    snapshot.kind !== 'supply'
+    || snapshot.status !== 'active'
     || snapshot.buyerId === null
     || snapshot.completedDeliveries >= snapshot.totalDeliveries
   ) return 0;
@@ -63,7 +65,7 @@ function deadlineFor(snapshot) {
     return snapshot.offerExpiresAt;
   }
   if (snapshot.status !== 'active') return null;
-  if (snapshot.renewalStatus === 'proposed' && Number.isFinite(snapshot.renewalExpiresAt)) return Math.min(
+  if (snapshot.kind === 'supply' && snapshot.renewalStatus === 'proposed' && Number.isFinite(snapshot.renewalExpiresAt)) return Math.min(
     Number.isFinite(snapshot.graceEndsAt) ? snapshot.graceEndsAt : Number.POSITIVE_INFINITY,
     Number.isFinite(snapshot.nextDueAt) ? snapshot.nextDueAt : Number.POSITIVE_INFINITY,
     snapshot.renewalExpiresAt,

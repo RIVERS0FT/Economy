@@ -56,6 +56,8 @@ for (const text of [
   'contract-active-grid',
   "contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'",
   'contract-publish-layout',
+  'contract-type-grid',
+  'contract-type-option',
   'contract-history-panel',
   '自动准备商品',
   '自动补充货款',
@@ -112,6 +114,8 @@ for (const text of [
   '合同历史使用右侧区域内的单张一级 `PagePanel`',
   '工作区内部左右区域使用 `var(--layout-gutter)`',
   '作为 `PageLayout` 自动生成的 `.ui-page-stack` 直接子元素',
+  '发布面板必须先展示六种类型',
+  '移动端六类入口至少两列且不得横向溢出',
 ]) requireText(designPath, text);
 
 for (const text of [
@@ -130,6 +134,8 @@ for (const text of [
   "page.locator('.contract-market-grid')",
   "page.locator('.contract-active-grid')",
   'toHaveClass(/contract-card--attention/)',
+  "page.locator('.contract-type-option')",
+  "hasText: '采购合同'",
 ]) requireText(browserTestPath, text);
 
 for (const text of [
@@ -146,6 +152,8 @@ for (const text of [
   "view === 'contracts'",
   '<ContractPage model={model} />',
   "id: 'contract-active-normal'",
+  "kind: 'supply'",
+  "publisherSide: 'supplier'",
 ]) requireText(harnessPath, text);
 
 requireText(formVerifierPath, "'src/pages/ContractPage.tsx'");

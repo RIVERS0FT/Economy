@@ -111,6 +111,9 @@ export interface FacilityGroup {
   auctionedCount?: number;
   frozenCount?: number;
   mortgagedCount: number;
+  contractCollateralCount?: number;
+  leasedOutCount?: number;
+  leasedInCount?: number;
   availableCount: number;
   enabled: boolean;
   status: FacilityStatus;
@@ -316,6 +319,9 @@ export interface AssetSummary {
   commodityValue: number;
   facilityValue: number;
   bankDepositValue: number;
+  contractReceivableValue?: number;
+  contractLiabilityValue?: number;
+  contractLockedFacilityValue?: number;
   grossAssetValue: number;
   liabilityValue: number;
   netAssetValue: number;
@@ -492,7 +498,7 @@ export interface EconomicCalendarState {
 }
 
 export interface EconomyState {
-  version: 28;
+  version: 29;
   userId: number;
   playerName: string;
   registeredAt: number;

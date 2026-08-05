@@ -1,10 +1,11 @@
 import type { EconomyState } from '../types';
 
 export type ProductionContractRole = 'buyer' | 'supplier';
+export type ContractKind = 'supply' | 'loan' | 'facility_lease';
+export type ContractPublisherSide = ProductionContractRole | 'lender' | 'borrower' | 'lessor' | 'lessee';
 export type ProductionContractStatus = 'open' | 'active' | 'completed' | 'cancelled' | 'terminated' | 'expired';
 export type ProductionContractRoundStatus = 'preparing' | 'ready' | 'grace';
 export type ContractAuditCompleteness = 'full' | 'legacy_partial';
-
 
 export interface ProductionContractRenewalProposal {
   id: string;
@@ -32,6 +33,8 @@ export interface ProductionContractRenewalProposal {
 
 export interface ProductionContract {
   id: string;
+  kind: ContractKind;
+  publisherSide: ContractPublisherSide;
   publisherId: number;
   publisherName: string;
   publisherRole: ProductionContractRole;
@@ -72,10 +75,46 @@ export interface ProductionContract {
   isPublisher: boolean;
   isBuyer: boolean;
   isSupplier: boolean;
+  isParticipant?: boolean;
+
+  lenderId?: number | null;
+  lenderName?: string | null;
+  borrowerId?: number | null;
+  borrowerName?: string | null;
+  principal?: number;
+  principalOutstanding?: number;
+  interestRateBps?: number;
+  interestDue?: number;
+  termMs?: number;
+  dueAt?: number | null;
+  collateralQuantity?: number;
+  collateralUnitValue?: number;
+  collateralTransferredQuantity?: number;
+  autoRepay?: boolean;
+  isLender?: boolean;
+  isBorrower?: boolean;
+
+  lessorId?: number | null;
+  lessorName?: string | null;
+  lesseeId?: number | null;
+  lesseeName?: string | null;
+  facilityTypeId?: string;
+  quantity?: number;
+  rentPerPeriod?: number;
+  periodMs?: number;
+  totalPeriods?: number;
+  completedPeriods?: number;
+  firstPeriodDelayMs?: number;
+  lesseeEscrowCredits?: number;
+  lesseeBondCredits?: number;
+  lessorBondCredits?: number;
+  autoFund?: boolean;
+  isLessor?: boolean;
+  isLessee?: boolean;
 }
 
 export interface ContractAuditHistoryItem extends Omit<ProductionContract, 'issue'> {
-  issue?: string | null;
+  issue: string | null;
   auditCompleteness: ContractAuditCompleteness;
   lastEventSequence: number;
   lastEventAt: number;

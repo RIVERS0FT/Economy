@@ -14,6 +14,13 @@ import { closeOrderInOrderBook, countOpenOrdersForOwner, facilitySellQuantityFor
 import { creditPopulationEmployment, ensurePopulationEconomy, releaseConstructionEmployment } from './population-economy.js';
 import { CURRENT_CLIENT_STATE_VERSION } from '../shared/economy-state-version.js';
 import { activeLoanLiability, ensurePlayerBankAccount, mortgagedFacilityQuantity } from './banking.js';
+import {
+  contractLockedFacilityQuantity,
+  leasedInFacilityQuantity,
+  leasedOutFacilityQuantity,
+  playerLoanCollateralQuantity,
+  playerLoanFinancialPosition,
+} from './contract-asset-locks.js';
 import { weeklySettlementLiability } from './weekly-cash-settlement.js';
 import { ensureGemState } from './invitations.js';
 import { calculateRateMoney, multiplyMoneyByInteger, normalizePlayerMoneyInput, roundInternalMoney } from './money.js';
@@ -608,8 +615,7 @@ export function migrateFacilityGroupWorld(world, now = Date.now()) {
       .map((group) => normalizeGroup(group, now))
       .filter(Boolean);
     for (const group of player.facilityGroups) {
-      const frozen = frozenFacilityQuantity(world, player.userId, group.facilityTypeId);
-      const available = Math.max(0, group.count - frozen);
+      const available = availableGroupCount(world, player, group);
       if (group.status === 'running') {
         const previousCount = group.participatingCount;
         if (available > previousCount) expandAvailableFacilities(group, previousCount, available, now);
@@ -730,11 +736,17 @@ function blockReason(world, player, group, type, physicalCount, effectiveCount =
 }
 
 function availableGroupCount(world, player, group) {
-  return Math.max(0, group.count - frozenFacilityQuantity(world, player.userId, group.facilityTypeId));
+  const frozen = frozenFacilityQuantity(world, player.userId, group.facilityTypeId);
+  const leasedOut = leasedOutFacilityQuantity(world, player.userId, group.facilityTypeId);
+  const leasedIn = leasedInFacilityQuantity(world, player.userId, group.facilityTypeId);
+  return Math.max(0, group.count - frozen - leasedOut + leasedIn);
 }
 
 function transferableGroupCount(world, player, group) {
-  return Math.max(0, availableGroupCount(world, player, group) - mortgagedFacilityQuantity(player, group.facilityTypeId));
+  const frozen = frozenFacilityQuantity(world, player.userId, group.facilityTypeId);
+  const bankMortgaged = mortgagedFacilityQuantity(player, group.facilityTypeId);
+  const contractLocked = contractLockedFacilityQuantity(world, player.userId, group.facilityTypeId);
+  return Math.max(0, group.count - frozen - bankMortgaged - contractLocked);
 }
 
 function reconcileFacilityGroup(world, player, group, now) {
@@ -1025,7 +1037,7 @@ function startFacilityGroup(world, userId, payload, now) {
   const player = getPlayer(world, userId);
   const type = typeFor(payload.facilityTypeId);
   const group = type ? groupFor(player, type.id) : null;
-  if (!type || !group || group.count < 1) return result(false, '工厂集群不存在');
+  if (!type || !group || availableGroupCount(world, player, group) < 1) return result(false, '工厂集群不存在或没有可用生产权');
   group.enabled = true;
   reconcileFacilityGroup(world, player, group, now);
   if (group.status === 'running') {
@@ -1322,15 +1334,15 @@ function assetSummaryFor(world, player) {
   const facility = (player.facilityGroups || []).reduce((summary, group) => {
     const price = recentTradePriceFor(world, 'facility', group.facilityTypeId);
     const frozenCount = Math.min(group.count, frozenFacilityQuantity(world, player.userId, group.facilityTypeId));
-    const mortgagedCount = Math.min(
-      Math.max(0, group.count - frozenCount),
-      mortgagedFacilityQuantity(player, group.facilityTypeId),
-    );
-    summary.transferable += Math.max(0, group.count - frozenCount - mortgagedCount) * price;
+    const mortgagedCount = Math.min(Math.max(0, group.count - frozenCount), mortgagedFacilityQuantity(player, group.facilityTypeId));
+    const loanCollateralCount = Math.min(Math.max(0, group.count - frozenCount - mortgagedCount), playerLoanCollateralQuantity(world, player.userId, group.facilityTypeId));
+    const leasedOutCount = Math.min(Math.max(0, group.count - frozenCount - mortgagedCount - loanCollateralCount), leasedOutFacilityQuantity(world, player.userId, group.facilityTypeId));
+    summary.transferable += Math.max(0, group.count - frozenCount - mortgagedCount - loanCollateralCount - leasedOutCount) * price;
     summary.mortgaged += mortgagedCount * price;
+    summary.contractLocked += (loanCollateralCount + leasedOutCount) * price;
     summary.frozen += frozenCount * price;
     return summary;
-  }, { transferable: 0, mortgaged: 0, frozen: 0 });
+  }, { transferable: 0, mortgaged: 0, contractLocked: 0, frozen: 0 });
   const bankAccount = ensurePlayerBankAccount(player);
   const availableCashValue = Number(player.credits || 0);
   const frozenCashValue = Number(player.frozenCredits || 0);
@@ -1339,20 +1351,27 @@ function assetSummaryFor(world, player) {
   const frozenCommodityValue = commodity.frozen;
   const availableFacilityValue = facility.transferable;
   const mortgagedFacilityValue = facility.mortgaged;
-  const frozenFacilityValue = facility.frozen;
-  const cashValue = availableCashValue + frozenCashValue + bankDepositValue;
+  const contractLockedFacilityValue = facility.contractLocked;
+  const frozenFacilityValue = facility.frozen + contractLockedFacilityValue;
+  const playerLoanPosition = playerLoanFinancialPosition(world, player.userId);
+  const contractReceivableValue = playerLoanPosition.receivable;
+  const contractLiabilityValue = playerLoanPosition.liability;
+  const cashValue = availableCashValue + frozenCashValue + bankDepositValue + contractReceivableValue;
   const commodityValue = availableCommodityValue + frozenCommodityValue;
   const facilityValue = availableFacilityValue + mortgagedFacilityValue + frozenFacilityValue;
   const grossAssetValue = cashValue + commodityValue + facilityValue;
-  const liabilityValue = activeLoanLiability(player) + weeklySettlementLiability(player);
+  const liabilityValue = activeLoanLiability(player) + weeklySettlementLiability(player) + contractLiabilityValue;
   const netAssetValue = grossAssetValue - liabilityValue;
   const availableAssetValue = availableCashValue + bankDepositValue + availableCommodityValue + availableFacilityValue - liabilityValue;
-  const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue + mortgagedFacilityValue;
+  const frozenAssetValue = frozenCashValue + frozenCommodityValue + frozenFacilityValue + mortgagedFacilityValue + contractReceivableValue;
   return {
     cashValue,
     commodityValue,
     facilityValue,
     bankDepositValue,
+    contractReceivableValue,
+    contractLiabilityValue,
+    contractLockedFacilityValue,
     grossAssetValue,
     liabilityValue,
     netAssetValue,
@@ -1412,8 +1431,11 @@ function clientGroup(world, player, group, now) {
   const auctionedCount = auctionedQuantity(world, player.userId, group.facilityTypeId);
   const frozenCount = listedCount + auctionedCount;
   const mortgagedCount = mortgagedFacilityQuantity(player, group.facilityTypeId);
-  const productionAvailableCount = Math.max(0, group.count - frozenCount);
-  const availableCount = Math.max(0, productionAvailableCount - mortgagedCount);
+  const contractCollateralCount = playerLoanCollateralQuantity(world, player.userId, group.facilityTypeId);
+  const leasedOutCount = leasedOutFacilityQuantity(world, player.userId, group.facilityTypeId);
+  const leasedInCount = leasedInFacilityQuantity(world, player.userId, group.facilityTypeId);
+  const productionAvailableCount = Math.max(0, group.count - frozenCount - leasedOutCount + leasedInCount);
+  const availableCount = Math.max(0, group.count - frozenCount - mortgagedCount - contractCollateralCount - leasedOutCount);
   const staffingRateBps = projectStaffingRate(group, now);
   const projectedResult = cycleCapacity(
     group,
@@ -1436,6 +1458,9 @@ function clientGroup(world, player, group, now) {
     auctionedCount,
     frozenCount,
     mortgagedCount,
+    contractCollateralCount,
+    leasedOutCount,
+    leasedInCount,
     availableCount,
   };
 }

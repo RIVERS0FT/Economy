@@ -149,7 +149,7 @@ function buildOverviewModel(tab: TabId, setTabState: (tab: TabId) => void) {
   const inventoryCapacity = 6650;
 
   const game = {
-    version: 25,
+    version: 26,
     lastProcessedAt: fixedNow,
     userId: 123,
     playerName: 'MEVIUS',
@@ -688,6 +688,8 @@ function ContractHarness() {
       productionContracts: [
         {
           id: 'contract-active',
+          kind: 'supply',
+          publisherSide: 'supplier',
           publisherId: 456,
           publisherName: '机械供应商',
           publisherRole: 'supplier',
@@ -722,6 +724,8 @@ function ContractHarness() {
         },
         {
           id: 'contract-active-normal',
+          kind: 'supply',
+          publisherSide: 'supplier',
           publisherId: 654,
           publisherName: '稳定供应商',
           publisherRole: 'supplier',
@@ -756,6 +760,8 @@ function ContractHarness() {
         },
         {
           id: 'contract-open',
+          kind: 'supply',
+          publisherSide: 'buyer',
           publisherId: 789,
           publisherName: '长期采购商',
           publisherRole: 'buyer',
@@ -789,6 +795,8 @@ function ContractHarness() {
         },
         {
           id: 'contract-history',
+          kind: 'supply',
+          publisherSide: 'buyer',
           publisherId: 123,
           publisherName: 'MEVIUS',
           publisherRole: 'buyer',

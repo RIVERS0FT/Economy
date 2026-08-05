@@ -62,6 +62,8 @@ function contractSnapshot(contract) {
   if (!contract) return null;
   return {
     id: String(contract.id || ''),
+    kind: ['loan', 'facility_lease'].includes(contract.kind) ? contract.kind : 'supply',
+    publisherSide: String(contract.publisherSide || contract.publisherRole || 'buyer'),
     publisherId: nullableInteger(contract.publisherId),
     publisherName: String(contract.publisherName || '玩家'),
     publisherRole: contract.publisherRole === 'supplier' ? 'supplier' : 'buyer',
@@ -104,6 +106,24 @@ function contractSnapshot(contract) {
     renewedFromContractId: contract.renewedFromContractId ? String(contract.renewedFromContractId) : null,
     renewedToContractId: contract.renewedToContractId ? String(contract.renewedToContractId) : null,
     renewalCancellationReason: contract.renewalCancellationReason ? String(contract.renewalCancellationReason) : null,
+    lenderId: nullableInteger(contract.lenderId), lenderName: contract.lenderName ? String(contract.lenderName) : null,
+    borrowerId: nullableInteger(contract.borrowerId), borrowerName: contract.borrowerName ? String(contract.borrowerName) : null,
+    principal: safeMoney(contract.principal, 0), principalOutstanding: safeMoney(contract.principalOutstanding, 0),
+    interestRateBps: Math.max(0, safeInteger(contract.interestRateBps, 0)), interestDue: safeMoney(contract.interestDue, 0),
+    termMs: Math.max(0, safeInteger(contract.termMs, 0)), dueAt: nullableInteger(contract.dueAt),
+    facilityTypeId: contract.facilityTypeId ? String(contract.facilityTypeId) : null,
+    collateralQuantity: Math.max(0, safeInteger(contract.collateralQuantity, 0)), collateralTransferredQuantity: Math.max(0, safeInteger(contract.collateralTransferredQuantity, 0)),
+    autoRepay: contract.autoRepay !== false,
+    lessorId: nullableInteger(contract.lessorId), lessorName: contract.lessorName ? String(contract.lessorName) : null,
+    lesseeId: nullableInteger(contract.lesseeId), lesseeName: contract.lesseeName ? String(contract.lesseeName) : null,
+    quantity: Math.max(0, safeInteger(contract.quantity, 0)), rentPerPeriod: safeMoney(contract.rentPerPeriod, 0),
+    periodMs: Math.max(0, safeInteger(contract.periodMs, 0)), totalPeriods: Math.max(0, safeInteger(contract.totalPeriods, 0)), completedPeriods: Math.max(0, safeInteger(contract.completedPeriods, 0)),
+    lesseeEscrowCredits: safeMoney(contract.lesseeEscrowCredits, 0), lesseeBondCredits: safeMoney(contract.lesseeBondCredits, 0), lessorBondCredits: safeMoney(contract.lessorBondCredits, 0),
+    autoFund: contract.autoFund !== false, lastPaymentGross: safeMoney(contract.lastPaymentGross, 0), lastPaymentFee: safeMoney(contract.lastPaymentFee, 0),
+    lastCompensation: safeMoney(contract.lastCompensation, 0),
+    lastCompensationFromId: nullableInteger(contract.lastCompensationFromId),
+    lastCompensationToId: nullableInteger(contract.lastCompensationToId),
+    auditGrossTotal: safeMoney(contract.auditGrossTotal, 0),
   };
 }
 
@@ -405,6 +425,10 @@ function visibleHistoryWhere(userId, options) {
     clauses.push('status = ?');
     values.push(options.status);
   }
+  if (options.kind && ['supply', 'loan', 'facility_lease'].includes(options.kind)) {
+    clauses.push("json_extract(contract_json, '$.kind') = ?");
+    values.push(String(options.kind));
+  }
   if (options.productId) {
     clauses.push('product_id = ?');
     values.push(String(options.productId));
@@ -466,6 +490,79 @@ function eventMetadata(row) {
   } catch {
     return {};
   }
+}
+
+
+function commercialTransfersForTransition(before, after, eventType) {
+  if (after.kind === 'loan') {
+    if (eventType === 'loan_contract_accepted') return compactTransfers([
+      transfer({ assetType: 'credits', quantity: after.principal, fromType: 'player', fromId: after.lenderId, fromAccount: 'available', toType: 'player', toId: after.borrowerId, toAccount: 'available', purpose: 'player_loan_principal' }),
+      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'facility_owned', toType: 'player', toId: after.borrowerId, toAccount: 'contract_collateral', purpose: 'player_loan_collateral' }),
+    ]);
+    if (eventType === 'loan_repaid') return compactTransfers([
+      transfer({ assetType: 'credits', quantity: after.lastPaymentGross, fromType: 'player', fromId: after.borrowerId, fromAccount: 'available', toType: 'player', toId: after.lenderId, toAccount: 'available', purpose: 'player_loan_repayment' }),
+      transfer({ assetType: 'credits', quantity: after.lastPaymentFee, fromType: 'player', fromId: after.lenderId, fromAccount: 'loan_interest', toType: 'system', toAccount: 'bank_service_employment', purpose: 'market_service_fee' }),
+      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.borrowerId, toAccount: 'facility_owned', purpose: 'player_loan_collateral_release' }),
+    ]);
+    if (eventType === 'loan_defaulted') return compactTransfers([
+      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralTransferredQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.lenderId, toAccount: 'facility_owned', purpose: 'player_loan_default_collateral' }),
+      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: Math.max(0, after.collateralQuantity - after.collateralTransferredQuantity), fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.borrowerId, toAccount: 'facility_owned', purpose: 'player_loan_collateral_remainder_release' }),
+    ]);
+  }
+  if (after.kind === 'facility_lease') {
+    if (eventType === 'lease_contract_accepted') return compactTransfers([
+      transfer({ assetType: 'credits', quantity: after.rentPerPeriod, fromType: 'player', fromId: after.lesseeId, fromAccount: 'available', toType: 'player', toId: after.lesseeId, toAccount: 'contract_escrow', purpose: 'lease_first_period_rent' }),
+      transfer({ assetType: 'credits', quantity: after.lesseeBondCredits, fromType: 'player', fromId: after.lesseeId, fromAccount: 'available', toType: 'player', toId: after.lesseeId, toAccount: 'contract_bond', purpose: 'lease_lessee_bond' }),
+      transfer({ assetType: 'credits', quantity: after.lessorBondCredits, fromType: 'player', fromId: after.lessorId, fromAccount: 'available', toType: 'player', toId: after.lessorId, toAccount: 'contract_bond', purpose: 'lease_lessor_bond' }),
+      transfer({ assetType: 'commodity', productId: `facility-usage:${after.facilityTypeId}`, quantity: after.quantity, fromType: 'player', fromId: after.lessorId, fromAccount: 'facility_usage', toType: 'player', toId: after.lesseeId, toAccount: 'facility_usage', purpose: 'lease_usage_right' }),
+    ]);
+    if (eventType === 'lease_rent_paid') return compactTransfers([
+      transfer({ assetType: 'credits', quantity: after.lastDeliveryGross, fromType: 'player', fromId: after.lesseeId, fromAccount: 'contract_escrow', toType: 'player', toId: after.lessorId, toAccount: 'available', purpose: 'lease_rent_payment' }),
+      transfer({ assetType: 'credits', quantity: after.lastDeliveryFee, fromType: 'player', fromId: after.lessorId, fromAccount: 'lease_income', toType: 'system', toAccount: 'market_service_employment', purpose: 'market_service_fee' }),
+    ]);
+    if (eventType === 'contract_completed') return compactTransfers([
+      transfer({ assetType: 'credits', quantity: before?.lesseeBondCredits, fromType: 'player', fromId: after.lesseeId, fromAccount: 'contract_bond', toType: 'player', toId: after.lesseeId, toAccount: 'available', purpose: 'lease_lessee_bond_release' }),
+      transfer({ assetType: 'credits', quantity: before?.lessorBondCredits, fromType: 'player', fromId: after.lessorId, fromAccount: 'contract_bond', toType: 'player', toId: after.lessorId, toAccount: 'available', purpose: 'lease_lessor_bond_release' }),
+      transfer({ assetType: 'commodity', productId: `facility-usage:${after.facilityTypeId}`, quantity: after.quantity, fromType: 'player', fromId: after.lesseeId, fromAccount: 'facility_usage', toType: 'player', toId: after.lessorId, toAccount: 'facility_usage', purpose: 'lease_usage_right_return' }),
+    ]);
+    if (eventType === 'lease_terminated') {
+      const compensationFromId = Number.isFinite(Number(after.lastCompensationFromId)) ? Number(after.lastCompensationFromId) : null;
+      const compensationToId = Number.isFinite(Number(after.lastCompensationToId)) ? Number(after.lastCompensationToId) : null;
+      return compactTransfers([
+        transfer({ assetType: 'credits', quantity: before?.lesseeEscrowCredits, fromType: 'player', fromId: after.lesseeId, fromAccount: 'contract_escrow', toType: 'player', toId: after.lesseeId, toAccount: 'available', purpose: 'lease_unused_rent_release' }),
+        transfer({ assetType: 'credits', quantity: after.lastCompensation, fromType: 'player', fromId: compensationFromId, fromAccount: 'contract_bond', toType: 'player', toId: compensationToId, toAccount: 'available', purpose: 'bond_compensation' }),
+        transfer({ assetType: 'credits', quantity: compensationFromId === Number(after.lesseeId) ? 0 : before?.lesseeBondCredits, fromType: 'player', fromId: after.lesseeId, fromAccount: 'contract_bond', toType: 'player', toId: after.lesseeId, toAccount: 'available', purpose: 'lease_lessee_bond_release' }),
+        transfer({ assetType: 'credits', quantity: compensationFromId === Number(after.lessorId) ? 0 : before?.lessorBondCredits, fromType: 'player', fromId: after.lessorId, fromAccount: 'contract_bond', toType: 'player', toId: after.lessorId, toAccount: 'available', purpose: 'lease_lessor_bond_release' }),
+        transfer({ assetType: 'commodity', productId: `facility-usage:${after.facilityTypeId}`, quantity: after.quantity, fromType: 'player', fromId: after.lesseeId, fromAccount: 'facility_usage', toType: 'player', toId: after.lessorId, toAccount: 'facility_usage', purpose: 'lease_usage_right_return' }),
+      ]);
+    }
+  }
+  return [];
+}
+
+function captureCommercialTransition(world, context, before, after) {
+  const accepted = before.status === 'open' && after.status === 'active';
+  const completed = before.status === 'active' && after.status === 'completed';
+  const terminated = before.status === 'active' && after.status === 'terminated';
+  if (accepted) {
+    const eventType = after.kind === 'loan' ? 'loan_contract_accepted' : 'lease_contract_accepted';
+    queueTransitionEvent(world, context, after, eventType, { before, after, transfers: commercialTransfersForTransition(before, after, eventType) });
+  }
+  if (!before.graceEndsAt && after.graceEndsAt) queueTransitionEvent(world, context, after, 'grace_started', { before, after, reasonCode: after.kind === 'loan' ? 'borrower_funds' : 'lessee_rent', metadata: { graceEndsAt: after.graceEndsAt } });
+  if (after.kind === 'facility_lease' && after.completedPeriods > before.completedPeriods) {
+    queueTransitionEvent(world, context, after, 'lease_rent_paid', { before, after, batchNumber: after.completedPeriods, transfers: commercialTransfersForTransition(before, after, 'lease_rent_paid'), metadata: { gross: after.lastDeliveryGross, fee: after.lastDeliveryFee } });
+  }
+  if (completed) {
+    const eventType = after.kind === 'loan' ? 'loan_repaid' : 'contract_completed';
+    queueTransitionEvent(world, context, after, eventType, { before, after, transfers: commercialTransfersForTransition(before, after, eventType) });
+  }
+  if (terminated) {
+    const eventType = after.kind === 'loan' ? 'loan_defaulted' : 'lease_terminated';
+    queueTransitionEvent(world, context, after, eventType, { before, after, reasonCode: after.terminationReason, transfers: commercialTransfersForTransition(before, after, eventType) });
+  }
+  if (!before.terminationRequestedBy && after.terminationRequestedBy) queueTransitionEvent(world, context, after, 'termination_requested', { before, after, metadata: { requestedBy: after.terminationRequestedBy } });
+  if (after.kind === 'loan' && before.autoRepay !== after.autoRepay) queueTransitionEvent(world, context, after, 'loan_auto_repay_changed', { before, after, metadata: { enabled: after.autoRepay } });
+  if (after.kind === 'facility_lease' && before.autoFund !== after.autoFund) queueTransitionEvent(world, context, after, 'lease_auto_fund_changed', { before, after, metadata: { enabled: after.autoFund } });
 }
 
 export function configureContractAuditStore(store) {
@@ -669,6 +766,10 @@ export function configureContractAuditStore(store) {
             ? `contract-audit:request:${normalizedContext.requestKeyHash}:published:${after.id}`
             : null,
         });
+        continue;
+      }
+      if (after.kind !== 'supply') {
+        captureCommercialTransition(world, normalizedContext, before, after);
         continue;
       }
 
@@ -909,7 +1010,8 @@ const accepted = before.status === 'open' && after.status === 'active';
         .reduce((sum, item) => sum + item.quantity, 0);
       const endedAt = after.endedAt || after.completedAt || null;
       const sortAt = endedAt || event.occurredAt || after.createdAt;
-      const grossTotal = safeMoney(after.marketSellFeeGross, 0)
+      const grossTotal = safeMoney(after.auditGrossTotal, 0)
+        || safeMoney(after.marketSellFeeGross, 0)
         || multiplyMoneyByInteger(after.batchGross, after.completedDeliveries)
         || 0;
       const feeTotal = safeMoney(after.marketSellFeeCharged, 0);
@@ -948,6 +1050,7 @@ const accepted = before.status === 'open' && after.status === 'active';
       cursor: options.cursor || null,
       limit: parseLimit(options.limit, DEFAULT_HISTORY_LIMIT),
       status: options.status ? String(options.status) : null,
+      kind: options.kind ? String(options.kind) : null,
       productId: options.productId ? String(options.productId) : null,
       role: options.role ? String(options.role) : 'any',
       from: nullableInteger(options.from),
@@ -1072,7 +1175,8 @@ const accepted = before.status === 'open' && after.status === 'active';
       const after = event.after;
       const endedAt = after.endedAt || after.completedAt || null;
       const sortAt = endedAt || after.createdAt;
-      const grossTotal = safeMoney(after.marketSellFeeGross, 0)
+      const grossTotal = safeMoney(after.auditGrossTotal, 0)
+        || safeMoney(after.marketSellFeeGross, 0)
         || multiplyMoneyByInteger(after.batchGross, after.completedDeliveries)
         || 0;
       const feeTotal = safeMoney(after.marketSellFeeCharged, 0);
