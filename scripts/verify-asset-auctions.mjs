@@ -201,10 +201,26 @@ requireText('src/pages/AuctionPage.tsx', [
   '新增',
 ]);
 forbidText('src/pages/AuctionPage.tsx', ['highestBidderName', 'highestBidderId', 'bidderName', 'bidderId', 'closedAuctions', '最近结束']);
+requireText('src/styles/auction-card-layers.css', [
+  '.asset-auction-bundle-tile {',
+  'box-sizing: border-box;',
+  'max-width: 256px;',
+  'max-height: 256px;',
+  'justify-self: center;',
+  '.asset-auction-bundle-tile > .facility-icon.game-icon,',
+  '.asset-auction-summary-icon > .facility-icon.game-icon {',
+  'width: 100%;',
+  'height: 100%;',
+  'border-radius: 0;',
+]);
 requireText('tests/browser/auction-bid-history.spec.ts', [
   'auction bid history is collapsed, lazy, anonymous, and capped at ten rows',
   "toHaveCount(10)",
-  'auction bid history is collapsed, lazy, anonymous, and capped at ten rows',
+  'auction facility artwork fills the main and summary slots within a 256px tile',
+  "icon.setAttribute('data-facility-icon', 'machine-factory');",
+  'toBeLessThanOrEqual(256.5)',
+  "expect(mainGeometry.backgroundSize).toBe('cover');",
+  "expect(summaryGeometry.backgroundSize).toBe('cover');",
 ]);
 
 requireText('.github/workflows/deploy.yml', [
@@ -225,7 +241,11 @@ requireText('docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md', ['`auction-audi
 requireText('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md', ['拍卖使用自身规则快照', '拍卖独立收费不得被误删']);
 requireText('docs/WAREHOUSE_EXPANSION_DESIGN.md', ['未达保留价']);
 requireText('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', ['未达保留价']);
-requireText('docs/UI_DESIGN_SYSTEM.md', ['出价历史使用原生按钮', '`aria-expanded`']);
+requireText('docs/UI_DESIGN_SYSTEM.md', [
+  '出价历史使用原生按钮',
+  '`aria-expanded`',
+  '主视觉格子外边界不得超过 `256 × 256px`',
+]);
 requireText('docs/PRODUCT_AND_GAMEPLAY_DESIGN.md', ['拍卖服务费用与货币流', '世界级拍卖费用托管']);
 
 for (const path of filesUnder('src')) {
@@ -240,4 +260,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
+console.log('资产包拍卖发布费、卖方手续费、保留价、最低加价、自动延时、匿名竞价、最近十条按需历史、工厂插画铺满与 256px 主视觉上限、SQLite 审计、世界 21 迁移、原子托管及订单簿隔离验证通过。');
