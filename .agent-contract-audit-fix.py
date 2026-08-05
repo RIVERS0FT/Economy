@@ -44,6 +44,26 @@ replace(
     "    ]);",
     1,
 )
+replace(
+    'server/src/contract-audit-store.js',
+    "    if (eventType === 'loan_defaulted') return compactTransfers([\n"
+    "      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralTransferredQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.lenderId, toAccount: 'facility_owned', purpose: 'player_loan_default_collateral' }),\n"
+    "    ]);",
+    "    if (eventType === 'loan_defaulted') return compactTransfers([\n"
+    "      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: after.collateralTransferredQuantity, fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.lenderId, toAccount: 'facility_owned', purpose: 'player_loan_default_collateral' }),\n"
+    "      transfer({ assetType: 'commodity', productId: `facility:${after.facilityTypeId}`, quantity: Math.max(0, after.collateralQuantity - after.collateralTransferredQuantity), fromType: 'player', fromId: after.borrowerId, fromAccount: 'contract_collateral', toType: 'player', toId: after.borrowerId, toAccount: 'facility_owned', purpose: 'player_loan_collateral_remainder_release' }),\n"
+    "    ]);",
+    1,
+)
+replace(
+    'server/src/contract-audit-store.js',
+    "    lastCompensation: safeMoney(contract.lastCompensation, 0), auditGrossTotal: safeMoney(contract.auditGrossTotal, 0),",
+    "    lastCompensation: safeMoney(contract.lastCompensation, 0),\n"
+    "    lastCompensationFromId: nullableInteger(contract.lastCompensationFromId),\n"
+    "    lastCompensationToId: nullableInteger(contract.lastCompensationToId),\n"
+    "    auditGrossTotal: safeMoney(contract.auditGrossTotal, 0),",
+    1,
+)
 old = """    if (eventType === 'lease_terminated' && after.lastCompensation > 0) return compactTransfers([
       transfer({ assetType: 'credits', quantity: after.lastCompensation, fromType: 'player', fromId: before?.terminationReason === 'lessee_default' ? after.lesseeId : null, fromAccount: 'contract_bond', toType: 'player', toId: after.terminationReason === 'lessee_default' ? after.lessorId : null, toAccount: 'available', purpose: 'bond_compensation' }),
     ]);
@@ -78,6 +98,33 @@ replace(
     "});",
     1,
 )
+loan_default_test = """
+
+test('loan default transfers only enough collateral and releases the remainder', () => {
+  const state = world(); const facility = FACILITY_TYPE_CATALOG[0]; const now = 4_000_000;
+  assert.equal(applyProductionContractAction(state, { id: 1 }, 'createProductionContract', { kind: 'loan', publisherSide: 'borrower', principal: 10, interestRateBps: 500, termMs: 12 * 60 * 60 * 1000, facilityTypeId: facility.id, collateralQuantity: 2 }, now).ok, true);
+  const contractId = state.productionContracts[0].id;
+  assert.equal(applyProductionContractAction(state, { id: 2 }, 'acceptProductionContract', { contractId }, now).ok, true);
+  state.players['1'].credits = 0;
+  processProductionContracts(state, now + 12 * 60 * 60 * 1000 + 1);
+  const grace = state.productionContracts[0];
+  assert.ok(grace.graceEndsAt);
+  processProductionContracts(state, grace.graceEndsAt + 1);
+  const terminated = state.productionContracts[0];
+  assert.equal(terminated.status, 'terminated');
+  assert.equal(terminated.collateralTransferredQuantity, 1);
+  assert.equal(playerLoanCollateralQuantity(state, 1, facility.id), 0);
+  assert.equal(state.players['1'].facilityGroups[0].count, 9);
+  assert.equal(state.players['2'].facilityGroups[0].count, 11);
+});
+"""
+test_file = Path('server/test/commercial-contracts.test.js')
+test_text = test_file.read_text(encoding='utf-8')
+test_anchor = "\ntest('schema 5 migrates legacy supply contracts without changing roles', () => {"
+if test_anchor not in test_text:
+    raise SystemExit('missing loan default test insertion anchor')
+test_file.write_text(test_text.replace(test_anchor, loan_default_test + test_anchor, 1), encoding='utf-8', newline='\n')
+
 replace(
     'scripts/verify-contract-types.mjs',
     "'transferableFacilityQuantity']);",
@@ -87,6 +134,6 @@ replace(
 replace(
     'scripts/verify-contract-types.mjs',
     "requireText('server/src/contracts.js'",
-    "requireText('server/src/contract-audit-store.js', ['player_loan_collateral_release', 'lease_usage_right_return', 'lastCompensationFromId']);\nrequireText('server/src/contracts.js'",
+    "requireText('server/src/contract-audit-store.js', ['player_loan_collateral_release', 'player_loan_collateral_remainder_release', 'lease_usage_right_return', 'lastCompensationFromId', 'lastCompensationToId']);\nrequireText('server/src/contracts.js'",
     1,
 )
