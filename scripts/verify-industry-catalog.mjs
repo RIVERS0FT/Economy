@@ -5,20 +5,20 @@ import { FACILITY_TYPE_CATALOG, PRODUCT_CATALOG } from '../server/src/domain.js'
 const expectedProducts = [
   'wheat', 'rice', 'cotton', 'sugarcane', 'fruit', 'timber', 'ore', 'copper-ore', 'crude-oil',
   'meat', 'eggs', 'milk', 'fish', 'wool', 'flour', 'sugar', 'lumber', 'steel', 'copper',
-  'plastic', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
+  'plastic', 'fertilizer', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
   'clothing', 'machinery', 'electronics', 'appliance',
 ];
 const expectedFacilities = [
   'farm', 'orchard', 'ranch', 'fishery',
   'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill',
   'pulp-mill', 'steelworks', 'textile-mill', 'food-factory', 'paper-mill',
-  'refinery', 'beverage-factory', 'furniture-factory', 'garment-factory',
+  'refinery', 'fertilizer-factory', 'beverage-factory', 'furniture-factory', 'garment-factory',
   'machine-factory', 'electronics-factory', 'appliance-factory',
 ];
 const expectedPrices = {
   wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
   'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, textile: 20,
+  flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, textile: 20,
   pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
   clothing: 55, machinery: 76, electronics: 84, appliance: 92,
 };
@@ -35,6 +35,7 @@ const expectedConstruction = {
   'pulp-mill': { complexity: 'C3', buildCost: 190, buildTimeMs: 30 * 60_000, systemValue: 250 },
   steelworks: { complexity: 'C3', buildCost: 240, buildTimeMs: 40 * 60_000, systemValue: 315 },
   refinery: { complexity: 'C4', buildCost: 300, buildTimeMs: 80 * 60_000, systemValue: 390 },
+  'fertilizer-factory': { complexity: 'C4', buildCost: 330, buildTimeMs: 85 * 60_000, systemValue: 430 },
   'textile-mill': { complexity: 'C3', buildCost: 220, buildTimeMs: 35 * 60_000, systemValue: 290 },
   'food-factory': { complexity: 'C3', buildCost: 230, buildTimeMs: 45 * 60_000, systemValue: 300 },
   'beverage-factory': { complexity: 'C4', buildCost: 280, buildTimeMs: 60 * 60_000, systemValue: 365 },
@@ -72,8 +73,8 @@ function expectedProfitFor(facility) {
     : expectedProfitByComplexity[facility.complexity];
 }
 
-assert.equal(PRODUCT_CATALOG.length, 31, '商品目录必须为 31 项');
-assert.equal(FACILITY_TYPE_CATALOG.length, 21, '工厂目录必须为 21 项');
+assert.equal(PRODUCT_CATALOG.length, 32, '商品目录必须为 31 项');
+assert.equal(FACILITY_TYPE_CATALOG.length, 22, '工厂目录必须为 21 项');
 assert.deepEqual(PRODUCT_CATALOG.map((item) => item.id), expectedProducts);
 assert.deepEqual(FACILITY_TYPE_CATALOG.map((item) => item.id), expectedFacilities);
 const facilityComplexityRanks = FACILITY_TYPE_CATALOG.map((item) => Number(item.complexity.slice(1)));
@@ -205,7 +206,7 @@ for (const id of expectedProducts) assert.match(iconSource, new RegExp(`case '${
 
 for (const [path, texts] of [
   ['docs/INDUSTRY_AND_PRODUCTION_DESIGN.md', [
-    '当前基线为 31 种商品和 21 种工厂类型',
+    '当前基线为 32 种商品和 22 种工厂类型',
     'C1 快速生产采用工厂级参考分钟利润',
     '农场 0.6、果园 0.9、畜牧场 0.8、渔场 1.0',
     '不新增铜冶炼厂',
@@ -218,11 +219,19 @@ for (const [path, texts] of [
     '标准生产、高速生产、节约生产和高产生产',
     '生产方式与配方必须在同一次配置动作中原子切换',
   ]],
-  ['docs/UI_DESIGN_SYSTEM.md', ['当前 31 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡或按钮组']],
-  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['31 种商品和 21 种工厂', '饮料、预制餐、电子产品和家电', '作业制度']],
+  ['docs/UI_DESIGN_SYSTEM.md', ['当前 32 种正式商品', '服务器未来返回未知商品 ID', '生产方式下拉选择', '不得恢复 `radiogroup`、选择卡或按钮组']],
+  ['docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', ['32 种商品和 22 种工厂', '饮料、预制餐、电子产品和家电', '作业制度']],
 ]) {
   const content = readFileSync(path, 'utf8');
   for (const text of texts) assert.ok(content.includes(text), `${path} 缺少: ${text}`);
 }
 
-console.log('产业目录验证通过：31 种商品、21 种工厂、C1 快速生产、两位小数成本及 C2～C7 参考分钟利润梯度。');
+console.log('产业目录验证通过：32 种商品、22 种工厂、C1 快速生产、两位小数成本及 C2～C7 参考分钟利润梯度。');
+
+const fertilizerFacility = facilities.get('fertilizer-factory');
+assert.ok(fertilizerFacility, '化肥厂必须存在于正式目录');
+assert.equal(fertilizerFacility.name, '化肥厂');
+assert.deepEqual(standardRecipes(fertilizerFacility)[0].inputs, [{ productId: 'crude-oil', quantity: 2 }]);
+assert.deepEqual(standardRecipes(fertilizerFacility)[0].output, { productId: 'fertilizer', quantity: 1 });
+assert.equal(standardRecipes(fertilizerFacility)[0].cycleMs, 60_000);
+assert.equal(standardRecipes(fertilizerFacility)[0].operatingCost, 10);

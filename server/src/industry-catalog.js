@@ -24,6 +24,7 @@ const rawProducts = [
   { id: 'steel', name: '钢材', category: 'intermediate', basePrice: 29 },
   { id: 'copper', name: '铜材', category: 'intermediate', basePrice: 29 },
   { id: 'plastic', name: '塑料', category: 'intermediate', basePrice: 30 },
+  { id: 'fertilizer', name: '化肥', category: 'intermediate', basePrice: 34 },
   { id: 'textile', name: '纺织品', category: 'intermediate', basePrice: 20 },
   { id: 'pulp', name: '纸浆', category: 'intermediate', basePrice: 20 },
   { id: 'food', name: '食品', category: 'consumer', basePrice: 15 },
@@ -139,6 +140,11 @@ const rawFacilities = [
     id: 'refinery', name: '炼油厂', category: 'processing', complexity: 'C4', buildCost: 300, buildTimeMs: 80 * 60 * 1000,
     defaultRecipeId: 'refinery-default', internalCapacity: 25, systemValue: 390,
     recipes: [{ id: 'refinery-default', name: '生产塑料', cycleMs: 40_000, operatingCost: 8, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'plastic', quantity: 1 } }],
+  },
+  {
+    id: 'fertilizer-factory', name: '化肥厂', category: 'processing', complexity: 'C4', buildCost: 330, buildTimeMs: 85 * 60 * 1000,
+    defaultRecipeId: 'fertilizer-factory-default', internalCapacity: 25, systemValue: 430,
+    recipes: [{ id: 'fertilizer-factory-default', name: '生产化肥', cycleMs: 60_000, operatingCost: 10, inputs: [{ productId: 'crude-oil', quantity: 2 }], output: { productId: 'fertilizer', quantity: 1 } }],
   },
   {
     id: 'beverage-factory', name: '饮料厂', category: 'consumer', complexity: 'C4', buildCost: 280, buildTimeMs: 60 * 60 * 1000,

@@ -156,28 +156,28 @@ test('client state uses the current version and exposes no factory instances', (
     assert.equal(state.version, CURRENT_CLIENT_STATE_VERSION);
     assert.equal(Array.isArray(state.facilityGroups), true);
     assert.equal(Object.hasOwn(state, 'facilities'), false);
-    assert.equal(state.products.length, 31);
-    assert.equal(state.facilityTypes.length, 21);
+    assert.equal(state.products.length, 32);
+    assert.equal(state.facilityTypes.length, 22);
   } finally {
     store.close();
   }
 });
 
 test('expanded industry catalog exposes fruit and complete production chains', () => {
-  assert.equal(PRODUCT_CATALOG.length, 31);
-  assert.equal(FACILITY_TYPE_CATALOG.length, 21);
+  assert.equal(PRODUCT_CATALOG.length, 32);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 22);
 
   const expectedProducts = [
     'wheat', 'rice', 'cotton', 'sugarcane', 'fruit', 'timber', 'ore', 'copper-ore', 'crude-oil',
     'meat', 'eggs', 'milk', 'fish', 'wool', 'flour', 'sugar', 'lumber', 'steel', 'copper',
-    'plastic', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
+    'plastic', 'fertilizer', 'textile', 'pulp', 'food', 'beverage', 'prepared-meal', 'paper', 'furniture',
     'clothing', 'machinery', 'electronics', 'appliance',
   ];
   const expectedFacilities = [
     'farm', 'orchard', 'ranch', 'fishery',
     'logging-camp', 'mine', 'oil-field', 'mill', 'sawmill',
     'pulp-mill', 'steelworks', 'textile-mill', 'food-factory', 'paper-mill',
-    'refinery', 'beverage-factory', 'furniture-factory', 'garment-factory',
+    'refinery', 'fertilizer-factory', 'beverage-factory', 'furniture-factory', 'garment-factory',
     'machine-factory', 'electronics-factory', 'appliance-factory',
   ];
   assert.deepEqual(PRODUCT_CATALOG.map((product) => product.id), expectedProducts);
@@ -192,8 +192,8 @@ test('expanded industry catalog exposes fruit and complete production chains', (
   const expectedPrices = {
     wheat: 1.2, rice: 1.2, cotton: 1.2, sugarcane: 1.2, fruit: 1.3, timber: 6, ore: 7,
     'copper-ore': 7, 'crude-oil': 9, meat: 2.4, eggs: 2.4, milk: 2.4, fish: 2.5, wool: 2.4,
-    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, textile: 20,
-    pulp: 20, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
+    flour: 13, sugar: 13, lumber: 17, steel: 29, copper: 29, plastic: 30, fertilizer: 34, textile: 20,
+    pulp: 20, fertilizer: 34, food: 15, beverage: 18, 'prepared-meal': 18, paper: 15, furniture: 24,
     clothing: 55, machinery: 76, electronics: 84, appliance: 92,
   };
   assert.deepEqual(Object.fromEntries(PRODUCT_CATALOG.map((product) => [product.id, product.basePrice])), expectedPrices);
@@ -543,7 +543,7 @@ test('new worlds create private market demand orders during the first authoritat
     assert.deepEqual([...new Set(marketOrders.map((order) => order.ownerName))].sort(), [
       '家庭消费市场需求', '食品市场需求',
     ]);
-    assert.equal(persisted.version, 23);
+    assert.equal(persisted.version, 24);
     assert.equal(persisted.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
     assert.ok(persisted.demandGroups.food.lastCommitted <= persisted.demandGroups.food.lastBudget);
     assert.ok(persisted.demandGroups.household.lastCommitted <= persisted.demandGroups.household.lastBudget);
@@ -571,7 +571,7 @@ test('legacy demand migration immediately rebuilds market demand without losing 
   }];
 
   migrateWorld(world, now);
-  assert.equal(world.version, 23);
+  assert.equal(world.version, 24);
   assert.equal(world.marketDemand.modelVersion, MARKET_DEMAND_MODEL_VERSION);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-wheat-sell']);
   assert.equal(player.inventories.wheat.available, 2);
@@ -621,7 +621,7 @@ test('migration removes obsolete system orders while preserving player orders', 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 23);
+  assert.equal(world.version, 24);
   assert.deepEqual(world.orders.map((order) => order.id), ['player-order']);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.wheat.available, 9);
@@ -643,7 +643,7 @@ test('world version 8 migration restarts electronics and upgrades market demand 
 
   migrateWorld(world, now);
 
-  assert.equal(world.version, 23);
+  assert.equal(world.version, 24);
   assert.equal(player.credits, 777);
   assert.equal(player.inventories.plastic.available, 9);
   assert.equal(player.inventories.copper.available, 4);
