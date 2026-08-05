@@ -85,3 +85,5 @@ const selectedFacilityEntry = orderedFacilityGroups.find(
 - 复用建设类型状态承载详情选择，或让轮询把有效详情选择重置到第一项；
 - 为内部 `selectedFacilityGroupId` 恢复 `aria-pressed`、选中类名、选中描边或选中背景；
 - 绕过共享交互表面，在工厂选择卡业务样式中重新声明裸 hover／active／focus，或让触摸焦点返回显示为选中态。
+
+- 工具工坊（`tool-workshop`）固定排在制衣厂之后、机械厂之前。

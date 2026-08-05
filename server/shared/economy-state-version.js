@@ -1,5 +1,5 @@
-export const CURRENT_CLIENT_STATE_VERSION = 27;
-export const MIN_COMPATIBLE_CLIENT_STATE_VERSION = 27;
+export const CURRENT_CLIENT_STATE_VERSION = 28;
+export const MIN_COMPATIBLE_CLIENT_STATE_VERSION = 28;
 
 export function isCompatibleClientStateVersion(value) {
   return Number.isInteger(value)

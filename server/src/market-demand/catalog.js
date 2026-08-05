@@ -4,7 +4,7 @@ const freezeClasses = (classes) => Object.freeze(classes.map((demandClass) => Ob
   products: freezeOptions(demandClass.products),
 })));
 
-export const MARKET_DEMAND_MODEL_VERSION = 14;
+export const MARKET_DEMAND_MODEL_VERSION = 15;
 export const PRICE_WINDOW_MS = 30 * 60 * 1000;
 export const ACTIVITY_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const ACTIVE_PLAYER_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -156,16 +156,17 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
         ],
       },
       {
-        id: 'durables', name: '金属建设与耐用品', budgetShare: 0.30, minBudgetShare: 0.15, maxBudgetShare: 0.50,
+        id: 'durables', name: '金属、工具与耐用品', budgetShare: 0.30, minBudgetShare: 0.15, maxBudgetShare: 0.50,
         elasticity: 0.6,
         products: [
-          { productId: 'ore', baseWeight: 0.08, utilityPerUnit: 1, minShare: 0.03 },
-          { productId: 'copper-ore', baseWeight: 0.08, utilityPerUnit: 1, minShare: 0.03 },
-          { productId: 'steel', baseWeight: 0.12, utilityPerUnit: 2, minShare: 0.04 },
-          { productId: 'copper', baseWeight: 0.12, utilityPerUnit: 2, minShare: 0.04 },
-          { productId: 'machinery', baseWeight: 0.18, utilityPerUnit: 3, minShare: 0.06 },
-          { productId: 'electronics', baseWeight: 0.18, utilityPerUnit: 3, minShare: 0.06 },
-          { productId: 'appliance', baseWeight: 0.24, utilityPerUnit: 4, minShare: 0.08 },
+          { productId: 'ore', baseWeight: 0.07, utilityPerUnit: 1, minShare: 0.03 },
+          { productId: 'copper-ore', baseWeight: 0.07, utilityPerUnit: 1, minShare: 0.03 },
+          { productId: 'steel', baseWeight: 0.10, utilityPerUnit: 2, minShare: 0.04 },
+          { productId: 'copper', baseWeight: 0.10, utilityPerUnit: 2, minShare: 0.04 },
+          { productId: 'tools', baseWeight: 0.15, utilityPerUnit: 3, minShare: 0.06 },
+          { productId: 'machinery', baseWeight: 0.15, utilityPerUnit: 3, minShare: 0.06 },
+          { productId: 'electronics', baseWeight: 0.15, utilityPerUnit: 3, minShare: 0.06 },
+          { productId: 'appliance', baseWeight: 0.21, utilityPerUnit: 4, minShare: 0.08 },
         ],
       },
     ]),
@@ -173,7 +174,7 @@ export const MARKET_DEMAND_GROUP_CATALOG = Object.freeze([
       timber: 6, lumber: 3, pulp: 3, furniture: 7,
       cotton: 8, wool: 4, textile: 3, clothing: 5,
       paper: 7, 'crude-oil': 4, plastic: 3, fertilizer: 3,
-      ore: 5, 'copper-ore': 5, steel: 2, copper: 2, machinery: 1, electronics: 4, appliance: 3,
+      ore: 5, 'copper-ore': 5, steel: 2, copper: 2, tools: 2, machinery: 1, electronics: 4, appliance: 3,
     }),
   }),
 ]);

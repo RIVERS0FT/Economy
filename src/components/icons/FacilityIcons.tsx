@@ -20,6 +20,7 @@ export const FACILITY_ICON_IDS = [
   'paper-mill',
   'furniture-factory',
   'garment-factory',
+  'tool-workshop',
   'machine-factory',
   'electronics-factory',
   'appliance-factory',

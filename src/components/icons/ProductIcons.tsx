@@ -30,6 +30,7 @@ export const PRODUCT_ICON_IDS = [
   'paper',
   'furniture',
   'clothing',
+  'tools',
   'machinery',
   'electronics',
   'appliance',
@@ -308,6 +309,14 @@ export function ProductIcon({ productId, ...props }: ProductIconProps) {
         <ProductSvg productId={productId} {...props}>
           <path d="m8 4-5 4 3 4 2-1v9h8v-9l2 1 3-4-5-4c-.8 1.3-2.2 2-4 2s-3.2-.7-4-2Z" />
           <path d="M10 4c.4 1 1 1.5 2 1.5S13.6 5 14 4" />
+        </ProductSvg>
+      );
+    case 'tools':
+      return (
+        <ProductSvg productId={productId} {...props}>
+          <path d="M5 18h14v3H5z" />
+          <path d="M7 18V9h10v9M9 9V6h6v3" />
+          <path d="m7 12 4-4m2 7 4-4M10 13h4M12 11v4" />
         </ProductSvg>
       );
     case 'machinery':

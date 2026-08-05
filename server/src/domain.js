@@ -173,7 +173,7 @@ export function createWorld(now = Date.now()) {
   ensurePopulationEconomy(world, now);
   world.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   world.auctionFeeEscrowCredits = Math.max(0, Number(world.auctionFeeEscrowCredits || 0));
-  world.version = 24;
+  world.version = 25;
   normalizeWorldMoneyPrecision(world);
   return world;
 }
@@ -224,7 +224,7 @@ export function migrateWorld(world, now = Date.now()) {
   ensurePopulationEconomy(migrated, now);
   migrated.orderBookIntegrityVersion = ORDER_BOOK_INTEGRITY_VERSION;
   migrated.auctionFeeEscrowCredits = Math.max(0, Number(migrated.auctionFeeEscrowCredits || 0));
-  migrated.version = 24;
+  migrated.version = 25;
   normalizeWorldMoneyPrecision(migrated);
   return migrated;
 }

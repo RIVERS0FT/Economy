@@ -17,6 +17,7 @@
 .facility-icon[data-facility-icon='paper-mill'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/paper-mill.png'); }
 .facility-icon[data-facility-icon='furniture-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/furniture-factory.png'); }
 .facility-icon[data-facility-icon='garment-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/garment-factory.png'); }
+.facility-icon[data-facility-icon='tool-workshop'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/tool-workshop.png'); }
 .facility-icon[data-facility-icon='machine-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/machine-factory.png'); }
 .facility-icon[data-facility-icon='electronics-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/electronics-factory.png'); }
 .facility-icon[data-facility-icon='appliance-factory'] { --facility-artwork-image: url('../assets/facility-icons/generated/256/appliance-factory.png'); }
@@ -67,6 +68,7 @@
   [data-facility-icon='paper-mill'],
   [data-facility-icon='furniture-factory'],
   [data-facility-icon='garment-factory'],
+  [data-facility-icon='tool-workshop'],
   [data-facility-icon='machine-factory'],
   [data-facility-icon='electronics-factory'],
   [data-facility-icon='appliance-factory']

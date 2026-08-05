@@ -17,8 +17,8 @@ function standardRecipe(facility) {
 }
 
 test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
-  assert.equal(PRODUCT_CATALOG.length, 32);
-  assert.equal(FACILITY_TYPE_CATALOG.length, 22);
+  assert.equal(PRODUCT_CATALOG.length, 33);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 23);
   const product = PRODUCT_CATALOG.find((item) => item.id === 'fertilizer');
   const facility = FACILITY_TYPE_CATALOG.find((item) => item.id === 'fertilizer-factory');
   assert.deepEqual(product, {
@@ -45,10 +45,10 @@ test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
   assert.equal(recipe.operatingCost, 10);
   assert.equal((34 - 2 * 9 - 10) * 60_000 / recipe.cycleMs, 6);
   assert.equal(facility.recipes.length, 4);
-  assert.equal(MARKET_DEMAND_MODEL_VERSION, 14);
+  assert.equal(MARKET_DEMAND_MODEL_VERSION, 15);
 });
 
-test('世界版本 24 迁移补齐化肥库存与市场且保留既有资产', () => {
+test('世界版本 25 迁移仍补齐化肥库存与市场且保留既有资产', () => {
   const now = 1_786_000_000_000;
   const world = createWorld(now);
   const player = ensurePlayer(world, { id: 7, name: '迁移玩家' }, now);
@@ -56,10 +56,10 @@ test('世界版本 24 迁移补齐化肥库存与市场且保留既有资产', (
   player.inventories.wheat.available = 77;
   delete player.inventories.fertilizer;
   delete world.markets.fertilizer;
-  world.version = 23;
+  world.version = 24;
 
   const migrated = migrateWorld(world, now + 1_000);
-  assert.equal(migrated.version, 24);
+  assert.equal(migrated.version, 25);
   assert.equal(migrated.players['7'].credits, 12_345);
   assert.equal(migrated.players['7'].inventories.wheat.available, 77);
   assert.deepEqual(migrated.players['7'].inventories.fertilizer, { available: 0, frozen: 0 });

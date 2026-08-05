@@ -588,7 +588,7 @@ export class EconomyStore {
     stripLegacyFacilityInstances(world);
     stripPlayerLogs(world);
     measureRequestPhase('moneyNormalizeMs', () => normalizeWorldMoneyPrecision(world));
-    world.version = 24;
+    world.version = 25;
     return world;
   }
 
