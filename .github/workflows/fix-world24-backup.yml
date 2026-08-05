@@ -44,6 +44,10 @@ jobs:
               'scripts/verify-deployment-storage.mjs': [
                   ("'backup-world --target-world-version 23'", "'backup-world --target-world-version 24'"),
               ],
+              'scripts/verify-asset-auctions.mjs': [
+                  ("'backup before world 23 migration'", "'backup before world 24 migration'"),
+                  ("'backup-world --target-world-version 23'", "'backup-world --target-world-version 24'"),
+              ],
               'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md': [
                   (
                       '- 正式 SQLite 迁移备份按文件名中的迁移族统一管理：',
@@ -68,8 +72,14 @@ jobs:
           deploy = Path('.github/workflows/deploy.yml').read_text()
           if deploy.count('backup-world --target-world-version 24') != 2:
               raise SystemExit('deploy workflow must pass target world version 24 twice')
-          if 'world 23 migration' in deploy or 'target-world-version 23' in deploy:
-              raise SystemExit('stale world 23 deployment backup target remains')
+          for path in (
+              '.github/workflows/deploy.yml',
+              'scripts/verify-deployment-storage.mjs',
+              'scripts/verify-asset-auctions.mjs',
+          ):
+              source = Path(path).read_text()
+              if 'world 23 migration' in source or 'target-world-version 23' in source:
+                  raise SystemExit(f'{path}: stale world 23 deployment backup target remains')
           PY
 
       - name: Install dependencies
@@ -79,6 +89,7 @@ jobs:
         shell: bash
         run: |
           node scripts/verify-deployment-storage.mjs
+          node scripts/verify-asset-auctions.mjs
           git diff --check
           npm run build
 
@@ -91,6 +102,7 @@ jobs:
           git add -- \
             .github/workflows/deploy.yml \
             scripts/verify-deployment-storage.mjs \
+            scripts/verify-asset-auctions.mjs \
             docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md \
             .github/workflows/fix-world24-backup.yml
           git diff --cached --check
