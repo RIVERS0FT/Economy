@@ -17,6 +17,8 @@ function standardRecipe(facility) {
 }
 
 test('化肥与化肥厂进入正式目录并保持 C4 参考利润', () => {
+  assert.equal(PRODUCT_CATALOG.length, 32);
+  assert.equal(FACILITY_TYPE_CATALOG.length, 22);
   const product = PRODUCT_CATALOG.find((item) => item.id === 'fertilizer');
   const facility = FACILITY_TYPE_CATALOG.find((item) => item.id === 'fertilizer-factory');
   assert.deepEqual(product, {
