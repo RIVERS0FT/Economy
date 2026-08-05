@@ -19,6 +19,7 @@ const pagePath = 'src/pages/ContractPage.tsx';
 const stylePath = 'src/styles/contracts.css';
 const designPath = 'docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md';
 const browserTestPath = 'tests/browser/contract-layout.spec.ts';
+const attentionBrowserTestPath = 'tests/browser/contract-attention-background.spec.ts';
 const workspaceTestPath = 'tests/browser/contract-workspace.spec.ts';
 const harnessPath = 'tests/browser/runtime-harness.tsx';
 const formVerifierPath = 'scripts/verify-form-controls.mjs';
@@ -29,6 +30,7 @@ const packagePath = 'package.json';
   stylePath,
   designPath,
   browserTestPath,
+  attentionBrowserTestPath,
   workspaceTestPath,
   harnessPath,
   formVerifierPath,
@@ -86,6 +88,7 @@ for (const text of [
   '.contract-personal-tabs {',
   'grid-template-columns: repeat(2, minmax(0, 1fr));',
   '.contract-workspace .contract-card--attention {',
+  'background: linear-gradient(0deg, var(--color-warning-soft), var(--color-warning-soft)), var(--gradient-panel);',
   '.contract-publish-layout',
   '.contract-history-panel',
   '@media (max-width: 1399px)',
@@ -96,6 +99,7 @@ for (const text of [
 
 for (const text of [
   '--page-section-gap',
+  '--color-surface-primary',
   '.ui-segmented.contract-tabs {',
   '.contract-tabs .contract-tab-count {',
   'grid-auto-flow: column;',
@@ -141,6 +145,16 @@ for (const text of [
 ]) requireText(browserTestPath, text);
 
 for (const text of [
+  "runtime-test.html?view=contracts",
+  'pending contract card keeps warning tint over panel material',
+  '.contract-card--attention',
+  '.contract-card--normal',
+  'backgroundImage',
+  'rgba(242, 197, 104, 0.08)',
+  'rgb(242, 197, 104)',
+]) requireText(attentionBrowserTestPath, text);
+
+for (const text of [
   'contract market stays visible while personal contracts switch views',
   "getByRole('region', { name: '合同广场' })",
   "getByRole('region', { name: '我的合同' })",
@@ -170,4 +184,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('合同页四列工作区、常驻合同广场、待处理置顶、双视图切换、历史结果、重新拟定和响应式浏览器回归验证通过。');
+console.log('合同页四列工作区、常驻合同广场、待处理置顶与警示背景、双视图切换、历史结果、重新拟定和响应式浏览器回归验证通过。');

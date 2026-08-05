@@ -118,7 +118,7 @@
 
 .contract-workspace .contract-card--attention {
   border-color: var(--color-warning);
-  background: linear-gradient(0deg, var(--color-warning-soft), var(--color-warning-soft)), var(--color-surface-primary);
+  background: linear-gradient(0deg, var(--color-warning-soft), var(--color-warning-soft)), var(--gradient-panel);
 }
 
 .contract-list {
