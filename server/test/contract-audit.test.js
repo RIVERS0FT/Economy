@@ -89,6 +89,12 @@ test('合同审计与世界状态在同一事务提交，逐批资产转移可�
   assert.equal(history.items[0].feeTotal, 6);
   assert.equal(history.items[0].netTotal, 594);
   assert.equal(history.items[0].transferredGoods, 200);
+  assert.equal(history.items[0].endSummary.reasonCode, 'completed');
+  assert.deepEqual(history.items[0].endSummary.completion, {
+    completed: 2, total: 2, unit: 'delivery', ratioBps: 10_000,
+  });
+  assert.equal(history.items[0].endSummary.settlement.goodsDelivered, 200);
+  assert.equal(history.items[0].endSummary.settlement.compensationReceivedByMe, 0);
 
   const detail = store.getContractAuditDetail(buyerUser, contractId, { limit: 100 });
   assert.equal(detail.events.filter((event) => event.eventType === 'delivery_completed').length, 2);
@@ -113,6 +119,34 @@ test('合同审计与世界状态在同一事务提交，逐批资产转移可�
     /append-only/,
   );
 
+  store.close();
+});
+
+
+test('异常结束统计按当前玩家方向返回赔付款', () => {
+  const now = 1_905_000_000_000;
+  const store = new EconomyStore(':memory:', { scheduledProcessing: false });
+  const { buyerUser, supplierUser } = seedPlayers(store, now);
+  assert.equal(store.apply(buyerUser, request('createProductionContract', '/api/game/contracts', 'contract-audit-compensation-create', {
+    publisherRole: 'buyer', productId: 'wheat', quantityPerDelivery: 100, unitPrice: 3,
+    deliveryIntervalMs: 10 * 60 * 1000, totalDeliveries: 2, firstDeliveryDelayMs: 0,
+  }), now + 1).result.ok, true);
+  const contractId = store.transaction(() => store.loadWorld(now + 2).world.productionContracts[0].id, { immediate: false });
+  assert.equal(store.apply(supplierUser, request(
+    'acceptProductionContract', '/api/game/contracts/' + contractId + '/accept',
+    'contract-audit-compensation-accept', { contractId },
+  ), now + 2).result.ok, true);
+  assert.equal(store.apply(supplierUser, request(
+    'terminateProductionContractNow', '/api/game/contracts/' + contractId + '/terminate-now',
+    'contract-audit-compensation-terminate', { contractId },
+  ), now + 3).result.ok, true);
+  const buyerHistory = store.listContractAuditHistory(buyerUser, { limit: 20 }).items[0];
+  const supplierHistory = store.listContractAuditHistory(supplierUser, { limit: 20 }).items[0];
+  assert.equal(buyerHistory.endSummary.reasonCode, 'immediate_by_participant');
+  assert.equal(buyerHistory.endSummary.settlement.compensationReceivedByMe, 60);
+  assert.equal(buyerHistory.endSummary.settlement.compensationPaidByMe, 0);
+  assert.equal(supplierHistory.endSummary.settlement.compensationPaidByMe, 60);
+  assert.equal(supplierHistory.endSummary.settlement.compensationReceivedByMe, 0);
   store.close();
 });
 

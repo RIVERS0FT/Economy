@@ -113,6 +113,36 @@ export interface ProductionContract {
   isLessee?: boolean;
 }
 
+export type ContractCompletionUnit = 'delivery' | 'repayment' | 'lease_period';
+
+export interface ContractEndSettlementSummary {
+  grossTotal: number;
+  feeTotal: number;
+  netTotal: number;
+  goodsDelivered: number;
+  loanPrincipalDisbursed: number;
+  loanRepaid: number;
+  leaseRentPaid: number;
+  compensationPaidByMe: number;
+  compensationReceivedByMe: number;
+  refundedCreditsToMe: number;
+  refundedGoodsToMe: number;
+  collateralReceivedByMe: number;
+  collateralReturnedToMe: number;
+}
+
+export interface ContractEndSummary {
+  reasonCode: string;
+  endedAt: number;
+  completion: {
+    completed: number;
+    total: number;
+    unit: ContractCompletionUnit;
+    ratioBps: number;
+  };
+  settlement: ContractEndSettlementSummary;
+}
+
 export interface ContractAuditHistoryItem extends Omit<ProductionContract, 'issue'> {
   issue: string | null;
   auditCompleteness: ContractAuditCompleteness;
@@ -123,6 +153,7 @@ export interface ContractAuditHistoryItem extends Omit<ProductionContract, 'issu
   netTotal: number;
   transferredGoods: number;
   compensationTotal: number;
+  endSummary: ContractEndSummary;
 }
 
 export interface ContractAuditTransfer {
