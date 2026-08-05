@@ -38,6 +38,8 @@ jobs:
           echo '09a800565e8c2ad3fb5d4efb9d700ac6d1928a13ea030a38ebbbaf196c4c27ec  /tmp/contract-history-rewrite.mjs' | sha256sum --check
           node --check /tmp/contract-history-rewrite.mjs
           node /tmp/contract-history-rewrite.mjs
+          rm -f .agent/contract-history-rewrite.part-*
+          rmdir .agent
 
       - name: Install dependencies
         run: npm ci
