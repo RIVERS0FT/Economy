@@ -50,7 +50,7 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
     for (let iteration = 0; iteration < 3; iteration += 1) {
       await trigger.tap();
       await expect(dialog).toBeVisible();
-      await expect(dialogLayer.locator(':scope > .facility-detail-sheet-backdrop')).toHaveCount(1);
+      await expect(dialogLayer.locator(':scope > .mobile-detail-sheet-backdrop')).toHaveCount(1);
       await expect(pageScroll).toHaveCSS('overflow-y', 'hidden');
       await waitForSheetAnimations(dialog);
 
@@ -60,11 +60,11 @@ test.describe('mobile facility detail sheet close lifecycle', () => {
       await expect(dialog.locator('.facility-staffing-track')).toBeVisible();
       await expect(dialog.locator('.facility-staffing-fill')).toBeVisible();
 
-await expect(dialog.locator('.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)')).toHaveCount(0);
+await expect(dialog.locator('.mobile-detail-sheet-header > :not(.mobile-detail-sheet-drag-handle)')).toHaveCount(0);
 await expect(dialog.locator('.facility-information')).toHaveCount(1);
 await expect(dialog.locator('.facility-information .facility-average-profit')).toHaveCount(1);
 await expect(dialog.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);
-const visibleOrder = await dialog.locator('.facility-detail-sheet-scroll').evaluate((element) => (
+const visibleOrder = await dialog.locator('.mobile-detail-sheet-scroll').evaluate((element) => (
   Array.from(element.children).map((child) => child.className)
 ));
 expect(String(visibleOrder[0])).toContain('facility-information');
@@ -72,7 +72,7 @@ expect(String(visibleOrder[1])).toContain('facility-staffing-summary');
 expect(String(visibleOrder[2])).toContain('facility-production-settings');
 expect(String(visibleOrder[3])).toContain('facility-production-formula');
 
-      const backdropBox = await dialogLayer.locator(':scope > .facility-detail-sheet-backdrop').boundingBox();
+      const backdropBox = await dialogLayer.locator(':scope > .mobile-detail-sheet-backdrop').boundingBox();
       expect(backdropBox).not.toBeNull();
       if (!backdropBox) throw new Error('工厂详情遮罩几何不可用');
       expect(backdropBox.x).toBe(0);
@@ -85,7 +85,7 @@ expect(String(visibleOrder[3])).toContain('facility-production-formula');
       expect(navigationBox).not.toBeNull();
       if (!navigationBox) throw new Error('移动导航几何不可用');
       const navigationCovered = await page.evaluate(({ x, y }) => Boolean(
-        document.elementFromPoint(x, y)?.closest('.facility-detail-sheet-backdrop'),
+        document.elementFromPoint(x, y)?.closest('.mobile-detail-sheet-backdrop'),
       ), {
         x: navigationBox.x + navigationBox.width / 2,
         y: navigationBox.y + navigationBox.height / 2,
@@ -126,7 +126,7 @@ expect(String(visibleOrder[3])).toContain('facility-production-formula');
       element.click();
       for (let index = 0; index < 18; index += 1) {
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        const sheet = document.querySelector<HTMLElement>('.facility-detail-sheet');
+        const sheet = document.querySelector<HTMLElement>('.mobile-detail-sheet');
         if (!sheet) continue;
         const rect = sheet.getBoundingClientRect();
         frames.push({ y: rect.y, height: rect.height });
@@ -134,7 +134,7 @@ expect(String(visibleOrder[3])).toContain('facility-production-formula');
       return {
         frames,
         scrollTop: pageScrollElement?.scrollTop ?? -1,
-        focused: document.activeElement?.classList.contains('facility-detail-sheet') ?? false,
+        focused: document.activeElement?.classList.contains('mobile-detail-sheet') ?? false,
       };
     });
 
@@ -162,12 +162,12 @@ expect(String(visibleOrder[3])).toContain('facility-production-formula');
     await expect(dialog).toBeVisible();
     await waitForSheetAnimations(dialog);
 
-    const scrollArea = dialog.locator('.facility-detail-sheet-scroll-area');
-    const viewport = scrollArea.locator('.facility-detail-sheet-scroll');
+    const scrollArea = dialog.locator('.mobile-detail-sheet-scroll-area');
+    const viewport = scrollArea.locator('.mobile-detail-sheet-scroll');
     await expect(scrollArea).toHaveCount(1);
     await expect(viewport).toHaveCount(1);
     const geometry = await scrollArea.evaluate((root) => {
-      const viewportElement = root.querySelector('.facility-detail-sheet-scroll') as HTMLElement | null;
+      const viewportElement = root.querySelector('.mobile-detail-sheet-scroll') as HTMLElement | null;
       const rail = root.querySelector(':scope > .ui-scrollbar--vertical') as HTMLElement | null;
       const thumb = rail?.querySelector('.ui-scrollbar__thumb') as HTMLElement | null;
       if (!viewportElement || !rail || !thumb) throw new Error('工厂详情滚动条结构缺失');
@@ -202,7 +202,7 @@ expect(String(visibleOrder[3])).toContain('facility-production-formula');
 
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
     const dialog = page.getByRole('dialog', { name: /机械工厂/ });
-    const handle = page.locator('.facility-detail-sheet-drag-handle');
+    const handle = page.locator('.mobile-detail-sheet-drag-handle');
     const pageScroll = page.locator('.page-scroll');
     await page.mouse.move(1, 1);
 
@@ -284,7 +284,7 @@ test.describe('mobile facility detail sheet full-width geometry', () => {
 
       const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
       const dialog = page.getByRole('dialog', { name: /机械工厂/ });
-      const backdrop = page.locator('.workspace-dialog-layer > .facility-detail-sheet-backdrop');
+      const backdrop = page.locator('.workspace-dialog-layer > .mobile-detail-sheet-backdrop');
 
       await trigger.tap();
       await expect(dialog).toBeVisible();
@@ -303,7 +303,7 @@ test.describe('mobile facility detail sheet full-width geometry', () => {
 
       const alignment = await backdrop.evaluate((element) => {
         const backdropStyle = getComputedStyle(element);
-        const sheet = element.querySelector<HTMLElement>('.facility-detail-sheet');
+        const sheet = element.querySelector<HTMLElement>('.mobile-detail-sheet');
         if (!sheet) throw new Error('工厂详情 Sheet 缺失');
         const sheetStyle = getComputedStyle(sheet);
         return {

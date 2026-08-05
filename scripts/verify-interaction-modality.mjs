@@ -72,7 +72,7 @@ const requiredFiles = [
   productionDetailPath,
   mobileDetailPath,
   'src/styles/facility-group-card-grid.css',
-  'tests/browser/facility-detail-sheet.spec.ts',
+  'tests/browser/mobile-detail-sheet.spec.ts',
   'tests/browser/input-modality.spec.ts',
   'docs/UI_DESIGN_SYSTEM.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
@@ -151,7 +151,7 @@ if (failures.length === 0) {
     'data-input-modality',
     'outlineStyle',
     'await expect(trigger).toBeFocused()',
-  ]) requireText('tests/browser/facility-detail-sheet.spec.ts', text);
+  ]) requireText('tests/browser/mobile-detail-sheet.spec.ts', text);
   for (const text of [
     'mixed input switches shared surface hover and focus without reload',
     'dataset.inputModality',

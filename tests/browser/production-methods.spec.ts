@@ -206,7 +206,7 @@ expect(settlementIndex).toBeGreaterThan(settingsIndex);
 
     await page.locator('.facility-cluster-selector-card').first().click();
     const dialogLayer = page.locator('.workspace-dialog-layer');
-    const sheet = page.locator('.facility-detail-sheet');
+    const sheet = page.locator('.mobile-detail-sheet');
     await expect(sheet).toBeVisible();
     await expect(sheet.locator('.facility-detail-artwork-icon')).toHaveCount(1);
     await expect.poll(() => sheet.locator('.facility-detail-artwork-icon').evaluate((element) => (
@@ -215,7 +215,7 @@ expect(settlementIndex).toBeGreaterThan(settingsIndex);
     await expect(sheet.locator('.facility-staffing-track')).toBeVisible();
     await expect(sheet.locator('.facility-staffing-fill')).toBeVisible();
 
-await expect(sheet.locator('.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)')).toHaveCount(0);
+await expect(sheet.locator('.mobile-detail-sheet-header > :not(.mobile-detail-sheet-drag-handle)')).toHaveCount(0);
 await expect(sheet.locator('.facility-information')).toHaveCount(1);
 await expect(sheet.locator('.facility-information .facility-average-profit')).toHaveCount(1);
 await expect(sheet.locator('.facility-production-formula .facility-average-profit')).toHaveCount(0);

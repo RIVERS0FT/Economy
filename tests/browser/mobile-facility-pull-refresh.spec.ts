@@ -39,7 +39,7 @@ test.describe('mobile facility pull-to-refresh prevention', () => {
 
     const trigger = page.getByRole('button', { name: /机械工厂，数量 18，运行中/ });
     const dialog = page.getByRole('dialog', { name: /机械工厂/ });
-    const content = page.locator('.facility-detail-sheet-scroll');
+    const content = page.locator('.mobile-detail-sheet-scroll');
     await trigger.tap();
     await expect(dialog).toBeVisible();
     await waitForSheetAnimations(dialog);
@@ -53,7 +53,7 @@ test.describe('mobile facility pull-to-refresh prevention', () => {
       browserWindow.__facilityTouchMovePrevented = false;
       document.addEventListener('touchmove', (event) => {
         const target = event.target instanceof Element ? event.target : null;
-        if (target?.closest('.facility-detail-sheet')) {
+        if (target?.closest('.mobile-detail-sheet')) {
           browserWindow.__facilityTouchMovePrevented ||= event.defaultPrevented;
         }
       });

@@ -254,61 +254,17 @@
 .facility-information {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(8.5rem, 11.5rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
-    "artwork main"
-    "summary summary"
-    "profit profit";
-  align-items: start;
-  gap: var(--space-2) var(--space-3);
-}
-
-.facility-information-artwork {
-  grid-area: artwork;
-  width: 100%;
-  align-self: start;
-}
-
-.facility-information-main {
-  grid-area: main;
-  min-width: 0;
-  display: grid;
-  align-content: start;
-}
-
-.facility-information-heading {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--control-height-compact);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+    "summary"
+    "counts"
+    "profit";
   align-items: start;
   gap: var(--space-2);
 }
 
-.facility-information-title {
-  min-width: 0;
-  display: grid;
-  align-content: start;
-  gap: var(--space-2);
-}
-
-.facility-information-title h2 {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  font-size: var(--font-size-xl);
-  line-height: var(--line-height-tight);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.facility-information-meta {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+.facility-information-summary {
+  grid-area: summary;
 }
 
 .facility-information-total {
@@ -330,13 +286,8 @@
   font-variant-numeric: tabular-nums;
 }
 
-.facility-information-heading > .ui-switch {
-  flex: 0 0 auto;
-  margin: 0;
-}
-
 .facility-count-summary {
-  grid-area: summary;
+  grid-area: counts;
   width: 100%;
   min-width: 0;
   display: grid;
@@ -381,7 +332,7 @@
   display: grid;
   gap: var(--space-1);
   border-top: 1px solid var(--color-divider);
-  padding: var(--space-2) var(--space-1) 0;
+  padding-top: var(--space-2);
 }
 
 .facility-staffing-heading {
@@ -474,19 +425,6 @@
 }
 
 @media (max-width: 720px) {
-  .facility-information {
-    grid-template-columns: minmax(6rem, 7.25rem) minmax(0, 1fr);
-    gap: var(--space-2);
-  }
-
-  .facility-information-title {
-    gap: var(--space-1);
-  }
-
-  .facility-information-title h2 {
-    font-size: var(--font-size-lg);
-  }
-
   .facility-information-total {
     display: grid;
     gap: 0.1rem;
@@ -538,9 +476,6 @@
   text-align: left;
 }
 
-.facility-detail-sheet-backdrop {
-  display: none;
-}
 
 @media (min-width: 961px) and (max-width: 1380px) {
   .production-workspace {
@@ -635,141 +570,59 @@
     display: none;
   }
 
-  .facility-detail-sheet-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 1200;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    background: color-mix(in srgb, var(--color-background) 42%, transparent);
-    backdrop-filter: blur(6px);
-    animation: facility-sheet-backdrop-in 180ms ease-out;
+  .mobile-detail-sheet .facility-production-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-1);
   }
 
-  .facility-detail-sheet {
-    width: 100%;
-    max-height: min(88svh, 760px);
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--color-border-strong);
-    border-bottom: 0;
-    border-radius: 1.25rem 1.25rem 0 0;
-    background: var(--color-surface);
-    box-shadow: 0 -1rem 3rem color-mix(in srgb, var(--color-background) 46%, transparent);
-    overflow: hidden;
-    animation: facility-sheet-in 200ms ease-out;
+  .mobile-detail-sheet .facility-production-settings-grid > * {
+    min-width: 0;
   }
 
-  .facility-detail-sheet-handle {
-    width: 2.75rem;
-    height: 0.25rem;
-    flex: 0 0 auto;
-    align-self: center;
-    margin: var(--space-2) 0;
-    border-radius: var(--radius-pill);
-    background: var(--color-border-strong);
+  .mobile-detail-sheet .facility-production-settings-grid .ui-form-field {
+    min-width: 0;
+    gap: var(--space-1);
+    font-size: var(--font-size-sm);
   }
 
-  .facility-detail-sheet-scroll {
-    min-height: 0;
-    display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-    gap: var(--space-3);
-    overflow-y: auto;
-    overscroll-behavior-y: auto;
-    padding: 0 var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom));
-    container-type: inline-size;
+  .mobile-detail-sheet .facility-production-settings-grid .ui-rich-select__trigger {
+    gap: var(--space-1);
+    padding-inline: var(--space-2);
   }
 
-  .facility-detail-sheet .facility-status-header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    margin-inline: calc(var(--space-3) * -1);
-    border-bottom: 1px solid var(--color-divider);
-    padding: var(--space-2) var(--space-3);
-    background: var(--color-surface);
-  }
-
-  .facility-detail-sheet .facility-card-title-row {
-    min-height: 1.6rem;
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .facility-detail-sheet .facility-card-title-row > .ui-switch {
-    width: 2.75rem;
-    min-width: 2.75rem;
-    height: 1.6rem;
-    min-height: 1.6rem;
-  }
-
-  .facility-detail-sheet .facility-card-title-row > .ui-switch::before {
-    inset: 0;
-    height: auto;
-    border-radius: var(--radius-pill);
-  }
-
-  .facility-detail-sheet .facility-card-title-row > .ui-switch::after {
-    top: 0.3rem;
-    left: 0.25rem;
-    width: 1rem;
-    height: 1rem;
-  }
-
-  .facility-detail-sheet .facility-card-title-row > .ui-switch:checked::after {
-    transform: translateX(1.25rem);
-  }
-
-  .facility-detail-sheet .facility-card-title-row h2 {
-    font-size: var(--font-size-lg);
-  }
-
-  .facility-detail-sheet .facility-detail-header-actions,
-  .facility-detail-sheet .facility-card-status-row {
-    align-items: center;
-  }
-
-  .facility-detail-sheet-close {
-    width: var(--control-height-compact);
-    min-width: var(--control-height-compact);
-    height: var(--control-height-compact);
-    min-height: var(--control-height-compact);
+  .mobile-detail-sheet-footer .facility-market-link-row {
+    position: static;
+    bottom: auto;
+    z-index: auto;
+    margin: 0;
+    border-top: 0;
     padding: 0;
-    font-size: 1.5rem;
-    line-height: 1;
+    background: transparent;
   }
 
-  .facility-detail-sheet .facility-market-link-row {
-    position: sticky;
-    bottom: calc(var(--space-3) * -1 - env(safe-area-inset-bottom));
-    z-index: 2;
-    margin: 0 calc(var(--space-3) * -1);
-    border-top: 1px solid var(--color-divider);
-    padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
-    background: var(--color-surface);
-  }
-
-  .facility-detail-sheet .facility-market-link {
+  .mobile-detail-sheet-footer .facility-market-link {
     width: 100%;
-    justify-content: flex-start;
+    min-height: 48px;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--color-success) 38%, var(--color-border));
+    border-radius: var(--radius-control);
+    padding-inline: var(--space-3);
+    background: var(--color-success-soft);
+    text-align: center;
   }
 
-  @keyframes facility-sheet-backdrop-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
+}
 
-  @keyframes facility-sheet-in {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
+
+@media (hover: hover) and (pointer: fine) and (max-width: 720px) {
+  .mobile-detail-sheet-footer .facility-market-link:hover {
+    border-color: color-mix(in srgb, var(--color-success) 62%, var(--color-border));
+    background: color-mix(in srgb, var(--color-success-soft) 82%, var(--color-surface-hover));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .facility-cluster-selector-card,
-  .facility-detail-sheet-backdrop,
-  .facility-detail-sheet,
   .facility-staffing-fill {
     animation: none;
     transition: none;

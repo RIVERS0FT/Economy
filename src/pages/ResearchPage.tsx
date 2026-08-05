@@ -1,17 +1,16 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
   type RefObject,
 } from 'react';
-import { createPortal } from 'react-dom';
 import type { TutorialAwareGameViewModel } from '../game-guide/useGameTutorial';
 import { FacilityIcon } from '../components/icons/FacilityIcons';
-import { ScrollArea } from '../components/ui/ScrollArea';
+import { MobileDetailSummary } from '../components/ui/MobileDetailSummary';
+import { MobileWorkspaceDetailSheet } from '../components/ui/MobileWorkspaceDetailSheet';
 import {
   Button,
   DataList,
@@ -21,10 +20,6 @@ import {
   StatusTag,
   WidgetHeading,
 } from '../components/ui/layout';
-import {
-  WorkspaceFloatingLayerContext,
-  useWorkspaceDialogLayer,
-} from '../components/ui/WorkspaceFloatingLayer';
 import { useNow } from '../hooks/useNow';
 import { formatDuration, formatNumber } from '../utils/formatters';
 import type {
@@ -94,16 +89,12 @@ interface ResearchDetailProps {
   onAccelerate: () => void;
 }
 
-function ResearchDetailContent({
+function resolveResearchDetailPresentation({
   model,
   level,
-  facilities,
   now,
   unlockedRank,
-  isAccelerating,
-  onStart,
-  onAccelerate,
-}: ResearchDetailProps) {
+}: Pick<ResearchDetailProps, 'model' | 'level' | 'now' | 'unlockedRank'>) {
   const active = model.game.research.active;
   const status = statusFor(level, unlockedRank, active?.targetComplexity);
   const isSelectedActive = active?.targetComplexity === level.id;
@@ -134,6 +125,53 @@ function ResearchDetailContent({
             ? '可用资金不足'
             : `开始研发 ${level.id}`;
 
+  return {
+    active,
+    status,
+    isSelectedActive,
+    isMastered,
+    hasOtherResearch,
+    canStart,
+    fundsMet,
+    prerequisiteLevels,
+    remaining,
+    awaitingConfirmation,
+    accelerationMs,
+    accelerationCost,
+    remainingAfterAcceleration,
+    progress,
+    shortfall,
+    actionLabel,
+  };
+}
+
+function ResearchDetailBody({
+  model,
+  level,
+  facilities,
+  now,
+  unlockedRank,
+  isAccelerating,
+  onAccelerate,
+}: ResearchDetailProps) {
+  const presentation = resolveResearchDetailPresentation({ model, level, now, unlockedRank });
+  const {
+    active,
+    status,
+    isSelectedActive,
+    isMastered,
+    hasOtherResearch,
+    prerequisiteLevels,
+    remaining,
+    awaitingConfirmation,
+    accelerationMs,
+    accelerationCost,
+    remainingAfterAcceleration,
+    progress,
+    shortfall,
+    fundsMet,
+  } = presentation;
+
   return (
     <div className="research-detail-content">
       <WidgetHeading
@@ -141,17 +179,30 @@ function ResearchDetailContent({
         action={<StatusTag tone={statusTones[status]}>{statusLabels[status]}</StatusTag>}
       />
 
-      <section className="research-detail-hero">
-        <div className="research-detail-level-artwork" aria-hidden="true">
-          {facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{level.id}</span>}
-        </div>
-        <div>
-          <h3>{level.id} 产业技术</h3>
+      <MobileDetailSummary
+        className="research-detail-summary"
+        artworkClassName="research-detail-level-artwork"
+        artwork={facilities[0] ? <FacilityIcon facilityTypeId={facilities[0].id} /> : <span>{level.id}</span>}
+        title={<h3>{level.id} 产业技术</h3>}
+        meta={
+          <>
+            <span className="research-detail-summary-status">
+              <StatusTag tone={statusTones[status]}>{statusLabels[status]}</StatusTag>
+            </span>
+            <span className="research-detail-summary-metric">
+              {level.durationMs > 0 ? formatDuration(level.durationMs) : '立即掌握'}
+            </span>
+          </>
+        }
+        description={
           <p>完成后解锁 {formatNumber(facilities.length)} 种工厂及对应建设、购买、竞拍和运营资格。</p>
-        </div>
-      </section>
+        }
+      />
 
-      <section className="research-requirements" aria-labelledby={`research-requirements-${level.id}`}>
+      <section
+        className="research-requirements mobile-detail-section"
+        aria-labelledby={`research-requirements-${level.id}`}
+      >
         <strong id={`research-requirements-${level.id}`}>具体要求</strong>
         <ul>
           <li data-met={isMastered || level.rank === 1 || level.rank <= unlockedRank + 1}>
@@ -197,7 +248,10 @@ function ResearchDetailContent({
         </ul>
       </section>
 
-      <section className="research-unlocks" aria-labelledby={`research-unlocks-${level.id}`}>
+      <section
+        className="research-unlocks mobile-detail-section"
+        aria-labelledby={`research-unlocks-${level.id}`}
+      >
         <strong id={`research-unlocks-${level.id}`}>解锁工厂</strong>
         {facilities.length > 0 ? (
           <div className="research-unlock-list">
@@ -214,7 +268,7 @@ function ResearchDetailContent({
       </section>
 
       {isSelectedActive && active ? (
-        <section className="research-progress-section" aria-live="polite">
+        <section className="research-progress-section mobile-detail-section" aria-live="polite">
           <div className="research-progress-heading">
             <strong>研发进度</strong>
             <span>{awaitingConfirmation ? '等待服务器确认' : formatDuration(remaining)}</span>
@@ -262,17 +316,43 @@ function ResearchDetailContent({
           </div>
         </section>
       ) : null}
+    </div>
+  );
+}
 
-      <div className="research-detail-actions">
-        <Button
-          block
-          disabled={!canStart || !fundsMet}
-          onClick={onStart}
-        >
-          {actionLabel}
-        </Button>
-        <small className="ui-helper-text">研发只能按 C1–C7 顺序进行；开始后不可取消或排队。</small>
-      </div>
+function ResearchDetailActions({
+  model,
+  level,
+  now,
+  unlockedRank,
+  onStart,
+}: ResearchDetailProps) {
+  const { canStart, fundsMet, actionLabel } = resolveResearchDetailPresentation({
+    model,
+    level,
+    now,
+    unlockedRank,
+  });
+
+  return (
+    <div className="research-detail-actions">
+      <Button
+        block
+        disabled={!canStart || !fundsMet}
+        onClick={onStart}
+      >
+        {actionLabel}
+      </Button>
+      <small className="ui-helper-text">研发只能按 C1–C7 顺序进行；开始后不可取消或排队。</small>
+    </div>
+  );
+}
+
+function ResearchDetailContent(props: ResearchDetailProps) {
+  return (
+    <div className="research-detail-layout">
+      <ResearchDetailBody {...props} />
+      <ResearchDetailActions {...props} />
     </div>
   );
 }
@@ -289,103 +369,17 @@ function MobileResearchDetailSheet({
   onClose,
   ...detailProps
 }: MobileResearchDetailSheetProps) {
-  const dialogLayer = useWorkspaceDialogLayer();
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    if (!isOpen) return undefined;
-    const pageScroll = document.querySelector<HTMLElement>('.page-scroll');
-    const previousOverflow = pageScroll?.style.overflowY ?? '';
-    const previousScrollTop = pageScroll?.scrollTop ?? 0;
-    if (pageScroll) pageScroll.style.overflowY = 'hidden';
-    sheetRef.current?.focus({ preventScroll: true });
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== 'Tab') return;
-      const focusable = Array.from(
-        sheetRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
-      if (focusable.length === 0) {
-        event.preventDefault();
-        sheetRef.current?.focus({ preventScroll: true });
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === sheetRef.current)) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (document.activeElement === last || document.activeElement === sheetRef.current)) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      if (pageScroll) {
-        pageScroll.style.overflowY = previousOverflow;
-        pageScroll.scrollTop = previousScrollTop;
-      }
-      requestAnimationFrame(() => returnFocusRef.current?.focus({ preventScroll: true }));
-    };
-  }, [isOpen, onClose, returnFocusRef]);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const mediaQuery = window.matchMedia('(max-width: 720px)');
-    const handleChange = (event: MediaQueryListEvent) => {
-      if (!event.matches) onClose();
-    };
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, [isOpen, onClose]);
-
-  if (!isOpen || !dialogLayer) return null;
-
-  return createPortal(
-    <WorkspaceFloatingLayerContext.Provider value={dialogLayer}>
-      <div
-        className="facility-detail-sheet-backdrop research-detail-sheet-backdrop"
-        onPointerDown={(event) => {
-          if (event.target === event.currentTarget) onClose();
-        }}
-      >
-        <div
-          ref={sheetRef}
-          className="facility-detail-sheet research-detail-sheet"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${detailProps.level.id} 研发新技术`}
-          tabIndex={-1}
-        >
-          <div className="facility-detail-sheet-header">
-            <div className="facility-detail-sheet-drag-handle" aria-hidden="true">
-              <span className="facility-detail-sheet-handle" />
-            </div>
-          </div>
-          <ScrollArea
-            axis="y"
-            className="research-detail-sheet-scroll-area"
-            viewportClassName="research-detail-sheet-scroll"
-            viewportRole="region"
-            viewportAriaLabel={`${detailProps.level.id} 研发要求`}
-            viewportTabIndex={0}
-            scrollbarVisibility="adaptive"
-          >
-            <ResearchDetailContent {...detailProps} />
-          </ScrollArea>
-        </div>
-      </div>
-    </WorkspaceFloatingLayerContext.Provider>,
-    dialogLayer,
+  return (
+    <MobileWorkspaceDetailSheet
+      isOpen={isOpen}
+      ariaLabel={`${detailProps.level.id} 研发新技术`}
+      viewportAriaLabel={`${detailProps.level.id} 研发要求`}
+      returnFocusRef={returnFocusRef}
+      onClose={onClose}
+      footer={<ResearchDetailActions {...detailProps} />}
+    >
+      <ResearchDetailBody {...detailProps} />
+    </MobileWorkspaceDetailSheet>
   );
 }
 
@@ -418,12 +412,12 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
     : [];
 
   useEffect(() => {
-  const defaultLevelId = active?.targetComplexity
-    ?? model.game.researchLevels.find((level) => level.rank === unlockedRank + 1)?.id
-    ?? model.game.researchLevels[model.game.researchLevels.length - 1]?.id
-    ?? 'C1';
-  setSelectedLevelId(defaultLevelId);
-}, [active?.targetComplexity, unlockedRank]);
+    const defaultLevelId = active?.targetComplexity
+      ?? model.game.researchLevels.find((level) => level.rank === unlockedRank + 1)?.id
+      ?? model.game.researchLevels[model.game.researchLevels.length - 1]?.id
+      ?? 'C1';
+    setSelectedLevelId(defaultLevelId);
+  }, [active?.targetComplexity, unlockedRank]);
 
   const selectLevel = useCallback((levelId: FacilityComplexity, trigger: HTMLButtonElement) => {
     detailTriggerRef.current = trigger;
@@ -502,11 +496,11 @@ export function ResearchPage({ model }: { model: TutorialAwareGameViewModel }) {
                 const status = statusFor(level, unlockedRank, active?.targetComplexity);
                 const isSelected = selectedLevel.id === level.id;
                 const progress = progressForResearchLevel(
-        level,
-        active,
-        now,
-        status === 'mastered',
-      );
+                  level,
+                  active,
+                  now,
+                  status === 'mastered',
+                );
                 const nodeStyle = {
                   '--research-node-progress': `${Math.round(progress * 360)}deg`,
                 } as CSSProperties;

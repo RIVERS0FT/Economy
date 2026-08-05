@@ -59,13 +59,13 @@ check('src/components/shell/AdminDesktopBar.tsx', [
   'className="admin-command-bar-identity"',
 ]);
 forbid('src/components/shell/AdminDesktopBar.tsx', ['title={email}']);
-check('src/pages/production/MobileFacilityDetailSheet.tsx', [
+check('src/components/ui/MobileWorkspaceDetailSheet.tsx', [
   'useWorkspaceDialogLayer',
   'WorkspaceFloatingLayerContext.Provider value={dialogLayer}',
   '!dialogLayer',
   'dialogLayer,',
 ]);
-forbid('src/pages/production/MobileFacilityDetailSheet.tsx', [
+forbid('src/components/ui/MobileWorkspaceDetailSheet.tsx', [
   'document.body,',
   'useWorkspaceFloatingLayer',
 ]);
@@ -123,14 +123,14 @@ check('src/styles/viewport.css', [
     z-index: 1;
     order: 2;`,
 ]);
-check('src/styles/facility-detail-sheet.css', [
-  '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
+check('src/styles/mobile-detail-sheet.css', [
+  '.workspace-dialog-layer > .mobile-detail-sheet-backdrop',
   '.workspace-dialog-layer > .ui-rich-select__listbox',
   'position: absolute;',
   'align-items: end;',
 ]);
-forbid('src/styles/facility-detail-sheet.css', [
-  '.workspace-floating-layer > .facility-detail-sheet-backdrop',
+forbid('src/styles/mobile-detail-sheet.css', [
+  '.workspace-floating-layer > .mobile-detail-sheet-backdrop',
 ]);
 check('src/styles/safe-floating.css', ['.safe-tooltip {', 'position: absolute;', 'pointer-events: none !important;']);
 check('src/components/charts/chartOptions.ts', ['appendToBody: false', 'confine: true']);
@@ -172,9 +172,9 @@ check('tests/browser/notification-center.spec.ts', [
   "expect(geometry.floatingLayerZIndex).toBe('1')",
   "expect(geometry.floatingLayerOrder).toBe('2')",
 ]);
-check('tests/browser/facility-detail-sheet.spec.ts', [
+check('tests/browser/mobile-detail-sheet.spec.ts', [
   "page.locator('.workspace-dialog-layer')",
-  "dialogLayer.locator(':scope > .facility-detail-sheet-backdrop')",
+  "dialogLayer.locator(':scope > .mobile-detail-sheet-backdrop')",
   'expect(navigationCovered).toBe(true)',
 ]);
 check('tests/browser/liquid-glass-layout.spec.ts', [

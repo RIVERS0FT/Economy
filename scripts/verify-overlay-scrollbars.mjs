@@ -27,12 +27,12 @@ const paths = {
   adminApp: 'src/app/AdminApp.tsx',
   status: 'src/components/shell/StatusBar.tsx',
   mobile: 'src/components/shell/MobileBottomNavigation.tsx',
-  facilitySheet: 'src/pages/production/MobileFacilityDetailSheet.tsx',
-  facilitySheetStyles: 'src/styles/facility-detail-sheet.css',
+  facilitySheet: 'src/components/ui/MobileWorkspaceDetailSheet.tsx',
+  facilitySheetStyles: 'src/styles/mobile-detail-sheet.css',
   design: 'docs/UI_DESIGN_SYSTEM.md',
   localDesign: 'docs/LOCAL_ACTIVITY_LOG_DESIGN.md',
   browser: 'tests/browser/scroll-input-modality.spec.ts',
-  facilityBrowser: 'tests/browser/facility-detail-sheet.spec.ts',
+  facilityBrowser: 'tests/browser/mobile-detail-sheet.spec.ts',
 };
 Object.values(paths).forEach(requireFile);
 
@@ -74,19 +74,19 @@ if (failures.length === 0) {
     'html[data-input-modality="touch"] .ui-scrollbar--horizontal',
     'display: none !important;',
     'html[data-input-modality="touch"] *:not(.ui-scroll-area__viewport)',
-    '.facility-detail-sheet-scroll-area > .ui-scrollbar--vertical',
+    '.mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical',
     'right: env(safe-area-inset-right, 0px);',
   ]) requireText(paths.styles, text);
 
   for (const text of [
-    "import { ScrollArea } from '../../components/ui/ScrollArea'",
-    'className="facility-detail-sheet-scroll-area"',
-    'viewportClassName="facility-detail-sheet-scroll"',
+    "import { ScrollArea } from './ScrollArea'",
+    'className="mobile-detail-sheet-scroll-area"',
+    'viewportClassName="mobile-detail-sheet-scroll"',
     'scrollbarVisibility="adaptive"',
   ]) requireText(paths.facilitySheet, text);
   requireText(paths.facilitySheetStyles, 'padding: var(--space-2) var(--space-3);');
   forbidText(paths.facilitySheetStyles, 'calc(var(--space-3) + var(--scrollbar-hit-size))');
-  forbidText(paths.facilitySheetStyles, '.facility-detail-sheet-scroll-area > .ui-scrollbar--vertical');
+  forbidText(paths.facilitySheetStyles, '.mobile-detail-sheet-scroll-area > .ui-scrollbar--vertical');
 
   for (const text of [
     'VirtualRecordTable',
@@ -142,9 +142,9 @@ if (failures.length === 0) {
 }
 
 if (failures.length > 0) {
-  console.error('输入方式滚动条、共享登录后外壳、移动工厂详情安全边缘、无级资产目录与单一双轴虚拟成交表验证失败：');
+  console.error('输入方式滚动条、共享登录后外壳、共享移动详情安全边缘、无级资产目录与单一双轴虚拟成交表验证失败：');
   failures.forEach((failure) => console.error(`- ${failure}`));
   process.exit(1);
 }
 
-console.log('统一尺寸、共享登录后页面滚动、移动工厂详情安全边缘、鼠标与触控策略、隐藏触控横向轨道、无级资产目录和单一双轴虚拟成交表验证通过。');
+console.log('统一尺寸、共享登录后页面滚动、共享移动详情安全边缘、鼠标与触控策略、隐藏触控横向轨道、无级资产目录和单一双轴虚拟成交表验证通过。');

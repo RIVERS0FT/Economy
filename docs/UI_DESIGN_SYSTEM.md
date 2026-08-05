@@ -45,6 +45,7 @@
 | `src/styles/auth.css` | 登录布局、动态视口与认证自动填充兼容例外 |
 | `src/styles/card-system.css` | 卡片圆角映射 |
 | `src/styles/desktop-sidebar.css` | 桌面侧栏宽度、折叠、导航固有行高、统一导航角标与可访问状态 |
+| `src/styles/mobile-detail-sheet.css` | 移动工厂与研发详情共享的根级 Dialog 遮罩、圆角、拖动、滚动区、固定底栏、安全区、摘要几何和动效最终权威 |
 | `src/styles/scrollbars.css` | 全局覆盖式滚动条宽度、颜色、层级、显隐与移动页面／根级 Dialog 安全边缘轨道 |
 | `src/styles/performance.css` | 渲染性能保护和触控惯性；不得阻断页面或虚拟列表的纵向滚动链 |
 | `src/styles/liquid-glass-surfaces.css` | 正式状态栏与移动底栏玻璃宿主、材质适配和结构描边 |
@@ -59,6 +60,8 @@
 业务页面优先使用：
 
 - `PageLayout`
+- `MobileWorkspaceDetailSheet`
+- `MobileDetailSummary`
 - `Panel`
 - `PagePanel`
 - `WidgetHeading`
@@ -115,7 +118,7 @@ ECharts 不得把 `var(--color-*)` 原样交给 ZRender 的颜色运算。`Econo
 
 ### 3.1.1 登录后根级 Dialog
 
-普通 Tooltip、Popover、菜单和不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`，不得与桌面顶部状态栏／管理员工作栏、桌面侧栏或移动底栏重叠。必须覆盖完整移动视口的模态业务详情使用 `SignedInShell` 唯一 `.workspace-dialog-layer` 根级 Dialog 层；该根位于 Chrome 之后、保持开放采样链并只让实际 Dialog 恢复指针事件。移动工厂详情是当前唯一批准用途，其遮罩必须覆盖状态栏和底部导航，详情内富内容列表继续使用同一根并位于遮罩上方；不得追加到 `document.body`。
+普通 Tooltip、Popover、菜单和不应覆盖应用 Chrome 的业务浮层继续使用 `.workspace-floating-layer`，不得与桌面顶部状态栏／管理员工作栏、桌面侧栏或移动底栏重叠。必须覆盖完整移动视口的模态业务详情统一使用 `SignedInShell` 唯一 `.workspace-dialog-layer` 根级 Dialog 层；该根位于 Chrome 之后、保持开放采样链并只让实际 Dialog 恢复指针事件。移动工厂详情与移动研发详情是当前批准用途，必须共同复用 `MobileWorkspaceDetailSheet`，由 `src/styles/mobile-detail-sheet.css` 唯一控制遮罩、圆角、最大高度、拖动、页面滚动锁、焦点限制、唯一 `ScrollArea`、固定底栏和安全区；详情首区共同复用 `MobileDetailSummary`。页面业务 CSS 只能定义正文内容和按钮语义，不得重新定义根级 Sheet 几何、滚动区内边距、sticky 底栏或第二套 Portal；详情内富内容列表继续使用同一根并位于遮罩上方，不得追加到 `document.body`。
 
 ### 3.2 输入方式与共享交互状态
 
@@ -412,7 +415,7 @@ C1–C7 全部图片都必须在实际 `4:5` 居中裁切后保持核心主体�
 - 一级卡片标题元素盒子的左上锚点必须一致；右侧等级标签或 `SwitchControl` 不得改变标题位置。容器查询只允许调整卡片内部密度和换行，不得改变一级外层内边距。
 - 当前工厂详情使用唯一 `FacilityClusterInformation` 合并名称、`4:5` 纵向场景插画、总数量、唯一状态胶囊、`SwitchControl`、运行中／冻结中／抵押中数量明细与单厂平均利润；移动固定头部不得继续承载名称、状态或开关。
 - 数量摘要位于工厂信息区内部，固定为“运行中／冻结中／抵押中”三列；总数量只在主信息中显示一次，不得重新拼入标题。
-- 移动详情悬浮框不显示顶部关闭按钮；固定头部只保留拖动把手，完整工厂信息作为正文 `ScrollArea` 的第一个区块。对话框容器承担初始焦点，点击遮罩、按 `Escape` 和有效向下拖动共用向下收起与遮罩淡出动画，关闭后焦点返回触发卡。移动详情使用 `SignedInShell` 的根级 Dialog 层覆盖完整视口并位于状态栏与底部导航之上。Bottom Sheet 必须在首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定、稳定视觉视口高度快照和 `focus({ preventScroll: true })`；打开后不得继续读取动态 `dvh` 改变高度。
+- 移动详情悬浮框不显示顶部关闭按钮；共享固定头部只保留拖动把手，完整工厂信息通过 `MobileDetailSummary` 作为正文 `ScrollArea` 的第一个区块。对话框容器承担初始焦点，点击遮罩、按 `Escape` 和有效向下拖动共用向下收起与遮罩淡出动画，关闭后焦点返回触发卡。移动详情使用 `SignedInShell` 的根级 Dialog 层覆盖完整视口并位于状态栏与底部导航之上。Bottom Sheet 必须在首次可见绘制前通过 `useLayoutEffect` 完成页面滚动锁定、稳定视觉视口高度快照和 `focus({ preventScroll: true })`；打开后不得继续读取动态 `dvh` 改变高度。
 - 当前工厂详情顺序固定为“移动把手（桌面无）→ 工厂信息 → 满员率 → 生产设置 → 生产结算 → 市场入口”。仅工厂信息内部允许纵向插画与主信息两列；其余区块必须按 DOM 自上而下排列。满员率使用无独立圆角和背景的状态带，只显示百分比、方向和进度条。
 - 玩家可见的“生产产物”与“作业制度”使用同一个“生产设置”区和统一 `RichSelectInput`；桌面和移动详情都固定双列同行，移动端在 `320px` 及以上不得因容器不大于 `479px` 改为单列。生产产物的收起状态和每个选项均使用对应产出商品的 `ProductArtwork` PNG 加路线名称，作业制度的收起状态和选项使用对应统一功能 Icon 加名称；两者必须共用同一深色弹层、选项几何、键盘交互和安全浮层定位。作业制度下方只显示周期、单周期产出和周期成本，作业制度说明不得显示，也不得重复下拉框已经选中的制度名称。
 - 工厂生产公式固定采用双列顶层布局：左侧为输入组合区，右侧为输出区；输入与输出物资槽顶部对齐。时间与成本位于双列物资区下方的同一条操作数据带，中间使用竖向分隔线；多输入或多输出内部允许换行，时间与成本不得回到输入输出之间的独立中列。公式、操作数据带和进度共同组成“生产结算”；生产进度位于数据带下方，并且是生产结算最后一个可见元素；单厂平均利润只属于工厂信息区。

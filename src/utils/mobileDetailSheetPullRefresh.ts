@@ -1,32 +1,32 @@
-const FACILITY_SHEET_SELECTOR = '.facility-detail-sheet';
-const FACILITY_SHEET_SCROLL_SELECTOR = '.facility-detail-sheet-scroll';
-const FACILITY_SHEET_AXIS_THRESHOLD = 8;
-const FACILITY_SHEET_AXIS_DOMINANCE = 1.2;
+const MOBILE_DETAIL_SHEET_SELECTOR = '.mobile-detail-sheet';
+const MOBILE_DETAIL_SHEET_SCROLL_SELECTOR = '.mobile-detail-sheet-scroll';
+const MOBILE_DETAIL_SHEET_AXIS_THRESHOLD = 8;
+const MOBILE_DETAIL_SHEET_AXIS_DOMINANCE = 1.2;
 const INTERACTIVE_TARGET_SELECTOR =
-  'button, a, input, select, textarea, [role="scrollbar"], .ui-scrollbar, [data-facility-sheet-no-drag]';
+  'button, a, input, select, textarea, [role="scrollbar"], .ui-scrollbar, [data-mobile-detail-sheet-no-drag]';
 
-type FacilitySheetGestureSource = 'header' | 'content';
+type MobileDetailSheetGestureSource = 'header' | 'content';
 
-interface FacilitySheetBrowserGestureSession {
+interface MobileDetailSheetBrowserGestureSession {
   startX: number;
   startY: number;
-  source: FacilitySheetGestureSource;
+  source: MobileDetailSheetGestureSource;
   scrollViewport?: HTMLElement;
   active: boolean;
 }
 
-const attachedSheets = new WeakSet<HTMLElement>();
+const attachedDetailSheets = new WeakSet<HTMLElement>();
 let configured = false;
 
 function isInteractiveTarget(target: EventTarget | null) {
   return target instanceof Element && Boolean(target.closest(INTERACTIVE_TARGET_SELECTOR));
 }
 
-function attachFacilitySheetGuard(sheet: HTMLElement) {
-  if (attachedSheets.has(sheet)) return;
-  attachedSheets.add(sheet);
+function attachMobileDetailSheetGuard(sheet: HTMLElement) {
+  if (attachedDetailSheets.has(sheet)) return;
+  attachedDetailSheets.add(sheet);
 
-  let session: FacilitySheetBrowserGestureSession | null = null;
+  let session: MobileDetailSheetBrowserGestureSession | null = null;
 
   const handleTouchStart = (event: TouchEvent) => {
     session = null;
@@ -34,9 +34,9 @@ function attachFacilitySheetGuard(sheet: HTMLElement) {
 
     const target = event.target instanceof Element ? event.target : null;
     const isHeader = Boolean(
-      target?.closest('.facility-detail-sheet-header, .facility-detail-sheet-drag-handle'),
+      target?.closest('.mobile-detail-sheet-header, .mobile-detail-sheet-drag-handle'),
     );
-    const scrollViewport = target?.closest<HTMLElement>(FACILITY_SHEET_SCROLL_SELECTOR) ?? undefined;
+    const scrollViewport = target?.closest<HTMLElement>(MOBILE_DETAIL_SHEET_SCROLL_SELECTOR) ?? undefined;
     if (!isHeader && !scrollViewport) return;
     if (scrollViewport && scrollViewport.scrollTop > 0) return;
 
@@ -61,8 +61,8 @@ function attachFacilitySheetGuard(sheet: HTMLElement) {
     const deltaX = touch.clientX - session.startX;
     const deltaY = touch.clientY - session.startY;
     if (!session.active) {
-      if (Math.hypot(deltaX, deltaY) < FACILITY_SHEET_AXIS_THRESHOLD) return;
-      if (deltaY <= 0 || deltaY < Math.abs(deltaX) * FACILITY_SHEET_AXIS_DOMINANCE) {
+      if (Math.hypot(deltaX, deltaY) < MOBILE_DETAIL_SHEET_AXIS_THRESHOLD) return;
+      if (deltaY <= 0 || deltaY < Math.abs(deltaX) * MOBILE_DETAIL_SHEET_AXIS_DOMINANCE) {
         session = null;
         return;
       }
@@ -82,22 +82,22 @@ function attachFacilitySheetGuard(sheet: HTMLElement) {
   sheet.addEventListener('touchcancel', clearSession, { passive: true });
 }
 
-function attachFacilitySheetsWithin(root: ParentNode) {
-  if (root instanceof HTMLElement && root.matches(FACILITY_SHEET_SELECTOR)) {
-    attachFacilitySheetGuard(root);
+function attachMobileDetailSheetsWithin(root: ParentNode) {
+  if (root instanceof HTMLElement && root.matches(MOBILE_DETAIL_SHEET_SELECTOR)) {
+    attachMobileDetailSheetGuard(root);
   }
-  root.querySelectorAll<HTMLElement>(FACILITY_SHEET_SELECTOR).forEach(attachFacilitySheetGuard);
+  root.querySelectorAll<HTMLElement>(MOBILE_DETAIL_SHEET_SELECTOR).forEach(attachMobileDetailSheetGuard);
 }
 
-export function configureMobileFacilityPullRefreshGuard() {
+export function configureMobileDetailSheetPullRefreshGuard() {
   if (configured || typeof document === 'undefined') return;
   configured = true;
 
-  attachFacilitySheetsWithin(document);
+  attachMobileDetailSheetsWithin(document);
   const observer = new MutationObserver((records) => {
     for (const record of records) {
       for (const node of record.addedNodes) {
-        if (node instanceof HTMLElement) attachFacilitySheetsWithin(node);
+        if (node instanceof HTMLElement) attachMobileDetailSheetsWithin(node);
       }
     }
   });

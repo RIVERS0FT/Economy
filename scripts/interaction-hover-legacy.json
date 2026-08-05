@@ -10,7 +10,6 @@
     "src/styles/desktop-sidebar.css::.desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:hover img, .desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:focus-visible img",
     "src/styles/desktop-sidebar.css::.desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:hover, .desktop-sidebar[data-collapsed=\"true\"] .sidebar-logo-expand-button:focus-visible",
     "src/styles/desktop-sidebar.css::.sidebar-collapse-button:hover, .sidebar-collapse-button:focus-visible",
-    "src/styles/facility-detail-sheet.css::.facility-detail-sheet .facility-detail-sheet-footer .facility-market-link:hover",
     "src/styles/form-controls.css::.ui-control:hover:not(:disabled):not([readonly]), input:not([type=\"checkbox\"]):not([type=\"radio\"]):hover:not(:disabled):not([readonly]), select:hover:not(:disabled), textarea:hover:not(:disabled):not([readonly])",
     "src/styles/industry-system.css::.overview-product-strip button:hover",
     "src/styles/industry-system.css::.product-asset-grid .product-asset-card:hover",

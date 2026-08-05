@@ -17,7 +17,7 @@ test('mobile production rich selects use the browser top layer above the facilit
   await page.goto('runtime-test.html?view=production&scenario=production-methods');
 
   await page.locator('.facility-cluster-selector-card').first().click();
-  const sheet = page.locator('.facility-detail-sheet');
+  const sheet = page.locator('.mobile-detail-sheet');
   await expect(sheet).toBeVisible();
 
   const recipeSelect = sheet.getByRole('combobox', { name: '机械工厂生产产物' });

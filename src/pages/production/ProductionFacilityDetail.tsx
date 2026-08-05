@@ -3,6 +3,7 @@ import { AssetsIcon, CreditsIcon, CycleIcon, ProductionIcon } from '../../compon
 import { ProductArtwork } from '../../components/products/ProductArtwork';
 import { useFacilityRecipeProfitMarkets } from '../../components/facilities/FacilityRecipeProfitContext';
 import { FacilityRecipeProfitAnalysis } from '../../components/facilities/FacilityRecipeProfitAnalysis';
+import { MobileDetailSummary } from '../../components/ui/MobileDetailSummary';
 import { RichSelectInput } from '../../components/ui/RichSelectInput';
 import {
   Button,
@@ -56,24 +57,6 @@ export interface FacilityDetailRecipeState {
   selectedProductionMethodId: FacilityProductionMethodId;
 }
 
-export interface FacilitySheetDragSession {
-  pointerId?: number;
-  startX: number;
-  startY: number;
-  lastY: number;
-  lastTime: number;
-  velocity: number;
-  offset: number;
-  source: 'header' | 'content';
-  active: boolean;
-}
-
-export const FACILITY_SHEET_AXIS_THRESHOLD = 8;
-export const FACILITY_SHEET_AXIS_DOMINANCE = 1.2;
-export const FACILITY_SHEET_MIN_FLING_DISTANCE = 40;
-export const FACILITY_SHEET_CLOSE_VELOCITY = 0.75;
-export const FACILITY_SHEET_SETTLE_DURATION = 200;
-
 export function facilityTone(status: string): StatusTone {
   if (status === 'running') return 'success';
   if (status === 'error') return 'danger';
@@ -124,7 +107,7 @@ export function FacilityStaffingSummary({
   const description = `${type.name}当前满员率 ${currentPercent}%，${directionLabel}，当前 ${physicalCount} 座工厂形成 ${effectiveCount} 座整数等效产能；周期完成时按届时满员率结算。`;
 
   return (
-    <section className="facility-staffing-summary" aria-label={description}>
+    <section className="facility-staffing-summary mobile-detail-section" aria-label={description}>
       <div className="facility-staffing-heading">
         <strong>满员率 {formatNumber(currentPercent)}%</strong>
         <span>{directionLabel}</span>
@@ -277,19 +260,6 @@ export function isMobileFacilityLayout() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 720px)').matches;
 }
 
-export function isReducedMotionPreferred() {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-export function isFacilitySheetInteractiveTarget(target: EventTarget | null) {
-  if (!(target instanceof Element)) return false;
-  return Boolean(
-    target.closest(
-      'button, a, input, select, textarea, [role="scrollbar"], .ui-scrollbar, [data-facility-sheet-no-drag]',
-    ),
-  );
-}
-
 export function FacilityClusterSelectorCard({
   entry,
   products,
@@ -360,22 +330,21 @@ export function FacilityClusterInformation({
       data-status={group.status}
       aria-label={`${type.name}工厂信息`}
     >
-      <div className="facility-detail-artwork facility-information-artwork" aria-hidden="true">
-        <FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />
-      </div>
-
-      <div className="facility-information-main">
-        <div className="facility-information-heading">
-          <div className="facility-information-title">
-            <h2 id={titleId}>{type.name}</h2>
-            <div className="facility-information-meta">
-              <span className="facility-information-total">
-                <small>总数量</small>
-                <strong>{formatNumber(group.count)}</strong>
-              </span>
-              <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
-            </div>
-          </div>
+      <MobileDetailSummary
+        className="facility-information-summary"
+        artworkClassName="facility-detail-artwork facility-information-artwork"
+        artwork={<FacilityIcon facilityTypeId={type.id} className="facility-detail-artwork-icon" />}
+        title={<h2 id={titleId}>{type.name}</h2>}
+        meta={
+          <>
+            <span className="facility-information-total">
+              <small>总数量</small>
+              <strong>{formatNumber(group.count)}</strong>
+            </span>
+            <StatusTag tone={facilityTone(group.status)}>{facilityStatusLabel(group)}</StatusTag>
+          </>
+        }
+        action={
           <SwitchControl
             checked={group.enabled}
             aria-label={group.enabled ? `停止${type.name}生产` : `开启${type.name}生产`}
@@ -383,8 +352,8 @@ export function FacilityClusterInformation({
             disabled={group.count < 1}
             onChange={(event) => onToggle(event.target.checked)}
           />
-        </div>
-      </div>
+        }
+      />
 
       <div className="facility-count-summary" aria-label={`${type.name}运行数量`}>
         <span>
@@ -431,7 +400,7 @@ export function FacilityClusterDetailBody({
     <>
       <FacilityStaffingSummary entry={entry} now={now} />
 
-      <section className="facility-production-settings">
+      <section className="facility-production-settings mobile-detail-section">
         <div className="facility-production-settings-heading">
           <strong>生产设置</strong>
         </div>
