@@ -56,6 +56,8 @@ for (const text of [
   'contract-active-grid',
   "contract.graceEndsAt ? 'danger' : needsAttention ? 'attention' : 'normal'",
   'contract-publish-layout',
+  'contract-type-grid',
+  'contract-type-option',
   'contract-history-panel',
   '自动准备商品',
   '自动补充货款',
