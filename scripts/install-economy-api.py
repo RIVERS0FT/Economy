@@ -11,6 +11,7 @@ import secrets
 import shutil
 import sqlite3
 import subprocess
+import time
 import sys
 from pathlib import Path
 
@@ -242,28 +243,39 @@ WantedBy=multi-user.target
     run(["systemctl", "is-active", "--quiet", SERVICE_NAME])
 
     metrics_database = STATE_DIRECTORY / "server-metrics.sqlite"
-    if not metrics_database.is_file():
-        raise RuntimeError(f"server metrics database was not created: {metrics_database}")
-    metrics_uri = f"file:{metrics_database.as_posix()}?mode=ro"
-    with sqlite3.connect(metrics_uri, uri=True, timeout=10) as connection:
-        connection.execute("PRAGMA query_only = ON")
-        metrics_quick_check = str(connection.execute("PRAGMA quick_check(1)").fetchone()[0])
-        metric_tables = {
-            str(row[0])
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table'"
-            )
-        }
     required_metric_tables = {
         "economy_server_metric_boots",
         "economy_server_metric_buckets",
     }
-    if metrics_quick_check != "ok":
-        raise RuntimeError(f"server metrics quick check failed: {metrics_quick_check}")
-    missing_metric_tables = sorted(required_metric_tables - metric_tables)
-    if missing_metric_tables:
+    metrics_failure = "server metrics database was not created"
+    for _attempt in range(40):
+        if metrics_database.is_file():
+            try:
+                metrics_uri = f"file:{metrics_database.as_posix()}?mode=ro"
+                with sqlite3.connect(metrics_uri, uri=True, timeout=10) as connection:
+                    connection.execute("PRAGMA query_only = ON")
+                    metrics_quick_check = str(
+                        connection.execute("PRAGMA quick_check(1)").fetchone()[0]
+                    )
+                    metric_tables = {
+                        str(row[0])
+                        for row in connection.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table'"
+                        )
+                    }
+                missing_metric_tables = sorted(required_metric_tables - metric_tables)
+                if metrics_quick_check == "ok" and not missing_metric_tables:
+                    break
+                metrics_failure = (
+                    f"quick_check={metrics_quick_check} "
+                    f"missing_tables={missing_metric_tables}"
+                )
+            except sqlite3.Error as error:
+                metrics_failure = str(error)
+        time.sleep(0.25)
+    else:
         raise RuntimeError(
-            "server metrics tables are missing: " + ", ".join(missing_metric_tables)
+            f"server metrics database verification failed: {metrics_failure}"
         )
     print("ECONOMY_SERVER_METRICS_DATABASE_VERIFIED")
     print(f"Installed {SERVICE_NAME} with Node.js {version} at {node_path}")
