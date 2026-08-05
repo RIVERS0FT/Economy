@@ -11,6 +11,7 @@ const files = {
   persistentRuntime: 'server/src/persistent-server-runtime-metrics.js',
   store: 'server/src/server-metrics-store.js',
   test: 'server/test/server-metrics-persistence.test.js',
+  installer: 'scripts/install-economy-api.py',
   design: 'docs/SERVER_ARCHITECTURE_AND_DEPLOYMENT_DESIGN.md',
   docsIndex: 'docs/README.md',
   readme: 'README.md',
@@ -41,10 +42,18 @@ if (failures.length === 0) {
     'trendBuckets.map(publicServerMetricBucket)',
   ]) requireText(files.persistentRuntime, text);
   for (const text of [
+    'Environment=ECONOMY_SERVER_METRICS_DB_PATH=',
+    'ECONOMY_SERVER_METRICS_DATABASE_VERIFIED',
+    'PRAGMA quick_check(1)',
+    'economy_server_metric_boots',
+    'economy_server_metric_buckets',
+  ]) requireText(files.installer, text);
+  for (const text of [
     '/var/lib/riversoft-economy/server-metrics.sqlite',
     '按进程启动批次',
     '分钟聚合桶保留 48 小时',
     '不得写入 `/var/www/game/economy-api`',
+    '服务安装脚本',
   ]) requireText(files.design, text);
   requireText(files.docsIndex, '独立服务器监控 SQLite');
   requireText(files.readme, 'ECONOMY_SERVER_METRICS_DB_PATH');
@@ -87,4 +96,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('管理员服务器监控独立 SQLite、跨启动批次合并、保留策略和部署目录隔离验证通过。');
+console.log('管理员服务器监控独立 SQLite、跨启动批次合并、保留策略、部署目录隔离和安装验收验证通过。');
