@@ -71,7 +71,7 @@ includesAll(serverTests, [
   '上线前已有合同只导入部分完整摘要，不伪造逐批事件', 'append-only', 'legacy_snapshot_imported',
 ], 'contract audit server tests');
 includesAll(browserTests, ['mockContractAudit', '合同内容', '结束统计', '重新拟定', '.contract-history-result-grid'], 'contract history browser tests');
-assert.ok(!browserTests.includes("toBeVisible();\n  await expect(page.locator('.contract-audit-timeline'))"), 'browser tests must not restore visible audit timelines');
+assert.ok(!browserTests.includes("toBeVisible();\\n  await expect(page.locator('.contract-audit-timeline'))"), 'browser tests must not restore visible audit timelines');
 
 for (const [label, content] of [['page design', pageDesign], ['industry design', industryDesign], ['server design', serverDesign], ['document authority index', docsIndex]]) {
   assert.ok(content.includes('合同审计'), \`\${label} must define contract audit rules\`);
