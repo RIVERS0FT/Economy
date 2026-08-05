@@ -25,7 +25,9 @@ const forbidText = (path, text) => { if (read(path).includes(text)) failures.pus
   'src/styles/industry-system.css',
   'src/styles/facility-production-formula.css',
   'src/styles/facility-group-card-grid.css',
-  'src/styles/facility-detail-sheet.css',
+  'src/styles/mobile-detail-sheet.css',
+  'src/components/ui/MobileWorkspaceDetailSheet.tsx',
+  'src/components/ui/MobileDetailSummary.tsx',
   'src/styles/production-surface.css',
   'src/styles/unified-market-admin.css',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
@@ -204,7 +206,7 @@ for (const text of [
 for (const forbidden of ['.production-grid {']) forbidText('src/styles/industry-system.css', forbidden);
 
 for (const text of [
-  '.facility-information-heading',
+  '.facility-information-summary',
   '.facility-count-summary',
   'align-self: start;',
   'grid-auto-rows: auto;',
@@ -241,23 +243,34 @@ if (facilityGroupBlocks.some((block) => block.includes('grid-template-rows: auto
 }
 
 for (const text of [
-  '.facility-detail-sheet-header',
-  '.facility-detail-sheet.is-closing',
-  '--facility-sheet-max-height',
-  'animation: facility-sheet-open',
-  '@keyframes facility-sheet-open',
-]) requireText('src/styles/facility-detail-sheet.css', text);
-for (const forbidden of ['.facility-detail-sheet-close', '88dvh']) forbidText('src/styles/facility-detail-sheet.css', forbidden);
+  '.mobile-detail-sheet-header',
+  '.mobile-detail-sheet.is-closing',
+  '--mobile-detail-sheet-max-height',
+  'animation: mobile-detail-sheet-open',
+  '@keyframes mobile-detail-sheet-open',
+  '.mobile-detail-summary',
+]) requireText('src/styles/mobile-detail-sheet.css', text);
+for (const forbidden of ['.facility-detail-sheet-close', '88dvh', '.research-detail-sheet-scroll {']) forbidText('src/styles/mobile-detail-sheet.css', forbidden);
 for (const text of [
   'useLayoutEffect',
   "window.visualViewport?.height ?? window.innerHeight",
   "sheet?.focus({ preventScroll: true });",
   "returnFocusRef.current?.focus({ preventScroll: true })",
-]) requireText('src/pages/production/MobileFacilityDetailSheet.tsx', text);
+  'const onCloseRef = useRef(onClose);',
+  'onCloseRef.current();',
+]) requireText('src/components/ui/MobileWorkspaceDetailSheet.tsx', text);
+requireText('src/components/ui/MobileDetailSummary.tsx', 'export function MobileDetailSummary');
 for (const forbidden of [
   "document.body.style.overflow = 'hidden';",
   'const focusFrame = window.requestAnimationFrame',
-]) forbidText('src/pages/production/MobileFacilityDetailSheet.tsx', forbidden);
+  'legacyClassPrefix',
+  'facility-detail-sheet',
+  'research-detail-sheet',
+]) forbidText('src/components/ui/MobileWorkspaceDetailSheet.tsx', forbidden);
+for (const text of [
+  'MobileWorkspaceDetailSheet',
+  'viewportAriaLabel={`${entry.type.name}工厂详情内容`}',
+]) requireText('src/pages/production/MobileFacilityDetailSheet.tsx', text);
 requireText('src/styles/facility-group-card-grid.css', '--ui-interactive-active-transform: none;');
 forbidText('src/styles/facility-group-card-grid.css', '88dvh');
 
@@ -290,6 +303,7 @@ forbidText('src/styles/facility-production-formula.css', '.facility-group-card {
 
 const mainSource = read('src/main.tsx');
 requireText('src/main.tsx', "import './styles/facility-production-formula.css';");
+requireText('src/main.tsx', "import './styles/mobile-detail-sheet.css';");
 if (
   mainSource.indexOf("import './styles/facility-production-formula.css';")
   <= mainSource.indexOf("import './styles/facility-group-card-grid.css';")
@@ -335,7 +349,7 @@ for (const text of [
   '时间与成本固定放在投入与产出下方的同一条操作数据带',
   '进度条下方不得显示当前周期、恢复运行、产出、成本或其他说明文字',
   '工厂信息是唯一身份与经营摘要区',
-  '不包含顶部关闭按钮',
+  '不显示关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '桌面详情卡高度由自然内容流决定',
   '移动 Bottom Sheet 打开期间只允许单向上移',

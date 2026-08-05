@@ -56,17 +56,17 @@ test.describe('research technology tree', () => {
   });
 
   test('uses the base duration for accelerated research progress', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto('runtime-test.html?view=research&scenario=research-accelerated');
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('runtime-test.html?view=research&scenario=research-accelerated');
 
-  await expect(page.getByRole('progressbar', { name: 'C5 研发进度' })).toHaveAttribute('aria-valuenow', '67');
-  const ringProgress = await page.getByRole('button', { name: /C5 产业技术，研发中/ }).evaluate((element) => (
-    getComputedStyle(element).getPropertyValue('--research-node-progress').trim()
-  ));
-  expect(ringProgress).toBe('240deg');
-});
+    await expect(page.getByRole('progressbar', { name: 'C5 研发进度' })).toHaveAttribute('aria-valuenow', '67');
+    const ringProgress = await page.getByRole('button', { name: /C5 产业技术，研发中/ }).evaluate((element) => (
+      getComputedStyle(element).getPropertyValue('--research-node-progress').trim()
+    ));
+    expect(ringProgress).toBe('240deg');
+  });
 
-test('mobile hides the desktop action panel and opens the same detail in a bottom dialog', async ({ page }) => {
+  test('mobile hides the desktop action panel and opens the same detail in a bottom dialog', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('runtime-test.html?view=research&scenario=research-active');
 
@@ -80,12 +80,93 @@ test('mobile hides the desktop action panel and opens the same detail in a botto
     await activeNode.click();
     const dialog = page.getByRole('dialog', { name: 'C3 研发新技术' });
     await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveClass(/mobile-detail-sheet/);
     await expect(dialog).toContainText('具体要求');
     await expect(dialog).toContainText('宝石加速');
+    await expect(dialog.locator('.mobile-detail-summary')).toBeVisible();
+    await expect(dialog.locator('.mobile-detail-sheet-footer')).toBeVisible();
     await expect(dialog.getByRole('button', { name: '1 宝石 · 加速 30m' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(activeNode).toBeFocused();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test('mobile research and factory details share the same sheet geometry', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+
+    const waitForStableSheetLayout = async () => {
+      await page.locator('.mobile-detail-sheet').evaluate(() => new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }));
+    };
+
+    const readGeometry = async () => page.locator('.mobile-detail-sheet').evaluate((sheet) => {
+      const readBox = (selector: string) => sheet.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+      const sheetBox = sheet.getBoundingClientRect();
+      const handleBox = readBox('.mobile-detail-sheet-handle');
+      const viewport = sheet.querySelector<HTMLElement>('.mobile-detail-sheet-scroll');
+      const footer = sheet.querySelector<HTMLElement>('.mobile-detail-sheet-footer');
+      const summary = sheet.querySelector<HTMLElement>('.mobile-detail-summary');
+      const artwork = sheet.querySelector<HTMLElement>('.mobile-detail-summary__artwork');
+      const sheetStyle = getComputedStyle(sheet);
+      const viewportStyle = viewport ? getComputedStyle(viewport) : null;
+      const footerStyle = footer ? getComputedStyle(footer) : null;
+      const summaryStyle = summary ? getComputedStyle(summary) : null;
+      const artworkStyle = artwork ? getComputedStyle(artwork) : null;
+      return {
+        x: sheetBox.x,
+        width: sheetBox.width,
+        bottom: sheetBox.bottom,
+        borderTopLeftRadius: sheetStyle.borderTopLeftRadius,
+        gridRowCount: sheetStyle.gridTemplateRows.split(' ').filter(Boolean).length,
+        handleWidth: handleBox?.width ?? 0,
+        handleHeight: handleBox?.height ?? 0,
+        viewportPaddingLeft: viewportStyle?.paddingLeft ?? '',
+        viewportPaddingRight: viewportStyle?.paddingRight ?? '',
+        footerPaddingLeft: footerStyle?.paddingLeft ?? '',
+        footerPaddingRight: footerStyle?.paddingRight ?? '',
+        footerPaddingBottom: footerStyle?.paddingBottom ?? '',
+        summaryColumns: summaryStyle?.gridTemplateColumns ?? '',
+        summaryGap: summaryStyle?.columnGap ?? '',
+        artworkAspectRatio: artworkStyle?.aspectRatio ?? '',
+      };
+    });
+
+    await page.goto('runtime-test.html?view=production&scenario=activity');
+    await page.getByRole('button', { name: /机械工厂，数量 18，运行中/ }).click();
+    const factoryDialog = page.getByRole('dialog', { name: /机械工厂/ });
+    await expect(factoryDialog).toBeVisible();
+    await waitForStableSheetLayout();
+    const factoryGeometry = await readGeometry();
+    await page.keyboard.press('Escape');
+    await expect(factoryDialog).toBeHidden();
+
+    await page.goto('runtime-test.html?view=research&scenario=research-active');
+    await page.getByRole('button', { name: /C3 产业技术，研发中/ }).click();
+    const researchDialog = page.getByRole('dialog', { name: 'C3 研发新技术' });
+    await expect(researchDialog).toBeVisible();
+    await waitForStableSheetLayout();
+    const researchGeometry = await readGeometry();
+
+    for (const key of ['x', 'width', 'bottom', 'handleWidth', 'handleHeight'] as const) {
+      expect(researchGeometry[key]).toBeCloseTo(factoryGeometry[key], 1);
+    }
+    for (const key of [
+      'borderTopLeftRadius',
+      'viewportPaddingLeft',
+      'viewportPaddingRight',
+      'footerPaddingLeft',
+      'footerPaddingRight',
+      'footerPaddingBottom',
+      'summaryColumns',
+      'summaryGap',
+      'artworkAspectRatio',
+    ] as const) {
+      expect(researchGeometry[key]).toBe(factoryGeometry[key]);
+    }
+    expect(factoryGeometry.gridRowCount).toBe(3);
+    expect(researchGeometry.gridRowCount).toBe(factoryGeometry.gridRowCount);
   });
 });

@@ -1,5 +1,5 @@
 import { configureInputModality } from '../utils/inputModality';
-import { configureMobileFacilityPullRefreshGuard } from '../utils/mobileFacilityPullRefresh';
+import { configureMobileDetailSheetPullRefreshGuard } from '../utils/mobileDetailSheetPullRefresh';
 
 configureInputModality();
-configureMobileFacilityPullRefreshGuard();
+configureMobileDetailSheetPullRefreshGuard();

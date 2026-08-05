@@ -63,7 +63,7 @@ function collectUnguardedHoverRules() {
 }
 
 const productionDetailPath = 'src/pages/production/ProductionFacilityDetail.tsx';
-const mobileDetailPath = 'src/pages/production/MobileFacilityDetailSheet.tsx';
+const mobileDetailPath = 'src/components/ui/MobileWorkspaceDetailSheet.tsx';
 const requiredFiles = [
   'src/utils/inputModality.ts',
   'src/app/interactionBootstrap.ts',
@@ -72,7 +72,7 @@ const requiredFiles = [
   productionDetailPath,
   mobileDetailPath,
   'src/styles/facility-group-card-grid.css',
-  'tests/browser/facility-detail-sheet.spec.ts',
+  'tests/browser/mobile-detail-sheet.spec.ts',
   'tests/browser/input-modality.spec.ts',
   'docs/UI_DESIGN_SYSTEM.md',
   'docs/INDUSTRY_AND_PRODUCTION_DESIGN.md',
@@ -123,7 +123,7 @@ if (failures.length === 0) {
     const file = relative(root, absolutePath).replaceAll('\\', '/');
     const content = readFileSync(absolutePath, 'utf8');
     if (!content.includes('interactionBootstrap')) {
-      failures.push(`${file} 是 React 根入口但未安装 interactionBootstrap`);
+      failures.push(`${file} 是 React 根��口但未安装 interactionBootstrap`);
     }
     if (content.includes('styles/design-system.css')) {
       const designIndex = content.indexOf('styles/design-system.css');
@@ -151,7 +151,7 @@ if (failures.length === 0) {
     'data-input-modality',
     'outlineStyle',
     'await expect(trigger).toBeFocused()',
-  ]) requireText('tests/browser/facility-detail-sheet.spec.ts', text);
+  ]) requireText('tests/browser/mobile-detail-sheet.spec.ts', text);
   for (const text of [
     'mixed input switches shared surface hover and focus without reload',
     'dataset.inputModality',

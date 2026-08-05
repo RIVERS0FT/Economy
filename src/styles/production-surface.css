@@ -8,22 +8,22 @@
 }
 
 .panel.production-surface > .widget-heading,
-.panel.production-surface .facility-information-heading {
+.panel.production-surface .facility-information-summary .mobile-detail-summary__heading {
   align-items: start;
 }
 
-.panel.production-surface .facility-information-heading {
+.panel.production-surface .facility-information-summary .mobile-detail-summary__heading {
   min-height: var(--production-pill-visible-height);
 }
 
 .panel.production-surface > .widget-heading h2,
-.panel.production-surface .facility-information-title h2 {
+.panel.production-surface .facility-information-summary .mobile-detail-summary__title h2 {
   margin: 0;
   font-size: var(--font-size-xl);
   line-height: var(--line-height-tight);
 }
 
-.panel.production-surface .facility-information-heading > .ui-switch {
+.panel.production-surface .facility-information-summary .mobile-detail-summary__action > .ui-switch {
   width: 2.75rem;
   min-width: 2.75rem;
   height: var(--production-pill-visible-height);
@@ -31,20 +31,20 @@
   align-self: start;
 }
 
-.panel.production-surface .facility-information-heading > .ui-switch::before {
+.panel.production-surface .facility-information-summary .mobile-detail-summary__action > .ui-switch::before {
   inset: 0;
   height: auto;
   border-radius: var(--radius-pill);
 }
 
-.panel.production-surface .facility-information-heading > .ui-switch::after {
+.panel.production-surface .facility-information-summary .mobile-detail-summary__action > .ui-switch::after {
   top: calc((var(--production-pill-visible-height) - var(--production-switch-thumb-size)) / 2);
   left: var(--production-switch-thumb-inset);
   width: var(--production-switch-thumb-size);
   height: var(--production-switch-thumb-size);
 }
 
-.panel.production-surface .facility-information-heading > .ui-switch:checked::after {
+.panel.production-surface .facility-information-summary .mobile-detail-summary__action > .ui-switch:checked::after {
   transform: translateX(var(--production-switch-thumb-travel));
 }
 
@@ -53,7 +53,7 @@
   --facility-card-inner-gap: var(--space-1);
 }
 
-.panel.production-surface .facility-information-meta .ui-status-tag {
+.panel.production-surface .facility-information-summary .mobile-detail-summary__meta .ui-status-tag {
   flex: 0 0 auto;
 }
 

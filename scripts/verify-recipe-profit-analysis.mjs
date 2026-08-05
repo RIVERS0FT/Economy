@@ -155,7 +155,7 @@ const facilityCardsBrowserSource = read('tests/browser/production-facility-cards
 const styleSource = read('src/styles/facility-recipe-profit-analysis.css');
 const surfaceSource = read('src/styles/production-surface.css');
 const groupSource = read('src/styles/facility-group-card-grid.css');
-const sheetSource = read('src/styles/facility-detail-sheet.css');
+const sheetSource = read('src/styles/mobile-detail-sheet.css');
 const designSource = read('docs/INDUSTRY_AND_PRODUCTION_DESIGN.md');
 const marketDesignSource = read('docs/UNIFIED_ASSET_ORDER_BOOK_DESIGN.md');
 
@@ -260,16 +260,16 @@ for (const text of [
 assert.equal(styleSource.includes('.facility-profit-analysis__summary'), false);
 
 for (const text of [
-  '.facility-information-heading',
-  'grid-template-columns: minmax(0, 1fr) auto;',
+  '.facility-information-summary',
+  'grid-template-areas:',
 ]) assert.ok(groupSource.includes(text), `工厂信息基础布局样式缺少: ${text}`);
 for (const text of [
-  '.facility-information-heading',
+  '.facility-information-summary .mobile-detail-summary__heading',
   '--facility-card-section-gap: var(--space-2);',
 ]) assert.ok(surfaceSource.includes(text), `生产一级表面压缩样式缺少: ${text}`);
 for (const text of [
   'min-height: 32px;',
-  '.facility-detail-sheet-header',
+  '.mobile-detail-sheet-header',
   'border-bottom: 0;',
 ]) assert.ok(sheetSource.includes(text), `移动详情头部压缩样式缺少: ${text}`);
 

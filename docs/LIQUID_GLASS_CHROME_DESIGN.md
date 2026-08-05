@@ -52,7 +52,7 @@
 | `desktop-sidebar.css` | 侧栏展开／折叠、导航固有行高和过渡 |
 | `viewport.css` | 游戏与管理员固定视口、桌面／移动开放背景采样链、登录态根视口纵向 overscroll 终止、移动工作区 gutter、两层 Overlay、局部层级堆叠边界与安全区层级 |
 | `scrollbars.css` | 通用覆盖式滚动条；移动页面纵向轨道固定到视口安全边缘，不负责移动底栏 |
-| `mobileFacilityPullRefresh.ts` | 仅对已打开的移动工厂详情识别顶部向下关闭手势，并在该手势激活后局部取消浏览器默认纵向过度滚动 |
+| `mobileDetailSheetPullRefresh.ts` | 仅对已打开的共享移动工厂／研发详情识别顶部向下关闭手势，并在该手势激活后局部取消浏览器默认纵向过度滚动 |
 | `admin-navigation.css` | 管理员桌面工作栏内容布局与运营业务编排，不得定义第二套根外壳 |
 | `mobile-status-navigation.css` | 移动导航唯一原生横向滚动视口、原生轨道隐藏、按钮几何和内部焦点环 |
 | `mobile-status-layout.css` | 移动状态栏固定五列、内容轨道零纵向内边距、图标与数值几何、数值自适应 CSS 变量、`clip` 溢出策略、移动通知灵动岛的物理屏幕中心定位与安全区宽度 |
@@ -180,8 +180,8 @@
 
 - `html[data-app-surface="game"|"admin"]` 是固定应用纵向滚动链的最终边界，必须由 `viewport.css` 设置 `overscroll-behavior-y: none`，阻止浏览器原生下拉刷新；登录、注册和封禁页面继续使用普通文档滚动，不得套用该根规则。
 - 页面 `.page-scroll`、详情内容、虚拟列表和其他内部滚动区继续保持 `overscroll-behavior-y: auto`，到达边界时仍按 UI 设计系统释放滚动链；不得为了阻止刷新把内部滚动区改成 `contain`。
-- `mobileFacilityPullRefresh.ts` 只为动态挂载的 `.facility-detail-sheet` 注册局部非被动 `touchmove`。它必须先排除按钮、链接、输入、选择器和滚动条，只在标题区或内容顶部识别到超过阈值且纵向占优的向下手势后调用 `preventDefault()`。
-- 该保护只取消浏览器默认过度滚动；工厂详情的位移、速度、关闭阈值、焦点返回和页面滚动锁定继续由 `ProductionPage.tsx` 负责。不得在 `window`、`document` 或 `body` 上建立全局非被动 `touchmove`。
+- `mobileDetailSheetPullRefresh.ts` 只为动态挂载的 `.mobile-detail-sheet` 注册局部非被动 `touchmove`。它必须先排除按钮、链接、输入、选择器和滚动条，只在标题区或内容顶部识别到超过阈值且纵向占优的向下手势后调用 `preventDefault()`。
+- 该保护只取消浏览器默认过度滚动；工厂与研发详情的位移、速度、关闭阈值、焦点返回和页面滚动锁定统一由 `MobileWorkspaceDetailSheet.tsx` 负责。不得在 `window`、`document` 或 `body` 上建立全局非被动 `touchmove`。
 
 移动页面纵向覆盖式轨道固定到视口安全边缘：
 

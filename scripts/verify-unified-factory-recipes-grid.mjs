@@ -37,11 +37,15 @@ for (const facility of FACILITY_TYPE_CATALOG) {
 const page = read('src/pages/ProductionPage.tsx');
 const detail = read('src/pages/production/ProductionFacilityDetail.tsx');
 const mobile = read('src/pages/production/MobileFacilityDetailSheet.tsx');
+const sharedSheet = read('src/components/ui/MobileWorkspaceDetailSheet.tsx');
+const sharedSummary = read('src/components/ui/MobileDetailSummary.tsx');
 const catalogPresentationDesign = read('docs/FACILITY_CATALOG_PRESENTATION_DESIGN.md');
 const pageContentDesign = read('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md');
 const productionSource = `${page}
 ${detail}
-${mobile}`;
+${mobile}
+${sharedSheet}
+${sharedSummary}`;
 assert.equal(
   page.includes('按复杂度从 C1 到 C7 选择工厂并查看生产详情。'),
   true,
@@ -60,18 +64,20 @@ for (const required of [
 
 for (const text of [
   'interface FacilityClusterEntry',
-  'interface FacilitySheetDragSession',
+  'interface MobileDetailSheetDragSession',
   'function FacilityClusterSelectorCard',
   'function FacilityClusterInformation',
   'function FacilityClusterDetailBody',
   'function FacilityMarketAction',
   'function FacilityClusterDetailContent',
   'function MobileFacilityDetailSheet',
+  'function MobileWorkspaceDetailSheet',
+  'function MobileDetailSummary',
   "import { createPortal } from 'react-dom';",
-  "import { ScrollArea } from '../../components/ui/ScrollArea';",
+  "import { ScrollArea } from './ScrollArea';",
   "import { FacilityIcon } from '../../components/icons/FacilityIcons';",
   '<FacilityIcon facilityTypeId={type.id} className="facility-cluster-icon" />',
-  'className="facility-detail-artwork facility-information-artwork"',
+  'artworkClassName="facility-detail-artwork facility-information-artwork"',
   'className="facility-detail-artwork-icon"',
   '<FacilityStaffingSummary entry={entry} now={now} />',
   'return createPortal(',
@@ -90,12 +96,14 @@ for (const text of [
   'className={`facility-cluster-profit is-${profit.tone}`}',
   'className="facility-cluster-count"',
   'className="facility-cluster-detail-shell"',
-  'className="facility-production-settings"',
+  'className="facility-production-settings mobile-detail-section"',
   'className="facility-production-settings-grid"',
   'className="facility-information"',
+  '<MobileDetailSummary',
+  'className="facility-information-summary"',
   'role="dialog"',
   'aria-modal="true"',
-  'aria-labelledby="mobile-facility-detail-title"',
+  'ariaLabelledBy="mobile-facility-detail-title"',
   'tabIndex={-1}',
   "event.key === 'Escape'",
   "event.key !== 'Tab'",
@@ -111,8 +119,8 @@ for (const text of [
   '!dialogLayer',
   '<strong>生产设置</strong>',
   'productionRecipeVariantId',
-  'FACILITY_SHEET_CLOSE_VELOCITY',
-  'FACILITY_SHEET_AXIS_DOMINANCE',
+  'MOBILE_DETAIL_SHEET_CLOSE_VELOCITY',
+  'MOBILE_DETAIL_SHEET_AXIS_DOMINANCE',
   'setPointerCapture',
   'const requestClose = useCallback',
   'const backdropPointerIdRef = useRef<number | undefined>(undefined)',
@@ -126,11 +134,11 @@ for (const text of [
   'isClosingRef.current = false;',
   "sheet.classList.add('is-settling', 'is-closing')",
   'requestClose(onOpenMarket)',
-  'className="facility-detail-sheet-drag-handle"',
-  'className="facility-detail-sheet-header"',
-  'className="facility-detail-sheet-footer"',
-  'className="facility-detail-sheet-scroll-area"',
-  'viewportClassName="facility-detail-sheet-scroll"',
+  'className="mobile-detail-sheet-drag-handle"',
+  'className="mobile-detail-sheet-header"',
+  'className="mobile-detail-sheet-footer"',
+  'className="mobile-detail-sheet-scroll-area"',
+  'viewportClassName="mobile-detail-sheet-scroll"',
   'scrollbarVisibility="adaptive"',
   '前往市场交易该工厂 →',
   'className="production-surface build-card production-build-card"',
@@ -142,7 +150,7 @@ for (const text of [
   assert.equal(productionSource.includes(text), true, `生产页组合源码缺少: ${text}`);
 
 assert.equal(
-  (mobile.match(/aria-labelledby="mobile-facility-detail-title"/g) ?? []).length,
+  (mobile.match(/ariaLabelledBy="mobile-facility-detail-title"/g) ?? []).length,
   1,
   '移动详情框只能声明一次 aria-labelledby',
 );
@@ -170,7 +178,7 @@ for (const forbidden of [
   'recipes.length === 1',
   'closeButtonRef',
   'closeAction',
-  'facility-detail-sheet-close',
+  'mobile-detail-sheet-close',
   "document.body.style.overflow = 'hidden'",
   'aria-label="关闭工厂详情"',
   'aria-pressed={isSelected}',
@@ -191,7 +199,7 @@ for (const forbidden of [
     `工厂详情源码不应包含: ${forbidden}`,
   );
 
-const facilitySheetBrowserTest = read('tests/browser/facility-detail-sheet.spec.ts');
+const facilitySheetBrowserTest = read('tests/browser/mobile-detail-sheet.spec.ts');
 for (const text of [
   'view=production&scenario=activity',
   'hasTouch: true',
@@ -207,7 +215,7 @@ for (const text of [
   'expect(sheetBox.x).toBeCloseTo(0, 1)',
   'expect(sheetBox.width).toBeCloseTo(width, 1)',
   "expect(alignment.justifyContent).toBe('stretch')",
-  "'.facility-detail-sheet-header > :not(.facility-detail-sheet-drag-handle)'",
+  "'.mobile-detail-sheet-header > :not(.mobile-detail-sheet-drag-handle)'",
   "'.facility-production-formula .facility-average-profit'",
   "'.facility-information .facility-average-profit'",
 ])
@@ -275,18 +283,9 @@ for (const text of [
     'transparent 42%',
   '.facility-cluster-detail-shell',
   '.facility-cluster-detail-card',
-  '.facility-detail-sheet-backdrop',
-  '.facility-detail-sheet',
-  'max-height: min(88svh, 760px);',
-  'env(safe-area-inset-bottom)',
-  '.facility-detail-sheet-scroll',
-  'overscroll-behavior-y: auto;',
   '.facility-information',
   '.facility-information > .facility-average-profit',
-  'position: sticky;',
-  '.facility-detail-sheet .facility-market-link-row',
   '@media (max-width: 720px)',
-  '@media (prefers-reduced-motion: reduce)',
 ])
   assert.equal(css.includes(text), true, `生产主从与悬浮框基础样式缺少: ${text}`);
 for (const forbidden of [
@@ -349,54 +348,60 @@ for (const forbidden of [
   'selectedMethod.description',
 ]) assert.equal(detailBodySource.includes(forbidden), false, `生产设置不得恢复拆分结构: ${forbidden}`);
 
-const sheetCss = read('src/styles/facility-detail-sheet.css');
+const sheetCss = read('src/styles/mobile-detail-sheet.css');
 for (const text of [
-  'Final authority for the mobile factory detail sheet',
+  'Final authority for signed-in mobile business detail sheets',
   ".page-scroll-area[data-modal-scrollbar-suppressed='true']",
-  '--facility-sheet-backdrop-progress',
-  '--facility-sheet-drag-offset',
-  '.facility-detail-sheet:focus',
-  '.facility-detail-sheet.is-dragging',
-  '.facility-detail-sheet.is-settling',
-  '.facility-detail-sheet.is-closing',
+  '--mobile-detail-sheet-backdrop-progress',
+  '--mobile-detail-sheet-drag-offset',
+  '.mobile-detail-sheet:focus',
+  '.mobile-detail-sheet.is-dragging',
+  '.mobile-detail-sheet.is-settling',
+  '.mobile-detail-sheet.is-closing',
   'pointer-events: none;',
-  '.facility-detail-sheet-drag-handle',
+  '.mobile-detail-sheet-drag-handle',
   'touch-action: none;',
-  '.facility-detail-sheet-header',
-  '.facility-detail-sheet-scroll-area',
-  '.facility-detail-sheet-scroll',
+  '.mobile-detail-sheet-header',
+  '.mobile-detail-sheet-scroll-area',
+  '.mobile-detail-sheet-scroll',
   'overflow-y: auto;',
   'overscroll-behavior-y: auto;',
-  '.facility-detail-sheet-footer',
+  '.mobile-detail-sheet-footer',
   'env(safe-area-inset-bottom)',
-  'min-height: 48px;',
+  'min-height: 32px;',
   '@media (prefers-reduced-motion: reduce)',
-  '.workspace-dialog-layer > .facility-detail-sheet-backdrop',
+  '.workspace-dialog-layer > .mobile-detail-sheet-backdrop',
   'grid-template-columns: minmax(0, 1fr);',
   'justify-content: stretch;',
   'justify-items: stretch;',
   'justify-self: stretch;',
   '.workspace-dialog-layer > .ui-rich-select__listbox',
-  '.facility-detail-sheet .facility-production-settings-grid',
-  'grid-template-columns: repeat(2, minmax(0, 1fr));',
-])
-  assert.equal(sheetCss.includes(text), true, `移动工厂详情样式缺少: ${text}`);
+  '.mobile-detail-summary',
+]) assert.equal(sheetCss.includes(text), true, `共享移动详情样式缺少: ${text}`);
 for (const forbidden of [
   'overscroll-behavior-y: contain',
   'display: none !important; /* vertical */',
-  '.facility-detail-sheet-close',
-  '.workspace-floating-layer > .facility-detail-sheet-backdrop',
-])
-  assert.equal(sheetCss.includes(forbidden), false, `移动工厂详情样式不应包含: ${forbidden}`);
+  '.mobile-detail-sheet-close',
+  '.workspace-floating-layer > .mobile-detail-sheet-backdrop',
+  '.research-detail-sheet-scroll {',
+]) assert.equal(sheetCss.includes(forbidden), false, `共享移动详情样式不应包含: ${forbidden}`);
+
+for (const text of [
+  '.mobile-detail-sheet .facility-production-settings-grid',
+  'grid-template-columns: repeat(2, minmax(0, 1fr));',
+  '.mobile-detail-sheet-footer .facility-market-link-row',
+  '.mobile-detail-sheet-footer .facility-market-link',
+]) assert.equal(css.includes(text), true, `移动工厂详情业务样式缺少: ${text}`);
+
 
 const main = read('src/main.tsx');
 assert.equal(
-  main.includes("import './styles/facility-detail-sheet.css';"),
+  main.includes("import './styles/mobile-detail-sheet.css';"),
   true,
   '入口必须在旧工厂卡样式后加载移动详情样式',
 );
 assert.equal(
-  main.indexOf("import './styles/facility-detail-sheet.css';") >
+  main.indexOf("import './styles/mobile-detail-sheet.css';") >
     main.indexOf("import './styles/facility-group-card-grid.css';"),
   true,
   '移动详情样式必须晚于基础工厂卡样式加载',
@@ -411,11 +416,11 @@ const surfaceCss = read('src/styles/production-surface.css');
 for (const text of [
   '.panel.production-surface',
   '--production-pill-visible-height: 1.6rem;',
-  '.panel.production-surface .facility-information-heading',
+  '.panel.production-surface .facility-information-summary .mobile-detail-summary__heading',
   'min-height: var(--production-pill-visible-height);',
-  '.panel.production-surface .facility-information-heading > .ui-switch {',
+  '.panel.production-surface .facility-information-summary .mobile-detail-summary__action > .ui-switch {',
   'height: var(--production-pill-visible-height);',
-  '.panel.production-surface .facility-information-heading > .ui-switch::before',
+  '.panel.production-surface .facility-information-summary .mobile-detail-summary__action > .ui-switch::before',
   'inset: 0;',
   'Primary surface padding is owned by primary-surfaces.css.',
 ])
@@ -465,18 +470,20 @@ for (const text of [
   '详情只显示一行“单厂平均利润／分钟”',
   '指标固定按一座工厂计算',
   '打开后焦点进入可程序化聚焦的对话框容器',
-  '不包含顶部关闭按钮',
+  '不显示关闭按钮',
   '点击遮罩和按下 `Escape` 必须与有效下拉关闭共用同一收起流程',
   '关闭互斥状态只覆盖当前一次收起流程',
   '不得只依赖移动浏览器合成的 `click`',
   '稳定视觉视口高度快照',
   '关闭后焦点返回触发卡',
-  '固定头部／唯一 `ScrollArea` 正文／固定底部操作区',
+  '固定拖动头部／唯一 `ScrollArea` 正文／固定底部操作区',
   '正文 `scrollTop` 实际变化后显示',
   '空闲 `1600ms` 后淡出',
   '正文 `scrollTop = 0`',
   '向下距离达到悬浮框高度的 `25%`',
-  '`src/styles/facility-detail-sheet.css`',
+  '`src/styles/mobile-detail-sheet.css`',
+  '`MobileWorkspaceDetailSheet`',
+  '`MobileDetailSummary`',
   '视口变为大于 `720px` 时必须自动关闭并解除滚动锁与轨道抑制',
   '选择卡内部不得嵌套运行开关、配方选择器或市场按钮',
   '生产公式只展示集群参数',

@@ -34,7 +34,7 @@ import '../../src/styles/industry-system.css';
 import '../../src/styles/facility-production-formula.css';
 import '../../src/styles/facility-group-card-grid.css';
 import '../../src/styles/research-page.css';
-import '../../src/styles/facility-detail-sheet.css';
+import '../../src/styles/mobile-detail-sheet.css';
 import '../../src/styles/warehouse-expansion.css';
 import '../../src/styles/production-surface.css';
 import '../../src/styles/contracts.css';

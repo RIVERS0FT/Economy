@@ -23,6 +23,9 @@ for (const path of [
   'src/pages/PageRouter.tsx',
   'src/pages/ResearchPage.tsx',
   'src/styles/research-page.css',
+  'src/styles/mobile-detail-sheet.css',
+  'src/components/ui/MobileWorkspaceDetailSheet.tsx',
+  'src/components/ui/MobileDetailSummary.tsx',
   'src/api/game.ts',
   'src/app/gameViewModel.ts',
   'src/types.ts',
@@ -59,8 +62,12 @@ for (const text of [
   'className="research-level-node"',
   'className="research-facility-node"',
   'className="research-detail-content"',
-  'className="research-requirements"',
+  'className="research-requirements mobile-detail-section"',
   'MobileResearchDetailSheet',
+  'MobileWorkspaceDetailSheet',
+  'MobileDetailSummary',
+  'ResearchDetailBody',
+  'ResearchDetailActions',
   'FacilityIcon',
   'model.startResearch(selectedLevel.id)',
   'model.accelerateResearch()',
@@ -74,6 +81,13 @@ requireText(
   'tests/browser/research-technology-tree.spec.ts',
   'uses the base duration for accelerated research progress',
 );
+for (const text of [
+  'mobile research and factory details share the same sheet geometry',
+  "page.locator('.mobile-detail-sheet')",
+  'summaryColumns',
+  'footerPaddingBottom',
+  'artworkAspectRatio',
+]) requireText('tests/browser/research-technology-tree.spec.ts', text);
 
 for (const text of [
   'grid-template-columns: minmax(280px, 320px) minmax(300px, 360px) minmax(480px, 1fr);',
@@ -81,8 +95,29 @@ for (const text of [
   'border-radius: 50%;',
   '@media (max-width: 720px)',
   '.research-action-panel {\n    display: none;',
-  '.research-detail-sheet-backdrop',
+  '.mobile-detail-sheet-footer .research-detail-actions',
+  '.mobile-detail-sheet .research-detail-summary-status',
 ]) requireText('src/styles/research-page.css', text);
+
+for (const text of [
+  '.mobile-detail-sheet-backdrop',
+  '.mobile-detail-sheet-scroll',
+  '.mobile-detail-sheet-footer',
+  '.mobile-detail-summary',
+  '--mobile-detail-sheet-max-height',
+]) requireText('src/styles/mobile-detail-sheet.css', text);
+
+for (const forbidden of [
+  'createPortal',
+  'useWorkspaceDialogLayer',
+]) forbidText('src/pages/ResearchPage.tsx', forbidden);
+for (const forbidden of [
+  '.mobile-detail-sheet .research-detail-actions {\n    position: sticky;',
+  'max-height: min(88svh, 760px);',
+  '.research-detail-sheet-backdrop',
+  'legacyClassPrefix',
+]) forbidText('src/styles/research-page.css', forbidden);
+
 
 for (const text of [
   'className="research-level-card"',
@@ -130,6 +165,9 @@ for (const text of [
   '圆形',
   '1 宝石',
   '30 分钟',
+  'MobileWorkspaceDetailSheet',
+  'MobileDetailSummary',
+  '固定底栏',
 ]) requireText('docs/PAGE_CONTENT_AND_NAVIGATION_DESIGN.md', text);
 
 for (const text of [
