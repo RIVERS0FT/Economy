@@ -1,0 +1,170 @@
+  }, [initialContract?.id]);
+
+  const quantity = parseIntegerDraft`,
+    'populate publish panel from history',
+  );
+
+  content = replaceOnce(
+    content,
+    "  const [historyError, setHistoryError] = useState('');\n  const [expandedContractId, setExpandedContractId] = useState<string | null>(null);\n  const [auditDetails, setAuditDetails] = useState<Record<string, ContractAuditDetail>>({});\n  const [auditLoadingId, setAuditLoadingId] = useState<string | null>(null);",
+    "  const [historyError, setHistoryError] = useState('');\n  const [republishContract, setRepublishContract] = useState<ContractAuditHistoryItem | null>(null);",
+    'replace audit detail state with republish state',
+  );
+  content = replaceOnce(content, '    setExpandedContractId(null);\n', '', 'remove history expansion reset');
+  content = replaceOnce(
+    content,
+    "        if (key === 'publish') setShowPublish(false);",
+    "        if (key === 'publish') { setShowPublish(false); setRepublishContract(null); }",
+    'clear republish draft after publishing',
+  );
+  content = replaceRegex(
+    content,
+    /\n  async function toggleAudit\([\s\S]*?\n  const activeEmptyMessage/,
+    `
+  function startRepublish(contract: ContractAuditHistoryItem) {
+    if (showPublish && !window.confirm('使用历史合同参数将替换当前未发布内容，是否继续？')) return;
+    setRepublishContract(contract);
+    setShowPublish(true);
+    model.notify('已填入历史合同参数，请核对当前条件后发布。');
+  }
+
+  const activeEmptyMessage`,
+    'remove audit loading actions and add republish action',
+  );
+  content = replaceOnce(
+    content,
+    "      actions={<Button onClick={() => setShowPublish((current) => !current)}>{showPublish ? '收起发布表单' : '发布合同'}</Button>}",
+    "      actions={<Button onClick={() => { if (showPublish) { setShowPublish(false); setRepublishContract(null); } else { setRepublishContract(null); setShowPublish(true); } }}>{showPublish ? '收起发布表单' : '发布合同'}</Button>}",
+    'publish panel toggle clears history draft',
+  );
+  content = replaceOnce(
+    content,
+    '{showPublish ? <PublishContractPanel model={model} busy={Boolean(busyKey)} close={() => setShowPublish(false)} run={run} /> : null}',
+    "{showPublish ? <PublishContractPanel model={model} busy={Boolean(busyKey)} close={() => { setShowPublish(false); setRepublishContract(null); }} run={run} initialContract={republishContract} /> : null}",
+    'publish panel history draft prop',
+  );
+  content = replaceOnce(
+    content,
+    `                <option value="buyer">我采购</option>\n                <option value="supplier">我供货</option>\n                <option value="publisher">我发布</option>`,
+    `                <option value="buyer">我采购</option>
+                <option value="supplier">我供货</option>
+                <option value="lender">我放贷</option>
+                <option value="borrower">我贷款</option>
+                <option value="lessor">我出租</option>
+                <option value="lessee">我租赁</option>
+                <option value="publisher">我发布</option>`,
+    'history role options',
+  );
+  content = replaceOnce(
+    content,
+    `<SelectInput label="合同商品" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}>\n                <option value="">全部商品</option>\n                {model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}\n              </SelectInput>`,
+    `<SelectInput label="合同标的" value={historyProductId} onChange={(event) => setHistoryProductId(event.target.value)}>
+                <option value="">全部标的</option>
+                <option value="credits">普通货币</option>
+                {model.game.products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+                {model.game.facilityTypes.map((facility) => <option key={\`facility:\${facility.id}\`} value={\`facility:\${facility.id}\`}>{facility.name}</option>)}
+              </SelectInput>`,
+    'history asset filter',
+  );
+  content = replaceRegex(
+    content,
+    /              <HistoryContractRow\n                key=\{contract\.id\}[\s\S]*?\n              \/>/,
+    `              <HistoryContractRow
+                key={contract.id}
+                contract={contract}
+                productName={productNames.get(contract.productId) ?? contract.productId}
+                facilityName={productNames.get('facility:' + (contract.facilityTypeId || '')) ?? contract.facilityTypeId ?? '—'}
+                onRepublish={() => startRepublish(contract)}
+              />`,
+    'history result row props',
+  );
+  return content;
+});
+
+write('src/styles/contract-audit.css', `.contract-history-filters {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  padding-bottom: var(--space-4);
+}
+
+.contract-personal-pane .contract-history-filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.contract-history-clear {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.contract-history-entry {
+  display: grid;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--color-divider);
+  padding: var(--space-4) 0;
+}
+
+.contract-history-entry:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.contract-history-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.contract-history-copy {
+  min-width: 0;
+}
+
+.contract-history-copy h2 {
+  margin: var(--space-2) 0 0;
+}
+
+.contract-history-republish {
+  flex: 0 0 auto;
+}
+
+.contract-history-result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.contract-history-section {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  gap: var(--space-3);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+  background: var(--color-surface-inset);
+}
+
+.contract-history-section--statistics {
+  grid-column: 1 / -1;
+}
+
+.contract-history-section h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.contract-history-section .contract-progress {
+  min-width: 0;
+}
+
+.contract-history-legacy-note,
+.contract-audit-loading {
+  margin: 0;
+  border-radius: var(--radius-control);
+  padding: var(--space-3);
+  line-height: var(--line-height-body);
+}
+
