@@ -37,6 +37,7 @@ for path in Path('server/test').rglob('*.test.js'):
         ('assert.equal(persisted.version, 25);', 'assert.equal(persisted.version, 26);'),
         ('assert.equal(migrated.version, 25);', 'assert.equal(migrated.version, 26);'),
         ('assert.equal(state.version, 25);', 'assert.equal(state.version, 26);'),
+        ('assert.equal(m.version,25);', 'assert.equal(m.version,26);'),
     ])
 
 for path in Path('scripts').glob('*'):
@@ -75,4 +76,4 @@ rewrite('scripts/verify-page-content.mjs', [
     ),
 ])
 
-print('客户端版本 29、世界版本 26、合同 Schema 5 与当前迁移结果断言已同步')
+print('客户端版本 29、世界版本 26、合同 Schema 5 与全部当前迁移结果断言已同步')
