@@ -208,8 +208,8 @@ requireText('tests/browser/auction-bid-history.spec.ts', [
 ]);
 
 requireText('.github/workflows/deploy.yml', [
-  'backup before world 23 migration',
-  'backup-world --target-world-version 23',
+  'backup before world 24 migration',
+  'backup-world --target-world-version 24',
   'ECONOMY_DATABASE_INCREMENTAL_VERIFIED',
 ]);
 requireText('docs/README.md', ['客户端状态版本：27', '世界状态版本：24']);
