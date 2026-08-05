@@ -1,6 +1,6 @@
 {
-  "version": 5,
-  "style": "c1-work-systems-expansion-2026-08-05",
+  "version": 6,
+  "style": "fertilizer-tools-redraw-2026-08-05",
   "creationMode": "from-scratch-new-illustration",
   "complexities": [
     "C1",
@@ -62,9 +62,9 @@
     "machine-factory": "bbd780621ed357742eb406ff050037113189c6d18f20463cc82fc0edd2694ae2",
     "electronics-factory": "c4eb10814589c9988ecfde7b268eed63c48313d49ec4cd141f1082f81ae5cddf",
     "appliance-factory": "b7ce7d0dcb5ce3587978a8dc88e2054a4e5e96855046da1591c5e33f3d63c778",
-    "fertilizer-factory": "06b580081ce85353acad479ab7c9893ad78f9e450ffa7fd02e77d085c00faeb0",
+    "fertilizer-factory": "a23040a6243468db2e33bd1f68523bd0268eefdbd6e9d3fbb625375811706142",
     "veterinary-medicine-factory": "caa65a3a96dbe0291ec505857d0a5bcc13afcd1ecb519c7ffd3954dd71169830",
-    "tool-workshop": "bd46b7f0916a595f46ba987dbb9e3fb0d899b1c5265d275797f40f0e4a258eba",
+    "tool-workshop": "334bae12d835a534b5c955b3e658cbeb5a14adb1ecd36052f79c0b5a65cbde98",
     "tractor-factory": "674b0b64052ec1739da069043191872d0ef657d5dee8d9a8f99c5c8ee49c7474"
   }
 }

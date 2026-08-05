@@ -80,8 +80,8 @@ if (failures.length === 0) {
     && typeof artworkBaseline.sha256 === 'object'
     ? artworkBaseline.sha256
     : {};
-  if (artworkBaseline.version !== 5
-    || artworkBaseline.style !== 'c1-work-systems-expansion-2026-08-05'
+  if (artworkBaseline.version !== 6
+    || artworkBaseline.style !== 'fertilizer-tools-redraw-2026-08-05'
     || artworkBaseline.creationMode !== 'from-scratch-new-illustration'
     || JSON.stringify(baselineComplexities) !== JSON.stringify(fromScratchComplexities)) {
     failures.push(`${paths.artworkBaseline} 不是当前 C1–C7 从空白新绘／主体优先基线`);
@@ -296,6 +296,8 @@ if (failures.length === 0) {
       '当前 C2 复杂度工厂 `logging-camp`、`mine`、`oil-field`、`mill` 与 `sawmill`',
       '当前 C3 复杂度工厂 `pulp-mill`、`steelworks`、`textile-mill`、`food-factory` 与 `paper-mill`',
       '当前 C4 复杂度工厂 `refinery`、`beverage-factory`、`furniture-factory` 与 `garment-factory`',
+      '化肥厂当前批准构图以中央造粒塔、双侧储罐、输送管廊和装袋区为核心',
+      '`tool-workshop` 当前批准构图以砖钢锯齿屋顶工坊、开放锻造间、工作台与工具架为核心',
       '当前 C5 `machine-factory`、C6 `electronics-factory` 与 C7 `appliance-factory`',
       '采用统一新风格从空白新绘',
       '不以旧图为编辑、描摹或重绘底稿',
